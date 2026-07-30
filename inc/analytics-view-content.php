@@ -47,6 +47,11 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	// annotate ranges that span the cliff and show an affected path.
 	snt_an_annotation( sn_annotation_maturity_migration( $paths, $from, $to ) );
 	snt_analytics_render_paths_table( $paths );
+	// v10.21.0: which ARGUMENTS moved — per-topic aggregation from the ML
+	// kernel's stored partition. Guarded so a partial install degrades cleanly.
+	if ( function_exists( 'snt_analytics_render_topics' ) ) {
+		snt_analytics_render_topics( $from, $to );
+	}
 	echo '</div>';
 
 	echo '<div class="sn-an-content-side">';

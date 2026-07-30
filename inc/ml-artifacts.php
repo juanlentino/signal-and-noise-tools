@@ -33,6 +33,8 @@ const SNT_ML_CORPUS_META_OPT    = 'snt_ml_corpus_meta';
 const SNT_ML_REBUILD_HOOK       = 'snt_ml_rebuild';        // Daily recurring backstop.
 const SNT_ML_REBUILD_ASYNC_HOOK = 'snt_ml_rebuild_async';  // Coalesced publish-burst single event.
 const SNT_ML_TOP_N              = 10;
+const SNT_ML_TOPICS_OPT         = 'snt_ml_topics';  // v10.21.0: corpus-wide topic partition (autoload=no).
+const SNT_ML_TOPIC_THRESHOLD    = 0.35;             // Cosine floor for topic membership — looser than cousins' 0.6 by design.
 
 if ( ! function_exists( 'snt_ml_extract_note_links' ) ) {
 	/**
@@ -145,6 +147,23 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 			update_post_meta( $id, SNT_ML_RELATED_META, array_slice( $rows, 0, SNT_ML_TOP_N ) );
 		}
 
+		// v10.21.0: topic clusters ride the same pass — the vectors are already
+		// in memory, so the partition costs one extra upper-triangle walk.
+		// Stored as its own corpus-wide option (the SNT_ML_CORPUS_META_OPT
+		// idiom): clusters of {members, label}, deterministic, singletons excluded.
+		$topic_rows = array();
+		foreach ( snt_ml_topic_clusters( $vectors, SNT_ML_TOPIC_THRESHOLD ) as $members ) {
+			$topic_rows[] = array(
+				'members' => $members,
+				'label'   => snt_ml_cluster_label( $vectors, $members ),
+			);
+		}
+		update_option( SNT_ML_TOPICS_OPT, array(
+			'built_at'  => $built_at,
+			'threshold' => SNT_ML_TOPIC_THRESHOLD,
+			'clusters'  => $topic_rows,
+		), false );
+
 		sort( $stamp );
 		update_option( SNT_ML_CORPUS_META_OPT, array(
 			'fingerprint' => md5( implode( '|', $stamp ) ),
@@ -156,6 +175,7 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 			'ok'       => true,
 			'posts'    => $n,
 			'pairs'    => $pairs,
+			'clusters' => count( $topic_rows ),
 			'built_at' => $built_at,
 		);
 	}
@@ -208,6 +228,26 @@ if ( ! function_exists( 'snt_ml_related_for_post' ) ) {
 			}
 		}
 		return $out;
+	}
+}
+
+if ( ! function_exists( 'snt_ml_topics_get' ) ) {
+	/**
+	 * Read the stored topic partition (v10.21.0).
+	 *
+	 * NULL when the topics artifact was never built (unknown — never a
+	 * fabricated empty list); the clusters array otherwise, [] being a REAL
+	 * clusterless answer. Same honest-envelope contract as
+	 * snt_ml_related_for_post().
+	 *
+	 * @return array<int,array{members:array<int,int>,label:string}>|null
+	 */
+	function snt_ml_topics_get() {
+		$stored = get_option( SNT_ML_TOPICS_OPT );
+		if ( ! is_array( $stored ) || ! isset( $stored['clusters'] ) || ! is_array( $stored['clusters'] ) ) {
+			return null;
+		}
+		return $stored['clusters'];
 	}
 }
 

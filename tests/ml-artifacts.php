@@ -222,6 +222,7 @@ ok( is_wp_error( $unbuilt ) && 'snt_ml_not_built' === $unbuilt->get_error_code()
 	'(a) pipeline maps the null to snt_ml_not_built (503-shaped)' );
 $GLOBALS['__ctx'] = array( 'singular' => true, 'loop' => true, 'main' => true, 'the_id' => 1 );
 ok( 'BODY' === snt_ml_related_render( 'BODY' ), '(a) render is SILENT on unbuilt artifacts (reader surface, not an error surface)' );
+ok( null === snt_ml_topics_get(), '(a) topics reader: NULL before the first build — never a fabricated empty list' );
 $GLOBALS['__ctx']['singular'] = false;
 
 // ─── (b) Internal-link extraction ────────────────────────────────────
@@ -246,6 +247,21 @@ ok( is_int( $env['built_at'] ) && $env['built_at'] > 0, '(c) built_at stamped' )
 $opt = get_option( SNT_ML_CORPUS_META_OPT );
 ok( is_array( $opt ) && 32 === strlen( (string) $opt['fingerprint'] ), '(c) option carries a 32-char corpus fingerprint' );
 ok( 6 === $opt['posts'] && is_int( $opt['built_at'] ), '(c) option carries posts + built_at' );
+
+// v10.21.0: topic clusters ride the same build pass. The fixture corpus is
+// two topic families by construction (1↔2 share vocab/tag/link; 3↔4 share
+// theirs; 6 and 7 sit apart) — pin the STORED artifact, not internals.
+$topics_opt = get_option( SNT_ML_TOPICS_OPT );
+ok( is_array( $topics_opt ) && is_int( $topics_opt['built_at'] ) && is_array( $topics_opt['clusters'] ), '(c) topics option stored beside the corpus stamp' );
+$c_members = array_map( static function ( $c ) { return $c['members']; }, $topics_opt['clusters'] );
+ok( in_array( array( 1, 2 ), $c_members, true ), '(c) topic {1,2} found (shared vocabulary family)' );
+$c_labels_ok = true;
+foreach ( $topics_opt['clusters'] as $c ) {
+	if ( ! is_string( $c['label'] ) || '' === $c['label'] ) { $c_labels_ok = false; }
+}
+ok( $c_labels_ok, '(c) every stored cluster carries a non-empty deterministic label' );
+ok( isset( $env['clusters'] ) && count( $topics_opt['clusters'] ) === $env['clusters'], '(c) envelope reports the stored cluster count' );
+ok( is_array( snt_ml_topics_get() ) && $topics_opt['clusters'] === snt_ml_topics_get(), '(c) snt_ml_topics_get() returns the stored clusters' );
 
 $m1 = get_post_meta( 1, SNT_ML_RELATED_META, true );
 ok( is_array( $m1 ) && count( $m1 ) >= 1, '(c) post 1 got a related-rows meta artifact' );
@@ -407,6 +423,7 @@ ok( true === $empty_env['ok'] && 0 === $empty_env['posts'] && 0 === $empty_env['
 ok( is_array( get_option( SNT_ML_CORPUS_META_OPT ) ) && 0 === get_option( SNT_ML_CORPUS_META_OPT )['posts'],
 	'(h) the option is still stamped: "built over nothing" ≠ "never built"' );
 ok( array() === snt_ml_related_for_post( 1, 4 ), '(h) reads under the empty corpus answer [] (stale rows all gated out), not null' );
+ok( array() === snt_ml_topics_get(), '(h) topics option is ALSO stamped on an empty build: built-over-nothing answers [] — never null' );
 
 echo "\nGroup (i): no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], '(i) zero notices/warnings/deprecations raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );

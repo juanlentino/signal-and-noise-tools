@@ -265,6 +265,66 @@ ok( is_wp_error( $went_null ) && 'snt_ml_not_built' === $went_null->get_error_co
 	'(j) null from artifacts (index vanished) → snt_ml_not_built — never conflated with the real 0-match answer' );
 $GLOBALS['__artifact_null'] = false;
 
+echo "\nGroup (l): topic clusters — deterministic components over the cosine graph (v10.21.0)\n";
+// Vectors BY CONSTRUCTION (memberships provable on paper, never echoed from
+// the kernel): identical sparse vectors ⇒ cosine ≡ 1.0; disjoint vocabularies
+// ⇒ cosine ≡ 0.0. Two components {1,2,3} and {10,11}, singleton 20.
+$va = array( 'alpha' => 0.6, 'beta' => 0.8 );
+$vb = array( 'gamma' => 1.0 );
+$vc = array( 'delta' => 0.8, 'epsilon' => 0.6 );
+$cluster_vectors = array(
+	2  => $va,
+	1  => $va,
+	3  => $va,
+	11 => $vb,
+	10 => $vb,
+	20 => $vc,
+);
+$clusters = snt_ml_topic_clusters( $cluster_vectors, 0.5 );
+ok( array( array( 1, 2, 3 ), array( 10, 11 ) ) === $clusters,
+	'(l) membership pinned by construction: {1,2,3} then {10,11}; members ascending; clusters size-desc; SINGLETON 20 excluded (a topic needs two notes)' );
+ok( array() === snt_ml_topic_clusters( array(), 0.5 ), '(l) empty vector map → [] with zero notices' );
+ok( array() === snt_ml_topic_clusters( array( 5 => array( 'x' => 1.0 ) ), 0.5 ), '(l) a lone document clusters with nobody → []' );
+
+// Threshold boundary is INCLUSIVE (>=): a pair sitting exactly ON the
+// threshold clusters. cos( (1,0), (√.5,√.5) ) = √.5 exactly — hand-derivable.
+$r2 = 0.7071067811865476; // 1/√2 to PHP float precision.
+$boundary = array( 1 => array( 'x' => 1.0 ), 2 => array( 'x' => $r2, 'y' => $r2 ) );
+ok( array( array( 1, 2 ) ) === snt_ml_topic_clusters( $boundary, $r2 ), '(l) cosine == threshold clusters (inclusive >=)' );
+ok( array() === snt_ml_topic_clusters( $boundary, 0.7072 ), '(l) …and a hair above the same cosine does not' );
+
+// Equal-size tiebreak: first-member ascending.
+$tie = array(
+	7 => array( 'p' => 1.0 ),
+	8 => array( 'p' => 1.0 ),
+	4 => array( 'q' => 1.0 ),
+	5 => array( 'q' => 1.0 ),
+);
+ok( array( array( 4, 5 ), array( 7, 8 ) ) === snt_ml_topic_clusters( $tie, 0.5 ), '(l) equal-size clusters order by first member ascending' );
+
+// Transitivity: A~B and B~C but A≁C still one component (that IS the
+// clustering choice — components, not cliques). Hand-derived: with unit
+// vectors, cos(A,B)=cos(B,C)=1/√2 ≥ 0.7, cos(A,C)=0.
+$chain = array(
+	1 => array( 'x' => 1.0 ),
+	2 => array( 'x' => $r2, 'y' => $r2 ),
+	3 => array( 'y' => 1.0 ),
+);
+ok( array( array( 1, 2, 3 ) ) === snt_ml_topic_clusters( $chain, 0.7 ), '(l) components, not cliques: the chain A~B~C is ONE topic even though A≁C' );
+
+echo "\nGroup (m): cluster labels — top shared weight, deterministic (v10.21.0)\n";
+// Hand-derived: summed weights across {1,2}: beta 1.6, alpha 1.2 → 'beta · alpha'.
+$label_vectors = array(
+	1 => array( 'alpha' => 0.6, 'beta' => 0.8 ),
+	2 => array( 'alpha' => 0.6, 'beta' => 0.8 ),
+);
+ok( 'beta · alpha' === snt_ml_cluster_label( $label_vectors, array( 1, 2 ) ), '(m) label = top-2 terms by summed weight, middot-joined' );
+ok( 'gamma' === snt_ml_cluster_label( array( 9 => array( 'gamma' => 1.0 ) ), array( 9 ) ), '(m) a one-term vocabulary labels with the one term' );
+ok( '' === snt_ml_cluster_label( $label_vectors, array( 999 ) ), '(m) unknown members → empty label, zero notices' );
+// Equal-weight tiebreak: alphabetical, so the label never flaps between builds.
+$flat = array( 1 => array( 'zeta' => 0.5, 'eta' => 0.5 ) );
+ok( 'eta · zeta' === snt_ml_cluster_label( $flat, array( 1 ) ), '(m) equal weights tie-break alphabetically — labels are build-stable' );
+
 echo "\nGroup (k): no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], '(k) zero notices/warnings/deprecations raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
 

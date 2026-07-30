@@ -199,6 +199,38 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
+	// ─── 1e. Topic clusters — v10.21.0 ──────────────────────────────
+	// No inputs at all, so the bodyless-GET union type applies.
+	wp_register_ability( 'signal-noise/topic-clusters', array(
+		'label'               => 'Read the corpus topic partition',
+		'description'         => 'Deterministic topic map, no AI: the stored partition of published notes into topics — connected components over TF-IDF cosine similarity, computed at artifact-build time (publish transitions + the nightly rebuild), never on demand. Each cluster: {members: [post IDs ascending], label: top shared terms}. Singletons are excluded (a topic needs two notes). Returns a 503 while the ML artifacts are unbuilt; an empty cluster list is a real answer, not an error.',
+		'category'            => 'tools',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_corpus_topic_clusters',
+		'input_schema'        => array(
+			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
+			'properties'           => array(),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'            => array( 'type' => 'boolean' ),
+				'clusters'      => array( 'type' => 'array' ),
+				'cluster_count' => array( 'type' => 'integer' ),
+				'built_at'      => array( 'type' => 'integer' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'    => true,
+				'destructive' => false,
+				'idempotent'  => true,
+			),
+		),
+	) );
+
 	// ─── 2. List posts ──────────────────────────────────────────────
 	wp_register_ability( 'signal-noise/list-posts', array(
 		'label'               => 'List corpus metadata for every post',
@@ -319,6 +351,23 @@ function snt_ability_corpus_near_duplicate_scan( $input ) {
 		$args['threshold'] = (float) $input['threshold']; // Clamp 0.3..0.95 lives in the impl.
 	}
 	return snt_ml_run( 'near-duplicates', $args );
+}
+
+/**
+ * Ability wrapper: routes through the ML pipeline registry to the stored
+ * topic partition — the registry (snt_ml_run) stays the single ML dispatch
+ * seam.
+ *
+ * @param array|null $input Validated against input_schema above (input-less).
+ * @return array|WP_Error
+ *
+ * @since 10.21.0
+ */
+function snt_ability_corpus_topic_clusters( $input ) {
+	if ( ! function_exists( 'snt_ml_run' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'ML pipeline registry not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+	}
+	return snt_ml_run( 'topic-clusters', array() );
 }
 
 /**

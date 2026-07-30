@@ -39,3 +39,4 @@ require_once __DIR__ . '/analytics-render-events.php';       // custom-events + 
 require_once __DIR__ . '/analytics-render-geography.php';    // world-map choropleth + SVG recolor transform
 require_once __DIR__ . '/analytics-render-drilldown.php';    // cross-tab dimension drill-down panel
 require_once __DIR__ . '/analytics-render-settings.php';     // settings-hub partials: credentials, exclusion, worker setup, pipeline strip, tuning, mirrors, filter reference
+require_once __DIR__ . '/analytics-render-topics.php';       // v10.21.0: per-topic aggregated views (ML pipeline #4's consumer)

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.20.1
+ * Version:     10.21.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -108,6 +108,7 @@ require_once SNT_PATH . 'inc/analytics-rollup.php';
 require_once SNT_PATH . 'inc/analytics-derive.php'; // Phase A pure derive layer (spec §4) — zero WP calls; consumed by the read layer
 require_once SNT_PATH . 'inc/analytics-realtime.php';
 require_once SNT_PATH . 'inc/analytics-read.php';   // path read accessors (dashboard + widgets)
+require_once SNT_PATH . 'inc/analytics-topics.php'; // v10.21.0: topic-level aggregation (ML partition × path rollups)
 require_once SNT_PATH . 'inc/analytics-sessions.php';       // within-day session engine (pure)
 require_once SNT_PATH . 'inc/analytics-view-sessions.php';  // Visits view
 require_once SNT_PATH . 'inc/analytics-session-rollup.php'; // durable session-quality rollup + cron
