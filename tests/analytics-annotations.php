@@ -208,5 +208,14 @@ an_eq( null, sn_annotation_maturity_migration( 'not-an-array', '2026-07-01', '20
 // Movers rows carry { path, views, delta } — the same resolver serves that panel.
 an_eq( $mig_line, sn_annotation_maturity_migration( array( array( 'path' => '/proof-of-origin/', 'views' => 5, 'delta' => -40 ) ), '2026-07-15', '2026-08-05' ), 'movers-shaped rows -> read (shared resolver)' );
 
+// The movers COMPARE-WINDOW case (review finding on PR #409): a post-migration
+// display range (Aug 1-14) stays silent by itself, but its prior compare window
+// (Jul 18-31) straddles the cliff and MUST produce the read — the movers call
+// site composes exactly these two calls (display ?? resolved-compare-window),
+// so this pair pins the union logic's both halves against the pure resolver.
+$mig_dropout = array( array( 'path' => '/analytics/', 'views' => 0, 'delta' => -120 ) ); // dropped-out prior-window path, views 0
+an_eq( null, sn_annotation_maturity_migration( $mig_dropout, '2026-08-01', '2026-08-14' ), 'movers display window after the cliff alone -> null (the silent half)' );
+an_eq( $mig_line, sn_annotation_maturity_migration( $mig_dropout, '2026-07-18', '2026-07-31' ), 'the resolved prior compare window straddles the cliff -> read (the rescuing half)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
