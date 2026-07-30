@@ -2,13 +2,14 @@
 /**
  * Signal & Noise Tools — Abilities API: corpus inspection (read-only).
  *
- * Three abilities for pre-publish collision checking against the whole
+ * Four abilities for pre-publish collision checking against the whole
  * corpus (all non-trash statuses — scheduled/draft posts are the point):
  *   - signal-noise/duplicate-body-scan  (exact-duplicate hash groups)
+ *   - signal-noise/near-duplicate-scan  (cousin pairs — TF-IDF cosine, v10.16.0)
  *   - signal-noise/list-posts           (metadata-only corpus listing)
  *   - signal-noise/get-post-content     (full bodies, bounded ID set)
  *
- * Category 'tools' — deterministic reads, no AI. All three use the
+ * Category 'tools' — deterministic reads, no AI. All four use the
  * manage_options permission callback like the sibling scans; content
  * from non-public statuses is therefore double-gated (ability cap +
  * the MCP read door's own auth). Exposed on the sn READ door only —
@@ -50,6 +51,49 @@ add_action( 'wp_abilities_api_init', function() {
 				'ok'            => array( 'type' => 'boolean' ),
 				'groups'        => array( 'type' => 'array' ),
 				'group_count'   => array( 'type' => 'integer' ),
+				'posts_scanned' => array( 'type' => 'integer' ),
+				'truncated'     => array( 'type' => 'boolean' ),
+				'scanned_at'    => array( 'type' => 'integer' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'    => true,
+				'destructive' => false,
+				'idempotent'  => true,
+			),
+		),
+	) );
+
+	// ─── 1b. Near-duplicate (cousin) scan — v10.16.0 ────────────────
+	wp_register_ability( 'signal-noise/near-duplicate-scan', array(
+		'label'               => 'Scan the corpus for near-duplicate (cousin) post pairs',
+		'description'         => 'Tokenizes every non-empty body across publish, future, draft, pending, and private statuses, vectors them as TF-IDF against the corpus\' own stats, and returns pairs whose cosine similarity meets the threshold (clamped 0.3-0.95, default 0.6) — each pair: two {post_id, title, slug, status} members plus the 4dp cosine, sorted cosine-descending. Byte-exact duplicates are EXCLUDED (those are duplicate-body-scan\'s finding); empty bodies never pair. Catches the duplicated-then-lightly-edited post the exact scan cannot see. No caching: always a fresh walk.',
+		'category'            => 'tools',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_corpus_near_duplicate_scan',
+		'input_schema'        => array(
+			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
+			'properties'           => array(
+				// No post_type this release: the cousin corpus is 'post' by
+				// construction, like the ML artifact build.
+				'threshold' => array(
+					'type'    => 'number',
+					'minimum' => 0.3,
+					'maximum' => 0.95,
+					'default' => 0.6,
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'            => array( 'type' => 'boolean' ),
+				'pairs'         => array( 'type' => 'array' ),
+				'pair_count'    => array( 'type' => 'integer' ),
+				'threshold'     => array( 'type' => 'number' ),
 				'posts_scanned' => array( 'type' => 'integer' ),
 				'truncated'     => array( 'type' => 'boolean' ),
 				'scanned_at'    => array( 'type' => 'integer' ),
@@ -164,6 +208,27 @@ function snt_ability_corpus_duplicate_scan( $input ) {
 	return snt_corpus_duplicate_scan(
 		is_array( $input ) && isset( $input['post_type'] ) ? (string) $input['post_type'] : 'post'
 	);
+}
+
+/**
+ * Ability wrapper: routes through the ML pipeline registry to
+ * snt_ml_cousin_pairs() — the registry (snt_ml_run) is the single dispatch
+ * seam for every ML surface, so the ability stays a thin door.
+ *
+ * @param array|null $input Validated against input_schema above.
+ * @return array|WP_Error
+ *
+ * @since 10.16.0
+ */
+function snt_ability_corpus_near_duplicate_scan( $input ) {
+	if ( ! function_exists( 'snt_ml_run' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'ML pipeline registry not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+	}
+	$args = array();
+	if ( is_array( $input ) && isset( $input['threshold'] ) && is_numeric( $input['threshold'] ) ) {
+		$args['threshold'] = (float) $input['threshold']; // Clamp 0.3..0.95 lives in the impl.
+	}
+	return snt_ml_run( 'near-duplicates', $args );
 }
 
 /**

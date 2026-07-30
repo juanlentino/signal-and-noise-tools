@@ -33,7 +33,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 28, 'read-door allowlist has exactly 28 slugs (15 -> 23 in v9.50.0, -> 25 in v9.82.0, -> 28 in v10.6.0)' );
+ok( is_array( $list ) && count( $list ) === 29, 'read-door allowlist has exactly 29 slugs (15 -> 23 in v9.50.0, -> 25 in v9.82.0, -> 28 in v10.6.0, -> 29 in v10.16.0)' );
 ok( in_array( 'signal-noise/get-health-scan', $list, true ), 'plugin read is allowlisted' );
 ok( in_array( 'signal-and-noise/get-design-tokens', $list, true ), 'theme read is allowlisted (cross-namespace)' );
 ok( ! in_array( 'signal-noise/purge-all-caches', $list, true ), 'a write ability is NOT allowlisted on the read door' );
@@ -66,12 +66,16 @@ foreach ( $v9820_read_slugs as $slug ) {
 	ok( sn_mcp_is_allowed( $slug, SN_MCP_DOOR_READ ) === true, "v9.82.0 read-door slug passes the call gate: $slug" );
 }
 
+// --- v10.16.0 (2026-07-30): the near-duplicate cousin scan doors read-only ---
+ok( in_array( 'signal-noise/near-duplicate-scan', $list, true ), 'v10.16.0 read-door slug present: near-duplicate-scan' );
+ok( sn_mcp_is_allowed( 'signal-noise/near-duplicate-scan', SN_MCP_DOOR_READ ) === true, 'v10.16.0 read-door slug passes the call gate: near-duplicate-scan' );
+
 // The read door splits 15 plugin + 10 theme. Pinning the split (not just the
 // total) means a slug added to the wrong namespace block can't hide inside a
 // still-correct count.
 $read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
 $read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
-ok( count( $read_plugin ) === 18, 'read door carries exactly 18 plugin slugs (13 -> 15 in v9.82.0, -> 18 in v10.6.0)' );
+ok( count( $read_plugin ) === 19, 'read door carries exactly 19 plugin slugs (13 -> 15 in v9.82.0, -> 18 in v10.6.0, -> 19 in v10.16.0)' );
 ok( count( $read_theme ) === 10, 'read door carries exactly 10 theme slugs (unchanged in v9.82.0)' );
 ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
 
