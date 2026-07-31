@@ -369,6 +369,14 @@ function sn_mcp_error_result( $message ) {
  * @return array<string,mixed>
  */
 function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
+	// v10.25.0 (MCP Layer B telemetry): measured around the whole function body,
+	// per sn-telemetry-spec.md's "latency_ms measured around sn_mcp_call_tool".
+	// Every return point below calls sn_mcp_telemetry_record() (guarded by
+	// function_exists so a missing/disabled telemetry module never affects
+	// this function's behavior) — unlike the rw-only audit calls further down,
+	// telemetry fires on BOTH doors, because it is a separate, broader layer.
+	$sn_mcp_telemetry_t0 = microtime( true );
+
 	// v9.51.0 (lane SEC-C, R7): the rate-limit gate is the very first thing
 	// checked — before even validating $tool_name — and ONLY on the rw door.
 	// The read door never calls sn_mcp_rw_rate_limit_gate() at all (byte-frozen:
@@ -379,6 +387,9 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 	if ( SN_MCP_DOOR_RW === $door && function_exists( 'sn_mcp_rw_rate_limit_gate' ) ) {
 		$rate = sn_mcp_rw_rate_limit_gate();
 		if ( ! $rate['allow'] ) {
+			if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
+				sn_mcp_telemetry_record( $tool_name, $arguments, $door, 'refused', 'rate_limit', sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ) );
+			}
 			return array(
 				'error' => array(
 					'code'    => -32000,
@@ -390,15 +401,24 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 	}
 
 	if ( ! is_string( $tool_name ) ) {
+		if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
+			sn_mcp_telemetry_record( '', $arguments, $door, 'schema_error', null, sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ) );
+		}
 		return array( 'error' => array( 'code' => -32602, 'message' => 'Invalid tool name' ) );
 	}
 	$slug = sn_mcp_slug_from_tool_name( $tool_name );
 
 	if ( ! sn_mcp_is_allowed( $slug, $door ) ) {
+		if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
+			sn_mcp_telemetry_record( $tool_name, $arguments, $door, 'not_found', null, sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ) );
+		}
 		return array( 'error' => array( 'code' => -32602, 'message' => 'Unknown tool: ' . (string) $tool_name ) );
 	}
 	$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $slug ) : null;
 	if ( ! $ability ) {
+		if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
+			sn_mcp_telemetry_record( $tool_name, $arguments, $door, 'not_found', null, sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ) );
+		}
 		return array( 'error' => array( 'code' => -32602, 'message' => 'Tool not available: ' . (string) $tool_name ) );
 	}
 
@@ -421,6 +441,9 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 		if ( SN_MCP_DOOR_RW === $door && function_exists( 'sn_mcp_rw_audit_record' ) ) {
 			sn_mcp_rw_audit_record( $slug, $args, 'denied', $perm );
 		}
+		if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
+			sn_mcp_telemetry_record( $tool_name, $args, $door, 'refused', 'permission', sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ) );
+		}
 		return array( 'result' => sn_mcp_error_result( 'Permission denied for ' . $slug ) );
 	}
 
@@ -429,8 +452,18 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 		if ( SN_MCP_DOOR_RW === $door && function_exists( 'sn_mcp_rw_audit_record' ) ) {
 			sn_mcp_rw_audit_record( $slug, $args, 'error', $out );
 		}
+		if ( function_exists( 'sn_mcp_telemetry_record' ) && function_exists( 'sn_mcp_telemetry_classify_wp_error' ) ) {
+			$sn_mcp_telemetry_class = sn_mcp_telemetry_classify_wp_error( $out );
+			sn_mcp_telemetry_record( $tool_name, $args, $door, $sn_mcp_telemetry_class['outcome'], $sn_mcp_telemetry_class['refusal_gate'], sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ) );
+		}
 		return array( 'result' => sn_mcp_error_result( $out->get_error_message() ) );
 	}
+
+	// Telemetry's result_count is measured against the ability's RAW output —
+	// before the {result: ...} wrap below can turn a list-shaped root into an
+	// assoc array keyed "result", which would make every wrapped tool read as
+	// "not a list" regardless of what it actually returned.
+	$sn_mcp_telemetry_result_count = function_exists( 'sn_mcp_telemetry_result_count' ) ? sn_mcp_telemetry_result_count( $out ) : null;
 
 	// Same rule as the advertised schema (sn_mcp_project_output_schema): wrap the
 	// raw output in {result: ...} when its schema root doesn't guarantee an
@@ -450,6 +483,9 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 	// comment; the projection/wrap logic above is untouched by lane SEC-B.
 	if ( SN_MCP_DOOR_RW === $door && function_exists( 'sn_mcp_rw_audit_record' ) ) {
 		sn_mcp_rw_audit_record( $slug, $args, 'ok' );
+	}
+	if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
+		sn_mcp_telemetry_record( $tool_name, $args, $door, 'ok', null, sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ), $sn_mcp_telemetry_result_count );
 	}
 
 	return array( 'result' => sn_mcp_success_result( $out ) );
