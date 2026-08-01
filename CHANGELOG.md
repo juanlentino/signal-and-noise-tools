@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.27.1] - 2026-08-01
+
+### Fixed
+
+- **Site Health false alarm: the on-demand analytics warmer read as "NOT scheduled"** ([inc/cron-dashboard.php](inc/cron-dashboard.php)). `sn_analytics_rollup` is the SWR warmer's SINGLE-event hook — it schedules via `wp_schedule_single_event()` and clears after every firing, so "unscheduled" is its documented resting state between admin visits (the two-hook design comment in [inc/analytics-rollup.php](inc/analytics-rollup.php); the recurring schedule lives on `sn_analytics_rollup_daily`, which was healthy the whole time). The Site Health classifier's `snt_cron_hook_is_expected()` gate only exempted the two config-gated hooks (insights scan, uptime heartbeat), so the warmer's normal resting state raised a permanent "1 recommended improvement" — the exact "unscheduled BY DESIGN must not read as a pipeline issue" noise rule (v8.1.2) applied to a third hook class. New `snt_cron_hook_is_on_demand()` marks the warmer: its panel line now reads `on-demand (single events, clears after firing)` instead of the alarming `NOT scheduled`, it never joins the issues list, and it's exempt from the >2× interval staleness math (its firing cadence tracks admin visits, not cron health — and live single events carry no schedule slug anyway). The actual rollup pipeline was never broken; this fixes the readout, not the cron.
+
+  Root-cause note on why tests were green: the fixture's `ch_all_healthy()` scheduled EVERY SN-owned hook — including the warmer, whose real steady state is unscheduled — so the suite never modeled the state production rests in (the recorded test-stub-drift trap). Tests 9/9b in [tests/cron-site-health.php](tests/cron-site-health.php) now pin the resting state (unscheduled + last-fired 16h ago → `good`, labeled on-demand) and the staleness exemption; watched RED against the pre-fix classifier (4 failures reproducing the live screenshot), then green. Full standalone sweep green (356 files).
+
 ## [10.27.0] - 2026-07-31
 
 ### Added
