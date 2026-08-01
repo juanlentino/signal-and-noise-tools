@@ -73,6 +73,26 @@ function snt_mr_summary_payload( $days ) {
 		}
 	}
 
+	// v10.27.0: the per-surface split for declared AI-training families. The
+	// family-level ai_training/ai_rights pair above cannot answer "did AI
+	// crawlers fetch robots.txt here" — a widget '348' figure turned out to be
+	// the search FAMILY total, not the robots SURFACE. This groups the SAME
+	// ai_training rows (never a different family set) by their already-
+	// normalized surface class (inc/machine-readers-api.php's fixed enum), so
+	// it can only ever report surfaces the module already distinguishes.
+	$ai_surfaces = array();
+	if ( function_exists( 'snt_mr_sum_hits_by' ) ) {
+		$ai_rows = array();
+		foreach ( $rows as $row ) {
+			if ( in_array( (string) ( $row['family'] ?? '' ), $ai_set, true ) ) {
+				$ai_rows[] = $row;
+			}
+		}
+		foreach ( snt_mr_sum_hits_by( $ai_rows, 'surface' ) as $surface => $hits ) {
+			$ai_surfaces[] = array( 'surface' => (string) $surface, 'hits' => (int) $hits );
+		}
+	}
+
 	// Provenance: the two public sensor documents. Either can fail on its own,
 	// and a failure is null (unknown), never an invented verdict.
 	$info    = function_exists( 'snt_mr_sensor_info' ) ? snt_mr_sensor_info() : null;
@@ -91,6 +111,7 @@ function snt_mr_summary_payload( $days ) {
 		'families'       => $families,
 		'ai_training'    => $ai_hits,
 		'ai_rights'      => $ai_rght,
+		'ai_surfaces'    => $ai_surfaces,
 		'sensor_version' => ( is_array( $info ) && isset( $info['version'] ) ) ? (string) $info['version'] : null,
 		'crawler_list'   => $verdict,
 	);

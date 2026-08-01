@@ -137,6 +137,15 @@
 						''
 					) );
 				}
+				// ADDITIVE (v10.27.0): the per-surface split, e.g. "did AI-training
+				// crawlers fetch robots.txt/llms.txt here". Guarded on presence —
+				// an older cached payload or worker response without the field
+				// renders exactly as before, byte-identical.
+				if ( payload.ai_surfaces && payload.ai_surfaces.length ) {
+					payload.ai_surfaces.forEach( function( row ) {
+						ai.appendChild( statRow( '…on ' + String( row.surface ), String( row.hits ) ) );
+					} );
+				}
 				body.appendChild( ai );
 			}
 
