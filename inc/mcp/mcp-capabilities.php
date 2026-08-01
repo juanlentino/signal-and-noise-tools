@@ -42,8 +42,10 @@ if ( ! defined( 'SN_MCP_DOOR_RW' ) ) {
  * audit), 23 → 25 in v9.82.0 (anchor-status, provenance-integrity-status),
  * 25 → 28 in v10.6.0 (corpus inspection trio), 28 → 29 in v10.16.0
  * (near-duplicate-scan), 29 → 31 in v10.17.0 (keyword-candidates,
- * link-candidates), 31 → 32 in v10.21.0 (topic-clusters), and 32 → 33 in
- * v10.22.0 (cadence-flags);
+ * link-candidates), 31 → 32 in v10.21.0 (topic-clusters), 32 → 33 in
+ * v10.22.0 (cadence-flags), and 33 → 35 in v10.26.0 (sn-posts, sn-site-facts
+ * — the first two CONSOLIDATED tools, new alongside every ability they
+ * absorb; nothing below was unregistered).
  * the read-only-by-construction guarantee is unchanged — every slug here is
  * PURE-READ or READ-REMOTE by curation, never a write/action/AI-billed
  * ability (those live on the rw door only, see sn_mcp_rw_allowlist).
@@ -102,6 +104,14 @@ function sn_mcp_allowlist() {
 		'signal-and-noise/get-llms-txt',
 		'signal-and-noise/get-page-notes-pillars',
 		'signal-and-noise/get-reading-time-for-slug',
+		// v10.26.0 — MCP consolidation, phase 2: the first two CONSOLIDATED
+		// tools, registered NEW alongside every ability they absorb (nothing
+		// above this line was touched). Both PURE-READ by construction:
+		// sn-posts reuses inc/corpus-inspect.php's own primitives verbatim;
+		// sn-site-facts only dispatches to already-doored read abilities
+		// (9 theme + list-template-overrides), never writes.
+		'signal-noise/sn-posts',
+		'signal-noise/sn-site-facts',
 	);
 
 	/**

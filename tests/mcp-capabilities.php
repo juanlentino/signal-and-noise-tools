@@ -33,9 +33,12 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 33, 'read-door allowlist has exactly 33 slugs (15 -> 23 in v9.50.0, -> 25 in v9.82.0, -> 28 in v10.6.0, -> 29 in v10.16.0, -> 31 in v10.17.0, -> 32 in v10.21.0, -> 33 in v10.22.0 2026-07-30: cadence-flags)' );
+ok( is_array( $list ) && count( $list ) === 35, 'read-door allowlist has exactly 35 slugs (15 -> 23 in v9.50.0, -> 25 in v9.82.0, -> 28 in v10.6.0, -> 29 in v10.16.0, -> 31 in v10.17.0, -> 32 in v10.21.0, -> 33 in v10.22.0 cadence-flags, -> 35 in v10.26.0: sn-posts + sn-site-facts, the first two CONSOLIDATED tools)' );
 ok( in_array( 'signal-noise/topic-clusters', $list, true ), 'v10.21.0: topic-clusters is allowlisted on the read door' );
 ok( in_array( 'signal-noise/cadence-flags', $list, true ), 'v10.22.0: cadence-flags is allowlisted on the read door' );
+ok( in_array( 'signal-noise/sn-posts', $list, true ), 'v10.26.0: sn-posts is allowlisted on the read door' );
+ok( in_array( 'signal-noise/sn-site-facts', $list, true ), 'v10.26.0: sn-site-facts is allowlisted on the read door' );
+ok( in_array( 'signal-noise/list-posts', $list, true ) && in_array( 'signal-noise/get-post-content', $list, true ), 'v10.26.0: sn-posts is NEW ALONGSIDE OLD — list-posts and get-post-content stay allowlisted, neither removed' );
 ok( in_array( 'signal-noise/get-health-scan', $list, true ), 'plugin read is allowlisted' );
 ok( in_array( 'signal-and-noise/get-design-tokens', $list, true ), 'theme read is allowlisted (cross-namespace)' );
 ok( ! in_array( 'signal-noise/purge-all-caches', $list, true ), 'a write ability is NOT allowlisted on the read door' );
@@ -83,8 +86,8 @@ foreach ( array( 'signal-noise/keyword-candidates', 'signal-noise/link-candidate
 // still-correct count.
 $read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
 $read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
-ok( count( $read_plugin ) === 23, 'read door carries exactly 23 plugin slugs (13 -> 15 in v9.82.0, -> 18 in v10.6.0, -> 19 in v10.16.0, -> 21 in v10.17.0, -> 22 in v10.21.0, -> 23 in v10.22.0 2026-07-30)' );
-ok( count( $read_theme ) === 10, 'read door carries exactly 10 theme slugs (unchanged in v9.82.0)' );
+ok( count( $read_plugin ) === 25, 'read door carries exactly 25 plugin slugs (13 -> 15 in v9.82.0, -> 18 in v10.6.0, -> 19 in v10.16.0, -> 21 in v10.17.0, -> 22 in v10.21.0, -> 23 in v10.22.0, -> 25 in v10.26.0: sn-posts + sn-site-facts, both plugin-namespace)' );
+ok( count( $read_theme ) === 10, 'read door carries exactly 10 theme slugs (unchanged — sn-site-facts DISPATCHES to theme abilities but is itself a plugin-namespace slug)' );
 ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
 
 ok( sn_mcp_is_allowed( 'signal-noise/get-narration' ) === true, 'is_allowed true for an allowlisted slug' );
