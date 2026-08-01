@@ -2,7 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [10.26.0] - 2026-07-31
+## [10.27.0] - 2026-07-31
+
+### Added
+
+- **`ai_surfaces` — a per-surface split for AI-training crawler families** ([inc/machine-readers-summary.php](inc/machine-readers-summary.php), [inc/abilities-machine-readers.php](inc/abilities-machine-readers.php), [assets/desktop-mode-widget-machine-readers.js](assets/desktop-mode-widget-machine-readers.js)). `snt_mr_summary_payload()` feeds both the Desktop Mode "SN Machine Readers" tile and the `signal-noise/get-machine-readers-summary` ability, and until now it only aggregated hits per crawler FAMILY — it could not answer "do AI-training crawlers actually fetch robots.txt here", because a family total (e.g. a widget figure that read `348`) collapses every surface a family touched into one number, and `ai_rights` deliberately excludes `/robots.txt` and `/llms.txt` (they are their own surface classes). `ai_surfaces` groups the SAME `ai_training` rows — never a different family set — by the module's existing, fixed surface-class enum (`inc/machine-readers-api.php`'s `robots`/`rights`/`llms`/`agents-manifest`/`well-known`/`feed`/`wp-json`/`sitemap`/`asset`/`html`), so it can only ever report a surface the sensor already distinguishes. Shape: `[{surface, hits}, ...]`, descending by hits, an empty array (never omitted) when no AI-training family read anything in the window.
+
+  **Additive, both consumers.** `ai_surfaces` is a new key appended after `ai_rights`; every existing key is untouched — pinned with a before/after deep-compare that removes the new key and asserts byte-identical equality against the pre-change payload shape. The ability's `output_schema` gains the matching `{surface, hits}` item schema and its description names the new field. The Desktop Mode tile renders a sub-row per surface under "Declared AI-training", guarded on presence (`payload.ai_surfaces && payload.ai_surfaces.length`) so an older cached payload renders exactly as before.
+
+  Tests: [tests/abilities-machine-readers.php](tests/abilities-machine-readers.php) (schema keys/order, aggregation over canned rows including the motivating robots.txt case, empty-array-not-omitted, the before/after deep-compare) and [tests/desktop-mode-integration.php](tests/desktop-mode-integration.php) (tile reads and guards the new field). Full suite green (`tests/*.php` minus `contracts-smoke.php`), `php -l`, `composer phpstan` (no errors), `phpcs` clean on touched files.
 
 ### Added
 

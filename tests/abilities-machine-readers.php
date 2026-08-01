@@ -107,7 +107,7 @@ echo "\nGroup E: output schema keys\n";
 $props = $a['output_schema']['properties'] ?? array();
 ok( 'object' === ( $a['output_schema']['type'] ?? null ), 'output type is object' );
 ok(
-	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
+	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
 	'schema pins the DM tile payload fields in response order, with error appended'
 );
 ok( 'boolean' === ( $props['ok']['type'] ?? null ), 'ok is a boolean' );
@@ -116,6 +116,9 @@ ok( 'integer' === ( $props['total']['type'] ?? null ), 'total is an integer' );
 ok( 'array' === ( $props['families']['type'] ?? null ), 'families is an array' );
 ok( 'object' === ( $props['families']['items']['type'] ?? null ), 'families items are objects' );
 ok( array( 'family', 'hits' ) === array_keys( $props['families']['items']['properties'] ?? array() ), 'a family row is { family, hits }' );
+ok( 'array' === ( $props['ai_surfaces']['type'] ?? null ), 'ai_surfaces is an array' );
+ok( 'object' === ( $props['ai_surfaces']['items']['type'] ?? null ), 'ai_surfaces items are objects' );
+ok( array( 'surface', 'hits' ) === array_keys( $props['ai_surfaces']['items']['properties'] ?? array() ), 'an ai_surfaces row is { surface, hits }' );
 ok( array( 'string', 'null' ) === ( $props['sensor_version']['type'] ?? null ), 'sensor_version is string|null (null = the version read failed)' );
 ok( array( 'string', 'null' ) === ( $props['crawler_list']['type'] ?? null ), 'crawler_list is string|null' );
 ok( array( 'string', 'null' ) === ( $props['error']['type'] ?? null ), 'error is string|null' );
@@ -170,13 +173,82 @@ ok(
 );
 ok( 22 === ( $out['ai_training'] ?? null ), 'ai_training === 22 (openai 15 + anthropic 7; search/seo/other-bot excluded)' );
 ok( 12 === ( $out['ai_rights'] ?? null ), 'ai_rights === 12 (the rights-surface slice of those two)' );
+// NEW: the per-surface split for AI-training families ONLY (search/seo/other-bot
+// excluded, same set ai_training/ai_rights already use). openai llms=10, and the
+// rights surface sums openai(5) + anthropic(7) = 12, descending by hits.
+ok(
+	array(
+		array( 'surface' => 'rights', 'hits' => 12 ),
+		array( 'surface' => 'llms',   'hits' => 10 ),
+	) === ( $out['ai_surfaces'] ?? null ),
+	'ai_surfaces splits AI-training hits per surface, descending (rights 12, llms 10)'
+);
 ok( '1.4.0' === ( $out['sensor_version'] ?? null ), 'sensor_version passes through' );
 ok( 'in sync' === ( $out['crawler_list'] ?? null ), 'crawler_list verdict: ok + no drift => in sync' );
 ok(
-	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
+	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
 	'success shape matches the DM route exactly'
 );
 ok( $rows_before === $GLOBALS['__mr']['rows'], 'the fetched rows are never mutated' );
+
+// ADDITIVE CONTRACT: every key that existed before ai_surfaces landed must be
+// byte-identical once ai_surfaces is removed again — a widget that ignores the
+// new key sees exactly the old payload, nothing shifted or recomputed.
+$out_minus_new = $out;
+unset( $out_minus_new['ai_surfaces'] );
+ok(
+	array(
+		'ok'             => true,
+		'days'           => 7,
+		'total'          => 46,
+		'families'       => array(
+			array( 'family' => 'search',    'hits' => 20 ),
+			array( 'family' => 'openai',    'hits' => 15 ),
+			array( 'family' => 'anthropic', 'hits' => 7 ),
+		),
+		'ai_training'    => 22,
+		'ai_rights'      => 12,
+		'sensor_version' => '1.4.0',
+		'crawler_list'   => 'in sync',
+	) === $out_minus_new,
+	'minus the new key, the payload is byte-identical to the pre-ai_surfaces shape (before/after deep-compare)'
+);
+
+echo "\nGroup G2: ai_surfaces answers the motivating question — did AI crawlers hit robots.txt\n";
+// The premise this whole feature exists for: a widget '348' figure used to be
+// the search FAMILY total, not the robots SURFACE. Prove a robots-surface hit
+// from a declared AI-training family shows up as its own bucket, distinct from
+// rights/llms, and that a non-AI family's robots hit is excluded.
+$GLOBALS['__mr'] = array(
+	'ok'    => true,
+	'error' => null,
+	'rows'  => array(
+		array( 'family' => 'openai',      'surface' => 'robots',   'day' => '2026-07-28', 'hits' => 9 ),
+		array( 'family' => 'openai',      'surface' => 'sitemap',  'day' => '2026-07-28', 'hits' => 2 ),
+		array( 'family' => 'commoncrawl', 'surface' => 'robots',   'day' => '2026-07-28', 'hits' => 4 ),
+		array( 'family' => 'search',      'surface' => 'robots',   'day' => '2026-07-28', 'hits' => 100 ),
+	),
+);
+$out = snt_ability_get_machine_readers_summary( array( 'days' => 7 ) );
+ok(
+	array(
+		array( 'surface' => 'robots',  'hits' => 13 ),
+		array( 'surface' => 'sitemap', 'hits' => 2 ),
+	) === ( $out['ai_surfaces'] ?? null ),
+	'robots.txt is its own ai_surfaces bucket (openai 9 + commoncrawl 4 = 13), the search family\'s 100 robots hits excluded'
+);
+
+echo "\nGroup G3: no AI-training rows in the window => ai_surfaces is an empty array, never omitted\n";
+$GLOBALS['__mr'] = array(
+	'ok'    => true,
+	'error' => null,
+	'rows'  => array(
+		array( 'family' => 'search', 'surface' => 'robots', 'day' => '2026-07-28', 'hits' => 5 ),
+	),
+);
+$out = snt_ability_get_machine_readers_summary( array( 'days' => 7 ) );
+ok( array_key_exists( 'ai_surfaces', $out ), 'ai_surfaces key is present even with zero AI-training rows' );
+ok( array() === ( $out['ai_surfaces'] ?? null ), 'ai_surfaces is an empty array, not a fabricated bucket' );
 
 echo "\nGroup H: degraded provenance stays null, verdicts stay honest\n";
 $GLOBALS['__status'] = array( 'last_check_ok' => '1', 'last_check_drift' => '1' );

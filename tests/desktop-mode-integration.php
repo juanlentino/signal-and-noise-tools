@@ -1168,6 +1168,16 @@ ok( false !== strpos( $mr_js, 'return function teardown' ), 'tile returns a tear
 ok( false !== strpos( $mr_js, 'AbortController' ), 'tile aborts its fetch on teardown (the site-views precedent)' );
 ok( false === strpos( $mr_js, 'innerHTML' ), 'tile never uses innerHTML — worker-derived strings reach the DOM as text only' );
 ok( false !== strpos( $mr_js, '/signal-noise/v1/desktop/machine-readers' ), 'tile reads its own desktop route, not the localize' );
+// v10.27.0: the additive ai_surfaces field (per-surface split for AI-training
+// families). The tile renders it when present but MUST NOT assume it exists —
+// an older cached payload or a widget build that predates the field has to
+// keep working, so the render path guards on presence, never indexes blind.
+ok( false !== strpos( $mr_js, 'ai_surfaces' ), 'tile reads payload.ai_surfaces' );
+ok(
+	1 === preg_match( '/payload\.ai_surfaces\s*&&\s*payload\.ai_surfaces\.length/', $mr_js )
+		|| 1 === preg_match( '/payload\.ai_surfaces\s*\|\|\s*\[\s*\]/', $mr_js ),
+	'the ai_surfaces render is guarded (truthy + length check, or a safe default), not a blind index'
+);
 $dm_src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-integration.php' );
 ok( false !== strpos( $dm_src, "'/desktop/machine-readers'" ), 'the desktop route is registered' );
 ok( false !== strpos( $dm_src, "'machine_readers' => snt_desktop_admin_url" ), 'the pages map carries the tab link for the tile footer' );

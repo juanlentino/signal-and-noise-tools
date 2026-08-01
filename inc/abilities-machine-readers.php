@@ -58,6 +58,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'description'         => 'Returns a compact summary of machine (crawler) reads observed at the edge over a window (days: 1-90, default 30): '
 			. '`total` reads across all surfaces, `families` (the top 3 crawler families by reads, descending), '
 			. '`ai_training` (reads from families whose public declarations class them as AI-training crawlers) and `ai_rights` (the slice of those reads that hit the `rights` surface class: /.well-known/tdmrep.json, /license.xml, /tdm-policy. NOTE: /robots.txt and /llms.txt are their OWN surface classes and are NOT counted here, so a low ai_rights does not mean the crawler ignored every declaration). '
+			. '`ai_surfaces` breaks the SAME ai_training reads down per surface class instead of collapsing them into one number, so "did AI-training crawlers fetch robots.txt / llms.txt / the sitemap here" has a direct answer; each entry is `{surface, hits}`, descending by hits, and it is an empty array (never omitted) when no AI-training family read anything in the window. '
 			. 'Provenance rides along so the numbers can be judged: `sensor_version` is the deployed edge worker, `crawler_list` is its list-drift verdict (in sync | drift | check failed), null when either document could not be read. '
 			. 'User agents are self-reported, so this is observation, never proof of identity. '
 			. 'When the sensor is unconfigured or unreachable the response is `ok: false` with a machine-readable `error` (not_configured, blocked, network, bad_schema, http_NNN) and NO counts at all: an absent total means "we never asked", which is not the same claim as zero crawlers. Read-only.',
@@ -101,6 +102,16 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'ai_training'    => array( 'type' => 'integer' ),
 				'ai_rights'      => array( 'type' => 'integer' ),
+				'ai_surfaces'    => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'surface' => array( 'type' => 'string' ),
+							'hits'    => array( 'type' => 'integer' ),
+						),
+					),
+				),
 				'sensor_version' => array( 'type' => array( 'string', 'null' ) ),
 				'crawler_list'   => array( 'type' => array( 'string', 'null' ) ),
 				'error'          => array( 'type' => array( 'string', 'null' ) ),
