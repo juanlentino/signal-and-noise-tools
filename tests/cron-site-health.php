@@ -246,5 +246,33 @@ ch_eq( 'recommended', $res['status'], 'a genuinely missing schedule still downgr
 // Reset gates for any later fixtures.
 $GLOBALS['__test_insights_cron_on'] = true;
 
+// ─── Test 9: on-demand warmer hook unscheduled BY DESIGN → good ──────
+// sn_analytics_rollup is the SWR warmer's SINGLE-event hook: it clears after
+// every firing, so "unscheduled" is its documented resting state between
+// admin visits (inc/analytics-rollup.php two-hook comment). It must never
+// read as a pipeline issue — the daily backstop hook is the recurring one.
+echo "\nTest 9: on-demand rollup hook unscheduled between firings → still good\n";
+ch_all_healthy();
+$GLOBALS['__test_filters'] = array( 'sn_cron_system_cron_configured' => true );
+unset( $GLOBALS['__test_next_scheduled']['sn_analytics_rollup'] );
+// It DID fire when an admin last visited (16h ago) — keep that evidence.
+$GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( 'sn_analytics_rollup' ) ] = time() - 16 * HOUR_IN_SECONDS;
+$res = snt_cron_site_health_result();
+ch_eq( 'good', $res['status'], 'unscheduled on-demand warmer does not downgrade the status' );
+ch_true( false !== strpos( (string) $res['description'], 'on-demand' ), 'panel labels the warmer hook as on-demand, not NOT scheduled' );
+ch_true( false === strpos( (string) $res['description'], 'sn_analytics_rollup — NOT scheduled' ), 'the alarming NOT-scheduled label is gone for the warmer' );
+
+// ─── Test 9b: on-demand hook immune to staleness math ────────────────
+// Live single events have no schedule slug (wp_get_schedule returns false →
+// interval 0), but the test stub defaults 'daily' — the explicit on-demand
+// guard makes staleness exemption hold regardless of stub/schedule drift.
+echo "\nTest 9b: on-demand hook with old last-fired + pending single event → still good\n";
+ch_all_healthy();
+$GLOBALS['__test_filters'] = array( 'sn_cron_system_cron_configured' => true );
+$GLOBALS['__test_next_scheduled']['sn_analytics_rollup'] = time() + 60;
+$GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( 'sn_analytics_rollup' ) ] = time() - 5 * DAY_IN_SECONDS;
+$res = snt_cron_site_health_result();
+ch_eq( 'good', $res['status'], 'admin-visit cadence never reads as cron staleness' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

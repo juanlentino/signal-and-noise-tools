@@ -482,6 +482,25 @@ function snt_cron_hook_is_expected( $hook ) {
 }
 
 /**
+ * Hooks that are on-demand SINGLE-event hooks: they schedule via
+ * wp_schedule_single_event() and CLEAR after firing, so "unscheduled" is
+ * their documented resting state — never a pipeline issue (the v8.1.2 noise
+ * rule). The analytics SWR warmer is the canonical case: its recurring
+ * counterpart (sn_analytics_rollup_daily) is the hook whose schedule the
+ * Site Health test should actually judge. Staleness math is also skipped:
+ * an on-demand hook's firing cadence tracks admin visits, not cron health
+ * (and live single events carry no schedule slug anyway).
+ *
+ * @since 10.27.1
+ * @param string $hook Hook name.
+ * @return bool True when the hook fires on demand (no standing schedule).
+ */
+function snt_cron_hook_is_on_demand( $hook ) {
+	$warmer = defined( 'SN_ANALYTICS_ROLLUP_HOOK' ) ? SN_ANALYTICS_ROLLUP_HOOK : 'sn_analytics_rollup';
+	return $hook === $warmer;
+}
+
+/**
  * Build the Site Health result envelope for the SN cron pipeline.
  *
  * status:
@@ -519,20 +538,28 @@ function snt_cron_site_health_result() {
 		$last_fired = snt_cron_last_fired_for( $hook );
 		$interval   = snt_cron_interval_seconds( $hook );
 		$expected   = snt_cron_hook_is_expected( $hook );
+		$on_demand  = snt_cron_hook_is_on_demand( $hook );
 
+		if ( $on_demand ) {
+			$unscheduled_label = __( 'on-demand (single events, clears after firing)', 'signal-and-noise-tools' );
+		} elseif ( $expected ) {
+			$unscheduled_label = __( 'NOT scheduled', 'signal-and-noise-tools' );
+		} else {
+			$unscheduled_label = __( 'not scheduled (feature off)', 'signal-and-noise-tools' );
+		}
 		$next_label = ( false !== $next && is_numeric( $next ) )
 			? sprintf( /* translators: %s: human time diff. */ __( 'next run in %s', 'signal-and-noise-tools' ), human_time_diff( $now, (int) $next ) )
-			: ( $expected ? __( 'NOT scheduled', 'signal-and-noise-tools' ) : __( 'not scheduled (feature off)', 'signal-and-noise-tools' ) );
+			: $unscheduled_label;
 
 		$last_label = ( null !== $last_fired )
 			? sprintf( /* translators: %s: human time diff. */ __( 'last fired %s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $last_fired, $now ) )
 			: __( 'never fired', 'signal-and-noise-tools' );
 
 		if ( false === $next || ! is_numeric( $next ) ) {
-			if ( $expected ) {
+			if ( $expected && ! $on_demand ) {
 				$issues[] = $hook;
 			}
-		} elseif ( $interval > 0 && null !== $last_fired && ( $now - (int) $last_fired ) > ( 2 * $interval ) ) {
+		} elseif ( ! $on_demand && $interval > 0 && null !== $last_fired && ( $now - (int) $last_fired ) > ( 2 * $interval ) ) {
 			// Scheduled AND fired before, but the last firing is older than 2×
 			// the recurrence — cron thinks it's scheduled but isn't actually
 			// executing on time. This is the "overdue" signal (FIX 4).
