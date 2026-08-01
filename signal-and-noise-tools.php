@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.25.0
+ * Version:     10.26.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -340,6 +340,8 @@ require_once __DIR__ . '/inc/block-migrations-admin.php';
 require_once __DIR__ . '/inc/abilities-block-migrations.php';
 require_once __DIR__ . '/inc/corpus-inspect.php';      // v10.6.0: read-only corpus inspection impls (duplicate scan, listing, bounded content fetch)
 require_once __DIR__ . '/inc/abilities-corpus.php';    // v10.6.0: 3 abilities (duplicate-body-scan, list-posts, get-post-content) — sn read door only
+require_once __DIR__ . '/inc/abilities-sn-posts.php';      // v10.26.0: MCP consolidation — sn_posts, absorbs list-posts + get-post-content (both stay live)
+require_once __DIR__ . '/inc/abilities-sn-site-facts.php'; // v10.26.0: MCP consolidation — sn_site_facts, absorbs 10 of 11 site-facts reads (get-design-system-summary retired, not absorbed)
 require_once __DIR__ . '/inc/abilities-update-post-surfaces.php'; // v10.7.0: reviewed-text write for excerpt/meta-desc/OG title — rw door
 require_once __DIR__ . '/inc/ml-kernel.php';           // v10.15.0: pure ML primitives (tokenizer, tf-idf, cosine, bm25, graph signals) — zero WP calls
 require_once __DIR__ . '/inc/ml-pipelines.php';        // v10.15.0: filterable slug=>callable pipeline registry + dispatcher over the kernel
