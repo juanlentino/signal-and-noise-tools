@@ -321,6 +321,7 @@ $sn_widget_js = array(
 	'desktop-mode-widget-uptime.js'  => null,
 	'desktop-mode-widget-health.js'  => null,
 	'desktop-mode-widget-machine-readers.js' => null,
+	'desktop-mode-widget-anchors.js' => null,
 );
 foreach ( $sn_widget_js as $file => $old_heading ) {
 	$code = strip_js_comments( file_get_contents( __DIR__ . '/../assets/' . $file ) );
@@ -355,6 +356,39 @@ foreach ( array_keys( $sn_widget_js ) as $file ) {
 	ok( empty( $found ), "$file carries no light-theme colours" . ( $found ? ' [' . implode( ', ', $found ) . ']' : '' ) );
 }
 
+echo "\n── v10.28.0: widgets inherit the desktop theme's typeface ──\n";
+// desktop-mode 0.9.7 added DESKTOP THEMES: a theme sets --desktop-mode-font and
+// the shell root applies `font-family: var(--desktop-mode-font, inherit)`
+// (assets/css/desktop.css, verified at v0.9.8). Its own comment names the
+// consumers: "dock labels, desktop icon labels, WIDGETS, the overview" — and
+// the delivery mechanism is INHERITANCE. So any local font-family in a widget
+// body silently overrides the user's chosen theme face. All eight SN widgets
+// carried a hardcoded -apple-system stack, which blocked it across our entire
+// widget surface.
+//
+// The `font:` SHORTHAND is the same bug wearing a different name: it RESETS
+// font-family to the shorthand's own value, so `font:13px/1.2 -apple-system,…`
+// blocks the theme exactly as `font-family:` does. `font:inherit` is the one
+// safe form — it explicitly re-adopts the inherited face.
+//
+// This pins the PROPERTY (we declare no typeface), not a wording: font-size,
+// line-height, font-weight and font-variant-numeric are all still fine, and
+// none of them touch the family.
+foreach ( array_keys( $sn_widget_js ) as $file ) {
+	$code = strip_js_comments( file_get_contents( __DIR__ . '/../assets/' . $file ) );
+
+	ok( stripos( $code, 'font-family' ) === false,
+		"$file declares no font-family — the desktop theme's face inherits through" );
+
+	// `font:` shorthand, excluding the longhands that merely start with "font-".
+	preg_match_all( '/(?<![a-z-])font\s*:\s*([^;\'"]+)/i', $code, $m );
+	$bad = array_values( array_filter( array_map( 'trim', $m[1] ), function ( $v ) {
+		return 'inherit' !== strtolower( $v );
+	} ) );
+	ok( empty( $bad ),
+		"$file uses no font: shorthand that resets the family" . ( $bad ? ' [' . implode( ', ', $bad ) . ']' : '' ) );
+}
+
 echo "\n── v9.52.2: Quick Actions reads on the dark glass card ──\n";
 // .desktop-mode-widgets__card is NOT theme-switchable: it is fixed dark glass
 // — background rgba(20,20,22,.55) + backdrop-filter blur, color:#fff
@@ -365,6 +399,12 @@ echo "\n── v9.52.2: Quick Actions reads on the dark glass card ──\n";
 // to its fallback — which is why widget-starter.css falls back to near-black
 // while widget-jazz-quote.css falls back to near-white. Style against the card
 // that actually exists: light-on-dark.
+//
+// v10.28.0: re-verified at v0.9.8, AFTER desktop themes shipped. The card
+// background is still the literal rgba(20,20,22,0.55) — the one surface a
+// theme cannot retint — so light-on-dark stays correct and these literals stay
+// literals. See assets/desktop-mode-widget-actions.js for why adopting the
+// --wpd-* body palette here would REGRESS contrast under a light theme.
 $aj = file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-actions.js' );
 $aj_code = strip_js_comments( $aj );
 ok( strpos( $aj_code, 'background:#fff' ) === false,

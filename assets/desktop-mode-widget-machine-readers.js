@@ -75,7 +75,7 @@
 		var aborted = false;
 		var ctrl    = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
 
-		var wrap = el( 'div', { style: 'padding:10px 12px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' } );
+		var wrap = el( 'div', { style: 'padding:10px 12px;' } );
 		var body = el( 'div', { text: 'Loading…', style: 'font-size:12px;opacity:.6;' } );
 		wrap.appendChild( body );
 		container.appendChild( wrap );

@@ -74,6 +74,36 @@
 	 * two disagree because the variable never resolves. Style against the card
 	 * that exists.
 	 *
+	 * v10.28.0 — RE-VERIFIED at desktop-mode v0.9.8, after DESKTOP THEMES
+	 * (0.9.7) made most of the shell themeable. Both facts above still hold,
+	 * and the theme system does NOT change the conclusion:
+	 *
+	 *   - The card background is STILL a literal — `rgba(20,20,22,0.55)`, not
+	 *     a token. A theme can only lay a texture over it
+	 *     (--desktop-mode-widget-image). The card cannot go light.
+	 *   - --wpd-color-* is still assigned nowhere at v0.9.8.
+	 *   - The card's `color` DID become themeable:
+	 *     `var( --wpd-fg-on-accent, #fff )`. We still inherit it, because on a
+	 *     permanently dark surface the on-accent role is the closest correct
+	 *     token — but see the caveat below.
+	 *
+	 * DO NOT swap these literals for the --wpd-* body palette. Those tokens
+	 * (--wpd-success-fg, --wpd-warning-fg, --wpd-danger, …) are themed to read
+	 * against --wpd-surface, which IS themeable; ours must read against a card
+	 * that is permanently dark. Under a light theme --wpd-success-fg is a dark
+	 * green, and adopting it here would put dark green on dark glass. A fixed
+	 * surface takes a fixed foreground; that is why these are literals and why
+	 * they should stay literals.
+	 *
+	 * CAVEAT worth watching: a theme that sets --wpd-fg-on-accent to a DARK
+	 * value turns inherited card text dark-on-dark. That is upstream's coupling
+	 * (unthemeable card + themeable text) and it hits desktop-mode's own
+	 * widgets identically, so we track it rather than diverging from the shell.
+	 *
+	 * TYPOGRAPHY, by contrast, IS ours to follow — see the font note in
+	 * tests/desktop-mode-integration.php. No widget here declares a
+	 * font-family, so --desktop-mode-font inherits through.
+	 *
 	 * Pre-v9.52.2 this widget was styled for a white admin page — opaque #fff
 	 * buttons with #1d2327 text — which rendered as three glaring white slabs
 	 * on the glass.
@@ -163,7 +193,7 @@
 		// color:inherit — the card already sets #fff; restating a colour here
 		// is what made this widget assume a white page.
 		var wrap = el( 'div', {
-			style: 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:inherit;',
+			style: 'padding:14px 16px;color:inherit;',
 		} );
 
 		// v9.52.4: no title row. Since v9.52.2's movable:true, desktop-mode
@@ -172,7 +202,7 @@
 		// The label registered in PHP is the single source of truth.
 		var btnStyle = 'display:block;width:100%;margin:0 0 6px;padding:8px 10px;background:' + SURFACE +
 			';color:inherit;border:1px solid ' + HAIRLINE +
-			';border-radius:8px;font:13px/1.2 -apple-system,BlinkMacSystemFont,sans-serif;cursor:pointer;text-align:left;' +
+			';border-radius:8px;font-size:13px;line-height:1.2;cursor:pointer;text-align:left;' +
 			'transition:background 120ms ease,border-color 120ms ease;';
 		var dangerStyle = btnStyle + 'color:' + DANGER_FG + ';border-color:' + DANGER_LINE + ';';
 
