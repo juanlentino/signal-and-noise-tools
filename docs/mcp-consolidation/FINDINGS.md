@@ -262,3 +262,67 @@ Session 3's R1 fix (v10.26.0) closed the no-args dispatch bug and asserted get_p
 ## Full sweep at ship time
 
 360 files (contracts-smoke.php CI-excluded as always), 0 failures; tests/abilities-sn-site-facts.php 41 → 44 asserts.
+
+# Desktop Mode agent-telemetry bridge (shipped v10.31.0)
+
+Not a consolidation session — extends the telemetry program's Layer B table to a source it never covered: Desktop Mode's own AI agents, which bypass `sn_mcp_call_tool()` entirely.
+
+## The blind spot
+
+Desktop Mode 0.9.8's agent runner (`~/Projects/desktop-mode`, tag `v0.9.8`, `includes/agents/runner.php:1190`) dispatches an ability directly — `$ability->execute( $args )` — never through this plugin's MCP door. Every agent-driven tool call was therefore invisible to `sn_tool_call`, the table `inc/mcp/mcp-telemetry.php` built for "every tools/call, both doors, every outcome" — a claim that was true of the MCP door and silently false of the agent surface.
+
+## The seam, grounded against the real source
+
+`runner.php:575`, inside the per-function-call loop (`runner.php:539-593`):
+
+```php
+if ( ! is_wp_error( $output ) ) {
+    $output = apply_filters( 'desktop_mode_agent_tool_result', $output, $slug, $args, $agent_user_id );
+}
+```
+
+Two things this citation proves that the original task brief only guessed at:
+- **The filter never sees a WP_Error on the real call site.** `desktop_mode_agent_runner_dispatch_tool()` (`runner.php:1170-1191`) returns `$ability->execute( $args )` verbatim — "Output or WP_Error" per its own docblock — and the `! is_wp_error( $output )` guard at `runner.php:563` means a failed/refused tool call never reaches this filter at all. `inc/mcp/mcp-telemetry-agents.php`'s callback still classifies a defensively-received WP_Error correctly (reusing `sn_mcp_telemetry_classify_wp_error()`), because a filter chain has no exclusivity guarantee — an earlier-priority callback from another plugin could hand us one.
+- **`$slug` is the raw ability slug** (`'signal-noise/sn-scan'` form, e.g. `'signal-and-noise/get-active-template-structure'`), not an MCP tool name — confirmed by `runner.php:551`'s `$slug_by_name[ $name ]` lookup feeding straight into `desktop_mode_agent_runner_dispatch_tool( $slug, $args )`. The bridge projects it through `inc/mcp/mcp-tools.php`'s own `sn_mcp_tool_name_from_slug()` so the stored `tool_name` matches what the MCP door would have recorded for the same ability.
+
+## The two-seam resolution (adversarial review, one HIGH)
+
+The first cut hooked only the per-tool filter above. **Adversarial review REJECTed it on one HIGH**: that filter is gated on `! is_wp_error( $output )` at its single call site (`runner.php:561-582`, verified) — structurally success-only, by construction, not by bug. Every row `door='agent'` could ever produce would read `outcome='ok'`, so the door's failure rate would report an artificial ~0% forever. This is the repo's own "success-only readout" trap (`success-only-caches-pose-as-healthy.md`) recurring in a new place: a healthy-looking number that doesn't measure what it claims to.
+
+The reviewer's citation pointed at the seam already read past once — `do_action( 'desktop_mode_agent_completed', $user->ID, $message, $result, $context )` at `runner.php:239`, fired unconditionally at the end of `desktop_mode_agent_invoke()` whenever the run itself didn't fatal. `$result['toolCalls']` (built at `runner.php:578-593`, one entry per tool call for the WHOLE run):
+
+```php
+$tool_trace[] = array(
+    'callId' => $call_id,
+    'name'   => '' !== $slug ? $slug : $name,
+    'args'   => $args,
+    'output' => is_wp_error( $output ) ? null : $output,
+    'error'  => is_wp_error( $output ) ? $output->get_error_message() : null,
+);
+```
+
+`error` is non-null exactly when that call failed — the signal seam 1 structurally can't see. Seam 2 (`sn_mcp_telemetry_agent_completed()`, hooked on `desktop_mode_agent_completed`) walks this trace and inserts a row for every failed, in-namespace entry, explicitly skipping success entries (seam 1 already recorded those — `tests/mcp-telemetry-agents.php`'s double-count-guard test pins this by asserting zero inserts from the action path on a success-only `$result`).
+
+**Outcome classification is deliberately coarse.** `sn_mcp_telemetry_classify_wp_error()` keys on `get_error_data()['status']`, but `toolCalls` only carries `get_error_message()` — the status/code never survives the trip. Every seam-2 row is therefore `outcome='server_error'`, flat, undifferentiated, and documented as such. Re-deriving a finer classification by pattern-matching the message string was considered and rejected: that is precisely the regex-classifier mistake `sn_mcp_telemetry_classify_wp_error()`'s own docblock records as a past HIGH finding (session 2) — a single-line/substring scan that miscategorized `snt_impl_missing` as a schema error. A flat, honest `server_error` default beats a plausible-looking guess.
+
+**Residual blind spot, stated rather than hidden.** `desktop_mode_agent_invoke()` returns early, before `do_action( 'desktop_mode_agent_completed', ... )`, whenever the run itself fatals (`runner.php:216-224`: AI unavailable, invoker/agent rate limit, or the max-turns-without-final-answer path). A run that dies one of those ways still loses the tail of tool calls it already executed inside the loop — their `$tool_trace` entries exist in memory but `$result` never reaches either seam, because the action never fires. Nothing in this codebase's contract with the runner exposes that partial trace any other way; guessing at it from inside a fatal-error branch this file doesn't own was rejected as more likely to be wrong than to stay silent about the gap.
+
+## Deviation from the brief: latency_ms
+
+The brief asked for "latency NULL or 0 ... leave the column NULL." The `sn_tool_call` schema (`inc/mcp/mcp-telemetry.php`'s `sn_mcp_telemetry_schema_sql()`) declares `latency_ms INT NOT NULL DEFAULT 0` — NULL is not a legal value regardless of what this bridge passes. `latency_ms` is stored as `0` for every agent row: the filter fires after `execute()` has already returned, with no start-time parameter passed through the hook, so any non-zero value would be fabricated. Documenting `0` as "no timing available" rather than silently reusing the MCP door's real measured latencies (which would misrepresent agent calls as measured when they aren't) was the judgment call.
+
+## Stub fidelity
+
+`tests/mcp-telemetry-agents.php` reuses the same `WP_Error`/`$wpdb` fixture shapes `tests/mcp-telemetry.php` already established (multi-code storage, `get_error_data()`'s no-arg-returns-first-code default, a `$wpdb->insert()` that returns `false` on forced failure rather than throwing or returning null). New fixtures added for this file: an `apply_filters()`/`add_filter()` stub that forwards all trailing arguments (the shared repo stub only forwarded one), a `get_userdata()` stand-in returning a bare object with `user_login` for actor resolution, and — for seam 2 — a REAL `add_action()`/`do_action()` store (the shared repo stub's `add_action()` was a pure no-op; this file needs the registration to actually round-trip so `do_action()` can drive the wiring test the same way `apply_filters()` drives seam 1's), plus a `set_error_handler()` trap collecting `E_WARNING`/`E_NOTICE`/etc. into `$GLOBALS['__php_errors']` so the malformed-shape tests can assert not just "no crash" but "no warning either" — the sharper bar the review asked for. `sn_test_tool_call()` builds fixture entries in the EXACT `{callId, name, args, output, error}` shape read directly from `runner.php:578-584`, not assumed.
+
+## Watched RED
+
+Two RED passes, per the two seams:
+- Seam 1: moving `inc/mcp/mcp-telemetry-agents.php` aside and running its test suite produced an uncaught `Error: Failed opening required ...` (the file itself, then a cascade of undefined-function fatals had the require silently no-op'd).
+- Seam 2 (this fix): renaming `sn_mcp_telemetry_agent_completed()` to a name nothing calls, and renaming the corresponding `add_action()` registration target to match, produced every seam-1 assertion still passing (30/30) followed by an uncaught `Error: Call to undefined function sn_mcp_telemetry_agent_completed()` at the first seam-2 test — the fatal lands exactly where seam 2 starts, not before it.
+
+Restoring the real file both times returned the suite to fully green with no other change: 58/58.
+
+## Full sweep at ship time
+
+360 test files (`contracts-smoke.php` CI-excluded as always), 0 failures. `php -l` clean on every touched/new PHP file. `composer phpstan` — 301/301 files analysed, no errors. `composer lint` (phpcs) — clean, both scoped (touched files) and full-project runs. This work landed rebased onto v10.30.1, alongside session 6's `sn_site_facts` `active_template` post-slug fix; version stays 10.31.0 (same unreleased unit — the HIGH fix amends this session's own unshipped work, not a new release).

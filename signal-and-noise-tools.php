@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.30.1
+ * Version:     10.31.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -190,6 +190,7 @@ require_once SNT_PATH . 'inc/analytics-refresh-rest.php'; // v9.27.0: token-gate
 require_once SNT_PATH . 'inc/mcp/mcp-capabilities.php';
 require_once SNT_PATH . 'inc/mcp/mcp-telemetry.php'; // v10.25.0: MCP Layer B telemetry — sn_mcp_call_tool()'s every return point calls into this, both doors. Loaded before mcp-tools.php so the function_exists guards there resolve true.
 require_once SNT_PATH . 'inc/mcp/mcp-tools.php';
+require_once SNT_PATH . 'inc/mcp/mcp-telemetry-agents.php'; // v10.31.0: bridges Desktop Mode's per-tool agent filter into the same sn_tool_call table, door='agent'. Loaded after mcp-tools.php (reuses its slug→tool_name projection) and after mcp-telemetry.php (reuses its row builder/insert/classifier). Desktop Mode absent = the filter it hooks never fires.
 require_once SNT_PATH . 'inc/mcp/mcp-rw-audit.php'; // v9.51.0: rw-door audit log + owner notification (lane SEC-B) — sn_mcp_call_tool()'s tail calls into this.
 require_once SNT_PATH . 'inc/mcp/mcp-resources.php'; // v9.50.0: resources/list + resources/read (lane PROTO)
 require_once SNT_PATH . 'inc/mcp/mcp-prompts.php';   // v9.50.0: prompts/list + prompts/get (lane PROTO)
