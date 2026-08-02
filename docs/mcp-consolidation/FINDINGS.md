@@ -167,6 +167,8 @@ Confirms FINDINGS.md #5's split, now load-bearing in the tool description: `bloc
 
 **MEDIUM 2 — a false "TOCTOU-checked" safety claim.** `inc/sn-scan-adapters.php`'s `orphan_media` apply_hint comment (and this file's own earlier draft, above) called `ai-orphan-apply`'s pre-delete check "TOCTOU-checked" — false. Reading `inc/ai-orphan-suggest.php:172-198` directly: `snt_ai_orphan_apply_impl()` re-verifies CAPABILITY (`current_user_can('delete_post', ...)`) and EXISTENCE (the post is still an `attachment`) only; it never re-verifies the attachment is STILL unreferenced at apply time. A reference created between scan and apply (the attachment gets inserted into a new post) does not block the delete. **This is a pre-existing gap in `ai-orphan-apply` itself, not introduced by sn_scan** — both comments corrected to state this plainly. Input for the `sn_apply` gate design (sessions 6-7): the apply-time finding-validity re-check pattern. The specific orphan-media instance was then **closed in v10.28.1** (spun off mid-session as its own release — the re-check now exists in the underlying ability itself; see the TOCTOU section above).
 
+---
+
 ### Full sweep after the adversarial-review fixes AND the release-coordination git sync
 
 Two things happened between the pre-review baseline (357/13,097) and this final count: the adversarial-review fixes above (+28 asserts: `tests/abilities-sn-scan.php` 76→92, `tests/block-migrations-detect.php` +6 (Test 9), `tests/pattern-adoption-detect.php` +6 (Test 7)), and a required rebase onto `origin/main` after PR #427 (an unrelated Desktop Mode fix) merged as v10.28.0 mid-session — see "Release coordination" below. PR #427 itself grew `tests/desktop-mode-integration.php` by +18 asserts (282→300, its own CHANGELOG entry). 13,097 + 28 + 18 = **357 files, 13,143 asserts, 0 failures**. PHPStan (297 files) clean. PHPCS clean on all touched files.
@@ -179,3 +181,59 @@ Mid-session, another session's PR #427 (Desktop Mode widgets inheriting the desk
 - **`CHANGELOG.md`**: real conflict (both sessions inserted a section at the same position). Resolved by keeping PR #427's `[10.28.0]` section byte-for-byte as merged, moving this session's section above it and renumbering its heading to `[10.29.0]`.
 
 Every `@since`/version reference this session wrote (`inc/abilities-sn-scan.php`, `inc/sn-scan-adapters.php`, `inc/block-migrations-detect.php`, `inc/pattern-adoption-detect.php`, `inc/mcp/mcp-capabilities.php`, all touched test files, this FINDINGS.md section) was swept from `10.28.0`/`10.28.1` to `10.29.0`. Confirmed zero collision with PR #427's files: this session never touched any `assets/desktop-mode-widget*.js` file or `tests/desktop-mode-integration.php`.
+
+---
+
+# Session 5 Findings — sn_validate (shipped v10.30.0)
+
+Consolidation phase 4: the fourth CONSOLIDATED tool, `signal-noise/sn-validate`, registered NEW ALONGSIDE OLD (read door 36 → 37; plugin-namespace 26 → 27). Unlike sessions 3-4, this tool does not wrap an existing ability's compute function per surface — it re-implements each `ai-*-suggest` generator's IMPLICIT rule as an EXPLICIT deterministic check, per the spec's inversion table. Full behavioral detail is in the v10.30.0 CHANGELOG entry; this section holds the deviations, the anti-drift grounding table, and what could not be verified.
+
+## The anti-drift grounding table (per the task's explicit instruction: never duplicate a limit that already exists as a constant)
+
+| Check | Surface | Reused constant/helper | Source file |
+|---|---|---|---|
+| `char_range` (hard cap) | meta_description | `SNT_SURFACES_FIELD_CAPS['meta_description']` (300) | inc/abilities-update-post-surfaces.php |
+| `char_range` (hard cap) | og_card_title | `SNT_SURFACES_FIELD_CAPS['og_card_title']` (150) | inc/abilities-update-post-surfaces.php |
+| `char_range` (hard cap) | alt_text | `SNT_AI_ALT_APPLY_MAX_LENGTH` (250) | inc/ai-alt-text-suggest.php |
+| `corpus_collision` | meta_description | direct `$wpdb` query against `_sn_meta_description` postmeta — no existing helper to reuse (first collision check in the codebase) | inc/sn-validate-checks.php (new) |
+| `redundant_prefix` | alt_text | list extracted from `SNT_AI_ALT_BASE_RULES`'s prose ("No 'image of' / 'picture of' / 'photo of' preamble") | inc/ai-alt-text-suggest.php |
+| `drift_lexicon` | body | `sn_health_drift_time_patterns()` called verbatim, not copied | inc/health-check-drift-time-phrases.php |
+| `not_already_linked` | links | `sn_health_contains_note_link()` called verbatim, not copied | inc/health-check-unlinked-mentions.php |
+| `target_exists` | links | mirrors `ai-link-suggest`'s own target contract (`'publish' !== $target->post_status` → invalid), read directly from `inc/ai-link-suggest.php:340-343` before writing the check | inc/ai-link-suggest.php |
+| `tag_vocabulary` | tags | `sn_tag_normalize_key()` called verbatim, not copied | inc/tag-consolidation.php |
+| `word_count`/`sentence_count` | excerpt | `snt_word_count()` (the v10.24.0 Unicode-safe counter) called verbatim | inc/word-count.php |
+| `block_pattern_registered` | body | WP core's own `WP_Block_Patterns_Registry::is_registered()` — no plugin-side duplicate of the registry | WordPress core |
+
+Constants with **no existing machine-readable source** (soft-guideline windows and the banned-phrase list live only as prose inside `ai-generate-*` system-instruction constants) were extracted exactly ONCE, each with an inline citation of the prompt constant it was read from, in `inc/sn-validate-checks.php`'s top-of-file constant block: `SNT_SN_VALIDATE_EXCERPT_WORDS_MIN/MAX` + `SENTENCES_MIN/MAX` (from `SNT_AI_EXCERPT_SYSTEM`), `SNT_SN_VALIDATE_META_DESC_SOFT_MIN/MAX` (from `SNT_AI_META_DESC_SYSTEM`), `SNT_SN_VALIDATE_OG_TITLE_SOFT_MIN/MAX` (from `SNT_AI_OG_CARD_TITLE_SYSTEM`), `SNT_SN_VALIDATE_ALT_SOFT_MIN/MAX` (from `SNT_AI_ALT_SUGGEST_SYSTEM`), `SNT_SN_VALIDATE_BANNED_PHRASES` (from `SNT_AI_EXCERPT_SYSTEM`'s "Banned outright"/"Never refer to" sentences — the first machine-readable form of that prose anywhere in the codebase), and `SNT_SN_VALIDATE_NOTE_SUMMARY_SOFT_WORDS/MAX_WORDS` (from the THEME's `ai-generate-page-note-summary` input schema, `~/Projects/signal-and-noise/inc/abilities-ai-generation.php:56-57` — a cross-repo mirror, the same caution session 3 flagged for `get-seo-route-meta`, not silently assumed).
+
+## Deviations from the spec
+
+- **`checks` values are surface tokens (`excerpt`, `meta_description`, ... , `brand_voice`), not individual check names.** The spec's return-shape example shows `surfaces_checked: ["meta_description","excerpt","links"]`, which only makes sense if `checks` filters at the surface level — confirmed as the working interpretation this session, not independently specified elsewhere. `brand_voice` is included as a tenth valid token even though it is not a `proposed` input field (see the input schema): a session-5 decision, since the spec explicitly separates brand-voice evidence from the inversion table ("what does not invert") without saying how a caller opts into it. Requesting `brand_voice` applies evidence-only checks to every TEXT surface (`excerpt`/`meta_description`/`og_card_title`/`note_summary`/`body`) that resolves to a value, whether or not that surface's own structural check was also requested.
+- **`sn_apply` does not exist (sessions 6-7).** Acceptance tests 2 and 3's "apply refuses on error / succeeds on warnings-only" halves are deferred by construction — there is no apply tool to call. This session pins `ready_to_apply` SEMANTICS only: a known `error` finding yields `ready_to_apply:false`, warnings-only yields `true`. When `sn_apply` is built, it must call `sn_validate` internally and refuse on any `error`, per the spec's "enforcement rule" section — that wiring is explicitly OUT of this session's scope, not forgotten.
+- **`compare_against:"published"` diff is a presence diff, not a semantic diff/patch.** Per the kickoff's explicit instruction ("don't over-build"): `diff[surface] = {published, proposed}` for every surface literally present in the `proposed` input, nothing more. `note_summary`/`alt_text`/`links` have no natural single published counterpart in this plugin's storage model and are omitted from `diff` rather than fabricating a null comparison.
+- **`links`' `not_already_linked` and `anchor_present` are both severity `error`, not `warning`.** The spec doesn't assign severities explicitly beyond the meta_description `corpus_collision` example. Both mirror a real `ai-link-suggest` 409 (`snt_ai_link_already_linked`) and a real apply-blocking condition (`snt_ai_mention_drifted`) respectively — objective rule violations, not heuristics, so `error` was the faithful mapping under the spec's own three-tier definition.
+- **`drift_lexicon` is severity `warning`, not `error`.** `sn_health_drift_time_patterns()`'s own docblock states false positives are an accepted tradeoff ("false positives are fine because the AI evaluator is the second filter") — a regex hit alone is a heuristic signal by the detector's own design, matching the spec's `warning` definition exactly.
+- **`note_summary`'s `word_count` sub-check is new, not named in the spec's inversion table** (which lists only "single-sentence check"). Added because the theme ability's own input schema hard-caps `max_words` at 60 — a real, if cross-repo, structural constraint worth surfacing as an `error` above that ceiling (warning above the 30-word soft default). Documented here rather than silently expanding scope.
+- **`filename_pattern`'s "looks like a filename" detection is two-part**: a generic regex (`basename.extension` shape) OR an exact case-insensitive match against the REAL attachment's filename (via `get_attached_file()`) when `attachment_id` is supplied. The spec names the check but not its exact mechanism; both halves are objective and content-agnostic, so both are `error`.
+
+## Could not verify locally
+
+- **`get-seo-route-meta`'s slug-required contract** — unrelated to this session, inherited unresolved from session 3, not re-investigated here.
+- **The theme's `ai-generate-page-note-summary` `max_words` schema** (10-60 range, default 30) was read directly from `~/Projects/signal-and-noise/inc/abilities-ai-generation.php:56-57` (the theme repo IS checked out locally) — confirmed, not inferred, but flagged as a CROSS-REPO mirror: if that schema changes in the theme without a corresponding update here, `SNT_SN_VALIDATE_NOTE_SUMMARY_MAX_WORDS` drifts silently. No cross-repo constant-sharing mechanism exists in this codebase (same limitation session 3 noted for `get-seo-route-meta`).
+- **Any LIVE MCP round-trip against `signal-noise/sn-validate`** (no live `wp`/`curl` was run, per the task's standing rule) — verification is CLI-fixture-only, the same ceiling every prior session in this program has had.
+- **Whether the `brand_voice` banned-phrase list's specific entries are complete or well-tuned** — this is an editorial/product judgment the spec explicitly reserves for the conversation, not the tool (`SNT_SN_VALIDATE_BANNED_PHRASES` is a starting extraction from one prompt constant's prose, not a curated final list).
+
+## Full sweep at ship time
+
+359 files, 13,209 asserts, 0 failures — up from this branch's own pre-session baseline of 358/13,162 (re-measured directly via `git stash -u` immediately before this session's changes): 1 new test file (`tests/abilities-sn-validate.php`, 44 asserts, all 6 acceptance tests pinned explicitly, watched RED once on acceptance test 6 before the comment-stripping fix — see below), plus `tests/mcp-capabilities.php`'s allowlist-count pins updated deliberately (36→37 total, 26→27 plugin-namespace) and 1 new slug-presence assert. PHPStan (300 files, up from 297) clean. PHPCS clean on all touched files.
+
+## Watched RED (acceptance test 6, this session's own suite)
+
+The first run of `tests/abilities-sn-validate.php` failed acceptance test 6 (`FAIL: ACCEPTANCE TEST 6: zero model-call references in sn-validate source (sn-validate-checks.php:wp_ai_client_prompt)`) — a genuine finding, not a fixture bug: `inc/sn-validate-checks.php`'s own file-header docblock NAMES the forbidden entry points in prose ("must never reference `snt_ai_generate_with_constraints()`, `wp_ai_client_prompt()`...") to document the zero-model-calls guarantee, and a raw substring scan flagged its own documentation as a violation. Fixed by stripping comments/docblocks via PHP's own `token_get_all()` before scanning (not a hand-written regex — the paren-balance-miss trap this program's memory flags for `new WP_Error(...)` enumeration applies equally to any hand-rolled comment stripper; the tokenizer draws the exact boundary PHP itself uses). Re-run: 44/44 green, confirming the real source files carry zero AI-transport references outside documentation.
+
+## Adversarial review (v10.30.0, pre-merge)
+
+REJECTed on one MEDIUM + two LOW, all fixed in-worktree before merge:
+- **MEDIUM — zero-writes guard was a mid-file snapshot, not a structural sweep**: the assert ran before 6 of the 9 check families executed, so its "proven structurally" claim was false (the implementation itself was verified zero-write by full read). Guard moved to end-of-suite, after every family runs under the recorders — the sn_scan pattern, properly this time.
+- **LOW — banned-phrase extraction dropped `crucial`**: the source prompt (inc/ai-excerpt.php) names four words; the extraction carried three. Added.
+- **LOW — collision self-exclusion untested**: the SQL's `post_id != %d` was correct but unprobed. Acceptance test 4 now plants the validated post's OWN meta as a row; the stub parses and applies the real exclusion clause, so removing it from the SQL reds the test.
