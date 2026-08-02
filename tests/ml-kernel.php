@@ -352,6 +352,52 @@ ok( null === snt_ml_cadence_deviation( array(), 500 ), '(n) empty history → nu
 $metro = snt_ml_cadence_deviation( array( 0, 100, 200, 300, 400 ), 1000 );
 ok( is_array( $metro ) && null === $metro['z'] && 0.0 === (float) $metro['std'], '(n) zero std → z null: an unquantifiable surprise is UNKNOWN, not a number' );
 
+echo "\nGroup (n2): robust cadence deviation — median/MAD, burst-resistant (v10.32.0)\n";
+// Hand derivation: events 0,100,180,320,400 → intervals [100,80,140,80].
+// sorted [80,80,100,140] → median = (80+100)/2 = 90.
+// |x-90| = [10,10,50,10] → sorted [10,10,10,50] → MAD = (10+10)/2 = 10.
+// Consistency constant 1.4826 makes MAD a σ-equivalent for normal data.
+// current gap = 700-400 = 300 → z = (300-90)/(1.4826*10).
+$rob = snt_ml_cadence_deviation_robust( array( 0, 100, 180, 320, 400 ), 700 );
+ok( is_array( $rob ) && 4 === $rob['intervals'], '(n2) four intervals measured from five events' );
+ok( 90.0 === (float) $rob['median'], '(n2) median interval pinned by hand: 90' );
+ok( 10.0 === (float) $rob['mad'], '(n2) MAD pinned by hand: 10' );
+ok( 400.0 === (float) $rob['span'], '(n2) span = last event - first event (the window\'s wall-clock reach)' );
+ok( 300.0 === (float) $rob['current_gap'], '(n2) current gap = now - last event' );
+ok( feq( $rob['z'], ( 300 - 90 ) / ( 1.4826 * 10 ) ), '(n2) z = (gap - median) / (1.4826 * MAD)' );
+
+// The whole point: a burst poisons mean/σ far more than median/MAD. Series =
+// 20 tight firings then one long interval; the outlier moves the mean but not
+// the median, so the robust expectation stays the honest one.
+$burst = array( 0 );
+for ( $i = 1; $i <= 20; $i++ ) { $burst[] = $i * 60; }
+$burst[] = 1200 + 100000; // One huge interval at the end.
+$plain   = snt_ml_cadence_deviation( $burst, 1200 + 100000 + 60 );
+$robust  = snt_ml_cadence_deviation_robust( $burst, 1200 + 100000 + 60 );
+ok( 60.0 === (float) $robust['median'], '(n2) one 100k outlier interval never moves the median off 60' );
+ok( $plain['ewma'] > 1000.0, '(n2) …while the EWMA is dragged into the thousands by that same outlier' );
+
+// MAD hits exactly 0 as soon as a strict MAJORITY of intervals repeat — a far
+// easier condition than the old population-σ's "every interval identical", and
+// real cron (a system crontab hitting wp-cron.php) produces bit-identical gaps
+// by the dozen. Zeroing z there would be a WORSE blind spot than the code this
+// replaces, so a degenerate MAD falls back to the mean absolute deviation
+// (scaled by sqrt(pi/2)); only a PERFECTLY rigid history stays unquantifiable.
+$near_metro = array( 0.0, 3660.0 ); // First interval 3660, then 47 of exactly 3600.
+for ( $i = 2; $i <= 48; $i++ ) { $near_metro[] = $near_metro[ $i - 1 ] + 3600; }
+$nm = snt_ml_cadence_deviation_robust( $near_metro, end( $near_metro ) + 5 * 86400 );
+ok( 48 === $nm['intervals'] && 3600.0 === (float) $nm['median'] && 0.0 === (float) $nm['mad'], '(n2) one odd interval among 47 identical ones: MAD is exactly 0 (the majority rule)' );
+ok( null !== $nm['z'], '(n2) …yet a near-metronome five days silent is STILL quantifiable — MAD 0 is not the end of the road' );
+ok( feq( $nm['scale'], sqrt( M_PI / 2 ) * ( 60.0 / 48.0 ) ), '(n2) the fallback scale is sqrt(pi/2) x the mean absolute deviation from the median' );
+ok( feq( $nm['z'], ( 5 * 86400 - 3600 ) / ( sqrt( M_PI / 2 ) * ( 60.0 / 48.0 ) ) ), '(n2) …and z uses that fallback scale' );
+
+ok( null === snt_ml_cadence_deviation_robust( array( 0, 100, 200, 300 ), 500 ), '(n2) four events → null: the history floor is unchanged' );
+ok( null === snt_ml_cadence_deviation_robust( array(), 500 ), '(n2) empty history → null with zero notices' );
+$rmetro = snt_ml_cadence_deviation_robust( array( 0, 100, 200, 300, 400 ), 1000 );
+ok( is_array( $rmetro ) && null === $rmetro['z'] && 0.0 === (float) $rmetro['mad'], '(n2) zero MAD → z null: the metronome stays an honest unknown' );
+$rord = snt_ml_cadence_deviation_robust( array( 320, 0, 400, 100, 180 ), 700 );
+ok( $rob === $rord, '(n2) input order never changes the verdict' );
+
 echo "\nGroup (k): no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], '(k) zero notices/warnings/deprecations raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
 

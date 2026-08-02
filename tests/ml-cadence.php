@@ -55,6 +55,7 @@ class MC_Stub_wpdb {
 	public $last_error = '';
 	public $fail       = false;
 	public $hooks      = array(); // hook => [fired_at_ts...]
+	public $bound      = array();
 	public function prepare( $sql, ...$args ) { $this->bound = $args; return $sql; }
 	public function get_results( $sql, $output = OBJECT ) {
 		if ( $this->fail ) { $this->last_error = 'gone'; return array(); }
@@ -81,6 +82,15 @@ class MC_Stub_wpdb {
 if ( ! defined( 'OBJECT' ) ) { define( 'OBJECT', 'OBJECT' ); }
 if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
 $GLOBALS['wpdb'] = new MC_Stub_wpdb();
+
+// Registered cron schedules. Models the REAL snt_cron_interval_seconds()
+// (inc/cron-dashboard.php): interval in seconds, and 0 — never null — when
+// the hook has no recurring schedule (a single event, or wp_get_schedule
+// returning false).
+$GLOBALS['__cron_intervals'] = array();
+function snt_cron_interval_seconds( $hook ) {
+	return (int) ( $GLOBALS['__cron_intervals'][ (string) $hook ] ?? 0 );
+}
 
 require __DIR__ . '/../inc/ml-cadence.php';
 require __DIR__ . '/../inc/health-check-ml-cadence.php';
@@ -116,16 +126,152 @@ $GLOBALS['__pub_dates'] = array( gmdate( 'Y-m-d H:i:s', 100 ), gmdate( 'Y-m-d H:
 $env = snt_ml_cadence_flags( 99999 );
 ok( array() === $env['flags'], 'two publishes is not a cadence — unknown never flags' );
 
-echo "\nGroup: cron cadence\n";
+echo "\nGroup: cron cadence — the real poisoning shapes (v10.32.0)\n";
 $GLOBALS['__pub_dates'] = array();
+
+// Deterministic jitter: real cron gaps are never identical, and a zero-MAD
+// window is the module's watched-never-flagged posture, not the case under
+// test here.
+$JIT = array( -120, 300, -60, 180, 0 );
+/**
+ * Build a firing series: $count timestamps, $base_gap apart, cycling $jitter.
+ */
+function mc_series( $first, $count, $base_gap, $jitter = array( 0 ) ) {
+	$ts = array( (float) $first );
+	for ( $i = 1; $i < $count; $i++ ) {
+		$ts[] = $ts[ $i - 1 ] + $base_gap + $jitter[ ( $i - 1 ) % count( $jitter ) ];
+	}
+	return $ts;
+}
+$T0 = 1700000000;
+
+// ── (A) THE LIVE BUG: a release-marathon burst poisons the window ─────
+// wp_version_check fired ~hourly through the weekend (activity-coupled), so
+// the trailing 50 firings span barely two days. The next ordinary quiet day
+// z-scores off the chart against that burst — while the hook's REGISTERED
+// schedule is twicedaily. The learner must not undercut ground truth.
+$burst = mc_series( $T0, 50, HOUR_IN_SECONDS, $JIT );
+$GLOBALS['wpdb']->hooks       = array( 'wp_version_check' => $burst );
+$GLOBALS['__cron_intervals']  = array( 'wp_version_check' => 12 * HOUR_IN_SECONDS );
+$now_a = end( $burst ) + DAY_IN_SECONDS;
+// Non-vacuity: the raw statistic on this exact series DOES scream. What
+// suppresses the flag is the new rule, not thin or absent data.
+$raw_a = snt_ml_cadence_deviation_robust( $burst, $now_a );
+ok( is_array( $raw_a ) && $raw_a['z'] >= 3.0, '(A) the raw robust z on the burst window is still >= 3 — the fixture really is a would-be flag' );
+ok( $raw_a['span'] < 7 * DAY_IN_SECONDS, '(A) …because 50 firings spanned barely two days: a burst, not a baseline' );
+$env = snt_ml_cadence_flags( $now_a );
+ok( array() === $env['flags'], '(A) a burst-poisoned window never flags — the window must span real wall-clock time to be trusted' );
+ok( 1 === $env['watched_hooks'], '(A) the hook is still WATCHED — untrusted window is an honest unknown, not an exclusion' );
+
+// ── (B) SCHEDULE FLOOR: flagged late while not yet due ────────────────
+// Same absurdity observed live: z 13.89 at a 6.4h gap on a twicedaily hook.
+// Here the window IS trusted (it spans nine days), so only the floor can
+// suppress it — and the identical series with NO registered schedule must
+// still flag, which is what makes this test about the floor.
+$sparse = mc_series( $T0, 5, 2 * DAY_IN_SECONDS );
+$dense  = mc_series( end( $sparse ) + HOUR_IN_SECONDS, 45, HOUR_IN_SECONDS, $JIT );
+$mixed  = array_merge( $sparse, $dense );
+$now_b  = end( $mixed ) + (int) ( 6.4 * HOUR_IN_SECONDS );
+$raw_b  = snt_ml_cadence_deviation_robust( $mixed, $now_b );
+ok( is_array( $raw_b ) && $raw_b['span'] >= 7 * DAY_IN_SECONDS && $raw_b['z'] >= 3.0, '(B) the window spans over a week AND z-scores over three — trusted, and a would-be flag' );
+$GLOBALS['wpdb']->hooks      = array( 'wp_version_check' => $mixed );
+$GLOBALS['__cron_intervals'] = array( 'wp_version_check' => 12 * HOUR_IN_SECONDS );
+$env = snt_ml_cadence_flags( $now_b );
+ok( array() === $env['flags'], '(B) never flag below 1.5x the REGISTERED interval — 6.4h into a twicedaily schedule is not late' );
+// Negative control: identical data and an identical 6.4h gap, but registered
+// HOURLY — now the gap clears 1.5x and the flag lands. Only the floor's height
+// changed, so the floor is demonstrably what suppressed the case above.
+$GLOBALS['__cron_intervals'] = array( 'wp_version_check' => HOUR_IN_SECONDS );
+$env = snt_ml_cadence_flags( $now_b );
+ok( 1 === count( $env['flags'] ) && 'wp_version_check' === $env['flags'][0]['subject'], '(B) the identical series flags when the registered interval is hourly instead — the floor\'s height is what suppressed it' );
+
+// ── (C) A GENUINE STALL MUST STILL FLAG ───────────────────────────────
+$daily = mc_series( $T0, 50, DAY_IN_SECONDS, array( -600, 900, -300, 1200, 0 ) );
+$now_c = end( $daily ) + (int) ( 3.5 * DAY_IN_SECONDS );
+$GLOBALS['wpdb']->hooks      = array( 'sn_verify_auto_purge' => $daily );
+$GLOBALS['__cron_intervals'] = array( 'sn_verify_auto_purge' => DAY_IN_SECONDS );
+$env = snt_ml_cadence_flags( $now_c );
+ok( 1 === count( $env['flags'] ) && 'sn_verify_auto_purge' === $env['flags'][0]['subject'], '(C) a daily hook silent for three and a half days STILL flags — the fix narrows false positives, not detection' );
+ok( $env['flags'][0]['z'] >= 3.0 && $env['flags'][0]['ewma'] > 0.0, '(C) the flag carries the robust z and the median as the expected gap' );
+
+// ── (D) UNSCHEDULED / ON-DEMAND: no ground truth, so span is all we have ─
+// snt_ml_rebuild_async is a single event fired per publish — during the
+// marathon it ran every half hour, which is not a cadence.
+$ondemand = mc_series( $T0, 50, 30 * MINUTE_IN_SECONDS, $JIT );
+$GLOBALS['wpdb']->hooks      = array( 'snt_ml_rebuild_async' => $ondemand );
+$GLOBALS['__cron_intervals'] = array(); // Single event: no registered schedule.
+$env = snt_ml_cadence_flags( end( $ondemand ) + 12 * HOUR_IN_SECONDS );
+ok( array() === $env['flags'], '(D) an on-demand hook with no registered schedule and a sub-week window never flags' );
+
+// (D2) …and neither does one whose window DOES span a week. Review caught
+// this: sn_analytics_rollup and snt_ml_rebuild_async are wp_schedule_single_
+// event hooks, so snt_cron_interval_seconds() returns 0 for both and neither
+// the floor nor the agreement clause can engage. Their firings cluster around
+// admin visits — five per weekday for a fortnight spans well past seven days
+// while the median gap stays fifteen minutes, so span alone would re-admit the
+// exact false positive being fixed. inc/cron-dashboard.php:491 already settled
+// the doctrine: an on-demand hook's cadence tracks admin visits, not cron
+// health. Without a registered schedule there is no expectation to violate.
+$clustered = array();
+for ( $day = 0; $day < 10; $day++ ) {
+	$base = $T0 + $day * DAY_IN_SECONDS;
+	foreach ( array( 0, 900, 1800, 2700, 3600 ) as $k => $off ) {
+		$clustered[] = (float) ( $base + $off + $JIT[ $k ] );
+	}
+}
+$raw_d = snt_ml_cadence_deviation_robust( $clustered, end( $clustered ) + DAY_IN_SECONDS );
+ok( is_array( $raw_d ) && $raw_d['span'] >= 7 * DAY_IN_SECONDS && $raw_d['z'] >= 3.0, '(D2) the clustered window spans ten days AND z-scores over three — span alone would trust it' );
+$GLOBALS['wpdb']->hooks      = array( 'sn_analytics_rollup' => $clustered );
+$GLOBALS['__cron_intervals'] = array();
+$env = snt_ml_cadence_flags( end( $clustered ) + DAY_IN_SECONDS );
+ok( array() === $env['flags'], '(D2) a hook with NO registered schedule never flags, however long its window — no schedule, no expectation' );
+ok( 1 === $env['watched_hooks'], '(D2) still watched: unquantifiable, not excluded' );
+
+// (D3) The same series WITH a registered recurrence still flags — proving
+// (D2) turns on the missing schedule and not on the fixture's shape.
+$GLOBALS['__cron_intervals'] = array( 'sn_analytics_rollup' => HOUR_IN_SECONDS );
+$env = snt_ml_cadence_flags( end( $clustered ) + DAY_IN_SECONDS );
+ok( 1 === count( $env['flags'] ) && 'sn_analytics_rollup' === $env['flags'][0]['subject'], '(D3) give that identical series an hourly registration and it flags — the missing schedule is what suppressed it' );
+
+// ── (E) FREQUENT SCHEDULED HOOKS KEEP THEIR COVERAGE ──────────────────
+// An hourly hook can never span a week in 50 firings. Refusing to flag it
+// forever would be a real detection loss — so a window whose learned rhythm
+// AGREES with the registered interval is trusted regardless of span.
+$hourly = mc_series( $T0, 50, HOUR_IN_SECONDS, $JIT );
+$GLOBALS['wpdb']->hooks      = array( 'snt_hourly_worker' => $hourly );
+$GLOBALS['__cron_intervals'] = array( 'snt_hourly_worker' => HOUR_IN_SECONDS );
+$env = snt_ml_cadence_flags( end( $hourly ) + 6 * HOUR_IN_SECONDS );
+ok( 1 === count( $env['flags'] ) && 'snt_hourly_worker' === $env['flags'][0]['subject'], '(E) an hourly hook six hours silent flags: the learned median agrees with the registered interval, so the short span is trusted' );
+
+// ── (G) exact boundaries — pinned so a future refactor cannot flip them ─
+// The floor is `gap < interval * 1.5 → suppress`, so landing EXACTLY on 1.5x
+// is due, not early. Build a trusted daily window and step the gap across it.
+$GLOBALS['wpdb']->hooks      = array( 'snt_boundary' => $daily );
+$GLOBALS['__cron_intervals'] = array( 'snt_boundary' => DAY_IN_SECONDS );
+$floor_at = end( $daily ) + (int) ( 1.5 * DAY_IN_SECONDS );
+ok( array() === snt_ml_cadence_flags( $floor_at - 1 )['flags'], '(G) one second under 1.5x the registered interval: suppressed' );
+ok( 1 === count( snt_ml_cadence_flags( $floor_at )['flags'] ), '(G) exactly 1.5x the registered interval: due, so a three-sigma gap flags' );
+
+// The agreement clause is `median >= interval * 0.5 → trusted`; the burst
+// window's median is exactly one hour, so a two-hour registration sits
+// precisely on the boundary and must be TRUSTED (inclusive).
+$GLOBALS['wpdb']->hooks      = array( 'snt_agree_edge' => $burst );
+$GLOBALS['__cron_intervals'] = array( 'snt_agree_edge' => 2 * HOUR_IN_SECONDS );
+ok( 1 === count( snt_ml_cadence_flags( $now_a )['flags'] ), '(G) learned median exactly 0.5x the registered interval: trusted (inclusive), so it flags' );
+$GLOBALS['__cron_intervals'] = array( 'snt_agree_edge' => 2 * HOUR_IN_SECONDS + 1 );
+ok( array() === snt_ml_cadence_flags( $now_a )['flags'], '(G) one second past that boundary: the learned rhythm no longer agrees, window untrusted' );
+
+// ── (F) the preserved honest-unknown postures, together ───────────────
 $GLOBALS['wpdb']->hooks = array(
-	'snt_steady_hourly' => array( 0, 3600, 7200, 10800, 14400, 18000 ),      // metronome, current gap huge but std 0 → z null → SKIP (unknown)
-	'snt_drifty_daily'  => array( 0, 100, 180, 320, 400 ),                   // the pinned series → z 8.187 at now 700
-	'snt_thin_hook'     => array( 0, 100 ),                                  // too little history → skipped
+	'snt_metronome'  => mc_series( $T0, 50, DAY_IN_SECONDS ),           // zero MAD → z null
+	'snt_thin_hook'  => array( $T0, $T0 + 100 ),                         // < 5 firings → not watched
+	'sn_stalled'     => $daily,                                          // the (C) stall
 );
-$env = snt_ml_cadence_flags( 700 );
-ok( 1 === count( $env['flags'] ) && 'cron' === $env['flags'][0]['kind'] && 'snt_drifty_daily' === $env['flags'][0]['subject'], 'exactly the drifty hook flags' );
-ok( 2 === $env['watched_hooks'], 'watched counts hooks with enough history (thin one excluded); the metronome is watched but unquantifiable' );
+$GLOBALS['__cron_intervals'] = array( 'sn_stalled' => DAY_IN_SECONDS, 'snt_metronome' => DAY_IN_SECONDS );
+$env = snt_ml_cadence_flags( $now_c );
+ok( 1 === count( $env['flags'] ) && 'sn_stalled' === $env['flags'][0]['subject'], '(F) exactly the stalled hook flags among a metronome and a thin history' );
+ok( 2 === $env['watched_hooks'], '(F) watched counts hooks with enough history (thin one excluded); the metronome is watched but unquantifiable' );
+$GLOBALS['__cron_intervals'] = array();
 
 echo "\nGroup: failed cron read = partial answer, spoken\n";
 $GLOBALS['__pub_dates'] = array( gmdate( 'Y-m-d H:i:s', 400 ), gmdate( 'Y-m-d H:i:s', 320 ), gmdate( 'Y-m-d H:i:s', 180 ), gmdate( 'Y-m-d H:i:s', 100 ), gmdate( 'Y-m-d H:i:s', 0 ) );
