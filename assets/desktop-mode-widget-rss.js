@@ -23,6 +23,11 @@
  * --wpd-color-*: first-party CSS consumes those tokens but desktop-mode v0.9.5
  * defines them nowhere, so var() always hits its fallback.)
  *
+ * v10.28.0: still true at desktop-mode v0.9.8, desktop themes and all — the
+ * card background is a literal, so it cannot go light. Full reasoning for why
+ * the themeable --wpd-* body palette is the WRONG fit for this surface lives
+ * in assets/desktop-mode-widget-actions.js.
+ *
  * @since plugin v2.1.0
  */
 ( function() {
@@ -65,7 +70,7 @@
 	function renderLoading( container ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:14px 16px;font-size:13px;opacity:.6;',
+			style: 'padding:14px 16px;font-size:13px;opacity:.6;',
 			text:  'Loading RSS activity…',
 		} ) );
 	}
@@ -73,7 +78,7 @@
 	function renderError( container, message ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'font-family:sans-serif;padding:14px 16px;font-size:12px;color:#ff9d94;',
+			style: 'padding:14px 16px;font-size:12px;color:#ff9d94;',
 			text:  'RSS fetch failed: ' + ( message || 'unknown' ),
 		} ) );
 	}
@@ -82,7 +87,7 @@
 		clearChildren( container );
 
 		var wrap = el( 'div', {
-			style: 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:inherit;',
+			style: 'padding:14px 16px;color:inherit;',
 		} );
 
 		// v9.52.4: no title row — desktop-mode's chrome header (grip + label +

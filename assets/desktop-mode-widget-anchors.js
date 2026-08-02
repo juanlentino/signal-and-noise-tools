@@ -55,7 +55,7 @@
 		function render( overview, note ) {
 			clearChildren( container );
 			var wrap = el( 'div', {
-				style: 'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:inherit;font-size:13px;line-height:1.5;',
+				style: 'padding:14px 16px;color:inherit;font-size:13px;line-height:1.5;',
 			} );
 
 			var pending   = ( overview && overview.pending ) || [];

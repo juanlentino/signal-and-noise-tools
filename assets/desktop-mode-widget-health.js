@@ -57,7 +57,7 @@
 	}
 
 	window.desktopModeWidgets['sn-health'] = function( container, ctx ) {
-		var wrap = el( 'div', { style: 'padding:10px 12px;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;' } );
+		var wrap = el( 'div', { style: 'padding:10px 12px;' } );
 		var summary = data.healthSummary;
 
 		if ( ! summary ) {

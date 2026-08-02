@@ -72,7 +72,7 @@
 
 	function note( container, text ) {
 		clearChildren( container );
-		var wrap = el( 'div', { style: 'padding:14px 16px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:inherit;' } );
+		var wrap = el( 'div', { style: 'padding:14px 16px;color:inherit;' } );
 		wrap.appendChild( el( 'div', { text: text, style: 'font-size:12px;opacity:.6;' } ) );
 		if ( dashboardUrl ) {
 			wrap.appendChild( el( 'a', {
@@ -103,7 +103,7 @@
 			return;
 		}
 
-		var wrap = el( 'div', { style: 'padding:14px 16px;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,sans-serif;color:inherit;' } );
+		var wrap = el( 'div', { style: 'padding:14px 16px;color:inherit;' } );
 
 		rows.forEach( function( row ) {
 			var level = String( row.level || 'ok' );

@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.28.0] - 2026-08-01
+
+### Fixed
+
+- **All eight Desktop Mode widgets blocked the desktop theme's typeface** ([assets/desktop-mode-widget*.js](assets/)). desktop-mode 0.9.7 added **desktop themes** — an uploadable ZIP that reskins the whole shell, including its typography. The shell delivers a themed face by setting `font-family: var( --desktop-mode-font, inherit )` on the shell root and letting it **inherit**; its own comment in `assets/css/desktop.css` names the consumers as "dock labels, desktop icon labels, WIDGETS, the overview" (verified at tag v0.9.8). Every SN widget declared its own `-apple-system, BlinkMacSystemFont, …` stack — 15 declarations across 8 files — each of which silently won over the inherited value. A user who installed a themed font saw it everywhere on the desktop except our widgets. All local typefaces removed; `font-size`, `line-height` and `font-weight` are untouched, and Quick Actions' `font:` shorthand (which resets the family as surely as `font-family` does) became explicit longhands.
+
+### Changed
+
+- **Colour literals in the widgets deliberately NOT migrated to the `--wpd-*` palette**, with the reasoning recorded in [assets/desktop-mode-widget-actions.js](assets/desktop-mode-widget-actions.js). Adopting the theme palette looks like the obvious companion change and is the wrong call here: `.desktop-mode-widgets__card` is still `background-color: rgba( 20, 20, 22, 0.55 )` at v0.9.8 — a **literal**, the one surface a desktop theme cannot retint — while `--wpd-success-fg` and friends are themed to read against `--wpd-surface`, which *is* themeable. Under a light theme those tokens resolve dark, so the swap would have put dark green and dark amber on permanently dark glass: a contrast **regression** dressed as theme support. A fixed surface takes a fixed foreground. Two further findings recorded in the same note: `--wpd-color-*` (the tokens desktop-mode's own `widget-starter.css` instructs widget authors to use, claiming the shell sets them) is still assigned nowhere at v0.9.8 — first-party widgets disagree on the fallback, near-black vs near-white, which is only possible if the variable never resolves; and the card's `color` *has* become themeable (`var( --wpd-fg-on-accent, #fff )`), an upstream coupling that hits desktop-mode's own widgets identically and is tracked rather than diverged from.
+
+### Testing
+
+- New section in [tests/desktop-mode-integration.php](tests/desktop-mode-integration.php) pins the property — *no SN widget declares a typeface* — rather than any wording: one assertion per widget for `font-family`, plus a shorthand check that allows `font:inherit` and rejects any other `font:` value. Watched **RED first** (9 failures naming all eight widgets and the shorthand), then green. Also closed a coverage hole found while writing it: `desktop-mode-widget-anchors.js` was missing from the `$sn_widget_js` map entirely, so the light-palette and doubled-heading assertions had never run against it. Suite 282 → 300 assertions, 0 failed.
+
 ## [10.27.1] - 2026-08-01
 
 ### Fixed

@@ -68,7 +68,7 @@
 	function renderLoading( container ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'font-family:-apple-system,BlinkMacSystemFont,sans-serif;padding:14px 16px;font-size:13px;opacity:.6;',
+			style: 'padding:14px 16px;font-size:13px;opacity:.6;',
 			text:  'Loading deploy status…',
 		} ) );
 	}
@@ -76,7 +76,7 @@
 	function renderError( container, message ) {
 		clearChildren( container );
 		container.appendChild( el( 'p', {
-			style: 'font-family:sans-serif;padding:14px 16px;font-size:12px;color:#ff9d94;',
+			style: 'padding:14px 16px;font-size:12px;color:#ff9d94;',
 			text:  'Status fetch failed: ' + ( message || 'unknown' ),
 		} ) );
 	}
@@ -86,7 +86,7 @@
 
 		var wrap = el( 'div', {
 			className: 'sn-dm-widget',
-			style:     'font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,sans-serif;padding:14px 16px;color:inherit;',
+			style:     'padding:14px 16px;color:inherit;',
 		} );
 
 		// v9.52.4: no title row — desktop-mode's chrome header (grip + label +
