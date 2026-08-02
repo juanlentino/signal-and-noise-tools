@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.30.1] - 2026-08-02
+
+### Fixed
+
+- **`sn_site_facts` `active_template` now resolves POST slugs** ([inc/abilities-sn-site-facts.php](inc/abilities-sn-site-facts.php)). Verified live: the theme's `sn_theme_ability_active_template_structure()` slug branch defaults `post_type` to `'page'` (`get_page_by_path( $slug, OBJECT, $input['post_type'] ?? 'page' )` — signal-and-noise/inc/abilities-diagnostics.php:541-546), so every post-slug request degraded to `{error:'unavailable'}` while page slugs worked — session 3's R1 note wrongly concluded no post_type disambiguation was needed. Fixed plugin-side (theme contract untouched; its schema already accepts `post_type` enum('post','page')): new `snt_sn_site_facts_dispatch_active_template()` dispatches `{slug, post_type:'page'}` first — behavior-identical to before for page slugs, still one call — and on failure retries ONCE with `post_type:'post'`; `{error:'unavailable'}` only when both lookups miss. [tests/abilities-sn-site-facts.php](tests/abilities-sn-site-facts.php) 41 → 44 asserts: the faithful theme stub now models the real callback's post_type default and wrong-type 404 (both steady states — page-hit and page-miss/post-hit — per the repo's standing stub-drift trap), pinning exact call counts and arg shapes for page-hit (one call), post-hit (page-first then post-retry), and both-miss (two attempts, then degradation). Watched RED 4/4 against the pre-fix dispatcher. Deviation ledger note in [docs/mcp-consolidation/FINDINGS.md](docs/mcp-consolidation/FINDINGS.md) (interim-fix section).
+
 ## [10.30.0] - 2026-08-02
 
 ### Added

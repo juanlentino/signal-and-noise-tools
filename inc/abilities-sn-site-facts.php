@@ -45,7 +45,10 @@
  *   design_tokens      -> signal-and-noise/get-design-tokens           (no args)
  *   block_patterns     -> signal-and-noise/list-block-patterns         (no args)
  *   template_overrides -> signal-noise/list-template-overrides         (no args — PLUGIN slug, not theme)
- *   active_template    -> signal-and-noise/get-active-template-structure (args: slug — REQUIRED input; see R1 below)
+ *   active_template    -> signal-and-noise/get-active-template-structure (args: slug + post_type —
+ *                          slug is REQUIRED input; post_type is dispatched page-first with one
+ *                          post retry; see R1 and the R2 note on
+ *                          snt_sn_site_facts_dispatch_active_template())
  *   llms_txt           -> signal-and-noise/get-llms-txt                (no args)
  *   seo_route_meta     -> signal-and-noise/get-seo-route-meta          (args: slug — REQUIRED input)
  *   pillars            -> signal-and-noise/get-page-notes-pillars      (no args)
@@ -67,12 +70,13 @@
  * permanently dead fact that the original 31/31 green suite never caught
  * because no test ever put 'active_template' in a facts[] array. Fixed:
  * active_template joins reading_time + seo_route_meta in
- * snt_sn_site_facts_slug_required(), dispatched with the SAME {slug: ...}
- * shape (the theme schema's anyOf accepts slug; its execute callback's slug
- * branch calls get_page_by_path(), which needs no post_type disambiguation
- * for this tool's purposes). Requesting it without slug now takes the
- * existing snt_site_facts_missing_slug 400 path instead of a silent,
- * permanent {error:'unavailable'}.
+ * snt_sn_site_facts_slug_required(), dispatched with a slug-carrying shape.
+ * Requesting it without slug now takes the existing
+ * snt_site_facts_missing_slug 400 path instead of a silent, permanent
+ * {error:'unavailable'}. (R1's closing claim that get_page_by_path "needs no
+ * post_type disambiguation for this tool's purposes" was itself wrong for
+ * POST slugs — see the R2 note on snt_sn_site_facts_dispatch_active_template()
+ * for the page-first + post-retry dispatch that superseded it.)
  *
  * @package SignalNoiseTools
  * @since 10.26.0
@@ -89,7 +93,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-site-facts', array(
 		'label'               => 'Batch-read site facts (consolidated)',
-		'description'         => 'Consolidated read for 10 site facts otherwise requiring 10 sequential calls (get-design-system-summary is retired, not absorbed — its raw counterpart design_tokens supersedes it): theme_version, latest_theme_tag, design_tokens, block_patterns, template_overrides, active_template, llms_txt, seo_route_meta, pillars, reading_time. Pass the subset you need in `facts`; `slug` is REQUIRED when reading_time, seo_route_meta, OR active_template is requested — each targets a specific post and has no site-wide default (400 if missing for any of the three). Returns a map keyed by requested fact. Each fact dispatches to its real underlying ability (most are theme-owned; this tool never duplicates their logic) — if the theme is absent, a source ability is unregistered, or its own permission/execute step fails, that ONE fact\'s entry becomes {error:"unavailable"} while every other requested fact still returns normally. The call as a whole only fails on invalid input: an empty or unrecognized facts[] entry, or a missing required slug.',
+		'description'         => 'Consolidated read for 10 site facts otherwise requiring 10 sequential calls (get-design-system-summary is retired, not absorbed — its raw counterpart design_tokens supersedes it): theme_version, latest_theme_tag, design_tokens, block_patterns, template_overrides, active_template, llms_txt, seo_route_meta, pillars, reading_time. Pass the subset you need in `facts`; `slug` is REQUIRED when reading_time, seo_route_meta, OR active_template is requested — each targets a specific post and has no site-wide default (400 if missing for any of the three). active_template accepts BOTH page and post slugs: it is resolved page-first, then retried once as a post. Returns a map keyed by requested fact. Each fact dispatches to its real underlying ability (most are theme-owned; this tool never duplicates their logic) — if the theme is absent, a source ability is unregistered, or its own permission/execute step fails, that ONE fact\'s entry becomes {error:"unavailable"} while every other requested fact still returns normally. The call as a whole only fails on invalid input: an empty or unrecognized facts[] entry, or a missing required slug.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_site_facts',
@@ -208,6 +212,38 @@ function snt_sn_site_facts_dispatch( $ability_slug, $args ) {
 }
 
 /**
+ * active_template only: page-first dispatch with a single post retry.
+ *
+ * R2 FIX (verified live 2026-08-02): the theme's real
+ * sn_theme_ability_active_template_structure() slug branch defaults
+ * post_type to 'page' (abilities-diagnostics.php:541-546 —
+ * get_page_by_path( $slug, OBJECT, $input['post_type'] ?? 'page' )), so a
+ * bare-slug dispatch can NEVER resolve a post's slug: every POST slug
+ * degraded to {error:'unavailable'} while page slugs worked. The theme
+ * schema already accepts post_type enum('post','page'); fixed plugin-side
+ * (this file owns the dispatch shape, the theme contract is unchanged):
+ * dispatch {slug, post_type:'page'} first — explicit now, but identical to
+ * the previous effective behavior, so page slugs are resolved in one call
+ * exactly as before — and only on failure retry ONCE with post_type:'post'.
+ * Only when both lookups fail does the fact degrade to the documented
+ * {error:'unavailable'}. The retry keys off the collapsed unavailable shape
+ * (this dispatcher's uniform degradation contract deliberately erases the
+ * source error), so a theme-absent/permission-denied first attempt also
+ * retries once — a harmless second degradation, never a behavior change.
+ *
+ * @param string $ability_slug
+ * @param string $slug
+ * @return mixed|array{error:string}
+ */
+function snt_sn_site_facts_dispatch_active_template( $ability_slug, $slug ) {
+	$page_hit = snt_sn_site_facts_dispatch( $ability_slug, array( 'slug' => $slug, 'post_type' => 'page' ) );
+	if ( array( 'error' => 'unavailable' ) !== $page_hit ) {
+		return $page_hit;
+	}
+	return snt_sn_site_facts_dispatch( $ability_slug, array( 'slug' => $slug, 'post_type' => 'post' ) );
+}
+
+/**
  * Ability execute callback: signal-noise/sn-site-facts.
  *
  * @param array|null $input { facts: string[], slug?: string }.
@@ -250,6 +286,10 @@ function snt_ability_sn_site_facts( $input ) {
 
 	$out = array();
 	foreach ( $facts as $fact ) {
+		if ( 'active_template' === $fact ) {
+			$out[ $fact ] = snt_sn_site_facts_dispatch_active_template( $map[ $fact ], $slug );
+			continue;
+		}
 		$args         = in_array( $fact, snt_sn_site_facts_slug_required(), true ) ? array( 'slug' => $slug ) : array();
 		$out[ $fact ] = snt_sn_site_facts_dispatch( $map[ $fact ], $args );
 	}
