@@ -203,5 +203,26 @@ _ta_post( 106, array(
 $candidates = snt_pattern_adoption_detect_candidates();
 pa_eq( 1, count( $candidates ), 'Test 6.1: nested core/quote found via innerBlocks walk' );
 
+// ─── Test 7: compute()/run_scan() split (v10.29.0, adversarial review) ─
+// Same fix as block-migrations-detect.php Test 9: compute() is the pure
+// detection + envelope build with NO write; run_scan() stays compute() +
+// the write, byte-identical for every existing caller.
+echo "\nTest 7: snt_pattern_adoption_compute() writes nothing; run_scan() unchanged\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_post_meta'] = array();
+$GLOBALS['__test_transients'] = array();
+_ta_post( 107, array(
+	array( 'blockName' => 'core/quote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<blockquote>Split.</blockquote>' ),
+) );
+pa_true( function_exists( 'snt_pattern_adoption_compute' ), 'Test 7.1: snt_pattern_adoption_compute() exists' );
+$computed7 = snt_pattern_adoption_compute();
+pa_eq( 1, $computed7['counts']['pull_quote'], 'Test 7.2: compute() detects the same candidates as run_scan()' );
+pa_eq( 0, count( $GLOBALS['__test_transients'] ), 'Test 7.3: compute() writes NO transient (the readOnlyHint contract sn_scan depends on)' );
+$scan7 = snt_pattern_adoption_run_scan();
+pa_eq( 1, count( $GLOBALS['__test_transients'] ), 'Test 7.4: run_scan() still writes exactly one transient — unchanged behavior for the admin tab / legacy ability' );
+$key7 = 'snt_pattern_adoption_candidates_' . (int) get_current_user_id();
+pa_true( isset( $GLOBALS['__test_transients'][ $key7 ] ), 'Test 7.5: run_scan() writes the documented per-user key' );
+pa_eq( json_encode( $scan7 ), json_encode( $GLOBALS['__test_transients'][ $key7 ] ), 'Test 7.6: the written transient is byte-identical to run_scan()\'s return value' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

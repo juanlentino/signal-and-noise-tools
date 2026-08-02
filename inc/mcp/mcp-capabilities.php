@@ -43,9 +43,12 @@ if ( ! defined( 'SN_MCP_DOOR_RW' ) ) {
  * 25 → 28 in v10.6.0 (corpus inspection trio), 28 → 29 in v10.16.0
  * (near-duplicate-scan), 29 → 31 in v10.17.0 (keyword-candidates,
  * link-candidates), 31 → 32 in v10.21.0 (topic-clusters), 32 → 33 in
- * v10.22.0 (cadence-flags), and 33 → 35 in v10.26.0 (sn-posts, sn-site-facts
+ * v10.22.0 (cadence-flags), 33 → 35 in v10.26.0 (sn-posts, sn-site-facts
  * — the first two CONSOLIDATED tools, new alongside every ability they
- * absorb; nothing below was unregistered).
+ * absorb; nothing below was unregistered), and 35 → 36 in v10.29.0
+ * (sn-scan — the third CONSOLIDATED tool, absorbing block-migrations-scan,
+ * pattern-adoption-scan, duplicate-body-scan, near-duplicate-scan, and
+ * link-candidates; again new alongside old, nothing unregistered).
  * the read-only-by-construction guarantee is unchanged — every slug here is
  * PURE-READ or READ-REMOTE by curation, never a write/action/AI-billed
  * ability (those live on the rw door only, see sn_mcp_rw_allowlist).
@@ -112,6 +115,13 @@ function sn_mcp_allowlist() {
 		// (9 theme + list-template-overrides), never writes.
 		'signal-noise/sn-posts',
 		'signal-noise/sn-site-facts',
+		// v10.29.0 — MCP consolidation, phase 3: the third CONSOLIDATED tool.
+		// PURE-READ by construction: every adapter behind sn-scan calls the
+		// same internal functions the five absorbed scan abilities call
+		// (never wp_get_ability()), plus a sixth source (orphan_media,
+		// wrapping the pure-SQL sn_health_check_orphaned_media(), never the
+		// AI-gated ai-orphan-suggest path). Writes nothing, ever.
+		'signal-noise/sn-scan',
 	);
 
 	/**
