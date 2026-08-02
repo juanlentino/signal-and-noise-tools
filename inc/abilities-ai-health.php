@@ -275,7 +275,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/ai-orphan-apply', array(
 		'label'               => 'Delete an orphan attachment',
-		'description'         => 'Force-deletes an orphan-verdict attachment via wp_delete_attachment($id, true). Destructive. Skips trash. Clears the orphan verdict cache for this attachment.',
+		'description'         => 'Force-deletes an orphan-verdict attachment via wp_delete_attachment($id, true). Destructive. Skips trash. Clears the orphan verdict cache for this attachment. Re-verifies orphanhood at apply time: if the attachment has become referenced since the scan, returns snt_orphan_no_longer (409) and deletes nothing.',
 		'category'            => 'ai-generation',
 		'permission_callback' => 'snt_ability_perm_delete_attachment',
 		'execute_callback'    => 'snt_ability_ai_orphan_apply',

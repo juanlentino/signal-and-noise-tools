@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.28.1] - 2026-08-01
+
+### Fixed
+
+- **TOCTOU gap in the orphan-media force-delete closed** ([inc/ai-orphan-suggest.php](inc/ai-orphan-suggest.php)). `snt_ai_orphan_apply_impl()` checked only `current_user_can('delete_post')` + attachment existence before `wp_delete_attachment($id, true)` — it never re-verified that the attachment was still orphaned at apply time. Between the health scan that flagged it and the Apply click, the attachment could become referenced again (set as a featured image, inserted into a post body, made the site logo/icon, added to post meta) and would be permanently deleted anyway. The apply impl now re-runs the full scan-time signal battery via a new `sn_health_attachment_is_referenced_now()` before the irreversible delete; a now-referenced attachment returns `WP_Error snt_orphan_no_longer` (409) and nothing is deleted. The verdict transient is deliberately left in place so the finding stays reviewable after the refusal. Found during MCP consolidation session 4 review ([docs/mcp-consolidation/FINDINGS.md](docs/mcp-consolidation/FINDINGS.md)); this apply-time re-verify pattern also feeds the `sn_apply` gate design.
+
+### Changed
+
+- **Reference-set building extracted into `sn_health_reference_sets()`** ([inc/health-check-orphaned-media.php](inc/health-check-orphaned-media.php)): the featured-image + site-chrome flipped sets are now built by one shared helper consumed by both the scan and the new apply-time re-check — scan/apply parity is structural rather than copied. The `ai-orphan-apply` ability description now documents the 409 refusal.
+
+### Testing
+
+- New [tests/ai-orphan-apply.php](tests/ai-orphan-apply.php) (19 assertions, harness copied from the known-good `health-orphan-detection.php` substring-corpus wpdb sibling): pins all three race classes (post body, featured image, site logo) as 409-with-zero-`wp_delete_attachment`-calls, the still-orphan happy path as exactly one `(id, true)` delete call, and the pre-existing 403/422/500 gates as unchanged — including the real WP 7.0 `wp_delete_attachment` failure shape (`false`, never an array). Watched RED first: 10 failures reproducing the race (deletes proceeded on referenced attachments), then green.
+
 ## [10.28.0] - 2026-08-01
 
 ### Fixed
