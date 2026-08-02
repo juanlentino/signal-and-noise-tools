@@ -118,13 +118,16 @@ function snt_block_migrations_walk_blocks( $tree, $post, $dismissed, &$candidate
 }
 
 /**
- * Run the scan and cache the result in a user-scoped transient.
+ * Pure compute: detect candidates and build the scan envelope. Does NOT
+ * write anything — split out of snt_block_migrations_run_scan() (v10.29.0)
+ * so a caller that must not write (sn_scan's read-only contract) can get
+ * the identical envelope without the side-effecting set_transient() below.
  *
  * @return array{candidates:array,counts:array{heading_hierarchy_skip:int,posts_affected:int},scanned_at:int}
  *
- * @since 4.5.0
+ * @since 10.29.0
  */
-function snt_block_migrations_run_scan() {
+function snt_block_migrations_compute() {
 	$candidates = snt_block_migrations_detect_candidates();
 
 	$by_type  = array( 'heading-hierarchy-skip' => 0 );
@@ -134,7 +137,7 @@ function snt_block_migrations_run_scan() {
 		$post_ids[ $c['post_id'] ] = true;
 	}
 
-	$result = array(
+	return array(
 		'candidates' => $candidates,
 		'counts'     => array(
 			'heading_hierarchy_skip' => $by_type['heading-hierarchy-skip'],
@@ -142,6 +145,19 @@ function snt_block_migrations_run_scan() {
 		),
 		'scanned_at' => time(),
 	);
+}
+
+/**
+ * Run the scan and cache the result in a user-scoped transient. Byte-identical
+ * behavior to pre-10.29.0: this is now compute() + the write, unchanged for
+ * every existing caller (the block-migrations-scan ability, the admin tab).
+ *
+ * @return array{candidates:array,counts:array{heading_hierarchy_skip:int,posts_affected:int},scanned_at:int}
+ *
+ * @since 4.5.0
+ */
+function snt_block_migrations_run_scan() {
+	$result = snt_block_migrations_compute();
 
 	$key = 'snt_block_migrations_candidates_' . (int) get_current_user_id();
 	set_transient( $key, $result, SNT_BLOCK_MIGRATIONS_TRANSIENT_TTL );

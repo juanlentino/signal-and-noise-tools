@@ -214,5 +214,26 @@ $leading_h3 = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' =>
 $leading_fp = md5( serialize_block( $leading_h3 ) );
 bm_eq( $leading_fp, $candidates[0]['block_fingerprint'] ?? '', 'Test 8.2: candidate fingerprint matches the leading h3 (not the trailing one)' );
 
+// ─── Test 9: compute()/run_scan() split (v10.29.0, adversarial review) ─
+// compute() must be the pure detection + envelope build, with NO write;
+// run_scan() must stay compute() + the write, byte-identical for every
+// existing caller (the block-migrations-scan ability, the admin tab).
+echo "\nTest 9: snt_block_migrations_compute() writes nothing; run_scan() unchanged\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_post_meta'] = array();
+$GLOBALS['__test_transients'] = array();
+_bm_post( 209, array(
+	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Split</h3>', 'innerContent' => array( '<h3>Split</h3>' ) ),
+) );
+bm_true( function_exists( 'snt_block_migrations_compute' ), 'Test 9.1: snt_block_migrations_compute() exists' );
+$computed = snt_block_migrations_compute();
+bm_eq( 1, $computed['counts']['heading_hierarchy_skip'], 'Test 9.2: compute() detects the same candidates as run_scan()' );
+bm_eq( 0, count( $GLOBALS['__test_transients'] ), 'Test 9.3: compute() writes NO transient (the readOnlyHint contract sn_scan depends on)' );
+$scan9 = snt_block_migrations_run_scan();
+bm_eq( 1, count( $GLOBALS['__test_transients'] ), 'Test 9.4: run_scan() still writes exactly one transient — unchanged behavior for the admin tab / legacy ability' );
+$key9 = 'snt_block_migrations_candidates_' . (int) get_current_user_id();
+bm_true( isset( $GLOBALS['__test_transients'][ $key9 ] ), 'Test 9.5: run_scan() writes the documented per-user key' );
+bm_eq( json_encode( $scan9 ), json_encode( $GLOBALS['__test_transients'][ $key9 ] ), 'Test 9.6: the written transient is byte-identical to run_scan()\'s return value' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

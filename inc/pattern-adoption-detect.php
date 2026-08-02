@@ -126,13 +126,16 @@ function snt_pattern_adoption_match_block_type( $block ) {
 }
 
 /**
- * Run the scan and cache the result in a user-scoped transient.
+ * Pure compute: detect candidates and build the scan envelope. Does NOT
+ * write anything — split out of snt_pattern_adoption_run_scan() (v10.29.0)
+ * so a caller that must not write (sn_scan's read-only contract) can get
+ * the identical envelope without the side-effecting set_transient() below.
  *
  * @return array{candidates:array,counts:array{pull_quote:int,steps_enumerated:int,posts_affected:int},scanned_at:int}
  *
- * @since 4.3.0
+ * @since 10.29.0
  */
-function snt_pattern_adoption_run_scan() {
+function snt_pattern_adoption_compute() {
 	$candidates = snt_pattern_adoption_detect_candidates();
 
 	$by_type   = array( 'pull-quote' => 0, 'steps-enumerated' => 0 );
@@ -142,7 +145,7 @@ function snt_pattern_adoption_run_scan() {
 		$post_ids[ $c['post_id'] ] = true;
 	}
 
-	$result = array(
+	return array(
 		'candidates' => $candidates,
 		'counts'     => array(
 			'pull_quote'       => $by_type['pull-quote'],
@@ -151,6 +154,19 @@ function snt_pattern_adoption_run_scan() {
 		),
 		'scanned_at' => time(),
 	);
+}
+
+/**
+ * Run the scan and cache the result in a user-scoped transient. Byte-identical
+ * behavior to pre-10.29.0: this is now compute() + the write, unchanged for
+ * every existing caller (the pattern-adoption-scan ability, the admin tab).
+ *
+ * @return array{candidates:array,counts:array{pull_quote:int,steps_enumerated:int,posts_affected:int},scanned_at:int}
+ *
+ * @since 4.3.0
+ */
+function snt_pattern_adoption_run_scan() {
+	$result = snt_pattern_adoption_compute();
 
 	$key = 'snt_pattern_adoption_candidates_' . (int) get_current_user_id();
 	set_transient( $key, $result, SNT_PATTERN_ADOPTION_TRANSIENT_TTL );
