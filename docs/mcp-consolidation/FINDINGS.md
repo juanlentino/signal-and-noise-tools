@@ -237,3 +237,28 @@ REJECTed on one MEDIUM + two LOW, all fixed in-worktree before merge:
 - **MEDIUM — zero-writes guard was a mid-file snapshot, not a structural sweep**: the assert ran before 6 of the 9 check families executed, so its "proven structurally" claim was false (the implementation itself was verified zero-write by full read). Guard moved to end-of-suite, after every family runs under the recorders — the sn_scan pattern, properly this time.
 - **LOW — banned-phrase extraction dropped `crucial`**: the source prompt (inc/ai-excerpt.php) names four words; the extraction carried three. Added.
 - **LOW — collision self-exclusion untested**: the SQL's `post_id != %d` was correct but unprobed. Acceptance test 4 now plants the validated post's OWN meta as a row; the stub parses and applies the real exclusion clause, so removing it from the SQL reds the test.
+
+# Interim fix — sn_site_facts active_template post-slug fallback (shipped v10.30.1)
+
+Not a consolidation session — a targeted R2 fix on session 3's tool, recorded here because it corrects a session-3 finding.
+
+## The R1 note's closing claim was wrong for POST slugs
+
+Session 3's R1 fix (v10.26.0) closed the no-args dispatch bug and asserted get_page_by_path "needs no post_type disambiguation for this tool's purposes." Verified live 2026-08-02: the theme's `sn_theme_ability_active_template_structure()` slug branch (signal-and-noise/inc/abilities-diagnostics.php:541-546) defaults `post_type` to `'page'`, so a POST slug can never resolve — every post-slug `active_template` request degraded to `{error:'unavailable'}` while page slugs worked. The theme's input schema already accepts `post_type` enum('post','page').
+
+## Fix — plugin-side, theme contract untouched
+
+`snt_sn_site_facts_dispatch_active_template()` (inc/abilities-sn-site-facts.php): dispatch `{slug, post_type:'page'}` first (explicit now, but byte-equivalent to the previous effective behavior — page slugs still resolve in ONE call), and only on failure retry ONCE with `{slug, post_type:'post'}`; `{error:'unavailable'}` only when both miss. The retry keys off the collapsed unavailable shape because the dispatcher's uniform-degradation contract deliberately erases source errors — a theme-absent first attempt therefore retries once, harmlessly.
+
+## Stub fidelity (the repo's #1 trap, addressed per instruction)
+
+`SN_Test_Theme_Active_Template_Ability` now models the REAL callback's post_type semantics — absent post_type ⇒ 'page' (mirroring line 542), wrong-type lookup ⇒ the same `post_not_found` 404 as a real `get_page_by_path()` miss — and pins BOTH steady states: page-hit (one call, exact args) and page-miss/post-hit (exactly two calls, both arg shapes pinned in order), plus both-miss (exactly two attempts, then degradation). Watched RED: 4 asserts failed against the pre-fix single-dispatch code for exactly the right reason before the helper existed.
+
+## Live parity check (owner-verifiable)
+
+- slug `ml-maturity` (page) must keep returning a real structure — covered by the page-hit-in-one-call pin.
+- slug `provenance-signs-the-claim-not-the-truth` (post) should START returning a real template structure instead of `{error:'unavailable'}`.
+
+## Full sweep at ship time
+
+360 files (contracts-smoke.php CI-excluded as always), 0 failures; tests/abilities-sn-site-facts.php 41 → 44 asserts.

@@ -45,16 +45,25 @@ class SN_Test_Fact_Ability {
 
 // A FAITHFUL stand-in for the theme's REAL
 // signal-and-noise/get-active-template-structure ability (source:
-// ~/Projects/signal-and-noise/inc/abilities-diagnostics.php:535-554, per the
-// review round 2 finding). The real execute callback resolves $post from
-// EITHER post_id OR slug; when NEITHER is present it returns
+// ~/Projects/signal-and-noise/inc/abilities-diagnostics.php:535-554, re-read
+// live 2026-08-02). The real execute callback resolves $post from EITHER
+// post_id OR slug; when NEITHER is present it returns
 // WP_Error('post_not_found', ..., array('status'=>404)) — deterministically,
-// with no no-args default path. This stub models THAT failure shape, not
-// just the success shape (the repo's standing stub-drift trap), so a
-// regression back to empty-args dispatch is caught RED, not silently green.
+// with no no-args default path. Its slug branch DEFAULTS post_type to 'page'
+// (get_page_by_path( $slug, OBJECT, $input['post_type'] ?? 'page' )), so a
+// slug belonging to a POST resolves only when the caller sends
+// post_type:'post' explicitly — the exact mechanism behind the
+// {error:'unavailable'}-for-post-slugs bug this round fixes. Per the repo's
+// standing stub-drift trap, this stub models BOTH steady states of that
+// contract, not just the success shape: $target_post_type is the post_type
+// the slug actually belongs to (null = slug matches nothing at all), and any
+// lookup under the WRONG effective post_type 404s exactly like the real
+// get_page_by_path() miss does.
 class SN_Test_Theme_Active_Template_Ability {
-	private $success; private $calls_with = array();
-	public function __construct( $success ) { $this->success = $success; }
+	private $success; private $target_post_type; private $calls_with = array();
+	public function __construct( $success, $target_post_type = 'page' ) {
+		$this->success = $success; $this->target_post_type = $target_post_type;
+	}
 	public function check_permissions( $args = null ) { return true; }
 	public function execute( $args = null ) {
 		$this->calls_with[] = $args;
@@ -62,9 +71,15 @@ class SN_Test_Theme_Active_Template_Ability {
 		if ( ! $has_target ) {
 			return new WP_Error( 'post_not_found', 'No post matches the given post_id or slug.', array( 'status' => 404 ) );
 		}
+		// Mirror abilities-diagnostics.php:542 — absent post_type means 'page'.
+		$effective_post_type = isset( $args['post_type'] ) ? (string) $args['post_type'] : 'page';
+		if ( null === $this->target_post_type || $effective_post_type !== $this->target_post_type ) {
+			return new WP_Error( 'post_not_found', 'No post matches the given post_id or slug.', array( 'status' => 404 ) );
+		}
 		return $this->success;
 	}
 	public function last_call_args() { return end( $this->calls_with ); }
+	public function all_call_args() { return $this->calls_with; }
 }
 $GLOBALS['__abilities'] = array();
 if ( ! function_exists( 'wp_get_ability' ) ) { function wp_get_ability( $name ) { return $GLOBALS['__abilities'][ $name ] ?? null; } }
@@ -156,17 +171,41 @@ ok( array( 'minutes' => 4 ) === $ok_case['facts']['reading_time'], 'reading_time
 ok( array( 'slug' => 'some-note' ) === $GLOBALS['__abilities']['signal-and-noise/get-reading-time-for-slug']->last_call_args(), 'reading_time\'s source ability is dispatched with {slug: <the provided slug>}' );
 ok( null === $GLOBALS['__abilities']['signal-and-noise/get-theme-version']->last_call_args() || array() === $GLOBALS['__abilities']['signal-and-noise/get-theme-version']->last_call_args(), 'a fact that does not need slug is dispatched with no slug arg' );
 
-// ─── R1: active_template, dispatched against the FAITHFUL theme stub ────
+// ─── R1+R2: active_template, dispatched against the FAITHFUL theme stub ──
 // (a) WITHOUT slug already covered above (400, never reaches dispatch).
-// (b) WITH slug: the dispatcher must send EXACTLY {slug: <slug>} — the
-//     faithful stub 404s on anything less, so this is a real, not
-//     hand-waved, proof the fix actually threads the argument through.
+// (b) PAGE slug (target_post_type 'page', the stub default): the dispatcher
+//     must send EXACTLY {slug, post_type:'page'} and succeed on the FIRST
+//     call — no wasteful second dispatch when the page lookup already hit.
 $GLOBALS['__abilities']['signal-and-noise/get-active-template-structure'] =
-	new SN_Test_Theme_Active_Template_Ability( array( 'template_slug' => 'single', 'blocks' => array() ) );
-$at_case = snt_ability_sn_site_facts( array( 'facts' => array( 'active_template' ), 'slug' => 'some-note' ) );
-ok( true === $at_case['ok'], 'R1: a satisfied active_template call succeeds' );
-ok( array( 'template_slug' => 'single', 'blocks' => array() ) === $at_case['facts']['active_template'], 'R1: the stubbed success result lands under the active_template key (the faithful stub did NOT 404, proving args were non-empty)' );
-ok( array( 'slug' => 'some-note' ) === $GLOBALS['__abilities']['signal-and-noise/get-active-template-structure']->last_call_args(), 'R1: the dispatcher sends EXACTLY {slug: <the provided slug>} to the theme ability — pinned, not just "no error"' );
+	new SN_Test_Theme_Active_Template_Ability( array( 'template_slug' => 'page', 'blocks' => array() ), 'page' );
+$at_case = snt_ability_sn_site_facts( array( 'facts' => array( 'active_template' ), 'slug' => 'ml-maturity' ) );
+ok( true === $at_case['ok'], 'R2: a page-slug active_template call succeeds' );
+ok( array( 'template_slug' => 'page', 'blocks' => array() ) === $at_case['facts']['active_template'], 'R2: the page-hit result lands under the active_template key (live-parity case: page slugs keep working)' );
+ok( array( array( 'slug' => 'ml-maturity', 'post_type' => 'page' ) ) === $GLOBALS['__abilities']['signal-and-noise/get-active-template-structure']->all_call_args(), 'R2: page hit = EXACTLY ONE dispatch, with EXACTLY {slug, post_type:page} — order and count pinned' );
+
+// (c) POST slug (target_post_type 'post'): the page-first dispatch 404s at
+//     the theme, and the dispatcher must retry ONCE with post_type:'post'
+//     and return the real result — the fix for the verified live bug where
+//     post slugs degraded to {error:'unavailable'} forever.
+$GLOBALS['__abilities']['signal-and-noise/get-active-template-structure'] =
+	new SN_Test_Theme_Active_Template_Ability( array( 'template_slug' => 'single', 'blocks' => array() ), 'post' );
+$at_post = snt_ability_sn_site_facts( array( 'facts' => array( 'active_template' ), 'slug' => 'provenance-signs-the-claim-not-the-truth' ) );
+ok( true === $at_post['ok'], 'R2: a post-slug active_template call succeeds' );
+ok( array( 'template_slug' => 'single', 'blocks' => array() ) === $at_post['facts']['active_template'], 'R2: the post-slug result is the REAL template structure, not {error:unavailable} — the live bug this round closes' );
+ok( array(
+	array( 'slug' => 'provenance-signs-the-claim-not-the-truth', 'post_type' => 'page' ),
+	array( 'slug' => 'provenance-signs-the-claim-not-the-truth', 'post_type' => 'post' ),
+) === $GLOBALS['__abilities']['signal-and-noise/get-active-template-structure']->all_call_args(), 'R2: post hit = EXACTLY page-first then post-retry, both arg shapes pinned' );
+
+// (d) Slug matching NEITHER post type: both dispatches 404 and the fact
+//     degrades to the documented {error:'unavailable'} — after exactly two
+//     attempts, never more.
+$GLOBALS['__abilities']['signal-and-noise/get-active-template-structure'] =
+	new SN_Test_Theme_Active_Template_Ability( array( 'template_slug' => 'never-returned' ), null );
+$at_miss = snt_ability_sn_site_facts( array( 'facts' => array( 'active_template' ), 'slug' => 'no-such-slug' ) );
+ok( true === $at_miss['ok'], 'R2: a nonexistent slug still succeeds at the CALL level (per-fact degradation contract)' );
+ok( array( 'error' => 'unavailable' ) === $at_miss['facts']['active_template'], 'R2: both-miss degrades to {error:unavailable} — only when page AND post lookups both fail' );
+ok( 2 === count( $GLOBALS['__abilities']['signal-and-noise/get-active-template-structure']->all_call_args() ), 'R2: both-miss made EXACTLY two attempts (page then post), no runaway retries' );
 
 // Direct regression guard on the dispatcher itself: if a future edit ever
 // reintroduces empty-args dispatch for active_template, THIS assertion goes
