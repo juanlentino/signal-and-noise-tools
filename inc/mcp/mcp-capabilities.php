@@ -48,7 +48,10 @@ if ( ! defined( 'SN_MCP_DOOR_RW' ) ) {
  * absorb; nothing below was unregistered), and 35 → 36 in v10.29.0
  * (sn-scan — the third CONSOLIDATED tool, absorbing block-migrations-scan,
  * pattern-adoption-scan, duplicate-body-scan, near-duplicate-scan, and
- * link-candidates; again new alongside old, nothing unregistered).
+ * link-candidates; again new alongside old, nothing unregistered), and
+ * 36 → 37 in v10.30.0 (sn-validate — the fourth CONSOLIDATED tool,
+ * deterministic model-free validation of proposed content; zero writes,
+ * zero model calls).
  * the read-only-by-construction guarantee is unchanged — every slug here is
  * PURE-READ or READ-REMOTE by curation, never a write/action/AI-billed
  * ability (those live on the rw door only, see sn_mcp_rw_allowlist).
@@ -122,6 +125,12 @@ function sn_mcp_allowlist() {
 		// wrapping the pure-SQL sn_health_check_orphaned_media(), never the
 		// AI-gated ai-orphan-suggest path). Writes nothing, ever.
 		'signal-noise/sn-scan',
+		// v10.30.0 — MCP consolidation, phase 4: the fourth CONSOLIDATED tool.
+		// PURE-READ by construction: every check in inc/sn-validate-checks.php
+		// and inc/sn-validate-checks-media.php is a read + compute, never a
+		// write, and never a model call (structurally pinned — see
+		// tests/abilities-sn-validate.php acceptance test 6).
+		'signal-noise/sn-validate',
 	);
 
 	/**
