@@ -165,6 +165,7 @@ function snt_ai_orphan_suggest_impl( $attachment_id ) {
  * WP_Error codes:
  *   snt_ai_capability      (403) — caller lacks delete_post on $attachment_id
  *   snt_ai_not_attachment  (422) — post doesn't exist or isn't an attachment (TOCTOU)
+ *   snt_orphan_no_longer   (409) — attachment became referenced since the scan (TOCTOU)
  *   snt_ai_delete_failed   (500) — wp_delete_attachment() returned false/null
  *
  * @since 4.1.0
@@ -179,6 +180,15 @@ function snt_ai_orphan_apply_impl( $attachment_id ) {
 	$attachment = get_post( $attachment_id );
 	if ( ! $attachment || 'attachment' !== $attachment->post_type ) {
 		return new WP_Error( 'snt_ai_not_attachment', __( 'Attachment not found or already deleted.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+
+	// v10.28.1 TOCTOU guard: the orphan verdict was computed at SCAN time; the
+	// attachment may have been referenced since (featured image, post body,
+	// site logo/icon, post meta). Re-run the full scan-time signal battery
+	// before the irreversible force-delete. The verdict transient is left in
+	// place so the finding stays reviewable.
+	if ( sn_health_attachment_is_referenced_now( $attachment_id, (string) $attachment->guid ) ) {
+		return new WP_Error( 'snt_orphan_no_longer', __( 'Attachment is now referenced (featured image, post body, meta, or site logo/icon) and was not deleted. Re-run the health scan.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	// wp_delete_attachment() returns WP_Post|false in WP 7.0; null guard is

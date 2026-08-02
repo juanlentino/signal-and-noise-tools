@@ -94,3 +94,20 @@ Consolidation phase 2: the first two CONSOLIDATED tools, `signal-noise/sn-posts`
 ## Adversarial review round 2 (same v10.26.0 ship, before merge)
 
 REJECTed on one HIGH: `active_template` permanently dead (see the resolved deviation above). Fix applied in the same worktree, no separate release: `snt_sn_site_facts_slug_required()` gains `active_template`; the ability description, the `slug` input property's own description, and this file all updated to name the slug-required trio (`reading_time`, `seo_route_meta`, `active_template`) instead of the incomplete pair. `tests/abilities-sn-site-facts.php` grew from 31 to 38 asserts: missing-slug coverage for `active_template`, a faithful theme-contract stub (`SN_Test_Theme_Active_Template_Ability`, 404s on empty args exactly like the real callee) proving the dispatcher sends exactly `{slug: ...}`, and a standing regression guard calling `snt_sn_site_facts_dispatch()` directly with empty args so a future regression is caught even if the input-gate were somehow bypassed. Watched RED by reverting `snt_sn_site_facts_slug_required()` to the pre-fix pair and confirming 2 genuine failures, then restored. Full sweep after the fix: 356 files, 13,003 asserts, 0 failures; PHPStan + PHPCS clean.
+
+# Session 4 (partial) — TOCTOU hardening spun off (shipped v10.28.1)
+
+The session-4 review found a confirmed TOCTOU gap in `snt_ai_orphan_apply_impl()`
+(inc/ai-orphan-suggest.php): it gated on `current_user_can('delete_post')` +
+`get_post()` existence only, then force-deleted — never re-verifying that the
+attachment was still orphaned at apply time. Fixed in v10.28.1: the apply impl
+now re-runs the full scan-time signal battery via the new
+`sn_health_attachment_is_referenced_now()` (inc/health-check-orphaned-media.php,
+sets shared with the scan through `sn_health_reference_sets()`) and refuses with
+`WP_Error snt_orphan_no_longer` (409) when the attachment has become referenced.
+Pinned in tests/ai-orphan-apply.php (19 assertions, watched RED).
+
+**Feeds the `sn_apply` gate design:** every destructive `sn_apply` action should
+carry this same shape — a *finding-validity re-check at apply time*, distinct
+from the capability check, refusing with a 409-class error when the world moved
+since the scan.

@@ -111,6 +111,54 @@ function sn_health_attachment_is_referenced( $id, $guid, $featured, $chrome ) {
 	return false;
 }
 
+/**
+ * Build the featured-image + site-chrome reference sets the orphan signals need.
+ *
+ * v10.28.1: extracted from sn_health_check_orphaned_media() so the apply-time
+ * TOCTOU re-check (sn_health_attachment_is_referenced_now) consults the SAME
+ * sets the scan does — parity by construction, not by copy.
+ *
+ * @return array{0:array<int,true>,1:array<int,true>} [featured, chrome] flipped sets.
+ *
+ * @since 10.28.1
+ */
+function sn_health_reference_sets() {
+	global $wpdb;
+
+	$used_as_featured = $wpdb->get_col(
+		"SELECT DISTINCT meta_value FROM {$wpdb->postmeta} WHERE meta_key = '_thumbnail_id'"
+	);
+	$used_as_featured = is_array( $used_as_featured ) ? array_flip( array_map( 'intval', $used_as_featured ) ) : array();
+
+	// v6.48.2: site logo + site icon are referenced via theme_mods/options, never
+	// a post body, so the body search alone false-flagged them as orphans.
+	$site_chrome = array();
+	$logo_id = (int) get_theme_mod( 'custom_logo' );
+	if ( $logo_id > 0 ) { $site_chrome[ $logo_id ] = true; }
+	$icon_id = (int) get_option( 'site_icon' );
+	if ( $icon_id > 0 ) { $site_chrome[ $icon_id ] = true; }
+
+	return array( $used_as_featured, $site_chrome );
+}
+
+/**
+ * Live re-check: is this attachment referenced RIGHT NOW?
+ *
+ * Rebuilds the reference sets and runs the full scan-time signal battery for a
+ * single attachment. Used by snt_ai_orphan_apply_impl() to close the TOCTOU gap
+ * between the orphan scan that flagged the attachment and the destructive apply.
+ *
+ * @param int    $attachment_id Attachment ID.
+ * @param string $guid          Attachment guid (the full-size URL).
+ * @return bool True if referenced (NOT safe to delete).
+ *
+ * @since 10.28.1
+ */
+function sn_health_attachment_is_referenced_now( $attachment_id, $guid ) {
+	list( $featured, $chrome ) = sn_health_reference_sets();
+	return sn_health_attachment_is_referenced( (int) $attachment_id, (string) $guid, $featured, $chrome );
+}
+
 function sn_health_check_orphaned_media() {
 	global $wpdb;
 
@@ -134,19 +182,9 @@ function sn_health_check_orphaned_media() {
 	), ARRAY_A );
 	if ( ! is_array( $attachments ) ) { return sn_health_pack_check( 'Orphaned media', $findings ); }
 
-	// Build the featured-image id set once.
-	$used_as_featured = $wpdb->get_col(
-		"SELECT DISTINCT meta_value FROM {$wpdb->postmeta} WHERE meta_key = '_thumbnail_id'"
-	);
-	$used_as_featured = is_array( $used_as_featured ) ? array_flip( array_map( 'intval', $used_as_featured ) ) : array();
-
-	// v6.48.2: site logo + site icon are referenced via theme_mods/options, never
-	// a post body, so the body search alone false-flagged them as orphans.
-	$site_chrome = array();
-	$logo_id = (int) get_theme_mod( 'custom_logo' );
-	if ( $logo_id > 0 ) { $site_chrome[ $logo_id ] = true; }
-	$icon_id = (int) get_option( 'site_icon' );
-	if ( $icon_id > 0 ) { $site_chrome[ $icon_id ] = true; }
+	// Build the featured-image + site-chrome sets once (shared with the
+	// apply-time re-check — see sn_health_reference_sets).
+	list( $used_as_featured, $site_chrome ) = sn_health_reference_sets();
 
 	foreach ( $attachments as $att ) {
 		$id       = (int) $att['ID'];
