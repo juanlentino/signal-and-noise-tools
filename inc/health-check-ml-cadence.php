@@ -42,7 +42,7 @@ function sn_health_check_ml_cadence() {
 				/* translators: 1: z-score, 2: expected gap, 3: current gap. */
 				__( 'z %1$s · expected gap ~%2$s · current %3$s', 'signal-and-noise-tools' ),
 				sprintf( '%.2f', (float) $flag['z'] ),
-				snt_ml_cadence_human_gap( (float) ( $flag['ewma'] ?? 0 ) ),
+				snt_ml_cadence_human_gap( (float) ( $flag['expected_gap'] ?? $flag['ewma'] ?? 0 ) ),
 				snt_ml_cadence_human_gap( (float) ( $flag['current_gap'] ?? 0 ) )
 			),
 			'edit_url'      => '',

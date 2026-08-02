@@ -414,6 +414,112 @@ if ( ! function_exists( 'snt_ml_cluster_label' ) ) {
 	}
 }
 
+if ( ! function_exists( 'snt_ml_median' ) ) {
+	/**
+	 * Median of a numeric list (even counts average the two middle values).
+	 *
+	 * @since 10.32.0
+	 * @param array<int,int|float> $values Numbers; non-numerics are dropped.
+	 * @return float|null Null when nothing numeric was supplied.
+	 */
+	function snt_ml_median( $values ) {
+		$nums = array();
+		foreach ( (array) $values as $v ) {
+			if ( is_numeric( $v ) ) {
+				$nums[] = (float) $v;
+			}
+		}
+		if ( array() === $nums ) {
+			return null;
+		}
+		sort( $nums );
+		$n   = count( $nums );
+		$mid = intdiv( $n, 2 );
+		return 0 === $n % 2 ? ( $nums[ $mid - 1 ] + $nums[ $mid ] ) / 2.0 : $nums[ $mid ];
+	}
+}
+
+if ( ! function_exists( 'snt_ml_cadence_deviation_robust' ) ) {
+	/**
+	 * Cadence deviation, burst-resistant (v10.32.0). Same question as
+	 * snt_ml_cadence_deviation — how surprising is the CURRENT gap? — asked
+	 * with order statistics instead of moments: the MEDIAN interval is the
+	 * expectation and the MAD (median absolute deviation, scaled by the
+	 * 1.4826 normal-consistency constant) is the spread.
+	 *
+	 * Why: mean/σ has a breakdown point of 0 — one burst of tightly-spaced
+	 * firings drags the expectation down AND collapses the spread, so the
+	 * next ordinary quiet spell z-scores into the double digits. Median/MAD
+	 * has a breakdown point of 50%: the burst has to be more than half the
+	 * window before it moves the verdict.
+	 *
+	 * Also reports SPAN — the wall-clock reach of the window — because a
+	 * fixed-count window says nothing about how much time it observed, and
+	 * callers must be able to refuse to trust a window that only saw a
+	 * weekend.
+	 *
+	 * Honest unknowns preserved verbatim from the EWMA sibling: fewer than
+	 * five events is null, and a history with NO spread at all makes surprise
+	 * unquantifiable (z null — never infinity, never zero). Note the scale
+	 * fallback below: "no spread" means every interval identical, not merely
+	 * a zero MAD.
+	 *
+	 * @since 10.32.0
+	 * @param array<int,int|float> $events Unix timestamps of past events.
+	 * @param int|float            $now    The observation instant.
+	 * @return array{intervals:int,median:float,mad:float,scale:float,span:float,current_gap:float,z:float|null}|null
+	 */
+	function snt_ml_cadence_deviation_robust( $events, $now ) {
+		$ts = array();
+		foreach ( (array) $events as $t ) {
+			if ( is_numeric( $t ) ) {
+				$ts[] = (float) $t;
+			}
+		}
+		if ( count( $ts ) < 5 ) {
+			return null; // Too little history: unknown, not a verdict.
+		}
+		sort( $ts );
+
+		$intervals = array();
+		$n         = count( $ts );
+		for ( $i = 1; $i < $n; $i++ ) {
+			$intervals[] = $ts[ $i ] - $ts[ $i - 1 ];
+		}
+
+		$median = (float) snt_ml_median( $intervals );
+		$devs   = array();
+		foreach ( $intervals as $x ) {
+			$devs[] = abs( $x - $median );
+		}
+		$mad = (float) snt_ml_median( $devs );
+		if ( $mad > 0.0 ) {
+			$scale = 1.4826 * $mad; // MAD → σ-equivalent for normally distributed intervals.
+		} else {
+			// MAD is exactly 0 as soon as a strict MAJORITY of intervals
+			// repeat — far easier than the mean/σ path's "every interval
+			// identical", and real cron produces bit-identical gaps by the
+			// dozen. Treating those as unquantifiable would be a WORSE blind
+			// spot than the math this replaces, so fall back to the mean
+			// absolute deviation (sqrt(pi/2) scales it to a σ-equivalent).
+			// A perfectly rigid history still yields 0 and stays an honest
+			// unknown — the documented metronome posture is untouched.
+			$scale = sqrt( M_PI / 2.0 ) * ( array_sum( $devs ) / count( $devs ) );
+		}
+		$gap = (float) $now - $ts[ $n - 1 ];
+
+		return array(
+			'intervals'   => count( $intervals ),
+			'median'      => $median,
+			'mad'         => $mad,
+			'scale'       => $scale,
+			'span'        => $ts[ $n - 1 ] - $ts[0],
+			'current_gap' => $gap,
+			'z'           => $scale > 0.0 ? ( $gap - $median ) / $scale : null,
+		);
+	}
+}
+
 if ( ! function_exists( 'snt_ml_cadence_deviation' ) ) {
 	/**
 	 * Cadence deviation (v10.22.0, pipeline #5): how surprising is the CURRENT
