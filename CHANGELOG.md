@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.36.0] - 2026-08-03
+
+### Added
+
+- **Split-hero one-shot migration** ([inc/split-hero-migration.php](inc/split-hero-migration.php), [inc/seed-content/](inc/seed-content/) `split-hero-*.html`). Finishes the site-wide split-hero rollout for surfaces the per-save engines don't own. The four hand-authored CMS pages (About, Services, Music, Contact) get their leading hero band swapped to the new 1320px composition — Services/Music: title left, dek right; Contact: title left, `[sn_availability]` right; About: widened band + enlarged title only (no side content exists). Each swap is md5-guarded against the exact live band captured 2026-08-03: any owner edit since → that page is skipped forever, never clobbered. The same one-shot regenerates /resume, /now, and /uses via their sync engines so the v10.35.0/v10.36.0 hero markup reaches stored bodies without waiting for a form save. Runs on its own `admin_init` hook (the v9.81.0 master sentinel is spent); retry-safe while a page is absent. ([tests/split-hero-migration.php](tests/split-hero-migration.php), 33 asserts, plus an end-to-end swap check against the captured live bodies.)
+
+### Changed
+
+- **/now and /uses heroes emit split title/side wrappers** ([inc/page-sync-engine.php](inc/page-sync-engine.php)). `sn-now-hero-title`/`-side` and `sn-uses-hero-title`/`-side` divs wrap eyebrow+headline and dek+meta; theme v11.4.0 lays them out as a bottom-aligned grid at ≥900px (`:has()`-guarded, so install order doesn't matter). Test-pinned in both page-migration suites.
+
 ## [10.35.0] - 2026-08-03
 
 ### Changed

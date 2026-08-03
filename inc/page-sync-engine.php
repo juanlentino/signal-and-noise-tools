@@ -88,11 +88,19 @@ function sn_now_dossier_html( $sections, $updated ) {
 		return '';
 	}
 
+	// v10.36.0 split hero (site-wide direction): title block left, dek +
+	// meta right. The theme's now.css lays the two wrappers out as a
+	// bottom-aligned grid at >=900px (guarded by :has() so pre-split
+	// bodies keep the stack) and stacks them on mobile.
 	$hero = '<header class="sn-now-hero">'
+		. '<div class="sn-now-hero-title">'
 		. '<p class="sn-now-eyebrow">Now &middot; What I&rsquo;m focused on</p>'
 		. '<h1 class="sn-now-headline">Now.</h1>'
+		. '</div>'
+		. '<div class="sn-now-hero-side">'
 		. '<p class="sn-now-dek">A public answer to &ldquo;what are you doing these days?&rdquo; &mdash; the projects, writing, and inputs that have my attention right now.</p>'
 		. '<p class="sn-now-meta">Updated ' . esc_html( $updated ) . '</p>'
+		. '</div>'
 		. '</header>';
 
 	return "<!-- wp:html -->\n<div class=\"sn-now-page\">" . $hero . $sections_html . "</div>\n<!-- /wp:html -->";
@@ -224,11 +232,16 @@ function sn_uses_dossier_html( $groups ) {
 	}
 
 	$meta = $total . ' ' . ( 1 === $total ? 'item' : 'items' );
+	// v10.36.0 split hero — same title/side wrappers as /now (see there).
 	$hero = '<header class="sn-uses-hero">'
+		. '<div class="sn-uses-hero-title">'
 		. '<p class="sn-uses-eyebrow">Uses &middot; The kit behind the work</p>'
 		. '<h1 class="sn-uses-headline">Uses.</h1>'
+		. '</div>'
+		. '<div class="sn-uses-hero-side">'
 		. '<p class="sn-uses-dek">The hardware and software I actually reach for &mdash; the studio, the instruments, and the tools that keep the signal clean.</p>'
 		. '<p class="sn-uses-meta">' . esc_html( $meta ) . '</p>'
+		. '</div>'
 		. '</header>';
 
 	return "<!-- wp:html -->\n<div class=\"sn-uses-page\">" . $hero . $sections_html . "</div>\n<!-- /wp:html -->";

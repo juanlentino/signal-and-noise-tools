@@ -58,6 +58,8 @@ $html = sn_now_dossier_html( array(
 ok( false !== strpos( $html, '<!-- wp:html -->' ) && false !== strpos( $html, '<!-- /wp:html -->' ), 'body is wrapped in a core/html block' );
 ok( false !== strpos( $html, '<div class="sn-now-page">' ), 'body wraps in the sn-now-page scope' );
 ok( false !== strpos( $html, 'class="sn-now-hero"' ) && false !== strpos( $html, 'class="sn-now-headline">Now.<' ), 'hero renders with the Now. headline' );
+// v10.36.0 split hero: eyebrow+headline in a title div, dek+meta in a side div.
+ok( false !== strpos( $html, '<div class="sn-now-hero-title">' ) && false !== strpos( $html, '<div class="sn-now-hero-side">' ), 'hero splits into title + side wrappers' );
 ok( false !== strpos( $html, 'Updated July 10, 2026' ), 'hero meta shows the given Updated date' );
 ok( false !== strpos( $html, 'class="sn-now-item-text">Signal &amp; Noise<' ), 'item text is escaped' );
 ok( false === strpos( $html, '<script>x' ), 'item HTML is escaped (no raw script)' );
