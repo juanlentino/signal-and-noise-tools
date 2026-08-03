@@ -39,6 +39,7 @@ function sn_admin_flash_messages() {
 		'now_failed'                => array( 'error', 'Now page save failed — the editor module is unavailable.' ),
 		'resume_saved'              => array( 'success', 'Resume saved — the live /resume page has been regenerated.' ),
 		'resume_unchanged'          => array( 'info', 'No changes to save.' ),
+		'resume_resynced'           => array( 'success', 'No content changes — the live /resume page was re-rendered with the current engine anyway.' ),
 		'resume_refused'            => array( 'error', 'Nothing saved: the resume needs at least one experience entry (with an organization) or one publication (with a title). The live page is unchanged.' ),
 		'resume_failed'             => array( 'error', 'Resume save failed — the editor module is unavailable.' ),
 		'uses_saved'                => array( 'success', 'Uses page saved — the live /about/uses renders this content.' ),
