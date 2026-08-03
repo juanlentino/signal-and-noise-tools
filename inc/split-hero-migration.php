@@ -138,3 +138,63 @@ function sn_migrate_split_hero() {
 	}
 }
 add_action( 'admin_init', 'sn_migrate_split_hero' );
+
+const SN_SPLIT_HERO_V2_OPT = 'sn_split_hero_v2_migrated_v1';
+
+/**
+ * v10.36.1 composition repair, second one-shot (the v1 flag is spent on
+ * live). Owner report from the live v10.36.0 rollout:
+ *
+ *   1. /resume: bottom alignment sank the title below a tall right column
+ *      — the engine now emits top-aligned columns; regenerate once.
+ *   2. /contact: three drifting left edges (1320px hero, centered 760px
+ *      prose, floating availability). Letterhead grid instead: hero goes
+ *      top-aligned (availability = top-right stamp) and the sn-prose-links
+ *      band re-bands to 1320px with the prose in the 55% column, locking
+ *      its left edge to the title. Both swaps are exact-literal
+ *      replacements of the v10.36.0 markup this plugin itself wrote —
+ *      any owner edit since → no match → permanent skip, never clobbered.
+ */
+function sn_migrate_split_hero_v2() {
+	if ( get_option( SN_SPLIT_HERO_V2_OPT ) ) {
+		return;
+	}
+
+	$page = get_page_by_path( 'contact' );
+	if ( ! $page ) {
+		return; // Retry next admin_init.
+	}
+
+	$content = (string) $page->post_content;
+	$dir     = __DIR__ . '/seed-content/';
+	$pairs   = array(
+		array( 'split-hero-contact.html', 'split-hero-contact-hero-v2.html' ),
+		// The pre-split sn-prose-links band survives v1 verbatim: frozen here
+		// as a seed so the literal lives on disk, not inline.
+		array( 'split-hero-contact-prose-v1.html', 'split-hero-contact-prose-v2.html' ),
+	);
+	foreach ( $pairs as $pair ) {
+		$old = file_exists( $dir . $pair[0] ) ? trim( (string) file_get_contents( $dir . $pair[0] ) ) : '';
+		$new = file_exists( $dir . $pair[1] ) ? trim( (string) file_get_contents( $dir . $pair[1] ) ) : '';
+		if ( '' !== $old && '' !== $new && 1 === substr_count( $content, $old ) ) {
+			$content = str_replace( $old, $new, $content );
+		}
+	}
+	if ( $content !== (string) $page->post_content ) {
+		wp_update_post(
+			array(
+				'ID'           => $page->ID,
+				'post_content' => $content,
+			)
+		);
+	}
+
+	// /resume: one regenerate so the stored body picks up the top-aligned
+	// hero (no-op-safe — never blanks the page).
+	if ( function_exists( 'sn_resume_sync_page' ) ) {
+		sn_resume_sync_page();
+	}
+
+	update_option( SN_SPLIT_HERO_V2_OPT, time(), false );
+}
+add_action( 'admin_init', 'sn_migrate_split_hero_v2' );

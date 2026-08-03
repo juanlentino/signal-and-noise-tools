@@ -146,14 +146,18 @@ function sn_resume_hero_blocks( $hero ) {
 			. '<!-- /wp:file -->' . "\n\n";
 	}
 
-	$inner = '<!-- wp:columns {"verticalAlignment":"bottom","className":"sn-resume-hero-split"} -->' . "\n"
-		. '<div class="wp-block-columns are-vertically-aligned-bottom sn-resume-hero-split">' . "\n"
-		. '<!-- wp:column {"verticalAlignment":"bottom","width":"55%"} -->' . "\n"
-		. '<div class="wp-block-column is-vertically-aligned-bottom" style="flex-basis:55%">' . "\n"
+	// v10.36.1: TOP-aligned. The right column is far taller than the title
+	// block; bottom alignment sank the title to the column floor and left a
+	// hole above it on the live page. /notes and /now keep bottom alignment
+	// — their side columns are short enough to sit on the title baseline.
+	$inner = '<!-- wp:columns {"verticalAlignment":"top","className":"sn-resume-hero-split"} -->' . "\n"
+		. '<div class="wp-block-columns are-vertically-aligned-top sn-resume-hero-split">' . "\n"
+		. '<!-- wp:column {"verticalAlignment":"top","width":"55%"} -->' . "\n"
+		. '<div class="wp-block-column is-vertically-aligned-top" style="flex-basis:55%">' . "\n"
 		. $left
 		. '</div>' . "\n" . '<!-- /wp:column -->' . "\n\n"
-		. '<!-- wp:column {"verticalAlignment":"bottom","width":"45%"} -->' . "\n"
-		. '<div class="wp-block-column is-vertically-aligned-bottom" style="flex-basis:45%">' . "\n"
+		. '<!-- wp:column {"verticalAlignment":"top","width":"45%"} -->' . "\n"
+		. '<div class="wp-block-column is-vertically-aligned-top" style="flex-basis:45%">' . "\n"
 		. $right
 		. '</div>' . "\n" . '<!-- /wp:column -->' . "\n"
 		. '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";

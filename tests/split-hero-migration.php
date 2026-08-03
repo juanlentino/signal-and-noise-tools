@@ -85,5 +85,34 @@ $n = $GLOBALS['__resyncs'];
 sn_migrate_split_hero();
 ok( $n === $GLOBALS['__resyncs'], 'flag short-circuits re-runs (idempotent)' );
 
+// ── v2 composition repair: contact letterhead + resume regenerate ──
+echo "\nTest: sn_migrate_split_hero_v2\n";
+$seedDir = __DIR__ . '/../inc/seed-content/';
+$heroV1  = trim( file_get_contents( $seedDir . 'split-hero-contact.html' ) );
+$proseV1 = trim( file_get_contents( $seedDir . 'split-hero-contact-prose-v1.html' ) );
+
+$GLOBALS['__pages']['contact'] = (object) array( 'ID' => 408, 'post_content' => $heroV1 . "\n\n" . $proseV1 . "\n" );
+$GLOBALS['__updates'] = array();
+$n = $GLOBALS['__resyncs'];
+sn_migrate_split_hero_v2();
+ok( 1 === count( $GLOBALS['__updates'] ), 'v1 markup present → one update written' );
+$new = (string) ( $GLOBALS['__updates'][0]['post_content'] ?? '' );
+ok( false !== strpos( $new, 'are-vertically-aligned-top sn-cms-hero-split' ), 'contact hero re-swapped top-aligned' );
+ok( false !== strpos( $new, 'sn-cms-prose-split' ) && false === strpos( $new, '"contentSize":"760px"' ), 'prose re-banded to the 1320px letterhead grid' );
+ok( false === strpos( $new, 'are-vertically-aligned-bottom' ), 'no bottom alignment remains' );
+ok( false !== strpos( $new, 'the next page</a> before reaching out' ), 'prose content preserved verbatim' );
+ok( $GLOBALS['__resyncs'] === $n + 1, 'resume regenerated once' );
+ok( isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V2_OPT ] ), 'v2 flag stamped' );
+$u = count( $GLOBALS['__updates'] );
+sn_migrate_split_hero_v2();
+ok( $u === count( $GLOBALS['__updates'] ) && $GLOBALS['__resyncs'] === $n + 1, 'v2 flag short-circuits re-runs' );
+
+unset( $GLOBALS['__options'][ SN_SPLIT_HERO_V2_OPT ] );
+$GLOBALS['__pages']['contact'] = (object) array( 'ID' => 408, 'post_content' => 'owner rewrote everything' );
+$GLOBALS['__updates'] = array();
+sn_migrate_split_hero_v2();
+ok( array() === $GLOBALS['__updates'], 'owner-edited body → no write, never clobbered' );
+ok( isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V2_OPT ] ), 'skip still stamps the flag (permanent, by design)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
