@@ -324,6 +324,32 @@ function sn_handle_uses_save( $post ) {
 	return 'uses_unchanged';
 }
 
+/**
+ * v10.33.0: save the /resume structured document (Content → Resume Page).
+ * The posted resume[…] arrays mirror the canonical document shape exactly, so
+ * after wp_unslash (update_option does NOT unslash — the apostrophe-backslash
+ * trap) the array goes straight to the data layer: sn_resume_doc_normalize()
+ * owns trimming, blank-row pruning, bullet kses, and URL discipline, and a
+ * document with neither experience nor publications is refused rather than
+ * saved — so a bad POST can never blank the live page. Unlike Now/Uses there
+ * is no "clear" path: the form always posts the full document. A real save
+ * regenerates the Page (inside sn_resume_doc_save) and purges the route.
+ */
+function sn_handle_resume_save( $post ) {
+	if ( ! function_exists( 'sn_resume_doc_save' ) || ! function_exists( 'sn_resume_doc_normalize' ) ) {
+		return 'resume_failed';
+	}
+	$resume = isset( $post['resume'] ) && is_array( $post['resume'] ) ? (array) wp_unslash( $post['resume'] ) : array();
+	if ( null === sn_resume_doc_normalize( $resume ) ) {
+		return 'resume_refused';
+	}
+	if ( sn_resume_doc_save( $resume ) ) {
+		sn_content_route_purge( '/resume' );
+		return 'resume_saved';
+	}
+	return 'resume_unchanged';
+}
+
 function sn_handle_pattern_adoption_scan( $post ) {
 	// v4.3.0: routes through the central dispatcher per the health_scan pattern.
 	if ( function_exists( 'snt_pattern_adoption_run_scan' ) ) {

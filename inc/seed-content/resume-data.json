@@ -1,0 +1,125 @@
+{
+	"hero": {
+		"summary": "20+ years building studios, developing artists, and scaling creative businesses across the U.S. and Latin America. From production rooms to boardrooms, the through-line is the same: turning creative work into sustainable business.",
+		"chips": [
+			"Voting Member, The Recording Academy",
+			"Voting Member, The Latin Recording Academy",
+			"MBA · Applied AI in Business",
+			"SSRN Research Author"
+		],
+		"contact_line": "Orlando, FL",
+		"linkedin": "https://www.linkedin.com/in/juanlentino",
+		"pdf_url": "https://juanlentino.com/wp-content/uploads/2026/07/JuanLentino_Resume.pdf",
+		"pdf_label": "Juan Lentino · Resume (PDF)"
+	},
+	"stats": [
+		{ "n": "20+", "label": "Years in the industry" },
+		{ "n": "110", "label": "Releases since 2022" },
+		{ "n": "90%", "label": "Client retention" },
+		{ "n": "50+", "label": "Clients across the Americas" }
+	],
+	"experience": [
+		{
+			"org": "INDEPENDENT PRACTICE",
+			"dates": "Sep 2022 - Present",
+			"location": "Remote",
+			"roles": [
+				{
+					"title": "Artist Development and Strategy Consultant · Sep 2022 - Present",
+					"bullets": [
+						"Run a 50+ client practice across the Americas, delivering <strong>roughly 110 releases since 2022</strong> for independent artists and labels. Every client acquired through referral, inbound, or direct relationship rather than platform bidding.",
+						"Advise studios, labels, and creative companies on pricing, operating model, and AI workflow adoption, a business-side line of the practice distinct from the artist work.",
+						"Guide artists and label teams on release strategy, sonic direction, and market positioning, with particular focus on acts moving between Latin American and U.S. release pipelines.",
+						"<strong>Doubled project throughput without adding headcount</strong> by designing AI-assisted production and delivery workflows across Pro Tools, Logic Pro X, and Ableton Live."
+					]
+				}
+			]
+		},
+		{
+			"org": "PANACEA STUDIO",
+			"dates": "Jan 2016 - Present",
+			"location": "Buenos Aires, Argentina",
+			"roles": [
+				{
+					"title": "Founder and Managing Director · Jan 2016 - Present",
+					"bullets": [
+						"Founded and scaled a full-service recording and production company from zero to sustained profitability, now running <strong>roughly 80 sessions annually</strong> across Argentina, the U.S., and Latin America on a USD-denominated pricing model that insulates revenue from peso volatility.",
+						"Negotiated <strong>seven partnerships across U.S. and Latin American markets</strong>, spanning distribution agreements, co-production arrangements, and brand referral relationships, opening release access to Colombia, Mexico, and the U.S.",
+						"Sustain <strong>90% client retention</strong> across roughly 25 relationships a year including high-profile Argentine artists, while owning P&amp;L, pricing, and client development and leading a four-person team."
+					]
+				},
+				{
+					"title": "Lead Engineer and Production Supervisor · Jan 2016 - Apr 2021",
+					"bullets": [
+						"Directed <strong>100+ recording, mixing, and production projects</strong> for 70 artists and 10 independent labels, including internationally recognized Argentine rock artists.",
+						"Partnered with artists on sonic identity and release strategy across 20 development projects, <strong>several of which grew past 10,000 monthly Spotify listeners</strong>."
+					]
+				}
+			]
+		}
+	],
+	"earlier": {
+		"label": "Earlier career · 1997 - 2015",
+		"entries": [
+			{
+				"org": "OBRAS METÁLICAS S.A. · BUENOS AIRES, ARGENTINA",
+				"roles": [
+					{
+						"title": "Marketing and Community Manager · Jan 2005 - Dec 2015",
+						"bullets": [
+							"<strong>Grew the industry contact base from 600 to 850</strong> and doubled trade show engagement over three years, running B2B marketing across newsletters, trade fairs, catalogs, and web for an industrial manufacturer.",
+							"Maintained brand standards across roughly 60 marketing assets a year including catalogs, product sheets, trade fair materials, and web, inside a lean internal marketing function."
+						]
+					}
+				]
+			},
+			{
+				"org": "CINERGY STUDIOS · BUENOS AIRES, ARGENTINA",
+				"roles": [
+					{
+						"title": "Production Manager · Jan 2001 - Dec 2003",
+						"bullets": [
+							"Led multimedia and video production operations across roughly 20 productions annually and a six-person core team, holding delivery schedules and vendor terms through Argentina's post-2001 economic crisis."
+						]
+					},
+					{
+						"title": "Production Assistant · Nov 1997 - Dec 2000",
+						"bullets": [
+							"Coordinated logistics and budget tracking across roughly 50 productions annually, managing a departmental operating budget equivalent to $80,000 and the vendor purchase order flow beneath it."
+						]
+					}
+				]
+			}
+		]
+	},
+	"education": [
+		{ "title": "MBA, Applied Artificial Intelligence in Business", "lines": [ "Westcliff University · Celebration, FL", "August 2026" ] },
+		{ "title": "B.S. Music Production", "lines": [ "Full Sail University · Winter Park, FL", "December 2022" ] }
+	],
+	"affiliations": [
+		{ "title": "Voting Member, The Recording Academy", "lines": [ "September 2025 - Present" ] },
+		{ "title": "Voting Member, The Latin Recording Academy", "lines": [ "September 2025 - Present" ] },
+		{ "title": "Google Project Management Certificate", "lines": [ "May 2025" ] },
+		{ "title": "Spatial Audio with Dolby Atmos in Logic Pro X", "lines": [ "October 2022" ] }
+	],
+	"publications": [
+		{
+			"meta": "SSRN Working Paper · April 2026",
+			"title": "Provenance Over Detection: A Cryptographic Framework for Human Authorship Verification in Music Distribution",
+			"url": "https://ssrn.com/abstract=6402298"
+		},
+		{
+			"meta": "SSRN Working Paper · May 2026",
+			"title": "Provenance as Substrate: A Cryptographic Identifier Framework for Music Rights and Royalty Infrastructure",
+			"url": "https://ssrn.com/abstract=6730343"
+		}
+	],
+	"skills": [
+		{ "category": "Business Development", "items": "Strategic Partnerships, Partner Management, Contract Negotiation, Distribution Agreements, Co-Production Deals, Licensing, Client Acquisition, Client Retention, Market Expansion, Strategic Planning, P&L Oversight" },
+		{ "category": "Artist & Label Relations", "items": "Artist Development, A&R Style Development, Release Strategy, Creative Direction, Sonic Branding, Brand Identity, Catalog and Rights Awareness" },
+		{ "category": "Markets & Operations", "items": "Latin American Markets, Cross-Border Business Development, Studio Operations, Project Management, Cross-Functional Collaboration, Stakeholder Management" },
+		{ "category": "Music Tech & Research", "items": "Music Provenance and Attribution, Rights and Royalty Infrastructure, AI-Assisted Workflows, Digital Distribution, CRM Tools" },
+		{ "category": "Production", "items": "Pro Tools, Logic Pro X, Ableton Live, Mixing, Mastering, Sound Design, Dolby Atmos" },
+		{ "category": "Languages", "items": "English (Fluent), Spanish (Native)" }
+	]
+}

@@ -151,6 +151,17 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		true
 	);
 
+	// v10.33.0: Resume structured-editor repeatable rows. Self-gating (no-op
+	// unless a [data-rsm-add] button exists), so loading it on every SN admin
+	// page is harmless — same precedent as sn-analytics-brush above.
+	wp_enqueue_script(
+		'sn-resume-admin',
+		SNT_URL . 'assets/resume-admin.js',
+		array(),
+		SNT_VERSION,
+		true
+	);
+
 	// Health/Tools Suggest+Apply JS (assets/health-suggest-actions.js) — enqueued
 	// UNCONDITIONALLY (no AI gate) on exactly the two leaves that render
 	// data-snt-suggest buttons: Monitoring → Health (the AI alt/drift/orphan column

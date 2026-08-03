@@ -129,6 +129,9 @@ function sn_admin_top_tabs() {
 				// lone form doesn't earn the full width; Phase-4b note above).
 				'now'          => array( 'label' => 'Now Page', 'render' => 'sn_admin_render_now_section' ),
 				'uses'         => array( 'label' => 'Uses Page', 'render' => 'sn_admin_render_uses_section' ),
+				// v10.33.0: the /resume STRUCTURED editor (repeatable rows, not a
+				// plain-text box) — same regenerate-on-save architecture as Now/Uses.
+				'resume'       => array( 'label' => 'Resume Page', 'render' => 'sn_admin_render_resume_section' ),
 			),
 		),
 		array(

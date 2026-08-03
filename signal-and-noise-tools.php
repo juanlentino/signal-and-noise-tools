@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.32.0
+ * Version:     10.33.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -178,6 +178,8 @@ require_once SNT_PATH . 'inc/now-page.php';                  // v7.5.0: /now con
 require_once SNT_PATH . 'inc/uses-page.php';                 // v7.6.0: /uses content editor data layer + sn_uses_groups feed (shares the /now section grammar)
 require_once SNT_PATH . 'inc/admin-forms/now-page.php';      // v7.5.0: Content → Now Page editor form
 require_once SNT_PATH . 'inc/admin-forms/uses-page.php';     // v7.6.0: Content → Uses Page editor form (prefills from the theme's live list)
+require_once SNT_PATH . 'inc/resume-page.php';               // v10.33.0: /resume structured editor data layer (document option + normalize/refuse)
+require_once SNT_PATH . 'inc/admin-forms/resume-page.php';   // v10.33.0: Content → Resume Page structured editor form (repeatable rows, not a text box)
 require_once SNT_PATH . 'inc/rest-api.php';
 require_once SNT_PATH . 'inc/analytics-rest.php'; // v6.1.0: read-only /analytics REST routes
 require_once SNT_PATH . 'inc/analytics-refresh-rest.php'; // v9.27.0: token-gated rollup-refresh trigger (CF Cron worker → reliable freshness)
@@ -290,6 +292,7 @@ unset( $sn_phase3_theme_dir, $sn_phase3_retired, $sn_phase3_legacy_file );
 require_once __DIR__ . '/inc/content-rendering-helpers.php';
 require_once __DIR__ . '/inc/content-surfaces.php';
 require_once __DIR__ . '/inc/page-sync-engine.php';   // v9.81.0: LIVE Now/Uses per-save dossier sync engine (split out of content-migrations)
+require_once __DIR__ . '/inc/resume-sync-engine.php'; // v10.33.0: LIVE /resume per-save sync engine (structured doc → wp:html body, drift-proof)
 require_once __DIR__ . '/inc/content-migrations.php'; // spent one-shot seeds behind the master sentinel (sn_run_content_migrations)
 require_once __DIR__ . '/inc/tag-consolidation.php';
 require_once __DIR__ . '/inc/tag-consolidation-redirects.php'; // front end too (301 handler)
