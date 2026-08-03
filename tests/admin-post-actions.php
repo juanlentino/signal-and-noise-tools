@@ -477,7 +477,7 @@ pa_eq( 0, count( $GLOBALS['__test_set_terms_calls'] ), 'no suggestion cache → 
 
 echo "\nTest: sn_admin_post_handlers() map is complete + callable\n";
 $map = sn_admin_post_handlers();
-pa_eq( 50, count( $map ), 'map has 50 actions' ); // v10.0.0: -2 release_notes_draft (Release Notes surface retired) + apply_reading_time_cleanup (broken legacy-cleanup UI retired; the finder/applier functions and the shortcode stay) · v9.85.0: +1 machine_readers_save (Machine Readers sensor settings, Session 3) · v9.68.0: -1 analytics_landing_preview_save (the flag-gated Overview (preview) graduated to the permanent default tab — no flag, no toggle) · v9.67.0: +1 analytics_landing_preview_save (Overview (preview) flag toggle; handler lived in inc/analytics-view-overview-lab.php, the schedule-admin precedent) · v9.51.0 (R9, lane SEC-C): +1 bind_mcp_rw_credential (MCP write-door credential binding) · S2 §3: +1 analytics_funnels_save (owner-defined session funnels) · v9.36.0: +1 analytics_tuning_save (settings hub engine tuning) · v9.5.0: -2 narration_run + narration_settings_save (weekly-digest surface retired, R2) · v9.2.0: +1 narration_settings_save (relocated to the Intelligence tab, then retired) · v9.0.0: -1 analytics_import (Plausible-CSV importer retired, D1) · v8.10.0: +5 redirect_add/update/delete + redirect_404_delete/clear (Redirects arc) · v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor) · v7.6.0: +1 uses_save (/uses page editor) · v8.0.0: +1 schedule_swap_run_now (version swaps)
+pa_eq( 51, count( $map ), 'map has 51 actions' ); // v10.33.0: +1 resume_save (/resume structured editor) · v10.0.0: -2 release_notes_draft (Release Notes surface retired) + apply_reading_time_cleanup (broken legacy-cleanup UI retired; the finder/applier functions and the shortcode stay) · v9.85.0: +1 machine_readers_save (Machine Readers sensor settings, Session 3) · v9.68.0: -1 analytics_landing_preview_save (the flag-gated Overview (preview) graduated to the permanent default tab — no flag, no toggle) · v9.67.0: +1 analytics_landing_preview_save (Overview (preview) flag toggle; handler lived in inc/analytics-view-overview-lab.php, the schedule-admin precedent) · v9.51.0 (R9, lane SEC-C): +1 bind_mcp_rw_credential (MCP write-door credential binding) · S2 §3: +1 analytics_funnels_save (owner-defined session funnels) · v9.36.0: +1 analytics_tuning_save (settings hub engine tuning) · v9.5.0: -2 narration_run + narration_settings_save (weekly-digest surface retired, R2) · v9.2.0: +1 narration_settings_save (relocated to the Intelligence tab, then retired) · v9.0.0: -1 analytics_import (Plausible-CSV importer retired, D1) · v8.10.0: +5 redirect_add/update/delete + redirect_404_delete/clear (Redirects arc) · v5.1.0: +3 indexnow · v5.2.0: +2 analytics (save/test) · v6.0.0: +1 analytics_import · v6.1.0: +1 analytics_export · v6.23.0: +1 analytics_exclude_save · v6.30.0: +1 narration_run · v6.36.0: +1 tag_merge · v6.37.0: +3 tag_ai_suggest/apply + tag_prune_unused · v6.40.0: +2 schedule_run_now/schedule_repurge · v6.51.0: -1 insights_create_draft (advisor no longer prescribes posts) · v7.2.0: +1 security_digest_save · v7.5.0: +1 now_save (/now page editor) · v7.6.0: +1 uses_save (/uses page editor) · v8.0.0: +1 schedule_swap_run_now (version swaps)
 foreach ( $map as $action => $cb ) {
 	pa_eq( true, is_callable( $cb ), "handler for '$action' is callable" );
 }
@@ -672,6 +672,40 @@ pa_reset_store();
 pa_eq( 'analytics_funnels_invalid_1k1', sn_handle_analytics_funnels_save( array( 'sn_funnels' => ' : /a > /b' ) ), 'empty funnel name -> the "name" kind (index 1)' );
 pa_eq( 'analytics_funnels_invalid_1k4', sn_handle_analytics_funnels_save( array( 'sn_funnels' => 'One step: /a' ) ), 'fewer than 2 steps -> the "few" kind (index 4)' );
 pa_eq( 'analytics_funnels_invalid_1k3', sn_handle_analytics_funnels_save( array( 'sn_funnels' => 'Name:: /a > /b' ) ), 'stray double colon -> the "step" kind (index 3)' );
+
+// ── v10.33.0: resume_save (/resume structured editor) ─────────────────
+echo "\nTest: sn_handle_resume_save\n";
+require_once __DIR__ . '/../inc/resume-page.php';
+
+$GLOBALS['__purged_url_sets'] = array(); // reset the capture for the resume route
+$resume_post = array(
+	'resume' => array(
+		'hero'       => array( 'summary' => 'Twenty years.' ),
+		'experience' => array(
+			array( 'org' => 'PANACEA STUDIO', 'dates' => '2016 - Present', 'location' => 'Buenos Aires', 'roles' => array(
+				array( 'title' => 'Founder', 'bullets' => array( "Argentina's <strong>toughest</strong> market." ) ),
+			) ),
+		),
+	),
+);
+pa_eq( 'resume_saved', sn_handle_resume_save( $resume_post ), 'valid structured POST → resume_saved' );
+pa_eq( 'PANACEA STUDIO', sn_resume_doc_get()['experience'][0]['org'] ?? '', 'document persisted through the option' );
+pa_eq( "Argentina's <strong>toughest</strong> market.", sn_resume_doc_get()['experience'][0]['roles'][0]['bullets'][0] ?? '', 'apostrophes and bullet emphasis survive the save path intact (no backslash gain)' );
+pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'valid resume save → exactly one edge-purge dispatch' );
+pa_eq( array( 'https://example.test/resume', 'https://example.test/resume/' ), $GLOBALS['__purged_url_sets'][0] ?? null, 'purge carries both /resume slash variants' );
+pa_eq( 'resume_unchanged', sn_handle_resume_save( $resume_post ), 'identical re-save → resume_unchanged' );
+pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'unchanged re-save → NO extra purge' );
+// string array keys (the JS clone path posts non-numeric keys) save fine.
+$keyed_post = $resume_post;
+$keyed_post['resume']['experience']['nabc1'] = array( 'org' => 'NEW ORG', 'roles' => array() );
+pa_eq( 'resume_saved', sn_handle_resume_save( $keyed_post ), 'string-keyed rows (JS-added) → saved' );
+pa_eq( 'NEW ORG', sn_resume_doc_get()['experience'][1]['org'] ?? '', 'string-keyed row reindexed into position' );
+// refusal: a document with no experience org and no publication title is
+// never saved — the stored document and the live page stand.
+pa_eq( 'resume_refused', sn_handle_resume_save( array( 'resume' => array( 'hero' => array( 'summary' => 'only a hero' ) ) ) ), 'anchor-less document → resume_refused' );
+pa_eq( 'PANACEA STUDIO', sn_resume_doc_get()['experience'][0]['org'] ?? '', 'refused save leaves the stored document intact' );
+pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'refused save → NO extra purge' );
+pa_eq( 'resume_refused', sn_handle_resume_save( array() ), 'missing resume[] entirely → resume_refused, no fatal' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -1946,3 +1946,115 @@ body.desktop-mode-chromeless .sn-nav-tabs {
 	font-variant-numeric: tabular-nums;
 	text-align: center;
 }
+
+/* ── Resume editor (Content → Resume Page, v10.33.0) ─────────────────────
+   Repeatable-row chrome for the structured form. Rows are flex lines with
+   quiet reorder/remove controls; cards group an employer/publication/skills
+   entry; sections are collapsible details. */
+.sn-rsm-section {
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 12px 16px;
+	margin: 0 0 14px;
+	background: #fff;
+}
+.sn-rsm-section > summary {
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 14px;
+	padding: 2px 0;
+}
+.sn-rsm-field {
+	display: block;
+	margin: 8px 0;
+}
+.sn-rsm-field .sn-rsm-label {
+	display: block;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+	color: #646970;
+	margin-bottom: 2px;
+}
+.sn-rsm-field input.regular-text,
+.sn-rsm-field textarea.large-text {
+	width: 100%;
+}
+.sn-rsm-pair {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 0 14px;
+}
+.sn-rsm-row {
+	position: relative;
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+	margin: 4px 0;
+}
+.sn-rsm-row > .sn-rsm-field,
+.sn-rsm-row > .sn-rsm-pair,
+.sn-rsm-row > textarea {
+	flex: 1;
+}
+.sn-rsm-controls {
+	display: inline-flex;
+	gap: 2px;
+	margin-top: 22px;
+	white-space: nowrap;
+}
+.sn-rsm-bullet .sn-rsm-controls,
+.sn-rsm-card-head .sn-rsm-controls {
+	margin-top: 22px;
+}
+.sn-rsm-controls .button-link {
+	color: #787c82;
+	text-decoration: none;
+	padding: 2px 5px;
+	border-radius: 3px;
+	font-size: 14px;
+	line-height: 1;
+}
+.sn-rsm-controls .button-link:hover {
+	color: #1d2327;
+	background: #f0f0f1;
+}
+.sn-rsm-controls .sn-rsm-del:hover {
+	color: #b32d2e;
+	background: #fcf0f1;
+}
+.sn-rsm-card {
+	display: block;
+	border: 1px solid #e5e5e7;
+	border-radius: 5px;
+	padding: 10px 14px 12px;
+	margin: 8px 0;
+	background: #fafafa;
+}
+.sn-rsm-card-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+.sn-rsm-card-head .sn-rsm-field {
+	flex: 1;
+	margin-top: 0;
+}
+.sn-rsm-role {
+	display: block;
+	border-left: 3px solid #dcdcde;
+	padding-left: 12px;
+	margin: 10px 0;
+}
+.sn-rsm-role-head {
+	display: flex;
+	align-items: flex-start;
+	gap: 8px;
+}
+.sn-rsm-role-head .sn-rsm-field {
+	flex: 1;
+}
+.sn-rsm-add {
+	margin: 4px 0 2px;
+}

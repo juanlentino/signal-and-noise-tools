@@ -48,6 +48,7 @@ function sn_admin_render_tag_cleanup_section() { $GLOBALS['__calls'][] = 'fn:sn_
 function sn_admin_render_scheduled_content_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_scheduled_content_section'; }
 function sn_admin_render_now_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_now_section'; } // v7.5.0: Content → Now Page
 function sn_admin_render_uses_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_uses_section'; } // v7.6.0: Content → Uses Page
+function sn_admin_render_resume_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_resume_section'; } // v10.33.0: Content → Resume Page (real fn lives in inc/admin-forms/resume-page.php)
 
 // NB: we stub sn_admin_render_section/sub_tabs/toc above to record routing, so we
 // must NOT require inc/admin-tabs.php (it defines them for real → redeclare fatal).
@@ -91,8 +92,8 @@ ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connection
 ok( ( $by_tab['site']['label'] ?? '' ) === 'Identity & SEO', "site relabelled 'Identity & SEO'" );
 ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo' ),
 	'site holds only identity-and-seo (cloudflare moved out)' );
-ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'front-end', 'performance', 'music', 'rss', 'tags', 'now', 'uses' ),
-	'content leaves: front-end, performance, music, rss, tags, now, uses (v10.0.0 retired reading-time)' );
+ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'front-end', 'performance', 'music', 'rss', 'tags', 'now', 'uses', 'resume' ),
+	'content leaves: front-end, performance, music, rss, tags, now, uses, resume (v10.33.0 added the /resume structured editor)' );
 ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'webhooks', 'indexnow', 'redirects', 'cron', 'scheduled-content' ),
 	'connections leaves: cloudflare, webhooks, indexnow, redirects, cron, scheduled-content' );
 ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health' ),
