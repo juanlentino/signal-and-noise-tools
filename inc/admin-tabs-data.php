@@ -131,7 +131,9 @@ function sn_admin_top_tabs() {
 				'uses'         => array( 'label' => 'Uses Page', 'render' => 'sn_admin_render_uses_section' ),
 				// v10.33.0: the /resume STRUCTURED editor (repeatable rows, not a
 				// plain-text box) — same regenerate-on-save architecture as Now/Uses.
-				'resume'       => array( 'label' => 'Resume Page', 'render' => 'sn_admin_render_resume_section' ),
+				// 'wide' (v10.33.1): the sectioned form earns the full content width;
+				// its small-row lists lay out as responsive two-column grids there.
+				'resume'       => array( 'label' => 'Resume Page', 'render' => 'sn_admin_render_resume_section', 'wide' => true ),
 			),
 		),
 		array(

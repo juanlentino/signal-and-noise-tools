@@ -141,9 +141,23 @@ function sn_rsm_titled_lines_row( $prefix, $lines_id, $entry ) {
 	echo '</div>';
 }
 
-/** Open a collapsible section card. @param string $title @param string $hint */
-function sn_rsm_section_open( $title, $hint = '' ) {
-	echo '<details class="sn-rsm-section" open><summary>' . esc_html( $title ) . '</summary>';
+/**
+ * Open a collapsible section card. COLLAPSED by default (v10.33.1: eight
+ * open sections made the screen an endless scroll — closed, it reads as a
+ * compact table of contents; collapsed inputs still submit with the form).
+ * The summary carries a row-count badge so a closed section still says how
+ * much it holds.
+ *
+ * @param string $title Section title.
+ * @param string $hint  Helper line shown when open.
+ * @param int    $count Row count for the summary badge (-1 = no badge).
+ */
+function sn_rsm_section_open( $title, $hint = '', $count = -1 ) {
+	echo '<details class="sn-rsm-section"><summary><span class="sn-rsm-summary-title">' . esc_html( $title ) . '</span>';
+	if ( $count >= 0 ) {
+		echo '<span class="sn-rsm-summary-count">' . esc_html( (string) $count ) . '</span>';
+	}
+	echo '</summary>';
 	if ( '' !== $hint ) {
 		echo '<p class="sn-field-helper">' . esc_html( $hint ) . '</p>';
 	}
@@ -198,7 +212,7 @@ function sn_admin_render_resume_section() {
 	echo '</div></details>';
 
 	// ── Stats ──
-	sn_rsm_section_open( 'Stats', 'The numbers strip under the hero.' );
+	sn_rsm_section_open( 'Stats', 'The numbers strip under the hero.', count( $doc['stats'] ) );
 	echo '<div class="sn-rsm-list" data-rsm-list="stats">';
 	$i = 0;
 	foreach ( $doc['stats'] as $stat ) {
@@ -221,7 +235,7 @@ function sn_admin_render_resume_section() {
 	echo '</details>';
 
 	// ── Experience ──
-	sn_rsm_section_open( 'Experience', 'One card per employer; each holds one or more roles with their bullets. Bullets may use <strong>, <em>, and links.' );
+	sn_rsm_section_open( 'Experience', 'One card per employer; each holds one or more roles with their bullets. Bullets may use <strong>, <em>, and links.', count( $doc['experience'] ) );
 	echo '<div class="sn-rsm-list" data-rsm-list="exp">';
 	$i = 0;
 	foreach ( $doc['experience'] as $entry ) {
@@ -236,7 +250,7 @@ function sn_admin_render_resume_section() {
 	echo '</details>';
 
 	// ── Earlier career ──
-	sn_rsm_section_open( 'Earlier career (collapsed fold)', 'Rendered inside a collapsed "details" fold at the end of Experience.' );
+	sn_rsm_section_open( 'Earlier career (collapsed fold)', 'Rendered inside a collapsed "details" fold at the end of Experience.', count( $doc['earlier']['entries'] ) );
 	sn_rsm_input( 'resume[earlier][label]', $doc['earlier']['label'], 'Fold label', 'Earlier career · 1997 - 2015' );
 	echo '<div class="sn-rsm-list" data-rsm-list="earlier">';
 	$i = 0;
@@ -252,7 +266,7 @@ function sn_admin_render_resume_section() {
 	echo '</details>';
 
 	// ── Education / Affiliations ──
-	sn_rsm_section_open( 'Education', '' );
+	sn_rsm_section_open( 'Education', '', count( $doc['education'] ) );
 	echo '<div class="sn-rsm-list" data-rsm-list="edu">';
 	$i = 0;
 	foreach ( $doc['education'] as $entry ) {
@@ -266,7 +280,7 @@ function sn_admin_render_resume_section() {
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="edu">+ Add education</button>';
 	echo '</details>';
 
-	sn_rsm_section_open( 'Affiliations & Certifications', '' );
+	sn_rsm_section_open( 'Affiliations & Certifications', '', count( $doc['affiliations'] ) );
 	echo '<div class="sn-rsm-list" data-rsm-list="aff">';
 	$i = 0;
 	foreach ( $doc['affiliations'] as $entry ) {
@@ -281,7 +295,7 @@ function sn_admin_render_resume_section() {
 	echo '</details>';
 
 	// ── Publications ──
-	sn_rsm_section_open( 'Publications', 'A new paper is one row: venue line, title, and link.' );
+	sn_rsm_section_open( 'Publications', 'A new paper is one row: venue line, title, and link.', count( $doc['publications'] ) );
 	echo '<div class="sn-rsm-list" data-rsm-list="pubs">';
 	$i = 0;
 	foreach ( $doc['publications'] as $pub ) {
@@ -306,7 +320,7 @@ function sn_admin_render_resume_section() {
 	echo '</details>';
 
 	// ── Skills ──
-	sn_rsm_section_open( 'Skills', 'One table row per category; items is the comma-separated cell.' );
+	sn_rsm_section_open( 'Skills', 'One table row per category; items is the comma-separated cell.', count( $doc['skills'] ) );
 	echo '<div class="sn-rsm-list" data-rsm-list="skills">';
 	$i = 0;
 	foreach ( $doc['skills'] as $row ) {

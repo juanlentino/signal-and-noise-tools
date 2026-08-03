@@ -1962,7 +1962,37 @@ body.desktop-mode-chromeless .sn-nav-tabs {
 	cursor: pointer;
 	font-weight: 600;
 	font-size: 14px;
-	padding: 2px 0;
+	padding: 6px 2px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	list-style: none;
+	user-select: none;
+}
+.sn-rsm-section > summary::-webkit-details-marker {
+	display: none;
+}
+.sn-rsm-section > summary::before {
+	content: "\25B8";
+	font-size: 12px;
+	color: #787c82;
+	transition: transform 0.15s ease;
+}
+.sn-rsm-section[open] > summary::before {
+	transform: rotate(90deg);
+}
+.sn-rsm-section > summary:hover .sn-rsm-summary-title {
+	color: #2271b1;
+}
+.sn-rsm-summary-count {
+	margin-left: auto;
+	font-size: 11px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: #646970;
+	background: #f0f0f1;
+	border-radius: 10px;
+	padding: 1px 8px;
 }
 .sn-rsm-field {
 	display: block;
@@ -2057,4 +2087,27 @@ body.desktop-mode-chromeless .sn-nav-tabs {
 }
 .sn-rsm-add {
 	margin: 4px 0 2px;
+}
+
+/* v10.33.1: the Resume leaf is 'wide' — at wide viewports the small-row
+   lists (stats, publications, skills, education, affiliations, chips) lay
+   out as responsive two-up grids; big rows (employers) stay single-column. */
+@media (min-width: 1100px) {
+	.sn-rsm-form [data-rsm-list="stats"],
+	.sn-rsm-form [data-rsm-list="chips"],
+	.sn-rsm-form [data-rsm-list="pubs"],
+	.sn-rsm-form [data-rsm-list="skills"],
+	.sn-rsm-form [data-rsm-list="edu"],
+	.sn-rsm-form [data-rsm-list="aff"] {
+		display: grid;
+		grid-template-columns: repeat(auto-fill, minmax(380px, 1fr));
+		gap: 4px 18px;
+		align-items: start;
+	}
+	.sn-rsm-form [data-rsm-list="pubs"] > .sn-rsm-card,
+	.sn-rsm-form [data-rsm-list="skills"] > .sn-rsm-card,
+	.sn-rsm-form [data-rsm-list="edu"] > .sn-rsm-card,
+	.sn-rsm-form [data-rsm-list="aff"] > .sn-rsm-card {
+		margin: 0;
+	}
 }
