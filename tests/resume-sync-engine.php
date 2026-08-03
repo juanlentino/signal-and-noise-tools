@@ -92,9 +92,16 @@ ok( $types_ok, 'every block type opens and closes the same number of times' );
 ok( false !== strpos( $body, 'RESUME' ), 'hero headline present' );
 ok( false !== strpos( $body, '20+ years building studios' ), 'hero summary present' );
 ok( 4 === substr_count( $body, 'class="sn-resume-stat-n"' ), 'all four stat numbers rendered' );
-// v10.33.3 owner direction: uniform width — every band is 960px, no outliers.
-ok( false === strpos( $body, '1400px' ), 'no band is wider than the rest (uniform 960px)' );
-ok( substr_count( $body, '"contentSize":"960px"' ) === substr_count( $body, 'wp:group {"style"' ), 'every band group declares the uniform contentSize' );
+// v10.35.0 hero rearrange: uniform width stays (owner direction, v10.33.3),
+// but the uniform value widens 960px → 1320px so the split hero and bands
+// use the viewport instead of stacking left with a dead right half.
+ok( false === strpos( $body, '1400px' ) && false === strpos( $body, '960px' ), 'no band deviates from the uniform width' );
+ok( substr_count( $body, '"contentSize":"1320px"' ) === substr_count( $body, 'wp:group {"style"' ), 'every band group declares the uniform contentSize' );
+// The hero is a two-column editorial split: title block left, summary/
+// chips/rail/PDF right, bottom-aligned so the right column sits on the
+// title baseline. Core columns stack on mobile on their own.
+ok( false !== strpos( $body, 'sn-resume-hero-split' ), 'hero renders as the split columns composition' );
+ok( false !== strpos( $body, 'are-vertically-aligned-bottom sn-resume-hero-split' ), 'hero columns are bottom-aligned' );
 ok( false !== strpos( $body, 'INDEPENDENT PRACTICE' ) && false !== strpos( $body, 'PANACEA STUDIO' ), 'both experience orgs rendered' );
 ok( false !== strpos( $body, '<details class="wp-block-details sn-resume-fold"><summary>Earlier career &middot; 1997 - 2015</summary>' ) || false !== strpos( $body, '<summary>' . esc_html( 'Earlier career · 1997 - 2015' ) . '</summary>' ), 'earlier-career fold rendered as details/summary' );
 ok( false !== strpos( $body, 'OBRAS MET' ) && false !== strpos( $body, 'CINERGY STUDIOS' ), 'both earlier-career orgs inside the fold' );

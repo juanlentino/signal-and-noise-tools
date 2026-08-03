@@ -36,9 +36,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Spacing values are theme spacing-preset slugs; padding order in the inline
  * style matches the editor's serializer (top, right, bottom, left).
  *
- * @param string $size   Content width (uniform '960px' since v10.33.3 —
- *                       owner direction; the stats band's original 1400px
- *                       made it the lone outlier on the page).
+ * @param string $size   Content width (uniform since v10.33.3 — owner
+ *                       direction, no outlier bands; widened to 1320px in
+ *                       v10.35.0 for the split-hero composition).
  * @param string $top    Top spacing preset slug (e.g. '60').
  * @param string $bottom Bottom spacing preset slug.
  * @param string $inner  Serialized inner blocks.
@@ -101,18 +101,29 @@ function sn_resume_role_blocks( $role ) {
 		. sn_resume_list( 'sn-resume-list', (array) ( $role['bullets'] ?? array() ) ); // bullets kses'd at normalize.
 }
 
-/** The hero band. @param array $hero @return string */
+/**
+ * The hero band — a two-column editorial split since v10.35.0: eyebrow +
+ * title in the left column, summary/chips/contact rail/PDF in the right,
+ * bottom-aligned so the right column sits on the title baseline. The
+ * previous single stack left the right half of wide viewports empty.
+ * Core columns stack below 782px on their own.
+ *
+ * @param array $hero Hero document slice.
+ * @return string
+ */
 function sn_resume_hero_blocks( $hero ) {
-	$inner  = sn_resume_para( 'sn-catalog-eyebrow', 'Dossier · Background' );
-	$inner .= '<!-- wp:heading {"level":1,"style":{"typography":{"fontSize":"clamp(3rem, 7vw, 5.5rem)","lineHeight":"1"}}} -->' . "\n"
-		. '<h1 class="wp-block-heading" style="font-size:clamp(3rem, 7vw, 5.5rem);line-height:1">RESUME</h1>' . "\n"
+	$left  = sn_resume_para( 'sn-catalog-eyebrow', 'Dossier · Background' );
+	$left .= '<!-- wp:heading {"level":1,"style":{"typography":{"fontSize":"clamp(3rem, 8vw, 7rem)","lineHeight":"0.95"}}} -->' . "\n"
+		. '<h1 class="wp-block-heading" style="font-size:clamp(3rem, 8vw, 7rem);line-height:0.95">RESUME</h1>' . "\n"
 		. '<!-- /wp:heading -->' . "\n\n";
+
+	$right = '';
 	if ( '' !== $hero['summary'] ) {
-		$inner .= '<!-- wp:paragraph {"style":{"typography":{"fontSize":"1rem","lineHeight":"1.8"}},"textColor":"rust","fontFamily":"body"} -->' . "\n"
+		$right .= '<!-- wp:paragraph {"style":{"typography":{"fontSize":"1rem","lineHeight":"1.8"}},"textColor":"rust","fontFamily":"body"} -->' . "\n"
 			. '<p class="has-rust-color has-text-color has-body-font-family" style="font-size:1rem;line-height:1.8">' . esc_html( $hero['summary'] ) . '</p>' . "\n"
 			. '<!-- /wp:paragraph -->' . "\n\n";
 	}
-	$inner .= sn_resume_list( 'sn-resume-chips', array_map( 'esc_html', $hero['chips'] ) );
+	$right .= sn_resume_list( 'sn-resume-chips', array_map( 'esc_html', $hero['chips'] ) );
 
 	$rail = array();
 	if ( '' !== $hero['contact_line'] ) {
@@ -123,18 +134,31 @@ function sn_resume_hero_blocks( $hero ) {
 		$rail[] = '<a href="' . esc_url( $hero['linkedin'] ) . '" rel="noopener">' . esc_html( $label ) . '</a>';
 	}
 	if ( ! empty( $rail ) ) {
-		$inner .= sn_resume_para( 'sn-resume-rail', implode( ' · ', $rail ) );
+		$right .= sn_resume_para( 'sn-resume-rail', implode( ' · ', $rail ) );
 	}
 
 	if ( '' !== $hero['pdf_url'] ) {
 		$label  = '' !== $hero['pdf_label'] ? $hero['pdf_label'] : 'Resume (PDF)';
 		$url    = esc_url( $hero['pdf_url'] );
-		$inner .= '<!-- wp:file {"href":"' . $url . '","className":"sn-resume-download"} -->' . "\n"
+		$right .= '<!-- wp:file {"href":"' . $url . '","className":"sn-resume-download"} -->' . "\n"
 			. '<div class="wp-block-file sn-resume-download"><a id="wp-block-file--media-sn-resume-pdf" href="' . $url . '">' . esc_html( $label ) . '</a>'
 			. '<a href="' . $url . '" class="wp-block-file__button wp-element-button" download aria-describedby="wp-block-file--media-sn-resume-pdf">Download PDF</a></div>' . "\n"
 			. '<!-- /wp:file -->' . "\n\n";
 	}
-	return sn_resume_band( '960px', '60', '30', $inner );
+
+	$inner = '<!-- wp:columns {"verticalAlignment":"bottom","className":"sn-resume-hero-split"} -->' . "\n"
+		. '<div class="wp-block-columns are-vertically-aligned-bottom sn-resume-hero-split">' . "\n"
+		. '<!-- wp:column {"verticalAlignment":"bottom","width":"55%"} -->' . "\n"
+		. '<div class="wp-block-column is-vertically-aligned-bottom" style="flex-basis:55%">' . "\n"
+		. $left
+		. '</div>' . "\n" . '<!-- /wp:column -->' . "\n\n"
+		. '<!-- wp:column {"verticalAlignment":"bottom","width":"45%"} -->' . "\n"
+		. '<div class="wp-block-column is-vertically-aligned-bottom" style="flex-basis:45%">' . "\n"
+		. $right
+		. '</div>' . "\n" . '<!-- /wp:column -->' . "\n"
+		. '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
+
+	return sn_resume_band( '1320px', '60', '30', $inner );
 }
 
 /** The stats band: one wp:column per {n,label}. @param array $stats @return string */
@@ -151,7 +175,7 @@ function sn_resume_stats_blocks( $stats ) {
 	}
 	$inner = '<!-- wp:columns {"className":"sn-resume-stats"} -->' . "\n" . '<div class="wp-block-columns sn-resume-stats">' . "\n"
 		. $cols . '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
-	return sn_resume_band( '960px', '30', '40', $inner );
+	return sn_resume_band( '1320px', '30', '40', $inner );
 }
 
 /** One employer as a rail/main wp:columns pair. @param array $entry @return string */
@@ -201,7 +225,7 @@ function sn_resume_experience_blocks( $experience, $earlier ) {
 		}
 		$inner .= '</details>' . "\n" . '<!-- /wp:details -->' . "\n\n";
 	}
-	return sn_resume_band( '960px', '40', '40', $inner );
+	return sn_resume_band( '1320px', '40', '40', $inner );
 }
 
 /** A titled-lines column (Education / Affiliations). @param string $heading @param array $entries @return string */
@@ -230,7 +254,7 @@ function sn_resume_credentials_blocks( $education, $affiliations ) {
 		. sn_resume_titled_lines_blocks( 'Education', $education )
 		. sn_resume_titled_lines_blocks( 'Affiliations & Certifications', $affiliations )
 		. '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
-	return sn_resume_band( '960px', '40', '40', $inner );
+	return sn_resume_band( '1320px', '40', '40', $inner );
 }
 
 /** The publications band. @param array $publications @return string */
@@ -251,7 +275,7 @@ function sn_resume_publications_blocks( $publications ) {
 			. '<!-- /wp:heading -->' . "\n"
 			. '</div>' . "\n" . '<!-- /wp:group -->' . "\n\n";
 	}
-	return sn_resume_band( '960px', '40', '40', $inner );
+	return sn_resume_band( '1320px', '40', '40', $inner );
 }
 
 /** The skills band: category/items wp:table. @param array $skills @return string */
@@ -267,7 +291,7 @@ function sn_resume_skills_blocks( $skills ) {
 		. '<!-- wp:table {"hasFixedLayout":false,"className":"sn-resume-skills"} -->' . "\n"
 		. '<figure class="wp-block-table sn-resume-skills"><table><tbody>' . $rows . '</tbody></table></figure>' . "\n"
 		. '<!-- /wp:table -->' . "\n\n";
-	return sn_resume_band( '960px', '40', '80', $inner );
+	return sn_resume_band( '1320px', '40', '80', $inner );
 }
 
 /**
