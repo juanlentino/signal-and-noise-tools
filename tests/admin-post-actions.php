@@ -557,6 +557,12 @@ function home_url( $path = '' ) { return 'https://example.test' . $path; }
 // ── v7.5.0: now_save (/now page editor) ──────────────────────────────
 echo "\nTest: sn_handle_now_save\n";
 require_once __DIR__ . '/../inc/now-page.php';
+// v10.33.3 seam: sync-call recorders (the resume group's pattern) so the
+// always-resync contract is assertable for /now and /about/uses too.
+$GLOBALS['__now_syncs']  = 0;
+$GLOBALS['__uses_syncs'] = 0;
+function sn_now_sync_page() { $GLOBALS['__now_syncs']++; }
+function sn_uses_sync_page() { $GLOBALS['__uses_syncs']++; }
 
 pa_eq( 'now_saved', sn_handle_now_save( array( 'now_content' => "## Building\n- shipping" ) ), 'valid content → now_saved' );
 pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'content persisted + parseable' );
@@ -565,14 +571,15 @@ pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'content persisted 
 // either form may sit in the CF cache).
 pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'valid save → exactly one edge-purge dispatch' );
 pa_eq( array( 'https://example.test/now', 'https://example.test/now/' ), $GLOBALS['__purged_url_sets'][0] ?? null, 'purge carries both /now slash variants' );
-pa_eq( 'now_unchanged', sn_handle_now_save( array( 'now_content' => "## Building\n- shipping" ) ), 'identical re-save → now_unchanged' );
-pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'unchanged re-save → NO extra purge (live page did not change)' );
+pa_eq( 'now_resynced', sn_handle_now_save( array( 'now_content' => "## Building\n- shipping" ) ), 'identical re-save → now_resynced (v10.33.3: unchanged content still re-renders — the engine may have changed)' );
+pa_eq( 3, $GLOBALS['__now_syncs'], 'unchanged re-save STILL regenerates the /now page (sn_now_page_save syncs unconditionally + the handler resync; the REAL v10.33.3 gap here was the missing edge purge)' );
+pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'resync purges the route too' );
 pa_eq( 'now_unparseable', sn_handle_now_save( array( 'now_content' => 'prose with no headers' ) ), 'zero-section content refused, not silently saved' );
 pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'refused save leaves the prior content intact' );
-pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'refused save → NO purge (live page did not change)' );
+pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'refused save → NO purge (live page did not change)' );
 pa_eq( 'now_cleared', sn_handle_now_save( array( 'now_content' => "  \n " ) ), 'whitespace-only → cleared' );
 pa_eq( 0, count( sn_now_page_sections() ), 'cleared → no stored sections (theme file content live again)' );
-pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'clearing the override → purge (live page reverts to theme content)' );
+pa_eq( 3, count( $GLOBALS['__purged_url_sets'] ), 'clearing the override → purge (live page reverts to theme content)' );
 // tag-stripping rides the per-line sanitize pass.
 sn_handle_now_save( array( 'now_content' => "## Hostile\n- <script>alert(1)</script>item" ) );
 pa_eq( false, strpos( (string) ( sn_now_page_get()['raw'] ?? '' ), '<script>' ), 'tags stripped from stored raw' );
@@ -587,12 +594,13 @@ pa_eq( 'uses_saved', sn_handle_uses_save( array( 'uses_content' => "## Interface
 pa_eq( 'SSL UF8', sn_uses_parse_groups( (string) ( sn_uses_page_get()['raw'] ?? '' ) )[0]['items'][0]['name'] ?? '', 'content persisted + name|note parsed' );
 pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'valid uses save → exactly one edge-purge dispatch' );
 pa_eq( array( 'https://example.test/about/uses', 'https://example.test/about/uses/' ), $GLOBALS['__purged_url_sets'][0] ?? null, 'purge carries both /about/uses slash variants' );
-pa_eq( 'uses_unchanged', sn_handle_uses_save( array( 'uses_content' => "## Interface\n- SSL UF8 | Advanced DAW controller" ) ), 'identical re-save → uses_unchanged' );
-pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'unchanged uses re-save → NO extra purge' );
+pa_eq( 'uses_resynced', sn_handle_uses_save( array( 'uses_content' => "## Interface\n- SSL UF8 | Advanced DAW controller" ) ), 'identical re-save → uses_resynced (unchanged content still re-renders)' );
+pa_eq( 3, $GLOBALS['__uses_syncs'], 'unchanged uses re-save STILL regenerates the page (save syncs unconditionally + handler resync; the real gap was the missing edge purge)' );
+pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'uses resync purges the route too' );
 pa_eq( 'uses_unparseable', sn_handle_uses_save( array( 'uses_content' => 'prose with no headers' ) ), 'zero-group content refused' );
 pa_eq( 'uses_cleared', sn_handle_uses_save( array( 'uses_content' => " \n " ) ), 'whitespace-only → cleared' );
 pa_eq( null, sn_uses_page_get(), 'cleared → theme file content live again' );
-pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'clearing the uses override → purge' );
+pa_eq( 3, count( $GLOBALS['__purged_url_sets'] ), 'clearing the uses override → purge' );
 
 // ── v8.0.1: health_scan flash splits on the finding count ─────────────
 echo "\nTest: sn_handle_health_scan findings-aware flash\n";

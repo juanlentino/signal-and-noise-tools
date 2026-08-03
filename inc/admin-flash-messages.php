@@ -37,6 +37,8 @@ function sn_admin_flash_messages() {
 		'now_unchanged'             => array( 'info', 'No changes to save.' ),
 		'now_unparseable'           => array( 'error', 'Nothing saved: the content parses to zero sections. Start each section with "## Label" and give it at least one item line.' ),
 		'now_failed'                => array( 'error', 'Now page save failed — the editor module is unavailable.' ),
+		'now_resynced'              => array( 'success', 'No content changes — the live /now page was re-rendered with the current engine anyway.' ),
+		'uses_resynced'             => array( 'success', 'No content changes — the live /about/uses page was re-rendered with the current engine anyway.' ),
 		'resume_saved'              => array( 'success', 'Resume saved — the live /resume page has been regenerated.' ),
 		'resume_unchanged'          => array( 'info', 'No changes to save.' ),
 		'resume_resynced'           => array( 'success', 'No content changes — the live /resume page was re-rendered with the current engine anyway.' ),
