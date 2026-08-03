@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.34.0] - 2026-08-03
+
+### Added
+
+- **`Content-Signal` TDM header now travels on every REST response** ([inc/rest-hardening-policy.php](inc/rest-hardening-policy.php)). A REST authorization audit found the rights-reservation stack was incomplete on the machine-readable surface: `TDM-Reservation` and `TDM-Policy` already shipped (v9.83.0), but `Content-Signal: search=yes, ai-train=no, ai-input=yes` — the TDMRep / Content Signals grammar declaring *index yes, train no, retrieve yes* — was missing. It now emits on every namespace via `rest_post_dispatch`. All three values are `defined()`-guarded constants (`SN_TDM_RESERVATION`, `SN_TDM_POLICY_URL`, `SN_TDM_CONTENT_SIGNAL`) overridable in wp-config and still refinable through the `snt_rest_hardening_policy` filter. ([tests/rest-hardening.php](tests/rest-hardening.php) pins all three.)
+- **Per-user courtesy throttle for expensive abilities** ([inc/abilities-rate-gate.php](inc/abilities-rate-gate.php)). The native Abilities run-route (`/wp-abilities/v1/.../run`) has no rate limit of its own — only the MCP write door does — so a runaway automation loop could hammer a work-heavy ability unbounded. New `snt_ability_rate_gate()` (per-user, fixed-count-per-window transient, fail-open without the transient API) now guards `near-duplicate-scan` (O(n²) pair comparison) and `run-insights-scan` (forced scan does real work each call). `run-narration` is intentionally excluded — it is an async, deduped background trigger. Not a security boundary (every gated ability already requires `manage_options`); caps are a generous 10/60s and filterable via `snt_ability_rate_gate_max` / `_window`. ([tests/abilities-rate-gate.php](tests/abilities-rate-gate.php), 11 asserts.)
+
+### Docs
+
+- **REST authorization audit + verification** ([docs/security/rest-audit-2026-08-03.md](docs/security/rest-audit-2026-08-03.md), [docs/security/rest-audit-verification.sh](docs/security/rest-audit-verification.sh)). Full route/ability inventory (15 native routes + 65 abilities), findings by severity, and a runnable prod-facing curl sequence. Headline: the authorization posture is sound — no CRITICAL/HIGH defect; every ability's `permission_callback` is correctly scoped standalone (which matters because abilities are independently REST-reachable, not only via the MCP door).
+
 ## [10.33.3] - 2026-08-03
 
 ### Fixed
