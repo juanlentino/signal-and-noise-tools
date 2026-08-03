@@ -125,7 +125,7 @@ sn_migrate_split_hero_v3();
 $new = (string) ( $GLOBALS['__updates'][0]['post_content'] ?? '' );
 ok( false !== strpos( $new, 'has-text-align-center' ) && false !== strpos( $new, '>CONTACT<' ), 'v2 state → centered spine hero' );
 ok( false !== strpos( $new, '[sn_availability]' ), 'availability shortcode survives, centered' );
-ok( false !== strpos( $new, '"contentSize":"760px"' ) && false !== strpos( $new, 'the next page</a> before reaching out' ), 'prose restored to the original centered 760px band verbatim' );
+ok( false !== strpos( $new, '"contentSize":"880px"' ) && false === strpos( $new, '"contentSize":"760px"' ) && false !== strpos( $new, 'the next page</a> before reaching out' ), 'prose band centered at 880px, content verbatim' );
 ok( false === strpos( $new, 'sn-cms-hero-split' ) && false === strpos( $new, 'sn-cms-prose-split' ), 'no split columns remain on /contact' );
 
 unset( $GLOBALS['__options'][ SN_SPLIT_HERO_V3_OPT ] );
@@ -133,7 +133,7 @@ $GLOBALS['__pages']['contact'] = (object) array( 'ID' => 408, 'post_content' => 
 $GLOBALS['__updates'] = array();
 sn_migrate_split_hero_v3();
 $new = (string) ( $GLOBALS['__updates'][0]['post_content'] ?? '' );
-ok( false !== strpos( $new, 'has-text-align-center' ) && 1 === substr_count( $new, '"contentSize":"760px"' ), 'v10.36.0 state (v2 never ran) → centered hero, original prose untouched' );
+ok( false !== strpos( $new, 'has-text-align-center' ) && false !== strpos( $new, '"contentSize":"880px"' ) && false === strpos( $new, '"contentSize":"760px"' ), 'v10.36.0 state (v2 never ran) → centered hero + 880px prose' );
 
 unset( $GLOBALS['__options'][ SN_SPLIT_HERO_V3_OPT ] );
 $GLOBALS['__pages']['contact'] = (object) array( 'ID' => 408, 'post_content' => 'owner rewrote everything' );

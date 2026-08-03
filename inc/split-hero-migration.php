@@ -205,8 +205,8 @@ const SN_SPLIT_HERO_V3_OPT = 'sn_split_hero_v3_migrated_v1';
  * v10.36.2 — /contact centered spine (owner direction after rejecting the
  * v2 letterhead): one centered axis on the wide band — centered eyebrow,
  * centered CONTACT, availability line centered under the title — and the
- * prose returns to its ORIGINAL centered 760px reading band (restored
- * verbatim from the pre-split capture). Handles both possible live states
+ * prose keeps its original centered reading band, verbatim, widened a
+ * touch (760px -> 880px, owner direction) to balance the title mass. Handles both possible live states
  * (v2 installed, or still on v10.36.0), exact-literal swaps only; an
  * owner-edited body skips, never clobbered.
  */
@@ -225,9 +225,11 @@ function sn_migrate_split_hero_v3() {
 	$pairs   = array(
 		// From the v2 letterhead state…
 		array( 'split-hero-contact-hero-v2.html', 'split-hero-contact-hero-v3.html' ),
-		array( 'split-hero-contact-prose-v2.html', 'split-hero-contact-prose-v1.html' ),
-		// …or straight from the v10.36.0 state (v2 skipped/not yet run).
+		array( 'split-hero-contact-prose-v2.html', 'split-hero-contact-prose-v3.html' ),
+		// …or straight from the v10.36.0 state (v2 skipped/not yet run),
+		// where the prose still IS the original band (frozen as prose-v1).
 		array( 'split-hero-contact.html', 'split-hero-contact-hero-v3.html' ),
+		array( 'split-hero-contact-prose-v1.html', 'split-hero-contact-prose-v3.html' ),
 	);
 	foreach ( $pairs as $pair ) {
 		$old = file_exists( $dir . $pair[0] ) ? trim( (string) file_get_contents( $dir . $pair[0] ) ) : '';
