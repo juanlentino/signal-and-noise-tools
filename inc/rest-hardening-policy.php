@@ -16,6 +16,24 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/*
+ * TDM rights-reservation header values, as overridable constants (a site can
+ * redefine any of them in wp-config.php before load) that the policy filter can
+ * still refine at runtime — "filterable constants", per the Phase-2 REST audit.
+ * The Content-Signal grammar is the TDMRep / Content Signals convention:
+ * search=yes (indexing allowed), ai-train=no (no model training),
+ * ai-input=yes (retrieval-augmented answering allowed).
+ */
+if ( ! defined( 'SN_TDM_RESERVATION' ) ) {
+	define( 'SN_TDM_RESERVATION', '1' );
+}
+if ( ! defined( 'SN_TDM_POLICY_URL' ) ) {
+	define( 'SN_TDM_POLICY_URL', 'https://juanlentino.com/tdm-policy/' );
+}
+if ( ! defined( 'SN_TDM_CONTENT_SIGNAL' ) ) {
+	define( 'SN_TDM_CONTENT_SIGNAL', 'search=yes, ai-train=no, ai-input=yes' );
+}
+
 /**
  * The single source of truth for every REST hardening decision.
  *
@@ -41,8 +59,9 @@ function snt_rest_hardening_policy() {
 			'strip'     => array( 'post', 'page' ),
 			'protected' => array( 'sn-prov/v1', 'signal-noise/v1' ),
 			'headers'   => array(
-				'TDM-Reservation' => '1',
-				'TDM-Policy'      => 'https://juanlentino.com/tdm-policy/',
+				'TDM-Reservation' => SN_TDM_RESERVATION,
+				'TDM-Policy'      => SN_TDM_POLICY_URL,
+				'Content-Signal'  => SN_TDM_CONTENT_SIGNAL,
 			),
 		)
 	);
