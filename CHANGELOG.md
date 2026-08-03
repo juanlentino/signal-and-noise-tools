@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.36.3] - 2026-08-03
+
+### Fixed
+
+- **/contact availability line actually centers** ([inc/split-hero-migration.php](inc/split-hero-migration.php) `sn_migrate_split_hero_v4`, [inc/seed-content/split-hero-contact-hero-v4.html](inc/seed-content/split-hero-contact-hero-v4.html)). The v10.36.2 spine wrapped `[sn_availability]` in a centered `wp:paragraph`, but the shortcode emits its own block-level `<p class="sn-availability">` (display:flex) — the invalid p-in-p was hoisted out by the browser and rendered flush-left at the band edge (verified live in-browser). The shortcode now sits in a `wp:html` flex wrapper (`justify-content:center`), which centers the emitted element regardless of its own display. Fallback pairs lift any earlier skipped state straight to the current spine. ([tests/split-hero-migration.php](tests/split-hero-migration.php) → 54 asserts.)
+
 ## [10.36.2] - 2026-08-03
 
 ### Fixed

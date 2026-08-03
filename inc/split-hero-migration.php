@@ -250,3 +250,55 @@ function sn_migrate_split_hero_v3() {
 	update_option( SN_SPLIT_HERO_V3_OPT, time(), false );
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v3' );
+
+const SN_SPLIT_HERO_V4_OPT = 'sn_split_hero_v4_migrated_v1';
+
+/**
+ * v10.36.3 — /contact availability line actually centers. The v3 spine
+ * wrapped [sn_availability] in a centered wp:paragraph, but the shortcode
+ * emits its own block-level <p class="sn-availability"> (display:flex),
+ * so the nested p-in-p was hoisted out and rendered flush-left at the
+ * band edge (verified live). A wp:html flex wrapper
+ * (justify-content:center) centers the emitted element regardless of its
+ * own display. Fallback pairs also lift any earlier state straight to
+ * the current spine. Exact-literal swaps; owner edits skip.
+ */
+function sn_migrate_split_hero_v4() {
+	if ( get_option( SN_SPLIT_HERO_V4_OPT ) ) {
+		return;
+	}
+
+	$page = get_page_by_path( 'contact' );
+	if ( ! $page ) {
+		return; // Retry next admin_init.
+	}
+
+	$content = (string) $page->post_content;
+	$dir     = __DIR__ . '/seed-content/';
+	$pairs   = array(
+		array( 'split-hero-contact-hero-v3.html', 'split-hero-contact-hero-v4.html' ),
+		// Safety net for skipped earlier one-shots: lift any prior state.
+		array( 'split-hero-contact-hero-v2.html', 'split-hero-contact-hero-v4.html' ),
+		array( 'split-hero-contact.html', 'split-hero-contact-hero-v4.html' ),
+		array( 'split-hero-contact-prose-v2.html', 'split-hero-contact-prose-v3.html' ),
+		array( 'split-hero-contact-prose-v1.html', 'split-hero-contact-prose-v3.html' ),
+	);
+	foreach ( $pairs as $pair ) {
+		$old = file_exists( $dir . $pair[0] ) ? trim( (string) file_get_contents( $dir . $pair[0] ) ) : '';
+		$new = file_exists( $dir . $pair[1] ) ? trim( (string) file_get_contents( $dir . $pair[1] ) ) : '';
+		if ( '' !== $old && '' !== $new && 1 === substr_count( $content, $old ) ) {
+			$content = str_replace( $old, $new, $content );
+		}
+	}
+	if ( $content !== (string) $page->post_content ) {
+		wp_update_post(
+			array(
+				'ID'           => $page->ID,
+				'post_content' => $content,
+			)
+		);
+	}
+
+	update_option( SN_SPLIT_HERO_V4_OPT, time(), false );
+}
+add_action( 'admin_init', 'sn_migrate_split_hero_v4' );
