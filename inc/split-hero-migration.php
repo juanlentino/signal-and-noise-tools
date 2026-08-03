@@ -198,3 +198,55 @@ function sn_migrate_split_hero_v2() {
 	update_option( SN_SPLIT_HERO_V2_OPT, time(), false );
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v2' );
+
+const SN_SPLIT_HERO_V3_OPT = 'sn_split_hero_v3_migrated_v1';
+
+/**
+ * v10.36.2 — /contact centered spine (owner direction after rejecting the
+ * v2 letterhead): one centered axis on the wide band — centered eyebrow,
+ * centered CONTACT, availability line centered under the title — and the
+ * prose keeps its original centered reading band, verbatim, widened a
+ * touch (760px -> 880px, owner direction) to balance the title mass. Handles both possible live states
+ * (v2 installed, or still on v10.36.0), exact-literal swaps only; an
+ * owner-edited body skips, never clobbered.
+ */
+function sn_migrate_split_hero_v3() {
+	if ( get_option( SN_SPLIT_HERO_V3_OPT ) ) {
+		return;
+	}
+
+	$page = get_page_by_path( 'contact' );
+	if ( ! $page ) {
+		return; // Retry next admin_init.
+	}
+
+	$content = (string) $page->post_content;
+	$dir     = __DIR__ . '/seed-content/';
+	$pairs   = array(
+		// From the v2 letterhead state…
+		array( 'split-hero-contact-hero-v2.html', 'split-hero-contact-hero-v3.html' ),
+		array( 'split-hero-contact-prose-v2.html', 'split-hero-contact-prose-v3.html' ),
+		// …or straight from the v10.36.0 state (v2 skipped/not yet run),
+		// where the prose still IS the original band (frozen as prose-v1).
+		array( 'split-hero-contact.html', 'split-hero-contact-hero-v3.html' ),
+		array( 'split-hero-contact-prose-v1.html', 'split-hero-contact-prose-v3.html' ),
+	);
+	foreach ( $pairs as $pair ) {
+		$old = file_exists( $dir . $pair[0] ) ? trim( (string) file_get_contents( $dir . $pair[0] ) ) : '';
+		$new = file_exists( $dir . $pair[1] ) ? trim( (string) file_get_contents( $dir . $pair[1] ) ) : '';
+		if ( '' !== $old && '' !== $new && 1 === substr_count( $content, $old ) ) {
+			$content = str_replace( $old, $new, $content );
+		}
+	}
+	if ( $content !== (string) $page->post_content ) {
+		wp_update_post(
+			array(
+				'ID'           => $page->ID,
+				'post_content' => $content,
+			)
+		);
+	}
+
+	update_option( SN_SPLIT_HERO_V3_OPT, time(), false );
+}
+add_action( 'admin_init', 'sn_migrate_split_hero_v3' );

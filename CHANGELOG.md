@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.36.2] - 2026-08-03
+
+### Fixed
+
+- **/contact becomes a centered spine** ([inc/split-hero-migration.php](inc/split-hero-migration.php) `sn_migrate_split_hero_v3`, [inc/seed-content/split-hero-contact-hero-v3.html](inc/seed-content/split-hero-contact-hero-v3.html)). Owner rejected the v10.36.1 letterhead grid: /contact now runs on one centered axis — centered eyebrow, centered CONTACT title, `[sn_availability]` centered under it — and the prose keeps its original centered reading band with content verbatim, widened 760px → 880px to balance the title mass. The one-shot handles either live state (v2 installed or still on v10.36.0), swaps exact plugin-written literals only, and skips an owner-edited body. ([tests/split-hero-migration.php](tests/split-hero-migration.php) → 49 asserts.)
+
 ## [10.36.1] - 2026-08-03
 
 ### Fixed
