@@ -65,6 +65,8 @@ $grp = array(
 $html = sn_uses_dossier_html( $grp );
 ok( false !== strpos( $html, '<!-- wp:html -->' ) && false !== strpos( $html, '<div class="sn-uses-page">' ), 'body is a core/html block in the sn-uses-page scope' );
 ok( false !== strpos( $html, 'class="sn-uses-headline">Uses.<' ), 'hero renders the Uses. headline' );
+// v10.36.0 split hero: eyebrow+headline in a title div, dek+meta in a side div.
+ok( false !== strpos( $html, '<div class="sn-uses-hero-title">' ) && false !== strpos( $html, '<div class="sn-uses-hero-side">' ), 'hero splits into title + side wrappers' );
 ok( false !== strpos( $html, 'class="sn-uses-item-name">Neumann U87<' ), 'item name renders (escaped)' );
 ok( false !== strpos( $html, 'class="sn-uses-item-note">the workhorse<' ), 'item note renders when present' );
 ok( false === strpos( $html, '<b>plain' ), 'item name is escaped (no raw HTML)' );
