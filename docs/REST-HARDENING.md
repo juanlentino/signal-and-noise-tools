@@ -72,7 +72,14 @@ Every REST response now carries:
 ```
 TDM-Reservation: 1
 TDM-Policy: https://juanlentino.com/tdm-policy/
+Content-Signal: search=yes, ai-train=no, ai-input=yes
 ```
+
+`Content-Signal` (added v10.34.0) is the TDMRep / Content Signals grammar: index
+allowed, no model training, retrieval-augmented answering allowed. All three
+values are `defined()`-guarded constants (`SN_TDM_RESERVATION`,
+`SN_TDM_POLICY_URL`, `SN_TDM_CONTENT_SIGNAL`) — overridable in wp-config, still
+refinable via the `snt_rest_hardening_policy` filter.
 
 **A correction to the original premise.** These were not "HTML only". Measured
 against production on 2026-07-28, before any change:

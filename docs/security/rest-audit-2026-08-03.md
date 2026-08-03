@@ -213,3 +213,24 @@ that confirmation.
 4. Verification script (2.3) + CHANGELOG + session summary.
 
 **Stopping here for approval before touching any code.**
+
+---
+
+## Resolution status (Phase 2 — 2026-08-03)
+
+Owner approved "headers + optional throttle" and delegated the content-write-cap
+decision to the recommendation.
+
+| Finding | Severity | Resolution |
+|---|---|---|
+| 1 — `Content-Signal` header missing | MEDIUM | **FIXED.** `Content-Signal: search=yes, ai-train=no, ai-input=yes` added to the hardening policy, sourced from new `defined()`-guarded constants `SN_TDM_RESERVATION` / `SN_TDM_POLICY_URL` / `SN_TDM_CONTENT_SIGNAL` (overridable in wp-config, still refinable via the `snt_rest_hardening_policy` filter). Delivered on all namespaces via `rest_post_dispatch`. `tests/rest-hardening.php` updated (2→3 headers, new value pinned). Commit `d83bd4c`. |
+| 2 — no rate limit on native run-route | LOW | **FIXED (scoped).** New `inc/abilities-rate-gate.php` — per-user fixed-count-per-window transient throttle, fail-open without the transient API. Wired into `near-duplicate-scan` (O(n²)) and `run-insights-scan` (forced scan). `run-narration` deliberately excluded (async, deduped background trigger — see handler at `abilities-narration.php:103`). Caps 10/60s, filterable. `tests/abilities-rate-gate.php` added. Commit `1136e49`. |
+| 3 — content-write cap is `edit_post` | LOW/INFO | **NO CHANGE (recommended).** Left as `edit_post`: it mirrors the authority Editors/Authors already hold in the block editor, so tightening to `manage_options` would break legitimate editorial flows without closing a real hole. Revisit only if the owner wants programmatic content mutation to be admin-exclusive. |
+| 4 — MCP binding constraint is the admin app-pw | INFO | **NO CHANGE (by design).** Reported per §1.4; credential scope not altered. |
+
+**Verification:** `docs/security/rest-audit-verification.sh` — a runnable, prod-facing
+curl sequence covering all five Phase-2.3 checks (anon 401/403, Subscriber 403, admin
+200, `/wp/v2/users` removed, TDM headers on `/wp/v2/posts` incl. a CDN-strip note). Not
+run in CI (touches production); run by hand with the MCP app password.
+
+**Test status:** full standalone sweep green — 364 files, 13,440 assertions, 0 failures.
