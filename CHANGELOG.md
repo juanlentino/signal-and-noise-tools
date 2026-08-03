@@ -2,6 +2,13 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.35.0] - 2026-08-03
+
+### Changed
+
+- **/resume hero is now a two-column editorial split** ([inc/resume-sync-engine.php](inc/resume-sync-engine.php)). Owner direction: the single left-anchored stack (eyebrow → title → summary → chips → contact → PDF) left the right half of wide viewports empty. The hero now renders as bottom-aligned `wp:columns` (`sn-resume-hero-split`): eyebrow + enlarged title (`clamp(3rem, 8vw, 7rem)`, line-height 0.95) in the left column; summary, chips, contact rail, and the PDF download in the right, sitting on the title baseline. Core columns stack below 782px, so mobile keeps the original vertical order.
+- **Uniform band width widens 960px → 1320px** (same file). The v10.33.3 no-outliers rule stands — every band still declares the same `contentSize` — but the uniform value grows so the split hero and section bands use the viewport. Both properties are test-pinned ([tests/resume-sync-engine.php](tests/resume-sync-engine.php): no `960px`/`1400px` anywhere, every band group at `1320px`, split-columns + bottom-alignment present).
+
 ## [10.34.0] - 2026-08-03
 
 ### Added
