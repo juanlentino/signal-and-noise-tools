@@ -81,13 +81,6 @@
 		refactor" noted above); admin-page.php is now fully covered (no findings).
 	-->
 	<rule ref="WordPress.Security.EscapeOutput.OutputNotEscaped">
-		<!-- admin-forms/resume-page.php (v10.33.0): the structured Resume editor
-		     echoes sn_rsm_*() builder returns; every dynamic value inside those
-		     builders is esc_attr()/esc_html()/esc_textarea()/esc_url()'d at
-		     assembly (test-pinned in tests/resume-admin-form.php), so wrapping
-		     the echo would double-escape. Same cross-function limitation as the
-		     files below. -->
-		<exclude-pattern>*/inc/admin-forms/resume-page.php</exclude-pattern>
 		<exclude-pattern>*/inc/admin-tabs.php</exclude-pattern>
 		<exclude-pattern>*/inc/admin-tab-dashboard.php</exclude-pattern>
 		<exclude-pattern>*/inc/cron-dashboard-admin.php</exclude-pattern>
