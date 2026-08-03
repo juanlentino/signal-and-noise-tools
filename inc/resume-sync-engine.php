@@ -36,7 +36,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Spacing values are theme spacing-preset slugs; padding order in the inline
  * style matches the editor's serializer (top, right, bottom, left).
  *
- * @param string $size   Content width ('960px' | '1400px').
+ * @param string $size   Content width (uniform '960px' since v10.33.3 —
+ *                       owner direction; the stats band's original 1400px
+ *                       made it the lone outlier on the page).
  * @param string $top    Top spacing preset slug (e.g. '60').
  * @param string $bottom Bottom spacing preset slug.
  * @param string $inner  Serialized inner blocks.
@@ -149,7 +151,7 @@ function sn_resume_stats_blocks( $stats ) {
 	}
 	$inner = '<!-- wp:columns {"className":"sn-resume-stats"} -->' . "\n" . '<div class="wp-block-columns sn-resume-stats">' . "\n"
 		. $cols . '</div>' . "\n" . '<!-- /wp:columns -->' . "\n\n";
-	return sn_resume_band( '1400px', '30', '40', $inner );
+	return sn_resume_band( '960px', '30', '40', $inner );
 }
 
 /** One employer as a rail/main wp:columns pair. @param array $entry @return string */

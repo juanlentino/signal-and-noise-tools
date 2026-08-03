@@ -92,6 +92,9 @@ ok( $types_ok, 'every block type opens and closes the same number of times' );
 ok( false !== strpos( $body, 'RESUME' ), 'hero headline present' );
 ok( false !== strpos( $body, '20+ years building studios' ), 'hero summary present' );
 ok( 4 === substr_count( $body, 'class="sn-resume-stat-n"' ), 'all four stat numbers rendered' );
+// v10.33.3 owner direction: uniform width — every band is 960px, no outliers.
+ok( false === strpos( $body, '1400px' ), 'no band is wider than the rest (uniform 960px)' );
+ok( substr_count( $body, '"contentSize":"960px"' ) === substr_count( $body, 'wp:group {"style"' ), 'every band group declares the uniform contentSize' );
 ok( false !== strpos( $body, 'INDEPENDENT PRACTICE' ) && false !== strpos( $body, 'PANACEA STUDIO' ), 'both experience orgs rendered' );
 ok( false !== strpos( $body, '<details class="wp-block-details sn-resume-fold"><summary>Earlier career &middot; 1997 - 2015</summary>' ) || false !== strpos( $body, '<summary>' . esc_html( 'Earlier career · 1997 - 2015' ) . '</summary>' ), 'earlier-career fold rendered as details/summary' );
 ok( false !== strpos( $body, 'OBRAS MET' ) && false !== strpos( $body, 'CINERGY STUDIOS' ), 'both earlier-career orgs inside the fold' );
