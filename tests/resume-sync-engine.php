@@ -98,10 +98,13 @@ ok( 4 === substr_count( $body, 'class="sn-resume-stat-n"' ), 'all four stat numb
 ok( false === strpos( $body, '1400px' ) && false === strpos( $body, '960px' ), 'no band deviates from the uniform width' );
 ok( substr_count( $body, '"contentSize":"1320px"' ) === substr_count( $body, 'wp:group {"style"' ), 'every band group declares the uniform contentSize' );
 // The hero is a two-column editorial split: title block left, summary/
-// chips/rail/PDF right, bottom-aligned so the right column sits on the
-// title baseline. Core columns stack on mobile on their own.
+// chips/rail/PDF right. v10.36.1: TOP-aligned — the right column is far
+// taller than the title block, so bottom alignment sank the title to the
+// column floor and left a hole above it (live regression, owner report).
+// Core columns stack on mobile on their own.
 ok( false !== strpos( $body, 'sn-resume-hero-split' ), 'hero renders as the split columns composition' );
-ok( false !== strpos( $body, 'are-vertically-aligned-bottom sn-resume-hero-split' ), 'hero columns are bottom-aligned' );
+ok( false !== strpos( $body, 'are-vertically-aligned-top sn-resume-hero-split' ), 'hero columns are top-aligned (v10.36.1 fix)' );
+ok( false === strpos( $body, 'are-vertically-aligned-bottom' ), 'no bottom alignment remains in the hero' );
 ok( false !== strpos( $body, 'INDEPENDENT PRACTICE' ) && false !== strpos( $body, 'PANACEA STUDIO' ), 'both experience orgs rendered' );
 ok( false !== strpos( $body, '<details class="wp-block-details sn-resume-fold"><summary>Earlier career &middot; 1997 - 2015</summary>' ) || false !== strpos( $body, '<summary>' . esc_html( 'Earlier career · 1997 - 2015' ) . '</summary>' ), 'earlier-career fold rendered as details/summary' );
 ok( false !== strpos( $body, 'OBRAS MET' ) && false !== strpos( $body, 'CINERGY STUDIOS' ), 'both earlier-career orgs inside the fold' );

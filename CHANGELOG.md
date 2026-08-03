@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.36.1] - 2026-08-03
+
+### Fixed
+
+- **/resume and /contact split-hero composition** ([inc/resume-sync-engine.php](inc/resume-sync-engine.php), [inc/split-hero-migration.php](inc/split-hero-migration.php)). Owner report from the live v10.36.0 rollout. /resume: the right column (summary + chips + contact + PDF) is far taller than the title block, so bottom alignment sank RESUME to the column floor and left a hole above it — hero columns are now top-aligned (test-pinned; /notes and /now keep bottom alignment, their side columns are short). /contact: three drifting left edges (1320px hero, centered 760px prose, floating availability) — a second one-shot (`sn_migrate_split_hero_v2`, own flag) re-swaps the hero top-aligned (availability reads as a top-right stamp) and re-bands `sn-prose-links` to a 1320px letterhead grid with the prose in the 55% column, locking its left edge to the title. Both swaps replace only the exact v10.36.0 literals this plugin wrote (frozen in [inc/seed-content/](inc/seed-content/)); an owner-edited body is skipped, never clobbered. The one-shot also regenerates /resume so the stored body picks up the alignment fix. ([tests/split-hero-migration.php](tests/split-hero-migration.php) grows to 43 asserts.)
+
 ## [10.36.0] - 2026-08-03
 
 ### Added
