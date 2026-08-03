@@ -16,6 +16,20 @@
  * never flagged), and a FAILED cron-history read skips the cron section and
  * SAYS SO in the envelope — a partial answer never poses as a full one.
  *
+ * v10.32.0: two more learner-must-not-undercut-ground-truth gates, both
+ * threaded into the kernel as caller-supplied data (the kernel itself never
+ * queries the schedule registry or the clock — see inc/ml-kernel.php). A
+ * hook with a REGISTERED recurring schedule (snt_cron_interval_seconds())
+ * is floored at 1.5x that interval: a burst of activity-coupled firings
+ * (e.g. a release weekend) cannot teach the trailing window a tighter
+ * "normal" than the site's own declared cadence, and the check never flags
+ * a hook that simply isn't due yet. A hook with NO registered schedule
+ * (on-demand single events) instead needs its trailing window to span at
+ * least SNT_ML_CADENCE_MIN_SPAN_S of wall clock before its statistics are
+ * trusted — a handful of firings crammed into a short burst is not a
+ * rhythm. Both gates land on the same z-null "watched, never flagged"
+ * verdict the zero-spread case already used; no new state was invented.
+ *
  * Consumed by the health check (inc/health-check-ml-cadence.php — the cached
  * 24h scan carries the count to the health widget + attention badge with
  * zero pageload compute) and the 'cadence-flags' pipeline / read-door tool.
@@ -28,9 +42,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_ML_CADENCE_Z_FLAG        = 3.0; // Flag at three sigmas — conservative by design.
-const SNT_ML_CADENCE_PUBLISH_DEPTH = 20;  // Publish events considered.
-const SNT_ML_CADENCE_CRON_DEPTH    = 50;  // Firings per hook considered.
+const SNT_ML_CADENCE_Z_FLAG        = 3.0;    // Flag at three sigmas — conservative by design.
+const SNT_ML_CADENCE_PUBLISH_DEPTH = 20;     // Publish events considered.
+const SNT_ML_CADENCE_CRON_DEPTH    = 50;     // Firings per hook considered.
+const SNT_ML_CADENCE_MIN_SPAN_S    = 604800; // 7 days — thin-history floor for on-demand (no registered schedule) hooks.
+// NOTE (review, v10.32.0): MIN_SPAN interacts with SNT_ML_CADENCE_CRON_DEPTH —
+// an on-demand hook sustaining >~7 firings/day never accumulates a 7-day span
+// inside its trailing-50 window, so it is permanently 'watched', never flagged.
+// Theoretical today (snt_ml_rebuild_async is debounced far below that rate);
+// if a genuinely high-frequency on-demand hook ever ships, raise CRON_DEPTH
+// for that class or gate on depth-OR-span here.
 
 /**
  * Compute the cadence flags.
@@ -105,7 +126,14 @@ function snt_ml_cadence_flags( $now = null ) {
 				$events[] = (float) $ts;
 			}
 		}
-		$dev = snt_ml_cadence_deviation( $events, $now );
+		// Ground truth first: the hook's OWN registered recurring schedule
+		// (if any) outranks anything the trailing window learned. No
+		// registered schedule (0/false from wp_get_schedule) means an
+		// on-demand hook — floor by trailing-window span instead.
+		$interval_s = function_exists( 'snt_cron_interval_seconds' ) ? (int) snt_cron_interval_seconds( $hook ) : 0;
+		$dev        = $interval_s > 0
+			? snt_ml_cadence_deviation( $events, $now, 0.3, $interval_s, null )
+			: snt_ml_cadence_deviation( $events, $now, 0.3, null, SNT_ML_CADENCE_MIN_SPAN_S );
 		if ( ! is_array( $dev ) ) {
 			continue; // Thin history: unknown, not watched.
 		}

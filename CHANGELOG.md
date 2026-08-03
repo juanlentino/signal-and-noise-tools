@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.32.0] - 2026-08-03
+
+### Fixed
+
+- **Cadence deviation check no longer lets a burst-poisoned learner contradict a hook's own registered schedule** ([inc/ml-cadence.php](inc/ml-cadence.php), [inc/ml-kernel.php](inc/ml-kernel.php) `snt_ml_cadence_deviation()`). Live-diagnosed 2026-08-02/03: after a weekend release marathon, five activity-coupled hooks (`wp_version_check`, `sn_verify_auto_purge`, `sn_analytics_rollup`, `od_trigger_page_cache_invalidation`, `snt_ml_rebuild_async`) had fired every ~9–60min for ~2 days; the trailing `SNT_ML_CADENCE_CRON_DEPTH=50`-firing window learned that burst as "normal," so the next ordinary quiet gap z-flagged all five — concretely, `wp_version_check` flagged at z 13.89 for a 6.4h gap while its own registered schedule is `twicedaily` (43200s): flagged late while not yet due. Two gates, both threaded into the kernel as caller-supplied data rather than a live schedule/clock read inside the math (the kernel's "never reads the clock" discipline holds): (1) **schedule floor** — a hook with a registered recurring interval (read via the existing `snt_cron_interval_seconds()`, `inc/cron-dashboard.php`) never flags while its current gap is under 1.5x that interval, full stop, regardless of what the learned EWMA says; (2) **burst resistance**, new `SNT_ML_CADENCE_MIN_SPAN_S` (7 days) — an on-demand hook with no registered schedule (e.g. `snt_ml_rebuild_async`) only trusts its trailing-window statistics once they span at least that much wall clock; a short burst crammed into the window is "watched, never flagged," reusing the existing zero-spread-metronome pathway rather than inventing new state. One-sided-late-only and the envelope shape are unchanged; `inc/health-check-ml-cadence.php` and `inc/insights.php`'s `cadence_flags` feed both consume the same `{flags, watched_hooks, cron_skipped}` shape untouched.
+
+  **Judgment call — median/MAD, not shipped**: considered switching the on-demand branch's mean/σ to median/MAD for outlier resistance, but `snt_ml_cadence_deviation()` is the one shared kernel formula multiple suites pin exactly (`tests/ml-kernel.php`'s hand-derived "z 8.187" series, re-pinned verbatim inside `tests/ml-cadence.php`) — swapping the estimator would shift every caller's numbers, not just the on-demand path, breaking those pins for no requirement-driven gain. Shipped the span-gate alone.
+
+  [tests/ml-cadence.php](tests/ml-cadence.php) — 6 new asserts: (a) the real poisoning shape (50 firings ~1h apart over ~26h, then a 6.4h gap, registered `twicedaily`) — watched RED pre-fix at z~19, GREEN not-flagged post-fix; (b) regression guard — a genuinely stalled `interval=86400` hook silent 3 days still flags (floor is not a blanket suppressor); (c) an on-demand hook with only a 36h-span burst window — watched RED pre-fix at z~20, GREEN thin-history-watched post-fix; (d) regression guard — an on-demand hook with a healthy ~3-week history that truly stalls still flags. Full NUL-safe sweep across all 360 test files (`contracts-smoke.php` excluded per convention): 0 failures. `php -l`, `composer phpstan` (301 files, no errors), `composer lint` clean.
+
+- **ML kernel program**: session continues the deterministic in-house compartment (see `docs/mcp-consolidation/` program notes) — this is a health-check calibration fix on an already-shipped pipeline (#5, cadence), not new pipeline surface.
+
 ## [10.31.0] - 2026-08-02
 
 ### Added

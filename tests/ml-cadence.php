@@ -54,6 +54,7 @@ class MC_Stub_wpdb {
 	public $prefix     = 'wp_';
 	public $last_error = '';
 	public $fail       = false;
+	public $bound      = array(); // declared: PHP 8.2+ deprecates dynamic properties
 	public $hooks      = array(); // hook => [fired_at_ts...]
 	public function prepare( $sql, ...$args ) { $this->bound = $args; return $sql; }
 	public function get_results( $sql, $output = OBJECT ) {
@@ -81,6 +82,15 @@ class MC_Stub_wpdb {
 if ( ! defined( 'OBJECT' ) ) { define( 'OBJECT', 'OBJECT' ); }
 if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
 $GLOBALS['wpdb'] = new MC_Stub_wpdb();
+
+// v10.32.0: the schedule-floor stub. Models snt_cron_interval_seconds()
+// (inc/cron-dashboard.php) without pulling in the real WP schedule
+// registry — a hook absent from the map (or explicitly 0) means "no
+// registered recurring schedule", the on-demand branch.
+$GLOBALS['__cron_intervals'] = array();
+function snt_cron_interval_seconds( $hook ) {
+	return (int) ( $GLOBALS['__cron_intervals'][ $hook ] ?? 0 );
+}
 
 require __DIR__ . '/../inc/ml-cadence.php';
 require __DIR__ . '/../inc/health-check-ml-cadence.php';
@@ -123,9 +133,90 @@ $GLOBALS['wpdb']->hooks = array(
 	'snt_drifty_daily'  => array( 0, 100, 180, 320, 400 ),                   // the pinned series → z 8.187 at now 700
 	'snt_thin_hook'     => array( 0, 100 ),                                  // too little history → skipped
 );
+// These two are registered recurring hooks in this fixture (their gap at
+// now=700 comfortably clears 1.5x their own interval, so the schedule
+// floor added in v10.32.0 must not touch this pre-existing pin).
+$GLOBALS['__cron_intervals'] = array( 'snt_drifty_daily' => 100, 'snt_steady_hourly' => 3600 );
 $env = snt_ml_cadence_flags( 700 );
 ok( 1 === count( $env['flags'] ) && 'cron' === $env['flags'][0]['kind'] && 'snt_drifty_daily' === $env['flags'][0]['subject'], 'exactly the drifty hook flags' );
 ok( 2 === $env['watched_hooks'], 'watched counts hooks with enough history (thin one excluded); the metronome is watched but unquantifiable' );
+
+echo "\nGroup: schedule floor + burst resistance (v10.32.0)\n";
+
+// (a) THE POISONING SHAPE, live-diagnosed 2026-08-02/03: 50 firings at
+// 9-60min gaps spanning ~26h (a release-marathon weekend), then a 6.4h
+// quiet gap. Registered interval 43200s (twicedaily) → the floor
+// (1.5x43200=18h) comfortably clears the 6.4h gap → MUST NOT flag, no
+// matter how poisoned the learned EWMA is. Pre-fix (no floor threaded
+// through) this fixture flags at z~19 — that is the RED.
+$pattern      = array( 540, 900, 1200, 1800, 2400, 3000, 3600 ); // 9,15,20,30,40,50,60 min
+$poison_events = array( 0 );
+$t = 0;
+for ( $i = 0; $i < 49; $i++ ) {
+	$t              += $pattern[ $i % count( $pattern ) ];
+	$poison_events[] = $t;
+}
+$poison_last = end( $poison_events );
+$GLOBALS['wpdb']->hooks      = array( 'wp_version_check' => $poison_events );
+$GLOBALS['__cron_intervals'] = array( 'wp_version_check' => 43200 );
+$env = snt_ml_cadence_flags( $poison_last + 6.4 * 3600 );
+ok( array() === $env['flags'], '(a) a burst-poisoned learner never contradicts its OWN registered schedule — not yet due at 6.4h against a 12h cadence' );
+ok( 1 === $env['watched_hooks'], '(a) still watched — the floor gates the flag, not the visibility' );
+
+// (b) REGRESSION GUARD: a genuinely stalled DAILY hook (interval 86400)
+// silent 3+ days must still flag — the floor must not become a blanket
+// suppressor of the check's actual purpose.
+$stall_intervals = array( 86000, 86700, 86200, 86500, 85900, 86300, 86600 );
+$stall_events    = array( 0 );
+$t = 0;
+foreach ( $stall_intervals as $iv ) {
+	$t              += $iv;
+	$stall_events[] = $t;
+}
+$stall_last = end( $stall_events );
+$GLOBALS['wpdb']->hooks      = array( 'snt_daily_stall' => $stall_events );
+$GLOBALS['__cron_intervals'] = array( 'snt_daily_stall' => 86400 );
+$env = snt_ml_cadence_flags( $stall_last + 3 * 86400 );
+ok( 1 === count( $env['flags'] ) && 'snt_daily_stall' === $env['flags'][0]['subject'], '(b) a real 3-day stall on a daily hook still flags — the floor does not blanket-suppress' );
+
+// (c) on-demand hook (no registered interval), 36h-span burst window: a
+// handful of tightly-packed firings is not a rhythm. Pre-fix (no
+// span-gate) this flags at z~20 against the same 6.4h gap shape — that
+// is the RED. Post-fix: thin-history watched, never flagged.
+$burst_events = array( 0 );
+$t = 0; $i = 0;
+while ( $t < 129600 ) { // fill to a ~36h span
+	$t += $pattern[ $i % count( $pattern ) ];
+	$burst_events[] = $t;
+	$i++;
+}
+$burst_last = end( $burst_events );
+$GLOBALS['wpdb']->hooks      = array( 'snt_ml_rebuild_async' => $burst_events );
+$GLOBALS['__cron_intervals'] = array(); // on-demand: no registered schedule at all
+$env = snt_ml_cadence_flags( $burst_last + 6.4 * 3600 );
+ok( array() === $env['flags'], '(c) an on-demand hook with only a 36h-span burst window is thin history — watched, never flagged' );
+ok( 1 === $env['watched_hooks'], '(c) still watched — thin-span gates the flag, not the visibility' );
+
+// (d) REGRESSION GUARD: an on-demand hook with a genuinely healthy
+// ~3-week history (span well over the 7-day min-span floor) that then
+// truly stalls must still flag — the span-gate must not become a
+// blanket suppressor of on-demand hooks either.
+$healthy_pattern = array( 3 * 3600, 5 * 3600, 4 * 3600, 6 * 3600, 3.5 * 3600, 4.5 * 3600 );
+$healthy_events  = array( 0 );
+$t = 0; $i = 0;
+while ( $t < 21 * 86400 ) { // ~3 weeks of history
+	$t += $healthy_pattern[ $i % count( $healthy_pattern ) ];
+	$healthy_events[] = $t;
+	$i++;
+}
+$healthy_last = end( $healthy_events );
+$GLOBALS['wpdb']->hooks      = array( 'snt_ml_rebuild_async' => $healthy_events );
+$GLOBALS['__cron_intervals'] = array();
+$env = snt_ml_cadence_flags( $healthy_last + 10 * 86400 );
+ok( 1 === count( $env['flags'] ) && 'snt_ml_rebuild_async' === $env['flags'][0]['subject'], '(d) an on-demand hook with a healthy multi-week history that truly stalls still flags' );
+
+// Reset shared fixture state for the groups that follow.
+$GLOBALS['__cron_intervals'] = array();
 
 echo "\nGroup: failed cron read = partial answer, spoken\n";
 $GLOBALS['__pub_dates'] = array( gmdate( 'Y-m-d H:i:s', 400 ), gmdate( 'Y-m-d H:i:s', 320 ), gmdate( 'Y-m-d H:i:s', 180 ), gmdate( 'Y-m-d H:i:s', 100 ), gmdate( 'Y-m-d H:i:s', 0 ) );

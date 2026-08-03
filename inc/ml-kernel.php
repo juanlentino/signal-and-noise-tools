@@ -427,12 +427,37 @@ if ( ! function_exists( 'snt_ml_cadence_deviation' ) ) {
 	 * history (null verdict), and a zero-spread metronome history makes
 	 * surprise unquantifiable (z null — never infinity, never zero).
 	 *
-	 * @param array<int,int|float> $events Unix timestamps of past events.
-	 * @param int|float            $now    The observation instant.
-	 * @param float                $alpha  EWMA smoothing factor.
+	 * Two more caller-supplied (never self-queried — this function still
+	 * never reads the clock or any schedule registry) trust gates, both of
+	 * which land on the SAME z-null "watched, never flagged" verdict as the
+	 * zero-spread case above rather than inventing a new state:
+	 *   - $interval (v10.32.0): the hook's OWN registered recurring
+	 *     schedule, in seconds. A learned EWMA can never be trusted to
+	 *     contradict ground truth the caller already knows — a burst of
+	 *     activity-coupled firings (e.g. a release-marathon weekend) teaches
+	 *     the trailing window a false, too-tight rhythm; a quiet gap that
+	 *     is still under 1.5x the REGISTERED interval is not yet overdue,
+	 *     no matter how surprising it looks against the poisoned learned
+	 *     baseline. Pass null for on-demand / unscheduled hooks.
+	 *   - $min_span (v10.32.0): for hooks with no registered interval
+	 *     (on-demand single events), the trailing window's statistics are
+	 *     only trusted once they span at least this many wall-clock
+	 *     seconds. A handful of firings crammed into a short burst window
+	 *     is not a rhythm — it is noise wearing a rhythm's clothes.
+	 *
+	 * @param array<int,int|float> $events   Unix timestamps of past events.
+	 * @param int|float            $now      The observation instant.
+	 * @param float                $alpha    EWMA smoothing factor.
+	 * @param int|float|null       $interval The hook's registered recurring
+	 *                                        schedule interval in seconds, or
+	 *                                        null when unscheduled/on-demand.
+	 * @param int|float|null       $min_span Minimum trailing-window wall-clock
+	 *                                        span (seconds) required to trust
+	 *                                        the statistics; only meaningful
+	 *                                        when $interval is null.
 	 * @return array{intervals:int,ewma:float,std:float,current_gap:float,z:float|null}|null
 	 */
-	function snt_ml_cadence_deviation( $events, $now, $alpha = 0.3 ) {
+	function snt_ml_cadence_deviation( $events, $now, $alpha = 0.3, $interval = null, $min_span = null ) {
 		$ts = array();
 		foreach ( (array) $events as $t ) {
 			if ( is_numeric( $t ) ) {
@@ -466,13 +491,29 @@ if ( ! function_exists( 'snt_ml_cadence_deviation' ) ) {
 		$std  = sqrt( $var );
 
 		$gap = (float) $now - $ts[ $n - 1 ];
+		$z   = $std > 0.0 ? ( $gap - $ewma ) / $std : null;
+
+		// Schedule floor: never flag while the current gap hasn't yet
+		// crossed 1.5x the hook's OWN registered cadence — ground truth
+		// the caller already knows outranks anything the trailing window
+		// learned.
+		if ( null !== $interval && (float) $interval > 0.0 && $gap < 1.5 * (float) $interval ) {
+			$z = null;
+		}
+
+		// Burst resistance: no registered schedule to floor against, so
+		// instead require the trailing window itself to span enough
+		// wall-clock time before its statistics are trusted.
+		if ( null === $interval && null !== $min_span && ( $ts[ $n - 1 ] - $ts[0] ) < (float) $min_span ) {
+			$z = null;
+		}
 
 		return array(
 			'intervals'   => $m,
 			'ewma'        => $ewma,
 			'std'         => $std,
 			'current_gap' => $gap,
-			'z'           => $std > 0.0 ? ( $gap - $ewma ) / $std : null,
+			'z'           => $z,
 		);
 	}
 }
