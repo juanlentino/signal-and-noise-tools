@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.33.3] - 2026-08-03
+
+### Fixed
+
+- **Now/Uses editors get the v10.33.2 always-resync contract — their real gap was the missing edge purge** ([inc/admin-post-actions.php](inc/admin-post-actions.php)). Sweep of the same bug class that stranded the resume engine fix: on identical content, `sn_handle_now_save`/`sn_handle_uses_save` returned "No changes to save" without purging. Writing the test seam revealed the twist — `sn_now_page_save()`/`sn_uses_page_save()` already regenerate the Page **unconditionally**, so the origin was fresh but the edge kept serving the stale copy, with a flash claiming nothing happened. The unchanged path now purges the route and flashes honestly (`now_resynced`/`uses_resynced`). Sync-recorder seams pin all three editors' contracts ([tests/admin-post-actions.php](tests/admin-post-actions.php), 207 asserts).
+
 ## [10.33.2] - 2026-08-03
 
 ### Fixed

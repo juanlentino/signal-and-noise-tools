@@ -291,6 +291,15 @@ function sn_handle_now_save( $post ) {
 		sn_content_route_purge( '/now' );
 		return 'now_saved';
 	}
+	// v10.33.3: unchanged DOCUMENT, but the page-sync ENGINE may have changed
+	// since the last save — still re-render (the resume_resynced pattern from
+	// v10.33.2, where this exact gap stranded an engine fix). Idempotent and
+	// owner-triggered.
+	if ( function_exists( 'sn_now_sync_page' ) ) {
+		sn_now_sync_page();
+		sn_content_route_purge( '/now' );
+		return 'now_resynced';
+	}
 	return 'now_unchanged';
 }
 
@@ -320,6 +329,12 @@ function sn_handle_uses_save( $post ) {
 	if ( sn_uses_page_save( $raw ) ) {
 		sn_content_route_purge( '/about/uses' );
 		return 'uses_saved';
+	}
+	// v10.33.3: mirror of the now_resynced path above.
+	if ( function_exists( 'sn_uses_sync_page' ) ) {
+		sn_uses_sync_page();
+		sn_content_route_purge( '/about/uses' );
+		return 'uses_resynced';
 	}
 	return 'uses_unchanged';
 }
