@@ -326,3 +326,29 @@ Restoring the real file both times returned the suite to fully green with no oth
 ## Full sweep at ship time
 
 360 test files (`contracts-smoke.php` CI-excluded as always), 0 failures. `php -l` clean on every touched/new PHP file. `composer phpstan` — 301/301 files analysed, no errors. `composer lint` (phpcs) — clean, both scoped (touched files) and full-project runs. This work landed rebased onto v10.30.1, alongside session 6's `sn_site_facts` `active_template` post-slug fix; version stays 10.31.0 (same unreleased unit — the HIGH fix amends this session's own unshipped work, not a new release).
+
+---
+
+# Decision point (pre-phase-3): homes for the two unmapped abilities
+
+Session 1 found `signal-noise/topic-clusters` (v10.21.0) and
+`signal-noise/cadence-flags` (v10.22.0) absent from the consolidation
+spec's 68-tool mapping. Resolved 2026-08-03, additive-only (nothing
+retires now; telemetry data can veto before phase 7):
+
+- **`cadence-flags` → `sn_health`, domain `cadence`.** It reports STATE
+  (rhythm deviations vs history), emits no candidates, has no apply
+  path — the spec's own `sn_health` membership criterion verbatim. The
+  health check (#17) already consumes it exactly this way, and the
+  v10.32.0 hardening (schedule floor + median/MAD + window-span trust,
+  PR #433) makes the domain's signal trustworthy enough to expose.
+- **`topic-clusters` → `sn_metrics`, metric `topics`.** Corpus
+  analytics ("which arguments moved"), already feeding the analytics
+  TOPICS panel; fits the `sn_metrics` envelope (totals/series/
+  breakdown). NOT `sn_scan` (no candidates, no fingerprints, no apply
+  path — the same test that kept `keyword-candidates` out).
+
+Consequence for the build order: `sn_health` and `sn_metrics` (master
+plan phases post-`sn_apply`) each gain one domain/metric; no session
+6-7 impact; the 68-tool baseline stays untouched until phase 7 reads
+the telemetry.
