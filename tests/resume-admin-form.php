@@ -80,6 +80,14 @@ ok( false !== strpos( $html, 'data-rsm-add="rol-__E__"' ), 'nested add-role butt
 ok( false !== strpos( $html, 'resume[stats][__S__][n]' ), 'stats template token' );
 ok( false !== strpos( $html, 'resume[publications][__P__][title]' ), 'publications template token' );
 
+// v10.33.1: sections are COLLAPSED by default (the endless-scroll fix) —
+// no section details carries the open attribute, and populated sections
+// show a row-count badge in their summary.
+ok( 8 === substr_count( $html, '<details class="sn-rsm-section">' ), 'all eight sections render collapsed (no open attribute)' );
+ok( false === strpos( $html, '<details class="sn-rsm-section" open>' ), 'no section is open by default' );
+ok( false !== strpos( $html, '<span class="sn-rsm-summary-count">2</span>', strpos( $html, 'Publications' ) - 200 ), 'publications summary badge counts its 2 rows' );
+ok( false !== strpos( $html, '<span class="sn-rsm-summary-count">6</span>' ), 'skills summary badge counts its 6 rows' );
+
 // balanced structure: details/summary and div counts match.
 ok( substr_count( $html, '<details' ) === substr_count( $html, '</details>' ), 'details tags balance' );
 ok( substr_count( $html, '<div' ) === substr_count( $html, '</div>' ), 'div tags balance' );

@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.33.1] - 2026-08-03
+
+### Fixed
+
+- **/resume lost its layout after the v10.33.0 takeover save — the body is now REAL serialized block markup, not wp:html** ([inc/resume-sync-engine.php](inc/resume-sync-engine.php)). Owner screenshot gate caught it (again — the pattern that holds): the regenerated page rendered stacked and frameless. Root cause: block themes enqueue core block styles **per-block, only when that block renders** — a `wp:html` body renders no `columns`/`file`/`separator`/`table` blocks, so none of their CSS and none of the layout-support container styles ever load. The engine now emits the same core-block structure the hand-authored page had (wp:group bands with the void background + spacing presets, wp:columns stats and experience rails, wp:details fold, wp:file download, wp:table skills) with the credentials-section nesting corrected. Drift-proofing moved from the block type to the tests: [tests/resume-sync-engine.php](tests/resume-sync-engine.php) now decodes **every JSON attribute blob**, verifies **every HTML comment is a block delimiter**, and balances **every open/close pair per block type** (37 asserts).
+
+### Changed
+
+- **Resume editor is no longer an endless scroll** ([inc/admin-forms/resume-page.php](inc/admin-forms/resume-page.php), [assets/admin.css](assets/admin.css)). All eight sections now render **collapsed by default** with a visible chevron and a row-count badge in each summary (collapsed inputs still submit), so the screen opens as a compact table of contents. The leaf is marked `wide` in the registry, and at ≥1100px the small-row lists (stats, chips, publications, skills, education, affiliations) lay out as responsive two-up grids; employer cards stay single-column. Only the live page's Earlier-career fold remains a front-end collapsible — by design.
+
 ## [10.33.0] - 2026-08-03
 
 ### Added

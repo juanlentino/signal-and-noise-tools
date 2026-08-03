@@ -50,11 +50,48 @@ $doc = sn_resume_doc_normalize( sn_resume_seed_doc() );
 echo "\nTest: sn_resume_body_html\n";
 $body = sn_resume_body_html( $doc );
 ok( is_string( $body ) && '' !== $body, 'seed doc renders a non-empty body' );
-ok( 0 === strpos( $body, "<!-- wp:html -->" ) && false !== strpos( $body, "<!-- /wp:html -->" ), 'body is one wp:html freeform block (no validation semantics, no recovery risk)' );
-ok( 2 === substr_count( $body, 'wp:' ) + 0 && 1 === substr_count( $body, '<!-- wp:html -->' ), 'no other block delimiters are generated (nothing left to scramble)' );
+
+// v10.33.1: the body is REAL serialized block markup (the wp:html body lost
+// the live layout — block themes enqueue core block CSS per-block, and a
+// wp:html body renders no columns/file/table blocks). These assertions are
+// the drift-proofing now: full block-grammar validation of the generator.
+ok( 0 === strpos( $body, '<!-- wp:group' ), 'body opens with a wp:group band' );
+ok( false === strpos( $body, 'wp:html' ), 'no wp:html anywhere — real blocks only' );
+
+// Every HTML comment is a valid block delimiter (freestanding comments break Gutenberg).
+preg_match_all( '/<!--\s*(.*?)\s*-->/s', $body, $m_comments );
+$bad_comments = array();
+foreach ( $m_comments[1] as $c ) {
+	if ( ! preg_match( '~^/?wp:[a-z][a-z0-9-]*(\s+\{.*\})?\s*/?$~s', $c ) ) {
+		$bad_comments[] = $c;
+	}
+}
+ok( array() === $bad_comments, 'every HTML comment is a wp: block delimiter (bad: ' . implode( ' | ', array_slice( $bad_comments, 0, 3 ) ) . ')' );
+
+// Every JSON attribute blob decodes (invalid JSON = instant block recovery).
+preg_match_all( '/<!-- wp:[a-z][a-z0-9-]* (\{.*?\}) -->/s', $body, $m_json );
+$bad_json = 0;
+foreach ( $m_json[1] as $blob ) {
+	if ( null === json_decode( $blob, true ) ) {
+		$bad_json++;
+	}
+}
+ok( count( $m_json[1] ) > 10 && 0 === $bad_json, 'all ' . count( $m_json[1] ) . ' JSON attribute blobs decode cleanly' );
+
+// Every opener has a matching closer, per block type (the scramble regression check).
+$types_ok = true;
+foreach ( array( 'group', 'paragraph', 'heading', 'columns', 'column', 'list', 'list-item', 'separator', 'details', 'file', 'table' ) as $t ) {
+	$open  = preg_match_all( '/<!-- wp:' . preg_quote( $t, '/' ) . '[ \n]/', $body, $x );
+	$close = substr_count( $body, '<!-- /wp:' . $t . ' -->' );
+	if ( $open !== $close ) {
+		$types_ok = false;
+		echo "    (imbalance: wp:$t open=$open close=$close)\n";
+	}
+}
+ok( $types_ok, 'every block type opens and closes the same number of times' );
 ok( false !== strpos( $body, 'RESUME' ), 'hero headline present' );
 ok( false !== strpos( $body, '20+ years building studios' ), 'hero summary present' );
-ok( 4 === substr_count( $body, 'sn-resume-stat-n' ), 'all four stat numbers rendered' );
+ok( 4 === substr_count( $body, 'class="sn-resume-stat-n"' ), 'all four stat numbers rendered' );
 ok( false !== strpos( $body, 'INDEPENDENT PRACTICE' ) && false !== strpos( $body, 'PANACEA STUDIO' ), 'both experience orgs rendered' );
 ok( false !== strpos( $body, '<details class="wp-block-details sn-resume-fold"><summary>Earlier career &middot; 1997 - 2015</summary>' ) || false !== strpos( $body, '<summary>' . esc_html( 'Earlier career · 1997 - 2015' ) . '</summary>' ), 'earlier-career fold rendered as details/summary' );
 ok( false !== strpos( $body, 'OBRAS MET' ) && false !== strpos( $body, 'CINERGY STUDIOS' ), 'both earlier-career orgs inside the fold' );
