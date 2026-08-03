@@ -167,5 +167,30 @@ $GLOBALS['__updates'] = array();
 sn_migrate_split_hero_v4();
 ok( array() === $GLOBALS['__updates'] && isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V4_OPT ] ), 'owner-edited body → no write, flag stamped' );
 
+// ── v5: one frame everywhere ──
+echo "\nTest: sn_migrate_split_hero_v5\n";
+$svcTail = trim( file_get_contents( $seedDir . 'split-hero-services-tail-v1.html' ) );
+$heroV4  = trim( file_get_contents( $seedDir . 'split-hero-contact-hero-v4.html' ) );
+
+$GLOBALS['__pages'] = array(
+	'about'    => (object) array( 'ID' => 391, 'post_content' => 'x {"contentSize":"1400px"} y {"contentSize":"1400px"} z' ),
+	'services' => (object) array( 'ID' => 395, 'post_content' => 'head {"contentSize":"1400px"} mid ' . $svcTail ),
+	'music'    => (object) array( 'ID' => 405, 'post_content' => 'owner rewrote this page' ),
+	'contact'  => (object) array( 'ID' => 408, 'post_content' => $heroV4 . "\n\n" . $proseV3 . "\n" ),
+);
+$GLOBALS['__updates'] = array();
+sn_migrate_split_hero_v5();
+$byId = array();
+foreach ( $GLOBALS['__updates'] as $u ) { $byId[ $u['ID'] ] = $u['post_content']; }
+ok( isset( $byId[391] ) && false === strpos( $byId[391], '1400px' ) && 2 === substr_count( $byId[391], '"contentSize":"1320px"' ), 'about: every 1400px band → 1320px, content untouched' );
+ok( isset( $byId[395] ) && false !== strpos( $byId[395], 'sn-cms-body-rail' ) && false === strpos( $byId[395], '"contentSize":"760px"' ) && false === strpos( $byId[395], '1400px' ), 'services: frame normalized + tail re-banded into the left rail' );
+ok( ! isset( $byId[405] ), 'music owner-edited → untouched' );
+ok( isset( $byId[408] ) && false === strpos( $byId[408], 'has-text-align-center' ) && false === strpos( $byId[408], '"contentSize":"880px"' ), 'contact: centered spine gone' );
+ok( false !== strpos( (string) $byId[408], '[sn_availability]' ) && false !== strpos( (string) $byId[408], 'sn-cms-body-rail' ), 'contact: left-stack hero + prose in the left rail' );
+ok( isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V5_OPT ] ), 'v5 flag stamped when all pages present' );
+$u = count( $GLOBALS['__updates'] );
+sn_migrate_split_hero_v5();
+ok( $u === count( $GLOBALS['__updates'] ), 'v5 flag short-circuits re-runs' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
