@@ -302,3 +302,92 @@ function sn_migrate_split_hero_v4() {
 	update_option( SN_SPLIT_HERO_V4_OPT, time(), false );
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v4' );
+
+const SN_SPLIT_HERO_V5_OPT = 'sn_split_hero_v5_migrated_v1';
+
+/**
+ * Apply exact-literal seed pairs to one page's body. Returns the (possibly
+ * unchanged) content. Each pair replaces only when the old literal occurs
+ * exactly once — owner edits never match, never clobbered.
+ *
+ * @param string $content Page body.
+ * @param array<int,array{0:string,1:string}> $pairs old-seed/new-seed filenames.
+ * @return string
+ */
+function sn_split_hero_apply_pairs( $content, $pairs ) {
+	$dir = __DIR__ . '/seed-content/';
+	foreach ( $pairs as $pair ) {
+		$old = file_exists( $dir . $pair[0] ) ? trim( (string) file_get_contents( $dir . $pair[0] ) ) : '';
+		$new = file_exists( $dir . $pair[1] ) ? trim( (string) file_get_contents( $dir . $pair[1] ) ) : '';
+		if ( '' !== $old && '' !== $new && 1 === substr_count( $content, $old ) ) {
+			$content = str_replace( $old, $new, $content );
+		}
+	}
+	return $content;
+}
+
+/**
+ * v10.37.0 — ONE frame everywhere (owner audit direction: "every page has
+ * different widths"). Live measurement @1900px: hero bands all sit at
+ * 1320/left-290, but About/Services/Music body bands are 1400/left-250
+ * and the trailing Services/Music/Contact prose bands are 760–880px and
+ * CENTERED (rejected). This one-shot normalizes the four CMS pages:
+ *
+ *   - every 1400px band attr → 1320px (attr-only replace; the rendered
+ *     markup carries no width, so content is untouched),
+ *   - the trailing Services/Music bands and the Contact prose re-band to
+ *     1320px with their content in a top-aligned 60% left column
+ *     (`sn-cms-body-rail`) — left edge locked to the shared frame, right
+ *     rail as negative space, matching the site's rail idiom,
+ *   - the Contact hero becomes a plain LEFT stack (eyebrow, CONTACT,
+ *     availability) — no centering anywhere, matching About.
+ *
+ * Companion theme v11.4.1 drops the /notes headline to the uniform title
+ * clamp. Exact-literal swaps only; owner-edited bands skip.
+ */
+function sn_migrate_split_hero_v5() {
+	if ( get_option( SN_SPLIT_HERO_V5_OPT ) ) {
+		return;
+	}
+
+	$jobs = array(
+		'about'    => array(),
+		'services' => array( array( 'split-hero-services-tail-v1.html', 'split-hero-services-tail-v5.html' ) ),
+		'music'    => array( array( 'split-hero-music-tail-v1.html', 'split-hero-music-tail-v5.html' ) ),
+		'contact'  => array(
+			array( 'split-hero-contact-hero-v4.html', 'split-hero-contact-hero-v5.html' ),
+			array( 'split-hero-contact-hero-v3.html', 'split-hero-contact-hero-v5.html' ),
+			array( 'split-hero-contact-hero-v2.html', 'split-hero-contact-hero-v5.html' ),
+			array( 'split-hero-contact.html', 'split-hero-contact-hero-v5.html' ),
+			array( 'split-hero-contact-prose-v3.html', 'split-hero-contact-prose-v5.html' ),
+			array( 'split-hero-contact-prose-v2.html', 'split-hero-contact-prose-v5.html' ),
+			array( 'split-hero-contact-prose-v1.html', 'split-hero-contact-prose-v5.html' ),
+		),
+	);
+
+	$complete = true;
+	foreach ( $jobs as $path => $pairs ) {
+		$page = get_page_by_path( $path );
+		if ( ! $page ) {
+			$complete = false; // Retry next admin_init.
+			continue;
+		}
+		$content = sn_split_hero_apply_pairs( (string) $page->post_content, $pairs );
+		// Frame normalization: band-attr width only; rendered markup has no
+		// width, so this cannot touch content.
+		$content = str_replace( '"contentSize":"1400px"', '"contentSize":"1320px"', $content );
+		if ( $content !== (string) $page->post_content ) {
+			wp_update_post(
+				array(
+					'ID'           => $page->ID,
+					'post_content' => $content,
+				)
+			);
+		}
+	}
+
+	if ( $complete ) {
+		update_option( SN_SPLIT_HERO_V5_OPT, time(), false );
+	}
+}
+add_action( 'admin_init', 'sn_migrate_split_hero_v5' );

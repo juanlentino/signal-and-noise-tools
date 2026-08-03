@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.37.0] - 2026-08-03
+
+### Changed
+
+- **One frame everywhere — the CMS pages join the 1320px grid, nothing centered** ([inc/split-hero-migration.php](inc/split-hero-migration.php) `sn_migrate_split_hero_v5`, [inc/seed-content/](inc/seed-content/) `*-v5.html`). Live audit @1900px (owner report: "every page has different widths"): hero bands all sat at 1320/left-290 but About/Services/Music body bands were 1400/left-250, and the trailing Services/Music/Contact prose bands were 760–880px and centered. The one-shot normalizes every 1400px band attr to 1320px (attr-only — rendered content untouched), re-bands the trailing Services/Music bands and the Contact prose into a top-aligned 60% left column on the shared frame (`sn-cms-body-rail`, right rail = negative space, the site's rail idiom), and makes the Contact hero a plain left stack (eyebrow, CONTACT, availability) matching About. Exact-literal swaps only; owner-edited bands skip (verified live: Music was left untouched in the test fixture modeling that case). Companion theme v11.4.1 unifies the /notes headline scale. ([tests/split-hero-migration.php](tests/split-hero-migration.php) → 61 asserts.)
+
 ## [10.36.3] - 2026-08-03
 
 ### Fixed
