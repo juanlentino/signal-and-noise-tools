@@ -377,6 +377,15 @@ function snt_ability_corpus_near_duplicate_scan( $input ) {
 	if ( ! function_exists( 'snt_ml_run' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'ML pipeline registry not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
+	// v10.34.0: this is the one uncached O(n^2) pair comparison in the corpus
+	// set, and the native run-route has no rate limit — throttle a runaway loop
+	// (cap generous enough that no human hits it). Admin-only either way.
+	if ( function_exists( 'snt_ability_rate_gate' ) ) {
+		$gate = snt_ability_rate_gate( 'near_duplicate_scan', 10, 60 );
+		if ( is_wp_error( $gate ) ) {
+			return $gate;
+		}
+	}
 	$args = array();
 	if ( is_array( $input ) && isset( $input['threshold'] ) && is_numeric( $input['threshold'] ) ) {
 		$args['threshold'] = (float) $input['threshold']; // Clamp 0.3..0.95 lives in the impl.

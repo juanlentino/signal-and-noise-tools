@@ -124,6 +124,14 @@ function snt_ability_run_insights_scan( $input ) {
 	if ( ! function_exists( 'snt_insights_run_scan' ) ) {
 		return new WP_Error( 'snt_insights_unavailable', 'Insights module not loaded.', array( 'status' => 500 ) );
 	}
+	// v10.34.0: a forced scan does real work every call; the native run-route has
+	// no rate limit of its own. Throttle a runaway loop (generous cap; admin-only).
+	if ( function_exists( 'snt_ability_rate_gate' ) ) {
+		$gate = snt_ability_rate_gate( 'run_insights_scan', 10, 60 );
+		if ( is_wp_error( $gate ) ) {
+			return $gate;
+		}
+	}
 	$force = is_array( $input ) && ! empty( $input['force'] );
 	return snt_insights_run_scan( $force );
 }

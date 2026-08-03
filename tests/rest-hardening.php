@@ -209,17 +209,21 @@ $map  = array();
 foreach ( $resp->headers as $h ) {
 	$map[ $h[0] ] = $h;
 }
-rh_check( count( $resp->headers ) === 2, 'tdm: exactly two headers emitted' );
+rh_check( count( $resp->headers ) === 3, 'tdm: exactly three headers emitted' );
 rh_check( isset( $map['TDM-Reservation'] ) && '1' === $map['TDM-Reservation'][1], 'tdm: TDM-Reservation === "1"' );
 rh_check(
 	isset( $map['TDM-Policy'] ) && 'https://juanlentino.com/tdm-policy/' === $map['TDM-Policy'][1],
 	'tdm: TDM-Policy === https://juanlentino.com/tdm-policy/'
 );
+rh_check(
+	isset( $map['Content-Signal'] ) && 'search=yes, ai-train=no, ai-input=yes' === $map['Content-Signal'][1],
+	'tdm: Content-Signal === search=yes, ai-train=no, ai-input=yes'
+);
 rh_check( true === $map['TDM-Reservation'][2], 'tdm: replace=true (no duplicate header on re-emit)' );
 
 $GLOBALS['__test_logged_in'] = true;
 $authResp = snt_rest_hardening_tdm_headers( new RH_Response() );
-rh_check( count( $authResp->headers ) === 2, 'tdm: headers emitted for logged-in callers too (every REST response)' );
+rh_check( count( $authResp->headers ) === 3, 'tdm: headers emitted for logged-in callers too (every REST response)' );
 rh_check( 'scalar' === snt_rest_hardening_tdm_headers( 'scalar' ), 'tdm: non-object result passes through' );
 
 // ---- 8. Registration guards ------------------------------------------------

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.33.3
+ * Version:     10.34.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -382,6 +382,7 @@ require_once __DIR__ . '/inc/sitemap-redirect.php';
 require_once __DIR__ . '/inc/indexnow.php';
 require_once __DIR__ . '/inc/websub.php';            // v6.17.0 (D4): WebSub publisher ping (feed-reader push; counterpart to IndexNow)
 require_once __DIR__ . '/inc/ability-run-client.php';   // v7.7.2: annotation-derived verb map + shared run-path JS client.
+require_once __DIR__ . '/inc/abilities-rate-gate.php';  // v10.34.0: per-user courtesy throttle for expensive abilities (native run-route has no rate limit of its own).
 require_once __DIR__ . '/inc/abilities-registration.php';
 require_once SNT_PATH . 'inc/abilities-analytics.php';  // v6.1.0: read-only analytics Abilities
 require_once __DIR__ . '/inc/migrate-orphan-options.php';  // v5.0.0: one-time orphan-option cleanup
