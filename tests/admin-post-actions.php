@@ -676,6 +676,12 @@ pa_eq( 'analytics_funnels_invalid_1k3', sn_handle_analytics_funnels_save( array(
 // ── v10.33.0: resume_save (/resume structured editor) ─────────────────
 echo "\nTest: sn_handle_resume_save\n";
 require_once __DIR__ . '/../inc/resume-page.php';
+// v10.33.2 seam: the engine is stubbed with a call recorder so the
+// always-resync contract is assertable (an unchanged document must still
+// regenerate the page — the v10.33.1 engine fix never reached the live
+// page because the unchanged path skipped the sync).
+$GLOBALS['__resume_syncs'] = 0;
+function sn_resume_sync_page() { $GLOBALS['__resume_syncs']++; }
 
 $GLOBALS['__purged_url_sets'] = array(); // reset the capture for the resume route
 $resume_post = array(
@@ -693,8 +699,10 @@ pa_eq( 'PANACEA STUDIO', sn_resume_doc_get()['experience'][0]['org'] ?? '', 'doc
 pa_eq( "Argentina's <strong>toughest</strong> market.", sn_resume_doc_get()['experience'][0]['roles'][0]['bullets'][0] ?? '', 'apostrophes and bullet emphasis survive the save path intact (no backslash gain)' );
 pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'valid resume save → exactly one edge-purge dispatch' );
 pa_eq( array( 'https://example.test/resume', 'https://example.test/resume/' ), $GLOBALS['__purged_url_sets'][0] ?? null, 'purge carries both /resume slash variants' );
-pa_eq( 'resume_unchanged', sn_handle_resume_save( $resume_post ), 'identical re-save → resume_unchanged' );
-pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'unchanged re-save → NO extra purge' );
+pa_eq( 1, $GLOBALS['__resume_syncs'], 'real save → one page regeneration' );
+pa_eq( 'resume_resynced', sn_handle_resume_save( $resume_post ), 'identical re-save → resume_resynced (unchanged content still re-renders the page — the engine may have changed)' );
+pa_eq( 2, $GLOBALS['__resume_syncs'], 'unchanged re-save STILL regenerates the page' );
+pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'resync purges the route too (the rendered body may differ)' );
 // string array keys (the JS clone path posts non-numeric keys) save fine.
 $keyed_post = $resume_post;
 $keyed_post['resume']['experience']['nabc1'] = array( 'org' => 'NEW ORG', 'roles' => array() );
@@ -704,7 +712,7 @@ pa_eq( 'NEW ORG', sn_resume_doc_get()['experience'][1]['org'] ?? '', 'string-key
 // never saved — the stored document and the live page stand.
 pa_eq( 'resume_refused', sn_handle_resume_save( array( 'resume' => array( 'hero' => array( 'summary' => 'only a hero' ) ) ) ), 'anchor-less document → resume_refused' );
 pa_eq( 'PANACEA STUDIO', sn_resume_doc_get()['experience'][0]['org'] ?? '', 'refused save leaves the stored document intact' );
-pa_eq( 2, count( $GLOBALS['__purged_url_sets'] ), 'refused save → NO extra purge' );
+pa_eq( 3, count( $GLOBALS['__purged_url_sets'] ), 'refused save → NO extra purge (count still at the string-keyed save\'s 3)' );
 pa_eq( 'resume_refused', sn_handle_resume_save( array() ), 'missing resume[] entirely → resume_refused, no fatal' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

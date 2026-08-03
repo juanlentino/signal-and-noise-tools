@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.33.2] - 2026-08-03
+
+### Fixed
+
+- **Resume Save now always re-renders the live page — the v10.33.1 layout fix could never reach it** ([inc/admin-post-actions.php](inc/admin-post-actions.php)). Live diagnosis after the owner's cache purge changed nothing: page 1184's `post_content` was still the v10.33.0 `wp:html` body. Root cause: `sn_resume_doc_save()` compares the *document* and skips the sync on identical content, so re-saving unchanged content under the new engine returned "No changes to save" and never regenerated the page — an engine upgrade with unchanged content was unreachable by design. The handler now re-renders and purges on the unchanged path too (owner-triggered, idempotent), with an honest flash: `resume_resynced` — "No content changes — the live /resume page was re-rendered with the current engine anyway." Test seam added: a sync-call recorder pins that an identical re-save still regenerates ([tests/admin-post-actions.php](tests/admin-post-actions.php), 205 asserts).
+
 ## [10.33.1] - 2026-08-03
 
 ### Fixed

@@ -347,6 +347,17 @@ function sn_handle_resume_save( $post ) {
 		sn_content_route_purge( '/resume' );
 		return 'resume_saved';
 	}
+	// v10.33.2: an unchanged DOCUMENT must still regenerate the PAGE. The
+	// renderer changes between releases while the content doesn't (the
+	// v10.33.1 real-block layout fix could never reach the live page: the
+	// unchanged-content path skipped the sync entirely, so the owner's
+	// re-save kept serving the old wp:html body). A Save click is an owner
+	// action and the regeneration is idempotent — always re-render.
+	if ( function_exists( 'sn_resume_sync_page' ) ) {
+		sn_resume_sync_page();
+		sn_content_route_purge( '/resume' );
+		return 'resume_resynced';
+	}
 	return 'resume_unchanged';
 }
 
