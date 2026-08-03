@@ -141,5 +141,31 @@ $GLOBALS['__updates'] = array();
 sn_migrate_split_hero_v3();
 ok( array() === $GLOBALS['__updates'] && isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V3_OPT ] ), 'owner-edited body → no write, flag stamped' );
 
+// ── v4: availability line centers via wp:html flex wrapper ──
+echo "\nTest: sn_migrate_split_hero_v4\n";
+$heroV3  = trim( file_get_contents( $seedDir . 'split-hero-contact-hero-v3.html' ) );
+$proseV3 = trim( file_get_contents( $seedDir . 'split-hero-contact-prose-v3.html' ) );
+
+$GLOBALS['__pages']['contact'] = (object) array( 'ID' => 408, 'post_content' => $heroV3 . "\n\n" . $proseV3 . "\n" );
+$GLOBALS['__updates'] = array();
+sn_migrate_split_hero_v4();
+$new = (string) ( $GLOBALS['__updates'][0]['post_content'] ?? '' );
+ok( false !== strpos( $new, 'display:flex;justify-content:center' ) && false !== strpos( $new, '[sn_availability]' ), 'v3 state → availability in centered flex wrapper' );
+ok( false === strpos( $new, '<p class="has-text-align-center">[sn_availability]</p>' ), 'no p-in-p shortcode wrapper remains' );
+ok( false !== strpos( $new, '"contentSize":"880px"' ), '880px prose untouched' );
+
+unset( $GLOBALS['__options'][ SN_SPLIT_HERO_V4_OPT ] );
+$GLOBALS['__pages']['contact'] = (object) array( 'ID' => 408, 'post_content' => $heroV1 . "\n\n" . $proseV1 . "\n" );
+$GLOBALS['__updates'] = array();
+sn_migrate_split_hero_v4();
+$new = (string) ( $GLOBALS['__updates'][0]['post_content'] ?? '' );
+ok( false !== strpos( $new, 'display:flex;justify-content:center' ) && false !== strpos( $new, '"contentSize":"880px"' ), 'v10.36.0 state lifts straight to the current spine' );
+
+unset( $GLOBALS['__options'][ SN_SPLIT_HERO_V4_OPT ] );
+$GLOBALS['__pages']['contact'] = (object) array( 'ID' => 408, 'post_content' => 'owner rewrote everything' );
+$GLOBALS['__updates'] = array();
+sn_migrate_split_hero_v4();
+ok( array() === $GLOBALS['__updates'] && isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V4_OPT ] ), 'owner-edited body → no write, flag stamped' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
