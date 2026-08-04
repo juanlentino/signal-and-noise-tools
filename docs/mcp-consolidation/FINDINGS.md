@@ -609,3 +609,39 @@ Added three new assertions to `tests/sn-apply-revision.php` (Test 18: staged rev
 ## Full sweep at ship time
 
 376 test files, lint clean (`php -l`, all touched files including the three sibling fixtures). Every file's own suite reports 0 failed; no fatals, no parse errors anywhere in the sweep. `composer phpstan` — 314/314, no errors. `composer lint` (phpcs) — clean.
+
+# Session 7 pre-design — the acceptance gap (`restore_revision`)
+
+Recorded 2026-08-04, design only — nothing here ships until the owner greenlights the arc. The two-week telemetry baseline (running since 2026-08-01) gates RETIREMENTS, not additions, so the build can land any time after that greenlight; it deliberately did not land the day this was written (release cadence already at 3 for 2026-08-04).
+
+## The gap, restated from the live arc
+
+`sn_apply`'s `mode:"revision"` responses advertise `rollback:{method:'restore_revision', revision_id}` — but no MCP path can EXECUTE a restore. Accepting a staged revision today means classic wp-admin (works post-v10.41.2) or WP-CLI; the Desktop Mode portal's own Restore button is broken UPSTREAM (live-observed: a real blue Restore control producing no server request at all; `wp eval 'wp_restore_post_revision(2139);'` → `int(1721)` instantly — likely desktop-mode PR #444's keep-links-inside-window interception swallowing `revision.php` links; filing it is the owner's call, a public action).
+
+## The decisive fact, found in the shipped code, not the spec
+
+`snt_sn_apply_restore_revision()` already exists (session 6a built the wrapper around `wp_restore_post_revision()`) but is content-only — and the staged-META queue (`snt_sn_apply_stage_meta()`'s one-option-per-key rows) has NO application path anywhere. A human restoring via wp-admin applies the content revision and strands queued meta in `wp_options` forever; the button knows nothing about `snt_sn_apply_staged_meta_*`. So the acceptance path is not merely inconvenient — it is structurally INCOMPLETE for any future meta-staging change type (alt_text, surfaces). Only an sn_apply-owned restore path can atomically finish what staging started (restore content + apply queued meta + clear the queue).
+
+## Trust-posture analysis — the objection that dissolves
+
+First instinct: an MCP-executable restore lets the agent accept its own PR, gutting the pattern. The shipped architecture already answers this. Gate 3 grants `mode:"publish"` to the rw door's bound owner credential and `revision`-only to every other identity (`snt_sn_apply_granted_modes()`, enforced server-side against the calling identity, never a client parameter) — and `og_card`/`anchor_sweep` are ALREADY publish-only live side effects the owner credential can execute today. `mode:"revision"` is a chosen discipline for the owner credential and an enforced CEILING only for future routine credentials. A `restore_revision` change type declared publish-only in `snt_sn_apply_mode_support()` (the exact structural mechanism `og_card`/`anchor_sweep` use to refuse revision mode) inherits that split for free: routine credentials are refused at gate 3 by construction; the owner credential gains nothing it does not already hold. The human gate stays where it already lives for every publish-mode call — `dry_run` defaults true, and `dry_run:false` only ever on explicit owner instruction.
+
+## Verified core contract (real 6.9 source, fetched raw — the 6a lesson applied BEFORE building this time)
+
+`wp_restore_post_revision()` is `wp_update_post()` fed the revision's allowlisted fields, then an `_edit_last` meta stamp and the `wp_restore_post_revision` action. NOTHING in it guarantees a pre-restore snapshot: the pre-restore live state survives only if the last writer happened to leave a matching revision row. Consequence: the change type must guarantee its OWN rollback point, and session 6a's `snt_sn_apply_stage_revision()` is exactly the primitive — before restoring, if the newest existing revision does not match the live row's current content, stage the live row's own current content as a revision (never touching the live row; its defining property). The response's rollback then points at THAT snapshot, so the loop stays closed under repeated application. Per the 6a timing lesson, that snapshot gets the staging-moment date fix for free (it IS `snt_sn_apply_stage_revision()`).
+
+## Proposed shape (to be adversarially reviewed at build time, as always)
+
+- `change.type: "restore_revision"`, PUBLISH-ONLY via `snt_sn_apply_mode_support()` — a restore IS a live write; "staging a restore" would stage a revision of a revision, refused with the honest reason like `og_card`'s.
+- `target {post_id}`, `payload {revision_id}`.
+- Structural pre-check BEFORE the gates run: the revision exists, is `post_type` `revision`, and its `post_parent` === target `post_id` — the cross-target idempotency lesson (REJECT #8) generalized: never act on another target's artifact. NOT restricted to sn_apply-staged revisions: wp-admin lets a human restore any revision of the post, and narrowing below the human's own capability buys nothing.
+- Gate 1 fingerprint: binds to the LIVE row's current content hash (the same scheme `sn-posts` exposes as `content_hash`) — a restore proposed against a since-edited post is the stale-branch merge conflict, 409. This gives the type a REAL fingerprint scheme, not a `skipped`.
+- Gate 2 validation: runs the applicable `sn_validate` check families against the REVISION's content — the would-be live state — exactly as they run against a proposed payload today.
+- Gate 3: publish-only structural matrix + identity capability, both existing mechanisms, zero new code classes.
+- Gate 4: target-scoped idempotency as shipped; replaying a completed restore returns `replayed:true`.
+- Write step: ensure-rollback-snapshot (above) → `snt_sn_apply_restore_revision()` (existing wrapper) → apply-and-clear any `snt_sn_apply_staged_meta_*` rows for the post whose fingerprints still match → response `rollback:{method:'restore_revision', revision_id:<pre-restore snapshot>}`.
+- `dry_run:true` (default): all gates + a diff of live vs. revision, zero writes — the owner reads the diff in chat and says "apply", the same acceptance conversation the arc's capstone already ran.
+
+## Alternatives weighed
+
+(a) Plugin admin UI card (a "Staged changes" notice with its own nonce'd restore) — redundant with classic wp-admin for content, still can't be reached from the broken portal without fighting desktop-mode's interception on its own turf, and would need its own meta-queue application path anyway (net: all the write-path work, plus UI, minus the MCP loop closure). (b) Do nothing + file upstream — leaves the advertised rollback contract unexecutable and the meta queue stranded regardless of the portal fix. Recommendation: build `restore_revision` (one session, primitive + wrapper already exist), AND file the portal bug upstream — they fix different layers. DECISION PENDING OWNER.
