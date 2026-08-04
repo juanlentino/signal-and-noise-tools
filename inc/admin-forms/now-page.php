@@ -2,7 +2,7 @@
 /**
  * Signal & Noise — Now Page admin section (Content tab → Now Page sub-tab).
  *
- * The STRUCTURED editor for the /now page (v10.40.0): section cards with a
+ * The STRUCTURED editor for the /now page (v10.41.0): section cards with a
  * label field and repeatable item rows, replacing the `## Label` textarea.
  * The text document STAYS the stored format — sn_action=now_save serializes
  * the posted rows back into it (sn_now_rows_to_text, inc/admin-post-actions
@@ -68,7 +68,7 @@ function sn_nuf_now_item_row( $prefix, $value ) {
  * Render the Now Page section body. Used as the sn_admin_render_section()
  * callback for the Content tab's 'now' sub-tab.
  *
- * @since 7.5.0 (structured form since 10.40.0)
+ * @since 7.5.0 (structured form since 10.41.0)
  */
 function sn_admin_render_now_section() {
 	$page     = function_exists( 'sn_now_page_get' ) ? sn_now_page_get() : null;

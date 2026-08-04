@@ -2,7 +2,7 @@
 /**
  * Signal & Noise — Uses Page admin section (Content tab → Uses Page sub-tab).
  *
- * The STRUCTURED editor for the /about/uses gear list (v10.40.0): group cards
+ * The STRUCTURED editor for the /about/uses gear list (v10.41.0): group cards
  * with a label field and repeatable name/note pair rows, replacing the
  * `## Label` / `- name | note` textarea. The text document STAYS the stored
  * format — sn_action=uses_save serializes the posted rows back into it
@@ -72,7 +72,7 @@ function sn_nuf_uses_group_card( $prefix, $items_id, $item_token, $group ) {
  * Render the Uses Page section body. Used as the sn_admin_render_section()
  * callback for the Content tab's 'uses' sub-tab.
  *
- * @since 7.6.0 (structured form since 10.40.0)
+ * @since 7.6.0 (structured form since 10.41.0)
  */
 function sn_admin_render_uses_section() {
 	$page   = function_exists( 'sn_uses_page_get' ) ? sn_uses_page_get() : null;

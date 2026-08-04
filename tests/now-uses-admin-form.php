@@ -1,9 +1,9 @@
 <?php
 /**
  * Standalone fixture tests for the Content → Now Page / Uses Page structured
- * forms (inc/admin-forms/now-page.php + uses-page.php, plugin v10.40.0).
+ * forms (inc/admin-forms/now-page.php + uses-page.php, plugin v10.41.0).
  *
- * v10.40.0 swaps the `## Label` textareas for structured forms — group cards
+ * v10.41.0 swaps the `## Label` textareas for structured forms — group cards
  * with a label field and repeatable item rows (Uses items split name/note into
  * two fields). The text document STAYS the stored format (data layers, sync
  * engines, and migrations untouched); these tests pin the render contracts the
@@ -13,7 +13,7 @@
  * templates for the clone-time rewrite (assets/resume-admin.js).
  *
  * Run: php tests/now-uses-admin-form.php
- * @since plugin v10.40.0
+ * @since plugin v10.41.0
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }

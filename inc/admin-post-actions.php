@@ -258,7 +258,7 @@ function sn_content_route_purge( $path ) {
 }
 
 /**
- * v10.40.0: one structured field → one clean text token. Unslash-then-sanitize
+ * v10.41.0: one structured field → one clean text token. Unslash-then-sanitize
  * (update_option does NOT unslash — the apostrophe-backslash trap), then
  * collapse any embedded line break: in the `## Label` document every value is
  * one LINE, and a leaked newline would split an item or forge a header.
@@ -274,7 +274,7 @@ function sn_content_row_field( $value ) {
 }
 
 /**
- * v10.40.0: serialize the Now form's posted group rows back into the
+ * v10.41.0: serialize the Now form's posted group rows back into the
  * canonical `## Label` / `- item` document (the stored format is unchanged —
  * it just became an internal detail nobody types).
  *
@@ -282,7 +282,7 @@ function sn_content_row_field( $value ) {
  *   - fully blank rows are pruned (never refused);
  *   - items under a BLANK label refuse the whole save (null): in text form
  *     they would silently merge into the previous section or vanish;
- *   - a label with NO items refuses too (review-caught, v10.40.0): emitted
+ *   - a label with NO items refuses too (review-caught, v10.41.0): emitted
  *     bare beside a valid group the document still parses, the flash says
  *     saved — and the parser drops the bare header, so the section the owner
  *     just typed silently vanishes. Refused, never mis-filed;
@@ -324,7 +324,7 @@ function sn_now_rows_to_text( $groups ) {
 }
 
 /**
- * v10.40.0: serialize the Uses form's posted group rows (name/note pairs)
+ * v10.41.0: serialize the Uses form's posted group rows (name/note pairs)
  * back into the canonical `## Label` / `- name | note` document.
  *
  * Same discipline as sn_now_rows_to_text, plus the pipe rule: `|` is the
@@ -380,7 +380,7 @@ function sn_uses_rows_to_text( $groups ) {
  * plain text (the theme escapes every item at the render sink anyway).
  * v8.0.1: every mutation that changes the live page (save or clear) purges
  * the route from the edge; refused/unchanged inputs do not.
- * v10.40.0: the structured form (inc/admin-forms/now-page.php) posts
+ * v10.41.0: the structured form (inc/admin-forms/now-page.php) posts
  * now[groups] rows; they serialize back into the SAME text document and ride
  * the same guards below. The now_content string path stays for the flash
  * contract and any non-form caller.
@@ -435,7 +435,7 @@ function sn_handle_now_save( $post ) {
  * Mirrors sn_handle_now_save — whitespace-only clears (theme file content
  * returns), zero-group content is refused rather than silently saved, and
  * (v8.0.1) live-page mutations purge /about/uses from the edge.
- * v10.40.0: the structured form (inc/admin-forms/uses-page.php) posts
+ * v10.41.0: the structured form (inc/admin-forms/uses-page.php) posts
  * uses[groups] pair rows; same serialize-then-ride-the-guards pattern as
  * sn_handle_now_save above.
  */

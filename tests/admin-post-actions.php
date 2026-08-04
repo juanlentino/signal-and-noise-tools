@@ -602,10 +602,10 @@ pa_eq( 'uses_cleared', sn_handle_uses_save( array( 'uses_content' => " \n " ) ),
 pa_eq( null, sn_uses_page_get(), 'cleared → theme file content live again' );
 pa_eq( 3, count( $GLOBALS['__purged_url_sets'] ), 'clearing the uses override → purge' );
 
-// ── v10.40.0: structured Now/Uses rows (the form posts group/item arrays;
+// ── v10.41.0: structured Now/Uses rows (the form posts group/item arrays;
 // the handler serializes them back into the SAME `## Label` text and rides
 // the existing save path — data layers untouched, flash codes unchanged) ──
-echo "\nTest: sn_handle_now_save (structured rows, v10.40.0)\n";
+echo "\nTest: sn_handle_now_save (structured rows, v10.41.0)\n";
 
 pa_eq(
 	'now_saved',
@@ -643,7 +643,7 @@ pa_eq(
 	) ) ) ),
 	'label-only document refused, not silently cleared (mirrors the textarea contract for header-only text)'
 );
-// Review-caught (v10.40.0 adversarial round): a label-only group BESIDE a
+// Review-caught (v10.41.0 adversarial round): a label-only group BESIDE a
 // valid group must refuse the whole save too. Emitted bare, the document
 // still parses to >=1 section, so the zero-parse guard passes, the flash says
 // saved — and the parser drops the bare header, so the section the owner just
@@ -670,7 +670,7 @@ pa_eq(
 pa_eq( 'now_cleared', sn_handle_now_save( array( 'now' => array( 'groups' => array() ) ) ), 'zero rows posted → cleared (the empty-box contract)' );
 pa_eq( 0, count( sn_now_page_sections() ), 'structured clear → theme file content live again' );
 
-echo "\nTest: sn_handle_uses_save (structured rows, v10.40.0)\n";
+echo "\nTest: sn_handle_uses_save (structured rows, v10.41.0)\n";
 $GLOBALS['__purged_url_sets'] = array();
 pa_eq(
 	'uses_saved',
