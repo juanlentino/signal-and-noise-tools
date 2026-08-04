@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.37.5] - 2026-08-03
+
+### Removed
+
+- **Services credibility strip** ([inc/split-hero-migration.php](inc/split-hero-migration.php) `sn_migrate_split_hero_v9`). Owner decision: redundant with the hero dek directly above it (both open with "20+ years"), and the credential-ledger device stays /resume-only. The strip was its band's only content, so the whole band goes — frozen first as [inc/seed-content/services-credband-live.html](inc/seed-content/services-credband-live.html) (recoverable), exact-literal delete, owner-edited bodies skip. ([tests/split-hero-migration.php](tests/split-hero-migration.php) → 73 asserts.)
+
 ## [10.37.4] - 2026-08-03
 
 ### Fixed

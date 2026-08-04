@@ -497,6 +497,43 @@ function sn_migrate_split_hero_v8() {
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v8' );
 
+const SN_SPLIT_HERO_V9_OPT = 'sn_split_hero_v9_migrated_v1';
+
+/**
+ * v10.37.5 — the Services credibility strip is REMOVED (owner decision:
+ * redundant with the hero dek directly above it, and the resume ledger
+ * stays a /resume-only device). The strip was its whole band, so the
+ * band goes — frozen as services-credband-live.html (the exact current
+ * live form: 1320px attr + v7 flex strip). Exact-literal delete;
+ * owner-edited bodies skip.
+ */
+function sn_migrate_split_hero_v9() {
+	if ( get_option( SN_SPLIT_HERO_V9_OPT ) ) {
+		return;
+	}
+	$page = get_page_by_path( 'services' );
+	if ( ! $page ) {
+		return; // Retry next admin_init.
+	}
+	$band = file_exists( __DIR__ . '/seed-content/services-credband-live.html' )
+		? trim( (string) file_get_contents( __DIR__ . '/seed-content/services-credband-live.html' ) )
+		: '';
+	$content = (string) $page->post_content;
+	if ( '' !== $band && 1 === substr_count( $content, $band ) ) {
+		$content = str_replace( array( $band . "
+
+", $band ), '', $content );
+		wp_update_post(
+			array(
+				'ID'           => $page->ID,
+				'post_content' => $content,
+			)
+		);
+	}
+	update_option( SN_SPLIT_HERO_V9_OPT, time(), false );
+}
+add_action( 'admin_init', 'sn_migrate_split_hero_v9' );
+
 /**
  * v10.37.4+ — version-keyed /resume regenerate, replacing the
  * one-shot-per-tweak pattern (v8 was the last): bump the rev whenever
