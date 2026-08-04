@@ -102,11 +102,10 @@ function sn_resume_role_blocks( $role ) {
 }
 
 /**
- * The hero band — a two-column editorial split since v10.35.0: eyebrow +
- * title in the left column, summary/chips/contact rail/PDF in the right,
- * bottom-aligned so the right column sits on the title baseline. The
- * previous single stack left the right half of wide viewports empty.
- * Core columns stack below 782px on their own.
+ * The hero band — a two-column editorial split since v10.35.0, top-aligned
+ * since v10.36.1: eyebrow + title + summary in the left column (summary
+ * moved under the title in v10.37.3, owner direction), credential ledger +
+ * contact rail + PDF in the right. Core columns stack below 782px.
  *
  * @param array $hero Hero document slice.
  * @return string
@@ -117,13 +116,15 @@ function sn_resume_hero_blocks( $hero ) {
 		. '<h1 class="wp-block-heading" style="font-size:clamp(3rem, 8vw, 7rem);line-height:0.95">RESUME</h1>' . "\n"
 		. '<!-- /wp:heading -->' . "\n\n";
 
-	$right = '';
+	// v10.37.3 (owner direction): the summary reads under the title in the
+	// left column, filling its dead space; the right column opens with the
+	// credential ledger.
 	if ( '' !== $hero['summary'] ) {
-		$right .= '<!-- wp:paragraph {"style":{"typography":{"fontSize":"1rem","lineHeight":"1.8"}},"textColor":"rust","fontFamily":"body"} -->' . "\n"
+		$left .= '<!-- wp:paragraph {"style":{"typography":{"fontSize":"1rem","lineHeight":"1.8"}},"textColor":"rust","fontFamily":"body"} -->' . "\n"
 			. '<p class="has-rust-color has-text-color has-body-font-family" style="font-size:1rem;line-height:1.8">' . esc_html( $hero['summary'] ) . '</p>' . "\n"
 			. '<!-- /wp:paragraph -->' . "\n\n";
 	}
-	$right .= sn_resume_list( 'sn-resume-chips', array_map( 'esc_html', $hero['chips'] ) );
+	$right = sn_resume_list( 'sn-resume-chips', array_map( 'esc_html', $hero['chips'] ) );
 
 	$rail = array();
 	if ( '' !== $hero['contact_line'] ) {

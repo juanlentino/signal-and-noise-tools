@@ -105,6 +105,9 @@ ok( substr_count( $body, '"contentSize":"1320px"' ) === substr_count( $body, 'wp
 ok( false !== strpos( $body, 'sn-resume-hero-split' ), 'hero renders as the split columns composition' );
 ok( false !== strpos( $body, 'are-vertically-aligned-top sn-resume-hero-split' ), 'hero columns are top-aligned (v10.36.1 fix)' );
 ok( false === strpos( $body, 'are-vertically-aligned-bottom' ), 'no bottom alignment remains in the hero' );
+// v10.37.3 owner direction: the summary reads under the title in the LEFT
+// column; the right column starts with the credential ledger.
+ok( strpos( $body, '20+ years building studios' ) < strpos( $body, 'flex-basis:45%' ), 'summary sits in the left column, before the right column opens' );
 ok( false !== strpos( $body, 'INDEPENDENT PRACTICE' ) && false !== strpos( $body, 'PANACEA STUDIO' ), 'both experience orgs rendered' );
 ok( false !== strpos( $body, '<details class="wp-block-details sn-resume-fold"><summary>Earlier career &middot; 1997 - 2015</summary>' ) || false !== strpos( $body, '<summary>' . esc_html( 'Earlier career · 1997 - 2015' ) . '</summary>' ), 'earlier-career fold rendered as details/summary' );
 ok( false !== strpos( $body, 'OBRAS MET' ) && false !== strpos( $body, 'CINERGY STUDIOS' ), 'both earlier-career orgs inside the fold' );
