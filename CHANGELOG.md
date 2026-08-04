@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.39.0] - 2026-08-04
+
+### Added
+
+- **Rights-signal anchoring check — the 18th Content Health check** ([inc/health-check-rights-anchored.php](inc/health-check-rights-anchored.php)). Three things watch the rights surface and none of them watched this one. The 14th check asks *is the live surface still correct?*; the ledger's own `verify:rights-signals` asks *is every anchored claim sound?* A provenance worker that silently stopped re-anchoring leaves **both green forever** — the live surface is still correct, and the old records are still perfectly valid. This check asks the third question: *has the surface being served right now been anchored at all?* It hashes the four live surfaces (`robots.txt`, `/.well-known/tdmrep.json`, `/license.xml`, `/tdm-policy/`) and compares each against the newest ledger record, read from the `rights_signals` section the provenance repo's `index.json` now publishes — one cheap read instead of probing `v1`, `v2`, … until a 404.
+
+  Detection is deliberately **external rather than a worker heartbeat**: "sweep completed" is a success-only readout, and `anchorRightsSignals` has exactly that shape (a per-signal failure is caught, logged, and stepped over), so a heartbeat would report healthy while one surface never anchored.
+
+  Divergence alone is not a fault — the worker anchors on an hourly tick, so a surface that changed minutes ago is legitimately unanchored. The check remembers when a divergence was **first seen** and only raises a finding once it outlives two sweeps (`SN_RIGHTS_ANCHOR_GRACE`, filterable via `sn_health_rights_anchor_grace`); a live hash that changes again re-stamps the clock, because that is a fresh edit rather than a stuck anchor. An unreachable ledger is an **advisory with zero findings** and leaves the remembered state untouched — overwriting it would silently restart every grace clock, so a permanently unreachable ledger could never accumulate a finding. A surface that fails to fetch is skipped, never accused: hashing a failed fetch would manufacture drift out of an outage. ([tests/health-check-rights-anchored.php](tests/health-check-rights-anchored.php) → 23 asserts, driving every timing path offline.)
+
 ## [10.38.0] - 2026-08-03
 
 ### Added
