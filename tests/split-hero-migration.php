@@ -222,5 +222,14 @@ ok( false !== strpos( $new, '"justifyContent":"space-between"' ) && false === st
 ok( 4 === substr_count( $new, '<!-- /wp:paragraph -->' ) && false !== stripos( $new, 'years experience' ), 'all four items preserved verbatim' );
 ok( isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V7_OPT ] ), 'v7 flag stamped' );
 
+// ── version-keyed resume regen ──
+echo "\nTest: sn_resume_engine_regen\n";
+unset( $GLOBALS['__options']['sn_resume_engine_rev'] );
+$n = $GLOBALS['__resyncs'];
+sn_resume_engine_regen();
+sn_resume_engine_regen();
+ok( $GLOBALS['__resyncs'] === $n + 1, 'regen fires once per engine rev' );
+ok( SN_RESUME_ENGINE_REV === (int) $GLOBALS['__options']['sn_resume_engine_rev'], 'rev recorded' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
