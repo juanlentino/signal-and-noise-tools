@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.41.0] - 2026-08-04
+
+### Changed
+
+- **Now/Uses editors become structured forms** ([inc/admin-forms/now-page.php](inc/admin-forms/now-page.php), [inc/admin-forms/uses-page.php](inc/admin-forms/uses-page.php)). The `## Label` textareas are replaced by the resume editor's card/row idiom (owner-approved design, parked 2026-08-03): section/group cards with a label field and repeatable item rows — Uses items split the name/note pair into two fields — reusing the sn-rsm JS/CSS shipped in v10.33.0. The text document STAYS the stored format: on save the handlers serialize the posted rows back into the same `## Label` text ([inc/admin-post-actions.php](inc/admin-post-actions.php) `sn_now_rows_to_text()`/`sn_uses_rows_to_text()`) and ride `sn_now_page_save()`/`sn_uses_page_save()` unchanged — data layers, sync engines, migrations, flash codes, and edge-purge behavior all untouched, and the legacy `now_content`/`uses_content` string path stays test-pinned. Format-survival discipline is explicit and pinned: items under a blank label are refused (in text they would silently merge into the previous section), a label with no items is refused (review-caught — emitted bare beside a valid group it saved with a success flash, then the parser dropped it, silently losing the section the owner just typed), a Uses note without a name is refused (the parser drops name-less lines), `|` is stripped from names but preserved in notes (first-pipe split), a `#`-leading item stays an item (the `- ` prefix shields it), embedded newlines collapse (every value is one LINE), and zero rows clears honestly — never a silent blank. ([tests/now-uses-admin-form.php](tests/now-uses-admin-form.php) → 46 asserts; [tests/admin-post-actions.php](tests/admin-post-actions.php) 207 → 230.)
+
 ## [10.40.0] - 2026-08-04
 
 ### Added

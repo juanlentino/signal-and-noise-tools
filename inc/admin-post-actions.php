@@ -258,22 +258,142 @@ function sn_content_route_purge( $path ) {
 }
 
 /**
+ * v10.40.0: one structured field → one clean text token. Unslash-then-sanitize
+ * (update_option does NOT unslash — the apostrophe-backslash trap), then
+ * collapse any embedded line break: in the `## Label` document every value is
+ * one LINE, and a leaked newline would split an item or forge a header.
+ * sanitize_text_field collapses breaks in real WP already — the explicit
+ * \R pass keeps the guarantee independent of that implementation detail.
+ *
+ * @param mixed $value Posted (slashed) scalar.
+ * @return string
+ */
+function sn_content_row_field( $value ) {
+	$clean = sanitize_text_field( (string) wp_unslash( is_scalar( $value ) ? $value : '' ) );
+	return trim( (string) preg_replace( '/\R+/u', ' ', $clean ) );
+}
+
+/**
+ * v10.40.0: serialize the Now form's posted group rows back into the
+ * canonical `## Label` / `- item` document (the stored format is unchanged —
+ * it just became an internal detail nobody types).
+ *
+ * Discipline mirrors the parser's:
+ *   - fully blank rows are pruned (never refused);
+ *   - items under a BLANK label refuse the whole save (null): in text form
+ *     they would silently merge into the previous section or vanish;
+ *   - label-only groups are emitted bare — the caller's zero-section parse
+ *     guard then refuses the document, mirroring the old header-only-text
+ *     contract (refused, never silently cleared);
+ *   - every item gets the `- ` prefix, which shields `#`-leading items from
+ *     the header regex on the next parse.
+ *
+ * @param array $groups Posted now[groups] rows (slashed, untrusted).
+ * @return string|null Serialized document ('' when every row is blank), or
+ *                     null when the rows cannot survive the text format.
+ */
+function sn_now_rows_to_text( $groups ) {
+	$out = array();
+	foreach ( (array) $groups as $group ) {
+		$group = is_array( $group ) ? $group : array();
+		$label = sn_content_row_field( $group['label'] ?? '' );
+		$items = array();
+		foreach ( (array) ( $group['items'] ?? array() ) as $item ) {
+			$item = sn_content_row_field( $item );
+			if ( '' !== $item ) {
+				$items[] = '- ' . $item;
+			}
+		}
+		if ( '' === $label ) {
+			if ( ! empty( $items ) ) {
+				return null; // Orphan items — refuse rather than mis-file them.
+			}
+			continue; // Fully blank row — pruned.
+		}
+		$out[] = '## ' . $label;
+		foreach ( $items as $line ) {
+			$out[] = $line;
+		}
+		$out[] = '';
+	}
+	return trim( implode( "\n", $out ) );
+}
+
+/**
+ * v10.40.0: serialize the Uses form's posted group rows (name/note pairs)
+ * back into the canonical `## Label` / `- name | note` document.
+ *
+ * Same discipline as sn_now_rows_to_text, plus the pipe rule: `|` is the
+ * FORMAT's name/note separator, so it is stripped from names (a piped name
+ * cannot round-trip — the parser would split at it) and preserved in notes
+ * (the parser splits on the FIRST pipe only). A note with no name is refused
+ * (null): the parser drops name-less lines, so a silent save would lose it.
+ *
+ * @param array $groups Posted uses[groups] rows (slashed, untrusted).
+ * @return string|null Serialized document ('' when every row is blank), or
+ *                     null when the rows cannot survive the text format.
+ */
+function sn_uses_rows_to_text( $groups ) {
+	$out = array();
+	foreach ( (array) $groups as $group ) {
+		$group = is_array( $group ) ? $group : array();
+		$label = sn_content_row_field( $group['label'] ?? '' );
+		$items = array();
+		foreach ( (array) ( $group['items'] ?? array() ) as $item ) {
+			$item = is_array( $item ) ? $item : array();
+			$name = trim( str_replace( '|', '', sn_content_row_field( $item['name'] ?? '' ) ) );
+			$note = sn_content_row_field( $item['note'] ?? '' );
+			if ( '' === $name && '' === $note ) {
+				continue; // Blank pair — pruned.
+			}
+			if ( '' === $name ) {
+				return null; // Note without a name cannot survive the format.
+			}
+			$items[] = '- ' . $name . ( '' !== $note ? ' | ' . $note : '' );
+		}
+		if ( '' === $label ) {
+			if ( ! empty( $items ) ) {
+				return null;
+			}
+			continue;
+		}
+		$out[] = '## ' . $label;
+		foreach ( $items as $line ) {
+			$out[] = $line;
+		}
+		$out[] = '';
+	}
+	return trim( implode( "\n", $out ) );
+}
+
+/**
  * v7.5.0: save (or clear) the /now page content (Content → Now Page).
  * Whitespace-only input clears the override — /now reverts to the theme's
  * built-in file content. sanitize_textarea_field per line keeps the document
  * plain text (the theme escapes every item at the render sink anyway).
  * v8.0.1: every mutation that changes the live page (save or clear) purges
  * the route from the edge; refused/unchanged inputs do not.
+ * v10.40.0: the structured form (inc/admin-forms/now-page.php) posts
+ * now[groups] rows; they serialize back into the SAME text document and ride
+ * the same guards below. The now_content string path stays for the flash
+ * contract and any non-form caller.
  */
 function sn_handle_now_save( $post ) {
 	if ( ! function_exists( 'sn_now_page_save' ) ) {
 		return 'now_failed';
 	}
-	$raw = isset( $post['now_content'] ) ? (string) wp_unslash( $post['now_content'] ) : '';
-	// sanitize_textarea_field would collapse the newlines we parse on — run it
-	// per line instead (strips tags/control chars, keeps the line structure).
-	$lines = preg_split( '/\R/u', $raw );
-	$raw   = implode( "\n", array_map( 'sanitize_textarea_field', is_array( $lines ) ? $lines : array() ) );
+	if ( isset( $post['now']['groups'] ) && is_array( $post['now']['groups'] ) ) {
+		$raw = sn_now_rows_to_text( $post['now']['groups'] );
+		if ( null === $raw ) {
+			return 'now_unparseable';
+		}
+	} else {
+		$raw = isset( $post['now_content'] ) ? (string) wp_unslash( $post['now_content'] ) : '';
+		// sanitize_textarea_field would collapse the newlines we parse on — run it
+		// per line instead (strips tags/control chars, keeps the line structure).
+		$lines = preg_split( '/\R/u', $raw );
+		$raw   = implode( "\n", array_map( 'sanitize_textarea_field', is_array( $lines ) ? $lines : array() ) );
+	}
 
 	if ( '' === trim( $raw ) ) {
 		if ( sn_now_page_save( '' ) ) {
@@ -308,14 +428,24 @@ function sn_handle_now_save( $post ) {
  * Mirrors sn_handle_now_save — whitespace-only clears (theme file content
  * returns), zero-group content is refused rather than silently saved, and
  * (v8.0.1) live-page mutations purge /about/uses from the edge.
+ * v10.40.0: the structured form (inc/admin-forms/uses-page.php) posts
+ * uses[groups] pair rows; same serialize-then-ride-the-guards pattern as
+ * sn_handle_now_save above.
  */
 function sn_handle_uses_save( $post ) {
 	if ( ! function_exists( 'sn_uses_page_save' ) ) {
 		return 'uses_failed';
 	}
-	$raw   = isset( $post['uses_content'] ) ? (string) wp_unslash( $post['uses_content'] ) : '';
-	$lines = preg_split( '/\R/u', $raw );
-	$raw   = implode( "\n", array_map( 'sanitize_textarea_field', is_array( $lines ) ? $lines : array() ) );
+	if ( isset( $post['uses']['groups'] ) && is_array( $post['uses']['groups'] ) ) {
+		$raw = sn_uses_rows_to_text( $post['uses']['groups'] );
+		if ( null === $raw ) {
+			return 'uses_unparseable';
+		}
+	} else {
+		$raw   = isset( $post['uses_content'] ) ? (string) wp_unslash( $post['uses_content'] ) : '';
+		$lines = preg_split( '/\R/u', $raw );
+		$raw   = implode( "\n", array_map( 'sanitize_textarea_field', is_array( $lines ) ? $lines : array() ) );
+	}
 
 	if ( '' === trim( $raw ) ) {
 		if ( sn_uses_page_save( '' ) ) {
