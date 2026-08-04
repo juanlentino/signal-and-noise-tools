@@ -443,3 +443,39 @@ function sn_migrate_split_hero_v6() {
 	}
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v6' );
+
+const SN_SPLIT_HERO_V7_OPT = 'sn_split_hero_v7_migrated_v1';
+
+/**
+ * v10.37.2 — Services credibility strip justifies edge-to-edge (owner:
+ * "from one side to the other, each thing in a space"). The v6 equal
+ * columns left the last item short of the right frame edge; the strip is
+ * now a flex group with justify-content:space-between — first item flush
+ * left, last flush right, wrap on small screens. Items verbatim.
+ */
+function sn_migrate_split_hero_v7() {
+	if ( get_option( SN_SPLIT_HERO_V7_OPT ) ) {
+		return;
+	}
+	$page = get_page_by_path( 'services' );
+	if ( ! $page ) {
+		return; // Retry next admin_init.
+	}
+	$content = sn_split_hero_apply_pairs(
+		(string) $page->post_content,
+		array(
+			array( 'services-credrow-v6.html', 'services-credrow-v7.html' ),
+			array( 'services-credrow-v1.html', 'services-credrow-v7.html' ), // v6 skipped state.
+		)
+	);
+	if ( $content !== (string) $page->post_content ) {
+		wp_update_post(
+			array(
+				'ID'           => $page->ID,
+				'post_content' => $content,
+			)
+		);
+	}
+	update_option( SN_SPLIT_HERO_V7_OPT, time(), false );
+}
+add_action( 'admin_init', 'sn_migrate_split_hero_v7' );
