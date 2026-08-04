@@ -222,6 +222,21 @@ ok( false !== strpos( $new, '"justifyContent":"space-between"' ) && false === st
 ok( 4 === substr_count( $new, '<!-- /wp:paragraph -->' ) && false !== stripos( $new, 'years experience' ), 'all four items preserved verbatim' );
 ok( isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V7_OPT ] ), 'v7 flag stamped' );
 
+// ── v9: strip band removed ──
+echo "\nTest: sn_migrate_split_hero_v9\n";
+$credBand = trim( file_get_contents( $seedDir . 'services-credband-live.html' ) );
+$GLOBALS['__pages']['services'] = (object) array( 'ID' => 395, 'post_content' => "hero\n\n" . $credBand . "\n\nrest" );
+$GLOBALS['__updates'] = array();
+unset( $GLOBALS['__options'][ SN_SPLIT_HERO_V9_OPT ] );
+sn_migrate_split_hero_v9();
+$new = (string) ( $GLOBALS['__updates'][0]['post_content'] ?? '' );
+ok( false === strpos( $new, 'sn-credibility-strip' ) && "hero\n\nrest" === $new, 'strip band removed cleanly, no residue' );
+unset( $GLOBALS['__options'][ SN_SPLIT_HERO_V9_OPT ] );
+$GLOBALS['__pages']['services'] = (object) array( 'ID' => 395, 'post_content' => 'owner rewrote' );
+$GLOBALS['__updates'] = array();
+sn_migrate_split_hero_v9();
+ok( array() === $GLOBALS['__updates'] && isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V9_OPT ] ), 'owner-edited → skip, flag stamped' );
+
 // ── version-keyed resume regen ──
 echo "\nTest: sn_resume_engine_regen\n";
 unset( $GLOBALS['__options']['sn_resume_engine_rev'] );

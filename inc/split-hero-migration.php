@@ -2,8 +2,9 @@
 /**
  * Signal & Noise Tools — v10.36.0 split-hero one-shot migration.
  *
- * Site-wide hero direction (2026-08-03): heroes become a two-column,
- * bottom-aligned editorial split on a uniform 1320px band. This one-shot
+ * Site-wide hero direction (2026-08-03, arc v1→v9 + version-keyed regen):
+ * ONE 1320px frame, top-aligned splits only where real side content
+ * exists, plain left stacks elsewhere, nothing centered. This first one-shot
  * finishes the rollout for surfaces the per-save sync engines don't own:
  *
  *   1. The four hand-authored CMS pages (About, Services, Music, Contact):
@@ -496,6 +497,52 @@ function sn_migrate_split_hero_v8() {
 	update_option( SN_SPLIT_HERO_V8_OPT, time(), false );
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v8' );
+
+const SN_SPLIT_HERO_V9_OPT = 'sn_split_hero_v9_migrated_v1';
+
+/**
+ * v10.37.5 — the Services credibility strip is REMOVED (owner decision:
+ * redundant with the hero dek directly above it, and the resume ledger
+ * stays a /resume-only device). The strip was its whole band, so the
+ * band goes — frozen as services-credband-live.html (the exact current
+ * live form: 1320px attr + v7 flex strip). Exact-literal delete;
+ * owner-edited bodies skip.
+ */
+function sn_migrate_split_hero_v9() {
+	if ( get_option( SN_SPLIT_HERO_V9_OPT ) ) {
+		return;
+	}
+	$page = get_page_by_path( 'services' );
+	if ( ! $page ) {
+		return; // Retry next admin_init.
+	}
+	$band = file_exists( __DIR__ . '/seed-content/services-credband-live.html' )
+		? trim( (string) file_get_contents( __DIR__ . '/seed-content/services-credband-live.html' ) )
+		: '';
+	$content = (string) $page->post_content;
+	if ( '' !== $band && 1 === substr_count( $content, $band ) ) {
+		$content = str_replace( array( $band . "
+
+", $band ), '', $content );
+		wp_update_post(
+			array(
+				'ID'           => $page->ID,
+				'post_content' => $content,
+			)
+		);
+	}
+	// /now + /uses: one regenerate so the stored bodies pick up the
+	// left-stack heroes (no-op-safe).
+	if ( function_exists( 'sn_now_sync_page' ) ) {
+		sn_now_sync_page();
+	}
+	if ( function_exists( 'sn_uses_sync_page' ) ) {
+		sn_uses_sync_page();
+	}
+
+	update_option( SN_SPLIT_HERO_V9_OPT, time(), false );
+}
+add_action( 'admin_init', 'sn_migrate_split_hero_v9' );
 
 /**
  * v10.37.4+ — version-keyed /resume regenerate, replacing the
