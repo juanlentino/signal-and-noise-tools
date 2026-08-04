@@ -602,6 +602,126 @@ pa_eq( 'uses_cleared', sn_handle_uses_save( array( 'uses_content' => " \n " ) ),
 pa_eq( null, sn_uses_page_get(), 'cleared → theme file content live again' );
 pa_eq( 3, count( $GLOBALS['__purged_url_sets'] ), 'clearing the uses override → purge' );
 
+// ── v10.41.0: structured Now/Uses rows (the form posts group/item arrays;
+// the handler serializes them back into the SAME `## Label` text and rides
+// the existing save path — data layers untouched, flash codes unchanged) ──
+echo "\nTest: sn_handle_now_save (structured rows, v10.41.0)\n";
+
+pa_eq(
+	'now_saved',
+	sn_handle_now_save( array( 'now' => array( 'groups' => array(
+		array( 'label' => 'Building', 'items' => array( 'shipping MCP', 'writing tests' ) ),
+		array( 'label' => '', 'items' => array( '', ' ' ) ), // fully blank row → pruned, not refused
+	) ) ) ),
+	'structured rows → now_saved'
+);
+pa_eq( "## Building\n- shipping MCP\n- writing tests", (string) ( sn_now_page_get()['raw'] ?? '' ), 'stored raw is the canonical `## Label` text (blank group pruned)' );
+pa_eq(
+	array( array( 'label' => 'Building', 'items' => array( 'shipping MCP', 'writing tests' ) ) ),
+	sn_now_parse_sections( (string) ( sn_now_page_get()['raw'] ?? '' ) ),
+	'ROUND-TRIP: parse(serialize(rows)) === the posted rows'
+);
+pa_eq(
+	'now_resynced',
+	sn_handle_now_save( array( 'now' => array( 'groups' => array(
+		array( 'label' => 'Building', 'items' => array( 'shipping MCP', 'writing tests' ) ),
+	) ) ) ),
+	'identical structured re-save → now_resynced (unchanged content still re-renders)'
+);
+pa_eq(
+	'now_unparseable',
+	sn_handle_now_save( array( 'now' => array( 'groups' => array(
+		array( 'label' => '', 'items' => array( 'an orphan item' ) ),
+	) ) ) ),
+	'items under a BLANK label refused (in text form they would silently merge into the previous section)'
+);
+pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'refused structured save leaves prior content intact' );
+pa_eq(
+	'now_unparseable',
+	sn_handle_now_save( array( 'now' => array( 'groups' => array(
+		array( 'label' => 'Header only', 'items' => array() ),
+	) ) ) ),
+	'label-only document refused, not silently cleared (mirrors the textarea contract for header-only text)'
+);
+// Review-caught (v10.41.0 adversarial round): a label-only group BESIDE a
+// valid group must refuse the whole save too. Emitted bare, the document
+// still parses to >=1 section, so the zero-parse guard passes, the flash says
+// saved — and the parser drops the bare header, so the section the owner just
+// typed is invisible on re-render and permanently lost on the next save.
+pa_eq(
+	'now_unparseable',
+	sn_handle_now_save( array( 'now' => array( 'groups' => array(
+		array( 'label' => 'Building', 'items' => array( 'shipping MCP' ) ),
+		array( 'label' => 'Header only', 'items' => array( '', ' ' ) ),
+	) ) ) ),
+	'label-only group beside a valid group refused — never a success flash over a dropped section'
+);
+pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'mixed-document refusal leaves prior content intact' );
+// An item STARTING with '#' must stay an item: the serializer's `- ` prefix
+// shields it from the header regex on the next parse.
+sn_handle_now_save( array( 'now' => array( 'groups' => array(
+	array( 'label' => 'Edge', 'items' => array( '## not a header', "two\nlines" ) ),
+) ) ) );
+pa_eq(
+	array( array( 'label' => 'Edge', 'items' => array( '## not a header', 'two lines' ) ) ),
+	sn_now_parse_sections( (string) ( sn_now_page_get()['raw'] ?? '' ) ),
+	'#-leading item survives round-trip as an item; embedded newline collapsed (an item is one LINE by format)'
+);
+pa_eq( 'now_cleared', sn_handle_now_save( array( 'now' => array( 'groups' => array() ) ) ), 'zero rows posted → cleared (the empty-box contract)' );
+pa_eq( 0, count( sn_now_page_sections() ), 'structured clear → theme file content live again' );
+
+echo "\nTest: sn_handle_uses_save (structured rows, v10.41.0)\n";
+$GLOBALS['__purged_url_sets'] = array();
+pa_eq(
+	'uses_saved',
+	sn_handle_uses_save( array( 'uses' => array( 'groups' => array(
+		array( 'label' => 'Interface', 'items' => array(
+			array( 'name' => 'SSL UF8', 'note' => 'Advanced DAW controller' ),
+			array( 'name' => 'Bare thing', 'note' => '' ),
+			array( 'name' => '', 'note' => '' ), // blank pair → pruned
+		) ),
+	) ) ) ),
+	'structured pairs → uses_saved'
+);
+pa_eq( "## Interface\n- SSL UF8 | Advanced DAW controller\n- Bare thing", (string) ( sn_uses_page_get()['raw'] ?? '' ), 'stored raw is the canonical pair text (noteless item has no pipe, blank pair pruned)' );
+pa_eq( 1, count( $GLOBALS['__purged_url_sets'] ), 'structured uses save rides the same purge path' );
+// Pipe discipline: '|' is the FORMAT's separator. A pipe in a NAME cannot
+// round-trip (the parser would split at it) — stripped at serialize. A pipe
+// in a NOTE is safe (the parser splits on the FIRST pipe only) — preserved.
+sn_handle_uses_save( array( 'uses' => array( 'groups' => array(
+	array( 'label' => 'Pipes', 'items' => array(
+		array( 'name' => 'A|B', 'note' => 'kept | as-is' ),
+	) ),
+) ) ) );
+$pipe_groups = sn_uses_parse_groups( (string) ( sn_uses_page_get()['raw'] ?? '' ) );
+pa_eq( 'AB', $pipe_groups[0]['items'][0]['name'] ?? '', 'pipe stripped from name (cannot survive the pair format)' );
+pa_eq( 'kept | as-is', $pipe_groups[0]['items'][0]['note'] ?? '', 'pipe preserved in note (first-pipe split protects it)' );
+pa_eq(
+	'uses_unparseable',
+	sn_handle_uses_save( array( 'uses' => array( 'groups' => array(
+		array( 'label' => '', 'items' => array( array( 'name' => 'orphan', 'note' => '' ) ) ),
+	) ) ) ),
+	'uses items under a blank label refused'
+);
+pa_eq(
+	'uses_unparseable',
+	sn_handle_uses_save( array( 'uses' => array( 'groups' => array(
+		array( 'label' => 'Desk', 'items' => array( array( 'name' => '', 'note' => 'note with no name' ) ) ),
+	) ) ) ),
+	'note without a name refused (the pair format drops name-less lines — a silent-save would lose it)'
+);
+pa_eq(
+	'uses_unparseable',
+	sn_handle_uses_save( array( 'uses' => array( 'groups' => array(
+		array( 'label' => 'Interface', 'items' => array( array( 'name' => 'SSL UF8', 'note' => '' ) ) ),
+		array( 'label' => 'Empty group', 'items' => array( array( 'name' => '', 'note' => '' ) ) ),
+	) ) ) ),
+	'label-only uses group beside a valid group refused (review-caught: bare header saved fine, then vanished)'
+);
+pa_eq( 'Pipes', $pipe_groups[0]['label'] ?? '', 'refused uses save leaves prior content intact' );
+pa_eq( 'uses_cleared', sn_handle_uses_save( array( 'uses' => array( 'groups' => array() ) ) ), 'zero uses rows → cleared' );
+pa_eq( null, sn_uses_page_get(), 'structured uses clear → theme file content live again' );
+
 // ── v8.0.1: health_scan flash splits on the finding count ─────────────
 echo "\nTest: sn_handle_health_scan findings-aware flash\n";
 require_once __DIR__ . '/../inc/health-summary.php'; // real sn_health_finding_total — the accessor the handler counts with
