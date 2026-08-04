@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.37.3] - 2026-08-03
+
+### Changed
+
+- **/resume summary moves under the title** ([inc/resume-sync-engine.php](inc/resume-sync-engine.php)). Owner direction: the summary paragraph now reads beneath RESUME in the left column, filling its dead space; the right column opens directly with the credential ledger, then contact rail and PDF. Test-pinned (summary precedes the right-column opener); `sn_migrate_split_hero_v8` regenerates the stored body once on update.
+
 ## [10.37.2] - 2026-08-03
 
 ### Fixed

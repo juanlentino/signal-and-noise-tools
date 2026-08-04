@@ -479,3 +479,20 @@ function sn_migrate_split_hero_v7() {
 	update_option( SN_SPLIT_HERO_V7_OPT, time(), false );
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v7' );
+
+const SN_SPLIT_HERO_V8_OPT = 'sn_split_hero_v8_migrated_v1';
+
+/**
+ * v10.37.3 — regenerate /resume once so the stored body picks up the
+ * summary-under-title hero (engine change in resume-sync-engine.php).
+ */
+function sn_migrate_split_hero_v8() {
+	if ( get_option( SN_SPLIT_HERO_V8_OPT ) ) {
+		return;
+	}
+	if ( function_exists( 'sn_resume_sync_page' ) ) {
+		sn_resume_sync_page();
+	}
+	update_option( SN_SPLIT_HERO_V8_OPT, time(), false );
+}
+add_action( 'admin_init', 'sn_migrate_split_hero_v8' );
