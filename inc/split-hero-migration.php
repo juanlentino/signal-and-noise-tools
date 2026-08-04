@@ -496,3 +496,23 @@ function sn_migrate_split_hero_v8() {
 	update_option( SN_SPLIT_HERO_V8_OPT, time(), false );
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v8' );
+
+/**
+ * v10.37.4+ — version-keyed /resume regenerate, replacing the
+ * one-shot-per-tweak pattern (v8 was the last): bump the rev whenever
+ * sn_resume_hero_blocks() (or any body-shaping engine code) changes and
+ * the stored body re-renders once on the next admin load after update.
+ */
+const SN_RESUME_ENGINE_REV = 3; // 2 = eyebrow band kicker above the hero columns; 3 = publication cards drop constrained layout (full-width titles).
+
+/** Re-render /resume once per engine revision. */
+function sn_resume_engine_regen() {
+	if ( SN_RESUME_ENGINE_REV === (int) get_option( 'sn_resume_engine_rev' ) ) {
+		return;
+	}
+	if ( function_exists( 'sn_resume_sync_page' ) ) {
+		sn_resume_sync_page();
+	}
+	update_option( 'sn_resume_engine_rev', SN_RESUME_ENGINE_REV, false );
+}
+add_action( 'admin_init', 'sn_resume_engine_regen' );

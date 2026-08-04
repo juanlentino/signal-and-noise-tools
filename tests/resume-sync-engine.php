@@ -108,6 +108,15 @@ ok( false === strpos( $body, 'are-vertically-aligned-bottom' ), 'no bottom align
 // v10.37.3 owner direction: the summary reads under the title in the LEFT
 // column; the right column starts with the credential ledger.
 ok( strpos( $body, '20+ years building studios' ) < strpos( $body, 'flex-basis:45%' ), 'summary sits in the left column, before the right column opens' );
+// v10.37.4: the eyebrow sits ABOVE the columns (band kicker), so both
+// columns start on the same line — title cap left, ledger top rule right.
+ok( strpos( $body, 'sn-catalog-eyebrow' ) < strpos( $body, 'sn-resume-hero-split' ), 'eyebrow precedes the hero columns' );
+ok( false === strpos( substr( $body, strpos( $body, 'sn-resume-hero-split' ) ), 'sn-catalog-eyebrow">Dossier' ), 'no eyebrow inside the hero columns' );
+// v10.37.4: publication cards are flow groups — the constrained layout
+// capped card content at the default width and centered it, indenting the
+// meta/title and wrapping titles to two lines (owner report).
+ok( false !== strpos( $body, '<!-- wp:group {"className":"sn-resume-pub"} -->' ), 'pub cards are plain flow groups' );
+ok( false === strpos( $body, 'sn-resume-pub","layout' ), 'no constrained layout on pub cards' );
 ok( false !== strpos( $body, 'INDEPENDENT PRACTICE' ) && false !== strpos( $body, 'PANACEA STUDIO' ), 'both experience orgs rendered' );
 ok( false !== strpos( $body, '<details class="wp-block-details sn-resume-fold"><summary>Earlier career &middot; 1997 - 2015</summary>' ) || false !== strpos( $body, '<summary>' . esc_html( 'Earlier career · 1997 - 2015' ) . '</summary>' ), 'earlier-career fold rendered as details/summary' );
 ok( false !== strpos( $body, 'OBRAS MET' ) && false !== strpos( $body, 'CINERGY STUDIOS' ), 'both earlier-career orgs inside the fold' );

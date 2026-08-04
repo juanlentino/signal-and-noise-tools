@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.37.4] - 2026-08-03
+
+### Fixed
+
+- **/resume polish batch (stacked PR, owner review of live v10.37.3)** ([inc/resume-sync-engine.php](inc/resume-sync-engine.php), [inc/split-hero-migration.php](inc/split-hero-migration.php)). Eyebrow becomes a band kicker above the hero columns so both columns start on the same line — title cap left, ledger top rule right (the in-column eyebrow pushed the ledger above the title). Publication cards drop their constrained inner layout — it capped card content at the default width and centered it, indenting meta/title and wrapping titles to two lines; they now span the card. Plus `SN_RESUME_ENGINE_REV`, a version-keyed regenerate replacing the one-shot-per-tweak pattern. ([tests/resume-sync-engine.php](tests/resume-sync-engine.php) → 47 asserts.)
+
 ## [10.37.3] - 2026-08-03
 
 ### Changed
