@@ -133,6 +133,13 @@ function sn_health_run_scan() {
 			// 17th check (v10.22.0): cadence deviations — the kernel's EWMA/z
 			// rhythm watch over publishing + recorded cron hooks.
 			'ml_cadence'           => sn_health_check_ml_cadence(),
+			// 18th check (v10.39.0): the rights-signal ANCHORING gap. The 14th
+			// check asks whether the live rights surface is correct and the
+			// ledger's own CI asks whether every anchored claim is sound — a
+			// worker that silently stopped re-anchoring leaves both green
+			// forever. This one compares the bytes being served right now
+			// against the newest ledger record.
+			'rights_anchored'      => snt_health_check_rights_anchored(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
@@ -178,6 +185,7 @@ require_once __DIR__ . '/health-check-cf-security-headers.php';
 require_once __DIR__ . '/health-check-rights-signals.php';
 // v10.4.0: the public ledger CI status probe (GitHub runs API, no auth).
 require_once __DIR__ . '/health-check-ledger-ci.php';
+require_once __DIR__ . '/health-check-rights-anchored.php';
 // v10.20.0: the ML near-duplicate cousin scan as a health check.
 require_once __DIR__ . '/health-check-ml-cousins.php';
 // v10.22.0: cadence deviations (publish + cron rhythms) as a health check.
