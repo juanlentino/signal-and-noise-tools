@@ -1,0 +1,447 @@
+<?php
+/**
+ * Standalone tests for sn_apply (MCP consolidation session 6b, v10.40.0):
+ * signal-noise/sn-apply — PART 4: pattern_adoption + link_insert coverage
+ * and the ALL-EIGHT-types structural dry_run zero-writes sweep
+ * (adversarial review MEDIUM 2). Delegation to the real absorbed impls is
+ * pinned by each surface's OWN error-code map (an invalid pattern_type
+ * comes back as snt_pattern_adoption_invalid_pattern_type; an
+ * already-linked anchor trips the link surface's own rule) — codes only
+ * the real impls produce. The sweep loops SNT_SN_APPLY_CHANGE_TYPES
+ * itself (session-4 recorder pattern), so a future ninth change type
+ * fails the count assertion until it joins the sweep table.
+ * Same bootstrap/stub conventions as tests/abilities-sn-apply.php — see
+ * that file's docblock for the full rationale.
+ */
+
+if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+if ( ! defined( 'ABSPATH' ) )       { define( 'ABSPATH', '/' ); }
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! defined( 'ARRAY_A' ) )       { define( 'ARRAY_A', 'ARRAY_A' ); }
+if ( ! defined( 'OBJECT' ) )        { define( 'OBJECT', 'OBJECT' ); }
+
+error_reporting( E_ALL );
+$GLOBALS['__php_errors'] = array();
+set_error_handler( function ( $no, $str, $file, $line ) {
+	$GLOBALS['__php_errors'][] = "$str @ $file:$line";
+	return true;
+} );
+
+$pass = 0; $fail = 0;
+function ok( $cond, $msg ) {
+	global $pass, $fail;
+	if ( $cond ) { $pass++; echo "PASS: $msg\n"; }
+	else { $fail++; echo "FAIL: $msg\n"; }
+}
+function eq( $expected, $actual, $msg ) {
+	ok( $expected === $actual, $msg . ' (expected ' . var_export( $expected, true ) . ', got ' . var_export( $actual, true ) . ')' );
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * WP + rails stubs (BEFORE the SUT loads)
+ * ════════════════════════════════════════════════════════════════════════ */
+
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error {
+		public $code; public $message; public $data;
+		public function __construct( $code = '', $message = '', $data = null ) { $this->code = $code; $this->message = $message; $this->data = $data; }
+		public function get_error_code() { return $this->code; }
+		public function get_error_data( $key = '' ) { return $this->data; }
+		public function get_error_message() { return $this->message; }
+	}
+}
+if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $x ) { return $x instanceof WP_Error; } }
+if ( ! function_exists( '__' ) )  { function __( $s, $d = null ) { return $s; } }
+if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $opts = 0 ) { return json_encode( $d, $opts ); } }
+if ( ! function_exists( 'add_action' ) ) { function add_action( $t, $c, $p = 10, $a = 1 ) { return true; } }
+if ( ! function_exists( 'apply_filters' ) ) {
+	$GLOBALS['__filters'] = array();
+	function apply_filters( $h, $v ) { foreach ( $GLOBALS['__filters'][ $h ] ?? array() as $cb ) { $v = $cb( $v ); } return $v; }
+}
+function tf_add_filter( $hook, $cb ) { $GLOBALS['__filters'][ $hook ][] = $cb; }
+
+$GLOBALS['__next_id']            = 1000;
+$GLOBALS['__posts']              = array(); // id => ARRAY_A row
+$GLOBALS['__post_meta']          = array();
+$GLOBALS['__options']            = array();
+$GLOBALS['__transients']         = array();
+$GLOBALS['__write_calls']        = array( 'wp_update_post' => 0, 'update_post_meta' => 0, '_wp_put_post_revision' => 0, 'update_option' => 0, 'set_transient' => 0, 'wpdb_write' => 0 );
+$GLOBALS['__audit_calls']        = array();
+$GLOBALS['__bound_uuid']         = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+$GLOBALS['__auth_uuid']          = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; // = bound => owner, by default
+$GLOBALS['__revisions_to_keep']  = -1; // unlimited
+
+function tf_post( $id, $overrides = array() ) {
+	$GLOBALS['__posts'][ $id ] = array_merge( array(
+		'ID' => $id, 'post_title' => "Post $id", 'post_name' => "post-$id",
+		'post_status' => 'publish', 'post_type' => 'post', 'post_parent' => 0,
+		'post_date' => '2026-06-01 10:00:00', 'post_modified' => '2026-07-01 10:00:00',
+		'post_modified_gmt' => '2026-07-01 10:00:00', 'post_content' => '', 'post_excerpt' => '',
+	), $overrides );
+}
+
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id, $output = 'OBJECT' ) {
+		$row = $GLOBALS['__posts'][ (int) $id ] ?? null;
+		if ( null === $row ) { return null; }
+		return 'ARRAY_A' === $output ? $row : (object) $row;
+	}
+}
+if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap, $id = null ) { return true; } }
+if ( ! function_exists( 'post_type_exists' ) ) { function post_type_exists( $t ) { return in_array( $t, array( 'post', 'page', 'attachment' ), true ); } }
+if ( ! function_exists( 'get_post_type_object' ) ) { function get_post_type_object( $t ) { $o = new stdClass(); $o->public = 'attachment' !== $t; return $o; } }
+if ( ! function_exists( 'parse_blocks' ) ) {
+	function parse_blocks( $content ) {
+		$d = json_decode( (string) $content, true );
+		if ( ! is_array( $d ) ) { return array(); }
+		return array_key_exists( 'blockName', $d ) ? array( $d ) : $d;
+	}
+}
+if ( ! function_exists( 'serialize_block' ) )  { function serialize_block( $b ) { return json_encode( $b ); } }
+if ( ! function_exists( 'serialize_blocks' ) ) { function serialize_blocks( $t ) { return json_encode( $t ); } }
+if ( ! function_exists( 'wp_kses_post' ) )     { function wp_kses_post( $h ) { return $h; } }
+if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
+if ( ! function_exists( 'esc_url' ) )          { function esc_url( $u ) { return $u; } }
+if ( ! function_exists( 'sanitize_text_field' ) )     { function sanitize_text_field( $s ) { return trim( strip_tags( (string) $s ) ); } }
+if ( ! function_exists( 'sanitize_textarea_field' ) ) { function sanitize_textarea_field( $s ) { return trim( strip_tags( (string) $s ) ); } }
+if ( ! function_exists( 'home_url' ) )   { function home_url( $p = '' ) { return 'https://example.test' . $p; } }
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return -1 === $c ? parse_url( $u ) : parse_url( $u, $c ); } }
+if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id() { return 1; } }
+if ( ! function_exists( 'get_transient' ) ) { function get_transient( $k ) { return $GLOBALS['__transients'][ $k ] ?? false; } }
+if ( ! function_exists( 'set_transient' ) ) { function set_transient( $k, $v, $t ) { $GLOBALS['__write_calls']['set_transient']++; $GLOBALS['__transients'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'get_option' ) )    { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__write_calls']['update_option']++; $GLOBALS['__options'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'get_post_meta' ) ) {
+	function get_post_meta( $id, $key, $single = false ) {
+		if ( ! array_key_exists( $key, $GLOBALS['__post_meta'][ (int) $id ] ?? array() ) ) { return $single ? '' : array(); }
+		$v = $GLOBALS['__post_meta'][ (int) $id ][ $key ];
+		return $single ? $v : array( $v );
+	}
+}
+if ( ! function_exists( 'update_post_meta' ) ) {
+	function update_post_meta( $id, $key, $value ) { $GLOBALS['__write_calls']['update_post_meta']++; $GLOBALS['__post_meta'][ (int) $id ][ $key ] = $value; return true; }
+}
+if ( ! function_exists( 'delete_post_meta' ) ) { function delete_post_meta( $id, $key ) { unset( $GLOBALS['__post_meta'][ (int) $id ][ $key ] ); return true; } }
+
+if ( ! function_exists( 'wp_update_post' ) ) {
+	function wp_update_post( $args, $wp_error = false ) {
+		$GLOBALS['__write_calls']['wp_update_post']++;
+		$id = (int) ( $args['ID'] ?? 0 );
+		if ( ! isset( $GLOBALS['__posts'][ $id ] ) ) { return $wp_error ? new WP_Error( 'invalid_post', 'no such post' ) : 0; }
+		foreach ( $args as $k => $v ) { if ( 'ID' !== $k ) { $GLOBALS['__posts'][ $id ][ $k ] = $v; } }
+		return $id;
+	}
+}
+if ( ! function_exists( 'post_type_supports' ) ) { function post_type_supports( $t, $f ) { return true; } }
+if ( ! function_exists( 'wp_revisions_to_keep' ) ) { function wp_revisions_to_keep( $post ) { return $GLOBALS['__revisions_to_keep']; } }
+if ( ! function_exists( '_wp_put_post_revision' ) ) {
+	function _wp_put_post_revision( $post ) {
+		$GLOBALS['__write_calls']['_wp_put_post_revision']++;
+		$rid = $GLOBALS['__next_id']++;
+		tf_post( $rid, array(
+			'post_type' => 'revision', 'post_parent' => (int) ( $post['ID'] ?? 0 ),
+			'post_content' => (string) ( $post['post_content'] ?? '' ),
+			'post_title'   => (string) ( $post['post_title'] ?? '' ),
+			'post_excerpt' => (string) ( $post['post_excerpt'] ?? '' ),
+		) );
+		return $rid;
+	}
+}
+if ( ! function_exists( 'wp_restore_post_revision' ) ) {
+	function wp_restore_post_revision( $revision_id ) {
+		$rev = $GLOBALS['__posts'][ (int) $revision_id ] ?? null;
+		if ( ! $rev || 'revision' !== ( $rev['post_type'] ?? '' ) ) { return false; }
+		$parent_id = (int) $rev['post_parent'];
+		if ( ! isset( $GLOBALS['__posts'][ $parent_id ] ) ) { return false; }
+		foreach ( array( 'post_content', 'post_title', 'post_excerpt' ) as $f ) {
+			$GLOBALS['__posts'][ $parent_id ][ $f ] = $rev[ $f ];
+		}
+		return $parent_id;
+	}
+}
+
+if ( ! function_exists( 'sn_mcp_rw_bound_uuid' ) )                      { function sn_mcp_rw_bound_uuid() { return $GLOBALS['__bound_uuid']; } }
+if ( ! function_exists( 'sn_mcp_rw_authenticated_app_password_uuid' ) ) { function sn_mcp_rw_authenticated_app_password_uuid() { return $GLOBALS['__auth_uuid']; } }
+if ( ! function_exists( 'sn_mcp_rw_audit_record' ) ) {
+	function sn_mcp_rw_audit_record( $slug, $args, $outcome, $error_source = null ) {
+		$row = array( 'slug' => $slug, 'args' => $args, 'outcome' => $outcome, 'error' => is_wp_error( $error_source ) ? $error_source->get_error_code() : $error_source );
+		$GLOBALS['__audit_calls'][] = $row;
+		return $row;
+	}
+}
+
+
+// $wpdb — meta-description collision query only. Faithful to the REAL query
+// shape (parses and applies the post_id exclusion clause) — same stub as
+// tests/abilities-sn-validate.php's SN_Test_Wpdb_Validate.
+class SN_Test_Wpdb_Apply {
+	public $posts = 'wp_posts';
+	public $postmeta = 'wp_postmeta';
+	public $prefix = 'wp_';
+	public $rows = array(); // list of {post_id, meta_value} for _sn_meta_description
+	public function esc_like( $s ) { return addcslashes( (string) $s, '_%\\' ); }
+	public function prepare( $sql, ...$args ) {
+		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
+		foreach ( $args as $a ) {
+			$sql = preg_replace( '/%[sd]/', is_int( $a ) ? (string) $a : "'" . str_replace( "'", "''", (string) $a ) . "'", $sql, 1 );
+		}
+		return $sql;
+	}
+	public function get_col( $sql ) {
+		preg_match( "/meta_value = '((?:[^'\\\\]|\\\\.)*)'/", $sql, $mv );
+		preg_match( '/post_id != (\d+)/', $sql, $pid );
+		$value    = isset( $mv[1] ) ? stripcslashes( $mv[1] ) : '';
+		$exclude  = isset( $pid[1] ) ? (int) $pid[1] : 0;
+		return array_values( array_map( 'strval', array_column(
+			array_filter( $this->rows, static function ( $r ) use ( $value, $exclude ) {
+				return $r['meta_value'] === $value && $r['post_id'] !== $exclude;
+			} ), 'post_id'
+		) ) );
+	}
+	public function insert( $t, $d, $f = null ) { $GLOBALS['__write_calls']['wpdb_write']++; return 1; }
+	public function update( $t, $d, $w, $f = null, $wf = null ) { $GLOBALS['__write_calls']['wpdb_write']++; return 1; }
+	public function query( $sql ) {
+		if ( preg_match( '/^\s*(INSERT|UPDATE|DELETE|REPLACE)/i', $sql ) ) { $GLOBALS['__write_calls']['wpdb_write']++; }
+		return 0;
+	}
+}
+$GLOBALS['wpdb'] = new SN_Test_Wpdb_Apply();
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Load the SUT
+ * ════════════════════════════════════════════════════════════════════════ */
+require __DIR__ . '/../inc/corpus-inspect.php';
+require __DIR__ . '/../inc/block-fingerprint-engine.php';
+require __DIR__ . '/../inc/block-migrations-apply.php';
+require __DIR__ . '/../inc/pattern-adoption-apply.php';
+require __DIR__ . '/../inc/ai-alt-text-suggest.php';
+require __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
+require __DIR__ . '/../inc/ai-link-suggest.php';
+require __DIR__ . '/../inc/abilities-permission-helpers.php';
+require __DIR__ . '/../inc/abilities-update-post-surfaces.php';
+require __DIR__ . '/../inc/abilities-content.php';
+require __DIR__ . '/../inc/abilities-provenance.php';
+require __DIR__ . '/../inc/sn-validate-checks.php';
+require __DIR__ . '/../inc/sn-validate-checks-media.php';
+require __DIR__ . '/../inc/sn-apply-revision.php';
+require __DIR__ . '/../inc/sn-apply-gates.php';
+require __DIR__ . '/../inc/sn-apply-validation.php';
+require __DIR__ . '/../inc/sn-apply-create-draft.php';
+require __DIR__ . '/../inc/sn-apply-executors.php';
+require __DIR__ . '/../inc/abilities-sn-apply.php';
+
+if ( ! function_exists( 'get_edit_post_link' ) ) { function get_edit_post_link( $id, $ctx = 'display' ) { return 'https://example.test/wp-admin/post.php?post=' . (int) $id . '&action=edit'; } }
+if ( ! function_exists( 'wp_insert_post' ) ) {
+	function wp_insert_post( $args, $wp_error = false ) {
+		$GLOBALS['__write_calls']['wp_insert_post'] = ( $GLOBALS['__write_calls']['wp_insert_post'] ?? 0 ) + 1;
+		$id = $GLOBALS['__next_id']++;
+		tf_post( $id, array_merge( array( 'post_status' => 'draft', 'post_type' => 'post' ), $args, array( 'ID' => $id ) ) );
+		return $id;
+	}
+}
+if ( ! function_exists( 'wp_set_post_tags' ) ) { function wp_set_post_tags( $id, $tags, $append = false ) { $GLOBALS['__write_calls']['wp_set_post_tags'] = ( $GLOBALS['__write_calls']['wp_set_post_tags'] ?? 0 ) + 1; return true; } }
+
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Side-effect recorders for the two publish-only types (the write-primitive
+ * recorder can't see a PNG regen or a worker HTTP dispatch — these can).
+ * ════════════════════════════════════════════════════════════════════════ */
+$GLOBALS['__og_card_calls'] = 0;
+$GLOBALS['__sweep_calls']   = 0;
+if ( ! function_exists( 'sn_generate_og_card' ) ) {
+	function sn_generate_og_card( $post_id ) { $GLOBALS['__og_card_calls']++; return true; }
+}
+if ( ! function_exists( 'sn_og_image_url_for_post' ) ) {
+	function sn_og_image_url_for_post( $post ) { return 'https://example.test/wp-content/uploads/sn-og/post-' . ( is_object( $post ) ? $post->ID : (int) $post ) . '.png'; }
+}
+if ( ! function_exists( 'sn_prov_run_sweep' ) ) {
+	function sn_prov_run_sweep() { $GLOBALS['__sweep_calls']++; return array( 'ok' => true, 'checked' => 3, 'upgraded' => 1, 'still_pending' => 2 ); }
+}
+if ( ! function_exists( 'get_the_title' ) ) {
+	function get_the_title( $post ) { $p = is_object( $post ) ? $post : get_post( $post ); return $p ? (string) $p->post_title : ''; }
+}
+
+function tf_reset_writes() {
+	$GLOBALS['__write_calls'] = array( 'wp_update_post' => 0, 'update_post_meta' => 0, '_wp_put_post_revision' => 0, 'update_option' => 0, 'set_transient' => 0, 'wpdb_write' => 0 );
+	$GLOBALS['__og_card_calls'] = 0;
+	$GLOBALS['__sweep_calls']   = 0;
+}
+function tf_total_writes() {
+	return array_sum( $GLOBALS['__write_calls'] ) + $GLOBALS['__og_card_calls'] + $GLOBALS['__sweep_calls'];
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Fixtures
+ * ════════════════════════════════════════════════════════════════════════ */
+
+// Post 700: surfaces target.
+tf_post( 700, array( 'post_excerpt' => 'The original published excerpt text.' ) );
+$GLOBALS['__post_meta'][700]['_sn_meta_description'] = 'Old meta description.';
+
+// Post 710: pattern_adoption target — a quote-ish block to replace.
+$pa_block = array( 'blockName' => 'core/quote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<blockquote>Q</blockquote>', 'innerContent' => array( '<blockquote>Q</blockquote>' ) );
+tf_post( 710, array( 'post_content' => json_encode( array( $pa_block ) ) ) );
+$pa_fp          = md5( serialize_block( $pa_block ) );
+$pa_replacement = json_encode( array( 'blockName' => 'core/pullquote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<figure>PQ</figure>', 'innerContent' => array( '<figure>PQ</figure>' ) ) );
+
+// Posts 720 (source) + 721 (published link target): link_insert.
+tf_post( 720, array( 'post_content' => 'A body mentioning the target note title somewhere inside prose.' ) );
+tf_post( 721, array( 'post_status' => 'publish' ) );
+$li_anchor = 'target note title';
+$li_pos    = strpos( $GLOBALS['__posts'][720]['post_content'], $li_anchor );
+$li_fp     = snt_ai_drift_fingerprint( $GLOBALS['__posts'][720]['post_content'], $li_anchor, $li_pos );
+
+// Post 730: og_card / anchor_sweep-adjacent generic post.
+tf_post( 730 );
+
+// Attachment 740: alt_text (for the all-types sweep).
+tf_post( 740, array( 'post_type' => 'attachment', 'post_status' => 'inherit' ) );
+
+// Post 750: block_migration (for the all-types sweep).
+$bm_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>H</h3>', 'innerContent' => array( '<h3>H</h3>' ) );
+tf_post( 750, array( 'post_content' => json_encode( array( $bm_block ) ) ) );
+$bm_fp          = md5( serialize_block( $bm_block ) );
+$bm_replacement = json_encode( array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 2 ), 'innerBlocks' => array(), 'innerHTML' => '<h2>H</h2>', 'innerContent' => array( '<h2>H</h2>' ) ) );
+
+// Post 760: drift_replace (for the all-types sweep).
+tf_post( 760, array( 'post_content' => 'Written recently, will drift.' ) );
+$dr_phrase = 'recently';
+$dr_pos    = strpos( $GLOBALS['__posts'][760]['post_content'], $dr_phrase );
+$dr_fp     = snt_ai_drift_fingerprint( $GLOBALS['__posts'][760]['post_content'], $dr_phrase, $dr_pos );
+
+// create_draft (for the all-types sweep) — no fixture post: the target IS
+// the not-yet-created post (session 6c).
+$cd_block   = array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>Sweep draft body.</p>', 'innerContent' => array( '<p>Sweep draft body.</p>' ) );
+$cd_content = json_encode( array( $cd_block ) );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * pattern_adoption — dry_run + revision (delegation pinned by the
+ * surface's OWN error-code map: snt_pattern_adoption_invalid_pattern_type
+ * is produced only by the real snt_ai_pattern_adoption_apply_impl)
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\npattern_adoption: dry_run preview + revision staging + real-impl error-code pin\n";
+tf_reset_writes();
+$rpa1 = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 710 ),
+	'change' => array( 'type' => 'pattern_adoption', 'fingerprint' => $pa_fp, 'payload' => array( 'pattern_type' => 'pull-quote', 'replacement_markup' => $pa_replacement ) ),
+	'mode'   => 'revision', // dry_run defaults true
+) );
+ok( ! is_wp_error( $rpa1 ) && false === $rpa1['applied'], 'PA1.1: dry_run previews' );
+ok( false !== strpos( (string) ( $rpa1['diff']['after'] ?? '' ), 'pullquote' ), 'PA1.2: the diff.after holds the REPLACED tree' );
+eq( 0, tf_total_writes(), 'PA1.3: zero writes' );
+
+$pa_live_before = $GLOBALS['__posts'][710]['post_content'];
+tf_reset_writes();
+$rpa2 = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 710 ),
+	'change' => array( 'type' => 'pattern_adoption', 'fingerprint' => $pa_fp, 'payload' => array( 'pattern_type' => 'pull-quote', 'replacement_markup' => $pa_replacement ) ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $rpa2 ) && true === $rpa2['applied'], 'PA2.1: revision apply succeeds' );
+eq( $pa_live_before, $GLOBALS['__posts'][710]['post_content'], 'PA2.2: live post byte-identical' );
+ok( is_int( $rpa2['revision_id'] ) && isset( $GLOBALS['__posts'][ $rpa2['revision_id'] ] ), 'PA2.3: revision exists' );
+eq( 0, $GLOBALS['__write_calls']['wp_update_post'], 'PA2.4: wp_update_post never called' );
+
+// Real-impl delegation pin: an INVALID pattern_type must come back with the
+// pattern-adoption surface's OWN error code — only the real
+// snt_ai_pattern_adoption_apply_impl's code map produces it.
+$rpa3 = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 710 ),
+	'change' => array( 'type' => 'pattern_adoption', 'fingerprint' => $pa_fp, 'payload' => array( 'pattern_type' => 'not-a-real-type', 'replacement_markup' => $pa_replacement ) ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( is_wp_error( $rpa3 ), 'PA3.1: invalid pattern_type refuses' );
+eq( 'snt_pattern_adoption_invalid_pattern_type', $rpa3->get_error_code(), 'PA3.2: the refusal carries the ABSORBED impl\'s own error code — delegation to snt_ai_pattern_adoption_apply_impl, not a re-implementation' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * link_insert — dry_run + revision (delegation pinned by
+ * snt_ai_link_already_linked, produced only by the real snt_ai_link_apply_impl)
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nlink_insert: dry_run preview + revision staging + real-impl error-code pin\n";
+tf_reset_writes();
+$rli1 = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 720 ),
+	'change' => array( 'type' => 'link_insert', 'fingerprint' => $li_fp, 'payload' => array(
+		'anchor' => $li_anchor, 'context_snippet' => '', 'target_url' => 'https://example.test/notes/post-721/', 'target_post_id' => 721,
+	) ),
+	'mode'   => 'revision', // dry_run defaults true
+) );
+ok( ! is_wp_error( $rli1 ) && false === $rli1['applied'], 'LI1.1: dry_run previews' );
+ok( false !== strpos( (string) ( $rli1['diff']['after'] ?? '' ), '<a href="https://example.test/notes/post-721/">' . $li_anchor . '</a>' ), 'LI1.2: diff.after holds the spliced link exactly as the real impl would write it' );
+eq( 0, tf_total_writes(), 'LI1.3: zero writes' );
+
+$li_live_before = $GLOBALS['__posts'][720]['post_content'];
+tf_reset_writes();
+$rli2 = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 720 ),
+	'change' => array( 'type' => 'link_insert', 'fingerprint' => $li_fp, 'payload' => array(
+		'anchor' => $li_anchor, 'context_snippet' => '', 'target_url' => 'https://example.test/notes/post-721/', 'target_post_id' => 721,
+	) ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $rli2 ) && true === $rli2['applied'], 'LI2.1: revision apply succeeds' );
+eq( $li_live_before, $GLOBALS['__posts'][720]['post_content'], 'LI2.2: live post byte-identical' );
+ok( is_int( $rli2['revision_id'] ) && false !== strpos( $GLOBALS['__posts'][ $rli2['revision_id'] ]['post_content'] ?? '', '</a>' ), 'LI2.3: the staged revision carries the linked content (delegation target: snt_ai_link_apply_impl via write_callback)' );
+eq( 0, $GLOBALS['__write_calls']['wp_update_post'], 'LI2.4: wp_update_post never called' );
+
+// Real-impl delegation pin: content whose anchor already sits inside an <a>
+// must come back with the link surface's OWN error code.
+tf_post( 725, array( 'post_content' => 'Already linked: <a href="https://example.test/x/">' . $li_anchor . '</a> here.' ) );
+$li725_pos = strpos( $GLOBALS['__posts'][725]['post_content'], $li_anchor );
+$li725_fp  = snt_ai_drift_fingerprint( $GLOBALS['__posts'][725]['post_content'], $li_anchor, $li725_pos );
+$rli3 = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 725 ),
+	'change' => array( 'type' => 'link_insert', 'fingerprint' => $li725_fp, 'payload' => array(
+		'anchor' => $li_anchor, 'context_snippet' => '', 'target_url' => 'https://example.test/notes/post-721/', 'target_post_id' => 721,
+	) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( is_wp_error( $rli3 ), 'LI3.1: already-linked anchor refuses' );
+eq( 'snt_ai_link_already_linked', $rli3->get_error_code(), 'LI3.2: the refusal carries the ABSORBED impl\'s own error code (snt_ai_link_position_inside_anchor inside the real snt_ai_link_apply_impl) — delegation, not a re-implementation. (Gate 2\'s not_already_linked mirror is inert in this harness: sn_health_contains_note_link is not loaded, and its check is function_exists-guarded — so the real impl\'s own guard is what fires, which is exactly the delegation pin this test wants.)' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * ALL EIGHT change types: structural dry_run zero-writes sweep (session-4
+ * recorder pattern — loop the ENUM itself, so a future ninth type that
+ * skips this table fails the count assertion automatically).
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nStructural sweep: every change type's dry_run path writes NOTHING\n";
+$sweep_calls = array(
+	'block_migration'  => array( 'target' => array( 'post_id' => 750 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_migration', 'fingerprint' => $bm_fp, 'payload' => array( 'migration_type' => 'heading-hierarchy-skip', 'replacement_markup' => $bm_replacement ) ) ),
+	'pattern_adoption' => array( 'target' => array( 'post_id' => 710 ), 'mode' => 'revision', 'change' => array( 'type' => 'pattern_adoption', 'fingerprint' => $pa_fp, 'payload' => array( 'pattern_type' => 'pull-quote', 'replacement_markup' => $pa_replacement ) ) ),
+	'alt_text'         => array( 'target' => array( 'attachment_id' => 740 ), 'mode' => 'revision', 'change' => array( 'type' => 'alt_text', 'payload' => array( 'text' => 'A generic but valid alt text for the sweep fixture' ) ) ),
+	'link_insert'      => array( 'target' => array( 'post_id' => 720 ), 'mode' => 'revision', 'change' => array( 'type' => 'link_insert', 'fingerprint' => $li_fp, 'payload' => array( 'anchor' => $li_anchor, 'context_snippet' => '', 'target_url' => 'https://example.test/notes/post-721/', 'target_post_id' => 721 ) ) ),
+	'drift_replace'    => array( 'target' => array( 'post_id' => 760 ), 'mode' => 'revision', 'change' => array( 'type' => 'drift_replace', 'fingerprint' => $dr_fp, 'payload' => array( 'phrase' => $dr_phrase, 'replacement' => 'in June 2026', 'position' => $dr_pos, 'context_snippet' => '' ) ) ),
+	'surfaces'         => array( 'target' => array( 'post_id' => 700 ), 'mode' => 'revision', 'change' => array( 'type' => 'surfaces', 'payload' => array( 'excerpt' => 'Sweep excerpt proposal, plainly long enough to pass the validation gate without any warnings raised at all.' ) ) ),
+	// The two publish-only types run the sweep in publish mode: dry_run must
+	// still preview (all four gates + diff) with zero side effects.
+	'og_card'          => array( 'target' => array( 'post_id' => 730 ), 'mode' => 'publish', 'change' => array( 'type' => 'og_card', 'payload' => array() ) ),
+	'anchor_sweep'     => array( 'target' => array( 'scope' => 'provenance_anchors' ), 'mode' => 'publish', 'change' => array( 'type' => 'anchor_sweep', 'payload' => array() ) ),
+	// create_draft (session 6c) is REVISION-only (mode:publish refuses
+	// structurally — see snt_sn_apply_mode_support()), the mirror image of
+	// og_card/anchor_sweep's publish-only posture above.
+	'create_draft'     => array( 'target' => array( 'new_post' => true ), 'mode' => 'revision', 'change' => array( 'type' => 'create_draft', 'payload' => array( 'title' => 'Sweep draft title', 'content' => $cd_content ) ) ),
+);
+eq( count( SNT_SN_APPLY_CHANGE_TYPES ), count( $sweep_calls ), 'SWEEP.0: the sweep table covers the FULL enum — a new change type added to SNT_SN_APPLY_CHANGE_TYPES fails here until it joins the sweep' );
+foreach ( SNT_SN_APPLY_CHANGE_TYPES as $sweep_type ) {
+	ok( isset( $sweep_calls[ $sweep_type ] ), "SWEEP.has: a sweep case exists for '$sweep_type'" );
+	if ( ! isset( $sweep_calls[ $sweep_type ] ) ) { continue; }
+	$case = $sweep_calls[ $sweep_type ];
+	tf_reset_writes();
+	$posts_snap = $GLOBALS['__posts'];
+	$meta_snap  = $GLOBALS['__post_meta'];
+	$opts_snap  = $GLOBALS['__options'];
+	$res = snt_ability_sn_apply( array(
+		'target' => $case['target'],
+		'change' => $case['change'],
+		'mode'   => $case['mode'],
+		// dry_run omitted on purpose — the DEFAULT must be the safe path.
+	) );
+	ok( ! is_wp_error( $res ) && false === ( $res['applied'] ?? null ), "SWEEP.$sweep_type: dry_run (defaulted) previews without applying" );
+	eq( 0, tf_total_writes(), "SWEEP.$sweep_type: ZERO write-primitive + side-effect calls" );
+	eq( $posts_snap, $GLOBALS['__posts'], "SWEEP.$sweep_type: post store byte-identical" );
+	eq( $meta_snap, $GLOBALS['__post_meta'], "SWEEP.$sweep_type: postmeta store byte-identical" );
+	eq( $opts_snap, $GLOBALS['__options'], "SWEEP.$sweep_type: options store byte-identical (no staged-meta or idempotency row from a dry run without a key)" );
+}
+
+echo "\nResult: $pass passed, $fail failed.\n";
+exit( $fail > 0 ? 1 : 0 );

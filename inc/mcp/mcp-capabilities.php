@@ -153,7 +153,12 @@ function sn_mcp_allowlist() {
  * read door (plaintext usernames — see the audit's PII flags on
  * get-audit-log/export-audit-log). Widened to 35 in v9.82.0 by anchor-sweep
  * (30 plugin + 5 theme); the read-door 25 are never duplicated in here — a
- * client wanting reads uses the read door.
+ * client wanting reads uses the read door. Widened 35 -> 36 in v10.40.0 by
+ * sn-apply (MCP consolidation session 6b) — the fifth CONSOLIDATED tool,
+ * registered NEW alongside every ability it absorbs (block-migrations-apply,
+ * pattern-adoption-apply, ai-alt-apply, ai-drift-apply, ai-link-apply,
+ * update-post-surfaces, regenerate-og-card, anchor-sweep — none of which
+ * were touched, unregistered, or deleted).
  *
  * Held OUT on purpose (present on neither door — verify with
  * sn_mcp_is_allowed before ever touching this list):
@@ -212,6 +217,11 @@ function sn_mcp_rw_allowlist() {
 		// proofs. The rw door's kill switch, app-password binding, rate limit,
 		// and audit trail are exactly the envelope this wants.
 		'signal-noise/anchor-sweep',
+		// v10.40.0 — MCP consolidation session 6b: the consolidated write
+		// tool. Four ability-level gates (fingerprint/validation/capability/
+		// idempotency) on TOP of this door's existing hardening — see
+		// inc/abilities-sn-apply.php.
+		'signal-noise/sn-apply',
 		// Theme (signal-and-noise/) — 5, all AI-billed + return-only.
 		'signal-and-noise/ai-generate-page-note-summary',
 		'signal-and-noise/ai-suggest-block-pattern',

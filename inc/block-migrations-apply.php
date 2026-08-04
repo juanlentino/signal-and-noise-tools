@@ -21,11 +21,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Pure impl: apply a fingerprint-validated block migration.
  *
- * @param int    $post_id
- * @param string $block_fingerprint  md5 from the scan.
- * @param string $replacement_markup Block markup string (suggest output, possibly user-edited).
- * @param string $migration_type     For diagnostic echo + invalid-type gate.
- * @return array{ok:bool,post_id:int,migration_type:string}|WP_Error
+ * @param int           $post_id
+ * @param string        $block_fingerprint  md5 from the scan.
+ * @param string        $replacement_markup Block markup string (suggest output, possibly user-edited).
+ * @param string        $migration_type     For diagnostic echo + invalid-type gate.
+ * @param callable|null $write_callback     (v10.40.0, sn_apply session 6b) Optional
+ *                                          write-step override — see
+ *                                          snt_block_fp_apply()'s docblock. Default
+ *                                          null preserves the original
+ *                                          wp_update_post() behavior byte-for-byte.
+ * @return array{ok:bool,post_id:int,migration_type:string,old_content:string,new_content:string}|WP_Error
  *
  * WP_Error codes:
  *   snt_block_migration_capability        (403)
@@ -37,7 +42,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * @since 4.5.0
  */
-function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replacement_markup, $migration_type ) {
+function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replacement_markup, $migration_type, $write_callback = null ) {
 	$post_id        = (int) $post_id;
 	$migration_type = (string) $migration_type;
 
@@ -62,6 +67,7 @@ function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replace
 		'error_messages'     => array(
 			'invalid_type' => __( 'migration_type must be one of: heading-hierarchy-skip.', 'signal-and-noise-tools' ),
 		),
+		'write_callback'     => $write_callback,
 	) );
 
 	if ( is_wp_error( $result ) ) {
@@ -72,5 +78,7 @@ function snt_block_migrations_apply_impl( $post_id, $block_fingerprint, $replace
 		'ok'             => true,
 		'post_id'        => $post_id,
 		'migration_type' => $migration_type,
+		'old_content'    => $result['old_content'] ?? '',
+		'new_content'    => $result['new_content'] ?? '',
 	);
 }

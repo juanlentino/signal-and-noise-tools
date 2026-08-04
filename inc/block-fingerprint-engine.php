@@ -145,10 +145,28 @@ function snt_block_fp_sanitize_node( $node ) {
  *     @type array  $error_messages     Optional per-key message overrides
  *                                      (write_failed takes the underlying
  *                                      error message via sprintf %s).
+ *     @type callable|null $write_callback (v10.40.0, sn_apply session 6b)
+ *                                      Optional. When set, called as
+ *                                      $write_callback( $post_id, $new_content )
+ *                                      INSTEAD of wp_update_post() — used by
+ *                                      sn_apply's mode:"revision" to route the
+ *                                      write step through
+ *                                      snt_sn_apply_stage_revision() instead of
+ *                                      touching the live post. Must return the
+ *                                      same shape wp_update_post( ..., true )
+ *                                      would: post ID (or any non-WP_Error
+ *                                      truthy value) on success, WP_Error on
+ *                                      failure. Every existing caller omits
+ *                                      this — default null preserves the
+ *                                      original wp_update_post() behavior
+ *                                      byte-for-byte.
  * }
- * @return array{ok:bool,post_id:int}|WP_Error Success payload is minimal —
- *                                             surface wrappers add their own
- *                                             echo keys.
+ * @return array{ok:bool,post_id:int,old_content:string,new_content:string}|WP_Error
+ *                                             Success payload's ok/post_id are
+ *                                             the original contract; old_content/
+ *                                             new_content are additive (v10.40.0,
+ *                                             sn_apply's diff reporting) — surface
+ *                                             wrappers add their own echo keys.
  */
 function snt_block_fp_apply( $args ) {
 	$post_id            = (int) ( $args['post_id'] ?? 0 );
@@ -158,6 +176,7 @@ function snt_block_fp_apply( $args ) {
 	$valid_types        = (array) ( $args['valid_types'] ?? array() );
 	$codes              = (array) ( $args['error_codes'] ?? array() );
 	$messages           = (array) ( $args['error_messages'] ?? array() );
+	$write_callback     = $args['write_callback'] ?? null;
 
 	$err = function ( $key, $status, $message ) use ( $codes, $messages ) {
 		return new WP_Error(
@@ -181,7 +200,8 @@ function snt_block_fp_apply( $args ) {
 		return $err( 'post_not_found', 404, __( 'Post not found.', 'signal-and-noise-tools' ) );
 	}
 
-	$blocks           = parse_blocks( (string) $post->post_content );
+	$old_content      = (string) $post->post_content;
+	$blocks           = parse_blocks( $old_content );
 	$replacement      = parse_blocks( $replacement_markup );
 	$replacement_node = $replacement[0] ?? null;
 
@@ -204,10 +224,16 @@ function snt_block_fp_apply( $args ) {
 		return $err( 'conflict', 409, __( 'Block changed or removed since scan. Re-run scan.', 'signal-and-noise-tools' ) );
 	}
 
-	$result = wp_update_post( array(
-		'ID'           => $post_id,
-		'post_content' => serialize_blocks( $blocks ),
-	), true );
+	$new_content = serialize_blocks( $blocks );
+
+	if ( is_callable( $write_callback ) ) {
+		$result = call_user_func( $write_callback, $post_id, $new_content );
+	} else {
+		$result = wp_update_post( array(
+			'ID'           => $post_id,
+			'post_content' => $new_content,
+		), true );
+	}
 
 	if ( is_wp_error( $result ) ) {
 		/* translators: %s is the error message from wp_update_post() */
@@ -220,7 +246,9 @@ function snt_block_fp_apply( $args ) {
 	}
 
 	return array(
-		'ok'      => true,
-		'post_id' => $post_id,
+		'ok'          => true,
+		'post_id'     => $post_id,
+		'old_content' => $old_content,
+		'new_content' => $new_content,
 	);
 }

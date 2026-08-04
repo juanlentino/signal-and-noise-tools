@@ -280,8 +280,20 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
  * @param int    $position         Byte offset returned by Suggest (raw coords; advisory — re-resolved here).
  * @param string $replacement      Proposed replacement phrase from the suggest pass (possibly user-edited; max length enforced).
  * @param string $fingerprint      md5 from snt_ai_drift_fingerprint() — required match.
- * @param string $context_snippet  ~200 chars around phrase from scan — used to disambiguate phrase occurrences. Required since 4.1.1.
- * @return array{ok:bool,post_id:int,replaced:string,with:string}|WP_Error Apply result on success; WP_Error on fingerprint mismatch or wp_update_post failure.
+ * @param string        $context_snippet  ~200 chars around phrase from scan — used to disambiguate phrase occurrences. Required since 4.1.1.
+ * @param callable|null $write_callback   (v10.40.0, sn_apply session 6b) Optional
+ *                                        write-step override: when set, called as
+ *                                        $write_callback( $post_id, $new_content )
+ *                                        INSTEAD of wp_update_post() — lets
+ *                                        sn_apply's mode:"revision" route this
+ *                                        surface's write through
+ *                                        snt_sn_apply_stage_revision() without
+ *                                        touching the live post. Must return the
+ *                                        post ID (or any non-WP_Error truthy
+ *                                        value) on success, WP_Error on failure.
+ *                                        Default null preserves the original
+ *                                        wp_update_post() behavior byte-for-byte.
+ * @return array{ok:bool,post_id:int,replaced:string,with:string,old_content:string,new_content:string}|WP_Error Apply result on success; WP_Error on fingerprint mismatch or write failure.
  *
  * WP_Error codes:
  *   snt_ai_post_not_found      (404)
@@ -290,7 +302,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
  *   snt_ai_capability          (403)
  *   snt_ai_write_failed        (500)
  */
-function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '' ) {
+function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '', $write_callback = null ) {
 	$post_id         = (int) $post_id;
 	$position        = (int) $position; // Advisory — re-resolved below.
 	$phrase          = (string) $phrase;
@@ -337,10 +349,14 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 	// Splice at the resolved raw-content position.
 	$new_content = substr_replace( $current_content, $replacement, $raw_position, strlen( $phrase ) );
 
-	$result = wp_update_post( array(
-		'ID'           => $post_id,
-		'post_content' => $new_content,
-	), true );
+	if ( is_callable( $write_callback ) ) {
+		$result = call_user_func( $write_callback, $post_id, $new_content );
+	} else {
+		$result = wp_update_post( array(
+			'ID'           => $post_id,
+			'post_content' => $new_content,
+		), true );
+	}
 
 	if ( is_wp_error( $result ) ) {
 		/* translators: %s is the error message from wp_update_post() */
@@ -348,10 +364,12 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 	}
 
 	return array(
-		'ok'       => true,
-		'post_id'  => $post_id,
-		'replaced' => $phrase,
-		'with'     => $replacement,
+		'ok'          => true,
+		'post_id'     => $post_id,
+		'replaced'    => $phrase,
+		'with'        => $replacement,
+		'old_content' => $current_content,
+		'new_content' => $new_content,
 	);
 }
 
