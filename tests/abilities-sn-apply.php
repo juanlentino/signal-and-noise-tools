@@ -415,6 +415,51 @@ eq( 409, (int) ( $r4c->get_error_data()['status'] ?? 0 ), 'Test 4c.2: status 409
 ok( false !== strpos( $r4c->get_error_message(), 'post:812' ) && false !== strpos( $r4c->get_error_message(), 'attachment:401' ), 'Test 4c.3: the refusal names BOTH targets (stored and requested)' );
 
 /* ════════════════════════════════════════════════════════════════════════
+ * ACCEPTANCE TEST 4d (fix round, REJECT #10, pre-existing defect flagged
+ * theoretical in the session 6b build, graduated to likely by
+ * restore_revision's own documented dry-run-diff-then-apply workflow): a
+ * dry_run:true call carrying an idempotency_key must NOT poison the store —
+ * neither recording its preview response nor being replayable — so the
+ * natural follow-up dry_run:false call under the SAME key genuinely
+ * executes the write, rather than replaying the untouched preview
+ * (applied:false) forever.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nAcceptance test 4d (fix round, REJECT #10): dry_run:true does not poison the idempotency store for the same key\n";
+tf_post( 403, array( 'post_type' => 'attachment', 'post_status' => 'inherit' ) );
+tf_reset_writes();
+
+$r4d1 = snt_ability_sn_apply( array(
+	'target' => array( 'attachment_id' => 403 ),
+	'change' => array( 'type' => 'alt_text', 'payload' => array( 'text' => 'A preview alt text, never meant to apply' ) ),
+	'mode'   => 'publish', 'dry_run' => true, 'idempotency_key' => 'dry-then-apply-1',
+) );
+ok( ! is_wp_error( $r4d1 ), 'Test 4d.1: dry_run preview does not refuse' );
+eq( false, $r4d1['applied'] ?? null, 'Test 4d.2: dry_run preview applied:false' );
+eq( 0, tf_total_writes(), 'Test 4d.3: dry_run preview performed ZERO writes' );
+
+$r4d2 = snt_ability_sn_apply( array(
+	'target' => array( 'attachment_id' => 403 ),
+	'change' => array( 'type' => 'alt_text', 'payload' => array( 'text' => 'The real applied alt text' ) ),
+	'mode'   => 'publish', 'dry_run' => false, 'idempotency_key' => 'dry-then-apply-1', // SAME key as the dry run
+) );
+ok( ! is_wp_error( $r4d2 ), 'Test 4d.4: the follow-up dry_run:false call does not refuse' );
+eq( false, $r4d2['replayed'] ?? null, 'Test 4d.5: the follow-up call is NOT a replay of the dry-run preview -- the dry run never recorded into the store' );
+eq( true, $r4d2['applied'] ?? null, 'Test 4d.6: the follow-up call genuinely APPLIED -- the write actually executed, never stuck behind a replayed preview' );
+ok( tf_total_writes() > 0, 'Test 4d.7: at least one real write happened' );
+eq( 'The real applied alt text', $GLOBALS['__post_meta'][403]['_wp_attachment_image_alt'] ?? null, 'Test 4d.8: the real value landed in postmeta, not the dry-run preview text' );
+
+// A genuine repeat of the SAME dry_run:false call (third call, same key) now
+// replays the SECOND call's result (the real applied one) -- proving the
+// store's write-half idempotency is unaffected; only the dry-run half changed.
+$r4d3 = snt_ability_sn_apply( array(
+	'target' => array( 'attachment_id' => 403 ),
+	'change' => array( 'type' => 'alt_text', 'payload' => array( 'text' => 'A third, ignored value' ) ),
+	'mode'   => 'publish', 'dry_run' => false, 'idempotency_key' => 'dry-then-apply-1',
+) );
+ok( ! is_wp_error( $r4d3 ), 'Test 4d.9: third call does not refuse' );
+eq( true, $r4d3['replayed'] ?? null, 'Test 4d.10: third call (a genuine dry_run:false repeat) DOES replay -- write-side idempotency is unaffected by this fix' );
+
+/* ════════════════════════════════════════════════════════════════════════
  * ACCEPTANCE TEST 5: a credential scoped to "revision" requesting
  * mode:"publish" → refusal at gate 3, logged via audit.
  * ════════════════════════════════════════════════════════════════════════ */

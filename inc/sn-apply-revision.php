@@ -357,6 +357,25 @@ if ( ! function_exists( 'snt_sn_apply_stage_meta' ) ) {
 
 		update_option( snt_sn_apply_staged_meta_option_name( $post_id, $meta_key ), $record, false );
 
+		// Session 7 (restore_revision, the acceptance path): additively
+		// maintain a per-post index of staged meta_keys. Before this, there
+		// was NO way to enumerate a post's staged rows short of guessing
+		// every meta_key ever staged — restore_revision's "apply the queue"
+		// step needs exactly that enumeration. Additive-only: every existing
+		// caller's return shape above is untouched, and this never removes a
+		// key it didn't just add. KNOWN GAP, documented rather than hidden:
+		// rows staged BEFORE this index existed (any pre-v10.42.0 staged
+		// row) will not be enumerated by it — the queue is days old and
+		// short-lived (session 6a shipped v10.40.0, four releases ago), so
+		// this is accepted, not silently swept under.
+		$index_option = snt_sn_apply_staged_meta_index_option_name( $post_id );
+		$index        = get_option( $index_option, array() );
+		$index        = is_array( $index ) ? $index : array();
+		if ( ! in_array( $meta_key, $index, true ) ) {
+			$index[] = $meta_key;
+			update_option( $index_option, $index, false );
+		}
+
 		return array(
 			'post_id'   => $post_id,
 			'meta_key'  => $meta_key,
@@ -392,6 +411,24 @@ if ( ! function_exists( 'snt_sn_apply_staged_meta_option_name' ) ) {
 	 */
 	function snt_sn_apply_staged_meta_option_name( $post_id, $meta_key ) {
 		return SNT_SN_APPLY_STAGED_META_OPTION_PREFIX . $post_id . '_' . md5( $meta_key );
+	}
+}
+
+if ( ! function_exists( 'snt_sn_apply_staged_meta_index_option_name' ) ) {
+	/**
+	 * Session 7 (restore_revision) — the per-post index of staged meta_keys.
+	 * Reuses SNT_SN_APPLY_STAGED_META_OPTION_PREFIX rather than a new
+	 * top-level const; the literal 'index_' segment can never collide with a
+	 * per-key row's own suffix (an md5 hex digest is never the string
+	 * "index_...").
+	 *
+	 * @param int $post_id
+	 * @return string
+	 *
+	 * @since 10.42.0
+	 */
+	function snt_sn_apply_staged_meta_index_option_name( $post_id ) {
+		return SNT_SN_APPLY_STAGED_META_OPTION_PREFIX . 'index_' . (int) $post_id;
 	}
 }
 

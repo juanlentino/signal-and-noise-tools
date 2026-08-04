@@ -161,6 +161,36 @@ if ( ! function_exists( 'wp_restore_post_revision' ) ) {
 		return $parent_id;
 	}
 }
+// Session 7 (restore_revision) — real 6.9 contract: wp_get_post_revision()
+// returns null for BOTH "no such post" and "found, but not a revision"
+// (verified against the real source, wp-includes/revision.php — see
+// inc/sn-apply-restore-revision.php's docblock).
+if ( ! function_exists( 'wp_get_post_revision' ) ) {
+	function wp_get_post_revision( $id ) {
+		$row = $GLOBALS['__posts'][ (int) $id ] ?? null;
+		if ( ! $row || 'revision' !== ( $row['post_type'] ?? '' ) ) { return null; }
+		return (object) $row;
+	}
+}
+if ( ! function_exists( 'wp_get_post_revisions' ) ) {
+	function wp_get_post_revisions( $post_id, $args = null ) {
+		$post_id = (int) $post_id;
+		$out     = array();
+		foreach ( $GLOBALS['__posts'] as $row ) {
+			if ( 'revision' === ( $row['post_type'] ?? '' ) && (int) ( $row['post_parent'] ?? 0 ) === $post_id ) {
+				$out[] = (object) $row;
+			}
+		}
+		// Real core orders 'date ID' DESC — this fixture's revision IDs are
+		// assigned sequentially at creation time, so ID DESC is a faithful
+		// proxy for "newest first" without needing real timestamps.
+		usort( $out, function ( $a, $b ) { return $b->ID <=> $a->ID; } );
+		return $out;
+	}
+}
+if ( ! function_exists( 'delete_option' ) ) {
+	function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; }
+}
 
 if ( ! function_exists( 'sn_mcp_rw_bound_uuid' ) )                      { function sn_mcp_rw_bound_uuid() { return $GLOBALS['__bound_uuid']; } }
 if ( ! function_exists( 'sn_mcp_rw_authenticated_app_password_uuid' ) ) { function sn_mcp_rw_authenticated_app_password_uuid() { return $GLOBALS['__auth_uuid']; } }
@@ -229,6 +259,7 @@ require __DIR__ . '/../inc/sn-apply-revision.php';
 require __DIR__ . '/../inc/sn-apply-gates.php';
 require __DIR__ . '/../inc/sn-apply-validation.php';
 require __DIR__ . '/../inc/sn-apply-create-draft.php';
+require __DIR__ . '/../inc/sn-apply-restore-revision.php';
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
@@ -315,6 +346,12 @@ $dr_fp     = snt_ai_drift_fingerprint( $GLOBALS['__posts'][760]['post_content'],
 // the not-yet-created post (session 6c).
 $cd_block   = array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>Sweep draft body.</p>', 'innerContent' => array( '<p>Sweep draft body.</p>' ) );
 $cd_content = json_encode( array( $cd_block ) );
+
+// Post 770 + revision 771 (for the all-types sweep) — restore_revision
+// (session 7). Fingerprint binds to post 770's LIVE content_hash.
+tf_post( 770, array( 'post_content' => 'Sweep restore target content.', 'post_excerpt' => 'Sweep excerpt.' ) );
+tf_post( 771, array( 'post_type' => 'revision', 'post_parent' => 770, 'post_content' => 'Sweep restore proposed content.', 'post_title' => 'Post 770', 'post_excerpt' => 'Sweep excerpt.' ) );
+$rr_fp = snt_corpus_content_hash( $GLOBALS['__posts'][770]['post_content'] );
 
 /* ════════════════════════════════════════════════════════════════════════
  * pattern_adoption — dry_run + revision (delegation pinned by the
@@ -422,6 +459,9 @@ $sweep_calls = array(
 	// structurally — see snt_sn_apply_mode_support()), the mirror image of
 	// og_card/anchor_sweep's publish-only posture above.
 	'create_draft'     => array( 'target' => array( 'new_post' => true ), 'mode' => 'revision', 'change' => array( 'type' => 'create_draft', 'payload' => array( 'title' => 'Sweep draft title', 'content' => $cd_content ) ) ),
+	// restore_revision (session 7) is PUBLISH-only — the mirror image of
+	// create_draft's REVISION-only posture, same mode_support mechanism.
+	'restore_revision' => array( 'target' => array( 'post_id' => 770 ), 'mode' => 'publish', 'change' => array( 'type' => 'restore_revision', 'fingerprint' => $rr_fp, 'payload' => array( 'revision_id' => 771 ) ) ),
 );
 eq( count( SNT_SN_APPLY_CHANGE_TYPES ), count( $sweep_calls ), 'SWEEP.0: the sweep table covers the FULL enum — a new change type added to SNT_SN_APPLY_CHANGE_TYPES fails here until it joins the sweep' );
 foreach ( SNT_SN_APPLY_CHANGE_TYPES as $sweep_type ) {
