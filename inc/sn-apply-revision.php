@@ -158,7 +158,7 @@
  * this primitive.
  *
  * @package SignalNoiseTools
- * @since 10.39.0
+ * @since 10.40.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -192,7 +192,7 @@ if ( ! function_exists( 'snt_sn_apply_stage_revision' ) ) {
 	 *   snt_sn_apply_revision_of_revision  (422) — $post_id is itself a revision
 	 *   snt_sn_apply_write_failed          (500)
 	 *
-	 * @since 10.39.0
+	 * @since 10.40.0
 	 */
 	function snt_sn_apply_stage_revision( $post_id, array $proposed ) {
 		$post_id = (int) $post_id;
@@ -296,7 +296,7 @@ if ( ! function_exists( 'snt_sn_apply_stage_meta' ) ) {
 	 *   snt_sn_apply_post_not_found   (404)
 	 *   snt_sn_apply_invalid_meta_key (422)
 	 *
-	 * @since 10.39.0
+	 * @since 10.40.0
 	 */
 	function snt_sn_apply_stage_meta( $post_id, $meta_key, $proposed_value, $fingerprint = '' ) {
 		$post_id  = (int) $post_id;
@@ -335,7 +335,7 @@ if ( ! function_exists( 'snt_sn_apply_get_staged_meta' ) ) {
 	 * @param string $meta_key
 	 * @return array{proposed_value:mixed,staged_at:int,fingerprint:string}|null
 	 *
-	 * @since 10.39.0
+	 * @since 10.40.0
 	 */
 	function snt_sn_apply_get_staged_meta( $post_id, $meta_key ) {
 		$value = get_option( snt_sn_apply_staged_meta_option_name( (int) $post_id, (string) $meta_key ), null );
@@ -349,7 +349,7 @@ if ( ! function_exists( 'snt_sn_apply_staged_meta_option_name' ) ) {
 	 * @param string $meta_key
 	 * @return string
 	 *
-	 * @since 10.39.0
+	 * @since 10.40.0
 	 */
 	function snt_sn_apply_staged_meta_option_name( $post_id, $meta_key ) {
 		return SNT_SN_APPLY_STAGED_META_OPTION_PREFIX . $post_id . '_' . md5( $meta_key );
@@ -369,7 +369,7 @@ if ( ! function_exists( 'snt_sn_apply_restore_revision' ) ) {
 	 * WP_Error codes:
 	 *   snt_sn_apply_revision_not_found (404)
 	 *
-	 * @since 10.39.0
+	 * @since 10.40.0
 	 */
 	function snt_sn_apply_restore_revision( $revision_id ) {
 		$revision_id = (int) $revision_id;
@@ -400,7 +400,7 @@ if ( ! function_exists( 'snt_sn_apply_revision_diff' ) ) {
 	 *   snt_sn_apply_revision_not_found (404)
 	 *   snt_sn_apply_post_not_found     (404) — parent post gone
 	 *
-	 * @since 10.39.0
+	 * @since 10.40.0
 	 */
 	function snt_sn_apply_revision_diff( $revision_id ) {
 		$revision_id = (int) $revision_id;

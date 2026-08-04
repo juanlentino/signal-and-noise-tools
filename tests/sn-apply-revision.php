@@ -34,7 +34,7 @@
  *     wp_is_post_revision() guard) prove it is THOSE plugin-side guards,
  *     not an absent fire, that keep our own hooks from cascading.
  *
- * @since plugin v10.39.0
+ * @since plugin v10.40.0
  */
 
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
@@ -321,7 +321,7 @@ function _sar_post( $id, $overrides = array() ) {
 	return $row;
 }
 
-echo "sn_apply revision-mode primitive suite — plugin v10.39.0\n";
+echo "sn_apply revision-mode primitive suite — plugin v10.40.0\n";
 
 // ─── Test 1: post not found → 404 ────────────────────────────────────
 echo "\nTest 1: post not found\n";

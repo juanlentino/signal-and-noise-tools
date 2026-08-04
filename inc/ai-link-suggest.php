@@ -523,8 +523,13 @@ function snt_ai_link_position_inside_anchor( $content, $position ) {
  * @param string $anchor          Mention text exactly as it appears in raw content.
  * @param string $context_snippet ~200 stripped chars around the mention (disambiguates occurrences).
  * @param string $fingerprint     md5 from the matching suggest call.
- * @param string $target_url      Permalink to link to (same-host required).
- * @return array{ok:bool,post_id:int,anchor:string,target_url:string}|WP_Error
+ * @param string        $target_url      Permalink to link to (same-host required).
+ * @param callable|null $write_callback  (v10.40.0, sn_apply session 6b) Optional
+ *                                       write-step override — same contract as
+ *                                       snt_ai_drift_apply_impl()'s. Default null
+ *                                       preserves the original wp_update_post()
+ *                                       behavior byte-for-byte.
+ * @return array{ok:bool,post_id:int,anchor:string,target_url:string,old_content:string,new_content:string}|WP_Error
  *
  * WP_Error codes:
  *   snt_ai_anchor_invalid      (422) — empty / over-long anchor
@@ -537,7 +542,7 @@ function snt_ai_link_position_inside_anchor( $content, $position ) {
  *
  * @since 7.4.0
  */
-function snt_ai_link_apply_impl( $post_id, $anchor, $context_snippet, $fingerprint, $target_url ) {
+function snt_ai_link_apply_impl( $post_id, $anchor, $context_snippet, $fingerprint, $target_url, $write_callback = null ) {
 	$post_id         = (int) $post_id;
 	$anchor          = (string) $anchor; // NOT trimmed — must match content bytes.
 	$context_snippet = (string) $context_snippet;
@@ -582,10 +587,14 @@ function snt_ai_link_apply_impl( $post_id, $anchor, $context_snippet, $fingerpri
 	$link        = '<a href="' . esc_url( $target_url ) . '">' . $anchor . '</a>';
 	$new_content = substr_replace( $current_content, $link, $raw_position, strlen( $anchor ) );
 
-	$result = wp_update_post( array(
-		'ID'           => $post_id,
-		'post_content' => $new_content,
-	), true );
+	if ( is_callable( $write_callback ) ) {
+		$result = call_user_func( $write_callback, $post_id, $new_content );
+	} else {
+		$result = wp_update_post( array(
+			'ID'           => $post_id,
+			'post_content' => $new_content,
+		), true );
+	}
 
 	if ( is_wp_error( $result ) ) {
 		/* translators: %s is the error message from wp_update_post() */
@@ -602,9 +611,11 @@ function snt_ai_link_apply_impl( $post_id, $anchor, $context_snippet, $fingerpri
 	}
 
 	return array(
-		'ok'         => true,
-		'post_id'    => $post_id,
-		'anchor'     => $anchor,
-		'target_url' => $target_url,
+		'ok'          => true,
+		'post_id'     => $post_id,
+		'anchor'      => $anchor,
+		'target_url'  => $target_url,
+		'old_content' => $current_content,
+		'new_content' => $new_content,
 	);
 }

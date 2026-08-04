@@ -75,6 +75,18 @@ const SN_MCP_RW_NOTIFY_COALESCE_WINDOW_SECONDS = 60; // >1 send per 60s coalesce
  * get-audit-log/export-audit-log — harmless to allowlist a boolean flag
  * ahead of that lane merging.
  *
+ * v10.40.0 (MCP consolidation session 6b, sn_apply): the trailing block adds
+ * sn_apply's own ENRICHMENT keys — see inc/abilities-sn-apply.php's
+ * snt_sn_apply_audit_enrichment(), which calls this function's own
+ * sn_mcp_rw_audit_record() a SECOND time (in addition to the door's
+ * automatic call every rw-door ability already gets) with a purpose-built,
+ * scalar-only args array, because gate outcomes and revision_id are OUTPUT,
+ * not input, and can never appear in the door's automatic redaction of the
+ * raw request. Every key here is a plain scalar (string/bool/int) — never
+ * `payload` (the actual proposed content) or `target` (may contain
+ * arbitrary caller-shaped data) or the `gates` object itself, which stays
+ * OUT per the default-drop contract above.
+ *
  * @return string[]
  */
 function sn_mcp_rw_audit_safe_arg_keys() {
@@ -98,6 +110,18 @@ function sn_mcp_rw_audit_safe_arg_keys() {
 		'concise',
 		'include_template_overrides',
 		'include_pii',
+		// v10.40.0 — sn_apply enrichment (see docblock above).
+		'change_type',
+		'mode',
+		'dry_run',
+		'candidate_id',
+		'applied',
+		'replayed',
+		'revision_id',
+		'gate_fingerprint_passed',
+		'gate_validation_passed',
+		'gate_capability_passed',
+		'gate_idempotency_passed',
 	);
 }
 
