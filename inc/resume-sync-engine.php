@@ -111,8 +111,10 @@ function sn_resume_role_blocks( $role ) {
  * @return string
  */
 function sn_resume_hero_blocks( $hero ) {
-	$left  = sn_resume_para( 'sn-catalog-eyebrow', 'Dossier · Background' );
-	$left .= '<!-- wp:heading {"level":1,"style":{"typography":{"fontSize":"clamp(3rem, 8vw, 7rem)","lineHeight":"0.95"}}} -->' . "\n"
+	// v10.37.4: the eyebrow is a band kicker ABOVE the columns, so both
+	// columns start on the same line — title cap left, ledger top rule
+	// right (the in-column eyebrow pushed the ledger above the title).
+	$left  = '<!-- wp:heading {"level":1,"style":{"typography":{"fontSize":"clamp(3rem, 8vw, 7rem)","lineHeight":"0.95"}}} -->' . "\n"
 		. '<h1 class="wp-block-heading" style="font-size:clamp(3rem, 8vw, 7rem);line-height:0.95">RESUME</h1>' . "\n"
 		. '<!-- /wp:heading -->' . "\n\n";
 
@@ -151,7 +153,8 @@ function sn_resume_hero_blocks( $hero ) {
 	// block; bottom alignment sank the title to the column floor and left a
 	// hole above it on the live page. /notes and /now keep bottom alignment
 	// — their side columns are short enough to sit on the title baseline.
-	$inner = '<!-- wp:columns {"verticalAlignment":"top","className":"sn-resume-hero-split"} -->' . "\n"
+	$inner = sn_resume_para( 'sn-catalog-eyebrow', 'Dossier · Background' )
+		. '<!-- wp:columns {"verticalAlignment":"top","className":"sn-resume-hero-split"} -->' . "\n"
 		. '<div class="wp-block-columns are-vertically-aligned-top sn-resume-hero-split">' . "\n"
 		. '<!-- wp:column {"verticalAlignment":"top","width":"55%"} -->' . "\n"
 		. '<div class="wp-block-column is-vertically-aligned-top" style="flex-basis:55%">' . "\n"
@@ -272,7 +275,7 @@ function sn_resume_publications_blocks( $publications ) {
 		$title = '' !== $pub['url']
 			? '<a href="' . esc_url( $pub['url'] ) . '" rel="noopener">' . esc_html( $pub['title'] ) . '</a>'
 			: esc_html( $pub['title'] );
-		$inner .= '<!-- wp:group {"className":"sn-resume-pub","layout":{"type":"constrained"}} -->' . "\n"
+		$inner .= '<!-- wp:group {"className":"sn-resume-pub"} -->' . "\n"
 			. '<div class="wp-block-group sn-resume-pub">' . "\n"
 			. sn_resume_para( 'sn-resume-pub-meta', esc_html( $pub['meta'] ) )
 			. '<!-- wp:heading {"level":3,"className":"sn-resume-pub-title"} -->' . "\n"
