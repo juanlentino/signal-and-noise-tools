@@ -226,8 +226,20 @@ require __DIR__ . '/../inc/sn-validate-checks-media.php';
 require __DIR__ . '/../inc/sn-apply-revision.php';
 require __DIR__ . '/../inc/sn-apply-gates.php';
 require __DIR__ . '/../inc/sn-apply-validation.php';
+require __DIR__ . '/../inc/sn-apply-create-draft.php';
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
+
+if ( ! function_exists( 'get_edit_post_link' ) ) { function get_edit_post_link( $id, $ctx = 'display' ) { return 'https://example.test/wp-admin/post.php?post=' . (int) $id . '&action=edit'; } }
+if ( ! function_exists( 'wp_insert_post' ) ) {
+	function wp_insert_post( $args, $wp_error = false ) {
+		$GLOBALS['__write_calls']['wp_insert_post'] = ( $GLOBALS['__write_calls']['wp_insert_post'] ?? 0 ) + 1;
+		$id = $GLOBALS['__next_id']++;
+		tf_post( $id, array_merge( array( 'post_status' => 'draft', 'post_type' => 'post' ), $args, array( 'ID' => $id ) ) );
+		return $id;
+	}
+}
+if ( ! function_exists( 'wp_set_post_tags' ) ) { function wp_set_post_tags( $id, $tags, $append = false ) { $GLOBALS['__write_calls']['wp_set_post_tags'] = ( $GLOBALS['__write_calls']['wp_set_post_tags'] ?? 0 ) + 1; return true; } }
 
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -296,6 +308,11 @@ tf_post( 760, array( 'post_content' => 'Written recently, will drift.' ) );
 $dr_phrase = 'recently';
 $dr_pos    = strpos( $GLOBALS['__posts'][760]['post_content'], $dr_phrase );
 $dr_fp     = snt_ai_drift_fingerprint( $GLOBALS['__posts'][760]['post_content'], $dr_phrase, $dr_pos );
+
+// create_draft (for the all-types sweep) — no fixture post: the target IS
+// the not-yet-created post (session 6c).
+$cd_block   = array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>Sweep draft body.</p>', 'innerContent' => array( '<p>Sweep draft body.</p>' ) );
+$cd_content = json_encode( array( $cd_block ) );
 
 /* ════════════════════════════════════════════════════════════════════════
  * pattern_adoption — dry_run + revision (delegation pinned by the
@@ -399,6 +416,10 @@ $sweep_calls = array(
 	// still preview (all four gates + diff) with zero side effects.
 	'og_card'          => array( 'target' => array( 'post_id' => 730 ), 'mode' => 'publish', 'change' => array( 'type' => 'og_card', 'payload' => array() ) ),
 	'anchor_sweep'     => array( 'target' => array( 'scope' => 'provenance_anchors' ), 'mode' => 'publish', 'change' => array( 'type' => 'anchor_sweep', 'payload' => array() ) ),
+	// create_draft (session 6c) is REVISION-only (mode:publish refuses
+	// structurally — see snt_sn_apply_mode_support()), the mirror image of
+	// og_card/anchor_sweep's publish-only posture above.
+	'create_draft'     => array( 'target' => array( 'new_post' => true ), 'mode' => 'revision', 'change' => array( 'type' => 'create_draft', 'payload' => array( 'title' => 'Sweep draft title', 'content' => $cd_content ) ) ),
 );
 eq( count( SNT_SN_APPLY_CHANGE_TYPES ), count( $sweep_calls ), 'SWEEP.0: the sweep table covers the FULL enum — a new change type added to SNT_SN_APPLY_CHANGE_TYPES fails here until it joins the sweep' );
 foreach ( SNT_SN_APPLY_CHANGE_TYPES as $sweep_type ) {

@@ -24,6 +24,7 @@
  * | surfaces          |  partial |   yes   | excerpt is a content field (post_excerpt, revision-stageable); meta_description/og_card_title/seo_title/focus_keyword are postmeta (staged via snt_sn_apply_stage_meta()). Revision mode stages ALL of these but never regenerates the OG card PNG — that side effect is publish-only (see og_card below). |
  * | og_card           |    NO    |   yes   | sn_generate_og_card() writes a PNG FILE to disk (inc/og-card-generator.php) — not a post field at all. There is no WordPress revision of a file. Refuses structurally in revision mode, never fakes a staged version. |
  * | anchor_sweep      |    NO    |   yes   | dispatches a bounded wp_remote_post() to the provenance Worker (inc/provenance-webhook.php's sn_prov_run_sweep()) — an external side effect with no post entity involved at all (target is scope:"provenance_anchors", not a post_id). Nothing to stage. |
+ * | create_draft      |   yes    |   NO    | insert-only (session 6c, the arc's finale — see inc/sn-apply-create-draft.php's docblock for the full B5c origin): post_status is hard-coded 'draft', post_type hard-coded 'post'. mode:"publish" refuses structurally — this tool never makes a draft live; the owner schedules by hand. mode:"revision" is the one accepted mode, but its OWN write mechanism (snt_sn_apply_write_create_draft(), not snt_sn_apply_stage_revision()) — there is no parent post yet to stage a core revision against; "revision" here just means the request goes through the same dry_run-by-default, human-review-first posture as everywhere else in this tool. |
  *
  * "partial" on surfaces is intentionally not a clean yes/no: the TYPE
  * supports revision mode (the gate lets the mode through), but the response
@@ -38,12 +39,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Extensible by design: session 6c can append 'new_post' here without
-// touching the gate orchestration in inc/abilities-sn-apply.php — every gate
-// function switches on this list, never a hardcoded count.
+// Session 6c appended 'create_draft' (the arc's finale) — every gate
+// function below switches on this list, never a hardcoded count; the
+// tests/abilities-sn-apply-delegation-sweep.php ALL-TYPES sweep loops this
+// same constant, so it REDs on its own count pin the moment a type is added
+// here without a matching sweep-table entry (watched RED, see FINDINGS.md).
 const SNT_SN_APPLY_CHANGE_TYPES = array(
 	'block_migration', 'pattern_adoption', 'alt_text', 'link_insert',
-	'drift_replace', 'surfaces', 'og_card', 'anchor_sweep',
+	'drift_replace', 'surfaces', 'og_card', 'anchor_sweep', 'create_draft',
 );
 
 /**
@@ -73,6 +76,11 @@ function snt_sn_apply_mode_support( $type ) {
 			return array(
 				'modes'  => array( 'publish' ),
 				'reason' => 'anchor_sweep dispatches a live HTTP call to the provenance Worker (sn_prov_run_sweep()) — an external side effect with no post entity to stage a revision of. Publish-only.',
+			);
+		case 'create_draft':
+			return array(
+				'modes'  => array( 'revision' ),
+				'reason' => 'create_draft can never publish — post_status is hard-coded to "draft" and this tool will never make it live. Drafts are scheduled by hand; that manual step is the human review gate. This change type only supports mode:"revision", which performs the actual (reversible via rollback:delete_draft) draft insert directly — there is no live post yet to stage a WordPress core revision against.',
 			);
 		default:
 			return array( 'modes' => array(), 'reason' => 'Unknown change.type.' );
@@ -108,6 +116,17 @@ function snt_sn_apply_resolve_target( $type, $target ) {
 			return new WP_Error( 'snt_sn_apply_target_not_found', __( 'Attachment not found.', 'signal-and-noise-tools' ), array( 'status' => 404 ) );
 		}
 		return array( 'attachment_id' => $attachment_id );
+	}
+
+	if ( 'create_draft' === $type ) {
+		// The target doesn't exist yet — nothing to look up. Requires the
+		// explicit marker (same "name the exact shape" posture as
+		// anchor_sweep's target.scope check above) rather than accepting
+		// any object at all for this type.
+		if ( true !== ( $target['new_post'] ?? null ) ) {
+			return new WP_Error( 'snt_sn_apply_bad_target', __( 'create_draft requires target.new_post === true.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		return array( 'new_post' => true );
 	}
 
 	// Every other type: a corpus post_id (same target contract as
@@ -243,6 +262,23 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 			}
 			return array( 'ok' => true, 'diff' => array( 'before' => null, 'after' => $result, 'blocks_touched' => 0 ), 'revision_id' => null, 'write_result' => $result );
 
+		case 'create_draft':
+			// mode:revision only — see snt_sn_apply_mode_support(). This is
+			// create_draft's OWN write mechanism (inc/sn-apply-create-draft.php),
+			// never snt_sn_apply_stage_revision() — there is no parent post to
+			// stage against, the insert itself IS the (reversible-via-trash)
+			// artifact.
+			$result = snt_sn_apply_write_create_draft( $payload );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			return array(
+				'ok'           => true,
+				'diff'         => array( 'before' => null, 'after' => $result, 'blocks_touched' => 0 ),
+				'revision_id'  => null,
+				'write_result' => $result,
+			);
+
 		default:
 			return new WP_Error( 'snt_sn_apply_unknown_type', __( 'Unknown change.type.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
@@ -363,6 +399,16 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 				}
 			}
 			return array( 'before' => $before, 'after' => $after, 'blocks_touched' => 0 );
+
+		case 'create_draft':
+			// {title, block_count, word_count} — not a before/after content
+			// diff (there is no "before": nothing exists yet). See
+			// inc/sn-apply-create-draft.php's snt_sn_apply_create_draft_preview().
+			return array(
+				'before'         => null,
+				'after'          => snt_sn_apply_create_draft_preview( $payload ),
+				'blocks_touched' => 0,
+			);
 
 		default:
 			// og_card, anchor_sweep — no textual diff to preview.

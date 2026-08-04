@@ -50,7 +50,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-apply', array(
 		'label'               => 'Apply a change to a post (consolidated write tool)',
-		'description'         => 'The only tool that mutates post content. Four gates run in order — fingerprint, server-side validation, mode capability, idempotency — every one reported in the response even when an earlier gate already failed. dry_run defaults to TRUE: a caller has to actively ask to write. mode:"revision" stages a WordPress revision without touching the live post (the PR pattern); mode:"publish" writes live. Routine (non-owner) credentials are granted "revision" only — enforced server-side against the calling identity, never a client-chosen parameter. change.type "og_card" (regenerates a PNG file, not a post field) and "anchor_sweep" (dispatches a live HTTP call to the provenance Worker, no post entity involved) are PUBLISH-ONLY — mode:"revision" refuses both explicitly rather than fabricating a staged version of a side effect that cannot be staged. target may be a single object or an array (batch): per-post writes are atomic, across posts they are independent — one target failing never rolls back another.',
+		'description'         => 'The only tool that mutates post content. Four gates run in order — fingerprint, server-side validation, mode capability, idempotency — every one reported in the response even when an earlier gate already failed. dry_run defaults to TRUE: a caller has to actively ask to write. mode:"revision" stages a WordPress revision without touching the live post (the PR pattern); mode:"publish" writes live. Routine (non-owner) credentials are granted "revision" only — enforced server-side against the calling identity, never a client-chosen parameter. change.type "og_card" (regenerates a PNG file, not a post field) and "anchor_sweep" (dispatches a live HTTP call to the provenance Worker, no post entity involved) are PUBLISH-ONLY — mode:"revision" refuses both explicitly rather than fabricating a staged version of a side effect that cannot be staged. change.type "create_draft" is the mirror image: REVISION-ONLY — mode:"publish" refuses explicitly, because this tool never makes a draft live; the owner schedules drafts by hand. Under mode:"revision", a real draft post IS created (never published); there is no no-op staging for a nonexistent post. Its target is {new_post:true} (no id — the post does not exist yet) and its payload is {title, content (Gutenberg block markup), excerpt?, tags? (existing vocabulary only)}. target may be a single object or an array (batch): per-post writes are atomic, across posts they are independent — one target failing never rolls back another.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_apply',
@@ -66,6 +66,10 @@ add_action( 'wp_abilities_api_init', function() {
 								'post_id'       => array( 'type' => 'integer', 'minimum' => 1 ),
 								'attachment_id' => array( 'type' => 'integer', 'minimum' => 1 ),
 								'scope'         => array( 'type' => 'string', 'enum' => array( 'provenance_anchors' ) ),
+								// session 6c: create_draft's target -- the post doesn't exist yet, so
+								// there is no id to carry. Runtime enforces === true (not just
+								// truthy) in snt_sn_apply_resolve_target(), same posture as scope's enum above.
+								'new_post'      => array( 'type' => 'boolean' ),
 							),
 						),
 						array(
@@ -152,7 +156,7 @@ function snt_ability_sn_apply( $input ) {
 	$idempotency_key = (string) ( $input['idempotency_key'] ?? '' );
 
 	$raw_target       = $input['target'] ?? array();
-	$canonical_target = snt_sn_apply_canonical_target( $raw_target );
+	$canonical_target = snt_sn_apply_canonical_target( $raw_target, $change );
 
 	// Gate 4, replay shortcut: a genuine second call with the SAME (key,
 	// target) pair returns the FIRST call's response verbatim — no gate
@@ -342,6 +346,13 @@ function snt_sn_apply_apply_one( $type, $raw_target, array $change, $mode, $dry_
 	$response['revision_id'] = $write['revision_id'];
 	if ( 'revision' === $mode && $write['revision_id'] ) {
 		$response['rollback'] = array( 'method' => 'restore_revision', 'revision_id' => $write['revision_id'] );
+	} elseif ( 'create_draft' === $type && ! empty( $write['write_result']['post_id'] ) ) {
+		// create_draft's own rollback shape (session 6c) -- there is no
+		// revision_id (it never routes through snt_sn_apply_stage_revision()),
+		// so the generic revision-mode branch above never fires for it. A
+		// draft delete is trash, reversible -- the same "nothing is final
+		// yet" posture mode:"revision" promises everywhere else in this tool.
+		$response['rollback'] = array( 'method' => 'delete_draft', 'post_id' => (int) $write['write_result']['post_id'] );
 	}
 	return $response;
 }

@@ -191,13 +191,34 @@ function snt_sn_apply_idempotency_prune_rows( $rows ) {
  * Canonical target identity for idempotency scoping. Derived from the RAW
  * request target (shape only — existence/validity is gate territory, and
  * this must be computable BEFORE target resolution, since the replay check
- * runs first): 'post:812' | 'attachment:400' | 'scope:provenance_anchors'.
- * A batch canonicalizes each member and joins them SORTED (a retry that
- * lists the same targets in a different order is still the same logical
- * call). Anything unrecognizable canonicalizes to a hash of its JSON so
- * two different malformed shapes never collide.
+ * runs first): 'post:812' | 'attachment:400' | 'scope:provenance_anchors' |
+ * 'new_post:<sha256>'. A batch canonicalizes each member and joins them
+ * SORTED (a retry that lists the same targets in a different order is
+ * still the same logical call). Anything unrecognizable canonicalizes to a
+ * hash of its JSON so two different malformed shapes never collide.
  *
  * @param mixed $raw_target The request's `target` value (object or batch array).
+ * @param array $change     The request's `change` object — needed ONLY for
+ *                           target.new_post (session 6c): unlike every other
+ *                           target shape, a new_post target carries no
+ *                           existing identity to hash (the post doesn't
+ *                           exist yet), so its canonical identity is
+ *                           CONTENT-derived from change.payload.title +
+ *                           change.payload.content instead — 'new_post:' .
+ *                           sha256(title|content). An identical retry
+ *                           (same key, same title+content) replays; a
+ *                           genuinely different draft (different title or
+ *                           content) derives a different hash and is a
+ *                           fresh execution even under the SAME
+ *                           idempotency_key — deliberately looser than the
+ *                           other 8 types' identity (which is the TARGET's
+ *                           own identity, independent of payload), because
+ *                           for a create there is no target identity yet
+ *                           except what the caller is proposing to create.
+ *                           Optional and defaults to an empty array so
+ *                           every pre-6c call site (and this function's own
+ *                           batch recursion) keeps working unchanged for
+ *                           every other target shape.
  * Priority caveat (review, v10.40.0): a malformed target carrying BOTH
  * post_id and attachment_id canonicalizes as post:N (fixed priority order,
  * deterministic every call) even for a change type that resolves against
@@ -207,9 +228,11 @@ function snt_sn_apply_idempotency_prune_rows( $rows ) {
  *
  * @return string
  */
-function snt_sn_apply_canonical_target( $raw_target ) {
+function snt_sn_apply_canonical_target( $raw_target, array $change = array() ) {
 	if ( is_array( $raw_target ) && array_is_list( $raw_target ) ) {
-		$members = array_map( 'snt_sn_apply_canonical_target', $raw_target );
+		$members = array_map( function( $member ) use ( $change ) {
+			return snt_sn_apply_canonical_target( $member, $change );
+		}, $raw_target );
 		sort( $members, SORT_STRING );
 		return 'batch:' . implode( ',', $members );
 	}
@@ -222,6 +245,12 @@ function snt_sn_apply_canonical_target( $raw_target ) {
 	}
 	if ( isset( $t['scope'] ) && '' !== (string) $t['scope'] ) {
 		return 'scope:' . (string) $t['scope'];
+	}
+	if ( true === ( $t['new_post'] ?? null ) ) {
+		$payload = (array) ( $change['payload'] ?? array() );
+		$title   = (string) ( $payload['title'] ?? '' );
+		$content = (string) ( $payload['content'] ?? '' );
+		return 'new_post:' . hash( 'sha256', $title . '|' . $content );
 	}
 	return 'unknown:' . md5( (string) wp_json_encode( $t ) );
 }

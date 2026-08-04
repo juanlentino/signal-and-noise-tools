@@ -163,6 +163,12 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 			}
 			return array( 'checks' => array( 'body' ), 'findings' => snt_sn_validate_check_body( $new_content, $resolved['post_id'] ?? 0 ) );
 
+		case 'create_draft':
+			// Its own gate-2 assembly (excerpt/body/block-pattern/tags plus
+			// two structural checks unique to a create) — see
+			// inc/sn-apply-create-draft.php's docblock.
+			return snt_sn_apply_gate2_create_draft( $payload );
+
 		default:
 			// og_card, anchor_sweep — no applicable check family.
 			return array( 'checks' => array(), 'findings' => array() );
