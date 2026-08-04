@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.37.1] - 2026-08-03
+
+### Fixed
+
+- **Balance polish from the owner's live screenshot review** ([inc/split-hero-migration.php](inc/split-hero-migration.php) `sn_migrate_split_hero_v6`). Services credibility strip: was center-aligned at every level (columns `verticalAlignment:center`, per-item `textAlign:center`) with ragged baselines against a left-anchored system — now top-aligned and left-set, content verbatim ([inc/seed-content/services-credrow-v6.html](inc/seed-content/services-credrow-v6.html)). Contact routes: the seven parallel "if you're X → email Y" paragraphs set as a two-column directory (4/3, `sn-cms-directory`) on the 1320px frame instead of one monotone 60% column — content verbatim. Companion theme v11.4.2 makes top alignment the single split-hero rule. ([tests/split-hero-migration.php](tests/split-hero-migration.php) → 66 asserts.)
+
 ## [10.37.0] - 2026-08-03
 
 ### Changed

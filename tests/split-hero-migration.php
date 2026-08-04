@@ -192,5 +192,24 @@ $u = count( $GLOBALS['__updates'] );
 sn_migrate_split_hero_v5();
 ok( $u === count( $GLOBALS['__updates'] ), 'v5 flag short-circuits re-runs' );
 
+// ── v6: balance polish ──
+echo "\nTest: sn_migrate_split_hero_v6\n";
+$credV1  = trim( file_get_contents( $seedDir . 'services-credrow-v1.html' ) );
+$proseV5 = trim( file_get_contents( $seedDir . 'split-hero-contact-prose-v5.html' ) );
+
+$GLOBALS['__pages'] = array(
+	'services' => (object) array( 'ID' => 395, 'post_content' => "head\n" . $credV1 . "\ntail" ),
+	'contact'  => (object) array( 'ID' => 408, 'post_content' => "hero\n" . $proseV5 . "\n" ),
+);
+$GLOBALS['__updates'] = array();
+sn_migrate_split_hero_v6();
+$byId = array();
+foreach ( $GLOBALS['__updates'] as $u ) { $byId[ $u['ID'] ] = $u['post_content']; }
+ok( isset( $byId[395] ) && false === strpos( $byId[395], 'center' ) && false !== strpos( $byId[395], 'are-vertically-aligned-top sn-credibility-strip' ), 'services strip: no centering at any level, top-aligned' );
+ok( isset( $byId[395] ) && false !== strpos( $byId[395], '20+ Years Experience' ) || false !== stripos( (string) ( $byId[395] ?? '' ), 'years experience' ), 'services strip content preserved' );
+ok( isset( $byId[408] ) && false !== strpos( $byId[408], 'sn-cms-directory' ) && false === strpos( $byId[408], 'sn-cms-body-rail' ), 'contact prose → two-column directory' );
+ok( isset( $byId[408] ) && false !== strpos( $byId[408], 'the next page</a> before reaching out' ) && 7 === substr_count( $byId[408], '<!-- /wp:paragraph -->' ), 'all seven routes preserved verbatim' );
+ok( isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V6_OPT ] ), 'v6 flag stamped' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -391,3 +391,55 @@ function sn_migrate_split_hero_v5() {
 	}
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v5' );
+
+const SN_SPLIT_HERO_V6_OPT = 'sn_split_hero_v6_migrated_v1';
+
+/**
+ * v10.37.1 balance polish (owner screenshot review of the live v10.37.0
+ * state):
+ *
+ *   - Services credibility strip: was center-aligned at every level
+ *     (columns verticalAlignment, per-item textAlign) with ragged
+ *     baselines — now top-aligned and left-set on the grid.
+ *   - Contact routes: seven parallel "if you're X → email Y" paragraphs
+ *     read as a directory, not an essay; a single 60% column left the
+ *     page monotone. They now set as a two-column directory (4/3) on
+ *     the 1320px frame (`sn-cms-directory`), content verbatim.
+ *
+ * Companion theme v11.4.2 makes TOP alignment the single split-hero rule
+ * (/notes, /now, /uses drop the bottom-align variant). Exact-literal
+ * swaps; owner-edited bands skip.
+ */
+function sn_migrate_split_hero_v6() {
+	if ( get_option( SN_SPLIT_HERO_V6_OPT ) ) {
+		return;
+	}
+
+	$jobs = array(
+		'services' => array( array( 'services-credrow-v1.html', 'services-credrow-v6.html' ) ),
+		'contact'  => array( array( 'split-hero-contact-prose-v5.html', 'split-hero-contact-prose-v6.html' ) ),
+	);
+
+	$complete = true;
+	foreach ( $jobs as $path => $pairs ) {
+		$page = get_page_by_path( $path );
+		if ( ! $page ) {
+			$complete = false;
+			continue;
+		}
+		$content = sn_split_hero_apply_pairs( (string) $page->post_content, $pairs );
+		if ( $content !== (string) $page->post_content ) {
+			wp_update_post(
+				array(
+					'ID'           => $page->ID,
+					'post_content' => $content,
+				)
+			);
+		}
+	}
+
+	if ( $complete ) {
+		update_option( SN_SPLIT_HERO_V6_OPT, time(), false );
+	}
+}
+add_action( 'admin_init', 'sn_migrate_split_hero_v6' );
