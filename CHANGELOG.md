@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.38.0] - 2026-08-03
+
+### Added
+
+- **WP 7.1 ability-lifecycle guard** ([inc/abilities-lifecycle-guard.php](inc/abilities-lifecycle-guard.php)). WordPress 7.1 standardizes ability execution with core hooks (`wp_ability_invoked`, `wp_ability_permission_result`, `wp_ability_execute_result`). Until now every layer of our hardening — rw kill switch, telemetry, rw audit — was wired into the two MCP doors only, so abilities run through the native `/wp-abilities/v1/…/run` route or Desktop Mode reached their own `permission_callback` and nothing else. The guard attaches the same policy to the core hooks: **tighten-only** enforcement (an upstream denial is never flipped to allow; the READ switch is deliberately not extended — it governs the MCP transport, not the data), telemetry recorded under a new `direct` door so existing `read`/`rw` rows stay distinguishable, and rw audit rows for write-class executions. Write-class is derived from three signals — rw-allowlist membership, the ability's own `annotations` (`readonly`/`destructive`), and the four abilities held off *both* doors for blast radius (`run-cron-event`, `ai-orphan-apply`, `merge-tags`, `clear-template-overrides`) which remain REST-run-reachable and need the brake most. Inert pre-7.1: the hooks never fire. `sn_mcp_call_tool()` and the resources passthrough bracket their `execute()` calls with a dispatch-depth flag so MCP traffic is never double-recorded or mislabelled. ([tests/abilities-lifecycle-guard.php](tests/abilities-lifecycle-guard.php) → 47 asserts.)
+
+### Changed
+
+- **Schema client-prep delegates to core when WP 7.1 is present** ([inc/mcp/mcp-tools.php](inc/mcp/mcp-tools.php) `sn_mcp_normalize_schema`). `wp_prepare_json_schema_for_client()` runs first behind a `function_exists` guard — it strips server-only keywords (`sanitize_callback`/`validate_callback`/`arg_options`) and hoists property-level `required` into Draft-4 arrays, neither of which we ever did. Our three provider-specific fixes (scalar `type: object`, top-level combinator strip, empty-properties `{}`) are a different contract with strict MCP hosts and stay layered on top. Pre-7.1 behavior is byte-identical, asserted in the same process before the stub exists. ([tests/mcp-schema-client-prep.php](tests/mcp-schema-client-prep.php) → 12 asserts.)
+
+### Fixed
+
+- **List-table cell lookup future-proofed** ([assets/health-suggest-actions.js](assets/health-suggest-actions.js)). `closest('td')` → `closest('td,th')`. WP 7.1 moves the post-list-table row header from the checkbox cell to the title cell; this script only ever runs on plugin-owned tables, so nothing breaks today — the widened selector removes the coupling entirely. Audit found no other list-table selector exposure in either repo.
+
 ## [10.37.5] - 2026-08-03
 
 ### Changed

@@ -68,6 +68,63 @@ function sn_ability_guard_mcp_depth( $delta = 0 ) {
 }
 
 /**
+ * Abilities deliberately held off BOTH MCP doors for blast radius (curation
+ * documented in inc/mcp/mcp-capabilities.php, sn_mcp_rw_allowlist()'s
+ * docblock). They are still reachable through the native abilities REST run
+ * route by a privileged caller — which makes them exactly the executions the
+ * rw kill switch must cover. Review finding v10.38.0: deriving write-class
+ * from rw-allowlist membership alone silently exempted these four.
+ *
+ * @return string[]
+ */
+function sn_ability_guard_held_out_writes() {
+	return array(
+		'signal-noise/run-cron-event',
+		'signal-noise/ai-orphan-apply',
+		'signal-noise/merge-tags',
+		'signal-noise/clear-template-overrides',
+	);
+}
+
+/**
+ * Is this ability write-class for kill-switch / rw-audit purposes?
+ *
+ * Three signals, first match wins:
+ *   1. rw-door allowlist membership (the curated MCP write set).
+ *   2. The ability's OWN declared annotations: an explicit readonly value is
+ *      authoritative in both directions; declared destructive:true is write.
+ *   3. The held-out set above (off both doors by curation, still writes).
+ *
+ * Unknown abilities with no signal default to READ: the rw kill switch is an
+ * incident brake for writes, and misclassifying a future read ability as
+ * write would dark half the desktop-mode surface whenever the brake is on.
+ * Every write this plugin and the theme actually register is covered by
+ * signals 1-3 (writes declare annotations or sit on the rw allowlist).
+ *
+ * @param string      $ability_name
+ * @param object|null $ability WP_Ability (or stand-in) exposing get_meta(), when available.
+ * @return bool
+ */
+function sn_ability_guard_is_write_class( $ability_name, $ability = null ) {
+	$name = (string) $ability_name;
+	if ( function_exists( 'sn_mcp_is_allowed' ) && defined( 'SN_MCP_DOOR_RW' )
+		&& sn_mcp_is_allowed( $name, SN_MCP_DOOR_RW ) ) {
+		return true;
+	}
+	if ( is_object( $ability ) && method_exists( $ability, 'get_meta' ) ) {
+		$meta = (array) $ability->get_meta();
+		$decl = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+		if ( array_key_exists( 'readonly', $decl ) ) {
+			return empty( $decl['readonly'] );
+		}
+		if ( ! empty( $decl['destructive'] ) ) {
+			return true;
+		}
+	}
+	return in_array( $name, sn_ability_guard_held_out_writes(), true );
+}
+
+/**
  * PURE permission decision — tighten-only.
  *
  * @param bool|WP_Error $permission      Upstream permission result.
@@ -100,38 +157,43 @@ function sn_ability_guard_permission_decision( $permission, $is_ours, $is_write_
  * @return bool|WP_Error
  */
 function sn_ability_guard_filter_permission( $permission, $ability_name, $input = null, $ability = null ) {
-	$is_write = function_exists( 'sn_mcp_is_allowed' ) && defined( 'SN_MCP_DOOR_RW' )
-		&& sn_mcp_is_allowed( (string) $ability_name, SN_MCP_DOOR_RW );
-	$engaged  = function_exists( 'sn_mcp_rw_kill_switch_engaged' ) && sn_mcp_rw_kill_switch_engaged();
+	$engaged = function_exists( 'sn_mcp_rw_kill_switch_engaged' ) && sn_mcp_rw_kill_switch_engaged();
 	return sn_ability_guard_permission_decision(
 		$permission,
 		sn_ability_guard_is_ours( $ability_name ),
-		$is_write,
+		sn_ability_guard_is_write_class( $ability_name, $ability ),
 		$engaged
 	);
 }
 
 /**
- * Shared t0 map for latency measurement (invoked -> execute_result), keyed by
- * ability name. Last-write-wins is acceptable: overlapping same-name
- * executions in one request only skew a latency figure, never correctness.
+ * Shared t0 store for latency measurement (invoked -> execute_result), keyed
+ * by ability name. Each key holds a STACK, so an ability that (directly or
+ * transitively) re-enters itself pairs each execute_result with its own
+ * invocation LIFO instead of the inner call consuming the outer call's stamp
+ * and leaving the outer one reporting a hard 0ms.
  *
  * @param string     $ability_name
- * @param float|null $set   microtime(true) to stamp, null to consume.
- * @return float|null Stamped t0 on consume, null when absent.
+ * @param float|null $set   microtime(true) to push, null to pop.
+ * @return float|null Popped t0, null when the stack is empty.
  */
 function sn_ability_guard_t0( $ability_name, $set = null ) {
-	static $map = array();
+	static $stacks = array();
 	$key = (string) $ability_name;
 	if ( null !== $set ) {
-		$map[ $key ] = (float) $set;
+		if ( ! isset( $stacks[ $key ] ) ) {
+			$stacks[ $key ] = array();
+		}
+		$stacks[ $key ][] = (float) $set;
 		return $set;
 	}
-	if ( ! array_key_exists( $key, $map ) ) {
+	if ( empty( $stacks[ $key ] ) ) {
 		return null;
 	}
-	$t0 = $map[ $key ];
-	unset( $map[ $key ] );
+	$t0 = array_pop( $stacks[ $key ] );
+	if ( empty( $stacks[ $key ] ) ) {
+		unset( $stacks[ $key ] );
+	}
 	return $t0;
 }
 
@@ -183,9 +245,7 @@ function sn_ability_guard_filter_execute_result( $result, $ability_name, $input 
 		}
 	}
 
-	$is_write = function_exists( 'sn_mcp_is_allowed' ) && defined( 'SN_MCP_DOOR_RW' )
-		&& sn_mcp_is_allowed( (string) $ability_name, SN_MCP_DOOR_RW );
-	if ( $is_write && function_exists( 'sn_mcp_rw_audit_record' ) ) {
+	if ( sn_ability_guard_is_write_class( $ability_name, $ability ) && function_exists( 'sn_mcp_rw_audit_record' ) ) {
 		if ( $is_error ) {
 			sn_mcp_rw_audit_record( (string) $ability_name, $args, 'error', $result );
 		} else {

@@ -206,7 +206,20 @@ function sn_mcp_resource_ability_passthrough( $slug, $uri, $mime, $extract_key =
 		return sn_mcp_resource_content( $uri, 'text/plain', 'Unavailable: permission denied for ' . $slug . '.' );
 	}
 
-	$out = $ability->execute( array() );
+	// v10.38.0 (WP 7.1 prep): same dispatch bracket as sn_mcp_call_tool() — this
+	// IS MCP traffic, so the lifecycle observers in
+	// inc/abilities-lifecycle-guard.php must not classify it as a direct
+	// (non-MCP) execution once core starts firing wp_ability_* hooks.
+	if ( function_exists( 'sn_ability_guard_mcp_depth' ) ) {
+		sn_ability_guard_mcp_depth( 1 );
+	}
+	try {
+		$out = $ability->execute( array() );
+	} finally {
+		if ( function_exists( 'sn_ability_guard_mcp_depth' ) ) {
+			sn_ability_guard_mcp_depth( -1 );
+		}
+	}
 	if ( is_wp_error( $out ) ) {
 		return sn_mcp_resource_content( $uri, 'text/plain', 'Unavailable: ' . $out->get_error_message() );
 	}

@@ -111,6 +111,38 @@ $res = sn_ability_guard_filter_permission( true, 'signal-noise/update-post-surfa
 ok( true === $res, 'live filter: write ability allowed when switch disengaged' );
 
 // ---------------------------------------------------------------------------
+// 4b. Write-class derivation — review finding: rw-allowlist membership alone
+//     misses the abilities held off BOTH doors for being too destructive
+//     (ai-orphan-apply, merge-tags, clear-template-overrides, run-cron-event),
+//     which remain REST-run-reachable and need the kill switch MOST.
+// ---------------------------------------------------------------------------
+class SN_Guard_Test_Ability {
+	private $meta;
+	public function __construct( $annotations ) { $this->meta = array( 'annotations' => $annotations ); }
+	public function get_meta() { return $this->meta; }
+}
+ok( true === sn_ability_guard_is_write_class( 'signal-noise/update-post-surfaces', null ), 'write-class: rw-allowlisted slug is write' );
+ok( false === sn_ability_guard_is_write_class( 'signal-noise/sn-scan', null ), 'write-class: unlisted slug with no signal defaults to read' );
+ok( true === sn_ability_guard_is_write_class( 'signal-noise/ai-orphan-apply', null ), 'write-class: held-out destructive slug is write despite being off both MCP doors' );
+ok( true === sn_ability_guard_is_write_class( 'signal-noise/merge-tags', null ), 'write-class: merge-tags held-out is write' );
+ok( true === sn_ability_guard_is_write_class( 'signal-noise/clear-template-overrides', null ), 'write-class: clear-template-overrides held-out is write' );
+ok( true === sn_ability_guard_is_write_class( 'signal-noise/run-cron-event', null ), 'write-class: run-cron-event held-out is write' );
+ok( false === sn_ability_guard_is_write_class( 'signal-noise/some-future-read', new SN_Guard_Test_Ability( array( 'readonly' => true ) ) ), 'write-class: declared readonly:true wins as read' );
+ok( true === sn_ability_guard_is_write_class( 'signal-noise/some-future-write', new SN_Guard_Test_Ability( array( 'readonly' => false ) ) ), 'write-class: declared readonly:false is write' );
+ok( true === sn_ability_guard_is_write_class( 'signal-noise/some-future-destroyer', new SN_Guard_Test_Ability( array( 'destructive' => true ) ) ), 'write-class: declared destructive:true is write' );
+
+$GLOBALS['__rw_kill_engaged'] = true;
+$res = sn_ability_guard_filter_permission( true, 'signal-noise/ai-orphan-apply', array(), null );
+ok( is_wp_error( $res ) && 'sn_rw_kill_switch' === $res->get_error_code(), 'live filter: held-out destructive ability IS denied under engaged switch' );
+$GLOBALS['__rw_kill_engaged'] = false;
+
+// Held-out direct executions must also land in the rw audit log.
+$GLOBALS['__audit_rows'] = array();
+sn_ability_guard_filter_execute_result( array( 'deleted' => 3 ), 'signal-noise/ai-orphan-apply', array(), null );
+ok( 1 === count( $GLOBALS['__audit_rows'] ) && 'signal-noise/ai-orphan-apply' === $GLOBALS['__audit_rows'][0]['slug'], 'observer: held-out destructive direct execution audited' );
+$GLOBALS['__audit_rows'] = array();
+
+// ---------------------------------------------------------------------------
 // 5. MCP dispatch depth: dedup flag.
 // ---------------------------------------------------------------------------
 ok( 0 === sn_ability_guard_mcp_depth(), 'depth: starts at zero' );
@@ -162,6 +194,21 @@ ok( $err === $ret, 'observer: WP_Error result passes through by identity (no rec
 ok( 2 === count( $GLOBALS['__audit_rows'] ) && 'error' === $GLOBALS['__audit_rows'][1]['outcome'], 'observer: write-class direct failure audited as error' );
 $last = end( $GLOBALS['__telemetry_rows'] );
 ok( 'server_error' === $last['outcome'], 'observer: WP_Error outcome classified via telemetry classifier' );
+
+// ---------------------------------------------------------------------------
+// 7. Re-entrancy: nested same-name execution must not zero the OUTER latency
+//    (review finding — the t0 store is a LIFO stack, not last-write-wins).
+// ---------------------------------------------------------------------------
+$GLOBALS['__telemetry_rows'] = array();
+sn_ability_guard_on_invoked( 'signal-noise/sn-scan', array(), null ); // outer
+usleep( 2000 );
+sn_ability_guard_on_invoked( 'signal-noise/sn-scan', array(), null ); // inner
+sn_ability_guard_filter_execute_result( array(), 'signal-noise/sn-scan', array(), null ); // inner completes
+usleep( 2000 );
+sn_ability_guard_filter_execute_result( array(), 'signal-noise/sn-scan', array(), null ); // outer completes
+ok( 2 === count( $GLOBALS['__telemetry_rows'] ), 're-entrancy: both nested executions recorded' );
+ok( $GLOBALS['__telemetry_rows'][1]['latency_ms'] > 0, 're-entrancy: outer execution keeps a real latency (not zeroed by the inner call)' );
+ok( null === sn_ability_guard_t0( 'signal-noise/sn-scan' ), 're-entrancy: stack fully drained after balanced pairs' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
