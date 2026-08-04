@@ -384,6 +384,7 @@ require_once __DIR__ . '/inc/indexnow.php';
 require_once __DIR__ . '/inc/websub.php';            // v6.17.0 (D4): WebSub publisher ping (feed-reader push; counterpart to IndexNow)
 require_once __DIR__ . '/inc/ability-run-client.php';   // v7.7.2: annotation-derived verb map + shared run-path JS client.
 require_once __DIR__ . '/inc/abilities-rate-gate.php';  // v10.34.0: per-user courtesy throttle for expensive abilities (native run-route has no rate limit of its own).
+require_once __DIR__ . '/inc/abilities-lifecycle-guard.php'; // v10.38.0: WP 7.1 forward-compat — rw kill switch + telemetry/audit on core's ability lifecycle hooks (inert pre-7.1).
 require_once __DIR__ . '/inc/abilities-registration.php';
 require_once SNT_PATH . 'inc/abilities-analytics.php';  // v6.1.0: read-only analytics Abilities
 require_once __DIR__ . '/inc/migrate-orphan-options.php';  // v5.0.0: one-time orphan-option cleanup
