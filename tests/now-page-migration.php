@@ -58,8 +58,9 @@ $html = sn_now_dossier_html( array(
 ok( false !== strpos( $html, '<!-- wp:html -->' ) && false !== strpos( $html, '<!-- /wp:html -->' ), 'body is wrapped in a core/html block' );
 ok( false !== strpos( $html, '<div class="sn-now-page">' ), 'body wraps in the sn-now-page scope' );
 ok( false !== strpos( $html, 'class="sn-now-hero"' ) && false !== strpos( $html, 'class="sn-now-headline">Now.<' ), 'hero renders with the Now. headline' );
-// v10.36.0 split hero: eyebrow+headline in a title div, dek+meta in a side div.
-ok( false !== strpos( $html, '<div class="sn-now-hero-title">' ) && false !== strpos( $html, '<div class="sn-now-hero-side">' ), 'hero splits into title + side wrappers' );
+// v10.37.5: plain left stack — no split wrappers (no real side content).
+ok( false === strpos( $html, 'sn-now-hero-title' ) && false === strpos( $html, 'sn-now-hero-side' ), 'hero has no split wrappers' );
+ok( strpos( $html, 'sn-now-eyebrow' ) < strpos( $html, 'sn-now-headline' ) && strpos( $html, 'sn-now-headline' ) < strpos( $html, 'sn-now-dek' ) && strpos( $html, 'sn-now-dek' ) < strpos( $html, 'sn-now-meta' ), 'stack order: eyebrow, headline, dek, meta' );
 ok( false !== strpos( $html, 'Updated July 10, 2026' ), 'hero meta shows the given Updated date' );
 ok( false !== strpos( $html, 'class="sn-now-item-text">Signal &amp; Noise<' ), 'item text is escaped' );
 ok( false === strpos( $html, '<script>x' ), 'item HTML is escaped (no raw script)' );

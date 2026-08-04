@@ -2,8 +2,9 @@
 /**
  * Signal & Noise Tools — v10.36.0 split-hero one-shot migration.
  *
- * Site-wide hero direction (2026-08-03): heroes become a two-column,
- * bottom-aligned editorial split on a uniform 1320px band. This one-shot
+ * Site-wide hero direction (2026-08-03, arc v1→v9 + version-keyed regen):
+ * ONE 1320px frame, top-aligned splits only where real side content
+ * exists, plain left stacks elsewhere, nothing centered. This first one-shot
  * finishes the rollout for surfaces the per-save sync engines don't own:
  *
  *   1. The four hand-authored CMS pages (About, Services, Music, Contact):
@@ -530,6 +531,15 @@ function sn_migrate_split_hero_v9() {
 			)
 		);
 	}
+	// /now + /uses: one regenerate so the stored bodies pick up the
+	// left-stack heroes (no-op-safe).
+	if ( function_exists( 'sn_now_sync_page' ) ) {
+		sn_now_sync_page();
+	}
+	if ( function_exists( 'sn_uses_sync_page' ) ) {
+		sn_uses_sync_page();
+	}
+
 	update_option( SN_SPLIT_HERO_V9_OPT, time(), false );
 }
 add_action( 'admin_init', 'sn_migrate_split_hero_v9' );
