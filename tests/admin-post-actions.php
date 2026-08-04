@@ -643,6 +643,20 @@ pa_eq(
 	) ) ) ),
 	'label-only document refused, not silently cleared (mirrors the textarea contract for header-only text)'
 );
+// Review-caught (v10.40.0 adversarial round): a label-only group BESIDE a
+// valid group must refuse the whole save too. Emitted bare, the document
+// still parses to >=1 section, so the zero-parse guard passes, the flash says
+// saved — and the parser drops the bare header, so the section the owner just
+// typed is invisible on re-render and permanently lost on the next save.
+pa_eq(
+	'now_unparseable',
+	sn_handle_now_save( array( 'now' => array( 'groups' => array(
+		array( 'label' => 'Building', 'items' => array( 'shipping MCP' ) ),
+		array( 'label' => 'Header only', 'items' => array( '', ' ' ) ),
+	) ) ) ),
+	'label-only group beside a valid group refused — never a success flash over a dropped section'
+);
+pa_eq( 'Building', sn_now_page_sections()[0]['label'] ?? '', 'mixed-document refusal leaves prior content intact' );
 // An item STARTING with '#' must stay an item: the serializer's `- ` prefix
 // shields it from the header regex on the next parse.
 sn_handle_now_save( array( 'now' => array( 'groups' => array(
@@ -695,6 +709,14 @@ pa_eq(
 		array( 'label' => 'Desk', 'items' => array( array( 'name' => '', 'note' => 'note with no name' ) ) ),
 	) ) ) ),
 	'note without a name refused (the pair format drops name-less lines — a silent-save would lose it)'
+);
+pa_eq(
+	'uses_unparseable',
+	sn_handle_uses_save( array( 'uses' => array( 'groups' => array(
+		array( 'label' => 'Interface', 'items' => array( array( 'name' => 'SSL UF8', 'note' => '' ) ) ),
+		array( 'label' => 'Empty group', 'items' => array( array( 'name' => '', 'note' => '' ) ) ),
+	) ) ) ),
+	'label-only uses group beside a valid group refused (review-caught: bare header saved fine, then vanished)'
 );
 pa_eq( 'Pipes', $pipe_groups[0]['label'] ?? '', 'refused uses save leaves prior content intact' );
 pa_eq( 'uses_cleared', sn_handle_uses_save( array( 'uses' => array( 'groups' => array() ) ) ), 'zero uses rows → cleared' );

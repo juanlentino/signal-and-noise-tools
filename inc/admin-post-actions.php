@@ -282,9 +282,10 @@ function sn_content_row_field( $value ) {
  *   - fully blank rows are pruned (never refused);
  *   - items under a BLANK label refuse the whole save (null): in text form
  *     they would silently merge into the previous section or vanish;
- *   - label-only groups are emitted bare — the caller's zero-section parse
- *     guard then refuses the document, mirroring the old header-only-text
- *     contract (refused, never silently cleared);
+ *   - a label with NO items refuses too (review-caught, v10.40.0): emitted
+ *     bare beside a valid group the document still parses, the flash says
+ *     saved — and the parser drops the bare header, so the section the owner
+ *     just typed silently vanishes. Refused, never mis-filed;
  *   - every item gets the `- ` prefix, which shields `#`-leading items from
  *     the header regex on the next parse.
  *
@@ -309,6 +310,9 @@ function sn_now_rows_to_text( $groups ) {
 				return null; // Orphan items — refuse rather than mis-file them.
 			}
 			continue; // Fully blank row — pruned.
+		}
+		if ( empty( $items ) ) {
+			return null; // Label with no items — the parser would drop it silently.
 		}
 		$out[] = '## ' . $label;
 		foreach ( $items as $line ) {
@@ -353,9 +357,12 @@ function sn_uses_rows_to_text( $groups ) {
 		}
 		if ( '' === $label ) {
 			if ( ! empty( $items ) ) {
-				return null;
+				return null; // Orphan pairs — refuse rather than mis-file them.
 			}
-			continue;
+			continue; // Fully blank row — pruned.
+		}
+		if ( empty( $items ) ) {
+			return null; // Label with no rows — the parser would drop it silently.
 		}
 		$out[] = '## ' . $label;
 		foreach ( $items as $line ) {
