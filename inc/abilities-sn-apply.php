@@ -50,7 +50,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-apply', array(
 		'label'               => 'Apply a change to a post (consolidated write tool)',
-		'description'         => 'The only tool that mutates post content. Four gates run in order — fingerprint, server-side validation, mode capability, idempotency — every one reported in the response even when an earlier gate already failed. dry_run defaults to TRUE: a caller has to actively ask to write. mode:"revision" stages a WordPress revision without touching the live post (the PR pattern); mode:"publish" writes live. Routine (non-owner) credentials are granted "revision" only — enforced server-side against the calling identity, never a client-chosen parameter. change.type "og_card" (regenerates a PNG file, not a post field) and "anchor_sweep" (dispatches a live HTTP call to the provenance Worker, no post entity involved) are PUBLISH-ONLY — mode:"revision" refuses both explicitly rather than fabricating a staged version of a side effect that cannot be staged. change.type "create_draft" is the mirror image: REVISION-ONLY — mode:"publish" refuses explicitly, because this tool never makes a draft live; the owner schedules drafts by hand. Under mode:"revision", a real draft post IS created (never published); there is no no-op staging for a nonexistent post. Its target is {new_post:true} (no id — the post does not exist yet) and its payload is {title, content (Gutenberg block markup), excerpt?, tags? (existing vocabulary only)}. target may be a single object or an array (batch): per-post writes are atomic, across posts they are independent — one target failing never rolls back another.',
+		'description'         => 'The only tool that mutates post content. Four gates run in order — fingerprint, server-side validation, mode capability, idempotency — every one reported in the response even when an earlier gate already failed. dry_run defaults to TRUE: a caller has to actively ask to write. mode:"revision" stages a WordPress revision without touching the live post (the PR pattern); mode:"publish" writes live. Routine (non-owner) credentials are granted "revision" only — enforced server-side against the calling identity, never a client-chosen parameter. change.type "og_card" (regenerates a PNG file, not a post field) and "anchor_sweep" (dispatches a live HTTP call to the provenance Worker, no post entity involved) are PUBLISH-ONLY — mode:"revision" refuses both explicitly rather than fabricating a staged version of a side effect that cannot be staged. change.type "create_draft" is the mirror image: REVISION-ONLY — mode:"publish" refuses explicitly, because this tool never makes a draft live; the owner schedules drafts by hand. Under mode:"revision", a real draft post IS created (never published); there is no no-op staging for a nonexistent post. Its target is {new_post:true} (no id — the post does not exist yet) and its payload is {title, content (Gutenberg block markup), excerpt?, tags? (existing vocabulary only)}. target may be a single object or an array (batch): per-post writes are atomic, across posts they are independent — one target failing never rolls back another. change.type "restore_revision" is the ACCEPTANCE path for the PR pattern — PUBLISH-ONLY (a restore IS the live write; staging a restore would stage a revision of a revision), so a routine credential is always refused here by the same identity grant every other publish-only type already uses. Its target is {post_id} and its payload is {revision_id, apply_staged_meta? (default true)}: the revision must belong to the target post (a foreign revision refuses 409 naming both ids), the fingerprint gate binds to the LIVE post\'s current content_hash (the same value sn_posts exposes — a restore against a since-edited post is a stale-branch merge conflict, and a missing fingerprint is a 422 caller error, distinct from a mismatched one), and the write step self-guarantees a rollback snapshot of the pre-restore live state before restoring, then applies and clears any staged-meta rows (from surfaces/alt_text in revision mode) queued for the same post — the first application path for that queue.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_apply',
@@ -109,14 +109,22 @@ add_action( 'wp_abilities_api_init', function() {
 		'output_schema'       => array(
 			'type'       => 'object',
 			'properties' => array(
-				'applied'         => array( 'type' => 'boolean' ),
-				'mode'            => array( 'type' => 'string' ),
-				'change_type'     => array( 'type' => 'string' ),
-				'gates'           => array( 'type' => 'object' ),
-				'diff'            => array( 'type' => array( 'object', 'null' ) ),
-				'revision_id'     => array( 'type' => array( 'integer', 'null' ) ),
-				'rollback'        => array( 'type' => array( 'object', 'null' ) ),
-				'replayed'        => array( 'type' => 'boolean' ),
+				'applied'              => array( 'type' => 'boolean' ),
+				'mode'                 => array( 'type' => 'string' ),
+				'change_type'          => array( 'type' => 'string' ),
+				'gates'                => array( 'type' => 'object' ),
+				'diff'                 => array( 'type' => array( 'object', 'null' ) ),
+				'revision_id'          => array( 'type' => array( 'integer', 'null' ) ),
+				'rollback'             => array( 'type' => array( 'object', 'null' ) ),
+				'replayed'             => array( 'type' => 'boolean' ),
+				// Session 7 — restore_revision's own definitive fields (all
+				// other 9 types never populate these; the generic
+				// `revision_id` above stays null for restore_revision on
+				// purpose, see inc/sn-apply-restore-revision.php).
+				'post_id'              => array( 'type' => array( 'integer', 'null' ) ),
+				'restored_revision_id' => array( 'type' => array( 'integer', 'null' ) ),
+				'rollback_revision_id' => array( 'type' => array( 'integer', 'null' ) ),
+				'meta_applied'         => array( 'type' => 'array' ),
 			),
 		),
 		'meta'                => array(
@@ -305,6 +313,19 @@ function snt_sn_apply_apply_one( $type, $raw_target, array $change, $mode, $dry_
 		return snt_sn_apply_target_error_response( $type, $mode, $raw_target, $candidate_id, $resolved );
 	}
 
+	// Session 7 — restore_revision's structural pre-check, BEFORE any gate
+	// runs: the revision named in change.payload.revision_id must exist and
+	// belong to THIS target post. Not a gate itself (it never appears in
+	// the `gates` object) — the same posture as target resolution above,
+	// which this mirrors: there is nothing for gates 1-3 to check a
+	// fingerprint or run validation AGAINST until this holds.
+	if ( 'restore_revision' === $type ) {
+		$precheck = snt_sn_apply_restore_revision_precheck( $resolved['post_id'] ?? 0, (array) ( $change['payload'] ?? array() ) );
+		if ( is_wp_error( $precheck ) ) {
+			return snt_sn_apply_target_error_response( $type, $mode, $raw_target, $candidate_id, $precheck, 'revision_not_resolved' );
+		}
+	}
+
 	$gate1 = snt_sn_apply_gate1_fingerprint( $type, $resolved, $change );
 	$gate2 = snt_sn_apply_gate2_validation( $type, $resolved, $change, $gate1['new_content'] ?? null );
 	$gate3 = snt_sn_apply_gate_capability( $type, $mode );
@@ -358,8 +379,13 @@ function snt_sn_apply_apply_one( $type, $raw_target, array $change, $mode, $dry_
 	if ( ! $all_passed ) {
 		$response['diff']  = snt_sn_apply_dry_run_diff( $type, $resolved, $change, $gate1 );
 		$response['error'] = array(
-			'code'    => ! $gate1['passed'] ? 'snt_sn_apply_fingerprint_stale' : ( ! $gate2_passed ? 'snt_sn_apply_validation_failed' : 'snt_sn_apply_mode_not_granted' ),
-			'status'  => ! $gate1['passed'] ? 409 : ( ! $gate2_passed ? 422 : 403 ),
+			// Session 7 — gate1 may carry its own error_code/error_status
+			// override (restore_revision's missing-fingerprint case: 422,
+			// distinct from the generic 409-stale default every other type
+			// still uses). Absent for every other type's gate1 return array,
+			// so `??` falls back to byte-identical prior behavior.
+			'code'    => ! $gate1['passed'] ? ( $gate1['error_code'] ?? 'snt_sn_apply_fingerprint_stale' ) : ( ! $gate2_passed ? 'snt_sn_apply_validation_failed' : 'snt_sn_apply_mode_not_granted' ),
+			'status'  => ! $gate1['passed'] ? ( $gate1['error_status'] ?? 409 ) : ( ! $gate2_passed ? 422 : 403 ),
 		);
 		return $response;
 	}
@@ -388,6 +414,21 @@ function snt_sn_apply_apply_one( $type, $raw_target, array $change, $mode, $dry_
 		// draft delete is trash, reversible -- the same "nothing is final
 		// yet" posture mode:"revision" promises everywhere else in this tool.
 		$response['rollback'] = array( 'method' => 'delete_draft', 'post_id' => (int) $write['write_result']['post_id'] );
+	} elseif ( 'restore_revision' === $type && is_array( $write['write_result'] ?? null ) ) {
+		// Session 7 -- restore_revision's own definitive fields. mode is
+		// ALWAYS 'publish' for this type (see snt_sn_apply_mode_support()),
+		// so the generic revision-mode branch above never fires here either.
+		// rollback ALWAYS points at the pre-restore snapshot from
+		// snt_sn_apply_ensure_rollback_snapshot() -- never at the revision
+		// that was just restored (restoring it would re-apply the restore,
+		// not undo it).
+		$response['post_id']              = $write['write_result']['post_id'] ?? null;
+		$response['restored_revision_id'] = $write['write_result']['restored_revision_id'] ?? null;
+		$response['rollback_revision_id'] = $write['write_result']['rollback_revision_id'] ?? null;
+		$response['meta_applied']         = $write['write_result']['meta_applied'] ?? array();
+		if ( ! empty( $write['write_result']['rollback_revision_id'] ) ) {
+			$response['rollback'] = array( 'method' => 'restore_revision', 'revision_id' => (int) $write['write_result']['rollback_revision_id'] );
+		}
 	}
 	return $response;
 }
@@ -403,9 +444,15 @@ function snt_sn_apply_apply_one( $type, $raw_target, array $change, $mode, $dry_
  * @param mixed    $raw_target
  * @param string|null $candidate_id
  * @param WP_Error $resolved_error
+ * @param string   $skip_reason Defaults to 'target_not_resolved' (every
+ *                                pre-session-7 call site). Session 7's
+ *                                restore_revision structural pre-check
+ *                                passes 'revision_not_resolved' instead —
+ *                                the TARGET (post) resolved fine; it is the
+ *                                REVISION named in the payload that failed.
  * @return array
  */
-function snt_sn_apply_target_error_response( $type, $mode, $raw_target, $candidate_id, WP_Error $resolved_error ) {
+function snt_sn_apply_target_error_response( $type, $mode, $raw_target, $candidate_id, WP_Error $resolved_error, $skip_reason = 'target_not_resolved' ) {
 	return array(
 		'applied'      => false,
 		'mode'         => $mode,
@@ -413,17 +460,27 @@ function snt_sn_apply_target_error_response( $type, $mode, $raw_target, $candida
 		'change_type'  => $type,
 		'candidate_id' => $candidate_id,
 		'gates'        => array(
-			'fingerprint' => array( 'passed' => false, 'expected' => null, 'observed' => null, 'skipped' => 'target_not_resolved', 'detail' => null ),
-			'validation'  => array( 'passed' => false, 'findings' => array(), 'checks' => array(), 'skipped' => 'target_not_resolved' ),
-			'capability'  => array( 'passed' => false, 'granted_modes' => array(), 'mode_supported' => false, 'reason' => 'target_not_resolved' ),
+			'fingerprint' => array( 'passed' => false, 'expected' => null, 'observed' => null, 'skipped' => $skip_reason, 'detail' => null ),
+			'validation'  => array( 'passed' => false, 'findings' => array(), 'checks' => array(), 'skipped' => $skip_reason ),
+			'capability'  => array( 'passed' => false, 'granted_modes' => array(), 'mode_supported' => false, 'reason' => $skip_reason ),
 			'idempotency' => array( 'passed' => true, 'first_seen' => null ),
 		),
 		'diff'         => null,
 		'revision_id'  => null,
 		'rollback'     => null,
 		'error'        => array(
-			'code'   => $resolved_error->get_error_code(),
-			'status' => (int) ( $resolved_error->get_error_data()['status'] ?? 404 ),
+			'code'    => $resolved_error->get_error_code(),
+			'status'  => (int) ( $resolved_error->get_error_data()['status'] ?? 404 ),
+			// The full response this array is embedded in becomes a
+			// single-target caller's WP_Error MESSAGE verbatim
+			// (wp_json_encode($response) in snt_ability_sn_apply()) — the
+			// original error's own message text is otherwise lost entirely.
+			// Session 7's restore_revision precheck needs its detail (naming
+			// BOTH the requested and actual parent post ids) to survive that
+			// trip; every pre-session-7 caller of this function gains the
+			// same detail for free, never a regression (nothing previously
+			// asserted this key's absence).
+			'message' => $resolved_error->get_error_message(),
 		),
 	);
 }

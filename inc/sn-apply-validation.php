@@ -91,6 +91,45 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			}
 			return array( 'passed' => $passed, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => $passed ? null : 'Post changed since suggest/scan. Re-run scan to refresh.', 'new_content' => $new_content );
 
+		case 'restore_revision':
+			// Session 7 — a REAL fingerprint scheme (not skipped): binds to
+			// the LIVE row's current content_hash, the SAME scheme
+			// signal-noise/sn-posts exposes to callers (snt_corpus_content_hash(),
+			// inc/corpus-inspect.php — REUSED, never a parallel hash). A
+			// restore proposed against a since-edited post is the
+			// stale-branch merge conflict this gate exists to catch. Unlike
+			// every other type here, the fingerprint is REQUIRED — a missing
+			// one is a 422 caller error (`error_code`/`error_status`, read
+			// directly by inc/abilities-sn-apply.php's snt_sn_apply_apply_one()
+			// to override the generic 409-on-any-gate1-failure default),
+			// never treated the same as a stale/mismatched one (409).
+			$post = get_post( $resolved['post_id'] ?? 0 );
+			if ( ! $post ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
+			}
+			$observed = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
+			if ( '' === $fingerprint ) {
+				return array(
+					'passed'       => false,
+					'expected'     => null,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => 'change.fingerprint is required for restore_revision — pass the content_hash observed via sn_posts for this post before proposing a restore.',
+					'new_content'  => null,
+					'error_code'   => 'snt_sn_apply_missing_fingerprint',
+					'error_status' => 422,
+				);
+			}
+			$passed = hash_equals( $observed, $fingerprint );
+			return array(
+				'passed'      => $passed,
+				'expected'    => $fingerprint,
+				'observed'    => $observed,
+				'skipped'     => null,
+				'detail'      => $passed ? null : 'Live post content has changed since this fingerprint was observed (re-fetch sn_posts\' content_hash and retry — the stale-branch merge conflict).',
+				'new_content' => null,
+			);
+
 		default:
 			// alt_text, surfaces, og_card, anchor_sweep — no fingerprint
 			// scheme exists in the absorbed impl (see docblock above).
@@ -168,6 +207,12 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 			// two structural checks unique to a create) — see
 			// inc/sn-apply-create-draft.php's docblock.
 			return snt_sn_apply_gate2_create_draft( $payload );
+
+		case 'restore_revision':
+			// Its own gate-2 assembly, run against the REVISION's fields
+			// (the would-be live state), never the live post's current
+			// fields — see inc/sn-apply-restore-revision.php's docblock.
+			return snt_sn_apply_gate2_restore_revision( $resolved, $change );
 
 		default:
 			// og_card, anchor_sweep — no applicable check family.

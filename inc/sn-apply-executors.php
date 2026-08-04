@@ -25,6 +25,7 @@
  * | og_card           |    NO    |   yes   | sn_generate_og_card() writes a PNG FILE to disk (inc/og-card-generator.php) — not a post field at all. There is no WordPress revision of a file. Refuses structurally in revision mode, never fakes a staged version. |
  * | anchor_sweep      |    NO    |   yes   | dispatches a bounded wp_remote_post() to the provenance Worker (inc/provenance-webhook.php's sn_prov_run_sweep()) — an external side effect with no post entity involved at all (target is scope:"provenance_anchors", not a post_id). Nothing to stage. |
  * | create_draft      |   yes    |   NO    | insert-only (session 6c, the arc's finale — see inc/sn-apply-create-draft.php's docblock for the full B5c origin): post_status is hard-coded 'draft', post_type hard-coded 'post'. mode:"publish" refuses structurally — this tool never makes a draft live; the owner schedules by hand. mode:"revision" is the one accepted mode, but its OWN write mechanism (snt_sn_apply_write_create_draft(), not snt_sn_apply_stage_revision()) — there is no parent post yet to stage a core revision against; "revision" here just means the request goes through the same dry_run-by-default, human-review-first posture as everywhere else in this tool. |
+ * | restore_revision  |    NO    |   yes   | session 7 (the acceptance path — see inc/sn-apply-restore-revision.php's docblock): a restore IS the live write, so "staging a restore" would stage a revision of a revision. mode:"revision" refuses structurally, the exact mechanism og_card/anchor_sweep use. Publish-only means only the rw door's bound owner credential can ever execute it (gate 3's identity grant); a routine credential is refused there by construction, never by new identity code. Promotes a staged revision to live AND applies+clears any queued snt_sn_apply_stage_meta() rows for the same post — the queue's first application path. |
  *
  * "partial" on surfaces is intentionally not a clean yes/no: the TYPE
  * supports revision mode (the gate lets the mode through), but the response
@@ -39,14 +40,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Session 6c appended 'create_draft' (the arc's finale) — every gate
-// function below switches on this list, never a hardcoded count; the
+// Session 6c appended 'create_draft' (the arc's finale); session 7 appends
+// 'restore_revision' (the acceptance path). Every gate function below
+// switches on this list, never a hardcoded count; the
 // tests/abilities-sn-apply-delegation-sweep.php ALL-TYPES sweep loops this
 // same constant, so it REDs on its own count pin the moment a type is added
 // here without a matching sweep-table entry (watched RED, see FINDINGS.md).
 const SNT_SN_APPLY_CHANGE_TYPES = array(
 	'block_migration', 'pattern_adoption', 'alt_text', 'link_insert',
 	'drift_replace', 'surfaces', 'og_card', 'anchor_sweep', 'create_draft',
+	'restore_revision',
 );
 
 /**
@@ -81,6 +84,11 @@ function snt_sn_apply_mode_support( $type ) {
 			return array(
 				'modes'  => array( 'revision' ),
 				'reason' => 'create_draft can never publish — post_status is hard-coded to "draft" and this tool will never make it live. Drafts are scheduled by hand; that manual step is the human review gate. This change type only supports mode:"revision", which performs the actual (reversible via rollback:delete_draft) draft insert directly — there is no live post yet to stage a WordPress core revision against.',
+			);
+		case 'restore_revision':
+			return array(
+				'modes'  => array( 'publish' ),
+				'reason' => 'restore_revision IS the live write — it is the acceptance step of the PR pattern, promoting a staged revision to the live post. "Staging a restore" would mean staging a revision of a revision, which has no meaning. This change type only supports mode:"publish"; a routine credential (granted "revision" only) is refused here by the same identity grant every other publish-only call already goes through — never a new capability check.',
 			);
 		default:
 			return array( 'modes' => array(), 'reason' => 'Unknown change.type.' );
@@ -279,6 +287,20 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 				'write_result' => $result,
 			);
 
+		case 'restore_revision':
+			// mode:publish only — see snt_sn_apply_mode_support(). This is
+			// session 7's acceptance path (inc/sn-apply-restore-revision.php):
+			// ensure a rollback snapshot of the CURRENT live state, restore the
+			// requested revision, then apply+clear any staged-meta rows for
+			// this post. apply_staged_meta defaults TRUE — see that file's
+			// docblock for why (the whole point of this change type is
+			// atomically finishing what mode:"revision" started elsewhere).
+			return snt_sn_apply_write_restore_revision(
+				$resolved['post_id'],
+				(int) ( $payload['revision_id'] ?? 0 ),
+				array_key_exists( 'apply_staged_meta', $payload ) ? (bool) $payload['apply_staged_meta'] : true
+			);
+
 		default:
 			return new WP_Error( 'snt_sn_apply_unknown_type', __( 'Unknown change.type.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
@@ -409,6 +431,20 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 				'after'          => snt_sn_apply_create_draft_preview( $payload ),
 				'blocks_touched' => 0,
 			);
+
+		case 'restore_revision':
+			// {before, after, fields_changed} — session 7's revision_diff()
+			// shape (inc/sn-apply-revision.php), deliberately NOT the
+			// {before,after,blocks_touched} shape every other type uses: a
+			// full-field restore isn't measured in "blocks touched", and
+			// fields_changed is the more honest, more useful preview here.
+			// The output_schema's `diff` property is an open object
+			// (type:[object,null], no fixed properties), so this shape
+			// difference is not a schema violation — documented in
+			// FINDINGS.md session 7 as a deliberate, minor deviation.
+			$revision_id = (int) ( $payload['revision_id'] ?? 0 );
+			$diff        = $revision_id > 0 ? snt_sn_apply_revision_diff( $revision_id ) : null;
+			return is_array( $diff ) ? $diff : array( 'before' => null, 'after' => null, 'fields_changed' => array() );
 
 		default:
 			// og_card, anchor_sweep — no textual diff to preview.
