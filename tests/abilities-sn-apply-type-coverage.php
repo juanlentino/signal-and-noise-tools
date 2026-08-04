@@ -136,6 +136,8 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 }
 if ( ! function_exists( 'post_type_supports' ) ) { function post_type_supports( $t, $f ) { return true; } }
 if ( ! function_exists( 'wp_revisions_to_keep' ) ) { function wp_revisions_to_keep( $post ) { return $GLOBALS['__revisions_to_keep']; } }
+// v10.41.2: snt_sn_apply_stage_revision() now overrides post_modified/post_modified_gmt via current_time() before staging (backdated-revision fix) — every fixture that loads inc/sn-apply-revision.php needs this stub.
+if ( ! function_exists( 'current_time' ) ) { function current_time( $type, $gmt = 0 ) { return gmdate( 'Y-m-d H:i:s' ); } }
 if ( ! function_exists( '_wp_put_post_revision' ) ) {
 	function _wp_put_post_revision( $post ) {
 		$GLOBALS['__write_calls']['_wp_put_post_revision']++;

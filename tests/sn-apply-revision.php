@@ -63,6 +63,7 @@ $GLOBALS['__test_insert_fail']         = false;
 $GLOBALS['__test_insert_fail_mode']    = 'wp_error'; // 'wp_error' (real 7.0.2 path) | 'int_zero' (defensive-arm path)
 $GLOBALS['__test_hooks']               = array();
 $GLOBALS['__hook_calls']               = array();
+$GLOBALS['__test_now']                 = strtotime( '2026-08-04 12:00:00' ); // fixed "staging time" for deterministic date-fix tests (v10.41.2)
 
 // ─── WP core stubs (faithful to documented contracts, see file header) ──
 if ( ! class_exists( 'WP_Error' ) ) {
@@ -109,6 +110,23 @@ if ( ! function_exists( 'post_type_supports' ) ) {
 if ( ! function_exists( 'wp_revisions_to_keep' ) ) {
 	function wp_revisions_to_keep( $post ) {
 		return $GLOBALS['__test_revisions_to_keep'];
+	}
+}
+
+if ( ! function_exists( 'current_time' ) ) {
+	// Real WP (wp-includes/formatting.php): 'mysql' formats the given/current
+	// time as 'Y-m-d H:i:s'; $gmt truthy uses GMT, falsy uses the site's local
+	// offset. This fixture has no timezone concept to model (tests only pin
+	// exact-match and ordering, not offset correctness), so both branches
+	// format the SAME injectable "now" — deterministic via $GLOBALS['__test_now']
+	// rather than a real time() call, following this codebase's
+	// injectable-$now testability convention (see inc/analytics-realtime.php).
+	function current_time( $type, $gmt = 0 ) {
+		$now = $GLOBALS['__test_now'] ?? time();
+		if ( 'timestamp' === $type ) {
+			return $now;
+		}
+		return gmdate( 'Y-m-d H:i:s', $now );
 	}
 }
 
@@ -301,6 +319,7 @@ function _sar_reset() {
 	$GLOBALS['__test_insert_fail_mode']    = 'wp_error';
 	$GLOBALS['__test_hooks']               = array();
 	$GLOBALS['__hook_calls']               = array();
+	$GLOBALS['__test_now']                 = strtotime( '2026-08-04 12:00:00' );
 }
 
 function _sar_post( $id, $overrides = array() ) {
@@ -579,6 +598,66 @@ $revision_row = $GLOBALS['__test_posts'][ $stage['revision_id'] ];
 sar_eq( $gnarly, $revision_row['post_content'], 'Test 17.2: staged revision content is BYTE-IDENTICAL to the proposed string (no double-slash, no unslash loss)' );
 sar_eq( 1, substr_count( $revision_row['post_content'], '\\' ), 'Test 17.3: exactly one backslash byte survives — a double-slash regression would show two' );
 sar_eq( $before_snapshot, $GLOBALS['__test_posts'][14], 'Test 17.4: the crown jewel extends to gnarly content — live row still byte-identical' );
+
+// ─── Test 18: staged revision post_date is STAGING time, not the parent's ──
+// stale post_modified (v10.41.2 live bug — the backdated-revision fix).
+echo "\nTest 18: staged revision post_date/post_date_gmt are STAGING time, not the parent's stale post_modified\n";
+_sar_reset();
+_sar_post( 15, array(
+	'post_modified'     => '2026-07-01 08:00:00', // days-old — the stale live value
+	'post_modified_gmt' => '2026-07-01 08:00:00',
+) );
+$stage = snt_sn_apply_stage_revision( 15, array( 'post_content' => 'Proposed body.' ) );
+sar_true( is_array( $stage ) && ! is_wp_error( $stage ), 'Test 18.1: stage succeeds' );
+$revision_row = $GLOBALS['__test_posts'][ $stage['revision_id'] ];
+sar_eq( '2026-08-04 12:00:00', $revision_row['post_date'], 'Test 18.2: revision post_date = STAGING time (2026-08-04), not the parent\'s stale post_modified (2026-07-01) — this REDs against pre-fix code' );
+sar_eq( '2026-08-04 12:00:00', $revision_row['post_date_gmt'], 'Test 18.3: revision post_date_gmt = STAGING time' );
+sar_true( '2026-07-01 08:00:00' !== $revision_row['post_date'], 'Test 18.4: does NOT carry the parent\'s stale post_modified value (the bug being fixed)' );
+
+// ─── Test 19: ordering — staged revision sorts NEWER than a pre-existing ──
+// revision row carrying the parent's old post_modified (the collision that
+// disabled Restore in wp-admin: the staged row sorted as "current").
+echo "\nTest 19: staged revision date is strictly NEWER than a pre-existing revision row carrying the parent's old modified date\n";
+_sar_reset();
+_sar_post( 16, array(
+	'post_modified'     => '2026-07-01 08:00:00',
+	'post_modified_gmt' => '2026-07-01 08:00:00',
+) );
+// A genuine, PRE-EXISTING core revision row from an earlier real edit —
+// carries the parent's post_modified AT THE TIME IT WAS CREATED, exactly
+// like any real core revision does. This is the row the bug collided with.
+$existing_revision_id = $GLOBALS['__test_next_id']++;
+$GLOBALS['__test_posts'][ $existing_revision_id ] = array(
+	'ID'            => $existing_revision_id,
+	'post_type'     => 'revision',
+	'post_status'   => 'inherit',
+	'post_parent'   => 16,
+	'post_date'     => '2026-07-01 08:00:00',
+	'post_date_gmt' => '2026-07-01 08:00:00',
+	'post_title'    => 'Fixture 16',
+	'post_content'  => 'Original content.',
+	'post_excerpt'  => 'Original excerpt.',
+);
+
+$stage = snt_sn_apply_stage_revision( 16, array( 'post_content' => 'Newly staged.' ) );
+sar_true( is_array( $stage ) && ! is_wp_error( $stage ), 'Test 19.1: stage succeeds' );
+$new_revision_row      = $GLOBALS['__test_posts'][ $stage['revision_id'] ];
+$existing_revision_row = $GLOBALS['__test_posts'][ $existing_revision_id ];
+sar_true(
+	strtotime( $new_revision_row['post_date'] ) > strtotime( $existing_revision_row['post_date'] ),
+	'Test 19.2: staged revision post_date is strictly newer than the pre-existing revision — sorts as CURRENT in wp-admin, Restore stays enabled (pre-fix code REDs: both dates equal, no ordering guarantee)'
+);
+
+// ─── Test 20: parent-untouched crown jewel re-asserted in this scenario ──
+echo "\nTest 20: live post row still strictly unchanged (crown jewel) even with the date fix applied\n";
+_sar_reset();
+_sar_post( 17, array(
+	'post_modified'     => '2026-07-01 08:00:00',
+	'post_modified_gmt' => '2026-07-01 08:00:00',
+) );
+$before_snapshot = $GLOBALS['__test_posts'][17];
+snt_sn_apply_stage_revision( 17, array( 'post_content' => 'Proposed body.' ) );
+sar_eq( $before_snapshot, $GLOBALS['__test_posts'][17], 'Test 20.1: live post row byte-identical after — post_modified/post_modified_gmt still the STALE original values; the date fix only changes what the REVISION row carries, never the parent' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

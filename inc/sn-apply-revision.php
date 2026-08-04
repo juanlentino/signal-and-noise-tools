@@ -55,6 +55,20 @@
  *      byte-identical guarantee: there is no code path in this file that
  *      calls wp_update_post() or wp_insert_post() with the parent's own ID.
  *
+ *   3. Two of the "override ONLY the keys present in $proposed" keys are NOT
+ *      actually left at their live-row values: post_modified/post_modified_gmt
+ *      are always overridden to the current staging moment (added v10.41.2,
+ *      a live bug fix). _wp_post_revision_data() (revision.php:92-93) copies
+ *      the REVISION row's post_date/post_date_gmt straight from whatever
+ *      post_modified / post_modified_gmt sit on the array it's handed —
+ *      correct when a core caller runs it post-update (parent's
+ *      post_modified is already "now"), wrong here: the live row is
+ *      deliberately never touched, so $live['post_modified'] can be days
+ *      stale, and a revision dated that far in the past collides with (or
+ *      predates) the newest genuine revision and gets sorted as "current"
+ *      in wp-admin — disabling Restore. See the override site (search this
+ *      file for `current_time( 'mysql'` ) for the full grounding.
+ *
  * `wp_insert_post()` failure contract, grounded against the real 7.0.2
  * source (wp-includes/revision.php:369-375) rather than assumed from older
  * lore: `_wp_put_post_revision()` calls `wp_insert_post( $post, true )` —
@@ -253,6 +267,31 @@ if ( ! function_exists( 'snt_sn_apply_stage_revision' ) ) {
 		foreach ( $proposed as $field => $value ) {
 			$snapshot[ $field ] = (string) $value;
 		}
+
+		// Re-derive "now" for THIS call's moment. Core's own
+		// _wp_post_revision_data() (verified against WP 7.0.2 source,
+		// wp-includes/revision.php:92-93) sets the REVISION row's
+		// post_date/post_date_gmt straight from whatever post_modified/
+		// post_modified_gmt sit on the array it's handed. Every core caller
+		// of that helper runs it post-update (wp_save_post_revision() fires
+		// from save_post, after wp_update_post() has already stamped the
+		// parent's post_modified to "now") — so post_modified IS "now" at
+		// the moment core reads it. This primitive stages at a DIFFERENT
+		// moment: the live row is deliberately never touched, so
+		// $live['post_modified'] is the post's last genuine edit, which can
+		// be days old. Handing that straight through inherits core's
+		// post-update assumption at a moment that isn't one: the staged
+		// revision's post_date becomes the STALE date, can collide with (or
+		// predate) the newest genuine revision's own post_date, and
+		// wp-admin's revisions browser then sorts it as the CURRENT
+		// revision — which disables the Restore button, a silent no-op the
+		// owner hit live (post 1721, rev 2138, 2026-08-04). Fix: override
+		// ONLY these two keys to the actual staging moment, exactly as core
+		// itself would have them read if it had run this update just now.
+		// The live row is still never written — this changes only the
+		// array handed to _wp_put_post_revision().
+		$snapshot['post_modified']     = current_time( 'mysql' );
+		$snapshot['post_modified_gmt'] = current_time( 'mysql', 1 );
 
 		$revision_id = _wp_put_post_revision( $snapshot );
 
