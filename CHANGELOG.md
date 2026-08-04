@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.37.2] - 2026-08-03
+
+### Fixed
+
+- **Services credibility strip justifies edge-to-edge** ([inc/split-hero-migration.php](inc/split-hero-migration.php) `sn_migrate_split_hero_v7`, [inc/seed-content/services-credrow-v7.html](inc/seed-content/services-credrow-v7.html)). Owner: "from one side to the other, each thing in a space" — the v6 equal columns left the last item short of the right frame edge. The strip is now a flex group with `justify-content:space-between`: first item flush left, last flush right, wraps on small screens; items verbatim. Live verification sweep before this batch confirmed everything else on the frame (all bands 1320/left-290 on every page, heroes top-aligned, nothing centered). ([tests/split-hero-migration.php](tests/split-hero-migration.php) → 69 asserts.)
+
 ## [10.37.1] - 2026-08-03
 
 ### Fixed

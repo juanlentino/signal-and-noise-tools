@@ -211,5 +211,16 @@ ok( isset( $byId[408] ) && false !== strpos( $byId[408], 'sn-cms-directory' ) &&
 ok( isset( $byId[408] ) && false !== strpos( $byId[408], 'the next page</a> before reaching out' ) && 7 === substr_count( $byId[408], '<!-- /wp:paragraph -->' ), 'all seven routes preserved verbatim' );
 ok( isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V6_OPT ] ), 'v6 flag stamped' );
 
+// ── v7: strip justifies edge-to-edge ──
+echo "\nTest: sn_migrate_split_hero_v7\n";
+$credV6 = trim( file_get_contents( $seedDir . 'services-credrow-v6.html' ) );
+$GLOBALS['__pages'] = array( 'services' => (object) array( 'ID' => 395, 'post_content' => "head\n" . $credV6 . "\ntail" ) );
+$GLOBALS['__updates'] = array();
+sn_migrate_split_hero_v7();
+$new = (string) ( $GLOBALS['__updates'][0]['post_content'] ?? '' );
+ok( false !== strpos( $new, '"justifyContent":"space-between"' ) && false === strpos( $new, 'wp:columns' ), 'strip → flex space-between group, columns gone' );
+ok( 4 === substr_count( $new, '<!-- /wp:paragraph -->' ) && false !== stripos( $new, 'years experience' ), 'all four items preserved verbatim' );
+ok( isset( $GLOBALS['__options'][ SN_SPLIT_HERO_V7_OPT ] ), 'v7 flag stamped' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
