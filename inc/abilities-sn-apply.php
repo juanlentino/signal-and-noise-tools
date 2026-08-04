@@ -59,24 +59,36 @@ add_action( 'wp_abilities_api_init', function() {
 			'required'             => array( 'target', 'change', 'mode' ),
 			'properties'           => array(
 				'target'          => array(
-					'oneOf' => array(
-						array(
-							'type'       => 'object',
-							'properties' => array(
-								'post_id'       => array( 'type' => 'integer', 'minimum' => 1 ),
-								'attachment_id' => array( 'type' => 'integer', 'minimum' => 1 ),
-								'scope'         => array( 'type' => 'string', 'enum' => array( 'provenance_anchors' ) ),
-								// session 6c: create_draft's target -- the post doesn't exist yet, so
-								// there is no id to carry. Runtime enforces === true (not just
-								// truthy) in snt_sn_apply_resolve_target(), same posture as scope's enum above.
-								'new_post'      => array( 'type' => 'boolean' ),
-							),
-						),
-						array(
-							'type'  => 'array',
-							'items' => array( 'type' => 'object' ),
-						),
+					// v10.41.1: a nested 'oneOf' (the pre-fix shape) left this property
+					// with NO top-level 'type' key at all -- 'oneOf' was its ONLY key.
+					// Confirmed live (first real MCP call): the projected tool schema
+					// shipped `"target": {}`, and an MCP client facing an untyped
+					// parameter serializes whatever it's given as a JSON STRING rather
+					// than structured JSON -- every call failed input validation with
+					// "input[target][0] is not of type object" regardless of what the
+					// caller sent (see inc/mcp/mcp-tools.php's sn_mcp_normalize_schema(),
+					// which only ever strips oneOf/allOf/anyOf at the SCHEMA ROOT, never
+					// inside a property -- this property had no fallback type left for a
+					// stricter host, or an older cached schema, to fall back to). A `type`
+					// ARRAY union (unlike `oneOf`) is not a schema combinator -- it is the
+					// same pattern already load-bearing elsewhere in this codebase
+					// (sn-posts'/sn-scan's `cursor`, every nullable output field) and it
+					// says everything the old oneOf said: an object OR an array, with
+					// `properties` describing the object branch and `items` describing the
+					// array branch side by side (JSON Schema ignores whichever doesn't
+					// match the instance's actual type). Runtime enforcement is unchanged
+					// -- see snt_sn_apply_resolve_target() / snt_sn_apply_is_batch_target().
+					'type'       => array( 'object', 'array' ),
+					'properties' => array(
+						'post_id'       => array( 'type' => 'integer', 'minimum' => 1 ),
+						'attachment_id' => array( 'type' => 'integer', 'minimum' => 1 ),
+						'scope'         => array( 'type' => 'string', 'enum' => array( 'provenance_anchors' ) ),
+						// session 6c: create_draft's target -- the post doesn't exist yet, so
+						// there is no id to carry. Runtime enforces === true (not just
+						// truthy) in snt_sn_apply_resolve_target(), same posture as scope's enum above.
+						'new_post'      => array( 'type' => 'boolean' ),
 					),
+					'items'      => array( 'type' => 'object' ),
 				),
 				'change'          => array(
 					'type'       => 'object',
@@ -140,6 +152,29 @@ function snt_sn_apply_is_batch_target( $value ) {
  */
 function snt_ability_sn_apply( $input ) {
 	$input = is_array( $input ) ? $input : array();
+
+	// Transport tolerance (defense in depth, belt-and-braces alongside the
+	// schema fix above): a client whose own tool-schema cache still reflects
+	// the pre-fix untyped `target` -- or any other MCP host that serializes a
+	// non-scalar argument as a JSON string when it can't resolve a type from
+	// the schema -- may still send `target` as a STRING even now. Decode it
+	// before anything downstream (snt_sn_apply_is_batch_target(),
+	// snt_sn_apply_canonical_target(), snt_sn_apply_resolve_target()) ever
+	// sees it; every one of those already expects the native PHP array shape
+	// this restores. An undecodable string is a client error, not a silent
+	// empty target -- refuse loudly rather than falling through to "target
+	// not resolved".
+	if ( isset( $input['target'] ) && is_string( $input['target'] ) ) {
+		$decoded_target = json_decode( $input['target'], true );
+		if ( null === $decoded_target && 'null' !== trim( $input['target'] ) ) {
+			return new WP_Error(
+				'snt_sn_apply_bad_target_encoding',
+				'target must be valid JSON when supplied as a string.',
+				array( 'status' => 422 )
+			);
+		}
+		$input['target'] = $decoded_target;
+	}
 
 	$change = is_array( $input['change'] ?? null ) ? $input['change'] : array();
 	$type   = (string) ( $change['type'] ?? '' );
