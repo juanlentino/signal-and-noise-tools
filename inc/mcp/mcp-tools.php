@@ -77,6 +77,20 @@ function sn_mcp_normalize_schema( $schema ) {
 	if ( ! is_array( $schema ) || empty( $schema ) ) {
 		return array( 'type' => 'object' );
 	}
+
+	// v10.38.0 (WP 7.1 prep): delegate the CLIENT-PREP pass to core when it
+	// exists — wp_prepare_json_schema_for_client() strips server-only keywords
+	// (sanitize_callback / validate_callback / arg_options) and hoists
+	// property-level required=>true into Draft-4 required arrays, neither of
+	// which this function ever did. It runs FIRST; the provider-specific fixes
+	// below (scalar type, top-level combinator strip, {} coercion) are OUR
+	// contract with strict MCP hosts and stay applied on top — core's pass
+	// does not cover them. Pre-7.1 this branch never runs: byte-identical
+	// behavior.
+	if ( function_exists( 'wp_prepare_json_schema_for_client' ) ) {
+		$schema = wp_prepare_json_schema_for_client( $schema );
+	}
+
 	// MCP requires the top-level tool schema type to be the literal "object".
 	// The abilities declare a ['object','null'] union (their GET/null run-path),
 	// which strict MCP hosts (e.g. the Anthropic tool-schema validator that a
@@ -447,7 +461,21 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 		return array( 'result' => sn_mcp_error_result( 'Permission denied for ' . $slug ) );
 	}
 
-	$out = $ability->execute( $args );
+	// v10.38.0 (WP 7.1 prep): bracket execute() with the MCP-dispatch depth
+	// flag so the wp_ability_* lifecycle observers in
+	// inc/abilities-lifecycle-guard.php stand down — this wrapper already
+	// records telemetry + rw audit for the call; without the flag every MCP
+	// call would be double-logged once core starts firing those hooks.
+	if ( function_exists( 'sn_ability_guard_mcp_depth' ) ) {
+		sn_ability_guard_mcp_depth( 1 );
+	}
+	try {
+		$out = $ability->execute( $args );
+	} finally {
+		if ( function_exists( 'sn_ability_guard_mcp_depth' ) ) {
+			sn_ability_guard_mcp_depth( -1 );
+		}
+	}
 	if ( is_wp_error( $out ) ) {
 		if ( SN_MCP_DOOR_RW === $door && function_exists( 'sn_mcp_rw_audit_record' ) ) {
 			sn_mcp_rw_audit_record( $slug, $args, 'error', $out );

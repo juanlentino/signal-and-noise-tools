@@ -363,7 +363,7 @@
 		var slugs     = ABILITY_BY_CHECK[ checkType ];
 		if ( ! slugs ) { return; }
 
-		var cell = btn.closest( 'td' );
+		var cell = btn.closest( 'td,th' );
 		if ( ! cell ) { return; }
 
 		// Build input object from data attributes (per check type).
