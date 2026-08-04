@@ -12,7 +12,15 @@
  * a human restoring via wp-admin applies the content revision and strands
  * queued meta in wp_options forever, since the wp-admin Restore button knows
  * nothing about SN's own meta queue. This file is the FIRST application path
- * for that queue.
+ * for that queue — but scoped to POST-targeted rows only (surfaces' fields,
+ * staged under the post's own id). alt_text's own staged rows are queued
+ * under the ATTACHMENT id it targets (inc/sn-apply-executors.php's alt_text
+ * target resolution), and restore_revision's target is always {post_id} —
+ * it structurally never resolves an attachment, so those rows are NOT
+ * reached by snt_sn_apply_apply_staged_meta_for_post() below and remain
+ * stranded, with no application path anywhere in this codebase today
+ * (review MEDIUM 2, REJECT #10 — corrected from an earlier overclaim in
+ * this file's own description text that implied alt_text was covered too).
  *
  * ── Publish-only, by the SAME structural mechanism og_card/anchor_sweep use ──
  *
@@ -279,7 +287,30 @@ function snt_sn_apply_ensure_rollback_snapshot( $post_id ) {
 		// silent) if a fresh snapshot turns out to be needed.
 		$revisions = wp_get_post_revisions( $post_id, array( 'check_enabled' => false ) );
 		$revisions = is_array( $revisions ) ? array_values( $revisions ) : array();
-		$newest    = $revisions[0] ?? null;
+
+		// MEDIUM 1 fix (REJECT #10): "the newest revision" must skip
+		// autosaves, exactly as real core does — wp_save_post_revision()
+		// (wp-includes/revision.php:165, real 6.9 source read directly, not
+		// recalled) picks its own "latest revision, but not an autosave" via
+		// `str_contains( $revision->post_name, "{$revision->post_parent}-revision" )`,
+		// copied verbatim here rather than re-derived. Autosave rows are
+		// UPDATED IN PLACE by the next editor autosave
+		// (wp-admin/includes/post.php's wp_create_post_autosave() re-uses
+		// the SAME post ID rather than inserting a new row) — anchoring a
+		// rollback pointer to one would be silently rewritten out from under
+		// it the next time the owner's editor autosaves. wp_get_post_revisions()
+		// is already sorted newest-first ('date ID' DESC), so the first
+		// non-autosave row in iteration order IS "the newest revision, but
+		// not an autosave" — never a duplicate of core's own semantics.
+		foreach ( $revisions as $candidate ) {
+			$candidate   = (array) $candidate;
+			$post_name   = (string) ( $candidate['post_name'] ?? '' );
+			$is_autosave = ! str_contains( $post_name, $post_id . '-revision' );
+			if ( ! $is_autosave ) {
+				$newest = $candidate;
+				break;
+			}
+		}
 	}
 
 	$matches_live = false;

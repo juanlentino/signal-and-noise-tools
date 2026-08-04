@@ -73,12 +73,22 @@ $GLOBALS['__auth_uuid']          = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; // = 
 $GLOBALS['__revisions_to_keep']  = -1; // unlimited
 
 function tf_post( $id, $overrides = array() ) {
-	$GLOBALS['__posts'][ $id ] = array_merge( array(
+	$defaults = array(
 		'ID' => $id, 'post_title' => "Post $id", 'post_name' => "post-$id",
 		'post_status' => 'publish', 'post_type' => 'post', 'post_parent' => 0,
 		'post_date' => '2026-06-01 10:00:00', 'post_modified' => '2026-07-01 10:00:00',
 		'post_modified_gmt' => '2026-07-01 10:00:00', 'post_content' => '', 'post_excerpt' => '',
-	), $overrides );
+	);
+	// MEDIUM 1 fix (REJECT #10): a real revision's post_name carries core's
+	// own "{parent}-revision-v1" / "{parent}-autosave-v1" idiom (real 6.9
+	// source, wp-includes/revision.php's _wp_post_revision_data()) -- never
+	// the generic "post-$id" default -- so a fixture representing a
+	// pre-existing revision defaults to the REVISION shape unless the caller
+	// overrides post_name explicitly (e.g. to model an autosave row).
+	if ( 'revision' === ( $overrides['post_type'] ?? '' ) && ! isset( $overrides['post_name'] ) ) {
+		$defaults['post_name'] = ( (int) ( $overrides['post_parent'] ?? 0 ) ) . '-revision-v1';
+	}
+	$GLOBALS['__posts'][ $id ] = array_merge( $defaults, $overrides );
 }
 
 if ( ! function_exists( 'get_post' ) ) {
@@ -306,6 +316,60 @@ $decodedF = json_decode( $rF->get_error_message(), true );
 eq( $fp900, $decodedF['gates']['fingerprint']['observed'] ?? null, 'F.4: observed = the CURRENT live content_hash (re-derivable without a second lookup)' );
 
 /* ════════════════════════════════════════════════════════════════════════
+ * Test F2 (HIGH fix, REJECT #10): a blanked live post's content_hash is ''
+ * (snt_corpus_content_hash()'s own documented shape for empty/whitespace
+ * content, inc/corpus-inspect.php) — the exact value the disaster-recovery
+ * restore needs a caller to be able to pass and have it PASS. Distinguishes
+ * "fingerprint key ABSENT" (422, Test E) from "fingerprint explicitly ''"
+ * (must reach the comparison and PASS against an equally-blank observed
+ * hash) via array_key_exists(), never isset()/empty-string collapse.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nTest F2 (HIGH fix): blanked live post + fingerprint explicitly '' -> gates pass, recovery diff shows the real content\n";
+tf_post( 905, array( 'post_content' => '', 'post_excerpt' => '' ) ); // blanked live post
+tf_post( 906, array( 'post_type' => 'revision', 'post_parent' => 905, 'post_content' => 'Recovered real content.', 'post_title' => 'Post 905', 'post_excerpt' => '' ) );
+eq( '', snt_corpus_content_hash( $GLOBALS['__posts'][905]['post_content'] ), 'F2.0: sanity -- a blanked post_content hashes to the empty string, not md5(\'\')' );
+
+$rF2 = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 905 ),
+	'change' => array( 'type' => 'restore_revision', 'fingerprint' => '', 'payload' => array( 'revision_id' => 906 ) ), // fingerprint key PRESENT, explicitly ''
+	'mode'   => 'publish', 'dry_run' => true,
+) );
+ok( ! is_wp_error( $rF2 ), 'F2.1: does not refuse -- an explicit empty fingerprint against an equally-blank live post PASSES gate 1' );
+eq( true, $rF2['gates']['fingerprint']['passed'] ?? null, 'F2.2: gate 1 (fingerprint) passed' );
+eq( 'Recovered real content.', $rF2['diff']['after']['post_content'] ?? null, 'F2.3: the dry_run diff shows the recovery -- after = the revision\'s real content' );
+eq( '', $rF2['diff']['before']['post_content'] ?? null, 'F2.4: diff.before = the blanked live content' );
+
+// Whitespace-only content hashes the same way -- also recoverable.
+tf_post( 907, array( 'post_content' => "   \n\t  ", 'post_excerpt' => '' ) );
+tf_post( 908, array( 'post_type' => 'revision', 'post_parent' => 907, 'post_content' => 'Recovered from whitespace-only.', 'post_title' => 'Post 907', 'post_excerpt' => '' ) );
+$rF2b = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 907 ),
+	'change' => array( 'type' => 'restore_revision', 'fingerprint' => '', 'payload' => array( 'revision_id' => 908 ) ),
+	'mode'   => 'publish', 'dry_run' => true,
+) );
+ok( ! is_wp_error( $rF2b ), 'F2.5: whitespace-only live content also recovers -- fingerprint \'\' passes' );
+
+echo "\nTest F3 (HIGH fix pin): fingerprint key ABSENT against a blanked post STILL 422s -- 'missing' and 'blank-content-observed' stay distinct\n";
+$rF3 = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 905 ),
+	'change' => array( 'type' => 'restore_revision', 'payload' => array( 'revision_id' => 906 ) ), // no 'fingerprint' key at all
+	'mode'   => 'publish', 'dry_run' => true,
+) );
+ok( is_wp_error( $rF3 ), 'F3.1: refuses' );
+eq( 'snt_sn_apply_missing_fingerprint', $rF3->get_error_code(), 'F3.2: error code' );
+eq( 422, (int) ( $rF3->get_error_data()['status'] ?? 0 ), 'F3.3: status 422 -- an absent key is STILL a caller error, even against a blanked post' );
+
+echo "\nTest F4 (HIGH fix pin): fingerprint md5('') is NOT the observed hash for a blanked post -- 409, never a false pass\n";
+$rF4 = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 905 ),
+	'change' => array( 'type' => 'restore_revision', 'fingerprint' => md5( '' ), 'payload' => array( 'revision_id' => 906 ) ),
+	'mode'   => 'publish', 'dry_run' => true,
+) );
+ok( is_wp_error( $rF4 ), 'F4.1: refuses -- md5(\'\') ("d41d8cd9...") is a DIFFERENT string than the observed \'\', not the blanked-post hash scheme' );
+eq( 'snt_sn_apply_fingerprint_stale', $rF4->get_error_code(), 'F4.2: error code (mismatched, generic default)' );
+eq( 409, (int) ( $rF4->get_error_data()['status'] ?? 0 ), 'F4.3: status 409' );
+
+/* ════════════════════════════════════════════════════════════════════════
  * Test G: gate-2 findings are computed from the REVISION's fields, not the
  * live post's — proven by a drift-lexicon phrase present ONLY in the
  * revision's content.
@@ -494,6 +558,48 @@ $attachment_staged_still = snt_sn_apply_get_staged_meta( 960, '_wp_attachment_im
 ok( null !== $attachment_staged_still, 'M.3: attachment 960\'s staged meta is STILL PRESENT — a different target\'s (post 970) restore never touches it' );
 eq( 'Alt text proposal', $attachment_staged_still['proposed_value'], 'M.4: attachment 960\'s staged value is unchanged' );
 ok( ! in_array( '_wp_attachment_image_alt', $rM['meta_applied'] ?? array(), true ), 'M.5: meta_applied does not include the attachment\'s meta_key — it was never in post 970\'s own queue' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Test N (MEDIUM 1 fix, REJECT #10): the rollback snapshot pick must skip
+ * autosave revisions, exactly as real core does when grabbing "the latest
+ * revision" (wp_save_post_revision(), wp-includes/revision.php:165 —
+ * `str_contains( $revision->post_name, "{$revision->post_parent}-revision" )`).
+ * Autosave rows are UPDATED IN PLACE by the next editor autosave
+ * (wp-admin/includes/post.php's wp_create_post_autosave() re-uses the SAME
+ * post ID), so a rollback pointer anchored to one would be silently
+ * rewritten out from under it. Fixture: the NEWEST revision by ID is an
+ * autosave whose fields match live exactly — the naive `$revisions[0]` pick
+ * would treat it as a valid, reusable snapshot and never stage a fresh one.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nTest N (MEDIUM 1 fix): rollback snapshot skips an autosave, even when its fields match live, and stages a fresh snapshot instead\n";
+tf_post( 980, array( 'post_content' => 'Post 980 live content.', 'post_title' => 'Post 980', 'post_excerpt' => 'Post 980 excerpt.' ) );
+// 981: the revision to RESTORE (differs from live) -- a real revision, gets
+// tf_post()'s default "980-revision-v1" post_name.
+tf_post( 981, array( 'post_type' => 'revision', 'post_parent' => 980, 'post_content' => 'Post 980 proposed content.', 'post_title' => 'Post 980', 'post_excerpt' => 'Post 980 excerpt.' ) );
+// 982: an AUTOSAVE, created AFTER 981 (higher ID => sorts newest by the
+// stub's ID-DESC proxy for core's "date ID" DESC), whose fields exactly
+// match live's CURRENT state -- the exact bait for the pre-fix bug.
+tf_post( 982, array(
+	'post_type' => 'revision', 'post_parent' => 980, 'post_name' => '980-autosave-v1',
+	'post_content' => 'Post 980 live content.', 'post_title' => 'Post 980', 'post_excerpt' => 'Post 980 excerpt.',
+) );
+$fp980 = snt_corpus_content_hash( $GLOBALS['__posts'][980]['post_content'] );
+
+tf_reset_writes();
+$posts_count_before_n = count( $GLOBALS['__posts'] );
+$rN = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 980 ),
+	'change' => array( 'type' => 'restore_revision', 'fingerprint' => $fp980, 'payload' => array( 'revision_id' => 981, 'apply_staged_meta' => false ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $rN ), 'N.1: apply does not refuse' );
+eq( true, $rN['applied'] ?? null, 'N.2: applied:true' );
+eq( 1, $GLOBALS['__write_calls']['_wp_put_post_revision'], 'N.3: a FRESH snapshot was staged -- the autosave (982) was never reused as-is, even though its fields match live' );
+$rollback_id_n = $rN['rollback_revision_id'] ?? null;
+ok( $rollback_id_n !== 982, 'N.4: rollback_revision_id is NEVER the autosave (982) -- an autosave row is rewritten in place by the next editor autosave, so anchoring a rollback pointer to one would silently go stale' );
+ok( $rollback_id_n !== 981, 'N.5: rollback_revision_id is not the restored revision (981) either' );
+eq( $posts_count_before_n + 1, count( $GLOBALS['__posts'] ), 'N.6: exactly one new post row (the fresh snapshot) was created' );
+eq( 'Post 980 live content.', $GLOBALS['__posts'][ $rollback_id_n ]['post_content'] ?? null, 'N.7: the fresh snapshot still carries the PRE-RESTORE live content' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

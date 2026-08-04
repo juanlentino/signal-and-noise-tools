@@ -50,7 +50,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-apply', array(
 		'label'               => 'Apply a change to a post (consolidated write tool)',
-		'description'         => 'The only tool that mutates post content. Four gates run in order — fingerprint, server-side validation, mode capability, idempotency — every one reported in the response even when an earlier gate already failed. dry_run defaults to TRUE: a caller has to actively ask to write. mode:"revision" stages a WordPress revision without touching the live post (the PR pattern); mode:"publish" writes live. Routine (non-owner) credentials are granted "revision" only — enforced server-side against the calling identity, never a client-chosen parameter. change.type "og_card" (regenerates a PNG file, not a post field) and "anchor_sweep" (dispatches a live HTTP call to the provenance Worker, no post entity involved) are PUBLISH-ONLY — mode:"revision" refuses both explicitly rather than fabricating a staged version of a side effect that cannot be staged. change.type "create_draft" is the mirror image: REVISION-ONLY — mode:"publish" refuses explicitly, because this tool never makes a draft live; the owner schedules drafts by hand. Under mode:"revision", a real draft post IS created (never published); there is no no-op staging for a nonexistent post. Its target is {new_post:true} (no id — the post does not exist yet) and its payload is {title, content (Gutenberg block markup), excerpt?, tags? (existing vocabulary only)}. target may be a single object or an array (batch): per-post writes are atomic, across posts they are independent — one target failing never rolls back another. change.type "restore_revision" is the ACCEPTANCE path for the PR pattern — PUBLISH-ONLY (a restore IS the live write; staging a restore would stage a revision of a revision), so a routine credential is always refused here by the same identity grant every other publish-only type already uses. Its target is {post_id} and its payload is {revision_id, apply_staged_meta? (default true)}: the revision must belong to the target post (a foreign revision refuses 409 naming both ids), the fingerprint gate binds to the LIVE post\'s current content_hash (the same value sn_posts exposes — a restore against a since-edited post is a stale-branch merge conflict, and a missing fingerprint is a 422 caller error, distinct from a mismatched one), and the write step self-guarantees a rollback snapshot of the pre-restore live state before restoring, then applies and clears any staged-meta rows (from surfaces/alt_text in revision mode) queued for the same post — the first application path for that queue.',
+		'description'         => 'The only tool that mutates post content. Four gates run in order — fingerprint, server-side validation, mode capability, idempotency — every one reported in the response even when an earlier gate already failed. dry_run defaults to TRUE: a caller has to actively ask to write. mode:"revision" stages a WordPress revision without touching the live post (the PR pattern); mode:"publish" writes live. Routine (non-owner) credentials are granted "revision" only — enforced server-side against the calling identity, never a client-chosen parameter. change.type "og_card" (regenerates a PNG file, not a post field) and "anchor_sweep" (dispatches a live HTTP call to the provenance Worker, no post entity involved) are PUBLISH-ONLY — mode:"revision" refuses both explicitly rather than fabricating a staged version of a side effect that cannot be staged. change.type "create_draft" is the mirror image: REVISION-ONLY — mode:"publish" refuses explicitly, because this tool never makes a draft live; the owner schedules drafts by hand. Under mode:"revision", a real draft post IS created (never published); there is no no-op staging for a nonexistent post. Its target is {new_post:true} (no id — the post does not exist yet) and its payload is {title, content (Gutenberg block markup), excerpt?, tags? (existing vocabulary only)}. target may be a single object or an array (batch): per-post writes are atomic, across posts they are independent — one target failing never rolls back another. change.type "restore_revision" is the ACCEPTANCE path for the PR pattern — PUBLISH-ONLY (a restore IS the live write; staging a restore would stage a revision of a revision), so a routine credential is always refused here by the same identity grant every other publish-only type already uses. Its target is {post_id} and its payload is {revision_id, apply_staged_meta? (default true)}: the revision must belong to the target post (a foreign revision refuses 409 naming both ids), the fingerprint gate binds to the LIVE post\'s current content_hash (the same value sn_posts exposes — a restore against a since-edited post is a stale-branch merge conflict, and a missing fingerprint is a 422 caller error, distinct from a mismatched one), and the write step self-guarantees a rollback snapshot of the pre-restore live state before restoring, then applies and clears any staged-meta rows queued under the SAME post_id (surfaces\' meta_description/og_card_title/seo_title/focus_keyword staged via mode:"revision") — the first application path for those rows. alt_text\'s own staged rows are queued under the ATTACHMENT id it targets, never a post_id, so restore_revision (which only ever targets a post) structurally cannot reach them; they remain stranded, with no application path today.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_apply',
@@ -209,7 +209,24 @@ function snt_ability_sn_apply( $input ) {
 	// protects the retry of the same logical call, never a cross-target
 	// dedupe. Everything below this block only runs for a fresh
 	// (key, target) pair (or no key at all).
-	$idem = snt_sn_apply_gate_idempotency( $idempotency_key, $canonical_target );
+	//
+	// Fix round (REJECT #10, pre-existing defect, session 6b's own build
+	// notes flagged it theoretical): dry_run:true NEVER consults the store —
+	// a preview always runs fresh. Pre-fix, a keyed dry_run:true call was
+	// treated identically to a real call: its preview response (applied:
+	// false) got RECORDED, and the natural follow-up dry_run:false call
+	// under the same key then REPLAYED that preview forever instead of ever
+	// executing the write — restore_revision's own documented workflow
+	// (dry-run diff -> owner says apply -> dry_run:false, SAME key is the
+	// obvious caller pattern) makes this the expected shape of a real call,
+	// not an edge case. The mirror half (never RECORDING a dry run) is
+	// below, at the idempotency_record() call site — both changes are
+	// one-directional: a dry_run:false call's behavior is completely
+	// unchanged (still looks up, still records, still replays exactly as
+	// before).
+	$idem = $dry_run
+		? array( 'passed' => true, 'first_seen' => null, 'replay' => null, 'target_mismatch' => null )
+		: snt_sn_apply_gate_idempotency( $idempotency_key, $canonical_target );
 	if ( is_array( $idem['target_mismatch'] ?? null ) ) {
 		// Belt-and-braces: the stored row was executed against a DIFFERENT
 		// target than this request's (impossible under the current key
@@ -285,7 +302,12 @@ function snt_ability_sn_apply( $input ) {
 		}
 	}
 
-	snt_sn_apply_idempotency_record( $idempotency_key, $canonical_target, $response );
+	// Fix round (REJECT #10): a dry run never records into the store either
+	// — see the gate-4 lookup above for the full rationale. Only a genuine
+	// dry_run:false execution is ever eligible to be replayed.
+	if ( ! $dry_run ) {
+		snt_sn_apply_idempotency_record( $idempotency_key, $canonical_target, $response );
+	}
 	snt_sn_apply_audit_enrichment( $type, $mode, $dry_run, $change, $response, false );
 
 	return $response;

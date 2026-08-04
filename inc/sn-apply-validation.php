@@ -103,12 +103,30 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			// directly by inc/abilities-sn-apply.php's snt_sn_apply_apply_one()
 			// to override the generic 409-on-any-gate1-failure default),
 			// never treated the same as a stale/mismatched one (409).
+			//
+			// Review HIGH (REJECT #10): "missing" MUST be detected via
+			// array_key_exists(), never via the shared $fingerprint local
+			// above (built with isset(), which collapses "key absent" and
+			// "key present but ''" into the same ''). snt_corpus_content_hash()
+			// (inc/corpus-inspect.php) returns '' — not md5('') — for an
+			// empty/whitespace post_content, which is EXACTLY the value
+			// sn_posts exposes as content_hash for a blanked live post. Under
+			// the isset()-based collapse, a caller who correctly observed and
+			// passed fingerprint:'' for a blanked post could never reach the
+			// comparison at all — every explicit '' was silently reinterpreted
+			// as "missing" (422), making the disaster-recovery restore (this
+			// gate's own advertised use, FINDINGS.md's "decisive fact")
+			// structurally impossible. array_key_exists() is this codebase's
+			// documented present-vs-null idiom; using it here lets an
+			// explicitly-passed '' reach hash_equals() like any other value,
+			// while a genuinely absent key still 422s.
 			$post = get_post( $resolved['post_id'] ?? 0 );
 			if ( ! $post ) {
 				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
 			}
-			$observed = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
-			if ( '' === $fingerprint ) {
+			$observed             = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
+			$fingerprint_provided = array_key_exists( 'fingerprint', $change );
+			if ( ! $fingerprint_provided ) {
 				return array(
 					'passed'       => false,
 					'expected'     => null,
