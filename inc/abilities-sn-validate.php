@@ -104,10 +104,18 @@ add_action( 'wp_abilities_api_init', function() {
 					'additionalProperties' => false,
 				),
 				'checks'          => array(
-					'oneOf' => array(
-						array( 'type' => 'string', 'enum' => array( 'all' ) ),
-						array( 'type' => 'array', 'items' => array( 'type' => 'string', 'enum' => SNT_SN_VALIDATE_SURFACES ) ),
-					),
+					// v10.41.1: same failure class as inc/abilities-sn-apply.php's
+					// `target` (found by that fix's projection sweep, not independently
+					// reported live) -- a nested 'oneOf' with NO top-level 'type' key
+					// left this property advertised as untyped after projection, the
+					// same shape that made an MCP client stringify `target` on every
+					// call. `type` as an ARRAY union says the same thing without a
+					// combinator: a string (only 'all' is valid, enforced server-side
+					// below -- see sn_mcp_normalize_schema()'s own precedent for
+					// dropping schema-level strictness in favor of execute-time
+					// enforcement) OR an array of surface tokens.
+					'type'    => array( 'string', 'array' ),
+					'items'   => array( 'type' => 'string', 'enum' => SNT_SN_VALIDATE_SURFACES ),
 					'default' => 'all',
 				),
 				'compare_against' => array( 'type' => 'string', 'enum' => array( 'published', 'none' ), 'default' => 'published' ),
@@ -194,6 +202,17 @@ function snt_ability_sn_validate( $input ) {
 	}
 
 	$checks_input = $input['checks'] ?? 'all';
+	// Transport tolerance (v10.41.1, same reasoning as sn_apply's `target`):
+	// a client that stringified `checks` while its own schema cache still
+	// reflected the pre-fix untyped shape may send a JSON-encoded array as a
+	// string. Decode before validating; an undecodable non-"all" string
+	// falls straight through to the existing 422 below unchanged.
+	if ( is_string( $checks_input ) && 'all' !== $checks_input ) {
+		$decoded_checks = json_decode( $checks_input, true );
+		if ( is_array( $decoded_checks ) ) {
+			$checks_input = $decoded_checks;
+		}
+	}
 	if ( 'all' === $checks_input ) {
 		$requested = SNT_SN_VALIDATE_SURFACES;
 	} elseif ( is_array( $checks_input ) ) {

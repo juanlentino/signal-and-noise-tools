@@ -260,6 +260,32 @@ eq( 0, tf_total_writes(), 'Test 1.4: ZERO writes across every write primitive (w
 eq( $posts_before, $GLOBALS['__posts'], 'Test 1.5: the entire post store is byte-identical before/after — structural, not just the write-call counters' );
 
 /* ════════════════════════════════════════════════════════════════════════
+ * ACCEPTANCE TEST 1b (v10.41.1): the live bug this session fixed — `target`
+ * arriving as a JSON-encoded STRING (an MCP client stringifying an untyped
+ * parameter; see inc/abilities-sn-apply.php's schema fix + this function's
+ * own transport-tolerance decode). Same call as Test 1, target pre-encoded.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nAcceptance test 1b: target arrives as a JSON string (transport tolerance)\n";
+tf_reset_writes();
+$r1b = snt_ability_sn_apply( array(
+	'target' => wp_json_encode( array( 'post_id' => 100 ) ),
+	'change' => array( 'type' => 'block_migration', 'fingerprint' => $fp_100, 'payload' => array( 'migration_type' => 'heading-hierarchy-skip', 'replacement_markup' => $replacement_100 ) ),
+	'mode'   => 'revision',
+) );
+ok( ! is_wp_error( $r1b ), 'Test 1b.1: a JSON-string target decodes and does not refuse' );
+eq( false, $r1b['applied'] ?? null, 'Test 1b.2: applied:false (still a dry_run)' );
+eq( array( 'post_id' => 100 ), $r1b['target'] ?? null, 'Test 1b.3: the decoded target reaches the response as a native array, not the original string' );
+eq( 0, tf_total_writes(), 'Test 1b.4: ZERO writes' );
+
+$r1c = snt_ability_sn_apply( array(
+	'target' => '{not valid json',
+	'change' => array( 'type' => 'block_migration', 'fingerprint' => $fp_100, 'payload' => array( 'migration_type' => 'heading-hierarchy-skip', 'replacement_markup' => $replacement_100 ) ),
+	'mode'   => 'revision',
+) );
+ok( is_wp_error( $r1c ), 'Test 1c.1: an undecodable string target refuses (not a silent empty target)' );
+eq( 'snt_sn_apply_bad_target_encoding', is_wp_error( $r1c ) ? $r1c->get_error_code() : null, 'Test 1c.2: refusal code names the encoding failure' );
+
+/* ════════════════════════════════════════════════════════════════════════
  * ACCEPTANCE TEST 2: stale fingerprint → refusal, with current fingerprint
  * returned so the caller can re-scan.
  * ════════════════════════════════════════════════════════════════════════ */

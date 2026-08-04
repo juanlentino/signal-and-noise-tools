@@ -297,6 +297,27 @@ ok( in_array( 'tags', $all_no_proposal['surfaces_checked'], true ), 'ACCEPTANCE 
 ok( ! in_array( 'links', $all_no_proposal['surfaces_checked'], true ) && ! in_array( 'alt_text', $all_no_proposal['surfaces_checked'], true ), 'ACCEPTANCE TEST 5: proposal-only surfaces (links/alt_text) are silently skipped, not errors' );
 
 /* ════════════════════════════════════════════════════════════════════════
+ * ACCEPTANCE TEST 5b (v10.41.1): `checks` arrives as a JSON-encoded STRING
+ * — the same live transport class this session's sn_apply `target` fix
+ * addressed (found by that fix's projection sweep: `checks` had the
+ * identical untyped-oneOf shape). "all" as a bare string keeps working
+ * unchanged (it is not run through the decode path at all).
+ * ════════════════════════════════════════════════════════════════════════ */
+$checks_as_json_string = snt_ability_sn_validate( array(
+	'post_id' => 100,
+	'proposed' => array( 'excerpt' => 'Too short.' ),
+	'checks'  => json_encode( array( 'excerpt' ) ),
+) );
+ok( ! is_wp_error( $checks_as_json_string ), 'ACCEPTANCE TEST 5b.1: a JSON-string checks value decodes and does not refuse' );
+ok( in_array( 'excerpt', $checks_as_json_string['surfaces_checked'], true ), 'ACCEPTANCE TEST 5b.2: the decoded checks value actually ran (excerpt was checked)' );
+
+$checks_all_still_bare_string = snt_ability_sn_validate( array( 'post_id' => 100, 'checks' => 'all' ) );
+ok( ! is_wp_error( $checks_all_still_bare_string ), 'ACCEPTANCE TEST 5b.3: checks:"all" as a bare string is unaffected by the decode path' );
+
+$checks_bad_string = snt_ability_sn_validate( array( 'post_id' => 100, 'checks' => 'not valid json and not "all"' ) );
+ok( is_wp_error( $checks_bad_string ), 'ACCEPTANCE TEST 5b.4: an undecodable, non-"all" string checks value still refuses (unchanged 422 path)' );
+
+/* ════════════════════════════════════════════════════════════════════════
  * ACCEPTANCE TEST 6 — ZERO MODEL CALLS. Structural source scan: neither
  * sn-validate file may reference an AI transport entry point. Names pulled
  * directly from inc/ai-bootstrap.php (the real client entry points).
