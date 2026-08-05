@@ -137,6 +137,11 @@ function sn_prov_verify_send() {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
+<?php // The &mdash; here is the site-wide DOCUMENT-TITLE separator, matching
+// inc/seo.php's "Page Name — Site Name" format, not prose. Deliberately left
+// by the em-dash sweep, the same exemption v10.48.2 applied across wp-admin.
+// Changing it would make this one route's tab title disagree with every
+// other page on the site. ?>
 <title>Verify a Note &mdash; <?php echo esc_html( function_exists( 'get_bloginfo' ) ? get_bloginfo( 'name' ) : 'Signal & Noise' ); ?></title>
 <link rel="stylesheet" href="<?php echo esc_url( $css_url ); ?>">
 <?php if ( '' !== $fonts_base ) : ?>
@@ -163,7 +168,7 @@ function sn_prov_verify_send() {
 	<header class="sn-verify-head">
 		<p class="sn-verify-kicker">Signal &amp; Noise</p>
 		<h1>Verify a Note</h1>
-		<p class="sn-verify-lede">Four checks run right here, in your browser. Nothing is taken on trust from this site &mdash; the signature, the content hash, and the Bitcoin anchor are all independently checkable against the public ledger and the Bitcoin chain themselves.</p>
+		<p class="sn-verify-lede">Four checks run right here, in your browser. Nothing is taken on trust from this site: the signature, the content hash, and the Bitcoin anchor are all independently checkable against the public ledger and the Bitcoin chain themselves.</p>
 	</header>
 
 	<?php // The verdict band leads the page in the DOM, not only on screen: it is
@@ -268,7 +273,7 @@ function sn_prov_verify_send() {
 	// rather than being it: the tab script owns the wrapper's visibility, the
 	// verifier owns the section's. ?>
 	<div class="sn-verify-panel" id="sn-panel-walk" role="tabpanel" aria-labelledby="sn-tab-walk" data-panel="walk" tabindex="0" hidden>
-		<p class="sn-verify-sec-lede">The chain of custody, value by value: the hash this Note&rsquo;s signature covers, the independent ledger&rsquo;s leaf, and the Bitcoin transaction and block that seal it &mdash; each labeled with where it was read from, so the independence of the three witnesses is visible, not asserted.</p>
+		<p class="sn-verify-sec-lede">The chain of custody, value by value: the hash this Note&rsquo;s signature covers, the independent ledger&rsquo;s leaf, and the Bitcoin transaction and block that seal it. Each is labeled with where it was read from, so the independence of the three witnesses is visible, not asserted.</p>
 		<section class="sn-verify-walk" data-role="walk" hidden>
 			<ol class="sn-verify-walk-steps" data-role="walk-steps"></ol>
 		</section>
@@ -278,7 +283,7 @@ function sn_prov_verify_send() {
 	</div>
 
 	<div class="sn-verify-panel sn-verify-compare" id="sn-panel-compare" data-role="compare" role="tabpanel" aria-labelledby="sn-tab-compare" data-panel="compare" tabindex="0" hidden>
-		<p class="sn-verify-sec-lede">Every signed version stays on the chain. Pick two version numbers to see, word by word, what changed between them &mdash; each side labeled by its own anchor state.</p>
+		<p class="sn-verify-sec-lede">Every signed version stays on the chain. Pick two version numbers to see, word by word, what changed between them. Each side is labeled by its own anchor state.</p>
 		<?php // Its OWN form class: .sn-verify-form is a one-label/one-input/
 		// one-button bar, and pushing three labelled fields through that flex
 		// row is what made this block wrap into orphaned labels. ?>
@@ -306,7 +311,7 @@ function sn_prov_verify_send() {
 		<a href="<?php echo esc_url( 'https://github.com/' . $owner . '/' . $repo ); ?>" rel="noopener">Git ledger</a>
 	</footer>
 
-	<p class="sn-verify-noscript"><noscript>Verification runs in JavaScript, in your own browser. Enable it to run the checks &mdash; nothing is sent anywhere by doing so.</noscript></p>
+	<p class="sn-verify-noscript"><noscript>Verification runs in JavaScript, in your own browser. Enable it to run the checks. Nothing is sent anywhere by doing so.</noscript></p>
 </div>
 <?php // The pure decision core is a hard dependency of the page script — it
 // MUST load first. This standalone route never runs the wp_enqueue_scripts

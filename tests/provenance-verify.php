@@ -473,7 +473,11 @@ vv_true( '' !== $js && false !== strpos( $js, 'The verifier script did not load'
 
 // (1b) checkLiveMatch pins the twin fetch to this origin — the same pin
 // resolvePasted() enforces (the credential's live URL is untrusted data).
-vv_true( '' !== $js && false !== strpos( $js, 'skipping the live comparison rather than fetching a foreign origin' ),
+// Pinned on the INTENT-carrying fragment, not the whole sentence: this is a
+// security assertion standing behind a copy string, and the v10.49.1 em-dash
+// sweep rewrote the clause in front of it. The tail is what states the
+// guarantee, so it is the part worth being brittle about.
+vv_true( '' !== $js && false !== strpos( $js, 'rather than fetching a foreign origin' ),
 	'live-match refuses a foreign-origin twin URL instead of fetching it' );
 
 // (1a) Core key decodes are wrapped: a corrupt published key is a DISTINCT

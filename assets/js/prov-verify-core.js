@@ -247,7 +247,7 @@
 		var vm = didDoc && didDoc.verificationMethod && didDoc.verificationMethod[ 0 ];
 		var jwk = vm && vm.publicKeyJwk;
 		if ( ! jwk || ! jwk.x ) {
-			return { verdict: { state: STATE.FAIL, detail: 'No public key is published at the did document — nothing to verify against.' } };
+			return { verdict: { state: STATE.FAIL, detail: 'No public key is published at the did document, so there is nothing to verify against.' } };
 		}
 		// Every decode below is wrapped: a corrupted published key must be a
 		// DISTINCT key-corrupt verdict, never an uncaught atob throw that the
@@ -325,7 +325,7 @@
 			state:  valid ? STATE.PASS : STATE.FAIL,
 			detail: valid
 				? 'The Ed25519 signature matches the published key.'
-				: 'The signature does not match the published key — this credential cannot be trusted as-is.'
+				: 'The signature does not match the published key. This credential cannot be trusted as-is.'
 		};
 	}
 
@@ -375,7 +375,7 @@
 		if ( decodeFailed || ! signedContent ) {
 			// An undecodable payload is NOT evidence of an edit — asserting
 			// "edited since signing" here would claim something never established.
-			return { state: STATE.NOTE, detail: 'The signed payload could not be decoded for comparison — no edit claim either way.' };
+			return { state: STATE.NOTE, detail: 'The signed payload could not be decoded for comparison, so there is no edit claim either way.' };
 		}
 		// The theme's .json twin schema carries content_text / content_html —
 		// there is NO bare `content` field (reading one made this check report
@@ -390,7 +390,7 @@
 			state:  matches ? STATE.PASS : STATE.NOTE,
 			detail: matches
 				? 'This matches the currently published content.'
-				: 'Content edited since signing — this credential proves version ' + ( evidence.version || '?' ) + ' as of ' + ( cred.validFrom || 'its signing date' ) + '. A newer signed version may already exist.'
+				: 'Content edited since signing. This credential proves version ' + ( evidence.version || '?' ) + ' as of ' + ( cred.validFrom || 'its signing date' ) + '. A newer signed version may already exist.'
 		};
 	}
 
@@ -404,7 +404,7 @@
 		var evidence = ( cred && cred.evidence && cred.evidence[ 0 ] ) || {};
 		var anchor = evidence.anchor || {};
 		if ( 'pending' === anchor.status ) {
-			return { verdict: { state: STATE.NOTE, detail: 'Awaiting Bitcoin confirmation — not a failure, just not yet on-chain.' } };
+			return { verdict: { state: STATE.NOTE, detail: 'Awaiting Bitcoin confirmation. Not a failure, just not yet on-chain.' } };
 		}
 		if ( 'confirmed' !== anchor.status || ( ! anchor.txid && ! anchor.block ) ) {
 			return { verdict: { state: STATE.FAIL, detail: 'This credential does not carry a confirmed Bitcoin anchor.' } };

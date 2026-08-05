@@ -87,6 +87,11 @@
 		} else if ( 'pending' === anchor.status ) {
 			state = 'anchor pending confirmation';
 		}
+		// The ' — ' here is a VALUE SEPARATOR inside a label chip ("v1 — anchor
+		// confirmed at block 957611"), not prose joining two clauses, so it is
+		// deliberately left by the em-dash sweep — the same exemption v10.48.2
+		// applied across wp-admin. Do not "correct" it to a period: the two
+		// halves are a version and its state, not two sentences.
 		return 'v' + version + ' — ' + state + ( cred && cred.validFrom ? ', signed ' + cred.validFrom : '' );
 	}
 
@@ -140,7 +145,7 @@
 			var credA = creds[ 0 ];
 			var credB = creds[ 1 ];
 			if ( ! credA || ! credB ) {
-				say( 'Could not fetch both versions — one of them may not exist for this note.' );
+				say( 'Could not fetch both versions. One of them may not exist for this note.' );
 				return;
 			}
 			var contentA = signedContent( credA );

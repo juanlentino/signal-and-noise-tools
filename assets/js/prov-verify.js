@@ -52,7 +52,7 @@
 	if ( ! Core ) {
 		var failLine = root.querySelector( '[data-role="status-line"]' );
 		if ( failLine ) {
-			failLine.textContent = 'Could not load the verifier — reload the page.';
+			failLine.textContent = 'Could not load the verifier. Reload the page.';
 		}
 		var pendingChecks = root.querySelectorAll( '.sn-verify-check' );
 		Array.prototype.forEach.call( pendingChecks, function ( li ) {
@@ -280,18 +280,18 @@
 			return Promise.resolve( null );
 		}
 		if ( url.origin !== location.origin ) {
-			setStatusLine( 'Only links to this site are supported here — paste the note id instead, or open the note and use its own Verify link.' );
+			setStatusLine( 'Only links to this site are supported here. Paste the note id instead, or open the note and use its own Verify link.' );
 			return Promise.resolve( { handled: true } );
 		}
 		var twinUrl = Core.pastedTwinUrl( url.href );
 		return fetchJSON( twinUrl ).then( function ( res ) {
 			if ( ! res.ok || ! res.json ) {
-				setStatusLine( 'That page has no public credential twin — open the note and use its own Verify link.' );
+				setStatusLine( 'That page has no public credential twin. Open the note and use its own Verify link.' );
 				return { handled: true };
 			}
 			var ref = Core.resolveTwinRef( res.json, location.href );
 			if ( ! ref ) {
-				setStatusLine( 'That page\'s public twin carries no note id — open the note and use its own Verify link.' );
+				setStatusLine( 'That page\'s public twin carries no note id. Open the note and use its own Verify link.' );
 				return { handled: true };
 			}
 			return ref;
@@ -302,7 +302,7 @@
 	function checkSignature( cred, didDoc, siteKeys, ledgerKeys ) {
 		return ed25519Supported().then( function ( supported ) {
 			if ( ! supported ) {
-				setCheck( 'signature', STATE.NOTE, 'This browser does not support Ed25519 verification — showing the credential\'s facts and links below instead of a pass/fail verdict.' );
+				setCheck( 'signature', STATE.NOTE, 'This browser does not support Ed25519 verification, so it shows the credential\'s facts and links below instead of a pass/fail verdict.' );
 				return null; // caller renders the fallback facts panel.
 			}
 			var agreement = Core.deriveKeyAgreement( didDoc, siteKeys, ledgerKeys );
@@ -373,7 +373,7 @@
 			twinOrigin = '';
 		}
 		if ( twinOrigin !== location.origin ) {
-			setCheck( 'live-match', STATE.NOTE, 'This credential\'s live URL is not on this site — skipping the live comparison rather than fetching a foreign origin.' );
+			setCheck( 'live-match', STATE.NOTE, 'This credential\'s live URL is not on this site, so the live comparison is skipped rather than fetching a foreign origin.' );
 			return Promise.resolve();
 		}
 		return fetchJSON( twinUrl ).then( function ( res ) {
@@ -540,7 +540,7 @@
 		fetchJSON( credUrl ).then( function ( credRes ) {
 			if ( ! credRes.ok ) {
 				setStatusLine( Core.credentialFailureStatus( credRes.status ) );
-				settlePendingChecks( 'Could not run — no credential to check.' );
+				settlePendingChecks( 'Could not run: no credential to check.' );
 				return 'failed'; // keep the specific status line — no "Done." overwrite
 			}
 			var cred = credRes.json;
@@ -556,7 +556,7 @@
 					setCheck( 'signature', STATE.UNREACHABLE, 'Could not reach this site\'s did document.' );
 				}
 				if ( ! ledgerKeysRes.ok ) {
-					announce( 'Could not reach the independent ledger key copy — signature verification continues without that cross-check.' );
+					announce( 'Could not reach the independent ledger key copy. Signature verification continues without that cross-check.' );
 				}
 
 				var signatureDone = didRes.ok
