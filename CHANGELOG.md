@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.48.1] - 2026-08-05
+
+**Headline:** the ten SEO meta keys stop trusting their caller for the per-resource check, and the broken-link prober enforces same-host itself instead of assuming its extractor always will.
+
+### Security
+
+- **SEO post-meta `auth_callback` is now per-resource.** The ten REST-exposed keys (`_sn_noindex`, `_sn_noarchive`, `_sn_noimageindex`, `_sn_evergreen`, `_sn_meta_description`, `_sn_canonical_url`, `_sn_og_image_url`, `_sn_og_card_title`, `_sn_seo_title`, `_sn_focus_keyword`) shared a closure that returned `current_user_can( 'edit_posts' )` and ignored `$object_id`, while the pillar pair registered 60 lines below in the same file already used the real six-argument `register_meta` signature. **Not exploitable, then or now:** WordPress applies registered meta only through the parent object's controller, and `WP_REST_Posts_Controller::update_item_permissions_check()` clears `edit_post( $id )` before any meta is written, as does this file's own classic save path — so nothing could reach the blanket callback with an id the caller could not already edit. Filed and fixed because a meta key should be self-defending rather than relying on its caller, and because all three existing `post-settings` suites stub `current_user_can()` always-true, leaving the gate with no assertion anywhere. New `tests/post-settings-meta-auth.php` (73 assertions) pins the checked id to the operated id. Found by the 2026-08-05 CMA post-ship audit (LOW-1).
+- **The broken-internal-link prober enforces same-host at the boundary.** `sn_health_link_status()` trusted `sn_health_extract_internal_links()` to hand it only same-host URLs; handed anything else it would probe it. Two defenses already stood in front (the extractor's host filter, plus `redirection => 0` on both the HEAD and GET-fallback probes), so there was no live SSRF, but neither lived at the prober, so an extractor regression would have turned it into an arbitrary-host fetcher. Now an off-host URL returns `skipped` with reason `off_host` and never reaches the HTTP layer. New `tests/health-check-broken-links.php` covers the extractor contract and the boundary, including cloud-metadata and loopback targets. Found by the same audit (INFO-3).
+
+### Changed
+
+- The broken-link prober deliberately does **not** adopt `sn_ssrf_host_blocked()`, which is what the audit literally suggested for parity with `inc/health-external-links.php`. That guard blocks private and CGNAT ranges, and this prober's only legitimate target is the site's own host — on a LAN or internal-staging install `home_url()` resolves into exactly those ranges, so importing it would make the whole check inert precisely where it is most often run by hand. Same-host enforcement is strictly stronger here: it admits one host where the SSRF guard admits every public one, and it is resolution-independent. The reasoning is recorded in both the module and the suite so the asymmetry is not re-flagged as drift.
+
+> **Why PATCH:** security hardening and defense-in-depth only. No capability changes for legitimate editors — the upstream `edit_post( $id )` gate already permitted exactly the same operations — and no public API change.
+
 ## [10.48.0] - 2026-08-05
 
 **Headline:** the 404 classifier gives back a signal it should never have had; the content editors stop rendering an input plus three buttons per line; and the Dashboard's numbers become ways in.

@@ -107,6 +107,22 @@ function sn_health_extract_internal_links( $content, $site_host ) {
  * challenged citation (see sn_health_is_bot_challenge() in health-probe-classify.php).
  */
 function sn_health_link_status( $url ) {
+	// v10.48.1: enforce the same-host invariant HERE, not only in the extractor.
+	// CMA audit 2026-08-05 INFO-3 flagged that the external-link prober runs its
+	// candidates through sn_ssrf_host_blocked() while this one trusted its caller.
+	// Deliberately NOT that guard: it blocks private/CGNAT ranges, and this prober's
+	// only legitimate target is the site's own host — on a LAN or internal-staging
+	// install home_url() resolves into exactly those ranges, so importing it would
+	// make the check inert precisely where it is most often run by hand. Keying on
+	// the site HOST is strictly stronger for this call site (one host admitted,
+	// versus every public one) and is resolution-independent. Not cached: the
+	// comparison is free, and a skip must never be able to mask a later fix.
+	$probe_host = strtolower( (string) wp_parse_url( $url, PHP_URL_HOST ) );
+	$site_host  = strtolower( (string) wp_parse_url( home_url(), PHP_URL_HOST ) );
+	if ( '' === $probe_host || '' === $site_host || $probe_host !== $site_host ) {
+		return array( 'ok' => true, 'code' => 0, 'skipped' => true, 'reason' => 'off_host' );
+	}
+
 	$cache_key = sn_health_probe_cache_key( 'sn_health_link_', $url );
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) ) {
