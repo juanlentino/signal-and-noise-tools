@@ -667,11 +667,35 @@ ok( is_array( $a ), 'signal-noise/sn-scan is registered' );
 ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), 'sn-scan gates on manage_options' );
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-scan is annotated readonly + non-destructive + idempotent' );
 ok( array( 'scan_type' ) === ( $a['input_schema']['required'] ?? array() ), 'scan_type is the only required field' );
-ok( 6 === count( $a['input_schema']['properties']['scan_type']['enum'] ?? array() ), 'scan_type enum carries all 6 scan types' );
+// Relationship, not a literal: the published enum must equal SNT_SN_SCAN_TYPES
+// exactly. A hard-coded count only says "someone updated a number"; this says
+// "the schema and the registry still agree", which is the property that broke
+// in v10.51.0 when emdash reached the adapter map but not the constant.
+ok( ( $a['input_schema']['properties']['scan_type']['enum'] ?? array() ) === SNT_SN_SCAN_TYPES, 'the published scan_type enum IS SNT_SN_SCAN_TYPES (not a hand-kept copy)' );
 ok( false === ( $a['input_schema']['additionalProperties'] ?? true ), 'input schema rejects unknown properties' );
 
 echo "\nGroup: no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], 'zero notices/warnings/deprecations raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
+
+echo "\nGroup: enum ⇄ adapter parity — a scan type must be BOTH declared and dispatchable\n";
+// v10.51.0 shipped the emdash adapter registered in the dispatch map but ABSENT
+// from SNT_SN_SCAN_TYPES, so the ability rejected scan_type:"emdash" before it
+// could ever reach the adapter: the feature was unreachable. sn-apply has an
+// ALL-TYPES delegation sweep that REDs the moment a type joins its enum without
+// joining the sweep, which is exactly why its half was registered correctly.
+// This is that guard for sn-scan, in both directions.
+$sn_scan_map = snt_sn_scan_adapters();
+$declared    = SNT_SN_SCAN_TYPES;
+$dispatched  = array_keys( $sn_scan_map );
+sort( $declared ); sort( $dispatched );
+
+foreach ( $dispatched as $t ) {
+	ok( in_array( $t, $declared, true ), "adapter '$t' is DECLARED in SNT_SN_SCAN_TYPES (otherwise the ability rejects it before dispatch)" );
+}
+foreach ( $declared as $t ) {
+	ok( in_array( $t, $dispatched, true ), "declared type '$t' has a DISPATCHABLE adapter (otherwise the ability accepts it and then 500s)" );
+}
+ok( $declared === $dispatched, 'the two lists are identical, so neither can drift ahead of the other' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
