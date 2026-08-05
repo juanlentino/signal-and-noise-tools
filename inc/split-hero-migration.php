@@ -38,6 +38,18 @@ const SN_SPLIT_HERO_MIGR_OPT = 'sn_split_hero_migrated_v1';
  * wp:group through its first closer (all four verified flat — no nested
  * groups).
  *
+ * v10.45.0 NOTE — these hashes are unchanged and must stay that way. They
+ * describe the PRE-split hero as it existed on an un-migrated install, so
+ * they remain the correct entry gate for any install that has not run this
+ * chain yet. What changed in v10.45.0 is the SEEDS: about/services/contact
+ * bodies and music-above were re-frozen from the live post-migration state,
+ * so a FRESH install now starts at the chain's endpoint and every one-shot
+ * here correctly no-ops for it. Verified safe against the fallback chains
+ * below: each migration maps every prior variant forward to the newest, and
+ * the newest (e.g. split-hero-contact-hero-v5) appears only ever as an
+ * OUTPUT, never as an input — so a seed already at the endpoint cannot be
+ * migrated past it.
+ *
  * @return array<string, array{hash:string, seed:string}>
  */
 function sn_split_hero_targets() {
