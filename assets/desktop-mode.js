@@ -11,16 +11,31 @@
  * Navigation commands set window.location.href; Info commands read
  * from window.snDesktopData (localized in PHP) and dispatch a toast.
  *
- * Gracefully no-ops if wp.desktop isn't available (defensive — script
- * shouldn't be loaded in that case, but better safe).
+ * Gracefully no-ops if neither wp.desktop nor wp.os is available (defensive
+ * — script shouldn't be loaded in that case, but better safe).
  *
  * @since plugin v1.15.0
  */
 ( function() {
 	'use strict';
 
-	// Defensive: bail if the shell APIs aren't on the page.
-	if ( typeof window === 'undefined' || ! window.wp || ! window.wp.desktop || typeof window.wp.desktop.registerCommand !== 'function' ) {
+	// v10.43.0 — OpenStation rename compat (REJECT #11 MEDIUM fix):
+	// SELF-SUFFICIENT, not order-dependent on the external
+	// assets/desktop-mode-os-compat.js prelude having run first.
+	// desktop-mode's own lazy command-sync loader injects this script's
+	// <script src="..."> tag directly by URL (same gap as the widget
+	// files' lazy loading — see docs/openstation-compat.md), so under a
+	// post-#475 mid-session shell activation this file can run BEFORE the
+	// external prelude ever does, leaving only window.wp.os set. Accept
+	// EITHER name, then alias window.wp.desktop from window.wp.os locally
+	// so every one of the 65 window.wp.desktop.* call sites below keeps
+	// working unchanged regardless of which naming family (or ordering)
+	// is live.
+	if ( typeof window === 'undefined' || ! window.wp || ( ! window.wp.desktop && ! window.wp.os ) ) {
+		return;
+	}
+	window.wp.desktop = window.wp.desktop || window.wp.os;
+	if ( typeof window.wp.desktop.registerCommand !== 'function' ) {
 		return;
 	}
 

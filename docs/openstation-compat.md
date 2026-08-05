@@ -25,8 +25,8 @@ and cross-checked with `gh api search/code` on 2026-08-04.
 
 | Old hook (v0.9.8) | New hook (post-#475) | Upstream firing site | Our consumer |
 |---|---|---|---|
-| `desktop_mode_dock_items` | `openstation_dock_items` | `includes/core/payload.php:213` — `apply_filters( 'openstation_dock_items', $items )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — the "Signal & Noise" dock entry |
-| `desktop_mode_dock_placement` | `openstation_dock_placement` | `includes/core/payload.php:1138` — `apply_filters( 'openstation_dock_placement', 'dock', $menu_slug )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — suppresses the auto-imported SN dock item |
+| `desktop_mode_dock_items` | `openstation_dock_items` | `includes/core/payload.php:212` — `apply_filters( 'openstation_dock_items', $items )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — the "Signal & Noise" dock entry |
+| `desktop_mode_dock_placement` | `openstation_dock_placement` | `includes/core/payload.php:1137` — `apply_filters( 'openstation_dock_placement', 'dock', $menu_slug )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — suppresses the auto-imported SN dock item |
 | `desktop_mode_ai_tools` | `openstation_ai_tools` | `includes/ai-copilot/search.php:1124` — `apply_filters( 'openstation_ai_tools', $tools, $context )` (2nd arg is new; our callback still declares only `$tools`) | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — Anthropic tool-schema normalizer + Copilot prune list |
 | `desktop_mode_ai_system_prompt_appendix` | `openstation_ai_system_prompt_appendix` | `includes/ai-copilot/search.php:1594` — `apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — analytics-vocabulary appendix |
 | `desktop_mode_ai_tool_called` | `openstation_ai_tool_called` | `includes/ai-copilot/search.php:1322` / `:1399` / `:1753` — `do_action( 'openstation_ai_tool_called', array( 'tool_name' => …, 'args' => …, 'user_id' => …, 'request_id' => … ) )` | [inc/ai-tool-invocation-log.php](../inc/ai-tool-invocation-log.php) — Copilot tool-invocation log |
@@ -106,3 +106,104 @@ layer is source-verified against `trunk`, dual-registers defensively, and
 every existing test passes unmodified on the v0.9.8 line, but the
 post-rename path has never executed against a real WordPress admin. Revisit
 this file when a post-#475 OpenStation release ships, to confirm live.
+
+## Review round — REJECT #11
+
+Adversarial review of the initial ship (above) REJECTed on one HIGH, one
+MEDIUM, and three LOWs. All four findings were fixed in-worktree,
+watched-RED first for every behavioral change.
+
+**HIGH — the double-fire guard dropped legitimate identical-repeat events,
+today.** `snt_os_compat_seen_once()` was a plain per-request boolean keyed
+on a call's full identity hash — it suppressed the SECOND of ANY two calls
+sharing that key, whether or not they were actually the same event. That
+is not a hypothetical shim scenario: `openstation_agent_tool_result` (real
+post-#475 `includes/agents/runner.php:579`) passes no `call_id` in its
+payload, so two identical tool calls with byte-identical output within one
+agent run are indistinguishable by payload; a Copilot `$request_id` is
+per-RUN (`includes/ai-copilot/search.php:888-890`, reused across the
+iteration loop), so a same-tool same-args repeat within one turn hashes
+identically too. The old guard silently dropped the second row on TODAY's
+v0.9.8 — single hook family, zero transition shims anywhere in play —
+corrupting the exact telemetry the MCP consolidation program's retirement
+decisions read. Fixed by making the guard **family-aware**:
+`snt_os_compat_seen_once()` now counts firings per `(key, hook family)`,
+family derived from `current_filter()`'s prefix (`desktop_mode_` vs
+`openstation_`, via the new `snt_os_compat_current_family()`), and
+suppresses a firing only when the OTHER family has fired MORE times for
+that key than THIS family has. A same-family repeat's own count only ever
+grows when it records, so same-family firings never trip that condition —
+both proceed. A true future both-families transition shim still fires each
+event once per family and collapses to exactly one recorded row, which was
+always the guard's actual job. Two inline comments in
+[inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) and
+[inc/ai-tool-invocation-log.php](../inc/ai-tool-invocation-log.php) claiming
+the guard "only matters if a future release ever ships both as a transition
+shim" were FALSE and are corrected.
+
+**MEDIUM — the lazy widget/command loader bypasses the alias prelude
+entirely.** `openstation_resolve_script_payload()` (real post-#475
+`includes/core/payload.php:1371-1449`) resolves only a script handle's own
+`src` and never walks its declared `wp_register_script` deps; upstream's
+server-sync/command-sync inject one bare `<script src="...">` tag per URL.
+So `sn-desktop-mode-os-compat`'s dependency edges (every `sn-desktop-mode*`
+handle declares it as a dep) guarantee the alias runs first only on the
+ordinary WP-enqueued boot path — never on this lazy-load path. A post-#475
+mid-session shell activation could load a widget file or `assets/desktop-mode.js`
+before the prelude ever ran, leaving `window.openStationWidgets` (the name
+upstream actually reads) empty even though the widget wrote to
+`window.desktopModeWidgets` — `widget-missing-mount`, and every Cmd+K
+command dead until reload. Fixed by making every consumer
+**self-sufficient** instead of order-dependent: all 8
+`assets/desktop-mode-widget*.js` files' single-line
+`window.desktopModeWidgets = window.desktopModeWidgets || {}` prologue
+became a 3-statement merge-and-alias onto ONE object under both names
+(survivor = `openStationWidgets`, the name upstream itself reads
+post-#475; a both-populated-and-differing race copies the loser's keys in
+first, so no already-mounted widget is lost); `assets/desktop-mode.js`'s
+gate now accepts either `window.wp.desktop` or `window.wp.os` and
+self-aliases `window.wp.desktop` locally, so its 65 existing
+`window.wp.desktop.*` call sites keep working unchanged either way. The
+`sn-desktop-mode-os-compat` prelude registration is KEPT — it still runs
+first on the ordinary boot path, print-order tidiness — but its docblock's
+claim that ordering is "always in place first, on either OpenStation line"
+was overbroad, and its claim that "`src/widgets/server-sync.ts` awaits our
+script's `<script>` load" was outright FALSE (server-sync awaits the
+WIDGET's own URL load; upstream has no awareness this compat file exists at
+all). Both corrected, along with the matching claim in
+[inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php)'s
+registration comment.
+
+**LOW — the REST icon-URL belt only ever wrote the pre-rename field key.**
+`inc/desktop-mode-integration.php`'s `rest_prepare_plugin` belt (v2.1.7,
+"ALWAYS override") wrote `desktop_mode_icon_url` only. Post-#475
+OpenStation renames the REST field's JSON *key itself* to
+`openstation_icon_url` — a different seam from the already-dual-registered
+`desktop_mode_plugins_window_icon_url` / `openstation_plugins_window_icon_url`
+*filter*, which supplies the field's *value* via `get_callback` but cannot
+rename the key the response carries. The belt now dual-writes both keys.
+
+**LOW — two `payload.php` line citations were off by one.** The
+`desktop_mode_dock_items` → `openstation_dock_items` firing site is
+`includes/core/payload.php:212` (not `:213`), and
+`desktop_mode_dock_placement` → `openstation_dock_placement` is `:1137`
+(not `:1138`). Corrected in the hooks table above and in both matching
+inline comments in `inc/desktop-mode-integration.php`. Every other cited
+line number (`search.php:1124/:1594/:1322/:1399/:1753`,
+`runner.php:243/:579`, `helpers.php:91`, `rest-fields.php:465`) was
+re-verified against the review's ledger and found correct as originally
+recorded.
+
+**LOW — the appendix filter under-declared its real arg count.** The real
+post-#475 call site is
+`apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter )`
+— two args — but the callback was registered with the default
+`accepted_args=1`. Cheap future-proofing: now registered with
+`accepted_args=2`, so a future need to read `$ctx_for_filter` only means
+widening the closure's own signature, not touching the registration.
+
+Every fix above was RED-pinned (a failing assertion against the pre-fix
+code, confirmed to fail for the right reason) before the corresponding code
+change landed. Full account, including exact RED output, per-file
+assertion deltas, and final sweep/phpstan/phpcs numbers: see the
+`[10.43.0]` review-round entry in [CHANGELOG.md](../CHANGELOG.md).

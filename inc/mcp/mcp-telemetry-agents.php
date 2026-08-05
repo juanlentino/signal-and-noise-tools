@@ -224,13 +224,20 @@ function sn_mcp_telemetry_agent_record( $output, $slug, $args, $agent_user_id ) 
 		return;
 	}
 
-	// v10.43.0 — OpenStation double-fire guard. This filter is now
-	// dual-registered under both the pre-rename and post-#475 hook names
-	// (see the bootstrap below + inc/openstation-compat.php). Exactly one
-	// name fires on any given install today; this guard only matters if a
-	// future release ever ships both as a transition shim for the SAME
-	// call. Keyed on the full call identity so it never suppresses two
-	// genuinely distinct calls with different output.
+	// v10.43.0 — OpenStation double-fire guard, FAMILY-AWARE as of REJECT
+	// #11 (the HIGH finding). This filter is dual-registered under both the
+	// pre-rename and post-#475 hook names (see the bootstrap below +
+	// inc/openstation-compat.php). The claim that used to live here — "only
+	// matters if a future release ever ships both as a transition shim" —
+	// was FALSE: openstation_agent_tool_result (runner.php:579) carries no
+	// call_id, so two identical tool calls with byte-identical output in
+	// ONE agent run are indistinguishable by payload, and the pre-#11 guard
+	// silently dropped the second row TODAY, on v0.9.8, single-hook-family,
+	// no shim involved. snt_os_compat_seen_once() is now family-aware: it
+	// keys on the full call identity AND which literal hook name fired
+	// (via current_filter()), so a same-family repeat (this call) always
+	// proceeds, and only a genuine cross-family shadow of an already-
+	// recorded event is suppressed.
 	if ( function_exists( 'snt_os_compat_seen_once' )
 		&& snt_os_compat_seen_once( 'agent_tool_result:' . md5( serialize( array( $slug, $args, $agent_user_id, $output ) ) ) ) ) {
 		return;
@@ -361,11 +368,14 @@ function sn_mcp_telemetry_agent_record_completed( $agent_user_id, $result ) {
 		return;
 	}
 
-	// v10.43.0 — OpenStation double-fire guard. Keys the WHOLE toolCalls
-	// trace once per (agent, result) so a hypothetical future double-fire of
-	// desktop_mode_agent_completed / openstation_agent_completed for the
-	// SAME run does not replay every failure row twice. See
-	// inc/openstation-compat.php.
+	// v10.43.0 — OpenStation double-fire guard, FAMILY-AWARE as of REJECT
+	// #11. Keys the WHOLE toolCalls trace once per (agent, result, hook
+	// family) so a genuine future double-fire of desktop_mode_agent_completed
+	// / openstation_agent_completed for the SAME run does not replay every
+	// failure row twice — while a same-family repeat of an identical
+	// (agent, result) pair (a real, legitimate case: Copilot's $request_id
+	// is per-RUN, so the SAME trace can legitimately recur) still records
+	// every time. See inc/openstation-compat.php.
 	if ( function_exists( 'snt_os_compat_seen_once' )
 		&& snt_os_compat_seen_once( 'agent_completed:' . (int) $agent_user_id . ':' . md5( serialize( $result ) ) ) ) {
 		return;

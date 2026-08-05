@@ -115,10 +115,23 @@ add_action( 'init', function() {
 
 	// v10.43.0 — OpenStation rename compat. A tiny prelude that aliases
 	// window.desktopModeWidgets ↔ window.openStationWidgets and
-	// window.wp.desktop ↔ window.wp.os onto the SAME object, before any
-	// other sn-desktop-mode* script runs. Registered as an explicit
-	// dependency of every one of them below so the alias is always in place
-	// first, on either OpenStation line. See assets/desktop-mode-os-compat.js.
+	// window.wp.desktop ↔ window.wp.os onto the SAME object. Registered as
+	// an explicit dependency of every other sn-desktop-mode* script below,
+	// so on the ordinary WP-enqueued boot path the alias is in place first,
+	// on either OpenStation line.
+	//
+	// REJECT #11 MEDIUM correction: that guarantee does NOT hold on every
+	// boot path. desktop-mode's own lazy widget/command loader (server-
+	// sync.ts / command-sync) injects a widget or command script's
+	// <script src="..."> tag directly by URL — it never walks this
+	// wp_register_script dependency graph — so under a post-#475
+	// mid-session shell activation, a widget file or assets/desktop-mode.js
+	// can run BEFORE this prelude ever does. Every one of those consumers
+	// (the 8 widget files + desktop-mode.js) now aliases both names ITSELF,
+	// so none of them actually depends on this file running first anymore;
+	// this registration remains for boot-path print-order tidiness on the
+	// path where WP's own enqueue pipeline IS what delivers the script. See
+	// assets/desktop-mode-os-compat.js and docs/openstation-compat.md.
 	wp_register_script(
 		'sn-desktop-mode-os-compat',
 		plugins_url( 'assets/desktop-mode-os-compat.js', SNT_PATH . 'signal-and-noise-tools.php' ),
@@ -540,7 +553,7 @@ add_action( 'init', function() {
  * Verified against WordPress/desktop-mode includes/core/payload.php:
  *   apply_filters( 'desktop_mode_dock_placement', 'dock', $menu_slug );
  * Post-#475 OpenStation renames this to `openstation_dock_placement`
- * (includes/core/payload.php:1138, same 2-arg shape) — dual-registered via
+ * (includes/core/payload.php:1137, same 2-arg shape) — dual-registered via
  * snt_os_compat_add_filter(), idempotent (pure function of $menu_slug), no
  * double-fire guard needed.
  *
@@ -554,7 +567,7 @@ snt_os_compat_add_filter( 'desktop_mode_dock_placement', 'openstation_dock_place
 }, 10, 2 );
 
 // Post-#475 OpenStation renames this to `openstation_dock_items`
-// (includes/core/payload.php:213) — dual-registered, idempotent (rebuilds
+// (includes/core/payload.php:212) — dual-registered, idempotent (rebuilds
 // $items from sn_admin_top_tabs() every call), no double-fire guard needed.
 snt_os_compat_add_filter( 'desktop_mode_dock_items', 'openstation_dock_items', function( $items ) {
 	if ( ! is_array( $items ) ) {
@@ -888,9 +901,24 @@ add_filter( 'rest_prepare_plugin', function( $response, $item, $request ) {
 	// plugins know their own canonical icon URL — overwrite
 	// unconditionally for our basename. Safe scope: gated on
 	// $item['_file'] === SN_GH_PLUGIN_BASENAME at the top of this filter.
+	//
+	// v10.43.0 REJECT #11 LOW: dual-write BOTH REST field keys. Post-#475
+	// OpenStation renames the field ITSELF from 'desktop_mode_icon_url' to
+	// 'openstation_icon_url' (rest-fields.php) — a different seam from the
+	// 'desktop_mode_plugins_window_icon_url' FILTER dual-registered above,
+	// which supplies the field's VALUE via get_callback but cannot rename
+	// the JSON KEY the response actually carries. Writing only the old key
+	// left this belt's "ALWAYS override" promise doing nothing on a
+	// post-#475 response, which carries the new key instead. Exactly one
+	// key is ever present per install; writing both is a no-op for the
+	// absent one.
 	$canonical_icon_url = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
 	if ( ! isset( $data['desktop_mode_icon_url'] ) || $data['desktop_mode_icon_url'] !== $canonical_icon_url ) {
 		$data['desktop_mode_icon_url'] = $canonical_icon_url;
+		$dirty = true;
+	}
+	if ( ! isset( $data['openstation_icon_url'] ) || $data['openstation_icon_url'] !== $canonical_icon_url ) {
+		$data['openstation_icon_url'] = $canonical_icon_url;
 		$dirty = true;
 	}
 
@@ -1499,6 +1527,13 @@ function snt_dm_ai_pruned_abilities() {
  * append itself idempotent by CONTENT rather than by a once-per-request
  * flag — a flag would incorrectly suppress the second legitimate call.
  *
+ * v10.43.0 REJECT #11 LOW: registered with accepted_args=2. The real
+ * post-#475 call site passes a 2nd arg — search.php:1594's
+ * apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter ) —
+ * that this callback doesn't use today. Cheap future-proofing: if the
+ * vocabulary text ever needs to branch on $ctx_for_filter, that only means
+ * widening the closure's signature, not touching the registration.
+ *
  * @since 9.59.0
  */
 snt_os_compat_add_filter( 'desktop_mode_ai_system_prompt_appendix', 'openstation_ai_system_prompt_appendix', function ( $appendix ) {
@@ -1514,7 +1549,7 @@ snt_os_compat_add_filter( 'desktop_mode_ai_system_prompt_appendix', 'openstation
 		'scroll_avg is mean scroll depth (0-100%); time_avg is mean dwell time in MILLISECONDS.',
 		'A null metric means never measured, not zero; a real zero is reported as 0.',
 	) ) );
-} );
+}, 10, 2 );
 
 /**
  * Payload for the SN Machine Readers tile (v10.1.0).

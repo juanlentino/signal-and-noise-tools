@@ -39,15 +39,33 @@ $GLOBALS['__actions'] = array();
 function add_action( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $hook ][] = $cb; }
 function add_filter( $hook, $cb, $p = 10, $a = 1 ) {}
 
+// current_filter() stack: mirrors real WP's $wp_current_filter. fire_tool_called()/
+// fire_tool_called_os() below push the DISPATCHING hook name before invoking the
+// callback, exactly as WP's do_action() does, so the v10.43.0 family-aware
+// double-fire guard (inc/openstation-compat.php's snt_os_compat_seen_once()) can
+// tell a desktop_mode_ai_tool_called firing from an openstation_ai_tool_called one.
+$GLOBALS['__current_filter'] = array();
+function current_filter() {
+	$c = $GLOBALS['__current_filter'];
+	return empty( $c ) ? false : end( $c );
+}
+
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
 function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 
-/** Fire the captured desktop_mode_ai_tool_called callback(s) with a context. */
-function fire_tool_called( $ctx ) {
-	foreach ( $GLOBALS['__actions']['desktop_mode_ai_tool_called'] ?? array() as $cb ) {
+/** Fire the callback(s) registered under $hook with a context — real do_action() semantics. */
+function fire_tool_called_named( $hook, $ctx ) {
+	$GLOBALS['__current_filter'][] = $hook;
+	foreach ( $GLOBALS['__actions'][ $hook ] ?? array() as $cb ) {
 		$cb( $ctx );
 	}
+	array_pop( $GLOBALS['__current_filter'] );
+}
+
+/** Fire the captured desktop_mode_ai_tool_called callback(s) with a context. */
+function fire_tool_called( $ctx ) {
+	fire_tool_called_named( 'desktop_mode_ai_tool_called', $ctx );
 }
 
 // v10.43.0: the module now dual-registers via snt_os_compat_add_action()
@@ -88,9 +106,7 @@ ok( count( $GLOBALS['__actions']['desktop_mode_ai_tool_called'] ) === count( $GL
 
 /** Fire the callback registered under the post-#475 hook name. */
 function fire_tool_called_os( $ctx ) {
-	foreach ( $GLOBALS['__actions']['openstation_ai_tool_called'] ?? array() as $cb ) {
-		$cb( $ctx );
-	}
+	fire_tool_called_named( 'openstation_ai_tool_called', $ctx );
 }
 
 echo "\n── v10.43.0: the new-name registration actually records, same as the old one ──\n";
@@ -117,6 +133,33 @@ fire_tool_called( array( 'tool_name' => 'search_posts', 'args' => array( 'q' => 
 fire_tool_called( array( 'tool_name' => 'search_posts', 'args' => array( 'q' => 'b' ), 'user_id' => 7, 'request_id' => 'r-b' ) );
 ok( ( snt_ai_tool_invocations()['search_posts']['n'] ?? 0 ) === 2,
 	'two calls to the SAME tool with DIFFERENT args each count — the guard keys on the full payload, not just the tool name' );
+
+echo "\n── REJECT #11 HIGH: same-family identical-repeat must NOT be dropped ──\n";
+// Copilot's $request_id is per-RUN (search.php:888-890, reused across the
+// iteration loop), so two identical tool calls (same tool, same args, same
+// user, same request_id) within ONE turn hash identically. This is a
+// LEGITIMATE repeat delivered via a SINGLE hook name (no transition shim in
+// play on today's v0.9.8) — both must increment the counter.
+inv_reset();
+$same_family_ctx = array( 'tool_name' => 'search_posts', 'args' => array( 'q' => 'hello' ), 'user_id' => 7, 'request_id' => 'run-1' );
+fire_tool_called( $same_family_ctx );
+fire_tool_called( $same_family_ctx );
+ok( ( snt_ai_tool_invocations()['search_posts']['n'] ?? 0 ) === 2,
+	'REJECT #11 HIGH: two byte-identical calls delivered via the SAME (pre-rename) hook name both increment the counter' );
+
+inv_reset();
+fire_tool_called_os( $same_family_ctx );
+fire_tool_called_os( $same_family_ctx );
+ok( ( snt_ai_tool_invocations()['search_posts']['n'] ?? 0 ) === 2,
+	'REJECT #11 HIGH: two byte-identical calls delivered via the SAME (post-#475) hook name both increment the counter' );
+
+// Scenario B — a true future both-families transition shim: verified
+// independently of scenario A, still suppressed to exactly one increment.
+inv_reset();
+fire_tool_called( $same_family_ctx );
+fire_tool_called_os( $same_family_ctx );
+ok( ( snt_ai_tool_invocations()['search_posts']['n'] ?? 0 ) === 1,
+	'REJECT #11 HIGH: cross-family shadow still suppressed — the SAME call fired via both names increments exactly once' );
 
 echo "\n── an empty log is array(), never null ──\n";
 inv_reset();

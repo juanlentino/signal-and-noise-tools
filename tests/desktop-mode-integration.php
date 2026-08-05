@@ -52,7 +52,12 @@ function add_action( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $hoo
 // passed against code that ran first. Real WP sorts by priority ascending and
 // keeps registration order within a priority; so does this.
 $GLOBALS['__filters'] = array();
-function add_filter( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $hook ][ $p ][] = $cb; }
+// __filter_args records the accepted_args a hook was LAST registered with —
+// every hook in this file is registered exactly once, so "last" === "only".
+// Lets tests assert accepted_args without threading a 3rd stub param through
+// the by-priority apply_filters() loop below, which only ever needs $value.
+$GLOBALS['__filter_args'] = array();
+function add_filter( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $hook ][ $p ][] = $cb; $GLOBALS['__filter_args'][ $hook ] = $a; }
 function apply_filters( $hook, $value ) {
 	$by_priority = $GLOBALS['__filters'][ $hook ] ?? array();
 	ksort( $by_priority, SORT_NUMERIC );
@@ -101,6 +106,7 @@ class WP_REST_Response {
 	public $data; public $status;
 	public function __construct( $data = null, $status = 200 ) { $this->data = $data; $this->status = $status; }
 	public function get_data() { return $this->data; }
+	public function set_data( $data ) { $this->data = $data; }
 }
 
 class WP_Error {
@@ -1260,6 +1266,15 @@ $double_fired = apply_filters( 'openstation_ai_system_prompt_appendix', $double_
 ok( substr_count( $double_fired, 'Signal & Noise analytics vocabulary.' ) === 1,
 	'threading the SAME appendix value through both hook names appends the vocabulary marker exactly ONCE, not twice' );
 
+echo "\n── REJECT #11 LOW: the appendix filter is future-proofed with accepted_args=2 ──\n";
+// search.php:1594 — apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter )
+// — a 2nd arg this callback doesn't use TODAY but cheaply future-proofs
+// against needing it later without a signature-registration change.
+ok( 2 === ( $GLOBALS['__filter_args']['desktop_mode_ai_system_prompt_appendix'] ?? null ),
+	'the pre-rename appendix hook is registered with accepted_args=2' );
+ok( 2 === ( $GLOBALS['__filter_args']['openstation_ai_system_prompt_appendix'] ?? null ),
+	'the post-#475 appendix hook is ALSO registered with accepted_args=2' );
+
 echo "\n── THE MOUNT CONTRACT (all six widgets) ──\n";
 // desktop-mode's server-sync looks for window.desktopModeWidgets[id]; a def
 // is only registered once that global exists. The pre-v9.52.0 widgets used
@@ -1339,6 +1354,69 @@ ok( false !== strpos( $dropzone_js, "addFilter( 'os.drop.files-detected'" ),
 	'desktop-dropzone.js ALSO registers the post-#475 JS filter name (os.drop.files-detected — src/os-file-drop/hooks.ts:19)' );
 ok( false !== strpos( $dropzone_js, 'WeakSet' ),
 	'desktop-dropzone.js guards against a hypothetical double-fire delivering the same files array to both names' );
+
+echo "\n── REJECT #11 MEDIUM: every widget file is self-sufficient — no reliance on the external prelude having run first ──\n";
+// openstation_resolve_script_payload() (upstream payload.php:1371-1449)
+// resolves only the handle's own src, never walks deps; server-sync/
+// command-sync inject one bare <script src="..."> tag per URL. A mid-session
+// shell activation under a post-rename shell can therefore load a widget
+// file BEFORE assets/desktop-mode-os-compat.js ever runs, leaving
+// window.openStationWidgets (the global upstream actually reads) empty even
+// though the widget wrote to window.desktopModeWidgets. Each widget file
+// must alias both globals onto the SAME object ITSELF, not depend on the
+// external prelude.
+foreach ( array_keys( $sn_widget_js ) as $file ) {
+	$code = strip_js_comments( file_get_contents( __DIR__ . '/../assets/' . $file ) );
+	ok( strpos( $code, 'window.desktopModeWidgets = window.desktopModeWidgets || {};' ) === false,
+		"$file no longer uses the order-dependent single-name prologue" );
+	ok( strpos( $code, 'window.openStationWidgets' ) !== false,
+		"$file's own prologue aliases window.openStationWidgets — self-sufficient, does not rely on the external prelude" );
+	ok( strpos( $code, 'window.desktopModeWidgets' ) !== false,
+		"$file still writes window.desktopModeWidgets too (pre-rename line stays working)" );
+}
+
+echo "\n── REJECT #11 MEDIUM: desktop-mode.js's gate is self-sufficient under EITHER naming family ──\n";
+// assets/desktop-mode.js:23's gate previously required window.wp.desktop
+// specifically. Under a post-rename shell where the external compat prelude
+// hasn't run yet (same lazy-injection gap as the widgets above), only
+// window.wp.os exists and the whole file no-ops — every Cmd+K command dead
+// until reload. The gate must accept EITHER name and self-alias so the
+// unchanged window.wp.desktop.* call sites below it keep working.
+$dm_gate_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' ) );
+ok( strpos( $dm_gate_js, 'window.wp.os' ) !== false,
+	'desktop-mode.js references window.wp.os — the gate no longer requires wp.desktop exclusively' );
+ok( strpos( $dm_gate_js, 'window.wp.desktop = window.wp.desktop || window.wp.os' ) !== false
+	|| 1 === preg_match( '/window\.wp\.desktop\s*=\s*window\.wp\.desktop\s*\|\|\s*window\.wp\.os/', $dm_gate_js ),
+	'desktop-mode.js self-aliases window.wp.desktop from window.wp.os when only the post-#475 name exists — self-sufficient, not order-dependent on the external prelude' );
+
+echo "\n── REJECT #11 LOW: the REST icon-URL belt dual-writes BOTH field keys ──\n";
+// Desktop Mode's REST field KEY is 'desktop_mode_icon_url'; post-#475
+// OpenStation renames the field itself to 'openstation_icon_url' — distinct
+// from the 'desktop_mode_plugins_window_icon_url' FILTER dual-registered
+// above, which feeds the field's own get_callback (its VALUE) but cannot
+// rename the JSON KEY the REST response actually carries. The belt below
+// only ever wrote the pre-rename key, so on a post-#475 install its
+// "ALWAYS override" promise silently did nothing to the field the response
+// actually returns.
+if ( ! defined( 'SN_GH_PLUGIN_BASENAME' ) ) {
+	define( 'SN_GH_PLUGIN_BASENAME', 'signal-and-noise-tools/signal-and-noise-tools.php' );
+}
+$icon_belt_cb = first_filter_cb( 'rest_prepare_plugin' );
+ok( is_callable( $icon_belt_cb ), 'the rest_prepare_plugin icon-URL belt carries a callable' );
+
+$item_ours = array( '_file' => SN_GH_PLUGIN_BASENAME );
+
+$resp_dm = new WP_REST_Response( array( 'desktop_mode_icon_url' => 'https://ps.w.org/wrong/assets/icon.svg' ) );
+call_user_func( $icon_belt_cb, $resp_dm, $item_ours, null );
+$data_dm = $resp_dm->get_data();
+ok( isset( $data_dm['desktop_mode_icon_url'] ) && false === strpos( $data_dm['desktop_mode_icon_url'], 'ps.w.org' ),
+	'the pre-rename REST field key (desktop_mode_icon_url) is overridden to our canonical URL' );
+
+$resp_os = new WP_REST_Response( array( 'openstation_icon_url' => 'https://ps.w.org/wrong/assets/icon.svg' ) );
+call_user_func( $icon_belt_cb, $resp_os, $item_ours, null );
+$data_os = $resp_os->get_data();
+ok( isset( $data_os['openstation_icon_url'] ) && false === strpos( $data_os['openstation_icon_url'], 'ps.w.org' ),
+	'REJECT #11 LOW: the post-#475 REST field key (openstation_icon_url) is ALSO overridden — the belt dual-writes both keys' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

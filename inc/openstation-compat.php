@@ -36,14 +36,26 @@
  *     real side effects (a DB insert, an option increment). Idempotent
  *     filters (schema normalizer, icon URL, dock placement/items, living-tree
  *     traffic) do NOT need this — computing the same pure transform twice is
- *     harmless. A per-request identity guard, keyed by the caller, so a
- *     hypothetical simultaneous old-name+new-name delivery of the SAME event
- *     records exactly one row/increment instead of two. Two genuinely
- *     DISTINCT calls that happen to carry byte-identical payloads within one
- *     request are treated as one — a documented, deliberate trade-off:
- *     telemetry here is already coarse-by-design (see
- *     inc/mcp/mcp-telemetry-agents.php), and undercounting one edge case is
- *     safer than a double-fire corrupting the row count.
+ *     harmless. FAMILY-AWARE as of v10.43.0 REJECT #11 (the HIGH finding): a
+ *     plain per-request boolean guard suppressed the SECOND of ANY two calls
+ *     sharing an identity key — including two genuinely DISTINCT, LEGITIMATE
+ *     events that merely hash identically within one request. That is not
+ *     hypothetical: openstation_agent_tool_result (runner.php:579) carries no
+ *     call_id, so two identical tool calls with byte-identical output in one
+ *     agent run are indistinguishable by payload, and a Copilot $request_id
+ *     is per-RUN (search.php:888-890, reused across the iteration loop), so a
+ *     same-tool same-args repeat within one turn hashes identically too. The
+ *     old guard silently dropped the second row on TODAY's v0.9.8, single-
+ *     hook-family, no-shim-in-play — corrupting the very telemetry the
+ *     consolidation program's retirement decisions depend on. The guard now
+ *     counts firings per (key, hook family) — family derived from
+ *     current_filter()'s prefix (desktop_mode_ vs openstation_) — and
+ *     suppresses a firing only when it is a SHADOW of an already-recorded
+ *     event: the OTHER family has fired more times for this key than THIS
+ *     family has. Same-family repeats always proceed (see
+ *     snt_os_compat_seen_once()'s own docblock for the walk-through); a true
+ *     future both-families transition shim still collapses to exactly one
+ *     recorded row per event, which is the guard's whole point.
  *   - snt_os_compat_reset_seen_once() — TEST SEAM ONLY. Production never
  *     needs it: a real PHP request starts every static fresh. The standalone
  *     test harnesses run many logically-distinct cases inside ONE PHP
@@ -273,18 +285,70 @@ function snt_os_compat_add_action( $old_hook, $new_hook, $callback, $priority = 
  * ════════════════════════════════════════════════════════════════════════ */
 
 /**
- * True the SECOND time (and every time after) a given $key is seen within
- * this PHP process; false the first time, and $key is remembered.
+ * Which hook family is CURRENTLY dispatching, derived from
+ * current_filter()'s prefix. This is the only signal snt_os_compat_seen_once()
+ * has for "which literal hook name just fired the callback I'm guarding" —
+ * the dual-registered callback itself is identical either way, so it cannot
+ * tell on its own.
  *
- * Production semantics: "this request" — PHP resets function statics fresh
- * on every real request, so this is naturally a per-request guard with zero
- * standing state and zero cleanup.
+ * null when family cannot be derived: no hook is currently dispatching
+ * (current_filter() returns false — a direct call outside any
+ * apply_filters()/do_action(), including a test fixture invoking a callback
+ * directly), or the dispatching hook belongs to neither naming family. Both
+ * fall back to snt_os_compat_seen_once()'s plain per-key boolean guard.
  *
- * Callers key on a hash of whatever uniquely identifies the underlying
- * event (e.g. ability slug + args + actor + output for a tool-result row).
- * Two genuinely distinct calls that happen to hash identically within one
- * request collapse to one recorded row — an accepted, documented trade-off;
- * see this file's docblock.
+ * @since 10.43.0
+ * @return string|null 'desktop_mode', 'openstation', or null.
+ */
+function snt_os_compat_current_family() {
+	if ( ! function_exists( 'current_filter' ) ) {
+		return null;
+	}
+	$hook = current_filter();
+	if ( ! is_string( $hook ) || '' === $hook ) {
+		return null;
+	}
+	if ( 0 === strpos( $hook, 'openstation_' ) ) {
+		return 'openstation';
+	}
+	if ( 0 === strpos( $hook, 'desktop_mode_' ) ) {
+		return 'desktop_mode';
+	}
+	return null;
+}
+
+/**
+ * True when this firing is a SHADOW of an already-recorded event — a
+ * cross-family double-fire of the same underlying call — and should be
+ * skipped; false when it should be recorded (and $key's per-family count is
+ * incremented as a side effect). $key identifies the underlying event
+ * (e.g. a hash of ability slug + args + actor + output for a tool-result
+ * row); callers never see family bookkeeping, only the boolean.
+ *
+ * FAMILY-AWARE as of v10.43.0 REJECT #11 (see this file's top docblock for
+ * why the plain boolean predecessor was wrong). Family is derived from
+ * current_filter()'s prefix, via snt_os_compat_current_family(). Two
+ * worked scenarios:
+ *
+ *   A. Same-family identical-repeat (the bug this fixes): two byte-identical
+ *      desktop_mode_agent_tool_result firings for the same $key. First call:
+ *      other(openstation)=0 is not > this(desktop_mode)=0 → records, this
+ *      family's count becomes 1. Second call: other(openstation)=0 is still
+ *      not > this(desktop_mode)=1 → records too. BOTH proceed — this
+ *      family's own count only ever grows when IT records, so the other
+ *      family's count can never exceed it from same-family firings alone.
+ *
+ *   B. A true future both-families transition shim (hypothetical — no such
+ *      release exists today): the SAME logical event fires once per family.
+ *      First firing, say desktop_mode: other(openstation)=0 is not >
+ *      this(desktop_mode)=0 → records (desktop_mode count → 1). Second
+ *      firing, openstation: other(desktop_mode)=1 IS > this(openstation)=0
+ *      → suppressed as a shadow. Exactly one of the two proceeds, order-
+ *      independent (the reverse firing order suppresses the other side).
+ *
+ * Production semantics: "this request" — PHP resets function statics/globals
+ * fresh on every real request, so this is naturally a per-request guard with
+ * zero standing state and zero cleanup.
  *
  * @since 10.43.0
  * @param string $key
@@ -294,11 +358,30 @@ function snt_os_compat_seen_once( $key ) {
 	if ( ! isset( $GLOBALS['__snt_os_compat_seen'] ) || ! is_array( $GLOBALS['__snt_os_compat_seen'] ) ) {
 		$GLOBALS['__snt_os_compat_seen'] = array();
 	}
-	$key = (string) $key;
-	if ( isset( $GLOBALS['__snt_os_compat_seen'][ $key ] ) ) {
-		return true;
+	$key    = (string) $key;
+	$family = snt_os_compat_current_family();
+
+	// No derivable hook family: the original simple per-key boolean guard.
+	if ( null === $family ) {
+		if ( true === ( $GLOBALS['__snt_os_compat_seen'][ $key ] ?? null ) ) {
+			return true;
+		}
+		$GLOBALS['__snt_os_compat_seen'][ $key ] = true;
+		return false;
 	}
-	$GLOBALS['__snt_os_compat_seen'][ $key ] = true;
+
+	if ( ! isset( $GLOBALS['__snt_os_compat_seen'][ $key ] ) || ! is_array( $GLOBALS['__snt_os_compat_seen'][ $key ] ) ) {
+		$GLOBALS['__snt_os_compat_seen'][ $key ] = array(
+			'desktop_mode' => 0,
+			'openstation'  => 0,
+		);
+	}
+	$other = 'desktop_mode' === $family ? 'openstation' : 'desktop_mode';
+
+	if ( $GLOBALS['__snt_os_compat_seen'][ $key ][ $other ] > $GLOBALS['__snt_os_compat_seen'][ $key ][ $family ] ) {
+		return true; // Shadow of an event already recorded via the other family.
+	}
+	++$GLOBALS['__snt_os_compat_seen'][ $key ][ $family ];
 	return false;
 }
 

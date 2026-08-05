@@ -31,7 +31,24 @@
 		return;
 	}
 
-	window.desktopModeWidgets = window.desktopModeWidgets || {};
+	// v10.43.0 — OpenStation rename compat (REJECT #11 MEDIUM fix): a
+	// SELF-SUFFICIENT alias, not order-dependent on the external
+	// assets/desktop-mode-os-compat.js prelude. openstation_resolve_script_payload()
+	// (upstream payload.php:1371-1449) resolves only the handle's own src,
+	// never walks deps, and server-sync/command-sync inject one bare
+	// <script src="..."> tag per URL — so under a post-#475 mid-session
+	// shell activation this file can run BEFORE the external prelude ever
+	// does. Merge, don't clobber: if both globals already exist and differ
+	// (a genuine race), copy the loser's keys into the survivor first.
+	// Survivor = window.openStationWidgets, the name upstream itself reads
+	// post-#475 (src/widgets/server-sync.ts) — see docs/openstation-compat.md.
+	var __osWidgets = window.openStationWidgets || window.desktopModeWidgets || {};
+	if ( window.desktopModeWidgets && window.desktopModeWidgets !== __osWidgets ) {
+		for ( var __osKey in window.desktopModeWidgets ) {
+			if ( ! ( __osKey in __osWidgets ) ) { __osWidgets[ __osKey ] = window.desktopModeWidgets[ __osKey ]; }
+		}
+	}
+	window.desktopModeWidgets = window.openStationWidgets = __osWidgets;
 
 	var data   = window.snDesktopData || {};
 	var mrUrl  = ( data.pages && data.pages.machine_readers ) || '';

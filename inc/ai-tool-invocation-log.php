@@ -47,9 +47,16 @@ define( 'SN_AI_TOOL_INVOCATIONS_CAP', 200 );
  * v10.43.0: post-#475 OpenStation renames the action to
  * `openstation_ai_tool_called` (includes/ai-copilot/search.php:1322/1399/1753)
  * — dual-registered below via snt_os_compat_add_action(). This handler has a
- * real side effect (an option counter increment), so it guards against a
- * hypothetical future double-fire with snt_os_compat_seen_once(), keyed on
- * the full triggering payload — see inc/openstation-compat.php.
+ * real side effect (an option counter increment), guarded by
+ * snt_os_compat_seen_once(), keyed on the full triggering payload — see
+ * inc/openstation-compat.php. REJECT #11 correction: the guard is NOT merely
+ * defending a hypothetical future double-fire — Copilot's $request_id is
+ * per-RUN (search.php:888-890, reused across the iteration loop), so a
+ * same-tool same-args repeat within ONE turn hashes identically, and a
+ * plain per-key guard would have silently dropped that legitimate repeat
+ * TODAY. The guard is family-aware (current_filter()'s desktop_mode_/
+ * openstation_ prefix), so a same-family repeat like that one still
+ * increments every time; only a genuine cross-family shadow is suppressed.
  *
  * @since 9.60.0
  * @param mixed $ctx The action payload: { tool_name, args, user_id, request_id }.

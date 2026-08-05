@@ -38,11 +38,27 @@ if ( ! class_exists( 'WP_Error' ) ) {
 	}
 }
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $v ) { return $v instanceof WP_Error; } }
+// current_filter() stack: mirrors real WP's $wp_current_filter — apply_filters()/
+// do_action() push the dispatching hook name before invoking callbacks and pop it
+// after, so a callback (or anything it calls, like snt_os_compat_seen_once())
+// can ask "which literal hook name am I running under right now?". Required for
+// the v10.43.0 family-aware double-fire guard (inc/openstation-compat.php) to
+// tell a desktop_mode_* firing from an openstation_* firing of the SAME callback.
+$GLOBALS['__current_filter'] = array();
+if ( ! function_exists( 'current_filter' ) ) {
+	function current_filter() {
+		$c = $GLOBALS['__current_filter'];
+		return empty( $c ) ? false : end( $c );
+	}
+}
 if ( ! function_exists( 'apply_filters' ) ) {
 	$GLOBALS['__filters'] = array();
 	function apply_filters( $hook, $value, ...$rest ) {
 		if ( ! array_key_exists( $hook, $GLOBALS['__filters'] ) ) { return $value; }
-		return call_user_func_array( $GLOBALS['__filters'][ $hook ], array_merge( array( $value ), $rest ) );
+		$GLOBALS['__current_filter'][] = $hook;
+		$result = call_user_func_array( $GLOBALS['__filters'][ $hook ], array_merge( array( $value ), $rest ) );
+		array_pop( $GLOBALS['__current_filter'] );
+		return $result;
 	}
 }
 if ( ! function_exists( 'add_filter' ) ) { function add_filter( $hook, $cb, $priority = 10, $args = 1 ) { $GLOBALS['__filters'][ $hook ] = $cb; return true; } }
@@ -54,7 +70,9 @@ if ( ! function_exists( 'add_action' ) ) { function add_action( $hook, $cb, $pri
 if ( ! function_exists( 'do_action' ) ) {
 	function do_action( $hook, ...$args ) {
 		if ( ! isset( $GLOBALS['__actions'][ $hook ] ) ) { return; }
+		$GLOBALS['__current_filter'][] = $hook;
 		foreach ( $GLOBALS['__actions'][ $hook ] as $cb ) { call_user_func_array( $cb, $args ); }
+		array_pop( $GLOBALS['__current_filter'] );
 	}
 }
 
@@ -350,6 +368,23 @@ apply_filters( 'desktop_mode_agent_tool_result', array( 'a' => 1 ), $dup_slug, $
 apply_filters( 'desktop_mode_agent_tool_result', array( 'a' => 2 ), $dup_slug, $dup_args, 3 );
 ok( 2 === count( $wpdb->insert_calls ), 'double-fire guard (seam 1): two calls with DIFFERENT output are both recorded — the guard keys on the full identity, not just slug+args' );
 
+// REJECT #11 HIGH finding: two LEGITIMATE, byte-identical calls delivered
+// via the SAME hook name (single family — today's v0.9.8 reality, no
+// transition shim in play) must BOTH be recorded. openstation_agent_tool_result
+// (runner.php:579) carries no call_id, so two identical tool calls with
+// byte-identical output within one agent run are indistinguishable by
+// payload — the pre-fix guard collapsed them into one row, silently
+// corrupting telemetry.
+sn_test_agents_reset();
+apply_filters( 'desktop_mode_agent_tool_result', $dup_out, $dup_slug, $dup_args, 3 );
+apply_filters( 'desktop_mode_agent_tool_result', $dup_out, $dup_slug, $dup_args, 3 );
+ok( 2 === count( $wpdb->insert_calls ), 'REJECT #11 HIGH: same-family identical-repeat (seam 1) — two byte-identical desktop_mode_agent_tool_result firings both record a row' );
+
+sn_test_agents_reset();
+apply_filters( 'openstation_agent_tool_result', $dup_out, $dup_slug, $dup_args, 3 );
+apply_filters( 'openstation_agent_tool_result', $dup_out, $dup_slug, $dup_args, 3 );
+ok( 2 === count( $wpdb->insert_calls ), 'REJECT #11 HIGH: same-family identical-repeat (seam 1), post-#475 name — two byte-identical openstation_agent_tool_result firings both record a row' );
+
 // Double-fire guard, seam 2: the SAME (agent, result) trace delivered via
 // BOTH hook names records the failure exactly once, not twice.
 sn_test_agents_reset();
@@ -362,6 +397,24 @@ sn_test_agents_reset();
 do_action( 'desktop_mode_agent_completed', 5, 'msg', $wiring_result_fixture, array() );
 do_action( 'desktop_mode_agent_completed', 9, 'msg', $wiring_result_fixture, array() );
 ok( 2 === count( $wpdb->insert_calls ), 'double-fire guard (seam 2): the SAME result trace for a DIFFERENT agent is recorded separately' );
+
+// REJECT #11 HIGH finding, seam 2: two LEGITIMATE identical completions
+// delivered via the SAME hook name (single family) must BOTH record their
+// failure row. Copilot's $request_id is per-RUN (search.php:888-890,
+// reused across the iteration loop), so a same-tool same-args repeat within
+// one turn hashes identically — the pre-fix guard dropped the second one.
+sn_test_agents_reset();
+do_action( 'desktop_mode_agent_completed', 5, 'msg', $wiring_result_fixture, array() );
+do_action( 'desktop_mode_agent_completed', 5, 'msg', $wiring_result_fixture, array() );
+ok( 2 === count( $wpdb->insert_calls ), 'REJECT #11 HIGH: same-family identical-repeat (seam 2) — two byte-identical desktop_mode_agent_completed firings both record a row' );
+
+// Scenario B — a true future both-families transition shim: the SAME event
+// fires once per family. Exactly ONE of the two proceeds (the guard's whole
+// point), verified independently of scenario A above.
+sn_test_agents_reset();
+do_action( 'desktop_mode_agent_completed', 5, 'msg', $wiring_result_fixture, array() );
+do_action( 'openstation_agent_completed', 5, 'msg', $wiring_result_fixture, array() );
+ok( 1 === count( $wpdb->insert_calls ), 'REJECT #11 HIGH: cross-family shadow (seam 2) still suppressed — the SAME event fired via both names records exactly once' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * SEAM 2 — desktop_mode_agent_completed: the failure-visibility fix
