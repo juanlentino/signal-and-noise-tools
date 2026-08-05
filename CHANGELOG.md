@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.49.1] - 2026-08-05
+
+**Headline:** three follow-ups from auditing what the v10.48.2 copy sweep actually touched. That release was described as "wp-admin copy"; it was not, and two of the three fixes here undo changes it should never have made.
+
+### Fixed
+
+- **The 404 document title keeps the site-wide separator.** The sweep turned `Page not found — <site>` into `Page not found. <site>` while `sn_seo_title()`'s `' — '` join stayed, making `/404` the only page on the site with a different title shape — precisely what that branch exists to prevent, as its own comment says. An em-dash in a document title is the **title separator**, not prose: it moves on every page or on none. Now pinned by assertions that compare the 404 separator against the site separator rather than hard-coding either, so the pair can only ever drift together. (#472)
+- **Three AI system prompts restored.** `SNT_AI_DRIFT_SUGGEST_SYSTEM`, `SNT_AI_LINK_SUGGEST_SYSTEM` and `SNT_AI_PAIR_SUGGEST_SYSTEM` are **model input, not copy**, and the sweep rewrote all three. The alt-text prompt survived the identical sweep only because `tests/ai-alt-prompt-shared.php` happened to pin it byte-for-byte; these three had no pin, so the drift was silent. One rewrite was **malformed** — in the pair-suggest anchor rule the paired-em-dash rule opened a parenthesis and closed it with a period, because the two dashes sat on different concatenated lines. All three restored verbatim from pre-sweep; the admin *error* strings in those same files stay swept, because those genuinely are copy. (#474)
+
+### Changed
+
+- **`/verify` reader-facing copy drops its em-dashes** — the public provenance-verification page, now consistent with the house style already applied to the rest of the front end. (#473)
+
+### New
+
+- **`tests/ai-suggest-prompt-pins.php`** pins each of the three suggest prompts by SHA-256, so a future reword has to be deliberate and land in the same commit as its hash. Verified as a real guard rather than a decorative one: re-applying the swept `ai-pair-suggest.php` makes the pin fail, and restoring makes it pass. Worth recording that the accompanying structural balanced-parenthesis assertion did **not** catch the malformed version — the hash is the load-bearing check.
+
+> **Why PATCH:** two restorations, one copy change, and one new test. No capability, schema, REST route, or Ability signature moved.
+
 ## [10.49.0] - 2026-08-05
 
 **Headline:** /verify stops making you assemble its answer out of four rubber stamps, and stops stacking three unrelated questions into 2,400px of scroll.
