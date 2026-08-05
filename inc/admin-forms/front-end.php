@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise — Front-End settings form (Tools tab → Front-End sub-tab).
+ * Signal & Noise — Front-End settings form (Content tab → Front-End sub-tab (moved out of Tools in v6.18.0)).
  *
  * Renders the render-knob form (sn_action=save_theme → sn_handle_save_theme).
  * These values feed the companion theme's front-end filters via the

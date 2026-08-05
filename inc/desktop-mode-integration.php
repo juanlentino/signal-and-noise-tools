@@ -270,7 +270,7 @@ add_action( 'admin_enqueue_scripts', function() {
 			'rss'          => snt_desktop_admin_url( 'sn-rss' ),
 			'reading_time' => snt_desktop_admin_url( 'sn-reading-time' ),
 			'analytics'    => snt_desktop_admin_url( 'sn-analytics' ),
-			'machine_readers' => snt_desktop_admin_url( 'sn-theme-options&tab=monitoring&sub=machine-readers' ),
+			'machine_readers' => snt_desktop_admin_url( 'sn-monitoring', 'machine-readers' ),
 		),
 	);
 	// v4.1.1 (D-08): localize once. Both 'sn-desktop-mode' and
@@ -676,7 +676,7 @@ function snt_desktop_dock_badge() {
  * @param string $slug Any SN admin page slug, current or retired.
  * @return string An admin URL whose `page=` is always a registered page.
  */
-function snt_desktop_admin_url( $slug ) {
+function snt_desktop_admin_url( $slug, $sub = '' ) {
 	// SPECIAL CASE, and the one the resolver alone gets wrong: the analytics
 	// page is registered with add_dashboard_page() — i.e. under index.php, NOT
 	// the SN menu — so its real home is `index.php?page=sn-analytics`. It is not
@@ -707,6 +707,14 @@ function snt_desktop_admin_url( $slug ) {
 	}
 	if ( $dest && ! empty( $dest['anchor'] ) ) {
 		$url .= '#sn-sec-' . rawurlencode( $dest['anchor'] );
+	}
+	// v10.46.0: an explicit leaf, for callers that want a sub-tab the slug
+	// resolver cannot express. Passing a query string as $slug (the previous
+	// Machine Readers bug) matches no slug, so the resolver fell through to
+	// 'dashboard' — a link that loads perfectly and goes to the wrong place,
+	// the exact failure the sn-analytics special case above was written for.
+	if ( '' !== $sub && ! ( $dest && ! empty( $dest['sub'] ) ) ) {
+		$url .= '&sub=' . rawurlencode( $sub );
 	}
 	return $url;
 }
