@@ -59,6 +59,12 @@ function snt_insights_render_admin_tab() {
 	// wrap its headers; the narrower side holds only compact readouts). ──
 	snt_insights_render_usage_section();
 
+	// ── PROMPT-CACHE PROBE — sits directly under the spend readout, which has
+	// to disclaim that its estimate excludes prompt-cache discounts. This is
+	// the answer to "could we get that discount?", and it is also a wide
+	// table, so it belongs in the main column too. ──
+	snt_insights_render_cache_probe_section();
+
 	// ── RIGHT RAIL: compact passive readouts + automation ──
 	// The scan status and the weekly-cron settings are compact reference/config,
 	// so they sit in the narrower side; the main opens on the scan workflow.
@@ -189,6 +195,97 @@ function snt_insights_render_usage_section() {
 	if ( defined( 'SN_AI_USAGE_LOG_CAP' ) && (int) $s30['window_start'] > 0 ) {
 		echo '<p class="sn-field-helper">The usage log keeps the last ' . esc_html( number_format_i18n( SN_AI_USAGE_LOG_CAP ) ) . ' calls (oldest retained: ' . esc_html( wp_date( 'Y-m-d', (int) $s30['window_start'] ) ) . ').</p>';
 	}
+
+	echo '</div>';
+}
+
+/**
+ * Read-only "Prompt-cache probe" section: does Anthropic prompt caching have
+ * anything to save on this site?
+ *
+ * The companion to the section above, which has to disclaim that its estimate
+ * "excludes prompt-cache discounts" — this one says whether that discount is
+ * reachable at all. It is deliberately a VERDICT, not a dump: the raw numbers
+ * mislead on their own, because a repeated prefix under the model's minimum
+ * cacheable size looks like a signal and is worth exactly nothing.
+ *
+ * Caching pays only when a prefix clears its model's floor AND repeats inside
+ * the TTL. Both conditions are rendered, always, so a "no" states which half
+ * failed rather than reading as a shrug.
+ *
+ * @since 10.52.0
+ */
+function snt_insights_render_cache_probe_section() {
+	if ( ! function_exists( 'snt_ai_cache_probe_verdict' ) ) {
+		return;
+	}
+
+	$v       = snt_ai_cache_probe_verdict();
+	$summary = $v['summary'];
+	$best    = $v['best'];
+
+	// One sentence per state, each naming WHICH condition decided it. The pill
+	// is the same judgement in a word.
+	$states = array(
+		'no_data'        => array( 'warn', 'Nothing measured yet', 'No Anthropic call has passed through the probe since it was installed. This is <strong>not a verdict</strong> &mdash; it is an empty window. Run an AI feature, or a couple of Ask&nbsp;AI turns, then reload.' ),
+		'below_floor'    => array( 'ok', 'Caching cannot pay here', 'Every prefix measured is below its model&rsquo;s minimum cacheable size, so Anthropic would cache nothing even if a breakpoint were sent &mdash; silently, with zeros in the response. Repeats do not change that.' ),
+		'no_repeats'     => array( 'warn', 'Large enough, but never repeated', 'A prefix clears the floor, but no prefix repeated inside the 5-minute cache window. A cache write with no read costs 1.25&times; and returns nothing.' ),
+		'candidate'      => array( 'err', 'Caching would pay', 'A prefix clears its model&rsquo;s floor <em>and</em> repeats inside the cache window. Reads bill at 0.1&times; against a 1.25&times; write, so this breaks even on the second call.' ),
+		'caching_active' => array( 'ok', 'Caching is active', 'Cache reads are being reported, so something in the stack now emits a breakpoint.' ),
+		'unknown_floor'  => array( 'warn', 'No floor on file', 'Calls were recorded against a model whose minimum cacheable size is not known here, so no claim is made either way.' ),
+	);
+	list( $pill, $title, $body ) = $states[ $v['state'] ] ?? $states['no_data'];
+
+	echo '<div class="sn-fieldset">';
+	echo '<h2 class="sn-fieldset-h">Prompt-cache probe <span class="sn-pill sn-pill--' . esc_attr( $pill ) . '">' . esc_html( $title ) . '</span></h2>';
+	echo '<p class="sn-fieldset-intro">' . wp_kses_post( $body ) . '</p>';
+
+	if ( 'no_data' !== $v['state'] ) {
+		echo '<p class="sn-status-box-body">'
+			. '<strong>' . esc_html( number_format_i18n( (int) $summary['calls'] ) ) . '</strong> call' . esc_html( 1 === (int) $summary['calls'] ? '' : 's' ) . ' recorded, '
+			. '<strong>' . esc_html( number_format_i18n( (int) $summary['prefixes'] ) ) . '</strong> distinct prefix' . esc_html( 1 === (int) $summary['prefixes'] ? '' : 'es' ) . ', '
+			. '<strong>' . esc_html( number_format_i18n( (int) $summary['repeatable'] ) ) . '</strong> repeated within the cache window. '
+			. 'Largest prefix seen: <strong>' . esc_html( number_format_i18n( (int) $summary['max_prefix_bytes'] ) ) . '</strong> bytes.</p>';
+
+		// Per model, because the floor is NOT the same across models — 1,024
+		// tokens on Sonnet 5 but 4,096 on Haiku 4.5, the economy tier. A single
+		// site-wide comparison would be wrong for half the traffic.
+		if ( ! empty( $v['models'] ) ) {
+			echo '<table class="widefat striped"><thead><tr><th>Model</th><th>Calls</th><th>Repeated</th><th>Largest prefix</th><th>Minimum to cache</th><th>Verdict</th></tr></thead><tbody>';
+			foreach ( $v['models'] as $m ) {
+				$floor = $m['floor'];
+				if ( null === $floor ) {
+					$verdict = '<span class="sn-pill sn-pill--warn">floor unknown</span>';
+					$floor_s = '&mdash;';
+				} elseif ( true === $m['may_clear_floor'] ) {
+					$verdict = '<span class="sn-pill sn-pill--ok">clears the floor</span>';
+					$floor_s = esc_html( number_format_i18n( (int) $floor ) ) . ' tokens';
+				} else {
+					$verdict = '<span class="sn-pill">below the floor</span>';
+					$floor_s = esc_html( number_format_i18n( (int) $floor ) ) . ' tokens';
+				}
+				echo '<tr><td><code>' . esc_html( '' !== $m['model'] ? $m['model'] : 'unknown' ) . '</code></td>'
+					. '<td>' . esc_html( number_format_i18n( (int) $m['calls'] ) ) . '</td>'
+					. '<td>' . esc_html( number_format_i18n( (int) $m['repeatable'] ) ) . '</td>'
+					. '<td>' . esc_html( number_format_i18n( (int) $m['max_prefix_bytes'] ) ) . ' bytes (&le;&nbsp;' . esc_html( number_format_i18n( (int) $m['max_prefix_tokens'] ) ) . ' tokens)</td>'
+					. '<td>' . wp_kses_post( $floor_s ) . '</td>'
+					. '<td>' . wp_kses_post( $verdict ) . '</td></tr>';
+			}
+			echo '</tbody></table>';
+		}
+
+		// Absent vs measured-zero, surfaced rather than flattened: "0 of 0
+		// measured" and "0 across 40 measured calls" are different answers.
+		echo '<p class="sn-field-helper">Cache tokens reported by Anthropic: '
+			. esc_html( number_format_i18n( (int) $summary['cache_read'] ) ) . ' read, '
+			. esc_html( number_format_i18n( (int) $summary['cache_write'] ) ) . ' written, across '
+			. esc_html( number_format_i18n( (int) $summary['measured'] ) ) . ' call' . esc_html( 1 === (int) $summary['measured'] ? '' : 's' ) . ' that reported the fields. '
+			. 'Zero here means the API was asked and answered &ldquo;nothing cached&rdquo;, which is different from never having asked.</p>';
+	}
+
+	echo '<p class="sn-field-helper">Token counts are upper bounds: the smaller of a dense byte estimate and the request&rsquo;s own reported input, which the cacheable prefix is always a subset of. '
+		. 'Nothing here can change until the provider can emit a cache breakpoint &mdash; tracked upstream at <a href="https://github.com/WordPress/ai-provider-for-anthropic/issues/33" rel="noopener">ai-provider-for-anthropic#33</a>. '
+		. 'The probe records the last ' . esc_html( number_format_i18n( SN_AI_CACHE_PROBE_CAP ) ) . ' calls and never stores prompt text.</p>';
 
 	echo '</div>';
 }
