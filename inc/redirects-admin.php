@@ -88,11 +88,32 @@ function sn_redirects_render_admin_tab() {
 	echo '</form>';
 
 	// ── RAIL: 404 log ──
+	//
+	// v10.47.0: the rail used to render EVERY logged path as its own decision
+	// card. On a live audit that meant 200 cards — /server.key, /id_rsa,
+	// /actuator/heapdump — each politely offering to create a redirect, under an
+	// "Attention" pill. The owner's word for it was "unhinged", and it was the
+	// right word: the screen was asking for 200 editorial judgements about traffic
+	// no human generated.
+	//
+	// The split is sn_404_log_partition(): a path earns a card when it resembles
+	// something published here or when something on this site linked to it.
+	// Everything else collapses into one line with one bulk dismiss. Nothing is
+	// deleted on read — the probes are still counted and still dismissible; they
+	// just stop impersonating work.
 	sn_admin_shell_rail( 'Broken links (404s)' );
-	$total = count( $log );
+	$sn_404_candidates = function_exists( 'sn_404_published_paths' ) ? sn_404_published_paths() : array();
+	$sn_404_host       = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	$sn_404_part       = function_exists( 'sn_404_log_partition' )
+		? sn_404_log_partition( $log, $sn_404_candidates, $sn_404_host )
+		: array( 'actionable' => $log, 'probes' => array() );
+	$log         = $sn_404_part['actionable'];
+	$sn_404_junk = $sn_404_part['probes'];
+	$total       = count( $log );
+
 	if ( 0 === $total ) {
 		echo '<div class="sn-status-box">';
-		echo '<div><p class="sn-status-box-title">No 404s logged</p><p class="sn-status-box-body">Front-end requests that hit a missing page will show up here (bot and probe noise is filtered out).</p></div>';
+		echo '<div><p class="sn-status-box-title">No broken links</p><p class="sn-status-box-body">Paths that resemble a published URL, or that something on this site links to, appear here. Automated probes are counted separately.</p></div>';
 		echo '<span class="sn-pill sn-pill--ok">Clean</span>';
 		echo '</div>';
 	} else {
@@ -100,12 +121,40 @@ function sn_redirects_render_admin_tab() {
 		echo '<div><p class="sn-status-box-title">' . esc_html( $total ) . ' broken path' . ( 1 === $total ? '' : 's' ) . '</p><p class="sn-status-box-body">Add a target below to redirect it — doing so also clears it from this list.</p></div>';
 		echo '<span class="sn-pill sn-pill--warn">Attention</span>';
 		echo '</div>';
+	}
 
+	// The probe bucket: one line, one number, one button. Deliberately NOT an
+	// attention pill — this is weather, not a task. It stays visible because a
+	// sudden jump is genuinely informative (someone is sweeping you), and hiding
+	// it entirely would just move the blind spot.
+	if ( ! empty( $sn_404_junk ) ) {
+		$sn_404_junk_hits = array_sum( array_map( function ( $e ) { return (int) ( $e['count'] ?? 0 ); }, $sn_404_junk ) );
+		echo '<div class="sn-status-box">';
+		echo '<div><p class="sn-status-box-title">' . esc_html( count( $sn_404_junk ) ) . ' automated probe' . ( 1 === count( $sn_404_junk ) ? '' : 's' ) . '</p>';
+		echo '<p class="sn-status-box-body">' . esc_html( $sn_404_junk_hits ) . ' hit' . ( 1 === $sn_404_junk_hits ? '' : 's' ) . ' on paths that match nothing published here and that nothing here links to — scanner traffic, not broken links. No action needed.</p></div>';
+		echo '</div>';
+		echo '<details class="snt-mt-075"><summary>' . esc_html__( 'Show the probed paths', 'signal-and-noise-tools' ) . '</summary>';
+		echo '<ul class="sn-404-probe-list">';
+		uasort( $sn_404_junk, function ( $a, $b ) { return (int) ( $b['count'] ?? 0 ) <=> (int) ( $a['count'] ?? 0 ); } );
+		foreach ( array_slice( $sn_404_junk, 0, 25, true ) as $jpath => $je ) {
+			echo '<li><code>' . esc_html( $jpath ) . '</code> <span class="sn-an-empty">' . esc_html( (int) ( $je['count'] ?? 0 ) ) . '&times;</span></li>';
+		}
+		if ( count( $sn_404_junk ) > 25 ) {
+			echo '<li class="sn-an-empty">' . esc_html( sprintf( /* translators: %d: how many further probed paths are not listed. */ __( '…and %d more', 'signal-and-noise-tools' ), count( $sn_404_junk ) - 25 ) ) . '</li>';
+		}
+		echo '</ul>';
+		echo '<form method="post">';
+		wp_nonce_field( 'sn_theme_options_nonce' );
+		echo '<button type="submit" name="sn_action" value="redirect_404_clear_probes" class="button" data-snt-confirm="' . esc_attr__( 'Dismiss every automated probe from the log? Genuinely broken paths are kept.', 'signal-and-noise-tools' ) . '" data-snt-confirm-label="' . esc_attr__( 'Dismiss probes', 'signal-and-noise-tools' ) . '">' . esc_html__( 'Dismiss all probes', 'signal-and-noise-tools' ) . '</button>';
+		echo '</form>';
+		echo '</details>';
+	}
+
+	if ( $total > 0 ) {
 		// Busiest first.
 		uasort( $log, function ( $a, $b ) { return (int) ( $b['count'] ?? 0 ) <=> (int) ( $a['count'] ?? 0 ); } );
 		// v9.81.0: deterministic slug suggestions (classical string distance
 		// against published slugs — suggest-only; the write path is unchanged).
-		$sn_404_candidates = function_exists( 'sn_404_published_paths' ) ? sn_404_published_paths() : array();
 		foreach ( $log as $path => $e ) {
 			$sn_404_suggested = function_exists( 'sn_404_suggest_target' ) ? sn_404_suggest_target( (string) $path, $sn_404_candidates ) : '';
 			echo '<form method="post"><div class="sn-fieldset">';
@@ -228,4 +277,33 @@ function sn_handle_redirect_404_delete( $post ) {
 function sn_handle_redirect_404_clear( $post ) {
 	sn_404_log_clear();
 	return 'redirect_404_cleared';
+}
+
+/**
+ * v10.47.0: dismiss every automated probe, KEEPING anything actionable.
+ *
+ * Deliberately a separate action from redirect_404_clear rather than a flag on
+ * it. "Clear everything" and "clear the noise" have different blast radii, and
+ * the whole point of this release is that the owner should not have to
+ * re-examine 200 rows to protect the two that matter — a single mis-click that
+ * also wiped the real broken links would hand that work straight back.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+function sn_handle_redirect_404_clear_probes( $post ) {
+	$log = sn_404_log_all();
+	if ( empty( $log ) ) {
+		return 'redirect_404_probes_none';
+	}
+	$part = sn_404_log_partition(
+		$log,
+		function_exists( 'sn_404_published_paths' ) ? sn_404_published_paths() : array(),
+		(string) wp_parse_url( home_url(), PHP_URL_HOST )
+	);
+	if ( empty( $part['probes'] ) ) {
+		return 'redirect_404_probes_none';
+	}
+	update_option( SN_404_LOG_OPT, $part['actionable'], false );
+	return 'redirect_404_probes_cleared';
 }

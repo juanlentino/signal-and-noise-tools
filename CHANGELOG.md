@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.47.0] - 2026-08-05
+
+**Headline:** the 404 log stops asking you to make editorial decisions about scanner traffic — and stops letting that traffic evict your real broken links. Tools becomes Integrity.
+
+### Fixed
+
+- **The 404 log was lossy, not just noisy** ([inc/redirects-404-log.php](inc/redirects-404-log.php)). A live audit found all 200 slots occupied and roughly 95% of them automated probes: `/server.key`, `/id_rsa`, `/actuator/heapdump`, `/@fs/proc/self/environ`, `/filezilla.xml`. The cap is a FIFO, so a single scanner sweep — hundreds of distinct paths in minutes — pushed genuinely broken links out of the log **before they were ever seen**. The feature was quietly discarding the only entries it exists to surface.
+
+  Three changes, in increasing order of importance:
+
+  1. **The blocklist was widened** to the families it had no rule for — key and certificate material (`.key`, `.pem`, `.crt`…), archives, heap and log dumps, extensionless credential filenames (`id_rsa`, `known_hosts`, `.pgpass`), FTP client credential stores, traversal markers, and framework/appliance endpoints. It also gained `wp-config`, which it had somehow never had while filtering `wp-login` and `wp-admin`.
+  2. **Eviction now prefers probes.** `sn_404_log_evict()` fills the cap with actionable entries first, so noise can never again displace signal.
+  3. **A structural classifier, because a blocklist is always one campaign behind.** `sn_404_is_actionable()` inverts the question from "does this look hostile" to "could a redirect for this even make sense": a path qualifies when it resembles something published here — computed by the **existing** v9.81.0 levenshtein suggester, not a second heuristic to keep in sync — or when something on this site links to it. An off-site referer deliberately does not qualify; referers are attacker-controlled, and honouring them would hand any scanner a way to promote itself back into view.
+
+- **The Redirects rail rendered every logged path as its own decision card** ([inc/redirects-admin.php](inc/redirects-admin.php)) — 200 cards, each politely offering to create a redirect for `/server.key`, all under an "Attention" pill. Actionable paths keep their cards; everything else collapses to one line with a count, a peek at the paths, and a single **Dismiss all probes** action that keeps genuinely broken paths. The probe line carries no attention pill: it is weather, not a task. Nothing is deleted on read.
+
+- **Two duplicated sentences on the AI budget field** ([inc/admin-forms/ai-settings.php](inc/admin-forms/ai-settings.php)). With no cap set it said "AI features never pause on cost" and then, immediately, "Set 0 for no limit. When a cap is reached, AI features pause…". Introduced in v10.46.0.
+
+- **Three leaves rendered as a narrow card in a wide tab.** `wide` only swaps the *wrapper* for a bare `.sn-section`; the card's own 820px cap survives it. Live, the AI, Pattern Adoption and Block Migrations leaves each drew a ~620px box with two thirds of the tab empty. The AI form now joins the Phase-4a field grid that Front-End and Identity already use — a short form earns its width by making the **fields** the columns — and the scanner cards uncap.
+
+### New
+
+- **Tools becomes Integrity, with a leaf that gives it a concept** ([inc/integrity-trust-admin.php](inc/integrity-trust-admin.php)). v10.46.0 emptied the junk drawer but left two leaves with no sentence covering both. Four of the eighteen health checks were never about content — the provenance triangle, the public ledger's own CI, the live rights signals, and whether those signals are still being anchored — yet they were reachable only as four rows interleaved with missing alt text, on a different tab from the console they are checking.
+
+  The leaf **runs nothing and fetches nothing**: every number is read from the health scan that already ran, so opening it costs one option read, and the scan age is stated rather than hidden. A check missing from the scan renders as "not run", never as blank — a gap in a trust surface must not look like a pass.
+
+### Changed
+
+- **Leaf order within two tabs.** Measurement now reads Analytics → RSS → Machine Readers → Insights → Health: what was recorded, then what interprets it (`snt_mr_admin_register()` inserts rather than appends). AI reads Models & Budget → MCP Clients → Copilot Usage: both configuration leaves before the observation one, where it previously alternated.
+
+> **Why MINOR:** a new user-visible surface (the Trust checks leaf) plus a new bulk action. No settings-schema change; the 404 log's stored shape is untouched and no entry is deleted on read.
+
+### Verification
+
+Full sweep **14,510 passed / 0 failed** (14,450 before; +60). phpcs clean, falsified first. The 404 spec was written from paths pulled off the live log and watched go red — 18 real probe shapes the shipped filter waved through.
+
 ## [10.46.0] - 2026-08-05
 
 **Headline:** the settings page is regrouped by intent instead of by history — eight tabs, AI promoted out of a render-knobs form, the three content scanners reunited, and the collector endpoint moved to the screen that is actually about it.

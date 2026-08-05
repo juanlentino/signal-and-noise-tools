@@ -82,13 +82,11 @@ function sn_admin_top_tabs() {
 		// 'wide': Insights uses the full-width two-column sn_admin_shell;
 		// Health uses a full-width glance hero + findings cards (it dropped the
 		// shell in v6.44.0). Both opt out of the wrapper's default capped card.
+		// v10.47.0 order: the RECORDING surfaces first (Analytics, RSS, and the
+		// spliced Machine Readers), then the two that INTERPRET them.
+		'rss'       => array( 'label' => 'RSS', 'render' => 'sn_admin_render_rss_section', 'wide' => true ),
 		'insights'  => array( 'label' => 'Insights', 'render' => 'sn_admin_render_insights_section', 'wide' => true ),
 		'health'    => array( 'label' => 'Health', 'render' => 'sn_admin_render_health_section', 'wide' => true ),
-		// v10.46.0: RSS moves here from Content. The leaf is feed-request
-		// ANALYTICS — a subscriber-count hero over a request log — which is a
-		// measurement surface, not a content one. It keeps its 'wide' flag: the
-		// activity hero + asymmetric .sn-2col (Recent table | settings) needs it.
-		'rss'       => array( 'label' => 'RSS', 'render' => 'sn_admin_render_rss_section', 'wide' => true ),
 	);
 	if ( function_exists( 'snt_mr_admin_register' ) ) {
 		$monitoring_sub_tabs = snt_mr_admin_register( $monitoring_sub_tabs );
@@ -254,14 +252,17 @@ function sn_admin_top_tabs() {
 			'sub_tabs' => array(
 				// The three extracted settings (prose model, vision model, monthly
 				// budget). Capped card — three fields earn no extra width.
-				'models-budget' => array( 'label' => 'Models & Budget', 'render' => 'sn_admin_render_ai_settings_form' ),
+				'models-budget' => array( 'label' => 'Models & Budget', 'render' => 'sn_admin_render_ai_settings_form', 'wide' => true ),
+				// v10.47.0 order: the two CONFIGURATION leaves first (which models run,
+				// which clients may connect), then the observation leaf. It read
+				// config / observation / config before.
+				// v9.47.0: read-only "how to connect an external MCP client" doc leaf.
+				// No form, no side effects — pure reference, like Links.
+				'mcp-connect'   => array( 'label' => 'MCP Clients', 'render' => 'sn_admin_render_mcp_connect_section' ),
 				// v9.62.2: Copilot tool-usage diagnostic. 'wide' => true so the
 				// wrapper emits a bare .sn-section: the render fn owns its own
 				// .sn-card, so a capped .sn-fieldset here would nest a card in a card.
 				'copilot-usage' => array( 'label' => 'Copilot Usage', 'render' => 'snt_ai_tool_invocations_render', 'wide' => true ),
-				// v9.47.0: read-only "how to connect an external MCP client" doc leaf.
-				// No form, no side effects — pure reference, like Links.
-				'mcp-connect'   => array( 'label' => 'MCP Clients', 'render' => 'sn_admin_render_mcp_connect_section' ),
 			),
 		),
 		array(
@@ -287,18 +288,28 @@ function sn_admin_top_tabs() {
 		array(
 			'slug'     => 'sn-tools',
 			'tab'      => 'tools',
-			'label'    => 'Tools',
-			'title'    => 'Signal & Noise — Tools',
+			// v10.47.0: relabelled 'Integrity'. v10.46.0 emptied the junk drawer but
+			// left two leaves with no sentence covering both. What actually remained
+			// was the cryptographic console plus a link list — so the tab takes the
+			// concept the console was already carrying, and the four trust checks
+			// that had been marooned as rows inside an eighteen-row Health tab come
+			// with it. KEY stays 'tools'.
+			'label'    => 'Integrity',
+			'title'    => 'Signal & Noise — Integrity',
 			// v10.46.0: Tools stops being a junk drawer. Its own subtitle used to
 			// name three of its five leaves. Block Migrations went to Content (it is
 			// a content scanner), MCP + Copilot Usage to AI. What remains is the pair
 			// that genuinely had nowhere else: a cryptographic provenance console and
 			// a list of external shortcuts.
-			'subtitle' => 'The Notes provenance console, and shortcuts to the services this site runs on.',
+			'subtitle' => 'Proof that what is published is what was published, and that machines are told the terms.',
 			'sub_tabs' => array(
 				// Notes provenance (Plan 6): live anchor-status stepper + public key.
 				// Writes go to admin-post.php, not the dispatcher → moved at zero cost.
 				'provenance' => array( 'label' => 'Provenance', 'render' => 'sn_admin_render_provenance_section', 'wide' => true ),
+				// v10.47.0: the four trust checks, read out of the cached health scan.
+				// Second in order deliberately — Provenance already opens with its own
+				// glance hero, and two heroes stacked would read as one repeated.
+				'trust'      => array( 'label' => 'Trust checks', 'render' => 'sn_admin_render_trust_section', 'wide' => true ),
 				// Links last — reference shortcuts (GitHub, release pages, Cloudflare, Cloudways).
 				'links'      => array( 'label' => 'Links', 'render' => 'sn_admin_render_links_section' ),
 			),

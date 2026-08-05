@@ -44,7 +44,25 @@ function sn_404_should_capture( $path ) {
 	}
 	$lower = strtolower( $path );
 	// Executable / config / dump extensions — never a legit content 404.
-	if ( preg_match( '#\.(php|phtml|asp|aspx|jsp|cgi|env|git|sql|bak|old|ini|conf|config|sh|py|yml|yaml|json|lock)$#', $lower ) ) {
+	//
+	// v10.47.0: widened after a live audit found 200 of 200 log slots occupied and
+	// ~95% of them probes this list waved through. The additions are the families
+	// it had no rule for: key + certificate material (.key/.pem/.crt/…), archives
+	// (a dump by another name), and heap/log dumps. NOT added: .xml — /license.xml
+	// and the sitemaps are real surfaces here, and a genuine 404 on one is worth
+	// seeing; the two .xml probes observed live are caught by filename below.
+	if ( preg_match( '#\.(php|phtml|asp|aspx|jsp|cgi|env|git|sql|bak|old|ini|conf|config|sh|py|yml|yaml|json|lock|key|pem|crt|cer|p12|pfx|jks|asc|zip|gz|tgz|tar|rar|7z|dump|log|pwd|war|jar|sqlite|db3|swp|save|orig|rej)$#', $lower ) ) {
+		return false;
+	}
+	// v10.47.0: extensionless credential + client-config filenames. Matched on the
+	// BASENAME exactly, never as a substring, so /notes/my-ssh-key-workflow and
+	// /uses/keyboards are untouched.
+	$probe_files = array(
+		'id_rsa', 'id_dsa', 'id_ecdsa', 'id_ed25519', 'known_hosts', 'authorized_keys',
+		'.netrc', '.npmrc', '.pgpass', '.bash_history', 'credentials', 'heapdump',
+		'filezilla.xml', 'sitemanager.xml', 'recentservers.xml',
+	);
+	if ( in_array( basename( $lower ), $probe_files, true ) ) {
 		return false;
 	}
 	// Browser/OS auto-requested assets: a missing one is an agent default, not a
@@ -60,7 +78,23 @@ function sn_404_should_capture( $path ) {
 		return false;
 	}
 	// Substrings that mark an infra path or a known probe campaign.
-	$probes = array( 'wp-login', 'wp-admin', 'xmlrpc', '/wp-json', '/.git', '/.env', '/.svn', '.htaccess', '.ds_store', '/vendor/', '/wp-includes/', '/wp-content/', 'phpunit', 'eval-stdin', '/cgi-bin/', '/.well-known/acme' );
+	//
+	// v10.47.0 additions, each observed live: 'wp-config' (the substring list had
+	// wp-login and wp-admin but not the file that holds the DB password, so
+	// /wp-config-backup1.txt and /wp-config.dump both logged); version-control
+	// metadata beyond .git/.svn; process-introspection and path-traversal markers;
+	// and the framework/appliance endpoints that make up most scanner sweeps.
+	$probes = array(
+		'wp-login', 'wp-admin', 'wp-config', 'xmlrpc', '/wp-json',
+		'/.git', '/.env', '/.svn', '/.hg', '/.bzr', '/cvs/',
+		'.htaccess', '.ds_store', '/vendor/', '/wp-includes/', '/wp-content/',
+		'phpunit', 'eval-stdin', '/cgi-bin/', '/.well-known/acme',
+		// Traversal + process introspection.
+		'/proc/', '@fs', '..', '%2e%2e',
+		// Framework / appliance / monitoring endpoints.
+		'/actuator', '/boaform', '/hnap', '/goform', 'server-status', 'server-info',
+		'/solr', '/struts', '/telescope', '/jenkins', '/tika', '/druid',
+	);
 	foreach ( $probes as $needle ) {
 		if ( false !== strpos( $lower, $needle ) ) {
 			return false;
@@ -151,8 +185,14 @@ function sn_404_log_record( $uri, $referer = '' ) {
 			'referer'    => $referer,
 		);
 	}
+	// v10.47.0: cap by CLASS, not arrival order. A plain FIFO let a scanner sweep
+	// evict genuine broken links before the owner saw them — the log was lossy in
+	// exactly the entries it exists to surface. Guarded so the data layer keeps
+	// working if the suggester module is ever loaded without the post layer.
 	if ( count( $log ) > SN_404_LOG_MAX ) {
-		$log = array_slice( $log, -SN_404_LOG_MAX, null, true );
+		$log = function_exists( 'sn_404_published_paths' )
+			? sn_404_log_evict( $log, sn_404_published_paths(), (string) wp_parse_url( home_url(), PHP_URL_HOST ) )
+			: array_slice( $log, -SN_404_LOG_MAX, null, true );
 	}
 	// Non-autoloaded: this log is read only in wp-admin and can hold 200 entries —
 	// it has no business in the autoload bundle loaded on every front-end request.
@@ -246,6 +286,111 @@ function sn_404_suggest_target( $path, array $candidates ) {
 		}
 	}
 	return $best;
+}
+
+/**
+ * Is this 404 worth an owner's attention? (v10.47.0)
+ *
+ * The junk filter above is a BLOCKLIST: cheap, runs on every write, and always
+ * one campaign behind — the live audit that prompted this release found it
+ * waving through /server.key, /id_rsa and /actuator/heapdump because nobody had
+ * added those shapes yet. A blocklist can only ever describe probes someone has
+ * already seen.
+ *
+ * This is the structural complement, and it inverts the question: rather than
+ * asking "does this look hostile", it asks "could a redirect for this path even
+ * make sense". A redirect is meaningful in exactly two cases:
+ *
+ *   1. The path resembles something published here — a typo, a renamed slug, a
+ *      stale link. That is precisely what sn_404_suggest_target() already
+ *      computes (levenshtein rank + a similar_text floor), so the classifier is
+ *      the SHIPPED suggester, not a second heuristic to keep in sync.
+ *   2. Something on this site linked to it. A same-site referer means a real
+ *      page here points at a dead path — worth fixing whatever the path looks
+ *      like.
+ *
+ * An OFF-site referer deliberately does not qualify: referers are attacker-
+ * controlled, and treating them as a signal would hand any scanner a way to
+ * promote itself back into the owner's attention.
+ *
+ * PURE — takes its candidate set and home host as arguments, so the whole
+ * classification is testable without a WP bootstrap.
+ *
+ * @since 10.47.0
+ * @param string   $path       The 404'd path.
+ * @param array    $entry      Its log entry (reads 'referer' only).
+ * @param string[] $candidates Published candidate paths.
+ * @param string   $home_host  This site's host, for the referer test.
+ * @return bool
+ */
+function sn_404_is_actionable( $path, $entry, array $candidates, $home_host = '' ) {
+	$referer = isset( $entry['referer'] ) ? trim( (string) $entry['referer'] ) : '';
+	if ( '' !== $referer && '' !== (string) $home_host ) {
+		$host = strtolower( (string) wp_parse_url( $referer, PHP_URL_HOST ) );
+		if ( '' !== $host && $host === strtolower( (string) $home_host ) ) {
+			return true;
+		}
+	}
+	return '' !== sn_404_suggest_target( $path, $candidates );
+}
+
+/**
+ * Split a 404 log into the entries worth deciding about and the rest. PURE.
+ *
+ * The admin renders `actionable` as the per-path cards it always did, and
+ * collapses `probes` into a single row with a count and one bulk dismiss —
+ * turning 200 individual editorial decisions about traffic no human generated
+ * back into zero.
+ *
+ * @since 10.47.0
+ * @param array    $log        Path-keyed log.
+ * @param string[] $candidates Published candidate paths.
+ * @param string   $home_host  This site's host.
+ * @return array{actionable:array,probes:array}
+ */
+function sn_404_log_partition( array $log, array $candidates, $home_host = '' ) {
+	$out = array( 'actionable' => array(), 'probes' => array() );
+	foreach ( $log as $path => $entry ) {
+		$bucket = sn_404_is_actionable( $path, (array) $entry, $candidates, $home_host ) ? 'actionable' : 'probes';
+		$out[ $bucket ][ $path ] = $entry;
+	}
+	return $out;
+}
+
+/**
+ * Enforce SN_404_LOG_MAX, dropping PROBES before anything actionable. PURE.
+ *
+ * The bug this fixes is the quiet one. The cap was a plain FIFO, so a scanner
+ * sweep — hundreds of distinct paths in minutes — pushed genuine broken links
+ * out of the log before the owner ever saw them. The log was not merely noisy,
+ * it was lossy, and the loss was invisible because what got evicted was exactly
+ * what the feature exists to show.
+ *
+ * Order within each class is preserved, so the FIFO behaviour the tests already
+ * pin still holds among probes.
+ *
+ * @since 10.47.0
+ * @param array    $log        Path-keyed log.
+ * @param string[] $candidates Published candidate paths.
+ * @param string   $home_host  This site's host.
+ * @return array Capped log.
+ */
+function sn_404_log_evict( array $log, array $candidates, $home_host = '' ) {
+	if ( count( $log ) <= SN_404_LOG_MAX ) {
+		return $log;
+	}
+	$part       = sn_404_log_partition( $log, $candidates, $home_host );
+	$actionable = $part['actionable'];
+	$probes     = $part['probes'];
+
+	// Actionable entries never lose their slot to a probe. If they alone exceed
+	// the cap, fall back to FIFO among them — a real backlog is the owner's to
+	// clear, and silently hiding part of it would repeat this same bug.
+	if ( count( $actionable ) >= SN_404_LOG_MAX ) {
+		return array_slice( $actionable, -SN_404_LOG_MAX, null, true );
+	}
+	$room = SN_404_LOG_MAX - count( $actionable );
+	return $actionable + array_slice( $probes, -$room, null, true );
 }
 
 /**

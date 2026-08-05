@@ -166,5 +166,97 @@ $res = snt_ability_get_404_log( null );
 ok( SN_404_LOG_ABILITY_MAX === count( $res['entries'] ), 'ability: entries capped at SN_404_LOG_ABILITY_MAX' );
 ok( $res['total'] >= SN_404_LOG_ABILITY_MAX, 'ability: total still reports the full actionable size' );
 
+
+// ══════════════════════════════════════════════════════════════════════════
+// v10.47.0 — the live-traffic gap.
+//
+// Every path below was pulled off juanlentino.com's REAL 404 log on
+// 2026-08-05, where 200 of 200 slots were occupied and ~95% of them were
+// scanner probes that sn_404_should_capture() waved through. That matters
+// beyond tidiness: the log is a 200-entry FIFO, so probe traffic was
+// EVICTING genuine broken links before the owner ever saw them.
+//
+// The old filter's extension list covered .php/.env/.sql/.bak but not .key,
+// .pem, .zip, .gz or .xml, and had no rule at all for extensionless
+// credential filenames, traversal markers, or appliance endpoints.
+// ══════════════════════════════════════════════════════════════════════════
+echo "\n-- v10.47.0: probes observed live that used to slip through --\n";
+
+$live_probes = array(
+	// Key / certificate material (no covered extension).
+	'/server.key', '/myserver.key', '/privatekey.key', '/key.pem',
+	'/etc/ssl/private/server.key',
+	// Extensionless credential files.
+	'/id_rsa', '/id_dsa',
+	// Archives — a dump by another name.
+	'/backup.zip', '/backup.tar.gz',
+	// FTP client credential stores.
+	'/filezilla.xml', '/sitemanager.xml',
+	// Version-control metadata beyond .git/.svn.
+	'/CVS/root',
+	// Path traversal / process introspection.
+	'/@fs/proc/self/environ',
+	// Framework + appliance endpoints.
+	'/actuator/heapdump', '/tika', '/server-status',
+	// wp-config variants the substring list missed.
+	'/wp-config-backup1.txt', '/wp-config.dump',
+);
+foreach ( $live_probes as $probe ) {
+	ok( sn_404_should_capture( $probe ) === false, "filter: live probe $probe suppressed" );
+}
+
+// The filter must stay a scalpel. These are content-shaped and MUST survive —
+// each one is a near-miss of the earlier over-broad patterns.
+$must_survive = array(
+	'/notes/my-ssh-key-workflow',   // 'ssh' as prose, not /.ssh
+	'/notes/backup-strategies',     // 'backup' as a word, not /backup
+	'/uses/keyboards',              // starts with 'key'
+	'/notes/design-tokens',
+	'/archive',                     // a plausible human path
+	'/contact-us',
+);
+foreach ( $must_survive as $keep ) {
+	ok( sn_404_should_capture( $keep ) === true, "filter: content path $keep still captured" );
+}
+
+// ── The classifier: what makes a 404 ACTIONABLE ──
+// A redirect only makes sense for a path that resembles something real or that
+// something on this site actually linked to. Reuses the shipped levenshtein
+// suggester rather than adding a blocklist to maintain.
+echo "\n-- v10.47.0: actionable classification --\n";
+$candidates = array( '/notes/design-tokens', '/notes/provenance', '/about', '/uses' );
+
+ok( true === sn_404_is_actionable( '/notes/desing-tokens', array( 'referer' => '' ), $candidates, 'x.test' ),
+	'classify: a typo of a real path is actionable (suggester finds it)' );
+ok( false === sn_404_is_actionable( '/graphql', array( 'referer' => '' ), $candidates, 'x.test' ),
+	'classify: a path resembling nothing published is NOT actionable' );
+ok( true === sn_404_is_actionable( '/graphql', array( 'referer' => 'https://x.test/notes/provenance' ), $candidates, 'x.test' ),
+	'classify: a same-site referer makes it actionable regardless of similarity (a real link on this site points there)' );
+ok( false === sn_404_is_actionable( '/graphql', array( 'referer' => 'https://evil.example/scan' ), $candidates, 'x.test' ),
+	'classify: an OFF-site referer does not make it actionable (anyone can forge a referer)' );
+
+// ── Partition drives the admin: cards for signal, one collapsed row for noise ──
+$log = array(
+	'/notes/desing-tokens' => array( 'count' => 3, 'referer' => '' ),
+	'/abou'                => array( 'count' => 1, 'referer' => '' ),
+	'/graphql'             => array( 'count' => 9, 'referer' => '' ),
+	'/tika'                => array( 'count' => 7, 'referer' => '' ),
+);
+$part = sn_404_log_partition( $log, $candidates, 'x.test' );
+ok( 2 === count( $part['actionable'] ), 'partition: the two near-misses land in actionable' );
+ok( 2 === count( $part['probes'] ), 'partition: the two unrecognizable paths land in probes' );
+ok( isset( $part['actionable']['/notes/desing-tokens'] ), 'partition: keyed by path, entry preserved' );
+ok( 16 === array_sum( array_column( $part['probes'], 'count' ) ), 'partition: probe hit counts are retained for the collapsed row' );
+
+// ── Eviction must never drop signal to make room for noise ──
+echo "\n-- v10.47.0: eviction prefers probes --\n";
+$over = array();
+for ( $i = 0; $i < SN_404_LOG_MAX + 10; $i++ ) { $over[ '/probe-' . $i ] = array( 'count' => 1, 'referer' => '' ); }
+$over['/notes/desing-tokens'] = array( 'count' => 1, 'referer' => '' );  // the one real signal, added LAST
+$kept = sn_404_log_evict( $over, $candidates, 'x.test' );
+ok( count( $kept ) <= SN_404_LOG_MAX, 'evict: result respects the cap' );
+ok( isset( $kept['/notes/desing-tokens'] ), 'evict: the actionable entry SURVIVES a flood of probes (the live bug — noise was evicting signal)' );
+
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

@@ -45,6 +45,7 @@ function sn_admin_post_handlers() {
 			'redirect_delete'            => 'sn_handle_redirect_delete',
 			'redirect_404_delete'        => 'sn_handle_redirect_404_delete',
 			'redirect_404_clear'         => 'sn_handle_redirect_404_clear',
+			'redirect_404_clear_probes'  => 'sn_handle_redirect_404_clear_probes',  // v10.47.0: dismiss scanner noise, keep real broken links
 		'insights_run'               => 'sn_handle_insights_run',
 		'insights_dismiss'           => 'sn_handle_insights_dismiss',
 		'insights_snooze'            => 'sn_handle_insights_snooze',

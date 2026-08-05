@@ -444,7 +444,12 @@
    so large fields fill the cell and small ones (locale, handle, number knobs)
    stay small — no per-field overrides. (Identity's selector is listed last so its
    render-contract test's exact `.sn-identity-form .sn-fieldset {` grep still hits.) */
+/* v10.47.0: the AI settings form joins the Phase-4a field grid. Extracted in
+   v10.46.0 as a capped card, it rendered ~620px wide in a ~1200px tab with two
+   thirds of the leaf empty — the fix for a short form is to make its FIELDS the
+   columns, not to stretch one column across the width. */
 .sn-front-end-form .sn-fieldset,
+.sn-ai-settings-form .sn-fieldset,
 .sn-identity-form .sn-fieldset {
 	max-width: none;
 	display: grid;
@@ -454,6 +459,9 @@
 }
 .sn-front-end-form .sn-fieldset > .sn-fieldset-h,
 .sn-front-end-form .sn-fieldset > .sn-fieldset-intro,
+.sn-ai-settings-form .sn-fieldset > .sn-fieldset-h,
+.sn-ai-settings-form .sn-fieldset > .sn-fieldset-intro,
+.sn-ai-settings-form .sn-fieldset > .sn-fieldset-actions,
 .sn-identity-form .sn-fieldset > .sn-fieldset-h,
 .sn-identity-form .sn-fieldset > .sn-fieldset-intro {
 	grid-column: 1 / -1;
@@ -2100,4 +2108,46 @@ body.os-chromeless .sn-nav-tabs {
 	.sn-rsm-form [data-rsm-list="aff"] > .sn-rsm-card {
 		margin: 0;
 	}
+}
+
+
+/* ─── Content scanners + trust checks (v10.47.0) ─────────────────────────────
+   The three Content scanners and the Integrity trust leaf all own their own
+   .sn-fieldset and are registered 'wide'. 'wide' only swaps the WRAPPER for a
+   bare .sn-section, though — the card's own 820px cap survived it, so live they
+   rendered as a narrow box in a wide tab with a large void beside it. These
+   uncap the card the flag was already promising to free. */
+.sn-section > .sn-fieldset,
+.sn-trust-links {
+	max-width: none;
+}
+/* One probed path per line: monospace, tight, scannable — it is a list to skim
+   for anything surprising, never a list to act on row by row. */
+.sn-404-probe-list {
+	margin: var(--sn-space-2) 0 var(--sn-space-3);
+	max-height: 260px;
+	overflow-y: auto;
+	font-size: 12px;
+	line-height: 1.7;
+}
+.sn-404-probe-list li {
+	margin: 0;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+/* A finding note under a trust check's pill — indented so the verdict reads
+   first and the detail second. */
+.sn-trust-finding {
+	margin-top: 4px;
+	font-size: 12px;
+	line-height: 1.5;
+}
+.sn-trust-links {
+	margin: 0;
+	list-style: disc;
+	padding-left: 1.2em;
+}
+.sn-trust-links li {
+	margin-bottom: 6px;
 }
