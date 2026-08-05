@@ -329,6 +329,7 @@ require_once __DIR__ . '/inc/ai-cache-probe.php'; // v10.50.0: read-only http_re
 require_once __DIR__ . '/inc/ai-tool-invocation-log.php';
 require_once __DIR__ . '/inc/ai-alt-text-suggest.php';   // primary: owns the shared SNT_AI_ALT_BASE_RULES — must load first
 require_once __DIR__ . '/inc/ai-alt-inline-suggest.php'; // sibling: composes its prompt from that base
+require_once __DIR__ . '/inc/emdash-scan.php'; // v10.50.0: prose-vs-structural em-dash classifier; feeds sn-scan 'emdash' + sn-apply 'emdash_replace'.
 require_once __DIR__ . '/inc/ai-drift-phrase-suggest.php';
 require_once __DIR__ . '/inc/ai-link-suggest.php'; // v7.4.0: unlinked-mention Suggest+Apply (mirrors drift machinery)
 require_once __DIR__ . '/inc/ai-pair-suggest.php'; // v8.1.0: semantic-pair Suggest (link_opportunities; Apply rides ai-link-apply)

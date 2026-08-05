@@ -64,6 +64,7 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			$new_content = ( is_array( $computed ) && isset( $computed['new_content'] ) ) ? $computed['new_content'] : null;
 			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $fingerprint, 'skipped' => null, 'detail' => null, 'new_content' => $new_content );
 
+		case 'emdash_replace':
 		case 'drift_replace':
 		case 'link_insert':
 			$post = get_post( $resolved['post_id'] );
@@ -71,6 +72,8 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
 			}
 			$content = (string) $post->post_content;
+			// emdash_replace shares drift_replace's payload shape (phrase/position/
+			// replacement/context_snippet), so it shares this branch verbatim.
 			$phrase  = 'link_insert' === $type ? (string) ( $payload['anchor'] ?? '' ) : (string) ( $payload['phrase'] ?? '' );
 			$context = (string) ( $payload['context_snippet'] ?? '' );
 			$raw_pos = function_exists( 'snt_ai_drift_locate_in_raw' ) ? snt_ai_drift_locate_in_raw( $content, $phrase, $context ) : -1;
