@@ -20,7 +20,7 @@
  * candidate goes through sn-apply's `emdash_replace` type, which reuses
  * drift_replace's locate + fingerprint + splice machinery unchanged.
  *
- * @since plugin v10.50.0
+ * @since plugin v10.51.0
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
