@@ -118,6 +118,7 @@ function sn_prov_verify_send() {
 	$core_url = sn_prov_verify_asset_url( 'assets/js/prov-verify-core.js' );
 	$js_url   = sn_prov_verify_asset_url( 'assets/js/prov-verify.js' );
 	$diff_url = sn_prov_verify_asset_url( 'assets/js/prov-verify-diff.js' );
+	$tabs_url = sn_prov_verify_asset_url( 'assets/js/prov-verify-tabs.js' );
 
 	// The page speaks the site's own type: Bebas Neue + DM Mono, served from
 	// the THEME's font files (same origin; the OG card generator already leans
@@ -165,6 +166,28 @@ function sn_prov_verify_send() {
 		<p class="sn-verify-lede">Four checks run right here, in your browser. Nothing is taken on trust from this site &mdash; the signature, the content hash, and the Bitcoin anchor are all independently checkable against the public ledger and the Bitcoin chain themselves.</p>
 	</header>
 
+	<?php // The verdict band leads the page in the DOM, not only on screen: it is
+	// hidden until a run starts, so an idle page opens on the form (the whole
+	// job when there is no ?note=) and a running page opens on its answer.
+	// Visual order and focus order stay identical in both modes — no CSS
+	// `order` reshuffling to desynchronize them. ?>
+	<section class="sn-verify-verdict" data-role="verdict" data-level="running" hidden aria-labelledby="sn-verify-verdict-word">
+		<p class="sn-verify-verdict-kicker">Verdict</p>
+		<p class="sn-verify-verdict-word" id="sn-verify-verdict-word" data-role="verdict-word">Checking</p>
+		<p class="sn-verify-verdict-line" data-role="verdict-line"></p>
+		<?php // A four-segment index of the docket below, mirroring each check's
+		// state. aria-hidden: it is a redundant visual summary of four rows a
+		// screen reader already reads in full, and the verdict line above it
+		// already names every check that did not pass. ?>
+		<ol class="sn-verify-tally" data-role="tally" aria-hidden="true">
+			<li class="sn-verify-tally-seg" data-check="signature"></li>
+			<li class="sn-verify-tally-seg" data-check="content-hash"></li>
+			<li class="sn-verify-tally-seg" data-check="live-match"></li>
+			<li class="sn-verify-tally-seg" data-check="anchor"></li>
+		</ol>
+		<p class="sn-verify-verdict-meta" data-role="verdict-meta"></p>
+	</section>
+
 	<form class="sn-verify-form" data-role="paste-form">
 		<label for="sn-verify-input">Paste a Note URL, or a note id</label>
 		<input id="sn-verify-input" name="note" type="text" autocomplete="off" spellcheck="false" placeholder="https://&hellip;/a-note-slug or a note id">
@@ -176,6 +199,34 @@ function sn_prov_verify_send() {
 	// error paths this line is the ONLY feedback a run produces. The verdict
 	// announcements coalesce in a separate region, so no double-reads. ?>
 	<p class="sn-verify-status-line" data-role="status-line" aria-live="polite"></p>
+
+	<?php // Three panels, one nav, one at a time — not three stacked sections.
+	// The verdict and the intake above are the page's constants; the checks,
+	// the raw values and the diff tool are three DIFFERENT questions, and
+	// stacking all three is what made this 2,400px of scroll in which the
+	// answer occupied the first 15%.
+	//
+	// Authored as a real WAI-ARIA tablist (roving tabindex + arrow keys are
+	// wired in assets/js/prov-verify-tabs.js). It degrades honestly: with no
+	// tab script the nav is inert and all three panels stay visible, which is
+	// the pre-v10.49.0 page — worse, never broken. ?>
+	<nav class="sn-verify-nav" aria-label="Verification sections">
+		<div class="sn-verify-nav-list" data-role="tablist" role="tablist">
+			<button type="button" class="sn-verify-tab" role="tab" id="sn-tab-checks" aria-controls="sn-panel-checks" aria-selected="true" data-panel="checks">
+				<span class="sn-verify-tab-label">The four checks</span>
+				<span class="sn-verify-tab-badge" data-role="tab-badge" aria-hidden="true"></span>
+			</button>
+			<button type="button" class="sn-verify-tab" role="tab" id="sn-tab-walk" aria-controls="sn-panel-walk" aria-selected="false" data-panel="walk">
+				<span class="sn-verify-tab-label">Proof walk</span>
+			</button>
+			<button type="button" class="sn-verify-tab" role="tab" id="sn-tab-compare" aria-controls="sn-panel-compare" aria-selected="false" data-panel="compare">
+				<span class="sn-verify-tab-label">Compare versions</span>
+			</button>
+		</div>
+	</nav>
+
+	<section class="sn-verify-docket" id="sn-panel-checks" role="tabpanel" aria-labelledby="sn-tab-checks" data-panel="checks" tabindex="0">
+		<p class="sn-verify-sec-lede">Each one runs against a different witness: this site, the independent git ledger, and the Bitcoin chain. Any of them can contradict the others.</p>
 
 	<ol class="sn-verify-checks" data-role="checks">
 		<li class="sn-verify-check" data-check="signature">
@@ -203,31 +254,51 @@ function sn_prov_verify_send() {
 			<p class="sn-verify-check-detail" data-role="detail"></p>
 		</li>
 	</ol>
+	</section>
 
 	<p class="sn-verify-live" data-role="announce" aria-live="polite"></p>
 
 	<section class="sn-verify-facts" data-role="facts" hidden></section>
 
-	<section class="sn-verify-walk" data-role="walk" hidden>
-		<h2>Proof walk</h2>
-		<p class="sn-verify-lede">The chain of custody, value by value: the hash this Note&rsquo;s signature covers, the independent ledger&rsquo;s leaf, and the Bitcoin transaction and block that seal it &mdash; each labeled with where it was read from, so the independence of the three witnesses is visible, not asserted.</p>
-		<ol class="sn-verify-walk-steps" data-role="walk-steps"></ol>
-	</section>
+	<?php // Panel 2. NOTE: the walk's class attribute is exactly "sn-verify-walk"
+	// — the page test pins /<section class="sn-verify-walk"[^>]*hidden/, and
+	// its `hidden` means "the docket has not filled this yet", which is NOT
+	// the same state as "this panel is not the selected tab". Keeping the two
+	// meanings on two different elements is why the panel wraps the section
+	// rather than being it: the tab script owns the wrapper's visibility, the
+	// verifier owns the section's. ?>
+	<div class="sn-verify-panel" id="sn-panel-walk" role="tabpanel" aria-labelledby="sn-tab-walk" data-panel="walk" tabindex="0" hidden>
+		<p class="sn-verify-sec-lede">The chain of custody, value by value: the hash this Note&rsquo;s signature covers, the independent ledger&rsquo;s leaf, and the Bitcoin transaction and block that seal it &mdash; each labeled with where it was read from, so the independence of the three witnesses is visible, not asserted.</p>
+		<section class="sn-verify-walk" data-role="walk" hidden>
+			<ol class="sn-verify-walk-steps" data-role="walk-steps"></ol>
+		</section>
+		<?php // Shown until a run fills the walk — a selected tab must never be an
+		// unexplained blank panel. The tab script hides it once steps land. ?>
+		<p class="sn-verify-empty" data-role="walk-empty">Verify a Note above, and the four values it rests on appear here.</p>
+	</div>
 
-	<section class="sn-verify-compare" data-role="compare">
-		<h2>Compare two versions</h2>
-		<p class="sn-verify-lede">Every signed version stays on the chain. Pick two version numbers to see, word by word, what changed between them &mdash; each side labeled by its own anchor state.</p>
-		<form class="sn-verify-form" data-role="compare-form">
-			<label for="sn-compare-uid">Note id</label>
-			<input id="sn-compare-uid" name="compare_uid" type="text" autocomplete="off" spellcheck="false" value="<?php echo esc_attr( $uid ); ?>">
-			<label for="sn-compare-a">From version</label>
-			<input id="sn-compare-a" name="compare_a" type="number" min="1" step="1" value="1">
-			<label for="sn-compare-b">To version</label>
-			<input id="sn-compare-b" name="compare_b" type="number" min="1" step="1" value="2">
+	<div class="sn-verify-panel sn-verify-compare" id="sn-panel-compare" data-role="compare" role="tabpanel" aria-labelledby="sn-tab-compare" data-panel="compare" tabindex="0" hidden>
+		<p class="sn-verify-sec-lede">Every signed version stays on the chain. Pick two version numbers to see, word by word, what changed between them &mdash; each side labeled by its own anchor state.</p>
+		<?php // Its OWN form class: .sn-verify-form is a one-label/one-input/
+		// one-button bar, and pushing three labelled fields through that flex
+		// row is what made this block wrap into orphaned labels. ?>
+		<form class="sn-verify-cmp-form" data-role="compare-form">
+			<p class="sn-verify-cmp-field sn-verify-cmp-field--wide">
+				<label for="sn-compare-uid">Note id</label>
+				<input id="sn-compare-uid" name="compare_uid" type="text" autocomplete="off" spellcheck="false" value="<?php echo esc_attr( $uid ); ?>">
+			</p>
+			<p class="sn-verify-cmp-field">
+				<label for="sn-compare-a">From version</label>
+				<input id="sn-compare-a" name="compare_a" type="number" min="1" step="1" value="1">
+			</p>
+			<p class="sn-verify-cmp-field">
+				<label for="sn-compare-b">To version</label>
+				<input id="sn-compare-b" name="compare_b" type="number" min="1" step="1" value="2">
+			</p>
 			<button type="submit">Compare</button>
 		</form>
 		<div class="sn-verify-compare-out" data-role="compare-out" aria-live="polite"></div>
-	</section>
+	</div>
 
 	<footer class="sn-verify-foot">
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>">juanlentino.com</a>
@@ -247,6 +318,10 @@ function sn_prov_verify_send() {
 <script src="<?php echo esc_url( $core_url ); ?>" defer></script>
 <script src="<?php echo esc_url( $js_url ); ?>" defer></script>
 <script src="<?php echo esc_url( $diff_url ); ?>" defer></script>
+<?php // The tab nav is deliberately LAST and depends on nothing: it only hides
+// panels the shell shipped visible, so if it never loads the page falls back
+// to the old all-at-once scroll instead of to three unreachable panels. ?>
+<script src="<?php echo esc_url( $tabs_url ); ?>" defer></script>
 </body>
 </html>
 	<?php

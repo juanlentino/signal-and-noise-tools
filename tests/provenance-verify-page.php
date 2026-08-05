@@ -150,5 +150,123 @@ vp_true( 1 === preg_match( '/<section class="sn-verify-walk"[^>]*hidden/', $sn_w
 $sn_walk_js = (string) file_get_contents( __DIR__ . '/../assets/js/prov-verify.js' );
 vp_true( false !== strpos( $sn_walk_js, 'renderProofWalk' ) && false !== strpos( $sn_walk_js, 'deriveProofWalk' ), 'docket JS renders the core-derived walk' );
 
+// ── v10.49.0: the verdict band, and the composition it leads ──
+// The band must lead the page in the DOM, not just on screen: the previous
+// layout put the intake form above every result, and the obvious fix (CSS
+// `order`) would desynchronize visual order from focus order. Pin the source
+// order instead, so a later "just reorder it in CSS" cannot pass silently.
+$sn_v_form_at    = strpos( $sn_walk_src, 'data-role="paste-form"' );
+$sn_v_verdict_at = strpos( $sn_walk_src, 'data-role="verdict"' );
+vp_true( false !== $sn_v_verdict_at, 'verdict band present in the shell' );
+vp_true( false !== $sn_v_verdict_at && $sn_v_verdict_at < $sn_v_form_at, 'verdict band precedes the intake form in the DOM' );
+vp_true( 1 === preg_match( '/<section class="sn-verify-verdict"[^>]*hidden/', $sn_walk_src ), 'verdict band hidden until a run starts' );
+foreach ( array( 'verdict-word', 'verdict-line', 'verdict-meta', 'tally' ) as $sn_v_role ) {
+	vp_true( false !== strpos( $sn_walk_src, 'data-role="' . $sn_v_role . '"' ), "verdict role \"$sn_v_role\" present" );
+}
+// One tally segment per check, each keyed to the docket row it indexes.
+foreach ( array( 'signature', 'content-hash', 'live-match', 'anchor' ) as $sn_v_key ) {
+	vp_true(
+		1 === preg_match( '/class="sn-verify-tally-seg" data-check="' . preg_quote( $sn_v_key, '/' ) . '"/', $sn_walk_src ),
+		"tally segment for \"$sn_v_key\""
+	);
+}
+// The band is derived from the docket on every settle — never written once
+// and left to drift out of agreement with the rows beneath it.
+vp_true( false !== strpos( $sn_walk_js, 'deriveOverallVerdict' ), 'page JS derives the verdict from the pure core' );
+vp_true( false !== strpos( $sn_walk_js, 'paintVerdict' ), 'page JS repaints the band as checks settle' );
+$sn_v_core = (string) file_get_contents( __DIR__ . '/../assets/js/prov-verify-core.js' );
+vp_true( false !== strpos( $sn_v_core, 'deriveOverallVerdict:' ), 'the core exports deriveOverallVerdict' );
+
+// The compare block gets its OWN form class: three labelled fields pushed
+// through .sn-verify-form (a one-field bar) is what made it wrap into a
+// stack of orphaned labels.
+vp_true( false !== strpos( $sn_walk_src, 'class="sn-verify-cmp-form"' ), 'compare form has its own layout class' );
+vp_true( false !== strpos( $sn_walk_src, 'data-role="compare-form"' ), 'compare form keeps its JS hook' );
+foreach ( array( 'sn-compare-uid', 'sn-compare-a', 'sn-compare-b' ) as $sn_v_id ) {
+	vp_true( false !== strpos( $sn_walk_src, 'id="' . $sn_v_id . '"' ), "compare field #$sn_v_id preserved for prov-verify-diff.js" );
+}
+
+// Every class the stylesheet is asked to style must actually be emitted by
+// the shell or by one of the two renderers — the exact drift that left the
+// compare block unstyled for three minor versions.
+$sn_v_css = (string) file_get_contents( __DIR__ . '/../assets/css/prov-verify.css' );
+$sn_v_diff_js = (string) file_get_contents( __DIR__ . '/../assets/js/prov-verify-diff.js' );
+$sn_v_emitted = $sn_walk_src . $sn_walk_js . $sn_v_diff_js;
+foreach (
+	array(
+		'sn-verify-verdict-word',
+		'sn-verify-tally-seg',
+		'sn-verify-tab',
+		'sn-verify-tab-badge',
+		'sn-verify-sec-lede',
+		'sn-verify-walk-source',
+		'sn-verify-walk-value',
+		'sn-verify-cmp-field',
+		'sn-verify-compare-diff',
+		'sn-verify-compare-label-add',
+	) as $sn_v_class
+) {
+	vp_true( false !== strpos( $sn_v_css, '.' . $sn_v_class ), "stylesheet styles .$sn_v_class" );
+	vp_true( false !== strpos( $sn_v_emitted, $sn_v_class ), ".$sn_v_class is actually emitted by the shell or a renderer" );
+}
+
+// The diff run classes are CONCATENATED ('sn-verify-compare-' + run.op), so
+// no literal class string exists to grep for — the pair has to be checked
+// against the op vocabulary the core actually emits. Styling the html tag
+// names (-ins) or a guessed -eq instead of the real -add/-same silently
+// styles nothing, which is exactly how this block went three versions
+// without any rules at all.
+vp_true( false !== strpos( $sn_v_diff_js, "'sn-verify-compare-' + run.op" ), 'diff run classes are built from the core op name' );
+foreach ( array( 'same', 'del', 'add' ) as $sn_v_op ) {
+	vp_true( 1 === preg_match( "/op: '" . $sn_v_op . "'/", $sn_v_core ), "the core emits the \"$sn_v_op\" diff op" );
+	vp_true( false !== strpos( $sn_v_css, '.sn-verify-compare-' . $sn_v_op ), "stylesheet styles the \"$sn_v_op\" diff run" );
+}
+foreach ( array( 'ins', 'eq' ) as $sn_v_ghost ) {
+	vp_true( false === strpos( $sn_v_css, '.sn-verify-compare-' . $sn_v_ghost ), "no rule for .sn-verify-compare-$sn_v_ghost (never emitted)" );
+}
+// The v9.87.0 proof walk styled its rules against a var that was never
+// declared, so they fell back to the initial value and drew nothing.
+vp_true( false !== strpos( $sn_v_css, '--rule:' ), 'the rule colour custom property is declared, not just referenced' );
+vp_true( false === strpos( $sn_v_css, 'var(--sn-verify-rule' ), 'nothing still reads the undeclared --sn-verify-rule' );
+// Every custom property the stylesheet READS must also be DECLARED in it —
+// the general form of the v9.87.0 bug, not just that one variable's name.
+preg_match_all( '/var\(\s*(--[a-z0-9-]+)/i', $sn_v_css, $sn_v_reads );
+foreach ( array_unique( $sn_v_reads[1] ) as $sn_v_prop ) {
+	vp_true( false !== strpos( $sn_v_css, $sn_v_prop . ':' ), "custom property $sn_v_prop is declared, not only read" );
+}
+// The disagreement styling reads an attribute the walk renderer must write.
+vp_true( false !== strpos( $sn_walk_js, "setAttribute( 'data-source'" ), 'walk renderer mirrors the witness source onto data-source' );
+
+// ── v10.49.0: the section nav ──
+$sn_v_tabs_js = (string) file_get_contents( __DIR__ . '/../assets/js/prov-verify-tabs.js' );
+vp_true( false !== strpos( $sn_walk_src, 'prov-verify-tabs.js' ), 'the tab script is emitted by the shell' );
+vp_true( false !== strpos( $sn_walk_src, 'role="tablist"' ), 'the nav is a real tablist' );
+
+// Every tab must point at a panel that EXISTS and names it back — a dangling
+// aria-controls is an unreachable panel that still looks navigable.
+preg_match_all( '/role="tab"[^>]*id="([^"]+)"[^>]*aria-controls="([^"]+)"/', $sn_walk_src, $sn_v_tabs, PREG_SET_ORDER );
+vp_eq( 3, count( $sn_v_tabs ), 'three tabs in the nav' );
+foreach ( $sn_v_tabs as $sn_v_t ) {
+	vp_true( 1 === preg_match( '/id="' . preg_quote( $sn_v_t[2], '/' ) . '"[^>]*role="tabpanel"/', $sn_walk_src ), "tab {$sn_v_t[1]} controls an existing panel" );
+	vp_true( 1 === preg_match( '/id="' . preg_quote( $sn_v_t[2], '/' ) . '"[^>]*aria-labelledby="' . preg_quote( $sn_v_t[1], '/' ) . '"/', $sn_walk_src ), "panel {$sn_v_t[2]} is labelled by its tab" );
+}
+// Exactly one tab is selected in the shipped markup, and its panel is the
+// only one not hidden — so a page whose tab script never loads still shows
+// the checks rather than nothing.
+vp_eq( 1, substr_count( $sn_walk_src, 'aria-selected="true"' ), 'exactly one tab ships selected' );
+vp_true( 1 === preg_match( '/id="sn-panel-checks"(?![^>]*hidden)/', $sn_walk_src ), 'the selected panel ships visible' );
+// Keyboard contract: a tablist without arrow keys and a roving tabindex is
+// a row of buttons wearing tab roles.
+foreach ( array( 'ArrowRight', 'ArrowLeft', 'Home', 'End', 'tabIndex' ) as $sn_v_k ) {
+	vp_true( false !== strpos( $sn_v_tabs_js, $sn_v_k ), "tab script implements $sn_v_k" );
+}
+// The walk's two look-alike hidden states must stay on two elements: the
+// panel (owned by the nav) and the inner section (owned by the verifier).
+vp_true( 1 === preg_match( '/id="sn-panel-walk"[^>]*role="tabpanel"/', $sn_walk_src ), 'the walk panel wraps rather than replaces the walk section' );
+vp_true( false !== strpos( $sn_walk_src, 'data-role="walk-empty"' ), 'the walk panel has an empty state' );
+vp_true( false !== strpos( $sn_v_tabs_js, 'walk-empty' ), 'the tab script syncs the walk empty state' );
+// The compare panel still carries every hook prov-verify-diff.js binds to.
+vp_true( 1 === preg_match( '/id="sn-panel-compare"[^>]*data-role="compare"/', $sn_walk_src ), 'the compare panel keeps its data-role="compare" hook' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

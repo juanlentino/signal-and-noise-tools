@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.49.0] - 2026-08-05
+
+**Headline:** /verify stops making you assemble its answer out of four rubber stamps, and stops stacking three unrelated questions into 2,400px of scroll.
+
+### New
+
+- **The page states its verdict** ([assets/js/prov-verify-core.js](assets/js/prov-verify-core.js), [inc/provenance-verify.php](inc/provenance-verify.php)). A verification page that never says "authentic" or "not authentic" is asking the reader to do the aggregation, and /verify rendered four stamps and left it there. A verdict band now leads the page at hero scale, with a one-line summary that names any check that fell short, the note id and version, and a four-segment tally that indexes the docket below it.
+
+  The wording and the level come from a new pure `Core.deriveOverallVerdict()`, alongside every other side-effect-free decision, and the band is **derived from the four rows on every settle** rather than written once — the two cannot drift into disagreement. Its levels are deliberately three, not two, because the four checks are not equal: the signature and the content hash can *disprove* a credential, while live-match and anchor can only corroborate one. So a broken signature reads **NOT AUTHENTIC** on a blood ground, an unrunnable check reads **NOT PROVEN** on an outlined one ("a missing answer, not a failed one"), and a signed, intact Note whose anchor is a block-only OpenTimestamps proof still reads **AUTHENTIC**, with the gap named rather than hidden. 28 new fixtures in [tests/js/prov-verify-core.test.mjs](tests/js/prov-verify-core.test.mjs) pin that asymmetry, including that a FAIL live-match can never make a signed, intact Note inauthentic.
+
+- **Three panels behind one nav, instead of three stacked sections** ([assets/js/prov-verify-tabs.js](assets/js/prov-verify-tabs.js)). The checks, the raw proof values and the version diff are three different questions; stacking them made the answer the first 15% of a very long page. They are now a real WAI-ARIA tablist — roving tabindex, Left/Right/Home/End, `#proof-walk` and `#compare` still address a panel directly — and the checks tab carries a live `N/4` badge so a run finishing on a panel you are not looking at is not silent. The shell ships every panel **visible** and the script is what hides the inactive ones, so a blocked script degrades to the old always-on page rather than to three unreachable panels.
+
+### Fixed
+
+- **The proof walk was styling itself against a custom property that was never declared.** Added in v9.87.0, `.sn-verify-walk-step` drew its row rules with `var(--sn-verify-rule, #d4d4d4)` — no `--sn-verify-rule` exists anywhere in the stylesheet, so every row fell through to the fallback, and the section's `<h2>` sat in default bold body type while the rest of the page is Bebas Neue. The walk is now what it always was: an inset ledger of the four hash values, each tagged with the witness it was read from, with a site-vs-ledger **disagreement** — the loudest thing this section can report — picked out in blood.
+
+- **The compare block had no CSS at all.** Shipped in v9.81.0 and never styled: an unstyled heading, three labelled fields pushed through `.sn-verify-form` (a one-label/one-input/one-button bar, which is why they wrapped into a stack of orphaned labels), and a diff left to browser-default `<del>` strikethrough. It now has its own field row, and a diff where removals are blood strike-through and additions are ink on a highlight ground — never colour alone.
+
+  The run classes are built as `'sn-verify-compare-' + run.op` from the **core's** op vocabulary (`same` / `del` / `add`), not from the html element names the renderer picks (`<del>` / `<ins>` / `<span>`). A first pass here styled `-ins` and `-eq` and therefore styled nothing; a new assertion checks that every class the stylesheet targets is one the shell or a renderer actually emits, plus a general check that every custom property the stylesheet *reads* is one it *declares*.
+
+- **Contrast, in three places the redesign would otherwise have introduced or kept.** Unselected nav tabs are interactive controls and were `--concrete` on white (~2.5:1) — now `--rust`, with selection carried by the inverted slab rather than by dimming the rest. On the blood verdict band every supporting line goes to full white: pure white on `#e00404` is only ~4.9:1, so the alpha ramp that is comfortable on the black band drops them to ~4.3:1 and ~2.6:1. And a settled `NOTE`/`UNREACHABLE` check kept the `--asphalt` numeral of an unrun one, so a check that *had* run read as switched off next to its inked neighbours.
+
+- **Micro-labels back above the type floor.** Several new uppercase labels were authored at `.62`–`.68rem` (9.3–10.2px), against this file's own standing note that `.7rem` is the floor, "uppercase micro-labels included".
+
+### Changed
+
+- The intake form is the hero of an empty page and a "check another" utility on an answered one; it keeps its element and its DOM position, and only changes presentation. The verdict band leads the page **in the DOM**, hidden until a run starts — not reordered in CSS, which would have desynchronized visual order from focus order. A test pins that source order so a later "just reorder it in CSS" cannot pass silently.
+
+- The per-section `<h2>`s are gone: the tab is the heading now, and repeating it inside the panel it labels is the redundancy the nav exists to remove.
+
+> **Why MINOR:** net-new reader-facing capability (the verdict, the section nav) on a public route, plus one new exported core function and one new asset. No removed or renamed API, no settings schema change, and every `data-role` hook the verifier and diff scripts bind to is preserved — `tests/provenance-verify-page.php` asserts each one.
+
 ## [10.48.2] - 2026-08-05
 
 **Headline:** the wp-admin copy drops its em-dashes, and four classes of em-dash that are **not** prose are documented in place so a later pass does not "correct" them.
@@ -21,6 +53,7 @@ All notable changes to Signal & Noise Tools are documented here.
 Ability descriptions were included: they are prose read by agents and MCP clients, and a description is free text rather than an identifier, so nothing contract-bearing moved.
 
 > **Why PATCH:** copy consistency only. No capability, schema, REST, or Ability signature changed, and the full suite lands on the **exact** assertion count of v10.48.1 (14,635), so no behavior moved with the words.
+
 
 ## [10.48.1] - 2026-08-05
 
