@@ -23,6 +23,7 @@ Linked from the leaf's "Developer filter seams →" line
 | `snt_ai_model_preference` | Route AI features to a specific model. |
 | `snt_ai_economy_features` | Which AI features ride the economy tier. |
 | `snt_ai_economy_model` | Which model the economy tier uses. |
+| `snt_ai_cache_probe_enabled` | Kill switch for the read-only Anthropic prompt-cache probe (`inc/ai-cache-probe.php`). Return false to stop recording. |
 
 `tests/analytics-filter-reference-parity.php` scans `inc/` for `apply_filters()`
 calls in these namespaces and cross-checks this table both ways — a future

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.49.1
+ * Version:     10.50.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -325,6 +325,7 @@ require_once __DIR__ . '/inc/desktop-mode-integration.php';
 require_once __DIR__ . '/inc/desktop-mode-attention.php';
 require_once __DIR__ . '/inc/desktop-mode-dropzone.php';
 require_once __DIR__ . '/inc/ai-bootstrap.php';
+require_once __DIR__ . '/inc/ai-cache-probe.php'; // v10.50.0: read-only http_response probe — the cache-token split the AI Client's TokenUsage DTO flattens away
 require_once __DIR__ . '/inc/ai-tool-invocation-log.php';
 require_once __DIR__ . '/inc/ai-alt-text-suggest.php';   // primary: owns the shared SNT_AI_ALT_BASE_RULES — must load first
 require_once __DIR__ . '/inc/ai-alt-inline-suggest.php'; // sibling: composes its prompt from that base

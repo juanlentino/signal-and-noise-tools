@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.50.0] - 2026-08-05
+
+**Headline:** a read-only probe that can answer whether Anthropic prompt caching would pay here, because nothing else on this site can.
+
+### New
+
+- **Prompt-cache probe** ([inc/ai-cache-probe.php](inc/ai-cache-probe.php)). Anthropic returns `cache_creation_input_tokens` and `cache_read_input_tokens` on every Messages response. Verified against WordPress/anthropic-ai-provider trunk: the provider reads both and then **sums them into a single `inputTokens`** before any caller sees them. So `snt_ai_record_usage()` is structurally incapable of reporting cache behaviour, and would price a cache read at the full input rate if caching were ever switched on, over-reporting spend and mis-firing the monthly budget cap.
+
+  The split survives one layer lower. The AI Client's PSR-18 transporter is `wp_remote_request()` (WordPress/wp-ai-client, `includes/HTTP/WordPress_HTTP_Client.php:64`), so every Anthropic call on this site passes through core's `http_response` filter with the raw request body in `$args['body']`. The probe reads it there and records sizes, counts, token figures, and a `prefix_hash` to a capped FIFO option. It **records only**: the filter returns the response untouched on every path, and no request is modified.
+
+  `prefix_hash` is the field the decision turns on. Anthropic renders the prompt as tools → system → messages and caching is a prefix match, so a hash of (model, tools, system) is the cache-key identity — and it deliberately ignores `messages`, which sit after the breakpoint. Two entries sharing a hash inside the 5-minute TTL are a cache hit that did not happen, which is the one thing a size measurement alone cannot tell you. `snt_ai_cache_probe_summary()` folds the log into calls, distinct prefixes, repeatable calls, largest prefix, and measured cache tokens.
+
+  Absent and zero are kept apart throughout: a usage object with no cache keys records `null` (never measured), one reporting `0` records `0` (measured, no caching). Collapsing those would manufacture the verdict the probe exists to find. No prompt text, system instruction, tool schema, or response content is ever stored — sizes and a fingerprint only, so the log stays safe to read and export. Kill switch: `snt_ai_cache_probe_enabled`.
+
+  Why measure before acting: SN's own prefixes look structurally uncacheable. The largest system instruction on the plugin is `SNT_AI_EXCERPT_SYSTEM` at 1,592 bytes (~430 tokens), against a minimum cacheable prefix of 1,024 tokens on Sonnet 5 and **4,096 on Haiku 4.5**, the economy tier — below the floor the API caches nothing and says nothing. The plausible candidate is traffic SN does not originate: OpenStation/Desktop Mode's Copilot and agent turns route through `wp_ai_client_prompt()` too and carry ~23 KB of tool definitions per turn, ahead of everything else in the prefix. The probe covers both, without assuming either.
+
+- **[tests/ai-cache-probe.php](tests/ai-cache-probe.php)** — 54 assertions, most of them about the probe not lying: the response is returned untouched on every path including `WP_Error` and non-200, a URL that merely *mentions* `api.anthropic.com` in a query string is not an API call, absent cache keys stay distinguishable from measured zeros, and `prefix_hash` is stable across a growing `messages` array but moves with model, system, or tools. That last pair is the false-negative that would have read every Copilot turn as unique and the repeat rate as zero.
+
+> **Why MINOR:** new observability capability and a new documented filter seam. No existing behaviour, schema, REST route, or Ability signature changed, and no request payload is touched.
+
 ## [10.49.1] - 2026-08-05
 
 **Headline:** three follow-ups from auditing what the v10.48.2 copy sweep actually touched. That release was described as "wp-admin copy"; it was not, and two of the three fixes here undo changes it should never have made.
