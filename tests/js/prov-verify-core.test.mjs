@@ -85,7 +85,7 @@ console.log( '\nGroup 2: deriveLiveMatchVerdict (9.74.1 twin schema; 9.75.0 PASS
 
 	const v2 = core.deriveLiveMatchVerdict( credBlock, fx( 'twin-edited.json' ) );
 	eq( core.STATE.NOTE, v2.state, 'an edited Note is NOTE — informational, never a FAIL' );
-	ok( v2.detail.startsWith( 'Content edited since signing — this credential proves version 1 as of ' ),
+	ok( v2.detail.startsWith( 'Content edited since signing. This credential proves version 1 as of ' ),
 		'edit detail names the proven version and signing date' );
 
 	const v3 = core.deriveLiveMatchVerdict( credBad, twinMatch );
