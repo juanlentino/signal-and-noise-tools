@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.45.0] - 2026-08-04
+
+**Headline:** the CMS page seeds are re-frozen from the live post-migration state, so a fresh install now reproduces the current design instead of landing on a hero the migration chain could never reach.
+
+### Fixed
+
+- **Three of the four CMS page seeds could not enter the split-hero migration chain** ([inc/seed-content/](inc/seed-content/)). `sn_split_hero_targets()` gates each swap on an md5 of the page's *live* hero band frozen 2026-08-03. The `about`, `services` and `music` seeds hashed differently, so the one-shot permanently skipped them and a fresh install kept a hero that was neither the old live one nor the current split one — still carrying the superseded `clamp(3rem, 7vw, 5.5rem)` title and 1400px bands below the hero, plus (on `services`) the credibility strip removed by owner decision in v10.37.5.
+- **`contact` was the opposite problem, and the more interesting one.** Its seed *did* match the entry hash, so the chain fired — but the live page has since moved through four further revisions to `split-hero-contact-hero-v5`, which the v1 seed knows nothing about. A fresh install would have replayed the entire chain to arrive where live already is.
+
+  All four seeds are now re-frozen **from the live bodies themselves**, which is the only authoritative source: for `about`, `services` and `music` the live hero band was verified **byte-identical** to the corresponding `split-hero-*.html`, and for `contact` it matched `split-hero-contact-hero-v5.html` — proving the endpoint rather than assuming it.
+
+### Changed
+
+- **`music-above.html` was re-frozen surgically, not wholesale** — only its leading hero band was swapped, plus one `1400px` → `1320px` fix. It is the *opening half* of a merge (`above` + existing page content + `below`), so copying the whole live body would have duplicated the Spotify-embeds wrapper and the discography section.
+
+### Deliberately unchanged
+
+- **The frozen hashes in `sn_split_hero_targets()`.** They describe the pre-split hero as it exists on an un-migrated install, so they remain the correct entry gate for one. Only a docblock note was added recording why they must stay.
+- **The one-shot chain itself.** It is now a no-op for fresh installs (the seeds start at its endpoint) but is still the migration path for any install that has not run it.
+
+### Verification
+
+Every claim here was checked rather than assumed:
+
+- Each re-frozen seed's leading band is **byte-identical to the live page's** leading band.
+- Zero `1400px`, zero `sn-credibility-strip`, zero `clamp(3rem, 7vw, 5.5rem)` remain in any of the four.
+- No `wp-image-*` classes and no `"id":` attachment references were introduced, so a fresh install references no media that would not exist.
+- `music-above.html`'s block-comment imbalance is **pre-existing and unchanged** (`+1` open before and after) and balances against `music-below.html` — it is a split file by design.
+- The `Catalog · Discography` idempotence sentinel that `sn_migrate_music_body()` tests for survives the band swap, in the exact raw-middot form the code matches.
+- **The chain cannot carry a fresh install past the endpoint:** each migration maps every prior variant forward to the newest, and the newest appears only ever as an *output*, never as an input.
+- Full sweep **14,367 passed / 0 failed** — identical to the pre-change count, so nothing pinning seed content regressed. phpcs clean.
+
+> **Why MINOR:** seed content that determines what a fresh install renders is user-visible. No public API touched, no settings-schema change, no operator action required — and by construction this changes nothing on an existing install, where the seeds are read only by one-shots whose flags are long since set.
+
 ## [10.44.0] - 2026-08-04
 
 **Headline:** the least-monitored coupling in the system gets enforced where it breaks — at the write boundary, not on a 24-hour poll — and the Machine Readers surface stops measuring the wrong thing.
