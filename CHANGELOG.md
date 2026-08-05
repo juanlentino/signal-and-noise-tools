@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.52.6] - 2026-08-05
+
+**Headline:** publishing a Note changes every page on the site, so publishing a Note now purges every page.
+
+### Fixed
+
+- **A first publication purges the zone** ([inc/cloudflare-purge.php](inc/cloudflare-purge.php)). Every rendered page carries the site-wide notes index — the `{"t":…,"u":…}` list that feeds search and related-notes — so a *new* publication invalidates every page. The per-post purge list named only the saved post, the home page, `/notes/`, `/provenance/` and the feed, leaving every other page serving an index that did not know the new Note existed.
+
+  Measured on 2026-08-05 while checking a content-health finding: the edge-cached copy of a Note was **104,516 bytes against 115,431 from origin**, and the cached copy's embedded index was missing an entry. The freshness card could not see it either — that probe checks three routes and never an individual Note.
+
+  An **ordinary edit keeps the narrow list**, because an edit changes that Note's page and its listings, not the index every other page carries. At roughly one publication a week this is a rare full purge rather than a routine one, and it is filterable via `sn_cf_purge_all_on_first_publish` for a site with a different cadence.
+
+  The gate is a **transition into publish**, not `$update` — `$update` is `true` for a draft that already existed as a row, which is exactly the case that adds a new index entry. 19 assertions in [tests/cloudflare-purge-on-publish.php](tests/cloudflare-purge-on-publish.php) cover all four transitions into publish, the edit path keeping every URL it had, the five existing gates still firing nothing, and the filter escape hatch.
+
+### Notes
+
+The test harness asserts `sn_cf_is_configured()` before any scenario runs. An earlier draft configured Cloudflare via invented constant names, left the module unconfigured, and passed every scenario as a no-op — a green suite asserting nothing.
+
+> **Why PATCH:** a purge that was too narrow is now correctly scoped. No API shape, schema, or public surface changed.
+
 ## [10.52.5] - 2026-08-05
 
 **Headline:** every Cloudways purge record now names the step it reached, why it failed, and whether the outcome is even known.
