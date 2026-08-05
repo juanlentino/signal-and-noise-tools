@@ -1,10 +1,10 @@
 <?php
 /**
  * Standalone test: Health sub-tab open-and-wide layout contract (v6.44.0,
- * reshaped v8.0.1).
+ * reshaped v8.0.1, pattern-adoption extracted in v10.46.0).
  *
- * Order contract: first-glance hero (sn_admin_glance_grid) → paired action row
- * (.sn-health-actions: Run scan + Opportunities side by side) → full-width
+ * Order contract (reshaped again in v10.46.0): first-glance hero
+ * (sn_admin_glance_grid) → the capped Run-scan card → full-width
  * finding tables for checks WITH issues → ONE passing strip (.sn-health-passing:
  * "N of M checks passing" + check names as .sn-badge chips — replaces the
  * v6.44.0 per-check pass-card grid). No .sn-shell / .sn-shell__rail. Also
@@ -60,8 +60,9 @@ $GLOBALS['__scan'] = array(
 	),
 );
 if ( ! function_exists( 'sn_health_last_scan' ) ) { function sn_health_last_scan() { return $GLOBALS['__scan']; } }
-// v8.0.1: marker stub so the paired action row is assertable (the real renderer
-// lives in inc/pattern-adoption-admin.php; the tab calls it via function_exists).
+// v8.0.1: marker stub. DELIBERATELY KEPT after the v10.46.0 extraction — with
+// the function defined, "no marker in the output" proves the Health tab stopped
+// CALLING it, which a missing function would prove nothing about.
 if ( ! function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) {
 	function snt_pattern_adoption_render_opportunities_section() { echo '<div class="sn-fieldset">SNT-OPPS-MARKER</div>'; }
 }
@@ -101,9 +102,11 @@ he_assert( false !== strpos( $html, '<h2 class="sn-section-h">Findings</h2>' ), 
 he_assert( false !== strpos( $html, 'Missing alt text' ), 'finding card for the failing check' );
 he_assert( false !== strpos( $html, '<table class="widefat striped' ), 'full-width finding table present' );
 
-// v8.0.1: run-scan and Opportunities pair up in one action row.
-he_assert( false !== strpos( $html, '<div class="sn-health-actions">' ), 'paired action row wrapper present' );
-he_assert( false !== strpos( $html, 'SNT-OPPS-MARKER' ), 'Opportunities card renders (inside the action row)' );
+// v10.46.0: Opportunities left for Content → Pattern Adoption, so the v8.0.1
+// pairing goes with it. NOTE the stub above IS defined — so this asserts the tab
+// genuinely stopped calling it, not merely that the function is absent.
+he_assert( false === strpos( $html, 'sn-health-actions' ), 'the paired action-row wrapper is GONE (one child would stretch edge to edge)' );
+he_assert( false === strpos( $html, 'SNT-OPPS-MARKER' ), 'the Health tab no longer renders the pattern-adoption card, even though the fn exists' );
 he_assert( false === strpos( $html, 'HEAD probes' ), 'run-scan intro is the one-line copy (long paragraph gone)' );
 
 // v8.0.1: passing checks collapse into ONE strip — name chips, no per-check card.
@@ -114,12 +117,11 @@ he_assert( false === strpos( $html, '<h2 class="sn-section-h">Passing checks</h2
 he_assert( false === strpos( $html, '>clear<' ), 'no per-check "clear" pass cards remain' );
 
 $glance_at   = strpos( $html, '<div class="sn-glance">' );
-$actions_at  = strpos( $html, '<div class="sn-health-actions">' );
-$opps_at     = strpos( $html, 'SNT-OPPS-MARKER' );
+$scan_at     = strpos( $html, 'value="health_scan"' );
 $findings_at = strpos( $html, '<h2 class="sn-section-h">Findings</h2>' );
 $passing_at  = strpos( $html, 'sn-health-passing' );
-he_assert( is_int( $glance_at ) && is_int( $actions_at ) && $glance_at < $actions_at, 'hero precedes the action row' );
-he_assert( is_int( $opps_at ) && is_int( $findings_at ) && $actions_at < $opps_at && $opps_at < $findings_at, 'Opportunities sits in the action row, before the findings' );
+he_assert( is_int( $glance_at ) && is_int( $scan_at ) && $glance_at < $scan_at, 'hero precedes the run-scan card' );
+he_assert( is_int( $findings_at ) && $scan_at < $findings_at, 'run-scan precedes the findings' );
 he_assert( is_int( $passing_at ) && $findings_at < $passing_at, 'findings precede the passing strip' );
 
 // ─── Test B: NO scan — hero shows the no-scan card, no tables ────────────────
@@ -133,7 +135,7 @@ he_assert( false !== strpos( $html2, 'no scan' ), 'hero shows the no-scan card' 
 he_assert( false !== strpos( $html2, '>Run scan<' ), 'run-scan button reads "Run scan" before any scan' );
 he_assert( false === strpos( $html2, '<table class="widefat striped' ), 'no finding tables without a scan' );
 he_assert( false === strpos( $html2, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section without a scan' );
-he_assert( false === strpos( $html2, 'SNT-OPPS-MARKER' ), 'Opportunities stays gated behind a first health scan' );
+he_assert( false === strpos( $html2, 'SNT-OPPS-MARKER' ), 'no pattern-adoption card on the no-scan path either (it lives on its own leaf now)' );
 he_assert( false === strpos( $html2, 'sn-health-passing' ), 'no passing strip without a scan' );
 
 // ─── Test C: clean scan — pass board only, no Findings section/table ─────────
@@ -159,8 +161,10 @@ he_assert( false !== strpos( $html3, 'sn-pill--ok' ), 'strip carries the single 
 // ─── CSS contract: the paired row + strip carry real stylesheet backing ──────
 echo "\nCSS contract: v8.0.1 classes exist in assets/admin.css\n";
 $css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
-he_assert( false !== strpos( $css, '.sn-health-actions' ), '.sn-health-actions grid CSS exists' );
-he_assert( false !== strpos( $css, '.sn-health-actions .sn-fieldset' ), 'action-row fieldsets are uncapped/equalized' );
+// v10.46.0: the action-row rules are DEAD once the wrapper is gone — this
+// suite's call site was their only one, so their absence is the contract now.
+he_assert( false === strpos( $css, '.sn-health-actions {' ), '.sn-health-actions grid CSS is REMOVED with its only call site' );
+he_assert( false === strpos( $css, '.sn-health-actions .sn-fieldset' ), 'the action-row uncap rules are removed too' );
 he_assert( false !== strpos( $css, '.sn-health-passing' ), '.sn-health-passing uncap CSS exists' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

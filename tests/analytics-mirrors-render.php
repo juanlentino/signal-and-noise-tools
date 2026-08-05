@@ -52,10 +52,13 @@ $h = ob_get_clean();
 
 ok( strpos( $h, 'Claude Sonnet 5' ) !== false, 'AI model label shown' );
 ok( strpos( $h, '4.20' ) !== false && strpos( $h, '10.00' ) !== false, 'spend + budget shown' );
-ok( strpos( $h, 'tab=content&sub=front-end' ) !== false, 'AI row links to Content → Front-End' );
+ok( strpos( $h, 'tab=ai&sub=models-budget' ) !== false, 'AI row links to AI → Models & Budget (v10.46.0: the AI settings left the render-knobs form)' );
 ok( strpos( $h, 'tab=monitoring&sub=insights' ) !== false, 'cron row links to Monitoring → Insights' );
-ok( strpos( $h, 'tab=content&sub=rss' ) !== false, 'collector row links to Content → RSS' );
-ok( strpos( $h, 'https://example.com/_sn/px' ) !== false, 'collector URL shown' );
+// v10.46.0: the collector row is GONE from the mirrors block — the endpoint
+// now has a real write surface in this leaf's own writable column, so mirroring
+// it here would be a mirror pointing at itself.
+ok( strpos( $h, 'tab=content&sub=rss' ) === false, 'no collector row links back to Content → RSS (the field moved onto this leaf)' );
+ok( strpos( $h, 'Collector URL' ) === false, 'the read-only Collector URL mirror row is removed (one write surface, and it is on this screen)' );
 ok( strpos( $h, '<input' ) === false && strpos( $h, '<select' ) === false && strpos( $h, '<button' ) === false && strpos( $h, '<textarea' ) === false, 'MIRROR RULE: no write controls of any kind' );
 ok( strpos( $h, 'sn-an-mirror-meter' ) !== false, 'budget meter rendered when a cap is set' );
 ok( strpos( $h, 'width:42%' ) !== false, 'meter width reflects 4.2/10 spend' );

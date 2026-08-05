@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise — Monitoring → Music admin sub-tab (Music Identity).
+ * Signal & Noise — Connections → Discography admin sub-tab (Music Identity).
  *
  * Render-only (POST is handled in sn_handle_music_save / sn_handle_music_sync on
  * admin_init, PRG). Surfaces the discography sync: a status panel (last run,
@@ -32,7 +32,7 @@ function sn_music_mask( $value ) {
 }
 
 /**
- * Render the Monitoring → Music sub-tab.
+ * Render the Connections → Discography sub-tab.
  *
  * @return void
  */

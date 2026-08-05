@@ -17,7 +17,7 @@ const SN_ANALYTICS_FORECAST_Z            = 1.96; // ~95% nominal interval; the b
 
 /**
  * Owner-tunable engine options (settings hub, v9.36.0): builds the $opts array
- * the signal producers accept, from the two Monitoring → Analytics knobs, then
+ * the signal producers accept, from the two Measurement → Analytics knobs, then
  * lets code override via the 'sn_analytics_signal_config' filter (the
  * sessions-module pattern). Values are re-clamped AFTER the filter so a bad
  * override can't poison the math. Falls back to the file's own defaults when

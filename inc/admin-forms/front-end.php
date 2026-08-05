@@ -31,10 +31,6 @@ function sn_admin_render_front_end_form() {
 	$uthr    = (int) sn_setting( 'theme.updated_threshold_days', 14 );
 	$wpm     = (int) sn_setting( 'theme.reading_wpm', 225 );
 	$nperp   = (int) sn_setting( 'theme.notes_per_page', 20 );
-	$model     = (string) sn_setting( 'theme.ai_model', 'claude-sonnet-5' );
-	$alt_model = (string) sn_setting( 'theme.ai_alt_model', 'gemini-2.5-flash-lite' );
-	$budget    = (float) sn_setting( 'theme.ai_monthly_budget', 0 );
-	$spent     = function_exists( 'snt_ai_spend_this_month' ) ? (float) snt_ai_spend_this_month() : 0.0;
 
 	echo '<form method="post" class="sn-front-end-form">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
@@ -90,31 +86,11 @@ function sn_admin_render_front_end_form() {
 	echo '<p class="sn-field-helper">How many notes per page on the <code>/notes</code> index (1&ndash;100). Pagination appears once published notes exceed this.</p>';
 	echo '</div>';
 
-	echo '<div class="sn-field sn-field-w-md">';
-	echo '<label class="sn-field-label" for="sn_theme_ai_model">AI model</label>';
-	echo '<select id="sn_theme_ai_model" name="theme_ai_model">';
-	foreach ( sn_theme_ai_models() as $id => $label ) {
-		echo '<option value="' . esc_attr( $id ) . '"' . selected( $model, $id, false ) . '>' . esc_html( $label ) . '</option>';
-	}
-	echo '</select>';
-	echo '<p class="sn-field-helper">Model used for AI-assisted prose features (drafts, insights, meta descriptions).</p>';
-	echo '</div>';
-
-	echo '<div class="sn-field sn-field-w-md">';
-	echo '<label class="sn-field-label" for="sn_theme_ai_alt_model">Vision model (alt text)</label>';
-	echo '<select id="sn_theme_ai_alt_model" name="theme_ai_alt_model">';
-	foreach ( sn_theme_ai_vision_models() as $id => $label ) {
-		echo '<option value="' . esc_attr( $id ) . '"' . selected( $alt_model, $id, false ) . '>' . esc_html( $label ) . '</option>';
-	}
-	echo '</select>';
-	echo '<p class="sn-field-helper">Model used to LOOK at images when suggesting alt text. The <code>snt_ai_alt_text_model</code> filter still overrides this for code-level pins.</p>';
-	echo '</div>';
-
-	echo '<div class="sn-field sn-field-w-xs">';
-	echo '<label class="sn-field-label" for="sn_theme_ai_monthly_budget">Monthly AI budget (USD)</label>';
-	echo '<input type="number" min="0" step="0.5" id="sn_theme_ai_monthly_budget" name="theme_ai_monthly_budget" value="' . esc_attr( number_format( $budget, 2, '.', '' ) ) . '">';
-	echo '<p class="sn-field-helper">Hard cap on this plugin&rsquo;s own AI spend per calendar month. <strong>0 = no limit.</strong> When reached, AI features pause until the next month or you raise this. This month so far: <strong>$' . esc_html( number_format( $spent, 2 ) ) . '</strong>.</p>';
-	echo '</div>';
+	// v10.46.0: the three AI settings (prose model, vision model, monthly budget)
+	// left this form for the AI tab — see inc/admin-forms/ai-settings.php. They
+	// were never render knobs; the budget in particular is a spend ceiling that
+	// pauses every AI feature in the plugin. This form is now exactly what its
+	// intro claims it is.
 
 	// Wide leaf → no wrapper card → the save row must be a card-owned
 	// .sn-fieldset-actions INSIDE the .sn-fieldset, NOT a bare .sn-savebar: the

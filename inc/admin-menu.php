@@ -162,14 +162,23 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		true
 	);
 
-	// Health/Tools Suggest+Apply JS (assets/health-suggest-actions.js) — enqueued
-	// UNCONDITIONALLY (no AI gate) on exactly the two leaves that render
-	// data-snt-suggest buttons: Monitoring → Health (the AI alt/drift/orphan column
-	// self-gates on snt_ai_is_available() at RENDER time in health-checks-admin.php,
-	// but the Opportunities pattern-adoption sub-section renders its Suggest/Dismiss
-	// buttons with NO AI gate) and Tools → Block Migrations (pure structural
-	// detection, no AI). The JS is inert when no buttons are present, so loading it
-	// on those leaves regardless of AI is correct and safe.
+	// Suggest+Apply JS (assets/health-suggest-actions.js) — enqueued
+	// UNCONDITIONALLY (no AI gate) on exactly the leaves that render
+	// data-snt-suggest buttons. Measurement → Health self-gates its AI
+	// alt/drift/orphan column on snt_ai_is_available() at RENDER time
+	// (health-checks-admin.php); Pattern Adoption and Block Migrations are pure
+	// structural detection and render their Suggest/Dismiss buttons with no AI
+	// gate at all. The JS is inert when no buttons are present, so loading it on
+	// those leaves regardless of AI is correct and safe.
+	//
+	// v10.46.0: the leaf list became DATA. Two of the three leaves moved this
+	// release (pattern-adoption out of the Health tab into Content,
+	// block-migrations out of Tools into Content), and the guard below was a pair
+	// of hardcoded tab/sub comparisons — the same shape that caused the v6.47.2
+	// outage described next. A list keeps the next move to one line, and the
+	// entries are asserted against the live registry in tests/admin-enqueue.php
+	// so a leaf that moves without updating this list fails the suite instead of
+	// silently killing its buttons.
 	//
 	// v6.47.2 (the dead-Suggest-button fix): resolve the active top-tab + sub-tab
 	// the SAME way the page dispatcher does (sn_theme_options_page() via
@@ -194,8 +203,7 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		}
 		$active_sub = sn_admin_resolve_active_sub( $active_tab );
 
-		$needs_suggest_js = ( 'monitoring' === $active_tab && 'health' === $active_sub )
-			|| ( 'tools' === $active_tab && 'block-migrations' === $active_sub );
+		$needs_suggest_js = in_array( $active_tab . '/' . $active_sub, sn_admin_suggest_js_leaves(), true );
 
 		if ( $needs_suggest_js ) {
 			wp_enqueue_script(

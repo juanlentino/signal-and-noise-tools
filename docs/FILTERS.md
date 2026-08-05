@@ -1,6 +1,6 @@
 # Developer filter reference
 
-Code-level seams for the analytics settings hub (Monitoring → Analytics).
+Code-level seams for the analytics settings hub (Measurement → Analytics).
 These aren't exposed as UI knobs — the settings leaf links here instead of
 listing them inline (moved out at v9.45.0, §4 of the settings-leaf prune).
 Constants beyond these stay internal by policy (design spec §7's

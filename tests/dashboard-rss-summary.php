@@ -49,7 +49,7 @@ $html = ob_get_clean();
 
 echo "\nTest: Open RSS tab link is canonical (v6.30.1 regression)\n";
 ok( false !== strpos( $html, 'Open RSS tab' ), 'renders the Open RSS tab link' );
-ok( false !== strpos( $html, 'page=sn-theme-options&tab=content&sub=rss' ), 'link points at the canonical Content → RSS sub-section' );
+ok( false !== strpos( $html, 'page=sn-theme-options&tab=monitoring&sub=rss' ), 'link points at the canonical Measurement → RSS sub-section (v10.46.0: RSS is feed-request analytics)' );
 ok( false === strpos( $html, 'page=sn-rss' ), 'no longer uses the dead page=sn-rss slug (the wp_die cause)' );
 // Sanity: the stats still render.
 ok( false !== strpos( $html, 'RSS feed activity' ), 'renders the RSS feed activity heading' );

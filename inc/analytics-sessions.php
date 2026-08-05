@@ -63,7 +63,7 @@ function sn_analytics_session_config() {
 
 /**
  * Auto-derived + optional owner-defined funnels. A site can configure named
- * funnels via Monitoring → Analytics (Settings → analytics.funnels, S2 §3) or
+ * funnels via Measurement → Analytics (Settings → analytics.funnels, S2 §3) or
  * add/override them in code via the 'sn_analytics_session_funnels' filter;
  * nothing is required for the view to work (transitions + quality render
  * regardless).
@@ -213,7 +213,7 @@ function sn_analytics_funnels_kind_message( $kind ) {
 }
 
 /**
- * Parse the Monitoring → Analytics "Session funnels" textarea into the funnel
+ * Parse the Measurement → Analytics "Session funnels" textarea into the funnel
  * shape sn_analytics_session_funnels() returns — one funnel per line:
  *
  *     Name: /entry > /step > /goal

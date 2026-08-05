@@ -3,7 +3,7 @@
  * Signal & Noise Tools — analytics edge-Worker version readout.
  *
  * Surfaces the DEPLOYED version of the first-party analytics collector Worker
- * (signal-and-noise-analytics-worker) inside Monitoring → Analytics, so the
+ * (signal-and-noise-analytics-worker) inside Measurement → Analytics, so the
  * full version story — theme + plugin + edge Worker — is visible in wp-admin
  * without curling the edge by hand.
  *
@@ -354,7 +354,7 @@ function sn_worker_version_recheck_requested() {
 }
 
 /**
- * The nonce-protected "Re-check now" URL — the same Monitoring → Analytics screen
+ * The nonce-protected "Re-check now" URL — the same Measurement → Analytics screen
  * with the cache-bypass trigger appended.
  *
  * @since 6.22.1
@@ -375,7 +375,7 @@ function sn_worker_version_recheck_url() {
 }
 
 /**
- * Render the edge-Worker version status card into the Monitoring → Analytics
+ * Render the edge-Worker version status card into the Measurement → Analytics
  * settings section. Native wp-admin chrome (no theme vocabulary). Three states:
  * live (info), last-known after a transient failure (warning), and
  * never-reached (warning), plus a nonce-protected "Re-check now" link that

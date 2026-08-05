@@ -282,7 +282,7 @@ function snt_dashboard_tab_render() {
 		echo '</ul>';
 		echo '</details>';
 	}
-	// v9.62.2: the Copilot tool-usage card moved to its own Tools → Copilot Usage
+	// v9.62.2: the Copilot tool-usage card moved to its own AI → Copilot Usage
 	// sub-tab (a diagnostic, off the main Dashboard). Rendered there via the
 	// registry leaf 'copilot-usage' (snt_ai_tool_invocations_render).
 }
@@ -837,9 +837,10 @@ function snt_dashboard_render_rss_summary() {
 	// v6.30.1: the standalone `page=sn-rss` slug isn't registered (every SN
 	// admin surface lives under page=sn-theme-options&tab=…), so the old link
 	// hit WP's "not allowed to access this page" guard. Point straight at the
-	// canonical Content → RSS sub-section (RSS moved here from Monitoring in
-	// v6.18.0), mirroring tab=connections&sub=cron / tab=monitoring&sub=analytics.
-	$rss_url = admin_url( 'admin.php?page=sn-theme-options&tab=content&sub=rss' );
+	// canonical RSS sub-section, mirroring tab=connections&sub=cron /
+	// tab=monitoring&sub=analytics. RSS went Monitoring → Content in v6.18.0 and
+	// back to Measurement in v10.46.0 (the leaf is feed-request analytics).
+	$rss_url = admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=rss' );
 
 	echo '<h2 class="sn-section-h">RSS feed activity</h2>';
 	echo '<p class="sn-api-summary">';

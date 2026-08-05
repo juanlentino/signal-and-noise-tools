@@ -112,12 +112,31 @@ ok( sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => 'moni
 	'Monitoring → Health (tab=monitoring&sub=health) enqueues snt-health-suggest-actions [the reported bug]' );
 ok( sn_fire_suggest_enqueue( array( 'page' => 'sn-monitoring', 'sub' => 'health' ) ),
 	'Monitoring → Health via the sidebar slug (page=sn-monitoring, no ?tab=) also enqueues it' );
-ok( sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => 'tools', 'sub' => 'block-migrations' ) ),
-	'Tools → Block Migrations (tab=tools&sub=block-migrations) enqueues it' );
+ok( sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => 'content', 'sub' => 'block-migrations' ) ),
+	'Content → Block Migrations enqueues it (v10.46.0: moved from Tools)' );
+ok( sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => 'content', 'sub' => 'pattern-adoption' ) ),
+	'Content → Pattern Adoption enqueues it (v10.46.0: promoted out of the Health tab, where it used to inherit Health\'s enqueue)' );
 ok( ! sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => 'monitoring', 'sub' => 'analytics' ) ),
-	'Monitoring → Analytics does NOT enqueue it (no Suggest buttons on that leaf)' );
+	'Measurement → Analytics does NOT enqueue it (no Suggest buttons on that leaf)' );
+ok( ! sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => 'tools', 'sub' => 'block-migrations' ) ),
+	'the vacated Tools → Block Migrations address does NOT enqueue it (the leaf is gone from there)' );
 ok( ! sn_fire_suggest_enqueue( array( 'tab' => 'health' ) ),
 	'the stale legacy assumption (tab=health) does NOT enqueue it (guard tracks the real IA, not ?tab=)' );
+
+// ── The guard is only as good as its agreement with the registry. Every entry
+// in sn_admin_suggest_js_leaves() must name a leaf that actually exists; a leaf
+// that moves without updating the list is the v6.47.2 dead-button outage again,
+// and it produces no error of its own. This turns it into a failing test. ──
+echo "\nEvery suggest-JS leaf still resolves against the live registry\n";
+$__by_tab = array();
+foreach ( sn_admin_top_tabs() as $__t ) { $__by_tab[ $__t['tab'] ] = $__t; }
+foreach ( sn_admin_suggest_js_leaves() as $__pair ) {
+	list( $__tab, $__sub ) = explode( '/', $__pair );
+	ok( isset( $__by_tab[ $__tab ]['sub_tabs'][ $__sub ] ),
+		"suggest-JS leaf '$__pair' exists in sn_admin_top_tabs()" );
+	ok( sn_fire_suggest_enqueue( array( 'page' => 'sn-theme-options', 'tab' => $__tab, 'sub' => $__sub ) ),
+		"suggest-JS leaf '$__pair' actually enqueues the script at its registry address" );
+}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

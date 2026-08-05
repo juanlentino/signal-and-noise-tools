@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise — Monitoring → Analytics tab.
+ * Signal & Noise — Measurement → Analytics tab.
  *
  * Native wp-admin surface (no theme vocabulary) for the first-party edge
  * analytics. Reads only the durable rollup accessors (never AE) so it never
@@ -351,7 +351,7 @@ function snt_analytics_resolve_compare( $raw ) {
 
 /**
  * The settings page the dashboard's "Configure →" link points at (and where the
- * creds form lives): Monitoring → Analytics. Built on the page=sn-theme-options
+ * creds form lives): Measurement → Analytics. Built on the page=sn-theme-options
  * route so the form POST hits the allow-listed admin-post handler.
  */
 function snt_analytics_settings_url() {
@@ -361,7 +361,7 @@ function snt_analytics_settings_url() {
 /**
  * Render the comprehensive READ-ONLY analytics dashboard. Lives on the native WP
  * Dashboard → Analytics page (inc/analytics-dashboard-page.php); the credential
- * settings are split out to Monitoring → Analytics
+ * settings are split out to Measurement → Analytics
  * (snt_analytics_render_settings_section). No <h1> heading or settings form here
  * — the page chrome owns the title, and the read view carries no form.
  *
@@ -548,7 +548,7 @@ function snt_analytics_render_dashboard() {
 }
 
 /**
- * The Monitoring → Analytics settings section. Open-and-wide Phase 2 (v6.44.0):
+ * The Measurement → Analytics settings section. Open-and-wide Phase 2 (v6.44.0):
  * a `.sn-2up` two-column layout that splits the active settings (credentials +
  * own-visit exclusion) from the read-only edge-worker reference (live version,
  * one-time Worker setup). The `analytics` leaf is marked
@@ -596,6 +596,21 @@ function snt_analytics_render_settings_section() {
 		snt_an_credentials_fold_open(),
 		'snt_analytics_render_credentials'
 	);
+	// v10.46.0: the collector endpoint, moved here from Content → RSS. Sits
+	// directly under Credentials because the two describe the same pipeline from
+	// both ends — this is where beacons WRITE, those are what READS them — and
+	// because the worker-version card in the reference column probes this origin.
+	// Opens when unset, on the same "open while incomplete" principle as
+	// Credentials; a configured endpoint is a one-line snapshot, not a task.
+	if ( function_exists( 'snt_analytics_render_collector' ) ) {
+		$__collector_rss = function_exists( 'sn_rss_tracker_settings' ) ? (array) sn_rss_tracker_settings() : array();
+		snt_an_settings_fold(
+			__( 'Collector endpoint', 'signal-and-noise-tools' ),
+			snt_an_collector_snapshot(),
+			'' === (string) ( $__collector_rss['collector_url'] ?? '' ),
+			'snt_analytics_render_collector'
+		);
+	}
 	// The "Exclude my own visits" role allow-list is a primary analytics setting,
 	// so it sits with the credentials in the active-settings column (v6.23.0).
 	if ( function_exists( 'snt_analytics_render_exclusion' ) ) {
