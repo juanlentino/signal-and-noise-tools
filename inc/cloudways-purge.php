@@ -75,6 +75,87 @@ function sn_cloudways_is_configured() {
 }
 
 /**
+ * Per-leg HTTP timeout, filterable.
+ *
+ * v9.47.1 tightened both legs 15s → 5s because this whole chain rides
+ * `breeze_clear_varnish`, which fires INLINE on admin/save paths — a slow
+ * Cloudways API held a human's save for up to 15 seconds. That reasoning still
+ * stands, so 5s remains the default. But a busy account genuinely can take
+ * longer than 5s to answer a purge, and the result is a timeout that looks like
+ * a failure (see the `inconclusive` marker below), so the value is now tunable
+ * without a code edit.
+ *
+ * @since 10.52.5
+ *
+ * @param string $leg 'auth' or 'purge'.
+ * @return float Timeout in seconds.
+ */
+function sn_cloudways_timeout( $leg ) {
+	/**
+	 * Filters the Cloudways HTTP timeout for one leg of the purge chain.
+	 *
+	 * @since 10.52.5
+	 *
+	 * @param float  $timeout Seconds.
+	 * @param string $leg     'auth' or 'purge'.
+	 */
+	return (float) apply_filters( 'sn_cloudways_timeout', 5.0, (string) $leg );
+}
+
+/**
+ * Why the last token exchange failed, as a human-readable string.
+ *
+ * `stage: auth` used to be the entire record of an auth failure — no code, no
+ * message, nothing to distinguish a rate limit from a revoked key from a DNS
+ * failure. That is the same undiagnosable shape as an empty transport error
+ * (the v8.1.1 lesson in ai-bootstrap), one step earlier in the chain.
+ *
+ * @since 10.52.5
+ *
+ * @return array{http:int,error:string}
+ */
+function sn_cloudways_last_token_failure() {
+	$f = $GLOBALS['sn_cloudways_token_failure'] ?? null;
+	return is_array( $f ) ? $f : array( 'http' => 0, 'error' => '' );
+}
+
+/**
+ * Render a WP_Error (or an empty body) into a message that is never blank.
+ *
+ * The invariant this exists to hold: when a purge records `ok: false`, it also
+ * records a non-empty `error`. A failure row that says nothing about why is a
+ * row that sends the next reader to audit the wrong thing — which is exactly
+ * what `stage: auth` and `error: ''` each did today.
+ *
+ * @since 10.52.5
+ *
+ * @param mixed  $res      Response or WP_Error.
+ * @param string $body_raw Response body, possibly ''.
+ * @param int    $http     HTTP status, 0 on transport failure.
+ * @return string Non-empty reason.
+ */
+function sn_cloudways_failure_reason( $res, $body_raw, $http ) {
+	if ( is_wp_error( $res ) ) {
+		$code = '';
+		$msg  = '';
+		if ( is_callable( array( $res, 'get_error_code' ) ) ) {
+			$code = (string) $res->get_error_code();
+		}
+		if ( is_callable( array( $res, 'get_error_message' ) ) ) {
+			$msg = (string) $res->get_error_message();
+		}
+		$out = trim( $code . ( '' !== $msg ? ': ' . $msg : '' ) );
+		return '' !== $out ? $out : 'transport failure (no error detail)';
+	}
+
+	$body = trim( wp_strip_all_tags( (string) $body_raw ) );
+	if ( '' !== $body ) {
+		return substr( $body, 0, 300 );
+	}
+	return 'HTTP ' . (int) $http . ' with an empty body';
+}
+
+/**
  * Drop any cached token, in-request and persisted.
  *
  * Called when the API rejects a token we believed was good (401/403), so a
@@ -122,12 +203,12 @@ function sn_cloudways_get_token( $force_fresh = false ) {
 		}
 	}
 
+	$GLOBALS['sn_cloudways_token_failure'] = null;
+
 	$res = wp_remote_post( SNT_CW_API_BASE . '/oauth/access_token', array(
-		// (render hardening FIX 3a): 15s → 5s. This request rides the
-		// theme's breeze_clear_varnish action, which itself fires inline on
-		// admin/save paths — a slow or hanging Cloudways API blocked that
-		// request for up to 15s. 5s is generous for an OAuth token exchange.
-		'timeout' => 5,
+		// Filterable since v10.52.5; see sn_cloudways_timeout() for why the
+		// default is 5s and not the original 15s.
+		'timeout' => sn_cloudways_timeout( 'auth' ),
 		'headers' => array( 'Accept' => 'application/json' ),
 		'body'    => array(
 			'email'   => sn_cloudways_cfg( 'SN_CLOUDWAYS_EMAIL' ),
@@ -137,12 +218,26 @@ function sn_cloudways_get_token( $force_fresh = false ) {
 		// so a 307/308 would re-send it — forbid following any 3xx from the API host.
 		'redirection' => 0,
 	) );
-	if ( is_wp_error( $res ) || 200 !== wp_remote_retrieve_response_code( $res ) ) {
+	$http = is_wp_error( $res ) ? 0 : (int) wp_remote_retrieve_response_code( $res );
+	$body = is_wp_error( $res ) ? '' : (string) wp_remote_retrieve_body( $res );
+
+	if ( is_wp_error( $res ) || 200 !== $http ) {
+		$GLOBALS['sn_cloudways_token_failure'] = array(
+			'http'  => $http,
+			'error' => sn_cloudways_failure_reason( $res, $body, $http ),
+		);
 		return '';
 	}
-	$data  = json_decode( wp_remote_retrieve_body( $res ), true );
+
+	$data  = json_decode( $body, true );
 	$token = is_array( $data ) ? (string) ( $data['access_token'] ?? '' ) : '';
 	if ( '' === $token ) {
+		// A 200 that carries no token is a protocol surprise, not a network
+		// problem — say so rather than leaving the row blank.
+		$GLOBALS['sn_cloudways_token_failure'] = array(
+			'http'  => $http,
+			'error' => 'HTTP 200 with no access_token in the response',
+		);
 		return '';
 	}
 
@@ -185,15 +280,28 @@ function sn_cloudways_purge_app() {
 
 	$token = sn_cloudways_get_token();
 	if ( '' === $token ) {
-		update_option( SNT_CW_LAST_PURGE_OPT, array( 'time' => time(), 'ok' => false, 'stage' => 'auth' ), false );
+		// v10.52.5: `stage: auth` alone sent the last reader to audit the
+		// credentials, when the real cause was a rate limit from a purge burst.
+		// Carry the token exchange's own status and reason so the row names it.
+		$why = sn_cloudways_last_token_failure();
+		update_option(
+			SNT_CW_LAST_PURGE_OPT,
+			array(
+				'time'  => time(),
+				'ok'    => false,
+				'stage' => 'auth',
+				'http'  => (int) $why['http'],
+				'error' => '' !== $why['error'] ? $why['error'] : 'token exchange failed (no detail captured)',
+			),
+			false
+		);
 		return false;
 	}
 
 	$dispatch = static function ( $bearer ) {
 		return wp_remote_post( SNT_CW_API_BASE . '/app/cache/purge', array(
-			// (render hardening FIX 3a): 15s → 5s, same rationale as the
-			// token exchange above.
-			'timeout' => 5,
+			// Filterable since v10.52.5 — see sn_cloudways_timeout().
+			'timeout' => sn_cloudways_timeout( 'purge' ),
 			'headers' => array( 'Authorization' => 'Bearer ' . $bearer ),
 			'body'    => array(
 				'server_id' => sn_cloudways_cfg( 'SN_CLOUDWAYS_SERVER_ID' ),
@@ -257,6 +365,10 @@ function sn_cloudways_purge_app() {
 	$record = array(
 		'time'         => time(),
 		'ok'           => $ok,
+		// v10.52.5: every row now names the step it reached, so 'auth' and
+		// 'dispatch' failures are told apart without inferring it from which
+		// keys happen to be present.
+		'stage'        => 'dispatch',
 		'http'         => (int) $http,
 		'operation_id' => $operation_id,
 	);
@@ -271,6 +383,16 @@ function sn_cloudways_purge_app() {
 		$record['reauthed'] = true;
 	}
 
+	// v10.52.5: a transport failure (timeout, DNS, reset) is NOT evidence the
+	// purge did not happen — only that we never heard back. Observed live
+	// 2026-08-05: a 5s timeout recorded ok:false, and the operation it started
+	// was found still running three seconds later by the next call, which
+	// coalesced onto it. `ok` stays false because we cannot claim success, but
+	// the row says the difference between "it failed" and "we do not know".
+	if ( is_wp_error( $res ) ) {
+		$record['inconclusive'] = true;
+	}
+
 	if ( ! $ok ) {
 		// (render hardening FIX 3b): on a non-2xx/non-{status:true} response, capture the
 		// error envelope so it's actually visible (e.g. the live 422's field-
@@ -280,7 +402,10 @@ function sn_cloudways_purge_app() {
 		// envelope, never user input, but this stays safe if that ever changes).
 		// The endpoint/payload themselves are UNCHANGED here — this capture is
 		// what decides that fix, in a follow-up.
-		$record['error'] = substr( wp_strip_all_tags( $body_raw ), 0, 300 );
+		// Guaranteed non-empty: a transport failure renders its WP_Error code and
+		// message, an empty body renders its status. `ok: false` with a blank
+		// `error` is the shape that wasted an afternoon; it can no longer occur.
+		$record['error'] = sn_cloudways_failure_reason( $res, $body_raw, (int) $http );
 	}
 
 	update_option( SNT_CW_LAST_PURGE_OPT, $record, false );

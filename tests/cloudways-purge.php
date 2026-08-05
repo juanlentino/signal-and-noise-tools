@@ -9,7 +9,25 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 
 // --- WP stubs -------------------------------------------------------------
 if ( ! function_exists( 'add_action' ) ) { function add_action( $h, $c = null, $p = 10, $a = 1 ) {} }
-if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $t ) { return false; } }
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error {
+		private $code; private $msg;
+		public function __construct( $code = '', $msg = '' ) { $this->code = $code; $this->msg = $msg; }
+		public function get_error_code() { return $this->code; }
+		public function get_error_message() { return $this->msg; }
+	}
+}
+if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $t ) { return $t instanceof WP_Error; } }
+// v10.52.5: the timeout is filterable, so the harness needs a real filter map.
+$GLOBALS['__filters'] = array();
+if ( ! function_exists( 'add_filter' ) ) { function add_filter( $tag, $cb, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $tag ][] = $cb; return true; } }
+if ( ! function_exists( 'apply_filters' ) ) {
+	function apply_filters( $tag, $value ) {
+		$args = func_get_args(); array_shift( $args );
+		foreach ( $GLOBALS['__filters'][ $tag ] ?? array() as $cb ) { $value = call_user_func_array( $cb, $args ); $args[0] = $value; }
+		return $value;
+	}
+}
 if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s ) { return trim( strip_tags( (string) $s ) ); } }
 // Configurable purge-endpoint response — default is the happy path; scenarios
 // below override it to exercise the non-2xx bounded-capture path (FIX 3b).
@@ -95,7 +113,7 @@ ok( ( $oauth['args']['body']['api_key'] ?? '' ) === 'SECRETKEY123', 'oauth body 
 // redirect would re-send it — redirection=>0 forbids following any 3xx from the API host.
 ok( 0 === ( $oauth['args']['redirection'] ?? -1 ), 'oauth request disables redirects (no api_key forward on a 3xx)' );
 // (render hardening FIX 3a): 15s → 5s.
-ok( 5 === ( $oauth['args']['timeout'] ?? null ), 'oauth request timeout is 5s (was 15s)' );
+ok( 5.0 === (float) ( $oauth['args']['timeout'] ?? null ), 'oauth request timeout defaults to 5s (float since v10.52.5, filterable)' );
 
 $purge = $GLOBALS['__http'][1];
 ok( strpos( $purge['url'], 'app/cache/purge' ) !== false, 'second call hits app/cache/purge' );
@@ -103,7 +121,7 @@ ok( ( $purge['args']['headers']['Authorization'] ?? '' ) === 'Bearer TESTTOKEN',
 ok( 0 === ( $purge['args']['redirection'] ?? -1 ), 'purge request disables redirects (no Bearer forward on a 3xx)' );
 ok( (string) ( $purge['args']['body']['server_id'] ?? '' ) === '111', 'purge body carries server_id' );
 ok( (string) ( $purge['args']['body']['app_id'] ?? '' ) === '222', 'purge body carries app_id' );
-ok( 5 === ( $purge['args']['timeout'] ?? null ), 'purge request timeout is 5s (was 15s)' );
+ok( 5.0 === (float) ( $purge['args']['timeout'] ?? null ), 'purge request timeout defaults to 5s (float since v10.52.5, filterable)' );
 
 $stored = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
 ok( ! empty( $stored['ok'] ), 'last-purge option records ok=true' );
@@ -338,6 +356,125 @@ ok( isset( $bad['error'] ), 'the failure still captures the error envelope' );
 ok( false === strpos( json_encode( $bad ), 'BAD' ), 'no token leaks into the recorded row' );
 
 // Restore defaults for any scenario appended after this one.
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'TESTTOKEN' ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 12345 ) ), 'response' => array( 'code' => 200 ) );
+token_reset();
+
+// --- Scenario 9: every failure row names itself (v10.52.5) ----------------
+// Two live rows this session said a purge failed and nothing about why:
+// `stage: auth` with no reason (really a rate limit from a purge burst), and
+// `ok: false, http: 0, error: ""` (really a 5s timeout on a request that had
+// already started the purge). Both sent the reader somewhere useless.
+echo "\nGroup: transport failure is INCONCLUSIVE, not failed, and always names itself\n";
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'T', 'expires_in' => 600 ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__purge_responses'] = array( new WP_Error( 'http_request_failed', 'cURL error 28: Operation timed out after 5001 milliseconds' ) );
+$GLOBALS['__opts'] = array();
+ok( false === sn_cloudways_purge_app(), 'a transport failure returns false — we cannot claim success' );
+$t = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( 'dispatch' === ( $t['stage'] ?? '' ), 'the row names the stage it reached' );
+ok( 0 === (int) ( $t['http'] ?? -1 ), 'http is 0 on a transport failure' );
+ok( ! empty( $t['inconclusive'] ), 'the row is marked INCONCLUSIVE — a timeout is not evidence the purge did not run' );
+ok( false !== strpos( (string) ( $t['error'] ?? '' ), 'cURL error 28' ), 'the WP_Error message is captured verbatim, not blanked' );
+ok( false !== strpos( (string) ( $t['error'] ?? '' ), 'http_request_failed' ), 'and the WP_Error code with it' );
+
+// A WP_Error carrying nothing still must not produce a blank reason.
+token_reset();
+$GLOBALS['__purge_responses'] = array( new WP_Error( '', '' ) );
+$GLOBALS['__opts'] = array();
+sn_cloudways_purge_app();
+$t2 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( '' !== trim( (string) ( $t2['error'] ?? '' ) ), 'an empty WP_Error still yields a non-empty reason' );
+
+// A non-2xx with an empty body: the status becomes the reason.
+token_reset();
+$GLOBALS['__purge_response'] = array( 'body' => '', 'response' => array( 'code' => 503 ) );
+$GLOBALS['__opts'] = array();
+sn_cloudways_purge_app();
+$t3 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( false !== strpos( (string) ( $t3['error'] ?? '' ), '503' ), 'an empty error body falls back to naming the status' );
+ok( empty( $t3['inconclusive'] ), 'a real HTTP response is NOT inconclusive — the server answered' );
+
+echo "\nGroup: an auth failure names its own cause\n";
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => '{"message":"Too many requests"}', 'response' => array( 'code' => 429 ) );
+$GLOBALS['__opts'] = array();
+ok( false === sn_cloudways_purge_app(), 'a failed token exchange still fails the purge' );
+$a = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( 'auth' === ( $a['stage'] ?? '' ), 'the row still names stage auth' );
+ok( 429 === (int) ( $a['http'] ?? 0 ), 'and now carries the token exchange status — a rate limit, not a bad key' );
+ok( false !== strpos( (string) ( $a['error'] ?? '' ), 'Too many requests' ), 'and the reason the API gave' );
+
+token_reset();
+$GLOBALS['__token_response'] = new WP_Error( 'http_request_failed', 'Could not resolve host' );
+$GLOBALS['__opts'] = array();
+sn_cloudways_purge_app();
+$a2 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( 0 === (int) ( $a2['http'] ?? -1 ), 'a transport failure during auth records http 0' );
+ok( false !== strpos( (string) ( $a2['error'] ?? '' ), 'Could not resolve host' ), 'and names the network error' );
+
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'nothing' => 'here' ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__opts'] = array();
+sn_cloudways_purge_app();
+$a3 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( false !== strpos( (string) ( $a3['error'] ?? '' ), 'no access_token' ), 'a 200 with no token is called out as a protocol surprise, not a network error' );
+
+// --- The invariant, asserted across every failure shape -------------------
+// This is the guard that stops the class of bug rather than the instances:
+// whenever a row says ok:false, it must also say why.
+echo "\nGroup: INVARIANT — ok:false always carries a non-empty error\n";
+$shapes = array(
+	'transport'      => array( 'purge' => new WP_Error( 'x', 'y' ) ),
+	'empty-body-503' => array( 'purge' => array( 'body' => '', 'response' => array( 'code' => 503 ) ) ),
+	'422-envelope'   => array( 'purge' => array( 'body' => '{"message":"nope"}', 'response' => array( 'code' => 422 ) ) ),
+	'auth-429'       => array( 'token' => array( 'body' => '{"m":1}', 'response' => array( 'code' => 429 ) ) ),
+	'auth-transport' => array( 'token' => new WP_Error( 'n', 'down' ) ),
+	'auth-no-token'  => array( 'token' => array( 'body' => '{}', 'response' => array( 'code' => 200 ) ) ),
+);
+foreach ( $shapes as $name => $cfg ) {
+	token_reset();
+	$GLOBALS['__token_response'] = $cfg['token'] ?? array( 'body' => json_encode( array( 'access_token' => 'T' ) ), 'response' => array( 'code' => 200 ) );
+	$GLOBALS['__purge_response'] = $cfg['purge'] ?? array( 'body' => json_encode( array( 'status' => true ) ), 'response' => array( 'code' => 200 ) );
+	$GLOBALS['__opts'] = array();
+	sn_cloudways_purge_app();
+	$row = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+	if ( empty( $row['ok'] ) ) {
+		ok( '' !== trim( (string) ( $row['error'] ?? '' ) ), "invariant [$name]: ok:false carries a non-empty error" );
+		ok( in_array( ( $row['stage'] ?? '' ), array( 'auth', 'dispatch' ), true ), "invariant [$name]: the row names its stage" );
+	} else {
+		ok( false, "invariant [$name]: expected a failure row" );
+	}
+}
+
+// A SUCCESS row must stay clean — no error, no inconclusive, but a stage.
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'T' ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 5 ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__opts'] = array();
+sn_cloudways_purge_app();
+$okrow = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( ! isset( $okrow['error'] ), 'a success row carries no error' );
+ok( ! isset( $okrow['inconclusive'] ), 'a success row is not inconclusive' );
+ok( 'dispatch' === ( $okrow['stage'] ?? '' ), 'a success row still names its stage' );
+
+// --- Timeout is filterable, per leg ---------------------------------------
+echo "\nGroup: the timeout is filterable per leg\n";
+token_reset();
+add_filter( 'sn_cloudways_timeout', static function ( $t, $leg ) { return 'purge' === $leg ? 12.0 : 3.0; }, 10, 2 );
+$GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true ) ), 'response' => array( 'code' => 200 ) );
+sn_cloudways_purge_app();
+$auth_call  = null;
+$purge_call = null;
+foreach ( $GLOBALS['__http'] as $call ) {
+	if ( false !== strpos( $call['url'], 'oauth/access_token' ) ) { $auth_call = $call; }
+	if ( false !== strpos( $call['url'], 'app/cache/purge' ) ) { $purge_call = $call; }
+}
+ok( 3.0 === (float) ( $auth_call['args']['timeout'] ?? 0 ), 'the auth leg honours the filter' );
+ok( 12.0 === (float) ( $purge_call['args']['timeout'] ?? 0 ), 'the purge leg honours the filter independently' );
+$GLOBALS['__filters'] = array();
+
+// Restore defaults.
 $GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'TESTTOKEN' ) ), 'response' => array( 'code' => 200 ) );
 $GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 12345 ) ), 'response' => array( 'code' => 200 ) );
 token_reset();
