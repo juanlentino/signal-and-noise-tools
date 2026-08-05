@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.43.1
+ * Version:     10.44.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -295,6 +295,7 @@ unset( $sn_phase3_theme_dir, $sn_phase3_retired, $sn_phase3_legacy_file );
 
 require_once __DIR__ . '/inc/content-rendering-helpers.php';
 require_once __DIR__ . '/inc/content-surfaces.php';
+require_once __DIR__ . '/inc/generated-page-contract.php';  // v10.44.0: structural contract for engine-built page bodies, enforced at the write boundary
 require_once __DIR__ . '/inc/page-sync-engine.php';   // v9.81.0: LIVE Now/Uses per-save dossier sync engine (split out of content-migrations)
 require_once __DIR__ . '/inc/resume-sync-engine.php'; // v10.33.0: LIVE /resume per-save sync engine (structured doc → wp:html body, drift-proof)
 require_once __DIR__ . '/inc/content-migrations.php'; // spent one-shot seeds behind the master sentinel (sn_run_content_migrations)

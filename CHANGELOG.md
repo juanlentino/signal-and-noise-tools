@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.44.0] - 2026-08-04
+
+**Headline:** the least-monitored coupling in the system gets enforced where it breaks — at the write boundary, not on a 24-hour poll — and the Machine Readers surface stops measuring the wrong thing.
+
+### New
+
+- **A structural contract for engine-generated page bodies, enforced at the write boundary** ([inc/generated-page-contract.php](inc/generated-page-contract.php)). `/resume`, `/now` and `/uses` are built by sync engines and stored as `post_content`. The suite pinned what the engines **build**; nothing pinned what is **stored** — and every failure in that coupling happened in the gap, each caught only by an owner screenshot: v10.33.1 (the `/resume` body shipped wrapped in `wp:html`, so WordPress enqueued no core block styles and the page rendered unstyled) and v10.33.3 (a band at a superseded width). The three upsert functions now refuse a body that has lost its structure, log it, and fire `snt_generated_page_write_refused`.
+  - **This started as a 19th health check and that was the wrong shape.** The other 18 checks watch *ambient* drift — external links rot, edge headers change, the ledger CI goes red — things the world changes underneath us, where polling is the only option. Generated page bodies are not ambient: they change for exactly one reason, a write, which is an event observable at the moment it happens. Polling up to 24h later for something catchable at source is strictly weaker, and a 19th entry on a list already read as a single "18/18 passed" glance spends attention the other checks need. **The check count stays at 18.**
+  - **Fail-closed, and cheap to be so.** An engine emitting markup that loses the layout is a bug, never a valid state, so refusing costs nothing real and leaves the previously-correct body in place — the page keeps rendering while the error names what was attempted.
+  - **Deliberate asymmetry:** `/now` and `/uses` *are* `wp:html` by design (their builders wrap a raw `<div>`); `/resume` must be real block markup. The `wp:html` rule is asserted for `/resume` only, because a `wp:html` `/resume` **is** the v10.33.1 regression.
+  - **Scope stated honestly:** this guards *engine* writes. It does **not** address v10.33.2 (an unchanged save skipped the sync) — nothing was written there, so a write guard has nothing to catch; that belongs to the sync path's own idempotence. Manual edits through the block editor are deliberately not blocked, because refusing an owner's own save would be hostile.
+
+### Fixed
+
+- **The rights-signals check never looked at the REST `Content-Signal` header** ([inc/health-check-rights-signals.php](inc/health-check-rights-signals.php)). v10.34.0 added `Content-Signal` to every REST response specifically to close a rights-surface gap, but the check whose entire job is that surface only read `robots.txt`. The header could vanish (regression, edge stripping, a `wp-config` override) with nothing going red. It now rides the same fail-closed rule as the robots.txt line and `TDM-Reservation`: presence alone is never enough, because `ai-train=yes` is the semantic **inverse** of the reservation rather than a weaker form of it.
+
+### Changed
+
+- **Machine Readers stops framing a healthy zero as a shortfall** ([assets/desktop-mode-widget-machine-readers.js](assets/desktop-mode-widget-machine-readers.js), [inc/machine-readers-admin.php](inc/machine-readers-admin.php)). The widget row read "…of the rights files", and the tab copy asked "whether declared AI-training crawlers actually read the rights declarations that apply to them" — both implying the rights only reach a crawler that goes and fetches them. Since rights-signals worker **v1.5.0** the reservation (`TDM-Reservation`, `Content-Signal`, `Link rel=license`) rides **every** response, so a crawler receives it without ever touching the rights files. The row is now "…fetched rights files directly".
+  - **The metric is kept, not deleted.** A non-zero value is a genuinely useful positive signal — a crawler that went looking for the declarations on purpose is doing compliance-checking. It simply stopped being a coverage measure, so the label stopped implying one.
+
+### Docs
+
+- **Ability and check counts recomputed from source, not edited by hand.** `docs/ai-abilities-catalog.md` claimed 65 abilities (50 plugin + 15 theme); the real figures are **81 (66 plugin + 15 theme)**. Door counts said 25 read / 35 read-write; actually **37 / 36** — and the doors overlap by design, so they were never meant to sum to the ability count. `README.md` said a 13-check scan (now 19) and 52 abilities with 25/35 doors.
+- **15 abilities were registered but never tabled**, so the catalog under-reported the plugin surface by 15: the `sn-*` consolidated family (`sn-apply`, `sn-posts`, `sn-scan`, `sn-site-facts`, `sn-validate`) plus `cadence-flags`, `duplicate-body-scan`, `get-machine-readers-summary`, `get-post-content`, `keyword-candidates`, `link-candidates`, `list-posts`, `near-duplicate-scan`, `topic-clusters`, and `update-post-surfaces`. All now listed with their source files.
+- **`draft-release-notes` removed from the catalog** — it was deleted in v10.0.0 but stayed documented as live.
+
+> **Why MINOR:** a new enforced contract plus a new action hook (`snt_generated_page_write_refused`) is new user-visible capability. No removed or renamed public API, no settings-schema change, nothing requiring operator action.
+
+### Verification
+
+- Full sweep **14,361 passed / 0 failed**; phpcs clean and falsified first (injected `echo $_GET['x']`, confirmed `WordPress.Security.EscapeOutput` fires).
+
+### Known, reported but not changed here
+
+- **Three of the four CMS page seeds cannot enter the split-hero migration chain.** `sn_split_hero_targets()` keys on an md5 of each page's *live* hero band frozen 2026-08-03; the `about`, `services` and `music` seeds hash differently, so the one-shot permanently skips them on a fresh install (only `contact` matches). Their seed hero bands are a third variant — neither the old live hero nor the current split hero — and still carry the superseded `clamp(3rem, 7vw, 5.5rem)` title and 1400px bands below the hero. This only affects seeding a brand-new site, and fixing it means re-freezing page content rather than changing code, so it is left for a deliberate content pass. Note the earlier audit framing was wrong in its specifics: `music-above.html` is a **template part**, not a page body.
+
 ## [10.43.1] - 2026-08-04
 
 ### Fixed

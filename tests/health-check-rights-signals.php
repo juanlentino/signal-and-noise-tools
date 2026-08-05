@@ -21,7 +21,10 @@ function good_responses() {
 		'rsl'    => array( 'code' => 200, 'body' => '<?xml version="1.0"?><rsl xmlns="https://rslstandard.org/rsl"><content url=""><license><permits type="usage">ai-train</permits></license></content></rsl>' ),
 		'robots' => array( 'code' => 200, 'body' => "User-agent: *\nDisallow:\n\nContent-Signal: search=yes, ai-train=no, ai-input=yes\nLicense: https://juanlentino.com/license.xml\n" ),
 		'html'   => array( 'code' => 200, 'headers' => array( 'tdm-reservation' => '1', 'tdm-policy' => 'https://juanlentino.com/tdm-policy/' ) ),
-		'wpjson' => array( 'code' => 200, 'headers' => array( 'tdm-reservation' => '1', 'tdm-policy' => 'https://juanlentino.com/tdm-policy/' ) ),
+		// content-signal rides the /wp-json response since v10.34.0
+		// (inc/rest-hardening-policy.php); covered by the headers check as of
+		// v10.44.0.
+		'wpjson' => array( 'code' => 200, 'headers' => array( 'tdm-reservation' => '1', 'tdm-policy' => 'https://juanlentino.com/tdm-policy/', 'content-signal' => 'search=yes, ai-train=no, ai-input=yes' ) ),
 	);
 }
 
@@ -61,6 +64,23 @@ ok( ( $v['signal']['ok'] ?? true ) === false, 'ai-train=yes drift fails the sign
 $bad = good_responses(); $bad['wpjson']['headers']['tdm-reservation'] = '0';
 $v = snt_rights_probe_evaluate( $bad );
 ok( ( $v['headers']['ok'] ?? true ) === false, 'TDM-Reservation: 0 (rights NOT reserved) fails the headers check' );
+
+// v10.44.0: the REST Content-Signal header. v10.34.0 added Content-Signal to
+// every REST response (inc/rest-hardening-policy.php) precisely to close a
+// rights-surface gap — but the check whose whole job is this surface only ever
+// looked at robots.txt, so the header could vanish (regression, edge stripping,
+// a wp-config override) with nothing going red.
+echo "\nGroup: the REST Content-Signal header is covered (v10.44.0)\n";
+$bad = good_responses(); unset( $bad['wpjson']['headers']['content-signal'] );
+$v = snt_rights_probe_evaluate( $bad );
+ok( ( $v['headers']['ok'] ?? true ) === false, 'a MISSING Content-Signal header on /wp-json fails the headers check' );
+
+$bad = good_responses(); $bad['wpjson']['headers']['content-signal'] = 'search=yes, ai-train=yes, ai-input=yes';
+$v = snt_rights_probe_evaluate( $bad );
+ok( ( $v['headers']['ok'] ?? true ) === false, 'ai-train=yes on the REST header fails closed (same inverse-value rule as robots.txt)' );
+
+$v = snt_rights_probe_evaluate( good_responses() );
+ok( ( $v['headers']['ok'] ?? false ) === true, 'a correct Content-Signal header keeps the headers check green' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -339,6 +339,14 @@ function sn_resume_upsert_page( $body ) {
 		return 0;
 	}
 
+	// v10.44.0 write guard: never store a body that has lost its structure.
+	// This is the page the v10.33.1 wp:html regression hit — the engine built
+	// a body that suppressed core block styles, stored it, and only a
+	// screenshot caught it.
+	if ( function_exists( 'snt_generated_page_guard' ) && ! snt_generated_page_guard( 'resume', $body ) ) {
+		return 0;
+	}
+
 	$slug    = defined( 'SN_RESUME_SLUG' ) ? SN_RESUME_SLUG : 'resume';
 	$excerpt = 'Twenty years in the room where the music actually gets made, then twenty more figuring out how to keep the business standing after the session ends. This resume tracks that arc — production, strategy, mentorship — across the U.S. and Latin America.';
 	$page    = get_page_by_path( $slug );
