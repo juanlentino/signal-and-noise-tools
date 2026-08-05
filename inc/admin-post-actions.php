@@ -683,45 +683,6 @@ function sn_handle_save_theme( $post ) {
 	return $ok ? 'theme_saved' : 'theme_unchanged';
 }
 
-/**
- * v4.11.0 (T4): draft Mimestream-style release notes from a pasted CHANGELOG
- * delta. The dispatcher PRG-redirects, so the generated markdown (or the AI
- * error message) is stashed in a short per-user transient that
- * sn_admin_render_release_notes_section() reads back + clears for redisplay.
- */
-function sn_handle_release_notes_draft( $post ) {
-	$delta = isset( $post['changelog_delta'] )
-		? sanitize_textarea_field( wp_unslash( $post['changelog_delta'] ) )
-		: '';
-
-	if ( ! function_exists( 'snt_release_notes_draft_impl' ) || ! function_exists( 'sn_release_notes_result_key' ) ) {
-		return 'release_notes_failed';
-	}
-
-	$result = snt_release_notes_draft_impl( $delta );
-
-	if ( is_wp_error( $result ) ) {
-		set_transient(
-			sn_release_notes_result_key(),
-			array(
-				'delta' => $delta,
-				'error' => $result->get_error_message(),
-			),
-			5 * MINUTE_IN_SECONDS
-		);
-		return 'release_notes_failed';
-	}
-
-	set_transient(
-		sn_release_notes_result_key(),
-		array(
-			'delta'  => $delta,
-			'result' => (string) $result,
-		),
-		5 * MINUTE_IN_SECONDS
-	);
-	return 'release_notes_drafted';
-}
 
 /**
  * v4.13.0 (Music Identity, T6): save ONE masked, constant-lockable credential.

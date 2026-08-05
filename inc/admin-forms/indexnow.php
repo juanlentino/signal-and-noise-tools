@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise — Automation → IndexNow admin sub-tab.
+ * Signal & Noise — Connections → IndexNow (Automation was retired in v6.18.0) admin sub-tab.
  *
  * Render-only (POST handled in sn_handle_indexnow_* on admin_init, PRG).
  * Surfaces the enable toggle, the served key-file URL (so the owner can

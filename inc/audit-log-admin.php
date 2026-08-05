@@ -5,10 +5,10 @@
  * Renders the Security → Audit log sub-tab. Layout matches the Dashboard
  * tab pattern (4-card hero grid + tables below).
  *
- * Wired by inc/admin-page.php's security tab dispatch arm:
- *     elseif ( 'audit-log' === $active_sub ) {
- *         sn_admin_render_section( 'audit-log', 'snt_audit_log_render_tab' );
- *     }
+ * Wired by the tab registry, not a hand-written dispatch arm: the 'audit-log'
+ * leaf in inc/admin-tabs-data.php names 'snt_audit_log_render_tab' as its
+ * `render` callback and inc/admin-dispatch.php calls it. (The if/elseif arm
+ * quoted here previously was replaced by the registry in v6.17.x.)
  *
  * @package SignalNoiseTools
  * @since 3.8.3

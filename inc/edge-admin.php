@@ -2,8 +2,9 @@
 /**
  * Signal & Noise — the "Traffic & edge" analytics view (edge-analytics presenter).
  *
- * Renders the edge GraphQL rollup as a native wp-admin view inside Monitoring →
- * Analytics: a KPI headline (incl. the beacon-reconciliation — what the JS beacon
+ * Renders the edge GraphQL rollup as a native wp-admin view inside the WP
+ * Dashboard → Analytics dashboard (index.php?page=sn-analytics) — NOT the
+ * Monitoring tab, whose Analytics leaf is settings-only: a KPI headline (incl. the beacon-reconciliation — what the JS beacon
  * never saw), the daily request trend (reusing the shared trend chart), an error/
  * status breakdown, and per-colo / per-country / threat tables. Reuses the existing
  * .sn-kpi-row / postbox / wp-list-table treatments — no new visual vocabulary.

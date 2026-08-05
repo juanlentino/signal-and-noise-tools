@@ -107,7 +107,6 @@ function sn_admin_flash_messages() {
 		// the handler stores the real WP_Error and the box below shows it; blaming
 		// AI config for a drafting failure is the same misdirection the insights
 		// v7.0.1 fix removed.
-		'release_notes_failed'      => array( 'error', 'Could not draft release notes &mdash; the real error is shown in the box below.' ),
 		'theme_saved'               => array( 'success', 'Front-end settings saved.' ),
 		'theme_unchanged'           => array( 'info', 'No front-end settings changed.' ),
 		'music_saved'               => array( 'success', 'Music settings saved. Hit &ldquo;Sync now&rdquo; to refresh the discography with the new credentials.' ),

@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.45.1] - 2026-08-05
+
+**Headline:** three independent admin fixes surfaced by the IA audit — a desktop icon that opened the wrong page, two unreachable symbols, and four docblocks pointing at tabs retired four majors ago.
+
+### Fixed
+
+- **The Machine Readers desktop icon opened the SN Dashboard** ([inc/desktop-mode-integration.php](inc/desktop-mode-integration.php)). It passed `'sn-theme-options&tab=monitoring&sub=machine-readers'` — a full query string — to `snt_desktop_admin_url()`, which expects a bare page slug. No slug matched, so the resolver fell through to its `'dashboard'` default: a link that loads perfectly and goes to the wrong place, the exact failure mode the `sn-analytics` special case beside it was written to prevent. The helper now takes an optional explicit `$sub`, and the caller passes `('sn-monitoring', 'machine-readers')`.
+- **Two unreachable release-notes symbols removed** ([inc/admin-post-actions.php](inc/admin-post-actions.php), [inc/admin-flash-messages.php](inc/admin-flash-messages.php)). `sn_handle_release_notes_draft()` was absent from `sn_admin_post_handlers()`, so nothing could dispatch it, and its `release_notes_failed` flash could never fire. The leaf went out in v10.0.0.
+- **Four docblocks naming retired tabs** — `admin-forms/front-end.php` said "Tools tab" (moved to Content in v6.18.0), `admin-forms/indexnow.php` said "Automation" (retired v6.18.0), `edge-admin.php` claimed it renders inside Monitoring → Analytics (it renders in the WP Dashboard → Analytics dashboard), and `audit-log-admin.php` quoted an if/elseif dispatch arm the registry replaced in v6.17.x. Not cosmetic: the precedent is the Reading Time cleanup UI, which pointed at a slug retired in v6.18.0 and *"had been broken for versions"* before anyone noticed.
+
+> **Why PATCH:** one user-visible link fix plus dead-code and comment removal. No new capability, no API change, no settings touched.
+
+### Verification
+
+Full sweep **14,367 passed / 0 failed**; phpcs clean and falsified. The larger IA reorganization these were found alongside is scaffolded, not shipped — see `docs/superpowers/audits/2026-08-05-admin-ia-audit.md`.
+
 ## [10.45.0] - 2026-08-04
 
 **Headline:** the CMS page seeds are re-frozen from the live post-migration state, so a fresh install now reproduces the current design instead of landing on a hero the migration chain could never reach.
