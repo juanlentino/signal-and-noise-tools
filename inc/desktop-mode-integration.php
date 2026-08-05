@@ -109,14 +109,41 @@ add_action( 'init', function() {
 	// enqueues what it needs on shell pages at admin_enqueue_scripts:20, and
 	// server-sync lazy-loads the rest by URL; enqueueing here would load them
 	// on every admin page.
-	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
+	if ( ! snt_os_active() ) {
 		return;
 	}
+
+	// v10.43.0 — OpenStation rename compat. A tiny prelude that aliases
+	// window.desktopModeWidgets ↔ window.openStationWidgets and
+	// window.wp.desktop ↔ window.wp.os onto the SAME object. Registered as
+	// an explicit dependency of every other sn-desktop-mode* script below,
+	// so on the ordinary WP-enqueued boot path the alias is in place first,
+	// on either OpenStation line.
+	//
+	// REJECT #11 MEDIUM correction: that guarantee does NOT hold on every
+	// boot path. desktop-mode's own lazy widget/command loader (server-
+	// sync.ts / command-sync) injects a widget or command script's
+	// <script src="..."> tag directly by URL — it never walks this
+	// wp_register_script dependency graph — so under a post-#475
+	// mid-session shell activation, a widget file or assets/desktop-mode.js
+	// can run BEFORE this prelude ever does. Every one of those consumers
+	// (the 8 widget files + desktop-mode.js) now aliases both names ITSELF,
+	// so none of them actually depends on this file running first anymore;
+	// this registration remains for boot-path print-order tidiness on the
+	// path where WP's own enqueue pipeline IS what delivers the script. See
+	// assets/desktop-mode-os-compat.js and docs/openstation-compat.md.
+	wp_register_script(
+		'sn-desktop-mode-os-compat',
+		plugins_url( 'assets/desktop-mode-os-compat.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array(),
+		SNT_VERSION,
+		true
+	);
 
 	wp_register_script(
 		'sn-desktop-mode',
 		plugins_url( 'assets/desktop-mode.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch', 'snt-ability-run' ),
+		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
@@ -124,7 +151,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget',
 		plugins_url( 'assets/desktop-mode-widget.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch', 'snt-ability-run' ),
+		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
@@ -133,7 +160,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-actions',
 		plugins_url( 'assets/desktop-mode-widget-actions.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch', 'snt-ability-run' ),
+		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
@@ -141,7 +168,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-rss',
 		plugins_url( 'assets/desktop-mode-widget-rss.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'wp-api-fetch', 'snt-ability-run' ),
+		array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'snt-ability-run' ),
 		SNT_VERSION,
 		true
 	);
@@ -153,7 +180,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-machine-readers',
 		plugins_url( 'assets/desktop-mode-widget-machine-readers.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'sn-desktop-mode' ),
+		array( 'sn-desktop-mode-os-compat', 'sn-desktop-mode' ),
 		SNT_VERSION,
 		true
 	);
@@ -161,7 +188,7 @@ add_action( 'init', function() {
 	wp_register_script(
 		'sn-desktop-mode-widget-anchors',
 		plugins_url( 'assets/desktop-mode-widget-anchors.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'snt-ability-run', 'sn-desktop-mode' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'sn-desktop-mode' ),
 		SNT_VERSION,
 		true
 	);
@@ -179,7 +206,7 @@ add_action( 'init', function() {
 		wp_register_script(
 			'sn-desktop-mode-widget-' . $sn_widget,
 			plugins_url( 'assets/desktop-mode-widget-' . $sn_widget . '.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-			array( 'wp-api-fetch', 'sn-desktop-mode' ),
+			array( 'sn-desktop-mode-os-compat', 'wp-api-fetch', 'sn-desktop-mode' ),
 			SNT_VERSION,
 			true
 		);
@@ -196,7 +223,7 @@ add_action( 'init', function() {
  * running on front-end `init`.
  */
 add_action( 'admin_enqueue_scripts', function() {
-	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
+	if ( ! snt_os_active() ) {
 		return;
 	}
 
@@ -264,7 +291,7 @@ add_action( 'admin_enqueue_scripts', function() {
  * always beats a same-priority callback of ours.
  */
 add_action( 'init', function() {
-	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
+	if ( ! snt_os_active() ) {
 		return;
 	}
 
@@ -339,7 +366,7 @@ add_action( 'init', function() {
 	);
 
 	foreach ( $commands as $cmd ) {
-		desktop_mode_register_command( array(
+		snt_os_register_command( array(
 			'slug'        => $cmd['slug'],
 			'label'       => $cmd['label'],
 			'description' => $cmd['description'],
@@ -349,9 +376,10 @@ add_action( 'init', function() {
 	}
 
 	// ── Sub-block 3: register desktop widgets ──
-	// Independent function_exists check — desktop-mode could theoretically
-	// ship commands without widgets (defensive, mirrors the pre-v4.1.6 split).
-	if ( function_exists( 'desktop_mode_register_widget' ) ) {
+	// Independent availability check — desktop-mode/OpenStation could
+	// theoretically ship commands without widgets (defensive, mirrors the
+	// pre-v4.1.6 split).
+	if ( snt_os_register_widget_available() ) {
 		// v9.52.0: every entry carries description + icon. desktop-mode's
 		// server-sync copies both straight onto the widget def and its picker
 		// lists them under the label; without them the picker showed an empty
@@ -386,7 +414,7 @@ add_action( 'init', function() {
 		// traffic, then site condition, then ops.
 		$sn_drag = array( 'movable' => true, 'resizable' => true );
 
-		desktop_mode_register_widget( 'sn-site-views', array_merge( $sn_drag, array(
+		snt_os_register_widget( 'sn-site-views', array_merge( $sn_drag, array(
 			'label'          => 'SN Site Views',
 			'description'    => 'First-party traffic: 14-day sparkline, bot share, top page, forecast.',
 			'icon'           => 'dashicons-chart-area',
@@ -400,7 +428,7 @@ add_action( 'init', function() {
 			'default_height' => 300,
 		) ) );
 
-		desktop_mode_register_widget( 'sn-health', array_merge( $sn_drag, array(
+		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(
 			'label'          => 'SN Health',
 			'description'    => 'Content-health checks passing — and which ones are not.',
 			'icon'           => 'dashicons-shield-alt',
@@ -413,7 +441,7 @@ add_action( 'init', function() {
 
 		// v9.53.0: new. Was one row inside Pulse; uptime deserves its own card
 		// once it can show 30d availability + response time.
-		desktop_mode_register_widget( 'sn-uptime', array_merge( $sn_drag, array(
+		snt_os_register_widget( 'sn-uptime', array_merge( $sn_drag, array(
 			'label'          => 'SN Uptime',
 			'description'    => 'Monitor status, 30-day availability and response time.',
 			'icon'           => 'dashicons-chart-bar',
@@ -424,7 +452,7 @@ add_action( 'init', function() {
 			'default_height' => 180,
 		) ) );
 
-		desktop_mode_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
+		snt_os_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
 			'label'          => 'SN Deploy Status',
 			'description'    => 'Theme + plugin version and last deploy time.',
 			'icon'           => 'dashicons-update',
@@ -437,7 +465,7 @@ add_action( 'init', function() {
 
 		// v2.1.0: Quick Actions widget — replaces the 3-click path of
 		// S&N → Dashboard → Maintenance with single-click access from desktop.
-		desktop_mode_register_widget( 'sn-quick-actions', array_merge( $sn_drag, array(
+		snt_os_register_widget( 'sn-quick-actions', array_merge( $sn_drag, array(
 			'label'          => 'SN Quick Actions',
 			'description'    => 'One-click purge, clear overrides, force update-check.',
 			'icon'           => 'dashicons-controls-repeat',
@@ -451,7 +479,7 @@ add_action( 'init', function() {
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
 		// was previously buried under S&N → RSS tab + a single line on the
 		// SN Dashboard tab. At-a-glance subscriber growth on the desktop.
-		desktop_mode_register_widget( 'sn-rss-subscribers', array_merge( $sn_drag, array(
+		snt_os_register_widget( 'sn-rss-subscribers', array_merge( $sn_drag, array(
 			'label'          => 'SN RSS Subscribers',
 			'description'    => 'Unique feed subscribers over 24h / 7d / 30d.',
 			'icon'           => 'dashicons-rss',
@@ -468,7 +496,7 @@ add_action( 'init', function() {
 		// honest "N notes anchored". Fetch-on-render via the anchor-status
 		// ability — the aggregate walks every Note's chain meta, which must
 		// never ride a page-load localize.
-		desktop_mode_register_widget( 'sn-anchors', array_merge( $sn_drag, array(
+		snt_os_register_widget( 'sn-anchors', array_merge( $sn_drag, array(
 			'label'          => 'SN Anchors',
 			'description'    => 'Provenance anchor status: pending Bitcoin confirmations + on-demand sweep.',
 			'icon'           => 'dashicons-admin-links',
@@ -482,7 +510,7 @@ add_action( 'init', function() {
 		// v10.1.0: the machine half of the audience. Human readership is
 		// sn-site-views' job (beacons); this reads the edge sensor, and the two
 		// are never summed.
-		desktop_mode_register_widget( 'sn-machine-readers', array_merge( $sn_drag, array(
+		snt_os_register_widget( 'sn-machine-readers', array_merge( $sn_drag, array(
 			'label'          => 'SN Machine Readers',
 			'description'    => 'AI crawler readership: top families, declared AI-training reads, sensor state.',
 			'icon'           => 'dashicons-visibility',
@@ -524,17 +552,24 @@ add_action( 'init', function() {
  *
  * Verified against WordPress/desktop-mode includes/core/payload.php:
  *   apply_filters( 'desktop_mode_dock_placement', 'dock', $menu_slug );
+ * Post-#475 OpenStation renames this to `openstation_dock_placement`
+ * (includes/core/payload.php:1137, same 2-arg shape) — dual-registered via
+ * snt_os_compat_add_filter(), idempotent (pure function of $menu_slug), no
+ * double-fire guard needed.
  *
  * Added in v2.0.1 (post-v1.15.0 desktop-mode bug fix).
  */
-add_filter( 'desktop_mode_dock_placement', function( $placement, $menu_slug ) {
+snt_os_compat_add_filter( 'desktop_mode_dock_placement', 'openstation_dock_placement', function( $placement, $menu_slug ) {
 	if ( 'sn-theme-options' === $menu_slug ) {
 		return 'hidden';
 	}
 	return $placement;
 }, 10, 2 );
 
-add_filter( 'desktop_mode_dock_items', function( $items ) {
+// Post-#475 OpenStation renames this to `openstation_dock_items`
+// (includes/core/payload.php:212) — dual-registered, idempotent (rebuilds
+// $items from sn_admin_top_tabs() every call), no double-fire guard needed.
+snt_os_compat_add_filter( 'desktop_mode_dock_items', 'openstation_dock_items', function( $items ) {
 	if ( ! is_array( $items ) ) {
 		$items = array();
 	}
@@ -677,17 +712,17 @@ function snt_desktop_admin_url( $slug ) {
 }
 
 add_action( 'init', function() {
-	if ( ! function_exists( 'desktop_mode_register_icon' ) ) {
+	if ( ! snt_os_register_icon_available() ) {
 		return;
 	}
 
-	desktop_mode_register_icon( 'sn-icon-dashboard', array(
+	snt_os_register_icon( 'sn-icon-dashboard', array(
 		'title' => 'SN Dashboard',
 		'icon'  => 'dashicons-shield-alt',
 		'url'   => admin_url( 'admin.php?page=sn-theme-options' ),
 	) );
 
-	desktop_mode_register_icon( 'sn-icon-identity', array(
+	snt_os_register_icon( 'sn-icon-identity', array(
 		'title' => 'SN Identity',
 		'icon'  => 'dashicons-id',
 		'url'   => snt_desktop_admin_url( 'sn-identity' ),
@@ -790,8 +825,12 @@ function snt_cmd_impl_rss_stats() {
  *
  * Verified against WordPress/desktop-mode
  * (includes/plugins-window/rest-fields.php trunk @ 2026-05-18).
+ * Post-#475 OpenStation renames this to `openstation_plugins_window_icon_url`
+ * (includes/plugins-window/rest-fields.php:465) — dual-registered via
+ * snt_os_compat_add_filter(), idempotent (returns the same canonical URL for
+ * the same $slug every call), no double-fire guard needed.
  */
-add_filter( 'desktop_mode_plugins_window_icon_url', function( $url, $slug ) {
+snt_os_compat_add_filter( 'desktop_mode_plugins_window_icon_url', 'openstation_plugins_window_icon_url', function( $url, $slug ) {
 	if ( defined( 'SN_GH_PLUGIN_SLUG' ) && SN_GH_PLUGIN_SLUG === $slug ) {
 		return plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
 	}
@@ -862,9 +901,24 @@ add_filter( 'rest_prepare_plugin', function( $response, $item, $request ) {
 	// plugins know their own canonical icon URL — overwrite
 	// unconditionally for our basename. Safe scope: gated on
 	// $item['_file'] === SN_GH_PLUGIN_BASENAME at the top of this filter.
+	//
+	// v10.43.0 REJECT #11 LOW: dual-write BOTH REST field keys. Post-#475
+	// OpenStation renames the field ITSELF from 'desktop_mode_icon_url' to
+	// 'openstation_icon_url' (rest-fields.php) — a different seam from the
+	// 'desktop_mode_plugins_window_icon_url' FILTER dual-registered above,
+	// which supplies the field's VALUE via get_callback but cannot rename
+	// the JSON KEY the response actually carries. Writing only the old key
+	// left this belt's "ALWAYS override" promise doing nothing on a
+	// post-#475 response, which carries the new key instead. Exactly one
+	// key is ever present per install; writing both is a no-op for the
+	// absent one.
 	$canonical_icon_url = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
 	if ( ! isset( $data['desktop_mode_icon_url'] ) || $data['desktop_mode_icon_url'] !== $canonical_icon_url ) {
 		$data['desktop_mode_icon_url'] = $canonical_icon_url;
+		$dirty = true;
+	}
+	if ( ! isset( $data['openstation_icon_url'] ) || $data['openstation_icon_url'] !== $canonical_icon_url ) {
+		$data['openstation_icon_url'] = $canonical_icon_url;
 		$dirty = true;
 	}
 
@@ -906,16 +960,16 @@ add_filter( 'rest_prepare_plugin', function( $response, $item, $request ) {
  * @since 2.1.7 (supersedes the wp_enqueue_script approach from v2.1.6)
  */
 add_action( 'admin_print_footer_scripts', function() {
-	// Only fire when Desktop Mode is active — no point patching pages
-	// it doesn't render.
-	if ( ! function_exists( 'desktop_mode_register_command' ) ) {
+	// Only fire when Desktop Mode / OpenStation is active — no point
+	// patching pages it doesn't render.
+	if ( ! snt_os_active() ) {
 		return;
 	}
-	// …and only for a user who actually has DM turned on: DM is per-user
-	// opt-in, and this installs a document.body subtree MutationObserver —
-	// on Gutenberg's mutation-storm that's real idle churn for a non-DM
-	// session patching pages DM never renders.
-	if ( function_exists( 'desktop_mode_is_enabled' ) && ! desktop_mode_is_enabled() ) {
+	// …and only for a user who actually has the shell turned on: it's
+	// per-user opt-in, and this installs a document.body subtree
+	// MutationObserver — on Gutenberg's mutation-storm that's real idle
+	// churn for a non-shell session patching pages it never renders.
+	if ( ! snt_os_is_enabled() ) {
 		return;
 	}
 	?>
@@ -1259,8 +1313,13 @@ add_action( 'rest_api_init', function() {
  * total so the desktop breathes with the actual site.
  *
  * Cast to int: desktop-mode types the filtered value as int.
+ *
+ * Post-#475 OpenStation renames this to `openstation_living_tree_traffic`
+ * (includes/living-tree/helpers.php:91) — dual-registered via
+ * snt_os_compat_add_filter(), idempotent (pure function of the current
+ * analytics totals), no double-fire guard needed.
  */
-add_filter( 'desktop_mode_living_tree_traffic', function( $views ) {
+snt_os_compat_add_filter( 'desktop_mode_living_tree_traffic', 'openstation_living_tree_traffic', function( $views ) {
 	if ( ! function_exists( 'sn_analytics_range_totals' ) ) {
 		return (int) $views;
 	}
@@ -1312,8 +1371,17 @@ add_filter( 'desktop_mode_living_tree_traffic', function( $views ) {
  *
  * Upstream: desktop-mode's converter arguably ought to normalize here itself;
  * any plugin with a union-typed read-only ability kills its Copilot.
+ *
+ * Post-#475 OpenStation renames this to `openstation_ai_tools`
+ * (includes/ai-copilot/search.php:1124 — the real signature there is
+ * `apply_filters( 'openstation_ai_tools', $tools, $context )`, a second
+ * $context arg this callback never declared and doesn't need) —
+ * dual-registered via snt_os_compat_add_filter(), idempotent (the
+ * normalizer + prune both compute the same output from the same input every
+ * call — sn_mcp_normalize_schema() is proven idempotent below in tests), no
+ * double-fire guard needed.
  */
-add_filter( 'desktop_mode_ai_tools', function( $tools ) {
+snt_os_compat_add_filter( 'desktop_mode_ai_tools', 'openstation_ai_tools', function( $tools ) {
 	if ( ! is_array( $tools ) || ! function_exists( 'sn_mcp_normalize_schema' ) ) {
 		return $tools;
 	}
@@ -1335,10 +1403,10 @@ add_filter( 'desktop_mode_ai_tools', function( $tools ) {
 	// namespace is gone at this seam, so a third-party tool with an identical
 	// stripped name would also drop — the names are SN-specific and the risk is
 	// theoretical, and there is no namespaced seam to prune at instead.
-	if ( function_exists( 'desktop_mode_ai_ability_tool_name' ) ) {
+	if ( function_exists( 'openstation_ai_ability_tool_name' ) || function_exists( 'desktop_mode_ai_ability_tool_name' ) ) {
 		$prune = array();
 		foreach ( snt_dm_ai_pruned_abilities() as $ability ) {
-			$prune[ (string) desktop_mode_ai_ability_tool_name( $ability ) ] = true;
+			$prune[ (string) snt_os_ai_ability_tool_name( $ability ) ] = true;
 		}
 		if ( $prune ) {
 			$tools = array_values( array_filter( $tools, static function ( $tool ) use ( $prune ) {
@@ -1448,17 +1516,40 @@ function snt_dm_ai_pruned_abilities() {
  *   - views is sample-corrected, visits is a raw distinct count, so their ratio
  *     is an estimate.
  *
+ * Post-#475 OpenStation renames this to `openstation_ai_system_prompt_appendix`
+ * (includes/ai-copilot/search.php:1594) — dual-registered via
+ * snt_os_compat_add_filter(). NOT treated as a bare idempotent transform: the
+ * real callsite fires this filter TWICE per real request in the ordinary
+ * case (the primary /ai/search run AND the follow-up composed-reply leg,
+ * each starting from a FRESH $appendix), and blind dual-registration would
+ * risk our vocabulary text landing twice in a hypothetical future where both
+ * hook names fire for the SAME event. The marker check below makes the
+ * append itself idempotent by CONTENT rather than by a once-per-request
+ * flag — a flag would incorrectly suppress the second legitimate call.
+ *
+ * v10.43.0 REJECT #11 LOW: registered with accepted_args=2. The real
+ * post-#475 call site passes a 2nd arg — search.php:1594's
+ * apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter ) —
+ * that this callback doesn't use today. Cheap future-proofing: if the
+ * vocabulary text ever needs to branch on $ctx_for_filter, that only means
+ * widening the closure's signature, not touching the registration.
+ *
  * @since 9.59.0
  */
-add_filter( 'desktop_mode_ai_system_prompt_appendix', function ( $appendix ) {
-	return trim( (string) $appendix . "\n" . implode( ' ', array(
-		'Signal & Noise analytics vocabulary.',
+snt_os_compat_add_filter( 'desktop_mode_ai_system_prompt_appendix', 'openstation_ai_system_prompt_appendix', function ( $appendix ) {
+	$appendix = (string) $appendix;
+	$marker   = 'Signal & Noise analytics vocabulary.';
+	if ( false !== strpos( $appendix, $marker ) ) {
+		return $appendix; // Already present — avoid compounding under a hypothetical double-fire.
+	}
+	return trim( $appendix . "\n" . implode( ' ', array(
+		$marker,
 		'Traffic is classed human, suspect, or bot; every reported figure is human-only unless a class is named.',
 		'"views" is sample-corrected pageviews; "visits" is approximate unique visitors (visitor-day hashes), NOT sessions — treat views and visits as estimates, not an exact ratio.',
 		'scroll_avg is mean scroll depth (0-100%); time_avg is mean dwell time in MILLISECONDS.',
 		'A null metric means never measured, not zero; a real zero is reported as 0.',
 	) ) );
-} );
+}, 10, 2 );
 
 /**
  * Payload for the SN Machine Readers tile (v10.1.0).

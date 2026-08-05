@@ -14,6 +14,13 @@
  * is a DRAFT to finish in the editor, not a converter — and the output
  * is always valid serialized block markup, never recovery-prone HTML.
  *
+ * v10.43.0: post-#475 OpenStation (WordPress/openstation PR #475, not yet in
+ * any release) renames this filter to `os.drop.files-detected`
+ * (src/os-file-drop/hooks.ts:19, FILE_DROP_HOOKS.FILES_DETECTED) — no shim,
+ * so this file registers its handler under BOTH names. A WeakSet guards
+ * against a hypothetical future double-fire delivering the SAME files array
+ * to both names, which would otherwise draft every claimed file twice.
+ *
  * @since plugin v9.77.0
  */
 ( function () {
@@ -125,19 +132,34 @@
 
 	// files-detected is a FILTER: claim the text documents, return the
 	// rest so the shell's media pipeline handles them exactly as before.
-	window.wp.hooks.addFilter(
-		'desktop-mode.drop.files-detected',
-		'signal-noise/drop-to-note',
-		function ( files ) {
-			var pass = [];
-			( files || [] ).forEach( function ( file ) {
-				if ( isTextDoc( file ) && ( file.size || 0 ) <= MAX_BYTES ) {
-					draftFrom( file );
-				} else {
-					pass.push( file );
-				}
-			} );
-			return pass;
+	//
+	// v10.43.0: registered under BOTH the pre-rename and post-#475 hook
+	// names (see the file docblock). A WeakSet keyed on the `files` array
+	// REFERENCE stops a hypothetical future double-fire — where both hook
+	// names fire for the SAME drop event with the same array — from
+	// drafting every claimed file twice. Today, with exactly one hook name
+	// ever live, the guard never trips: each real drop passes a fresh array
+	// through exactly one registered handler.
+	var seenFileLists = typeof WeakSet !== 'undefined' ? new WeakSet() : null;
+
+	function handleFilesDetected( files ) {
+		if ( seenFileLists && files && seenFileLists.has( files ) ) {
+			return files; // Already claimed via the other hook name — pass through untouched.
 		}
-	);
+		if ( seenFileLists && files ) {
+			seenFileLists.add( files );
+		}
+		var pass = [];
+		( files || [] ).forEach( function ( file ) {
+			if ( isTextDoc( file ) && ( file.size || 0 ) <= MAX_BYTES ) {
+				draftFrom( file );
+			} else {
+				pass.push( file );
+			}
+		} );
+		return pass;
+	}
+
+	window.wp.hooks.addFilter( 'desktop-mode.drop.files-detected', 'signal-noise/drop-to-note', handleFilesDetected );
+	window.wp.hooks.addFilter( 'os.drop.files-detected', 'signal-noise/drop-to-note', handleFilesDetected );
 } )();
