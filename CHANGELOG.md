@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.48.2] - 2026-08-05
+
+**Headline:** the wp-admin copy drops its em-dashes, and four classes of em-dash that are **not** prose are documented in place so a later pass does not "correct" them.
+
+### Changed
+
+- **347 em-dashes swept from admin-facing copy** across 97 `inc/` modules, matching the house style already applied to the front end. The test assertions that pin that copy moved with it (18 suites), as did one rendered golden fixture, whose diff was verified to contain nothing but the six substitutions.
+- **`analytics-salt-window` copy rewritten by hand rather than mechanically.** The blanket rule produced `Yesterday's salt: DATE: expires …`, two colons in one sentence, and left a second dash behind. The date is now parenthesised, which is what the dash had been doing: `Yesterday's salt (DATE) expires …`.
+
+### Not changed (deliberate, and recorded in the code)
+
+- A bare `'—'` is the **no-value glyph** in tables, widgets, and stat cards. That is typography, not prose; replacing it would degrade the UI.
+- `' — '` joining two escaped values is a **separator**, not a sentence.
+- `inc/seo.php` `$base . ' — ' . $site` is the **site-wide document-title separator**. Every page already titles as `Notes — Juan Lentino`, so it moves everywhere or nowhere; the theme's matching string was left alone in theme v11.4.7 for the same reason.
+- The final line of `SNT_AI_ALT_SUGGEST_SYSTEM` is **model input**, byte-pinned by `tests/ai-alt-prompt-shared.php`. An em-dash there is prompt text. The admin error strings in the same two files were swept.
+
+Ability descriptions were included: they are prose read by agents and MCP clients, and a description is free text rather than an identifier, so nothing contract-bearing moved.
+
+> **Why PATCH:** copy consistency only. No capability, schema, REST, or Ability signature changed, and the full suite lands on the **exact** assertion count of v10.48.1 (14,635), so no behavior moved with the words.
+
 ## [10.48.1] - 2026-08-05
 
 **Headline:** the ten SEO meta keys stop trusting their caller for the per-resource check, and the broken-link prober enforces same-host itself instead of assuming its extractor always will.
