@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise — Analytics settings-hub partials (Monitoring → Analytics):
+ * Signal & Noise — Analytics settings-hub partials (Measurement → Analytics):
  * the read-credentials form, the owner/role exclusion card, the read-only
  * Cloudflare Worker setup reference, and the v9.36.0 hub additions — pipeline
  * status strip, engine-tuning form, read-only shared-config mirrors, and the
@@ -111,6 +111,77 @@ function snt_analytics_render_credentials() {
 }
 
 /**
+ * The collector-endpoint form (v10.46.0).
+ *
+ * WHERE THIS CAME FROM. The URL every beacon on the site posts to was
+ * configured under Content → RSS, because the RSS feed-request tracker was the
+ * first caller to need it and the field was added where its first caller lived.
+ * Its own helper text gave the game away — "First-party analytics collector —
+ * the Cloudflare Worker's /_sn/px route" — on a leaf about feed subscribers. It
+ * belongs on the leaf that owns the analytics pipeline, next to the credentials
+ * that read what this URL collects, and beside the worker-version card that
+ * probes this very origin.
+ *
+ * WHY IT IS NOT A MIRROR ROW. snt_analytics_render_mirrors() below has a hard
+ * rule — no inputs, ever, one write surface per option. This is not a mirror of
+ * a setting owned elsewhere; the write surface MOVED here, and Content → RSS
+ * now shows the read-only pointer instead. Exactly one form writes the key.
+ *
+ * WHY IT HAS ITS OWN ACTION. The value lives in the RSS tracker's option
+ * (SN_RSS_TRACKER_SETTINGS_OPT), whose own save branch rebuilds the entire
+ * settings array from $_POST. Posting a partial array at it would blank
+ * event_name and log_retention_days, so this posts a dedicated
+ * analytics_collector_save through the central dispatcher and the handler
+ * merges the single key. See sn_handle_analytics_collector_save().
+ *
+ * @since 10.46.0
+ */
+function snt_analytics_render_collector() {
+	$rss       = function_exists( 'sn_rss_tracker_settings' ) ? (array) sn_rss_tracker_settings() : array();
+	$collector = (string) ( $rss['collector_url'] ?? '' );
+	$default   = function_exists( 'home_url' ) ? home_url( '/_sn/px' ) : '';
+
+	echo '<form method="post" class="sn-an-settings sn-an-collector">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Collector endpoint', 'signal-and-noise-tools' ) . '</h3>';
+	/* translators: 1: the worker route, wrapped in <code>; 2: the shared-token constant name, wrapped in <code>. */
+	echo '<p class="sn-an-settings-help">' . sprintf( esc_html__( 'Where every first-party beacon on this site posts — the Cloudflare Worker\'s %1$s route. Authenticated with the shared %2$s constant from wp-config.php.', 'signal-and-noise-tools' ), '<code>/_sn/px</code>', '<code>SN_BEACON_TOKEN</code>' ) . '</p>';
+
+	echo '<p><label for="sn_an_collector_url"><strong>' . esc_html__( 'Endpoint URL', 'signal-and-noise-tools' ) . '</strong></label><br>';
+	echo '<input type="url" id="sn_an_collector_url" name="sn_an_collector_url" value="' . esc_attr( $collector ) . '" class="regular-text sn-mono" required>';
+	echo '<br><span class="sn-an-settings-help">' . esc_html__( 'Defaults to this site\'s own endpoint. If WordPress cannot reach the site domain through the edge, point this at the Worker\'s *.workers.dev URL instead.', 'signal-and-noise-tools' ) . '</span>';
+	if ( '' !== $default && $collector !== $default ) {
+		/* translators: %s: the default collector URL for this site. */
+		echo '<br><span class="sn-an-empty">' . sprintf( esc_html__( 'Site default: %s', 'signal-and-noise-tools' ), '<code>' . esc_html( $default ) . '</code>' ) . '</span>';
+	}
+	echo '</p>';
+
+	echo '<p><button type="submit" name="sn_action" value="analytics_collector_save" class="button button-primary">' . esc_html__( 'Save', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '</form>';
+}
+
+/**
+ * The collector fold's one-line snapshot: the host it points at, or a note that
+ * it is this site's own default. Never the full URL — the summary line is a
+ * glance, and a workers.dev URL would wrap it.
+ *
+ * @since 10.46.0
+ */
+function snt_an_collector_snapshot() {
+	$rss       = function_exists( 'sn_rss_tracker_settings' ) ? (array) sn_rss_tracker_settings() : array();
+	$collector = (string) ( $rss['collector_url'] ?? '' );
+	if ( '' === $collector ) {
+		return __( 'Not set', 'signal-and-noise-tools' );
+	}
+	$default = function_exists( 'home_url' ) ? home_url( '/_sn/px' ) : '';
+	if ( '' !== $default && $collector === $default ) {
+		return __( 'This site (default)', 'signal-and-noise-tools' );
+	}
+	$host = (string) wp_parse_url( $collector, PHP_URL_HOST );
+	return '' !== $host ? $host : __( 'Custom', 'signal-and-noise-tools' );
+}
+
+/**
  * The credentials fold's one-line snapshot (v9.45.0, §2): "Configured —
  * locked by wp-config" when analytics is configured AND at least one field is
  * locked by a wp-config constant, "Configured" when reachable via the options
@@ -133,7 +204,7 @@ function snt_an_credentials_snapshot() {
 }
 
 /**
- * The Monitoring → Analytics "Exclude my own visits" card — a Plausible-style
+ * The Measurement → Analytics "Exclude my own visits" card — a Plausible-style
  * role allow-list. Ticking a role stops the front-end beacon for its logged-in
  * users (the sn_beacon_enabled filter in inc/beacon-owner-exclusion.php suppresses
  * the pixel). Native wp-admin styling; one <form> POSTing analytics_exclude_save.
@@ -520,21 +591,21 @@ function snt_analytics_render_mirrors() {
 	} else {
 		echo ' · ' . esc_html__( 'no monthly budget cap', 'signal-and-noise-tools' );
 	}
-	echo '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=content&sub=front-end' ) ) . '">' . esc_html__( 'Content → Front-End →', 'signal-and-noise-tools' ) . '</a></div>';
+	// v10.46.0: the AI settings left Content → Front-End for their own tab.
+	echo '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=ai&sub=models-budget' ) ) . '">' . esc_html__( 'AI → Models &amp; Budget →', 'signal-and-noise-tools' ) . '</a></div>';
 
 	// Weekly digest cron (the AI-insights sibling leaf).
 	$cron_on = function_exists( 'snt_insights_weekly_cron_enabled' ) && snt_insights_weekly_cron_enabled();
 	echo '<div class="sn-an-mirror-row"><strong>' . esc_html__( 'Weekly insights cron', 'signal-and-noise-tools' ) . ':</strong> '
 		. esc_html( $cron_on ? __( 'On', 'signal-and-noise-tools' ) : __( 'Off', 'signal-and-noise-tools' ) )
-		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=insights' ) ) . '">' . esc_html__( 'Monitoring → Insights →', 'signal-and-noise-tools' ) . '</a></div>';
+		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=insights' ) ) . '">' . esc_html__( 'Measurement → Insights →', 'signal-and-noise-tools' ) . '</a></div>';
 
-	// Collector URL (also this screen's worker-version probe base).
-	$rss       = function_exists( 'sn_rss_tracker_settings' ) ? (array) sn_rss_tracker_settings() : array();
-	$collector = (string) ( $rss['collector_url'] ?? '' );
-	echo '<div class="sn-an-mirror-row"><strong>' . esc_html__( 'Collector URL', 'signal-and-noise-tools' ) . ':</strong> '
-		. ( '' !== $collector ? '<code>' . esc_html( $collector ) . '</code>' : esc_html__( '(default)', 'signal-and-noise-tools' ) )
-		. '<br><span class="sn-an-settings-help">' . esc_html__( 'Also the base the worker-version card above probes.', 'signal-and-noise-tools' ) . '</span>'
-		. '<br><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=content&sub=rss' ) ) . '">' . esc_html__( 'Content → RSS →', 'signal-and-noise-tools' ) . '</a></div>';
+	// v10.46.0: the Collector URL row is GONE from this block. It was the clearest
+	// evidence in the whole "Configured elsewhere" list — the pipeline's own
+	// ingest endpoint, described here as living on someone else's tab. The field
+	// now has a real write surface in the writable column of this same leaf
+	// (snt_analytics_render_collector), so a read-only mirror of it here would be
+	// a mirror pointing at itself.
 
 	// Zone ID (cache purge target; also gates pipeline pill #5 above and the
 	// dashboard's Edge view — sn_cf_get_zone(), inc/cloudflare-purge.php). The

@@ -60,6 +60,8 @@ function sn_admin_post_handlers() {
 		'monitoring_save'            => 'sn_handle_monitoring_save',
 		'perf_save'                  => 'sn_handle_perf_save',
 		'save_theme'                 => 'sn_handle_save_theme',
+		'ai_settings_save'           => 'sn_handle_ai_settings_save',        // v10.46.0: split out of save_theme with the AI tab
+		'analytics_collector_save'   => 'sn_handle_analytics_collector_save', // v10.46.0: collector endpoint moved off Content → RSS
 		'music_save'                 => 'sn_handle_music_save',
 		'music_sync'                 => 'sn_handle_music_sync',
 		'tag_merge'                  => 'sn_handle_tag_merge',

@@ -3,7 +3,7 @@
  * Signal & Noise Tools — featured release (the one "press play" player on /music).
  *
  * A small, settings-driven companion to the discography grid: the owner pastes a
- * Spotify URL (track / album / playlist / …) in Monitoring → Music, this parses
+ * Spotify URL (track / album / playlist / …) in Connections → Discography, this parses
  * it to {type,id}, stores it, and exposes it over the standalone-safe
  * `sn_music_featured` filter the theme's [sn_music_featured] shortcode reads to
  * render a single featured Spotify embed at the top of /music.

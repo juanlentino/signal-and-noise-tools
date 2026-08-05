@@ -479,34 +479,17 @@
 	max-width: none;
 }
 
-/* ─── Health action row + passing strip (v8.0.1) ─────────────────────────────
-   Run scan + Opportunities pair up in one responsive grid row (auto-fit
-   collapses to a single column on narrow / Desktop Mode portal widths); both
-   cards uncap and equalize height inside the row. The passing strip replaces
-   the per-check pass-card grid: one full-width card, check names as .sn-badge
-   chips. margin:0 on the row's fieldsets also neutralizes the Opportunities
-   card's .snt-mt-2 (grid gap owns the rhythm here). */
-.sn-health-actions {
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-	gap: 10px; /* v8.0.3 (S2-B): matches the glance-grid rhythm, was var(--sn-space-4) */
-	align-items: stretch;
-	margin: 0 0 var(--sn-space-4);
-}
-.sn-health-actions .sn-fieldset {
-	max-width: none;
-	height: 100%;
-	margin: 0;
-	box-sizing: border-box;
-	display: flex;
-	flex-direction: column;
-}
-/* Anchor a card's own action row (Run scan) to its bottom edge when the row
-   stretches it taller than its content; the Opportunities card's actions sit
-   inside its form (not a direct child), so its layout is untouched. */
-.sn-health-actions .sn-fieldset > .sn-fieldset-actions {
-	margin-top: auto;
-}
+/* ─── Health passing strip (v8.0.1) ──────────────────────────────────────────
+   One full-width card, check names as .sn-badge chips — replaces the old
+   per-check pass-card grid.
+
+   v10.46.0: the sibling .sn-health-actions rules were REMOVED. They existed to
+   pair Run scan with the pattern-adoption Opportunities card in one auto-fit
+   grid row so neither sat capped with a dead right column. Opportunities became
+   its own Content → Pattern Adoption leaf, leaving the grid with a single child
+   — which auto-fit would have stretched edge to edge, the exact bare-stretched
+   lone form the Phase-4b width rule forbids. Run scan now keeps its own capped
+   .sn-fieldset. inc/health-checks-admin.php was the only call site. */
 .sn-health-passing {
 	max-width: none;
 }

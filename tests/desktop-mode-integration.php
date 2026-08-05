@@ -896,7 +896,7 @@ $sn_expect = array(
 	'pages.cloudflare'   => 'admin.php?page=sn-theme-options&tab=connections&sub=cloudflare',
 	'pages.cron'         => 'admin.php?page=sn-theme-options&tab=connections&sub=cron',
 	'pages.insights'     => 'admin.php?page=sn-theme-options&tab=monitoring&sub=insights',
-	'pages.rss'          => 'admin.php?page=sn-theme-options&tab=content&sub=rss',
+	'pages.rss'          => 'admin.php?page=sn-theme-options&tab=monitoring&sub=rss',  // v10.46.0: RSS moved to Measurement
 	'pages.reading_time' => 'admin.php?page=sn-theme-options&tab=content', // v10.24.0: the cleanup tool retired in v10.0.0 — Content default, no ghost sub.
 	// NOT an SN tab: add_dashboard_page() puts it under index.php. The resolver
 	// alone sends it to tab=dashboard — loads fine, wrong page.

@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools — identity-salt window readout (Monitoring → Analytics).
+ * Signal & Noise Tools — identity-salt window readout (Measurement → Analytics).
  *
  * A PASSIVE date-window readout (not a Health check, not an alarm) of the
  * analytics Worker's daily-rotating visitor-identity salt — the forward-secrecy

@@ -1,12 +1,32 @@
 <?php
 /**
- * Signal & Noise Tools — Pattern-adoption admin (Health-tab integration).
+ * Signal & Noise Tools — Pattern-adoption admin (Content → Pattern Adoption).
  *
- * Renders the "Opportunities" sub-section in the Health admin tab:
- *   - Collapsed-by-default summary row with count badge
- *   - Expanded: per-candidate review queue with Suggest button
- *   - "Scan for pattern opportunities" trigger button (POSTs to
- *     /signal-noise/v1/health/pattern-adoption-scan)
+ * Renders the pattern-adoption leaf:
+ *   - Count badge on the heading
+ *   - Per-candidate review queue with Suggest / Dismiss buttons
+ *   - "Scan for opportunities" trigger button (POSTs sn_action=
+ *     pattern_adoption_scan through the central dispatcher)
+ *
+ * v10.46.0 — PROMOTED FROM A SECTION TO A LEAF. From v4.3.0 this rendered
+ * inline inside the Health tab, and from v8.0.1 specifically inside that tab's
+ * two-up action row, where the call site read:
+ *
+ *     if ( $last_scan && function_exists( … ) ) { …render… }
+ *
+ * `$last_scan` there is sn_health_last_scan() — a HEALTH scan. Pattern adoption
+ * has its own scan and its own transient, and needs nothing from the health one.
+ * The gate was purely an artifact of the card's position: it sat inside a block
+ * that returned early when no health scan existed, so it inherited a
+ * precondition it never had a reason for. A reader who had never run a health
+ * scan could not discover pattern adoption at all — and nothing said why.
+ * Promoting it to a leaf drops the borrowed gate; the card still shows its own
+ * empty state before its own first scan.
+ *
+ * Its two sibling content scanners (Tags, Block Migrations) are now beside it in
+ * the Content tab. inc/block-migrations-admin.php:18 already noted it "mirrors
+ * inc/pattern-adoption-admin.php structurally"; the hook wiring below matches it
+ * exactly (add_action on a sn_admin_*_tab delegator).
  *
  * Also houses the shared dismiss write (snt_pattern_adoption_dismiss_impl):
  * appends a fingerprint to the post's _snt_pattern_adoption_dismissed meta
@@ -25,13 +45,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Render the Opportunities sub-section. Called from
- * sn_health_render_admin_tab() at the end of the Problems checks loop.
+ * Render the Pattern Adoption leaf. Hooked into the sn_admin_pattern_adoption_tab
+ * action (delegator in inc/admin-render-sections.php) — same wiring as
+ * snt_block_migrations_render_section().
+ *
+ * The leaf is 'wide' in the registry, so sn_admin_render_section() emits a bare
+ * .sn-section and this function owns its own .sn-fieldset card (the same
+ * contract the wide Front-End / IndexNow forms follow).
  *
  * @return void
  *
- * @since 4.3.0
+ * @since 4.3.0 (a Health-tab section until 10.46.0)
  */
+add_action( 'sn_admin_pattern_adoption_tab', 'snt_pattern_adoption_render_opportunities_section' );
+
 function snt_pattern_adoption_render_opportunities_section() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
@@ -39,9 +66,12 @@ function snt_pattern_adoption_render_opportunities_section() {
 
 	$last_scan = snt_pattern_adoption_last_scan();
 
-	echo '<div class="sn-fieldset snt-mt-2">';
+	// snt-mt-2 dropped with the promotion: the top margin existed to separate
+	// this card from the Run-scan card it used to sit beside; as the leaf's own
+	// first element it would just push the card off the top of the tab.
+	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
-	echo esc_html__( 'Opportunities', 'signal-and-noise-tools' );
+	echo esc_html__( 'Pattern adoption', 'signal-and-noise-tools' );
 	if ( $last_scan ) {
 		$total = (int) ( $last_scan['counts']['pull_quote'] ?? 0 ) + (int) ( $last_scan['counts']['steps_enumerated'] ?? 0 );
 		$pill_kind = $total > 0 ? 'warn' : 'ok';

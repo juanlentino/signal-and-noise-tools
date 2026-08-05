@@ -102,18 +102,22 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 
 echo "mcp-connect-render suite — plugin v9.47.0\n\n";
 
-// ── Registry: the leaf exists under Tools, before Links (drives the real data) ──
+// ── Registry: the leaf lives under AI (v10.46.0 — moved off Tools, which had
+// become a junk drawer). MCP is where external AI clients are granted doors, so
+// it belongs with the models and the tool-invocation log, not beside a link list. ──
 $tabs = sn_admin_top_tabs();
+$ai    = null;
 $tools = null;
 foreach ( $tabs as $top ) {
-	if ( 'tools' === $top['tab'] ) { $tools = $top; break; }
+	if ( 'ai' === $top['tab'] ) { $ai = $top; }
+	if ( 'tools' === $top['tab'] ) { $tools = $top; }
 }
-ok( null !== $tools, 'tools top-tab found in the registry' );
-$tool_slugs = null !== $tools ? array_keys( $tools['sub_tabs'] ) : array();
-ok( in_array( 'mcp-connect', $tool_slugs, true ), 'mcp-connect leaf is registered under tools' );
-ok( array_search( 'mcp-connect', $tool_slugs, true ) < array_search( 'links', $tool_slugs, true ),
-	'mcp-connect sits before links (links stays last)' );
-ok( ( $tools['sub_tabs']['mcp-connect']['render'] ?? '' ) === 'sn_admin_render_mcp_connect_section',
+ok( null !== $ai, 'ai top-tab found in the registry' );
+$ai_slugs = null !== $ai ? array_keys( $ai['sub_tabs'] ) : array();
+ok( in_array( 'mcp-connect', $ai_slugs, true ), 'mcp-connect leaf is registered under ai' );
+ok( ! in_array( 'mcp-connect', array_keys( $tools['sub_tabs'] ?? array() ), true ),
+	'mcp-connect no longer appears under tools (a leaf must not be registered on two tabs)' );
+ok( ( $ai['sub_tabs']['mcp-connect']['render'] ?? '' ) === 'sn_admin_render_mcp_connect_section',
 	'mcp-connect leaf names sn_admin_render_mcp_connect_section' );
 ok( function_exists( 'sn_admin_render_mcp_connect_section' ), 'sn_admin_render_mcp_connect_section() is defined' );
 ok( empty( $tools['sub_tabs']['mcp-connect']['wide'] ), 'mcp-connect is a capped leaf (like Links), not wide' );

@@ -35,7 +35,7 @@ the page, not just here.
 
 | Where | What it shows |
 | --- | --- |
-| **Monitoring, Machine Readers** (wp-admin tab) | The Analytics leaf silhouette (v10.2.3): the Sensor status pipeline hero first (deployed sensor, read token, the read itself, crawler-list check), then one two-column row. The left card stacks the readership data: summary stat strip incl. feed fetches, reads per family, reads per surface class, the observed vs declared compliance read, and the feed-fetch windows (fetches are never summed with crawler reads). The right card carries the read-only Edge sensor readout over the folded Sensor settings. |
+| **Measurement, Machine Readers** (wp-admin tab) | The Analytics leaf silhouette (v10.2.3): the Sensor status pipeline hero first (deployed sensor, read token, the read itself, crawler-list check), then one two-column row. The left card stacks the readership data: summary stat strip incl. feed fetches, reads per family, reads per surface class, the observed vs declared compliance read, and the feed-fetch windows (fetches are never summed with crawler reads). The right card carries the read-only Edge sensor readout over the folded Sensor settings. |
 | **SN Machine Readers** (Desktop Mode tile, v10.1.0) | The same aggregates in tile form, served by `/wp-json/signal-noise/v1/desktop/machine-readers`. |
 | **Content Health, Rights signals** | A separate drift probe ([`inc/health-check-rights-signals.php`](../inc/health-check-rights-signals.php)) that verifies the rights surfaces themselves are still standing. It is a sibling of this surface, not part of it. |
 
@@ -274,7 +274,7 @@ before treating an absent row as a failure.
 
 **6. The admin surface agrees.**
 
-In wp-admin, Monitoring, Machine Readers: the Sensor status pills
+In wp-admin, Measurement, Machine Readers: the Sensor status pills
 should all read with a check mark, the version should match step 1, and the crawler list
 verdict should match step 2. If a pill reads `Read token missing` or `Not configured`, the token is
 missing on the WordPress side, not on the Worker side.

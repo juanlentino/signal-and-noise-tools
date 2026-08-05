@@ -594,7 +594,7 @@ function sn_handle_monitoring_save( $post ) {
 }
 
 /**
- * v4.10.0 (T6): save the Speculation Rules toggle from the Tools → Performance
+ * v4.10.0 (T6): save the Speculation Rules toggle from the Site → Performance
  * sub-tab. Writes the boolean through sn_setting_update('perf.speculative_loading',
  * …); the wp_speculation_rules_configuration filter reads it on the next page load.
  */
@@ -646,7 +646,7 @@ function sn_theme_ai_vision_models() {
 }
 
 /**
- * v4.12.0: persist the Front-End settings form (Tools → Front-End sub-tab).
+ * v4.12.0: persist the Front-End settings form (Site → Front-End sub-tab).
  *
  * Sparse writes via sn_setting_update() so the sibling sn_settings subtrees are
  * never clobbered (same whole-option-replace hazard the audit/monitoring/perf
@@ -667,9 +667,82 @@ function sn_handle_save_theme( $post ) {
 	$ok &= sn_setting_update( 'theme.reading_wpm', max( 100, min( 400, (int) ( $post['theme_reading_wpm'] ?? 225 ) ) ) );
 	$ok &= sn_setting_update( 'theme.notes_per_page', max( 1, min( 100, (int) ( $post['theme_notes_per_page'] ?? 20 ) ) ) );
 
+	// v10.46.0: theme.ai_model / theme.ai_alt_model / theme.ai_monthly_budget
+	// moved to sn_handle_ai_settings_save() below. They MUST NOT be read here any
+	// more — this handler now runs against a form that no longer posts them, so a
+	// leftover read would resolve to `?? 0` / '' on every front-end save and
+	// silently reset the budget to zero on each one.
+	return $ok ? 'theme_saved' : 'theme_unchanged';
+}
+
+/**
+ * v10.46.0: save the three AI settings, split out of sn_handle_save_theme()
+ * when the AI tab was created.
+ *
+ * WHY SPLITTING THIS FORM IS SAFE. Splitting one settings form into two is the
+ * classic subtree-clobber bug in this codebase: a handler that writes a whole
+ * settings subtree at once blanks every sibling key the smaller form no longer
+ * posts. That is not the shape here — both handlers write through PER-KEY
+ * sn_setting_update() calls, so each touches only the keys it names and neither
+ * can erase the other's. Checked against sn_handle_save_theme() before the
+ * split; if that handler is ever converted to a subtree write, this pairing has
+ * to be revisited.
+ *
+ * Validation, not sanitization, on the two model ids: an off-list id keeps the
+ * currently stored value (then the first allow-listed id), so a tampered POST
+ * can never park an unknown model id in settings. Carried over verbatim from
+ * the v7.3.0 / v9.26.0 originals.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+/**
+ * v10.46.0: save the analytics collector endpoint, moved to Measurement →
+ * Analytics from Content → RSS.
+ *
+ * MERGE, NEVER REPLACE. The value lives inside the RSS tracker's settings option
+ * (SN_RSS_TRACKER_SETTINGS_OPT) alongside enabled / event_name /
+ * log_retention_days. That option's own save branch in inc/rss-feed-tracker.php
+ * rebuilds the whole array from $_POST, which is fine for the form that posts
+ * every key — but this handler must NOT do that, or saving the collector would
+ * blank the other three. It reads the current settings, replaces one key, and
+ * writes back.
+ *
+ * The key stays in the RSS option rather than moving to `analytics.*`: relocating
+ * it needs a settings migration, and inc/worker-version.php reads it from there
+ * to derive the /_sn/version probe base. Where a value is EDITED and where it is
+ * STORED are separate questions; only the first one moved.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+function sn_handle_analytics_collector_save( $post ) {
+	if ( ! function_exists( 'sn_rss_tracker_settings' ) ) {
+		return 'analytics_collector_failed';
+	}
+	$url = isset( $post['sn_an_collector_url'] ) ? esc_url_raw( wp_unslash( $post['sn_an_collector_url'] ) ) : '';
+	if ( '' === $url ) {
+		return 'analytics_collector_invalid';
+	}
+	$scheme = strtolower( (string) wp_parse_url( $url, PHP_URL_SCHEME ) );
+	if ( ! in_array( $scheme, array( 'http', 'https' ), true ) || '' === (string) wp_parse_url( $url, PHP_URL_HOST ) ) {
+		return 'analytics_collector_invalid';
+	}
+
+	$current = (array) sn_rss_tracker_settings();
+	if ( ( $current['collector_url'] ?? '' ) === $url ) {
+		return 'analytics_collector_unchanged';
+	}
+	$current['collector_url'] = $url;
+	update_option( SN_RSS_TRACKER_SETTINGS_OPT, $current );
+
+	return 'analytics_collector_saved';
+}
+
+function sn_handle_ai_settings_save( $post ) {
 	$allowed = array_keys( sn_theme_ai_models() );
 	$model   = isset( $post['theme_ai_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_model'] ) ) : '';
-	$ok     &= sn_setting_update( 'theme.ai_model', in_array( $model, $allowed, true ) ? $model : (string) sn_setting( 'theme.ai_model', $allowed[0] ) );
+	$ok      = sn_setting_update( 'theme.ai_model', in_array( $model, $allowed, true ) ? $model : (string) sn_setting( 'theme.ai_model', $allowed[0] ) );
 
 	// v7.3.0: vision (alt-text) model — same validate-against-allowlist pattern;
 	// an off-list id keeps the current value (then the pinned default).
@@ -680,7 +753,7 @@ function sn_handle_save_theme( $post ) {
 	// v9.26.0: monthly AI budget in USD. Clamp to >= 0 at cents precision; 0 = off.
 	$ok &= sn_setting_update( 'theme.ai_monthly_budget', round( max( 0, (float) ( $post['theme_ai_monthly_budget'] ?? 0 ) ), 2 ) );
 
-	return $ok ? 'theme_saved' : 'theme_unchanged';
+	return $ok ? 'ai_settings_saved' : 'ai_settings_unchanged';
 }
 
 
@@ -721,7 +794,7 @@ function sn_music_save_cred( $post, $field, $opt, $const, $changed ) {
 }
 
 /**
- * v4.13.0 (Music Identity, T6): save the Monitoring → Music credentials.
+ * v4.13.0 (Music Identity, T6): save the Connections → Discography credentials.
  *
  * Spotify client id + secret (masked, non-autoloaded, constant-lockable via
  * SN_SPOTIFY_CLIENT_ID / SN_SPOTIFY_CLIENT_SECRET) + the Muso profile id (not
@@ -1084,7 +1157,7 @@ function sn_handle_analytics_exclude_save( $post ) {
 
 /**
  * v9.36.0 (settings hub): save the two predictive-engine tuning knobs
- * (Monitoring → Analytics → Engine tuning). Baseline is clamped to [14,90]
+ * (Measurement → Analytics → Engine tuning). Baseline is clamped to [14,90]
  * (floor = the engine's SN_ANALYTICS_SIGNAL_FLOOR_DAYS); the sensitivity
  * preset is whitelisted (unknown → 'standard'). Invalid input is corrected,
  * never rejected-with-loss. sn_analytics_signal_opts() reads these on the

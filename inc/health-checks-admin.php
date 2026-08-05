@@ -139,11 +139,15 @@ function sn_health_render_admin_tab() {
 	sn_admin_glance_grid( snt_health_glance_cards( $last_scan ) );
 	echo '</section>';
 
-	// ── Action row (v8.0.1): Run scan + Opportunities side by side. The two
-	// cards used to stack, each 820px-capped on a wide tab — two dead right
-	// columns. Opportunities stays gated behind a first health scan (its old
-	// position at the end of the tab had the same gate via the early return). ──
-	echo '<div class="sn-health-actions">';
+	// ── Run scan (v10.46.0). The v8.0.1 .sn-health-actions grid paired this card
+	// with the pattern-adoption Opportunities card so neither sat 820px-capped
+	// with a dead right column. Opportunities has left for its own Content →
+	// Pattern Adoption leaf, so that grid would have exactly one child — and an
+	// auto-fit grid with one child stretches it edge to edge, which is precisely
+	// the bare-stretched lone form the Phase-4b width rule forbids. The wrapper
+	// goes with it and the card falls back to its own capped .sn-fieldset width.
+	// (.sn-health-actions rules removed from assets/admin.css in the same
+	// change — this was their only call site.) ──
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset">';
@@ -154,12 +158,6 @@ function sn_health_render_admin_tab() {
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
-	// v4.3.0 Opportunities card (pattern-adoption Suggest+Apply), paired here
-	// since v8.0.1 (was the last section of the tab).
-	if ( $last_scan && function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) {
-		snt_pattern_adoption_render_opportunities_section();
-	}
-	echo '</div>'; // .sn-health-actions
 
 	if ( ! $last_scan ) {
 		// The hero already shows the "no scan" card — nothing more to render.

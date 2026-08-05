@@ -109,6 +109,15 @@ function sn_admin_flash_messages() {
 		// v7.0.1 fix removed.
 		'theme_saved'               => array( 'success', 'Front-end settings saved.' ),
 		'theme_unchanged'           => array( 'info', 'No front-end settings changed.' ),
+		// v10.46.0: the AI tab's own save (models + monthly budget), split out of
+		// save_theme so each form reports on what it actually changed.
+		'ai_settings_saved'         => array( 'success', 'AI settings saved.' ),
+		'ai_settings_unchanged'     => array( 'info', 'No AI settings changed.' ),
+		// v10.46.0: the collector endpoint's own save, moved here from Content → RSS.
+		'analytics_collector_saved'     => array( 'success', 'Collector endpoint saved. Beacons post there from the next request.' ),
+		'analytics_collector_unchanged' => array( 'info', 'Collector endpoint unchanged.' ),
+		'analytics_collector_invalid'   => array( 'error', 'That is not a valid collector URL &mdash; it needs an <code>http</code> or <code>https</code> scheme and a host. The previous endpoint was kept.' ),
+		'analytics_collector_failed'    => array( 'error', 'Collector endpoint could not be saved &mdash; the RSS tracker module is not loaded.' ),
 		'music_saved'               => array( 'success', 'Music settings saved. Hit &ldquo;Sync now&rdquo; to refresh the discography with the new credentials.' ),
 		'music_unchanged'           => array( 'info', 'No changes to save.' ),
 		'music_synced'              => array( 'success', 'Discography synced from Muso.AI + Spotify. The <code>/music</code> timeline and schema now reflect the latest credits.' ),

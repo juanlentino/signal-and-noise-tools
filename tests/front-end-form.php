@@ -37,8 +37,14 @@ echo "Group: render — full-width 2-up field form\n";
 fe_assert( false !== strpos( $h, 'class="sn-front-end-form"' ), 'form carries the .sn-front-end-form class (the field-grid hook)' );
 fe_assert( 1 === substr_count( $h, 'class="sn-fieldset"' ), 'form body wrapped in exactly one real .sn-fieldset card (owns chrome at full width)' );
 fe_assert( false !== strpos( $h, 'name="sn_action" value="save_theme"' ), 'carries the save_theme action' );
-fe_assert( false !== strpos( $h, 'name="theme_related_count"' ) && false !== strpos( $h, 'name="theme_ai_model"' ), 'first + last fields render (form body intact)' );
-fe_assert( false !== strpos( $h, 'name="theme_ai_alt_model"' ), 'v7.3.0: vision-model select renders' );
+fe_assert( false !== strpos( $h, 'name="theme_related_count"' ) && false !== strpos( $h, 'name="theme_notes_per_page"' ), 'first + last fields render (form body intact)' );
+// v10.46.0: the three AI settings left this form for the AI tab. Asserting their
+// ABSENCE matters as much as the old presence checks did — a stray input left
+// behind here would post ai_* keys at save_theme, which no longer reads them, so
+// the user's edit would vanish with a success notice.
+fe_assert( false === strpos( $h, 'name="theme_ai_model"' ), 'the prose-model select is GONE from the render-knobs form' );
+fe_assert( false === strpos( $h, 'name="theme_ai_alt_model"' ), 'the vision-model select is gone too' );
+fe_assert( false === strpos( $h, 'name="theme_ai_monthly_budget"' ), 'the monthly budget is gone (it was never a render knob)' );
 
 // Wide-leaf card-ownership: the save row is a card-owned .sn-fieldset-actions,
 // NOT a bare .sn-savebar — whose negative card-bleed margin overflows the bare

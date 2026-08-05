@@ -91,28 +91,33 @@ ok( (int) sn_setting( 'theme.palette_recent_count' ) === 0, 'save: palette_recen
 ok( (int) sn_setting( 'theme.json_feed_items' ) === 1, 'save: json_feed_items clamps to min 1' );
 ok( (int) sn_setting( 'theme.updated_threshold_days' ) === 90, 'save: updated_threshold clamps to max 90' );
 ok( (int) sn_setting( 'theme.reading_wpm' ) === 100, 'save: reading_wpm clamps to min 100' );
-ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-5', 'save: off-list ai_model rejected → keeps default' );
+// v10.46.0: the ai_* keys are saved by sn_handle_ai_settings_save() now — a
+// save_theme POST carrying them must be INERT, not merely harmless. That is the
+// whole point of the split; tests/admin-ai-settings-save.php covers the new
+// handler's own clamping and allow-listing.
+ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-5', 'save_theme ignores a posted ai_model (handled by the AI form now)' );
 ok( sn_setting( 'theme.palette_enabled' ) === true, 'save: palette_enabled true when checkbox present' );
 ok( (int) sn_setting( 'theme.notes_per_page' ) === 100, 'save: notes_per_page clamps to max 100' );
-ok( (float) sn_setting( 'theme.ai_monthly_budget' ) === 0.0, 'save: negative ai_monthly_budget clamps to 0' );
+ok( (float) sn_setting( 'theme.ai_monthly_budget' ) === 0.0, 'save_theme leaves ai_monthly_budget alone (still the seeded 0)' );
 
-// Checkbox absent/empty → false; on-list model accepted.
+// Checkbox absent/empty → false. A posted ai_model stays ignored here.
+sn_setting_update( 'theme.ai_model', 'claude-sonnet-5' );
 sn_handle_save_theme( array(
 	'theme_palette_enabled'   => '',
 	'theme_ai_model'          => 'claude-opus-4-8',
 	'theme_ai_monthly_budget' => '12.5',
 ) );
 ok( sn_setting( 'theme.palette_enabled' ) === false, 'save: palette_enabled false when checkbox absent/empty' );
-ok( sn_setting( 'theme.ai_model' ) === 'claude-opus-4-8', 'save: on-list ai_model accepted' );
-ok( (float) sn_setting( 'theme.ai_monthly_budget' ) === 12.5, 'save: valid ai_monthly_budget persists (12.5)' );
+ok( sn_setting( 'theme.ai_model' ) === 'claude-sonnet-5', 'save_theme does NOT accept an on-list ai_model either — the key is no longer its business' );
+ok( (float) sn_setting( 'theme.ai_monthly_budget' ) === 0.0, 'save_theme does not write ai_monthly_budget' );
 
-// ── v7.3.0: vision (alt-text) model — curated allowlist ─────────────
+// ── v7.3.0: vision (alt-text) model — curated allowlist. The list itself still
+// lives here (it is theme settings data); the SAVE moved to the AI handler. ──
 $vmodels = sn_theme_ai_vision_models();
 ok( array_key_exists( 'gemini-2.5-flash-lite', $vmodels ), 'vision models: curated list carries the default pin' );
-sn_handle_save_theme( array( 'theme_ai_alt_model' => 'gemini-2.5-flash' ) );
-ok( sn_setting( 'theme.ai_alt_model' ) === 'gemini-2.5-flash', 'save: on-list vision model accepted' );
+sn_setting_update( 'theme.ai_alt_model', 'gemini-2.5-flash' );
 sn_handle_save_theme( array( 'theme_ai_alt_model' => 'evil-model' ) );
-ok( sn_setting( 'theme.ai_alt_model' ) === 'gemini-2.5-flash', 'save: off-list vision model rejected (setting unchanged)' );
+ok( sn_setting( 'theme.ai_alt_model' ) === 'gemini-2.5-flash', 'save_theme cannot park an off-list vision model (it does not touch the key at all)' );
 
 // ── P4: front-end form renders without fatal + emits every field ─────
 require __DIR__ . '/../inc/admin-forms/front-end.php';
@@ -122,8 +127,8 @@ $form = ob_get_clean();
 ok( strpos( $form, 'name="sn_action" value="save_theme"' ) !== false, 'form: posts the save_theme action' );
 $field_names = array(
 	'theme_related_count', 'theme_palette_recent_count', 'theme_palette_enabled',
-	'theme_json_feed_items', 'theme_updated_threshold_days', 'theme_reading_wpm', 'theme_ai_model',
-	'theme_notes_per_page', 'theme_ai_alt_model',
+	'theme_json_feed_items', 'theme_updated_threshold_days', 'theme_reading_wpm',
+	'theme_notes_per_page',
 );
 $missing = array();
 foreach ( $field_names as $fn ) {
@@ -131,8 +136,9 @@ foreach ( $field_names as $fn ) {
 		$missing[] = $fn;
 	}
 }
-ok( empty( $missing ), 'form: emits all 8 field inputs (' . ( $missing ? 'missing: ' . implode( ',', $missing ) : 'all present' ) . ')' );
-ok( strpos( $form, 'value="claude-opus-4-8"' ) !== false, 'form: renders an option per allowlisted model' );
+ok( empty( $missing ), 'form: emits all 7 render-knob inputs (' . ( $missing ? 'missing: ' . implode( ',', $missing ) : 'all present' ) . ')' );
+// v10.46.0: the model selects moved to inc/admin-forms/ai-settings.php.
+ok( strpos( $form, 'value="claude-opus-4-8"' ) === false, 'form: no model options remain in the render-knobs form' );
 
 // ── P5: theme-filter callbacks (the cross-package contract) ──────────
 require __DIR__ . '/../inc/theme-filters.php';

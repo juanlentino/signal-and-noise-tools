@@ -86,7 +86,7 @@ function sn_admin_legacy_redirect_map() {
 		'cron'         => array( 'tab' => 'connections', 'sub' => 'cron',              'anchor' => null ),  // v6.18.0
 		'insights'     => array( 'tab' => 'monitoring',  'sub' => 'insights',          'anchor' => null ),
 		'health'       => array( 'tab' => 'monitoring',  'sub' => 'health',            'anchor' => null ),
-		'rss'          => array( 'tab' => 'content',     'sub' => 'rss',               'anchor' => null ),  // v6.18.0: Monitoring → Content
+		'rss'          => array( 'tab' => 'monitoring',  'sub' => 'rss',               'anchor' => null ),  // v6.18.0: Monitoring → Content; v10.46.0: back to Measurement (feed-request analytics)
 		'reading-time' => array( 'tab' => 'content',     'sub' => null,                'anchor' => null ),  // v10.24.0: the cleanup tool retired in v10.0.0 — Content default, no ghost sub
 		'links'        => array( 'tab' => 'tools',       'sub' => 'links',             'anchor' => null ),
 		'automation'   => array( 'tab' => 'connections', 'sub' => null,                'anchor' => null ),  // v6.18.0: retired top tab → Connections
@@ -110,10 +110,28 @@ function sn_admin_subtab_moves() {
 		'automation/cron'     => array( 'tab' => 'connections', 'sub' => 'cron' ),
 		'automation/indexnow' => array( 'tab' => 'connections', 'sub' => 'indexnow' ),
 		'tools/reading-time'  => array( 'tab' => 'content', 'sub' => null ),           // v10.24.0: tool retired in v10.0.0
-		'tools/performance'   => array( 'tab' => 'content', 'sub' => 'performance' ),
-		'tools/front-end'     => array( 'tab' => 'content', 'sub' => 'front-end' ),
-		'monitoring/music'    => array( 'tab' => 'content', 'sub' => 'music' ),
-		'monitoring/rss'      => array( 'tab' => 'content', 'sub' => 'rss' ),
+
+		// ── v10.46.0 Phase-3 IA: leaves that changed parent tab. ──
+		'content/front-end'      => array( 'tab' => 'site', 'sub' => 'front-end' ),
+		'content/performance'    => array( 'tab' => 'site', 'sub' => 'performance' ),
+		'connections/redirects'  => array( 'tab' => 'site', 'sub' => 'redirects' ),
+		'content/music'          => array( 'tab' => 'connections', 'sub' => 'music' ),
+		'content/rss'            => array( 'tab' => 'monitoring', 'sub' => 'rss' ),
+		'tools/block-migrations' => array( 'tab' => 'content', 'sub' => 'block-migrations' ),
+		'tools/mcp-connect'      => array( 'tab' => 'ai', 'sub' => 'mcp-connect' ),
+		'tools/copilot-usage'    => array( 'tab' => 'ai', 'sub' => 'copilot-usage' ),
+
+		// ── Repointed, NOT chained. These three entries already existed, aimed at
+		// destinations that have themselves now moved. This resolver runs ONCE per
+		// request — it does not follow a second hop — so leaving them pointed at the
+		// old intermediate would land a v6.18.0-era bookmark on a tab that no longer
+		// owns the leaf (a silent mis-route, the exact failure class recorded at
+		// CHANGELOG.md:874). Each now names the FINAL home directly. ──
+		'tools/performance'   => array( 'tab' => 'site', 'sub' => 'performance' ),      // was content
+		'tools/front-end'     => array( 'tab' => 'site', 'sub' => 'front-end' ),        // was content
+		'monitoring/music'    => array( 'tab' => 'connections', 'sub' => 'music' ),     // was content
+		// 'monitoring/rss' is deliberately ABSENT: RSS now lives in monitoring, so an
+		// entry here would bounce the leaf straight back out of its own tab.
 	);
 }
 

@@ -400,7 +400,7 @@ function sn_settings_save( $raw ) {
 		$sanitized['insights'] = $existing_settings['insights'];
 	}
 
-	// v6.23.0: preserve the analytics subtree (Monitoring → Analytics → "Exclude
+	// v6.23.0: preserve the analytics subtree (Measurement → Analytics → "Exclude
 	// my own visits"), configured via sn_setting_update('analytics.exclude_roles',
 	// …) by sn_handle_analytics_exclude_save(), NOT in this Identity-tab form
 	// payload. Same whole-option-replace hazard as the audit/monitoring/perf/

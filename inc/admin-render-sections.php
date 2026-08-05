@@ -44,20 +44,32 @@ function sn_admin_render_redirects_section() {
 	do_action( 'sn_admin_redirects_tab' );
 }
 
-/** Monitoring → Health. */
+/** Measurement → Health. */
 function sn_admin_render_health_section() {
 	do_action( 'sn_admin_health_tab' );
 }
 
-/** Monitoring → Insights. */
+/** Measurement → Insights. */
 function sn_admin_render_insights_section() {
 	do_action( 'sn_admin_insights_tab' );
 }
 
 
-/** Tools → Block Migrations. */
+/** Content → Block Migrations (was Tools until v10.46.0). */
 function sn_admin_render_block_migrations_section() {
 	do_action( 'sn_admin_block_migrations_tab' );
+}
+
+/**
+ * Content → Pattern Adoption (v10.46.0).
+ *
+ * Was not a leaf at all until now: the Opportunities card rendered inline in
+ * the Health tab's action row, which meant it was reachable only after a HEALTH
+ * scan had run — a gate it inherited from its position, not from anything it
+ * needed. As a leaf it delegates exactly like its two sibling scanners.
+ */
+function sn_admin_render_pattern_adoption_section() {
+	do_action( 'sn_admin_pattern_adoption_tab' );
 }
 
 /** Content → RSS. The tracker module (inc/rss-feed-tracker.php) is always

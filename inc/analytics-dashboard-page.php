@@ -5,7 +5,7 @@
  * Registers a read-only analytics page under the WordPress Dashboard menu
  * (sidebar: Home · Updates · Analytics) via add_dashboard_page(), which is a
  * thin wrapper for add_submenu_page('index.php', …). The credential settings
- * stay in the plugin menu (Monitoring → Analytics) — this page has no forms, so
+ * stay in the plugin menu (Measurement → Analytics) — this page has no forms, so
  * it never touches the page-slug-gated admin-post handler.
  *
  * add_dashboard_page()'s capability only gates MENU VISIBILITY; the callback URL

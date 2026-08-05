@@ -397,9 +397,18 @@ function sn_rss_tracker_handle_form() {
 	if ( SN_RSS_TRACKER_ACTION_SAVE === $action ) {
 		global $wpdb;
 		$defaults = sn_rss_tracker_defaults();
+		$current  = sn_rss_tracker_settings();
 		$new      = array(
 			'enabled'            => ! empty( $_POST['enabled'] ),
-			'collector_url'      => esc_url_raw( wp_unslash( $_POST['collector_url'] ?? $defaults['collector_url'] ) ),
+			// v10.46.0: collector_url is NO LONGER POSTED BY THIS FORM — the field
+			// moved to Measurement → Analytics, where the collector is what the
+			// screen is about. The fallback had to change from $defaults to
+			// $current at the same time: this branch rebuilds the WHOLE settings
+			// array from $_POST, so a defaults fallback would silently reset a
+			// customised collector back to home_url('/_sn/px') on EVERY RSS save.
+			// Falling back to the stored value keeps the two write surfaces
+			// disjoint. Pinned by tests/rss-collector-move.php.
+			'collector_url'      => esc_url_raw( wp_unslash( $_POST['collector_url'] ?? ( $current['collector_url'] ?? $defaults['collector_url'] ) ) ),
 			'event_name'         => sanitize_text_field( wp_unslash( $_POST['event_name'] ?? $defaults['event_name'] ) ),
 			'log_retention_days' => max( 7, min( 365, (int) wp_unslash( $_POST['log_retention_days'] ?? $defaults['log_retention_days'] ) ) ),
 		);
@@ -521,10 +530,17 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<p class="sn-field-helper">When off, the plugin still loads but skips all DB writes and collector POSTs.</p>';
 	echo '</div>';
 
+	// v10.46.0: the Collector endpoint field moved to Measurement → Analytics.
+	// It was never an RSS setting — EVERY beacon on the site posts to that URL,
+	// and this leaf is one of its callers, not its owner. A read-only pointer
+	// stays because this form's POSTs do go there, so seeing the target while
+	// configuring the tracker is genuinely useful; the write surface is single
+	// and lives on the Analytics leaf (the same one-writer rule
+	// snt_analytics_render_mirrors() enforces in the other direction).
 	echo '<div class="sn-field">';
-	echo '<label class="sn-field-label" for="sn_rss_collector_url">Collector endpoint</label>';
-	echo '<input type="url" id="sn_rss_collector_url" name="collector_url" class="large-text sn-mono" value="' . esc_attr( $settings['collector_url'] ) . '" required>';
-	echo '<p class="sn-field-helper">First-party analytics collector — the Cloudflare Worker\'s <code>/_sn/px</code> route. Defaults to this site\'s own endpoint; authenticated with the shared <code>SN_BEACON_TOKEN</code> (set in <code>wp-config.php</code>). If the WordPress host can\'t reach the site domain through the edge, point this at the Worker\'s <code>*.workers.dev</code> URL.</p>';
+	echo '<label class="sn-field-label">Collector endpoint</label>';
+	echo '<p class="sn-field-helper"><code>' . esc_html( (string) $settings['collector_url'] ) . '</code><br>';
+	echo 'Where this tracker POSTs feed requests. Configured on <a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=analytics' ) ) . '">Measurement &rarr; Analytics</a>, alongside the credentials that read the same pipeline.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field">';

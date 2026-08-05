@@ -2,6 +2,46 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.46.0] - 2026-08-05
+
+**Headline:** the settings page is regrouped by intent instead of by history — eight tabs, AI promoted out of a render-knobs form, the three content scanners reunited, and the collector endpoint moved to the screen that is actually about it.
+
+### Changed
+
+- **Eight top tabs, regrouped by what things ARE** ([inc/admin-tabs-data.php](inc/admin-tabs-data.php)). Eleven leaves had landed since the v6.18.0 IA was designed, each wherever there happened to be room. **Site** absorbs Front-End, Performance and Redirects — how the site behaves, as opposed to what is published on it — and is relabelled from `Identity & SEO`, the single leaf whose name it had been wearing. **Content** keeps the page editors. **Connections** gains Music, relabelled `Discography`, because what that leaf actually holds is a Spotify credential form. **Monitoring** becomes **Measurement** and gains RSS: the RSS leaf is feed-request analytics, and the old tab declared itself "observability-only" in the same file that called its first leaf a "SETTINGS-ONLY sub-tab" — all four of its leaves carry writes, so it is now named for what it holds rather than for a rule it never kept. **Tools** stops being a junk drawer whose own subtitle named three of its five leaves.
+
+  **Labels changed; keys did not.** `tab=monitoring&sub=health` is hardcoded in five call sites, and every one of them still resolves. Every leaf that changed parent tab has an entry in `sn_admin_subtab_moves()`, which feeds both the GET 301 and the POST PRG — so old bookmarks and in-flight saves land in the same place.
+
+### New
+
+- **An AI tab** ([inc/admin-forms/ai-settings.php](inc/admin-forms/ai-settings.php)). A hard cap on monthly AI spend was field 10 of Content → Front-End, a form whose own intro described its contents as *"render knobs the companion theme reads via filters"*. The rest of the AI surface was scattered across four more tabs. The tab gathers the three settings that are configuration — prose model, vision model, monthly budget — with Copilot Usage and MCP Clients. The budget field now carries the spend-against-cap meter the analytics settings hub already had, reusing that component rather than growing a second one.
+
+  The three settings **keep the `theme.` key namespace**; renaming them would need a migration and would break the readers in `analytics-render-settings.php` and `ai-bootstrap.php`. Where a value is edited and where it is stored are separate questions, and only the first one moved.
+
+- **Pattern Adoption is its own leaf** ([inc/pattern-adoption-admin.php](inc/pattern-adoption-admin.php)), beside Tags and Block Migrations — three sibling content scanners that had been sitting in three different tabs, one of which ([inc/block-migrations-admin.php](inc/block-migrations-admin.php)) already documented itself as *"Mirrors inc/pattern-adoption-admin.php structurally."*
+
+  It also **loses a gate it never had a reason for.** The card rendered inside the Health tab's action row behind `if ( $last_scan && … )`, where `$last_scan` is a *health* scan. Pattern adoption has its own scan and its own transient and needs nothing from the health one; the precondition was an artifact of where the card sat. Anyone who had not run a health scan could not discover the feature at all, and nothing explained why.
+
+### Fixed
+
+- **The collector endpoint was configured under Content → RSS** ([inc/analytics-render-settings.php](inc/analytics-render-settings.php)). Every first-party beacon on the site posts to that URL; its own helper text called it *"the Cloudflare Worker's `/_sn/px` route"*, on a leaf about feed subscribers. It moves to Measurement → Analytics, next to the credentials that read what it collects and the worker-version card that probes the same origin — and the read-only "Collector URL" row disappears from that leaf's own *"Configured elsewhere"* block, which had been mirroring the pipeline's own ingest endpoint as though it belonged to someone else.
+
+  **The half that is easy to miss:** the RSS save branch rebuilds its whole settings array from `$_POST` and fell back to `$defaults` for any absent key. With the field gone from that form, every RSS save would have silently reset a customised collector back to `home_url('/_sn/px')`. It now falls back to the **stored** value, and the new writer merges a single key instead of replacing the array. Both halves are pinned by [tests/rss-collector-move.php](tests/rss-collector-move.php).
+
+- **Two moved leaves would have shipped with dead Suggest buttons** ([inc/admin-menu.php](inc/admin-menu.php)). The `health-suggest-actions.js` enqueue guard was a pair of hardcoded tab/sub comparisons, and Pattern Adoption and Block Migrations both changed address in this release. Not hypothetical: the same guard shape caused v6.47.2, where the v6.x IA moved Health under Monitoring, the stale `'health' === $_GET['tab']` check stopped matching, and *every* Suggest button was dead on every site — with no console error and no failing test. The leaf list is now data (`sn_admin_suggest_js_leaves()`), and [tests/admin-menu.php](tests/admin-menu.php) asserts each entry both resolves against the live registry and actually enqueues at that address, so the next move fails a suite instead of failing silently.
+
+- **Block Migrations was drawing a card inside a card.** Its render function has always emitted its own `.sn-fieldset`, but the leaf was not marked `wide`, so the dispatcher wrapped that card in a second one. Invisible while it sat alone in Tools; obvious the moment it stood next to its two siblings.
+
+- **The Health tab's action row is gone with it.** That two-up grid existed to pair Run scan with the Opportunities card so neither sat capped beside a dead column. With one child left, `auto-fit` would have stretched a short form edge to edge — the bare-stretched lone form the Phase-4b width rule forbids. Wrapper and its now-dead CSS both removed.
+
+- **Stale tab paths across 15 files and 4 docs** — the same drift class the v10.45.1 docblock sweep addressed, refreshed for the tabs this release moved.
+
+> **Why MINOR:** new user-visible surfaces (the AI tab, the Pattern Adoption leaf) and a reorganized one. No settings-schema change — every stored key keeps its name — and every moved leaf keeps working through the existing redirect resolver, so nothing requires user action.
+
+### Verification
+
+Full sweep **14,450 passed / 0 failed** (14,367 before this release; +83 assertions). phpcs clean, falsified first with an `echo $_GET['x']` probe confirming `WordPress.Security.EscapeOutput` fires. The target IA was written into `tests/admin-registry.php` and `tests/admin-ia-redirect.php` **first** and watched go red before the registry was touched.
+
 ## [10.45.1] - 2026-08-05
 
 **Headline:** three independent admin fixes surfaced by the IA audit — a desktop icon that opened the wrong page, two unreachable symbols, and four docblocks pointing at tabs retired four majors ago.

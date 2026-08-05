@@ -18,7 +18,7 @@
  *     query-string URLs, so we do NOT re-add those.
  *
  * Opt-in default ON via the `perf.speculative_loading` setting (deep-merged from
- * sn_settings_defaults(), migration-free). Toggle lives on the Tools → Performance
+ * sn_settings_defaults(), migration-free). Toggle lives on the Site → Performance
  * sub-tab; saved through sn_handle_perf_save() in inc/admin-post-actions.php.
  *
  * Added in v4.10.0 (2026-06-07, T6).

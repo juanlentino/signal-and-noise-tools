@@ -78,8 +78,12 @@ $b = ap_block( $css, '.sn-pill {', 300 );
 ap_ok( false !== strpos( $b, 'border-radius: 4px' ), 'S2: pills square to 4px chips' );
 ap_ok( false === strpos( $css, 'border-radius: 999px' ), 'S2: no pill-round 999px remains' );
 ap_ok( false !== strpos( $css, '.widefat th,' ) && false !== strpos( $css, 'padding: 6px 10px' ), 'S2: data tables densify (6px 10px cells)' );
-$b = ap_block( $css, '.sn-health-actions {' );
-ap_ok( false !== strpos( $b, 'gap: 10px' ), 'S2: health action row gap matches the 10px rhythm' );
+// v10.46.0: the health action row was removed along with the pattern-adoption
+// extraction (inc/health-checks-admin.php was its only call site), so the
+// 10px-rhythm assertion moves to the glance grid the row was matching.
+ap_ok( false === strpos( $css, '.sn-health-actions {' ), 'S2: the health action row is gone (extracted with pattern adoption)' );
+$b = ap_block( $css, '.sn-glance {' );
+ap_ok( false !== strpos( $b, 'gap: 10px' ), 'S2: the glance grid still sets the 10px rhythm the action row used to match' );
 
 // ── Group: registry wide flags (#2) ────────────────────────────────────────
 echo "\nGroup: registry — Security audit-log is wide; login/login-defense capped\n";

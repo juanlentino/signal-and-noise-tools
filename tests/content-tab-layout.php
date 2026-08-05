@@ -1,9 +1,11 @@
 <?php
 /**
- * Standalone test: Content tab — open-and-wide Phase 4b layout (v6.46.0).
+ * Standalone test: open-and-wide Phase 4b layout (v6.46.0; leaf addresses
+ * updated for the v10.46.0 Phase-3 IA regroup).
  *
  * Locks the registry + cross-cutting CSS for the final open-wide chunk:
- *   - every Content leaf (front-end, performance, rss, tags, music; v10.0.0 retired reading-time)
+ *   - every leaf that lays out wide (front-end, performance, rss, tags, music —
+ *     now spread across Site / Measurement / Content / Connections)
  *     is marked 'wide' => true in the registry, so the dispatcher emits a bare
  *     full-width .sn-section instead of the 820px-capped .sn-fieldset card;
  *   - .sn-front-end-form .sn-fieldset is a full-width auto-fit field grid (the
@@ -23,15 +25,26 @@ function ct_assert( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo " 
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 require_once __DIR__ . '/../inc/admin-tabs-data.php';
 
-echo "Group: registry — every Content leaf is full-width ('wide' => true)\n";
-$content = null;
-foreach ( sn_admin_top_tabs() as $t ) {
-	if ( ( $t['tab'] ?? '' ) === 'content' ) { $content = $t; break; }
-}
-ct_assert( is_array( $content ), 'content tab present in registry' );
-$subs = is_array( $content ) ? ( $content['sub_tabs'] ?? array() ) : array();
-foreach ( array( 'front-end', 'performance', 'rss', 'tags', 'music' ) as $slug ) {
-	ct_assert( ! empty( $subs[ $slug ]['wide'] ), "leaf '$slug' is marked wide" );
+// v10.46.0: these five leaves still lay themselves out full-width, but four of
+// them no longer live on the Content tab — the Phase-3 IA sent Front-End and
+// Performance to Site, Music to Connections, and RSS to Measurement. The
+// contract being guarded was never "the Content tab is wide"; it was "a leaf
+// whose render fn draws a two-column shell or a wide table carries 'wide' so the
+// dispatcher gives it a bare .sn-section". So the addresses move and the
+// contract stays, now checked wherever each leaf actually lives.
+echo "Group: registry — every wide-laying-out leaf still carries 'wide' => true\n";
+$by_tab = array();
+foreach ( sn_admin_top_tabs() as $t ) { $by_tab[ $t['tab'] ?? '' ] = $t; }
+ct_assert( isset( $by_tab['content'] ), 'content tab present in registry' );
+foreach ( array(
+	'site/front-end',        // auto-fit FIELD grid (the fields are the columns)
+	'site/performance',      // two-column sn_admin_shell
+	'monitoring/rss',        // activity hero + asymmetric .sn-2col
+	'content/tags',          // glance hero over full-width tables
+	'connections/music',     // full-width shell since v6.42.0
+) as $pair ) {
+	list( $tab, $slug ) = explode( '/', $pair );
+	ct_assert( ! empty( $by_tab[ $tab ]['sub_tabs'][ $slug ]['wide'] ), "leaf '$pair' is marked wide" );
 }
 
 echo "\nGroup: CSS — .sn-front-end-form field grid + .sn-2col restored\n";
