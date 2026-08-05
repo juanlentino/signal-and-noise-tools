@@ -38,13 +38,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 // nominates the anchor. The nomination is a POINTER into existing prose,
 // never new text — the impl below re-validates it before Apply can run.
 const SNT_AI_PAIR_SUGGEST_SYSTEM = "You are an editor deciding whether one note (the source) should link to another note (the target) on the same personal site. The two notes cover related subjects but neither mentions the other's title.\n\n" .
-	"Input JSON: { source_title, target_title, source_excerpt, target_excerpt, shared_tags } — excerpts are the opening prose of each note.\n\n" .
+	"Input JSON: { source_title, target_title, source_excerpt, target_excerpt, shared_tags }: excerpts are the opening prose of each note.\n\n" .
 	"Return ONLY a JSON object: {\"verdict\": \"link\" | \"skip\" | \"unsure\", \"reason\": \"<one sentence>\", \"anchor\": \"<phrase copied verbatim from source_excerpt, or empty>\"}\n\n" .
 	"Rules:\n" .
 	"- \"link\" only when the source genuinely discusses the target's subject and a link would help the reader.\n" .
 	"- \"skip\" when the overlap is superficial (shared vocabulary, not shared subject).\n" .
 	"- \"unsure\" when the excerpts are too thin to judge.\n" .
-	"- anchor: on \"link\", copy a short phrase (2-8 words) EXACTLY as it appears in source_excerpt where the link belongs — same casing, same punctuation. Never invent or paraphrase. If no phrase can be copied verbatim, do not use \"link\" — return \"skip\" instead.\n" .
+	"- anchor: on \"link\", copy a short phrase (2-8 words) EXACTLY as it appears in source_excerpt where the link belongs (same casing, same punctuation. Never invent or paraphrase. If no phrase can be copied verbatim, do not use \"link\") return \"skip\" instead.\n" .
 	"- Output JSON only. No markdown, no preamble.";
 
 // v8.1.1: 200 → 300; v8.4.1: 300 → 500. The three-field response kept

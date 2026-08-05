@@ -40,13 +40,13 @@ ok( strpos( $h, 'sn-an-dist--wide' ) === false, 'no wide-label class by default'
 ob_start(); snt_analytics_render_distribution( 'Launch velocity', array( array( 'label' => 'A very long post title', 'views' => 3 ) ), '', true ); $w = ob_get_clean();
 ok( strpos( $w, 'sn-an-dist--wide' ) !== false, '$wide_labels adds the .sn-an-dist--wide class' );
 
-echo "\nGroup: v9.68.1 — referrer categories: NULL cats (failed dims read) fold with the read-failure copy\n";
+echo "\nGroup: v9.68.1: referrer categories: NULL cats (failed dims read) fold with the read-failure copy\n";
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_referrer_categories( null ); $rcf = ob_get_clean();
 ok( '' === trim( $rcf ), 'refcats: null cats → folds, no panel, no fatal' );
 $noted_rc = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
 ok( 1 === count( $noted_rc ) && 'Referrer categories' === $noted_rc[0]['title'], 'refcats: null cats → title noted for the fold' );
-ok( 'Referrer categories could not be read (read failure — not an empty window).' === ( $noted_rc[0]['why'] ?? '' ),
+ok( 'Referrer categories could not be read (read failure: not an empty window).' === ( $noted_rc[0]['why'] ?? '' ),
 	'refcats: null cats → the shared read-failure sentence, never the "No referrer data" empty copy' );
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_referrer_categories( array() ); $rce = ob_get_clean();

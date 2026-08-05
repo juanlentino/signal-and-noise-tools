@@ -186,7 +186,7 @@ function snt_analytics_sparkline( $series ) {
  */
 function snt_analytics_render_lowengage( $rows ) {
 	if ( empty( $rows ) ) {
-		snt_an_note_empty( __( 'Pages losing readers', 'signal-and-noise-tools' ), __( 'No low-engagement pages in this range — readers are sticking around.', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( __( 'Pages losing readers', 'signal-and-noise-tools' ), __( 'No low-engagement pages in this range: readers are sticking around.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	snt_an_panel_open( __( 'Pages losing readers', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
@@ -241,8 +241,8 @@ function snt_analytics_render_pageroles_table( $rows, $role, $header_meta = '', 
 	$is_exit = ( 'exit' === $role );
 	$title   = $is_exit ? __( 'Exit pages', 'signal-and-noise-tools' ) : __( 'Entry pages', 'signal-and-noise-tools' );
 	$caption = $is_exit
-		? __( 'Where visits ended — the last page of each visit, rolled up nightly.', 'signal-and-noise-tools' )
-		: __( 'Where visits began — arrivals from search, links, or direct.', 'signal-and-noise-tools' );
+		? __( 'Where visits ended: the last page of each visit, rolled up nightly.', 'signal-and-noise-tools' )
+		: __( 'Where visits began: arrivals from search, links, or direct.', 'signal-and-noise-tools' );
 	$empty   = $is_exit
 		? __( 'No exit pages in this range yet.', 'signal-and-noise-tools' )
 		: __( 'No entry pages in this range yet.', 'signal-and-noise-tools' );

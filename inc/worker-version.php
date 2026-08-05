@@ -300,7 +300,7 @@ function sn_worker_version_render_data( $result, $stale ) {
 	if ( '' !== $version ) {
 		echo '<code>v' . esc_html( $version ) . '</code>';
 	} else {
-		echo '<span class="sn-an-empty">(semver unreported — deploy with <code>npm run deploy</code>)</span>';
+		echo '<span class="sn-an-empty">(semver unreported: deploy with <code>npm run deploy</code>)</span>';
 	}
 	echo '</p>';
 
@@ -318,7 +318,7 @@ function sn_worker_version_render_data( $result, $stale ) {
 
 	$fetched_at = isset( $result['fetched_at'] ) ? (int) $result['fetched_at'] : 0;
 	if ( $stale ) {
-		echo '<p class="sn-an-empty">Live check failed just now — showing the last value reached';
+		echo '<p class="sn-an-empty">Live check failed just now: showing the last value reached';
 		if ( $fetched_at > 0 ) {
 			echo ' ' . esc_html( human_time_diff( $fetched_at, time() ) ) . ' ago';
 		}

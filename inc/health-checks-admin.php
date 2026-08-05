@@ -239,7 +239,7 @@ function sn_health_render_admin_tab() {
 			echo '</div>';
 
 			if ( $hidden > 0 ) {
-				echo '<p class="sn-field-helper">+' . (int) $hidden . ' more findings — re-run scan after fixing the top batch.</p>';
+				echo '<p class="sn-field-helper">+' . (int) $hidden . ' more findings: re-run scan after fixing the top batch.</p>';
 			}
 
 			echo '</div>'; // .sn-fieldset

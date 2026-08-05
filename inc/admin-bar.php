@@ -134,7 +134,7 @@ add_action( 'admin_bar_menu', function( $admin_bar ) {
 		'title' => '<span class="ab-label">S&amp;N</span>',
 		'href'  => admin_url( 'admin.php?page=sn-theme-options' ),
 		'meta'  => array(
-			'title' => 'Signal & Noise — quick actions',
+			'title' => 'Signal & Noise: quick actions',
 		),
 	) );
 
@@ -210,7 +210,7 @@ function sn_handle_quick_force_update_check() {
 	}
 	snt_cmd_impl_force_check();
 	wp_send_json_success( array(
-		'message' => 'Update check forced — see Dashboard › Updates.',
+		'message' => 'Update check forced: see Dashboard › Updates.',
 	) );
 }
 
@@ -233,7 +233,7 @@ function sn_handle_quick_scan_patterns() {
 		: 0;
 	wp_send_json_success( array(
 		'message' => sprintf(
-			'Pattern scan complete — %d candidate%s.',
+			'Pattern scan complete. %d candidate%s.',
 			$count,
 			1 === $count ? '' : 's'
 		),
@@ -309,7 +309,7 @@ function sn_handle_quick_cf_purge() {
 		wp_send_json_success( array( 'message' => 'Cloudflare zone purge dispatched.' ) );
 	}
 	wp_send_json_error( array(
-		'message' => 'Cloudflare not configured — set token + zone first.',
+		'message' => 'Cloudflare not configured: set token + zone first.',
 	), 400 );
 }
 

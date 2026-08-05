@@ -137,7 +137,7 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 	if ( false === strpos( $post_content, $image_src ) ) {
 		return new WP_Error(
 			'snt_ai_img_not_found',
-			__( 'Image src no longer found in post content — post may have been edited since the scan. Re-run the Health scan to refresh.', 'signal-and-noise-tools' ),
+			__( 'Image src no longer found in post content: post may have been edited since the scan. Re-run the Health scan to refresh.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}
@@ -146,7 +146,7 @@ function snt_ai_alt_inline_suggest_impl( $post_id, $image_src ) {
 	if ( '' === $context ) {
 		return new WP_Error(
 			'snt_ai_empty_post',
-			__( 'No usable context around the image — post body may be too short.', 'signal-and-noise-tools' ),
+			__( 'No usable context around the image: post body may be too short.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}

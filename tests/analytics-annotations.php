@@ -191,7 +191,7 @@ echo "\nmaturity migration (v10.14.0)\n";
 // Path-keyed rollups split at the 2026-07-30 /maturity/ re-parenting: the read
 // fires only when the range spans that day AND an affected path (old top-level
 // or new /maturity/ child) is among the rows the panel already fetched.
-$mig_line = 'Maturity pages moved under /maturity/ on Jul 30, 2026 — history before that date lives on the old top-level paths, after it on the new ones.';
+$mig_line = 'Maturity pages moved under /maturity/ on Jul 30, 2026: history before that date lives on the old top-level paths, after it on the new ones.';
 $mig_rows = function ( array $paths ) { $r = array(); foreach ( $paths as $p ) { $r[] = array( 'path' => $p, 'views' => 10 ); } return $r; };
 an_eq( $mig_line, sn_annotation_maturity_migration( $mig_rows( array( '/analytics/', '/notes/' ) ), '2026-07-01', '2026-08-15' ), 'old top-level path + spanning range -> read' );
 an_eq( $mig_line, sn_annotation_maturity_migration( $mig_rows( array( '/maturity/proof-of-origin/' ) ), '2026-07-01', '2026-08-15' ), 'new /maturity/ child path -> read' );

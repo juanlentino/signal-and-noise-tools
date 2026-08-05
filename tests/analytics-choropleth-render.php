@@ -101,7 +101,7 @@ $failed = capture( function () { snt_analytics_render_choropleth( 'Countries map
 ok( '' === trim( $failed ), 'render: null rows → folds, no panel, no fatal' );
 $noted_f = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
 ok( 1 === count( $noted_f ) && 'Countries map' === $noted_f[0]['title'], 'render: null rows → title noted for the fold' );
-ok( 'Countries map could not be read (read failure — not an empty window).' === ( $noted_f[0]['why'] ?? '' ),
+ok( 'Countries map could not be read (read failure: not an empty window).' === ( $noted_f[0]['why'] ?? '' ),
 	'render: null rows → the shared read-failure sentence, never the empty-window copy' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

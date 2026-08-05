@@ -132,7 +132,7 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 					'expected'     => null,
 					'observed'     => $observed,
 					'skipped'      => null,
-					'detail'       => 'change.fingerprint is required for restore_revision — pass the content_hash observed via sn_posts for this post before proposing a restore.',
+					'detail'       => 'change.fingerprint is required for restore_revision: pass the content_hash observed via sn_posts for this post before proposing a restore.',
 					'new_content'  => null,
 					'error_code'   => 'snt_sn_apply_missing_fingerprint',
 					'error_status' => 422,
@@ -144,7 +144,7 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 				'expected'    => $fingerprint,
 				'observed'    => $observed,
 				'skipped'     => null,
-				'detail'      => $passed ? null : 'Live post content has changed since this fingerprint was observed (re-fetch sn_posts\' content_hash and retry — the stale-branch merge conflict).',
+				'detail'      => $passed ? null : 'Live post content has changed since this fingerprint was observed (re-fetch sn_posts\' content_hash and retry: the stale-branch merge conflict).',
 				'new_content' => null,
 			);
 

@@ -29,7 +29,7 @@ function snt_analytics_render_posts_view( $bundle ) {
 	if ( ! is_array( $bundle ) || empty( $bundle['subject'] ) ) {
 		snt_an_gate(
 			__( 'Posts', 'signal-and-noise-tools' ),
-			__( 'No published posts yet — this view tracks each Note over its lifetime once you publish and traffic arrives.', 'signal-and-noise-tools' )
+			__( 'No published posts yet: this view tracks each Note over its lifetime once you publish and traffic arrives.', 'signal-and-noise-tools' )
 		);
 		return;
 	}
@@ -83,7 +83,7 @@ function snt_analytics_render_post_hero( $subject ) {
 		// why-sentence read stronger identifying the subject by its own title).
 		$title = (string) ( $subject['title'] ?? '' );
 		snt_an_note_empty(
-			__( 'Latest Note — did it land?', 'signal-and-noise-tools' ),
+			__( 'Latest Note: did it land?', 'signal-and-noise-tools' ),
 			sprintf(
 				/* translators: %s: the Note's title. */
 				__( '"%s" has no recorded views yet, or your other Notes have none to compare it against.', 'signal-and-noise-tools' ),
@@ -100,7 +100,7 @@ function snt_analytics_render_post_hero( $subject ) {
 		: sprintf( _n( 'published %d day ago', 'published %d days ago', $age, 'signal-and-noise-tools' ), $age );
 
 	snt_an_panel_open(
-		__( 'Latest Note — did it land?', 'signal-and-noise-tools' ),
+		__( 'Latest Note: did it land?', 'signal-and-noise-tools' ),
 		array(
 			'panel_class'  => 'sn-overview',
 			'inside_class' => 'inside inside-flush sn-an-panel',
@@ -193,7 +193,7 @@ function snt_analytics_render_post_trajectory( $subject, $leaderboard ) {
 	$subj_d = $plot( $subj );
 
 	snt_an_panel_open(
-		__( 'Lifecycle — this Note vs your typical at each age', 'signal-and-noise-tools' ),
+		__( 'Lifecycle: this Note vs your typical at each age', 'signal-and-noise-tools' ),
 		array( 'inside_class' => 'inside inside-flush sn-an-panel' )
 	);
 	echo '<svg viewBox="0 0 600 86" preserveAspectRatio="none" role="img" class="sn-an-spark" style="width:100%;height:120px">';

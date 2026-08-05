@@ -253,7 +253,7 @@ function sw_render() {
 }
 
 // ─── Group A: parse_response — absent vs null are DIFFERENT answers ───
-echo "\nGroup A: parse_response — the absent-vs-null discipline (array_key_exists)\n";
+echo "\nGroup A: parse_response: the absent-vs-null discipline (array_key_exists)\n";
 
 $r = sn_salt_window_parse_response( 500, 'Internal Server Error' );
 sw_eq( 'unreachable', $r['state'], 'non-200 → unreachable' );
@@ -267,7 +267,7 @@ sw_eq( 'old-worker', $r['state'], 'MISSING "salt" member → old-worker (pre-v1.
 sw_eq( null, $r['window'], 'old-worker → window null' );
 
 $r = sn_salt_window_parse_response( 200, json_encode( array( 'worker' => 'sn-analytics', 'salt' => null ) ) );
-sw_eq( 'kv-failed', $r['state'], '"salt": null (KV list failure) → kv-failed — NOT old-worker (the ?? trap)' );
+sw_eq( 'kv-failed', $r['state'], '"salt": null (KV list failure) → kv-failed. NOT old-worker (the ?? trap)' );
 sw_eq( null, $r['window'], 'kv-failed → window null (never a fabricated shape)' );
 
 $r = sn_salt_window_parse_response( 200, json_encode( array( 'worker' => 'sn-analytics', 'salt' => 'scalar-junk' ) ) );
@@ -292,7 +292,7 @@ sw_eq( null, $r['window']['prev_expires_at'], 'prev_expires_at: null in JSON →
 $r = sn_salt_window_parse_response( 200, sw_http( sw_salt( array(), array( 'prev_expires_at' ) ) )['body'] );
 sw_eq( null, $r['window']['prev_expires_at'], 'prev_expires_at: ABSENT → null (unknown, never invented)' );
 $r = sn_salt_window_parse_response( 200, sw_http( sw_salt( array(), array( 'prev_present' ) ) )['body'] );
-sw_eq( null, $r['window']['prev_present'], 'prev_present: ABSENT → null — NOT false (absent ≠ "expired")' );
+sw_eq( null, $r['window']['prev_present'], 'prev_present: ABSENT → null. NOT false (absent ≠ "expired")' );
 $r = sn_salt_window_parse_response( 200, sw_http( sw_salt( array( 'today_present' => 1 ) ) )['body'] );
 sw_eq( null, $r['window']['today_present'], 'today_present: non-bool 1 → null (strict-type discipline, no coercion)' );
 $r = sn_salt_window_parse_response( 200, sw_http( sw_salt( array( 'key_count' => '3' ) ) )['body'] );
@@ -301,7 +301,7 @@ $r = sn_salt_window_parse_response( 200, sw_http( sw_salt( array( 'rotate_tz' =>
 sw_eq( 'UTCx', $r['window']['rotate_tz'], 'rotate_tz is sanitized (tags stripped, whitespace collapsed)' );
 
 // ─── Group B: probe — the shared outbound gate ────────────────────────
-echo "\nGroup B: probe — SSRF/scheme gate + one guarded GET\n";
+echo "\nGroup B: probe. SSRF/scheme gate + one guarded GET\n";
 
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( sw_salt() );
@@ -332,7 +332,7 @@ sw_eq( 'unreachable', $r['state'], 'WP_Error → unreachable (transport failure 
 sw_eq( null, $r['window'], 'WP_Error → window null' );
 
 // ─── Group C: get — the ~10-min transient cache ───────────────────────
-echo "\nGroup C: get — transient cache (readout freshness, not monitoring)\n";
+echo "\nGroup C: get: transient cache (readout freshness, not monitoring)\n";
 
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( sw_salt() );
@@ -358,7 +358,7 @@ sw_eq( 1, count( $GLOBALS['__test_get_calls'] ), 'corrupt (non-array) transient 
 sw_eq( 'ok', $r['state'], 'corrupt transient → returns the live probe, not the garbage' );
 
 // ─── Group D: render — value-pinned strings per state ─────────────────
-echo "\nGroup D: render — the seven states, value-pinned\n";
+echo "\nGroup D: render: the seven states, value-pinned\n";
 
 // 1. Full healthy shape.
 sw_reset();
@@ -367,8 +367,8 @@ $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'prev_expires_at' => $prev_ex
 $html = sw_render();
 sw_true( false !== strpos( $html, 'Identity salt window' ), 'healthy: heading present' );
 sw_true( false !== strpos( $html, 'salt values never leave the Worker' ), 'healthy: the no-values disclosure line renders' );
-sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18 — rotates at midnight (America/Argentina/Buenos_Aires).' ), 'healthy: today line pinned verbatim' );
-sw_true( false !== strpos( $html, 'Yesterday’s salt: 2026-07-17 — expires ' . gmdate( 'Y-m-d H:i', $prev_exp ) . ' (in 2 days).' ), 'healthy: yesterday expiry line pinned verbatim (site-local date + relative)' );
+sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18: rotates at midnight (America/Argentina/Buenos_Aires).' ), 'healthy: today line pinned verbatim' );
+sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) expires ' . gmdate( 'Y-m-d H:i', $prev_exp ) . ' (in 2 days).' ), 'healthy: yesterday expiry line pinned verbatim (site-local date + relative)' );
 sw_true( false !== strpos( $html, '3 salt keys at the edge.' ), 'healthy: key count pinned' );
 sw_true( false !== strpos( $html, 'Checked 2 days ago.' ), 'healthy: freshness line pinned' );
 sw_true( false !== strpos( $html, 'notice-info' ), 'healthy: calm info notice, never an alarm' );
@@ -378,8 +378,8 @@ sw_true( false === strpos( $html, 'could not read the worker' ), 'healthy: no er
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'prev_present' => false, 'prev_expires_at' => null, 'key_count' => 2 ) ) );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17): already expired — forward secrecy holding.' ), 'prev-expired: line pinned verbatim' );
-sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18 — rotates at midnight (America/Argentina/Buenos_Aires).' ), 'prev-expired: today line still renders' );
+sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) has already expired: forward secrecy holding.' ), 'prev-expired: line pinned verbatim' );
+sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18: rotates at midnight (America/Argentina/Buenos_Aires).' ), 'prev-expired: today line still renders' );
 sw_true( false !== strpos( $html, '2 salt keys at the edge.' ), 'prev-expired: key count follows the payload' );
 sw_true( false === strpos( $html, 'expires ' ), 'prev-expired: no expiry date is fabricated' );
 
@@ -387,20 +387,20 @@ sw_true( false === strpos( $html, 'expires ' ), 'prev-expired: no expiry date is
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'today_present' => false, 'today_expires_at' => null ) ) );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18 — not minted yet (it appears with the first visit of the day) — rotates at midnight (America/Argentina/Buenos_Aires).' ), 'not-minted: today line pinned verbatim' );
+sw_true( false !== strpos( $html, 'Today’s salt: 2026-07-18 (not minted yet (it appears with the first visit of the day)) rotates at midnight (America/Argentina/Buenos_Aires).' ), 'not-minted: today line pinned verbatim' );
 
 // 4. Prev present but no expiry recorded (null expiry, per contract).
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'prev_expires_at' => null ) ) );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'Yesterday’s salt: 2026-07-17 — no expiry recorded.' ), 'null expiry: honest "no expiry recorded", never an invented date' );
+sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) has no expiry recorded.' ), 'null expiry: honest "no expiry recorded", never an invented date' );
 
 // 5. Past expiry (still present) → the "ago" branch.
 sw_reset();
 $past = time() - 100000;
 $GLOBALS['__test_http'] = sw_http( sw_salt( array( 'prev_expires_at' => $past ) ) );
 $html = sw_render();
-sw_true( false !== strpos( $html, 'Yesterday’s salt: 2026-07-17 — expires ' . gmdate( 'Y-m-d H:i', $past ) . ' (2 days ago).' ), 'past expiry: relative flips to "ago"' );
+sw_true( false !== strpos( $html, 'Yesterday’s salt (2026-07-17) expires ' . gmdate( 'Y-m-d H:i', $past ) . ' (2 days ago).' ), 'past expiry: relative flips to "ago"' );
 
 // 6. "salt": null (KV list failure) → honest em-dash, DISTINCT from a failed
 // fetch: the worker WAS read here — "could not read the worker" would be false
@@ -409,7 +409,7 @@ sw_true( false !== strpos( $html, 'Yesterday’s salt: 2026-07-17 — expires ' 
 sw_reset();
 $GLOBALS['__test_http'] = sw_http( null );
 $html = sw_render();
-sw_true( false !== strpos( $html, '— worker reachable, but it could not list its salt keys (KV read failed at the edge).' ), 'salt:null → em-dash + the KV-failure copy (verbatim)' );
+sw_true( false !== strpos( $html, 'worker reachable, but it could not list its salt keys (KV read failed at the edge).' ), 'salt:null → em-dash + the KV-failure copy (verbatim)' );
 sw_true( false === strpos( $html, 'could not read the worker' ), 'salt:null → NOT the failed-fetch copy (the worker WAS read)' );
 sw_true( false === strpos( $html, 'rotates at midnight' ), 'salt:null → no fabricated today line' );
 sw_true( false === strpos( $html, 'notice-error' ) && false === strpos( $html, 'notice-warning' ), 'salt:null → never a red alarm (readout, not monitoring)' );
@@ -419,7 +419,7 @@ sw_true( false !== strpos( $html, 'Identity salt window' ), 'salt:null → the h
 sw_reset();
 $GLOBALS['__test_http'] = new WP_Error( 'http_request_failed', 'timeout' );
 $html = sw_render();
-sw_true( false !== strpos( $html, '— could not read the worker.' ), 'WP_Error → em-dash + could-not-read' );
+sw_true( false !== strpos( $html, 'could not read the worker.' ), 'WP_Error → em-dash + could-not-read' );
 sw_true( false === strpos( $html, 'salt keys (KV read failed' ), 'WP_Error → NOT the kv-failed copy (nothing answered)' );
 sw_true( false === strpos( $html, 'rotates at midnight' ), 'WP_Error → no fabricated dates' );
 
@@ -434,7 +434,7 @@ sw_true( false === strpos( $html, 'could not read the worker' ), 'old-worker: NO
 sw_reset();
 $GLOBALS['__test_http'] = array( 'response' => array( 'code' => 503 ), 'body' => 'edge sad' );
 $html = sw_render();
-sw_true( false !== strpos( $html, '— could not read the worker.' ), 'non-200 → em-dash + could-not-read' );
+sw_true( false !== strpos( $html, 'could not read the worker.' ), 'non-200 → em-dash + could-not-read' );
 sw_true( false === strpos( $html, 'salt keys (KV read failed' ), 'non-200 → NOT the kv-failed copy (no valid answer)' );
 
 // 10. Transient-cache pin: a SECOND render costs zero fetches.
@@ -484,7 +484,7 @@ sw_true( false === strpos( $html, 'salt key' ), 'key_count null → no count lin
 // /_sn/version endpoint. Both cards must refresh on one click — otherwise the
 // version card flips to the new deploy while the salt card serves a stale
 // transient for up to 10 minutes (adjacent cards from one endpoint disagreeing).
-echo "\nGroup F: Re-check now — the shared force flag drives the salt card too\n";
+echo "\nGroup F: Re-check now: the shared force flag drives the salt card too\n";
 
 // A verified re-check bypasses a warm (stale) transient.
 sw_reset();
@@ -526,7 +526,7 @@ sw_eq( 0, count( $GLOBALS['__test_get_calls'] ), 'forged re-check → no live pr
 sw_true( false !== strpos( $html, 'Worker predates the salt window readout (needs v1.14.0+).' ), 'forged re-check → served from the cached transient' );
 
 // ─── Group E: wiring — mount + loader source contracts ────────────────
-echo "\nGroup E: wiring — settings-column mount + loader require\n";
+echo "\nGroup E: wiring: settings-column mount + loader require\n";
 
 $admin_src = file_get_contents( __DIR__ . '/../inc/analytics-admin.php' );
 sw_true( false !== strpos( $admin_src, "function_exists( 'sn_salt_window_render_card' )" ), 'mount: settings section calls the readout behind a function_exists guard' );

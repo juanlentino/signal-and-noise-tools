@@ -471,7 +471,7 @@ function sn_settings_seed_legacy_values() {
 				'slug' => 'sn-login',
 			),
 			'seo_copy' => array(
-				'home_title'             => 'Juan Lentino — Music producer & creative strategist',
+				'home_title'             => 'Juan Lentino. Music producer & creative strategist',
 				'home_description'       => 'Music producer, mix engineer, and creative strategist based in Buenos Aires. Founder of Panacea recording studio.',
 				'notes_title'            => 'Notes — Juan Lentino',
 				'notes_description'      => 'Working notes on music, AI, and the infrastructure underneath. Written when there\'s something worth writing.',

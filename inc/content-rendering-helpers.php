@@ -112,7 +112,7 @@ function sn_provenance_papers_index_markup() {
 			<!-- /wp:paragraph -->
 
 			<!-- wp:paragraph {"className":"sn-prov-paper-blurb","style":{"typography":{"fontSize":"0.875rem"},"spacing":{"margin":{"top":"0","bottom":"var:preset|spacing|30"}}}} -->
-			<p class="sn-prov-paper-blurb" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--30);font-size:0.875rem">Extends the provenance argument from authorship verification to identifier infrastructure. The proposal is cryptographic provenance as a substrate beneath ISRC, ISWC, and the rest of the music industry's identifier stack — self-issuing, collision-resistant, signed at creation, with legacy identifiers continuing to function as aliases. The unmatched royalty pool, hundreds of millions at the MLC alone, is a downstream consequence of identifier failure.</p>
+			<p class="sn-prov-paper-blurb" style="margin-top:0;margin-bottom:var(--wp--preset--spacing--30);font-size:0.875rem">Extends the provenance argument from authorship verification to identifier infrastructure. The proposal is cryptographic provenance as a substrate beneath ISRC, ISWC, and the rest of the music industry's identifier stack: self-issuing, collision-resistant, signed at creation, with legacy identifiers continuing to function as aliases. The unmatched royalty pool, hundreds of millions at the MLC alone, is a downstream consequence of identifier failure.</p>
 			<!-- /wp:paragraph -->
 
 			<!-- wp:paragraph {"className":"sn-prov-paper-longform","style":{"typography":{"fontSize":"0.8rem","fontStyle":"italic"},"spacing":{"margin":{"top":"0","bottom":"0"}}},"textColor":"rust"} -->

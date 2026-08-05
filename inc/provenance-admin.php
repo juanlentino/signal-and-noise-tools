@@ -442,7 +442,7 @@ function sn_prov_admin_render_sweep_notice() {
 			)
 			: sprintf(
 				/* translators: %d: still-pending count */
-				_n( 'Nothing new — %d proof is still awaiting Bitcoin confirmation.', 'Nothing new — %d proofs are still awaiting Bitcoin confirmation.', $pend, 'signal-and-noise-tools' ),
+				_n( 'Nothing new. %d proof is still awaiting Bitcoin confirmation.', 'Nothing new. %d proofs are still awaiting Bitcoin confirmation.', $pend, 'signal-and-noise-tools' ),
 				$pend
 			);
 	} else {
@@ -558,7 +558,7 @@ function sn_prov_admin_render_genesis_fieldset( array $sys ) {
 	echo '<input type="hidden" name="action" value="sn_prov_reanchor" />';
 	echo '<button type="submit" class="button"' . ( $anchored ? ' disabled' : '' ) . '>' . esc_html__( 'Re-anchor genesis', 'signal-and-noise-tools' ) . '</button>';
 	if ( $anchored ) {
-		echo ' <span class="sn-fieldset-intro">' . esc_html__( 'Already anchored — nothing to re-anchor.', 'signal-and-noise-tools' ) . '</span>';
+		echo ' <span class="sn-fieldset-intro">' . esc_html__( 'Already anchored: nothing to re-anchor.', 'signal-and-noise-tools' ) . '</span>';
 	}
 	echo '</form>';
 	echo '</div>';

@@ -91,7 +91,7 @@ function snt_generated_pages_evaluate( $bodies ) {
 		if ( '' === trim( $body ) ) {
 			$out[ $page ] = array(
 				'ok'     => false,
-				'detail' => sprintf( '/%s has an empty stored body — the sync engine never wrote, or the body was cleared.', $page ),
+				'detail' => sprintf( '/%s has an empty stored body: the sync engine never wrote, or the body was cleared.', $page ),
 			);
 			continue;
 		}
@@ -101,7 +101,7 @@ function snt_generated_pages_evaluate( $bodies ) {
 		if ( ! empty( $contract['block_markup'] ) && 0 === strpos( ltrim( $body ), '<!-- wp:html' ) ) {
 			$out[ $page ] = array(
 				'ok'     => false,
-				'detail' => sprintf( '/%s is wrapped in wp:html — WordPress enqueues no core block styles for it, so the page renders unstyled (the v10.33.1 regression).', $page ),
+				'detail' => sprintf( '/%s is wrapped in wp:html. WordPress enqueues no core block styles for it, so the page renders unstyled (the v10.33.1 regression).', $page ),
 			);
 			continue;
 		}
@@ -117,7 +117,7 @@ function snt_generated_pages_evaluate( $bodies ) {
 			$out[ $page ] = array(
 				'ok'     => false,
 				'detail' => sprintf(
-					'/%s is missing %s in its stored body — the hero or its band width did not survive the last write.',
+					'/%s is missing %s in its stored body: the hero or its band width did not survive the last write.',
 					$page,
 					implode( ', ', $missing )
 				),

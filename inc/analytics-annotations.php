@@ -517,5 +517,5 @@ function sn_annotation_maturity_migration( $rows, $from, $to ) {
 	if ( ! $hit ) {
 		return null;
 	}
-	return __( 'Maturity pages moved under /maturity/ on Jul 30, 2026 — history before that date lives on the old top-level paths, after it on the new ones.', 'signal-and-noise-tools' );
+	return __( 'Maturity pages moved under /maturity/ on Jul 30, 2026: history before that date lives on the old top-level paths, after it on the new ones.', 'signal-and-noise-tools' );
 }

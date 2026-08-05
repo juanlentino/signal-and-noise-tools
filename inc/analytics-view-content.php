@@ -88,7 +88,7 @@ function snt_analytics_render_view_content( $from, $to, $class, $granularity ) {
 	$journeys_gone = empty( $entry_rows ) && empty( $exit_rows ) && empty( $lowe_rows );
 	if ( ! $journeys_gone ) {
 		echo '<div class="sn-an-journeys-label">'
-			. esc_html__( 'Journeys & diagnostics — entry/exit are human only', 'signal-and-noise-tools' )
+			. esc_html__( 'Journeys & diagnostics: entry/exit are human only', 'signal-and-noise-tools' )
 			. '</div>';
 		echo '<div class="sn-an-journeys-grid">';
 	}

@@ -197,17 +197,17 @@ function sn_analytics_funnels_error( $line_num, $kind, $reason ) {
 function sn_analytics_funnels_kind_message( $kind ) {
 	switch ( $kind ) {
 		case 'colon':
-			return __( 'missing ":" — expected "Name: /step > /step".', 'signal-and-noise-tools' );
+			return __( 'missing ":": expected "Name: /step > /step".', 'signal-and-noise-tools' );
 		case 'name':
 			return __( 'funnel name is empty.', 'signal-and-noise-tools' );
 		case 'long':
 			return __( 'line is too long (name max 80 chars, steps max 200).', 'signal-and-noise-tools' );
 		case 'step':
-			return __( 'a step contains a space or ":" — check for an extra ":" earlier in the line.', 'signal-and-noise-tools' );
+			return __( 'a step contains a space or ":": check for an extra ":" earlier in the line.', 'signal-and-noise-tools' );
 		case 'few':
 			return __( 'needs at least 2 steps.', 'signal-and-noise-tools' );
 		case 'many':
-			return __( 'too many funnels or steps — the limit was exceeded and this line wasn\'t saved.', 'signal-and-noise-tools' );
+			return __( 'too many funnels or steps: the limit was exceeded and this line wasn\'t saved.', 'signal-and-noise-tools' );
 	}
 	return '';
 }
@@ -271,7 +271,7 @@ function sn_analytics_parse_funnels( $raw ) {
 				'many',
 				sprintf(
 					/* translators: %d: max funnel count */
-					__( 'too many funnels (max %d) — this line was skipped.', 'signal-and-noise-tools' ),
+					__( 'too many funnels (max %d): this line was skipped.', 'signal-and-noise-tools' ),
 					SN_ANALYTICS_FUNNELS_MAX
 				)
 			);

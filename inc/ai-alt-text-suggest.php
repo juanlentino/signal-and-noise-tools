@@ -222,7 +222,7 @@ function snt_ai_alt_suggest_impl( $attachment_id ) {
 	if ( empty( $context_parts ) && ! $has_image ) {
 		return new WP_Error(
 			'snt_ai_empty_post',
-			__( 'No context available — attachment has no readable image, title, caption, filename, or referencing posts.', 'signal-and-noise-tools' ),
+			__( 'No context available: attachment has no readable image, title, caption, filename, or referencing posts.', 'signal-and-noise-tools' ),
 			array( 'status' => 422 )
 		);
 	}

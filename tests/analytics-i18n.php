@@ -63,7 +63,7 @@ function capture( $fn ) { ob_start(); $fn(); return (string) ob_get_clean(); }
 
 echo "analytics-i18n suite - plugin v9.42.1\n";
 
-echo "\nTest: drill-down panel — title, headers, labels route through i18n\n";
+echo "\nTest: drill-down panel: title, headers, labels route through i18n\n";
 $html = capture( function () {
 	snt_analytics_render_drilldown_panel( 'country', 'DE', array( array( 'path' => '/x', 'views' => 3, 'visits' => 2 ) ) );
 } );
@@ -79,7 +79,7 @@ $html = capture( function () {
 ok( sn_i18n_seen( 'No pages for this segment in this range (or it needs live Analytics Engine data).' ), 'segment-empty why translatable' );
 ok( false !== strpos( $html, 'No pages for this segment in this range (or it needs live Analytics Engine data).' ), 'segment-empty English unchanged' );
 
-echo "\nTest: paths table — headers + empty why\n";
+echo "\nTest: paths table: headers + empty why\n";
 $html = capture( function () {
 	snt_analytics_render_paths_table( array( array( 'path' => '/a/', 'views' => 9, 'visits' => 5, 'scroll_avg' => 40.0, 'time_avg' => 30000.0 ) ) );
 } );
@@ -94,13 +94,13 @@ $html = capture( function () {
 } );
 ok( false !== strpos( $html, '>Views</th>' ) && false !== strpos( $html, '>Visits</th>' ), 'dim header English unchanged' );
 capture( function () { snt_analytics_render_lowengage( array() ); } );
-ok( sn_i18n_seen( 'No low-engagement pages in this range — readers are sticking around.' ), 'low-engagement why translatable' );
+ok( sn_i18n_seen( 'No low-engagement pages in this range: readers are sticking around.' ), 'low-engagement why translatable' );
 $html = capture( function () {
 	snt_analytics_render_pageroles_table( array( array( 'path' => '/a', 'views' => 2, 'visits' => 2 ) ), 'entry' );
 } );
 ok( sn_i18n_seen( 'Path' ) && false !== strpos( $html, '>Path</th>' ), 'pageroles headers translatable, English unchanged' );
 
-echo "\nTest: events tables — headers, Property:/Clear, whys\n";
+echo "\nTest: events tables: headers, Property:/Clear, whys\n";
 $html = capture( function () {
 	snt_analytics_render_events_table( array( array( 'name' => 'click', 'events' => 3, 'visitors' => 2 ) ) );
 } );
@@ -117,7 +117,7 @@ ok( sn_i18n_seen( 'Value' ), 'props Value header translatable' );
 capture( function () { snt_analytics_render_event_props_table( array(), '' ); } );
 ok( sn_i18n_seen( 'No event properties in this range yet.' ), 'props empty why translatable' );
 
-echo "\nTest: quality — legend, bot-networks table, whys\n";
+echo "\nTest: quality: legend, bot-networks table, whys\n";
 $html = capture( function () {
 	snt_analytics_render_bot_breakdown( array(
 		'totals'           => array( 'human' => 4, 'suspect' => 1, 'bot' => 2, 'total' => 7 ),
@@ -147,7 +147,7 @@ function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['_
 function sn_mask_secret( $s ) { return '' === (string) $s ? '' : '••••'; }
 require_once __DIR__ . '/../inc/analytics-render-settings.php';
 
-echo "\nTest: settings surface — credentials form (unlocked) routes labels/help/placeholders/buttons through i18n\n";
+echo "\nTest: settings surface: credentials form (unlocked) routes labels/help/placeholders/buttons through i18n\n";
 $html = capture( 'snt_analytics_render_credentials' );
 ok( sn_i18n_seen( 'Credentials' ), 'credentials heading translatable' );
 ok( sn_i18n_seen( 'Read-only Cloudflare credentials the dashboard uses to query Analytics Engine. A wp-config constant (%1$s / %2$s) overrides these and locks the field.' ), 'credentials help prose is a translatable sprintf msgid' );
@@ -164,7 +164,7 @@ ok( false !== strpos( $html, 'placeholder="32-char Cloudflare account ID"' ), 'a
 ok( false !== strpos( $html, 'placeholder="Paste a fresh token; type ‘clear’ to remove"' ), 'token placeholder English byte-identical (curly quotes: htmlspecialchars/ENT_QUOTES only touches ASCII \' , same dodge the file already uses at lines 143/175/263/308/386)' );
 ok( false !== strpos( $html, '>Save</button>' ) && false !== strpos( $html, '>Test connection</button>' ), 'button labels English byte-identical' );
 
-echo "\nTest: settings surface — credentials form (locked) routes the locked-value copy through i18n\n";
+echo "\nTest: settings surface: credentials form (locked) routes the locked-value copy through i18n\n";
 define( 'SN_CF_ACCOUNT_ID', 'abc123' );
 define( 'SN_CF_ANALYTICS_TOKEN', 'shh-secret' );
 $html2 = capture( 'snt_analytics_render_credentials' );
@@ -172,24 +172,24 @@ ok( sn_i18n_seen( '(set in wp-config)' ), 'locked-field value copy translatable'
 ok( false !== strpos( $html2, 'value="(set in wp-config)"' ), 'locked-field value English byte-identical' );
 ok( false === strpos( $html2, '<button' ), 'both constants locked → no Save/Test buttons rendered (unrelated to i18n, sanity check on the fixture)' );
 
-echo "\nTest: settings surface — worker-setup reference routes the summary + setup-doc <li>s through i18n\n";
+echo "\nTest: settings surface: worker-setup reference routes the summary + setup-doc <li>s through i18n\n";
 $html3 = capture( 'snt_analytics_render_worker_setup' );
 ok( sn_i18n_seen( 'Cloudflare Worker setup (manual, one-time)' ), 'worker-setup summary translatable' );
 ok( sn_i18n_seen( 'Read token' ), 'Read-token step label translatable' );
 ok( sn_i18n_seen( '(for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with %1$s. The Account ID is in the dashboard URL: %2$s.' ), 'Read-token step prose is a translatable sprintf msgid' );
 ok( sn_i18n_seen( 'Deploy the edge Worker + its secrets' ), 'Deploy step label translatable' );
-ok( sn_i18n_seen( '(from the analytics-worker repo — this can’t be done from WordPress):' ), 'Deploy step prose translatable' );
+ok( sn_i18n_seen( '(from the analytics-worker repo: this can’t be done from WordPress):' ), 'Deploy step prose translatable' );
 ok( sn_i18n_seen( 'Theme beacon' ), 'Theme-beacon step label translatable' );
 ok( sn_i18n_seen( 'set %1$s in %2$s to the SAME value as the Worker’s %3$s so the front-end beacon is accepted.' ), 'Theme-beacon step prose is a translatable sprintf msgid' );
 ok( sn_i18n_seen( 'Hit %s above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.' ), 'final step prose is a translatable sprintf msgid' );
 ok( false !== strpos( $html3, '<summary>Cloudflare Worker setup (manual, one-time)</summary>' ), 'worker-setup summary English byte-identical' );
 ok( false !== strpos( $html3, '<li><strong>Read token</strong> (for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with <code>Account · Analytics · Read</code>. The Account ID is in the dashboard URL: <code>dash.cloudflare.com/&lt;account_id&gt;</code>.</li>' ), 'Read-token step English byte-identical (Cloudflare permission scope + URL pattern stay outside the msgid)' );
-ok( false !== strpos( $html3, '<li><strong>Deploy the edge Worker + its secrets</strong> (from the analytics-worker repo — this can’t be done from WordPress):<pre class="sn-an-pre">wrangler secret put SN_PX_TOKEN' ), 'Deploy step English byte-identical through the <pre> block' );
+ok( false !== strpos( $html3, '<li><strong>Deploy the edge Worker + its secrets</strong> (from the analytics-worker repo: this can’t be done from WordPress):<pre class="sn-an-pre">wrangler secret put SN_PX_TOKEN' ), 'Deploy step English byte-identical through the <pre> block' );
 ok( false !== strpos( $html3, "wrangler deploy</pre></li>" ), 'wrangler command block unchanged (literal shell commands, not translatable)' );
 ok( false !== strpos( $html3, '<li><strong>Theme beacon</strong>: set <code>SN_BEACON_TOKEN</code> in <code>wp-config.php</code> to the SAME value as the Worker’s <code>SN_PX_TOKEN</code> so the front-end beacon is accepted.</li>' ), 'Theme-beacon step English byte-identical (constant names + file name stay outside the msgid)' );
 ok( false !== strpos( $html3, '<li>Hit <strong>Test connection</strong> above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.</li>' ), 'final step English byte-identical (reuses the Test connection msgid)' );
 
-echo "\nTest: source contract — wrapped forms pinned at heavy-fixture call sites\n";
+echo "\nTest: source contract: wrapped forms pinned at heavy-fixture call sites\n";
 $contract = array(
 	'inc/analytics-view-content.php'      => array(
 		"__( 'Top sources', 'signal-and-noise-tools' )",
@@ -212,13 +212,13 @@ $contract = array(
 		"__( 'No TLS data in this range yet.', 'signal-and-noise-tools' )",
 	),
 	'inc/analytics-view-engagement.php'   => array(
-		"__( 'No TCP round-trips in this range — HTTP/3 connections carry no RTT, so only HTTP/1–2 visitors are measured (needs worker v1.7.0 + traffic).', 'signal-and-noise-tools' )",
+		"__( 'No TCP round-trips in this range. HTTP/3 connections carry no RTT, so only HTTP/1–2 visitors are measured (needs worker v1.7.0 + traffic).', 'signal-and-noise-tools' )",
 		"__( 'Percentiles need live Analytics Engine data for this window.', 'signal-and-noise-tools' )",
-		"__( 'No field Core Web Vitals yet — needs the web-vitals beacon (theme v10.14.0) + worker v1.8.0 + traffic.', 'signal-and-noise-tools' )",
-		"__( '(reflects the last ~90 days — Analytics Engine raw retention)', 'signal-and-noise-tools' )",
+		"__( 'No field Core Web Vitals yet: needs the web-vitals beacon (theme v10.14.0) + worker v1.8.0 + traffic.', 'signal-and-noise-tools' )",
+		"__( '(reflects the last ~90 days. Analytics Engine raw retention)', 'signal-and-noise-tools' )",
 	),
 	'inc/analytics-view-quality.php'      => array(
-		"__( 'No bot-confidence scores in this range — needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).', 'signal-and-noise-tools' )",
+		"__( 'No bot-confidence scores in this range: needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).', 'signal-and-noise-tools' )",
 	),
 	'inc/analytics-admin.php'             => array(
 		"esc_html__( 'No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.', 'signal-and-noise-tools' )",
@@ -261,7 +261,7 @@ $contract = array(
 		"esc_html__( 'Read token', 'signal-and-noise-tools' )",
 		"esc_html__( '(for the fields above): Cloudflare dashboard → My Profile → API Tokens → create a token with %1\$s. The Account ID is in the dashboard URL: %2\$s.', 'signal-and-noise-tools' )",
 		"esc_html__( 'Deploy the edge Worker + its secrets', 'signal-and-noise-tools' )",
-		"esc_html__( '(from the analytics-worker repo — this can’t be done from WordPress):', 'signal-and-noise-tools' )",
+		"esc_html__( '(from the analytics-worker repo: this can’t be done from WordPress):', 'signal-and-noise-tools' )",
 		"esc_html__( 'Theme beacon', 'signal-and-noise-tools' )",
 		"esc_html__( 'set %1\$s in %2\$s to the SAME value as the Worker’s %3\$s so the front-end beacon is accepted.', 'signal-and-noise-tools' )",
 		"esc_html__( 'Hit %s above once the token + account ID are saved to confirm the read side works. Pageview data appears within ~15 minutes.', 'signal-and-noise-tools' )",

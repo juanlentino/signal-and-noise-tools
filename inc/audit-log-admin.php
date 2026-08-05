@@ -51,7 +51,7 @@ function snt_audit_log_render_tab() {
 
 	// ── MAIN: intro + at-a-glance + the wide data tables ──
 	$retention_intro = (int) sn_setting( 'audit.retention_days', 90 );
-	echo '<p class="sn-prose">Captures login-related events (successful logins, failed attempts, our /wp-login.php and unauth /wp-admin reconnaissance 404s, password resets, LLA lockouts). ' . esc_html( $retention_intro ) . '-day retention. Hashed-IP unique-attacker count via ephemeral transient — no raw or hashed IPs are stored long-term.</p>';
+	echo '<p class="sn-prose">Captures login-related events (successful logins, failed attempts, our /wp-login.php and unauth /wp-admin reconnaissance 404s, password resets, LLA lockouts). ' . esc_html( $retention_intro ) . '-day retention. Hashed-IP unique-attacker count via ephemeral transient: no raw or hashed IPs are stored long-term.</p>';
 	snt_audit_log_render_hero( $summary );
 	snt_audit_log_render_counter_table( $counters );
 	snt_audit_log_render_logins_table( $logins );

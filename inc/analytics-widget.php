@@ -244,7 +244,7 @@ function sn_aw_sources( $standalone = true ) {
 	// honest empty copy below. (Also keeps array_map off a null.)
 	$srcs = sn_analytics_top_sources( $from, $to, 'human', 7 );
 	if ( ! is_array( $srcs ) ) {
-		sn_aw_kv_list( array(), __( 'The durable referrer rollup could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ) );
+		sn_aw_kv_list( array(), __( 'The durable referrer rollup could not be read (read failure: not an empty window).', 'signal-and-noise-tools' ) );
 		if ( $standalone ) {
 			sn_aw_footer();
 		}

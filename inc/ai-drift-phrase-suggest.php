@@ -37,9 +37,9 @@ const SNT_AI_DRIFT_SUGGEST_SYSTEM = 'Replace a time-relative phrase with a tempo
 	'output ONLY the replacement phrase. Rules: ' .
 	'(1) keep grammatical form (verb tense, plurality); ' .
 	'(2) prefer absolute references (years, dates, named events) over time-relative phrases; ' .
-	'(3) preserve the original meaning — replace the phrase, not the surrounding sentence; ' .
+	'(3) preserve the original meaning: replace the phrase, not the surrounding sentence; ' .
 	'(4) if no good replacement exists (the phrase is intentionally vague or the context does not support a specific date), output the literal marker PHRASE_NO_REPLACEMENT. ' .
-	'No preamble, no quotes, no markdown — output only the replacement string or the marker.';
+	'No preamble, no quotes, no markdown: output only the replacement string or the marker.';
 
 const SNT_AI_DRIFT_SUGGEST_MAX_TOKENS     = 60;
 const SNT_AI_DRIFT_FINGERPRINT_WINDOW     = 80;
@@ -212,7 +212,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
 	if ( -1 === $raw_position ) {
 		return new WP_Error(
 			'snt_ai_phrase_drifted',
-			__( 'Phrase no longer present in post content — post was edited since the scan. Re-run the scan to refresh.', 'signal-and-noise-tools' ),
+			__( 'Phrase no longer present in post content: post was edited since the scan. Re-run the scan to refresh.', 'signal-and-noise-tools' ),
 			array( 'status' => 409 )
 		);
 	}
@@ -319,7 +319,7 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 	}
 	// Reject any HTML angle brackets — drift replacements should be plain text.
 	if ( $replacement !== wp_strip_all_tags( $replacement ) ) {
-		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement contains HTML — only plain text allowed.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement contains HTML: only plain text allowed.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 	if ( ! current_user_can( 'edit_post', $post_id ) ) {
 		return new WP_Error( 'snt_ai_capability', __( 'You cannot edit this post.', 'signal-and-noise-tools' ), array( 'status' => 403 ) );

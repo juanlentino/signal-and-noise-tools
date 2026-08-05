@@ -144,7 +144,7 @@ function snt_analytics_overview_tab_doorway( $slug, $label, $range, $class, $fro
  */
 function snt_analytics_overview_prior_note_copy( $state ) {
 	if ( 'failed' === $state ) {
-		return __( 'The prior window could not be read — deltas suppressed (read failure, not an empty window).', 'signal-and-noise-tools' );
+		return __( 'The prior window could not be read: deltas suppressed (read failure, not an empty window).', 'signal-and-noise-tools' );
 	}
 	if ( 'empty' === $state ) {
 		return __( 'No prior data in the comparison window yet.', 'signal-and-noise-tools' );
@@ -405,18 +405,18 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 		return; // rollup module absent — production loads it unconditionally.
 	}
 	if ( null === $range_rows ) {
-		snt_an_note_empty( $title, __( 'The durable session rollup could not be read — a read failure, not an empty window.', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( $title, __( 'The durable session rollup could not be read: a read failure, not an empty window.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	$kpis = snt_analytics_overview_session_kpis( $range_rows );
 	if ( null === $kpis ) {
-		snt_an_note_empty( $title, __( 'No rolled-up days in this window yet — the nightly session rollup writes one row per day and class after each UTC day closes.', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( $title, __( 'No rolled-up days in this window yet: the nightly session rollup writes one row per day and class after each UTC day closes.', 'signal-and-noise-tools' ) );
 		return;
 	}
 
 	// The v9.65.0 units lesson: same dashboard, same word, two units — say
 	// which one this is. (Sessions here ≠ the headline's visitor-day Visits.)
-	$header_meta = __( 'within-day sessions · nightly rollup — a different unit from the Overview headline&#8217;s visitor-day Visits', 'signal-and-noise-tools' );
+	$header_meta = __( 'within-day sessions · nightly rollup: a different unit from the Overview headline&#8217;s visitor-day Visits', 'signal-and-noise-tools' );
 	$doorway     = (string) ( $opts['doorway'] ?? '' );
 	if ( '' !== $doorway ) {
 		$header_meta .= ' · ' . $doorway; // PART A: the doorway to the full Sessions tab.
@@ -510,7 +510,7 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 			if ( count( $weekly ) < 2 ) {
 				echo '<p class="sn-an-empty">' . esc_html( sprintf(
 					/* translators: %d: number of rolled-up ISO weeks available so far. */
-					__( 'The bounce trend needs at least two rolled-up weeks — %d so far in the 8-week window.', 'signal-and-noise-tools' ),
+					__( 'The bounce trend needs at least two rolled-up weeks. %d so far in the 8-week window.', 'signal-and-noise-tools' ),
 					count( $weekly )
 				) ) . '</p>';
 			} else {
@@ -531,7 +531,7 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 					),
 					array(
 						/* translators: %s: the trend window's inclusive end date (Y-m-d) — the range control's end date. */
-						'head'      => sprintf( __( 'Bounce — 8 weeks to %s', 'signal-and-noise-tools' ), $trend_to ),
+						'head'      => sprintf( __( 'Bounce: 8 weeks to %s', 'signal-and-noise-tools' ), $trend_to ),
 						'meta'      => $meta,
 						'axis'      => array( (string) $weekly[0]['week_start'], (string) $last['week_start'] ),
 						'id_suffix' => 'OvBounce',
@@ -557,14 +557,14 @@ function snt_analytics_render_overview_session_quality( $range_rows, $trend_rows
 function snt_analytics_render_overview_rightnow( $now, $today ) {
 	snt_an_panel_open( __( 'Right now', 'signal-and-noise-tools' ), array(
 		'panel_class' => 'sn-an-rightnow',
-		'header_meta' => __( 'cron-warmed — never queried on page load', 'signal-and-noise-tools' ),
+		'header_meta' => __( 'cron-warmed: never queried on page load', 'signal-and-noise-tools' ),
 	) );
 	$cards   = array();
 	$cards[] = ( null === $now )
-		? array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming — no cron sample yet', 'signal-and-noise-tools' ) )
+		? array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming: no cron sample yet', 'signal-and-noise-tools' ) )
 		: array( 'l' => __( 'Active visitors', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $now ), 'sub' => __( '5-minute window', 'signal-and-noise-tools' ) );
 	$cards[] = ( null === $today )
-		? array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming — no sample for today yet', 'signal-and-noise-tools' ) )
+		? array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => '—', 'sub' => __( 'warming: no sample for today yet', 'signal-and-noise-tools' ) )
 		: array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) $today ), 'sub' => __( 'human pageviews · site-local day', 'signal-and-noise-tools' ) );
 	snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit' ) );
 	snt_an_panel_close();

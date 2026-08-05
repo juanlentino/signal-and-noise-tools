@@ -62,7 +62,7 @@ function sn_admin_render_ai_settings_form() {
 	echo '<div class="sn-fieldset">';
 
 	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'Models &amp; budget', 'signal-and-noise-tools' ) . '</h2>';
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here — drafts, insights, meta descriptions, alt text — draws on the same monthly budget.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<div class="sn-field sn-field-w-md">';
 	echo '<label class="sn-field-label" for="sn_theme_ai_model">' . esc_html__( 'Prose model', 'signal-and-noise-tools' ) . '</label>';
@@ -109,7 +109,7 @@ function sn_admin_render_ai_settings_form() {
 		) . '</p>';
 		echo '<span class="sn-an-mirror-meter"><span style="width:' . esc_attr( (string) $pct_width ) . '%"></span></span>';
 		if ( $spent >= $budget ) {
-			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'The cap is reached — AI features are paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) . '</strong></p>';
+			echo '<p class="sn-field-helper"><strong>' . esc_html__( 'The cap is reached. AI features are paused until the next calendar month, or until you raise this number.', 'signal-and-noise-tools' ) . '</strong></p>';
 		}
 	} else {
 		echo '<p class="sn-field-helper">' . sprintf(

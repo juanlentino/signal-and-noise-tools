@@ -161,7 +161,7 @@ function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = fal
 	$read_failed = isset( $wpdb->last_error ) && '' !== (string) $wpdb->last_error;
 	if ( $read_failed ) {
 		error_log( sprintf(
-			'[sn-analytics] range totals read failed for %s..%s class %s — %s — serving null derived fields (a transport failure is NOT an answer)',
+			'[sn-analytics] range totals read failed for %s..%s class %s (%s) serving null derived fields (a transport failure is NOT an answer)',
 			(string) $from,
 			(string) $to,
 			$class,
@@ -309,7 +309,7 @@ function sn_analytics_read_integrity_guard( $from, $to, $class, $input, $derived
 	}
 
 	error_log( sprintf(
-		'[sn-analytics] integrity violation: views < pageview_visits for range %s..%s class %s (%d < %d) — read-side defensive guard, values served unmodified',
+		'[sn-analytics] integrity violation: views < pageview_visits for range %s..%s class %s (%d < %d): read-side defensive guard, values served unmodified',
 		$payload['from'],
 		$payload['to'],
 		$payload['class'],

@@ -34,7 +34,7 @@ function sn_admin_render_login_section() {
 	$slug_const   = defined( 'SN_LOGIN_SLUG' ) && SN_LOGIN_SLUG;
 	$login_url    = home_url( '/' . $slug );
 
-	echo '<p class="sn-prose">Custom login URL module — replaces <code>/wp-login.php</code> with a configurable slug. Designed to mask the WordPress login surface from automated bots without changing real user flows (password-reset emails, logout redirects, etc. are rewritten automatically).</p>';
+	echo '<p class="sn-prose">Custom login URL module: replaces <code>/wp-login.php</code> with a configurable slug. Designed to mask the WordPress login surface from automated bots without changing real user flows (password-reset emails, logout redirects, etc. are rewritten automatically).</p>';
 
 	// Status box
 	if ( $bypassed ) {
@@ -48,7 +48,7 @@ function sn_admin_render_login_section() {
 	} elseif ( $wps_active ) {
 		echo '<div class="sn-status-box sn-status-box--warn">';
 		echo '<div>';
-		echo '<p class="sn-status-box-title">Module dormant — conflict with wps-hide-login</p>';
+		echo '<p class="sn-status-box-title">Module dormant: conflict with wps-hide-login</p>';
 		echo '<p class="sn-status-box-body">The <code>wps-hide-login</code> plugin is still active. Our built-in module stands down to avoid rewrite conflicts. Deactivate that plugin to switch over to this one.</p>';
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--warn">Dormant</span>';
@@ -100,7 +100,7 @@ function sn_admin_render_login_section() {
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">Emergency unlock</p>';
 	echo '<p>If you ever lock yourself out (forgot the slug, can\'t reach the login form), add either of these constants to <code>wp-config.php</code> via SSH or your host\'s file manager:</p>';
-	echo '<pre>// Option 1 — pin the slug. Reachable at /&lt;slug-here&gt;.
+	echo '<pre>// Option 1: pin the slug. Reachable at /&lt;slug-here&gt;.
 define( \'SN_LOGIN_SLUG\', \'your-fallback-slug\' );
 
 // Option 2 — disable the module entirely. Restores /wp-login.php.

@@ -277,7 +277,7 @@ function snt_ability_purge_all_caches( $input ) {
 	$include_overrides = is_array( $input ) && ! empty( $input['include_template_overrides'] );
 
 	if ( ! has_filter( 'sn_purge_all_caches_result' ) ) {
-		return new WP_Error( 'snt_helper_unavailable', 'Cache helper unavailable — theme module not loaded.', array( 'status' => 500 ) );
+		return new WP_Error( 'snt_helper_unavailable', 'Cache helper unavailable: theme module not loaded.', array( 'status' => 500 ) );
 	}
 
 	// v10.4.1: verified => true routes the theme's CF leg through the BLOCKING
@@ -447,7 +447,7 @@ function snt_deploy_runs_age_label( $runs ) {
  */
 function snt_ability_clear_template_overrides() {
 	if ( ! has_filter( 'sn_clear_template_overrides_result' ) ) {
-		return new WP_Error( 'snt_helper_unavailable', 'Template override helper unavailable — theme module not loaded.', array( 'status' => 500 ) );
+		return new WP_Error( 'snt_helper_unavailable', 'Template override helper unavailable: theme module not loaded.', array( 'status' => 500 ) );
 	}
 
 	$count = (int) apply_filters( 'sn_clear_template_overrides_result', 0 );

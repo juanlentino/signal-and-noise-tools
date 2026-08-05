@@ -43,7 +43,7 @@ function sn_login_defense_widget_render() {
 		// the styled .sn-aw-err class (not a bare <p>) and the same prerequisite
 		// (the edge worker), so all three boxes read as one design system + tell
 		// one story when Cloudflare Analytics is disconnected.
-		echo '<p class="sn-aw-err">' . esc_html__( 'Login defense stats need the Cloudflare analytics edge worker connected — see the Analytics widgets above for setup.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-aw-err">' . esc_html__( 'Login defense stats need the Cloudflare analytics edge worker connected: see the Analytics widgets above for setup.', 'signal-and-noise-tools' ) . '</p>';
 		return;
 	}
 	echo '<div class="sn-aw-grid">';

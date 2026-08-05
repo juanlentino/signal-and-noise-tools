@@ -244,7 +244,7 @@ function snt_ability_list_cron_events( $input ) {
 	if ( null !== $sig && '' === $hook ) {
 		return new WP_Error(
 			'snt_cron_args_signature_requires_hook',
-			'args_signature narrows within a single hook — pass hook alongside it.',
+			'args_signature narrows within a single hook: pass hook alongside it.',
 			array( 'status' => 400 )
 		);
 	}
@@ -328,7 +328,7 @@ function snt_ability_run_cron_event( $input ) {
 	if ( str_starts_with( $hook, 'sn_' ) ) {
 		return new WP_Error(
 			'snt_sn_hook_refused',
-			'SN-internal hooks (sn_*) are not dispatchable via this ability — use the dedicated abilities for those actions.',
+			'SN-internal hooks (sn_*) are not dispatchable via this ability: use the dedicated abilities for those actions.',
 			array( 'status' => 422 )
 		);
 	}

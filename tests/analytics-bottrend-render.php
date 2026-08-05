@@ -21,7 +21,7 @@ require __DIR__ . '/../inc/analytics-admin-render.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
 
-echo "\nGroup: bot_trend render — smooth SVG chart (red, peak-labelled)\n";
+echo "\nGroup: bot_trend render: smooth SVG chart (red, peak-labelled)\n";
 
 $rows = array(
 	array( 'day' => '2026-06-10', 'bot_pct' => 10, 'total' => 50 ),
@@ -53,14 +53,14 @@ ob_start(); snt_analytics_render_bot_trend( array( array( 'day' => '2026-06-11',
 ok( strpos( $h1, ' C ' ) !== false, 'single day → visible flat line' );
 ok( strpos( $h1, 'peak 12% bot' ) !== false, 'single day → peak labelled (i18n-wrapped)' );
 
-echo "\nGroup: v9.68.1 — bot breakdown: a NULL networks list (failed dims read) says so, never a quiet omission\n";
+echo "\nGroup: v9.68.1: bot breakdown: a NULL networks list (failed dims read) says so, never a quiet omission\n";
 $bb_fail = array(
 	'totals'           => array( 'human' => 100, 'suspect' => 10, 'bot' => 30, 'total' => 140 ),
 	'top_bot_networks' => null, // sn_analytics_bot_breakdown carries the accessor's failed-read verdict through
 );
 ob_start(); snt_analytics_render_bot_breakdown( $bb_fail ); $hbf = ob_get_clean();
 ok( strpos( $hbf, 'Traffic quality' ) !== false, 'breakdown: the class totals (their own table) still render' );
-ok( strpos( $hbf, 'could not be read (read failure — not an empty window).' ) !== false,
+ok( strpos( $hbf, 'could not be read (read failure: not an empty window).' ) !== false,
 	'breakdown: the failed networks read renders the shared read-failure line' );
 ok( strpos( $hbf, 'Top bot networks' ) === false, 'breakdown: no half-table drawn from a failed read' );
 $bb_empty = array(

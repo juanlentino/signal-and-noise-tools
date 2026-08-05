@@ -40,7 +40,7 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 		// "Visits" (pageview-gated visitor-DAYS, durable rollup). Same word on
 		// one dashboard undid the honest-naming goal; the heading + one-line
 		// unit note below say which unit this is. Labels only — no metric changed.
-		snt_an_panel_open( __( 'Session quality', 'signal-and-noise-tools' ), array( 'header_meta' => 'within-day sessions · reset at UTC midnight — a different unit from the Overview headline&#8217;s visitor-day Visits' ) );
+		snt_an_panel_open( __( 'Session quality', 'signal-and-noise-tools' ), array( 'header_meta' => 'within-day sessions · reset at UTC midnight: a different unit from the Overview headline&#8217;s visitor-day Visits' ) );
 		snt_an_annotation( sn_annotation_visit_quality( $metrics ) ); // v9.5.0 read: high/low engaged-read range
 		// Cohesive with the Overview KPI strip — now literally shares snt_an_kpi_row.
 		// No period-over-period delta here yet, so the delta slot carries a muted
@@ -54,7 +54,7 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 		);
 		snt_an_kpi_row( $cards );
 		if ( $capped ) {
-			echo '<p class="sn-an-empty">' . esc_html__( 'Results capped for this window — narrow the date range for exact figures.', 'signal-and-noise-tools' ) . '</p>';
+			echo '<p class="sn-an-empty">' . esc_html__( 'Results capped for this window: narrow the date range for exact figures.', 'signal-and-noise-tools' ) . '</p>';
 		}
 		snt_an_panel_close();
 	}
@@ -138,15 +138,15 @@ function snt_analytics_render_summary_panels( $metrics, $paths, $funnels, $cappe
 function snt_analytics_render_session_trend( $rows ) {
 	$title = __( 'Session quality trend', 'signal-and-noise-tools' );
 	if ( ! is_array( $rows ) ) {
-		snt_an_note_empty( $title, __( 'The durable session rollup table could not be read — this is a read failure, not an empty window.', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( $title, __( 'The durable session rollup table could not be read: this is a read failure, not an empty window.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	if ( 0 === count( $rows ) ) {
-		snt_an_note_empty( $title, __( 'The nightly session rollup has no rolled-up days in this window yet — it writes one row per day and class after each UTC day closes.', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( $title, __( 'The nightly session rollup has no rolled-up days in this window yet: it writes one row per day and class after each UTC day closes.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	if ( count( $rows ) < 2 ) {
-		snt_an_note_empty( $title, __( 'Only one rolled-up day in this window — the trend needs at least two.', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( $title, __( 'Only one rolled-up day in this window: the trend needs at least two.', 'signal-and-noise-tools' ) );
 		return;
 	}
 
@@ -160,7 +160,7 @@ function snt_analytics_render_session_trend( $rows ) {
 	// The explicit unit line (Part 3): sessions, not the headline's visitor-days.
 	echo '<p class="sn-an-empty">' . esc_html( sprintf(
 		/* translators: %d: number of days the nightly rollup has written in this window */
-		__( 'Counts within-day sessions (reset at UTC midnight) across %d rolled-up days — a different unit from the Overview headline\'s visitor-day Visits.', 'signal-and-noise-tools' ),
+		__( 'Counts within-day sessions (reset at UTC midnight) across %d rolled-up days: a different unit from the Overview headline\'s visitor-day Visits.', 'signal-and-noise-tools' ),
 		count( $rows )
 	) ) . '</p>';
 	snt_an_trend_svg( $bounce, array(

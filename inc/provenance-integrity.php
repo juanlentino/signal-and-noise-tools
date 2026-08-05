@@ -480,12 +480,12 @@ function sn_prov_integrity_findings( $state ) {
 	$legs = array(
 		'hash_mismatch'        => 'stored payload no longer reproduces the anchored content hash (hash mismatch)',
 		'twin_drift'           => 'the published .json twin\'s words no longer match the signed payload (twin drift)',
-		'twin_unreachable'     => 'the published .json twin could not be fetched (unreachable — an outage, not drift)',
-		'twin_missing'         => 'the published .json twin has 404ed for three consecutive sweeps (twin missing — the public twin is gone, not blipping)',
+		'twin_unreachable'     => 'the published .json twin could not be fetched (unreachable: an outage, not drift)',
+		'twin_missing'         => 'the published .json twin has 404ed for three consecutive sweeps (twin missing: the public twin is gone, not blipping)',
 		'ledger_missing'       => 'the public ledger record notes/<uid>/v<n>.json is absent (ledger missing)',
-		'ledger_unreachable'   => 'the public ledger could not be reached (unreachable — an outage, not drift)',
+		'ledger_unreachable'   => 'the public ledger could not be reached (unreachable: an outage, not drift)',
 		'ledger_hash_mismatch' => 'the public ledger record attests a different content hash (ledger contradiction)',
-		'ledger_record_malformed' => 'the public ledger record exists but carries no content_hash (malformed record — it attests nothing)',
+		'ledger_record_malformed' => 'the public ledger record exists but carries no content_hash (malformed record: it attests nothing)',
 	);
 
 	$out   = array();
@@ -522,7 +522,7 @@ function sn_prov_integrity_findings( $state ) {
 			'subject_url'   => '',
 			'subject_label' => 'ledger key file',
 			'edit_url'      => '',
-			'note'          => 'The public ledger\'s keys/provenance-keys.json no longer serves the published key id with the published key bytes (key mismatch) — readers can no longer independently verify signatures.',
+			'note'          => 'The public ledger\'s keys/provenance-keys.json no longer serves the published key id with the published key bytes (key mismatch): readers can no longer independently verify signatures.',
 		);
 	} elseif ( 'keys_missing' === $kv_result ) {
 		$out[] = array(
@@ -531,7 +531,7 @@ function sn_prov_integrity_findings( $state ) {
 			'subject_url'   => '',
 			'subject_label' => 'ledger key file',
 			'edit_url'      => '',
-			'note'          => 'The public ledger\'s keys/provenance-keys.json has 404ed for three consecutive sweeps — the key file is absent from the ledger, not blipping. Readers cannot independently cross-check signatures until it is restored.',
+			'note'          => 'The public ledger\'s keys/provenance-keys.json has 404ed for three consecutive sweeps: the key file is absent from the ledger, not blipping. Readers cannot independently cross-check signatures until it is restored.',
 		);
 	} elseif ( 'keys_unreachable' === $kv_result ) {
 		$out[] = array(
@@ -540,7 +540,7 @@ function sn_prov_integrity_findings( $state ) {
 			'subject_url'   => '',
 			'subject_label' => 'ledger key file',
 			'edit_url'      => '',
-			'note'          => 'The public ledger\'s keys/provenance-keys.json could not be reached (unreachable — an outage, not drift, not a key rotation).',
+			'note'          => 'The public ledger\'s keys/provenance-keys.json could not be reached (unreachable: an outage, not drift, not a key rotation).',
 		);
 	}
 
@@ -562,7 +562,7 @@ function sn_prov_integrity_findings( $state ) {
 function sn_health_check_provenance_integrity( $fetcher = null ) {
 	$label = 'Provenance integrity';
 	if ( ! function_exists( 'sn_prov_get_chain' ) || ! function_exists( 'sn_prov_active' ) || ! sn_prov_active() ) {
-		return sn_health_pack_check( $label, array(), 'Provenance subsystem inactive (ext-intl absent) — sweep skipped, nothing flagged.' );
+		return sn_health_pack_check( $label, array(), 'Provenance subsystem inactive (ext-intl absent): sweep skipped, nothing flagged.' );
 	}
 
 	$summary  = sn_prov_integrity_run_sweep( $fetcher );
@@ -574,7 +574,7 @@ function sn_health_check_provenance_integrity( $fetcher = null ) {
 			$label,
 			array(),
 			sprintf(
-				'Provenance integrity: all triangle legs held (payload hash, live .json twin, public ledger + key file) — %1$d of %2$d Notes verified this run; coverage rotates oldest-checked-first, so the whole fleet accrues across scans.',
+				'Provenance integrity: all triangle legs held (payload hash, live .json twin, public ledger + key file). %1$d of %2$d Notes verified this run; coverage rotates oldest-checked-first, so the whole fleet accrues across scans.',
 				(int) $summary['checked'],
 				(int) $summary['fleet']
 			)
@@ -584,7 +584,7 @@ function sn_health_check_provenance_integrity( $fetcher = null ) {
 	return sn_health_pack_check(
 		$label,
 		$findings,
-		'Each finding names WHICH leg failed. Mismatch legs (hash mismatch, twin drift, ledger missing/contradiction, key mismatch) are the drift class the /verify page would show a reader — investigate against the ledger + the anchor worker before touching content. Unreachable legs are outages, not drift: re-run the scan once the endpoint is back. State persists across scans and clears when a re-checked Note comes back clean.'
+		'Each finding names WHICH leg failed. Mismatch legs (hash mismatch, twin drift, ledger missing/contradiction, key mismatch) are the drift class the /verify page would show a reader: investigate against the ledger + the anchor worker before touching content. Unreachable legs are outages, not drift: re-run the scan once the endpoint is back. State persists across scans and clears when a re-checked Note comes back clean.'
 	);
 }
 

@@ -65,7 +65,7 @@ function sn_admin_render_identity_and_seo_form() {
 			array( 'Music Production', 'Audio Engineering', 'Provenance', 'Music Industry' )
 		);
 		echo '<textarea id="sn_identity_knows_about" name="identity_knows_about" rows="4">' . esc_textarea( implode( "\n", $knows_about_value ) ) . '</textarea>';
-		echo '<p class="sn-field-helper">One topic per line. Emitted as the <code>knowsAbout</code> array on the Person schema — domain expertise areas that signal to search engines what this person is about. Leave a line blank to omit the entry.</p>';
+		echo '<p class="sn-field-helper">One topic per line. Emitted as the <code>knowsAbout</code> array on the Person schema: domain expertise areas that signal to search engines what this person is about. Leave a line blank to omit the entry.</p>';
 		echo '</div>';
 
 		echo '<div class="sn-field sn-field-w-xs">';

@@ -1523,7 +1523,7 @@ snt_os_compat_add_filter( 'desktop_mode_ai_system_prompt_appendix', 'openstation
 	return trim( $appendix . "\n" . implode( ' ', array(
 		$marker,
 		'Traffic is classed human, suspect, or bot; every reported figure is human-only unless a class is named.',
-		'"views" is sample-corrected pageviews; "visits" is approximate unique visitors (visitor-day hashes), NOT sessions — treat views and visits as estimates, not an exact ratio.',
+		'"views" is sample-corrected pageviews; "visits" is approximate unique visitors (visitor-day hashes), NOT sessions: treat views and visits as estimates, not an exact ratio.',
 		'scroll_avg is mean scroll depth (0-100%); time_avg is mean dwell time in MILLISECONDS.',
 		'A null metric means never measured, not zero; a real zero is reported as 0.',
 	) ) );

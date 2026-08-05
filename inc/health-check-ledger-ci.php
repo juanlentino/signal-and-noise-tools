@@ -61,7 +61,7 @@ function snt_ledger_ci_evaluate( $decoded ) {
 	}
 	return array(
 		'state'   => 'red',
-		'detail'  => 'The public ledger\'s latest completed verification run concluded "' . ( '' !== $conclusion ? $conclusion : 'unknown' ) . '"' . ( '' !== $when ? ' at ' . $when : '' ) . ' — the trust repo is reporting a problem nobody may have seen.',
+		'detail'  => 'The public ledger\'s latest completed verification run concluded "' . ( '' !== $conclusion ? $conclusion : 'unknown' ) . '"' . ( '' !== $when ? ' at ' . $when : '' ) . ': the trust repo is reporting a problem nobody may have seen.',
 		'run_url' => $url,
 	);
 }
@@ -73,7 +73,7 @@ function snt_ledger_ci_evaluate( $decoded ) {
  */
 function snt_health_check_ledger_ci() {
 	$label    = 'Public ledger CI is green';
-	$fix_hint = 'Open the run, read the failing step, and fix in the signal-and-noise-provenance repo — its CHANGELOG and verify-*.mjs headers name each check\'s intent.';
+	$fix_hint = 'Open the run, read the failing step, and fix in the signal-and-noise-provenance repo: its CHANGELOG and verify-*.mjs headers name each check\'s intent.';
 
 	$resp = wp_remote_get( SN_LEDGER_CI_RUNS_URL, array(
 		'timeout'     => 5,

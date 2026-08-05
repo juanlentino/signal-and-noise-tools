@@ -71,7 +71,7 @@ $html = sn_analytics_narrate_fallback( array(), $signals );
 ok( false !== strpos( $html, 'Views ran above' ) && false !== strpos( $html, 'decaying' ), 'fallback: composes the signal plain_labels' );
 ok( false !== strpos( sn_analytics_narrate_fallback( array(), array() ), 'nothing needs attention' ), 'fallback: graceful empty when no signals' );
 
-echo "\nGroup: narrate — cache miss NEVER calls the AI client\n";
+echo "\nGroup: narrate: cache miss NEVER calls the AI client\n";
 $GLOBALS['__ai_calls'] = 0;
 $r = sn_analytics_narrate( array(), $signals );
 ok( 0 === $GLOBALS['__ai_calls'], 'render path: zero AI-client calls on a cache miss' );
@@ -80,26 +80,26 @@ list( $narr_prompt, $narr_system ) = sn_analytics_narrate_ai_prompt( $signals );
 $narr_key = sn_analytics_ai_cache_key( 'narrate', $narr_prompt, $narr_system, 'analytics_digest' );
 ok( false !== wp_next_scheduled( SN_ANALYTICS_NARRATE_HOOK, array( array(), $signals ) ), 'cache miss schedules the out-of-band generator with the render args' );
 
-echo "\nGroup: narrate — dedupe (wp_next_scheduled guard)\n";
+echo "\nGroup: narrate: dedupe (wp_next_scheduled guard)\n";
 $sched_before = count( $GLOBALS['__sched'] );
 sn_analytics_narrate( array(), $signals );
 ok( 0 === $GLOBALS['__ai_calls'], 'second cache-miss render still makes zero AI-client calls' );
 ok( count( $GLOBALS['__sched'] ) === $sched_before, 'second cache-miss render does NOT schedule a duplicate event' );
 
-echo "\nGroup: narrate — the event handler is the ONLY caller of the AI client\n";
-$GLOBALS['__ai_return'] = 'Views spiked on the 20th; /notes/x is fading — refresh it.';
+echo "\nGroup: narrate: the event handler is the ONLY caller of the AI client\n";
+$GLOBALS['__ai_return'] = 'Views spiked on the 20th; /notes/x is fading: refresh it.';
 sn_analytics_narrate_ai_run( array(), $signals );
 ok( 1 === $GLOBALS['__ai_calls'], 'sn_analytics_narrate_ai_run() calls the AI client exactly once' );
 ok( 'analytics_digest' === $GLOBALS['__ai_feature'], 'run() tags the call with the narrate feature label' );
 $cached = get_transient( $narr_key );
 ok( is_array( $cached ) && false !== strpos( $cached['narrative'], 'refresh it' ), 'run() writes the generated text under the SAME key the render path computed' );
 
-echo "\nGroup: narrate — cache hit renders cached text, zero further AI calls\n";
+echo "\nGroup: narrate: cache hit renders cached text, zero further AI calls\n";
 $r2 = sn_analytics_narrate( array(), $signals );
 ok( 1 === $GLOBALS['__ai_calls'], 'cache-hit render makes NO additional AI-client call' );
 ok( 'ai' === $r2['source'] && false !== strpos( $r2['narrative'], 'refresh it' ), 'cache-hit render serves the cached AI narrative' );
 
-echo "\nGroup: narrate — last-good degrades a same-key eviction, but not a different key\n";
+echo "\nGroup: narrate: last-good degrades a same-key eviction, but not a different key\n";
 $last_good_before = get_option( SN_ANALYTICS_NARRATE_LASTGOOD_OPT );
 ok( $narr_key === ( $last_good_before['key'] ?? '' ), 'run() persisted a last-good stamped with the cache key' );
 delete_transient( $narr_key ); // simulate an object-cache flush — the underlying signals have NOT changed
@@ -111,7 +111,7 @@ $r4 = sn_analytics_narrate( array(), $signals_b );
 ok( 1 === $GLOBALS['__ai_calls'], 'a different signal set still makes zero AI-client calls on its own cache miss' );
 ok( 'fallback' === $r4['source'], 'a different signal set does NOT inherit the other key\'s last-good' );
 
-echo "\nGroup: narrate — budget-cap WP_Error leaves the cache untouched (FIX 1c)\n";
+echo "\nGroup: narrate: budget-cap WP_Error leaves the cache untouched (FIX 1c)\n";
 $GLOBALS['__ai_calls']   = 0;
 $GLOBALS['__ai_return']  = new WP_Error();
 $fresh_signals = array( array( 'kind' => 'anomaly', 'confidence' => 'high', 'plain_label' => 'Yet another distinct signal' ) );
@@ -123,12 +123,12 @@ ok( false === get_transient( $fresh_key ), 'WP_Error result is NOT cached' );
 $r5 = sn_analytics_narrate( array(), $fresh_signals );
 ok( 'fallback' === $r5['source'], 'render after a budget-cap error still degrades to the deterministic fallback (unchanged behavior)' );
 
-echo "\nGroup: narrate() seam — no signals / filter override\n";
+echo "\nGroup: narrate() seam: no signals / filter override\n";
 $GLOBALS['__ai_calls'] = 0;
 $r6 = sn_analytics_narrate( array(), array() );
 ok( 'fallback' === $r6['source'] && 0 === $GLOBALS['__ai_calls'], 'narrate: no signals → fallback empty-state, no AI call' );
 
-echo "\nGroup: weekly digest — deterministic fallback (honest vocabulary, v9.64.1)\n";
+echo "\nGroup: weekly digest: deterministic fallback (honest vocabulary, v9.64.1)\n";
 // Legacy caller shape: only the deprecated ungated pair — the ungated count is
 // unique visitor-DAYS (analytics-integrity spec §1), so the head must say
 // "visitor-days" and never call it "visits".
@@ -163,14 +163,14 @@ $violation_summary = array_merge( $honest_summary, array( 'views' => 30, 'integr
 $vh = sn_analytics_digest_fallback( $violation_summary, $signals );
 ok( false !== strpos( $vh, 'Integrity alert' ) && false !== strpos( $vh, 'impossible' ), 'digest fallback (integrity violation): still narrates as an alert-worthy anomaly' );
 
-echo "\nGroup: digest — cache miss NEVER calls the AI client\n";
+echo "\nGroup: digest: cache miss NEVER calls the AI client\n";
 $GLOBALS['__ai_calls'] = 0;
 $dg = sn_analytics_digest( $digest_summary, $signals );
 ok( 0 === $GLOBALS['__ai_calls'], 'render path: zero AI-client calls on a cache miss' );
 ok( 'fallback' === $dg['source'] && false !== strpos( $dg['digest'], '1,204 views' ), 'render path: renders the deterministic fallback on cache miss' );
 ok( false !== wp_next_scheduled( SN_ANALYTICS_DIGEST_HOOK, array( $digest_summary, $signals, '' ) ), 'cache miss schedules the out-of-band generator with the render args' );
 
-echo "\nGroup: digest — top_action reaches the prompt and changes the cache key\n";
+echo "\nGroup: digest: top_action reaches the prompt and changes the cache key\n";
 list( $dp1, $ds1 ) = sn_analytics_digest_ai_prompt( $digest_summary, $signals, '' );
 list( $dp2, $ds2 ) = sn_analytics_digest_ai_prompt( $digest_summary, $signals, '3 cooling posts worth a refresh' );
 ok( false === strpos( $dp1, 'Top recommended action' ), 'digest prompt: no action, no context line' );
@@ -179,7 +179,7 @@ $k1 = sn_analytics_ai_cache_key( 'digest', $dp1, $ds1, 'analytics_digest_weekly'
 $k2 = sn_analytics_ai_cache_key( 'digest', $dp2, $ds2, 'analytics_digest_weekly' );
 ok( $k1 !== $k2, 'different top_action → different cache key (would otherwise serve stale-wrong text)' );
 
-echo "\nGroup: digest prompt — honest vocabulary + the explained is no anomaly (v9.64.1)\n";
+echo "\nGroup: digest prompt: honest vocabulary + the explained is no anomaly (v9.64.1)\n";
 // Live fixture (47/40/90/50): the prompt must feed the model the gated visits,
 // the visitor-day totals WITH their definitions, and the structural explanation
 // for visitor-days > views — the model can then never honestly claim "no
@@ -206,12 +206,12 @@ list( $lp, ) = sn_analytics_digest_ai_prompt( $digest_summary, $signals, '' );
 ok( false !== strpos( $lp, 'Visitor-days this period' ) && false !== strpos( $lp, ': 389' ), 'legacy prompt: ungated count is labeled visitor-days' );
 ok( false === strpos( $lp, '- Visits this period: 389' ), 'legacy prompt: ungated count is never labeled "Visits"' );
 
-echo "\nGroup: narrate system — signal vocabulary (v9.64.1)\n";
+echo "\nGroup: narrate system: signal vocabulary (v9.64.1)\n";
 list( , $nsys ) = sn_analytics_narrate_ai_prompt( $signals );
 ok( false !== strpos( $nsys, 'unique visitor-days' ), 'narrate system: defines signal "visits" as unique visitor-days' );
 ok( false !== strpos( $nsys, 'never an anomaly' ), 'narrate system: visitor-days exceeding views is structural, never an anomaly' );
 
-echo "\nGroup: digest — the event handler is the ONLY caller of the AI client\n";
+echo "\nGroup: digest: the event handler is the ONLY caller of the AI client\n";
 $GLOBALS['__ai_return'] = "Strong week. Views spiked on the 20th.\n\nNext: refresh /notes/x.";
 sn_analytics_digest_ai_run( $digest_summary, $signals, '' );
 ok( 1 === $GLOBALS['__ai_calls'], 'sn_analytics_digest_ai_run() calls the AI client exactly once' );
@@ -219,12 +219,12 @@ ok( 'analytics_digest_weekly' === $GLOBALS['__ai_feature'], 'run() tags the call
 $dg_cached = get_transient( $k1 );
 ok( is_array( $dg_cached ) && false !== strpos( $dg_cached['digest'], 'refresh /notes/x' ), 'run() writes the generated text under the SAME key the render path computed' );
 
-echo "\nGroup: digest — cache hit renders cached text, zero further AI calls\n";
+echo "\nGroup: digest: cache hit renders cached text, zero further AI calls\n";
 $dg2 = sn_analytics_digest( $digest_summary, $signals );
 ok( 1 === $GLOBALS['__ai_calls'], 'cache-hit render makes NO additional AI-client call' );
 ok( 'ai' === $dg2['source'] && false !== strpos( $dg2['digest'], 'refresh /notes/x' ), 'cache-hit render serves the cached AI digest' );
 
-echo "\nGroup: digest — budget-cap WP_Error leaves the cache untouched (FIX 1c)\n";
+echo "\nGroup: digest: budget-cap WP_Error leaves the cache untouched (FIX 1c)\n";
 $GLOBALS['__ai_calls']  = 0;
 $GLOBALS['__ai_return'] = new WP_Error();
 sn_analytics_digest_ai_run( $digest_summary, $signals_b, '' );
@@ -235,15 +235,15 @@ ok( false === get_transient( $b_key ), 'WP_Error result is NOT cached' );
 $dg3 = sn_analytics_digest( $digest_summary, $signals_b );
 ok( 'fallback' === $dg3['source'], 'digest: budget-cap WP_Error → deterministic fallback (unchanged behavior)' );
 
-echo "\nGroup: digest() seam — no signals\n";
+echo "\nGroup: digest() seam: no signals\n";
 $GLOBALS['__ai_calls'] = 0;
 ok( 'fallback' === sn_analytics_digest( $digest_summary, array() )['source'], 'digest: no signals → fallback empty-state' );
 ok( 0 === $GLOBALS['__ai_calls'], 'no-signals path makes zero AI-client calls' );
 
-echo "\nGroup: v9.64.2 voice contract — digest system instruction (P1a + P2)\n";
+echo "\nGroup: v9.64.2 voice contract: digest system instruction (P1a + P2)\n";
 list( , $vs ) = sn_analytics_digest_ai_prompt( $honest_summary, $signals, '' );
-ok( false !== strpos( $vs, 'NO markdown — no asterisks, no underscores, no headings, no bullet lists, no emojis' ), 'digest system: forbids markdown entirely (P1a)' );
-ok( false !== strpos( $vs, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'digest system: bans the stats-appendix jargon — the chips carry that machinery (P2)' );
+ok( false !== strpos( $vs, 'NO markdown: no asterisks, no underscores, no headings, no bullet lists, no emojis' ), 'digest system: forbids markdown entirely (P1a)' );
+ok( false !== strpos( $vs, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'digest system: bans the stats-appendix jargon: the chips carry that machinery (P2)' );
 ok( false !== strpos( $vs, 'at most 4-5 short plain-English sentences' ), 'digest system: sentence budget for a phone-glance summary' );
 ok( false !== strpos( $vs, '"Worth a look:"' ), 'digest system: the optional Worth-a-look closer' );
 ok( false !== strpos( $vs, 'State numbers plainly (47 views, 40 visits)' ), 'digest system: numbers stated plainly, no interval dressing' );
@@ -252,18 +252,18 @@ ok( false !== strpos( $vs, 'at most one plain sentence' ), 'digest system: a gen
 ok( false !== strpos( $vs, 'NEVER describe the gap as unusual, unexplained, or an anomaly' ), 'digest system: v9.64.1 structural-not-anomaly rule kept intact (voice change, not facts)' );
 ok( false !== strpos( $vs, 'never to be called "visits"' ), 'digest system: v9.64.1 honest vocabulary kept intact' );
 
-echo "\nGroup: v9.64.2 voice contract — narrate system instruction\n";
+echo "\nGroup: v9.64.2 voice contract: narrate system instruction\n";
 list( , $vns ) = sn_analytics_narrate_ai_prompt( $signals );
-ok( false !== strpos( $vns, 'NO markdown — no asterisks, no underscores, no headings, no bullet lists, no emojis' ), 'narrate system: forbids markdown entirely' );
+ok( false !== strpos( $vns, 'NO markdown: no asterisks, no underscores, no headings, no bullet lists, no emojis' ), 'narrate system: forbids markdown entirely' );
 ok( false !== strpos( $vns, 'never write sigma, σ, backtest, interval, robust, confidence, or point estimate' ), 'narrate system: bans the stats-appendix jargon' );
 ok( false !== strpos( $vns, 'unique visitor-days' ) && false !== strpos( $vns, 'never an anomaly' ), 'narrate system: v9.64.1 vocabulary + structural rules kept intact' );
 
-echo "\nGroup: v9.64.2 — an instruction change busts the AI cache key (P3)\n";
+echo "\nGroup: v9.64.2: an instruction change busts the AI cache key (P3)\n";
 ok( sn_analytics_ai_cache_key( 'digest', $dp1, 'system text A', 'analytics_digest_weekly' )
 	!== sn_analytics_ai_cache_key( 'digest', $dp1, 'system text B', 'analytics_digest_weekly' ),
-	'cache key is a function of the system instruction — the voice-contract change orphans the stored pre-voice digest' );
+	'cache key is a function of the system instruction: the voice-contract change orphans the stored pre-voice digest' );
 
-echo "\nGroup: v9.64.2 — markdown stripper, exact transforms (P1b)\n";
+echo "\nGroup: v9.64.2: markdown stripper, exact transforms (P1b)\n";
 ok( 'Weekly Analytics Digest' === snt_ai_strip_markdown( '**Weekly Analytics Digest**' ), 'stripper: **bold** marks REMOVED, text kept (the live headline)' );
 ok( 'Head' === snt_ai_strip_markdown( '## Head' ), 'stripper: heading marker removed' );
 ok( 'x' === snt_ai_strip_markdown( '*x*' ), 'stripper: *italic* marks removed' );
@@ -274,7 +274,7 @@ ok( 'emphasis' === snt_ai_strip_markdown( '_emphasis_' ), 'stripper: _italic_ ma
 ok( 'pageview_visits stayed flat' === snt_ai_strip_markdown( 'pageview_visits stayed flat' ), 'stripper: intra-word underscores (field names) untouched' );
 ok( "Weekly\nViews rose." === snt_ai_strip_markdown( "### Weekly\nViews rose." ), 'stripper: multiline heading marker removed, body kept' );
 
-echo "\nGroup: v9.64.2 — the run paths store STRIPPED text (defense-in-depth, P1b)\n";
+echo "\nGroup: v9.64.2: the run paths store STRIPPED text (defense-in-depth, P1b)\n";
 $GLOBALS['__ai_calls']  = 0;
 $GLOBALS['__ai_return'] = "**Weekly Analytics Digest**\n\nViews rose to *47* this week.";
 $md_signals = array( array( 'kind' => 'anomaly', 'confidence' => 'high', 'plain_label' => 'A markdown-prone signal' ) );

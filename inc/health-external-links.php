@@ -274,7 +274,7 @@ function sn_health_check_external_links() {
 			'subject_label' => $url,
 			'subject_id'    => 0,
 			'edit_url'      => admin_url( 'post.php?post=' . $usages[0]['post_id'] . '&action=edit' ),
-			'note'          => sprintf( '%s — cited in %d post(s). First use: %s', $probe, count( $usages ), $usages[0]['post_title'] ),
+			'note'          => sprintf( '%s: cited in %d post(s). First use: %s', $probe, count( $usages ), $usages[0]['post_title'] ),
 		);
 	}
 

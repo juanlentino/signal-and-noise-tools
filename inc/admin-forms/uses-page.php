@@ -86,7 +86,7 @@ function sn_admin_render_uses_section() {
 	} else {
 		echo '<p class="sn-fieldset-intro">This form is the editor for the <a href="' . esc_url( home_url( '/about/uses' ) ) . '" target="_blank" rel="noopener">/about/uses</a> page, prefilled from the current live list. Save to take over the page content.</p>';
 	}
-	echo '<p class="sn-field-helper">Each card is one gear group: a label plus name/note rows (the note is optional). Incomplete cards are refused at save (rows need a label, a label needs at least one row, and a note needs a name). Removing every card clears the override — the page falls back to the theme\'s built-in list (it is never silently blanked).</p>';
+	echo '<p class="sn-field-helper">Each card is one gear group: a label plus name/note rows (the note is optional). Incomplete cards are refused at save (rows need a label, a label needs at least one row, and a note needs a name). Removing every card clears the override: the page falls back to the theme\'s built-in list (it is never silently blanked).</p>';
 
 	echo '<div class="sn-rsm-list" data-rsm-list="uses-groups">';
 	$i = 0;

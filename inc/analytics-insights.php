@@ -95,7 +95,7 @@ function snt_analytics_render_insights_band( $from, $to, $class, $granularity ) 
 	$has_narr  = '' !== $narrative;
 	$lead      = $has_narr
 		? snt_analytics_headline_lead( $narrative )
-		: __( 'Predictive needs ~2 weeks of history — insights will appear here as data accrues.', 'signal-and-noise-tools' );
+		: __( 'Predictive needs ~2 weeks of history: insights will appear here as data accrues.', 'signal-and-noise-tools' );
 	$count     = count( $signals );
 
 	echo '<details class="sn-an-headline">';

@@ -256,7 +256,7 @@ function snt_sn_validate_check_og_card_title( $value, $post_id, $post_title ) {
 	if ( trim( strtolower( (string) $value ) ) === trim( strtolower( (string) $post_title ) ) && '' !== trim( (string) $value ) ) {
 		$findings[] = snt_sn_validate_finding(
 			'og_card_title', 'title_divergence', 'warning',
-			__( 'OG card title is identical to the post title — it should restate the claim in different words.', 'signal-and-noise-tools' ),
+			__( 'OG card title is identical to the post title: it should restate the claim in different words.', 'signal-and-noise-tools' ),
 			$value, $post_title, array(), $identity
 		);
 	}

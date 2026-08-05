@@ -185,7 +185,7 @@ function snt_mr_render_tab() {
 	// rights-signals worker v1.5.0 the reservation rides every response, so the
 	// direct-fetch count stopped being a coverage measure and this copy stopped
 	// framing it as one.
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'What machine readers do with the site: which crawler families read it and which machine surfaces they touch. The rights reservation rides every response, so declared AI-training crawlers receive it whether or not they fetch the rights files directly — a non-zero direct-fetch count means a crawler went looking for the declarations on purpose.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'What machine readers do with the site: which crawler families read it and which machine surfaces they touch. The rights reservation rides every response, so declared AI-training crawlers receive it whether or not they fetch the rights files directly: a non-zero direct-fetch count means a crawler went looking for the declarations on purpose.', 'signal-and-noise-tools' ) . '</p>';
 	if ( ! empty( $result['ok'] ) ) {
 		$rows = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
 		echo snt_mr_render_summary_chips( $rows, $days, $sn_mr_feed_total ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
@@ -204,7 +204,7 @@ function snt_mr_render_tab() {
 			}
 		}
 	} else {
-		echo '<p class="sn-mr-empty">' . esc_html__( 'No readership data yet — the Sensor status card above says why.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-mr-empty">' . esc_html__( 'No readership data yet: the Sensor status card above says why.', 'signal-and-noise-tools' ) . '</p>';
 		// The feed tracker is local WP data — it stays honest even when the
 		// edge sensor is unreachable.
 		if ( function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
