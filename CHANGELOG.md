@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.48.0] - 2026-08-05
+
+**Headline:** the 404 classifier gives back a signal it should never have had; the content editors stop rendering an input plus three buttons per line; and the Dashboard's numbers become ways in.
+
+### New
+
+- **Dashboard glance cards route to the tab that owns them** ([inc/admin-glance.php](inc/admin-glance.php), [inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)). The Dashboard reported ten numbers and routed nowhere — you read "0 findings" and then went hunting for which tab owns health. Eight cards now link to their owner (Health → Measurement → Health, Cron → Connections → Cron, AI spend → AI → Models & Budget, Provenance → Integrity, Views → the analytics dashboard). That is the difference between a readout and a command surface, and it is a few lines rather than a rebuild.
+
+- **What needs you leads.** `sn_admin_glance_sort_by_attention()` floats `err` then `warn` to the front. The sort is **stable**, so the calm cards keep their deliberate reading order — a grid that reshuffles on every load is one people stop reading. `esc_url()` backstops the new `href`, so a card definition cannot inject a `javascript:` target even though every definition is first-party today.
+
+### Changed
+
+- **Repeatables of plain strings become lines; repeatables of records keep their rows.** That is the rule this release applies across all three content editors. Now items, Uses entries, resume bullets, resume detail lines and hero credential chips are all plain strings — each was costing an input plus three buttons to hold one short string. Stats and publications are records (`{n,label}`, `{title,meta,url}`) and are deliberately untouched.
+
+- **Now and Uses items are one textarea per section, not one input per item** ([inc/admin-forms/now-page.php](inc/admin-forms/now-page.php), [inc/admin-forms/uses-page.php](inc/admin-forms/uses-page.php)). The old card rendered a labelled input and ↑ ↓ ✕ controls for *every line of content* — on a dozen-item page, twelve inputs and thirty-six buttons to say twelve short sentences.
+
+  It also modelled the data wrongly. The stored artifact has always been a **text document whose items are lines**; the nested repeatable was a tree pretending to be one. A textarea is the edit affordance the storage already implies: reorder by moving a line, delete by deleting it, add by pressing Return. Sections keep their cards and reorder controls, because sections genuinely are a list. `/uses` uses `name | note` per line — the exact shape the stored document writes, so the field shows what gets saved.
+
+  The change is confined to a **boundary normalizer**: `sn_now_rows_to_text()` and `sn_uses_rows_to_text()` keep their array contract and their existing tests, and a test proves the textarea and the old per-item inputs produce a **byte-identical document**. Both input shapes are accepted, so a tab left open across the update still saves correctly instead of silently posting nothing.
+
+### Fixed
+
+- **The same-site referer signal is withdrawn** ([inc/redirects-404-log.php](inc/redirects-404-log.php)). v10.47.0 promoted any 404 arriving with a referer from this site, reasoning that a real page pointing at a dead path is worth fixing. Driving it on live disproved that in one screen: **20 of the 26 "actionable" rows had been promoted by referer, and every one was machine noise** — `/phpinfo`, `/_profiler/phpinfo`, `/*`, and real site paths with a random 19-digit suffix bolted on (`/comments/3135222639369717147`).
+
+  The error is worth naming precisely, because the v10.47.0 comment came close enough to be misleading. It said an *off-site* referer is attacker-controlled and must not count — true — and then missed that the header is **client-controlled whatever host it names**. Worse: a crawler walking this site sends a same-site referer *by definition*, so the rule promoted everything a bot happened to touch. Similarity alone had already found every genuine broken link in the same sample (`/provenance/verify` → `/verify`, `/es/about`, `/contact-us`), so the signal contributed noise and nothing else.
+
+- **Two probe shapes that reach the log with no file extension to catch them** — `phpinfo` and `/_profiler` (the Symfony debug toolbar) join the probe substrings.
+
+- **Crawler fuzzing: a real path with a long random number appended.** A path *segment* that is a bare run of 12+ digits is now filtered. The floor is 12 so ordinary numbers in a URL are untouched — `/notes/page/2`, `/2026/08/…` and `/notes/top-10-tools` are all pinned as still-captured.
+
+> **Why PATCH:** narrows an over-eager classifier shipped in v10.47.0. No new capability, no schema change, no stored entry deleted — the withdrawn signal only ever affected which side of the split a row displayed on.
+
+### Verification
+
+`tests/redirects-404-log.php` **121 passed / 0 failed**, written from the exact paths the live screen promoted in error and watched red on all seven. Full sweep green; phpcs clean, falsified first.
+
 ## [10.47.0] - 2026-08-05
 
 **Headline:** the 404 log stops asking you to make editorial decisions about scanner traffic — and stops letting that traffic evict your real broken links. Tools becomes Integrity.

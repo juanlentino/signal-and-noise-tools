@@ -385,12 +385,62 @@ function sn_uses_rows_to_text( $groups ) {
  * the same guards below. The now_content string path stays for the flash
  * contract and any non-form caller.
  */
+/**
+ * Normalize a group's `items` from either shape into the array the row
+ * serializers expect. (v10.48.0)
+ *
+ * The Now / Uses editors stopped rendering one <input> per item and now render
+ * ONE TEXTAREA per section, items separated by newlines. That is not just less
+ * chrome — it is closer to the truth, because the STORED artifact has always
+ * been a text document whose items are lines. The old form was a nested
+ * repeatable pretending the storage was a tree.
+ *
+ * The change is confined to this boundary on purpose: sn_now_rows_to_text() and
+ * sn_uses_rows_to_text() keep their array contract and their tests untouched.
+ * Both shapes are accepted, so a stale form (a tab left open across the update,
+ * a cached page) still saves correctly instead of silently posting nothing.
+ *
+ * Blank lines are dropped rather than becoming empty items — an empty item would
+ * make the serializer refuse the whole save, turning one stray newline into an
+ * unexplained "could not parse".
+ *
+ * @since 10.48.0
+ * @param mixed $items Either an array of item strings or a newline-separated string.
+ * @return array<int,string>
+ */
+function sn_content_items_normalize( $items ) {
+	if ( is_array( $items ) ) {
+		return array_values( $items );
+	}
+	if ( ! is_string( $items ) || '' === trim( $items ) ) {
+		return array();
+	}
+	$lines = preg_split( '/\R/u', $items );
+	$out   = array();
+	foreach ( (array) $lines as $line ) {
+		$line = trim( (string) $line );
+		// A pasted markdown bullet is the obvious thing to type here; accept it
+		// rather than emitting "- - thing" on the round trip.
+		$line = (string) preg_replace( '/^[-*]\s+/', '', $line );
+		if ( '' !== $line ) {
+			$out[] = $line;
+		}
+	}
+	return $out;
+}
+
 function sn_handle_now_save( $post ) {
 	if ( ! function_exists( 'sn_now_page_save' ) ) {
 		return 'now_failed';
 	}
 	if ( isset( $post['now']['groups'] ) && is_array( $post['now']['groups'] ) ) {
-		$raw = sn_now_rows_to_text( $post['now']['groups'] );
+		$groups = array();
+		foreach ( (array) $post['now']['groups'] as $k => $g ) {
+			$g            = is_array( $g ) ? $g : array();
+			$g['items']   = sn_content_items_normalize( $g['items'] ?? array() );
+			$groups[ $k ] = $g;
+		}
+		$raw = sn_now_rows_to_text( $groups );
 		if ( null === $raw ) {
 			return 'now_unparseable';
 		}
@@ -439,12 +489,46 @@ function sn_handle_now_save( $post ) {
  * uses[groups] pair rows; same serialize-then-ride-the-guards pattern as
  * sn_handle_now_save above.
  */
+/**
+ * The /uses counterpart of sn_content_items_normalize(): each line is
+ * `name | note`, the exact shape the stored document already uses. (v10.48.0)
+ *
+ * A note with no name is preserved as a note with no name rather than being
+ * dropped here — sn_uses_rows_to_text() refuses that case deliberately, and
+ * silently discarding it at the boundary would turn an explicit "could not
+ * parse" into invisible data loss.
+ *
+ * @since 10.48.0
+ * @param mixed $items Either an array of {name,note} arrays or a newline string.
+ * @return array<int,array{name:string,note:string}>
+ */
+function sn_content_pairs_normalize( $items ) {
+	if ( is_array( $items ) ) {
+		return array_values( $items );
+	}
+	$out = array();
+	foreach ( sn_content_items_normalize( $items ) as $line ) {
+		$parts = explode( '|', $line, 2 );
+		$out[]  = array(
+			'name' => trim( $parts[0] ),
+			'note' => isset( $parts[1] ) ? trim( $parts[1] ) : '',
+		);
+	}
+	return $out;
+}
+
 function sn_handle_uses_save( $post ) {
 	if ( ! function_exists( 'sn_uses_page_save' ) ) {
 		return 'uses_failed';
 	}
 	if ( isset( $post['uses']['groups'] ) && is_array( $post['uses']['groups'] ) ) {
-		$raw = sn_uses_rows_to_text( $post['uses']['groups'] );
+		$groups = array();
+		foreach ( (array) $post['uses']['groups'] as $k => $g ) {
+			$g            = is_array( $g ) ? $g : array();
+			$g['items']   = sn_content_pairs_normalize( $g['items'] ?? array() );
+			$groups[ $k ] = $g;
+		}
+		$raw = sn_uses_rows_to_text( $groups );
 		if ( null === $raw ) {
 			return 'uses_unparseable';
 		}

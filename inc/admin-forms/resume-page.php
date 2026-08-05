@@ -47,6 +47,32 @@ function sn_rsm_input( $name, $value, $label, $ph = '' ) {
 }
 
 /** One bullet row (leaf list — plain [] name). @param string $prefix @param string $value */
+/**
+ * A plain string list as ONE textarea, one entry per line. (v10.48.0)
+ *
+ * The rule this release applies across all three content editors: a repeatable
+ * of PLAIN STRINGS becomes lines in a textarea; a repeatable of RECORDS keeps
+ * its rows. Bullets, detail lines and hero chips are the former — each was
+ * costing an input plus three buttons to hold one short string. Publications
+ * and stats are the latter and are deliberately untouched.
+ *
+ * @since 10.48.0
+ * @param string   $name  Field name (no [] — the value posts as one string).
+ * @param array    $items Current values.
+ * @param string   $label Visible label.
+ * @param string   $ph    Placeholder.
+ * @param int      $rows  Textarea rows.
+ */
+function sn_rsm_lines( $name, $items, $label, $ph = '', $rows = 4 ) {
+	$id = 'rsml-' . substr( md5( $name ), 0, 8 );
+	echo '<div class="sn-rsm-lines">';
+	echo '<label class="sn-field-label" for="' . esc_attr( $id ) . '">' . esc_html( $label ) . '</label>';
+	echo '<textarea id="' . esc_attr( $id ) . '" name="' . esc_attr( $name ) . '" rows="' . esc_attr( (string) (int) $rows ) . '" class="large-text sn-rsm-items" placeholder="' . esc_attr( $ph ) . '">';
+	echo esc_textarea( implode( "\n", array_map( 'strval', (array) $items ) ) );
+	echo '</textarea>';
+	echo '</div>';
+}
+
 function sn_rsm_bullet_row( $prefix, $value ) {
 	echo '<div class="sn-rsm-row sn-rsm-bullet" data-rsm-row>'
 		. '<textarea rows="2" class="large-text" name="' . esc_attr( $prefix . '[bullets][]' ) . '">' . esc_textarea( $value ) . '</textarea>';
@@ -68,15 +94,11 @@ function sn_rsm_role_row( $prefix, $bul_id, $role ) {
 	sn_rsm_input( $prefix . '[title]', (string) ( $role['title'] ?? '' ), 'Role title · dates', 'Role · Jan 2020 - Present' );
 	sn_rsm_controls();
 	echo '</div>';
-	echo '<div class="sn-rsm-list" data-rsm-list="' . esc_attr( $bul_id ) . '">';
-	foreach ( (array) ( $role['bullets'] ?? array() ) as $bullet ) {
-		sn_rsm_bullet_row( $prefix, (string) $bullet );
-	}
-	echo '</div>';
-	echo '<template data-rsm-tpl="' . esc_attr( $bul_id ) . '">';
-	sn_rsm_bullet_row( $prefix, '' );
-	echo '</template>';
-	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="' . esc_attr( $bul_id ) . '">+ Add bullet</button>';
+	// v10.48.0: bullets are plain strings, so they become lines in one textarea.
+	// $bul_id is retained in the signature — the callers pass token-bearing ids
+	// and the roles list above still clones — but no longer names a nested list.
+	unset( $bul_id );
+	sn_rsm_lines( $prefix . '[bullets]', (array) ( $role['bullets'] ?? array() ), 'Bullets — one per line', 'What you did, one line each', 4 );
 	echo '</div>';
 }
 
@@ -123,21 +145,8 @@ function sn_rsm_titled_lines_row( $prefix, $lines_id, $entry ) {
 	sn_rsm_input( $prefix . '[title]', (string) ( $entry['title'] ?? '' ), 'Title', 'Degree, membership, or certificate' );
 	sn_rsm_controls();
 	echo '</div>';
-	echo '<div class="sn-rsm-list" data-rsm-list="' . esc_attr( $lines_id ) . '">';
-	foreach ( (array) ( $entry['lines'] ?? array() ) as $line ) {
-		echo '<div class="sn-rsm-row" data-rsm-row>';
-		sn_rsm_input( $prefix . '[lines][]', (string) $line, 'Detail line', 'Institution · Place · Date' );
-		sn_rsm_controls();
-		echo '</div>';
-	}
-	echo '</div>';
-	echo '<template data-rsm-tpl="' . esc_attr( $lines_id ) . '">';
-	echo '<div class="sn-rsm-row" data-rsm-row>';
-	sn_rsm_input( $prefix . '[lines][]', '', 'Detail line', 'Institution · Place · Date' );
-	sn_rsm_controls();
-	echo '</div>';
-	echo '</template>';
-	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="' . esc_attr( $lines_id ) . '">+ Add line</button>';
+	unset( $lines_id );
+	sn_rsm_lines( $prefix . '[lines]', (array) ( $entry['lines'] ?? array() ), 'Detail lines — one per line', 'Institution · Place · Date', 3 );
 	echo '</div>';
 }
 
@@ -190,19 +199,9 @@ function sn_admin_render_resume_section() {
 	// ── Hero ──
 	sn_rsm_section_open( 'Hero', 'The opening band: summary, credential chips, contact line, and the PDF download.' );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Summary</span><textarea rows="3" class="large-text" name="resume[hero][summary]">' . esc_textarea( $doc['hero']['summary'] ) . '</textarea></label>';
-	echo '<div class="sn-rsm-list" data-rsm-list="chips">';
-	foreach ( $doc['hero']['chips'] as $chip ) {
-		echo '<div class="sn-rsm-row" data-rsm-row>';
-		sn_rsm_input( 'resume[hero][chips][]', $chip, 'Chip', 'Credential or membership' );
-		sn_rsm_controls();
-		echo '</div>';
-	}
-	echo '</div>';
-	echo '<template data-rsm-tpl="chips"><div class="sn-rsm-row" data-rsm-row>';
-	sn_rsm_input( 'resume[hero][chips][]', '', 'Chip', 'Credential or membership' );
-	sn_rsm_controls();
-	echo '</div></template>';
-	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="chips">+ Add chip</button>';
+	sn_rsm_lines( 'resume[hero][chips]', (array) ( $doc['hero']['chips'] ?? array() ), 'Credential chips — one per line', 'Credential or membership', 4 );
+	// The contact/LinkedIn pair opens its own two-up row; the chips list used to
+	// sit above it and this open tag travelled with the block that was replaced.
 	echo '<div class="sn-rsm-pair">';
 	sn_rsm_input( 'resume[hero][contact_line]', $doc['hero']['contact_line'], 'Contact line', 'City, State' );
 	sn_rsm_input( 'resume[hero][linkedin]', $doc['hero']['linkedin'], 'LinkedIn URL', 'https://www.linkedin.com/in/…' );

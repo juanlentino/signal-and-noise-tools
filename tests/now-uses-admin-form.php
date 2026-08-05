@@ -68,8 +68,12 @@ ok( false === strpos( $html, 'name="now[groups][0][label]"' ), 'no group rows be
 
 // Group template: token baked into names AND nested item-list ids.
 ok( false !== strpos( $html, 'name="now[groups][__G__][label]"' ), 'group template bakes the __G__ token into the label name' );
-ok( false !== strpos( $html, 'name="now[groups][__G__][items][]"' ), 'items are a plain [] leaf under their group' );
-ok( false !== strpos( $html, 'data-rsm-add="nit-__G__"' ), 'nested add-item button id carries the token for clone-time rewrite' );
+// v10.48.0: items are ONE TEXTAREA per section, not a [] leaf of inputs. The
+// nested repeatable modelled the data wrongly — the stored artifact is a text
+// document whose items are lines — and cost an input plus three buttons per line.
+ok( false !== strpos( $html, 'name="now[groups][__G__][items]"' ), 'template: items post as a single textarea value, not a [] leaf' );
+ok( false === strpos( $html, 'name="now[groups][__G__][items][]"' ), 'template: the per-item [] leaf is gone' );
+ok( false === strpos( $html, 'data-rsm-add="nit-__G__"' ), 'template: no nested add-item button (Return adds a line)' );
 ok( false !== strpos( $html, 'data-rsm-token="__G__"', strpos( $html, 'data-rsm-tpl="now-groups"' ) ), 'group template declares its token' );
 
 echo "\nTest: sn_admin_render_now_section (stored prefill)\n";
@@ -80,11 +84,11 @@ $html = ob_get_clean();
 
 ok( false !== strpos( $html, 'name="now[groups][0][label]"' ), 'first group label field, indexed' );
 ok( false !== strpos( $html, 'value="Building"' ), 'first group label prefilled' );
-ok( false !== strpos( $html, 'name="now[groups][0][items][]"' ), 'first group items are a [] leaf' );
-ok( false !== strpos( $html, 'value="shipping MCP"' ), 'first item prefilled' );
+ok( false !== strpos( $html, 'name="now[groups][0][items]"' ), 'first group items post as one textarea' );
+ok( false !== strpos( $html, '>shipping MCP' ), 'first item prefilled as textarea CONTENT (not a value attribute)' );
 ok( false !== strpos( $html, 'value="Reading"' ), 'second group label prefilled' );
-ok( false !== strpos( $html, 'data-rsm-list="nit-0"' ), 'first group has its own items list id' );
-ok( false !== strpos( $html, 'data-rsm-list="nit-1"' ), 'second group has a distinct items list id' );
+ok( false !== strpos( $html, 'id="nit-0"' ), 'first group textarea keeps its own id (label association)' );
+ok( false !== strpos( $html, 'id="nit-1"' ), 'second group textarea has a distinct id' );
 ok( false !== strpos( $html, 'Last saved: <code>2026-08-04</code>' ), 'saved state shows the save stamp' );
 
 // Repeatable-list plumbing: every add button has a matching template and list.
@@ -119,16 +123,16 @@ ok( false !== strpos( $html, 'value="uses_save"' ), 'submit posts sn_action=uses
 ok( false === strpos( $html, 'name="uses_content"' ), 'the plain-text box is gone' );
 ok( false !== strpos( $html, 'name="uses[groups][0][label]"' ), 'theme groups prefill the form before first save' );
 ok( false !== strpos( $html, 'value="Interface"' ), 'theme group label prefilled' );
-ok( false !== strpos( $html, 'name="uses[groups][0][items][0][name]"' ), 'items are INDEXED name/note pairs' );
-ok( false !== strpos( $html, 'value="SSL UF8"' ), 'item name prefilled' );
-ok( false !== strpos( $html, 'name="uses[groups][0][items][0][note]"' ), 'item note field' );
-ok( false !== strpos( $html, 'value="Advanced DAW controller"' ), 'item note prefilled' );
+// v10.48.0: `name | note` per line — the exact shape the stored document uses,
+// so the field shows what actually gets saved.
+ok( false !== strpos( $html, 'name="uses[groups][0][items]"' ), 'uses items post as one textarea per group' );
+ok( false === strpos( $html, 'name="uses[groups][0][items][0][name]"' ), 'the indexed name/note inputs are gone' );
+ok( false !== strpos( $html, 'SSL UF8 | Advanced DAW controller' ), 'a stored pair renders as one `name | note` line' );
 
 // Token discipline: group template bakes __U__, nested item template __I__.
 ok( false !== strpos( $html, 'name="uses[groups][__U__][label]"' ), 'group template bakes the __U__ token' );
-ok( false !== strpos( $html, 'name="uses[groups][__U__][items][__I__][name]"' ), 'nested item template carries BOTH tokens' );
-ok( false !== strpos( $html, 'data-rsm-add="uit-__U__"' ), 'nested add-item button id carries the group token' );
-ok( false !== strpos( $html, 'data-rsm-token="__I__"', strpos( $html, 'data-rsm-tpl="uit-0"' ) ), 'per-group item template declares the item token' );
+ok( false !== strpos( $html, 'name="uses[groups][__U__][items]"' ), 'template: group token only — there is no longer an item token to bake' );
+ok( false === strpos( $html, '__I__' ), 'template: the nested item token is gone entirely' );
 
 echo "\nTest: sn_admin_render_uses_section (stored prefill wins over theme)\n";
 sn_uses_page_save( "## Desk\n- Thing | with note\n- Bare name" );
@@ -137,9 +141,7 @@ sn_admin_render_uses_section();
 $html = ob_get_clean();
 ok( false !== strpos( $html, 'value="Desk"' ), 'stored group label prefilled' );
 ok( false === strpos( $html, 'value="Interface"' ), 'theme prefill NOT used once a document is stored' );
-ok( false !== strpos( $html, 'value="Thing"' ), 'name side of the pair split' );
-ok( false !== strpos( $html, 'value="with note"' ), 'note side of the pair split' );
-ok( false !== strpos( $html, 'name="uses[groups][0][items][1][name]"' ), 'second item indexed' );
+ok( false !== strpos( $html, 'Thing | with note' ), 'a name+note pair renders as one piped line' );
 
 preg_match_all( '/data-rsm-add="([^"]+)"/', $html, $m_add );
 preg_match_all( '/data-rsm-tpl="([^"]+)"/', $html, $m_tpl );
