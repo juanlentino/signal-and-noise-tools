@@ -2,9 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [10.47.1] - 2026-08-05
+## [10.48.0] - 2026-08-05
 
-**Headline:** the 404 classifier shipped one signal too many — a same-site referer promoted everything a crawler touched. Withdrawn after one release, on live evidence.
+**Headline:** the 404 classifier gives back a signal it should never have had, and the Now / Uses editors stop rendering an input plus three buttons for every line of content.
+
+### Changed
+
+- **Now and Uses items are one textarea per section, not one input per item** ([inc/admin-forms/now-page.php](inc/admin-forms/now-page.php), [inc/admin-forms/uses-page.php](inc/admin-forms/uses-page.php)). The old card rendered a labelled input and ↑ ↓ ✕ controls for *every line of content* — on a dozen-item page, twelve inputs and thirty-six buttons to say twelve short sentences.
+
+  It also modelled the data wrongly. The stored artifact has always been a **text document whose items are lines**; the nested repeatable was a tree pretending to be one. A textarea is the edit affordance the storage already implies: reorder by moving a line, delete by deleting it, add by pressing Return. Sections keep their cards and reorder controls, because sections genuinely are a list. `/uses` uses `name | note` per line — the exact shape the stored document writes, so the field shows what gets saved.
+
+  The change is confined to a **boundary normalizer**: `sn_now_rows_to_text()` and `sn_uses_rows_to_text()` keep their array contract and their existing tests, and a test proves the textarea and the old per-item inputs produce a **byte-identical document**. Both input shapes are accepted, so a tab left open across the update still saves correctly instead of silently posting nothing.
 
 ### Fixed
 

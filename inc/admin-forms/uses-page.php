@@ -31,40 +31,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /** One /uses pair row: name + note. @param string $prefix Row prefix (may carry tokens). @param array $item {name,note}. */
-function sn_nuf_uses_item_row( $prefix, $item ) {
-	echo '<div class="sn-rsm-row" data-rsm-row><div class="sn-rsm-pair">';
-	sn_rsm_input( $prefix . '[name]', (string) ( $item['name'] ?? '' ), 'Name', 'SSL UF8' );
-	sn_rsm_input( $prefix . '[note]', (string) ( $item['note'] ?? '' ), 'Note (optional)', 'Advanced DAW controller' );
-	echo '</div>';
-	sn_rsm_controls();
-	echo '</div>';
-}
-
-/**
- * One /uses group card: label + repeatable indexed pair rows.
- *
- * @param string $prefix     Input-name prefix (e.g. uses[groups][0]; may carry __U__).
- * @param string $items_id   data-rsm id for this card's items list (may carry __U__).
- * @param string $item_token Token the pair-row template bakes for its own key.
- * @param array  $group      {label,items[]} (empty for the template).
- */
 function sn_nuf_uses_group_card( $prefix, $items_id, $item_token, $group ) {
+	// v10.48.0: one TEXTAREA per group, `name | note` per line — see the note in
+	// inc/admin-forms/now-page.php. The pipe is not a new convention invented for
+	// the form: the stored document has always written each entry as
+	// `- name | note`, so what the field shows is what gets saved.
+	unset( $item_token );
+	$lines = array();
+	foreach ( (array) ( $group['items'] ?? array() ) as $item ) {
+		$item = is_array( $item ) ? $item : array();
+		$name = trim( (string) ( $item['name'] ?? '' ) );
+		$note = trim( (string) ( $item['note'] ?? '' ) );
+		if ( '' === $name && '' === $note ) {
+			continue;
+		}
+		$lines[] = $name . ( '' !== $note ? ' | ' . $note : '' );
+	}
 	echo '<div class="sn-rsm-row sn-rsm-card" data-rsm-row>';
 	echo '<div class="sn-rsm-card-head">';
 	sn_rsm_input( $prefix . '[label]', (string) ( $group['label'] ?? '' ), 'Group label', 'Interface' );
 	sn_rsm_controls();
 	echo '</div>';
-	echo '<div class="sn-rsm-list" data-rsm-list="' . esc_attr( $items_id ) . '">';
-	$i = 0;
-	foreach ( (array) ( $group['items'] ?? array() ) as $item ) {
-		sn_nuf_uses_item_row( $prefix . '[items][' . $i . ']', (array) $item );
-		$i++;
-	}
-	echo '</div>';
-	echo '<template data-rsm-tpl="' . esc_attr( $items_id ) . '" data-rsm-token="' . esc_attr( $item_token ) . '">';
-	sn_nuf_uses_item_row( $prefix . '[items][' . $item_token . ']', array() );
-	echo '</template>';
-	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="' . esc_attr( $items_id ) . '">+ Add item</button>';
+	echo '<label class="sn-field-label" for="' . esc_attr( $items_id ) . '">Items &mdash; one per line, <code>name | note</code></label>';
+	echo '<textarea id="' . esc_attr( $items_id ) . '" name="' . esc_attr( $prefix ) . '[items]" rows="5" class="large-text sn-rsm-items" placeholder="SSL UF8 | Advanced DAW controller&#10;Another thing">' . esc_textarea( implode( "\n", $lines ) ) . '</textarea>';
+	echo '<p class="sn-field-helper">The note after <code>|</code> is optional. A note with no name is refused at save rather than filed under a blank entry.</p>';
 	echo '</div>';
 }
 

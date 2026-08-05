@@ -39,28 +39,28 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param array  $section  {label,items[]} (empty for the template).
  */
 function sn_nuf_now_group_card( $prefix, $items_id, $section ) {
+	// v10.48.0: one TEXTAREA per section, not one <input> per item.
+	//
+	// The old card rendered a labelled input plus ↑ ↓ ✕ controls for every single
+	// line of content. On a /now page with a dozen items that is a dozen inputs
+	// and thirty-six buttons to say twelve short sentences — the chrome outweighed
+	// the content, which is what made the leaf an eyesore.
+	//
+	// It also modelled the data wrongly. The stored artifact is a TEXT DOCUMENT
+	// whose items are lines; the nested repeatable was a tree pretending to be one.
+	// A textarea is the same edit affordance the storage already implies: reorder
+	// by moving a line, delete by deleting it, add by pressing Return. The section
+	// keeps its card and its reorder controls, because sections genuinely are a
+	// list of things.
+	$items = (array) ( $section['items'] ?? array() );
+	$value = implode( "\n", array_map( 'strval', $items ) );
 	echo '<div class="sn-rsm-row sn-rsm-card" data-rsm-row>';
 	echo '<div class="sn-rsm-card-head">';
 	sn_rsm_input( $prefix . '[label]', (string) ( $section['label'] ?? '' ), 'Section label', 'Building' );
 	sn_rsm_controls();
 	echo '</div>';
-	echo '<div class="sn-rsm-list" data-rsm-list="' . esc_attr( $items_id ) . '">';
-	foreach ( (array) ( $section['items'] ?? array() ) as $item ) {
-		sn_nuf_now_item_row( $prefix, (string) $item );
-	}
-	echo '</div>';
-	echo '<template data-rsm-tpl="' . esc_attr( $items_id ) . '">';
-	sn_nuf_now_item_row( $prefix, '' );
-	echo '</template>';
-	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="' . esc_attr( $items_id ) . '">+ Add item</button>';
-	echo '</div>';
-}
-
-/** One /now item row (leaf list — plain [] name). @param string $prefix @param string $value */
-function sn_nuf_now_item_row( $prefix, $value ) {
-	echo '<div class="sn-rsm-row" data-rsm-row>';
-	sn_rsm_input( $prefix . '[items][]', $value, 'Item', 'One line about what you are doing' );
-	sn_rsm_controls();
+	echo '<label class="sn-field-label" for="' . esc_attr( $items_id ) . '">Items &mdash; one per line</label>';
+	echo '<textarea id="' . esc_attr( $items_id ) . '" name="' . esc_attr( $prefix ) . '[items]" rows="5" class="large-text sn-rsm-items" placeholder="One line about what you are doing&#10;Another line">' . esc_textarea( $value ) . '</textarea>';
 	echo '</div>';
 }
 
@@ -84,7 +84,7 @@ function sn_admin_render_now_section() {
 	} else {
 		echo '<p class="sn-fieldset-intro">This form is the editor for the <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Add sections below and save to publish it.</p>';
 	}
-	echo '<p class="sn-field-helper">Each card is one section on /now: a label plus its items. Incomplete cards are refused at save (items need a label; a label needs at least one item). Removing every card clears the override — the page falls back to the theme\'s built-in content (it is never silently blanked).</p>';
+	echo '<p class="sn-field-helper">Each card is one section on /now: a label, then its items one per line. Incomplete cards are refused at save (items need a label; a label needs at least one item). Removing every card clears the override — the page falls back to the theme\'s built-in content (it is never silently blanked).</p>';
 
 	echo '<div class="sn-rsm-list" data-rsm-list="now-groups">';
 	$i = 0;
@@ -94,7 +94,7 @@ function sn_admin_render_now_section() {
 	}
 	echo '</div>';
 	echo '<template data-rsm-tpl="now-groups" data-rsm-token="__G__">';
-	sn_nuf_now_group_card( 'now[groups][__G__]', 'nit-__G__', array( 'items' => array( '' ) ) );
+	sn_nuf_now_group_card( 'now[groups][__G__]', 'nit-__G__', array( 'items' => array() ) );
 	echo '</template>';
 	echo '<button type="button" class="button sn-rsm-add" data-rsm-add="now-groups">+ Add section</button>';
 
