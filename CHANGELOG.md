@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.52.5] - 2026-08-05
+
+**Headline:** every Cloudways purge record now names the step it reached, why it failed, and whether the outcome is even known.
+
+### Fixed
+
+- **A failure row can no longer be silent** ([inc/cloudways-purge.php](inc/cloudways-purge.php)). Two rows this session reported a failed purge and nothing else, and each sent the reader somewhere useless: `ok: false, stage: auth` (really a rate limit caused by a purge burst, not a bad credential) and `ok: false, http: 0, error: ""` (really a 5-second timeout on a request that **had** started a purge — the operation it opened was found still running three seconds later, and the next call coalesced onto it).
+
+  Rather than patch those two instances, this closes the class. The load-bearing change is an **invariant: whenever a row records `ok: false`, it also records a non-empty `error`.** `sn_cloudways_failure_reason()` renders a `WP_Error` as `code: message` and an empty body as `HTTP <status> with an empty body`, and never returns `''`. It is asserted across six different failure shapes in a single loop, so a future failure path cannot quietly reintroduce a blank reason.
+
+- **A transport failure is marked `inconclusive` rather than treated as a failed purge.** A timeout means we never heard back; it is not evidence the purge did not run, and today it demonstrably had. `ok` stays `false` — success cannot be claimed — but the record now distinguishes *it failed* from *we do not know*. This is the same absent-versus-measured discipline the prompt-cache probe uses.
+
+- **Every row names its `stage`** (`auth` or `dispatch`), instead of leaving the reader to infer it from which keys happen to be present. An auth failure additionally carries the token exchange's own HTTP status and reason, so a `429` reads as a rate limit rather than as a credential problem.
+
+### Changed
+
+- **The per-leg HTTP timeout is filterable** via `sn_cloudways_timeout` (`auth` / `purge`), default unchanged at 5 seconds. v9.47.1 tightened it from 15s because this chain fires inline on save paths and a slow API held a human's save — that reasoning stands, so the default did not move. But a busy account genuinely can exceed 5s, and the value should be tunable without a code edit. The parameter is now a float.
+
+### Notes
+
+35 new assertions (102 in the suite), including that a *success* row stays clean — no error, no `inconclusive`, but still a `stage`. Paired with theme v11.4.9, which carries `inconclusive` and `stage` into `sn_last_purge_report`.
+
+> **Why PATCH:** diagnostic detail added to a record, plus a new filter with an unchanged default. No API shape, schema, or purge behaviour moved.
+
 ## [10.52.4] - 2026-08-05
 
 **Headline:** a purge burst was manufacturing its own auth failure. The Cloudways token is now cached, on a deliberately short leash.
