@@ -2,9 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.52.3] - 2026-08-05
+
+**Headline:** documentation only — two version comments that named the wrong release, and a correction to what v10.52.2 claimed.
+
+### Fixed
+
+- **Two stale version comments**, both casualties of the same 10.50–10.52 cross-session release race, each naming a release its code did not ship in. [inc/abilities-sn-scan.php](inc/abilities-sn-scan.php) said `v10.51.1` — that fix was retargeted to 10.52.1 mid-flight when main moved to 10.52.0, and the header and CHANGELOG moved with it while the comment did not. [tests/emdash-scan.php](tests/emdash-scan.php) said `@since plugin v10.50.0` — the em-dash scanner was authored expecting that number, which went to the prompt-cache probe instead; it shipped in v10.51.0, verified against the tags rather than assumed (its introducing commit `f32bdb1` is contained by `v10.51.0`).
+
+### Changed
+
+- **The v10.52.2 entry carries a post-release correction.** Its headline claimed the Varnish leg "has been reporting failure while succeeding", implying a standing fault. A later measurement on unchanged code disproved it: still on v10.52.1, with the fix not installed, a purge recorded `ok: 1, http: 200`. The 422 is **collision-only** — it appears when a purge is issued while another is still open, and five releases in one hour is exactly when that happens. The fix's value is unchanged; its severity was overstated, and the correction is written into the entry a future reader will actually open. The `v10.52.2` tag stays as cut; published release tags do not get rewritten to fix prose.
+
+> **Why PATCH:** no code path changed — comments, a CHANGELOG correction, and the version header. Released rather than held because a wrong severity claim in a shipped CHANGELOG is worth correcting in the record, not just on `main`.
+
 ## [10.52.2] - 2026-08-05
 
-**Headline:** the Varnish purge leg has been reporting failure while succeeding. Cloudways serializes cache operations, and we were recording the rejection instead of the purge it pointed at.
+**Headline:** when two purges collide, the loser was recorded as a failure. Cloudways serializes cache operations, and we were logging the rejection instead of the purge it pointed at.
 
 ### Fixed
 
@@ -13,6 +27,14 @@ All notable changes to Signal & Noise Tools are documented here.
   **Deliberately narrow.** A 422 blocked by any other operation type, an operation already completed (nothing is purging, so there is nothing to ride), or a body that will not parse all stay failures — including the case where `is_completed` is absent entirely, which is unknown state rather than "still running". A broader reading would turn this row into a success-only readout that reports healthy while the cache goes stale, which is the exact failure the record exists to catch.
 
 - 15 new assertions in [tests/cloudways-purge.php](tests/cloudways-purge.php) built from the live error envelope, pinning each of those narrow cases: the unrelated-operation 422, the completed-operation 422, three malformed bodies, and that an ordinary 200 keeps its own operation id and is never marked coalesced.
+
+### Correction (post-release, 2026-08-05)
+
+The original headline claimed the leg "has been reporting failure while succeeding", implying a standing fault. **That was an overreach, and a later measurement on unchanged code disproves it.** At 19:33 UTC — still running v10.52.1, with this fix not installed — a purge recorded `ok: 1, http: 200`. So the 422 is **collision-only**: it appears when a purge is issued while another is still open, not on every purge. Today's readings were taken during five releases in one hour, which is precisely when collisions happen; a quiet site will rarely see one.
+
+The fix's value is unchanged — a collision was being logged as a failure, and now it is logged as what it is. Its severity was not: the Varnish tier was never going unpurged. The v9.47.1 note below explains why this 422 was *seen* three weeks ago, not that it had been firing continuously since.
+
+One incidental finding from that same clean run: Cloudways' 200 response carries no `operation_id` either, so `operation_id: 0` is normal on the success path — the coalesced path is now the only one that records a non-zero id.
 
 ### Notes
 

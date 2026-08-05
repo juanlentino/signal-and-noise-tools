@@ -52,7 +52,7 @@ const SNT_SN_SCAN_TYPES = array(
 	'near_duplicate',
 	'link_candidates',
 	'orphan_media',
-	// v10.51.1: emdash shipped in v10.51.0 with an adapter but WITHOUT this entry,
+	// v10.52.1: emdash shipped in v10.51.0 with an adapter but WITHOUT this entry,
 	// so the ability rejected scan_type:"emdash" before dispatch and the feature was
 	// unreachable. tests/abilities-sn-scan.php now pins this list against
 	// snt_sn_scan_adapters() in both directions.
