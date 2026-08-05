@@ -263,6 +263,40 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 		return;
 	}
 
+	// v10.52.6: a Note entering publish for the FIRST time changes every page on
+	// the site, not just its own. Each rendered page embeds the site-wide notes
+	// index (the `{"t":…,"u":…}` list that feeds search and related-notes), so a
+	// new publication makes every cached page's copy of that index incomplete.
+	// The URL list below cannot express that, and the freshness probe cannot see
+	// it either — it checks /, /notes/ and /provenance/, never an individual
+	// Note. Measured 2026-08-05: the cached copy of a Note was 104,516 bytes
+	// against 115,431 from origin, and its embedded index was missing an entry.
+	//
+	// So a first publication purges the zone; an ORDINARY EDIT keeps the narrow
+	// list, because an edit changes that Note's page and its listings, not the
+	// index every other page carries. New publications run about one a week
+	// here, so this is a rare full purge, not a routine one.
+	//
+	// The test is a transition INTO publish, not $update: $update is true for a
+	// draft that already existed as a row, which is exactly the case that adds a
+	// new entry to the index.
+	$was_published = ( $post_before instanceof WP_Post ) && 'publish' === $post_before->post_status;
+	if ( ! $was_published ) {
+		/**
+		 * Filters whether a first publication purges the whole zone.
+		 *
+		 * @since 10.52.6
+		 *
+		 * @param bool    $purge_all Whether to purge everything.
+		 * @param int     $post_id   Post ID.
+		 * @param WP_Post $post      Post object.
+		 */
+		if ( apply_filters( 'sn_cf_purge_all_on_first_publish', true, $post_id, $post ) ) {
+			sn_cf_purge_everything();
+			return;
+		}
+	}
+
 	$urls = array(
 		get_permalink( $post_id ),
 		home_url( '/' ),
