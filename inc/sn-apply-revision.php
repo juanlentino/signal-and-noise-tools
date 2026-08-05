@@ -254,7 +254,7 @@ if ( ! function_exists( 'snt_sn_apply_stage_revision' ) ) {
 
 		$keep = wp_revisions_to_keep( (object) $live );
 		if ( 0 === (int) $keep ) {
-			return new WP_Error( 'snt_sn_apply_revisions_disabled', __( 'Revisions are disabled for this post (wp_revisions_to_keep() = 0) — cannot stage without touching the live post.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
+			return new WP_Error( 'snt_sn_apply_revisions_disabled', __( 'Revisions are disabled for this post (wp_revisions_to_keep() = 0): cannot stage without touching the live post.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 		}
 
 		// Build the array _wp_put_post_revision() will snapshot: the live

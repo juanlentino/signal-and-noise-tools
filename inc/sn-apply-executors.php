@@ -73,22 +73,22 @@ function snt_sn_apply_mode_support( $type ) {
 		case 'og_card':
 			return array(
 				'modes'  => array( 'publish' ),
-				'reason' => 'og_card regenerates a PNG file on disk (sn_generate_og_card()) — not a post field. There is no WordPress revision of a file; this change type is publish-only.',
+				'reason' => 'og_card regenerates a PNG file on disk (sn_generate_og_card()): not a post field. There is no WordPress revision of a file; this change type is publish-only.',
 			);
 		case 'anchor_sweep':
 			return array(
 				'modes'  => array( 'publish' ),
-				'reason' => 'anchor_sweep dispatches a live HTTP call to the provenance Worker (sn_prov_run_sweep()) — an external side effect with no post entity to stage a revision of. Publish-only.',
+				'reason' => 'anchor_sweep dispatches a live HTTP call to the provenance Worker (sn_prov_run_sweep()): an external side effect with no post entity to stage a revision of. Publish-only.',
 			);
 		case 'create_draft':
 			return array(
 				'modes'  => array( 'revision' ),
-				'reason' => 'create_draft can never publish — post_status is hard-coded to "draft" and this tool will never make it live. Drafts are scheduled by hand; that manual step is the human review gate. This change type only supports mode:"revision", which performs the actual (reversible via rollback:delete_draft) draft insert directly — there is no live post yet to stage a WordPress core revision against.',
+				'reason' => 'create_draft can never publish (post_status is hard-coded to "draft" and this tool will never make it live. Drafts are scheduled by hand; that manual step is the human review gate. This change type only supports mode:"revision", which performs the actual (reversible via rollback:delete_draft) draft insert directly) there is no live post yet to stage a WordPress core revision against.',
 			);
 		case 'restore_revision':
 			return array(
 				'modes'  => array( 'publish' ),
-				'reason' => 'restore_revision IS the live write — it is the acceptance step of the PR pattern, promoting a staged revision to the live post. "Staging a restore" would mean staging a revision of a revision, which has no meaning. This change type only supports mode:"publish"; a routine credential (granted "revision" only) is refused here by the same identity grant every other publish-only call already goes through — never a new capability check.',
+				'reason' => 'restore_revision IS the live write (it is the acceptance step of the PR pattern, promoting a staged revision to the live post. "Staging a restore" would mean staging a revision of a revision, which has no meaning. This change type only supports mode:"publish"; a routine credential (granted "revision" only) is refused here by the same identity grant every other publish-only call already goes through) never a new capability check.',
 			);
 		default:
 			return array( 'modes' => array(), 'reason' => 'Unknown change.type.' );

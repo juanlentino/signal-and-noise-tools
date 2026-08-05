@@ -65,7 +65,7 @@ function sn_health_analytics_integrity_findings( $alert, $now ) {
 				'subject_url'   => '',
 				'subject_label' => 'corrupt alert record',
 				'edit_url'      => '',
-				'note'          => 'integrity alert record present but unreadable (corrupt) — investigate; clear with wp option delete sn_analytics_integrity_alert',
+				'note'          => 'integrity alert record present but unreadable (corrupt): investigate; clear with wp option delete sn_analytics_integrity_alert',
 			),
 		);
 	}
@@ -111,7 +111,7 @@ function sn_health_analytics_integrity_findings( $alert, $now ) {
 			'subject_label' => $scope,
 			'edit_url'      => '',
 			'note'          => sprintf(
-				'The never-invert guard recorded views < pageview_visits %1$s for %2$s (class %3$s) — %4$s. That inequality is impossible by construction, so this is a genuine rollup/sampling bug; the values were served un-clamped and the record stays until cleared.',
+				'The never-invert guard recorded views < pageview_visits %1$s for %2$s (class %3$s). %4$s. That inequality is impossible by construction, so this is a genuine rollup/sampling bug; the values were served un-clamped and the record stays until cleared.',
 				$values,
 				$scope,
 				$class,
@@ -139,13 +139,13 @@ function sn_health_check_analytics_integrity() {
 		return sn_health_pack_check(
 			$label,
 			array(),
-			'Analytics integrity: no violations recorded — the never-invert guard (views >= pageview_visits, rollup + read side) has not fired.'
+			'Analytics integrity: no violations recorded: the never-invert guard (views >= pageview_visits, rollup + read side) has not fired.'
 		);
 	}
 
 	return sn_health_pack_check(
 		$label,
 		sn_health_analytics_integrity_findings( $alert, time() ),
-		'views < pageview_visits is arithmetically impossible (every gated visit implies at least one view), so a recorded violation is a genuine rollup/sampling bug — investigate the AE rollup queries and the collector worker for the recorded scope. The record never expires on its own: after the investigation, clear it explicitly (`wp option delete sn_analytics_integrity_alert`) to reset this check. Values were served un-clamped throughout — the alarm is the feature.'
+		'views < pageview_visits is arithmetically impossible (every gated visit implies at least one view), so a recorded violation is a genuine rollup/sampling bug (investigate the AE rollup queries and the collector worker for the recorded scope. The record never expires on its own: after the investigation, clear it explicitly (`wp option delete sn_analytics_integrity_alert`) to reset this check. Values were served un-clamped throughout) the alarm is the feature.'
 	);
 }

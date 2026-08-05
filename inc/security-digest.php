@@ -135,7 +135,7 @@ function snt_security_digest_compose( $data ) {
 	$lines[] = '';
 	if ( $quiet ) {
 		$lines[] = 'Quiet week: no failed logins, no recon probes, no guard blocks.';
-		$lines[] = 'This email is the heartbeat — the pipeline is alive and watching.';
+		$lines[] = 'This email is the heartbeat: the pipeline is alive and watching.';
 		$lines[] = '';
 	}
 
@@ -175,7 +175,7 @@ function snt_security_digest_compose( $data ) {
 	} else {
 		$age     = null === $status['age_hours'] ? 'unknown age' : 'refreshed ' . $status['age_hours'] . 'h ago';
 		$lines[] = 'Guard denylist: ' . number_format_i18n( $status['denylist_count'] ) . ' ranges, ' . $age
-			. ( $status['stale'] ? ' — STALE (older than 48h or empty; check the worker cron)' : '' )
+			. ( $status['stale'] ? '. STALE (older than 48h or empty; check the worker cron)' : '' )
 			. ( '' !== $status['version'] ? ' (worker v' . $status['version'] . ')' : '' );
 	}
 	$lines[] = '';
@@ -278,7 +278,7 @@ function snt_security_digest_render_settings() {
 	echo '<label><input type="checkbox" name="sn_digest_enabled" value="1" ';
 	checked( snt_security_digest_enabled() );
 	echo ' /> ' . esc_html__( 'Email a weekly security digest to the admin address', 'signal-and-noise-tools' ) . '</label>';
-	echo '<p class="sn-field-helper">' . esc_html__( 'Failed logins, recon probes, lockouts, login-guard blocks, and denylist freshness for the last 7 days. Sends every week, including quiet weeks — the quiet email is the heartbeat.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Failed logins, recon probes, lockouts, login-guard blocks, and denylist freshness for the last 7 days. Sends every week, including quiet weeks: the quiet email is the heartbeat.', 'signal-and-noise-tools' ) . '</p>';
 	if ( $last_sent > 0 ) {
 		echo '<p class="sn-field-helper">' . esc_html(
 			sprintf(

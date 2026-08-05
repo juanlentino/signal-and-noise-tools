@@ -39,7 +39,7 @@ function snt_edge_render_view( $from, $to ) {
 	if ( ! function_exists( 'sn_edge_config' ) || ! sn_edge_config() ) {
 		snt_an_gate(
 			__( 'Traffic & edge', 'signal-and-noise-tools' ),
-			__( 'Edge analytics is not configured yet. Add the “Zone Analytics:Read” permission to your SN_CF_ANALYTICS_TOKEN in the Cloudflare dashboard — the zone ID is reused from the cache-purge settings. The first daily sync back-fills ~1 year of edge history.', 'signal-and-noise-tools' )
+			__( 'Edge analytics is not configured yet. Add the “Zone Analytics:Read” permission to your SN_CF_ANALYTICS_TOKEN in the Cloudflare dashboard: the zone ID is reused from the cache-purge settings. The first daily sync back-fills ~1 year of edge history.', 'signal-and-noise-tools' )
 		);
 		return;
 	}
@@ -58,7 +58,7 @@ function snt_edge_render_view( $from, $to ) {
 		array( 'l' => __( 'Threats', 'signal-and-noise-tools' ),         'n' => number_format_i18n( (int) ( $t['threats'] ?? 0 ) ) ),
 	);
 	snt_an_panel_open( __( 'Traffic & edge', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside inside-flush' ) );
-	echo '<p class="sn-an-sep">' . esc_html__( 'Server-side edge totals — every request, including bots / RSS / no-JS clients the front-end beacon never sees. “Machine traffic” is edge pageviews minus the beacon’s human pageviews.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-sep">' . esc_html__( 'Server-side edge totals: every request, including bots / RSS / no-JS clients the front-end beacon never sees. “Machine traffic” is edge pageviews minus the beacon’s human pageviews.', 'signal-and-noise-tools' ) . '</p>';
 	// Surface the REAL adaptive-dataset retention (discovered from the settings node,
 	// not the old "24h on Free" guess). Omitted entirely until the probe knows it.
 	$ret_days = function_exists( 'sn_edge_adaptive_retention_days' ) ? (int) sn_edge_adaptive_retention_days() : 0;
@@ -100,7 +100,7 @@ function snt_edge_render_view( $from, $to ) {
 	// Full-width labelled divider (matches the other sections in this view, e.g. the
 	// engagement CWV intro) instead of wrapping the dim grid in an extra .postbox. The
 	// nested postbox header rendered oversized next to the un-nested dim-card headers.
-	echo '<p class="sn-an-sep sn-an-sep--full"><strong>' . esc_html__( 'Attack-surface pressure', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'Door-knock pressure against the WordPress attack surface (sampling-corrected, last ~24h per daily sync). These hit /wp-login.php directly — the masked-login worker never sees them.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-sep sn-an-sep--full"><strong>' . esc_html__( 'Attack-surface pressure', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'Door-knock pressure against the WordPress attack surface (sampling-corrected, last ~24h per daily sync). These hit /wp-login.php directly: the masked-login worker never sees them.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<div class="sn-an-grid">';
 	snt_edge_render_dim( __( 'Login doors', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_door', $from, $to, 10 ), 'No login-door hits in this range yet.', false );
 	snt_edge_render_dim( __( 'Door status codes', 'signal-and-noise-tools' ), sn_edge_top_dim( 'atk_status', $from, $to, 10 ), 'No door status data yet.', false );

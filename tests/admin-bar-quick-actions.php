@@ -185,7 +185,7 @@ function ab_invoke( $fn ) {
 	return array( 'success' => null, 'payload' => null, 'status' => null );
 }
 
-echo "Admin-bar quick actions suite — v4.7.0\n";
+echo "Admin-bar quick actions suite: v4.7.0\n";
 
 /* ════════════════════════════════════════════════════════════════════
  * Test 1 — sn_admin_bar_items() shape: the 3 new actions + Regen guard
@@ -225,7 +225,7 @@ $GLOBALS['__ab_force_check_called'] = 0;
 $res = ab_invoke( 'sn_handle_quick_force_update_check' );
 ab_eq( 1, $GLOBALS['__ab_force_check_called'], '2.1: snt_cmd_impl_force_check() called exactly once' );
 ab_true( true === $res['success'], '2.2: success JSON sent' );
-ab_eq( 'Update check forced — see Dashboard › Updates.', $res['payload']['message'] ?? null, '2.3: toast message correct' );
+ab_eq( 'Update check forced: see Dashboard › Updates.', $res['payload']['message'] ?? null, '2.3: toast message correct' );
 
 // 2.4 — cap gate: no manage_options → 403 error, impl NOT called.
 $GLOBALS['__ab_manage_options']     = false;
@@ -245,18 +245,18 @@ $GLOBALS['__ab_manage_options'] = true;
 $GLOBALS['__ab_scan_candidate_count'] = 5;
 $res = ab_invoke( 'sn_handle_quick_scan_patterns' );
 ab_true( true === $res['success'], '3.1: scan success JSON sent' );
-ab_eq( 'Pattern scan complete — 5 candidates.', $res['payload']['message'] ?? null, '3.1b: message reports 5 (candidate count, not 3 envelope keys)' );
+ab_eq( 'Pattern scan complete. 5 candidates.', $res['payload']['message'] ?? null, '3.1b: message reports 5 (candidate count, not 3 envelope keys)' );
 ab_true( false === strpos( (string) ( $res['payload']['message'] ?? '' ), '3 candidate' ), '3.1c: message does NOT report 3 (the envelope-key trap)' );
 
 // 3.2 — 1 candidate → singular "candidate".
 $GLOBALS['__ab_scan_candidate_count'] = 1;
 $res = ab_invoke( 'sn_handle_quick_scan_patterns' );
-ab_eq( 'Pattern scan complete — 1 candidate.', $res['payload']['message'] ?? null, '3.2: singular wording for 1 candidate' );
+ab_eq( 'Pattern scan complete. 1 candidate.', $res['payload']['message'] ?? null, '3.2: singular wording for 1 candidate' );
 
 // 3.3 — 0 candidates → "0 candidates" (NOT 3).
 $GLOBALS['__ab_scan_candidate_count'] = 0;
 $res = ab_invoke( 'sn_handle_quick_scan_patterns' );
-ab_eq( 'Pattern scan complete — 0 candidates.', $res['payload']['message'] ?? null, '3.3: zero candidates → 0 (envelope still has 3 keys)' );
+ab_eq( 'Pattern scan complete. 0 candidates.', $res['payload']['message'] ?? null, '3.3: zero candidates → 0 (envelope still has 3 keys)' );
 
 /* ════════════════════════════════════════════════════════════════════
  * Test 4 — Regen OG Card cap-gates the contextual post_id

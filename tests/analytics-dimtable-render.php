@@ -44,14 +44,14 @@ $noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
 ok( 1 === count( $noted ) && 'Edge locations' === $noted[0]['title'], 'empty dim table registers its title' );
 ok( 'No edge-location data yet.' === $noted[0]['why'], 'empty dim table carries its $empty copy as the fold why (D4 §4)' );
 
-echo "\nGroup: v9.68.1 — NULL rows (the accessors' failed-read verdict) fold with the read-failure copy\n";
+echo "\nGroup: v9.68.1. NULL rows (the accessors' failed-read verdict) fold with the read-failure copy\n";
 unset( $GLOBALS['sn_an_empty_panels'] );
 ob_start(); snt_analytics_render_dim_table( 'Browsers', null, 'No browser data in this range yet.' ); $hn = ob_get_clean();
 ok( '' === trim( $hn ), 'failed: renders no panel markup (folds like empty)' );
 $noted_n = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
 ok( 1 === count( $noted_n ) && 'Browsers' === $noted_n[0]['title'], 'failed: registers its title in the fold' );
-ok( 'Browsers could not be read (read failure — not an empty window).' === ( $noted_n[0]['why'] ?? '' ),
-	'failed: the fold why is the shared read-failure sentence — NEVER the empty-window copy' );
+ok( 'Browsers could not be read (read failure: not an empty window).' === ( $noted_n[0]['why'] ?? '' ),
+	'failed: the fold why is the shared read-failure sentence. NEVER the empty-window copy' );
 ok( false === strpos( (string) ( $noted_n[0]['why'] ?? '' ), 'No browser data' ), 'failed: the $empty copy is not served for a failed read' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

@@ -29,7 +29,7 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
 	if ( ! is_array( $lifecycle ) || empty( $lifecycle['rows'] ) ) {
 		snt_an_gate(
 			__( 'Lifecycle at scale', 'signal-and-noise-tools' ),
-			__( 'No catalogue data yet — once your published Notes accumulate views, their decay shapes and refresh candidates show up here.', 'signal-and-noise-tools' )
+			__( 'No catalogue data yet: once your published Notes accumulate views, their decay shapes and refresh candidates show up here.', 'signal-and-noise-tools' )
 		);
 		return;
 	}
@@ -39,7 +39,7 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
 	$cands   = (int) ( $summary['refresh_candidates'] ?? 0 );
 
 	snt_an_panel_open(
-		__( 'Lifecycle at scale — your whole catalogue', 'signal-and-noise-tools' ),
+		__( 'Lifecycle at scale: your whole catalogue', 'signal-and-noise-tools' ),
 		array(
 			'panel_class'  => 'sn-overview',
 			'inside_class' => 'inside inside-flush sn-an-panel',
@@ -66,7 +66,7 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
 	);
 	snt_an_kpi_row( $cards );
 
-	echo '<p class="sn-an-foot">' . esc_html__( 'Shape is each Note\'s early-life share of its lifetime views. A refresh candidate is a cooling Note you haven\'t marked evergreen — the editorial call the data can\'t make.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-foot">' . esc_html__( 'Shape is each Note\'s early-life share of its lifetime views. A refresh candidate is a cooling Note you haven\'t marked evergreen: the editorial call the data can\'t make.', 'signal-and-noise-tools' ) . '</p>';
 	snt_an_panel_close();
 
 	snt_analytics_render_lifecycle_table( (array) $lifecycle['rows'], (int) ( $summary['total'] ?? 0 ) );

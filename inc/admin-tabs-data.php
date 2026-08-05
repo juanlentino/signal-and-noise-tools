@@ -97,7 +97,7 @@ function sn_admin_top_tabs() {
 			'slug'     => 'sn-theme-options',
 			'tab'      => 'dashboard',
 			'label'    => 'Dashboard',
-			'title'    => 'Signal & Noise — Dashboard',
+			'title'    => 'Signal & Noise. Dashboard',
 			'subtitle' => 'Status overview and maintenance actions.',
 			// Phase 1: landing tab has no sub_tabs; the dispatcher calls this
 			// tab-level render directly (inc/admin-render-sections.php).
@@ -191,7 +191,7 @@ function sn_admin_top_tabs() {
 			'slug'     => 'sn-connections',
 			'tab'      => 'connections',
 			'label'    => 'Connections',
-			'title'    => 'Signal & Noise — Connections',
+			'title'    => 'Signal & Noise. Connections',
 			'subtitle' => 'Everything that talks to a third party: Cloudflare, webhooks, IndexNow, the Spotify discography, and scheduled jobs.',
 			'sub_tabs' => array(
 				// Cloudflare moved from Site; webhooks/indexnow/cron from the retired
@@ -227,7 +227,7 @@ function sn_admin_top_tabs() {
 			// naming it for a read-only rule it never kept was not.
 			// KEY STAYS 'monitoring' — hardcoded in five call sites.
 			'label'    => 'Measurement',
-			'title'    => 'Signal & Noise — Measurement',
+			'title'    => 'Signal & Noise. Measurement',
 			'subtitle' => 'What the site records about itself: analytics, AI insights, content health, and feed requests.',
 			// Built above so the Machine Readers preview leaf can splice in.
 			'sub_tabs' => $monitoring_sub_tabs,
@@ -269,7 +269,7 @@ function sn_admin_top_tabs() {
 			'slug'     => 'sn-security',
 			'tab'      => 'security',
 			'label'    => 'Security',
-			'title'    => 'Signal & Noise — Security',
+			'title'    => 'Signal & Noise. Security',
 			'subtitle' => 'Custom login URL and the admin audit log.',
 			'sub_tabs' => array(
 				'login'         => array( 'label' => 'Login URL', 'render' => 'sn_admin_render_login_section' ),
@@ -295,7 +295,7 @@ function sn_admin_top_tabs() {
 			// that had been marooned as rows inside an eighteen-row Health tab come
 			// with it. KEY stays 'tools'.
 			'label'    => 'Integrity',
-			'title'    => 'Signal & Noise — Integrity',
+			'title'    => 'Signal & Noise. Integrity',
 			// v10.46.0: Tools stops being a junk drawer. Its own subtitle used to
 			// name three of its five leaves. Block Migrations went to Content (it is
 			// a content scanner), MCP + Copilot Usage to AI. What remains is the pair

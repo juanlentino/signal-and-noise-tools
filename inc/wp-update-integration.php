@@ -95,7 +95,7 @@ function sn_gh_fetch_failure_reason( $response ) {
 		// generic "network error": the number in it is the actual diagnosis.
 		return sn_gh_redact_secrets( sprintf(
 			/* translators: %s: underlying HTTP error message. */
-			__( 'could not reach GitHub — %s', 'signal-and-noise-tools' ),
+			__( 'could not reach GitHub. %s', 'signal-and-noise-tools' ),
 			$response->get_error_message()
 		) );
 	}
@@ -105,11 +105,11 @@ function sn_gh_fetch_failure_reason( $response ) {
 		case 401:
 			// The one failure a site owner can fix in 30 seconds, and the one
 			// the old code hid most completely. Name the constant.
-			return __( 'GitHub rejected the credential (401) — SNT_GITHUB_TOKEN in wp-config.php is invalid, expired, or revoked', 'signal-and-noise-tools' );
+			return __( 'GitHub rejected the credential (401). SNT_GITHUB_TOKEN in wp-config.php is invalid, expired, or revoked', 'signal-and-noise-tools' );
 		case 403:
-			return __( 'GitHub refused the request (403) — usually a rate limit; set SNT_GITHUB_TOKEN in wp-config.php to raise 60/h to 5000/h', 'signal-and-noise-tools' );
+			return __( 'GitHub refused the request (403): usually a rate limit; set SNT_GITHUB_TOKEN in wp-config.php to raise 60/h to 5000/h', 'signal-and-noise-tools' );
 		case 404:
-			return __( 'GitHub returned 404 — the repository was renamed, deleted, or made private', 'signal-and-noise-tools' );
+			return __( 'GitHub returned 404: the repository was renamed, deleted, or made private', 'signal-and-noise-tools' );
 		case 200:
 			return __( 'GitHub returned 200 but the body was not a readable tag list', 'signal-and-noise-tools' );
 		default:
@@ -306,7 +306,7 @@ function sn_gh_latest_plugin_tag( $force_refresh = false ) {
 		// DURABLE: we reached GitHub, it answered correctly, and the repo simply
 		// has no vX.Y.Z tags. Re-asking in five minutes gets the same answer.
 		return sn_gh_record_fetch_failure(
-			__( 'GitHub returned no tags matching vX.Y.Z — nothing to compare against', 'signal-and-noise-tools' ),
+			__( 'GitHub returned no tags matching vX.Y.Z: nothing to compare against', 'signal-and-noise-tools' ),
 			200
 		);
 	}
@@ -559,13 +559,13 @@ add_filter( 'plugins_api', function( $result, $action, $args ) {
 	$info->tested            = '7.0';
 	$info->requires_php      = '8.3';
 	$info->download_link     = $latest_tag ? $repo_url . '/archive/refs/tags/' . $latest_tag . '.zip' : '';
-	$info->short_description = 'Operational + content tooling that powers juanlentino.com — SEO emission, cache controls, RSS subscriber tracking, OG card generation, GitHub-Actions deploy status, AI-assisted meta descriptions (WP 7.0+), and a WordPress/desktop-mode integration with on-desktop widgets.';
+	$info->short_description = 'Operational + content tooling that powers juanlentino.com. SEO emission, cache controls, RSS subscriber tracking, OG card generation, GitHub-Actions deploy status, AI-assisted meta descriptions (WP 7.0+), and a WordPress/desktop-mode integration with on-desktop widgets.';
 	$info->sections          = array(
 		'description' => '<p>Companion plugin to the <a href="https://github.com/juanlentino/signal-and-noise">Signal &amp; Noise</a> brutalist block theme. Owns everything operational + content-authoring-related so the theme can stay focused on presentation.</p>'
-			. '<p><strong>SEO</strong> — meta tags, JSON-LD <code>@graph</code>, sitemap routing, <code>&lt;title&gt;</code> emission, <code>Last-Modified</code> header + <code>If-Modified-Since</code> 304 (post-Phase-13 cutover; The SEO Framework dropped as a dependency).</p>'
-			. '<p><strong>Ops tooling</strong> — Cloudflare cache purge, custom login URL, RSS subscriber tracking, API rate-limit monitor, OG card generator, GitHub Actions deploy status.</p>'
-			. '<p><strong>WP 7.0 readiness</strong> — AI-assisted meta description (Phase 12 scaffold, dormant on 6.x), Abilities API registration (4 abilities: <code>purge-all-caches</code>, <code>regenerate-og-card</code>, <code>get-deploy-status</code>, <code>clear-template-overrides</code>).</p>'
-			. '<p><strong>Desktop-mode integration</strong> — dock entry with 8-tab submenu, three desktop widgets (deploy status, quick actions, RSS subscribers), 13 ⌘K commands.</p>',
+			. '<p><strong>SEO</strong>: meta tags, JSON-LD <code>@graph</code>, sitemap routing, <code>&lt;title&gt;</code> emission, <code>Last-Modified</code> header + <code>If-Modified-Since</code> 304 (post-Phase-13 cutover; The SEO Framework dropped as a dependency).</p>'
+			. '<p><strong>Ops tooling</strong>. Cloudflare cache purge, custom login URL, RSS subscriber tracking, API rate-limit monitor, OG card generator, GitHub Actions deploy status.</p>'
+			. '<p><strong>WP 7.0 readiness</strong>. AI-assisted meta description (Phase 12 scaffold, dormant on 6.x), Abilities API registration (4 abilities: <code>purge-all-caches</code>, <code>regenerate-og-card</code>, <code>get-deploy-status</code>, <code>clear-template-overrides</code>).</p>'
+			. '<p><strong>Desktop-mode integration</strong>: dock entry with 8-tab submenu, three desktop widgets (deploy status, quick actions, RSS subscribers), 13 ⌘K commands.</p>',
 		'changelog'   => '<p>See the full <a href="' . esc_url( $repo_url . '/blob/main/CHANGELOG.md' ) . '">CHANGELOG on GitHub</a>.</p>',
 	);
 	$info->icons             = array(

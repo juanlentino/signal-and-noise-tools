@@ -47,7 +47,7 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 		'justNow'          => __( 'just now', 'signal-and-noise-tools' ),
 		/* translators: %s is the cron hook name (e.g., wp_version_check) */
 		'confirmRun'       => __( "Run cron event '%s' now?", 'signal-and-noise-tools' ),
-		'apiFetchMissing'  => __( 'wp.apiFetch unavailable — cannot dispatch.', 'signal-and-noise-tools' ),
+		'apiFetchMissing'  => __( 'wp.apiFetch unavailable: cannot dispatch.', 'signal-and-noise-tools' ),
 		'unknownError'     => __( 'unknown error', 'signal-and-noise-tools' ),
 		/* translators: 1: hook name, 2: elapsed time in milliseconds */
 		'firedTemplate'    => __( '%1$s fired in %2$dms', 'signal-and-noise-tools' ),
@@ -61,7 +61,7 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 		'confirmUnschedule' => __( "Permanently unschedule '%s'?\n\nThis removes both the next firing AND the recurring schedule if any. Cannot be undone — the event will re-appear only if a plugin re-registers it.", 'signal-and-noise-tools' ),
 		/* translators: 1: hook name, 2: number of events cleared */
 		'unscheduledTemplate' => __( "%1\$s unscheduled (%2\$d event(s) cleared)", 'signal-and-noise-tools' ),
-		'unscheduledNoMatch' => __( 'No matching scheduled event found — likely already gone.', 'signal-and-noise-tools' ),
+		'unscheduledNoMatch' => __( 'No matching scheduled event found: likely already gone.', 'signal-and-noise-tools' ),
 		/* translators: %s is the error message returned by the REST endpoint */
 		'unscheduleFailedTemplate' => __( 'Unschedule failed: %s', 'signal-and-noise-tools' ),
 		// v3.2.0: cron history panel
@@ -144,7 +144,7 @@ function snt_cron_render_admin_tab() {
 
 	if ( empty( $rows ) ) {
 		echo '<div class="sn-card"><h3>' . esc_html__( 'No scheduled events.', 'signal-and-noise-tools' ) . '</h3>';
-		echo '<p>' . wp_kses_post( __( 'This is unusual — WordPress core typically schedules <code>wp_version_check</code>, <code>wp_update_plugins</code>, <code>wp_update_themes</code>, and <code>wp_scheduled_delete</code> at install. If your cron is empty, something has cleared it. Check your hosting provider\'s cron configuration.', 'signal-and-noise-tools' ) ) . '</p></div></div>';
+		echo '<p>' . wp_kses_post( __( 'This is unusual. WordPress core typically schedules <code>wp_version_check</code>, <code>wp_update_plugins</code>, <code>wp_update_themes</code>, and <code>wp_scheduled_delete</code> at install. If your cron is empty, something has cleared it. Check your hosting provider\'s cron configuration.', 'signal-and-noise-tools' ) ) . '</p></div></div>';
 		return;
 	}
 
@@ -192,7 +192,7 @@ function snt_cron_render_admin_tab() {
 			echo ' <span class="sn-badge" title="' . ( esc_attr__( 'Signal & Noise–owned event', 'signal-and-noise-tools' ) ) . '"><span class="screen-reader-text">' . esc_html__( 'Signal and Noise owned:', 'signal-and-noise-tools' ) . '</span>' . esc_html__( 'SN', 'signal-and-noise-tools' ) . '</span>';
 		}
 		if ( ! $row['has_handler'] ) {
-			echo ' <span class="sn-badge sn-badge-warn" title="' . ( esc_attr__( 'No handler registered — schedule will fire to nothing', 'signal-and-noise-tools' ) ) . '"><span class="screen-reader-text">' . esc_html__( 'Warning:', 'signal-and-noise-tools' ) . '</span>' . esc_html__( 'orphan', 'signal-and-noise-tools' ) . '</span>';
+			echo ' <span class="sn-badge sn-badge-warn" title="' . ( esc_attr__( 'No handler registered: schedule will fire to nothing', 'signal-and-noise-tools' ) ) . '"><span class="screen-reader-text">' . esc_html__( 'Warning:', 'signal-and-noise-tools' ) . '</span>' . esc_html__( 'orphan', 'signal-and-noise-tools' ) . '</span>';
 		}
 		echo '</th>';
 

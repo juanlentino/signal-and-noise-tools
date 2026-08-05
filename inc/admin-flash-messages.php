@@ -31,28 +31,28 @@ function sn_admin_flash_messages() {
 		'identity_saved'            => array( 'success', 'Identity settings saved.' ),
 		'digest_saved'              => array( 'success', 'Security digest settings saved.' ),
 		'digest_test_sent'          => array( 'success', 'Test digest sent to the admin email address.' ),
-		'digest_test_failed'        => array( 'error', 'Test digest failed to send — check the mail configuration (see the error note on the Login defense panel).' ),
-		'now_saved'                 => array( 'success', 'Now page saved — the live /now renders this content with today\'s date.' ),
-		'now_cleared'               => array( 'info', 'Now page override cleared — /now reverts to the theme\'s built-in content.' ),
+		'digest_test_failed'        => array( 'error', 'Test digest failed to send: check the mail configuration (see the error note on the Login defense panel).' ),
+		'now_saved'                 => array( 'success', 'Now page saved: the live /now renders this content with today\'s date.' ),
+		'now_cleared'               => array( 'info', 'Now page override cleared. /now reverts to the theme\'s built-in content.' ),
 		'now_unchanged'             => array( 'info', 'No changes to save.' ),
 		'now_unparseable'           => array( 'error', 'Nothing saved: the content parses to zero sections. Start each section with "## Label" and give it at least one item line.' ),
-		'now_failed'                => array( 'error', 'Now page save failed — the editor module is unavailable.' ),
-		'now_resynced'              => array( 'success', 'No content changes — the live /now page was re-rendered with the current engine anyway.' ),
-		'uses_resynced'             => array( 'success', 'No content changes — the live /about/uses page was re-rendered with the current engine anyway.' ),
-		'resume_saved'              => array( 'success', 'Resume saved — the live /resume page has been regenerated.' ),
+		'now_failed'                => array( 'error', 'Now page save failed: the editor module is unavailable.' ),
+		'now_resynced'              => array( 'success', 'No content changes: the live /now page was re-rendered with the current engine anyway.' ),
+		'uses_resynced'             => array( 'success', 'No content changes: the live /about/uses page was re-rendered with the current engine anyway.' ),
+		'resume_saved'              => array( 'success', 'Resume saved: the live /resume page has been regenerated.' ),
 		'resume_unchanged'          => array( 'info', 'No changes to save.' ),
-		'resume_resynced'           => array( 'success', 'No content changes — the live /resume page was re-rendered with the current engine anyway.' ),
+		'resume_resynced'           => array( 'success', 'No content changes: the live /resume page was re-rendered with the current engine anyway.' ),
 		'resume_refused'            => array( 'error', 'Nothing saved: the resume needs at least one experience entry (with an organization) or one publication (with a title). The live page is unchanged.' ),
-		'resume_failed'             => array( 'error', 'Resume save failed — the editor module is unavailable.' ),
-		'uses_saved'                => array( 'success', 'Uses page saved — the live /about/uses renders this content.' ),
-		'uses_cleared'              => array( 'info', 'Uses page override cleared — /about/uses reverts to the theme\'s built-in list.' ),
+		'resume_failed'             => array( 'error', 'Resume save failed: the editor module is unavailable.' ),
+		'uses_saved'                => array( 'success', 'Uses page saved: the live /about/uses renders this content.' ),
+		'uses_cleared'              => array( 'info', 'Uses page override cleared. /about/uses reverts to the theme\'s built-in list.' ),
 		'uses_unchanged'            => array( 'info', 'No changes to save.' ),
 		'uses_unparseable'          => array( 'error', 'Nothing saved: the content parses to zero groups. Start each group with "## Label" and give it at least one item line.' ),
-		'uses_failed'               => array( 'error', 'Uses page save failed — the editor module is unavailable.' ),
+		'uses_failed'               => array( 'error', 'Uses page save failed: the editor module is unavailable.' ),
 		'identity_unchanged'        => array( 'info', 'No changes to save.' ),
 		'tag_merge_ok'              => array( 'success', 'Tags merged.' ),
-		'tag_merge_error'           => array( 'error', 'Tag merge failed — one or more tags were no longer valid.' ),
-		'tag_ai_suggested'          => array( 'success', 'AI tag suggestions ready — review and apply below.' ),
+		'tag_merge_error'           => array( 'error', 'Tag merge failed: one or more tags were no longer valid.' ),
+		'tag_ai_suggested'          => array( 'success', 'AI tag suggestions ready: review and apply below.' ),
 		'tag_ai_unavailable'        => array( 'error', 'No AI provider is configured (Settings > Connectors).' ),
 		'tag_ai_none'               => array( 'info', 'No tag suggestions (every Note is tagged, or the AI returned none).' ),
 		'tag_ai_applied'            => array( 'success', 'Tags applied.' ),
@@ -62,17 +62,17 @@ function sn_admin_flash_messages() {
 		'login_failed'              => array( 'error', 'Login slug save failed.' ),
 		'cf_saved'                  => array( 'success', 'Cloudflare settings saved.' ),
 		'cf_purged_ok'              => array( 'success', 'Cloudflare zone purge dispatched.' ),
-		'cf_purged_unconfigured'    => array( 'warning', 'Cloudflare not configured — set the API token and zone ID first.' ),
+		'cf_purged_unconfigured'    => array( 'warning', 'Cloudflare not configured: set the API token and zone ID first.' ),
 		'purged'                    => array( 'success', 'All caches purged.' ),
 		'wh_updated'                => array( 'success', 'Webhook updated.' ),
 		'wh_deleted'                => array( 'success', 'Webhook deleted. Pending retries (if any) will drop on next dispatch.' ),
-		'wh_invalid'                => array( 'error', 'Could not add webhook — name and valid URL are required.' ),
+		'wh_invalid'                => array( 'error', 'Could not add webhook: name and valid URL are required.' ),
 		'wh_not_found'              => array( 'error', 'Webhook not found.' ),
 		// v8.10.0 Redirects arc.
 		'redirect_added'            => array( 'success', 'Redirect saved.' ),
 		'redirect_updated'          => array( 'success', 'Redirect updated.' ),
-		'redirect_deleted'          => array( 'success', 'Redirect deleted — it stops resolving immediately.' ),
-		'redirect_invalid'          => array( 'error', 'Could not save the redirect — a source path and a different target are both required.' ),
+		'redirect_deleted'          => array( 'success', 'Redirect deleted: it stops resolving immediately.' ),
+		'redirect_invalid'          => array( 'error', 'Could not save the redirect: a source path and a different target are both required.' ),
 		'redirect_404_deleted'      => array( 'success', 'Removed from the 404 log.' ),
 		'redirect_404_cleared'      => array( 'success', '404 log cleared.' ),
 		// v10.47.0: the probe-only bulk dismiss.
@@ -87,17 +87,17 @@ function sn_admin_flash_messages() {
 		'insights_snoozed'          => array( 'success', 'Question snoozed for 30 days.' ),
 		'insights_done'             => array( 'success', 'Question marked as done.' ),
 		'insights_settings_saved'   => array( 'success', 'Insights settings saved.' ),
-		'health_scanned'            => array( 'success', 'Scan complete — findings below.' ),
+		'health_scanned'            => array( 'success', 'Scan complete: findings below.' ),
 		// v8.0.1: findings-aware split — the static copy above promised "findings
 		// below" even over a 0-findings screen. The scan handler counts the fresh
 		// result and emits the clean code when nothing was flagged.
-		'health_scanned_clean'      => array( 'success', 'Scan complete — all checks passing.' ),
+		'health_scanned_clean'      => array( 'success', 'Scan complete: all checks passing.' ),
 		'pattern_adoption_scanned'  => array( 'success', 'Scan complete.' ),
 		'block_migrations_scanned'  => array( 'success', 'Block migration scan complete.' ),
 		'audit_retention_saved'     => array( 'success', 'Audit retention saved.' ),
 		'audit_retention_unchanged' => array( 'info', 'Audit retention unchanged.' ),
 		'monitoring_saved'          => array( 'success', 'Uptime monitoring settings saved.' ),
-		'monitoring_url_not_https'  => array( 'error', 'Heartbeat URL must start with <code>https://</code> — the setting was cleared. Re-enter a secure URL.' ),
+		'monitoring_url_not_https'  => array( 'error', 'Heartbeat URL must start with <code>https://</code>: the setting was cleared. Re-enter a secure URL.' ),
 		'perf_saved'                => array( 'success', 'Performance settings saved.' ),
 		'analytics_exclude_saved'   => array( 'success', 'Visit-exclusion settings saved.' ),
 		'analytics_exclude_unchanged' => array( 'info', 'No changes to save.' ),
@@ -105,7 +105,7 @@ function sn_admin_flash_messages() {
 		'analytics_tuning_unchanged' => array( 'info', 'Engine tuning unchanged.' ),
 		// S2 §3 (v9.42.0 arc): owner-defined session funnels.
 		'analytics_funnels_saved'    => array( 'success', 'Session funnels saved. The Sessions view reflects them on the next load.' ),
-		'analytics_funnels_failed'   => array( 'error', 'Session funnels could not be saved — try again.' ),
+		'analytics_funnels_failed'   => array( 'error', 'Session funnels could not be saved: try again.' ),
 		// v7.2.2: dropped the "or check that an AI provider is configured" clause —
 		// the handler stores the real WP_Error and the box below shows it; blaming
 		// AI config for a drafting failure is the same misdirection the insights
@@ -132,8 +132,8 @@ function sn_admin_flash_messages() {
 		'indexnow_disabled'         => array( 'error', 'Enable IndexNow first, then run the backfill.' ),
 		'analytics_saved'             => array( 'success', 'Analytics credentials updated. Dashboard data refreshes within ~15 minutes.' ),
 		'analytics_unchanged'         => array( 'info', 'No changes to save.' ),
-		'analytics_locked'            => array( 'error', 'Analytics credentials are locked by the <code>SN_CF_ANALYTICS_TOKEN</code> / <code>SN_CF_ACCOUNT_ID</code> constants in wp-config.php — remove them to edit here.' ),
-		'analytics_test_unconfigured' => array( 'error', 'Analytics not configured — set the account ID and read token first.' ),
+		'analytics_locked'            => array( 'error', 'Analytics credentials are locked by the <code>SN_CF_ANALYTICS_TOKEN</code> / <code>SN_CF_ACCOUNT_ID</code> constants in wp-config.php: remove them to edit here.' ),
+		'analytics_test_unconfigured' => array( 'error', 'Analytics not configured: set the account ID and read token first.' ),
 		'schedule_fired'              => array( 'success', 'Scheduled-content boundary fired. The row was advanced and its URLs purged.' ),
 		'schedule_repurged'           => array( 'success', 'Scheduled-content URLs re-purged from Cloudflare.' ),
 		'schedule_swap_fired'         => array( 'success', 'Version swap fired &mdash; the old version hid, the new one revealed, one edge purge dispatched.' ),
@@ -222,7 +222,7 @@ function sn_admin_flash_to_notice( $flash ) {
 		return array( 'success', 'Login slug saved. New URL: <a href="' . esc_url( $login_url ) . '">' . esc_html( $login_url ) . '</a>' );
 	}
 	if ( 'analytics_test_ok' === $flash ) {
-		return array( 'success', '&#10003; Analytics API reachable — credentials valid.' );
+		return array( 'success', '&#10003; Analytics API reachable: credentials valid.' );
 	}
 	if ( 'analytics_test_err' === $flash ) {
 		$err    = function_exists( 'sn_analytics_last_error' ) ? sn_analytics_last_error() : null;
@@ -300,26 +300,26 @@ function sn_admin_flash_to_notice( $flash ) {
 				foreach ( $pairs as $pair ) {
 					$lines[] = esc_html( 'Line ' . $pair['line'] . ': ' . $pair['text'] );
 				}
-				return array( 'error', 'Funnels not saved — nothing changed.' . ( $lines ? ( '<br>' . implode( '<br>', $lines ) ) : '' ) );
+				return array( 'error', 'Funnels not saved: nothing changed.' . ( $lines ? ( '<br>' . implode( '<br>', $lines ) ) : '' ) );
 			}
 			// Malformed/hostile pair code (garbage token, out-of-range kind/line,
 			// or the shared kind-message source not loaded on this page) —
 			// degrade to the generic message rather than guess at partial detail.
-			return array( 'error', 'Funnels not saved — nothing changed.' );
+			return array( 'error', 'Funnels not saved: nothing changed.' );
 		}
 
 		// Legacy bare-line format (back-compat, unchanged from pre-reason-surfacing).
 		$detail = '' !== $suffix ? ( ' Check line' . ( false !== strpos( $suffix, '-' ) ? 's ' : ' ' ) . str_replace( '-', ', ', $suffix ) . '.' ) : '';
-		return array( 'error', 'Funnels not saved — nothing changed.' . $detail );
+		return array( 'error', 'Funnels not saved: nothing changed.' . $detail );
 	}
 
 	// Id-prefixed codes — static message; the id is consumed elsewhere
 	// (sn_theme_options_page massages $_GET['new_id'] for the Webhooks row highlight).
 	if ( 0 === strpos( $flash, 'wh_added_' ) ) {
-		return array( 'success', 'Webhook added. Copy the signing secret below — it will not be shown again.' );
+		return array( 'success', 'Webhook added. Copy the signing secret below: it will not be shown again.' );
 	}
 	if ( 0 === strpos( $flash, 'wh_rotated_' ) ) {
-		return array( 'success', 'Webhook updated. <strong>Signing secret was rotated</strong> — copy the new value below before navigating away.' );
+		return array( 'success', 'Webhook updated. <strong>Signing secret was rotated</strong>: copy the new value below before navigating away.' );
 	}
 
 	return null;

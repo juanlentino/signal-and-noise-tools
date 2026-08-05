@@ -40,7 +40,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_health_check_cf_security_headers() {
 	$label    = 'Cloudflare security headers';
-	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress. A missing header means the edge rule was dropped or misconfigured — verify it in the Cloudflare dashboard.';
+	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress. A missing header means the edge rule was dropped or misconfigured: verify it in the Cloudflare dashboard.';
 
 	// Allow the whole check to be filtered off (e.g., non-Cloudflare hosting).
 	if ( ! apply_filters( 'sn_health_cf_header_check_enabled', true ) ) {
@@ -76,7 +76,7 @@ function sn_health_check_cf_security_headers() {
 			return sn_health_pack_check(
 				$label,
 				array(),
-				'Header probe failed (' . $resp->get_error_message() . ') — the edge was unreachable. The check will retry on the next scan.'
+				'Header probe failed (' . $resp->get_error_message() . '): the edge was unreachable. The check will retry on the next scan.'
 			);
 		}
 
@@ -127,7 +127,7 @@ function sn_health_check_cf_security_headers() {
 			return sn_health_pack_check(
 				$label,
 				array(),
-				'Could not confirm the Cloudflare edge headers from this host — the probe may have hit the origin directly; verify the edge config manually.'
+				'Could not confirm the Cloudflare edge headers from this host: the probe may have hit the origin directly; verify the edge config manually.'
 			);
 		}
 
@@ -143,7 +143,7 @@ function sn_health_check_cf_security_headers() {
 			'subject_url'   => $home_url,
 			'subject_label' => $header,
 			'edit_url'      => '',
-			'note'          => 'Expected at the Cloudflare edge but absent — verify the CF Transform Rule / Managed Headers.',
+			'note'          => 'Expected at the Cloudflare edge but absent: verify the CF Transform Rule / Managed Headers.',
 		);
 	}
 

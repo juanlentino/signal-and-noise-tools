@@ -173,7 +173,7 @@ function snt_an_clamp_close( $total, $visible = 5 ) {
  */
 function snt_an_read_failed_copy( $subject ) {
 	/* translators: %s: the table/panel that could not be read (e.g. "Browsers", "Referrer categories"). */
-	return sprintf( __( '%s could not be read (read failure — not an empty window).', 'signal-and-noise-tools' ), (string) $subject );
+	return sprintf( __( '%s could not be read (read failure: not an empty window).', 'signal-and-noise-tools' ), (string) $subject );
 }
 
 function snt_an_note_empty( $title, $why = '' ) {
@@ -239,7 +239,7 @@ function snt_an_flush_empty_fold() {
 
 	echo '<details class="sn-an-empty-fold"><summary>' . $summary . '</summary><ul>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $summary built from esc_html'd fragments above.
 	foreach ( $with_why as $panel ) {
-		echo '<li><strong>' . esc_html( $panel['title'] ) . '</strong> — ' . esc_html( $panel['why'] ) . '</li>';
+		echo '<li><strong>' . esc_html( $panel['title'] ) . '</strong>. ' . esc_html( $panel['why'] ) . '</li>';
 	}
 	echo '</ul></details>';
 }

@@ -277,7 +277,7 @@ function snt_dashboard_tab_render() {
 	if ( ! empty( $overrides ) ) {
 		echo '<h2 class="sn-section-h" id="sn-dash-diagnostics">Diagnostics</h2>';
 		echo '<details class="sn-override-details" open>';
-		echo '<summary>' . esc_html( sprintf( '%d database override%s — click to expand', count( $overrides ), count( $overrides ) === 1 ? '' : 's' ) ) . '</summary>';
+		echo '<summary>' . esc_html( sprintf( '%d database override%s: click to expand', count( $overrides ), count( $overrides ) === 1 ? '' : 's' ) ) . '</summary>';
 		echo '<ul>';
 		foreach ( $overrides as $tpl ) {
 			echo '<li><code>' . esc_html( $tpl->post_type ) . '/' . esc_html( $tpl->post_name ) . '</code></li>';

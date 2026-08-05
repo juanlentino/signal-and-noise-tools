@@ -222,7 +222,7 @@ ok( strpos( $ov0, 'sn-aw-insight' ) === false && strpos( $ov0, 'Right now' ) !==
 echo "\nGroup: v9.68.1 — a FAILED dims read (top_sources null) says so, never an empty-referrers week\n";
 $GLOBALS['__pw']['refs'] = null; // sn_analytics_top_dimension's failed-read verdict → real top_sources propagates null
 $src_fail = cap( 'sn_aw_sources' );
-ok( strpos( $src_fail, 'could not be read (read failure — not an empty window)' ) !== false,
+ok( strpos( $src_fail, 'could not be read (read failure: not an empty window)' ) !== false,
 	'sources widget: a failed read renders the read-failure line' );
 ok( strpos( $src_fail, 'No referrers in the last 7 days.' ) === false,
 	'sources widget: the empty-week copy is never served for a failed read' );

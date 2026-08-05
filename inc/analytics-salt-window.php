@@ -271,7 +271,7 @@ function sn_salt_window_render_card() {
 	$state  = is_array( $result ) && array_key_exists( 'state', $result ) ? (string) $result['state'] : 'unreachable';
 
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Identity salt window', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'The visitor-identity salt rotates daily at the edge and yesterday’s is deleted — forward secrecy by construction. Key names are dates and expiry times only; salt values never leave the Worker.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'The visitor-identity salt rotates daily at the edge and yesterday’s is deleted: forward secrecy by construction. Key names are dates and expiry times only; salt values never leave the Worker.', 'signal-and-noise-tools' ) . '</p>';
 
 	if ( 'old-worker' === $state ) {
 		echo '<p class="sn-an-empty">' . esc_html__( 'Worker predates the salt window readout (needs v1.14.0+).', 'signal-and-noise-tools' ) . '</p>';
@@ -282,11 +282,11 @@ function sn_salt_window_render_card() {
 		// its own KV list failed at the edge. Saying "could not read the worker"
 		// here would be false and misdirect the diagnosis (a curl of /_sn/version
 		// comes back clean while the card claims unreachable).
-		echo '<p class="sn-an-empty">' . esc_html__( '— worker reachable, but it could not list its salt keys (KV read failed at the edge).', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-an-empty">' . esc_html__( 'worker reachable, but it could not list its salt keys (KV read failed at the edge).', 'signal-and-noise-tools' ) . '</p>';
 		return;
 	}
 	if ( 'ok' !== $state || ! is_array( $result['window'] ) ) {
-		echo '<p class="sn-an-empty">' . esc_html__( '— could not read the worker.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p class="sn-an-empty">' . esc_html__( 'could not read the worker.', 'signal-and-noise-tools' ) . '</p>';
 		return;
 	}
 
@@ -300,24 +300,24 @@ function sn_salt_window_render_card() {
 	$today_day = '' !== $w['today_day'] ? $w['today_day'] : '—';
 	if ( false === $w['today_present'] ) {
 		/* translators: 1: today's salt day (YYYY-MM-DD), 2: the worker's rotation timezone */
-		echo '<p>' . esc_html( sprintf( __( 'Today’s salt: %1$s — not minted yet (it appears with the first visit of the day) — rotates at midnight (%2$s).', 'signal-and-noise-tools' ), $today_day, $tz ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( __( 'Today’s salt: %1$s (not minted yet (it appears with the first visit of the day)) rotates at midnight (%2$s).', 'signal-and-noise-tools' ), $today_day, $tz ) ) . '</p>';
 	} else {
 		/* translators: 1: today's salt day (YYYY-MM-DD), 2: the worker's rotation timezone */
-		echo '<p>' . esc_html( sprintf( __( 'Today’s salt: %1$s — rotates at midnight (%2$s).', 'signal-and-noise-tools' ), $today_day, $tz ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( __( 'Today’s salt: %1$s: rotates at midnight (%2$s).', 'signal-and-noise-tools' ), $today_day, $tz ) ) . '</p>';
 	}
 
 	// Yesterday's salt: expiring, already gone, or expiry unrecorded. A null
 	// presence (absent upstream) skips the line — nothing is invented.
 	if ( false === $w['prev_present'] ) {
 		/* translators: %s: yesterday's salt day (YYYY-MM-DD) */
-		echo '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%s): already expired — forward secrecy holding.', 'signal-and-noise-tools' ), '' !== $w['prev_day'] ? $w['prev_day'] : '—' ) ) . '</p>';
+		echo '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%s) has already expired: forward secrecy holding.', 'signal-and-noise-tools' ), '' !== $w['prev_day'] ? $w['prev_day'] : '—' ) ) . '</p>';
 	} elseif ( true === $w['prev_present'] ) {
 		if ( null !== $w['prev_expires_at'] ) {
 			/* translators: 1: yesterday's salt day (YYYY-MM-DD), 2: site-local expiry time with a relative phrase */
-			echo '<p>' . esc_html( sprintf( __( 'Yesterday’s salt: %1$s — expires %2$s.', 'signal-and-noise-tools' ), $w['prev_day'], sn_salt_window_format_expiry( $w['prev_expires_at'] ) ) ) . '</p>';
+			echo '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%1$s) expires %2$s.', 'signal-and-noise-tools' ), $w['prev_day'], sn_salt_window_format_expiry( $w['prev_expires_at'] ) ) ) . '</p>';
 		} else {
 			/* translators: %s: yesterday's salt day (YYYY-MM-DD) */
-			echo '<p>' . esc_html( sprintf( __( 'Yesterday’s salt: %s — no expiry recorded.', 'signal-and-noise-tools' ), $w['prev_day'] ) ) . '</p>';
+			echo '<p>' . esc_html( sprintf( __( 'Yesterday’s salt (%s) has no expiry recorded.', 'signal-and-noise-tools' ), $w['prev_day'] ) ) . '</p>';
 		}
 	}
 

@@ -396,7 +396,7 @@ add_filter( 'document_title_parts', function( $parts ) {
 		// hyphen — the one title on the site that broke the em-dash
 		// convention ("Page not found - …"). Keep the "Page — Site" shape.
 		if ( is_404() ) {
-			return array( 'title' => 'Page not found — ' . get_bloginfo( 'name' ) );
+			return array( 'title' => 'Page not found. ' . get_bloginfo( 'name' ) );
 		}
 		return $parts;
 	}

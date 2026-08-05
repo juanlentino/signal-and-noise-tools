@@ -98,7 +98,7 @@ function sn_rsm_role_row( $prefix, $bul_id, $role ) {
 	// $bul_id is retained in the signature — the callers pass token-bearing ids
 	// and the roles list above still clones — but no longer names a nested list.
 	unset( $bul_id );
-	sn_rsm_lines( $prefix . '[bullets]', (array) ( $role['bullets'] ?? array() ), 'Bullets — one per line', 'What you did, one line each', 4 );
+	sn_rsm_lines( $prefix . '[bullets]', (array) ( $role['bullets'] ?? array() ), 'Bullets: one per line', 'What you did, one line each', 4 );
 	echo '</div>';
 }
 
@@ -146,7 +146,7 @@ function sn_rsm_titled_lines_row( $prefix, $lines_id, $entry ) {
 	sn_rsm_controls();
 	echo '</div>';
 	unset( $lines_id );
-	sn_rsm_lines( $prefix . '[lines]', (array) ( $entry['lines'] ?? array() ), 'Detail lines — one per line', 'Institution · Place · Date', 3 );
+	sn_rsm_lines( $prefix . '[lines]', (array) ( $entry['lines'] ?? array() ), 'Detail lines: one per line', 'Institution · Place · Date', 3 );
 	echo '</div>';
 }
 
@@ -193,13 +193,13 @@ function sn_admin_render_resume_section() {
 	if ( $saved ) {
 		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/resume' ) ) . '" target="_blank" rel="noopener">/resume</a> page. Saving regenerates it. Last saved: <code>' . esc_html( (string) $doc['updated'] ) . '</code>.</p>';
 	} else {
-		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/resume' ) ) . '" target="_blank" rel="noopener">/resume</a> page, prefilled from the current published content. The first save takes over the page body — from then on this form is the canonical editor.</p>';
+		echo '<p class="sn-fieldset-intro">This form is the editor for the live <a href="' . esc_url( home_url( '/resume' ) ) . '" target="_blank" rel="noopener">/resume</a> page, prefilled from the current published content. The first save takes over the page body: from then on this form is the canonical editor.</p>';
 	}
 
 	// ── Hero ──
 	sn_rsm_section_open( 'Hero', 'The opening band: summary, credential chips, contact line, and the PDF download.' );
 	echo '<label class="sn-rsm-field"><span class="sn-rsm-label">Summary</span><textarea rows="3" class="large-text" name="resume[hero][summary]">' . esc_textarea( $doc['hero']['summary'] ) . '</textarea></label>';
-	sn_rsm_lines( 'resume[hero][chips]', (array) ( $doc['hero']['chips'] ?? array() ), 'Credential chips — one per line', 'Credential or membership', 4 );
+	sn_rsm_lines( 'resume[hero][chips]', (array) ( $doc['hero']['chips'] ?? array() ), 'Credential chips: one per line', 'Credential or membership', 4 );
 	// The contact/LinkedIn pair opens its own two-up row; the chips list used to
 	// sit above it and this open tag travelled with the block that was replaced.
 	echo '<div class="sn-rsm-pair">';

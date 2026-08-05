@@ -466,7 +466,7 @@ function snt_analytics_render_dashboard() {
 	$sn_drill = isset( $_GET['sn_drill'] ) ? sn_analytics_drilldown_parse( sanitize_text_field( wp_unslash( $_GET['sn_drill'] ) ) ) : null; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only GET filter on an admin report, no state change.
 	if ( null !== $sn_drill && in_array( $sn_drill[0], $sn_drill_dims[ $view ] ?? array(), true ) ) {
 		$drill_note = ( strtotime( (string) $to ) - strtotime( (string) $from ) > 90 * DAY_IN_SECONDS )
-			? '(reflects the last ~90 days — Analytics Engine raw retention)'
+			? '(reflects the last ~90 days. Analytics Engine raw retention)'
 			: '';
 		snt_analytics_render_drilldown_panel( $sn_drill[0], $sn_drill[1], sn_analytics_drilldown( $sn_drill[0], $sn_drill[1], $from, $to, $class ), $drill_note );
 	}

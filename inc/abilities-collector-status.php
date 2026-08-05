@@ -60,7 +60,7 @@ function sn_collector_status_invariants( $json, $now ) {
 		$invariants[] = array(
 			'name'   => 'config_bindings',
 			'ok'     => false,
-			'detail' => 'No config block reported — the deployed worker predates the self-report (v1.9.0+), so bindings cannot be confirmed.',
+			'detail' => 'No config block reported: the deployed worker predates the self-report (v1.9.0+), so bindings cannot be confirmed.',
 		);
 	} else {
 		$invariants[] = array(
@@ -68,7 +68,7 @@ function sn_collector_status_invariants( $json, $now ) {
 			'ok'     => array() === $broken,
 			'detail' => array() === $broken
 				? 'All ' . count( $config ) . ' config bindings report true.'
-				: 'False bindings: ' . implode( ', ', $broken ) . ' — each is a silent-data-loss mode.',
+				: 'False bindings: ' . implode( ', ', $broken ) . ': each is a silent-data-loss mode.',
 		);
 	}
 
@@ -81,8 +81,8 @@ function sn_collector_status_invariants( $json, $now ) {
 		'detail' => $today_present
 			? 'Today\'s identity salt is present (rotation is healthy).'
 			: ( array() === $salt
-				? 'No salt window reported — worker predates the readout (v1.14.0+) or the KV list failed.'
-				: 'Today\'s identity salt is MISSING — visitor identity falls back and rotation has stalled.' ),
+				? 'No salt window reported: worker predates the readout (v1.14.0+) or the KV list failed.'
+				: 'Today\'s identity salt is MISSING: visitor identity falls back and rotation has stalled.' ),
 	);
 
 	// version_present: a deployed semver is reported.
@@ -92,7 +92,7 @@ function sn_collector_status_invariants( $json, $now ) {
 		'ok'     => '' !== $version,
 		'detail' => '' !== $version
 			? 'Deployed version v' . $version . '.'
-			: 'No semver reported — deploy with `npm run deploy` so SN_VERSION is injected.',
+			: 'No semver reported: deploy with `npm run deploy` so SN_VERSION is injected.',
 	);
 
 	// cron_fresh: cron block present + refresh_status ok + at within the ceiling.
@@ -101,7 +101,7 @@ function sn_collector_status_invariants( $json, $now ) {
 		$invariants[] = array(
 			'name'   => 'cron_fresh',
 			'ok'     => false,
-			'detail' => 'No cron block reported — the worker\'s scheduled refresh cannot be confirmed.',
+			'detail' => 'No cron block reported: the worker\'s scheduled refresh cannot be confirmed.',
 		);
 	} else {
 		$status = (string) ( $cron['refresh_status'] ?? '' );
@@ -109,9 +109,9 @@ function sn_collector_status_invariants( $json, $now ) {
 		$fresh  = false !== $at_ts && ( $now - $at_ts ) <= SN_COLLECTOR_STATUS_CRON_FRESH_SECS && ( $now - $at_ts ) >= 0;
 		$ok     = ( 'ok' === $status ) && $fresh;
 		if ( 'ok' !== $status ) {
-			$detail = 'Cron refresh_status is "' . ( '' !== $status ? $status : 'absent' ) . '", not "ok" — the last scheduled run failed.';
+			$detail = 'Cron refresh_status is "' . ( '' !== $status ? $status : 'absent' ) . '", not "ok": the last scheduled run failed.';
 		} elseif ( ! $fresh ) {
-			$detail = 'Cron last ran at ' . (string) ( $cron['at'] ?? 'an unparseable time' ) . ' — outside the ~2h freshness window; the schedule has stalled.';
+			$detail = 'Cron last ran at ' . (string) ( $cron['at'] ?? 'an unparseable time' ) . ': outside the ~2h freshness window; the schedule has stalled.';
 		} else {
 			$detail = 'Cron ran ok at ' . (string) $cron['at'] . '.';
 		}

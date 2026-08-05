@@ -348,7 +348,7 @@ function sn_resume_upsert_page( $body ) {
 	}
 
 	$slug    = defined( 'SN_RESUME_SLUG' ) ? SN_RESUME_SLUG : 'resume';
-	$excerpt = 'Twenty years in the room where the music actually gets made, then twenty more figuring out how to keep the business standing after the session ends. This resume tracks that arc — production, strategy, mentorship — across the U.S. and Latin America.';
+	$excerpt = 'Twenty years in the room where the music actually gets made, then twenty more figuring out how to keep the business standing after the session ends. This resume tracks that arc (production, strategy, mentorship) across the U.S. and Latin America.';
 	$page    = get_page_by_path( $slug );
 
 	if ( $page ) {

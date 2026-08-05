@@ -142,7 +142,7 @@ function snt_trust_render_section() {
 	if ( ! is_array( $scan ) ) {
 		echo '<p class="sn-fieldset-intro">' . sprintf(
 			/* translators: %s: link to the Health leaf, already escaped. */
-			esc_html__( 'No health scan has run yet, so these four have no reading. They ride the same 24-hour cycle as every other check — run one from %s.', 'signal-and-noise-tools' ),
+			esc_html__( 'No health scan has run yet, so these four have no reading. They ride the same 24-hour cycle as every other check: run one from %s.', 'signal-and-noise-tools' ),
 			'<a href="' . esc_url( $health_url ) . '">' . esc_html__( 'Measurement → Health', 'signal-and-noise-tools' ) . '</a>'
 		) . '</p>';
 	} else {
@@ -151,7 +151,7 @@ function snt_trust_render_section() {
 			: '';
 		echo '<p class="sn-fieldset-intro">' . sprintf(
 			/* translators: 1: how long ago the scan ran; 2: link to the Health leaf, already escaped. */
-			esc_html__( 'Read from the health scan that ran %1$s ago — this leaf never scans on its own. Re-run from %2$s.', 'signal-and-noise-tools' ),
+			esc_html__( 'Read from the health scan that ran %1$s ago: this leaf never scans on its own. Re-run from %2$s.', 'signal-and-noise-tools' ),
 			esc_html( $age ),
 			'<a href="' . esc_url( $health_url ) . '">' . esc_html__( 'Measurement → Health', 'signal-and-noise-tools' ) . '</a>'
 		) . '</p>';
@@ -218,10 +218,10 @@ function snt_trust_render_section() {
 	echo '<h2 class="sn-fieldset-h">' . esc_html__( 'The public side', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<p class="sn-fieldset-intro">' . esc_html__( 'The same guarantees, checkable by anyone without access to this admin.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<ul class="sn-trust-links">';
-	echo '<li><a href="' . esc_url( home_url( '/verify/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Verification docket', 'signal-and-noise-tools' ) . '</a> — ' . esc_html__( 'per-note signature, content hash, live match, and anchor, checked in the reader&rsquo;s own browser.', 'signal-and-noise-tools' ) . '</li>';
-	echo '<li><a href="https://github.com/juanlentino/signal-and-noise-provenance" target="_blank" rel="noopener">' . esc_html__( 'Public ledger', 'signal-and-noise-tools' ) . '</a> — ' . esc_html__( 'the signed records and their daily verify workflow.', 'signal-and-noise-tools' ) . '</li>';
-	echo '<li><a href="' . esc_url( home_url( '/tdm-policy/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'TDM policy', 'signal-and-noise-tools' ) . '</a> — ' . esc_html__( 'the human-readable terms behind the reservation headers.', 'signal-and-noise-tools' ) . '</li>';
-	echo '<li><a href="' . esc_url( home_url( '/license.xml' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'RSL licence', 'signal-and-noise-tools' ) . '</a> — ' . esc_html__( 'machine-readable licensing terms.', 'signal-and-noise-tools' ) . '</li>';
+	echo '<li><a href="' . esc_url( home_url( '/verify/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'Verification docket', 'signal-and-noise-tools' ) . '</a>. ' . esc_html__( 'per-note signature, content hash, live match, and anchor, checked in the reader&rsquo;s own browser.', 'signal-and-noise-tools' ) . '</li>';
+	echo '<li><a href="https://github.com/juanlentino/signal-and-noise-provenance" target="_blank" rel="noopener">' . esc_html__( 'Public ledger', 'signal-and-noise-tools' ) . '</a>. ' . esc_html__( 'the signed records and their daily verify workflow.', 'signal-and-noise-tools' ) . '</li>';
+	echo '<li><a href="' . esc_url( home_url( '/tdm-policy/' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'TDM policy', 'signal-and-noise-tools' ) . '</a>. ' . esc_html__( 'the human-readable terms behind the reservation headers.', 'signal-and-noise-tools' ) . '</li>';
+	echo '<li><a href="' . esc_url( home_url( '/license.xml' ) ) . '" target="_blank" rel="noopener">' . esc_html__( 'RSL licence', 'signal-and-noise-tools' ) . '</a>. ' . esc_html__( 'machine-readable licensing terms.', 'signal-and-noise-tools' ) . '</li>';
 	echo '</ul>';
 	echo '</div>';
 }

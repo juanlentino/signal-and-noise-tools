@@ -29,7 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_health_check_ml_cousins() {
 	$label    = __( 'Near-duplicate cousins', 'signal-and-noise-tools' );
-	$fix_hint = __( 'Two posts whose bodies rank as near-identical without being byte-identical — usually a duplicated-then-edited seed. Rework or retire one of the pair; byte-exact duplicates live in the duplicate-body scan instead.', 'signal-and-noise-tools' );
+	$fix_hint = __( 'Two posts whose bodies rank as near-identical without being byte-identical: usually a duplicated-then-edited seed. Rework or retire one of the pair; byte-exact duplicates live in the duplicate-body scan instead.', 'signal-and-noise-tools' );
 
 	// Defensive only: the kernel module loads unconditionally with the plugin,
 	// so this branch is unreachable in practice — but a missing scanner must

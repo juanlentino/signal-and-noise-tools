@@ -723,9 +723,9 @@ function sn_theme_ai_models() {
  */
 function sn_theme_ai_vision_models() {
 	return array(
-		'gemini-2.5-flash-lite' => 'Gemini 2.5 Flash-Lite (default — fast, cheap vision)',
+		'gemini-2.5-flash-lite' => 'Gemini 2.5 Flash-Lite (default: fast, cheap vision)',
 		'gemini-2.5-flash'      => 'Gemini 2.5 Flash (stronger vision)',
-		'gemini-2.5-pro'        => 'Gemini 2.5 Pro (strongest — slower, pricier)',
+		'gemini-2.5-pro'        => 'Gemini 2.5 Pro (strongest: slower, pricier)',
 	);
 }
 

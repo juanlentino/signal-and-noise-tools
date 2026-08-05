@@ -29,7 +29,7 @@ function sn_webhooks_render_admin_tab() {
 	$new_id   = isset( $_GET['new_id'] ) ? sanitize_text_field( wp_unslash( $_GET['new_id'] ) ) : '';
 
 	// ── INTRO ──
-	echo '<p class="sn-prose">POST a signed JSON payload to your own endpoints (n8n, Zapier, Pipedream, anything that accepts webhooks) on post/page lifecycle events — published, updated, unpublished, or deleted. Each webhook subscribes to the events you choose. Every delivery is HMAC-SHA256 signed; receivers should verify the <code>X-SN-Signature</code> header before acting.</p>';
+	echo '<p class="sn-prose">POST a signed JSON payload to your own endpoints (n8n, Zapier, Pipedream, anything that accepts webhooks) on post/page lifecycle events: published, updated, unpublished, or deleted. Each webhook subscribes to the events you choose. Every delivery is HMAC-SHA256 signed; receivers should verify the <code>X-SN-Signature</code> header before acting.</p>';
 
 	// Phase 3 (v6.45.0): full-width two-column shell — the webhook editor + add +
 	// uptime forms (the work) in the main column; the at-a-glance status and the
@@ -54,7 +54,7 @@ function sn_webhooks_render_admin_tab() {
 
 		echo '<div class="sn-fieldset' . ( $is_new ? ' sn-fieldset--new' : '' ) . '">';
 		echo '<h2 class="sn-fieldset-h">' . esc_html( $wh['name'] ) . '</h2>';
-		echo '<p class="sn-fieldset-intro"><code>' . esc_html( $wh['id'] ) . '</code> — created ' . esc_html( wp_date( 'Y-m-d', (int) ( $wh['created_at'] ?? 0 ) ) ) . '</p>';
+		echo '<p class="sn-fieldset-intro"><code>' . esc_html( $wh['id'] ) . '</code>: created ' . esc_html( wp_date( 'Y-m-d', (int) ( $wh['created_at'] ?? 0 ) ) ) . '</p>';
 
 		// Name
 		echo '<div class="sn-field sn-field-w-md">';
@@ -72,7 +72,7 @@ function sn_webhooks_render_admin_tab() {
 		// Enabled
 		echo '<div class="sn-field">';
 		echo '<label class="sn-field-label">Status</label>';
-		echo '<label><input type="checkbox" name="enabled" value="1"' . checked( ! empty( $wh['enabled'] ), true, false ) . '> Enabled — deliveries fire on the events below</label>';
+		echo '<label><input type="checkbox" name="enabled" value="1"' . checked( ! empty( $wh['enabled'] ), true, false ) . '> Enabled: deliveries fire on the events below</label>';
 		echo '</div>';
 
 		// Events — per-webhook subscription. Default (no events key) = post.published only.
@@ -80,7 +80,7 @@ function sn_webhooks_render_admin_tab() {
 		echo '<div class="sn-field">';
 		echo '<label class="sn-field-label">Events</label>';
 		foreach ( sn_webhook_events() as $event_key => $event_label ) {
-			echo '<label class="snt-checkbox-row"><input type="checkbox" name="events[]" value="' . esc_attr( $event_key ) . '"' . checked( in_array( $event_key, $selected, true ), true, false ) . '> <code>' . esc_html( $event_key ) . '</code> — ' . esc_html( $event_label ) . '</label>';
+			echo '<label class="snt-checkbox-row"><input type="checkbox" name="events[]" value="' . esc_attr( $event_key ) . '"' . checked( in_array( $event_key, $selected, true ), true, false ) . '> <code>' . esc_html( $event_key ) . '</code>. ' . esc_html( $event_label ) . '</label>';
 		}
 		echo '<p class="sn-field-helper">Pick which post-lifecycle events POST to this endpoint. If none are ticked, <code>post.published</code> is used.</p>';
 		echo '</div>';
@@ -90,7 +90,7 @@ function sn_webhooks_render_admin_tab() {
 		echo '<label class="sn-field-label">Signing secret</label>';
 		if ( $is_new ) {
 			echo '<input type="text" readonly value="' . esc_attr( $wh['secret'] ) . '" class="sn-mono snt-input-highlight">';
-			echo '<p class="sn-field-helper"><strong>Copy this now</strong> — it will not be shown again. Receivers compute <code>HMAC_SHA256(secret, raw_body)</code> and compare against the <code>X-SN-Signature</code> header.</p>';
+			echo '<p class="sn-field-helper"><strong>Copy this now</strong>: it will not be shown again. Receivers compute <code>HMAC_SHA256(secret, raw_body)</code> and compare against the <code>X-SN-Signature</code> header.</p>';
 		} else {
 			echo '<input type="text" readonly value="' . esc_attr( sn_mask_secret( $wh['secret'] ) ) . '" class="sn-mono" disabled>';
 			echo '<p class="sn-field-helper">Last 4 chars shown. Tick "Rotate" below + save to generate a new secret (invalidates the current one).</p>';
@@ -160,7 +160,7 @@ function sn_webhooks_render_admin_tab() {
 	foreach ( sn_webhook_events() as $event_key => $event_label ) {
 		// post.published pre-checked; the others opt-in.
 		$default_checked = ( 'post.published' === $event_key );
-		echo '<label class="snt-checkbox-row"><input type="checkbox" name="events[]" value="' . esc_attr( $event_key ) . '"' . checked( $default_checked, true, false ) . '> <code>' . esc_html( $event_key ) . '</code> — ' . esc_html( $event_label ) . '</label>';
+		echo '<label class="snt-checkbox-row"><input type="checkbox" name="events[]" value="' . esc_attr( $event_key ) . '"' . checked( $default_checked, true, false ) . '> <code>' . esc_html( $event_key ) . '</code>. ' . esc_html( $event_label ) . '</label>';
 	}
 	echo '<p class="sn-field-helper">If none are ticked, <code>post.published</code> is used.</p>';
 	echo '</div>';
@@ -187,12 +187,12 @@ function sn_webhooks_render_admin_tab() {
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Uptime monitoring</h2>';
-	echo '<p class="sn-fieldset-intro">Push a heartbeat every 5 minutes to an external heartbeat monitor — a <a href="https://betterstack.com/docs/uptime/cron-and-heartbeat-monitor/" target="_blank" rel="noopener noreferrer">Better Stack heartbeat</a> or an <a href="https://github.com/louislam/uptime-kuma" target="_blank" rel="noopener noreferrer">Uptime Kuma</a> push monitor. If WP-Cron stops firing (or the site goes down), the monitor stops receiving the heartbeat and raises an incident.</p>';
+	echo '<p class="sn-fieldset-intro">Push a heartbeat every 5 minutes to an external heartbeat monitor: a <a href="https://betterstack.com/docs/uptime/cron-and-heartbeat-monitor/" target="_blank" rel="noopener noreferrer">Better Stack heartbeat</a> or an <a href="https://github.com/louislam/uptime-kuma" target="_blank" rel="noopener noreferrer">Uptime Kuma</a> push monitor. If WP-Cron stops firing (or the site goes down), the monitor stops receiving the heartbeat and raises an incident.</p>';
 
 	echo '<div class="sn-field sn-field-w-lg">';
 	echo '<label class="sn-field-label" for="kuma_push_url">Heartbeat URL</label>';
 	echo '<input type="url" id="kuma_push_url" name="uptime_kuma_push_url" value="' . esc_attr( $kuma_url ) . '" placeholder="https://uptime.betterstack.com/api/v1/heartbeat/&lt;token&gt;" class="sn-mono">';
-	echo '<p class="sn-field-helper">The heartbeat URL from your monitoring service (Better Stack heartbeat, or Uptime Kuma <code>Push</code> monitor). <code>status=up</code> is appended automatically — Kuma expects it, Better Stack ignores it. Must be <code>https://</code>.</p>';
+	echo '<p class="sn-field-helper">The heartbeat URL from your monitoring service (Better Stack heartbeat, or Uptime Kuma <code>Push</code> monitor). <code>status=up</code> is appended automatically. Kuma expects it, Better Stack ignores it. Must be <code>https://</code>.</p>';
 	echo '</div>';
 
 	// v8.2.0: Uptime API token — powers the in-admin status panel (the rail
@@ -204,7 +204,7 @@ function sn_webhooks_render_admin_tab() {
 
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label">Status</label>';
-	echo '<label><input type="checkbox" name="uptime_kuma_enabled" value="1"' . checked( $kuma_enabled, true, false ) . '> Enabled — send a heartbeat every 5 minutes</label>';
+	echo '<label><input type="checkbox" name="uptime_kuma_enabled" value="1"' . checked( $kuma_enabled, true, false ) . '> Enabled: send a heartbeat every 5 minutes</label>';
 	echo '</div>';
 
 	// Last-ping status line (read-only).

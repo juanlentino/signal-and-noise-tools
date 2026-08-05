@@ -100,7 +100,7 @@ function snt_rights_anchor_evaluate( $live, $anchors, $state, $now, $grace = SN_
 			'subject' => $slug,
 			'note'    => $known
 				? sprintf(
-					'The served %s has not matched its anchored record since %s — the provenance worker\'s hourly sweep should have anchored it. Its ledger record is still valid, just no longer the surface being served.',
+					'The served %s has not matched its anchored record since %s: the provenance worker\'s hourly sweep should have anchored it. Its ledger record is still valid, just no longer the surface being served.',
 					$slug,
 					gmdate( 'Y-m-d H:i', $firstSeen ) . 'Z'
 				)
@@ -119,7 +119,7 @@ function snt_rights_anchor_evaluate( $live, $anchors, $state, $now, $grace = SN_
  */
 function snt_health_check_rights_anchored() {
 	$label    = 'Rights signals are anchored';
-	$fix_hint = 'The live rights surface has drifted from the public ledger for over two hourly sweeps — the provenance worker is not re-anchoring it. Check the sn-provenance worker\'s cron logs (Cloudflare observability) for rights-signals errors; the records already in the ledger remain valid.';
+	$fix_hint = 'The live rights surface has drifted from the public ledger for over two hourly sweeps: the provenance worker is not re-anchoring it. Check the sn-provenance worker\'s cron logs (Cloudflare observability) for rights-signals errors; the records already in the ledger remain valid.';
 
 	if ( ! apply_filters( 'sn_health_rights_anchored_check_enabled', true ) ) {
 		return sn_health_pack_check( $label, array(), $fix_hint );
@@ -171,7 +171,7 @@ function snt_health_check_rights_anchored() {
 	update_option( SN_RIGHTS_ANCHOR_STATE_OPT, $result['state'], false );
 
 	if ( 'advisory' === $result['status'] ) {
-		return sn_health_pack_check( $label, array(), 'Probe skipped: the public ledger index was unreachable. An outage is a gap in evidence, never evidence of drift — the check will retry on the next scan.' );
+		return sn_health_pack_check( $label, array(), 'Probe skipped: the public ledger index was unreachable. An outage is a gap in evidence, never evidence of drift: the check will retry on the next scan.' );
 	}
 	return sn_health_pack_check( $label, $result['findings'], $fix_hint );
 }

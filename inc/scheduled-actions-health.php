@@ -130,7 +130,7 @@ function snt_asb_site_health_result( $db = null, $now_gmt = null ) {
 	$status = 'good';
 
 	if ( null === $snapshot ) {
-		$lines[] = esc_html__( 'Action Scheduler is not installed on this site — nothing to check.', 'signal-and-noise-tools' );
+		$lines[] = esc_html__( 'Action Scheduler is not installed on this site: nothing to check.', 'signal-and-noise-tools' );
 	} else {
 		$lines[] = esc_html( snt_asb_summary_line( $snapshot ) );
 
@@ -138,7 +138,7 @@ function snt_asb_site_health_result( $db = null, $now_gmt = null ) {
 			$status  = 'recommended';
 			$lines[] = sprintf(
 				/* translators: %d: number of pending scheduled actions already past their run date. */
-				esc_html__( '%d pending actions are overdue. A backlog this size usually means the queue runner is not keeping up (this site\'s cron was disabled for a long stretch); it should drain now that cron runs — if the number is not shrinking across visits, inspect Tools → Scheduled Actions for failing recurring actions.', 'signal-and-noise-tools' ),
+				esc_html__( '%d pending actions are overdue. A backlog this size usually means the queue runner is not keeping up (this site\'s cron was disabled for a long stretch); it should drain now that cron runs: if the number is not shrinking across visits, inspect Tools → Scheduled Actions for failing recurring actions.', 'signal-and-noise-tools' ),
 				(int) $snapshot['overdue_pending']
 			);
 		}

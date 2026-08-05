@@ -32,7 +32,7 @@ function snt_analytics_render_topics( $from, $to ) {
 	}
 	$title = __( 'Topics', 'signal-and-noise-tools' );
 	if ( null === snt_ml_topics_get() ) {
-		snt_an_note_empty( $title, __( 'The topic index has not built yet — it builds on the next publish or overnight.', 'signal-and-noise-tools' ) );
+		snt_an_note_empty( $title, __( 'The topic index has not built yet: it builds on the next publish or overnight.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	$rows = sn_analytics_topic_totals( $from, $to );

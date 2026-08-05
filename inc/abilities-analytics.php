@@ -67,15 +67,15 @@ add_action( 'wp_abilities_api_init', function () {
 		'description'         => 'Returns range analytics totals (range: 7|14|30|90|365|all, class: human|suspect|bot). Read-only. '
 			. 'Denominators, honestly named: '
 			. 'it includes visitor-days that fired no pageview (e.g. feed/beacon-only), so it can exceed `views`; `unique_visitor_days` is its honest alias. '
-			. '(The wp-admin Sessions tab is a third unit again: within-day sessions from the live session engine, resetting at UTC midnight — no field here carries it.) '
-			. '`pageview_visits` is the headline visit metric: visitor-days with at least one pageview — `views >= pageview_visits` holds by construction, so this ratio cannot invert '
+			. '(The wp-admin Sessions tab is a third unit again: within-day sessions from the live session engine, resetting at UTC midnight: no field here carries it.) '
+			. '`pageview_visits` is the headline visit metric: visitor-days with at least one pageview. `views >= pageview_visits` holds by construction, so this ratio cannot invert '
 			. '(`integrity_violation: true` means a genuine rollup bug upstream, values served unclamped). '
 			. '`viewless_visits` = unique_visitor_days - pageview_visits (visitor-days with zero pageviews). '
 			. 'Ratios: `view_visit_ratio` = views/pageview_visits (>=1); `pageviews_per_visitor_day` = views/unique_visitor_days (may be <1). '
 			. 'Engagement in two exact denominations: `time_avg_per_view` = time_sum/views; `time_avg_per_visit` = time_sum/unique_visitor_days, diluted by viewless days. '
-			. 'Scroll depth (v9.64.0 unit): `scroll_avg_per_view` = 25 * scroll_events / views and `scroll_avg_per_visit` = 25 * scroll_events / unique_visitor_days (diluted by viewless days) — the true mean max scroll depth (0-100), '
-			. 'because the beacon fires one cumulative milestone event per 25/50/75/100% reached, each at most once per view; scroll_sum is stored as the same identity since v9.66.0 (25 * scroll_events, true depth units — a full-depth view contributes 100, not the pre-v9.66.0 raw milestone-point 250) and feeds no ratio. '
-						. 'Exact engagement + gated fields are null over any range containing days before `exact_metrics_since` (Y-m-d; null until the backfill has run) — a data discontinuity, not an error.',
+			. 'Scroll depth (v9.64.0 unit): `scroll_avg_per_view` = 25 * scroll_events / views and `scroll_avg_per_visit` = 25 * scroll_events / unique_visitor_days (diluted by viewless days): the true mean max scroll depth (0-100), '
+			. 'because the beacon fires one cumulative milestone event per 25/50/75/100% reached, each at most once per view; scroll_sum is stored as the same identity since v9.66.0 (25 * scroll_events, true depth units: a full-depth view contributes 100, not the pre-v9.66.0 raw milestone-point 250) and feeds no ratio. '
+						. 'Exact engagement + gated fields are null over any range containing days before `exact_metrics_since` (Y-m-d; null until the backfill has run): a data discontinuity, not an error.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'sn_ability_get_analytics_summary',

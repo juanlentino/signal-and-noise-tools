@@ -34,11 +34,11 @@ function sn_admin_render_performance_section() {
 	echo '<input type="hidden" name="sn_action" value="perf_save">';
 
 	echo '<h2 class="sn-fieldset-h">Speculative loading</h2>';
-	echo '<p class="sn-fieldset-intro">WordPress 7.0 ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>). Enabling this opts the site into a more aggressive profile — links the visitor is likely to click are rendered in the background, so navigation feels instant. The profile and exclusions are summarized alongside.</p>';
+	echo '<p class="sn-fieldset-intro">WordPress 7.0 ships native <a href="https://developer.chrome.com/docs/web-platform/prerender-pages" target="_blank" rel="noopener noreferrer">Speculation Rules</a> (default: <code>auto</code>/<code>auto</code>). Enabling this opts the site into a more aggressive profile: links the visitor is likely to click are rendered in the background, so navigation feels instant. The profile and exclusions are summarized alongside.</p>';
 
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label">Status</label>';
-	echo '<label><input type="checkbox" name="speculative_loading" value="1"' . checked( $spec_enabled, true, false ) . '> Enabled — prerender the pages a visitor is likely to open next</label>';
+	echo '<label><input type="checkbox" name="speculative_loading" value="1"' . checked( $spec_enabled, true, false ) . '> Enabled: prerender the pages a visitor is likely to open next</label>';
 	echo '<p class="sn-field-helper">Turning this off disables speculative loading entirely (core emits no speculation rules).</p>';
 	echo '</div>';
 
@@ -68,7 +68,7 @@ function sn_admin_render_performance_section() {
 
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Profile</h2>';
-	echo '<p class="sn-field-helper">Mode <code>prerender</code>, eagerness <code>moderate</code> — more aggressive than core\'s <code>auto</code>/<code>auto</code>.</p>';
+	echo '<p class="sn-field-helper">Mode <code>prerender</code>, eagerness <code>moderate</code>: more aggressive than core\'s <code>auto</code>/<code>auto</code>.</p>';
 	echo '<p class="sn-field-helper"><strong>Excluded automatically:</strong> the custom login URL and <code>/contact/*</code>.</p>';
 	echo '<p class="sn-field-helper"><strong>Support:</strong> only modern Chromium browsers act on speculation rules; others safely ignore them.</p>';
 	echo '</div>';

@@ -46,7 +46,7 @@ function sn_health_check_missing_alt() {
 				'subject_url'  => (string) $r['guid'],
 				'subject_label' => (string) $r['post_title'],
 				'edit_url'     => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
-				'note'         => 'Image attachment has no alt text — bad for SEO and screen readers.',
+				'note'         => 'Image attachment has no alt text: bad for SEO and screen readers.',
 			);
 		}
 	}

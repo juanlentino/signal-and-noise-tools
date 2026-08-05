@@ -55,13 +55,13 @@ function sn_mcp_prompt_get( $name, $arguments = array() ) {
 		case 'weekly-report':
 			return sn_mcp_prompt_message(
 				"Owner-voiced weekly digest, synthesized from this site's own read tools.",
-				'Compile this week\'s digest for the site owner. Call get-analytics-summary, get-rss-stats, uptime-status, get-narration, and get-insights, then synthesize the results in the owner\'s own voice: direct, concrete numbers, no filler. get-narration and get-insights can both return null — that means no scan has generated one yet, not an error; say so plainly instead of inventing a value. Structure the reply as a one-paragraph headline, a short bulleted list of the week\'s numbers, and a closing line on uptime health.'
+				'Compile this week\'s digest for the site owner. Call get-analytics-summary, get-rss-stats, uptime-status, get-narration, and get-insights, then synthesize the results in the owner\'s own voice: direct, concrete numbers, no filler. get-narration and get-insights can both return null: that means no scan has generated one yet, not an error; say so plainly instead of inventing a value. Structure the reply as a one-paragraph headline, a short bulleted list of the week\'s numbers, and a closing line on uptime health.'
 			);
 
 		case 'content-audit':
 			return sn_mcp_prompt_message(
 				"Prioritized content-health findings, synthesized from this site's own scan tools.",
-				'Run a content-health audit. Call get-health-scan, block-migrations-scan, and pattern-adoption-scan, then merge their findings into ONE prioritized list, highest-impact first — each item naming which scan surfaced it plus a one-line fix suggestion. Any of the three can return an empty or null result if no scan has run yet or nothing was flagged; state that plainly rather than fabricating findings.'
+				'Run a content-health audit. Call get-health-scan, block-migrations-scan, and pattern-adoption-scan, then merge their findings into ONE prioritized list, highest-impact first: each item naming which scan surfaced it plus a one-line fix suggestion. Any of the three can return an empty or null result if no scan has run yet or nothing was flagged; state that plainly rather than fabricating findings.'
 			);
 
 		default:

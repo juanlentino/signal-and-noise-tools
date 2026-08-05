@@ -348,7 +348,7 @@ function snt_analytics_attn_render_strip( $items ) {
 			? '<a class="sn-an-attn-link" href="' . esc_url( '#' . $anchor ) . '">' . esc_html( (string) $item['label'] ) . '</a>'
 			: '<span class="sn-an-attn-flag">' . esc_html( (string) $item['label'] ) . '</span>';
 		if ( '' !== (string) ( $item['fact'] ?? '' ) ) {
-			$part .= ' — <span class="sn-an-attn-fact">' . esc_html( (string) $item['fact'] ) . '</span>';
+			$part .= '. <span class="sn-an-attn-fact">' . esc_html( (string) $item['fact'] ) . '</span>';
 		}
 		$parts[] = $part;
 	}

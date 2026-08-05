@@ -70,7 +70,7 @@ function snt_robots_ai_policy() {
 		}
 	}
 
-	$out = "# AI crawler policy — signal-and-noise-tools (flip any agent via the snt_robots_ai_agents filter).\n";
+	$out = "# AI crawler policy: signal-and-noise-tools (flip any agent via the snt_robots_ai_agents filter).\n";
 	if ( $allowed ) {
 		$out .= '# Allowed (answer-engine discoverability is intentional; these inherit the User-agent: * rules above): ' . implode( ', ', $allowed ) . "\n";
 	}

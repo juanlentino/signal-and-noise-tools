@@ -84,7 +84,7 @@ function snt_pattern_adoption_render_opportunities_section() {
 	}
 	echo '</h2>';
 
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans existing /notes posts for blockquote and ordered-list blocks that could be upgraded to the v9.2.0 pull-quote and steps-enumerated patterns. Pure structural detection — no AI calls. Editorial: every upgrade is reviewed before apply.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans existing /notes posts for blockquote and ordered-list blocks that could be upgraded to the v9.2.0 pull-quote and steps-enumerated patterns. Pure structural detection: no AI calls. Editorial: every upgrade is reviewed before apply.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );

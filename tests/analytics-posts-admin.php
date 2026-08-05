@@ -73,7 +73,7 @@ $eh = cap( function () use ( $empty_subject ) { snt_analytics_render_post_hero( 
 ok( '' === $eh, 'no-data subject → hero folds instead of rendering inline (D4 §4)' );
 ok( strpos( $eh, 'sn-delta-up' ) === false, 'no spurious verdict badge when there is no baseline' );
 $noted = (array) ( $GLOBALS['sn_an_empty_panels'] ?? array() );
-ok( 1 === count( $noted ) && 'Latest Note — did it land?' === $noted[0]['title'], 'no-data subject: hero title noted for the fold' );
+ok( 1 === count( $noted ) && 'Latest Note: did it land?' === $noted[0]['title'], 'no-data subject: hero title noted for the fold' );
 // D5 §4: the fold why now NAMES the Note by its own title (was a generic
 // "this Note has no recorded views…" — copy change, deliberate).
 ok( false !== strpos( $noted[0]['why'], '"Fresh" has no recorded views yet' ), 'no-data subject: fold why names the Note by title' );
@@ -87,7 +87,7 @@ ok( strpos( $lb, 'spike' ) !== false && strpos( $lb, 'evergreen' ) !== false, 'd
 // v9.40.0 D4: the catalog postbox is "plain" (no sn-overview) — adopts the primitive marker only.
 ok( strpos( $lb, 'class="postbox sn-an-postbox"' ) !== false, 'catalog panel adopts the primitive (plain, no sn-overview)' );
 
-echo "\nGroup: leaderboard — byte-parity pin (v9.43.0, pre-kv_table-migration)\n";
+echo "\nGroup: leaderboard: byte-parity pin (v9.43.0, pre-kv_table-migration)\n";
 // Literal capture of snt_analytics_render_posts_leaderboard()'s FULL output
 // under a fixed, hostile-char fixture, taken from the plugin at v9.43.0 before
 // the kv_table column-spec migration. This suite's esc_html()/esc_attr()/
@@ -130,7 +130,7 @@ ok( strpos( $none, 'sn-an-empty' ) !== false, 'null bundle (no published posts) 
 // v9.40.0 D4: the null-bundle notice adopts the unified snt_an_gate() idiom —
 // a deliberate upgrade from the old titleless bare <p> to full postbox chrome.
 ok( strpos( $none, 'sn-an-gate' ) !== false, 'null bundle → the unified gate (postbox chrome), not a bare paragraph' );
-ok( strpos( $none, 'No published posts yet — this view tracks each Note over its lifetime once you publish and traffic arrives.' ) !== false,
+ok( strpos( $none, 'No published posts yet: this view tracks each Note over its lifetime once you publish and traffic arrives.' ) !== false,
 	'null-bundle gate carries the exact original message' );
 ok( strpos( $none, '<span>Posts</span>' ) !== false, 'null-bundle gate carries a title (upgrade from the old titleless bare <p>)' );
 

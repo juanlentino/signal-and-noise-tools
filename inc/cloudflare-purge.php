@@ -308,7 +308,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	$last_purge       = get_option( SN_CF_LAST_PURGE_OPT, array() );
 	$is_configured    = sn_cf_is_configured();
 
-	echo '<p class="sn-prose">Auto-purges Cloudflare\'s edge cache when content changes. See <code>docs/CACHING.md</code> for the dashboard-side Cache Rule that turns on HTML caching to begin with — without that, this module purges nothing useful (origin pages aren\'t cached at the edge).</p>';
+	echo '<p class="sn-prose">Auto-purges Cloudflare\'s edge cache when content changes. See <code>docs/CACHING.md</code> for the dashboard-side Cache Rule that turns on HTML caching to begin with: without that, this module purges nothing useful (origin pages aren\'t cached at the edge).</p>';
 
 	// Phase 3 (v6.45.0): full-width two-column shell — credentials (the work) in
 	// the main column, the module status + manual-purge action in the rail.
@@ -367,7 +367,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		}
 		echo '<div class="sn-status-box">';
 		echo '<div>';
-		echo '<p class="sn-status-box-title">Configured — auto-purge active</p>';
+		echo '<p class="sn-status-box-title">Configured: auto-purge active</p>';
 		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $last_line is static text plus esc_html()-escaped values.
 		echo '<p class="sn-status-box-body">Cache purges fire automatically on post save, theme update, and via the REST endpoint.' . $last_line . '</p>';
 		echo '</div>';

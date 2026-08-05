@@ -111,7 +111,7 @@ function sn_analytics_summary_vocabulary( $summary ) {
 /** Deterministic narrative from signals' plain_labels. Always available (the floor). */
 function sn_analytics_narrate_fallback( $summary, $signals ) {
 	if ( empty( $signals ) ) {
-		return '<p class="sn-an-note">No standout signals in this window — nothing needs attention right now.</p>';
+		return '<p class="sn-an-note">No standout signals in this window: nothing needs attention right now.</p>';
 	}
 	$items = array();
 	foreach ( array_slice( $signals, 0, 4 ) as $s ) {
@@ -145,7 +145,7 @@ function sn_analytics_narrate_ai_prompt( $signals ) {
 		. ' In these signals "visits" counts unique visitor-days (any beacon day, including feed readers with zero pageviews), not pageview-gated visits; visitor-days exceeding views is structural, never an anomaly.'
 		. ' 2-3 short plain-English sentences: what happened, why it may matter, one concrete next step. State numbers plainly.'
 		. ' NO statistical jargon in prose: never write sigma, σ, backtest, interval, robust, confidence, or point estimate.'
-		. ' Plain prose only: NO markdown — no asterisks, no underscores, no headings, no bullet lists, no emojis.';
+		. ' Plain prose only: NO markdown: no asterisks, no underscores, no headings, no bullet lists, no emojis.';
 	$prompt = "Signals:\n" . implode( "\n", $facts ) . "\n\nWrite the brief.";
 	return array( $prompt, $system );
 }
@@ -234,11 +234,11 @@ function sn_analytics_digest_fallback( $summary, $signals ) {
 	if ( '' !== $line && $v['violation'] ) {
 		// The impossible case (views < pageview_visits) — the ONLY branch where
 		// anomaly/alert language is honest (spec §5: the alarm is the feature).
-		$line .= ' Integrity alert: views fell below pageview visits — arithmetically impossible; investigate the rollup.';
+		$line .= ' Integrity alert: views fell below pageview visits: arithmetically impossible; investigate the rollup.';
 	}
 	$head = '' !== $line ? '<p class="sn-an-digest-head">' . esc_html( $line ) . '</p>' : '';
 	if ( empty( $signals ) ) {
-		return $head . '<p class="sn-an-note">No standout signals in this window — nothing needs attention right now.</p>';
+		return $head . '<p class="sn-an-note">No standout signals in this window: nothing needs attention right now.</p>';
 	}
 	$items = array();
 	foreach ( array_slice( $signals, 0, 8 ) as $s ) {
@@ -263,23 +263,23 @@ function sn_analytics_digest_ai_prompt( $summary, $signals, $top_action = '' ) {
 		$facts[] = '- Views this period: ' . $v['views'];
 	}
 	if ( null !== $v['gated'] ) {
-		$facts[] = '- Visits this period (visitor-days with at least one pageview — the gated headline metric): ' . $v['gated'];
+		$facts[] = '- Visits this period (visitor-days with at least one pageview: the gated headline metric): ' . $v['gated'];
 	}
 	if ( null !== $v['days'] ) {
 		$facts[] = ( null !== $v['gated'] )
 			? '- Unique visitor-days this period (any beacon activity, including feed/RSS reads with zero pageviews): ' . $v['days']
-			: '- Visitor-days this period (unique visitor-days — may include viewless feed/RSS days; NOT pageview-gated visits): ' . $v['days'];
+			: '- Visitor-days this period (unique visitor-days: may include viewless feed/RSS days; NOT pageview-gated visits): ' . $v['days'];
 	}
 	if ( null !== $v['viewless'] ) {
-		$facts[] = '- Viewless visitor-days (feed readers and beacon-only visits — no pageview): ' . $v['viewless'];
+		$facts[] = '- Viewless visitor-days (feed readers and beacon-only visits: no pageview): ' . $v['viewless'];
 	}
 	if ( $v['violation'] ) {
 		$facts[] = '- DATA INTEGRITY ANOMALY: views' . ( null !== $v['views'] ? ' (' . $v['views'] . ')' : '' )
 			. ' fell below pageview visits' . ( null !== $v['gated'] ? ' (' . $v['gated'] . ')' : '' )
-			. ' — arithmetically impossible for this pipeline; a genuine anomaly worth flagging.';
+			. ': arithmetically impossible for this pipeline; a genuine anomaly worth flagging.';
 	} elseif ( null !== $v['views'] && null !== $v['days'] && null !== $v['viewless'] && $v['days'] > $v['views'] && $v['viewless'] > 0 ) {
 		$facts[] = sprintf(
-			'- Structural note: %d visitor-days exceed %d views because %d visitor-days were viewless (feed readers and beacon-only visits) — a structural property of the measurement, fully explained by the data, not an anomaly.',
+			'- Structural note: %d visitor-days exceed %d views because %d visitor-days were viewless (feed readers and beacon-only visits): a structural property of the measurement, fully explained by the data, not an anomaly.',
 			$v['days'],
 			$v['views'],
 			$v['viewless']
@@ -298,12 +298,12 @@ function sn_analytics_digest_ai_prompt( $summary, $signals, $top_action = '' ) {
 	// prose that repeats them is duplication, not information.
 	$system = 'You are writing a weekly analytics digest for the site owner, who reads it at a glance on a phone. Use ONLY the bullet facts given. NEVER invent or estimate a number that is not present.'
 		. ' Vocabulary: "visits" means visitor-days with at least one pageview; "visitor-days" is the ungated unique visitor-day count and is never to be called "visits".'
-		. ' When a Structural note fact is present, visitor-days exceeding views is fully explained by the viewless count — give that explanation in one short clause; NEVER describe the gap as unusual, unexplained, or an anomaly.'
+		. ' When a Structural note fact is present, visitor-days exceeding views is fully explained by the viewless count: give that explanation in one short clause; NEVER describe the gap as unusual, unexplained, or an anomaly.'
 		. ' The ONLY genuine anomaly is a DATA INTEGRITY ANOMALY fact; when present, flag it in at most one plain sentence.'
 		. ' Voice: at most 4-5 short plain-English sentences, plus optionally one final line starting "Worth a look:". State numbers plainly (47 views, 40 visits).'
-		. ' NO statistical jargon in prose: never write sigma, σ, backtest, interval, robust, confidence, or point estimate — the signal chips and transparency footer under this digest already carry that machinery.'
+		. ' NO statistical jargon in prose: never write sigma, σ, backtest, interval, robust, confidence, or point estimate: the signal chips and transparency footer under this digest already carry that machinery.'
 		. ' Mention a forecast only when it is actionable, in plain words ("expect a quiet week") — never as numbers with intervals.'
-		. ' Plain prose only: NO markdown — no asterisks, no underscores, no headings, no bullet lists, no emojis.';
+		. ' Plain prose only: NO markdown: no asterisks, no underscores, no headings, no bullet lists, no emojis.';
 	$prompt = "Facts:\n" . implode( "\n", $facts ) . "\n\nWrite the weekly digest.";
 	return array( $prompt, $system );
 }

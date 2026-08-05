@@ -258,7 +258,7 @@ function snt_cron_run_event_impl( $hook, $args = array() ) {
 	if ( false === has_action( $hook ) ) {
 		return new WP_Error(
 			'snt_cron_no_handler',
-			sprintf( 'No handler registered for "%s" — this is an orphan event.', $hook ),
+			sprintf( 'No handler registered for "%s": this is an orphan event.', $hook ),
 			array( 'status' => 400 )
 		);
 	}
@@ -594,9 +594,9 @@ function snt_cron_site_health_result() {
 
 	$description = '<p>' . wp_kses_post( implode( '<br>', $lines ) ) . '</p>';
 	if ( $cron_overdue_and_starved ) {
-		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron appears to be running wp-cron.php — scheduled events are piling up overdue. Add a system cron job that requests wp-cron.php on an interval (e.g. every 5 minutes), or unset DISABLE_WP_CRON.', 'signal-and-noise-tools' ) . '</p>';
+		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron appears to be running wp-cron.php: scheduled events are piling up overdue. Add a system cron job that requests wp-cron.php on an interval (e.g. every 5 minutes), or unset DISABLE_WP_CRON.', 'signal-and-noise-tools' ) . '</p>';
 	} elseif ( $cron_silently_disabled ) {
-		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron has been declared — scheduled events will not fire on their own.', 'signal-and-noise-tools' ) . '</p>';
+		$description .= '<p>' . esc_html__( 'DISABLE_WP_CRON is set but no system cron has been declared: scheduled events will not fire on their own.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
 	$cron_tab_url = admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=cron' );

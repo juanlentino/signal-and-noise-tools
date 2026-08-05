@@ -29,7 +29,7 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
  */
 function snt_analytics_render_view_campaigns( $from, $to, $class, $granularity ) {
 	echo '<p class="sn-an-sep sn-an-sep--full">'
-		. esc_html__( 'Campaign attribution — visits whose landing URL carried utm_source / utm_medium / utm_campaign tags. Cookieless: only the five named utm_* params are read, never the raw query string.', 'signal-and-noise-tools' )
+		. esc_html__( 'Campaign attribution: visits whose landing URL carried utm_source / utm_medium / utm_campaign tags. Cookieless: only the five named utm_* params are read, never the raw query string.', 'signal-and-noise-tools' )
 		. '</p>';
 
 	// Guarded so a partial install (plugin without the UTM module) degrades to the

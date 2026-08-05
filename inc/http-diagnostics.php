@@ -216,7 +216,7 @@ function sn_httpdiag_format_call( $call ) {
 	$url  = (string) ( $call['url'] ?? '' );
 	$ms   = (int) ( $call['ms'] ?? 0 );
 	$code = (int) ( $call['code'] ?? 0 );
-	return sprintf( '%s — %dms (%d)', $url, $ms, $code );
+	return sprintf( '%s. %dms (%d)', $url, $ms, $code );
 }
 
 /**

@@ -48,9 +48,9 @@ function fm_eq( $e, $a, $msg ) {
 echo "\nTest 1: exact-match static codes\n";
 fm_eq( array( 'success', 'Identity settings saved.' ), sn_admin_flash_to_notice( 'identity_saved' ), 'identity_saved' );
 fm_eq( array( 'info', 'No changes to save.' ), sn_admin_flash_to_notice( 'identity_unchanged' ), 'identity_unchanged' );
-fm_eq( array( 'warning', 'Cloudflare not configured — set the API token and zone ID first.' ), sn_admin_flash_to_notice( 'cf_purged_unconfigured' ), 'cf_purged_unconfigured keeps warning severity' );
+fm_eq( array( 'warning', 'Cloudflare not configured: set the API token and zone ID first.' ), sn_admin_flash_to_notice( 'cf_purged_unconfigured' ), 'cf_purged_unconfigured keeps warning severity' );
 fm_eq( array( 'success', 'Block migration scan complete.' ), sn_admin_flash_to_notice( 'block_migrations_scanned' ), 'block_migrations_scanned' );
-fm_eq( array( 'error', 'Heartbeat URL must start with <code>https://</code> — the setting was cleared. Re-enter a secure URL.' ), sn_admin_flash_to_notice( 'monitoring_url_not_https' ), 'monitoring_url_not_https → error (Fix C; provider-neutral copy since v8.1.6)' );
+fm_eq( array( 'error', 'Heartbeat URL must start with <code>https://</code>: the setting was cleared. Re-enter a secure URL.' ), sn_admin_flash_to_notice( 'monitoring_url_not_https' ), 'monitoring_url_not_https → error (Fix C; provider-neutral copy since v8.1.6)' );
 fm_eq( array( 'success', 'IndexNow settings saved. Changed URLs are submitted to search engines automatically.' ), sn_admin_flash_to_notice( 'indexnow_saved' ), 'indexnow_saved (v5.1.0)' );
 fm_eq( 'error', sn_admin_flash_to_notice( 'indexnow_disabled' )[0], 'indexnow_disabled → error severity (backfill-while-off must surface feedback)' );
 fm_eq( array( 'success', 'Recent content queued for IndexNow submission.' ), sn_admin_flash_to_notice( 'indexnow_pinged' ), 'indexnow_pinged (v5.1.0)' );
@@ -62,7 +62,7 @@ fm_eq( array( 'success', 'Full reset: 3 override(s) cleared + all caches purged.
 fm_eq( array( 'success', '7 post(s) cleaned. Reading-time cache rebuilt.' ), sn_admin_flash_to_notice( 'rt_applied_7' ), 'rt_applied_7' );
 
 echo "\nTest 3: id-prefixed codes resolve to static message\n";
-fm_eq( array( 'success', 'Webhook added. Copy the signing secret below — it will not be shown again.' ), sn_admin_flash_to_notice( 'wh_added_abc123' ), 'wh_added_<id>' );
+fm_eq( array( 'success', 'Webhook added. Copy the signing secret below: it will not be shown again.' ), sn_admin_flash_to_notice( 'wh_added_abc123' ), 'wh_added_<id>' );
 $rotated = sn_admin_flash_to_notice( 'wh_rotated_abc123' );
 fm_eq( 'success', $rotated[0], 'wh_rotated_<id> severity' );
 fm_eq( true, false !== strpos( $rotated[1], 'Signing secret was rotated' ), 'wh_rotated_<id> message body' );
@@ -108,7 +108,7 @@ $note = sn_admin_flash_to_notice( 'insights_ai_unavailable' );
 fm_eq( 'error', $note[0], 'insights_ai_unavailable → error severity' );
 fm_eq( true, false !== stripos( $note[1], 'Connectors' ), 'genuine ai-unavailable still points at Settings → Connectors' );
 
-echo "\nTest 6: coordination guard — every exact code the dispatcher emits resolves\n";
+echo "\nTest 6: coordination guard: every exact code the dispatcher emits resolves\n";
 $emitted = array(
 	'identity_saved','identity_unchanged','login_empty','login_failed','cf_saved','cf_purged_ok','cf_purged_unconfigured',
 	'purged','wh_updated','wh_deleted','wh_invalid','wh_not_found','insights_scanned','insights_failed','insights_ai_unavailable',
@@ -141,7 +141,7 @@ fm_eq( false, false !== strpos( $static['release_notes_failed'][1], 'AI provider
 
 echo "\nTest 7: analytics_funnels static codes (S2 §3)\n";
 fm_eq( array( 'success', 'Session funnels saved. The Sessions view reflects them on the next load.' ), sn_admin_flash_to_notice( 'analytics_funnels_saved' ), 'analytics_funnels_saved' );
-fm_eq( array( 'error', 'Session funnels could not be saved — try again.' ), sn_admin_flash_to_notice( 'analytics_funnels_failed' ), 'analytics_funnels_failed' );
+fm_eq( array( 'error', 'Session funnels could not be saved: try again.' ), sn_admin_flash_to_notice( 'analytics_funnels_failed' ), 'analytics_funnels_failed' );
 
 echo "\nTest 8: analytics_funnels_invalid prefix branch (S2 §3 + T2-review hardening)\n";
 $note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_3' );
@@ -155,7 +155,7 @@ fm_eq( true, false !== strpos( $note[1], 'Check lines 2, 4.' ), 'multiple bad li
 // Bare code (no trailing line-number suffix) still resolves, with no "Check line" clause.
 $note = sn_admin_flash_to_notice( 'analytics_funnels_invalid' );
 fm_eq( 'error', $note[0], 'bare code (no line suffix) -> error severity' );
-fm_eq( 'Funnels not saved — nothing changed.', $note[1], 'bare code -> no "Check line" clause appended' );
+fm_eq( 'Funnels not saved: nothing changed.', $note[1], 'bare code -> no "Check line" clause appended' );
 
 // Crafted-junk suffix: sn_handle_analytics_funnels_save() only ever emits digits
 // joined by '-', but $flash reaches this resolver after sanitize_text_field()
@@ -194,7 +194,7 @@ echo "\nTest 8b: analytics_funnels_invalid NEW pair-format codes ('<line>k<kindI
 fm_eq( false, function_exists( 'sn_analytics_funnels_kind_message' ), 'sanity: the kind-message source is genuinely NOT loaded yet in this suite' );
 $note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_2k4' );
 fm_eq( 'error', $note[0] ?? null, 'pair-format code without the kind-message source -> still an error notice, not null/fatal' );
-fm_eq( 'Funnels not saved — nothing changed.', $note[1] ?? null, 'pair-format code without the kind-message source -> degrades to the generic message' );
+fm_eq( 'Funnels not saved: nothing changed.', $note[1] ?? null, 'pair-format code without the kind-message source -> degrades to the generic message' );
 
 // ─── From here on, the shared kind-message source IS loaded (mirrors the real
 // bootstrap load order: inc/analytics-sessions.php before inc/admin-flash-messages.php). ───
@@ -207,7 +207,7 @@ foreach ( SN_ANALYTICS_FUNNELS_ERR_KINDS as $idx => $kind ) {
 	$note          = sn_admin_flash_to_notice( 'analytics_funnels_invalid_' . $line . 'k' . $idx );
 	$expect_reason = sn_analytics_funnels_kind_message( $kind );
 	fm_eq( 'error', $note[0] ?? null, "pair-format '$kind' kind (index $idx) -> error severity" );
-	fm_eq( true, false !== strpos( $note[1], 'Funnels not saved — nothing changed.' ), "pair-format '$kind' kind -> still opens with the summary line" );
+	fm_eq( true, false !== strpos( $note[1], 'Funnels not saved: nothing changed.' ), "pair-format '$kind' kind -> still opens with the summary line" );
 	fm_eq( true, false !== strpos( $note[1], 'Line ' . $line . ': ' . $expect_reason ), "pair-format '$kind' kind -> renders 'Line $line: ' + its own single-sourced reason text" );
 }
 
@@ -217,7 +217,7 @@ fm_eq( true, false !== strpos( $note[1], 'Line 2: ' . sn_analytics_funnels_kind_
 fm_eq( true, false !== strpos( $note[1], 'Line 7: ' . sn_analytics_funnels_kind_message( 'few' ) ), 'second pair (few kind) renders its own line' );
 fm_eq( true, strpos( $note[1], 'Line 2:' ) < strpos( $note[1], 'Line 7:' ), 'the two reason lines render in the code\'s own order' );
 
-echo "\nTest 8e: quote/apostrophe characters inside the kind-message reasons survive the decode+render pipeline intact — no stray backslash, no corruption (cf. the update_option slash-asymmetry defect class)\n";
+echo "\nTest 8e: quote/apostrophe characters inside the kind-message reasons survive the decode+render pipeline intact: no stray backslash, no corruption (cf. the update_option slash-asymmetry defect class)\n";
 $note = sn_admin_flash_to_notice( 'analytics_funnels_invalid_9k3' ); // kind index 3 = 'step'
 fm_eq( true, false !== strpos( $note[1], '":"' ), 'the step reason\'s literal ":" characters survive verbatim' );
 fm_eq( false, false !== strpos( $note[1], '\\"' ), 'no stray backslash was introduced before a quote character' );
@@ -225,7 +225,7 @@ $note_many = sn_admin_flash_to_notice( 'analytics_funnels_invalid_4k5' ); // kin
 fm_eq( true, false !== strpos( $note_many[1], "wasn't saved" ), 'the many reason\'s apostrophe survives verbatim, unslashed' );
 fm_eq( false, false !== strpos( $note_many[1], "\\" ), 'no backslash of any kind appears in the rendered notice' );
 
-echo "\nTest 8f: hostile pair-format codes degrade to the generic message, NEVER a warning or a partial/garbage line — kind index out of range, line 0, garbage separators\n";
+echo "\nTest 8f: hostile pair-format codes degrade to the generic message, NEVER a warning or a partial/garbage line: kind index out of range, line 0, garbage separators\n";
 $hostile_codes = array(
 	'analytics_funnels_invalid_2k9'     => 'kind index 9 does not exist (only 0-5)',
 	'analytics_funnels_invalid_0k1'     => 'line 0 is out of the 1-9999 range',
@@ -239,10 +239,10 @@ $hostile_codes = array(
 foreach ( $hostile_codes as $code => $why ) {
 	$note = sn_admin_flash_to_notice( $code );
 	fm_eq( 'error', $note[0] ?? null, "hostile code ($why) -> still an error notice, never null/fatal" );
-	fm_eq( 'Funnels not saved — nothing changed.', $note[1] ?? null, "hostile code ($why) -> degrades to the generic message, no partial line list" );
+	fm_eq( 'Funnels not saved: nothing changed.', $note[1] ?? null, "hostile code ($why) -> degrades to the generic message, no partial line list" );
 }
 
-echo "\nTest 8g: decode-side pair cap — even a hostile code that packs MORE than five well-formed pairs into the 40-char budget only ever renders five reason lines\n";
+echo "\nTest 8g: decode-side pair cap: even a hostile code that packs MORE than five well-formed pairs into the 40-char budget only ever renders five reason lines\n";
 $six_pairs = 'analytics_funnels_invalid_1k0-2k0-3k0-4k0-5k0-6k0';
 $note      = sn_admin_flash_to_notice( $six_pairs );
 fm_eq( 5, substr_count( (string) ( $note[1] ?? '' ), 'Line ' ), 'six well-formed pairs in the code -> only five "Line " reason lines render' );

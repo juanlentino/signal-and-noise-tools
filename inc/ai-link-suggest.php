@@ -31,7 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // (health-checks.php); this prompt only judges whether one located mention
 // really refers to the target note.
 const SNT_AI_LINK_SUGGEST_SYSTEM = "You are an editor deciding whether a mention of another note's title inside a post should become an internal link to that note.\n\n" .
-	"Input JSON: { source_title, target_title, mention, context } — `mention` is the matched text inside the source post; `context` is ~200 chars around it.\n\n" .
+	"Input JSON: { source_title, target_title, mention, context }. `mention` is the matched text inside the source post; `context` is ~200 chars around it.\n\n" .
 	"Return ONLY a JSON object: {\"verdict\": \"link\" | \"skip\" | \"unsure\", \"reason\": \"<one sentence>\"}\n\n" .
 	"Rules:\n" .
 	"- \"link\" only when the mention clearly refers to the target note itself (its subject, or the essay by that name) and a link would help the reader.\n" .
@@ -354,7 +354,7 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 	$title    = trim( (string) $target->post_title );
 	$pos      = ( '' !== $title ) ? stripos( $stripped, $title ) : false;
 	if ( false === $pos ) {
-		return new WP_Error( 'snt_ai_mention_drifted', __( 'Mention no longer present in post content — post was edited since the scan. Re-run the scan to refresh.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_mention_drifted', __( 'Mention no longer present in post content: post was edited since the scan. Re-run the scan to refresh.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 	$mention = substr( $stripped, $pos, strlen( $title ) );
 	$start   = max( 0, $pos - 80 );
@@ -366,7 +366,7 @@ function snt_ai_link_suggest_impl( $source_id, $target_id ) {
 	if ( -1 === $raw_position ) {
 		// Mention exists in prose but not contiguously in raw content (split
 		// by inline markup) — Apply could not splice it safely.
-		return new WP_Error( 'snt_ai_mention_drifted', __( 'Mention is split by inline markup — link it manually in the editor.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
+		return new WP_Error( 'snt_ai_mention_drifted', __( 'Mention is split by inline markup: link it manually in the editor.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}
 
 	// v8.1.1: the mention can sit inside an EXISTING <a> to a third note —

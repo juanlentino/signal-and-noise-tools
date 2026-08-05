@@ -63,7 +63,7 @@ function sn_health_check_broken_links() {
 			'subject_label' => $url,
 			'subject_id'    => 0,
 			'edit_url'      => $usages[0]['edit_url'] ?? admin_url( 'post.php?post=' . $usages[0]['post_id'] . '&action=edit' ),
-			'note'          => sprintf( 'HTTP %d on probe — used in %d post(s). First use: %s', $status['code'], count( $usages ), $usages[0]['post_title'] ),
+			'note'          => sprintf( 'HTTP %d on probe: used in %d post(s). First use: %s', $status['code'], count( $usages ), $usages[0]['post_title'] ),
 		);
 	}
 

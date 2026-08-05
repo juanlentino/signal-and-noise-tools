@@ -67,7 +67,7 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 		$findings[] = $mk(
 			'sn-analytics',
 			$analytics_url,
-			'Analytics collector worker is not reachable at its /_sn/version endpoint — it may be undeployed, or this host cannot hairpin to the edge. Re-run the scan to rule out a transient blip.'
+			'Analytics collector worker is not reachable at its /_sn/version endpoint: it may be undeployed, or this host cannot hairpin to the edge. Re-run the scan to rule out a transient blip.'
 		);
 	} elseif ( is_array( $analytics_config ) && ! empty( $analytics_config ) ) {
 		// Worker is reachable but self-reports a DATA-LOSS misconfiguration. These two
@@ -76,7 +76,7 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 		// readout is presence-only (never the secret), so this is a safe, high-signal alert.
 		$broken = array();
 		if ( isset( $analytics_config['px_token_set'] ) && ! $analytics_config['px_token_set'] ) {
-			$broken[] = 'SN_PX_TOKEN is unset (every beacon is rejected — data drops to zero)';
+			$broken[] = 'SN_PX_TOKEN is unset (every beacon is rejected: data drops to zero)';
 		}
 		if ( isset( $analytics_config['ae_bound'] ) && ! $analytics_config['ae_bound'] ) {
 			$broken[] = 'the SN_AE Analytics Engine binding is missing (nothing is written)';
@@ -94,7 +94,7 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 		$findings[] = $mk(
 			'sn-login-guard',
 			'',
-			'Login-guard worker is not reachable at /_sn/login-guard/status — it may be undeployed, or this host cannot hairpin to the edge. Re-run the scan to confirm.'
+			'Login-guard worker is not reachable at /_sn/login-guard/status: it may be undeployed, or this host cannot hairpin to the edge. Re-run the scan to confirm.'
 		);
 		return $findings;
 	}
@@ -107,7 +107,7 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 		$findings[] = $mk(
 			'sn-login-guard',
 			'',
-			'Login-guard denylist is EMPTY — the edge is currently blocking no IPs. The daily refresh cron may have never populated it (check Workers Logs / wrangler tail).'
+			'Login-guard denylist is EMPTY: the edge is currently blocking no IPs. The daily refresh cron may have never populated it (check Workers Logs / wrangler tail).'
 		);
 	} elseif ( false !== $ts && ( $now - $ts ) > $stale_secs ) {
 		$days       = (int) floor( ( $now - $ts ) / DAY_IN_SECONDS );
@@ -116,7 +116,7 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 			'',
 			sprintf(
 				/* translators: 1: denylist range count, 2: ISO timestamp, 3: age in days */
-				'Login-guard denylist is STALE: %1$s ranges, last refreshed %2$s (%3$d days ago). The daily refresh cron has stalled — the edge is enforcing an outdated blocklist.',
+				'Login-guard denylist is STALE: %1$s ranges, last refreshed %2$s (%3$d days ago). The daily refresh cron has stalled: the edge is enforcing an outdated blocklist.',
 				number_format_i18n( $count ),
 				$compiled,
 				$days
@@ -147,7 +147,7 @@ function sn_health_check_edge_workers() {
 		return sn_health_pack_check(
 			$label,
 			array(),
-			'Edge workers not configured (no collector endpoint derivable) — skipping. Set the Collector endpoint (Measurement → Analytics) to the Worker origin to enable.'
+			'Edge workers not configured (no collector endpoint derivable): skipping. Set the Collector endpoint (Measurement → Analytics) to the Worker origin to enable.'
 		);
 	}
 

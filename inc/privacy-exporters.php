@@ -79,7 +79,7 @@ function sn_privacy_match_login_rows( $blob, $user_login ) {
  */
 function sn_privacy_register_exporter( $exporters ) {
 	$exporters['signal-noise-tools'] = array(
-		'exporter_friendly_name' => __( 'Signal & Noise Tools — login audit', 'signal-and-noise-tools' ),
+		'exporter_friendly_name' => __( 'Signal & Noise Tools: login audit', 'signal-and-noise-tools' ),
 		'callback'               => 'sn_privacy_export_login_audit',
 	);
 	return $exporters;
@@ -147,7 +147,7 @@ function sn_privacy_export_login_audit( $email, $page = 1 ) {
  */
 function sn_privacy_register_eraser( $erasers ) {
 	$erasers['signal-noise-tools'] = array(
-		'eraser_friendly_name' => __( 'Signal & Noise Tools — login audit', 'signal-and-noise-tools' ),
+		'eraser_friendly_name' => __( 'Signal & Noise Tools: login audit', 'signal-and-noise-tools' ),
 		'callback'             => 'sn_privacy_erase_login_audit',
 	);
 	return $erasers;
@@ -243,7 +243,7 @@ function sn_register_privacy_policy_content() {
 	// (b) Webhooks — only when at least one is configured.
 	$webhooks = function_exists( 'sn_webhooks_all' ) ? sn_webhooks_all() : array();
 	if ( ! empty( $webhooks ) ) {
-		$sentences[] = __( 'When content is published, this site may send a signed webhook notification — including the post title, URL, author, and time — to the third-party endpoints you have configured.', 'signal-and-noise-tools' );
+		$sentences[] = __( 'When content is published, this site may send a signed webhook notification (including the post title, URL, author, and time) to the third-party endpoints you have configured.', 'signal-and-noise-tools' );
 	}
 
 	// (c) First-party analytics.

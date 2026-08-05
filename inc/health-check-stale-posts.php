@@ -49,7 +49,7 @@ function sn_health_check_stale_posts() {
 				'subject_url'   => get_permalink( (int) $r['ID'] ),
 				'subject_label' => (string) $r['post_title'],
 				'edit_url'      => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
-				'note'          => sprintf( 'Last modified %s — review for currency.', $r['post_modified_gmt'] ),
+				'note'          => sprintf( 'Last modified %s: review for currency.', $r['post_modified_gmt'] ),
 			);
 		}
 	}

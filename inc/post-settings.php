@@ -257,7 +257,7 @@ function sn_post_settings_render( $post ) {
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn_og_card_title">OG card title</label>';
 	echo '<textarea id="sn_og_card_title" name="sn_og_card_title" rows="2">' . esc_textarea( $og_card_title ) . '</textarea>';
-	echo '<p class="sn-field-helper">Replaces the post title in the social-share <strong>card image</strong> only — the <code>og:title</code> HTML meta still uses the real title. Empty falls back to the post title. Aim for 60-90 chars for the punchiest card.</p>';
+	echo '<p class="sn-field-helper">Replaces the post title in the social-share <strong>card image</strong> only: the <code>og:title</code> HTML meta still uses the real title. Empty falls back to the post title. Aim for 60-90 chars for the punchiest card.</p>';
 	echo '</div>';
 
 	// ─── Pillar essay (v9.79.0, Pages only) ───

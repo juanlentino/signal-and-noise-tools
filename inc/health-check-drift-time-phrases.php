@@ -125,7 +125,7 @@ function sn_health_check_drift_time_phrases() {
 	$fix_hint = 'Open each post and replace dated phrasing with absolute references (years, dates) or remove time-relative language entirely.';
 
 	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
-		return sn_health_pack_check( $label, array(), 'AI provider not configured — skipping drift detection. Configure Settings → Connectors + Settings → AI to enable.' );
+		return sn_health_pack_check( $label, array(), 'AI provider not configured: skipping drift detection. Configure Settings → Connectors + Settings → AI to enable.' );
 	}
 
 	global $wpdb;
@@ -229,7 +229,7 @@ function sn_health_check_drift_time_phrases() {
 				'subject_url'     => get_permalink( (int) $r['ID'] ),
 				'subject_label'   => (string) $r['post_title'],
 				'edit_url'        => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
-				'note'            => sprintf( '"%s" — %s', $phrase, $reason ),
+				'note'            => sprintf( '"%s". %s', $phrase, $reason ),
 				'phrase'          => $phrase,
 				'position'        => $position,
 				'context_snippet' => $context,

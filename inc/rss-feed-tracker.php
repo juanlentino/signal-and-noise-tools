@@ -463,13 +463,13 @@ function sn_rss_tracker_render_flash( $flash ) {
 	if ( 'saved' === $flash ) {
 		echo '<div class="notice notice-success is-dismissible"><p>Settings saved.</p></div>';
 	} elseif ( 'unchanged' === $flash ) {
-		echo '<div class="notice notice-info is-dismissible"><p>Settings unchanged — submitted values matched what was already stored.</p></div>';
+		echo '<div class="notice notice-info is-dismissible"><p>Settings unchanged: submitted values matched what was already stored.</p></div>';
 	} elseif ( 'save-error' === $flash ) {
 		echo '<div class="notice notice-error is-dismissible"><p>Settings could not be saved. Check the PHP error log for the database error.</p></div>';
 	} elseif ( 'reset' === $flash ) {
 		echo '<div class="notice notice-success is-dismissible"><p>Settings reset to defaults.</p></div>';
 	} elseif ( 'purge-error' === $flash ) {
-		echo '<div class="notice notice-error is-dismissible"><p>Purge failed — no rows were deleted. Check the PHP error log for the database error.</p></div>';
+		echo '<div class="notice notice-error is-dismissible"><p>Purge failed: no rows were deleted. Check the PHP error log for the database error.</p></div>';
 	} elseif ( 0 === strpos( $flash, 'purged-' ) ) {
 		$n = (int) substr( $flash, 7 );
 		echo '<div class="notice notice-success is-dismissible"><p>Purged ' . esc_html( number_format_i18n( $n ) ) . ' log entries.</p></div>';
@@ -546,7 +546,7 @@ function sn_rss_tracker_render_settings_form( $settings ) {
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn_rss_event_name">Event name</label>';
 	echo '<input type="text" id="sn_rss_event_name" name="event_name" class="large-text" value="' . esc_attr( $settings['event_name'] ) . '" required>';
-	echo '<p class="sn-field-helper">Custom event name recorded in first-party analytics — surfaces under Analytics &rarr; Events. Kept as <code>RSS Feed Request</code> to continue the series imported from Plausible.</p>';
+	echo '<p class="sn-field-helper">Custom event name recorded in first-party analytics: surfaces under Analytics &rarr; Events. Kept as <code>RSS Feed Request</code> to continue the series imported from Plausible.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field sn-field-w-xs">';
@@ -592,7 +592,7 @@ function sn_rss_tracker_render_maintenance_form( $settings ) {
 	echo '<h2 class="sn-section-h">Maintenance</h2>';
 	echo '<form method="post">';
 	wp_nonce_field( SN_RSS_TRACKER_NONCE );
-	echo '<p class="sn-field-helper">Delete rows older than the threshold below. First-party collector events are unaffected — only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
+	echo '<p class="sn-field-helper">Delete rows older than the threshold below. First-party collector events are unaffected: only the local <code>' . esc_html( $GLOBALS['wpdb']->prefix . SN_RSS_TRACKER_TABLE ) . '</code> table is touched. The daily cron runs the same query against the configured retention setting.</p>';
 	echo '<div class="sn-field sn-field-w-xs">';
 	echo '<label class="sn-field-label" for="sn_rss_purge_days">Older than (days)</label>';
 	echo '<input type="number" id="sn_rss_purge_days" name="purge_days" class="small-text" min="7" max="365" value="' . esc_attr( (int) $settings['log_retention_days'] ) . '">';

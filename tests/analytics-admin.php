@@ -215,7 +215,7 @@ echo "Analytics admin (dashboard + settings split)\n\n";
 // (edge/cache HTML rewriting, strict CSP, fragile once-guard), rendering it unstyled.
 // The contract is now asserted against the file; the render-body check below confirms
 // no inline <style> is emitted. See inc/admin-menu.php for the wp_enqueue_style wiring.
-echo "Group: styles — CSS contract (external stylesheet)\n";
+echo "Group: styles. CSS contract (external stylesheet)\n";
 $css_path       = __DIR__ . '/../assets/analytics/analytics-admin.css';
 $snt_styles_css = is_file( $css_path ) ? (string) file_get_contents( $css_path ) : '';
 ok( '' !== $snt_styles_css, 'styles: analytics-admin.css exists and is non-empty (enqueued, not inline)' );
@@ -274,7 +274,7 @@ function aa_fill_data() {
 	$GLOBALS['__aa']['event_props'] = array( array( 'property' => 'utm_source', 'value' => 'hn', 'events' => 50, 'visitors' => 40 ) );
 }
 
-echo "\nGroup: dashboard — core render\n";
+echo "\nGroup: dashboard: core render\n";
 aa_fill_data();
 // v9.68.0: the default landing is now the Overview view, so this group (the
 // CONTENT view's shared-header pins, e.g. the /notes/x top-paths row) selects
@@ -307,21 +307,21 @@ ok( strpos( $html, '/notes/x' ) !== false, 'dashboard: top path row present' );
 ok( strpos( $html, 'sn-kpi-row' ) !== false, 'cards: fused KPI strip rendered' );
 ok( substr_count( $html, 'sn-kpi-promoted' ) === 2, 'cards: Views + Visits promoted' );
 ok( strpos( $html, '<div class="n">7</div>' ) === false, 'cards: old .n markup gone' );
-ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, 'dashboard: read-only — NO settings form embedded (split)' );
-ok( strpos( $html, 'value="analytics_save"' ) === false, 'dashboard: read-only — NO save button (split)' );
+ok( strpos( $html, 'name="sn_cf_account_id"' ) === false, 'dashboard: read-only. NO settings form embedded (split)' );
+ok( strpos( $html, 'value="analytics_save"' ) === false, 'dashboard: read-only. NO save button (split)' );
 
-echo "\nGroup: D1 — separation meta only when automated traffic exists\n";
+echo "\nGroup: D1: separation meta only when automated traffic exists\n";
 ob_start(); snt_analytics_render_controls( '7', 'human', '', '', 'off', array( 'human' => array( 'views' => 900 ), 'bot' => array( 'views' => 0 ), 'suspect' => array( 'views' => 0 ) ) ); $ctl0 = (string) ob_get_clean();
 ok( strpos( $ctl0, 'sn-an-sep-meta' ) === false, 'meta: hidden when auto=0 (nothing to disclose)' );
 ob_start(); snt_analytics_render_controls( '7', 'human', '', '', 'off', array( 'human' => array( 'views' => 1204 ), 'bot' => array( 'views' => 268 ), 'suspect' => array( 'views' => 44 ) ) ); $ctl1 = (string) ob_get_clean();
 ok( strpos( $ctl1, '312 automated filtered (268 bot · 44 suspect)' ) !== false && strpos( $ctl1, '21% of all traffic' ) !== false, 'meta: counts + share (312/1516 → 21%)' );
-ok( strpos( $ctl1, 'sn-an-sep-meta">312' ) !== false, 'meta: starts with the count — no leading orphan bullet (flex gap separates)' );
+ok( strpos( $ctl1, 'sn-an-sep-meta">312' ) !== false, 'meta: starts with the count: no leading orphan bullet (flex gap separates)' );
 ok( strpos( $ctl1, 'Showing' ) === false, 'meta: the "Showing human traffic" clause is dropped (the active class pill already says it)' );
 
-echo "\nGroup: dashboard — period-over-period deltas on cards\n";
+echo "\nGroup: dashboard: period-over-period deltas on cards\n";
 ok( strpos( $html, 'sn-delta-down' ) !== false && strpos( $html, 'sn-delta-up' ) !== false, 'cards: up + down deltas' );
 
-echo "\nGroup: dashboard — view tab nav\n";
+echo "\nGroup: dashboard: view tab nav\n";
 $_GET['sn_view'] = 'content';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'nav-tab-wrapper' ) !== false, 'tabs: WP-native nav-tab-wrapper present' );
@@ -344,13 +344,13 @@ ok( false !== $tabs && false !== $band && $tabs < $band, 'D1 order: tabs above t
 ok( false !== $tool && $band < $tool, 'D1 order: headline band above the toolbar' );
 ok( false !== $ov && $tool < $ov, 'D1 order: toolbar above the Overview' );
 
-echo "\nGroup: v9.68.0 — the Overview is the DEFAULT landing (promoted, wired, shared chrome)\n";
+echo "\nGroup: v9.68.0: the Overview is the DEFAULT landing (promoted, wired, shared chrome)\n";
 // Registry: the permanent 'overview' slug leads the registry; the flag-gated
 // preview machinery is GONE (the experiment graduated).
 ok( 'overview' === array_key_first( SN_ANALYTICS_VIEWS ), 'registry: overview is FIRST' );
 ok( 'Overview' === ( SN_ANALYTICS_VIEWS['overview'] ?? '' ), 'registry: labeled "Overview"' );
 ok( 12 === count( SN_ANALYTICS_VIEWS ), 'registry: 12 views (11 + the promoted overview)' );
-ok( snt_analytics_views() === SN_ANALYTICS_VIEWS, 'effective registry: identical to the const — no flag branch left' );
+ok( snt_analytics_views() === SN_ANALYTICS_VIEWS, 'effective registry: identical to the const: no flag branch left' );
 ok( ! function_exists( 'snt_analytics_landing_preview_enabled' ), 'flag: the sn_analytics_landing_preview helper no longer exists' );
 ok( 'overview' === snt_analytics_resolve_view( 'overview' ), 'resolve_view: overview resolves' );
 ok( 'overview' === snt_analytics_resolve_view( 'overview-lab' ), 'resolve_view: the retired lab slug falls back to the new default' );
@@ -364,24 +364,24 @@ ok( preg_match( '/nav-tab nav-tab-active" href="[^"]*sn_view=overview(&|")/', $h
 ok( substr_count( $html_ovd, 'nav-tab-active' ) === 1, 'default: exactly one active tab' );
 ok( strpos( $html_ovd, 'sn-toolbar' ) !== false, 'default: inherits the shared range/class/compare controls' );
 ok( strpos( $html_ovd, 'sn-an-headline' ) !== false, 'default: inherits the insights band' );
-ok( strpos( $html_ovd, 'postbox sn-overview' ) !== false, 'default: inherits the shared Overview KPI card (the headline — no duplicate in the body)' );
+ok( strpos( $html_ovd, 'postbox sn-overview' ) !== false, 'default: inherits the shared Overview KPI card (the headline: no duplicate in the body)' );
 ok( strpos( $html_ovd, 'sn-an-movers' ) !== false, 'default: inherits the movers rail' );
 ok( strpos( $html_ovd, 'Right now' ) !== false, 'default: the wired body renders below the shared header' );
 ok( strpos( $html_ovd, 'Hacker News' ) !== false, 'default: the sources mini is wired through the canonical mapper (news.ycombinator.com → Hacker News)' );
 ok( strpos( $html_ovd, 'sn-an-lab-badge' ) === false && strpos( $html_ovd, 'PREVIEW' ) === false, 'default: no preview badge anywhere (graduated)' );
 ok( strpos( $html_ovd, 'sn_view=content' ) !== false, 'default: Content remains a normal tab in the strip' );
 
-echo "\nGroup: D1 — headline band gating\n";
+echo "\nGroup: D1: headline band gating\n";
 if ( ! function_exists( 'snt_edge_render_view' ) ) {
 	function snt_edge_render_view( $f, $t ) { echo '<!--EDGE-VIEW-->'; }
 }
 $_GET['sn_view'] = 'edge';
 $html_edge = capture( 'snt_analytics_render_dashboard' );
 ok( false === strpos( $html_edge, 'sn-an-headline' ), 'gating: edge (not class-segmented) renders NO headline band' );
-ok( false !== strpos( $html_edge, 'sn-toolbar' ), 'gating: edge keeps the shared header (regression guard — deliberate)' );
+ok( false !== strpos( $html_edge, 'sn-toolbar' ), 'gating: edge keeps the shared header (regression guard: deliberate)' );
 $_GET['sn_view'] = 'content';
 
-echo "\nGroup: dashboard — trend: smooth SVG area chart (v6.5.2)\n";
+echo "\nGroup: dashboard: trend: smooth SVG area chart (v6.5.2)\n";
 aa_fill_data();
 $_GET['sn_view'] = 'content';
 $html_trend = capture( 'snt_analytics_render_dashboard' );
@@ -393,7 +393,7 @@ ok( strpos( $html_trend, 'vector-effect="non-scaling-stroke"' ) !== false,
 	'trend: non-scaling-stroke keeps the line crisp under the full-width stretch' );
 ok( strpos( $html_trend, 'class="bar"' ) === false, 'trend: old chunky bars gone' );
 
-echo "\nGroup: dashboard — fused Overview panel (KPIs + trend in ONE postbox)\n";
+echo "\nGroup: dashboard: fused Overview panel (KPIs + trend in ONE postbox)\n";
 ok( strpos( $html_trend, 'postbox sn-overview' ) !== false, 'overview: single fused .sn-overview postbox present' );
 ok( strpos( $html_trend, 'sn-overview-trend' ) !== false, 'overview: trend band rendered inside the panel (no separate box)' );
 // The KPI strip and the trend band share one .inside — the trend follows the KPI row.
@@ -403,7 +403,7 @@ ok( false !== $kpi_pos && false !== $trend_pos && $kpi_pos < $trend_pos,
 	'overview: KPI strip precedes the trend band within the fused panel' );
 ok( strpos( $html_trend, '>Daily views<' ) === false, 'overview: redundant standalone "Daily views" header removed' );
 
-echo "\nGroup: D1 — pulse footer inside the Overview (content only)\n";
+echo "\nGroup: D1: pulse footer inside the Overview (content only)\n";
 $p_pos = strpos( $html_trend, 'sn-an-pulse' );
 $r_pos = strpos( $html_trend, 'sn-an-header-rail' );
 ok( false !== $p_pos && false !== $r_pos && $p_pos < $r_pos, 'pulse: footer renders inside the Overview panel on Content' );
@@ -431,7 +431,7 @@ $css_pad = is_file( $css_path ) ? (string) file_get_contents( $css_path ) : '';
 ok( preg_match( '/\.sn-an-table-inside\s*\{[^}]*padding:/s', $css_pad ) === 1,
 	'tables: .sn-an-table-inside defines an explicit side gutter (version-robust, not core-dependent)' );
 
-echo "\nGroup: dashboard — persistent header on every tab\n";
+echo "\nGroup: dashboard: persistent header on every tab\n";
 foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 'events' ) as $v ) {
 	$_GET['sn_view'] = $v;
 	$h = capture( 'snt_analytics_render_dashboard' );
@@ -441,7 +441,7 @@ foreach ( array( 'content', 'technology', 'geography', 'engagement', 'quality', 
 	);
 }
 
-echo "\nGroup: dashboard — Content view (default)\n";
+echo "\nGroup: dashboard. Content view (default)\n";
 $_GET['sn_view'] = 'content';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'Top pages' ) !== false && strpos( $html, 'Top sources' ) !== false, 'content: pages/sources panels' );
@@ -452,7 +452,7 @@ ok( strpos( $html, 'wp-list-table widefat' ) !== false, 'content: dimension/path
 ok( strpos( $html, 'postbox' ) !== false, 'content: panels wrapped in native postbox' );
 ok( strpos( $html, 'class="sn-an-panel"' ) === false, 'content: old bare sn-an-panel wrapper gone (migrated to postbox)' );
 
-echo "\nGroup: dashboard — Technology view\n";
+echo "\nGroup: dashboard. Technology view\n";
 $_GET['sn_view'] = 'technology';
 $html = capture( 'snt_analytics_render_dashboard' );
 foreach ( array( 'Browsers', 'Operating systems', 'Devices', 'Protocols', 'TLS' ) as $p ) {
@@ -462,7 +462,7 @@ ok( strpos( $html, 'Top pages' ) === false && strpos( $html, 'Cities' ) === fals
 ok( substr_count( $html, 'sn-an-spark' ) >= 1, 'technology: sparkline column rendered on OS/devices tables' );
 ok( strpos( $html, 'wp-list-table widefat' ) !== false, 'technology: dimension tables use native widefat class' );
 
-echo "\nGroup: dashboard — Geography view\n";
+echo "\nGroup: dashboard. Geography view\n";
 $_GET['sn_view'] = 'geography';
 $GLOBALS['__aa']['dim'] = array( array( 'value' => 'US', 'views' => 312, 'visits' => 98 ) );
 $html = capture( 'snt_analytics_render_dashboard' );
@@ -477,16 +477,16 @@ ok( strpos( $html, 'sn-geo-split' ) !== false, 'geography: map+countries split l
 ok( strpos( $html, 'sn-geo-tiles' ) !== false, 'geography: tiles grid (cities/regions/networks/edge) present' );
 $GLOBALS['__aa']['dim'] = array( array( 'value' => 'news.ycombinator.com', 'views' => 312, 'visits' => 98 ) );
 
-echo "\nGroup: dashboard — Engagement view\n";
+echo "\nGroup: dashboard. Engagement view\n";
 $_GET['sn_view'] = 'engagement';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-heatmap' ) !== false, 'engagement: hour×dow heatmap rendered' );
 ok( strpos( $html, 'Scroll depth' ) !== false && strpos( $html, 'Time on page' ) !== false, 'engagement: scroll + time distributions' );
 ok( strpos( $html, 'postbox' ) !== false, 'engagement: panels wrapped in native postbox' );
-ok( strpos( $html, 'Scroll depth — percentiles' ) !== false && strpos( $html, 'Time on page — percentiles' ) !== false, 'engagement: scroll + time percentile panels' );
+ok( strpos( $html, 'Scroll depth: percentiles' ) !== false && strpos( $html, 'Time on page: percentiles' ) !== false, 'engagement: scroll + time percentile panels' );
 ok( strpos( $html, 'sn-an-pctl-chip' ) !== false && strpos( $html, '63%' ) !== false, 'engagement: percentile chips render with values' );
 
-echo "\nGroup: dashboard — drill-down\n";
+echo "\nGroup: dashboard: drill-down\n";
 $_GET['sn_view']  = 'geography';
 $_GET['sn_drill'] = 'country:US';
 $html = capture( 'snt_analytics_render_dashboard' );
@@ -510,7 +510,7 @@ foreach ( array( 'martian:x', 'country:', 'garbage' ) as $bad ) {
 }
 unset( $_GET['sn_drill'] );
 
-echo "\nGroup: dashboard — Quality view\n";
+echo "\nGroup: dashboard. Quality view\n";
 $_GET['sn_view'] = 'quality';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn-an-botbreak' ) !== false && strpos( $html, 'Amazon.com, Inc.' ) !== false, 'quality: bot breakdown + top bot ASN rendered' );
@@ -526,7 +526,7 @@ ok( strpos( $html, 'postbox' ) !== false, 'quality: panels wrapped in native pos
 preg_match_all( '/id="(snSparkFill[A-Za-z0-9]*)"/', $html, $m_grad );
 ok( count( $m_grad[1] ) >= 2 && count( $m_grad[1] ) === count( array_unique( $m_grad[1] ) ), 'quality: BOTH trend gradients on the page and no duplicate ids (>=2 guards against a fixture change making this vacuous)' );
 
-echo "\nGroup: dashboard — Events view (new tab)\n";
+echo "\nGroup: dashboard. Events view (new tab)\n";
 $_GET['sn_view'] = 'events';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'sn_view=events' ) !== false, 'events: tab link present in nav' );
@@ -541,7 +541,7 @@ ok( strpos( $html, 'Property: <strong>utm_source</strong>' ) !== false, 'events:
 unset( $_GET['sn_event_prop'] );
 $_GET['sn_view'] = 'content';
 
-echo "\nGroup: dashboard — view param whitelist + escaping\n";
+echo "\nGroup: dashboard: view param whitelist + escaping\n";
 $_GET['sn_view'] = '../../etc/passwd';
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, 'Right now' ) !== false, 'view: junk sn_view falls back to the overview default (v9.68.0)' );
@@ -551,7 +551,7 @@ $html = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html, '<script>' ) === false, 'dashboard: path output escaped (no raw <script>)' );
 unset( $_GET['sn_view'] );
 
-echo "\nGroup: dashboard — unconfigured shows empty + Configure link, NOT the form\n";
+echo "\nGroup: dashboard: unconfigured shows empty + Configure link, NOT the form\n";
 $GLOBALS['__aa_config'] = false;
 $html = capture( 'snt_analytics_render_dashboard' );
 ok( stripos( $html, 'not receiving data' ) !== false || stripos( $html, 'isn' ) !== false, 'dashboard(unconfigured): shows the empty/config notice' );
@@ -566,7 +566,7 @@ ok( substr_count( $html, 'Configure analytics' ) === 1, 'dashboard(unconfigured)
 ok( strpos( $html, 'href="https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=monitoring&sub=analytics"' ) !== false,
 	'dashboard(unconfigured): CTA points at the analytics settings URL' );
 
-echo "\nGroup: dashboard — unconfigured: tabs lead, ZERO accessor reads (S2 §5, resolves PR #275)\n";
+echo "\nGroup: dashboard: unconfigured: tabs lead, ZERO accessor reads (S2 §5, resolves PR #275)\n";
 // The dashboard's SHAPE (which views exist) is now visible before Cloudflare
 // creds are set; only the DATA below the gate stays withheld. $_GET['sn_view']
 // is unset here (previous group left it that way), so the tab strip's active
@@ -581,13 +581,13 @@ foreach ( SN_ANALYTICS_VIEWS as $slug => $label ) {
 	ok( strpos( $html, 'sn_view=' . $slug ) !== false, "unconfigured: tab link to '$slug' present" );
 	++$tab_count;
 }
-ok( 12 === $tab_count, 'unconfigured: sanity — the registry has all 12 views incl. the promoted overview (test isn\'t vacuous)' );
+ok( 12 === $tab_count, 'unconfigured: sanity: the registry has all 12 views incl. the promoted overview (test isn\'t vacuous)' );
 // v9.65.0 units-collision fix: the tab LABEL says what its number counts
 // (within-day sessions from the live session engine), while the SLUG stays
 // 'visits' — cache keys, ?sn_view= links, and the dispatch switch all key on
 // the slug, so renaming it would break them. Label free, slug frozen.
 ok( array_key_exists( 'visits', SN_ANALYTICS_VIEWS ), 'views registry: the \'visits\' SLUG is unchanged (drilldown links + dispatch key on it)' );
-ok( 'Sessions' === SN_ANALYTICS_VIEWS['visits'], 'views registry: the visits tab is LABELED "Sessions" (units fix — the Overview headline\'s "Visits" counts visitor-days)' );
+ok( 'Sessions' === SN_ANALYTICS_VIEWS['visits'], 'views registry: the visits tab is LABELED "Sessions" (units fix: the Overview headline\'s "Visits" counts visitor-days)' );
 ok( strpos( $html, 'nav-tab" href="' ) !== false, 'unconfigured: tab links carry a real, working href (not a bare <a>)' );
 ok( substr_count( $html, 'nav-tab-active' ) === 1, 'unconfigured: exactly one active tab (the overview default)' );
 ok( strpos( $html, 'sn-an-gate' ) !== false, 'unconfigured: the gate card still renders alongside the tabs' );
@@ -617,7 +617,7 @@ ok( 0 === array_sum( $GLOBALS['__aa_calls'] ), 'unconfigured+all: the five AE ac
 unset( $_GET['sn_range'] );
 $GLOBALS['__aa_config'] = true; // restore for the groups that follow.
 
-echo "\nGroup: settings section — the creds form + dashboard backlink\n";
+echo "\nGroup: settings section: the creds form + dashboard backlink\n";
 $GLOBALS['__aa_config'] = false;
 $GLOBALS['__aa_opts']   = array();
 $html = capture( 'snt_analytics_render_settings_section' );
@@ -630,13 +630,13 @@ ok( stripos( $html, 'View dashboard' ) !== false, 'settings: links back to the r
 ok( strpos( $html, '<details class="sn-an-form-fold" open>' ) !== false, 'settings: unconfigured pipeline -> the credentials fold carries open (v9.45.0 wiring pin)' );
 ok( strpos( $html, 'index.php?page=sn-analytics' ) !== false, 'settings: dashboard link targets the WP Dashboard → Analytics page' );
 
-echo "\nGroup: settings section — escaping of stored values\n";
+echo "\nGroup: settings section: escaping of stored values\n";
 $GLOBALS['__aa_opts'] = array( SN_CF_ACCOUNT_ID_OPT => 'acct"<script>' );
 $html = capture( 'snt_analytics_render_settings_section' );
 ok( strpos( $html, '<script>' ) === false, 'settings: stored account_id with <script> is escaped' );
 $GLOBALS['__aa_opts'] = array();
 
-echo "\nGroup: settings section — open-and-wide 2-column layout (Phase 2, v6.44.0)\n";
+echo "\nGroup: settings section: open-and-wide 2-column layout (Phase 2, v6.44.0)\n";
 $GLOBALS['__aa_config'] = false;
 $GLOBALS['__aa_opts']   = array();
 $html = capture( 'snt_analytics_render_settings_section' );
@@ -645,7 +645,7 @@ ok( strpos( $html, '<div class="sn-2up">' ) !== false, 'settings: lays out as a 
 // bare column wrappers + the pipeline strip's combined "sn-fieldset sn-an-pipeline".
 // sn-fieldset-h headings don't match (the lookahead rejects the trailing hyphen).
 $fieldset_cards = preg_match_all( '~class="[^"]*(?<![\w-])sn-fieldset(?![\w-])~', $html );
-ok( 3 === $fieldset_cards, 'settings: exactly three .sn-fieldset surfaces — pipeline strip + the two columns (wide leaf owns its own chrome)' );
+ok( 3 === $fieldset_cards, 'settings: exactly three .sn-fieldset surfaces: pipeline strip + the two columns (wide leaf owns its own chrome)' );
 ok( strpos( $html, 'class="sn-fieldset sn-an-pipeline"' ) !== false, 'settings: the strip is the modifier-carrying fieldset (the columns stay bare)' );
 // S2 §6: the whole settings section is wrapped in the D4-leaf marker so the
 // leaf-scoped token-card CSS (analytics-admin.css) has something to hang off.
@@ -660,7 +660,7 @@ ok( false !== $acct_at && false !== $wrng_at && $acct_at < $wrng_at, 'settings: 
 $reg = file_get_contents( __DIR__ . '/../inc/admin-tabs-data.php' );
 ok( (bool) preg_match( "/'analytics'\\s*=>\\s*array\\([^\\n]*'wide'\\s*=>\\s*true/", $reg ), 'registry: the analytics leaf is marked wide (opts out of the wrapper cap)' );
 
-echo "\nGroup: settings hub composition (v9.36.0, layout A) — status strip + operate|reference columns\n";
+echo "\nGroup: settings hub composition (v9.36.0, layout A): status strip + operate|reference columns\n";
 // The real partials render here (analytics-render-settings.php is loaded via
 // analytics-admin-render.php), so order is asserted on each subsection's own
 // distinctive marker. sn_worker_version_render_card (inc/worker-version.php) is
@@ -686,7 +686,7 @@ ok( $funnels < $mirrors, 'hub: the writable column (funnels last) precedes the r
 echo "\nGroup: the v5.3.0 Dashboard-tab hook is reverted (no auto-render on the plugin Dashboard tab)\n";
 ok( strpos( file_get_contents( __DIR__ . '/../inc/analytics-admin.php' ), "add_action( 'sn_admin_dashboard_extras', 'snt_analytics_render" ) === false, 'revert: analytics no longer hooks sn_admin_dashboard_extras' );
 
-echo "\nGroup: dashboard — date-range presets + custom window\n";
+echo "\nGroup: dashboard: date-range presets + custom window\n";
 aa_fill_data();
 $_GET['sn_view'] = 'content';
 $_GET['sn_range'] = 'ytd';
@@ -736,7 +736,7 @@ $pos_tabs   = strpos( $html, 'nav-tab-wrapper' );
 $pos_header = strpos( $html, 'LOGIN-DEFENSE-HEADER' );
 $pos_body   = strpos( $html, 'LOGIN-DEFENSE-BODY' );
 ok( $pos_tabs !== false && $pos_header !== false && $pos_tabs < $pos_header,
-	'frame: tabs lead (v9.37.0 D1) — login header renders BELOW the tab bar (same slot as the pageview chrome)' );
+	'frame: tabs lead (v9.37.0 D1): login header renders BELOW the tab bar (same slot as the pageview chrome)' );
 ok( $pos_body !== false && $pos_tabs !== false && $pos_body > $pos_tabs,
 	'frame: login body renders BELOW the tab bar' );
 ok( false === strpos( $html, 'sn-an-headline' ), 'chrome: no headline band on the chrome-owning login view' );
@@ -754,7 +754,7 @@ ok( strpos( capture( 'snt_analytics_render_dashboard' ), 'Analytics read failed.
 $GLOBALS['__aa_error'] = null;
 $_GET['sn_view']       = 'content';
 
-echo "\nGroup: dashboard — unconfigured + sn_view=login-defense: the SAME generic gate (S2 §5 decision)\n";
+echo "\nGroup: dashboard: unconfigured + sn_view=login-defense: the SAME generic gate (S2 §5 decision)\n";
 // DECISION: login-defense gates on the exact same sn_analytics_config() flag as
 // every other view (verified by reading inc/login-defense-analytics.php — it is
 // NOT a separate credential/"Connect" card). So the unconfigured branch renders
@@ -796,7 +796,7 @@ $nav    = substr( $full, $navpos, $navend - $navpos );
 ok( strpos( $nav, 'sn_lg_range' ) === false, 'tabs: sn_lg_range stripped from tab links (login range does not leak onto sibling tabs)' );
 $_SERVER['REQUEST_URI'] = $prev_uri;
 
-echo "\nGroup: v9.34.0 — first-class comparison (overlay + note)\n";
+echo "\nGroup: v9.34.0: first-class comparison (overlay + note)\n";
 aa_fill_data();
 $_GET['sn_view']    = 'content';
 $_GET['sn_compare'] = 'prev';
@@ -825,14 +825,14 @@ $html_off = capture( 'snt_analytics_render_dashboard' );
 ok( false !== strpos( $html_off, 'previous period:' ), 'D2 frame: off keeps the quiet previous-period tooltip' );
 ok( false === strpos( $html_off, 'sn-an-compare-note' ), 'D2 frame: off still renders no note (v9.34.0 invariant)' );
 
-echo "\nGroup: v9.34.0 — brush data attributes on the trend\n";
+echo "\nGroup: v9.34.0: brush data attributes on the trend\n";
 $_GET['sn_view'] = 'content';
 $html_br = capture( 'snt_analytics_render_dashboard' );
 $brush_at = strpos( $html_br, 'data-brush-from="' );
 ok( false !== $brush_at && strpos( $html_br, 'data-brush-days="' ) !== false, 'brush: the day-granularity trend carries the brush data attributes' );
 ok( preg_match( '/data-brush-from="\d{4}-\d{2}-\d{2}"/', $html_br ) === 1, 'brush: data-brush-from is a real date (the window start the JS maps fractions onto)' );
 
-echo "\nGroup: v9.35.0 — tier badges (I6)\n";
+echo "\nGroup: v9.35.0: tier badges (I6)\n";
 $_GET['sn_view'] = 'content';
 $html_tb = capture( 'snt_analytics_render_dashboard' );
 ok( strpos( $html_tb, 'sn-an-tier--descriptive' ) !== false, 'dashboard: the Overview postbox names its tier via the shared badge' );

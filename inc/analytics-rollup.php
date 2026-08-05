@@ -616,7 +616,7 @@ function sn_analytics_rollup_upsert( $rows ) {
 		// a clamp or skip would silently serve corrupt arithmetic as clean.
 		if ( 'human' === $c['class'] && null !== $c['pageview_visits'] && $c['views'] < $c['pageview_visits'] ) {
 			error_log( sprintf(
-				'[sn-analytics] integrity violation: views < pageview_visits for %s %s (%d < %d) — row written unmodified',
+				'[sn-analytics] integrity violation: views < pageview_visits for %s %s (%d < %d): row written unmodified',
 				$c['day'],
 				$c['path'],
 				$c['views'],

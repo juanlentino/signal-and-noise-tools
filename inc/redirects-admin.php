@@ -31,7 +31,7 @@ function sn_redirects_render_admin_tab() {
 	// older, narrower filter) so the list stays broken-links-worth-fixing only.
 	$log       = sn_404_log_actionable();
 
-	echo '<p class="sn-prose">Send old or broken URLs to a new destination with a 301 (permanent) or 302 (temporary) redirect. Targets can be an on-site path (<code>/new-page</code>) or a full external URL (<code>https://…</code>). The <strong>404 log</strong> in the sidebar surfaces paths visitors actually hit that don&rsquo;t exist — one click turns any of them into a redirect.</p>';
+	echo '<p class="sn-prose">Send old or broken URLs to a new destination with a 301 (permanent) or 302 (temporary) redirect. Targets can be an on-site path (<code>/new-page</code>) or a full external URL (<code>https://…</code>). The <strong>404 log</strong> in the sidebar surfaces paths visitors actually hit that don&rsquo;t exist: one click turns any of them into a redirect.</p>';
 
 	sn_admin_shell_open();
 
@@ -118,7 +118,7 @@ function sn_redirects_render_admin_tab() {
 		echo '</div>';
 	} else {
 		echo '<div class="sn-status-box sn-status-box--warn">';
-		echo '<div><p class="sn-status-box-title">' . esc_html( $total ) . ' broken path' . ( 1 === $total ? '' : 's' ) . '</p><p class="sn-status-box-body">Add a target below to redirect it — doing so also clears it from this list.</p></div>';
+		echo '<div><p class="sn-status-box-title">' . esc_html( $total ) . ' broken path' . ( 1 === $total ? '' : 's' ) . '</p><p class="sn-status-box-body">Add a target below to redirect it: doing so also clears it from this list.</p></div>';
 		echo '<span class="sn-pill sn-pill--warn">Attention</span>';
 		echo '</div>';
 	}
@@ -131,7 +131,7 @@ function sn_redirects_render_admin_tab() {
 		$sn_404_junk_hits = array_sum( array_map( function ( $e ) { return (int) ( $e['count'] ?? 0 ); }, $sn_404_junk ) );
 		echo '<div class="sn-status-box">';
 		echo '<div><p class="sn-status-box-title">' . esc_html( count( $sn_404_junk ) ) . ' automated probe' . ( 1 === count( $sn_404_junk ) ? '' : 's' ) . '</p>';
-		echo '<p class="sn-status-box-body">' . esc_html( $sn_404_junk_hits ) . ' hit' . ( 1 === $sn_404_junk_hits ? '' : 's' ) . ' on paths that match nothing published here and that nothing here links to — scanner traffic, not broken links. No action needed.</p></div>';
+		echo '<p class="sn-status-box-body">' . esc_html( $sn_404_junk_hits ) . ' hit' . ( 1 === $sn_404_junk_hits ? '' : 's' ) . ' on paths that match nothing published here and that nothing here links to: scanner traffic, not broken links. No action needed.</p></div>';
 		echo '</div>';
 		echo '<details class="snt-mt-075"><summary>' . esc_html__( 'Show the probed paths', 'signal-and-noise-tools' ) . '</summary>';
 		echo '<ul class="sn-404-probe-list">';
@@ -198,8 +198,8 @@ function sn_redirects_render_admin_tab() {
 function sn_redirects_status_select_html( $current ) {
 	$current = ( 302 === (int) $current ) ? 302 : 301;
 	$out     = '<select name="status">';
-	$out    .= '<option value="301"' . selected( 301, $current, false ) . '>301 — Permanent</option>';
-	$out    .= '<option value="302"' . selected( 302, $current, false ) . '>302 — Temporary</option>';
+	$out    .= '<option value="301"' . selected( 301, $current, false ) . '>301. Permanent</option>';
+	$out    .= '<option value="302"' . selected( 302, $current, false ) . '>302. Temporary</option>';
 	$out    .= '</select>';
 	return $out;
 }

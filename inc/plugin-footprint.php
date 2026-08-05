@@ -293,7 +293,7 @@ function sn_footprint_delete_entry( $base, $name, array &$errors ) {
 		return sn_footprint_delete_dir_recursive( $path, $real_base, $errors );
 	}
 
-	return 0; // Doesn't exist — the caller's presence check already filtered this out.
+	return 0; // Doesn't exist: the caller's presence check already filtered this out.
 }
 
 /**
@@ -567,7 +567,7 @@ if ( function_exists( 'add_action' ) ) {
 			} elseif ( $errors_total > 0 ) {
 				$value = sprintf(
 					/* translators: 1: plugin version the sweep ran on, 2: number of errors encountered. */
-					__( 'removed nothing on v%1$s — %2$d error(s)', 'signal-and-noise-tools' ),
+					__( 'removed nothing on v%1$s. %2$d error(s)', 'signal-and-noise-tools' ),
 					$version_str,
 					$errors_total
 				);

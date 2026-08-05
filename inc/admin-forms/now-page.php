@@ -84,7 +84,7 @@ function sn_admin_render_now_section() {
 	} else {
 		echo '<p class="sn-fieldset-intro">This form is the editor for the <a href="' . esc_url( home_url( '/now' ) ) . '" target="_blank" rel="noopener">/now</a> page. Add sections below and save to publish it.</p>';
 	}
-	echo '<p class="sn-field-helper">Each card is one section on /now: a label, then its items one per line. Incomplete cards are refused at save (items need a label; a label needs at least one item). Removing every card clears the override — the page falls back to the theme\'s built-in content (it is never silently blanked).</p>';
+	echo '<p class="sn-field-helper">Each card is one section on /now: a label, then its items one per line. Incomplete cards are refused at save (items need a label; a label needs at least one item). Removing every card clears the override: the page falls back to the theme\'s built-in content (it is never silently blanked).</p>';
 
 	echo '<div class="sn-rsm-list" data-rsm-list="now-groups">';
 	$i = 0;

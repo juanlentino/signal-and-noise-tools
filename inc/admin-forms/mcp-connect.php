@@ -45,7 +45,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * sn_admin_render_section() callback for the 'mcp-connect' sub-tab.
  */
 function sn_admin_render_mcp_connect_section() {
-	echo '<p>' . esc_html__( 'Three MCP doors can answer for this site — two native, one third-party — and every one of them sits behind your own WordPress login, an Application Password, never a shared secret. The native doors split by capability: the read door below can only look, the write door under it can also change things, so use whichever credential scope you actually mean to grant.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Three MCP doors can answer for this site (two native, one third-party) and every one of them sits behind your own WordPress login, an Application Password, never a shared secret. The native doors split by capability: the read door below can only look, the write door under it can also change things, so use whichever credential scope you actually mean to grant.', 'signal-and-noise-tools' ) . '</p>';
 
 	sn_admin_render_mcp_door_native();
 	sn_admin_render_mcp_door_native_write();
@@ -55,7 +55,7 @@ function sn_admin_render_mcp_connect_section() {
 
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">' . esc_html__( 'Not the same as Connector Approvals', 'signal-and-noise-tools' ) . '</p>';
-	echo '<p>' . esc_html__( 'Tools → Connector Approvals (if the AI plugin is active) gates OUTBOUND use of this site’s configured AI-provider connectors by server-side plugin and theme code — it decides which of your plugins may spend against your Anthropic, OpenAI, or Google key. It has nothing to do with an external MCP client connecting IN. That inbound grant is the Application Password below.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Tools → Connector Approvals (if the AI plugin is active) gates OUTBOUND use of this site’s configured AI-provider connectors by server-side plugin and theme code: it decides which of your plugins may spend against your Anthropic, OpenAI, or Google key. It has nothing to do with an external MCP client connecting IN. That inbound grant is the Application Password below.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 
 	sn_admin_render_mcp_deep_links();
@@ -74,10 +74,10 @@ function sn_admin_render_mcp_door_native() {
 	$slugs = function_exists( 'sn_mcp_allowlist' ) ? sn_mcp_allowlist() : array();
 
 	echo '<div class="sn-callout">';
-	echo '<p class="sn-callout-h">' . esc_html__( 'Door 1 — the native MCP server', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.22.0', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Door 1: the native MCP server', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.22.0', 'signal-and-noise-tools' ) . '</span></p>';
 	echo '<p>' . sprintf(
 		/* translators: %s: the WordPress capability slug, wrapped in <code>. */
-		esc_html__( 'A dependency-free JSON-RPC 2.0 endpoint this plugin hand-rolls. Every call needs a WordPress login with the %s capability, and the tool list below is the whole surface — nothing outside it is reachable, even by request.', 'signal-and-noise-tools' ),
+		esc_html__( 'A dependency-free JSON-RPC 2.0 endpoint this plugin hand-rolls. Every call needs a WordPress login with the %s capability, and the tool list below is the whole surface: nothing outside it is reachable, even by request.', 'signal-and-noise-tools' ),
 		'<code>manage_options</code>'
 	) . '</p>';
 	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-only', 'signal-and-noise-tools' ) . '</span></p>';
@@ -91,7 +91,7 @@ function sn_admin_render_mcp_door_native() {
 		echo '<li><code>' . esc_html( $slug ) . '</code></li>';
 	}
 	echo '</ul>';
-	echo '<p>' . esc_html__( 'This door never mutates anything, by construction — see the write door below for actions.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'This door never mutates anything, by construction: see the write door below for actions.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 }
 
@@ -116,10 +116,10 @@ function sn_admin_render_mcp_door_native_write() {
 	$read_slugs = function_exists( 'sn_mcp_allowlist' ) ? sn_mcp_allowlist() : array();
 
 	echo '<div class="sn-callout">';
-	echo '<p class="sn-callout-h">' . esc_html__( 'Door 1b — the native write door', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.50.0', 'signal-and-noise-tools' ) . '</span></p>';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Door 1b: the native write door', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.50.0', 'signal-and-noise-tools' ) . '</span></p>';
 	echo '<p>' . sprintf(
 		/* translators: %s: the WordPress capability slug, wrapped in <code>. */
-		esc_html__( 'The exact same JSON-RPC 2.0 server, the same %s capability, and the same Application Password as the read door above — there is no separate write-only credential. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files) or spend the AI budget configured on this site; a couple are read-only login-audit exports carrying plaintext usernames, gated behind this higher bar instead of the read door.', 'signal-and-noise-tools' ),
+		esc_html__( 'The exact same JSON-RPC 2.0 server, the same %s capability, and the same Application Password as the read door above: there is no separate write-only credential. What changes is the surface: most tools here can modify your content (posts, postmeta, taxonomy terms, scheduled cron events, cached files) or spend the AI budget configured on this site; a couple are read-only login-audit exports carrying plaintext usernames, gated behind this higher bar instead of the read door.', 'signal-and-noise-tools' ),
 		'<code>manage_options</code>'
 	) . '</p>';
 	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-write', 'signal-and-noise-tools' ) . '</span></p>';
@@ -135,7 +135,7 @@ function sn_admin_render_mcp_door_native_write() {
 	echo '</ul>';
 	echo '<p>' . sprintf(
 		/* translators: %d: the live count of read-only tools on the read door. */
-		esc_html__( 'This door’s tools/list does not repeat the %d read-only tools above — if you only want to look, connect to the read door instead.', 'signal-and-noise-tools' ),
+		esc_html__( 'This door’s tools/list does not repeat the %d read-only tools above: if you only want to look, connect to the read door instead.', 'signal-and-noise-tools' ),
 		count( $read_slugs )
 	) . '</p>';
 
@@ -200,15 +200,15 @@ function sn_admin_render_mcp_rw_binding() {
 		} else {
 			echo '<p>' . esc_html__( 'Never used yet.', 'signal-and-noise-tools' ) . '</p>';
 		}
-		echo '<p>' . esc_html__( 'Rotate this Application Password periodically — anyone who holds it can call the write door.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'Rotate this Application Password periodically: anyone who holds it can call the write door.', 'signal-and-noise-tools' ) . '</p>';
 	} else {
-		echo '<p>' . esc_html__( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords — it may have been revoked, or belongs to a different user. Re-bind below.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'A write-door credential is bound, but it no longer matches any of your own Application Passwords: it may have been revoked, or belongs to a different user. Re-bind below.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
 	if ( empty( $passwords ) ) {
 		echo '<p>' . sprintf(
 			/* translators: %s: a link to the current user's Application Passwords section. */
-			esc_html__( 'You have no Application Passwords yet — create one under %s first.', 'signal-and-noise-tools' ),
+			esc_html__( 'You have no Application Passwords yet: create one under %s first.', 'signal-and-noise-tools' ),
 			'<a href="' . esc_url( get_edit_profile_url() . '#application-passwords-section' ) . '">' . esc_html__( 'your profile', 'signal-and-noise-tools' ) . '</a>'
 		) . '</p>';
 		return;
@@ -221,7 +221,7 @@ function sn_admin_render_mcp_rw_binding() {
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn_mcp_rw_uuid">' . esc_html__( 'Application Password', 'signal-and-noise-tools' ) . '</label>';
 	echo '<select id="sn_mcp_rw_uuid" name="sn_mcp_rw_uuid">';
-	echo '<option value="">' . esc_html__( '— Unbind (deny every write-door call) —', 'signal-and-noise-tools' ) . '</option>';
+	echo '<option value="">' . esc_html__( 'Unbind (deny every write-door call)', 'signal-and-noise-tools' ) . '</option>';
 	foreach ( $passwords as $pw ) {
 		if ( ! is_array( $pw ) || empty( $pw['uuid'] ) ) {
 			continue;
@@ -238,7 +238,7 @@ function sn_admin_render_mcp_rw_binding() {
 		echo '<option value="' . esc_attr( $uuid ) . '"' . selected( $bound_uuid, $uuid, false ) . '>' . esc_html( $label ) . '</option>';
 	}
 	echo '</select>';
-	echo '<p class="sn-field-helper">' . esc_html__( 'The same list as your profile’s Application Passwords — this only scopes one of them to the write door.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-field-helper">' . esc_html__( 'The same list as your profile’s Application Passwords: this only scopes one of them to the write door.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 
 	echo '<div class="sn-fieldset-actions">';
@@ -261,26 +261,26 @@ function sn_admin_render_mcp_withheld_slugs() {
 	$withheld = array(
 		'signal-noise/run-cron-event'          => array(
 			'badge'  => __( 'never', 'signal-and-noise-tools' ),
-			'reason' => __( 'synchronously fires do_action() on any non-sn_* hook you name — an unbounded blast radius across the whole site, not just this plugin', 'signal-and-noise-tools' ),
+			'reason' => __( 'synchronously fires do_action() on any non-sn_* hook you name: an unbounded blast radius across the whole site, not just this plugin', 'signal-and-noise-tools' ),
 		),
 		'signal-noise/ai-orphan-apply'         => array(
 			'badge'  => __( 'held', 'signal-and-noise-tools' ),
-			'reason' => __( 'force-deletes an orphaned attachment and skips the trash — no undo', 'signal-and-noise-tools' ),
+			'reason' => __( 'force-deletes an orphaned attachment and skips the trash: no undo', 'signal-and-noise-tools' ),
 		),
 		'signal-noise/merge-tags'              => array(
 			'badge'  => __( 'held', 'signal-and-noise-tools' ),
-			'reason' => __( 'reassigns and deletes taxonomy terms sitewide — a wide blast radius for one call', 'signal-and-noise-tools' ),
+			'reason' => __( 'reassigns and deletes taxonomy terms sitewide: a wide blast radius for one call', 'signal-and-noise-tools' ),
 		),
 		'signal-noise/clear-template-overrides' => array(
 			'badge'  => __( 'held', 'signal-and-noise-tools' ),
-			'reason' => __( 'deletes Site Editor template, part, and nav overrides — can regress the whole site design', 'signal-and-noise-tools' ),
+			'reason' => __( 'deletes Site Editor template, part, and nav overrides: can regress the whole site design', 'signal-and-noise-tools' ),
 		),
 	);
 
-	echo '<p>' . esc_html__( 'Four abilities never reach this door — one permanently, three pending an explicit future opt-in:', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Four abilities never reach this door: one permanently, three pending an explicit future opt-in:', 'signal-and-noise-tools' ) . '</p>';
 	echo '<ul class="sn-mcp-tool-list">';
 	foreach ( $withheld as $slug => $info ) {
-		echo '<li><code>' . esc_html( $slug ) . '</code> <span class="sn-badge">' . esc_html( $info['badge'] ) . '</span> — ' . esc_html( $info['reason'] ) . '</li>';
+		echo '<li><code>' . esc_html( $slug ) . '</code> <span class="sn-badge">' . esc_html( $info['badge'] ) . '</span>. ' . esc_html( $info['reason'] ) . '</li>';
 	}
 	echo '</ul>';
 }
@@ -294,7 +294,7 @@ function sn_admin_render_mcp_withheld_slugs() {
 function sn_admin_render_mcp_resources_prompts() {
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">' . esc_html__( 'Resources & prompts', 'signal-and-noise-tools' ) . ' <span class="sn-badge">' . esc_html__( 'since v9.50.0', 'signal-and-noise-tools' ) . '</span></p>';
-	echo '<p>' . esc_html__( 'Both native doors also serve four read-only MCP resources — sn://abilities-catalog, sn://changelog-latest, sn://design-tokens, and sn://llms-txt — a client can fetch any of them directly without calling a tool.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Both native doors also serve four read-only MCP resources (sn://abilities-catalog, sn://changelog-latest, sn://design-tokens, and sn://llms-txt) a client can fetch any of them directly without calling a tool.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . esc_html__( 'Two ready-made prompts, weekly-report and content-audit, chain several read tools together into one owner-voiced synthesis your client can run in a single step.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 }
@@ -313,17 +313,17 @@ function sn_admin_render_mcp_door_adapter() {
 	$url    = function_exists( 'rest_url' ) ? (string) rest_url( 'mcp/mcp-adapter-default-server' ) : '';
 
 	echo '<div class="sn-callout">';
-	echo '<p class="sn-callout-h">' . esc_html__( 'Door 2 — the Abilities-registry adapter', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-callout-h">' . esc_html__( 'Door 2: the Abilities-registry adapter', 'signal-and-noise-tools' ) . '</p>';
 	// v9.48.1: attribution corrected. The adapter is NOT part of the wp.org
 	// "AI" plugin (ground-truthed 2026-07-15: that plugin's MCP integration is
 	// roadmap-only, "coming soon"); it is a separate, GitHub-only WordPress
 	// plugin (WordPress/mcp-adapter, pre-1.0, not on wordpress.org). The old
 	// copy here taught the owner the wrong fact — never re-attribute it.
 	if ( $active ) {
-		echo '<p>' . esc_html__( 'The WordPress MCP Adapter plugin is active on this site and answers for the entire Abilities registry (44+ abilities across the theme and this plugin), each still gated by its own capability check. The adapter is its own plugin — the wp.org “AI” plugin does not bundle it.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'The WordPress MCP Adapter plugin is active on this site and answers for the entire Abilities registry (44+ abilities across the theme and this plugin), each still gated by its own capability check. The adapter is its own plugin: the wp.org “AI” plugin does not bundle it.', 'signal-and-noise-tools' ) . '</p>';
 		echo '<p><code>' . esc_url( $url ) . '</code></p>';
 	} else {
-		echo '<p>' . esc_html__( 'No MCP Adapter is installed on this site — Door 1 above is the only live MCP endpoint here. The adapter is a separate WordPress plugin (github.com/WordPress/mcp-adapter — pre-1.0, not on wordpress.org), and the wp.org “AI” plugin does not bundle it: that plugin lists MCP as coming soon. If the adapter is ever installed, its default server would answer at the address below.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'No MCP Adapter is installed on this site (Door 1 above is the only live MCP endpoint here. The adapter is a separate WordPress plugin (github.com/WordPress/mcp-adapter) pre-1.0, not on wordpress.org), and the wp.org “AI” plugin does not bundle it: that plugin lists MCP as coming soon. If the adapter is ever installed, its default server would answer at the address below.', 'signal-and-noise-tools' ) . '</p>';
 		echo '<p><code>' . esc_url( $url ) . '</code></p>';
 	}
 	echo '</div>';
@@ -349,10 +349,10 @@ function sn_admin_render_mcp_owner_steps() {
 	echo '<ol>';
 	echo '<li>' . sprintf(
 		/* translators: %s: a link to the current user’s Application Passwords section. */
-		esc_html__( 'Create an %s under your own WordPress user — MCP clients authenticate as you, over Basic auth, never with your normal password.', 'signal-and-noise-tools' ),
+		esc_html__( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.', 'signal-and-noise-tools' ),
 		'<a href="' . esc_url( $profile_url ) . '">' . esc_html__( 'Application Password', 'signal-and-noise-tools' ) . '</a>'
 	) . '</li>';
-	echo '<li>' . esc_html__( 'Copy the endpoint URL for whichever door you’re using — Door 1 above for the read-only tool allowlist, Door 2 for the full Abilities registry.', 'signal-and-noise-tools' ) . '</li>';
+	echo '<li>' . esc_html__( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for the full Abilities registry.', 'signal-and-noise-tools' ) . '</li>';
 	echo '<li>' . esc_html__( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) . '</li>';
 	echo '</ol>';
 
@@ -392,10 +392,10 @@ function sn_admin_render_mcp_claude_app() {
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">' . esc_html__( 'Claude desktop app', 'signal-and-noise-tools' ) . '</p>';
 	echo '<ol>';
-	echo '<li>' . esc_html__( 'Install Node.js if the machine does not have it — the config below runs the proxy via npx.', 'signal-and-noise-tools' ) . '</li>';
+	echo '<li>' . esc_html__( 'Install Node.js if the machine does not have it: the config below runs the proxy via npx.', 'signal-and-noise-tools' ) . '</li>';
 	echo '<li>' . sprintf(
 		/* translators: 1: the config filename, 2: macOS path, 3: Windows path. */
-		esc_html__( 'Open the app’s local MCP config file, %1$s — macOS: %2$s · Windows: %3$s (Claude → Settings → Developer → Edit Config opens it for you).', 'signal-and-noise-tools' ),
+		esc_html__( 'Open the app’s local MCP config file, %1$s: macOS: %2$s · Windows: %3$s (Claude → Settings → Developer → Edit Config opens it for you).', 'signal-and-noise-tools' ),
 		'<code>claude_desktop_config.json</code>',
 		'<code>~/Library/Application Support/Claude/</code>',
 		'<code>%APPDATA%\\Claude\\</code>'
@@ -403,7 +403,7 @@ function sn_admin_render_mcp_claude_app() {
 	echo '<li>' . esc_html__( 'Paste the proxy config above into that file (merge into an existing "mcpServers" object if one is there), with your real username and Application Password swapped in.', 'signal-and-noise-tools' ) . '</li>';
 	echo '<li>' . esc_html__( 'Fully restart the Claude app (quit, not just close the window). The site’s tools appear in the tools menu of a new chat.', 'signal-and-noise-tools' ) . '</li>';
 	echo '</ol>';
-	echo '<p>' . esc_html__( 'Do not use Settings → Connectors → “Add custom connector” for this endpoint: that flow is for remote servers reached from Anthropic’s own infrastructure and only supports OAuth — an application password will not work there.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p>' . esc_html__( 'Do not use Settings → Connectors → “Add custom connector” for this endpoint: that flow is for remote servers reached from Anthropic’s own infrastructure and only supports OAuth: an application password will not work there.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 }
 
@@ -416,7 +416,7 @@ function sn_admin_render_mcp_claude_app() {
 function sn_admin_render_mcp_deep_links() {
 	echo '<h3>' . esc_html__( 'More', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<ul>';
-	echo '<li><a href="' . esc_url( admin_url( 'tools.php' ) ) . '">' . esc_html__( 'Tools menu — Abilities Explorer, if the AI plugin adds it', 'signal-and-noise-tools' ) . '</a></li>';
+	echo '<li><a href="' . esc_url( admin_url( 'tools.php' ) ) . '">' . esc_html__( 'Tools menu. Abilities Explorer, if the AI plugin adds it', 'signal-and-noise-tools' ) . '</a></li>';
 	echo '<li><a href="' . esc_url( 'https://github.com/juanlentino/signal-and-noise-tools/blob/main/docs/ai-abilities-catalog.md' ) . '">' . esc_html__( 'The Abilities catalog (this repo’s docs)', 'signal-and-noise-tools' ) . '</a></li>';
 	echo '</ul>';
 }
