@@ -103,10 +103,14 @@ function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); retur
 function current_time( $type = 'mysql' ) { return '2026-07-16 12:00:00'; }
 
 class WP_REST_Response {
-	public $data; public $status;
+	public $data; public $status; public $set_data_calls = 0;
 	public function __construct( $data = null, $status = 200 ) { $this->data = $data; $this->status = $status; }
 	public function get_data() { return $this->data; }
-	public function set_data( $data ) { $this->data = $data; }
+	// v10.43.1: real WP_REST_Response::set_data() exists — rest_prepare_plugin
+	// (inc/desktop-mode-integration.php) calls it only when it actually changed
+	// something. $set_data_calls lets a test prove the dirty-flag skip a
+	// no-op write, not just that the final data looks right by coincidence.
+	public function set_data( $data ) { $this->data = $data; $this->set_data_calls++; }
 }
 
 class WP_Error {
@@ -1417,6 +1421,109 @@ call_user_func( $icon_belt_cb, $resp_os, $item_ours, null );
 $data_os = $resp_os->get_data();
 ok( isset( $data_os['openstation_icon_url'] ) && false === strpos( $data_os['openstation_icon_url'], 'ps.w.org' ),
 	'REJECT #11 LOW: the post-#475 REST field key (openstation_icon_url) is ALSO overridden — the belt dual-writes both keys' );
+
+echo "\n── v10.43.1 (REJECT #12): the inline DOM patch is REMOVED, not re-selectored ──\n";
+// f2faa4b "fixed" the wp.org button hider's selector (a[href*=…] →
+// wpd-button/os-button). Adversarial review proved that was ALSO dead: the
+// Installed-view detail panel — button AND Name cells — renders inside an
+// OPEN shadow root (WordPress/openstation src/ui/core/component.ts:88,
+// wpd-table.ts:1404-1433), which a document.body-scoped querySelectorAll()
+// cannot traverse and whose internal mutations a document.body-scoped
+// MutationObserver never sees. The honest fix is removal, not a third
+// selector. Fire the hook and prove nothing prints.
+ob_start();
+fire( 'admin_print_footer_scripts' );
+$footer_html = ob_get_clean();
+ok( false === strpos( $footer_html, 'id="sn-desktop-mode-installed-view-patch"' ),
+	'the inline patch script no longer prints — admin_print_footer_scripts was removed wholesale' );
+ok( '' === trim( $footer_html ), 'admin_print_footer_scripts now prints NOTHING for this surface' );
+
+// Absence pins against the SOURCE FILE, not just the (now-empty) hook
+// output — a re-add anywhere else in the file must still fail these.
+ok( false === strpos( $dm_src, "querySelectorAll('wpd-button, os-button')" ),
+	'the wpd-button/os-button custom-element loop stays gone — it was shadow-DOM unreachable, never a working fix' );
+// NOT a bare `strpos($dm_src, 'a[href*="wordpress.org')` pin here: the
+// replacement docblock above intentionally NAMES that original dead selector
+// in prose, as history — a substring pin would collide with its own
+// documentation. "no <script> tag prints" (above) already proves no code
+// executes it; `.wpd-button` below stays a real pin because nothing in the
+// new docblock's prose needs that exact class-selector spelling.
+ok( false === strpos( $dm_src, '.wpd-button' ),
+	'the old ".wpd-button" CLASS selector stays gone — wpd-button was always a TAG name, never a class' );
+ok( false === strpos( $dm_src, "indexOf('WordPress.org')" ),
+	'the visible-label match is gone — it shared the same document.body-scoped, shadow-blind query' );
+ok( false === strpos( $dm_src, 'dataset.snHidden' ),
+	'the hidden-button idempotency marker is gone with the loop it guarded' );
+ok( false === strpos( $dm_src, 'new MutationObserver' ),
+	'the document.body-scoped MutationObserver is gone — it could never see mutations inside the shadow root either' );
+
+// The DOM Name-decode half chased the SAME shadow-rooted table (Name cells
+// render alongside the button, same shadow root) — equally unreachable, and
+// never the working fix. Removed too, rather than left running against text
+// nodes it can never see.
+ok( false === strpos( $dm_src, "LITERAL = 'Signal &amp; Noise Tools'" ),
+	'the DOM Name-decode LITERAL constant is gone — it targeted the same unreachable shadow-rooted table' );
+ok( false === strpos( $dm_src, "DECODED = 'Signal & Noise Tools'" ),
+	'the DOM Name-decode DECODED constant is gone too' );
+ok( false === strpos( $dm_src, 'n.textContent===LITERAL' ),
+	'the DOM Name-decode leaf-node match-and-replace is gone' );
+ok( false === strpos( $dm_src, "SLUG = 'signal-and-noise-tools'" ),
+	'the unused SLUG var stays removed' );
+
+echo "\n── v10.43.1: rest_prepare_plugin is the ONLY surviving Name/icon fix — pinned directly for the first time ──\n";
+// This filter (inc/desktop-mode-integration.php, since v2.1.6/v2.1.7) was
+// ALWAYS the working fix — it edits the REST payload on the wire, before
+// Desktop Mode ever renders into its shadow-rooted table, so there is
+// nothing for a DOM patch to reach or defend. It had zero coverage anywhere
+// in this repo until now; with the dead DOM patch gone, it is the entire
+// fix for this surface and earns real pins.
+ok( isset( $GLOBALS['__filters']['rest_prepare_plugin'][10][0] ),
+	'rest_prepare_plugin is registered at priority 10' );
+$rpp_cb = $GLOBALS['__filters']['rest_prepare_plugin'][10][0];
+ok( is_callable( $rpp_cb ), 'the rest_prepare_plugin callback is callable' );
+
+// SN_GH_PLUGIN_BASENAME is already defined by the REST icon-URL belt block
+// above (guarded define) — this section reuses the same constant.
+
+// Wrong basename — scoping test. Must pass through completely untouched.
+$other_res = new WP_REST_Response( array( 'name' => 'Foo &amp; Bar' ) );
+$other_out = $rpp_cb( $other_res, array( '_file' => 'some-other-plugin/some-other-plugin.php' ), null );
+ok( $other_out->get_data()['name'] === 'Foo &amp; Bar',
+	'a DIFFERENT plugin\'s Name is left encoded/untouched — the filter is strictly basename-scoped' );
+ok( $other_out->set_data_calls === 0, 'an out-of-scope response is never even written back' );
+
+// Our plugin, dirty on every field: encoded Name, encoded Author, and an
+// icon_url upstream already populated with ITS OWN (wrong-for-us) guess.
+$item     = array( '_file' => SN_GH_PLUGIN_BASENAME );
+$dirty_res = new WP_REST_Response( array(
+	'name'                  => 'Signal &amp; Noise Tools',
+	'author'                => 'Juan &amp; Team',
+	'desktop_mode_icon_url' => 'https://ps.w.org/some-stale/icon.svg',
+) );
+$fixed = $rpp_cb( $dirty_res, $item, null );
+$data  = $fixed->get_data();
+ok( $data['name'] === 'Signal & Noise Tools',
+	'our plugin\'s Name is decoded — the WORKING fix, never the removed DOM patch' );
+ok( $data['author'] === 'Juan & Team', 'our plugin\'s Author is decoded too — same wp_kses-encoding path' );
+ok( $data['desktop_mode_icon_url'] === plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' ),
+	'desktop_mode_icon_url is unconditionally overridden with our own canonical icon (v2.1.7 always-override fix), even though upstream had already populated it' );
+ok( $fixed->set_data_calls === 1, 'a dirty response is written back exactly once' );
+
+// Already-clean response (nothing encoded, icon already canonical) — the
+// dirty flag must skip the write entirely, not just happen to look right.
+// v10.43.0 dual-writes BOTH the pre-rename and post-#475 icon-URL keys
+// (see the REJECT #11 LOW belt test above) — a truly clean fixture must
+// carry both already-canonical, or the openstation_icon_url half alone
+// trips the dirty flag and this pin goes false-negative.
+$canonical_icon = plugins_url( 'assets/icon.svg', SNT_PATH . 'signal-and-noise-tools.php' );
+$clean_res = new WP_REST_Response( array(
+	'name'                  => 'Signal & Noise Tools',
+	'desktop_mode_icon_url' => $canonical_icon,
+	'openstation_icon_url'  => $canonical_icon,
+) );
+$clean_out = $rpp_cb( $clean_res, $item, null );
+ok( $clean_out->get_data()['name'] === 'Signal & Noise Tools', 'an already-clean Name round-trips unchanged' );
+ok( $clean_out->set_data_calls === 0, 'an already-clean response is never re-written — the dirty flag prevents a wasted set_data() call' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

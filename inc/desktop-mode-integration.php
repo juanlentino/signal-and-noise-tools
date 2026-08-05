@@ -929,94 +929,64 @@ add_filter( 'rest_prepare_plugin', function( $response, $item, $request ) {
 }, 10, 3 );
 
 /**
- * Inline DOM patch printed to admin_footer.
+ * Inline DOM patch — REMOVED. Both halves proved unreachable behind an
+ * OPEN SHADOW ROOT; kept as history, not as a "future work" TODO.
  *
- * Two upstream bugs in Desktop Mode trunk that have NO server-side filter:
+ * v2.1.7 shipped an `admin_print_footer_scripts` script that ran a
+ * `document.body`-scoped `querySelectorAll()` (+ a `document.body`-scoped
+ * `MutationObserver`) to (1) hide a dead "View on WordPress.org" button and
+ * (2) defensively re-decode the plugin Name if it ever resurfaced HTML-
+ * entity-encoded in the DOM. v10.43.0 (f2faa4b) "fixed" half (1)'s selector
+ * from a dead `a[href*="wordpress.org…"]` to `wpd-button, os-button` — still
+ * dead, and adversarial review (REJECT #12) proved why: the Installed-view
+ * detail panel — button, Name cell, everything — is appended into an OPEN
+ * shadow root (`attachShadow({mode:'open'})`, WordPress/openstation
+ * `src/ui/core/component.ts:88`) by `wpd-table.ts:1404-1433`. Upstream's own
+ * `installed-detail.ts:63-69` documents that document-level DOM access does
+ * not pierce this boundary. A query rooted at `document.body` cannot
+ * traverse into shadow content, full stop — the tag name it queried for was
+ * never the bug. And a `MutationObserver` attached to `document.body` never
+ * observes mutations that happen INSIDE a shadow root either, so replacing
+ * the selector could never have worked no matter how it was spelled.
  *
- *   1. "View on WordPress.org" button in the Installed-view detail panel
- *      ([installed-detail.ts:297-301]). Gated purely on `if (slug)` where
- *      slug = dirname(plugin_file) — non-empty for every installed plugin,
- *      so the button shows even for self-hosted plugins. Link 404s for us.
+ * Half (2), the Name-decode, targeted the exact same table — same shadow
+ * root, same unreachability — so it was never the working fix either. The
+ * WIRE-level decode, `rest_prepare_plugin` above, always was: it edits the
+ * REST payload before Desktop Mode ever renders it, so there is nothing left
+ * for a DOM patch to defend. With half (1) gone, `patch()` had no reachable
+ * target left in this codebase — nothing else called it — so it is removed
+ * wholesale along with the `MutationObserver`, rather than kept running
+ * against text nodes it can never see.
  *
- *   2. Belt + suspenders for the plugin Name. The rest_prepare_plugin
- *      filter above already decodes the Name on the wire, but if Desktop
- *      Mode ever caches a pre-fix response (service worker, in-memory),
- *      the literal `Signal &amp; Noise Tools` could resurface.
+ * Reaching either target FOR REAL would need: a shadow-root hop at every
+ * custom-element boundary the panel nests through (`el.shadowRoot &&
+ * el.shadowRoot.querySelectorAll(...)`, recursively — there is no "pierce
+ * all shadow roots" selector); a `MutationObserver` attached to EACH shadow
+ * root individually, since one at `document.body` cannot see across the
+ * boundary; and re-scoping the button's label match to ONLY this plugin's
+ * own detail panel — `installed-detail.ts:333` renders the identical
+ * "WordPress.org" label for every wp.org-hosted plugin's legitimate link, so
+ * a bare label match, if it could somehow reach in, would hide those too.
+ * None of that scaffolding exists today. Building it is future work, not
+ * this fix.
  *
- * Why admin_footer + inline instead of wp_enqueue_script:
- *   - wp_enqueue_script depends on Desktop Mode's script lifecycle. Their
- *     custom Plugins window may load JS in a different context than the
- *     standard admin enqueue chain (the v2.1.6 enqueue did not visibly
- *     fire — the button persisted post-install).
- *   - admin_footer prints into the raw <body>, so the script is in the
- *     DOM regardless of how Desktop Mode loads its frontend bundle.
- *   - Inline avoids the assets/ file altogether, dropping the 1 extra
- *     HTTP request + removing a moving part.
+ * The 404 itself is accepted as cosmetic: it is upstream's own fallback
+ * behavior for a self-hosted, non-wp.org-listed plugin (see the
+ * `rest_prepare_plugin` filter's docblock above for why our own icon-url
+ * override defeats upstream's empty-icon guard), reachable only from inside
+ * this plugin's own detail panel, and no document-scoped patch — this one or
+ * any future one — was ever going to hide it without the shadow-root
+ * scaffolding described above. Filed upstream rather than left as folklore:
+ * WordPress/openstation#492 tracks the missing-slug guard fix; if upstream
+ * ships it, the 404 (and this whole accepted-cosmetic note) disappears on
+ * its own, no plugin-side work required.
  *
- * The script is ~1.5KB minified, self-gates on `Signal &amp; Noise Tools`
- * presence + MutationObserver, and no-ops on any page where its target
- * nodes don't exist.
- *
- * @since 2.1.7 (supersedes the wp_enqueue_script approach from v2.1.6)
+ * @since 2.1.6 wp_enqueue_script approach.
+ * @since 2.1.7 superseded by the inline admin_footer version (this comment).
+ * @since 10.43.0 (f2faa4b) button-hider selector "fixed" — still dead.
+ * @since 10.43.1 removed. REJECT #12: both halves unreachable behind an open
+ *                shadow root; see this docblock and CHANGELOG.md.
  */
-add_action( 'admin_print_footer_scripts', function() {
-	// Only fire when Desktop Mode / OpenStation is active — no point
-	// patching pages it doesn't render.
-	if ( ! snt_os_active() ) {
-		return;
-	}
-	// …and only for a user who actually has the shell turned on: it's
-	// per-user opt-in, and this installs a document.body subtree
-	// MutationObserver — on Gutenberg's mutation-storm that's real idle
-	// churn for a non-shell session patching pages it never renders.
-	if ( ! snt_os_is_enabled() ) {
-		return;
-	}
-	?>
-<script id="sn-desktop-mode-installed-view-patch">
-(function(){
-'use strict';
-var SLUG = 'signal-and-noise-tools';
-var LITERAL = 'Signal &amp; Noise Tools';
-var DECODED = 'Signal & Noise Tools';
-function patch(root){
-if(!root||!root.querySelectorAll)return;
-// Hide any wp.org link pointing at our self-hosted slug.
-var links = root.querySelectorAll('a[href*="wordpress.org/plugins/'+SLUG+'"], a[href*="wordpress.org/support/plugin/'+SLUG+'"], a[href*="ps.w.org/'+SLUG+'"]');
-for(var i=0;i<links.length;i++){
-var el = links[i];
-if(el.dataset.snHidden==='1')continue;
-var host = el.closest('button, .wpd-button, [class*="action"], [class*="cta"], [class*="link"]') || el;
-host.style.display='none';
-el.dataset.snHidden='1';
-}
-// Defensive Name decode — only leaf nodes with the exact literal text.
-var nodes = root.querySelectorAll('h1,h2,h3,h4,h5,h6,strong,span,div,td,a,p');
-for(var j=0;j<nodes.length;j++){
-var n = nodes[j];
-if(n.children.length===0 && n.textContent===LITERAL){
-n.textContent=DECODED;
-}
-}
-}
-function init(){
-patch(document.body);
-new MutationObserver(function(muts){
-for(var i=0;i<muts.length;i++){
-var added = muts[i].addedNodes;
-for(var j=0;j<added.length;j++){
-if(added[j].nodeType===1)patch(added[j]);
-}
-}
-}).observe(document.body,{childList:true,subtree:true});
-}
-if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',init,{once:true});}
-else{init();}
-})();
-</script>
-	<?php
-}, 99 );
-
 /* ─────────────────────────────────────────────────────────────────────
  * v9.52.0 — analytics widget data layer
  *
