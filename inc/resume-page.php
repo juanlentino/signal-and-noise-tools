@@ -73,6 +73,23 @@ function sn_resume_bullet( $v ) {
 }
 
 /**
+ * v10.48.0: accept either the old repeatable-input array or the new
+ * newline-separated textarea for a plain string list. Delegates to
+ * sn_content_items_normalize() when the admin layer is loaded, and degrades to
+ * the previous (array) cast otherwise — this data layer must keep working when
+ * only the front end is up.
+ *
+ * @param mixed $v
+ * @return array<int,string>
+ */
+function sn_resume_string_list( $v ) {
+	if ( function_exists( 'sn_content_items_normalize' ) ) {
+		return sn_content_items_normalize( $v );
+	}
+	return is_array( $v ) ? array_values( $v ) : array();
+}
+
+/**
  * Normalize a list of {title,bullets[]} roles: title-less roles and blank
  * bullets are dropped, survivors reindexed.
  *
@@ -90,7 +107,7 @@ function sn_resume_normalize_roles( $roles ) {
 			continue; // A title-less role never carries its bullets in.
 		}
 		$bullets = array();
-		foreach ( (array) ( $role['bullets'] ?? array() ) as $b ) {
+		foreach ( sn_resume_string_list( $role['bullets'] ?? array() ) as $b ) {
 			$b = sn_resume_bullet( $b );
 			if ( '' !== $b ) {
 				$bullets[] = $b;
@@ -118,7 +135,7 @@ function sn_resume_normalize_titled_lines( $entries ) {
 			continue;
 		}
 		$lines = array();
-		foreach ( (array) ( $entry['lines'] ?? array() ) as $line ) {
+		foreach ( sn_resume_string_list( $entry['lines'] ?? array() ) as $line ) {
 			$line = sn_resume_text( $line );
 			if ( '' !== $line ) {
 				$lines[] = $line;
@@ -150,7 +167,7 @@ function sn_resume_doc_normalize( $doc ) {
 
 	$hero_in = is_array( $doc['hero'] ?? null ) ? $doc['hero'] : array();
 	$chips   = array();
-	foreach ( (array) ( $hero_in['chips'] ?? array() ) as $chip ) {
+	foreach ( sn_resume_string_list( $hero_in['chips'] ?? array() ) as $chip ) {
 		$chip = sn_resume_text( $chip );
 		if ( '' !== $chip ) {
 			$chips[] = $chip;

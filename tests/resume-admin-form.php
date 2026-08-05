@@ -46,10 +46,14 @@ ok( false !== strpos( $html, 'prefilled from the current published content' ), '
 
 // Input names mirror the document shape the handler passes straight through.
 ok( false !== strpos( $html, 'name="resume[hero][summary]"' ), 'hero summary field' );
-ok( false !== strpos( $html, 'name="resume[hero][chips][]"' ), 'chips are a plain [] leaf list' );
+// v10.48.0: chips are plain strings → one textarea, one per line.
+ok( false !== strpos( $html, 'name="resume[hero][chips]"' ), 'chips post as one textarea value' );
+ok( false === strpos( $html, 'name="resume[hero][chips][]"' ), 'the per-chip [] leaf inputs are gone' );
 ok( false !== strpos( $html, 'name="resume[experience][0][org]"' ), 'employer org field, indexed' );
 ok( false !== strpos( $html, 'name="resume[experience][1][roles][1][title]"' ), 'nested role title (Panacea second role)' );
-ok( false !== strpos( $html, 'name="resume[experience][1][roles][0][bullets][]"' ), 'bullets are a [] leaf under their role' );
+// v10.48.0: bullets are plain strings → one textarea per role, not a [] leaf.
+ok( false !== strpos( $html, 'name="resume[experience][1][roles][0][bullets]"' ), 'bullets post as one textarea value per role' );
+ok( false === strpos( $html, '[bullets][]"' ), 'the per-bullet [] leaf textareas are gone' );
 ok( false !== strpos( $html, 'name="resume[earlier][entries][1][roles][1][title]"' ), 'earlier fold nests the same role shape' );
 ok( false !== strpos( $html, 'name="resume[publications][1][url]"' ), 'publication url field' );
 ok( false !== strpos( $html, 'name="resume[skills][5][items]"' ), 'sixth skills row present' );

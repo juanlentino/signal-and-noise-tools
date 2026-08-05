@@ -169,7 +169,10 @@ function snt_dashboard_tab_render() {
 	$cards = snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago );
 	if ( ! empty( $cards ) ) {
 		echo '<section class="sn-dash-glance" aria-label="Site at a glance">';
-		sn_admin_glance_grid( $cards );
+		// v10.48.0: what needs you leads. Stable within each class, so the calm
+		// cards keep their deliberate reading order instead of reshuffling on
+		// every load.
+		sn_admin_glance_grid( sn_admin_glance_sort_by_attention( $cards ) );
 		echo '</section>';
 	}
 
@@ -318,6 +321,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	$count_24h = snt_dashboard_count_recent_runs( (array) $runs, DAY_IN_SECONDS );
 	$cards[]   = array(
 		'label'     => 'Deploys',
+			'href'      => admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' ),
 		'value'     => (string) $last_deploy_ago,
 		'meta_html' => esc_html(
 			empty( $runs )
@@ -334,6 +338,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 			$age  = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) . ' ago' : 'age unknown';
 			$cards[] = array(
 				'label'     => 'Health',
+			'href'      => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ),
 				'value'     => sprintf( '%d finding%s', $findings, 1 === $findings ? '' : 's' ),
 				'pill'      => array(
 					'kind' => $findings > 0 ? 'warn' : 'ok',
@@ -344,6 +349,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 		} else {
 			$cards[] = array(
 				'label'     => 'Health',
+			'href'      => admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ),
 				'value'     => 'no scan',
 				'pill'      => array( 'kind' => 'warn', 'text' => 'run a scan' ),
 			);
@@ -357,6 +363,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 		$cost  = (float) ( $s30['cost'] ?? 0 );
 		$cards[] = array(
 			'label'     => 'AI spend 30d',
+			'href'      => admin_url( 'admin.php?page=sn-theme-options&tab=ai&sub=models-budget' ),
 			'value'     => snt_dashboard_fmt_cost( $cost ),
 			'meta_html' => esc_html( sprintf( '%s call%s', number_format_i18n( $calls ), 1 === $calls ? '' : 's' ) ),
 		);
@@ -369,6 +376,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 		$orphans = (int) ( $cron['orphans'] ?? 0 );
 		$cards[] = array(
 			'label'     => 'Cron',
+			'href'      => admin_url( 'admin.php?page=sn-theme-options&tab=connections&sub=cron' ),
 			'value'     => sprintf( '%d event%s', $total, 1 === $total ? '' : 's' ),
 			'pill'      => $orphans > 0
 				? array( 'kind' => 'warn', 'text' => sprintf( '%d orphan%s', $orphans, 1 === $orphans ? '' : 's' ) )
@@ -383,6 +391,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 			$blocked = (int) ( $lg['blocked'] ?? 0 );
 			$cards[] = array(
 				'label'     => 'Login blocks 7d',
+			'href'      => admin_url( 'admin.php?page=sn-theme-options&tab=security&sub=login-defense' ),
 				'value'     => number_format_i18n( $blocked ),
 				'meta_html' => esc_html( sprintf( '%d%% block rate', (int) ( $lg['block_rate'] ?? 0 ) ) ),
 			);
@@ -400,6 +409,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 			$views = (int) ( $deltas['views']['current'] ?? 0 );
 			$cards[] = array(
 				'label'     => 'Views 7d',
+			'href'      => admin_url( 'index.php?page=sn-analytics' ),
 				'value'     => number_format_i18n( $views ),
 				'meta_html' => snt_dashboard_delta_badge_html( $deltas['views'] ),
 			);
@@ -424,6 +434,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 		$pending   = (int) ( $prov['counts']['pending'] ?? 0 );
 		$cards[]   = array(
 			'label' => 'Provenance',
+			'href'      => admin_url( 'admin.php?page=sn-theme-options&tab=tools&sub=provenance' ),
 			'value' => sprintf( '%s confirmed', number_format_i18n( $confirmed ) ),
 			'pill'  => $pending > 0
 				? array( 'kind' => 'warn', 'text' => sprintf( '%s pending', number_format_i18n( $pending ) ) )

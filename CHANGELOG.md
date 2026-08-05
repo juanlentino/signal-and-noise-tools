@@ -4,9 +4,17 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [10.48.0] - 2026-08-05
 
-**Headline:** the 404 classifier gives back a signal it should never have had, and the Now / Uses editors stop rendering an input plus three buttons for every line of content.
+**Headline:** the 404 classifier gives back a signal it should never have had; the content editors stop rendering an input plus three buttons per line; and the Dashboard's numbers become ways in.
+
+### New
+
+- **Dashboard glance cards route to the tab that owns them** ([inc/admin-glance.php](inc/admin-glance.php), [inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)). The Dashboard reported ten numbers and routed nowhere — you read "0 findings" and then went hunting for which tab owns health. Eight cards now link to their owner (Health → Measurement → Health, Cron → Connections → Cron, AI spend → AI → Models & Budget, Provenance → Integrity, Views → the analytics dashboard). That is the difference between a readout and a command surface, and it is a few lines rather than a rebuild.
+
+- **What needs you leads.** `sn_admin_glance_sort_by_attention()` floats `err` then `warn` to the front. The sort is **stable**, so the calm cards keep their deliberate reading order — a grid that reshuffles on every load is one people stop reading. `esc_url()` backstops the new `href`, so a card definition cannot inject a `javascript:` target even though every definition is first-party today.
 
 ### Changed
+
+- **Repeatables of plain strings become lines; repeatables of records keep their rows.** That is the rule this release applies across all three content editors. Now items, Uses entries, resume bullets, resume detail lines and hero credential chips are all plain strings — each was costing an input plus three buttons to hold one short string. Stats and publications are records (`{n,label}`, `{title,meta,url}`) and are deliberately untouched.
 
 - **Now and Uses items are one textarea per section, not one input per item** ([inc/admin-forms/now-page.php](inc/admin-forms/now-page.php), [inc/admin-forms/uses-page.php](inc/admin-forms/uses-page.php)). The old card rendered a labelled input and ↑ ↓ ✕ controls for *every line of content* — on a dozen-item page, twelve inputs and thirty-six buttons to say twelve short sentences.
 

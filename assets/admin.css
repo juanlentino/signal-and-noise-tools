@@ -2151,3 +2151,35 @@ body.os-chromeless .sn-nav-tabs {
 .sn-trust-links li {
 	margin-bottom: 6px;
 }
+
+/* ─── Glance cards as a command surface (v10.48.0) ───────────────────────────
+   A card that links to the tab owning its number. Native wp-admin vocabulary:
+   the card is unchanged at rest, and only the affordance is added — no colour
+   change, no underline, no brand treatment. The Dashboard reported ten numbers
+   and routed nowhere; this is what makes each one a way in. */
+a.sn-glance-card,
+a.sn-glance-card:hover,
+a.sn-glance-card:focus {
+	text-decoration: none;
+	color: inherit;
+}
+.sn-glance-card--link {
+	transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+.sn-glance-card--link:hover {
+	border-color: #2271b1;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+.sn-glance-card--link:focus-visible {
+	outline: 2px solid #2271b1;
+	outline-offset: 1px;
+}
+/* The editors' items textarea: monospace-adjacent line rhythm so a list of
+   short lines reads as a list rather than as prose. */
+.sn-rsm-items {
+	line-height: 1.6;
+	font-size: 13px;
+}
+.sn-rsm-lines {
+	margin: var(--sn-space-2) 0 0;
+}

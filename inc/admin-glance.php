@@ -62,7 +62,21 @@ function sn_admin_glance_grid( array $cards ) {
 		// Optional DOM id hook for progressive JS.
 		$card_id = isset( $card['id'] ) && '' !== $card['id'] ? (string) $card['id'] : '';
 
-		echo '<div class="sn-glance-card"';
+		// v10.48.0: an optional href turns the card into a link to the tab that
+		// OWNS the number. The Dashboard's ten cards previously reported state and
+		// routed nowhere — you read "0 findings" and then went hunting for which
+		// tab owns health. Making each card its own way in is what turns a readout
+		// into a command surface.
+		//
+		// admin_url() is applied by the CALLER, and esc_url() here refuses anything
+		// that is not a safe http(s) URL, so a card definition cannot inject a
+		// javascript: target.
+		$href = isset( $card['href'] ) ? (string) $card['href'] : '';
+		$tag  = '' !== $href ? 'a' : 'div';
+		echo '<' . $tag . ' class="sn-glance-card' . ( '' !== $href ? ' sn-glance-card--link' : '' ) . '"';
+		if ( '' !== $href ) {
+			echo ' href="' . esc_url( $href ) . '"';
+		}
 		if ( '' !== $card_id ) {
 			echo ' id="' . esc_attr( $card_id ) . '"';
 		}
@@ -84,7 +98,33 @@ function sn_admin_glance_grid( array $cards ) {
 			echo '<p class="sn-glance-card__meta">' . wp_kses_post( (string) $card['meta_html'] ) . '</p>';
 		}
 
-		echo '</div>';
+		echo '</' . $tag . '>';
 	}
 	echo '</div>';
+}
+
+/**
+ * Sort glance cards so anything needing attention leads. (v10.48.0)
+ *
+ * PURE and STABLE: err before warn before everything else, and within a class
+ * the caller's order is preserved. Stability matters more than it looks — the
+ * Dashboard's cards are in a deliberate reading order, and a sort that reshuffled
+ * the calm ones would make the grid move for no reason on every page load, which
+ * is exactly the kind of churn that trains someone to stop reading it.
+ *
+ * @since 10.48.0
+ * @param array<int,array<string,mixed>> $cards
+ * @return array<int,array<string,mixed>>
+ */
+function sn_admin_glance_sort_by_attention( array $cards ) {
+	$rank = array( 'err' => 0, 'warn' => 1 );
+	$keyed = array();
+	foreach ( array_values( $cards ) as $i => $card ) {
+		$kind    = isset( $card['pill']['kind'] ) ? (string) $card['pill']['kind'] : '';
+		$keyed[] = array( 'r' => $rank[ $kind ] ?? 2, 'i' => $i, 'c' => $card );
+	}
+	usort( $keyed, function ( $a, $b ) {
+		return $a['r'] === $b['r'] ? $a['i'] <=> $b['i'] : $a['r'] <=> $b['r'];
+	} );
+	return array_column( $keyed, 'c' );
 }
