@@ -127,5 +127,87 @@ sn_cloudways_purge_app();
 $stored6 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
 ok( ! isset( $stored6['error'] ), 'a successful (ok=true) purge does not add an error field' );
 
+// --- Scenario 7: 422 "operation already in progress" is NOT a failure -----
+// Live 2026-08-05: every purge leg on this site read ✕ while the site was
+// verifiably fresh. Cloudways SERIALIZES cache operations per server, so a
+// purge issued while one is still open is rejected 422 — even though the
+// purge we wanted is already running. Recording that as a failure inverts the
+// truth: the outcome we asked for is in flight, under someone else's id.
+echo "\nGroup: 422 'operation already in progress' coalesces onto the open operation\n";
+$in_progress = json_encode(
+	array(
+		'message'   => 'An operation is already in progress for this server.',
+		'operation' => array(
+			'id'                       => '92897180',
+			'type'                     => 'purge_app_cache',
+			'server_id'                => '1432404',
+			'estimated_time_remaining' => '0',
+			'status'                   => 'Process is initiated',
+			'is_completed'             => '0',
+		),
+	)
+);
+$GLOBALS['__purge_response']        = array( 'body' => $in_progress, 'response' => array( 'code' => 422 ) );
+$GLOBALS['__opts']                  = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+$res7                               = sn_cloudways_purge_app();
+ok( true === $res7, 'an in-flight purge_app_cache returns true — the purge IS happening' );
+$stored7 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( ! empty( $stored7['ok'] ), 'last-purge records ok=true' );
+ok( 92897180 === (int) ( $stored7['operation_id'] ?? 0 ), 'the OPEN operation id is adopted, not left at 0' );
+ok( ! empty( $stored7['coalesced'] ), 'the row is marked coalesced so this is never mistaken for a fresh dispatch' );
+ok( 422 === (int) ( $stored7['http'] ?? 0 ), 'the real http code is still recorded verbatim' );
+ok( ! isset( $stored7['error'] ), 'a coalesced purge carries no error field' );
+
+// The narrow reading is the whole point: only an in-flight purge of the SAME
+// type counts. Anything else 422s as a genuine failure, or this becomes a
+// success-only readout that reports healthy while the cache goes stale.
+echo "\nGroup: coalescing is narrow — other in-flight operations still fail\n";
+$other_op = json_encode(
+	array(
+		'message'   => 'An operation is already in progress for this server.',
+		'operation' => array( 'id' => '77', 'type' => 'restart_mysql', 'server_id' => '1432404', 'is_completed' => '0' ),
+	)
+);
+$GLOBALS['__purge_response']        = array( 'body' => $other_op, 'response' => array( 'code' => 422 ) );
+$GLOBALS['__opts']                  = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+ok( false === sn_cloudways_purge_app(), 'an unrelated in-flight operation (restart_mysql) is still a failure' );
+$stored8 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( empty( $stored8['ok'] ), 'unrelated operation records ok=false' );
+ok( isset( $stored8['error'] ), 'unrelated operation still captures the error envelope' );
+ok( empty( $stored8['coalesced'] ), 'unrelated operation is not marked coalesced' );
+
+// A COMPLETED operation is not in flight — nothing is purging, so nothing to
+// coalesce onto. Treating it as success would report a purge that never ran.
+$done_op = json_encode(
+	array(
+		'message'   => 'An operation is already in progress for this server.',
+		'operation' => array( 'id' => '88', 'type' => 'purge_app_cache', 'server_id' => '1432404', 'is_completed' => '1' ),
+	)
+);
+$GLOBALS['__purge_response']        = array( 'body' => $done_op, 'response' => array( 'code' => 422 ) );
+$GLOBALS['__opts']                  = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+ok( false === sn_cloudways_purge_app(), 'a COMPLETED purge operation is not in flight and does not coalesce' );
+
+// Malformed 422 bodies must not be read optimistically.
+foreach ( array( 'not json at all', '{"message":"An operation is already in progress for this server."}', '{"operation":{"type":"purge_app_cache"}}' ) as $i => $bad ) {
+	$GLOBALS['__purge_response']        = array( 'body' => $bad, 'response' => array( 'code' => 422 ) );
+	$GLOBALS['__opts']                  = array();
+	$GLOBALS['sn_cloudways_purge_done'] = false;
+	ok( false === sn_cloudways_purge_app(), 'malformed 422 body #' . ( $i + 1 ) . ' does not coalesce' );
+}
+
+// A 200 with status:true must keep its own operation id — the coalesce path
+// must not leak into the ordinary success path.
+$GLOBALS['__purge_response']        = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 4242 ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__opts']                  = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+sn_cloudways_purge_app();
+$stored9 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( 4242 === (int) ( $stored9['operation_id'] ?? 0 ), 'an ordinary 200 keeps its own operation id' );
+ok( empty( $stored9['coalesced'] ), 'an ordinary 200 is not marked coalesced' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
