@@ -275,3 +275,216 @@ function snt_ai_cache_probe_summary( $log = null ) {
 
 	return $out;
 }
+
+/**
+ * Minimum cacheable prefix, in tokens, for a model id.
+ *
+ * Anthropic silently caches nothing below this — no error, no warning, and
+ * `cache_creation_input_tokens: 0` in the response, which is indistinguishable
+ * from "caching was never requested". That makes the floor the single most
+ * important number when reading this probe: a prefix under it cannot pay no
+ * matter how often it repeats.
+ *
+ * The floor is NOT monotonic across generations (512 on the newest Opus, 4096
+ * on Opus 4.6 and Haiku 4.5), so it cannot be inferred from a model's age or
+ * tier and is table-driven here. An unknown id returns null rather than a
+ * guess — "we don't know this model's floor" is a real answer and the caller
+ * renders it as one.
+ *
+ * @since 10.52.0
+ *
+ * @param string $model Model id as sent to the API.
+ * @return int|null Minimum cacheable prefix in tokens, or null if unknown.
+ */
+function snt_ai_cache_probe_min_prefix_tokens( $model ) {
+	$floors = array(
+		'claude-opus-5'      => 512,
+		'claude-fable-5'     => 512,
+		'claude-mythos-5'    => 512,
+		'claude-opus-4-8'    => 1024,
+		'claude-sonnet-5'    => 1024,
+		'claude-sonnet-4-6'  => 1024,
+		'claude-sonnet-4-5'  => 1024,
+		'claude-opus-4-1'    => 1024,
+		'claude-opus-4-0'    => 1024,
+		'claude-sonnet-4-0'  => 1024,
+		'claude-opus-4-7'    => 2048,
+		'claude-opus-4-6'    => 4096,
+		'claude-opus-4-5'    => 4096,
+		'claude-haiku-4-5'   => 4096,
+	);
+
+	$model = (string) $model;
+
+	/**
+	 * Filters the minimum cacheable prefix for a model.
+	 *
+	 * @since 10.52.0
+	 *
+	 * @param int|null $floor Minimum cacheable prefix in tokens, or null if unknown.
+	 * @param string   $model Model id.
+	 */
+	return apply_filters( 'snt_ai_cache_probe_min_prefix', $floors[ $model ] ?? null, $model );
+}
+
+/**
+ * Upper bound on the token count of a prefix, from its byte length and — when
+ * the API reported it — the request's own `input_tokens`.
+ *
+ * Two independent bounds, and the tighter one wins:
+ *
+ * 1. A byte estimate at a deliberately DENSE 3.0 bytes/token. Erring high
+ *    matters because this figure is what declares a prefix BELOW the floor;
+ *    the probe must never talk the owner out of a saving that was real. The
+ *    divisor is calibrated against this probe's own live data rather than the
+ *    usual ~4-bytes/token folklore: a 922-byte request measured 297 input
+ *    tokens, i.e. 3.10 bytes/token for JSON-wrapped English.
+ * 2. `input_tokens` as reported by Anthropic, when present. The cacheable
+ *    prefix (tools + system) is a strict SUBSET of the request's input, so
+ *    the reported figure is an EXACT upper bound — no estimation involved.
+ *    When a call's whole input is under the floor, its prefix is under the
+ *    floor, and that conclusion is arithmetic rather than inference.
+ *
+ * @since 10.52.0
+ *
+ * @param int      $bytes        Prefix byte length.
+ * @param int|null $input_tokens Reported input_tokens, or null if unmeasured.
+ * @return int Upper-bound token count for the prefix.
+ */
+function snt_ai_cache_probe_tokens_hi( $bytes, $input_tokens = null ) {
+	$estimate = (int) ceil( max( 0, (int) $bytes ) / 3.0 );
+	if ( null === $input_tokens ) {
+		return $estimate;
+	}
+	return min( $estimate, max( 0, (int) $input_tokens ) );
+}
+
+/**
+ * Turn the probe log into a decision.
+ *
+ * Caching pays only when BOTH hold: a prefix clears its model's floor, and
+ * that prefix repeats inside the TTL. Either alone is worth nothing, which is
+ * why a raw summary can mislead — `repeatable: 1` on a 677-byte prefix looks
+ * like a signal and is not one.
+ *
+ * States: no_data (nothing recorded yet — not a verdict), caching_active (a
+ * cache read was observed, so something upstream now emits a breakpoint),
+ * candidate (clears the floor AND repeats), no_repeats (clears the floor,
+ * never repeated in the window), below_floor (nothing came close),
+ * unknown_floor (a model with no floor on file, so no claim is made).
+ *
+ * @since 10.52.0
+ *
+ * @param array|null $log Probe log, or null to read the option.
+ * @return array{state:string,summary:array,models:array,best:array|null}
+ */
+function snt_ai_cache_probe_verdict( $log = null ) {
+	if ( null === $log ) {
+		$log = get_option( SN_AI_CACHE_PROBE_OPT, array() );
+	}
+	if ( ! is_array( $log ) ) {
+		$log = array();
+	}
+
+	$summary = snt_ai_cache_probe_summary( $log );
+	$models  = array();
+	$seen    = array(); // "model\0hash" => ts of the previous sighting.
+
+	foreach ( $log as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$model = (string) ( $row['model'] ?? '' );
+		$ts    = (int) ( $row['ts'] ?? 0 );
+		$bytes = (int) ( $row['tools_bytes'] ?? 0 ) + (int) ( $row['sys_bytes'] ?? 0 );
+
+		if ( ! isset( $models[ $model ] ) ) {
+			$floor              = snt_ai_cache_probe_min_prefix_tokens( $model );
+			$models[ $model ] = array(
+				'model'            => $model,
+				'calls'            => 0,
+				'repeatable'       => 0,
+				'max_prefix_bytes' => 0,
+				'max_prefix_tokens'=> 0,
+				'floor'            => $floor,
+				'may_clear_floor'  => null === $floor ? null : false,
+			);
+		}
+
+		++$models[ $model ]['calls'];
+
+		$key = $model . "\0" . (string) ( $row['prefix_hash'] ?? '' );
+		if ( isset( $seen[ $key ] ) && ( $ts - $seen[ $key ] ) <= SN_AI_CACHE_PROBE_TTL ) {
+			++$models[ $model ]['repeatable'];
+		}
+		$seen[ $key ] = $ts;
+
+		$tokens_hi = snt_ai_cache_probe_tokens_hi( $bytes, $row['in'] ?? null );
+		if ( $tokens_hi > $models[ $model ]['max_prefix_tokens'] ) {
+			$models[ $model ]['max_prefix_tokens'] = $tokens_hi;
+		}
+		if ( $bytes > $models[ $model ]['max_prefix_bytes'] ) {
+			$models[ $model ]['max_prefix_bytes'] = $bytes;
+		}
+
+		$floor                               = $models[ $model ]['floor'];
+		$models[ $model ]['may_clear_floor'] = null === $floor
+			? null
+			: ( $models[ $model ]['max_prefix_tokens'] >= $floor );
+	}
+
+	// Strongest candidate first: clears the floor and repeats, then by prefix size.
+	uasort(
+		$models,
+		static function ( $a, $b ) {
+			$score = static function ( $m ) {
+				return ( true === $m['may_clear_floor'] && $m['repeatable'] > 0 ) ? 2 : ( true === $m['may_clear_floor'] ? 1 : 0 );
+			};
+			$cmp = $score( $b ) <=> $score( $a );
+			return 0 !== $cmp ? $cmp : ( (int) $b['max_prefix_bytes'] <=> (int) $a['max_prefix_bytes'] );
+		}
+	);
+
+	$best  = null;
+	$state = 'below_floor';
+
+	if ( 0 === (int) $summary['calls'] ) {
+		$state = 'no_data';
+	} elseif ( (int) $summary['cache_read'] > 0 ) {
+		$state = 'caching_active';
+	} else {
+		$clearing = array_filter(
+			$models,
+			static function ( $m ) {
+				return true === $m['may_clear_floor'];
+			}
+		);
+		$unknown  = array_filter(
+			$models,
+			static function ( $m ) {
+				return null === $m['may_clear_floor'];
+			}
+		);
+
+		if ( $clearing ) {
+			$repeating = array_filter(
+				$clearing,
+				static function ( $m ) {
+					return $m['repeatable'] > 0;
+				}
+			);
+			$state     = $repeating ? 'candidate' : 'no_repeats';
+			$best      = $repeating ? reset( $repeating ) : reset( $clearing );
+		} elseif ( $unknown ) {
+			$state = 'unknown_floor';
+			$best  = reset( $unknown );
+		}
+	}
+
+	return array(
+		'state'   => $state,
+		'summary' => $summary,
+		'models'  => array_values( $models ),
+		'best'    => $best,
+	);
+}
