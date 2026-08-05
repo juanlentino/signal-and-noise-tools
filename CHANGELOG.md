@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.51.0] - 2026-08-05
+
+**Headline:** the em-dash house style becomes a classifier with tests, instead of a regex plus somebody's judgement at the moment they run it.
+
+### New
+
+- **`inc/emdash-scan.php` — an em-dash prose scanner.** House style is no em-dashes in **prose**; it is not "no em-dashes anywhere", and that distinction is the whole module. Pure by design (content in, candidates out, no writes, no WordPress calls). It reports **every** occurrence and classifies each one, so a skip is auditable rather than invisible:
+  - **structural, never offered as a candidate:** `attribution_lead` (`— Juan Lentino, May 7, 2026 · 7 min read`), `no_value_glyph` (a run whose entire content is the dash), `code_or_preformatted` (`<code>`/`<pre>`/`<kbd>`/`<samp>`), `inside_markup` (tag attributes, Gutenberg block comments).
+  - **prose, with the replacement the house style implies:** lowercase continuation → `: `, capitalised → `. `, unspaced infix → `, `, and a **pair inside one text run** → parentheses rather than two unrelated breaks.
+  - Matches all four storage forms: raw U+2014, `&mdash;`, `&#8212;`, `&#x2014;`. The entity form is not theoretical — `/about/uses/` and `/now/` store it, so a raw-only scanner calls those pages clean while the reader plainly sees a dash.
+- **`sn-apply` change type `emdash_replace`.** The write mechanics are identical to `drift_replace` (locate in raw content → fingerprint gate → `substr_replace`), so the new type **delegates** to it rather than duplicating any splice, capability check, or fingerprint scheme. Only the candidate source differs. Supports both `revision` and `publish`, exactly as `drift_replace` does.
+- **`sn-scan` scope `emdash`.** Reuses the existing scan surface rather than adding a parallel tool, and returns `structural_skipped` alongside the candidates so skips stay visible.
+
+### Why it exists
+
+The v10.48.2 copy sweep had no classifier. It rewrote three AI system prompts and the 404 document-title separator as though they were prose — both reverted in v10.49.1. This module puts that distinction in code with tests, so it stops depending on who is running the regex that day.
+
+### Verification
+
+- Validated end to end against the live corpus: **10 prose candidates and 4 structural skips** across the 7 affected posts, which is exactly the 14 em-dashes still on the site, with all three bylines correctly skipped. It also **corrected the hand-made list** — `signing-the-inputs` is a `no_value_glyph` inside an SVG diagram that reading flattened text had merged into an apparent sentence.
+- **Mutation-tested:** disabling the attribution rule, the pairing rule, or the markup ranges fails 3, 3 and 6 assertions respectively.
+- The ALL-TYPES delegation sweep RED'd on the new enum entry as its own comment promises, and now covers it — with a fixture whose phrase and position come from the real scanner, so the sweep cannot drift from the classifier.
+
+> **Why MINOR:** a new capability (a scan scope and an apply change type) with no breaking change. Nothing existing moved: `emdash_replace` adds a case to shared branches rather than altering them.
+
 ## [10.50.0] - 2026-08-05
 
 **Headline:** a read-only probe that can answer whether Anthropic prompt caching would pay here, because nothing else on this site can.
