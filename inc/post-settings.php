@@ -32,14 +32,21 @@ const SN_POST_SETTINGS_POST_TYPES = array( 'post', 'page' );
  * Register the meta keys.
  *
  * register_post_meta is per-post-type — the SEO-era keys loop over both
- * supported types with show_in_rest=true and a blanket edit_posts
- * auth_callback (their original contract, kept stable). The pillar pair
- * (v9.79.0) registers on 'page' only, show_in_rest=false, with a
- * per-resource edit_post auth_callback on the object id.
+ * supported types with show_in_rest=true. Both they and the pillar pair
+ * (v9.79.0, 'page' only, show_in_rest=false) gate their auth_callback on the
+ * per-resource edit_post capability against the object id.
  */
 function sn_post_settings_register_meta() {
-	$auth_cb = function () {
-		return current_user_can( 'edit_posts' );
+	// v10.48.1: per-resource, using the real signature WP passes a registered meta
+	// auth_callback ($allowed, $meta_key, $object_id, $user_id, $cap, $caps). This
+	// was a blanket `current_user_can( 'edit_posts' )` closure that ignored
+	// $object_id — CMA audit 2026-08-05 LOW-1. Not exploitable then (WP applies
+	// registered meta only through the parent object's controller, which clears
+	// edit_post($id) first, and the classic save path at the bottom of this file
+	// re-checks it), but a meta key should be self-defending rather than trusting
+	// its caller. Mirrors $pillar_auth_cb below; pinned by tests/post-settings-meta-auth.php.
+	$auth_cb = function ( $allowed, $meta_key, $object_id, $user_id, $cap, $caps ) {
+		return current_user_can( 'edit_post', $object_id );
 	};
 
 	$bool_args = array(
