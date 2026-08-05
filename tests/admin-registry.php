@@ -127,20 +127,24 @@ ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'w
 // Measurement: every surface that reads the site and tunes what is measured.
 // RSS joins it because the RSS leaf is feed-request *analytics*.
 ok( ( $by_tab['monitoring']['label'] ?? '' ) === 'Measurement', "monitoring relabelled 'Measurement' — KEY still 'monitoring'" );
-ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'insights', 'health', 'rss' ),
-	'monitoring leaves: analytics, insights, health, rss (machine-readers appends via snt_mr_admin_register when the module loads)' );
+ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'rss', 'insights', 'health' ),
+	'monitoring leaves: analytics, rss, insights, health — recording surfaces first, then the two that interpret them (machine-readers splices in after rss when the module loads)' );
 
 // AI: the surface that had no home — budget was field 10 of a render-knobs form.
 ok( ( $by_tab['ai']['slug'] ?? '' ) === 'sn-ai', "ai tab slug is 'sn-ai' (allow-lists itself — sn_admin_post_allowed_pages derives from this registry)" );
-ok( array_keys( $by_tab['ai']['sub_tabs'] ) === array( 'models-budget', 'copilot-usage', 'mcp-connect' ),
-	'ai leaves: models-budget, copilot-usage, mcp-connect' );
+ok( array_keys( $by_tab['ai']['sub_tabs'] ) === array( 'models-budget', 'mcp-connect', 'copilot-usage' ),
+	'ai leaves: models-budget, mcp-connect, copilot-usage — both config leaves before the observation one (v10.47.0)' );
 ok( ( $by_tab['ai']['sub_tabs']['models-budget']['render'] ?? '' ) === 'sn_admin_render_ai_settings_form',
 	'models-budget names the extracted AI settings form' );
 ok( ! empty( $by_tab['ai']['sub_tabs']['copilot-usage']['wide'] ),
 	'copilot-usage leaf keeps its wide flag across the move (bare .sn-section — no card-in-a-card around the fn’s own .sn-card)' );
 
-ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'provenance', 'links' ),
-	'tools leaves: provenance, links (the junk drawer empties — block-migrations to Content, mcp/copilot to AI)' );
+ok( ( $by_tab['tools']['label'] ?? '' ) === 'Integrity', "tools relabelled 'Integrity' — KEY still 'tools' (v10.47.0)" );
+ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'provenance', 'trust', 'links' ),
+	'tools leaves: provenance, trust, links — the trust checks give the tab a concept instead of two unrelated leaves' );
+ok( ! empty( $by_tab['tools']['sub_tabs']['trust']['wide'] ), 'trust leaf is wide (glance hero + full-width table)' );
+ok( ! empty( $by_tab['ai']['sub_tabs']['models-budget']['wide'] ),
+	'models-budget is wide (v10.47.0: it joins the Phase-4a field grid instead of sitting as a 620px card in a 1200px tab)' );
 ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-defense', 'audit-log' ),
 	'security leaves: login, login-defense, audit-log (unchanged)' );
 
@@ -148,11 +152,17 @@ ok( array_keys( $by_tab['security']['sub_tabs'] ) === array( 'login', 'login-def
 // silently re-caps a two-column surface at 820px.
 foreach ( array(
 	'site/front-end', 'site/performance', 'site/redirects',
-	'connections/music', 'monitoring/rss', 'content/tags',
+	'connections/music', 'monitoring/rss', 'content/tags', 'content/pattern-adoption', 'content/block-migrations',
 ) as $pair ) {
 	list( $t, $s ) = explode( '/', $pair );
 	ok( ! empty( $by_tab[ $t ]['sub_tabs'][ $s ]['wide'] ), "moved leaf $pair keeps its 'wide' flag" );
 }
+
+// v10.47.0: the trust leaf routes like any other delegator-backed leaf.
+$GLOBALS['__calls'] = array();
+sn_admin_render_active_tab( 'tools', 'trust' );
+ok( $GLOBALS['__calls'] === array( 'subtabs:tools', 'section:trust', 'action:sn_admin_trust_tab' ),
+	'route tools/trust → nav + section + its own sn_admin_trust_tab delegator' );
 
 // ── Dispatcher routing (Task 3) ──
 // identity-and-seo: sub-tab nav + in-form section tabs + the form, NO section wrapper.

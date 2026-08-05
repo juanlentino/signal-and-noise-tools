@@ -61,6 +61,14 @@ function sn_admin_render_block_migrations_section() {
 }
 
 /**
+ * Integrity → Trust checks (v10.47.0). A second VIEW of four checks that already
+ * run inside the health scan — never a second copy, and it triggers nothing.
+ */
+function sn_admin_render_trust_section() {
+	do_action( 'sn_admin_trust_tab' );
+}
+
+/**
  * Content → Pattern Adoption (v10.46.0).
  *
  * Was not a leaf at all until now: the Opportunities card rendered inline in

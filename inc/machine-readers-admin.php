@@ -73,12 +73,27 @@ function snt_mr_admin_register( $tabs ) {
 	}
 	// 'wide' matches the Monitoring precedent (analytics/insights/health):
 	// the render lane lays out full-width tables + cards, not a lone form.
-	$tabs['machine-readers'] = array(
+	$leaf = array(
 		'label'  => 'Machine Readers',
 		'render' => 'snt_mr_render_tab',
 		'wide'   => true,
 	);
-	return $tabs;
+	// v10.47.0: INSERT after 'rss' rather than append. Measurement now reads
+	// "what was recorded" (Analytics, RSS, Machine Readers) then "what it means"
+	// (Insights, Health); appending stranded the third recording surface after the
+	// two interpretive ones. Falls back to appending if 'rss' is ever absent, so
+	// this can never drop the leaf.
+	$out = array();
+	foreach ( $tabs as $slug => $def ) {
+		$out[ $slug ] = $def;
+		if ( 'rss' === $slug ) {
+			$out['machine-readers'] = $leaf;
+		}
+	}
+	if ( ! isset( $out['machine-readers'] ) ) {
+		$out['machine-readers'] = $leaf;
+	}
+	return $out;
 }
 
 /**

@@ -75,6 +75,9 @@ function sn_admin_flash_messages() {
 		'redirect_invalid'          => array( 'error', 'Could not save the redirect — a source path and a different target are both required.' ),
 		'redirect_404_deleted'      => array( 'success', 'Removed from the 404 log.' ),
 		'redirect_404_cleared'      => array( 'success', '404 log cleared.' ),
+		// v10.47.0: the probe-only bulk dismiss.
+		'redirect_404_probes_cleared' => array( 'success', 'Automated probes dismissed. Genuinely broken paths were kept.' ),
+		'redirect_404_probes_none'    => array( 'info', 'No automated probes in the log.' ),
 		'insights_scanned'          => array( 'success', 'Insights scan complete. Open questions below (or none, if nothing cleared the bar).' ),
 		// v7.0.1: the genuine "no AI provider configured" case — the ONLY failure
 		// that earns the configure-AI copy. Every other scan failure resolves via
