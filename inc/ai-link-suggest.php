@@ -31,7 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // (health-checks.php); this prompt only judges whether one located mention
 // really refers to the target note.
 const SNT_AI_LINK_SUGGEST_SYSTEM = "You are an editor deciding whether a mention of another note's title inside a post should become an internal link to that note.\n\n" .
-	"Input JSON: { source_title, target_title, mention, context }. `mention` is the matched text inside the source post; `context` is ~200 chars around it.\n\n" .
+	"Input JSON: { source_title, target_title, mention, context } — `mention` is the matched text inside the source post; `context` is ~200 chars around it.\n\n" .
 	"Return ONLY a JSON object: {\"verdict\": \"link\" | \"skip\" | \"unsure\", \"reason\": \"<one sentence>\"}\n\n" .
 	"Rules:\n" .
 	"- \"link\" only when the mention clearly refers to the target note itself (its subject, or the essay by that name) and a link would help the reader.\n" .

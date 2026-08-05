@@ -37,9 +37,9 @@ const SNT_AI_DRIFT_SUGGEST_SYSTEM = 'Replace a time-relative phrase with a tempo
 	'output ONLY the replacement phrase. Rules: ' .
 	'(1) keep grammatical form (verb tense, plurality); ' .
 	'(2) prefer absolute references (years, dates, named events) over time-relative phrases; ' .
-	'(3) preserve the original meaning: replace the phrase, not the surrounding sentence; ' .
+	'(3) preserve the original meaning — replace the phrase, not the surrounding sentence; ' .
 	'(4) if no good replacement exists (the phrase is intentionally vague or the context does not support a specific date), output the literal marker PHRASE_NO_REPLACEMENT. ' .
-	'No preamble, no quotes, no markdown: output only the replacement string or the marker.';
+	'No preamble, no quotes, no markdown — output only the replacement string or the marker.';
 
 const SNT_AI_DRIFT_SUGGEST_MAX_TOKENS     = 60;
 const SNT_AI_DRIFT_FINGERPRINT_WINDOW     = 80;
