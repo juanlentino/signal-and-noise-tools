@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.52.0] - 2026-08-05
+
+**Headline:** the prompt-cache probe gets a readout that states a verdict, so the answer survives without the terminal session that produced it.
+
+### New
+
+- **Prompt-cache panel on Insights** ([inc/insights-admin.php](inc/insights-admin.php)), directly under **AI usage & spend** — the section that has to disclaim that its estimate "excludes prompt-cache discounts". This one says whether that discount is reachable at all, replacing `wp eval 'print_r( snt_ai_cache_probe_summary() );'`.
+
+  It renders a **verdict, not a dump**, because the raw summary misleads. The first live readout from this site was `calls 3 · prefixes 2 · repeatable 1 · max_prefix_bytes 677`, and `repeatable: 1` reads like a signal while being worth precisely nothing: the prefix it repeats is 677 bytes against Sonnet 5's 1,024-token floor, below which Anthropic caches nothing, silently, and reports zeros indistinguishable from never having asked. Caching pays only when a prefix **clears its model's floor** *and* **repeats inside the TTL**, so both conditions are always rendered and a "no" names which half failed.
+
+  `no_data` is a state, not a verdict: an empty log renders "nothing measured yet — this is not a verdict" with no table of zeros. "We haven't looked" and "caching cannot pay" are different answers, and this panel is what a future reader will trust.
+
+- **Verdict derive layer** ([inc/ai-cache-probe.php](inc/ai-cache-probe.php)) — pure apart from the option read, so every branch is testable without an HTTP round trip.
+  - `snt_ai_cache_probe_min_prefix_tokens()` — the per-model minimum cacheable prefix, table-driven because it is **not monotonic across generations**: 512 tokens on Opus 5, 1,024 on Sonnet 5, 4,096 on Opus 4.6 *and* on Haiku 4.5, the economy tier. It cannot be inferred from tier or release date, which is why the verdict groups by model — a single site-wide comparison would be wrong for half the traffic. An unknown model returns `null` and the panel says "no floor on file" rather than guessing. New filter: `snt_ai_cache_probe_min_prefix`.
+  - `snt_ai_cache_probe_tokens_hi()` — an upper bound on prefix tokens: the smaller of a byte estimate and the request's own reported `input_tokens`. **The second bound is exact, not estimated.** The cacheable prefix (tools + system) is a strict subset of the request's input, so when the whole input falls under the floor the prefix does too, by arithmetic. The byte divisor is 3.0, calibrated against this probe's own live rows — a 922-byte request measured 297 input tokens, i.e. 3.10 bytes/token — rather than the usual ~4-bytes/token folklore. Erring dense is deliberate: this figure is what declares a prefix *below* the floor, and the probe must never talk the owner out of a saving that was real.
+  - `snt_ai_cache_probe_verdict()` — `no_data` / `below_floor` / `no_repeats` / `candidate` / `caching_active` / `unknown_floor`, with per-model rows and the strongest candidate surfaced.
+
+- **[tests/ai-cache-probe-panel.php](tests/ai-cache-probe-panel.php)** — 49 assertions. Beyond the floor table and both token bounds: an identical 3,500-token prefix reads *below floor* on Haiku 4.5 and *clears* on Opus 5 (the per-model split is load-bearing, not cosmetic); three repeats of a sub-floor prefix stay `below_floor` rather than being seduced into `candidate`; a large prefix repeating *outside* the TTL lands on `no_repeats`; and the empty state never claims caching cannot pay.
+
+### Notes
+
+Nothing here can change the outcome until the provider can emit a cache breakpoint at all — filed upstream as [WordPress/ai-provider-for-anthropic#33](https://github.com/WordPress/ai-provider-for-anthropic/issues/33), which covers both the missing `cache_control` and the `TokenUsage` flattening that makes cache behaviour unreportable through the AI Client. The panel links to it.
+
+> **Why MINOR:** a new admin readout and a new documented filter seam. No existing behaviour, schema, REST route, or Ability signature moved, and the probe still records only — no request payload is touched.
+
 ## [10.51.0] - 2026-08-05
 
 **Headline:** the em-dash house style becomes a classifier with tests, instead of a regex plus somebody's judgement at the moment they run it.
