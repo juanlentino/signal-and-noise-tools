@@ -71,16 +71,19 @@ function sn_admin_glance_grid( array $cards ) {
 		// admin_url() is applied by the CALLER, and esc_url() here refuses anything
 		// that is not a safe http(s) URL, so a card definition cannot inject a
 		// javascript: target.
-		$href = isset( $card['href'] ) ? (string) $card['href'] : '';
-		$tag  = '' !== $href ? 'a' : 'div';
-		echo '<' . $tag . ' class="sn-glance-card' . ( '' !== $href ? ' sn-glance-card--link' : '' ) . '"';
-		if ( '' !== $href ) {
-			echo ' href="' . esc_url( $href ) . '"';
+		// The open/close tags are written as LITERALS in both branches rather than
+		// built from a $tag variable. Plugin Check runs its own EscapeOutput sniff
+		// and ignores phpcs.xml.dist, so `echo '<' . $tag` reads as unescaped output
+		// even though the value is a hard-coded 'a'/'div' — and it is the stricter
+		// reading that ships. Literals also make the pairing obvious to a reader.
+		$href    = isset( $card['href'] ) ? (string) $card['href'] : '';
+		$is_link = ( '' !== $href );
+		$id_attr = '' !== $card_id ? ' id="' . esc_attr( $card_id ) . '"' : '';
+		if ( $is_link ) {
+			echo '<a class="sn-glance-card sn-glance-card--link" href="' . esc_url( $href ) . '"' . $id_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $id_attr is esc_attr'd above.
+		} else {
+			echo '<div class="sn-glance-card"' . $id_attr . '>'; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $id_attr is esc_attr'd above.
 		}
-		if ( '' !== $card_id ) {
-			echo ' id="' . esc_attr( $card_id ) . '"';
-		}
-		echo '>';
 		echo '<p class="sn-glance-card__label">' . esc_html( $label ) . '</p>';
 		echo '<p class="sn-glance-card__value">' . esc_html( $value ) . '</p>';
 
@@ -98,7 +101,11 @@ function sn_admin_glance_grid( array $cards ) {
 			echo '<p class="sn-glance-card__meta">' . wp_kses_post( (string) $card['meta_html'] ) . '</p>';
 		}
 
-		echo '</' . $tag . '>';
+		if ( $is_link ) {
+			echo '</a>';
+		} else {
+			echo '</div>';
+		}
 	}
 	echo '</div>';
 }
