@@ -55,6 +55,7 @@ function snt_sn_scan_adapters() {
 		'duplicate_body'   => 'snt_sn_scan_adapter_duplicate_body',
 		'near_duplicate'   => 'snt_sn_scan_adapter_near_duplicate',
 		'link_candidates'  => 'snt_sn_scan_adapter_link_candidates',
+		'emdash'           => 'snt_sn_scan_adapter_emdash',
 		'orphan_media'     => 'snt_sn_scan_adapter_orphan_media',
 	);
 	return apply_filters( 'sn_scan_adapters', $adapters );
@@ -502,5 +503,67 @@ function snt_sn_scan_adapter_orphan_media( $allowed_ids ) {
 		'posts_examined' => $posts_examined,
 		'posts_skipped'  => 0,
 		'truncated'      => false, // The detector's own LIMIT 500 is a memory guard, not reported by it as truncation.
+	);
+}
+
+/**
+ * sn-scan scope: em-dashes in PROSE.
+ *
+ * Reports only candidates the classifier calls prose; structural uses (an
+ * attribution lead, the no-value glyph, code/preformatted text, markup) are counted
+ * in `structural_skipped` so a skip is visible rather than silent. Each candidate
+ * carries everything sn-apply's `emdash_replace` needs to splice it: phrase,
+ * raw-content position, replacement, context snippet, and the drift fingerprint the
+ * apply gate checks.
+ *
+ * @param array|null $allowed_ids Restrict to these post ids, or null for the corpus.
+ * @return array|WP_Error
+ */
+function snt_sn_scan_adapter_emdash( $allowed_ids ) {
+	if ( ! function_exists( 'snt_emdash_scan_content' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'Em-dash scanner not loaded.', 'signal-and-noise-tools' ), array( 'status' => 503 ) );
+	}
+	if ( null !== $allowed_ids ) {
+		$source_ids = $allowed_ids;
+	} else {
+		if ( ! function_exists( 'snt_corpus_fetch_posts' ) ) {
+			return new WP_Error( 'snt_helper_unavailable', __( 'Corpus inspect helper not loaded.', 'signal-and-noise-tools' ), array( 'status' => 503 ) );
+		}
+		$source_ids = array_map( static function ( $p ) { return (int) $p->ID; }, snt_corpus_fetch_posts( 'any', 'any' ) );
+	}
+
+	$candidates = array();
+	$examined   = 0;
+	$skipped    = 0;
+	foreach ( $source_ids as $pid ) {
+		$post = get_post( (int) $pid );
+		if ( ! $post ) {
+			continue;
+		}
+		++$examined;
+		$content = (string) $post->post_content;
+		foreach ( snt_emdash_scan_content( $content ) as $row ) {
+			if ( 'prose' !== $row['classification'] ) {
+				++$skipped;
+				continue;
+			}
+			$candidates[] = array(
+				'post_id'         => (int) $post->ID,
+				'phrase'          => $row['phrase'],
+				'position'        => $row['position'],
+				'replacement'     => $row['replacement'],
+				'context_snippet' => $row['context_snippet'],
+				'pair'            => $row['pair'],
+				'fingerprint'     => function_exists( 'snt_ai_drift_fingerprint' )
+					? snt_ai_drift_fingerprint( $content, $row['phrase'], $row['position'] )
+					: '',
+			);
+		}
+	}
+
+	return array(
+		'candidates'         => $candidates,
+		'posts_examined'     => $examined,
+		'structural_skipped' => $skipped,
 	);
 }

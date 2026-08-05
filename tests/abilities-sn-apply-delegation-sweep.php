@@ -248,6 +248,7 @@ require __DIR__ . '/../inc/block-migrations-apply.php';
 require __DIR__ . '/../inc/pattern-adoption-apply.php';
 require __DIR__ . '/../inc/ai-alt-text-suggest.php';
 require __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
+require __DIR__ . '/../inc/emdash-scan.php';
 require __DIR__ . '/../inc/ai-link-suggest.php';
 require __DIR__ . '/../inc/abilities-permission-helpers.php';
 require __DIR__ . '/../inc/abilities-update-post-surfaces.php';
@@ -341,6 +342,20 @@ tf_post( 760, array( 'post_content' => 'Written recently, will drift.' ) );
 $dr_phrase = 'recently';
 $dr_pos    = strpos( $GLOBALS['__posts'][760]['post_content'], $dr_phrase );
 $dr_fp     = snt_ai_drift_fingerprint( $GLOBALS['__posts'][760]['post_content'], $dr_phrase, $dr_pos );
+
+// Post 761: emdash_replace (for the all-types sweep). The phrase/position come
+// from the real scanner, so this fixture cannot drift from the classifier: if
+// snt_emdash_scan_content() stops classifying this sentence as prose, the sweep
+// entry loses its candidate and REDs here rather than silently testing nothing.
+tf_post( 761, array( 'post_content' => '<p>The kit I reach for — the studio and the instruments.</p>' ) );
+$em_cands = snt_emdash_scan_content( $GLOBALS['__posts'][761]['post_content'] );
+$em_cands = array_values( array_filter( $em_cands, function ( $c ) { return 'prose' === $c['classification']; } ) );
+$em_phrase = $em_cands ? $em_cands[0]['phrase'] : '';
+$em_pos    = $em_cands ? $em_cands[0]['position'] : -1;
+$em_repl   = $em_cands ? $em_cands[0]['replacement'] : '';
+$em_fp     = ( $em_cands && function_exists( 'snt_ai_drift_fingerprint' ) )
+	? snt_ai_drift_fingerprint( $GLOBALS['__posts'][761]['post_content'], $em_phrase, $em_pos )
+	: '';
 
 // create_draft (for the all-types sweep) — no fixture post: the target IS
 // the not-yet-created post (session 6c).
@@ -450,6 +465,7 @@ $sweep_calls = array(
 	'alt_text'         => array( 'target' => array( 'attachment_id' => 740 ), 'mode' => 'revision', 'change' => array( 'type' => 'alt_text', 'payload' => array( 'text' => 'A generic but valid alt text for the sweep fixture' ) ) ),
 	'link_insert'      => array( 'target' => array( 'post_id' => 720 ), 'mode' => 'revision', 'change' => array( 'type' => 'link_insert', 'fingerprint' => $li_fp, 'payload' => array( 'anchor' => $li_anchor, 'context_snippet' => '', 'target_url' => 'https://example.test/notes/post-721/', 'target_post_id' => 721 ) ) ),
 	'drift_replace'    => array( 'target' => array( 'post_id' => 760 ), 'mode' => 'revision', 'change' => array( 'type' => 'drift_replace', 'fingerprint' => $dr_fp, 'payload' => array( 'phrase' => $dr_phrase, 'replacement' => 'in June 2026', 'position' => $dr_pos, 'context_snippet' => '' ) ) ),
+	'emdash_replace'   => array( 'target' => array( 'post_id' => 761 ), 'mode' => 'revision', 'change' => array( 'type' => 'emdash_replace', 'fingerprint' => $em_fp, 'payload' => array( 'phrase' => $em_phrase, 'replacement' => $em_repl, 'position' => $em_pos, 'context_snippet' => '' ) ) ),
 	'surfaces'         => array( 'target' => array( 'post_id' => 700 ), 'mode' => 'revision', 'change' => array( 'type' => 'surfaces', 'payload' => array( 'excerpt' => 'Sweep excerpt proposal, plainly long enough to pass the validation gate without any warnings raised at all.' ) ) ),
 	// The two publish-only types run the sweep in publish mode: dry_run must
 	// still preview (all four gates + diff) with zero side effects.

@@ -18,6 +18,7 @@
  * |------------------|:--------:|:-------:|----------------------------------------------------------------------|
  * | block_migration   |   yes    |   yes   | content field write; snt_block_fp_apply()'s injectable write_callback (v10.40.0) routes it through snt_sn_apply_stage_revision(). |
  * | pattern_adoption  |   yes    |   yes   | same mechanism as block_migration (shared engine).                    |
+ * | emdash_replace    |   yes    |   yes   | prose em-dash fix; DELEGATES to drift_replace's splice (identical mechanics, different candidate source: snt_emdash_scan_content()).
  * | drift_replace     |   yes    |   yes   | content field write (substr_replace on post_content); snt_ai_drift_apply_impl()'s injectable write_callback (v10.40.0). |
  * | link_insert       |   yes    |   yes   | same mechanism as drift_replace (snt_ai_link_apply_impl()).           |
  * | alt_text          |   yes    |   yes   | postmeta write (_wp_attachment_image_alt); revision mode uses snt_sn_apply_stage_meta() — session 6a's staged-meta draft queue, not a postmeta write. |
@@ -49,7 +50,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SNT_SN_APPLY_CHANGE_TYPES = array(
 	'block_migration', 'pattern_adoption', 'alt_text', 'link_insert',
 	'drift_replace', 'surfaces', 'og_card', 'anchor_sweep', 'create_draft',
-	'restore_revision',
+	'restore_revision', 'emdash_replace',
 );
 
 /**
@@ -67,6 +68,7 @@ function snt_sn_apply_mode_support( $type ) {
 		case 'pattern_adoption':
 		case 'drift_replace':
 		case 'link_insert':
+		case 'emdash_replace':
 		case 'alt_text':
 		case 'surfaces':
 			return array( 'modes' => array( 'revision', 'publish' ), 'reason' => null );
@@ -214,12 +216,18 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 				'write_result' => $result,
 			);
 
+		case 'emdash_replace':
 		case 'drift_replace':
 		case 'link_insert':
 			$revision_id = null;
 			$cb          = 'revision' === $mode ? snt_sn_apply_revision_write_callback( $revision_id ) : null;
 			$fp          = (string) ( $change['fingerprint'] ?? '' );
-			if ( 'drift_replace' === $type ) {
+			if ( 'drift_replace' === $type || 'emdash_replace' === $type ) {
+				// emdash_replace IS a drift_replace at the write layer: locate the
+				// phrase in raw content, gate on the fingerprint, splice. The only
+				// difference is upstream — its candidates come from
+				// snt_emdash_scan_content()'s prose classifier rather than the
+				// time-phrase scanner. Delegating keeps one splice implementation.
 				$result = snt_ai_drift_apply_impl( $resolved['post_id'], (string) ( $payload['phrase'] ?? '' ), (int) ( $payload['position'] ?? -1 ), (string) ( $payload['replacement'] ?? '' ), $fp, (string) ( $payload['context_snippet'] ?? '' ), $cb );
 			} else {
 				$result = snt_ai_link_apply_impl( $resolved['post_id'], (string) ( $payload['anchor'] ?? '' ), (string) ( $payload['context_snippet'] ?? '' ), $fp, (string) ( $payload['target_url'] ?? '' ), $cb );
