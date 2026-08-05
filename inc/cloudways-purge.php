@@ -32,6 +32,27 @@ const SNT_CW_API_BASE       = 'https://api.cloudways.com/api/v1';
 const SNT_CW_LAST_PURGE_OPT = 'sn_cloudways_last_purge';
 
 /**
+ * Short-lived OAuth token cache (v10.52.4).
+ *
+ * Before this, every purge did a fresh token exchange. Two purges seconds apart
+ * meant two exchanges, Cloudways rate-limits that endpoint, and the second one
+ * failed at `stage: auth` before it ever reached /app/cache/purge — a
+ * self-inflicted failure that reads exactly like a bad credential. Observed
+ * live 2026-08-05.
+ *
+ * The TTL is deliberately capped well below the token's real lifetime. The
+ * account-wide API key lives in wp-config (never the database); a bearer minted
+ * from it grants the same powers, so persisting one widens the blast radius of a
+ * DB dump. A short cap keeps the burst protection while bounding that window —
+ * the goal is to survive a burst, not to eliminate every exchange.
+ */
+const SNT_CW_TOKEN_TRANSIENT   = 'sn_cloudways_token';
+const SNT_CW_TOKEN_MAX_TTL     = 600; // Hard cap, regardless of what the API says.
+const SNT_CW_TOKEN_MIN_TTL     = 60;  // Below this, caching buys nothing.
+const SNT_CW_TOKEN_MARGIN      = 60;  // Refresh before expiry, never at it.
+const SNT_CW_TOKEN_DEFAULT_TTL = 300; // When the API omits expires_in.
+
+/**
  * Read a Cloudways config constant.
  *
  * @param string $name Constant name.
@@ -54,11 +75,53 @@ function sn_cloudways_is_configured() {
 }
 
 /**
- * Exchange email + api_key for a short-lived OAuth access token.
+ * Drop any cached token, in-request and persisted.
  *
+ * Called when the API rejects a token we believed was good (401/403), so a
+ * revoked or rotated credential costs one retry rather than failing every purge
+ * until the TTL runs out. A cache that cannot be invalidated by the thing it
+ * caches for is a cache that reports healthy while everything fails.
+ *
+ * @since 10.52.4
+ *
+ * @return void
+ */
+function sn_cloudways_forget_token() {
+	unset( $GLOBALS['sn_cloudways_token_memo'] );
+	if ( function_exists( 'delete_transient' ) ) {
+		delete_transient( SNT_CW_TOKEN_TRANSIENT );
+	}
+}
+
+/**
+ * Exchange email + api_key for a short-lived OAuth access token, cached.
+ *
+ * Two layers: an in-request memo (the case that actually bit us — two purges in
+ * one process) and a capped transient (adjacent requests, e.g. a save-triggered
+ * purge landing seconds after a deploy-triggered one).
+ *
+ * A FAILED exchange is never cached. Caching '' would convert one rate-limited
+ * moment into a TTL-long outage, which is the opposite of the point.
+ *
+ * @since 10.52.4 Cached; `$force_fresh` added.
+ *
+ * @param bool $force_fresh Skip both cache layers and mint a new token.
  * @return string Access token, or '' on failure.
  */
-function sn_cloudways_get_token() {
+function sn_cloudways_get_token( $force_fresh = false ) {
+	if ( ! $force_fresh ) {
+		if ( ! empty( $GLOBALS['sn_cloudways_token_memo'] ) ) {
+			return (string) $GLOBALS['sn_cloudways_token_memo'];
+		}
+		if ( function_exists( 'get_transient' ) ) {
+			$cached = get_transient( SNT_CW_TOKEN_TRANSIENT );
+			if ( is_string( $cached ) && '' !== $cached ) {
+				$GLOBALS['sn_cloudways_token_memo'] = $cached;
+				return $cached;
+			}
+		}
+	}
+
 	$res = wp_remote_post( SNT_CW_API_BASE . '/oauth/access_token', array(
 		// (render hardening FIX 3a): 15s → 5s. This request rides the
 		// theme's breeze_clear_varnish action, which itself fires inline on
@@ -77,8 +140,28 @@ function sn_cloudways_get_token() {
 	if ( is_wp_error( $res ) || 200 !== wp_remote_retrieve_response_code( $res ) ) {
 		return '';
 	}
-	$data = json_decode( wp_remote_retrieve_body( $res ), true );
-	return is_array( $data ) ? (string) ( $data['access_token'] ?? '' ) : '';
+	$data  = json_decode( wp_remote_retrieve_body( $res ), true );
+	$token = is_array( $data ) ? (string) ( $data['access_token'] ?? '' ) : '';
+	if ( '' === $token ) {
+		return '';
+	}
+
+	// Honour expires_in when the API sends it, minus a margin so we never hand
+	// out a token that expires mid-flight — then clamp. The cap is the security
+	// decision (see the constant block); the floor is because a cache measured in
+	// seconds is not worth a database row.
+	$ttl = SNT_CW_TOKEN_DEFAULT_TTL;
+	if ( is_array( $data ) && isset( $data['expires_in'] ) && is_numeric( $data['expires_in'] ) ) {
+		$ttl = (int) $data['expires_in'] - SNT_CW_TOKEN_MARGIN;
+	}
+	$ttl = min( SNT_CW_TOKEN_MAX_TTL, $ttl );
+
+	$GLOBALS['sn_cloudways_token_memo'] = $token;
+	if ( $ttl >= SNT_CW_TOKEN_MIN_TTL && function_exists( 'set_transient' ) ) {
+		set_transient( SNT_CW_TOKEN_TRANSIENT, $token, $ttl );
+	}
+
+	return $token;
 }
 
 /**
@@ -106,17 +189,37 @@ function sn_cloudways_purge_app() {
 		return false;
 	}
 
-	$res  = wp_remote_post( SNT_CW_API_BASE . '/app/cache/purge', array(
-		// (render hardening FIX 3a): 15s → 5s, same rationale as the
-		// token exchange above.
-		'timeout' => 5,
-		'headers' => array( 'Authorization' => 'Bearer ' . $token ),
-		'body'    => array(
-			'server_id' => sn_cloudways_cfg( 'SN_CLOUDWAYS_SERVER_ID' ),
-			'app_id'    => sn_cloudways_cfg( 'SN_CLOUDWAYS_APP_ID' ),
-		),
-		'redirection' => 0, // v8.7.1 (CMA INFO-1): never re-send the Bearer on a 3xx.
-	) );
+	$dispatch = static function ( $bearer ) {
+		return wp_remote_post( SNT_CW_API_BASE . '/app/cache/purge', array(
+			// (render hardening FIX 3a): 15s → 5s, same rationale as the
+			// token exchange above.
+			'timeout' => 5,
+			'headers' => array( 'Authorization' => 'Bearer ' . $bearer ),
+			'body'    => array(
+				'server_id' => sn_cloudways_cfg( 'SN_CLOUDWAYS_SERVER_ID' ),
+				'app_id'    => sn_cloudways_cfg( 'SN_CLOUDWAYS_APP_ID' ),
+			),
+			'redirection' => 0, // v8.7.1 (CMA INFO-1): never re-send the Bearer on a 3xx.
+		) );
+	};
+
+	$res = $dispatch( $token );
+
+	// v10.52.4: a cached token can outlive its welcome — rotated key, revoked
+	// session, a cap we guessed too generously. The API rejecting it is the only
+	// authority on that, so treat a 401/403 as cache invalidation plus ONE retry
+	// with a fresh token. Exactly one: a credential that is genuinely wrong must
+	// fail, visibly, rather than loop.
+	$reauthed = false;
+	if ( ! is_wp_error( $res ) && in_array( (int) wp_remote_retrieve_response_code( $res ), array( 401, 403 ), true ) ) {
+		sn_cloudways_forget_token();
+		$fresh = sn_cloudways_get_token( true );
+		if ( '' !== $fresh ) {
+			$reauthed = true;
+			$res      = $dispatch( $fresh );
+		}
+	}
+
 	$body_raw = is_wp_error( $res ) ? '' : (string) wp_remote_retrieve_body( $res );
 	$http     = is_wp_error( $res ) ? 0 : wp_remote_retrieve_response_code( $res );
 	$data     = is_wp_error( $res ) ? array() : (array) json_decode( $body_raw, true );
@@ -161,6 +264,11 @@ function sn_cloudways_purge_app() {
 		// Keep the real http code above and mark the row, so a coalesced purge is
 		// never silently indistinguishable from a fresh 200 dispatch.
 		$record['coalesced'] = true;
+	}
+	if ( $reauthed ) {
+		// Surfaced because a purge that only succeeds on the second attempt is a
+		// signal about the credential, not a clean success.
+		$record['reauthed'] = true;
 	}
 
 	if ( ! $ok ) {

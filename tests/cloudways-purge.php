@@ -14,16 +14,44 @@ if ( ! function_exists( 'wp_strip_all_tags' ) ) { function wp_strip_all_tags( $s
 // Configurable purge-endpoint response — default is the happy path; scenarios
 // below override it to exercise the non-2xx bounded-capture path (FIX 3b).
 $GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 12345 ) ), 'response' => array( 'code' => 200 ) );
+// v10.52.4: the token exchange is now cached, so scenarios need to vary its
+// response (expires_in, failures) and to COUNT how often it is actually hit.
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'TESTTOKEN' ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__purge_responses'] = array(); // Optional queue: one response per purge call.
 $GLOBALS['__http'] = array();
 function wp_remote_post( $url, $args = array() ) {
 	$GLOBALS['__http'][] = array( 'url' => $url, 'args' => $args );
 	if ( strpos( $url, 'oauth/access_token' ) !== false ) {
-		return array( 'body' => json_encode( array( 'access_token' => 'TESTTOKEN' ) ), 'response' => array( 'code' => 200 ) );
+		return $GLOBALS['__token_response'];
 	}
 	if ( strpos( $url, 'app/cache/purge' ) !== false ) {
+		if ( ! empty( $GLOBALS['__purge_responses'] ) ) {
+			return array_shift( $GLOBALS['__purge_responses'] );
+		}
 		return $GLOBALS['__purge_response'];
 	}
 	return array( 'body' => '{}', 'response' => array( 'code' => 200 ) );
+}
+// Transient stubs that RECORD the ttl — the cap is a security decision, so it
+// has to be asserted, not assumed.
+$GLOBALS['__transients'] = array();
+function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__transients'][ $k ] = array( 'value' => $v, 'ttl' => (int) $ttl ); return true; }
+function get_transient( $k ) { return $GLOBALS['__transients'][ $k ]['value'] ?? false; }
+function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); return true; }
+// Count only the OAuth calls — the whole point of the cache.
+function token_calls() {
+	return count( array_filter( $GLOBALS['__http'], static function ( $r ) {
+		return false !== strpos( (string) $r['url'], 'oauth/access_token' );
+	} ) );
+}
+// Reset every layer between scenarios: request memo, transient, HTTP log,
+// per-request purge guard.
+function token_reset( $keep_transient = false ) {
+	unset( $GLOBALS['sn_cloudways_token_memo'] );
+	if ( ! $keep_transient ) { $GLOBALS['__transients'] = array(); }
+	$GLOBALS['__http'] = array();
+	$GLOBALS['sn_cloudways_purge_done'] = false;
+	$GLOBALS['__purge_responses'] = array();
 }
 function wp_remote_retrieve_body( $r ) { return is_array( $r ) ? (string) ( $r['body'] ?? '' ) : ''; }
 function wp_remote_retrieve_response_code( $r ) { return is_array( $r ) ? (int) ( $r['response']['code'] ?? 0 ) : 0; }
@@ -208,6 +236,111 @@ sn_cloudways_purge_app();
 $stored9 = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
 ok( 4242 === (int) ( $stored9['operation_id'] ?? 0 ), 'an ordinary 200 keeps its own operation id' );
 ok( empty( $stored9['coalesced'] ), 'an ordinary 200 is not marked coalesced' );
+
+// --- Scenario 8: token caching (v10.52.4) --------------------------------
+// Live 2026-08-05: two purges seconds apart produced `stage: auth` on the
+// second, because every purge minted a fresh OAuth token and Cloudways
+// rate-limits that endpoint. The purge never even reached the API — a
+// self-inflicted failure that reads exactly like a bad credential.
+echo "\nGroup: OAuth token caching — a burst must not manufacture an auth failure\n";
+
+// Two purges in ONE request: the exact shape that failed live.
+token_reset();
+$GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 1 ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__opts'] = array();
+ok( true === sn_cloudways_purge_app(), 'first purge in the request succeeds' );
+$GLOBALS['sn_cloudways_purge_done'] = false;
+ok( true === sn_cloudways_purge_app(), 'second purge in the same request succeeds' );
+ok( 1 === token_calls(), 'the token is exchanged ONCE across both purges (was twice — the live failure)' );
+
+// A second request (memo gone, transient survives) still reuses the token.
+token_reset( true );
+$GLOBALS['sn_cloudways_purge_done'] = false;
+sn_cloudways_purge_app();
+ok( 0 === token_calls(), 'a later request reuses the cached token — no exchange at all' );
+
+// --- TTL: the cap is a security decision, so assert it ---------------------
+echo "\nGroup: token TTL is honoured, floored and CAPPED\n";
+$ttl_of = static function () { return (int) ( $GLOBALS['__transients']['sn_cloudways_token']['ttl'] ?? -1 ); };
+
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'T1', 'expires_in' => 3600 ) ), 'response' => array( 'code' => 200 ) );
+sn_cloudways_get_token();
+ok( 600 === $ttl_of(), 'a 1-hour expires_in is capped to SNT_CW_TOKEN_MAX_TTL (600s), not trusted wholesale' );
+
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'T2', 'expires_in' => 300 ) ), 'response' => array( 'code' => 200 ) );
+sn_cloudways_get_token();
+ok( 240 === $ttl_of(), 'a short expires_in is honoured minus the 60s margin (300 -> 240)' );
+
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'T3' ) ), 'response' => array( 'code' => 200 ) );
+sn_cloudways_get_token();
+ok( 300 === $ttl_of(), 'an absent expires_in falls back to the default TTL, never to "forever"' );
+
+// Below the floor, caching buys nothing and costs a row — so don't.
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'T4', 'expires_in' => 90 ) ), 'response' => array( 'code' => 200 ) );
+ok( 'T4' === sn_cloudways_get_token(), 'a near-expiry token is still returned' );
+ok( ! isset( $GLOBALS['__transients']['sn_cloudways_token'] ), 'but a sub-floor TTL is not persisted' );
+
+// --- A FAILED exchange must never be cached -------------------------------
+// Caching '' would turn one rate-limited moment into a TTL-long outage: every
+// later purge would read the empty cache and fail at stage:auth without ever
+// retrying. That is the live failure made permanent.
+echo "\nGroup: failures are never cached\n";
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => '{"message":"rate limited"}', 'response' => array( 'code' => 429 ) );
+ok( '' === sn_cloudways_get_token(), 'a rate-limited exchange returns empty' );
+ok( ! isset( $GLOBALS['__transients']['sn_cloudways_token'] ), 'a failed exchange is NOT cached' );
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'RECOVERED' ) ), 'response' => array( 'code' => 200 ) );
+ok( 'RECOVERED' === sn_cloudways_get_token(), 'the very next call retries and recovers — no TTL-long outage' );
+
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => '' ) ), 'response' => array( 'code' => 200 ) );
+ok( '' === sn_cloudways_get_token(), 'a 200 with an EMPTY access_token is still a failure' );
+ok( ! isset( $GLOBALS['__transients']['sn_cloudways_token'] ), 'and is not cached either' );
+
+// --- A cached token the API rejects: invalidate + retry ONCE --------------
+// A cache that cannot be invalidated by the thing it caches for reports
+// healthy while every purge fails.
+echo "\nGroup: a rejected cached token invalidates and retries exactly once\n";
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'STALE', 'expires_in' => 600 ) ), 'response' => array( 'code' => 200 ) );
+sn_cloudways_get_token();                 // seed the cache
+$GLOBALS['__http'] = array();             // count from here
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'FRESH', 'expires_in' => 600 ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__purge_responses'] = array(
+	array( 'body' => '{"message":"Unauthorized"}', 'response' => array( 'code' => 401 ) ),
+	array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 555 ) ), 'response' => array( 'code' => 200 ) ),
+);
+$GLOBALS['__opts'] = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+ok( true === sn_cloudways_purge_app(), 'a 401 on the cached token still ends in a successful purge' );
+ok( 1 === token_calls(), 'exactly one re-exchange (not zero, not a loop)' );
+$retried = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( ! empty( $retried['reauthed'] ), 'the row is marked reauthed — a second-attempt success is not a clean one' );
+ok( 555 === (int) ( $retried['operation_id'] ?? 0 ), 'the retry’s operation id is what gets recorded' );
+ok( 'FRESH' === get_transient( 'sn_cloudways_token' ), 'the stale token was replaced in the cache' );
+
+// A genuinely bad credential must fail visibly rather than retry forever.
+token_reset();
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'BAD', 'expires_in' => 600 ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__purge_response'] = array( 'body' => '{"message":"Unauthorized"}', 'response' => array( 'code' => 401 ) );
+$GLOBALS['__opts'] = array();
+$GLOBALS['sn_cloudways_purge_done'] = false;
+ok( false === sn_cloudways_purge_app(), 'a persistently rejected credential fails' );
+ok( 2 === count( array_filter( $GLOBALS['__http'], static function ( $r ) { return false !== strpos( (string) $r['url'], 'app/cache/purge' ); } ) ), 'it retried exactly once — two purge attempts, then stop' );
+$bad = $GLOBALS['__opts']['sn_cloudways_last_purge'] ?? array();
+ok( isset( $bad['error'] ), 'the failure still captures the error envelope' );
+
+// The token must never reach the stored row.
+ok( false === strpos( json_encode( $bad ), 'BAD' ), 'no token leaks into the recorded row' );
+
+// Restore defaults for any scenario appended after this one.
+$GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_token' => 'TESTTOKEN' ) ), 'response' => array( 'code' => 200 ) );
+$GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 12345 ) ), 'response' => array( 'code' => 200 ) );
+token_reset();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

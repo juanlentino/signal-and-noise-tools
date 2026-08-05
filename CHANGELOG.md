@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.52.4] - 2026-08-05
+
+**Headline:** a purge burst was manufacturing its own auth failure. The Cloudways token is now cached, on a deliberately short leash.
+
+### Fixed
+
+- **The OAuth token is cached instead of re-minted on every purge** ([inc/cloudways-purge.php](inc/cloudways-purge.php)). Every purge did a fresh token exchange, so two purges seconds apart meant two exchanges — and Cloudways rate-limits that endpoint. The second failed at `stage: auth` **before reaching the purge API at all**, leaving a row that reads exactly like a broken credential. Observed live on 2026-08-05 while verifying v10.52.2: a deliberate double purge returned `ok: false, stage: auth`, and the same pair two seconds apart succeeded.
+
+  Two layers: an in-request memo (the case that actually bit — two purges in one process) and a transient for adjacent requests, such as a save-triggered purge landing seconds after a deploy-triggered one.
+
+  **The TTL is capped at 10 minutes regardless of what the API reports.** The account-wide API key lives in `wp-config` and never in the database; a bearer minted from it carries the same powers, so persisting one widens what a database dump is worth. The cap keeps the burst protection while bounding that window — `expires_in` is honoured when shorter (minus a 60s margin), a sub-floor TTL is returned but not persisted, and an absent `expires_in` falls back to a fixed default rather than to "forever".
+
+  **A failed exchange is never cached.** Caching an empty token would convert one rate-limited moment into a TTL-long outage, where every later purge reads the empty cache and fails at `stage: auth` without retrying — the live failure made permanent.
+
+  **A cached token the API rejects invalidates itself.** A 401/403 from the purge endpoint clears both cache layers and retries exactly once with a fresh token, recording `reauthed: true`. Exactly once: a credential that is genuinely wrong must fail visibly rather than loop. A cache that cannot be invalidated by the thing it caches for reports healthy while everything fails.
+
+- 23 new assertions in [tests/cloudways-purge.php](tests/cloudways-purge.php), counting actual OAuth round trips rather than trusting the code path: one exchange across two purges in a request, zero across a later request, each TTL rule including the cap, both never-cache-a-failure cases, the invalidate-and-retry-once path, and that no token ever reaches the recorded row.
+
+> **Why PATCH:** a failure mode removed and an API call avoided. No API shape, schema, or purge behaviour changed.
+
 ## [10.52.3] - 2026-08-05
 
 **Headline:** documentation only — two version comments that named the wrong release, and a correction to what v10.52.2 claimed.
