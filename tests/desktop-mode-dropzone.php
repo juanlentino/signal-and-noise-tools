@@ -26,6 +26,10 @@ $GLOBALS['__actions']  = array();
 $GLOBALS['__enqueued'] = array();
 $GLOBALS['__caps']     = array();
 
+// v10.43.0: desktop-mode-dropzone.php now gates on snt_os_is_enabled()
+// (inc/openstation-compat.php) instead of a raw desktop_mode_is_enabled()
+// function_exists() check.
+require __DIR__ . '/../inc/openstation-compat.php';
 require __DIR__ . '/../inc/desktop-mode-dropzone.php';
 
 $pass = 0; $fail = 0;

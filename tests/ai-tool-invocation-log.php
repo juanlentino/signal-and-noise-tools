@@ -50,14 +50,73 @@ function fire_tool_called( $ctx ) {
 	}
 }
 
+// v10.43.0: the module now dual-registers via snt_os_compat_add_action()
+// and guards its side effect via snt_os_compat_seen_once()
+// (inc/openstation-compat.php).
+require_once __DIR__ . '/../inc/openstation-compat.php';
 require_once __DIR__ . '/../inc/ai-tool-invocation-log.php';
 
-/** Reset the option store between cases. */
-function inv_reset() { $GLOBALS['__options'] = array(); }
+/**
+ * Reset the option store between cases. Also clears the OpenStation
+ * double-fire guard's per-request memory (snt_os_compat_reset_seen_once())
+ * — production never needs this (a real request starts every static fresh),
+ * but this suite runs many logically-distinct cases inside ONE PHP process,
+ * so without the reset a later case reusing an earlier case's exact
+ * (tool_name, args, user_id, request_id) tuple would be silently swallowed
+ * by the guard meant for a hypothetical double-fire, not a legitimate repeat.
+ */
+function inv_reset() {
+	$GLOBALS['__options'] = array();
+	if ( function_exists( 'snt_os_compat_reset_seen_once' ) ) {
+		snt_os_compat_reset_seen_once();
+	}
+}
 
 echo "\n── the action is hooked ──\n";
 ok( ! empty( $GLOBALS['__actions']['desktop_mode_ai_tool_called'] ),
 	'the module hooks desktop_mode_ai_tool_called (the Stable per-invocation action)' );
+
+echo "\n── v10.43.0: OpenStation dual registration ──\n";
+// Post-#475 OpenStation renames this action to `openstation_ai_tool_called`
+// (verified: includes/ai-copilot/search.php:1322/1399/1753). No shim exists
+// upstream, so the module must be registered under BOTH names to work on
+// either release line.
+ok( ! empty( $GLOBALS['__actions']['openstation_ai_tool_called'] ),
+	'the module ALSO hooks openstation_ai_tool_called (the post-#475 OpenStation name)' );
+ok( count( $GLOBALS['__actions']['desktop_mode_ai_tool_called'] ) === count( $GLOBALS['__actions']['openstation_ai_tool_called'] ),
+	'both names carry the same number of registered callbacks (one dual-registration, not a duplicate old-name registration)' );
+
+/** Fire the callback registered under the post-#475 hook name. */
+function fire_tool_called_os( $ctx ) {
+	foreach ( $GLOBALS['__actions']['openstation_ai_tool_called'] ?? array() as $cb ) {
+		$cb( $ctx );
+	}
+}
+
+echo "\n── v10.43.0: the new-name registration actually records, same as the old one ──\n";
+inv_reset();
+fire_tool_called_os( array( 'tool_name' => 'get_analytics_summary', 'args' => array(), 'user_id' => 1, 'request_id' => 'os-r1' ) );
+ok( ( snt_ai_tool_invocations()['get_analytics_summary']['n'] ?? 0 ) === 1,
+	'firing via the post-#475 hook name records exactly the same as firing via the old name' );
+
+echo "\n── v10.43.0: double-fire guard — the SAME call delivered via BOTH names counts once ──\n";
+// Today exactly one hook name is ever live per install, so this never
+// happens in production — it exercises the defensive guard against a
+// hypothetical future OpenStation release that ships a transition shim
+// firing both names for the same underlying tool call.
+inv_reset();
+$dup_ctx = array( 'tool_name' => 'search_posts', 'args' => array( 'q' => 'hello' ), 'user_id' => 7, 'request_id' => 'dup-1' );
+fire_tool_called( $dup_ctx );    // old name
+fire_tool_called_os( $dup_ctx ); // new name — SAME identity
+ok( ( snt_ai_tool_invocations()['search_posts']['n'] ?? 0 ) === 1,
+	'the same (tool_name, args, user_id, request_id) delivered via both hook names increments the counter exactly ONCE' );
+
+echo "\n── v10.43.0: the guard does not suppress genuinely distinct calls ──\n";
+inv_reset();
+fire_tool_called( array( 'tool_name' => 'search_posts', 'args' => array( 'q' => 'a' ), 'user_id' => 7, 'request_id' => 'r-a' ) );
+fire_tool_called( array( 'tool_name' => 'search_posts', 'args' => array( 'q' => 'b' ), 'user_id' => 7, 'request_id' => 'r-b' ) );
+ok( ( snt_ai_tool_invocations()['search_posts']['n'] ?? 0 ) === 2,
+	'two calls to the SAME tool with DIFFERENT args each count — the guard keys on the full payload, not just the tool name' );
 
 echo "\n── an empty log is array(), never null ──\n";
 inv_reset();

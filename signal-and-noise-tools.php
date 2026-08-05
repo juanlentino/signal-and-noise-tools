@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.42.0
+ * Version:     10.43.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -65,6 +65,10 @@ if ( 'signal-and-noise' === $snt_stylesheet
 
 // Module includes.
 require_once SNT_PATH . 'inc/word-count.php'; // v10.24.0: pure Unicode word counter (reading time, schema wordCount, AI gates)
+// v10.43.0: WordPress/openstation rename compat (PR #475, not yet in any
+// release). Zero deps of its own; every desktop-mode-* / mcp-telemetry-agents
+// consumer below calls into it, so it loads FIRST among them.
+require_once SNT_PATH . 'inc/openstation-compat.php';
 require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-style owner/role analytics exclusion (sn_beacon_enabled filter)
 require_once SNT_PATH . 'inc/seo.php';

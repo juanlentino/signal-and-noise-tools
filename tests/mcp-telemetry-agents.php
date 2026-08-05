@@ -107,6 +107,10 @@ require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 require __DIR__ . '/../inc/mcp/mcp-rw-guard.php';
 require __DIR__ . '/../inc/mcp/mcp-telemetry.php';
 require __DIR__ . '/../inc/mcp/mcp-tools.php';
+// v10.43.0: mcp-telemetry-agents.php now dual-registers via
+// snt_os_compat_add_filter()/snt_os_compat_add_action() and guards both
+// seams' side effects via snt_os_compat_seen_once() (inc/openstation-compat.php).
+require __DIR__ . '/../inc/openstation-compat.php';
 require __DIR__ . '/../inc/mcp/mcp-telemetry-agents.php';
 
 $pass = 0; $fail = 0;
@@ -122,6 +126,18 @@ function sn_test_agents_reset() {
 	// Deliberately NOT clearing __actions/__filters here — that would wipe
 	// the bootstrap's own hook registrations (the exact bug this suite hit
 	// once already in the kill-switch section below).
+	//
+	// v10.43.0: DOES clear the OpenStation double-fire guard's per-request
+	// memory (snt_os_compat_reset_seen_once()). Production never needs this
+	// — a real request starts every static fresh — but this suite runs many
+	// logically-distinct cases inside ONE PHP process, several of which
+	// reuse the exact same $slug/$args/$agent_user_id/$output or the exact
+	// same $result_one_failure fixture. Without the reset, the guard meant
+	// for a hypothetical double-fire would silently swallow those later,
+	// legitimately-distinct cases.
+	if ( function_exists( 'snt_os_compat_reset_seen_once' ) ) {
+		snt_os_compat_reset_seen_once();
+	}
 }
 
 echo "MCP telemetry — Desktop Mode agent bridge (plugin v10.31.0)\n\n";
@@ -282,6 +298,70 @@ sn_test_agents_reset();
 $via_apply = apply_filters( 'desktop_mode_agent_tool_result', array( 'ok' => true ), 'signal-noise/sn-scan', array(), 1 );
 ok( 1 === count( $wpdb->insert_calls ), 'wiring: apply_filters( desktop_mode_agent_tool_result, ... ) reaches our callback end-to-end' );
 ok( array( 'ok' => true ) == $via_apply, 'wiring: apply_filters() itself returns the unmodified output' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * 8b. v10.43.0 — OpenStation rename compat: dual registration + the
+ *     double-fire guard. Post-#475 OpenStation renames
+ *     desktop_mode_agent_tool_result → openstation_agent_tool_result
+ *     (includes/agents/runner.php:579) and desktop_mode_agent_completed →
+ *     openstation_agent_completed (includes/agents/runner.php:243). No shim
+ *     exists upstream today, so exactly one name ever fires per install —
+ *     the guard below defends a HYPOTHETICAL future transition shim, not a
+ *     present-day scenario.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+echo "\nv10.43.0 — OpenStation rename compat\n\n";
+
+sn_test_agents_reset();
+$via_new_name = apply_filters( 'openstation_agent_tool_result', array( 'ok' => true ), 'signal-noise/sn-scan', array(), 1 );
+ok( 1 === count( $wpdb->insert_calls ), 'wiring: apply_filters( openstation_agent_tool_result, ... ) ALSO reaches our callback (dual registration)' );
+ok( array( 'ok' => true ) == $via_new_name, 'wiring: the post-#475 name also returns the unmodified output' );
+
+// A local seam-2 fixture — deliberately NOT reusing the file's later
+// $result_one_failure (this block runs before it's defined below).
+$wiring_result_fixture = array(
+	'toolCalls' => array( array(
+		'callId' => 'call_w1',
+		'name'   => 'signal-noise/sn-scan',
+		'args'   => array(),
+		'output' => null,
+		'error'  => 'wiring fixture failure',
+	) ),
+);
+
+sn_test_agents_reset();
+do_action( 'openstation_agent_completed', 5, 'msg', $wiring_result_fixture, array() );
+ok( 1 === count( $wpdb->insert_calls ), 'wiring: do_action( openstation_agent_completed, ... ) ALSO reaches our callback (dual registration)' );
+
+// Double-fire guard, seam 1: the SAME call delivered via BOTH hook names
+// (identical slug/args/agent_user_id/output) records exactly one row.
+sn_test_agents_reset();
+$dup_slug = 'signal-noise/sn-scan';
+$dup_args = array( 'type' => 'orphan_media' );
+$dup_out  = array( 'candidates' => array( 1 ) );
+apply_filters( 'desktop_mode_agent_tool_result', $dup_out, $dup_slug, $dup_args, 3 );
+apply_filters( 'openstation_agent_tool_result', $dup_out, $dup_slug, $dup_args, 3 );
+ok( 1 === count( $wpdb->insert_calls ), 'double-fire guard (seam 1): the identical call delivered via both hook names inserts exactly ONE row' );
+
+// The guard must not suppress a genuinely distinct SECOND call that merely
+// shares a slug — different output, different agent.
+sn_test_agents_reset();
+apply_filters( 'desktop_mode_agent_tool_result', array( 'a' => 1 ), $dup_slug, $dup_args, 3 );
+apply_filters( 'desktop_mode_agent_tool_result', array( 'a' => 2 ), $dup_slug, $dup_args, 3 );
+ok( 2 === count( $wpdb->insert_calls ), 'double-fire guard (seam 1): two calls with DIFFERENT output are both recorded — the guard keys on the full identity, not just slug+args' );
+
+// Double-fire guard, seam 2: the SAME (agent, result) trace delivered via
+// BOTH hook names records the failure exactly once, not twice.
+sn_test_agents_reset();
+do_action( 'desktop_mode_agent_completed', 5, 'msg', $wiring_result_fixture, array() );
+do_action( 'openstation_agent_completed', 5, 'msg', $wiring_result_fixture, array() );
+ok( 1 === count( $wpdb->insert_calls ), 'double-fire guard (seam 2): the identical (agent, result) trace delivered via both hook names inserts exactly ONE row' );
+
+// The guard must not suppress a genuinely distinct run for a different agent.
+sn_test_agents_reset();
+do_action( 'desktop_mode_agent_completed', 5, 'msg', $wiring_result_fixture, array() );
+do_action( 'desktop_mode_agent_completed', 9, 'msg', $wiring_result_fixture, array() );
+ok( 2 === count( $wpdb->insert_calls ), 'double-fire guard (seam 2): the SAME result trace for a DIFFERENT agent is recorded separately' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * SEAM 2 — desktop_mode_agent_completed: the failure-visibility fix

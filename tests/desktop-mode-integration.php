@@ -204,6 +204,10 @@ function ok( $cond, $label ) {
 require_once __DIR__ . '/../inc/admin-tabs-data.php';
 require_once __DIR__ . '/../inc/admin-legacy-redirect.php';
 
+// v10.43.0: the OpenStation rename compat seam desktop-mode-integration.php
+// now calls into (snt_os_active(), snt_os_compat_add_filter(), etc.) — see
+// inc/openstation-compat.php.
+require_once __DIR__ . '/../inc/openstation-compat.php';
 require_once __DIR__ . '/../inc/desktop-mode-integration.php';
 
 /** Fire every callback registered on a hook. */
@@ -237,6 +241,24 @@ ok( count( $GLOBALS['__dm_commands'] ) === 22, 'all 22 Cmd+K commands are regist
 ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
 foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-uptime', 'sn-desktop-mode-widget-health' ) as $h ) {
 	ok( isset( $GLOBALS['__scripts'][ $h ] ), "script handle $h is registered by the end of init (desktop-mode enqueues widget scripts at admin_enqueue_scripts:20)" );
+}
+
+echo "\n── v10.43.0: the OpenStation compat prelude is registered first, everywhere ──\n";
+// window.desktopModeWidgets ↔ window.openStationWidgets and window.wp.desktop
+// ↔ window.wp.os must be aliased BEFORE any widget script or desktop-mode.js
+// runs, on either OpenStation line — so every sn-desktop-mode* handle must
+// depend on it directly (not just transitively).
+ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-os-compat'] ), 'sn-desktop-mode-os-compat is registered' );
+ok( array() === ( $GLOBALS['__scripts']['sn-desktop-mode-os-compat']['deps'] ?? null ),
+	'the compat prelude itself has zero dependencies — nothing can beat it to the punch' );
+foreach ( array(
+	'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-actions',
+	'sn-desktop-mode-widget-rss', 'sn-desktop-mode-widget-machine-readers',
+	'sn-desktop-mode-widget-anchors', 'sn-desktop-mode-widget-views',
+	'sn-desktop-mode-widget-health', 'sn-desktop-mode-widget-uptime',
+) as $h ) {
+	$deps = $GLOBALS['__scripts'][ $h ]['deps'] ?? array();
+	ok( in_array( 'sn-desktop-mode-os-compat', $deps, true ), "$h depends directly on sn-desktop-mode-os-compat" );
 }
 
 // desktop_mode_register_widget() has NO 'sort' arg — absent from its $defaults
@@ -446,8 +468,14 @@ ok( isset( $GLOBALS['__scripts']['sn-desktop-mode-widget-health'] ), 'W3 script 
 echo "\n── The gate: no desktop-mode, no registration ──\n";
 // Re-running the hook with the registry fn absent must be a no-op. We can't
 // un-define a function, so assert the guard is present in the source instead.
+//
+// v10.43.0: the raw function_exists('desktop_mode_register_widget') check
+// was replaced by snt_os_register_widget_available() (inc/openstation-compat.php),
+// which checks BOTH the pre-rename and post-#475 function names — a
+// structurally-forced pin update, not a behavior change (the OLD-name path
+// is still the exact same function_exists() check, just inside the helper).
 $src = file_get_contents( __DIR__ . '/../inc/desktop-mode-integration.php' );
-ok( strpos( $src, "function_exists( 'desktop_mode_register_widget' )" ) !== false, 'widget block is function_exists-gated' );
+ok( strpos( $src, 'snt_os_register_widget_available()' ) !== false, 'widget block is gated on widget-registration availability (either naming family)' );
 
 echo "\n── Localized \$shared ──\n";
 $shared = $GLOBALS['__localized']['snDesktopData'] ?? array();
@@ -1160,6 +1188,78 @@ $traffic = apply_filters( 'desktop_mode_living_tree_traffic', 0 );
 ok( $traffic === 1234, 'living-tree filter returns the 14-day human view total' );
 ok( is_int( $traffic ), 'living-tree filter returns an int (desktop-mode types it int)' );
 
+echo "\n── v10.43.0: OpenStation dual registration — all 6 filter hooks ──\n";
+// Post-#475 OpenStation renames every one of these (source-verified — see
+// docs/openstation-compat.md). No shim exists upstream, so every one must be
+// registered under BOTH names to work on either release line.
+$os_filter_pairs = array(
+	'desktop_mode_dock_placement'             => 'openstation_dock_placement',
+	'desktop_mode_dock_items'                 => 'openstation_dock_items',
+	'desktop_mode_ai_tools'                   => 'openstation_ai_tools',
+	'desktop_mode_ai_system_prompt_appendix'  => 'openstation_ai_system_prompt_appendix',
+	'desktop_mode_plugins_window_icon_url'    => 'openstation_plugins_window_icon_url',
+	'desktop_mode_living_tree_traffic'        => 'openstation_living_tree_traffic',
+);
+foreach ( $os_filter_pairs as $old => $new ) {
+	ok( isset( $GLOBALS['__filters'][ $old ] ), "$old is registered (pre-rename name)" );
+	ok( isset( $GLOBALS['__filters'][ $new ] ), "$new is ALSO registered (post-#475 name — dual registration)" );
+}
+
+echo "\n── v10.43.0: the post-#475 hook names actually fire the same behavior ──\n";
+/**
+ * The test harness's apply_filters() stub only ever threads a SINGLE value
+ * arg through (see its definition near the top of this file) — it cannot
+ * drive a 2-arg filter like dock_placement / plugins_window_icon_url. Pull
+ * the registered callback directly and call it with its real signature
+ * instead, mirroring how $GLOBALS['__filters'][hook][priority][] stores it.
+ */
+function first_filter_cb( $hook ) {
+	$by_priority = $GLOBALS['__filters'][ $hook ] ?? array();
+	ksort( $by_priority, SORT_NUMERIC );
+	foreach ( $by_priority as $cbs ) {
+		foreach ( $cbs as $cb ) {
+			return $cb;
+		}
+	}
+	return null;
+}
+
+$dock_placement_cb = first_filter_cb( 'openstation_dock_placement' );
+ok( is_callable( $dock_placement_cb ), 'openstation_dock_placement carries a callable' );
+ok( 'hidden' === call_user_func( $dock_placement_cb, 'dock', 'sn-theme-options' ),
+	'openstation_dock_placement hides the SN auto-imported menu item, same as the old name' );
+
+$dock_items_via_new = apply_filters( 'openstation_dock_items', array() );
+ok( is_array( $dock_items_via_new ) && 1 === count( $dock_items_via_new ) && 'signal-noise' === ( $dock_items_via_new[0]['id'] ?? '' ),
+	'openstation_dock_items builds the same single "signal-noise" dock entry as the old name' );
+
+$icon_url_cb = first_filter_cb( 'openstation_plugins_window_icon_url' );
+ok( is_callable( $icon_url_cb ), 'openstation_plugins_window_icon_url carries a callable' );
+ok( 'https://ps.w.org/fallback/assets/icon.svg' === call_user_func( $icon_url_cb, 'https://ps.w.org/fallback/assets/icon.svg', 'not-us' ),
+	'openstation_plugins_window_icon_url passes through unchanged for a foreign slug, same as the old name' );
+
+$GLOBALS['__totals'] = array( '*' => array( 'views' => 42, 'visits' => 10, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
+$traffic_via_new = apply_filters( 'openstation_living_tree_traffic', 0 );
+ok( 42 === $traffic_via_new, 'openstation_living_tree_traffic returns the same live total as the old name' );
+
+echo "\n── v10.43.0: the appendix guard avoids compounding under a hypothetical double-fire ──\n";
+// The real callsite fires this filter TWICE per ordinary request (primary
+// run + composed-reply leg), each starting from a FRESH $appendix — so a
+// naive once-per-request flag would wrongly suppress the second legitimate
+// call. The content-marker guard instead only trips when OUR OWN text is
+// already present in the SAME $appendix value being threaded through.
+$fresh_call_1 = apply_filters( 'desktop_mode_ai_system_prompt_appendix', '' );
+$fresh_call_2 = apply_filters( 'openstation_ai_system_prompt_appendix', '' ); // a second, independent, FRESH call
+ok( $fresh_call_1 === $fresh_call_2,
+	'two independent fresh calls (as real per-request usage does) each get the full vocabulary appendix — the guard does not remember across separate $appendix values' );
+
+// A hypothetical double-fire for the SAME event threads the SAME $appendix
+// value through both hook names in sequence — that must not double the text.
+$double_fired = apply_filters( 'desktop_mode_ai_system_prompt_appendix', '' );
+$double_fired = apply_filters( 'openstation_ai_system_prompt_appendix', $double_fired );
+ok( substr_count( $double_fired, 'Signal & Noise analytics vocabulary.' ) === 1,
+	'threading the SAME appendix value through both hook names appends the vocabulary marker exactly ONCE, not twice' );
+
 echo "\n── THE MOUNT CONTRACT (all six widgets) ──\n";
 // desktop-mode's server-sync looks for window.desktopModeWidgets[id]; a def
 // is only registered once that global exists. The pre-v9.52.0 widgets used
@@ -1221,6 +1321,24 @@ ok(
 $dm_src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-integration.php' );
 ok( false !== strpos( $dm_src, "'/desktop/machine-readers'" ), 'the desktop route is registered' );
 ok( false !== strpos( $dm_src, "'machine_readers' => snt_desktop_admin_url" ), 'the pages map carries the tab link for the tile footer' );
+
+echo "\n── v10.43.0: the OpenStation compat prelude aliases both surfaces ──\n";
+$compat_path = __DIR__ . '/../assets/desktop-mode-os-compat.js';
+ok( file_exists( $compat_path ), 'assets/desktop-mode-os-compat.js exists' );
+$compat_js = strip_js_comments( (string) file_get_contents( $compat_path ) );
+ok( false !== strpos( $compat_js, 'window.desktopModeWidgets = widgets' ) && false !== strpos( $compat_js, 'window.openStationWidgets = widgets' ),
+	'the widget-mount registry is aliased onto the SAME object under both names' );
+ok( false !== strpos( $compat_js, 'window.wp.desktop = window.wp.os' ) && false !== strpos( $compat_js, 'window.wp.os = window.wp.desktop' ),
+	'the public API namespace is aliased both directions (whichever the shell installed wins)' );
+
+echo "\n── v10.43.0: the file-drop JS filter is dual-registered ──\n";
+$dropzone_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-dropzone.js' ) );
+ok( false !== strpos( $dropzone_js, "addFilter( 'desktop-mode.drop.files-detected'" ),
+	'desktop-dropzone.js registers the pre-rename JS filter name' );
+ok( false !== strpos( $dropzone_js, "addFilter( 'os.drop.files-detected'" ),
+	'desktop-dropzone.js ALSO registers the post-#475 JS filter name (os.drop.files-detected — src/os-file-drop/hooks.ts:19)' );
+ok( false !== strpos( $dropzone_js, 'WeakSet' ),
+	'desktop-dropzone.js guards against a hypothetical double-fire delivering the same files array to both names' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

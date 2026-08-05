@@ -142,6 +142,10 @@ function snt_pattern_adoption_run_scan() { throw new RuntimeException( 'BADGE TR
 // REQUIRE the real health-summary — it is PURE (verified: zero WP calls), so a
 // stub could only drift from it. This is the house rule.
 require_once __DIR__ . '/../inc/health-summary.php';
+// v10.43.0: desktop-mode-attention.php now gates on snt_os_is_enabled()
+// (inc/openstation-compat.php) instead of a raw desktop_mode_is_enabled()
+// function_exists() check.
+require_once __DIR__ . '/../inc/openstation-compat.php';
 require_once __DIR__ . '/../inc/desktop-mode-attention.php';
 
 /** Reset every source to "never scanned". */
@@ -296,9 +300,13 @@ ok( ( $data['iconId'] ?? '' ) === 'sn-icon-dashboard',
 ok( ( $GLOBALS['__localized_handles']['snDesktopAttention'] ?? '' ) === 'sn-desktop-mode',
 	'localized onto the sn-desktop-mode handle inc/desktop-mode-integration.php registers (:115) — an unregistered handle makes wp_localize_script a SILENT no-op and the badge never ships' );
 
+// v10.43.0: the raw function_exists('desktop_mode_is_enabled') check was
+// replaced by snt_os_is_enabled() (inc/openstation-compat.php), which
+// dispatches to whichever naming family (pre-rename or post-#475) is
+// active — a structurally-forced pin update, not a behavior change.
 $src = file_get_contents( __DIR__ . '/../inc/desktop-mode-attention.php' );
-ok( strpos( $src, "function_exists( 'desktop_mode_is_enabled' )" ) !== false,
-	'the localize is gated — without desktop-mode there is no shell to badge' );
+ok( strpos( $src, 'snt_os_is_enabled()' ) !== false,
+	'the localize is gated — without OpenStation/Desktop Mode there is no shell to badge' );
 
 echo "\n── BADGE CONTRACT (source-level only — no JS harness exists here) ──\n";
 $js_raw = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' );

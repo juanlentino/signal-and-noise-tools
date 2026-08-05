@@ -146,7 +146,11 @@ function snt_desktop_attention_total() {
  * @since 9.58.0
  */
 add_action( 'admin_enqueue_scripts', function () {
-	if ( ! function_exists( 'desktop_mode_is_enabled' ) || ! desktop_mode_is_enabled() ) {
+	// v10.43.0: snt_os_is_enabled() dispatches to openstation_is_enabled()
+	// post-#475 or desktop_mode_is_enabled() pre-rename — see
+	// inc/openstation-compat.php. false when neither exists, same default
+	// as the pre-compat function_exists() guard.
+	if ( ! snt_os_is_enabled() ) {
 		return;
 	}
 	wp_localize_script( 'sn-desktop-mode', 'snDesktopAttention', array(

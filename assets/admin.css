@@ -1884,8 +1884,15 @@
    wp-admin is untouched; this rule ships only in OUR screen-gated admin.css, so
    no other plugin/core window is affected; and it targets `.sn-nav-tabs` alone,
    so the subordinate `.sn-sub-tabs` pill nav (which DM does NOT duplicate) stays.
-   The dock submenu is intentionally KEPT — it is what feeds DM's strip. */
-body.desktop-mode-chromeless .sn-nav-tabs {
+   The dock submenu is intentionally KEPT — it is what feeds DM's strip.
+
+   v10.43.0: post-#475 OpenStation (WordPress/openstation PR #475, not yet in
+   any release) renames the class to `.os-chromeless` — verified real:
+   includes/render/body-classes.php, `openstation_admin_body_classes()`,
+   `ltrim( $classes . ' os-chromeless' )`. No shim exists upstream, so both
+   selectors are listed; exactly one will ever match on a given install. */
+body.desktop-mode-chromeless .sn-nav-tabs,
+body.os-chromeless .sn-nav-tabs {
 	display: none;
 }
 

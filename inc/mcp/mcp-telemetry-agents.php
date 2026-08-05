@@ -97,6 +97,17 @@
  * fires, which means zero cost; the require below is guarded so plugin load
  * order can never fatal if this file somehow loads before mcp-telemetry.php.
  *
+ * v10.43.0 — OpenStation rename compat (WordPress/openstation PR #475, not
+ * yet in any release). Both seams' hooks rename to `openstation_agent_tool_result`
+ * (includes/agents/runner.php:579) and `openstation_agent_completed`
+ * (includes/agents/runner.php:243) with byte-identical signatures. Both
+ * callbacks are now dual-registered under old + new names via
+ * inc/openstation-compat.php's snt_os_compat_add_filter()/
+ * snt_os_compat_add_action(), and both write DB rows, so each guards itself
+ * against a hypothetical future double-fire with snt_os_compat_seen_once() —
+ * see the guard blocks inside sn_mcp_telemetry_agent_record() and
+ * sn_mcp_telemetry_agent_record_completed() below.
+ *
  * @package SignalNoiseTools
  * @since 10.31.0
  */
@@ -210,6 +221,18 @@ function sn_mcp_telemetry_agent_record( $output, $slug, $args, $agent_user_id ) 
 		return;
 	}
 	if ( ! function_exists( 'sn_mcp_telemetry_build_row' ) || ! function_exists( 'sn_mcp_telemetry_insert_row' ) ) {
+		return;
+	}
+
+	// v10.43.0 — OpenStation double-fire guard. This filter is now
+	// dual-registered under both the pre-rename and post-#475 hook names
+	// (see the bootstrap below + inc/openstation-compat.php). Exactly one
+	// name fires on any given install today; this guard only matters if a
+	// future release ever ships both as a transition shim for the SAME
+	// call. Keyed on the full call identity so it never suppresses two
+	// genuinely distinct calls with different output.
+	if ( function_exists( 'snt_os_compat_seen_once' )
+		&& snt_os_compat_seen_once( 'agent_tool_result:' . md5( serialize( array( $slug, $args, $agent_user_id, $output ) ) ) ) ) {
 		return;
 	}
 
@@ -338,6 +361,16 @@ function sn_mcp_telemetry_agent_record_completed( $agent_user_id, $result ) {
 		return;
 	}
 
+	// v10.43.0 — OpenStation double-fire guard. Keys the WHOLE toolCalls
+	// trace once per (agent, result) so a hypothetical future double-fire of
+	// desktop_mode_agent_completed / openstation_agent_completed for the
+	// SAME run does not replay every failure row twice. See
+	// inc/openstation-compat.php.
+	if ( function_exists( 'snt_os_compat_seen_once' )
+		&& snt_os_compat_seen_once( 'agent_completed:' . (int) $agent_user_id . ':' . md5( serialize( $result ) ) ) ) {
+		return;
+	}
+
 	$id = (int) $agent_user_id;
 	foreach ( $result['toolCalls'] as $call ) {
 		if ( ! sn_mcp_telemetry_agent_call_failed( $call ) ) {
@@ -384,9 +417,22 @@ function sn_mcp_telemetry_agents_bootstrap() {
 	if ( ! function_exists( 'add_filter' ) ) {
 		return;
 	}
-	add_filter( 'desktop_mode_agent_tool_result', 'sn_mcp_telemetry_agent_tool_result', PHP_INT_MAX, 4 );
+	// v10.43.0: dual-registered under both the pre-#475 `desktop_mode_*` name
+	// and the post-#475 `openstation_*` name via snt_os_compat_add_filter()/
+	// snt_os_compat_add_action() (inc/openstation-compat.php) — see the
+	// double-fire guards inside sn_mcp_telemetry_agent_record() and
+	// sn_mcp_telemetry_agent_record_completed() above.
+	if ( function_exists( 'snt_os_compat_add_filter' ) ) {
+		snt_os_compat_add_filter( 'desktop_mode_agent_tool_result', 'openstation_agent_tool_result', 'sn_mcp_telemetry_agent_tool_result', PHP_INT_MAX, 4 );
+	} else {
+		add_filter( 'desktop_mode_agent_tool_result', 'sn_mcp_telemetry_agent_tool_result', PHP_INT_MAX, 4 );
+	}
 	if ( function_exists( 'add_action' ) ) {
-		add_action( 'desktop_mode_agent_completed', 'sn_mcp_telemetry_agent_completed', PHP_INT_MAX, 4 );
+		if ( function_exists( 'snt_os_compat_add_action' ) ) {
+			snt_os_compat_add_action( 'desktop_mode_agent_completed', 'openstation_agent_completed', 'sn_mcp_telemetry_agent_completed', PHP_INT_MAX, 4 );
+		} else {
+			add_action( 'desktop_mode_agent_completed', 'sn_mcp_telemetry_agent_completed', PHP_INT_MAX, 4 );
+		}
 	}
 }
 sn_mcp_telemetry_agents_bootstrap();
