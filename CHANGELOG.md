@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.52.2] - 2026-08-05
+
+**Headline:** the Varnish purge leg has been reporting failure while succeeding. Cloudways serializes cache operations, and we were recording the rejection instead of the purge it pointed at.
+
+### Fixed
+
+- **A 422 that names an in-flight `purge_app_cache` now coalesces onto it** ([inc/cloudways-purge.php](inc/cloudways-purge.php)). Cloudways serializes cache operations per server: a purge issued while one is still open is rejected with `422 "An operation is already in progress for this server."`, and the error envelope names the operation that blocked it. When that operation is itself a running `purge_app_cache`, ✕ inverts the truth — the purge we asked for *is* running, under an id another request opened. Caught live on 2026-08-05: `sn_last_purge_report` showed `varnish → ok: false, http: 422, operation_id: 0` while all three probed routes came back `fresh: 1` with Cloudflare `HIT`. The leg now records `ok: true`, adopts the open operation's id instead of leaving `0`, and marks the row `coalesced: true` so it stays distinguishable from a fresh 200 dispatch. The real HTTP code is still recorded verbatim.
+
+  **Deliberately narrow.** A 422 blocked by any other operation type, an operation already completed (nothing is purging, so there is nothing to ride), or a body that will not parse all stay failures — including the case where `is_completed` is absent entirely, which is unknown state rather than "still running". A broader reading would turn this row into a success-only readout that reports healthy while the cache goes stale, which is the exact failure the record exists to catch.
+
+- 15 new assertions in [tests/cloudways-purge.php](tests/cloudways-purge.php) built from the live error envelope, pinning each of those narrow cases: the unrelated-operation 422, the completed-operation 422, three malformed bodies, and that an ordinary 200 keeps its own operation id and is never marked coalesced.
+
+### Notes
+
+Why it went unnoticed for three weeks: the freshness card prefers the `resolved` verdict over per-leg results by design ([inc/freshness-indicator.php](inc/freshness-indicator.php)), because a leg can read ✕ while the edge ends up fresh. Correct for the card, but it means a leg that fails *every* time stays invisible as long as the other two cover for it — the error envelope this fix reads was added in v9.47.1 (2026-07-15) specifically to diagnose this 422 later, and later never came.
+
+> **Why PATCH:** a leg that was already succeeding now reports that it succeeded. No API shape, schema, or purge behaviour changed — the request sent to Cloudways is byte-identical.
+
 ## [10.52.1] - 2026-08-05
 
 **Headline:** v10.51.0's em-dash scanner was unreachable. The adapter was registered but the scan type was never declared, so the ability rejected it before dispatch.

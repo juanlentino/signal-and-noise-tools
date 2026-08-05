@@ -122,12 +122,46 @@ function sn_cloudways_purge_app() {
 	$data     = is_wp_error( $res ) ? array() : (array) json_decode( $body_raw, true );
 	$ok       = ( 200 === $http ) && ! empty( $data['status'] );
 
+	$operation_id = isset( $data['operation_id'] ) ? (int) $data['operation_id'] : 0;
+
+	// v10.52.2: Cloudways SERIALIZES cache operations per server. A purge issued
+	// while one is still open is rejected with 422 "An operation is already in
+	// progress for this server." — and the envelope names the operation that
+	// blocked it. When that operation is itself an in-flight purge_app_cache,
+	// recording ✕ inverts the truth: the purge we asked for IS running, under an
+	// id someone else's request opened. That is what made every leg on this site
+	// read failed while all three routes verified fresh (live, 2026-08-05).
+	//
+	// So we coalesce onto the open operation and adopt its id. Deliberately NARROW
+	// — a 422 blocked by any other operation type, an operation already completed
+	// (nothing is purging, so there is nothing to ride), or a body we cannot parse
+	// all stay failures. A broader reading would turn this row into a success-only
+	// readout that reports healthy while the cache goes stale, which is the exact
+	// failure this record exists to catch.
+	$coalesced = false;
+	if ( ! $ok && 422 === (int) $http ) {
+		$op = isset( $data['operation'] ) && is_array( $data['operation'] ) ? $data['operation'] : array();
+		// array_key_exists, not ??: an ABSENT is_completed is unknown state, not
+		// "still running". Absent must not read as in-flight.
+		$still_running = array_key_exists( 'is_completed', $op ) && '0' === (string) $op['is_completed'];
+		if ( 'purge_app_cache' === (string) ( $op['type'] ?? '' ) && ! empty( $op['id'] ) && $still_running ) {
+			$coalesced    = true;
+			$ok           = true;
+			$operation_id = (int) $op['id'];
+		}
+	}
+
 	$record = array(
 		'time'         => time(),
 		'ok'           => $ok,
 		'http'         => (int) $http,
-		'operation_id' => isset( $data['operation_id'] ) ? (int) $data['operation_id'] : 0,
+		'operation_id' => $operation_id,
 	);
+	if ( $coalesced ) {
+		// Keep the real http code above and mark the row, so a coalesced purge is
+		// never silently indistinguishable from a fresh 200 dispatch.
+		$record['coalesced'] = true;
+	}
 
 	if ( ! $ok ) {
 		// (render hardening FIX 3b): on a non-2xx/non-{status:true} response, capture the
