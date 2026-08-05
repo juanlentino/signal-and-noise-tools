@@ -143,6 +143,100 @@
 		return 'failed' !== outcome;
 	}
 
+	/** Reader-facing names for the four checks, for the verdict's caveat clause. */
+	var CHECK_NAMES = {
+		'signature':    'the signature',
+		'content-hash': 'the content hash',
+		'live-match':   'the live-content match',
+		'anchor':       'the Bitcoin anchor'
+	};
+
+	/** The order the caveat clause names checks in — the docket's own order. */
+	var CHECK_ORDER = [ 'signature', 'content-hash', 'live-match', 'anchor' ];
+
+	/** Join names as an English list: "a", "a and b", "a, b, and c". */
+	function joinList( names ) {
+		if ( names.length <= 1 ) {
+			return names[ 0 ] || '';
+		}
+		if ( 2 === names.length ) {
+			return names[ 0 ] + ' and ' + names[ 1 ];
+		}
+		return names.slice( 0, -1 ).join( ', ' ) + ', and ' + names[ names.length - 1 ];
+	}
+
+	/**
+	 * The whole page's answer, derived from the four check states — the one
+	 * thing a verification page owes its reader, and the one thing the docket
+	 * alone never said (a reader had to synthesize four stamps themselves).
+	 *
+	 * The two checks that can DISPROVE a credential are the signature and the
+	 * content hash: together they say "signed by the published key, and the
+	 * bytes are the ones that were signed". Live-match and anchor can only
+	 * ADD confidence — a newer published version (live-match) or a missing
+	 * aggregation txid (anchor) is a gap in corroboration, never a forgery.
+	 * So the levels are deliberately three, not two:
+	 *
+	 *   fail      — a core check contradicted the credential.
+	 *   pass      — all four agree.
+	 *   qualified — the core checks passed; corroboration is incomplete.
+	 *   unproven  — a core check could not be RUN (no verdict either way).
+	 *   running   — at least one check has not settled.
+	 *
+	 * Pure: takes a { checkKey: STATE } map, returns
+	 * { level, word, line, caveats } and never touches the DOM.
+	 *
+	 * @since 10.49.0
+	 * @param {Object} states Map of check key to STATE.*.
+	 * @return {Object} { level, word, line, caveats }.
+	 */
+	function deriveOverallVerdict( states ) {
+		var s = states || {};
+		var get = function ( k ) { return s[ k ] || STATE.PENDING; };
+
+		var caveats = CHECK_ORDER.filter( function ( k ) {
+			var v = get( k );
+			return STATE.PASS !== v && STATE.PENDING !== v;
+		} );
+		var caveatNames = joinList( caveats.map( function ( k ) { return CHECK_NAMES[ k ]; } ) );
+
+		if ( CHECK_ORDER.some( function ( k ) { return STATE.PENDING === get( k ); } ) ) {
+			return { level: 'running', word: 'Checking', line: 'Running four independent checks in this browser.', caveats: caveats };
+		}
+
+		var core = [ 'signature', 'content-hash' ];
+		if ( core.some( function ( k ) { return STATE.FAIL === get( k ); } ) ) {
+			return {
+				level:   'fail',
+				word:    'Not authentic',
+				line:    'A check contradicted this credential: ' + caveatNames + ' did not hold. Treat this copy as unverified.',
+				caveats: caveats
+			};
+		}
+		if ( core.some( function ( k ) { return STATE.PASS !== get( k ); } ) ) {
+			return {
+				level:   'unproven',
+				word:    'Not proven',
+				line:    'The checks that would settle this could not be run: ' + caveatNames + ' came back unavailable. This is a missing answer, not a failed one.',
+				caveats: caveats
+			};
+		}
+		if ( ! caveats.length ) {
+			return {
+				level:   'pass',
+				word:    'Authentic',
+				line:    'Signed by the published key, byte-for-byte intact, matching what is published now, and anchored in the Bitcoin chain.',
+				caveats: caveats
+			};
+		}
+		return {
+			level:   'qualified',
+			word:    'Authentic',
+			line:    'Signed by the published key and byte-for-byte intact. Corroboration is incomplete: ' + caveatNames + ' could not be fully confirmed.',
+			caveats: caveats
+		};
+	}
+
 	/**
 	 * Signature key cross-check across all three origins: the did document's
 	 * JWK against this site's own key mirror AND the independent ledger copy.
@@ -606,6 +700,7 @@
 		roughNormalize:           roughNormalize,
 		credentialFailureStatus:  credentialFailureStatus,
 		shouldWriteDone:          shouldWriteDone,
+		deriveOverallVerdict:     deriveOverallVerdict,
 		deriveKeyAgreement:       deriveKeyAgreement,
 		decodeProofBytes:         decodeProofBytes,
 		decodeSignedPayloadBytes: decodeSignedPayloadBytes,

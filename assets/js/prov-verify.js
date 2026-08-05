@@ -98,6 +98,54 @@
 	var factsEl    = root.querySelector( '[data-role="facts"]' );
 	var form       = root.querySelector( '[data-role="paste-form"]' );
 	var input      = document.getElementById( 'sn-verify-input' );
+	var verdictEl  = root.querySelector( '[data-role="verdict"]' );
+	var verdictWordEl = root.querySelector( '[data-role="verdict-word"]' );
+	var verdictLineEl = root.querySelector( '[data-role="verdict-line"]' );
+	var verdictMetaEl = root.querySelector( '[data-role="verdict-meta"]' );
+
+	var CHECK_KEYS = [ 'signature', 'content-hash', 'live-match', 'anchor' ];
+
+	/**
+	 * v10.49.0: repaint the verdict band from the four current check states.
+	 * The band is never a separate source of truth — it is DERIVED from the
+	 * docket on every setCheck(), so the two can never disagree. The wording
+	 * and the level come from the pure core (Core.deriveOverallVerdict); this
+	 * function only writes DOM.
+	 */
+	function paintVerdict() {
+		if ( ! verdictEl || 'function' !== typeof Core.deriveOverallVerdict ) {
+			return;
+		}
+		var states = {};
+		CHECK_KEYS.forEach( function ( key ) {
+			var li = root.querySelector( '.sn-verify-check[data-check="' + key + '"]' );
+			states[ key ] = ( li && li.getAttribute( 'data-state' ) ) || STATE.PENDING;
+			var seg = verdictEl.querySelector( '.sn-verify-tally-seg[data-check="' + key + '"]' );
+			if ( seg ) {
+				seg.setAttribute( 'data-state', states[ key ] );
+			}
+		} );
+		var verdict = Core.deriveOverallVerdict( states );
+		verdictEl.setAttribute( 'data-level', verdict.level );
+		if ( verdictWordEl ) {
+			verdictWordEl.textContent = verdict.word;
+		}
+		if ( verdictLineEl ) {
+			verdictLineEl.textContent = verdict.line;
+		}
+	}
+
+	/** Reveal the band and switch the page into its answered presentation. */
+	function openVerdict( uid, version ) {
+		root.setAttribute( 'data-mode', 'result' );
+		if ( verdictEl ) {
+			verdictEl.hidden = false;
+		}
+		if ( verdictMetaEl ) {
+			verdictMetaEl.textContent = 'Note ' + uid + ( version ? ' · version ' + version : '' );
+		}
+		paintVerdict();
+	}
 
 	/**
 	 * Screen-reader + visible progress line, one polite region for the whole
@@ -153,6 +201,10 @@
 		if ( STATE.PENDING !== state ) {
 			announce( detail || state );
 		}
+		// The band trails the docket by design: recomputed from ALL four rows
+		// after each one settles, so a mid-run repaint can never show a
+		// verdict the rows below it do not support.
+		paintVerdict();
 	}
 
 	/** Paint a { state, detail } verdict the core derived onto a check row. */
@@ -373,6 +425,11 @@
 			var source = document.createElement( 'span' );
 			source.className = 'sn-verify-walk-source';
 			source.textContent = step.source;
+			// v10.49.0: mirror the witness string onto an attribute so the
+			// stylesheet can single out a site-vs-ledger hash DISAGREEMENT —
+			// the loudest thing this section can report — without the JS
+			// needing a second, drift-prone classification channel.
+			source.setAttribute( 'data-source', step.source );
 			li.appendChild( no );
 			li.appendChild( label );
 			li.appendChild( value );
@@ -475,6 +532,7 @@
 	/** Orchestrate the whole run for a resolved { uid, version }. */
 	function runVerification( uid, version ) {
 		resetChecks();
+		openVerdict( uid, version );
 		setStatusLine( 'Fetching the credential…' );
 
 		var credUrl = config.credentialBase.replace( /\/?$/, '' ) + '/' + encodeURIComponent( uid ) + ( version ? '?v=' + encodeURIComponent( version ) : '' );

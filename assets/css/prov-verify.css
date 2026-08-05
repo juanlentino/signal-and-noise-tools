@@ -1,11 +1,34 @@
-/* Signal & Noise — /verify (Notes provenance verifier), v9.74.0 "the docket".
+/* Signal & Noise — /verify (Notes provenance verifier), v10.49.0 "the verdict".
    Standalone route: no theme stylesheet loads here, so this file carries the
-   page baseline. The page speaks the site's OWN language — Bebas Neue display
-   + DM Mono body (fonts @font-face'd inline in the page head from the theme's
-   woff2), the site palette only (void/bone/asphalt/concrete/rust/blood/signal
-   — deliberately NO green: a PASS is bone ink, failure alone gets blood), and
-   the verdicts land as rotated rubber stamps on a numbered docket. Light-only,
-   like the public site. Everything scoped to .sn-verify except html/body. */
+   page baseline — one file, one request, deliberately, on a route whose whole
+   point is to be small and self-contained. The page speaks the site's OWN
+   language: Bebas Neue display + DM Mono body (fonts @font-face'd inline in
+   the page head from the theme's woff2), the site palette only (void/bone/
+   asphalt/concrete/rust/blood/signal — deliberately NO green: a PASS is bone
+   ink, failure alone gets blood), verdicts landing as rotated rubber stamps
+   on a numbered docket. Light-only, like the public site.
+
+   v10.49.0 rebuilt the COMPOSITION, not the vocabulary. Before it the page
+   was three sections built at three different times, stacked into 2,400px of
+   scroll, and only the first was designed: the proof walk (v9.87.0) styled
+   its rows against an undefined --sn-verify-rule and set its heading in
+   default bold body type, and the compare block (v9.81.0) had no rules at
+   all — an unstyled <h2>, three labelled fields shoved through a one-field
+   flex bar, and a browser-default strikethrough diff. And nowhere did the
+   page state its own answer; the reader had to synthesize four stamps. So:
+
+     - one VERDICT band leads, at hero scale, with a four-segment tally that
+       indexes the docket below it (Core.deriveOverallVerdict);
+     - the three stacked sections become three PANELS behind one nav
+       (prov-verify-tabs.js) — the answer, the raw values and the diff tool
+       are three different questions, and the tab is now the heading, so the
+       per-section <h2>s the nav made redundant are gone;
+     - the proof walk becomes what it is — an inset ledger of hash values,
+       each tagged with the witness it was read from;
+     - the compare block gets designed at all: a field row, and a diff where
+       removals are blood strike and additions are inked on a highlight.
+
+   Everything scoped to .sn-verify except html/body. */
 
 *,*::before,*::after{box-sizing:border-box}
 html{background:#fff;color:#000}
@@ -14,15 +37,99 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify{
 	--void:#fff; --bone:#000; --asphalt:#e0e0e0; --concrete:#9e9e9e;
 	--rust:#333; --blood:#e00404; --signal:#ff4c47;
+	/* The one surface that is not paper-white: the ledger ground. Warm grey,
+	   not a blue-grey — the page has no cool hues anywhere else. */
+	--paper:#f4f3f1;
+	/* Named so the proof walk's rules stop reaching for an undefined var. */
+	--rule:#d4d4d4;
 	max-width:780px;margin:0 auto;padding:4rem 1.5rem 5rem;
 }
 
 /* ---- masthead ------------------------------------------------------- */
-.sn-verify-head{margin:0 0 3.4rem}
+.sn-verify-head{margin:0 0 3rem}
 .sn-verify-kicker{font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.28em;color:var(--rust);margin:0 0 1.1rem;padding:0 0 .8rem;border-bottom:3px solid var(--bone)}
 .sn-verify h1{font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;font-size:clamp(3.4rem,9vw,6rem);line-height:.92;letter-spacing:.01em;text-transform:uppercase;margin:0 0 1.2rem}
 .sn-verify h1::after{content:"";display:block;width:5.5rem;height:.45rem;background:var(--blood);margin-top:1rem}
 .sn-verify-lede{font-size:.85rem;line-height:1.75;color:var(--rust);max-width:56ch;margin:0}
+
+/* When a run is on screen the masthead has already done its job — it named
+   the page. The ANSWER is what the reader came for, so the title drops to a
+   running head and the standing explanation collapses to one line, putting
+   the verdict band above the fold instead of below a 6rem title and a
+   four-line lede. Colour stays --rust: --concrete on white is ~2.5:1 and
+   fails AA for body text, quiet or not. */
+.sn-verify[data-mode="result"] .sn-verify-head{margin-bottom:1.6rem}
+.sn-verify[data-mode="result"] .sn-verify-kicker{margin-bottom:.8rem;padding-bottom:.6rem;border-bottom-width:2px}
+.sn-verify[data-mode="result"] h1{font-size:clamp(1.9rem,4.5vw,2.6rem);margin-bottom:.7rem}
+.sn-verify[data-mode="result"] h1::after{width:3rem;height:.3rem;margin-top:.7rem}
+.sn-verify[data-mode="result"] .sn-verify-lede{font-size:.76rem;color:var(--rust);max-width:70ch}
+
+/* ---- the verdict band ----------------------------------------------- */
+/* The page's answer, stated once, before the evidence. Solid ink ground:
+   the only inverted surface on the page, so it reads as a seal rather than
+   as one more section. */
+.sn-verify-verdict{
+	background:var(--bone);color:var(--void);
+	padding:2rem 1.75rem 1.6rem;margin:0 0 1.5rem;
+	position:relative;overflow:hidden;
+}
+.sn-verify-verdict[hidden]{display:none}
+/* Failure inverts to blood — the one place on the page where red is the
+   ground and not an accent, because it is the one place it IS the message. */
+.sn-verify-verdict[data-level="fail"]{background:var(--blood)}
+/* On blood, EVERY line goes to full white. Pure white on #e00404 is only
+   ~4.9:1, so the alpha ramp that reads fine on the black band (18:1 with
+   room to spare) drops the supporting lines to ~4.3:1 and ~2.6:1 here.
+   Hierarchy on this band comes from size and letter-spacing instead — which
+   is the right answer regardless: nothing on an alarm state should be
+   de-emphasized. */
+.sn-verify-verdict[data-level="fail"] .sn-verify-verdict-kicker,
+.sn-verify-verdict[data-level="fail"] .sn-verify-verdict-line,
+.sn-verify-verdict[data-level="fail"] .sn-verify-verdict-meta{opacity:1}
+/* Not-proven is neither: an unresolved run gets an outlined, unfilled band
+   so "we could not tell" never wears the colour of "we checked and it held". */
+.sn-verify-verdict[data-level="unproven"],
+.sn-verify-verdict[data-level="running"]{background:var(--void);color:var(--bone);border:3px solid var(--bone)}
+
+.sn-verify-verdict-kicker{
+	font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.28em;
+	opacity:.65;margin:0 0 .5rem;
+}
+.sn-verify-verdict-word{
+	font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;
+	font-size:clamp(2.6rem,8vw,4.4rem);line-height:.9;letter-spacing:.015em;
+	text-transform:uppercase;margin:0;
+}
+.sn-verify-verdict-line{
+	font-size:.82rem;line-height:1.7;max-width:54ch;margin:.9rem 0 0;opacity:.88;
+}
+.sn-verify-verdict-meta{
+	font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+	margin:1.3rem 0 0;opacity:.55;overflow-wrap:anywhere;
+}
+.sn-verify-verdict-meta:empty{display:none}
+
+/* A four-segment index of the docket below — the visual link between the
+   verdict and the evidence that produced it. Reads left to right in the same
+   order as checks 01–04. */
+.sn-verify-tally{
+	list-style:none;display:flex;gap:.3rem;margin:1.4rem 0 0;padding:0;
+	max-width:16rem;
+}
+.sn-verify-tally-seg{
+	flex:1 1 0;height:.5rem;
+	background:currentColor;opacity:.22;
+	transition:opacity .3s ease;
+}
+.sn-verify-tally-seg[data-state="PASS"]{opacity:1}
+.sn-verify-tally-seg[data-state="NOTE"]{opacity:.55}
+.sn-verify-tally-seg[data-state="UNREACHABLE"]{
+	opacity:.5;
+	/* Hatched, so the three non-pass states differ by TEXTURE as well as by
+	   alpha — an opacity ramp alone is not a distinction at this size. */
+	background:repeating-linear-gradient(45deg,currentColor 0 2px,transparent 2px 4px);
+}
+.sn-verify-tally-seg[data-state="FAIL"]{opacity:1;box-shadow:inset 0 0 0 2px currentColor;background:transparent}
 
 /* ---- intake form ---------------------------------------------------- */
 .sn-verify-form{display:flex;gap:0;flex-wrap:wrap;margin:0 0 .9rem;border:2px solid var(--bone)}
@@ -37,11 +144,26 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
    blood outline vocabulary as the input, on top of the hover background. */
 .sn-verify-form button:focus-visible{background:var(--signal);color:var(--void);outline:3px solid var(--blood);outline-offset:-3px}
 
+/* Demoted once an answer is on screen: the form is the hero of an EMPTY
+   page and a "check another one" utility on an answered page. Same element,
+   same DOM position, quieter presentation. */
+.sn-verify[data-mode="result"] .sn-verify-form{border-width:1px;border-color:var(--asphalt);margin-bottom:.6rem}
+.sn-verify[data-mode="result"] .sn-verify-form label{color:var(--concrete);border-bottom-color:var(--asphalt);padding:.5em 1em .35em;font-size:.7rem}
+.sn-verify[data-mode="result"] .sn-verify-form input{padding:.6em 1em;font-size:.78rem}
+.sn-verify[data-mode="result"] .sn-verify-form button{font-size:.95rem;padding:.35em 1.2em .25em;border-left-width:1px}
+
 .sn-verify-status-line{min-height:1.2em;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--concrete);margin:0 0 2.2rem}
 .sn-verify-status-line:empty{margin:0 0 1.4rem}
 
+/* ---- panel lede ------------------------------------------------------- */
+/* The three per-section <h2>s are gone: the tab IS the heading now, and
+   repeating it as an h2 inside the panel it labels is the redundancy the
+   nav exists to remove. Each panel keeps its one explanatory line. */
+.sn-verify-docket{margin:0 0 2.6rem}
+.sn-verify-sec-lede{font-size:.76rem;line-height:1.7;color:var(--rust);max-width:58ch;margin:0}
+
 /* ---- the docket ----------------------------------------------------- */
-.sn-verify-checks{list-style:none;margin:0 0 2rem;padding:0}
+.sn-verify-checks{list-style:none;margin:0;padding:0}
 .sn-verify-check{
 	display:grid;grid-template-columns:4.4rem 1fr auto;gap:0 1.1rem;align-items:start;
 	padding:1.15rem 0 1.3rem;border-top:3px solid var(--bone);
@@ -55,6 +177,11 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 }
 .sn-verify-check[data-state="FAIL"] .sn-verify-check-no{color:var(--blood)}
 .sn-verify-check[data-state="PASS"] .sn-verify-check-no{color:var(--bone)}
+/* A settled NOTE/UNREACHABLE row kept the --asphalt of an unrun check, so a
+   check that HAD run read as switched off next to its inked neighbours.
+   Mid-grey: settled, but not the full ink a PASS earns. */
+.sn-verify-check[data-state="NOTE"] .sn-verify-check-no,
+.sn-verify-check[data-state="UNREACHABLE"] .sn-verify-check-no{color:var(--concrete)}
 
 .sn-verify-check-name{
 	font-family:'Bebas Neue',Impact,sans-serif;font-size:1.55rem;line-height:1;
@@ -89,7 +216,7 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 }
 @keyframes sn-verify-blink{0%,100%{opacity:.35}50%{opacity:.8}}
 
-/* ---- fallback facts + footer ---------------------------------------- */
+/* ---- fallback facts -------------------------------------------------- */
 .sn-verify-live{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 .sn-verify-facts{border:2px solid var(--bone);padding:1.1rem 1.25rem;font-size:.8rem;line-height:1.7;margin:0 0 2rem}
@@ -98,6 +225,159 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify-facts a{color:var(--blood);text-decoration:underline;text-underline-offset:3px}
 .sn-verify-facts a:hover{color:var(--signal)}
 
+/* ---- the section nav -------------------------------------------------- */
+/* One bar, three destinations. Tabs are set in the display face at docket
+   scale so the nav reads as part of the same document furniture as the check
+   names — not as a widget bolted onto it. The selected tab is a filled slab
+   (the page's own inverted-surface idiom, shared with the verdict band);
+   the rest are ink on paper. */
+.sn-verify-nav{margin:0 0 1.9rem;border-bottom:3px solid var(--bone)}
+.sn-verify-nav-list{display:flex;flex-wrap:wrap;gap:0}
+.sn-verify-tab{
+	display:flex;align-items:baseline;gap:.55rem;
+	font-family:'Bebas Neue',Impact,sans-serif;font-size:1.3rem;line-height:1;
+	letter-spacing:.035em;text-transform:uppercase;
+	padding:.72em 1.1em .55em;
+	border:0;border-right:1px solid var(--rule);
+	/* --rust, not --concrete: an unselected tab is still an interactive
+	   control, and --concrete on white is ~2.5:1 — under AA. The selection is
+	   carried by the inverted slab, which does not need the others dimmed to
+	   read as chosen. */
+	background:transparent;color:var(--rust);
+	cursor:pointer;transition:color .14s ease,background .14s ease;
+}
+.sn-verify-tab:last-child{border-right:0}
+.sn-verify-tab:hover{color:var(--blood);background:var(--paper)}
+.sn-verify-tab:focus-visible{outline:3px solid var(--blood);outline-offset:-3px}
+.sn-verify-tab[aria-selected="true"]{background:var(--bone);color:var(--void)}
+.sn-verify-tab[aria-selected="true"]:hover{background:var(--bone);color:var(--void)}
+/* Progress on a panel you are not looking at. Reads "2/4" while a run is in
+   flight and inverts to a filled slab once every check has settled. */
+.sn-verify-tab-badge{
+	font-family:'DM Mono','Courier New',monospace;font-size:.7rem;font-weight:500;
+	letter-spacing:.08em;padding:.25em .5em .2em;
+	border:1px solid currentColor;opacity:.7;
+}
+.sn-verify-tab-badge:empty{display:none}
+.sn-verify-tab-badge[data-complete="true"]{opacity:1}
+
+.sn-verify-panel[hidden],.sn-verify-docket[hidden]{display:none}
+/* The panel itself takes no focus ring: it is focusable only so that
+   selecting a tab lands assistive focus somewhere sensible. */
+.sn-verify-panel:focus,.sn-verify-docket:focus{outline:0}
+.sn-verify-panel{margin:0 0 2.6rem}
+.sn-verify-panel > .sn-verify-sec-lede,
+.sn-verify-docket > .sn-verify-sec-lede{margin:0 0 1.6rem}
+.sn-verify-walk[hidden]{display:none}
+.sn-verify-empty{font-size:.8rem;line-height:1.7;color:var(--rust);margin:0;padding:1.4rem 1.35rem;background:var(--paper);border-left:3px solid var(--rule)}
+.sn-verify-empty[hidden]{display:none}
+
+/* ---- the proof walk, as a ledger ------------------------------------- */
+/* These four rows are the most interesting data on the page — the actual
+   hashes, each tagged with which of the three witnesses it was read from —
+   and they used to be the plainest-looking thing on it. Inset ground, so
+   they read as a record being quoted rather than as more page copy. */
+.sn-verify-walk-steps{
+	list-style:none;margin:0;padding:1.2rem 1.35rem;
+	background:var(--paper);border-left:3px solid var(--bone);
+}
+.sn-verify-walk-step{
+	display:grid;grid-template-columns:2.4rem 1fr;gap:.3rem 1rem;
+	padding:.95rem 0;border-top:1px solid var(--rule);
+}
+.sn-verify-walk-step:first-child{border-top:0;padding-top:0}
+.sn-verify-walk-step:last-child{padding-bottom:0}
+.sn-verify-walk-no{
+	font-family:'Bebas Neue',Impact,sans-serif;font-size:1.35rem;line-height:1;
+	color:var(--concrete);grid-row:1 / span 3;user-select:none;
+}
+.sn-verify-walk-label{
+	font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.2em;
+	color:var(--rust);
+}
+.sn-verify-walk-value{
+	grid-column:2;font-size:.8rem;line-height:1.55;
+	overflow-wrap:anywhere;word-break:break-all;
+}
+.sn-verify-walk-value a{color:var(--bone);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+.sn-verify-walk-value a:hover,.sn-verify-walk-value a:focus-visible{color:var(--blood)}
+/* The witness tag. Boxed, not just small — the SOURCE of a value is the
+   claim this section exists to make, so it gets a shape of its own. */
+.sn-verify-walk-source{
+	grid-column:2;justify-self:start;
+	font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+	color:var(--rust);background:var(--void);
+	border:1px solid var(--rule);padding:.3em .6em .25em;
+}
+/* A hash disagreement is the single loudest thing the walk can report.
+   Core.deriveProofWalk writes "DISAGREEMENT: …" into the source string; the
+   attribute selector catches it without the JS needing a second channel. */
+.sn-verify-walk-source[data-source*="DISAGREEMENT"],
+.sn-verify-walk-source[data-source*="mismatch"]{
+	border-color:var(--blood);color:var(--blood);font-weight:500;
+}
+
+/* ---- compare two versions -------------------------------------------- */
+.sn-verify-cmp-form{
+	display:grid;grid-template-columns:1fr auto auto auto;gap:0;
+	border:2px solid var(--bone);align-items:stretch;
+}
+.sn-verify-cmp-field{margin:0;display:flex;flex-direction:column;border-right:1px solid var(--asphalt)}
+.sn-verify-cmp-field label{
+	font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.2em;
+	color:var(--rust);padding:.7em 1em .3em;
+}
+.sn-verify-cmp-field input{
+	font:inherit;font-size:.8rem;min-width:0;width:100%;flex:1 1 auto;
+	padding:.2em 1em .75em;border:0;border-radius:0;background:var(--void);color:inherit;
+}
+.sn-verify-cmp-field input:focus{outline:3px solid var(--blood);outline-offset:-3px}
+.sn-verify-cmp-field:not(.sn-verify-cmp-field--wide) input{width:6.5rem}
+.sn-verify-cmp-form button{
+	font-family:'Bebas Neue',Impact,sans-serif;font-size:1.15rem;letter-spacing:.09em;
+	padding:.4em 1.6em .3em;border:0;background:var(--bone);color:var(--void);
+	cursor:pointer;transition:background .12s ease;
+}
+.sn-verify-cmp-form button:hover{background:var(--signal)}
+.sn-verify-cmp-form button:focus-visible{background:var(--signal);outline:3px solid var(--blood);outline-offset:-3px}
+
+.sn-verify-compare-out{margin:1.4rem 0 0}
+.sn-verify-compare-note{font-size:.76rem;line-height:1.7;color:var(--rust);margin:0}
+
+/* Which version is on which side, and what each side's anchor state is. */
+.sn-verify-compare-labels{display:flex;flex-wrap:wrap;gap:.5rem;margin:0 0 .9rem}
+.sn-verify-compare-label-del,.sn-verify-compare-label-add{
+	font-size:.7rem;letter-spacing:.16em;text-transform:uppercase;
+	padding:.35em .7em .3em;border:1px solid var(--rule);
+}
+.sn-verify-compare-label-del{border-color:var(--blood);color:var(--blood)}
+.sn-verify-compare-label-add{border-color:var(--bone);color:var(--bone)}
+
+/* The diff itself. Removals get blood + strike; additions get ink on a
+   highlight ground. Never colour alone: <del> keeps its line-through and
+   <ins> keeps a ground, so the two read apart in monochrome too.
+
+   The op names are the CORE's — 'same' | 'del' | 'add' (Core.diffWords) —
+   concatenated onto the class prefix by prov-verify-diff.js. They are NOT
+   the html element names it picks (<del>/<ins>/<span>), so styling -ins/-eq
+   here would style nothing at all. */
+.sn-verify-compare-diff{
+	font-size:.82rem;line-height:1.85;margin:0;
+	background:var(--paper);border-left:3px solid var(--bone);
+	padding:1.1rem 1.35rem;overflow-wrap:anywhere;
+}
+.sn-verify-compare-del{
+	color:var(--blood);text-decoration:line-through;
+	text-decoration-thickness:1px;
+}
+.sn-verify-compare-add{
+	color:var(--bone);text-decoration:none;
+	background:linear-gradient(transparent 58%,rgba(224,4,4,.16) 58%);
+	box-shadow:0 1px 0 var(--bone);
+}
+.sn-verify-compare-same{color:var(--rust)}
+
+/* ---- footer ---------------------------------------------------------- */
 .sn-verify-foot{margin:3.2rem 0 0;padding:1rem 0 0;border-top:1px solid var(--asphalt);font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--concrete);display:flex;gap:.9em;align-items:baseline}
 .sn-verify-foot a{color:var(--rust);text-decoration:none}
 .sn-verify-foot a:hover,.sn-verify-foot a:focus-visible{color:var(--blood)}
@@ -107,27 +387,30 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 /* ---- small screens + reduced motion --------------------------------- */
 @media (max-width:560px){
 	.sn-verify{padding:2.4rem 1.1rem 3.5rem}
+	.sn-verify-verdict{padding:1.5rem 1.2rem 1.3rem}
+	/* Three display-face tabs will not share a 320px row. Stack them into a
+	   list of full-width bars — still one tap per destination, still the same
+	   selected-slab vocabulary, no horizontal scroll and no 9px type. */
+	.sn-verify-nav-list{flex-direction:column}
+	.sn-verify-tab{
+		border-right:0;border-bottom:1px solid var(--rule);
+		justify-content:space-between;padding:.7em .8em .55em;
+	}
+	.sn-verify-tab:last-child{border-bottom:0}
 	.sn-verify-check{grid-template-columns:2.6rem 1fr;gap:0 .8rem}
 	.sn-verify-check-no{font-size:1.9rem;grid-row:auto}
 	.sn-verify-check-state{grid-column:2;justify-self:start;margin-top:.6em}
 	.sn-verify-check-detail{grid-column:2}
 	.sn-verify-form button{width:100%;border-left:0;border-top:2px solid var(--bone)}
+	.sn-verify-walk-steps{padding:1rem 1.1rem}
+	.sn-verify-walk-step{grid-template-columns:2rem 1fr}
+	/* One field per row: three inputs plus a button will not share a phone. */
+	.sn-verify-cmp-form{grid-template-columns:1fr}
+	.sn-verify-cmp-field{border-right:0;border-bottom:1px solid var(--asphalt)}
+	.sn-verify-cmp-field:not(.sn-verify-cmp-field--wide) input{width:100%}
+	.sn-verify-cmp-form button{width:100%}
 }
 @media (prefers-reduced-motion:reduce){
 	.sn-verify-check-state,.sn-verify-check[data-state] .sn-verify-check-state{animation:none;transform:none}
-	.sn-verify-check-no{transition:none}
+	.sn-verify-check-no,.sn-verify-tally-seg{transition:none}
 }
-
-/* v9.87.0: the proof walk — same spec-column vocabulary as the checks list. */
-.sn-verify-walk-steps { list-style: none; margin: 1.5rem 0 0; padding: 0; }
-.sn-verify-walk-step {
-	border-top: 1px solid var(--sn-verify-rule, #d4d4d4);
-	display: grid;
-	gap: 0.35rem 1rem;
-	grid-template-columns: 2.5rem 1fr;
-	padding: 0.85rem 0;
-}
-.sn-verify-walk-no { font-size: 0.75rem; opacity: 0.55; }
-.sn-verify-walk-label { font-weight: 600; }
-.sn-verify-walk-value { grid-column: 2; overflow-wrap: anywhere; }
-.sn-verify-walk-source { font-size: 0.75rem; grid-column: 2; opacity: 0.65; text-transform: uppercase; letter-spacing: 0.06em; }

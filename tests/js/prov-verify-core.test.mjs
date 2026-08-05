@@ -470,5 +470,54 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 	ok( /agree/i.test( walk[0].source ), 'credential and ledger agreement is detectable with the real key' );
 }
 
+// --- v10.49.0: the overall verdict the band states ------------------------
+// The page-level answer is DERIVED from the four rows, never stored beside
+// them. What these pin is the asymmetry that makes the answer honest: the
+// signature and content hash can DISPROVE a credential, while live-match and
+// anchor can only corroborate one — so a missing anchor must never read the
+// same as a broken signature.
+{
+	const S = core.STATE;
+	const all = ( v ) => ( { 'signature': v, 'content-hash': v, 'live-match': v, 'anchor': v } );
+
+	eq( 'running', core.deriveOverallVerdict( all( S.PENDING ) ).level, 'all pending is a running verdict' );
+	eq( 'running', core.deriveOverallVerdict( { ...all( S.PASS ), anchor: S.PENDING } ).level, 'one unsettled check keeps the whole verdict running' );
+	eq( 'running', core.deriveOverallVerdict( {} ).level, 'an empty state map is running, not a pass' );
+
+	const passing = core.deriveOverallVerdict( all( S.PASS ) );
+	eq( 'pass', passing.level, 'four PASS is an unqualified pass' );
+	eq( 'Authentic', passing.word, 'a full pass reads "Authentic"' );
+	eq( 0, passing.caveats.length, 'a full pass carries no caveats' );
+
+	// The live case this owner's own notes hit: 3 PASS + a block-only anchor.
+	const qualified = core.deriveOverallVerdict( { ...all( S.PASS ), anchor: S.NOTE } );
+	eq( 'qualified', qualified.level, 'core checks passing with a NOTE anchor is qualified, not failed' );
+	eq( 'Authentic', qualified.word, 'incomplete corroboration does not retract the word Authentic' );
+	ok( /Bitcoin anchor/.test( qualified.line ), 'the qualified line names the check that fell short' );
+	eq( 1, qualified.caveats.length, 'exactly the non-passing check is a caveat' );
+
+	// A broken signature is a different KIND of answer from a missing one.
+	const failed = core.deriveOverallVerdict( { ...all( S.PASS ), 'signature': S.FAIL } );
+	eq( 'fail', failed.level, 'a FAIL signature fails the whole verdict' );
+	eq( 'Not authentic', failed.word, 'a core FAIL reads "Not authentic"' );
+	eq( 'fail', core.deriveOverallVerdict( { ...all( S.PASS ), 'content-hash': S.FAIL } ).level, 'a FAIL content hash fails the whole verdict too' );
+
+	const unproven = core.deriveOverallVerdict( { ...all( S.PASS ), 'signature': S.UNREACHABLE } );
+	eq( 'unproven', unproven.level, 'an unrunnable core check is unproven, never a fail' );
+	eq( 'Not proven', unproven.word, 'a missing answer is worded as missing' );
+	ok( /not a failed one|missing answer/i.test( unproven.line ), 'the unproven line says so in words, not colour alone' );
+
+	// A non-core check can never escalate past qualified, however it lands.
+	eq( 'qualified', core.deriveOverallVerdict( { ...all( S.PASS ), 'live-match': S.UNREACHABLE } ).level, 'an unreachable live-match only qualifies the verdict' );
+	eq( 'qualified', core.deriveOverallVerdict( { ...all( S.PASS ), 'live-match': S.FAIL } ).level, 'even a FAIL live-match cannot make a signed, intact Note inauthentic' );
+
+	// Caveat prose stays readable as the list grows.
+	const two = core.deriveOverallVerdict( { ...all( S.PASS ), 'live-match': S.NOTE, anchor: S.NOTE } );
+	ok( / and /.test( two.line ), 'two caveats join with "and"' );
+	const three = core.deriveOverallVerdict( { 'signature': S.PASS, 'content-hash': S.PASS, 'live-match': S.NOTE, anchor: S.UNREACHABLE } );
+	eq( 2, three.caveats.length, 'caveats count only the non-passing checks' );
+	ok( ! /undefined/.test( three.line ), 'no undefined leaks into the reader-facing line' );
+}
+
 console.log( `\nResult: ${pass} passed, ${fail} failed.` );
 process.exit( fail > 0 ? 1 : 0 );
