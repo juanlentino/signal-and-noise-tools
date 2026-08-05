@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.51.1] - 2026-08-05
+
+**Headline:** v10.51.0's em-dash scanner was unreachable. The adapter was registered but the scan type was never declared, so the ability rejected it before dispatch.
+
+### Fixed
+
+- **`sn-scan` scope `emdash` is now selectable.** v10.51.0 added `snt_sn_scan_adapter_emdash()` to the adapter registry but not to `SNT_SN_SCAN_TYPES`, and the ability validates `scan_type` against that constant before dispatching. The adapter existed and could never be reached. Note the counterpart worked: `sn-apply`'s `emdash_replace` registered correctly because `sn-apply` has an ALL-TYPES delegation sweep that REDs the moment a type joins its enum without joining the sweep. `sn-scan` had no equivalent guard, so nothing objected.
+
+### New
+
+- **Enum ⇄ adapter parity guard in `tests/abilities-sn-scan.php`**, in both directions: every adapter must be declared (or the ability rejects it before dispatch), and every declared type must be dispatchable (or the ability accepts it and then fails). This is the sn-apply sweep's discipline, applied to the surface that lacked it.
+- The published schema enum is now asserted to **equal** `SNT_SN_SCAN_TYPES` rather than to have a hard-coded length. A count pin only says someone updated a number; the relationship says the schema and the registry still agree, which is the property that actually broke.
+
+> **Why PATCH:** a shipped feature was unreachable and is now reachable. No API shape changed and nothing new was added beyond the guard.
+
 ## [10.51.0] - 2026-08-05
 
 **Headline:** the em-dash house style becomes a classifier with tests, instead of a regex plus somebody's judgement at the moment they run it.
