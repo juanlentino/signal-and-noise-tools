@@ -164,7 +164,13 @@ function snt_mr_render_tab() {
 
 	// ── Left card: the readership data, stacked sections in ONE card.
 	echo '<div class="sn-fieldset sn-mr-data">';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'What machine readers do with the site: which crawler families read it, which machine surfaces they touch, and whether declared AI-training crawlers actually read the rights declarations that apply to them.', 'signal-and-noise-tools' ) . '</p>';
+	// v10.44.0: the closing clause read "…and whether declared AI-training
+	// crawlers actually read the rights declarations that apply to them", which
+	// implied the rights only reach a crawler that goes and fetches them. Since
+	// rights-signals worker v1.5.0 the reservation rides every response, so the
+	// direct-fetch count stopped being a coverage measure and this copy stopped
+	// framing it as one.
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'What machine readers do with the site: which crawler families read it and which machine surfaces they touch. The rights reservation rides every response, so declared AI-training crawlers receive it whether or not they fetch the rights files directly — a non-zero direct-fetch count means a crawler went looking for the declarations on purpose.', 'signal-and-noise-tools' ) . '</p>';
 	if ( ! empty( $result['ok'] ) ) {
 		$rows = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
 		echo snt_mr_render_summary_chips( $rows, $days, $sn_mr_feed_total ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).

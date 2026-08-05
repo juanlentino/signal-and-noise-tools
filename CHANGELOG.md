@@ -2,6 +2,41 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.44.0] - 2026-08-04
+
+**Headline:** the least-monitored coupling in the system gets a health check, and the Machine Readers surface stops measuring the wrong thing.
+
+### New
+
+- **19th health check: generated page bodies** ([inc/health-check-generated-pages.php](inc/health-check-generated-pages.php)). `/resume`, `/now` and `/uses` are built by sync engines and stored as `post_content`. The suite pinned what the engines **build**; nothing pinned what is **stored** — and every failure in that coupling happened in the gap, each caught only by an owner screenshot: v10.33.1 (the `/resume` body shipped wrapped in `wp:html`, so WordPress enqueued no core block styles and the page rendered unstyled), v10.33.2 (an unchanged save skipped the sync, stranding the fix), v10.33.3 (a band at a superseded width). The check reads the three stored bodies and asserts their structural markers.
+  - **Deliberate asymmetry:** `/now` and `/uses` **are** `wp:html` by design — their builders wrap a raw `<div>` — while `/resume` must be real block markup. The `wp:html` rule is asserted for `/resume` only, because a `wp:html` `/resume` *is* the v10.33.1 regression.
+  - **Deliberately not a rebuild-and-diff.** An owner edit through the editor is legitimate, and a check that goes red on every intentional edit gets ignored — which is exactly how the ledger CI went unread for three days.
+
+### Fixed
+
+- **The rights-signals check never looked at the REST `Content-Signal` header** ([inc/health-check-rights-signals.php](inc/health-check-rights-signals.php)). v10.34.0 added `Content-Signal` to every REST response specifically to close a rights-surface gap, but the check whose entire job is that surface only read `robots.txt`. The header could vanish (regression, edge stripping, a `wp-config` override) with nothing going red. It now rides the same fail-closed rule as the robots.txt line and `TDM-Reservation`: presence alone is never enough, because `ai-train=yes` is the semantic **inverse** of the reservation rather than a weaker form of it.
+
+### Changed
+
+- **Machine Readers stops framing a healthy zero as a shortfall** ([assets/desktop-mode-widget-machine-readers.js](assets/desktop-mode-widget-machine-readers.js), [inc/machine-readers-admin.php](inc/machine-readers-admin.php)). The widget row read "…of the rights files", and the tab copy asked "whether declared AI-training crawlers actually read the rights declarations that apply to them" — both implying the rights only reach a crawler that goes and fetches them. Since rights-signals worker **v1.5.0** the reservation (`TDM-Reservation`, `Content-Signal`, `Link rel=license`) rides **every** response, so a crawler receives it without ever touching the rights files. The row is now "…fetched rights files directly".
+  - **The metric is kept, not deleted.** A non-zero value is a genuinely useful positive signal — a crawler that went looking for the declarations on purpose is doing compliance-checking. It simply stopped being a coverage measure, so the label stopped implying one.
+
+### Docs
+
+- **Ability and check counts recomputed from source, not edited by hand.** `docs/ai-abilities-catalog.md` claimed 65 abilities (50 plugin + 15 theme); the real figures are **81 (66 plugin + 15 theme)**. Door counts said 25 read / 35 read-write; actually **37 / 36** — and the doors overlap by design, so they were never meant to sum to the ability count. `README.md` said a 13-check scan (now 19) and 52 abilities with 25/35 doors.
+- **15 abilities were registered but never tabled**, so the catalog under-reported the plugin surface by 15: the `sn-*` consolidated family (`sn-apply`, `sn-posts`, `sn-scan`, `sn-site-facts`, `sn-validate`) plus `cadence-flags`, `duplicate-body-scan`, `get-machine-readers-summary`, `get-post-content`, `keyword-candidates`, `link-candidates`, `list-posts`, `near-duplicate-scan`, `topic-clusters`, and `update-post-surfaces`. All now listed with their source files.
+- **`draft-release-notes` removed from the catalog** — it was deleted in v10.0.0 but stayed documented as live.
+
+> **Why MINOR:** a new health check is a new user-visible capability. No removed or renamed public API, no settings-schema change, nothing requiring operator action.
+
+### Verification
+
+- Full sweep **14,361 passed / 0 failed**; phpcs clean and falsified first (injected `echo $_GET['x']`, confirmed `WordPress.Security.EscapeOutput` fires).
+
+### Known, reported but not changed here
+
+- **Three of the four CMS page seeds cannot enter the split-hero migration chain.** `sn_split_hero_targets()` keys on an md5 of each page's *live* hero band frozen 2026-08-03; the `about`, `services` and `music` seeds hash differently, so the one-shot permanently skips them on a fresh install (only `contact` matches). Their seed hero bands are a third variant — neither the old live hero nor the current split hero — and still carry the superseded `clamp(3rem, 7vw, 5.5rem)` title and 1400px bands below the hero. This only affects seeding a brand-new site, and fixing it means re-freezing page content rather than changing code, so it is left for a deliberate content pass. Note the earlier audit framing was wrong in its specifics: `music-above.html` is a **template part**, not a page body.
+
 ## [10.43.1] - 2026-08-04
 
 ### Fixed

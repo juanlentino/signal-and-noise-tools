@@ -82,6 +82,22 @@ function snt_rights_probe_evaluate( $responses ) {
 	$headers_ok     = '1' === trim( (string) ( $html_headers['tdm-reservation'] ?? '' ) )
 		&& '1' === trim( (string) ( $wpjson_headers['tdm-reservation'] ?? '' ) );
 
+	// v10.44.0: the REST Content-Signal header joins the same assertion.
+	// v10.34.0 added Content-Signal to every REST response
+	// (inc/rest-hardening-policy.php) specifically to close a rights-surface
+	// gap — but this check, whose entire job is that surface, only ever read
+	// robots.txt. The header could vanish (regression, edge stripping, a
+	// wp-config override) and nothing would go red.
+	//
+	// Same fail-closed rule as the robots.txt line and TDM-Reservation:
+	// presence alone is never enough, because ai-train=yes is the semantic
+	// INVERSE of the reservation rather than a weaker form of it.
+	$rest_signal    = trim( (string) ( $wpjson_headers['content-signal'] ?? '' ) );
+	$rest_signal_ok = '' !== $rest_signal
+		&& false !== stripos( $rest_signal, 'ai-train=no' )
+		&& false !== stripos( $rest_signal, 'ai-input=yes' );
+	$headers_ok     = $headers_ok && $rest_signal_ok;
+
 	return array(
 		'tdmrep'  => $verdict( $tdmrep_ok, 'tdmrep.json answers 200 and parses as JSON.', 'tdmrep.json is missing, non-200, or not valid JSON.' ),
 		'rsl'     => $verdict( $rsl_ok, 'license.xml answers 200 and parses as XML.', 'license.xml is missing, non-200, or not well-formed XML.' ),

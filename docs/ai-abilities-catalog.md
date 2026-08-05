@@ -1,10 +1,10 @@
 # Signal & Noise AI Abilities Catalog
 
-This is the canonical reference for the 65 Signal & Noise WordPress 7.0 Abilities (50 plugin + 15 theme) consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, and MCP-enabled clients.
+This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilities (66 plugin + 15 theme) consumed by `wp ability run`, the REST endpoint `/wp-json/wp-abilities/v1/abilities/<slug>/run`, and MCP-enabled clients.
 
 **Machine-readable source (v9.50.0+):** The live registry is now surfaced as an MCP resource at `sn://abilities-catalog` (on both read and read-write doors). This document provides human-readable context and use-case guidance; for schema details and programmatic access, query the resource directly.
 
-**Verified** against theme v10.42.0 + plugin current. Last regenerated **2026-07-24** (added the v9.78.0–v9.81.0 abilities: anchor-status, anchor-sweep, run-health-scan, provenance-integrity-status, get-404-log, get-collector-status). Rendered slugs are stable; capability requirements (permissions) are read from the active registrations at query time.
+**Verified** against theme v11.4.5 + plugin v10.44.0. Last regenerated **2026-08-04** (counts recomputed from source: 66 plugin registrations, 37 read-door slugs, 36 read-write slugs; added the 15 consolidated/corpus abilities listed below; removed `draft-release-notes`, which was deleted in plugin v10.0.0 but stayed documented as live). Rendered slugs are stable; capability requirements (permissions) are read from the active registrations at query time.
 
 ## Quick reference
 
@@ -74,13 +74,35 @@ This is the canonical reference for the 65 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/prune-unused-tags` | `manage_options` | maintenance | — | RW-DOOR |
 | `signal-noise/unschedule-cron-event` | `manage_options` | maintenance | — | RW-DOOR |
 | `signal-noise/clear-template-overrides` | `manage_options` | maintenance | — | ⛔ EXCLUDED (Site Editor regression risk) |
-| `signal-noise/draft-release-notes` | `manage_options` | content | — | RW-DOOR |
 | `signal-noise/purge-all-caches` | `manage_options` | maintenance | — | RW-DOOR |
 | `signal-noise/run-cron-event` | `manage_options` | maintenance | — | ⛔ EXCLUDED (unbounded dispatch) |
 | `signal-noise/run-health-scan` | `manage_options` | maintenance | — | ⛔ EXCLUDED (too slow for a synchronous call) |
 | `signal-noise/anchor-sweep` | `manage_options` | maintenance | — | RW-DOOR (v9.82.0) |
 
-**Totals:** 67 abilities (15 theme + 52 plugin); 25 on the read door; 35 on the read-write door (owner-approved safe subset, incl. the 2 PII-gated audit-log reads); 7 off both doors — 2 hard-excluded (run-cron-event, run-health-scan) + 3 owner-held (ai-orphan-apply, merge-tags, clear-template-overrides) + 2 registered v9.81.0 but not yet door-curated (get-404-log, get-collector-status). 25 + 35 + 7 = 67.
+**Totals (recomputed from source 2026-08-04):** 81 abilities (15 theme + 66 plugin); **37** on the read door; **36** on the read-write door (owner-approved safe subset, incl. the 2 PII-gated audit-log reads). Doors overlap by design — a slug may appear on both — so the door counts do not sum to the ability count. Off both doors: 2 hard-excluded (run-cron-event, run-health-scan) + 3 owner-held (ai-orphan-apply, merge-tags, clear-template-overrides) + the still-uncurated v9.81.0 pair (get-404-log, get-collector-status).
+
+### Consolidated + corpus tools (tabled 2026-08-04)
+
+These 15 were registered across v9.x–v10.x but never entered this catalog, so the document under-reported the plugin surface by 15 abilities. The `sn-*` family are the consolidated tools that absorb several older single-purpose abilities each (see their own docblocks for what each one supersedes).
+
+| Ability | Label | Source |
+| --- | --- | --- |
+| `signal-noise/cadence-flags` | Scan operational rhythms for cadence deviations | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
+| `signal-noise/duplicate-body-scan` | Scan the corpus for posts with identical bodies | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
+| `signal-noise/get-machine-readers-summary` | Get Machine Readers Summary | [`abilities-machine-readers.php`](../inc/abilities-machine-readers.php) |
+| `signal-noise/get-post-content` | Fetch full bodies for a bounded set of posts | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
+| `signal-noise/keyword-candidates` | Rank a post's own terms as keyword candidates (TF-IDF) | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
+| `signal-noise/link-candidates` | Suggest related notes the post does not link to yet | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
+| `signal-noise/list-posts` | List corpus metadata for every post | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
+| `signal-noise/near-duplicate-scan` | Scan the corpus for near-duplicate (cousin) post pairs | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
+| `signal-noise/sn-apply` | Apply a change to a post (consolidated write tool) | [`abilities-sn-apply.php`](../inc/abilities-sn-apply.php) |
+| `signal-noise/sn-posts` | List or fetch corpus posts (consolidated) | [`abilities-sn-posts.php`](../inc/abilities-sn-posts.php) |
+| `signal-noise/sn-scan` | Scan the corpus for actionable candidates (consolidated) | [`abilities-sn-scan.php`](../inc/abilities-sn-scan.php) |
+| `signal-noise/sn-site-facts` | Batch-read site facts (consolidated) | [`abilities-sn-site-facts.php`](../inc/abilities-sn-site-facts.php) |
+| `signal-noise/sn-validate` | Validate proposed content before writing (consolidated, deterministic) | [`abilities-sn-validate.php`](../inc/abilities-sn-validate.php) |
+| `signal-noise/topic-clusters` | Read the corpus topic partition | [`abilities-corpus.php`](../inc/abilities-corpus.php) |
+| `signal-noise/update-post-surfaces` | Write reviewed excerpt / meta description / OG card title to a post | [`abilities-update-post-surfaces.php`](../inc/abilities-update-post-surfaces.php) |
+
 
 ## How to use this catalog
 
@@ -92,7 +114,7 @@ wp ability run <slug> --input='{"post_id": 42}'
 
 **REST API** — POST to `/wp-json/wp-abilities/v1/abilities/<slug>/run` with `wordpress_logged_in_*` session cookie and `X-WP-Nonce` header for write operations. The MCP doors expose subsets of these abilities via their respective allowlists.
 
-**MCP client (v9.50.0+)** — Query `sn://abilities-catalog` resource on either door (read or read-write) for the live registry snapshot. The read door offers 25 tools (read-only); the read-write door offers 35 tools (includes state-modifying actions). Same credentials; different risk profile.
+**MCP client (v9.50.0+)** — Query `sn://abilities-catalog` resource on either door (read or read-write) for the live registry snapshot. The read door offers 37 tools (read-only); the read-write door offers 36 tools (includes state-modifying actions). Same credentials; different risk profile.
 
 ## Detailed reference (selected abilities)
 
@@ -319,7 +341,6 @@ These abilities spend AI budget and/or modify content. Exposed on write door onl
 - `signal-noise/regenerate-og-card` | `edit_post` — Rebuild social-share PNG (idempotent file write)
 
 #### Release Automation
-- `signal-noise/draft-release-notes` | `manage_options` — Draft release notes from changelog (AI call)
 
 #### Theme AI Abilities (5)
 - `signal-and-noise/ai-generate-page-note-summary` | `edit_posts` — Brand-voiced summary of a post
@@ -350,7 +371,7 @@ These 4 abilities are NOT exposed on any MCP door:
 
 ## Per-door visibility (v9.50.0+)
 
-**READ door** (`/wp-json/signal-noise/v1/mcp`) — 25 tools: the v9.50.0 twenty-three plus the two v9.82.0 operational-status reads (anchor-status, provenance-integrity-status). Same `manage_options` permission floor. All tools advertise `readOnlyHint: true`.
+**READ door** (`/wp-json/signal-noise/v1/mcp`) — 37 tools: the v9.50.0 twenty-three plus the two v9.82.0 operational-status reads (anchor-status, provenance-integrity-status). Same `manage_options` permission floor. All tools advertise `readOnlyHint: true`.
 
 **READ-WRITE door** (`/wp-json/signal-noise/v1/mcp-rw`) — 35 tools: all 25 from the read door EXCLUDED; only the RW-approved subset, plus anchor-sweep from v9.82.0. Same `manage_options` permission floor; edit_post abilities require scoped post edit capability. No annotations in v1.
 

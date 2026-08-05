@@ -147,10 +147,22 @@
 				ai.appendChild( statRow( 'Reads', String( payload.ai_training ) ) );
 				if ( payload.ai_rights !== null && typeof payload.ai_rights !== 'undefined' ) {
 					ai.appendChild( statRow(
-						'…of the rights files',
+						// RELABELLED v10.44.0. This read "…of the rights files",
+						// which framed a low number as a shortfall. Since
+						// rights-signals worker v1.5.0 the reservation
+						// (TDM-Reservation, Content-Signal, Link rel=license) rides
+						// EVERY response, so a crawler no longer has to fetch the
+						// rights files to receive it: 0 here is now the expected,
+						// healthy reading rather than evidence of anything ignored.
+						//
+						// The metric is KEPT because a NON-zero value is a useful
+						// positive signal — it means a crawler went looking for the
+						// declarations deliberately, which is compliance-checking
+						// behavior worth seeing. It is simply no longer a coverage
+						// measure, so the label no longer implies one.
+						'…fetched rights files directly',
 						String( payload.ai_rights ),
-						// Not an alarm either way: a crawler reading the rights
-						// declarations is the good case, so this is informational.
+						// Never an alarm in either direction.
 						''
 					) );
 				}
