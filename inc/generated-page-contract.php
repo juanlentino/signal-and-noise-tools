@@ -1,6 +1,18 @@
 <?php
 /**
- * Health check: generated page bodies still carry their structure.
+ * The structural contract for engine-generated page bodies, enforced at the
+ * WRITE BOUNDARY.
+ *
+ * WHY NOT A HEALTH CHECK (this started as one, and that was the wrong shape):
+ * the other 18 checks watch AMBIENT drift — external links rot, edge headers
+ * change, the ledger's CI goes red. The world changes those underneath us, so
+ * polling is the only way to see it. Generated page bodies are not ambient:
+ * they change for exactly one reason, a write, which is an event we can
+ * observe at the moment it happens. Polling up to 24h later for something
+ * observable at source is strictly weaker, and a 19th entry on a list where
+ * "18/18 passed" is already read as one glance costs attention that the
+ * remaining checks need. So the contract is enforced where the write happens:
+ * a structurally broken body is REFUSED rather than stored and reported later.
  *
  * THE GAP THIS CLOSES: /resume, /now and /uses are built by sync engines and
  * stored as post_content. The engines are pure builders and the test suite
@@ -14,11 +26,16 @@
  *   v10.33.2  an unchanged save skipped the sync, stranding the fix.
  *   v10.33.3  a band shipped at a superseded width.
  *
- * Deterministic and cheap: the engines are pure, so this reads the three
- * stored bodies and asserts the structural markers are present. It does NOT
- * diff against a fresh build — an owner edit through the editor is legitimate,
- * and a check that goes red on every deliberate edit gets ignored, which is
- * how the ledger CI went unread for three days.
+ * SCOPE, stated honestly: this guards the ENGINE writes, which is where the
+ * v10.33.1 and v10.33.3 bugs were — the engine built a broken body and stored
+ * it. It does NOT address v10.33.2 (an unchanged save skipped the sync
+ * entirely); nothing was written there, so a write guard has nothing to catch.
+ * That one belongs to the sync path's own idempotence and is not fixed here.
+ *
+ * Manual edits through the block editor are deliberately NOT blocked — an
+ * owner editing their own page is legitimate, and refusing their save would be
+ * hostile. The guard binds the engines, which have no business emitting markup
+ * that loses the layout.
  *
  * NOTE the deliberate asymmetry: /now and /uses ARE wp:html by design (their
  * builders wrap a raw <div>), while /resume must be real block markup. A
@@ -118,36 +135,47 @@ function snt_generated_pages_evaluate( $bodies ) {
 }
 
 /**
- * The 19th health check: read the three stored bodies and evaluate them.
+ * Write guard. Returns true when $body may be stored for $page.
  *
- * @return array Standard health-check result.
+ * Fail-closed by design: a body that has lost its structure is REFUSED rather
+ * than written and reported a day later. The engines are the only callers, and
+ * an engine emitting markup that loses the layout is a bug, never a valid
+ * state — so refusing costs nothing real and preserves whatever correct body
+ * is already stored.
+ *
+ * @param string $page Page key (resume|now|uses).
+ * @param string $body Body about to be written.
+ * @return bool
  */
-function snt_health_check_generated_pages() {
-	$bodies = array();
-
-	foreach ( array_keys( snt_generated_pages_contract() ) as $page ) {
-		$post              = get_page_by_path( $page, OBJECT, 'page' );
-		$bodies[ $page ] = ( $post && isset( $post->post_content ) ) ? (string) $post->post_content : '';
+function snt_generated_page_guard( $page, $body ) {
+	$contract = snt_generated_pages_contract();
+	if ( ! isset( $contract[ $page ] ) ) {
+		return true; // Not an engine-owned page — nothing to assert.
 	}
 
-	$verdicts = snt_generated_pages_evaluate( $bodies );
-	$findings = array();
-
-	foreach ( $verdicts as $page => $verdict ) {
-		if ( empty( $verdict['ok'] ) ) {
-			$findings[] = array(
-				'label'  => sprintf( '/%s', $page ),
-				'detail' => (string) $verdict['detail'],
-			);
-		}
+	$verdict = snt_generated_pages_evaluate( array( $page => $body ) );
+	if ( ! empty( $verdict[ $page ]['ok'] ) ) {
+		return true;
 	}
 
-	return array(
-		'id'       => 'generated_pages',
-		'label'    => __( 'Generated page bodies', 'signal-and-noise-tools' ),
-		'passed'   => empty( $findings ),
-		'count'    => count( $findings ),
-		'findings' => $findings,
-		'fix_hint' => __( 'A sync-engine page lost its structure in the database. Open the page in Pages and re-save it, or run the matching sync (Resume / Now Page / Uses Page tab) to regenerate the body.', 'signal-and-noise-tools' ),
-	);
+	$detail = isset( $verdict[ $page ]['detail'] ) ? (string) $verdict[ $page ]['detail'] : 'structure lost';
+
+	// Loud, because silence here is what let three of these ship. The existing
+	// body stays untouched, so the page keeps rendering correctly while the
+	// error names what the engine tried to store.
+	if ( function_exists( 'error_log' ) ) {
+		error_log( sprintf( '[signal-and-noise-tools] REFUSED write to /%s: %s', $page, $detail ) ); // phpcs:ignore WordPress.PHP.DevelopmentFunctions.error_log_error_log -- deliberate: a refused structural write must be visible in the host error log.
+	}
+
+	/**
+	 * Fires when a generated-page write was refused for losing its structure.
+	 *
+	 * @since 10.44.0
+	 * @param string $page   Page key.
+	 * @param string $detail Human-readable reason.
+	 * @param string $body   The rejected body.
+	 */
+	do_action( 'snt_generated_page_write_refused', $page, $detail, $body );
+
+	return false;
 }

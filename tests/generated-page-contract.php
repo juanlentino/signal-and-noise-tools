@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests: generated-page-body drift check (19th health check).
+ * Tests: generated-page-body drift check (write-boundary contract).
  *
  * The engines are pure builders and the tests pin what they BUILD. Nothing
  * pinned what is actually STORED on the page — which is where all three
@@ -12,7 +12,7 @@
  *   v10.33.2 — an unchanged save skipped the sync, stranding the fix.
  *   v10.33.3 — a band shipped at the wrong width.
  *
- * Run: php tests/health-check-generated-pages.php
+ * Run: php tests/generated-page-contract.php
  * @since plugin v10.44.0
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
@@ -25,7 +25,7 @@ function ok( $cond, $label ) {
 	else { $fail++; echo "  FAIL - $label\n"; }
 }
 
-require __DIR__ . '/../inc/health-check-generated-pages.php';
+require __DIR__ . '/../inc/generated-page-contract.php';
 
 /**
  * Bodies in the shape the engines actually emit today.
@@ -86,6 +86,30 @@ echo "\nGroup: verdicts carry a human-readable reason\n";
 $bad = gp_good(); $bad['uses'] = str_replace( 'sn-uses-hero', 'gone', $bad['uses'] );
 $v = snt_generated_pages_evaluate( $bad );
 ok( ! empty( $v['uses']['detail'] ) && is_string( $v['uses']['detail'] ), 'a failing page explains itself' );
+
+echo "\nGroup: the WRITE GUARD refuses a broken body instead of storing it\n";
+// The guard is the whole point of the rework: this contract is enforced where
+// the write happens, not polled for afterwards, because a page body only ever
+// changes as the result of a write.
+$refused = array();
+if ( ! function_exists( 'do_action' ) ) {
+	function do_action( $hook, ...$args ) { $GLOBALS['__actions'][] = array( $hook, $args ); }
+}
+$GLOBALS['__actions'] = array();
+
+$good = gp_good();
+ok( true === snt_generated_page_guard( 'resume', $good['resume'] ), 'a healthy body is allowed through' );
+ok( true === snt_generated_page_guard( 'now', $good['now'] ), 'a healthy wp:html /now body is allowed through' );
+
+$bad_resume = '<!-- wp:html -->' . "\n" . '<div class="sn-resume-hero-split"></div>' . "\n" . '<!-- /wp:html -->';
+ok( false === snt_generated_page_guard( 'resume', $bad_resume ), 'the v10.33.1 wp:html /resume body is REFUSED at the write boundary' );
+
+ok( false === snt_generated_page_guard( 'uses', '<div>no markers</div>' ), 'a /uses body that lost its hero is REFUSED' );
+
+$fired = array_filter( $GLOBALS['__actions'], function ( $a ) { return 'snt_generated_page_write_refused' === $a[0]; } );
+ok( count( $fired ) >= 2, 'each refusal fires snt_generated_page_write_refused so it is observable' );
+
+ok( true === snt_generated_page_guard( 'colophon', '<div>anything</div>' ), 'a page with no contract is never blocked' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

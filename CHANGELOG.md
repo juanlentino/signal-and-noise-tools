@@ -4,13 +4,15 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [10.44.0] - 2026-08-04
 
-**Headline:** the least-monitored coupling in the system gets a health check, and the Machine Readers surface stops measuring the wrong thing.
+**Headline:** the least-monitored coupling in the system gets enforced where it breaks — at the write boundary, not on a 24-hour poll — and the Machine Readers surface stops measuring the wrong thing.
 
 ### New
 
-- **19th health check: generated page bodies** ([inc/health-check-generated-pages.php](inc/health-check-generated-pages.php)). `/resume`, `/now` and `/uses` are built by sync engines and stored as `post_content`. The suite pinned what the engines **build**; nothing pinned what is **stored** — and every failure in that coupling happened in the gap, each caught only by an owner screenshot: v10.33.1 (the `/resume` body shipped wrapped in `wp:html`, so WordPress enqueued no core block styles and the page rendered unstyled), v10.33.2 (an unchanged save skipped the sync, stranding the fix), v10.33.3 (a band at a superseded width). The check reads the three stored bodies and asserts their structural markers.
-  - **Deliberate asymmetry:** `/now` and `/uses` **are** `wp:html` by design — their builders wrap a raw `<div>` — while `/resume` must be real block markup. The `wp:html` rule is asserted for `/resume` only, because a `wp:html` `/resume` *is* the v10.33.1 regression.
-  - **Deliberately not a rebuild-and-diff.** An owner edit through the editor is legitimate, and a check that goes red on every intentional edit gets ignored — which is exactly how the ledger CI went unread for three days.
+- **A structural contract for engine-generated page bodies, enforced at the write boundary** ([inc/generated-page-contract.php](inc/generated-page-contract.php)). `/resume`, `/now` and `/uses` are built by sync engines and stored as `post_content`. The suite pinned what the engines **build**; nothing pinned what is **stored** — and every failure in that coupling happened in the gap, each caught only by an owner screenshot: v10.33.1 (the `/resume` body shipped wrapped in `wp:html`, so WordPress enqueued no core block styles and the page rendered unstyled) and v10.33.3 (a band at a superseded width). The three upsert functions now refuse a body that has lost its structure, log it, and fire `snt_generated_page_write_refused`.
+  - **This started as a 19th health check and that was the wrong shape.** The other 18 checks watch *ambient* drift — external links rot, edge headers change, the ledger CI goes red — things the world changes underneath us, where polling is the only option. Generated page bodies are not ambient: they change for exactly one reason, a write, which is an event observable at the moment it happens. Polling up to 24h later for something catchable at source is strictly weaker, and a 19th entry on a list already read as a single "18/18 passed" glance spends attention the other checks need. **The check count stays at 18.**
+  - **Fail-closed, and cheap to be so.** An engine emitting markup that loses the layout is a bug, never a valid state, so refusing costs nothing real and leaves the previously-correct body in place — the page keeps rendering while the error names what was attempted.
+  - **Deliberate asymmetry:** `/now` and `/uses` *are* `wp:html` by design (their builders wrap a raw `<div>`); `/resume` must be real block markup. The `wp:html` rule is asserted for `/resume` only, because a `wp:html` `/resume` **is** the v10.33.1 regression.
+  - **Scope stated honestly:** this guards *engine* writes. It does **not** address v10.33.2 (an unchanged save skipped the sync) — nothing was written there, so a write guard has nothing to catch; that belongs to the sync path's own idempotence. Manual edits through the block editor are deliberately not blocked, because refusing an owner's own save would be hostile.
 
 ### Fixed
 
@@ -27,7 +29,7 @@ All notable changes to Signal & Noise Tools are documented here.
 - **15 abilities were registered but never tabled**, so the catalog under-reported the plugin surface by 15: the `sn-*` consolidated family (`sn-apply`, `sn-posts`, `sn-scan`, `sn-site-facts`, `sn-validate`) plus `cadence-flags`, `duplicate-body-scan`, `get-machine-readers-summary`, `get-post-content`, `keyword-candidates`, `link-candidates`, `list-posts`, `near-duplicate-scan`, `topic-clusters`, and `update-post-surfaces`. All now listed with their source files.
 - **`draft-release-notes` removed from the catalog** — it was deleted in v10.0.0 but stayed documented as live.
 
-> **Why MINOR:** a new health check is a new user-visible capability. No removed or renamed public API, no settings-schema change, nothing requiring operator action.
+> **Why MINOR:** a new enforced contract plus a new action hook (`snt_generated_page_write_refused`) is new user-visible capability. No removed or renamed public API, no settings-schema change, nothing requiring operator action.
 
 ### Verification
 

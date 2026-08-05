@@ -140,12 +140,6 @@ function sn_health_run_scan() {
 			// forever. This one compares the bytes being served right now
 			// against the newest ledger record.
 			'rights_anchored'      => snt_health_check_rights_anchored(),
-			// 19th check (v10.44.0): the generated page bodies. /resume, /now and
-			// /uses are engine-built and stored as post_content; the suite pinned
-			// what the engines BUILD, never what is STORED. All three failures in
-			// that coupling (v10.33.1 wp:html body, v10.33.2 skipped sync,
-			// v10.33.3 width outlier) were caught only by an owner screenshot.
-			'generated_pages'      => snt_health_check_generated_pages(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
@@ -192,7 +186,6 @@ require_once __DIR__ . '/health-check-rights-signals.php';
 // v10.4.0: the public ledger CI status probe (GitHub runs API, no auth).
 require_once __DIR__ . '/health-check-ledger-ci.php';
 require_once __DIR__ . '/health-check-rights-anchored.php';
-require_once __DIR__ . '/health-check-generated-pages.php';
 // v10.20.0: the ML near-duplicate cousin scan as a health check.
 require_once __DIR__ . '/health-check-ml-cousins.php';
 // v10.22.0: cadence deviations (publish + cron rhythms) as a health check.

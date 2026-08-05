@@ -131,6 +131,11 @@ function sn_now_upsert_page( $body ) {
 		return 0;
 	}
 
+	// v10.44.0 write guard: never store a body that has lost its structure.
+	if ( function_exists( 'snt_generated_page_guard' ) && ! snt_generated_page_guard( 'now', $body ) ) {
+		return 0;
+	}
+
 	$excerpt = 'What Juan Lentino is focused on right now: current projects, writing, and inputs. Updated whenever it changes.';
 	$page    = get_page_by_path( SN_NOW_SLUG );
 
@@ -266,6 +271,11 @@ function sn_uses_current_body() {
  */
 function sn_uses_upsert_page( $body ) {
 	if ( '' === trim( (string) $body ) ) {
+		return 0;
+	}
+
+	// v10.44.0 write guard: never store a body that has lost its structure.
+	if ( function_exists( 'snt_generated_page_guard' ) && ! snt_generated_page_guard( 'uses', $body ) ) {
 		return 0;
 	}
 
