@@ -230,10 +230,48 @@ ok( true === sn_404_is_actionable( '/notes/desing-tokens', array( 'referer' => '
 	'classify: a typo of a real path is actionable (suggester finds it)' );
 ok( false === sn_404_is_actionable( '/graphql', array( 'referer' => '' ), $candidates, 'x.test' ),
 	'classify: a path resembling nothing published is NOT actionable' );
-ok( true === sn_404_is_actionable( '/graphql', array( 'referer' => 'https://x.test/notes/provenance' ), $candidates, 'x.test' ),
-	'classify: a same-site referer makes it actionable regardless of similarity (a real link on this site points there)' );
+// v10.48.0 — THE REFERER SIGNAL IS WITHDRAWN.
+//
+// v10.47.0 promoted any 404 carrying a SAME-SITE referer, reasoning that a real
+// link on this site pointing at a dead path is worth fixing. Driving it live
+// disproved that in one screen: 20 of 26 "actionable" rows had been promoted by
+// referer, and every one was machine noise —
+//
+//     /phpinfo   /_profiler/phpinfo   /*
+//     /comments/3135222639369717147
+//     /notes/author/juanlentino/1292302496560214719
+//
+// A crawler walking the site sends a same-site referer BY DEFINITION, so the
+// rule promoted everything a bot touched. The v10.47.0 comment correctly said an
+// off-site referer is attacker-controlled, then failed to notice the header is
+// client-controlled whatever host it names. Similarity alone already found every
+// genuine broken link in that sample (/provenance/verify, /es/about,
+// /contact-us), so the signal was contributing noise and nothing else.
+ok( false === sn_404_is_actionable( '/graphql', array( 'referer' => 'https://x.test/notes/provenance' ), $candidates, 'x.test' ),
+	'classify: a SAME-site referer no longer promotes (a crawler walking the site sends one by definition)' );
 ok( false === sn_404_is_actionable( '/graphql', array( 'referer' => 'https://evil.example/scan' ), $candidates, 'x.test' ),
-	'classify: an OFF-site referer does not make it actionable (anyone can forge a referer)' );
+	'classify: an off-site referer does not promote either' );
+ok( true === sn_404_is_actionable( '/provenance/verify', array( 'referer' => '' ), array( '/verify', '/about' ), 'x.test' ),
+	'classify: a genuine broken link is still caught on SIMILARITY alone (/provenance/verify → /verify, the real one found live)' );
+
+// ── Live shapes that reached the actionable list in v10.47.0 and must not ──
+echo "\n-- v10.48.0: shapes observed promoted-in-error on live --\n";
+foreach ( array( '/phpinfo', '/_profiler/phpinfo', '/_profiler/latest' ) as $probe ) {
+	ok( sn_404_should_capture( $probe ) === false, "filter: $probe suppressed (a probe with no file extension to catch it)" );
+}
+// Real site paths with a long random numeric segment appended — crawler fuzzing.
+// A bare run of 12+ digits is never a human-authored URL on this site.
+foreach ( array(
+	'/comments/3135222639369717147',
+	'/notes/feed/7303705357382288316',
+	'/notes/author/juanlentino/page/2/5647404611493882123',
+) as $fuzz ) {
+	ok( sn_404_should_capture( $fuzz ) === false, "filter: numeric-fuzz path $fuzz suppressed" );
+}
+// …but ordinary numbers in a URL stay welcome.
+foreach ( array( '/notes/page/2', '/2026/08/my-post', '/notes/top-10-tools' ) as $keep_num ) {
+	ok( sn_404_should_capture( $keep_num ) === true, "filter: legitimate numeric path $keep_num still captured" );
+}
 
 // ── Partition drives the admin: cards for signal, one collapsed row for noise ──
 $log = array(

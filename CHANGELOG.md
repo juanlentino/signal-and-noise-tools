@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.47.1] - 2026-08-05
+
+**Headline:** the 404 classifier shipped one signal too many — a same-site referer promoted everything a crawler touched. Withdrawn after one release, on live evidence.
+
+### Fixed
+
+- **The same-site referer signal is withdrawn** ([inc/redirects-404-log.php](inc/redirects-404-log.php)). v10.47.0 promoted any 404 arriving with a referer from this site, reasoning that a real page pointing at a dead path is worth fixing. Driving it on live disproved that in one screen: **20 of the 26 "actionable" rows had been promoted by referer, and every one was machine noise** — `/phpinfo`, `/_profiler/phpinfo`, `/*`, and real site paths with a random 19-digit suffix bolted on (`/comments/3135222639369717147`).
+
+  The error is worth naming precisely, because the v10.47.0 comment came close enough to be misleading. It said an *off-site* referer is attacker-controlled and must not count — true — and then missed that the header is **client-controlled whatever host it names**. Worse: a crawler walking this site sends a same-site referer *by definition*, so the rule promoted everything a bot happened to touch. Similarity alone had already found every genuine broken link in the same sample (`/provenance/verify` → `/verify`, `/es/about`, `/contact-us`), so the signal contributed noise and nothing else.
+
+- **Two probe shapes that reach the log with no file extension to catch them** — `phpinfo` and `/_profiler` (the Symfony debug toolbar) join the probe substrings.
+
+- **Crawler fuzzing: a real path with a long random number appended.** A path *segment* that is a bare run of 12+ digits is now filtered. The floor is 12 so ordinary numbers in a URL are untouched — `/notes/page/2`, `/2026/08/…` and `/notes/top-10-tools` are all pinned as still-captured.
+
+> **Why PATCH:** narrows an over-eager classifier shipped in v10.47.0. No new capability, no schema change, no stored entry deleted — the withdrawn signal only ever affected which side of the split a row displayed on.
+
+### Verification
+
+`tests/redirects-404-log.php` **121 passed / 0 failed**, written from the exact paths the live screen promoted in error and watched red on all seven. Full sweep green; phpcs clean, falsified first.
+
 ## [10.47.0] - 2026-08-05
 
 **Headline:** the 404 log stops asking you to make editorial decisions about scanner traffic — and stops letting that traffic evict your real broken links. Tools becomes Integrity.

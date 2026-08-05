@@ -88,7 +88,7 @@ function sn_404_should_capture( $path ) {
 		'wp-login', 'wp-admin', 'wp-config', 'xmlrpc', '/wp-json',
 		'/.git', '/.env', '/.svn', '/.hg', '/.bzr', '/cvs/',
 		'.htaccess', '.ds_store', '/vendor/', '/wp-includes/', '/wp-content/',
-		'phpunit', 'eval-stdin', '/cgi-bin/', '/.well-known/acme',
+		'phpunit', 'eval-stdin', 'phpinfo', '/_profiler', '/cgi-bin/', '/.well-known/acme',
 		// Traversal + process introspection.
 		'/proc/', '@fs', '..', '%2e%2e',
 		// Framework / appliance / monitoring endpoints.
@@ -112,6 +112,17 @@ function sn_404_should_capture( $path ) {
 	);
 	if ( in_array( $lower, $guesses, true ) ) {
 		return false;
+	}
+	// v10.48.0: a path SEGMENT that is a bare run of 12+ digits. Observed live as
+	// real site paths with a random 19-digit suffix bolted on —
+	// /comments/3135222639369717147, /notes/feed/7303705357382288316 — which is
+	// crawler fuzzing, not a URL anyone typed or linked. The floor is 12 so that
+	// ordinary numbers in a URL (/notes/page/2, /2026/08/…, /top-10-tools) are
+	// untouched; nothing this site publishes uses a 12-digit identifier.
+	foreach ( explode( '/', $lower ) as $segment ) {
+		if ( '' !== $segment && preg_match( '/^\d{12,}$/', $segment ) ) {
+			return false;
+		}
 	}
 	return true;
 }
@@ -305,32 +316,41 @@ function sn_404_suggest_target( $path, array $candidates ) {
  *      stale link. That is precisely what sn_404_suggest_target() already
  *      computes (levenshtein rank + a similar_text floor), so the classifier is
  *      the SHIPPED suggester, not a second heuristic to keep in sync.
- *   2. Something on this site linked to it. A same-site referer means a real
- *      page here points at a dead path — worth fixing whatever the path looks
- *      like.
+ * v10.48.0 — THE REFERER SIGNAL WAS WITHDRAWN AFTER ONE RELEASE.
  *
- * An OFF-site referer deliberately does not qualify: referers are attacker-
- * controlled, and treating them as a signal would hand any scanner a way to
- * promote itself back into the owner's attention.
+ * v10.47.0 also promoted any 404 arriving with a SAME-site referer, on the
+ * reasoning that a real page here pointing at a dead path is worth fixing. It
+ * shipped, and driving it on live disproved it immediately: 20 of the 26
+ * "actionable" rows had been promoted by referer, and every one was machine
+ * noise — /phpinfo, /_profiler/phpinfo, and real paths with a random 19-digit
+ * suffix appended (/comments/3135222639369717147).
  *
- * PURE — takes its candidate set and home host as arguments, so the whole
- * classification is testable without a WP bootstrap.
+ * The error is worth naming precisely, because the original comment came close
+ * enough to be misleading: it said an OFF-site referer is attacker-controlled
+ * and must not count, which is true, and then missed that the header is
+ * CLIENT-controlled whatever host it names. Worse, a crawler walking this site
+ * sends a same-site referer by definition — so the rule promoted everything a
+ * bot happened to touch. Meanwhile similarity alone had already found every
+ * genuine broken link in the same sample (/provenance/verify → /verify,
+ * /es/about, /contact-us). The signal added noise and nothing else.
  *
- * @since 10.47.0
+ * $entry and $home_host stay in the signature: the classifier is called from
+ * three places, the arguments cost nothing, and keeping the seam open means a
+ * future signal that IS trustworthy (server-side referer validation, say) has
+ * somewhere to land without another round of call-site churn.
+ *
+ * PURE — takes its candidate set as an argument, so the whole classification is
+ * testable without a WP bootstrap.
+ *
+ * @since 10.47.0 (referer signal withdrawn 10.48.0)
  * @param string   $path       The 404'd path.
- * @param array    $entry      Its log entry (reads 'referer' only).
+ * @param array    $entry      Its log entry. Unused since 10.48.0.
  * @param string[] $candidates Published candidate paths.
- * @param string   $home_host  This site's host, for the referer test.
+ * @param string   $home_host  This site's host. Unused since 10.48.0.
  * @return bool
  */
 function sn_404_is_actionable( $path, $entry, array $candidates, $home_host = '' ) {
-	$referer = isset( $entry['referer'] ) ? trim( (string) $entry['referer'] ) : '';
-	if ( '' !== $referer && '' !== (string) $home_host ) {
-		$host = strtolower( (string) wp_parse_url( $referer, PHP_URL_HOST ) );
-		if ( '' !== $host && $host === strtolower( (string) $home_host ) ) {
-			return true;
-		}
-	}
+	unset( $entry, $home_host );  // v10.48.0: referer withdrawn as a signal — see above.
 	return '' !== sn_404_suggest_target( $path, $candidates );
 }
 
