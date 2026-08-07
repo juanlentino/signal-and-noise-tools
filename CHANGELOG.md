@@ -2,11 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.56.4] - 2026-08-07
+
+**Headline:** draft-time echoes moves left — Considering → Planned.
 
 ### Changed
 
-- **Roadmap board: draft-time echoes promoted Considering → Planned** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)). The Machine learning entry moves columns word-for-word (owner decision, 2026-08-07); its Considering cell is now an honest em-dash, so the test's empty-cell pin moves 3 → 4. Rides the next release — no version of its own.
+- **Roadmap board: draft-time echoes promoted Considering → Planned** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)). The Machine learning entry moves columns word-for-word (owner decision, 2026-08-07); its Considering cell is now an honest em-dash, so the test's empty-cell pin moves 3 → 4.
+
+> **Why PATCH (and why a version at all):** board copy only — but the deploy path is tag-shaped (the workflow guard requires a `vX.Y.Z` ref, and the WP updater installs tag archives), so an owner-requested immediate ship gets the minimal bump rather than server drift against an existing tag.
 
 ## [10.56.3] - 2026-08-07
 
