@@ -59,7 +59,18 @@ $GLOBALS['__d'] = array(
 	'prov'    => array(
 		'active'     => true,
 		'worker_url' => 'https://w',
-		'counts'     => array( 'confirmed' => 1, 'pending' => 2, 'unanchored' => 0 ),
+		// The card reads snt_prov_anchor_overview() — each note's LATEST
+		// anchor, the anchor-status ability's own source — never the
+		// all-versions commit tally. One v1 pending (a new note) + one v2
+		// pending (an UPDATE of a published note re-anchoring).
+		'overview'   => array(
+			'pending'   => array(
+				array( 'post_id' => 10, 'title' => 'New note', 'version' => 1, 'bitcoin_txid' => '', 'confirmations' => null ),
+				array( 'post_id' => 11, 'title' => 'Edited note', 'version' => 2, 'bitcoin_txid' => '', 'confirmations' => null ),
+			),
+			'confirmed' => 1,
+			'total'     => 3,
+		),
 		'config'     => array( 'worker_url' => true ),
 	),
 );
@@ -74,6 +85,7 @@ function sn_analytics_period_deltas( $from, $to, $class = 'human' ) { return $GL
 function sn_prov_active() { return ! empty( $GLOBALS['__d']['prov']['active'] ); }
 function sn_prov_worker_url() { return (string) ( $GLOBALS['__d']['prov']['worker_url'] ?? '' ); }
 function sn_prov_admin_system_status() { return $GLOBALS['__d']['prov']; }
+function snt_prov_anchor_overview() { return $GLOBALS['__d']['prov']['overview']; }
 // snt_dashboard_override_count() is defined inside the file under test; it calls
 // get_posts() with fields=ids. Drive the override count via this stub so we
 // don't redeclare the real function.
@@ -135,15 +147,16 @@ dg_assert( $labels === $expected_order, 'cards render in the grouped 2×5 order 
 $prov_card = null;
 foreach ( $cards as $c ) { if ( 'Provenance' === ( $c['label'] ?? '' ) ) { $prov_card = $c; break; } }
 dg_assert( null !== $prov_card && '1 confirmed' === ( $prov_card['value'] ?? '' ), 'Provenance value = confirmed count ("1 confirmed")' );
-dg_assert( null !== $prov_card && 'warn' === ( $prov_card['pill']['kind'] ?? '' ) && false !== strpos( (string) ( $prov_card['pill']['text'] ?? '' ), 'pending' ), 'Provenance pill = pending count (warn) when pending > 0' );
+dg_assert( null !== $prov_card && 'warn' === ( $prov_card['pill']['kind'] ?? '' ) && false !== strpos( (string) ( $prov_card['pill']['text'] ?? '' ), '1 pending' ), 'Provenance pill names the NEW-note pending count (warn)' );
+dg_assert( null !== $prov_card && false !== strpos( (string) ( $prov_card['pill']['text'] ?? '' ), '1 update anchoring' ), 'Provenance pill names an in-flight UPDATE of a published note separately (version >= 2)' );
 
 // pending = 0 → ok "all anchored".
-$GLOBALS['__d']['prov']['counts']['pending'] = 0;
+$GLOBALS['__d']['prov']['overview']['pending'] = array();
 $cards_anch = snt_dashboard_glance_cards( $theme, $plugin, array(), '—' );
 $prov_anch  = null;
 foreach ( $cards_anch as $c ) { if ( 'Provenance' === ( $c['label'] ?? '' ) ) { $prov_anch = $c; break; } }
 dg_assert( null !== $prov_anch && 'ok' === ( $prov_anch['pill']['kind'] ?? '' ) && 'all anchored' === ( $prov_anch['pill']['text'] ?? '' ), 'Provenance pill = "all anchored" (ok) when nothing pending' );
-$GLOBALS['__d']['prov']['counts']['pending'] = 2; // restore
+$GLOBALS['__d']['prov']['overview']['pending'] = array( array( 'post_id' => 10, 'title' => 'New note', 'version' => 1 ) ); // restore
 
 // The grid renders via sn_admin_glance_grid.
 ob_start();

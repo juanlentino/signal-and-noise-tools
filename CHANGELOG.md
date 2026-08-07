@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.55.0] - 2026-08-07
+
+**Headline:** the provenance card counts what the ability counts, updates-in-flight get named, and the AI program has a public roadmap.
+
+### Added
+
+- **[sn_maturity_roadmap] — the hub-wide roadmap shortcode** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)). Done / planned / considering across EVERY maturity family — analytics, provenance, AI, the machine layer, accessibility, operations — each item carrying a mono area kicker so one list spans the hub without flattening. The family's pattern throughout: static data behind the `sn_maturity_roadmap_items` filter seam, whitelisted statuses (an unknown status never renders, an emptied one is omitted), escaped at build (area kickers included), leak-proof by the security-contract sweep (no option names, endpoint paths, tool or change-type slugs reach the page), its own front stylesheet with badge styling that makes "considering" visibly an idea (dotted, dimmed) rather than a commitment. 34 assertions in [tests/maturity-roadmap-shortcode.php](tests/maturity-roadmap-shortcode.php).
+
+### Fixed
+
+- **The dashboard provenance card now counts each Note's LATEST anchor — the anchor-status ability's own source — never a sum over every historical commit** ([inc/admin-tab-dashboard.php](inc/admin-tab-dashboard.php)). The card read `sn_prov_admin_system_status()`, which tallies every chain version, so the moment any note carried more than one version the card ("31 confirmed") and the ability (29 confirmed / 30) disagreed. It now reads `snt_prov_anchor_overview()` — reused, never a parallel count. And a pending anchor with version >= 2 is an UPDATE of a published note re-anchoring, so the pill names it separately ("1 update anchoring") instead of blending it into the new-note pending count. Glance suite updated to the overview fixture with both pending shapes pinned.
+
+> **Why MINOR:** a new public shortcode is a new user-visible capability; the card correction rides along as a fix.
+
 ## [10.54.1] - 2026-08-07
 
 **Headline:** the AI maturity page now tells the truth about sentence_replace.
