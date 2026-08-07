@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.57.0] - 2026-08-07
+
+**Headline:** the roadmap board becomes data — roadmap copy now ships without a release.
+
+### Added
+
+- **`roadmap_board` change type on the sn_apply write door** ([inc/sn-apply-roadmap-board.php](inc/sn-apply-roadmap-board.php), [inc/sn-apply-executors.php](inc/sn-apply-executors.php), [inc/sn-apply-validation.php](inc/sn-apply-validation.php)). The board rendered by `[sn_maturity_roadmap]` is now owner-editable data: the type stores a FULL replacement board in an option (`payload.board`, wholesale — no per-cell patch), or `payload.reset:true` deletes the override and returns the page to code-canonical. Publish-only (an option has no revision to stage — the og_card/anchor_sweep posture; dry_run is the review step). The fingerprint gate binds to the CURRENT effective board's hash; the observe step is a dry_run call itself (gates.fingerprint.observed + diff.before ARE the read surface — no new read tool, per the consolidation program). Gate 2 enforces plain prose, structural bounds, and a banned-internal-token sweep mirroring the public page's leak-sweep test, so copy that would leak an internal name is refused at the door.
+- **Option-backed override in the shortcode** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)). The static PHP array stays the versioned default and disaster-recovery floor; a stored override replaces it only when it passes the shared validator (invalid → ignored wholesale, the page never renders a broken board). The `sn_maturity_roadmap_board` filter contract is unchanged and still applies on top.
+
+### Why
+
+The owner's standing rule — roadmap copy is content, needs no version bump, goes straight live — was mechanically impossible while the board lived in code (v10.56.3 and v10.56.4 were both roadmap-copy releases). After this one-time release, roadmap edits are true content edits: sn_apply dry-run → fingerprinted write → cache purge, no tag, no deploy.
+
+> Tests: board suite 51 (option override, fallback, fingerprint, validator parity); delegation sweep 110 including the full-enum zero-writes sweep (now 13 types) and the roadmap_board behavior block. Full test directory green.
+
 ## [10.56.4] - 2026-08-07
 
 **Headline:** draft-time echoes moves left — Considering → Planned.

@@ -54,6 +54,7 @@ if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $x ) { return 
 if ( ! function_exists( '__' ) )  { function __( $s, $d = null ) { return $s; } }
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $opts = 0 ) { return json_encode( $d, $opts ); } }
 if ( ! function_exists( 'add_action' ) ) { function add_action( $t, $c, $p = 10, $a = 1 ) { return true; } }
+if ( ! function_exists( 'add_shortcode' ) ) { function add_shortcode( $t, $c ) { return true; } }
 if ( ! function_exists( 'apply_filters' ) ) {
 	$GLOBALS['__filters'] = array();
 	function apply_filters( $h, $v ) { foreach ( $GLOBALS['__filters'][ $h ] ?? array() as $cb ) { $v = $cb( $v ); } return $v; }
@@ -262,6 +263,8 @@ require __DIR__ . '/../inc/sn-apply-validation.php';
 require __DIR__ . '/../inc/sn-apply-create-draft.php';
 require __DIR__ . '/../inc/sn-apply-restore-revision.php';
 require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
+require __DIR__ . '/../inc/maturity-roadmap-shortcode.php'; // roadmap_board's board/validator/fingerprint helpers — the REAL impl, never restubbed here.
+require __DIR__ . '/../inc/sn-apply-roadmap-board.php';
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
@@ -455,6 +458,86 @@ ok( is_wp_error( $rli3 ), 'LI3.1: already-linked anchor refuses' );
 eq( 'snt_ai_link_already_linked', $rli3->get_error_code(), 'LI3.2: the refusal carries the ABSORBED impl\'s own error code (snt_ai_link_position_inside_anchor inside the real snt_ai_link_apply_impl) — delegation, not a re-implementation. (Gate 2\'s not_already_linked mirror is inert in this harness: sn_health_contains_note_link is not loaded, and its check is function_exists-guarded — so the real impl\'s own guard is what fires, which is exactly the delegation pin this test wants.)' );
 
 /* ════════════════════════════════════════════════════════════════════════
+ * roadmap_board — board-as-data (the maturity roadmap's option override):
+ * fingerprint oracle via dry_run, 409 stale, gate-2 leak-token refusal,
+ * publish write, reset back to code-canonical. Delegation pinned by the
+ * REAL sn_maturity_roadmap_* helpers loaded above — the board the write
+ * changes is the same board the shortcode renders.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nroadmap_board: fingerprint oracle + stale conflict + leak refusal + publish write + reset\n";
+
+$rb_target = array( 'scope' => 'maturity_roadmap' );
+$rb_board  = array(
+	'Analytics' => array( 'done' => array( 'A rewritten done sentence for the sweep' ), 'planned' => array(), 'considering' => array() ),
+);
+$rb_fp     = sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() );
+
+// Missing fingerprint: 422 with the type's own code; the encoded response
+// carries observed (the current fingerprint) and diff.before (the current
+// board) — the documented observe step.
+$rrb1 = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'payload' => array( 'board' => $rb_board ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( is_wp_error( $rrb1 ), 'RB1.1: missing fingerprint refuses' );
+eq( 'snt_sn_apply_missing_fingerprint', $rrb1->get_error_code(), 'RB1.2: with the 422 missing-fingerprint code (the restore_revision idiom), never the generic 409' );
+ok( false !== strpos( (string) $rrb1->get_error_message(), $rb_fp ), 'RB1.3: the refusal carries the CURRENT fingerprint (gates.fingerprint.observed) — the dry-run-as-read-surface contract' );
+
+// Stale fingerprint: the 409 merge conflict.
+$rrb2 = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => 'not-the-current-fingerprint', 'payload' => array( 'board' => $rb_board ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( is_wp_error( $rrb2 ) && 'snt_sn_apply_fingerprint_stale' === $rrb2->get_error_code(), 'RB2.1: a stale fingerprint is the 409 stale-branch conflict' );
+
+// Gate 2: a board carrying a banned internal token refuses as a
+// validation failure — the write-gate mirror of the page's leak sweep.
+$rrb3 = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => $rb_fp, 'payload' => array( 'board' => array(
+		'Analytics' => array( 'done' => array( 'This sentence names snt_ internals and must never render' ), 'planned' => array(), 'considering' => array() ),
+	) ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( is_wp_error( $rrb3 ) && 'snt_sn_apply_validation_failed' === $rrb3->get_error_code(), 'RB3.1: a banned internal token refuses at gate 2 — the leak sweep enforced at the DOOR, not just asserted on the page' );
+
+// mode:revision refuses structurally (publish-only, og_card's posture).
+$rrb4 = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => $rb_fp, 'payload' => array( 'board' => $rb_board ) ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( is_wp_error( $rrb4 ) && 'snt_sn_apply_mode_not_granted' === $rrb4->get_error_code(), 'RB4.1: mode:revision refuses — an option has no revision to stage' );
+
+// The publish write: the option lands and the EFFECTIVE board (what the
+// shortcode renders) is now the override — delegation to the same helpers
+// the render path reads.
+tf_reset_writes();
+$rrb5 = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => $rb_fp, 'payload' => array( 'board' => $rb_board ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $rrb5 ) && true === $rrb5['applied'], 'RB5.1: publish write applies' );
+eq( $rb_board, sn_maturity_roadmap_effective_board(), 'RB5.2: the EFFECTIVE board is now the override — the exact array the shortcode will render' );
+eq( 1, $GLOBALS['__write_calls']['update_option'], 'RB5.3: exactly one option write' );
+ok( sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ) !== $rb_fp, 'RB5.4: the fingerprint moved with the board' );
+
+// reset:true deletes the override — back to code-canonical, and the
+// pre-write fingerprint is current again.
+$rb_fp2 = sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() );
+$rrb6   = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => $rb_fp2, 'payload' => array( 'reset' => true ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $rrb6 ) && true === $rrb6['applied'], 'RB6.1: reset applies' );
+eq( sn_maturity_roadmap_static_board(), sn_maturity_roadmap_effective_board(), 'RB6.2: the effective board is the static board again — code-canonical restored' );
+eq( $rb_fp, sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ), 'RB6.3: and the original fingerprint is current again' );
+
+/* ════════════════════════════════════════════════════════════════════════
  * ALL EIGHT change types: structural dry_run zero-writes sweep (session-4
  * recorder pattern — loop the ENUM itself, so a future ninth type that
  * skips this table fails the count assertion automatically).
@@ -489,6 +572,10 @@ $sweep_calls = array(
 	// LIVE content_hash (restore_revision's binding), producible by any
 	// caller via sn_posts; the only body type with no scan/suggest mint.
 	'sentence_replace' => array( 'target' => array( 'post_id' => 780 ), 'mode' => 'revision', 'change' => array( 'type' => 'sentence_replace', 'fingerprint' => $sr_fp, 'payload' => array( 'phrase' => $sr_phrase, 'replacement' => 'This is a shorter sentence. It has a sibling now.', 'context_snippet' => '' ) ) ),
+	// roadmap_board: board-as-data — PUBLISH-only (option write, og_card's
+	// posture); fingerprint = the CURRENT effective board's hash, computed
+	// by the same real helper the write path binds to.
+	'roadmap_board'    => array( 'target' => array( 'scope' => 'maturity_roadmap' ), 'mode' => 'publish', 'change' => array( 'type' => 'roadmap_board', 'fingerprint' => sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ), 'payload' => array( 'board' => array( 'Analytics' => array( 'done' => array( 'A sweep-only replacement sentence' ), 'planned' => array(), 'considering' => array() ) ) ) ) ),
 );
 eq( count( SNT_SN_APPLY_CHANGE_TYPES ), count( $sweep_calls ), 'SWEEP.0: the sweep table covers the FULL enum — a new change type added to SNT_SN_APPLY_CHANGE_TYPES fails here until it joins the sweep' );
 foreach ( SNT_SN_APPLY_CHANGE_TYPES as $sweep_type ) {

@@ -51,6 +51,7 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	'block_migration', 'pattern_adoption', 'alt_text', 'link_insert',
 	'drift_replace', 'surfaces', 'og_card', 'anchor_sweep', 'create_draft',
 	'restore_revision', 'emdash_replace', 'sentence_replace',
+	'roadmap_board',
 );
 
 /**
@@ -82,6 +83,11 @@ function snt_sn_apply_mode_support( $type ) {
 			return array(
 				'modes'  => array( 'publish' ),
 				'reason' => 'anchor_sweep dispatches a live HTTP call to the provenance Worker (sn_prov_run_sweep()): an external side effect with no post entity to stage a revision of. Publish-only.',
+			);
+		case 'roadmap_board':
+			return array(
+				'modes'  => array( 'publish' ),
+				'reason' => 'roadmap_board writes the maturity roadmap\'s site-level board override: an option, not a post field. An option has no WordPress revision to stage — publish-only, the og_card/anchor_sweep posture; dry_run:true is the review step.',
 			);
 		case 'create_draft':
 			return array(
@@ -115,6 +121,16 @@ function snt_sn_apply_resolve_target( $type, $target ) {
 			return new WP_Error( 'snt_sn_apply_bad_target', __( 'anchor_sweep requires target.scope === "provenance_anchors".', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 		}
 		return array( 'scope' => 'provenance_anchors' );
+	}
+
+	if ( 'roadmap_board' === $type ) {
+		// Same explicit-scope posture as anchor_sweep: the target is a site
+		// surface, not a post — name it exactly rather than accepting any
+		// object at all.
+		if ( 'maturity_roadmap' !== ( $target['scope'] ?? '' ) ) {
+			return new WP_Error( 'snt_sn_apply_bad_target', __( 'roadmap_board requires target.scope === "maturity_roadmap".', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		return array( 'scope' => 'maturity_roadmap' );
 	}
 
 	if ( 'alt_text' === $type ) {
@@ -295,6 +311,12 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 				return $result;
 			}
 			return array( 'ok' => true, 'diff' => array( 'before' => null, 'after' => $result['image_url'] ?? null, 'blocks_touched' => 0 ), 'revision_id' => null, 'write_result' => $result );
+
+		case 'roadmap_board':
+			// mode:publish only — see snt_sn_apply_mode_support(). The write
+			// impl (inc/sn-apply-roadmap-board.php) shapes its own diff
+			// (before = the pre-write effective board).
+			return snt_sn_apply_write_roadmap_board( $payload );
 
 		case 'anchor_sweep':
 			// mode:publish only — see snt_sn_apply_mode_support().
@@ -480,6 +502,12 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 			$revision_id = (int) ( $payload['revision_id'] ?? 0 );
 			$diff        = $revision_id > 0 ? snt_sn_apply_revision_diff( $revision_id ) : null;
 			return is_array( $diff ) ? $diff : array( 'before' => null, 'after' => null, 'fields_changed' => array() );
+
+		case 'roadmap_board':
+			// before = the CURRENT effective board — deliberately doubling as
+			// the type's read surface (see inc/sn-apply-roadmap-board.php's
+			// docblock: the observe step is a dry_run call itself).
+			return snt_sn_apply_roadmap_board_diff( $change );
 
 		default:
 			// og_card, anchor_sweep — no textual diff to preview.
