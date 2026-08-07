@@ -61,7 +61,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-validate', array(
 		'label'               => 'Validate proposed content before writing (consolidated, deterministic)',
-		'description'         => 'Deterministic, model-free validation of proposed content — the verification layer behind the ai-*-suggest tools, not a replacement generator. Every check is either an ERROR (objective rule violation, blocks ready_to_apply), a WARNING (heuristic signal, never blocks), or INFO (evidence for a human judgment call — brand_voice findings are never a score or a verdict). Stateless and side-effect free: call it as many times as needed while iterating on a draft. Zero model calls, ever — every check is a pure read + compute against the corpus (length caps, corpus-wide collision checks, link-graph state, tag vocabulary membership, block-pattern registry). checks:"all" with no proposed content validates the post\'s currently PUBLISHED surfaces instead of erroring. finding_id is content-derived (sha256 of surface + check + the specific content identity) — the same scheme as sn_scan\'s candidate_id — so identical input reruns byte-identical, and a suppressed finding reappears honestly when the content changes.',
+		'description'         => 'Deterministic, model-free validation of proposed content — the verification layer behind the ai-*-suggest tools, not a replacement generator. Every check is either an ERROR (objective rule violation, blocks ready_to_apply), a WARNING (heuristic signal, never blocks), or INFO (evidence for a human judgment call — brand_voice findings are never a score or a verdict). Stateless and side-effect free: call it as many times as needed while iterating on a draft. Zero model calls, ever — every check is a pure read + compute against the corpus (length caps, corpus-wide collision checks, link-graph state, tag vocabulary membership, block-pattern registry). checks:"all" with no proposed content validates the post\'s currently PUBLISHED surfaces instead of erroring. DRAFTING HARNESS: post_id is required, but proposed content does NOT need to belong to that post — pass any existing corpus post_id with compare_against:"none" and the body/tags/excerpt/meta checks evaluate the proposed content entirely on its own terms (no diff against the host post is computed), so content for a post that does not exist yet can be validated before create_draft is ever called. brand_voice REPORTING: its findings are attributed to the text surface they were found on (surface:"body", check:"banned_phrase"/"sentence_length"/"em_dash_count"), never to a "brand_voice" surface; when the pass ran, the literal token "brand_voice" appears in surfaces_checked alongside every text surface it evaluated (even ones with zero findings), and when it was requested but no text surface resolved, a WARNING finding (check:"not_evaluated") says so explicitly — it never silently no-ops. finding_id is content-derived (sha256 of surface + check + the specific content identity) — the same scheme as sn_scan\'s candidate_id — so identical input reruns byte-identical, and a suppressed finding reappears honestly when the content changes.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_validate',
@@ -291,6 +291,21 @@ function snt_ability_sn_validate( $input ) {
 	// brand_voice — evidence only, applied to every resolved text surface,
 	// even one not itself in $requested (its own structural check may not
 	// have been asked for, but the caller explicitly asked for brand_voice).
+	//
+	// AUDIT FIX (2026-08-08): this pass used to be UNREPORTABLE from outside
+	// — its findings carry the text surface's name (surface:"body", check:
+	// "banned_phrase"/"sentence_length"/"em_dash_count"), the 'brand_voice'
+	// token never entered surfaces_checked, and a surface it evaluated
+	// cleanly left no trace at all. A caller grepping the response for
+	// "brand_voice" concluded the check silently no-oped even when it ran.
+	// Now: (a) 'brand_voice' itself joins surfaces_checked whenever the pass
+	// evaluated at least one text surface; (b) every surface it evaluated is
+	// recorded even with zero findings; (c) when it was requested but NO text
+	// surface resolved (nothing to evaluate), that is a WARNING finding —
+	// loud, never blocking — instead of a silent skip. The silent-skip rule
+	// (acceptance test 5) still governs the STRUCTURAL surfaces; brand_voice
+	// is different because it is a cross-surface check the caller asked for
+	// by name.
 	if ( in_array( 'brand_voice', $requested, true ) ) {
 		if ( empty( $resolved_text ) ) {
 			foreach ( SNT_SN_VALIDATE_TEXT_SURFACES as $surface ) {
@@ -300,10 +315,19 @@ function snt_ability_sn_validate( $input ) {
 				}
 			}
 		}
-		foreach ( $resolved_text as $surface => $value ) {
-			$bv = snt_sn_validate_brand_voice_findings( $surface, $value, $post_id );
-			if ( ! empty( $bv ) ) {
-				$findings = array_merge( $findings, $bv );
+		if ( empty( $resolved_text ) ) {
+			$findings[] = snt_sn_validate_finding(
+				'brand_voice', 'not_evaluated', 'warning',
+				__( 'brand_voice was requested but no text surface resolved (no proposed or published excerpt/meta_description/og_card_title/note_summary/body) — the check did not run.', 'signal-and-noise-tools' ),
+				null, null, array( 'text_surfaces' => SNT_SN_VALIDATE_TEXT_SURFACES ), $post_id . '|brand_voice|not_evaluated'
+			);
+		} else {
+			$surfaces_checked[] = 'brand_voice';
+			foreach ( $resolved_text as $surface => $value ) {
+				$bv = snt_sn_validate_brand_voice_findings( $surface, $value, $post_id );
+				if ( ! empty( $bv ) ) {
+					$findings = array_merge( $findings, $bv );
+				}
 				if ( ! in_array( $surface, $surfaces_checked, true ) ) {
 					$surfaces_checked[] = $surface;
 				}

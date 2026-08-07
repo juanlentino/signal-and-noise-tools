@@ -210,6 +210,41 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			// restore_revision idiom), stale is the 409 merge conflict.
 			return snt_sn_apply_gate1_roadmap_board( $change );
 
+		case 'delete_draft':
+			// restore_revision's exact binding + idiom: REQUIRED fingerprint =
+			// the draft's CURRENT content_hash (sn_posts' scheme). Trashing a
+			// draft someone edited since it was created is the stale-branch
+			// conflict; a missing fingerprint is a 422 caller error, and
+			// `observed` is always reported so a dry_run:true call doubles as
+			// the fingerprint read (the roadmap_board observe idiom —
+			// create_draft's rollback object also carries it directly).
+			$post = get_post( $resolved['post_id'] ?? 0 );
+			if ( ! $post ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
+			}
+			$observed = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
+			if ( ! array_key_exists( 'fingerprint', $change ) ) {
+				return array(
+					'passed'       => false,
+					'expected'     => null,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => 'change.fingerprint is required for delete_draft: pass the content_hash from create_draft\'s rollback object, from sn_posts, or from this response\'s gates.fingerprint.observed (a dry_run:true call is the read step).',
+					'new_content'  => null,
+					'error_code'   => 'snt_sn_apply_missing_fingerprint',
+					'error_status' => 422,
+				);
+			}
+			$passed = hash_equals( $observed, $fingerprint );
+			return array(
+				'passed'      => $passed,
+				'expected'    => $fingerprint,
+				'observed'    => $observed,
+				'skipped'     => null,
+				'detail'      => $passed ? null : 'The draft\'s content has changed since this fingerprint was observed (re-fetch its content_hash and retry: the stale-branch merge conflict).',
+				'new_content' => null,
+			);
+
 		default:
 			// alt_text, surfaces, og_card, anchor_sweep — no fingerprint
 			// scheme exists in the absorbed impl (see docblock above).
@@ -300,6 +335,11 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 			// structure bounds + plain-prose + the banned-token sweep that
 			// mirrors the public page's leak-sweep test.
 			return snt_sn_apply_gate2_roadmap_board( $change );
+
+		case 'delete_draft':
+			// Draft-status + post_type fence (inc/sn-apply-delete-draft.php);
+			// the write primitive re-checks both immediately before trashing.
+			return snt_sn_apply_gate2_delete_draft( $resolved );
 
 		default:
 			// og_card, anchor_sweep — no applicable check family.

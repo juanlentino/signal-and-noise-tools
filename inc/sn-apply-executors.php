@@ -26,6 +26,7 @@
  * | og_card           |    NO    |   yes   | sn_generate_og_card() writes a PNG FILE to disk (inc/og-card-generator.php) — not a post field at all. There is no WordPress revision of a file. Refuses structurally in revision mode, never fakes a staged version. |
  * | anchor_sweep      |    NO    |   yes   | dispatches a bounded wp_remote_post() to the provenance Worker (inc/provenance-webhook.php's sn_prov_run_sweep()) — an external side effect with no post entity involved at all (target is scope:"provenance_anchors", not a post_id). Nothing to stage. |
  * | create_draft      |   yes    |   NO    | insert-only (session 6c, the arc's finale — see inc/sn-apply-create-draft.php's docblock for the full B5c origin): post_status is hard-coded 'draft', post_type hard-coded 'post'. mode:"publish" refuses structurally — this tool never makes a draft live; the owner schedules by hand. mode:"revision" is the one accepted mode, but its OWN write mechanism (snt_sn_apply_write_create_draft(), not snt_sn_apply_stage_revision()) — there is no parent post yet to stage a core revision against; "revision" here just means the request goes through the same dry_run-by-default, human-review-first posture as everywhere else in this tool. |
+ * | delete_draft      |   yes    |   NO    | create_draft's mirror (audit item 6, v10.58.0): trash-only (wp_trash_post, never a hard delete), draft-only (gate 2 + a last-instant re-check in the write), fingerprint-gated on the draft's content_hash. Revision-only for create_draft's reason; rollback is wp-admin untrash (reported as method "manual_untrash" — a human action, not an MCP method). |
  * | restore_revision  |    NO    |   yes   | session 7 (the acceptance path — see inc/sn-apply-restore-revision.php's docblock): a restore IS the live write, so "staging a restore" would stage a revision of a revision. mode:"revision" refuses structurally, the exact mechanism og_card/anchor_sweep use. Publish-only means only the rw door's bound owner credential can ever execute it (gate 3's identity grant); a routine credential is refused there by construction, never by new identity code. Promotes a staged revision to live AND applies+clears any queued snt_sn_apply_stage_meta() rows for the same post — the queue's first application path. |
  *
  * "partial" on surfaces is intentionally not a clean yes/no: the TYPE
@@ -52,6 +53,10 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	'drift_replace', 'surfaces', 'og_card', 'anchor_sweep', 'create_draft',
 	'restore_revision', 'emdash_replace', 'sentence_replace',
 	'roadmap_board',
+	// v10.58.0 (audit item 6): makes create_draft's advertised
+	// rollback:{method:"delete_draft"} REAL — trash-only, draft-only,
+	// fingerprint-gated. See inc/sn-apply-delete-draft.php.
+	'delete_draft',
 );
 
 /**
@@ -93,6 +98,11 @@ function snt_sn_apply_mode_support( $type ) {
 			return array(
 				'modes'  => array( 'revision' ),
 				'reason' => 'create_draft can never publish (post_status is hard-coded to "draft" and this tool will never make it live. Drafts are scheduled by hand; that manual step is the human review gate. This change type only supports mode:"revision", which performs the actual (reversible via rollback:delete_draft) draft insert directly) there is no live post yet to stage a WordPress core revision against.',
+			);
+		case 'delete_draft':
+			return array(
+				'modes'  => array( 'revision' ),
+				'reason' => 'delete_draft is create_draft\'s mirror: trash-only (never a hard delete, recoverable from wp-admin Trash), draft-only, and revision-only for the same reason create_draft is — there is no WordPress revision of a trash transition to stage; "revision" means the dry_run-by-default posture with reversibility delivered by WordPress\'s own trash/untrash mechanics.',
 			);
 		case 'restore_revision':
 			return array(
@@ -343,6 +353,21 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 				'write_result' => $result,
 			);
 
+		case 'delete_draft':
+			// mode:revision only — see snt_sn_apply_mode_support(). Trash-only
+			// write with its own last-instant draft-status re-check
+			// (inc/sn-apply-delete-draft.php).
+			$result = snt_sn_apply_write_delete_draft( (int) ( $resolved['post_id'] ?? 0 ) );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			return array(
+				'ok'           => true,
+				'diff'         => array( 'before' => array( 'post_id' => $result['post_id'], 'status' => 'draft' ), 'after' => array( 'post_id' => $result['post_id'], 'status' => 'trash' ), 'blocks_touched' => 0 ),
+				'revision_id'  => null,
+				'write_result' => $result,
+			);
+
 		case 'restore_revision':
 			// mode:publish only — see snt_sn_apply_mode_support(). This is
 			// session 7's acceptance path (inc/sn-apply-restore-revision.php):
@@ -508,6 +533,11 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 			// the type's read surface (see inc/sn-apply-roadmap-board.php's
 			// docblock: the observe step is a dry_run call itself).
 			return snt_sn_apply_roadmap_board_diff( $change );
+
+		case 'delete_draft':
+			// Identity preview, not a content diff — "is this the draft I
+			// think it is" (inc/sn-apply-delete-draft.php).
+			return snt_sn_apply_delete_draft_diff( $resolved );
 
 		default:
 			// og_card, anchor_sweep — no textual diff to preview.

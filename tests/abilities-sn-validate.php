@@ -499,6 +499,39 @@ ok( true === $voice['ready_to_apply'], 'brand_voice: info findings never affect 
 $em_dash_finding = array_values( array_filter( $voice['findings'], static function ( $f ) { return 'em_dash_count' === $f['check']; } ) );
 ok( ! empty( $em_dash_finding ) && 2 === $em_dash_finding[0]['observed'], 'brand_voice: em_dash_count counts literal U+2014 occurrences' );
 
+// AUDIT FIX (2026-08-08): brand_voice execution must be OBSERVABLE. Pre-fix,
+// the token never entered surfaces_checked and a cleanly-evaluated surface
+// left no trace — indistinguishable from the check never running.
+ok( in_array( 'brand_voice', $voice['surfaces_checked'], true ), 'brand_voice: the literal token appears in surfaces_checked when the pass ran' );
+ok( in_array( 'excerpt', $voice['surfaces_checked'], true ), 'brand_voice: every text surface it evaluated is recorded in surfaces_checked' );
+
+// A clean surface (zero brand_voice findings would need empty text — use a
+// short clean body with no banned phrases: sentence_length still fires, but
+// the surface must be recorded regardless of finding count).
+$voice_with_body = snt_ability_sn_validate( array(
+	'post_id'  => 100,
+	'proposed' => array( 'body' => 'Plain words here.' ),
+	'checks'   => array( 'body', 'brand_voice' ),
+) );
+ok( in_array( 'brand_voice', $voice_with_body['surfaces_checked'], true ), 'brand_voice: token present when requested alongside structural checks (the audit repro shape)' );
+ok( in_array( 'body', $voice_with_body['surfaces_checked'], true ), 'brand_voice: the evaluated body surface is recorded' );
+
+// Requested but NOTHING to evaluate -> loud WARNING, never a silent no-op.
+// Post 300 is draft with empty surfaces (see fixtures above) — resolve every
+// text surface to nothing by proposing none and using a post with no
+// published excerpt/meta/body.
+$voice_nothing = snt_ability_sn_validate( array(
+	'post_id'  => 300,
+	'proposed' => array( 'tags' => array( 'Provenance' ) ),
+	'checks'   => array( 'brand_voice' ),
+) );
+$nothing_checks = array_column( $voice_nothing['findings'], 'check' );
+ok( in_array( 'not_evaluated', $nothing_checks, true ), 'brand_voice: requested with no resolvable text surface -> not_evaluated WARNING finding' );
+$not_eval = array_values( array_filter( $voice_nothing['findings'], static function ( $f ) { return 'not_evaluated' === $f['check']; } ) );
+ok( ! empty( $not_eval ) && 'warning' === $not_eval[0]['severity'], 'brand_voice: not_evaluated is severity warning (loud, never blocking)' );
+ok( true === $voice_nothing['ready_to_apply'], 'brand_voice: not_evaluated never blocks ready_to_apply' );
+ok( ! in_array( 'brand_voice', $voice_nothing['surfaces_checked'], true ), 'brand_voice: token absent from surfaces_checked when the pass could not run' );
+
 /* ════════════════════════════════════════════════════════════════════════
  * diff — compare_against:"published" simple presence diff
  * ════════════════════════════════════════════════════════════════════════ */

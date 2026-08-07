@@ -7,6 +7,15 @@
  * preceding core/heading with attrs.level === 2 in the same post
  * (heading-hierarchy-skip — WCAG 1.3.1 violation).
  *
+ * SCOPE (documented 2026-08-08, audit item 3): level 3 ONLY, deliberately.
+ * H4-without-H2 is the same WCAG 1.3.1 shape but it is the accepted house
+ * pattern for Notes (most of the corpus uses H4 subheads with nothing above
+ * them) — generalizing the check would flag nearly every published Note.
+ * What this check catches is drift AGAINST that convention: a Note using H3
+ * where the house pattern says H4. Publish-only by the get_posts() args
+ * below — a scheduled post (e.g. an H3-skip written while the corpus was
+ * still on H3 subheads) surfaces only after it publishes.
+ *
  * Each candidate gets a fingerprint = md5(serialize_block($node)) for
  * concurrency-safe apply later. Candidates whose fingerprints appear in
  * the post's _snt_block_migrations_dismissed meta (as

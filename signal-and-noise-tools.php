@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.57.1
+ * Version:     10.58.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -358,6 +358,7 @@ require_once __DIR__ . '/inc/abilities-corpus.php';    // v10.6.0: 3 abilities (
 require_once __DIR__ . '/inc/abilities-sn-posts.php';      // v10.26.0: MCP consolidation — sn_posts, absorbs list-posts + get-post-content (both stay live)
 require_once __DIR__ . '/inc/abilities-sn-site-facts.php'; // v10.26.0: MCP consolidation — sn_site_facts, absorbs 10 of 11 site-facts reads (get-design-system-summary retired, not absorbed)
 require_once __DIR__ . '/inc/sn-scan-adapters.php';    // v10.29.0: MCP consolidation session 4 — six per-scan_type adapters behind sn_scan (needs corpus-inspect.php, ml-cousins.php, ml-candidates.php, health-checks.php — all required below; constants/functions resolve at call time, not require time)
+require_once __DIR__ . '/inc/sn-scan-anchor-violations.php'; // v10.58.0: scan_type "anchor_violations" — two binary link rules (anchor==sentence, link-in-heading); detector + adapter, own file per the emdash-scanner precedent
 require_once __DIR__ . '/inc/abilities-sn-scan.php';   // v10.29.0: MCP consolidation session 4 — sn_scan, absorbs block-migrations-scan + pattern-adoption-scan + duplicate-body-scan + near-duplicate-scan + link-candidates, plus new orphan_media
 require_once __DIR__ . '/inc/abilities-update-post-surfaces.php'; // v10.7.0: reviewed-text write for excerpt/meta-desc/OG title — rw door
 require_once __DIR__ . '/inc/ml-kernel.php';           // v10.15.0: pure ML primitives (tokenizer, tf-idf, cosine, bm25, graph signals) — zero WP calls
@@ -423,6 +424,7 @@ require_once SNT_PATH . 'inc/sn-apply-revision.php';        // v10.40.0: MCP con
 require_once SNT_PATH . 'inc/sn-apply-gates.php';            // v10.40.0: MCP consolidation session 6b — gates 3 (mode capability) + 4 (idempotency), ability-level, on top of the rw door's existing hardening.
 require_once SNT_PATH . 'inc/sn-apply-validation.php';       // v10.40.0: MCP consolidation session 6b — gates 1 (fingerprint) + 2 (server-side validation), per change type.
 require_once SNT_PATH . 'inc/sn-apply-create-draft.php';     // v10.40.0: MCP consolidation session 6c (arc finale) — change.type "create_draft": gate 2 assembly, block-delimiter validator, and the write primitive. Split out purely for the 450-line file budget, same convention as sn-apply-validation.php's split from sn-apply-executors.php.
+require_once SNT_PATH . 'inc/sn-apply-delete-draft.php';     // v10.58.0 (audit item 6): change.type "delete_draft" — makes create_draft's advertised rollback method real. Trash-only, draft-only, fingerprint-gated; gate 2 + write primitive + dry-run preview.
 require_once SNT_PATH . 'inc/sn-apply-restore-revision.php'; // v10.42.0: MCP consolidation session 7 — change.type "restore_revision", the acceptance path: structural pre-check, gate 2 assembly against the revision's own fields, rollback-snapshot guarantee, and the first application path for the staged-meta queue.
 require_once SNT_PATH . 'inc/sn-apply-sentence-replace.php'; // change.type "sentence_replace": the agent-composed body edit — whole-post content_hash fingerprint (restore_revision's binding), plain-prose splice via the drift locate/splice contract. See the file docblock for why candidate fingerprints can't serve composing callers.
 require_once SNT_PATH . 'inc/sn-apply-roadmap-board.php';    // change.type "roadmap_board": board-as-data for the maturity roadmap — option-backed override behind the shortcode's filter seam, effective-board fingerprint, gate-2 banned-token sweep. Publish-only (an option has no revision); the owner's "content goes straight live" rule made mechanical.

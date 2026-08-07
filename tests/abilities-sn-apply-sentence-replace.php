@@ -204,6 +204,7 @@ require __DIR__ . '/../inc/sn-validate-checks-media.php';
 require __DIR__ . '/../inc/sn-apply-revision.php';
 require __DIR__ . '/../inc/sn-apply-gates.php';
 require __DIR__ . '/../inc/sn-apply-validation.php';
+require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
 require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';

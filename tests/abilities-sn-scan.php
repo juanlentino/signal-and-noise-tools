@@ -566,6 +566,38 @@ ok( 2 === $om['corpus_state']['posts_examined'], 'orphan_media corpus_state repo
 $om_scoped = snt_ability_sn_scan( array( 'scan_type' => 'orphan_media', 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( 701 ) ) ) );
 ok( 0 === count( $om_scoped['candidates'] ), 'orphan_media scope.post_ids (attachment IDs) filters the finding away' );
 
+/* ════════════════════════════════════════════════════════════════════════
+ * emdash — ENVELOPE parity (AUDIT FIX 2026-08-08). v10.51.0's adapter
+ * emitted raw scanner rows without target_identity/content_fingerprint/
+ * targets/confidence; confirmed live: every candidate collapsed to ONE
+ * candidate_id (sha256 of "emdash||") with empty targets/evidence and
+ * confidence 0 — and the determinism test could never catch it, because
+ * identical garbage IS byte-identical across runs. This block pins the
+ * envelope keys with real per-candidate values.
+ * ════════════════════════════════════════════════════════════════════════ */
+function snt_emdash_scan_content( $content ) {
+	// Two prose em-dashes + one structural, positions content-derived.
+	return array(
+		array( 'classification' => 'prose', 'phrase' => 'alpha—beta', 'position' => 10, 'replacement' => 'alpha, beta', 'context_snippet' => 'x alpha—beta y', 'pair' => false ),
+		array( 'classification' => 'prose', 'phrase' => 'gamma—delta', 'position' => 40, 'replacement' => 'gamma, delta', 'context_snippet' => 'x gamma—delta y', 'pair' => false ),
+		array( 'classification' => 'attribution', 'phrase' => '—Someone', 'position' => 90, 'replacement' => '', 'context_snippet' => '', 'pair' => false ),
+	);
+}
+function snt_ai_drift_fingerprint( $content, $phrase, $position ) {
+	return md5( 'fp|' . $phrase . '|' . $position );
+}
+$GLOBALS['__posts'][801] = tf_post( 801, 'publish', json_encode( array() ), array( 'slug' => 'emdash-host' ) );
+
+$em = snt_ability_sn_scan( array( 'scan_type' => 'emdash', 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( 801 ) ) ) );
+ok( is_array( $em ) && 2 === count( $em['candidates'] ), 'emdash: prose rows become candidates, structural rows are skipped' );
+$em_ids = array_column( $em['candidates'], 'candidate_id' );
+ok( 2 === count( array_unique( $em_ids ) ), 'emdash: candidates get DISTINCT candidate_ids (the live-confirmed collapse bug)' );
+$em_c = $em['candidates'][0];
+ok( 801 === ( $em_c['targets'][0]['post_id'] ?? 0 ), 'emdash: targets carry the post identity (was empty live)' );
+ok( SNT_SN_SCAN_CONF_EMDASH === $em_c['confidence'], 'emdash: documented-constant confidence (was 0 live)' );
+ok( isset( $em_c['evidence']['phrase'], $em_c['evidence']['position'], $em_c['evidence']['replacement'], $em_c['evidence']['context_snippet'], $em_c['evidence']['fingerprint'] ), 'emdash: evidence carries everything emdash_replace needs (was silently dropped by the assembler)' );
+ok( 'signal-noise/sn-apply' === ( $em_c['apply_hint']['tool'] ?? '' ), 'emdash: apply_hint names sn-apply change.type emdash_replace' );
+
 // The near_duplicate section above reset $GLOBALS['__posts'] to isolate its
 // own idf-sensitive fixture — restore the duplicate_body group-1 pair (same
 // post_date, one publish + one draft) so the extended-acceptance-test-1

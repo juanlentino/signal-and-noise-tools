@@ -40,6 +40,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SNT_SN_SCAN_CONF_DUPLICATE_BODY     = 1.0;
 const SNT_SN_SCAN_CONF_BLOCK_MIGRATIONS   = 0.9;
 const SNT_SN_SCAN_CONF_ORPHAN_MEDIA       = 0.85;
+// Prose classification by snt_emdash_scan_content() is a strong structural
+// call, not a byte-exact match — same tier as orphan_media (v10.58.0, part
+// of the emdash envelope fix below).
+const SNT_SN_SCAN_CONF_EMDASH             = 0.85;
 const SNT_SN_SCAN_CONF_PATTERN_ADOPTION   = 0.7;
 
 /**
@@ -57,6 +61,9 @@ function snt_sn_scan_adapters() {
 		'link_candidates'  => 'snt_sn_scan_adapter_link_candidates',
 		'emdash'           => 'snt_sn_scan_adapter_emdash',
 		'orphan_media'     => 'snt_sn_scan_adapter_orphan_media',
+		// v10.58.0 — detector + adapter live in inc/sn-scan-anchor-violations.php
+		// (own file, the emdash-scanner precedent).
+		'anchor_violations' => 'snt_sn_scan_adapter_anchor_violations',
 	);
 	return apply_filters( 'sn_scan_adapters', $adapters );
 }
@@ -547,23 +554,45 @@ function snt_sn_scan_adapter_emdash( $allowed_ids ) {
 				++$skipped;
 				continue;
 			}
+			$fingerprint = function_exists( 'snt_ai_drift_fingerprint' )
+				? snt_ai_drift_fingerprint( $content, $row['phrase'], $row['position'] )
+				: '';
+			// AUDIT FIX (2026-08-08): this adapter shipped (v10.51.0) emitting
+			// raw scanner rows WITHOUT the envelope keys inc/abilities-sn-scan.php
+			// reads (target_identity/content_fingerprint/targets/confidence) —
+			// confirmed live: every emdash candidate collapsed to the SAME
+			// candidate_id (sha256 of "emdash||"), empty targets, empty
+			// evidence, confidence 0, and every payload field emdash_replace
+			// needs was silently dropped by the assembler. The determinism
+			// test masked it (identical garbage IS byte-identical across runs).
 			$candidates[] = array(
-				'post_id'         => (int) $post->ID,
-				'phrase'          => $row['phrase'],
-				'position'        => $row['position'],
-				'replacement'     => $row['replacement'],
-				'context_snippet' => $row['context_snippet'],
-				'pair'            => $row['pair'],
-				'fingerprint'     => function_exists( 'snt_ai_drift_fingerprint' )
-					? snt_ai_drift_fingerprint( $content, $row['phrase'], $row['position'] )
-					: '',
+				'target_identity'     => $post->ID . ':' . (int) $row['position'],
+				'content_fingerprint' => '' !== $fingerprint ? $fingerprint : md5( $row['phrase'] . '|' . (int) $row['position'] ),
+				'targets'             => array( array(
+					'post_id' => (int) $post->ID,
+					'slug'    => (string) ( $post->post_name ?? '' ),
+				) ),
+				'confidence'          => SNT_SN_SCAN_CONF_EMDASH,
+				'evidence'            => array(
+					'phrase'          => $row['phrase'],
+					'position'        => (int) $row['position'],
+					'replacement'     => $row['replacement'],
+					'context_snippet' => $row['context_snippet'],
+					'pair'            => $row['pair'],
+					'fingerprint'     => $fingerprint,
+				),
+				'apply_hint'          => array(
+					'tool'          => 'signal-noise/sn-apply',
+					'required_args' => array( 'change.type:emdash_replace', 'change.fingerprint', 'payload.phrase', 'payload.position', 'payload.replacement', 'payload.context_snippet' ),
+				),
 			);
 		}
 	}
 
 	return array(
-		'candidates'         => $candidates,
-		'posts_examined'     => $examined,
-		'structural_skipped' => $skipped,
+		'candidates'     => $candidates,
+		'posts_examined' => $examined,
+		'posts_skipped'  => $skipped,
+		'truncated'      => false,
 	);
 }
