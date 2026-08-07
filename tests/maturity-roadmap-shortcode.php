@@ -70,9 +70,10 @@ ok( 7 === substr_count( $html, 'sn-maturity-roadmap-board__family"' ), 'exactly 
 ok( 21 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7×3 status cells' );
 
 // Empty cells render the honest em-dash (machine-readability planned,
-// a11y considering, ops planned) — a family with no future tense is
-// information, not a gap.
-ok( 3 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly three empty cells render the em-dash' );
+// a11y considering, ops planned, ML considering — emptied when
+// draft-time echoes promoted to planned) — a family with no future
+// tense is information, not a gap.
+ok( 4 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly four empty cells render the em-dash' );
 
 // Load-bearing copy: gates named on plans, nevers restated inline.
 ok( false !== strpos( $html, 'no new collection' ), 'the public-stats-page plan names its gate' );

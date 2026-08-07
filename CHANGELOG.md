@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Changed
+
+- **Roadmap board: draft-time echoes promoted Considering → Planned** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)). The Machine learning entry moves columns word-for-word (owner decision, 2026-08-07); its Considering cell is now an honest em-dash, so the test's empty-cell pin moves 3 → 4. Rides the next release — no version of its own.
+
 ## [10.56.3] - 2026-08-07
 
 **Headline:** three new ideas land in the roadmap's Considering column.
