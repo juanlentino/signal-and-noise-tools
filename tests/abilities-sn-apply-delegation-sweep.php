@@ -261,6 +261,7 @@ require __DIR__ . '/../inc/sn-apply-revision.php';
 require __DIR__ . '/../inc/sn-apply-gates.php';
 require __DIR__ . '/../inc/sn-apply-validation.php';
 require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
+require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
 require __DIR__ . '/../inc/sn-apply-create-draft.php';
 require __DIR__ . '/../inc/sn-apply-restore-revision.php';
 require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
@@ -554,6 +555,11 @@ $sr_fp     = snt_corpus_content_hash( $GLOBALS['__posts'][780]['post_content'] )
 tf_post( 790, array( 'post_status' => 'draft', 'post_content' => '<!-- wp:paragraph --><p>An abandoned draft the sweep will preview trashing.</p><!-- /wp:paragraph -->' ) );
 $dd_fp = snt_corpus_content_hash( $GLOBALS['__posts'][790]['post_content'] );
 
+// link_reshape fixture: a post with one anchor whose boundaries the sweep
+// will preview moving; fingerprint = live content_hash (sentence_replace's binding).
+tf_post( 795, array( 'post_content' => '<!-- wp:paragraph --><p>Intro sentence here. <a href="/notes/target/">The whole overlong anchor text</a>. Outro sentence here.</p><!-- /wp:paragraph -->' ) );
+$lr_fp = snt_corpus_content_hash( $GLOBALS['__posts'][795]['post_content'] );
+
 echo "\nStructural sweep: every change type's dry_run path writes NOTHING\n";
 $sweep_calls = array(
 	'block_migration'  => array( 'target' => array( 'post_id' => 750 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_migration', 'fingerprint' => $bm_fp, 'payload' => array( 'migration_type' => 'heading-hierarchy-skip', 'replacement_markup' => $bm_replacement ) ) ),
@@ -586,6 +592,10 @@ $sweep_calls = array(
 	// REVISION-only, trash-only, draft-only; fingerprint = the draft's
 	// content_hash (create_draft's rollback object carries it).
 	'delete_draft'     => array( 'target' => array( 'post_id' => 790 ), 'mode' => 'revision', 'change' => array( 'type' => 'delete_draft', 'fingerprint' => $dd_fp, 'payload' => array() ) ),
+	// link_reshape (v10.58.0, audit item 5): tag-boundary movement — the
+	// fingerprint is the live content_hash, new_anchor a unique contiguous
+	// substring of current_anchor.
+	'link_reshape'     => array( 'target' => array( 'post_id' => 795 ), 'mode' => 'revision', 'change' => array( 'type' => 'link_reshape', 'fingerprint' => $lr_fp, 'payload' => array( 'current_anchor' => 'The whole overlong anchor text', 'new_anchor' => 'overlong anchor' ) ) ),
 );
 eq( count( SNT_SN_APPLY_CHANGE_TYPES ), count( $sweep_calls ), 'SWEEP.0: the sweep table covers the FULL enum — a new change type added to SNT_SN_APPLY_CHANGE_TYPES fails here until it joins the sweep' );
 foreach ( SNT_SN_APPLY_CHANGE_TYPES as $sweep_type ) {
