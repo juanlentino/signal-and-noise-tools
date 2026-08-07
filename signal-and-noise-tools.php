@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.53.0
+ * Version:     10.54.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -423,6 +423,7 @@ require_once SNT_PATH . 'inc/sn-apply-gates.php';            // v10.40.0: MCP co
 require_once SNT_PATH . 'inc/sn-apply-validation.php';       // v10.40.0: MCP consolidation session 6b — gates 1 (fingerprint) + 2 (server-side validation), per change type.
 require_once SNT_PATH . 'inc/sn-apply-create-draft.php';     // v10.40.0: MCP consolidation session 6c (arc finale) — change.type "create_draft": gate 2 assembly, block-delimiter validator, and the write primitive. Split out purely for the 450-line file budget, same convention as sn-apply-validation.php's split from sn-apply-executors.php.
 require_once SNT_PATH . 'inc/sn-apply-restore-revision.php'; // v10.42.0: MCP consolidation session 7 — change.type "restore_revision", the acceptance path: structural pre-check, gate 2 assembly against the revision's own fields, rollback-snapshot guarantee, and the first application path for the staged-meta queue.
+require_once SNT_PATH . 'inc/sn-apply-sentence-replace.php'; // change.type "sentence_replace": the agent-composed body edit — whole-post content_hash fingerprint (restore_revision's binding), plain-prose splice via the drift locate/splice contract. See the file docblock for why candidate fingerprints can't serve composing callers.
 require_once SNT_PATH . 'inc/sn-apply-executors.php';        // v10.40.0: MCP consolidation session 6b (+6c: create_draft's target resolution + mode-support entry; +session 7: restore_revision) — target resolution, mode-support matrix, and per-change-type write dispatch, delegating to the absorbed apply impls.
 require_once SNT_PATH . 'inc/abilities-sn-apply.php';        // v10.40.0: MCP consolidation session 6b (+6c: create_draft change type + target.new_post) — signal-noise/sn-apply, the consolidated write tool. Registered NEW alongside every ability it absorbs (nothing below was touched).
 require_once SNT_PATH . 'inc/health-summary.php'; // v7.0.0: shared scan-summary accessors (finding total + ranked flagged checks) — glance card, attention strip, S&N Health widget

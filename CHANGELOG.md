@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.54.0] - 2026-08-07
+
+**Headline:** the Editorial Agent's write mile — a body-edit primitive an agent can actually use, and the thinking-budget fix that actually works.
+
+### Added
+
+- **sn_apply change.type "sentence_replace"** ([inc/sn-apply-sentence-replace.php](inc/sn-apply-sentence-replace.php)). The first body-edit type whose fingerprint a COMPOSING caller can produce. Every other body executor is candidate-driven — its fingerprint is minted by its own scan/suggest pipeline (drift's is `md5(phrase|window)`), so an agent composing its own edit could never pass the gate (fingerprint parity, the rule FINDINGS.md records for link_candidates; observed live as two agent 409s on 2026-08-07). sentence_replace binds to the **live post's content_hash** instead — the exact value sn_posts exposes, the same binding restore_revision uses. Fences: fingerprint REQUIRED (missing 422 vs stale 409), phrase byte-exact and sentence-scale (≥ 20 chars), replacement plain prose only (tag-shaped sequences refused; ordinary `<5 percent` notation allowed — review MEDIUM fixed pre-merge), ≤ 2000 chars, revision + publish modes via the shared write-callback. 40 assertions in [tests/abilities-sn-apply-sentence-replace.php](tests/abilities-sn-apply-sentence-replace.php); the delegation sweep's enum pin went RED first and now covers the twelfth type.
+
+### Fixed
+
+- **The v10.53.0 output-budget raise is replaced — raising the ceiling never worked** ([inc/openstation-agent-output-budget.php](inc/openstation-agent-output-budget.php)). Live falsification the night it shipped: without an effort config, claude-sonnet-5's thinking is CEILING-bounded — it consumed 4096/4096, 6144/6144, and was still reasoning past ~7.4k at 16384 when Cloudflare's ~100s proxy window killed the run (HTTP 524). The working configuration, live-verified: inject `thinking: {type:"adaptive"}` + `output_config: {effort:"low"}` (Claude 5's API shape; `enabled+budget_tokens` is rejected with a 400), which makes thinking DEMAND-bounded (~3.7k tokens measured at two different ceilings), plus headroom on the pinned 4096 → 8192 for answers and markup-bearing tool calls. Scoped: agent runs only (runner pre-filter arm, dual-registered for the rename), Anthropic `/v1/messages` only, Claude 5 family models only, deferential to any existing `thinking`/`output_config`, raise-only on the exact pinned int. Filters: `snt_agent_anthropic_effort` (low/medium/high, non-whitelisted disables), `snt_agent_anthropic_max_tokens`. Upstream: filed as [openstation#531](https://github.com/WordPress/openstation/issues/531); the empty-answer swallow this exposed is [PR openstation#530](https://github.com/WordPress/openstation/pull/530). 35 assertions rewritten in [tests/openstation-agent-output-budget.php](tests/openstation-agent-output-budget.php).
+
+### Changed
+
+- **sn-apply's description now states the body-edit contract** ([inc/abilities-sn-apply.php](inc/abilities-sn-apply.php)): there is deliberately NO whole-body update path — body edits are candidate-driven or sentence-surgical — so an agent reading the tool description no longer invents a whole-body call that the gates must refuse (the exact failure observed live).
+
+> **Why MINOR:** a new write primitive on the rw door (sentence_replace) is a new user-visible capability; the budget-seam correction rides along as a fix.
+
 ## [10.53.0] - 2026-08-06
 
 **Headline:** the Editorial Agent can propose edits again — the AI Client's pinned output budget was starving agent thinking.

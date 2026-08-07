@@ -261,6 +261,7 @@ require __DIR__ . '/../inc/sn-apply-gates.php';
 require __DIR__ . '/../inc/sn-apply-validation.php';
 require __DIR__ . '/../inc/sn-apply-create-draft.php';
 require __DIR__ . '/../inc/sn-apply-restore-revision.php';
+require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
@@ -458,6 +459,12 @@ eq( 'snt_ai_link_already_linked', $rli3->get_error_code(), 'LI3.2: the refusal c
  * recorder pattern — loop the ENUM itself, so a future ninth type that
  * skips this table fails the count assertion automatically).
  * ════════════════════════════════════════════════════════════════════════ */
+// sentence_replace fixture: whole-post content_hash fingerprint (the
+// composing-caller binding), a sentence-scale span copied byte-exactly.
+tf_post( 780, array( 'post_content' => '<!-- wp:paragraph --><p>This is a deliberately long sentence that the sweep will replace, byte-exactly, with two shorter ones.</p><!-- /wp:paragraph -->' ) );
+$sr_phrase = 'This is a deliberately long sentence that the sweep will replace, byte-exactly, with two shorter ones.';
+$sr_fp     = snt_corpus_content_hash( $GLOBALS['__posts'][780]['post_content'] );
+
 echo "\nStructural sweep: every change type's dry_run path writes NOTHING\n";
 $sweep_calls = array(
 	'block_migration'  => array( 'target' => array( 'post_id' => 750 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_migration', 'fingerprint' => $bm_fp, 'payload' => array( 'migration_type' => 'heading-hierarchy-skip', 'replacement_markup' => $bm_replacement ) ) ),
@@ -478,6 +485,10 @@ $sweep_calls = array(
 	// restore_revision (session 7) is PUBLISH-only — the mirror image of
 	// create_draft's REVISION-only posture, same mode_support mechanism.
 	'restore_revision' => array( 'target' => array( 'post_id' => 770 ), 'mode' => 'publish', 'change' => array( 'type' => 'restore_revision', 'fingerprint' => $rr_fp, 'payload' => array( 'revision_id' => 771 ) ) ),
+	// sentence_replace: the agent-composed body edit — fingerprint is the
+	// LIVE content_hash (restore_revision's binding), producible by any
+	// caller via sn_posts; the only body type with no scan/suggest mint.
+	'sentence_replace' => array( 'target' => array( 'post_id' => 780 ), 'mode' => 'revision', 'change' => array( 'type' => 'sentence_replace', 'fingerprint' => $sr_fp, 'payload' => array( 'phrase' => $sr_phrase, 'replacement' => 'This is a shorter sentence. It has a sibling now.', 'context_snippet' => '' ) ) ),
 );
 eq( count( SNT_SN_APPLY_CHANGE_TYPES ), count( $sweep_calls ), 'SWEEP.0: the sweep table covers the FULL enum — a new change type added to SNT_SN_APPLY_CHANGE_TYPES fails here until it joins the sweep' );
 foreach ( SNT_SN_APPLY_CHANGE_TYPES as $sweep_type ) {
