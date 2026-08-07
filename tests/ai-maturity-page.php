@@ -70,6 +70,13 @@ ok( false !== strpos( $scope_html, 'sn-ai-maturity-scope-badge--never' ), "Note 
 ok( false !== strpos( $scope_html, 'Note bodies' ), 'the bodies commitment is present by name' );
 ok( false !== strpos( $scope_html, 'sn-ai-maturity-scope-badge--never"><strong>Relevance ranking' ), "v10.18.0: 'Relevance ranking &amp; similarity' renders as a never — the deterministic tier below AI is named, so 'where AI stops' has a floor" );
 ok( 2 === substr_count( $scope_html, 'sn-ai-maturity-scope-badge--never' ), 'exactly two never badges on the AI page: bodies + ranking' );
+
+// v10.54.x sentence_replace scope: the proposal path is LIVE while the
+// drafting commitment stays a never — adjacent rows, no contradiction.
+ok( false !== strpos( $scope_html, 'Sentence-level edit proposals' ), 'the sentence_replace proposal row renders' );
+ok( false !== strpos( $scope_html, 'sn-ai-maturity-scope-badge--live"><strong>Sentence-level edit proposals' ), 'and it renders as LIVE' );
+$principles_html = sn_ai_maturity_principles_html();
+ok( false !== strpos( $principles_html, 'staged revision a person accepts' ), 'principle 1 states the staged-revision acceptance path, not the pre-sentence_replace absolute' );
 add_filter( 'sn_ai_maturity_scope', function ( $scope ) {
 	$scope['voice'] = array( 'Voice cloning', 'evil-raw-status' );
 	return $scope;
