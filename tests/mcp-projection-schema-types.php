@@ -207,5 +207,19 @@ foreach ( $consolidated_slugs as $slug ) {
 	}
 }
 
+/* ── sn-apply schema/runtime parity: the DECLARED target.scope enum must
+ * cover every scope the runtime resolver accepts. v10.57.0 shipped
+ * roadmap_board with resolve_target accepting scope "maturity_roadmap"
+ * while the input_schema still pinned the enum to provenance_anchors —
+ * a client that validates against the schema (the MCP proxy does,
+ * strictly) refused the call before the server ever saw it. Caught LIVE
+ * on the first dry run, 2026-08-07; this pin makes the next scoped type
+ * fail HERE instead. ── */
+$apply_schema = $GLOBALS['__ab']['signal-noise/sn-apply']['input_schema'] ?? array();
+$scope_enum   = $apply_schema['properties']['target']['properties']['scope']['enum'] ?? array();
+foreach ( array( 'provenance_anchors', 'maturity_roadmap' ) as $runtime_scope ) {
+	ok( in_array( $runtime_scope, $scope_enum, true ), "sn-apply: declared target.scope enum covers runtime scope \"$runtime_scope\" (schema/resolver parity — a schema-validating client refuses what the enum omits)" );
+}
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
