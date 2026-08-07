@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.57.1] - 2026-08-07
+
+**Headline:** the declared schema catches up with the resolver — roadmap_board is now callable.
+
+### Fixed
+
+- **sn-apply's `target.scope` enum admits `maturity_roadmap`** ([inc/abilities-sn-apply.php](inc/abilities-sn-apply.php)). v10.57.0 extended the runtime target resolver for the new scope but left the declared input_schema's enum at `provenance_anchors` only — a schema-validating MCP client (the proxy validates strictly) refused every `roadmap_board` call client-side before the server ever saw it. Caught live on the feature's first dry run. New parity pin in [tests/mcp-projection-schema-types.php](tests/mcp-projection-schema-types.php): the declared scope enum must cover every scope the resolver accepts, so the next scoped type fails in CI instead of on a live call.
+
 ## [10.57.0] - 2026-08-07
 
 **Headline:** the roadmap board becomes data — roadmap copy now ships without a release.
