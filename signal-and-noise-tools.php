@@ -69,6 +69,7 @@ require_once SNT_PATH . 'inc/word-count.php'; // v10.24.0: pure Unicode word cou
 // release). Zero deps of its own; every desktop-mode-* / mcp-telemetry-agents
 // consumer below calls into it, so it loads FIRST among them.
 require_once SNT_PATH . 'inc/openstation-compat.php';
+require_once SNT_PATH . 'inc/openstation-agent-output-budget.php'; // WordPress/openstation#517 workaround: raise the AI Client's pinned 4096 output budget during agent runs so thinking can complete; remove when a fixed release is live-verified
 require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/beacon-owner-exclusion.php'; // v6.23.0: Plausible-style owner/role analytics exclusion (sn_beacon_enabled filter)
 require_once SNT_PATH . 'inc/seo.php';
