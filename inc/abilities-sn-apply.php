@@ -82,7 +82,7 @@ add_action( 'wp_abilities_api_init', function() {
 					'properties' => array(
 						'post_id'       => array( 'type' => 'integer', 'minimum' => 1 ),
 						'attachment_id' => array( 'type' => 'integer', 'minimum' => 1 ),
-						'scope'         => array( 'type' => 'string', 'enum' => array( 'provenance_anchors' ) ),
+						'scope'         => array( 'type' => 'string', 'enum' => array( 'provenance_anchors', 'maturity_roadmap' ) ),
 						// session 6c: create_draft's target -- the post doesn't exist yet, so
 						// there is no id to carry. Runtime enforces === true (not just
 						// truthy) in snt_sn_apply_resolve_target(), same posture as scope's enum above.
