@@ -70,6 +70,7 @@ function sn_maturity_roadmap_board() {
 			'considering' => array(
 				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),
 				__( 'Richer edit primitives beyond sentence scale — the drafting boundary stands regardless of what is explored here', 'signal-and-noise-tools' ),
+				__( 'A written threat model for any agent surface the page exposes: what a hostile paragraph could reach, before anything reachable can publish', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Machine learning', 'signal-and-noise-tools' )    => array(
@@ -90,6 +91,8 @@ function sn_maturity_roadmap_board() {
 			'planned'     => array(),
 			'considering' => array(
 				__( 'Provenance pointers in the machine surfaces, so an agent that reads the site can also verify it', 'signal-and-noise-tools' ),
+				__( 'An in-page tool surface for verification: the page offers an agent the calls to check a signature and its anchor, so verifying travels with the content instead of waiting for anyone to adopt an API', 'signal-and-noise-tools' ),
+				__( 'The corpus schema published as a machine surface: tier, number, and relation stated by the author rather than inferred by whatever reads the page', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Accessibility', 'signal-and-noise-tools' )       => array(

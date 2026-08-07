@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.56.3] - 2026-08-07
+
+**Headline:** three new ideas land in the roadmap's Considering column.
+
+### Changed
+
+- **Roadmap board: three Considering entries appended** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)). Machine readability gains two ideas — an in-page tool surface for verification (the page offers an agent the calls to check a signature and its anchor, so verifying travels with the content), and the corpus schema published as a machine surface (tier, number, and relation stated by the author rather than inferred). AI gains one — a written threat model for any agent surface the page exposes, before anything reachable can publish. Nothing moves columns; seven families stay seven; all 40 board tests pass unchanged.
+
+> **Why PATCH:** board copy only — no markup, contract, or behavior changed. 'Considering' commits to nothing, per the family contract.
+
 ## [10.56.2] - 2026-08-07
 
 **Headline:** the board centers on the viewport, not on hope.
