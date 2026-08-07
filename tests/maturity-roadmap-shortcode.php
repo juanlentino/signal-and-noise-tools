@@ -66,6 +66,8 @@ foreach ( array( 'Analytics', 'Provenance', 'AI', 'Machine layer', 'Accessibilit
 }
 ok( false !== strpos( $html, 'sentence-scale change' ), 'the staged-edit done item is present in prose' );
 ok( false !== strpos( $html, 'once that runner is stable' ), 'the agents migration is PLANNED with its gate named' );
+ok( false !== strpos( $html, 'no new collection' ), 'the public-stats-page plan names its gate (read-only over existing rollups)' );
+ok( false !== strpos( $html, 'without ever profiling a reader' ), 'the traffic-rhythm idea restates the profiling never inline' );
 
 // SECURITY CONTRACT: no option names, endpoint paths, tool/change-type
 // slugs, or meta keys on the public page — the family's leak-proof sweep.

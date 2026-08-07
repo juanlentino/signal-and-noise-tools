@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.55.2] - 2026-08-07
+
+**Headline:** the analytics roadmap opens — one plan with its gate named, two ideas.
+
+### Changed
+
+- **Analytics enters the hub roadmap** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)). PLANNED: a public stats page — aggregate numbers published for readers, reusing the existing rollups read-only, no new collection (the gate matters: the edge blob budget is full, so anything demanding new collection would have to name what it retires). CONSIDERING: traffic rhythm flags (the deterministic cadence watch extended from cron to views, restating the reader-profiling never inline) and an AI-attention section in the weekly digest (crawler families + rights-surface reads, composition over the existing sensor). Two new test pins hold the gate wording and the inline never.
+
+> **Why PATCH:** roadmap claims data only; no behavior changed.
+
 ## [10.55.1] - 2026-08-07
 
 **Headline:** the future tense moves to the roadmap page — family pages state only what acts today.

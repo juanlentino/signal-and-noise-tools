@@ -45,6 +45,7 @@ function sn_maturity_roadmap_items() {
 			array( __( 'AI', 'signal-and-noise-tools' ), __( 'Move the operative AI channel to the desktop platform\'s native agents, once that runner is stable enough to trust with the same fences', 'signal-and-noise-tools' ) ),
 			array( __( 'AI', 'signal-and-noise-tools' ), __( 'Retire the legacy single-purpose tools the consolidated set absorbed, on usage evidence rather than on a date', 'signal-and-noise-tools' ) ),
 			array( __( 'Machine layer', 'signal-and-noise-tools' ), __( 'Extend the deterministic layer pipeline by pipeline, as real editorial questions demand it', 'signal-and-noise-tools' ) ),
+			array( __( 'Analytics', 'signal-and-noise-tools' ), __( 'A public stats page: the site\'s aggregate numbers published for readers, reusing the existing rollups read-only — no new collection', 'signal-and-noise-tools' ) ),
 			array( __( 'Provenance', 'signal-and-noise-tools' ), __( 'Extend signing and anchoring beyond notes, to pages and then media', 'signal-and-noise-tools' ) ),
 			array( __( 'Accessibility', 'signal-and-noise-tools' ), __( 'Alt-text coverage for inline SVG artwork across the corpus', 'signal-and-noise-tools' ) ),
 			array( __( 'Accessibility', 'signal-and-noise-tools' ), __( 'An accessible treatment for third-party embeds', 'signal-and-noise-tools' ) ),
@@ -52,6 +53,8 @@ function sn_maturity_roadmap_items() {
 		'considering' => array(
 			array( __( 'AI', 'signal-and-noise-tools' ), __( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ) ),
 			array( __( 'AI', 'signal-and-noise-tools' ), __( 'Richer edit primitives beyond sentence scale — the drafting boundary stands regardless of what is explored here', 'signal-and-noise-tools' ) ),
+			array( __( 'Analytics', 'signal-and-noise-tools' ), __( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" without ever profiling a reader', 'signal-and-noise-tools' ) ),
+			array( __( 'Analytics', 'signal-and-noise-tools' ), __( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces', 'signal-and-noise-tools' ) ),
 		),
 	);
 
