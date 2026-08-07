@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.53.0] - 2026-08-06
 
 **Headline:** the Editorial Agent can propose edits again — the AI Client's pinned output budget was starving agent thinking.
 
@@ -11,6 +11,8 @@ All notable changes to Signal & Noise Tools are documented here.
 - **WordPress/openstation#517 workaround: agent runs get a real output budget** ([inc/openstation-agent-output-budget.php](inc/openstation-agent-output-budget.php)). The Core AI Client pins `max_tokens: 4096` on every Anthropic `/v1/messages` request. On hard agent tasks (planning a block-markup edit), the model spends the entire budget inside a thinking block — `stop_reason: "max_tokens"`, a single text-less thinking part, no tool call — and OpenStation's adapter swallows the empty extraction into a "successful" empty answer ("The agent finished without a text answer"). Root-caused with a raw provider capture and filed upstream as [openstation#517](https://github.com/WordPress/openstation/issues/517).
 
   The workaround arms only inside agent runs (the `*_agent_runner_generate` pre-filter seam, dual-registered for the rename), touches only Anthropic `/v1/messages`, and rewrites only the exact pinned int `4096` → `16384` (filterable via `snt_agent_anthropic_max_tokens`; the seam can raise, never lower). Any other value passes through byte-identical, so the shim self-neutralizes the moment upstream changes its default. `max_tokens` is a ceiling, not a spend — the raise costs nothing unless the thinking actually uses the headroom. 20 assertions in [tests/openstation-agent-output-budget.php](tests/openstation-agent-output-budget.php) pin the arm/raise contracts, the byte-identical pass-throughs, and the raise-never-lower rule. **Remove when a fixed OpenStation release is live-verified** (the v0.9.8 pin guard applies).
+
+> **Why MINOR:** agent edit-proposals go from structurally broken to functional — a new user-visible capability, not a recalibration of an existing one.
 
 ## [10.52.7] - 2026-08-06
 
