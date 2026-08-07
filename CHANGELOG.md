@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.56.0] - 2026-08-07
+
+**Headline:** the roadmap becomes a board — families × status, wide as the site's frame — and every family gets its plan.
+
+### Changed
+
+- **[sn_maturity_roadmap] is a BOARD now** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php), [assets/maturity-roadmap-front.css](assets/maturity-roadmap-front.css)). One hard-framed row per family, three status columns (done / planned / considering) — scan a row for one family's arc, scan a column for everything planned site-wide. An item moves LEFT as it matures, so the page demonstrates the promotion flow it documents. Empty cells render an honest em-dash: a family with no future tense is information, not a gap. The wrapper breaks out of the content column and caps at the site's 1320px frame (the split-hero constant); under 820px the grid stacks into per-family blocks with data-label status kickers. The filter seam is now `sn_maturity_roadmap_board` (family → status → sentences), replacing day-old `sn_maturity_roadmap_items` (no consumers existed).
+- **Every family planned** (owner session): Analytics — public stats page PLANNED (gate: rollups read-only, no new collection) + rhythm flags and AI-attention digest CONSIDERING; Proof of origin — standalone external verifier CONSIDERING; Machine learning — draft-time echoes CONSIDERING; Machine readability — provenance pointers in the machine surfaces CONSIDERING (its first roadmap presence); Operations — a narrated morning brief CONSIDERING. Accessibility deliberately unchanged (two plans already queued — more before those ship would be roadmap theater). 40 assertions pin the board shape (7 rows, 21 cells, 3 em-dashes), the named gates, the inline nevers, escaping incl. family labels, and the leak sweep.
+
+> **Why MINOR:** the shortcode's render and filter contract changed shape, and five families gained roadmap items — a visible capability change, not a recalibration.
+
 ## [10.55.1] - 2026-08-07
 
 **Headline:** the future tense moves to the roadmap page — family pages state only what acts today.
