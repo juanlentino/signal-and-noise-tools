@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.55.1] - 2026-08-07
+
+**Headline:** the future tense moves to the roadmap page — family pages state only what acts today.
+
+### Changed
+
+- **The hub index links the dedicated roadmap page** ([inc/maturity-index-page.php](inc/maturity-index-page.php)): an eighth card ("Roadmap — Where is all of this going?") targeting the `maturity-roadmap` page SLUG, resolved via get_permalink like every sibling — never a hardcoded path.
+- **Planned rows leave the family pages** ([inc/a11y-maturity-page.php](inc/a11y-maturity-page.php), [inc/provenance-maturity-page.php](inc/provenance-maturity-page.php)): a11y's "SVG alt text" + "Third-party embeds" and provenance's "Pages" + "Media" migrate to `[sn_maturity_roadmap]`'s planned column ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)). Per-page scope strips now show what acts TODAY (live, and the never commitments); the roadmap owns the future tense. The filter seams still accept `planned` rows, so the release that flips one live ships it as an array add — test-pinned (the provenance expansion-seam test now proves a filter-ADDED planned row renders). No `never` badge moved.
+
+> **Why PATCH:** maturity-page claims data + one index entry; no behavior, gate, or schema changed.
+
 ## [10.55.0] - 2026-08-07
 
 **Headline:** the provenance card counts what the ability counts, updates-in-flight get named, and the AI program has a public roadmap.
