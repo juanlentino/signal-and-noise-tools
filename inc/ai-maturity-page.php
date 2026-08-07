@@ -54,12 +54,18 @@ function sn_ai_maturity_layers() {
  */
 function sn_ai_maturity_scope() {
 	$scope = array(
-		'metadata' => array( __( 'Excerpts & SEO surfaces', 'signal-and-noise-tools' ), 'live' ),
-		'alt'      => array( __( 'Image alt text', 'signal-and-noise-tools' ), 'live' ),
-		'links'    => array( __( 'Internal link suggestions', 'signal-and-noise-tools' ), 'live' ),
-		'tags'     => array( __( 'Tag suggestions', 'signal-and-noise-tools' ), 'live' ),
-		'ranking'  => array( __( 'Relevance ranking & similarity', 'signal-and-noise-tools' ), 'never' ),
-		'bodies'   => array( __( 'Note bodies', 'signal-and-noise-tools' ), 'never' ),
+		'metadata'   => array( __( 'Excerpts & SEO surfaces', 'signal-and-noise-tools' ), 'live' ),
+		'alt'        => array( __( 'Image alt text', 'signal-and-noise-tools' ), 'live' ),
+		'links'      => array( __( 'Internal link suggestions', 'signal-and-noise-tools' ), 'live' ),
+		'tags'       => array( __( 'Tag suggestions', 'signal-and-noise-tools' ), 'live' ),
+		// v10.54.0's sentence_replace: an AI may PROPOSE a sentence-scale
+		// edit, staged as a revision behind four server-side gates; only a
+		// person's acceptance makes it live. The drafting commitment below
+		// is untouched — proposing a bounded edit to existing prose is not
+		// drafting the work.
+		'body_edits' => array( __( 'Sentence-level edit proposals (staged, human-accepted)', 'signal-and-noise-tools' ), 'live' ),
+		'ranking'    => array( __( 'Relevance ranking & similarity', 'signal-and-noise-tools' ), 'never' ),
+		'bodies'     => array( __( 'Note bodies (drafting them)', 'signal-and-noise-tools' ), 'never' ),
 	);
 	return apply_filters( 'sn_ai_maturity_scope', $scope );
 }
@@ -71,7 +77,7 @@ function sn_ai_maturity_scope() {
  */
 function sn_ai_maturity_principles() {
 	return array(
-		__( 'AI drafts the surfaces around the work, never the work itself: a published note\'s body is not AI-edited.', 'signal-and-noise-tools' ),
+		__( 'AI drafts the surfaces around the work, never the work itself: it may propose a sentence-level edit, but nothing reaches a published body except through a staged revision a person accepts.', 'signal-and-noise-tools' ),
 		__( 'A person decides. Automatic text is never passed off as reviewed - it carries an unreviewed mark until a human touches it.', 'signal-and-noise-tools' ),
 		__( 'Voice is enforced by a written spec and a mechanical check, not by taste on the day.', 'signal-and-noise-tools' ),
 		__( 'A blocklist alone just relocates the machine tell, so the spec encodes the wanted behavior first and bans second.', 'signal-and-noise-tools' ),

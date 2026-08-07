@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.54.1] - 2026-08-07
+
+**Headline:** the AI maturity page now tells the truth about sentence_replace.
+
+### Changed
+
+- **AI maturity scope carries the sentence_replace capability honestly** ([inc/ai-maturity-page.php](inc/ai-maturity-page.php)). New LIVE row "Sentence-level edit proposals (staged, human-accepted)", sitting beside the untouched NEVER commitments — "Note bodies (drafting them)" is clarified, not moved: proposing a bounded edit to existing prose is not drafting the work. Principle 1 is reworded from the pre-sentence_replace absolute ("a published note's body is not AI-edited") to the shipped contract: nothing reaches a published body except through a staged revision a person accepts. Owner-directed edit per the maturity-page rule that never-badges move only by deliberate owner decision. 3 new assertions pin the row, its badge, and the principle wording; the exactly-two-never-badges pin holds.
+
+> **Why PATCH:** maturity-page claims data only; no behavior, gate, or schema changed.
+
 ## [10.54.0] - 2026-08-07
 
 **Headline:** the Editorial Agent's write mile — a body-edit primitive an agent can actually use, and the thinking-budget fix that actually works.
