@@ -203,6 +203,8 @@ require __DIR__ . '/../inc/sn-validate-checks-media.php';
 require __DIR__ . '/../inc/sn-apply-revision.php';
 require __DIR__ . '/../inc/sn-apply-gates.php';
 require __DIR__ . '/../inc/sn-apply-validation.php';
+require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
+require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
 require __DIR__ . '/../inc/sn-apply-create-draft.php';
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
@@ -599,6 +601,96 @@ $r10a = snt_ability_sn_apply( array(
 ok( is_wp_error( $r10a ), 'Test 10a.1: WP_Error insert failure surfaces as a refusal' );
 eq( 500, (int) ( $r10a->get_error_data()['status'] ?? 0 ), 'Test 10a.2: status 500' );
 $GLOBALS['__insert_fail_mode'] = null;
+
+/* ════════════════════════════════════════════════════════════════════════
+ * Test 12: delete_draft (v10.58.0, audit item 6) — create_draft's mirror.
+ * The create -> delete round trip, plus every fence: fingerprint required
+ * (422) / stale (409), draft-only (gate 2 AND the write's own re-check),
+ * publish refusal, trash-only write, honest rollback shape.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nTest 12: delete_draft — the create -> delete round trip + every fence\n";
+
+// delete_draft's target resolution goes through the generic corpus-post
+// branch, which needs these two (the sweep suite already stubs them).
+if ( ! function_exists( 'post_type_exists' ) ) { function post_type_exists( $t ) { return in_array( $t, array( 'post', 'page', 'attachment' ), true ); } }
+if ( ! function_exists( 'get_post_type_object' ) ) { function get_post_type_object( $t ) { $o = new stdClass(); $o->public = 'attachment' !== $t; return $o; } }
+
+$GLOBALS['__trash_calls'] = 0;
+if ( ! function_exists( 'wp_trash_post' ) ) {
+	function wp_trash_post( $id ) {
+		$GLOBALS['__trash_calls']++;
+		if ( ! isset( $GLOBALS['__posts'][ (int) $id ] ) ) { return false; }
+		$GLOBALS['__posts'][ (int) $id ]['post_status'] = 'trash';
+		return (object) $GLOBALS['__posts'][ (int) $id ];
+	}
+}
+
+// Create a draft; its rollback object must now carry the fingerprint.
+$r12c = snt_ability_sn_apply( array(
+	'target' => array( 'new_post' => true ),
+	'change' => array( 'type' => 'create_draft', 'payload' => array( 'title' => 'Round Trip Draft', 'content' => tf_block_json( '<p>A draft born to be trashed.</p>' ) ) ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+$rt_id = (int) ( $r12c['rollback']['post_id'] ?? 0 );
+$rt_fp = $r12c['rollback']['fingerprint'] ?? null;
+ok( $rt_id > 0, 'Test 12.1: create_draft landed' );
+eq( snt_corpus_content_hash( (string) $GLOBALS['__posts'][ $rt_id ]['post_content'] ), $rt_fp, 'Test 12.2: create_draft rollback now carries the draft\'s content_hash — the one-shot round-trip key' );
+
+// Missing fingerprint -> 422 with observed reported (dry-run-as-read idiom).
+$r12a = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => $rt_id ),
+	'change' => array( 'type' => 'delete_draft', 'payload' => array() ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( is_wp_error( $r12a ) && 'snt_sn_apply_missing_fingerprint' === $r12a->get_error_code(), 'Test 12.3: missing fingerprint refuses 422 with the type\'s own code' );
+ok( false !== strpos( (string) $r12a->get_error_message(), (string) $rt_fp ), 'Test 12.4: the refusal carries gates.fingerprint.observed — a dry run doubles as the fingerprint read' );
+
+// Stale fingerprint -> 409.
+$r12b = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => $rt_id ),
+	'change' => array( 'type' => 'delete_draft', 'fingerprint' => 'not-the-hash', 'payload' => array() ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( is_wp_error( $r12b ) && 'snt_sn_apply_fingerprint_stale' === $r12b->get_error_code(), 'Test 12.5: stale fingerprint is the 409 merge conflict' );
+
+// mode:publish refuses structurally.
+$r12d = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => $rt_id ),
+	'change' => array( 'type' => 'delete_draft', 'fingerprint' => $rt_fp, 'payload' => array() ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( is_wp_error( $r12d ) && 'snt_sn_apply_mode_not_granted' === $r12d->get_error_code(), 'Test 12.6: mode:publish refuses — delete_draft is revision-only, create_draft\'s mirror' );
+
+// A published post refuses at gate 2 even with a correct fingerprint.
+tf_post( 950, array( 'post_status' => 'publish', 'post_content' => tf_block_json( '<p>Live post, untouchable.</p>' ) ) );
+$r12e = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 950 ),
+	'change' => array( 'type' => 'delete_draft', 'fingerprint' => snt_corpus_content_hash( (string) $GLOBALS['__posts'][950]['post_content'] ), 'payload' => array() ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( is_wp_error( $r12e ) && 'snt_sn_apply_validation_failed' === $r12e->get_error_code(), 'Test 12.7: a publish post refuses at gate 2 — structurally out of reach' );
+eq( 0, $GLOBALS['__trash_calls'], 'Test 12.8: nothing has been trashed by any refusal path' );
+
+// dry_run previews identity without trashing.
+$r12f = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => $rt_id ),
+	'change' => array( 'type' => 'delete_draft', 'fingerprint' => $rt_fp, 'payload' => array() ),
+	'mode'   => 'revision',
+) );
+ok( ! is_wp_error( $r12f ) && false === $r12f['applied'] && 'draft' === ( $r12f['diff']['before']['status'] ?? null ) && 'trash' === ( $r12f['diff']['after']['status'] ?? null ), 'Test 12.9: dry_run previews the draft->trash transition with identity fields' );
+eq( 0, $GLOBALS['__trash_calls'], 'Test 12.10: dry_run trashes nothing' );
+
+// The real write: trash lands, rollback is the HONEST manual shape.
+$r12g = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => $rt_id ),
+	'change' => array( 'type' => 'delete_draft', 'fingerprint' => $rt_fp, 'payload' => array() ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $r12g ) && true === $r12g['applied'], 'Test 12.11: the write applies' );
+eq( 1, $GLOBALS['__trash_calls'], 'Test 12.12: exactly one wp_trash_post call — trash, never a hard delete' );
+eq( 'trash', $GLOBALS['__posts'][ $rt_id ]['post_status'], 'Test 12.13: the draft is in the Trash (recoverable), not gone' );
+eq( 'manual_untrash', $r12g['rollback']['method'] ?? null, 'Test 12.14: rollback.method is manual_untrash — a wp-admin action, NEVER an unreachable MCP method name (the defect that created this type)' );
+ok( false !== strpos( (string) ( $r12g['rollback']['note'] ?? '' ), 'Trash' ), 'Test 12.15: rollback carries the human restore path' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

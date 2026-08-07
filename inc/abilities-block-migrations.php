@@ -35,7 +35,7 @@ add_action( 'wp_abilities_api_init', function() {
 	// ─── 1. Scan ────────────────────────────────────────────────────
 	wp_register_ability( 'signal-noise/block-migrations-scan', array(
 		'label'               => 'Scan all posts for block-migration candidates',
-		'description'         => 'Walks all published post_type=post posts; identifies core/heading blocks where attrs.level === 3 with no preceding core/heading attrs.level === 2 in the same post (heading-hierarchy-skip, WCAG 1.3.1 violation). Returns candidates with fingerprints for safe-apply concurrency control. Caches result per-user for 1 hour.',
+		'description'         => 'Walks all published post_type=post posts; identifies core/heading blocks where attrs.level === 3 with no preceding core/heading attrs.level === 2 in the same post (heading-hierarchy-skip, WCAG 1.3.1 violation). SCOPE, deliberate: level 3 ONLY — H4 subheads with no H2/H3 above them are the accepted house pattern for Notes (most of the corpus is built that way) and are NOT flagged; a post using H3 the same way IS flagged, because H3-without-H2 is the drift this check exists to catch against that H4 convention. Publish-only: scheduled (status "future") posts are not walked — a scheduled post with an H3 skip surfaces only after it publishes. Returns candidates with fingerprints for safe-apply concurrency control. Caches result per-user for 1 hour.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_block_migrations_scan',

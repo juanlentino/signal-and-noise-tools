@@ -146,6 +146,79 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			$new_content = substr_replace( $content, trim( (string) ( $payload['replacement'] ?? '' ) ), $raw_pos, strlen( $phrase ) );
 			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => null, 'new_content' => $new_content );
 
+		case 'link_reshape':
+			// Audit item 5 (owner-confirmed after item 4): sentence_replace's
+			// binding exactly — the LIVE content_hash, REQUIRED (missing 422,
+			// stale 409) — plus this type's own pair/locate refusals, each
+			// surfaced with its own error_code/error_status override so a 422
+			// caller error never masquerades as a 409 conflict.
+			$post = get_post( $resolved['post_id'] ?? 0 );
+			if ( ! $post ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
+			}
+			$pair = function_exists( 'snt_sn_apply_link_reshape_pair_error' )
+				? snt_sn_apply_link_reshape_pair_error( (string) ( $payload['current_anchor'] ?? '' ), (string) ( $payload['new_anchor'] ?? '' ) )
+				: true;
+			if ( is_wp_error( $pair ) ) {
+				$pair_data = (array) $pair->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => null,
+					'skipped'      => null,
+					'detail'       => $pair->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $pair->get_error_code(),
+					'error_status' => (int) ( $pair_data['status'] ?? 422 ),
+				);
+			}
+			$observed = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
+			if ( ! array_key_exists( 'fingerprint', $change ) ) {
+				return array(
+					'passed'       => false,
+					'expected'     => null,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => 'change.fingerprint is required for link_reshape: pass the content_hash observed via sn_posts for this post before proposing the reshape.',
+					'new_content'  => null,
+					'error_code'   => 'snt_sn_apply_missing_fingerprint',
+					'error_status' => 422,
+				);
+			}
+			if ( ! hash_equals( $observed, $fingerprint ) ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => 'Live post content has changed since this fingerprint was observed (re-fetch sn_posts\' content_hash and retry: the stale-branch merge conflict).', 'new_content' => null );
+			}
+			$content = (string) $post->post_content;
+			$match   = snt_sn_apply_link_reshape_locate( $content, (string) ( $payload['current_anchor'] ?? '' ), (string) ( $payload['context_snippet'] ?? '' ) );
+			if ( is_wp_error( $match ) ) {
+				$match_data = (array) $match->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => $match->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $match->get_error_code(),
+					'error_status' => (int) ( $match_data['status'] ?? 409 ),
+				);
+			}
+			$new_content = snt_sn_apply_link_reshape_compute( $content, $match, (string) ( $payload['current_anchor'] ?? '' ), (string) ( $payload['new_anchor'] ?? '' ) );
+			if ( is_wp_error( $new_content ) ) {
+				$compute_data = (array) $new_content->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => $new_content->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $new_content->get_error_code(),
+					'error_status' => (int) ( $compute_data['status'] ?? 500 ),
+				);
+			}
+			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => null, 'new_content' => $new_content );
+
 		case 'restore_revision':
 			// Session 7 — a REAL fingerprint scheme (not skipped): binds to
 			// the LIVE row's current content_hash, the SAME scheme
@@ -209,6 +282,41 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			// hash — required (422 when absent via array_key_exists, the
 			// restore_revision idiom), stale is the 409 merge conflict.
 			return snt_sn_apply_gate1_roadmap_board( $change );
+
+		case 'delete_draft':
+			// restore_revision's exact binding + idiom: REQUIRED fingerprint =
+			// the draft's CURRENT content_hash (sn_posts' scheme). Trashing a
+			// draft someone edited since it was created is the stale-branch
+			// conflict; a missing fingerprint is a 422 caller error, and
+			// `observed` is always reported so a dry_run:true call doubles as
+			// the fingerprint read (the roadmap_board observe idiom —
+			// create_draft's rollback object also carries it directly).
+			$post = get_post( $resolved['post_id'] ?? 0 );
+			if ( ! $post ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
+			}
+			$observed = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
+			if ( ! array_key_exists( 'fingerprint', $change ) ) {
+				return array(
+					'passed'       => false,
+					'expected'     => null,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => 'change.fingerprint is required for delete_draft: pass the content_hash from create_draft\'s rollback object, from sn_posts, or from this response\'s gates.fingerprint.observed (a dry_run:true call is the read step).',
+					'new_content'  => null,
+					'error_code'   => 'snt_sn_apply_missing_fingerprint',
+					'error_status' => 422,
+				);
+			}
+			$passed = hash_equals( $observed, $fingerprint );
+			return array(
+				'passed'      => $passed,
+				'expected'    => $fingerprint,
+				'observed'    => $observed,
+				'skipped'     => null,
+				'detail'      => $passed ? null : 'The draft\'s content has changed since this fingerprint was observed (re-fetch its content_hash and retry: the stale-branch merge conflict).',
+				'new_content' => null,
+			);
 
 		default:
 			// alt_text, surfaces, og_card, anchor_sweep — no fingerprint
@@ -276,6 +384,7 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 
 		case 'drift_replace':
 		case 'sentence_replace':
+		case 'link_reshape':
 		case 'block_migration':
 		case 'pattern_adoption':
 			if ( null === $new_content || ! function_exists( 'snt_sn_validate_check_body' ) ) {
@@ -300,6 +409,11 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 			// structure bounds + plain-prose + the banned-token sweep that
 			// mirrors the public page's leak-sweep test.
 			return snt_sn_apply_gate2_roadmap_board( $change );
+
+		case 'delete_draft':
+			// Draft-status + post_type fence (inc/sn-apply-delete-draft.php);
+			// the write primitive re-checks both immediately before trashing.
+			return snt_sn_apply_gate2_delete_draft( $resolved );
 
 		default:
 			// og_card, anchor_sweep — no applicable check family.
