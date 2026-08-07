@@ -177,15 +177,21 @@ function sn_maturity_roadmap_enqueue() {
 
 /**
  * [sn_maturity_roadmap] — returns (never echoes), static content only,
- * safe for any public maturity page. The wrapper carries the
- * wide-breakout class; the stylesheet caps it at the site's 1320px
- * frame so the board earns its width without fighting the theme.
+ * safe for any public maturity page. The wrapper rides `alignfull`
+ * (the constrained layout's own exemption) and the stylesheet caps it
+ * at the site's 1320px frame, so the board earns its width WITH the
+ * theme's layout system instead of against it.
  *
  * @param array|string $atts Shortcode attributes (unused; reserved).
  * @return string
  */
 function sn_maturity_roadmap_shortcode( $atts = array() ) {
 	sn_maturity_roadmap_enqueue();
-	return '<div class="sn-maturity-roadmap sn-maturity-roadmap--wide">' . sn_maturity_roadmap_html() . '</div>';
+	// `alignfull` is the theme's own escape hatch from the constrained
+	// layout: `.is-layout-constrained` clamps every non-align child to the
+	// content width WITH forced auto margins, so a margin-calc breakout
+	// silently loses (measured live: the board rendered 760px). Speaking
+	// the layout system's dialect wins; the stylesheet then caps at 1320.
+	return '<div class="sn-maturity-roadmap sn-maturity-roadmap--wide alignfull">' . sn_maturity_roadmap_html() . '</div>';
 }
 add_shortcode( 'sn_maturity_roadmap', 'sn_maturity_roadmap_shortcode' );

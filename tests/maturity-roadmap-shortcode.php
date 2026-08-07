@@ -53,7 +53,7 @@ ok( array( 'done', 'planned', 'considering' ) === SN_MATURITY_ROADMAP_STATUSES, 
 
 // Default render: wide wrapper, board table, status header badges, stylesheet.
 $html = call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] );
-ok( false !== strpos( $html, '<div class="sn-maturity-roadmap sn-maturity-roadmap--wide">' ), 'renders the WIDE wrapper — the board earns its width' );
+ok( false !== strpos( $html, '<div class="sn-maturity-roadmap sn-maturity-roadmap--wide alignfull">' ), 'renders the WIDE wrapper riding alignfull — the constrained layout\'s own exemption, so the width is real (a margin breakout measured 760px live)' );
 ok( false !== strpos( $html, '<table class="sn-maturity-roadmap-board">' ), 'renders the board table' );
 foreach ( array( 'done', 'planned', 'considering' ) as $status ) {
 	ok( false !== strpos( $html, 'sn-maturity-roadmap-badge--' . $status ), "the '$status' column header carries its badge" );

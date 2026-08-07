@@ -44,7 +44,7 @@ function plugins_url( $path = '', $plugin = '' ) {
 }
 // Page store models the LIVE hierarchy: every family page is a CHILD of
 // /maturity/ (the drift that motivated slug resolution in v10.11.2).
-$GLOBALS['__pages'] = array( 'analytics', 'proof-of-origin', 'ai-maturity', 'machine-readability', 'ops-maturity', 'a11y-maturity', 'ml-maturity', 'maturity-roadmap' );
+$GLOBALS['__pages'] = array( 'analytics', 'proof-of-origin', 'ai-maturity', 'machine-readability', 'ops-maturity', 'a11y-maturity', 'ml-maturity', 'roadmap' );
 function get_posts( $args ) {
 	$name = isset( $args['name'] ) ? (string) $args['name'] : '';
 	return in_array( $name, $GLOBALS['__pages'], true ) ? array( (object) array( 'post_name' => $name ) ) : array();

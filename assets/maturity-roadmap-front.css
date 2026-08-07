@@ -8,10 +8,11 @@
 .sn-maturity-roadmap{margin:2rem 0;line-height:1.6}
 .sn-maturity-roadmap h3{margin:2.25rem 0 .75rem}
 
-/* The wide breakout: full-bleed escape from the content column, re-capped
-   at the 1320 frame. The h3 stays with the breakout so the section reads
-   as one object. */
-.sn-maturity-roadmap--wide{width:min(1320px,94vw);margin-left:calc(50% - min(660px,47vw));margin-right:calc(50% - min(660px,47vw))}
+/* The wide breakout: the wrapper rides the theme's own `alignfull`
+   exemption out of the constrained column (a margin-calc breakout loses
+   to the layout's forced auto margins — measured live at 760px), then
+   re-caps at the 1320 frame, centered. */
+.sn-maturity-roadmap--wide{width:min(1320px,94vw);max-width:none;margin-left:auto;margin-right:auto}
 
 /* The board: one hard frame, mono status headers reusing the badge idiom
    (done solid, planned dashed + dimmed, considering dotted + dimmer). */
