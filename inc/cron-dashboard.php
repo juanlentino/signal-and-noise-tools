@@ -14,7 +14,11 @@
  *   - desktop-mode ⌘K: sn-cmd-cron-health + sn-cmd-cron-list (read-only)
  *
  * All 4 surfaces converge on the snt_cron_*_impl() pure functions below.
- * Run-now is NOT exposed to AI per spec § 6 / Q4 decision.
+ * Run-now IS a registered ability (signal-noise/run-cron-event, abilities-cron.php).
+ * The spec § 6 / Q4 "not exposed to AI" decision predates OpenStation 0.9.8, whose
+ * agents Tools picker enrols EVERY registered ability, read or write — non-exposure
+ * is no longer platform-enforced. The enforced gates are the ability's own
+ * manage_options permission_callback and its destructive/non-idempotent annotations.
  *
  * Last-fired tracking: WordPress core does not track last-fired natively.
  * We register snt_cron_track_last_fired_cb() at PHP_INT_MAX for every

@@ -356,9 +356,12 @@ add_action( 'init', function() {
 		// display-only ("sequential window.prompt() forms are worse than no UX")
 		// — now works there.
 		//
-		// The 5 ai-* abilities are write-path and correctly excluded from the
-		// Copilot (a search turn can be driven by attacker-controlled content), but
-		// remain available over the MCP write door.
+		// The 5 ai-* abilities are write-path and excluded from the Copilot's
+		// readonly auto-enrol (a search turn can be driven by attacker-controlled
+		// content), but remain available over the MCP write door — and since
+		// OpenStation 0.9.8 the agents Tools picker enrols EVERY registered
+		// ability, so the enforced gate is each ability's permission_callback +
+		// annotations, never non-exposure.
 		//
 		// EVERY ABILITY IS UNTOUCHED. This removes 12 inert labels, not capability.
 		// tests/desktop-mode-integration.php now fails the build if any registered

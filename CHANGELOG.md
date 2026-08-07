@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.52.7] - 2026-08-06
+
+**Headline:** ability docs no longer promise a non-exposure to AI that the platform stopped enforcing.
+
+### Fixed
+
+- **Stale "NOT exposed to AI" claims corrected** ([inc/abilities-audit.php](inc/abilities-audit.php), [inc/cron-dashboard.php](inc/cron-dashboard.php), [inc/desktop-mode-integration.php](inc/desktop-mode-integration.php)). Three sites claimed destructive abilities were not reachable by AI. That was true when the Desktop Mode/OpenStation Copilot auto-enrolled only `readonly`-annotated abilities — but the OpenStation agents Tools picker (0.9.8, `includes/agents/`) enrols EVERY registered ability, read or write, so the claims became false safety documentation.
+
+  - `signal-noise/run-audit-prune`'s description dropped "NOT exposed to AI" and now states what IS enforced: destructive of historical data, not idempotent, operator-request only.
+  - The cron-dashboard docblock's "Run-now is NOT exposed to AI per spec § 6 / Q4" now records that `signal-noise/run-cron-event` is a registered ability and that the enforced gates are its `manage_options` permission_callback plus destructive/non-idempotent annotations — the spec decision predates the 0.9.8 picker.
+  - The desktop-mode command-registry comment's "correctly excluded from the Copilot" for the 5 `ai-*` write abilities now names the readonly auto-enrol specifically and notes the picker enrols everything.
+
+  No gate changed — every `permission_callback` and annotation is exactly as before. The one claim left standing, the tool-invocation log's "NOT exposed as a Copilot tool" ([inc/ai-tool-invocation-log.php](inc/ai-tool-invocation-log.php)), survives because it is enforced by absence of registration, which no picker can override.
+
+> **Why PATCH:** documentation/description text only; no behavior, schema, or gate changed.
+
 ## [10.52.6] - 2026-08-05
 
 **Headline:** publishing a Note changes every page on the site, so publishing a Note now purges every page.
