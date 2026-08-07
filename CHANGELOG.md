@@ -2,6 +2,13 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Content] - 2026-08-07
+
+The first board edit shipped through the door — no version, no tag, no deploy, which is the point. Recorded here because un-versioned changes otherwise leave no trace in this file:
+
+- **Roadmap board, AI family, third Done row** (via the `roadmap_board` change type, dry-run → fingerprinted publish → cache purge → live verify): "The roadmap board as data: an agent proposes the whole board at once behind a fingerprint and a leak sweep, so planning copy ships like content instead of code." Self-referential on purpose — the sentence shipped through the mechanism it describes. The live board is now option-canonical; the static array in [inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php) is the fallback floor only.
+- Earlier same-day board copy (the three Considering entries, the draft-time echoes promotion) rode 10.56.3/10.56.4 below — the last roadmap copy that will ever need a release.
+
 ## [10.57.1] - 2026-08-07
 
 **Headline:** the declared schema catches up with the resolver — roadmap_board is now callable.
