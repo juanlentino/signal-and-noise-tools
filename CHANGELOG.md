@@ -2,6 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.56.2] - 2026-08-07
+
+**Headline:** the board centers on the viewport, not on hope.
+
+### Fixed
+
+- **Board centering is transform-based** ([assets/maturity-roadmap-front.css](assets/maturity-roadmap-front.css)). Measured live at 2000px: `alignfull` exempts the wrapper from the constrained column's width clamp, but the theme supplies no full-bleed margins for it — the 1320px board pinned to the column's left edge and spilled right, off-center. Auto margins cannot center a block wider than its parent, so the wrapper now uses `left:50% + translateX(-50%)`: the column is viewport-centered, so the board centers on the VIEWPORT at every width. The mobile stack resets both properties.
+
+> **Why PATCH:** one CSS rule; no markup or contract changed. (The companion scroll finding — the theme's fixed footer bar covering the last ~58px of every page — is a THEME defect, fixed separately in the theme repo.)
+
 ## [10.56.1] - 2026-08-07
 
 **Headline:** the board is actually wide now, and the index follows the roadmap page's new slug.
