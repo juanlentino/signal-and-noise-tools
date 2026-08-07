@@ -203,6 +203,13 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 				'new_content' => null,
 			);
 
+		case 'roadmap_board':
+			// The board-as-data type (inc/sn-apply-roadmap-board.php): a REAL
+			// fingerprint scheme binding to the CURRENT effective board's
+			// hash — required (422 when absent via array_key_exists, the
+			// restore_revision idiom), stale is the 409 merge conflict.
+			return snt_sn_apply_gate1_roadmap_board( $change );
+
 		default:
 			// alt_text, surfaces, og_card, anchor_sweep — no fingerprint
 			// scheme exists in the absorbed impl (see docblock above).
@@ -287,6 +294,12 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 			// (the would-be live state), never the live post's current
 			// fields — see inc/sn-apply-restore-revision.php's docblock.
 			return snt_sn_apply_gate2_restore_revision( $resolved, $change );
+
+		case 'roadmap_board':
+			// Its own gate-2 assembly (inc/sn-apply-roadmap-board.php):
+			// structure bounds + plain-prose + the banned-token sweep that
+			// mirrors the public page's leak-sweep test.
+			return snt_sn_apply_gate2_roadmap_board( $change );
 
 		default:
 			// og_card, anchor_sweep — no applicable check family.

@@ -37,6 +37,11 @@ function wp_enqueue_style( $handle, $src = '', $deps = array(), $ver = false, $m
 	$GLOBALS['__enq'][] = array( $handle, (string) $src );
 	return true;
 }
+$GLOBALS['__options'] = array();
+function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
+function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; }
+function wp_json_encode( $d, $opts = 0 ) { return json_encode( $d, $opts ); }
 function plugins_url( $path = '', $plugin = '' ) {
 	return 'https://example.com/wp-content/plugins/snt/' . ltrim( (string) $path, '/' );
 }
@@ -103,6 +108,43 @@ ok( false !== strpos( $html2, 'Family &lt;b&gt;' ), 'the family label is escaped
 ok( false === strpos( $html2, 'Never rendered' ) && false === strpos( $html2, 'bogus' ), 'a status outside the whitelist never renders' );
 ok( 2 === substr_count( $html2, 'sn-maturity-roadmap-board__empty' ), 'the statuses the filter omitted render as honest em-dashes, not collapsed cells' );
 remove_all_filters( 'sn_maturity_roadmap_board' );
+
+/* ── Board-as-data: the option override (written only by sn_apply's
+ * 'roadmap_board' change type) replaces the static board when VALID,
+ * falls back silently when not, and the filter seam still applies on
+ * top. The fingerprint binds to the pre-filter effective board. ── */
+echo "\nBoard-as-data: option override + fallback + fingerprint\n";
+
+$static_html = call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] );
+$static_fp   = sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() );
+
+// A VALID override replaces the static board wholesale.
+$override = array(
+	'Analytics' => array( 'done' => array( 'An override sentence the static board never contained' ), 'planned' => array(), 'considering' => array() ),
+	'AI'        => array( 'done' => array(), 'planned' => array( 'Another override-only sentence' ), 'considering' => array() ),
+);
+update_option( SN_MATURITY_ROADMAP_OPTION, $override );
+$html3 = call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] );
+ok( false !== strpos( $html3, 'An override sentence the static board never contained' ), 'a valid override renders its own copy' );
+ok( 2 === substr_count( $html3, 'sn-maturity-roadmap-board__family"' ), 'the override replaces the board WHOLESALE (two families render, not seven)' );
+ok( false === strpos( $html3, 'cookieless measurement' ), 'static copy does not bleed through a valid override' );
+ok( sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ) !== $static_fp, 'the fingerprint moves when the effective board moves' );
+
+// An INVALID override (unknown status) falls back to the static board.
+update_option( SN_MATURITY_ROADMAP_OPTION, array( 'Analytics' => array( 'bogus' => array( 'x' ) ) ) );
+ok( $static_html === call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] ), 'an invalid override is IGNORED wholesale — render byte-identical to static' );
+
+// Markup and banned internal tokens are validation problems (the write
+// gate's rejection list), so an override carrying them can never render.
+ok( array() !== sn_maturity_roadmap_board_problems( array( 'F' => array( 'done' => array( 'has <b>markup</b>' ) ) ) ), 'markup in an item is a validation problem' );
+ok( array() !== sn_maturity_roadmap_board_problems( array( 'F' => array( 'done' => array( 'mentions snt_ internals' ) ) ) ), 'a banned internal token in an item is a validation problem' );
+ok( array() !== sn_maturity_roadmap_board_problems( array() ), 'an empty board is a validation problem (fallback, never a blank page)' );
+ok( array() === sn_maturity_roadmap_board_problems( sn_maturity_roadmap_static_board() ), 'the static board itself passes the validator (parity: what ships is what the gate would accept)' );
+
+// delete_option returns the page to code-canonical.
+delete_option( SN_MATURITY_ROADMAP_OPTION );
+ok( $static_html === call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] ), 'deleting the override returns the render to code-canonical, byte-identical' );
+ok( sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ) === $static_fp, 'and the fingerprint returns with it' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
