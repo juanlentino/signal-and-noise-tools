@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.56.1] - 2026-08-07
+
+**Headline:** the board is actually wide now, and the index follows the roadmap page's new slug.
+
+### Fixed
+
+- **The wide breakout rides `alignfull` instead of fighting the layout** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php), [assets/maturity-roadmap-front.css](assets/maturity-roadmap-front.css)). Measured live: the board rendered 760px — WordPress's `is-layout-constrained` clamps every non-align child to the content width with forced auto margins, so the margin-calc breakout silently lost. The wrapper now carries `alignfull` (the constrained layout's own exemption) and the stylesheet caps it at the 1320 frame, centered — the theme's dialect instead of a fight with it. Test pins the class.
+- **The index card targets the roadmap page's renamed slug** ([inc/maturity-index-page.php](inc/maturity-index-page.php)): `maturity-roadmap` → `roadmap` (owner renamed the page; the unresolvable slug rendered the card unlinked — the designed fallback, now moot).
+
+> **Why PATCH:** a rendering fix and a slug follow — no contract changed.
+
 ## [10.56.0] - 2026-08-07
 
 **Headline:** the roadmap becomes a board — families × status, wide as the site's frame — and every family gets its plan.
