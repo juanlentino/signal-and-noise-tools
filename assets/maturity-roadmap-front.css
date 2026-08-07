@@ -8,11 +8,14 @@
 .sn-maturity-roadmap{margin:2rem 0;line-height:1.6}
 .sn-maturity-roadmap h3{margin:2.25rem 0 .75rem}
 
-/* The wide breakout: the wrapper rides the theme's own `alignfull`
-   exemption out of the constrained column (a margin-calc breakout loses
-   to the layout's forced auto margins — measured live at 760px), then
-   re-caps at the 1320 frame, centered. */
-.sn-maturity-roadmap--wide{width:min(1320px,94vw);max-width:none;margin-left:auto;margin-right:auto}
+/* The wide breakout: `alignfull` exempts the wrapper from the constrained
+   column's width clamp, but the theme supplies no full-bleed margins for
+   it — measured live: the 1320 board pinned to the column's left edge and
+   spilled right. Auto margins can't center a block wider than its parent
+   either, so the centering is transform-based: the column is viewport-
+   centered, so left:50% + translateX(-50%) centers the board on the
+   VIEWPORT at every width. */
+.sn-maturity-roadmap--wide{width:min(1320px,94vw);max-width:none;position:relative;left:50%;transform:translateX(-50%);margin-left:0;margin-right:0}
 
 /* The board: one hard frame, mono status headers reusing the badge idiom
    (done solid, planned dashed + dimmed, considering dotted + dimmer). */
@@ -40,7 +43,7 @@
 /* Mobile: the grid stacks into per-family blocks; each cell announces its
    status via data-label, the family cell becomes the block heading. */
 @media (max-width:820px){
-	.sn-maturity-roadmap--wide{width:auto;margin-left:0;margin-right:0}
+	.sn-maturity-roadmap--wide{width:auto;left:auto;transform:none;margin-left:0;margin-right:0}
 	.sn-maturity-roadmap-board,.sn-maturity-roadmap-board tbody,.sn-maturity-roadmap-board tr,.sn-maturity-roadmap-board td{display:block;width:100%}
 	.sn-maturity-roadmap-board thead{display:none}
 	.sn-maturity-roadmap-board tr{border-bottom:2px solid currentColor}
