@@ -596,6 +596,9 @@ $sweep_calls = array(
 	// fingerprint is the live content_hash, new_anchor a unique contiguous
 	// substring of current_anchor.
 	'link_reshape'     => array( 'target' => array( 'post_id' => 795 ), 'mode' => 'revision', 'change' => array( 'type' => 'link_reshape', 'fingerprint' => $lr_fp, 'payload' => array( 'current_anchor' => 'The whole overlong anchor text', 'new_anchor' => 'overlong anchor' ) ) ),
+	// unlink (v10.59.0): link_reshape's promised sibling — same fixture post,
+	// remove the wrapper, keep the text.
+	'unlink'           => array( 'target' => array( 'post_id' => 795 ), 'mode' => 'revision', 'change' => array( 'type' => 'unlink', 'fingerprint' => $lr_fp, 'payload' => array( 'anchor_text' => 'The whole overlong anchor text' ) ) ),
 );
 eq( count( SNT_SN_APPLY_CHANGE_TYPES ), count( $sweep_calls ), 'SWEEP.0: the sweep table covers the FULL enum — a new change type added to SNT_SN_APPLY_CHANGE_TYPES fails here until it joins the sweep' );
 foreach ( SNT_SN_APPLY_CHANGE_TYPES as $sweep_type ) {

@@ -33,8 +33,8 @@
  *   3. href (and every other attribute) is CARRIED OVER from the existing
  *      tag, never accepted as a parameter — otherwise this is a
  *      link-retargeting tool wearing a formatting tool's name.
- *   4. new_anchor:"" refuses. Unlinking is its own change type (not yet
- *      built), never an overload of this one.
+ *   4. new_anchor:"" refuses. Unlinking is its own change type ("unlink",
+ *      v10.59.0, this same file), never an overload of this one.
  *   5. Fingerprint REQUIRED: the LIVE post's content_hash (sn_posts'
  *      scheme), the sentence_replace binding exactly.
  *
@@ -181,18 +181,28 @@ function snt_sn_apply_link_reshape_compute( $content, array $match, $current_anc
 	$replacement = $prefix . $match['open_tag'] . $new_anchor . '</a>' . $suffix;
 	$new_content = substr_replace( (string) $content, $replacement, $match['offset'], $match['length'] );
 
-	$normalize = static function ( $s ) {
-		if ( function_exists( 'sn_prov_active' ) && function_exists( 'sn_prov_normalize_v1' ) && sn_prov_active() ) {
-			return sn_prov_normalize_v1( (string) $s );
-		}
-		$stripped = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( (string) $s ) : strip_tags( (string) $s );
-		return trim( preg_replace( '/\s+/u', ' ', $stripped ) );
-	};
-	if ( $normalize( $content ) !== $normalize( $new_content ) ) {
+	if ( snt_sn_apply_link_prose_normalize( $content ) !== snt_sn_apply_link_prose_normalize( $new_content ) ) {
 		return new WP_Error( 'snt_sn_apply_identity_violation', __( 'Post-splice assertion failed: the reshape would change rendered prose. Nothing was written — this indicates a bug in link_reshape itself, not a caller error.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 
 	return $new_content;
+}
+
+/**
+ * Normalize content to rendered prose for the byte-identity assertion —
+ * via the provenance normalizer itself when active (the exact function
+ * whose output feeds the signature), else a strip-tags fallback. Shared by
+ * link_reshape's and unlink's computes.
+ *
+ * @param string $s
+ * @return string
+ */
+function snt_sn_apply_link_prose_normalize( $s ) {
+	if ( function_exists( 'sn_prov_active' ) && function_exists( 'sn_prov_normalize_v1' ) && sn_prov_active() ) {
+		return sn_prov_normalize_v1( (string) $s );
+	}
+	$stripped = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( (string) $s ) : strip_tags( (string) $s );
+	return trim( preg_replace( '/\s+/u', ' ', $stripped ) );
 }
 
 /**
@@ -264,5 +274,120 @@ function snt_sn_apply_link_reshape_impl( $post_id, $current_anchor, $new_anchor,
 		'reshaped_to'   => $new_anchor,
 		'old_content'   => $current_content,
 		'new_content'   => $new_content,
+	);
+}
+
+/* ════════════════════════════════════════════════════════════════════════
+ * change.type "unlink" (v10.59.0) — link_reshape's promised sibling: the
+ * link_reshape validator refuses new_anchor:"" and names unlinking as its
+ * own change type; this is that type. Removes the <a> wrapper entirely,
+ * keeps the inner text — same locator, same fingerprint binding, same
+ * post-splice prose-identity assertion. Rendered prose is byte-identical
+ * by construction, so (item 4's answer) it is provenance-invisible too.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Validate unlink's anchor_text. Text-node content only, non-empty.
+ *
+ * @param string $anchor_text Exact inner text of the <a> to unwrap.
+ * @return true|WP_Error
+ */
+function snt_sn_apply_unlink_anchor_error( $anchor_text ) {
+	$anchor_text = (string) $anchor_text;
+	if ( '' === $anchor_text ) {
+		return new WP_Error( 'snt_sn_apply_invalid_anchor', __( 'payload.anchor_text is empty.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	if ( preg_match( '#<[a-zA-Z/!?]#', $anchor_text ) ) {
+		return new WP_Error( 'snt_sn_apply_invalid_anchor', __( 'payload.anchor_text is plain text-node content — no markup. Copy it byte-exactly from the stored content, tags excluded.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	return true;
+}
+
+/**
+ * Compute the unlinked content: the whole <a ...>text</a> element is
+ * replaced by its inner text. Identity-asserted like the reshape compute.
+ *
+ * @param string $content     Raw post_content.
+ * @param array  $match       From snt_sn_apply_link_reshape_locate().
+ * @param string $anchor_text
+ * @return string|WP_Error New content.
+ */
+function snt_sn_apply_unlink_compute( $content, array $match, $anchor_text ) {
+	$new_content = substr_replace( (string) $content, (string) $anchor_text, $match['offset'], $match['length'] );
+
+	if ( snt_sn_apply_link_prose_normalize( $content ) !== snt_sn_apply_link_prose_normalize( $new_content ) ) {
+		return new WP_Error( 'snt_sn_apply_identity_violation', __( 'Post-splice assertion failed: the unlink would change rendered prose. Nothing was written — this indicates a bug in unlink itself, not a caller error.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+	}
+
+	return $new_content;
+}
+
+/**
+ * Remove one anchor element's wrapper, gated on the LIVE content_hash.
+ * Same contract as snt_sn_apply_link_reshape_impl().
+ *
+ * @param int           $post_id
+ * @param string        $anchor_text     Exact inner text of the <a> to unwrap.
+ * @param string        $fingerprint     snt_corpus_content_hash() of the live content.
+ * @param string        $context_snippet Optional disambiguator.
+ * @param callable|null $write_callback  ($post_id, $new_content) instead of wp_update_post().
+ * @return array{ok:bool,post_id:int,unlinked:string,removed_open_tag:string,old_content:string,new_content:string}|WP_Error
+ */
+function snt_sn_apply_unlink_impl( $post_id, $anchor_text, $fingerprint, $context_snippet = '', $write_callback = null ) {
+	$post_id     = (int) $post_id;
+	$anchor_text = (string) $anchor_text;
+
+	$anchor_ok = snt_sn_apply_unlink_anchor_error( $anchor_text );
+	if ( is_wp_error( $anchor_ok ) ) {
+		return $anchor_ok;
+	}
+	if ( ! current_user_can( 'edit_post', $post_id ) ) {
+		return new WP_Error( 'snt_sn_apply_capability', __( 'You cannot edit this post.', 'signal-and-noise-tools' ), array( 'status' => 403 ) );
+	}
+
+	$post = get_post( $post_id );
+	if ( ! $post ) {
+		return new WP_Error( 'snt_sn_apply_target_not_found', __( 'Post not found.', 'signal-and-noise-tools' ), array( 'status' => 404 ) );
+	}
+
+	$current_content = (string) $post->post_content;
+	$observed        = snt_corpus_content_hash( $current_content );
+	if ( ! hash_equals( $observed, (string) $fingerprint ) ) {
+		return new WP_Error( 'snt_sn_apply_fingerprint_stale', __( 'Live post content has changed since this fingerprint was observed. Re-fetch content_hash via sn_posts and retry.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
+	}
+
+	$match = snt_sn_apply_link_reshape_locate( $current_content, $anchor_text, (string) $context_snippet );
+	if ( is_wp_error( $match ) ) {
+		return $match;
+	}
+
+	$new_content = snt_sn_apply_unlink_compute( $current_content, $match, $anchor_text );
+	if ( is_wp_error( $new_content ) ) {
+		return $new_content;
+	}
+
+	if ( is_callable( $write_callback ) ) {
+		$result = call_user_func( $write_callback, $post_id, $new_content );
+	} else {
+		$result = wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => $new_content,
+			),
+			true
+		);
+	}
+	if ( is_wp_error( $result ) ) {
+		/* translators: %s is the error message from the write step */
+		return new WP_Error( 'snt_sn_apply_write_failed', sprintf( __( 'Write failed: %s', 'signal-and-noise-tools' ), $result->get_error_message() ), array( 'status' => 500 ) );
+	}
+
+	return array(
+		'ok'               => true,
+		'post_id'          => $post_id,
+		'unlinked'         => $anchor_text,
+		'removed_open_tag' => (string) $match['open_tag'],
+		'old_content'      => $current_content,
+		'new_content'      => $new_content,
 	);
 }
