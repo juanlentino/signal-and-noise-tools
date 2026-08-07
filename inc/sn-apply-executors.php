@@ -50,7 +50,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SNT_SN_APPLY_CHANGE_TYPES = array(
 	'block_migration', 'pattern_adoption', 'alt_text', 'link_insert',
 	'drift_replace', 'surfaces', 'og_card', 'anchor_sweep', 'create_draft',
-	'restore_revision', 'emdash_replace',
+	'restore_revision', 'emdash_replace', 'sentence_replace',
 );
 
 /**
@@ -69,6 +69,7 @@ function snt_sn_apply_mode_support( $type ) {
 		case 'drift_replace':
 		case 'link_insert':
 		case 'emdash_replace':
+		case 'sentence_replace':
 		case 'alt_text':
 		case 'surfaces':
 			return array( 'modes' => array( 'revision', 'publish' ), 'reason' => null );
@@ -242,6 +243,31 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 				'write_result' => $result,
 			);
 
+		case 'sentence_replace':
+			// The agent-composed body edit — impl in
+			// inc/sn-apply-sentence-replace.php; whole-post content_hash
+			// fingerprint, plain-prose splice, same write-callback contract
+			// as the drift family above.
+			$revision_id = null;
+			$cb          = 'revision' === $mode ? snt_sn_apply_revision_write_callback( $revision_id ) : null;
+			$result      = snt_sn_apply_sentence_replace_impl(
+				$resolved['post_id'],
+				(string) ( $payload['phrase'] ?? '' ),
+				(string) ( $payload['replacement'] ?? '' ),
+				(string) ( $change['fingerprint'] ?? '' ),
+				(string) ( $payload['context_snippet'] ?? '' ),
+				$cb
+			);
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			return array(
+				'ok'           => true,
+				'diff'         => array( 'before' => $result['old_content'] ?? '', 'after' => $result['new_content'] ?? '', 'blocks_touched' => 0 ),
+				'revision_id'  => $revision_id,
+				'write_result' => $result,
+			);
+
 		case 'alt_text':
 			$text = (string) ( $payload['text'] ?? $payload['alt_text'] ?? '' );
 			if ( 'revision' === $mode ) {
@@ -396,6 +422,7 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 		case 'pattern_adoption':
 		case 'drift_replace':
 		case 'link_insert':
+		case 'sentence_replace':
 			$post   = get_post( $resolved['post_id'] ?? 0 );
 			$before = $post ? (string) $post->post_content : '';
 			return array(

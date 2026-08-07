@@ -94,6 +94,58 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			}
 			return array( 'passed' => $passed, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => $passed ? null : 'Post changed since suggest/scan. Re-run scan to refresh.', 'new_content' => $new_content );
 
+		case 'sentence_replace':
+			// The agent-composed body edit: fingerprint is the LIVE row's
+			// content_hash — restore_revision's binding exactly (see that
+			// case below for the array_key_exists() rationale) — because no
+			// scan/suggest pipeline mints a positional fingerprint for an
+			// edit the caller composed itself. REQUIRED: missing is a 422
+			// caller error, mismatched is the 409 stale-branch conflict.
+			$post = get_post( $resolved['post_id'] ?? 0 );
+			if ( ! $post ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
+			}
+			$pair = function_exists( 'snt_sn_apply_sentence_pair_error' )
+				? snt_sn_apply_sentence_pair_error( (string) ( $payload['phrase'] ?? '' ), (string) ( $payload['replacement'] ?? '' ) )
+				: true;
+			if ( is_wp_error( $pair ) ) {
+				$pair_data = (array) $pair->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => null,
+					'skipped'      => null,
+					'detail'       => $pair->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $pair->get_error_code(),
+					'error_status' => (int) ( $pair_data['status'] ?? 422 ),
+				);
+			}
+			$observed = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
+			if ( ! array_key_exists( 'fingerprint', $change ) ) {
+				return array(
+					'passed'       => false,
+					'expected'     => null,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => 'change.fingerprint is required for sentence_replace: pass the content_hash observed via sn_posts for this post before proposing the edit.',
+					'new_content'  => null,
+					'error_code'   => 'snt_sn_apply_missing_fingerprint',
+					'error_status' => 422,
+				);
+			}
+			if ( ! hash_equals( $observed, $fingerprint ) ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => 'Live post content has changed since this fingerprint was observed (re-fetch sn_posts\' content_hash and retry: the stale-branch merge conflict).', 'new_content' => null );
+			}
+			$content = (string) $post->post_content;
+			$raw_pos = function_exists( 'snt_ai_drift_locate_in_raw' ) ? snt_ai_drift_locate_in_raw( $content, (string) ( $payload['phrase'] ?? '' ), (string) ( $payload['context_snippet'] ?? '' ) ) : -1;
+			if ( -1 === $raw_pos ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => 'Phrase not found in post content — the match is byte-exact, punctuation and quotes included. Copy the span verbatim from sn_posts\' content field.', 'new_content' => null );
+			}
+			$phrase      = (string) ( $payload['phrase'] ?? '' );
+			$new_content = substr_replace( $content, trim( (string) ( $payload['replacement'] ?? '' ) ), $raw_pos, strlen( $phrase ) );
+			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => null, 'new_content' => $new_content );
+
 		case 'restore_revision':
 			// Session 7 — a REAL fingerprint scheme (not skipped): binds to
 			// the LIVE row's current content_hash, the SAME scheme
@@ -216,6 +268,7 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 			return array( 'checks' => $checks, 'findings' => $findings );
 
 		case 'drift_replace':
+		case 'sentence_replace':
 		case 'block_migration':
 		case 'pattern_adoption':
 			if ( null === $new_content || ! function_exists( 'snt_sn_validate_check_body' ) ) {
