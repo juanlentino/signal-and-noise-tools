@@ -79,10 +79,9 @@ function sn_maturity_roadmap_board() {
 			),
 			'planned'     => array(
 				__( 'Extend the deterministic layer pipeline by pipeline, as real editorial questions demand it', 'signal-and-noise-tools' ),
-			),
-			'considering' => array(
 				__( 'Draft-time echoes: while writing, surface the most similar existing note, so overlap is a choice instead of a surprise', 'signal-and-noise-tools' ),
 			),
+			'considering' => array(),
 		),
 		__( 'Machine readability', 'signal-and-noise-tools' ) => array(
 			'done'        => array(
