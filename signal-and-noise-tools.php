@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.54.1
+ * Version:     10.55.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -367,6 +367,7 @@ require_once __DIR__ . '/inc/ml-related-render.php';   // v10.15.0: reader-facin
 require_once __DIR__ . '/inc/ml-cousins.php';          // v10.16.0: near-duplicate cousin pairs (kernel cosine over the corpus walk, needs ml-pipelines + corpus-inspect above) — ML pipeline #2
 require_once __DIR__ . '/inc/ml-candidates.php';       // v10.17.0: keyword + link candidate generators (needs ml-pipelines, ml-artifacts + corpus-inspect above) — ML pipeline #3
 require_once __DIR__ . '/inc/ai-maturity-page.php'; // v10.10.0: [sn_ai_maturity] public explainer (third maturity sibling; leak-proof by test contract)
+require_once __DIR__ . '/inc/maturity-roadmap-shortcode.php'; // [sn_maturity_roadmap]: the HUB-WIDE roadmap (done/planned/considering across every maturity family), same static-data + filter-seam + leak-proof pattern, own front stylesheet
 require_once __DIR__ . '/inc/machine-maturity-page.php'; // v10.11.0: [sn_machine_maturity] — how machines read the site
 require_once __DIR__ . '/inc/ops-maturity-page.php';     // v10.11.0: [sn_ops_maturity] — how the site runs itself
 require_once __DIR__ . '/inc/a11y-maturity-page.php';    // v10.11.0: [sn_a11y_maturity] — the /accessibility/ claims in the family skeleton

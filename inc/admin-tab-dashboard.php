@@ -424,21 +424,42 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	// ── Provenance: confirmed count + pending pill. Only when provenance is
 	// active AND the Worker is configured — an unconfigured install dispatches
 	// nothing, so a "0 confirmed / all anchored" card would imply integrity that
-	// isn't there. Omit it instead (this file never fabricates a card). Reads the
-	// same view-model as the Tools → Provenance panel. ──
+	// isn't there. Omit it instead (this file never fabricates a card).
+	//
+	// Counts come from snt_prov_anchor_overview() — each Note's LATEST anchor,
+	// the SAME source the anchor-status ability serves — never a sum over
+	// every historical commit (the old sn_prov_admin_system_status() path
+	// counted all chain versions, so the card and the ability disagreed the
+	// moment any note carried more than one version). A pending version >= 2
+	// is an UPDATE of a published note re-anchoring, named as such on the
+	// pill instead of blending into the new-note count. ──
 	if ( function_exists( 'sn_prov_active' ) && sn_prov_active()
 		&& function_exists( 'sn_prov_worker_url' ) && '' !== sn_prov_worker_url()
-		&& function_exists( 'sn_prov_admin_system_status' ) ) {
-		$prov      = sn_prov_admin_system_status();
-		$confirmed = (int) ( $prov['counts']['confirmed'] ?? 0 );
-		$pending   = (int) ( $prov['counts']['pending'] ?? 0 );
-		$cards[]   = array(
+		&& function_exists( 'snt_prov_anchor_overview' ) ) {
+		$ov        = snt_prov_anchor_overview();
+		$confirmed = (int) ( $ov['confirmed'] ?? 0 );
+		$rows      = isset( $ov['pending'] ) && is_array( $ov['pending'] ) ? $ov['pending'] : array();
+		$updates   = 0;
+		foreach ( $rows as $row ) {
+			if ( (int) ( $row['version'] ?? 0 ) >= 2 ) {
+				++$updates;
+			}
+		}
+		$fresh = count( $rows ) - $updates;
+		$parts = array();
+		if ( $fresh > 0 ) {
+			$parts[] = sprintf( '%s pending', number_format_i18n( $fresh ) );
+		}
+		if ( $updates > 0 ) {
+			$parts[] = sprintf( ( 1 === $updates ? '%s update anchoring' : '%s updates anchoring' ), number_format_i18n( $updates ) );
+		}
+		$cards[] = array(
 			'label' => 'Provenance',
 			'href'      => admin_url( 'admin.php?page=sn-theme-options&tab=tools&sub=provenance' ),
 			'value' => sprintf( '%s confirmed', number_format_i18n( $confirmed ) ),
-			'pill'  => $pending > 0
-				? array( 'kind' => 'warn', 'text' => sprintf( '%s pending', number_format_i18n( $pending ) ) )
-				: array( 'kind' => 'ok', 'text' => 'all anchored' ),
+			'pill'  => empty( $parts )
+				? array( 'kind' => 'ok', 'text' => 'all anchored' )
+				: array( 'kind' => 'warn', 'text' => implode( ' · ', $parts ) ),
 		);
 	}
 

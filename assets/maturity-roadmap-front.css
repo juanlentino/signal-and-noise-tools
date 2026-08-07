@@ -1,0 +1,18 @@
+/* Signal & Noise — [sn_maturity_roadmap] front-end styling. The hub-wide
+   roadmap in the maturity family's brutalist register: hard borders, square
+   corners, mono accents, currentColor throughout, light-only. Done = solid
+   badge; planned = dashed + dimmed; considering = dotted + dimmer still —
+   visibly an idea, not a commitment. Scoped to .sn-maturity-roadmap;
+   enqueued only when the shortcode renders. */
+.sn-maturity-roadmap{margin:2rem 0;line-height:1.6}
+.sn-maturity-roadmap h3{margin:2.25rem 0 .75rem}
+.sn-maturity-roadmap-group h4{margin:1.25rem 0 .35rem}
+.sn-maturity-roadmap-badge{display:inline-flex;align-items:center;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
+.sn-maturity-roadmap-badge--planned{border-style:dashed;opacity:.6}
+.sn-maturity-roadmap-badge--considering{border-style:dotted;opacity:.45}
+.sn-maturity-roadmap-group ul{list-style:none;margin:0;padding:0;font-size:.9rem}
+.sn-maturity-roadmap-group li{position:relative;padding:.55em 0 .55em 1.5em;border-bottom:1px solid rgba(0,0,0,.12)}
+.sn-maturity-roadmap-group li:last-child{border-bottom:0}
+.sn-maturity-roadmap-group li::before{content:"—";position:absolute;left:0;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;opacity:.5}
+.sn-maturity-roadmap-area{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin-right:.5em;opacity:.65}
+.sn-maturity-roadmap-group--considering li{opacity:.75}
