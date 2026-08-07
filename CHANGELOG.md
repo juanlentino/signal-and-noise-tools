@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.59.0] - 2026-08-08
+
+**Headline:** `unlink` — link_reshape's promised sibling lands.
+
+### Added
+
+- **`unlink` change type on sn_apply** ([inc/sn-apply-link-reshape.php](inc/sn-apply-link-reshape.php) — same module as link_reshape, whose validator has named this type since it shipped). Removes an `<a>`'s wrapper entirely and keeps the inner text; every attribute is discarded with the tag and the response reports the removed open tag for the audit trail. Payload `{anchor_text (the <a>'s exact inner text, byte-exact), context_snippet?}`; identical anchors disambiguate via context or refuse 422. Same fingerprint binding as link_reshape/sentence_replace (live `content_hash`, required: missing 422, stale 409), same shared locator, and the same post-splice rendered-prose byte-identity assertion (via `sn_prov_normalize_v1()` when provenance is active) — so, per the audit's item-4 answer, an unlink coalesces to no new provenance commit. Revision + publish modes via the shared write-callback. Tests join the link_reshape suite ([tests/abilities-sn-apply-link-reshape.php](tests/abilities-sn-apply-link-reshape.php)) and the all-types delegation sweep.
+
 ## [10.58.0] - 2026-08-08
 
 **Headline:** the MCP audit lands — brand_voice becomes observable, two binary anchor rules join sn_scan, delete_draft makes create_draft's rollback real, and the emdash scan stops shipping garbage candidates.

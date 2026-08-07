@@ -136,6 +136,39 @@ eq( 1, count( $GLOBALS['__cb'] ), 'impl: exactly one write-callback invocation (
 eq( wp_strip_all_tags( $body ), wp_strip_all_tags( $r['new_content'] ), 'impl: prose identity holds end to end' );
 ok( false !== strpos( $r['new_content'], 'href="https://x.test/a/"' ), 'impl: href survives — carried over, never a parameter' );
 
+/* ════════════════════════════════════════════════════════════════════════
+ * unlink (v10.59.0) — link_reshape's promised sibling: remove the wrapper,
+ * keep the text. Shared locator, shared identity assertion.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nGroup: unlink\n";
+
+ok( is_wp_error( snt_sn_apply_unlink_anchor_error( '' ) ), 'unlink pair: empty anchor_text refuses' );
+ok( is_wp_error( snt_sn_apply_unlink_anchor_error( 'text with <em>markup</em>' ) ), 'unlink pair: tag-shaped anchor_text refuses (text-node content only)' );
+ok( true === snt_sn_apply_unlink_anchor_error( 'costs are <5 percent' ), 'unlink pair: "<5 percent" prose notation stays legal' );
+
+$m    = $L( $body, 'The DAW signs the assembly' );
+$newu = snt_sn_apply_unlink_compute( $body, $m, 'The DAW signs the assembly' );
+ok( is_string( $newu ), 'unlink compute: succeeds' );
+ok( false !== strpos( $newu, 'Setup. The DAW signs the assembly, and' ) && false === strpos( $newu, '<a ' ), 'unlink compute: wrapper removed, inner text kept, no <a> remains' );
+eq( wp_strip_all_tags( $body ), wp_strip_all_tags( $newu ), 'unlink compute: rendered prose is byte-identical before and after' );
+
+$bad_match = $m; $bad_match['length'] = $m['length'] + 1;
+$e = snt_sn_apply_unlink_compute( $body, $bad_match, 'The DAW signs the assembly' );
+ok( is_wp_error( $e ) && 'snt_sn_apply_identity_violation' === $e->get_error_code(), 'unlink compute: the identity assertion fires on a prose-changing splice' );
+
+$e = snt_sn_apply_unlink_impl( 500, 'The DAW signs the assembly', 'stale-hash' );
+ok( is_wp_error( $e ) && 'snt_sn_apply_fingerprint_stale' === $e->get_error_code(), 'unlink impl: stale fingerprint is the 409 conflict' );
+
+$GLOBALS['__cb'] = array();
+$r = snt_sn_apply_unlink_impl( 500, 'The DAW signs the assembly', $fp, '', function ( $pid, $content ) {
+	$GLOBALS['__cb'][] = array( $pid, $content );
+	return 999;
+} );
+ok( is_array( $r ) && true === $r['ok'], 'unlink impl: applies through the write callback' );
+eq( 1, count( $GLOBALS['__cb'] ), 'unlink impl: exactly one write-callback invocation (revision staging contract)' );
+eq( '<a href="https://x.test/a/" rel="noopener">', $r['removed_open_tag'], 'unlink impl: the removed open tag is reported (audit trail of what was discarded)' );
+eq( wp_strip_all_tags( $body ), wp_strip_all_tags( $r['new_content'] ), 'unlink impl: prose identity holds end to end' );
+
 echo "\nGroup: no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], 'zero notices/warnings raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
 

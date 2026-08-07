@@ -219,6 +219,77 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			}
 			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => null, 'new_content' => $new_content );
 
+		case 'unlink':
+			// v10.59.0 — link_reshape's promised sibling, same gate shape:
+			// anchor validator (422 overrides), REQUIRED live content_hash,
+			// shared locator, identity-asserting compute.
+			$post = get_post( $resolved['post_id'] ?? 0 );
+			if ( ! $post ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
+			}
+			$anchor_ok = function_exists( 'snt_sn_apply_unlink_anchor_error' )
+				? snt_sn_apply_unlink_anchor_error( (string) ( $payload['anchor_text'] ?? '' ) )
+				: true;
+			if ( is_wp_error( $anchor_ok ) ) {
+				$anchor_data = (array) $anchor_ok->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => null,
+					'skipped'      => null,
+					'detail'       => $anchor_ok->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $anchor_ok->get_error_code(),
+					'error_status' => (int) ( $anchor_data['status'] ?? 422 ),
+				);
+			}
+			$observed = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
+			if ( ! array_key_exists( 'fingerprint', $change ) ) {
+				return array(
+					'passed'       => false,
+					'expected'     => null,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => 'change.fingerprint is required for unlink: pass the content_hash observed via sn_posts for this post before proposing the unlink.',
+					'new_content'  => null,
+					'error_code'   => 'snt_sn_apply_missing_fingerprint',
+					'error_status' => 422,
+				);
+			}
+			if ( ! hash_equals( $observed, $fingerprint ) ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => 'Live post content has changed since this fingerprint was observed (re-fetch sn_posts\' content_hash and retry: the stale-branch merge conflict).', 'new_content' => null );
+			}
+			$content = (string) $post->post_content;
+			$match   = snt_sn_apply_link_reshape_locate( $content, (string) ( $payload['anchor_text'] ?? '' ), (string) ( $payload['context_snippet'] ?? '' ) );
+			if ( is_wp_error( $match ) ) {
+				$match_data = (array) $match->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => $match->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $match->get_error_code(),
+					'error_status' => (int) ( $match_data['status'] ?? 409 ),
+				);
+			}
+			$new_content = snt_sn_apply_unlink_compute( $content, $match, (string) ( $payload['anchor_text'] ?? '' ) );
+			if ( is_wp_error( $new_content ) ) {
+				$compute_data = (array) $new_content->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => $new_content->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $new_content->get_error_code(),
+					'error_status' => (int) ( $compute_data['status'] ?? 500 ),
+				);
+			}
+			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => null, 'new_content' => $new_content );
+
 		case 'restore_revision':
 			// Session 7 — a REAL fingerprint scheme (not skipped): binds to
 			// the LIVE row's current content_hash, the SAME scheme
@@ -385,6 +456,7 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 		case 'drift_replace':
 		case 'sentence_replace':
 		case 'link_reshape':
+		case 'unlink':
 		case 'block_migration':
 		case 'pattern_adoption':
 			if ( null === $new_content || ! function_exists( 'snt_sn_validate_check_body' ) ) {
