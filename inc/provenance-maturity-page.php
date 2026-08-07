@@ -48,10 +48,12 @@ function sn_prov_maturity_layers() {
  * @return array<string,array{0:string,1:string}>
  */
 function sn_prov_maturity_scope() {
+	// Planned rows (Pages, Media) moved to the hub-wide [sn_maturity_roadmap]
+	// — the per-page scope shows what is anchored TODAY; the roadmap owns the
+	// future tense. The seam still accepts 'planned' rows via the filter for
+	// the release that flips one live.
 	$scope = array(
 		'notes' => array( __( 'Notes', 'signal-and-noise-tools' ), 'live' ),
-		'pages' => array( __( 'Pages', 'signal-and-noise-tools' ), 'planned' ),
-		'media' => array( __( 'Media', 'signal-and-noise-tools' ), 'planned' ),
 	);
 	return apply_filters( 'sn_prov_maturity_scope', $scope );
 }

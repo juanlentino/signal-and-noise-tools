@@ -28,12 +28,14 @@ function sn_a11y_maturity_layers() {
 
 /** @return array<string,array{0:string,1:string}> */
 function sn_a11y_maturity_scope() {
+	// Planned rows (SVG alt text, third-party embeds) moved to the hub-wide
+	// [sn_maturity_roadmap] — the per-page scope shows what acts TODAY; the
+	// roadmap owns the future tense. The seam still accepts 'planned' rows
+	// via the filter for the release that flips one live.
 	$scope = array(
 		'keyboard' => array( __( 'Keyboard navigation', 'signal-and-noise-tools' ), 'live' ),
 		'motion'   => array( __( 'Reduced motion', 'signal-and-noise-tools' ), 'live' ),
 		'colors'   => array( __( 'Forced colors', 'signal-and-noise-tools' ), 'live' ),
-		'svg-alt'  => array( __( 'SVG alt text', 'signal-and-noise-tools' ), 'planned' ),
-		'embeds'   => array( __( 'Third-party embeds', 'signal-and-noise-tools' ), 'planned' ),
 	);
 	return apply_filters( 'sn_a11y_maturity_scope', $scope );
 }

@@ -45,6 +45,9 @@ function sn_maturity_roadmap_items() {
 			array( __( 'AI', 'signal-and-noise-tools' ), __( 'Move the operative AI channel to the desktop platform\'s native agents, once that runner is stable enough to trust with the same fences', 'signal-and-noise-tools' ) ),
 			array( __( 'AI', 'signal-and-noise-tools' ), __( 'Retire the legacy single-purpose tools the consolidated set absorbed, on usage evidence rather than on a date', 'signal-and-noise-tools' ) ),
 			array( __( 'Machine layer', 'signal-and-noise-tools' ), __( 'Extend the deterministic layer pipeline by pipeline, as real editorial questions demand it', 'signal-and-noise-tools' ) ),
+			array( __( 'Provenance', 'signal-and-noise-tools' ), __( 'Extend signing and anchoring beyond notes, to pages and then media', 'signal-and-noise-tools' ) ),
+			array( __( 'Accessibility', 'signal-and-noise-tools' ), __( 'Alt-text coverage for inline SVG artwork across the corpus', 'signal-and-noise-tools' ) ),
+			array( __( 'Accessibility', 'signal-and-noise-tools' ), __( 'An accessible treatment for third-party embeds', 'signal-and-noise-tools' ) ),
 		),
 		'considering' => array(
 			array( __( 'AI', 'signal-and-noise-tools' ), __( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ) ),

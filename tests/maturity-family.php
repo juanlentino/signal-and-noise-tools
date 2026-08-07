@@ -44,7 +44,7 @@ function plugins_url( $path = '', $plugin = '' ) {
 }
 // Page store models the LIVE hierarchy: every family page is a CHILD of
 // /maturity/ (the drift that motivated slug resolution in v10.11.2).
-$GLOBALS['__pages'] = array( 'analytics', 'proof-of-origin', 'ai-maturity', 'machine-readability', 'ops-maturity', 'a11y-maturity', 'ml-maturity' );
+$GLOBALS['__pages'] = array( 'analytics', 'proof-of-origin', 'ai-maturity', 'machine-readability', 'ops-maturity', 'a11y-maturity', 'ml-maturity', 'maturity-roadmap' );
 function get_posts( $args ) {
 	$name = isset( $args['name'] ) ? (string) $args['name'] : '';
 	return in_array( $name, $GLOBALS['__pages'], true ) ? array( (object) array( 'post_name' => $name ) ) : array();
@@ -67,7 +67,7 @@ foreach ( array( 'sn_machine_maturity', 'sn_ops_maturity', 'sn_a11y_maturity', '
 ok( array() === $GLOBALS['__enq'], 'loading the files enqueues nothing — stylesheets ride the render' );
 ok( 5 === count( sn_machine_maturity_layers() ) && 5 === count( sn_ops_maturity_layers() ) && 5 === count( sn_a11y_maturity_layers() ), 'each new page walks five layers' );
 ok( 8 === count( sn_machine_maturity_principles() ) && 8 === count( sn_ops_maturity_principles() ) && 8 === count( sn_a11y_maturity_principles() ), 'eight principles per page, matching the family' );
-ok( 7 === count( sn_maturity_index_items() ), 'the index lists all seven family members (v10.18.0: + machine learning)' );
+ok( 8 === count( sn_maturity_index_items() ), 'the index lists all eight cards (v10.55.1: + the hub-wide roadmap)' );
 
 echo "\nGroup: format contract (spot: each page's format whitelist behaves)\n";
 foreach ( array( 'machine' => 'sn_machine_maturity_shortcode', 'ops' => 'sn_ops_maturity_shortcode', 'a11y' => 'sn_a11y_maturity_shortcode' ) as $n => $fn ) {
@@ -79,7 +79,7 @@ foreach ( array( 'machine' => 'sn_machine_maturity_shortcode', 'ops' => 'sn_ops_
 
 echo "\nGroup: index cards + filter seam\n";
 $idx = sn_maturity_index_shortcode();
-ok( 7 === substr_count( $idx, '<a class="sn-maturity-index-card' ), 'all seven default cards are linked (every default slug resolves)' );
+ok( 8 === substr_count( $idx, '<a class="sn-maturity-index-card' ), 'all eight default cards are linked (every default slug resolves)' );
 ok( false !== strpos( $idx, 'https://example.com/maturity/ai-maturity/' ) && false !== strpos( $idx, 'https://example.com/maturity/machine-readability/' ) && false !== strpos( $idx, 'https://example.com/maturity/analytics/' ), 'v10.11.2: links resolve from the PAGES (get_permalink) — hierarchy-proof, child-of-/maturity/ paths come out right' );
 ok( 'https://example.com/legacy/' === sn_maturity_index_resolve_url( '/legacy/' ), 'explicit path targets stay supported (filter escape hatch)' );
 ok( 'https://ext.example/x' === sn_maturity_index_resolve_url( 'https://ext.example/x' ), 'absolute URL targets pass through' );

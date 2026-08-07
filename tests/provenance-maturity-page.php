@@ -48,7 +48,7 @@ echo "Group: registration + contract\n";
 ok( isset( $GLOBALS['__shortcodes']['sn_provenance_maturity'] ) && 'sn_prov_maturity_shortcode' === $GLOBALS['__shortcodes']['sn_provenance_maturity'], 'shortcode registered on load' );
 ok( array() === $GLOBALS['__enq'], 'loading the file enqueues nothing — the stylesheet rides the render, not the pageload' );
 ok( array( 'canonical', 'signed', 'anchored', 'verifiable' ) === array_keys( sn_prov_maturity_layers() ), 'layer slugs in walk order: canonical, signed, anchored, verifiable' );
-ok( array( 'notes', 'pages', 'media' ) === array_keys( sn_prov_maturity_scope() ), 'scope slugs in ledger-namespace order: notes, pages, media' );
+ok( array( 'notes' ) === array_keys( sn_prov_maturity_scope() ), 'scope defaults to notes only — planned rows (pages, media) moved to the hub-wide roadmap (v10.55.1)' );
 
 echo "\nGroup: full format (the default)\n";
 ob_start();
@@ -94,19 +94,21 @@ ok( 8 === substr_count( sn_prov_maturity_principles_html(), '<li>' ), 'exactly 8
 
 echo "\nGroup: scope — the expansion flags\n";
 $scope_html = sn_prov_maturity_scope_html();
-ok( false !== strpos( $scope_html, 'sn-prov-maturity-scope-badge--live' ) && false !== strpos( $scope_html, 'sn-prov-maturity-scope-badge--planned' ), 'scope renders live and planned badge classes' );
-ok( 1 === substr_count( $scope_html, '--live' ) && 2 === substr_count( $scope_html, '--planned' ), 'defaults: notes live; pages + media planned' );
-ok( false !== strpos( $scope_html, '>Notes<' ) && false !== strpos( $scope_html, '>Pages<' ) && false !== strpos( $scope_html, '>Media<' ), 'scope names all three surfaces' );
-// The flag flip: the expansion ships by filtering the scope array, zero re-coding.
+ok( false !== strpos( $scope_html, 'sn-prov-maturity-scope-badge--live' ), 'scope renders the live badge class' );
+ok( 1 === substr_count( $scope_html, '--live' ) && 0 === substr_count( $scope_html, '--planned' ), 'defaults: notes live, NO planned badges — the future tense lives on the roadmap page' );
+ok( false !== strpos( $scope_html, '>Notes<' ) && false === strpos( $scope_html, '>Pages<' ) && false === strpos( $scope_html, '>Media<' ), 'scope names only the anchored surface — Pages/Media wait on the roadmap page, not here' );
+// The expansion seam survives the default's slim-down: the site-provenance
+// arcs still ship page-facing rows by FILTER (planned first, then flipped
+// live), zero re-coding — the seam accepts what the default no longer lists.
 add_filter( 'sn_prov_maturity_scope', function ( $scope ) {
-	$scope['pages'][1] = 'live';
+	$scope['pages'] = array( 'Pages', 'planned' );
 	return $scope;
 } );
 $flipped = sn_prov_maturity_scope_html();
-ok( 2 === substr_count( $flipped, '--live' ) && 1 === substr_count( $flipped, '--planned' ), 'filtering pages to live flips its badge — the expansion is an array flip, not a re-code' );
+ok( 1 === substr_count( $flipped, '--live' ) && 1 === substr_count( $flipped, '--planned' ), 'a filter-added planned row renders — the expansion is an array add, not a re-code' );
 // Hostile status value from a filter never reaches the class attribute raw.
 add_filter( 'sn_prov_maturity_scope', function ( $scope ) {
-	$scope['media'][1] = '"><script>alert(1)</script>';
+	$scope['media'] = array( 'Media', '"><script>alert(1)</script>' );
 	return $scope;
 } );
 $hostile = sn_prov_maturity_scope_html();
