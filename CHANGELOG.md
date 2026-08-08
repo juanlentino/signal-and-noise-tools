@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Content] - 2026-08-08
+
+Board edit through the door (no version, no tag, no deploy — the roadmap_board mechanism working as designed; recorded here because un-versioned changes otherwise leave no trace):
+
+- **Roadmap board, Analytics family, third Considering row** (dry-run → fingerprinted publish → cache purge → live verify on /maturity/roadmap/): "Search-side metrics from Search Console: the queries, impressions, and positions that happen before the click — a trailing complement to the first-party view, never a second opinion on it." Origin: the owner noticed Search Console measuring the site and asked whether it can feed the Analytics; assessment says yes-and-complementary (GSC sees the pre-click half the first-party beacon structurally cannot: impressions, positions, query strings Google strips from referrers; ~2-day trailing, 16-month retention). Promotion to planned gets a full spec arc: service-account auth, pull cadence, local retention escape, panel design.
+
 ## [10.62.0] - 2026-08-08
 
 **Headline:** the edge-worker health check grows from two workers to four — every silent worker failure mode found by the observability review now has a consumer.
