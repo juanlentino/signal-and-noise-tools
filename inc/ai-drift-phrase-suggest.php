@@ -302,15 +302,20 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
  *   snt_ai_capability          (403)
  *   snt_ai_write_failed        (500)
  */
-function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '', $write_callback = null ) {
+function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '', $write_callback = null, $preserve_whitespace = false ) {
 	$post_id         = (int) $post_id;
 	$position        = (int) $position; // Advisory — re-resolved below.
 	$phrase          = (string) $phrase;
-	$replacement     = trim( (string) $replacement );
+	// $preserve_whitespace: emdash_replace's replacements carry MEANINGFUL edge
+	// whitespace (': ', '. ', ', ', ' (', ') '), so trimming silently corrupts them —
+	// `reach for &mdash; the studio` shipped to a live page as `reach for:the studio`
+	// (v10.65.2). Drift's own callers pass false and keep trimming, which is right for
+	// a whole-phrase swap.
+	$replacement     = $preserve_whitespace ? (string) $replacement : trim( (string) $replacement );
 	$fingerprint     = (string) $fingerprint;
 	$context_snippet = (string) $context_snippet;
 
-	if ( '' === $replacement ) {
+	if ( '' === ( $preserve_whitespace ? trim( $replacement ) : $replacement ) ) {
 		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement is empty.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 	if ( strlen( $replacement ) > SNT_AI_DRIFT_REPLACEMENT_MAX_LENGTH ) {

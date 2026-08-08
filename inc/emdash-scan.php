@@ -238,3 +238,25 @@ function snt_emdash_scan_content( $content ) {
 
 	return $rows;
 }
+
+/**
+ * Apply an em-dash prose fix.
+ *
+ * A thin, named wrapper over snt_ai_drift_apply_impl() with $preserve_whitespace on.
+ * The locate + fingerprint + splice machinery is deliberately NOT duplicated; the only
+ * difference between the two change types at the write layer is whether the replacement
+ * may keep its edge whitespace, and em-dash replacements always must.
+ *
+ * @since 10.65.2
+ * @param int         $post_id
+ * @param string      $phrase          Exact bytes to replace (may include surrounding spaces).
+ * @param int         $position        Advisory raw-content offset; re-resolved downstream.
+ * @param string      $replacement     Kept verbatim, whitespace included.
+ * @param string      $fingerprint     From the scan.
+ * @param string      $context_snippet Used to re-locate after an edit.
+ * @param callable|null $write_callback Revision-staging callback, or null to write live.
+ * @return array|WP_Error
+ */
+function snt_emdash_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '', $write_callback = null ) {
+	return snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet, $write_callback, true );
+}

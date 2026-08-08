@@ -8,6 +8,22 @@ Board edit through the door (no version, no tag, no deploy — recorded here bec
 
 - **The public stats page row promoted Planned → Done** (dry-run → fingerprinted publish → cache purge → live verify, legend 11/10/17). The page is live at /stats/ (v10.65.0 + v10.65.1, verified: tiles 426/601/123, most-read merged after the slash fix). Done copy: "A public stats page: the site's aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected." Third row to complete the full idea → considering → planned → done lifecycle since the board became data. The static fallback board's copy of this row rides the next versioned release, per the sync-in-release pattern.
 
+## [10.65.2] - 2026-08-08
+
+**Headline:** `emdash_replace` was eating the space in its own replacement, because it delegated to an impl that trims. It put `reach for:the studio` on a published page.
+
+### Fixed
+
+- **`emdash_replace` preserves its replacement's whitespace.** It delegated to `snt_ai_drift_apply_impl()`, which does `trim( $replacement )` — correct for `drift_replace`, whose replacements are whole phrases, and wrong here, because every em-dash replacement carries meaningful edge whitespace: `': '`, `'. '`, `', '`, `' ('`, `') '`. Live result on `/about/uses/`: `The hardware and software I actually reach for:the studio`. Now routed through a named `snt_emdash_apply_impl()`, a thin wrapper passing a new `$preserve_whitespace` argument. The locate + fingerprint + splice machinery is still not duplicated, and `drift_replace` keeps trimming, unchanged.
+
+### New
+
+- **`tests/emdash-apply-roundtrip.php`** — the test whose absence let this reach a live page. It runs scanner candidate → **real apply path** → asserts the resulting content, for every replacement shape including the leading-whitespace case (`' ('`, where a trim eats the space *before* the parenthesis). It also pins that a wrong fingerprint is still refused, that a refusal leaves the post untouched, and that `drift_replace` still trims.
+
+  What existed before: a scan suite proving the right candidates come out, and a delegation sweep proving the type dispatches and writes. Both passed. Neither asked whether the text that lands equals the text the scanner intended. The scan suite even spliced a candidate and asserted the result, but with its own `substr_replace` — the way the apply path was *imagined* to work, never the path itself.
+
+> **Why PATCH:** a bug fix and its regression test. **The general rule it encodes:** a change type that DELEGATES silently inherits every behaviour of its target, including ones correct there and wrong here — so the test that matters is end to end.
+
 ## [10.65.1] - 2026-08-08
 
 **Headline:** one live-measured fix to the stats page's most-read list.
