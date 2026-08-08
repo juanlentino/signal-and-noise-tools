@@ -61,6 +61,33 @@
 		return bytes;
 	}
 
+	/** Standard base64 -> TEXT, UTF-8 aware.
+	 *
+	 *  atob() alone returns a BINARY string — one character per byte — so a
+	 *  UTF-8 multibyte character arrives as its separate bytes and renders as
+	 *  mojibake ('—' becomes 'â€"'). Not cosmetic: the decoded payload feeds
+	 *  deriveLiveMatchVerdict(), so on 2026-08-08 the live docket told readers
+	 *  the Note "Start here" (whose text carries № U+2116) had been "edited
+	 *  since signing" when it had not — a false provenance claim on the page
+	 *  whose whole purpose is trustworthiness.
+	 *
+	 *  DELIBERATELY SEPARATE from base64ToBytes(): that one must keep returning
+	 *  BYTES, because Ed25519 verification and SHA-256 hashing operate on the
+	 *  signed bytes. Decoding text there would break checks 01 and 02. Text
+	 *  paths call this; byte paths call that. */
+	function base64ToUtf8( b64 ) {
+		var bytes = base64ToBytes( b64 );
+		if ( 'function' === typeof TextDecoder ) {
+			return new TextDecoder( 'utf-8' ).decode( bytes );
+		}
+		// Fallback for engines without TextDecoder: percent-decode the bytes.
+		var pct = '';
+		for ( var i = 0; i < bytes.length; i++ ) {
+			pct += '%' + ( '0' + bytes[ i ].toString( 16 ) ).slice( -2 );
+		}
+		return decodeURIComponent( pct );
+	}
+
 	/** base64url (JWK 'x') -> bytes: restore the standard alphabet + padding. */
 	function base64urlToBytes( b64url ) {
 		var s = String( b64url || '' ).replace( /-/g, '+' ).replace( /_/g, '/' );
@@ -367,7 +394,7 @@
 		var signedContent = '';
 		var decodeFailed = false;
 		try {
-			var payload = JSON.parse( atob( String( ( cred.proof && cred.proof.signedPayloadB64 ) || '' ) ) );
+			var payload = JSON.parse( base64ToUtf8( String( ( cred.proof && cred.proof.signedPayloadB64 ) || '' ) ) );
 			signedContent = String( payload.content || '' );
 		} catch ( e ) {
 			decodeFailed = true;
@@ -694,6 +721,7 @@
 		STATE:                    STATE,
 		UUID_SHAPE:               UUID_SHAPE,
 		base64ToBytes:            base64ToBytes,
+		base64ToUtf8:             base64ToUtf8,
 		base64urlToBytes:         base64urlToBytes,
 		bytesToHex:               bytesToHex,
 		bytesEqual:               bytesEqual,

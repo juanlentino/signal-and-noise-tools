@@ -104,6 +104,41 @@ console.log( '\nGroup 2: deriveLiveMatchVerdict (9.74.1 twin schema; 9.75.0 PASS
 	eq( '', core.liveMatchTwinUrl( { credentialSubject: {} } ), 'a credential without a live URL yields no twin URL' );
 }
 
+// ─── Group 2b: UTF-8 — v10.66.1 (a false "edited since signing" claim, live) ─
+console.log( '\nGroup 2b: non-ASCII content survives base64 decoding (10.66.1)' );
+{
+	// THE LIVE DEFECT. atob() returns a BINARY string — one character per BYTE —
+	// so a UTF-8 multibyte character arrives as its separate bytes. Confirmed in
+	// production 2026-08-08: /verify?note=045d4cec-bf8c-4fdc-8b5f-30145d3ed639
+	// ("Start here", whose text contains № U+2116) reported
+	// "Content edited since signing" about a Note that had NOT been edited, and
+	// degraded the overall verdict to "corroboration is incomplete".
+	//
+	// A false edit claim on the page whose entire purpose is trustworthiness is
+	// the worst failure this module can have, so it is pinned at the decoder AND
+	// at the verdict.
+	const text = 'the numbered spine, № 1.00 and № 2.00 — signed, not edited.';
+	const credUtf8 = JSON.parse( JSON.stringify( credBlock ) );
+	credUtf8.proof.signedPayloadB64 = Buffer.from( JSON.stringify( { content: text } ), 'utf8' ).toString( 'base64' );
+
+	const v = core.deriveLiveMatchVerdict( credUtf8, { content_text: text } );
+	eq( core.STATE.PASS, v.state, 'a Note carrying non-ASCII still MATCHES its unedited twin' );
+	ok( ! v.detail.includes( 'edited since signing' ), 'never claims an edit that did not happen' );
+
+	// The decoder itself, directly.
+	eq( text, core.base64ToUtf8( Buffer.from( text, 'utf8' ).toString( 'base64' ) ),
+		'base64ToUtf8 returns CHARACTERS, not bytes' );
+	eq( '№', core.base64ToUtf8( Buffer.from( '№', 'utf8' ).toString( 'base64' ) ),
+		'a 3-byte character decodes to ONE character' );
+
+	// GUARD, and the whole reason this is a separate function: the BYTES path
+	// must stay byte-exact. base64ToBytes feeds Ed25519 signature verification
+	// and SHA-256 hashing — "fixing" it to decode text would break check 01 and
+	// check 02 on the page that exists to run them.
+	eq( 3, core.base64ToBytes( Buffer.from( '№', 'utf8' ).toString( 'base64' ) ).length,
+		'base64ToBytes still returns 3 BYTES for №, unchanged (signature/hash depend on it)' );
+}
+
 // ─── Group 3: proof decode — 9.75.0 (malformed base64 = verdict, not throw) ──
 console.log( '\nGroup 3: decodeProofBytes / decodeSignedPayloadBytes (9.75.0 — corrupt base64 stranded the docket)' );
 {

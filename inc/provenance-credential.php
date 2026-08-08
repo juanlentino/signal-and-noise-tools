@@ -124,7 +124,15 @@ function sn_prov_credential( $post_id, $version = null ) {
 			'proofPurpose'          => 'assertionMethod',
 			'proofValue'            => $signature,
 			'signedPayloadB64'      => base64_encode( $canonical ),
-			'verificationProcedure' => home_url( '/provenance/verify' ),
+			// v10.66.1: was '/provenance/verify', which 404s live — the docket is
+			// /verify. sn_prov_verify_is_request() is the authority, and its own
+			// docblock explicitly excludes "the unrelated /provenance/verify Page".
+			// The theme corrected the same URL in its agents manifest back in
+			// v10.49.0; this emitter was missed because nothing asserted the value
+			// RESOLVED — the JS fixtures merely mirrored it, encoding the bug as
+			// expected. Now pinned against that matcher in
+			// tests/provenance-credential.php so the pair can only move together.
+			'verificationProcedure' => home_url( '/verify' ),
 		),
 	);
 }
