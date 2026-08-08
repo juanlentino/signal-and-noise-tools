@@ -44,7 +44,13 @@
    dotted + dimmer), each header badge carrying its count in signal. */
 .sn-maturity-roadmap-board{width:100%;border-collapse:collapse;border:2px solid currentColor;box-shadow:8px 8px 0 currentColor;background:#fff;font-size:.85rem}
 .sn-maturity-roadmap-board th{text-align:left;border-bottom:2px solid currentColor;padding:.65em .85em;vertical-align:bottom;background:#fff}
-.sn-maturity-roadmap-board thead th{position:sticky;top:0;z-index:3}
+/* v10.63.1: NO sticky thead — measured live, it fought the theme's own
+   sticky site header and border-collapse drops a stuck header's borders.
+   The folds keep the table short; sticky earned nothing. */
+/* v10.63.1: closed folds starve their columns under auto layout (the
+   summary wrapped under its glyph, measured live) — the future columns
+   hold a floor wide enough for "NN considering" on one line. */
+.sn-maturity-roadmap-board__cell--planned,.sn-maturity-roadmap-board__cell--considering{min-width:185px}
 .sn-maturity-roadmap-board th:not(:last-child),.sn-maturity-roadmap-board td:not(:last-child){border-right:1px solid rgba(0,0,0,.16)}
 .sn-maturity-roadmap-board__family-h{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
 .sn-maturity-roadmap-badge{display:inline-flex;align-items:baseline;gap:.5em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
@@ -71,7 +77,7 @@
    The glyph is a bordered +/− that inverts to signal on hover; the open
    animation rides ::details-content where supported and degrades to
    instant everywhere else. Find-in-page opens matching folds natively. */
-.sn-maturity-roadmap-fold summary{cursor:pointer;list-style:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:.15em 0;user-select:none;display:flex;align-items:center;gap:.55em;transition:color .12s linear}
+.sn-maturity-roadmap-fold summary{cursor:pointer;list-style:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:.15em 0;user-select:none;display:flex;align-items:center;gap:.55em;white-space:nowrap;transition:color .12s linear}
 .sn-maturity-roadmap-fold summary::-webkit-details-marker{display:none}
 .sn-maturity-roadmap-fold__glyph{display:inline-grid;place-items:center;width:1.35em;height:1.35em;border:2px solid currentColor;line-height:1;flex:none;transition:transform .16s ease,background .12s linear,color .12s linear,border-color .12s linear}
 .sn-maturity-roadmap-fold__glyph::before{content:"+"}
