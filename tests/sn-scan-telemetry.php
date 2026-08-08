@@ -21,6 +21,7 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
 
 error_reporting( E_ALL );
 $GLOBALS['__php_errors'] = array();
@@ -73,8 +74,16 @@ class Test_WPDB {
 		$this->inserts[] = array( $table, $row );
 		return 1;
 	}
+	public $last_error = '';
+	public $results = array();
 	public function prepare( $sql, ...$args ) { return vsprintf( str_replace( array( '%s', '%d' ), array( "'%s'", '%d' ), $sql ), $args ); }
 	public function query( $sql ) { $this->queries[] = $sql; return 0; }
+	public $fail_on_select = false;
+	public function get_results( $sql, $output = 'OBJECT' ) {
+		$this->queries[] = $sql;
+		if ( $this->fail_on_select ) { $this->last_error = "Table 'wp_sn_scan_run' doesn't exist"; return array(); }
+		return $this->results;
+	}
 	public function get_charset_collate() { return ''; }
 }
 $GLOBALS['wpdb'] = new Test_WPDB();
@@ -183,6 +192,37 @@ $rows = array_values( array_filter( $GLOBALS['__captured'], static function ( $m
 eq( 1, count( $rows ), 'wrapper: the ERROR path fired exactly one sn_scan_completed (never success-only)' );
 eq( 'error', $rows[0]['outcome'], 'wrapper: error outcome in the fired metrics' );
 eq( 'snt_scan_bad_type', $rows[0]['error_code'], 'wrapper: the refusing gate\'s code in the fired metrics' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * 5. Summary read surface (v10.61.0) — the sn_site_facts "scan_telemetry"
+ *    fact's backing rollup: real rows, honest zero, and failed-query
+ *    detection (zero-vs-null).
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nGroup: summary rollup\n";
+
+$GLOBALS['wpdb']->results = array(
+	array( 'scan_type' => 'anchor_violations', 'outcome' => 'ok', 'runs' => '3', 'avg_duration_ms' => '41.6667', 'avg_total_candidates' => '12.0', 'avg_with_apply_hint' => '0.0', 'last_run' => '2026-08-08 00:11:41' ),
+	array( 'scan_type' => 'near_duplicate', 'outcome' => 'error', 'runs' => '1', 'avg_duration_ms' => '5', 'avg_total_candidates' => '0', 'avg_with_apply_hint' => '0', 'last_run' => '2026-08-08 00:10:00' ),
+);
+$sum = snt_scan_telemetry_summary( 30 );
+eq( true, $sum['table_present'], 'summary: table_present true on a clean query' );
+eq( 4, $sum['total_runs'], 'summary: total_runs sums grouped rows' );
+eq( 'anchor_violations', $sum['rows'][0]['scan_type'], 'summary: per-type rows carried' );
+eq( 41.7, $sum['rows'][0]['avg_duration_ms'], 'summary: averages rounded to one decimal' );
+eq( 'error', $sum['rows'][1]['outcome'], 'summary: error outcomes appear as their own rows (per-type failure rate visible)' );
+
+// Honest zero: no rows, clean query.
+$GLOBALS['wpdb']->results = array();
+$sum = snt_scan_telemetry_summary();
+ok( true === $sum['table_present'] && 0 === $sum['total_runs'] && array() === $sum['rows'], 'summary: empty window with a clean query is table_present:true + zero rows — a measurement, not an unknown' );
+
+// Failed query (missing table): wpdb sets last_error DURING the select
+// (the summary resets it beforehand, so pre-seeding would be reset — the
+// stub models the real failure timing).
+$GLOBALS['wpdb']->fail_on_select = true;
+$sum = snt_scan_telemetry_summary();
+ok( false === $sum['table_present'] && 0 === $sum['total_runs'], 'summary: failed query is table_present:false — zero and null are different answers' );
+$GLOBALS['wpdb']->fail_on_select = false;
 
 echo "\nGroup: no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], 'zero notices/warnings raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );

@@ -93,7 +93,7 @@ echo "sn_site_facts (consolidated) — plugin v10.26.0\n\n";
 
 // ─── Fact map: exactly 10 facts, none pointing at the retired ability ───
 $map = snt_sn_site_facts_map();
-ok( 10 === count( $map ), 'the fact map has exactly 10 entries (get-design-system-summary retired, not absorbed)' );
+ok( 11 === count( $map ), 'the fact map has exactly 11 entries (get-design-system-summary retired, not absorbed; scan_telemetry added v10.61.0)' );
 ok( ! in_array( 'signal-and-noise/get-design-system-summary', $map, true ), 'the retired ability is not a source for any fact' );
 $expected_map = array(
 	'theme_version'      => 'signal-and-noise/get-theme-version',
@@ -106,6 +106,7 @@ $expected_map = array(
 	'seo_route_meta'     => 'signal-and-noise/get-seo-route-meta',
 	'pillars'            => 'signal-and-noise/get-page-notes-pillars',
 	'reading_time'       => 'signal-and-noise/get-reading-time-for-slug',
+	'scan_telemetry'     => 'internal:scan-telemetry-summary',
 );
 ok( $expected_map === $map, 'the fact->source-slug map matches the verified live registrations exactly' );
 ok( array( 'reading_time', 'seo_route_meta', 'active_template' ) === snt_sn_site_facts_slug_required(), 'R1 fix: reading_time + seo_route_meta + active_template all require slug (active_template\'s source ability has no no-args default path — see the file docblock)' );
@@ -226,7 +227,33 @@ ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), '
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-site-facts is annotated readonly + non-destructive + idempotent' );
 ok( array( 'facts' ) === ( $a['input_schema']['required'] ?? array() ), 'sn-site-facts requires facts' );
 ok( 'object' === ( $a['input_schema']['type'] ?? '' ), 'sn-site-facts input type is plain object (required field present, no bodyless-GET union)' );
-ok( 10 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 10 values' );
+ok( 11 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 11 values' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * scan_telemetry (v10.61.0) — plugin-internal fact, the active_template
+ * special-case precedent: never an ability dispatch.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+// Module absent -> uniform degradation, and the sentinel slug must never
+// reach wp_get_ability (a dispatch attempt would ALSO degrade to
+// unavailable, so pin the call log, not just the shape).
+$GLOBALS['__ability_lookups'] = array();
+$r_absent = snt_ability_sn_site_facts( array( 'facts' => array( 'scan_telemetry' ) ) );
+ok( array( 'error' => 'unavailable' ) === ( $r_absent['facts']['scan_telemetry'] ?? null ), 'scan_telemetry: telemetry module absent -> uniform {error:unavailable}' );
+ok( ! in_array( 'internal:scan-telemetry-summary', $GLOBALS['__ability_lookups'], true ), 'scan_telemetry: the internal sentinel is NEVER passed to wp_get_ability' );
+
+// Module present -> the summary is returned verbatim; no slug required.
+// CONDITIONAL declaration: an unconditional top-level `function` is hoisted
+// at compile time and would exist during the module-absent test above.
+if ( ! function_exists( 'snt_scan_telemetry_summary' ) ) {
+	function snt_scan_telemetry_summary( $days = 30 ) {
+		return array( 'window_days' => $days, 'table_present' => true, 'total_runs' => 2, 'rows' => array( array( 'scan_type' => 'block_migrations', 'outcome' => 'ok', 'runs' => 1 ) ) );
+	}
+}
+$r_present = snt_ability_sn_site_facts( array( 'facts' => array( 'scan_telemetry', 'theme_version' ) ) );
+ok( 2 === ( $r_present['facts']['scan_telemetry']['total_runs'] ?? null ), 'scan_telemetry: summary returned verbatim when the module is loaded' );
+ok( true === ( $r_present['facts']['scan_telemetry']['table_present'] ?? null ), 'scan_telemetry: table_present travels (zero-vs-null: honest empty window vs eaten rows)' );
+ok( ! is_wp_error( $r_present ), 'scan_telemetry: needs NO slug (not in the slug-required set)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

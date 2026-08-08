@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.61.0] - 2026-08-08
+
+**Headline:** the scan-telemetry rollup becomes readable from inside a session — no SSH required.
+
+### Added
+
+- **`scan_telemetry` fact on sn_site_facts** ([inc/abilities-sn-site-facts.php](inc/abilities-sn-site-facts.php), [inc/sn-scan-telemetry.php](inc/sn-scan-telemetry.php)). The v10.60.0 `sn_scan_run` table had no read surface — verifying it meant `wp db query` over SSH. The fact returns a 30-day per-(scan_type, outcome) rollup: runs, avg duration_ms, avg total_candidates (yield), avg apply-hint coverage, last_run — plus `table_present`, which distinguishes an honest empty window (true + zero rows = a measurement) from a missing/failed table (false = the fail-open insert path has been eating rows and nothing here is a number). Plugin-internal via the active_template special-case precedent — the internal sentinel never reaches `wp_get_ability()`, pinned by test. Needs no slug. The site-facts enum grows to 11.
+
 ## [10.60.0] - 2026-08-08
 
 **Headline:** per-scan_type run telemetry — the consolidation program can finally see which scans earn their keep.
