@@ -225,3 +225,64 @@ function snt_scan_telemetry_on_completed( $metrics ) {
 	}
 }
 add_action( 'sn_scan_completed', 'snt_scan_telemetry_on_completed' );
+
+/**
+ * Read surface: per-scan_type rollup over a fixed 30-day window, consumed by
+ * sn_site_facts' "scan_telemetry" fact (v10.61.0). One grouped SELECT.
+ *
+ * `table_present` distinguishes "no rows yet" from "table missing / query
+ * failed" — zero and null are different answers (the standing trap): an
+ * empty rollup with table_present:true means genuinely no scans in the
+ * window; table_present:false means the fail-open insert path has been
+ * eating rows and the number is not a measurement.
+ *
+ * @param int $days Window size in days (default 30).
+ * @return array{window_days:int,generated_at:string,table_present:bool,total_runs:int,rows:array}
+ */
+function snt_scan_telemetry_summary( $days = 30 ) {
+	$days = max( 1, (int) $days );
+	$out  = array(
+		'window_days'   => $days,
+		'generated_at'  => gmdate( 'c' ),
+		'table_present' => false,
+		'total_runs'    => 0,
+		'rows'          => array(),
+	);
+
+	global $wpdb;
+	if ( ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_results' ) ) {
+		return $out;
+	}
+
+	$table  = $wpdb->prefix . SNT_SCAN_TELEMETRY_TABLE;
+	$cutoff = gmdate( 'Y-m-d H:i:s', time() - $days * DAY_IN_SECONDS );
+
+	$wpdb->last_error = '';
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is $wpdb->prefix + a plugin constant, never user input; $cutoff is bound via prepare() below.
+	$sql  = $wpdb->prepare( "SELECT scan_type, outcome, COUNT(*) AS runs, AVG(duration_ms) AS avg_duration_ms, AVG(total_candidates) AS avg_total_candidates, AVG(candidates_with_apply_hint) AS avg_with_apply_hint, MAX(ts) AS last_run FROM {$table} WHERE ts >= %s GROUP BY scan_type, outcome ORDER BY runs DESC, scan_type ASC", $cutoff );
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is the STRING RETURNED BY $wpdb->prepare() one line above, already safely bound.
+	$rows = $wpdb->get_results( $sql, ARRAY_A );
+
+	// A FAILED wpdb query returns []/null with last_error set — never throw;
+	// [] with an EMPTY last_error is a real, honest zero (no scans yet).
+	if ( '' !== (string) $wpdb->last_error || null === $rows ) {
+		return $out;
+	}
+
+	$out['table_present'] = true;
+	foreach ( (array) $rows as $r ) {
+		$runs                = (int) ( $r['runs'] ?? 0 );
+		$out['total_runs'] += $runs;
+		$out['rows'][]      = array(
+			'scan_type'            => (string) ( $r['scan_type'] ?? '' ),
+			'outcome'              => (string) ( $r['outcome'] ?? '' ),
+			'runs'                 => $runs,
+			'avg_duration_ms'      => round( (float) ( $r['avg_duration_ms'] ?? 0 ), 1 ),
+			'avg_total_candidates' => round( (float) ( $r['avg_total_candidates'] ?? 0 ), 1 ),
+			'avg_with_apply_hint'  => round( (float) ( $r['avg_with_apply_hint'] ?? 0 ), 1 ),
+			'last_run'             => (string) ( $r['last_run'] ?? '' ),
+		);
+	}
+
+	return $out;
+}
