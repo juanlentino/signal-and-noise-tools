@@ -1,12 +1,17 @@
-/* Signal & Noise — [sn_maturity_index] front-end styling (v10.11.0).
+/* Signal & Noise — [sn_maturity_index] front-end styling (v10.63.0).
    The maturity-family hub: hard-framed cards on the family's brutalist
-   skeleton, currentColor throughout, light-only. Scoped to
+   skeleton, currentColor throughout, light-only. v10.63.0 carries the
+   roadmap redesign's depth idiom down to the hub: cards lift onto a hard
+   offset shadow on hover, and the signal accent marks the interaction —
+   the same two moves the board and the family tables now make. Scoped to
    .sn-maturity-index; enqueued only when the shortcode renders. */
-.sn-maturity-index{margin:2rem 0;line-height:1.6}
+.sn-maturity-index{--sn-signal:var(--wp--preset--color--signal,#ff4c47);margin:2rem 0;line-height:1.6}
 .sn-maturity-index p.sn-maturity-index-intro{margin:0 0 1.5rem}
 .sn-maturity-index-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
-.sn-maturity-index-card{display:flex;flex-direction:column;gap:.35em;border:2px solid currentColor;padding:1rem 1.1rem;text-decoration:none;color:inherit}
-.sn-maturity-index-card:hover,.sn-maturity-index-card:focus-visible{outline:3px solid currentColor;outline-offset:2px}
+.sn-maturity-index-card{display:flex;flex-direction:column;gap:.35em;border:2px solid currentColor;padding:1rem 1.1rem;text-decoration:none;color:inherit;background:#fff;transition:transform .14s ease,box-shadow .14s ease}
+.sn-maturity-index-card:hover{transform:translate(-3px,-3px);box-shadow:6px 6px 0 currentColor}
+.sn-maturity-index-card:focus-visible{outline:3px solid var(--sn-signal,#ff4c47);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){.sn-maturity-index-card{transition:none}.sn-maturity-index-card:hover{transform:none}}
 .sn-maturity-index-card strong{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
 .sn-maturity-index-card em{font-style:italic;font-size:.88rem;opacity:.75}
 .sn-maturity-index-card span{font-size:.88rem}
