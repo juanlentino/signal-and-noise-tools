@@ -197,7 +197,7 @@ function sn_analytics_narrate_ai_run( $summary, $signals ) {
 	// v9.64.2: the render path outputs plain text, so markdown marks must be
 	// REMOVED (never escaped) before the text is stored — defense-in-depth
 	// behind the instruction's markdown ban.
-	$payload = array( 'narrative' => '<p>' . esc_html( trim( snt_ai_strip_markdown( trim( $text ) ) ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
+	$payload = array( 'narrative' => '<p>' . esc_html( trim( snt_ai_untrusted_display( trim( $text ) ) ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
 	set_transient( $key, $payload, SN_ANALYTICS_AI_CACHE_TTL );
 	update_option( SN_ANALYTICS_NARRATE_LASTGOOD_OPT, array_merge( $payload, array( 'key' => $key ) ), false );
 }
@@ -360,7 +360,7 @@ function sn_analytics_digest_ai_run( $summary, $signals, $top_action = '' ) {
 	$text    = snt_ai_generate_with_constraints( $prompt, $system, 500, $feature );
 	if ( ! is_string( $text ) || '' === trim( $text ) ) { return; }
 	// v9.64.2: strip markdown before storing (see sn_analytics_narrate_ai_run).
-	$payload = array( 'digest' => '<p>' . nl2br( esc_html( trim( snt_ai_strip_markdown( trim( $text ) ) ) ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
+	$payload = array( 'digest' => '<p>' . nl2br( esc_html( trim( snt_ai_untrusted_display( trim( $text ) ) ) ) ) . '</p>', 'source' => 'ai', 'model' => 'wp-ai-client' );
 	set_transient( $key, $payload, SN_ANALYTICS_AI_CACHE_TTL );
 	update_option( SN_ANALYTICS_DIGEST_LASTGOOD_OPT, array_merge( $payload, array( 'key' => $key ) ), false );
 }

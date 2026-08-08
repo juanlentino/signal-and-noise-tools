@@ -43,3 +43,41 @@ function snt_ai_strip_markdown( $text ) {
 	$text = (string) preg_replace( '/(?<![A-Za-z0-9_])_(?!\s)([^_\n]+?)(?<!\s)_(?![A-Za-z0-9_])/', '$1', $text );
 	return $text;
 }
+
+/**
+ * Normalize model prose for display to a human — the R2 boundary from
+ * docs/security/agent-surface-threat-model.md (v10.64.0): narrated prose
+ * is an agent→human channel read with the owner's authority, so it is
+ * UNTRUSTED DISPLAY by construction, never markup and never spoofable.
+ * On top of snt_ai_strip_markdown():
+ *
+ *   - HTML tags removed (the tag, inner text kept) — a model-emitted
+ *     <a href=…> must never reach a surface that renders it clickable
+ *     (the MCP narration abilities serve this text to chat clients that
+ *     linkify), and esc_html at a render sink would keep the tag as
+ *     visible noise rather than removing it.
+ *   - C0/C1 control characters removed (newline and tab kept) — no
+ *     terminal-style rewriting of what the owner sees.
+ *   - Zero-width and bidi-control characters removed (U+200B–U+200D,
+ *     U+FEFF, U+202A–U+202E, U+2066–U+2069) — an RLO override can make
+ *     displayed prose read differently than it compares, the classic
+ *     display-spoof; narration has no legitimate use for any of them.
+ *
+ * Pure string transform, no WP dependencies, same contract as the
+ * stripper above. Shared by inc/insights-narration.php (parse boundary)
+ * and inc/analytics-narrator.php (store boundaries).
+ *
+ * @param string $text Model output destined for human eyes.
+ * @return string The same prose, markup-free and spoof-character-free.
+ */
+function snt_ai_untrusted_display( $text ) {
+	$text = snt_ai_strip_markdown( (string) $text );
+	// Tags out, inner text kept. Possessive quantifier: no backtracking on
+	// pathological input; an unclosed "<" with no ">" survives as literal text.
+	$text = (string) preg_replace( '/<[^>]*+>/', '', $text );
+	// Control characters except \n (x0A) and \t (x09).
+	$text = (string) preg_replace( '/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', '', $text );
+	// Zero-width + bidi controls.
+	$text = (string) preg_replace( '/[\x{200B}-\x{200D}\x{FEFF}\x{202A}-\x{202E}\x{2066}-\x{2069}]/u', '', $text );
+	return $text;
+}

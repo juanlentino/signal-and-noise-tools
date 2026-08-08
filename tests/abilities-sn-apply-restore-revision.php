@@ -523,6 +523,19 @@ $staged2 = snt_sn_apply_stage_meta( 950, '_sn_og_card_title', 'New OG Title', 'f
 ok( ! is_wp_error( $staged1 ) && ! is_wp_error( $staged2 ), 'L.1: both meta rows staged successfully' );
 ok( null !== snt_sn_apply_get_staged_meta( 950, '_sn_meta_description' ), 'L.2: sanity — staged row retrievable BEFORE restore' );
 
+// v10.64.0 (threat model R1): the dry-run diff must SHOW the queue the
+// acceptance would co-publish — read-only, nothing cleared, nothing applied.
+$rL_dry = snt_ability_sn_apply( array(
+	'target' => array( 'post_id' => 950 ),
+	'change' => array( 'type' => 'restore_revision', 'fingerprint' => $fp950, 'payload' => array( 'revision_id' => 951 ) ),
+	'mode'   => 'publish', 'dry_run' => true,
+) );
+ok( ! is_wp_error( $rL_dry ), 'L.2a: dry run does not refuse' );
+$pending = $rL_dry['diff']['staged_meta_pending'] ?? null;
+eq( array( '_sn_meta_description' => 'New meta description', '_sn_og_card_title' => 'New OG Title' ), $pending, 'L.2b: diff.staged_meta_pending carries BOTH queued rows with their proposed values — the review sees the whole PR' );
+ok( null !== snt_sn_apply_get_staged_meta( 950, '_sn_meta_description' ) && null !== snt_sn_apply_get_staged_meta( 950, '_sn_og_card_title' ), 'L.2c: enumeration is READ-ONLY — both staged rows still queued after the dry run' );
+ok( ! isset( $GLOBALS['__post_meta'][950]['_sn_meta_description'] ), 'L.2d: dry run applied nothing' );
+
 $rL = snt_ability_sn_apply( array(
 	'target' => array( 'post_id' => 950 ),
 	'change' => array( 'type' => 'restore_revision', 'fingerprint' => $fp950, 'payload' => array( 'revision_id' => 951 ) ), // apply_staged_meta omitted -> default true

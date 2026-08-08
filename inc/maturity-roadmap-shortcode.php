@@ -60,10 +60,10 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'A public stats page: the site\'s aggregate numbers published for readers, reusing the existing rollups read-only — no new collection', 'signal-and-noise-tools' ),
+				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" without ever profiling a reader', 'signal-and-noise-tools' ),
-				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces', 'signal-and-noise-tools' ),
 				__( 'Search-side metrics from Search Console: the queries, impressions, and positions that happen before the click — a trailing complement to the first-party view, never a second opinion on it', 'signal-and-noise-tools' ),
 			),
 		),
@@ -129,11 +129,10 @@ function sn_maturity_roadmap_static_board() {
 			'planned'     => array(
 				__( 'Alt-text coverage for inline SVG artwork across the corpus', 'signal-and-noise-tools' ),
 				__( 'An accessible treatment for third-party embeds', 'signal-and-noise-tools' ),
+				__( 'Contrast audited at the token level: every palette pairing the templates actually use, checked from computed styles so an inline override cannot hide — landing report-first, findings published before any fix ships', 'signal-and-noise-tools' ),
+				__( 'Alt-text quality, not just coverage: flagging the present-but-useless kind — filename echoes, caption duplicates — with every fix passing the same human acceptance as the coverage sweep', 'signal-and-noise-tools' ),
 			),
-			'considering' => array(
-				__( 'Contrast audited at the token level: every palette pairing the templates actually use, checked against the thresholds — computed styles, not stylesheets, so an inline override cannot hide', 'signal-and-noise-tools' ),
-				__( 'Alt-text quality, not just coverage: flagging the present-but-useless kind — filename echoes, caption duplicates — so the count being full stops being the whole story', 'signal-and-noise-tools' ),
-			),
+			'considering' => array(),
 		),
 		__( 'Operations', 'signal-and-noise-tools' )          => array(
 			'done'        => array(
