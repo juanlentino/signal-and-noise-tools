@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Content] - 2026-08-08 (fourth edit)
+
+Board edit through the door (no version, no tag, no deploy — recorded here because un-versioned changes otherwise leave no trace):
+
+- **The public stats page row promoted Planned → Done** (dry-run → fingerprinted publish → cache purge → live verify, legend 11/10/17). The page is live at /stats/ (v10.65.0 + v10.65.1, verified: tiles 426/601/123, most-read merged after the slash fix). Done copy: "A public stats page: the site's aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected." Third row to complete the full idea → considering → planned → done lifecycle since the board became data. The static fallback board's copy of this row rides the next versioned release, per the sync-in-release pattern.
+
 ## [10.65.1] - 2026-08-08
 
 **Headline:** one live-measured fix to the stats page's most-read list.
