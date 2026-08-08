@@ -34,6 +34,10 @@ require __DIR__ . '/../inc/emdash-scan.php';
 function prose_of( $content ) {
 	return array_values( array_filter( snt_emdash_scan_content( $content ), function ( $c ) { return 'prose' === $c['classification']; } ) );
 }
+/** Coalesced parentheticals (v10.66.0): ONE candidate carrying both splices. */
+function pairs_of( $content ) {
+	return array_values( array_filter( snt_emdash_scan_content( $content ), function ( $c ) { return 'prose_pair' === $c['classification']; } ) );
+}
 function structural_of( $content ) {
 	return array_values( array_filter( snt_emdash_scan_content( $content ), function ( $c ) { return 'structural' === $c['classification']; } ) );
 }
@@ -90,13 +94,46 @@ ok( 1 === count( $t ), 'an unspaced infix em-dash is a prose candidate' );
 ok( '—' === ( $t[0]['phrase'] ?? '' ), 'the unspaced phrase is the bare em-dash' );
 ok( ', ' === ( $t[0]['replacement'] ?? '' ), 'unspaced infix -> comma' );
 
-echo "\nGroup: a PAIRED parenthetical becomes parentheses, not two separate breaks\n";
+echo "\nGroup: a PAIRED parenthetical is ONE candidate carrying BOTH splices\n";
+// v10.66.0 CONTRACT CHANGE, and the reason for it. This fixture is the actual
+// sentence from the Note "Two kinds of provenance". The scanner used to emit the
+// pair as TWO candidates marked paired_open/paired_close, correctly reasoning
+// about them as one edit and then leaving the caller to notice the marker and
+// group them. Nobody did. Each was applied on its own, so a single logical edit
+// wrote twice and — because every publish re-anchors — minted TWO provenance
+// ledger versions, v2 being a permanently anchored state where the sentence had
+// an opening parenthesis and a closing em-dash.
+//
+// A pair is now ONE candidate whose `edits` array feeds sn-apply's payload.edits
+// directly. Crucially it carries NO top-level phrase/replacement: a caller that
+// ignores `edits` and reaches for `phrase` gets an empty string and a loud 422,
+// never half a parenthetical. The half-application is unrepresentable rather than
+// merely discouraged.
 $paired = '<p>the protections developed for the software supply chain — code signing, software bill of materials, SLSA provenance — were designed to verify origin.</p>';
-$p = prose_of( $paired );
-ok( 2 === count( $p ), 'a paired parenthetical yields two linked candidates' );
-ok( 'paired_open' === ( $p[0]['pair'] ?? '' ) && 'paired_close' === ( $p[1]['pair'] ?? '' ), 'they are marked open and close' );
-ok( ' (' === ( $p[0]['replacement'] ?? '' ), 'the opening dash becomes " ("' );
-ok( ') ' === ( $p[1]['replacement'] ?? '' ), 'the closing dash becomes ") "' );
+ok( 0 === count( prose_of( $paired ) ), 'a parenthetical no longer emits loose single candidates' );
+$p = pairs_of( $paired );
+ok( 1 === count( $p ), 'a paired parenthetical yields exactly ONE candidate' );
+ok( 'paired' === ( $p[0]['pair'] ?? '' ), 'it is marked as a pair' );
+ok( 2 === count( $p[0]['edits'] ?? array() ), 'it carries both splices in `edits`' );
+ok( ' (' === ( $p[0]['edits'][0]['replacement'] ?? '' ), 'edit 1 opens the parenthesis' );
+ok( ') ' === ( $p[0]['edits'][1]['replacement'] ?? '' ), 'edit 2 closes it' );
+ok( ( $p[0]['edits'][0]['position'] ?? -1 ) < ( $p[0]['edits'][1]['position'] ?? -1 ), 'the edits are ordered open-then-close' );
+ok( '' === ( $p[0]['phrase'] ?? 'x' ) && '' === ( $p[0]['replacement'] ?? 'x' ), 'it carries NO top-level phrase/replacement — half-applying it is unrepresentable' );
+ok( isset( $p[0]['edits'][0]['phrase'], $p[0]['edits'][0]['context_snippet'] ), 'each edit carries what the splice needs' );
+
+// Applying both edits must reproduce exactly the intended sentence.
+$after = $paired;
+foreach ( array_reverse( $p[0]['edits'] ) as $e ) { // descending, as sn-apply does
+	$after = substr_replace( $after, $e['replacement'], $e['position'], strlen( $e['phrase'] ) );
+}
+ok( false !== strpos( $after, 'supply chain (code signing' ), 'applying the pair opens correctly' );
+ok( false !== strpos( $after, 'SLSA provenance) were designed' ), 'applying the pair closes correctly' );
+ok( false === strpos( $after, '—' ), 'no em-dash survives the paired apply' );
+
+echo "\nGroup: an UNpaired prose dash is still a plain single candidate\n";
+$single_run = '<p>one clause — and the rest of the sentence continues here.</p>';
+ok( 1 === count( prose_of( $single_run ) ), 'a lone prose dash is still a single candidate' );
+ok( 0 === count( pairs_of( $single_run ) ), 'a lone prose dash is not reported as a pair' );
 
 echo "\nGroup: every candidate carries what sn-apply needs to splice it safely\n";
 $c = prose_of( $uses )[0];
@@ -140,7 +177,16 @@ echo "\nGroup: the scanner is pure and total\n";
 ok( array() === snt_emdash_scan_content( '<p>No dashes at all here.</p>' ), 'content with no em-dash yields no candidates' );
 ok( array() === snt_emdash_scan_content( '' ), 'empty content yields no candidates' );
 $all = snt_emdash_scan_content( $paired . $byline . $glyph );
-ok( 4 === count( $all ), 'mixed content reports every em-dash it saw (2 prose + 2 structural)' );
+ok( 3 === count( $all ), 'mixed content yields 3 rows (the parenthetical is ONE, plus 2 structural)' );
+// The count changed in v10.66.0, but the property it was protecting did not:
+// no em-dash is ever silently dropped. A pair row accounts for TWO dashes, so
+// assert on dashes ACCOUNTED FOR rather than on rows — that survives the
+// coalescing and would still catch a genuinely lost occurrence.
+$accounted = 0;
+foreach ( $all as $row ) {
+	$accounted += isset( $row['edits'] ) ? count( $row['edits'] ) : 1;
+}
+ok( 4 === $accounted, 'all 4 em-dashes are still accounted for, none silently dropped' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

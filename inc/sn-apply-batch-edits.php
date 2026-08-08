@@ -158,7 +158,44 @@ function snt_sn_apply_plan_batch_edits( $content, $type, $edits ) {
 			}
 		}
 
-		$position = snt_ai_drift_locate_in_raw( $content, $phrase, $context );
+		// Resolve the span. An explicit `position` WINS when the phrase really sits
+		// at that offset, because in a batch the phrases are frequently IDENTICAL:
+		// the em-dash scanner's spaced-dash phrase is the dash plus its surrounding
+		// spaces and nothing more, so one parenthetical yields two byte-identical
+		// phrases. snt_ai_drift_locate_in_raw() disambiguates by context similarity,
+		// which cannot separate two occurrences whose contexts are equally plausible
+		// — it resolved both halves to the same occurrence, and the second
+		// fingerprint check then failed against content that was never wrong.
+		//
+		// The offset is still only trusted when it is CORROBORATED (the phrase is
+		// byte-present there); a stale or bogus advisory offset falls back to the
+		// locator, preserving the single path's defense against a post edited
+		// between scan and apply.
+		$position = -1;
+		if ( isset( $edit['position'] ) && (int) $edit['position'] >= 0 ) {
+			$claimed = (int) $edit['position'];
+			if ( '' !== $phrase && substr( $content, $claimed, strlen( $phrase ) ) === $phrase ) {
+				$position = $claimed;
+			}
+		}
+		if ( -1 === $position ) {
+			// Uncorroborated. If the phrase is AMBIGUOUS (more than one occurrence),
+			// refuse and say so rather than letting the locator pick one: guessing
+			// here surfaces later as a fingerprint 409 that reads "the post changed"
+			// when nothing changed, sending the caller to diagnose the wrong thing.
+			if ( '' !== $phrase && false !== strpos( $content, $phrase, ( strpos( $content, $phrase ) === false ? 0 : strpos( $content, $phrase ) + strlen( $phrase ) ) ) ) {
+				return new WP_Error(
+					'snt_sn_apply_batch_ambiguous_phrase',
+					sprintf(
+						/* translators: %d is the 1-based index of the ambiguous edit */
+						__( 'edit %d: this phrase occurs more than once and no usable position was supplied. Pass the scan candidate\'s `position` so the intended occurrence is unambiguous.', 'signal-and-noise-tools' ),
+						$n
+					),
+					array( 'status' => 422 )
+				);
+			}
+			$position = snt_ai_drift_locate_in_raw( $content, $phrase, $context );
+		}
 		if ( -1 === $position ) {
 			return new WP_Error(
 				'snt_sn_apply_batch_phrase_not_found',

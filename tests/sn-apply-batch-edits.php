@@ -154,6 +154,55 @@ $ov = snt_sn_apply_plan_batch_edits(
 ok( is_wp_error( $ov ), 'two edits claiming the same bytes are refused' );
 ok( is_wp_error( $ov ) && 422 === (int) ( $ov->data['status'] ?? 0 ), 'an overlap is a 422 caller error' );
 
+echo "\nGroup 5b: IDENTICAL phrases disambiguated by position (the real scanner's shape)\n";
+// THE CASE MY OWN FIXTURES MISSED. Every fixture above uses distinct phrases
+// ('chain — code', 'provenance — were') because that reads well in a test — which
+// means they validated my ASSUMPTION about a candidate's shape instead of
+// challenging it. The real em-dash scanner emits the dash plus its surrounding
+// spaces and nothing else, so a paired parenthetical produces TWO BYTE-IDENTICAL
+// phrases (' &mdash; ' twice). Locating by context alone resolves both edits to the
+// same occurrence, and the second fingerprint check then fails against content that
+// was never wrong. An explicit `position` must win when one is supplied.
+$ident = '<p>the supply chain &mdash; code signing, SLSA provenance &mdash; were designed.</p>';
+$phr   = ' &mdash; ';
+$ip1   = strpos( $ident, $phr );
+$ip2   = strpos( $ident, $phr, $ip1 + strlen( $phr ) );
+ok( false !== $ip2 && $ip1 !== $ip2, 'PREMISE: the fixture really does contain the same phrase twice' );
+$iplan = snt_sn_apply_plan_batch_edits(
+	$ident,
+	'emdash_replace',
+	array(
+		array( 'phrase' => $phr, 'position' => $ip1, 'replacement' => ' (', 'fingerprint' => snt_ai_drift_fingerprint( $ident, $phr, $ip1 ) ),
+		array( 'phrase' => $phr, 'position' => $ip2, 'replacement' => ') ', 'fingerprint' => snt_ai_drift_fingerprint( $ident, $phr, $ip2 ) ),
+	)
+);
+ok( ! is_wp_error( $iplan ), 'two identical phrases plan cleanly when each carries its position' );
+ok( ! is_wp_error( $iplan ) && false !== strpos( $iplan['new_content'], 'chain (code signing' ), 'the FIRST occurrence got the opening paren' );
+ok( ! is_wp_error( $iplan ) && false !== strpos( $iplan['new_content'], 'provenance) were designed' ), 'the SECOND occurrence got the closing paren' );
+ok( ! is_wp_error( $iplan ) && false === strpos( $iplan['new_content'], '&mdash;' ), 'neither identical phrase was left behind' );
+
+// An UNAMBIGUOUS phrase with a bogus/absent position still falls back to the
+// locator, preserving the single path's defense against a post edited between
+// scan and apply.
+$uniq_pos = snt_sn_apply_plan_batch_edits(
+	$ident,
+	'emdash_replace',
+	array( array( 'phrase' => 'chain &mdash; code', 'position' => 999, 'replacement' => 'chain (code', 'fingerprint' => snt_ai_drift_fingerprint( $ident, 'chain &mdash; code', strpos( $ident, 'chain &mdash; code' ) ) ) )
+);
+ok( ! is_wp_error( $uniq_pos ), 'an UNambiguous phrase with a bogus position still falls back to locating' );
+
+// An AMBIGUOUS phrase with no usable position must refuse HONESTLY. Letting the
+// locator guess surfaces later as a fingerprint 409 reading "the post changed"
+// when nothing changed — sending the caller to debug the wrong thing entirely.
+$ambig = snt_sn_apply_plan_batch_edits(
+	$ident,
+	'emdash_replace',
+	array( array( 'phrase' => $phr, 'replacement' => ' (', 'fingerprint' => snt_ai_drift_fingerprint( $ident, $phr, $ip1 ) ) )
+);
+ok( is_wp_error( $ambig ), 'an ambiguous phrase with no position is refused' );
+ok( is_wp_error( $ambig ) && 'snt_sn_apply_batch_ambiguous_phrase' === $ambig->get_error_code(), 'the refusal names AMBIGUITY, not a bogus "post changed" conflict' );
+ok( is_wp_error( $ambig ) && 422 === (int) ( $ambig->data['status'] ?? 0 ), 'ambiguity is a 422 caller error, not a 409' );
+
 echo "\nGroup 6: bounds\n";
 ok( is_wp_error( snt_sn_apply_plan_batch_edits( $real, 'emdash_replace', array() ) ), 'an empty edits list is refused' );
 $too_many = array_fill( 0, SNT_SN_APPLY_BATCH_EDITS_MAX + 1, edit_at( $real, 'chain — code', 'chain (code' ) );
