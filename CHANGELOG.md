@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.65.1] - 2026-08-08
+
+**Headline:** one live-measured fix to the stats page's most-read list.
+
+### Fixed
+
+- **Slash variants no longer split a page's ranking** ([inc/public-stats.php](inc/public-stats.php)). Rollup paths are stored as requested, so `/notes` and `/notes/` arrived as separate rows — measured live on /stats/: the notes archive displayed as two half-sized entries (36 + 21) instead of ranking #2 at 57. Paths normalize to the site's canonical trailing-slash form before aggregation. On a page whose thesis is honest numbers, a split rank is a wrong rank.
+
 ## [10.65.0] - 2026-08-08
 
 **Headline:** the public stats page ships — the roadmap's Analytics planned row made real, rollups read-only, no new collection.

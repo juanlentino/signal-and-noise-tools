@@ -76,11 +76,12 @@ $rows = array(
 	array( 'day' => '2026-08-06', 'path' => '/notes/beta/', 'views' => 350 ),
 	array( 'day' => '2026-08-06', 'path' => '/wp-admin/options.php', 'views' => 999 ),
 	array( 'day' => '2026-08-06', 'path' => '/', 'views' => 50 ),
+	array( 'day' => '2026-08-05', 'path' => '/notes/beta', 'views' => 100 ),
 );
 $a = sn_public_stats_assemble( $ct, $rows );
 ok( 900 === $a['views'] && 1100 === $a['visits'], 'human totals pass through — visits CAN exceed views (reader-days, the structural fact, never "corrected")' );
 ok( 100 === $a['automated_views'], 'automated = suspect + bot views summed' );
-ok( array( '/notes/alpha/' => 500, '/notes/beta/' => 350, '/' => 50 ) === $a['top'], 'top aggregates a path ACROSS days, sorts by views, and the admin path NEVER surfaces' );
+ok( array( '/notes/alpha/' => 500, '/notes/beta/' => 450, '/' => 50 ) === $a['top'], 'top aggregates a path ACROSS days AND across slash variants (/notes/beta + /notes/beta/ = one entry), sorts by views, and the admin path NEVER surfaces (v10.65.1: the live split-ranking fix)' );
 
 echo "\nGroup: data — cache + the no-data sentinel\n";
 $GLOBALS['__ct_return'] = array(); $GLOBALS['__dr_return'] = array();
