@@ -127,6 +127,7 @@ add_action( 'wp_abilities_api_init', function() {
 					),
 				),
 				'candidates'   => array( 'type' => 'array' ),
+				'total_candidates' => array( 'type' => 'integer' ),
 				'nextCursor'   => array( 'type' => array( 'string', 'null' ) ),
 				'truncated'    => array( 'type' => 'boolean' ),
 			),
@@ -294,14 +295,51 @@ function snt_sn_scan_sort_candidates( $candidates ) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 /**
- * Ability execute callback: signal-noise/sn-scan.
+ * Ability execute callback: signal-noise/sn-scan. Thin observability wrapper
+ * (v10.60.0): runs the real impl, then fires `sn_scan_completed` with a
+ * per-run metrics array covering BOTH outcomes — success and error alike
+ * (the telemetry-agents seam-2 lesson: a success-only observer silently
+ * under-reports the failure rate to ~0%). Firing an action is NOT a write:
+ * the ability itself stays pure (the zero-writes structural guard in
+ * tests/abilities-sn-scan.php still holds — no listener is registered
+ * there); the production listener that persists rows lives in
+ * inc/sn-scan-telemetry.php, the same observer split the provenance
+ * commit hook (`sn_prov_committed`) and the agent-telemetry bridge use.
+ *
+ * @param array|null $input
+ * @return array|WP_Error
+ */
+function snt_ability_sn_scan( $input ) {
+	$t0     = microtime( true );
+	$result = snt_ability_sn_scan_impl( $input );
+
+	if ( function_exists( 'do_action' ) && function_exists( 'snt_sn_scan_run_metrics' ) ) {
+		/**
+		 * Fires after every sn_scan execution, success or failure, with the
+		 * full per-run measurement row. See snt_sn_scan_run_metrics() for
+		 * the exact fields.
+		 *
+		 * @param array $metrics
+		 */
+		do_action( 'sn_scan_completed', snt_sn_scan_run_metrics( is_array( $input ) ? $input : array(), $result, $t0 ) );
+	}
+
+	return $result;
+}
+
+/**
+ * The real sn_scan implementation — everything above the observability
+ * wrapper is unchanged from pre-v10.60.0 behavior except the additive
+ * `total_candidates` envelope field (the full sorted count BEFORE
+ * pagination; previously a caller could never know the total without
+ * walking every page, and the metrics row needs it).
  *
  * @param array|null $input Validated (defensively, not schema-enforced — house
  *                          convention, see inc/abilities-sn-posts.php) against
  *                          input_schema above.
  * @return array|WP_Error
  */
-function snt_ability_sn_scan( $input ) {
+function snt_ability_sn_scan_impl( $input ) {
 	$input = is_array( $input ) ? $input : array();
 
 	$scan_type = isset( $input['scan_type'] ) ? (string) $input['scan_type'] : '';
@@ -399,17 +437,20 @@ function snt_ability_sn_scan( $input ) {
 	$has_more    = $next_offset < $total;
 
 	return array(
-		'scan_type'    => $scan_type,
-		'scan_run_id'  => $scan_run_id,
-		'generated_at' => gmdate( 'c' ),
-		'freshness'    => snt_sn_scan_actual_freshness( $scan_type ),
-		'corpus_state' => array(
+		'scan_type'        => $scan_type,
+		'scan_run_id'      => $scan_run_id,
+		'generated_at'     => gmdate( 'c' ),
+		'freshness'        => snt_sn_scan_actual_freshness( $scan_type ),
+		'corpus_state'     => array(
 			'posts_examined'     => $posts_examined,
 			'posts_skipped'      => $posts_skipped,
 			'corpus_fingerprint' => $corpus_fingerprint,
 		),
-		'candidates'   => $page,
-		'nextCursor'   => $has_more ? snt_sn_scan_encode_cursor( $next_offset ) : null,
-		'truncated'    => $truncated_scan,
+		'candidates'       => $page,
+		// v10.60.0, additive: the full sorted count BEFORE pagination — a
+		// caller previously could not know this without walking every page.
+		'total_candidates' => $total,
+		'nextCursor'       => $has_more ? snt_sn_scan_encode_cursor( $next_offset ) : null,
+		'truncated'        => $truncated_scan,
 	);
 }
