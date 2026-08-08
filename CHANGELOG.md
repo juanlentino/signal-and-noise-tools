@@ -8,6 +8,36 @@ Board edit through the door (no version, no tag, no deploy — recorded here bec
 
 - **The public stats page row promoted Planned → Done** (dry-run → fingerprinted publish → cache purge → live verify, legend 11/10/17). The page is live at /stats/ (v10.65.0 + v10.65.1, verified: tiles 426/601/123, most-read merged after the slash fix). Done copy: "A public stats page: the site's aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected." Third row to complete the full idea → considering → planned → done lifecycle since the board became data. The static fallback board's copy of this row rides the next versioned release, per the sync-in-release pattern.
 
+## [10.67.0] - 2026-08-08
+
+**Headline:** 18 of 30 published Notes could not produce a credential, so `/verify` told readers no proof existed — while every dashboard read CONFIRMED and the integrity sweep read clean. The ledger import had been dropping the signature.
+
+### Fixed
+
+- **The ledger import never copied the record's `signature`.** `sn_prov_backfill_commit_from_record()` built the commit's every other field — content_hash, bearing_hash, payload, block, parent — and silently omitted `signature` and `pubkey_id`, which the ledger record carried the whole time. `sn_prov_credential()` refuses an unsigned commit ("the proof does not exist yet"), so the credential endpoint 404'd and `/verify` answered **"No public credential exists for this Note."**
+
+  **Every other reading was true, which is why this hid for a year.** The commits *are* anchored, their hashes *do* match, so the Provenance panel counted them CONFIRMED, the byline rendered their Bitcoin block, and the integrity sweep passed them clean — an unsigned commit is internally consistent against the whole trust triangle. It simply cannot be verified. Measured live: **12 of 30 Notes had a credential, 18 did not.**
+
+### New
+
+- **A repair path for commits already written unsigned.** Fixing the builder repairs nothing retroactively: those posts have a real v1 commit, so `chain_has_real_commit()` excludes them and the panel would never offer them again. `sn_prov_backfill_chain_needs_signature()` reclaims exactly that shape, and the run reports `repaired` separately from `imported`.
+
+  **The repair may only ever fill in a missing signature.** It is gated on the ledger record's `content_hash` matching the stored commit's exactly, and replaces the entry **in place** — never appending a second v1, never touching a genesis v0 or a later signed version. A record that disagrees with the stored commit is refused as `repair_hash_mismatch` rather than reconciled by overwriting one with the other.
+
+### Changed
+
+- **The write boundary now refuses an unsigned record outright** (`record_unsigned`), so this defect cannot be re-imported. **Deliberately NOT a 19th health check:** per the standing rule, a periodic check is for *ambient* drift, while an invariant our own code controls belongs where the write happens. The already-broken Notes surface through the existing panel, which renders only while candidates exist — the surface is the task.
+- Panel copy now describes what a reader loses ("makes /verify tell a reader no proof exists") rather than the schema state, and the button repairs as well as imports.
+
+### Tests
+
+- **The round-trip nobody wrote.** The suite already covered every refusal gate — uid mismatch, tampered hash, unconfirmed, not-v1, malformed, idempotence, the cap — and never once asked whether the thing the import *produces* actually works. It now drives `sn_prov_credential()` on an imported commit end to end. The lesson is the shape of the gap, not the field: **every REFUSAL was verified and the SUCCESS never was.**
+- Repair coverage: an unsigned v1 is reclaimed, a signed one is never touched, replacement happens in place, and a disagreeing record is refused with its own reason.
+- Mutation-tested with the edit verified to apply first — a mutation that silently fails to patch proves nothing. Disabling the repair path fails 4 assertions; disabling the write-boundary guard fails 3.
+- One existing fixture changed honestly: the idempotence case asserted "a real (v1+) commit is never a candidate" using an *unsigned* commit — the exact shape the repair path now reclaims. It carries a signature now, so it still asserts its original contract.
+
+> **Why MINOR:** the repair path is a new capability on an existing surface. The fix alone would have been a PATCH.
+
 ## [10.66.1] - 2026-08-08
 
 **Headline:** The /verify docket told readers a Note had been "edited since signing" when it had not, and every Note's "Verify it yourself" link pointed at a 404. Both on the surface whose entire job is trustworthiness.

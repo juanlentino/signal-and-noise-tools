@@ -48,6 +48,24 @@ if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 require SNT_PATH . 'inc/provenance-core.php';
 require SNT_PATH . 'inc/provenance-integrity.php';
 require SNT_PATH . 'inc/provenance-chain-backfill.php';
+// v10.67.0: the round-trip group drives sn_prov_credential() so the suite can
+// assert an imported commit is actually VERIFIABLE, not merely well-shaped.
+$GLOBALS['__post'] = (object) array( 'ID' => 0, 'post_status' => 'publish', 'post_password' => '' );
+function get_post( $id = 0 ) { $p = clone $GLOBALS['__post']; $p->ID = (int) $id; return $p; }
+function get_permalink( $id ) { return 'https://juanlentino.com/notes/n-' . (int) $id . '/'; }
+function get_the_title( $id ) { return 'Note ' . (int) $id; }
+function get_the_date( $f, $id ) { return '2026-05-09T22:33:32-04:00'; }
+function wp_strip_all_tags( $s, $b = false ) { return trim( strip_tags( (string) $s ) ); }
+function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; }
+function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); }
+function esc_url_raw( $u ) { return $u; }
+function rest_url( $p = '' ) { return 'https://juanlentino.com/wp-json/' . ltrim( (string) $p, '/' ); }
+function get_option( $k, $d = false ) { return $d; }
+function sn_prov_pubkey_b64() { return base64_encode( str_repeat( "\x01", 32 ) ); }
+define( 'SN_PROV_CRED_TEST', true );
+define( 'SN_PROV_DID_TEST', true );
+require SNT_PATH . 'inc/provenance-did.php';
+require SNT_PATH . 'inc/provenance-credential.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok: $m\n"; } else { $fail++; echo "  FAIL: $m\n"; } }
@@ -171,8 +189,12 @@ ok( 1 === $chain51[1]['version'] && $chain51[1]['parent'] === $rec51['payload'][
 
 echo "\nGroup: idempotence\n";
 bf_reset( array( 41 => 'cccc9999-0000-4000-8000-000000000009' ) );
-$GLOBALS['__meta'][41][ SN_PROV_CHAIN_META ] = array( array( 'version' => 1, 'status' => 'confirmed' ) );
-ok( array() === sn_prov_backfill_candidates(), 'a post with a REAL (v1+) commit is never a candidate' );
+// v10.67.0: this fixture gained a signature. Its INTENT was always "a real
+// commit is finished work, leave it alone" — but it expressed that with an
+// UNSIGNED commit, which is exactly the broken shape the repair path now
+// reclaims. Signed, it still asserts the original contract.
+$GLOBALS['__meta'][41][ SN_PROV_CHAIN_META ] = array( array( 'version' => 1, 'status' => 'confirmed', 'signature' => 'sig==' ) );
+ok( array() === sn_prov_backfill_candidates(), 'a post with a REAL, SIGNED (v1+) commit is never a candidate' );
 bf_reset( array( 42 => 'dddd0000-0000-4000-8000-00000000000a' ) );
 $rec2 = bf_record( 'dddd0000-0000-4000-8000-00000000000a' );
 $GLOBALS['__http']['notes/dddd0000'] = array( 'code' => 200, 'body' => json_encode( $rec2 ) );
@@ -186,6 +208,87 @@ $many = array();
 for ( $i = 100; $i < 140; $i++ ) { $many[ $i ] = sprintf( 'aaaa%04d-0000-4000-8000-00000000cap0', $i ); }
 bf_reset( $many );
 ok( SN_PROV_BACKFILL_CAP === count( sn_prov_backfill_candidates() ), 'candidates capped at ' . SN_PROV_BACKFILL_CAP );
+
+echo "\nGroup: an imported commit must be VERIFIABLE (v10.67.0 — the assertion nobody wrote)\n";
+// THE DEFECT THIS SUITE MISSED FOR A YEAR. Every gate below was tested: uid
+// match, tampered hash, unconfirmed, not-v1, malformed, idempotence, the cap.
+// Not one asked whether the thing the import PRODUCES actually works. It did
+// not: the built commit dropped the record's `signature` and `pubkey_id`, so
+// sn_prov_credential() refused it ("unsigned - the proof does not exist yet")
+// and /verify answered "No public credential exists for this Note" for
+// **18 of 30 live Notes** while every dashboard read CONFIRMED and the
+// integrity sweep read clean.
+//
+// The lesson is the shape of the gap, not the field: the suite verified every
+// REFUSAL and never verified the SUCCESS end to end.
+$rec_v = bf_record( 'aaaabbbb-cccc-4ddd-8eee-ffff00001111' );
+$built_v = sn_prov_backfill_commit_from_record( 'aaaabbbb-cccc-4ddd-8eee-ffff00001111', $rec_v );
+ok( ! empty( $built_v['ok'] ), 'the record builds' );
+ok( 'sig==' === ( $built_v['commit']['signature'] ?? '' ), 'the built commit CARRIES the ledger signature' );
+ok( 'sn-ed25519-2026-07' === ( $built_v['commit']['pubkey_id'] ?? '' ), 'and the pubkey_id that names the key it was signed with' );
+
+// End to end: a post whose ONLY commit is an imported one must produce a credential.
+bf_reset( array( 77 => 'aaaabbbb-cccc-4ddd-8eee-ffff00001111' ) );
+$GLOBALS['__http']['notes/aaaabbbb-cccc-4ddd-8eee-ffff00001111/v1.json'] = array( 'code' => 200, 'body' => json_encode( $rec_v ) );
+$run_v = sn_prov_backfill_run( 'bf_fetcher' );
+ok( 1 === (int) $run_v['imported'], 'it imports' );
+$cred = sn_prov_credential( 77 );
+ok( null !== $cred, 'THE ROUND TRIP: an imported commit produces a credential (was null -> a live 404)' );
+ok( is_array( $cred ) && '' !== (string) ( $cred['proof']['proofValue'] ?? '' ), 'the credential carries the signature as proofValue' );
+
+// The WRITE-BOUNDARY guard, and the reason there is no 19th health check for
+// this: the invariant is one our own code controls, so it is enforced where the
+// write happens rather than watched on a 24h cadence. An unsigned record can
+// never become a verifiable credential, so importing one would recreate the
+// exact defect this release repairs.
+$rec_uns = bf_record( 'dddd0000-1111-4222-8333-444455556666' );
+unset( $rec_uns['signature'] );
+$built_uns = sn_prov_backfill_commit_from_record( 'dddd0000-1111-4222-8333-444455556666', $rec_uns );
+ok( empty( $built_uns['ok'] ), 'an UNSIGNED ledger record is refused, never imported' );
+ok( 'record_unsigned' === ( $built_uns['reason'] ?? '' ), 'and the refusal carries its own reason, so a run says exactly why' );
+$rec_blank = bf_record( 'eeee0000-1111-4222-8333-444455556666' );
+$rec_blank['signature'] = '';
+ok( 'record_unsigned' === ( sn_prov_backfill_commit_from_record( 'eeee0000-1111-4222-8333-444455556666', $rec_blank )['reason'] ?? '' ), 'an EMPTY signature is refused identically to a missing one' );
+
+echo "\nGroup: repairing the ALREADY-imported unsigned commits (v10.67.0)\n";
+// Fixing the builder repairs nothing already written: those posts have a real
+// v1 commit, so chain_has_real_commit() excludes them and the panel never
+// offers them again. They need their own, narrower path.
+$uid_r = 'bbbbcccc-dddd-4eee-8fff-000011112222';
+$rec_r = bf_record( $uid_r );
+$unsigned = $built_v['commit'];
+$unsigned['payload']      = $rec_r['payload'];
+$unsigned['content_hash'] = $rec_r['content_hash'];
+unset( $unsigned['signature'], $unsigned['pubkey_id'] );
+
+bf_reset( array( 88 => $uid_r ) );
+$GLOBALS['__meta'][88][ SN_PROV_CHAIN_META ] = array( $unsigned );
+ok( true === sn_prov_backfill_chain_has_real_commit( array( $unsigned ) ), 'precondition: an unsigned v1 IS a real commit, so the old gate skips it' );
+ok( true === sn_prov_backfill_chain_needs_signature( array( $unsigned ) ), 'an unsigned v1+ commit is flagged as repairable' );
+ok( false === sn_prov_backfill_chain_needs_signature( array( $built_v['commit'] ) ), 'a SIGNED commit is never flagged' );
+ok( in_array( 88, sn_prov_backfill_candidates(), true ), 'the post becomes a candidate again, so the panel offers it' );
+
+$GLOBALS['__http'][ 'notes/' . $uid_r . '/v1.json' ] = array( 'code' => 200, 'body' => json_encode( $rec_r ) );
+$run_r = sn_prov_backfill_run( 'bf_fetcher' );
+ok( 1 === (int) ( $run_r['repaired'] ?? 0 ), 'the run reports it as REPAIRED, distinct from imported' );
+$chain_r = sn_prov_get_chain( 88 );
+ok( 1 === count( $chain_r ), 'repair REPLACES in place - it never appends a second v1' );
+ok( 'sig==' === ( $chain_r[0]['signature'] ?? '' ), 'the signature is now present' );
+ok( null !== sn_prov_credential( 88 ), 'and the Note can finally produce a credential' );
+
+// The safety gate: repair may only ever fill in a missing signature, never
+// rewrite content. A record that disagrees with the stored commit is refused.
+$uid_x = 'ccccdddd-eeee-4fff-8000-111122223333';
+$rec_x = bf_record( $uid_x );
+$mismatched = $unsigned;
+$mismatched['content_hash'] = str_repeat( '9', 64 );
+bf_reset( array( 99 => $uid_x ) );
+$GLOBALS['__meta'][99][ SN_PROV_CHAIN_META ] = array( $mismatched );
+$GLOBALS['__http'][ 'notes/' . $uid_x . '/v1.json' ] = array( 'code' => 200, 'body' => json_encode( $rec_x ) );
+$run_x = sn_prov_backfill_run( 'bf_fetcher' );
+ok( 0 === (int) ( $run_x['repaired'] ?? 0 ), 'a record that disagrees with the stored commit is NOT repaired' );
+ok( isset( $run_x['skipped']['repair_hash_mismatch'] ), 'and the refusal is counted by its own reason' );
+ok( ! isset( sn_prov_get_chain( 99 )[0]['signature'] ), 'the stored commit is left exactly as it was' );
 
 echo "\nGroup: loader wiring\n";
 $loader = (string) file_get_contents( SNT_PATH . 'signal-and-noise-tools.php' );
