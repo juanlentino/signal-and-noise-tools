@@ -8,6 +8,31 @@ Board edit through the door (no version, no tag, no deploy — recorded here bec
 
 - **The public stats page row promoted Planned → Done** (dry-run → fingerprinted publish → cache purge → live verify, legend 11/10/17). The page is live at /stats/ (v10.65.0 + v10.65.1, verified: tiles 426/601/123, most-read merged after the slash fix). Done copy: "A public stats page: the site's aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected." Third row to complete the full idea → considering → planned → done lifecycle since the board became data. The static fallback board's copy of this row rides the next versioned release, per the sync-in-release pattern.
 
+## [10.66.0] - 2026-08-08
+
+**Headline:** Two scan candidates in one Note meant two calls, two writes, and two anchored provenance ledger versions — for a single logical edit. `sn_apply` can now carry N prose edits for one post in one write.
+
+### New
+
+- **`change.payload.edits`: N prose splices, ONE post, ONE write.** Supported for `emdash_replace`, `drift_replace` and `sentence_replace` — the plain-prose splice family. Each edit is `{phrase, replacement, context_snippet?}`, plus a per-edit `fingerprint` for the drift family (whose fingerprints are minted per candidate); `sentence_replace` carries none, because `change.fingerprint` — the whole-post `content_hash` — already binds the entire batch. `diff.edits_applied` reports the count. Maximum 50 edits per call.
+
+  **The defect this closes is on the public record.** The ledger holds `Two kinds of provenance` at v1 → v2 → v3, where both increments are halves of one edit: converting a single dashed aside into parentheses. v2 is therefore a permanently anchored state in which the sentence had an opening parenthesis and a closing em-dash — a state nobody ever intended to publish. The em-dash scanner's own pairing rule reasons about the pair as **one** edit but emits it as **two** candidates, and the apply path splices one per call. `target`'s existing array batches across *posts* ("across posts they are independent"); it could never batch *within* one.
+
+### Changed
+
+- **The batch validates against the ORIGINAL content and splices in DESCENDING position order.** Both halves are load-bearing, and the obvious implementation gets each wrong. Looping the existing impls re-reads `get_post()->post_content` every time, so edit 2 would splice the original string and clobber edit 1. And drift fingerprints are `md5(phrase|window)` over an 80-char window, so an edit inside a neighbour's window changes the bytes that neighbour's fingerprint was minted over — a sequential batch can 409 against its own first write. Validating everything up front against one immutable string, then splicing back-to-front, means no offset ever needs re-resolving.
+- **All-or-nothing, naming the edit that failed.** Any edit that fails to validate, locate or match refuses the whole batch with its 1-based index, and writes nothing — a partially-applied "one logical edit" is exactly the half-converted state this exists to prevent. Two edits claiming overlapping byte ranges are a 422 rather than silent corruption.
+- **`link_insert`, `link_reshape` and `unlink` are excluded deliberately.** They rewrite markup rather than prose, so two of them in one post can interact through the tag structure in ways a byte-range overlap check cannot see. They refuse `payload.edits` explicitly.
+- **The replacement normalizer and validator are extracted** (`snt_ai_drift_normalize_replacement()`, `snt_ai_drift_replacement_error()`) so the batch path enforces exactly the single path's rules instead of a copy that can drift. `snt_ai_drift_apply_impl()` is unchanged in behaviour. The per-type whitespace posture is inherited, not flattened: `emdash_replace` still preserves edge whitespace, `drift_replace` still trims — flattening those together is the v10.65.2 bug class.
+- **Gate 1 previews the whole batch through the same planner the write path uses**, so the diff shows the state that will actually be written and gate 2 validates that same body. A preview that *models* the write instead of *sharing* it is how `reach for:the studio` reached a live page.
+
+### Tests
+
+- `tests/sn-apply-batch-edits.php` (27 assertions) covers the planner: the real ledger case, near-neighbour edits inside each other's fingerprint window, descending-order offset stability under successive length changes, overlap refusal, atomicity and bounds. Mutation-tested — splicing ascending fails 4 assertions, dropping the overlap guard fails 2, disabling the fingerprint check fails 3.
+- `tests/sn-apply-batch-edits-reachable.php` (23 assertions) is separate on purpose. The planner suite would pass in full even if the dispatcher never called the planner — precisely what happened in v10.51.0, where an adapter was registered but its type never joined the enum, and every unit test was green over a feature that was dead on arrival. This one asserts routing through `snt_sn_apply_execute_write()` for every batch-capable type and, above all, **counts writes**: one `wp_update_post()` per batch, one staged revision in `mode:"revision"`, zero writes when a batch refuses. Counting writes is the only assertion that would have caught the original defect, because two writes produce correct *content* and an inflated *record*.
+
+> **Why MINOR:** a new user-visible capability on an existing tool. No behaviour change for any existing call — the single-edit form is untouched and pinned by its own assertions.
+
 ## [10.65.3] - 2026-08-08
 
 **Headline:** v10.65.2 let `emdash_replace` keep its replacement's whitespace, and then the very next guard rejected it *for having* whitespace. Every apply failed 422.

@@ -260,6 +260,21 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 			$revision_id = null;
 			$cb          = 'revision' === $mode ? snt_sn_apply_revision_write_callback( $revision_id ) : null;
 			$fp          = (string) ( $change['fingerprint'] ?? '' );
+			// v10.66.0: N candidates in ONE post produce ONE write. Without this,
+			// a two-candidate post took two calls, two wp_update_post()s and — for
+			// a Note — two anchored ledger versions for one logical edit.
+			if ( isset( $payload['edits'] ) ) {
+				$result = snt_sn_apply_batch_edits_impl( $resolved['post_id'], $type, $payload['edits'], $fp, $cb );
+				if ( is_wp_error( $result ) ) {
+					return $result;
+				}
+				return array(
+					'ok'           => true,
+					'diff'         => array( 'before' => $result['old_content'], 'after' => $result['new_content'], 'blocks_touched' => 0, 'edits_applied' => $result['count'] ),
+					'revision_id'  => $revision_id,
+					'write_result' => $result,
+				);
+			}
 			if ( 'emdash_replace' === $type ) {
 				// v10.65.2: its own named impl, which preserves the replacement's edge
 				// whitespace. Delegating straight to the drift impl trimmed ': ' to ':'
@@ -292,6 +307,21 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 			// as the drift family above.
 			$revision_id = null;
 			$cb          = 'revision' === $mode ? snt_sn_apply_revision_write_callback( $revision_id ) : null;
+			// v10.66.0: multi-edit form. One content_hash covers the whole batch —
+			// the caller proves it is editing the post as it currently exists, and
+			// every edit is located against that same original.
+			if ( isset( $payload['edits'] ) ) {
+				$result = snt_sn_apply_batch_edits_impl( $resolved['post_id'], $type, $payload['edits'], (string) ( $change['fingerprint'] ?? '' ), $cb );
+				if ( is_wp_error( $result ) ) {
+					return $result;
+				}
+				return array(
+					'ok'           => true,
+					'diff'         => array( 'before' => $result['old_content'], 'after' => $result['new_content'], 'blocks_touched' => 0, 'edits_applied' => $result['count'] ),
+					'revision_id'  => $revision_id,
+					'write_result' => $result,
+				);
+			}
 			$result      = snt_sn_apply_sentence_replace_impl(
 				$resolved['post_id'],
 				(string) ( $payload['phrase'] ?? '' ),

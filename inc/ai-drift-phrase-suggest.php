@@ -302,19 +302,34 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
  *   snt_ai_capability          (403)
  *   snt_ai_write_failed        (500)
  */
-function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '', $write_callback = null, $preserve_whitespace = false ) {
-	$post_id         = (int) $post_id;
-	$position        = (int) $position; // Advisory — re-resolved below.
-	$phrase          = (string) $phrase;
-	// $preserve_whitespace: emdash_replace's replacements carry MEANINGFUL edge
-	// whitespace (': ', '. ', ', ', ' (', ') '), so trimming silently corrupts them —
-	// `reach for &mdash; the studio` shipped to a live page as `reach for:the studio`
-	// (v10.65.2). Drift's own callers pass false and keep trimming, which is right for
-	// a whole-phrase swap.
-	$replacement     = $preserve_whitespace ? (string) $replacement : trim( (string) $replacement );
-	$fingerprint     = (string) $fingerprint;
-	$context_snippet = (string) $context_snippet;
+/**
+ * Normalize a replacement for the requested whitespace posture.
+ *
+ * Extracted (v10.66.0) so the single-splice impl below and the batch planner
+ * in inc/sn-apply-batch-edits.php share ONE rule instead of two that can
+ * drift. Behaviour is byte-identical to the inline version it replaces.
+ *
+ * @param string $replacement
+ * @param bool   $preserve_whitespace
+ * @return string
+ */
+function snt_ai_drift_normalize_replacement( $replacement, $preserve_whitespace = false ) {
+	return $preserve_whitespace ? (string) $replacement : trim( (string) $replacement );
+}
 
+/**
+ * Validate an already-normalized replacement: non-empty, within the length
+ * ceiling, plain text.
+ *
+ * Extracted (v10.66.0) alongside the normalizer above, for the same reason:
+ * the batch path must enforce EXACTLY these rules, and a copy would be a
+ * second implementation waiting to diverge.
+ *
+ * @param string $replacement         Already passed through snt_ai_drift_normalize_replacement().
+ * @param bool   $preserve_whitespace
+ * @return true|WP_Error
+ */
+function snt_ai_drift_replacement_error( $replacement, $preserve_whitespace = false ) {
 	if ( '' === ( $preserve_whitespace ? trim( $replacement ) : $replacement ) ) {
 		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement is empty.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
@@ -333,6 +348,26 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 	$probe = $preserve_whitespace ? trim( (string) $replacement ) : $replacement;
 	if ( $probe !== wp_strip_all_tags( $replacement ) ) {
 		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement contains HTML: only plain text allowed.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	return true;
+}
+
+function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $fingerprint, $context_snippet = '', $write_callback = null, $preserve_whitespace = false ) {
+	$post_id         = (int) $post_id;
+	$position        = (int) $position; // Advisory — re-resolved below.
+	$phrase          = (string) $phrase;
+	// $preserve_whitespace: emdash_replace's replacements carry MEANINGFUL edge
+	// whitespace (': ', '. ', ', ', ' (', ') '), so trimming silently corrupts them —
+	// `reach for &mdash; the studio` shipped to a live page as `reach for:the studio`
+	// (v10.65.2). Drift's own callers pass false and keep trimming, which is right for
+	// a whole-phrase swap.
+	$replacement     = snt_ai_drift_normalize_replacement( $replacement, $preserve_whitespace );
+	$fingerprint     = (string) $fingerprint;
+	$context_snippet = (string) $context_snippet;
+
+	$replacement_error = snt_ai_drift_replacement_error( $replacement, $preserve_whitespace );
+	if ( is_wp_error( $replacement_error ) ) {
+		return $replacement_error;
 	}
 	if ( ! current_user_can( 'edit_post', $post_id ) ) {
 		return new WP_Error( 'snt_ai_capability', __( 'You cannot edit this post.', 'signal-and-noise-tools' ), array( 'status' => 403 ) );
