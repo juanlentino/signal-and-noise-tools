@@ -53,7 +53,17 @@ class WP_Error {
 }
 function __( $s, $d = null ) { return $s; }
 function esc_html( $s ) { return $s; }
-function wp_strip_all_tags( $s ) { return strip_tags( (string) $s ); }
+// Models REAL WordPress: wp_strip_all_tags() ends with `return trim( $text );`.
+// The first version of this stub omitted that trim, which is precisely why this
+// suite went green while production refused every whitespace-carrying replacement
+// with snt_ai_replacement_invalid (422). A stub is a CLAIM about someone else's
+// code; an unverified claim is what a test is supposed to eliminate.
+function wp_strip_all_tags( $s, $remove_breaks = false ) {
+	$s = preg_replace( '@<(script|style)[^>]*?>.*?</\\1>@si', '', (string) $s );
+	$s = strip_tags( $s );
+	if ( $remove_breaks ) { $s = preg_replace( '/[\r\n\t ]+/', ' ', $s ); }
+	return trim( $s );
+}
 function add_action() {} function add_filter() {} function wp_register_ability() {}
 function register_rest_route() {}
 if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
@@ -95,6 +105,19 @@ ok( false !== strpos( $a2, 'photos, exactly the' ), 'unspaced infix keeps the sp
 list( , $a3 ) = roundtrip( 504, '<p>the supply chain &mdash; code signing, SLSA provenance &mdash; were designed.</p>', 0 );
 ok( false !== strpos( $a3, 'chain (code signing' ), 'paired OPEN keeps the space BEFORE the parenthesis (leading-whitespace case)' );
 ok( false === strpos( $a3, 'chain(code' ), 'the trim-eaten form "chain(code" is NOT produced' );
+
+echo "\nGroup: the HTML guard tests for HTML, not for whitespace\n";
+$GLOBALS['__posts'][507] = '<p>A sentence &mdash; with a dash.</p>';
+$c507 = array_values( array_filter( snt_emdash_scan_content( $GLOBALS['__posts'][507] ), function ( $x ) { return 'prose' === $x['classification']; } ) )[0];
+$fp507 = snt_ai_drift_fingerprint( $GLOBALS['__posts'][507], $c507['phrase'], $c507['position'] );
+$r507 = snt_emdash_apply_impl( 507, $c507['phrase'], $c507['position'], $c507['replacement'], $fp507, $c507['context_snippet'] );
+ok( ! is_wp_error( $r507 ), 'a replacement carrying edge whitespace is ACCEPTED (the guard must not read " " as HTML)' );
+
+$GLOBALS['__posts'][508] = '<p>A sentence &mdash; with a dash.</p>';
+$c508 = array_values( array_filter( snt_emdash_scan_content( $GLOBALS['__posts'][508] ), function ( $x ) { return 'prose' === $x['classification']; } ) )[0];
+$fp508 = snt_ai_drift_fingerprint( $GLOBALS['__posts'][508], $c508['phrase'], $c508['position'] );
+$r508 = snt_emdash_apply_impl( 508, $c508['phrase'], $c508['position'], '<b>x</b> ', $fp508, $c508['context_snippet'] );
+ok( is_wp_error( $r508 ), 'a replacement containing real HTML is still REJECTED' );
 
 echo "\nGroup: the gates the delegation still provides are intact\n";
 $GLOBALS['__posts'][505] = '<p>A sentence &mdash; with a dash.</p>';

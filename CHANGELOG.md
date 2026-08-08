@@ -8,6 +8,22 @@ Board edit through the door (no version, no tag, no deploy — recorded here bec
 
 - **The public stats page row promoted Planned → Done** (dry-run → fingerprinted publish → cache purge → live verify, legend 11/10/17). The page is live at /stats/ (v10.65.0 + v10.65.1, verified: tiles 426/601/123, most-read merged after the slash fix). Done copy: "A public stats page: the site's aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected." Third row to complete the full idea → considering → planned → done lifecycle since the board became data. The static fallback board's copy of this row rides the next versioned release, per the sync-in-release pattern.
 
+## [10.65.3] - 2026-08-08
+
+**Headline:** v10.65.2 let `emdash_replace` keep its replacement's whitespace, and then the very next guard rejected it *for having* whitespace. Every apply failed 422.
+
+### Fixed
+
+- **The HTML guard tests for tags again, not for whitespace.** It compares the replacement against `wp_strip_all_tags()`, which ends with `return trim( $text );`. Under `$preserve_whitespace` that made `': '` unequal to `':'` and returned `snt_ai_replacement_invalid` (422) for every em-dash apply. The probe is now trimmed too when whitespace is preserved, keeping the comparison about tags in both modes. **Drift's own callers are byte-for-byte unaffected:** with `$preserve_whitespace` false, the probe *is* the replacement, exactly as before.
+
+### Changed
+
+- **`tests/emdash-apply-roundtrip.php`'s `wp_strip_all_tags` stub now models real WordPress**, trailing `trim()` included, and the suite asserts both directions: a replacement carrying edge whitespace is accepted, a replacement containing real HTML is still rejected.
+
+  This is the honest reason the bug shipped. That suite was written specifically to catch whitespace loss, and it went green while production refused every call — because its stub was **more permissive than WordPress**. Restoring the real behaviour turns it red on 7 assertions, which is what should have happened before v10.65.2 was tagged. A stub is a claim about someone else's code, and an unverified claim is the thing a test exists to eliminate.
+
+> **Why PATCH:** a bug fix and the stub-fidelity correction that should have caught it.
+
 ## [10.65.2] - 2026-08-08
 
 **Headline:** `emdash_replace` was eating the space in its own replacement, because it delegated to an impl that trims. It put `reach for:the studio` on a published page.
