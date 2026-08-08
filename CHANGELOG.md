@@ -8,6 +8,28 @@ Board edit through the door (no version, no tag, no deploy — recorded here bec
 
 - **The public stats page row promoted Planned → Done** (dry-run → fingerprinted publish → cache purge → live verify, legend 11/10/17). The page is live at /stats/ (v10.65.0 + v10.65.1, verified: tiles 426/601/123, most-read merged after the slash fix). Done copy: "A public stats page: the site's aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected." Third row to complete the full idea → considering → planned → done lifecycle since the board became data. The static fallback board's copy of this row rides the next versioned release, per the sync-in-release pattern.
 
+## [10.66.1] - 2026-08-08
+
+**Headline:** The /verify docket told readers a Note had been "edited since signing" when it had not, and every Note's "Verify it yourself" link pointed at a 404. Both on the surface whose entire job is trustworthiness.
+
+### Fixed
+
+- **A FALSE provenance claim on the live docket.** `atob()` returns a *binary* string — one character per byte — so a UTF-8 multibyte character arrived as its separate bytes. That decoded payload feeds `deriveLiveMatchVerdict()`, so check 03 compared mangled text against the correct twin and reported **"Content edited since signing"** about a Note nobody had edited, degrading the verdict to "corroboration is incomplete". Confirmed in production on `/verify?note=045d4cec…` ("Start here", whose text carries `№` U+2116). New `base64ToUtf8()` decodes text properly; the same bug also rendered every non-ASCII character in the version-compare diff as mojibake.
+
+  **`base64ToBytes()` is deliberately untouched and must stay that way.** It feeds Ed25519 verification and SHA-256 hashing, which operate on the signed *bytes* — "fixing" it to decode text would break checks 01 and 02 on the page that exists to run them. Text paths call the new function; byte paths call the old one, and a test pins that `№` still decodes to **3 bytes** there.
+
+- **"Verify it yourself" 404'd on every Note.** The byline panel linked `home_url('/provenance/verify')`; the live docket is `/verify`. Verified against production with redirects followed. The literal invitation to check the proof went nowhere.
+
+- **Every credential advertised the same 404.** `proof.verificationProcedure` — the machine-readable field whose entire job is telling a verifier where to go — carried the same dead URL.
+
+### Changed
+
+- **Both URLs are now pinned as RELATIONSHIPS, not literals**, asserted against `sn_prov_verify_is_request()` — the router's own authority on what `/verify` means, and whose docblock already excluded "the unrelated /provenance/verify Page". Link and route can now only move together.
+
+  **Why this survived:** the theme corrected the identical URL in its agents manifest back in v10.49.0, and the site's own 404 log carries `/provenance/verify → /verify` as a genuine broken link in its fixture. Two signals existed and neither reached the emitter, because **nothing asserted the value resolved** — the four JS credential fixtures simply *mirrored* the wrong URL, encoding the bug as expected behaviour. Those fixtures are corrected too.
+
+> **Why PATCH:** three defects repaired, no new capability, no API change. The corrected `verificationProcedure` and `verify_url` values are what those fields always claimed to be.
+
 ## [10.66.0] - 2026-08-08
 
 **Headline:** Two scan candidates in one Note meant two calls, two writes, and two anchored provenance ledger versions — for a single logical edit. `sn_apply` can now carry N prose edits for one post in one write.

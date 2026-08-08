@@ -120,5 +120,30 @@ $surf = sn_prov_cred_advertise_surface( array() );
 $types = array_column( $surf, 'type' );
 ok( in_array( 'did-web', $types, true ) && in_array( 'verifiable-credential', $types, true ), 'advertises did-web + verifiable-credential surfaces' );
 
+// --- verificationProcedure must point at a URL the verifier actually serves ---
+//
+// LIVE DEFECT (2026-08-08, fixed v10.66.1): every credential advertised
+// home_url('/provenance/verify'), which returns 404. The live docket is /verify.
+// This is the machine-readable field whose entire job is telling a verifier where
+// to go and check the proof — and it pointed at nothing.
+//
+// The theme fixed the identical URL in its agents manifest back in v10.49.0 (its
+// test even reads "never /provenance/verify/"), but the plugin's credential
+// emitter was never swept with it. NOTHING PINNED THIS VALUE, which is exactly
+// why it drifted — the JS fixtures MIRRORED the wrong URL rather than asserting
+// it resolved, so they encoded the bug as expected behaviour.
+//
+// So this asserts a RELATIONSHIP, not a literal: the advertised path must be one
+// sn_prov_verify_is_request() accepts — the router's own authority on what
+// /verify means, and the function whose docblock explicitly excludes "the
+// unrelated /provenance/verify Page". The two can now only move together.
+require_once __DIR__ . '/../inc/provenance-verify.php';
+$cred_vp = (string) ( $r->data['proof']['verificationProcedure'] ?? '' );
+ok( '' !== $cred_vp, 'the credential advertises a verificationProcedure' );
+$vp_path = (string) wp_parse_url( $cred_vp, PHP_URL_PATH );
+ok( function_exists( 'sn_prov_verify_is_request' ), 'the verify-request matcher is loadable for this assertion' );
+ok( sn_prov_verify_is_request( $vp_path ), 'verificationProcedure resolves to the LIVE /verify docket, not the 404 /provenance/verify Page' );
+ok( false === strpos( $vp_path, '/provenance/verify' ), 'it is never the unrelated /provenance/verify path' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

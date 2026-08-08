@@ -41,6 +41,6 @@
 		"proofPurpose": "assertionMethod",
 		"proofValue": "%%%neither-is-this%%%",
 		"signedPayloadB64": "%%%this-is-not-base64%%%",
-		"verificationProcedure": "https://juanlentino.com/provenance/verify"
+		"verificationProcedure": "https://juanlentino.com/verify"
 	}
 }

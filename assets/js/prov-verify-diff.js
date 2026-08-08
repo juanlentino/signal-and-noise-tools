@@ -70,7 +70,9 @@
 	/** The payload content a credential signed, or '' when undecodable. */
 	function signedContent( cred ) {
 		try {
-			var payload = JSON.parse( atob( String( ( cred && cred.proof && cred.proof.signedPayloadB64 ) || '' ) ) );
+			// UTF-8 aware (v10.66.1): atob() alone yields a binary string, which
+			// rendered every non-ASCII character in this diff as mojibake.
+			var payload = JSON.parse( Core.base64ToUtf8( String( ( cred && cred.proof && cred.proof.signedPayloadB64 ) || '' ) ) );
 			return String( payload.content || '' );
 		} catch ( e ) {
 			return '';

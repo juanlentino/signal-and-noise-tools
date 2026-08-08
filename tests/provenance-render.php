@@ -375,5 +375,33 @@ $panel8u = sn_prov_render_panel( 8 );
 rp_true( false === strpos( $panel8u, 'sn-prov-onchain' ), 'no lead link when there is no public target yet' );
 rp_true( false !== strpos( $panel8u, 'sn-prov-panel' ), 'panel still renders without a lead link' );
 
+// --- "Verify it yourself" must point somewhere the verifier actually serves ---
+//
+// LIVE DEFECT (2026-08-08, fixed v10.66.1): the byline panel of EVERY Note linked
+// "Verify it yourself" to home_url('/provenance/verify'), which returns 404 --
+// confirmed against production, redirects followed. The invitation to check the
+// proof, on the surface whose entire job is trustworthiness, went nowhere.
+//
+// Two things had already noticed and neither closed the loop: the theme fixed the
+// same URL in its agents manifest in v10.49.0, and the site's OWN 404 log carries
+// "/provenance/verify -> /verify" as a genuine broken link in its fixture. The
+// signal existed; nothing connected it back to the emitter.
+//
+// Asserted as a RELATIONSHIP against sn_prov_verify_is_request() -- the router's
+// own authority on what /verify means -- so this link and the route can only move
+// together. A literal would merely re-encode today's string.
+require_once __DIR__ . '/../inc/provenance-verify.php';
+if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
+// Assert on the RENDERED panel -- the anchor a reader actually clicks -- not the
+// viewmodel field, so a future renderer that stops using verify_url cannot pass.
+$panel_v = sn_prov_render_panel( 5 );
+rp_true( false !== strpos( $panel_v, 'Verify it yourself' ), 'the panel renders the "Verify it yourself" invitation' );
+preg_match( '#<a href="([^"]*)">Verify it yourself</a>#', $panel_v, $vm_m );
+$vurl  = $vm_m[1] ?? '';
+rp_true( '' !== $vurl, 'the invitation carries an href' );
+$vpath = (string) wp_parse_url( html_entity_decode( $vurl ), PHP_URL_PATH );
+rp_true( sn_prov_verify_is_request( $vpath ), '"Verify it yourself" resolves to the LIVE /verify docket, never the 404 /provenance/verify Page' );
+rp_true( false === strpos( $vpath, '/provenance/verify' ), 'the reader-facing verify link is never the unrelated /provenance/verify path' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -53,7 +53,16 @@ function sn_prov_view_data( $post_id ) {
 		'genesis_caveat'  => $genesis_only,
 		'ledger_url'      => sn_prov_ledger_note_url( (string) $uid ),
 		'ots_url'         => sn_prov_ledger_note_url( (string) $uid ) . '/v' . (int) ( $latest['version'] ?? 0 ) . '.ots',
-		'verify_url'      => home_url( '/provenance/verify' ),
+		// v10.66.1: was '/provenance/verify', which 404s live. This is the
+		// "Verify it yourself" link in the byline panel of EVERY Note — the
+		// literal invitation to check the proof, pointing at nothing, on the
+		// surface whose entire job is trustworthiness. The docket is /verify
+		// (sn_prov_verify_is_request() is the authority, and its docblock
+		// explicitly excludes "the unrelated /provenance/verify Page"). The
+		// site's OWN 404 log had already flagged this as a genuine broken link;
+		// nothing connected that signal back to the emitter. Pinned in
+		// tests/provenance-render.php against the matcher.
+		'verify_url'      => home_url( '/verify' ),
 	);
 	return apply_filters( 'sn_note_provenance', $vm, (int) $post_id );
 }
