@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.60.0] - 2026-08-08
+
+**Headline:** per-scan_type run telemetry — the consolidation program can finally see which scans earn their keep.
+
+### Added
+
+- **`sn_scan_run` telemetry table + `sn_scan_completed` action** ([inc/sn-scan-telemetry.php](inc/sn-scan-telemetry.php), [inc/abilities-sn-scan.php](inc/abilities-sn-scan.php)). Layer B's `args_shape` is key names only, so every sn_scan call looked identical regardless of scan_type — per-type usage could never inform retirement or tuning decisions. Now every execution (success AND error — the telemetry-agents seam-2 lesson: a success-only observer under-reports failure to ~0%) fires `sn_scan_completed` with a full metrics row, persisted by an observer into a dedicated table. Measured per run: scan_type, outcome + WP_Error code, scope kind/size, freshness requested, the inert `include_dismissed` flag (evidence for/against ever wiring it), max_candidates, cursor use, **total pre-pagination yield**, page size, **apply-hint coverage** (actionability of the yield), posts examined/skipped, truncation, corpus_fingerprint + scan_run_id (identical-rerun detection), and duration_ms (the "cost profiles differ by an order of magnitude" claim, finally measured). Same storage idiom as Layer B: dbDelta lazy install, fail-open insert, 90-day opportunistic retention, `sn_scan_telemetry_enabled` kill-switch filter. The ability itself stays pure — it fires the action (not a write) and the structural zero-writes guard still passes; the read door still never touches the rw audit log. Known shared blind spot, documented: calls the MCP proxy refuses client-side (-32602) never reach WordPress and appear in no table.
+- **`total_candidates` on the sn_scan envelope** (additive). The full sorted count before pagination — previously a caller could not know the total without walking every page; the metrics row needs it and callers get it for free.
+
 ## [10.59.0] - 2026-08-08
 
 **Headline:** `unlink` — link_reshape's promised sibling lands.
