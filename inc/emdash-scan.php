@@ -214,7 +214,8 @@ function snt_emdash_scan_content( $content ) {
 	// independent breaks. Rewriting them separately produced "site: two native,
 	// one third-party: and every one" during the v10.48.2 sweep — the reason this
 	// is handled here rather than per-occurrence.
-	$by_run = array();
+	$by_run   = array();
+	$coalesce = array();
 	foreach ( $rows as $i => $r ) {
 		if ( 'prose' !== $r['classification'] ) {
 			continue;
@@ -231,9 +232,64 @@ function snt_emdash_scan_content( $content ) {
 			continue; // Only spaced pairs form a parenthetical.
 		}
 		$rows[ $a ]['replacement'] = ' (';
-		$rows[ $a ]['pair']        = 'paired_open';
 		$rows[ $b ]['replacement'] = ') ';
-		$rows[ $b ]['pair']        = 'paired_close';
+		$coalesce[ $a ]            = $b;
+	}
+
+	// v10.66.0: a pair is emitted as ONE candidate carrying BOTH splices.
+	//
+	// It used to emit two rows marked paired_open/paired_close — correctly
+	// reasoning about the parenthetical as one edit, then leaving the caller to
+	// notice the marker and group them. Nobody did. Each half was applied on its
+	// own, so one logical edit wrote twice and, because every publish re-anchors,
+	// minted TWO provenance ledger versions — the intermediate one a permanently
+	// anchored sentence carrying an opening parenthesis and a closing em-dash.
+	//
+	// The coalesced row deliberately carries NO top-level phrase/replacement, so a
+	// caller that ignores `edits` and reaches for `phrase` gets an empty string and
+	// a loud 422 rather than half a parenthetical: the wrong thing is
+	// unrepresentable, not merely discouraged. Feed `edits` straight to sn-apply's
+	// change.payload.edits (inc/sn-apply-batch-edits.php), which writes once.
+	if ( $coalesce ) {
+		$out   = array();
+		$eaten = array_flip( $coalesce );
+		foreach ( $rows as $i => $row ) {
+			if ( isset( $eaten[ $i ] ) ) {
+				continue; // The closing half now lives inside its opener's row.
+			}
+			if ( ! isset( $coalesce[ $i ] ) ) {
+				$out[] = $row;
+				continue;
+			}
+			$close      = $rows[ $coalesce[ $i ] ];
+			$span_start = max( 0, $row['position'] - 40 );
+			$span_end   = min( strlen( $content ), $close['position'] + strlen( $close['phrase'] ) + 40 );
+			$out[]      = array(
+				'position'        => $row['position'],
+				// Deliberately empty — see the note above.
+				'phrase'          => '',
+				'replacement'     => '',
+				'context_snippet' => trim( substr( $content, $span_start, $span_end - $span_start ) ),
+				'classification'  => 'prose_pair',
+				'reason'          => 'parenthetical: one edit, two splices',
+				'pair'            => 'paired',
+				'edits'           => array(
+					array(
+						'phrase'          => $row['phrase'],
+						'position'        => $row['position'],
+						'replacement'     => $row['replacement'],
+						'context_snippet' => $row['context_snippet'],
+					),
+					array(
+						'phrase'          => $close['phrase'],
+						'position'        => $close['position'],
+						'replacement'     => $close['replacement'],
+						'context_snippet' => $close['context_snippet'],
+					),
+				),
+			);
+		}
+		$rows = $out;
 	}
 
 	return $rows;

@@ -550,6 +550,54 @@ function snt_sn_scan_adapter_emdash( $allowed_ids ) {
 		++$examined;
 		$content = (string) $post->post_content;
 		foreach ( snt_emdash_scan_content( $content ) as $row ) {
+			// v10.66.0: a parenthetical arrives as ONE row carrying both splices
+			// (classification 'prose_pair') and is emitted as a single candidate
+			// whose payload feeds change.payload.edits, so the pair lands in one
+			// write and one provenance version. Without this branch it would fail
+			// the 'prose' test below and be counted as SKIPPED — a real candidate
+			// silently reported as structural.
+			if ( 'prose_pair' === $row['classification'] ) {
+				$pair_edits = array();
+				foreach ( $row['edits'] as $edit ) {
+					$pair_edits[] = array(
+						'phrase'          => $edit['phrase'],
+						'position'        => (int) $edit['position'],
+						'replacement'     => $edit['replacement'],
+						'context_snippet' => $edit['context_snippet'],
+						'fingerprint'     => function_exists( 'snt_ai_drift_fingerprint' )
+							? snt_ai_drift_fingerprint( $content, $edit['phrase'], (int) $edit['position'] )
+							: '',
+					);
+				}
+				$pair_fps     = array();
+				foreach ( $pair_edits as $pe ) {
+					$pair_fps[] = $pe['fingerprint'];
+				}
+				$candidates[] = array(
+					'target_identity'     => $post->ID . ':' . (int) $row['position'] . ':pair',
+					'content_fingerprint' => md5( implode( '|', $pair_fps ) ),
+					'targets'             => array( array(
+						'post_id' => (int) $post->ID,
+						'slug'    => (string) ( $post->post_name ?? '' ),
+					) ),
+					'confidence'          => SNT_SN_SCAN_CONF_EMDASH,
+					'evidence'            => array(
+						'position'        => (int) $row['position'],
+						'context_snippet' => $row['context_snippet'],
+						'pair'            => $row['pair'],
+						'reason'          => $row['reason'],
+						// No top-level phrase/replacement: this candidate is only
+						// appliable whole, and half a parenthetical is not an edit.
+						'edits'           => $pair_edits,
+					),
+					'apply_hint'          => array(
+						'tool'          => 'signal-noise/sn-apply',
+						'required_args' => array( 'change.type:emdash_replace', 'payload.edits' ),
+						'note'          => 'Apply BOTH edits in ONE call via change.payload.edits: one write, one provenance version. Each edit carries its own fingerprint, so change.fingerprint is unused for a batch.',
+					),
+				);
+				continue;
+			}
 			if ( 'prose' !== $row['classification'] ) {
 				++$skipped;
 				continue;

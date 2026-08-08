@@ -72,6 +72,7 @@ if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 
 require_once __DIR__ . '/../inc/emdash-scan.php';
 require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
+require_once __DIR__ . '/../inc/sn-apply-batch-edits.php';
 
 /**
  * Scan → apply → return the resulting stored content.
@@ -101,10 +102,37 @@ list( , $a1 ) = roundtrip( 502, '<p>The cap is reached &mdash; AI features pause
 ok( false !== strpos( $a1, 'reached. AI features' ), 'capitalised continuation keeps the space after the period' );
 list( , $a2 ) = roundtrip( 503, '<p>voice recordings and performance photos&mdash;exactly the linear costs.</p>' );
 ok( false !== strpos( $a2, 'photos, exactly the' ), 'unspaced infix keeps the space after the comma' );
-// LEADING-space shape: the paired open is " (" — a trim would eat the space BEFORE it
-list( , $a3 ) = roundtrip( 504, '<p>the supply chain &mdash; code signing, SLSA provenance &mdash; were designed.</p>', 0 );
+// LEADING-space shape: the paired open is " (" — a trim would eat the space BEFORE it.
+//
+// v10.66.0: a parenthetical is now ONE candidate (classification 'prose_pair')
+// carrying both splices, applied through sn-apply's change.payload.edits in a
+// single write. This case therefore exercises the BATCH path, which is both the
+// real path now and strictly better coverage: it proves the WHOLE parenthetical
+// round-trips, where before it only ever checked the opening half.
+$pair_src                = '<p>the supply chain &mdash; code signing, SLSA provenance &mdash; were designed.</p>';
+$GLOBALS['__posts'][504] = $pair_src;
+$pair_row                = array_values( array_filter( snt_emdash_scan_content( $pair_src ), function ( $c ) { return 'prose_pair' === $c['classification']; } ) );
+ok( 1 === count( $pair_row ), 'the parenthetical arrives as ONE paired candidate' );
+$pair_edits = array();
+foreach ( $pair_row[0]['edits'] as $e ) {
+	// `position` is load-bearing here, not decorative: both halves of a
+	// parenthetical carry the SAME phrase (' &mdash; '), so context alone cannot
+	// tell them apart. This mirrors exactly what the sn-scan adapter emits.
+	$pair_edits[] = array(
+		'phrase'          => $e['phrase'],
+		'position'        => $e['position'],
+		'replacement'     => $e['replacement'],
+		'context_snippet' => $e['context_snippet'],
+		'fingerprint'     => snt_ai_drift_fingerprint( $pair_src, $e['phrase'], $e['position'] ),
+	);
+}
+$pair_res = snt_sn_apply_batch_edits_impl( 504, 'emdash_replace', $pair_edits );
+$a3       = $GLOBALS['__posts'][504];
+ok( ! is_wp_error( $pair_res ), 'the paired candidate applies through the batch path' );
 ok( false !== strpos( $a3, 'chain (code signing' ), 'paired OPEN keeps the space BEFORE the parenthesis (leading-whitespace case)' );
 ok( false === strpos( $a3, 'chain(code' ), 'the trim-eaten form "chain(code" is NOT produced' );
+ok( false !== strpos( $a3, 'provenance) were designed' ), 'paired CLOSE lands in the SAME write' );
+ok( false === strpos( $a3, '&mdash;' ), 'no half-converted parenthetical is left behind' );
 
 echo "\nGroup: the HTML guard tests for HTML, not for whitespace\n";
 $GLOBALS['__posts'][507] = '<p>A sentence &mdash; with a dash.</p>';

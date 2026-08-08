@@ -72,6 +72,20 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
 			}
 			$content = (string) $post->post_content;
+			// v10.66.0, multi-edit form: the preview must be the WHOLE batch, so
+			// the diff shows the state that will actually be written and gate 2
+			// validates that same body. It runs the identical planner the write
+			// path uses — a preview that models the write instead of sharing it is
+			// how `reach for:the studio` reached a live page.
+			if ( isset( $payload['edits'] ) ) {
+				$plan = snt_sn_apply_plan_batch_edits( $content, $type, $payload['edits'] );
+				if ( is_wp_error( $plan ) ) {
+					return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => $plan->get_error_message(), 'new_content' => null );
+				}
+				// Per-edit fingerprints were each verified inside the planner, so
+				// there is no single expected/observed pair to report here.
+				return array( 'passed' => true, 'expected' => null, 'observed' => null, 'skipped' => null, 'detail' => sprintf( '%d edits verified against the live content.', (int) $plan['count'] ), 'new_content' => $plan['new_content'] );
+			}
 			// emdash_replace shares drift_replace's payload shape (phrase/position/
 			// replacement/context_snippet), so it shares this branch verbatim.
 			$phrase  = 'link_insert' === $type ? (string) ( $payload['anchor'] ?? '' ) : (string) ( $payload['phrase'] ?? '' );
@@ -105,7 +119,10 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			if ( ! $post ) {
 				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
 			}
-			$pair = function_exists( 'snt_sn_apply_sentence_pair_error' )
+			// The multi-edit form carries no top-level phrase/replacement — each
+			// edit is pair-checked inside the planner instead, below, once the
+			// whole-post fingerprint has been proven.
+			$pair = ( function_exists( 'snt_sn_apply_sentence_pair_error' ) && ! isset( $payload['edits'] ) )
 				? snt_sn_apply_sentence_pair_error( (string) ( $payload['phrase'] ?? '' ), (string) ( $payload['replacement'] ?? '' ) )
 				: true;
 			if ( is_wp_error( $pair ) ) {
@@ -138,6 +155,26 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => 'Live post content has changed since this fingerprint was observed (re-fetch sn_posts\' content_hash and retry: the stale-branch merge conflict).', 'new_content' => null );
 			}
 			$content = (string) $post->post_content;
+			// v10.66.0, multi-edit form: one content_hash (already proven above)
+			// covers the batch; the planner pair-checks and locates every edit
+			// against this same original content.
+			if ( isset( $payload['edits'] ) ) {
+				$plan = snt_sn_apply_plan_batch_edits( $content, $type, $payload['edits'] );
+				if ( is_wp_error( $plan ) ) {
+					$plan_data = (array) $plan->get_error_data();
+					return array(
+						'passed'       => false,
+						'expected'     => $fingerprint,
+						'observed'     => $observed,
+						'skipped'      => null,
+						'detail'       => $plan->get_error_message(),
+						'new_content'  => null,
+						'error_code'   => $plan->get_error_code(),
+						'error_status' => (int) ( $plan_data['status'] ?? 422 ),
+					);
+				}
+				return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => sprintf( '%d edits verified against the live content.', (int) $plan['count'] ), 'new_content' => $plan['new_content'] );
+			}
 			$raw_pos = function_exists( 'snt_ai_drift_locate_in_raw' ) ? snt_ai_drift_locate_in_raw( $content, (string) ( $payload['phrase'] ?? '' ), (string) ( $payload['context_snippet'] ?? '' ) ) : -1;
 			if ( -1 === $raw_pos ) {
 				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => 'Phrase not found in post content — the match is byte-exact, punctuation and quotes included. Copy the span verbatim from sn_posts\' content field.', 'new_content' => null );
