@@ -332,9 +332,10 @@ function sn_maturity_roadmap_html() {
 		'planned'     => __( 'Planned', 'signal-and-noise-tools' ),
 		'considering' => __( 'Considering', 'signal-and-noise-tools' ),
 	);
-	/* translators: %d: number of roadmap items in the fold. */
 	$summaries = array(
+		/* translators: %d: number of planned roadmap items inside the fold. */
 		'planned'     => __( '%d planned', 'signal-and-noise-tools' ),
+		/* translators: %d: number of considering roadmap items inside the fold. */
 		'considering' => __( '%d considering', 'signal-and-noise-tools' ),
 	);
 	$sublines  = array(
