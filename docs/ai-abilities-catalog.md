@@ -39,6 +39,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/get-collector-status` | `manage_options` | diagnostics | — | NOT YET DOORED |
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-narration` | `manage_options` | diagnostics | ✓ | READ-DOOR |
+| `signal-noise/ai-cache-probe-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-deploy-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/uptime-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/block-migrations-scan` | `manage_options` | diagnostics | — | READ-DOOR |
@@ -79,7 +80,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/run-health-scan` | `manage_options` | maintenance | — | ⛔ EXCLUDED (too slow for a synchronous call) |
 | `signal-noise/anchor-sweep` | `manage_options` | maintenance | — | RW-DOOR (v9.82.0) |
 
-**Totals (recomputed from source 2026-08-04):** 81 abilities (15 theme + 66 plugin); **37** on the read door; **36** on the read-write door (owner-approved safe subset, incl. the 2 PII-gated audit-log reads). Doors overlap by design — a slug may appear on both — so the door counts do not sum to the ability count. Off both doors: 2 hard-excluded (run-cron-event, run-health-scan) + 3 owner-held (ai-orphan-apply, merge-tags, clear-template-overrides) + the still-uncurated v9.81.0 pair (get-404-log, get-collector-status).
+**Totals (recomputed from source 2026-08-08):** 82 abilities (15 theme + 67 plugin); **38** on the read door; **36** on the read-write door (owner-approved safe subset, incl. the 2 PII-gated audit-log reads). Doors overlap by design — a slug may appear on both — so the door counts do not sum to the ability count. Off both doors: 2 hard-excluded (run-cron-event, run-health-scan) + 3 owner-held (ai-orphan-apply, merge-tags, clear-template-overrides) + the still-uncurated v9.81.0 pair (get-404-log, get-collector-status).
 
 ### Consolidated + corpus tools (tabled 2026-08-04)
 
@@ -171,6 +172,11 @@ Fetches the analytics worker's public `/_sn/version` and evaluates NAMED invaria
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object|null
 
 Cached synthesis scan: Plausible analytics + publish history + webhook delivery + cron freshness → 5 actionable recommendations. Returns null if never scanned.
+
+#### `signal-noise/ai-cache-probe-status`
+**Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
+
+Prompt-cache probe verdict: whether enabling Anthropic prompt caching would pay, and on which model. Thin read over `snt_ai_cache_probe_verdict()` (inc/ai-cache-probe.php, v10.50.0) — the same derive layer the Insights admin panel renders, so the two cannot disagree. `state` is one of `candidate`, `no_repeats`, `below_floor`, `unknown_floor`, `caching_active`, `no_data`. Read-only; makes no AI call and never enables caching. Added in v10.69.0 because the verdict was previously readable only in wp-admin.
 
 #### `signal-noise/get-narration`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object|null

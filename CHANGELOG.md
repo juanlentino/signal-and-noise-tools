@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.69.0] - 2026-08-08 — the prompt-cache verdict stops being wp-admin-only
+
+**Headline:** the probe has been recording since v10.50.0, but the one question it exists to answer could only be read by a human at a browser.
+
+### New
+
+- **`signal-noise/ai-cache-probe-status`** ([inc/abilities-ai-cache-probe.php](inc/abilities-ai-cache-probe.php)) exposes the prompt-cache probe verdict to agents and automation. It is a thin read over `snt_ai_cache_probe_verdict()` — the same derive layer [inc/insights-admin.php](inc/insights-admin.php) renders — so the admin panel and an agent structurally cannot disagree about the answer. `readonly` + `idempotent`, `manage_options`, no AI call, and it never enables caching: turning caching on stays a separate decision this data exists to inform.
+
+  `state` carries the verdict: `candidate` (a prefix clears the model minimum **and** repeats inside the TTL), `no_repeats` (large enough, never repeats — a cache write no read would ever collect), `below_floor`, `unknown_floor`, `caching_active`, `no_data`.
+
+- **Doored on the read door** ([inc/mcp/mcp-capabilities.php](inc/mcp/mcp-capabilities.php), 37 → 38 slugs; plugin-namespace 27 → 28). Registering the ability alone would have left it invisible over MCP — abilities are not doored by default, and that gap is now pinned by its own assertion in [tests/mcp-capabilities.php](tests/mcp-capabilities.php) rather than left to be rediscovered.
+
+### Tests
+
+- **[tests/abilities-ai-cache-probe.php](tests/abilities-ai-cache-probe.php)** — 17 assertions. Beyond the registration contract: the `readonly` annotation is asserted for the reason it exists (the run controller derives the HTTP verb from it, so dropping it turns every GET into a 405), and all six verdict states are driven through the wrapper to pin propagation as a relationship — whatever the derive layer says, the ability says — rather than pinning one sampled state.
+
+  The delegation double's shape is taken from the real emitter's return (`state` / `summary` / `models` / `best`), not invented, so a change in the derive layer surfaces here instead of being absorbed by a tidier-looking fixture.
+
+- **Both read-door count assertions updated** (38 total, 28 plugin-namespace). The second one caught the change on its own during this work: the totals are deliberate literals on a security allowlist, where an unexplained size change should fail closed rather than pass quietly.
+
+> **Why MINOR:** one new agent-visible capability, additive. No existing ability changed, nothing removed or renamed, no settings-schema change, no WP-floor move.
+
 ## [Content] - 2026-08-08 (fourth edit)
 
 Board edit through the door (no version, no tag, no deploy — recorded here because un-versioned changes otherwise leave no trace):

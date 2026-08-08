@@ -81,6 +81,7 @@ require_once __DIR__ . '/abilities-narration.php';        // v7.0.0: 2 abilities
 require_once __DIR__ . '/abilities-audit.php';
 require_once __DIR__ . '/abilities-ai-post-editor.php';
 require_once __DIR__ . '/abilities-ai-health.php';
+require_once __DIR__ . '/abilities-ai-cache-probe.php';    // v10.69.0: 1 ability (read-only prompt-cache probe verdict)
 require_once __DIR__ . '/abilities-ai-pattern-adoption.php';
 require_once __DIR__ . '/abilities-pattern-adoption.php';  // v4.6.0: 1 ability (scan; dismiss unified into dismiss-candidate)
 require_once __DIR__ . '/abilities-dismiss.php';           // v7.7.0: 1 ability (unified dismiss-candidate)

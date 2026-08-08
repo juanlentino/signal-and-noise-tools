@@ -51,7 +51,9 @@ if ( ! defined( 'SN_MCP_DOOR_RW' ) ) {
  * link-candidates; again new alongside old, nothing unregistered), and
  * 36 → 37 in v10.30.0 (sn-validate — the fourth CONSOLIDATED tool,
  * deterministic model-free validation of proposed content; zero writes,
- * zero model calls).
+ * zero model calls), and 37 → 38 in v10.69.0 (ai-cache-probe-status — the
+ * prompt-cache probe verdict, previously readable only on the Insights
+ * admin page).
  * the read-only-by-construction guarantee is unchanged — every slug here is
  * PURE-READ or READ-REMOTE by curation, never a write/action/AI-billed
  * ability (those live on the rw door only, see sn_mcp_rw_allowlist).
@@ -131,6 +133,13 @@ function sn_mcp_allowlist() {
 		// write, and never a model call (structurally pinned — see
 		// tests/abilities-sn-validate.php acceptance test 6).
 		'signal-noise/sn-validate',
+		// v10.69.0 — prompt-cache probe verdict. PURE-READ by construction: the
+		// probe itself returns $response untouched on every path, and this reads
+		// the option it already wrote. Doored because the question it answers
+		// ("would caching pay, and on which model?") is one an agent proposing an
+		// AI change should be able to settle for itself instead of asking a human
+		// to open wp-admin. Read door 37 → 38.
+		'signal-noise/ai-cache-probe-status',
 	);
 
 	/**
