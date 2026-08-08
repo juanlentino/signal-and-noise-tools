@@ -258,6 +258,18 @@ function snt_mr_sensor_info() {
 		'version'     => $version,
 		'deployed_at' => $deployed,
 	);
+	// v10.62.0: worker v1.6.0+ self-reports its AE sensor state — carry the
+	// three known keys only (booleans/nulls + a clamped timestamp string),
+	// never arbitrary worker JSON. Absent block (older worker) = no key, and
+	// the health check treats that as an absent measurement, never a finding.
+	if ( isset( $decoded['sensor'] ) && is_array( $decoded['sensor'] ) ) {
+		$sensor = $decoded['sensor'];
+		$info['sensor'] = array(
+			'ae_bound'      => is_bool( $sensor['ae_bound'] ?? null ) ? $sensor['ae_bound'] : null,
+			'last_write_ok' => is_bool( $sensor['last_write_ok'] ?? null ) ? $sensor['last_write_ok'] : null,
+			'last_write_at' => is_string( $sensor['last_write_at'] ?? null ) ? substr( $sensor['last_write_at'], 0, 32 ) : null,
+		);
+	}
 	set_transient( 'sn_mr_sensor_info', $info, 15 * MINUTE_IN_SECONDS );
 	return $info;
 }

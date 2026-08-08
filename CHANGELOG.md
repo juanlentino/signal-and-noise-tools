@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.62.0] - 2026-08-08
+
+**Headline:** the edge-worker health check grows from two workers to four — every silent worker failure mode found by the observability review now has a consumer.
+
+One release packing all four plugin-side consumers of the 2026-08-08 cross-worker observability arc (worker releases: sn-provenance v1.9.0, sn-login-guard v1.6.0, sn-rights-signals v1.6.0, sn-analytics v1.19.0). Every consumer degrades to absent-measurement for a worker not yet redeployed — an absent field is never a finding.
+
+### Added
+
+- **Provenance /_sn/status finally has a consumer** ([inc/health-edge-workers.php](inc/health-edge-workers.php)). The worker's 200/503 health endpoint was polled by nothing — a health endpoint nobody reads is the success-only readout in disguise. The Health scan now probes it (SSRF-gated via the webhook module's own URL + allowlist, 6h cache, transport failures never cached): unreachable → finding; `status: degraded` → finding naming the allowlisted reasons (`cron-stale`, `cron-step-failed`, `pending-entry-stale`, …) and the pending-anchor count.
+- **Rights-signals dead-sensor detection** ([inc/machine-readers-api.php](inc/machine-readers-api.php), [inc/health-edge-workers.php](inc/health-edge-workers.php)). The version probe now carries the worker's `sensor` block; `ae_bound: false` or `last_write_ok: false` becomes a Health finding — a quiet `sn_machine_readers` dataset is now a broken sensor, not "no crawlers came". The dataset backs a published argument, so silence must alert.
+- **Login-guard refresh-failure reason in Health notes** ([inc/health-edge-workers.php](inc/health-edge-workers.php)). Stale/empty denylist findings now carry the worker's persisted `lastRefreshReason` (`http-NNN`, `canary-miss`, …), allowlist-sanitized — *why* the refresh failed no longer requires the Cloudflare dashboard.
+- **Analytics reject counters on get-collector-status** ([inc/abilities-collector-status.php](inc/abilities-collector-status.php)). Sanitized `rejects` passthrough (`scope:"isolate"`, since, total, by_reason) — INFORMATIONAL, deliberately never an invariant: isolate counts reset on deploy, so they answer "is something being rejected right now and why" (a token outage shows as climbing `token` counts instead of an unexplained traffic decline), not "how healthy are we".
+
 ## [10.61.0] - 2026-08-08
 
 **Headline:** the scan-telemetry rollup becomes readable from inside a session — no SSH required.

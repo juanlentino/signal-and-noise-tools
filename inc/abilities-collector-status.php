@@ -148,7 +148,7 @@ function snt_abilities_collector_status_register() {
 
 	wp_register_ability( 'signal-noise/get-collector-status', array(
 		'label'               => 'Analytics collector health',
-		'description'         => 'Fetches the analytics worker\'s public /_sn/version endpoint and evaluates named invariants: config_bindings (every self-reported binding true), salt_window (today\'s rotating identity salt present), version_present (deployed semver reported), cron_fresh (scheduled refresh ok within ~2h). Returns {healthy, worker, invariants:[{name, ok, detail}]}. Read-only; the optional worker input (default "analytics") reserves room for sibling workers.',
+		'description'         => 'Fetches the analytics worker\'s public /_sn/version endpoint and evaluates named invariants: config_bindings (every self-reported binding true), salt_window (today\'s rotating identity salt present), version_present (deployed semver reported), cron_fresh (scheduled refresh ok within ~2h). Returns {healthy, worker, invariants:[{name, ok, detail}]} plus, when the deployed worker reports one (v1.19.0+), a sanitized `rejects` passthrough {scope:"isolate", since, total, by_reason} — INFORMATIONAL, never an invariant: counts reset on isolate eviction/deploy, so they answer "is something being rejected right now and why", not "how healthy are we". Read-only; the optional worker input (default "analytics") reserves room for sibling workers.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_collector_status',
@@ -244,8 +244,48 @@ function snt_ability_get_collector_status( $input = null ) {
 		);
 	}
 
-	return array_merge(
+	$out = array_merge(
 		array( 'worker' => $worker ),
 		sn_collector_status_invariants( $json, time() )
+	);
+
+	// v10.62.0: pass through the worker's isolate-scoped reject counters
+	// (worker v1.19.0+) — INFORMATIONAL, never an invariant: the counts reset
+	// on eviction/deploy (the block self-describes with scope:"isolate"), so
+	// "low" is not evidence of health. What they buy: a token-rotation outage
+	// or limiter failure shows up as climbing token/ratelimit_error counts
+	// instead of an unexplained traffic decline. Sanitized passthrough —
+	// reason names allowlisted, counts int-cast, never arbitrary worker JSON.
+	$rejects = sn_collector_status_sanitize_rejects( $json['rejects'] ?? null );
+	if ( null !== $rejects ) {
+		$out['rejects'] = $rejects;
+	}
+
+	return $out;
+}
+
+/**
+ * Sanitize the worker's rejects block. PURE. Null in/malformed -> null (the
+ * key is simply absent for pre-v1.19.0 workers).
+ *
+ * @since 10.62.0
+ * @param mixed $raw
+ * @return array{scope:string,since:?string,total:int,by_reason:array<string,int>}|null
+ */
+function sn_collector_status_sanitize_rejects( $raw ) {
+	if ( ! is_array( $raw ) ) {
+		return null;
+	}
+	$by_reason = array();
+	foreach ( (array) ( $raw['by_reason'] ?? array() ) as $reason => $count ) {
+		if ( is_string( $reason ) && 1 === preg_match( '/^[a-z_]{1,32}$/', $reason ) ) {
+			$by_reason[ $reason ] = (int) $count;
+		}
+	}
+	return array(
+		'scope'     => 'isolate',
+		'since'     => is_string( $raw['since'] ?? null ) ? substr( $raw['since'], 0, 32 ) : null,
+		'total'     => (int) ( $raw['total'] ?? 0 ),
+		'by_reason' => $by_reason,
 	);
 }

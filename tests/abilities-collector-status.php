@@ -133,5 +133,26 @@ $src = (string) file_get_contents( dirname( __DIR__ ) . '/inc/abilities-collecto
 ok( false === strpos( $src, 'register_rest_route' ), 'no new bare REST route' );
 ok( false !== strpos( $src, 'wp_safe_remote_get' ), 'outbound goes through wp_safe_remote_get' );
 
+
+/* v10.62.0 — rejects passthrough (worker v1.19.0+), informational only. */
+echo "\nGroup: rejects passthrough\n";
+
+$r = sn_collector_status_sanitize_rejects( null );
+ok( null === $r, 'rejects: absent block (pre-v1.19.0 worker) -> null, key simply omitted' );
+
+$r = sn_collector_status_sanitize_rejects( array( 'since' => '2026-08-08T00:00:00Z', 'total' => 7, 'by_reason' => array( 'token' => 5, 'ratelimit_error' => 2 ) ) );
+ok( is_array( $r ) && 7 === $r['total'] && 5 === $r['by_reason']['token'] && 'isolate' === $r['scope'], 'rejects: well-formed block passes through with scope pinned to isolate' );
+
+$r = sn_collector_status_sanitize_rejects( array( 'total' => '9', 'by_reason' => array( 'token' => '3', 'evil<script>' => 4, 'UPPER' => 1 ) ) );
+ok( 9 === $r['total'] && array( 'token' => 3 ) === $r['by_reason'], 'rejects: counts int-cast, non-allowlisted reason names dropped' );
+
+$r = sn_collector_status_sanitize_rejects( array( 'since' => str_repeat( 'x', 200 ) ) );
+ok( 32 === strlen( $r['since'] ), 'rejects: since clamped to 32 chars' );
+
+// Invariant surface is UNCHANGED by the block: the evaluator never reads it.
+$verdict = sn_collector_status_invariants( array( 'rejects' => array( 'total' => 999999 ) ), time() );
+$names = array_column( $verdict['invariants'], 'name' );
+ok( ! in_array( 'rejects', $names, true ), 'rejects: never an invariant — informational passthrough only (isolate counts cannot carry health semantics)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
