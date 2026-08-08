@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.70.0] - 2026-08-08 — the cost ledger learns what a cached token costs
+
+**Headline:** a prerequisite, not a saving. This changes no number today, and it has to be in place before prompt caching is ever switched on.
+
+### Why now
+
+The WP AI Client's Anthropic provider sums `input_tokens` + `cache_creation_input_tokens` + `cache_read_input_tokens` into a single `inputTokens` figure ([WordPress/ai-provider-for-anthropic#33](https://github.com/WordPress/ai-provider-for-anthropic/issues/33), still open). [inc/ai-bootstrap.php](inc/ai-bootstrap.php) prices that sum at the model's input rate — correct today, because nothing in the provider emits `cache_control` so every cached figure is zero. The moment caching becomes reachable it would over-bill cached spans by up to **10×**, since reads bill at 0.1× and writes at 1.25×. Over-reporting is the dangerous direction: it trips the monthly budget cap early and silently disables AI features.
+
+### New
+
+- **`snt_ai_estimate_cost()` takes an optional token split** ([inc/ai-bootstrap.php](inc/ai-bootstrap.php)). Fresh input at 1×, cache writes at `SN_AI_CACHE_WRITE_MULT` (1.25×), cache reads at `SN_AI_CACHE_READ_MULT` (0.1×). The 3-arg form is untouched and still prices exactly as before.
+
+- **A request-scoped observation queue** ([inc/ai-cache-probe.php](inc/ai-cache-probe.php)): `snt_ai_cache_obs_push/peek/take/reset`. The probe already reads the true split at the HTTP layer, one layer below where the flattening happens, so it now hands each observation to the ledger in-process. In-memory only — the probe stays read-only and nothing new is persisted by it.
+
+- **The usage log records `cache_write` / `cache_read`** per call, `null` when unobserved rather than `0`. That mirrors the probe's own absent-versus-measured discipline: a reader must be able to tell "no caching happened" from "we never saw."
+
+### Design notes
+
+- **The join matches on token identity, not arrival order.** One PHP request can make many AI calls — the agent loop makes one per tool-call iteration — and the DTO carries no correlation id, so popping the oldest observation would mis-attribute as soon as two calls interleave. The take is keyed on (summed input, output), the one identity both sides compute independently.
+
+- **A miss is never worse than before.** No matching observation, an unmeasured one, or the probe module absent entirely all yield `null`, and the caller prices the flattened figure exactly as it did pre-10.70.0. The unmeasured case is deliberately a miss rather than a zero split — collapsing that distinction would re-introduce the flattening this exists to undo.
+
+- **1.25× is the 5-minute-TTL write rate** (1-hour is 2×). Pinned there because it is the only TTL reachable: nothing selects one today.
+
+### Tests
+
+- **[tests/ai-usage-cache-split.php](tests/ai-usage-cache-split.php)** — 16 assertions over the seam, which belongs to neither module alone. The over-billing check asserts the *ratio* against the 0.1× read rate rather than a literal dollar figure, and an all-write split is asserted to be **dearer** than flat, which fails loudly if the two multipliers are ever wired backwards.
+
+  Watching it fail first paid for itself: the initial fixture asserted `20 + 0 + 0 = 27`, and three red assertions were my arithmetic rather than the implementation's.
+
+> **Why MINOR:** additive public API — four new functions, an optional fourth parameter, and two new persisted log fields — that Phase 2 will build on. Judgment call worth flagging: there is no new *user-visible* capability and no number moves today, so a case exists for PATCH.
+
 ## [10.69.0] - 2026-08-08 — the prompt-cache verdict stops being wp-admin-only
 
 **Headline:** the probe has been recording since v10.50.0, but the one question it exists to answer could only be read by a human at a browser.
