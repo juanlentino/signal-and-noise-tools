@@ -260,7 +260,12 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 			$revision_id = null;
 			$cb          = 'revision' === $mode ? snt_sn_apply_revision_write_callback( $revision_id ) : null;
 			$fp          = (string) ( $change['fingerprint'] ?? '' );
-			if ( 'drift_replace' === $type || 'emdash_replace' === $type ) {
+			if ( 'emdash_replace' === $type ) {
+				// v10.65.2: its own named impl, which preserves the replacement's edge
+				// whitespace. Delegating straight to the drift impl trimmed ': ' to ':'
+				// and shipped `reach for:the studio` to a live page.
+				$result = snt_emdash_apply_impl( $resolved['post_id'], (string) ( $payload['phrase'] ?? '' ), (int) ( $payload['position'] ?? -1 ), (string) ( $payload['replacement'] ?? '' ), $fp, (string) ( $payload['context_snippet'] ?? '' ), $cb );
+			} elseif ( 'drift_replace' === $type ) {
 				// emdash_replace IS a drift_replace at the write layer: locate the
 				// phrase in raw content, gate on the fingerprint, splice. The only
 				// difference is upstream — its candidates come from
