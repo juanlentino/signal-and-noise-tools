@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Content] - 2026-08-08
+
+Board edit through the door (no version, no tag, no deploy — recorded here because un-versioned changes otherwise leave no trace):
+
+- **Roadmap board, AI family: the "written threat model" row promoted Considering → Done** (dry-run → fingerprinted publish → cache purge → live verify on /maturity/roadmap/). The artifact that earns the done claim is [docs/security/agent-surface-threat-model.md](docs/security/agent-surface-threat-model.md), merged in #515. Done copy: "A written threat model for the agent surfaces: what a hostile paragraph could reach, argued gate by gate, with ranked residual risks and the preconditions any new agent surface must clear before it ships." Operational note for future door calls: `dry_run` is a TOP-LEVEL input, not a `change` key — a `change.dry_run:false` is silently ignored and the call stays a preview (all gates pass, `applied:false`, nothing written).
+
 ## [Docs] - 2026-08-08
 
 - **Agent-surface threat model written** ([docs/security/agent-surface-threat-model.md](docs/security/agent-surface-threat-model.md)) — the roadmap AI-column "written threat model" row made real. Asks the question the REST audit didn't: what can a hostile paragraph reach once an agent reads it? Answer: the write path's four gates (dry-run default, fingerprint binding, composing-caller confinement to sentence scale, owner-only acceptance) mean no single injected instruction can publish; the six ranked residual exposures (R1–R6) are the surfaces that bypass those gates — staged-meta co-publish on acceptance, narrated prose as an unreviewed agent→human channel, proxy-side refusal invisibility among them. §6 places explicit preconditions on four future roadmap rows (richer edit primitives, scheduled runs, in-page verification surface, native-agents migration). Docs-only: no version bump.
