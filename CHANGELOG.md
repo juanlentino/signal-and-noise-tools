@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.65.0] - 2026-08-08
+
+**Headline:** the public stats page ships — the roadmap's Analytics planned row made real, rollups read-only, no new collection.
+
+### Added
+
+- **`[sn_public_stats]`** ([inc/public-stats.php](inc/public-stats.php), [assets/public-stats-front.css](assets/public-stats-front.css)). The site's aggregate numbers published for readers, reading `sn_analytics_class_totals()` and `sn_analytics_daily_range()` over the last 30 complete UTC days (ending yesterday — today is partial and would undercount). Three stat tiles in the roadmap legend's monument idiom: human views, human visits (labelled reader-days — the same reader tomorrow counts again, and visits exceeding views is the structural fact, never "corrected"), and automated views shown rather than hidden, so the human numbers are believable. Most-read list aggregates paths across the window, resolves titles where a path resolves to published content, and drops admin/login paths by the same predicate ingestion uses. Never-measured renders "not measured yet" — an unknown never renders as a wall of zeros; the hour-long transient caches a distinguishable no-data sentinel (`array_key_exists`, never `??`). Owner creates the page and drops in the shortcode; nothing is collected that was not already collected.
+
 ## [10.64.0] - 2026-08-08
 
 **Headline:** the threat model's two actionable residuals close — acceptance now shows the whole PR, and narrated prose can no longer carry markup or spoof characters.
