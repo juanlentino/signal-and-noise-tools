@@ -322,8 +322,16 @@ function snt_ai_drift_apply_impl( $post_id, $phrase, $position, $replacement, $f
 		/* translators: %d is the maximum allowed number of characters */
 		return new WP_Error( 'snt_ai_replacement_invalid', sprintf( __( 'Replacement exceeds %d characters.', 'signal-and-noise-tools' ), SNT_AI_DRIFT_REPLACEMENT_MAX_LENGTH ), array( 'status' => 422 ) );
 	}
-	// Reject any HTML angle brackets — drift replacements should be plain text.
-	if ( $replacement !== wp_strip_all_tags( $replacement ) ) {
+	// Reject any HTML angle brackets — replacements should be plain text.
+	//
+	// v10.65.3: this guard compares against wp_strip_all_tags(), which ends with
+	// `return trim( $text );`. So under $preserve_whitespace it rejected ': ' — the
+	// replacement having a SPACE, not HTML — and every em-dash apply failed 422. The
+	// probe is therefore trimmed too when whitespace is preserved, which keeps the
+	// comparison about TAGS in both modes. Drift's own callers are byte-for-byte
+	// unaffected: with $preserve_whitespace false, $probe IS $replacement as before.
+	$probe = $preserve_whitespace ? trim( (string) $replacement ) : $replacement;
+	if ( $probe !== wp_strip_all_tags( $replacement ) ) {
 		return new WP_Error( 'snt_ai_replacement_invalid', __( 'Replacement contains HTML: only plain text allowed.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 	if ( ! current_user_can( 'edit_post', $post_id ) ) {
