@@ -76,7 +76,12 @@ function sn_prov_backfill_candidates() {
 		if ( count( $out ) >= SN_PROV_BACKFILL_CAP ) {
 			break;
 		}
-		if ( ! sn_prov_backfill_chain_has_real_commit( sn_prov_get_chain( (int) $id ) ) ) {
+		$chain = sn_prov_get_chain( (int) $id );
+		// Two shapes qualify: never imported (no real commit), and imported
+		// UNSIGNED by the v10.3.x builder (v10.67.0). The second only became
+		// visible once something asked the question the panel never did —
+		// "can this Note actually produce a credential?"
+		if ( ! sn_prov_backfill_chain_has_real_commit( $chain ) || sn_prov_backfill_chain_needs_signature( $chain ) ) {
 			$out[] = (int) $id;
 		}
 	}
@@ -125,12 +130,70 @@ function sn_prov_backfill_commit_from_record( $uid, $record ) {
 		'content_hash'  => $hash,
 		'bearing_hash'  => sn_prov_content_hash( sn_prov_canonical_json( $bearing_fields ) ),
 		'payload'       => $payload,
+		// v10.67.0: THE SIGNATURE, and the key that made it. Their absence is
+		// why this import produced chains that could never yield a credential —
+		// sn_prov_credential() refuses an unsigned commit ("the proof does not
+		// exist yet"), so /verify answered "No public credential exists for this
+		// Note" on 18 of 30 live Notes while every dashboard read CONFIRMED and
+		// the integrity sweep read clean. The ledger record carried both fields
+		// the whole time; this builder simply never copied them.
+		'signature'     => (string) ( $record['signature'] ?? '' ),
+		'pubkey_id'     => (string) ( $record['pubkey_id'] ?? '' ),
 		'status'        => 'confirmed',
 		'bitcoin_block' => (int) $ots['bitcoin_block'],
 		'committed_at'  => (string) ( $payload['published_at'] ?? gmdate( 'Y-m-d\TH:i:s\Z' ) ),
 		'backfilled_at' => gmdate( 'Y-m-d\TH:i:s\Z' ),
 	);
+	if ( '' === $commit['signature'] ) {
+		// An unsigned record cannot yield a verifiable credential, so importing
+		// one would recreate the exact defect this release repairs.
+		return array( 'ok' => false, 'reason' => 'record_unsigned' );
+	}
 	return array( 'ok' => true, 'commit' => $commit );
+}
+
+/**
+ * True when the chain carries a real commit (version >= 1) that has NO
+ * signature — the v10.3.x import's output, which looks anchored everywhere
+ * (the panel counts it CONFIRMED, the byline renders its block, the integrity
+ * sweep passes it) and yet can never produce a credential.
+ *
+ * Deliberately separate from sn_prov_backfill_chain_has_real_commit(): that
+ * one answers "may I append?", this one answers "must I repair?". Fixing the
+ * builder alone repairs nothing already written, because those posts DO have a
+ * real commit and the old gate skips them forever.
+ *
+ * @param array $chain
+ * @return bool
+ */
+function sn_prov_backfill_chain_needs_signature( $chain ) {
+	foreach ( (array) $chain as $entry ) {
+		if ( (int) ( $entry['version'] ?? 0 ) >= 1 && '' === (string) ( $entry['signature'] ?? '' ) ) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/**
+ * Replace the unsigned v1+ commit in $chain with $commit, in place.
+ *
+ * IN PLACE, never appended: a second v1 row would be a second claim about the
+ * same version. Only the entry that needs the signature is touched; every
+ * other row (a genesis v0, a later signed version) is left exactly as it was.
+ *
+ * @param array $chain
+ * @param array $commit
+ * @return array The repaired chain.
+ */
+function sn_prov_backfill_repair_chain( array $chain, array $commit ) {
+	foreach ( $chain as $i => $entry ) {
+		if ( (int) ( $entry['version'] ?? 0 ) >= 1 && '' === (string) ( $entry['signature'] ?? '' ) ) {
+			$chain[ $i ] = $commit;
+			break;
+		}
+	}
+	return $chain;
 }
 
 /**
@@ -146,6 +209,7 @@ function sn_prov_backfill_run( $fetcher = null ) {
 	$fetcher  = $fetcher ? $fetcher : 'sn_prov_integrity_http_fetch';
 	$base     = sn_prov_integrity_ledger_base();
 	$imported = 0;
+	$repaired = 0;
 	$skipped  = array();
 	$bump     = function ( $reason ) use ( &$skipped ) {
 		$skipped[ $reason ] = (int) ( $skipped[ $reason ] ?? 0 ) + 1;
@@ -173,15 +237,39 @@ function sn_prov_backfill_run( $fetcher = null ) {
 		}
 		// Re-check at write time: candidates were computed before the fetches,
 		// and this module never writes beside an existing real commit.
-		if ( sn_prov_backfill_chain_has_real_commit( sn_prov_get_chain( $post_id ) ) ) {
-			$bump( 'chain_no_longer_empty' );
+		$chain = sn_prov_get_chain( $post_id );
+		if ( sn_prov_backfill_chain_has_real_commit( $chain ) ) {
+			// v10.67.0 REPAIR PATH. A real commit that carries no signature is
+			// the v10.3.x import's own output — anchored everywhere, verifiable
+			// nowhere. Repair may only ever FILL IN the missing signature, so it
+			// is gated on the ledger record agreeing with the stored commit's
+			// content_hash exactly: same content, same version, same anchor.
+			// Anything else is a disagreement between two records and is refused,
+			// never reconciled by overwriting one with the other.
+			if ( ! sn_prov_backfill_chain_needs_signature( $chain ) ) {
+				$bump( 'chain_no_longer_empty' );
+				continue;
+			}
+			$stored_hash = '';
+			foreach ( $chain as $entry ) {
+				if ( (int) ( $entry['version'] ?? 0 ) >= 1 && '' === (string) ( $entry['signature'] ?? '' ) ) {
+					$stored_hash = (string) ( $entry['content_hash'] ?? '' );
+					break;
+				}
+			}
+			if ( '' === $stored_hash || ! hash_equals( $stored_hash, (string) $built['commit']['content_hash'] ) ) {
+				$bump( 'repair_hash_mismatch' );
+				continue;
+			}
+			update_post_meta( $post_id, SN_PROV_CHAIN_META, sn_prov_backfill_repair_chain( $chain, $built['commit'] ) );
+			$repaired++;
 			continue;
 		}
 		sn_prov_append_commit( $post_id, $built['commit'] );
 		$imported++;
 	}
 
-	return array( 'ok' => true, 'imported' => $imported, 'skipped' => $skipped );
+	return array( 'ok' => true, 'imported' => $imported, 'repaired' => $repaired, 'skipped' => $skipped );
 }
 
 /**
@@ -203,9 +291,10 @@ function sn_prov_backfill_render_fieldset() {
 		}
 		echo '<div class="notice notice-' . ( empty( $result['skipped'] ) ? 'success' : 'warning' ) . ' notice-alt inline"><p>'
 			. esc_html( sprintf(
-				/* translators: %s: number of imported commits. */
-				__( 'Imported %s confirmed anchors from the ledger.', 'signal-and-noise-tools' ),
-				number_format_i18n( (int) ( $result['imported'] ?? 0 ) )
+				/* translators: 1: number of imported commits, 2: number of repaired commits. */
+				__( 'Imported %1$s confirmed anchors from the ledger, and repaired %2$s missing signatures.', 'signal-and-noise-tools' ),
+				number_format_i18n( (int) ( $result['imported'] ?? 0 ) ),
+				number_format_i18n( (int) ( $result['repaired'] ?? 0 ) )
 			) )
 			. ( $skips ? ' ' . esc_html__( 'Skipped:', 'signal-and-noise-tools' ) . ' ' . implode( ', ', $skips ) : '' ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each item esc_html'd above.
 			. '</p></div>';
@@ -213,7 +302,7 @@ function sn_prov_backfill_render_fieldset() {
 	if ( $candidates ) {
 		echo '<p class="sn-fieldset-intro">' . esc_html( sprintf(
 			/* translators: %s: number of candidate Notes. */
-			__( '%s published Notes carry a provenance UID but no local commit chain (the July ledger backfill anchored them worker-side only). Import their confirmed v1 anchors from the public ledger; every record is re-verified against its own hash before anything is written.', 'signal-and-noise-tools' ),
+			__( '%s published Notes cannot currently be verified: either they carry a provenance UID with no local commit chain (the July ledger backfill anchored them worker-side only), or their imported commit is missing its signature, which makes /verify tell a reader no proof exists. Import or repair them from the public ledger; every record is re-verified against its own hash first, and a repair only ever fills in the missing signature.', 'signal-and-noise-tools' ),
 			number_format_i18n( count( $candidates ) )
 		) ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
@@ -221,7 +310,7 @@ function sn_prov_backfill_render_fieldset() {
 		echo '<input type="hidden" name="action" value="sn_prov_chain_backfill" />';
 		echo '<button type="submit" class="button button-primary">' . esc_html( sprintf(
 			/* translators: %s: number of candidate Notes. */
-			__( 'Import %s anchors from the ledger', 'signal-and-noise-tools' ),
+			__( 'Repair %s Notes from the ledger', 'signal-and-noise-tools' ),
 			number_format_i18n( count( $candidates ) )
 		) ) . '</button>';
 		echo '</form>';
