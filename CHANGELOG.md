@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.63.1] - 2026-08-08
+
+**Headline:** two live-measured fixes to the fold board — mockups render outside the theme; the live page told the truth.
+
+### Fixed
+
+- **Closed folds starved their columns** ([assets/maturity-roadmap-front.css](assets/maturity-roadmap-front.css)). Under auto table layout a closed `<details>` contributes only its summary's width, so Done swallowed the table and "1 PLANNED" wrapped under its own glyph. The future columns now hold a 185px floor and summaries are `nowrap`.
+- **Sticky thead removed** ([assets/maturity-roadmap-front.css](assets/maturity-roadmap-front.css)). It fought the theme's own sticky site header, and `border-collapse` drops a stuck header's borders (the table's borders belong to the table, not the cell, so they stay behind) — a floating naked header band, measured live. The folds keep the table short; sticky earned nothing.
+
 ## [10.63.0] - 2026-08-08
 
 **Headline:** the roadmap board folds the future — the 22-row board reads at a glance again, and the whole maturity family picks up the redesign's depth idiom.
