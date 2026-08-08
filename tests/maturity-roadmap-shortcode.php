@@ -59,7 +59,7 @@ ok( array( 'done', 'planned', 'considering' ) === SN_MATURITY_ROADMAP_STATUSES, 
 // Default render: wide wrapper, board table, status header badges, stylesheet.
 $html = call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] );
 ok( false !== strpos( $html, '<div class="sn-maturity-roadmap sn-maturity-roadmap--wide alignfull">' ), 'renders the WIDE wrapper riding alignfull — the constrained layout\'s own exemption, so the width is real (a margin breakout measured 760px live)' );
-ok( false !== strpos( $html, '<table class="sn-maturity-roadmap-board">' ), 'renders the board table' );
+ok( false !== strpos( $html, '<table class="sn-maturity-roadmap-board" id="sn-maturity-roadmap-board">' ), 'renders the board table (with the legend\'s anchor id)' );
 foreach ( array( 'done', 'planned', 'considering' ) as $status ) {
 	ok( false !== strpos( $html, 'sn-maturity-roadmap-badge--' . $status ), "the '$status' column header carries its badge" );
 	ok( false !== strpos( $html, 'sn-maturity-roadmap-board__cell--' . $status ), "cells carry the '$status' class" );
@@ -74,11 +74,27 @@ foreach ( $families as $family ) {
 ok( 7 === substr_count( $html, 'sn-maturity-roadmap-board__family"' ), 'exactly seven family rows' );
 ok( 21 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7×3 status cells' );
 
-// Empty cells render the honest em-dash (machine-readability planned,
-// a11y considering, ops planned, ML considering — emptied when
-// draft-time echoes promoted to planned) — a family with no future
-// tense is information, not a gap.
-ok( 4 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly four empty cells render the em-dash' );
+// Empty cells render the honest em-dash (machine-readability planned and
+// ops planned — the 2026-08-08 considering additions filled ML and a11y)
+// — a family with no future tense is information, not a gap.
+ok( 2 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly two empty cells render the em-dash' );
+
+// v10.63.0 "fold the future": the legend trio + counts + folds.
+$counts = sn_maturity_roadmap_counts( sn_maturity_roadmap_effective_board() );
+ok( false !== strpos( $html, 'sn-maturity-roadmap-legend' ), 'the count-trio legend renders above the board' );
+foreach ( array( 'done', 'planned', 'considering' ) as $status ) {
+	ok( false !== strpos( $html, 'sn-maturity-roadmap-legend__cell--' . $status ), "the legend has a '$status' cell" );
+	ok( false !== strpos( $html, '<span class="sn-maturity-roadmap-legend__stat">' . $counts[ $status ] . '</span>' ), "the legend's '$status' stat carries the computed count ({$counts[$status]})" );
+}
+ok( false !== strpos( $html, 'id="sn-maturity-roadmap-board"' ), 'the board carries the id the legend anchors to' );
+ok( false !== strpos( $html, 'sn-maturity-roadmap-badge__n' ), 'header badges carry their counts' );
+// Done NEVER folds — the record is the page's argument; the future tenses
+// fold per cell, summaries carrying their counts. 7 families × up to 2
+// future cells, minus the 2 empties = 12 folds on the static board.
+ok( false === strpos( $html, 'cell--done" data-label="Done"><details' ), 'a done cell never folds' );
+ok( 12 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (12 on this board)' );
+ok( false !== strpos( $html, '3 considering</summary>' ), "a fold summary carries its item count" );
+ok( substr_count( $html, 'sn-maturity-roadmap-fold__glyph' ) === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every fold has its glyph, aria-hidden decoration only' );
 
 // Load-bearing copy: gates named on plans, nevers restated inline.
 ok( false !== strpos( $html, 'no new collection' ), 'the public-stats-page plan names its gate' );

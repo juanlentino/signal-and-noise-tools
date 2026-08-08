@@ -10,7 +10,7 @@
 .sn-ai-maturity p{margin:0 0 1.25rem}
 
 /* The layer table: one hard frame, mono kicker headers, breathing-room cells. */
-.sn-ai-maturity-table{width:100%;border-collapse:collapse;border:2px solid currentColor;font-size:.85rem}
+.sn-ai-maturity-table{width:100%;border-collapse:collapse;border:2px solid currentColor;box-shadow:6px 6px 0 currentColor;background:#fff;margin-bottom:6px;font-size:.85rem}
 .sn-ai-maturity-table th{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;text-align:left;border-bottom:2px solid currentColor;padding:.65em .85em}
 .sn-ai-maturity-table td{border-bottom:1px solid rgba(0,0,0,.16);padding:.7em .85em;vertical-align:top}
 .sn-ai-maturity-table tbody tr:last-child td{border-bottom:0}

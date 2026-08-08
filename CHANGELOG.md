@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.63.0] - 2026-08-08
+
+**Headline:** the roadmap board folds the future — the 22-row board reads at a glance again, and the whole maturity family picks up the redesign's depth idiom.
+
+### Added
+
+- **"Fold the future" roadmap board** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php), [assets/maturity-roadmap-front.css](assets/maturity-roadmap-front.css)). The owner-picked redesign direction after the board grew nine Considering rows in one day. Done cells stay open — the record is the page's argument; Planned and Considering fold into native `<details>` per cell, closed by default, summaries carrying their counts — the board's commitment gradient (solid → dashed → dotted) made physical. A count-trio legend above the table (stats computed in PHP from the effective board, so an override always counts itself) gives the site-wide column scan with zero folds opened, each cell an anchor to the board. No script: keyboard and screen-reader semantics are the browser's own, find-in-page auto-opens matching folds, and print forces everything open (`::details-content` visibility override — `display:block` alone cannot reveal closed details content). Signal accent (theme preset, `#ff4c47` fallback) spent entirely on the act of opening: fold glyphs, hovers, focus rings, header-badge counts. Sticky column headers, row-hover wash, hard 8px offset shadows, reduced-motion guards throughout; mobile stacking carries the folds over untouched.
+- **The depth idiom travels to the hub and the family pages** ([assets/maturity-index-front.css](assets/maturity-index-front.css), [assets/maturity-front.css](assets/maturity-front.css), all seven per-family front stylesheets). Hub cards lift onto a 6px offset shadow on hover with a signal focus ring; every family tier table carries the same hard shadow at rest — one visual language across the whole maturity family, per the owner's "match the hub and the individual pages" instruction.
+
+### Changed
+
+- **Static fallback board synced to the live board** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)). The code-canonical board had drifted 10 rows behind the option override (threat-model Done row, board-as-data Done row, nine 2026-08-08 Considering rows, Search Console row); a fallback that silently reverts that much is dishonest. Empty cells drop 4 → 2 (machine-readability planned, ops planned). The static board still passes the write gate's own validator (parity assertion unchanged).
+- **Roadmap test fixtures** ([tests/maturity-roadmap-shortcode.php](tests/maturity-roadmap-shortcode.php)) — legend/count/fold contract pinned: done never folds, every populated future cell folds (12 on this board), legend stats match `sn_maturity_roadmap_counts()` computed from the same board the render walks. 64 assertions; full 397-file sweep green.
+
 ## [Content] - 2026-08-08 (second edit)
 
 Board edit through the door (no version, no tag, no deploy — recorded here because un-versioned changes otherwise leave no trace):

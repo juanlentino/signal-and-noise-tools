@@ -8,8 +8,10 @@
 .sn-maturity h3{margin:2.25rem 0 .75rem}
 .sn-maturity p{margin:0 0 1.25rem}
 
-/* The tier table: one hard frame, mono kicker headers, breathing-room cells. */
-.sn-maturity-table{width:100%;border-collapse:collapse;border:2px solid currentColor;font-size:.85rem}
+/* The tier table: one hard frame, mono kicker headers, breathing-room cells.
+   v10.63.0: the roadmap redesign's offset-shadow depth idiom, at the family
+   pages' smaller scale. */
+.sn-maturity-table{width:100%;border-collapse:collapse;border:2px solid currentColor;box-shadow:6px 6px 0 currentColor;background:#fff;margin-bottom:6px;font-size:.85rem}
 .sn-maturity-table th{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;text-align:left;border-bottom:2px solid currentColor;padding:.65em .85em}
 .sn-maturity-table td{border-bottom:1px solid rgba(0,0,0,.16);padding:.7em .85em;vertical-align:top}
 .sn-maturity-table tbody tr:last-child td{border-bottom:0}
