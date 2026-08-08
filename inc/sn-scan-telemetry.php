@@ -208,14 +208,17 @@ function snt_scan_telemetry_on_completed( $metrics ) {
 		$wpdb->insert( $wpdb->prefix . SNT_SCAN_TELEMETRY_TABLE, $row );
 
 		// Opportunistic retention — no cron, per the standing guardrail.
+		// Split prepare()/query() with per-line ignores is Layer B's exact
+		// passing idiom (sn_mcp_telemetry_maybe_prune()) — the sniff fires
+		// on the LINE holding the interpolation, so the ignore must sit there.
 		$gate = function_exists( 'wp_rand' ) ? wp_rand( 1, SNT_SCAN_TELEMETRY_PRUNE_CHANCE ) : ( ( (int) ( $metrics['ts'] ?? 0 ) % SNT_SCAN_TELEMETRY_PRUNE_CHANCE ) + 1 );
 		if ( 1 === $gate ) {
+			$table  = $wpdb->prefix . SNT_SCAN_TELEMETRY_TABLE;
 			$cutoff = gmdate( 'Y-m-d H:i:s', time() - SNT_SCAN_TELEMETRY_RETENTION_DAYS * DAY_IN_SECONDS );
-			$wpdb->query( $wpdb->prepare(
-				"DELETE FROM {$wpdb->prefix}" . SNT_SCAN_TELEMETRY_TABLE . ' WHERE ts < %s LIMIT %d', // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-				$cutoff,
-				SNT_SCAN_TELEMETRY_PRUNE_LIMIT
-			) );
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is $wpdb->prefix + a plugin constant, never user input; $cutoff/limit are bound via prepare() below.
+			$sql = $wpdb->prepare( "DELETE FROM {$table} WHERE ts < %s LIMIT %d", $cutoff, SNT_SCAN_TELEMETRY_PRUNE_LIMIT );
+			// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is the STRING RETURNED BY $wpdb->prepare() one line above, already safely bound.
+			$wpdb->query( $sql );
 		}
 	} catch ( \Throwable $e ) {
 		return; // Fail-open, always — telemetry never breaks a scan.
