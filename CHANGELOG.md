@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.64.0] - 2026-08-08
+
+**Headline:** the threat model's two actionable residuals close — acceptance now shows the whole PR, and narrated prose can no longer carry markup or spoof characters.
+
+### Added
+
+- **R1 closed: `staged_meta_pending` in the restore dry-run diff** ([inc/sn-apply-restore-revision.php](inc/sn-apply-restore-revision.php), [inc/sn-apply-executors.php](inc/sn-apply-executors.php)). Acceptance co-publishes the staged-meta queue (`apply_staged_meta` defaults true — the stranding argument stands), so the review had a gap: an owner accepting a body revision could co-publish surface meta they never saw. The dry-run diff now carries every pending row (meta_key → proposed value), enumerated by a read-only twin of the apply path over the same per-post index — same pre-index blind spot, honestly inherited. Tool description updated so callers know the field exists.
+- **R2 mitigated: `snt_ai_untrusted_display()`** ([inc/ai-markdown-strip.php](inc/ai-markdown-strip.php)). Narration prose is AI-generated and read by the owner with authority — an agent→human channel. On top of the markdown stripper: HTML tags removed (a model-emitted link must never reach the MCP narration abilities' chat clients, which linkify), C0/C1 control characters removed, zero-width and bidi-override characters removed (the RLO display-spoof). Applied at all five parse/store boundaries in [inc/insights-narration.php](inc/insights-narration.php) (which previously stripped only markdown) and [inc/analytics-narrator.php](inc/analytics-narrator.php). The semantic channel — plain text that is merely misleading — is accepted residual, restated in the threat model.
+
+### Changed
+
+- **Threat model updated in step** ([docs/security/agent-surface-threat-model.md](docs/security/agent-surface-threat-model.md)) — R1 CLOSED, R2 MITIGATED, each recording its closing version per the doc's own maintenance rule.
+- **Static roadmap board synced with today's graduation** ([inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php)) — see the [Content] note below; empty cells 2 → 3, folds 12 → 11, fixtures updated.
+
+## [Content] - 2026-08-08 (third edit)
+
+Board edit through the door (no version dependency — the board went live before this release; recorded here because un-versioned changes otherwise leave no trace):
+
+- **Three Considering rows graduated to Planned, each now naming its gate** (dry-run → fingerprinted publish → cache purge → live verify, legend 10/11/17). The owner's rule: only the next-up items from the tiered priority list graduate. Analytics: the AI-attention digest section ("assembled from the ledger already kept, no new collection"). Accessibility: token-level contrast ("landing report-first, findings published before any fix ships") and alt-text quality ("every fix passing the same human acceptance as the coverage sweep") — Accessibility's considering column empties, which is information, not a gap.
+
 ## [10.63.1] - 2026-08-08
 
 **Headline:** two live-measured fixes to the fold board — mockups render outside the theme; the live page told the truth.

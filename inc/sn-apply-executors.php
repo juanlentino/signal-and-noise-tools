@@ -584,7 +584,14 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 			// FINDINGS.md session 7 as a deliberate, minor deviation.
 			$revision_id = (int) ( $payload['revision_id'] ?? 0 );
 			$diff        = $revision_id > 0 ? snt_sn_apply_revision_diff( $revision_id ) : null;
-			return is_array( $diff ) ? $diff : array( 'before' => null, 'after' => null, 'fields_changed' => array() );
+			$diff        = is_array( $diff ) ? $diff : array( 'before' => null, 'after' => null, 'fields_changed' => array() );
+			// v10.64.0 (threat model R1): acceptance co-publishes the staged-
+			// meta queue (apply_staged_meta defaults true), so the dry-run
+			// review must SHOW that queue — the diff carries every pending row
+			// the write step would apply. Empty array = nothing queued; the
+			// pre-index blind spot is inherited and documented at the helper.
+			$diff['staged_meta_pending'] = snt_sn_apply_pending_staged_meta_for_post( (int) ( $resolved['post_id'] ?? 0 ) );
+			return $diff;
 
 		case 'roadmap_board':
 			// before = the CURRENT effective board — deliberately doubling as

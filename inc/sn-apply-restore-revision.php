@@ -337,6 +337,33 @@ function snt_sn_apply_ensure_rollback_snapshot( $post_id ) {
 }
 
 /**
+ * Enumerate the staged-meta queue for $post_id WITHOUT touching it — the
+ * read-only twin of snt_sn_apply_apply_staged_meta_for_post() below, added
+ * v10.64.0 for the threat model's R1 (docs/security/agent-surface-threat-
+ * model.md): acceptance co-publishes this queue, so the dry-run review
+ * must SHOW it, or the owner accepts meta they never saw. Same per-post
+ * index, same pre-index blind spot ("the enumeration problem, honestly
+ * bounded" above), zero writes.
+ *
+ * @param int $post_id
+ * @return array<string,mixed> meta_key => proposed_value, in staged order.
+ */
+function snt_sn_apply_pending_staged_meta_for_post( $post_id ) {
+	$post_id = (int) $post_id;
+	$index   = get_option( snt_sn_apply_staged_meta_index_option_name( $post_id ), array() );
+	$index   = is_array( $index ) ? $index : array();
+
+	$pending = array();
+	foreach ( $index as $meta_key ) {
+		$staged = snt_sn_apply_get_staged_meta( $post_id, $meta_key );
+		if ( null !== $staged && is_array( $staged ) && array_key_exists( 'proposed_value', $staged ) ) {
+			$pending[ (string) $meta_key ] = $staged['proposed_value'];
+		}
+	}
+	return $pending;
+}
+
+/**
  * Apply and clear every staged-meta row for $post_id, via the per-post
  * index (inc/sn-apply-revision.php's snt_sn_apply_staged_meta_index_option_name(),
  * maintained additively inside snt_sn_apply_stage_meta()). Rows staged

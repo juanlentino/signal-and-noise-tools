@@ -442,7 +442,7 @@ function snt_narration_parse_response( $raw ) {
 	// v9.64.2: the digest strings are rendered as plain text, so markdown marks
 	// the model emitted despite the instruction ban are REMOVED here (never
 	// escaped) — the single parse boundary every digest passes through.
-	$headline = ( isset( $decoded['headline'] ) && is_string( $decoded['headline'] ) ) ? trim( snt_ai_strip_markdown( $decoded['headline'] ) ) : '';
+	$headline = ( isset( $decoded['headline'] ) && is_string( $decoded['headline'] ) ) ? trim( snt_ai_untrusted_display( $decoded['headline'] ) ) : '';
 	if ( '' === $headline ) {
 		return new WP_Error( 'snt_narration_no_headline', 'AI digest is missing a headline.' );
 	}
@@ -453,7 +453,7 @@ function snt_narration_parse_response( $raw ) {
 	$paragraphs = array();
 	if ( isset( $decoded['paragraphs'] ) && is_array( $decoded['paragraphs'] ) ) {
 		foreach ( $decoded['paragraphs'] as $p ) {
-			$p = is_string( $p ) ? trim( snt_ai_strip_markdown( $p ) ) : '';
+			$p = is_string( $p ) ? trim( snt_ai_untrusted_display( $p ) ) : '';
 			if ( '' !== $p ) {
 				$paragraphs[] = $p;
 			}
@@ -469,7 +469,7 @@ function snt_narration_parse_response( $raw ) {
 	$highlights = array();
 	if ( isset( $decoded['highlights'] ) && is_array( $decoded['highlights'] ) ) {
 		foreach ( $decoded['highlights'] as $h ) {
-			$h = is_string( $h ) ? trim( snt_ai_strip_markdown( $h ) ) : '';
+			$h = is_string( $h ) ? trim( snt_ai_untrusted_display( $h ) ) : '';
 			if ( '' !== $h ) {
 				$highlights[] = $h;
 			}

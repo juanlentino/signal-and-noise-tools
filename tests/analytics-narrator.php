@@ -269,6 +269,18 @@ ok( 'Head' === snt_ai_strip_markdown( '## Head' ), 'stripper: heading marker rem
 ok( 'x' === snt_ai_strip_markdown( '*x*' ), 'stripper: *italic* marks removed' );
 ok( '25 × 4' === snt_ai_strip_markdown( '25 × 4' ), 'stripper: multiplication sign untouched' );
 ok( '2 * 3' === snt_ai_strip_markdown( '2 * 3' ), 'stripper: spaced-asterisk arithmetic untouched' );
+
+// v10.64.0 (threat model R2): narration prose is untrusted DISPLAY — tags,
+// control chars, and spoof characters must die at the boundary.
+ok( 'alert(1)Big week' === snt_ai_untrusted_display( '<script>alert(1)</script>Big week' ), 'untrusted display: tags removed, inner text kept inert' );
+ok( 'visit the dashboard' === snt_ai_untrusted_display( '<a href="https://evil.example">visit the dashboard</a>' ), 'untrusted display: a model-emitted link can never reach a linkifying surface' );
+ok( 'abcdef' === snt_ai_untrusted_display( "abc\u{202E}def" ), 'untrusted display: bidi override (RLO display-spoof) removed' );
+ok( 'abcdef' === snt_ai_untrusted_display( "abc\u{200B}def" ), 'untrusted display: zero-width space removed' );
+ok( "line1\nline2\ttab" === snt_ai_untrusted_display( "line1\nline2\ttab" ), 'untrusted display: newline and tab survive' );
+ok( 'ab' === snt_ai_untrusted_display( "a\x07\x1Bb" ), 'untrusted display: bell and escape control chars removed' );
+ok( 'Bold x' === snt_ai_untrusted_display( '**Bold** <b>x</b>' ), 'untrusted display: composes with the markdown stripper' );
+ok( 'views < 100 held' === snt_ai_untrusted_display( 'views < 100 held' ), 'untrusted display: a lone < with no closing > is prose, not a tag' );
+ok( '25 × 4' === snt_ai_untrusted_display( '25 × 4' ), 'untrusted display: multiplication sign untouched (UTF-8 safe)' );
 ok( 'bold' === snt_ai_strip_markdown( '__bold__' ), 'stripper: __bold__ marks removed' );
 ok( 'emphasis' === snt_ai_strip_markdown( '_emphasis_' ), 'stripper: _italic_ marks removed' );
 ok( 'pageview_visits stayed flat' === snt_ai_strip_markdown( 'pageview_visits stayed flat' ), 'stripper: intra-word underscores (field names) untouched' );
