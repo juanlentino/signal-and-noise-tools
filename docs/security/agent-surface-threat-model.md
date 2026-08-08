@@ -76,9 +76,23 @@ that mutates post content. Its design collapses A1/A2 attacks at four independen
    stage noise but cannot publish, cannot restore, cannot run the publish-only side-effect
    types (`og_card`, `anchor_sweep`, `roadmap_board`).
 
+**Batched edits (`change.payload.edits`, v10.66.0) weaken none of the four.** Every edit in
+a batch is independently validated, located and fingerprint-checked against the same
+original content — a per-edit fingerprint for the drift family, the one whole-post
+`content_hash` for `sentence_replace` — and any edit that fails refuses the entire batch
+with zero writes. What it does change is blast radius per call: one authorized call can
+now rewrite up to 50 prose spans rather than one. That is bounded deliberately
+(`SNT_SN_APPLY_BATCH_EDITS_MAX`) and is a smaller surface than the thing it replaces, which
+was 50 separate writes, each individually reviewable in theory and never reviewed in
+practice. The markup-rewriting types (`link_insert`, `link_reshape`, `unlink`) are excluded
+from batching, so tag structure stays reachable only one edit at a time.
+
 Provenance is a backstop, not a gate: the ledger signs normalized prose, so any change
 that survives to publish is signed and versioned — silent modification is the one thing
-the whole system is built to make loud.
+the whole system is built to make loud. Batching sharpens that backstop rather than
+blunting it: one logical edit now produces one signed version, so the record describes what
+was actually authored instead of interleaving half-converted intermediate states nobody
+intended to publish.
 
 Non-post write surfaces hold the same line: `roadmap_board` is wholesale-replace behind
 its own fingerprint plus a banned-internal-token sweep (injected copy that would leak an
