@@ -73,6 +73,20 @@ define( 'SN_AI_DEFAULT_MODEL',  'claude-sonnet-5' );
 define( 'SN_AI_FALLBACK_MODEL', 'claude-sonnet-5' );
 
 /**
+ * v10.70.0: Anthropic prompt-cache price multipliers, relative to the model's
+ * INPUT rate. A cache write costs more than fresh input; a cache read costs an
+ * order of magnitude less. Pricing a cached span at 1x — which is what the WP
+ * AI Client's flattened inputTokens forces — over-bills by up to 10x.
+ *
+ * 1.25x is the 5-minute-TTL write rate (the 1-hour TTL is 2x). We pin the
+ * 5-minute figure because that is the only TTL reachable today: nothing in the
+ * provider emits `cache_control` at all, so no TTL is selectable. Revisit
+ * alongside WordPress/ai-provider-for-anthropic#33.
+ */
+define( 'SN_AI_CACHE_WRITE_MULT', 1.25 );
+define( 'SN_AI_CACHE_READ_MULT', 0.1 );
+
+/**
  * Is the WP AI Client wired up with at least one provider that can
  * generate text on this install?
  *
@@ -614,6 +628,15 @@ function snt_ai_record_usage( $feature, $model, $result ) {
 		}
 	}
 
+	// v10.70.0: recover the TRUE cache split, which the provider flattened into
+	// $prompt_t before we ever saw it (WordPress/ai-provider-for-anthropic#33).
+	// The probe observed it at the HTTP layer earlier in this same request.
+	// A null result means "no matching observation" and we price exactly as
+	// before — a miss is never worse than the old behaviour.
+	$split = function_exists( 'snt_ai_cache_obs_take' )
+		? snt_ai_cache_obs_take( $prompt_t, $completion_t )
+		: null;
+
 	$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
 	if ( ! is_array( $log ) ) {
 		$log = array();
@@ -626,6 +649,11 @@ function snt_ai_record_usage( $feature, $model, $result ) {
 		'prompt'       => $prompt_t,
 		'completion'   => $completion_t,
 		'total'        => $total_t,
+		// null (not 0) when unobserved, mirroring the probe's own
+		// absent-versus-measured discipline. A reader must be able to tell
+		// "no caching happened" from "we never saw".
+		'cache_write'  => is_array( $split ) ? (int) $split['cache_write'] : null,
+		'cache_read'   => is_array( $split ) ? (int) $split['cache_read'] : null,
 	);
 	if ( count( $log ) > SN_AI_USAGE_LOG_CAP ) {
 		$log = array_slice( $log, -SN_AI_USAGE_LOG_CAP );
@@ -637,7 +665,7 @@ function snt_ai_record_usage( $feature, $model, $result ) {
 	// spend readout see a full month even under heavy use. Served model wins for
 	// attribution when the provider substituted a different one.
 	snt_ai_add_month_spend(
-		snt_ai_estimate_cost( '' !== $served_model ? $served_model : (string) $model, $prompt_t, $completion_t )
+		snt_ai_estimate_cost( '' !== $served_model ? $served_model : (string) $model, $prompt_t, $completion_t, $split )
 	);
 }
 
@@ -754,19 +782,37 @@ function snt_ai_model_pricing() {
  * that need to disclose unpriced volume count those calls separately (see
  * snt_ai_usage_summary()'s `cost_unpriced_calls`).
  *
+ * v10.70.0: optionally takes the TRUE token split observed at the HTTP layer.
+ * Cached input does not bill at the input rate — reads bill at 0.1x and writes
+ * at 1.25x — so pricing a flattened figure over-bills a cached span by up to
+ * 10x. When $split is supplied it supersedes $prompt entirely; when it is null
+ * the 3-arg behaviour is unchanged, which is what every caller got before and
+ * what a caller still gets when no observation matched.
+ *
  * @since 6.41.0
- * @param string $model      Model ID (served model preferred).
- * @param int    $prompt     Prompt/input tokens.
- * @param int    $completion Completion/output tokens.
+ * @param string     $model      Model ID (served model preferred).
+ * @param int        $prompt     Prompt/input tokens (the DTO's flattened sum).
+ * @param int        $completion Completion/output tokens.
+ * @param array|null $split      Optional { in, cache_write, cache_read }.
  * @return float USD cost (0.0 when the model is unpriced).
  */
-function snt_ai_estimate_cost( $model, $prompt, $completion ) {
+function snt_ai_estimate_cost( $model, $prompt, $completion, $split = null ) {
 	$rates = snt_ai_model_pricing();
 	$key   = (string) $model;
 	if ( ! isset( $rates[ $key ]['in'], $rates[ $key ]['out'] ) ) {
 		return 0.0;
 	}
-	return ( (int) $prompt * (float) $rates[ $key ]['in']
+
+	// Effective input units: fresh tokens at 1x, cache writes dearer, cache
+	// reads an order of magnitude cheaper.
+	$input_units = (int) $prompt;
+	if ( is_array( $split ) && isset( $split['in'], $split['cache_write'], $split['cache_read'] ) ) {
+		$input_units = (float) $split['in']
+			+ (float) $split['cache_write'] * SN_AI_CACHE_WRITE_MULT
+			+ (float) $split['cache_read'] * SN_AI_CACHE_READ_MULT;
+	}
+
+	return ( $input_units * (float) $rates[ $key ]['in']
 		+ (int) $completion * (float) $rates[ $key ]['out'] ) / 1000000.0;
 }
 

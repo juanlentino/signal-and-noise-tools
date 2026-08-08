@@ -206,6 +206,121 @@ function snt_ai_cache_probe_append( $entry ) {
 		$log = array_slice( $log, -SN_AI_CACHE_PROBE_CAP );
 	}
 	update_option( SN_AI_CACHE_PROBE_OPT, $log, false );
+
+	// v10.70.0: also offer this observation to the spend ledger for the current
+	// request. The probe stays read-only — this is in-memory only, never
+	// persisted, and discarded when the request ends.
+	snt_ai_cache_obs_push( $entry );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════
+ * v10.70.0 — the request-scoped observation queue.
+ *
+ * WHY THIS EXISTS
+ * The WP AI Client's Anthropic provider sums input_tokens +
+ * cache_creation_input_tokens + cache_read_input_tokens into a single
+ * inputTokens figure (WordPress/ai-provider-for-anthropic#33). A ledger that
+ * prices that sum at the model's input rate over-bills any cached span by up
+ * to 10x, because reads bill at 0.1x. Over-reporting is the dangerous
+ * direction: it trips the monthly budget cap early and disables AI features.
+ *
+ * The split survives one layer lower, which is exactly where this probe
+ * already sits. So the probe hands each observation to the ledger in-process,
+ * and snt_ai_record_usage() joins against it instead of trusting the DTO.
+ *
+ * WHY MATCH ON TOKEN IDENTITY RATHER THAN ORDER
+ * One PHP request can make several AI calls (the agent loop makes one per
+ * tool-call iteration), and the DTO carries no correlation id. Popping the
+ * oldest observation would mis-attribute the moment two calls interleave, so
+ * the take is keyed on (summed input, output) instead — the one identity both
+ * sides can compute independently.
+ * ══════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * Push one observation onto the request-scoped queue.
+ *
+ * @since 10.70.0
+ * @param array $entry Probe entry (see snt_ai_cache_probe_entry).
+ * @return void
+ */
+function snt_ai_cache_obs_push( $entry ) {
+	if ( ! isset( $GLOBALS['sn_ai_cache_obs'] ) || ! is_array( $GLOBALS['sn_ai_cache_obs'] ) ) {
+		$GLOBALS['sn_ai_cache_obs'] = array();
+	}
+	$GLOBALS['sn_ai_cache_obs'][] = $entry;
+}
+
+/**
+ * Read the queue without consuming it. Test + diagnostic affordance.
+ *
+ * @since 10.70.0
+ * @return array
+ */
+function snt_ai_cache_obs_peek() {
+	return isset( $GLOBALS['sn_ai_cache_obs'] ) && is_array( $GLOBALS['sn_ai_cache_obs'] )
+		? $GLOBALS['sn_ai_cache_obs']
+		: array();
+}
+
+/**
+ * Empty the queue.
+ *
+ * @since 10.70.0
+ * @return void
+ */
+function snt_ai_cache_obs_reset() {
+	$GLOBALS['sn_ai_cache_obs'] = array();
+}
+
+/**
+ * Take the observation matching a reported (summed input, output) pair.
+ *
+ * Returns null — never a guess — when nothing matches, when the cache fields
+ * were not measured, or when the queue is empty. The caller then prices the
+ * flattened figure exactly as it did before, so a miss is never worse than
+ * the pre-v10.70.0 behaviour.
+ *
+ * The unmeasured case is deliberately a miss rather than a zero split: the
+ * probe records null for an ABSENT key and 0 for a present-and-zero one, and
+ * collapsing that distinction here would re-introduce the very flattening
+ * this exists to undo.
+ *
+ * @since 10.70.0
+ * @param int $prompt_tokens     Summed input as the DTO reports it.
+ * @param int $completion_tokens Output tokens as the DTO reports it.
+ * @return array|null { in, cache_write, cache_read } or null.
+ */
+function snt_ai_cache_obs_take( $prompt_tokens, $completion_tokens ) {
+	$queue = snt_ai_cache_obs_peek();
+	if ( ! $queue ) {
+		return null;
+	}
+
+	foreach ( $queue as $i => $entry ) {
+		if ( ! is_array( $entry ) ) {
+			continue;
+		}
+		// Unmeasured => not a usable split. Skip rather than coerce to zero.
+		if ( ! isset( $entry['in'], $entry['out'] ) || null === $entry['cache_write'] || null === $entry['cache_read'] ) {
+			continue;
+		}
+
+		$summed = (int) $entry['in'] + (int) $entry['cache_write'] + (int) $entry['cache_read'];
+		if ( $summed !== (int) $prompt_tokens || (int) $entry['out'] !== (int) $completion_tokens ) {
+			continue;
+		}
+
+		unset( $GLOBALS['sn_ai_cache_obs'][ $i ] );
+		$GLOBALS['sn_ai_cache_obs'] = array_values( $GLOBALS['sn_ai_cache_obs'] );
+
+		return array(
+			'in'          => (int) $entry['in'],
+			'cache_write' => (int) $entry['cache_write'],
+			'cache_read'  => (int) $entry['cache_read'],
+		);
+	}
+
+	return null;
 }
 
 /**
