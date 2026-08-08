@@ -338,6 +338,47 @@ foreach ( $widgets as $id => $args ) {
 		"$id default height is not below its own minimum" );
 }
 
+echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n";
+// The four assertions above pass on ANY positive number — they passed on
+// every one of the pre-v10.68.0 values, which were guessed before a card had
+// ever floated and left Site Views and Machine Readers clipping to roughly
+// half their content while Health and Anchors floated with dead space.
+//
+// So the measured contract is pinned by VALUE. Each default_height below is
+// the card's natural height, measured against OpenStation 1.0.0's own
+// assets/css/desktop.css with the DOM src/widgets/frame.ts builds, at the
+// docked column width, driving each widget's real mount callback with live
+// site payloads — then rounded up to the next 10 with ~10px of slack.
+//
+// Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
+$expected_height = array(
+	'sn-site-views'       => 470, // measured 463
+	'sn-health'           => 160, // measured 148 all-passing
+	'sn-uptime'           => 220, // measured 210
+	'sn-deploy-status'    => 200, // measured 192
+	'sn-quick-actions'    => 250, // measured 242
+	'sn-rss-subscribers'  => 220, // measured 207
+	'sn-anchors'          => 180, // measured 167 idle
+	'sn-machine-readers'  => 520, // measured 508
+);
+ok( array_keys( $expected_height ) === array_keys( $widgets ),
+	'the measured-height table covers exactly the registered widgets, in registration order' );
+foreach ( $expected_height as $id => $height ) {
+	ok( ( $widgets[ $id ]['default_height'] ?? 0 ) === $height,
+		"$id default_height is the measured $height (got " . ( $widgets[ $id ]['default_height'] ?? 'none' ) . ')' );
+}
+
+// default_width is the DOCKED width, identically for every card: the column
+// is 320 (.os-widgets) minus 2×4 of .os-widgets__list padding. Anything else
+// makes a card reflow the instant the user drags it off the column — which is
+// what put three different card widths on the owner's 1.0.0 desktop.
+foreach ( $widgets as $id => $args ) {
+	ok( ( $args['default_width'] ?? 0 ) === 312,
+		"$id floats at the docked column width, so liberating it doesn't reflow (got " . ( $args['default_width'] ?? 'none' ) . ')' );
+	ok( ( $args['min_width'] ?? 0 ) === 240 && ( $args['min_height'] ?? 0 ) === 120,
+		"$id uses the shared 240×120 legibility floor" );
+}
+
 echo "\n── v9.52.4: the chrome owns the title (no doubled headings) ──\n";
 // movable:true (v9.52.2) makes desktop-mode render its own chrome header —
 // grip + LABEL + remove — above every card body. The three pre-v9.52.0 widgets
