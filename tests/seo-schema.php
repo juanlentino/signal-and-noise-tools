@@ -399,5 +399,30 @@ ss_true( ! function_exists( 'sn_schema_route_meta' ), 'sn_schema_route_meta() no
 $sn_schema_src = (string) file_get_contents( __DIR__ . '/../inc/seo-schema.php' );
 ss_true( false === strpos( $sn_schema_src, 'sn_schema_route_meta()' ), 'no call site remains in seo-schema.php' );
 
+
+// ─── v10.62.1: the breadcrumb REFERENCE tracks the breadcrumb NODE ───
+// GSC (first detected 2026-05-18, homepage the one affected item): the
+// WebPage builder emitted breadcrumb:{@id} unconditionally while
+// sn_schema_breadcrumb_list() deliberately nulls on the front page — a
+// dangling reference Google resolves to an empty breadcrumb (Missing field
+// "itemListElement"). The two must share one gate.
+echo "\nGroup: breadcrumb reference/node parity (v10.62.1)\n";
+$GLOBALS['__ss']['is_singular_post'] = true;
+$GLOBALS['__ss']['is_page']          = true;
+$GLOBALS['__ss']['is_front_page']    = true;
+$GLOBALS['__ss']['queried']          = (object) array( 'ID' => 11, 'post_title' => 'Home', 'post_name' => 'home' );
+$front = sn_schema_webpage();
+ss_true( is_array( $front ) && ! isset( $front['breadcrumb'] ), 'front page: WebPage carries NO breadcrumb reference (node is never built there)' );
+ss_true( null === sn_schema_breadcrumb_list(), 'front page: the node builder still returns null (unchanged)' );
+
+$GLOBALS['__ss']['is_front_page'] = false;
+$GLOBALS['__ss']['queried']       = (object) array( 'ID' => 12, 'post_title' => 'Some Page', 'post_name' => 'some-page' );
+$inner = sn_schema_webpage();
+ss_true( isset( $inner['breadcrumb']['@id'] ), 'non-front page: the reference is present' );
+$crumbs = sn_schema_breadcrumb_list();
+ss_true( is_array( $crumbs ) && ! empty( $crumbs['itemListElement'] ), 'non-front page: the node exists with a non-empty itemListElement' );
+ss_eq( $crumbs['@id'] ?? null, $inner['breadcrumb']['@id'] ?? 'MISSING', 'reference @id and node @id agree — the dangling-ref class is closed both ways' );
+$GLOBALS['__ss']['is_front_page'] = false;
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
