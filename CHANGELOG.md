@@ -2,6 +2,10 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Docs] - 2026-08-08
+
+- **Agent-surface threat model written** ([docs/security/agent-surface-threat-model.md](docs/security/agent-surface-threat-model.md)) — the roadmap AI-column "written threat model" row made real. Asks the question the REST audit didn't: what can a hostile paragraph reach once an agent reads it? Answer: the write path's four gates (dry-run default, fingerprint binding, composing-caller confinement to sentence scale, owner-only acceptance) mean no single injected instruction can publish; the six ranked residual exposures (R1–R6) are the surfaces that bypass those gates — staged-meta co-publish on acceptance, narrated prose as an unreviewed agent→human channel, proxy-side refusal invisibility among them. §6 places explicit preconditions on four future roadmap rows (richer edit primitives, scheduled runs, in-page verification surface, native-agents migration). Docs-only: no version bump.
+
 ## [10.62.1] - 2026-08-08
 
 **Headline:** the homepage's dangling breadcrumb reference — flagged by Search Console since May — is closed.
