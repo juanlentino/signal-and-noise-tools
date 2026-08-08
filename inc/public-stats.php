@@ -79,6 +79,12 @@ function sn_public_stats_assemble( $class_totals, $human_rows ) {
 		if ( '' === $path || sn_analytics_is_excluded_path( $path ) ) {
 			continue;
 		}
+		// v10.65.1: rollup paths are stored as requested, so "/notes" and
+		// "/notes/" arrive as separate rows and would rank as two half-sized
+		// entries (measured live: the notes archive displayed split 36+21
+		// instead of ranking #2 at 57). Normalize to the site's canonical
+		// trailing-slash form before aggregating.
+		$path = '/' === $path ? '/' : rtrim( $path, '/' ) . '/';
 		$by_path[ $path ] = ( $by_path[ $path ] ?? 0 ) + (int) ( $row['views'] ?? 0 );
 	}
 	arsort( $by_path );
