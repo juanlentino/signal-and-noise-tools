@@ -2,6 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Content] - 2026-08-08 (second edit)
+
+Board edit through the door (no version, no tag, no deploy — recorded here because un-versioned changes otherwise leave no trace):
+
+- **Nine new Considering rows across the four thin families** (dry-run → fingerprinted publish → cache purge → live verify). The owner asked for ideas wherever a considering column was empty or nearly so, then took all nine. Machine learning +2 (corpus drift as an editorial mirror; reading paths from cluster geometry — both deterministic-layer, both honoring the three nevers), Accessibility +2 (token-level contrast audited from computed styles; alt-text quality beyond coverage), Operations +3 (spend watched like uptime; restore proof, not backup existence; configuration drift), Proof of origin +2 (a second, standards-based timestamp anchor; signed releases for the code that signs the content). Considering commits to nothing, per the board's own contract. The owner flagged that the board is now crammed and the page may need a redesign — captured as a candidate, not started.
+
 ## [Content] - 2026-08-08
 
 Board edit through the door (no version, no tag, no deploy — recorded here because un-versioned changes otherwise leave no trace):
