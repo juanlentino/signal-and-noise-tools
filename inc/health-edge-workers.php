@@ -2,6 +2,21 @@
 /**
  * Signal & Noise Tools — edge-worker health check (8th Content-Health check).
  *
+ * v10.62.0 (cross-worker observability review, 2026-08-08): the check grows
+ * from two workers to FOUR. sn-provenance's /_sn/status — a 200/503 health
+ * endpoint that had NO consumer anywhere (not here, not Better Stack: a
+ * health endpoint nobody polls is the success-only readout wearing a
+ * different hat) — is now probed each scan, and a degraded pipeline (stale
+ * pending anchor, dead calendars, stalled cron, a cron step that threw)
+ * becomes a Health finding. sn-rights-signals' new sensor block (worker
+ * v1.6.0+) is read from the version endpoint the plugin already probes: a
+ * dead machine-reader sensor means the sn_machine_readers dataset goes
+ * quiet, which is INDISTINGUISHABLE from "no crawlers came" — the dataset
+ * backs a published argument, so silence must be a finding, not a shrug.
+ * Both degrade silently for older worker deploys (absent field = absent
+ * measurement, never a failure). The login-guard finding note now carries
+ * lastRefreshReason (worker v1.x+) when the last refresh attempt failed.
+ *
  * The two owned Cloudflare Workers (sn-analytics, sn-login-guard) are already
  * surfaced for DISPLAY — the analytics version card (inc/worker-version.php) and
  * the Login-defense panel + dashboard view (inc/login-defense*.php). What nothing
@@ -48,9 +63,15 @@ const SN_HEALTH_EDGE_LG_TTL       = 6 * HOUR_IN_SECONDS;
  * @param int        $now              Current unix time.
  * @param int        $stale_secs       Age past which the denylist is "stale".
  * @param array      $analytics_config Presence-only config booleans from /_sn/version (worker v1.9.0+); empty when unknown.
+ * @param array|string|null $prov      Parsed provenance /_sn/status JSON (200 AND 503 bodies both parse),
+ *                                     null when the probe could not reach/parse, or the string
+ *                                     'unconfigured' when no worker URL is set (skip, never flag).
+ * @param array|null $mr_sensor        sn-rights-signals sensor block ({ae_bound,last_write_ok,last_write_at})
+ *                                     from its version endpoint, or null when the worker predates it /
+ *                                     the probe failed (absent measurement — never a finding by itself).
  * @return array[] Finding rows.
  */
-function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $now, $stale_secs, $analytics_config = array() ) {
+function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $now, $stale_secs, $analytics_config = array(), $prov = 'unconfigured', $mr_sensor = null ) {
 	$findings = array();
 	$mk       = static function ( $label, $url, $note ) {
 		return array(
@@ -90,6 +111,63 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 		}
 	}
 
+	// sn-provenance (v10.62.0): the 200/503 status endpoint finally has a
+	// consumer. 'unconfigured' skips silently (parity with the analytics
+	// endpoint-unset skip); null = transport/parse failure = unreachable.
+	if ( 'unconfigured' !== $prov ) {
+		if ( ! is_array( $prov ) ) {
+			$findings[] = $mk(
+				'sn-provenance',
+				'',
+				'Provenance worker is not reachable at /_sn/status: it may be undeployed, or this host cannot hairpin to the edge. Anchoring health is UNKNOWN — re-run the scan to rule out a transient blip.'
+			);
+		} elseif ( 'healthy' !== (string) ( $prov['status'] ?? '' ) ) {
+			// reasons are a server-side enum; allowlist each token anyway so a
+			// compromised edge cannot inject markup/secret-shaped text into a
+			// Health note.
+			$reasons = array();
+			foreach ( (array) ( $prov['reasons'] ?? array() ) as $r ) {
+				if ( is_string( $r ) && 1 === preg_match( '/^[a-z0-9-]{1,40}$/', $r ) ) {
+					$reasons[] = $r;
+				}
+			}
+			$pending_count = isset( $prov['pending']['count'] ) ? (int) $prov['pending']['count'] : 0;
+			$findings[]    = $mk(
+				'sn-provenance',
+				'',
+				sprintf(
+					/* translators: 1: comma-separated degrade reasons, 2: pending anchor count */
+					'Provenance anchoring pipeline is DEGRADED: %1$s. Pending anchors: %2$d. The signed-record promise depends on this worker — check /_sn/status and Workers Logs, then re-deploy or repair the named component.',
+					'' !== implode( ', ', $reasons ) ? implode( ', ', $reasons ) : 'unspecified reason',
+					$pending_count
+				)
+			);
+		}
+	}
+
+	// sn-rights-signals sensor (v10.62.0): a dead sensor makes the
+	// sn_machine_readers dataset go quiet — indistinguishable from "no
+	// crawlers came", and the dataset backs a published argument. Only a
+	// REPORTED-dead sensor flags; an absent block (older worker, failed
+	// probe) is an absent measurement, never a finding.
+	if ( is_array( $mr_sensor ) ) {
+		$ae_bound      = $mr_sensor['ae_bound'] ?? null;
+		$last_write_ok = $mr_sensor['last_write_ok'] ?? null;
+		if ( false === $ae_bound ) {
+			$findings[] = $mk(
+				'sn-rights-signals',
+				'',
+				'Machine-reader sensor is DEAD: the SN_MR Analytics Engine binding is missing, so crawler fetches are silently unrecorded. A quiet sn_machine_readers dataset is now a broken sensor, NOT an absence of crawlers — restore the binding and re-deploy.'
+			);
+		} elseif ( false === $last_write_ok ) {
+			$findings[] = $mk(
+				'sn-rights-signals',
+				'',
+				'Machine-reader sensor writes are FAILING: the last Analytics Engine write errored (see Workers Logs). Crawler fetches may be going unrecorded — the sn_machine_readers dataset undercounts until this recovers.'
+			);
+		}
+	}
+
 	if ( ! is_array( $lg ) ) {
 		$findings[] = $mk(
 			'sn-login-guard',
@@ -97,6 +175,15 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 			'Login-guard worker is not reachable at /_sn/login-guard/status: it may be undeployed, or this host cannot hairpin to the edge. Re-run the scan to confirm.'
 		);
 		return $findings;
+	}
+
+	// Worker v1.x+ persists WHY the last denylist refresh failed; carry it
+	// into the stale/empty notes below when present. Allowlisted charset —
+	// edge JSON never reaches a Health note unsanitized.
+	$lg_reason = '';
+	if ( isset( $lg['lastRefreshOk'] ) && false === $lg['lastRefreshOk'] && is_string( $lg['lastRefreshReason'] ?? null )
+		&& 1 === preg_match( '/^[A-Za-z0-9_.:-]{1,64}$/', $lg['lastRefreshReason'] ) ) {
+		$lg_reason = ' Last refresh attempt failed: ' . $lg['lastRefreshReason'] . '.';
 	}
 
 	$count    = (int) ( $lg['denylistCount'] ?? 0 );
@@ -107,7 +194,7 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 		$findings[] = $mk(
 			'sn-login-guard',
 			'',
-			'Login-guard denylist is EMPTY: the edge is currently blocking no IPs. The daily refresh cron may have never populated it (check Workers Logs / wrangler tail).'
+			'Login-guard denylist is EMPTY: the edge is currently blocking no IPs. The daily refresh cron may have never populated it (check Workers Logs / wrangler tail).' . $lg_reason
 		);
 	} elseif ( false !== $ts && ( $now - $ts ) > $stale_secs ) {
 		$days       = (int) floor( ( $now - $ts ) / DAY_IN_SECONDS );
@@ -120,11 +207,57 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 				number_format_i18n( $count ),
 				$compiled,
 				$days
-			)
+			) . $lg_reason
 		);
 	}
 
 	return $findings;
+}
+
+/**
+ * Probe the provenance worker's /_sn/status. Returns the parsed JSON for
+ * BOTH 200 and 503 (a degraded verdict is a successful read — the body is
+ * the signal), null on transport/parse failure, or 'unconfigured' when no
+ * worker URL is set. Cached 6h (parity with the login-guard probe); a
+ * transport failure is NEVER cached, so an unreachable edge self-heals on
+ * the next scan. Reuses the webhook module's own URL + SSRF gate — no new
+ * outbound primitive.
+ *
+ * @since 10.62.0
+ * @return array|string|null
+ */
+function sn_health_prov_status_probe() {
+	if ( ! function_exists( 'sn_prov_worker_url' ) ) {
+		return 'unconfigured';
+	}
+	$url = sn_prov_worker_url();
+	if ( '' === $url ) {
+		return 'unconfigured';
+	}
+
+	$cached = get_transient( 'sn_health_edge_prov_status' );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$endpoint = untrailingslashit( $url ) . '/_sn/status';
+	if ( function_exists( 'sn_prov_url_allowed' ) && ! sn_prov_url_allowed( $endpoint ) ) {
+		return 'unconfigured'; // A blocked URL is a config posture, not an outage.
+	}
+	$response = wp_remote_get( $endpoint, array( 'timeout' => 6, 'redirection' => 0 ) );
+	if ( is_wp_error( $response ) ) {
+		return null;
+	}
+	$code = (int) wp_remote_retrieve_response_code( $response );
+	if ( 200 !== $code && 503 !== $code ) {
+		return null;
+	}
+	$data = json_decode( wp_remote_retrieve_body( $response ), true );
+	if ( ! is_array( $data ) || 'sn-provenance' !== (string) ( $data['worker'] ?? '' ) ) {
+		return null;
+	}
+	set_transient( 'sn_health_edge_prov_status', $data, SN_HEALTH_EDGE_LG_TTL );
+	return $data;
 }
 
 /**
@@ -135,7 +268,7 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
  */
 function sn_health_check_edge_workers() {
 	$label    = 'Edge workers';
-	$fix_hint = 'Reachability + freshness of the two owned Cloudflare Workers, read from their status endpoints. An unreachable worker may be undeployed or unreachable from this host (re-run to rule out a transient blip); a stale or empty login-guard denylist means the daily refresh cron has stalled, leaving the edge on an outdated blocklist. Re-deploy with `npm run deploy` and check Workers Logs / `wrangler tail`.';
+	$fix_hint = 'Reachability + freshness of the four owned Cloudflare Workers (analytics, login-guard, provenance, rights-signals), read from their status/version endpoints. A DEGRADED provenance pipeline or a DEAD machine-reader sensor is a finding — silence from either falsifies a public promise. An unreachable worker may be undeployed or unreachable from this host (re-run to rule out a transient blip); a stale or empty login-guard denylist means the daily refresh cron has stalled, leaving the edge on an outdated blocklist. Re-deploy with `npm run deploy` and check Workers Logs / `wrangler tail`.';
 
 	if ( ! apply_filters( 'sn_health_edge_workers_check_enabled', true ) ) {
 		return sn_health_pack_check( $label, array(), $fix_hint );
@@ -173,8 +306,14 @@ function sn_health_check_edge_workers() {
 		}
 	}
 
+	// v10.62.0 — the two new workers. Both degrade to absent-measurement
+	// shapes for older deploys; neither adds a new outbound primitive.
+	$prov      = sn_health_prov_status_probe();
+	$mr_info   = function_exists( 'snt_mr_sensor_info' ) ? snt_mr_sensor_info() : null;
+	$mr_sensor = ( is_array( $mr_info ) && isset( $mr_info['sensor'] ) && is_array( $mr_info['sensor'] ) ) ? $mr_info['sensor'] : null;
+
 	$stale_secs = (int) apply_filters( 'sn_health_denylist_stale_secs', SN_HEALTH_DENYLIST_STALE_DAYS * DAY_IN_SECONDS );
-	$findings   = sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, time(), $stale_secs, $analytics_config );
+	$findings   = sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, time(), $stale_secs, $analytics_config, $prov, $mr_sensor );
 
 	return sn_health_pack_check( $label, $findings, $fix_hint );
 }

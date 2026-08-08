@@ -119,5 +119,54 @@ $r = sn_health_check_edge_workers();
 ok( ! isset( $GLOBALS['__ew']['transient'][ SN_HEALTH_EDGE_LG_TRANSIENT ] ), 'an unreachable login-guard status is NOT cached (self-heal)' );
 ok( $r['count'] >= 1, 'unreachable login-guard yields a finding' );
 
+
+/* v10.62.0 — four-worker expansion (cross-worker observability review). */
+echo "\nGroup: provenance /_sn/status consumer\n";
+
+// Backward compat: the six-arg calls above ran unchanged (prov defaults to
+// 'unconfigured'); pin that explicitly.
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE );
+ok( array() === $f, 'BC: six-arg call (prov defaulted to unconfigured) still yields zero findings' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE, array(), null );
+ok( 1 === count( $f ) && 'sn-provenance' === $f[0]['subject_label'] && false !== strpos( $f[0]['note'], 'not reachable' ), 'prov: null (transport failure) -> unreachable finding' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE, array(), array( 'status' => 'healthy', 'reasons' => array() ) );
+ok( array() === $f, 'prov: healthy status -> no finding' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE, array(), array( 'status' => 'degraded', 'reasons' => array( 'cron-stale', 'pending-entry-stale' ), 'pending' => array( 'count' => 3 ) ) );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'DEGRADED' ) && false !== strpos( $f[0]['note'], 'cron-stale, pending-entry-stale' ) && false !== strpos( $f[0]['note'], 'Pending anchors: 3' ), 'prov: degraded -> finding names the reasons + pending count' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE, array(), array( 'status' => 'degraded', 'reasons' => array( '<script>alert(1)</script>', 'calendar-unreachable' ) ) );
+ok( false === strpos( $f[0]['note'], '<script>' ) && false !== strpos( $f[0]['note'], 'calendar-unreachable' ), 'prov: a non-enum reason token is dropped by the allowlist, never rendered' );
+
+echo "\nGroup: rights-signals sensor consumer\n";
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE, array(), 'unconfigured', null );
+ok( array() === $f, 'mr: absent sensor block (older worker / failed probe) -> absent measurement, no finding' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE, array(), 'unconfigured', array( 'ae_bound' => true, 'last_write_ok' => true, 'last_write_at' => '2026-08-08T00:00:00Z' ) );
+ok( array() === $f, 'mr: healthy sensor -> no finding' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE, array(), 'unconfigured', array( 'ae_bound' => false, 'last_write_ok' => null ) );
+ok( 1 === count( $f ) && 'sn-rights-signals' === $f[0]['subject_label'] && false !== strpos( $f[0]['note'], 'DEAD' ), 'mr: ae_bound false -> dead-sensor finding (quiet dataset != no crawlers)' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE, array(), 'unconfigured', array( 'ae_bound' => true, 'last_write_ok' => false ) );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'FAILING' ), 'mr: last_write_ok false -> failing-writes finding' );
+
+echo "\nGroup: login-guard refresh reason enrichment\n";
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $old, 'lastRefreshOk' => false, 'lastRefreshReason' => 'http-503' ), $NOW, $STALE );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'Last refresh attempt failed: http-503' ), 'lg: stale finding carries the persisted failure reason' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 0, 'compiledAt' => $fresh, 'lastRefreshOk' => false, 'lastRefreshReason' => 'canary-miss' ), $NOW, $STALE );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'canary-miss' ), 'lg: empty finding carries the reason too' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $old, 'lastRefreshOk' => false, 'lastRefreshReason' => 'x"><img onerror=1>' ), $NOW, $STALE );
+ok( 1 === count( $f ) && false === strpos( $f[0]['note'], 'onerror' ), 'lg: a reason failing the allowlist is dropped, never rendered' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $old, 'lastRefreshOk' => true ), $NOW, $STALE );
+ok( 1 === count( $f ) && false === strpos( $f[0]['note'], 'Last refresh attempt failed' ), 'lg: a successful last refresh appends nothing (stale is age, not reason)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
