@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.62.1] - 2026-08-08
+
+**Headline:** the homepage's dangling breadcrumb reference — flagged by Search Console since May — is closed.
+
+### Fixed
+
+- **WebPage breadcrumb reference now tracks the breadcrumb node** ([inc/seo-schema.php](inc/seo-schema.php)). `sn_schema_breadcrumb_list()` deliberately returns null on the front page (no useful trail), but the WebPage builder emitted `breadcrumb: {"@id": …#breadcrumb}` unconditionally — a dangling reference Google resolves to an empty breadcrumb and reports as `Missing field "itemListElement"` (GSC, first detected 2026-05-18, the homepage its single affected item; surfaced by the owner the same night Search Console went on the roadmap — the counterparty instrument earning its keep twice in one evening). The reference now shares the node builder's exact gate, and a parity test pins reference-@id == node-@id both ways so the class is closed, not the instance. After deploy: GSC → Breadcrumbs → "Validate fix".
+
 ## [Content] - 2026-08-08
 
 Board edit through the door (no version, no tag, no deploy — the roadmap_board mechanism working as designed; recorded here because un-versioned changes otherwise leave no trace):

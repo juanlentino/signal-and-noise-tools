@@ -342,10 +342,20 @@ function sn_schema_webpage() {
 		'isPartOf'   => array(
 			'@id' => home_url( '/' ) . '#/schema/WebSite',
 		),
-		'breadcrumb' => array(
-			'@id' => $permalink . '#breadcrumb',
-		),
 	);
+
+	// v10.62.1: the breadcrumb REFERENCE must track the breadcrumb NODE.
+	// sn_schema_breadcrumb_list() deliberately returns null on the front page
+	// (no useful trail), but this key was emitted unconditionally — a dangling
+	// @id reference Google resolves to an empty breadcrumb and flags as
+	// 'Missing field "itemListElement"' (GSC, first detected 2026-05-18, the
+	// homepage its one affected item). Same gate as the node builder, so the
+	// two can never disagree again.
+	if ( ! is_front_page() ) {
+		$webpage['breadcrumb'] = array(
+			'@id' => $permalink . '#breadcrumb',
+		);
+	}
 
 	if ( '' !== $description ) {
 		$webpage['description'] = $description;
