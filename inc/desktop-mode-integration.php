@@ -415,20 +415,74 @@ add_action( 'init', function() {
 		// and the stored $entry in both v0.8.9 and v0.9.5) — order is
 		// REGISTRATION order (seed.push, src/widgets/registry.ts). Hence:
 		// traffic, then site condition, then ops.
-		$sn_drag = array( 'movable' => true, 'resizable' => true );
+		//
+		// v10.68.0: THE SIZES ARE MEASURED NOW, NOT GUESSED.
+		//
+		// Every default_* below was hand-picked before any card had ever
+		// floated, and OpenStation 1.0.0 is where that showed: the owner's
+		// desktop had Site Views and Machine Readers hand-dragged to roughly
+		// double their declared height, while Health and Anchors sat with
+		// visible dead space under their last row.
+		//
+		// The geometry contract itself did NOT change in 1.0.0 — the diff
+		// v0.9.8..v1.0.0 over `src/widgets/` and the `.os-widgets__*` CSS is
+		// the rename and nothing else (`card-body` is `padding:16px;
+		// min-height:48px; overflow-y:auto` in BOTH tags, `__chrome` is
+		// `padding:6px 8px` + a 1px bottom border in both). So these numbers
+		// were always wrong; 1.0.0 is only when they got looked at.
+		//
+		// Measured against OpenStation 1.0.0's OWN `assets/css/desktop.css`,
+		// with the real DOM `frame.ts` builds (card > chrome > body), at the
+		// docked column width, driving each widget's real mount callback with
+		// live payloads read off the site:
+		//
+		//   card width  = 320 (.os-widgets) − 2×4 (.os-widgets__list padding)
+		//               = 312
+		//   chrome      = 6 + 20 (the 20×20 close/redock tiles are the tallest
+		//                 children) + 6 + 1px border = 33
+		//   body        = content + 2×16 padding
+		//
+		//   sn-site-views       463   sn-quick-actions     242
+		//   sn-health           148   sn-rss-subscribers   207
+		//   sn-uptime           210   sn-anchors           167
+		//   sn-deploy-status    192   sn-machine-readers   508
+		//
+		// default_width is 312 for EVERY card — exactly the docked width — so
+		// liberating a card off the column no longer reflows its contents mid
+		// drag. The old 300/330 split is what made the floating cards sit at
+		// three different widths in the screenshot.
+		//
+		// default_height is the measured natural height rounded up to the next
+		// 10 with ~10px of slack, so a longer relative timestamp or one extra
+		// source row doesn't immediately push the body into a scroll.
+		//
+		// Sized for the TYPICAL state, deliberately. Health measures 279 with
+		// four flagged checks + a remainder + advisories, and Anchors 194 with
+		// two pending notes — but both idle at the measured figure above (18/18
+		// today, 30 of 30 anchored), the body scrolls rather than truncating,
+		// and every card is resizable. Sizing for the worst day would mean dead
+		// space on every ordinary one.
+		//
+		// min_* are FLOORS, not targets: 240 × 120 keeps a `label … value` row
+		// legible and leaves room for chrome + padding + a headline. They are a
+		// legibility judgement, not a measurement — unlike default_*, which is.
+		$sn_drag = array(
+			'movable'       => true,
+			'resizable'     => true,
+			'min_width'     => 240,
+			'min_height'    => 120,
+			'default_width' => 312,
+		);
 
 		snt_os_register_widget( 'sn-site-views', array_merge( $sn_drag, array(
 			'label'          => 'SN Site Views',
 			'description'    => 'First-party traffic: 14-day sparkline, bot share, top page, forecast.',
 			'icon'           => 'dashicons-chart-area',
 			'script'         => 'sn-desktop-mode-widget-views',
-			// Taller floor than its siblings: the sparkline needs vertical room
-			// before it reads as a trend rather than a smudge, and v9.53.0 adds
-			// the visits/bot/top-path rows plus the forecast beneath it.
-			'min_width'      => 240,
-			'min_height'     => 220,
-			'default_width'  => 330,
-			'default_height' => 300,
+			// The tallest card on the desktop, and honestly so: a 26px headline,
+			// a 40px sparkline, the delta line, three stat rows, a three-row
+			// sources block and the forecast block all stack here. Measured 463.
+			'default_height' => 470,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(
@@ -436,10 +490,9 @@ add_action( 'init', function() {
 			'description'    => 'Content-health checks passing — and which ones are not.',
 			'icon'           => 'dashicons-shield-alt',
 			'script'         => 'sn-desktop-mode-widget-health',
-			'min_width'      => 220,
-			'min_height'     => 130,
-			'default_width'  => 300,
-			'default_height' => 190,
+			// Measured 148 all-passing (the state it idles in), 279 with four
+			// flagged checks + remainder + advisories. Sized for the former.
+			'default_height' => 160,
 		) ) );
 
 		// v9.53.0: new. Was one row inside Pulse; uptime deserves its own card
@@ -449,10 +502,9 @@ add_action( 'init', function() {
 			'description'    => 'Monitor status, 30-day availability and response time.',
 			'icon'           => 'dashicons-chart-bar',
 			'script'         => 'sn-desktop-mode-widget-uptime',
-			'min_width'      => 220,
-			'min_height'     => 120,
-			'default_width'  => 300,
-			'default_height' => 180,
+			// Measured 210 with the two live monitors (juanlentino.com + the JL
+			// heartbeat), each carrying a name line and a stats line.
+			'default_height' => 220,
 		) ) );
 
 		snt_os_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
@@ -460,10 +512,9 @@ add_action( 'init', function() {
 			'description'    => 'Theme + plugin version and last deploy time.',
 			'icon'           => 'dashicons-update',
 			'script'         => 'sn-desktop-mode-widget',
-			'min_width'      => 220,
-			'min_height'     => 140,
-			'default_width'  => 300,
-			'default_height' => 190,
+			// Measured 192: the theme/plugin grid, the deploy line, the link.
+			// A failed update check adds a reason paragraph and scrolls.
+			'default_height' => 200,
 		) ) );
 
 		// v2.1.0: Quick Actions widget — replaces the 3-click path of
@@ -473,10 +524,9 @@ add_action( 'init', function() {
 			'description'    => 'One-click purge, clear overrides, force update-check.',
 			'icon'           => 'dashicons-controls-repeat',
 			'script'         => 'sn-desktop-mode-widget-actions',
-			'min_width'      => 220,
-			'min_height'     => 190,
-			'default_width'  => 300,
-			'default_height' => 240,
+			// Measured 242: three full-width buttons + the footnote. A toast
+			// appends beneath them for TOAST_MS and is allowed to scroll.
+			'default_height' => 250,
 		) ) );
 
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
@@ -487,10 +537,9 @@ add_action( 'init', function() {
 			'description'    => 'Unique feed subscribers over 24h / 7d / 30d.',
 			'icon'           => 'dashicons-rss',
 			'script'         => 'sn-desktop-mode-widget-rss',
-			'min_width'      => 220,
-			'min_height'     => 150,
-			'default_width'  => 300,
-			'default_height' => 200,
+			// Measured 207: the last-request line, the 24h/7d/30d grid, the
+			// link. Fixed three rows — this card's height never moves.
+			'default_height' => 220,
 		) ) );
 
 		// v9.78.0: SN Anchors — the one glanceable that had no mirror.
@@ -504,10 +553,9 @@ add_action( 'init', function() {
 			'description'    => 'Provenance anchor status: pending Bitcoin confirmations + on-demand sweep.',
 			'icon'           => 'dashicons-admin-links',
 			'script'         => 'sn-desktop-mode-widget-anchors',
-			'min_width'      => 220,
-			'min_height'     => 150,
-			'default_width'  => 300,
-			'default_height' => 220,
+			// Measured 167 idle ("30 of 30 notes anchored" + Sweep), 194 with
+			// two pending rows. Sized for idle — the state it holds most days.
+			'default_height' => 180,
 		) ) );
 
 		// v10.1.0: the machine half of the audience. Human readership is
@@ -518,10 +566,12 @@ add_action( 'init', function() {
 			'description'    => 'AI crawler readership: top families, declared AI-training reads, sensor state.',
 			'icon'           => 'dashicons-visibility',
 			'script'         => 'sn-desktop-mode-widget-machine-readers',
-			'min_width'      => 220,
-			'min_height'     => 170,
-			'default_width'  => 300,
-			'default_height' => 260,
+			// Measured 508 — the second-tallest, and the card that was worst
+			// served by the old 260: headline, three family rows, the
+			// AI-training block (Reads + rights + six per-surface rows) and
+			// the two sensor rows. `ai_surfaces` is variable-length, so this
+			// is the one card whose height genuinely moves with the data.
+			'default_height' => 520,
 		) ) );
 	}
 }, 6 );

@@ -8,6 +8,39 @@ Board edit through the door (no version, no tag, no deploy — recorded here bec
 
 - **The public stats page row promoted Planned → Done** (dry-run → fingerprinted publish → cache purge → live verify, legend 11/10/17). The page is live at /stats/ (v10.65.0 + v10.65.1, verified: tiles 426/601/123, most-read merged after the slash fix). Done copy: "A public stats page: the site's aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected." Third row to complete the full idea → considering → planned → done lifecycle since the board became data. The static fallback board's copy of this row rides the next versioned release, per the sync-in-release pattern.
 
+## [10.68.0] - 2026-08-08
+
+**Headline:** Every one of the eight desktop widgets declared a floating size that had never been measured. On OpenStation 1.0.0 that showed: Site Views and Machine Readers clipped to roughly half their content, Health and Anchors floated with dead space, and the cards sat at three different widths. The sizes are measured now.
+
+### Fixed
+
+- **`default_height` is the card's real natural height, per widget.** Measured against OpenStation 1.0.0's own `assets/css/desktop.css`, with the DOM `src/widgets/frame.ts` actually builds (card → chrome → body), at the docked column width, driving each widget's real mount callback with live payloads read off this site. Card width is 312 (the 320px column minus 2×4 of list padding); the chrome header is 33 (6 + a 20×20 close tile + 6 + a 1px border); the body adds 2×16 of padding.
+
+  | Widget | Measured | Was | Now |
+  |---|---|---|---|
+  | SN Site Views | 463 | 300 | 470 |
+  | SN Machine Readers | 508 | 260 | 520 |
+  | SN Quick Actions | 242 | 240 | 250 |
+  | SN Uptime | 210 | 180 | 220 |
+  | SN RSS Subscribers | 207 | 200 | 220 |
+  | SN Deploy Status | 192 | 190 | 200 |
+  | SN Anchors | 167 | 220 | 180 |
+  | SN Health | 148 | 190 | 160 |
+
+- **Every card floats at 312 — the docked column width.** The old 300/330 split meant a card reflowed its contents the instant it was dragged off the column, and left the floating cards sitting at mismatched widths. `min_*` is now a shared 240×120 floor rather than eight separately-invented pairs.
+
+### Notes
+
+- **Sized for the typical state, deliberately.** Health measures 279 with four flagged checks plus advisories, and Anchors 194 with two pending notes — but both idle at the figures above (18/18 passing, 30 of 30 anchored). The body scrolls rather than truncating and every card is resizable, so sizing for the worst day would mean dead space on every ordinary one.
+
+- **This is not an OpenStation 1.0.0 regression.** The diff `v0.9.8..v1.0.0` across `src/widgets/` and the `.os-widgets__*` CSS is the `desktop_mode_*` → `openstation_*` rename and nothing else: `card-body` is `padding:16px; min-height:48px; overflow-y:auto` in both tags, and `openstation_register_widget()`'s size schema is unchanged. The numbers were always wrong; 1.0.0 is when they got looked at.
+
+- **Already-floating cards keep their saved geometry.** `default_*` applies on a card's *first* float only, and `WidgetLayer.redock()` is what clears the persisted record. To pick the new size up on a card that has already been dragged, click its re-dock button (⇥) and drag it back out.
+
+- **The test now pins the measured values.** The pre-existing assertions (`default_height > 0`, `default_height >= min_height`) passed on every one of the wrong numbers. Each height is asserted by value, so changing a card's content fails the build — re-measure, don't re-guess.
+
+> **Why MINOR:** no new widget and no API change, but every card on the desktop visibly changes shape the next time it floats — a uniform 312px width and eight new heights. That is a user-visible behavioural shift across the whole surface, not a quiet correction, so it gets the MINOR digit rather than hiding inside a patch.
+
 ## [10.67.0] - 2026-08-08
 
 **Headline:** 18 of 30 published Notes could not produce a credential, so `/verify` told readers no proof existed — while every dashboard read CONFIRMED and the integrity sweep read clean. The ledger import had been dropping the signature.
