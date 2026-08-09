@@ -23,10 +23,10 @@
    offset shadows inside the frame instead of past it. */
 .sn-maturity-roadmap--wide{width:min(1312px,calc(94vw - 8px));max-width:none;position:relative;left:50%;transform:translateX(-50%);margin-left:0;margin-right:0}
 
-/* The legend: three counts, one per tense, dimming as commitment weakens —
+/* The legend: four counts, one per tense, dimming as commitment weakens —
    the same solid/dashed/dotted gradient the badges carry. Each cell is an
    anchor to the board; the signal underline is the only color on hover. */
-.sn-maturity-roadmap-legend{display:grid;grid-template-columns:repeat(3,1fr);border:2px solid currentColor;box-shadow:8px 8px 0 currentColor;margin:0 0 2.5rem;background:#fff}
+.sn-maturity-roadmap-legend{display:grid;grid-template-columns:repeat(4,1fr);border:2px solid currentColor;box-shadow:8px 8px 0 currentColor;margin:0 0 2.5rem;background:#fff}
 .sn-maturity-roadmap-legend__cell{display:block;color:inherit;text-decoration:none;padding:1rem 1.2rem .9rem;position:relative}
 .sn-maturity-roadmap-legend__cell+.sn-maturity-roadmap-legend__cell{border-left:2px solid currentColor}
 .sn-maturity-roadmap-legend__stat{display:block;font-family:var(--wp--preset--font-family--heading,Impact,sans-serif);font-size:clamp(2.4rem,5vw,4.2rem);line-height:1;font-variant-numeric:tabular-nums}
