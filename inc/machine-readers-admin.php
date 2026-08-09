@@ -216,7 +216,7 @@ function snt_mr_render_tab() {
 	// ── Right card: the read-only readout over the writable fold.
 	echo '<div class="sn-fieldset">';
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Edge sensor', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'The deployed rights-signals Worker, read live from its version endpoint.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-an-settings-help">' . esc_html__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here — purge caches to read it now.', 'signal-and-noise-tools' ) . '</p>';
 	// The Analytics Edge-worker readout treatment (native notice-info), not a
 	// bespoke bar: same vocabulary as sn_worker_version_render_data().
 	echo '<div class="notice notice-info notice-alt inline">';
@@ -227,6 +227,16 @@ function snt_mr_render_tab() {
 	echo '</p>';
 	if ( is_array( $sn_mr_info ) && '' !== (string) ( $sn_mr_info['deployed_at'] ?? '' ) ) {
 		echo '<p><strong>' . esc_html__( 'Deployed:', 'signal-and-noise-tools' ) . '</strong> ' . esc_html( (string) $sn_mr_info['deployed_at'] ) . '</p>';
+	}
+	// The age line, not a freshness claim. Absent fetched_at (an entry cached
+	// before v10.70.2) prints nothing at all: an unknown read time and a read
+	// time of "just now" are different answers, and inventing one to fill the
+	// slot is how a stale panel passes for a live one.
+	if ( is_array( $sn_mr_info ) && isset( $sn_mr_info['fetched_at'] ) ) {
+		$sn_mr_age = human_time_diff( (int) $sn_mr_info['fetched_at'], time() );
+		echo '<p><strong>' . esc_html__( 'Read:', 'signal-and-noise-tools' ) . '</strong> '
+			/* translators: %s: human-readable duration, e.g. "5 mins". */
+			. esc_html( sprintf( __( '%s ago', 'signal-and-noise-tools' ), $sn_mr_age ) ) . '</p>';
 	}
 	echo '<p><em>' . esc_html__( 'Source:', 'signal-and-noise-tools' ) . '</em> <code>' . esc_html( defined( 'SN_MR_VERSION_ENDPOINT' ) ? SN_MR_VERSION_ENDPOINT : '' ) . '</code></p>';
 	echo '</div>';
