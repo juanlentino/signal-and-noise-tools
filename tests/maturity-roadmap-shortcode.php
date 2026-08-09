@@ -79,7 +79,7 @@ ok( 21 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7
 // family with no future tense is information, not a gap. v10.71.1:
 // machine-readability planned is no longer empty; the live-read row
 // landed there when the static floor was resynced to the override.
-ok( 2 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly two empty cells render the em-dash' );
+ok( 1 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly one empty cell renders the em-dash (v10.72.1: Operations planned populated)' );
 
 // v10.63.0 "fold the future": the legend trio + counts + folds.
 $counts = sn_maturity_roadmap_counts( sn_maturity_roadmap_effective_board() );
@@ -94,7 +94,7 @@ ok( false !== strpos( $html, 'sn-maturity-roadmap-badge__n' ), 'header badges ca
 // fold per cell, summaries carrying their counts. 7 families × up to 2
 // future cells, minus the 2 empties = 12 folds on the static board.
 ok( false === strpos( $html, 'cell--done" data-label="Done"><details' ), 'a done cell never folds' );
-ok( 12 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (12 on this board)' );
+ok( 13 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (13 on this board, v10.72.1)' );
 
 // v10.71.1: no sentence may appear in two columns of the same family.
 // The static floor had the agent threat model in BOTH 'done' and
