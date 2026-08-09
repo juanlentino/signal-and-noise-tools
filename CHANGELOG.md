@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.73.1] - 2026-08-09 — the legend learns to count to four
+
+**Headline:** v10.73.0's legend grid was hardcoded `repeat(3,1fr)`, so the new Later cell wrapped onto an orphan row with a field of dead white space — owner-caught on the live page minutes after install.
+
+### Fix (assets/maturity-roadmap-front.css)
+
+The legend grid now declares four tracks. The board's own columns were fine (the table walks the status constant); only the legend had a literal.
+
+### The guard (tests/maturity-roadmap-shortcode.php)
+
+The CSS is now pinned to the constant: the fixture asserts `repeat(count(SN_MATURITY_ROADMAP_STATUSES),1fr)` appears and the stale three-track rule does not — a fifth status reds the suite instead of the live page. The widget-geometry lesson again: a size no test pins by value is a guess with a green checkmark.
+
+> **Why PATCH:** visual defect fix, no behavior change. 67/67 shortcode fixture; full sweep green.
+
 ## [10.73.0] - 2026-08-09 — the board gains a fourth column: Later
 
 **Headline:** the maturity roadmap's commitment gradient grows an honest tail — Done / Planned / Considering / **Later** — and twelve research-vetted rows seed it.

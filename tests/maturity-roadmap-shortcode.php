@@ -116,6 +116,15 @@ foreach ( sn_maturity_roadmap_static_board() as $family => $columns ) {
 	}
 }
 ok( array() === $dupes, 'no item sits in two columns of one family — a row moves, it is never copied' . ( $dupes ? ' — FOUND: ' . implode( '; ', $dupes ) : '' ) );
+
+// v10.73.1: the legend's grid tracks the status count — a hardcoded track
+// count orphans the newest column onto its own row (shipped broken in
+// v10.73.0, owner-caught on the live page). Pin the CSS to the constant so
+// adding a fifth status REDS this line instead of the live page.
+$css = (string) file_get_contents( __DIR__ . '/../assets/maturity-roadmap-front.css' );
+ok( false !== strpos( $css, 'grid-template-columns:repeat(' . count( SN_MATURITY_ROADMAP_STATUSES ) . ',1fr)' ),
+	'the legend grid declares one track per status (' . count( SN_MATURITY_ROADMAP_STATUSES ) . ')' );
+ok( false === strpos( $css, 'grid-template-columns:repeat(3,1fr)' ), 'no stale three-track legend grid survives' );
 ok( false !== strpos( $html, '3 considering</summary>' ), "a fold summary carries its item count" );
 ok( substr_count( $html, 'sn-maturity-roadmap-fold__glyph' ) === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every fold has its glyph, aria-hidden decoration only' );
 
