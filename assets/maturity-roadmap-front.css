@@ -33,6 +33,7 @@
 .sn-maturity-roadmap-legend__sub{display:block;font-size:.68rem;opacity:.55;margin-top:.4rem;letter-spacing:.02em}
 .sn-maturity-roadmap-legend__cell--planned{opacity:.62}
 .sn-maturity-roadmap-legend__cell--considering{opacity:.44}
+.sn-maturity-roadmap-legend__cell--later{opacity:.3}
 .sn-maturity-roadmap-legend__cell .sn-maturity-roadmap-badge{margin-top:.5rem}
 .sn-maturity-roadmap-legend__cell::after{content:"";position:absolute;left:0;right:0;bottom:0;height:0;background:var(--sn-signal,#ff4c47);transition:height .14s linear}
 .sn-maturity-roadmap-legend__cell:hover{opacity:1}
@@ -50,12 +51,13 @@
 /* v10.63.1: closed folds starve their columns under auto layout (the
    summary wrapped under its glyph, measured live) — the future columns
    hold a floor wide enough for "NN considering" on one line. */
-.sn-maturity-roadmap-board__cell--planned,.sn-maturity-roadmap-board__cell--considering{min-width:185px}
+.sn-maturity-roadmap-board__cell--planned,.sn-maturity-roadmap-board__cell--considering,.sn-maturity-roadmap-board__cell--later{min-width:185px}
 .sn-maturity-roadmap-board th:not(:last-child),.sn-maturity-roadmap-board td:not(:last-child){border-right:1px solid rgba(0,0,0,.16)}
 .sn-maturity-roadmap-board__family-h{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
 .sn-maturity-roadmap-badge{display:inline-flex;align-items:baseline;gap:.5em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
 .sn-maturity-roadmap-badge--planned{border-style:dashed;opacity:.6}
 .sn-maturity-roadmap-badge--considering{border-style:dotted;opacity:.45}
+.sn-maturity-roadmap-badge--later{border-style:dotted;opacity:.3}
 .sn-maturity-roadmap-badge__n{font-weight:400;font-variant-numeric:tabular-nums;color:var(--sn-signal,#ff4c47)}
 
 .sn-maturity-roadmap-board td{border-bottom:1px solid rgba(0,0,0,.16);padding:.7em .85em;vertical-align:top}
@@ -71,6 +73,7 @@
 .sn-maturity-roadmap-board__cell li:last-child{border-bottom:0}
 .sn-maturity-roadmap-board__cell--planned{opacity:.88}
 .sn-maturity-roadmap-board__cell--considering{opacity:.72}
+.sn-maturity-roadmap-board__cell--later{opacity:.58}
 .sn-maturity-roadmap-board__empty{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;opacity:.35}
 
 /* The folds: native details, the signal spent on the act of opening.
@@ -123,7 +126,7 @@
 	.sn-maturity-roadmap-fold::details-content{content-visibility:visible;display:block}
 	.sn-maturity-roadmap-fold summary{display:none}
 	.sn-maturity-roadmap-fold ul{border-top:0;margin-top:0}
-	.sn-maturity-roadmap-board__cell--planned,.sn-maturity-roadmap-board__cell--considering,
-	.sn-maturity-roadmap-legend__cell--planned,.sn-maturity-roadmap-legend__cell--considering{opacity:1}
+	.sn-maturity-roadmap-board__cell--planned,.sn-maturity-roadmap-board__cell--considering,.sn-maturity-roadmap-board__cell--later,
+	.sn-maturity-roadmap-legend__cell--planned,.sn-maturity-roadmap-legend__cell--considering,.sn-maturity-roadmap-legend__cell--later{opacity:1}
 	.sn-maturity-roadmap-board,.sn-maturity-roadmap-legend{box-shadow:none}
 }

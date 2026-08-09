@@ -31,7 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_MATURITY_ROADMAP_STATUSES = array( 'done', 'planned', 'considering' );
+const SN_MATURITY_ROADMAP_STATUSES = array( 'done', 'planned', 'considering', 'later' );
 
 // The board-as-data override option (written ONLY by sn_apply's
 // 'roadmap_board' change type; never rendered, never echoed) and the
@@ -85,6 +85,11 @@ function sn_maturity_roadmap_static_board() {
 			'considering' => array(
 				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" without ever profiling a reader', 'signal-and-noise-tools' ),
 				__( 'Search-side metrics from Search Console: the queries, impressions, and positions that happen before the click — a trailing complement to the first-party view, never a second opinion on it', 'signal-and-noise-tools' ),
+				__( 'AI-referred humans as a channel: visits that arrive from an assistant\'s answer counted as their own aggregate segment in the rollups — a reader an AI sent is a different signal than a reader search sent, and lumping them hides the shift', 'signal-and-noise-tools' ),
+				__( 'Give-back ratio per crawler: the ledger\'s crawl counts set against that operator\'s referred human visits — so the page that says who reads by machine also says which machines ever send a reader back', 'signal-and-noise-tools' ),
+			),
+			'later'       => array(
+				__( 'Verified versus claimed: crawler request signatures checked at the edge and recorded in the ledger — so the attention story can separate cryptographic fact from a user-agent costume', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Proof of origin', 'signal-and-noise-tools' )     => array(
@@ -93,11 +98,16 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'Extend signing and anchoring beyond notes, to pages and then media', 'signal-and-noise-tools' ),
+				__( 'Key history with a future: the signing key\'s verifiable history published at a well-known path, with the next key committed by hash before it is ever used — so a rotation or compromise never orphans years of anchors — landing before signing extends beyond notes', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'A standalone verifier anyone can run outside the site — "don\'t trust the site\'s own button" made literal', 'signal-and-noise-tools' ),
 				__( 'A second, independent anchor: a standards-based timestamp authority alongside Bitcoin, so the chain\'s integrity never rests on a single mechanism\'s longevity', 'signal-and-noise-tools' ),
 				__( 'Provenance for the software itself: signed releases for the code that signs the content — the verifier argument applied one layer down', 'signal-and-noise-tools' ),
+			),
+			'later'       => array(
+				__( 'A second witness that names the author: each note\'s chain head countersigned into a public transparency log — an independent record binding the proof to an identity, not just a moment', 'signal-and-noise-tools' ),
+				__( 'Authorship as a credential: each note carrying a standard verifiable credential of authorship in its structured data — the claim stated in a shared vocabulary instead of a house dialect', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'AI', 'signal-and-noise-tools' )                  => array(
@@ -115,6 +125,10 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),
 				__( 'Richer edit primitives beyond sentence scale — the drafting boundary stands regardless of what is explored here', 'signal-and-noise-tools' ),
 			),
+			'later'       => array(
+				__( 'Injection self-sweep: every machine surface the site publishes — the crawler manifest, structured data, the board itself, the doors\' own descriptions — linted for instruction-shaped text before it ships, so a site that treats prose as data can prove its own prose is clean', 'signal-and-noise-tools' ),
+				__( 'A registry-listed read door: the read-only door published in the standard agent registry under a name this domain verifiably owns — so agents discover it by lookup instead of by reading a page written for humans', 'signal-and-noise-tools' ),
+			),
 		),
 		__( 'Machine learning', 'signal-and-noise-tools' )    => array(
 			'done'        => array(
@@ -128,6 +142,10 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Corpus drift as an editorial mirror: how the site\'s vocabulary and topic weights shift across the years, computed from corpus statistics and shown to the writer — never to a model', 'signal-and-noise-tools' ),
 				__( 'Reading paths from cluster geometry: static note-to-note chains that belong to the corpus, precomputed and identical for every reader — sequencing, not personalization', 'signal-and-noise-tools' ),
 			),
+			'later'       => array(
+				__( 'A better lexical spine: the similarity core under related notes upgraded to the ranking statistics that stop long notes from hogging every match — the same deterministic corpus mathematics, corrected for length', 'signal-and-noise-tools' ),
+				__( 'The shape of a sentence, watched: a deterministic readability fingerprint per note, trended across the corpus and surfaced at draft time — so prose complexity drift becomes visible the way topic drift already is', 'signal-and-noise-tools' ),
+			),
 		),
 		__( 'Machine readability', 'signal-and-noise-tools' ) => array(
 			'done'        => array(
@@ -135,12 +153,17 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'The rights-read count published on the machine-readability page itself, read from the crawler ledger at render — once that read can be served from state the site already holds, so a reader\'s page never waits on a sensor call', 'signal-and-noise-tools' ),
+				__( 'Speak the coming standard: publish the usage-preference header and robots rule the day the internet standards body finalizes them, with a parity sweep proving every rights dialect the site speaks states the same reservation — one policy, never a family of drifting translations', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Provenance pointers in the machine surfaces, so an agent that reads the site can also verify it', 'signal-and-noise-tools' ),
 				__( 'An in-page tool surface for verification: the page offers an agent the calls to check a signature and its anchor, so verifying travels with the content instead of waiting for anyone to adopt an API', 'signal-and-noise-tools' ),
 				__( 'The corpus schema published as a machine surface: tier, number, and relation stated by the author rather than inferred by whatever reads the page', 'signal-and-noise-tools' ),
 				__( 'Google\'s own crawl and robots reports set against the site\'s crawler ledger — the declarer\'s account cross-examined by the edge\'s, and the edge\'s by the declarer\'s', 'signal-and-noise-tools' ),
+			),
+			'later'       => array(
+				__( 'Markdown at the agent door: agent-negotiated markdown served with the site\'s rights headers attached to every converted response — the declaration travels with the token-cheap copy, not just the page', 'signal-and-noise-tools' ),
+				__( 'Homework shown: when the European list of machine-readable opt-out protocols is published, a page mapping this site\'s declarations to every protocol on it — conformance demonstrated, not claimed', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Accessibility', 'signal-and-noise-tools' )       => array(
@@ -152,8 +175,13 @@ function sn_maturity_roadmap_static_board() {
 				__( 'An accessible treatment for third-party embeds', 'signal-and-noise-tools' ),
 				__( 'Contrast audited at the token level: every palette pairing the templates actually use, checked from computed styles so an inline override cannot hide — landing report-first, findings published before any fix ships', 'signal-and-noise-tools' ),
 				__( 'Alt-text quality, not just coverage: flagging the present-but-useless kind — filename echoes, caption duplicates — with every fix passing the same human acceptance as the coverage sweep', 'signal-and-noise-tools' ),
+				__( 'Charts that speak: every chart on the public stats page ships a screen-reader-navigable table twin and a one-paragraph prose summary — so the numbers are readable without eyes, not just visible — landing as a retrofit on the page already live', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(),
+			'later'       => array(
+				__( 'Motion that asks first: every animation paired with its reduced-motion counterpart, verified by a report-first scan — respecting a visitor\'s motion setting checked, not assumed', 'signal-and-noise-tools' ),
+				__( 'Conformance said out loud: a public accessibility self-assessment on the hub, fed by the scans and honest about what fails — the site\'s accessibility posture stated the way its rights posture already is', 'signal-and-noise-tools' ),
+			),
 		),
 		__( 'Operations', 'signal-and-noise-tools' )          => array(
 			'done'        => array(
@@ -162,11 +190,15 @@ function sn_maturity_roadmap_static_board() {
 			'planned'     => array(
 				__( 'Spend watched like uptime: build minutes and AI budget as health signals with the same honesty — "unknown" when it does not know — landing owner-only, and every number read from what the platforms actually report, never estimated', 'signal-and-noise-tools' ),
 				__( 'Defense numbers: the login door\'s own gauges, owner-only — how often the guard failed open rather than blocked, and the unchecked address share measured against a threshold written down before the query, so the number triggers the decision instead of reopening the argument — landing with each gauge proven to move when the failure it watches occurs', 'signal-and-noise-tools' ),
+				__( 'Dependency provenance gate: a worker ships only after its locked dependency tree verifies against the registry\'s provenance attestations and a minimum-age cooldown — so a freshly poisoned upstream release waits out its detection window instead of going straight to the edge — landing after a one-time audit shows enough of the tree publishes attestations for the check to mean anything', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'A morning brief: one narrated paragraph across health, cron, uptime, and deploys — the digest pattern pointed at operations', 'signal-and-noise-tools' ),
 				__( 'Restore proof, not backup existence: a periodic check that a backup actually restores, closing the gap between having backups and having recovery', 'signal-and-noise-tools' ),
 				__( 'Configuration drift: the settings surface snapshotted and diffed over time, so a changed switch or threshold is a logged event instead of a mystery', 'signal-and-noise-tools' ),
+			),
+			'later'       => array(
+				__( 'Journey checks, not pings: a scheduled pass that walks the flows that matter — the stats page rendering its numbers, the rights surfaces serving their terms — because a healthy status code is not a working site', 'signal-and-noise-tools' ),
 			),
 		),
 	);
@@ -200,7 +232,7 @@ function sn_maturity_roadmap_banned_tokens() {
 function sn_maturity_roadmap_board_problems( $board ) {
 	$problems = array();
 	if ( ! is_array( $board ) || array() === $board ) {
-		return array( 'board must be a non-empty object of family label → { done/planned/considering: sentence[] }.' );
+		return array( 'board must be a non-empty object of family label → { done/planned/considering/later: sentence[] }.' );
 	}
 	if ( count( $board ) > SN_MATURITY_ROADMAP_MAX_FAMILIES ) {
 		$problems[] = sprintf( 'board has %d families; the maximum is %d.', count( $board ), SN_MATURITY_ROADMAP_MAX_FAMILIES );
@@ -353,17 +385,21 @@ function sn_maturity_roadmap_html() {
 		'done'        => __( 'Done', 'signal-and-noise-tools' ),
 		'planned'     => __( 'Planned', 'signal-and-noise-tools' ),
 		'considering' => __( 'Considering', 'signal-and-noise-tools' ),
+		'later'       => __( 'Later', 'signal-and-noise-tools' ),
 	);
 	$summaries = array(
 		/* translators: %d: number of planned roadmap items inside the fold. */
 		'planned'     => __( '%d planned', 'signal-and-noise-tools' ),
 		/* translators: %d: number of considering roadmap items inside the fold. */
 		'considering' => __( '%d considering', 'signal-and-noise-tools' ),
+		/* translators: %d: number of later roadmap items inside the fold. */
+		'later'       => __( '%d later', 'signal-and-noise-tools' ),
 	);
 	$sublines  = array(
 		'done'        => __( 'shipped & verifiable', 'signal-and-noise-tools' ),
 		'planned'     => __( 'each names its gate', 'signal-and-noise-tools' ),
 		'considering' => __( 'commitments to nothing', 'signal-and-noise-tools' ),
+		'later'       => __( 'vetted, not yet weighed', 'signal-and-noise-tools' ),
 	);
 
 	$board  = sn_maturity_roadmap_board();
