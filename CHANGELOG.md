@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.70.2] - 2026-08-09 — the Edge sensor card said "read live" and was up to 15 minutes old
+
+**Headline:** cost me real time today. The rights-signals Worker deployed at 18:12 UTC; a minute later the Machine Readers tab still read `v1.6.1` from yesterday, under a caption saying it was read live. The value was correct for when it was fetched. Only the label was wrong — and a wrong label on a stale number is indistinguishable from a failed deploy.
+
+### The defect
+
+[`snt_mr_sensor_info()`](inc/machine-readers-api.php) caches in a 15-minute transient (`sn_mr_sensor_info`), which is right — nobody wants an outbound HTTP call on every admin page load. But the card in [`inc/machine-readers-admin.php`](inc/machine-readers-admin.php) described the result as *"read live from its version endpoint."* Nothing in the UI let a reader tell a warm cache from a broken deploy.
+
+Same species as the rest of today's work, and the third instance of it: a surface stating something more confident than what it actually does.
+
+### Fixed
+
+- **The caption says what it is** — read from the version endpoint, cached up to 15 minutes, purge caches to read it now.
+- **A "Read: N ago" line**, from a new `fetched_at` recorded alongside the version. The reader can now judge staleness instead of trusting an adjective.
+- **Absent is not zero.** Entries cached before this release have no `fetched_at`, and the renderer omits the age line entirely rather than printing an invented time. An unknown read time and a read time of "just now" are different answers — filling the slot with a plausible one is exactly how a stale panel passes for a live one.
+
+### Not changed
+
+The 15-minute TTL. It is the right trade for an outbound call on an admin page; the bug was never the caching, only the claim about it.
+
+> **Why PATCH:** an accuracy fix to admin copy plus one new display field. No behaviour change, no new capability, no schema change — `fetched_at` is additive inside an existing transient and its absence is handled.
+
 ## [10.70.1] - 2026-08-09 — the origin and the edge stated different rights terms
 
 **Headline:** found while fixing the rights-signal stack in `sn-rights-signals` (worker v1.7.0). Not on the list I was given; reporting rather than fixing quietly.

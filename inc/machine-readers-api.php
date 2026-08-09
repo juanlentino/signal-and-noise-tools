@@ -222,7 +222,18 @@ const SN_MR_VERSION_ENDPOINT = 'https://juanlentino.com/_sn/rights-signals/versi
  * the card degrades to its quiet dash and no worker string reaches the page).
  * Null on ANY failure; 15-minute display transient.
  *
- * @return array{version:string,deployed_at:string}|null
+ * v10.70.2: the result carries `fetched_at`, because the card was describing
+ * this as a live read and it is not — it is up to fifteen minutes old. That
+ * cost real time on the v1.9.0 deploy: the worker was already reporting the
+ * new version while the panel still showed the previous one, and the gap read
+ * as a failed deploy rather than as a warm cache. The value was always stale;
+ * only the label was wrong. A reader must be able to tell WHEN this was true.
+ *
+ * `fetched_at` is absent, never zero, on entries cached before this release —
+ * the renderer omits the age line rather than printing an invented time.
+ * Absent and "just now" are different answers.
+ *
+ * @return array{version:string,deployed_at:string,fetched_at?:int}|null
  */
 function snt_mr_sensor_info() {
 	$cached = get_transient( 'sn_mr_sensor_info' );
@@ -257,6 +268,7 @@ function snt_mr_sensor_info() {
 	$info     = array(
 		'version'     => $version,
 		'deployed_at' => $deployed,
+		'fetched_at'  => time(),
 	);
 	// v10.62.0: worker v1.6.0+ self-reports its AE sensor state — carry the
 	// three known keys only (booleans/nulls + a clamped timestamp string),
