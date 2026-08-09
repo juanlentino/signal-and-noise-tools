@@ -43,9 +43,16 @@ Three more copies of the same drifting list, none of them in code — all fixed 
 - page 2042 excerpt and meta description (both enumerated the layers, both omitted the terms);
 - page 2034 (`/maturity/`) excerpt said the index maps "all six" families when there are eight cards, and its meta description named six of the eight by hand. Both rewritten to stop counting, so neither can drift again.
 
-### Not fixed here, reported instead
+### Found here, fixed in the theme (v11.5.2)
 
-**`/llms.txt` contradicts the other three statements of the terms.** Its `## Rights` section says the RSL licence permits *"AI training permitted with attribution"*, while `Content-Signal` and the TDM reservation both say `ai-train=no`. Three surfaces, two positions. Same shape as the [10.70.1] divergence, one layer up. Lives in the theme (`inc/llms-txt.php`), so it is not this release's to fix.
+**`/llms.txt` announced the training grant without the reservation that gates it.** Its `## Rights` section said the RSL licence permits *"AI training permitted with attribution"*.
+
+I first read this as a contradiction with `Content-Signal: ai-train=no` and `TDM-Reservation: 1`. It is not, and the difference matters. `license.xml` carries two `<license>` elements: one unconditional (`search ai-input`, free) and one permitting `ai-train` **only** to a party meeting conditions C1–C5. The reservation is the default and the licence is the named route out of it — layered, not conflicting, and each surface individually true.
+
+What llms.txt published was half that structure: the exception stated as the rule. A machine reading only that file — exactly the reader it exists for — takes away a permission and never learns the default is *no*. And "with attribution" understates the conditions: `license.xml` deliberately points `<standard>` at the policy rather than at CC BY 4.0, on the reasoning that CC BY §3(a) is satisfied by a model card while C2 is not, so the short phrase reintroduced the weaker reading that file went out of its way to foreclose.
+
+Not the [10.70.1] shape after all. That was two sources of truth stating different things; this was one source stating a true thing incompletely, which is why no drift probe could have caught it — every surface it could compare was correct. Fixed in the theme at v11.5.2, where the copy lives.
+
 ## [10.70.2] - 2026-08-09 — the Edge sensor card said "read live" and was up to 15 minutes old
 
 **Headline:** cost me real time today. The rights-signals Worker deployed at 18:12 UTC; a minute later the Machine Readers tab still read `v1.6.1` from yesterday, under a caption saying it was read live. The value was correct for when it was fetched. Only the label was wrong — and a wrong label on a stale number is indistinguishable from a failed deploy.
