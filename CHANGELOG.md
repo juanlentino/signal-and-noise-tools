@@ -20,6 +20,8 @@ The page's eighth principle is *"a format nobody can verify is decoration: every
 
 **The figure is prose, not a live read, and that is a compromise rather than a design.** The crawler ledger is not readable at render time on a public page: the read is an authenticated outbound call to the analytics edge behind a 15-minute transient, so a cold cache would make a reader's page render wait on a network round-trip, and nothing warms that cache on a schedule — every existing caller is owner-triggered in wp-admin. [inc/public-stats.php](inc/public-stats.php), the only public surface that reads live numbers, deliberately reads local rollups for exactly this reason. A roadmap item now names the gate for closing this.
 
+That is the same 15-minute transient [10.70.2] had just finished re-labelling, and the same lesson from the other side: there, a cached number was captioned "read live"; here, the honest move was to not claim a live read at all. Four instances today of one species — a surface stating something more confident than what it actually does.
+
 ### The stale-count sweep
 
 The layer list is stated as prose in three places that drift independently of the array. All three fixed, all three now pinned:
