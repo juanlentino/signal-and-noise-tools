@@ -50,6 +50,13 @@ function sn_machine_maturity_scope() {
 		'signal'      => array( __( 'Content signal', 'signal-and-noise-tools' ), 'live' ),
 		'licence'     => array( __( 'Licence file', 'signal-and-noise-tools' ), 'live' ),
 		'policy'      => array( __( 'Rights policy', 'signal-and-noise-tools' ), 'live' ),
+		// v10.71.2: the policy's machine representation declares a locally
+		// defined `sn:` prefix and uses ten terms from it. Those terms resolve
+		// to published definitions at /ns/tdm — which is a coverage row of its
+		// own, not an implementation detail of the row above it: a vocabulary
+		// that does not resolve is the difference between linked data and a
+		// URI that merely looks like one.
+		'vocabulary'  => array( __( 'Terms vocabulary', 'signal-and-noise-tools' ), 'live' ),
 		'schema'      => array( __( 'Structured data', 'signal-and-noise-tools' ), 'live' ),
 		'feeds'       => array( __( 'Feeds', 'signal-and-noise-tools' ), 'live' ),
 		'cards'       => array( __( 'Stamped share cards', 'signal-and-noise-tools' ), 'live' ),
