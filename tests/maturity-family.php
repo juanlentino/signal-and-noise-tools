@@ -65,7 +65,7 @@ foreach ( array( 'sn_machine_maturity', 'sn_ops_maturity', 'sn_a11y_maturity', '
 	ok( isset( $GLOBALS['__shortcodes'][ $tag ] ), "$tag registered on load" );
 }
 ok( array() === $GLOBALS['__enq'], 'loading the files enqueues nothing — stylesheets ride the render' );
-ok( 5 === count( sn_machine_maturity_layers() ) && 5 === count( sn_ops_maturity_layers() ) && 5 === count( sn_a11y_maturity_layers() ), 'each new page walks five layers' );
+ok( 6 === count( sn_machine_maturity_layers() ) && 5 === count( sn_ops_maturity_layers() ) && 5 === count( sn_a11y_maturity_layers() ), 'ops and a11y walk five layers; machine readability walks six (v10.71.0 added the rights layer)' );
 ok( 8 === count( sn_machine_maturity_principles() ) && 8 === count( sn_ops_maturity_principles() ) && 8 === count( sn_a11y_maturity_principles() ), 'eight principles per page, matching the family' );
 ok( 8 === count( sn_maturity_index_items() ), 'the index lists all eight cards (v10.55.1: + the hub-wide roadmap)' );
 
@@ -76,6 +76,33 @@ foreach ( array( 'machine' => 'sn_machine_maturity_shortcode', 'ops' => 'sn_ops_
 	$bogus = $fn( array( 'format' => '"><script>x</script>' ) );
 	ok( false !== strpos( $bogus, "sn-$n-maturity--full" ) && false === strpos( $bogus, '<script' ), "$n: unknown format falls back; raw attr never reaches the class" );
 }
+
+echo "\nGroup: the rights layer (v10.71.0) — position, count prose, coverage\n";
+// POSITION is the argument, so it is pinned, not merely presence: a machine
+// meets the terms at discovery time (a response header, and the content
+// signal on the crawler manifest), before it has parsed anything. Appending
+// 'reserved' last would seat it beside 'agents' and imply the terms bind
+// agents only — the opposite of a reservation that rides every response.
+$m_slugs = array_keys( sn_machine_maturity_layers() );
+ok( array( 'indexed', 'reserved', 'structured', 'summarized', 'stamped', 'agents' ) === $m_slugs, 'the walk runs indexed → reserved → structured → summarized → stamped → agents; terms sit at position 2, where a machine actually meets them' );
+$m_full = sn_machine_maturity_shortcode( array() );
+// The hardcoded-count trap: the intro states the layer count in PROSE, so it
+// cannot drift with the array. A stale "Five" is the tell.
+ok( false !== strpos( $m_full, 'Six layers' ) && false === strpos( $m_full, 'Five layers' ), 'the intro states SIX layers — the prose count tracks the array, no stale "Five"' );
+ok( false !== strpos( $m_full, 'Can machines know the terms?' ), 'the rights layer asks its own question in the layer table' );
+// Publishing the badge without the measured result would break the page's
+// own eighth principle ("a format nobody can verify is decoration").
+ok( false !== strpos( $m_full, 'no declared AI-training crawler has' ), 'the rights layer publishes its measured result, not just its existence' );
+$m_scope = sn_machine_maturity_scope();
+foreach ( array( 'reservation', 'signal', 'licence', 'policy' ) as $row ) {
+	ok( isset( $m_scope[ $row ] ) && 'live' === $m_scope[ $row ][1], "coverage carries the $row row, live" );
+}
+ok( 9 === count( $m_scope ), 'nine coverage rows (five original + the four rights surfaces)' );
+// The layer list is ALSO stated as prose in two other places; both drift
+// silently, so both are pinned to mention the terms.
+ok( false !== strpos( sn_machine_maturity_shortcode( array( 'format' => 'compact' ) ), 'the terms on every response' ), 'the compact blurb names the terms too' );
+$machine_card = sn_maturity_index_items()['machine'][2];
+ok( false !== strpos( $machine_card, 'machine-readable terms' ), 'the /maturity/ index card for this family names the terms too' );
 
 echo "\nGroup: index cards + filter seam\n";
 $idx = sn_maturity_index_shortcode();
