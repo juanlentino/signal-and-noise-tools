@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.72.1] - 2026-08-09 — two Operations rows graduate to Planned, with their prep written down
+
+**Headline:** "Spend watched like uptime" (the owner's #1 pick-few) and "Defense numbers" moved considering → planned through the roadmap_board door, each with its gate named in the row prose; the static DR board resyncs in-release (zero drift), and each row gets an implementation-prep doc so the build session starts warm.
+
+### Gates (in the row prose, per the planned-with-gate pattern)
+
+- **Spend watch:** owner-only, and every number read from what the platforms actually report — never estimated (the v9.59.0 estimate was measured 2-5× overstated; the timing API reports zeros).
+- **Defense numbers:** each gauge proven to move when the failure it watches occurs (the success-only-cache discipline as an acceptance test).
+
+### Prep docs (docs/ops/)
+
+- [spend-watch-prep.md](docs/ops/spend-watch-prep.md) — the per-job ceiling method (the /timing API lies), the `user` OAuth scope requirement, the repo-vs-account scoping decision, and the never-estimate AI-budget rule.
+- [defense-numbers-prep.md](docs/ops/defense-numbers-prep.md) — the two AE queries (failopen/degraded trend, blob8 family share vs the 5%/30d criterion), wiring points in the login-defense panel family, and how to satisfy the proven-to-move gate with synthetic-row fixtures.
+
+### Board sync (inc/maturity-roadmap-shortcode.php)
+
+Operations in the static DR board mirrors the door write: planned gains the two gated rows, considering keeps morning brief / restore proof / configuration drift. Not promoted, deliberately: morning brief is hard-gated on the R2 re-exam, restore proof's precondition (scope where backups actually run) is unmet, and configuration drift sat outside the owner's pick-few ranking.
+
+> **Why PATCH:** board-copy resync + docs; no behavior change (the v10.71.1 precedent).
+
 ## [10.72.0] - 2026-08-09 — the Login-defense panel sees the throttle
 
 **Headline:** worker v1.7.0 added a per-IP POST rate limit to the login door; this release makes the panel show it — and closes a pill-list gap that had hidden `degraded` for its whole life.
