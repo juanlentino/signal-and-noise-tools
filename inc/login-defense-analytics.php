@@ -27,6 +27,7 @@ function sn_login_defense_render_kpi_cards( $k ) {
 	$cards = array(
 		array( 'l' => __( 'Checked (7d)', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['checked'] ?? 0 ) ), 'promoted' => true, 'sub' => __( 'seen', 'signal-and-noise-tools' ) ),
 		array( 'l' => __( 'Blocked', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['blocked'] ?? 0 ) ), 'promoted' => true, 'sub' => __( 'denied', 'signal-and-noise-tools' ) ),
+		array( 'l' => __( 'Throttled', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['throttled'] ?? 0 ) ), 'sub' => __( 'rate-limited', 'signal-and-noise-tools' ) ),
 		array( 'l' => __( 'Block rate', 'signal-and-noise-tools' ), 'n' => (int) ( $k['block_rate'] ?? 0 ) . '%', 'sub' => __( 'of checks', 'signal-and-noise-tools' ) ),
 		array( 'l' => __( 'Networks', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $k['networks'] ?? 0 ) ), 'sub' => __( 'distinct', 'signal-and-noise-tools' ) ),
 	);
@@ -178,8 +179,12 @@ function sn_login_defense_render_header() {
 	echo '<p class="sn-an-breakdown">';
 	// 'failopen' (worker v1.3.0+): the guard hit an internal error and let the
 	// request through rather than lock the owner out — surfaced here so a
-	// failing-open guard is visible, not silent.
-	foreach ( array( 'block', 'pass', 'bypass', 'killswitch', 'failopen' ) as $d ) {
+	// failing-open guard is visible, not silent. 'throttle' (v1.7.0) is the
+	// per-IP POST rate limit; 'degraded' (v1.4.0) is a corrupted denylist
+	// enforcing nothing — it was missing from this hand-maintained list for
+	// its whole life, the exact silent-under-coverage this list invites, so:
+	// every decision the worker can emit MUST appear here.
+	foreach ( array( 'block', 'throttle', 'pass', 'bypass', 'killswitch', 'degraded', 'failopen' ) as $d ) {
 		echo '<span class="sn-pill">' . esc_html( $d ) . ' '
 			. esc_html( number_format_i18n( (int) ( $kpis['breakdown'][ $d ] ?? 0 ) ) ) . '</span> ';
 	}

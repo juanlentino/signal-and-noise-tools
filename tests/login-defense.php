@@ -71,6 +71,18 @@ $k = sn_login_defense_kpis_from_rows( array(
 ok( $k['checked'] === 100 && $k['blocked'] === 30 && $k['block_rate'] === 30, 'KPIs: checked=100, blocked=30, rate=30%' );
 ok( sn_login_defense_kpis_from_rows( array() )['block_rate'] === 0, 'KPIs: empty -> 0% (no divide-by-zero)' );
 
+// Worker v1.7.0: 'throttle' (per-IP POST rate limit) is a denial of a CHECKED
+// request — it joins the denominator, gets its own KPI key, and dilutes the
+// block rate (30 blocked of 125 checked = 24%).
+$k = sn_login_defense_kpis_from_rows( array(
+	array( 'decision' => 'block', 'hits' => 30 ),
+	array( 'decision' => 'pass', 'hits' => 70 ),
+	array( 'decision' => 'throttle', 'hits' => 25 ),
+) );
+ok( $k['checked'] === 125 && $k['throttled'] === 25 && $k['block_rate'] === 24,
+	'KPIs: throttle joins checked (125), throttled=25, rate dilutes to 24%' );
+ok( sn_login_defense_kpis_from_rows( array() )['throttled'] === 0, 'KPIs: throttled defaults to 0' );
+
 $series = sn_login_defense_trend_series( array(
 	array( 'day' => '2026-06-20', 'blocked' => 5, 'passed' => 1 ),
 	array( 'day' => '2026-06-21', 'blocked' => 9, 'passed' => 2 ),

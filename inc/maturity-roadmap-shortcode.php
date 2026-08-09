@@ -165,6 +165,7 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Spend watched like uptime: build minutes and AI budget as health signals with the same honesty — "unknown" when it does not know, and owner-only where the number is private', 'signal-and-noise-tools' ),
 				__( 'Restore proof, not backup existence: a periodic check that a backup actually restores, closing the gap between having backups and having recovery', 'signal-and-noise-tools' ),
 				__( 'Configuration drift: the settings surface snapshotted and diffed over time, so a changed switch or threshold is a logged event instead of a mystery', 'signal-and-noise-tools' ),
+				__( 'Defense numbers: the login door\'s own gauges, owner-only — how often the guard failed open rather than blocked, and the unchecked address share measured against a threshold written down before the query, so the number triggers the decision instead of reopening the argument', 'signal-and-noise-tools' ),
 			),
 		),
 	);
