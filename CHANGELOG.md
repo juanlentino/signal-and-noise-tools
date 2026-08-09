@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.73.0] - 2026-08-09 — the board gains a fourth column: Later
+
+**Headline:** the maturity roadmap's commitment gradient grows an honest tail — Done / Planned / Considering / **Later** — and twelve research-vetted rows seed it.
+
+### The column (inc/maturity-roadmap-shortcode.php, assets/maturity-roadmap-front.css)
+
+`later` joins the status whitelist, the door validator, the legend (subline: *vetted, not yet weighed*), the header badges, and the fold machinery (summary "%d later"). Semantics: Later is the vetted intake — researched, culled, wanted, not yet actively weighed — and items move LEFT as they mature (later → considering → planned → done). Considering's meaning is untouched. Visually it extends the gradient: dotted badge at lower opacity, cell opacity .58, same 185px column floor. A stored three-column override stays valid (missing key renders as the honest em-dash), so the live option keeps rendering until the post-install door write.
+
+### The seeds (12 rows from the 2026-08-09 research workflow, adversarially verified)
+
+Every family gets 1-2: injection self-sweep + registry-listed read door (AI); verified-versus-claimed crawler signatures (Analytics); lexical-spine upgrade + readability fingerprint (ML); journey checks (Operations); markdown-with-rights-headers + the European conformance mapping (Machine readability); transparency-log countersigning + authorship credentials (Proof of origin); reduced-motion scan + public accessibility self-assessment (Accessibility).
+
+### DR-floor sync rides this release (the corrected rule in action)
+
+The six door rows from earlier today (four gated planned promotions + two considering) sync into the static board HERE, on a release that exists for a real reason — no release was cut for the door writes themselves.
+
+### Pins
+
+Statuses array pins four; 28 cells (7×4); 20 folds (7 planned + 6 considering + 7 later); 1 board em-dash (a11y considering); filter-omission em-dashes 2 → 3.
+
+> **Why MINOR:** a new user-visible board column + expanded door vocabulary (a `later` key is now writable through roadmap_board). Full 403-file sweep green.
+
 ## [10.72.1] - 2026-08-09 — two Operations rows graduate to Planned, with their prep written down
 
 **Headline:** "Spend watched like uptime" (the owner's #1 pick-few) and "Defense numbers" moved considering → planned through the roadmap_board door, each with its gate named in the row prose; the static DR board resyncs in-release (zero drift), and each row gets an implementation-prep doc so the build session starts warm.

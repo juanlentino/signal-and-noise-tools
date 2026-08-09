@@ -54,7 +54,7 @@ echo "[sn_maturity_roadmap] — the hub-wide roadmap BOARD\n\n";
 
 // Registration + statuses whitelist.
 ok( isset( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] ), 'shortcode registered' );
-ok( array( 'done', 'planned', 'considering' ) === SN_MATURITY_ROADMAP_STATUSES, 'exactly the three roadmap statuses, in walk order' );
+ok( array( 'done', 'planned', 'considering', 'later' ) === SN_MATURITY_ROADMAP_STATUSES, 'exactly the four roadmap statuses, in walk order (v10.73.0 adds later)' );
 
 // Default render: wide wrapper, board table, status header badges, stylesheet.
 $html = call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] );
@@ -72,7 +72,7 @@ foreach ( $families as $family ) {
 	ok( false !== strpos( $html, '>' . $family . '</td>' ), "the '$family' family has a board row" );
 }
 ok( 7 === substr_count( $html, 'sn-maturity-roadmap-board__family"' ), 'exactly seven family rows' );
-ok( 21 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7×3 status cells' );
+ok( 28 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7×4 status cells (v10.73.0: the later column)' );
 
 // Empty cells render the honest em-dash (ops planned, and a11y
 // considering — emptied when both its ideas graduated to planned) — a
@@ -94,7 +94,7 @@ ok( false !== strpos( $html, 'sn-maturity-roadmap-badge__n' ), 'header badges ca
 // fold per cell, summaries carrying their counts. 7 families × up to 2
 // future cells, minus the 2 empties = 12 folds on the static board.
 ok( false === strpos( $html, 'cell--done" data-label="Done"><details' ), 'a done cell never folds' );
-ok( 13 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (13 on this board, v10.72.1)' );
+ok( 20 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (20 on this board, v10.73.0: 7 planned + 6 considering + 7 later)' );
 
 // v10.71.1: no sentence may appear in two columns of the same family.
 // The static floor had the agent threat model in BOTH 'done' and
@@ -145,7 +145,7 @@ $html2 = call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] );
 ok( false !== strpos( $html2, 'Custom &lt;script&gt;' ) && false === strpos( $html2, '<script>' ), 'filtered items render escaped — markup never survives' );
 ok( false !== strpos( $html2, 'Family &lt;b&gt;' ), 'the family label is escaped too' );
 ok( false === strpos( $html2, 'Never rendered' ) && false === strpos( $html2, 'bogus' ), 'a status outside the whitelist never renders' );
-ok( 2 === substr_count( $html2, 'sn-maturity-roadmap-board__empty' ), 'the statuses the filter omitted render as honest em-dashes, not collapsed cells' );
+ok( 3 === substr_count( $html2, 'sn-maturity-roadmap-board__empty' ), 'the statuses the filter omitted render as honest em-dashes, not collapsed cells (3 of 4 omitted, v10.73.0)' );
 remove_all_filters( 'sn_maturity_roadmap_board' );
 
 /* ── Board-as-data: the option override (written only by sn_apply's
