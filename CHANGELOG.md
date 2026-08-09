@@ -2,6 +2,24 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.72.0] - 2026-08-09 — the Login-defense panel sees the throttle
+
+**Headline:** worker v1.7.0 added a per-IP POST rate limit to the login door; this release makes the panel show it — and closes a pill-list gap that had hidden `degraded` for its whole life.
+
+### KPIs (inc/login-defense.php)
+
+`sn_login_defense_kpis_from_rows()` now returns `throttled` and counts throttled POSTs in `checked`: a throttled request was denylist-evaluated (passed) and then rate-limited, so it belongs in the denominator. `block_rate` stays denylist-hits-only and dilutes accordingly. The Overview strip gains a **Throttled** card (sub: rate-limited).
+
+### The pill-list lesson (inc/login-defense-analytics.php)
+
+The decisions breakdown was a hand-maintained list (`block, pass, bypass, killswitch, failopen`) — which meant the worker's `degraded` decision (corrupted denylist enforcing nothing, v1.4.0) never had a pill: the panel's whole job is making silent states visible, and the list itself was silently under-covering. Both `throttle` and `degraded` are added, with a comment pinning the rule: every decision the worker can emit MUST appear here.
+
+### Tests
+
++5 assertions across tests/login-defense.php and tests/login-defense-analytics.php (throttle-in-denominator math, Throttled card, throttle + degraded pills). Full 403-file sweep green.
+
+> **Why MINOR:** new user-visible dashboard capability (Throttled KPI + two pills). No schema or API changes; the AE decisions SQL was already decision-generic.
+
 ## [10.71.2] - 2026-08-09 — the machine-readability strip gains the terms vocabulary
 
 **Headline:** v10.71.0 added four rights coverage rows and got the set right as of when it was written. `/ns/tdm` went live 23 minutes before that PR merged, so the strip walked five rights surfaces where six exist.

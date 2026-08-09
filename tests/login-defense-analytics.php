@@ -44,11 +44,13 @@ require __DIR__ . '/../inc/login-defense-analytics.php';
 
 // --- B1: KPI cards -----------------------------------------------------------
 ob_start();
-sn_login_defense_render_kpi_cards( array( 'checked' => 100, 'blocked' => 30, 'block_rate' => 30, 'networks' => 4 ) );
+sn_login_defense_render_kpi_cards( array( 'checked' => 100, 'blocked' => 30, 'block_rate' => 30, 'networks' => 4, 'throttled' => 12 ) );
 $h = ob_get_clean();
 ok( strpos( $h, 'sn-kpi' ) !== false && strpos( $h, '30%' ) !== false && strpos( $h, 'Block rate' ) !== false,
 	'KPI cards render login labels + values' );
 ok( strpos( $h, 'sn-kpi-delta' ) !== false, 'KPI cards include the delta slot (parity with the shared cards)' );
+ok( strpos( $h, 'Throttled' ) !== false && strpos( $h, '12' ) !== false,
+	'KPI cards include the Throttled count (worker v1.7.0 rate limit)' );
 // D5 §5: the KPI loop routes through the shared snt_an_kpi_row() primitive —
 // byte-identical markup (label/value classes were already this shape), so this
 // just pins that the primitive's own class vocabulary is what's on the page.
@@ -160,6 +162,11 @@ ok( strpos( $hd, 'postbox sn-overview' ) !== false && strpos( $hd, 'sn-an-breakd
 // v9.81.0: the worker's 'failopen' decision (guard errored, let the request
 // through) gets its own breakdown pill — a failing-open guard must be visible.
 ok( strpos( $hd, '>failopen ' ) !== false, 'header: the failopen decision has its own breakdown pill' );
+// Worker v1.7.0 ('throttle') + v1.4.0 ('degraded' — was silently missing from
+// the hand-maintained pill list): every decision the worker can emit gets a
+// pill, so no denial or degradation mode is invisible on the panel.
+ok( strpos( $hd, '>throttle ' ) !== false, 'header: the throttle decision has its own breakdown pill' );
+ok( strpos( $hd, '>degraded ' ) !== false, 'header: the degraded decision has its own breakdown pill' );
 foreach ( array( 'block', 'pass', 'bypass', 'killswitch' ) as $sn_lg_d ) {
 	ok( strpos( $hd, '>' . $sn_lg_d . ' ' ) !== false, "header: the $sn_lg_d decision pill survives" );
 }

@@ -88,10 +88,14 @@ function sn_login_defense_kpis_from_rows( $rows ) {
 	foreach ( (array) $rows as $r ) {
 		$by[ (string) ( $r['decision'] ?? '' ) ] = (int) ( $r['hits'] ?? 0 );
 	}
-	$blocked = $by['block'] ?? 0;
-	$checked = $blocked + ( $by['pass'] ?? 0 );
-	$rate    = $checked > 0 ? (int) round( $blocked / $checked * 100 ) : 0;
-	return array( 'checked' => $checked, 'blocked' => $blocked, 'block_rate' => $rate, 'breakdown' => $by );
+	$blocked   = $by['block'] ?? 0;
+	// Worker v1.7.0: a throttled POST was checked (denylist-evaluated, passed)
+	// and then rate-limited, so it belongs in the denominator; block_rate stays
+	// blocked/checked (denylist hits only) and dilutes accordingly.
+	$throttled = $by['throttle'] ?? 0;
+	$checked   = $blocked + $throttled + ( $by['pass'] ?? 0 );
+	$rate      = $checked > 0 ? (int) round( $blocked / $checked * 100 ) : 0;
+	return array( 'checked' => $checked, 'blocked' => $blocked, 'throttled' => $throttled, 'block_rate' => $rate, 'breakdown' => $by );
 }
 
 /**
