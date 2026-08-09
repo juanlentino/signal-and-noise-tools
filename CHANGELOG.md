@@ -2,6 +2,26 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.71.2] - 2026-08-09 — the machine-readability strip gains the terms vocabulary
+
+**Headline:** v10.71.0 added four rights coverage rows and got the set right as of when it was written. `/ns/tdm` went live 23 minutes before that PR merged, so the strip walked five rights surfaces where six exist.
+
+### The row
+
+`'vocabulary' => Terms vocabulary, live`, seated after **Rights policy** so the strip follows the same encounter order the layer walk does: reservation → signal → licence → policy → the vocabulary that policy's machine representation depends on.
+
+### Why it is a row and not a footnote
+
+The ODRL representation of the policy declares a locally defined `sn:` prefix and uses ten terms from it — three of them purpose values (`sn:ai-train` and friends) that carry the actual permissions. Until today that prefix resolved to a 404.
+
+A vocabulary that does not resolve is the difference between linked data and a URI that merely looks like one, and the reserved layer's own prose already promises "linked data for a machine that asks". Folding the vocabulary into the **Rights policy** row would state the promise and hide whether it is kept — which is the failure mode this whole rights arc has been about.
+
+### Not changed
+
+The reserved layer's narrative prose, and the walk order. Both are correct as written; the strip was the only place with a gap. [tests/maturity-family.php](tests/maturity-family.php) pins the row and the count at ten.
+
+> **Why PATCH:** one coverage row for a surface that was already live. No new capability, no behaviour change.
+
 ## [10.71.1] - 2026-08-09 — the roadmap's disaster-recovery floor was three releases behind
 
 **Headline:** board rows move through the write door, which writes an option. `sn_maturity_roadmap_static_board()` in [inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php) is not touched by that path, and its own docblock calls it "the versioned default and the disaster-recovery floor." Every door write had been silently widening the gap. Four rows out of sync, and one of them wrong in a way that is worse than merely stale.

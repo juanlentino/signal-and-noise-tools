@@ -94,10 +94,10 @@ ok( false !== strpos( $m_full, 'Can machines know the terms?' ), 'the rights lay
 // own eighth principle ("a format nobody can verify is decoration").
 ok( false !== strpos( $m_full, 'no declared AI-training crawler has' ), 'the rights layer publishes its measured result, not just its existence' );
 $m_scope = sn_machine_maturity_scope();
-foreach ( array( 'reservation', 'signal', 'licence', 'policy' ) as $row ) {
+foreach ( array( 'reservation', 'signal', 'licence', 'policy', 'vocabulary' ) as $row ) {
 	ok( isset( $m_scope[ $row ] ) && 'live' === $m_scope[ $row ][1], "coverage carries the $row row, live" );
 }
-ok( 9 === count( $m_scope ), 'nine coverage rows (five original + the four rights surfaces)' );
+ok( 10 === count( $m_scope ), 'ten coverage rows (five original + the four rights surfaces + the terms vocabulary, v10.71.2)' );
 // The layer list is ALSO stated as prose in two other places; both drift
 // silently, so both are pinned to mention the terms.
 ok( false !== strpos( sn_machine_maturity_shortcode( array( 'format' => 'compact' ) ), 'the terms on every response' ), 'the compact blurb names the terms too' );
