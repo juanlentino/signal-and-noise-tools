@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.71.1] - 2026-08-09 — the roadmap's disaster-recovery floor was three releases behind
+
+**Headline:** board rows move through the write door, which writes an option. `sn_maturity_roadmap_static_board()` in [inc/maturity-roadmap-shortcode.php](inc/maturity-roadmap-shortcode.php) is not touched by that path, and its own docblock calls it "the versioned default and the disaster-recovery floor." Every door write had been silently widening the gap. Four rows out of sync, and one of them wrong in a way that is worse than merely stale.
+
+### What the floor said
+
+- **The public stats page still sat in `planned`.** It shipped in v10.65.0 and is `done` on the live board.
+- **The agent threat model was listed in BOTH `done` and `considering`.** It graduated on 2026-08-08 and was retired from the `considering` column of the override — but the retirement never reached here, so the floor proposed as an idea the thing it claimed as shipped one column to the left. That is not a stale row; it is a row that contradicts its own neighbour.
+- Two rows added by later door writes were absent entirely (the Analytics public-stats `done` wording, and the Machine readability live-read row from [10.71.0]).
+
+All four resynced. The static board is now byte-identical to the published one.
+
+### Why it went unnoticed for three releases
+
+Nothing can compare the two. The override lives in an option; the CLI test fixtures have no database, so CI physically cannot see the published board to diff against. And the floor only renders on the day the option is lost or invalid — which is precisely the day nobody wants to discover it is a release behind.
+
+The same shape as everything else in this run: a surface that is only wrong when it is finally load-bearing, and untestable from the place you would think to look. See also the origin-vs-edge Content-Signal split in [10.70.1].
+
+### The guard that was possible
+
+A duplicate check, which is the one part of this that *is* mechanically detectable without a database: **no sentence may appear in two columns of one family.** An item moves; it is never copied. Pinned in [tests/maturity-roadmap-shortcode.php](tests/maturity-roadmap-shortcode.php), and it names the offending family and both columns when it fires.
+
+The sync itself has no automatic guard and cannot have one from CI. The rule is written at the array instead: a door write that moves a row is not finished until the same move lands in the static board, in the next release.
+
+Fold and em-dash count pins updated (11 → 12 folds, 3 → 2 empty cells) — Machine readability's `planned` column is no longer empty.
+
+> **Why PATCH:** a data correction to a fallback that does not render while the override is valid. No behaviour change, no new capability, no schema change.
+
 ## [10.71.0] - 2026-08-09 — the page about how machines read this site never mentioned the terms
 
 **Headline:** the rights stack shipped today — TDM reservation, Content-Signal, `license.xml` as RSL, a versioned policy, and an ODRL/TDMRep representation — and appeared nowhere on [/maturity/machine-readability/](inc/machine-maturity-page.php), which walked five layers and mapped five coverage rows, none of them the terms. The page whose subject is how machines read this site said nothing about the layer telling machines what they may do with what they read.

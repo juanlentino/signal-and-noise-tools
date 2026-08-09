@@ -50,6 +50,26 @@ const SN_MATURITY_ROADMAP_MAX_LABEL_LEN = 80;
  * nothing. This is the versioned default and the fallback whenever no
  * valid override option exists.
  *
+ * KEEP THIS IN SYNC WITH THE OVERRIDE. Board rows move through the
+ * write door, which writes an option — this array is not touched by
+ * that path, so every door write silently widens the gap between what
+ * the public page says and what this floor would say if the option
+ * were ever lost. It is a floor nobody looks at until the day it is
+ * the only thing rendering, which is the worst day to discover it is
+ * a release behind.
+ *
+ * v10.71.1 resynced four rows after that gap ran for three releases:
+ * the public stats page still sat in 'planned' after shipping in
+ * v10.65.0, and the agent threat model was listed in BOTH 'done' and
+ * 'considering' — the graduated row was retired from the override and
+ * left standing here, so the floor proposed as an idea the thing it
+ * claimed as shipped one column to the left.
+ *
+ * The rule this earns: a door write that moves a row is not finished
+ * until the same move lands here, in the next release. There is no
+ * automatic comparator — nothing in CI can see the option, because the
+ * CLI fixtures have no database.
+ *
  * @return array<string,array<string,string[]>>
  */
 function sn_maturity_roadmap_static_board() {
@@ -57,9 +77,9 @@ function sn_maturity_roadmap_static_board() {
 		__( 'Analytics', 'signal-and-noise-tools' )           => array(
 			'done'        => array(
 				__( 'First-party, cookieless measurement at the edge, with rollups, integrity-checked denominators, insights, and a weekly prose digest', 'signal-and-noise-tools' ),
+				__( 'A public stats page: the site\'s aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'A public stats page: the site\'s aggregate numbers published for readers, reusing the existing rollups read-only — no new collection', 'signal-and-noise-tools' ),
 				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
@@ -94,7 +114,6 @@ function sn_maturity_roadmap_static_board() {
 			'considering' => array(
 				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),
 				__( 'Richer edit primitives beyond sentence scale — the drafting boundary stands regardless of what is explored here', 'signal-and-noise-tools' ),
-				__( 'A written threat model for any agent surface the page exposes: what a hostile paragraph could reach, before anything reachable can publish', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Machine learning', 'signal-and-noise-tools' )    => array(
@@ -114,7 +133,9 @@ function sn_maturity_roadmap_static_board() {
 			'done'        => array(
 				__( 'A crawler manifest in the site\'s own words, structured data on every surface, and machine-readable rights declarations', 'signal-and-noise-tools' ),
 			),
-			'planned'     => array(),
+			'planned'     => array(
+				__( 'The rights-read count published on the machine-readability page itself, read from the crawler ledger at render — once that read can be served from state the site already holds, so a reader\'s page never waits on a sensor call', 'signal-and-noise-tools' ),
+			),
 			'considering' => array(
 				__( 'Provenance pointers in the machine surfaces, so an agent that reads the site can also verify it', 'signal-and-noise-tools' ),
 				__( 'An in-page tool surface for verification: the page offers an agent the calls to check a signature and its anchor, so verifying travels with the content instead of waiting for anyone to adopt an API', 'signal-and-noise-tools' ),
