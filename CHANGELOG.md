@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.70.1] - 2026-08-09 — the origin and the edge stated different rights terms
+
+**Headline:** found while fixing the rights-signal stack in `sn-rights-signals` (worker v1.7.0). Not on the list I was given; reporting rather than fixing quietly.
+
+### The divergence
+
+`inc/rest-hardening-policy.php` defined `SN_TDM_CONTENT_SIGNAL` as `search=yes, ai-train=no, ai-input=yes` — spaced, three terms. The edge worker publishes `search=yes,ai-train=no,ai-input=yes,use=reference` — unspaced, four. Two sources of truth for one header, stating different things.
+
+**Why nothing caught it.** The worker `set()`s `Content-Signal` on every response, `/wp-json` included, so the origin's value is overwritten and never observed in production. Every probe that could have noticed — including this plugin's own rights-signals health check in [inc/health-check-rights-signals.php](inc/health-check-rights-signals.php) — reads the **live URL**, and the live URL answers with the worker's value. The origin's value was untested by construction, not by oversight: there was no vantage point from which it was visible.
+
+That is the same shape as the success-only cache trap. The question to ask of any probe is *if the thing I am diagnosing broke, would this number move?* Here it could not: the probe and the defect were on opposite sides of an overwrite.
+
+**Why it matters despite being invisible.** The origin value is load-bearing exactly when the worker is not in the path — a route change, a disabled worker, a direct-to-origin request. That is the moment this header becomes the only statement of the site's position, and the worst possible moment for it to state a different one.
+
+### Fixed
+
+- **`SN_TDM_CONTENT_SIGNAL` is now byte-identical to the edge constant** ([inc/rest-hardening-policy.php](inc/rest-hardening-policy.php)), with a comment recording why the two must move together. Still a `defined()`-guarded constant and still refinable through `snt_rest_hardening_policy`.
+
+- **[tests/rest-hardening.php](tests/rest-hardening.php) pins it by value**, not by "contains ai-train=no". A containment assertion would have stayed green through the entire divergence — both strings contain `ai-train=no`.
+
+- **[docs/REST-HARDENING.md](docs/REST-HARDENING.md)** records the origin-vs-edge relationship, and marks `use=reference` as the non-normative local extension it is.
+
+### Note on `use=reference`
+
+It is not in the Cloudflare Content Signals vocabulary. It is carried at the origin so the two layers cannot disagree, and disclaimed where a reader actually meets it — a dedicated block in robots.txt, and §3 plus the appendix of the TDM policy. Nothing depends on it; a parser may ignore it without loss.
+
+> **Why PATCH:** a value correction to an existing header. No new capability, no API change, no action required of anyone.
+
 ## [10.70.0] - 2026-08-08 — the cost ledger learns what a cached token costs
 
 **Headline:** a prerequisite, not a saving. This changes no number today, and it has to be in place before prompt caching is ever switched on.

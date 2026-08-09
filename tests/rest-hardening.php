@@ -215,9 +215,15 @@ rh_check(
 	isset( $map['TDM-Policy'] ) && 'https://juanlentino.com/tdm-policy/' === $map['TDM-Policy'][1],
 	'tdm: TDM-Policy === https://juanlentino.com/tdm-policy/'
 );
+// v10.70.1: pinned BYTE-FOR-BYTE against the sn-rights-signals Worker's
+// CONTENT_SIGNAL constant, not merely "contains ai-train=no". The origin's
+// value is invisible in production (the Worker overwrites it on every
+// response, /wp-json included), so a value assertion here is the only place
+// origin-vs-edge divergence can be caught at all — and it diverged silently
+// for seven releases before anyone looked.
 rh_check(
-	isset( $map['Content-Signal'] ) && 'search=yes, ai-train=no, ai-input=yes' === $map['Content-Signal'][1],
-	'tdm: Content-Signal === search=yes, ai-train=no, ai-input=yes'
+	isset( $map['Content-Signal'] ) && 'search=yes,ai-train=no,ai-input=yes,use=reference' === $map['Content-Signal'][1],
+	'tdm: Content-Signal is byte-identical to the edge value'
 );
 rh_check( true === $map['TDM-Reservation'][2], 'tdm: replace=true (no duplicate header on re-emit)' );
 

@@ -72,7 +72,7 @@ Every REST response now carries:
 ```
 TDM-Reservation: 1
 TDM-Policy: https://juanlentino.com/tdm-policy/
-Content-Signal: search=yes, ai-train=no, ai-input=yes
+Content-Signal: search=yes,ai-train=no,ai-input=yes,use=reference
 ```
 
 `Content-Signal` (added v10.34.0) is the TDMRep / Content Signals grammar: index
@@ -80,6 +80,24 @@ allowed, no model training, retrieval-augmented answering allowed. All three
 values are `defined()`-guarded constants (`SN_TDM_RESERVATION`,
 `SN_TDM_POLICY_URL`, `SN_TDM_CONTENT_SIGNAL`) — overridable in wp-config, still
 refinable via the `snt_rest_hardening_policy` filter.
+
+**`use=reference` is a non-normative local extension**, not part of the
+Cloudflare Content Signals vocabulary. Nothing depends on it and a parser may
+ignore it; it is disclaimed in robots.txt and in the TDM policy.
+
+**Origin vs edge (v10.70.1).** The `sn-rights-signals` Worker `set()`s this same
+header on every response, `/wp-json` included, so in production the origin's
+value is overwritten and never observed. It had silently diverged — the origin
+said `search=yes, ai-train=no, ai-input=yes` (spaced, three terms) while the
+edge published the four-term unspaced string above. Nothing caught it because
+every probe, including this plugin's rights-signals health check, reads the live
+URL and therefore reads the Worker's value.
+
+The origin value matters exactly when the Worker is *not* in the path — a route
+change, a disabled Worker, a direct-to-origin request — which is the worst
+possible moment for it to state different terms. The two are now byte-identical
+and pinned by value in `tests/rest-hardening.php`. **Change both in the same
+release.**
 
 **A correction to the original premise.** These were not "HTML only". Measured
 against production on 2026-07-28, before any change:
