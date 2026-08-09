@@ -18,6 +18,10 @@ The decisions breakdown was a hand-maintained list (`block, pass, bypass, killsw
 
 +5 assertions across tests/login-defense.php and tests/login-defense-analytics.php (throttle-in-denominator math, Throttled card, throttle + degraded pills). Full 403-file sweep green.
 
+### Board sync (inc/maturity-roadmap-shortcode.php)
+
+The "Defense numbers" row (Operations, considering) went live through the roadmap_board door the same day; the static disaster-recovery board gains the same row in-release, so the DR floor ships at zero drift instead of trailing (the three-release drift lesson from the rights-layer graduation).
+
 > **Why MINOR:** new user-visible dashboard capability (Throttled KPI + two pills). No schema or API changes; the AE decisions SQL was already decision-generic.
 
 ## [10.71.2] - 2026-08-09 — the machine-readability strip gains the terms vocabulary
