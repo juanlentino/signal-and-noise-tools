@@ -74,11 +74,12 @@ foreach ( $families as $family ) {
 ok( 7 === substr_count( $html, 'sn-maturity-roadmap-board__family"' ), 'exactly seven family rows' );
 ok( 21 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7×3 status cells' );
 
-// Empty cells render the honest em-dash (machine-readability planned,
-// ops planned, and a11y considering — emptied when both its ideas
-// graduated to planned) — a family with no future tense is information,
-// not a gap.
-ok( 3 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly three empty cells render the em-dash' );
+// Empty cells render the honest em-dash (ops planned, and a11y
+// considering — emptied when both its ideas graduated to planned) — a
+// family with no future tense is information, not a gap. v10.71.1:
+// machine-readability planned is no longer empty; the live-read row
+// landed there when the static floor was resynced to the override.
+ok( 2 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly two empty cells render the em-dash' );
 
 // v10.63.0 "fold the future": the legend trio + counts + folds.
 $counts = sn_maturity_roadmap_counts( sn_maturity_roadmap_effective_board() );
@@ -93,7 +94,28 @@ ok( false !== strpos( $html, 'sn-maturity-roadmap-badge__n' ), 'header badges ca
 // fold per cell, summaries carrying their counts. 7 families × up to 2
 // future cells, minus the 2 empties = 12 folds on the static board.
 ok( false === strpos( $html, 'cell--done" data-label="Done"><details' ), 'a done cell never folds' );
-ok( 11 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (11 on this board)' );
+ok( 12 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (12 on this board)' );
+
+// v10.71.1: no sentence may appear in two columns of the same family.
+// The static floor had the agent threat model in BOTH 'done' and
+// 'considering' — the row graduated, was retired from the override, and
+// was left standing here, so the floor proposed as an idea the thing it
+// claimed as shipped one column to the left. An item moves; it is never
+// copied. Checked on the RAW board, not the render, so the message can
+// name the offender.
+$dupes = array();
+foreach ( sn_maturity_roadmap_static_board() as $family => $columns ) {
+	$seen = array();
+	foreach ( SN_MATURITY_ROADMAP_STATUSES as $status ) {
+		foreach ( ( $columns[ $status ] ?? array() ) as $item ) {
+			if ( isset( $seen[ $item ] ) ) {
+				$dupes[] = $family . ': "' . substr( $item, 0, 60 ) . '…" in both ' . $seen[ $item ] . ' and ' . $status;
+			}
+			$seen[ $item ] = $status;
+		}
+	}
+}
+ok( array() === $dupes, 'no item sits in two columns of one family — a row moves, it is never copied' . ( $dupes ? ' — FOUND: ' . implode( '; ', $dupes ) : '' ) );
 ok( false !== strpos( $html, '3 considering</summary>' ), "a fold summary carries its item count" );
 ok( substr_count( $html, 'sn-maturity-roadmap-fold__glyph' ) === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every fold has its glyph, aria-hidden decoration only' );
 
