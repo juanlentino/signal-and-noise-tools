@@ -2,8 +2,20 @@
 /**
  * Signal & Noise — the machine-readability explainer ([sn_machine_maturity]).
  * Fourth maturity sibling: how MACHINES read this site — the crawler manifest,
- * structured data, feeds, provenance-stamped artifacts, and bounded agent
- * access, all at the design level. Same idioms as inc/ai-maturity-page.php:
+ * the rights terms, structured data, feeds, provenance-stamped artifacts, and
+ * bounded agent access, all at the design level.
+ *
+ * LAYER ORDER (v10.71.0, the 'reserved' layer): the walk is ordered by WHEN IN
+ * THE ENCOUNTER a machine meets the layer, not by how weighty the layer is.
+ * The reservation is an HTTP response header, so it arrives with the first
+ * byte of the first response, and the content signal rides the crawler
+ * manifest — conventionally a crawler's first fetch. A machine therefore meets
+ * the terms at discovery time, before it has parsed anything, which puts
+ * 'reserved' at position 2, directly after 'indexed'. Appending it last would
+ * have seated it beside 'agents' and implied the terms bind agents only —
+ * the opposite of a reservation that rides every response.
+ *
+ * Same idioms as inc/ai-maturity-page.php:
  * whitelisted format attr, render-time-only stylesheet, STATIC, escaped at
  * build, returns never echoes, scope map behind a filter.
  *
@@ -22,6 +34,7 @@ const SN_MACHINE_MATURITY_STATUSES = array( 'live', 'planned', 'never' );
 function sn_machine_maturity_layers() {
 	return array(
 		'indexed'    => array( __( 'Indexed', 'signal-and-noise-tools' ), __( 'Can machines find it?', 'signal-and-noise-tools' ), __( 'Sitemaps, feeds, and an AI-crawler manifest at the site root name what exists and what matters, in formats built for readers that are not people', 'signal-and-noise-tools' ) ),
+		'reserved'   => array( __( 'Reserved', 'signal-and-noise-tools' ), __( 'Can machines know the terms?', 'signal-and-noise-tools' ), __( 'A machine-readable reservation rides every response and the crawler manifest carries the same signal, both pointing at one versioned policy that states the conditions in plain language, as a licence file, and as linked data for a machine that asks. The site counts who reads them, and so far no declared AI-training crawler has', 'signal-and-noise-tools' ) ),
 		'structured' => array( __( 'Structured', 'signal-and-noise-tools' ), __( 'Can machines parse it?', 'signal-and-noise-tools' ), __( 'Structured data rides every meaningful page - articles, the music catalog, route metadata - so a machine parses what the page says instead of guessing at it', 'signal-and-noise-tools' ) ),
 		'summarized' => array( __( 'Summarized', 'signal-and-noise-tools' ), __( 'Can machines answer from it?', 'signal-and-noise-tools' ), __( 'The manifest carries the site\'s own machine-readable summary and its recent notes, so an answer engine can quote this site\'s framing rather than reconstruct it', 'signal-and-noise-tools' ) ),
 		'stamped'    => array( __( 'Stamped', 'signal-and-noise-tools' ), __( 'Can machines trust what they took?', 'signal-and-noise-tools' ), __( 'Artifacts that leave the site keep a way home: share-card images carry an embedded provenance stamp, and notes carry signed records any reader can verify', 'signal-and-noise-tools' ) ),
@@ -32,11 +45,15 @@ function sn_machine_maturity_layers() {
 /** @return array<string,array{0:string,1:string}> */
 function sn_machine_maturity_scope() {
 	$scope = array(
-		'manifest' => array( __( 'AI-crawler manifest', 'signal-and-noise-tools' ), 'live' ),
-		'schema'   => array( __( 'Structured data', 'signal-and-noise-tools' ), 'live' ),
-		'feeds'    => array( __( 'Feeds', 'signal-and-noise-tools' ), 'live' ),
-		'cards'    => array( __( 'Stamped share cards', 'signal-and-noise-tools' ), 'live' ),
-		'agents'   => array( __( 'Agent door', 'signal-and-noise-tools' ), 'live' ),
+		'manifest'    => array( __( 'AI-crawler manifest', 'signal-and-noise-tools' ), 'live' ),
+		'reservation' => array( __( 'TDM reservation', 'signal-and-noise-tools' ), 'live' ),
+		'signal'      => array( __( 'Content signal', 'signal-and-noise-tools' ), 'live' ),
+		'licence'     => array( __( 'Licence file', 'signal-and-noise-tools' ), 'live' ),
+		'policy'      => array( __( 'Rights policy', 'signal-and-noise-tools' ), 'live' ),
+		'schema'      => array( __( 'Structured data', 'signal-and-noise-tools' ), 'live' ),
+		'feeds'       => array( __( 'Feeds', 'signal-and-noise-tools' ), 'live' ),
+		'cards'       => array( __( 'Stamped share cards', 'signal-and-noise-tools' ), 'live' ),
+		'agents'      => array( __( 'Agent door', 'signal-and-noise-tools' ), 'live' ),
 	);
 	return apply_filters( 'sn_machine_maturity_scope', $scope );
 }
@@ -58,7 +75,7 @@ function sn_machine_maturity_principles() {
 /** @return string */
 function sn_machine_maturity_intro_html() {
 	return '<h2>' . esc_html__( 'How machines read this site', 'signal-and-noise-tools' ) . '</h2>'
-		. '<p>' . esc_html__( 'Five layers, from being findable to being workable. Crawlers get a manifest written in the site\'s own words, parsers get structured data, answer engines get a summary to quote, anything that leaves carries its origin, and agents get a bounded door instead of a scrape.', 'signal-and-noise-tools' ) . '</p>';
+		. '<p>' . esc_html__( 'Six layers, from being findable to being workable. Crawlers get a manifest written in the site\'s own words, every response states the terms it is served under, parsers get structured data, answer engines get a summary to quote, anything that leaves carries its origin, and agents get a bounded door instead of a scrape.', 'signal-and-noise-tools' ) . '</p>';
 }
 
 /** @return string */
@@ -92,7 +109,7 @@ function sn_machine_maturity_scope_html() {
 
 /** @return string */
 function sn_machine_maturity_compact_html() {
-	$out = '<p class="sn-machine-maturity-compact-intro">' . esc_html__( 'Machines get this site in the site\'s own words: a crawler manifest, structured data, verifiable artifacts, and a bounded agent door.', 'signal-and-noise-tools' ) . '</p>'
+	$out = '<p class="sn-machine-maturity-compact-intro">' . esc_html__( 'Machines get this site in the site\'s own words: a crawler manifest, the terms on every response, structured data, verifiable artifacts, and a bounded agent door.', 'signal-and-noise-tools' ) . '</p>'
 		. '<div class="sn-machine-maturity-strip">';
 	foreach ( sn_machine_maturity_layers() as $slug => $l ) {
 		$out .= '<span class="sn-machine-maturity-badge sn-machine-maturity-badge--' . esc_attr( $slug ) . '">' . esc_html( $l[0] ) . '</span>';

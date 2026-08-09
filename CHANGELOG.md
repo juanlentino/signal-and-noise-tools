@@ -2,6 +2,50 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.71.0] - 2026-08-09 — the page about how machines read this site never mentioned the terms
+
+**Headline:** the rights stack shipped today — TDM reservation, Content-Signal, `license.xml` as RSL, a versioned policy, and an ODRL/TDMRep representation — and appeared nowhere on [/maturity/machine-readability/](inc/machine-maturity-page.php), which walked five layers and mapped five coverage rows, none of them the terms. The page whose subject is how machines read this site said nothing about the layer telling machines what they may do with what they read.
+
+### The sixth layer: `reserved`
+
+New layer, "Can machines know the terms?", seated at **position 2 — directly after `indexed`, not appended**.
+
+The walk is ordered by *when in the encounter* a machine meets a layer. `TDM-Reservation` is an HTTP response header, so it arrives with the first byte of the first response; `Content-Signal` rides the crawler manifest, conventionally a crawler's first fetch. A machine therefore meets the terms at discovery time, before it has parsed anything. Appending the layer last would have seated it beside `agents` and implied the terms bind agents only — the opposite of a reservation that rides every response. The order is pinned in [tests/maturity-family.php](tests/maturity-family.php) as an exact array, because the position *is* the argument.
+
+Four coverage rows added, all `live` and all verified against the live site before the badge was written: TDM reservation, Content signal, Licence file, Rights policy.
+
+### The measured zero rides with the badge
+
+The page's eighth principle is *"a format nobody can verify is decoration: every machine-facing claim has a way to check it."* The rights layer is the one surface where the check was built and returns zero, so publishing the badge without the zero would have broken the page's own stated rule. The layer's engine sentence ends: *"The site counts who reads them, and so far no declared AI-training crawler has."*
+
+**The figure is prose, not a live read, and that is a compromise rather than a design.** The crawler ledger is not readable at render time on a public page: the read is an authenticated outbound call to the analytics edge behind a 15-minute transient, so a cold cache would make a reader's page render wait on a network round-trip, and nothing warms that cache on a schedule — every existing caller is owner-triggered in wp-admin. [inc/public-stats.php](inc/public-stats.php), the only public surface that reads live numbers, deliberately reads local rollups for exactly this reason. A roadmap item now names the gate for closing this.
+
+### The stale-count sweep
+
+The layer list is stated as prose in three places that drift independently of the array. All three fixed, all three now pinned:
+
+- the intro sentence's hardcoded count (`Five layers` → `Six layers`);
+- the `compact` blurb's enumeration;
+- the `/maturity/` index card for this family in [inc/maturity-index-page.php](inc/maturity-index-page.php).
+
+The Machine readability *Done* line on the roadmap board already said "machine-readable rights declarations" and was accurate; it is untouched.
+
+### Roadmap board (data, not code — applied live through the write door)
+
+Machine readability gains one `planned` row naming the gate for the live read: *"the rights-read count published on the machine-readability page itself, read from the crawler ledger at render — once that read can be served from state the site already holds, so a reader's page never waits on a sensor call."* Board totals: Done 11, Planned 10 → **11**, Considering 17.
+
+The Analytics AI-attention row was already `planned` on the live board before this session; the audit that scoped this work had it as `considering`. Nothing was moved.
+
+### Content-side stale enumerations, also fixed
+
+Three more copies of the same drifting list, none of them in code — all fixed through the write door and reported rather than folded in silently:
+
+- page 2042 excerpt and meta description (both enumerated the layers, both omitted the terms);
+- page 2034 (`/maturity/`) excerpt said the index maps "all six" families when there are eight cards, and its meta description named six of the eight by hand. Both rewritten to stop counting, so neither can drift again.
+
+### Not fixed here, reported instead
+
+**`/llms.txt` contradicts the other three statements of the terms.** Its `## Rights` section says the RSL licence permits *"AI training permitted with attribution"*, while `Content-Signal` and the TDM reservation both say `ai-train=no`. Three surfaces, two positions. Same shape as the [10.70.1] divergence, one layer up. Lives in the theme (`inc/llms-txt.php`), so it is not this release's to fix.
 ## [10.70.2] - 2026-08-09 — the Edge sensor card said "read live" and was up to 15 minutes old
 
 **Headline:** cost me real time today. The rights-signals Worker deployed at 18:12 UTC; a minute later the Machine Readers tab still read `v1.6.1` from yesterday, under a caption saying it was read live. The value was correct for when it was fetched. Only the label was wrong — and a wrong label on a stale number is indistinguishable from a failed deploy.
