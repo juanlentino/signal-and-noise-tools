@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.74.0] - 2026-08-09 — the Defense gauges land: fail-open visibility + the IPv6 criterion, live
+
+**Headline:** the "Defense numbers" planned row ships — the login door's two owner-only gauges on the Login-defense view, each proven to move by synthetic-failure fixtures, closing the arc worker v1.7.0 opened.
+
+### The gauges (inc/login-defense-gauges.php, new module)
+
+- **Fail-open visibility (7d, follows the range control):** `failopen` + `degraded` counted per day and totaled — both "the door was open" states in one query so neither can hide. Healthy renders as an explicit "0 fail-opens, 0 degraded reads"; absence of failure is a claim, never an omission.
+- **IPv6 share vs the pre-committed criterion (pinned 30d):** blob8 family split, share = v6 over the COMPLETE denominator (unknown families included — unparseable is still attacker-reachable). Crossing the 5% line renders the decision it triggers ("build 128-bit denylist ranges"), so the number makes the call instead of reopening the argument. `SN_LG_IPV6_THRESHOLD_PCT` mirrors the worker's `ipFamily()` docblock — change both or neither.
+- **Zero-vs-null honesty:** `sn_analytics_query()` null (failure) renders "unknown"; empty array renders measured zeros. A fetch failure can never impersonate a healthy read.
+
+### The gate, satisfied (tests/login-defense-gauges.php, 19 assertions)
+
+Synthetic failure rows move both gauges (0→4 fail-opens; below→crossed at 20%), stated honestly: a real fail-open cannot be fired on demand, so the fixture is the substitute. Plus SQL pins, reducer math, and a mount guard (a module rendering perfectly but mounted nowhere is the admin-registry lesson).
+
+### Graduation, step 1 (inc/ops-maturity-page.php)
+
+The Operations scope map gains `defense → Login-door defense gauges, live` in the same release, per the runbook. Steps 2-3 after install: board row Planned → Done through the door; floor resync rides the next release.
+
+### DR floor sync rides this release (12 rows)
+
+The 11 cross-family thread clauses and the chips Later row land in the static board (inc/maturity-roadmap-shortcode.php) — the option and the floor are identical again.
+
+> **Why MINOR:** new user-visible dashboard capability (the gauges panel) + a new scope row. Full sweep green (404 fixtures now).
+
 ## [10.73.1] - 2026-08-09 — the legend learns to count to four
 
 **Headline:** v10.73.0's legend grid was hardcoded `repeat(3,1fr)`, so the new Later cell wrapped onto an orphan row with a field of dead white space — owner-caught on the live page minutes after install.

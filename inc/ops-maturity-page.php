@@ -38,6 +38,7 @@ function sn_ops_maturity_scope() {
 		'narration' => array( __( 'Overnight narration', 'signal-and-noise-tools' ), 'live' ),
 		'janitor'   => array( __( 'Never-silent housekeeping', 'signal-and-noise-tools' ), 'live' ),
 		'gates'     => array( __( 'Release gates', 'signal-and-noise-tools' ), 'live' ),
+		'defense'   => array( __( 'Login-door defense gauges', 'signal-and-noise-tools' ), 'live' ),
 	);
 	return apply_filters( 'sn_ops_maturity_scope', $scope );
 }
