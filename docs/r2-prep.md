@@ -20,7 +20,7 @@ is ~80–100 turns and ≤10M effective.
 
 | Session | Rows | Why grouped |
 |---|---|---|
-| **2A** | Extend signing + anchoring beyond notes | Largest by far; touches the ledger and the Worker. Own session. |
+| **2A** | Extend signing + anchoring beyond notes | Largest by far. **Recon says FOUR repos and a manual Worker deploy — see below; this is two sessions, not one, and it starts in `sn-provenance-worker`, not here.** |
 | **2B** | AI-attention digest section + AI-referred humans as a channel | **One arc in practice.** Both need the same answer to "what host counts as an AI assistant" — building that vocabulary twice guarantees they drift. |
 | **2C** | Contrast at the token level (report only) + extend the deterministic layer | Two small, independent rows. |
 
@@ -60,10 +60,50 @@ content hash over the file, which is a different pipeline, not a wider query.
 **Strong recommendation: split this row — pages in R2, media deferred with a
 named gate.** Do not let a `post_type` array make it look like one job.
 
-**Also verify before building:** does the ledger's record path
-(`notes/<uid>/v<n>.json`) still make sense for a page? The Worker and the ledger
-repo both encode `notes/` in the path, and `prov-verify-core.js` builds it
-client-side (`ledgerRecordUrl`). A page signed into `notes/` is a lie in a URL.
+### RECON DONE 2026-08-10 — the ordering is WORKER FIRST, and it is not optional
+
+Verified against the running code, not inferred. **The plugin cannot extend
+signing to pages by itself, and a plugin-only attempt is actively destructive.**
+
+- The dispatch payload is `{canonical, content_hash, note_uid, version}`
+  (`inc/provenance-webhook.php` ~line 86). **It carries no subject type at all.**
+- The Worker builds the path itself — `sn-provenance-worker/src/index.mjs:84`,
+  `` `notes/${msg.note_uid}/v${msg.version}` `` — and stamps `kind: "note"` into
+  the queue entry at line 132.
+
+So widening the plugin's `'post' !== $post->post_type` gate does not extend
+signing. It signs **pages into `notes/`**, into an append-only git ledger with a
+Bitcoin anchor. There is no un-writing that. The one-line change is not merely
+the wrong first move; it is the wrong move in any order.
+
+**The precedent already exists.** `sn-provenance-worker/src/rights-signals.mjs:82`
+writes `kind: "rights-signal"` with its own path base. A second subject kind is
+something this Worker already models — it just is not reachable from the note
+dispatch. The change is to accept the kind from the payload rather than assume it.
+
+**Four surfaces, in this order. Do not start at the plugin.**
+
+1. **Worker** (`sn-provenance-worker`) — accept an optional subject kind, build
+   the path from it, default to `note` when absent so the currently installed
+   plugin keeps working unchanged. **Deploys MANUALLY** — only the analytics
+   worker auto-deploys from main, so this lands as a PR and the owner runs it.
+2. **Plugin** — send the kind; widen the post-type gate only once the Worker in
+   production accepts it. A version probe before widening, not a hope.
+3. **Verify JS** — `prov-verify-core.js`'s `ledgerRecordUrl()` builds
+   `notes/<uid>/v<n>.json` client-side. A page verifies against the wrong URL
+   until this learns the kind too.
+4. **Ledger tooling** — `signal-and-noise-provenance`'s `ledger-records.mjs` and
+   the verify scripts assume `notes/`.
+
+**Identity model, decided:** keep ONE UUID namespace (`_sn_prov_uid`) across
+subject types and let the *path* carry the kind. Two namespaces would make
+`sn_prov_post_by_uid()` ambiguous, which is the trap the original note named;
+one namespace plus a kind-qualified path keeps the resolver total.
+
+**Media stays out of R2.** Named gate: media is signable once there is a content
+hash over the *file bytes*. The current signature covers normalized prose
+([[prov-signature-covers-normalized-prose]]) and has nothing to say about a
+JPEG — a `post_type` array cannot paper over that.
 
 **Tests must pin:** a page is signed and reconciles; a post still signs
 identically (no regression); a UID resolves to exactly one subject across both
