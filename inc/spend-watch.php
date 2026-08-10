@@ -84,6 +84,36 @@ function sn_spend_gh_usage_normalize( $data ) {
 }
 
 /**
+ * Parse the ENHANCED billing usage report (the endpoint fine-grained PATs
+ * can read: /users/{u}/settings/billing/usage, verified against the live
+ * REST docs 2026-08-09). Usage only — the plan's included-minutes quota is
+ * NOT reported here, so the caller must never pair this number with an
+ * invented "of 3,000". Missing usageItems = unknown (null); an empty list
+ * is a measured zero. Only Actions minute items count; netAmount is the
+ * platform's own billed-dollars figure and is reported verbatim.
+ *
+ * @param mixed $data Decoded usage-report JSON.
+ * @return array{used:int, billed:float}|null
+ */
+function sn_spend_gh_report_minutes( $data ) {
+	if ( ! is_array( $data ) || ! isset( $data['usageItems'] ) || ! is_array( $data['usageItems'] ) ) {
+		return null;
+	}
+	$used   = 0.0;
+	$billed = 0.0;
+	foreach ( $data['usageItems'] as $item ) {
+		$product = strtolower( (string) ( $item['product'] ?? '' ) );
+		$unit    = strtolower( (string) ( $item['unitType'] ?? '' ) );
+		if ( false === strpos( $product, 'actions' ) || false === strpos( $unit, 'minute' ) ) {
+			continue;
+		}
+		$used   += (float) ( $item['quantity'] ?? 0 );
+		$billed += (float) ( $item['netAmount'] ?? 0 );
+	}
+	return array( 'used' => (int) round( $used ), 'billed' => round( $billed, 2 ) );
+}
+
+/**
  * Fetch (cached) account-wide Actions minutes. Snapshot shape:
  * {ok:bool, used?, included?, pct?} — ok=false caches SHORT so a retry can
  * tell a recorded failure from never-fetched.
@@ -113,7 +143,28 @@ function sn_spend_gh_usage() {
 	if ( ! is_wp_error( $res ) && 200 === wp_remote_retrieve_response_code( $res ) ) {
 		$norm = sn_spend_gh_usage_normalize( json_decode( (string) wp_remote_retrieve_body( $res ), true ) );
 		if ( null !== $norm ) {
-			$snap = array( 'ok' => true ) + $norm;
+			$snap = array( 'ok' => true, 'src' => 'plan' ) + $norm;
+		}
+	}
+	// v10.75.2: the legacy plan endpoint rejects fine-grained PATs. Fall back
+	// to the enhanced usage report (fine-grained-readable, month-scoped).
+	if ( ! $snap['ok'] ) {
+		$res2 = wp_safe_remote_get(
+			'https://api.github.com/users/' . rawurlencode( sn_spend_gh_login() ) . '/settings/billing/usage?year=' . gmdate( 'Y' ) . '&month=' . gmdate( 'n' ),
+			array(
+				'headers'     => array(
+					'Authorization' => 'Bearer ' . sn_spend_gh_token(),
+					'Accept'        => 'application/vnd.github+json',
+				),
+				'timeout'     => 6,
+				'redirection' => 0,
+			)
+		);
+		if ( ! is_wp_error( $res2 ) && 200 === wp_remote_retrieve_response_code( $res2 ) ) {
+			$report = sn_spend_gh_report_minutes( json_decode( (string) wp_remote_retrieve_body( $res2 ), true ) );
+			if ( null !== $report ) {
+				$snap = array( 'ok' => true, 'src' => 'usage' ) + $report;
+			}
 		}
 	}
 	set_transient( SN_SPEND_GH_TRANSIENT, $snap, $snap['ok'] ? SN_SPEND_TTL_OK : SN_SPEND_TTL_FAIL );
@@ -225,7 +276,18 @@ function sn_spend_watch_health_section() {
 	}
 	$html = '<div class="sn-aw-spend"><p class="sn-aw-trend-l">' . esc_html__( 'Spend', 'signal-and-noise-tools' ) . '</p>';
 	if ( null !== $gh ) {
-		if ( ! empty( $gh['ok'] ) ) {
+		if ( ! empty( $gh['ok'] ) && 'usage' === ( $gh['src'] ?? '' ) ) {
+			// Enhanced-report source: usage only — the plan quota is not
+			// reported by this endpoint, so no "of N" is ever shown.
+			$html .= '<p>' . esc_html(
+				sprintf(
+					/* translators: 1: minutes used, 2: billed dollars */
+					__( 'Actions minutes used (account, month to date): %1$s — $%2$s billed', 'signal-and-noise-tools' ),
+					number_format_i18n( (int) $gh['used'] ),
+					number_format( (float) $gh['billed'], 2 )
+				)
+			) . '</p>';
+		} elseif ( ! empty( $gh['ok'] ) ) {
 			$pct   = null === $gh['pct'] ? '' : ' — ' . (int) $gh['pct'] . '%';
 			$html .= '<p>' . esc_html(
 				sprintf(
