@@ -38,7 +38,9 @@ function delete_transient( $k ) { unset( $GLOBALS['__transients'][ $k ] ); retur
 
 // HTTP stub: preset response per host substring; null = WP_Error.
 $GLOBALS['__http'] = array();
+$GLOBALS['__http_fn'] = null;
 function wp_safe_remote_get( $url, $args = array() ) {
+	if ( $GLOBALS['__http_fn'] ) { return call_user_func( $GLOBALS['__http_fn'], $url ); }
 	foreach ( $GLOBALS['__http'] as $needle => $resp ) {
 		if ( false !== strpos( $url, $needle ) ) { return $resp; }
 	}
@@ -60,9 +62,11 @@ ok( null === sn_spend_gh_usage_normalize( array( 'total_minutes_used' => 10, 'in
 	'GH normalizer: included=0 yields pct null (no divide-by-zero, no invented percent)' );
 
 // --- AI amount walker --------------------------------------------------------
+// The cost report's documented unit is CENTS ("decimal strings in lowest
+// units") — the walker converts to dollars exactly once, at the sum.
 ok( 12.34 === sn_spend_ai_sum_amounts( array( 'data' => array(
-	array( 'results' => array( array( 'amount' => '10.00' ), array( 'amount' => 2.34 ) ) ),
-) ) ), 'AI walker: sums every reported amount across the response (12.34)' );
+	array( 'results' => array( array( 'amount' => '1000' ), array( 'amount' => 234 ) ) ),
+) ) ), 'AI walker: sums reported cent amounts and converts to dollars (1234c -> 12.34)' );
 ok( null === sn_spend_ai_sum_amounts( array( 'data' => array( array( 'results' => array() ) ) ) ),
 	'AI walker: a response with no amounts is unknown, not $0.00' );
 
@@ -95,7 +99,7 @@ $GLOBALS['__transients'] = array();
 $GLOBALS['__opts']['sn_spend_ai_admin_key'] = 'sk-ant-admin-test';
 $GLOBALS['__http']['api.anthropic.com']     = array(
 	'response' => array( 'code' => 200 ),
-	'body'     => json_encode( array( 'data' => array( array( 'results' => array( array( 'amount' => '7.50' ) ) ) ) ) ),
+	'body'     => json_encode( array( 'data' => array( array( 'results' => array( array( 'amount' => '750' ) ) ) ), 'has_more' => false ) ),
 );
 $GLOBALS['__http']['api.github.com'] = array(
 	'response' => array( 'code' => 200 ),
@@ -103,6 +107,29 @@ $GLOBALS['__http']['api.github.com'] = array(
 );
 $a = sn_spend_watch_health_section();
 ok( strpos( $a, '7.50' ) !== false, 'AI spend renders the platform-reported month figure (7.50)' );
+
+// Pagination: has_more pages must ALL be summed — a single-page read of a
+// month silently under-counts (the endpoint buckets daily).
+$GLOBALS['__transients'] = array();
+$GLOBALS['__page'] = 0;
+$GLOBALS['__http'] = array();
+function sn_test_paged_response( $url ) {
+	$GLOBALS['__page']++;
+	if ( false !== strpos( $url, 'page=' ) ) {
+		return array( 'response' => array( 'code' => 200 ), 'body' => json_encode( array(
+			'data' => array( array( 'results' => array( array( 'amount' => '50' ) ) ) ), 'has_more' => false,
+		) ) );
+	}
+	return array( 'response' => array( 'code' => 200 ), 'body' => json_encode( array(
+		'data' => array( array( 'results' => array( array( 'amount' => '100' ) ) ) ),
+		'has_more' => true, 'next_page' => 'page_xyz',
+	) ) );
+}
+$GLOBALS['__http_fn'] = 'sn_test_paged_response';
+$paged = sn_spend_ai_cost();
+ok( true === $paged['ok'] && 1.50 === $paged['total'],
+	'AI cost follows next_page and sums all pages (100c + 50c = $1.50)' );
+$GLOBALS['__http_fn'] = null;
 
 // --- save handler contract (mirrors the Better Stack idiom) ------------------
 $GLOBALS['__opts'] = array();

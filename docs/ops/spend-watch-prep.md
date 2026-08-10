@@ -36,6 +36,7 @@ are different answers.
 
 ## Signal 2: AI budget
 
+- **VERIFIED 2026-08-09 (first live read):** the cost report's `amount` fields are **decimal strings in CENTS** ("lowest units" per the docs) — the first render showed $12,038.82 for a real $120.39. Convert once at the sum. The endpoint **paginates** (`has_more`/`next_page`, daily buckets): sum every page or report unknown — a partial sum must not impersonate the month.
 - The live total is **owner-only; do NOT estimate it.** The v9.59.0 cost
   premise was measured 2–5× overstated — estimates here have already been
   wrong once. If the platform total is not readable server-side, the tile says
