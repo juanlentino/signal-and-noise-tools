@@ -205,6 +205,13 @@ function sn_login_defense_render_body() {
 
 	$days = sn_login_defense_resolve_days();
 
+	// Defense gauges (v10.74.0): fail-open visibility + the IPv6 criterion.
+	// function_exists guard keeps the standalone fixtures isolated (the
+	// sibling fixture requires this file without the gauges module).
+	if ( function_exists( 'sn_login_defense_render_gauges' ) ) {
+		sn_login_defense_render_gauges( $days );
+	}
+
 	$asn  = sn_analytics_query( sn_login_defense_top_asn_sql( $days, 10 ) ) ?: array();
 	$ctry = sn_analytics_query( sn_login_defense_top_country_sql( $days, 10 ) ) ?: array();
 	sn_login_defense_render_top_table(

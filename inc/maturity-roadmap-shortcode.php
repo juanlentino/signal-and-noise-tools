@@ -80,16 +80,16 @@ function sn_maturity_roadmap_static_board() {
 				__( 'A public stats page: the site\'s aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection', 'signal-and-noise-tools' ),
+				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" without ever profiling a reader', 'signal-and-noise-tools' ),
 				__( 'Search-side metrics from Search Console: the queries, impressions, and positions that happen before the click — a trailing complement to the first-party view, never a second opinion on it', 'signal-and-noise-tools' ),
 				__( 'AI-referred humans as a channel: visits that arrive from an assistant\'s answer counted as their own aggregate segment in the rollups — a reader an AI sent is a different signal than a reader search sent, and lumping them hides the shift', 'signal-and-noise-tools' ),
-				__( 'Give-back ratio per crawler: the ledger\'s crawl counts set against that operator\'s referred human visits — so the page that says who reads by machine also says which machines ever send a reader back', 'signal-and-noise-tools' ),
+				__( 'Give-back ratio per crawler: the ledger\'s crawl counts set against that operator\'s referred human visits — so the page that says who reads by machine also says which machines ever send a reader back — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
-				__( 'Verified versus claimed: crawler request signatures checked at the edge and recorded in the ledger — so the attention story can separate cryptographic fact from a user-agent costume', 'signal-and-noise-tools' ),
+				__( 'Verified versus claimed: crawler request signatures checked at the edge and recorded in the ledger — so the attention story can separate cryptographic fact from a user-agent costume — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Proof of origin', 'signal-and-noise-tools' )     => array(
@@ -103,11 +103,11 @@ function sn_maturity_roadmap_static_board() {
 			'considering' => array(
 				__( 'A standalone verifier anyone can run outside the site — "don\'t trust the site\'s own button" made literal', 'signal-and-noise-tools' ),
 				__( 'A second, independent anchor: a standards-based timestamp authority alongside Bitcoin, so the chain\'s integrity never rests on a single mechanism\'s longevity', 'signal-and-noise-tools' ),
-				__( 'Provenance for the software itself: signed releases for the code that signs the content — the verifier argument applied one layer down', 'signal-and-noise-tools' ),
+				__( 'Provenance for the software itself: signed releases for the code that signs the content — the verifier argument applied one layer down — a thread shared with Operations', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'A second witness that names the author: each note\'s chain head countersigned into a public transparency log — an independent record binding the proof to an identity, not just a moment', 'signal-and-noise-tools' ),
-				__( 'Authorship as a credential: each note carrying a standard verifiable credential of authorship in its structured data — the claim stated in a shared vocabulary instead of a house dialect', 'signal-and-noise-tools' ),
+				__( 'Authorship as a credential: each note carrying a standard verifiable credential of authorship in its structured data — the claim stated in a shared vocabulary instead of a house dialect — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'AI', 'signal-and-noise-tools' )                  => array(
@@ -126,8 +126,9 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Richer edit primitives beyond sentence scale — the drafting boundary stands regardless of what is explored here', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
-				__( 'Injection self-sweep: every machine surface the site publishes — the crawler manifest, structured data, the board itself, the doors\' own descriptions — linted for instruction-shaped text before it ships, so a site that treats prose as data can prove its own prose is clean', 'signal-and-noise-tools' ),
+				__( 'Injection self-sweep: every machine surface the site publishes — the crawler manifest, structured data, the board itself, the doors\' own descriptions — linted for instruction-shaped text before it ships, so a site that treats prose as data can prove its own prose is clean — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				__( 'A registry-listed read door: the read-only door published in the standard agent registry under a name this domain verifiably owns — so agents discover it by lookup instead of by reading a page written for humans', 'signal-and-noise-tools' ),
+				__( 'Cross-family threads made visible: rows that span families carry their partners as chips, so the board shows the weave, not just the columns', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Machine learning', 'signal-and-noise-tools' )    => array(
@@ -152,14 +153,14 @@ function sn_maturity_roadmap_static_board() {
 				__( 'A crawler manifest in the site\'s own words, structured data on every surface, and machine-readable rights declarations', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'The rights-read count published on the machine-readability page itself, read from the crawler ledger at render — once that read can be served from state the site already holds, so a reader\'s page never waits on a sensor call', 'signal-and-noise-tools' ),
+				__( 'The rights-read count published on the machine-readability page itself, read from the crawler ledger at render — once that read can be served from state the site already holds, so a reader\'s page never waits on a sensor call — a thread shared with Analytics', 'signal-and-noise-tools' ),
 				__( 'Speak the coming standard: publish the usage-preference header and robots rule the day the internet standards body finalizes them, with a parity sweep proving every rights dialect the site speaks states the same reservation — one policy, never a family of drifting translations', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
-				__( 'Provenance pointers in the machine surfaces, so an agent that reads the site can also verify it', 'signal-and-noise-tools' ),
-				__( 'An in-page tool surface for verification: the page offers an agent the calls to check a signature and its anchor, so verifying travels with the content instead of waiting for anyone to adopt an API', 'signal-and-noise-tools' ),
+				__( 'Provenance pointers in the machine surfaces, so an agent that reads the site can also verify it — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
+				__( 'An in-page tool surface for verification: the page offers an agent the calls to check a signature and its anchor, so verifying travels with the content instead of waiting for anyone to adopt an API — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
 				__( 'The corpus schema published as a machine surface: tier, number, and relation stated by the author rather than inferred by whatever reads the page', 'signal-and-noise-tools' ),
-				__( 'Google\'s own crawl and robots reports set against the site\'s crawler ledger — the declarer\'s account cross-examined by the edge\'s, and the edge\'s by the declarer\'s', 'signal-and-noise-tools' ),
+				__( 'Google\'s own crawl and robots reports set against the site\'s crawler ledger — the declarer\'s account cross-examined by the edge\'s, and the edge\'s by the declarer\'s — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'Markdown at the agent door: agent-negotiated markdown served with the site\'s rights headers attached to every converted response — the declaration travels with the token-cheap copy, not just the page', 'signal-and-noise-tools' ),
@@ -175,7 +176,7 @@ function sn_maturity_roadmap_static_board() {
 				__( 'An accessible treatment for third-party embeds', 'signal-and-noise-tools' ),
 				__( 'Contrast audited at the token level: every palette pairing the templates actually use, checked from computed styles so an inline override cannot hide — landing report-first, findings published before any fix ships', 'signal-and-noise-tools' ),
 				__( 'Alt-text quality, not just coverage: flagging the present-but-useless kind — filename echoes, caption duplicates — with every fix passing the same human acceptance as the coverage sweep', 'signal-and-noise-tools' ),
-				__( 'Charts that speak: every chart on the public stats page ships a screen-reader-navigable table twin and a one-paragraph prose summary — so the numbers are readable without eyes, not just visible — landing as a retrofit on the page already live', 'signal-and-noise-tools' ),
+				__( 'Charts that speak: every chart on the public stats page ships a screen-reader-navigable table twin and a one-paragraph prose summary — so the numbers are readable without eyes, not just visible — landing as a retrofit on the page already live — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(),
 			'later'       => array(
