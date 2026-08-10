@@ -16,12 +16,16 @@ and ≤10M effective. Split:
 |---|---|---|
 | **1A** | Alt-text coverage (inline SVG) + alt-text quality | **DONE** — landed un-versioned |
 | **1B** | Key history with a future + draft-time echoes | **DONE** — carried the v10.77.0 bump |
-| **—** | Third-party embeds | **BLOCKED — owner design decision, see below** |
+| **—** | Third-party embeds | **UNBLOCKED** — decided as (b), the facade pattern; unscheduled, see below |
+
+**Next release:** [r2-prep.md](r2-prep.md) — R2's gate ("key history with a
+future" before signing extends beyond notes) was cleared by 1B, so nothing in R2
+is waiting.
 
 ### R1 status: shipped as v10.77.0, one thing left
 
-Four of five R1 rows are in. What remains is **board graduation**, which is not
-code and needs an owner decision:
+Four of five R1 rows are in; the fifth is unblocked but unscheduled. What remains
+is **board graduation**, which is not code and needs an owner decision:
 
 1. Badge flip (code) — which family pages claim these as live.
 2. The board row through the door (data, a live write that **replaces the entire
@@ -152,7 +156,44 @@ non-editing request.
 
 ---
 
-## BLOCKED — third-party embeds (owner decision)
+## DECIDED — third-party embeds: **(b), the facade pattern**
+
+> Owner delegated the call 2026-08-10 ("whatever is best in general and
+> particular"). Decision: **(b)** — a static accessible card that links out, with
+> the third-party embed loaded only on explicit reader request.
+>
+> **In general:** (b) is the only option that fixes accessibility *and*
+> performance, and it is the established pattern (`lite-youtube-embed` and kin).
+> (a) leaves the inaccessible iframe in place and decorates it. (c) makes
+> correctness depend on an author remembering — the exact failure mode every
+> health check in this repo exists to catch.
+>
+> **In particular:** a site that publishes a TDM policy, honours GPC, ships
+> rights signals and excludes its owner from its own analytics should not hand a
+> third party the reader's fingerprint before the reader has asked to watch
+> anything. No third-party request until intent is the same argument this site
+> already makes everywhere else. It also protects the performance budget and
+> keeps a `frame-src 'none'` CSP reachable (CSP is Worker-owned, not here).
+>
+> **Recon that informed it:** the plugin has NO embed rendering logic at all —
+> the single `oembed` reference is a comment excluding the oembed cache post type
+> from corpus walks — and there is no `frame-src` anywhere in this repo. So the
+> forward rule is cheap; the cost is entirely migration of existing posts.
+>
+> **STEP ONE IS A COUNT, NOT A BUILD.** How many published posts actually carry
+> an embed, and of which providers? A corpus scan for `wp-block-embed` /
+> `<iframe` decides whether this is a morning or an arc, and the answer changes
+> the plan but not the direction. Do not start with the facade component.
+>
+> **Open sub-questions for build time:** does the facade need a provider
+> allowlist (a card that links anywhere is a phishing surface)? Is the poster
+> image proxied or fetched from the provider — because fetching it re-introduces
+> the very tracking request the facade exists to avoid.
+>
+> Scheduling: belongs to the Accessibility family; can ride R2 or R3
+> ([r2-prep.md](r2-prep.md)).
+
+### The original framing, kept for the record
 
 The tier list says "design decision first". The decision, stated so it can be answered
 in one line:
