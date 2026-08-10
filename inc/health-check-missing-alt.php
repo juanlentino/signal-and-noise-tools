@@ -9,6 +9,19 @@
  * by the inc/health-checks.php orchestrator, which owns the shared
  * constants and sn_health_pack_check().
  *
+ * v10.77.0 widened the check from alt PRESENCE on <img> to accessible-name
+ * coverage plus alt QUALITY. Two things worth knowing before editing:
+ *
+ *   - The content query's pre-filter is load-bearing. It used to read
+ *     `post_content LIKE '%<img%'`, so a post whose only graphic was an inline
+ *     <svg> was never SELECTED and no parser change could have reported it.
+ *     Narrowing this filter again silently reintroduces that blind spot.
+ *   - The attachment passes are two SEPARATE queries on purpose. Merging them
+ *     into one relaxed query would spend the LIMIT budget for alt-less images
+ *     on healthy rows, shrinking coverage on a large media library.
+ *
+ * Parsing and quality verdicts live in inc/health-alt-quality.php.
+ *
  * @package SignalNoiseTools
  */
 
@@ -18,9 +31,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /* ─────────────────────────────────────────────────────────────────────
  * CHECK 1: missing alt text
- * Two passes:
+ * Four passes:
  *   a. image attachments where _wp_attachment_image_alt is empty
  *   b. inline <img> tags in published post_content with no alt= attr
+ *   c. inline <svg> with no accessible name and no decorative marker (v10.77.0)
+ *   d. alt that EXISTS but says nothing -- filename echo, caption duplicate,
+ *      single word -- on both attachments and inline <img> (v10.77.0)
+ *
+ * Passes (c) and (d) are findings only. Like (a) and (b) they carry no fix:
+ * every applied change goes through the staged human-acceptance path.
  * ───────────────────────────────────────────────────────────────────── */
 function sn_health_check_missing_alt() {
 	global $wpdb;
@@ -51,27 +70,99 @@ function sn_health_check_missing_alt() {
 		}
 	}
 
-	// b) inline <img> tags without alt in published posts/pages.
+	// c) attachments that DO have alt, judged on quality rather than presence.
+	//    A separate query from (a) so each pass keeps its own LIMIT budget.
+	$alt_rows = $wpdb->get_results(
+		"SELECT p.ID, p.post_title, p.guid, p.post_excerpt, pm.meta_value
+		 FROM {$wpdb->posts} p
+		 INNER JOIN {$wpdb->postmeta} pm ON ( pm.post_id = p.ID AND pm.meta_key = '_wp_attachment_image_alt' )
+		 WHERE p.post_type = 'attachment'
+		   AND p.post_mime_type LIKE 'image/%'
+		   AND pm.meta_value != ''
+		 ORDER BY p.post_date DESC
+		 LIMIT 500",
+		ARRAY_A
+	);
+	if ( is_array( $alt_rows ) ) {
+		foreach ( $alt_rows as $r ) {
+			$problem = sn_health_alt_quality_problem(
+				(string) $r['meta_value'],
+				(string) $r['guid'],
+				(string) $r['post_excerpt']
+			);
+			if ( '' === $problem ) {
+				continue;
+			}
+			$findings[] = array(
+				'subject_type'   => 'attachment_alt_quality',
+				'subject_id'     => (int) $r['ID'],
+				'subject_url'    => (string) $r['guid'],
+				'subject_label'  => (string) $r['post_title'],
+				'edit_url'       => admin_url( 'post.php?post=' . (int) $r['ID'] . '&action=edit' ),
+				'quality_reason' => $problem,
+				'note'           => sn_health_alt_quality_note( $problem, (string) $r['meta_value'] ),
+			);
+		}
+	}
+
+	// b + c + d) one scan of published bodies. The pre-filter MUST admit <svg>
+	// or pass (c) below can never fire -- see the file header.
 	$content_rows = $wpdb->get_results(
 		"SELECT ID, post_title, post_content
 		 FROM {$wpdb->posts}
 		 WHERE post_status = 'publish'
 		   AND post_type IN ('post','page')
-		   AND post_content LIKE '%<img%'
+		   AND ( post_content LIKE '%<img%' OR post_content LIKE '%<svg%' )
 		 LIMIT 1000",
 		ARRAY_A
 	);
 	if ( is_array( $content_rows ) ) {
 		foreach ( $content_rows as $row ) {
-			$inline = sn_health_extract_inline_imgs_without_alt( (string) $row['post_content'] );
-			foreach ( $inline as $src ) {
+			$post_id   = (int) $row['ID'];
+			$title     = (string) $row['post_title'];
+			$edit_url  = admin_url( 'post.php?post=' . $post_id . '&action=edit' );
+			$content   = (string) $row['post_content'];
+
+			// b) inline <img> with no alt attribute at all.
+			foreach ( sn_health_extract_inline_imgs_without_alt( $content ) as $src ) {
 				$findings[] = array(
 					'subject_type'  => 'inline_img',
-					'subject_id'    => (int) $row['ID'],
+					'subject_id'    => $post_id,
 					'subject_url'   => $src,
-					'subject_label' => (string) $row['post_title'],
-					'edit_url'      => admin_url( 'post.php?post=' . (int) $row['ID'] . '&action=edit' ),
+					'subject_label' => $title,
+					'edit_url'      => $edit_url,
 					'note'          => 'Inline <img> in post body has no alt attribute.',
+				);
+			}
+
+			// c) inline <svg> with no accessible name. NOT an alt= problem:
+			//    <svg> has no alt attribute, so the fix is a child <title>,
+			//    aria-label, or aria-hidden="true" if it is decorative.
+			foreach ( sn_health_extract_inline_svgs_without_name( $content ) as $hint ) {
+				$findings[] = array(
+					'subject_type'  => 'inline_svg',
+					'subject_id'    => $post_id,
+					'subject_url'   => '',
+					'subject_label' => $title . ' — ' . $hint,
+					'edit_url'      => $edit_url,
+					'note'          => 'Inline <svg> has no accessible name. Add a direct-child <title>, or aria-label, or aria-hidden="true" if it is decorative. <svg> has no alt attribute.',
+				);
+			}
+
+			// d) inline <img> whose alt exists but says nothing.
+			foreach ( sn_health_extract_inline_imgs_with_alt( $content ) as $img ) {
+				$problem = sn_health_alt_quality_problem( $img['alt'], $img['src'], $img['caption'] );
+				if ( '' === $problem ) {
+					continue;
+				}
+				$findings[] = array(
+					'subject_type'   => 'inline_img_alt_quality',
+					'subject_id'     => $post_id,
+					'subject_url'    => $img['src'],
+					'subject_label'  => $title,
+					'edit_url'       => $edit_url,
+					'quality_reason' => $problem,
+					'note'           => sn_health_alt_quality_note( $problem, $img['alt'] ),
 				);
 			}
 		}
@@ -81,8 +172,31 @@ function sn_health_check_missing_alt() {
 		'count'    => count( $findings ),
 		'findings' => $findings,
 		'label'    => 'Missing alt text',
-		'fix_hint' => 'Open the editor and add a descriptive alt attribute to each image. Empty alt="" is valid only for purely decorative images.',
+		'fix_hint' => 'Open the editor and add a descriptive alt attribute to each image. Empty alt="" is valid only for purely decorative images. Inline <svg> takes a direct-child <title> or aria-label instead — it has no alt attribute. Alt that repeats the filename or the caption reads as noise to a screen reader.',
 	);
+}
+
+/**
+ * Human-readable note for a quality finding.
+ *
+ * States the problem only. The rewrite is a human decision routed through the
+ * staged-revision path, exactly like the coverage sweep's fixes.
+ *
+ * @param string $problem Reason code from sn_health_alt_quality_problem().
+ * @param string $alt     The offending alt text.
+ * @return string
+ */
+function sn_health_alt_quality_note( $problem, $alt ) {
+	$quoted = '"' . ( strlen( $alt ) > 80 ? substr( $alt, 0, 77 ) . '…' : $alt ) . '"';
+	switch ( $problem ) {
+		case 'filename_echo':
+			return 'Alt text ' . $quoted . ' repeats the image filename, which describes nothing to a screen reader.';
+		case 'caption_duplicate':
+			return 'Alt text ' . $quoted . ' duplicates the visible caption, so the description is announced twice.';
+		case 'single_word':
+			return 'Alt text ' . $quoted . ' is a single word — too little to describe a content image.';
+	}
+	return 'Alt text ' . $quoted . ' needs review.';
 }
 
 /**

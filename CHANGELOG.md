@@ -2,6 +2,73 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — R1, session 1A: the alt-text arc
+
+> Accumulating. R1 lands as one **minor** release (v10.77.0) once session 1B
+> (key history, draft-time echoes) is in; per `docs/r1-prep.md` the version
+> header is bumped once, on the last PR, so this section carries no version and
+> the plugin header still reads 10.76.0. 1B renames this heading.
+
+**Headline:** the missing-alt check measured alt *presence* on `<img>`. It could
+not see an inline `<svg>` at all, and it had nothing to say about alt that
+exists and describes nothing. Both gaps were invisible from the inside — the
+first because the finding was unreachable, the second because a populated field
+reads as a healthy one.
+
+### Added — inline-SVG accessible-name coverage
+
+- `inc/health-alt-quality.php` (new): pure string→verdict functions, no WordPress
+  and no database, so the whole surface is drivable from a test.
+- **`<svg>` has no `alt` attribute.** Its accessible name comes from a
+  **direct-child** `<title>`, or `aria-label` / `aria-labelledby`;
+  `aria-hidden="true"` or `role="presentation|none"` marks it decorative. Any
+  implementation that greps for `alt=` on an `<svg>` reports 100% failure, and
+  "fixing" one by adding `alt=""` is invalid markup that changes nothing for a
+  screen reader. `sn_health_svg_accessible_name_status()` is written against the
+  accessibility rule, not the `<img>` analogy.
+- The `<title>` test walks nesting depth rather than regexing for the tag
+  anywhere: a `<title>` inside a `<g>` or a sprite `<symbol>` names *that child*,
+  not the root, and accepting it would report a genuinely unnamed icon as healthy.
+
+### Fixed — the pre-filter that made the gap unreachable
+
+- The content query read `post_content LIKE '%<img%'`, so a post whose only
+  graphic is an inline `<svg>` was **never selected**. Extending the parser
+  without this would have shipped dead code. Now
+  `( post_content LIKE '%<img%' OR post_content LIKE '%<svg%' )`.
+- The regression is pinned by a `$wpdb` stub that **evaluates** the `LIKE`
+  clauses and their `AND`/`OR` joiner against the fixture corpus. A stub
+  returning a fixed row set would have passed no matter what the SQL said.
+  Verified by mutation: reverting the pre-filter reds the guard; joining with
+  `AND` reds four tests.
+
+### Added — alt quality, not just alt presence
+
+- `sn_health_alt_quality_problem()` flags the present-but-useless kinds:
+  **filename echo** (`hero-image-2.png`, and the de-hyphenated `hero image 2`,
+  with the WordPress `-1024x576` size suffix stripped before comparing),
+  **caption duplicate** (case- and punctuation-insensitive), and **single-word**
+  alt on a content image. Empty alt is *not* a quality verdict — that is the
+  coverage pass's business, decorative versus missing.
+- Findings only. Nothing here writes: every applied change routes through the
+  same staged human acceptance as the coverage sweep, and the suite asserts the
+  check performs no post or meta write of any kind.
+- Attachment coverage and attachment quality are **two separate queries**. One
+  relaxed query would have spent the `LIMIT 500` budget for alt-less images on
+  healthy rows, shrinking coverage on a large media library without any signal.
+
+### Fixed — a Suggest button that would have inverted on the new types
+
+`sn_health_render_suggest_cell()` routed `missing_alt` on a **binary**:
+`inline_img ? inline : attachment`. The three new subject types
+(`inline_svg`, `attachment_alt_quality`, `inline_img_alt_quality`) all carry a
+**post** id, and all three would have fallen into the `else` — emitting
+`data-attachment-id="<post id>"` and handing the vision-based alt suggester a
+post to look at. An allowlist is not a classifier; reused as a predicate it
+inverts on everything it never enumerated. Now routed by exact subject type,
+returning no button for the types with no AI suggest path (an SVG's fix is
+markup, and rewriting existing alt is a human decision).
+
 ## [10.76.0] - 2026-08-10 — the column that only grows
 
 **Headline:** `done` is the one roadmap column that never sheds a row, and since v10.63.0's "fold the future" it is the one left **open** while the future tenses fold. It was riding the same generic 12-item ceiling as every other column — and that ceiling's failure is *wholesale*: the roadmap write replaces the entire board, so the first family to overflow fails gate 2 and blocks **every** board edit, including the one that would fix it. The same validator guards the read path, so an over-cap override returns `null` and the public page silently reverts to the static floor. Found while sequencing the board's 47 forward rows; the board was at 4 done rows in one family with no signal that a wall existed.

@@ -172,6 +172,7 @@ function sn_health_last_scan() {
 // (verbatim, zero renames) under this thin orchestrator -- same pattern as
 // the analytics-render-*.php split. Shared constants above; the shared
 // sn_health_pack_check() helper below.
+require_once __DIR__ . '/health-alt-quality.php';
 require_once __DIR__ . '/health-check-missing-alt.php';
 require_once __DIR__ . '/health-check-orphaned-media.php';
 require_once __DIR__ . '/health-check-broken-links.php';
