@@ -30,6 +30,7 @@ if ( ! function_exists( 'snt_ml_pipelines' ) ) {
 			'link-candidates'  => 'snt_ml_pipeline_link_candidates',  // v10.17.0: unlinked related-note candidates (inc/ml-candidates.php).
 			'topic-clusters'   => 'snt_ml_pipeline_topic_clusters',   // v10.21.0: the stored topic partition (inc/ml-artifacts.php).
 			'cadence-flags'    => 'snt_ml_pipeline_cadence_flags',    // v10.22.0: publish + cron rhythm deviations (inc/ml-cadence.php).
+			'draft-echoes'     => 'snt_ml_pipeline_draft_echoes',     // v10.77.0: the notes one draft echoes (inc/ml-draft-echoes.php).
 		);
 		return apply_filters( 'snt_ml_pipelines', $pipelines );
 	}
@@ -158,6 +159,61 @@ if ( ! function_exists( 'snt_ml_pipeline_near_duplicates' ) ) {
 			? (float) $args['threshold']
 			: SNT_ML_COUSIN_THRESHOLD_DEFAULT;
 		return snt_ml_cousin_pairs( $threshold );
+	}
+}
+
+if ( ! function_exists( 'snt_ml_pipeline_draft_echoes' ) ) {
+	/**
+	 * 'draft-echoes' pipeline (v10.77.0): the existing notes a draft echoes.
+	 *
+	 * Thin argument gate over snt_ml_draft_echoes() (inc/ml-draft-echoes.php),
+	 * which owns the corpus walk, the self-exclusion, the threshold clamp and
+	 * the silence-beats-a-bad-match rule.
+	 *
+	 * Argument handling mirrors the sibling near-duplicates gate: a
+	 * non-numeric threshold falls back to the default rather than casting,
+	 * because (float) 'abc' is 0.0 and would clamp to 0.3 — a surprise
+	 * widening dressed up as a scan. `content` is passed through only when the
+	 * caller actually supplied a string: null means "read the saved body", and
+	 * an empty string is a REAL value meaning the editor is empty.
+	 *
+	 * @param array $args {
+	 *     @type int    $post_id   Draft being written; excluded from its own corpus.
+	 *     @type string $content   Optional editor body. Absent → read what is saved.
+	 *     @type float  $threshold Optional minimum cosine.
+	 *     @type int    $limit     Optional maximum echoes.
+	 * }
+	 * @return array|WP_Error
+	 */
+	function snt_ml_pipeline_draft_echoes( $args ) {
+		$args = (array) $args;
+		if ( ! function_exists( 'snt_ml_draft_echoes' ) ) {
+			return new WP_Error(
+				'snt_ml_unavailable',
+				'Draft-echo module (inc/ml-draft-echoes.php) is not loaded.',
+				array( 'status' => 500 )
+			);
+		}
+		$post_id = isset( $args['post_id'] ) ? (int) $args['post_id'] : 0;
+		if ( $post_id < 1 && ! array_key_exists( 'content', $args ) ) {
+			return new WP_Error(
+				'snt_ml_bad_request',
+				'Provide a post_id, content, or both.',
+				array( 'status' => 400 )
+			);
+		}
+		$threshold = isset( $args['threshold'] ) && is_numeric( $args['threshold'] )
+			? (float) $args['threshold']
+			: null;
+		$limit     = isset( $args['limit'] ) && is_numeric( $args['limit'] )
+			? (int) $args['limit']
+			: 3;
+		// array_key_exists, not isset: '' is a real body and null is not.
+		$content = array_key_exists( 'content', $args ) && is_string( $args['content'] )
+			? $args['content']
+			: null;
+
+		return snt_ml_draft_echoes( $post_id, $content, $threshold, $limit );
 	}
 }
 

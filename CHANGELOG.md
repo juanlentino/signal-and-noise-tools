@@ -2,12 +2,69 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — R1, session 1A: the alt-text arc
+## [10.77.0] - 2026-08-10 — R1: what a check can't see, what a key can't promise, what a draft can't remember
 
-> Accumulating. R1 lands as one **minor** release (v10.77.0) once session 1B
-> (key history, draft-time echoes) is in; per `docs/r1-prep.md` the version
-> header is bumped once, on the last PR, so this section carries no version and
-> the plugin header still reads 10.76.0. 1B renames this heading.
+Three surfaces that each looked healthy because the thing they were missing had
+no way to show up in them. Landed across two sessions (`docs/r1-prep.md`), one
+release.
+
+### Key history with a future (`inc/provenance-did.php`)
+
+`/.well-known/provenance-keys.json` published exactly one key, with no past and
+no future. Rotating it would have silently invalidated every anchor signed
+under the old key, because a verifier that cannot find a retired key's bytes
+cannot check a signature made with it.
+
+- **Schema v2** (`sn-provenance-keys-v2`). Retired keys are published with
+  `valid_from` / `valid_until` windows — a retired key is not deleted, it is
+  dated. The active key's `valid_until` is **present and null**, not absent:
+  "still in use" and "we forgot to say" are different claims, and `??` cannot
+  tell them apart.
+- **A commitment to the next key**, hashed. `sn_prov_rotation_reveal_matches()`
+  is the enforcement: a rotation is legitimate only if the newly revealed key
+  hashes to the value published while it was still secret.
+- **An honest limit, written down rather than papered over.** A sha256 digest
+  and an Ed25519 public key are both exactly 32 bytes, so hex-encoded both are
+  64 characters — for a key never seen before, no predicate can tell a
+  commitment from the key itself. `sn_prov_commitment_is_safe()` therefore
+  rejects what it *can* (base64 keys, non-canonical hex, the hex of any key we
+  already hold) and the scheme's real guarantee comes from comparing the reveal
+  **through** sha256, so a commitment holding key bytes can never validate its
+  own rotation. The test asserts the limit explicitly so nobody later mistakes
+  the absence of a check for the presence of a guarantee.
+- **Fixed a latent break in the live verifier.** `prov-verify-core.js` read
+  `keys[ 0 ].public_key_base64` — correct only while the array held one key. The
+  moment history sorted ahead of the active key, the verify page would have
+  compared the DID document against a **retired** key and shown a key mismatch on
+  a completely healthy site. It now selects by `status`, with an index-0 fallback
+  so v1 documents keep verifying unchanged. Pinned with a fixture that puts
+  history first on purpose.
+
+### Draft-time echoes (`inc/ml-draft-echoes.php`)
+
+The cousin scan answers "which pairs in the corpus are near-duplicates?" — an
+all-pairs question, asked from the Health tab, about work that already exists.
+The writer's question is the other way round: "what have I already written that
+this is close to?", asked while the draft is still a choice.
+
+- New `signal-noise/draft-echoes` ability (read-only, `manage_options`,
+  rate-gated) and a `draft-echoes` ML pipeline. **No new model** — same kernel,
+  same TF-IDF, same cosine. Nothing in the reader's browser, nothing on the
+  render path, no hooks registered at all.
+- **Silence beats a bad match.** Below threshold the answer is an empty list,
+  never the least-bad row in the corpus. A writer told that everything echoes
+  something stops reading the panel.
+- Default threshold **0.45**, below the 0.6 cousin bar, because a draft in
+  progress covers only part of the ground its finished twin covers. That is a
+  judgment rather than a measurement, so it is filterable and said so in the code.
+- **A correction to the plan:** the planning note assumed a draft is not in the
+  corpus. It is — `snt_corpus_fetch_posts( 'any', 'post' )` has always walked all
+  five non-trash statuses for pre-publish collision checking. The real gap was
+  the *shape and moment* of the surface, not the visibility of the draft. Which
+  means the draft would have matched **itself at cosine 1.0** and drowned every
+  real echo; self-exclusion is pinned as its own regression test.
+
+### The alt-text arc
 
 **Headline:** the missing-alt check measured alt *presence* on `<img>`. It could
 not see an inline `<svg>` at all, and it had nothing to say about alt that

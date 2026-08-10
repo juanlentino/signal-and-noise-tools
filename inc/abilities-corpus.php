@@ -69,6 +69,59 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
+	// ─── 1c. Draft-time echoes — v10.77.0 ───────────────────────────
+	wp_register_ability( 'signal-noise/draft-echoes', array(
+		'label'               => 'Find the existing notes a draft echoes',
+		'description'         => 'Scores ONE draft against the rest of the corpus and returns the existing notes it most overlaps, so the writer sees the overlap while changing course is still cheap. Same kernel as near-duplicate-scan (TF-IDF cosine over the same corpus walk), asked from the other direction: one document against many, rather than all pairs. The draft is excluded from its own comparison corpus. Below the threshold (clamped 0.3-0.95, default 0.45 — lower than the 0.6 cousin bar because a draft in progress covers only part of the ground its finished twin does) the answer is an EMPTY list, never the least-bad match. Pass content to score unsaved editor text; omit it to score the saved body. No caching, no writes, nothing on the reader-facing render path.',
+		'category'            => 'tools',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_corpus_draft_echoes',
+		'input_schema'        => array(
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(
+				'post_id'   => array( 'type' => 'integer', 'minimum' => 1 ),
+				'content'   => array( 'type' => 'string' ),
+				'threshold' => array(
+					'type'    => 'number',
+					'minimum' => 0.3,
+					'maximum' => 0.95,
+					'default' => 0.45,
+				),
+				// Literal bounds, like the sibling scan's 0.3/0.95 above: this
+				// file is a DOOR and must register without inc/ml-draft-echoes.php
+				// being loaded. Referencing SNT_ML_ECHO_MAX here fatals every
+				// suite that loads the abilities file alone. The impl clamps.
+				'limit'     => array(
+					'type'    => 'integer',
+					'minimum' => 1,
+					'maximum' => 5,
+					'default' => 3,
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'             => array( 'type' => 'boolean' ),
+				'echoes'         => array( 'type' => 'array' ),
+				'echo_count'     => array( 'type' => 'integer' ),
+				'threshold'      => array( 'type' => 'number' ),
+				'posts_compared' => array( 'type' => 'integer' ),
+				'reason'         => array( 'type' => 'string' ),
+				'scanned_at'     => array( 'type' => 'integer' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'    => true,
+				'destructive' => false,
+				'idempotent'  => true,
+			),
+		),
+	) );
+
 	// ─── 1b. Near-duplicate (cousin) scan — v10.16.0 ────────────────
 	wp_register_ability( 'signal-noise/near-duplicate-scan', array(
 		'label'               => 'Scan the corpus for near-duplicate (cousin) post pairs',
@@ -391,6 +444,49 @@ function snt_ability_corpus_near_duplicate_scan( $input ) {
 		$args['threshold'] = (float) $input['threshold']; // Clamp 0.3..0.95 lives in the impl.
 	}
 	return snt_ml_run( 'near-duplicates', $args );
+}
+
+/**
+ * Ability wrapper: routes through the ML pipeline registry to
+ * snt_ml_draft_echoes() (inc/ml-draft-echoes.php).
+ *
+ * Rate-gated like its sibling. This walk is O(n) rather than the cousin scan's
+ * O(n^2), but it is reachable from the post editor, which means it can be asked
+ * far more often than a human presses a Health-tab button — a keystroke-driven
+ * caller is exactly what an ungated corpus walk should not be behind.
+ *
+ * @param array|null $input Validated against input_schema above.
+ * @return array|WP_Error
+ *
+ * @since 10.77.0
+ */
+function snt_ability_corpus_draft_echoes( $input ) {
+	if ( ! function_exists( 'snt_ml_run' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'ML pipeline registry not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+	}
+	if ( function_exists( 'snt_ability_rate_gate' ) ) {
+		$gate = snt_ability_rate_gate( 'draft_echoes', 30, 60 );
+		if ( is_wp_error( $gate ) ) {
+			return $gate;
+		}
+	}
+	$args = array();
+	if ( is_array( $input ) ) {
+		if ( isset( $input['post_id'] ) ) {
+			$args['post_id'] = (int) $input['post_id'];
+		}
+		// array_key_exists: an empty editor is a real body, not an absent one.
+		if ( array_key_exists( 'content', $input ) && is_string( $input['content'] ) ) {
+			$args['content'] = $input['content'];
+		}
+		if ( isset( $input['threshold'] ) && is_numeric( $input['threshold'] ) ) {
+			$args['threshold'] = (float) $input['threshold'];
+		}
+		if ( isset( $input['limit'] ) && is_numeric( $input['limit'] ) ) {
+			$args['limit'] = (int) $input['limit'];
+		}
+	}
+	return snt_ml_run( 'draft-echoes', $args );
 }
 
 /**

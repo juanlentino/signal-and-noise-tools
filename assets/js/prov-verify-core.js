@@ -286,8 +286,8 @@
 			return { verdict: { state: STATE.FAIL, detail: 'Key corrupt: the did document\'s published key cannot be decoded.' } };
 		}
 
-		var siteKeyB64   = siteKeys && siteKeys.keys && siteKeys.keys[ 0 ] && siteKeys.keys[ 0 ].public_key_base64;
-		var ledgerKeyB64 = ledgerKeys && ledgerKeys.keys && ledgerKeys.keys[ 0 ] && ledgerKeys.keys[ 0 ].public_key_base64;
+		var siteKeyB64   = activeKeyB64( siteKeys );
+		var ledgerKeyB64 = activeKeyB64( ledgerKeys );
 		if ( siteKeyB64 ) {
 			var siteKeyBytes;
 			try {
@@ -442,6 +442,34 @@
 	/** Real ledger record path: notes/<uid>/v<n>.json (never a flat file). */
 	function ledgerRecordUrl( ledgerBase, uid, version, evidence ) {
 		return String( ledgerBase || '' ).replace( /\/?$/, '' ) + '/notes/' + encodeURIComponent( uid ) + '/v' + encodeURIComponent( version || ( evidence && evidence.version ) || 0 ) + '.json';
+	}
+
+	/**
+	 * The ACTIVE key out of a provenance-keys document.
+	 *
+	 * This used to read keys[ 0 ] directly. That was safe only while the array
+	 * held exactly one key. Since the v10.77.0 schema (sn-provenance-keys-v2)
+	 * the array also carries RETIRED keys with validity windows, so position
+	 * stopped being a reliable way to say "the key in use" — a document that
+	 * listed history first would have compared the did document against a
+	 * retired key and reported a key mismatch on a perfectly healthy site.
+	 *
+	 * Selects by status, falling back to index 0 so a v1 document (no status
+	 * field, one key) keeps verifying exactly as before.
+	 */
+	function activeKeyB64( doc ) {
+		var keys = doc && doc.keys;
+		if ( ! keys || ! keys.length ) {
+			return undefined;
+		}
+		for ( var i = 0; i < keys.length; i++ ) {
+			if ( keys[ i ] && keys[ i ].status === 'active' && keys[ i ].public_key_base64 ) {
+				return keys[ i ].public_key_base64;
+			}
+		}
+		// No row claims to be active: a v1 document, or one we do not understand.
+		// Index 0 is the historical contract, not a guess at semantics.
+		return keys[ 0 ] && keys[ 0 ].public_key_base64;
 	}
 
 	/** The ledger's key copy lives at keys/provenance-keys.json — NOT

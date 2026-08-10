@@ -1,0 +1,29 @@
+{
+	"schema": "sn-provenance-keys-v2",
+	"domain": "juanlentino.com",
+	"keys": [
+		{
+			"id": "sn-ed25519-2025-01",
+			"algorithm": "Ed25519",
+			"public_key_base64": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC=",
+			"sha256_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
+			"status": "retired",
+			"valid_from": "2025-01-04",
+			"valid_until": "2026-07-09"
+		},
+		{
+			"id": "sn-ed25519-2026-07",
+			"algorithm": "Ed25519",
+			"public_key_base64": "+aDvAWcZA6awAX3+y76cteKbIGKyVLDjpG7rp7IVNWs=",
+			"sha256_fingerprint": "973e572578919916d93bbe37dbf3a3539b4e1bc1b19d235a7610cc734cae674a",
+			"status": "active",
+			"valid_from": "2026-07-09",
+			"valid_until": null
+		}
+	],
+	"next_key_commitment": {
+		"algorithm": "sha256",
+		"value": "3fdba35f04dc8c462986c992bcf875546257113072a909c162f7e470e581e278",
+		"committed_at": "2026-08-10"
+	}
+}

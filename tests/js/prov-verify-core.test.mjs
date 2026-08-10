@@ -203,6 +203,47 @@ console.log( '\nGroup 5: deriveKeyAgreement (did base64url x vs mirrors\' standa
 	eq( core.STATE.FAIL, core.deriveSignatureVerdict( false ).state, 'an invalid signature is FAIL' );
 }
 
+console.log( '\nGroup 5b: v2 key documents — the ACTIVE key is chosen by status, not by position (v10.77.0)' );
+{
+	// Before v10.77.0 the gate read keys[ 0 ]. That was correct only while the
+	// array held exactly one key. The v2 schema adds RETIRED keys with validity
+	// windows (so anchors signed under an old key keep verifying), and the
+	// moment history sorts ahead of the active key, position-based selection
+	// compares the did document against a RETIRED key and reports a key
+	// mismatch on a completely healthy site. This fixture puts history first on
+	// purpose — it is the arrangement that would have broken it.
+	const did = fx( 'did.json' );
+	const v1  = fx( 'keys.json' );
+	const v2  = fx( 'keys-v2-history-first.json' );
+
+	eq( 'retired', v2.keys[ 0 ].status,
+		'the fixture really does put a RETIRED key at index 0 (otherwise this group proves nothing)' );
+
+	const a1 = core.deriveKeyAgreement( did, v2, v2 );
+	ok( ! a1.verdict,
+		'a v2 document with history AHEAD of the active key still AGREES (pre-fix: keys[0] was retired → FAIL)' );
+
+	const a2 = core.deriveKeyAgreement( did, v2, v1 );
+	ok( ! a2.verdict,
+		'a v2 site mirror agrees with a v1 ledger copy — the two schemas interoperate during rollout' );
+
+	// Backwards compatibility: a document with NO status field anywhere must
+	// still resolve through the index-0 fallback exactly as it always did.
+	const legacy = JSON.parse( JSON.stringify( v1 ) );
+	delete legacy.keys[ 0 ].status;
+	const a3 = core.deriveKeyAgreement( did, legacy, legacy );
+	ok( ! a3.verdict,
+		'a statusless (pre-v2) document still verifies via the index-0 fallback' );
+
+	// And a genuine mismatch must still FAIL — the fix must not have turned the
+	// gate into something that always finds an agreeable key somewhere.
+	const wrong = JSON.parse( JSON.stringify( v2 ) );
+	wrong.keys[ 1 ].public_key_base64 = fx( 'keys-mismatch.json' ).keys[ 0 ].public_key_base64;
+	const a4 = core.deriveKeyAgreement( did, wrong, v2 );
+	eq( core.STATE.FAIL, a4.verdict.state,
+		'a wrong ACTIVE key still FAILs — selection by status did not become "find any key that agrees"' );
+}
+
 // ─── Group 6: anchor plan (BOTH anchor shapes + the block-only norm) ────
 console.log( '\nGroup 6: deriveAnchorPlan (pending attestation; confirmed with txid; block-only — 9.73.2)' );
 {
