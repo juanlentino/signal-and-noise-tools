@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.75.1] - 2026-08-09 — the AI-spend gauge learns cents and pages
+
+**Headline:** the first live read rendered $12,038.82 for a real ~$120 — the cost report's documented unit is cents, and the module summed them as dollars. Owner-caught on sight (the number failed the smell test the gauge exists to serve).
+
+### Fixes (inc/spend-watch.php)
+
+- **Cents → dollars, once, at the sum.** The platform contract is "decimal strings in lowest units (cents)"; the walker now divides by 100 exactly once. Verified against the live Usage & Cost API docs, not memory.
+- **Pagination.** The report buckets daily with `has_more`/`next_page`; the fetch now follows all pages (bounded runaway stop) and — per the never-estimate gate — a failure on ANY page renders "unknown": a partial sum must not impersonate a month total.
+- **Cache key bumped** (`_v2`) so the fix serves immediately after install instead of behind a stale 6h snapshot.
+- Prep doc updated with the verified unit + pagination facts.
+
+Note: "Actions minutes: unknown (billing read failed)" is the module being honest — the fine-grained PAT was rejected by the billing endpoint; the classic PAT with `user` scope is the verified shape.
+
+> **Why PATCH:** measurement-correctness fix; 19/19 fixture (cents math, cross-page sum, partial→unknown), full sweep green.
+
 ## [10.75.0] - 2026-08-09 — Spend watched like uptime: Actions minutes + AI spend as health signals
 
 **Headline:** the second Operations planned row builds — two owner-only spend lines in the S&N Health widget, structurally incapable of estimating: a platform read either returns the number or the tile says "unknown".

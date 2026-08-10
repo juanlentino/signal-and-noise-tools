@@ -35,7 +35,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_SPEND_GH_TOKEN_OPT   = 'sn_spend_gh_token';
 const SN_SPEND_AI_KEY_OPT     = 'sn_spend_ai_admin_key';
 const SN_SPEND_GH_TRANSIENT   = 'sn_spend_gh_usage';
-const SN_SPEND_AI_TRANSIENT   = 'sn_spend_ai_cost';
+// _v2 (v10.75.1): the unit fix must not serve a stale cents-as-dollars
+// snapshot for up to 6h after install — a new key orphans the old cache.
+const SN_SPEND_AI_TRANSIENT   = 'sn_spend_ai_cost_v2';
 const SN_SPEND_TTL_OK         = 6 * HOUR_IN_SECONDS;
 const SN_SPEND_TTL_FAIL       = 600;
 
@@ -124,8 +126,14 @@ function sn_spend_gh_usage() {
  * thing ever counted. No amounts found = null (unknown), never $0.00 — a
  * shape mismatch must not impersonate a free month.
  *
+ * UNIT (v10.75.1, owner-caught: the first live read showed $12,038.82 —
+ * cents rendered as dollars): the cost report's documented contract is
+ * "decimal strings in lowest units (cents)". The conversion to dollars
+ * happens exactly once, here at the sum — never per-amount, never again
+ * downstream.
+ *
  * @param mixed $data Decoded cost-report JSON.
- * @return float|null Total, or null when nothing was reported.
+ * @return float|null Total in DOLLARS, or null when nothing was reported.
  */
 function sn_spend_ai_sum_amounts( $data ) {
 	$sum   = 0.0;
@@ -144,7 +152,7 @@ function sn_spend_ai_sum_amounts( $data ) {
 		}
 	};
 	$walk( $data );
-	return $found ? round( $sum, 2 ) : null;
+	return $found ? round( $sum / 100, 2 ) : null;
 }
 
 /**
@@ -160,23 +168,43 @@ function sn_spend_ai_cost() {
 	if ( is_array( $cached ) ) {
 		return $cached;
 	}
-	$res  = wp_safe_remote_get(
-		'https://api.anthropic.com/v1/organizations/cost_report?starting_at=' . rawurlencode( gmdate( 'Y-m-01\T00:00:00\Z' ) ),
-		array(
-			'headers'     => array(
-				'x-api-key'         => sn_spend_ai_key(),
-				'anthropic-version' => '2023-06-01',
-			),
-			'timeout'     => 6,
-			'redirection' => 0,
-		)
+	// Pagination (v10.75.1): the report buckets daily and pages — a
+	// single-page read of a month silently UNDER-counts. Follow next_page
+	// while has_more; a failure on ANY page yields unknown, because a
+	// partial sum must never impersonate the month total. The page bound is
+	// a runaway stop far above a month of daily buckets, not a quota.
+	$base = 'https://api.anthropic.com/v1/organizations/cost_report?limit=31&starting_at=' . rawurlencode( gmdate( 'Y-m-01\T00:00:00\Z' ) );
+	$args = array(
+		'headers'     => array(
+			'x-api-key'         => sn_spend_ai_key(),
+			'anthropic-version' => '2023-06-01',
+		),
+		'timeout'     => 6,
+		'redirection' => 0,
 	);
-	$snap = array( 'ok' => false );
-	if ( ! is_wp_error( $res ) && 200 === wp_remote_retrieve_response_code( $res ) ) {
-		$total = sn_spend_ai_sum_amounts( json_decode( (string) wp_remote_retrieve_body( $res ), true ) );
-		if ( null !== $total ) {
-			$snap = array( 'ok' => true, 'total' => $total );
+	$cents_found = false;
+	$total       = 0.0;
+	$page        = '';
+	$snap        = array( 'ok' => false );
+	for ( $i = 0; $i < 12; $i++ ) {
+		$res = wp_safe_remote_get( $base . ( '' === $page ? '' : '&page=' . rawurlencode( $page ) ), $args );
+		if ( is_wp_error( $res ) || 200 !== wp_remote_retrieve_response_code( $res ) ) {
+			$cents_found = false; // partial data -> unknown
+			break;
 		}
+		$data       = json_decode( (string) wp_remote_retrieve_body( $res ), true );
+		$page_total = sn_spend_ai_sum_amounts( $data );
+		if ( null !== $page_total ) {
+			$cents_found = true;
+			$total      += $page_total;
+		}
+		if ( empty( $data['has_more'] ) || empty( $data['next_page'] ) ) {
+			break;
+		}
+		$page = (string) $data['next_page'];
+	}
+	if ( $cents_found ) {
+		$snap = array( 'ok' => true, 'total' => round( $total, 2 ) );
 	}
 	set_transient( SN_SPEND_AI_TRANSIENT, $snap, $snap['ok'] ? SN_SPEND_TTL_OK : SN_SPEND_TTL_FAIL );
 	return $snap;
