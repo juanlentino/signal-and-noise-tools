@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.75.0] - 2026-08-09 — Spend watched like uptime: Actions minutes + AI spend as health signals
+
+**Headline:** the second Operations planned row builds — two owner-only spend lines in the S&N Health widget, structurally incapable of estimating: a platform read either returns the number or the tile says "unknown".
+
+### The module (inc/spend-watch.php, new)
+
+- **Actions minutes (account-wide):** the GitHub billing readout — the number that matches the quota, since exhaustion blocks Actions account-wide. The per-repo /timing API (which reports total_ms:0 on some accounts) is used NOWHERE. Requires a classic PAT with the `user` scope.
+- **AI spend (month to date):** the Anthropic organization cost report, summed defensively — every amount the platform reported, nothing else; a shape mismatch renders "unknown", never $0.00 (a parse failure must not impersonate a free month). Requires an organization admin key.
+- **Honesty mechanics:** normalizer REFUSES a payload missing the used figure (no defaulted zero); included=0 yields no percent; failure snapshots cache short with ok=false so a retry can tell failure from absence; unconfigured = the section is absent entirely (the uptime-widget precedent — "unknown" is for a credentialed read that failed, not a nag).
+- **Credentials:** two optional secrets on the full Better Stack idiom — constant-locks (`SN_SPEND_GH_TOKEN`, `SN_SPEND_AI_ADMIN_KEY`), masked round-trip that never rewrites, the literal `clear` removes, non-autoloaded options, snapshot dropped on change. Fields ride the existing monitoring fieldset; saves ride the monitoring form handler.
+
+### Tests (tests/spend-watch.php, 18 assertions)
+
+Normalizer refusals, walker unknown-not-zero, section absence when unconfigured, platform figures rendered verbatim, failure→unknown (never stale, never fake zero), the save contract, and four mount guards.
+
+> **Why MINOR:** new user-visible health capability + two new settings fields. **Not graduated yet:** the board row stays Planned until a real credential renders a real number — the gate wants evidence, not shipped code. Full sweep green (405 fixtures).
+
 ## [10.74.0] - 2026-08-09 — the Defense gauges land: fail-open visibility + the IPv6 criterion, live
 
 **Headline:** the "Defense numbers" planned row ships — the login door's two owner-only gauges on the Login-defense view, each proven to move by synthetic-failure fixtures, closing the arc worker v1.7.0 opened.

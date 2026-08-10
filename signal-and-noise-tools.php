@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.74.0
+ * Version:     10.75.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -411,7 +411,8 @@ require_once SNT_PATH . 'inc/cron-dashboard-admin.php';
 require_once SNT_PATH . 'inc/webhooks.php';
 require_once SNT_PATH . 'inc/webhooks-admin.php';
 require_once SNT_PATH . 'inc/uptime-heartbeat.php';
-require_once SNT_PATH . 'inc/uptime-status.php';        // v8.2.0: Better Stack status data layer + ability + field/mount helpers (v8.3.0: + 30d availability)
+require_once SNT_PATH . 'inc/uptime-status.php';
+require_once SNT_PATH . 'inc/spend-watch.php'; // v10.75.0: Actions minutes + AI spend as owner-only health signals (never estimated)        // v8.2.0: Better Stack status data layer + ability + field/mount helpers (v8.3.0: + 30d availability)
 require_once SNT_PATH . 'inc/uptime-status-widget.php'; // v8.3.0: Uptime section of the S&N Health widget (standalone widget consolidated away) + panel assets
 require_once SNT_PATH . 'inc/admin-heartbeat.php';
 require_once SNT_PATH . 'inc/insights.php';

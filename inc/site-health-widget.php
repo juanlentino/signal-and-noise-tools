@@ -53,6 +53,10 @@ function sn_site_health_widget_render_full() {
 	if ( function_exists( 'sn_uptime_status_health_section' ) ) {
 		echo sn_uptime_status_health_section(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
 	}
+	// v10.75.0: the Spend section ('' unless a billing credential is configured).
+	if ( function_exists( 'sn_spend_watch_health_section' ) ) {
+		echo sn_spend_watch_health_section(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper escapes at build.
+	}
 }
 
 /**

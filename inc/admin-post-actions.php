@@ -647,6 +647,12 @@ function sn_handle_monitoring_save( $post ) {
 		}
 	}
 
+	// v10.75.0: the Spend-watch credentials ride the same monitoring form,
+	// each on the identical masked/'clear' contract (module owns the logic).
+	if ( function_exists( 'sn_spend_watch_handle_save' ) ) {
+		sn_spend_watch_handle_save( $post );
+	}
+
 	$enabled = ! empty( $post['uptime_kuma_enabled'] );
 	$url     = isset( $post['uptime_kuma_push_url'] )
 		? esc_url_raw( trim( (string) wp_unslash( $post['uptime_kuma_push_url'] ) ) )

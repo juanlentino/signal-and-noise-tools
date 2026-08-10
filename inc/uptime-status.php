@@ -561,5 +561,10 @@ function sn_uptime_status_token_field_html() {
 		$html .= '<p class="sn-field-helper">' . esc_html__( 'Uptime API token (read scope is enough). Powers the in-admin status panel: the dashboard widget and the rail on this tab. Leave the obscured value alone to keep the existing token.', 'signal-and-noise-tools' ) . '</p>';
 	}
 	$html .= '</div>';
+	// v10.75.0: the Spend-watch credentials render in the same monitoring
+	// fieldset (module owns the markup; '' when the module is absent).
+	if ( function_exists( 'sn_spend_watch_settings_fields_html' ) ) {
+		$html .= sn_spend_watch_settings_fields_html();
+	}
 	return $html;
 }
