@@ -204,7 +204,12 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 
 	$result = array(
 		'ok'    => true,
-		'rows'  => snt_mr_normalize_rows( $decoded['data'] ),
+		// The rights view returns a different row shape (full UA, path, Accept,
+		// timestamp) and needs its own normalizer; the aggregate normalizer
+		// would silently discard exactly the fields that view exists for.
+		'rows'  => 'rights' === $view
+			? snt_mr_normalize_rights_rows( $decoded['data'] )
+			: snt_mr_normalize_rows( $decoded['data'] ),
 		'error' => null,
 	);
 	set_transient( $cache_key, $result, 15 * MINUTE_IN_SECONDS );

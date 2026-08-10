@@ -133,6 +133,107 @@ function snt_mr_render_vendor_purpose_table( $rows, $limit = 20 ) {
 }
 
 /**
+ * The same question asked two ways, side by side.
+ *
+ * The frozen `family` classifier calls googleother, MistralAI-Index and
+ * MistralAI-User AI-training crawlers; the vendors' own docs do not. The
+ * purpose axis is the correction, but a correction nobody sees is not one, so
+ * the two readings sit next to each other and the gap between them is printed
+ * rather than reconciled. That gap IS the finding.
+ *
+ * @param array $rows Normalized rows.
+ * @return string HTML.
+ */
+function snt_mr_render_ai_reconciliation( $rows ) {
+	if ( snt_mr_taxonomy_absent( $rows ) ) {
+		return '';
+	}
+	$ai_families = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
+	$by_family   = 0;
+	$by_purpose  = 0;
+	foreach ( (array) $rows as $r ) {
+		$hits = (int) ( $r['hits'] ?? 0 );
+		if ( in_array( (string) ( $r['family'] ?? '' ), $ai_families, true ) ) {
+			$by_family += $hits;
+		}
+		if ( 'train' === (string) ( $r['purpose'] ?? '' ) ) {
+			$by_purpose += $hits;
+		}
+	}
+	if ( 0 === $by_family && 0 === $by_purpose ) {
+		return '';
+	}
+
+	$out = snt_mr_table_open( __( 'AI-training reads, counted both ways.', 'signal-and-noise-tools' ), array(
+		__( 'Definition', 'signal-and-noise-tools' ) => '',
+		__( 'Reads', 'signal-and-noise-tools' )      => 'num',
+	) );
+	$out .= '<tr><td class="column-primary" data-colname="Definition"><strong>' . esc_html__( 'By crawler family (frozen)', 'signal-and-noise-tools' ) . '</strong></td>'
+		. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( $by_family ) ) . '</td></tr>';
+	$out .= '<tr><td class="column-primary" data-colname="Definition"><strong>' . esc_html__( 'By declared purpose', 'signal-and-noise-tools' ) . '</strong></td>'
+		. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( $by_purpose ) ) . '</td></tr>';
+	$out .= '</tbody></table>';
+
+	$delta = $by_family - $by_purpose;
+	if ( 0 !== $delta ) {
+		$out .= '<p class="description">' . esc_html( sprintf(
+			/* translators: %s: the difference between the two counts. */
+			__( 'The family count is higher by %s. The frozen families match GoogleOther, MistralAI-Index and MistralAI-User, which their vendors document as generic, index-building and user-directed respectively. The family field is deliberately not corrected: a published figure depends on it. Cite the purpose count.', 'signal-and-noise-tools' ),
+			number_format_i18n( abs( $delta ) )
+		) ) . '</p>';
+	}
+	return $out;
+}
+
+/**
+ * RULE 3, made readable: the rights-surface events in full.
+ *
+ * Logging these and giving nobody a way to read them would repeat the exact
+ * failure RULE 2 exists to fix. Rare enough to list individually (~80 per 30
+ * days), and these are the events the published claim rests on.
+ *
+ * Every field here is FULL FIDELITY at the edge, including a complete
+ * User-Agent with no character allowlist, so this renderer is the only line of
+ * defence and escapes all of it.
+ *
+ * @param array $rows  Rows from the 'rights' view.
+ * @param int   $limit Sensor cap, reported.
+ * @return string HTML.
+ */
+function snt_mr_render_rights_detail( $rows, $limit = 500 ) {
+	$rows = (array) $rows;
+	if ( empty( $rows ) ) {
+		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No reads of the rights surfaces in this window.', 'signal-and-noise-tools' ) . '</p>';
+	}
+	$out = snt_mr_table_open( __( 'Rights-surface reads, in full , who asked for the declarations, and for which document.', 'signal-and-noise-tools' ), array(
+		__( 'When', 'signal-and-noise-tools' )       => '',
+		__( 'Vendor', 'signal-and-noise-tools' )     => '',
+		__( 'Purpose', 'signal-and-noise-tools' )    => '',
+		__( 'Document', 'signal-and-noise-tools' )   => '',
+		__( 'User agent', 'signal-and-noise-tools' ) => '',
+	) );
+	$shown = 0;
+	foreach ( $rows as $r ) {
+		++$shown;
+		$when   = substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 20 );
+		$vendor = snt_mr_normalize_vendor( $r['vendor'] ?? '' );
+		$out   .= '<tr><td class="column-primary" data-colname="When"><code>' . esc_html( $when ) . '</code></td>'
+			. '<td data-colname="Vendor">' . esc_html( '' !== $vendor ? $vendor : '—' ) . '</td>'
+			. '<td data-colname="Purpose">' . esc_html( (string) ( $r['purpose'] ?? 'unknown' ) ) . '</td>'
+			. '<td data-colname="Document"><code>' . esc_html( substr( (string) ( $r['path'] ?? '' ), 0, 120 ) ) . '</code></td>'
+			. '<td data-colname="User agent"><code>' . esc_html( substr( (string) ( $r['user_agent'] ?? '' ), 0, 200 ) ) . '</code></td></tr>';
+	}
+	$out .= '</tbody></table>';
+	$out .= '<p class="description">' . esc_html( sprintf(
+		/* translators: 1: rows shown, 2: the sensor cap. */
+		__( 'Showing %1$s of at most %2$s events. These are the only reads the sensor records in full: rights surfaces are a closed set of fixed URLs, so the path identifies the document and nothing about the reader.', 'signal-and-noise-tools' ),
+		number_format_i18n( $shown ),
+		number_format_i18n( (int) $limit )
+	) ) . '</p>';
+	return $out;
+}
+
+/**
  * RULE 2: the unclassified bucket, made inspectable.
  *
  * `other-bot` has been the second-largest bucket on this surface and entirely

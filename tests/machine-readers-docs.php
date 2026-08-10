@@ -66,7 +66,7 @@ ok( false !== strpos( $doc, '19 famil' ), 'the doc states the family count' );
 
 echo "\nGroup: the purpose vocabulary mirrors inc/machine-readers-taxonomy.php\n";
 $purposes = snt_mr_valid_purposes();
-ok( 12 === count( $purposes ), 'the source of truth declares 12 purposes' );
+ok( 13 === count( $purposes ), 'the source of truth declares 13 purposes' );
 $missing = array();
 foreach ( $purposes as $purpose ) {
 	if ( false === strpos( $doc, '`' . $purpose . '`' ) ) { $missing[] = $purpose; }

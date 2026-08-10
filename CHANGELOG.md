@@ -54,6 +54,38 @@ classifier would have dropped entirely, so no existing family's population moves
 - `snt_mr_normalize_rows()` returns the additive fields alongside the originals. An older Worker
   sends none of them and every field lands on its empty/unknown value.
 
+### Fixed (second pass, same release)
+
+- **`cohere-ai` no longer asserts a purpose the evidence does not support.** Cohere publishes no
+  first-party crawler page, and the best available record calls the purpose *unconfirmed*, listing
+  training collection, index building and an unannounced experiment as equally live. It was filed
+  `train`; it is now `unknown` with `training_corpus_source: false` (false because unknown, not
+  because ruled out). Filing one of three possibilities is exactly what the `declared` field exists
+  to prevent, and the first pass did it anyway.
+- **`Diffbot-User` split out of `Diffbot`.** Diffbot documents two agents: `Diffbot` for general
+  crawling into its Knowledge Graph, and `Diffbot-User` for "requests on behalf of individual
+  users". The frozen `/diffbot/i` family regex files both as `diffbot` , the same shape of
+  over-count as GoogleOther and MistralAI-Index. Customer-run Crawlbot crawls use a customer-set
+  user agent and so never appear here at all, which is now recorded in the note.
+- **`ads` adopted as the thirteenth purpose.** `OAI-AdsBot` and `meta-externalads` are documented
+  agents that had no home in the vocabulary and were parked in `unknown`. Stretching them into
+  `security` would have implied a scanner.
+
+### Added (second pass)
+
+- **The rights-surface stream is readable.** RULE 3 logged complete events and gave nobody a way to
+  see them, which is the same failure RULE 2 exists to fix. `snt_mr_render_rights_detail()` lists
+  them individually , when, vendor, purpose, document, full user agent , with its own normalizer,
+  because the aggregate one would have silently discarded path, user agent and timestamp.
+- **The over-count is shown on the page, not just in a JSON note.**
+  `snt_mr_render_ai_reconciliation()` prints AI-training reads counted both ways, frozen family and
+  declared purpose, names the gap and its cause, and tells the reader which number to cite.
+- **The purpose axis rides the summary payload** (Desktop tile and the `machine-readers` ability):
+  `purposes`, `ai_training_by_purpose`, `first_party`, `taxonomy`. All additive; `ai_training`
+  keeps its exact family-based meaning. Against a pre-taxonomy sensor each new key is **null, never
+  0** , present-and-null, asserted with `array_key_exists()` rather than `??`, which conflates
+  absent with null.
+
 ### Security
 
 - **`vendor` and the sampled user agent are the first attacker-influenced strings on this surface.**

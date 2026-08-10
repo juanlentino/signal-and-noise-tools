@@ -31,7 +31,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_mr_valid_purposes() {
 	return array(
 		'train', 'search', 'retrieval', 'user', 'archive', 'ops',
-		'seo', 'feed', 'social', 'security', 'dev', 'unknown',
+		'seo', 'feed', 'social', 'security', 'dev', 'ads', 'unknown',
 	);
 }
 
@@ -116,6 +116,54 @@ function snt_mr_normalize_taxonomy_fields( $row ) {
 		'first_party'            => '1' === (string) ( $row['first_party'] ?? '' ),
 		'ua_sample'              => snt_mr_normalize_ua_sample( $row['user_agent'] ?? ( $row['ua_sample'] ?? null ) ),
 	);
+}
+
+/**
+ * Normalize rows from the RULE 3 rights-detail view.
+ *
+ * A different shape from the aggregate, so it needs its own normalizer:
+ * snt_mr_normalize_rows() builds a fixed family/surface/day/hits array and
+ * would silently discard path, user_agent and observed_at.
+ *
+ * This is the ONE place where a full, un-allowlisted User-Agent reaches
+ * WordPress. It is stripped of control characters and hard-capped here, and the
+ * renderer escapes every field at the sink. Path is capped too: the rights
+ * surfaces are a closed set of short fixed URLs, so a long path is a malformed
+ * row rather than a real one.
+ *
+ * @param mixed $data Decoded `data` member.
+ * @return array<int,array{observed_at:string,path:string,user_agent:string,accept:string,vendor:string,purpose:string,family:string,hits:int}>
+ */
+function snt_mr_normalize_rights_rows( $data ) {
+	if ( ! is_array( $data ) ) {
+		return array();
+	}
+	$families = snt_mr_valid_families();
+	$purposes = snt_mr_valid_purposes();
+	$clip     = static function ( $v, $cap ) {
+		return substr( preg_replace( '/[\x00-\x1f\x7f]/', ' ', (string) $v ), 0, $cap );
+	};
+
+	$rows = array();
+	foreach ( $data as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$family  = is_string( $row['family'] ?? null ) ? $row['family'] : '';
+		$purpose = is_string( $row['purpose'] ?? null ) ? $row['purpose'] : '';
+		$rows[]  = array(
+			// ISO-8601 shape only; anything else becomes '' rather than reaching the page.
+			'observed_at' => $clip( preg_replace( '/[^0-9TZ:.\-]/', '', (string) ( $row['observed_at'] ?? '' ) ), 32 ),
+			'path'        => $clip( $row['path'] ?? '', 128 ),
+			'user_agent'  => $clip( $row['user_agent'] ?? '', 512 ),
+			'accept'      => $clip( $row['accept'] ?? '', 256 ),
+			'vendor'      => snt_mr_normalize_vendor( $row['vendor'] ?? null ),
+			'purpose'     => in_array( $purpose, $purposes, true ) ? $purpose : 'unknown',
+			'family'      => in_array( $family, $families, true ) ? $family : 'other-bot',
+			'hits'        => is_numeric( $row['hits'] ?? null ) ? max( 0, (int) $row['hits'] ) : 0,
+		);
+	}
+	return $rows;
 }
 
 /**

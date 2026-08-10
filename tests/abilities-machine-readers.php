@@ -186,7 +186,7 @@ ok(
 ok( '1.4.0' === ( $out['sensor_version'] ?? null ), 'sensor_version passes through' );
 ok( 'in sync' === ( $out['crawler_list'] ?? null ), 'crawler_list verdict: ok + no drift => in sync' );
 ok(
-	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
+	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
 	'success shape matches the DM route exactly'
 );
 ok( $rows_before === $GLOBALS['__mr']['rows'], 'the fetched rows are never mutated' );
@@ -196,6 +196,19 @@ ok( $rows_before === $GLOBALS['__mr']['rows'], 'the fetched rows are never mutat
 // new key sees exactly the old payload, nothing shifted or recomputed.
 $out_minus_new = $out;
 unset( $out_minus_new['ai_surfaces'] );
+// v10.79.0: the purpose axis is additive on the SAME principle , a consumer
+// that ignores the new keys must still see the pre-existing payload untouched.
+foreach ( array( 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy' ) as $sn_new_key ) {
+	// This fixture predates the taxonomy, so each must be NULL , never 0.
+	// A 0 here would tell an agent "measured, and none", which is a lie.
+	// array_key_exists, NOT ??: null-coalescing conflates "absent" with "present
+	// and null", which is precisely the distinction being asserted here.
+	ok(
+		array_key_exists( $sn_new_key, $out ) && null === $out[ $sn_new_key ],
+		"pre-taxonomy sensor reports $sn_new_key as present-and-null, not zero and not missing"
+	);
+	unset( $out_minus_new[ $sn_new_key ] );
+}
 ok(
 	array(
 		'ok'             => true,

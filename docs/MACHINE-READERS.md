@@ -131,7 +131,7 @@ in the Worker repo, versioned and dated, served verbatim and unauthenticated at
 **`https://juanlentino.com/_sn/rights-signals/taxonomy`** so any number derived
 from it can be checked against it.
 
-**12 purposes** (`snt_mr_valid_purposes()`), a closed set:
+**13 purposes** (`snt_mr_valid_purposes()`), a closed set:
 
 | Purpose | Meaning |
 | --- | --- |
@@ -146,6 +146,7 @@ from it can be checked against it.
 | `social` | Link unfurlers and preview fetchers |
 | `security` | Scanners and internet measurement |
 | `dev` | Libraries and scripted clients |
+| `ads` | Ad-safety validation and catalogue fetches |
 | `unknown` | Unclassified, or a documented agent the vocabulary has no home for |
 
 `vendor` is an **open** field, not an enum: new organisations appear without a

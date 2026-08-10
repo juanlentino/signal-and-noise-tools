@@ -103,9 +103,52 @@ ok( false !== strpos( $vp, 'train' ) && false !== strpos( $vp, 'search' ) && fal
 
 echo "\nGroup: the purpose vocabulary is closed\n";
 $purposes = snt_mr_valid_purposes();
-ok( 12 === count( $purposes ), 'exactly twelve purposes' );
+ok( 13 === count( $purposes ), 'exactly thirteen purposes' );
+ok( in_array( 'ads', $purposes, true ), "the 'ads' purpose exists so ad validators are not stretched into security" );
 ok( in_array( 'train', $purposes, true ) && ! in_array( 'training', $purposes, true ), 'the value is train, not a near-miss synonym' );
 ok( array( 'train', 'retrieval' ) === snt_mr_ai_purposes(), 'the AI-consumption set is train + retrieval, and does not silently include user or search' );
+
+echo "\nGroup: RULE 3 , the rights stream is normalized on its OWN shape\n";
+$rights_raw = array( array(
+	'observed_at' => '2026-08-10T09:14:02.511Z',
+	'path'        => '/license.xml',
+	'user_agent'  => 'Mozilla/5.0 (compatible; ClaudeBot/1.0; +claudebot@anthropic.com)',
+	'accept'      => '*/*',
+	'vendor'      => 'anthropic',
+	'purpose'     => 'train',
+	'family'      => 'anthropic',
+	'hits'        => 1,
+) );
+$rd = snt_mr_normalize_rights_rows( $rights_raw );
+ok( '/license.xml' === $rd[0]['path'], 'the path survives (the aggregate normalizer would have dropped it)' );
+ok( false !== strpos( $rd[0]['user_agent'], 'ClaudeBot/1.0' ), 'the COMPLETE user agent survives, unlike the allowlisted sample' );
+ok( '2026-08-10T09:14:02.511Z' === $rd[0]['observed_at'], 'the timestamp survives intact' );
+$rd_hostile = snt_mr_normalize_rights_rows( array( array(
+	'observed_at' => "2026-08-10T09:14:02Z<script>",
+	'path'        => '/license.xml',
+	'user_agent'  => 'Mozilla/5.0 <script>alert(1)</script>',
+	'purpose'     => 'nonsense',
+	'family'      => 'nonsense',
+) ) );
+ok( false === strpos( $rd_hostile[0]['observed_at'], '<' ), 'the timestamp is shape-restricted' );
+ok( 'unknown' === $rd_hostile[0]['purpose'] && 'other-bot' === $rd_hostile[0]['family'], 'enums still fail INTO the allowlist' );
+$rhtml = snt_mr_render_rights_detail( $rd_hostile );
+ok( false === strpos( $rhtml, '<script>' ), 'the renderer escapes the un-allowlisted UA (its only defence)' );
+ok( false !== stripos( snt_mr_render_rights_detail( array() ), 'No reads of the rights surfaces' ), 'an empty window says so rather than rendering an empty table' );
+
+echo "\nGroup: the over-count is SHOWN, not reconciled away\n";
+$recon_rows = snt_mr_normalize_rows( array(
+	// google-ai is inside the frozen AI-training family set, but GoogleOther's
+	// declared purpose is generic. Exactly the live over-count.
+	array( 'family' => 'google-ai', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 100, 'vendor' => 'google', 'purpose' => 'unknown', 'taxonomy_version' => '1.1.0' ),
+	array( 'family' => 'openai', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 40, 'vendor' => 'openai', 'purpose' => 'train', 'taxonomy_version' => '1.1.0' ),
+) );
+$recon = snt_mr_render_ai_reconciliation( $recon_rows );
+ok( false !== strpos( $recon, '140' ), 'the frozen family count (140) is reported' );
+ok( false !== strpos( $recon, '>40<' ), 'the purpose count (40) is reported beside it' );
+ok( false !== strpos( $recon, '100' ) && false !== stripos( $recon, 'GoogleOther' ), 'the gap is named and attributed, not silently dropped' );
+ok( false !== stripos( $recon, 'Cite the purpose count' ), 'and the reader is told which number to use' );
+ok( '' === snt_mr_render_ai_reconciliation( $legacy ), 'a pre-taxonomy sensor renders no comparison at all (never a false 0 vs 0)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

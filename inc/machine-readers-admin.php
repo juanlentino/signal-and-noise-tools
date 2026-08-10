@@ -198,6 +198,10 @@ function snt_mr_render_tab() {
 		echo snt_mr_render_family_table( $rows, $days ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo snt_mr_render_surface_table( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo snt_mr_render_compliance( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+		// v10.79.0: the frozen family count and the purpose count, side by side.
+		// The gap between them is the over-count the family enum carries, shown
+		// rather than reconciled away.
+		echo snt_mr_render_ai_reconciliation( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo snt_mr_render_feed_table( $sn_mr_feed ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 
 		// v10.79.0 (RULE 2): the unclassified bucket, made inspectable. A
@@ -208,6 +212,13 @@ function snt_mr_render_tab() {
 		$sn_mr_unknown = snt_mr_fetch( $days, 'unknown' );
 		if ( ! empty( $sn_mr_unknown['ok'] ) ) {
 			echo snt_mr_render_unknown_agents( $sn_mr_unknown['rows'] ?? array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+		}
+
+		// v10.79.0 (RULE 3): the rights-surface events in full. Logging them and
+		// providing no way to read them would repeat the failure RULE 2 fixes.
+		$sn_mr_rights = snt_mr_fetch( $days, 'rights' );
+		if ( ! empty( $sn_mr_rights['ok'] ) ) {
+			echo snt_mr_render_rights_detail( $sn_mr_rights['rows'] ?? array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		}
 
 		// v10.2.0 delta cards, from the SAME fetch (never a second outbound

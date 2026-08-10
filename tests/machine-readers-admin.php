@@ -92,13 +92,14 @@ preg_match( '/class="sn-fieldset sn-mr-data"(.*?)<div class="sn-fieldset">/s', $
 // v10.79.0: five tables now. The fixture is a LEGACY (pre-taxonomy) sensor
 // response, so the purpose and vendor tables correctly render as a stated
 // absence rather than as tables of zeroes , which is asserted just below.
-ok( isset( $sn_data[1] ) && 5 === substr_count( $sn_data[1], '<table' ), 'every table is a section of the ONE data card' );
+ok( isset( $sn_data[1] ) && 6 === substr_count( $sn_data[1], '<table' ), 'every table is a section of the ONE data card' );
 $sn_caps = array(
 	'Reads per crawler family',
 	'Reads per machine surface class',
 	'Observed vs declared',
 	'Feed fetches per window',
 	'Unclassified user agents',
+	'Rights-surface reads, in full',
 );
 $sn_missing = array();
 foreach ( $sn_caps as $sn_cap ) {
