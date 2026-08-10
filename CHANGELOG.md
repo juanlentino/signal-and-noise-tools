@@ -17,6 +17,10 @@ All notable changes to Signal & Noise Tools are documented here.
 
 Normalizer refusals, walker unknown-not-zero, section absence when unconfigured, platform figures rendered verbatim, failure→unknown (never stale, never fake zero), the save contract, and four mount guards.
 
+### Graduation step 3 rides along (inc/maturity-roadmap-shortcode.php)
+
+The Defense-numbers row moves planned → done in the static DR board, mirroring the door write — floor and option identical again.
+
 > **Why MINOR:** new user-visible health capability + two new settings fields. **Not graduated yet:** the board row stays Planned until a real credential renders a real number — the gate wants evidence, not shipped code. Full sweep green (405 fixtures).
 
 ## [10.74.0] - 2026-08-09 — the Defense gauges land: fail-open visibility + the IPv6 criterion, live
