@@ -189,10 +189,27 @@ function snt_mr_render_tab() {
 	if ( ! empty( $result['ok'] ) ) {
 		$rows = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
 		echo snt_mr_render_summary_chips( $rows, $days, $sn_mr_feed_total ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
+		// v10.79.0: purpose first. `family` answers "which crawler", which is
+		// the axis that has always been here and is frozen; `purpose` answers
+		// "what for", which is the axis the published claims actually run
+		// along, so it leads.
+		echo snt_mr_render_purpose_table( $rows, $days ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+		echo snt_mr_render_vendor_purpose_table( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo snt_mr_render_family_table( $rows, $days ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo snt_mr_render_surface_table( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo snt_mr_render_compliance( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
 		echo snt_mr_render_feed_table( $sn_mr_feed ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+
+		// v10.79.0 (RULE 2): the unclassified bucket, made inspectable. A
+		// SECOND outbound call, unlike the delta cards, because it is a
+		// different Analytics Engine query rather than a different reading of
+		// the same rows. Gated on the aggregate read having succeeded, so a
+		// down sensor still costs exactly one failed request.
+		$sn_mr_unknown = snt_mr_fetch( $days, 'unknown' );
+		if ( ! empty( $sn_mr_unknown['ok'] ) ) {
+			echo snt_mr_render_unknown_agents( $sn_mr_unknown['rows'] ?? array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+		}
+
 		// v10.2.0 delta cards, from the SAME fetch (never a second outbound
 		// call — the API layer caches only success, so a down sensor would
 		// cost a live request on every admin page load).

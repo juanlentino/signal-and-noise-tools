@@ -20,6 +20,7 @@ function ok( $cond, $label ) {
 
 // The source of truth for both enums and the contract minimum. Pure
 // definitions, no WordPress calls at load, so a bare require is safe here.
+require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-api.php';
 
 $path = __DIR__ . '/../docs/MACHINE-READERS.md';
@@ -46,13 +47,34 @@ ok( false === strpos( $doc, '/wp-json/sn-mr' ), 'no invented REST namespace' );
 
 echo "\nGroup: the family enum mirrors inc/machine-readers-api.php\n";
 $families = snt_mr_valid_families();
-ok( 18 === count( $families ), 'the source of truth still declares 18 families' );
+ok( 19 === count( $families ), 'the source of truth still declares 19 families (18 frozen + 1 additive)' );
+// RULE 1 pinned as a TEST, not a comment: the 18 original values must still be
+// present and in their original order. Adding to the tail is additive; renaming,
+// removing or reordering one changes what a published number counted.
+$frozen_18 = array(
+	'openai', 'anthropic', 'google-ai', 'perplexity', 'commoncrawl',
+	'bytedance', 'amazon-ai', 'apple-ai', 'meta-ai', 'mistral', 'cohere',
+	'allen-ai', 'diffbot', 'search', 'seo', 'feed', 'uptime', 'other-bot',
+);
+ok( array_slice( $families, 0, 18 ) === $frozen_18, 'the 18 frozen family values are unchanged and in order' );
 $missing = array();
 foreach ( $families as $family ) {
 	if ( false === strpos( $doc, '`' . $family . '`' ) ) { $missing[] = $family; }
 }
 ok( empty( $missing ), 'every family is named as code in the doc (missing: ' . ( $missing ? implode( ', ', $missing ) : 'none' ) . ')' );
-ok( false !== strpos( $doc, '18 famil' ), 'the doc states the family count' );
+ok( false !== strpos( $doc, '19 famil' ), 'the doc states the family count' );
+
+echo "\nGroup: the purpose vocabulary mirrors inc/machine-readers-taxonomy.php\n";
+$purposes = snt_mr_valid_purposes();
+ok( 12 === count( $purposes ), 'the source of truth declares 12 purposes' );
+$missing = array();
+foreach ( $purposes as $purpose ) {
+	if ( false === strpos( $doc, '`' . $purpose . '`' ) ) { $missing[] = $purpose; }
+}
+ok( empty( $missing ), 'every purpose is named as code in the doc (missing: ' . ( $missing ? implode( ', ', $missing ) : 'none' ) . ')' );
+ok( false !== strpos( $doc, '/_sn/rights-signals/taxonomy' ), 'the doc names the published taxonomy URL' );
+ok( false !== stripos( $doc, 'applebot-extended' ) && false !== stripos( $doc, 'does not crawl' ), 'the doc records that Applebot-Extended is not an observable agent' );
+ok( false !== stripos( $doc, 'unclassified-machine' ), 'the doc names the additive family value' );
 
 echo "\nGroup: the surface enum mirrors inc/machine-readers-api.php\n";
 $surfaces = snt_mr_valid_surfaces();

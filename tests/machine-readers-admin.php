@@ -37,7 +37,9 @@ function snt_mr_sensor_info() { return array( 'version' => '1.4.0', 'deployed_at
 function snt_mr_crawler_list_status() { return array( 'last_check_ok' => '1', 'last_check_drift' => '' ); }
 function sn_rss_tracker_window_stats_multi( $windows ) { return $GLOBALS['__mr_feed']; }
 
+require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-render.php';
+require __DIR__ . '/../inc/machine-readers-render-taxonomy.php'; // v10.79.0: the tab renders purpose/vendor tables.
 require __DIR__ . '/../inc/machine-readers-admin.php';
 
 echo "Group: registry callback (preview-flag gated, v9.67.0 Overview pattern)\n";
@@ -87,7 +89,25 @@ ok( false === strpos( $tab, 'sn-prose' ), 'no bare intro paragraph; the intro is
 // All four tables stack as sections INSIDE the left data card (one card, many
 // sections — the Analytics right-column pattern).
 preg_match( '/class="sn-fieldset sn-mr-data"(.*?)<div class="sn-fieldset">/s', $tab, $sn_data );
-ok( isset( $sn_data[1] ) && 4 === substr_count( $sn_data[1], '<table' ), 'all four tables are sections of the ONE data card' );
+// v10.79.0: five tables now. The fixture is a LEGACY (pre-taxonomy) sensor
+// response, so the purpose and vendor tables correctly render as a stated
+// absence rather than as tables of zeroes , which is asserted just below.
+ok( isset( $sn_data[1] ) && 5 === substr_count( $sn_data[1], '<table' ), 'every table is a section of the ONE data card' );
+$sn_caps = array(
+	'Reads per crawler family',
+	'Reads per machine surface class',
+	'Observed vs declared',
+	'Feed fetches per window',
+	'Unclassified user agents',
+);
+$sn_missing = array();
+foreach ( $sn_caps as $sn_cap ) {
+	if ( false === strpos( $sn_data[1] ?? '', $sn_cap ) ) { $sn_missing[] = $sn_cap; }
+}
+ok( empty( $sn_missing ), 'and each is the expected table (missing: ' . ( $sn_missing ? implode( ', ', $sn_missing ) : 'none' ) . ')' );
+// The load-bearing one: an older sensor must not render a purpose table full of
+// zeroes. Never-measured and measured-zero are different answers.
+ok( false !== stripos( $sn_data[1] ?? '', 'not a measured zero' ), 'a pre-taxonomy sensor states the absence instead of fabricating purpose rows' );
 // The sensor readout uses the Analytics Edge-worker treatment (native notice),
 // not the invented gray bar.
 ok( false !== strpos( $tab, 'notice notice-info notice-alt inline' ), 'Edge sensor readout is the Analytics notice-info treatment' );
