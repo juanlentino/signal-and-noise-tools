@@ -2,6 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.75.2] - 2026-08-09 — the Actions gauge learns the fine-grained dialect
+
+**Headline:** the owner's fine-grained PAT stays; the module now falls back from the legacy plan endpoint (classic-scope only) to the enhanced billing usage report, which fine-grained tokens with Plan:read can read.
+
+### Fix (inc/spend-watch.php)
+
+- **Fallback chain:** legacy `/settings/billing/actions` (classic PAT: used + included + percent) → on rejection, `/settings/billing/usage?year&month` (fine-grained PAT: month-scoped usage report, endpoint verified against the live REST docs).
+- **Honesty consequence, by design:** the usage report carries NO included-minutes quota, so the fine-grained line reads "Actions minutes used (account, month to date): X — $Y billed" — the platform's own numbers, never an invented "of 3,000". Only Actions minute items count (Copilot seats, storage etc. are filtered out); empty usageItems is a measured zero, missing usageItems is unknown.
+- A classic PAT still gets the richer plan line; the module simply uses whichever door the pasted token can open.
+
+> **Why PATCH:** makes the shipped gauge work with the credential the owner actually configured. 25/25 fixture (parser filtering, fallback chain, no-invented-quota render, both-fail→unknown), full sweep green.
+
 ## [10.75.1] - 2026-08-09 — the AI-spend gauge learns cents and pages
 
 **Headline:** the first live read rendered $12,038.82 for a real ~$120 — the cost report's documented unit is cents, and the module summed them as dollars. Owner-caught on sight (the number failed the smell test the gauge exists to serve).

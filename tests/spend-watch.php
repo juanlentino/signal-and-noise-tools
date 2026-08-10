@@ -70,6 +70,45 @@ ok( 12.34 === sn_spend_ai_sum_amounts( array( 'data' => array(
 ok( null === sn_spend_ai_sum_amounts( array( 'data' => array( array( 'results' => array() ) ) ) ),
 	'AI walker: a response with no amounts is unknown, not $0.00' );
 
+// --- enhanced-billing fallback (fine-grained PAT path) ----------------------
+// The legacy plan endpoint rejects fine-grained tokens; the enhanced usage
+// report accepts them but reports USAGE ONLY (no included-minutes quota) —
+// the render must show what the platform said, never an invented "of 3,000".
+$report = array( 'usageItems' => array(
+	array( 'product' => 'actions', 'sku' => 'actions_linux', 'quantity' => 120.5, 'unitType' => 'Minutes', 'netAmount' => 0.40 ),
+	array( 'product' => 'actions', 'sku' => 'actions_macos', 'quantity' => 10, 'unitType' => 'Minutes', 'netAmount' => 0.79 ),
+	array( 'product' => 'copilot', 'sku' => 'copilot_seat', 'quantity' => 1, 'unitType' => 'Seats', 'netAmount' => 10.00 ),
+) );
+$m = sn_spend_gh_report_minutes( $report );
+ok( 131 === $m['used'] && 1.19 === $m['billed'],
+	'report parser: sums ONLY actions minute items (131 min), billed from netAmount (1.19)' );
+ok( 0 === sn_spend_gh_report_minutes( array( 'usageItems' => array() ) )['used'],
+	'report parser: empty usageItems = measured ZERO minutes, not unknown' );
+ok( null === sn_spend_gh_report_minutes( array( 'nope' => 1 ) ),
+	'report parser: missing usageItems = unknown, never a defaulted zero' );
+
+// Fetch fallback: legacy 403 (fine-grained rejected) -> enhanced 200.
+$GLOBALS['__transients'] = array();
+$GLOBALS['__opts']['sn_spend_gh_token'] = 'github_pat_finegrained';
+$GLOBALS['__http']['settings/billing/actions'] = array( 'response' => array( 'code' => 403 ), 'body' => '' );
+$GLOBALS['__http']['settings/billing/usage']   = array( 'response' => array( 'code' => 200 ), 'body' => json_encode( $report ) );
+$fg = sn_spend_gh_usage();
+ok( true === $fg['ok'] && 'usage' === $fg['src'] && 131 === $fg['used'],
+	'fetch: legacy rejection falls back to the enhanced usage report (fine-grained PAT works)' );
+
+$h_fg = sn_spend_watch_health_section();
+ok( strpos( $h_fg, '131' ) !== false && strpos( $h_fg, '1.19' ) !== false && strpos( $h_fg, 'of ' ) === false,
+	'render (usage source): used minutes + billed dollars, and NO invented "of <quota>"' );
+
+// Both endpoints failing -> unknown, as before.
+$GLOBALS['__transients'] = array();
+$GLOBALS['__http']['settings/billing/usage'] = array( 'response' => array( 'code' => 500 ), 'body' => '' );
+$both = sn_spend_gh_usage();
+ok( false === $both['ok'], 'fetch: both endpoints failing records ok=false (renders unknown)' );
+unset( $GLOBALS['__http']['settings/billing/usage'], $GLOBALS['__http']['settings/billing/actions'] );
+$GLOBALS['__transients'] = array();
+$GLOBALS['__opts'] = array();
+
 // --- section: owner-only mount + zero-vs-null honesty ------------------------
 ok( '' === sn_spend_watch_health_section(), 'unconfigured: the section is absent (the uptime precedent), not a nag' );
 
