@@ -44,6 +44,32 @@ const SN_MATURITY_ROADMAP_MAX_ITEM_LEN = 400;
 const SN_MATURITY_ROADMAP_MAX_LABEL_LEN = 80;
 
 /**
+ * The 'done' column's own, TIGHTER ceiling (v10.76.0).
+ *
+ * Every other column churns — rows leave by graduating or by being dropped.
+ * 'done' only grows, and since v10.63.0's "fold the future" it is the column
+ * left OPEN while the future tenses fold, so it is also the one that governs
+ * how tall the board reads.
+ *
+ * The generic 12-item ceiling is the wrong instrument for it, because the
+ * failure at that ceiling is WHOLESALE: the roadmap write replaces the entire
+ * board, so the first family to overflow fails gate 2 and blocks EVERY board
+ * edit — including the one that would fix it. The same validator guards the
+ * read path (sn_maturity_roadmap_override_board()), so an over-cap override
+ * returns null and the public page silently reverts to the static floor.
+ *
+ * A tighter ceiling does not make that failure shape better; it makes the
+ * board hit it while the board is still small enough to fix by hand, and it
+ * lets the refusal name the fix. The actual prevention is the CI canary in
+ * tests/maturity-roadmap-shortcode.php, which reds one row BEFORE the wall.
+ *
+ * Graduating a row off the hub is not deletion: the family maturity pages
+ * already state what acts today, so a shipped row that leaves this board is
+ * still on record one level down.
+ */
+const SN_MATURITY_ROADMAP_MAX_DONE = 5;
+
+/**
  * The STATIC board: family label → status → sentences, families in
  * render order. Every 'done' claim is verifiable against shipped
  * behavior; 'planned' names its gate; 'considering' commits to
@@ -120,6 +146,7 @@ function sn_maturity_roadmap_static_board() {
 			'planned'     => array(
 				__( 'Move the operative AI channel to the desktop platform\'s native agents, once that runner is stable enough to trust with the same fences', 'signal-and-noise-tools' ),
 				__( 'Retire the legacy single-purpose tools the consolidated set absorbed, on usage evidence rather than on a date', 'signal-and-noise-tools' ),
+				__( 'Reach the read door from the web and the phone, not just the one laptop that holds its credential: an authorized entry point at the edge that brokers the sign-in and keeps the secret, so the same allowlist, kill switch, and audit trail hold from any device — read only, the write door deliberately left attended where it is', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),
@@ -188,9 +215,9 @@ function sn_maturity_roadmap_static_board() {
 			'done'        => array(
 				__( 'Cron, uptime, cache freshness, and deploy state watched from one dashboard that says "unknown" when it does not know', 'signal-and-noise-tools' ),
 				__( 'Defense numbers: the login door\'s own gauges, owner-only — fail-opens and degraded reads counted with zeros stated out loud, and the unchecked address share measured against a threshold written down before the query, so the number triggers the decision instead of reopening the argument', 'signal-and-noise-tools' ),
+				__( 'Spend watched like uptime: build minutes and AI spend on the health widget, owner-only — every number read from what the platforms actually report, "unknown" when a read fails, and never an estimated or invented figure', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'Spend watched like uptime: build minutes and AI budget as health signals with the same honesty — "unknown" when it does not know — landing owner-only, and every number read from what the platforms actually report, never estimated', 'signal-and-noise-tools' ),
 				__( 'Dependency provenance gate: a worker ships only after its locked dependency tree verifies against the registry\'s provenance attestations and a minimum-age cooldown — so a freshly poisoned upstream release waits out its detection window instead of going straight to the edge — landing after a one-time audit shows enough of the tree publishes attestations for the check to mean anything', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
@@ -264,6 +291,20 @@ function sn_maturity_roadmap_board_problems( $board ) {
 			}
 			if ( count( $items ) > SN_MATURITY_ROADMAP_MAX_ITEMS ) {
 				$problems[] = sprintf( 'family "%s" status "%s" has %d items; the maximum is %d.', $label, (string) $status, count( $items ), SN_MATURITY_ROADMAP_MAX_ITEMS );
+			}
+			// The done column's tighter ceiling. The message names the fix,
+			// per the door's standing rule that a refusal must say what to
+			// do about it — here that is graduating the oldest shipped row
+			// onto its family maturity page, which already states what acts
+			// today, rather than deleting anything.
+			if ( 'done' === (string) $status && count( $items ) > SN_MATURITY_ROADMAP_MAX_DONE ) {
+				$problems[] = sprintf(
+					'family "%s" has %d done rows; the maximum is %d. Graduate the oldest shipped row onto the %s maturity page and drop it from this board — the hub board is the planning surface, not the ledger.',
+					$label,
+					count( $items ),
+					SN_MATURITY_ROADMAP_MAX_DONE,
+					$label
+				);
 			}
 			foreach ( $items as $item ) {
 				if ( ! is_string( $item ) || '' === trim( $item ) || strlen( $item ) > SN_MATURITY_ROADMAP_MAX_ITEM_LEN ) {
