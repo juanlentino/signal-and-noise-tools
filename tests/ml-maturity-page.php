@@ -72,7 +72,8 @@ ok( 3 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--never' ), 'exa
 ok( false !== strpos( $scope_html, 'Provenance verdicts' ), 'never #1 present by name: provenance verdicts' );
 ok( false !== strpos( $scope_html, 'Reader profiling' ), 'never #2 present by name: reader profiling' );
 ok( false !== strpos( $scope_html, 'reader&#039;s browser' ) || false !== strpos( $scope_html, 'reader\'s browser' ), "never #3 present by name: models in the reader's browser" );
-ok( 7 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--live' ), 'seven live consumers: related, cousins, keywords, links, ranked search, topic analytics, cadence flags (v10.22.0)' );
+ok( 8 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--live' ), 'eight live consumers: related, cousins, keywords, links, ranked search, topic analytics, cadence flags, draft-time echoes (v10.78.0)' );
+ok( false !== strpos( $scope_html, 'Draft-time echoes' ), 'the v10.77.0 pipeline is claimed live by name — a badge flip must be stated, not inferred from a count' );
 ok( 0 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--planned' ), 'zero planned: the launch scope map is fully live (nevers stay never)' );
 
 echo "\nGroup: scope filter seam\n";

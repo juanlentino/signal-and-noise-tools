@@ -2,6 +2,62 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.78.0] - 2026-08-10 — R1 graduates: the record catches up with the work
+
+v10.77.0 shipped four R1 rows. This is the half that is not code-that-runs but
+code-that-*claims*: the board saying those rows are done, the family pages saying
+what acts today, and the static disaster-recovery floor kept in step with both.
+
+The graduation is **three** steps, and the third is the one this project keeps
+losing: badge flip (code) → board row through the door (data) → **resync the
+static DR floor** (code). Doing all three in one release is what keeps drift at
+zero; batching the floor into "the next release" is how it fell three rows behind
+before v10.76.0.
+
+### Graduated to `done`
+
+- **Accessibility** (1 → 3): alt-text coverage for inline vector artwork, and
+  alt-text quality. Both sentences rewritten rather than moved — a `done` row
+  states what acts today, so "coverage for inline SVG artwork across the corpus"
+  became the thing that actually happens: alt checked as an accessible *name*
+  rather than an attribute, because that kind of image carries no alt attribute
+  to find and a sweep looking for one would call every drawing broken.
+- **Proof of origin** (1 → 2): key history with a future. The row's own gate
+  clause ("landing before signing extends beyond notes") is dropped — it was a
+  promise about sequencing, and the sequence happened.
+- **Machine learning** (1 → 2): draft-time echoes, including the part that is
+  actually the design: below the bar it stays quiet rather than offering the
+  least-bad match.
+
+**The ceiling never bound.** AI's `done` column sits at 4 of 5 and the CI canary
+reds at 5, so this looked like it might force a retirement first — but R1's rows
+belong to Accessibility, Proof of origin and Machine learning. The fullest column
+is still AI's 4, and nothing had to graduate off. Checked, not assumed.
+
+### Also on the board
+
+- **Third-party embeds** carries its decision in the row prose now, the way
+  promoted rows are supposed to: the embed replaced by an accessible card that
+  links out, with the third party loaded only when a reader asks for it. A site
+  that publishes a rights policy and honours GPC should not be fetching from a
+  third party on a reader's behalf before the reader chooses it. Still `planned`
+  — deciding is not building, and the first build step is a corpus count.
+
+### Family pages
+
+- **Machine learning**: `Draft-time echoes` flips to a live badge — the eighth
+  live consumer. The suite pinned the old count of seven and went red, which is
+  the pin working: a family page cannot start claiming a new capability without
+  someone saying so out loud. The replacement asserts the badge **by name**, not
+  just by count, so the next flip cannot ride in on arithmetic.
+- **Proof of origin**: the "Signed" answer now states that the key mirror
+  publishes *history* — retired keys inside dated validity windows, the next key
+  committed by hash before use — instead of implying a single eternal key.
+- **Accessibility**: deliberately **no** badge change. What shipped is an
+  authoring-side check, and that strip claims reader-facing behaviour. Adding
+  "Alt text — live" there would read as "the corpus is described", which is not
+  what was built. Overclaiming on an accessibility page is worse than silence.
+
 ## [10.77.0] - 2026-08-10 — R1: what a check can't see, what a key can't promise, what a draft can't remember
 
 Three surfaces that each looked healthy because the thing they were missing had

@@ -121,10 +121,10 @@ function sn_maturity_roadmap_static_board() {
 		__( 'Proof of origin', 'signal-and-noise-tools' )     => array(
 			'done'        => array(
 				__( 'Notes carry a signed commit chain anchored to Bitcoin, and every accepted edit re-anchors the note as a new version', 'signal-and-noise-tools' ),
+				__( 'Key history with a future: the signing key\'s verifiable history published at a well-known path, retired keys kept inside dated validity windows so anchors made under them still verify, and the next key committed by hash before it is ever used — so a rotation never orphans years of anchors', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Extend signing and anchoring beyond notes, to pages and then media', 'signal-and-noise-tools' ),
-				__( 'Key history with a future: the signing key\'s verifiable history published at a well-known path, with the next key committed by hash before it is ever used — so a rotation or compromise never orphans years of anchors — landing before signing extends beyond notes', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'A standalone verifier anyone can run outside the site — "don\'t trust the site\'s own button" made literal', 'signal-and-noise-tools' ),
@@ -161,10 +161,10 @@ function sn_maturity_roadmap_static_board() {
 		__( 'Machine learning', 'signal-and-noise-tools' )    => array(
 			'done'        => array(
 				__( 'A deterministic layer — related notes, topic clusters, cadence watch — computed from corpus statistics, with no model ever in the reader\'s browser', 'signal-and-noise-tools' ),
+				__( 'Draft-time echoes: while writing, the most similar existing note surfaces, so overlap is a choice instead of a surprise — the same corpus statistics the related layer already computes, asked from the draft\'s side, and below the bar it stays quiet rather than offering the least-bad match', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Extend the deterministic layer pipeline by pipeline, as real editorial questions demand it', 'signal-and-noise-tools' ),
-				__( 'Draft-time echoes: while writing, surface the most similar existing note, so overlap is a choice instead of a surprise', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Corpus drift as an editorial mirror: how the site\'s vocabulary and topic weights shift across the years, computed from corpus statistics and shown to the writer — never to a model', 'signal-and-noise-tools' ),
@@ -197,12 +197,12 @@ function sn_maturity_roadmap_static_board() {
 		__( 'Accessibility', 'signal-and-noise-tools' )       => array(
 			'done'        => array(
 				__( 'Structural scans with fingerprint-safe fixes, so a heading-hierarchy repair can never write over a block that moved', 'signal-and-noise-tools' ),
+				__( 'Alt-text coverage extended to inline vector artwork, checked as an accessible name rather than an attribute — the title or label a screen reader would actually announce, or an explicit decorative marking — because that kind of image carries no alt attribute to find, and a sweep looking for one would call every drawing broken', 'signal-and-noise-tools' ),
+				__( 'Alt-text quality, not just coverage: filename echoes, caption duplicates, and single-word descriptions raised as findings a person accepts or rejects — the same human acceptance the coverage sweep already passes through, never a silent rewrite', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'Alt-text coverage for inline SVG artwork across the corpus', 'signal-and-noise-tools' ),
-				__( 'An accessible treatment for third-party embeds', 'signal-and-noise-tools' ),
+				__( 'An accessible treatment for third-party embeds: the embed replaced by an accessible card that links out, with the third party loaded only when a reader asks for it — so nothing is fetched on a reader\'s behalf before they choose it', 'signal-and-noise-tools' ),
 				__( 'Contrast audited at the token level: every palette pairing the templates actually use, checked from computed styles so an inline override cannot hide — landing report-first, findings published before any fix ships', 'signal-and-noise-tools' ),
-				__( 'Alt-text quality, not just coverage: flagging the present-but-useless kind — filename echoes, caption duplicates — with every fix passing the same human acceptance as the coverage sweep', 'signal-and-noise-tools' ),
 				__( 'Charts that speak: every chart on the public stats page ships a screen-reader-navigable table twin and a one-paragraph prose summary — so the numbers are readable without eyes, not just visible — landing as a retrofit on the page already live — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(),
