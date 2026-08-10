@@ -14,9 +14,28 @@ and ≤10M effective. Split:
 
 | Session | Rows | Notes |
 |---|---|---|
-| **1A** | Alt-text coverage (inline SVG) + alt-text quality | One arc per the tier list; ship together |
+| **1A** | Alt-text coverage (inline SVG) + alt-text quality | **DONE** — landed un-versioned, see below |
 | **1B** | Key history with a future + draft-time echoes | Independent of each other and of 1A |
 | **—** | Third-party embeds | **BLOCKED — owner design decision, see below** |
+
+### What 1A left for 1B
+
+- **The version bump is 1B's job.** 1A landed with the plugin header still at
+  `10.76.0` and its CHANGELOG entry under `## [Unreleased]`. 1B renames that
+  heading to `## [10.77.0] - <date>`, appends its own sections to it, and bumps
+  `signal-and-noise-tools.php:6`. One tag for the whole of R1.
+- **Board graduation is still pending** and is the *third* step the maturity
+  pattern keeps losing: badge flip (code) → board row through the door (data) →
+  resync the static DR floor (code). Do all three when R1 ships, and check the
+  `done` ceiling (5) before adding rows — AI sits at 4.
+- **New in 1A, reusable:** `inc/health-alt-quality.php` holds pure
+  string→verdict helpers with no WP or DB dependency. `sn_health_normalise_alt_text()`
+  (lowercase, punctuation folded to single spaces) is the comparison primitive if
+  1B's draft-time echoes need text equivalence.
+- **A trap 1A hit that 1B should expect:** `sn_health_render_suggest_cell()` in
+  `inc/health-checks-admin.php` routes on `$check_key` with **no default guard** —
+  an unhandled key still emits a button, just without a `data-check`. Any new
+  finding type needs an explicit branch there or it degrades silently.
 
 Routing: **Opus** orchestrates and reviews; **Sonnet** implements from the briefs
 below; **Haiku** for mechanical sweeps (corpus counts, fixture tallies). **Fable off.**
@@ -27,7 +46,14 @@ graduates during R1, graduate something off first.
 
 ---
 
-## 1A — Alt-text coverage for inline SVG
+## 1A — Alt-text coverage for inline SVG — **SHIPPED**
+
+> Landed as described. Two things the recon below did not predict: there was **no**
+> `tests/health-check-missing-alt.php` (so the suite was written from scratch), and
+> the gap was **triple**, not double — the third hidden layer was the Suggest-button
+> `subject_type` binary in `inc/health-checks-admin.php`, which would have routed
+> every new finding type to the attachment suggester with a post id. Kept below as
+> the record of what the reasoning was.
 
 **Where:** `inc/health-check-missing-alt.php` (115 lines). Tests: check for
 `tests/health-check-missing-alt.php` first; the sibling fixtures are

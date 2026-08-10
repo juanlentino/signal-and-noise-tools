@@ -167,5 +167,29 @@ hca_true( false !== strpos( $cell, 'data-post-id="12"' ), 'cell carries the sour
 hca_true( false !== strpos( $cell, 'data-target-id="34"' ), 'cell carries the target id' );
 hca_true( false !== strpos( $cell, 'data-snt-suggest="1"' ), 'cell is a live Suggest button' );
 
+/* ── missing_alt routes by EXACT subject type (v10.77.0) ──────────────
+ * This branch used to be a binary: inline_img ? inline : attachment. When the
+ * check grew inline_svg and the two *_alt_quality types, every one of them fell
+ * into the else — emitting data-attachment-id="<POST id>" and pointing the
+ * vision-based alt suggester at a post. An allowlist is not a classifier;
+ * reusing one as a predicate inverts on everything it never enumerated.
+ * ─────────────────────────────────────────────────────────────────── */
+$cell = sn_health_render_suggest_cell( 'missing_alt', array( 'subject_type' => 'attachment', 'subject_id' => 77 ) );
+hca_true( false !== strpos( $cell, 'data-attachment-id="77"' ) && false !== strpos( $cell, 'data-check="missing_alt"' ),
+	'missing_alt/attachment still routes to the attachment suggester' );
+
+$cell = sn_health_render_suggest_cell( 'missing_alt', array( 'subject_type' => 'inline_img', 'subject_id' => 88, 'subject_url' => 'https://e.test/a.png' ) );
+hca_true( false !== strpos( $cell, 'data-check="missing_alt_inline"' ) && false !== strpos( $cell, 'data-post-id="88"' ),
+	'missing_alt/inline_img still routes to the inline suggester' );
+
+foreach ( array( 'inline_svg', 'attachment_alt_quality', 'inline_img_alt_quality' ) as $subject ) {
+	$cell = sn_health_render_suggest_cell( 'missing_alt', array( 'subject_type' => $subject, 'subject_id' => 99 ) );
+	hca_true( '' === $cell,
+		"missing_alt/$subject emits NO button — and specifically never data-attachment-id=\"99\" (a post id)" );
+}
+
+$cell = sn_health_render_suggest_cell( 'missing_alt', array( 'subject_id' => 99 ) );
+hca_true( '' === $cell, 'missing_alt with a MISSING subject_type emits no button rather than guessing attachment' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

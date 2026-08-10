@@ -300,14 +300,27 @@ function sn_health_render_suggest_cell( $check_key, $finding ) {
 	);
 
 	if ( 'missing_alt' === $check_key ) {
-		$is_inline = isset( $finding['subject_type'] ) && 'inline_img' === $finding['subject_type'];
-		$attrs['data-check'] = $is_inline ? 'missing_alt_inline' : 'missing_alt';
-		if ( $is_inline ) {
+		// v10.77.0: this was a BINARY (inline_img ? inline : attachment). The
+		// check now emits inline_svg, attachment_alt_quality and
+		// inline_img_alt_quality too, and every one of them would have fallen
+		// into the attachment branch -- handing the vision-based alt suggester
+		// a POST id as an attachment id. Route by exact subject type, and
+		// return no button for the types that have no AI suggest path:
+		//   - inline_svg: the fix is markup (<title>/aria-label), not a caption
+		//     derived from pixels, and there is no attachment to look at.
+		//   - *_alt_quality: alt already exists; replacing it is a human
+		//     rewrite through the staged-revision path.
+		$subject = isset( $finding['subject_type'] ) ? (string) $finding['subject_type'] : '';
+		if ( 'inline_img' === $subject ) {
+			$attrs['data-check']     = 'missing_alt_inline';
 			$attrs['data-post-id']   = (int) ( $finding['subject_id'] ?? 0 );
 			$attrs['data-image-src'] = (string) ( $finding['subject_url'] ?? '' );
-		} else {
+		} elseif ( 'attachment' === $subject ) {
 			// Attachment case — subject_id IS the attachment ID.
+			$attrs['data-check']         = 'missing_alt';
 			$attrs['data-attachment-id'] = (int) ( $finding['subject_id'] ?? 0 );
+		} else {
+			return '';
 		}
 	} elseif ( 'drift_time_phrases' === $check_key ) {
 		$attrs['data-check']    = $check_key;
