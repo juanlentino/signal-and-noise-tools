@@ -189,6 +189,61 @@ ok( array() !== sn_maturity_roadmap_board_problems( array( 'F' => array( 'done' 
 ok( array() !== sn_maturity_roadmap_board_problems( array() ), 'an empty board is a validation problem (fallback, never a blank page)' );
 ok( array() === sn_maturity_roadmap_board_problems( sn_maturity_roadmap_static_board() ), 'the static board itself passes the validator (parity: what ships is what the gate would accept)' );
 
+/* ── v10.76.0: the 'done' column's own ceiling.
+ *
+ * 'done' is the only column that grows monotonically, and since v10.63.0
+ * ("fold the future") it is the one left OPEN while the future tenses fold.
+ * Left on the generic 12-item ceiling it walks into a wall whose failure is
+ * WHOLESALE: the first family to overflow fails gate 2, and because the
+ * roadmap write replaces the entire board, that blocks EVERY board edit —
+ * including the one that would fix it. On the read side the same validator
+ * guards sn_maturity_roadmap_override_board(), so an over-cap override
+ * returns null and the public page silently reverts to the static floor.
+ *
+ * So 'done' gets a tighter, purpose-named ceiling, a refusal that names the
+ * fix (the door's standing rule), and a CI canary that reds one row BEFORE
+ * the wall rather than discovering it through a refused write on a live page. */
+echo "\nThe done-column ceiling\n";
+
+ok( defined( 'SN_MATURITY_ROADMAP_MAX_DONE' ), 'the done column has its own named ceiling' );
+ok( SN_MATURITY_ROADMAP_MAX_DONE < SN_MATURITY_ROADMAP_MAX_ITEMS, 'the done ceiling is TIGHTER than the generic item ceiling — it exists to force graduation early, not to be generous' );
+
+$mk_done = function ( $n ) {
+	$rows = array();
+	for ( $i = 1; $i <= $n; $i++ ) { $rows[] = "a shipped row number $i"; }
+	return array( 'F' => array( 'done' => $rows ) );
+};
+ok( array() === sn_maturity_roadmap_board_problems( $mk_done( SN_MATURITY_ROADMAP_MAX_DONE ) ), 'a done column exactly at the ceiling validates' );
+
+$over_problems = sn_maturity_roadmap_board_problems( $mk_done( SN_MATURITY_ROADMAP_MAX_DONE + 1 ) );
+ok( array() !== $over_problems, 'one row over the done ceiling is a validation problem' );
+ok( false !== stripos( implode( ' ', $over_problems ), 'graduate' ), 'the done-ceiling refusal NAMES THE FIX (graduate a row onto its family maturity page)' );
+
+// The ceiling is done-only: the same count in a future column is fine.
+ok( array() === sn_maturity_roadmap_board_problems( array( 'F' => array( 'planned' => $mk_done( SN_MATURITY_ROADMAP_MAX_DONE + 1 )['F']['done'] ) ) ), 'the tighter ceiling applies to done ALONE — a future column still rides the generic item ceiling' );
+
+// CANARY: the shipped board must stay a row below the ceiling.
+$max_done = 0;
+$fullest  = '';
+foreach ( sn_maturity_roadmap_static_board() as $family => $columns ) {
+	if ( count( $columns['done'] ?? array() ) > $max_done ) {
+		$max_done = count( $columns['done'] );
+		$fullest  = $family;
+	}
+}
+ok( $max_done <= SN_MATURITY_ROADMAP_MAX_DONE - 1,
+	"CANARY: the fullest done column is '$fullest' at $max_done, ceiling is " . SN_MATURITY_ROADMAP_MAX_DONE . ' — graduate a done row onto its family maturity page before adding another' );
+
+/* ── v10.76.0: the static DR floor resynced to the live override. These
+ * three rows ARE the drift the sync closed; pinned by substance so the
+ * floor cannot silently fall behind the board again. The floor matters
+ * precisely when the override is gone or invalid — an unpinned floor is a
+ * disaster-recovery path that recovers to something wrong. ── */
+$floor = sn_maturity_roadmap_static_board();
+ok( false !== strpos( implode( ' | ', $floor['Operations']['done'] ), 'Spend watched like uptime' ), 'DR floor: the spend-watch row sits in Operations DONE (it graduated on the live board)' );
+ok( false === strpos( implode( ' | ', $floor['Operations']['planned'] ), 'Spend watched like uptime' ), 'DR floor: and no stale copy of it survives in Operations PLANNED — a row moves, it is never copied' );
+ok( false !== strpos( implode( ' | ', $floor['AI']['planned'] ), 'Reach the read door' ), 'DR floor: the remote read-door row sits in AI PLANNED' );
+
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );
 ok( $static_html === call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] ), 'deleting the override returns the render to code-canonical, byte-identical' );

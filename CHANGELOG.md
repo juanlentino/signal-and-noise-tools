@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.76.0] - 2026-08-10 — the column that only grows
+
+**Headline:** `done` is the one roadmap column that never sheds a row, and since v10.63.0's "fold the future" it is the one left **open** while the future tenses fold. It was riding the same generic 12-item ceiling as every other column — and that ceiling's failure is *wholesale*: the roadmap write replaces the entire board, so the first family to overflow fails gate 2 and blocks **every** board edit, including the one that would fix it. The same validator guards the read path, so an over-cap override returns `null` and the public page silently reverts to the static floor. Found while sequencing the board's 47 forward rows; the board was at 4 done rows in one family with no signal that a wall existed.
+
+### Added (inc/maturity-roadmap-shortcode.php)
+
+- `SN_MATURITY_ROADMAP_MAX_DONE` (5) — a tighter, purpose-named ceiling for `done` alone. Future columns still ride the generic item ceiling.
+- The refusal **names the fix**, per the door's standing rule: graduate the oldest shipped row onto its family maturity page, which already states what acts today. Graduating is not deletion — the row stays on record one level down.
+- **CI canary** (`tests/maturity-roadmap-shortcode.php`): the fullest `done` column must stay a row *below* the ceiling, so a board one graduation from the wall reds CI instead of discovering the wall through a refused write on a live page. A tighter ceiling does not improve the failure *shape*; the canary is what actually prevents reaching it.
+
+### Fixed — the static DR floor was recovering to a wrong board
+
+The versioned static board is the disaster-recovery fallback whenever the override is absent or invalid, and it had drifted three rows behind live:
+
+- Operations: the spend-watch row sat in `planned` on the floor and in `done` on the board — the graduation also **rewrote** the sentence, so this was not a pure move.
+- AI: the remote read-door row (`planned`) was missing entirely.
+
+The floor now hashes identically to the live board (`7bbb2e47…`), and three substance pins plus a no-stale-copy assertion keep it from falling behind silently again.
+
+### Docs
+
+- `docs/roadmap-release-sequence.md` — the R1–R6 batching plan for the 47 forward rows, the ordering forces behind it, and the standing rule that the `later` column is re-triaged after R6 rather than sequenced now.
+- Records the telemetry baseline that keeps the AI retirement passive: 9 runs across 3 of 8 scan types in 30 days, where a scan type with **no row is absent, not measured-zero**.
+
 ## [10.75.3] - 2026-08-09 — never fall back to a corpse
 
 **Headline:** the owner's httpdiag panel showed every spend refresh firing a request that can never succeed — the legacy plan endpoint is **410 Gone** (retired by GitHub's enhanced billing platform), not merely fine-grained-hostile. v10.75.2 treated it as a fallback chain; a retired endpoint is not a fallback, it is a corpse.
