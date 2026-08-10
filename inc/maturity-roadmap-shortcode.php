@@ -187,10 +187,10 @@ function sn_maturity_roadmap_static_board() {
 		__( 'Operations', 'signal-and-noise-tools' )          => array(
 			'done'        => array(
 				__( 'Cron, uptime, cache freshness, and deploy state watched from one dashboard that says "unknown" when it does not know', 'signal-and-noise-tools' ),
+				__( 'Defense numbers: the login door\'s own gauges, owner-only — fail-opens and degraded reads counted with zeros stated out loud, and the unchecked address share measured against a threshold written down before the query, so the number triggers the decision instead of reopening the argument', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Spend watched like uptime: build minutes and AI budget as health signals with the same honesty — "unknown" when it does not know — landing owner-only, and every number read from what the platforms actually report, never estimated', 'signal-and-noise-tools' ),
-				__( 'Defense numbers: the login door\'s own gauges, owner-only — how often the guard failed open rather than blocked, and the unchecked address share measured against a threshold written down before the query, so the number triggers the decision instead of reopening the argument — landing with each gauge proven to move when the failure it watches occurs', 'signal-and-noise-tools' ),
 				__( 'Dependency provenance gate: a worker ships only after its locked dependency tree verifies against the registry\'s provenance attestations and a minimum-age cooldown — so a freshly poisoned upstream release waits out its detection window instead of going straight to the edge — landing after a one-time audit shows enough of the tree publishes attestations for the check to mean anything', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(

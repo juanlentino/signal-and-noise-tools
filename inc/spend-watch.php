@@ -1,0 +1,289 @@
+<?php
+/**
+ * Signal & Noise Tools — Spend watch (owner-only health signals).
+ *
+ * The "Spend watched like uptime" planned row: GitHub Actions minutes and
+ * AI spend as health signals with the health family's honesty contract.
+ * The gate — "every number read from what the platforms actually report,
+ * never estimated" — is structural here: there is no code path that
+ * multiplies, projects, or defaults a figure. A platform read either
+ * returns the number or the tile says "unknown".
+ *
+ * Two optional credentials, each Better-Stack idiom (constant wins over a
+ * non-autoloaded option; masked round-trip; the literal 'clear' removes):
+ *
+ * - GitHub classic PAT with the `user` scope (the account billing readout
+ *   requires it — docs/ops/spend-watch-prep.md). ACCOUNT-WIDE minutes: the
+ *   number that matches the quota, since exhaustion blocks Actions
+ *   account-wide. NOTE the per-repo /timing API is NOT used anywhere — it
+ *   returns total_ms:0 on some accounts (the lying-API trap).
+ * - Anthropic organization admin key for the cost report. The response
+ *   shape is summed defensively (every reported amount); a shape mismatch
+ *   is "unknown", never a guess — verify on first configure.
+ *
+ * Unconfigured = the section is absent entirely (the uptime-widget
+ * precedent): "unknown" is for a credentialed read that failed, not a nag
+ * to configure one.
+ *
+ * @package SignalNoiseTools
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+const SN_SPEND_GH_TOKEN_OPT   = 'sn_spend_gh_token';
+const SN_SPEND_AI_KEY_OPT     = 'sn_spend_ai_admin_key';
+const SN_SPEND_GH_TRANSIENT   = 'sn_spend_gh_usage';
+const SN_SPEND_AI_TRANSIENT   = 'sn_spend_ai_cost';
+const SN_SPEND_TTL_OK         = 6 * HOUR_IN_SECONDS;
+const SN_SPEND_TTL_FAIL       = 600;
+
+/** Resolve the GitHub token: constant wins over option. */
+function sn_spend_gh_token() {
+	if ( defined( 'SN_SPEND_GH_TOKEN' ) && SN_SPEND_GH_TOKEN ) {
+		return (string) SN_SPEND_GH_TOKEN;
+	}
+	return (string) get_option( SN_SPEND_GH_TOKEN_OPT, '' );
+}
+
+/** Resolve the Anthropic admin key: constant wins over option. */
+function sn_spend_ai_key() {
+	if ( defined( 'SN_SPEND_AI_ADMIN_KEY' ) && SN_SPEND_AI_ADMIN_KEY ) {
+		return (string) SN_SPEND_AI_ADMIN_KEY;
+	}
+	return (string) get_option( SN_SPEND_AI_KEY_OPT, '' );
+}
+
+/** The GitHub login whose account billing is read. */
+function sn_spend_gh_login() {
+	return (string) apply_filters( 'sn_spend_gh_login', 'juanlentino' );
+}
+
+/**
+ * Normalize the billing payload. REFUSES a payload missing the used figure
+ * (null, never a defaulted zero); included=0 yields pct null rather than a
+ * divide-by-zero or an invented percent.
+ *
+ * @param mixed $data Decoded billing JSON.
+ * @return array{used:int, included:int, pct:int|null}|null
+ */
+function sn_spend_gh_usage_normalize( $data ) {
+	if ( ! is_array( $data ) || ! isset( $data['total_minutes_used'] ) ) {
+		return null;
+	}
+	$used     = (int) $data['total_minutes_used'];
+	$included = (int) ( $data['included_minutes'] ?? 0 );
+	return array(
+		'used'     => $used,
+		'included' => $included,
+		'pct'      => $included > 0 ? (int) round( $used / $included * 100 ) : null,
+	);
+}
+
+/**
+ * Fetch (cached) account-wide Actions minutes. Snapshot shape:
+ * {ok:bool, used?, included?, pct?} — ok=false caches SHORT so a retry can
+ * tell a recorded failure from never-fetched.
+ *
+ * @return array|null Snapshot, or null when unconfigured.
+ */
+function sn_spend_gh_usage() {
+	if ( '' === sn_spend_gh_token() ) {
+		return null;
+	}
+	$cached = get_transient( SN_SPEND_GH_TRANSIENT );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+	$res  = wp_safe_remote_get(
+		'https://api.github.com/users/' . rawurlencode( sn_spend_gh_login() ) . '/settings/billing/actions',
+		array(
+			'headers'     => array(
+				'Authorization' => 'Bearer ' . sn_spend_gh_token(),
+				'Accept'        => 'application/vnd.github+json',
+			),
+			'timeout'     => 6,
+			'redirection' => 0,
+		)
+	);
+	$snap = array( 'ok' => false );
+	if ( ! is_wp_error( $res ) && 200 === wp_remote_retrieve_response_code( $res ) ) {
+		$norm = sn_spend_gh_usage_normalize( json_decode( (string) wp_remote_retrieve_body( $res ), true ) );
+		if ( null !== $norm ) {
+			$snap = array( 'ok' => true ) + $norm;
+		}
+	}
+	set_transient( SN_SPEND_GH_TRANSIENT, $snap, $snap['ok'] ? SN_SPEND_TTL_OK : SN_SPEND_TTL_FAIL );
+	return $snap;
+}
+
+/**
+ * Sum every reported amount in a cost-report response, defensively: the
+ * exact shape may evolve, but an "amount" the platform reported is the only
+ * thing ever counted. No amounts found = null (unknown), never $0.00 — a
+ * shape mismatch must not impersonate a free month.
+ *
+ * @param mixed $data Decoded cost-report JSON.
+ * @return float|null Total, or null when nothing was reported.
+ */
+function sn_spend_ai_sum_amounts( $data ) {
+	$sum   = 0.0;
+	$found = false;
+	$walk  = function ( $node ) use ( &$walk, &$sum, &$found ) {
+		if ( ! is_array( $node ) ) {
+			return;
+		}
+		foreach ( $node as $key => $value ) {
+			if ( 'amount' === $key && is_numeric( $value ) ) {
+				$sum  += (float) $value;
+				$found = true;
+			} elseif ( is_array( $value ) ) {
+				$walk( $value );
+			}
+		}
+	};
+	$walk( $data );
+	return $found ? round( $sum, 2 ) : null;
+}
+
+/**
+ * Fetch (cached) the month-to-date AI cost from the Anthropic admin API.
+ *
+ * @return array|null {ok:bool, total?:float}, or null when unconfigured.
+ */
+function sn_spend_ai_cost() {
+	if ( '' === sn_spend_ai_key() ) {
+		return null;
+	}
+	$cached = get_transient( SN_SPEND_AI_TRANSIENT );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+	$res  = wp_safe_remote_get(
+		'https://api.anthropic.com/v1/organizations/cost_report?starting_at=' . rawurlencode( gmdate( 'Y-m-01\T00:00:00\Z' ) ),
+		array(
+			'headers'     => array(
+				'x-api-key'         => sn_spend_ai_key(),
+				'anthropic-version' => '2023-06-01',
+			),
+			'timeout'     => 6,
+			'redirection' => 0,
+		)
+	);
+	$snap = array( 'ok' => false );
+	if ( ! is_wp_error( $res ) && 200 === wp_remote_retrieve_response_code( $res ) ) {
+		$total = sn_spend_ai_sum_amounts( json_decode( (string) wp_remote_retrieve_body( $res ), true ) );
+		if ( null !== $total ) {
+			$snap = array( 'ok' => true, 'total' => $total );
+		}
+	}
+	set_transient( SN_SPEND_AI_TRANSIENT, $snap, $snap['ok'] ? SN_SPEND_TTL_OK : SN_SPEND_TTL_FAIL );
+	return $snap;
+}
+
+/**
+ * The Spend section for the S&N Health widget. '' when neither credential
+ * is configured; otherwise one line per configured signal — the reported
+ * number or "unknown", nothing else.
+ *
+ * @return string Escaped-at-build HTML.
+ */
+function sn_spend_watch_health_section() {
+	$gh = sn_spend_gh_usage();
+	$ai = sn_spend_ai_cost();
+	if ( null === $gh && null === $ai ) {
+		return '';
+	}
+	$html = '<div class="sn-aw-spend"><p class="sn-aw-trend-l">' . esc_html__( 'Spend', 'signal-and-noise-tools' ) . '</p>';
+	if ( null !== $gh ) {
+		if ( ! empty( $gh['ok'] ) ) {
+			$pct   = null === $gh['pct'] ? '' : ' — ' . (int) $gh['pct'] . '%';
+			$html .= '<p>' . esc_html(
+				sprintf(
+					/* translators: 1: minutes used, 2: minutes included, 3: percent suffix */
+					__( 'Actions minutes (account): %1$s of %2$s%3$s', 'signal-and-noise-tools' ),
+					number_format_i18n( $gh['used'] ),
+					number_format_i18n( $gh['included'] ),
+					$pct
+				)
+			) . '</p>';
+		} else {
+			$html .= '<p>' . esc_html__( 'Actions minutes: unknown (billing read failed).', 'signal-and-noise-tools' ) . '</p>';
+		}
+	}
+	if ( null !== $ai ) {
+		$html .= ! empty( $ai['ok'] )
+			? '<p>' . esc_html(
+				sprintf(
+					/* translators: %s: month-to-date cost in USD */
+					__( 'AI spend (month to date): $%s', 'signal-and-noise-tools' ),
+					number_format( (float) $ai['total'], 2 )
+				)
+			) . '</p>'
+			: '<p>' . esc_html__( 'AI spend: unknown (cost read failed).', 'signal-and-noise-tools' ) . '</p>';
+	}
+	return $html . '</div>';
+}
+
+/**
+ * Save both credentials from the monitoring form (Better Stack contract:
+ * masked round-trip never writes, the literal 'clear' deletes, fresh value
+ * stores non-autoloaded and drops the snapshot).
+ *
+ * @param array $post The posted monitoring form.
+ */
+function sn_spend_watch_handle_save( $post ) {
+	$fields = array(
+		SN_SPEND_GH_TOKEN_OPT => array( 'const' => 'SN_SPEND_GH_TOKEN', 'transient' => SN_SPEND_GH_TRANSIENT ),
+		SN_SPEND_AI_KEY_OPT   => array( 'const' => 'SN_SPEND_AI_ADMIN_KEY', 'transient' => SN_SPEND_AI_TRANSIENT ),
+	);
+	foreach ( $fields as $opt => $meta ) {
+		if ( defined( $meta['const'] ) && constant( $meta['const'] ) ) {
+			continue; // Constant-locked installs never reach the field.
+		}
+		$value = isset( $post[ $opt ] ) ? sanitize_text_field( wp_unslash( $post[ $opt ] ) ) : '';
+		if ( 'clear' === $value ) {
+			delete_option( $opt );
+			delete_transient( $meta['transient'] );
+		} elseif ( '' !== $value && 0 !== strpos( $value, '••••' ) ) {
+			update_option( $opt, $value, false );
+			delete_transient( $meta['transient'] );
+		}
+	}
+}
+
+/**
+ * The two credential fields for the monitoring fieldset (Better Stack
+ * markup vocabulary; sn_mask_secret round-trip).
+ *
+ * @return string
+ */
+function sn_spend_watch_settings_fields_html() {
+	$html   = '';
+	$fields = array(
+		SN_SPEND_GH_TOKEN_OPT => array(
+			'const' => 'SN_SPEND_GH_TOKEN',
+			'label' => __( 'GitHub billing token (optional)', 'signal-and-noise-tools' ),
+			'help'  => __( 'Classic PAT with the user scope. Powers the account-wide Actions-minutes line in the Health widget. Leave the obscured value alone to keep the existing token.', 'signal-and-noise-tools' ),
+		),
+		SN_SPEND_AI_KEY_OPT   => array(
+			'const' => 'SN_SPEND_AI_ADMIN_KEY',
+			'label' => __( 'Anthropic admin key (optional)', 'signal-and-noise-tools' ),
+			'help'  => __( 'Organization admin key for the cost report. Powers the month-to-date AI-spend line. Leave the obscured value alone to keep the existing key.', 'signal-and-noise-tools' ),
+		),
+	);
+	foreach ( $fields as $opt => $f ) {
+		$html .= '<div class="sn-field"><label class="sn-field-label" for="' . esc_attr( $opt ) . '">' . esc_html( $f['label'] ) . '</label>';
+		if ( defined( $f['const'] ) && constant( $f['const'] ) ) {
+			$html .= '<input type="text" id="' . esc_attr( $opt ) . '" value="' . esc_attr( '••••' ) . '" disabled class="sn-mono">';
+			$html .= '<p class="sn-field-helper"><strong>' . esc_html__( 'Locked.', 'signal-and-noise-tools' ) . '</strong> ' . esc_html__( 'Set via', 'signal-and-noise-tools' ) . ' <code>' . esc_html( $f['const'] ) . '</code> ' . esc_html__( 'in', 'signal-and-noise-tools' ) . ' <code>wp-config.php</code>.</p>';
+		} else {
+			$obscured = function_exists( 'sn_mask_secret' ) ? sn_mask_secret( (string) get_option( $opt, '' ) ) : '';
+			$html    .= '<input type="text" id="' . esc_attr( $opt ) . '" name="' . esc_attr( $opt ) . '" value="' . esc_attr( $obscured ) . '" placeholder="' . esc_attr__( 'Paste a fresh value to update; type \'clear\' to remove', 'signal-and-noise-tools' ) . '" class="sn-mono">';
+			$html    .= '<p class="sn-field-helper">' . esc_html( $f['help'] ) . '</p>';
+		}
+		$html .= '</div>';
+	}
+	return $html;
+}
