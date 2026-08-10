@@ -12,11 +12,11 @@
  * Two optional credentials, each Better-Stack idiom (constant wins over a
  * non-autoloaded option; masked round-trip; the literal 'clear' removes):
  *
- * - GitHub classic PAT with the `user` scope (the account billing readout
- *   requires it — docs/ops/spend-watch-prep.md). ACCOUNT-WIDE minutes: the
- *   number that matches the quota, since exhaustion blocks Actions
- *   account-wide. NOTE the per-repo /timing API is NOT used anywhere — it
- *   returns total_ms:0 on some accounts (the lying-API trap).
+ * - GitHub fine-grained PAT with Plan:read (or classic with `user` scope)
+ *   for the ENHANCED billing usage report — the legacy plan endpoint is
+ *   410 Gone (retired 2026, enhanced billing platform) and is never
+ *   called. ACCOUNT-WIDE minutes. NOTE the per-repo /timing API is NOT
+ *   used anywhere — it returns total_ms:0 on some accounts.
  * - Anthropic organization admin key for the cost report. The response
  *   shape is summed defensively (every reported amount); a shape mismatch
  *   is "unknown", never a guess — verify on first configure.
@@ -60,27 +60,6 @@ function sn_spend_ai_key() {
 /** The GitHub login whose account billing is read. */
 function sn_spend_gh_login() {
 	return (string) apply_filters( 'sn_spend_gh_login', 'juanlentino' );
-}
-
-/**
- * Normalize the billing payload. REFUSES a payload missing the used figure
- * (null, never a defaulted zero); included=0 yields pct null rather than a
- * divide-by-zero or an invented percent.
- *
- * @param mixed $data Decoded billing JSON.
- * @return array{used:int, included:int, pct:int|null}|null
- */
-function sn_spend_gh_usage_normalize( $data ) {
-	if ( ! is_array( $data ) || ! isset( $data['total_minutes_used'] ) ) {
-		return null;
-	}
-	$used     = (int) $data['total_minutes_used'];
-	$included = (int) ( $data['included_minutes'] ?? 0 );
-	return array(
-		'used'     => $used,
-		'included' => $included,
-		'pct'      => $included > 0 ? (int) round( $used / $included * 100 ) : null,
-	);
 }
 
 /**
@@ -128,8 +107,14 @@ function sn_spend_gh_usage() {
 	if ( is_array( $cached ) ) {
 		return $cached;
 	}
+	// v10.75.3: the enhanced usage report is the ONLY door. The legacy plan
+	// endpoint is 410 Gone under GitHub's enhanced billing platform —
+	// owner-caught in httpdiag: every refresh fired a permanently dead
+	// request before the fallback succeeded. No token type revives a
+	// retired endpoint; never "fall back" to a corpse. (The fixture greps
+	// this file for the dead path, so it is deliberately not named here.)
 	$res  = wp_safe_remote_get(
-		'https://api.github.com/users/' . rawurlencode( sn_spend_gh_login() ) . '/settings/billing/actions',
+		'https://api.github.com/users/' . rawurlencode( sn_spend_gh_login() ) . '/settings/billing/usage?year=' . gmdate( 'Y' ) . '&month=' . gmdate( 'n' ),
 		array(
 			'headers'     => array(
 				'Authorization' => 'Bearer ' . sn_spend_gh_token(),
@@ -141,30 +126,9 @@ function sn_spend_gh_usage() {
 	);
 	$snap = array( 'ok' => false );
 	if ( ! is_wp_error( $res ) && 200 === wp_remote_retrieve_response_code( $res ) ) {
-		$norm = sn_spend_gh_usage_normalize( json_decode( (string) wp_remote_retrieve_body( $res ), true ) );
-		if ( null !== $norm ) {
-			$snap = array( 'ok' => true, 'src' => 'plan' ) + $norm;
-		}
-	}
-	// v10.75.2: the legacy plan endpoint rejects fine-grained PATs. Fall back
-	// to the enhanced usage report (fine-grained-readable, month-scoped).
-	if ( ! $snap['ok'] ) {
-		$res2 = wp_safe_remote_get(
-			'https://api.github.com/users/' . rawurlencode( sn_spend_gh_login() ) . '/settings/billing/usage?year=' . gmdate( 'Y' ) . '&month=' . gmdate( 'n' ),
-			array(
-				'headers'     => array(
-					'Authorization' => 'Bearer ' . sn_spend_gh_token(),
-					'Accept'        => 'application/vnd.github+json',
-				),
-				'timeout'     => 6,
-				'redirection' => 0,
-			)
-		);
-		if ( ! is_wp_error( $res2 ) && 200 === wp_remote_retrieve_response_code( $res2 ) ) {
-			$report = sn_spend_gh_report_minutes( json_decode( (string) wp_remote_retrieve_body( $res2 ), true ) );
-			if ( null !== $report ) {
-				$snap = array( 'ok' => true, 'src' => 'usage' ) + $report;
-			}
+		$report = sn_spend_gh_report_minutes( json_decode( (string) wp_remote_retrieve_body( $res ), true ) );
+		if ( null !== $report ) {
+			$snap = array( 'ok' => true, 'src' => 'usage' ) + $report;
 		}
 	}
 	set_transient( SN_SPEND_GH_TRANSIENT, $snap, $snap['ok'] ? SN_SPEND_TTL_OK : SN_SPEND_TTL_FAIL );
@@ -276,7 +240,7 @@ function sn_spend_watch_health_section() {
 	}
 	$html = '<div class="sn-aw-spend"><p class="sn-aw-trend-l">' . esc_html__( 'Spend', 'signal-and-noise-tools' ) . '</p>';
 	if ( null !== $gh ) {
-		if ( ! empty( $gh['ok'] ) && 'usage' === ( $gh['src'] ?? '' ) ) {
+		if ( ! empty( $gh['ok'] ) ) {
 			// Enhanced-report source: usage only — the plan quota is not
 			// reported by this endpoint, so no "of N" is ever shown.
 			$html .= '<p>' . esc_html(
@@ -285,17 +249,6 @@ function sn_spend_watch_health_section() {
 					__( 'Actions minutes used (account, month to date): %1$s — $%2$s billed', 'signal-and-noise-tools' ),
 					number_format_i18n( (int) $gh['used'] ),
 					number_format( (float) $gh['billed'], 2 )
-				)
-			) . '</p>';
-		} elseif ( ! empty( $gh['ok'] ) ) {
-			$pct   = null === $gh['pct'] ? '' : ' — ' . (int) $gh['pct'] . '%';
-			$html .= '<p>' . esc_html(
-				sprintf(
-					/* translators: 1: minutes used, 2: minutes included, 3: percent suffix */
-					__( 'Actions minutes (account): %1$s of %2$s%3$s', 'signal-and-noise-tools' ),
-					number_format_i18n( $gh['used'] ),
-					number_format_i18n( $gh['included'] ),
-					$pct
 				)
 			) . '</p>';
 		} else {

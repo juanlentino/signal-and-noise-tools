@@ -2,6 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.75.3] - 2026-08-09 — never fall back to a corpse
+
+**Headline:** the owner's httpdiag panel showed every spend refresh firing a request that can never succeed — the legacy plan endpoint is **410 Gone** (retired by GitHub's enhanced billing platform), not merely fine-grained-hostile. v10.75.2 treated it as a fallback chain; a retired endpoint is not a fallback, it is a corpse.
+
+### Fix (inc/spend-watch.php)
+
+- The enhanced usage report is now the ONLY GitHub door — the dead legacy call, its normalizer, and the plan-line render branch are deleted, not bypassed.
+- **Guard:** the fixture greps the module source and fails if the retired path ever reappears in any code path (the guard is strict enough that even comments cannot name it).
+
+> **Why PATCH:** removes a permanently dead request from every refresh (and the red diagnostic row it painted). 24/24 fixture, full sweep green.
+
 ## [10.75.2] - 2026-08-09 — the Actions gauge learns the fine-grained dialect
 
 **Headline:** the owner's fine-grained PAT stays; the module now falls back from the legacy plan endpoint (classic-scope only) to the enhanced billing usage report, which fine-grained tokens with Plan:read can read.

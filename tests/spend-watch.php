@@ -52,14 +52,14 @@ function wp_remote_retrieve_body( $r ) { return (string) ( $r['body'] ?? '' ); }
 
 require __DIR__ . '/../inc/spend-watch.php';
 
-// --- GitHub usage normalizer -------------------------------------------------
-$n = sn_spend_gh_usage_normalize( array( 'total_minutes_used' => 2905, 'included_minutes' => 3000 ) );
-ok( 2905 === $n['used'] && 3000 === $n['included'] && 97 === $n['pct'],
-	'GH normalizer: used/included/pct straight from the platform payload (97%)' );
-ok( null === sn_spend_gh_usage_normalize( array( 'included_minutes' => 3000 ) ),
-	'GH normalizer: a payload missing the used figure is REFUSED, never defaulted to 0' );
-ok( null === sn_spend_gh_usage_normalize( array( 'total_minutes_used' => 10, 'included_minutes' => 0 ) )['pct'],
-	'GH normalizer: included=0 yields pct null (no divide-by-zero, no invented percent)' );
+// The legacy plan endpoint (/settings/billing/actions) is 410 Gone under
+// GitHub's enhanced billing platform — owner-caught in httpdiag: every
+// refresh fired a permanently dead request before the fallback. The module
+// must not call it at all.
+ok( ! function_exists( 'sn_spend_gh_usage_normalize' ), 'the legacy plan-endpoint normalizer is deleted with its endpoint' );
+$gh_src = (string) file_get_contents( __DIR__ . '/../inc/spend-watch.php' );
+ok( strpos( $gh_src, 'settings/billing/actions' ) === false,
+	'no code path can request the retired legacy endpoint (410 Gone)' );
 
 // --- AI amount walker --------------------------------------------------------
 // The cost report's documented unit is CENTS ("decimal strings in lowest
@@ -70,10 +70,9 @@ ok( 12.34 === sn_spend_ai_sum_amounts( array( 'data' => array(
 ok( null === sn_spend_ai_sum_amounts( array( 'data' => array( array( 'results' => array() ) ) ) ),
 	'AI walker: a response with no amounts is unknown, not $0.00' );
 
-// --- enhanced-billing fallback (fine-grained PAT path) ----------------------
-// The legacy plan endpoint rejects fine-grained tokens; the enhanced usage
-// report accepts them but reports USAGE ONLY (no included-minutes quota) —
-// the render must show what the platform said, never an invented "of 3,000".
+// --- enhanced-billing usage report (the ONLY GitHub door) --------------------
+// Reports USAGE ONLY (no included-minutes quota) — the render must show what
+// the platform said, never an invented "of 3,000".
 $report = array( 'usageItems' => array(
 	array( 'product' => 'actions', 'sku' => 'actions_linux', 'quantity' => 120.5, 'unitType' => 'Minutes', 'netAmount' => 0.40 ),
 	array( 'product' => 'actions', 'sku' => 'actions_macos', 'quantity' => 10, 'unitType' => 'Minutes', 'netAmount' => 0.79 ),
@@ -90,36 +89,37 @@ ok( null === sn_spend_gh_report_minutes( array( 'nope' => 1 ) ),
 // Fetch fallback: legacy 403 (fine-grained rejected) -> enhanced 200.
 $GLOBALS['__transients'] = array();
 $GLOBALS['__opts']['sn_spend_gh_token'] = 'github_pat_finegrained';
-$GLOBALS['__http']['settings/billing/actions'] = array( 'response' => array( 'code' => 403 ), 'body' => '' );
-$GLOBALS['__http']['settings/billing/usage']   = array( 'response' => array( 'code' => 200 ), 'body' => json_encode( $report ) );
+$GLOBALS['__http']['settings/billing/usage'] = array( 'response' => array( 'code' => 200 ), 'body' => json_encode( $report ) );
 $fg = sn_spend_gh_usage();
-ok( true === $fg['ok'] && 'usage' === $fg['src'] && 131 === $fg['used'],
-	'fetch: legacy rejection falls back to the enhanced usage report (fine-grained PAT works)' );
+ok( true === $fg['ok'] && 131 === $fg['used'],
+	'fetch: the usage report is requested directly (no dead legacy call first)' );
 
 $h_fg = sn_spend_watch_health_section();
 ok( strpos( $h_fg, '131' ) !== false && strpos( $h_fg, '1.19' ) !== false && strpos( $h_fg, 'of ' ) === false,
 	'render (usage source): used minutes + billed dollars, and NO invented "of <quota>"' );
 
-// Both endpoints failing -> unknown, as before.
+// Endpoint failing -> unknown, as before.
 $GLOBALS['__transients'] = array();
 $GLOBALS['__http']['settings/billing/usage'] = array( 'response' => array( 'code' => 500 ), 'body' => '' );
 $both = sn_spend_gh_usage();
-ok( false === $both['ok'], 'fetch: both endpoints failing records ok=false (renders unknown)' );
-unset( $GLOBALS['__http']['settings/billing/usage'], $GLOBALS['__http']['settings/billing/actions'] );
+ok( false === $both['ok'], 'fetch: a failing usage read records ok=false (renders unknown)' );
+unset( $GLOBALS['__http']['settings/billing/usage'] );
 $GLOBALS['__transients'] = array();
 $GLOBALS['__opts'] = array();
 
 // --- section: owner-only mount + zero-vs-null honesty ------------------------
 ok( '' === sn_spend_watch_health_section(), 'unconfigured: the section is absent (the uptime precedent), not a nag' );
 
-$GLOBALS['__opts']['sn_spend_gh_token'] = 'ghp_test';
+$GLOBALS['__opts']['sn_spend_gh_token'] = 'github_pat_test';
 $GLOBALS['__http']['api.github.com']    = array(
 	'response' => array( 'code' => 200 ),
-	'body'     => json_encode( array( 'total_minutes_used' => 2905, 'included_minutes' => 3000 ) ),
+	'body'     => json_encode( array( 'usageItems' => array(
+		array( 'product' => 'actions', 'sku' => 'actions_linux', 'quantity' => 2905, 'unitType' => 'Minutes', 'netAmount' => 0 ),
+	) ) ),
 );
 $h = sn_spend_watch_health_section();
-ok( strpos( $h, '2,905' ) !== false && strpos( $h, '3,000' ) !== false && strpos( $h, '97%' ) !== false,
-	'configured + healthy fetch: the section shows the platform-reported minutes (2,905 of 3,000, 97%)' );
+ok( strpos( $h, '2,905' ) !== false && strpos( $h, '0.00' ) !== false,
+	'configured + healthy fetch: the section shows platform-reported minutes + billed dollars' );
 ok( strpos( $h, 'unknown' ) === false, 'healthy fetch: no stray unknown' );
 
 // PROVEN HONEST: an API failure renders unknown — never a fabricated figure.

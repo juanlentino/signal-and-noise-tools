@@ -12,6 +12,8 @@ across ALL private repos); exhaustion blocks Actions account-wide. Measured
 July 2026 at ~99% of quota, so this signal is the difference between a
 dashboard and an outage postmortem.
 
+**VERIFIED DEAD 2026-08-09 (httpdiag, live):** the legacy plan endpoint `/users/{u}/settings/billing/actions` returns **410 Gone** — retired by GitHub's enhanced billing platform. No token type revives it; the enhanced usage report `/users/{u}/settings/billing/usage?year&month` (fine-grained PAT, Plan:read) is the only door, and it reports usage without the included-minutes quota.
+
 **The API lies — two traps already paid for:**
 
 1. `/repos/{o}/{r}/actions/runs/{id}/timing` returns `total_ms: 0` on some
