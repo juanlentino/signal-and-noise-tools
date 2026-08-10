@@ -15,6 +15,11 @@ if ( ! function_exists( 'status_header' ) ) { function status_header( $c ) { $GL
 if ( ! function_exists( 'wp_json_encode' ) ) { function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); } }
 if ( ! function_exists( 'add_action' ) ) { function add_action() { return true; } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
+// v10.77.0: the key mirror reads key history and the next-key commitment from
+// options. Without this stub the suite fatals BEFORE its first assertion — and a
+// suite that dies before asserting is not a passing suite, which is why CI
+// treats a missing summary line as an error rather than a skip.
+if ( ! function_exists( 'get_option' ) ) { function get_option( $n, $d = false ) { return $d; } }
 // stub the plugin's pubkey accessor: a deterministic 32-byte Ed25519 public key
 $GLOBALS['__pub'] = base64_encode( str_repeat( "\x01", 32 ) );
 if ( ! function_exists( 'sn_prov_pubkey_b64' ) ) { function sn_prov_pubkey_b64() { return $GLOBALS['__pub']; } }
@@ -41,7 +46,7 @@ ok( ( $vm['id'] ?? '' ) === 'did:web:juanlentino.com#prov-key-1' && in_array( 'd
 // off-ledger key mirror: exact key, id, and raw-key SHA-256 fingerprint.
 $key_doc = sn_prov_key_document();
 $key = $key_doc['keys'][0] ?? array();
-ok( ( $key_doc['schema'] ?? '' ) === 'sn-provenance-keys-v1', 'key mirror has a versioned schema' );
+ok( ( $key_doc['schema'] ?? '' ) === 'sn-provenance-keys-v2', 'key mirror has a versioned schema (v2 since v10.77.0: history + next-key commitment)' );
 ok( ( $key_doc['domain'] ?? '' ) === 'juanlentino.com', 'key mirror pins the site domain' );
 ok( ( $key['id'] ?? '' ) === 'sn-ed25519-2026-07', 'key mirror publishes the stable key id' );
 ok( ( $key['public_key_base64'] ?? '' ) === $GLOBALS['__pub'], 'key mirror publishes the exact configured key' );

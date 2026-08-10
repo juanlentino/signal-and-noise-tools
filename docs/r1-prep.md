@@ -14,11 +14,26 @@ and ≤10M effective. Split:
 
 | Session | Rows | Notes |
 |---|---|---|
-| **1A** | Alt-text coverage (inline SVG) + alt-text quality | **DONE** — landed un-versioned, see below |
-| **1B** | Key history with a future + draft-time echoes | Independent of each other and of 1A |
+| **1A** | Alt-text coverage (inline SVG) + alt-text quality | **DONE** — landed un-versioned |
+| **1B** | Key history with a future + draft-time echoes | **DONE** — carried the v10.77.0 bump |
 | **—** | Third-party embeds | **BLOCKED — owner design decision, see below** |
 
-### What 1A left for 1B
+### R1 status: shipped as v10.77.0, one thing left
+
+Four of five R1 rows are in. What remains is **board graduation**, which is not
+code and needs an owner decision:
+
+1. Badge flip (code) — which family pages claim these as live.
+2. The board row through the door (data, a live write that **replaces the entire
+   board**).
+3. Resync the static DR floor (code, next release) — the step that has drifted
+   three times.
+
+Before step 2, check each family's `done` column against the ceiling of 5. If a
+family is at 5, something graduates off first, and *which* row retires is a
+judgment about what the site still wants to claim — not a mechanical pick.
+
+### What 1A left for 1B (all addressed)
 
 - **The version bump is 1B's job.** 1A landed with the plugin header still at
   `10.76.0` and its CHANGELOG entry under `## [Unreleased]`. 1B renames that
