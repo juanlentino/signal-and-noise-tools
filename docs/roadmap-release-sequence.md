@@ -188,6 +188,118 @@ override any convenience batching:
 
 ---
 
+## Execution economics — measured, not estimated
+
+Everything below comes from a full sweep of local transcripts since the Tue 13:00
+reset, cross-referenced against the usage panel on 2026-08-10 (Max 20x). Earlier
+estimates in this project were wrong by ~15x. **Re-measure; never re-estimate.**
+
+Effective units below weight cache-reads 0.1x, cache-writes 2x, output 5x. The
+unit is arbitrary — but it *cancels*, because the budgets were derived in the same
+unit they are spent in.
+
+### The budgets
+
+| Bucket | Weekly | Notes |
+|---|---|---|
+| All models | **≈1.70B effective** | 1.309B measured = 77% |
+| Fable | **≈420M effective** | 319.5M measured = 76% — **4.0x smaller** |
+
+Reset: **Tuesday 13:00.** One full working session (a release plus planning, 228
+turns) measured **8.2M effective = 0.48% of the all-models week**. The whole of
+R1–R6 is **12–16% of ONE week**. The program was never the constraint; the ~77%
+baseline of everything else is.
+
+### Lever 1 — model routing (dwarfs everything else)
+
+The panel's bar reads "all models", so **Fable draws on BOTH buckets — it costs
+twice.** Opus, Sonnet and Haiku draw once, and only Fable carries a sub-cap.
+
+| Same program | Cost |
+|---|---|
+| Opus orchestrating, Sonnet/Haiku implementing | **~16% of one week** |
+| Fable orchestrating | **~65% of the Fable bucket** |
+
+**Routing for program work:**
+
+- **Opus** — orchestration, planning, review, the release ritual. Main thread only.
+- **Sonnet** — implementation of a row that the prep doc has already specified.
+- **Haiku** — mechanical sweeps: coverage scans, grep passes, fixture counts.
+- **Fable** — **off**, unless a task specifically needs it.
+
+The effective unit here is model-*blind*; real accounting is near-certainly weighted
+by model price, which would make Sonnet/Haiku delegation cheaper still. Treat 16%
+as a ceiling.
+
+### Lever 2 — session length (measured 45% swing)
+
+Per-turn cost scales with context already loaded. Same session, same turns per quarter:
+
+| | avg context | eff/turn | quarter total |
+|---|---|---|---|
+| First quarter (67 turns) | 133k | 28.7k | 1.93M |
+| Last quarter (68 turns) | 301k | 41.5k | 2.82M |
+
+**Identical work costs ~45% more at turn 200 than at turn 30.** Cap a session at
+**~80–100 turns or ~150k context**, then hand off. Splitting a release across two
+sessions is *cheaper* than one long one, not more expensive.
+
+At 312k context a main-thread turn costs ~31k effective in cache reads alone; a
+fresh subagent turn at ~80k costs ~8k — **~4x cheaper for identical work**, and the
+gap widens as a session runs.
+
+### The release loop
+
+1. **Open with the prep doc** written at the end of the previous session. No
+   re-derivation — that is what the re-orientation tax buys out.
+2. **Opus reads only what the prep doc names**, in targeted line ranges.
+3. **Delegate implementation to a Sonnet subagent** with the TDD brief. The file
+   reads, failed runs and dead ends stay out of the main thread.
+4. **Opus reviews the diff**, then one Bash call for the full suite printing only
+   `FAIL` lines.
+5. CHANGELOG, version, PR.
+6. **CI poll in ONE long call** — the two-settled-reads loop, empty-string sentinel.
+7. **Write the next prep doc while context is warm** — nearly free here, expensive
+   anywhere else.
+8. **End the session at ~80–100 turns**, finished or not.
+
+### Guardrails
+
+- Per session: **≤10M effective** (~0.6% of the week).
+- Per week: **~12 sessions ≈ 7%** on top of the normal baseline.
+- **Hard stop:** if the weekly all-models meter passes **85%**, program work pauses.
+  Roadmap work must never be what blocks client work.
+- **Trim active connectors** for program sessions. Instruction overhead — the system
+  prompt and tool list re-read every turn — was **42% of the measured session**.
+  This is what makes MCP consolidation a token lever rather than housekeeping.
+
+### Cadence
+
+**Two weeks, ~12 sessions each**, starting after the Tuesday 13:00 reset:
+**+7.4% per week.** Three weeks (+4.9%) if headroom for the unplanned matters more
+than finishing sooner.
+
+### Deliberately demoted
+
+The `sn_apply` wholesale-board round-trip was engineered around at length and is
+**0.024% of the weekly budget**. Do the compact-diff and patch-shape work for the
+**correctness** win — the patch shape removes the wholesale-delete risk — and never
+on token grounds. It is not R1.
+
+### Calibration to keep running
+
+claude.ai chat counts against the same buckets and is invisible to local transcripts,
+so both budgets above are **floors**. This does not break the plan: the 77% baseline
+is measured whole and already contains chat. It only breaks attribution.
+
+At a reset the meter reads 0%. Run one Claude Code session, measure its tokens, read
+the percentage — that pins the Code→% conversion exactly. From then on, any gap
+between prediction and meter *is* chat, quantified.
+
+Chat has the same quadratic: a long thread re-sends its whole history every message
+and re-reads attachments every turn. New thread per topic; Project knowledge instead
+of re-pasted documents.
+
 ## Standing rule — re-triage `later` after R6
 
 Once the sequence above is complete, the next planning move is **not** to extend
