@@ -2,6 +2,46 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — R3 3D's threat model, and two defects it found in today's build
+
+Un-versioned, docs only; rides the next release. **3D's own prep says the threat
+model comes before any code, so this is 3D started — not deferred.**
+
+`docs/security/agent-surface-threat-model.md` gains **§8**, plus **A5 — the
+hostile caller** in §1's adversary list, explicitly out of scope today because no
+brokered entry point exists.
+
+The row would replace the read door's population — *whoever holds an application
+password on one laptop* — with *whoever completes an OAuth flow*. That is not a
+wider version of the existing model. A1–A4 are an authorized channel misbehaving;
+A5 is an unauthorized party **becoming** authorized, and its target is writing the
+owner has not chosen to publish.
+
+**Two findings, verified against the current build, both harmless while the
+population is one laptop and both load-bearing the moment it is not:**
+
+- **F1 — the read door has no rate limit.** The write door's stack ends in
+  `sn_mcp_rw_rate_limit_gate()`; `mcp-tools.php` applies the limiter only when the
+  door is `RW`. Exposed to the internet, that is an exfiltration channel with no
+  ceiling.
+- **F2 — the read kill switch guards one ROUTE, not the read path.**
+  `sn_mcp_read_permission()` is referenced in exactly one place. The native
+  `wp-abilities/v1/…/run` route never consults it, so an owner-identity caller
+  reaches every read ability **with `sn_mcp_read_enabled` off**. The prep doc asked
+  whether the kill switch can reach the edge; the prior question is whether it
+  reaches the site's own second route. It does not.
+
+**The section's recommendation is not to build the broker next.** F1 and F2 are
+real defects in today's build — a switch covering one of two routes, and a read
+path with no ceiling — worth fixing on their own merits now, while the door is
+still behind one laptop. Fix those, then decide whether the row still wants an
+edge broker or whether a scoped, expiring, read-only token buys most of the value
+at a fraction of the boundary.
+
+Also recorded: the fail-open-on-absence default that is correct for a local option
+is **wrong for a remote read** — an edge that cannot reach the site must not
+conclude the door is open.
+
 ## [10.91.1] - 2026-08-11 — the give-back section had sixteen rows and said nothing
 
 **PATCH.** Found by curling the page after installing v10.91.0 — not by any test, because the fixtures always supplied
