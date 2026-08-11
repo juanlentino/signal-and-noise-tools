@@ -2,6 +2,160 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.90.1] - 2026-08-11 — the colour that only fails when you touch it
+
+Four sessions' work folded on the owner's instruction; **PATCH** throughout —
+fixes, a non-shipped instrument, and admin copy. No API, schema or behaviour
+change.
+
+The through-line: **a state nobody measured is not a state nobody sees.** Every
+defect here sat in a state a scan had to be *forced* into — a hover, a composited
+opacity, a fallback that only renders the day an option is lost.
+
+### The rendered-pair tier — 3C's second half, and the row is now closed
+`tools/contrast-render-scan.mjs` drives the locally installed Chrome, reads
+`getComputedStyle` for every element with its own visible text, walks ancestors to
+composite the effective background, then forces `:hover` and `:focus-visible` via
+CDP and measures again. Calibrated before trusted: a fixture plants five failures
+with hand-derived ratios plus three passes and an unscoreable case, and a
+self-test asserts exactly that set returns. It **cannot run in CI** by nature —
+it needs a browser and a live site — so it exits non-zero as a hand-run release
+gate. `tools/` is export-ignored: this ships to nobody.
+
+It also corrects `docs/r3-prep.md`, which told the next session to reuse a
+headless rig that **did not exist**.
+
+### The fixes it found
+- **`/verify` state stamp** — `--concrete` (`#9e9e9e`), a *surface* grey, used as
+  *text* at **2.68:1**. Now `--concrete-ink` (`#767676`, 4.54:1), text and border,
+  including the settled `UNREACHABLE` state.
+- **`--signal` (`#ff4c47`) as text or as a surface under text** — 3.29:1. Now
+  `--signal-ink` (`#b00303`, 7.34:1) on the verify buttons, fact links, roadmap
+  fold summary and glyph. Hover goes **darker, never lighter**. Focus rings keep
+  `--signal`, and a test asserts they do: a blanket sweep would have "passed"
+  while deleting the focus indicators.
+- **Roadmap badges** — the variants faded with `opacity`, which fades the *text*
+  with the frame. Measured live: **3.29 / 2.13 / 1.76 / 1.45:1** as the status got
+  more speculative; the `later` count was effectively invisible and the badge's
+  own label faded with it. The fade moved to the border.
+
+**Two findings were rejected, deliberately.** The `01/02/03` numerals (1.32:1) and
+the footer's middot both carry `aria-hidden="true"` — WCAG 1.4.3 exempts purely
+decorative text. The tests pin that *assertion* instead: strip the `aria-hidden`
+and they fail, because the numeral is 1.32:1 the moment it stops being decoration.
+
+### Also in
+- **The roadmap floor catches up.** "AI-referred humans as a channel" shipped in
+  v10.85.0 and still read `considering`. Moved through the door (data), and this
+  syncs `sn_maturity_roadmap_static_board()` — the DR floor the door never
+  touches, and the gap that once left the stats page `planned` for three
+  releases. Floor and live option fingerprint identically again.
+- **The descriptionless-Pages card names the right remedy.** It advised "Add a
+  Page Excerpt", which is the *fallback*;
+  `sn_seo_resolve_singular_description()` reads the `_sn_meta_description`
+  override first. Now stated in the resolver's order, and pinned as **claims**
+  so rewording stays free but dropping either remedy fails.
+
+### Three bugs caught in the making, all the same shape
+1. A silent no-op edit left four rules pointing at a `--signal-ink` that was
+   **never defined** — hover backgrounds would have rendered transparent.
+2. The test scored that undefined token at **21.00:1 and passed**: the luminance
+   helper turned a missing value into `0`, which is pure black. An absent value
+   posing as a perfect result, inside the fixture built to catch that.
+3. A theme-side pin shipped **vacuous** — `cb_gte()` takes `(actual, expected)`
+   and the arguments were reversed, asserting `1 >= 0`. It passed against a
+   deliberately reverted stylesheet, and only mutation-running the guard found
+   it. The first mutation attempt was itself a no-op regex that produced a
+   *reassuring* zero failures: two layers of false green stacked.
+
+<!-- folded into 10.90.1 -->
+### rider: the roadmap floor catches up
+
+**Not a release of its own** — a board move never justifies one. This rides the
+next real release.
+
+Graduation step 3 for **"AI-referred humans as a channel"**, which shipped in
+v10.85.0 and was still sitting in `considering` on the board. The row moved
+Analytics `considering` → `done` **through the door** (the live option, data),
+and this syncs `sn_maturity_roadmap_static_board()` — the disaster-recovery floor
+the door write never touches, and the exact gap that let the public stats page sit
+in `planned` for three releases after shipping.
+
+Verified the way this drift is only ever catchable: the floor's fingerprint
+(`md5(wp_json_encode($board))`) was computed locally **before** the write and
+matched the live board's exactly, proving zero pre-existing drift; after the move
+both the published payload and the resynced floor fingerprint `dcbb15f8…`. Floor
+and option are byte-identical again.
+
+The row **moved**, it was not copied — the no-copy guard in
+`tests/maturity-roadmap-shortcode.php` is the one check that can catch this class
+without a database, and the board's item total is unchanged at 60.
+
+### the red that is an outline, not a word
+
+Sibling of the stamp fix below, same tier, same lesson one token over.
+
+`--signal` (`#ff4c47`) is **3.29:1** on white: legitimate as a focus ring or a
+rule (1.4.11 wants 3:1), a failure the moment it becomes text or the surface
+under text. Every such use now takes `--signal-ink` (`#b00303`, **7.34:1**) — the
+value the provenance links already settled on, so hover/focus goes **darker,
+never lighter**. Fixed on the verify form's primary button, the compare button,
+the fact links, the roadmap fold summary and its glyph. The focus rings keep
+`--signal`, and a test asserts they do: a sweep that removed every occurrence
+would "pass" while deleting the focus indicators.
+
+**The roadmap badges were worse than the handover said, and measured live proves
+why.** The variants faded themselves with `opacity`, which fades the *text* along
+with the frame. Measured on the live page, the counts ran **3.29 / 2.13 / 1.76 /
+1.45:1** as the status got more speculative — the `later` count was effectively
+invisible, and the badge's own label faded with it. Opacity on a text-bearing
+element is a contrast bug wearing a design decision's clothes. The fade now lives
+on the **border** only: the frame still softens left to right, the words and
+numbers never do, and every border still clears 3:1.
+
+### Two bugs this caught in its own making, both worth the telling
+
+1. A silent no-op edit left four rules referencing a `--signal-ink` that was
+   **never defined** — hover backgrounds would have rendered transparent.
+2. The test reported that undefined token as **21.00:1 and passed**, because the
+   luminance helper turned a missing value into `0` — pure black, maximum
+   contrast. An absent value posing as a perfect result, in the fixture built to
+   catch exactly that. `pvc_lum()` now refuses to score a non-colour and fails
+   loudly; deleting the token turns the suite red three ways instead of green.
+
+### the /verify stamp becomes readable
+
+Un-versioned; rides the next release. The first fix found by **3C's rendered
+tier** (`tools/contrast-render-scan.mjs`), which measures computed styles and so
+sees what neither the arithmetic nor the declared-usage tier can.
+
+`--concrete` (`#9e9e9e`) is a **surface** grey — borders, rules, fills. The
+`/verify` state stamp was using it as a **text** colour at **2.68:1**, failing AA
+for normal text and 1.4.11 for the border that carries the state. Same defect
+class the theme fixed in v11.7.0: a background token used as a text colour, which
+reads as deliberate right up until someone measures it.
+
+Adds `--concrete-ink: #767676` — **4.54:1** on `--void`, clearing AA and 1.4.11
+while staying visibly quieter than `--rust`. Applied to the stamp's text and
+border, including the settled `UNREACHABLE` state, which a reader acts on and
+which had kept the surface grey because it is the quiet outcome.
+
+**Two of the three findings handed over were NOT fixed, deliberately.** The
+`01/02/03` numerals (1.32:1) and the footer's middot separator both carry
+`aria-hidden="true"` and convey nothing a reader must read — WCAG 1.4.3 exempts
+purely decorative text, and "fixing" them would manufacture changes for failures
+no reader can experience. But that exemption is an **assertion in the markup**,
+so `tests/prov-verify-contrast.php` pins the assertion: strip the `aria-hidden`
+and the test fails, because the numeral is 1.32:1 the moment it stops being
+decoration.
+
+The test reads the **shipped** stylesheet and resolves the palette from the file
+rather than carrying its own copies of the hexes — a fixture with its own hard-coded
+values keeps passing after someone edits the real token. Mutation-checked in three
+directions: regressing the colour, weakening the token past AA, and removing the
+aria-hidden each turn it red.
+
+
 ## [10.90.0] - 2026-08-11 — three counts the site can stand behind
 
 Two sessions' work, folded into one release on the owner's instruction. Both

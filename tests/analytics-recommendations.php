@@ -103,6 +103,23 @@ r_eq( 2, count( $items ), 'one item per descriptionless page (not a single first
 r_eq( 'Random', $items[0]['label'] ?? '', 'first item labelled by the page title' );
 r_true( false !== strpos( $items[0]['url'] ?? '', 'post=11' ), 'first item deep-links to the page 11 editor' );
 r_eq( 'Ghost', $items[1]['label'] ?? '', 'second item labelled by the page title' );
+// The remedy text must name BOTH resolution steps, in the resolver's order.
+// Pinned as CLAIMS, not as the sentence: rewording is fine, dropping either
+// remedy is not. Through v10.90.0 this named only the excerpt — the FALLBACK —
+// so a reader following it never learned the dedicated override exists.
+// Positions are compared only once BOTH are known present: stripos() returns
+// false on a miss, PHP coerces that to 0, and `false < $int` is then true — so
+// a naive ordering compare PASSES when the override is missing, which is the
+// one state this pin exists to catch. Verified by mutation.
+$detail   = (string) ( $s['detail'] ?? '' );
+$at_over  = stripos( $detail, 'meta description' );
+$at_excpt = stripos( $detail, 'excerpt' );
+r_true( false !== $at_over, 'remedy names the Meta description override' );
+r_true( false !== $at_excpt, 'remedy still names the Page Excerpt fallback' );
+r_true(
+	false !== $at_over && false !== $at_excpt && $at_over < $at_excpt,
+	'override is named BEFORE the excerpt, matching sn_seo_resolve_singular_description() precedence'
+);
 r_true( false !== strpos( $items[1]['url'] ?? '', 'post=12' ), 'second item deep-links to the page 12 editor' );
 r_true( ! isset( $s['action_url'] ), 'no single first-page button — the per-page list replaces it' );
 // Render: the panel lists each page as its own editable link.

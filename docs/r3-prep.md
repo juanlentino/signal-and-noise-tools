@@ -112,9 +112,20 @@ does not run."*
 the arithmetic tier would mean changing colours for pairs that never co-occur —
 churn on the palette to satisfy a table, with no reader affected.
 
-**The harness exists** — the headless-Chrome rig used for the desktop-widget
-geometry measurements ([[desktop-mode-widget-mount-contract]]). Reuse it; do not
-build a second one.
+**~~The harness exists~~ — CORRECTED 2026-08-11: it did not.** This row said to
+reuse "the headless-Chrome rig used for the desktop-widget geometry
+measurements ([[desktop-mode-widget-mount-contract]])". Neither exists — no such
+rig in either repo, and no memory by that name. "Reuse it; do not build a second
+one" pointed at nothing.
+
+**BUILT (2026-08-11):** `tools/contrast-render-scan.mjs`, with a calibration
+fixture and self-test beside it. `playwright-core` driving the locally installed
+Chrome — no browser download, and deliberately not a committed dependency.
+
+**It cannot run in CI**, by nature rather than by choice: it needs a browser and
+a live site, CI has neither, and this account's Actions quota runs at ~99% of
+3,000 minutes/month. It is a local instrument, run by hand, exiting non-zero on
+findings so a release can be gated deliberately.
 
 **A live example of why the arithmetic tier is not enough**, from v10.88.0: the
 provenance panel's hover/focus link colour measured **3.29:1** and failed AA. The
