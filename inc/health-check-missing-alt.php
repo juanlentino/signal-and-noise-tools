@@ -35,10 +35,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   a. image attachments where _wp_attachment_image_alt is empty
  *   b. inline <img> tags in published post_content with no alt= attr
  *   c. inline <svg> with no accessible name and no decorative marker (v10.77.0)
- *   d. alt that EXISTS but says nothing -- filename echo, caption duplicate,
- *      category name -- on both attachments and inline <img> (v10.77.0;
- *      the third reason was a word COUNT until v10.80.1, which flagged every
- *      correct short alt and missed "an image")
+ *   d. alt that EXISTS but says nothing -- heading duplicate, caption duplicate,
+ *      filename echo, category name -- on both attachments and inline <img>
+ *      (v10.77.0; v10.81.0 added the heading rule and replaced a word COUNT,
+ *      which flagged every correct short alt and missed "an image")
+ *
+ * The (d) reasons are ordered by SPECIFICITY, not by cost: relationship rules
+ * (heading, caption) run before string-shape rules (filename), because a rule
+ * that has seen the surrounding page gives the reader the more useful sentence.
+ * Attachments have no surrounding page, so they get no heading.
  *
  * Passes (c) and (d) are findings only. Like (a) and (b) they carry no fix:
  * every applied change goes through the staged human-acceptance path.
@@ -153,7 +158,7 @@ function sn_health_check_missing_alt() {
 
 			// d) inline <img> whose alt exists but says nothing.
 			foreach ( sn_health_extract_inline_imgs_with_alt( $content ) as $img ) {
-				$problem = sn_health_alt_quality_problem( $img['alt'], $img['src'], $img['caption'] );
+				$problem = sn_health_alt_quality_problem( $img['alt'], $img['src'], $img['caption'], $img['heading'] );
 				if ( '' === $problem ) {
 					continue;
 				}
@@ -195,6 +200,8 @@ function sn_health_alt_quality_note( $problem, $alt ) {
 			return 'Alt text ' . $quoted . ' repeats the image filename, which describes nothing to a screen reader.';
 		case 'caption_duplicate':
 			return 'Alt text ' . $quoted . ' duplicates the visible caption, so the description is announced twice.';
+		case 'heading_duplicate':
+			return 'Alt text ' . $quoted . ' duplicates the heading beside the image, so a screen reader announces it twice. Either describe the picture, or mark it decorative with alt="" and let the heading carry the label.';
 		case 'generic_alt':
 			return 'Alt text ' . $quoted . ' names a category rather than the image, so a screen reader learns nothing from it.';
 	}

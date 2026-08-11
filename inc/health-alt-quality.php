@@ -162,16 +162,24 @@ function sn_health_svg_hint( $ordinal, $attrs ) {
  * Returns a machine reason, never a fix: quality findings route through the
  * same human acceptance as the coverage sweep and are never applied directly.
  *
+ * ORDER IS LOAD-BEARING, and the ordering principle is SPECIFICITY. A rule that
+ * under-matches silently hands its cases to whatever runs last, which then
+ * reports its own reason for someone else's case — that is how /services/ came
+ * to be described as "a single word" (v10.81.0).
+ *
+ * The chain runs: RELATIONSHIP rules first (does the alt repeat text already
+ * announced beside it?), then STRING-SHAPE rules (does it echo the filename?),
+ * then VOCABULARY. A relationship rule knows more — it has seen the
+ * surrounding page — so when both fire, it gives the reader the more useful
+ * sentence: "this is announced twice" beats "this looks like a filename".
+ *
  * @param string $alt      The alt text as authored.
  * @param string $filename Image filename or URL, for echo detection. Optional.
  * @param string $caption  Caption / figcaption text, for duplicate detection. Optional.
- * ORDER IS LOAD-BEARING: the first matching rule names the finding, so the
- * specific reasons (echo, duplicate) must be tried before the general one. A
- * rule that under-matches silently hands its cases to whatever runs last.
- *
- * @return string '' when the alt is fine, else 'filename_echo' | 'caption_duplicate' | 'generic_alt'.
+ * @param string $heading  Heading adjacent to the image, raw. Optional.
+ * @return string '' when fine, else 'heading_duplicate' | 'caption_duplicate' | 'filename_echo' | 'generic_alt'.
  */
-function sn_health_alt_quality_problem( $alt, $filename = '', $caption = '' ) {
+function sn_health_alt_quality_problem( $alt, $filename = '', $caption = '', $heading = '' ) {
 	$raw = trim( (string) $alt );
 	if ( '' === $raw ) {
 		// Empty alt is the COVERAGE pass's business: either a valid decorative
@@ -179,14 +187,28 @@ function sn_health_alt_quality_problem( $alt, $filename = '', $caption = '' ) {
 		return '';
 	}
 
-	// 1. Ends in an image extension — an echo regardless of what it echoes.
+	$norm_alt = sn_health_normalise_alt_text( $raw );
+
+	// 1. Duplicates the heading beside it. EXACT match after folding, because
+	//    an image whose alt merely overlaps a nearby heading is ordinary.
+	if ( '' !== trim( (string) $heading )
+		&& '' !== $norm_alt
+		&& $norm_alt === sn_health_normalise_alt_text( (string) $heading ) ) {
+		return 'heading_duplicate';
+	}
+
+	// 2. Duplicates the caption, which a screen reader already announces.
+	if ( '' !== trim( (string) $caption )
+		&& $norm_alt === sn_health_normalise_alt_text( (string) $caption ) ) {
+		return 'caption_duplicate';
+	}
+
+	// 3. Ends in an image extension — an echo regardless of what it echoes.
 	if ( preg_match( '/\.(jpe?g|png|gif|webp|avif|svg|bmp|tiff?)$/i', $raw ) ) {
 		return 'filename_echo';
 	}
 
-	$norm_alt = sn_health_normalise_alt_text( $raw );
-
-	// 2. Echoes the image's own filename stem.
+	// 4. Echoes the image's own filename stem.
 	if ( '' !== (string) $filename ) {
 		$stem = sn_health_alt_filename_stem( (string) $filename );
 		if ( '' !== $stem && $norm_alt === sn_health_normalise_alt_text( $stem ) ) {
@@ -194,13 +216,7 @@ function sn_health_alt_quality_problem( $alt, $filename = '', $caption = '' ) {
 		}
 	}
 
-	// 3. Duplicates the caption, which a screen reader already announces.
-	if ( '' !== trim( (string) $caption )
-		&& $norm_alt === sn_health_normalise_alt_text( (string) $caption ) ) {
-		return 'caption_duplicate';
-	}
-
-	// 4. Names the CATEGORY rather than the content.
+	// 5. Names the CATEGORY rather than the content.
 	if ( sn_health_alt_is_generic( $norm_alt ) ) {
 		return 'generic_alt';
 	}
@@ -211,7 +227,7 @@ function sn_health_alt_quality_problem( $alt, $filename = '', $caption = '' ) {
 /**
  * True when the alt names a category of picture rather than what is in it.
  *
- * This replaced a word-COUNT rule in v10.80.1. "A single word cannot describe a
+ * This replaced a word-COUNT rule in v10.81.0. "A single word cannot describe a
  * content image" is not an accessibility requirement: WCAG asks for an
  * equivalent alternative, and for a portrait, a logo or a planet one word is
  * the complete and correct one. Counting words flagged every correct short alt
@@ -276,21 +292,123 @@ function sn_health_alt_filename_stem( $filename ) {
  * collapsed to single spaces. Lets "hero-image-2.png", "Hero Image 2" and
  * "hero image 2" compare equal.
  *
+ * The target of the comparison is what a screen reader SAYS, which is why the
+ * first two steps exist:
+ *
+ *   - DECODE ENTITIES. post_content stores them, so a heading arrives as
+ *     "OPERATIONS &amp; AI STRATEGY". Fold that undecoded and the `&amp;`
+ *     becomes the word "amp" — a string nobody ever hears, silently compared
+ *     against one that never contains it. (Same family as the color-drift
+ *     entity trap: decode before you regex post_content.)
+ *   - MAP "&" TO "and". These are one spoken word, so "OPERATIONS & AI
+ *     STRATEGY" and "Operations and AI Strategy" ARE the same announcement.
+ *     Deliberately NOT general stop-word stripping: "&" ≡ "and" is an
+ *     equivalence, whereas dropping "and" entirely is fuzzy matching, and a
+ *     fuzzy filename comparison would start flagging descriptive alt text.
+ *
  * @param string $text
  * @return string
  */
 function sn_health_normalise_alt_text( $text ) {
-	$out = strtolower( (string) $text );
+	$out = html_entity_decode( (string) $text, ENT_QUOTES | ENT_HTML5, 'UTF-8' );
+	$out = str_replace( '&', ' and ', $out );
+	$out = strtolower( $out );
 	$out = preg_replace( '/[^a-z0-9]+/', ' ', $out );
-	return trim( preg_replace( '/\s+/', ' ', (string) $out ) );
+	return trim( (string) preg_replace( '/\s+/', ' ', (string) $out ) );
 }
 
 /**
- * Extract inline <img> tags that DO have an alt attribute, with the src and the
- * nearest enclosing <figcaption> so quality can be judged in context.
+ * The heading a screen reader announces immediately after this image, if any.
+ *
+ * The heading is a SIBLING of the <figure>, never a descendant, so the scan
+ * steps past the enclosing </figure> before it starts looking.
+ *
+ * WRITTEN AGAINST STORED BLOCK MARKUP, which is the only shape this ever sees.
+ * Between </figure> and <h3> on a /services/ card sit FIVE `<!-- wp:* -->`
+ * delimiters and one <p>. Those comments are Gutenberg's serialization
+ * boundaries, not content — a lookahead that counts raw tags spends its whole
+ * budget on them and finds nothing, while testing perfectly against the
+ * RENDERED HTML, where they do not exist.
+ *
+ * Bounded twice, because the cost of over-reaching is a false positive on a
+ * page whose author did nothing wrong: at most $max_skips text-bearing
+ * elements, and the scan ends outright at the next image.
+ *
+ * @param string $content   Post content.
+ * @param int    $offset    Byte offset just past the <img> tag.
+ * @param int    $max_skips Text-bearing elements tolerated before the heading.
+ * @return string Raw heading text (entities intact), or ''.
+ */
+function sn_health_heading_after_offset( $content, $offset, $max_skips = 2 ) {
+	$rest = substr( (string) $content, (int) $offset );
+
+	// Step past the figure that wraps THIS image — but only when the next
+	// </figure> really is ours. A bare <img> has none, and stepping to the first
+	// one anywhere ahead teleports the scan into an unrelated card and reads its
+	// heading. An intervening <figure means the close belongs to that one, the
+	// same scoping guard sn_health_caption_after_offset() uses.
+	if ( preg_match( '#^(.*?)</figure\s*>#is', $rest, $fm )
+		&& false === stripos( $fm[1], '<figure' ) ) {
+		$rest = substr( $rest, strlen( $fm[0] ) );
+	}
+
+	// Block delimiters carry nothing a reader hears.
+	$rest = (string) preg_replace( '#<!--.*?-->#s', '', $rest );
+
+	// A DISTANCE bound as well as an element bound. Layout wrappers do not spend
+	// the element budget (they announce nothing), so on wrapper-heavy markup the
+	// scan can otherwise cross a whole template region — measured running this
+	// over the rendered page, where the header logo reached a heading inside
+	// <main>. Exact matching meant no false finding, but "bounded" has to mean
+	// bounded. A card's figure-to-heading gap is a few hundred bytes.
+	$rest = substr( $rest, 0, 2000 );
+
+	$skips  = 0;
+	$offset = 0;
+	$length = strlen( $rest );
+
+	while ( $offset < $length
+		&& preg_match( '#<(/?)([a-z][a-z0-9]*)\b([^>]*)>#i', $rest, $m, PREG_OFFSET_CAPTURE, $offset ) ) {
+		$tag    = strtolower( $m[2][0] );
+		$offset = $m[0][1] + strlen( $m[0][0] );
+
+		// Closing tags are structure being exited, not content being read.
+		if ( '/' === $m[1][0] ) {
+			continue;
+		}
+
+		if ( preg_match( '/^h[1-6]$/', $tag ) ) {
+			if ( preg_match( '#^(.*?)</' . $tag . '\s*>#is', substr( $rest, $offset ), $hm ) ) {
+				return trim( strip_tags( $hm[1] ) );
+			}
+			return '';
+		}
+
+		// The next image owns whatever heading follows it. Stop rather than
+		// attribute a sibling card's heading to this one.
+		if ( 'img' === $tag || 'figure' === $tag ) {
+			return '';
+		}
+
+		// Layout wrappers announce nothing, so they do not spend the budget.
+		if ( in_array( $tag, array( 'div', 'section', 'article', 'main' ), true ) ) {
+			continue;
+		}
+
+		if ( ++$skips > (int) $max_skips ) {
+			return '';
+		}
+	}
+	return '';
+}
+
+/**
+ * Extract inline <img> tags that DO have an alt attribute, with the src, the
+ * nearest enclosing <figcaption> and the heading that follows, so quality can be
+ * judged in context rather than from the alt string alone.
  *
  * @param string $content Post content.
- * @return array List of array{src:string, alt:string, caption:string}.
+ * @return array List of array{src:string, alt:string, caption:string, heading:string}.
  */
 function sn_health_extract_inline_imgs_with_alt( $content ) {
 	$content = (string) $content;
@@ -322,6 +440,7 @@ function sn_health_extract_inline_imgs_with_alt( $content ) {
 			'src'     => $src,
 			'alt'     => $alt,
 			'caption' => sn_health_caption_after_offset( $content, $tag_end ),
+			'heading' => sn_health_heading_after_offset( $content, $tag_end ),
 		);
 	}
 	return $out;
