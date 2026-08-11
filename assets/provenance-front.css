@@ -1,12 +1,20 @@
-.sn-prov-chip{display:inline-flex;align-items:center;gap:.35em;font-size:.72rem;font-weight:600;padding:.15em .6em;border-radius:999px;border:1px solid;line-height:1.6}
-.sn-prov-confirmed{color:#1f9d55;border-color:rgba(52,199,89,.4)}
-.sn-prov-pending{color:#c98a12;border-color:rgba(255,176,32,.4)}
-.sn-prov-genesis{color:#6b7280;border-color:rgba(128,128,128,.4)}
+/* The chip carries its OWN background (v10.90-era). It used to set only a
+   colour and inherit whatever surface it landed on — so its contrast was a
+   property of PLACEMENT, not of the component, and it was unscoreable in
+   isolation. That is exactly why the token-level contrast report could never
+   see it, and why two sessions fixed the link colours in this very file on the
+   same day while looking straight past the chip beside them.
+   Pinning the surface makes the ratios below true wherever the chip is used —
+   a byline, a page brow, or anywhere added later. Same move the panel made. */
+.sn-prov-chip{display:inline-flex;align-items:center;gap:.35em;font-size:.72rem;font-weight:600;padding:.15em .6em;border-radius:999px;border:1px solid;line-height:1.6;background:#fff}
+.sn-prov-confirmed{color:#12703a;border-color:rgba(18,112,58,.45)}
+.sn-prov-pending{color:#7a5200;border-color:rgba(122,82,0,.45)}
+.sn-prov-genesis{color:#5b6270;border-color:rgba(91,98,112,.45)}
 /* A founding-snapshot chip that's confirmed on Bitcoin (both classes present)
    reads as verified — green — overriding the gray genesis default by specificity,
    not source order. The "founding snapshot" distinction lives in the panel copy
    and the data-genesis attribute, so the chip itself is a plain verified badge. */
-.sn-prov-confirmed.sn-prov-genesis{color:#1f9d55;border-color:rgba(52,199,89,.4)}
+.sn-prov-confirmed.sn-prov-genesis{color:#12703a;border-color:rgba(18,112,58,.45)}
 /* The panel frame, in the site's own register (v10.88-era, after the first
    signed PAGE surfaced it standalone at the foot of /about/ and the owner
    called the old 12px-radius hairline what it was): hard 2px border, square
