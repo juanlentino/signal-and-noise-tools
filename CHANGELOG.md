@@ -2,6 +2,57 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the give-back ratio: three zeroes that are three answers
+
+Un-versioned; rides the next release with the map below.
+
+The division the board row describes: an operator's crawl counts set against its
+referred human visits, so *"the page that says who reads by machine also says
+which machines ever send a reader back"*.
+
+**Pure by construction** — handed a snapshot and a referral map, it fetches
+nothing. That is 3A's gate restated: anything that might render takes its inputs
+as arguments, so a reader's page never waits on a sensor. It is also what lets
+the fixture exist without a database.
+
+**The whole difficulty is the zeroes, and there are three:**
+
+| situation | answer | status |
+|---|---|---|
+| crawled 400, referred 0 | **`0.0`** — real, and the most interesting thing the row publishes | `none_returned` |
+| crawled 0, referred 0 | **undefined** — nothing to divide by | `no_crawls` |
+| no crawl data | **unknown** | `unmeasured` |
+| no crawler family at all | **unknown, permanently** | `not_measurable` |
+
+Every possible collapse between them runs in the flattering direction — it makes
+the site look more crawled, or more repaid, than the data says. So the status is
+explicit and the ratio is `null` wherever it is not earned.
+
+`not_measurable` is the subtle one: Copilot refers readers, but its crawler is
+bingbot, which this site classifies as `search`. No denominator will ever exist
+for it, however long the window runs — a permanent property of the map rather
+than a gap in today's data. Its referral count is still real and still shown.
+
+The referral side draws the same absent-vs-zero line from the other end: a label
+**missing from a measured map** is a measured zero, because analytics counted
+every visit in the window; the **map itself being absent** is unknown. Confusing
+them would render every operator as never having repaid.
+
+Every operator appears in the table, including those with nothing to say — a row
+dropped for having no data reads as *"no such crawler"*, a stronger claim than
+the absence it stands in for.
+
+*Fixed while writing: PHP's `/` returns `int` when the division is exact, so a
+ratio of 0 or 1 arrived as `int` and every other as `float`. Cast, so a caller
+comparing strictly or formatting decimals need not know which case it got.*
+
+70 assertions, and the four status collapses are mutation-checked. **The
+divide-by-zero guard fires as a `DivisionByZeroError`, not a failed assertion** —
+which is why that mutation first read as "0 failures": the suite died before
+printing anything. A mutation harness needs the same affirmative-terminal-marker
+rule as the suites it mutates. Third instance today of a broken mutation reading
+as a clean one.
+
 ## [Unreleased] — the operator map: the give-back ratio's gate
 
 Un-versioned; rides the next release.

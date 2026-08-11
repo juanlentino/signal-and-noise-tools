@@ -241,6 +241,10 @@ require_once SNT_PATH . 'inc/machine-readers-rights-reads.php';
 // It is the NAMED GATE on the give-back ratio — the crawler taxonomy and the
 // AI-referrer list are different vocabularies and must never be joined by name.
 require_once SNT_PATH . 'inc/machine-readers-operators.php';
+// The give-back ratio: readers returned per crawl, per operator. Pure — handed a
+// snapshot and a referral map, fetches nothing, so it is safe on a render path.
+// Loads after the map it divides across.
+require_once SNT_PATH . 'inc/machine-readers-giveback.php';
 require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.
