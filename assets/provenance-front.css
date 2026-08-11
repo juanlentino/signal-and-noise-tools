@@ -7,9 +7,17 @@
    not source order. The "founding snapshot" distinction lives in the panel copy
    and the data-genesis attribute, so the chip itself is a plain verified badge. */
 .sn-prov-confirmed.sn-prov-genesis{color:#1f9d55;border-color:rgba(52,199,89,.4)}
-.sn-prov-panel{border:1px solid rgba(128,128,128,.24);border-radius:12px;padding:1rem 1.15rem;font-size:.82rem}
-.sn-prov-chain{list-style:none;margin:0 0 .6rem;padding:0}
-.sn-prov-ver{display:flex;gap:.5em;align-items:baseline;padding:.25em 0}
+/* The panel frame, in the site's own register (v10.88-era, after the first
+   signed PAGE surfaced it standalone at the foot of /about/ and the owner
+   called the old 12px-radius hairline what it was): hard 2px border, square
+   corners, breathing room, and a restrained offset shadow — the maturity
+   family's depth idiom at its smallest scale. Shared with notes, where the
+   same frame reads correctly inside the post-closing furniture. */
+.sn-prov-panel{border:2px solid currentColor;border-radius:0;box-shadow:4px 4px 0 currentColor;background:#fff;padding:1.15rem 1.35rem;margin:2.25rem 0 6px;font-size:.82rem;line-height:1.6}
+.sn-prov-chain{list-style:none;margin:0 0 .7rem;padding:0}
+.sn-prov-ver{display:flex;gap:.6em;align-items:baseline;padding:.4em 0;border-bottom:1px solid rgba(0,0,0,.1)}
+.sn-prov-ver:last-child{border-bottom:0}
+.sn-prov-ver > code:first-child,.sn-prov-ver > .sn-prov-vlabel{font-weight:700}
 .sn-prov-meta{opacity:.6}
 /* The block number links to that block on a public explorer — underlined so it
    reads as clickable within the dimmed meta; inherits color to stay subtle. */
@@ -35,7 +43,22 @@
 .sn-prov-onchain-cta{text-decoration:underline;text-underline-offset:2px}
 .sn-prov-onchain-host{opacity:.6}
 .sn-prov-caveat{font-size:.75rem;opacity:.65;font-style:italic}
-.sn-prov-links{display:flex;gap:1em;font-size:.75rem;margin:.6rem 0 0}
+/* The action row, in the established mono-action vocabulary (the same voice
+   as .sn-prov-chip-verify): quiet uppercase red links with real hit areas,
+   separated by a rule from the record above — actions, not chain rows. */
+.sn-prov-links{display:flex;flex-wrap:wrap;gap:.4em 1.4em;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:.9rem 0 0;padding-top:.8rem;border-top:1px solid rgba(0,0,0,.1)}
+.sn-prov-links a{color:#e00404;text-decoration:underline;text-underline-offset:3px;padding:.45em 0;margin:-.45em 0}
+/* Hover/focus goes DARKER, not lighter. The site's signal red (#ff4c47) is
+   established — but everywhere else it is a border, an outline, or a tabular
+   number, and as 0.7rem uppercase link text on white it measures 3.29:1 and
+   fails WCAG AA (4.5:1 for normal text; these are smaller than normal, so the
+   3:1 large-text allowance does not apply). #b00303 measures 7.34:1. It is also
+   the :focus-visible colour, so a keyboard user lands on that state.
+   The underline thickens too, so the state change is not carried by colour
+   alone. NOTE this pair is invisible to the token-level contrast report: that
+   report covers theme TOKEN pairs, and this is a hardcoded CSS pair — which is
+   exactly what its coverage sentence exists to say. */
+.sn-prov-links a:hover,.sn-prov-links a:focus-visible{color:#b00303;text-decoration-thickness:2px}
 
 /* The chip's "Verify" affordance (v9.74.0): a quiet mono action link beside
    the chip, in the same red-action vocabulary as .sn-prov-onchain-cta — reads
@@ -44,4 +67,10 @@
    floor. The padding/negative-margin pair expands the ~15px-tall link to a
    ≥24px hit target without shifting the byline's layout. */
 .sn-prov-chip-verify{font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#e00404;text-decoration:underline;text-underline-offset:3px;margin-left:.15em;white-space:nowrap;padding:.55em .2em;margin-top:-.55em;margin-bottom:-.55em}
-.sn-prov-chip-verify:hover,.sn-prov-chip-verify:focus-visible{color:#ff4c47}
+/* Same correction as the panel's action row, applied to the link this idiom
+   came from. .7rem uppercase is smaller than normal text, so 3.29:1 fails AA
+   with no large-text allowance to fall back on — and it is the :focus-visible
+   colour, which is where a keyboard user lands. Pre-dates this release
+   (v9.74.0); fixed here because leaving one hover red compliant and its twin
+   failing, in the same stylesheet, is worse than either. */
+.sn-prov-chip-verify:hover,.sn-prov-chip-verify:focus-visible{color:#b00303;text-decoration-thickness:2px}

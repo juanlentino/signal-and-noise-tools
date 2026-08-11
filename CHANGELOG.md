@@ -2,6 +2,41 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.88.0] - 2026-08-11 — the provenance panel earns its frame
+
+Folded from the parallel theme session, and prompted by the owner seeing the
+panel standalone for the first time: the first signed PAGE rendered it at the
+foot of `/about/` with none of the post-closing furniture around it, and the
+verdict was "0 design".
+
+- **The panel frame moves into the site's own register**
+  ([assets/provenance-front.css](assets/provenance-front.css)) — 2px border,
+  square corners, a 4px offset shadow (the maturity family's depth idiom at its
+  smallest scale), ruled chain rows, and an action row in the established
+  mono-action voice with real hit areas. Status chips keep their functional
+  state colours, deliberately.
+
+### One accessibility fault caught while folding
+
+The action links took their hover/focus colour from the site's signal red
+(`#ff4c47`). That colour is established — but everywhere else it is a **border,
+an outline, or a tabular number**. As 0.7rem uppercase link text on white it
+measures **3.29:1** and fails WCAG AA: 4.5:1 applies, and text *smaller* than
+normal cannot claim the 3:1 large-text allowance. It is also the
+`:focus-visible` colour, so a keyboard user lands on the failing state.
+
+- Hover/focus now goes **darker** rather than lighter — `#b00303`, **7.34:1** —
+  and thickens the underline, so the state change is not carried by colour alone.
+- The same correction is applied to `.sn-prov-chip-verify`, which this idiom came
+  from and which has carried the identical failing hover since v9.74.0. Leaving
+  one hover red compliant and its twin failing, in the same stylesheet, would be
+  worse than either.
+
+**The token-level contrast report could not have caught this.** That report
+covers theme *token* pairs; this is a hardcoded CSS pair. Which is exactly what
+its coverage sentence exists to say — and the first time that sentence has
+earned its keep.
+
 ## [10.87.2] - 2026-08-11 — the Desktop Mode integration becomes seven modules
 
 `inc/desktop-mode-integration.php` had reached **1,623 lines** against a house
