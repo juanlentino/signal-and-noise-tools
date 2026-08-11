@@ -230,7 +230,13 @@ vp_true( false !== strpos( $sn_v_css, '--rule:' ), 'the rule colour custom prope
 vp_true( false === strpos( $sn_v_css, 'var(--sn-verify-rule' ), 'nothing still reads the undeclared --sn-verify-rule' );
 // Every custom property the stylesheet READS must also be DECLARED in it —
 // the general form of the v9.87.0 bug, not just that one variable's name.
-preg_match_all( '/var\(\s*(--[a-z0-9-]+)/i', $sn_v_css, $sn_v_reads );
+// Scan the RULES, not the prose about them. A comment explaining why a property
+// was retired necessarily contains the string `var(--that-property)`, and a
+// raw-text scan reads a note ABOUT a property as a read OF it — which fired the
+// moment --signal was removed in v10.90.2 with its retirement documented in
+// place. A read inside a comment is not a read.
+$sn_v_css_rules = (string) preg_replace( '~/\*.*?\*/~s', '', $sn_v_css );
+preg_match_all( '/var\(\s*(--[a-z0-9-]+)/i', $sn_v_css_rules, $sn_v_reads );
 foreach ( array_unique( $sn_v_reads[1] ) as $sn_v_prop ) {
 	vp_true( false !== strpos( $sn_v_css, $sn_v_prop . ':' ), "custom property $sn_v_prop is declared, not only read" );
 }

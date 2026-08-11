@@ -108,11 +108,11 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection — a thread shared with Machine readability', 'signal-and-noise-tools' ),
+				__( 'Give-back ratio per crawler: the ledger\'s crawl counts set against that operator\'s referred human visits — so the page that says who reads by machine also says which machines ever send a reader back — landing once an explicit operator map names which crawler families and which referrer hosts are the same company — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" without ever profiling a reader', 'signal-and-noise-tools' ),
 				__( 'Search-side metrics from Search Console: the queries, impressions, and positions that happen before the click — a trailing complement to the first-party view, never a second opinion on it', 'signal-and-noise-tools' ),
-				__( 'Give-back ratio per crawler: the ledger\'s crawl counts set against that operator\'s referred human visits — so the page that says who reads by machine also says which machines ever send a reader back — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'Verified versus claimed: crawler request signatures checked at the edge and recorded in the ledger — so the attention story can separate cryptographic fact from a user-agent costume — a thread shared with Machine readability', 'signal-and-noise-tools' ),

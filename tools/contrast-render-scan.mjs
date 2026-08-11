@@ -164,6 +164,7 @@ const COLLECT = () => {
 	};
 
 	const rows = [];
+	const decorative = [];
 	for ( const el of document.querySelectorAll( 'body *' ) ) {
 		// Own text only — otherwise a wrapper is credited with its children's text.
 		const own = Array.from( el.childNodes )
@@ -172,6 +173,21 @@ const COLLECT = () => {
 			.join( '' )
 			.trim();
 		if ( ! own ) continue;
+
+		// aria-hidden="true" is the author declaring this decorative, and SC
+		// 1.4.3 exempts pure decoration. Reported separately rather than
+		// silently dropped: the attribute is also the easiest way to make a
+		// scanner quiet about a real defect, so the count stays visible and a
+		// reviewer can spot a suspicious spike in it.
+		//
+		// This came from the first live run: it flagged /verify's "·"
+		// separator and its step numerals, all three already aria-hidden. The
+		// numerals duplicate <ol> position, the dot is a dot. Three findings
+		// that were the instrument being eager, not the page being wrong.
+		if ( el.closest( '[aria-hidden="true"]' ) ) {
+			decorative.push( { path: pathOf( el ), text: own.slice( 0, 60 ) } );
+			continue;
+		}
 
 		const s = getComputedStyle( el );
 		if ( s.display === 'none' || s.visibility === 'hidden' || Number( s.opacity ) === 0 ) continue;
@@ -205,7 +221,7 @@ const COLLECT = () => {
 			ratio: Math.round( ratio( fg, bg.color ) * 100 ) / 100,
 		} );
 	}
-	return rows;
+	return { rows, decorative };
 };
 
 const threshold = ( row ) => ( row.large ? AA_LARGE : AA_BODY );
@@ -219,6 +235,7 @@ const restingLook = new Map();
 const lookOf = ( row ) => `${ row.fg }|${ row.bg }|${ row.unscoreable || '' }`;
 
 const findings = [];
+let decorativeSkipped = 0;
 const unscoreable = [];
 const seen = new Set();
 let measured = 0;
@@ -259,7 +276,9 @@ for ( const url of targets ) {
 		}
 	};
 
-	record( await page.evaluate( COLLECT ), 'rest' );
+	const restPass = await page.evaluate( COLLECT );
+	decorativeSkipped += restPass.decorative.length;
+	record( restPass.rows, 'rest' );
 
 	// Forced pseudo-states. §3C's worked example is a :hover link, and no
 	// declaration-reading scan can reach it. CSS.forcePseudoState restyles the
@@ -283,7 +302,7 @@ for ( const url of targets ) {
 					/* node went away between query and force; nothing to measure. */
 				}
 			}
-			record( await page.evaluate( COLLECT ), state );
+			record( ( await page.evaluate( COLLECT ) ).rows, state );
 			for ( const nodeId of nodeIds ) {
 				try {
 					await cdp.send( 'CSS.forcePseudoState', { nodeId, forcedPseudoClasses: [] } );
@@ -323,6 +342,15 @@ if ( unscoreable.length ) {
 	for ( const u of unscoreable.slice( 0, 10 ) ) console.log( `  ${ u.path } — ${ u.url }` );
 }
 
+if ( decorativeSkipped ) {
+	console.log(
+		`\n${ decorativeSkipped } element(s) skipped as aria-hidden="true" — decoration is exempt from SC 1.4.3.`
+	);
+	console.log(
+		'A sudden jump in that number is worth a look: aria-hidden is also the easiest way to silence this scan.'
+	);
+}
+
 console.log(
 	'\nCoverage: only the pages listed above, and only states reachable by forcing'
 );
@@ -339,6 +367,7 @@ if ( jsonPath ) {
 				urls: targets,
 				states: withStates ? [ 'rest', 'hover', 'focus-visible' ] : [ 'rest' ],
 				measurements: measured,
+				decorativeSkipped,
 				pairings: seen.size,
 				findings,
 				unscoreable,
