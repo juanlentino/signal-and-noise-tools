@@ -439,9 +439,21 @@
 		return { anchor: anchor, evidence: evidence, mode: anchor.txid ? 'txid' : 'block-only' };
 	}
 
-	/** Real ledger record path: notes/<uid>/v<n>.json (never a flat file). */
-	function ledgerRecordUrl( ledgerBase, uid, version, evidence ) {
-		return String( ledgerBase || '' ).replace( /\/?$/, '' ) + '/notes/' + encodeURIComponent( uid ) + '/v' + encodeURIComponent( version || ( evidence && evidence.version ) || 0 ) + '.json';
+	/**
+	 * Ledger directory per subject kind (v10.84.0). Mirrors SUBJECT_KINDS in the
+	 * provenance Worker, which builds the same path server-side.
+	 *
+	 * A map to a FIXED LITERAL, never `kind + '/'`: the kind arrives from a page
+	 * attribute, and interpolating it would let a crafted value walk out of the
+	 * ledger root. Unknown or absent falls back to notes/, which is what every
+	 * link minted before v10.84.0 means.
+	 */
+	var SUBJECT_ROOTS = { note: 'notes', page: 'pages' };
+
+	/** Real ledger record path: <root>/<uid>/v<n>.json (never a flat file). */
+	function ledgerRecordUrl( ledgerBase, uid, version, evidence, kind ) {
+		var root = SUBJECT_ROOTS[ kind ] || SUBJECT_ROOTS.note;
+		return String( ledgerBase || '' ).replace( /\/?$/, '' ) + '/' + root + '/' + encodeURIComponent( uid ) + '/v' + encodeURIComponent( version || ( evidence && evidence.version ) || 0 ) + '.json';
 	}
 
 	/**
@@ -767,6 +779,7 @@
 		deriveLiveMatchVerdict:   deriveLiveMatchVerdict,
 		deriveAnchorPlan:         deriveAnchorPlan,
 		ledgerRecordUrl:          ledgerRecordUrl,
+		SUBJECT_ROOTS:            SUBJECT_ROOTS,
 		ledgerKeysUrl:            ledgerKeysUrl,
 		mempoolTxStatusUrl:       mempoolTxStatusUrl,
 		deriveBlockOnlyAnchor:    deriveBlockOnlyAnchor,
