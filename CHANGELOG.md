@@ -2,6 +2,187 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.91.0] - 2026-08-11 — which machines send a reader back
+
+**MINOR** — R3 gate **3B is complete**. The give-back ratio was promoted to
+`planned` with its gate named earlier today; this builds the gate, the division,
+and the surface, and closes the row.
+
+The machine-readability page now says, per operator, whether a machine that reads
+this site ever sends a reader back — in sentences, not a table of numbers:
+
+> **OpenAI read this site 900 times and has never sent a reader back.**
+> Anthropic read this site 12 times and sent 3 readers back.
+> Perplexity did not read this site in this window.
+> Microsoft sends readers, but its crawler cannot be told apart from ordinary
+> search here, so there is nothing to measure it against.
+
+Those four sentences are four different claims, which is the whole engineering
+problem underneath them.
+
+### The surface: the ratio reaches the page
+
+Un-versioned; rides the next release. This is the piece that makes R3 3B's
+second half **user-visible**, so the release folding it is a MINOR.
+
+The machine-readability page now publishes, per operator, whether a machine that
+reads this site ever sends a reader back — as sentences, not a table of numbers:
+
+> **OpenAI read this site 900 times and has never sent a reader back.**
+> Anthropic read this site 12 times and sent 3 readers back.
+> Perplexity did not read this site in this window.
+> Microsoft sends readers, but its crawler cannot be told apart from ordinary
+> search here, so there is nothing to measure it against.
+
+Each status gets its own sentence because each is a different claim, and the
+never-repaid rows **sort first**. Ranking by ratio alone would file the most
+interesting answer (`0.0`) next to the ones that have no answer at all.
+
+**The referral side now rides the same capture as the crawl side.** It had to:
+the ratio divides one by the other, and two separately-timed captures would
+compare a 30-day crawl count against a 30-day referral count ending on a
+different day — wrong in a way nothing downstream can detect. One cron run, one
+UTC window, one timestamp, and the test asserts the window the referral read
+actually asked for.
+
+The referral read goes through Analytics Engine, which is an outbound query — so
+it happens on cron, never at render, exactly as 3A required for the sensor. Its
+failed-read verdict is preserved end to end: **a failed read is unknown, an empty
+result is a measured zero for every label.** Confusing them would render every
+operator as never having repaid.
+
+*Caught while wiring the sweep:* an existing assertion checked that `900` was
+absent from the **whole page**, as a proxy for "article reads don't leak into the
+rights-read count". The give-back section then legitimately printed *"read this
+site 900 times"* about crawls, and the proxy fired. Now scoped to the sentence it
+was always defending — **an assertion's blast radius should match the claim it
+defends**, or the next true statement to mention the same number reads as a
+regression.
+
+### The division: three zeroes that are three answers
+
+Un-versioned; rides the next release with the map below.
+
+The division the board row describes: an operator's crawl counts set against its
+referred human visits, so *"the page that says who reads by machine also says
+which machines ever send a reader back"*.
+
+**Pure by construction** — handed a snapshot and a referral map, it fetches
+nothing. That is 3A's gate restated: anything that might render takes its inputs
+as arguments, so a reader's page never waits on a sensor. It is also what lets
+the fixture exist without a database.
+
+**The whole difficulty is the zeroes, and there are three:**
+
+| situation | answer | status |
+|---|---|---|
+| crawled 400, referred 0 | **`0.0`** — real, and the most interesting thing the row publishes | `none_returned` |
+| crawled 0, referred 0 | **undefined** — nothing to divide by | `no_crawls` |
+| no crawl data | **unknown** | `unmeasured` |
+| no crawler family at all | **unknown, permanently** | `not_measurable` |
+
+Every possible collapse between them runs in the flattering direction — it makes
+the site look more crawled, or more repaid, than the data says. So the status is
+explicit and the ratio is `null` wherever it is not earned.
+
+`not_measurable` is the subtle one: Copilot refers readers, but its crawler is
+bingbot, which this site classifies as `search`. No denominator will ever exist
+for it, however long the window runs — a permanent property of the map rather
+than a gap in today's data. Its referral count is still real and still shown.
+
+The referral side draws the same absent-vs-zero line from the other end: a label
+**missing from a measured map** is a measured zero, because analytics counted
+every visit in the window; the **map itself being absent** is unknown. Confusing
+them would render every operator as never having repaid.
+
+Every operator appears in the table, including those with nothing to say — a row
+dropped for having no data reads as *"no such crawler"*, a stronger claim than
+the absence it stands in for.
+
+*Fixed while writing: PHP's `/` returns `int` when the division is exact, so a
+ratio of 0 or 1 arrived as `int` and every other as `float`. Cast, so a caller
+comparing strictly or formatting decimals need not know which case it got.*
+
+70 assertions, and the four status collapses are mutation-checked. **The
+divide-by-zero guard fires as a `DivisionByZeroError`, not a failed assertion** —
+which is why that mutation first read as "0 failures": the suite died before
+printing anything. A mutation harness needs the same affirmative-terminal-marker
+rule as the suites it mutates. Third instance today of a broken mutation reading
+as a clean one.
+
+### The gate: the operator map
+
+Un-versioned; rides the next release.
+
+The board promoted the give-back ratio to `planned` **with its gate written into
+the row**: *landing once an explicit operator map names which crawler families
+and which referrer hosts are the same company.* This is that map, built alone and
+first, because the ratio is a division and this is what makes its two sides
+comparable at all.
+
+**Why a map and not a string match.** The vocabularies are unrelated by
+construction — `snt_mr_valid_families()` classifies user-agents (`openai`,
+`google-ai`), `inc/analytics-sources.php` resolves referrer hosts to brand labels
+(`ChatGPT`, `Gemini`). `GPTBot` and `chatgpt.com` are the same company and
+**nothing in either list says so**. A string match happens to work for
+`perplexity`/`Perplexity` and fails for every other pair — the worst kind of
+near-miss, because the case that works makes the technique look sound.
+
+**The asymmetries are real, and both sides are declared even when empty:**
+
+- **Common Crawl** crawls constantly and has no assistant. *"Never sent a
+  reader"* is a true, meaningful answer for it.
+- **Copilot** refers readers, but its crawler is bingbot, classified here as
+  `search`. There is nothing to attribute those crawls to, so its denominator is
+  **absent, not zero**.
+
+A ratio on this must distinguish *crawled but never referred* (a real answer)
+from *no crawl data* (no answer). `snt_mr_operator_is_measurable()` lets callers
+ask before dividing rather than meeting an empty array mid-sum.
+
+**The load-bearing tests are the completeness ones:** `mapped ∪ unmapped == the
+enum`, exactly, and every unmapped family states **why**. A family added upstream
+without a decision fails the suite instead of dropping silently out of every
+denominator — which would make the site look less crawled, the flattering
+direction. Six are deliberately unmapped (`search`, `seo`, `feed`, `uptime`,
+`other-bot`, `unclassified-machine`).
+
+The mirrored label list is compared against `analytics-sources.php` **parsed from
+source**, guarded by an assertion that the parse matched anything at all — a
+regex finding nothing would have passed every comparison below it.
+
+Five mutations verified the guards fire. *A sixth produced a reassuring zero and
+was a **broken mutation**: the regex cut through an escaped apostrophe and left
+unparseable PHP. Verify the mutation applied AND that the file still parses.*
+
+103 assertions. No hooks, no output, no behaviour change — the ratio is next.
+
+### Correction: v10.90.2 asserted the wrong resolution
+
+Un-versioned; rides the next release. **A claim shipped in v10.90.2 is false, and
+it was my call that was wrong.**
+
+v10.90.2 said: *"'signal is never text' was never a principle, only a fact about
+one hex… the theme's `#bf3935` (5.45:1) is legitimately link-hover text… the
+theme's token change stands."*
+
+**Theme v11.7.2 (owner decision) resolved it the other way** — `signal` reverted
+to `#ff4c47` and was removed from link-hover text entirely. It is an outline
+colour everywhere now. v11.7.1's darkening passed AA and treated a symptom: the
+defect was never that the accent was too light, it was that a 3.29:1 accent was
+load-bearing **as text** at all.
+
+The theme session proposed exactly that and offered to be superseded; I argued
+against generalising it and recommended keeping the darker token. The framing
+that won was the one I had written into `prov-verify.css` and then declined to
+generalise.
+
+Corrected in the stylesheet comment rather than quietly deleted, because the
+wrong call is the useful half of the record. `/verify` keeps `--signal-ink`
+regardless — it is a standalone document that cannot resolve theme tokens at all,
+which is independence, not a position on the palette.
+
+
 ## [10.90.2] - 2026-08-11 — the stamp was fixed and the sentence beside it was not
 
 **PATCH.** Contrast fixes, a board-floor sync, and a non-shipped instrument. No

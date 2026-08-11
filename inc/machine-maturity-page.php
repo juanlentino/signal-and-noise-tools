@@ -116,6 +116,50 @@ function sn_machine_maturity_reads_html() {
 		. '<p class="sn-machine-maturity-reads">' . esc_html( $sentence ) . '</p>';
 }
 
+/**
+ * The give-back table (R3 3B). Reads the durable snapshot and nothing else.
+ *
+ * Rides the `full` format rather than getting a format of its own, deliberately:
+ * tests/maturity-family.php sweeps a HARDCODED list of formats for lever leaks,
+ * so a new format would be silently unswept.
+ *
+ * Operators with nothing measurable are shown rather than filtered. A row
+ * dropped for having no data reads as "no such crawler" — a stronger claim than
+ * the absence it stands in for.
+ *
+ * @return string
+ */
+function sn_machine_maturity_giveback_html() {
+	if ( ! function_exists( 'snt_mr_snapshot' ) || ! function_exists( 'snt_mr_giveback_table' ) ) {
+		return '';
+	}
+	$snap = snt_mr_snapshot();
+	$rows = snt_mr_giveback_table( $snap, snt_mr_snapshot_referrals( $snap ) );
+	if ( empty( $rows ) ) {
+		return '';
+	}
+	// Loudest first: the operators that read and never repaid, then the ones
+	// that did, then everything with no answer. Sorting by ratio alone would put
+	// the most interesting row (0.0) beside the unmeasured ones.
+	$rank = array( 'none_returned' => 0, 'ok' => 1, 'no_crawls' => 2, 'not_measurable' => 3, 'unmeasured' => 4 );
+	usort( $rows, function ( $a, $b ) use ( $rank ) {
+		$ra = $rank[ $a['status'] ] ?? 9;
+		$rb = $rank[ $b['status'] ] ?? 9;
+		if ( $ra !== $rb ) {
+			return $ra - $rb;
+		}
+		return (int) ( $b['crawls'] ?? 0 ) - (int) ( $a['crawls'] ?? 0 );
+	} );
+
+	$out = '<h3>' . esc_html__( 'Which machines send a reader back', 'signal-and-noise-tools' ) . '</h3>'
+		. '<ul class="sn-machine-maturity-giveback">';
+	foreach ( $rows as $row ) {
+		$out .= '<li class="sn-machine-maturity-giveback__row sn-machine-maturity-giveback__row--' . esc_attr( $row['status'] ) . '">'
+			. esc_html( snt_mr_giveback_sentence( $row ) ) . '</li>';
+	}
+	return $out . '</ul>';
+}
+
 /** @return string */
 function sn_machine_maturity_principles_html() {
 	$out = '<h3>' . esc_html__( 'Honest by construction', 'signal-and-noise-tools' ) . '</h3><ul class="sn-machine-maturity-principles">';
@@ -170,7 +214,7 @@ function sn_machine_maturity_shortcode( $atts = array() ) {
 	} elseif ( 'compact' === $format ) {
 		$out .= sn_machine_maturity_compact_html();
 	} else {
-		$out .= sn_machine_maturity_intro_html() . sn_machine_maturity_table_html() . sn_machine_maturity_reads_html() . sn_machine_maturity_principles_html() . sn_machine_maturity_scope_html();
+		$out .= sn_machine_maturity_intro_html() . sn_machine_maturity_table_html() . sn_machine_maturity_reads_html() . sn_machine_maturity_giveback_html() . sn_machine_maturity_principles_html() . sn_machine_maturity_scope_html();
 	}
 	return $out . '</div>';
 }

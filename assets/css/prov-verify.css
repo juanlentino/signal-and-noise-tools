@@ -50,13 +50,15 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	   and --void on IT is 7.34:1 too, which is what lets it be a button surface
 	   as well as a link colour. Hover/focus goes DARKER, never lighter — the
 	   move the provenance links settled on.
-	   SCOPE, and it matters: this is a claim about this file, NOT a law about
-	   the site's palette. "signal is never text" was true of #ff4c47 and is not
-	   a principle. The theme's `signal` is now #bf3935 (5.45:1) and is
-	   legitimately link-hover TEXT there; the rule is "a colour used as text
-	   clears 4.5:1 at the size it is used", which that value does. /verify is a
-	   standalone document that cannot resolve theme tokens, so it owns its own
-	   value instead of tracking that one. */
+	   SCOPE: this is a claim about this file. It turned out to be the site's
+	   rule too — theme v11.7.2 (owner decision) made `signal` an outline colour
+	   everywhere and reverted the token to #ff4c47, rather than darkening it so
+	   it could keep being link-hover text. I had argued the opposite: that
+	   contrast-at-size was the only principle and v11.7.1's darker token was a
+	   real fix. It passed AA and it treated a symptom — the defect was that a
+	   3.29:1 accent was load-bearing as TEXT at all. Recorded because the wrong
+	   call is the useful half. /verify still owns its own --signal-ink: it is a
+	   standalone document that cannot resolve theme tokens at all. */
 	--signal-ink:#b00303;
 	--rust:#333; --blood:#e00404;
 	/* --signal is GONE (was #ff4c47). It was a hand-synced copy of the
@@ -64,8 +66,9 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	   uses — every one routes through --signal-ink. A stale copy of another
 	   package's palette value is a standing invitation to "sync" it back in,
 	   and /verify is a standalone document that owns its own colours. The
-	   theme has since moved signal to #bf3935; this file did not have to
-	   care, which is the whole point. */
+	   theme moved signal to #bf3935 and then back to #ff4c47 within one
+	   evening; this file did not have to care either time, which is the whole
+	   point. */
 	/* The one surface that is not paper-white: the ledger ground. Warm grey,
 	   not a blue-grey — the page has no cool hues anywhere else. */
 	--paper:#f4f3f1;

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.90.2
+ * Version:     10.91.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -236,6 +236,15 @@ require_once SNT_PATH . 'inc/machine-readers-snapshot.php';
 // snapshot above — hand it a record, get a sentence. No sensor call on this
 // path by construction, which is what lets it render on a front-end page.
 require_once SNT_PATH . 'inc/machine-readers-rights-reads.php';
+// The operator map: the one place that says which crawler families and which
+// referrer hosts are the same company. Pure data + lookups, no hooks, no output.
+// It is the NAMED GATE on the give-back ratio — the crawler taxonomy and the
+// AI-referrer list are different vocabularies and must never be joined by name.
+require_once SNT_PATH . 'inc/machine-readers-operators.php';
+// The give-back ratio: readers returned per crawl, per operator. Pure — handed a
+// snapshot and a referral map, fetches nothing, so it is safe on a render path.
+// Loads after the map it divides across.
+require_once SNT_PATH . 'inc/machine-readers-giveback.php';
 require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.
