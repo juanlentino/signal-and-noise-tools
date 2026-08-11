@@ -36,6 +36,12 @@ if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlsp
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+// __() is the plain translate — no escaping. A renderer that composes with
+// sprintf() and escapes the RESULT needs this rather than esc_html__(), which
+// would escape the template before the values land in it. Stubbing only the
+// escaping variants made a legitimate renderer fatal.
+if ( ! function_exists( '__' ) ) { function __( $s, $d = null ) { return (string) $s; } }
+if ( ! function_exists( '_n' ) ) { function _n( $one, $many, $n, $d = null ) { return (string) ( 1 === (int) $n ? $one : $many ); } }
 if ( ! function_exists( 'wp_kses_post' ) ) { function wp_kses_post( $s ) { return (string) $s; } }
 if ( ! function_exists( 'current_user_can' ) ) { function current_user_can() { return true; } }
 if ( ! function_exists( 'wp_nonce_field' ) ) { function wp_nonce_field( $a = -1 ) { echo '<input type="hidden" name="_wpnonce">'; } }
