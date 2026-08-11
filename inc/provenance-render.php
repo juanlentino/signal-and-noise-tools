@@ -582,8 +582,14 @@ function sn_prov_append_page_panel( $content ) {
 	if ( false !== strpos( $content, 'sn-prov-' ) ) {
 		return $content;
 	}
-	$panel = sn_prov_render_panel( get_the_ID() );
-	return '' === $panel ? $content : $content . $panel;
+	// Owner direction (2026-08-11, after seeing the v10.88.0-framed panel
+	// standalone on the first signed page): a PAGE shows a BADGE, not the
+	// full record block — "maybe just a badge for pages instead of that
+	// block". The chip is the same proof compressed: status color, the
+	// anchor a click away. NOTES keep their panels — the full record
+	// belongs in the post-closing furniture the theme places it in.
+	$badge = sn_prov_render_chip( get_the_ID() );
+	return '' === $badge ? $content : $content . '<p class="sn-prov-page-badge">' . $badge . '</p>';
 }
 add_filter( 'the_content', 'sn_prov_append_page_panel', 20 );
 
