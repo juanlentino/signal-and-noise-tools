@@ -448,7 +448,14 @@ $body = '<p>About this site.</p>';
 
 $out = sn_prov_append_page_panel( $body );
 rp_true( $out !== $body && false !== strpos( $out, 'sn-prov-' ),
-	'a signed page gets its panel appended — signing and showing are no longer two independent acts' );
+	'a signed page gets its proof appended — signing and showing are no longer two independent acts' );
+// Owner direction (2026-08-11): a page's proof is the CHIP, never the full
+// record block — pinned both ways so a future "improvement" back to the
+// panel reds loudly instead of quietly re-crowding the page foot.
+rp_true( false !== strpos( $out, 'sn-prov-chip' ) && false !== strpos( $out, 'sn-prov-page-badge' ),
+	'the appended proof is the BADGE (chip in its page wrapper)' );
+rp_true( false === strpos( $out, 'sn-prov-panel' ),
+	'the full record block never auto-appends on a page' );
 
 // Placed by hand → never twice. The shortcode expands at priority 11, so its
 // markup is already in $content when this filter runs at 20.
