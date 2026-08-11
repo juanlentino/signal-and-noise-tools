@@ -43,6 +43,13 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	   text and 1.4.11 for a state border, while staying visibly quieter than
 	   --rust. Never use --concrete for text a reader has to read. */
 	--concrete-ink:#767676;
+	/* --signal is the site's established red and it is 3.29:1 on --void: fine as
+	   an outline or a rule (non-text, 3:1), a failure the moment it becomes text
+	   or the surface under text. Hover/focus therefore goes DARKER, never
+	   lighter — the same move and the same value the provenance links settled on.
+	   7.34:1 on --void, and --void on IT is 7.34:1 too, which is what lets it be
+	   a button surface as well as a link colour. */
+	--signal-ink:#b00303;
 	--rust:#333; --blood:#e00404; --signal:#ff4c47;
 	/* The one surface that is not paper-white: the ledger ground. Warm grey,
 	   not a blue-grey — the page has no cool hues anywhere else. */
@@ -146,10 +153,10 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify-form input:focus{outline:3px solid var(--blood);outline-offset:-3px}
 .sn-verify-form input::placeholder{color:var(--concrete)}
 .sn-verify-form button{font-family:'Bebas Neue',Impact,sans-serif;font-size:1.15rem;letter-spacing:.09em;padding:.4em 1.6em .3em;border:0;border-left:2px solid var(--bone);background:var(--bone);color:var(--void);cursor:pointer;transition:background .12s ease}
-.sn-verify-form button:hover{background:var(--signal);color:var(--void)}
+.sn-verify-form button:hover{background:var(--signal-ink);color:var(--void)}
 /* Keyboard focus must be distinguishable from a coincidental hover — same
    blood outline vocabulary as the input, on top of the hover background. */
-.sn-verify-form button:focus-visible{background:var(--signal);color:var(--void);outline:3px solid var(--blood);outline-offset:-3px}
+.sn-verify-form button:focus-visible{background:var(--signal-ink);color:var(--void);outline:3px solid var(--blood);outline-offset:-3px}
 
 /* Demoted once an answer is on screen: the form is the hero of an EMPTY
    page and a "check another one" utility on an answered page. Same element,
@@ -230,7 +237,7 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify-facts p{margin:0 0 .55em}
 .sn-verify-facts p:last-child{margin-bottom:0}
 .sn-verify-facts a{color:var(--blood);text-decoration:underline;text-underline-offset:3px}
-.sn-verify-facts a:hover{color:var(--signal)}
+.sn-verify-facts a:hover{color:var(--signal-ink)}
 
 /* ---- the section nav -------------------------------------------------- */
 /* One bar, three destinations. Tabs are set in the display face at docket
@@ -345,8 +352,8 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	padding:.4em 1.6em .3em;border:0;background:var(--bone);color:var(--void);
 	cursor:pointer;transition:background .12s ease;
 }
-.sn-verify-cmp-form button:hover{background:var(--signal)}
-.sn-verify-cmp-form button:focus-visible{background:var(--signal);outline:3px solid var(--blood);outline-offset:-3px}
+.sn-verify-cmp-form button:hover{background:var(--signal-ink)}
+.sn-verify-cmp-form button:focus-visible{background:var(--signal-ink);outline:3px solid var(--blood);outline-offset:-3px}
 
 .sn-verify-compare-out{margin:1.4rem 0 0}
 .sn-verify-compare-note{font-size:.76rem;line-height:1.7;color:var(--rust);margin:0}

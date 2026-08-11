@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the red that is an outline, not a word
+
+Sibling of the stamp fix below, same tier, same lesson one token over.
+
+`--signal` (`#ff4c47`) is **3.29:1** on white: legitimate as a focus ring or a
+rule (1.4.11 wants 3:1), a failure the moment it becomes text or the surface
+under text. Every such use now takes `--signal-ink` (`#b00303`, **7.34:1**) — the
+value the provenance links already settled on, so hover/focus goes **darker,
+never lighter**. Fixed on the verify form's primary button, the compare button,
+the fact links, the roadmap fold summary and its glyph. The focus rings keep
+`--signal`, and a test asserts they do: a sweep that removed every occurrence
+would "pass" while deleting the focus indicators.
+
+**The roadmap badges were worse than the handover said, and measured live proves
+why.** The variants faded themselves with `opacity`, which fades the *text* along
+with the frame. Measured on the live page, the counts ran **3.29 / 2.13 / 1.76 /
+1.45:1** as the status got more speculative — the `later` count was effectively
+invisible, and the badge's own label faded with it. Opacity on a text-bearing
+element is a contrast bug wearing a design decision's clothes. The fade now lives
+on the **border** only: the frame still softens left to right, the words and
+numbers never do, and every border still clears 3:1.
+
+### Two bugs this caught in its own making, both worth the telling
+
+1. A silent no-op edit left four rules referencing a `--signal-ink` that was
+   **never defined** — hover backgrounds would have rendered transparent.
+2. The test reported that undefined token as **21.00:1 and passed**, because the
+   luminance helper turned a missing value into `0` — pure black, maximum
+   contrast. An absent value posing as a perfect result, in the fixture built to
+   catch exactly that. `pvc_lum()` now refuses to score a non-colour and fails
+   loudly; deleting the token turns the suite red three ways instead of green.
+
 ## [Unreleased] — the /verify stamp becomes readable
 
 Un-versioned; rides the next release. The first fix found by **3C's rendered

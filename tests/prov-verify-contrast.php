@@ -24,6 +24,17 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }
 
 function pvc_lum( $hex ) {
+	// A missing token used to arrive here as '' and return luminance 0 — which
+	// is PURE BLACK, so an UNDEFINED colour scored 21:1 and every ratio
+	// assertion about it passed. That is the absent-reads-as-a-great-result
+	// trap in its purest form, and it hid a real bug: four rules referencing a
+	// --signal-ink that was never defined. Refuse to score what does not exist.
+	if ( ! is_string( $hex ) || 1 !== preg_match( '/^#?([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/', trim( $hex ) ) ) {
+		echo "  FAIL - pvc_lum() got a non-colour (" . var_export( $hex, true ) . ") — an absent token must never score as black\n";
+		global $fail;
+		++$fail;
+		return NAN;
+	}
 	$hex = ltrim( trim( $hex ), '#' );
 	if ( 3 === strlen( $hex ) ) { $hex = $hex[0] . $hex[0] . $hex[1] . $hex[1] . $hex[2] . $hex[2]; }
 	$c = array();
@@ -45,7 +56,7 @@ ok( '' !== $css, 'the shipped stylesheet is readable (the file, never a copy of 
 // Resolve the palette from the file itself — a test carrying its own hex copies
 // would keep passing after someone edited the real token.
 $tok = array();
-foreach ( array( 'void', 'bone', 'asphalt', 'concrete', 'concrete-ink', 'rust', 'blood' ) as $name ) {
+foreach ( array( 'void', 'bone', 'asphalt', 'concrete', 'concrete-ink', 'rust', 'blood', 'signal', 'signal-ink' ) as $name ) {
 	if ( preg_match( '/--' . preg_quote( $name, '/' ) . '\s*:\s*(#[0-9a-fA-F]{3,6})/', $css, $m ) ) {
 		$tok[ $name ] = $m[1];
 	}
@@ -73,6 +84,41 @@ echo "\nGroup: the settled state colours still pass on their own terms\n";
 foreach ( array( 'bone' => 'PASS', 'blood' => 'FAIL', 'rust' => 'NOTE' ) as $t => $state ) {
 	$rr = pvc_ratio( $tok[ $t ], $tok['void'] );
 	ok( $rr >= 4.5, sprintf( '%s stamp (--%s %s) = %.2f:1', $state, $t, $tok[ $t ], $rr ) );
+}
+
+echo "\nGroup: --signal is an OUTLINE colour, never text and never a surface under text\n";
+// 3.29:1 clears 1.4.11's 3:1 for a non-text indicator and fails 1.4.3's 4.5:1
+// for text. The token was never wrong; using it as text was.
+$sig = pvc_ratio( $tok['signal'], $tok['void'] );
+ok( $sig >= 3.0 && $sig < 4.5, sprintf( '--signal is %.2f:1 — legitimately an outline, illegitimately text', $sig ) );
+ok( isset( $tok['signal-ink'] ), '--signal-ink is defined' );
+$ink = pvc_ratio( $tok['signal-ink'], $tok['void'] );
+ok( $ink >= 4.5, sprintf( '--signal-ink %s = %.2f:1 — clears AA as text AND as a surface under --void text', $tok['signal-ink'], $ink ) );
+ok( false === strpos( $css, 'var(--signal)' ), 'no bare --signal survives here: every use in this file was text, or a surface under text' );
+foreach ( array(
+	'.sn-verify-form button:hover'     => 'the primary button label on hover',
+	'.sn-verify-facts a:hover'         => 'a fact link on hover — DARKER than its --blood rest, never lighter',
+	'.sn-verify-cmp-form button:hover' => 'the compare button on hover',
+) as $sel => $what ) {
+	ok( 1 === preg_match( '/' . preg_quote( $sel, '/' ) . '\{[^}]*var\(--signal-ink\)/', $css ), $what );
+}
+
+echo "\nGroup: the roadmap board — the fade may not ride the text\n";
+$rm = (string) file_get_contents( __DIR__ . '/../assets/maturity-roadmap-front.css' );
+ok( '' !== $rm, 'the roadmap stylesheet is readable' );
+// Measured live before the fix: opacity on a text-bearing badge dragged the
+// counts to 3.29 / 2.13 / 1.76 / 1.45:1 as the status got more speculative.
+// Opacity anywhere on this badge would silently reintroduce all of it.
+ok( 1 !== preg_match( '/\.sn-maturity-roadmap-badge--[a-z]+\{[^}]*opacity:/', $rm ), 'no badge variant fades itself with opacity (it would fade the label and the count with it)' );
+ok( 1 === preg_match( '/\.sn-maturity-roadmap-badge__n\{[^}]*var\(--sn-signal-ink,#b00303\)/', $rm ), 'the badge count uses the ink red, not the outline red' );
+ok( 1 === preg_match( '/\.sn-maturity-roadmap-fold summary:hover\{color:var\(--sn-signal-ink,#b00303\)\}/', $rm ), 'the fold summary hover goes darker, not lighter' );
+ok( false === strpos( $rm, 'background:var(--sn-signal,#ff4c47);border-color:var(--sn-signal,#ff4c47);color:#fff' ), 'the fold glyph no longer puts white text on the 3.29:1 red' );
+// The token itself must SURVIVE where it is legitimate — a sweep that removed
+// every occurrence would "pass" while deleting the focus rings.
+ok( 2 <= preg_match_all( '/outline:3px solid var\(--sn-signal,#ff4c47\)/', $rm ), '--signal is still the focus-ring colour (non-text, 3:1 — it was never the bug)' );
+foreach ( array( 'planned' => 0.55, 'considering' => 0.45, 'later' => 0.45 ) as $variant => $alpha ) {
+	$r = pvc_ratio( sprintf( '#%02x%02x%02x', (int) round( 255 * ( 1 - $alpha ) ), (int) round( 255 * ( 1 - $alpha ) ), (int) round( 255 * ( 1 - $alpha ) ) ), '#ffffff' );
+	ok( $r >= 3.0, sprintf( 'the %s badge border composites to %.2f:1 — clears 1.4.11', $variant, $r ) );
 }
 
 echo "\nGroup: the decorative exemption is an ASSERTION, and it is still made\n";
