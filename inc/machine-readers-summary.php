@@ -2,7 +2,7 @@
 /**
  * Signal & Noise Tools — Machine Readers: the ONE summary builder.
  *
- * v10.2.0. Both the desktop tile route (inc/desktop-mode-integration.php) and
+ * v10.2.0. Both the desktop tile route (inc/desktop-mode-payloads.php) and
  * the signal-noise/get-machine-readers-summary ability read this, so neither
  * can drift when the other gains a field — the fork the first draft of the
  * ability shipped, and its own review caught.

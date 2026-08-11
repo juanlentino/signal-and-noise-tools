@@ -21,7 +21,7 @@
  *   - Both can register the same actions without conflict — each addresses
  *     a different surface. We deliberately mirror the most-used few of the
  *     desktop-mode command set here (see the registration loop in
- *     inc/desktop-mode-integration.php for the current roster); full
+ *     inc/desktop-mode-commands.php for the current roster); full
  *     parity isn't the goal.
  *
  * Gated on:

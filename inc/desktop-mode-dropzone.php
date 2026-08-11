@@ -53,7 +53,7 @@ function snt_desktop_dropzone_enqueue() {
 		plugins_url( 'assets/desktop-dropzone.js', SNT_PATH . 'signal-and-noise-tools.php' ),
 		// v10.43.0: sn-desktop-mode-os-compat aliases window.wp.desktop ↔
 		// window.wp.os before this file's notify() reads window.wp.desktop —
-		// registered on init:5 in inc/desktop-mode-integration.php, so the
+		// registered on init:5 in inc/desktop-mode-assets.php, so the
 		// handle exists by the time this admin_enqueue_scripts callback runs.
 		array( 'sn-desktop-mode-os-compat', 'wp-hooks', 'wp-api-fetch' ),
 		SNT_VERSION,
