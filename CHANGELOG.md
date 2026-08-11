@@ -2,6 +2,50 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.86.0] - 2026-08-11 — a signed page can now be seen
+
+The first page was signed end to end today: the About page's record landed at
+`pages/<uid>/v1.json`, the first ledger record ever written outside `notes/`.
+Then it turned out to be **invisible** — absent from `index.json`, and outside
+the record↔index consistency check the ledger's CI runs, so CI stayed green over
+the omission. A page record was not wrong; it was unindexed.
+
+**The cause was one gap, not two.** The ledger's `build-index.mjs` discovers a
+record by fetching the SITE and reading the UID out of the rendered page — so
+widening it to walk `pages/` could never have worked on its own, because a
+signed page rendered no provenance panel and therefore carried no UID to read.
+The on-page render was logged as "deliberately out of scope" in v10.84.0; it is
+in fact the **prerequisite** for the ledger tooling.
+
+- **The provenance panel renders on any subject, not only notes**
+  ([inc/provenance-render.php](inc/provenance-render.php)). The gate was
+  `is_singular( 'post' )` plus a notes-category check — the same pair the
+  signing path had, and the same reason a signed page showed nothing. It now
+  reads `sn_prov_subject_kind()`, so what renders and what signs can no longer
+  disagree.
+- **The panel's links follow the kind.** `ledger_url` and `ots_url` resolve
+  through the subject's own directory, and the verify link carries
+  `?kind=` for anything that is not a note. A panel that linked a signed page
+  into `notes/` would have pointed a reader at a 404 on the one surface whose
+  entire job is checkability. Notes' links stay byte-identical.
+- **Guarded at the source rather than in five harnesses.** `get_post()` does not
+  exist in the standalone test suites this module is driven from, and five
+  separate suites fatalled on that shape today. The call is `function_exists`
+  guarded; in WordPress it always exists, so production behaviour is unchanged
+  and the module stays testable in isolation.
+
+### Desktop Mode's health card stops counting report-only as passed
+
+Folded from the parallel Health-tab session, completing the cross-surface rule
+started in v10.85.0: **no surface counts a report-only check as a pass.** Two
+presentations, both deliberate — the Health tab and the dashboard widget keep
+the full denominator and name the gap in a suffix ("17 of 19 · 1 report-only"),
+while the Desktop card drops report-only from the denominator because a green
+dot beside "17/19" with no room for a suffix reads as two silent failures. Both
+agree on the number that matters. `sn_health_check_total()` is untouched
+throughout, so "across N of M checks" still means "checks the scan ran".
+
+
 ## [10.85.0] - 2026-08-11 — a channel, a room for reports, and one number everyone agrees on
 
 Three sessions' work in one release. Two landed un-versioned on `claude/*`

@@ -1114,10 +1114,25 @@ function snt_health_summary_for_localize() {
 		return null;
 	}
 
-	$total       = sn_health_check_total( $scan );
 	$flagged_map = sn_health_flagged_checks( $scan );
 	$flagged_n   = count( $flagged_map );
-	$passed      = max( 0, $total - $flagged_n );
+
+	// v10.83.0: report-only checks (contrast_tokens and its successors) raise
+	// zero findings BY DESIGN, so `total - flagged` counted them as passes —
+	// a verdict a check that cannot fail must not be able to earn.
+	//
+	// This widget drops them from the DENOMINATOR as well as the numerator,
+	// unlike the Health tab. That is deliberate, not drift: the tab has room
+	// for a meta line naming the gap ("17 of 19 · 1 report-only"), and this
+	// card is a one-line glance where a green dot beside "17/19" would read as
+	// two silent failures. Both surfaces agree on the number that matters —
+	// 17 passed — and neither counts a report as one. `report_only` rides the
+	// payload so the card can name the gap later without a server change.
+	$report_n = function_exists( 'sn_health_report_checks' ) ? count( (array) sn_health_report_checks( $scan ) ) : 0;
+	$total    = max( 0, sn_health_check_total( $scan ) - $report_n );
+	$passed   = function_exists( 'sn_health_passing_checks' )
+		? count( (array) sn_health_passing_checks( $scan ) )
+		: max( 0, $total - $flagged_n );
 
 	// v9.53.0: WHICH checks failed, not just how many. sn_health_flagged_checks()
 	// already returns them count-desc and already excludes the advisory tier, so
@@ -1136,6 +1151,8 @@ function snt_health_summary_for_localize() {
 
 	return array(
 		'passed'         => $passed,
+		// Report-only checks, excluded from BOTH passed and total above.
+		'report_only'    => $report_n,
 		'total'          => $total,
 		'all_passed'     => 0 === $flagged_n,
 		// sn_health_run_scan() stores scanned_at as time() — an INT timestamp.

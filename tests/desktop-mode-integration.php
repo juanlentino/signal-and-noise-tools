@@ -596,6 +596,36 @@ ok( ( $h['passed'] ?? 0 ) === 3, 'health summary counts passed = checks with zer
 ok( ( $h['all_passed'] ?? true ) === false, 'health summary flags the failing check' );
 ok( ( $h['scanned_at'] ?? null ) === 1752660000, 'health summary carries scanned_at as the INT timestamp it really is' );
 
+// ═══ v10.83.0: report-only checks are neither passes nor denominator ═══
+// `total - flagged` counted a report-only check as a pass. This card is a
+// one-line glance with no room to name the gap, so report-only leaves BOTH
+// numerator and denominator — a green dot beside "3/4" would read as a silent
+// failure. The Health tab keeps the full denominator and names the gap in its
+// meta line instead; both agree on the number that matters, and neither counts
+// a report as a pass.
+$GLOBALS['__health_scan'] = fixture_scan( array(
+	'missing_alt'     => 0,
+	'broken_links'    => 3,
+	'contrast_tokens' => 0,
+), 1752660000 );
+$GLOBALS['__health_scan']['checks']['contrast_tokens']['report'] = array(
+	'coverage' => 'Arithmetic tier only.',
+	'pairs'    => array( array( 'pair' => 'a / b', 'ratio' => 2.1 ) ),
+);
+$rep = snt_health_summary_for_localize();
+ok( ( $rep['passed'] ?? -1 ) === 1, 'report-only: passed counts ONLY the real pass (1), not the report' );
+ok( ( $rep['total'] ?? -1 ) === 2, 'report-only: the report leaves the denominator too (2, not 3)' );
+ok( ( $rep['report_only'] ?? -1 ) === 1, 'report-only: the payload carries the count so the card can name it later' );
+ok( ( $rep['all_passed'] ?? true ) === false, 'report-only: a real fault still fails the summary' );
+
+// And on a clean site the ratio must be FULL — the green dot and the numbers
+// have to agree, which is the whole reason the denominator moved.
+$GLOBALS['__health_scan'] = fixture_scan( array( 'missing_alt' => 0, 'contrast_tokens' => 0 ), 1752660000 );
+$GLOBALS['__health_scan']['checks']['contrast_tokens']['report'] = array( 'coverage' => 'Arithmetic tier only.' );
+$rep_clean = snt_health_summary_for_localize();
+ok( ( $rep_clean['passed'] ?? -1 ) === 1 && ( $rep_clean['total'] ?? -1 ) === 1, 'report-only: a clean site reads 1/1, never 1/2 beside a green dot' );
+ok( ( $rep_clean['all_passed'] ?? false ) === true, 'report-only: a report alone never blocks all_passed' );
+
 // THE REGRESSION THAT MATTERS: a 100%-clean site must read as all-passed.
 // The pre-review code derived `passed` from a non-existent $check['passed']
 // key, so a spotless scan rendered a permanent amber "0/11 passed".
