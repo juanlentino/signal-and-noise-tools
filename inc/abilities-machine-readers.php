@@ -21,7 +21,7 @@
  *    Same contract the tab's connection callout states in prose.
  *
  * 2. Fork the payload. snt_desktop_machine_readers_payload()
- *    (inc/desktop-mode-integration.php) already shapes this exact glance for
+ *    (inc/desktop-mode-payloads.php) already shapes this exact glance for
  *    the tile's REST route, so the tile window delegates to it rather than
  *    keeping a second implementation that would drift the first time either
  *    side gained a field. The DM route hardcodes its 30-day window, so a

@@ -302,7 +302,11 @@ ok( 7 === ( $mr_7['days'] ?? null ), 'a non-default window is honored (the old f
 ok( array_keys( $mr_direct ) === array_keys( $mr_7 ), 'every window returns the same shape' );
 $mr_src = (string) file_get_contents( __DIR__ . '/../inc/abilities-machine-readers.php' );
 ok( false === strpos( $mr_src, 'snt_ability_mr_summary_for' ), 'no second copy of the builder remains in the ability file' );
-$mr_dm = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-integration.php' );
+// v10.87.2: the desktop route moved to the payloads module when
+// desktop-mode-integration.php was split into a loader plus seven modules. The
+// assertion is unchanged — one builder, called by both callers, no second copy
+// — only the file that now holds the route.
+$mr_dm = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-payloads.php' );
 ok( false !== strpos( $mr_dm, 'snt_mr_summary_payload( 30 )' ), 'the desktop route calls the same builder' );
 
 echo "\nGroup K: orchestrator wiring\n";

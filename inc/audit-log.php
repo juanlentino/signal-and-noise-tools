@@ -27,7 +27,7 @@
  *   - wp-admin form (Security → Audit log sub-tab, in inc/audit-log-admin.php)
  *   - REST routes signal-noise/v1/audit/* (co-located below)
  *   - Abilities (registered in inc/abilities-registration.php)
- *   - desktop-mode ⌘K commands (registered in inc/desktop-mode-integration.php)
+ *   - desktop-mode ⌘K commands (registered in inc/desktop-mode-commands.php)
  *
  * @package SignalNoiseTools
  * @since 3.8.3

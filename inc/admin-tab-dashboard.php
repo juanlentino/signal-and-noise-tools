@@ -907,7 +907,7 @@ add_action( 'admin_post_sn_force_update_check', function() {
 	}
 	check_admin_referer( 'sn_force_update_check', 'sn_force_update_check_nonce' );
 
-	// v4.1.1 (D-01): delegate to the shared impl in desktop-mode-integration.php.
+	// v4.1.1 (D-01): delegate to the shared impl in desktop-mode-commands.php.
 	// Pre-v4.1.1 this 4-line block was duplicated byte-for-byte across this
 	// handler and snt_cmd_impl_force_check(). Single source of truth now.
 	if ( function_exists( 'snt_cmd_impl_force_check' ) ) {
