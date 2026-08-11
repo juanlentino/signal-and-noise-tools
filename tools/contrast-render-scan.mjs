@@ -44,15 +44,25 @@
  *     validation error). Forced pseudo-classes restyle what is already there;
  *     they do not create it.
  *
- * Usage:
+ * ── RUN THIS ON YOUR WORKSTATION, NEVER ON THE WEB SERVER ─────────────────
+ * The site is the SUBJECT, not the host. This drives a local Chrome and
+ * fetches the pages over HTTP, so it belongs on a laptop with a browser.
+ *
+ * Running it on the Cloudways host fails three ways and was tried once
+ * (2026-08-11): there is no Chrome there, the host runs Node 18 while
+ * playwright-core needs >=20, and `npm i` inside public_html leaves a
+ * node_modules/ and package.json PUBLICLY SERVED from the docroot —
+ * `https://<site>/package.json` returned 200 until it was cleaned up.
+ *
+ * Usage — from a checkout of this repo, on your own machine:
+ *   npm i playwright-core                                      # once
  *   node tools/contrast-render-scan.mjs                        # default URL set
  *   node tools/contrast-render-scan.mjs https://a/ https://b/  # explicit URLs
  *   node tools/contrast-render-scan.mjs --json report.json     # machine output
  *   node tools/contrast-render-scan.mjs --no-states            # resting only
  *
  * Requires: playwright-core and a local Google Chrome. Deliberately NOT a
- * committed dependency of this plugin — install it where you run the tool:
- *   npm i playwright-core
+ * committed dependency of this plugin.
  */
 
 import { chromium } from 'playwright-core';
