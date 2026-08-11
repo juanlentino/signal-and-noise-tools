@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the /verify stamp becomes readable
+
+Un-versioned; rides the next release. The first fix found by **3C's rendered
+tier** (`tools/contrast-render-scan.mjs`), which measures computed styles and so
+sees what neither the arithmetic nor the declared-usage tier can.
+
+`--concrete` (`#9e9e9e`) is a **surface** grey — borders, rules, fills. The
+`/verify` state stamp was using it as a **text** colour at **2.68:1**, failing AA
+for normal text and 1.4.11 for the border that carries the state. Same defect
+class the theme fixed in v11.7.0: a background token used as a text colour, which
+reads as deliberate right up until someone measures it.
+
+Adds `--concrete-ink: #767676` — **4.54:1** on `--void`, clearing AA and 1.4.11
+while staying visibly quieter than `--rust`. Applied to the stamp's text and
+border, including the settled `UNREACHABLE` state, which a reader acts on and
+which had kept the surface grey because it is the quiet outcome.
+
+**Two of the three findings handed over were NOT fixed, deliberately.** The
+`01/02/03` numerals (1.32:1) and the footer's middot separator both carry
+`aria-hidden="true"` and convey nothing a reader must read — WCAG 1.4.3 exempts
+purely decorative text, and "fixing" them would manufacture changes for failures
+no reader can experience. But that exemption is an **assertion in the markup**,
+so `tests/prov-verify-contrast.php` pins the assertion: strip the `aria-hidden`
+and the test fails, because the numeral is 1.32:1 the moment it stops being
+decoration.
+
+The test reads the **shipped** stylesheet and resolves the palette from the file
+rather than carrying its own copies of the hexes — a fixture with its own hard-coded
+values keeps passing after someone edits the real token. Mutation-checked in three
+directions: regressing the colour, weakening the token past AA, and removing the
+aria-hidden each turn it red.
+
 ## [10.90.0] - 2026-08-11 — three counts the site can stand behind
 
 Two sessions' work, folded into one release on the owner's instruction. Both

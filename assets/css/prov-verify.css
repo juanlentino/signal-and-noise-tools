@@ -36,6 +36,13 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 
 .sn-verify{
 	--void:#fff; --bone:#000; --asphalt:#e0e0e0; --concrete:#9e9e9e;
+	/* --concrete is a SURFACE grey (borders, rules, fills). Used as a TEXT
+	   colour it is 2.68:1 on --void — the same defect class the theme fixed in
+	   v11.7.0, and it reads as deliberate right up until you measure it. This
+	   is its text-safe sibling: 4.54:1 on --void, so it clears AA for normal
+	   text and 1.4.11 for a state border, while staying visibly quieter than
+	   --rust. Never use --concrete for text a reader has to read. */
+	--concrete-ink:#767676;
 	--rust:#333; --blood:#e00404; --signal:#ff4c47;
 	/* The one surface that is not paper-white: the ledger ground. Warm grey,
 	   not a blue-grey — the page has no cool hues anywhere else. */
@@ -194,7 +201,7 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify-check-state{
 	justify-self:end;align-self:center;
 	font-size:.72rem;font-weight:500;letter-spacing:.14em;text-transform:uppercase;
-	padding:.45em .8em .4em;border:2px solid var(--concrete);color:var(--concrete);
+	padding:.45em .8em .4em;border:2px solid var(--concrete-ink);color:var(--concrete-ink);
 	transform:rotate(0deg);white-space:nowrap;
 }
 .sn-verify-check[data-state="pending"] .sn-verify-check-state{border-style:dotted;animation:sn-verify-blink 1.6s ease-in-out infinite}
@@ -207,7 +214,7 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify-check[data-state="PASS"] .sn-verify-check-state{border-color:var(--bone);color:var(--bone);border-width:3px;font-weight:500}
 .sn-verify-check[data-state="FAIL"] .sn-verify-check-state{border-color:var(--blood);color:var(--blood);border-width:3px}
 .sn-verify-check[data-state="NOTE"] .sn-verify-check-state{border-color:var(--rust);color:var(--rust)}
-.sn-verify-check[data-state="UNREACHABLE"] .sn-verify-check-state{border-style:dashed;border-color:var(--concrete);color:var(--concrete)}
+.sn-verify-check[data-state="UNREACHABLE"] .sn-verify-check-state{border-style:dashed;border-color:var(--concrete-ink);color:var(--concrete-ink)}
 
 @keyframes sn-verify-stamp{
 	0%{transform:rotate(-9deg) scale(1.5);opacity:0}
