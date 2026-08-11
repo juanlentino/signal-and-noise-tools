@@ -2,6 +2,79 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — Health tab information architecture
+
+Authored in a parallel session and landed **un-versioned** on a `claude/*`
+branch under the release-coordination arrangement: the release-owning session
+folds this into its next version header and cuts the single tag. No version
+bump, no tag, no deploy from here.
+
+This closes the gap v10.82.0 named in its own "deliberately not built" line —
+the contrast report shipped with a full pair table and no admin surface to
+render it on.
+
+- **Report-only checks now have a home**
+  ([inc/health-render-reports.php](inc/health-render-reports.php)). A new
+  Reports section sits between the findings (which demand action) and the
+  passing disclosure (which asks nothing). `contrast_tokens` is its first
+  tenant: coverage sentence first and visually emphasised, then the would-fail
+  proportion, the token legend with swatches, and the worst-first pair table.
+  Before this, the check's entire representation in admin was a single green
+  chip in the passing strip.
+
+- **"Report-only" is a structural test, not a key list**
+  (`sn_health_check_has_report()`, [inc/health-summary.php](inc/health-summary.php)).
+  A check is report-only iff it packs a non-empty `report` array. The next
+  report-only check therefore renders the day it ships. Dispatch to a bespoke
+  renderer is a filterable registry with a **degrading fallback** — an
+  unrecognised report still prints its coverage sentence and says plainly that
+  the detail is unrendered. Reintroducing "invisible in admin" one tier down
+  would have been the whole bug again.
+
+- **A report-only check is no longer counted as passing.** It raises zero
+  findings by design, so the raw `count === 0` split scored it a pass — a
+  verdict a check that cannot fail must not be able to earn, and precisely the
+  overclaim `health-contrast-tokens.php` warns about in its own docblock. The
+  **denominator is not shrunk**: `sn_health_check_total()` still counts every
+  check the scan ran, on every surface, so nothing downstream is re-derived and
+  no two surfaces can disagree. The gap is *named* instead — "17 of 19 checks
+  passing · 1 report-only", with the hero card carrying the same note.
+
+- **Passing checks collapse into a `<details>` disclosure, grouped by family**
+  ([inc/health-render-passing.php](inc/health-render-passing.php),
+  [inc/health-check-families.php](inc/health-check-families.php)). At ten
+  checks the open chip row read as reassurance; at nineteen it was a wall
+  sitting between the reader and everything below it. `<details>` over a JS
+  toggle buys keyboard operation, the screen-reader expanded state, and a no-JS
+  fallback without writing any of them. Families (content / links /
+  accessibility / ML / provenance & rights / analytics / edge & security) give
+  the expanded list a spine.
+
+- **The family map is total, and the test is what makes it loud.** An unmapped
+  check falls into an `other` bucket at runtime — a check must never drop off
+  the page — but [tests/health-check-families.php](tests/health-check-families.php)
+  reads the check keys straight out of `sn_health_run_scan()`'s source and fails
+  if any resolves to the fallback, in both directions (unmapped keys *and* stale
+  entries). It asserts the source parse found ~19 keys **before** asserting they
+  are all mapped: a regex that silently matched nothing would otherwise loop
+  zero times and report "all mapped" while proving nothing.
+
+- **WCAG 1.4.1 inside the contrast report.** The AA verdict pills first
+  distinguished pass from fail by colour alone — shipping a Use-of-Color
+  failure inside an accessibility report. The verdict now carries a glyph for
+  readers who cannot separate the hues and `.screen-reader-text` words for
+  anyone not seeing it; the colour is the third channel. A test asserting only
+  "the pill has the right class" would have stayed green through this.
+
+- CSS lands in [assets/admin.css](assets/admin.css) — enqueued and
+  screen-gated via the existing `sn_admin_page_hooks()` guard, never inlined.
+  The one exception is the palette swatch's `background-color`, where the hex
+  *is* the data and cannot be known by a stylesheet; it is re-validated against
+  `/^#[0-9a-f]{6}$/` at the render site, and a test pins that it is the only
+  inline style attribute in the render modules. `inc/admin-tabs-data.php` was
+  **not** touched, so the admin-registry full-sweep contract is not implicated
+  (the suite was run regardless: 80 passed).
+
 ## [10.82.0] - 2026-08-11 — token-level contrast, report only
 
 R2C's first half. Authored in a parallel session and folded here under the

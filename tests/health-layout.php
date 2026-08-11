@@ -1,14 +1,19 @@
 <?php
 /**
  * Standalone test: Health sub-tab open-and-wide layout contract (v6.44.0,
- * reshaped v8.0.1, pattern-adoption extracted in v10.46.0).
+ * reshaped v8.0.1, pattern-adoption extracted in v10.46.0, IA rebuilt v10.83.0).
  *
- * Order contract (reshaped again in v10.46.0): first-glance hero
- * (sn_admin_glance_grid) → the capped Run-scan card → full-width
- * finding tables for checks WITH issues → ONE passing strip (.sn-health-passing:
- * "N of M checks passing" + check names as .sn-badge chips — replaces the
- * v6.44.0 per-check pass-card grid). No .sn-shell / .sn-shell__rail. Also
- * unit-tests snt_health_glance_cards().
+ * Order contract (v10.83.0): first-glance hero (sn_admin_glance_grid) → the
+ * capped Run-scan card → full-width finding tables for checks WITH issues →
+ * the Reports section (report-only payloads) → the COLLAPSED passing
+ * disclosure (<details class="sn-health-passing">, names grouped by family).
+ * No .sn-shell / .sn-shell__rail. Also unit-tests snt_health_glance_cards().
+ *
+ * The v10.83.0 assertions that matter most:
+ *   - a report-only check renders its PAYLOAD (it shipped in v10.82.0 with no
+ *     home in admin at all — a green chip was its entire representation), and
+ *   - it does NOT appear among the passing chips, because "pass" is a verdict
+ *     a check that cannot fail must not be able to earn.
  *
  * Run: php tests/health-layout.php
  *
@@ -57,6 +62,25 @@ $GLOBALS['__scan'] = array(
 			'fix_hint' => '',
 			'findings' => array(),
 		),
+		// v10.83.0: a report-only check in the fixture. Zero findings AND a
+		// report payload — the shape that used to collapse into a pass chip.
+		'contrast_tokens' => array(
+			'label'    => 'Contrast (token arithmetic, report only)',
+			'count'    => 0,
+			'fix_hint' => 'Report only — no action from this check.',
+			'findings' => array(),
+			'report'   => array(
+				'coverage'        => 'Arithmetic tier only: every theme-token pair scored as WOULD-fail/pass if rendered together.',
+				'thresholds'      => array( 'aa_body' => 4.5, 'aa_large' => 3.0 ),
+				'tokens'          => array( 'ink' => '#111111', 'paper' => '#ffffff', 'rust' => '#b3421a' ),
+				'pairs'           => array(
+					array( 'pair' => 'rust / ink', 'ratio' => 2.87, 'aa_body' => false, 'aa_large' => false ),
+					array( 'pair' => 'rust / paper', 'ratio' => 5.12, 'aa_body' => true, 'aa_large' => true ),
+					array( 'pair' => 'ink / paper', 'ratio' => 18.88, 'aa_body' => true, 'aa_large' => true ),
+				),
+				'would_fail_body' => 1,
+			),
+		),
 	),
 );
 if ( ! function_exists( 'sn_health_last_scan' ) ) { function sn_health_last_scan() { return $GLOBALS['__scan']; } }
@@ -69,6 +93,10 @@ if ( ! function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) 
 
 require_once __DIR__ . '/../inc/health-summary.php'; // finding-total + flagged-checks accessors the glance hero shares
 require_once __DIR__ . '/../inc/admin-glance.php';
+// v10.83.0: the IA render modules the tab now delegates to.
+require_once __DIR__ . '/../inc/health-check-families.php';
+require_once __DIR__ . '/../inc/health-render-passing.php';
+require_once __DIR__ . '/../inc/health-render-reports.php';
 require_once __DIR__ . '/../inc/health-checks-admin.php';
 
 function he_assert( $cond, $msg ) {
@@ -83,7 +111,12 @@ $cards = snt_health_glance_cards( $GLOBALS['__scan'] );
 he_assert( 3 === count( $cards ), 'a scan yields exactly 3 hero cards' );
 he_assert( 'Findings' === $cards[0]['label'] && '2 findings' === $cards[0]['value'], 'Findings card sums the per-check counts' );
 he_assert( 'warn' === $cards[0]['pill']['kind'], 'Findings card pills warn when issues exist' );
-he_assert( 'Checks passed' === $cards[1]['label'] && '1 / 2' === $cards[1]['value'], 'Checks-passed card counts the clean checks' );
+// v10.83.0: 3 checks run, 1 flagged, 1 report-only → 1 passed out of 3. The
+// DENOMINATOR still counts every check (sn_health_check_total is untouched, so
+// no other surface has to be re-derived); the report-only check simply leaves
+// the numerator, and the meta line says where it went.
+he_assert( 'Checks passed' === $cards[1]['label'] && '1 / 3' === $cards[1]['value'], 'Checks-passed counts real passes over every check run' );
+he_assert( false !== strpos( (string) $cards[1]['meta_html'], '1 report-only check not counted' ), 'the report-only check is NAMED, not silently absorbed into the ratio' );
 he_assert( 'Last scan' === $cards[2]['label'] && false !== strpos( $cards[2]['value'], 'ago' ), 'Last-scan card shows the age' );
 $nocards = snt_health_glance_cards( null );
 he_assert( 1 === count( $nocards ) && 'no scan' === $nocards[0]['value'] && 'warn' === $nocards[0]['pill']['kind'], 'no scan → a single warn "no scan" card' );
@@ -109,20 +142,53 @@ he_assert( false === strpos( $html, 'sn-health-actions' ), 'the paired action-ro
 he_assert( false === strpos( $html, 'SNT-OPPS-MARKER' ), 'the Health tab no longer renders the pattern-adoption card, even though the fn exists' );
 he_assert( false === strpos( $html, 'HEAD probes' ), 'run-scan intro is the one-line copy (long paragraph gone)' );
 
-// v8.0.1: passing checks collapse into ONE strip — name chips, no per-check card.
-he_assert( false !== strpos( $html, 'sn-health-passing' ), 'passing strip present' );
-he_assert( false !== strpos( $html, '1 of 2 checks passing' ), 'mixed state heading counts passing vs total' );
-he_assert( false !== strpos( $html, '<span class="sn-badge">Orphaned media</span>' ), 'passing check appears as a name chip' );
+// ── v10.83.0: passing checks collapse into a <details> disclosure ───────────
+he_assert( false !== strpos( $html, '<details class="sn-fieldset sn-health-passing">' ), 'passing checks are a COLLAPSED <details>, not an open strip' );
+he_assert( 1 === preg_match( '/<details class="sn-fieldset sn-health-passing">/', $html ) && 0 === preg_match( '/<details[^>]*sn-health-passing[^>]*\sopen/', $html ), 'the disclosure is CLOSED by default — a healthy site reads as one line' );
+he_assert( false !== strpos( $html, '<summary class="sn-health-passing__summary">' ), 'the summary is a real <summary> (keyboard + SR disclosure semantics for free)' );
+he_assert( false !== strpos( $html, '1 of 3 checks passing · 1 report-only' ), 'the summary names the report-only gap instead of counting it as a pass' );
+he_assert( false !== strpos( $html, '<span class="sn-badge">Orphaned media</span>' ), 'passing check appears as a name chip inside the disclosure' );
+he_assert( false === strpos( $html, '<span class="sn-badge">Contrast (token arithmetic, report only)</span>' ), 'the report-only check is NOT a pass chip' );
 he_assert( false === strpos( $html, '<h2 class="sn-section-h">Passing checks</h2>' ), 'old pass-board section heading gone' );
 he_assert( false === strpos( $html, '>clear<' ), 'no per-check "clear" pass cards remain' );
+
+// Family grouping inside the disclosure.
+he_assert( false !== strpos( $html, 'sn-health-passing__family-label' ), 'passing names are grouped under family labels' );
+he_assert( false !== strpos( $html, '>Content</h3>' ), 'the family label names the family (orphaned_media → Content)' );
+
+// ── v10.83.0: the Reports section — the whole point of this change ──────────
+echo "\nTest A2: report-only payloads render (contrast_tokens had NO admin home before)\n";
+he_assert( false !== strpos( $html, '<h2 class="sn-section-h">Reports</h2>' ), 'Reports section heading present' );
+he_assert( false !== strpos( $html, 'sn-health-report__coverage' ), 'the coverage sentence renders — it is the honesty contract, not preamble' );
+he_assert( false !== strpos( $html, 'Arithmetic tier only' ), 'the coverage TEXT is the report payload\'s own, verbatim' );
+he_assert( false !== strpos( $html, '1 of 3 token pairs would fall below 4.5:1' ), 'the headline states the would-fail count as a proportion' );
+he_assert( false !== strpos( $html, 'would fall below' ), 'wording is WOULD-fail — this tier scores pairs, it does not observe renders' );
+he_assert( false !== strpos( $html, '<code>rust / ink</code>' ), 'the worst pair appears in the table' );
+he_assert( false !== strpos( $html, '2.87:1' ), 'the ratio renders to 2dp' );
+// Worst-first ordering survives the render (the check sorts; the renderer must not resort).
+$worst_at = strpos( $html, 'rust / ink' );
+$best_at  = strpos( $html, 'ink / paper' );
+he_assert( is_int( $worst_at ) && is_int( $best_at ) && $worst_at < $best_at, 'pairs render worst-first — the reader meets the risk before the reassurance' );
+// WCAG 1.4.1 inside the contrast report itself: the verdict must survive with
+// the colour removed. Pills carry a glyph AND screen-reader words; the class is
+// the third channel, not the only one.
+he_assert( false !== strpos( $html, '<span class="screen-reader-text">would fail </span>' ), 'a failing verdict says "would fail" in text, not only in amber' );
+he_assert( false !== strpos( $html, '<span class="screen-reader-text">would pass </span>' ), 'a passing verdict says "would pass" in text, not only in green' );
+he_assert( false !== strpos( $html, '<span aria-hidden="true">✕</span>' ), 'a sighted reader who cannot separate the hues gets a glyph' );
+he_assert( false !== strpos( $html, '<span aria-hidden="true">✓</span>' ), 'and the pass glyph too' );
+he_assert( false !== strpos( $html, 'sn-swatch' ), 'the token legend carries colour swatches' );
+he_assert( false !== strpos( $html, 'background-color:#b3421a' ), 'a swatch carries its palette hex (the one legitimate inline style — the value IS the data)' );
+he_assert( false !== strpos( $html, '>ink</span>' ), 'the legend names token SLUGS, not just hexes' );
 
 $glance_at   = strpos( $html, '<div class="sn-glance">' );
 $scan_at     = strpos( $html, 'value="health_scan"' );
 $findings_at = strpos( $html, '<h2 class="sn-section-h">Findings</h2>' );
+$reports_at  = strpos( $html, '<h2 class="sn-section-h">Reports</h2>' );
 $passing_at  = strpos( $html, 'sn-health-passing' );
 he_assert( is_int( $glance_at ) && is_int( $scan_at ) && $glance_at < $scan_at, 'hero precedes the run-scan card' );
 he_assert( is_int( $findings_at ) && $scan_at < $findings_at, 'run-scan precedes the findings' );
-he_assert( is_int( $passing_at ) && $findings_at < $passing_at, 'findings precede the passing strip' );
+he_assert( is_int( $reports_at ) && $findings_at < $reports_at, 'findings (which demand action) precede reports (which do not)' );
+he_assert( is_int( $passing_at ) && $reports_at < $passing_at, 'reports precede the passing disclosure (which asks nothing)' );
 
 // ─── Test B: NO scan — hero shows the no-scan card, no tables ────────────────
 echo "\nTest B: Health with no scan — no-scan hero, no tables\n";
@@ -137,6 +203,7 @@ he_assert( false === strpos( $html2, '<table class="widefat striped' ), 'no find
 he_assert( false === strpos( $html2, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section without a scan' );
 he_assert( false === strpos( $html2, 'SNT-OPPS-MARKER' ), 'no pattern-adoption card on the no-scan path either (it lives on its own leaf now)' );
 he_assert( false === strpos( $html2, 'sn-health-passing' ), 'no passing strip without a scan' );
+he_assert( false === strpos( $html2, '<h2 class="sn-section-h">Reports</h2>' ), 'no Reports section without a scan' );
 
 // ─── Test C: clean scan — pass board only, no Findings section/table ─────────
 echo "\nTest C: clean scan — pass board only, no Findings section\n";
@@ -153,19 +220,182 @@ $html3 = ob_get_clean();
 he_assert( false !== strpos( $html3, 'all clear' ), 'hero pills all-clear when nothing is found' );
 he_assert( false === strpos( $html3, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section when all checks pass' );
 he_assert( false === strpos( $html3, '<table class="widefat striped' ), 'no finding table when clean' );
-he_assert( false !== strpos( $html3, 'sn-health-passing' ), 'passing strip present for the clean check' );
+he_assert( false !== strpos( $html3, 'sn-health-passing' ), 'passing disclosure present for the clean check' );
 he_assert( false !== strpos( $html3, 'All 1 check passing' ), 'all-clear heading (singular check)' );
+he_assert( false === strpos( $html3, 'report-only' ), 'no report-only suffix when the scan has no report checks' );
 he_assert( false !== strpos( $html3, '<span class="sn-badge">Missing alt text</span>' ), 'clean check named as a chip' );
-he_assert( false !== strpos( $html3, 'sn-pill--ok' ), 'strip carries the single ok pill (not one per check)' );
+he_assert( false !== strpos( $html3, 'sn-pill--ok' ), 'disclosure carries the single ok pill (not one per check)' );
+he_assert( false === strpos( $html3, '<h2 class="sn-section-h">Reports</h2>' ), 'no Reports section when nothing packs a report' );
 
-// ─── CSS contract: the paired row + strip carry real stylesheet backing ──────
-echo "\nCSS contract: v8.0.1 classes exist in assets/admin.css\n";
+// ─── Test D: a report-only check ALONE — Reports renders, no passing chip ────
+// The v10.82.0 shipping state in miniature: one check, zero findings, a full
+// payload. Before v10.83.0 this rendered as a single green chip and nothing else.
+echo "\nTest D: report-only check alone — payload rendered, never chipped as a pass\n";
+$GLOBALS['__scan'] = array(
+	'scanned_at' => time() - 60,
+	'elapsed_ms' => 40,
+	'checks'     => array(
+		'contrast_tokens' => array(
+			'label'    => 'Contrast (token arithmetic, report only)',
+			'count'    => 0,
+			'fix_hint' => '',
+			'findings' => array(),
+			'report'   => array(
+				'coverage'        => 'Arithmetic tier only.',
+				'thresholds'      => array( 'aa_body' => 4.5, 'aa_large' => 3.0 ),
+				'tokens'          => array( 'ink' => '#111111', 'paper' => '#ffffff' ),
+				'pairs'           => array( array( 'pair' => 'ink / paper', 'ratio' => 18.88, 'aa_body' => true, 'aa_large' => true ) ),
+				'would_fail_body' => 0,
+			),
+		),
+	),
+);
+ob_start();
+sn_health_render_admin_tab();
+$html4 = ob_get_clean();
+he_assert( false !== strpos( $html4, '<h2 class="sn-section-h">Reports</h2>' ), 'Reports section renders for a report-only-only scan' );
+he_assert( false !== strpos( $html4, 'ink / paper' ), 'its pair table renders' );
+he_assert( false === strpos( $html4, 'sn-health-passing' ), 'NO passing disclosure — nothing actually passed, so the card would be a lie' );
+he_assert( false === strpos( $html4, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section (it raises none by design)' );
+$cards4 = snt_health_glance_cards( $GLOBALS['__scan'] );
+he_assert( '0 / 1' === $cards4[1]['value'], 'hero reads 0 / 1 passed — the report-only check is not a pass' );
+
+// ─── Test E: an UNKNOWN report-only check still gets a home ──────────────────
+// The regression this whole change exists to prevent: a report payload with no
+// bespoke renderer must degrade, never disappear.
+echo "\nTest E: a report with no bespoke renderer degrades, never disappears\n";
+$GLOBALS['__scan'] = array(
+	'scanned_at' => time() - 60,
+	'elapsed_ms' => 40,
+	'checks'     => array(
+		'some_future_report' => array(
+			'label'    => 'A future report',
+			'count'    => 0,
+			'fix_hint' => '',
+			'findings' => array(),
+			'report'   => array( 'coverage' => 'Measures a thing not yet renderable.', 'blob' => array( 1, 2, 3 ) ),
+		),
+	),
+);
+ob_start();
+sn_health_render_admin_tab();
+$html5 = ob_get_clean();
+he_assert( false !== strpos( $html5, 'A future report' ), 'the unknown report-only check is NAMED on the tab' );
+he_assert( false !== strpos( $html5, 'Measures a thing not yet renderable.' ), 'its coverage sentence still renders (the fallback)' );
+he_assert( false !== strpos( $html5, 'no detail view yet' ), 'the fallback says plainly that the detail is unrendered' );
+he_assert( false === strpos( $html5, 'sn-health-passing' ), 'and it is still not counted as a pass' );
+
+// ─── Test F: a report check that ALSO reports findings lands in ONE bucket ──
+// Defensive: today's only report-only check hardcodes zero findings, but
+// sn_health_pack_check() does not enforce that. A future report with count>0
+// must not render in Findings AND Reports at once.
+echo "\nTest F: a report payload wins the bucket — never both sections\n";
+$GLOBALS['__scan'] = array(
+	'scanned_at' => time() - 60,
+	'elapsed_ms' => 40,
+	'checks'     => array(
+		'contrast_tokens' => array(
+			'label'    => 'Contrast (token arithmetic, report only)',
+			'count'    => 2,
+			'fix_hint' => '',
+			'findings' => array( array( 'subject_label' => 'LEAKED-INTO-FINDINGS', 'note' => 'x' ) ),
+			'report'   => array( 'coverage' => 'Arithmetic tier only.', 'pairs' => array( array( 'pair' => 'a / b', 'ratio' => 1.5, 'aa_body' => false, 'aa_large' => false ) ) ),
+		),
+	),
+);
+ob_start();
+sn_health_render_admin_tab();
+$html6 = ob_get_clean();
+he_assert( false === strpos( $html6, 'LEAKED-INTO-FINDINGS' ), 'a check carrying a report never renders a findings table too' );
+he_assert( false === strpos( $html6, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section for a report-bucket check' );
+he_assert( false !== strpos( $html6, '<h2 class="sn-section-h">Reports</h2>' ), 'it renders in Reports, exactly once' );
+
+// ─── CSS contract: every class the render emits has stylesheet backing ──────
+echo "\nCSS contract: classes exist in assets/admin.css (enqueued, never inlined)\n";
 $css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
+
+// ── The stylesheet must PARSE, not merely contain the strings ──────────────
+// A substring search for a selector proves the characters are on disk. It
+// proves nothing about whether a browser ever reaches that rule. This suite
+// learned it the hard way in v10.83.0: an editing slip left a comment
+// paragraph unwrapped, so a stray `*/` corrupted the block and Chrome silently
+// dropped most of the new disclosure styling — while every strpos() assertion
+// below stayed green, because the class names were all still present as text.
+//
+// A stray `*/` outside a comment is the unambiguous signature of that slip, so
+// walk the delimiters instead of trusting a regex. This is the repo's standing
+// lesson in CSS form: a rule's PRESENCE is not its APPLICATION.
+$in_comment = false;
+$stray_at   = 0;
+$cursor     = 0;
+$css_len    = strlen( $css );
+while ( $cursor < $css_len ) {
+	if ( $in_comment ) {
+		$close = strpos( $css, '*/', $cursor );
+		if ( false === $close ) {
+			$stray_at = -1; // Unterminated comment — everything after it is dead.
+			break;
+		}
+		$in_comment = false;
+		$cursor     = $close + 2;
+		continue;
+	}
+	$open  = strpos( $css, '/*', $cursor );
+	$close = strpos( $css, '*/', $cursor );
+	if ( false !== $close && ( false === $open || $close < $open ) ) {
+		// A comment terminator reached while in CODE: nothing opened it.
+		$stray_at = substr_count( substr( $css, 0, $close ), "\n" ) + 1;
+		break;
+	}
+	if ( false === $open ) {
+		break;
+	}
+	$in_comment = true;
+	$cursor     = $open + 2;
+}
+he_assert(
+	0 === $stray_at,
+	-1 === $stray_at
+		? 'admin.css has an UNTERMINATED comment — everything after it is dead CSS'
+		: ( 0 === $stray_at
+			? 'admin.css comment delimiters are balanced — no orphaned `*/` silently killing rules'
+			: "admin.css has a STRAY `*/` at line {$stray_at} — the rules after it are dead in a browser even though their text is on disk" )
+);
 // v10.46.0: the action-row rules are DEAD once the wrapper is gone — this
 // suite's call site was their only one, so their absence is the contract now.
 he_assert( false === strpos( $css, '.sn-health-actions {' ), '.sn-health-actions grid CSS is REMOVED with its only call site' );
 he_assert( false === strpos( $css, '.sn-health-actions .sn-fieldset' ), 'the action-row uncap rules are removed too' );
 he_assert( false !== strpos( $css, '.sn-health-passing' ), '.sn-health-passing uncap CSS exists' );
+// v10.83.0: the new IA's classes. A class the render emits with no rule behind
+// it is an unstyled element in production — the .sn-badge lesson (v4.1.1).
+foreach ( array(
+	'.sn-health-passing__summary',
+	'.sn-health-passing__family-label',
+	'.sn-health-passing__names',
+	'.sn-health-reports .sn-fieldset',
+	'.sn-health-reports__intro',
+	'.sn-health-report__coverage',
+	'.sn-health-report__headline',
+	'.sn-health-report__tokens',
+	'.sn-badge--token',
+	'.sn-swatch',
+) as $cls ) {
+	he_assert( false !== strpos( $css, $cls ), "CSS rule exists for {$cls}" );
+}
+// The disclosure must be operable by keyboard: <details>/<summary> handles the
+// toggle, but list-style:none removes the default marker, so a focus style and
+// a replacement caret both have to be real rules, not assumptions.
+he_assert( false !== strpos( $css, '.sn-health-passing__summary:focus-visible' ), 'the summary has a visible focus style (list-style:none strips the default affordance)' );
+he_assert( false !== strpos( $css, '.sn-health-passing[open] .sn-health-passing__summary::before' ), 'the caret reflects the open state' );
+// And no inline LAYOUT crept into the PHP (colour swatches are the one
+// data-driven exception, asserted positively in Test A2).
+$render_php = (string) file_get_contents( __DIR__ . '/../inc/health-render-passing.php' )
+	. (string) file_get_contents( __DIR__ . '/../inc/health-render-reports.php' );
+he_assert( 0 === preg_match( '/style="(?!background-color:)/', $render_php ), 'no inline style attributes in the render modules except the palette swatch' );
+// Non-vacuity: the regex above must actually be looking at something. If the
+// files stopped containing ANY style attribute the assertion would pass while
+// proving nothing, so pin that the one permitted exception is present.
+he_assert( 1 === preg_match( '/style="background-color:/', $render_php ), 'the swatch IS the one style attribute present (so the rule above is not vacuous)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

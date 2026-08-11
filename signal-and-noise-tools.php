@@ -445,6 +445,13 @@ require_once SNT_PATH . 'inc/health-link-opportunities.php'; // v8.1.0: advisory
 require_once SNT_PATH . 'inc/health-edge-workers.php'; // 8th check (v6.49.0): owned-Worker reachability + login-guard denylist freshness
 require_once SNT_PATH . 'inc/health-analytics-integrity.php'; // 12th check (v9.65.0): reader of the never-invert sn_analytics_integrity_alert (Phase A P0.4 closed for real)
 require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0): server-side provenance integrity sweep (triangle self-check over the anchored-Note fleet) + readonly status ability
+// v10.83.0: the Health tab's IA split into three render modules — family
+// grouping data, the collapsed passing disclosure, and report-only payloads
+// (contrast_tokens' pair table, previously invisible in admin). Required
+// BEFORE the tab that calls them.
+require_once SNT_PATH . 'inc/health-check-families.php';
+require_once SNT_PATH . 'inc/health-render-passing.php';
+require_once SNT_PATH . 'inc/health-render-reports.php';
 require_once SNT_PATH . 'inc/health-checks-admin.php';
 require_once SNT_PATH . 'inc/plugin-footprint.php'; // plugin-directory footprint diagnostic (Site Health) + the one-time legacy-deploy-file janitor (admin_init, once per SNT_VERSION)
 require_once SNT_PATH . 'inc/http-diagnostics.php'; // admin-request HTTP-call diagnosis (Site Health) — names the outbound wp_remote_* calls behind slow wp-admin page loads

@@ -82,12 +82,14 @@ function snt_health_glance_cards( $scan ) {
 	// with the passing strip + findings section below (a check carrying
 	// advisories is not "passing"); the PILL keys off real findings only —
 	// advisories alone must not demand review.
-	$passed_raw = 0;
-	foreach ( $checks as $check ) {
-		if ( 0 === (int) ( $check['count'] ?? 0 ) ) {
-			$passed_raw++;
-		}
-	}
+	//
+	// v10.83.0: report-only checks leave the NUMERATOR but not the DENOMINATOR.
+	// They raise zero findings by design, so the raw split counted them as
+	// passing — a verdict they cannot earn. sn_health_passing_checks() drops
+	// them, sn_health_check_total() still counts every check the scan ran, and
+	// the meta line names the difference so 17/19 is never read as two failures.
+	$passed_raw   = count( sn_health_passing_checks( $scan ) );
+	$report_count = count( sn_health_report_checks( $scan ) );
 	$needs_review = count( sn_health_flagged_checks( $scan ) ) > 0;
 	$age          = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) . ' ago' : 'age unknown';
 
@@ -95,6 +97,10 @@ function snt_health_glance_cards( $scan ) {
 	if ( $advisory > 0 ) {
 		$findings_meta .= sprintf( ' · %d advisor%s', $advisory, 1 === $advisory ? 'y' : 'ies' );
 	}
+
+	$passed_meta = $report_count > 0
+		? sprintf( '%d report-only check%s not counted', $report_count, 1 === $report_count ? '' : 's' )
+		: '';
 
 	return array(
 		array(
@@ -107,12 +113,13 @@ function snt_health_glance_cards( $scan ) {
 			'meta_html' => esc_html( $findings_meta ),
 		),
 		array(
-			'label' => 'Checks passed',
-			'value' => sprintf( '%d / %d', $passed_raw, $check_count ),
-			'pill'  => array(
+			'label'     => 'Checks passed',
+			'value'     => sprintf( '%d / %d', $passed_raw, $check_count ),
+			'pill'      => array(
 				'kind' => $needs_review ? 'warn' : 'ok',
 				'text' => $needs_review ? 'review' : 'clean',
 			),
+			'meta_html' => '' !== $passed_meta ? esc_html( $passed_meta ) : '',
 		),
 		array(
 			'label'     => 'Last scan',
@@ -164,16 +171,35 @@ function sn_health_render_admin_tab() {
 		return;
 	}
 
-	// ── Split checks: with-findings get a full-width card + table; passing checks
-	// collapse into a compact pass board (was a full fieldset each just to say
-	// "No findings."). ──
+	// ── Split checks THREE ways (v10.83.0, was two). ──
+	//
+	//   findings  — count > 0. Demand action, so they come first and stay open.
+	//   reports   — carry a `report` payload. Measure and publish; they cannot
+	//               fail, so they are neither a finding nor a pass. Before this
+	//               split they fell into `passing` and rendered as a single
+	//               green chip, which is how contrast_tokens shipped a full
+	//               pair table that was invisible in admin.
+	//   passing   — zero findings, no report. Ask nothing; collapsed.
+	//
+	// The report test is STRUCTURAL (sn_health_check_has_report), never a key
+	// list, so the next report-only check has a home the day it ships.
 	$with_findings = array();
-	$passing       = array();
+	$reports       = sn_health_report_checks( $last_scan );
+	$passing       = sn_health_passing_checks( $last_scan );
 	foreach ( $last_scan['checks'] as $key => $check ) {
-		if ( (int) $check['count'] > 0 ) {
+		// A report check is excluded EXPLICITLY, not left to the invariant that
+		// report-only checks carry zero findings. That invariant is a
+		// convention of the current producer (sn_health_check_contrast_tokens
+		// hardcodes an empty findings array), not something sn_health_pack_check
+		// enforces — and if a future report ever reported count>0 it would
+		// render in Findings AND Reports at once, which is exactly the "neither
+		// a finding nor a pass" contract broken. Two lines now beat a
+		// contradiction later.
+		if ( sn_health_check_has_report( $check ) ) {
+			continue;
+		}
+		if ( (int) ( $check['count'] ?? 0 ) > 0 ) {
 			$with_findings[ $key ] = $check;
-		} else {
-			$passing[ $key ] = $check;
 		}
 	}
 
@@ -247,28 +273,17 @@ function sn_health_render_admin_tab() {
 		echo '</div>'; // .sn-health-findings
 	}
 
-	// ── Passing checks: ONE strip (v8.0.1). The v6.44.0 pass board rendered a
-	// full card per clean check (label + "clear" + green pill = the same fact
-	// three times, ×10 in the all-clear state). One heading carries the count,
-	// one ok pill carries the color, and the check names collapse to chips. ──
-	if ( ! empty( $passing ) ) {
-		$pass_count  = count( $passing );
-		$check_count = count( $last_scan['checks'] );
-		$heading     = ( $pass_count === $check_count )
-			? sprintf( 'All %d check%s passing', $pass_count, 1 === $pass_count ? '' : 's' )
-			: sprintf( '%d of %d checks passing', $pass_count, $check_count );
-		echo '<div class="sn-fieldset sn-health-passing">';
-		echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
-		echo esc_html( $heading );
-		echo '<span class="sn-pill sn-pill--ok">pass</span>';
-		echo '</h2>';
-		echo '<p class="sn-health-passing__names">';
-		foreach ( $passing as $check ) {
-			echo '<span class="sn-badge">' . esc_html( (string) $check['label'] ) . '</span>';
-		}
-		echo '</p>';
-		echo '</div>'; // .sn-health-passing
-	}
+	// ── Reports: report-only payloads, between the findings that demand action
+	// and the passing disclosure that asks nothing (v10.83.0). ──
+	sn_health_render_reports_section( $reports );
+
+	// ── Passing checks: ONE collapsed disclosure (v10.83.0; the v8.0.1 open
+	// strip before it, the v6.44.0 card-per-check grid before that). Nineteen
+	// name chips in an open row is a wall the eye cannot parse, and it sat
+	// between the reader and everything below it. The summary line carries the
+	// whole message a healthy site needs; the names are one click away, grouped
+	// by family. ──
+	sn_health_render_passing_section( $passing, sn_health_check_total( $last_scan ), count( $reports ) );
 } // end function sn_health_render_admin_tab
 
 /**
