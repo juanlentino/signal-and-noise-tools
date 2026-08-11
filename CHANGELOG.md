@@ -2,7 +2,69 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — rider: the give-back ratio is promoted, with its gate named
+## [10.90.2] - 2026-08-11 — the stamp was fixed and the sentence beside it was not
+
+**PATCH.** Contrast fixes, a board-floor sync, and a non-shipped instrument. No
+API, schema or behaviour change.
+
+v10.90.1 called the `/verify` contrast work done. It was not: it converted the
+state stamp and stopped, leaving four selectors still painting real text with the
+surface grey. This is the release that finishes the sweep it started — and the
+reason it got finished is that a peer asked me to delete a branch as redundant
+and I read its diff first.
+
+### Four more `--concrete`-as-text defects, all 2.68:1
+
+The form **placeholder**, the result-mode **label**, the **status line**, and the
+**noscript message** — which is read by exactly the readers who cannot watch the
+checks run, and is the most load-bearing sentence on the page when it appears at
+all. All four now take `--concrete-ink` (4.54:1).
+
+**Three uses of `--concrete` as text remain, and are correct.** Two are
+`aria-hidden` numerals (one set in `prov-verify.js`); the third is
+`.sn-verify-foot`, whose links set their own colour so the only inherited text is
+the aria-hidden middot. They are now an **explicit exempt list with a stated
+reason each**, and the guard fails on any selector outside it — counting
+occurrences would pass the moment someone added a fifth. Mutation-checked: a new
+concrete-as-text rule reds it *by name*.
+
+### `--signal` is removed from `prov-verify.css`, and the claim beside it is scoped
+
+After v10.90.1 routed every use through `--signal-ink`, the declaration was a
+dead hand-synced copy of the theme's token — and a stale copy of another
+package's palette is a standing invitation to "sync" it back in.
+
+The comment shipped in v10.90.1 also overreached: it called `--signal` *"the
+site's established red… 3.29:1"*. True of the retired local literal, **false
+about the site** — theme v11.7.1 moved `signal` to `#bf3935` (5.45:1), where it
+is legitimately link-hover text. *"Signal is never text"* was never a principle,
+only a fact about one hex. The principle is **a colour used as text clears 4.5:1
+at the size it is used**, which `#bf3935` does. The theme's token change stands;
+`/verify` keeps its own value only because it is a standalone document that
+cannot resolve theme tokens.
+
+### The render scanner respects `aria-hidden` — and counts what it skipped
+
+From the theme session. The scan was reporting decorative `aria-hidden` elements
+as failures; on `/verify` that was the `·` separator and two step numerals, all
+exempt under SC 1.4.3. Now bucketed and **counted, never silently dropped**, with
+a printed warning — because `aria-hidden` is also the easiest way to make a
+scanner quiet about a real defect. `/verify` went 3 reported → 1 real.
+
+### The give-back ratio is promoted to `planned`, with its gate named
+
+*(rider, folded here)*
+
+### Caught in the making
+
+This release nearly shipped without the entry above describing it. The commit
+that fixed the four defects **never touched `CHANGELOG.md`**: the script writing
+it anchored on a heading that existed only on a sibling branch, so
+`str.replace()` silently no-op'd. Same failure mode that left a `--signal-ink`
+undefined earlier the same day — **an unasserted anchor is a silent no-op**, and
+the fix is to assert the anchor exists before writing, every time.
+
+#### the promotion itself
 
 **Not a release of its own** — a board move never justifies one. Rides the next.
 
