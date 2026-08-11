@@ -27,7 +27,11 @@ function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
 	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint );
 }
 
+if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', __DIR__ . '/../' ); }
 require __DIR__ . '/../inc/health-contrast-tokens.php';
+// The check now embeds the usage tier's report (v10.90.0); without the module
+// the whole suite fatals mid-run — which prints neither FAIL nor a summary.
+require __DIR__ . '/../inc/health-contrast-usage.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
@@ -84,7 +88,15 @@ $GLOBALS['__palette'] = array(
 $check = sn_health_check_contrast_tokens();
 ok( 0 === $check['count'] && array() === $check['findings'], 'ZERO findings by design — report only, R3 owns fixes' );
 ok( 1 === $check['report']['would_fail_body'], 'the would-fail count is in the REPORT, not in findings' );
-ok( false !== strpos( $check['report']['coverage'], 'Arithmetic tier only' ) && false !== strpos( $check['report']['coverage'], 'not a clean site' ), 'the report states its own coverage in its own words — a clean arithmetic sweep can never read as a clean site' );
+// The sentence changed when the usage tier shipped (v10.90.0): it now names
+// which half of the gap is closed. The pins follow the CLAIMS, not the old
+// wording: the arithmetic tier must disclaim live-defect status, point at the
+// usage tier for the rendered question, and still refuse the clean-site
+// overclaim even with both tiers green.
+$coverage = (string) $check['report']['coverage'];
+ok( false !== strpos( $coverage, 'Arithmetic tier' ) && false !== strpos( $coverage, 'not a live defect' ), 'coverage names the arithmetic tier and disclaims live-defect status' );
+ok( false !== strpos( $coverage, 'usage tier' ), 'coverage points at the usage tier for the rendered question' );
+ok( false !== strpos( $coverage, 'not proof of a clean site' ), 'coverage still refuses the clean-site overclaim with both tiers green' );
 ok( isset( $check['report']['thresholds']['aa_body'] ) && 4.5 === $check['report']['thresholds']['aa_body'], 'thresholds published with the data' );
 ok( false !== strpos( $check['fix_hint'], 'Report only' ), 'the fix hint says there is nothing to fix from here' );
 
