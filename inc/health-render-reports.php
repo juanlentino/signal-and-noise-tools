@@ -174,10 +174,16 @@ function sn_health_contrast_format_threshold( $ratio ) {
  *
  * The verdict wording is "would fail", never "fails". The check scores every
  * unordered token PAIR arithmetically; which pairs a reader actually meets on
- * screen needs computed styles from a real render, and that tier does not
- * exist yet. The report's own coverage sentence says so above this table, and
- * the column header repeats it so a reader who skipped the prose still cannot
- * read a red row as a live defect.
+ * screen is a different question, and the answer is now rendered BELOW this
+ * table by sn_health_render_contrast_usage() — pairings genuinely declared in
+ * stylesheets, where the wording flips to "fails" because something on the
+ * page is wearing them. The two must stay visibly distinct: for two releases
+ * this table's arithmetic count was the only number on the card, and it was
+ * reasonably read as a defect count. It is not one, and it will not drop when
+ * defects are fixed, because it is a property of the palette rather than of
+ * the site.
+ *
+ * @see sn_health_render_contrast_usage() for the usage tier and its own limits.
  *
  * @param array $report The check's `report` payload.
  * @since 10.83.0
@@ -257,6 +263,116 @@ function sn_health_render_contrast_report( $report ) {
 			esc_html__( '+%1$d more pairs, every one of them at %2$s:1 or better — the table is sorted worst-first, so the tail is the safe end.', 'signal-and-noise-tools' ),
 			(int) $hidden,
 			esc_html( number_format( $floor, 2 ) )
+		);
+		echo '</p>';
+	}
+
+	sn_health_render_contrast_usage( isset( $report['usage'] ) && is_array( $report['usage'] ) ? $report['usage'] : array() );
+}
+
+/**
+ * The usage tier, rendered beneath the arithmetic table.
+ *
+ * THE WORDING FLIPS HERE, and that is the point of the whole block. Above, a
+ * red row is "would fail" — an arithmetic pairing nobody may ever see. Here it
+ * is "fails": the pairing is declared in a stylesheet, so something on the page
+ * is wearing it. The two tables sit together precisely so the reader can tell
+ * the difference, because for two releases the panel showed a large arithmetic
+ * number and the owner reasonably read it as a defect count.
+ *
+ * A clean usage tier still is not a clean site — block markup inlines its own
+ * colours and no stylesheet scan can see those — so the empty state says so
+ * rather than congratulating anyone.
+ *
+ * @param array $usage The report's `usage` block.
+ * @since 10.90.0
+ */
+function sn_health_render_contrast_usage( $usage ) {
+	$failures = isset( $usage['failures'] ) && is_array( $usage['failures'] ) ? $usage['failures'] : array();
+	$palettes = isset( $usage['palettes'] ) && is_array( $usage['palettes'] ) ? $usage['palettes'] : array();
+	$scanned  = (int) ( $usage['scanned'] ?? 0 );
+	$declared = (int) ( $usage['pairings'] ?? 0 );
+
+	echo '<h4 class="sn-health-report__subhead">' . esc_html__( 'Usage tier — pairings actually declared in stylesheets', 'signal-and-noise-tools' ) . '</h4>';
+
+	if ( 0 === $scanned ) {
+		echo '<p class="sn-field-helper">' . esc_html__( 'No stylesheets were readable, so nothing was scored. This tier reads the plugin\'s front-end CSS and the active theme\'s.', 'signal-and-noise-tools' ) . '</p>';
+		return;
+	}
+
+	echo '<p class="sn-health-report__headline">';
+	if ( empty( $failures ) ) {
+		printf(
+			/* translators: 1: declared pairing count, 2: stylesheet count, 3: palette count */
+			esc_html__( 'No declared pairing falls below AA: %1$d pairings across %2$d stylesheets, each scored under %3$d palette(s).', 'signal-and-noise-tools' ),
+			(int) $declared,
+			(int) $scanned,
+			count( $palettes )
+		);
+	} else {
+		printf(
+			/* translators: 1: failing count, 2: declared pairing count, 3: stylesheet count, 4: palette count */
+			esc_html__( '%1$d of %2$d declared pairings fall below body-text AA, across %3$d stylesheets and %4$d palette(s).', 'signal-and-noise-tools' ),
+			count( $failures ),
+			(int) $declared,
+			(int) $scanned,
+			count( $palettes )
+		);
+	}
+	echo '</p>';
+
+	if ( ! empty( $palettes ) ) {
+		echo '<p class="sn-field-helper">';
+		printf(
+			/* translators: %s: comma-separated palette names */
+			esc_html__( 'Scored under: %s. The served palette is listed first — a pairing that passes at root and fails under a variation is still a live defect for whoever is being shown that variation.', 'signal-and-noise-tools' ),
+			esc_html( implode( ', ', array_map( 'strval', $palettes ) ) )
+		);
+		echo '</p>';
+	}
+
+	if ( empty( $failures ) ) {
+		echo '<p class="sn-field-helper">' . esc_html__( 'Still not proof of a clean site: colours inlined in block markup, and the computed cascade, are invisible to a stylesheet scan.', 'signal-and-noise-tools' ) . '</p>';
+		return;
+	}
+
+	$visible = array_slice( $failures, 0, SN_HEALTH_CONTRAST_USAGE_MAX_ROWS );
+	$hidden  = count( $failures ) - count( $visible );
+
+	echo '<div class="snt-scroll-table">';
+	echo '<table class="widefat striped snt-mt-half"><thead><tr>';
+	echo '<th scope="col">' . esc_html__( 'Selector', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Pairing', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-90px">' . esc_html__( 'Ratio', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col">' . esc_html__( 'Palette', 'signal-and-noise-tools' ) . '</th>';
+	echo '</tr></thead><tbody>';
+
+	foreach ( $visible as $row ) {
+		echo '<tr>';
+		echo '<td><code>' . esc_html( (string) ( $row['selector'] ?? '' ) ) . '</code>';
+		echo '<br><span class="sn-field-helper">' . esc_html( (string) ( $row['source'] ?? '' ) ) . '</span></td>';
+		echo '<td><code>' . esc_html( (string) ( $row['pair'] ?? '' ) ) . '</code>';
+		if ( ! empty( $row['literal'] ) ) {
+			// A hardcoded hex renders identically under every variation, so it is
+			// a fidelity problem as well as a contrast one. Say which it is.
+			echo ' <span class="sn-badge">' . esc_html__( 'hardcoded', 'signal-and-noise-tools' ) . '</span>';
+		}
+		if ( empty( $row['anchored'] ) ) {
+			echo ' <span class="sn-badge">' . esc_html__( 'on page background', 'signal-and-noise-tools' ) . '</span>';
+		}
+		echo '</td>';
+		echo '<td>' . esc_html( number_format( (float) ( $row['ratio'] ?? 0 ), 2 ) ) . ':1</td>';
+		echo '<td>' . esc_html( (string) ( $row['palette'] ?? '' ) ) . '</td>';
+		echo '</tr>';
+	}
+	echo '</tbody></table></div>';
+
+	if ( $hidden > 0 ) {
+		echo '<p class="sn-field-helper">';
+		printf(
+			/* translators: %d: hidden row count */
+			esc_html__( '+%d more failing pairings, sorted worst-first — the tail is the safe end.', 'signal-and-noise-tools' ),
+			(int) $hidden
 		);
 		echo '</p>';
 	}

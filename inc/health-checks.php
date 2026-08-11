@@ -199,6 +199,9 @@ require_once __DIR__ . '/health-check-ml-cousins.php';
 // v10.22.0: cadence deviations (publish + cron rhythms) as a health check.
 require_once __DIR__ . '/health-check-ml-cadence.php';
 require_once __DIR__ . '/health-contrast-tokens.php';
+// v10.90.0: the usage tier that contrast_tokens' own coverage sentence asks
+// for. Loaded after it — the check calls into this module, not the reverse.
+require_once __DIR__ . '/health-contrast-usage.php';
 
 /**
  * Common per-check result envelope used by 2-4.
