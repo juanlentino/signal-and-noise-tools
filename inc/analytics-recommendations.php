@@ -174,7 +174,13 @@ function sn_analytics_rec_seo_meta() {
 			'id'     => 'seo_meta',
 			// translators: %d is the number of published pages that ship with no meta description.
 			'title'  => sprintf( _n( '%d page ships without a meta description', '%d pages ship without a meta description', $n, 'signal-and-noise-tools' ), $n ),
-			'detail' => 'Search engines and AI crawlers get no summary for these pages. Add a Page Excerpt to each:',
+			// Name the OVERRIDE first, the excerpt second, because that is the
+			// order sn_seo_resolve_singular_description() reads them: the
+			// Meta description field wins, the excerpt is only the fallback.
+			// Naming the fallback alone (as this line did through v10.90.0)
+			// points at the weaker of the two remedies and reads as though the
+			// dedicated field does not exist on Pages. It does.
+			'detail' => 'Search engines and AI crawlers get no summary for these pages. Set Meta description in the editor\'s Signal & Noise panel, or a Page Excerpt as fallback:',
 			'count'  => $n,
 			'items'  => $items,
 		);
