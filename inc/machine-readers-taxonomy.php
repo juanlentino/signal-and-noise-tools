@@ -110,6 +110,10 @@ function snt_mr_normalize_taxonomy_fields( $row ) {
 
 	return array(
 		'vendor'                 => snt_mr_normalize_vendor( $row['vendor'] ?? null ),
+		// v10.80.0: the taxonomy entry id, so the page can name the exact agent
+		// (openai-gptbot) instead of leaving the reader to infer it from
+		// vendor+purpose. Same shape constraint as vendor: it is an open field.
+		'agent'                  => substr( preg_replace( '/[^a-z0-9.\-]/', '', strtolower( (string) ( $row['agent'] ?? '' ) ) ), 0, 48 ),
 		'purpose'                => in_array( $purpose, $purposes, true ) ? $purpose : 'unknown',
 		'taxonomy_version'       => substr( preg_replace( '/[^0-9.]/', '', $version ), 0, 12 ),
 		'training_corpus_source' => '1' === (string) ( $row['training_corpus_source'] ?? '' ),

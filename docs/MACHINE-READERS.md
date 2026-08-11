@@ -66,7 +66,7 @@ Notes that matter when reading the responses:
 - **`last_check` is isolate memory, best effort.** It resets on deploy or
   eviction, so `null` right after a deploy is expected and is not a failure. The
   durable trail is Workers Logs.
-- **The contract minimum is `SN_MR_SENSOR_MIN`, currently `1.11.0`.** The Sensor
+- **The contract minimum is `SN_MR_SENSOR_MIN`, currently `1.12.0`.** The Sensor
   panel compares the deployed `version` against it and warns when the edge is
   behind what these panels are built for.
 
@@ -173,6 +173,9 @@ survives can carry markup even before escaping.
   Apple train/search split therefore **cannot be measured from request logs**,
   and the `apple-ai` family reports a phantom: any non-zero count is spoofed or
   synthetic. `Google-Extended` is the same shape.
+- **`agent` names the exact crawler** (v10.80.0). vendor plus purpose already
+  separates GPTBot from ChatGPT-User, but the agent id says so outright, and it
+  is stored for Analytics Engine's 90 days rather than Workers Logs' 7.
 - **`first_party` flags the site's own monitoring.** At v1.11.0 the owner's
   Better Stack monitor was 6,403 of 17,463 reads (37%): the site measuring
   itself rather than readership. Purpose totals exclude it and say so.
@@ -312,7 +315,7 @@ curl -s https://juanlentino.com/_sn/rights-signals/version
 ```
 
 Expect `"worker": "sn-rights-signals"` and a `version` at or above the
-`SN_MR_SENSOR_MIN` value above (`1.11.0`). A lower version is exactly what makes
+`SN_MR_SENSOR_MIN` value above (`1.12.0`). A lower version is exactly what makes
 the Sensor status row show a warn pill naming the deployed version.
 
 **2. The crawler-list drift check has run.**
