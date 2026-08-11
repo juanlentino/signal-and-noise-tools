@@ -57,6 +57,24 @@ scanner quiet about a real defect. `/verify` went 3 reported → 1 real.
 
 ### Caught in the making
 
+**CI caught a failure my local sweep reported as green, and the flaw was in how I
+read it.** `tests/run.sh` exits non-zero and prints `ERROR` lines per suite, but
+its final summary says *"16,239 assertions passed"* — true, and silent about a
+suite that failed. Gating on `tail -1` through a pipe discarded both the exit
+code and the error line. **Check `$?` and grep `^ERROR`; the summary counts
+assertions, not verdicts.**
+
+The failure itself was worth having: `tests/provenance-verify-page.php` asserts
+every custom property the stylesheet READS is also DECLARED — the general form of
+a v9.87.0 bug where rules styled against an undeclared var and drew nothing. It
+regexes `var(--x)` over the RAW file, so the comment documenting `--signal`'s
+retirement (which necessarily contains the string `var(--signal)`) read as a
+*read* of a property that no longer exists. The guard now strips comments first —
+a read inside a comment is not a read — and is mutation-checked to still catch a
+genuinely undeclared property. Second instance of that shape today; the first was
+in this release's own new fixture.
+
+
 This release nearly shipped without the entry above describing it. The commit
 that fixed the four defects **never touched `CHANGELOG.md`**: the script writing
 it anchored on a heading that existed only on a sibling branch, so
