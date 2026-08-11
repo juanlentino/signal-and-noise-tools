@@ -503,4 +503,57 @@ function sn_prov_verify_shortcode( $atts ) {
 		esc_html( $pub )
 	);
 }
+/**
+ * Append the provenance panel to a signed PAGE.
+ *
+ * WHY THIS BREAKS THE USUAL DIVISION, DELIBERATELY. Everywhere else the plugin
+ * owns the markup and the THEME owns placement — `[sn_prov_panel]` sits in the
+ * single-note template, which is why every Note shows its proof. Pages have no
+ * such convention: a page template is whatever the author built, so a signed
+ * page had markup available and nothing anywhere asking for it. v10.86.0 taught
+ * the renderer about pages and the About page still showed nothing, because
+ * teaching the renderer was necessary and not sufficient.
+ *
+ * That left signing and showing as two independent acts: opt a page in, forget
+ * the shortcode, and it signs silently and stays invisible — including to the
+ * ledger's build-index, which discovers a record by reading the uid out of the
+ * rendered page. A proof nobody can see is not a proof anyone can check.
+ *
+ * So the default is "a signed page shows its proof", and the filter is the way
+ * out for a theme that wants to place it itself. Notes are untouched: this only
+ * ever fires on `is_singular( 'page' )`.
+ *
+ * @param string $content Post content.
+ * @return string
+ *
+ * @since 10.87.0
+ */
+function sn_prov_append_page_panel( $content ) {
+	if ( ! is_singular( 'page' ) || ! is_main_query() || ! in_the_loop() ) {
+		return $content;
+	}
+	if ( ! function_exists( 'sn_prov_subject_kind' ) || ! function_exists( 'get_post' ) ) {
+		return $content;
+	}
+	if ( 'page' !== sn_prov_subject_kind( get_post( get_the_ID() ) ) ) {
+		return $content;
+	}
+	/**
+	 * Whether the plugin places the panel on this signed page. Return false to
+	 * take placement over in a theme template.
+	 */
+	if ( ! apply_filters( 'sn_prov_auto_append_page_panel', true, get_the_ID() ) ) {
+		return $content;
+	}
+	// Already placed by hand — the shortcode expands at priority 11, so by the
+	// time this runs its markup is in $content. Rendering again would show the
+	// same proof twice, which reads as two records rather than one.
+	if ( false !== strpos( $content, 'sn-prov-' ) ) {
+		return $content;
+	}
+	$panel = sn_prov_render_panel( get_the_ID() );
+	return '' === $panel ? $content : $content . $panel;
+}
+add_filter( 'the_content', 'sn_prov_append_page_panel', 20 );
+
 add_shortcode( 'sn_provenance_verify', 'sn_prov_verify_shortcode' );

@@ -413,5 +413,67 @@ $vpath = (string) wp_parse_url( html_entity_decode( $vurl ), PHP_URL_PATH );
 rp_true( sn_prov_verify_is_request( $vpath ), '"Verify it yourself" resolves to the LIVE /verify docket, never the 404 /provenance/verify Page' );
 rp_true( false === strpos( $vpath, '/provenance/verify' ), 'the reader-facing verify link is never the unrelated /provenance/verify path' );
 
+
+/* ── v10.87.0: a signed page shows its proof ─────────────────────────────
+ * v10.86.0 taught the renderer about pages and the About page still showed
+ * nothing: the plugin owns markup, the THEME owns placement, and a page
+ * template has no [sn_prov_panel] in it. Signing and showing were two
+ * independent acts — opt a page in, forget the shortcode, and it signs
+ * silently and stays invisible, including to the ledger's build-index, which
+ * reads the uid out of the RENDERED page.
+ * ───────────────────────────────────────────────────────────────────── */
+// Post 5 already carries a real chain fixture above, so the panel has something
+// to render. get_the_ID() reads __pv_current_id, and sn_prov_subject_kind()
+// reads the post_type from the get_post() stub — both must point at the same
+// subject or the filter silently no-ops and the assertion below tests nothing.
+$GLOBALS['__pv_current_id'] = 5;
+update_post_meta( 5, SN_PROV_SIGN_META, '1' );   // the per-page opt-in
+$GLOBALS['__pv_singular'] = true;
+$GLOBALS['__pr_post_type'] = 'page';
+$GLOBALS['__pr_in_loop']   = true;
+$GLOBALS['__pr_main']      = true;
+
+// NOTE: is_singular is already defined near the top of this file and IGNORES
+// its $type argument — it answers "are we on a singular view at all". So the
+// page-vs-note distinction below is driven through sn_prov_subject_kind()
+// (post_type + opt-in meta), which is the gate that actually decides.
+if ( ! function_exists( 'is_main_query' ) ) { function is_main_query() { return ! empty( $GLOBALS['__pr_main'] ); } }
+if ( ! function_exists( 'in_the_loop' ) )   { function in_the_loop()   { return ! empty( $GLOBALS['__pr_in_loop'] ); } }
+
+$body = '<p>About this site.</p>';
+
+$out = sn_prov_append_page_panel( $body );
+rp_true( $out !== $body && false !== strpos( $out, 'sn-prov-' ),
+	'a signed page gets its panel appended — signing and showing are no longer two independent acts' );
+
+// Placed by hand → never twice. The shortcode expands at priority 11, so its
+// markup is already in $content when this filter runs at 20.
+$hand = $body . '<div class="sn-prov-panel">already here</div>';
+rp_true( $hand === sn_prov_append_page_panel( $hand ),
+	'a panel already in the content is not rendered a second time' );
+
+// Notes are untouched: the theme places theirs deliberately. Driven through the
+// SUBJECT KIND, because that is the gate that distinguishes them here.
+$GLOBALS['__pr_post_type'] = 'post';
+rp_true( $body === sn_prov_append_page_panel( $body ),
+	'NOTES ARE UNTOUCHED — a note resolves to kind "note" and never gets an auto-appended panel, so theme-owned placement still stands' );
+$GLOBALS['__pr_post_type'] = 'page';
+
+// Not in the loop / not the main query: an excerpt or a widget must not sprout a panel.
+$GLOBALS['__pr_singular'] = 'page';
+$GLOBALS['__pr_in_loop']  = false;
+rp_true( $body === sn_prov_append_page_panel( $body ), 'no panel outside the loop (excerpts, widgets)' );
+$GLOBALS['__pr_in_loop']  = true;
+$GLOBALS['__pr_main']     = false;
+rp_true( $body === sn_prov_append_page_panel( $body ), 'no panel outside the main query' );
+$GLOBALS['__pr_main']     = true;
+
+// NOT PINNED HERE, deliberately: sn_prov_auto_append_page_panel is the way a
+// theme takes placement back, but this harness's apply_filters is a bare
+// pass-through that ignores registered callbacks entirely. An assertion against
+// it would pass whatever the filter did — unfalsifiable, which is worse than
+// absent. Pinning it needs a harness with a real filter registry.
+
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
