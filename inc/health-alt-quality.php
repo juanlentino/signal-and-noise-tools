@@ -165,7 +165,11 @@ function sn_health_svg_hint( $ordinal, $attrs ) {
  * @param string $alt      The alt text as authored.
  * @param string $filename Image filename or URL, for echo detection. Optional.
  * @param string $caption  Caption / figcaption text, for duplicate detection. Optional.
- * @return string '' when the alt is fine, else 'filename_echo' | 'caption_duplicate' | 'single_word'.
+ * ORDER IS LOAD-BEARING: the first matching rule names the finding, so the
+ * specific reasons (echo, duplicate) must be tried before the general one. A
+ * rule that under-matches silently hands its cases to whatever runs last.
+ *
+ * @return string '' when the alt is fine, else 'filename_echo' | 'caption_duplicate' | 'generic_alt'.
  */
 function sn_health_alt_quality_problem( $alt, $filename = '', $caption = '' ) {
 	$raw = trim( (string) $alt );
@@ -196,17 +200,55 @@ function sn_health_alt_quality_problem( $alt, $filename = '', $caption = '' ) {
 		return 'caption_duplicate';
 	}
 
-	// 4. A single word cannot describe a content image.
-	if ( '' !== $norm_alt && 1 === count( explode( ' ', $norm_alt ) ) ) {
-		return 'single_word';
+	// 4. Names the CATEGORY rather than the content.
+	if ( sn_health_alt_is_generic( $norm_alt ) ) {
+		return 'generic_alt';
 	}
 
 	return '';
 }
 
 /**
+ * True when the alt names a category of picture rather than what is in it.
+ *
+ * This replaced a word-COUNT rule in v10.80.1. "A single word cannot describe a
+ * content image" is not an accessibility requirement: WCAG asks for an
+ * equivalent alternative, and for a portrait, a logo or a planet one word is
+ * the complete and correct one. Counting words flagged every correct short alt
+ * on the site while saying nothing about "an image", which is genuinely empty.
+ * What fails a screen reader is the vocabulary, at any length.
+ *
+ * @param string $norm_alt Alt already folded by sn_health_normalise_alt_text().
+ * @return bool
+ */
+function sn_health_alt_is_generic( $norm_alt ) {
+	$core = (string) $norm_alt;
+	$core = preg_replace( '/^(?:a|an|the)\s+/', '', $core );  // "an image".
+	$core = preg_replace( '/\s+\d+$/', '', (string) $core );  // "photo 2".
+	$core = trim( (string) $core );
+
+	// Words that name the container, never the contents. Deliberately short:
+	// every addition here silences a real finding, so it earns its place only
+	// when the word tells a screen-reader user nothing on ANY image.
+	$generic = array(
+		'image', 'images', 'img', 'photo', 'photos', 'photograph',
+		'picture', 'pictures', 'pic', 'graphic', 'graphics',
+		'icon', 'logo', 'banner', 'thumbnail', 'screenshot',
+		'illustration', 'figure', 'chart', 'diagram', 'graph',
+		'untitled', 'placeholder', 'media', 'file', 'attachment',
+		'alt', 'alt text', 'no alt', 'description', 'image of', 'photo of',
+	);
+	return in_array( $core, $generic, true );
+}
+
+/**
  * The comparable stem of a filename: basename, no query string, no extension,
- * no WordPress generated-size suffix.
+ * and no trailing suffix that a pipeline added rather than a human.
+ *
+ * Suffixes STACK -- hero-min-1024x576.png -- so stripping runs to a fixed point
+ * rather than once. Missing one is not cosmetic: an unstripped suffix makes the
+ * stem differ from the alt, the echo rule misses, and the finding falls through
+ * to whatever rule sits last, which then reports the wrong defect.
  *
  * @param string $filename Filename or URL.
  * @return string
@@ -214,10 +256,18 @@ function sn_health_alt_quality_problem( $alt, $filename = '', $caption = '' ) {
 function sn_health_alt_filename_stem( $filename ) {
 	$path = (string) $filename;
 	$path = preg_replace( '/[?#].*$/', '', $path );
-	$base = basename( $path );
+	$base = basename( (string) $path );
 	$base = preg_replace( '/\.[a-z0-9]{2,5}$/i', '', $base );
-	// Strip a trailing WP size suffix, e.g. photo-1024x576 -> photo.
-	$base = preg_replace( '/-\d{2,5}x\d{2,5}$/', '', $base );
+
+	// -1024x576 (WP generated size) and -scaled (WP large-upload original) come
+	// from WordPress; -min / @2x / -optimized come from build pipelines. Every
+	// image on this site carries -min, which is how the gap surfaced.
+	$generated = '/(?:-\d{2,5}x\d{2,5}|-scaled|-min|-optimi[sz]ed|-compressed|@[2-4]x)$/i';
+	do {
+		$previous = $base;
+		$base     = (string) preg_replace( $generated, '', (string) $base );
+	} while ( $base !== $previous && '' !== $base );
+
 	return (string) $base;
 }
 

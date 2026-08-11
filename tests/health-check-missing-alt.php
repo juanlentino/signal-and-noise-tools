@@ -21,8 +21,9 @@
  *      is invalid markup that changes nothing for a screen reader.
  *
  *   3. QUALITY. Present-but-useless alt: filename echoes, caption duplicates,
- *      single-word alt on a content image. These are FINDINGS ONLY — they route
- *      through the same human acceptance as the coverage sweep and never write.
+ *      and alt naming a category rather than the picture. These are FINDINGS
+ *      ONLY — they route through the same human acceptance as the coverage
+ *      sweep and never write.
  *
  * @since plugin v10.77.0
  */
@@ -178,12 +179,47 @@ ok( 'filename_echo' === sn_health_alt_quality_problem( 'DSC_0041.JPG', '', '' ),
 ok( 'filename_echo' === sn_health_alt_quality_problem( 'photo', 'photo-1024x576.jpg', '' ),
 	'the WordPress size suffix is stripped before comparing (photo-1024x576.jpg)' );
 
+/* The Services-page regression (v10.80.1). Every image on /services/ is named
+ * <thing>-min.png by the build pipeline, so the stem comparison saw
+ * "production min" vs "production" and the echo rule MISSED. The finding still
+ * fired -- as "single word" -- which named the wrong defect and read to the
+ * owner as a false positive. Optimiser and WP suffixes must come off first. */
+ok( 'filename_echo' === sn_health_alt_quality_problem(
+		'Production', 'https://juanlentino.com/wp-content/uploads/2026/02/production-min.png', '' ),
+	'the -min optimiser suffix is stripped before comparing (production-min.png)' );
+
+ok( 'filename_echo' === sn_health_alt_quality_problem( 'Portrait', 'portrait-scaled.jpg', '' ),
+	'WordPress\'s own -scaled suffix on large uploads is stripped before comparing' );
+
+ok( 'filename_echo' === sn_health_alt_quality_problem( 'Hero', 'hero-min-1024x576.png', '' ),
+	'stacked suffixes strip repeatedly (hero-min-1024x576.png -> hero)' );
+
+ok( 'filename_echo' === sn_health_alt_quality_problem( 'Cover', 'cover@2x.png', '' ),
+	'a retina @2x suffix is stripped before comparing' );
+
 ok( 'caption_duplicate' === sn_health_alt_quality_problem(
 		'The 1954 ledger, reopened', 'ledger.jpg', 'The 1954 ledger, reopened.' ),
 	'an alt duplicating its caption is flagged (punctuation/case insensitive)' );
 
-ok( 'single_word' === sn_health_alt_quality_problem( 'Chart', 'q3-revenue.png', '' ),
-	'a single-word alt on a content image is flagged' );
+/* WORD COUNT WAS THE WRONG TEST (v10.80.1). "a single word cannot describe a
+ * content image" is not an accessibility rule -- WCAG asks for an equivalent
+ * alternative, and for a portrait, a logo or a planet ONE word is the complete
+ * and correct one. What actually fails a screen reader is naming the CATEGORY
+ * instead of the content, at any length. Judge the vocabulary, not the count. */
+ok( 'generic_alt' === sn_health_alt_quality_problem( 'Chart', 'q3-revenue.png', '' ),
+	'an alt naming the category rather than the content is flagged ("Chart")' );
+
+ok( 'generic_alt' === sn_health_alt_quality_problem( 'an image', 'dsc-4471.jpg', '' ),
+	'a MULTI-word generic alt is flagged too -- the old word count let this through' );
+
+ok( 'generic_alt' === sn_health_alt_quality_problem( 'Photo 2', 'dsc-4471.jpg', '' ),
+	'a trailing index does not rescue a generic alt ("Photo 2")' );
+
+ok( '' === sn_health_alt_quality_problem( 'Saturn', 'dsc-4471.jpg', '' ),
+	'a one-word alt that names the SUBJECT is correct and is NOT flagged' );
+
+ok( '' === sn_health_alt_quality_problem( 'Beyonce', 'img-0042.jpg', '' ),
+	'a one-word proper noun on a portrait is the complete alternative -- not a finding' );
 
 ok( '' === sn_health_alt_quality_problem(
 		'Two archivists comparing a printed provenance ledger against a screen',

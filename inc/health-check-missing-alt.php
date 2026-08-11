@@ -36,7 +36,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *   b. inline <img> tags in published post_content with no alt= attr
  *   c. inline <svg> with no accessible name and no decorative marker (v10.77.0)
  *   d. alt that EXISTS but says nothing -- filename echo, caption duplicate,
- *      single word -- on both attachments and inline <img> (v10.77.0)
+ *      category name -- on both attachments and inline <img> (v10.77.0;
+ *      the third reason was a word COUNT until v10.80.1, which flagged every
+ *      correct short alt and missed "an image")
  *
  * Passes (c) and (d) are findings only. Like (a) and (b) they carry no fix:
  * every applied change goes through the staged human-acceptance path.
@@ -172,7 +174,7 @@ function sn_health_check_missing_alt() {
 		'count'    => count( $findings ),
 		'findings' => $findings,
 		'label'    => 'Missing alt text',
-		'fix_hint' => 'Open the editor and add a descriptive alt attribute to each image. Empty alt="" is valid only for purely decorative images. Inline <svg> takes a direct-child <title> or aria-label instead — it has no alt attribute. Alt that repeats the filename or the caption reads as noise to a screen reader.',
+		'fix_hint' => 'Open the editor and add a descriptive alt attribute to each image. Empty alt="" is valid only for purely decorative images. Inline <svg> takes a direct-child <title> or aria-label instead — it has no alt attribute. Alt that repeats the filename or the caption, or names a category ("image", "chart") rather than the picture, reads as noise to a screen reader.',
 	);
 }
 
@@ -193,8 +195,8 @@ function sn_health_alt_quality_note( $problem, $alt ) {
 			return 'Alt text ' . $quoted . ' repeats the image filename, which describes nothing to a screen reader.';
 		case 'caption_duplicate':
 			return 'Alt text ' . $quoted . ' duplicates the visible caption, so the description is announced twice.';
-		case 'single_word':
-			return 'Alt text ' . $quoted . ' is a single word — too little to describe a content image.';
+		case 'generic_alt':
+			return 'Alt text ' . $quoted . ' names a category rather than the image, so a screen reader learns nothing from it.';
 	}
 	return 'Alt text ' . $quoted . ' needs review.';
 }

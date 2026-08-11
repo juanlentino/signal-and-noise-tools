@@ -198,7 +198,7 @@ function sn_maturity_roadmap_static_board() {
 			'done'        => array(
 				__( 'Structural scans with fingerprint-safe fixes, so a heading-hierarchy repair can never write over a block that moved', 'signal-and-noise-tools' ),
 				__( 'Alt-text coverage extended to inline vector artwork, checked as an accessible name rather than an attribute — the title or label a screen reader would actually announce, or an explicit decorative marking — because that kind of image carries no alt attribute to find, and a sweep looking for one would call every drawing broken', 'signal-and-noise-tools' ),
-				__( 'Alt-text quality, not just coverage: filename echoes, caption duplicates, and single-word descriptions raised as findings a person accepts or rejects — the same human acceptance the coverage sweep already passes through, never a silent rewrite', 'signal-and-noise-tools' ),
+				__( 'Alt-text quality, not just coverage: filename echoes, caption duplicates, and alt that names a category rather than the picture raised as findings a person accepts or rejects — the same human acceptance the coverage sweep already passes through, never a silent rewrite', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'An accessible treatment for third-party embeds: the embed replaced by an accessible card that links out, with the third party loaded only when a reader asks for it — so nothing is fetched on a reader\'s behalf before they choose it', 'signal-and-noise-tools' ),
