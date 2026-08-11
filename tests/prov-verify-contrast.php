@@ -86,15 +86,54 @@ foreach ( array( 'bone' => 'PASS', 'blood' => 'FAIL', 'rust' => 'NOTE' ) as $t =
 	ok( $rr >= 4.5, sprintf( '%s stamp (--%s %s) = %.2f:1', $state, $t, $tok[ $t ], $rr ) );
 }
 
+echo "\nGroup: --concrete as TEXT — an explicit exempt list, so a NEW one fails\n";
+// v10.90.1 fixed the stamp and stopped there. Four more selectors were still
+// painting real text with the surface grey at 2.68:1 — a placeholder, a result
+// label, the status line, and the noscript message, which is read by exactly
+// the readers who cannot watch the checks run. Enumerating what is ALLOWED to
+// keep --concrete is the only form of this check that catches the next one:
+// counting occurrences passes as soon as someone adds a fifth.
+$exempt = array(
+	'.sn-verify-check[data-state="UNREACHABLE"] .sn-verify-check-no' => 'aria-hidden numeral (1.4.3 decoration)',
+	'.sn-verify-walk-no'                                             => 'aria-hidden numeral, set in prov-verify.js',
+	'.sn-verify-foot'                                                => 'its links set their own colour; the only inherited text is the aria-hidden middot',
+);
+$offenders = array();
+foreach ( preg_split( '/\}/', $css ) as $block ) {
+	if ( false === strpos( $block, 'color:var(--concrete)' ) ) {
+		continue;
+	}
+	$sel = trim( preg_replace( '/\s+/', ' ', substr( $block, 0, strpos( $block, '{' ) ?: 0 ) ) );
+	$sel = trim( preg_replace( '~/\*.*?\*/~s', '', $sel ) );
+	$ok  = false;
+	foreach ( array_keys( $exempt ) as $e ) {
+		if ( false !== strpos( $sel, $e ) ) { $ok = true; break; }
+	}
+	if ( ! $ok ) { $offenders[] = $sel; }
+}
+ok( array() === $offenders, 'no NEW selector paints text with the surface grey' . ( $offenders ? ' — FOUND: ' . implode( ' | ', $offenders ) : '' ) );
+ok( 3 === count( $exempt ), 'the exempt list is 3 entries, each with a stated reason — it is a list, not a wildcard' );
+foreach ( array( '.sn-verify-form input::placeholder', '.sn-verify-status-line', '.sn-verify-noscript' ) as $fixed ) {
+	ok( false !== strpos( $css, $fixed ) && 1 === preg_match( '/' . preg_quote( $fixed, '/' ) . '\{[^}]*var\(--concrete-ink\)/', $css ), $fixed . ' reads at 4.54:1' );
+}
+
 echo "\nGroup: --signal is an OUTLINE colour, never text and never a surface under text\n";
 // 3.29:1 clears 1.4.11's 3:1 for a non-text indicator and fails 1.4.3's 4.5:1
 // for text. The token was never wrong; using it as text was.
-$sig = pvc_ratio( $tok['signal'], $tok['void'] );
-ok( $sig >= 3.0 && $sig < 4.5, sprintf( '--signal is %.2f:1 — legitimately an outline, illegitimately text', $sig ) );
+// The token itself is GONE from this file (dead after v10.90.1 routed every
+// use through --signal-ink). Scored from the literal it used to hold, so the
+// reason the ink token exists survives the removal of the thing it replaced.
+$sig = pvc_ratio( '#ff4c47', $tok['void'] );
+ok( $sig >= 3.0 && $sig < 4.5, sprintf( 'the retired #ff4c47 was %.2f:1 — an outline colour, never text', $sig ) );
+ok( ! isset( $tok['signal'] ), '--signal is no longer declared here: a stale copy of another package\'s palette invites a re-sync' );
 ok( isset( $tok['signal-ink'] ), '--signal-ink is defined' );
 $ink = pvc_ratio( $tok['signal-ink'], $tok['void'] );
 ok( $ink >= 4.5, sprintf( '--signal-ink %s = %.2f:1 — clears AA as text AND as a surface under --void text', $tok['signal-ink'], $ink ) );
-ok( false === strpos( $css, 'var(--signal)' ), 'no bare --signal survives here: every use in this file was text, or a surface under text' );
+// Scan the DECLARATIONS, not the prose about them: the comment explaining why
+// --signal was retired necessarily contains the string `var(--signal)`, and a
+// raw-text check reads a note ABOUT a thing as an instance OF it.
+$css_nc = (string) preg_replace( '~/\*.*?\*/~s', '', $css );
+ok( false === strpos( $css_nc, 'var(--signal)' ), 'no bare --signal survives in any RULE (comments explaining its retirement do not count)' );
 foreach ( array(
 	'.sn-verify-form button:hover'     => 'the primary button label on hover',
 	'.sn-verify-facts a:hover'         => 'a fact link on hover — DARKER than its --blood rest, never lighter',

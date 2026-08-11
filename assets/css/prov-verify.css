@@ -50,7 +50,14 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	   7.34:1 on --void, and --void on IT is 7.34:1 too, which is what lets it be
 	   a button surface as well as a link colour. */
 	--signal-ink:#b00303;
-	--rust:#333; --blood:#e00404; --signal:#ff4c47;
+	--rust:#333; --blood:#e00404;
+	/* --signal is GONE (was #ff4c47). It was a hand-synced copy of the
+	   theme's token, and after v10.90.1 this file has zero var(--signal)
+	   uses — every one routes through --signal-ink. A stale copy of another
+	   package's palette value is a standing invitation to "sync" it back in,
+	   and /verify is a standalone document that owns its own colours. The
+	   theme has since moved signal to #bf3935; this file did not have to
+	   care, which is the whole point. */
 	/* The one surface that is not paper-white: the ledger ground. Warm grey,
 	   not a blue-grey — the page has no cool hues anywhere else. */
 	--paper:#f4f3f1;
@@ -151,7 +158,9 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify-form label{flex:1 1 100%;font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.22em;color:var(--rust);padding:.7em 1em .55em;border-bottom:1px solid var(--asphalt)}
 .sn-verify-form input{flex:1 1 220px;min-width:0;font:inherit;font-size:.85rem;padding:.85em 1em;border:0;border-radius:0;background:var(--void);color:inherit}
 .sn-verify-form input:focus{outline:3px solid var(--blood);outline-offset:-3px}
-.sn-verify-form input::placeholder{color:var(--concrete)}
+/* A placeholder is TEXT under SC 1.4.3 — --concrete is the surface grey at
+   2.68:1. Same defect as the stamp, three selectors further down the file. */
+.sn-verify-form input::placeholder{color:var(--concrete-ink)}
 .sn-verify-form button{font-family:'Bebas Neue',Impact,sans-serif;font-size:1.15rem;letter-spacing:.09em;padding:.4em 1.6em .3em;border:0;border-left:2px solid var(--bone);background:var(--bone);color:var(--void);cursor:pointer;transition:background .12s ease}
 .sn-verify-form button:hover{background:var(--signal-ink);color:var(--void)}
 /* Keyboard focus must be distinguishable from a coincidental hover — same
@@ -162,11 +171,11 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
    page and a "check another one" utility on an answered page. Same element,
    same DOM position, quieter presentation. */
 .sn-verify[data-mode="result"] .sn-verify-form{border-width:1px;border-color:var(--asphalt);margin-bottom:.6rem}
-.sn-verify[data-mode="result"] .sn-verify-form label{color:var(--concrete);border-bottom-color:var(--asphalt);padding:.5em 1em .35em;font-size:.7rem}
+.sn-verify[data-mode="result"] .sn-verify-form label{color:var(--concrete-ink);border-bottom-color:var(--asphalt);padding:.5em 1em .35em;font-size:.7rem}
 .sn-verify[data-mode="result"] .sn-verify-form input{padding:.6em 1em;font-size:.78rem}
 .sn-verify[data-mode="result"] .sn-verify-form button{font-size:.95rem;padding:.35em 1.2em .25em;border-left-width:1px}
 
-.sn-verify-status-line{min-height:1.2em;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--concrete);margin:0 0 2.2rem}
+.sn-verify-status-line{min-height:1.2em;font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--concrete-ink);margin:0 0 2.2rem}
 .sn-verify-status-line:empty{margin:0 0 1.4rem}
 
 /* ---- panel lede ------------------------------------------------------- */
@@ -396,7 +405,10 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify-foot a{color:var(--rust);text-decoration:none}
 .sn-verify-foot a:hover,.sn-verify-foot a:focus-visible{color:var(--blood)}
 
-.sn-verify-noscript{font-size:.75rem;color:var(--concrete);margin:1rem 0 0}
+/* The noscript message is read by exactly the readers who cannot see the
+   checks run — it is the most load-bearing sentence on the page when it
+   shows at all, and it was 2.68:1. */
+.sn-verify-noscript{font-size:.75rem;color:var(--concrete-ink);margin:1rem 0 0}
 
 /* ---- small screens + reduced motion --------------------------------- */
 @media (max-width:560px){
