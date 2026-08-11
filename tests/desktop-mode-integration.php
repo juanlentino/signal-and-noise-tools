@@ -220,6 +220,32 @@ require_once __DIR__ . '/../inc/admin-legacy-redirect.php';
 require_once __DIR__ . '/../inc/openstation-compat.php';
 require_once __DIR__ . '/../inc/desktop-mode-integration.php';
 
+/**
+ * The integration's PHP source, as one blob.
+ *
+ * v10.87.2: desktop-mode-integration.php was split into a loader plus seven
+ * modules, so a source-text assertion can no longer name one file and expect
+ * to find the code. Every such assertion below means "this exists in the DM
+ * integration", never "this exists in that specific file" — so the blob is the
+ * right unit, and it keeps the pins working across any future re-split.
+ *
+ * The list is EXPLICIT rather than a glob over inc/desktop-mode-*.php: the
+ * attention and dropzone modules are separate features with their own suites,
+ * and folding them in here would let their source satisfy a pin meant for this
+ * one — a false pass, which is the failure mode these greps exist to catch.
+ */
+function dm_integration_src() {
+	static $blob = null;
+	if ( null !== $blob ) {
+		return $blob;
+	}
+	$blob = '';
+	foreach ( array( 'integration', 'payloads', 'assets', 'commands', 'widgets', 'dock', 'plugins-window', 'ai' ) as $mod ) {
+		$blob .= (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-' . $mod . '.php' );
+	}
+	return $blob;
+}
+
 /** Fire every callback registered on a hook. */
 function fire( $hook ) {
 	foreach ( $GLOBALS['__actions'][ $hook ] ?? array() as $cb ) { $cb(); }
@@ -525,7 +551,7 @@ echo "\n── The gate: no desktop-mode, no registration ──\n";
 // which checks BOTH the pre-rename and post-#475 function names — a
 // structurally-forced pin update, not a behavior change (the OLD-name path
 // is still the exact same function_exists() check, just inside the helper).
-$src = file_get_contents( __DIR__ . '/../inc/desktop-mode-integration.php' );
+$src = dm_integration_src();
 ok( strpos( $src, 'snt_os_register_widget_available()' ) !== false, 'widget block is gated on widget-registration availability (either naming family)' );
 
 echo "\n── Localized \$shared ──\n";
@@ -1408,7 +1434,7 @@ ok(
 		|| 1 === preg_match( '/payload\.ai_surfaces\s*\|\|\s*\[\s*\]/', $mr_js ),
 	'the ai_surfaces render is guarded (truthy + length check, or a safe default), not a blind index'
 );
-$dm_src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-integration.php' );
+$dm_src = dm_integration_src();
 ok( false !== strpos( $dm_src, "'/desktop/machine-readers'" ), 'the desktop route is registered' );
 ok( false !== strpos( $dm_src, "'machine_readers' => snt_desktop_admin_url" ), 'the pages map carries the tab link for the tile footer' );
 

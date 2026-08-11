@@ -2,6 +2,63 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.87.2] - 2026-08-11 — the Desktop Mode integration becomes seven modules
+
+`inc/desktop-mode-integration.php` had reached **1,623 lines** against a house
+rule of roughly 150. It held the script registrations, the localize, the command
+table, eight widget declarations, the dock, the Plugins-window fixes, every
+payload builder and the whole AI Copilot surface — seven unrelated concerns whose
+only shared property was arriving in the same release years apart.
+
+**Nothing changed but where the lines live.** The bodies were moved with `sed`
+rather than retyped, so the moved code is identical by construction; the only new
+lines are the seven file headers, the loader, and one closure wrapper.
+
+- **Seven modules, one loader.** `desktop-mode-assets.php` (script registration +
+  localize), `-commands.php` (the ⌘K table, its registration loop, and the two
+  surviving command impls), `-widgets.php` (the eight cards and their measured
+  geometry), `-dock.php` (dock item, badge, desktop icons, `snt_desktop_admin_url`),
+  `-plugins-window.php` (icon + Name fixes for the shell's own Plugins window),
+  `-payloads.php` (health summary, the 14-day series and its REST route,
+  living-tree traffic, machine-readers), `-ai.php` (schema repair, the prune list,
+  the system-prompt appendix). `desktop-mode-integration.php` survives as a
+  123-line loader that still carries the architectural notes spanning all seven —
+  the hook rule, the widget mount contract, the abilities dispatch path.
+- **Require order is now the registration contract, and says so.** Both commands
+  and widgets add an `init` priority-6 callback, and WordPress runs equal-priority
+  callbacks in insertion order — so the loader's require order is what the shell
+  sees. Commands stay ahead of widgets, preserving the payload order byte for
+  byte. Splitting the original single closure in two is the one structural change
+  in the release.
+- **Every module keeps its own `function_exists()` guard.** The loader does not
+  gate as a group: a shell-absent site must no-op module by module, exactly as
+  before, and a single group gate would be a new failure mode rather than a
+  simplification.
+- **Four source-text pins moved with the code they pin.** Three in
+  `tests/desktop-mode-integration.php` and one in `tests/abilities-machine-readers.php`
+  read the integration file as a blob and grep it, so they failed the moment the
+  code left that path — the assertions were never about the file, only about the
+  code existing. The DM suite now slurps the whole module set through one helper,
+  which keeps the pins working across any future re-split; the machine-readers pin
+  names the module that now holds the route. **The other 417 assertions in that
+  suite passed unedited** — the useful signal, since behavioural pins are the ones
+  a move refactor could actually break.
+- **Eight stale cross-file addresses corrected.** `machine-readers-summary.php`,
+  `command-palette.php`, `admin-tab-dashboard.php`, `audit-log.php`,
+  `abilities-machine-readers.php`, `desktop-mode-dropzone.php`,
+  `desktop-mode-attention.php` and `openstation-compat.php` all pointed prose at
+  `desktop-mode-integration.php` for code that now lives in a sibling. Comment rot
+  of exactly the kind a move refactor creates silently.
+
+**Verified:** the full standalone sweep — 413 suites — is green, with the DM suite
+at its pre-split 420 passed / 0 failed and the machine-readers suite back to 78/0.
+PHPStan clean. PHPCS clean (that ruleset is Security-only here, so it says nothing
+about style). No behaviour change to verify on the live desktop: the shell payload
+is byte-identical.
+
+> **Why PATCH:** no new capability, no API change, and nothing a user can see. The
+> file layout is not a public surface.
+
 ## [10.87.1] - 2026-08-11 — one provenance panel per subject
 
 **Found live, not in a test.** `/about/` was rendering TWO complete provenance
@@ -28,7 +85,6 @@ top of the theme fix would have produced a third.
 The live duplicate is a theme-side placement question as well (the slot landed
 on both the About template and the generic page template); this makes the
 symptom impossible from the plugin side regardless of how many callers exist.
-
 
 ## [10.87.0] - 2026-08-11 — a signed page shows its proof
 

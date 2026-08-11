@@ -135,7 +135,7 @@ function snt_desktop_attention_total() {
 /**
  * Ship the count to the shell.
  *
- * Localized onto 'sn-desktop-mode' — the handle inc/desktop-mode-integration.php
+ * Localized onto 'sn-desktop-mode' — the handle inc/desktop-mode-assets.php
  * ALREADY registers and already localizes snDesktopData onto. A handle
  * registered anywhere can be localized onto from anywhere, so this needs
  * no change to that file.

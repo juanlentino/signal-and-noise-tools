@@ -62,7 +62,7 @@
  *     process, so their reset helpers call this between cases (mirrors
  *     resetting $wpdb->insert_calls, $GLOBALS['__opts'], etc.).
  *
- * Every consumer file (inc/desktop-mode-integration.php,
+ * Every consumer file (the inc/desktop-mode-*.php module set,
  * inc/desktop-mode-attention.php, inc/desktop-mode-dropzone.php,
  * inc/ai-tool-invocation-log.php, inc/mcp/mcp-telemetry-agents.php) keeps its
  * OWN identifiers (snt_*, sn_*) untouched — only the seams that touch
