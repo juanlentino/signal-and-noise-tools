@@ -2,6 +2,51 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.83.0] - 2026-08-11 — the notes nothing links to
+
+R2C's second half: *extend the deterministic layer, pipeline by pipeline, as
+real editorial questions demand it.* One pipeline, chosen because its absence
+was findable rather than imagined.
+
+**The gap:** "orphan" already means something in this plugin, and it has always
+meant orphaned **media** — attachments nothing references. Nothing measured the
+note-level link graph. `link-candidates` suggests links to add *from* one post;
+`unlinked_mentions` catches one note naming another without linking it. Neither
+answers the question an editor actually asks: **which published notes does
+nothing link to?** A note with no inbound link exists, but is reachable only by
+archive or search — it is not part of the corpus's own fabric.
+
+- **New pipeline #8, `link-isolation`**
+  ([inc/ml-link-isolation.php](inc/ml-link-isolation.php)) — reports published
+  notes with zero inbound links from other published notes, worst-first: a note
+  isolated in *both* directions (nothing points at it, and it points nowhere)
+  ranks above a dead end that at least links out. **No new model, no network,
+  no hooks** — the same corpus walk the rest of the deterministic layer uses,
+  asked a question about topology instead of similarity.
+
+- **The correctness is entirely in the href normaliser, so it is its own pure,
+  directly-tested function.** `/notes/foo/`, `/notes/foo`,
+  `https://juanlentino.com/notes/foo/?utm=x#section` and the protocol-relative
+  form are one target. Too strict and *every* note reads as isolated; too loose
+  and none does — and both failures are silent. Matching is by final path
+  segment rather than full permalink, because the permalink base is a site
+  setting: hardcoding `/notes/` would make the measure wrong, quietly, the day
+  it changed.
+
+- **Three rules that decide what "reachable" means**, each pinned: a **self-link
+  is not reachability** in either direction; a link from a **draft** does not
+  make a note reachable *today* (so both subjects and sources are published
+  only — the one place this pipeline deliberately diverges from siblings that
+  walk all five statuses for pre-publish collision checking); and two links from
+  the same source are **one** editorial connection, not two.
+
+- The envelope always reports `isolated_total` alongside the capped
+  `isolated_count`, so a limit can never read as "that is all there is".
+
+Mutation-verified rather than assumed green: removing the trailing-slash trim
+reds 11 assertions (the everything-looks-orphaned failure), and counting
+self-links reds 3.
+
 ## [10.82.0] - 2026-08-11 — token-level contrast, report only
 
 R2C's first half. Authored in a parallel session and folded here under the

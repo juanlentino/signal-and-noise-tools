@@ -31,6 +31,7 @@ if ( ! function_exists( 'snt_ml_pipelines' ) ) {
 			'topic-clusters'   => 'snt_ml_pipeline_topic_clusters',   // v10.21.0: the stored topic partition (inc/ml-artifacts.php).
 			'cadence-flags'    => 'snt_ml_pipeline_cadence_flags',    // v10.22.0: publish + cron rhythm deviations (inc/ml-cadence.php).
 			'draft-echoes'     => 'snt_ml_pipeline_draft_echoes',     // v10.77.0: the notes one draft echoes (inc/ml-draft-echoes.php).
+			'link-isolation'   => 'snt_ml_pipeline_link_isolation',   // v10.83.0: published notes nothing links to (inc/ml-link-isolation.php).
 		);
 		return apply_filters( 'snt_ml_pipelines', $pipelines );
 	}
@@ -341,5 +342,33 @@ if ( ! function_exists( 'snt_ml_pipeline_cadence_flags' ) ) {
 			);
 		}
 		return snt_ml_cadence_flags();
+	}
+}
+
+if ( ! function_exists( 'snt_ml_pipeline_link_isolation' ) ) {
+	/**
+	 * 'link-isolation' pipeline (v10.83.0): published notes nothing links to.
+	 *
+	 * Thin argument gate over snt_ml_link_isolation() (inc/ml-link-isolation.php),
+	 * which owns the corpus walk, the href normalisation and the limit clamp.
+	 * Takes no post_id: the question is about the whole graph, not one note.
+	 *
+	 * @param array $args { @type int $limit Optional; clamped by the impl. }
+	 * @return array|WP_Error Envelope from snt_ml_link_isolation(), or
+	 *                        snt_ml_unavailable (500) when the module is not loaded.
+	 */
+	function snt_ml_pipeline_link_isolation( $args ) {
+		$args = (array) $args;
+		if ( ! function_exists( 'snt_ml_link_isolation' ) ) {
+			return new WP_Error(
+				'snt_ml_unavailable',
+				'Link-isolation module (inc/ml-link-isolation.php) is not loaded.',
+				array( 'status' => 500 )
+			);
+		}
+		$limit = isset( $args['limit'] ) && is_numeric( $args['limit'] )
+			? (int) $args['limit']
+			: 50;
+		return snt_ml_link_isolation( $limit );
 	}
 }
