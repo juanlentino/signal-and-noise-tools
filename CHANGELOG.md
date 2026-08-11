@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.82.0] - 2026-08-11 — token-level contrast, report only
+
+R2C's first half. Authored in a parallel session and folded here under the
+release-coordination arrangement: that session lands un-versioned work on a
+`claude/*` branch, this one reviews it and cuts the single release, so the
+version header and tag stop being contended across sessions.
+
+- **Token-level contrast, report only**
+  ([inc/health-contrast-tokens.php](inc/health-contrast-tokens.php)) — the
+  Accessibility planned row's first half. The 19th health check publishes every
+  theme-token pair's WCAG 2.2 ratio and AA verdicts (body and large thresholds,
+  judged on the **unrounded** ratio), sorted worst-first and named by slug.
+  **Zero findings by construction**: fixes are R3's, against pairs a reader
+  actually sees. The report's own `coverage` field says this is the arithmetic
+  tier, so a clean sweep here can never be mistaken for a clean site.
+
+- **Why report-only is the whole design, not a staging decision.** Block
+  templates inline their own colours, so a table of every token pair and its
+  ratio is a report about *arithmetic*, not about what any reader encounters. A
+  pair that never co-occurs failing AA is noise; a pair that is rendered and
+  fails is the finding. Publishing the arithmetic tier while saying — in the
+  payload, not just in a commit message — that the rendered tier was not
+  measured is what keeps the two from being confused.
+
+- **The ratio pins are hand-derived, not recomputed from the code under test.**
+  21:1 and 1:1 as the spec's own boundaries, 4.5424 for `#767676` on white with
+  the luminance arithmetic written out, 8.592 for the spec-published pure blue.
+  A malformed colour returns `null` rather than a fabricated number, and the
+  ratio is asserted order-independent. Verifying a calculator against its own
+  output would have passed on any consistent arithmetic, including wrong
+  arithmetic.
+
+- Deliberately **not** built: an admin render surface for the report table (the
+  payload rides the stored scan today), and the rendered-pair tier via headless
+  computed styles — that is R3's precondition, not this release's shortfall.
+
 ## [10.81.0] - 2026-08-11 — the finding was right, the reason was wrong
 
 Four images on **/services/** were reported as *"Alt text 'Production' is a single word — too little to
