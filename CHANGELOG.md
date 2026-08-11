@@ -2,7 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the give-back ratio reaches the page
+## [10.91.0] - 2026-08-11 — which machines send a reader back
+
+**MINOR** — R3 gate **3B is complete**. The give-back ratio was promoted to
+`planned` with its gate named earlier today; this builds the gate, the division,
+and the surface, and closes the row.
+
+The machine-readability page now says, per operator, whether a machine that reads
+this site ever sends a reader back — in sentences, not a table of numbers:
+
+> **OpenAI read this site 900 times and has never sent a reader back.**
+> Anthropic read this site 12 times and sent 3 readers back.
+> Perplexity did not read this site in this window.
+> Microsoft sends readers, but its crawler cannot be told apart from ordinary
+> search here, so there is nothing to measure it against.
+
+Those four sentences are four different claims, which is the whole engineering
+problem underneath them.
+
+### The surface: the ratio reaches the page
 
 Un-versioned; rides the next release. This is the piece that makes R3 3B's
 second half **user-visible**, so the release folding it is a MINOR.
@@ -41,7 +59,7 @@ was always defending — **an assertion's blast radius should match the claim it
 defends**, or the next true statement to mention the same number reads as a
 regression.
 
-## [Unreleased] — the give-back ratio: three zeroes that are three answers
+### The division: three zeroes that are three answers
 
 Un-versioned; rides the next release with the map below.
 
@@ -92,7 +110,7 @@ printing anything. A mutation harness needs the same affirmative-terminal-marker
 rule as the suites it mutates. Third instance today of a broken mutation reading
 as a clean one.
 
-## [Unreleased] — the operator map: the give-back ratio's gate
+### The gate: the operator map
 
 Un-versioned; rides the next release.
 
@@ -139,7 +157,7 @@ unparseable PHP. Verify the mutation applied AND that the file still parses.*
 
 103 assertions. No hooks, no output, no behaviour change — the ratio is next.
 
-## [Unreleased] — correction: v10.90.2 asserted the wrong resolution
+### Correction: v10.90.2 asserted the wrong resolution
 
 Un-versioned; rides the next release. **A claim shipped in v10.90.2 is false, and
 it was my call that was wrong.**
