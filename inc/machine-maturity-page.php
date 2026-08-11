@@ -94,6 +94,28 @@ function sn_machine_maturity_table_html() {
 	return $out . '</tbody></table>';
 }
 
+/**
+ * The rights-read count (R3 3B). The one non-static element on this page.
+ *
+ * Reads the durable snapshot and nothing else — no sensor call, no transient,
+ * no query. If the snapshot module is not loaded (partial deploy), this section
+ * is omitted entirely rather than rendered empty or guessed at: a page that
+ * silently drops a claim is better than one that invents it.
+ *
+ * @return string
+ */
+function sn_machine_maturity_reads_html() {
+	if ( ! function_exists( 'snt_mr_snapshot' ) || ! function_exists( 'snt_mr_rights_reads_sentence' ) ) {
+		return '';
+	}
+	$sentence = snt_mr_rights_reads_sentence( snt_mr_snapshot() );
+	if ( '' === trim( (string) $sentence ) ) {
+		return '';
+	}
+	return '<h3>' . esc_html__( 'Who reads the terms', 'signal-and-noise-tools' ) . '</h3>'
+		. '<p class="sn-machine-maturity-reads">' . esc_html( $sentence ) . '</p>';
+}
+
 /** @return string */
 function sn_machine_maturity_principles_html() {
 	$out = '<h3>' . esc_html__( 'Honest by construction', 'signal-and-noise-tools' ) . '</h3><ul class="sn-machine-maturity-principles">';
@@ -148,7 +170,7 @@ function sn_machine_maturity_shortcode( $atts = array() ) {
 	} elseif ( 'compact' === $format ) {
 		$out .= sn_machine_maturity_compact_html();
 	} else {
-		$out .= sn_machine_maturity_intro_html() . sn_machine_maturity_table_html() . sn_machine_maturity_principles_html() . sn_machine_maturity_scope_html();
+		$out .= sn_machine_maturity_intro_html() . sn_machine_maturity_table_html() . sn_machine_maturity_reads_html() . sn_machine_maturity_principles_html() . sn_machine_maturity_scope_html();
 	}
 	return $out . '</div>';
 }

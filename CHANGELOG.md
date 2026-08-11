@@ -44,8 +44,44 @@ than present as `0` — the same rule one level down. The hook is registered in
 `snt_cron_sn_owned_hooks()`, so the cron dashboard sees it and the unschedule
 ability refuses to orphan it.
 
-Not yet a reader-facing surface: 3B builds the rights-read count and the
-give-back ratio on top of this.
+### The rights-read count becomes a public claim (R3 gate 3B, planned half)
+
+The machine-readability page now publishes how often machines read the terms
+this site states — the crawler manifest, the reservation, the licence, the agent
+manifest, the well-known documents. `inc/machine-readers-rights-reads.php` is a
+pure reader of the snapshot above: hand it a record, get a sentence. There is no
+sensor call on this path *by construction*, which is the only reason a count like
+this can render on a front-end page at all.
+
+`html` is deliberately **excluded** from the count. Reading an article is not
+reading the terms, and folding it in would let a busy month of ordinary crawling
+masquerade as machines actually consulting the reservation — the exact claim the
+number exists to support or refute. The suite pins this with a fixture where 900
+article reads sit beside 12 rights reads and asserts the page publishes 12.
+
+Three-valued, inherited from the snapshot, and this is where it earns its keep:
+
+- **unmeasured** → *"That count has not been measured yet."*
+- **measured zero** → *"No machine has read this site's published terms in the
+  last 30 days."*
+- **stale** → the count **plus** *"Last measured 3 days ago."*
+
+Publishing "no machine has read our terms" off a sensor that never answered
+would be the most flattering possible reading of a broken pipe. On a page whose
+whole argument is honesty by construction, that is the one failure this surface
+cannot afford — so the unmeasured sentence cannot render a zero, and a test
+asserts it contains neither a `0` nor the words "No machine".
+
+The window is read from the record rather than assumed, so a snapshot captured
+over 7 days can never be published as a 30-day claim.
+
+The maturity family's standing "model, never levers" sweep now covers the new
+sentence **for real**: `tests/maturity-family.php` loads the snapshot module and
+plants a stored measurement, because with the module absent the section renders
+as an empty string and the sweep would pass over a claim it never saw. Four
+assertions pin that the swept output actually contains the count.
+
+Still open in 3B: the give-back ratio — see the note below.
 
 ## [10.89.1] - 2026-08-11 — the provenance chip clears AA
 
