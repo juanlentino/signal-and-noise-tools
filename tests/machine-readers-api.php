@@ -42,11 +42,24 @@ function wp_http_validate_url( $url ) { return false !== filter_var( (string) $u
 $GLOBALS['__ssrf_hosts'] = array();
 function sn_ssrf_host_blocked( $host ) { $GLOBALS['__ssrf_hosts'][] = (string) $host; return '' === (string) $host; }
 
+// v10.79.0: api.php calls snt_mr_normalize_taxonomy_fields(), so the real
+// dependency is loaded rather than stubbed — these declarations are unguarded,
+// and a stub would either fatal on redeclare or model a shape the callee does
+// not actually have.
+require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-api.php';
 
 echo "Group: enums (mirror of the worker's src/machine-readers.mjs)\n";
 $fams = snt_mr_valid_families();
-ok( 18 === count( $fams ) && in_array( 'anthropic', $fams, true ) && in_array( 'other-bot', $fams, true ), '18 families incl anthropic + other-bot' );
+ok( 19 === count( $fams ) && in_array( 'anthropic', $fams, true ) && in_array( 'other-bot', $fams, true ), '19 families incl anthropic + other-bot' );
+// v10.79.0 RULE 1: the 18 frozen values keep their identity AND their order.
+// Counting alone would pass if a value were swapped for another.
+ok( array_slice( $fams, 0, 18 ) === array(
+	'openai', 'anthropic', 'google-ai', 'perplexity', 'commoncrawl',
+	'bytedance', 'amazon-ai', 'apple-ai', 'meta-ai', 'mistral', 'cohere',
+	'allen-ai', 'diffbot', 'search', 'seo', 'feed', 'uptime', 'other-bot',
+), 'the 18 frozen families are byte-identical and in their original order' );
+ok( 'unclassified-machine' === $fams[18], 'the additive family is appended last' );
 $surf = snt_mr_valid_surfaces();
 ok( 10 === count( $surf ) && in_array( 'rights', $surf, true ) && in_array( 'html', $surf, true ), '10 surfaces incl rights + html' );
 

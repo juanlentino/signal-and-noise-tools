@@ -38,6 +38,11 @@ function snt_mr_valid_families() {
 		'openai', 'anthropic', 'google-ai', 'perplexity', 'commoncrawl',
 		'bytedance', 'amazon-ai', 'apple-ai', 'meta-ai', 'mistral', 'cohere',
 		'allen-ai', 'diffbot', 'search', 'seo', 'feed', 'uptime', 'other-bot',
+		// v10.79.0, ADDITIVE ONLY. Carries rows the Worker's frozen classifier
+		// would have dropped entirely (facebookexternalhit, meta-webindexer,
+		// Slackbot, WhatsApp, ia_archiver — all previously indistinguishable
+		// from humans). No value above changes meaning or population.
+		'unclassified-machine',
 	);
 }
 
@@ -109,11 +114,17 @@ function snt_mr_normalize_rows( $data ) {
 		$family  = is_string( $row['family'] ?? null ) ? $row['family'] : '';
 		$surface = is_string( $row['surface'] ?? null ) ? $row['surface'] : '';
 		$day     = is_string( $row['day'] ?? null ) ? $row['day'] : '';
-		$rows[]  = array(
-			'family'  => in_array( $family, $families, true ) ? $family : 'other-bot',
-			'surface' => in_array( $surface, $surfaces, true ) ? $surface : 'html',
-			'day'     => 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ? $day : '',
-			'hits'    => is_numeric( $row['hits'] ?? null ) ? max( 0, (int) $row['hits'] ) : 0,
+		$rows[]  = array_merge(
+			array(
+				'family'  => in_array( $family, $families, true ) ? $family : 'other-bot',
+				'surface' => in_array( $surface, $surfaces, true ) ? $surface : 'html',
+				'day'     => 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ? $day : '',
+				'hits'    => is_numeric( $row['hits'] ?? null ) ? max( 0, (int) $row['hits'] ) : 0,
+			),
+			// v10.79.0: additive. An older Worker sends none of these and every
+			// field lands on its empty/unknown value, so the tab degrades to
+			// exactly its v10.0.0 behaviour rather than erroring.
+			snt_mr_normalize_taxonomy_fields( $row )
 		);
 	}
 	return $rows;
@@ -129,24 +140,33 @@ function snt_mr_normalize_rows( $data ) {
  * and schema-invalid responses fail closed. Success is held in a short display
  * transient (volatile-OK under Breeze; nothing durable lives here).
  *
- * @param int $days Window, clamped 1..90.
+ * @param int    $days Window, clamped 1..90.
+ * @param string $view v10.79.0. 'aggregate' (default, the historic shape),
+ *                     'unknown' (RULE 2 review leaderboard), or 'rights'
+ *                     (RULE 3 full-fidelity stream). Anything else is coerced
+ *                     to 'aggregate' — the view never reaches the URL unvetted.
  * @return array{ok:bool,rows:array,error:?string}
  */
-function snt_mr_fetch( $days = 30 ) {
+function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 	$days = max( 1, min( 90, (int) $days ) );
+	$view = in_array( $view, array( 'aggregate', 'unknown', 'rights' ), true ) ? $view : 'aggregate';
 
 	$cfg = snt_mr_config();
 	if ( null === $cfg ) {
 		return array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' );
 	}
 
-	$cache_key = 'sn_mr_rows_' . $days;
+	$cache_key = 'sn_mr_rows_' . $days . '_' . $view;
 	$cached    = get_transient( $cache_key );
 	if ( is_array( $cached ) && true === ( $cached['ok'] ?? false ) ) {
 		return $cached;
 	}
 
 	$url = $cfg['url'] . ( false === strpos( $cfg['url'], '?' ) ? '?' : '&' ) . 'days=' . $days;
+	// Only ever appended from the allowlist above; never interpolated raw.
+	if ( 'aggregate' !== $view ) {
+		$url .= '&view=' . $view;
+	}
 
 	// Same outbound gate as every other probe (webhooks / uptime / worker-version):
 	// https-only + core URL validation + the shared resolve-then-range-check guard.
@@ -184,7 +204,12 @@ function snt_mr_fetch( $days = 30 ) {
 
 	$result = array(
 		'ok'    => true,
-		'rows'  => snt_mr_normalize_rows( $decoded['data'] ),
+		// The rights view returns a different row shape (full UA, path, Accept,
+		// timestamp) and needs its own normalizer; the aggregate normalizer
+		// would silently discard exactly the fields that view exists for.
+		'rows'  => 'rights' === $view
+			? snt_mr_normalize_rights_rows( $decoded['data'] )
+			: snt_mr_normalize_rows( $decoded['data'] ),
 		'error' => null,
 	);
 	set_transient( $cache_key, $result, 15 * MINUTE_IN_SECONDS );
@@ -210,7 +235,7 @@ const SN_MR_CRAWLER_STATUS_URL = 'https://juanlentino.com/_sn/rights-signals/cra
  * The sensor contract minimum this plugin's panels are built against. Bumps
  * with the read-path contract, beside the enum mirrors (extend BOTH repos).
  */
-const SN_MR_SENSOR_MIN = '1.4.0';
+const SN_MR_SENSOR_MIN = '1.11.0';
 
 /** The worker's public version endpoint (fixed, never configurable input). */
 const SN_MR_VERSION_ENDPOINT = 'https://juanlentino.com/_sn/rights-signals/version';

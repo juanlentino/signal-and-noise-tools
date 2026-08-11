@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.78.0
+ * Version:     10.79.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -225,9 +225,11 @@ require_once SNT_PATH . 'inc/ssrf-guard.php';
 // enforcing, never skipped. The companion drift probe
 // (inc/health-check-rights-signals.php) rides the inc/health-checks.php
 // orchestrator like every other health check.
+require_once SNT_PATH . 'inc/machine-readers-taxonomy.php'; // v10.79.0: vendor/purpose enums + normalizers (api.php uses them).
 require_once SNT_PATH . 'inc/machine-readers-api.php';
 require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
+require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.
 // The one-sentence summarizer, loaded AFTER the render module whose aggregate
 // helpers it reads. No side effects, no hooks: a pure string builder narrator
 // surfaces can call once they hold a payload.

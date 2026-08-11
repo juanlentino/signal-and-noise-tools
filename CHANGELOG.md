@@ -2,6 +2,119 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.79.0] - 2026-08-10 — purpose, beside a frozen family
+
+**Requires `sn-rights-signals` Worker v1.11.0** (`SN_MR_SENSOR_MIN` moves 1.4.0 → 1.11.0). An older
+sensor is not an error: the new panels state that no purpose data exists rather than rendering a
+table of zeroes, and every existing panel behaves exactly as it did.
+
+**Headline:** the surface could say *which* crawler read a machine surface, never *why*. Purpose is
+the axis the published claims run along, and 73% of a 30-day window sat in two buckets that answer
+nothing (`uptime` 6,403, `other-bot` 6,295, of 17,463).
+
+### `family` did not move, and that is the point
+
+The 18 original family values keep their meaning, their population **and their order**, now pinned by
+test in [tests/machine-readers-api.php](tests/machine-readers-api.php) and
+[tests/machine-readers-docs.php](tests/machine-readers-docs.php) rather than by comment. A published
+number (77 AI-training reads, 30d to 31 July, scheduled note 2071) depends on the old definition.
+
+Two family values are **known wrong** against the vendors' own current docs and stay wrong on
+purpose: `google-ai` matches `googleother`, which Google documents as a *generic* crawler; and
+`mistral` swallows `MistralAI-Index` and `MistralAI-User`, both of which Mistral states are **not**
+used for training. Both sit inside the published AI-training class and inflate it. The correction is
+the new `purpose` axis, and three tests pin the disagreement so it stays deliberate.
+
+`unclassified-machine` is the single additive value. It carries **only** rows the Worker's frozen
+classifier would have dropped entirely, so no existing family's population moves.
+
+### Added
+
+- **The vendor and purpose axes** ([inc/machine-readers-taxonomy.php](inc/machine-readers-taxonomy.php)):
+  a closed 12-value purpose vocabulary (`snt_mr_valid_purposes()`), an open but shape-constrained
+  vendor field, and normalizers that fail into the enum the same way family and surface always have.
+  The classification itself is **data**, not a switch statement: `machine-reader-taxonomy.json` in
+  the Worker repo, versioned `1.0.0`, effective `2026-08-10`, published at
+  `https://juanlentino.com/_sn/rights-signals/taxonomy`.
+- **Purpose and vendor×purpose tables** ([inc/machine-readers-render-taxonomy.php](inc/machine-readers-render-taxonomy.php)),
+  rendered above the family table because purpose is the question the tab exists to answer. One
+  vendor legitimately occupies several rows: openai/train, openai/search and openai/user are three
+  distinct readerships that the single axis collapsed.
+- **The unclassified bucket, made inspectable** (RULE 2): the top sampled user agents by volume, so
+  the taxonomy can be extended from evidence. A bucket nobody can look into is not a measurement.
+- **First-party monitoring is separable.** The site's own Better Stack monitor was 6,403 of 17,463
+  reads (37%) — the site measuring itself, not readership. Purpose totals exclude it **and print the
+  excluded figure**, rather than either carrying it silently or hiding it.
+
+### Changed
+
+- `snt_mr_fetch()` takes a `$view` argument (`aggregate` | `unknown` | `rights`), matched against a
+  fixed allowlist before it can reach a URL. The default is the historic shape, and the transient key
+  is per-view so the three never collide.
+- `snt_mr_normalize_rows()` returns the additive fields alongside the originals. An older Worker
+  sends none of them and every field lands on its empty/unknown value.
+
+### Fixed (second pass, same release)
+
+- **`cohere-ai` no longer asserts a purpose the evidence does not support.** Cohere publishes no
+  first-party crawler page, and the best available record calls the purpose *unconfirmed*, listing
+  training collection, index building and an unannounced experiment as equally live. It was filed
+  `train`; it is now `unknown` with `training_corpus_source: false` (false because unknown, not
+  because ruled out). Filing one of three possibilities is exactly what the `declared` field exists
+  to prevent, and the first pass did it anyway.
+- **`Diffbot-User` split out of `Diffbot`.** Diffbot documents two agents: `Diffbot` for general
+  crawling into its Knowledge Graph, and `Diffbot-User` for "requests on behalf of individual
+  users". The frozen `/diffbot/i` family regex files both as `diffbot` , the same shape of
+  over-count as GoogleOther and MistralAI-Index. Customer-run Crawlbot crawls use a customer-set
+  user agent and so never appear here at all, which is now recorded in the note.
+- **`ads` adopted as the thirteenth purpose.** `OAI-AdsBot` and `meta-externalads` are documented
+  agents that had no home in the vocabulary and were parked in `unknown`. Stretching them into
+  `security` would have implied a scanner.
+
+### Added (second pass)
+
+- **The rights-surface stream is readable.** RULE 3 logged complete events and gave nobody a way to
+  see them, which is the same failure RULE 2 exists to fix. `snt_mr_render_rights_detail()` lists
+  them individually , when, vendor, purpose, document, full user agent , with its own normalizer,
+  because the aggregate one would have silently discarded path, user agent and timestamp.
+- **The over-count is shown on the page, not just in a JSON note.**
+  `snt_mr_render_ai_reconciliation()` prints AI-training reads counted both ways, frozen family and
+  declared purpose, names the gap and its cause, and tells the reader which number to cite.
+- **The purpose axis rides the summary payload** (Desktop tile and the `machine-readers` ability):
+  `purposes`, `ai_training_by_purpose`, `first_party`, `taxonomy`. All additive; `ai_training`
+  keeps its exact family-based meaning. Against a pre-taxonomy sensor each new key is **null, never
+  0** , present-and-null, asserted with `array_key_exists()` rather than `??`, which conflates
+  absent with null.
+
+### Security
+
+- **`vendor` and the sampled user agent are the first attacker-influenced strings on this surface.**
+  The v9.85.0 posture was that the raw UA never leaves the Worker, which closed the
+  stored-XSS-into-admin path *by construction*. RULE 2 narrows that deliberately. Both fields are now
+  constrained by a character **allowlist** and a hard length cap at the edge, normalized again in the
+  plugin (which treats its own Worker as untrusted, as it does everywhere else on this path), and
+  escaped a third time at the render sink. Mutation-tested: removing either sanitizer fails the
+  suite. The posture is now *safe by sanitisation and escaping* where it was *safe by construction* —
+  a real, bounded loss, recorded here rather than found later.
+
+> **Why MINOR:** new user-visible capability (two axes, three tables, a published definition endpoint)
+> plus one additive enum value. No public API removed or renamed, no settings-schema change, and the
+> tab degrades cleanly against an older sensor, so nothing requires operator action beyond deploying
+> the Worker.
+
+### Verification
+
+- Full sweep **15,794 passed / 0 failed** across 409 files, with **no silent skips** (CI's
+  no-summary-line guard caught a fatal in `machine-readers-admin.php` mid-change, which is exactly
+  the failure mode that guard exists for).
+- Worker suite **191 passed / 0 failed**.
+- phpcs clean and **falsified first** (injected `echo $_GET['x']`, confirmed
+  `WordPress.Security.EscapeOutput` fires). PHPStan `[OK] No errors`.
+- The taxonomy's load-time validator was **mutation-tested against the real bundler**: an out-of-order
+  entry, an unknown purpose, a duplicate id and an uppercase match token each throw. The ordering
+  check is the one that matters — placing `applebot` before `applebot-extended` would otherwise make
+  an entire vendor split silently unreachable.
+
 ## [10.78.0] - 2026-08-10 — R1 graduates: the record catches up with the work
 
 v10.77.0 shipped four R1 rows. This is the half that is not code-that-runs but

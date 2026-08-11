@@ -66,7 +66,7 @@ Notes that matter when reading the responses:
 - **`last_check` is isolate memory, best effort.** It resets on deploy or
   eviction, so `null` right after a deploy is expected and is not a failure. The
   durable trail is Workers Logs.
-- **The contract minimum is `SN_MR_SENSOR_MIN`, currently `1.4.0`.** The Sensor
+- **The contract minimum is `SN_MR_SENSOR_MIN`, currently `1.11.0`.** The Sensor
   panel compares the deployed `version` against it and warns when the edge is
   behind what these panels are built for.
 
@@ -78,7 +78,7 @@ mirrored in `inc/machine-readers-api.php` and in `src/machine-readers.mjs`, and
 the rule is: extend BOTH or neither. `tests/machine-readers-docs.php` fails if
 the code allowlists and this page drift apart.
 
-**18 families** (`snt_mr_valid_families()`), first match wins in the Worker, with
+**19 families** (`snt_mr_valid_families()`), first match wins in the Worker, with
 the specific families ahead of the generic buckets:
 
 | Class | Families |
@@ -86,10 +86,96 @@ the specific families ahead of the generic buckets:
 | Declared AI training | `openai`, `anthropic`, `google-ai`, `commoncrawl`, `bytedance`, `apple-ai`, `meta-ai`, `mistral`, `cohere`, `allen-ai` |
 | Other named machines | `perplexity`, `amazon-ai`, `diffbot` |
 | Generic buckets | `search`, `seo`, `feed`, `uptime`, `other-bot` |
+| Additive (v10.79.0) | `unclassified-machine` |
 
 The AI-training class is the static half of the observed vs declared read
 (`snt_mr_ai_training_families()` in the render lane). It comes from public
 declarations, not from anything the request proves.
+
+### `family` is frozen
+
+The first 18 values are **frozen**: their meaning and their population do not
+change, and `tests/machine-readers-docs.php` pins the list and its order. A
+published number (77 AI-training reads, 30d to 31 July 2026, scheduled note
+2071) depends on what they meant, and this field has already moved underneath a
+published figure once.
+
+Two of them are **known to be wrong** against the vendors' current documentation
+and stay wrong deliberately:
+
+- `google-ai` matches `googleother`, which Google documents as a *generic*
+  crawler used by various product teams, not an AI fetcher.
+- `mistral` matches all three Mistral agents, including `MistralAI-Index` and
+  `MistralAI-User`, both of which Mistral states are **not** used for training.
+
+Both sit inside the AI-training class, so both inflate it. The correction lives
+on the `purpose` axis, never by editing the family list.
+
+`unclassified-machine` is the one addition. It carries **only** rows the
+Worker's frozen classifier would have dropped entirely: `facebookexternalhit`,
+`meta-webindexer`, Slackbot, WhatsApp, `ia_archiver` and similar, all of which
+returned `null` and were indistinguishable from humans. No existing value's
+meaning or population moves, so a query filtering the original 18 returns the
+same rows it always did.
+
+## The vendor and purpose axes (v10.79.0, Worker v1.11.0)
+
+`family` answers *which crawler*. `purpose` answers *what for*, which is the
+axis the published claims run along. They are matched **independently** against
+the raw User-Agent: purpose is never derived from family, which is what lets
+`Claude-SearchBot` keep `family=other-bot` while being visible as
+`anthropic` / `search`.
+
+The classification lives in **data, not code**: `src/machine-reader-taxonomy.json`
+in the Worker repo, versioned and dated, served verbatim and unauthenticated at
+**`https://juanlentino.com/_sn/rights-signals/taxonomy`** so any number derived
+from it can be checked against it.
+
+**13 purposes** (`snt_mr_valid_purposes()`), a closed set:
+
+| Purpose | Meaning |
+| --- | --- |
+| `train` | Declared AI training-corpus collection |
+| `search` | Index building for a search product |
+| `retrieval` | Live grounding for an AI answer, agent-initiated |
+| `user` | User-directed single fetch, not a crawl |
+| `archive` | Web archiving |
+| `ops` | Uptime and monitoring |
+| `seo` | Backlink and SEO crawlers |
+| `feed` | RSS and JSON Feed readers |
+| `social` | Link unfurlers and preview fetchers |
+| `security` | Scanners and internet measurement |
+| `dev` | Libraries and scripted clients |
+| `ads` | Ad-safety validation and catalogue fetches |
+| `unknown` | Unclassified, or a documented agent the vocabulary has no home for |
+
+`vendor` is an **open** field, not an enum: new organisations appear without a
+plugin release. It is constrained by shape instead (`snt_mr_normalize_vendor()`:
+lowercase alphanumerics, dot and hyphen, 32 characters), so nothing that
+survives can carry markup even before escaping.
+
+### Rules that hold across the whole file
+
+- **Every `*-User` agent is `user`, never `train`.** Vendors treat these as
+  outside their training-crawler rules; counting them as training would
+  overstate the claim. Pinned by test in both repos.
+- **`training_corpus_source` is a separate boolean**, so an agent can be both
+  archival and a known training-corpus source without either `archive` or
+  `train` quietly meaning two things. CCBot is `archive` + true; Amazonbot is
+  `search` + true.
+- **`declared` separates a vendor's own published statement from third-party
+  inference.** Bytespider, cohere-ai and Diffbot are `declared: false`: no
+  first-party crawler page exists for them. A surface whose claim is "observed
+  versus declared" must not blur the two.
+- **`observable: false` marks control tokens that never fetch.** Apple documents
+  that **Applebot-Extended does not crawl**: it is a robots.txt token used only
+  to govern how data already collected by Applebot may be used. The requested
+  Apple train/search split therefore **cannot be measured from request logs**,
+  and the `apple-ai` family reports a phantom: any non-zero count is spoofed or
+  synthetic. `Google-Extended` is the same shape.
+- **`first_party` flags the site's own monitoring.** At v1.11.0 the owner's
+  Better Stack monitor was 6,403 of 17,463 reads (37%): the site measuring
+  itself rather than readership. Purpose totals exclude it and say so.
 
 **10 surface classes** (`snt_mr_valid_surfaces()`), coarse on purpose so that no
 full path is ever stored:
@@ -226,7 +312,7 @@ curl -s https://juanlentino.com/_sn/rights-signals/version
 ```
 
 Expect `"worker": "sn-rights-signals"` and a `version` at or above the
-`SN_MR_SENSOR_MIN` value above (`1.4.0`). A lower version is exactly what makes
+`SN_MR_SENSOR_MIN` value above (`1.11.0`). A lower version is exactly what makes
 the Sensor status row show a warn pill naming the deployed version.
 
 **2. The crawler-list drift check has run.**
