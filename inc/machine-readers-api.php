@@ -235,7 +235,7 @@ const SN_MR_CRAWLER_STATUS_URL = 'https://juanlentino.com/_sn/rights-signals/cra
  * The sensor contract minimum this plugin's panels are built against. Bumps
  * with the read-path contract, beside the enum mirrors (extend BOTH repos).
  */
-const SN_MR_SENSOR_MIN = '1.11.0';
+const SN_MR_SENSOR_MIN = '1.12.0';
 
 /** The worker's public version endpoint (fixed, never configurable input). */
 const SN_MR_VERSION_ENDPOINT = 'https://juanlentino.com/_sn/rights-signals/version';

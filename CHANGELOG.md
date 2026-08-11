@@ -2,6 +2,48 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.80.0] - 2026-08-11 — the surface answers its own questions
+
+**Requires `sn-rights-signals` v1.12.0** (`SN_MR_SENSOR_MIN` 1.11.0 → 1.12.0).
+
+Two questions came up that the dashboard could not answer, and both had to be chased through the
+Cloudflare Workers Logs UI instead. Workers Logs keeps 7 days. Analytics Engine keeps 90. Anything
+only answerable in the former is a question you get one week to ask.
+
+### Added
+
+- **The agent is named, not inferred** ([inc/machine-readers-taxonomy.php](inc/machine-readers-taxonomy.php),
+  [inc/machine-readers-render-taxonomy.php](inc/machine-readers-render-taxonomy.php)). The sensor now
+  stores the taxonomy entry id, so the table says `openai-gptbot` rather than leaving the reader to
+  work it out from vendor plus purpose. The question that prompted this was *"was the 8 August sweep
+  GPTBot or ChatGPT-User?"*, which mattered because those are `train` and `user` and only one of them
+  is what the rights reservation addresses.
+
+  It was **GPTBot**. Over 4 to 11 August OpenAI split GPTBot 670, ChatGPT-User 240, OAI-SearchBot 160,
+  so **37% of what the frozen `openai` family reports as AI-training is not training.**
+
+### Fixed
+
+- **First-party traffic no longer reads as readership.** Every one of the top ten readers of the
+  rights surfaces turned out to be this site's own tooling: the hourly smoke test (330 reads over 7
+  days), the Worker's post-deploy gate (120), the plugin's anchor and drift probes, the provenance
+  integrity checker, and the ledger verifier. Most matched no frozen family, so they recorded nothing
+  and the surface could not say the rights-read count was self-inflicted. They are now flagged, and
+  the agent table excludes first-party rows outright.
+
+  `curl` is deliberately **not** flagged. The 63 `other-bot` rights reads on 9 August were almost
+  certainly hand-testing during that day's deploys, but curl is a generic client and flagging it
+  would silently discard real third-party traffic.
+
+> **Why MINOR:** a new reported dimension and a corrected exclusion, both additive. No public API
+> removed or renamed, no settings change. Against an older sensor `agent` is empty and every panel
+> behaves exactly as in v10.79.0.
+
+### Verification
+
+- Full sweep **15,811 passed / 0 failed** across 409 files, no silent skips. phpcs clean, PHPStan
+  `[OK] No errors`. Worker suite 202 passed.
+
 ## [10.79.0] - 2026-08-10 — purpose, beside a frozen family
 
 **Requires `sn-rights-signals` Worker v1.11.0** (`SN_MR_SENSOR_MIN` moves 1.4.0 → 1.11.0). An older
