@@ -26,7 +26,7 @@
  * .7rem — both SMALLER than normal text, so the 3:1 large-text allowance does
  * not apply to any of them.
  *
- * @since plugin v10.90.0
+ * @since plugin v10.89.1
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 
@@ -67,7 +67,7 @@ function pfc_color_of( $css, $selector ) {
 	return preg_match( '/(?<![-\w])color\s*:\s*(#[0-9a-fA-F]{3,6})/', $m[1], $c ) ? $c[1] : '';
 }
 
-echo "Provenance front-end contrast — AA on the SHIPPED stylesheet (v10.90.0)\n\n";
+echo "Provenance front-end contrast — AA on the SHIPPED stylesheet (v10.89.1)\n\n";
 
 /* ═══════════════════════════════════════════════════════════════════
  * 1. The chip pins its own surface

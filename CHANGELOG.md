@@ -2,6 +2,60 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.89.1] - 2026-08-11 — the provenance chip clears AA
+
+Shipped ahead of the batch on the owner's call: v10.89.0 promoted the chip to a
+page's title badge, which made it the most prominent provenance element on the
+page — and it was failing WCAG AA. A sub-AA element in that position was worth
+one release out of rhythm.
+
+**Measured live, before this change**, on plain white and on High Contrast's
+`asphalt` (`#e0e0e0`), which is the palette the site actually serves:
+
+| chip | white | asphalt |
+|---|---|---|
+| confirmed `#1f9d55` | 3.49:1 fail | 2.65:1 fail |
+| pending `#c98a12` | 2.95:1 fail | 2.23:1 fail |
+| muted `#6b7280` | 4.83:1 pass | **3.66:1 fail** |
+
+Three of four failing live, not two — `muted` passed on white and failed under
+the served palette, which is the whole argument for scoring per palette rather
+than against defaults.
+
+- **The chip pins its own background** (`#fff`). It set none before, so its
+  contrast was a property of *placement* rather than of the component:
+  unscoreable in isolation, and different in a byline than in a title brow.
+- **Status colours darken, hues kept** — the owner's direction was "darken to
+  pass, keep them semantic". `#12703a` (6.17 / 4.67), `#7a5200` (6.92 / 5.24),
+  `#5b6270` (6.13 / 4.64). Every one clears AA on the pinned surface *and* on
+  High Contrast asphalt, so an overridden background cannot silently
+  reintroduce the failure. Chosen over a same-hue alternative that landed at
+  4.50–4.55: a value sitting on the threshold has no margin, and it is exactly
+  the number nobody re-measures once it is "the passing one".
+- Border `rgba()` values are unchanged — non-text UI, 3:1 at most. A deliberate
+  non-change, not an oversight.
+
+### The blind spot this closes
+
+`inc/health-contrast-tokens.php` scores theme **token pairs**. Every colour in
+`assets/provenance-front.css` is a hardcoded hex, so the report structurally
+could never see any of this — its own coverage sentence says so, and this is the
+second time that sentence has earned its keep.
+
+New suite `tests/provenance-front-contrast.php` reads the **shipped stylesheet**
+and computes WCAG ratios rather than restating values, so a colour edited without
+checking is caught here instead of by a reader. Anchored on published answers
+(21:1, 1:1, `#767676` at 4.54:1) so a broken luminance function cannot report
+everything as passing, and it asserts the **removed** green still measures below
+AA — which is what makes the gate falsifiable. Mutation-verified: restoring the
+old green reds 2 assertions, removing the chip background reds 1.
+
+Two sessions corrected the link colours in this same file earlier today while
+looking straight past the chip beside them, because a handoff note said the
+status chips were "deliberately untouched (functional state colours)". Functional
+colour still has to meet contrast when it **is** the text colour.
+
+
 ## [10.89.0] - 2026-08-11 — a page's proof is a badge
 
 Folded from the parallel session, on the owner's direction after seeing the

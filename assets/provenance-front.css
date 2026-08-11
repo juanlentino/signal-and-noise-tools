@@ -1,4 +1,4 @@
-/* The chip carries its OWN background (v10.90-era). It used to set only a
+/* The chip carries its OWN background (v10.89.1). It used to set only a
    colour and inherit whatever surface it landed on — so its contrast was a
    property of PLACEMENT, not of the component, and it was unscoreable in
    isolation. That is exactly why the token-level contrast report could never
