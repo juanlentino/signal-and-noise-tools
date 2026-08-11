@@ -140,6 +140,13 @@ function sn_health_run_scan() {
 			// forever. This one compares the bytes being served right now
 			// against the newest ledger record.
 			'rights_anchored'      => snt_health_check_rights_anchored(),
+			// 19th check (v10.82.0): token-level contrast, REPORT ONLY — the
+			// Accessibility planned row's first half. Zero findings by design
+			// (fixes are a later step against pairs a reader actually sees);
+			// the payload is the pair table + a coverage sentence that says
+			// this is the arithmetic tier, so a clean sweep here can never
+			// be mistaken for a clean site.
+			'contrast_tokens'      => sn_health_check_contrast_tokens(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
@@ -191,6 +198,7 @@ require_once __DIR__ . '/health-check-rights-anchored.php';
 require_once __DIR__ . '/health-check-ml-cousins.php';
 // v10.22.0: cadence deviations (publish + cron rhythms) as a health check.
 require_once __DIR__ . '/health-check-ml-cadence.php';
+require_once __DIR__ . '/health-contrast-tokens.php';
 
 /**
  * Common per-check result envelope used by 2-4.
