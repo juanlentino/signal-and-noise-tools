@@ -48,7 +48,17 @@
    separated by a rule from the record above — actions, not chain rows. */
 .sn-prov-links{display:flex;flex-wrap:wrap;gap:.4em 1.4em;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:.9rem 0 0;padding-top:.8rem;border-top:1px solid rgba(0,0,0,.1)}
 .sn-prov-links a{color:#e00404;text-decoration:underline;text-underline-offset:3px;padding:.45em 0;margin:-.45em 0}
-.sn-prov-links a:hover,.sn-prov-links a:focus-visible{color:#ff4c47}
+/* Hover/focus goes DARKER, not lighter. The site's signal red (#ff4c47) is
+   established — but everywhere else it is a border, an outline, or a tabular
+   number, and as 0.7rem uppercase link text on white it measures 3.29:1 and
+   fails WCAG AA (4.5:1 for normal text; these are smaller than normal, so the
+   3:1 large-text allowance does not apply). #b00303 measures 7.34:1. It is also
+   the :focus-visible colour, so a keyboard user lands on that state.
+   The underline thickens too, so the state change is not carried by colour
+   alone. NOTE this pair is invisible to the token-level contrast report: that
+   report covers theme TOKEN pairs, and this is a hardcoded CSS pair — which is
+   exactly what its coverage sentence exists to say. */
+.sn-prov-links a:hover,.sn-prov-links a:focus-visible{color:#b00303;text-decoration-thickness:2px}
 
 /* The chip's "Verify" affordance (v9.74.0): a quiet mono action link beside
    the chip, in the same red-action vocabulary as .sn-prov-onchain-cta — reads
@@ -57,4 +67,10 @@
    floor. The padding/negative-margin pair expands the ~15px-tall link to a
    ≥24px hit target without shifting the byline's layout. */
 .sn-prov-chip-verify{font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:#e00404;text-decoration:underline;text-underline-offset:3px;margin-left:.15em;white-space:nowrap;padding:.55em .2em;margin-top:-.55em;margin-bottom:-.55em}
-.sn-prov-chip-verify:hover,.sn-prov-chip-verify:focus-visible{color:#ff4c47}
+/* Same correction as the panel's action row, applied to the link this idiom
+   came from. .7rem uppercase is smaller than normal text, so 3.29:1 fails AA
+   with no large-text allowance to fall back on — and it is the :focus-visible
+   colour, which is where a keyboard user lands. Pre-dates this release
+   (v9.74.0); fixed here because leaving one hover red compliant and its twin
+   failing, in the same stylesheet, is worse than either. */
+.sn-prov-chip-verify:hover,.sn-prov-chip-verify:focus-visible{color:#b00303;text-decoration-thickness:2px}
