@@ -51,6 +51,8 @@ echo "Analytics derived views\n\n";
 
 echo "Group: referrer host → category\n";
 ok( sn_analytics_referrer_category( 'www.google.com' ) === 'search', 'category: google → search' );
+ok( sn_analytics_referrer_category( 'claude.ai' ) === 'ai', 'category: claude.ai → ai (R2B: the human referral segment)' );
+ok( sn_analytics_referrer_category( 'gemini.google.com' ) === 'ai', 'category: gemini.google.com → ai, not search (order pin holds through the delegate)' );
 ok( sn_analytics_referrer_category( 'duckduckgo.com' ) === 'search', 'category: duckduckgo → search' );
 ok( sn_analytics_referrer_category( 't.co' ) === 'social', 'category: t.co → social' );
 ok( sn_analytics_referrer_category( 'news.ycombinator.com' ) === 'social', 'category: HN → social' );
@@ -68,12 +70,16 @@ $GLOBALS['__de_dim']['referrer|human'] = array(
 	array( 'value' => 't.co',                  'views' => 50,  'visits' => 30 ),
 	array( 'value' => '(direct)',              'views' => 200, 'visits' => 120 ),
 	array( 'value' => 'some-blog.example',     'views' => 5,   'visits' => 3 ),
+	array( 'value' => 'claude.ai',             'views' => 7,   'visits' => 4 ),
+	array( 'value' => 'chatgpt.com',           'views' => 9,   'visits' => 5 ),
 );
 $cats = sn_analytics_referrer_categories( '2026-06-01', '2026-06-07', 'human' );
-ok( count( $cats ) === 4, 'categories: returns all 4 categories (zero-filled)' );
+ok( count( $cats ) === 5, 'categories: returns all 5 categories (zero-filled; R2B adds ai)' );
 $by = array();
 foreach ( $cats as $c ) { $by[ $c['category'] ] = $c; }
-ok( $by['search']['views'] === 120, 'categories: search sums google + news.google (100+20)' );
+ok( $by['search']['views'] === 120, 'categories: search sums google + news.google (100+20) — AI rows NOT folded in' );
+ok( $by['ai']['views'] === 16 && $by['ai']['visits'] === 9, 'categories: ai sums claude.ai + chatgpt.com (7+9 / 4+5) — its own bucket, or the fold would write an undefined key' );
+ok( $by['ai']['label'] === 'AI assistants', 'categories: the ai bucket carries its display label' );
 ok( $by['social']['views'] === 50, 'categories: social = t.co' );
 ok( $by['direct']['views'] === 200, 'categories: direct = (direct) sentinel' );
 ok( $by['other']['views'] === 5, 'categories: other = the unknown host' );
@@ -176,8 +182,8 @@ ok( null === sn_analytics_referrer_categories( '2026-09-01', '2026-09-07', 'huma
 	'categories: a failed dims read propagates as NULL — never four fabricated zero-filled categories' );
 unset( $GLOBALS['__de_dim']['referrer|human'] );
 $empty_cats = sn_analytics_referrer_categories( '2026-09-01', '2026-09-07', 'human' );
-ok( is_array( $empty_cats ) && 4 === count( $empty_cats ),
-	'categories: an empty (successful) read still returns the 4 zero-filled categories — a real quiet window' );
+ok( is_array( $empty_cats ) && 5 === count( $empty_cats ),
+	'categories: an empty (successful) read still returns the 5 zero-filled categories — a real quiet window' );
 $GLOBALS['__de_dim']['network|bot'] = null; // the bot-networks read fails; class totals still read fine
 $bb_f = sn_analytics_bot_breakdown( '2026-09-01', '2026-09-07', 10 );
 ok( 1420 === $bb_f['totals']['total'], 'bot-breakdown: the class totals (their own table) still serve' );

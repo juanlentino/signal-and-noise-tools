@@ -132,6 +132,27 @@ function snt_narration_collect_signals() {
 		'collected_at' => time(),
 	);
 
+	// R2B: readers referred by an AI assistant, as their own signal group —
+	// the HUMAN segment (top_sources is already class 'human'), never the
+	// crawler taxonomy, which lives in the 'machine' block below. Derived
+	// from the already-fetched top_sources via the category mapper; included
+	// ONLY when non-empty so the prompt stays honest (no filler sections).
+	if ( function_exists( 'sn_analytics_source_category_of_label' ) ) {
+		$ai_rows = array();
+		foreach ( $signals['top_sources'] as $row ) {
+			if ( is_array( $row ) && 'ai' === sn_analytics_source_category_of_label( (string) ( $row['value'] ?? '' ) ) ) {
+				$ai_rows[] = array(
+					'source' => (string) $row['value'],
+					'views'  => (int) ( $row['views'] ?? 0 ),
+					'visits' => (int) ( $row['visits'] ?? 0 ),
+				);
+			}
+		}
+		if ( array() !== $ai_rows ) {
+			$signals['ai_referrals'] = $ai_rows;
+		}
+	}
+
 	// Edge / machine-traffic signals — included ONLY when the edge rollup is
 	// configured and actually saw hits (graceful: returns zeros otherwise, which
 	// we omit so the prompt stays honest about what the beacon can vs can't see).
@@ -236,7 +257,7 @@ function snt_narration_collect_signals() {
  */
 function snt_narration_system_instruction() {
 	return <<<INSTRUCTIONS
-You are writing a brief weekly analytics digest for the owner of a personal site. You will receive a JSON blob covering a 7-day window: traffic totals, period-over-period deltas (this week vs the prior 7 days), an engagement-rate delta, the top pages, the top traffic sources, the top custom events, and — each only when present — a "machine" block summarizing non-human edge traffic the on-page analytics cannot see, a "cwv" block of field Core Web Vitals shares, a "security" block of login-guard/audit aggregates, and an "anomaly_flags" block listing week totals that landed outside their typical range.
+You are writing a brief weekly analytics digest for the owner of a personal site. You will receive a JSON blob covering a 7-day window: traffic totals, period-over-period deltas (this week vs the prior 7 days), an engagement-rate delta, the top pages, the top traffic sources, the top custom events, and — each only when present — a "machine" block summarizing non-human edge traffic the on-page analytics cannot see, an "ai_referrals" block listing human readers who arrived from an AI assistant's answer, a "cwv" block of field Core Web Vitals shares, a "security" block of login-guard/audit aggregates, and an "anomaly_flags" block listing week totals that landed outside their typical range.
 
 Write a short, plain digest of what happened this week. Return ONLY a JSON object:
 
@@ -250,6 +271,7 @@ Rules:
 - Cite specific numbers and week-over-week changes (e.g. "views up 12% to 1,430"). No vague claims, no marketing fluff, no exclamation marks.
 - Lead with the most important change. If traffic was flat, say so plainly.
 - Mention machine/bot traffic or blocked threats ONLY if the "machine" block is present in the data.
+- Mention readers arriving from AI assistants ONLY if the "ai_referrals" block is present. These are HUMANS an assistant referred (ChatGPT, Claude, Perplexity, ...) — a traffic channel like Search or Social, counted per source. NEVER conflate them with the "machine" block: that block is crawlers reading the site; this one is people the crawlers' products sent back.
 - Mention page-experience / Core Web Vitals ONLY if the "cwv" block is present. good_pct/poor_pct are the share of page-loads in Google's Good/Poor band for that metric this window.
 - Mention security activity ONLY if the "security" block is present. These are aggregate counts (login-guard blocks at the edge, audit events on the site); never speculate about attackers or origins beyond the given numbers.
 - Mention statistical anomalies ONLY if the "anomaly_flags" block is present. Each flag is an aggregate week metric (views, visits, scroll or dwell) whose value this week is more than two standard deviations from its trailing ~6-week mean. Cite it as the value with its typical range and direction, e.g. "views 1,500, above the typical 990-1,010". typical_low/typical_high bound that range. These are aggregate within-week figures — never per-person, never cross-day.

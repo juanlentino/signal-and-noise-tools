@@ -24,13 +24,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Classify a referrer HOST into a source category. Delegates to the canonical
  * source mapper (inc/analytics-sources.php) so the brand vocabulary used by "Top
- * sources" and the Search/Social/Direct/Other category split can never drift:
+ * sources" and the Search/AI/Social/Direct/Other category split can never drift:
  * host → canonical label → category. Self-referrals + empty/sentinel resolve to
  * '(direct)' → 'direct'; a known brand carries its category; an unknown host is
  * 'other'.
  *
  * @param string $host Referrer host (or '(direct)' / '(unknown)' sentinel).
- * @return string 'search' | 'social' | 'direct' | 'other'
+ * @return string 'search' | 'ai' | 'social' | 'direct' | 'other'
  */
 function sn_analytics_referrer_category( $host ) {
 	if ( ! function_exists( 'sn_analytics_canonical_source' ) ) {
@@ -40,12 +40,12 @@ function sn_analytics_referrer_category( $host ) {
 }
 
 /**
- * Fold the referrer dimension into the 4 source categories (all returned,
+ * Fold the referrer dimension into the 5 source categories (all returned,
  * zero-filled, in a stable order). Reads up to 500 referrer rows for the window.
  *
  * Contract (v9.68.1): null = the underlying dims read FAILED (propagated —
- * four fabricated zero-filled categories would impersonate a quiet window);
- * an empty read still returns the 4 zero-filled categories (a real answer).
+ * five fabricated zero-filled categories would impersonate a quiet window);
+ * an empty read still returns the 5 zero-filled categories (a real answer).
  *
  * @param string $from  Inclusive start day, YYYY-MM-DD.
  * @param string $to    Inclusive end day, YYYY-MM-DD.
@@ -62,6 +62,10 @@ function sn_analytics_referrer_categories( $from, $to, $class = 'human' ) {
 
 	$cats = array(
 		'search' => array( 'label' => 'Search', 'views' => 0, 'visits' => 0 ),
+		// R2B: readers an AI assistant referred — the human segment, its own
+		// channel; the bucket must exist here or an 'ai'-classified row would
+		// write to an undefined key.
+		'ai'     => array( 'label' => 'AI assistants', 'views' => 0, 'visits' => 0 ),
 		'social' => array( 'label' => 'Social', 'views' => 0, 'visits' => 0 ),
 		'direct' => array( 'label' => 'Direct', 'views' => 0, 'visits' => 0 ),
 		'other'  => array( 'label' => 'Other',  'views' => 0, 'visits' => 0 ),
