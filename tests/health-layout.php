@@ -310,6 +310,66 @@ he_assert( false === strpos( $html6, 'LEAKED-INTO-FINDINGS' ), 'a check carrying
 he_assert( false === strpos( $html6, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section for a report-bucket check' );
 he_assert( false !== strpos( $html6, '<h2 class="sn-section-h">Reports</h2>' ), 'it renders in Reports, exactly once' );
 
+// ─── Test G: link isolation (ML pipeline #8) — its first surface ────────────
+// The renderer consumes only the PUBLISHED ENVELOPE SHAPE; it never calls
+// snt_ml_link_isolation(), which lives on a separate unmerged branch. So this
+// suite builds the envelope by hand — that independence is the point, not a
+// shortcut, and it is what lets the two land in either order.
+//
+// THE LOAD-BEARING ASSERTION IS isolated_total. The producer caps `isolated`
+// and publishes the true total beside it precisely so a capped list cannot
+// read as "that is all there is". A renderer that showed the rows and dropped
+// the total would discard the one field keeping the surface honest — silently.
+echo "\nTest G: link isolation — the capped list never poses as the whole truth\n";
+$GLOBALS['__scan'] = array(
+	'scanned_at' => time() - 60,
+	'elapsed_ms' => 90,
+	'checks'     => array(
+		'link_isolation' => array(
+			'label'    => 'Link isolation (notes nothing links to)',
+			'count'    => 0,
+			'fix_hint' => '',
+			'findings' => array(),
+			'report'   => array(
+				'coverage'       => 'Inbound links from other PUBLISHED notes only.',
+				'isolated'       => array(
+					array( 'post_id' => 11, 'title' => 'Stranded both ways', 'slug' => 'stranded', 'outbound_count' => 0 ),
+					array( 'post_id' => 12, 'title' => 'Dead end', 'slug' => 'dead-end', 'outbound_count' => 3 ),
+				),
+				'isolated_count' => 2,
+				'isolated_total' => 47,
+				'posts_scanned'  => 120,
+				'truncated'      => true,
+			),
+		),
+	),
+);
+ob_start();
+sn_health_render_admin_tab();
+$html7 = ob_get_clean();
+he_assert( false !== strpos( $html7, '47 of 120 published notes have no inbound link' ), 'the headline states the TRUE total (47), never the capped row count (2)' );
+he_assert( false !== strpos( $html7, 'Showing 2 of 47 isolated notes' ), 'the truncation line names both numbers explicitly' );
+he_assert( false !== strpos( $html7, 'the list is capped, not complete' ), 'and says in words that the list is not the whole set' );
+he_assert( false !== strpos( $html7, 'Inbound links from other PUBLISHED notes only.' ), 'its coverage sentence renders like every other report' );
+he_assert( false !== strpos( $html7, 'Stranded both ways' ), 'isolated notes are listed' );
+he_assert( false !== strpos( $html7, '>both ways</span>' ), 'a note isolated in BOTH directions is marked as more stranded than a dead end' );
+he_assert( false === strpos( $html7, 'no detail view yet' ), 'it uses its bespoke renderer, not the degrading fallback' );
+he_assert( false === strpos( $html7, 'sn-health-passing' ), 'and it is not counted as a passing check' );
+
+// The dropped-total regression, stated as its own case: an envelope WITHOUT
+// isolated_total must fall back to the row count, never to silence.
+echo "\nTest G2: an older envelope with no isolated_total degrades honestly\n";
+$GLOBALS['__scan']['checks']['link_isolation']['report'] = array(
+	'coverage'      => 'Inbound links only.',
+	'isolated'      => array( array( 'post_id' => 11, 'title' => 'Only one', 'slug' => 'one', 'outbound_count' => 1 ) ),
+	'posts_scanned' => 9,
+);
+ob_start();
+sn_health_render_admin_tab();
+$html8 = ob_get_clean();
+he_assert( false !== strpos( $html8, '1 of 9 published notes have no inbound link' ), 'falls back to the row count when the producer omitted the total' );
+he_assert( false === strpos( $html8, 'the list is capped' ), 'and does NOT claim truncation it cannot know about' );
+
 // ─── CSS contract: every class the render emits has stylesheet backing ──────
 echo "\nCSS contract: classes exist in assets/admin.css (enqueued, never inlined)\n";
 $css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );

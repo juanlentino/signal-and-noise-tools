@@ -22,6 +22,18 @@ render it on.
   Before this, the check's entire representation in admin was a single green
   chip in the passing strip.
 
+- **Link isolation gets its first surface too** (ML pipeline #8, shipped
+  deliberately without one). The renderer consumes only the **published
+  envelope shape** — it never calls `snt_ml_link_isolation()`, which lives on a
+  separate branch — so the two land in either order without coupling: whichever
+  branch packs the check, the surface is already here. `isolated_total` leads
+  the headline and the truncation line names both numbers ("Showing 2 of 47
+  isolated notes — the list is capped, not complete"), because a capped list
+  rendered without its true total reads as "that is all there is", silently.
+  Two tests pin it, including an older envelope with no `isolated_total` that
+  must fall back to the row count without *claiming* truncation it cannot know
+  about.
+
 - **"Report-only" is a structural test, not a key list**
   (`sn_health_check_has_report()`, [inc/health-summary.php](inc/health-summary.php)).
   A check is report-only iff it packs a non-empty `report` array. The next

@@ -50,6 +50,13 @@ if ( ! defined( 'SN_HEALTH_CONTRAST_MAX_ROWS' ) ) {
 function sn_health_report_renderers() {
 	$renderers = array(
 		'contrast_tokens' => 'sn_health_render_contrast_report',
+		// Link isolation (ML pipeline #8, inc/ml-link-isolation.php) shipped
+		// deliberately without a surface. This is its first one. The renderer
+		// consumes only the PUBLISHED ENVELOPE SHAPE — it never calls
+		// snt_ml_link_isolation() — so the two land in either order without
+		// coupling: whichever branch packs the check, the surface is already
+		// here, and if the check never arrives this entry is simply unused.
+		'link_isolation'  => 'sn_health_render_link_isolation_report',
 	);
 	if ( function_exists( 'apply_filters' ) ) {
 		$renderers = (array) apply_filters( 'sn_health_report_renderers', $renderers );
@@ -250,6 +257,96 @@ function sn_health_render_contrast_report( $report ) {
 			esc_html__( '+%1$d more pairs, every one of them at %2$s:1 or better — the table is sorted worst-first, so the tail is the safe end.', 'signal-and-noise-tools' ),
 			(int) $hidden,
 			esc_html( number_format( $floor, 2 ) )
+		);
+		echo '</p>';
+	}
+}
+
+/**
+ * The link-isolation report: which published notes nothing links to.
+ *
+ * Envelope (inc/ml-link-isolation.php, ML pipeline #8):
+ *   {isolated[], isolated_count, isolated_total, posts_scanned, truncated}
+ *
+ * ISOLATED_TOTAL IS NEVER DROPPED. The producer caps `isolated` at a limit and
+ * publishes the true total beside it precisely so a capped list cannot read as
+ * "that is all there is" — rendering the rows without the total would throw
+ * away the one field that keeps the surface honest, and would do it silently.
+ * So the total leads the headline, and when `truncated` is set the remainder is
+ * stated explicitly rather than left to be inferred from a row count.
+ *
+ * Deliberately NOT a findings table: an isolated note is an editorial
+ * observation about graph topology, not a defect. It sits with the reports.
+ *
+ * @param array $report The check's `report` payload.
+ * @since 10.83.0
+ */
+function sn_health_render_link_isolation_report( $report ) {
+	$rows    = isset( $report['isolated'] ) && is_array( $report['isolated'] ) ? $report['isolated'] : array();
+	$scanned = (int) ( $report['posts_scanned'] ?? 0 );
+	// The TRUE total, always — falling back to the row count only when the
+	// producer genuinely omitted it (an older envelope), never silently
+	// preferring the shorter number.
+	$total = array_key_exists( 'isolated_total', $report ) ? (int) $report['isolated_total'] : count( $rows );
+
+	echo '<p class="sn-health-report__headline">';
+	printf(
+		/* translators: 1: isolated note count, 2: notes scanned */
+		esc_html__( '%1$d of %2$d published notes have no inbound link from any other note.', 'signal-and-noise-tools' ),
+		$total,
+		$scanned
+	);
+	echo '</p>';
+
+	if ( empty( $rows ) ) {
+		echo '<p class="sn-field-helper">' . esc_html__( 'Every published note is reachable from at least one other note.', 'signal-and-noise-tools' ) . '</p>';
+		return;
+	}
+
+	echo '<div class="snt-scroll-table">';
+	echo '<table class="widefat striped snt-mt-half"><thead><tr>';
+	echo '<th scope="col" class="snt-col-55">' . esc_html__( 'Note', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-90px">' . esc_html__( 'Links out', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="snt-col-90px">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</th>';
+	echo '</tr></thead><tbody>';
+
+	foreach ( $rows as $row ) {
+		$post_id  = (int) ( $row['post_id'] ?? 0 );
+		$outbound = (int) ( $row['outbound_count'] ?? 0 );
+		echo '<tr>';
+		echo '<td>' . esc_html( (string) ( $row['title'] ?? '' ) );
+		if ( ! empty( $row['slug'] ) ) {
+			echo '<br><small><code>' . esc_html( (string) $row['slug'] ) . '</code></small>';
+		}
+		echo '</td>';
+		// A note isolated in BOTH directions is more stranded than a dead end
+		// that still links out — the producer sorts on exactly that, so say it.
+		echo '<td>' . esc_html( (string) $outbound );
+		if ( 0 === $outbound ) {
+			echo ' <span class="sn-badge">' . esc_html__( 'both ways', 'signal-and-noise-tools' ) . '</span>';
+		}
+		echo '</td>';
+		echo '<td>';
+		if ( $post_id > 0 && function_exists( 'get_edit_post_link' ) ) {
+			$edit = get_edit_post_link( $post_id );
+			if ( $edit ) {
+				echo '<a href="' . esc_url( $edit ) . '" class="button button-small">' . esc_html__( 'Edit', 'signal-and-noise-tools' ) . '</a>';
+			}
+		}
+		echo '</td>';
+		echo '</tr>';
+	}
+	echo '</tbody></table>';
+	echo '</div>';
+
+	$hidden = $total - count( $rows );
+	if ( ! empty( $report['truncated'] ) || $hidden > 0 ) {
+		echo '<p class="sn-field-helper">';
+		printf(
+			/* translators: 1: rows shown, 2: true total */
+			esc_html__( 'Showing %1$d of %2$d isolated notes — the list is capped, not complete.', 'signal-and-noise-tools' ),
+			count( $rows ),
+			$total
 		);
 		echo '</p>';
 	}
