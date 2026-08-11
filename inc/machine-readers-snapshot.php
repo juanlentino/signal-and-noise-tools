@@ -130,14 +130,78 @@ function snt_mr_snapshot_refresh() {
 		return false;
 	}
 
+	// The referral side, captured in the SAME run over the SAME window. This is
+	// not tidiness: the give-back ratio divides one by the other, and two
+	// separately-timed captures would silently compare a 30-day crawl count with
+	// a 30-day referral count that ended on a different day. A ratio across
+	// mismatched windows is wrong in a way no assertion downstream can detect.
+	//
+	// UTC on purpose — the analytics side's "today" is UTC, and a local-time
+	// window would shift the boundary by a day for part of the year.
+	$referrals = snt_mr_snapshot_capture_referrals( SN_MR_SNAPSHOT_DAYS );
+
 	$agg    = snt_mr_snapshot_aggregate( $result['rows'] ?? array() );
 	$record = array_merge( $record, $agg, array(
 		'captured_at' => time(),
 		'days'        => SN_MR_SNAPSHOT_DAYS,
 		'last_error'  => null,
 	) );
+	// Present = measured (an empty map is a real "nobody arrived"); absent =
+	// the referral read failed or is unavailable, which the ratio must read as
+	// unknown rather than as nobody having been sent back.
+	if ( null === $referrals ) {
+		unset( $record['referrals'] );
+	} else {
+		$record['referrals'] = $referrals;
+	}
 	update_option( SN_MR_SNAPSHOT_KEY, $record, false );
 	return true;
+}
+
+/**
+ * Capture AI-assistant referral visits for the same window as the crawl counts.
+ *
+ * Reads through the analytics source fold, which queries Analytics Engine — an
+ * outbound call, and exactly why this happens on cron rather than at render.
+ * The accessor returns null on a FAILED read and an empty array on a genuinely
+ * empty one, and that distinction is preserved all the way to the ratio: a
+ * failed read is unknown, an empty result is a measured zero for every label.
+ *
+ * @param int $days Window length.
+ * @return array<string,int>|null label => visits, or null when unmeasurable.
+ */
+function snt_mr_snapshot_capture_referrals( $days ) {
+	if ( ! function_exists( 'sn_analytics_top_sources' ) || ! function_exists( 'snt_mr_ai_source_labels' ) ) {
+		return null;
+	}
+	$days = max( 1, (int) $days );
+	$to   = gmdate( 'Y-m-d' );
+	$from = gmdate( 'Y-m-d', time() - ( $days - 1 ) * DAY_IN_SECONDS );
+
+	$rows = sn_analytics_top_sources( $from, $to, 'human', 500 );
+	if ( ! is_array( $rows ) ) {
+		return null; // the accessor's failed-read verdict, carried through.
+	}
+	$out = array();
+	foreach ( snt_mr_ai_source_labels() as $label ) {
+		// A label the query did not return is a MEASURED zero: analytics counted
+		// every visit in the window, so nobody arrived from it.
+		$out[ $label ] = isset( $rows[ $label ]['visits'] ) ? max( 0, (int) $rows[ $label ]['visits'] ) : 0;
+	}
+	return $out;
+}
+
+/**
+ * The captured referral map, or null when the referral side was not measured.
+ *
+ * @param array|null $snap A snt_mr_snapshot() record.
+ * @return array<string,int>|null
+ */
+function snt_mr_snapshot_referrals( $snap ) {
+	if ( ! is_array( $snap ) || ! isset( $snap['referrals'] ) || ! is_array( $snap['referrals'] ) ) {
+		return null;
+	}
+	return $snap['referrals'];
 }
 
 /**

@@ -86,6 +86,47 @@ function snt_mr_rights_reads_age_phrase( $age ) {
 }
 
 /**
+ * The give-back sentence for one operator row, as published prose.
+ *
+ * Each status gets its own sentence because each is a different claim. The one
+ * that must never be softened is `none_returned`: an operator that read the site
+ * hundreds of times and sent nobody back is the finding this row exists for, and
+ * rendering it as a bare "0" or folding it into "no data" would bury it.
+ *
+ * @param array $row A snt_mr_giveback_for_operator() row.
+ * @return string Plain text; the render layer escapes at its sink.
+ */
+function snt_mr_giveback_sentence( $row ) {
+	$name = isset( $row['label'] ) ? (string) $row['label'] : '';
+	switch ( $row['status'] ?? '' ) {
+		case 'ok':
+			return sprintf(
+				/* translators: 1: operator name. 2: reads. 3: readers sent back. */
+				__( '%1$s read this site %2$s times and sent %3$s readers back.', 'signal-and-noise-tools' ),
+				$name,
+				number_format_i18n( (int) $row['crawls'] ),
+				number_format_i18n( (int) $row['referrals'] )
+			);
+		case 'none_returned':
+			return sprintf(
+				/* translators: 1: operator name. 2: number of reads. */
+				__( '%1$s read this site %2$s times and has never sent a reader back.', 'signal-and-noise-tools' ),
+				$name,
+				number_format_i18n( (int) $row['crawls'] )
+			);
+		case 'no_crawls':
+			/* translators: %s: operator name. */
+			return sprintf( __( '%s did not read this site in this window.', 'signal-and-noise-tools' ), $name );
+		case 'not_measurable':
+			/* translators: %s: operator name. */
+			return sprintf( __( '%s sends readers, but its crawler cannot be told apart from ordinary search here, so there is nothing to measure it against.', 'signal-and-noise-tools' ), $name );
+		default:
+			/* translators: %s: operator name. */
+			return sprintf( __( '%s has not been measured yet.', 'signal-and-noise-tools' ), $name );
+	}
+}
+
+/**
  * The published sentence. Plain text — the render layer escapes at its sink.
  *
  * Carries no option names, endpoint paths or internal prefixes: this lands on a

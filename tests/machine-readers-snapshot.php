@@ -152,6 +152,45 @@ $snap = snt_mr_snapshot();
 ok( true === snt_mr_snapshot_has_measurement( $snap ), 'zero rows still counts as measured' );
 ok( 0 === snt_mr_snapshot_total( $snap ), 'a MEASURED zero is 0, not null (the other half of absent-vs-zero)' );
 
+echo "\nGroup: the referral side rides the SAME capture, over the SAME window\n";
+// The give-back ratio divides one side by the other. Two separately-timed
+// captures would compare windows that ended on different days — wrong in a way
+// nothing downstream can detect.
+require_once __DIR__ . '/../inc/machine-readers-operators.php';
+$GLOBALS['__src_window'] = array();
+$GLOBALS['__src_rows']   = array( 'ChatGPT' => array( 'visits' => 4 ), 'Bing' => array( 'visits' => 99 ) );
+function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) {
+	$GLOBALS['__src_window'] = array( $from, $to, $class );
+	return $GLOBALS['__src_rows'];
+}
+$GLOBALS['__options'] = array();
+$GLOBALS['__response'] = array( 'code' => 200, 'body' => $sensor_body );
+ok( true === snt_mr_snapshot_refresh(), 'a refresh with both sides available captures' );
+$snap = snt_mr_snapshot();
+$refs = snt_mr_snapshot_referrals( $snap );
+ok( is_array( $refs ), 'the referral map is stored beside the crawl counts' );
+ok( 4 === ( $refs['ChatGPT'] ?? null ), 'a label the query returned carries its visits' );
+ok( 0 === ( $refs['Claude'] ?? null ), 'a label the query did NOT return is a measured zero, not absent' );
+ok( ! isset( $refs['Bing'] ), 'a non-AI label is not carried into the AI referral map' );
+list( $from, $to, $class ) = $GLOBALS['__src_window'];
+ok( 'human' === $class, 'the referral read asks for HUMAN traffic — the crawler side is the other half of the ratio' );
+ok( $to === gmdate( 'Y-m-d' ), 'the window ends today in UTC (analytics "today" is UTC)' );
+ok( $from === gmdate( 'Y-m-d', time() - ( SN_MR_SNAPSHOT_DAYS - 1 ) * DAY_IN_SECONDS ), 'and spans exactly the snapshot window, so the ratio divides like-for-like' );
+ok( SN_MR_SNAPSHOT_DAYS === ( $snap['days'] ?? null ), 'the record states that one window for both sides' );
+
+echo "\nGroup: a FAILED referral read is unknown, never a measured zero\n";
+$GLOBALS['__src_rows'] = null; // the accessor's failed-read verdict
+$GLOBALS['__options'] = array();
+ok( true === snt_mr_snapshot_refresh(), 'the crawl side still captures' );
+$snap = snt_mr_snapshot();
+ok( null === snt_mr_snapshot_referrals( $snap ), 'referrals read as UNMEASURED — otherwise every operator renders as never repaying' );
+ok( is_int( $snap['captured_at'] ?? null ), 'and the crawl measurement is unaffected' );
+$GLOBALS['__src_rows'] = array();
+$GLOBALS['__options'] = array();
+snt_mr_snapshot_refresh();
+$refs = snt_mr_snapshot_referrals( snt_mr_snapshot() );
+ok( is_array( $refs ) && 0 === $refs['ChatGPT'], 'an EMPTY result is a measured zero for every label — the other half of absent-vs-zero' );
+
 echo "\nGroup: scheduling\n";
 $GLOBALS['__scheduled'] = array();
 snt_mr_snapshot_schedule();

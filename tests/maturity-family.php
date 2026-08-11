@@ -73,11 +73,15 @@ $GLOBALS['__options'] = array(
 		'total'       => 912,
 		'by_family'   => array( 'openai' => 900, 'anthropic' => 12 ),
 		'by_surface'  => array( 'html' => 900, 'robots' => 7, 'llms' => 5 ),
+		// Both statuses that carry a NUMBER, so the lever sweep sees real prose.
+		'referrals'   => array( 'Claude' => 3 ),
 	),
 );
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
 function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
 require __DIR__ . '/../inc/machine-readers-snapshot.php';
+require __DIR__ . '/../inc/machine-readers-operators.php';
+require __DIR__ . '/../inc/machine-readers-giveback.php';
 require __DIR__ . '/../inc/machine-readers-rights-reads.php';
 require __DIR__ . '/../inc/machine-maturity-page.php';
 require __DIR__ . '/../inc/ops-maturity-page.php';
@@ -156,8 +160,22 @@ foreach ( array( 'sn_machine_maturity_shortcode', 'sn_ops_maturity_shortcode', '
 // would happily pass over a section that rendered as an empty string, and the
 // rights-read sentence would be unswept while looking guarded.
 ok( false !== strpos( $all, 'Machines read' ), 'the rights-read count IS present in the swept output (the sweep is not vacuous)' );
+ok( false !== strpos( $all, 'never sent a reader back' ), 'the give-back section IS present in the swept output too' );
+ok( false !== strpos( $all, 'OpenAI read this site 900 times and has never sent a reader back' ), 'the loudest row renders as a SENTENCE, not a bare 0' );
+ok( false !== strpos( $all, 'Anthropic read this site 12 times and sent 3 readers back' ), 'a repaying operator states both sides' );
+ok( false !== strpos( $all, 'cannot be told apart from ordinary search' ), 'not_measurable explains WHY it has no answer, rather than showing a dash' );
+$gb_pos = strpos( $all, 'never sent a reader back' );
+$ok_pos = strpos( $all, 'sent 3 readers back' );
+ok( $gb_pos < $ok_pos, 'the never-repaid row sorts ABOVE the repaying one — the finding leads' );
 ok( false !== strpos( $all, '12 times' ), 'the published count sums only the rights surfaces (7+5), never the 900 article reads' );
-ok( false === strpos( $all, '900' ), 'article reads never leak into a claim about who read the terms' );
+// Scoped to the rights-read SENTENCE, not the whole page. The blunt global
+// check was a fine proxy while nothing else printed that number, and became a
+// false positive the moment the give-back section legitimately said "read this
+// site 900 times" about CRAWLS. An assertion's blast radius should match the
+// claim it is defending.
+$rr_start = strpos( $all, 'Machines read this site' );
+$rr_sentence = false === $rr_start ? '' : substr( $all, $rr_start, 200 );
+ok( '' !== $rr_sentence && false === strpos( $rr_sentence, '900' ), 'article reads never leak into the RIGHTS-READ sentence specifically' );
 ok( false !== strpos( $all, 'Last measured 3 days ago' ), 'a stale count states its age on the public page, not just internally' );
 
 $forbidden = array(

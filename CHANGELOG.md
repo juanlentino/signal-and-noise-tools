@@ -2,6 +2,45 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the give-back ratio reaches the page
+
+Un-versioned; rides the next release. This is the piece that makes R3 3B's
+second half **user-visible**, so the release folding it is a MINOR.
+
+The machine-readability page now publishes, per operator, whether a machine that
+reads this site ever sends a reader back — as sentences, not a table of numbers:
+
+> **OpenAI read this site 900 times and has never sent a reader back.**
+> Anthropic read this site 12 times and sent 3 readers back.
+> Perplexity did not read this site in this window.
+> Microsoft sends readers, but its crawler cannot be told apart from ordinary
+> search here, so there is nothing to measure it against.
+
+Each status gets its own sentence because each is a different claim, and the
+never-repaid rows **sort first**. Ranking by ratio alone would file the most
+interesting answer (`0.0`) next to the ones that have no answer at all.
+
+**The referral side now rides the same capture as the crawl side.** It had to:
+the ratio divides one by the other, and two separately-timed captures would
+compare a 30-day crawl count against a 30-day referral count ending on a
+different day — wrong in a way nothing downstream can detect. One cron run, one
+UTC window, one timestamp, and the test asserts the window the referral read
+actually asked for.
+
+The referral read goes through Analytics Engine, which is an outbound query — so
+it happens on cron, never at render, exactly as 3A required for the sensor. Its
+failed-read verdict is preserved end to end: **a failed read is unknown, an empty
+result is a measured zero for every label.** Confusing them would render every
+operator as never having repaid.
+
+*Caught while wiring the sweep:* an existing assertion checked that `900` was
+absent from the **whole page**, as a proxy for "article reads don't leak into the
+rights-read count". The give-back section then legitimately printed *"read this
+site 900 times"* about crawls, and the proxy fired. Now scoped to the sentence it
+was always defending — **an assertion's blast radius should match the claim it
+defends**, or the next true statement to mention the same number reads as a
+regression.
+
 ## [Unreleased] — the give-back ratio: three zeroes that are three answers
 
 Un-versioned; rides the next release with the map below.
