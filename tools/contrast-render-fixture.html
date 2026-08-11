@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>contrast-render-scan fixture</title>
+<!--
+  Calibration fixture for tools/contrast-render-scan.mjs.
+
+  Every case below has a HAND-DERIVED ratio in its data-expect attribute, and
+  tools/contrast-render-selftest.mjs asserts the scanner reproduces exactly this
+  set — no more, no fewer. A scanner that measures nothing reports a clean site,
+  which is indistinguishable from a clean site unless something plants known
+  failures and checks they come back.
+
+  The cases are chosen to cover the ways the three tiers have been fooled before:
+  a hover-only failure (which no declaration scan can reach), a translucent
+  overlay (which needs compositing, not the declared value), an inherited colour
+  with no declaration of its own, and large-text which passes at 3:1 where body
+  text at the same ratio would fail.
+-->
+<style>
+	body { background: #ffffff; color: #000000; font: 16px/1.5 system-ui, sans-serif; margin: 2rem; }
+	section { margin-bottom: 1rem; }
+
+	/* FAIL 3.49:1 — the provenance chip's old confirmed green on white. */
+	.f-chip { color: #1f9d55; }
+
+	/* FAIL 3.80:1 — blood on High Contrast asphalt. Declared, resting. */
+	.f-surface { background: #e0e0e0; }
+	.f-surface .f-text { color: #e00404; }
+
+	/* FAIL 3.29:1 on HOVER ONLY — r3-prep §3C's worked example. Resting state
+	   passes at 5.01, so only a forced-state pass can find this. */
+	.f-hover { color: #e00404; }
+	.f-hover:hover { color: #ff4c47; }
+
+	/* FAIL 1.83:1 — translucent text over white. The DECLARED colour is #000
+	   at 25% alpha; only compositing gives the real ratio. */
+	.f-alpha { color: rgba(0, 0, 0, 0.25); }
+
+	/* FAIL 3.49:1 — INHERITED colour, no declaration on the element itself.
+	   A stylesheet scan sees no `color` here at all. */
+	.f-inherit-parent { color: #1f9d55; }
+
+	/* PASS 4.83:1 — muted grey on white. Must NOT be reported. */
+	.p-muted { color: #6b7280; }
+
+	/* PASS at 3:1 because it is large text — 32px. Body text at this ratio
+	   would fail, so this pins the threshold split. */
+	.p-large { color: #949494; font-size: 32px; }
+
+	/* PASS 21:1 — the baseline. */
+	.p-max { color: #000000; }
+
+	/* UNSCOREABLE — text over an image. Must be refused, never guessed. */
+	.u-image { background-image: linear-gradient(#fff, #000); color: #808080; }
+</style>
+
+<section><span class="f-chip" data-expect="3.49">FAIL chip green on white</span></section>
+
+<section class="f-surface"><span class="f-text" data-expect="3.80">FAIL blood on asphalt</span></section>
+
+<section><a href="#" class="f-hover" data-expect="3.29-hover">FAIL only when hovered</a></section>
+
+<section><span class="f-alpha" data-expect="1.83-alpha">FAIL translucent black</span></section>
+
+<section class="f-inherit-parent"><span data-expect="3.49-inherited">FAIL inherited, undeclared</span></section>
+
+<section><span class="p-muted">PASS muted grey</span></section>
+<section><span class="p-large">PASS large text at 3:1</span></section>
+<section><span class="p-max">PASS black on white</span></section>
+<section><span class="u-image">UNSCOREABLE over gradient</span></section>
