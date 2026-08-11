@@ -2,10 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the crawler count becomes state the site holds
+## [10.90.0] - 2026-08-11 — three counts the site can stand behind
+
+Two sessions' work, folded into one release on the owner's instruction. Both
+branches landed un-versioned under the release-coordination arrangement, so the
+version header and tag stay single-writer.
+
+The thread running through all three pieces is the same: **a number published
+without its provenance is worse than no number.** A crawler count served from a
+transient that a cache flush can evaporate, a rights-read count rendered as zero
+because a sensor never answered, a contrast table that scores pairs no reader
+ever sees — each is a confident answer to a question the measurement did not
+actually ask.
+
+### The crawler count becomes state the site holds
 
 R3 gate **3A**, the shared precondition under two board rows
-([docs/r3-prep.md](docs/r3-prep.md)). Un-versioned deliberately: it batches.
+([docs/r3-prep.md](docs/r3-prep.md)).
 
 The machine-readability row's own prose sets the bar — *"once that read can be
 served from state the site already holds, so a reader's page never waits on a
@@ -81,7 +94,36 @@ plants a stored measurement, because with the module absent the section renders
 as an empty string and the sweep would pass over a claim it never saw. Four
 assertions pin that the swept output actually contains the count.
 
-Still open in 3B: the give-back ratio — see the note below.
+### The contrast panel gets its usage tier — the FIRST HALF of 3C
+
+`inc/health-contrast-usage.php` scores every **declared** text-on-surface pairing
+in a stylesheet, under every shipped palette, and takes the headline position on
+the contrast card. The arithmetic table it displaces collapses into a
+`<details>` with its tripwire count in the summary — still there, no longer
+mistakable for the answer.
+
+**This does NOT close the 3C row, and the card says so where a reader will see
+it, not only in a docblock.** The scan reads *declarations*, so three things stay
+invisible to it: `:hover` and other pseudo-class states, colours inlined by block
+markup, and the computed cascade (specificity, overrides, inherited `color`).
+Tested against 3C's own cited example — the provenance panel's 3.29:1 hover link
+from v10.88.0 — this tier **would not have found it**. The headless
+computed-styles tier is still owed. Record this as the first half.
+
+One detail worth keeping: an earlier cut of the scan stripped `:hover` to match
+more pairs and promptly paired a hover *background* with a resting *text* colour
+— inventing a failing pair that no reader could ever encounter. Matching more is
+not measuring more.
+
+### Still open
+
+- **3B's give-back ratio** is not in this release. `docs/r3-prep.md` sequences it
+  as scheduled work, but the board — the planning surface — carries it under
+  Analytics as **considering**, not planned. It has not been through the
+  promotion flow, so it was not built.
+- **A board row is stale:** "AI-referred humans as a channel" still reads as
+  `considering` although it shipped in v10.85.0 — the graduation step where the
+  row goes through the door, missed again.
 
 ## [10.89.1] - 2026-08-11 — the provenance chip clears AA
 
