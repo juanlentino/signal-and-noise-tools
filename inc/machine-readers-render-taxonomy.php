@@ -99,7 +99,14 @@ function snt_mr_render_vendor_purpose_table( $rows, $limit = 20 ) {
 		if ( '' === $vendor ) {
 			continue; // Unattributed reads belong in the unknown review, not here.
 		}
-		$key            = $vendor . '|' . (string) ( $r['purpose'] ?? 'unknown' );
+		if ( ! empty( $r['first_party'] ) ) {
+			continue; // Self-traffic is not readership; the purpose table reports it separately.
+		}
+		// v10.80.0: keyed on the AGENT where the sensor supplies one. A vendor row
+		// alone cannot distinguish GPTBot from ChatGPT-User, which is the entire
+		// question the purpose axis exists to answer.
+		$agent          = (string) ( $r['agent'] ?? '' );
+		$key            = $vendor . '|' . (string) ( $r['purpose'] ?? 'unknown' ) . '|' . $agent;
 		$pairs[ $key ]  = (int) ( $pairs[ $key ] ?? 0 ) + (int) ( $r['hits'] ?? 0 );
 	}
 	if ( empty( $pairs ) ) {
@@ -108,14 +115,16 @@ function snt_mr_render_vendor_purpose_table( $rows, $limit = 20 ) {
 	arsort( $pairs );
 	$shown = array_slice( $pairs, 0, max( 1, (int) $limit ), true );
 
-	$out = snt_mr_table_open( __( 'Reads by vendor and purpose.', 'signal-and-noise-tools' ), array(
+	$out = snt_mr_table_open( __( 'Reads by agent and purpose, third parties only.', 'signal-and-noise-tools' ), array(
 		__( 'Vendor', 'signal-and-noise-tools' )  => '',
+		__( 'Agent', 'signal-and-noise-tools' )   => '',
 		__( 'Purpose', 'signal-and-noise-tools' ) => '',
 		__( 'Reads', 'signal-and-noise-tools' )   => 'num',
 	) );
 	foreach ( $shown as $key => $hits ) {
-		list( $vendor, $purpose ) = array_pad( explode( '|', (string) $key, 2 ), 2, '' );
-		$out                     .= '<tr><td class="column-primary" data-colname="Vendor"><strong>' . esc_html( $vendor ) . '</strong></td>'
+		list( $vendor, $purpose, $agent ) = array_pad( explode( '|', (string) $key, 3 ), 3, '' );
+		$out                             .= '<tr><td class="column-primary" data-colname="Vendor"><strong>' . esc_html( $vendor ) . '</strong></td>'
+			. '<td data-colname="Agent"><code>' . esc_html( '' !== $agent ? $agent : '—' ) . '</code></td>'
 			. '<td data-colname="Purpose">' . esc_html( $purpose ) . '</td>'
 			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) $hits ) ) . '</td></tr>';
 	}
