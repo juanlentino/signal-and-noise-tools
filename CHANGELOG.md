@@ -2,6 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — rider: the roadmap floor catches up
+
+**Not a release of its own** — a board move never justifies one. This rides the
+next real release.
+
+Graduation step 3 for **"AI-referred humans as a channel"**, which shipped in
+v10.85.0 and was still sitting in `considering` on the board. The row moved
+Analytics `considering` → `done` **through the door** (the live option, data),
+and this syncs `sn_maturity_roadmap_static_board()` — the disaster-recovery floor
+the door write never touches, and the exact gap that let the public stats page sit
+in `planned` for three releases after shipping.
+
+Verified the way this drift is only ever catchable: the floor's fingerprint
+(`md5(wp_json_encode($board))`) was computed locally **before** the write and
+matched the live board's exactly, proving zero pre-existing drift; after the move
+both the published payload and the resynced floor fingerprint `dcbb15f8…`. Floor
+and option are byte-identical again.
+
+The row **moved**, it was not copied — the no-copy guard in
+`tests/maturity-roadmap-shortcode.php` is the one check that can catch this class
+without a database, and the board's item total is unchanged at 60.
+
 ## [10.90.0] - 2026-08-11 — three counts the site can stand behind
 
 Two sessions' work, folded into one release on the owner's instruction. Both
