@@ -60,6 +60,10 @@
    exactly what its coverage sentence exists to say. */
 .sn-prov-links a:hover,.sn-prov-links a:focus-visible{color:#b00303;text-decoration-thickness:2px}
 
+/* The page badge wrapper: the appended chip's stand — clear of the prose
+   above, no frame of its own (the chip carries its own border). */
+.sn-prov-page-badge{margin:2.25rem 0 0}
+
 /* The chip's "Verify" affordance (v9.74.0): a quiet mono action link beside
    the chip, in the same red-action vocabulary as .sn-prov-onchain-cta — reads
    as a sibling action, not part of the chip pill itself. */

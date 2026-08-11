@@ -448,7 +448,14 @@ $body = '<p>About this site.</p>';
 
 $out = sn_prov_append_page_panel( $body );
 rp_true( $out !== $body && false !== strpos( $out, 'sn-prov-' ),
-	'a signed page gets its panel appended — signing and showing are no longer two independent acts' );
+	'a signed page gets its proof appended — signing and showing are no longer two independent acts' );
+// Owner direction (2026-08-11): a page's proof is the CHIP, never the full
+// record block — pinned both ways so a future "improvement" back to the
+// panel reds loudly instead of quietly re-crowding the page foot.
+rp_true( false !== strpos( $out, 'sn-prov-chip' ) && false !== strpos( $out, 'sn-prov-page-badge' ),
+	'the appended proof is the BADGE (chip in its page wrapper)' );
+rp_true( false === strpos( $out, 'sn-prov-panel' ),
+	'the full record block never auto-appends on a page' );
 
 // Placed by hand → never twice. The shortcode expands at priority 11, so its
 // markup is already in $content when this filter runs at 20.
@@ -504,6 +511,25 @@ rp_true( '' !== $third, 'a DIFFERENT subject still renders in the same request' 
 // A subject with no chain returns '' WITHOUT consuming its slot, so a later
 // call that can succeed still does.
 rp_true( '' === sn_prov_render_panel( 99999 ), 'a subject with no chain renders nothing' );
+
+/* ── v10.89.0: ONE CHIP per subject per request ──────────────────────────
+ * The panel got this in v10.87.1 AFTER two callers doubled it. The chip now
+ * has the same shape — the theme's byline shortcode and this file's page-badge
+ * append — and today only one fires per subject purely because of how the
+ * CURRENT templates are built. That is the assumption that stopped being true
+ * last time, so the guard goes in ahead of the failure rather than after it.
+ * ───────────────────────────────────────────────────────────────────── */
+unset( $GLOBALS['SN_PROV_RENDER_GUARD_OFF'] );   // the guard is the subject here
+$GLOBALS['__pv_current_id'] = 5;
+$chip1 = sn_prov_render_chip( 5 );
+$chip2 = sn_prov_render_chip( 5 );
+rp_true( '' !== $chip1, 'the first caller renders the chip' );
+rp_true( '' === $chip2, 'a SECOND caller for the same subject renders nothing — a repeated chip for one subject is never right' );
+
+// A LIST is untouched: the guard is keyed by post_id, so twenty subjects render
+// twenty chips. This is the assertion that keeps the guard from breaking archives.
+rp_true( '' !== sn_prov_render_chip( 6 ), 'a DIFFERENT subject still renders its own chip in the same request' );
+$GLOBALS['SN_PROV_RENDER_GUARD_OFF'] = true;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

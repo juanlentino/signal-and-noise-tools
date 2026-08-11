@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.89.0] - 2026-08-11 — a page's proof is a badge
+
+Folded from the parallel session, on the owner's direction after seeing the
+v10.88.0-framed panel on `/about/`: a page should carry *"just a badge instead of
+that block"*. A considered preference, not a reaction to the unstyled state.
+
+- **The auto-append compresses to the chip**
+  ([inc/provenance-render.php](inc/provenance-render.php),
+  [assets/provenance-front.css](assets/provenance-front.css)) — status colour,
+  the anchor a click away, in a quiet wrapper clear of the prose. **Notes keep
+  their panels**, where the closing furniture gives a full record room to sit.
+  Pinned both ways, so a regression back to the block reds loudly.
+
+### The chip gets the panel's guard — ahead of the failure this time
+
+v10.87.1 gave `sn_prov_render_panel()` a one-per-subject-per-request guard
+**after** two callers doubled it live on `/about/`. The chip now has exactly that
+shape: the theme's byline shortcode, and this file's own page-badge append.
+
+Today only one fires per subject — a page has no byline, a note takes no append.
+**That is a property of the current templates, not of the code**, and it is
+precisely the assumption that stopped being true last time: the panel was safe by
+the same reasoning right up until a template slot appeared.
+
+- Keyed by post id, so a list renders one chip per subject and archives are
+  untouched. That is asserted, not assumed.
+- Same idiom and same test seam as the panel guard, so there is one pattern here
+  rather than two.
+
+
 ## [10.88.0] - 2026-08-11 — the provenance panel earns its frame
 
 Folded from the parallel theme session, and prompted by the owner seeing the
