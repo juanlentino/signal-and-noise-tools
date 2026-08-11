@@ -24,6 +24,71 @@ The row **moved**, it was not copied — the no-copy guard in
 `tests/maturity-roadmap-shortcode.php` is the one check that can catch this class
 without a database, and the board's item total is unchanged at 60.
 
+## [Unreleased] — the red that is an outline, not a word
+
+Sibling of the stamp fix below, same tier, same lesson one token over.
+
+`--signal` (`#ff4c47`) is **3.29:1** on white: legitimate as a focus ring or a
+rule (1.4.11 wants 3:1), a failure the moment it becomes text or the surface
+under text. Every such use now takes `--signal-ink` (`#b00303`, **7.34:1**) — the
+value the provenance links already settled on, so hover/focus goes **darker,
+never lighter**. Fixed on the verify form's primary button, the compare button,
+the fact links, the roadmap fold summary and its glyph. The focus rings keep
+`--signal`, and a test asserts they do: a sweep that removed every occurrence
+would "pass" while deleting the focus indicators.
+
+**The roadmap badges were worse than the handover said, and measured live proves
+why.** The variants faded themselves with `opacity`, which fades the *text* along
+with the frame. Measured on the live page, the counts ran **3.29 / 2.13 / 1.76 /
+1.45:1** as the status got more speculative — the `later` count was effectively
+invisible, and the badge's own label faded with it. Opacity on a text-bearing
+element is a contrast bug wearing a design decision's clothes. The fade now lives
+on the **border** only: the frame still softens left to right, the words and
+numbers never do, and every border still clears 3:1.
+
+### Two bugs this caught in its own making, both worth the telling
+
+1. A silent no-op edit left four rules referencing a `--signal-ink` that was
+   **never defined** — hover backgrounds would have rendered transparent.
+2. The test reported that undefined token as **21.00:1 and passed**, because the
+   luminance helper turned a missing value into `0` — pure black, maximum
+   contrast. An absent value posing as a perfect result, in the fixture built to
+   catch exactly that. `pvc_lum()` now refuses to score a non-colour and fails
+   loudly; deleting the token turns the suite red three ways instead of green.
+
+## [Unreleased] — the /verify stamp becomes readable
+
+Un-versioned; rides the next release. The first fix found by **3C's rendered
+tier** (`tools/contrast-render-scan.mjs`), which measures computed styles and so
+sees what neither the arithmetic nor the declared-usage tier can.
+
+`--concrete` (`#9e9e9e`) is a **surface** grey — borders, rules, fills. The
+`/verify` state stamp was using it as a **text** colour at **2.68:1**, failing AA
+for normal text and 1.4.11 for the border that carries the state. Same defect
+class the theme fixed in v11.7.0: a background token used as a text colour, which
+reads as deliberate right up until someone measures it.
+
+Adds `--concrete-ink: #767676` — **4.54:1** on `--void`, clearing AA and 1.4.11
+while staying visibly quieter than `--rust`. Applied to the stamp's text and
+border, including the settled `UNREACHABLE` state, which a reader acts on and
+which had kept the surface grey because it is the quiet outcome.
+
+**Two of the three findings handed over were NOT fixed, deliberately.** The
+`01/02/03` numerals (1.32:1) and the footer's middot separator both carry
+`aria-hidden="true"` and convey nothing a reader must read — WCAG 1.4.3 exempts
+purely decorative text, and "fixing" them would manufacture changes for failures
+no reader can experience. But that exemption is an **assertion in the markup**,
+so `tests/prov-verify-contrast.php` pins the assertion: strip the `aria-hidden`
+and the test fails, because the numeral is 1.32:1 the moment it stops being
+decoration.
+
+The test reads the **shipped** stylesheet and resolves the palette from the file
+rather than carrying its own copies of the hexes — a fixture with its own hard-coded
+values keeps passing after someone edits the real token. Mutation-checked in three
+directions: regressing the colour, weakening the token past AA, and removing the
+aria-hidden each turn it red.
+
+
 ## [10.90.0] - 2026-08-11 — three counts the site can stand behind
 
 Two sessions' work, folded into one release on the owner's instruction. Both

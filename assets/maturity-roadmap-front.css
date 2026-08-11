@@ -55,10 +55,21 @@
 .sn-maturity-roadmap-board th:not(:last-child),.sn-maturity-roadmap-board td:not(:last-child){border-right:1px solid rgba(0,0,0,.16)}
 .sn-maturity-roadmap-board__family-h{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
 .sn-maturity-roadmap-badge{display:inline-flex;align-items:baseline;gap:.5em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
-.sn-maturity-roadmap-badge--planned{border-style:dashed;opacity:.6}
-.sn-maturity-roadmap-badge--considering{border-style:dotted;opacity:.45}
-.sn-maturity-roadmap-badge--later{border-style:dotted;opacity:.3}
-.sn-maturity-roadmap-badge__n{font-weight:400;font-variant-numeric:tabular-nums;color:var(--sn-signal,#ff4c47)}
+/* The maturity fade used to be `opacity` on the whole badge, which fades the
+   TEXT along with the frame: measured live, the counts ran 3.29 / 2.13 / 1.76 /
+   1.45:1 as the badge got more speculative, and the `later` count was
+   effectively invisible. Opacity on a text-bearing element is a contrast bug
+   wearing a design decision's clothes. The fade now lives on the BORDER only —
+   the frame still softens left-to-right, the words and numbers never do. Each
+   border still clears 3:1, and the status is named in the label anyway, so the
+   frame is not the sole carrier of the state. */
+.sn-maturity-roadmap-badge--planned{border-style:dashed;border-color:rgba(0,0,0,.55)}
+.sn-maturity-roadmap-badge--considering{border-style:dotted;border-color:rgba(0,0,0,.45)}
+.sn-maturity-roadmap-badge--later{border-style:dotted;border-width:1px;border-color:rgba(0,0,0,.45)}
+/* #ff4c47 is 3.29:1 on white — fine as an outline (non-text, 3:1), a failure as
+   an 11.5px tabular number. --sn-signal-ink is the darker sibling the
+   provenance links already established at 7.34:1. */
+.sn-maturity-roadmap-badge__n{font-weight:400;font-variant-numeric:tabular-nums;color:var(--sn-signal-ink,#b00303)}
 
 .sn-maturity-roadmap-board td{border-bottom:1px solid rgba(0,0,0,.16);padding:.7em .85em;vertical-align:top}
 .sn-maturity-roadmap-board tbody tr:last-child td{border-bottom:0}
@@ -86,8 +97,8 @@
 .sn-maturity-roadmap-fold__glyph::before{content:"+"}
 .sn-maturity-roadmap-fold[open] .sn-maturity-roadmap-fold__glyph::before{content:"\2212"}
 .sn-maturity-roadmap-fold[open] .sn-maturity-roadmap-fold__glyph{transform:rotate(180deg)}
-.sn-maturity-roadmap-fold summary:hover{color:var(--sn-signal,#ff4c47)}
-.sn-maturity-roadmap-fold summary:hover .sn-maturity-roadmap-fold__glyph{background:var(--sn-signal,#ff4c47);border-color:var(--sn-signal,#ff4c47);color:#fff}
+.sn-maturity-roadmap-fold summary:hover{color:var(--sn-signal-ink,#b00303)}
+.sn-maturity-roadmap-fold summary:hover .sn-maturity-roadmap-fold__glyph{background:var(--sn-signal-ink,#b00303);border-color:var(--sn-signal-ink,#b00303);color:#fff}
 .sn-maturity-roadmap-fold summary:focus-visible{outline:3px solid var(--sn-signal,#ff4c47);outline-offset:3px}
 .sn-maturity-roadmap-fold ul{margin-top:.3em;border-top:1px solid rgba(0,0,0,.16)}
 @media (prefers-reduced-motion:no-preference){
