@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — correction: v10.90.2 asserted the wrong resolution
+
+Un-versioned; rides the next release. **A claim shipped in v10.90.2 is false, and
+it was my call that was wrong.**
+
+v10.90.2 said: *"'signal is never text' was never a principle, only a fact about
+one hex… the theme's `#bf3935` (5.45:1) is legitimately link-hover text… the
+theme's token change stands."*
+
+**Theme v11.7.2 (owner decision) resolved it the other way** — `signal` reverted
+to `#ff4c47` and was removed from link-hover text entirely. It is an outline
+colour everywhere now. v11.7.1's darkening passed AA and treated a symptom: the
+defect was never that the accent was too light, it was that a 3.29:1 accent was
+load-bearing **as text** at all.
+
+The theme session proposed exactly that and offered to be superseded; I argued
+against generalising it and recommended keeping the darker token. The framing
+that won was the one I had written into `prov-verify.css` and then declined to
+generalise.
+
+Corrected in the stylesheet comment rather than quietly deleted, because the
+wrong call is the useful half of the record. `/verify` keeps `--signal-ink`
+regardless — it is a standalone document that cannot resolve theme tokens at all,
+which is independence, not a position on the palette.
+
 ## [10.90.2] - 2026-08-11 — the stamp was fixed and the sentence beside it was not
 
 **PATCH.** Contrast fixes, a board-floor sync, and a non-shipped instrument. No
