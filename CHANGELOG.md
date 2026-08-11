@@ -2,6 +2,82 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.81.0] - 2026-08-11 — the finding was right, the reason was wrong
+
+Four images on **/services/** were reported as *"Alt text 'Production' is a single word — too little to
+describe a content image."* They read as false positives, and the complaint was fair: the sentence was
+not true of those images. Two separate defects were sitting behind it.
+
+### Fixed
+
+- **The filename stem missed every image on this site**
+  ([inc/health-alt-quality.php](inc/health-alt-quality.php)). `sn_health_alt_filename_stem()` stripped
+  WordPress's generated-size suffix (`-1024x576`) but not the optimiser suffix (`-min`) that this
+  site's build pipeline appends to **every** upload. So `production-min` never compared equal to
+  `Production`, the filename-echo rule missed, and the case fell through to whatever rule ran last.
+
+  That is the mechanism worth remembering: **a rule ordered last is a catch-all.** When an earlier
+  rule under-matches, the final rule answers for it — and reports its own reason for someone else's
+  case. The finding was correct; only its explanation was invented.
+
+  Stripping now runs to a fixed point, because the suffixes stack (`hero-min-1024x576`), and covers
+  `-scaled` (WordPress's own large-upload original), `-min`, `@2x`, `-optimized` and `-compressed`.
+
+- **Word count was never the accessibility test.** *"A single word cannot describe a content image"*
+  is not a WCAG requirement. WCAG asks for an equivalent alternative, and for a portrait, a logo or a
+  planet, one word is the complete and correct one. The rule flagged every correct short alt on the
+  site while saying nothing about `"an image"`, which is genuinely empty.
+
+  It is replaced by `sn_health_alt_is_generic()`, which judges the **vocabulary** instead of the
+  length: alt naming the container rather than the contents — `image`, `photo`, `logo`, `chart`,
+  `screenshot`, `untitled` — at any length, including `"an image"` and `"Photo 2"`, which the old
+  count let through. The reason code `single_word` becomes `generic_alt`; the note now reads *"names a
+  category rather than the image, so a screen reader learns nothing from it."*
+
+### Added
+
+- **The reason those four findings actually exist: the alt repeats the heading beside it.** Each
+  `<figure>` on /services/ is followed by an `<h3>` carrying the same word, so a screen reader
+  announces "Production" twice. Filename echo was true of those images but incidental — the alt and
+  the filename both derive from the service name. `sn_health_heading_after_offset()` looks past the
+  closing `</figure>` for the heading a reader hears next, and `heading_duplicate` is now the first
+  rule in the chain.
+
+  The reasons are ordered by **specificity**: relationship rules (heading, caption) before
+  string-shape rules (filename) before vocabulary. A rule that has seen the surrounding page gives
+  the reader the more useful sentence — *"this is announced twice, mark it `alt=""` and let the
+  heading carry the label"* beats *"this looks like a filename"*. `caption_duplicate` moved above
+  `filename_echo` for the same reason.
+
+  Two bounds, because the cost of over-reaching is a finding against an author who did nothing
+  wrong: at most two text-bearing elements, and the scan stops outright at the next image. Written
+  against **stored block markup**, which is the only shape it ever sees — between `</figure>` and
+  `<h3>` sit five `<!-- wp:* -->` delimiters and one `<p>`, so a lookahead that counts raw tags
+  spends its budget on comments and finds nothing while testing perfectly against rendered HTML.
+
+- **Alt comparison now folds to what a screen reader SAYS.** `sn_health_normalise_alt_text()` decodes
+  entities before folding — undecoded, a heading reading `OPERATIONS &amp; AI STRATEGY` folded to
+  contain the word *"amp"*, a string nobody hears — and maps `&` to `and`, because those are one
+  spoken word.
+
+  **This is deliberately not stop-word stripping.** `&` ≡ `and` is an equivalence; dropping `and`
+  entirely is fuzzy matching, and a fuzzy filename comparison would start flagging genuinely
+  descriptive alt text. It is also why `"Operations and AI Strategy"` vs the stem
+  `operations-ai-strategy` is left *unflagged as an echo* — the precise rule catches it as a heading
+  duplicate instead, which is the truer reason. Prefer the exact rule over loosening a different one.
+
+Net effect on **/services/**: all **six** cards now report `heading_duplicate`, including the two the
+filename stem could never reach. The site logo stays clean. Verified end to end against the stored
+`post_content` of page 395 and against the rendered page; a sweep of six other live pages produces no
+findings at all.
+
+Twenty-six assertions in [tests/health-check-missing-alt.php](tests/health-check-missing-alt.php)
+pin all of it — the live `production-min.png` case, the real card in stored block markup, the
+invariant that a one-word alt naming its **subject** ("Saturn") is never a finding, and four
+false-positive guards: an unrelated heading, a heading merely *containing* the alt, a heading past
+either bound, and a bare `<img>` inheriting a later figure's heading (a real bug this found — the
+`</figure>` step used to teleport into an unrelated card).
+
 ## [10.80.0] - 2026-08-11 — the surface answers its own questions
 
 **Requires `sn-rights-signals` v1.12.0** (`SN_MR_SENSOR_MIN` 1.11.0 → 1.12.0).
