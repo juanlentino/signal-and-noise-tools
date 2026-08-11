@@ -2,6 +2,128 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.85.0] - 2026-08-11 — a channel, a room for reports, and one number everyone agrees on
+
+Three sessions' work in one release. Two landed un-versioned on `claude/*`
+branches and were folded here under the release-coordination arrangement, so
+the version header and tag stay single-writer.
+
+### AI assistants become their own traffic channel
+
+- **The channel** ([inc/analytics-sources.php](inc/analytics-sources.php),
+  [inc/analytics-derived.php](inc/analytics-derived.php)) — readers an
+  assistant's answer sent, split out of Search into a fifth category. **ChatGPT
+  and Perplexity MOVE** (they were already classified as search brands, so
+  Search dips by exactly those two); Claude, Gemini, Copilot, DeepSeek, Le Chat,
+  Grok and Meta AI join them. The AI block is matched **before** Search, because
+  first match wins and `gemini.google` must beat the generic `google.` needle —
+  ordering pinned so moving the block reds a test that names the reason.
+- **The human segment, deliberately not the crawler taxonomy.** An AI *crawler*
+  and a human an AI *referred* are two questions needing two lists; R3's
+  give-back ratio depends on this one being the human side. The digest's read is
+  pinned at the seam, not just in prose: the narration stub records the class it
+  was asked for, and the test asserts `ai_referrals` is fed by the HUMAN-class
+  read.
+- **The weekly digest speaks the channel**
+  ([inc/insights-narration.php](inc/insights-narration.php)) — an `ai_referrals`
+  signal appears only when an assistant actually sent readers (no "none this
+  week" filler), and the prose contract forbids conflating those humans with the
+  machine block's crawlers.
+- Vocabulary is guess-seeded where evidence was not reachable. An unlisted AI
+  host lands under Other as its bare hostname — visible and honest, rather than
+  silently miscounted into Search.
+
+### The Health tab gets a room for reports
+
+This closes the gap v10.82.0 named in its own "deliberately not built" line —
+the contrast report shipped with a full pair table and no admin surface to
+render it on.
+
+- **Report-only checks now have a home**
+  ([inc/health-render-reports.php](inc/health-render-reports.php)). A new
+  Reports section sits between the findings (which demand action) and the
+  passing disclosure (which asks nothing). `contrast_tokens` is its first
+  tenant: coverage sentence first and visually emphasised, then the would-fail
+  proportion, the token legend with swatches, and the worst-first pair table.
+  Before this, the check's entire representation in admin was a single green
+  chip in the passing strip.
+
+- **Link isolation gets its first surface too** (ML pipeline #8, shipped
+  deliberately without one). The renderer consumes only the **published
+  envelope shape** — it never calls `snt_ml_link_isolation()`, which lives on a
+  separate branch — so the two land in either order without coupling: whichever
+  branch packs the check, the surface is already here. `isolated_total` leads
+  the headline and the truncation line names both numbers ("Showing 2 of 47
+  isolated notes — the list is capped, not complete"), because a capped list
+  rendered without its true total reads as "that is all there is", silently.
+  Two tests pin it, including an older envelope with no `isolated_total` that
+  must fall back to the row count without *claiming* truncation it cannot know
+  about.
+
+- **"Report-only" is a structural test, not a key list**
+  (`sn_health_check_has_report()`, [inc/health-summary.php](inc/health-summary.php)).
+  A check is report-only iff it packs a non-empty `report` array. The next
+  report-only check therefore renders the day it ships. Dispatch to a bespoke
+  renderer is a filterable registry with a **degrading fallback** — an
+  unrecognised report still prints its coverage sentence and says plainly that
+  the detail is unrendered. Reintroducing "invisible in admin" one tier down
+  would have been the whole bug again.
+
+- **A report-only check is no longer counted as passing.** It raises zero
+  findings by design, so the raw `count === 0` split scored it a pass — a
+  verdict a check that cannot fail must not be able to earn, and precisely the
+  overclaim `health-contrast-tokens.php` warns about in its own docblock. The
+  **denominator is not shrunk**: `sn_health_check_total()` still counts every
+  check the scan ran, on every surface, so nothing downstream is re-derived and
+  no two surfaces can disagree. The gap is *named* instead — "17 of 19 checks
+  passing · 1 report-only", with the hero card carrying the same note.
+
+- **Passing checks collapse into a `<details>` disclosure, grouped by family**
+  ([inc/health-render-passing.php](inc/health-render-passing.php),
+  [inc/health-check-families.php](inc/health-check-families.php)). At ten
+  checks the open chip row read as reassurance; at nineteen it was a wall
+  sitting between the reader and everything below it. `<details>` over a JS
+  toggle buys keyboard operation, the screen-reader expanded state, and a no-JS
+  fallback without writing any of them. Families (content / links /
+  accessibility / ML / provenance & rights / analytics / edge & security) give
+  the expanded list a spine.
+
+- **The family map is total, and the test is what makes it loud.** An unmapped
+  check falls into an `other` bucket at runtime — a check must never drop off
+  the page — but [tests/health-check-families.php](tests/health-check-families.php)
+  reads the check keys straight out of `sn_health_run_scan()`'s source and fails
+  if any resolves to the fallback, in both directions (unmapped keys *and* stale
+  entries). It asserts the source parse found ~19 keys **before** asserting they
+  are all mapped: a regex that silently matched nothing would otherwise loop
+  zero times and report "all mapped" while proving nothing.
+
+- **WCAG 1.4.1 inside the contrast report.** The AA verdict pills first
+  distinguished pass from fail by colour alone — shipping a Use-of-Color
+  failure inside an accessibility report. The verdict now carries a glyph for
+  readers who cannot separate the hues and `.screen-reader-text` words for
+  anyone not seeing it; the colour is the third channel. A test asserting only
+  "the pill has the right class" would have stayed green through this.
+
+- CSS lands in [assets/admin.css](assets/admin.css) — enqueued and
+  screen-gated via the existing `sn_admin_page_hooks()` guard, never inlined.
+  The one exception is the palette swatch's `background-color`, where the hex
+  *is* the data and cannot be known by a stylesheet; it is re-validated against
+  `/^#[0-9a-f]{6}$/` at the render site, and a test pins that it is the only
+  inline style attribute in the render modules. `inc/admin-tabs-data.php` was
+  **not** touched, so the admin-registry full-sweep contract is not implicated
+  (the suite was run regardless: 80 passed).
+
+### One number, three surfaces
+
+The Health tab began saying "17 of 19 passing · 1 report-only" while
+[inc/site-health-widget.php](inc/site-health-widget.php) still said "19 checks
+passed" from the *same scan*. A report-only check cannot pass — it raises no
+findings by design, so counting it as passed claims a verdict it never earned.
+Both now read the same accessors: `sn_health_passing_checks()` for the
+numerator, `sn_health_check_total()` (unchanged) for the denominator. Two
+surfaces disagreeing about one number is how a dashboard stops being believed.
+
+
 ## [10.84.0] - 2026-08-11 — signing learns what it is signing (R2A step 2)
 
 The plugin half of "extend signing and anchoring beyond notes". The Worker

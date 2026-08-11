@@ -139,6 +139,32 @@ ok( stripos( $clear, 'checks passed' ) !== false && strpos( $clear, '2' ) !== fa
 ok( stripos( $clear, 'scanned' ) !== false && strpos( $clear, '2 hours' ) !== false, 'all-clear: relative scan timestamp' );
 ok( strpos( $clear, 'sn-aw-grid' ) === false && strpos( $clear, 'sn-aw-list' ) === false, 'all-clear: no findings tiles/list' );
 
+// ── v10.85.0: the widget and the Health tab must agree about ONE number ──
+// A report-only check cannot pass: it raises no findings by design, so
+// counting it as passed claims a verdict it never earned. The Health tab
+// began saying "N of M passing · K report-only" in this release while this
+// widget still said "M checks passed" from the SAME scan. Two surfaces
+// disagreeing about one number is how a dashboard stops being believed.
+$report_check           = mk_check( 0, 'Contrast (token arithmetic)' );
+$report_check['report'] = array( 'coverage' => 'arithmetic tier only' );
+$GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array(
+	'missing_alt'     => mk_check( 0, 'Missing alt text' ),
+	'external_links'  => mk_check( 0, 'External link rot' ),
+	'contrast_tokens' => $report_check,
+) );
+ob_start(); sn_site_health_widget_render(); $split = ob_get_clean();
+ok( strpos( $split, '2 of 3 checks passed' ) !== false,
+	'all-clear names the SPLIT (2 of 3) — a report-only check cannot earn a pass' );
+ok( stripos( $split, '1 report-only' ) !== false,
+	'and names the report-only count, so "2 of 3" never reads as one failure' );
+// Not `strpos( '3 checks passed' )` — "2 of 3 checks passed" CONTAINS that
+// substring, so the assertion would have been unfalsifiable. "3 of 3" is the
+// actual regression: every check, including the report-only one, counted as
+// passing.
+ok( strpos( $split, '3 of 3' ) === false,
+	'never claims 3 of 3 — the report-only check is excluded from the numerator' );
+
+
 // v8.5.0 pairing: the advisory tier is part of the glance — an all-clear site
 // with open advisories says so instead of hiding the queue.
 $GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array(
