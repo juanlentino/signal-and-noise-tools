@@ -93,6 +93,7 @@ if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
 }
 if ( ! function_exists( 'sn_analytics_top_sources' ) ) {
 	function sn_analytics_top_sources( $f, $t, $c = 'human', $l = 10 ) {
+		$GLOBALS['__nar_top_sources_class'] = $c; // R2B pin: the segment must be the HUMAN read
 		// array_key_exists, not ?? — a stored NULL models the v9.68.1 failed-read verdict.
 		return array_key_exists( '__nar_top_sources', $GLOBALS )
 			? $GLOBALS['__nar_top_sources']
@@ -273,6 +274,7 @@ $GLOBALS['__nar_top_sources'] = array(
 );
 $sig7d = snt_narration_collect_signals();
 ok( isset( $sig7d['ai_referrals'] ) && 2 === count( $sig7d['ai_referrals'] ), 'ai_referrals carries exactly the AI-category sources (2 of 3)' );
+ok( 'human' === ( $GLOBALS['__nar_top_sources_class'] ?? '' ), 'the sources feeding ai_referrals are the HUMAN-class read — a bot-class row can never enter the segment (the two-lists trap, enforced at the read)' );
 ok( 'ChatGPT' === $sig7d['ai_referrals'][0]['source'] && 12 === $sig7d['ai_referrals'][0]['views'], 'rows keep source label + views' );
 $GLOBALS['__nar_top_sources'] = array( array( 'value' => 'Google', 'views' => 100, 'visits' => 60 ) );
 $sig7d2 = snt_narration_collect_signals();
