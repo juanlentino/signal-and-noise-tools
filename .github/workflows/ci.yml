@@ -91,38 +91,12 @@ jobs:
       # live WP env (wp-load.php) and is a manual `wp eval-file` run only — in CI
       # it would no-op with "ABSPATH not set" and assert nothing (a false green).
       - name: Run standalone test sweep
-        run: |
-          set -e
-          fail=0
-          total=0
-          passed=0
-          for f in tests/*.php; do
-            base=$(basename "$f")
-            if [ "$base" = "contracts-smoke.php" ]; then
-              echo "SKIP (needs live WP): $base"
-              continue
-            fi
-            total=$((total + 1))
-            out=$(php "$f" 2>&1) || true
-            summary=$(echo "$out" | grep -ioE "[0-9]+ passed, [0-9]+ failed" | tail -1)
-            if [ -z "$summary" ]; then
-              echo "::error file=$f::no test summary line — suite did not assert (possible silent skip)"
-              echo "$out" | tail -3
-              fail=1
-              continue
-            fi
-            f_count=$(echo "$summary" | grep -oE "[0-9]+ failed" | grep -oE "[0-9]+")
-            p_count=$(echo "$summary" | grep -oE "[0-9]+ passed" | grep -oE "[0-9]+")
-            passed=$((passed + ${p_count:-0}))
-            if [ "${f_count:-0}" -gt 0 ]; then
-              echo "::error file=$f::$summary"
-              fail=1
-            else
-              echo "OK ($summary): $base"
-            fi
-          done
-          echo "-- swept $total suites, $passed assertions passed --"
-          exit $fail
+        # The sweep logic lives in tests/run.sh, committed, so a local sweep and
+        # CI apply the SAME gate. It used to be inline here, which meant anyone
+        # sweeping by hand wrote their own — and on 2026-08-11 a hand-rolled one
+        # counted two fatally-crashed suites as green, because a dead suite emits
+        # no summary line to fail on. The script's header tells that story.
+        run: bash tests/run.sh
 
   changelog:
     name: CHANGELOG entry present
