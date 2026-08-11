@@ -2,6 +2,56 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.84.0] - 2026-08-11 — signing learns what it is signing (R2A step 2)
+
+The plugin half of "extend signing and anchoring beyond notes". The Worker
+learned subject kinds in v1.10.0 and the shape fix landed in v1.10.1, both now
+deployed and probed at `/_sn/version`; this is the half that decides what a
+subject IS.
+
+**Complete and inert.** No page is signed by this release. The capability is
+whole — dispatch, resolution, sweep, and verification all understand pages —
+and it stays switched off until an author opts a specific page in. That mirrors
+the Worker's own discipline one layer up: ship the mechanism ahead of the
+decision, never behind it.
+
+### One resolver decides what gets signed
+
+`sn_prov_subject_kind()` returns `note`, `page`, or `''` for "not a subject",
+and every gate now reads it.
+
+- **There were always TWO gates, and the second is the one that matters.**
+  `sn_prov_is_note()` asks `has_term( 'notes', 'category', … )`, and `category`
+  is a **post-only taxonomy** in WordPress — a page can never satisfy it.
+  Widening the `post_type` check alone would have looked exactly like shipping
+  this feature while changing nothing at all.
+- **Pages are opt-in, per page, default off.** The ledger is public,
+  append-only and Bitcoin-anchored: every signed version is permanent. Signing
+  pages wholesale would ledger `/verify`, `/stats` and the maturity pages —
+  surfaces whose text changes because a number moved, not because anyone wrote
+  anything — minting a new anchored version of a document nobody meant to
+  publish as a record. A note is an editorial artifact; a page is often a
+  rendering, and only the author knows which pages are the first kind.
+- **Media stays refused**, even when opted in, and its test says so: the
+  signature covers normalized *prose* and has nothing to say about a JPEG.
+
+### The plumbing, widened together
+
+- The dispatch payload carries `kind` **explicitly**, rather than leaning on
+  the Worker's absent-means-note default: a payload that states its own subject
+  type cannot be silently reinterpreted if that default ever changes.
+- `sn_prov_post_by_uid()` and the reconcile sweep both walk
+  `sn_prov_subject_post_types()`. One UUID namespace spans the kinds — the
+  *path* carries the kind — so the resolver stays total. A sweep that still
+  walked only posts would leave a signed page unanchored forever.
+- The verify page accepts a `kind` parameter through an **allowlist** and hands
+  it to the client, and `ledgerRecordUrl()` maps it to a **fixed literal**
+  rather than interpolating it into a URL. Absent means `note`, so every link
+  minted before today verifies unchanged; a hostile value falls back to `notes/`
+  rather than walking out of the ledger root.
+- `sn_prov_ledger_note_url()` takes the same kind with the same default.
+
+
 ## [10.83.0] - 2026-08-11 — the notes nothing links to
 
 R2C's second half: *extend the deterministic layer, pipeline by pipeline, as

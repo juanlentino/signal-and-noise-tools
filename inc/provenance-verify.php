@@ -96,6 +96,12 @@ function sn_prov_verify_send() {
 	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only prefill of a public page, never a state change.
 	$raw_note    = isset( $_GET['note'] ) ? sanitize_text_field( wp_unslash( $_GET['note'] ) ) : '';
 	$raw_version = isset( $_GET['v'] ) ? sanitize_text_field( wp_unslash( $_GET['v'] ) ) : '';
+	// v10.84.0: which ledger directory holds this subject's record. An ALLOWLIST,
+	// never the raw value — it reaches the client and becomes part of a fetched
+	// URL. Absent means 'note', which is what every link minted before v10.84.0
+	// meant, so old links keep verifying unchanged.
+	$raw_kind    = isset( $_GET['kind'] ) ? sanitize_text_field( wp_unslash( $_GET['kind'] ) ) : '';
+	$kind        = in_array( $raw_kind, array( 'note', 'page' ), true ) ? $raw_kind : 'note';
 	// phpcs:enable WordPress.Security.NonceVerification.Recommended
 	$uid         = sn_prov_verify_sanitize_uid( $raw_note );
 	$version     = sn_prov_verify_sanitize_version( $raw_version );
@@ -164,6 +170,7 @@ function sn_prov_verify_send() {
 	data-mempool-base="<?php echo esc_attr( $mempool_base ); ?>"
 	data-note="<?php echo esc_attr( $uid ); ?>"
 	data-version="<?php echo esc_attr( (string) $version ); ?>"
+	data-kind="<?php echo esc_attr( $kind ); ?>"
 >
 	<header class="sn-verify-head">
 		<p class="sn-verify-kicker">Signal &amp; Noise</p>

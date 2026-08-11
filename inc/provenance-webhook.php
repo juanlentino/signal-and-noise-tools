@@ -83,11 +83,19 @@ function sn_prov_dispatch( $post_id, $commit, $canonical ) {
 	if ( ! sn_prov_url_allowed( $url ) ) {
 		return; // outbound gate — never POST to a non-https / internal host.
 	}
+	// v10.84.0: the ledger path is built from `kind` by the Worker (>= v1.10.0).
+	// Absent means 'note' THERE too, so an older Worker keeps working — but a
+	// worker older than 1.10.0 REFUSES an unknown key, which is why this only
+	// ships after the deployed /_sn/version was confirmed.
+	$kind = function_exists( 'sn_prov_subject_kind' )
+		? sn_prov_subject_kind( get_post( $post_id ) )
+		: 'note';
 	$body = wp_json_encode( array(
 		'canonical'    => $canonical,
 		'content_hash' => $commit['content_hash'],
 		'note_uid'     => sn_prov_note_uid( $post_id ),
 		'version'      => (int) $commit['version'],
+		'kind'         => '' !== $kind ? $kind : 'note',
 	) );
 	$response = wp_remote_post( $url, array(
 		'timeout'     => 15,
@@ -292,7 +300,10 @@ function sn_prov_confirm_permission( $request ) {
  */
 function sn_prov_post_by_uid( $uid ) {
 	$ids = get_posts( array(
-		'post_type'   => 'post',
+		// v10.84.0: ONE uuid namespace across subject types — the ledger path
+		// carries the kind, so this resolver must span them all or a signed
+		// page's confirm callback would find nothing to attach itself to.
+		'post_type'   => function_exists( 'sn_prov_subject_post_types' ) ? sn_prov_subject_post_types() : 'post',
 		'post_status' => 'publish',
 		'numberposts' => 1,
 		'fields'      => 'ids',
@@ -415,7 +426,9 @@ function sn_prov_reconcile_sweep() {
 	$batch_size = 50;
 	do {
 		$ids = get_posts( array(
-			'post_type'      => 'post',
+			// v10.84.0: same widening as the UID resolver — a sweep that walked
+			// only posts would leave a signed page unanchored forever.
+			'post_type'      => function_exists( 'sn_prov_subject_post_types' ) ? sn_prov_subject_post_types() : 'post',
 			'post_status'    => 'publish',
 			'posts_per_page' => $batch_size,
 			'paged'          => $page,

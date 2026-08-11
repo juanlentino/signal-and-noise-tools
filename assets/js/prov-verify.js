@@ -90,7 +90,9 @@
 		ledgerBase:     root.getAttribute( 'data-ledger-base' ) || '',
 		mempoolBase:    root.getAttribute( 'data-mempool-base' ) || '',
 		note:           root.getAttribute( 'data-note' ) || '',
-		version:        parseInt( root.getAttribute( 'data-version' ) || '0', 10 ) || 0
+		version:        parseInt( root.getAttribute( 'data-version' ) || '0', 10 ) || 0,
+		// v10.84.0: absent means 'note' — every link minted before then omits it.
+		kind:           root.getAttribute( 'data-kind' ) || 'note'
 	};
 
 	var announceEl = root.querySelector( '[data-role="announce"]' );
@@ -450,7 +452,7 @@
 		var evidence = plan.evidence;
 
 		if ( 'block-only' === plan.mode ) {
-			var ledgerOnlyUrl = Core.ledgerRecordUrl( config.ledgerBase, uid, version, evidence );
+			var ledgerOnlyUrl = Core.ledgerRecordUrl( config.ledgerBase, uid, version, evidence, config.kind );
 			return fetchJSON( ledgerOnlyUrl ).then( function ( ledgerRes ) {
 				var outcome = Core.deriveBlockOnlyAnchor( anchor, evidence, ledgerRes );
 				if ( outcome.verdict ) {
@@ -467,7 +469,7 @@
 		}
 
 		var txStatusUrl = Core.mempoolTxStatusUrl( config.mempoolBase, anchor.txid );
-		var ledgerUrl   = Core.ledgerRecordUrl( config.ledgerBase, uid, version, evidence );
+		var ledgerUrl   = Core.ledgerRecordUrl( config.ledgerBase, uid, version, evidence, config.kind );
 
 		return Promise.all( [ fetchJSON( txStatusUrl ), fetchJSON( ledgerUrl ) ] ).then( function ( results ) {
 			setVerdict( 'anchor', Core.deriveTxAnchor( anchor, evidence, results[ 0 ], results[ 1 ] ) );

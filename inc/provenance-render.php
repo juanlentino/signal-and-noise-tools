@@ -73,10 +73,17 @@ function sn_prov_view_data( $post_id ) {
  * @param string $uid Per-Note ledger UUID.
  * @return string
  */
-function sn_prov_ledger_note_url( $uid ) {
+function sn_prov_ledger_note_url( $uid, $kind = 'note' ) {
 	$owner = (string) apply_filters( 'sn_prov_ledger_owner', 'juanlentino' );
 	$repo  = (string) apply_filters( 'sn_prov_ledger_repo', 'signal-and-noise-provenance' );
-	return "https://github.com/{$owner}/{$repo}/tree/main/notes/" . rawurlencode( $uid );
+	// v10.84.0: the ledger directory follows the subject kind, mirroring
+	// SUBJECT_KINDS in the provenance Worker. A MAP to a fixed literal, never
+	// "{$kind}/" — this string becomes a URL, and an unrecognised kind falls
+	// back to notes/ rather than inventing a directory. The default keeps every
+	// existing caller (all of which pass a Note) byte-identical.
+	$roots = array( 'note' => 'notes', 'page' => 'pages' );
+	$root  = isset( $roots[ $kind ] ) ? $roots[ $kind ] : 'notes';
+	return "https://github.com/{$owner}/{$repo}/tree/main/{$root}/" . rawurlencode( $uid );
 }
 
 /**

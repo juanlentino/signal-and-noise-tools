@@ -353,6 +353,77 @@ function sn_prov_is_note( $post_id ) {
 }
 
 /**
+ * Per-page opt-in meta. A page is signed ONLY when this is set.
+ *
+ * @since 10.84.0
+ */
+const SN_PROV_SIGN_META = '_sn_prov_sign';
+
+/**
+ * The provenance subject kind for a post: 'note', 'page', or '' for "not a
+ * subject". The single place that decides what gets signed.
+ *
+ * WHY PAGES ARE OPT-IN, AND MUST STAY THAT WAY. The ledger is public,
+ * append-only and Bitcoin-anchored: every signed version is permanent. Signing
+ * pages wholesale would ledger /verify, /stats and the maturity pages —
+ * surfaces whose text changes because a number moved, not because anyone wrote
+ * anything. Each of those changes would mint a new anchored version of a
+ * document nobody intended to publish as a record, forever. A note is an
+ * editorial artifact; a page is often a rendering. Only the author knows which
+ * pages are the first kind, so only the author turns them on.
+ *
+ * NOTE THE SECOND GATE, which is easy to miss and was the real reason the
+ * post-type line alone could never have extended this: sn_prov_is_note() asks
+ * has_term( 'notes', 'category', … ), and `category` is a POST-ONLY taxonomy in
+ * WordPress. A page can never satisfy it. Widening the post_type check without
+ * this resolver would have looked like shipping the feature and changed
+ * nothing at all.
+ *
+ * @param WP_Post|object $post
+ * @return string 'note' | 'page' | ''
+ *
+ * @since 10.84.0
+ */
+function sn_prov_subject_kind( $post ) {
+	if ( ! is_object( $post ) ) {
+		return '';
+	}
+	$type    = (string) ( $post->post_type ?? '' );
+	$post_id = (int) ( $post->ID ?? 0 );
+
+	if ( 'post' === $type ) {
+		return sn_prov_is_note( $post_id ) ? 'note' : '';
+	}
+
+	if ( 'page' === $type ) {
+		$opted_in = (bool) get_post_meta( $post_id, SN_PROV_SIGN_META, true );
+		/**
+		 * Whether this page is a provenance subject. Default is the per-page
+		 * opt-in meta; the filter exists for programmatic control, never to
+		 * turn the whole post type on by returning a bare true.
+		 */
+		return apply_filters( 'sn_prov_sign_page', $opted_in, $post ) ? 'page' : '';
+	}
+
+	return '';
+}
+
+/**
+ * Every post type that can hold a provenance subject.
+ *
+ * Used by the UID resolver and the reconcile sweep so a widened subject set
+ * cannot leave either of them looking at half the corpus. ONE UUID namespace
+ * spans them: the ledger path carries the kind, so the resolver stays total.
+ *
+ * @return string[]
+ *
+ * @since 10.84.0
+ */
+function sn_prov_subject_post_types() {
+	return (array) apply_filters( 'sn_prov_subject_post_types', array( 'post', 'page' ) );
+}
+
+/**
  * The provenance author string for a post (the post author's display name,
  * filterable).
  *
@@ -382,7 +453,10 @@ function sn_prov_on_after_insert( $post_id, $post, $update, $post_before ) {
 	if ( wp_is_post_autosave( $post_id ) || wp_is_post_revision( $post_id ) ) {
 		return;
 	}
-	if ( ! is_object( $post ) || 'post' !== $post->post_type ) {
+	// v10.84.0: one resolver decides what is a subject and what kind it is.
+	// Empty means "not a subject" — a post outside the notes category, or a
+	// page the author has not opted in. See sn_prov_subject_kind().
+	if ( '' === sn_prov_subject_kind( $post ) ) {
 		return;
 	}
 	if ( 'publish' !== $post->post_status ) {
@@ -395,9 +469,9 @@ function sn_prov_on_after_insert( $post_id, $post, $update, $post_before ) {
 	if ( '' !== (string) ( $post->post_password ?? '' ) ) {
 		return;
 	}
-	if ( ! sn_prov_is_note( $post_id ) ) {
-		return;
-	}
+	// (The notes-category check now lives inside sn_prov_subject_kind() above,
+	// which runs before the status and password gates. Keeping a second copy
+	// here would silently re-exclude pages, which have no category at all.)
 	sn_prov_record( $post, sn_prov_author( $post ) );
 }
 add_action( 'wp_after_insert_post', 'sn_prov_on_after_insert', 20, 4 );

@@ -24,6 +24,18 @@ if ( ! function_exists( 'add_filter' ) ) {
 	function add_filter() {
 		return true; }
 }
+// v10.84.0: sn_prov_dispatch() now resolves the subject KIND, which needs the
+// post object. Third stub-drift fatal of the day and the same shape each time —
+// a callee grew a dependency and the suite died BEFORE its first assertion,
+// caught only by CI's no-summary-line rule.
+$GLOBALS['__wh_post'] = null;
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id = 0 ) { return $GLOBALS['__wh_post']; }
+}
+if ( ! function_exists( 'has_term' ) ) {
+	function has_term( $term, $tax, $id = 0 ) { return ! empty( $GLOBALS['__wh_has_term'] ); }
+}
+
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $t, $v ) {
 		return $v; }
@@ -258,6 +270,23 @@ $expected_sig = 'sha256=' . hash_hmac( 'sha256', $sent[1]['body'], 'shh' );
 wh_eq( $expected_sig, $sent[1]['headers']['X-SN-Signature'], 'HMAC signature over raw body' );
 $body = json_decode( $sent[1]['body'], true );
 wh_eq( 'u', $body['note_uid'], 'body carries note_uid' );
+
+// v10.84.0: the Worker (>= v1.10.0) builds the ledger path from `kind`. It
+// treats an ABSENT kind as 'note', but the plugin sends it explicitly rather
+// than relying on that: a payload that states its own subject type cannot be
+// silently reinterpreted if the Worker's default ever changes.
+wh_eq( 'note', $body['kind'], 'body carries the subject kind, explicitly' );
+
+// A post that is NOT a note (no notes category) still dispatches as 'note'
+// rather than as an empty string — dispatch is only ever reached for a real
+// subject, and an empty kind would be REFUSED by the Worker's validator.
+$GLOBALS['__wh_has_term'] = false;
+$GLOBALS['__wh_post']     = (object) array( 'ID' => 42, 'post_type' => 'post' );
+$GLOBALS['__pv_http']     = array();
+sn_prov_dispatch( 42, $commit, $canonical );
+$last     = end( $GLOBALS['__pv_http'] );
+$fallback = json_decode( $last[1]['body'], true );
+wh_eq( 'note', $fallback['kind'], 'kind never dispatches empty — the Worker would refuse it' );
 wh_eq( $canonical, $body['canonical'], 'body carries canonical bytes' );
 
 $chain = sn_prov_get_chain( 42 );
