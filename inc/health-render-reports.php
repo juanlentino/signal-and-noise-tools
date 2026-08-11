@@ -290,11 +290,18 @@ function sn_health_render_link_isolation_report( $report ) {
 	$total = array_key_exists( 'isolated_total', $report ) ? (int) $report['isolated_total'] : count( $rows );
 
 	echo '<p class="sn-health-report__headline">';
-	printf(
-		/* translators: 1: isolated note count, 2: notes scanned */
-		esc_html__( '%1$d of %2$d published notes have no inbound link from any other note.', 'signal-and-noise-tools' ),
-		$total,
-		$scanned
+	// esc_html( sprintf( ... ) ), not printf( esc_html__( ... ), ... ): the
+	// latter escapes the TEMPLATE and leaves the interpolated values raw, which
+	// is what PHPCS's EscapeOutput sniff is pointing at. These two happen to be
+	// ints, so nothing was exploitable — but "safe because of what I know about
+	// today's callers" is exactly the argument that stops being true later.
+	echo esc_html(
+		sprintf(
+			/* translators: 1: isolated note count, 2: notes scanned */
+			__( '%1$d of %2$d published notes have no inbound link from any other note.', 'signal-and-noise-tools' ),
+			(int) $total,
+			(int) $scanned
+		)
 	);
 	echo '</p>';
 
@@ -342,11 +349,13 @@ function sn_health_render_link_isolation_report( $report ) {
 	$hidden = $total - count( $rows );
 	if ( ! empty( $report['truncated'] ) || $hidden > 0 ) {
 		echo '<p class="sn-field-helper">';
-		printf(
-			/* translators: 1: rows shown, 2: true total */
-			esc_html__( 'Showing %1$d of %2$d isolated notes — the list is capped, not complete.', 'signal-and-noise-tools' ),
-			count( $rows ),
-			$total
+		echo esc_html(
+			sprintf(
+				/* translators: 1: rows shown, 2: true total */
+				__( 'Showing %1$d of %2$d isolated notes — the list is capped, not complete.', 'signal-and-noise-tools' ),
+				count( $rows ),
+				(int) $total
+			)
 		);
 		echo '</p>';
 	}
