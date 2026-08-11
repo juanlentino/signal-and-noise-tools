@@ -111,6 +111,10 @@ if ( ! function_exists( 'wp_enqueue_style' ) ) {
 }
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-webhook.php';
+// Many simulated requests inside ONE php process: the once-per-request panel
+// guard would make every render after the first return ''. Off for the bulk of
+// the suite; switched back ON below, where the guard itself is the subject.
+$GLOBALS['SN_PROV_RENDER_GUARD_OFF'] = true;
 require_once SNT_PATH . 'inc/provenance-render.php';
 
 $pass = 0;
@@ -474,6 +478,32 @@ $GLOBALS['__pr_main']     = true;
 // it would pass whatever the filter did — unfalsifiable, which is worse than
 // absent. Pinning it needs a harness with a real filter registry.
 
+
+/* ── v10.87.1: ONE PANEL PER SUBJECT PER REQUEST ─────────────────────────
+ * Found live: /about/ rendered TWO complete provenance records back to back,
+ * on the surface whose whole job is trustworthiness. Two independent fixes for
+ * "a signed page shows nothing" landed at once — a theme template slot and the
+ * plugin's auto-append — and neither could see the other: the auto-append's
+ * guard inspects the_content, and a template slot renders OUTSIDE that filter.
+ * Guarding in the RENDERER is what makes the two compose.
+ * ───────────────────────────────────────────────────────────────────── */
+unset( $GLOBALS['SN_PROV_RENDER_GUARD_OFF'] );   // the guard is the subject here
+$GLOBALS['__pv_current_id'] = 5;
+$first  = sn_prov_render_panel( 5 );
+$second = sn_prov_render_panel( 5 );
+rp_true( '' !== $first && false !== strpos( $first, 'sn-prov-panel' ),
+	'the first caller renders the panel' );
+rp_true( '' === $second,
+	'a SECOND caller for the same subject in the same request renders nothing — two records for one subject is never right' );
+
+// A different subject in the same request is unaffected: the guard is per post,
+// never a global "already did one".
+$third = sn_prov_render_panel( 6 );
+rp_true( '' !== $third, 'a DIFFERENT subject still renders in the same request' );
+
+// A subject with no chain returns '' WITHOUT consuming its slot, so a later
+// call that can succeed still does.
+rp_true( '' === sn_prov_render_panel( 99999 ), 'a subject with no chain renders nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

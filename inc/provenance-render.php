@@ -363,9 +363,33 @@ function sn_prov_block_meta( $height, $lead_href ) {
  * @return string
  */
 function sn_prov_render_panel( $post_id ) {
+	// ONE PANEL PER SUBJECT PER REQUEST (v10.87.1).
+	//
+	// Found live: /about/ was rendering TWO complete provenance records, back to
+	// back, on the surface whose entire job is trustworthiness. Two independent
+	// fixes for "a signed page shows nothing" had landed at once — a theme slot
+	// (theme v11.6.0) and a plugin auto-append (v10.87.0) — and neither could see
+	// the other. The auto-append's guard inspects `the_content`, but a template
+	// slot renders OUTSIDE the content filter, so it was invisible to exactly the
+	// check meant to catch it.
+	//
+	// Guarding here instead of in either caller is what makes them compose:
+	// whoever asks first renders, everyone after gets ''. Two panels for one
+	// subject is never the right answer, so this needs no escape hatch — and it
+	// holds for any future caller too, including one nobody has written yet.
+	// The seam exists because "once per REQUEST" has no meaning in a test
+	// harness that renders many simulated requests inside one PHP process.
+	// Named rather than implicit, and never consulted in production: nothing in
+	// the plugin ever sets it.
+	static $rendered = array();
+	$post_id = (int) $post_id;
+	if ( empty( $GLOBALS['SN_PROV_RENDER_GUARD_OFF'] ) && isset( $rendered[ $post_id ] ) ) {
+		return '';
+	}
+
 	$vm = sn_prov_view_data( $post_id );
 	if ( null === $vm ) {
-		return '';
+		return ''; // No chain: not rendered, so NOT marked — a later call may succeed.
 	}
 	$root           = sn_prov_genesis_root_state();
 	$root_confirmed = 'confirmed' === $root['status'];
@@ -433,6 +457,13 @@ function sn_prov_render_panel( $post_id ) {
 	$onchain = '';
 	if ( '' !== $lead_href ) {
 		$onchain = '<p class="sn-prov-onchain"><a class="sn-prov-onchain-cta" href="' . esc_url( $lead_href ) . '" rel="nofollow noopener" target="_blank">' . esc_html( sn_prov_explorer_cta( $explorer['kind'] ) ) . ' <span class="sn-prov-onchain-host">(mempool.space)</span> &rarr;</a></p>';
+	}
+	// Mark only now, on the path that actually emits markup: a caller that got
+	// '' back must not consume the one render this subject gets. Skipped when
+	// the seam is off, because then the process is not one request and recording
+	// would leak state between simulated ones.
+	if ( empty( $GLOBALS['SN_PROV_RENDER_GUARD_OFF'] ) ) {
+		$rendered[ $post_id ] = true;
 	}
 	return sprintf(
 		'<section class="sn-prov-panel" aria-label="Provenance record">%s

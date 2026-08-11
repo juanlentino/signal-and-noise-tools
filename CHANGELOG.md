@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.87.1] - 2026-08-11 — one provenance panel per subject
+
+**Found live, not in a test.** `/about/` was rendering TWO complete provenance
+records, back to back — on the surface whose entire job is trustworthiness.
+
+Two independent fixes for "a signed page shows nothing" landed within an hour of
+each other: a theme template slot (theme v11.6.0) and this plugin's auto-append
+(v10.87.0). Neither could see the other. The auto-append's guard inspects
+`the_content`, and **a template slot renders outside the content filter** — so it
+was invisible to precisely the check meant to catch it. Installing v10.87.0 on
+top of the theme fix would have produced a third.
+
+- The guard now lives in `sn_prov_render_panel()` itself: whoever asks first
+  renders, every later caller for the same subject gets `''`. Guarding in the
+  renderer rather than in either caller is what makes the two fixes **compose**
+  instead of collide, and it holds for callers nobody has written yet.
+- Two panels for one subject is never the right answer, so there is no escape
+  hatch — only a named test seam (`SN_PROV_RENDER_GUARD_OFF`), because
+  "once per request" has no meaning in a harness that renders many simulated
+  requests inside one PHP process. Nothing in the plugin ever sets it.
+- A subject with no chain returns `''` **without** consuming its slot, so a
+  later call that could succeed still does.
+
+The live duplicate is a theme-side placement question as well (the slot landed
+on both the About template and the generic page template); this makes the
+symptom impossible from the plugin side regardless of how many callers exist.
+
+
 ## [10.87.0] - 2026-08-11 — a signed page shows its proof
 
 v10.86.0 taught the renderer about pages. The About page still showed nothing,
