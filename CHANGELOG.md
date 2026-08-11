@@ -2,6 +2,33 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — rider: the give-back ratio is promoted, with its gate named
+
+**Not a release of its own** — a board move never justifies one. Rides the next.
+
+Owner-directed promotion: **"Give-back ratio per crawler"** moves Analytics
+`considering` → `planned`. The row moved through the door (live option, data);
+this syncs `sn_maturity_roadmap_static_board()`, the DR floor the door never
+touches.
+
+**The sentence gained a gate, because that is what `planned` means here.**
+`considering` commits to nothing; `planned` states what must be true before it
+ships. The gate is the trap R2B already flagged — the crawler taxonomy and the
+AI-referrer host list are two different vocabularies, and `GPTBot` and
+`chatgpt.com` are the same operator with nothing in either list saying so:
+
+> …— landing once an explicit operator map names which crawler families and
+> which referrer hosts are the same company — a thread shared with Machine
+> readability
+
+**The door refused the first attempt**, and correctly: gate 2 caps a board item
+at 400 characters and the first gate clause pushed the sentence to 421. Nothing
+was written — the fingerprint gate had already passed, so this was a real
+content refusal, not a stale-conflict. Reworded to 356 and accepted.
+
+Floor and live option fingerprint identically again (`8d793c8d…`), and the board
+item total is unchanged at 60 — the row **moved**, it was not copied.
+
 ## [10.90.1] - 2026-08-11 — the colour that only fails when you touch it
 
 Four sessions' work folded on the owner's instruction; **PATCH** throughout —
