@@ -132,5 +132,84 @@ ok( sn_health_contrast_usage_contains( '.card-title', '.card' ), 'BEM-ish child 
 ok( sn_health_contrast_usage_contains( '.card .note', '.card' ), 'descendant is contained' );
 ok( ! sn_health_contrast_usage_contains( '.cardboard', '.card-' ), 'a different class is not contained' );
 
+// ─── Group 9: the card's shape — usage leads, arithmetic collapses ──
+// Owner decision (2026-08-11): the arithmetic count misled as a headline three
+// times; it now lives inside <details> with the count in the <summary> as a
+// palette-drift tripwire. This group pins the ORDER and the WRAPPER, because
+// nothing else does — the scanner tests above cannot see presentation.
+echo "\nGroup 9: renderer — usage tier leads, arithmetic tier collapses\n";
+if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'esc_html_e' ) ) { function esc_html_e( $s, $d = null ) { echo htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+require_once __DIR__ . '/../inc/health-render-reports.php';
+
+$report = array(
+	'pairs'           => array(
+		array( 'pair' => 'void / asphalt', 'ratio' => 1.32, 'aa_body' => false, 'aa_large' => false ),
+		array( 'pair' => 'bone / void', 'ratio' => 21.0, 'aa_body' => true, 'aa_large' => true ),
+	),
+	'tokens'          => array( 'void' => '#ffffff', 'asphalt' => '#f5f5f5', 'bone' => '#000000' ),
+	'thresholds'      => array( 'aa_body' => 4.5, 'aa_large' => 3.0 ),
+	'would_fail_body' => 1,
+	'usage'           => array( 'failures' => array(), 'palettes' => array( 'root' ), 'scanned' => 3, 'pairings' => 7 ),
+);
+ob_start();
+sn_health_render_contrast_report( $report );
+$html = (string) ob_get_clean();
+
+$usage_at   = strpos( $html, 'Usage tier' );
+$details_at = strpos( $html, '<details' );
+$table_at   = strpos( $html, 'Token pair' );
+ok( false !== $usage_at && false !== $details_at && $usage_at < $details_at, 'usage tier renders BEFORE the arithmetic <details>' );
+ok( false !== $table_at && $table_at > $details_at && $table_at < strpos( $html, '</details>' ), 'the arithmetic pair table is inside the <details> wrapper' );
+ok( 1 === preg_match( '/<summary>[^<]*1[^<]*2[^<]*<\/summary>/s', $html ), 'the summary carries the tripwire count (1 of 2) without expanding' );
+
+// Empty-palette degradation: the usage tier must not be held hostage by an
+// unreadable arithmetic palette — it renders first, then arithmetic bails.
+ob_start();
+sn_health_render_contrast_report( array( 'pairs' => array(), 'usage' => $report['usage'] ) );
+$empty_html = (string) ob_get_clean();
+ok( false !== strpos( $empty_html, 'Usage tier' ) && false === strpos( $empty_html, '<details' ), 'no readable palette: usage still renders, no empty arithmetic disclosure' );
+
+// ─── Group 10: BOTH CHIP GENERATIONS ────────────────────────────────
+// The corpus pins the old hexes as failures the scan MUST find and the
+// shipped replacements as passes it MUST clear. Pinning only one generation
+// leaves the suite unable to tell "the scan works" from "the scan is broken
+// in the direction that happens to agree with today's stylesheet".
+echo "\nGroup 10: both chip generations — old must fail, new must pass\n";
+
+$old = array( 'confirmed' => '#1f9d55', 'pending' => '#c98a12', 'muted' => '#6b7280' );
+$new = array( 'confirmed' => '#12703a', 'pending' => '#7a5200', 'muted' => '#5b6270' );
+
+foreach ( $old as $state => $hex ) {
+	$on_white = sn_health_contrast_ratio( $hex, '#ffffff' );
+	if ( 'muted' === $state ) {
+		// The per-palette argument in one row: passes on white, fails on the
+		// palette the site actually serves.
+		ok( $on_white >= 4.5, "old $state ($hex) passes on white at " . round( $on_white, 2 ) . ':1' );
+		ok( sn_health_contrast_ratio( $hex, '#e0e0e0' ) < 4.5, "old $state FAILS on served asphalt — invisible to a white-only scan" );
+	} else {
+		ok( $on_white < 4.5, "old $state ($hex) fails on white at " . round( $on_white, 2 ) . ':1 — the scan must find this' );
+	}
+}
+
+foreach ( $new as $state => $hex ) {
+	ok( sn_health_contrast_ratio( $hex, '#ffffff' ) >= 4.5, "shipped $state ($hex) clears AA on white" );
+	ok( sn_health_contrast_ratio( $hex, '#e0e0e0' ) >= 4.5, "shipped $state ($hex) clears AA on served asphalt too" );
+}
+
+// The margin lesson, pinned so a future "tidy-up" cannot quietly undo it: the
+// rejected candidates sat at 4.50-4.55 on asphalt. A value at 4.50 against a
+// 4.5 threshold has no margin, and is exactly the one nobody re-measures.
+$rejected = array( '#16723e', '#855b0c', '#5e6470' );
+foreach ( $rejected as $hex ) {
+	$r = sn_health_contrast_ratio( $hex, '#e0e0e0' );
+	ok( $r >= 4.5 && $r < 4.6, "rejected candidate $hex sits at " . round( $r, 2 ) . ':1 on asphalt — passing, but with no margin' );
+}
+foreach ( $new as $hex ) {
+	ok( sn_health_contrast_ratio( $hex, '#e0e0e0' ) > 4.6, 'the shipped value keeps real margin on asphalt' );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
