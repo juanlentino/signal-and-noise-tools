@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.87.0] - 2026-08-11 — a signed page shows its proof
+
+v10.86.0 taught the renderer about pages. The About page still showed nothing,
+which I found by loading it rather than by assuming the release had finished
+the job.
+
+**Necessary was not sufficient.** The division everywhere else is: the plugin
+owns the markup, the THEME owns placement — `[sn_prov_panel]` sits in the
+single-note template, which is why every Note shows its proof. Pages have no
+such convention; a page template is whatever the author built. So a signed page
+had panel markup available and nothing anywhere asking for it.
+
+That left **signing and showing as two independent acts**. Opt a page in, forget
+the shortcode, and it signs silently and stays invisible — including to the
+ledger's `build-index.mjs`, which discovers a record by reading the uid out of
+the *rendered* page. A proof nobody can see is not a proof anyone can check.
+
+- `sn_prov_append_page_panel()` appends the panel to a signed page, so the
+  default is "a signed page shows its proof". Filterable via
+  `sn_prov_auto_append_page_panel` for a theme that wants placement back —
+  sensible default, overridable, rather than a rule with no exit.
+- **Notes are untouched.** The gate is the subject kind, so theme-owned
+  placement still stands everywhere it already worked.
+- Skips content that already carries a panel: the shortcode expands at priority
+  11 and this filter runs at 20, so a hand-placed panel is already in `$content`.
+  Rendering again would read as two records rather than one.
+- Nothing fires outside the loop or the main query — an excerpt or a widget
+  never sprouts a provenance panel.
+
+
 ## [10.86.0] - 2026-08-11 — a signed page can now be seen
 
 The first page was signed end to end today: the About page's record landed at
