@@ -40,6 +40,18 @@ function sn_prov_view_data( $post_id ) {
 		);
 	}
 	$genesis_only = ( 0 === (int) ( $latest['version'] ?? 0 ) );
+	// Resolve once: both the ledger links below and the verify link need it.
+	// Both guards, deliberately. sn_prov_subject_kind() may not be loaded in a
+	// partial include, and get_post() does not exist in the standalone test
+	// harnesses this module is driven from — five separate suites fatalled on
+	// exactly that shape today. In WordPress both always exist, so production
+	// behaviour is identical; this only keeps the module testable in isolation.
+	$subject_kind = ( function_exists( 'sn_prov_subject_kind' ) && function_exists( 'get_post' ) )
+		? sn_prov_subject_kind( get_post( (int) $post_id ) )
+		: 'note';
+	if ( '' === $subject_kind ) {
+		$subject_kind = 'note';
+	}
 	$vm           = array(
 		'note_uid'        => (string) $uid,
 		'status'          => (string) ( $latest['status'] ?? 'unanchored' ),
@@ -51,8 +63,11 @@ function sn_prov_view_data( $post_id ) {
 		'versions'        => $versions,
 		'is_genesis_only' => $genesis_only,
 		'genesis_caveat'  => $genesis_only,
-		'ledger_url'      => sn_prov_ledger_note_url( (string) $uid ),
-		'ots_url'         => sn_prov_ledger_note_url( (string) $uid ) . '/v' . (int) ( $latest['version'] ?? 0 ) . '.ots',
+		// v10.86.0: the ledger directory follows the subject kind. A signed page
+		// lives under pages/, so a panel that linked into notes/ would point a
+		// reader at a 404 on the one surface whose whole job is checkability.
+		'ledger_url'      => sn_prov_ledger_note_url( (string) $uid, $subject_kind ),
+		'ots_url'         => sn_prov_ledger_note_url( (string) $uid, $subject_kind ) . '/v' . (int) ( $latest['version'] ?? 0 ) . '.ots',
 		// v10.66.1: was '/provenance/verify', which 404s live. This is the
 		// "Verify it yourself" link in the byline panel of EVERY Note — the
 		// literal invitation to check the proof, pointing at nothing, on the
@@ -62,7 +77,12 @@ function sn_prov_view_data( $post_id ) {
 		// site's OWN 404 log had already flagged this as a genuine broken link;
 		// nothing connected that signal back to the emitter. Pinned in
 		// tests/provenance-render.php against the matcher.
-		'verify_url'      => home_url( '/verify' ),
+		// v10.86.0: carry the kind so /verify fetches from the right ledger
+		// directory. Omitted for notes, which keeps every existing link and its
+		// pinned matcher byte-identical.
+		'verify_url'      => 'note' === $subject_kind
+			? home_url( '/verify' )
+			: home_url( '/verify' ) . '?kind=' . rawurlencode( $subject_kind ),
 	);
 	return apply_filters( 'sn_note_provenance', $vm, (int) $post_id );
 }
@@ -431,14 +451,23 @@ function sn_prov_render_panel( $post_id ) {
 }
 
 /**
- * Enqueue default front-end styling on single Note views only. The theme may
- * dequeue or override `sn-provenance-front`.
+ * Enqueue default front-end styling on any single PROVENANCE SUBJECT view. The
+ * theme may dequeue or override `sn-provenance-front`.
+ *
+ * v10.86.0: was `is_singular( 'post' )` plus a notes-category check, which is
+ * the same pair of gates the signing path had — and the same reason a signed
+ * page rendered nothing. That was not merely cosmetic: the ledger's
+ * build-index.mjs discovers a record by fetching the SITE and reading the UID
+ * out of the rendered page. A signed page with no panel carries no UID, so it
+ * could never be indexed however the index script was widened. The render is
+ * the PREREQUISITE for the ledger tooling, not a nicety beside it.
  */
 function sn_prov_enqueue_front() {
-	if ( ! is_singular( 'post' ) ) {
+	if ( ! is_singular( sn_prov_subject_post_types() ) ) {
 		return;
 	}
-	if ( function_exists( 'sn_prov_is_note' ) && ! sn_prov_is_note( get_the_ID() ) ) {
+	if ( function_exists( 'sn_prov_subject_kind' ) && function_exists( 'get_post' )
+		&& '' === sn_prov_subject_kind( get_post( get_the_ID() ) ) ) {
 		return;
 	}
 	wp_enqueue_style(

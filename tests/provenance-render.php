@@ -44,6 +44,16 @@ if ( ! function_exists( 'wp_json_encode' ) ) {
 	function wp_json_encode( $d, $f = 0, $depth = 512 ) {
 		return json_encode( $d, $f, $depth ); }
 }
+// v10.86.0: the viewmodel resolves the SUBJECT KIND, which needs the post
+// object. Fifth stub-drift fatal of the day and the third I caused — the shape
+// is always the same: a module with a standalone harness gains a WordPress call
+// and dies BEFORE its first assertion, visible only through the missing summary
+// line. Default post_type 'post' keeps every existing Note fixture unchanged.
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id = 0 ) {
+		return (object) array( 'ID' => (int) $id, 'post_type' => $GLOBALS['__pr_post_type'] ?? 'post' );
+	}
+}
 if ( ! function_exists( 'home_url' ) ) {
 	function home_url( $p = '' ) {
 		return 'https://example.com' . $p; }
