@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     10.89.1
+ * Version:     10.90.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -227,6 +227,15 @@ require_once SNT_PATH . 'inc/ssrf-guard.php';
 // orchestrator like every other health check.
 require_once SNT_PATH . 'inc/machine-readers-taxonomy.php'; // v10.79.0: vendor/purpose enums + normalizers (api.php uses them).
 require_once SNT_PATH . 'inc/machine-readers-api.php';
+// R3 gate 3A: the durable crawler snapshot. Loads right after the fetch layer it
+// wraps, because it is the ONLY caller allowed to fetch on a schedule — every
+// reader-facing count is meant to come from its option, so a render never waits
+// on the sensor. Owns one hourly cron event; no output sinks.
+require_once SNT_PATH . 'inc/machine-readers-snapshot.php';
+// R3 gate 3B: the rights-read count as a public claim. Pure reader of the
+// snapshot above — hand it a record, get a sentence. No sensor call on this
+// path by construction, which is what lets it render on a front-end page.
+require_once SNT_PATH . 'inc/machine-readers-rights-reads.php';
 require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.

@@ -174,12 +174,15 @@ function sn_health_check_contrast_tokens() {
 	);
 
 	$packed['report'] = array(
-		// The coverage sentence IS the contract: arithmetic tier only.
-		'coverage'        => 'Arithmetic tier only: every theme-token pair scored as WOULD-fail/pass if rendered together. Which pairs ARE rendered together is not measured here — that needs computed styles from a real render, and until that tier exists a clean sweep here is not a clean site.',
+		// The coverage sentence IS the contract. It used to end "until that tier
+		// exists a clean sweep here is not a clean site" — half of that tier now
+		// exists, below, so the sentence says which half and what is still missing.
+		'coverage'        => 'Arithmetic tier: every theme-token pair scored as WOULD-fail/pass if rendered together — a red row here is a "would fail", not a live defect, because nothing here knows which pairs meet on screen. The usage tier below answers that for pairings declared in stylesheets. Colours inlined in block markup and the computed cascade still need a real render, so a clean sweep across both tiers is still not proof of a clean site.',
 		'thresholds'      => array( 'aa_body' => SN_HEALTH_CONTRAST_AA_BODY, 'aa_large' => SN_HEALTH_CONTRAST_AA_LARGE ),
 		'tokens'          => $named,
 		'pairs'           => $pairs,
 		'would_fail_body' => $would_fail,
+		'usage'           => sn_health_contrast_usage_report(),
 	);
 
 	return $packed;

@@ -63,6 +63,7 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_EDGE_ROLLUP_HOOK',           'sn_edge_rollup_cron' ),
 		array( 'SN_UPTIME_HEARTBEAT_HOOK',      'sn_uptime_kuma_heartbeat' ),
 		array( 'SN_INSIGHTS_CRON_HOOK',         'sn_insights_weekly_scan' ),
+		array( 'SN_MR_SNAPSHOT_HOOK',           'snt_mr_snapshot_refresh' ),
 	);
 	$hooks = array();
 	foreach ( $owned as $pair ) {

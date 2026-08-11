@@ -53,6 +53,32 @@ function get_permalink( $post ) {
 	return 'https://example.com/maturity/' . $post->post_name . '/';
 }
 
+// R3 3B: the machine-readability page grew ONE non-static element — the
+// rights-read count. Its modules are loaded here on purpose. The security
+// sweep below is the standing "model, never levers" contract for this family,
+// and if the snapshot module were absent the new section would render empty
+// and the sweep would pass over a sentence it never actually saw. A stored
+// measurement is planted so the count renders in its fullest form.
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? (string) $single : (string) $plural; }
+function number_format_i18n( $n, $dec = 0 ) { return number_format( (float) $n, (int) $dec ); }
+function add_action( $hook, $cb, $prio = 10, $args = 1 ) { return true; }
+function wp_next_scheduled( $hook, $args = array() ) { return false; }
+function wp_schedule_event( $ts, $rec, $hook, $args = array() ) { return true; }
+$GLOBALS['__options'] = array(
+	'sn_mr_snapshot' => array(
+		'captured_at' => time() - ( 3 * 86400 ),
+		'days'        => 30,
+		'total'       => 912,
+		'by_family'   => array( 'openai' => 900, 'anthropic' => 12 ),
+		'by_surface'  => array( 'html' => 900, 'robots' => 7, 'llms' => 5 ),
+	),
+);
+function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
+function update_option( $k, $v, $autoload = null ) { $GLOBALS['__options'][ $k ] = $v; return true; }
+require __DIR__ . '/../inc/machine-readers-snapshot.php';
+require __DIR__ . '/../inc/machine-readers-rights-reads.php';
 require __DIR__ . '/../inc/machine-maturity-page.php';
 require __DIR__ . '/../inc/ops-maturity-page.php';
 require __DIR__ . '/../inc/a11y-maturity-page.php';
@@ -126,6 +152,14 @@ foreach ( array( 'sn_machine_maturity_shortcode', 'sn_ops_maturity_shortcode', '
 		$all .= $fn( array( 'format' => $f ) );
 	}
 }
+// Coverage proof for the sweep below. Without these four, the security sweep
+// would happily pass over a section that rendered as an empty string, and the
+// rights-read sentence would be unswept while looking guarded.
+ok( false !== strpos( $all, 'Machines read' ), 'the rights-read count IS present in the swept output (the sweep is not vacuous)' );
+ok( false !== strpos( $all, '12 times' ), 'the published count sums only the rights surfaces (7+5), never the 900 article reads' );
+ok( false === strpos( $all, '900' ), 'article reads never leak into a claim about who read the terms' );
+ok( false !== strpos( $all, 'Last measured 3 days ago' ), 'a stale count states its age on the public page, not just internally' );
+
 $forbidden = array(
 	// options, constants, credentials
 	'sn_mcp_read_enabled', 'sn_mcp_rw_enabled', 'SN_MCP_READ_DISABLED', 'SN_MCP_RW_DISABLED', 'application password',

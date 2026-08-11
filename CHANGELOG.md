@@ -2,6 +2,129 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.90.0] - 2026-08-11 — three counts the site can stand behind
+
+Two sessions' work, folded into one release on the owner's instruction. Both
+branches landed un-versioned under the release-coordination arrangement, so the
+version header and tag stay single-writer.
+
+The thread running through all three pieces is the same: **a number published
+without its provenance is worse than no number.** A crawler count served from a
+transient that a cache flush can evaporate, a rights-read count rendered as zero
+because a sensor never answered, a contrast table that scores pairs no reader
+ever sees — each is a confident answer to a question the measurement did not
+actually ask.
+
+### The crawler count becomes state the site holds
+
+R3 gate **3A**, the shared precondition under two board rows
+([docs/r3-prep.md](docs/r3-prep.md)).
+
+The machine-readability row's own prose sets the bar — *"once that read can be
+served from state the site already holds, so a reader's page never waits on a
+sensor call."* `snt_mr_fetch()` could not meet it. It is a 15-minute display
+transient in front of an outbound `wp_remote_get` to the rights-signals worker,
+so a cache **miss** blocks the render on a Cloudflare round-trip, and under
+Breeze/Redis the transient lives in the object cache, where any flush evaporates
+it. The health scan learned exactly this in v6.47.2 and moved to a durable
+option; this is the same move for the same reason.
+
+**New:** `inc/machine-readers-snapshot.php`. One hourly cron event
+(`snt_mr_snapshot_refresh`) is the only fetcher and the only writer; every read
+goes through `snt_mr_snapshot()`, which never makes an outbound call under any
+state — not on a miss, not when stale, not after a failed refresh. The suite
+asserts that with a **tripwire** rather than a canned failure: the HTTP stub
+counts every call it receives, so a regression fails as *"the fetch happened"*
+instead of passing as *"the fetch failed"*. Mutation-checked — pointing the read
+path at the sensor reds three assertions.
+
+The record is **three-valued**, because the failure modes are not one answer:
+
+| state | `total()` | renders as |
+|---|---|---|
+| never captured | `null` | not measured yet |
+| captured, no rows | `0` | a real, measured zero |
+| captured, stale | the old count | the count **plus its age** |
+
+A sensor that never answered is not a site nobody crawled. A failed refresh
+never destroys a good capture either — `last_attempt_at` and `last_error` sit
+beside the measurement, so *when was this true* and *when did we last try* stay
+separate questions with separate answers, and `not_configured` stays
+distinguishable from `http_503` (one is fixable by the owner, the other is not).
+
+Families and surfaces with no rows are **absent** from the aggregate maps rather
+than present as `0` — the same rule one level down. The hook is registered in
+`snt_cron_sn_owned_hooks()`, so the cron dashboard sees it and the unschedule
+ability refuses to orphan it.
+
+### The rights-read count becomes a public claim (R3 gate 3B, planned half)
+
+The machine-readability page now publishes how often machines read the terms
+this site states — the crawler manifest, the reservation, the licence, the agent
+manifest, the well-known documents. `inc/machine-readers-rights-reads.php` is a
+pure reader of the snapshot above: hand it a record, get a sentence. There is no
+sensor call on this path *by construction*, which is the only reason a count like
+this can render on a front-end page at all.
+
+`html` is deliberately **excluded** from the count. Reading an article is not
+reading the terms, and folding it in would let a busy month of ordinary crawling
+masquerade as machines actually consulting the reservation — the exact claim the
+number exists to support or refute. The suite pins this with a fixture where 900
+article reads sit beside 12 rights reads and asserts the page publishes 12.
+
+Three-valued, inherited from the snapshot, and this is where it earns its keep:
+
+- **unmeasured** → *"That count has not been measured yet."*
+- **measured zero** → *"No machine has read this site's published terms in the
+  last 30 days."*
+- **stale** → the count **plus** *"Last measured 3 days ago."*
+
+Publishing "no machine has read our terms" off a sensor that never answered
+would be the most flattering possible reading of a broken pipe. On a page whose
+whole argument is honesty by construction, that is the one failure this surface
+cannot afford — so the unmeasured sentence cannot render a zero, and a test
+asserts it contains neither a `0` nor the words "No machine".
+
+The window is read from the record rather than assumed, so a snapshot captured
+over 7 days can never be published as a 30-day claim.
+
+The maturity family's standing "model, never levers" sweep now covers the new
+sentence **for real**: `tests/maturity-family.php` loads the snapshot module and
+plants a stored measurement, because with the module absent the section renders
+as an empty string and the sweep would pass over a claim it never saw. Four
+assertions pin that the swept output actually contains the count.
+
+### The contrast panel gets its usage tier — the FIRST HALF of 3C
+
+`inc/health-contrast-usage.php` scores every **declared** text-on-surface pairing
+in a stylesheet, under every shipped palette, and takes the headline position on
+the contrast card. The arithmetic table it displaces collapses into a
+`<details>` with its tripwire count in the summary — still there, no longer
+mistakable for the answer.
+
+**This does NOT close the 3C row, and the card says so where a reader will see
+it, not only in a docblock.** The scan reads *declarations*, so three things stay
+invisible to it: `:hover` and other pseudo-class states, colours inlined by block
+markup, and the computed cascade (specificity, overrides, inherited `color`).
+Tested against 3C's own cited example — the provenance panel's 3.29:1 hover link
+from v10.88.0 — this tier **would not have found it**. The headless
+computed-styles tier is still owed. Record this as the first half.
+
+One detail worth keeping: an earlier cut of the scan stripped `:hover` to match
+more pairs and promptly paired a hover *background* with a resting *text* colour
+— inventing a failing pair that no reader could ever encounter. Matching more is
+not measuring more.
+
+### Still open
+
+- **3B's give-back ratio** is not in this release. `docs/r3-prep.md` sequences it
+  as scheduled work, but the board — the planning surface — carries it under
+  Analytics as **considering**, not planned. It has not been through the
+  promotion flow, so it was not built.
+- **A board row is stale:** "AI-referred humans as a channel" still reads as
+  `considering` although it shipped in v10.85.0 — the graduation step where the
+  row goes through the door, missed again.
+
 ## [10.89.1] - 2026-08-11 — the provenance chip clears AA
 
 Shipped ahead of the batch on the owner's call: v10.89.0 promoted the chip to a
