@@ -93,12 +93,31 @@ function sn_site_health_widget_render() {
 	// queue is information, not alarm, so it rides the subline in BOTH states.
 	$advisories = function_exists( 'sn_health_advisory_total' ) ? (int) sn_health_advisory_total( $scan ) : 0;
 
-	// ── State 2: all clear. Green affirmative + "M checks passed". ──
+	// v10.85.0: a REPORT-ONLY check cannot pass — it raises no findings by
+	// design, so counting it as passed claims a verdict it never earned. The
+	// Health tab began saying "17 of 19 passing · 1 report-only" in this same
+	// release; this widget said "19 checks passed" from the same scan. Two
+	// surfaces disagreeing about one number is how a dashboard stops being
+	// believed, so both now read the split from the same accessors:
+	// sn_health_passing_checks() for the numerator, sn_health_check_total()
+	// (unchanged) for the denominator.
+	$passing_total = function_exists( 'sn_health_passing_checks' )
+		? count( sn_health_passing_checks( $scan ) )
+		: $check_total;
+	$report_total  = function_exists( 'sn_health_report_checks' )
+		? count( sn_health_report_checks( $scan ) )
+		: 0;
+
+	// ── State 2: all clear. Green affirmative + "M of N checks passed". ──
 	if ( $total < 1 ) {
 		$sub = $check_total > 0
-			/* translators: %s: number of health checks that passed. */
-			? sprintf( __( '%s checks passed', 'signal-and-noise-tools' ), number_format_i18n( $check_total ) )
+			/* translators: 1: passing checks, 2: total checks run. */
+			? sprintf( __( '%1$s of %2$s checks passed', 'signal-and-noise-tools' ), number_format_i18n( $passing_total ), number_format_i18n( $check_total ) )
 			: __( 'No health findings', 'signal-and-noise-tools' );
+		if ( $report_total > 0 ) {
+			/* translators: %s: number of report-only checks. */
+			$sub .= ' · ' . sprintf( __( '%s report-only', 'signal-and-noise-tools' ), number_format_i18n( $report_total ) );
+		}
 		if ( $advisories > 0 ) {
 			/* translators: %s: open advisory count. */
 			$sub .= ' · ' . sprintf( __( '%s advisories', 'signal-and-noise-tools' ), number_format_i18n( $advisories ) );

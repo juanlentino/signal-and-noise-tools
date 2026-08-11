@@ -497,15 +497,125 @@
    its own Content → Pattern Adoption leaf, leaving the grid with a single child
    — which auto-fit would have stretched edge to edge, the exact bare-stretched
    lone form the Phase-4b width rule forbids. Run scan now keeps its own capped
-   .sn-fieldset. inc/health-checks-admin.php was the only call site. */
+   .sn-fieldset. inc/health-checks-admin.php was the only call site.
+
+   v10.83.0: the strip became a <details>. Nineteen checks made the open chip
+   row a wall, and it sat between the reader and everything below it. The
+   summary is the whole readout for a healthy site; expanding groups the names
+   by family. <details> was chosen over a JS toggle because it brings keyboard
+   operation, the screen-reader expanded/collapsed state, and a no-JS open
+   state for free — none of which a div would have without extra code. */
 .sn-health-passing {
 	max-width: none;
+}
+.sn-health-passing__summary {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	cursor: pointer;
+	list-style: none; /* the default triangle; ::marker below replaces it */
+	font-size: 1em;
+	font-weight: 600;
+	color: var(--sn-text);
+}
+/* Safari still needs the WebKit pseudo-element to drop the disclosure triangle. */
+.sn-health-passing__summary::-webkit-details-marker {
+	display: none;
+}
+/* A rotating caret the summary owns, so the affordance survives list-style:none. */
+.sn-health-passing__summary::before {
+	content: '';
+	flex: 0 0 auto;
+	width: 0;
+	height: 0;
+	border-left: 5px solid var(--sn-text-muted);
+	border-top: 4px solid transparent;
+	border-bottom: 4px solid transparent;
+	transition: transform 120ms ease;
+}
+.sn-health-passing[open] .sn-health-passing__summary::before {
+	transform: rotate(90deg);
+}
+.sn-health-passing__summary:focus-visible {
+	outline: 2px solid var(--sn-accent, #2271b1);
+	outline-offset: 2px;
+	border-radius: 3px;
+}
+.sn-health-passing__title {
+	margin-right: auto;
+}
+.sn-health-passing__family {
+	margin: 14px 0 0;
+	padding-top: 12px;
+	border-top: 1px solid var(--sn-border);
+}
+.sn-health-passing__family:first-of-type {
+	margin-top: 16px;
+}
+.sn-health-passing__family-label {
+	margin: 0;
+	font-size: 11px;
+	font-weight: 700;
+	letter-spacing: 0.06em;
+	text-transform: uppercase;
+	color: var(--sn-text-muted);
 }
 .sn-health-passing__names {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 6px;
-	margin: 0.75em 0 0;
+	margin: 0.5em 0 0;
+}
+
+/* ─── Health reports: report-only check payloads (v10.83.0) ──────────────────
+   Checks that measure and publish rather than flag (contrast_tokens is the
+   first). Same full-width treatment as the findings cards — a pair table is
+   as wide as a findings table — and the coverage sentence gets real emphasis
+   because it is the honesty contract, not preamble: it states which TIER was
+   measured, so a clean arithmetic sweep can never be read as a clean site. */
+.sn-health-reports .sn-fieldset {
+	max-width: none;
+}
+.sn-health-reports__intro {
+	max-width: 70ch;
+	margin: 0 0 var(--sn-space-3);
+	color: var(--sn-text-muted);
+}
+.sn-health-report__coverage {
+	margin: 0 0 var(--sn-space-3);
+	padding: 10px 12px;
+	border-left: 3px solid var(--sn-border);
+	background: rgba(0,0,0,0.02);
+	font-size: 0.92em;
+	line-height: 1.5;
+}
+.sn-health-report__headline {
+	margin: 0 0 0.75em;
+	font-size: 1.02em;
+	font-weight: 600;
+}
+.sn-health-report__tokens {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0 0 var(--sn-space-3);
+}
+/* The token legend chip: swatch + slug. The swatch's background-color is the
+   only inline style on the page — a palette hex is data, not design, and
+   cannot be known by this stylesheet. */
+.sn-badge--token {
+	display: inline-flex;
+	align-items: center;
+	gap: 5px;
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-weight: 500;
+}
+.sn-swatch {
+	display: inline-block;
+	width: 10px;
+	height: 10px;
+	border-radius: 2px;
+	border: 1px solid rgba(0,0,0,0.18);
 }
 
 /* ─── sameAs URL list ────────────────────────────────────────── */

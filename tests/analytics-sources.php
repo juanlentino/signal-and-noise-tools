@@ -73,6 +73,23 @@ ok( sn_analytics_canonical_source( 'news.ycombinator.com' ) === 'Hacker News', '
 ok( sn_analytics_canonical_source( 'duckduckgo.com' ) === 'DuckDuckGo', 'duckduckgo → DuckDuckGo' );
 ok( sn_analytics_canonical_source( 'chatgpt.com' ) === 'ChatGPT', 'chatgpt.com → ChatGPT' );
 
+echo "\nGroup: canonical_source — AI assistants (R2B: the HUMAN referral segment, its own vocabulary)\n";
+ok( sn_analytics_canonical_source( 'claude.ai' ) === 'Claude', 'claude.ai → Claude' );
+ok( sn_analytics_canonical_source( 'www.perplexity.ai' ) === 'Perplexity', 'perplexity → Perplexity' );
+// ORDER PIN (mutation-sensitive): the AI block precedes Search because first
+// match wins — move it after and this asserts red, because 'google.' would
+// claim gemini.google.com for Google.
+ok( sn_analytics_canonical_source( 'gemini.google.com' ) === 'Gemini', 'gemini.google.com → Gemini, NOT Google (AI block precedes Search — order pin)' );
+ok( sn_analytics_canonical_source( 'news.google.com' ) === 'Google', 'news.google.com STILL → Google (regression: the generic google. rule survives the split)' );
+ok( sn_analytics_canonical_source( 'copilot.microsoft.com' ) === 'Copilot', 'copilot.microsoft.com → Copilot' );
+ok( sn_analytics_canonical_source( 'chat.deepseek.com' ) === 'DeepSeek', 'chat.deepseek.com → DeepSeek' );
+ok( sn_analytics_canonical_source( 'chat.mistral.ai' ) === 'Le Chat', 'chat.mistral.ai → Le Chat' );
+ok( sn_analytics_canonical_source( 'grok.com' ) === 'Grok', 'grok.com → Grok (exact)' );
+ok( sn_analytics_canonical_source( 'meta.ai' ) === 'Meta AI', 'meta.ai → Meta AI (exact)' );
+// Boundary: a host merely CONTAINING an AI brand fragment is not that brand.
+ok( sn_analytics_canonical_source( 'notclaude.ai' ) === 'notclaude.ai', 'notclaude.ai is NOT Claude (boundary)' );
+ok( sn_analytics_canonical_source( 'grok.communist.example' ) === 'grok.communist.example', 'grok.communist.example is NOT Grok (exact-only, no substring)' );
+
 echo "\nGroup: canonical_source — unknown host folds to bare host\n";
 ok( sn_analytics_canonical_source( 'some-blog.example' ) === 'some-blog.example', 'unknown host kept as bare host' );
 ok( sn_analytics_canonical_source( 'www.some-blog.example' ) === 'some-blog.example', 'unknown host: www stripped' );
@@ -88,6 +105,13 @@ ok( sn_analytics_canonical_source( 'searxng.example' ) === 'Searx', 'searxng ins
 
 echo "\nGroup: source_category_of_label\n";
 ok( sn_analytics_source_category_of_label( 'Google' ) === 'search', 'Google → search' );
+// R2B: AI assistants are their OWN category — deliberately no longer 'search'.
+// This is the human referral segment; the crawler taxonomy is a different list
+// (machine-readers), and R3's give-back ratio depends on the distinction.
+ok( sn_analytics_source_category_of_label( 'ChatGPT' ) === 'ai', 'ChatGPT → ai (MOVED out of search — the channel split)' );
+ok( sn_analytics_source_category_of_label( 'Claude' ) === 'ai', 'Claude → ai' );
+ok( sn_analytics_source_category_of_label( 'Perplexity' ) === 'ai', 'Perplexity → ai' );
+ok( sn_analytics_source_category_of_label( 'Gemini' ) === 'ai', 'Gemini → ai' );
 ok( sn_analytics_source_category_of_label( 'X' ) === 'social', 'X → social' );
 ok( sn_analytics_source_category_of_label( '(direct)' ) === 'direct', '(direct) → direct' );
 ok( sn_analytics_source_category_of_label( 'some-blog.example' ) === 'other', 'unknown label → other' );
