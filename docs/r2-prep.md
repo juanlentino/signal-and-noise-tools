@@ -83,10 +83,14 @@ dispatch. The change is to accept the kind from the payload rather than assume i
 
 **Four surfaces, in this order. Do not start at the plugin.**
 
-1. **Worker** (`sn-provenance-worker`) — accept an optional subject kind, build
-   the path from it, default to `note` when absent so the currently installed
-   plugin keeps working unchanged. **Deploys MANUALLY** — only the analytics
-   worker auto-deploys from main, so this lands as a PR and the owner runs it.
+1. ~~**Worker** (`sn-provenance-worker`)~~ — **DONE, shipped as v1.10.0**
+   (PR #12 → `0ac8bb7`, tag pushed). Optional `kind` on the dispatch; absent
+   means `note`, so the deployed plugin is unaffected; an unrecognised kind is
+   refused rather than defaulted; the path segment is a fixed literal from a
+   validated enum (`SUBJECT_KINDS`), never `${msg.kind}`. 25 new tests.
+   **BLOCKED ON A MANUAL DEPLOY — `npm run deploy`, then probe `/_sn/version`
+   for `1.10.0`.** Step 2 must not start until that probe passes: a plugin
+   sending `kind` to a pre-1.10.0 worker gets a 400 on every publish.
 2. **Plugin** — send the kind; widen the post-type gate only once the Worker in
    production accepts it. A version probe before widening, not a hope.
 3. **Verify JS** — `prov-verify-core.js`'s `ledgerRecordUrl()` builds
