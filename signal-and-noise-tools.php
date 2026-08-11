@@ -227,6 +227,11 @@ require_once SNT_PATH . 'inc/ssrf-guard.php';
 // orchestrator like every other health check.
 require_once SNT_PATH . 'inc/machine-readers-taxonomy.php'; // v10.79.0: vendor/purpose enums + normalizers (api.php uses them).
 require_once SNT_PATH . 'inc/machine-readers-api.php';
+// R3 gate 3A: the durable crawler snapshot. Loads right after the fetch layer it
+// wraps, because it is the ONLY caller allowed to fetch on a schedule — every
+// reader-facing count is meant to come from its option, so a render never waits
+// on the sensor. Owns one hourly cron event; no output sinks.
+require_once SNT_PATH . 'inc/machine-readers-snapshot.php';
 require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.

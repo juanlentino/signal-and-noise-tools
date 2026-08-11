@@ -2,6 +2,51 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the crawler count becomes state the site holds
+
+R3 gate **3A**, the shared precondition under two board rows
+([docs/r3-prep.md](docs/r3-prep.md)). Un-versioned deliberately: it batches.
+
+The machine-readability row's own prose sets the bar — *"once that read can be
+served from state the site already holds, so a reader's page never waits on a
+sensor call."* `snt_mr_fetch()` could not meet it. It is a 15-minute display
+transient in front of an outbound `wp_remote_get` to the rights-signals worker,
+so a cache **miss** blocks the render on a Cloudflare round-trip, and under
+Breeze/Redis the transient lives in the object cache, where any flush evaporates
+it. The health scan learned exactly this in v6.47.2 and moved to a durable
+option; this is the same move for the same reason.
+
+**New:** `inc/machine-readers-snapshot.php`. One hourly cron event
+(`snt_mr_snapshot_refresh`) is the only fetcher and the only writer; every read
+goes through `snt_mr_snapshot()`, which never makes an outbound call under any
+state — not on a miss, not when stale, not after a failed refresh. The suite
+asserts that with a **tripwire** rather than a canned failure: the HTTP stub
+counts every call it receives, so a regression fails as *"the fetch happened"*
+instead of passing as *"the fetch failed"*. Mutation-checked — pointing the read
+path at the sensor reds three assertions.
+
+The record is **three-valued**, because the failure modes are not one answer:
+
+| state | `total()` | renders as |
+|---|---|---|
+| never captured | `null` | not measured yet |
+| captured, no rows | `0` | a real, measured zero |
+| captured, stale | the old count | the count **plus its age** |
+
+A sensor that never answered is not a site nobody crawled. A failed refresh
+never destroys a good capture either — `last_attempt_at` and `last_error` sit
+beside the measurement, so *when was this true* and *when did we last try* stay
+separate questions with separate answers, and `not_configured` stays
+distinguishable from `http_503` (one is fixable by the owner, the other is not).
+
+Families and surfaces with no rows are **absent** from the aggregate maps rather
+than present as `0` — the same rule one level down. The hook is registered in
+`snt_cron_sn_owned_hooks()`, so the cron dashboard sees it and the unschedule
+ability refuses to orphan it.
+
+Not yet a reader-facing surface: 3B builds the rights-read count and the
+give-back ratio on top of this.
+
 ## [10.89.1] - 2026-08-11 — the provenance chip clears AA
 
 Shipped ahead of the batch on the owner's call: v10.89.0 promoted the chip to a
