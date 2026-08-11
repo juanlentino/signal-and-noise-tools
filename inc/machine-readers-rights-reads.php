@@ -86,6 +86,61 @@ function snt_mr_rights_reads_age_phrase( $age ) {
 }
 
 /**
+ * Join names into readable prose: "A", "A and B", "A, B and C".
+ *
+ * @param string[] $names
+ * @return string
+ */
+function snt_mr_giveback_join( $names ) {
+	$names = array_values( array_filter( array_map( 'strval', (array) $names ), 'strlen' ) );
+	$n     = count( $names );
+	if ( 0 === $n ) {
+		return '';
+	}
+	if ( 1 === $n ) {
+		return $names[0];
+	}
+	$last = array_pop( $names );
+	/* translators: 1: a comma-separated list. 2: the final item. */
+	return sprintf( __( '%1$s and %2$s', 'signal-and-noise-tools' ), implode( ', ', $names ), $last );
+}
+
+/**
+ * One sentence covering every operator with NO answer, instead of one sentence
+ * each.
+ *
+ * Live, the first render of this section was sixteen rows: three permanent
+ * non-answers followed by thirteen identical "has not been measured yet". Every
+ * sentence was true and the section carried no information — the fixtures always
+ * supplied referrals, so the shape only appeared on the real page. A non-answer
+ * repeated per operator is noise; stated once, with the names, it is an honest
+ * caveat.
+ *
+ * @param array[] $rows   Rows sharing one status.
+ * @param string  $status 'unmeasured' or 'not_measurable'.
+ * @return string Plain text, or '' when there is nothing to say.
+ */
+function snt_mr_giveback_group_sentence( $rows, $status ) {
+	$names = array();
+	foreach ( $rows as $row ) {
+		$names[] = isset( $row['label'] ) ? (string) $row['label'] : '';
+	}
+	$list = snt_mr_giveback_join( $names );
+	if ( '' === $list ) {
+		return '';
+	}
+	if ( 'not_measurable' === $status ) {
+		return 1 === count( $names )
+			/* translators: %s: operator name. */
+			? sprintf( __( '%s sends readers, but its crawler cannot be told apart from ordinary search here, so there is nothing to measure it against.', 'signal-and-noise-tools' ), $list )
+			/* translators: %s: a list of operator names. */
+			: sprintf( __( '%s send readers, but their crawlers cannot be told apart from ordinary search here, so there is nothing to measure them against.', 'signal-and-noise-tools' ), $list );
+	}
+	/* translators: %s: a list of operator names. */
+	return sprintf( __( 'Not measured yet: %s.', 'signal-and-noise-tools' ), $list );
+}
+
+/**
  * The give-back sentence for one operator row, as published prose.
  *
  * Each status gets its own sentence because each is a different claim. The one

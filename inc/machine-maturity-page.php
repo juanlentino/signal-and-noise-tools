@@ -138,11 +138,27 @@ function sn_machine_maturity_giveback_html() {
 	if ( empty( $rows ) ) {
 		return '';
 	}
-	// Loudest first: the operators that read and never repaid, then the ones
-	// that did, then everything with no answer. Sorting by ratio alone would put
-	// the most interesting row (0.0) beside the unmeasured ones.
-	$rank = array( 'none_returned' => 0, 'ok' => 1, 'no_crawls' => 2, 'not_measurable' => 3, 'unmeasured' => 4 );
-	usort( $rows, function ( $a, $b ) use ( $rank ) {
+	// Partition before sorting. Rows that ANSWER the question render one each;
+	// rows that cannot answer collapse into one sentence per reason. Live, the
+	// first render was sixteen rows — three permanent non-answers followed by
+	// thirteen identical "has not been measured yet" — every one true, the whole
+	// section informationless. The fixtures always supplied referrals, so the
+	// shape only ever appeared on the real page.
+	$answered = array();
+	$groups   = array( 'not_measurable' => array(), 'unmeasured' => array() );
+	foreach ( $rows as $row ) {
+		if ( isset( $groups[ $row['status'] ] ) ) {
+			$groups[ $row['status'] ][] = $row;
+			continue;
+		}
+		$answered[] = $row;
+	}
+
+	// Loudest first: read-and-never-repaid, then the ones that did repay, then
+	// the ones that did not read at all. Ranking by ratio alone would file the
+	// most interesting answer (0.0) beside the ones with no answer.
+	$rank = array( 'none_returned' => 0, 'ok' => 1, 'no_crawls' => 2 );
+	usort( $answered, function ( $a, $b ) use ( $rank ) {
 		$ra = $rank[ $a['status'] ] ?? 9;
 		$rb = $rank[ $b['status'] ] ?? 9;
 		if ( $ra !== $rb ) {
@@ -153,9 +169,21 @@ function sn_machine_maturity_giveback_html() {
 
 	$out = '<h3>' . esc_html__( 'Which machines send a reader back', 'signal-and-noise-tools' ) . '</h3>'
 		. '<ul class="sn-machine-maturity-giveback">';
-	foreach ( $rows as $row ) {
+	foreach ( $answered as $row ) {
 		$out .= '<li class="sn-machine-maturity-giveback__row sn-machine-maturity-giveback__row--' . esc_attr( $row['status'] ) . '">'
 			. esc_html( snt_mr_giveback_sentence( $row ) ) . '</li>';
+	}
+	// The caveats trail the answers, always — a section that opens by explaining
+	// what it cannot measure buries what it can.
+	foreach ( array( 'unmeasured', 'not_measurable' ) as $status ) {
+		if ( empty( $groups[ $status ] ) ) {
+			continue;
+		}
+		$sentence = snt_mr_giveback_group_sentence( $groups[ $status ], $status );
+		if ( '' !== $sentence ) {
+			$out .= '<li class="sn-machine-maturity-giveback__row sn-machine-maturity-giveback__row--' . esc_attr( $status ) . '">'
+				. esc_html( $sentence ) . '</li>';
+		}
 	}
 	return $out . '</ul>';
 }

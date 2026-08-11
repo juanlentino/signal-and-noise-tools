@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the give-back section had sixteen rows and said nothing
+
+Un-versioned; rides the next release. **Found by curling the page after
+installing v10.91.0** — not by any test, because the fixtures always supplied
+what the real install did not.
+
+Every install carries a snapshot captured *before* v10.91.0, so it has crawl
+counts and no referral map until the next cron run. In that state the section
+rendered **sixteen rows**: three permanent non-answers, then thirteen identical
+*"X has not been measured yet."* Every sentence was true and the section carried
+no information — and it **opened** with the three rows explaining what it can
+never measure, burying everything else.
+
+**Rows that answer the question now render one each; rows that cannot collapse
+into one sentence per reason, and always trail the answers.**
+
+> Not measured yet: OpenAI, Anthropic, Google, … and Diffbot.
+> Microsoft, DeepSeek and xAI send readers, but their crawlers cannot be told
+> apart from ordinary search here, so there is nothing to measure them against.
+
+Collapsed, not hidden: the operators are still named, and a test asserts they
+are. A non-answer repeated per operator is noise; stated once with the names, it
+is an honest caveat.
+
+*Two counting bugs of my own, both in the test:* the row-count assertion counted
+a substring that appears **twice per element** (the base class and its modifier
+sit on the same `<li>`), and the shape it was checking only exists when the
+referral map is absent — which no fixture had produced. The new case plants a
+snapshot with crawls and no referrals, which is exactly what every install has
+for its first hour.
+
 ## [10.91.0] - 2026-08-11 — which machines send a reader back
 
 **MINOR** — R3 gate **3B is complete**. The give-back ratio was promoted to

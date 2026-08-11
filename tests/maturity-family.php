@@ -164,6 +164,30 @@ ok( false !== strpos( $all, 'never sent a reader back' ), 'the give-back section
 ok( false !== strpos( $all, 'OpenAI read this site 900 times and has never sent a reader back' ), 'the loudest row renders as a SENTENCE, not a bare 0' );
 ok( false !== strpos( $all, 'Anthropic read this site 12 times and sent 3 readers back' ), 'a repaying operator states both sides' );
 ok( false !== strpos( $all, 'cannot be told apart from ordinary search' ), 'not_measurable explains WHY it has no answer, rather than showing a dash' );
+// THE SHAPE THAT SHIPPED BROKEN: a snapshot with crawl counts but NO referral
+// map — exactly what every install has until the first cron run after v10.91.0.
+// The fixtures above always supplied referrals, so the section rendered sixteen
+// rows live (three permanent non-answers, thirteen identical "not measured
+// yet") and no test noticed.
+$saved_snap = $GLOBALS['__options']['sn_mr_snapshot'];
+unset( $GLOBALS['__options']['sn_mr_snapshot']['referrals'] );
+$norefs = sn_machine_maturity_shortcode( array( 'format' => 'full' ) );
+// Count the MODIFIER class: the base class appears on the same element, so
+// counting the base counts every row twice.
+$rows_norefs = substr_count( $norefs, 'giveback__row--' );
+ok( $rows_norefs <= 2, "with no referral data the section is at most 2 rows, not one per operator (got $rows_norefs)" );
+ok( false !== strpos( $norefs, 'Not measured yet:' ), 'the unmeasured operators collapse into ONE named sentence' );
+ok( false !== strpos( $norefs, 'OpenAI' ) && false !== strpos( $norefs, 'Common Crawl' ), 'and that sentence still NAMES them — collapsed, not hidden' );
+ok( 1 === substr_count( $norefs, 'cannot be told apart from ordinary search' ), 'the permanent non-answers collapse to ONE sentence too' );
+ok( false !== strpos( $norefs, 'Microsoft, DeepSeek and xAI send readers' ), 'and read as a list with proper grammar' );
+$GLOBALS['__options']['sn_mr_snapshot'] = $saved_snap;
+
+// The caveats must TRAIL the answers — a section that opens by explaining what
+// it cannot measure buries what it can. This is what the live page did.
+$ans = strpos( $all, 'never sent a reader back' );
+$cav = strpos( $all, 'cannot be told apart from ordinary search' );
+ok( false !== $ans && false !== $cav && $ans < $cav, 'answers come before caveats' );
+
 $gb_pos = strpos( $all, 'never sent a reader back' );
 $ok_pos = strpos( $all, 'sent 3 readers back' );
 ok( $gb_pos < $ok_pos, 'the never-repaid row sorts ABOVE the repaying one — the finding leads' );
