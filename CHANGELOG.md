@@ -2,6 +2,53 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the operator map: the give-back ratio's gate
+
+Un-versioned; rides the next release.
+
+The board promoted the give-back ratio to `planned` **with its gate written into
+the row**: *landing once an explicit operator map names which crawler families
+and which referrer hosts are the same company.* This is that map, built alone and
+first, because the ratio is a division and this is what makes its two sides
+comparable at all.
+
+**Why a map and not a string match.** The vocabularies are unrelated by
+construction — `snt_mr_valid_families()` classifies user-agents (`openai`,
+`google-ai`), `inc/analytics-sources.php` resolves referrer hosts to brand labels
+(`ChatGPT`, `Gemini`). `GPTBot` and `chatgpt.com` are the same company and
+**nothing in either list says so**. A string match happens to work for
+`perplexity`/`Perplexity` and fails for every other pair — the worst kind of
+near-miss, because the case that works makes the technique look sound.
+
+**The asymmetries are real, and both sides are declared even when empty:**
+
+- **Common Crawl** crawls constantly and has no assistant. *"Never sent a
+  reader"* is a true, meaningful answer for it.
+- **Copilot** refers readers, but its crawler is bingbot, classified here as
+  `search`. There is nothing to attribute those crawls to, so its denominator is
+  **absent, not zero**.
+
+A ratio on this must distinguish *crawled but never referred* (a real answer)
+from *no crawl data* (no answer). `snt_mr_operator_is_measurable()` lets callers
+ask before dividing rather than meeting an empty array mid-sum.
+
+**The load-bearing tests are the completeness ones:** `mapped ∪ unmapped == the
+enum`, exactly, and every unmapped family states **why**. A family added upstream
+without a decision fails the suite instead of dropping silently out of every
+denominator — which would make the site look less crawled, the flattering
+direction. Six are deliberately unmapped (`search`, `seo`, `feed`, `uptime`,
+`other-bot`, `unclassified-machine`).
+
+The mirrored label list is compared against `analytics-sources.php` **parsed from
+source**, guarded by an assertion that the parse matched anything at all — a
+regex finding nothing would have passed every comparison below it.
+
+Five mutations verified the guards fire. *A sixth produced a reassuring zero and
+was a **broken mutation**: the regex cut through an escaped apostrophe and left
+unparseable PHP. Verify the mutation applied AND that the file still parses.*
+
+103 assertions. No hooks, no output, no behaviour change — the ratio is next.
+
 ## [10.90.2] - 2026-08-11 — the stamp was fixed and the sentence beside it was not
 
 **PATCH.** Contrast fixes, a board-floor sync, and a non-shipped instrument. No

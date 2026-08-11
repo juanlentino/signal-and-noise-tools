@@ -236,6 +236,11 @@ require_once SNT_PATH . 'inc/machine-readers-snapshot.php';
 // snapshot above — hand it a record, get a sentence. No sensor call on this
 // path by construction, which is what lets it render on a front-end page.
 require_once SNT_PATH . 'inc/machine-readers-rights-reads.php';
+// The operator map: the one place that says which crawler families and which
+// referrer hosts are the same company. Pure data + lookups, no hooks, no output.
+// It is the NAMED GATE on the give-back ratio — the crawler taxonomy and the
+// AI-referrer list are different vocabularies and must never be joined by name.
+require_once SNT_PATH . 'inc/machine-readers-operators.php';
 require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.
