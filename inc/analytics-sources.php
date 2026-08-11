@@ -14,9 +14,15 @@
  * This is a PURE READ-TIME fold: no AE query, no new table, no Worker change. The
  * raw host stays in AE/dims (drill-downs + the categories panel still need it),
  * and the mapping can evolve without re-ingesting. It is the single source of
- * truth for both the brand label (Top sources) and the 4-way category
- * (Search/Social/Direct/Other) — sn_analytics_referrer_category() delegates here,
- * so the two can never drift.
+ * truth for both the brand label (Top sources) and the category split
+ * (Search / AI assistants / Social / Direct / Other) —
+ * sn_analytics_referrer_category() delegates here, so the two can never drift.
+ *
+ * THE 'ai' CATEGORY IS THE HUMAN SEGMENT (R2B): a READER an assistant sent,
+ * counted like any other referral. It is deliberately NOT the crawler
+ * taxonomy (inc/machine-readers-taxonomy.php) and this host list must never
+ * be reused as an "is this an AI request?" predicate — an allowlist inverts
+ * under reuse, and R3's give-back ratio depends on this being the humans.
  *
  * @package SignalNoiseTools
  * @since 6.25.0
@@ -88,7 +94,20 @@ function sn_analytics_source_rules() {
 		return array( 'label' => $label, 'cat' => $cat, 'exact' => $exact, 'contains' => $contains );
 	};
 	return array(
-		// ── Search + AI discovery.
+		// ── AI assistants — readers referred by an assistant's answer (R2B).
+		// ORDER-CRITICAL: this block sits BEFORE Search because first match
+		// wins and 'gemini.google' must claim gemini.google.com before the
+		// generic 'google.' needle folds it into Google.
+		$r( 'ChatGPT',    'ai', array(), array( 'chatgpt.com', 'chat.openai' ) ),
+		$r( 'Claude',     'ai', array(), array( 'claude.ai' ) ),
+		$r( 'Perplexity', 'ai', array(), array( 'perplexity.' ) ),
+		$r( 'Gemini',     'ai', array(), array( 'gemini.google' ) ),
+		$r( 'Copilot',    'ai', array(), array( 'copilot.microsoft' ) ),
+		$r( 'DeepSeek',   'ai', array(), array( 'deepseek.' ) ),
+		$r( 'Le Chat',    'ai', array(), array( 'chat.mistral' ) ),
+		$r( 'Grok',       'ai', array( 'grok.com' ), array( 'grok.x.ai' ) ),
+		$r( 'Meta AI',    'ai', array( 'meta.ai' ), array() ),
+		// ── Search.
 		$r( 'Google',     'search', array(), array( 'google.', 'com.google.android.gm' ) ),
 		$r( 'Bing',       'search', array(), array( 'bing.' ) ),
 		$r( 'DuckDuckGo', 'search', array(), array( 'duckduckgo' ) ),
@@ -100,8 +119,6 @@ function sn_analytics_source_rules() {
 		$r( 'Brave',      'search', array(), array( 'search.brave' ) ),
 		$r( 'Qwant',      'search', array(), array( 'qwant.' ) ),
 		$r( 'Searx',      'search', array(), array( 'searx' ) ),
-		$r( 'ChatGPT',    'search', array(), array( 'chatgpt.com', 'chat.openai' ) ),
-		$r( 'Perplexity', 'search', array(), array( 'perplexity.' ) ),
 		// ── Social + communities.
 		$r( 'X',           'social', array( 't.co', 'x.com' ), array( 'twitter.com' ) ),
 		$r( 'Facebook',    'social', array( 'fb.me' ),         array( 'facebook.' ) ),
@@ -176,7 +193,7 @@ function sn_analytics_host_label_match( $host, $needle ) {
 }
 
 /**
- * Canonical source label → 4-way category (search|social|direct|other). '(direct)'
+ * Canonical source label → category (search|ai|social|direct|other). '(direct)'
  * is direct; a known brand carries its rule's category; anything else (a bare
  * unknown host) is 'other'.
  *

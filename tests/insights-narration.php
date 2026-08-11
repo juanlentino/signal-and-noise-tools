@@ -93,6 +93,7 @@ if ( ! function_exists( 'sn_analytics_top_paths' ) ) {
 }
 if ( ! function_exists( 'sn_analytics_top_sources' ) ) {
 	function sn_analytics_top_sources( $f, $t, $c = 'human', $l = 10 ) {
+		$GLOBALS['__nar_top_sources_class'] = $c; // R2B pin: the segment must be the HUMAN read
 		// array_key_exists, not ?? — a stored NULL models the v9.68.1 failed-read verdict.
 		return array_key_exists( '__nar_top_sources', $GLOBALS )
 			? $GLOBALS['__nar_top_sources']
@@ -156,6 +157,12 @@ if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
 	}
 }
 
+// R2B: the category mapper the ai_referrals signal consults — stubbed to the
+// two labels the fixtures use; the REAL mapping is pinned in
+// tests/analytics-sources.php, not re-tested here.
+function sn_analytics_source_category_of_label( $label ) {
+	return in_array( (string) $label, array( 'ChatGPT', 'Claude' ), true ) ? 'ai' : 'other';
+}
 require_once __DIR__ . '/../inc/ai-markdown-strip.php'; // real shared stripper (v9.64.2) — the parse boundary calls it
 require_once __DIR__ . '/../inc/insights-narration.php';
 
@@ -255,6 +262,27 @@ eq( '25 × 4 stays', $mdp['highlights'][0] ?? null, 'highlight: multiplication s
 // ── Test 7e: v9.64.2 cache key versioned — the stored pre-voice digest is orphaned (P3) ──
 echo "\nTest 7e: narration cache key versioned (P3)\n";
 eq( 'sn_insights_narration_v2', SN_NARRATION_CACHE_KEY, 'fixed cache key bumped to _v2 — a pre-voice cached digest can never be served again' );
+
+// ── Test 7d (R2B): ai_referrals — present only when an AI-category source
+// appears in top_sources; absent otherwise (no filler); instruction carries
+// the humans-not-crawlers rule ──
+echo "\nTest 7d: ai_referrals signal (R2B)\n";
+$GLOBALS['__nar_top_sources'] = array(
+	array( 'value' => 'Google',  'views' => 100, 'visits' => 60 ),
+	array( 'value' => 'ChatGPT', 'views' => 12,  'visits' => 8 ),
+	array( 'value' => 'Claude',  'views' => 5,   'visits' => 3 ),
+);
+$sig7d = snt_narration_collect_signals();
+ok( isset( $sig7d['ai_referrals'] ) && 2 === count( $sig7d['ai_referrals'] ), 'ai_referrals carries exactly the AI-category sources (2 of 3)' );
+ok( 'human' === ( $GLOBALS['__nar_top_sources_class'] ?? '' ), 'the sources feeding ai_referrals are the HUMAN-class read — a bot-class row can never enter the segment (the two-lists trap, enforced at the read)' );
+ok( 'ChatGPT' === $sig7d['ai_referrals'][0]['source'] && 12 === $sig7d['ai_referrals'][0]['views'], 'rows keep source label + views' );
+$GLOBALS['__nar_top_sources'] = array( array( 'value' => 'Google', 'views' => 100, 'visits' => 60 ) );
+$sig7d2 = snt_narration_collect_signals();
+ok( ! array_key_exists( 'ai_referrals', $sig7d2 ), 'NO ai_referrals key when no AI source appears — absent, never an empty filler block' );
+unset( $GLOBALS['__nar_top_sources'] );
+$sys7d = snt_narration_system_instruction();
+ok( false !== strpos( $sys7d, 'ai_referrals' ), 'instruction names the ai_referrals block' );
+ok( false !== strpos( $sys7d, 'NEVER conflate them with the "machine" block' ), 'instruction pins humans-vs-crawlers: the channel is people, the machine block is crawlers' );
 
 // ── Test 8: collect_signals machine block graceful ──
 echo "\nTest 8: machine block omitted when edge idle, present when it saw hits\n";
