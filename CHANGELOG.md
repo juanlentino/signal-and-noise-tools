@@ -2,10 +2,9 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the give-back section had sixteen rows and said nothing
+## [10.91.1] - 2026-08-11 — the give-back section had sixteen rows and said nothing
 
-Un-versioned; rides the next release. **Found by curling the page after
-installing v10.91.0** — not by any test, because the fixtures always supplied
+**PATCH.** Found by curling the page after installing v10.91.0 — not by any test, because the fixtures always supplied
 what the real install did not.
 
 Every install carries a snapshot captured *before* v10.91.0, so it has crawl
