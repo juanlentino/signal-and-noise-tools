@@ -232,9 +232,30 @@ function sn_prov_explorer_cta( $kind ) {
  * @return string
  */
 function sn_prov_render_chip( $post_id ) {
+	// ONE CHIP PER SUBJECT PER REQUEST — the same invariant v10.87.1 gave the
+	// panel, and for the same reason, ahead of the same failure rather than
+	// after it.
+	//
+	// The panel doubled because two callers appeared for one surface and neither
+	// could see the other: a template slot and a content-filter append. The chip
+	// now has exactly that shape — the theme's byline shortcode and (since the
+	// page badge) this file's own append. Today only one fires per subject: a
+	// page has no byline, a note does not take the append. That is a property of
+	// the CURRENT templates, not of the code, and it is precisely the assumption
+	// that stopped being true last time.
+	//
+	// Safe because a chip repeated for ONE subject is never right, while a chip
+	// per subject in a list is untouched — the guard is keyed by post_id, so an
+	// archive rendering twenty chips renders twenty.
+	static $rendered = array();
+	$post_id = (int) $post_id;
+	if ( empty( $GLOBALS['SN_PROV_RENDER_GUARD_OFF'] ) && isset( $rendered[ $post_id ] ) ) {
+		return '';
+	}
+
 	$vm = sn_prov_view_data( $post_id );
 	if ( null === $vm ) {
-		return '';
+		return ''; // No chain: nothing rendered, so NOT marked.
 	}
 	$root = sn_prov_genesis_root_state();
 	$pres = sn_prov_present_status( $vm['status'], $root['status'] );
@@ -283,6 +304,13 @@ function sn_prov_render_chip( $post_id ) {
 		$verify_href .= '&v=' . (int) $vm['version'];
 	}
 	$verify_link = ' <a class="sn-prov-chip-verify" href="' . esc_url( $verify_href ) . '">Verify</a>';
+
+	// Mark here: both remaining paths emit markup, and a caller that got '' back
+	// must not consume the one chip this subject gets. Skipped when the seam is
+	// off, because then the process is not one request.
+	if ( empty( $GLOBALS['SN_PROV_RENDER_GUARD_OFF'] ) ) {
+		$rendered[ $post_id ] = true;
+	}
 
 	if ( '' === $href ) {
 		// Unlinked chip states (pending with no txid) stay a plain span: the
