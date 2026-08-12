@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the read door gets a ceiling (F1 bounded)
+
+Un-versioned; rides the next release with F2 and the threat model.
+
+The write door's stack ended in a rate limiter; the read door's was kill switch →
+`manage_options` and nothing else. **120 calls per minute per identity** now
+apply to **both** routes — the MCP read door and the native run route — on the
+same reasoning as F2: gate the path, not one route on it. Four times the write
+cap, because reads are cheap and bursty and the number that matters is that a
+ceiling exists at all.
+
+A refusal is **429, deliberately not 403.** The kill switch runs at an earlier
+priority, so a disabled door still answers *"closed"* rather than *"slow down"* —
+a caller told to slow down keeps trying.
+
+The primitives **duplicate** the write door's rather than calling them.
+`mcp-read-guard.php`'s header states the doors' guards stay isolated, and sharing
+a limiter would couple them at exactly the layer the split exists to keep apart.
+A test asserts the read guard still contains no reference to the rw limiter.
+
+**Bounded, not closed, and the distinction is the point.** It is **fail-open**:
+an unavailable store yields a null count, reads as zero, and allows — identical
+to the write door, and correct for a throttle that must not harden into an
+outage. Sufficient against a runaway loop; against a brokered caller who can
+induce store unavailability, the read path is unbounded again. §8.7 records that
+a broker needs it to fail **closed** on the brokered path specifically, which is
+a decision for wherever the broker is designed rather than a retrofit here.
+
+*Caught by mutation:* the assertion that the ceiling passes a 403 through
+untouched **could not fail** as first written — it ran with an empty counter, so
+the limiter allowed and returned the prior result regardless. It now runs against
+an exhausted ceiling, which is the only state where the mutant answers 429.
+
 ## [Unreleased] — the read kill switch now covers the read path (F2 closed)
 
 Un-versioned; rides the next release with the threat model below, which found it.

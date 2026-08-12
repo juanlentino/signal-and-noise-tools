@@ -182,7 +182,8 @@ These are properties of the current build, checked while writing this section. A
 are harmless while the population is one laptop, and all three become load-bearing the
 moment it is not.
 
-**F1 — The read door has no rate limit.** The write door's gate stack ends in
+**F1 — The read door had no rate limit. BOUNDED, see §8.7 — but fail-open, so
+not yet closed.** The write door's gate stack ends in
 `sn_mcp_rw_rate_limit_gate()`; the read door's is `kill switch → sn_mcp_permission()`
 and nothing else. `mcp-tools.php` applies the limiter only when the door is `RW`. A
 door reachable from one laptop does not need one. A door reachable from the internet
@@ -216,8 +217,8 @@ owner does not administer and cannot rotate from wp-admin.
    the read path, not one route on it. That is a correctness fix the current build
    wants regardless of whether 3D ever ships, and it should not arrive bundled with a
    new trust boundary where its absence would be load-bearing.
-2. **Give the read door a rate limit** (F1), modelled on the rw limiter's shape, before
-   any caller other than the laptop exists.
+2. **Give the read door a rate limit — DONE 2026-08-11, §8.7 — and then make it
+   fail CLOSED**, which it does not yet. The ceiling exists; the boundary does not.
 3. **Decide what the edge holds**, in writing, before building it. A broker that holds
    no long-lived secret — exchanging a short-lived token per session — is a materially
    different object from one that stores an application password.
@@ -262,6 +263,33 @@ option, and fail-open-on-absence is unchanged — an untouched switch still mean
 owner never turned it off.
 
 **F1 (no rate limit on the read door) remains open**, and remains a precondition.
+
+### §8.7 — F1, bounded but not closed (2026-08-11)
+
+The read path now carries a ceiling: **120 calls per minute per identity**, four
+times the write door's cap because reads are cheap and bursty. It applies to
+**both** routes — the MCP read door and the native run route for a
+read-allowlisted ability — on the same reasoning as §8.6: gate the path, not one
+route on it. A refusal is **429**, deliberately not 403; the kill switch runs at
+an earlier priority so a disabled door still answers "closed" rather than "slow
+down".
+
+The primitives **duplicate** mcp-rw-guard.php's rather than calling them. This
+file's header states the doors' guards stay isolated, and sharing a limiter would
+couple them at exactly the layer the read/write split exists to keep apart. A
+test asserts the read guard still contains no reference to the rw limiter.
+
+**This is a ceiling, not a boundary, and the distinction is the whole point.**
+It is **fail-open**: an unavailable backing store yields a null count, which
+reads as zero and allows — identical to the write door, and correct for a
+throttle that must not harden into an outage. Against a runaway loop that is
+sufficient. Against **A5**, a caller who can induce store unavailability gets an
+unbounded read path back.
+
+**So F1 is bounded, not closed.** Before any broker exists, the ceiling must fail
+**closed** on the brokered path specifically — which is a different decision from
+changing the local default, and should be made where the broker is designed
+rather than retrofitted here.
 
 ### §8.5 — The recommendation this section makes
 
