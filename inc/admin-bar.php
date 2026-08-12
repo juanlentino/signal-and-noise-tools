@@ -69,6 +69,16 @@ function sn_admin_bar_items() {
 			// in the Site Editor, which WP 7.1 newly shows the toolbar in and
 			// which owns exactly those records. See the guard's docblock.
 			'guard'  => 'sn_admin_bar_destructive_allowed',
+			// Blocking confirmation before the request fires. The only item that
+			// carries one, deliberately: a confirm on every action trains the
+			// reader to dismiss it unread, which costs the one place it matters.
+			// Plain English, untranslated, matching every other string in this
+			// file (this module has no i18n calls at all).
+			'confirm' => "Clear DB Overrides\n\n"
+				. "This permanently deletes EVERY template, template part and navigation "
+				. "menu stored in the database — everything saved in the Site Editor.\n\n"
+				. "The records are force-deleted, not moved to Trash. This cannot be undone.\n\n"
+				. 'Continue?',
 		),
 		'sn-quick-cf-purge' => array(
 			'action' => 'sn_quick_cf_purge',
@@ -394,10 +404,14 @@ function sn_handle_quick_cf_purge() {
  * action hooks. Guarded on capability + admin-bar-showing.
  *
  * Security: uses textContent (not innerHTML) when manipulating link
- * labels. The only data flowing from server to client is the action
- * name + nonce, both server-controlled. Toast message comes from the
- * AJAX response — also server-controlled, but textContent ensures
- * any future bug there can't escalate to XSS.
+ * labels. Everything flowing from server to client is server-controlled:
+ * the action name, the nonce, the contextual postId, and the confirm
+ * prose for destructive items. All four ride wp_json_encode(), which
+ * escapes the closing-tag sequence, so none can break out of the
+ * <script> block. Toast message comes from the AJAX response — also
+ * server-controlled, but textContent ensures any future bug there can't
+ * escalate to XSS. The confirm string reaches only window.confirm(),
+ * which renders text, never markup.
  */
 function sn_admin_bar_print_script() {
 	if ( ! current_user_can( 'manage_options' ) ) {
@@ -426,6 +440,16 @@ function sn_admin_bar_print_script() {
 		if ( is_int( $guard_value ) && $guard_value > 0 ) {
 			$node['postId'] = $guard_value;
 		}
+		// Confirmation prose for destructive items. Forwarded to the client
+		// because the gate has to be here: the item's href is '#' and the JS owns
+		// the request, so a confirm declared in sn_admin_bar_items() that never
+		// reaches this config is a confirm that does nothing at all. Asserted
+		// end-to-end in tests/admin-bar-quick-actions.php rather than only at the
+		// declaration — a one-sided check on the items array would pass while the
+		// button fired unconfirmed.
+		if ( ! empty( $item['confirm'] ) && is_string( $item['confirm'] ) ) {
+			$node['confirm'] = $item['confirm'];
+		}
 		$nonces[ $node_id ] = $node;
 	}
 
@@ -448,8 +472,20 @@ function sn_admin_bar_print_script() {
 			const originalText = link.textContent;
 
 			link.addEventListener('click', function (e) {
+				// preventDefault first and unconditionally: href is '#', so an
+				// early return past this point would jump the page to the top.
 				e.preventDefault();
 				if (link.dataset.snBusy === '1') return;
+				// Destructive items gate here, BEFORE the busy flag and the label
+				// swap — a declined confirm must leave the row untouched and
+				// immediately re-clickable, not stuck spinning on a request that
+				// never fired. Native confirm() rather than a custom modal: it is
+				// keyboard-accessible and screen-reader-announced for free, and a
+				// hand-rolled dialog inside the admin bar would have to re-earn
+				// both. Items without a confirm string skip this entirely.
+				if (typeof meta.confirm === 'string' && meta.confirm !== '' && !window.confirm(meta.confirm)) {
+					return;
+				}
 				link.dataset.snBusy = '1';
 				link.textContent = '… ' + originalText.replace(/^\S+\s*/, '');
 

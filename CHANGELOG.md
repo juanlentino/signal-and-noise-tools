@@ -2,6 +2,50 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — Clear DB Overrides asks first
+
+The 7.1 work hid this action from the Site Editor, where it can delete the very
+records the canvas is editing. That fixed *where* it renders. This fixes what
+happens when it is clicked anywhere else.
+
+`⌫ Clear DB Overrides` force-deletes every `wp_template`, `wp_template_part` and
+`wp_navigation` — `wp_delete_post( $id, true )`, no trash, no undo — and until now
+a single click did it with no prompt, from any admin page and from the front end.
+
+It now gates on a blocking `window.confirm()` naming what is deleted and that the
+records are not recoverable. Native dialog rather than a custom modal: it is
+keyboard-accessible and screen-reader-announced for free, and a hand-rolled dialog
+inside the admin bar would have to re-earn both.
+
+**Exactly one item carries a confirm, and that is asserted.** A confirmation on
+every action trains the reader to dismiss it unread, which costs the one place it
+matters — so the test pins the count, not just the presence.
+
+Three ordering and delivery properties, each tested because each is silently
+breakable:
+
+- The gate sits **before** the busy flag and the label swap, so declining leaves
+  the row untouched and immediately re-clickable rather than spinning on a request
+  that never fired.
+- `e.preventDefault()` still runs first and unconditionally — the item's `href` is
+  `#`, so an early return above it would jump the page to the top.
+- The confirm is **forwarded into the localized config**, and the test decodes that
+  config back out of the printed `<script>` to assert it arrives byte-identical.
+  This is the load-bearing assertion: the JS owns the request, so a confirm
+  declared in `sn_admin_bar_items()` that never reaches the client is a confirm
+  that does nothing — the same one-sided-contract shape as the 7.1 hook name that
+  registered against a hook core never shipped. A check on the items array alone
+  would pass while the button fired unconfirmed.
+
+`sn_admin_bar_print_script()` had no test coverage at all before this; it now has
+seven assertions, and the emitted script is verified to parse with `node --check`.
+
+([tests/admin-bar-quick-actions.php](tests/admin-bar-quick-actions.php) → 60
+asserts to 71. Mutation-fired four ways: declaring the confirm without forwarding
+it reds 2, forwarding without a JS gate reds 2, moving the gate after the busy flag
+reds 1, and spreading a confirm to a second item reds 2. Full sweep 422 suites /
+16,541 assertions green; PHPCS and PHPStan clean.)
+
 ## [Unreleased] — WordPress 7.1 readiness
 
 Three findings from the [7.1 field guide](https://make.wordpress.org/core/2026/08/05/wordpress-7-1-field-guide/),
