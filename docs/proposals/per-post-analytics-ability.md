@@ -191,7 +191,12 @@ a browser.
 2. **Is `views_lifetime` affordable?** It implies an unbounded window per path.
    AE's default 10,000-row cap (`SN_ANALYTICS_AE_ROW_CAP`) applies; a very old
    path may need a stated ceiling rather than a true lifetime.
-3. **Does this belong in the phone slice at all on day one**, or does the
-   transport ship first with the existing summary/events, and this land second?
-   Shipping it second means the transport's blast radius is smaller while it is
-   least proven.
+3. ~~Does this belong in the phone slice on day one?~~ **DECIDED 2026-08-12
+   (owner): transport first, per-post second.** The transport ships with the
+   existing `get-analytics-summary` / `get-analytics-events` / `get-narration`,
+   so the door's blast radius is at its smallest while the door is least proven.
+   This ability lands once the transport has survived its own kill criteria.
+   Note the consequence: §5's open question — a remote principal satisfying the
+   permission callback without `manage_options` — must be **answered by the
+   transport work**, not by this spec, because the transport ships first and
+   needs it too.

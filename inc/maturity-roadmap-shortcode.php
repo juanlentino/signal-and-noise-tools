@@ -159,11 +159,19 @@ function sn_maturity_roadmap_static_board() {
 			'planned'     => array(
 				__( 'Move the operative AI channel to the desktop platform\'s native agents, once that runner is stable enough to trust with the same fences', 'signal-and-noise-tools' ),
 				__( 'Retire the legacy single-purpose tools the consolidated set absorbed, on usage evidence rather than on a date', 'signal-and-noise-tools' ),
+				// 2026-08-12: REOPENED and promoted considering -> planned. The
+				// old row recorded the edge broker as DECLINED, and named a
+				// reopening condition — an agent reading the CORPUS from a
+				// phone — that is not the one that fired. The owner asked for
+				// ANALYTICS from a phone: a different asset, a different risk,
+				// and the reason the calculus inverts. A planned row names its
+				// gate, so this one carries the three preconditions the decline
+				// was right about.
+				__( 'Read the site\'s numbers from a phone: an analytics-only door, reached through a scoped token that expires rather than the site\'s own password, with the rate ceiling that guards it failing closed instead of open, and a stop switch reachable from the phone it protects — writing stays on the desktop, and nothing that can name an unpublished draft goes through it', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),
 				__( 'Richer edit primitives beyond sentence scale — the drafting boundary stands regardless of what is explored here', 'signal-and-noise-tools' ),
-				__( 'Reach the read door from the web and the phone: examined and the edge broker DECLINED — wp-admin already serves those facts, the asset is unpublished drafts, and a credential the site cannot rotate is a permanent cost for a convenience. Reopens only for a real task needing an agent to read the corpus from a phone, and then as a scoped expiring token', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'Injection self-sweep: every machine surface the site publishes — the crawler manifest, structured data, the board itself, the doors\' own descriptions — linted for instruction-shaped text before it ships, so a site that treats prose as data can prove its own prose is clean — a thread shared with Machine readability', 'signal-and-noise-tools' ),
