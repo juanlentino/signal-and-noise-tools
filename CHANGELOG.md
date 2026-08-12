@@ -26,12 +26,31 @@ sentence with **no** fold, because a closed disclosure reading "0 events" would
 rhyme with a measured zero.
 
 Presentation-only — the Worker, the view allowlist, and
-`snt_mr_normalize_rights_rows()` are untouched. Tests +16, with the sort
+`snt_mr_normalize_rights_rows()` are untouched. Tests +15, with the sort
 direction, the undated-row placement, the display cap, and the true-count
 summary each mutation-fired by name; both Machine Readers harnesses gain a
 real-shape `_n()` stub (returns, never echoes, selects on the count).
 `docs/MACHINE-READERS.md` stops describing the pre-v10.79.0 four-table card and
 names the two tiers the tab actually renders.
+
+### H4 + M4: the shared caret finishes its rollout, and the MCP leaf polishes
+
+The two leftovers from the v10.95.0 arc. The contrast report's **arithmetic**
+and **conditional** disclosures were still wearing the browser's default
+triangle while usage and motion had the shipped `.sn-disclosure` caret; both
+now carry it, and all three are pinned together so stripping the shared class
+from any one is caught. A pre-existing assertion was strengthened on the way
+past: it searched for `sn-health-contrast-usage" open`, a string the rendered
+markup never contained in either state — vacuous since H1, and now matched to
+the real class list.
+
+On AI → MCP Clients, the **Claude desktop-app steps** and the OAuth warning
+fold behind a closed disclosure with the callout heading left outside, so the
+section stays findable while the four-step setup stops competing with the
+common path; every asserted string stays verbatim in the HTML. And
+`.sn-mcp-tool-list` finally has a rule: two columns at admin widths collapsing
+to one under 782px, at the 11px type floor, reusing the existing spacing token
+— so an *expanded* slug inventory is scannable rather than a 38-row ribbon.
 
 ## [10.95.0] - 2026-08-12 — the admin behemoths slim down, motion gets its view, and a board day of graduations
 
