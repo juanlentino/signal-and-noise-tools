@@ -73,6 +73,7 @@ function sn_health_check_family_map() {
 		// Accessibility: what a reader who needs the affordance gets.
 		'missing_alt'          => 'a11y',
 		'contrast_tokens'      => 'a11y',
+		'motion_scan'          => 'a11y',
 
 		// Machine learning: the kernel's own watches.
 		'ml_cousins'           => 'ml',

@@ -35,6 +35,29 @@ scan). The board's last empty cell is gone (the structural pins move with
 the truth: 0 empties, 21 folds). Legend 21/9/17/12; floor fingerprint
 `3231e3ae…` == the door-written board; sweep 16,613 → 16,618.
 
+## [Unreleased]
+
+### Motion that asks first: the reduced-motion scan lands report-first
+
+The Accessibility row promoted this evening, its report half delivered:
+check #20 (`motion_scan`, family a11y, REPORT ONLY) reads the same front-sheet
+population and rule parser as the contrast usage tier and asks one question
+per declared animation or transition — does it respect a visitor's motion
+setting? Two coverages count, both already idioms in these sheets: GATED
+(declared inside `prefers-reduced-motion: no-preference` — motion that
+literally asks first) and NEUTRALIZED (a `reduce` block sets the SAME kind to
+none for that selector — exact, list member, or universal `*` — in any
+scanned sheet; the kinds are separate claims, so a transition reset silences
+no keyframe). Script-driven motion is invisible to a stylesheet reader and
+the coverage sentence says so. The detailed uncovered-table renders with the
+coming Health-tab IA redesign; the checks list carries the label meanwhile.
+
+Two instruments earned their keep landing this: the check-families contract
+red on the unmapped check, and the assertion-ledger arithmetic (16,618 + 23
+must equal the sweep) caught that a failing suite still prints its passing
+count into the sweep total — the summary line alone would have shipped the
+gap. Tests +23 (real parser, no stubs); sweep 16,618 → 16,641.
+
 ## [10.94.0] - 2026-08-12 — traffic rhythm flags: the cadence watch learns to read views
 
 The R4 row promoted this morning, delivered by evening — its gate honoured
