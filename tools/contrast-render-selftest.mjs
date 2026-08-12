@@ -120,6 +120,106 @@ ok( Array.isArray( report.urls ) && report.urls.length === 1, 'report names the 
 ok( typeof report.generated === 'string', 'report is timestamped, so a stale one is recognisable as stale' );
 ok( report.measurements > report.pairings, 'measurements exceed distinct pairings (states re-measure the page)' );
 
+// ── Group 6: --deterministic (Increment 0) ───────────────────────────────────
+// The proposal's Increment 0. Two of these ARE kill criteria: if the two-run
+// identity fails, or if freezing transitions also freezes the forced-state
+// restyle, the mode does not work and nothing downstream should be built.
+console.log( '\nGroup 6: --deterministic mode' );
+
+const detOut = join( here, '.selftest-det.json' );
+const detOut2 = join( here, '.selftest-det2.json' );
+
+// execFileSync throws on non-zero exit; capture the code instead of dying.
+const run = ( argv ) => {
+	try {
+		const stdout = execFileSync( process.execPath, [ scanner, ...argv ], {
+			stdio: 'pipe',
+			encoding: 'utf8',
+		} );
+		return { code: 0, stdout, stderr: '' };
+	} catch ( e ) {
+		return {
+			code: e.status === undefined ? -1 : e.status,
+			stdout: String( e.stdout || '' ),
+			stderr: String( e.stderr || '' ),
+		};
+	}
+};
+
+// 6.1 — refuse the live default list. A deterministic run against production
+// is a contradiction: the edge is not repo-controlled input.
+const noTargets = run( [ '--deterministic' ] );
+ok(
+	noTargets.code !== 0,
+	'deterministic mode with no explicit target exits non-zero (it must never fall back to the live DEFAULT_URLS)'
+);
+ok(
+	/deterministic/i.test( noTargets.stderr + noTargets.stdout ),
+	'…and says why, rather than failing silently'
+);
+
+// 6.2 — FAIL CLOSED on a total skip. This is the live defect: goto failure
+// `continue`s, findings stays empty, and the process exits 0 — a clean bill of
+// health from a scan that measured nothing.
+const allSkip = run( [ '--deterministic', 'http://127.0.0.1:1/' ] );
+ok(
+	allSkip.code !== 0,
+	'every target skipped exits NON-ZERO (a scan that measured nothing is not a clean site)'
+);
+ok(
+	! /No rendered pairing falls below AA/.test( allSkip.stdout ),
+	'…and never prints the all-clear line when nothing was measured'
+);
+
+// 6.3 — DETERMINISM, the headline claim. Two consecutive runs, same fixture,
+// byte-identical findings and unscoreable. KILL CRITERION 1.
+run( [ '--deterministic', fixture, '--json', detOut ] );
+run( [ '--deterministic', fixture, '--json', detOut2 ] );
+const d1 = JSON.parse( readFileSync( detOut, 'utf8' ) );
+const d2 = JSON.parse( readFileSync( detOut2, 'utf8' ) );
+ok(
+	JSON.stringify( d1.findings ) === JSON.stringify( d2.findings ),
+	'KILL CRITERION 1: two consecutive deterministic runs agree exactly on findings'
+);
+ok(
+	JSON.stringify( d1.unscoreable ) === JSON.stringify( d2.unscoreable ),
+	'KILL CRITERION 1: …and on the unscoreable list (a refusal is a verdict too)'
+);
+
+// 6.4 — freezing transitions must not freeze the forced-state RESTYLE.
+// If Increment 0 "achieved" determinism by losing the hover case, it has
+// broken the one blind spot the rendered tier exists to close. KILL CRITERION 3.
+const detHover = ( d1.findings || [] ).filter( ( f ) => f.state === 'hover' );
+ok(
+	detHover.length === 1 && Math.abs( detHover[ 0 ].ratio - 3.29 ) < 0.02,
+	'KILL CRITERION 3: the planted 3.29:1 hover case is STILL found with transitions disabled'
+);
+
+// 6.5 — the report says which pins were applied. A report that cannot be told
+// apart from an unpinned one cannot be trusted as evidence later.
+ok( d1.deterministic === true, 'the report records that it was a deterministic run' );
+ok(
+	d1.pins && d1.pins.transitions === 'disabled' && d1.pins.waitUntil === 'load',
+	'the report names its pins (frozen transitions, load not networkidle)'
+);
+ok(
+	d1.pins && d1.pins.reducedMotion && d1.pins.colorScheme,
+	'the report names the emulated media pins it applied'
+);
+
+// 6.6 — the unpinned path still works. Increment 0 adds a mode; it does not
+// remove the live spot-check.
+const live = JSON.parse( readFileSync( out, 'utf8' ) );
+ok( live.deterministic === false, 'a normal (unpinned) run is labelled as such, never as deterministic' );
+
+for ( const f of [ detOut, detOut2 ] ) {
+	try {
+		unlinkSync( f );
+	} catch {
+		/* best effort */
+	}
+}
+
 try {
 	unlinkSync( out );
 } catch {

@@ -4,6 +4,51 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### The render scanner stops reporting a clean site when it measured nothing
+
+Increment 0 of the deterministic render-scan proposal
+([docs/proposals/render-scan-deterministic.md](docs/proposals/render-scan-deterministic.md)),
+and — per the owner's decision — **the only increment being built**. The
+workflow stays find-then-pin: run the instrument by hand, pin what it finds in
+`tests/*.php`, the way v10.90.1 already did. No recurring rendered census, no
+Health-panel ingest, no new CI job.
+
+**The defect, fixed unconditionally.** `tools/contrast-render-scan.mjs` logged
+`SKIP` and continued when `page.goto` failed, then exited
+`findings.length ? 1 : 0`. A run where **every** target failed to load printed
+*"No rendered pairing falls below AA"* and exited **0** — a clean bill of health
+from a scan that sampled nothing. That is this repo's most-repeated defect shape
+(a suite with no summary line counting as green), and it is a false green in the
+unpinned mode exactly as much as in the pinned one, so the gate is *not* a
+feature of the new flag: any run that measures nothing now exits 2 and never
+prints the all-clear. A missing Chrome fails the same way instead of degrading
+to "no findings".
+
+**`--deterministic`** pins what can be pinned: transitions and animations frozen
+before any sample, `prefers-reduced-motion` and `prefers-color-scheme` emulated
+rather than inherited from the machine, `waitUntil: 'load'` instead of
+`networkidle` (a property of the network, not the page), `deviceScaleFactor: 1`.
+It **refuses the built-in live URL list** — a deterministic run needs
+repo-controlled input, and pinning the browser while leaving the CDN, the minify
+layer and the content free to move underneath it is the most misleading
+combination available. The JSON report records the mode, the pins, and the
+Chrome version, because the engine is the one source this mode *cannot* pin and
+two disagreeing runs should be diagnosable rather than mysterious.
+
+**Both of the proposal's kill criteria were run as tests, not assumed.** Two
+consecutive deterministic runs agree exactly on findings and on the unscoreable
+list; and the planted 3.29:1 hover case is *still found* with transitions
+disabled — freezing motion did not "achieve" determinism by losing the one blind
+spot the rendered tier exists to close. Had either failed, Increment 0 would
+have been the thing to stop.
+
+11 new self-test assertions (18 → 29). Mutation-checked, because 2 of them
+passed before implementation (an unknown flag was simply ignored): making the
+freeze also kill the hover restyle fires kill criterion 3 by name, shuffling
+findings order fires kill criterion 1, dropping the fail-closed gate fires 1,
+and letting `--deterministic` fall back to the live list fires 2. `tools/` is
+outside the PHP sweep, which is unchanged at 16,826.
+
 ### The Trust findings cap stops being two numbers that must agree
 
 `inc/integrity-trust-admin.php` printed up to three finding notes per check and
