@@ -35,6 +35,59 @@ foreach ( array_keys( snt_trust_check_keys() ) as $key ) {
 }
 ok( 4 === count( snt_trust_check_keys() ), 'exactly four trust checks are surfaced' );
 
+// ── Findings cap: ONE source of truth for the slice and the remainder ──
+// The renderer used to write the cap twice — array_slice( …, 0, 3 ) and a
+// separate `count( … ) > 3` test for the "see more" link. Two literals that
+// MUST agree and nothing enforcing it: change one and the link either appears
+// with nothing behind it or vanishes while rows are hidden. The split is now a
+// single function, so the invariant holds by construction.
+$mk = function ( $n ) {
+	$out = array();
+	for ( $i = 1; $i <= $n; $i++ ) { $out[] = array( 'note' => 'n' . $i ); }
+	return $out;
+};
+
+$s5 = snt_trust_findings_split( $mk( 5 ) );
+ok( 3 === count( $s5['shown'] ) && 2 === $s5['hidden'],
+	'findings split: 5 findings -> 3 shown, 2 hidden' );
+$s3 = snt_trust_findings_split( $mk( 3 ) );
+ok( 3 === count( $s3['shown'] ) && 0 === $s3['hidden'],
+	'findings split: exactly at the cap -> nothing hidden (no phantom remainder)' );
+$s2 = snt_trust_findings_split( $mk( 2 ) );
+ok( 2 === count( $s2['shown'] ) && 0 === $s2['hidden'],
+	'findings split: under the cap -> all shown, nothing hidden' );
+$s0 = snt_trust_findings_split( array() );
+ok( 0 === count( $s0['shown'] ) && 0 === $s0['hidden'],
+	'findings split: no findings -> empty, not a negative remainder' );
+
+// The invariant the two literals could previously violate: nothing is ever
+// dropped without being counted, at ANY size.
+$conserved = true;
+foreach ( array( 0, 1, 2, 3, 4, 9, 40 ) as $n ) {
+	$sp = snt_trust_findings_split( $mk( $n ) );
+	if ( count( $sp['shown'] ) + $sp['hidden'] !== $n ) { $conserved = false; }
+}
+ok( $conserved, 'findings split: shown + hidden == total at every size (nothing dropped uncounted)' );
+
+// A non-array (a producer returning null) must not fatal or invent rows.
+$sn = snt_trust_findings_split( null );
+ok( 0 === count( $sn['shown'] ) && 0 === $sn['hidden'],
+	'findings split: a null findings list degrades to empty, never a warning' );
+
+// Source pin: the renderer must go through the helper. A future edit that
+// reintroduces a bare literal cap is exactly the drift this closes.
+$trust_src = (string) file_get_contents( __DIR__ . '/../inc/integrity-trust-admin.php' );
+ok( false !== strpos( $trust_src, 'snt_trust_findings_split(' ),
+	'the renderer uses the shared split rather than slicing inline' );
+ok( 1 === substr_count( $trust_src, 'SNT_TRUST_FINDINGS_CAP =' ),
+	'the cap is declared exactly once' );
+// Count the CALL, not a string that prose can also contain — the first version
+// of this pin matched the docblock describing the old shape, which is a pin
+// firing on its own documentation rather than on code.
+ok( 1 === substr_count( $trust_src, 'array_slice(' )
+	&& false !== strpos( $trust_src, 'array_slice( $all, 0, SNT_TRUST_FINDINGS_CAP )' ),
+	'exactly one array_slice call, and it takes its length from the constant' );
+
 // ── Cards: clear / findings / absent ──
 $scan = array(
 	'scanned_at' => 1785874574,
