@@ -83,6 +83,35 @@ function snt_trust_check_keys() {
  * @param array|null $scan sn_health_last_scan() result.
  * @return array<int,array<string,mixed>>
  */
+/**
+ * How many finding notes the Trust table prints per check before deferring to
+ * the Health tab. Declared ONCE: the slice and the "is anything hidden" test
+ * are the same number, and they used to be two separate literals.
+ */
+const SNT_TRUST_FINDINGS_CAP = 3;
+
+/**
+ * Split a check's findings into the slice shown here and the count deferred to
+ * Health.
+ *
+ * The cap used to be written twice — once as the slice length, once as the
+ * threshold in a separate count guard on the "see more" link. Two literals that
+ * must agree, with nothing enforcing it: change one and the link either appears
+ * with nothing behind it or disappears while rows are still hidden. Deriving
+ * both from one array makes shown + hidden == total true by construction rather
+ * than by keeping two numbers matching.
+ *
+ * @param mixed $findings The check's findings list (tolerates null).
+ * @return array{shown:array, hidden:int}
+ */
+function snt_trust_findings_split( $findings ) {
+	$all = array_values( (array) $findings );
+	return array(
+		'shown'  => array_slice( $all, 0, SNT_TRUST_FINDINGS_CAP ),
+		'hidden' => max( 0, count( $all ) - SNT_TRUST_FINDINGS_CAP ),
+	);
+}
+
 function snt_trust_cards( $scan ) {
 	$checks = is_array( $scan ) && isset( $scan['checks'] ) && is_array( $scan['checks'] ) ? $scan['checks'] : array();
 	$cards  = array();
@@ -186,7 +215,8 @@ function snt_trust_render_section() {
 			// The finding NOTES are the whole value when something is wrong — an
 			// integrity failure that only says "1 finding" sends the reader back to
 			// the Health tab to find out which leg broke.
-			foreach ( array_slice( (array) ( $checks[ $key ]['findings'] ?? array() ), 0, 3 ) as $finding ) {
+			$split = snt_trust_findings_split( $checks[ $key ]['findings'] ?? array() );
+			foreach ( $split['shown'] as $finding ) {
 				$note    = (string) ( $finding['note'] ?? '' );
 				$subject = (string) ( $finding['subject_label'] ?? '' );
 				$url     = (string) ( $finding['subject_url'] ?? '' );
@@ -199,8 +229,17 @@ function snt_trust_render_section() {
 				echo esc_html( $note );
 				echo '</div>';
 			}
-			if ( count( (array) ( $checks[ $key ]['findings'] ?? array() ) ) > 3 ) {
-				echo '<div class="sn-trust-finding"><a href="' . esc_url( $health_url ) . '">' . esc_html__( 'See all on Health →', 'signal-and-noise-tools' ) . '</a></div>';
+			// Name the count rather than just offering the link: "See all" makes
+			// the reader subtract the shown rows from the pill above to learn how
+			// much is behind it. House shape is "+N more".
+			if ( $split['hidden'] > 0 ) {
+				echo '<div class="sn-trust-finding"><a href="' . esc_url( $health_url ) . '">' . esc_html(
+					sprintf(
+						/* translators: %d: findings not shown here. */
+						__( '+%d more on Health →', 'signal-and-noise-tools' ),
+						$split['hidden']
+					)
+				) . '</a></div>';
 			}
 		}
 		echo '</td>';
