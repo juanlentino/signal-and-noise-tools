@@ -22,6 +22,8 @@ function esc_url_raw( $url ) { $url = trim( (string) $url ); return false !== fi
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
+// Real _n() shape: returns (never echoes) and selects on the count.
+function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single : $plural; }
 function __( $s, $d = null ) { return $s; }
 function esc_html__( $s, $d = null ) { return esc_html( $s ); }
 function current_user_can( $cap ) { return true; }
