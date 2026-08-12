@@ -2,6 +2,78 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the read kill switch now covers the read path (F2 closed)
+
+Un-versioned; rides the next release with the threat model below, which found it.
+
+**The switch guarded one route, not the read path.** `sn_mcp_read_permission()`
+was referenced in exactly one place — the MCP endpoint's read route — so the
+native Abilities run-route never consulted it. An owner-identity caller reached
+**every read ability with `sn_mcp_read_enabled` set to off**, while the switch
+read as though it had closed the door. The REST audit's §0 finding already said
+each ability's own `permission_callback` is the binding constraint and the MCP
+floor is defense-in-depth; the kill switch had been living entirely in the
+defense-in-depth layer.
+
+`rest_pre_dispatch` now carries `sn_mcp_read_guard_run_route()`, refusing
+read-allowlisted abilities with the **same code and status** the MCP door
+returns: one switch, one verdict, whichever route the caller arrived on.
+
+**Scope is deliberately narrow, and the narrowness is the point.** The guard
+claims only the **read** allowlist. The doors' guards are isolated by design and
+the allowlists are **disjoint** — 38 read, 36 write, zero overlap, checked —
+because a read kill that also killed writes would be a worse bug than the one it
+replaced. A test asserts that negative directly; mutating the guard to include
+the write allowlist reds it.
+
+Coverage is asserted over the **whole allowlist rather than a sample**: all 38
+read abilities refuse, all 36 write abilities do not. `SN_MCP_READ_DISABLED`
+still wins, and fail-open-on-absence is unchanged.
+
+Fixed **on its own merits, while the door is still behind one laptop** — not
+bundled with the trust boundary that would have made its absence load-bearing.
+F1 (the read door has no rate limit) remains open.
+
+## [Unreleased] — R3 3D's threat model, and two defects it found in today's build
+
+Un-versioned, docs only; rides the next release. **3D's own prep says the threat
+model comes before any code, so this is 3D started — not deferred.**
+
+`docs/security/agent-surface-threat-model.md` gains **§8**, plus **A5 — the
+hostile caller** in §1's adversary list, explicitly out of scope today because no
+brokered entry point exists.
+
+The row would replace the read door's population — *whoever holds an application
+password on one laptop* — with *whoever completes an OAuth flow*. That is not a
+wider version of the existing model. A1–A4 are an authorized channel misbehaving;
+A5 is an unauthorized party **becoming** authorized, and its target is writing the
+owner has not chosen to publish.
+
+**Two findings, verified against the current build, both harmless while the
+population is one laptop and both load-bearing the moment it is not:**
+
+- **F1 — the read door has no rate limit.** The write door's stack ends in
+  `sn_mcp_rw_rate_limit_gate()`; `mcp-tools.php` applies the limiter only when the
+  door is `RW`. Exposed to the internet, that is an exfiltration channel with no
+  ceiling.
+- **F2 — the read kill switch guards one ROUTE, not the read path.**
+  `sn_mcp_read_permission()` is referenced in exactly one place. The native
+  `wp-abilities/v1/…/run` route never consults it, so an owner-identity caller
+  reaches every read ability **with `sn_mcp_read_enabled` off**. The prep doc asked
+  whether the kill switch can reach the edge; the prior question is whether it
+  reaches the site's own second route. It does not.
+
+**The section's recommendation is not to build the broker next.** F1 and F2 are
+real defects in today's build — a switch covering one of two routes, and a read
+path with no ceiling — worth fixing on their own merits now, while the door is
+still behind one laptop. Fix those, then decide whether the row still wants an
+edge broker or whether a scoped, expiring, read-only token buys most of the value
+at a fraction of the boundary.
+
+Also recorded: the fail-open-on-absence default that is correct for a local option
+is **wrong for a remote read** — an edge that cannot reach the site must not
+conclude the door is open.
+
 ## [10.91.1] - 2026-08-11 — the give-back section had sixteen rows and said nothing
 
 **PATCH.** Found by curling the page after installing v10.91.0 — not by any test, because the fixtures always supplied
