@@ -2,6 +2,82 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — finishing the 7.1 audit: a pinned schema profile, and three declines
+
+The v10.38.0 prep pass made **three** guesses about 7.1. One was wrong (the
+lifecycle hook, fixed in the entry below). Having found one, the other two were
+worth checking properly rather than two-out-of-three.
+
+**`wp_prepare_json_schema_for_client()` — name and behaviour correct**, verified
+against the [dev note](https://make.wordpress.org/core/2026/07/31/json-schema-preparation-for-client-compatibility-in-wordpress-7-1/).
+Two refinements fall out of reading it:
+
+- **The schema profile is now pinned explicitly.** Core's signature is
+  `wp_prepare_json_schema_for_client( array $schema, string $schema_profile = 'draft-04' )`
+  and ships two profiles: `draft-04` keeps the broad JSON Schema vocabulary,
+  `rest-api` narrows to the REST keyword set. MCP hosts consume standard JSON
+  Schema, so the broad one is right — and naming it means a future change to
+  core's *default* cannot silently reshape every tool schema this server
+  advertises. Pinning a default you depend on costs one argument.
+- **One claimed-unique fix actually overlaps with core.** The v10.38.0 comment
+  said all three of our provider fixes were ours alone and "core's pass does not
+  cover them". Core's prep also arranges for an empty `properties` array to
+  serialize as `{}`, so that third fix extends nothing. Ours stays — it is the
+  only thing doing it pre-7.1, and post-7.1 it is a no-op by construction — but
+  the comment no longer claims credit it does not have. The scalar-type and
+  top-level-combinator fixes remain genuinely ours.
+
+**The abilities catalog stopped overclaiming.** `sn_mcp_abilities_catalog_json()`
+described itself as listing "EVERY registered ability". That was true while
+`wp_get_abilities()` returned the raw registry; 7.1 redefines the no-argument
+call as "retrieve abilities through the standard filtering pipeline"
+([dev note](https://make.wordpress.org/core/2026/08/05/filtering-registered-abilities-with-wp_get_abilities-in-wordpress-7-1/)),
+so global filters now run. Reading the pipeline is still the right choice — a
+catalog should agree with what the rest of the site sees — but it is no longer a
+synonym for the registry, and a discovery surface that silently under-reports is
+worse than one that states its coverage. Nothing here registers such a filter, so
+the two sets are identical today; the wording no longer depends on that.
+
+### Three things deliberately NOT done
+
+**`wp_get_abilities()` filtering was not adopted.** It looked like a clean win —
+two call sites fetch all 107 abilities and filter in PHP. It is not. PHP silently
+ignores extra arguments to userland functions, so on WordPress 7.0
+`wp_get_abilities( array( 'namespace' => 'signal-noise' ) )` returns the *entire*
+registry and the filter is a no-op. `snt_ability_verb_map()` would therefore have
+to keep its `strpos()` guard for 7.0 correctness — leaving more code than it
+started with, plus a version-dependent execution path, to save a `strpos` over
+107 items. The other call site
+(`sn_mcp_abilities_catalog_json()`) is deliberately unfiltered. Declined as churn.
+
+**`meta['public']` was not adopted.** Resolution is
+`$meta['show_in_rest'] ?? $meta['public'] ?? false`, so with 68 registrations
+already setting `show_in_rest => true` explicitly it would change nothing today.
+What it would change is later: `public` is a **wider** grant than
+`show_in_rest` — it opts an ability into every present *and future* channel that
+respects the flag, where `show_in_rest` names exactly one. For a plugin whose
+whole posture is per-door allowlists and a curated MCP surface, trading a narrow
+explicit grant for a broad implicit one is the wrong direction, and the default is
+already `false` so there is nothing defensive to add either.
+
+**`Tested up to:` stays at 7.0, and the stubs constraint is already correct.**
+Bumping the header to 7.1 would assert testing that has not happened — there is
+no 7.1 install here, and this session's whole lesson is what an untested
+forward-compat claim costs. It bumps when the plugin has actually run on 7.1.
+Separately, `php-stubs/wordpress-stubs` has no 7.1 release yet (latest v7.0.1,
+2026-07-10) and the existing `^7.0` constraint already admits 7.1.x the moment it
+ships — so the "bump the stubs" item was a no-op by construction. Worth noting
+that PHPStan could not have caught the wrong hook name at any stubs version: it
+does not type-check hook name strings.
+
+([tests/mcp-schema-client-prep.php](tests/mcp-schema-client-prep.php) → 12
+asserts to 13. The profile assertion reads `func_get_args()` rather than the
+stub's parameter, because a caller that omits the argument is otherwise
+indistinguishable from one that passes `'draft-04'` — which is exactly the
+distinction being pinned. Mutation-fired both ways: omitting the argument reds it,
+passing `'rest-api'` reds it. Full sweep 422 suites / 16,520 assertions green;
+PHPCS and PHPStan clean.)
+
 ## [Unreleased] — 7.1's persistent toolbar puts a no-undo force-delete inside the Site Editor
 
 WordPress 7.1 makes the toolbar persistent in the Post Editor (including

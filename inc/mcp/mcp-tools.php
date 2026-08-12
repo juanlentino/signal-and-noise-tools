@@ -82,13 +82,30 @@ function sn_mcp_normalize_schema( $schema ) {
 	// exists — wp_prepare_json_schema_for_client() strips server-only keywords
 	// (sanitize_callback / validate_callback / arg_options) and hoists
 	// property-level required=>true into Draft-4 required arrays, neither of
-	// which this function ever did. It runs FIRST; the provider-specific fixes
-	// below (scalar type, top-level combinator strip, {} coercion) are OUR
-	// contract with strict MCP hosts and stay applied on top — core's pass
-	// does not cover them. Pre-7.1 this branch never runs: byte-identical
-	// behavior.
+	// which this function ever did. It runs FIRST; the fixes below stay applied
+	// on top. Pre-7.1 this branch never runs: byte-identical behavior.
+	//
+	// The PROFILE is pinned explicitly rather than taken by default. Core's
+	// signature is
+	// `wp_prepare_json_schema_for_client( array $schema, string $schema_profile = 'draft-04' )`
+	// and ships two profiles: 'draft-04' keeps the broader JSON Schema
+	// vocabulary, 'rest-api' narrows to the REST keyword set. MCP hosts consume
+	// standard JSON Schema, so the broader profile is the one we want — and
+	// naming it means a future change to core's DEFAULT cannot silently reshape
+	// every tool schema this server advertises. Pinning a default you depend on
+	// costs one argument; discovering it moved costs a debugging session.
+	//
+	// Overlap correction (2026-08-11): the v10.38.0 comment claimed all three
+	// fixes below were ours alone and that "core's pass does not cover them".
+	// The 7.1 dev note says core's prep also arranges for an empty properties
+	// array to serialize as `{}`, so the third fix OVERLAPS rather than
+	// extending. Ours stays: it is the only thing doing it pre-7.1, and post-7.1
+	// it is a no-op by construction (once core has made properties an object,
+	// `array() === $schema['properties']` is false). The scalar-type and
+	// top-level-combinator fixes remain genuinely ours — they are a contract
+	// with strict MCP hosts that core has no reason to know about.
 	if ( function_exists( 'wp_prepare_json_schema_for_client' ) ) {
-		$schema = wp_prepare_json_schema_for_client( $schema );
+		$schema = wp_prepare_json_schema_for_client( $schema, 'draft-04' );
 	}
 
 	// MCP requires the top-level tool schema type to be the literal "object".
