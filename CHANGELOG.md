@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the render scan stops refusing what it can resolve exactly
+## [10.92.4] - 2026-08-11 — the render scan stops refusing what it can resolve exactly
 
 **PATCH** — `tools/` only, which is `export-ignore`d and ships in no zip. No
 runtime code touched.
