@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.96.0] - 2026-08-12 — the Machine Readers logs fold, and the shared caret finishes its rollout
 
 ### MR2: the unclassified-agent review list folds, and its summary counts survivors
 
