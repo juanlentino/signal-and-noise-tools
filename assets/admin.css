@@ -577,6 +577,27 @@
 	outline-offset: 2px;
 	border-radius: 3px;
 }
+/* M4 (IA): MCP slug lists are long single-column walls. Two columns at
+   admin widths; one column when the leaf is narrow. */
+.sn-mcp-tool-list {
+	columns: 2;
+	column-gap: var(--sn-space-5);
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+.sn-mcp-tool-list > li {
+	break-inside: avoid;
+}
+.sn-mcp-tool-list code {
+	font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font-size: 11px;
+}
+@media (max-width: 782px) {
+	.sn-mcp-tool-list {
+		columns: 1;
+	}
+}
 .sn-health-passing__title {
 	margin-right: auto;
 }

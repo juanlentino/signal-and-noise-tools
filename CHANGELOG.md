@@ -2,6 +2,56 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### MR1: the rights-surface log folds, and a cap that was a caption becomes real
+
+The Machine Readers tab's own IA arc opens on the surface the owner named.
+`snt_mr_render_rights_detail()` printed *"Showing N of at most 500 events"* and
+then rendered **every** row the sensor handed over, fully open, in arrival
+order: the `$limit` argument was a footer, never a slice. On a busy window that
+is hundreds of full User-Agent rows sitting between the reader and everything
+below them.
+
+Now the table sits behind a closed `<details class="sn-mr-rights-log
+sn-disclosure">` whose summary carries the **true** event count (a fold may
+hide the evidence, never THAT there is something inside), and a real display
+cap of 50 trims the OLD end after a newest-first sort taken on a copy of the
+rows. The edges that make it honest: a row with no `observed_at` sorts LAST
+rather than being handed an invented date; the house *"capped, not complete"*
+remainder names what was cut; the sensor's own *"at most 500"* sentence
+survives verbatim beside the display cap, so a tighter presentation ceiling
+cannot claim the edge stores less than it does; and an empty window keeps its
+sentence with **no** fold, because a closed disclosure reading "0 events" would
+rhyme with a measured zero.
+
+Presentation-only — the Worker, the view allowlist, and
+`snt_mr_normalize_rights_rows()` are untouched. Tests +15, with the sort
+direction, the undated-row placement, the display cap, and the true-count
+summary each mutation-fired by name; both Machine Readers harnesses gain a
+real-shape `_n()` stub (returns, never echoes, selects on the count).
+`docs/MACHINE-READERS.md` stops describing the pre-v10.79.0 four-table card and
+names the two tiers the tab actually renders.
+
+### H4 + M4: the shared caret finishes its rollout, and the MCP leaf polishes
+
+The two leftovers from the v10.95.0 arc. The contrast report's **arithmetic**
+and **conditional** disclosures were still wearing the browser's default
+triangle while usage and motion had the shipped `.sn-disclosure` caret; both
+now carry it, and all three are pinned together so stripping the shared class
+from any one is caught. A pre-existing assertion was strengthened on the way
+past: it searched for `sn-health-contrast-usage" open`, a string the rendered
+markup never contained in either state — vacuous since H1, and now matched to
+the real class list.
+
+On AI → MCP Clients, the **Claude desktop-app steps** and the OAuth warning
+fold behind a closed disclosure with the callout heading left outside, so the
+section stays findable while the four-step setup stops competing with the
+common path; every asserted string stays verbatim in the HTML. And
+`.sn-mcp-tool-list` finally has a rule: two columns at admin widths collapsing
+to one under 782px, at the 11px type floor, reusing the existing spacing token
+— so an *expanded* slug inventory is scannable rather than a 38-row ribbon.
+
 ## [10.95.0] - 2026-08-12 — the admin behemoths slim down, motion gets its view, and a board day of graduations
 
 ### Admin IA H2+H3 / M2+M3: both behemoths finish slimming

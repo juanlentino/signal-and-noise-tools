@@ -23,6 +23,10 @@ function esc_attr( $t ) { return htmlspecialchars( (string) $t, ENT_QUOTES, 'UTF
 function __( $t, $d = null ) { return $t; }
 function esc_html__( $t, $d = null ) { return htmlspecialchars( (string) $t, ENT_QUOTES, 'UTF-8' ); }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
+// RETURNS the chosen form, never echoes, and picks on the COUNT — the real
+// _n()'s shape. A stub that ignored $n would green a renderer that says
+// "1 events" on the live site (the stub-drift trap, bitten repeatedly).
+function _n( $single, $plural, $n, $d = null ) { return 1 === (int) $n ? $single : $plural; }
 
 require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-api.php';
@@ -135,6 +139,61 @@ ok( 'unknown' === $rd_hostile[0]['purpose'] && 'other-bot' === $rd_hostile[0]['f
 $rhtml = snt_mr_render_rights_detail( $rd_hostile );
 ok( false === strpos( $rhtml, '<script>' ), 'the renderer escapes the un-allowlisted UA (its only defence)' );
 ok( false !== stripos( snt_mr_render_rights_detail( array() ), 'No reads of the rights surfaces' ), 'an empty window says so rather than rendering an empty table' );
+
+echo "\nGroup: MR1 , the rights log FOLDS (its cap was a caption, not a cap)\n";
+// Before MR1 the $limit argument was PRINTED in the footer and never applied:
+// every row the sensor handed over rendered, fully open, in arrival order. The
+// fold is presentation-only — the sensor envelope, the view, and the row
+// normalizer are untouched.
+$mr1_rows = array();
+for ( $i = 1; $i <= 51; $i++ ) {
+	// Ascending timestamps so the NEWEST row is the last one in input order —
+	// a renderer that merely slices arrival order would drop it, which is the
+	// thing worth catching.
+	$mr1_rows[] = array(
+		'observed_at' => sprintf( '2026-08-%02dT09:00:00Z', ( $i % 28 ) + 1 ),
+		'path'        => '/license.xml',
+		'user_agent'  => 'Mozilla/5.0 (compatible; TestBot/' . $i . ')',
+		'vendor'      => 'anthropic',
+		'purpose'     => 'train',
+		'family'      => 'anthropic',
+		'hits'        => 1,
+	);
+}
+$mr1_html = snt_mr_render_rights_detail( snt_mr_normalize_rights_rows( $mr1_rows ) );
+ok( false !== strpos( $mr1_html, '<details class="sn-mr-rights-log sn-disclosure">' ), 'the rights table sits inside its own disclosure' );
+ok( false === strpos( $mr1_html, '<details class="sn-mr-rights-log sn-disclosure" open' ), 'and it is CLOSED by default' );
+$mr1_det = strpos( $mr1_html, '<details class="sn-mr-rights-log' );
+$mr1_sum = substr( $mr1_html, (int) $mr1_det, 220 );
+ok( false !== strpos( $mr1_sum, '51' ), 'the summary names the TRUE event count (51), not the sliced 50 — a fold may hide the evidence, never THAT there is something inside' );
+ok( 50 === substr_count( $mr1_html, '<tr><td class="column-primary"' ), 'the display cap renders exactly 50 rows' );
+ok( false !== stripos( $mr1_html, 'capped, not complete' ), 'the remainder line uses the house wording' );
+ok( false !== strpos( $mr1_html, '+1 more' ), 'and names how many were cut' );
+ok( false !== stripos( $mr1_html, 'at most 500' ), 'the SENSOR envelope sentence survives — the display cap must not claim the sensor stores less than it does' );
+// Newest-first: the highest timestamp in the fixture is day 28 (i=27), which
+// arrives mid-list. Slicing arrival order would lose it entirely.
+ok( false !== strpos( $mr1_html, 'TestBot/27' ), 'the newest event is shown even though it arrived mid-list (the sort is real, not arrival order)' );
+$mr1_first_row = strpos( $mr1_html, '<tr><td class="column-primary"' );
+ok( false !== strpos( substr( $mr1_html, (int) $mr1_first_row, 400 ), '2026-08-28' ), 'the newest event sorts FIRST' );
+// A row whose timestamp is missing must not be invented a date, and must not
+// float to the top of a newest-first sort by accident.
+$mr1_undated = snt_mr_normalize_rights_rows( array(
+	array( 'observed_at' => '', 'path' => '/license.xml', 'user_agent' => 'UndatedBot', 'vendor' => 'anthropic', 'purpose' => 'train', 'family' => 'anthropic' ),
+	array( 'observed_at' => '2026-08-02T09:00:00Z', 'path' => '/license.xml', 'user_agent' => 'DatedBot', 'vendor' => 'anthropic', 'purpose' => 'train', 'family' => 'anthropic' ),
+) );
+$mr1_u_html = snt_mr_render_rights_detail( $mr1_undated );
+ok( strpos( $mr1_u_html, 'DatedBot' ) < strpos( $mr1_u_html, 'UndatedBot' ), 'a row with no timestamp sorts LAST, never invented a date to lead' );
+ok( false === strpos( $mr1_u_html, '1970' ), 'and no epoch fallback leaks into the page' );
+// The empty window keeps its sentence with NO fold: a closed disclosure
+// reading "0 events" would rhyme with a measured zero.
+$mr1_empty = snt_mr_render_rights_detail( array() );
+ok( false === strpos( $mr1_empty, '<details' ), 'an empty window renders NO disclosure at all' );
+// Report, not findings.
+ok( false === strpos( $mr1_html, 'sn-pill--warn' ), 'rights rows carry no warn pill — they are the evidence a published claim rests on, not defects' );
+// Under the cap: no remainder line, still folded.
+$mr1_small = snt_mr_render_rights_detail( snt_mr_normalize_rights_rows( array_slice( $mr1_rows, 0, 3 ) ) );
+ok( false !== strpos( $mr1_small, '<details class="sn-mr-rights-log' ), 'a short log still folds (consistency beats a size heuristic)' );
+ok( false === stripos( $mr1_small, 'capped, not complete' ), 'but prints no remainder line when nothing was cut' );
 
 echo "\nGroup: the over-count is SHOWN, not reconciled away\n";
 $recon_rows = snt_mr_normalize_rows( array(

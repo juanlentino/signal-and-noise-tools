@@ -11,6 +11,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * MR1 display cap for the rights-surface log — a PRESENTATION ceiling only,
+ * deliberately distinct from the sensor's own envelope (reported as "at most
+ * 500" in the table footer, and unchanged by this constant). The table is
+ * sorted newest-first, so the cap truncates the OLD end and the remainder line
+ * says so. Same shape as SN_HEALTH_MOTION_MAX_ROWS.
+ */
+if ( ! defined( 'SN_MR_RIGHTS_DISPLAY_MAX' ) ) {
+	define( 'SN_MR_RIGHTS_DISPLAY_MAX', 50 );
+}
+
+/**
  * Sum hits per purpose, excluding the site's own first-party monitoring.
  *
  * The exclusion is the point: at v1.11.0 the owner's Better Stack monitor was
@@ -212,9 +223,53 @@ function snt_mr_render_ai_reconciliation( $rows ) {
 function snt_mr_render_rights_detail( $rows, $limit = 500 ) {
 	$rows = (array) $rows;
 	if ( empty( $rows ) ) {
+		// NO fold here, deliberately: a closed disclosure whose summary read
+		// "0 events" would rhyme with a measured zero. An empty window is a
+		// sentence, the same one it has always been.
 		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No reads of the rights surfaces in this window.', 'signal-and-noise-tools' ) . '</p>';
 	}
-	$out = snt_mr_table_open( __( 'Rights-surface reads, in full , who asked for the declarations, and for which document.', 'signal-and-noise-tools' ), array(
+
+	// MR1: the fold. Until now $limit was PRINTED in the footer and never
+	// applied — every row the sensor handed over rendered, fully open, in
+	// arrival order, which is how a "capped at 500" log became a wall. The cap
+	// is now real at the DISPLAY layer only: the sensor envelope, the view
+	// allowlist, and snt_mr_normalize_rights_rows() are all untouched, and the
+	// "at most %d" sentence below still names the sensor's own ceiling so a
+	// tighter display cap cannot claim the sensor stores less than it does.
+	$total = count( $rows );
+
+	// Newest-first, on a COPY — the input array is never mutated (this file's
+	// standing promise). A row with no parseable timestamp sorts LAST rather
+	// than being handed an invented date to sort by: an unknown observation
+	// time and an old one are different answers.
+	$sorted = $rows;
+	usort(
+		$sorted,
+		static function ( $a, $b ) {
+			$at = (string) ( $a['observed_at'] ?? '' );
+			$bt = (string) ( $b['observed_at'] ?? '' );
+			if ( '' === $at || '' === $bt ) {
+				// Undated always after dated; two undated keep their order.
+				return ( '' === $at ? 1 : 0 ) - ( '' === $bt ? 1 : 0 );
+			}
+			return strcmp( $bt, $at ); // ISO-8601 sorts lexicographically.
+		}
+	);
+
+	$visible = array_slice( $sorted, 0, SN_MR_RIGHTS_DISPLAY_MAX );
+	$hidden  = $total - count( $visible );
+
+	$out  = '<details class="sn-mr-rights-log sn-disclosure"><summary>';
+	$out .= esc_html(
+		sprintf(
+			/* translators: %s: the true number of rights-surface events in the window. */
+			_n( '%s rights-surface event — show the log', '%s rights-surface events — show the log', $total, 'signal-and-noise-tools' ),
+			number_format_i18n( $total )
+		)
+	);
+	$out .= '</summary>';
+
+	$out .= snt_mr_table_open( __( 'Rights-surface reads, in full , who asked for the declarations, and for which document.', 'signal-and-noise-tools' ), array(
 		__( 'When', 'signal-and-noise-tools' )       => '',
 		__( 'Vendor', 'signal-and-noise-tools' )     => '',
 		__( 'Purpose', 'signal-and-noise-tools' )    => '',
@@ -222,7 +277,7 @@ function snt_mr_render_rights_detail( $rows, $limit = 500 ) {
 		__( 'User agent', 'signal-and-noise-tools' ) => '',
 	) );
 	$shown = 0;
-	foreach ( $rows as $r ) {
+	foreach ( $visible as $r ) {
 		++$shown;
 		$when   = substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 20 );
 		$vendor = snt_mr_normalize_vendor( $r['vendor'] ?? '' );
@@ -233,12 +288,24 @@ function snt_mr_render_rights_detail( $rows, $limit = 500 ) {
 			. '<td data-colname="User agent"><code>' . esc_html( substr( (string) ( $r['user_agent'] ?? '' ), 0, 200 ) ) . '</code></td></tr>';
 	}
 	$out .= '</tbody></table>';
+
+	if ( $hidden > 0 ) {
+		$out .= '<p class="description">' . esc_html( sprintf(
+			/* translators: %s: the number of events not shown. */
+			__( '+%s more rights-surface events — the list is capped, not complete. Newest first, so the tail is the oldest end.', 'signal-and-noise-tools' ),
+			number_format_i18n( $hidden )
+		) ) . '</p>';
+	}
+
+	// The SENSOR's ceiling, kept verbatim beside the display cap: this number
+	// describes what the edge stores, not what this table chose to paint.
 	$out .= '<p class="description">' . esc_html( sprintf(
 		/* translators: 1: rows shown, 2: the sensor cap. */
 		__( 'Showing %1$s of at most %2$s events. These are the only reads the sensor records in full: rights surfaces are a closed set of fixed URLs, so the path identifies the document and nothing about the reader.', 'signal-and-noise-tools' ),
 		number_format_i18n( $shown ),
 		number_format_i18n( (int) $limit )
 	) ) . '</p>';
+	$out .= '</details>';
 	return $out;
 }
 

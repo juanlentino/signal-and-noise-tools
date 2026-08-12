@@ -421,6 +421,10 @@ function sn_admin_render_mcp_owner_steps() {
 function sn_admin_render_mcp_claude_app() {
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">' . esc_html__( 'Claude desktop app', 'signal-and-noise-tools' ) . '</p>';
+	echo '<details class="sn-disclosure">';
+	// The callout heading directly above already says "Claude desktop app", so
+	// the summary names what is INSIDE rather than repeating it.
+	echo '<summary>' . esc_html__( 'Show the 4 setup steps', 'signal-and-noise-tools' ) . '</summary>';
 	echo '<ol>';
 	echo '<li>' . esc_html__( 'Install Node.js if the machine does not have it: the config below runs the proxy via npx.', 'signal-and-noise-tools' ) . '</li>';
 	echo '<li>' . sprintf(
@@ -434,6 +438,7 @@ function sn_admin_render_mcp_claude_app() {
 	echo '<li>' . esc_html__( 'Fully restart the Claude app (quit, not just close the window). The site’s tools appear in the tools menu of a new chat.', 'signal-and-noise-tools' ) . '</li>';
 	echo '</ol>';
 	echo '<p>' . esc_html__( 'Do not use Settings → Connectors → “Add custom connector” for this endpoint: that flow is for remote servers reached from Anthropic’s own infrastructure and only supports OAuth: an application password will not work there.', 'signal-and-noise-tools' ) . '</p>';
+	echo '</details>';
 	echo '</div>';
 }
 
