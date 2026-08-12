@@ -80,6 +80,41 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_HEALTH_CONTRAST_USAGE_MAX_ROWS = 25;
 
 /**
+ * Plugin stylesheets that are enqueued in wp-admin ONLY.
+ *
+ * The property that matters is which hook enqueues a sheet, and a FILENAME is
+ * only a proxy for it. The proxy leaked, and the live report is what caught it:
+ * `uptime-status.css` is admin-only and is not named "admin", so two of the
+ * three pairings the contrast report flagged were wp-admin status colours
+ * (#00a32a at 3.35:1, #dba617 at 2.22:1) scored against a public page they
+ * never appear on. Same shape as the `@media print` case — a context the reader
+ * never meets, measured as if they did.
+ *
+ * This list is hand-kept, so it is NOT the guard. The guard is in
+ * tests/health-contrast-usage.php, which derives the admin-enqueued set from
+ * the plugin's own source (`add_action( 'admin_enqueue_scripts' …)` with no
+ * `wp_enqueue_scripts` alongside) and asserts it EQUALS what this function
+ * excludes. A new admin sheet reds that test instead of quietly seeding false
+ * positives into a report-only check nobody re-reads.
+ *
+ * Deliberately a DENYLIST, not an allowlist. A missed admin sheet is noise; a
+ * missed FRONT-END sheet silently shrinks coverage and hides real defects, and
+ * this module exists because a scan that measures the wrong thing reports a
+ * clean site. Wrong-direction failures are the expensive ones.
+ *
+ * @return string[] Basenames.
+ */
+function sn_health_contrast_usage_admin_sheets() {
+	return array(
+		'admin.css',
+		'audit-log.css',
+		'machine-readers.css',
+		'provenance-admin.css',
+		'uptime-status.css',
+	);
+}
+
+/**
  * Stylesheets to scan: this plugin's FRONT-END css plus the active theme's.
  *
  * Admin sheets are excluded on purpose — wp-admin supplies its own palette and
@@ -90,10 +125,14 @@ const SN_HEALTH_CONTRAST_USAGE_MAX_ROWS = 25;
  */
 function sn_health_contrast_usage_sources() {
 	$sources = array();
+	$admin   = sn_health_contrast_usage_admin_sheets();
 
 	foreach ( (array) glob( SNT_PATH . 'assets/*.css' ) as $file ) {
 		$base = basename( (string) $file );
-		if ( false !== strpos( $base, 'admin' ) ) {
+		// The substring rule is kept as a belt-and-braces catch for an
+		// obviously-named sheet added without updating the list above; the list
+		// is what makes the exclusion correct.
+		if ( in_array( $base, $admin, true ) || false !== strpos( $base, 'admin' ) ) {
 			continue;
 		}
 		$sources[ 'plugin/' . $base ] = (string) $file;
