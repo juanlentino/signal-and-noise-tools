@@ -291,6 +291,66 @@ unbounded read path back.
 changing the local default, and should be made where the broker is designed
 rather than retrofitted here.
 
+### §8.8 — THE DECISION (2026-08-11): do not build the broker
+
+§8.5 recommended not building it *next*. Asked to settle the row, the answer is
+stronger than that: **do not build it at all on the current evidence**, and stop
+carrying it as `planned`.
+
+**1. The row's unique value is narrower than its sentence.** "Reach the read
+door from the web and the phone" reads like *see my site from anywhere*. But
+wp-admin already exposes every fact the read door serves, from any browser,
+behind the login guard. What a broker uniquely adds is **pointing an AI agent at
+the site from a phone** — a convenience, not a capability the site lacks.
+
+**2. The asset is unpublished writing.** The read door serves scheduled and
+draft bodies. That is the one class of content the entire provenance stack
+exists to protect *before* it is public, and it is what A5 would reach.
+
+**3. The cost is permanent and structural.** A broker holds a credential at a
+location the owner does not administer and cannot rotate from wp-admin, creating
+a second place worth attacking — against the standing invariant that the native
+server is the only MCP endpoint.
+
+**4. This surface's existing invariants just proved leaky.** F2 — a kill switch
+covering one of two routes — lived undetected in a shipped security surface, and
+F1's absence with it. Neither was exotic; both were invariants everyone assumed
+held. **Adding a new trust boundary to a surface whose existing boundaries were
+wrong last week is the wrong order of operations.** Earn confidence in what is
+there before extending it.
+
+**5. It runs against the owner's own settled pattern.** The write door stays
+attended by choice. Agents are disabled by choice. MCP is the channel *because*
+it is the attended one. A brokered read door is the first thing here that would
+trade attendance for reach.
+
+**6. A cheaper shape captures most of the value.** `inc/security-digest.php`
+already proves the pattern: deterministic, opt-in, weekly, no AI in the path,
+and a zero-week heartbeat so silence never reads as health. If the real want is
+*know what is happening without opening the laptop*, the answer is **push, not
+pull** — extend an outbound summary. Push needs no new credential, no new
+endpoint, no inbound door, and introduces no A5.
+
+**The disposition:**
+
+| option | verdict |
+|---|---|
+| Edge broker holding a credential | **No.** Cost is permanent and structural; benefit is convenience. |
+| Scoped, expiring, read-only token | **Not yet.** Right shape, no named user story. A boundary without a use case is a liability with a roadmap entry. |
+| Extend the outbound digest | **The actionable alternative**, if the underlying want is real. |
+
+**What would change this** — and it is one specific thing, not a mood: a
+**concrete, repeated task the owner actually wants to do from a phone that
+requires an agent reading the corpus.** If that appears, build the scoped token,
+not the broker: a named subset of read abilities, a short expiry, revocable from
+wp-admin, and **failing closed** (§8.7's outstanding condition) on that path.
+
+**Board implication, for the owner to action.** The row currently sits in AI
+`planned`, which promises it will ship. On this decision it should not. Moving it
+is deliberately NOT done here: `never` is owner-edit only, and walking a
+`planned` row backwards is a statement about the roadmap rather than about the
+threat model.
+
 ### §8.5 — The recommendation this section makes
 
 **Do not build the broker next.** Preconditions 1 and 2 are real defects in the current

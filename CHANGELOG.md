@@ -2,6 +2,83 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.92.1] - 2026-08-11 — R3 closes: the last row is decided, not deferred
+
+**PATCH** — documentation, one board row, one test pin. No behaviour change.
+
+R3's fourth gate is settled. The edge broker is **declined**, and the row says so
+in its own sentence rather than quietly going dark. Every R3 row has now either
+shipped or been parked with its reasoning recorded in three places that cannot
+silently disagree: the threat model, the live board, and the disaster-recovery
+floor.
+
+### The row, moved and self-explaining
+
+Un-versioned; rides the next release with the decision below.
+
+The board row promised the edge broker would ship. §8.8 declined it, so the row
+moves AI `planned` → `considering` and **states the decision in its own
+sentence** rather than quietly going dark:
+
+> Reach the read door from the web and the phone: examined and the edge broker
+> **DECLINED** — wp-admin already serves those facts, the asset is unpublished
+> drafts, and a credential the site cannot rotate is a permanent cost for a
+> convenience. Reopens only for a real task needing an agent to read the corpus
+> from a phone, and then as a scoped expiring token.
+
+A `considering` row commits to nothing, which is now accurate. Carrying the
+reasoning inside it means the next person to read the board learns *why* it is
+parked and what would unpark it — a row that merely moved backwards would look
+like drift.
+
+Moved through the door (data) and synced into the static floor (code); both
+fingerprint `1248c090…`. Item total unchanged at 60 — the row **moved**.
+
+*A pin caught this, exactly as intended.* The suite asserted **"the remote
+read-door row sits in AI PLANNED"** — an earlier session had encoded the roadmap
+position as a contract. The pin was updated to follow the row rather than
+deleted (the floor still has to say where the row **is**) and now also asserts
+the sentence names the decision. **A decision that leaves no assertion behind is
+one the next session cannot see.**
+
+### The decision itself
+
+Un-versioned, docs only; rides the next release.
+
+§8.5 recommended not building the edge broker *next*. Asked to settle the row,
+**§8.8 settles it: do not build it at all on the current evidence**, and stop
+carrying it as `planned`.
+
+The reasoning, shortest form: **wp-admin already exposes every fact the read door
+serves**, from any browser, behind the login guard — so what a broker uniquely
+adds is *pointing an AI agent at the site from a phone*. That is convenience. The
+asset it would expose is **unpublished writing**, and the cost is a credential at
+a location the owner cannot rotate from wp-admin.
+
+Decisive on top of that: **this surface's invariants were wrong last week.** F2 —
+a kill switch covering one of two routes — lived undetected in a shipped security
+surface, and F1's absence with it. Adding a new trust boundary to a surface whose
+existing boundaries just failed is the wrong order of operations.
+
+| option | verdict |
+|---|---|
+| Edge broker holding a credential | **No** — permanent structural cost, convenience benefit |
+| Scoped, expiring, read-only token | **Not yet** — right shape, no named user story |
+| Extend the outbound digest | **The actionable alternative** if the want is real |
+
+`inc/security-digest.php` already proves the cheaper shape: deterministic,
+opt-in, weekly, no AI in the path, zero-week heartbeat so silence never reads as
+health. **Push, not pull** — no new credential, no new endpoint, no A5.
+
+**What would change it**, stated so it is falsifiable: a concrete, repeated task
+the owner wants to do from a phone that *requires* an agent reading the corpus.
+Then build the scoped token — named ability subset, short expiry, revocable from
+wp-admin, failing **closed** — never the broker.
+
+**For the owner:** the board row sits in AI `planned`, which promises it ships.
+Moving it is deliberately not done here — `never` is owner-edit only, and walking
+a `planned` row backwards is a roadmap statement, not a threat-model one.
+
 ## [10.92.0] - 2026-08-11 — the read door's switch covers the door, and the door has a ceiling
 
 **MINOR** — not repairs of broken behaviour but **new enforcement**: the kill

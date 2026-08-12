@@ -242,7 +242,13 @@ ok( $max_done <= SN_MATURITY_ROADMAP_MAX_DONE - 1,
 $floor = sn_maturity_roadmap_static_board();
 ok( false !== strpos( implode( ' | ', $floor['Operations']['done'] ), 'Spend watched like uptime' ), 'DR floor: the spend-watch row sits in Operations DONE (it graduated on the live board)' );
 ok( false === strpos( implode( ' | ', $floor['Operations']['planned'] ), 'Spend watched like uptime' ), 'DR floor: and no stale copy of it survives in Operations PLANNED — a row moves, it is never copied' );
-ok( false !== strpos( implode( ' | ', $floor['AI']['planned'] ), 'Reach the read door' ), 'DR floor: the remote read-door row sits in AI PLANNED' );
+// The row moved PLANNED -> CONSIDERING on 2026-08-11: §8.8 of the agent-surface
+// threat model declined the edge broker. The pin moves with it rather than being
+// deleted — the floor still has to say where the row IS, and a decision that
+// leaves no assertion behind is a decision the next session cannot see.
+ok( false === strpos( implode( ' | ', $floor['AI']['planned'] ), 'Reach the read door' ), 'DR floor: the remote read-door row is NO LONGER promised as planned' );
+ok( false !== strpos( implode( ' | ', $floor['AI']['considering'] ), 'Reach the read door' ), 'DR floor: it sits in AI CONSIDERING' );
+ok( false !== strpos( implode( ' | ', $floor['AI']['considering'] ), 'DECLINED' ), 'DR floor: and the row NAMES the decision, so the board does not merely go quiet about it' );
 
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );
