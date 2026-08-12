@@ -541,6 +541,42 @@
 	outline-offset: 2px;
 	border-radius: 3px;
 }
+/* Shared disclosure (IA H1): the passing-summary caret generalized, so report
+   folds (contrast usage first; motion and advisories next) stop rendering the
+   unstyled browser triangle. Same keyboard/SR rationale as above. */
+.sn-disclosure {
+	margin-top: 0.6em;
+}
+.sn-disclosure > summary {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	cursor: pointer;
+	list-style: none;
+	font-weight: 600;
+	color: var(--sn-text);
+}
+.sn-disclosure > summary::-webkit-details-marker {
+	display: none;
+}
+.sn-disclosure > summary::before {
+	content: '';
+	flex: 0 0 auto;
+	width: 0;
+	height: 0;
+	border-left: 5px solid var(--sn-text-muted);
+	border-top: 4px solid transparent;
+	border-bottom: 4px solid transparent;
+	transition: transform 120ms ease;
+}
+.sn-disclosure[open] > summary::before {
+	transform: rotate(90deg);
+}
+.sn-disclosure > summary:focus-visible {
+	outline: 2px solid var(--sn-accent, #2271b1);
+	outline-offset: 2px;
+	border-radius: 3px;
+}
 .sn-health-passing__title {
 	margin-right: auto;
 }

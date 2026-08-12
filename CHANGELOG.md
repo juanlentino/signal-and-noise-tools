@@ -58,6 +58,24 @@ must equal the sweep) caught that a failing suite still prints its passing
 count into the sweep total — the summary line alone would have shipped the
 gap. Tests +23 (real parser, no stubs); sweep 16,618 → 16,641.
 
+## [Unreleased]
+
+### Admin IA, increments H1 + M1: the two behemoths start slimming
+
+From the owner-commissioned IA proposal (drafted by the Grok Build delegate,
+reviewed and implemented under this session's tests). **H1 (Health)**: the
+contrast usage failure table folds behind a closed `<details>` whose summary
+names the failing count — the headline, palette line, and limits sentence stay
+open, because the honesty layer is not collapsible. A shared `.sn-disclosure`
+caret (the passing-summary pattern generalized) replaces the unstyled browser
+triangle. **M1 (MCP Clients, implemented by Grok, reviewed here)**: reorder
+only — the write-door credential bind and "Connect a client" steps now render
+ABOVE both tool-list doors, so the returning owner's job and the first-run job
+stop hiding below 74 slugs; the bind form was also extracted from inside the
+write-door renderer, where the reorder would otherwise have rendered it twice.
+Every string, slug, and callout stays; still exactly one form. Ordering and
+fold pins added; sweep 16,641 → 16,649.
+
 ## [10.94.0] - 2026-08-12 — traffic rhythm flags: the cadence watch learns to read views
 
 The R4 row promoted this morning, delivered by evening — its gate honoured

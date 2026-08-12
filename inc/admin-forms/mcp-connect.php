@@ -47,11 +47,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_admin_render_mcp_connect_section() {
 	echo '<p>' . esc_html__( 'Three MCP doors can answer for this site (two native, one third-party) and every one of them sits behind your own WordPress login, an Application Password, never a shared secret. The native doors split by capability: the read door below can only look, the write door under it can also change things, so use whichever credential scope you actually mean to grant.', 'signal-and-noise-tools' ) . '</p>';
 
+	// M1 (IA): bind + connect sit above both tool-list doors so the returning
+	// owner's job and the first-run job are reachable without scrolling past
+	// the live slug inventories. No disclosure wrapping here — that is M2.
+	sn_admin_render_mcp_rw_binding();
+	sn_admin_render_mcp_owner_steps();
 	sn_admin_render_mcp_door_native();
 	sn_admin_render_mcp_door_native_write();
 	sn_admin_render_mcp_resources_prompts();
 	sn_admin_render_mcp_door_adapter();
-	sn_admin_render_mcp_owner_steps();
 
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">' . esc_html__( 'Not the same as Connector Approvals', 'signal-and-noise-tools' ) . '</p>';
@@ -140,7 +144,6 @@ function sn_admin_render_mcp_door_native_write() {
 	) . '</p>';
 
 	sn_admin_render_mcp_withheld_slugs();
-	sn_admin_render_mcp_rw_binding();
 	echo '</div>';
 }
 
