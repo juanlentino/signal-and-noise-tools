@@ -109,9 +109,9 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection — a thread shared with Machine readability', 'signal-and-noise-tools' ),
+				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" — read from the rollups already kept, deterministic, never profiling a reader', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
-				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" without ever profiling a reader', 'signal-and-noise-tools' ),
 				__( 'Search-side metrics from Search Console: the queries, impressions, and positions that happen before the click — a trailing complement to the first-party view, never a second opinion on it', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(

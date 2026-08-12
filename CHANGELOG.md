@@ -23,6 +23,30 @@ cannot silently fall behind again. The graduated sentence keeps the two claims
 that make the number honest: no sensor call on a reader's path, and a count
 never measured renders as unmeasured, never as a zero. Sweep 16,548 → 16,552.
 
+### Traffic rhythm flags promoted, and the floor follows
+
+Second board move of the day (owner-directed, R4 prep): the Analytics row
+"Traffic rhythm flags" promoted `considering` → `planned` through the door,
+reworded to name its gate as every planned row must — *read from the rollups
+already kept, deterministic, never profiling a reader*. The ML pair (corpus
+drift + reading paths) stays held in `considering` by the same decision: their
+own umbrella row demands a real editorial question first. Floor resynced
+(fingerprint `4a5c6618…` == live), four promotion pins added, and one existing
+render pin re-anchored from the retired phrasing to the claim it protects (the
+profiling *never* stated inline). Sweep 16,552 → 16,556.
+
+### CI: Plugin Check survives the WordPress mirror lagging the version API
+
+The required Plugin Check resolves "latest" WordPress from api.wordpress.org
+and then fetches that version as a git ref from the WordPress/WordPress
+mirror — which lags the API by hours on release day. 7.0.4 hit that window:
+every PR failed on `couldn't find remote ref 7.0.4` before its diff was read,
+leaving the repo unmergeable (the action's `wp-version` input is no escape
+hatch — at v1.1.7–v1.1.9 it only distinguishes `trunk`). A self-healing guard
+step now pins wp-env's core (via `.wp-env.override.json`) to the newest stable
+tag the mirror actually serves — but only while the mirror lags; once it
+catches up the step writes nothing, so the guard cannot rot into a stale pin.
+
 ## [10.92.6] - 2026-08-11 — WordPress 7.1 readiness, a confirmation before the force-delete, and the contrast scan stops flagging wp-admin
 
 Three findings from the [7.1 field guide](https://make.wordpress.org/core/2026/08/05/wordpress-7-1-field-guide/),
