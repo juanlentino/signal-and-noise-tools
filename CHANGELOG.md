@@ -2,6 +2,33 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### The Trust findings cap stops being two numbers that must agree
+
+`inc/integrity-trust-admin.php` printed up to three finding notes per check and
+then offered a "See all on Health →" link. The cap lived in **two** places: the
+slice length, and a separate threshold in the count guard on that link. Nothing
+tied them together, so changing one would have produced a link with nothing
+behind it, or hidden rows with no link at all.
+
+`snt_trust_findings_split()` now derives both from one array, so
+`shown + hidden == total` holds by construction rather than by keeping two
+literals matching, and `SNT_TRUST_FINDINGS_CAP` is declared once. The link also
+names its count (`+2 more on Health →`) instead of making the reader subtract
+the shown rows from the pill above it — the house `+N more` shape.
+
+Nothing was being dropped silently before this: the pill always carried the true
+count and the link always existed. This closes a **latent drift** between two
+numbers, not a visible hole.
+
+9 new assertions, including the conservation invariant at seven list sizes.
+Mutation-checked: desynchronising the two halves fires 2, moving the cap fires 1.
+One pin had to be rewritten — its first version string-matched `, 0, 3 )` and
+fired on the docblock *describing* the old shape, so it now counts the
+`array_slice` call instead. A pin that matches its own documentation is not
+pinning code. Sweep 16,826 (16,817 + 9).
+
 ## [10.99.0] - 2026-08-12 — the gauges name the window they measured, and the schedule wall folds
 
 Three surfaces, one habit: a number is only as good as the span it was measured
