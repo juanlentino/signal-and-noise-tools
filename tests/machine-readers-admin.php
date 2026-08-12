@@ -124,6 +124,20 @@ $sn_mr_css = (string) file_get_contents( __DIR__ . '/../assets/machine-readers.c
 ok( 1 === preg_match( '/\.sn-an-table\.widefat th,\s*\.sn-an-table\.widefat td \{ padding: 8px 12px; \}/', $sn_an_css ), 'central sheet gives striped sn-an-tables the dashboard cell gutters (the glued-text fix, plugin-wide)' );
 ok( false !== strpos( $sn_an_css, '.sn-an-table.widefat td:last-child { padding-right: 12px; }' ), 'the trailing number column keeps a right gutter (not glued to the card border)' );
 ok( false === strpos( $sn_mr_css, '6px 10px 6px 0' ), 'machine-readers.css no longer carries its own flush cell override (superseded by the central rule)' );
+// MR4: a CLOSED fold is a section of this card, so it takes the caption
+// rhythm. Without this the summary crowds the block above it — the shared
+// .sn-disclosure margin is tuned for the Health tab's tighter stack.
+ok( 1 === preg_match( '/\.sn-mr-data \.sn-disclosure \{ margin-top: 20px; \}/', $sn_mr_css ), 'MR4: a closed fold takes the same 20px section rhythm the table captions take' );
+ok( 1 === preg_match( '/\.sn-mr-data \.sn-disclosure \.sn-an-table \{ margin-top: 8px; \}/', $sn_mr_css ), 'MR4: inside an open fold the table sits closer to its own summary (which is now the section heading)' );
+// The rules are only reachable if the folds actually carry the shared class —
+// pin the three renderers' class lists against the sheet they depend on.
+$sn_mr_render_src = (string) file_get_contents( __DIR__ . '/../inc/machine-readers-render-taxonomy.php' );
+foreach ( array( 'sn-mr-rights-log', 'sn-mr-unknown-log', 'sn-mr-vendor-purpose' ) as $sn_mr_fold ) {
+	ok( false !== strpos( $sn_mr_render_src, '<details class="' . $sn_mr_fold . ' sn-disclosure"' ), "MR4: the {$sn_mr_fold} fold carries the shared .sn-disclosure class, so the caret and rhythm rules reach it" );
+}
+// Non-vacuity: the CSS file must actually parse as rules, not be truncated
+// mid-comment (the v10.83.0 comment-delimiter lesson).
+ok( substr_count( $sn_mr_css, '/*' ) === substr_count( $sn_mr_css, '*/' ), 'machine-readers.css comment delimiters balance (no orphaned block killing the rules below it)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

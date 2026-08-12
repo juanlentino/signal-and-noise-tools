@@ -32,6 +32,16 @@
 }
 .sn-mr-data .sn-kpi-row { margin-top: 4px; }
 
+/* MR4 (IA): the three row-level payloads (rights stream, unclassified-agent
+   review list, agent/purpose breakdown) fold behind .sn-disclosure. A CLOSED
+   fold is a section of this card like any table, so it takes the same 20px
+   rhythm the captions take — the shared rule's 0.6em is tuned for the Health
+   tab's tighter stack and leaves the summary crowding the block above it here.
+   Inside an OPEN fold the table sits closer to its own summary, because that
+   summary is now the section heading and the 20px would double up. */
+.sn-mr-data .sn-disclosure { margin-top: 20px; }
+.sn-mr-data .sn-disclosure .sn-an-table { margin-top: 8px; }
+
 /* v10.2.5: the LAST mixed left edge — verified in a pixel repro against the
    live stylesheet stack. The KPI cells carry the Analytics 14px internal
    padding; on the dashboard everything shares that gutter, but inside this
