@@ -40,12 +40,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Required from here — not only from the plugin loader — so every load site of this file (tests included) stays whole.
+require_once __DIR__ . '/mcp-connect-status.php';
+
 /**
  * Tools → Connect an MCP client section body. Used as the
  * sn_admin_render_section() callback for the 'mcp-connect' sub-tab.
  */
 function sn_admin_render_mcp_connect_section() {
 	echo '<p>' . esc_html__( 'Three MCP doors can answer for this site (two native, one third-party) and every one of them sits behind your own WordPress login, an Application Password, never a shared secret. The native doors split by capability: the read door below can only look, the write door under it can also change things, so use whichever credential scope you actually mean to grant.', 'signal-and-noise-tools' ) . '</p>';
+
+	sn_admin_render_mcp_status_glance();
 
 	// M1 (IA): bind + connect sit above both tool-list doors so the returning
 	// owner's job and the first-run job are reachable without scrolling past
@@ -85,16 +90,23 @@ function sn_admin_render_mcp_door_native() {
 		'<code>manage_options</code>'
 	) . '</p>';
 	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-only', 'signal-and-noise-tools' ) . '</span></p>';
-	echo '<p>' . sprintf(
+	// M2 (IA): the inventory folds. Every slug stays in the HTML (the render
+	// suite iterates the live allowlist against it), but the wall of rows sits
+	// behind a closed disclosure whose summary carries the LIVE count — the
+	// same count() call, so the summary can never drift from tools/list.
+	echo '<details class="sn-mcp-tools sn-disclosure"><summary>';
+	printf(
 		/* translators: %d: the live count of allowlisted read-only tools. */
-		esc_html__( '%d read-only tools exposed:', 'signal-and-noise-tools' ),
+		esc_html__( '%d read-only tools exposed — show the list', 'signal-and-noise-tools' ),
 		count( $slugs )
-	) . '</p>';
+	);
+	echo '</summary>';
 	echo '<ul class="sn-mcp-tool-list">';
 	foreach ( $slugs as $slug ) {
 		echo '<li><code>' . esc_html( $slug ) . '</code></li>';
 	}
 	echo '</ul>';
+	echo '</details>';
 	echo '<p>' . esc_html__( 'This door never mutates anything, by construction: see the write door below for actions.', 'signal-and-noise-tools' ) . '</p>';
 	echo '</div>';
 }
@@ -127,11 +139,18 @@ function sn_admin_render_mcp_door_native_write() {
 		'<code>manage_options</code>'
 	) . '</p>';
 	echo '<p><code>POST ' . esc_url( $url ) . '</code> <span class="sn-badge">' . esc_html__( 'read-write', 'signal-and-noise-tools' ) . '</span></p>';
-	echo '<p>' . sprintf(
-		/* translators: %d: the live count of allowlisted read-write tools. */
-		esc_html__( '%d read-write tools exposed:', 'signal-and-noise-tools' ),
-		count( $rw_slugs )
-	) . '</p>';
+	// M2 (IA): same fold as the read door. The withheld slugs stay INSIDE this
+	// disclosure — they explain a gap in exactly this list, and folding them
+	// anywhere else would orphan the explanation. Their count in the summary is
+	// counted from the same data the renderer prints, never hardcoded.
+	echo '<details class="sn-mcp-tools sn-disclosure"><summary>';
+	printf(
+		/* translators: 1: the live count of allowlisted read-write tools, 2: the withheld-ability count. */
+		esc_html__( '%1$d read-write tools exposed · %2$d withheld — show the list', 'signal-and-noise-tools' ),
+		count( $rw_slugs ),
+		count( sn_admin_mcp_withheld_slug_data() )
+	);
+	echo '</summary>';
 	echo '<ul class="sn-mcp-tool-list">';
 	foreach ( $rw_slugs as $slug ) {
 		echo '<li><code>' . esc_html( $slug ) . '</code></li>';
@@ -144,6 +163,7 @@ function sn_admin_render_mcp_door_native_write() {
 	) . '</p>';
 
 	sn_admin_render_mcp_withheld_slugs();
+	echo '</details>';
 	echo '</div>';
 }
 
@@ -260,8 +280,8 @@ function sn_admin_render_mcp_rw_binding() {
  * irreversible blast radius. Static content — these slugs never come from a
  * live allowlist call, precisely because they are absent from it.
  */
-function sn_admin_render_mcp_withheld_slugs() {
-	$withheld = array(
+function sn_admin_mcp_withheld_slug_data() {
+	return array(
 		'signal-noise/run-cron-event'          => array(
 			'badge'  => __( 'never', 'signal-and-noise-tools' ),
 			'reason' => __( 'synchronously fires do_action() on any non-sn_* hook you name: an unbounded blast radius across the whole site, not just this plugin', 'signal-and-noise-tools' ),
@@ -279,10 +299,17 @@ function sn_admin_render_mcp_withheld_slugs() {
 			'reason' => __( 'deletes Site Editor template, part, and nav overrides: can regress the whole site design', 'signal-and-noise-tools' ),
 		),
 	);
+}
 
+/**
+ * Render the withheld slugs + reasons. Reads sn_admin_mcp_withheld_slug_data()
+ * — the same array the write-door disclosure summary counts (M2), so the
+ * "· N withheld" in the summary and the list it opens onto cannot disagree.
+ */
+function sn_admin_render_mcp_withheld_slugs() {
 	echo '<p>' . esc_html__( 'Four abilities never reach this door: one permanently, three pending an explicit future opt-in:', 'signal-and-noise-tools' ) . '</p>';
 	echo '<ul class="sn-mcp-tool-list">';
-	foreach ( $withheld as $slug => $info ) {
+	foreach ( sn_admin_mcp_withheld_slug_data() as $slug => $info ) {
 		echo '<li><code>' . esc_html( $slug ) . '</code> <span class="sn-badge">' . esc_html( $info['badge'] ) . '</span>. ' . esc_html( $info['reason'] ) . '</li>';
 	}
 	echo '</ul>';

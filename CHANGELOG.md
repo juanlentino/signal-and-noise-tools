@@ -4,6 +4,32 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Admin IA H2+H3 / M2+M3: both behemoths finish slimming
+
+The four remaining increments from the admin IA proposal, in order. **H2**:
+the contrast renderer (swatch, verdict pill, threshold format, report +
+usage + conditional) moves to `inc/health-render-contrast.php` — a
+mechanical split (574 → 207 lines in the reports module) so H3 could not
+push anything toward the house line cap. **H3**: the motion report's
+promised detail view lands — `inc/health-render-motion.php` registers
+through the renderer map (never a key special-case): headline numbers open
+(uncovered-of-total, gated, neutralized, sheets; the uncovered count is
+always the TRUE total), the uncovered table behind a closed `.sn-disclosure`
+capped at 50 with an explicit remainder line. `scanned === 0` reads "no
+front stylesheets were readable", never "0 uncovered"; rows carry no warn
+pill — a report is not findings. The degrading fallback stays pinned for
+the next unknown report. **M2**: both MCP tool inventories fold behind
+closed disclosures whose summaries `count()` the same live allowlists the
+lists print — the withheld slugs stay inside the write-door fold, their
+count fed from the same array the renderer reads. **M3**: a display-only
+three-card status glance tops AI → MCP Clients — read door (live count,
+"allowlist unavailable" when unknown, never "0 tools"), write door with
+five named states (INACTIVE / bound-to-name / unresolvable / switched off /
+**killed in wp-config with `SN_MCP_RW_DISABLED` named** — showing the
+constant is honesty; flipping it from a page would be a new capability and
+is deliberately absent), adapter present/not-installed. Still exactly one
+form on the leaf.
+
 ### Two graduations and the board's first ceiling-forced retirement
 
 Charts-that-speak and rhythm-flags graduated to `done` the same day they
