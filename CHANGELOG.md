@@ -2,9 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
-
-### Traffic rhythm flags: the cadence watch learns to read views
+## [10.94.0] - 2026-08-12 — traffic rhythm flags: the cadence watch learns to read views
 
 The R4 row promoted this morning, delivered by evening — its gate honoured
 to the letter: *read from the rollups already kept, deterministic, never
