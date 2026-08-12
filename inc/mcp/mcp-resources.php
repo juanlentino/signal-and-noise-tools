@@ -110,12 +110,27 @@ function sn_mcp_resource_read( $uri ) {
 }
 
 /**
- * The abilities catalog body: slug/label/description/category for EVERY
- * registered ability, both namespaces — this is a whole-registry discovery
- * surface, deliberately NOT filtered by either MCP door's allowlist (an agent
- * reading this resource is asking "what exists on this site", not "what can I
- * call over MCP right now"). JSON-encoded so it survives resources/read's
- * text-content shape untouched.
+ * The abilities catalog body: slug/label/description/category for every ability
+ * `wp_get_abilities()` returns, both namespaces — a discovery surface
+ * deliberately NOT filtered by either MCP door's allowlist (an agent reading
+ * this resource is asking "what exists on this site", not "what can I call over
+ * MCP right now"). JSON-encoded so it survives resources/read's text-content
+ * shape untouched.
+ *
+ * COVERAGE, precisely, because this docblock used to overclaim. It said "EVERY
+ * registered ability", which was true when `wp_get_abilities()` returned the raw
+ * registry. WordPress 7.1 changes the no-argument call to mean "retrieve
+ * abilities through the standard filtering pipeline" (see the 7.1 dev note
+ * "Filtering registered abilities with wp_get_abilities()"), so global filters
+ * now run. From 7.1 this catalog lists what the filtering pipeline yields, which
+ * is the registry MINUS anything a filter removed.
+ *
+ * That is the right source to read — a catalog should agree with what the rest
+ * of the site can see — but it is no longer a synonym for "the registry", and a
+ * discovery surface that silently under-reports is worse than one that says what
+ * it covers. Nothing in this plugin or the theme registers such a filter, so
+ * today the two sets are identical; the wording no longer depends on that
+ * staying true.
  *
  * @return string
  */

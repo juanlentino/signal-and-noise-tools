@@ -106,6 +106,12 @@ $GLOBALS['__ab_is_admin']    = false;
 $GLOBALS['__ab_is_singular'] = false;
 $GLOBALS['__ab_queried_id']  = 0;
 $GLOBALS['__ab_screen_base'] = ''; // get_current_screen()->base
+// Real WP_Screen carries BOTH ->id and ->base, and sets both to 'site-editor'
+// for site-editor.php. sn_admin_bar_destructive_allowed() reads both, so the
+// stub has to model both — a stub that omits ->id would make the guard read an
+// undefined property and silently answer "allowed" (the stub-drift trap).
+// '' means "mirror base", which is what core does for post.php (id === 'post').
+$GLOBALS['__ab_screen_id'] = '';
 if ( ! function_exists( 'is_admin' ) ) {
 	function is_admin() { return ! empty( $GLOBALS['__ab_is_admin'] ); }
 }
@@ -118,7 +124,11 @@ if ( ! function_exists( 'get_queried_object_id' ) ) {
 if ( ! function_exists( 'get_current_screen' ) ) {
 	function get_current_screen() {
 		$base = (string) $GLOBALS['__ab_screen_base'];
-		return '' === $base ? null : (object) array( 'base' => $base );
+		if ( '' === $base ) {
+			return null;
+		}
+		$id = (string) $GLOBALS['__ab_screen_id'];
+		return (object) array( 'base' => $base, 'id' => '' === $id ? $base : $id );
 	}
 }
 
@@ -354,6 +364,76 @@ $GLOBALS['__ab_screen_base'] = 'post';
 $_GET = array();
 ab_eq( 0, sn_admin_bar_contextual_post_id(), '5.5: admin post screen with no ?post= → 0' );
 $_GET = array();
+
+/* ════════════════════════════════════════════════════════════════════
+ * Test 6 — WP 7.1: the destructive item is hidden in the Site Editor.
+ *
+ * 7.1 makes the toolbar persistent in the Site Editor, which never showed it.
+ * "Clear DB Overrides" force-deletes (no trash, no undo) every wp_template /
+ * wp_template_part / wp_navigation — the exact records the Site Editor writes.
+ * Its only previous protection was the toolbar's absence there.
+ * ════════════════════════════════════════════════════════════════════ */
+echo "\nTest 6: destructive item hidden in the Site Editor (WP 7.1 toolbar persistence)\n";
+
+$items = sn_admin_bar_items();
+ab_true( ! empty( $items['sn-quick-clear-overrides']['guard'] ), '6.1: clear-overrides DOES carry a guard' );
+ab_eq( 'sn_admin_bar_destructive_allowed', $items['sn-quick-clear-overrides']['guard'] ?? null, '6.1b: guard is the destructive-screen gate' );
+ab_true( is_callable( $items['sn-quick-clear-overrides']['guard'] ?? null ), '6.1c: guard is callable' );
+
+// Front end: positively not the Site Editor → allowed (unchanged behaviour).
+$GLOBALS['__ab_is_admin']    = false;
+$GLOBALS['__ab_screen_base'] = '';
+$GLOBALS['__ab_screen_id']   = '';
+ab_true( true === sn_admin_bar_destructive_allowed(), '6.2: front end → allowed' );
+
+// Site Editor, both properties set the way core sets them → hidden.
+$GLOBALS['__ab_is_admin']    = true;
+$GLOBALS['__ab_screen_base'] = 'site-editor';
+$GLOBALS['__ab_screen_id']   = 'site-editor';
+ab_true( false === sn_admin_bar_destructive_allowed(), '6.3: Site Editor → hidden' );
+
+// Only ->id carries it (core keeps base as something else): still hidden.
+$GLOBALS['__ab_screen_base'] = 'toplevel_page_whatever';
+$GLOBALS['__ab_screen_id']   = 'site-editor';
+ab_true( false === sn_admin_bar_destructive_allowed(), '6.4: site-editor on ->id alone → hidden (not coupled to one property)' );
+
+// Only ->base carries it: still hidden.
+$GLOBALS['__ab_screen_base'] = 'site-editor';
+$GLOBALS['__ab_screen_id']   = 'some-other-id';
+ab_true( false === sn_admin_bar_destructive_allowed(), '6.5: site-editor on ->base alone → hidden' );
+
+// Post editor keeps the item — availability users already have is not removed,
+// and a template override is not what a post author is editing.
+$GLOBALS['__ab_screen_base'] = 'post';
+$GLOBALS['__ab_screen_id']   = 'post';
+ab_true( true === sn_admin_bar_destructive_allowed(), '6.6: post editor → still allowed (no availability regression)' );
+
+// Ordinary admin screen: allowed.
+$GLOBALS['__ab_screen_base'] = 'appearance_page_sn-theme-options';
+$GLOBALS['__ab_screen_id']   = 'appearance_page_sn-theme-options';
+ab_true( true === sn_admin_bar_destructive_allowed(), '6.7: plugin settings screen → allowed' );
+
+// Unresolvable screen inside admin: fail CLOSED. An unhidden force-delete is a
+// worse outcome than a missing menu row, and hiding the row never gates the
+// action — the AJAX handler owns nonce + capability either way.
+$GLOBALS['__ab_screen_base'] = '';
+$GLOBALS['__ab_screen_id']   = '';
+ab_true( false === sn_admin_bar_destructive_allowed(), '6.8: admin with unresolvable screen → hidden (fails closed)' );
+
+// The guard returns a BOOL, never an int. The menu builder forwards a positive
+// int guard value as the item's postId (that is how Regen OG Card passes its
+// post); a truthy int here would attach a bogus post_id to a destructive action.
+$GLOBALS['__ab_is_admin']    = false;
+$GLOBALS['__ab_screen_base'] = '';
+$GLOBALS['__ab_screen_id']   = '';
+$allowed = sn_admin_bar_destructive_allowed();
+ab_true( is_bool( $allowed ), '6.9: guard returns a bool, so no postId is ever derived from it' );
+ab_true( ! is_int( $allowed ), '6.9b: guard is not an int (the postId-carrying shape)' );
+
+// Reset shared state for any later section.
+$GLOBALS['__ab_is_admin']    = false;
+$GLOBALS['__ab_screen_base'] = '';
+$GLOBALS['__ab_screen_id']   = '';
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

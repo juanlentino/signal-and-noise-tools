@@ -2,10 +2,22 @@
 /**
  * Standalone tests for inc/abilities-lifecycle-guard.php — the WP 7.1
  * forward-compat layer that attaches our MCP-door policy (rw kill switch,
- * telemetry, rw audit) to core's ability-execution lifecycle hooks
- * (wp_ability_invoked / wp_ability_permission_result /
+ * telemetry, rw audit) to core's ability-execution lifecycle filters
+ * (wp_pre_execute_ability / wp_ability_permission_result /
  * wp_ability_execute_result). Pre-7.1 those hooks never fire, so the guard
  * must be a pure no-op there; these tests exercise the handlers directly.
+ *
+ * THE ASSERTION THAT MATTERS MOST here is section 1's second half: every hook
+ * the guard registers must be a MEMBER of the set 7.1 actually ships. From
+ * v10.38.0 until this fix the guard registered `wp_ability_invoked`, a hook
+ * that exists in no WordPress release, and this suite passed anyway — it
+ * asserted only that we had registered the name we had decided to register.
+ * A handler on a
+ * non-existent hook is indistinguishable from a handler on a not-yet-shipped
+ * one, so nothing downstream could have caught it either: the symptom was a
+ * permanent latency_ms=0 on `direct` telemetry rows, which reads as a fast
+ * ability. One-sided contract assertions are the trap; the membership check is
+ * the second side.
  *
  * Stub-drift note (the 5x trap): every stub below models the REAL callee's
  * signature, verified against source at authoring time:
@@ -72,9 +84,35 @@ require dirname( __DIR__ ) . '/inc/abilities-lifecycle-guard.php';
 // ---------------------------------------------------------------------------
 $hooked = array();
 foreach ( $GLOBALS['__hooks'] as $h ) { $hooked[ $h[1] ] = $h; }
-ok( isset( $hooked['wp_ability_invoked'] ) && 'action' === $hooked['wp_ability_invoked'][0] && 3 === $hooked['wp_ability_invoked'][4], 'registers wp_ability_invoked action with arity 3' );
+ok( isset( $hooked['wp_pre_execute_ability'] ) && 'filter' === $hooked['wp_pre_execute_ability'][0] && 4 === $hooked['wp_pre_execute_ability'][4], 'registers wp_pre_execute_ability filter with arity 4' );
 ok( isset( $hooked['wp_ability_permission_result'] ) && 'filter' === $hooked['wp_ability_permission_result'][0] && 4 === $hooked['wp_ability_permission_result'][4], 'registers wp_ability_permission_result filter with arity 4' );
 ok( isset( $hooked['wp_ability_execute_result'] ) && 'filter' === $hooked['wp_ability_execute_result'][0] && 4 === $hooked['wp_ability_execute_result'][4], 'registers wp_ability_execute_result filter with arity 4' );
+
+// 1b. THE SECOND SIDE OF THE CONTRACT. Registering a name is not evidence the
+//     name exists. Every hook the guard attaches to must be a member of the set
+//     7.1 ships, at the arity that set declares, and registered as a filter —
+//     7.1's lifecycle hooks are filters without exception, so an `action` here
+//     means a return value core will discard.
+$shipped = sn_ability_lifecycle_hooks_71();
+ok( 4 === count( $shipped ), 'shipped set: 7.1 declares exactly four lifecycle filters' );
+$unknown = array();
+$wrong_arity = array();
+$not_filter  = array();
+foreach ( $GLOBALS['__hooks'] as $h ) {
+	list( $kind, $name, , , $arity ) = $h;
+	if ( ! array_key_exists( $name, $shipped ) ) { $unknown[] = $name; continue; }
+	if ( $shipped[ $name ] !== $arity ) { $wrong_arity[] = $name; }
+	if ( 'filter' !== $kind ) { $not_filter[] = $name; }
+}
+ok( array() === $unknown, 'membership: every registered hook exists in shipped 7.1' . ( $unknown ? ' (unknown: ' . implode( ', ', $unknown ) . ')' : '' ) );
+ok( array() === $wrong_arity, 'membership: every registered hook uses the arity 7.1 declares' . ( $wrong_arity ? ' (wrong: ' . implode( ', ', $wrong_arity ) . ')' : '' ) );
+ok( array() === $not_filter, 'membership: every registered hook is attached as a filter' . ( $not_filter ? ' (not filter: ' . implode( ', ', $not_filter ) . ')' : '' ) );
+
+// Mutation check: prove the membership assertion can actually fail, rather than
+// being vacuously true because $GLOBALS['__hooks'] is empty or the lookup is
+// wrong. A guard that cannot be made to fire is not a guard.
+ok( ! array_key_exists( 'wp_ability_invoked', $shipped ), 'membership: the v10.38.0 name wp_ability_invoked is NOT in the shipped set (the bug this check exists for)' );
+ok( 3 === count( $GLOBALS['__hooks'] ), 'membership: the loop actually inspected three registrations (not vacuously empty)' );
 
 // ---------------------------------------------------------------------------
 // 2. Namespace scoping.
@@ -157,7 +195,7 @@ ok( 0 === sn_ability_guard_mcp_depth( -1 ), 'depth: floors at zero (unbalanced d
 $GLOBALS['__telemetry_rows'] = array();
 $GLOBALS['__audit_rows']     = array();
 
-sn_ability_guard_on_invoked( 'signal-noise/sn-scan', array(), null );
+sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null );
 $out = array( 'a', 'b' );
 $ret = sn_ability_guard_filter_execute_result( $out, 'signal-noise/sn-scan', array(), null );
 ok( $out === $ret, 'observer: result passes through by identity' );
@@ -165,13 +203,32 @@ ok( 1 === count( $GLOBALS['__telemetry_rows'] ), 'observer: direct execution rec
 $row = $GLOBALS['__telemetry_rows'][0];
 ok( 'direct' === $row['door'], 'observer: direct executions carry door=direct (MCP rows stay distinguishable)' );
 ok( 'ok' === $row['outcome'] && 2 === $row['result_count'], 'observer: ok outcome with raw result_count' );
-ok( is_int( $row['latency_ms'] ) && $row['latency_ms'] >= 0, 'observer: latency measured from wp_ability_invoked' );
+ok( is_int( $row['latency_ms'] ) && $row['latency_ms'] >= 0, 'observer: latency measured from wp_pre_execute_ability' );
 ok( array() === $GLOBALS['__audit_rows'], 'observer: read-class direct execution writes no rw audit row' );
+
+// ---------------------------------------------------------------------------
+// 6b. wp_pre_execute_ability is a SHORT-CIRCUIT filter. Two properties, both
+//     load-bearing: it must never invent a return value (that would replace
+//     every ability's result with ours), and it must not stamp t0 when a prior
+//     filter already short-circuited (the execute callback will not run, so
+//     wp_ability_execute_result never fires, so the stamp would never be popped
+//     and would surface as the NEXT call's latency).
+// ---------------------------------------------------------------------------
+ok( null === sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null ), 'pre_execute: returns null $pre unchanged (never short-circuits execution itself)' );
+sn_ability_guard_t0( 'signal-noise/sn-scan' ); // drain the stamp the assertion above pushed.
+
+$short = array( 'cached' => true );
+ok( $short === sn_ability_guard_filter_pre_execute( $short, 'signal-noise/sn-scan', array(), null ), 'pre_execute: a non-null $pre passes through by identity' );
+ok( null === sn_ability_guard_t0( 'signal-noise/sn-scan' ), 'pre_execute: no t0 stamped when a prior filter short-circuited (stack stays clean)' );
+
+// A non-ours ability is never stamped either — same stack-hygiene reason.
+sn_ability_guard_filter_pre_execute( null, 'core/get-user-info', array(), null );
+ok( null === sn_ability_guard_t0( 'core/get-user-info' ), 'pre_execute: non-ours ability is not stamped' );
 
 // Inside MCP dispatch the wrapper already records — the observer stands down.
 $GLOBALS['__telemetry_rows'] = array();
 sn_ability_guard_mcp_depth( 1 );
-sn_ability_guard_on_invoked( 'signal-noise/sn-scan', array(), null );
+sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null );
 $ret = sn_ability_guard_filter_execute_result( $out, 'signal-noise/sn-scan', array(), null );
 ok( $out === $ret && array() === $GLOBALS['__telemetry_rows'], 'observer: no double-record inside MCP dispatch' );
 sn_ability_guard_mcp_depth( -1 );
@@ -184,7 +241,7 @@ ok( 'x' === $ret && array() === $GLOBALS['__telemetry_rows'], 'observer: core ab
 // Write-class direct executions also land in the rw audit log — both outcomes.
 $GLOBALS['__telemetry_rows'] = array();
 $GLOBALS['__audit_rows']     = array();
-sn_ability_guard_on_invoked( 'signal-noise/update-post-surfaces', array( 'post_id' => 7 ), null );
+sn_ability_guard_filter_pre_execute( null, 'signal-noise/update-post-surfaces', array( 'post_id' => 7 ), null );
 sn_ability_guard_filter_execute_result( array( 'ok' => true ), 'signal-noise/update-post-surfaces', array( 'post_id' => 7 ), null );
 ok( 1 === count( $GLOBALS['__audit_rows'] ) && 'ok' === $GLOBALS['__audit_rows'][0]['outcome'] && 'signal-noise/update-post-surfaces' === $GLOBALS['__audit_rows'][0]['slug'], 'observer: write-class direct success audited' );
 
@@ -200,9 +257,9 @@ ok( 'server_error' === $last['outcome'], 'observer: WP_Error outcome classified 
 //    (review finding — the t0 store is a LIFO stack, not last-write-wins).
 // ---------------------------------------------------------------------------
 $GLOBALS['__telemetry_rows'] = array();
-sn_ability_guard_on_invoked( 'signal-noise/sn-scan', array(), null ); // outer
+sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null ); // outer
 usleep( 2000 );
-sn_ability_guard_on_invoked( 'signal-noise/sn-scan', array(), null ); // inner
+sn_ability_guard_filter_pre_execute( null, 'signal-noise/sn-scan', array(), null ); // inner
 sn_ability_guard_filter_execute_result( array(), 'signal-noise/sn-scan', array(), null ); // inner completes
 usleep( 2000 );
 sn_ability_guard_filter_execute_result( array(), 'signal-noise/sn-scan', array(), null ); // outer completes

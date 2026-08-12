@@ -10,6 +10,8 @@
  * Actions exposed:
  *   - Purge All Caches      (object cache + Breeze + Varnish + Cloudflare)
  *   - Clear DB Overrides    (wp_template / wp_template_part / wp_navigation)
+ *                           DESTRUCTIVE: force-delete, no trash. Hidden in the
+ *                           Site Editor — see sn_admin_bar_destructive_allowed().
  *   - Purge Cloudflare      (CF zone purge — only shown when configured)
  *   - Check for Updates     (re-poll GitHub for theme update)
  *
@@ -62,6 +64,11 @@ function sn_admin_bar_items() {
 		'sn-quick-clear-overrides' => array(
 			'action' => 'sn_quick_clear_overrides',
 			'label'  => '⌫ Clear DB Overrides',
+			// DESTRUCTIVE + CONTEXTUAL — force-deletes every wp_template /
+			// wp_template_part / wp_navigation with no trash and no undo. Hidden
+			// in the Site Editor, which WP 7.1 newly shows the toolbar in and
+			// which owns exactly those records. See the guard's docblock.
+			'guard'  => 'sn_admin_bar_destructive_allowed',
 		),
 		'sn-quick-cf-purge' => array(
 			'action' => 'sn_quick_cf_purge',
@@ -79,6 +86,66 @@ function sn_admin_bar_items() {
 			'guard'  => 'sn_admin_bar_contextual_post_id',
 		),
 );
+}
+
+/**
+ * May the DESTRUCTIVE quick action render on the current screen?
+ *
+ * WordPress 7.1 makes the toolbar persistent in the Post Editor (including
+ * fullscreen, where it was previously hidden) and in the **Site Editor**, which
+ * never showed it at all. See the 7.1 dev note "Consistent navigation in
+ * WordPress 7.1 with persistent toolbar" (2026-07-13), whose own recommendation
+ * for a node that does not belong in an editor is to filter it out there.
+ *
+ * "Clear DB Overrides" is that node. It dispatches
+ * `sn_clear_template_overrides_result`, whose theme-side implementation
+ * (signal-and-noise, inc/template-maintenance.php sn_clear_template_overrides)
+ * runs `wp_delete_post( $id, true )` — FORCE delete, no trash, no undo — over
+ * every `wp_template`, `wp_template_part` and `wp_navigation` in the database.
+ * That is precisely the set the Site Editor writes. Before 7.1 the button could
+ * not appear in the room it empties; from 7.1 it renders there, one click from
+ * the canvas, with no confirmation step.
+ *
+ * The hazard is not news to this codebase — three separate automatic purge
+ * paths in template-maintenance.php pass `template_overrides => false` with a
+ * comment saying an update "must never nuke Site Editor edits as a side
+ * effect". Those are careful because they fire unattended. This button IS the
+ * deliberate nuke; the only thing that ever kept it away from the Site Editor
+ * was the toolbar's absence, and 7.1 removed that.
+ *
+ * Scope is deliberately the Site Editor alone. The Post Editor already showed
+ * the bar whenever fullscreen was off, so hiding the item there would take away
+ * availability that users have today for a hazard that is not new — and a
+ * template override is not the thing a post author is editing. Front end and
+ * every other admin screen are unchanged.
+ *
+ * Fails CLOSED in admin when the screen cannot be resolved: an unhidden
+ * force-delete is a worse outcome than a temporarily missing menu row, and the
+ * action stays reachable from the Dashboard either way. Hiding the row never
+ * gates the action itself — sn_handle_quick_clear_overrides() keeps its own
+ * nonce + `manage_options` checks, which are the actual authorization.
+ *
+ * @return bool True when the destructive item may render.
+ */
+function sn_admin_bar_destructive_allowed() {
+	if ( ! is_admin() ) {
+		return true; // Front end: positively not the Site Editor.
+	}
+	if ( ! function_exists( 'get_current_screen' ) ) {
+		return false;
+	}
+	$screen = get_current_screen();
+	if ( ! is_object( $screen ) ) {
+		return false;
+	}
+	// Read id AND base: WP_Screen sets both to 'site-editor' for site-editor.php,
+	// and checking only one couples us to which of the two core happens to keep.
+	foreach ( array( 'id', 'base' ) as $prop ) {
+		if ( isset( $screen->$prop ) && 'site-editor' === (string) $screen->$prop ) {
+			return false;
+		}
+	}
+	return true;
 }
 
 /**

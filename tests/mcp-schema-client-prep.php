@@ -48,13 +48,21 @@ ok( isset( $out2['properties']['title']['sanitize_callback'] ), 'pre-7.1: server
 // ---------------------------------------------------------------------------
 // 7.1+: define a faithful model of the core function, then re-run.
 // ---------------------------------------------------------------------------
-$GLOBALS['__prep_calls'] = 0;
+$GLOBALS['__prep_calls']    = 0;
+$GLOBALS['__prep_profiles'] = array();
 // Wrapped in a conditional block so PHP defines the stub at RUNTIME (an
 // unconditional top-level declaration is hoisted at compile time, which would
 // falsify the pre-7.1 assertions above).
 if ( ! function_exists( 'wp_prepare_json_schema_for_client' ) ) {
 function wp_prepare_json_schema_for_client( $schema, $schema_profile = 'draft-04' ) {
 	$GLOBALS['__prep_calls']++;
+	// Record what the caller ACTUALLY passed. The default here is core's own
+	// default, so a caller that omits the argument is indistinguishable from one
+	// that passes 'draft-04' unless the stub captures the raw incoming value —
+	// which is the whole point of pinning it. func_get_args() sees only what was
+	// supplied, before defaults are applied.
+	$supplied = func_get_args();
+	$GLOBALS['__prep_profiles'][] = array_key_exists( 1, $supplied ) ? $supplied[1] : '__omitted__';
 	$strip = function ( $node ) use ( &$strip ) {
 		if ( ! is_array( $node ) ) { return $node; }
 		unset( $node['sanitize_callback'], $node['validate_callback'], $node['arg_options'] );
@@ -84,6 +92,12 @@ function wp_prepare_json_schema_for_client( $schema, $schema_profile = 'draft-04
 $out3 = sn_mcp_normalize_schema( $in2 );
 ok( 1 === $GLOBALS['__prep_calls'], '7.1: core prep called exactly once per normalize' );
 ok( ! isset( $out3['properties']['title']['sanitize_callback'] ), '7.1: server-only keywords stripped by delegated core prep' );
+
+// The schema PROFILE must be pinned, not defaulted. Core ships 'draft-04' (broad
+// JSON Schema vocabulary) and 'rest-api' (narrower); MCP hosts want the broad
+// one. Naming it means a change to core's default cannot silently reshape every
+// tool schema this server advertises.
+ok( array( 'draft-04' ) === $GLOBALS['__prep_profiles'], '7.1: profile pinned explicitly to draft-04 (not left to core default)' );
 
 // Property-level required hoisted by core, and our fixes still apply on top.
 $in4  = array(
