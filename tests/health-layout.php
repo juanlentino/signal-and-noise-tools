@@ -495,7 +495,8 @@ he_assert( false !== strpos( $css, '.sn-health-passing[open] .sn-health-passing_
 // And no inline LAYOUT crept into the PHP (colour swatches are the one
 // data-driven exception, asserted positively in Test A2).
 $render_php = (string) file_get_contents( __DIR__ . '/../inc/health-render-passing.php' )
-	. (string) file_get_contents( __DIR__ . '/../inc/health-render-reports.php' );
+	. (string) file_get_contents( __DIR__ . '/../inc/health-render-reports.php' )
+	. (string) file_get_contents( __DIR__ . '/../inc/health-render-contrast.php' );
 he_assert( 0 === preg_match( '/style="(?!background-color:)/', $render_php ), 'no inline style attributes in the render modules except the palette swatch' );
 // Non-vacuity: the regex above must actually be looking at something. If the
 // files stopped containing ANY style attribute the assertion would pass while
