@@ -37,6 +37,11 @@ posture). It is:
 - **A4 — a malicious or buggy MCP client/proxy.** The desktop platform's connector sits
   between the model and the site; its schema snapshot can be stale and its refusals happen
   before the site sees the call.
+- **A5 — the hostile caller.** Someone who reaches the site through a brokered
+  entry point without holding the laptop's credential. **Not in scope today** — no such
+  entry point exists — and modelled in **§8** against roadmap 3D, which would create one.
+  A1–A4 are an authorized channel misbehaving; A5 is an unauthorized party becoming
+  authorized.
 
 Assets, in the order the site cares about them: (1) the published record (post content —
 the provenance ledger signs its normalized prose), (2) the provenance chain itself,
@@ -133,6 +138,8 @@ Read tools return corpus content, site facts, telemetry, and candidate lists. Tw
   agents — a new trust boundary this document does not yet cover. Requires its own §
   before shipping: enumerate what a hostile page-context caller can reach (must be
   read-only verification, no state, no billing).
+- **Read door from web/phone (R3 3D, planned):** covered by **§8**, which is model
+  only and recommends fixing two current-build defects (F1, F2) before any broker.
 - **Native desktop agents migration (planned/parked):** the same fences (§2–§3) must be
   demonstrably enforced under the new runner's identity model before the channel moves.
 
@@ -141,3 +148,154 @@ Read tools return corpus content, site facts, telemetry, and candidate lists. Tw
 Update this document when: a new change type lands in `sn-apply`; a new door or runner
 carries agent traffic; any R-item closes (record the closing version); or a roadmap row
 in §6 starts. The row's promise is a *written* threat model — stale is broken.
+
+## §8 — The read door beyond the laptop (roadmap 3D)
+
+**Status: model only. No code exists, and none should until the preconditions below
+are met.** Written 2026-08-11 when R3's other three gates closed, because the row's
+own prep says the model comes first.
+
+### §8.1 — The row, and what it actually changes
+
+The row: *an authorized entry point at the edge that brokers the sign-in and holds the
+secret, so the same allowlist, kill switch and audit trail hold from any device.* Read
+only — the write door stays deliberately attended.
+
+Today the read door's population is **whoever holds an application password on one
+laptop**, which is the owner and nobody else. The row's whole point is that it should
+not have to be. That replaces the population with **whoever completes an OAuth flow**.
+
+This is not a wider version of the existing model. It is a **different adversary**:
+
+- **A5 — the hostile caller.** Someone who reaches the edge broker without the laptop:
+  a stolen or phished session, a flaw in the broker's own sign-in, a token that outlives
+  its owner's intent, or the broker itself compromised. A1–A4 all presuppose an
+  *authorized* channel misbehaving. A5 is an *unauthorized party becoming authorized*.
+
+A5's target is asset (1) in a form the published record does not cover: the read door
+serves **scheduled and draft bodies** — writing the owner has not chosen to publish —
+plus the operational picture.
+
+### §8.2 — Three findings, verified against the code today
+
+These are properties of the current build, checked while writing this section. All three
+are harmless while the population is one laptop, and all three become load-bearing the
+moment it is not.
+
+**F1 — The read door had no rate limit. BOUNDED, see §8.7 — but fail-open, so
+not yet closed.** The write door's gate stack ends in
+`sn_mcp_rw_rate_limit_gate()`; the read door's is `kill switch → sn_mcp_permission()`
+and nothing else. `mcp-tools.php` applies the limiter only when the door is `RW`. A
+door reachable from one laptop does not need one. A door reachable from the internet
+without one is an **exfiltration channel with no ceiling** — the corpus can be drained
+at whatever rate the edge allows, and the audit trail records reads it cannot slow.
+
+**F2 — The read kill switch guarded ONE route, not the read path. CLOSED, see §8.6.**
+`sn_mcp_read_permission()` is referenced in exactly one place:
+[mcp-endpoint.php](../../inc/mcp/mcp-endpoint.php)'s read route. The native
+`wp-abilities/v1/…/run` route does not consult it — §2's table already says the run
+route carries "no MCP floor, no MCP rate limit" and no kill switch of its own, and the
+REST audit's §0 finding says each ability's own `permission_callback` is the binding
+constraint.
+
+So an owner-identity caller reaches every read ability through the run route **with
+`sn_mcp_read_enabled` set to off**. Today the only such caller is the owner. Under this
+row, the broker becomes one — and the kill switch becomes a lock on one of two doors
+while reading as though it closed the building. **This is the sharpest precondition in
+the row and it is not what the prep doc anticipated:** the prep asked whether the kill
+switch can *reach the edge*; the prior question is whether it reaches the *site's own
+second route*.
+
+**F3 — The edge would hold a credential, which is a new secret at a new location.**
+The site's existing posture keeps exactly one MCP endpoint ([mcp-doors-ground-truth]);
+a broker that stores a credential creates a second place worth attacking, one the
+owner does not administer and cannot rotate from wp-admin.
+
+### §8.3 — Preconditions before any code
+
+1. **Close F2 first, and independently of this row. — DONE 2026-08-11, §8.6.** The read kill switch must gate
+   the read path, not one route on it. That is a correctness fix the current build
+   wants regardless of whether 3D ever ships, and it should not arrive bundled with a
+   new trust boundary where its absence would be load-bearing.
+2. **Give the read door a rate limit — DONE 2026-08-11, §8.7 — and then make it
+   fail CLOSED**, which it does not yet. The ceiling exists; the boundary does not.
+3. **Decide what the edge holds**, in writing, before building it. A broker that holds
+   no long-lived secret — exchanging a short-lived token per session — is a materially
+   different object from one that stores an application password.
+4. **The kill switch must be observable at the edge**, and its failure mode stated: if
+   the edge cannot read `sn_mcp_read_enabled`, does it fail open or closed? The site's
+   existing switches **fail open on absence** by deliberate design ("an untouched switch
+   means the owner never turned it off"). That default is right for a local option and
+   **wrong for a remote read** — an edge that cannot reach the site must not conclude
+   the door is open.
+5. **Audit the caller, not just the call.** The rw door's audit trail records what was
+   done; with A5 in scope the read path needs to record *which brokered session* did it,
+   or a leaked session is indistinguishable from the owner in the record.
+
+### §8.4 — Residual risks this row would introduce
+
+- **R-3D-a — Session longevity.** An OAuth session that outlives the owner's intent is
+  A5 with no attacker required. Needs an expiry the owner can state and revoke.
+- **R-3D-b — The broker's own supply chain.** A worker's dependencies run with the
+  credential's reach; the site's dependency-provenance gate (Operations, planned) exists
+  for exactly this and is not yet built.
+- **R-3D-c — Read volume as a signal.** Even rate-limited, a brokered read path makes
+  drafts reachable from anywhere. The mitigation is scope, not just throttling: the
+  broker should reach a **named subset** of read abilities, not the read door entire.
+
+### §8.6 — F2, closed (2026-08-11)
+
+`rest_pre_dispatch` now carries `sn_mcp_read_guard_run_route()`, so the read kill
+switch refuses **read-allowlisted abilities on the native run route** with the same
+code and status the MCP door returns: one switch, one verdict, whichever route the
+caller arrived on.
+
+Scope is deliberately narrow, and the narrowness is the point. The guard claims only
+slugs on the **read** allowlist. The two doors' guards are isolated by design, and the
+allowlists are **disjoint** — 38 read, 36 write, zero overlap, checked. A read kill
+that also killed writes would be a worse bug than the one it replaced; the test
+asserts that negative directly, and mutating the guard to include the write allowlist
+reds it.
+
+Coverage is asserted over the **whole allowlist, not a sample**: all 38 read abilities
+refuse, all 36 write abilities do not. `SN_MCP_READ_DISABLED` still wins over the
+option, and fail-open-on-absence is unchanged — an untouched switch still means the
+owner never turned it off.
+
+**F1 (no rate limit on the read door) remains open**, and remains a precondition.
+
+### §8.7 — F1, bounded but not closed (2026-08-11)
+
+The read path now carries a ceiling: **120 calls per minute per identity**, four
+times the write door's cap because reads are cheap and bursty. It applies to
+**both** routes — the MCP read door and the native run route for a
+read-allowlisted ability — on the same reasoning as §8.6: gate the path, not one
+route on it. A refusal is **429**, deliberately not 403; the kill switch runs at
+an earlier priority so a disabled door still answers "closed" rather than "slow
+down".
+
+The primitives **duplicate** mcp-rw-guard.php's rather than calling them. This
+file's header states the doors' guards stay isolated, and sharing a limiter would
+couple them at exactly the layer the read/write split exists to keep apart. A
+test asserts the read guard still contains no reference to the rw limiter.
+
+**This is a ceiling, not a boundary, and the distinction is the whole point.**
+It is **fail-open**: an unavailable backing store yields a null count, which
+reads as zero and allows — identical to the write door, and correct for a
+throttle that must not harden into an outage. Against a runaway loop that is
+sufficient. Against **A5**, a caller who can induce store unavailability gets an
+unbounded read path back.
+
+**So F1 is bounded, not closed.** Before any broker exists, the ceiling must fail
+**closed** on the brokered path specifically — which is a different decision from
+changing the local default, and should be made where the broker is designed
+rather than retrofitted here.
+
+### §8.5 — The recommendation this section makes
+
+**Do not build the broker next.** Preconditions 1 and 2 are real defects in the current
+build — a kill switch that covers one of two routes, and a read path with no ceiling —
+and they are worth fixing on their own merits, today, with the door still behind one
+laptop. Ship those, then decide whether the row still wants an edge broker or whether
+something narrower (a scoped, expiring, read-only token) buys most of the value at a
+fraction of the boundary.
