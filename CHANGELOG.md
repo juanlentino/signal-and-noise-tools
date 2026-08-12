@@ -4,6 +4,26 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### MR2: the unclassified-agent review list folds, and its summary counts survivors
+
+RULE 2's bucket stays inspectable; only its rows fold. The list sits behind a
+closed `<details class="sn-mr-unknown-log sn-disclosure">`, and the summary
+carries the count that **survives** `snt_mr_normalize_ua_sample()` rather than
+`count( $rows )` — the rows are built into a buffer first precisely so a fold
+that says three agents cannot open onto two. No second display cap: the sensor
+already caps this view at 50, and stacking a tighter presentation cap beneath
+an "at most 50" footer would make that footer a lie.
+
+Two empties are kept apart, which is the honesty this increment actually turns
+on. A genuinely empty window keeps its measured-clean sentence ("Every machine
+read in this window matched the taxonomy") with **no** disclosure. A window
+whose agents *all* normalize away is **not** clean — the bucket held something
+the sanitizer could not render — so it stays open, renders no rows, prints
+"Showing 0 of at most 50", and never claims the taxonomy matched. That last
+guard was unpinned when first written: mutation-firing the fold gate produced
+no failure at all, which is a third outcome rather than a pass, and the pin
+that now reds by name came out of chasing it.
+
 ### MR1: the rights-surface log folds, and a cap that was a caption becomes real
 
 The Machine Readers tab's own IA arc opens on the surface the owner named.

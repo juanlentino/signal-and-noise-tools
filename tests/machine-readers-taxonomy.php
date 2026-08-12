@@ -195,6 +195,39 @@ $mr1_small = snt_mr_render_rights_detail( snt_mr_normalize_rights_rows( array_sl
 ok( false !== strpos( $mr1_small, '<details class="sn-mr-rights-log' ), 'a short log still folds (consistency beats a size heuristic)' );
 ok( false === stripos( $mr1_small, 'capped, not complete' ), 'but prints no remainder line when nothing was cut' );
 
+echo "\nGroup: MR2 , the unclassified-UA review list folds (source-capped, so no second cap)\n";
+// RULE 2 says the bucket must stay inspectable. Folding the ROWS is fine;
+// folding away THAT the bucket exists is not — so the summary carries the
+// count and an empty window keeps its sentence with no disclosure at all.
+$mr2_rows = array(
+	array( 'user_agent' => 'SomeBot/1.0 (+http://example.test)', 'hits' => 40 ),
+	array( 'user_agent' => 'OtherBot/2.0', 'hits' => 12 ),
+	// A UA that NORMALIZES TO EMPTY: the renderer skips it, so a summary
+	// counting raw rows would promise three and deliver two.
+	array( 'user_agent' => '<<<>>>', 'hits' => 7 ),
+);
+$mr2_html = snt_mr_render_unknown_agents( $mr2_rows );
+ok( false !== strpos( $mr2_html, '<details class="sn-mr-unknown-log sn-disclosure">' ), 'the review list sits inside its own disclosure' );
+ok( false === strpos( $mr2_html, '<details class="sn-mr-unknown-log sn-disclosure" open' ), 'and it is CLOSED by default' );
+$mr2_det = strpos( $mr2_html, '<details class="sn-mr-unknown-log' );
+$mr2_sum = substr( $mr2_html, (int) $mr2_det, 200 );
+ok( false !== strpos( $mr2_sum, '2' ) && false === strpos( $mr2_sum, '3' ), 'the summary counts the rows that SURVIVE normalization (2), not the raw rows (3) — a summary may not promise more than the fold contains' );
+ok( 2 === substr_count( $mr2_html, '<tr><td class="column-primary"' ), 'and exactly those two rows render' );
+ok( false !== stripos( $mr2_html, 'at most 50' ), 'the sensor envelope sentence survives — this tier adds NO second display cap' );
+ok( false !== stripos( $mr2_html, 'not a verbatim log' ), 'and the sampling caveat stays with it' );
+ok( false === strpos( $mr2_html, 'sn-pill--warn' ), 'an unmatched agent is a review item, not a Health finding' );
+// Empty: the measured-clean bucket keeps its sentence, and no empty fold.
+$mr2_empty = snt_mr_render_unknown_agents( array() );
+ok( false !== stripos( $mr2_empty, 'matched the taxonomy' ), 'an empty window keeps its measured-clean sentence' );
+ok( false === strpos( $mr2_empty, '<details' ), 'and renders NO disclosure' );
+// All rows normalizing away is NOT the same as an empty window: the bucket
+// held something the sanitizer could not render, and saying "nothing to
+// review" there would be a measured-clean claim the data does not support.
+$mr2_allblank = snt_mr_render_unknown_agents( array( array( 'user_agent' => '<<<>>>', 'hits' => 3 ) ) );
+ok( false === strpos( $mr2_allblank, '<tr><td class="column-primary"' ), 'a window whose agents all normalize away renders no rows' );
+ok( false === stripos( $mr2_allblank, 'matched the taxonomy' ), 'and does NOT claim the taxonomy matched everything — unrenderable is not clean' );
+ok( false === strpos( $mr2_allblank, '<details' ), 'and does NOT fold: a summary reading "0 unclassified user agents" would rhyme with a measured zero, which is the whole reason the fold is gated on survivors' );
+
 echo "\nGroup: the over-count is SHOWN, not reconciled away\n";
 $recon_rows = snt_mr_normalize_rows( array(
 	// google-ai is inside the frozen AI-training family set, but GoogleOther's

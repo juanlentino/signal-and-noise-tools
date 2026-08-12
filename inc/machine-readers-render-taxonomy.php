@@ -328,10 +328,11 @@ function snt_mr_render_unknown_agents( $rows, $limit = 50 ) {
 		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'Every machine read in this window matched the taxonomy. Nothing to review.', 'signal-and-noise-tools' ) . '</p>';
 	}
 
-	$out = snt_mr_table_open( __( 'Unclassified user agents, by volume — review these to extend the taxonomy.', 'signal-and-noise-tools' ), array(
-		__( 'User agent (sampled, sanitized)', 'signal-and-noise-tools' ) => '',
-		__( 'Reads', 'signal-and-noise-tools' ) => 'num',
-	) );
+	// MR2: the rows are built FIRST so the fold's summary can carry the number
+	// that actually survives sanitisation. Counting $rows would promise more
+	// than the fold contains whenever a UA normalizes to '' — the summary is a
+	// claim about what is inside, not about what the sensor sent.
+	$body  = '';
 	$count = 0;
 	foreach ( $rows as $r ) {
 		$ua = snt_mr_normalize_ua_sample( $r['user_agent'] ?? ( $r['ua_sample'] ?? '' ) );
@@ -339,9 +340,36 @@ function snt_mr_render_unknown_agents( $rows, $limit = 50 ) {
 			continue;
 		}
 		++$count;
-		$out .= '<tr><td class="column-primary" data-colname="User agent"><code>' . esc_html( $ua ) . '</code></td>'
+		$body .= '<tr><td class="column-primary" data-colname="User agent"><code>' . esc_html( $ua ) . '</code></td>'
 			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) ( $r['hits'] ?? 0 ) ) ) . '</td></tr>';
 	}
+
+	// Fold only when there is something to fold. If every agent normalized
+	// away, the bucket was NOT empty — it held something the sanitizer could
+	// not render — so the block stays open and keeps saying "Showing 0 of at
+	// most 50" rather than claiming a clean window it cannot claim, and rather
+	// than offering a "0 agents" disclosure that would rhyme with a measured
+	// zero. RULE 2's requirement is that the bucket stay inspectable; folding
+	// the ROWS honours it, hiding the FACT of the bucket would not.
+	$fold = $count > 0;
+	$out  = '';
+	if ( $fold ) {
+		$out .= '<details class="sn-mr-unknown-log sn-disclosure"><summary>';
+		$out .= esc_html(
+			sprintf(
+				/* translators: %s: number of unclassified user agents shown. */
+				_n( '%s unclassified user agent — show the review list', '%s unclassified user agents — show the review list', $count, 'signal-and-noise-tools' ),
+				number_format_i18n( $count )
+			)
+		);
+		$out .= '</summary>';
+	}
+
+	$out .= snt_mr_table_open( __( 'Unclassified user agents, by volume — review these to extend the taxonomy.', 'signal-and-noise-tools' ), array(
+		__( 'User agent (sampled, sanitized)', 'signal-and-noise-tools' ) => '',
+		__( 'Reads', 'signal-and-noise-tools' ) => 'num',
+	) );
+	$out .= $body;
 	$out .= '</tbody></table>';
 	$out .= '<p class="description">' . esc_html( sprintf(
 		/* translators: 1: rows shown, 2: the sensor's cap. */
@@ -349,5 +377,8 @@ function snt_mr_render_unknown_agents( $rows, $limit = 50 ) {
 		number_format_i18n( $count ),
 		number_format_i18n( (int) $limit )
 	) ) . '</p>';
+	if ( $fold ) {
+		$out .= '</details>';
+	}
 	return $out;
 }
