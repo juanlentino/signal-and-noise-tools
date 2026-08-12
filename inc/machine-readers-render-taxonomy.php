@@ -126,7 +126,22 @@ function snt_mr_render_vendor_purpose_table( $rows, $limit = 20 ) {
 	arsort( $pairs );
 	$shown = array_slice( $pairs, 0, max( 1, (int) $limit ), true );
 
-	$out = snt_mr_table_open( __( 'Reads by agent and purpose, third parties only.', 'signal-and-noise-tools' ), array(
+	// MR3: the fold. Unlike the two logs, this table's cap was already REAL —
+	// what it lacked was a summary saying how much sits inside, so the summary
+	// carries the TRUE pair count while the table keeps showing the worst 20.
+	// No empty fold is possible here: both the pre-taxonomy and the
+	// nothing-attributed paths returned '' above, before this point.
+	$out  = '<details class="sn-mr-vendor-purpose sn-disclosure"><summary>';
+	$out .= esc_html(
+		sprintf(
+			/* translators: %s: the true number of agent/purpose pairs. */
+			_n( '%s agent/purpose pair — show the breakdown', '%s agent/purpose pairs — show the breakdown', count( $pairs ), 'signal-and-noise-tools' ),
+			number_format_i18n( count( $pairs ) )
+		)
+	);
+	$out .= '</summary>';
+
+	$out .= snt_mr_table_open( __( 'Reads by agent and purpose, third parties only.', 'signal-and-noise-tools' ), array(
 		__( 'Vendor', 'signal-and-noise-tools' )  => '',
 		__( 'Agent', 'signal-and-noise-tools' )   => '',
 		__( 'Purpose', 'signal-and-noise-tools' ) => '',
@@ -143,12 +158,18 @@ function snt_mr_render_vendor_purpose_table( $rows, $limit = 20 ) {
 
 	$hidden = count( $pairs ) - count( $shown );
 	if ( $hidden > 0 ) {
+		// House wording, and the vocabulary the TABLE uses: v10.80.0 keyed
+		// these rows on the agent so GPTBot and ChatGPT-User stop collapsing
+		// into one another, but this line still called them vendor/purpose
+		// pairs. "Not shown" also read softer than the rest of the surface —
+		// a cap is a cap, and the reader is told the list is incomplete.
 		$out .= '<p class="description">' . esc_html( sprintf(
-			/* translators: %s: number of additional vendor/purpose pairs. */
-			__( '%s further vendor/purpose pairs are not shown.', 'signal-and-noise-tools' ),
+			/* translators: %s: number of additional agent/purpose pairs. */
+			__( '+%s more agent/purpose pairs — the list is capped, not complete. Sorted busiest-first, so the tail is the quiet end.', 'signal-and-noise-tools' ),
 			number_format_i18n( (int) $hidden )
 		) ) . '</p>';
 	}
+	$out .= '</details>';
 	return $out;
 }
 
