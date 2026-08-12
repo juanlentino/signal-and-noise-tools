@@ -2,51 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — Clear DB Overrides asks first
-
-The 7.1 work hid this action from the Site Editor, where it can delete the very
-records the canvas is editing. That fixed *where* it renders. This fixes what
-happens when it is clicked anywhere else.
-
-`⌫ Clear DB Overrides` force-deletes every `wp_template`, `wp_template_part` and
-`wp_navigation` — `wp_delete_post( $id, true )`, no trash, no undo — and until now
-a single click did it with no prompt, from any admin page and from the front end.
-
-It now gates on a blocking `window.confirm()` naming what is deleted and that the
-records are not recoverable. Native dialog rather than a custom modal: it is
-keyboard-accessible and screen-reader-announced for free, and a hand-rolled dialog
-inside the admin bar would have to re-earn both.
-
-**Exactly one item carries a confirm, and that is asserted.** A confirmation on
-every action trains the reader to dismiss it unread, which costs the one place it
-matters — so the test pins the count, not just the presence.
-
-Three ordering and delivery properties, each tested because each is silently
-breakable:
-
-- The gate sits **before** the busy flag and the label swap, so declining leaves
-  the row untouched and immediately re-clickable rather than spinning on a request
-  that never fired.
-- `e.preventDefault()` still runs first and unconditionally — the item's `href` is
-  `#`, so an early return above it would jump the page to the top.
-- The confirm is **forwarded into the localized config**, and the test decodes that
-  config back out of the printed `<script>` to assert it arrives byte-identical.
-  This is the load-bearing assertion: the JS owns the request, so a confirm
-  declared in `sn_admin_bar_items()` that never reaches the client is a confirm
-  that does nothing — the same one-sided-contract shape as the 7.1 hook name that
-  registered against a hook core never shipped. A check on the items array alone
-  would pass while the button fired unconfirmed.
-
-`sn_admin_bar_print_script()` had no test coverage at all before this; it now has
-seven assertions, and the emitted script is verified to parse with `node --check`.
-
-([tests/admin-bar-quick-actions.php](tests/admin-bar-quick-actions.php) → 60
-asserts to 71. Mutation-fired four ways: declaring the confirm without forwarding
-it reds 2, forwarding without a JS gate reds 2, moving the gate after the busy flag
-reds 1, and spreading a confirm to a second item reds 2. Full sweep 422 suites /
-16,541 assertions green; PHPCS and PHPStan clean.)
-
-## [Unreleased] — WordPress 7.1 readiness
+## [10.92.6] - 2026-08-11 — WordPress 7.1 readiness, a confirmation before the force-delete, and the contrast scan stops flagging wp-admin
 
 Three findings from the [7.1 field guide](https://make.wordpress.org/core/2026/08/05/wordpress-7-1-field-guide/),
 in descending order of what they would have cost. Nothing here is a new
@@ -241,6 +197,94 @@ indistinguishable from one that passes `'draft-04'` — which is exactly the
 distinction being pinned. Mutation-fired both ways: omitting the argument reds it,
 passing `'rest-api'` reds it. Full sweep 422 suites / 16,520 assertions green;
 PHPCS and PHPStan clean.)
+
+### Clear DB Overrides asks first
+
+The 7.1 work hid this action from the Site Editor, where it can delete the very
+records the canvas is editing. That fixed *where* it renders. This fixes what
+happens when it is clicked anywhere else.
+
+`⌫ Clear DB Overrides` force-deletes every `wp_template`, `wp_template_part` and
+`wp_navigation` — `wp_delete_post( $id, true )`, no trash, no undo — and until now
+a single click did it with no prompt, from any admin page and from the front end.
+
+It now gates on a blocking `window.confirm()` naming what is deleted and that the
+records are not recoverable. Native dialog rather than a custom modal: it is
+keyboard-accessible and screen-reader-announced for free, and a hand-rolled dialog
+inside the admin bar would have to re-earn both.
+
+**Exactly one item carries a confirm, and that is asserted.** A confirmation on
+every action trains the reader to dismiss it unread, which costs the one place it
+matters — so the test pins the count, not just the presence.
+
+Three ordering and delivery properties, each tested because each is silently
+breakable:
+
+- The gate sits **before** the busy flag and the label swap, so declining leaves
+  the row untouched and immediately re-clickable rather than spinning on a request
+  that never fired.
+- `e.preventDefault()` still runs first and unconditionally — the item's `href` is
+  `#`, so an early return above it would jump the page to the top.
+- The confirm is **forwarded into the localized config**, and the test decodes that
+  config back out of the printed `<script>` to assert it arrives byte-identical.
+  This is the load-bearing assertion: the JS owns the request, so a confirm
+  declared in `sn_admin_bar_items()` that never reaches the client is a confirm
+  that does nothing — the same one-sided-contract shape as the 7.1 hook name that
+  registered against a hook core never shipped. A check on the items array alone
+  would pass while the button fired unconfirmed.
+
+`sn_admin_bar_print_script()` had no test coverage at all before this; it now has
+seven assertions, and the emitted script is verified to parse with `node --check`.
+
+([tests/admin-bar-quick-actions.php](tests/admin-bar-quick-actions.php) → 60
+asserts to 71. Mutation-fired four ways: declaring the confirm without forwarding
+it reds 2, forwarding without a JS gate reds 2, moving the gate after the busy flag
+reds 1, and spreading a confirm to a second item reds 2. Full sweep 422 suites /
+16,541 assertions green; PHPCS and PHPStan clean.)
+
+### The contrast scan's admin exclusion stops guessing from filenames
+
+**PATCH** — checker correctness. **Removes two false positives from the live
+report**, found by reading the report rather than the code.
+
+The usage tier excludes admin stylesheets on purpose: wp-admin supplies its own
+palette and background, so scoring admin rules against theme tokens invents
+failures no reader can meet. That exclusion was a **filename substring check for
+`admin`** — a proxy for the property that actually matters, which is *which hook
+enqueues the sheet*.
+
+The proxy leaked. `uptime-status.css` is admin-only and is not named "admin", so
+**two of the three pairings the live contrast report flagged were wp-admin status
+colours scored against a public page they never appear on**:
+
+| pairing | reported | reality |
+| --- | --- | --- |
+| `.sn-uw--ok` `#00a32a` on void | 3.35:1 | a wp-admin widget colour, never on the public site |
+| `.sn-uw--warn` `#dba617` on void | 2.22:1 | same |
+
+Three sheets were affected — `uptime-status.css`, `audit-log.css`,
+`machine-readers.css`. All three are enqueued only on `admin_enqueue_scripts`.
+
+The exclusion is now an explicit list keyed on that fact. Measured effect on the
+plugin side: **15 → 12 sheets, 17 → 6 pairings, and both sub-AA false positives
+gone.**
+
+**The list is not the guard.** A hand-kept list rots silently, so the test derives
+the admin-enqueued set from the plugin's own source — `add_action(
+'admin_enqueue_scripts' …)` with no `wp_enqueue_scripts` alongside — and asserts
+it EQUALS what the function excludes. A new admin sheet reds that test instead of
+seeding false positives into a report-only check nobody re-reads. Mutation-fired
+**in both directions**: dropping a sheet from the list and adding a front-end
+sheet to it each red the suite.
+
+Deliberately a **denylist**. A missed admin sheet is noise; a missed *front-end*
+sheet silently shrinks coverage and hides real defects — and this module exists
+because a scan measuring the wrong thing reports a clean site.
+
+*Not fixed here, and not this tier's job:* `#00a32a` on wp-admin white really is
+3.35:1. That is WordPress core's own status green used per core convention, in a
+context this scan is explicitly not measuring. Whether wp-admin deserves its own
+contrast tier is a separate question.
 
 ## [10.92.5] - 2026-08-11 — the usage scan stops reading `@media` as if it were unconditional
 

@@ -91,6 +91,73 @@ ok( null === sn_health_contrast_usage_read_color( 'color: var(--sn-signal, #ff4c
 $fbn = sn_health_contrast_usage_read_color( 'color: var(--wp--preset--color--void, var(--sn-x));', 'color' );
 ok( $fbn && 'token' === $fbn['kind'] && 'void' === $fbn['value'], 'a NESTED var() fallback changes nothing — the outer preset token is still what renders' );
 
+// ─── Group 2b2: the admin exclusion, by fact rather than by filename ──
+// The module excludes admin stylesheets on purpose: wp-admin supplies its own
+// palette and background, so scoring admin rules against theme tokens invents
+// failures no reader can meet. That exclusion was implemented as a FILENAME
+// substring check for "admin" — a proxy for the real property, which is which
+// hook enqueues the sheet.
+//
+// The proxy leaked, and it was caught by the live report: uptime-status.css is
+// admin-only and not named "admin", so TWO of the three pairings the contrast
+// report flagged were wp-admin status colours (#00a32a at 3.35:1, #dba617 at
+// 2.22:1) scored against a public page they never appear on.
+echo "\nGroup 2b2: admin-only sheets are excluded by FACT, not by filename\n";
+
+$sources = sn_health_contrast_usage_sources();
+$scanned = array();
+foreach ( $sources as $label => $path ) { $scanned[ basename( $path ) ] = true; }
+
+foreach ( array( 'uptime-status.css', 'audit-log.css', 'machine-readers.css' ) as $sheet ) {
+	ok( ! isset( $scanned[ $sheet ] ), "$sheet is EXCLUDED — it is enqueued on admin_enqueue_scripts only" );
+}
+// Over-reach guard. Excluding a front-end sheet is the DANGEROUS direction: a
+// false positive is noisy, but silently shrinking coverage hides real defects.
+ok( isset( $scanned['provenance-front.css'] ), 'provenance-front.css is still SCANNED — it is a wp_enqueue_scripts sheet, and dropping it would hide the chip this module exists to catch' );
+ok( count( $sources ) >= 10, 'the source set did not collapse — ' . count( $sources ) . ' sheets still scanned' );
+
+// THE DRIFT TEST, and the load-bearing one. The exclusion is a hand-kept list,
+// so the guard cannot be the list itself — it has to be something that fails
+// when reality moves. Derive the truth from the plugin's own source: a sheet is
+// admin-only when every file that references it hooks admin_enqueue_scripts and
+// none hooks wp_enqueue_scripts. A new admin sheet then REDS this line instead
+// of quietly seeding false positives into a report-only check nobody re-reads.
+$php = glob( __DIR__ . '/../inc/*.php' );
+$derived_admin = array();
+foreach ( glob( __DIR__ . '/../assets/*.css' ) as $css ) {
+	$base = basename( $css );
+	$hooks = array();
+	$seen  = false;
+	foreach ( $php as $file ) {
+		$src = (string) file_get_contents( $file );
+		// Comments stripped first: machine-readers-admin.php mentions
+		// provenance-admin.css in PROSE, and a reference inside a comment is not
+		// an enqueue. Match the BARE basename, not 'assets/<name>' — the real
+		// call sites build the path by concatenation (`$base . 'x.css'`), which
+		// an 'assets/'-anchored search silently misses. This test caught that
+		// false negative in its own derivation before the list was written.
+		$src = preg_replace( '!/\*.*?\*/!s', '', $src );
+		$src = preg_replace( '!//[^\n]*!', '', $src );
+		if ( false === strpos( $src, $base ) ) { continue; }
+		$seen = true;
+		if ( preg_match_all( "/add_action\(\s*'(admin_enqueue_scripts|wp_enqueue_scripts|enqueue_block_assets|login_enqueue_scripts)'/", $src, $m ) ) {
+			foreach ( $m[1] as $h ) { $hooks[ $h ] = true; }
+		}
+	}
+	if ( $seen && isset( $hooks['admin_enqueue_scripts'] ) && ! isset( $hooks['wp_enqueue_scripts'] ) ) {
+		$derived_admin[] = $base;
+	}
+}
+sort( $derived_admin );
+$excluded_now = array();
+foreach ( glob( __DIR__ . '/../assets/*.css' ) as $css ) {
+	if ( ! isset( $scanned[ basename( $css ) ] ) ) { $excluded_now[] = basename( $css ); }
+}
+sort( $excluded_now );
+ok( $derived_admin === $excluded_now,
+	'DRIFT: the excluded set EQUALS the admin-enqueued set derived from source — derived [' . implode( ', ', $derived_admin ) . '] vs excluded [' . implode( ', ', $excluded_now ) . ']' );
+ok( count( $derived_admin ) >= 4, 'the derivation actually found admin sheets (' . count( $derived_admin ) . ') — a derivation returning nothing would make the line above vacuously true' );
+
 // ─── Group 2c: at-rule context ─────────────────────────────────────
 // The parser lifts inner rules out of `@media` and drops the condition, so a
 // conditional declaration was scored as if it always applied. Measured against
