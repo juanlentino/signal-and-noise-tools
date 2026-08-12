@@ -156,13 +156,23 @@ ok( false !== strpos( $html3, 'sn-public-stats__chart' ), 'the daily chart rende
 ok( false !== strpos( $html3, 'aria-hidden="true"' ) && false !== strpos( $html3, 'focusable="false"' ), 'the SVG is decorative — the twin and the prose carry the content, the picture never does' );
 ok( false !== strpos( $html3, '<details class="sn-public-stats__twin">' ), 'the table twin folds behind a native details — keyboard-operable, announced' );
 ok( false !== strpos( $html3, '<caption>' ), 'the twin table carries a caption' );
-ok( false !== strpos( $html3, '<th scope="col">' ), 'the twin table carries scoped column headers — screen-reader-NAVIGABLE, not merely present' );
-ok( 2 === substr_count( $html3, '<th scope="col">' ), 'exactly two columns: day and views' );
+// The twin is CALENDAR-shaped (owner call after the live 30-row column read
+// as a wall): weeks as rows, weekdays as columns. This is MORE navigable,
+// not merely shorter — a screen reader announces every cell with its row
+// (the week) and column (the weekday) context.
+ok( 8 === substr_count( $html3, '<th scope="col">' ), 'eight column headers: Week + the seven weekdays' );
+$week_rows = substr_count( $html3, '<th scope="row">' );
+ok( $week_rows >= 5 && $week_rows <= 6, 'each week is a row with its own scoped header (a 30-day window spans 5 or 6 Monday-start weeks; got ' . $week_rows . ')' );
+ok( false !== strpos( $html3, '>Week of ' ), 'week row headers NAME their week' );
 ok( false !== strpos( $html3, 'sn-public-stats__rhythm-summary' ), 'the one-paragraph prose summary renders beside the chart' );
-// The chart never outranks the numbers: bars equal the window's day count.
+// The chart never outranks the numbers: bars equal the window's day count,
+// and so do the twin's day cells — the twin is the chart, not an excerpt.
 $bar_count = substr_count( $html3, '<rect' );
 ok( 30 === $bar_count, 'one bar per window day — 30 bars (got ' . $bar_count . ')' );
-ok( 30 === substr_count( $html3, '<tr><td>' ), 'and one twin row per window day — the twin is the chart, not a excerpt of it' );
+$day_cells = substr_count( $html3, 'sn-public-stats__twin-day' );
+ok( 30 === $day_cells, 'one twin day-cell per window day (got ' . $day_cells . ')' );
+$out_cells = substr_count( $html3, 'sn-public-stats__twin-out' );
+ok( $week_rows * 7 - 30 === $out_cells, 'every calendar slot outside the window is an explicit em-dash cell, never a missing one — the grid stays rectangular for the screen reader (got ' . $out_cells . ')' );
 
 echo "\nGroup: render — the rhythm section is absent when it would be filler\n";
 delete_transient( SN_PUBLIC_STATS_CACHE_KEY );

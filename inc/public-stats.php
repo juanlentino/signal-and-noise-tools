@@ -239,6 +239,13 @@ function sn_public_stats_rhythm_html( $data ) {
 	}
 	$out .= '</svg>';
 
+	// The twin is CALENDAR-shaped: weeks as rows (Monday-start, UTC),
+	// weekdays as columns. Owner call after the first live render — a 30-row
+	// single column read as a wall. This shape is also the better screen
+	// reader experience: table navigation announces every cell with its week
+	// (row header) and weekday (column header). Slots outside the window get
+	// an explicit em-dash cell so the grid stays rectangular — a missing cell
+	// would silently shift every announcement after it one column left.
 	$days_keys = array_keys( $daily );
 	$out .= '<details class="sn-public-stats__twin"><summary>' . esc_html__( 'The same numbers as a table', 'signal-and-noise-tools' ) . '</summary>';
 	$out .= '<table><caption>' . esc_html( sprintf(
@@ -247,9 +254,39 @@ function sn_public_stats_rhythm_html( $data ) {
 		sn_public_stats_day_label( (string) $days_keys[0] ),
 		sn_public_stats_day_label( (string) $days_keys[ $n - 1 ] )
 	) ) . '</caption>';
-	$out .= '<thead><tr><th scope="col">' . esc_html__( 'Day', 'signal-and-noise-tools' ) . '</th><th scope="col">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
-	foreach ( $daily as $day => $views ) {
-		$out .= '<tr><td>' . esc_html( sn_public_stats_day_label( (string) $day ) ) . '</td><td>' . esc_html( number_format_i18n( (int) $views ) ) . '</td></tr>';
+	$weekdays = array(
+		__( 'Mon', 'signal-and-noise-tools' ),
+		__( 'Tue', 'signal-and-noise-tools' ),
+		__( 'Wed', 'signal-and-noise-tools' ),
+		__( 'Thu', 'signal-and-noise-tools' ),
+		__( 'Fri', 'signal-and-noise-tools' ),
+		__( 'Sat', 'signal-and-noise-tools' ),
+		__( 'Sun', 'signal-and-noise-tools' ),
+	);
+	$out .= '<thead><tr><th scope="col">' . esc_html__( 'Week', 'signal-and-noise-tools' ) . '</th>';
+	foreach ( $weekdays as $wd ) {
+		$out .= '<th scope="col">' . esc_html( $wd ) . '</th>';
+	}
+	$out .= '</tr></thead><tbody>';
+
+	$first_ts = strtotime( (string) $days_keys[0] . ' UTC' );
+	$last_ts  = strtotime( (string) $days_keys[ $n - 1 ] . ' UTC' );
+	$monday   = $first_ts - ( ( (int) gmdate( 'N', $first_ts ) - 1 ) * DAY_IN_SECONDS );
+	for ( $week = $monday; $week <= $last_ts; $week += 7 * DAY_IN_SECONDS ) {
+		$out .= '<tr><th scope="row">' . esc_html( sprintf(
+			/* translators: %s: the Monday of the week (e.g. "Jul 14"). */
+			__( 'Week of %s', 'signal-and-noise-tools' ),
+			sn_public_stats_day_label( gmdate( 'Y-m-d', $week ) )
+		) ) . '</th>';
+		for ( $d = 0; $d < 7; $d++ ) {
+			$date = gmdate( 'Y-m-d', $week + $d * DAY_IN_SECONDS );
+			if ( array_key_exists( $date, $daily ) ) {
+				$out .= '<td class="sn-public-stats__twin-day">' . esc_html( number_format_i18n( (int) $daily[ $date ] ) ) . '</td>';
+			} else {
+				$out .= '<td class="sn-public-stats__twin-out">' . esc_html__( '—', 'signal-and-noise-tools' ) . '</td>';
+			}
+		}
+		$out .= '</tr>';
 	}
 	return $out . '</tbody></table></details>';
 }

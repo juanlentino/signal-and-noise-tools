@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### The table twin goes calendar-shaped
+
+Owner feedback on the first live render: thirty single-file rows read as a
+wall. The twin is now weeks-as-rows × weekdays-as-columns — 5–6 rows instead
+of 30 — which is also the *better* screen-reader shape: table navigation
+announces every cell with its week (row header) and weekday (column header).
+Calendar slots outside the window render an explicit em-dash cell so the grid
+stays rectangular — a missing cell would silently shift every announcement
+after it one column left. Day-cell count still equals the bar count (the twin
+is the chart, not an excerpt). Tests 50 → 52; sweep 16,591 → 16,593.
+
 ## [10.93.0] - 2026-08-12 — two board moves land in code, the digest learns who reads the site, and the stats page's first chart speaks
 
 Five changesets, one release, all merged un-versioned today and versioned

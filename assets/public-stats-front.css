@@ -40,6 +40,9 @@
 .sn-public-stats__twin caption{text-align:left;font-size:.72rem;opacity:.6;padding-bottom:.4em}
 .sn-public-stats__twin th,.sn-public-stats__twin td{text-align:left;padding:.2em 1.4em .2em 0;border-bottom:1px solid rgba(0,0,0,.12)}
 .sn-public-stats__twin th{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}
+.sn-public-stats__twin td{text-align:right;padding-right:.9em}
+.sn-public-stats__twin th[scope="row"]{white-space:nowrap;text-transform:none;letter-spacing:0}
+.sn-public-stats__twin-out{opacity:.35}
 
 .sn-public-stats__method,.sn-public-stats__none{font-size:.8rem;opacity:.7;margin:1.5rem 0 0;max-width:60ch}
 .sn-public-stats__none{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
