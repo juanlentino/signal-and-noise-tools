@@ -4,6 +4,48 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### IA SCHED1: the scheduled-content wall folds, and its cap starts sorting
+
+The fold arc's next surface. Scheduled content rendered the union of two
+producers — `sn_schedule_all()` fragments and `sn_schedule_future_posts()` —
+as one uncapped `.wp-list-table`, fragments first then posts, in whatever order
+each producer returned.
+
+The wall now sits behind a closed `<details class="sn-schedule-log
+sn-disclosure">` whose summary carries the **true** total, with the glance
+cards staying open above it. The list caps at `SN_SCHEDULE_DISPLAY_CAP` (25)
+and closes with the house remainder line (`+N more scheduled items, sorted
+soonest-first — the tail is the furthest out.`), matching the shape the motion
+and contrast reports set.
+
+**The ordering is the load-bearing half, not the fold.** A cap over an unsorted
+union drops whichever rows happened to land late — and the rows worth keeping
+are exactly the ones about to fire. `sn_admin_schedule_ordered_rows()` merges
+both sources on a copy and sorts by soonest pending transition, so the cap
+truncates the far end. Rows with nothing pending sort **last**: their
+transition timestamp is `0`, which a naive ascending sort would read as the
+soonest possible moment and float to the top, pushing live rows out of the cap.
+
+`sn_admin_schedule_next_transition()` was split so the timestamp is available
+as a sort key — ordering by the existing human label would have sorted "in 3
+days" above "in 30 minutes" alphabetically.
+
+17 new assertions. Mutation-checked rather than trusted: removing the sort fires
+5, widening the cap to 30 fires 3, opening the fold by default fires 3. The
+fixture also gained a real `_n()` stub — it models WP's actual signature
+(plural for every count except exactly 1, including 0), since a stub that always
+returned the singular would hide a plural mix-up in the summary and remainder
+lines. Sweep 16,817, reconciled exactly (16,800 + 17).
+
+**Surveyed and disqualified:** `inc/provenance-admin.php`, named in the standing
+candidate list as the largest unexamined renderer. It has no PHP-side row wall —
+its one table renders a single "Loading anchor status…" placeholder and is
+hydrated by `assets/provenance-admin.js`. More decisively, that table lists only
+*pending* commits, so a healthy system shows zero rows and a long list is the
+symptom of stalled anchoring: folding it would collapse the one condition the
+panel exists to surface. Its `<tbody>` is also an `aria-live` region, which a
+closed disclosure would silently mute.
+
 ### The fail-open gauge stops reporting a zero it never watched
 
 Same discipline as the IPv6 fix below, applied to the other gauge — and it
