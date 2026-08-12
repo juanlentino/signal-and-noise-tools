@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.99.2] - 2026-08-12 — the stats page graduates off the board, and the digest row gets its slot
 
 ### The public stats page retires off the hub board, freeing the digest row's slot
 
