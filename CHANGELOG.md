@@ -4,6 +4,42 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### H5: fault findings group by family, and advisories stop impersonating them
+
+The Health tab's Findings section printed its cards in scan-registry order —
+which is chronological by ship date. That ordering is meaningful to whoever
+added the checks and useless to a reader asking "is the rights surface dirty?".
+Fault cards now sit under family headings in the same canonical order the
+passing disclosure already uses, so both halves of the tab answer to one spine.
+
+The larger fix is a contradiction the tab was carrying. `external_links` and
+`link_opportunities` have been advisory tier since the 2026-07-02 re-tier —
+surfaced, never alarming, and already excluded from the hero's alarm calculus —
+yet they rendered here as identical warn-pilled cards with identical open
+50-row tables. The page disagreed with the tiering it already had. Advisories
+now sit under their own subhead **after** every fault family, with a neutral
+chip, the word "advisory" in place of "finding", and their table behind a
+closed disclosure.
+
+Nothing is dropped or relocated: every row stays on the page, the 50-row cap
+and its remainder line stay, Suggest-all stays on the same seven keys, and
+`sn_health_finding_total()` is untouched, so no other surface has to be
+re-derived. The section moved to `inc/health-render-findings.php` as it grew
+its second shape — the split the IA plan called for at exactly this point
+rather than as a preamble.
+
+### MR4: the Machine Readers folds take the card's section rhythm
+
+Visual only, and the last increment in the Machine Readers build order. The
+shared `.sn-disclosure` margin is tuned for the Health tab's tighter stack;
+inside this card, where every table caption is a section heading with 20px of
+air above it, a closed fold read as crowding the block above. The three folds
+now take that same rhythm, and inside an open fold the table sits 8px under its
+own summary rather than doubling the gap — the summary *is* the heading once
+the rows are behind it. Pinned so all three folds keep the shared class the
+caret and rhythm rules depend on, and so the sheet's comment delimiters
+balance.
+
 ### MR3: the agent/purpose breakdown folds, and its remainder learns the house wording
 
 The third Machine Readers increment, and the one where the cap was never the
