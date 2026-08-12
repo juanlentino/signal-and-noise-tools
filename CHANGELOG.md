@@ -46,6 +46,32 @@ hatch — at v1.1.7–v1.1.9 it only distinguishes `trunk`). A self-healing guar
 step now pins wp-env's core (via `.wp-env.override.json`) to the newest stable
 tag the mirror actually serves — but only while the mirror lags; once it
 catches up the step writes nothing, so the guard cannot rot into a stale pin.
+### Charts that speak: the stats page's first chart arrives with its voice built in
+
+The Accessibility board row, delivered — with a premise correction earned by
+looking: the live `/stats/` page had **zero charts** (tiles, a list, a method
+note; every SVG an aria-hidden theme icon), so "retrofit" really meant shipping
+the page's *first* chart with the accessibility contract built in rather than
+bolting speech onto a mute picture later.
+
+The page gains a **Reading rhythm** section, computed from the same
+`sn_analytics_daily_range()` rows the module already reads — no new
+collection: a one-paragraph **deterministic prose summary** (window total,
+busiest day, quietest day with ties resolving to the earliest, first-half vs
+second-half views — pure function, no model ever near a reader surface), a
+decorative SVG bar chart (one bar per window day, `aria-hidden` — the picture
+is the garnish), and a `<details>`-folded **table twin** (caption, scoped
+column headers, one row per day) that a screen reader navigates with its own
+table commands. The zero-fill inverts the module's founding rule honestly: a
+day with no rows inside a *measured* window is a real zero, where a window
+never measured stays "unknown". An all-zero series renders nothing — a table
+of thirty zeros would be noise wearing accessibility clothes. Cache key
+`_v1` → `_v2` so an hour-old pre-series payload can never half-render.
+
+Tests 25 → 50; both new guards mutation-fired by name (dropping the filler
+gate reds the two absence pins; dropping the zero-fill reds the series and
+sentence pins). Sweep 16,566 → 16,591.
+
 ### The weekly digest gains an AI-attention section
 
 The Analytics board row shipped: *"An AI-attention section in the weekly

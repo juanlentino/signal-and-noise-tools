@@ -118,5 +118,62 @@ $html2 = call_user_func( $GLOBALS['__shortcodes']['sn_public_stats'] );
 ok( false !== strpos( $html2, 'Not measured yet' ), 'never-measured renders the honest unknown line' );
 ok( false === strpos( $html2, 'sn-public-stats__stat' ), 'and NO stat tiles — an unknown never renders as a zero' );
 
+echo "\nGroup: the daily series — charts that speak (assemble)\n";
+// A fixed window makes the series testable: 10 days, rows on 3 of them.
+$win  = array( '2026-08-01', '2026-08-10' );
+$rows10 = array(
+	array( 'day' => '2026-08-03', 'path' => '/notes/alpha/', 'views' => 40 ),
+	array( 'day' => '2026-08-03', 'path' => '/notes/beta/', 'views' => 30 ),
+	array( 'day' => '2026-08-07', 'path' => '/notes/alpha/', 'views' => 5 ),
+	array( 'day' => '2026-08-09', 'path' => '/', 'views' => 25 ),
+	array( 'day' => '2026-08-03', 'path' => '/wp-admin/x', 'views' => 999 ),
+	array( 'day' => '2026-07-20', 'path' => '/notes/alpha/', 'views' => 77 ),
+);
+$a10 = sn_public_stats_assemble( $ct, $rows10, $win );
+ok( isset( $a10['daily'] ) && 10 === count( $a10['daily'] ), 'daily series spans EVERY day of the window' );
+ok( array( '2026-08-01', '2026-08-10' ) === array( array_key_first( $a10['daily'] ), array_key_last( $a10['daily'] ) ), 'series keys run from..to inclusive, in order' );
+ok( 0 === $a10['daily']['2026-08-02'], 'a day with no rows inside a MEASURED window is a real zero — the inverse of never-measured-is-not-zero' );
+ok( 70 === $a10['daily']['2026-08-03'], 'a day sums across paths (40+30) — and the admin row never enters the series' );
+ok( ! array_key_exists( '2026-07-20', $a10['daily'] ), 'a row outside the window cannot leak into the series' );
+ok( 100 === array_sum( $a10['daily'] ), 'series total is exactly the included views' );
+
+echo "\nGroup: the rhythm sentence (pure, deterministic — no model near a reader)\n";
+$sent = sn_public_stats_rhythm_sentence( $a10['daily'] );
+ok( is_string( $sent ) && false !== strpos( $sent, '100' ), 'the sentence states the window total' );
+ok( false !== strpos( $sent, '70' ), 'the sentence names the busiest day count' );
+ok( false !== strpos( $sent, 'Aug 3' ) || false !== strpos( $sent, '3 Aug' ), 'the sentence names the busiest day itself' );
+ok( false !== strpos( $sent, '70' ) && false !== strpos( $sent, '30' ), 'the halves comparison carries both halves (first 5 days = 70, last 5 = 30)' );
+// Quietest-day ties resolve to the EARLIEST zero day so two runs agree.
+ok( false !== strpos( $sent, 'Aug 1' ) || false !== strpos( $sent, '1 Aug' ), 'quietest-day ties resolve to the earliest day, deterministically' );
+$flat = sn_public_stats_rhythm_sentence( array( '2026-08-01' => 0, '2026-08-02' => 0 ) );
+ok( '' === $flat, 'an all-zero series yields NO sentence — the tiles already say the number; a rhythm section over silence is filler' );
+
+echo "\nGroup: render — the chart, its table twin, and the prose (charts that speak)\n";
+delete_transient( SN_PUBLIC_STATS_CACHE_KEY );
+$GLOBALS['__ct_return'] = $ct; $GLOBALS['__dr_return'] = $rows;
+$html3 = call_user_func( $GLOBALS['__shortcodes']['sn_public_stats'] );
+ok( false !== strpos( $html3, 'sn-public-stats__chart' ), 'the daily chart renders when the series has reads' );
+ok( false !== strpos( $html3, 'aria-hidden="true"' ) && false !== strpos( $html3, 'focusable="false"' ), 'the SVG is decorative — the twin and the prose carry the content, the picture never does' );
+ok( false !== strpos( $html3, '<details class="sn-public-stats__twin">' ), 'the table twin folds behind a native details — keyboard-operable, announced' );
+ok( false !== strpos( $html3, '<caption>' ), 'the twin table carries a caption' );
+ok( false !== strpos( $html3, '<th scope="col">' ), 'the twin table carries scoped column headers — screen-reader-NAVIGABLE, not merely present' );
+ok( 2 === substr_count( $html3, '<th scope="col">' ), 'exactly two columns: day and views' );
+ok( false !== strpos( $html3, 'sn-public-stats__rhythm-summary' ), 'the one-paragraph prose summary renders beside the chart' );
+// The chart never outranks the numbers: bars equal the window's day count.
+$bar_count = substr_count( $html3, '<rect' );
+ok( 30 === $bar_count, 'one bar per window day — 30 bars (got ' . $bar_count . ')' );
+ok( 30 === substr_count( $html3, '<tr><td>' ), 'and one twin row per window day — the twin is the chart, not a excerpt of it' );
+
+echo "\nGroup: render — the rhythm section is absent when it would be filler\n";
+delete_transient( SN_PUBLIC_STATS_CACHE_KEY );
+$GLOBALS['__dr_return'] = array(); // totals exist, no daily rows -> all-zero series
+$html4 = call_user_func( $GLOBALS['__shortcodes']['sn_public_stats'] );
+ok( false === strpos( $html4, 'sn-public-stats__chart' ), 'an all-zero series renders NO chart' );
+ok( false === strpos( $html4, 'sn-public-stats__twin' ), 'and no twin — a table of thirty zeros is noise wearing accessibility clothes' );
+ok( false !== strpos( $html4, 'sn-public-stats__stat' ), 'while the tiles still render (totals exist)' );
+// A stale cached payload from before the series existed must not fatal or
+// half-render: the key carries a version so it can never be read again.
+ok( 'sn_public_stats_v2' === SN_PUBLIC_STATS_CACHE_KEY, 'cache key bumped to _v2 — a pre-series payload can never be served into the new render' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
