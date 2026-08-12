@@ -46,6 +46,30 @@ hatch — at v1.1.7–v1.1.9 it only distinguishes `trunk`). A self-healing guar
 step now pins wp-env's core (via `.wp-env.override.json`) to the newest stable
 tag the mirror actually serves — but only while the mirror lags; once it
 catches up the step writes nothing, so the guard cannot rot into a stale pin.
+### The weekly digest gains an AI-attention section
+
+The Analytics board row shipped: *"An AI-attention section in the weekly
+digest: which crawler families read the site, and whether they touched the
+rights surfaces — assembled from the ledger already kept, no new collection."*
+
+`snt_narration_collect_signals()` now includes an `ai_attention` block read
+from the durable machine-readers snapshot (R3 gate 3A) — state the site
+already holds, never a fetch on the digest path. The block carries the top
+crawler families (intersected with the fixed family enum; a stored option
+earns no trust in a prompt payload), the rights-surface read subtotal computed
+by the **same** `snt_mr_rights_reads()` the public machine-readability page
+uses, the ledger total, and — critically — the snapshot's own `window_days`,
+because its ~30-day window is not the digest's 7-day week and must never be
+blended into it.
+
+Include-only-when-present, three-valued: a never-measured sensor is not a
+quiet week (no block), and a measured zero stays silent rather than becoming
+narrated filler. The system instruction gains the matching rule: cite the
+ledger's own window in plain words, and never conflate crawler attention with
+`ai_referrals` (humans an assistant sent) or `machine` (this week's edge
+share) — three blocks, three claims. Ten new assertions, computed against the
+real snapshot/rights/enum modules rather than stubs; the
+measured-and-non-zero gate mutation-fired by name.
 
 ## [10.92.6] - 2026-08-11 — WordPress 7.1 readiness, a confirmation before the force-delete, and the contrast scan stops flagging wp-admin
 
