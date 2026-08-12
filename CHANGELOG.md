@@ -2,7 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the 3D row moves to `considering`, carrying its own decision
+## [10.92.1] - 2026-08-11 — R3 closes: the last row is decided, not deferred
+
+**PATCH** — documentation, one board row, one test pin. No behaviour change.
+
+R3's fourth gate is settled. The edge broker is **declined**, and the row says so
+in its own sentence rather than quietly going dark. Every R3 row has now either
+shipped or been parked with its reasoning recorded in three places that cannot
+silently disagree: the threat model, the live board, and the disaster-recovery
+floor.
+
+### The row, moved and self-explaining
 
 Un-versioned; rides the next release with the decision below.
 
@@ -31,7 +41,7 @@ deleted (the floor still has to say where the row **is**) and now also asserts
 the sentence names the decision. **A decision that leaves no assertion behind is
 one the next session cannot see.**
 
-## [Unreleased] — R3 3D decided: the broker is not built
+### The decision itself
 
 Un-versioned, docs only; rides the next release.
 
