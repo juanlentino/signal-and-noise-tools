@@ -173,6 +173,44 @@ function snt_narration_collect_signals() {
 		}
 	}
 
+	// AI attention (the ledger's view): which crawler FAMILIES read the site,
+	// and whether the rights surfaces were touched. Reads the durable 3A
+	// snapshot — state the site already holds, never a fetch on this path —
+	// which is the board row's own contract ("assembled from the ledger already
+	// kept, no new collection"). Included ONLY when a MEASURED snapshot saw
+	// reads: never-measured is not a quiet week (the three-valued rule), and a
+	// measured zero stays silent rather than becoming narrated filler.
+	//
+	// WINDOW: the snapshot is its own trailing window (days, ~30), NOT this
+	// digest's 7-day week. The window rides inside the signal and the system
+	// instruction requires citing it — a 30-day count passed off as "this
+	// week" would be the cross-window blend the analytics memory warns about.
+	if ( function_exists( 'snt_mr_snapshot' ) && function_exists( 'snt_mr_rights_reads' ) && function_exists( 'snt_mr_valid_families' ) ) {
+		$snap     = snt_mr_snapshot();
+		$mr_reads = snt_mr_rights_reads( $snap ); // null = never measured; 0 is a real, measured zero.
+		$mr_total = ( is_array( $snap ) && is_int( $snap['captured_at'] ?? null ) ) ? max( 0, (int) ( $snap['total'] ?? 0 ) ) : 0;
+		if ( null !== $mr_reads && $mr_total > 0 ) {
+			$by_family = isset( $snap['by_family'] ) && is_array( $snap['by_family'] ) ? $snap['by_family'] : array();
+			$families  = array();
+			// Intersected with the fixed enum: family keys already normalize
+			// upstream, but this reads a stored option, and a prompt payload
+			// extends no trust to a key something else may have written.
+			foreach ( snt_mr_valid_families() as $family ) {
+				$hits = max( 0, (int) ( $by_family[ $family ] ?? 0 ) );
+				if ( $hits > 0 ) {
+					$families[ $family ] = $hits;
+				}
+			}
+			arsort( $families );
+			$signals['ai_attention'] = array(
+				'window_days'  => isset( $snap['days'] ) ? max( 1, (int) $snap['days'] ) : 30,
+				'total_reads'  => $mr_total,
+				'families'     => array_slice( $families, 0, 8, true ),
+				'rights_reads' => $mr_reads,
+			);
+		}
+	}
+
 	// Field Core Web Vitals (v7.2.0) — durable bucket rows (worker v1.8.0 double7,
 	// rolled by inc/analytics-buckets.php). Same include-only-when-present contract
 	// as the machine block: no vitals rows in the window ⇒ no cwv key, so the
@@ -257,7 +295,7 @@ function snt_narration_collect_signals() {
  */
 function snt_narration_system_instruction() {
 	return <<<INSTRUCTIONS
-You are writing a brief weekly analytics digest for the owner of a personal site. You will receive a JSON blob covering a 7-day window: traffic totals, period-over-period deltas (this week vs the prior 7 days), an engagement-rate delta, the top pages, the top traffic sources, the top custom events, and — each only when present — a "machine" block summarizing non-human edge traffic the on-page analytics cannot see, an "ai_referrals" block listing human readers who arrived from an AI assistant's answer, a "cwv" block of field Core Web Vitals shares, a "security" block of login-guard/audit aggregates, and an "anomaly_flags" block listing week totals that landed outside their typical range.
+You are writing a brief weekly analytics digest for the owner of a personal site. You will receive a JSON blob covering a 7-day window: traffic totals, period-over-period deltas (this week vs the prior 7 days), an engagement-rate delta, the top pages, the top traffic sources, the top custom events, and — each only when present — a "machine" block summarizing non-human edge traffic the on-page analytics cannot see, an "ai_referrals" block listing human readers who arrived from an AI assistant's answer, an "ai_attention" block summarizing which crawler families read the site over the machine ledger's own trailing window, a "cwv" block of field Core Web Vitals shares, a "security" block of login-guard/audit aggregates, and an "anomaly_flags" block listing week totals that landed outside their typical range.
 
 Write a short, plain digest of what happened this week. Return ONLY a JSON object:
 
@@ -272,6 +310,7 @@ Rules:
 - Lead with the most important change. If traffic was flat, say so plainly.
 - Mention machine/bot traffic or blocked threats ONLY if the "machine" block is present in the data.
 - Mention readers arriving from AI assistants ONLY if the "ai_referrals" block is present. These are HUMANS an assistant referred (ChatGPT, Claude, Perplexity, ...) — a traffic channel like Search or Social, counted per source. NEVER conflate them with the "machine" block: that block is crawlers reading the site; this one is people the crawlers' products sent back.
+- Mention crawler attention ONLY if the "ai_attention" block is present. Its numbers cover the machine ledger's OWN trailing window of window_days days (typically 30), NOT this 7-day week — when citing any of them, state that window in plain words (e.g. "over the last 30 days"). "families" maps crawler family to reads of the site; "rights_reads" counts reads of the published terms (the crawler manifest, rights declarations, and related surfaces) — machines actually consulting the reservation, worth one plain sentence even when small; "total_reads" is all ledger reads in that window. NEVER conflate this block with "ai_referrals" (humans an assistant sent) or with "machine" (this week's edge traffic share): this block is crawlers reading the site, from the ledger, on its own window.
 - Mention page-experience / Core Web Vitals ONLY if the "cwv" block is present. good_pct/poor_pct are the share of page-loads in Google's Good/Poor band for that metric this window.
 - Mention security activity ONLY if the "security" block is present. These are aggregate counts (login-guard blocks at the edge, audit events on the site); never speculate about attackers or origins beyond the given numbers.
 - Mention statistical anomalies ONLY if the "anomaly_flags" block is present. Each flag is an aggregate week metric (views, visits, scroll or dwell) whose value this week is more than two standard deviations from its trailing ~6-week mean. Cite it as the value with its typical range and direction, e.g. "views 1,500, above the typical 990-1,010". typical_low/typical_high bound that range. These are aggregate within-week figures — never per-person, never cross-day.

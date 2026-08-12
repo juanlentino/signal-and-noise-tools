@@ -163,6 +163,20 @@ if ( ! function_exists( 'snt_ai_generate_with_constraints' ) ) {
 function sn_analytics_source_category_of_label( $label ) {
 	return in_array( (string) $label, array( 'ChatGPT', 'Claude' ), true ) ? 'ai' : 'other';
 }
+// ── option store (the ai_attention signal reads the durable 3A snapshot) ──
+$GLOBALS['__options'] = array();
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = null ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
+if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'delete_option' ) ) { function delete_option( $k ) { unset( $GLOBALS['__options'][ $k ] ); return true; } }
+if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = null ) { return 1 === (int) $n ? $s : $p; } }
+if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return number_format( (float) $n ); } }
+// REAL machine-readers modules, not stubs: the signal must be computed by the
+// same snapshot reader, rights subtotal, and family enum the public page uses —
+// a stub here would green a payload the live path never produces (the
+// stub-drift trap, bitten six times).
+require_once __DIR__ . '/../inc/machine-readers-snapshot.php';
+require_once __DIR__ . '/../inc/machine-readers-rights-reads.php';
+require_once __DIR__ . '/../inc/machine-readers-api.php';
 require_once __DIR__ . '/../inc/ai-markdown-strip.php'; // real shared stripper (v9.64.2) — the parse boundary calls it
 require_once __DIR__ . '/../inc/insights-narration.php';
 
@@ -294,6 +308,36 @@ $GLOBALS['__edge_pageviews'] = 3000; // > human (1430) → machine split present
 $s = snt_narration_collect_signals();
 ok( isset( $s['machine'] ), 'machine block present when edge saw hits' );
 eq( 3, $s['machine']['threats_blocked'] ?? null, 'threats surfaced when > 0' );
+
+// ── Test 8b: ai_attention — the ledger's view of the site, present only when
+// a MEASURED snapshot saw reads. The board row's contract: "assembled from the
+// ledger already kept, no new collection" — the signal reads the durable 3A
+// snapshot (state the site already holds) and never fetches on this path. ──
+echo "\nTest 8b: ai_attention signal (ledger snapshot)\n";
+$GLOBALS['__options'][ SN_MR_SNAPSHOT_KEY ] = array( 'captured_at' => null );
+$s = snt_narration_collect_signals();
+ok( ! array_key_exists( 'ai_attention', $s ), 'NO ai_attention when the sensor never measured — a sensor that never answered is not a quiet week' );
+$GLOBALS['__options'][ SN_MR_SNAPSHOT_KEY ] = array( 'captured_at' => time(), 'days' => 30, 'total' => 0, 'by_family' => array(), 'by_surface' => array() );
+$s = snt_narration_collect_signals();
+ok( ! array_key_exists( 'ai_attention', $s ), 'NO ai_attention when a measured window saw zero reads — silence, never a narrated zero' );
+$GLOBALS['__options'][ SN_MR_SNAPSHOT_KEY ] = array(
+	'captured_at' => time(),
+	'days'        => 30,
+	'total'       => 900,
+	'by_family'   => array( 'openai' => 300, 'not-a-family' => 250, 'anthropic' => 500, 'search' => 100 ),
+	'by_surface'  => array( 'robots' => 40, 'rights' => 2, 'html' => 800 ),
+);
+$s = snt_narration_collect_signals();
+ok( isset( $s['ai_attention'] ), 'ai_attention present when the measured snapshot saw reads' );
+eq( 30, $s['ai_attention']['window_days'] ?? null, "the signal carries the snapshot's OWN window — a 30-day count must never ride into the 7-day week unlabeled" );
+eq( array( 'anthropic' => 500, 'openai' => 300, 'search' => 100 ), $s['ai_attention']['families'] ?? null, 'families are intersected with the fixed enum (the unknown key is dropped, a stored option earns no trust) and sorted by reads desc' );
+eq( 42, $s['ai_attention']['rights_reads'] ?? null, 'rights_reads is the rights-surface subtotal computed by the SAME function the public page uses (robots 40 + rights 2)' );
+eq( 900, $s['ai_attention']['total_reads'] ?? null, 'total_reads carried alongside, so the model can state the share' );
+unset( $GLOBALS['__options'][ SN_MR_SNAPSHOT_KEY ] );
+$sys8b = snt_narration_system_instruction();
+ok( false !== strpos( $sys8b, 'ai_attention' ), 'instruction names the ai_attention block' );
+ok( false !== strpos( $sys8b, 'window_days' ), "instruction pins the window rule: the ledger's own window is cited, never passed off as this week" );
+ok( false !== strpos( $sys8b, 'NEVER conflate' ) && substr_count( $sys8b, 'NEVER conflate' ) >= 2, 'instruction separates ai_attention from ai_referrals the way ai_referrals is separated from machine — three blocks, three claims' );
 
 // ── Test 9: run caches + force bypass + feature tag + max_tokens ──
 echo "\nTest 9: run() caches, serves cache without force, force re-calls\n";
