@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the give-back row graduates, and says what it declined
+## [10.92.2] - 2026-08-11 — the give-back row graduates, and says what it declined
 
 **PATCH** — one board row, four test pins. No behaviour change.
 
