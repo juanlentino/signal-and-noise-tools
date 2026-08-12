@@ -2,6 +2,62 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — 7.1's persistent toolbar puts a no-undo force-delete inside the Site Editor
+
+WordPress 7.1 makes the toolbar persistent in the Post Editor (including
+fullscreen, where it used to be hidden) and in the **Site Editor**, which never
+showed it at all
+([dev note](https://make.wordpress.org/core/2026/07/13/consistent-navigation-in-wordpress-7-1-with-persistent-toolbar/)).
+Its own guidance is to test custom nodes there and filter out the ones that do
+not belong. One of ours does not belong.
+
+**⌫ Clear DB Overrides** dispatches `sn_clear_template_overrides_result`, whose
+theme-side implementation runs `wp_delete_post( $id, true )` — **force delete, no
+trash, no undo** — across every `wp_template`, `wp_template_part` and
+`wp_navigation` in the database. That is exactly the set the Site Editor writes.
+From 7.1 the button renders inside the Site Editor, one click from the canvas,
+with no confirmation step. The only thing that had ever kept it out of the room
+it empties was the toolbar's absence.
+
+The hazard is not news to this codebase. Three separate automatic purge paths in
+the theme's `template-maintenance.php` pass `template_overrides => false`, with a
+comment saying an update "must never nuke Site Editor edits as a side effect".
+Those are careful because they fire unattended. This button *is* the deliberate
+nuke — nothing was watching where it could be pressed from.
+
+`sn_admin_bar_destructive_allowed()` now guards the item:
+
+- Hidden when `WP_Screen->id` **or** `->base` is `site-editor`. Both are read, so
+  the check is not coupled to whichever of the two core happens to keep.
+- **Kept** in the Post Editor. The bar already appeared there whenever fullscreen
+  was off, so hiding it would remove availability users have today for a hazard
+  that is not new — and a template override is not what a post author is editing.
+- Front end and every other admin screen: unchanged.
+- **Fails closed** in admin when the screen cannot be resolved. An unhidden
+  force-delete is a worse outcome than a missing menu row, and hiding the row
+  never gates the action — `sn_handle_quick_clear_overrides()` keeps its own nonce
+  and `manage_options` checks, which are the real authorization.
+
+The guard returns a **bool**, asserted: the menu builder forwards a positive-int
+guard value as the item's `postId` (that is how Regen OG Card passes its post), so
+an int here would staple a bogus post id to a destructive action.
+
+**No change needed for Regen OG Card**, verified rather than assumed: its guard
+resolves `get_current_screen()->base === 'post'` plus `?post=`, which returns 0 in
+the Site Editor (correctly hidden) and resolves normally in the newly-exposed
+fullscreen Post Editor.
+
+The test harness's `get_current_screen()` stub previously returned
+`(object) array( 'base' => … )` with no `->id`. A guard reading `->id` against
+that stub would have read an undefined property and answered "allowed" — the
+stub-drift trap, on the destructive path. The stub now models both properties,
+and the mutation run confirms the suite notices when it stops doing so.
+
+([tests/admin-bar-quick-actions.php](tests/admin-bar-quick-actions.php) → 48
+asserts to 60. Mutation-fired four ways: guard removed reds 3, checking only
+`->base` reds 1, failing open reds 1, and a stub without `->id` reds 1. Full
+sweep 422 suites / 16,519 assertions green; PHPCS and PHPStan clean.)
+
 ## [Unreleased] — the 7.1 lifecycle guard was hooked to a name WordPress never shipped
 
 The [7.1 field guide](https://make.wordpress.org/core/2026/08/05/wordpress-7-1-field-guide/)
