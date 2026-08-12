@@ -2,6 +2,41 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the contrast usage-scan learns to read a var() fallback
+
+**PATCH** — checker widening, nine assertions. No change to what the scan
+currently reports.
+
+`var(--wp--preset--color--void, #fff)` is the only form that is both **safe**
+and **scoreable**: safe because it still paints when the preset is undefined,
+scoreable because the usage scan can see the token. The scan's regex demanded a
+bare `var(--token)`, so a component had to pick one — and the plugin's own
+provenance chip picked safe, pinning `background:#fff` as a literal that the
+scan therefore reads as a hardcoded colour rather than as the void token.
+
+Both copies of the token regex now accept an optional fallback:
+`sn_health_contrast_usage_read_color()` (declarations) and
+`sn_health_contrast_usage_document_background()` (the surface every unanchored
+pairing is scored *against*). Widening only one would have let a sheet adopt the
+safe form and silently change what everything else was measured on.
+
+**The token is scored, never the fallback.** Every sheet
+`sn_health_contrast_usage_sources()` reads loads in theme context, where the
+presets are defined — so the fallback is the branch no reader takes, and scoring
+it would report a colour nobody sees.
+
+**The widening does not widen the claim.** A *non-preset* custom property with a
+fallback — `var(--sn-signal, #ff4c47)` — stays unscoreable, pinned by its own
+assertion. When that property is defined in the cascade (which it is, in this
+plugin's own sheets), the fallback is not what renders, and guessing it would
+invent a colour. That's the failure mode the whole module exists to avoid, so
+the coverage docblock now names the indirection limit out loud instead of
+letting a wider regex imply wider coverage.
+
+No output change today: no scanned sheet declares a preset-token fallback on a
+`color`/`background` property yet. This is the checker being widened **before**
+any stylesheet adopts the form — the order that was recorded as owed.
+
 ## [10.92.2] - 2026-08-11 — the give-back row graduates, and says what it declined
 
 **PATCH** — one board row, four test pins. No behaviour change.

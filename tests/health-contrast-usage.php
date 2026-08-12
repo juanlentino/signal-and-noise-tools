@@ -62,6 +62,35 @@ ok( null === sn_health_contrast_usage_read_color( 'color: color-mix(in srgb, #ff
 ok( null === sn_health_contrast_usage_read_color( 'border-color:#000;', 'color' ), 'border-color is not text colour' );
 ok( null === sn_health_contrast_usage_read_color( 'background-image: url(x.png);', 'background' ), 'a background image is not a colour' );
 
+// var() FALLBACKS. `var(--wp--preset--color--void, #fff)` is the form
+// that is both safe (renders when the preset is undefined) and scoreable. Before
+// this, the regex demanded a bare `var(--token)` and returned null on the
+// fallback form, so a component written the safe way became invisible to the
+// scan — the checker had to be widened BEFORE any stylesheet could adopt it.
+//
+// The TOKEN is what gets scored, never the fallback: every sheet in
+// sn_health_contrast_usage_sources() loads in theme context, where the presets
+// ARE defined, so the fallback is the branch a reader never takes. Scoring it
+// would report a colour nobody sees.
+$fb = sn_health_contrast_usage_read_color( 'background: var(--wp--preset--color--void, #fff);', 'background' );
+ok( $fb && 'token' === $fb['kind'] && 'void' === $fb['value'], 'a token with a hex fallback reads as the TOKEN (the branch that actually renders)' );
+
+$fbt = sn_health_contrast_usage_read_color( 'color:var(--wp--preset--color--signal,#ff4c47);', 'color' );
+ok( $fbt && 'token' === $fbt['kind'] && 'signal' === $fbt['value'], 'no space after the comma is the same declaration' );
+
+$fbw = sn_health_contrast_usage_read_color( 'color: var( --wp--preset--color--blood , #e00404 );', 'color' );
+ok( $fbw && 'token' === $fbw['kind'] && 'blood' === $fbw['value'], 'whitespace around the token and the fallback does not hide it' );
+
+// The limit stated out loud, so widening the regex does not quietly widen the
+// CLAIM. A non-preset custom property has no palette entry to resolve, and its
+// fallback is NOT what renders when the property is defined somewhere in the
+// cascade — which is exactly the case in this plugin's own sheets
+// (`--sn-signal: var(--wp--preset--color--signal,#ff4c47)`). Guessing the
+// fallback there would invent a colour. Unscoreable stays unscoreable.
+ok( null === sn_health_contrast_usage_read_color( 'color: var(--sn-signal, #ff4c47);', 'color' ), 'a NON-preset var with a fallback stays unscoreable — its fallback is not what renders' );
+$fbn = sn_health_contrast_usage_read_color( 'color: var(--wp--preset--color--void, var(--sn-x));', 'color' );
+ok( $fbn && 'token' === $fbn['kind'] && 'void' === $fbn['value'], 'a NESTED var() fallback changes nothing — the outer preset token is still what renders' );
+
 // ─── Group 3: surface derivation ───────────────────────────────────
 echo "\nGroup 3: surface derivation excludes pseudo-elements and states\n";
 $css = '.card { background: var(--wp--preset--color--asphalt); }'
@@ -210,6 +239,34 @@ foreach ( $rejected as $hex ) {
 foreach ( $new as $hex ) {
 	ok( sn_health_contrast_ratio( $hex, '#e0e0e0' ) > 4.6, 'the shipped value keeps real margin on asphalt' );
 }
+
+// ─── Group 11: the document background reads fallbacks too ──────────
+// The SECOND copy of the token regex. Widening only the declaration reader
+// would leave the document background — the surface every unanchored pairing
+// is scored against — still blind to the same syntax, so one sheet adopting
+// the safe form could silently change what everything else is measured on.
+// Two regexes for one concept is the defect; until they are merged, they are
+// pinned together.
+echo "\nGroup 11: the document background reads var() fallbacks too\n";
+if ( ! function_exists( 'wp_get_global_styles' ) ) {
+	function wp_get_global_styles( $path = array() ) {
+		return $GLOBALS['__global_styles_bg'];
+	}
+}
+$GLOBALS['__global_styles_bg'] = 'var(--wp--preset--color--bone)';
+$dbg                           = sn_health_contrast_usage_document_background();
+ok( $dbg && 'token' === $dbg['kind'] && 'bone' === $dbg['value'], 'a bare token still reads as the token' );
+
+$GLOBALS['__global_styles_bg'] = 'var(--wp--preset--color--bone, #f4f1ea)';
+$dbg                           = sn_health_contrast_usage_document_background();
+ok( $dbg && 'token' === $dbg['kind'] && 'bone' === $dbg['value'], 'a token WITH a fallback reads as the token, not as null and not as the fallback' );
+
+$GLOBALS['__global_styles_bg'] = '#FFFFFF';
+$dbg                           = sn_health_contrast_usage_document_background();
+ok( $dbg && 'literal' === $dbg['kind'] && '#ffffff' === $dbg['value'], 'a plain hex is still read and normalised' );
+
+$GLOBALS['__global_styles_bg'] = '';
+ok( null === sn_health_contrast_usage_document_background(), 'an empty global-styles background is unscoreable, not guessed' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

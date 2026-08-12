@@ -27,7 +27,23 @@
  *     provenance chip is entirely hardcoded, so a token-only scan — which is
  *     what the theme-side original was — would not see the component this
  *     module was written to catch.
+ *   - Token references CARRYING A FALLBACK (`var(--wp--preset--color--void,
+ *     #fff)`), scored as the token. Before that the regex demanded a
+ *     bare `var(--token)`, which made the safe form and the scoreable form
+ *     mutually exclusive: a component could paint reliably when the preset was
+ *     missing, or be visible to this scan, never both. The fallback itself is
+ *     deliberately NOT scored — every sheet listed by
+ *     sn_health_contrast_usage_sources() loads in theme context, where the
+ *     presets are defined, so the fallback is the branch no reader takes.
  * WHAT IT DOES NOT COVER:
+ *   - INDIRECTION through a non-preset custom property. This plugin's own
+ *     sheets do `--sn-signal: var(--wp--preset--color--signal,#ff4c47)` and then
+ *     `color: var(--sn-signal)`; the scan sees a definition it does not score
+ *     and a reference it cannot resolve, so the pairing is invisible rather than
+ *     wrong. Resolving it means following the cascade, which is the render
+ *     tier's job. A non-preset var is never guessed from its fallback: when the
+ *     property IS defined, the fallback is not what renders, and inventing a
+ *     colour is the failure mode this whole module exists to avoid.
  *   - Colours inlined in BLOCK MARKUP (`has-blood-color` on a paragraph).
  *     Those live in templates, not stylesheets. Still the render tier's job.
  *   - The computed cascade: specificity, overrides, inherited `color`.
@@ -124,7 +140,19 @@ function sn_health_contrast_usage_rules( $css ) {
 function sn_health_contrast_usage_read_color( $body, $property ) {
 	$prop = 'background' === $property ? 'background(?:-color)?' : '(?<![a-z-])color';
 
-	if ( preg_match( '/' . $prop . ':\s*var\(\s*--wp--preset--color--([a-z0-9-]+)\s*\)/i', (string) $body, $m ) ) {
+	// The optional `(?:,[^;]*)?` is the var() FALLBACK, matched and then thrown
+	// away. `var(--wp--preset--color--void, #fff)` is the only form that is both
+	// safe and scoreable — safe because it still paints when the preset is
+	// undefined, scoreable because this scan can see the token. Demanding a bare
+	// `var(--token)` forced a component to pick one or the other.
+	//
+	// The TOKEN wins, always. Every sheet sn_health_contrast_usage_sources()
+	// reads loads in theme context, where the presets ARE defined, so the
+	// fallback is the branch no reader takes — scoring it would report a colour
+	// nobody sees. `[^;]*` is bounded by the declaration separator so the match
+	// can never run into the next declaration, and it backtracks correctly over
+	// a nested `var()` in the fallback.
+	if ( preg_match( '/' . $prop . ':\s*var\(\s*--wp--preset--color--([a-z0-9-]+)\s*(?:,[^;]*)?\)/i', (string) $body, $m ) ) {
 		return array(
 			'kind'  => 'token',
 			'value' => strtolower( $m[1] ),
@@ -363,7 +391,11 @@ function sn_health_contrast_usage_document_background() {
 	if ( '' === $value ) {
 		return null;
 	}
-	if ( preg_match( '/var\(\s*--wp--preset--color--([a-z0-9-]+)\s*\)/i', $value, $m ) ) {
+	// Same fallback tolerance as sn_health_contrast_usage_read_color(). These two
+	// regexes are one concept written twice; widening only the other would leave
+	// the surface that every unanchored pairing is scored AGAINST blind to the
+	// syntax its own stylesheets had just been cleared to use.
+	if ( preg_match( '/var\(\s*--wp--preset--color--([a-z0-9-]+)\s*(?:,[^;]*)?\)/i', $value, $m ) ) {
 		return array(
 			'kind'  => 'token',
 			'value' => strtolower( $m[1] ),
