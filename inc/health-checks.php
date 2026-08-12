@@ -147,6 +147,13 @@ function sn_health_run_scan() {
 			// this is the arithmetic tier, so a clean sweep here can never
 			// be mistaken for a clean site.
 			'contrast_tokens'      => sn_health_check_contrast_tokens(),
+			// 20th check (report only): Motion that asks first — every declared
+			// animation/transition checked for a reduced-motion counterpart
+			// (gated behind no-preference, or set to none under reduce). The
+			// report is the deliverable; its DETAILED table renders with the
+			// Health-tab IA redesign — the checks list carries the label and
+			// zero-count meanwhile, which is honest for a report-only tier.
+			'motion_scan'          => sn_health_check_motion_scan(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );
@@ -202,6 +209,9 @@ require_once __DIR__ . '/health-contrast-tokens.php';
 // v10.90.0: the usage tier that contrast_tokens' own coverage sentence asks
 // for. Loaded after it — the check calls into this module, not the reverse.
 require_once __DIR__ . '/health-contrast-usage.php';
+// Motion that asks first (report only): rides the contrast-usage parser and
+// sheet population. Loaded after it for the same reason as above.
+require_once __DIR__ . '/health-motion-scan.php';
 
 /**
  * Common per-check result envelope used by 2-4.
