@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.95.0] - 2026-08-12 — the admin behemoths slim down, motion gets its view, and a board day of graduations
 
 ### Admin IA H2+H3 / M2+M3: both behemoths finish slimming
 
@@ -44,7 +44,6 @@ their gate clauses inside the claim. Board 60 → 59 rows, legend 21/9/16/13;
 floor fingerprint `d38c4bc9…` == the door-written board; sweep 16,609 →
 16,613.
 
-## [Unreleased]
 
 ### The embeds row declines in the open, and motion takes its slot
 
@@ -61,7 +60,6 @@ scan). The board's last empty cell is gone (the structural pins move with
 the truth: 0 empties, 21 folds). Legend 21/9/17/12; floor fingerprint
 `3231e3ae…` == the door-written board; sweep 16,613 → 16,618.
 
-## [Unreleased]
 
 ### Motion that asks first: the reduced-motion scan lands report-first
 
@@ -84,7 +82,6 @@ must equal the sweep) caught that a failing suite still prints its passing
 count into the sweep total — the summary line alone would have shipped the
 gap. Tests +23 (real parser, no stubs); sweep 16,618 → 16,641.
 
-## [Unreleased]
 
 ### Admin IA, increments H1 + M1: the two behemoths start slimming
 
