@@ -35,7 +35,23 @@
  *     deliberately NOT scored — every sheet listed by
  *     sn_health_contrast_usage_sources() loads in theme context, where the
  *     presets are defined, so the fallback is the branch no reader takes.
+ *   - Declarations inside AT-RULES (`@media`, `@supports`, `@layer`), scored
+ *     with their context carried rather than discarded. Two consequences:
+ *     `@media print` blocks are dropped entirely, because this tier measures
+ *     what a reader meets on SCREEN and a print colour over a screen surface is
+ *     a failure nobody can encounter; and a colour is never anchored to a
+ *     surface declared under a DIFFERENT at-rule, because
+ *     `@media (max-width:600px)` and `@media (min-width:601px)` never hold at
+ *     once. An unconditional surface still anchors a conditional colour — it
+ *     applies at every width.
  * WHAT IT DOES NOT COVER:
+ *   - WHETHER TWO AT-RULE CONDITIONS ACTUALLY OVERLAP. Context matching is
+ *     literal string equality. Two differently-written queries that do overlap
+ *     (`(min-width:600px)` and `(min-width:37.5em)`) are treated as
+ *     incompatible, so their pairing falls back to the document background
+ *     rather than to the real surface — a less specific answer, never a wrong
+ *     one. Deciding it properly means evaluating media queries, which this scan
+ *     does not do, and guessing is how a report starts inventing defects.
  *   - INDIRECTION through a non-preset custom property. This plugin's own
  *     sheets do `--sn-signal: var(--wp--preset--color--signal,#ff4c47)` and then
  *     `color: var(--sn-signal)`; the scan sees a definition it does not score
@@ -106,19 +122,123 @@ function sn_health_contrast_usage_sources() {
  * @param string $css Raw stylesheet.
  * @return array<int,array{sel:string,body:string}>
  */
+/**
+ * Byte spans of every at-rule BLOCK, innermost resolvable, with its prelude.
+ *
+ * The rule regex below matches innermost `{…}` pairs, which means it happily
+ * lifts a rule out of `@media` and discards the condition. That is invisible
+ * until a conditional declaration gets scored as if it always applied.
+ *
+ * A depth scan is the honest way to know the enclosing context. At-rules
+ * without a block (`@import`, `@charset` — a `;` before the next `{`) are
+ * skipped, since they enclose nothing.
+ *
+ * @param string $css Comment-stripped stylesheet.
+ * @return array<int,array{start:int,end:int,at:string}>
+ */
+function sn_health_contrast_usage_at_spans( $css ) {
+	$spans = array();
+	$len   = strlen( $css );
+	for ( $i = 0; $i < $len; $i++ ) {
+		if ( '@' !== $css[ $i ] ) {
+			continue;
+		}
+		$brace = strpos( $css, '{', $i );
+		if ( false === $brace ) {
+			break;
+		}
+		$semi = strpos( $css, ';', $i );
+		if ( false !== $semi && $semi < $brace ) {
+			continue;
+		}
+		$depth = 0;
+		$end   = $len - 1;
+		for ( $j = $brace; $j < $len; $j++ ) {
+			if ( '{' === $css[ $j ] ) {
+				++$depth;
+			} elseif ( '}' === $css[ $j ] ) {
+				--$depth;
+				if ( 0 === $depth ) {
+					$end = $j;
+					break;
+				}
+			}
+		}
+		$spans[] = array(
+			'start' => $brace,
+			'end'   => $end,
+			'at'    => trim( substr( $css, $i, $brace - $i ) ),
+		);
+	}
+	return $spans;
+}
+
+/**
+ * Is this at-rule prelude PRINT-ONLY?
+ *
+ * This tier measures what a reader meets ON SCREEN. A print colour scored
+ * against a screen surface is a failure nobody can encounter — demonstrated:
+ * `@media print{.card{color:#cccccc}}` over a white card reads 1.61:1 and would
+ * have been reported.
+ *
+ * A query listing print ALONGSIDE a screen context (`@media screen,print`) is
+ * NOT print-only: dropping it would lose a rule that genuinely applies. Every
+ * comma-separated component has to be print for the block to go.
+ *
+ * @param string $at Prelude, e.g. `@media only print`.
+ * @return bool
+ */
+function sn_health_contrast_usage_is_print_only( $at ) {
+	if ( '' === $at || 0 !== stripos( $at, '@media' ) ) {
+		return false;
+	}
+	$query = trim( substr( $at, 6 ) );
+	if ( '' === $query ) {
+		return false;
+	}
+	foreach ( explode( ',', $query ) as $part ) {
+		if ( ! preg_match( '/^\s*(only\s+)?print\b/i', $part ) ) {
+			return false;
+		}
+	}
+	return true;
+}
+
 function sn_health_contrast_usage_rules( $css ) {
 	$css   = preg_replace( '!/\*.*?\*/!s', '', (string) $css );
+	$spans = sn_health_contrast_usage_at_spans( $css );
 	$rules = array();
-	if ( preg_match_all( '/([^{}]+)\{([^{}]*)\}/s', (string) $css, $matches, PREG_SET_ORDER ) ) {
+	if ( preg_match_all( '/([^{}]+)\{([^{}]*)\}/s', (string) $css, $matches, PREG_SET_ORDER | PREG_OFFSET_CAPTURE ) ) {
 		foreach ( $matches as $match ) {
-			$lines = preg_split( '/\R/', trim( $match[1] ) );
+			$lines = preg_split( '/\R/', trim( $match[1][0] ) );
 			$sel   = trim( (string) end( $lines ) );
-			if ( '' !== $sel && '@' !== $sel[0] ) {
-				$rules[] = array(
-					'sel'  => $sel,
-					'body' => $match[2],
-				);
+			if ( '' === $sel || '@' === $sel[0] ) {
+				continue;
 			}
+
+			// The INNERMOST enclosing at-rule wins: `@supports{@media print{…}}`
+			// is print, not merely "supported".
+			$offset  = $match[1][1];
+			$at      = '';
+			$tightest = PHP_INT_MAX;
+			foreach ( $spans as $span ) {
+				if ( $offset > $span['start'] && $offset < $span['end'] ) {
+					$width = $span['end'] - $span['start'];
+					if ( $width < $tightest ) {
+						$tightest = $width;
+						$at       = $span['at'];
+					}
+				}
+			}
+			if ( sn_health_contrast_usage_is_print_only( $at ) ) {
+				continue;
+			}
+
+			$rules[] = array(
+				'sel'  => $sel,
+				'body' => $match[2][0],
+				'at'   => $at,
+			);
 		}
 	}
 	return $rules;
@@ -202,6 +322,9 @@ function sn_health_contrast_usage_surfaces( $rules ) {
 		if ( null === $bg ) {
 			continue;
 		}
+		// The surface carries the at-rule context it was declared under, so a
+		// pairing can refuse a background that cannot co-occur with its colour.
+		$bg['at'] = isset( $rule['at'] ) ? $rule['at'] : '';
 		foreach ( explode( ',', $rule['sel'] ) as $one ) {
 			$one = trim( $one );
 			if ( '' !== $one ) {
@@ -271,10 +394,27 @@ function sn_health_contrast_usage_pairings( $rules, $surfaces, $document, $label
 		if ( null === $bg ) {
 			$bg = null;
 			foreach ( $surfaces as $surface => $colour ) {
-				if ( sn_health_contrast_usage_contains( $rule['sel'], $surface ) ) {
-					$bg = $colour;
-					break;
+				if ( ! sn_health_contrast_usage_contains( $rule['sel'], $surface ) ) {
+					continue;
 				}
+				// An UNCONDITIONAL surface always applies, so it can back a
+				// conditional colour. A surface declared under a DIFFERENT
+				// at-rule cannot: `@media (max-width:600px)` and
+				// `@media (min-width:601px)` never hold at once, and pairing
+				// across them invents a combination that renders nowhere.
+				// Equality is deliberately literal — proving two media queries
+				// overlap means evaluating them, which this scan does not do,
+				// and guessing is how a report starts inventing defects.
+				$surface_at = isset( $colour['at'] ) ? $colour['at'] : '';
+				$rule_at    = isset( $rule['at'] ) ? $rule['at'] : '';
+				if ( '' !== $surface_at && $surface_at !== $rule_at ) {
+					continue;
+				}
+				$bg = array(
+					'kind'  => $colour['kind'],
+					'value' => $colour['value'],
+				);
+				break;
 			}
 		}
 		if ( null === $bg ) {
