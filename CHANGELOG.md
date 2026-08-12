@@ -2,9 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
-
-### The table twin goes calendar-shaped
+## [10.93.1] - 2026-08-12 — the table twin goes calendar-shaped
 
 Owner feedback on the first live render: thirty single-file rows read as a
 wall. The twin is now weeks-as-rows × weekdays-as-columns — 5–6 rows instead
