@@ -435,5 +435,91 @@ $GLOBALS['__ab_is_admin']    = false;
 $GLOBALS['__ab_screen_base'] = '';
 $GLOBALS['__ab_screen_id']   = '';
 
+/* ════════════════════════════════════════════════════════════════════
+ * Test 7 — the destructive item confirms before it fires.
+ *
+ * Clear DB Overrides force-deletes every wp_template / wp_template_part /
+ * wp_navigation with no trash and no undo. Test 6 keeps it out of the Site
+ * Editor; this keeps it from firing on a stray click anywhere else.
+ *
+ * The load-bearing assertion is the DELIVERY one: a confirm declared in
+ * sn_admin_bar_items() that never reaches the localized config is a confirm
+ * that does nothing, and a check on the items array alone would pass while the
+ * button fired unconfirmed. Same one-sided-contract shape as the 7.1 hook name.
+ * ════════════════════════════════════════════════════════════════════ */
+echo "\nTest 7: destructive item carries a confirmation, and it reaches the client\n";
+
+$items = sn_admin_bar_items();
+$confirm = $items['sn-quick-clear-overrides']['confirm'] ?? null;
+ab_true( is_string( $confirm ) && '' !== $confirm, '7.1: clear-overrides declares a confirm string' );
+// Substance, not wording — a rewrite of the prose must not read as a failure,
+// so this pins that it is real prose rather than a stub, not its phrasing.
+ab_true( is_string( $confirm ) && strlen( $confirm ) > 80, '7.2: confirm is real prose, not a placeholder' );
+
+// ONLY the destructive item confirms. This is the invariant that keeps the
+// dialog meaningful: a confirm on every action trains the reader to dismiss it
+// unread, which costs exactly the one place it matters.
+$with_confirm = array();
+foreach ( $items as $node_id => $item ) {
+	if ( ! empty( $item['confirm'] ) ) { $with_confirm[] = $node_id; }
+}
+ab_eq( array( 'sn-quick-clear-overrides' ), $with_confirm, '7.3: exactly one item confirms (no confirm-fatigue across the menu)' );
+
+// ── Delivery: the confirm must survive into the localized per-node config ──
+// Four stubs, each modelling the real callee's signature (the stub-drift trap).
+if ( ! function_exists( 'is_admin_bar_showing' ) ) {
+	function is_admin_bar_showing() { return true; }
+}
+if ( ! function_exists( 'admin_url' ) ) {
+	function admin_url( $path = '', $scheme = 'admin' ) { return 'https://example.test/wp-admin/' . ltrim( (string) $path, '/' ); }
+}
+if ( ! function_exists( 'wp_create_nonce' ) ) {
+	function wp_create_nonce( $action = -1 ) { return 'nonce-' . (string) $action; }
+}
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $data, $flags = 0, $depth = 512 ) { return json_encode( $data, (int) $flags, (int) $depth ); }
+}
+
+// Front end, so the destructive guard allows the item through.
+$GLOBALS['__ab_manage_options'] = true;
+$GLOBALS['__ab_is_admin']       = false;
+$GLOBALS['__ab_is_singular']    = false;
+$GLOBALS['__ab_screen_base']    = '';
+$GLOBALS['__ab_screen_id']      = '';
+
+ob_start();
+sn_admin_bar_print_script();
+$printed = (string) ob_get_clean();
+
+ab_true( '' !== $printed, '7.4: print_script emitted output' );
+// Pull the JSON config back out of the <script> block and decode it, so the
+// assertion is about the DATA the client receives, not about substring luck.
+$matched = (bool) preg_match( '/const cfg = (\{.*?\});/s', $printed, $m );
+ab_true( $matched, '7.5: localized config is parseable out of the printed script' );
+$cfg = $matched ? json_decode( $m[1], true ) : null;
+ab_true( is_array( $cfg ) && isset( $cfg['nodes'] ), '7.5b: config decodes to a nodes map' );
+
+$delivered = $cfg['nodes']['sn-quick-clear-overrides']['confirm'] ?? null;
+ab_eq( $confirm, $delivered, '7.6: the confirm reaches the client byte-identical (DELIVERY, not just declaration)' );
+
+// And no other node carries one, end to end.
+$delivered_with_confirm = array();
+foreach ( (array) ( $cfg['nodes'] ?? array() ) as $node_id => $node ) {
+	if ( ! empty( $node['confirm'] ) ) { $delivered_with_confirm[] = $node_id; }
+}
+ab_eq( array( 'sn-quick-clear-overrides' ), $delivered_with_confirm, '7.7: exactly one node ships a confirm to the client' );
+
+// The JS gate itself: present, reads meta.confirm, and sits BEFORE the busy
+// flag so a declined confirm leaves the row re-clickable rather than spinning.
+ab_true( false !== strpos( $printed, 'window.confirm(meta.confirm)' ), '7.8: the click handler gates on window.confirm(meta.confirm)' );
+$pos_confirm = strpos( $printed, 'window.confirm(meta.confirm)' );
+$pos_busy    = strpos( $printed, "link.dataset.snBusy = '1'" );
+ab_true( false !== $pos_confirm && false !== $pos_busy && $pos_confirm < $pos_busy, '7.9: the confirm gate precedes the busy flag (declining leaves the row clickable)' );
+
+// A closing-tag sequence must never survive into the script block. The confirm
+// is a server literal today, but this is the property that keeps it safe if the
+// prose is ever edited.
+ab_true( false === stripos( $m[1] ?? '', '</script' ), '7.10: no raw closing-tag sequence in the emitted config' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
