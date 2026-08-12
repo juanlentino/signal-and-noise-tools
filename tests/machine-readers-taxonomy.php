@@ -226,6 +226,7 @@ ok( false === strpos( $mr2_empty, '<details' ), 'and renders NO disclosure' );
 $mr2_allblank = snt_mr_render_unknown_agents( array( array( 'user_agent' => '<<<>>>', 'hits' => 3 ) ) );
 ok( false === strpos( $mr2_allblank, '<tr><td class="column-primary"' ), 'a window whose agents all normalize away renders no rows' );
 ok( false === stripos( $mr2_allblank, 'matched the taxonomy' ), 'and does NOT claim the taxonomy matched everything — unrenderable is not clean' );
+ok( false === strpos( $mr2_allblank, '<details' ), 'and does NOT fold: a summary reading "0 unclassified user agents" would rhyme with a measured zero, which is the whole reason the fold is gated on survivors' );
 
 echo "\nGroup: the over-count is SHOWN, not reconciled away\n";
 $recon_rows = snt_mr_normalize_rows( array(
