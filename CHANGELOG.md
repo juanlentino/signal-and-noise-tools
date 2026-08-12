@@ -2,7 +2,17 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the read door gets a ceiling (F1 bounded)
+## [10.92.0] - 2026-08-11 — the read door's switch covers the door, and the door has a ceiling
+
+**MINOR** — not repairs of broken behaviour but **new enforcement**: the kill
+switch now covers a route it never did, and a ceiling exists where none did.
+
+R3 **3D started** the only way its own prep allows — threat model first. Writing
+it found two defects in the shipped build, and both are fixed here, **while the
+read door is still behind one laptop** rather than bundled with the trust
+boundary that would have made their absence load-bearing.
+
+### F1 — the read door gets a ceiling (bounded, not closed)
 
 Un-versioned; rides the next release with F2 and the threat model.
 
@@ -35,7 +45,7 @@ untouched **could not fail** as first written — it ran with an empty counter, 
 the limiter allowed and returned the prior result regardless. It now runs against
 an exhausted ceiling, which is the only state where the mutant answers 429.
 
-## [Unreleased] — the read kill switch now covers the read path (F2 closed)
+### F2 — the kill switch now covers the read path (closed)
 
 Un-versioned; rides the next release with the threat model below, which found it.
 
@@ -67,7 +77,7 @@ Fixed **on its own merits, while the door is still behind one laptop** — not
 bundled with the trust boundary that would have made its absence load-bearing.
 F1 (the read door has no rate limit) remains open.
 
-## [Unreleased] — R3 3D's threat model, and two defects it found in today's build
+### The threat model that found them
 
 Un-versioned, docs only; rides the next release. **3D's own prep says the threat
 model comes before any code, so this is 3D started — not deferred.**
