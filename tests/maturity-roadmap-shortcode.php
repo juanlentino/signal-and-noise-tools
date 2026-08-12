@@ -261,6 +261,18 @@ ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'Which mach
 ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'not a ratio' ), 'DR floor: and the row NAMES what was declined, so "ratio" cannot quietly come back as an unmet promise' );
 ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'Give-back ratio per crawler' ), 'DR floor: no stale "Give-back ratio per crawler" phrasing survives in ANY Analytics column' );
 
+// The rights-read row moved PLANNED -> DONE on 2026-08-12. Its gate ("served
+// from state the site already holds, so a reader's page never waits on a sensor
+// call") is delivered by construction: inc/machine-readers-rights-reads.php
+// reads a snapshot record it is HANDED — the only input is an array — and the
+// count is live on /maturity/machine-readability/. The graduated sentence keeps
+// the two claims that make the number honest: no sensor call on a reader's
+// path, and never-measured renders as unmeasured rather than as a zero.
+ok( false === strpos( implode( ' | ', $floor['Machine readability']['planned'] ), 'rights-read count' ), 'DR floor: the rights-read row is NO LONGER promised as planned' );
+ok( false !== strpos( implode( ' | ', $floor['Machine readability']['done'] ), 'The rights-read count published on the machine-readability page itself' ), 'DR floor: it sits in Machine readability DONE (the count shipped in v10.91.0)' );
+ok( false !== strpos( implode( ' | ', $floor['Machine readability']['done'] ), 'renders as unmeasured, never as zero' ), 'DR floor: and the row NAMES the three-valued contract, so a broken sensor can never be read back as a flattering zero' );
+ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Machine readability'] ) ) ), 'read from the crawler ledger at render' ), 'DR floor: no stale "read from the crawler ledger at render" phrasing survives in ANY Machine readability column' );
+
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );
 ok( $static_html === call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] ), 'deleting the override returns the render to code-canonical, byte-identical' );

@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### The rights-read row graduated: the board's DR floor resynced
+
+The Machine readability row "the rights-read count published on the
+machine-readability page itself" moved `planned` → `done` on the live board on
+2026-08-12, via the `roadmap_board` door (content, no release). Its gate —
+*served from state the site already holds, so a reader's page never waits on a
+sensor call* — was delivered by construction in v10.91.0:
+`inc/machine-readers-rights-reads.php` reads a snapshot record it is handed,
+and the count is live on `/maturity/machine-readability/` (1,101 reads in the
+last 30 days at graduation time).
+
+This change is the code half of the v10.92.2 pattern: the static
+disaster-recovery floor in `inc/maturity-roadmap-shortcode.php` resynced to the
+board the door wrote (fingerprints verified byte-identical, `50a7d627…`), plus
+four DR-floor pins in `tests/maturity-roadmap-shortcode.php` so the floor
+cannot silently fall behind again. The graduated sentence keeps the two claims
+that make the number honest: no sensor call on a reader's path, and a count
+never measured renders as unmeasured, never as a zero. Sweep 16,548 → 16,552.
+
 ## [10.92.6] - 2026-08-11 — WordPress 7.1 readiness, a confirmation before the force-delete, and the contrast scan stops flagging wp-admin
 
 Three findings from the [7.1 field guide](https://make.wordpress.org/core/2026/08/05/wordpress-7-1-field-guide/),
