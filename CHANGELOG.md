@@ -2,6 +2,48 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.92.2] - 2026-08-11 — the give-back row graduates, and says what it declined
+
+**PATCH** — one board row, four test pins. No behaviour change.
+
+The Analytics row promising a **"give-back ratio per crawler"** moves `planned` →
+`done`. Both halves of its gate shipped in v10.91.0: the explicit operator map it
+named as a precondition, and the surface it existed for — `/maturity/machine-readability/`
+already says, per operator, whether a machine that reads the site ever sends a
+reader back.
+
+What did **not** ship is the literal ratio, and the graduated sentence says so:
+
+> Which machines send a reader back: per operator, the ledger's crawl counts
+> published beside that operator's referred human visits — stated as a sentence
+> each, **not a ratio**, because crawls are requests and visits are visitor-days.
+> An operator that read the site hundreds of times and sent nobody back is the
+> finding, and a bare 0 would bury it — a thread shared with Machine readability
+
+**Why a ratio would have been worse than no ratio.** The two sides are counted in
+different units — crawls are individual requests across every surface,
+`pageview_visits` are visitor-days — so a quotient reads as precision the data
+does not have. It is the same units trap as this site's own views-vs-visits
+confusion, which is structural rather than a bug. And the finding here is a
+*zero*: "OpenAI read this site 1,346 times and has never sent a reader back" is
+the sentence worth publishing; `0.00` is the same fact with its meaning removed.
+
+**Why `done` and not `considering`.** The 10.92.1 precedent parked a declined row
+in `considering`, which was right — nothing had been built. Here the surface is
+live, so `considering` would have left the board proposing as an idea the thing
+it already ships. That exact drift cost a four-row resync in v10.71.1; the floor's
+own docblock keeps the receipt. The decline rides *inside* the graduated sentence
+instead, so the board records the shape the answer took rather than only that an
+answer exists.
+
+Moved through the door (data) and synced into the static floor (code). Item total
+unchanged — the row **moved**, it was not added.
+
+Four new floor pins, each mutation-fired by name: the row is gone from `planned`,
+present in `done`, names what was declined, and **no stale "Give-back ratio per
+crawler" phrasing survives in any Analytics column** — so the retired promise
+cannot quietly reappear as an unmet one.
+
 ## [10.92.1] - 2026-08-11 — R3 closes: the last row is decided, not deferred
 
 **PATCH** — documentation, one board row, one test pin. No behaviour change.

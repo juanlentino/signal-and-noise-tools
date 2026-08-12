@@ -249,6 +249,17 @@ ok( false === strpos( implode( ' | ', $floor['Operations']['planned'] ), 'Spend 
 ok( false === strpos( implode( ' | ', $floor['AI']['planned'] ), 'Reach the read door' ), 'DR floor: the remote read-door row is NO LONGER promised as planned' );
 ok( false !== strpos( implode( ' | ', $floor['AI']['considering'] ), 'Reach the read door' ), 'DR floor: it sits in AI CONSIDERING' );
 ok( false !== strpos( implode( ' | ', $floor['AI']['considering'] ), 'DECLINED' ), 'DR floor: and the row NAMES the decision, so the board does not merely go quiet about it' );
+// The give-back row moved PLANNED -> DONE on 2026-08-11. Its gate (an explicit
+// operator map) and its purpose clause both shipped in v10.91.0; only the literal
+// RATIO was declined, because crawls are requests and referred visits are
+// visitor-days. Graduating it is the honest column — leaving a shipped surface in
+// 'planned' is exactly the drift v10.71.1 had to resync four rows to undo. The
+// decline rides INSIDE the graduated sentence so the board records the shape the
+// answer took, not merely that an answer exists.
+ok( false === strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'send a reader back' ), 'DR floor: the give-back row is NO LONGER promised as planned' );
+ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'Which machines send a reader back' ), 'DR floor: it sits in Analytics DONE (the per-operator statement shipped in v10.91.0)' );
+ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'not a ratio' ), 'DR floor: and the row NAMES what was declined, so "ratio" cannot quietly come back as an unmet promise' );
+ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'Give-back ratio per crawler' ), 'DR floor: no stale "Give-back ratio per crawler" phrasing survives in ANY Analytics column' );
 
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );

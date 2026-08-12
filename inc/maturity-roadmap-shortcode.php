@@ -105,10 +105,10 @@ function sn_maturity_roadmap_static_board() {
 				__( 'First-party, cookieless measurement at the edge, with rollups, integrity-checked denominators, insights, and a weekly prose digest', 'signal-and-noise-tools' ),
 				__( 'A public stats page: the site\'s aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected', 'signal-and-noise-tools' ),
 				__( 'AI-referred humans as a channel: visits that arrive from an assistant\'s answer counted as their own aggregate segment in the rollups — a reader an AI sent is a different signal than a reader search sent, and lumping them hides the shift', 'signal-and-noise-tools' ),
+				__( 'Which machines send a reader back: per operator, the ledger\'s crawl counts published beside that operator\'s referred human visits — stated as a sentence each, not a ratio, because crawls are requests and visits are visitor-days. An operator that read the site hundreds of times and sent nobody back is the finding, and a bare 0 would bury it — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection — a thread shared with Machine readability', 'signal-and-noise-tools' ),
-				__( 'Give-back ratio per crawler: the ledger\'s crawl counts set against that operator\'s referred human visits — so the page that says who reads by machine also says which machines ever send a reader back — landing once an explicit operator map names which crawler families and which referrer hosts are the same company — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" without ever profiling a reader', 'signal-and-noise-tools' ),
