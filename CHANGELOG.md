@@ -2,6 +2,52 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the usage scan stops reading `@media` as if it were unconditional
+
+**PATCH** — checker correctness. **No change to what the scan reports today.**
+
+`sn_health_contrast_usage_rules()` matched innermost `{…}` pairs, which lifted a
+rule out of its at-rule and discarded the condition. A conditional declaration
+was therefore scored as if it always applied.
+
+**No live defect** — measured, not assumed. The theme sheets carry 8 colour
+declarations inside `@media`; the only two that are scoreable are the SAME
+colour (`rust`) under complementary width queries, so treating them as
+unconditional was correct. The other six are `Highlight` and `inherit`, which
+are unscoreable anyway.
+
+But two false-positive generators were demonstrated, and both are ordinary CSS:
+
+| shape | what it produced |
+| --- | --- |
+| `@media print{.card{color:#ccc}}` over a white card | **1.61:1 reported** — a failure no screen reader can meet |
+| fg under `(min-width:601px)`, surface under `(max-width:600px)` | **anchored pairing** of two declarations that never co-occur |
+
+The parser now carries each rule's at-rule context (innermost wins, so
+`@supports{@media print{…}}` is print). Two rules follow:
+
+- **`@media print` is dropped entirely** — this tier measures the screen. A
+  query listing print *alongside* a screen context (`@media screen,print`) is
+  kept; dropping it would lose a rule that does apply.
+- **A colour never anchors to a surface from a different at-rule context.** An
+  unconditional surface still anchors a conditional colour, since it applies at
+  every width; an incompatible one falls back to the document background rather
+  than inventing a co-occurrence.
+
+Context matching is literal string equality, and the docblock now says so: two
+overlapping queries written differently (`600px` vs `37.5em`) are treated as
+incompatible, giving a *less specific* answer, never a wrong one. Evaluating
+media queries is not something this scan does, and guessing is the failure mode
+the module exists to avoid.
+
+**Verified against the real sheets, before and after:** 989 → 983 rules — the six
+dropped are `maturity-roadmap-front.css`'s `@media print` block, none of which
+declares a colour — and the pairing signatures are **byte-identical**, 156 both
+ways. The fix removes real input without moving a single reported result.
+
+Ten new assertions. All three behaviours mutation-fired by name, including an
+over-reach mutant: treating `@media screen,print` as print-only reds the suite.
+
 ## [10.92.4] - 2026-08-11 — the render scan stops refusing what it can resolve exactly
 
 **PATCH** — `tools/` only, which is `export-ignore`d and ships in no zip. No

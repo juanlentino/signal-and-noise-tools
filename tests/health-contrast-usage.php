@@ -91,6 +91,49 @@ ok( null === sn_health_contrast_usage_read_color( 'color: var(--sn-signal, #ff4c
 $fbn = sn_health_contrast_usage_read_color( 'color: var(--wp--preset--color--void, var(--sn-x));', 'color' );
 ok( $fbn && 'token' === $fbn['kind'] && 'void' === $fbn['value'], 'a NESTED var() fallback changes nothing — the outer preset token is still what renders' );
 
+// ─── Group 2c: at-rule context ─────────────────────────────────────
+// The parser lifts inner rules out of `@media` and drops the condition, so a
+// conditional declaration was scored as if it always applied. Measured against
+// the live theme sheets: 8 colour declarations sit inside `@media` today, and
+// none of them is mis-scored — the two scoreable ones are the SAME colour under
+// complementary width queries. So this is not a live defect; it is two
+// demonstrated false-positive generators waiting for the next print stylesheet.
+echo "\nGroup 2c: at-rule context is carried, and print is not the screen\n";
+
+$r = sn_health_contrast_usage_rules( '.a{color:#111111}@media (max-width:600px){.b{color:#222222}}' );
+$by = array();
+foreach ( $r as $one ) { $by[ $one['sel'] ] = $one; }
+ok( isset( $by['.a'] ) && '' === $by['.a']['at'], 'a top-level rule carries an EMPTY at-rule context' );
+ok( isset( $by['.b'] ) && false !== strpos( $by['.b']['at'], 'max-width' ), 'a rule inside @media carries its prelude as context' );
+
+// SHAPE 1 — print. This tier measures what a reader sees ON SCREEN. A print
+// colour scored against a screen surface is a failure nobody can meet:
+// #cccccc on #ffffff is 1.61:1, and it would have been reported.
+$printed = sn_health_contrast_usage_rules( '.card{background:#ffffff}@media print{.card{color:#cccccc}}' );
+ok( 1 === count( $printed ), 'a print-only rule is DROPPED — this tier measures the screen, and #cccccc on #ffffff would have read 1.61:1' );
+ok( '' === $printed[0]['at'], 'and the surviving rule is the unconditional one' );
+
+ok( 2 === count( sn_health_contrast_usage_rules( '@media screen,print{.a{color:#111111}}@media only screen{.b{color:#222222}}' ) ),
+	'a query that lists screen ALONGSIDE print is kept — dropping it would lose a rule that does apply' );
+
+// SHAPE 2 — mutually exclusive conditions. The fg exists only above 601px, the
+// surface only below 600px. They can never co-occur, so anchoring one to the
+// other invents a pairing that renders nowhere.
+$excl  = sn_health_contrast_usage_rules( '@media (max-width:600px){.x{background:#111111}}@media (min-width:601px){.x{color:#222222}}' );
+$pairs = sn_health_contrast_usage_pairings( $excl, sn_health_contrast_usage_surfaces( $excl ), $void, 'probe.css' );
+ok( 1 === count( $pairs ), 'the pairing still exists — the colour is real and must be scored against SOMETHING' );
+ok( $pairs && false === $pairs[0]['anchored'], 'but it is UNANCHORED: a surface from an incompatible at-rule context cannot be its background' );
+ok( $pairs && '#ffffff' === $pairs[0]['bg']['value'], 'so it falls back to the document background rather than inventing a co-occurrence' );
+
+// The two compatible cases must keep working, or the guard has over-reached.
+$same  = sn_health_contrast_usage_rules( '@media (min-width:601px){.y{background:#000000}.y .t{color:#222222}}' );
+$psame = sn_health_contrast_usage_pairings( $same, sn_health_contrast_usage_surfaces( $same ), $void, 'probe.css' );
+ok( $psame && true === $psame[0]['anchored'], 'a surface in the SAME at-rule context still anchors' );
+
+$uncond = sn_health_contrast_usage_rules( '.z{background:#000000}@media (min-width:601px){.z .t{color:#222222}}' );
+$puncond = sn_health_contrast_usage_pairings( $uncond, sn_health_contrast_usage_surfaces( $uncond ), $void, 'probe.css' );
+ok( $puncond && true === $puncond[0]['anchored'], 'an UNCONDITIONAL surface anchors a conditional colour — it applies at every width' );
+
 // ─── Group 3: surface derivation ───────────────────────────────────
 echo "\nGroup 3: surface derivation excludes pseudo-elements and states\n";
 $css = '.card { background: var(--wp--preset--color--asphalt); }'
