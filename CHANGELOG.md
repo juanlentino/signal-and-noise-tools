@@ -2,7 +2,18 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.99.1] - 2026-08-12 — the panel stops pointing at a tier nobody will build, and a cap stops being two numbers
+
+Two admin surfaces that were each telling the reader something not quite so: a
+caveat deferring a known gap to a surface that has now been decided against, and
+a display cap kept as two literals that had to agree by hand.
+
+**Why PATCH, not MINOR.** Most of this release's work ships nothing. `tools/`,
+`docs/` and `tests/` are all `export-ignore` in `.gitattributes`, so the render
+scanner's new `--deterministic` mode, the 742-line proposal, and every new test
+stay out of the plugin zip. The shipped delta is **two files, 56 lines**, both
+fixes — no new user-visible capability. The rendered-tier work below is recorded
+here because it explains the copy change, not because a user receives it.
 
 ### The contrast panel stops telling the reader to wait for a tier nobody will build
 
