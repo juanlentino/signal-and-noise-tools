@@ -131,7 +131,10 @@ ok( substr_count( $html, 'sn-maturity-roadmap-fold__glyph' ) === substr_count( $
 // Load-bearing copy: gates named on plans, nevers restated inline.
 ok( false !== strpos( $html, 'no new collection' ), 'the public-stats-page plan names its gate' );
 ok( false !== strpos( $html, 'once that runner is stable' ), 'the agents migration names its gate' );
-ok( false !== strpos( $html, 'without ever profiling a reader' ), 'the traffic-rhythm idea restates the profiling never inline' );
+// 2026-08-12: the row promoted considering -> planned and was reworded to name
+// its gate; the CLAIM this pin protects (the profiling never stated inline)
+// survives in the new phrasing, so the pin follows the claim, not the old words.
+ok( false !== strpos( $html, 'never profiling a reader' ), 'the traffic-rhythm row restates the profiling never inline' );
 ok( false !== strpos( $html, 'sentence-scale change' ), 'the staged-edit done item is present in prose' );
 
 // SECURITY CONTRACT: no option names, endpoint paths, tool/change-type
@@ -260,6 +263,28 @@ ok( false === strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'send a 
 ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'Which machines send a reader back' ), 'DR floor: it sits in Analytics DONE (the per-operator statement shipped in v10.91.0)' );
 ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'not a ratio' ), 'DR floor: and the row NAMES what was declined, so "ratio" cannot quietly come back as an unmet promise' );
 ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'Give-back ratio per crawler' ), 'DR floor: no stale "Give-back ratio per crawler" phrasing survives in ANY Analytics column' );
+
+// The rights-read row moved PLANNED -> DONE on 2026-08-12. Its gate ("served
+// from state the site already holds, so a reader's page never waits on a sensor
+// call") is delivered by construction: inc/machine-readers-rights-reads.php
+// reads a snapshot record it is HANDED — the only input is an array — and the
+// count is live on /maturity/machine-readability/. The graduated sentence keeps
+// the two claims that make the number honest: no sensor call on a reader's
+// path, and never-measured renders as unmeasured rather than as a zero.
+ok( false === strpos( implode( ' | ', $floor['Machine readability']['planned'] ), 'rights-read count' ), 'DR floor: the rights-read row is NO LONGER promised as planned' );
+ok( false !== strpos( implode( ' | ', $floor['Machine readability']['done'] ), 'The rights-read count published on the machine-readability page itself' ), 'DR floor: it sits in Machine readability DONE (the count shipped in v10.91.0)' );
+ok( false !== strpos( implode( ' | ', $floor['Machine readability']['done'] ), 'renders as unmeasured, never as zero' ), 'DR floor: and the row NAMES the three-valued contract, so a broken sensor can never be read back as a flattering zero' );
+ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Machine readability'] ) ) ), 'read from the crawler ledger at render' ), 'DR floor: no stale "read from the crawler ledger at render" phrasing survives in ANY Machine readability column' );
+
+// Traffic rhythm flags promoted CONSIDERING -> PLANNED on 2026-08-12 (owner
+// call, R4 prep: the ML pair stays held, this row promotes). A planned row
+// names its gate, so the promoted sentence carries one — read from the rollups
+// already kept, deterministic, never profiling a reader — where the
+// considering copy committed to nothing.
+ok( false === strpos( implode( ' | ', $floor['Analytics']['considering'] ), 'Traffic rhythm flags' ), 'DR floor: the rhythm-flags row is NO LONGER a considering idea' );
+ok( false !== strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'Traffic rhythm flags' ), 'DR floor: it sits in Analytics PLANNED' );
+ok( false !== strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'read from the rollups already kept, deterministic, never profiling a reader' ), 'DR floor: and the promoted row NAMES its gate, as every planned row must' );
+ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'without ever profiling a reader' ), 'DR floor: no stale considering-era phrasing survives in ANY Analytics column' );
 
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );

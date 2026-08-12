@@ -4,6 +4,48 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### The rights-read row graduated: the board's DR floor resynced
+
+The Machine readability row "the rights-read count published on the
+machine-readability page itself" moved `planned` → `done` on the live board on
+2026-08-12, via the `roadmap_board` door (content, no release). Its gate —
+*served from state the site already holds, so a reader's page never waits on a
+sensor call* — was delivered by construction in v10.91.0:
+`inc/machine-readers-rights-reads.php` reads a snapshot record it is handed,
+and the count is live on `/maturity/machine-readability/` (1,101 reads in the
+last 30 days at graduation time).
+
+This change is the code half of the v10.92.2 pattern: the static
+disaster-recovery floor in `inc/maturity-roadmap-shortcode.php` resynced to the
+board the door wrote (fingerprints verified byte-identical, `50a7d627…`), plus
+four DR-floor pins in `tests/maturity-roadmap-shortcode.php` so the floor
+cannot silently fall behind again. The graduated sentence keeps the two claims
+that make the number honest: no sensor call on a reader's path, and a count
+never measured renders as unmeasured, never as a zero. Sweep 16,548 → 16,552.
+
+### Traffic rhythm flags promoted, and the floor follows
+
+Second board move of the day (owner-directed, R4 prep): the Analytics row
+"Traffic rhythm flags" promoted `considering` → `planned` through the door,
+reworded to name its gate as every planned row must — *read from the rollups
+already kept, deterministic, never profiling a reader*. The ML pair (corpus
+drift + reading paths) stays held in `considering` by the same decision: their
+own umbrella row demands a real editorial question first. Floor resynced
+(fingerprint `4a5c6618…` == live), four promotion pins added, and one existing
+render pin re-anchored from the retired phrasing to the claim it protects (the
+profiling *never* stated inline). Sweep 16,552 → 16,556.
+
+### CI: Plugin Check survives the WordPress mirror lagging the version API
+
+The required Plugin Check resolves "latest" WordPress from api.wordpress.org
+and then fetches that version as a git ref from the WordPress/WordPress
+mirror — which lags the API by hours on release day. 7.0.4 hit that window:
+every PR failed on `couldn't find remote ref 7.0.4` before its diff was read,
+leaving the repo unmergeable (the action's `wp-version` input is no escape
+hatch — at v1.1.7–v1.1.9 it only distinguishes `trunk`). A self-healing guard
+step now pins wp-env's core (via `.wp-env.override.json`) to the newest stable
+tag the mirror actually serves — but only while the mirror lags; once it
+catches up the step writes nothing, so the guard cannot rot into a stale pin.
 ### The weekly digest gains an AI-attention section
 
 The Analytics board row shipped: *"An AI-attention section in the weekly

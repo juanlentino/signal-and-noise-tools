@@ -109,9 +109,9 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection — a thread shared with Machine readability', 'signal-and-noise-tools' ),
+				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" — read from the rollups already kept, deterministic, never profiling a reader', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
-				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" without ever profiling a reader', 'signal-and-noise-tools' ),
 				__( 'Search-side metrics from Search Console: the queries, impressions, and positions that happen before the click — a trailing complement to the first-party view, never a second opinion on it', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
@@ -178,9 +178,9 @@ function sn_maturity_roadmap_static_board() {
 		__( 'Machine readability', 'signal-and-noise-tools' ) => array(
 			'done'        => array(
 				__( 'A crawler manifest in the site\'s own words, structured data on every surface, and machine-readable rights declarations', 'signal-and-noise-tools' ),
+				__( 'The rights-read count published on the machine-readability page itself, served from an hourly snapshot the site already holds — no sensor call on a reader\'s path, and a count never measured renders as unmeasured, never as zero — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'The rights-read count published on the machine-readability page itself, read from the crawler ledger at render — once that read can be served from state the site already holds, so a reader\'s page never waits on a sensor call — a thread shared with Analytics', 'signal-and-noise-tools' ),
 				__( 'Speak the coming standard: publish the usage-preference header and robots rule the day the internet standards body finalizes them, with a parity sweep proving every rights dialect the site speaks states the same reservation — one policy, never a family of drifting translations', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
