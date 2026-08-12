@@ -9,10 +9,10 @@
  *
  * THE ASSERTION THAT MATTERS MOST here is section 1's second half: every hook
  * the guard registers must be a MEMBER of the set 7.1 actually ships. From
- * v10.38.0 through v10.92.4 the guard registered `wp_ability_invoked`, a hook
+ * v10.38.0 until this fix the guard registered `wp_ability_invoked`, a hook
  * that exists in no WordPress release, and this suite passed anyway — it
- * asserted only that we
- * had registered the name we had decided to register. A handler on a
+ * asserted only that we had registered the name we had decided to register.
+ * A handler on a
  * non-existent hook is indistinguishable from a handler on a not-yet-shipped
  * one, so nothing downstream could have caught it either: the symptom was a
  * permanent latency_ms=0 on `direct` telemetry rows, which reads as a fast

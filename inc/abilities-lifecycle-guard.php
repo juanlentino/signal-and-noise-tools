@@ -12,7 +12,7 @@
  *   wp_ability_permission_result  ($permission, $name, $input, $ability)
  *   wp_ability_execute_result     ($result, $name, $input, $ability)
  *
- * WHAT THIS FILE GOT WRONG FROM v10.38.0 THROUGH v10.92.4, because the shape of the mistake is
+ * WHAT THIS FILE GOT WRONG FROM v10.38.0 UNTIL THIS FIX, because the shape of the mistake is
  * the reason the correction is worth spelling out. The v10.38.0 prep pass was
  * written against pre-release information and registered an
  * `add_action( 'wp_ability_invoked', …, 10, 3 )` as its timing start point.
@@ -306,7 +306,7 @@ function sn_ability_guard_filter_execute_result( $result, $ability_name, $input 
 	// never "instantaneous", and it is reachable only when
 	// wp_pre_execute_ability did not fire for this execution: a third-party
 	// short circuit at a later priority, or core dropping/renaming the hook.
-	// The latter was a live defect for the whole of v10.38.0-v10.92.4 (see the
+	// The latter was a live defect from v10.38.0 until this fix (see the
 	// file header) and is exactly why the shipped-hook-set assertion in
 	// tests/abilities-lifecycle-guard.php exists — a permanent 0 in this column
 	// is not self-announcing, so the test has to be what announces it.

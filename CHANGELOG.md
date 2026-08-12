@@ -2,83 +2,71 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — finishing the 7.1 audit: a pinned schema profile, and three declines
+## [Unreleased] — WordPress 7.1 readiness
 
-The v10.38.0 prep pass made **three** guesses about 7.1. One was wrong (the
-lifecycle hook, fixed in the entry below). Having found one, the other two were
-worth checking properly rather than two-out-of-three.
+Three findings from the [7.1 field guide](https://make.wordpress.org/core/2026/08/05/wordpress-7-1-field-guide/),
+in descending order of what they would have cost. Nothing here is a new
+feature: 7.1 falsified two things this plugin already believed, and moved a
+destructive button into a room it can empty.
 
-**`wp_prepare_json_schema_for_client()` — name and behaviour correct**, verified
-against the [dev note](https://make.wordpress.org/core/2026/07/31/json-schema-preparation-for-client-compatibility-in-wordpress-7-1/).
-Two refinements fall out of reading it:
+### The lifecycle guard was hooked to a name WordPress never shipped
 
-- **The schema profile is now pinned explicitly.** Core's signature is
-  `wp_prepare_json_schema_for_client( array $schema, string $schema_profile = 'draft-04' )`
-  and ships two profiles: `draft-04` keeps the broad JSON Schema vocabulary,
-  `rest-api` narrows to the REST keyword set. MCP hosts consume standard JSON
-  Schema, so the broad one is right — and naming it means a future change to
-  core's *default* cannot silently reshape every tool schema this server
-  advertises. Pinning a default you depend on costs one argument.
-- **One claimed-unique fix actually overlaps with core.** The v10.38.0 comment
-  said all three of our provider fixes were ours alone and "core's pass does not
-  cover them". Core's prep also arranges for an empty `properties` array to
-  serialize as `{}`, so that third fix extends nothing. Ours stays — it is the
-  only thing doing it pre-7.1, and post-7.1 it is a no-op by construction — but
-  the comment no longer claims credit it does not have. The scalar-type and
-  top-level-combinator fixes remain genuinely ours.
+The [7.1 field guide](https://make.wordpress.org/core/2026/08/05/wordpress-7-1-field-guide/)
+landed, and with it the first look at the *final* Abilities lifecycle API. The
+v10.38.0 forward-compat pass was written against pre-release information and got
+one of its three hook names wrong.
 
-**The abilities catalog stopped overclaiming.** `sn_mcp_abilities_catalog_json()`
-described itself as listing "EVERY registered ability". That was true while
-`wp_get_abilities()` returned the raw registry; 7.1 redefines the no-argument
-call as "retrieve abilities through the standard filtering pipeline"
-([dev note](https://make.wordpress.org/core/2026/08/05/filtering-registered-abilities-with-wp_get_abilities-in-wordpress-7-1/)),
-so global filters now run. Reading the pipeline is still the right choice — a
-catalog should agree with what the rest of the site sees — but it is no longer a
-synonym for the registry, and a discovery surface that silently under-reports is
-worse than one that states its coverage. Nothing here registers such a filter, so
-the two sets are identical today; the wording no longer depends on that.
+Shipped 7.1 fires **four filters and no actions**
+([dev note](https://make.wordpress.org/core/2026/07/29/new-execution-lifecycle-filters-for-the-abilities-api-in-wordpress-7-1/)):
+`wp_pre_execute_ability`, `wp_ability_normalize_input`,
+`wp_ability_permission_result`, `wp_ability_execute_result`. The guard's other
+two registrations were right, names and arity both. The third —
+`add_action( 'wp_ability_invoked', …, 10, 3 )` — was a hook that exists in no
+WordPress release.
 
-### Three things deliberately NOT done
+That handler was the `t0` stamp for latency. Its absence would not have thrown,
+logged, or reddened anything: `sn_ability_guard_filter_execute_result()` reads
+`null === $t0 ? 0`, so **every `direct`-door telemetry row would have carried a
+permanent `latency_ms` of 0** from the moment the site updated to 7.1. A fast
+ability and an unmeasured one are the same number.
 
-**`wp_get_abilities()` filtering was not adopted.** It looked like a clean win —
-two call sites fetch all 107 abilities and filter in PHP. It is not. PHP silently
-ignores extra arguments to userland functions, so on WordPress 7.0
-`wp_get_abilities( array( 'namespace' => 'signal-noise' ) )` returns the *entire*
-registry and the filter is a no-op. `snt_ability_verb_map()` would therefore have
-to keep its `strpos()` guard for 7.0 correctness — leaving more code than it
-started with, plus a version-dependent execution path, to save a `strpos` over
-107 items. The other call site
-(`sn_mcp_abilities_catalog_json()`) is deliberately unfiltered. Declined as churn.
+#### Why the old test could not catch it
 
-**`meta['public']` was not adopted.** Resolution is
-`$meta['show_in_rest'] ?? $meta['public'] ?? false`, so with 68 registrations
-already setting `show_in_rest => true` explicitly it would change nothing today.
-What it would change is later: `public` is a **wider** grant than
-`show_in_rest` — it opts an ability into every present *and future* channel that
-respects the flag, where `show_in_rest` names exactly one. For a plugin whose
-whole posture is per-door allowlists and a curated MCP surface, trading a narrow
-explicit grant for a broad implicit one is the wrong direction, and the default is
-already `false` so there is nothing defensive to add either.
+[tests/abilities-lifecycle-guard.php](tests/abilities-lifecycle-guard.php)
+asserted `registers wp_ability_invoked action with arity 3` — and that was
+*true*. A registration assertion only ever confirms our side of a two-sided
+contract, and pre-7.1 a handler on a fictional hook is indistinguishable from a
+handler on a not-yet-shipped one. The suite passed for four months while the
+code was dead.
 
-**`Tested up to:` stays at 7.0, and the stubs constraint is already correct.**
-Bumping the header to 7.1 would assert testing that has not happened — there is
-no 7.1 install here, and this session's whole lesson is what an untested
-forward-compat claim costs. It bumps when the plugin has actually run on 7.1.
-Separately, `php-stubs/wordpress-stubs` has no 7.1 release yet (latest v7.0.1,
-2026-07-10) and the existing `^7.0` constraint already admits 7.1.x the moment it
-ships — so the "bump the stubs" item was a no-op by construction. Worth noting
-that PHPStan could not have caught the wrong hook name at any stubs version: it
-does not type-check hook name strings.
+So the fix is two things, not one:
 
-([tests/mcp-schema-client-prep.php](tests/mcp-schema-client-prep.php) → 12
-asserts to 13. The profile assertion reads `func_get_args()` rather than the
-stub's parameter, because a caller that omits the argument is otherwise
-indistinguishable from one that passes `'draft-04'` — which is exactly the
-distinction being pinned. Mutation-fired both ways: omitting the argument reds it,
-passing `'rest-api'` reds it. Full sweep 422 suites / 16,520 assertions green;
-PHPCS and PHPStan clean.)
+- **`sn_ability_guard_filter_pre_execute()`** replaces
+  `sn_ability_guard_on_invoked()`, registered as
+  `add_filter( 'wp_pre_execute_ability', …, 10, 4 )`. Because this is a
+  short-circuit filter it returns `$pre` **by identity, always** — any non-null
+  return here would silently replace every one of our abilities' results — and
+  it declines to stamp `t0` when `$pre` arrives non-null, since a short circuit
+  means `wp_ability_execute_result` never fires and the stamp would never be
+  popped, surfacing later as some other request's latency.
+- **`sn_ability_lifecycle_hooks_71()`** declares the shipped set as
+  name => arity, and the suite now asserts membership **in both directions**:
+  every registered hook exists in that set, at its declared arity, attached as a
+  filter. That is the assertion that would have caught this. It is mutation-fired
+  — restoring the v10.38.0 registration verbatim reds two asserts, a correct name
+  at the wrong arity reds two, and a handler that invents a return value reds one.
 
-## [Unreleased] — 7.1's persistent toolbar puts a no-undo force-delete inside the Site Editor
+`latency_ms` stays `0` rather than `NULL` on the unmeasured path, deliberately:
+`latency_ms INT NOT NULL DEFAULT 0` cannot hold NULL, the same constraint
+[inc/mcp/mcp-telemetry-agents.php](inc/mcp/mcp-telemetry-agents.php) already
+documents for the agent seams. The seam now says so in a comment, and points at
+the test as the thing that announces a regression, since the column cannot.
+
+Still inert on 7.0 — the hooks do not exist there either.
+([tests/abilities-lifecycle-guard.php](tests/abilities-lifecycle-guard.php) →
+47 asserts to 57; full sweep 422 suites / 16,507 assertions green; PHPCS and
+PHPStan clean.)
+### The persistent toolbar puts a no-undo force-delete inside the Site Editor
 
 WordPress 7.1 makes the toolbar persistent in the Post Editor (including
 fullscreen, where it used to be hidden) and in the **Site Editor**, which never
@@ -134,63 +122,82 @@ asserts to 60. Mutation-fired four ways: guard removed reds 3, checking only
 `->base` reds 1, failing open reds 1, and a stub without `->id` reds 1. Full
 sweep 422 suites / 16,519 assertions green; PHPCS and PHPStan clean.)
 
-## [Unreleased] — the 7.1 lifecycle guard was hooked to a name WordPress never shipped
+### Finishing the audit: a pinned schema profile, and three declines
 
-The [7.1 field guide](https://make.wordpress.org/core/2026/08/05/wordpress-7-1-field-guide/)
-landed, and with it the first look at the *final* Abilities lifecycle API. The
-v10.38.0 forward-compat pass was written against pre-release information and got
-one of its three hook names wrong.
+The v10.38.0 prep pass made **three** guesses about 7.1. One was wrong (the
+lifecycle hook, fixed in the entry below). Having found one, the other two were
+worth checking properly rather than two-out-of-three.
 
-Shipped 7.1 fires **four filters and no actions**
-([dev note](https://make.wordpress.org/core/2026/07/29/new-execution-lifecycle-filters-for-the-abilities-api-in-wordpress-7-1/)):
-`wp_pre_execute_ability`, `wp_ability_normalize_input`,
-`wp_ability_permission_result`, `wp_ability_execute_result`. The guard's other
-two registrations were right, names and arity both. The third —
-`add_action( 'wp_ability_invoked', …, 10, 3 )` — was a hook that exists in no
-WordPress release.
+**`wp_prepare_json_schema_for_client()` — name and behaviour correct**, verified
+against the [dev note](https://make.wordpress.org/core/2026/07/31/json-schema-preparation-for-client-compatibility-in-wordpress-7-1/).
+Two refinements fall out of reading it:
 
-That handler was the `t0` stamp for latency. Its absence would not have thrown,
-logged, or reddened anything: `sn_ability_guard_filter_execute_result()` reads
-`null === $t0 ? 0`, so **every `direct`-door telemetry row would have carried a
-permanent `latency_ms` of 0** from the moment the site updated to 7.1. A fast
-ability and an unmeasured one are the same number.
+- **The schema profile is now pinned explicitly.** Core's signature is
+  `wp_prepare_json_schema_for_client( array $schema, string $schema_profile = 'draft-04' )`
+  and ships two profiles: `draft-04` keeps the broad JSON Schema vocabulary,
+  `rest-api` narrows to the REST keyword set. MCP hosts consume standard JSON
+  Schema, so the broad one is right — and naming it means a future change to
+  core's *default* cannot silently reshape every tool schema this server
+  advertises. Pinning a default you depend on costs one argument.
+- **One claimed-unique fix actually overlaps with core.** The v10.38.0 comment
+  said all three of our provider fixes were ours alone and "core's pass does not
+  cover them". Core's prep also arranges for an empty `properties` array to
+  serialize as `{}`, so that third fix extends nothing. Ours stays — it is the
+  only thing doing it pre-7.1, and post-7.1 it is a no-op by construction — but
+  the comment no longer claims credit it does not have. The scalar-type and
+  top-level-combinator fixes remain genuinely ours.
 
-### Why the old test could not catch it
+**The abilities catalog stopped overclaiming.** `sn_mcp_abilities_catalog_json()`
+described itself as listing "EVERY registered ability". That was true while
+`wp_get_abilities()` returned the raw registry; 7.1 redefines the no-argument
+call as "retrieve abilities through the standard filtering pipeline"
+([dev note](https://make.wordpress.org/core/2026/08/05/filtering-registered-abilities-with-wp_get_abilities-in-wordpress-7-1/)),
+so global filters now run. Reading the pipeline is still the right choice — a
+catalog should agree with what the rest of the site sees — but it is no longer a
+synonym for the registry, and a discovery surface that silently under-reports is
+worse than one that states its coverage. Nothing here registers such a filter, so
+the two sets are identical today; the wording no longer depends on that.
 
-[tests/abilities-lifecycle-guard.php](tests/abilities-lifecycle-guard.php)
-asserted `registers wp_ability_invoked action with arity 3` — and that was
-*true*. A registration assertion only ever confirms our side of a two-sided
-contract, and pre-7.1 a handler on a fictional hook is indistinguishable from a
-handler on a not-yet-shipped one. The suite passed for four months while the
-code was dead.
+#### Three things deliberately NOT done
 
-So the fix is two things, not one:
+**`wp_get_abilities()` filtering was not adopted.** It looked like a clean win —
+two call sites fetch all 107 abilities and filter in PHP. It is not. PHP silently
+ignores extra arguments to userland functions, so on WordPress 7.0
+`wp_get_abilities( array( 'namespace' => 'signal-noise' ) )` returns the *entire*
+registry and the filter is a no-op. `snt_ability_verb_map()` would therefore have
+to keep its `strpos()` guard for 7.0 correctness — leaving more code than it
+started with, plus a version-dependent execution path, to save a `strpos` over
+107 items. The other call site
+(`sn_mcp_abilities_catalog_json()`) is deliberately unfiltered. Declined as churn.
 
-- **`sn_ability_guard_filter_pre_execute()`** replaces
-  `sn_ability_guard_on_invoked()`, registered as
-  `add_filter( 'wp_pre_execute_ability', …, 10, 4 )`. Because this is a
-  short-circuit filter it returns `$pre` **by identity, always** — any non-null
-  return here would silently replace every one of our abilities' results — and
-  it declines to stamp `t0` when `$pre` arrives non-null, since a short circuit
-  means `wp_ability_execute_result` never fires and the stamp would never be
-  popped, surfacing later as some other request's latency.
-- **`sn_ability_lifecycle_hooks_71()`** declares the shipped set as
-  name => arity, and the suite now asserts membership **in both directions**:
-  every registered hook exists in that set, at its declared arity, attached as a
-  filter. That is the assertion that would have caught this. It is mutation-fired
-  — restoring the v10.38.0 registration verbatim reds two asserts, a correct name
-  at the wrong arity reds two, and a handler that invents a return value reds one.
+**`meta['public']` was not adopted.** Resolution is
+`$meta['show_in_rest'] ?? $meta['public'] ?? false`, so with 68 registrations
+already setting `show_in_rest => true` explicitly it would change nothing today.
+What it would change is later: `public` is a **wider** grant than
+`show_in_rest` — it opts an ability into every present *and future* channel that
+respects the flag, where `show_in_rest` names exactly one. For a plugin whose
+whole posture is per-door allowlists and a curated MCP surface, trading a narrow
+explicit grant for a broad implicit one is the wrong direction, and the default is
+already `false` so there is nothing defensive to add either.
 
-`latency_ms` stays `0` rather than `NULL` on the unmeasured path, deliberately:
-`latency_ms INT NOT NULL DEFAULT 0` cannot hold NULL, the same constraint
-[inc/mcp/mcp-telemetry-agents.php](inc/mcp/mcp-telemetry-agents.php) already
-documents for the agent seams. The seam now says so in a comment, and points at
-the test as the thing that announces a regression, since the column cannot.
+**`Tested up to:` stays at 7.0, and the stubs constraint is already correct.**
+Bumping the header to 7.1 would assert testing that has not happened — there is
+no 7.1 install here, and this session's whole lesson is what an untested
+forward-compat claim costs. It bumps when the plugin has actually run on 7.1.
+Separately, `php-stubs/wordpress-stubs` has no 7.1 release yet (latest v7.0.1,
+2026-07-10) and the existing `^7.0` constraint already admits 7.1.x the moment it
+ships — so the "bump the stubs" item was a no-op by construction. Worth noting
+that PHPStan could not have caught the wrong hook name at any stubs version: it
+does not type-check hook name strings.
 
-Still inert on 7.0 — the hooks do not exist there either.
-([tests/abilities-lifecycle-guard.php](tests/abilities-lifecycle-guard.php) →
-47 asserts to 57; full sweep 422 suites / 16,507 assertions green; PHPCS and
-PHPStan clean.)
+([tests/mcp-schema-client-prep.php](tests/mcp-schema-client-prep.php) → 12
+asserts to 13. The profile assertion reads `func_get_args()` rather than the
+stub's parameter, because a caller that omits the argument is otherwise
+indistinguishable from one that passes `'draft-04'` — which is exactly the
+distinction being pinned. Mutation-fired both ways: omitting the argument reds it,
+passing `'rest-api'` reds it. Full sweep 422 suites / 16,520 assertions green;
+PHPCS and PHPStan clean.)
+
 ## [10.92.5] - 2026-08-11 — the usage scan stops reading `@media` as if it were unconditional
 
 **PATCH** — checker correctness. **No change to what the scan reports today.**
