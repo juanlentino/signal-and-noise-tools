@@ -62,10 +62,26 @@ ok( strpos( $f, 'min(timestamp)' ) !== false && strpos( $f, 'first_seen' ) !== f
 $tot = sn_login_defense_failopen_totals( array(
 	array( 'day' => '2026-08-07', 'failopen' => 3, 'degraded' => 0 ),
 	array( 'day' => '2026-08-08', 'failopen' => 1, 'degraded' => 2 ),
-) );
+), 7 );
 ok( $tot['failopen'] === 4 && $tot['degraded'] === 2, 'fail-open totals sum across days (4, 2)' );
-ok( sn_login_defense_failopen_totals( array() ) === array( 'failopen' => 0, 'degraded' => 0 ),
-	'fail-open totals: empty rows = measured ZERO, not unknown' );
+
+// The trend query groups EVERY guard row by day, so the day rows it returns are
+// themselves the coverage record: a day the guard logged nothing at all yields
+// no row. A zero over days that were never watched is not a healthy zero.
+ok( 2 === $tot['days_covered'] && '2026-08-07' === $tot['first_day'] && false === $tot['window_complete'],
+	'fail-open totals carry coverage: 2 of 7 days logged, earliest named, window incomplete' );
+
+$seven = array();
+for ( $i = 0; $i < 7; $i++ ) {
+	$seven[] = array( 'day' => gmdate( 'Y-m-d', time() - ( $i * 86400 ) ), 'failopen' => 0, 'degraded' => 0 );
+}
+$cov = sn_login_defense_failopen_totals( $seven, 7 );
+ok( 7 === $cov['days_covered'] && true === $cov['window_complete'],
+	'fail-open totals: 7 logged days over a 7d window is a COMPLETE window' );
+
+$empty = sn_login_defense_failopen_totals( array(), 7 );
+ok( 0 === $empty['failopen'] && 0 === $empty['days_covered'] && false === $empty['window_complete'],
+	'fail-open totals: zero rows is zero COVERAGE, not a measured zero' );
 
 $s = sn_login_defense_ipv6_share( array(
 	array( 'family' => 'v4', 'hits' => 90 ),
@@ -110,15 +126,35 @@ ok( null === sn_login_defense_ipv6_share( array(
 // --- render: the proven-to-move gate ----------------------------------------
 function render_gauges_html() { ob_start(); sn_login_defense_render_gauges( 7 ); return ob_get_clean(); }
 
-// Healthy: measured zeros render EXPLICITLY (absence of failure is a claim).
-$GLOBALS['__q_trend']  = array();
+// Healthy: measured zeros render EXPLICITLY (absence of failure is a claim) —
+// but only over days the guard actually logged, so the fixture supplies them.
+$GLOBALS['__q_trend']  = $seven;
 $GLOBALS['__q_family'] = array( array( 'family' => 'v4', 'hits' => 100 ) );
 $h = render_gauges_html();
 ok( strpos( $h, 'Defense gauges' ) !== false, 'gauges panel renders with its heading' );
 ok( strpos( $h, '0 fail-opens' ) !== false && strpos( $h, '0 degraded' ) !== false,
 	'healthy: zero renders as an explicit "0", never by omission' );
+ok( strpos( $h, '7 of 7 days' ) !== false,
+	'healthy: the zero is qualified by the days the guard actually logged (7 of 7)' );
 ok( strpos( $h, '0%' ) !== false && strpos( $h, 'below' ) !== false,
 	'healthy: 0% IPv6 share reads below the criterion' );
+
+// A zero over an unwatched window is the reassuring zero this whole panel
+// exists to refuse. No day rows at all = no telemetry, and that is not "0".
+$GLOBALS['__q_trend'] = array();
+$z = render_gauges_html();
+ok( strpos( $z, '0 fail-opens' ) === false && stripos( $z, 'no telemetry' ) !== false,
+	'no logged days: the gauge says NO TELEMETRY, never a reassuring "0 fail-opens"' );
+
+// Partial coverage: the count is real but it is a count for the days that
+// exist, and the gauge says which.
+$GLOBALS['__q_trend'] = array(
+	array( 'day' => gmdate( 'Y-m-d', time() - 86400 ), 'failopen' => 2, 'degraded' => 0 ),
+	array( 'day' => gmdate( 'Y-m-d', time() ), 'failopen' => 0, 'degraded' => 0 ),
+);
+$pc = render_gauges_html();
+ok( strpos( $pc, '2 fail-opens' ) !== false && strpos( $pc, '2 of 7 days' ) !== false,
+	'partial coverage: the count is named over the days it covers (2 of 7), not the window asked for' );
 
 // PROVEN TO MOVE 1: synthetic fail-open days move the number 0 -> 4.
 $GLOBALS['__q_trend'] = array(

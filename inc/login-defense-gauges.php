@@ -12,6 +12,14 @@
  *    nothing) are both "the door was open" states. Healthy is ZERO, and zero
  *    renders explicitly: absence of failure is a claim, not an omission.
  *
+ *    Which is exactly why the zero is qualified by its coverage. A claim needs
+ *    a span, and "0 fail-opens (7d)" read identically whether the guard was
+ *    clean for seven days or wrote nothing at all — the reassuring zero this
+ *    panel exists to refuse. The day rows the trend query returns ARE the
+ *    record of which days were watched, so the gauge names them ("over 5 of 7
+ *    days the guard logged") and, with no rows at all, reports an unwatched
+ *    window instead of a clean one.
+ *
  * 2. IPv6 SHARE vs THE PRE-COMMITTED CRITERION. The worker's decision rule
  *    (fixed in advance, worker v1.5.2): build 128-bit denylist ranges when
  *    the IPv6 share of block-eligible traffic exceeds 5% sustained over 30
@@ -92,18 +100,57 @@ function sn_login_defense_family_share_sql( $days = 30 ) {
 }
 
 /**
- * Reduce the trend rows to totals. Empty rows are a measured ZERO — the
- * caller distinguishes null (unknown) BEFORE calling this.
+ * Reduce the trend rows to totals AND to the coverage those totals are honest
+ * over. The caller distinguishes null (query failure) BEFORE calling this.
+ *
+ * Zero is this gauge's healthy reading, which is exactly what makes an
+ * unwatched window dangerous: "0 fail-opens (7d)" reads identically whether
+ * the guard was clean for seven days or wrote nothing at all. The window is
+ * therefore measured rather than assumed — and the instrument differs from the
+ * IPv6 gauge's on purpose. There, the sensor writes on every row, so
+ * min(timestamp) over the filtered rows measures coverage. Here the subject is
+ * a RARE EVENT: filtering to failopen/degraded and taking the earliest row
+ * would report "no coverage" on every healthy system, because sensor-absence
+ * and event-absence look the same. So coverage comes from the shape the query
+ * already returns — it groups EVERY guard row by day, so a day the guard
+ * logged nothing at all yields no row, and the day rows ARE the record of
+ * which days were watched.
+ *
+ * The claim this supports is precisely "the guard logged on N of the last M
+ * days" — not "the guard ran". A day with genuinely zero login-surface traffic
+ * would also be missing, so a gap is uncovered, never proven idle.
+ *
+ * (The failopen/degraded decision values ship from worker v1.3.0, one day
+ * after the dataset's own first row, so the value's birth is not a separate
+ * floor worth gating on.)
  *
  * @param array $rows [{day, failopen, degraded}].
- * @return array{failopen:int, degraded:int}
+ * @param int   $days The window asked for.
+ * @return array{failopen:int, degraded:int, days_covered:int,
+ *               first_day:string|null, window_complete:bool}
  */
-function sn_login_defense_failopen_totals( $rows ) {
-	$out = array( 'failopen' => 0, 'degraded' => 0 );
+function sn_login_defense_failopen_totals( $rows, $days = 7 ) {
+	$out   = array( 'failopen' => 0, 'degraded' => 0 );
+	$seen  = array();
+	$first = null;
 	foreach ( (array) $rows as $r ) {
 		$out['failopen'] += (int) ( $r['failopen'] ?? 0 );
 		$out['degraded'] += (int) ( $r['degraded'] ?? 0 );
+		$day              = trim( (string) ( $r['day'] ?? '' ) );
+		if ( '' !== $day ) {
+			$seen[ $day ] = true;
+			if ( null === $first || $day < $first ) {
+				$first = $day;
+			}
+		}
 	}
+	// A 7-day interval straddles 8 calendar days, so cap at the window asked
+	// for: the query cannot have watched more of it than it holds.
+	$covered = min( (int) $days, count( $seen ) );
+
+	$out['days_covered']    = $covered;
+	$out['first_day']       = $first;
+	$out['window_complete'] = $covered >= (int) $days;
 	return $out;
 }
 
@@ -185,16 +232,40 @@ function sn_login_defense_render_gauges( $days = 7 ) {
 	if ( ! is_array( $trend ) ) {
 		echo '<p>' . esc_html__( 'Fail-open state: unknown (measurement unavailable).', 'signal-and-noise-tools' ) . '</p>';
 	} else {
-		$tot = sn_login_defense_failopen_totals( $trend );
-		echo '<p>' . esc_html(
-			sprintf(
-				/* translators: 1: fail-open count, 2: degraded count, 3: day window */
-				__( '%1$s fail-opens, %2$s degraded reads (%3$sd) — every one is a request the guard let through while impaired; healthy is exactly zero.', 'signal-and-noise-tools' ),
-				number_format_i18n( $tot['failopen'] ),
-				number_format_i18n( $tot['degraded'] ),
-				(int) $days
-			)
-		) . '</p>';
+		$tot = sn_login_defense_failopen_totals( $trend, (int) $days );
+		if ( 0 === $tot['days_covered'] ) {
+			// The reassuring zero this panel exists to refuse: nothing was
+			// watched, so there is no count to report — not even zero.
+			echo '<p>' . esc_html(
+				sprintf(
+					/* translators: %s: day window */
+					__( 'Fail-open state: no telemetry in the last %sd — the guard logged nothing at all, so this is an unwatched window, not a clean one.', 'signal-and-noise-tools' ),
+					(int) $days
+				)
+			) . '</p>';
+		} else {
+			echo '<p>' . esc_html(
+				sprintf(
+					/* translators: 1: fail-open count, 2: degraded count, 3: days the guard logged, 4: day window */
+					__( '%1$s fail-opens, %2$s degraded reads over %3$s of %4$s days the guard logged — every one is a request the guard let through while impaired; healthy is exactly zero.', 'signal-and-noise-tools' ),
+					number_format_i18n( $tot['failopen'] ),
+					number_format_i18n( $tot['degraded'] ),
+					number_format_i18n( $tot['days_covered'] ),
+					(int) $days
+				)
+			);
+			if ( ! $tot['window_complete'] ) {
+				echo ' ' . esc_html(
+					sprintf(
+						/* translators: 1: uncovered days, 2: earliest logged day */
+						__( 'The other %1$s hold no telemetry at all (earliest logged day %2$s), so the count covers the days it names and no more.', 'signal-and-noise-tools' ),
+						number_format_i18n( (int) $days - $tot['days_covered'] ),
+						$tot['first_day']
+					)
+				);
+			}
+			echo '</p>';
+		}
 	}
 
 	if ( ! is_array( $family ) ) {

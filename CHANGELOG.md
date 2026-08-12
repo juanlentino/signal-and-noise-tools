@@ -4,6 +4,38 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### The fail-open gauge stops reporting a zero it never watched
+
+Same discipline as the IPv6 fix below, applied to the other gauge — and it
+lands harder here, because **zero is this gauge's healthy reading**. `0
+fail-opens (7d)` read identically whether the guard was clean for seven days or
+wrote nothing at all. The panel's own stated rule is that absence of failure is
+a claim rather than an omission; a claim needs a span, and this one was
+asserting the span the `WHERE` clause asked for.
+
+The instrument differs from the IPv6 one **on purpose**, which is the part
+worth keeping. There the sensor writes on every row, so `min(timestamp)` over
+the filtered rows measures coverage directly. Here the subject is a *rare
+event*: filtering to `failopen`/`degraded` and taking the earliest row would
+report "no coverage" on every healthy system, because sensor-absence and
+event-absence are indistinguishable in that set. So coverage comes from the
+shape the query already returns — it groups **every** guard row by day, so a
+day the guard logged nothing yields no row, and the day rows themselves are the
+record of which days were watched. No SQL change, no extra column.
+
+`sn_login_defense_failopen_totals()` now returns `days_covered`, `first_day`,
+and `window_complete` alongside the counts. The gauge reads "0 fail-opens, 0
+degraded reads over 7 of 7 days the guard logged"; on partial coverage it names
+the uncovered days and the earliest logged one; with no day rows at all it
+reports an **unwatched window**, not a clean one — the old code rendered a
+confident `0` for precisely that case.
+
+The claim is deliberately "the guard logged on N of the last M days", not "the
+guard ran". A day with genuinely zero login-surface traffic would also be
+missing, so a gap is uncovered, never proven idle. Sweep 16,800, reconciled
+exactly (16,795 + 5: six assertions added, one removed for asserting the wrong
+thing — it read empty day rows as a measured zero).
+
 ### The IPv6 criterion names the window it actually measured
 
 The Defense gauges panel rendered the IPv6 share as `(30d)` because the query
