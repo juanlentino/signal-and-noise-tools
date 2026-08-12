@@ -19,6 +19,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * AL1 display cap for the recent-logins log. A PRESENTATION ceiling only,
+ * deliberately distinct from SN_AUDIT_LOGIN_SUCCESS_CAP (500), which bounds
+ * what the store RETAINS and is still named under the table. The list is
+ * sorted newest-first, so this cap truncates the OLD end and the remainder
+ * line says so. Same shape as SN_MR_RIGHTS_DISPLAY_MAX.
+ */
+if ( ! defined( 'SN_AUDIT_LOGIN_DISPLAY_MAX' ) ) {
+	define( 'SN_AUDIT_LOGIN_DISPLAY_MAX', 50 );
+}
+
+/**
  * Main render entrypoint for the Audit log sub-tab.
  */
 function snt_audit_log_render_tab() {
@@ -181,11 +192,45 @@ function snt_audit_log_render_logins_table( $logins ) {
 		echo '</div>';  // .sn-fieldset
 		return;
 	}
+	// AL1 (IA fold arc): the cap was real at the STORE and absent at the
+	// display. SN_AUDIT_LOGIN_SUCCESS_CAP bounds what is kept (oldest dropped);
+	// this renderer then printed every row it was handed, so a busy month put
+	// hundreds of timestamps between the reader and the rest of the tab. The
+	// display cap below trims the OLD end only, and the store's own ceiling is
+	// still named underneath so a tighter presentation cap cannot imply the
+	// site retains less than it does.
+	$total = count( $logins );
+
+	// Newest-first on a COPY. The producer already sorts this way, but the
+	// correctness of a cap must not depend on a distant function continuing to:
+	// slicing an unsorted list would silently drop the most recent login, which
+	// is the one a security readout exists to show.
+	$sorted = $logins;
+	usort(
+		$sorted,
+		static function ( $a, $b ) {
+			return (int) ( $b['ts'] ?? 0 ) <=> (int) ( $a['ts'] ?? 0 );
+		}
+	);
+
+	$visible = array_slice( $sorted, 0, SN_AUDIT_LOGIN_DISPLAY_MAX );
+	$hidden  = $total - count( $visible );
+
+	echo '<details class="sn-audit-logins-log sn-disclosure"><summary>';
+	echo esc_html(
+		sprintf(
+			/* translators: %s: the true number of successful logins in the window. */
+			_n( '%s successful login — show the log', '%s successful logins — show the log', $total, 'signal-and-noise-tools' ),
+			number_format_i18n( $total )
+		)
+	);
+	echo '</summary>';
+
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat sn-audit-logins">';
 	echo '<thead><tr><th scope="col">Timestamp</th><th scope="col">User</th></tr></thead>';
 	echo '<tbody>';
-	foreach ( $logins as $row ) {
+	foreach ( $visible as $row ) {
 		echo '<tr>';
 		echo '<td><code>' . esc_html( $row['formatted'] ) . '</code></td>';
 		echo '<td>' . esc_html( $row['user'] ) . '</td>';
@@ -194,6 +239,32 @@ function snt_audit_log_render_logins_table( $logins ) {
 	echo '</tbody>';
 	echo '</table>';
 	echo '</div>';   // .snt-scroll-table
+
+	if ( $hidden > 0 ) {
+		echo '<p class="sn-prose">' . esc_html(
+			sprintf(
+				/* translators: %s: number of logins not shown. */
+				__( '+%s more logins — the list is capped, not complete. Newest first, so the tail is the oldest end.', 'signal-and-noise-tools' ),
+				number_format_i18n( $hidden )
+			)
+		) . '</p>';
+	}
+
+	// The STORE's ceiling, named beside the display cap. Guarded rather than
+	// assumed: this constant belongs to inc/audit-log.php, and a surface must
+	// not invent a retention number if that module ever fails to load. Silence
+	// is the honest degradation; a hardcoded fallback would be a claim.
+	if ( defined( 'SN_AUDIT_LOGIN_SUCCESS_CAP' ) ) {
+		echo '<p class="sn-prose">' . esc_html(
+			sprintf(
+				/* translators: %s: the storage cap on retained login rows. */
+				__( 'The store keeps at most %s successful logins, dropping the oldest first, so a long-enough gap is absence of a record rather than absence of a login.', 'signal-and-noise-tools' ),
+				number_format_i18n( SN_AUDIT_LOGIN_SUCCESS_CAP )
+			)
+		) . '</p>';
+	}
+
+	echo '</details>';
 	echo '</div>';   // .sn-fieldset
 }
 
