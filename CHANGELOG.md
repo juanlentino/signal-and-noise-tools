@@ -2,7 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.93.0] - 2026-08-12 — two board moves land in code, the digest learns who reads the site, and the stats page's first chart speaks
+
+Five changesets, one release, all merged un-versioned today and versioned
+here per the batching rule. MINOR: the AI-attention digest section and the
+Reading rhythm section are new user-visible capability; the two board floor
+resyncs and the CI guard ride along as PATCH-class.
 
 ### The rights-read row graduated: the board's DR floor resynced
 
