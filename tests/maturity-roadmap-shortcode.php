@@ -300,6 +300,23 @@ ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array
 // the row in NO column at all, not merely out of done.
 ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'First-party, cookieless measurement at the edge' ), 'DR floor: the retired founding row appears in NO Analytics column — it lives on the family page now' );
 
+// SECOND Analytics retirement, 2026-08-12 (owner call). The done column sat at
+// 4 — the canary wall — so the planned digest row could not graduate without
+// tripping it. The public stats page retires: it is the oldest and most settled
+// of the four, and unlike an internal invariant it is SELF-EVIDENCING — /stats/
+// is a live public page a reader can simply visit, so removing the board row
+// conceals nothing. Same shape as the founding row: absent from EVERY column,
+// not merely moved out of done.
+ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'A public stats page' ), 'DR floor: the retired stats-page row appears in NO Analytics column' );
+ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'aggregate numbers published for readers' ), 'DR floor: and no fragment of its sentence survives anywhere in the family' );
+// The POINT of the retirement, stated as its own claim. The wall canary above
+// (max_done <= MAX_DONE - 1) already reds at 5, and Analytics sat at 4 — legal,
+// but with no room for the planned digest row to land. This pins the headroom
+// that retirement bought: at MAX_DONE - 2, the digest row can graduate to 4 and
+// still clear the canary. A future row quietly re-filling the slot reds HERE,
+// with the reason attached, rather than surfacing later as a refused write.
+ok( count( $floor['Analytics']['done'] ) <= SN_MATURITY_ROADMAP_MAX_DONE - 2, 'DR floor: Analytics done has room for the digest row to graduate WITHOUT tripping the wall canary' );
+
 // Charts that speak graduated the same night (v10.93.1 verified live:
 // 5 calendar rows x 7 columns, 30 day cells on the bare URL).
 ok( false !== strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'ships with its voice built in' ), 'DR floor: the charts row sits in Accessibility DONE' );

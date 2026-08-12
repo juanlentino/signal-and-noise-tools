@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### The public stats page retires off the hub board, freeing the digest row's slot
+
+Owner call. The Analytics `done` column sat at **4** — legal, but the wall canary
+reds at 5, so the planned AI-attention digest row had nowhere to graduate to. The
+**public stats page** row retires to make room: the oldest and most settled of
+the four.
+
+**Why this row can go without losing the record.** The usual justification —
+"the family maturity page states what acts today" — does **not** hold here. The
+Analytics maturity page describes the measurement pipeline (tiers, engines,
+honesty principles); it says nothing about a reader-facing surface, and I
+checked before assuming. What makes the retirement safe is different and
+stronger: `/stats/` is **self-evidencing**. It is a live public page a reader can
+visit, so dropping the board row conceals nothing — unlike an internal
+invariant, which would vanish with it. The comment in the board file records
+that reasoning so the next retirement does not inherit a justification that
+happened not to apply.
+
+Following the precedent set by the founding measurement row's retirement
+(v10.95.0, PR #595): board + tests only, no maturity-page edit. That commit
+touched exactly three files and added no entry anywhere; graduation is removal
+from the hub, not transcription.
+
+3 new assertions: the row absent from **every** Analytics column (not merely
+moved out of `done`), no fragment of its sentence surviving anywhere in the
+family, and — the one that states the point — `done` now at `MAX_DONE - 2`, so
+the digest row can graduate to 4 and still clear the wall canary. All three
+mutation-verified by re-inserting the row. Sweep 16,831 (16,828 + 3).
+
+**This does not graduate the digest row.** That row still has no evidence:
+`get-narration` returns `null` because no weekly digest has ever been generated.
+It materialises on the next weekly cron. This clears the ceiling; the row still
+has to earn its own claim.
+
 ## [10.99.1] - 2026-08-12 — the panel stops pointing at a tier nobody will build, and a cap stops being two numbers
 
 Two admin surfaces that were each telling the reader something not quite so: a

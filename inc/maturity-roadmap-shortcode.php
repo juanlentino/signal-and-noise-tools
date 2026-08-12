@@ -106,7 +106,17 @@ function sn_maturity_roadmap_static_board() {
 				// Analytics family maturity page (the done-column ceiling at
 				// work — graduation off the hub is not deletion; that page
 				// states the whole pipeline).
-				__( 'A public stats page: the site\'s aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected', 'signal-and-noise-tools' ),
+				//
+				// 2026-08-12, SECOND retirement (owner call): the PUBLIC STATS
+				// PAGE row retires too. The column sat at 4 — legal, but the
+				// wall canary reds at 5, so the planned digest row had nowhere
+				// to graduate to. This row was the oldest and most settled of
+				// the four, and unlike an internal invariant it is
+				// SELF-EVIDENCING: /stats/ is a live page a reader can visit,
+				// so dropping the board row conceals nothing. (Noted because
+				// the usual justification does not apply here — the Analytics
+				// maturity page describes the measurement pipeline, not the
+				// reader-facing surface. The page is its own record.)
 				__( 'AI-referred humans as a channel: visits that arrive from an assistant\'s answer counted as their own aggregate segment in the rollups — a reader an AI sent is a different signal than a reader search sent, and lumping them hides the shift', 'signal-and-noise-tools' ),
 				__( 'Which machines send a reader back: per operator, the ledger\'s crawl counts published beside that operator\'s referred human visits — stated as a sentence each, not a ratio, because crawls are requests and visits are visitor-days. An operator that read the site hundreds of times and sent nobody back is the finding, and a bare 0 would bury it — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				__( 'Traffic rhythm flags: the cadence watch now reads views — a quiet week flags against the site\'s own trailing weeks, robust to a viral spike and one-sided by design — read from the rollups already kept, never profiling a reader', 'signal-and-noise-tools' ),
