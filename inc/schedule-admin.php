@@ -145,13 +145,13 @@ function sn_admin_render_scheduled_content_section() {
 	$shown   = array_slice( $ordered, 0, SN_SCHEDULE_DISPLAY_CAP );
 
 	echo '<details class="sn-schedule-log sn-disclosure">';
-	echo '<summary>' . esc_html(
-		sprintf(
-			/* translators: %d: total scheduled items. */
-			_n( '%d scheduled item', '%d scheduled items', $total, 'signal-and-noise-tools' ),
-			$total
-		)
-	) . '</summary>';
+	echo '<summary>';
+	printf(
+		/* translators: %d: total scheduled items. */
+		esc_html( _n( '%d scheduled item', '%d scheduled items', $total, 'signal-and-noise-tools' ) ),
+		(int) $total
+	);
+	echo '</summary>';
 
 	echo '<table class="wp-list-table widefat striped">';
 	echo '<thead><tr>';
@@ -183,14 +183,7 @@ function sn_admin_render_scheduled_content_section() {
 		echo '<p class="sn-field-helper sn-schedule-remainder">';
 		printf(
 			/* translators: %d: hidden row count */
-			esc_html(
-				_n(
-					'+%d more scheduled item, sorted soonest-first — the tail is the furthest out.',
-					'+%d more scheduled items, sorted soonest-first — the tail is the furthest out.',
-					$remainder,
-					'signal-and-noise-tools'
-				)
-			),
+			esc_html( _n( '+%d more scheduled item, sorted soonest-first — the tail is the furthest out.', '+%d more scheduled items, sorted soonest-first — the tail is the furthest out.', $remainder, 'signal-and-noise-tools' ) ),
 			(int) $remainder
 		);
 		echo '</p>';
