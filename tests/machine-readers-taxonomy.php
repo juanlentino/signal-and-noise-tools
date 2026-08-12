@@ -105,6 +105,45 @@ $vp = snt_mr_render_vendor_purpose_table( $multi );
 ok( 3 === substr_count( $vp, '<tr><td class="column-primary"' ), 'one vendor across three purposes is three rows, not one' );
 ok( false !== strpos( $vp, 'train' ) && false !== strpos( $vp, 'search' ) && false !== strpos( $vp, 'user' ), 'and each purpose is named' );
 
+echo "\nGroup: MR3 , the agent/purpose breakdown folds and its remainder learns the house wording\n";
+// Unlike the two logs, this table ALREADY sliced at 20 — the cap was real.
+// What was wrong was the summary's absence and a remainder line that used
+// softer wording than the rest of the surface, and that still said
+// "vendor/purpose" though v10.80.0 gave the table an Agent column.
+$mr3_rows = array();
+for ( $i = 1; $i <= 21; $i++ ) {
+	$mr3_rows[] = array(
+		'family'           => 'openai',
+		'surface'          => 'html',
+		'day'              => '2026-08-01',
+		'hits'             => 100 - $i, // Descending, so worst-first ordering is observable.
+		'vendor'           => 'vendor' . $i,
+		'agent'            => 'Agent' . $i,
+		'purpose'          => 'train',
+		'taxonomy_version' => '1.1.0',
+	);
+}
+$mr3_html = snt_mr_render_vendor_purpose_table( snt_mr_normalize_rows( $mr3_rows ) );
+ok( false !== strpos( $mr3_html, '<details class="sn-mr-vendor-purpose sn-disclosure">' ), 'the breakdown sits inside its own disclosure' );
+ok( false === strpos( $mr3_html, '<details class="sn-mr-vendor-purpose sn-disclosure" open' ), 'and it is CLOSED by default' );
+$mr3_det = strpos( $mr3_html, '<details class="sn-mr-vendor-purpose' );
+$mr3_sum = substr( $mr3_html, (int) $mr3_det, 200 );
+ok( false !== strpos( $mr3_sum, '21' ), 'the summary names the TRUE pair count (21), not the sliced 20' );
+ok( 20 === substr_count( $mr3_html, '<tr><td class="column-primary"' ), 'the existing worst-first cap of 20 still applies' );
+ok( false !== stripos( $mr3_html, 'capped, not complete' ), 'the remainder line now uses the house wording' );
+ok( false === stripos( $mr3_html, 'are not shown' ), 'and the softer old phrasing is gone' );
+ok( false !== stripos( $mr3_html, 'agent/purpose' ), 'the remainder names AGENT/purpose — the table grew an Agent column in v10.80.0 and the vocabulary follows it' );
+// Worst-first survives the fold: vendor1 (99 hits) leads, vendor21 (79) is cut.
+$mr3_first = strpos( $mr3_html, '<tr><td class="column-primary"' );
+ok( false !== strpos( substr( $mr3_html, (int) $mr3_first, 300 ), 'vendor1<' ), 'the busiest pair still renders first' );
+ok( false === strpos( $mr3_html, 'vendor21<' ), 'and the quietest is the one the cap drops' );
+// Empty and pre-taxonomy both stay '' — never an empty disclosure.
+ok( '' === snt_mr_render_vendor_purpose_table( $legacy ), 'a pre-taxonomy sensor still renders NOTHING at all, not an empty fold' );
+$mr3_first_party_only = snt_mr_normalize_rows( array(
+	array( 'family' => 'uptime', 'surface' => 'html', 'day' => '2026-08-01', 'hits' => 500, 'vendor' => 'betterstack', 'purpose' => 'ops', 'taxonomy_version' => '1.1.0', 'first_party' => '1' ),
+) );
+ok( '' === snt_mr_render_vendor_purpose_table( $mr3_first_party_only ), 'a window with only first-party rows renders nothing, not a fold promising 0 pairs' );
+
 echo "\nGroup: the purpose vocabulary is closed\n";
 $purposes = snt_mr_valid_purposes();
 ok( 13 === count( $purposes ), 'exactly thirteen purposes' );

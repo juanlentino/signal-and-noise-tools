@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### MR3: the agent/purpose breakdown folds, and its remainder learns the house wording
+
+The third Machine Readers increment, and the one where the cap was never the
+problem. Unlike the two logs — whose `$limit` arguments were footers rather
+than slices — this table already sorted busiest-first and sliced at 20. What it
+lacked was a summary saying how much sat inside, so the fold's summary now
+carries the **true** pair count while the table keeps showing the busiest 20.
+
+Two wording fixes ride along. The remainder line read *"%s further
+vendor/purpose pairs are not shown"* — softer than the rest of the surface,
+where a truncated list says plainly that it is truncated. It also called them
+vendor/purpose pairs, which stopped being accurate in v10.80.0 when these rows
+were keyed on the **agent** so GPTBot and ChatGPT-User would stop collapsing
+into one another; the sentence never followed the data. It now reads *"+N more
+agent/purpose pairs — the list is capped, not complete"*, matching both the
+house phrasing and the table's own columns.
+
+No empty fold is possible here: the pre-taxonomy path and the
+nothing-attributed path both return an empty string before the fold is ever
+opened, and both are pinned so a later refactor cannot introduce a disclosure
+promising zero pairs.
+
 ## [10.96.0] - 2026-08-12 — the Machine Readers logs fold, and the shared caret finishes its rollout
 
 ### MR2: the unclassified-agent review list folds, and its summary counts survivors
