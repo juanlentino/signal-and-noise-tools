@@ -30,6 +30,7 @@ class WP_Error {
 	public function get_error_data() { return $this->data; }
 }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
+function number_format_i18n( $n ) { return number_format( (float) $n ); }
 function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
 	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint );
 }
@@ -292,6 +293,84 @@ echo "\nGroup: the pipeline wrapper\n";
 require __DIR__ . '/../inc/ml-pipelines.php';
 $via = snt_ml_run( 'cadence-flags', array() );
 ok( is_array( $via ) && true === $via['ok'] && 1 === count( $via['flags'] ), 'registry route returns the live envelope' );
+
+echo "\nGroup: views rhythm — the pure statistic (traffic rhythm flags)\n";
+// R4 row: "the deterministic cadence watch extended from cron to views" —
+// the same robust median/MAD posture as the cron path, one-sided QUIET only.
+ok( null === snt_ml_views_rhythm( array( 100, 100, 100 ), 40 ), 'fewer than four complete weeks is thin history — unknown, never flagged' );
+$metro = snt_ml_views_rhythm( array( 100, 100, 100, 100, 100 ), 40 );
+ok( is_array( $metro ) && null === $metro['z'], 'a zero-spread metronome is watched, never flagged — spread of zero makes deviation unquantifiable' );
+$quiet = snt_ml_views_rhythm( array( 100, 110, 90, 105, 95, 100, 108, 92 ), 40 );
+ok( is_array( $quiet ) && null !== $quiet['z'] && $quiet['z'] >= 3.0, 'a genuinely quiet week z-scores over the flag threshold (got z ' . ( $quiet['z'] ?? 'null' ) . ')' );
+ok( 100 === $quiet['median'] && 40 === $quiet['current'], 'the verdict carries the typical week and the current one, as counts' );
+$busy = snt_ml_views_rhythm( array( 100, 110, 90, 105, 95, 100, 108, 92 ), 400 );
+ok( is_array( $busy ) && 0.0 === $busy['z'], 'one-sided by design: a BUSY week is not a deviation — z clamps to 0' );
+
+echo "\nGroup: views rhythm — the assembler (rollups already kept, honesty rules)\n";
+// The daily-range stub: the assembler reads the SAME accessor the public
+// stats page reads, class human, and sums per day itself.
+$GLOBALS['__vr_rows'] = false; // non-array = FAILED read
+function sn_analytics_daily_range( $from, $to, $class = 'human' ) {
+	$GLOBALS['__vr_window'] = array( $from, $to, $class );
+	return $GLOBALS['__vr_rows'];
+}
+$now = strtotime( '2026-08-12 15:00:00 UTC' );
+$GLOBALS['__pub_dates'] = array(); // no publish flag noise in this group
+$GLOBALS['wpdb']->hooks = array();
+$env = snt_ml_cadence_flags( $now );
+ok( true === $env['views_skipped'], 'a FAILED rollup read skips the views section and SAYS SO in the envelope' );
+ok( array() === $env['flags'], 'and fabricates no views flag' );
+// 13 weeks of steady reading, then a silent current week. Rows only every
+// other day — absent days inside measured history are real zeros.
+$rows = array();
+$day0 = strtotime( '2026-08-12 00:00:00 UTC' );
+for ( $d = 8; $d <= 7 * 13; $d += 2 ) {
+	$rows[] = array( 'day' => gmdate( 'Y-m-d', $day0 - $d * DAY_IN_SECONDS ), 'path' => '/notes/x/', 'views' => 20 + ( $d % 5 ) * 7 );
+}
+$GLOBALS['__vr_rows'] = $rows;
+$env = snt_ml_cadence_flags( $now );
+ok( false === $env['views_skipped'], 'a successful read is not skipped' );
+ok( 1 === count( $env['flags'] ) && 'views' === $env['flags'][0]['kind'], 'the silent current week raises exactly one views flag' );
+ok( 'human' === ( $GLOBALS['__vr_window'][2] ?? '' ), 'the read is the HUMAN class — a bot wave can never enter the rhythm' );
+$vf = $env['flags'][0];
+ok( isset( $vf['expected_views'], $vf['current_views'] ) && $vf['current_views'] < $vf['expected_views'], 'the flag speaks in COUNTS (expected_views/current_views), never in gap seconds' );
+ok( $vf['z'] >= 3.0, 'and the z clears the shared threshold (got ' . $vf['z'] . ')' );
+// Sensor birth: only three weeks of measured history → thin, never flagged.
+// Without the clamp the five pre-birth weeks would read as zeros, the median
+// would collapse, and the quiet current week could never flag again — or
+// worse, a NORMAL week would flag against a zero baseline.
+$rows = array();
+for ( $d = 8; $d <= 7 * 3; $d += 2 ) {
+	$rows[] = array( 'day' => gmdate( 'Y-m-d', $day0 - $d * DAY_IN_SECONDS ), 'path' => '/notes/x/', 'views' => 20 + ( $d % 5 ) * 7 );
+}
+$GLOBALS['__vr_rows'] = $rows;
+$env = snt_ml_cadence_flags( $now );
+ok( array() === $env['flags'] && false === $env['views_skipped'], 'weeks before the sensor existed are EXCLUDED, so a young sensor is thin history (watched), not a wall of fake zeros' );
+// The clamp's load-bearing direction: a sensor SIX weeks old with a quiet
+// current week MUST flag. Without the clamp, six pre-birth zero-weeks join
+// the history, the median collapses toward zero and the MAD balloons — and
+// the real quiet week is silently missed. The clamp is what keeps a young
+// sensor's real deviations visible, not just its fake ones suppressed.
+$rows = array();
+for ( $d = 8; $d <= 7 * 7; $d += 2 ) {
+	$rows[] = array( 'day' => gmdate( 'Y-m-d', $day0 - $d * DAY_IN_SECONDS ), 'path' => '/notes/x/', 'views' => 20 + ( $d % 5 ) * 7 );
+}
+$GLOBALS['__vr_rows'] = $rows;
+$env = snt_ml_cadence_flags( $now );
+ok( 1 === count( $env['flags'] ) && 'views' === $env['flags'][0]['kind'], 'a six-week-old sensor with a silent current week still flags — the birth clamp protects real deviations, not only against fake ones' );
+
+echo "\nGroup: the health adapter speaks views in counts\n";
+// The adapter reads the REAL clock, so this fixture anchors to it — a
+// hardcoded date here would rot into a different verdict next month.
+$day0r = strtotime( gmdate( 'Y-m-d 00:00:00', time() ) . ' UTC' );
+$rows  = array();
+for ( $d = 8; $d <= 7 * 13; $d += 2 ) {
+	$rows[] = array( 'day' => gmdate( 'Y-m-d', $day0r - $d * DAY_IN_SECONDS ), 'path' => '/notes/x/', 'views' => 20 + ( $d % 5 ) * 7 );
+}
+$GLOBALS['__vr_rows'] = $rows;
+$check = sn_health_check_ml_cadence();
+ok( 1 === $check['count'] && false !== strpos( (string) $check['findings'][0]['note'], 'views' ), 'the views finding renders its note in VIEWS' );
+ok( false === strpos( (string) $check['findings'][0]['note'], 'expected gap' ), 'and never as a humanized duration — 105 views is not 105 seconds' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

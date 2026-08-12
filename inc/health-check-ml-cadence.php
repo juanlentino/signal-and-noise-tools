@@ -36,15 +36,29 @@ function sn_health_check_ml_cadence() {
 		if ( ! is_array( $flag ) || ! isset( $flag['subject'], $flag['z'] ) ) {
 			continue; // Malformed row: skip, never fabricate.
 		}
-		$findings[] = array(
-			'subject_label' => (string) $flag['subject'],
-			'note'          => sprintf(
+		// A views flag speaks in COUNTS: its numbers are weekly view totals,
+		// and humanizing 105 views as "105 seconds" would be a category error
+		// wearing the right units' clothes.
+		if ( 'views' === (string) ( $flag['kind'] ?? '' ) ) {
+			$note = sprintf(
+				/* translators: 1: z-score, 2: typical weekly views, 3: this week's views. */
+				__( 'z %1$s · a typical week reads ~%2$s views · this week %3$s', 'signal-and-noise-tools' ),
+				sprintf( '%.2f', (float) $flag['z'] ),
+				number_format_i18n( (int) ( $flag['expected_views'] ?? 0 ) ),
+				number_format_i18n( (int) ( $flag['current_views'] ?? 0 ) )
+			);
+		} else {
+			$note = sprintf(
 				/* translators: 1: z-score, 2: expected gap, 3: current gap. */
 				__( 'z %1$s · expected gap ~%2$s · current %3$s', 'signal-and-noise-tools' ),
 				sprintf( '%.2f', (float) $flag['z'] ),
 				snt_ml_cadence_human_gap( (float) ( $flag['expected_gap'] ?? $flag['ewma'] ?? 0 ) ),
 				snt_ml_cadence_human_gap( (float) ( $flag['current_gap'] ?? 0 ) )
-			),
+			);
+		}
+		$findings[] = array(
+			'subject_label' => (string) $flag['subject'],
+			'note'          => $note,
 			'edit_url'      => '',
 		);
 	}

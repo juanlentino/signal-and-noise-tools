@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Traffic rhythm flags: the cadence watch learns to read views
+
+The R4 row promoted this morning, delivered by evening — its gate honoured
+to the letter: *read from the rollups already kept, deterministic, never
+profiling a reader.* `snt_ml_views_rhythm()` scores the current complete
+week's human views against the trailing complete weeks (12 max) with the
+same robust median/MAD posture the v10.32.0 cron path earned — breakdown
+point 50%, so one viral week cannot move the baseline — and one-sided by
+design: only QUIET flags ("this week is quiet"); a busy week is reach, not
+a deviation. The read is the same `sn_analytics_daily_range()` the public
+stats page uses, class human, nothing newly collected.
+
+Honesty rules in the family tradition: thin history (< 4 complete weeks)
+never flags; a zero-spread metronome is watched, never flagged; a FAILED
+rollup read is skipped and the envelope says so (`views_skipped`); and a
+**sensor-birth clamp** excludes weeks that predate the earliest measured
+day — before the sensor existed, absence is not a zero. The clamp's
+load-bearing direction is pinned: a six-week-old sensor with a silent week
+must still flag, because without the clamp the pre-birth zeros balloon the
+MAD and the real deviation is silently missed.
+
+The flag rides the existing envelope (kind `views`, subject "Reading
+rhythm") into the health widget and the cadence-flags read tool; the health
+adapter speaks it in COUNTS ("a typical week reads ~730 views · this week
+120") — never through the duration humanizer, because 105 views is not 105
+seconds. Tests 34 → 50 in-suite; the birth clamp mutation-fired by name;
+sweep 16,593 → 16,609.
+
 ## [10.93.1] - 2026-08-12 — the table twin goes calendar-shaped
 
 Owner feedback on the first live render: thirty single-file rows read as a
