@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### AL1: the audit log's recent-logins table folds, and its cap becomes real
+
+The fold arc moves to its next surface, and finds the same shape MR1 found on
+Machine Readers. `SN_AUDIT_LOGIN_SUCCESS_CAP` (500) bounds what the store
+*retains*, dropping the oldest as new logins arrive. The renderer then printed
+every row it was handed. A real cap at the store, none at the display, so a
+busy month put hundreds of timestamps between the reader and everything below.
+
+The table now sits behind a closed `<details class="sn-audit-logins-log
+sn-disclosure">` whose summary carries the **true** login count, with a display
+cap of 50 applied after a newest-first sort taken on a copy. The producer
+already sorts newest-first; the renderer sorts anyway, because the correctness
+of a cap must not depend on a distant function continuing to. Slicing an
+unsorted list would silently drop the most recent login, which is the one a
+security readout exists to show.
+
+The store's own ceiling is named under the table, but **guarded rather than
+assumed**: that constant belongs to `inc/audit-log.php`, and a surface must not
+invent a retention number if the module ever fails to load. Silence degrades
+honestly; a hardcoded fallback would be a claim. An empty window keeps its
+existing sentence and renders no disclosure at all.
+
+One testing note worth keeping. The shell harness cannot load `audit-log.php`
+(it stubs that module's data-boundary functions, so loading would redeclare
+them and fatal), and the obvious fix — mirroring `500` as a literal in the test
+— is the stub-drift trap in miniature: it would keep passing after production
+changed its cap. The harness parses the real value out of the source instead,
+with a non-vacuity pin proving the parse found something. Mutating the store
+cap to 250 keeps the suite green *and* moves the rendered sentence, which is
+the behaviour a mirrored literal could never have.
+
 ## [10.97.0] - 2026-08-12 — the Health tab tells faults from advisories, and the Machine Readers folds settle
 
 ### H5: fault findings group by family, and advisories stop impersonating them
