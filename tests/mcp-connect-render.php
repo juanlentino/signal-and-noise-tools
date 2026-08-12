@@ -355,5 +355,18 @@ ok( 1 === substr_count( $html, '<select' ), 'MIRROR RULE: exactly ONE <select> o
 ok( 1 === substr_count( $html, '<button' ), 'MIRROR RULE: exactly ONE <button> on the whole leaf' );
 ok( false === strpos( $html, '<textarea' ), 'MIRROR RULE: still no <textarea> anywhere in the leaf' );
 
+// ── M1 (IA): bind form + Connect-a-client sit ABOVE both tool lists ──
+// Reorder-only increment: the returning-owner job (bind) and the first-run
+// job (connect) must appear before the first sn-mcp-tool-list so the owner
+// does not scroll past the live slug inventories to reach either. Positions
+// are compared against the same full-page $html as every other presence pin.
+$bind_pos       = strpos( $html, 'Bind the write-door credential' );
+$connect_pos    = strpos( $html, 'Connect a client' );
+$first_list_pos = strpos( $html, 'sn-mcp-tool-list' );
+ok( false !== $bind_pos && false !== $first_list_pos && $bind_pos < $first_list_pos,
+	'M1: binding-form heading appears before the first sn-mcp-tool-list' );
+ok( false !== $connect_pos && false !== $first_list_pos && $connect_pos < $first_list_pos,
+	'M1: "Connect a client" heading appears before the first sn-mcp-tool-list' );
+
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
