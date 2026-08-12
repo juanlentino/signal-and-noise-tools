@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the provenance chip becomes safe AND scoreable
+## [10.92.3] - 2026-08-11 — the provenance chip becomes safe AND scoreable
 
 **PATCH** — a checker widening and the swap it unblocked. No visual change: the
 chip and panel render the same white they always did.
