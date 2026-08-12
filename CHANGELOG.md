@@ -2,10 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the contrast usage-scan learns to read a var() fallback
+## [Unreleased] — the provenance chip becomes safe AND scoreable
 
-**PATCH** — checker widening, nine assertions. No change to what the scan
-currently reports.
+**PATCH** — a checker widening and the swap it unblocked. No visual change: the
+chip and panel render the same white they always did.
+
+### The swap
+
+`.sn-prov-chip` and `.sn-prov-panel` in `assets/provenance-front.css` move from
+`background:#fff` to `background:var(--wp--preset--color--void,#fff)`. The
+contrast usage scan now resolves both surfaces as `token => void` instead of
+reading a hardcoded colour.
+
+`void` is `#ffffff` in the root palette **and** in `high-contrast.json` — the
+only shipped variation — verified against the theme's `origin/main` rather than
+a working tree. Nothing a reader sees changes under any palette.
+
+Both halves of the value are load-bearing. The **token** is what makes the
+pairing visible to the scan; the **fallback** is what keeps the surface painted
+if the preset is ever dropped, so the chip cannot silently revert to having its
+contrast be a property of *placement* — which is the exact defect v10.89.1 was
+cut to fix, when the chip shipped at 3.49:1 in every note's byline.
+
+Four new assertions on the SHIPPED stylesheet, and the panel's background is now
+**asserted** rather than defaulted: it previously fell back to `'#ffffff'` when
+the regex missed, so a changed panel surface would have kept every ratio green
+while describing a surface that no longer existed. *A default that happens to
+equal the right answer is not an answer.*
+
+The fallback is also checked to **agree** with the token. `var(--…--void, #000)`
+would render white normally and black in the one situation the fallback exists
+for — a divergence no palette scan can catch, because only one branch is ever in
+the CSS the scanner reads. Mutation-checked three ways: reverting to the literal,
+dropping the fallback, and making it disagree each red the suite by name.
+
+### The checker widening that made it possible
+
+**No change to what the scan currently reports.**
 
 `var(--wp--preset--color--void, #fff)` is the only form that is both **safe**
 and **scoreable**: safe because it still paints when the preset is undefined,
@@ -33,9 +66,9 @@ invent a colour. That's the failure mode the whole module exists to avoid, so
 the coverage docblock now names the indirection limit out loud instead of
 letting a wider regex imply wider coverage.
 
-No output change today: no scanned sheet declares a preset-token fallback on a
-`color`/`background` property yet. This is the checker being widened **before**
-any stylesheet adopts the form — the order that was recorded as owed.
+The order was the point: the checker was widened **first**, in its own commit,
+and only then did a stylesheet adopt the form. Swapping first would have
+regressed the scan into the exact blind spot it was built to close.
 
 ## [10.92.2] - 2026-08-11 — the give-back row graduates, and says what it declined
 

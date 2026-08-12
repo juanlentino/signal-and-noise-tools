@@ -6,7 +6,7 @@
    same day while looking straight past the chip beside them.
    Pinning the surface makes the ratios below true wherever the chip is used —
    a byline, a page brow, or anywhere added later. Same move the panel made. */
-.sn-prov-chip{display:inline-flex;align-items:center;gap:.35em;font-size:.72rem;font-weight:600;padding:.15em .6em;border-radius:999px;border:1px solid;line-height:1.6;background:#fff}
+.sn-prov-chip{display:inline-flex;align-items:center;gap:.35em;font-size:.72rem;font-weight:600;padding:.15em .6em;border-radius:999px;border:1px solid;line-height:1.6;background:var(--wp--preset--color--void,#fff)}
 .sn-prov-confirmed{color:#12703a;border-color:rgba(18,112,58,.45)}
 .sn-prov-pending{color:#7a5200;border-color:rgba(122,82,0,.45)}
 .sn-prov-genesis{color:#5b6270;border-color:rgba(91,98,112,.45)}
@@ -21,7 +21,7 @@
    corners, breathing room, and a restrained offset shadow — the maturity
    family's depth idiom at its smallest scale. Shared with notes, where the
    same frame reads correctly inside the post-closing furniture. */
-.sn-prov-panel{border:2px solid currentColor;border-radius:0;box-shadow:4px 4px 0 currentColor;background:#fff;padding:1.15rem 1.35rem;margin:2.25rem 0 6px;font-size:.82rem;line-height:1.6}
+.sn-prov-panel{border:2px solid currentColor;border-radius:0;box-shadow:4px 4px 0 currentColor;background:var(--wp--preset--color--void,#fff);padding:1.15rem 1.35rem;margin:2.25rem 0 6px;font-size:.82rem;line-height:1.6}
 .sn-prov-chain{list-style:none;margin:0 0 .7rem;padding:0}
 .sn-prov-ver{display:flex;gap:.6em;align-items:baseline;padding:.4em 0;border-bottom:1px solid rgba(0,0,0,.1)}
 .sn-prov-ver:last-child{border-bottom:0}

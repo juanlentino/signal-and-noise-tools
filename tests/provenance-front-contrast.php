@@ -3,8 +3,8 @@
  * WCAG AA contrast for the plugin's own front-end provenance CSS.
  *
  * WHY THIS EXISTS AS ITS OWN SUITE. The token-level contrast report
- * (inc/health-contrast-tokens.php) scores theme TOKEN PAIRS. Every colour in
- * assets/provenance-front.css is a hardcoded hex, so the report structurally
+ * (inc/health-contrast-tokens.php) scores theme TOKEN PAIRS. Every TEXT colour
+ * in assets/provenance-front.css is a hardcoded hex, so the report structurally
  * cannot see any of it — its own coverage sentence says so. That blind spot is
  * not theoretical: the status chip shipped at 3.49:1 (confirmed) and 2.95:1
  * (pending) on plain white, live in every note's byline, and TWO sessions
@@ -73,11 +73,90 @@ echo "Provenance front-end contrast — AA on the SHIPPED stylesheet (v10.89.1)\
  * 1. The chip pins its own surface
  * ═══════════════════════════════════════════════════════════════════ */
 
+/**
+ * The palette values this suite is allowed to resolve a token to.
+ *
+ * Pinned as literals, and identical in BOTH shipped palettes (theme.json root
+ * and styles/high-contrast.json) — verified against the theme's origin/main, not
+ * a working tree. A token whose value differs per palette must never be resolved
+ * to one number here; that is the exact false green the usage tier exists for.
+ */
+$PALETTE_VOID = '#ffffff';
+
+/**
+ * Expand a 3-digit hex to 6 so `#fff` and `#ffffff` compare equal.
+ *
+ * The agreement check below is about COLOUR, not about spelling. Comparing the
+ * raw strings would red a correct stylesheet for using CSS shorthand — a test
+ * failing on a difference that no reader can perceive.
+ */
+function pfc_hex6( $hex ) {
+	$h = strtolower( trim( (string) $hex ) );
+	if ( preg_match( '/^#[0-9a-f]{3}$/', $h ) ) {
+		return '#' . $h[1] . $h[1] . $h[2] . $h[2] . $h[3] . $h[3];
+	}
+	return $h;
+}
+
+/**
+ * Read a `background` declaration as a hex, accepting the token-with-fallback
+ * form the usage scan was widened to score.
+ *
+ * Returns array{form:'literal'|'token', hex:string, fallback:string} or null.
+ * A token this suite does not know is NOT resolved to a default — an unknown
+ * token means the assertion below fails loudly rather than scoring white and
+ * reporting a pass.
+ */
+function pfc_background_of( $decl ) {
+	if ( preg_match( '/background\s*:\s*var\(\s*--wp--preset--color--([a-z0-9-]+)\s*(?:,\s*(#[0-9a-fA-F]{3,6})\s*)?\)/', (string) $decl, $m ) ) {
+		$known = array( 'void' => '#ffffff' );
+		$slug  = strtolower( $m[1] );
+		if ( ! isset( $known[ $slug ] ) ) {
+			return null;
+		}
+		return array(
+			'form'     => 'token',
+			'hex'      => $known[ $slug ],
+			'fallback' => isset( $m[2] ) ? pfc_hex6( $m[2] ) : '',
+		);
+	}
+	if ( preg_match( '/background\s*:\s*(#[0-9a-fA-F]{3,6})/', (string) $decl, $m ) ) {
+		return array(
+			'form'     => 'literal',
+			'hex'      => pfc_hex6( $m[1] ),
+			'fallback' => '',
+		);
+	}
+	return null;
+}
+
 preg_match( '/\.sn-prov-chip\s*\{([^}]*)\}/', $css, $chip_rule );
 $chip_decl = $chip_rule[1] ?? '';
-ok( preg_match( '/background\s*:\s*(#[0-9a-fA-F]{3,6})/', $chip_decl, $bg ) === 1,
+$chip_read = pfc_background_of( $chip_decl );
+ok( null !== $chip_read,
 	'THE CHIP DECLARES ITS OWN BACKGROUND — without one its contrast is a property of placement, not of the component, and it is unscoreable in isolation' );
-$chip_bg = $bg[1] ?? '#ffffff';
+
+// The chip's background is the TOKEN-WITH-FALLBACK form. Both halves are
+// load-bearing and neither is decoration:
+//   - the TOKEN is what makes the pairing visible to the contrast usage scan
+//     (inc/health-contrast-usage.php), which resolves preset slugs per palette;
+//   - the FALLBACK is what keeps the surface painted if the theme ever drops the
+//     preset, so the chip can never silently revert to a placement property.
+// A bare literal loses the first; a bare token loses the second. The scan's
+// regex had to be widened before this form was adoptable at all.
+ok( $chip_read && 'token' === $chip_read['form'],
+	'the chip background is declared as a PRESET TOKEN, so the usage scan resolves it per palette instead of reading a hardcoded colour' );
+ok( $chip_read && '' !== $chip_read['fallback'],
+	'and it carries a FALLBACK, so the surface survives the preset being dropped — safe and scoreable, not one or the other' );
+
+// The fallback must AGREE with the token. `var(--…--void, #000)` would render
+// white normally and black in the very situation the fallback exists for — a
+// divergence no palette scan can see, because only one branch is ever in the CSS
+// the scanner reads.
+ok( $chip_read && $chip_read['fallback'] === $PALETTE_VOID,
+	sprintf( 'the fallback (%s) equals the token\'s value in every shipped palette (%s) — a fallback that disagrees is a colour nobody can scan', $chip_read['fallback'] ?: '(none)', $PALETTE_VOID ) );
+
+$chip_bg = $chip_read ? $chip_read['hex'] : $PALETTE_VOID;
 
 /* ═══════════════════════════════════════════════════════════════════
  * 2. Every status colour clears AA on that surface
@@ -114,7 +193,17 @@ ok( 0 === $soft,
  * 3. The action links (fixed in v10.88.0) stay fixed
  * ═══════════════════════════════════════════════════════════════════ */
 
-$panel_bg = preg_match( '/\.sn-prov-panel\s*\{[^}]*background\s*:\s*(#[0-9a-fA-F]{3,6})/', $css, $pb ) ? $pb[1] : '#ffffff';
+// The panel's surface, read the same way. Previously this defaulted to
+// '#ffffff' when the regex missed, which meant a changed panel background would
+// have been scored against white anyway and every ratio below would have stayed
+// green while describing a surface that no longer existed. A default that
+// happens to equal the right answer is not an answer.
+preg_match( '/\.sn-prov-panel\s*\{([^}]*)\}/', $css, $panel_rule );
+$panel_read = pfc_background_of( $panel_rule[1] ?? '' );
+ok( null !== $panel_read, 'the panel background is readable from the stylesheet — not assumed when the read fails' );
+ok( $panel_read && 'token' === $panel_read['form'] && $panel_read['fallback'] === $PALETTE_VOID,
+	'the panel background is the same token-with-fallback form as the chip, with an agreeing fallback' );
+$panel_bg = $panel_read ? $panel_read['hex'] : $PALETTE_VOID;
 foreach ( array( '.sn-prov-links a' => 'action link (rest)', '.sn-prov-chip-verify' => 'chip verify link (rest)' ) as $sel => $label ) {
 	$fg = pfc_color_of( $css, $sel );
 	if ( '' === $fg ) { continue; }
