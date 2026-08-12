@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the usage scan stops reading `@media` as if it were unconditional
+## [10.92.5] - 2026-08-11 — the usage scan stops reading `@media` as if it were unconditional
 
 **PATCH** — checker correctness. **No change to what the scan reports today.**
 
