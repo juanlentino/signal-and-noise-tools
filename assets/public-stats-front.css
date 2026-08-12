@@ -28,6 +28,19 @@
 .sn-public-stats__top a:hover{border-bottom-color:currentColor}
 .sn-public-stats__views{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;font-variant-numeric:tabular-nums;opacity:.7}
 
+/* Reading rhythm (charts that speak): the prose and the table twin carry the
+ * content; the SVG is a decorative silhouette of the same series — flat
+ * currentColor bars in the tile idiom, no second palette, no gradients. */
+.sn-public-stats__rhythm-summary{font-size:.9rem;max-width:60ch;margin:0 0 .9rem}
+.sn-public-stats__chart{display:block;width:100%;height:72px;border:2px solid currentColor;background:#fff;padding:6px;box-sizing:border-box}
+.sn-public-stats__chart rect{fill:currentColor}
+.sn-public-stats__twin{margin-top:.6rem;font-size:.85rem}
+.sn-public-stats__twin summary{cursor:pointer;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:.3em 0}
+.sn-public-stats__twin table{border-collapse:collapse;margin-top:.5rem;font-variant-numeric:tabular-nums}
+.sn-public-stats__twin caption{text-align:left;font-size:.72rem;opacity:.6;padding-bottom:.4em}
+.sn-public-stats__twin th,.sn-public-stats__twin td{text-align:left;padding:.2em 1.4em .2em 0;border-bottom:1px solid rgba(0,0,0,.12)}
+.sn-public-stats__twin th{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}
+
 .sn-public-stats__method,.sn-public-stats__none{font-size:.8rem;opacity:.7;margin:1.5rem 0 0;max-width:60ch}
 .sn-public-stats__none{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
 
