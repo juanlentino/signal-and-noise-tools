@@ -4,6 +4,38 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### The contrast panel stops telling the reader to wait for a tier nobody will build
+
+The usage tier's limits line deferred its three blind spots — hover and focus
+states, colours inlined in block markup, the computed cascade — to *"the
+headless render tier (r3-prep §3C)"*. After the find-then-pin decision that
+sentence misleads twice over: it reads as a surface still to come, when
+Increments 1–6 are **declined**; and the measurement it points at **already
+exists** as `tools/contrast-render-scan.mjs`, a hand-run instrument whose
+findings get pinned as tests rather than counted in the panel.
+
+A coverage sentence that defers a known gap to something nobody will build tells
+the reader to *wait* instead of to *act* — which is the same class of dishonesty
+as an overclaiming coverage sentence, pointed at the future instead of the
+present. The line now names the instrument, so the next step is reachable from
+the panel that reports the gap.
+
+`docs/r3-prep.md` §3C records the decision in full: the criterion ("read
+computed styles") was already met by a file that exists, what Increment 0 fixed
+was determinism, and the workflow is run-by-hand-then-pin — the way v10.90.1
+turned the 3.29:1 hover into `tests/prov-verify-contrast.php`. The row is
+**closed, not owed**.
+
+2 new assertions in `tests/health-layout.php`, pinning the CLAIM rather than the
+wording: no promise of a coming tier, and the instrument named. Both
+mutation-verified — restoring the old sentence fires both by name.
+
+> **Measurement note, recorded because it nearly cost the check:** the first
+> mutation run reported "0 FAILs" and I read it as the pins being vacuous. They
+> were not. `he_assert()` prints `  FAIL:` **indented**, and the grep used
+> `^FAIL`. Absence-of-FAIL is not evidence when the absence can belong to the
+> grep. The authoritative signal is the affirmative `Result:` line.
+
 ### The render scanner stops reporting a clean site when it measured nothing
 
 Increment 0 of the deterministic render-scan proposal

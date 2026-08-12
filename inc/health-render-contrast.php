@@ -221,9 +221,19 @@ function sn_health_render_contrast_report( $report ) {
  * reads DECLARATIONS, not computed styles, so three things are invisible to it:
  * non-resting states (docs/r3-prep.md §3C's own example is a :hover link that
  * measured 3.29:1), colours inlined in block markup, and the computed cascade.
- * docs/r3-prep.md §3C specifies a headless-render tier for exactly that reason,
- * and this scan does not replace it — it is the part answerable without a
- * browser, shipped early because it found four real defects while waiting.
+ * This scan is the part answerable without a browser, and it found four real
+ * defects on its own.
+ *
+ * WHAT CLOSES THOSE THREE, decided 2026-08-12: not a fourth panel tier.
+ * tools/contrast-render-scan.mjs already reads computed styles and forces
+ * :hover / :focus-visible, which is §3C's own criterion — but it is a HAND-RUN
+ * laptop instrument, and the workflow is find-then-pin: run it, pin what it
+ * finds in tests/*.php (as v10.90.1 did with the 3.29:1 hover). A recurring
+ * rendered census and a Health-panel ingest were scoped and DECLINED
+ * (docs/proposals/render-scan-deterministic.md, Increments 1-6). So the limits
+ * line below must not defer to a coming tier — there isn't one. It names the
+ * instrument instead, because telling a reader to wait for a surface nobody
+ * will build is worse than telling them nothing.
  *
  * So "0 failing" here means "nothing declared in a stylesheet fails at rest",
  * which is a real and previously unavailable fact, and is NOT "the site passes".
@@ -280,7 +290,7 @@ function sn_health_render_contrast_usage( $usage ) {
 	// sentence — a reader who trusts a "0 failing" headline is exactly the
 	// reader who did not scroll up to read the caveat.
 	echo '<p class="sn-field-helper">';
-	esc_html_e( 'Reads stylesheet declarations at rest. Hover and focus states, colours inlined in block markup, and the computed cascade are invisible to it — those need the headless render tier (r3-prep §3C). A clean count here means nothing declared in CSS fails at rest, not that the site passes.', 'signal-and-noise-tools' );
+	esc_html_e( 'Reads stylesheet declarations at rest. Hover and focus states, colours inlined in block markup, and the computed cascade are invisible to it — those are measured by hand with tools/contrast-render-scan.mjs, and what it finds is pinned as a test rather than counted here. A clean count here means nothing declared in CSS fails at rest, not that the site passes.', 'signal-and-noise-tools' );
 	echo '</p>';
 
 	sn_health_render_contrast_conditional( isset( $usage['conditional'] ) && is_array( $usage['conditional'] ) ? $usage['conditional'] : array() );
