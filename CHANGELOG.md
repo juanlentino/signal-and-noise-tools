@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### The IPv6 criterion names the window it actually measured
+
+The Defense gauges panel rendered the IPv6 share as `(30d)` because the query
+says `INTERVAL '30' DAY`. That is the window **asked for**, not the window
+**delivered**: Analytics Engine answers a 30-day question with whatever days
+of rows exist and flags none of the absence. The family sensor (`blob8`) was
+appended in login-guard worker **v1.5.0**, so for its first month the same SQL
+returned a real share off a partial window — under a label claiming a full one.
+
+The gauge now measures its own coverage. `sn_login_defense_family_share_sql()`
+carries `min(timestamp) AS first_seen` alongside the split (one query, no extra
+round trip, no hardcoded deploy date to rot), and `sn_login_defense_ipv6_share()`
+returns `measured_days` and a three-state `window_complete` — covered, short, or
+**null** when the rows carry no `first_seen` at all. Unknown coverage is not
+proven coverage, and it renders as neither.
+
+The consequence is more than a label. The pre-committed rule is "5% **sustained
+over 30 days**", and the panel previously announced its decision — *build 128-bit
+denylist ranges* — off the numeric half alone. A crossed line on a 20-day window
+now reads as what it is: a real share and an unfinished window, with the decision
+withheld until the sensor has covered the span the rule is written over. Both
+halves of the criterion now travel together in code too
+(`SN_LG_IPV6_CRITERION_DAYS` beside `SN_LG_IPV6_THRESHOLD_PCT`); the range
+control still cannot move the criterion window, because moving it would restate
+the rule.
+
+Docblocks corrected to match: the family-SQL block claimed the denominator was
+complete, true across *decision paths* and never guaranteed across *time*. AE
+timestamps are parsed as UTC explicitly rather than inheriting the server zone.
+9 new assertions (28 total in the fixture); 8 went red before the fix, the ninth
+pinned a key that did not exist yet and passed vacuously until it did. Sweep
+16,795, reconciled exactly (16,786 + 9).
+
+> **Un-versioned:** lands without a version bump while peer sessions are live.
+
 ## [10.98.0] - 2026-08-12 — the audit log stops printing every login it kept
 
 ### AL1: the audit log's recent-logins table folds, and its cap becomes real

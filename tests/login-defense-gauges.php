@@ -55,6 +55,8 @@ $f = sn_login_defense_family_share_sql( 30 );
 ok( strpos( $f, 'blob8 AS family' ) !== false && strpos( $f, 'sum(_sample_interval)' ) !== false
 	&& strpos( $f, "INTERVAL '30'" ) !== false && strpos( $f, 'GROUP BY family' ) !== false,
 	'family SQL: blob8 alias, de-sampled, 30d, grouped' );
+ok( strpos( $f, 'min(timestamp)' ) !== false && strpos( $f, 'first_seen' ) !== false,
+	'family SQL carries the sensor birth (min(timestamp) AS first_seen) so the window can be MEASURED, not assumed' );
 
 // --- reducers ----------------------------------------------------------------
 $tot = sn_login_defense_failopen_totals( array(
@@ -80,6 +82,31 @@ ok( 11.0 === $s2['share_pct'] && true === $s2['crossed'], 'IPv6 share: 11% cross
 ok( null === sn_login_defense_ipv6_share( array() )['share_pct'],
 	'IPv6 share: zero rows -> share null (never-measured is not 0%)' );
 
+// The window the criterion asks for is 30 days OF SENSOR COVERAGE. blob8 shipped
+// with worker v1.5.0, so a "30d" query can return a share off 3 days of rows and
+// say nothing about it. measured_days comes from the data, not from the query.
+$now   = strtotime( '2026-08-12 00:00:00 UTC' );
+$short = sn_login_defense_ipv6_share( array(
+	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => '2026-07-23 00:00:00' ),
+	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => '2026-07-25 00:00:00' ),
+), 30, $now );
+ok( 20 === $short['measured_days'],
+	'measured window = now - EARLIEST first_seen across families (20d), not the 30d asked for' );
+ok( false === $short['window_complete'] && true === $short['crossed'],
+	'a crossed share on a 20-of-30 day window is crossed but NOT sustained' );
+
+$full = sn_login_defense_ipv6_share( array(
+	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => '2026-06-01 00:00:00' ),
+	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => '2026-06-01 00:00:00' ),
+), 30, $now );
+ok( true === $full['window_complete'] && $full['measured_days'] >= 30,
+	'a sensor older than the criterion window gives a COMPLETE window (clamped at the 30d query bound)' );
+
+ok( null === sn_login_defense_ipv6_share( array(
+	array( 'family' => 'v4', 'hits' => 80 ),
+), 30, $now )['window_complete'],
+	'no first_seen -> window_complete is null (unknown coverage is not proven coverage)' );
+
 // --- render: the proven-to-move gate ----------------------------------------
 function render_gauges_html() { ob_start(); sn_login_defense_render_gauges( 7 ); return ob_get_clean(); }
 
@@ -102,16 +129,46 @@ $m = render_gauges_html();
 ok( strpos( $m, '4 fail-opens' ) !== false && strpos( $m, '1 degraded' ) !== false,
 	'PROVEN TO MOVE: fail-open gauge changes when fail-open rows exist (4, 1)' );
 
-// PROVEN TO MOVE 2: a v6-heavy month flips below -> crossed and names the decision.
+// Windows are relative to the run, so the fixtures date first_seen off time()
+// rather than pinning a calendar day that would rot.
+$ago = function ( $d ) { return gmdate( 'Y-m-d H:i:s', time() - ( $d * 86400 ) ); };
+
+// PROVEN TO MOVE 2: a v6-heavy month, over a COMPLETE window, flips below ->
+// crossed and names the decision.
 $GLOBALS['__q_family'] = array(
-	array( 'family' => 'v4', 'hits' => 80 ),
-	array( 'family' => 'v6', 'hits' => 20 ),
+	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => $ago( 45 ) ),
+	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => $ago( 45 ) ),
 );
 $c = render_gauges_html();
 ok( strpos( $c, '20%' ) !== false && strpos( $c, 'crossed' ) !== false,
 	'PROVEN TO MOVE: IPv6 gauge crosses at 20%' );
 ok( stripos( $c, '128-bit' ) !== false,
 	'crossing names the decision it triggers (build 128-bit ranges), not just the number' );
+ok( strpos( $c, '30d measured' ) !== false,
+	'a complete window is NAMED as measured, not left implied by the query bound' );
+
+// The criterion is "5% sustained over 30 days". On a short window the share is
+// real but the criterion is not yet satisfiable — the gauge must not announce a
+// decision the data cannot authorise.
+$GLOBALS['__q_family'] = array(
+	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => $ago( 20 ) ),
+	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => $ago( 12 ) ),
+);
+$p = render_gauges_html();
+ok( strpos( $p, '20%' ) !== false && strpos( $p, '20d measured of 30d' ) !== false,
+	'short window: the MEASURED span is named next to the share (20d measured of 30d)' );
+ok( stripos( $p, 'not yet' ) !== false && stripos( $p, '128-bit denylist ranges.' ) === false,
+	'short window: crossed but NOT sustained — the gauge withholds the decision instead of triggering it' );
+
+// Unknown coverage is not proven coverage: rows without first_seen cannot claim
+// a sustained window either.
+$GLOBALS['__q_family'] = array(
+	array( 'family' => 'v4', 'hits' => 80 ),
+	array( 'family' => 'v6', 'hits' => 20 ),
+);
+$n = render_gauges_html();
+ok( stripos( $n, 'coverage unknown' ) !== false,
+	'no first_seen: the window is reported as unknown coverage, never as a full 30d' );
 
 // Zero-vs-null honesty: AE failure renders "unknown", never a fake zero.
 $GLOBALS['__q_trend']  = null;
