@@ -65,6 +65,141 @@ const SNT_ML_CADENCE_FLOOR_FACTOR = 1.5;    // Never flag below this multiple of
 const SNT_ML_CADENCE_MIN_SPAN     = 604800; // 7 days: the wall-clock reach a learned window needs to be trusted.
 const SNT_ML_CADENCE_AGREE_FACTOR = 0.5;    // A learned median at/above this multiple of the registered interval is not a burst.
 
+// Traffic rhythm flags (the R4 row): the cadence watch extended from cron to
+// VIEWS. Same robust posture as the v10.32.0 cron path — median/MAD, one-sided
+// — but the unit is a weekly view count, not a gap.
+const SNT_ML_RHYTHM_MIN_WEEKS = 4;  // Fewer complete weeks is thin history: unknown, never flagged.
+const SNT_ML_RHYTHM_MAX_WEEKS = 12; // Trailing complete weeks considered.
+
+/**
+ * The pure rhythm statistic: is the current week's reading QUIET against the
+ * trailing weeks? Median/MAD (breakdown point 50% — one viral week must not
+ * move the baseline), one-sided by design: a busy week is reach, not a
+ * deviation, so its z clamps to 0. Deterministic: no clock, no randomness —
+ * two calls over unchanged data agree to the float.
+ *
+ * @param int[] $weeks   Trailing COMPLETE weekly view totals, oldest first.
+ * @param int   $current The current complete week's total.
+ * @return array{z:float|null,median:int,current:int}|null Null = thin history
+ *         (unknown); z null = zero-spread metronome (watched, unquantifiable).
+ */
+function snt_ml_views_rhythm( $weeks, $current ) {
+	$weeks = array_values( array_map( 'intval', (array) $weeks ) );
+	if ( count( $weeks ) < SNT_ML_RHYTHM_MIN_WEEKS ) {
+		return null;
+	}
+	$median = snt_ml_views_median( $weeks );
+	$devs   = array();
+	foreach ( $weeks as $w ) {
+		$devs[] = abs( $w - $median );
+	}
+	$mad = snt_ml_views_median( $devs );
+	if ( $mad <= 0.0 ) {
+		return array( 'z' => null, 'median' => (int) $median, 'current' => (int) $current );
+	}
+	// 1.4826 scales MAD to the σ of a normal distribution, so the flag
+	// threshold keeps the same "three sigmas" meaning the cron path uses.
+	$z = ( $median - (int) $current ) / ( 1.4826 * $mad );
+	return array( 'z' => $z < 0 ? 0.0 : (float) $z, 'median' => (int) $median, 'current' => (int) $current );
+}
+
+/**
+ * Median of a numeric array. Even counts average the middle pair.
+ *
+ * @param array $values Non-empty numeric array.
+ * @return float
+ */
+function snt_ml_views_median( $values ) {
+	sort( $values );
+	$n = count( $values );
+	$m = (int) floor( $n / 2 );
+	return 0 === $n % 2 ? ( $values[ $m - 1 ] + $values[ $m ] ) / 2.0 : (float) $values[ $m ];
+}
+
+/**
+ * The views-rhythm section: read the rollups already kept (the board row's
+ * gate — the SAME sn_analytics_daily_range the public stats page reads, class
+ * human, nothing newly collected, never a reader profiled) and score the
+ * current complete week against the trailing ones.
+ *
+ * Honesty rules, in the file's own tradition:
+ *   - a FAILED read is SKIPPED and says so in the envelope, never a flag;
+ *   - no rows at all is thin history, not a wall of zeros;
+ *   - SENSOR BIRTH CLAMP: weeks that start before the earliest measured day
+ *     are EXCLUDED — before the sensor existed, absence is not a zero. A day
+ *     with no rows AFTER birth is a real zero (the public-stats inverse rule).
+ *
+ * @param int $now Observation instant (UTC).
+ * @return array{flag:array|null,skipped:bool}
+ */
+function snt_ml_views_rhythm_section( $now ) {
+	if ( ! function_exists( 'sn_analytics_daily_range' ) ) {
+		return array( 'flag' => null, 'skipped' => true );
+	}
+
+	// The current complete week is the 7 days ending yesterday-inclusive —
+	// today is partial and would undercount (the public-stats window lesson).
+	$week_end = strtotime( gmdate( 'Y-m-d', $now ) . ' UTC' ); // start of today = exclusive end
+	$span     = 7 * ( SNT_ML_RHYTHM_MAX_WEEKS + 1 );
+	$rows     = sn_analytics_daily_range(
+		gmdate( 'Y-m-d', $week_end - $span * DAY_IN_SECONDS ),
+		gmdate( 'Y-m-d', $week_end - DAY_IN_SECONDS ),
+		'human'
+	);
+	if ( ! is_array( $rows ) ) {
+		return array( 'flag' => null, 'skipped' => true );
+	}
+
+	$by_day = array();
+	foreach ( $rows as $row ) {
+		$day = is_array( $row ) ? (string) ( $row['day'] ?? '' ) : '';
+		if ( '' !== $day ) {
+			$by_day[ $day ] = ( $by_day[ $day ] ?? 0 ) + max( 0, (int) ( $row['views'] ?? 0 ) );
+		}
+	}
+	if ( array() === $by_day ) {
+		return array( 'flag' => null, 'skipped' => false ); // Nothing ever measured: thin, not zero.
+	}
+	$birth_ts = strtotime( min( array_keys( $by_day ) ) . ' UTC' );
+
+	$week_total = static function ( $start ) use ( $by_day ) {
+		$total = 0;
+		for ( $d = 0; $d < 7; $d++ ) {
+			$total += (int) ( $by_day[ gmdate( 'Y-m-d', $start + $d * DAY_IN_SECONDS ) ] ?? 0 );
+		}
+		return $total;
+	};
+
+	$current_start = $week_end - 7 * DAY_IN_SECONDS;
+	if ( false === $birth_ts || $current_start < $birth_ts ) {
+		return array( 'flag' => null, 'skipped' => false ); // The current week itself predates the sensor.
+	}
+	$history = array();
+	for ( $w = SNT_ML_RHYTHM_MAX_WEEKS; $w >= 1; $w-- ) {
+		$start = $current_start - 7 * $w * DAY_IN_SECONDS;
+		if ( $start < $birth_ts ) {
+			continue; // Pre-birth week: absence is not a zero.
+		}
+		$history[] = $week_total( $start );
+	}
+
+	$dev = snt_ml_views_rhythm( $history, $week_total( $current_start ) );
+	if ( ! is_array( $dev ) || null === $dev['z'] || $dev['z'] < SNT_ML_CADENCE_Z_FLAG ) {
+		return array( 'flag' => null, 'skipped' => false );
+	}
+	return array(
+		'flag'    => array(
+			'kind'           => 'views',
+			'subject'        => __( 'Reading rhythm', 'signal-and-noise-tools' ),
+			'z'              => (float) $dev['z'],
+			'expected_views' => (int) $dev['median'],
+			'current_views'  => (int) $dev['current'],
+			'last_at'        => (int) ( $week_end - DAY_IN_SECONDS ),
+		),
+		'skipped' => false,
+	);
+}
+
 /**
  * Compute the cadence flags.
  *
@@ -198,11 +333,18 @@ function snt_ml_cadence_flags( $now = null ) {
 		return $b['z'] <=> $a['z'];
 	} );
 
+	// ── Views rhythm (the R4 row) ────────────────────────────────────
+	$views = snt_ml_views_rhythm_section( $now );
+	if ( is_array( $views['flag'] ) ) {
+		$flags[] = $views['flag'];
+	}
+
 	return array(
 		'ok'            => true,
 		'flags'         => array_merge( $flags, $cron_flags ),
 		'watched_hooks' => $watched,
 		'cron_skipped'  => $cron_skipped,
+		'views_skipped' => (bool) $views['skipped'],
 	);
 }
 
