@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.98.0] - 2026-08-12 — the audit log stops printing every login it kept
 
 ### AL1: the audit log's recent-logins table folds, and its cap becomes real
 
