@@ -369,6 +369,17 @@ function sn_health_render_contrast_usage( $usage ) {
 	$visible = array_slice( $failures, 0, SN_HEALTH_CONTRAST_USAGE_MAX_ROWS );
 	$hidden  = count( $failures ) - count( $visible );
 
+	// IA increment H1: the row TABLE folds; the headline, palette line, and
+	// limits sentence above stay open — the honesty layer is not collapsible.
+	// The summary re-states the count so a closed fold can never hide THAT
+	// there is something inside, only the row-by-row evidence.
+	echo '<details class="sn-health-contrast-usage sn-disclosure"><summary>';
+	printf(
+		/* translators: %d: failing pairing count. */
+		esc_html( _n( 'Show the %d failing pairing', 'Show the %d failing pairings', count( $failures ), 'signal-and-noise-tools' ) ),
+		count( $failures )
+	);
+	echo '</summary>';
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat striped snt-mt-half"><thead><tr>';
 	echo '<th scope="col">' . esc_html__( 'Selector', 'signal-and-noise-tools' ) . '</th>';
@@ -406,6 +417,7 @@ function sn_health_render_contrast_usage( $usage ) {
 		);
 		echo '</p>';
 	}
+	echo '</details>';
 }
 
 /**

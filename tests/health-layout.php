@@ -33,6 +33,13 @@ if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
 if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+// ECHOES, never returns — the callee's real shape (the esc_html_e stub-drift
+// trap, bitten before: a returning stub greens markup the live site never has).
+if ( ! function_exists( 'esc_html_e' ) ) { function esc_html_e( $s, $d = null ) { echo htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+// The usage renderer's row cap normally arrives with inc/health-contrast-usage.php,
+// which this layout fixture deliberately does not load (it fakes the SCAN, not
+// the producers). Same value as the real constant.
+if ( ! defined( 'SN_HEALTH_CONTRAST_USAGE_MAX_ROWS' ) ) { define( 'SN_HEALTH_CONTRAST_USAGE_MAX_ROWS', 25 ); }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_url' ) ) { function esc_url( $s ) { return (string) $s; } }
 if ( ! function_exists( 'esc_html__' ) ) { function esc_html__( $s, $d = null ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
@@ -195,6 +202,38 @@ he_assert( is_int( $glance_at ) && is_int( $scan_at ) && $glance_at < $scan_at, 
 he_assert( is_int( $findings_at ) && $scan_at < $findings_at, 'run-scan precedes the findings' );
 he_assert( is_int( $reports_at ) && $findings_at < $reports_at, 'findings (which demand action) precede reports (which do not)' );
 he_assert( is_int( $passing_at ) && $reports_at < $passing_at, 'reports precede the passing disclosure (which asks nothing)' );
+
+// ─── Test A3 (IA increment H1): the usage FAILURE TABLE folds ───────────────
+// The headline, palette line, limits sentence, and conditional stay OPEN —
+// the honesty layer is not collapsible. Only the row table (and its remainder
+// line) sits behind an explicit closed <details>, summary carrying the count.
+echo "\nTest A3: usage failure table behind a closed disclosure (H1)\n";
+$GLOBALS['__scan']['checks']['contrast_tokens']['report']['usage'] = array(
+	'scanned'  => 4,
+	'pairings' => 12,
+	'palettes' => array( 'root' ),
+	'failures' => array(
+		array( 'selector' => '.sn-x', 'source' => 'x.css', 'pair' => 'rust on paper', 'ratio' => 3.1, 'palette' => 'root', 'literal' => false, 'anchored' => true ),
+		array( 'selector' => '.sn-y', 'source' => 'y.css', 'pair' => 'rust on bone', 'ratio' => 4.2, 'palette' => 'root', 'literal' => false, 'anchored' => true ),
+	),
+	'conditional' => array(),
+);
+ob_start();
+sn_health_render_admin_tab();
+$html3 = ob_get_clean();
+he_assert( false !== strpos( $html3, '<details class="sn-health-contrast-usage' ), 'the usage table sits inside its own details' );
+he_assert( false === strpos( $html3, '<details class="sn-health-contrast-usage" open' ), 'and it is CLOSED by default — the headline carries the verdict, the table is the evidence' );
+$d_at = strpos( $html3, '<details class="sn-health-contrast-usage' );
+$h_at = strpos( $html3, 'fall below body-text AA' );
+$l_at = strpos( $html3, 'Reads stylesheet declarations at rest' );
+he_assert( is_int( $h_at ) && is_int( $d_at ) && $h_at < $d_at, 'the failing-count HEADLINE renders before (outside) the fold' );
+he_assert( is_int( $l_at ) && $l_at < $d_at, 'the limits sentence renders before (outside) the fold — a reader who trusts the headline still meets the caveat' );
+$sum = substr( $html3, $d_at, 300 );
+he_assert( false !== strpos( $sum, '2' ) && false !== strpos( $sum, 'failing' ), 'the summary names the failing count — a closed fold may never hide THAT there is something inside' );
+$t_at = strpos( $html3, '.sn-x' );
+$dc_at = strpos( $html3, '</details>', $d_at );
+he_assert( is_int( $t_at ) && is_int( $dc_at ) && $d_at < $t_at && $t_at < $dc_at, 'the failure rows live inside the fold' );
+unset( $GLOBALS['__scan']['checks']['contrast_tokens']['report']['usage'] );
 
 // ─── Test B: NO scan — hero shows the no-scan card, no tables ────────────────
 echo "\nTest B: Health with no scan — no-scan hero, no tables\n";
