@@ -2,7 +2,12 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.99.0] - 2026-08-12 — the gauges name the window they measured, and the schedule wall folds
+
+Three surfaces, one habit: a number is only as good as the span it was measured
+over, and a list is only as good as its order. The Defense gauges stopped
+publishing readings over windows nobody watched, and the scheduled-content wall
+learned to fold — but only after its cap learned to sort.
 
 ### IA SCHED1: the scheduled-content wall folds, and its cap starts sorting
 
