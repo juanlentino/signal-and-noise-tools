@@ -282,9 +282,25 @@ ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array
 // already kept, deterministic, never profiling a reader — where the
 // considering copy committed to nothing.
 ok( false === strpos( implode( ' | ', $floor['Analytics']['considering'] ), 'Traffic rhythm flags' ), 'DR floor: the rhythm-flags row is NO LONGER a considering idea' );
-ok( false !== strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'Traffic rhythm flags' ), 'DR floor: it sits in Analytics PLANNED' );
-ok( false !== strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'read from the rollups already kept, deterministic, never profiling a reader' ), 'DR floor: and the promoted row NAMES its gate, as every planned row must' );
+// 2026-08-12 evening: promoted in the morning, BUILT and GRADUATED by night
+// (v10.94.0 verified live: the envelope carries views_skipped, the surface
+// answered). A done row states what acts; the gate clause survives inside it.
+ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'Traffic rhythm flags: the cadence watch now reads views' ), 'DR floor: the rhythm-flags row sits in Analytics DONE, stating what acts' );
+ok( false === strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'Traffic rhythm flags' ), 'DR floor: and no stale planned copy of it survives — a row moves, it is never copied' );
+ok( false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'read from the rollups already kept' ) && false !== strpos( implode( ' | ', $floor['Analytics']['done'] ), 'never profiling a reader' ), 'DR floor: the graduated row still carries its gate clauses — the promise it was built against rides inside the claim' );
 ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'without ever profiling a reader' ), 'DR floor: no stale considering-era phrasing survives in ANY Analytics column' );
+
+// The founding measurement row RETIRED to the family maturity page when the
+// done-column ceiling bound (rhythm's graduation would have made 5 of 5 and
+// tripped the canary). Retirement is removal from the HUB only — the
+// Analytics family page states the whole pipeline — so the floor must show
+// the row in NO column at all, not merely out of done.
+ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'First-party, cookieless measurement at the edge' ), 'DR floor: the retired founding row appears in NO Analytics column — it lives on the family page now' );
+
+// Charts that speak graduated the same night (v10.93.1 verified live:
+// 5 calendar rows x 7 columns, 30 day cells on the bare URL).
+ok( false !== strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'ships with its voice built in' ), 'DR floor: the charts row sits in Accessibility DONE' );
+ok( false === strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'Charts that speak' ), 'DR floor: and no stale planned copy of it survives' );
 
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );

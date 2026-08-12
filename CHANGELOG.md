@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Two graduations and the board's first ceiling-forced retirement
+
+Charts-that-speak and rhythm-flags graduated to `done` the same day they
+shipped, both surfaces verified live first (the calendar twin on the bare
+URL; the rhythm envelope's `views_skipped` key proving v10.94.0 executes).
+Rhythm's graduation would have put Analytics `done` at 5 of 5 — the canary's
+wall — so the **founding measurement row retired to the Analytics family
+maturity page** (owner call): the oldest claim, and the one that page already
+documents end to end. Retirement is removal from the hub only, and the floor
+pins it in NO column, not merely out of `done`. Both graduated sentences keep
+their gate clauses inside the claim. Board 60 → 59 rows, legend 21/9/16/13;
+floor fingerprint `d38c4bc9…` == the door-written board; sweep 16,609 →
+16,613.
+
 ## [10.94.0] - 2026-08-12 — traffic rhythm flags: the cadence watch learns to read views
 
 The R4 row promoted this morning, delivered by evening — its gate honoured

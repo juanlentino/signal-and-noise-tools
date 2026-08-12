@@ -102,14 +102,17 @@ function sn_maturity_roadmap_static_board() {
 	$board = array(
 		__( 'Analytics', 'signal-and-noise-tools' )           => array(
 			'done'        => array(
-				__( 'First-party, cookieless measurement at the edge, with rollups, integrity-checked denominators, insights, and a weekly prose digest', 'signal-and-noise-tools' ),
+				// 2026-08-12: the founding measurement row RETIRED to the
+				// Analytics family maturity page (the done-column ceiling at
+				// work — graduation off the hub is not deletion; that page
+				// states the whole pipeline).
 				__( 'A public stats page: the site\'s aggregate numbers published for readers — views, reader-days, and the automated share shown rather than hidden — read from the existing rollups, nothing newly collected', 'signal-and-noise-tools' ),
 				__( 'AI-referred humans as a channel: visits that arrive from an assistant\'s answer counted as their own aggregate segment in the rollups — a reader an AI sent is a different signal than a reader search sent, and lumping them hides the shift', 'signal-and-noise-tools' ),
 				__( 'Which machines send a reader back: per operator, the ledger\'s crawl counts published beside that operator\'s referred human visits — stated as a sentence each, not a ratio, because crawls are requests and visits are visitor-days. An operator that read the site hundreds of times and sent nobody back is the finding, and a bare 0 would bury it — a thread shared with Machine readability', 'signal-and-noise-tools' ),
+				__( 'Traffic rhythm flags: the cadence watch now reads views — a quiet week flags against the site\'s own trailing weeks, robust to a viral spike and one-sided by design — read from the rollups already kept, never profiling a reader', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection — a thread shared with Machine readability', 'signal-and-noise-tools' ),
-				__( 'Traffic rhythm flags: the deterministic cadence watch extended from cron to views, saying "this week is quiet" — read from the rollups already kept, deterministic, never profiling a reader', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Search-side metrics from Search Console: the queries, impressions, and positions that happen before the click — a trailing complement to the first-party view, never a second opinion on it', 'signal-and-noise-tools' ),
@@ -199,11 +202,11 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Structural scans with fingerprint-safe fixes, so a heading-hierarchy repair can never write over a block that moved', 'signal-and-noise-tools' ),
 				__( 'Alt-text coverage extended to inline vector artwork, checked as an accessible name rather than an attribute — the title or label a screen reader would actually announce, or an explicit decorative marking — because that kind of image carries no alt attribute to find, and a sweep looking for one would call every drawing broken', 'signal-and-noise-tools' ),
 				__( 'Alt-text quality, not just coverage: filename echoes, caption duplicates, alt that repeats the heading beside it, and alt that names a category rather than the picture raised as findings a person accepts or rejects — the same human acceptance the coverage sweep already passes through, never a silent rewrite', 'signal-and-noise-tools' ),
+				__( 'Charts that speak: the stats page\'s chart ships with its voice built in — a deterministic one-paragraph summary and a calendar-shaped table twin a screen reader navigates with week and weekday context, the picture itself only decoration — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'An accessible treatment for third-party embeds: the embed replaced by an accessible card that links out, with the third party loaded only when a reader asks for it — so nothing is fetched on a reader\'s behalf before they choose it', 'signal-and-noise-tools' ),
 				__( 'Contrast audited at the token level: every palette pairing the templates actually use, checked from computed styles so an inline override cannot hide — landing report-first, findings published before any fix ships', 'signal-and-noise-tools' ),
-				__( 'Charts that speak: every chart on the public stats page ships a screen-reader-navigable table twin and a one-paragraph prose summary — so the numbers are readable without eyes, not just visible — landing as a retrofit on the page already live — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(),
 			'later'       => array(
