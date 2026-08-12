@@ -2,6 +2,44 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — R3 3D decided: the broker is not built
+
+Un-versioned, docs only; rides the next release.
+
+§8.5 recommended not building the edge broker *next*. Asked to settle the row,
+**§8.8 settles it: do not build it at all on the current evidence**, and stop
+carrying it as `planned`.
+
+The reasoning, shortest form: **wp-admin already exposes every fact the read door
+serves**, from any browser, behind the login guard — so what a broker uniquely
+adds is *pointing an AI agent at the site from a phone*. That is convenience. The
+asset it would expose is **unpublished writing**, and the cost is a credential at
+a location the owner cannot rotate from wp-admin.
+
+Decisive on top of that: **this surface's invariants were wrong last week.** F2 —
+a kill switch covering one of two routes — lived undetected in a shipped security
+surface, and F1's absence with it. Adding a new trust boundary to a surface whose
+existing boundaries just failed is the wrong order of operations.
+
+| option | verdict |
+|---|---|
+| Edge broker holding a credential | **No** — permanent structural cost, convenience benefit |
+| Scoped, expiring, read-only token | **Not yet** — right shape, no named user story |
+| Extend the outbound digest | **The actionable alternative** if the want is real |
+
+`inc/security-digest.php` already proves the cheaper shape: deterministic,
+opt-in, weekly, no AI in the path, zero-week heartbeat so silence never reads as
+health. **Push, not pull** — no new credential, no new endpoint, no A5.
+
+**What would change it**, stated so it is falsifiable: a concrete, repeated task
+the owner wants to do from a phone that *requires* an agent reading the corpus.
+Then build the scoped token — named ability subset, short expiry, revocable from
+wp-admin, failing **closed** — never the broker.
+
+**For the owner:** the board row sits in AI `planned`, which promises it ships.
+Moving it is deliberately not done here — `never` is owner-edit only, and walking
+a `planned` row backwards is a roadmap statement, not a threat-model one.
+
 ## [10.92.0] - 2026-08-11 — the read door's switch covers the door, and the door has a ceiling
 
 **MINOR** — not repairs of broken behaviour but **new enforcement**: the kill
