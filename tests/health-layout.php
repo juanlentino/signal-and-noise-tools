@@ -239,6 +239,16 @@ $h_at = strpos( $html3, 'fall below body-text AA' );
 $l_at = strpos( $html3, 'Reads stylesheet declarations at rest' );
 he_assert( is_int( $h_at ) && is_int( $d_at ) && $h_at < $d_at, 'the failing-count HEADLINE renders before (outside) the fold' );
 he_assert( is_int( $l_at ) && $l_at < $d_at, 'the limits sentence renders before (outside) the fold — a reader who trusts the headline still meets the caveat' );
+// The limits sentence used to defer its three blind spots to "the headless
+// render tier (r3-prep §3C)" — a surface that is now DECIDED AGAINST, not
+// pending. Deferring a known gap to something nobody will build tells the
+// reader to wait instead of to act. Pin the CLAIM, not the wording: no promise
+// of a future tier, and the hand-run instrument named so the next step is
+// reachable from the panel that reports the gap.
+he_assert( false === strpos( $html3, 'headless render tier' ),
+	'the limits sentence no longer defers to a render TIER that was decided against (find-then-pin, not a coming surface)' );
+he_assert( false !== strpos( $html3, 'contrast-render-scan' ),
+	'…and names the hand-run instrument instead, so the reader knows what closes the gap' );
 $sum = substr( $html3, $d_at, 300 );
 he_assert( false !== strpos( $sum, '2' ) && false !== strpos( $sum, 'failing' ), 'the summary names the failing count — a closed fold may never hide THAT there is something inside' );
 $t_at = strpos( $html3, '.sn-x' );

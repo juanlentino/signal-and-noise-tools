@@ -138,6 +138,43 @@ the same blind spot one level up.
 that never co-occurs is *not* reported as a defect; the report distinguishes the
 two tiers; hardcoded (non-token) pairs are within the rendered tier's reach.
 
+### DECIDED 2026-08-12 — find-then-pin. This row is closed, not owed.
+
+Scoped in full at
+[docs/proposals/render-scan-deterministic.md](proposals/render-scan-deterministic.md)
+(8 options, 7 increments, 7 kill criteria). **Owner decision: find-then-pin is
+enough — ship Increment 0 only.** Increments 1–6 (fixture corpus, palette
+injection, coverage ledger, browserless scoring tests, Health-panel ingest,
+theme snapshots, extra states) are **declined**, not deferred.
+
+**What that means for this row's own criterion.** §3C says the rendered tier
+"must read computed styles, not token declarations". `tools/contrast-render-scan.mjs`
+*already does*, and already forces `:hover` / `:focus-visible` through CDP — so
+the criterion is met by a file that exists. What was never true of it was
+determinism, which Increment 0 fixed:
+
+- `--deterministic` pins transitions/animations, emulated `prefers-reduced-motion`
+  and `prefers-color-scheme`, `load` over `networkidle`, `deviceScaleFactor: 1`,
+  and **refuses the live URL list** (a deterministic run needs repo-controlled
+  input).
+- **Unconditionally**, in either mode: a run that measures nothing now exits
+  non-zero instead of printing the all-clear. Previously, every target failing
+  to load produced "No rendered pairing falls below AA" and exit 0.
+- Both kill criteria were **run as tests, not assumed**: two deterministic runs
+  agree exactly, and the planted 3.29:1 hover survives frozen transitions.
+
+**The workflow, stated so it is not re-litigated:** run the instrument by hand
+against the live site when something looks wrong, and pin what it finds in
+`tests/*.php` — the way v10.90.1 turned the 3.29:1 hover into
+`tests/prov-verify-contrast.php`. There is no recurring rendered census, no
+third number on the Health card, and no CI browser job.
+
+**Consequence for the contrast panel's copy.** The usage tier's limits line used
+to defer its three blind spots to "the headless render tier (r3-prep §3C)". That
+sentence promised a surface nobody will build, which tells the reader to wait
+instead of to act. It now names the hand-run instrument
+(`inc/health-render-contrast.php`, pinned in `tests/health-layout.php`).
+
 ## 3D — Reach the read door from the web and the phone `[workers]`
 
 **Where:** `inc/mcp/mcp-read-guard.php` (the door's own kill switch,
