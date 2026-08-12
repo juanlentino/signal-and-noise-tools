@@ -368,5 +368,31 @@ ok( false !== $bind_pos && false !== $first_list_pos && $bind_pos < $first_list_
 ok( false !== $connect_pos && false !== $first_list_pos && $connect_pos < $first_list_pos,
 	'M1: "Connect a client" heading appears before the first sn-mcp-tool-list' );
 
+// ── M2 (IA): both tool inventories fold into closed <details> ──
+// Every slug stays in the HTML (the presence pins above iterate the live
+// allowlists against the same $html), but the two walls of <li><code> rows sit
+// behind explicit closed disclosures whose summaries carry the LIVE counts —
+// count() over the allowlist functions, never a hardcoded number.
+ok( 2 === substr_count( $html, '<details class="sn-mcp-tools' ), 'M2: exactly two tool-inventory disclosures (read door, write door)' );
+ok( false === strpos( $html, '<details class="sn-mcp-tools sn-disclosure" open' ), 'M2: neither inventory disclosure is open by default' );
+$read_details_at = strpos( $html, '<details class="sn-mcp-tools' );
+$read_summary    = substr( $html, (int) $read_details_at, 300 );
+ok( false !== strpos( $read_summary, (string) count( $slugs ) . ' read-only tools' ), 'M2: the read-door summary carries the live read count' );
+$rw_details_at = strpos( $html, '<details class="sn-mcp-tools', (int) $read_details_at + 1 );
+$rw_summary    = substr( $html, (int) $rw_details_at, 300 );
+ok( false !== strpos( $rw_summary, (string) count( $rw_slugs ) . ' read-write tools' ), 'M2: the write-door summary carries the live rw count' );
+ok( false !== strpos( $rw_summary, '4 withheld' ), 'M2: the write-door summary names the withheld count beside the tool count' );
+// The withheld slugs explain a gap in the WRITE list, so they live inside the
+// write-door disclosure — folding them elsewhere would orphan the explanation.
+$rw_details_close = strpos( $html, '</details>', (int) $rw_details_at );
+$withheld_at      = strpos( $html, 'signal-noise/run-cron-event' );
+ok( is_int( $withheld_at ) && is_int( $rw_details_close ) && $rw_details_at < $withheld_at && $withheld_at < $rw_details_close,
+	'M2: the withheld slugs sit INSIDE the write-door disclosure' );
+// And the read-door slug list sits inside the first disclosure, not before it.
+$first_list_in_details = strpos( $html, 'sn-mcp-tool-list' );
+$read_details_close    = strpos( $html, '</details>', (int) $read_details_at );
+ok( is_int( $first_list_in_details ) && $read_details_at < $first_list_in_details && $first_list_in_details < (int) $read_details_close,
+	'M2: the read-door slug list lives inside its fold' );
+
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
