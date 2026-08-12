@@ -54,6 +54,42 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      # UPSTREAM PROPAGATION GUARD (2026-08-12): the action's wp-env resolves
+      # "latest" from api.wordpress.org, then fetches that version as a git ref
+      # from the WordPress/WordPress mirror — which lags the API by hours on
+      # release day. 7.0.4 hit that window: every PR failed on
+      # `fatal: couldn't find remote ref 7.0.4` before the diff was ever read,
+      # and because this is a REQUIRED check, the whole repo was unmergeable.
+      # (The action's own wp-version input is no escape hatch: at v1.1.7–v1.1.9
+      # it only distinguishes 'trunk' — any other value falls through to the
+      # same latest-from-API resolution.)
+      #
+      # This step is SELF-HEALING, not a pin. When the mirror carries the API's
+      # latest tag it writes nothing and the default resolution stands — so the
+      # guard cannot rot into a stale version pin. Only while the mirror lags
+      # does it pin core, via .wp-env.override.json (which wp-env merges over
+      # the action's own .wp-env.json), to the newest stable tag the mirror
+      # actually serves. Every failure mode inside the guard exits 0 and leaves
+      # the default behaviour alone: the guard must never be able to break a
+      # run the default path would have survived.
+      - name: Pin WordPress core to a ref the git mirror has (only while it lags the API)
+        run: |
+          LATEST=$(curl -sf --max-time 15 "https://api.wordpress.org/core/version-check/1.7/" | jq -r '.offers[0].current')
+          if [ -z "$LATEST" ] || [ "$LATEST" = "null" ]; then
+            echo "version API unreadable - leaving default resolution alone"
+            exit 0
+          fi
+          if git ls-remote --exit-code https://github.com/WordPress/WordPress.git "refs/tags/$LATEST" >/dev/null 2>&1; then
+            echo "mirror has $LATEST - no override needed"
+            exit 0
+          fi
+          HAVE=$(git ls-remote --tags https://github.com/WordPress/WordPress.git | sed 's|.*refs/tags/||' | grep -E '^[0-9]+\.[0-9]+(\.[0-9]+)?$' | sort -V | tail -1)
+          if [ -z "$HAVE" ]; then
+            echo "could not enumerate mirror tags - leaving default resolution alone"
+            exit 0
+          fi
+          printf '{ "core": "WordPress/WordPress#%s" }\n' "$HAVE" > .wp-env.override.json
+          echo "mirror lacks $LATEST - pinned core to $HAVE for this run"
       # The action spins up a real wp-env, activates this plugin, and runs
       # `wp plugin check` against it. build-dir defaults to './', so the plugin
       # slug resolves to the repo dir (signal-and-noise-tools), matching the
