@@ -75,6 +75,12 @@ if ( ! function_exists( 'wp_kses_post' ) ) {
 if ( ! function_exists( '__' ) ) {
 	function __( $s, $d = null ) { return (string) $s; }
 }
+// Models WP's real signature: the PLURAL is returned for every count except
+// exactly 1, including 0. A stub that always returned $single would hide a
+// singular/plural mix-up in the fold summary and the remainder line.
+if ( ! function_exists( '_n' ) ) {
+	function _n( $single, $plural, $number, $d = null ) { return 1 === (int) $number ? (string) $single : (string) $plural; }
+}
 if ( ! function_exists( 'esc_html_e' ) ) {
 	function esc_html_e( $s, $d = null ) { echo htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
 }
@@ -385,6 +391,115 @@ if ( ! function_exists( 'sn_admin_flash_messages' ) ) {
 $codes = sn_admin_flash_messages();
 ok( isset( $codes['schedule_swap_fired'] ) && 'success' === ( $codes['schedule_swap_fired'][0] ?? '' ),
 	'flash registry resolves schedule_swap_fired as a success notice' );
+
+// ════════════════════════════════════════════════════════════════════════════
+// GROUP 5 (IA SCHED1): the schedule wall folds, caps, and leads with the
+// soonest transition. The glance stays OUTSIDE the fold — the honesty layer is
+// not collapsible.
+// ════════════════════════════════════════════════════════════════════════════
+
+// --- the sort key ------------------------------------------------------------
+$now = time();
+ok( 0 === sn_admin_schedule_next_transition_ts( gmdate( 'Y-m-d H:i:s', $now - 7200 ), gmdate( 'Y-m-d H:i:s', $now - 3600 ) ),
+	'next-transition ts: both boundaries past -> 0 (nothing pending)' );
+ok( 0 === sn_admin_schedule_next_transition_ts( '', null ),
+	'next-transition ts: no boundaries -> 0' );
+$soonest = sn_admin_schedule_next_transition_ts( gmdate( 'Y-m-d H:i:s', $now + 7200 ), gmdate( 'Y-m-d H:i:s', $now + 3600 ) );
+ok( $soonest > $now && $soonest <= $now + 3600 + 2,
+	'next-transition ts: returns the SOONEST future boundary, not the first one listed' );
+ok( sn_admin_schedule_next_transition_ts( gmdate( 'Y-m-d H:i:s', $now - 3600 ), gmdate( 'Y-m-d H:i:s', $now + 3600 ) ) > $now,
+	'next-transition ts: a past start does not mask a future end' );
+
+// 30 fragments, supplied WORST-ORDER-FIRST (latest first) so a renderer that
+// trusts producer order cannot pass by accident.
+$many = array();
+for ( $i = 30; $i >= 1; $i-- ) {
+	$many[] = array(
+		'id'          => $i,
+		'schedule_id' => 'blk-' . $i,
+		'target_type' => 'fragment',
+		'target_ref'  => (string) ( 1000 + $i ),
+		'action'      => 'reveal',
+		'starts_at'   => gmdate( 'Y-m-d H:i:s', $now + ( $i * 86400 ) ),
+		'ends_at'     => null,
+		'status'      => 'queued',
+		'last_run'    => null,
+		'purge_urls'  => '[]',
+	);
+}
+$GLOBALS['__schedule_all'] = $many;
+$GLOBALS['__future_posts'] = array();
+ob_start();
+sn_admin_render_scheduled_content_section();
+$wall = ob_get_clean();
+
+ok( false !== strpos( $wall, '<details class="sn-schedule-log sn-disclosure">' ),
+	'IA SCHED1: the schedule wall sits behind a .sn-disclosure fold' );
+ok( false === strpos( $wall, '<details class="sn-schedule-log sn-disclosure" open' ),
+	'IA SCHED1: the fold is CLOSED by default (the wall is the thing being folded away)' );
+ok( false !== strpos( $wall, '<summary' ) && false !== strpos( $wall, '30' ),
+	'IA SCHED1: the summary carries the TRUE total (30), so the fold hides evidence but never that there is any' );
+
+// The glance is the honesty layer: it must render BEFORE, and outside, the fold.
+$g = strpos( $wall, 'sn-glance' );
+$d = strpos( $wall, '<details class="sn-schedule-log' );
+ok( false !== $g && false !== $d && $g < $d,
+	'IA SCHED1: the glance hero stays OUTSIDE the fold, above it' );
+
+// Cap + order, asserted together: soonest survives, latest is dropped.
+ok( false !== strpos( $wall, 'post=1001' ),
+	'IA SCHED1: the SOONEST row survives the cap (sorted, not producer order)' );
+ok( false === strpos( $wall, 'post=1030' ),
+	'IA SCHED1: the farthest row is capped away (25 of 30)' );
+ok( false !== strpos( $wall, 'post=1025' ) && false === strpos( $wall, 'post=1026' ),
+	'IA SCHED1: the cap falls exactly at 25 rows, soonest-first' );
+ok( false !== strpos( $wall, 'sn-schedule-remainder' ) && false !== strpos( $wall, '5' ),
+	'IA SCHED1: an explicit remainder line names the 5 rows not shown' );
+
+// Under the cap: no remainder line invented.
+$GLOBALS['__schedule_all'] = array_slice( $many, 0, 3 );
+ob_start();
+sn_admin_render_scheduled_content_section();
+$small = ob_get_clean();
+ok( false === strpos( $small, 'sn-schedule-remainder' ),
+	'IA SCHED1: under the cap, no remainder line is invented' );
+ok( false !== strpos( $small, '<details class="sn-schedule-log sn-disclosure">' ),
+	'IA SCHED1: the fold is unconditional, matching AL1/MR1-4 (the summary carries the count either way)' );
+
+// Rows with NO future boundary sort last rather than pushing live rows out.
+$GLOBALS['__schedule_all'] = array(
+	array( 'id' => 1, 'schedule_id' => 'blk-dead', 'target_type' => 'fragment', 'target_ref' => '2001',
+		'action' => 'reveal', 'starts_at' => gmdate( 'Y-m-d H:i:s', $now - 86400 ), 'ends_at' => null,
+		'status' => 'fired', 'last_run' => null, 'purge_urls' => '[]' ),
+	array( 'id' => 2, 'schedule_id' => 'blk-live', 'target_type' => 'fragment', 'target_ref' => '2002',
+		'action' => 'reveal', 'starts_at' => gmdate( 'Y-m-d H:i:s', $now + 3600 ), 'ends_at' => null,
+		'status' => 'queued', 'last_run' => null, 'purge_urls' => '[]' ),
+);
+$GLOBALS['__future_posts'] = array();
+ob_start();
+sn_admin_render_scheduled_content_section();
+$mixed = ob_get_clean();
+ok( strpos( $mixed, 'post=2002' ) < strpos( $mixed, 'post=2001' ),
+	'IA SCHED1: a row with no pending boundary sorts BELOW one that still has a transition' );
+
+// Both sources still fold into the one ordered list (the v6.40.0 contract).
+$GLOBALS['__schedule_all'] = array(
+	array( 'id' => 1, 'schedule_id' => 'blk-late', 'target_type' => 'fragment', 'target_ref' => '3001',
+		'action' => 'reveal', 'starts_at' => gmdate( 'Y-m-d H:i:s', $now + 172800 ), 'ends_at' => null,
+		'status' => 'queued', 'last_run' => null, 'purge_urls' => '[]' ),
+);
+$GLOBALS['__future_posts'] = array(
+	array( 'id' => 3002, 'title' => 'Sooner Post', 'scheduled_ts' => $now + 3600,
+		'scheduled_gmt' => gmdate( 'Y-m-d H:i:s', $now + 3600 ),
+		'edit_link' => 'https://example.test/wp-admin/post.php?post=3002&action=edit' ),
+);
+ob_start();
+sn_admin_render_scheduled_content_section();
+$both = ob_get_clean();
+ok( false !== strpos( $both, 'Sooner Post' ) && false !== strpos( $both, 'post=3001' ),
+	'IA SCHED1: both sources still render in the one table' );
+ok( strpos( $both, 'Sooner Post' ) < strpos( $both, 'post=3001' ),
+	'IA SCHED1: ordering is across BOTH sources, not fragments-then-posts' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

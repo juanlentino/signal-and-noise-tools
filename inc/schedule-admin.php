@@ -35,6 +35,20 @@
  * referenced by NAME from the admin registry (inc/admin-tabs-data.php), so it
  * only needs to be defined when rendering runs.
  *
+ * IA SCHED1 (fold arc): the row wall folds. Glance cards stay OPEN above it —
+ * the honesty layer is never collapsible — and the closed
+ * <details class="sn-schedule-log sn-disclosure"> carries the TRUE total in its
+ * summary, so the fold hides the evidence and never that there is any. The list
+ * caps at SN_SCHEDULE_DISPLAY_CAP with the house remainder line.
+ *
+ * The ordering is the load-bearing part, not the fold. A cap over an unsorted
+ * union of two producers drops whichever rows happened to land late, and the
+ * rows worth keeping are exactly the ones about to fire — so the renderer sorts
+ * on a COPY by soonest pending transition (sn_admin_schedule_ordered_rows()),
+ * across BOTH sources, with "nothing pending" sorting last rather than reading
+ * as the soonest possible moment. Correctness of the cap must not depend on a
+ * distant producer continuing to return a helpful order.
+ *
  * @package SignalNoiseTools
  * @since 6.40.0
  */
@@ -42,6 +56,13 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/**
+ * Display cap for the scheduled-content wall (IA SCHED1). Truncates the LIST
+ * only — the glance cards and the fold summary always carry the true total, so
+ * a capped list can never under-report how much is scheduled.
+ */
+const SN_SCHEDULE_DISPLAY_CAP = 25;
 
 /**
  * Render the scheduled-content status list: the union of the fragment/queue rows
@@ -117,6 +138,21 @@ function sn_admin_render_scheduled_content_section() {
 		return;
 	}
 
+	// IA SCHED1: the row wall folds. The glance above stays open — the honesty
+	// layer is never collapsible — and the summary carries the TRUE total, so
+	// the fold hides the evidence but never that there is any.
+	$ordered = sn_admin_schedule_ordered_rows( $fragments, $posts );
+	$shown   = array_slice( $ordered, 0, SN_SCHEDULE_DISPLAY_CAP );
+
+	echo '<details class="sn-schedule-log sn-disclosure">';
+	echo '<summary>';
+	printf(
+		/* translators: %d: total scheduled items. */
+		esc_html( _n( '%d scheduled item', '%d scheduled items', $total, 'signal-and-noise-tools' ) ),
+		(int) $total
+	);
+	echo '</summary>';
+
 	echo '<table class="wp-list-table widefat striped">';
 	echo '<thead><tr>';
 	echo '<th scope="col">' . esc_html__( 'Target', 'signal-and-noise-tools' ) . '</th>';
@@ -128,14 +164,32 @@ function sn_admin_render_scheduled_content_section() {
 	echo '<th scope="col">' . esc_html__( 'Actions', 'signal-and-noise-tools' ) . '</th>';
 	echo '</tr></thead><tbody>';
 
-	foreach ( $fragments as $row ) {
-		sn_admin_render_schedule_fragment_row( $row );
-	}
-	foreach ( $posts as $post ) {
-		sn_admin_render_schedule_future_post_row( $post );
+	foreach ( $shown as $entry ) {
+		if ( 'post' === $entry['kind'] ) {
+			sn_admin_render_schedule_future_post_row( $entry['row'] );
+		} else {
+			sn_admin_render_schedule_fragment_row( $entry['row'] );
+		}
 	}
 
 	echo '</tbody></table>';
+
+	// Remainder line in the house shape (motion / contrast set it): a
+	// .sn-field-helper paragraph AFTER the table, "+N more <noun>, sorted
+	// <key>-first — the tail is <what>." Inside the fold, because it describes
+	// the list it follows.
+	$remainder = $total - count( $shown );
+	if ( $remainder > 0 ) {
+		echo '<p class="sn-field-helper sn-schedule-remainder">';
+		printf(
+			/* translators: %d: hidden row count */
+			esc_html( _n( '+%d more scheduled item, sorted soonest-first — the tail is the furthest out.', '+%d more scheduled items, sorted soonest-first — the tail is the furthest out.', $remainder, 'signal-and-noise-tools' ) ),
+			(int) $remainder
+		);
+		echo '</p>';
+	}
+
+	echo '</details>';
 }
 
 /**
@@ -395,6 +449,26 @@ function sn_admin_schedule_fmt_gmt( $gmt ) {
  * @return string A label like "in 3 days", or '' when nothing is pending.
  */
 function sn_admin_schedule_next_transition( $starts_at, $ends_at ) {
+	$next = sn_admin_schedule_next_transition_ts( $starts_at, $ends_at );
+	if ( 0 === $next ) {
+		return ''; // no pending boundary; the caller renders a dash placeholder.
+	}
+
+	/* translators: %s is a human-readable relative time, e.g. "3 days". */
+	return sprintf( __( 'in %s', 'signal-and-noise-tools' ), human_time_diff( (int) current_time( 'timestamp', true ), $next ) );
+}
+
+/**
+ * The same computation as a TIMESTAMP rather than a label — the sort key behind
+ * the ordered list (IA SCHED1). Split out because a display cap must slice an
+ * ordered list, and ordering by a human string ("in 3 days" vs "in 30 minutes")
+ * sorts alphabetically, which is not an order at all.
+ *
+ * @param mixed $starts_at Stored UTC starts_at, or null/''.
+ * @param mixed $ends_at   Stored UTC ends_at, or null/''.
+ * @return int Unix ts of the soonest FUTURE boundary, or 0 when none pends.
+ */
+function sn_admin_schedule_next_transition_ts( $starts_at, $ends_at ) {
 	$now  = (int) current_time( 'timestamp', true );
 	$next = 0;
 
@@ -412,12 +486,53 @@ function sn_admin_schedule_next_transition( $starts_at, $ends_at ) {
 		}
 	}
 
-	if ( 0 === $next ) {
-		return ''; // no pending boundary; the caller renders a dash placeholder.
+	return $next;
+}
+
+/**
+ * Merge the two sources into ONE list ordered by soonest pending transition.
+ *
+ * Sorting happens HERE, on a copy, rather than being assumed of the producers:
+ * a display cap that slices an unsorted list silently drops whichever rows
+ * happened to land late, and the ones worth keeping are exactly the ones about
+ * to fire. Rows with no pending boundary (everything already past) sort LAST —
+ * they are history, and they must not push a live row out of the cap.
+ *
+ * @param array $fragments sn_schedule_all() rows.
+ * @param array $posts     sn_schedule_future_posts() rows.
+ * @return array<int,array{kind:string,row:array,ts:int}> Ordered, soonest first.
+ */
+function sn_admin_schedule_ordered_rows( $fragments, $posts ) {
+	$out = array();
+
+	foreach ( (array) $fragments as $row ) {
+		$out[] = array(
+			'kind' => 'fragment',
+			'row'  => (array) $row,
+			'ts'   => sn_admin_schedule_next_transition_ts( $row['starts_at'] ?? null, $row['ends_at'] ?? null ),
+		);
+	}
+	foreach ( (array) $posts as $post ) {
+		$out[] = array(
+			'kind' => 'post',
+			'row'  => (array) $post,
+			'ts'   => sn_admin_schedule_next_transition_ts( $post['scheduled_gmt'] ?? null, null ),
+		);
 	}
 
-	/* translators: %s is a human-readable relative time, e.g. "3 days". */
-	return sprintf( __( 'in %s', 'signal-and-noise-tools' ), human_time_diff( $now, $next ) );
+	usort(
+		$out,
+		static function ( $a, $b ) {
+			// 0 means "nothing pending" — sort those to the bottom rather than
+			// letting a zero read as the soonest possible moment.
+			if ( 0 === $a['ts'] || 0 === $b['ts'] ) {
+				return $a['ts'] === $b['ts'] ? 0 : ( 0 === $a['ts'] ? 1 : -1 );
+			}
+			return $a['ts'] <=> $b['ts'];
+		}
+	);
+
+	return $out;
 }
 
 /**
