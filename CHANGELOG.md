@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.97.0] - 2026-08-12 — the Health tab tells faults from advisories, and the Machine Readers folds settle
 
 ### H5: fault findings group by family, and advisories stop impersonating them
 
