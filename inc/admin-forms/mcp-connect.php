@@ -40,12 +40,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Required from here — not only from the plugin loader — so every load site of this file (tests included) stays whole.
+require_once __DIR__ . '/mcp-connect-status.php';
+
 /**
  * Tools → Connect an MCP client section body. Used as the
  * sn_admin_render_section() callback for the 'mcp-connect' sub-tab.
  */
 function sn_admin_render_mcp_connect_section() {
 	echo '<p>' . esc_html__( 'Three MCP doors can answer for this site (two native, one third-party) and every one of them sits behind your own WordPress login, an Application Password, never a shared secret. The native doors split by capability: the read door below can only look, the write door under it can also change things, so use whichever credential scope you actually mean to grant.', 'signal-and-noise-tools' ) . '</p>';
+
+	sn_admin_render_mcp_status_glance();
 
 	// M1 (IA): bind + connect sit above both tool-list doors so the returning
 	// owner's job and the first-run job are reachable without scrolling past

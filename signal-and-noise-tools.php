@@ -207,6 +207,7 @@ require_once SNT_PATH . 'inc/mcp/mcp-server.php';
 require_once SNT_PATH . 'inc/mcp/mcp-rw-guard.php'; // v9.51.0: rw-door credential split + kill switch (lane SEC-A) — before mcp-endpoint.php, which calls it.
 require_once SNT_PATH . 'inc/mcp/mcp-read-guard.php'; // v10.9.0: read-door kill switch (isolated from the rw guard by design) — before mcp-endpoint.php, which calls it.
 require_once SNT_PATH . 'inc/mcp/mcp-endpoint.php';
+require_once SNT_PATH . 'inc/admin-forms/mcp-connect-status.php'; // IA M3: the status glance (pure cards + live gatherer)
 require_once SNT_PATH . 'inc/admin-forms/mcp-connect.php'; // v9.47.0: Tools → Connect an MCP client (read-only doc leaf; needs sn_mcp_allowlist() + sn_mcp_namespace() above)
 
 // Shared outbound SSRF host-guard (resolve-then-range-check; blocks encoded-IP

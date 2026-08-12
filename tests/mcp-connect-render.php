@@ -80,6 +80,9 @@ function selected( $a, $b = true, $echo = true ) {
 	return $r;
 }
 
+function wp_kses_post( $s ) { return (string) $s; } // admin-glance meta_html pass-through (M3 glance).
+
+require __DIR__ . '/../inc/admin-glance.php';       // sn_admin_glance_grid() — the M3 status glance renders through it.
 require __DIR__ . '/../inc/admin-tabs-data.php';
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php'; // the REAL sn_mcp_allowlist() + sn_mcp_rw_allowlist() — never stub either.
 require __DIR__ . '/../inc/mcp/mcp-endpoint.php';      // the REAL sn_mcp_namespace().
@@ -393,6 +396,68 @@ $first_list_in_details = strpos( $html, 'sn-mcp-tool-list' );
 $read_details_close    = strpos( $html, '</details>', (int) $read_details_at );
 ok( is_int( $first_list_in_details ) && $read_details_at < $first_list_in_details && $first_list_in_details < (int) $read_details_close,
 	'M2: the read-door slug list lives inside its fold' );
+
+// ── M3 (IA): the status glance — three cards, above the fold, display-only ──
+// The full-page $html above was rendered in the default unbound state with
+// the real allowlists loaded, so the glance in it must read: live read count,
+// INACTIVE write door, adapter not installed. State-specific wording that
+// cannot be driven live in one process (SN_MCP_RW_DISABLED is a constant) is
+// pinned through the PURE card builder instead.
+ok( function_exists( 'sn_admin_mcp_status_cards' ), 'M3: pure card builder sn_admin_mcp_status_cards() exists' );
+$glance_at = strpos( $html, '<div class="sn-glance">' );
+ok( is_int( $glance_at ) && is_int( $bind_pos ) && $glance_at < $bind_pos, 'M3: the status glance renders before the binding form' );
+ok( false !== strpos( $html, (string) count( $slugs ) . ' tools' ), 'M3: the read-door card counts the live allowlist' );
+ok( stripos( $html, 'INACTIVE' ) !== false, 'M3: the unbound write door reads INACTIVE in the glance (same word the binding form uses)' );
+ok( stripos( $html, 'Not installed' ) !== false, 'M3: the absent adapter card says Not installed' );
+
+// Pure-state pins: every named write-door state, none inventable live here.
+$base_state = array(
+	'read_count'     => 38,
+	'read_url'       => 'https://example.test/wp-json/signal-noise/v1/mcp',
+	'rw_count'       => 36,
+	'rw_url'         => 'https://example.test/wp-json/signal-noise/v1/mcp-rw',
+	'rw_state'       => 'inactive',
+	'rw_name'        => '',
+	'rw_last_used'   => 0,
+	'adapter_active' => false,
+	'adapter_url'    => 'https://example.test/wp-json/mcp/mcp-adapter-default-server',
+);
+function sn_test_render_status_cards( $state ) {
+	ob_start();
+	sn_admin_glance_grid( sn_admin_mcp_status_cards( $state ) );
+	return ob_get_clean();
+}
+$killed = sn_test_render_status_cards( array_merge( $base_state, array( 'rw_state' => 'constant_killed' ) ) );
+ok( false !== strpos( $killed, 'SN_MCP_RW_DISABLED' ), 'M3: the constant-killed card NAMES the constant' );
+ok( stripos( $killed, 'wp-config' ) !== false, 'M3: and says where it lives (wp-config), display-only' );
+ok( stripos( $killed, 'INACTIVE' ) === false, 'M3: constant-killed is NOT presented as unbound/INACTIVE — they are different facts' );
+$off = sn_test_render_status_cards( array_merge( $base_state, array( 'rw_state' => 'option_off' ) ) );
+ok( stripos( $off, 'switched off' ) !== false, 'M3: the option kill switch reads as switched off' );
+ok( stripos( $off, 'INACTIVE' ) === false, 'M3: option-off is not presented as unbound either' );
+$bound = sn_test_render_status_cards( array_merge( $base_state, array( 'rw_state' => 'bound', 'rw_name' => 'Claude Code', 'rw_last_used' => 1700100000 ) ) );
+ok( false !== strpos( $bound, 'Claude Code' ), 'M3: the bound card names the credential' );
+// Escaping: the grid esc_html()s card values itself, so the builder must hand
+// the name RAW — pre-escaping double-escapes exactly the names this suite's
+// $escaping_name fixture exists to catch.
+$esc_bound = sn_test_render_status_cards( array_merge( $base_state, array( 'rw_state' => 'bound', 'rw_name' => $escaping_name, 'rw_last_used' => 0 ) ) );
+ok( false !== strpos( $esc_bound, htmlspecialchars( $escaping_name, ENT_QUOTES ) ), 'M3: an escaping-sensitive bound name renders escaped exactly once' );
+ok( false === strpos( $esc_bound, '&amp;quot;' ) && false === strpos( $esc_bound, '&amp;#039;' ), 'M3: and never double-escaped' );
+ok( false === strpos( $esc_bound, '<admin>' ), 'M3: no raw tag from a credential name reaches the glance' );
+$never = sn_test_render_status_cards( array_merge( $base_state, array( 'rw_state' => 'bound', 'rw_name' => 'Claude Code', 'rw_last_used' => 0 ) ) );
+ok( stripos( $never, 'Never used yet' ) !== false, 'M3: unknown last-used stays "Never used yet", never a fake date' );
+$unres = sn_test_render_status_cards( array_merge( $base_state, array( 'rw_state' => 'unresolvable' ) ) );
+ok( stripos( $unres, 'unresolvable' ) !== false || stripos( $unres, 'no longer matches' ) !== false, 'M3: the unresolvable state is its own named state' );
+// Unknown ≠ zero: a missing allowlist function must never read as "0 tools".
+$nolist = sn_test_render_status_cards( array_merge( $base_state, array( 'read_count' => null ) ) );
+ok( stripos( $nolist, 'allowlist unavailable' ) !== false, 'M3: a missing allowlist prints "allowlist unavailable"' );
+ok( false === strpos( $nolist, '0 tools' ), 'M3: and never "0 tools" — unknown is not zero' );
+$present = sn_test_render_status_cards( array_merge( $base_state, array( 'adapter_active' => true ) ) );
+ok( stripos( $present, 'Present' ) !== false, 'M3: an installed adapter reads Present' );
+
+// The glance is DISPLAY-ONLY: it must add no second write surface. The mirror
+// rule above already counts forms/selects/buttons on the full page — re-assert
+// here so M3 cannot regress it.
+ok( 1 === substr_count( $html, '<form' ), 'M3: still exactly ONE form after the glance landed' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );
