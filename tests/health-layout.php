@@ -355,6 +355,96 @@ he_assert( false === strpos( $html6, 'LEAKED-INTO-FINDINGS' ), 'a check carrying
 he_assert( false === strpos( $html6, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section for a report-bucket check' );
 he_assert( false !== strpos( $html6, '<h2 class="sn-section-h">Reports</h2>' ), 'it renders in Reports, exactly once' );
 
+// ─── Test H (IA increment H3): the motion report gets its detail view ───────
+// motion_scan shipped report-first with NO renderer — the degrading fallback
+// ("no detail view yet") was deliberate, awaiting this redesign. The renderer
+// mirrors the contrast card's H1 shape: coverage + headline numbers OPEN, the
+// uncovered table behind an explicit closed <details>. Uncovered rows are a
+// report, not findings — no warn pill anywhere near them.
+echo "\nTest H: motion report — headline numbers open, uncovered table folded\n";
+$GLOBALS['__scan'] = array(
+	'scanned_at' => time() - 60,
+	'elapsed_ms' => 40,
+	'checks'     => array(
+		'motion_scan' => array(
+			'label'    => 'Motion asks first (reduced-motion, report only)',
+			'count'    => 0,
+			'fix_hint' => '',
+			'findings' => array(),
+			'report'   => array(
+				'coverage'     => 'Declared tier: every animation and transition in the scanned front stylesheets.',
+				'scanned'      => 7,
+				'motion_total' => 6,
+				'gated'        => 1,
+				'neutralized'  => 3,
+				'uncovered'    => array(
+					array( 'sheet' => 'plugin:widget.css', 'selector' => '.sn-spin', 'kind' => 'animation' ),
+					array( 'sheet' => 'theme:components.css', 'selector' => '.sn-fade', 'kind' => 'transition' ),
+				),
+			),
+		),
+	),
+);
+ob_start();
+sn_health_render_admin_tab();
+$htmlm = ob_get_clean();
+he_assert( false === strpos( $htmlm, 'no detail view yet' ), 'the degrading fallback is GONE for motion_scan — it has a real view now' );
+he_assert( false !== strpos( $htmlm, '2 of 6 declared motions have no reduced-motion counterpart' ), 'the headline leads with uncovered-of-total' );
+he_assert( false !== strpos( $htmlm, '1 gated behind no-preference' ), 'the headline names the gated count' );
+he_assert( false !== strpos( $htmlm, '3 neutralized under reduce' ), 'the headline names the neutralized count' );
+he_assert( false !== strpos( $htmlm, '7 stylesheets' ), 'the headline names the sheet population' );
+he_assert( false !== strpos( $htmlm, '<details class="sn-health-motion-uncovered' ), 'the uncovered table sits inside its own details' );
+he_assert( false === strpos( $htmlm, '<details class="sn-health-motion-uncovered sn-disclosure" open' ), 'and it is CLOSED by default — the headline carries the verdict' );
+$md_at = strpos( $htmlm, '<details class="sn-health-motion-uncovered' );
+$mh_at = strpos( $htmlm, 'declared motions have no reduced-motion counterpart' );
+he_assert( is_int( $mh_at ) && is_int( $md_at ) && $mh_at < $md_at, 'the headline renders before (outside) the fold' );
+$msum = substr( $htmlm, (int) $md_at, 200 );
+he_assert( false !== strpos( $msum, '2' ) && false !== strpos( $msum, 'uncovered' ), 'the summary names the uncovered count — a closed fold may never hide THAT there is something inside' );
+$mrow_at = strpos( $htmlm, '.sn-spin' );
+$mdc_at  = is_int( $md_at ) ? strpos( $htmlm, '</details>', $md_at ) : false;
+he_assert( is_int( $mrow_at ) && is_int( $mdc_at ) && $md_at < $mrow_at && $mrow_at < $mdc_at, 'the uncovered rows live inside the fold' );
+he_assert( false !== strpos( $htmlm, 'plugin:widget.css' ) && false !== strpos( $htmlm, '<code>animation</code>' ), 'a row names its sheet and its kind — the kinds are separate claims' );
+he_assert( false === strpos( $htmlm, 'sn-health-passing' ), 'still no pass chip — a report cannot earn a pass' );
+he_assert( false === strpos( $htmlm, 'sn-pill--warn' ), 'and no warn pill — uncovered rows are a report, not findings' );
+// The renderer is REGISTERED, not special-cased: the registry maps the key.
+$reg = sn_health_report_renderers();
+he_assert( isset( $reg['motion_scan'] ) && 'sn_health_render_motion_report' === $reg['motion_scan'], 'motion_scan is wired through the renderer registry' );
+
+echo "\nTest H2: motion table cap — worst-first remainder line, never silent truncation\n";
+$many = array();
+for ( $i = 1; $i <= 55; $i++ ) {
+	$many[] = array( 'sheet' => 'theme:big.css', 'selector' => ".sn-m{$i}", 'kind' => 'transition' );
+}
+ob_start();
+sn_health_render_motion_report( array(
+	'scanned'      => 3,
+	'motion_total' => 60,
+	'gated'        => 2,
+	'neutralized'  => 3,
+	'uncovered'    => $many,
+) );
+$htmlc = ob_get_clean();
+he_assert( false !== strpos( $htmlc, '55 of 60 declared motions' ), 'the headline states the TRUE uncovered total, not the capped row count' );
+he_assert( false !== strpos( $htmlc, '<code>.sn-m50</code>' ), 'row 50 renders (the cap)' );
+he_assert( false === strpos( $htmlc, '<code>.sn-m51</code>' ), 'row 51 does not — the cap is real' );
+he_assert( false !== strpos( $htmlc, '+5 more uncovered declarations' ), 'the remainder line names what was cut' );
+he_assert( false !== strpos( $htmlc, 'capped, not complete' ), 'and says plainly the list is capped, not complete' );
+
+echo "\nTest H3: motion honesty — scanned===0 is unreadable, not clean; zero uncovered is covered, not silent\n";
+ob_start();
+sn_health_render_motion_report( array( 'scanned' => 0, 'motion_total' => 0, 'gated' => 0, 'neutralized' => 0, 'uncovered' => array() ) );
+$html0 = ob_get_clean();
+he_assert( false !== strpos( $html0, 'No front stylesheets were readable' ), 'scanned===0 says the sheets were unreadable' );
+he_assert( false === strpos( $html0, '0 of 0' ), 'and never prints "0 of 0" — unknown is not zero' );
+he_assert( false === strpos( $html0, '<details' ), 'no fold when nothing was scanned' );
+ob_start();
+sn_health_render_motion_report( array( 'scanned' => 7, 'motion_total' => 6, 'gated' => 2, 'neutralized' => 4, 'uncovered' => array() ) );
+$htmlz = ob_get_clean();
+he_assert( false !== strpos( $htmlz, '0 of 6 declared motions' ), 'zero uncovered still states the measured proportion' );
+he_assert( false !== strpos( $htmlz, 'Every declared motion has a reduced-motion counterpart' ), 'the all-covered sentence is explicit' );
+he_assert( false === strpos( $htmlz, '<details' ), 'no empty fold when there is nothing to show' );
+he_assert( false === strpos( $htmlz, 'the site shows no motion' ), 'the all-covered sentence never overclaims beyond the declared tier' );
+
 // ─── Test G: link isolation (ML pipeline #8) — its first surface ────────────
 // The renderer consumes only the PUBLISHED ENVELOPE SHAPE; it never calls
 // snt_ml_link_isolation(), which lives on a separate unmerged branch. So this

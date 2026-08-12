@@ -471,6 +471,7 @@ require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0):
 require_once SNT_PATH . 'inc/health-check-families.php';
 require_once SNT_PATH . 'inc/health-render-passing.php';
 require_once SNT_PATH . 'inc/health-render-contrast.php';
+require_once SNT_PATH . 'inc/health-render-motion.php';
 require_once SNT_PATH . 'inc/health-render-reports.php';
 require_once SNT_PATH . 'inc/health-checks-admin.php';
 require_once SNT_PATH . 'inc/plugin-footprint.php'; // plugin-directory footprint diagnostic (Site Health) + the one-time legacy-deploy-file janitor (admin_init, once per SNT_VERSION)

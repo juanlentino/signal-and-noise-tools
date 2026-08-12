@@ -37,6 +37,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // here — not only from the plugin loader — so every existing load site of
 // this file (tests included) keeps getting the whole renderer set.
 require_once __DIR__ . '/health-render-contrast.php';
+require_once __DIR__ . '/health-render-motion.php';
 
 /**
  * check key => renderer callable, taking ( array $report, array $check ).
@@ -55,6 +56,9 @@ function sn_health_report_renderers() {
 		// coupling: whichever branch packs the check, the surface is already
 		// here, and if the check never arrives this entry is simply unused.
 		'link_isolation'  => 'sn_health_render_link_isolation_report',
+		// IA H3: the motion report's first detail view. The degrading fallback
+		// below stays for any OTHER unknown report — that path is the contract.
+		'motion_scan'     => 'sn_health_render_motion_report',
 	);
 	if ( function_exists( 'apply_filters' ) ) {
 		$renderers = (array) apply_filters( 'sn_health_report_renderers', $renderers );
