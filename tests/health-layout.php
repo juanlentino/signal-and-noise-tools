@@ -203,6 +203,10 @@ he_assert( is_int( $findings_at ) && $scan_at < $findings_at, 'run-scan precedes
 he_assert( is_int( $reports_at ) && $findings_at < $reports_at, 'findings (which demand action) precede reports (which do not)' );
 he_assert( is_int( $passing_at ) && $reports_at < $passing_at, 'reports precede the passing disclosure (which asks nothing)' );
 
+// H4: the arithmetic <details> gets the shared .sn-disclosure caret (usage
+// already had it; arithmetic was skipped and still used the browser triangle).
+he_assert( false !== strpos( $html, '<details class="sn-health-contrast-arithmetic sn-disclosure">' ), 'H4: arithmetic details carries both the report class and the shared disclosure caret' );
+
 // ─── Test A3 (IA increment H1): the usage FAILURE TABLE folds ───────────────
 // The headline, palette line, limits sentence, and conditional stay OPEN —
 // the honesty layer is not collapsible. Only the row table (and its remainder
@@ -216,13 +220,19 @@ $GLOBALS['__scan']['checks']['contrast_tokens']['report']['usage'] = array(
 		array( 'selector' => '.sn-x', 'source' => 'x.css', 'pair' => 'rust on paper', 'ratio' => 3.1, 'palette' => 'root', 'literal' => false, 'anchored' => true ),
 		array( 'selector' => '.sn-y', 'source' => 'y.css', 'pair' => 'rust on bone', 'ratio' => 4.2, 'palette' => 'root', 'literal' => false, 'anchored' => true ),
 	),
-	'conditional' => array(),
+	'conditional' => array(
+		array( 'selector' => '.sn-z', 'source' => 'z.css', 'pair' => 'muted on asphalt', 'ratio' => 3.66, 'palette' => 'root' ),
+	),
 );
 ob_start();
 sn_health_render_admin_tab();
 $html3 = ob_get_clean();
 he_assert( false !== strpos( $html3, '<details class="sn-health-contrast-usage' ), 'the usage table sits inside its own details' );
-he_assert( false === strpos( $html3, '<details class="sn-health-contrast-usage" open' ), 'and it is CLOSED by default — the headline carries the verdict, the table is the evidence' );
+he_assert( false === strpos( $html3, '<details class="sn-health-contrast-usage sn-disclosure" open' ), 'and it is CLOSED by default — the headline carries the verdict, the table is the evidence' );
+// H4: all three contrast folds share the shipped caret. Pinning all three
+// together so stripping .sn-disclosure from any one of them is caught.
+he_assert( false !== strpos( $html3, '<details class="sn-health-contrast-usage sn-disclosure">' ), 'H4: usage details still carries both classes' );
+he_assert( false !== strpos( $html3, '<details class="sn-health-contrast-conditional sn-disclosure">' ), 'H4: conditional details carries both the report class and the shared disclosure caret' );
 $d_at = strpos( $html3, '<details class="sn-health-contrast-usage' );
 $h_at = strpos( $html3, 'fall below body-text AA' );
 $l_at = strpos( $html3, 'Reads stylesheet declarations at rest' );

@@ -459,5 +459,29 @@ ok( stripos( $present, 'Present' ) !== false, 'M3: an installed adapter reads Pr
 // here so M3 cannot regress it.
 ok( 1 === substr_count( $html, '<form' ), 'M3: still exactly ONE form after the glance landed' );
 
+// ── M4 (IA): Claude desktop-app steps fold; slug-list CSS lands ──
+// The callout heading stays outside the fold (section still findable). The
+// 4-step <ol> and the OAuth/Connectors warning sit inside a closed
+// <details class="sn-disclosure"> — every existing string stays verbatim.
+$claude_h_at     = strpos( $html, 'Claude desktop app' );
+$claude_fold_at  = strpos( $html, '<details class="sn-disclosure">', (int) $claude_h_at );
+$claude_fold_end = ( false === $claude_fold_at ) ? false : strpos( $html, '</details>', $claude_fold_at );
+$claude_ol_at    = ( false === $claude_fold_at ) ? false : strpos( $html, '<ol>', $claude_fold_at );
+ok( is_int( $claude_fold_at ) && is_int( $claude_ol_at ) && is_int( $claude_fold_end )
+	&& $claude_fold_at < $claude_ol_at && $claude_ol_at < $claude_fold_end,
+	'M4: the Claude-app <ol> sits inside a <details class="sn-disclosure">' );
+ok( false === strpos( $html, '<details class="sn-disclosure" open' ), 'M4: the Claude-app disclosure is NOT open by default' );
+$oauth_at = strpos( $html, 'application password will not work there' );
+ok( is_int( $claude_fold_at ) && is_int( $oauth_at ) && is_int( $claude_fold_end )
+	&& $claude_fold_at < $oauth_at && $oauth_at < $claude_fold_end,
+	'M4: the OAuth warning is inside the same fold' );
+ok( 1 === substr_count( $html, '<form' ), 'M4 MIRROR RULE: still exactly ONE <form> on the leaf' );
+ok( 1 === substr_count( $html, '<select' ), 'M4 MIRROR RULE: still exactly ONE <select> on the leaf' );
+ok( 1 === substr_count( $html, '<button' ), 'M4 MIRROR RULE: still exactly ONE <button> on the leaf' );
+ok( 1 === substr_count( $html, '<pre>' ), 'M4 MIRROR RULE: still exactly ONE <pre> on the leaf' );
+ok( false === strpos( $html, '<textarea' ), 'M4 MIRROR RULE: still no <textarea> on the leaf' );
+$admin_css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
+ok( false !== strpos( $admin_css, '.sn-mcp-tool-list' ), 'M4: .sn-mcp-tool-list has a rule in assets/admin.css' );
+
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

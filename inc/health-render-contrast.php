@@ -128,7 +128,7 @@ function sn_health_render_contrast_report( $report ) {
 
 	// The whole arithmetic tier collapses; the tripwire count lives in the
 	// summary so drift is visible without expanding.
-	echo '<details class="sn-health-contrast-arithmetic">';
+	echo '<details class="sn-health-contrast-arithmetic sn-disclosure">';
 	echo '<summary>';
 	printf(
 		/* translators: 1: failing pair count, 2: total pair count */
@@ -365,7 +365,7 @@ function sn_health_render_contrast_conditional( $conditional ) {
 		return;
 	}
 
-	echo '<details class="sn-health-contrast-conditional">';
+	echo '<details class="sn-health-contrast-conditional sn-disclosure">';
 	echo '<summary>';
 	printf(
 		/* translators: %d: conditional pairing count */
