@@ -203,75 +203,11 @@ function sn_health_render_admin_tab() {
 		}
 	}
 
-	// ── Findings: one full-width card + table per check with issues. ──
-	if ( ! empty( $with_findings ) ) {
-		echo '<h2 class="sn-section-h">Findings</h2>';
-		// v6.47.0: scope a full-width uncap to the findings cards only (NOT the
-		// short scan form above), so the wide 4-column finding tables use the page
-		// width instead of staying 820px-capped with dead space beside them.
-		echo '<div class="sn-health-findings">';
-		foreach ( $with_findings as $key => $check ) {
-			echo '<div class="sn-fieldset">';
-
-			echo '<h2 class="sn-fieldset-h sn-fieldset-h--row">';
-			echo esc_html( $check['label'] );
-			echo '<span class="sn-pill sn-pill--warn">' . esc_html( $check['count'] ) . ' finding' . ( 1 === (int) $check['count'] ? '' : 's' ) . '</span>';
-			if ( $ai_available && in_array( $key, $suggest_supported_checks, true ) ) {
-				echo snt_health_suggest_all_button_html( (int) $check['count'] ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper returns escaped markup.
-			}
-			echo '</h2>';
-
-			if ( ! empty( $check['fix_hint'] ) ) {
-				echo '<p class="sn-fieldset-intro">' . esc_html( $check['fix_hint'] ) . '</p>';
-			}
-
-			// Cap visible rows at 50.
-			$visible = array_slice( $check['findings'], 0, 50 );
-			$hidden  = count( $check['findings'] ) - count( $visible );
-
-			$show_ai_col = $ai_available && in_array( $key, $suggest_supported_checks, true );
-			echo '<div class="snt-scroll-table">';
-			echo '<table class="widefat striped snt-mt-half"><thead><tr>';
-			echo '<th scope="col" class="' . ( $show_ai_col ? 'snt-col-40' : 'snt-col-55' ) . '">Subject</th>';
-			echo '<th scope="col">Note</th>';
-			echo '<th scope="col" class="snt-col-90px">Action</th>';
-			if ( $show_ai_col ) {
-				echo '<th scope="col" class="snt-col-280px">' . esc_html__( 'AI fix', 'signal-and-noise-tools' ) . '</th>';
-			}
-			echo '</tr></thead><tbody>';
-
-			foreach ( $visible as $f ) {
-				echo '<tr>';
-				echo '<td><code>' . esc_html( (string) $f['subject_label'] ) . '</code>';
-				if ( ! empty( $f['subject_url'] ) ) {
-					echo '<br><small><a href="' . esc_url( $f['subject_url'] ) . '" target="_blank" rel="noopener">' . esc_html( (string) $f['subject_url'] ) . '</a></small>';
-				}
-				echo '</td>';
-				echo '<td>' . esc_html( (string) ( $f['note'] ?? '' ) ) . '</td>';
-				echo '<td>';
-				if ( ! empty( $f['edit_url'] ) ) {
-					echo '<a href="' . esc_url( $f['edit_url'] ) . '" class="button button-small">Edit</a>';
-				}
-				echo '</td>';
-				if ( $show_ai_col ) {
-					echo '<td>';
-					// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- sn_health_render_suggest_cell() returns markup with every attribute esc_attr-escaped and the label esc_html-escaped.
-					echo sn_health_render_suggest_cell( $key, $f );
-					echo '</td>';
-				}
-				echo '</tr>';
-			}
-			echo '</tbody></table>';
-			echo '</div>';
-
-			if ( $hidden > 0 ) {
-				echo '<p class="sn-field-helper">+' . (int) $hidden . ' more findings: re-run scan after fixing the top batch.</p>';
-			}
-
-			echo '</div>'; // .sn-fieldset
-		}
-		echo '</div>'; // .sn-health-findings
-	}
+	// ── Findings: faults grouped by family, advisories folded (IA H5). The
+	// section moved to inc/health-render-findings.php when the loop grew a
+	// second shape; this file keeps the glance, the run-scan card, and the
+	// three-way split. ──
+	sn_health_render_findings_section( $with_findings, $ai_available, $suggest_supported_checks );
 
 	// ── Reports: report-only payloads, between the findings that demand action
 	// and the passing disclosure that asks nothing (v10.83.0). ──

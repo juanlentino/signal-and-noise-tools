@@ -108,6 +108,7 @@ require_once __DIR__ . '/../inc/health-summary.php'; // finding-total + flagged-
 require_once __DIR__ . '/../inc/admin-glance.php';
 // v10.83.0: the IA render modules the tab now delegates to.
 require_once __DIR__ . '/../inc/health-check-families.php';
+require_once __DIR__ . '/../inc/health-render-findings.php';
 require_once __DIR__ . '/../inc/health-render-passing.php';
 require_once __DIR__ . '/../inc/health-render-reports.php';
 require_once __DIR__ . '/../inc/health-checks-admin.php';
@@ -364,6 +365,79 @@ $html6 = ob_get_clean();
 he_assert( false === strpos( $html6, 'LEAKED-INTO-FINDINGS' ), 'a check carrying a report never renders a findings table too' );
 he_assert( false === strpos( $html6, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section for a report-bucket check' );
 he_assert( false !== strpos( $html6, '<h2 class="sn-section-h">Reports</h2>' ), 'it renders in Reports, exactly once' );
+
+// ─── Test I (IA increment H5): faults group by family, advisories fold ──────
+// Two changes with one fixture. (1) Fault cards render in FAMILY order under
+// family labels, not in scan order — scan order is chronological-by-ship-date
+// and means nothing to a reader asking "is the rights surface dirty?".
+// (2) Advisory-tier checks (surfaced, never alarming) stop looking identical
+// to faults: their tables fold, and their chip says "advisory", not "finding".
+echo "\nTest I: fault findings grouped by family; advisories folded and worded apart\n";
+$GLOBALS['__scan'] = array(
+	'scanned_at' => time() - 60,
+	'elapsed_ms' => 40,
+	'checks'     => array(
+		// Scan order puts a11y FIRST; family order must put Content first.
+		'missing_alt'    => array(
+			'label'    => 'Missing alt text',
+			'count'    => 2,
+			'fix_hint' => 'Add descriptive alt text.',
+			'findings' => array(
+				array( 'subject_label' => 'img-1', 'note' => 'no alt' ),
+				array( 'subject_label' => 'img-2', 'note' => 'no alt' ),
+			),
+		),
+		'external_links' => array(
+			'label'    => 'External links',
+			'count'    => 3,
+			'fix_hint' => '',
+			'findings' => array(
+				array( 'subject_label' => 'ADVISORY-ROW-1', 'note' => 'external' ),
+				array( 'subject_label' => 'ADVISORY-ROW-2', 'note' => 'external' ),
+				array( 'subject_label' => 'ADVISORY-ROW-3', 'note' => 'external' ),
+			),
+		),
+		'stale_posts'    => array(
+			'label'    => 'Stale posts',
+			'count'    => 1,
+			'fix_hint' => 'Refresh or retire.',
+			'findings' => array( array( 'subject_label' => 'old-note', 'note' => 'not touched in a year' ) ),
+		),
+	),
+);
+ob_start();
+sn_health_render_admin_tab();
+$htmli = ob_get_clean();
+// (1) Family labels present, and ordered canonically rather than by scan order.
+he_assert( false !== strpos( $htmli, 'Content' ) && false !== strpos( $htmli, 'Accessibility' ), 'H5: fault findings carry their family labels' );
+$fam_content = strpos( $htmli, '>Content<' );
+$fam_a11y    = strpos( $htmli, '>Accessibility<' );
+he_assert( is_int( $fam_content ) && is_int( $fam_a11y ) && $fam_content < $fam_a11y, 'H5: families render in canonical order (Content before Accessibility) even though the scan lists a11y first' );
+$stale_at = strpos( $htmli, 'Stale posts' );
+$alt_at   = strpos( $htmli, 'Missing alt text' );
+he_assert( is_int( $stale_at ) && is_int( $alt_at ) && $stale_at < $alt_at, 'H5: and the CARDS follow their families, not the scan registry' );
+// (2) Advisories: separated, folded, and worded as advisories.
+he_assert( false !== strpos( $htmli, 'Advisories' ), 'H5: advisory checks sit under their own subhead' );
+$adv_at = strpos( $htmli, 'Advisories' );
+he_assert( is_int( $adv_at ) && $alt_at < $adv_at, 'H5: advisories come after every fault family — they ask for attention, not action' );
+he_assert( false !== strpos( $htmli, '<details class="sn-health-advisory sn-disclosure">' ), 'H5: an advisory table sits inside a closed disclosure' );
+he_assert( false === strpos( $htmli, '<details class="sn-health-advisory sn-disclosure" open' ), 'H5: and it is closed by default' );
+$adv_det = strpos( $htmli, '<details class="sn-health-advisory' );
+$adv_sum = substr( $htmli, (int) $adv_det, 260 );
+he_assert( false !== stripos( $adv_sum, 'advisor' ) && false === stripos( $adv_sum, 'finding' ), 'H5: the advisory summary says advisory, never finding — the words carry the tier' );
+he_assert( false !== strpos( $adv_sum, '3' ), 'H5: and it names the count, so a closed fold never hides that there is something inside' );
+// Rows are NOT dropped, only folded.
+$adv_row = strpos( $htmli, 'ADVISORY-ROW-1' );
+$adv_end = is_int( $adv_det ) ? strpos( $htmli, '</details>', $adv_det ) : false;
+he_assert( is_int( $adv_row ) && is_int( $adv_end ) && $adv_det < $adv_row && $adv_row < $adv_end, 'H5: every advisory row is still on the page, inside the fold' );
+// The alarm calculus is untouched: advisories still do not flip the hero.
+$cardsi = snt_health_glance_cards( $GLOBALS['__scan'] );
+he_assert( '3 findings' === $cardsi[0]['value'], 'H5: the hero still counts only fault-tier findings (2 + 1), never the 3 advisories' );
+he_assert( false !== strpos( (string) $cardsi[0]['meta_html'], 'advisor' ), 'H5: while still NAMING the advisories, so they are surfaced rather than silently dropped' );
+// Fault cards keep their warn pill; the advisory card must not wear one.
+$adv_card_start = strpos( $htmli, 'External links' );
+$adv_card_chunk = substr( $htmli, (int) $adv_card_start, 400 );
+he_assert( false === strpos( $adv_card_chunk, 'sn-pill--warn' ), 'H5: an advisory chip is neutral — colouring it like a fault is what made the two indistinguishable' );
 
 // ─── Test H (IA increment H3): the motion report gets its detail view ───────
 // motion_scan shipped report-first with NO renderer — the degrading fallback

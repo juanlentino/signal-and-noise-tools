@@ -470,6 +470,7 @@ require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0):
 // (contrast_tokens' pair table, previously invisible in admin). Required
 // BEFORE the tab that calls them.
 require_once SNT_PATH . 'inc/health-check-families.php';
+require_once SNT_PATH . 'inc/health-render-findings.php';
 require_once SNT_PATH . 'inc/health-render-passing.php';
 require_once SNT_PATH . 'inc/health-render-contrast.php';
 require_once SNT_PATH . 'inc/health-render-motion.php';
