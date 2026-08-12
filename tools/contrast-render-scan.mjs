@@ -68,6 +68,16 @@
  *   node tools/contrast-render-scan.mjs https://a/ https://b/  # explicit URLs
  *   node tools/contrast-render-scan.mjs --json report.json     # machine output
  *   node tools/contrast-render-scan.mjs --no-states            # resting only
+ *   node tools/contrast-render-scan.mjs --deterministic file://…/fixture.html
+ *                                                              # pinned + repeatable
+ *
+ * --deterministic pins every source of render variance this instrument can pin
+ * (transitions and animations frozen, emulated media, `load` not `networkidle`,
+ * deviceScaleFactor 1) and REFUSES the live URL list, because a deterministic
+ * run needs repo-controlled input. See the block above `const deterministic`.
+ *
+ * Either mode now EXITS NON-ZERO when nothing was measured. A run where every
+ * target failed to load used to print the all-clear and exit 0.
  *
  * Requires: playwright-core and a local Google Chrome. Deliberately NOT a
  * committed dependency of this plugin.
@@ -97,6 +107,42 @@ const withStates = ! args.includes( '--no-states' );
 // code path as the live site — a self-test that exercised a different path
 // would prove nothing about the instrument you actually point at production.
 const urls = args.filter( ( a ) => a.startsWith( 'http' ) || a.startsWith( 'file:' ) );
+
+/**
+ * --deterministic (Increment 0): pin every source of render variance this
+ * instrument can pin, and refuse the ones it cannot.
+ *
+ * WHY. An unpinned run of this scanner can disagree with itself against an
+ * unchanged site — measured on /notes/, where an animated underline sampled
+ * mid-transition produced two invented 1:1 failures. A scan whose findings
+ * move on their own trains the reader to ignore it, which is worse than no
+ * scan. This mode makes a run repeatable, and the self-test proves it by
+ * running twice and comparing.
+ *
+ * What it pins: transitions and animations frozen before any sample;
+ * prefers-reduced-motion and prefers-color-scheme emulated rather than
+ * inherited from the machine; `load` instead of `networkidle` (which is a
+ * function of the network, not the page); deviceScaleFactor 1.
+ *
+ * What it REFUSES: the live DEFAULT_URLS. Deterministic means repo-controlled
+ * input — pointing a "deterministic" run at production would pin the browser
+ * and leave the CDN, the minify layer and the content free to move underneath
+ * it, which is the most misleading combination available.
+ *
+ * What it CANNOT pin, stated rather than hidden: the Chrome major version
+ * (`channel: 'chrome'` is whatever is installed), so the report names it.
+ */
+const deterministic = args.includes( '--deterministic' );
+
+if ( deterministic && ! urls.length ) {
+	console.error(
+		'--deterministic refuses the built-in live URL list: a deterministic run needs\n' +
+		'repo-controlled input. Pass explicit file:// fixtures (or a loopback URL).\n' +
+		'  node tools/contrast-render-scan.mjs --deterministic file://…/contrast-render-fixture.html'
+	);
+	process.exit( 2 );
+}
+
 const targets = urls.length ? urls : DEFAULT_URLS;
 
 /**
@@ -325,16 +371,50 @@ const unscoreable = [];
 const seen = new Set();
 let measured = 0;
 
-const browser = await chromium.launch( { channel: 'chrome', headless: true } );
-const page = await browser.newPage( { viewport: { width: 1280, height: 900 } } );
+// Freezing motion before any sample. Applied per navigation, because a
+// document swap drops injected styles. `transition: none` is what makes the
+// hover pass measure an END STATE rather than whatever the animation happened
+// to be showing when the pass reached the element.
+const FREEZE_MOTION = '*, *::before, *::after { transition: none !important; animation: none !important; }';
+
+// Fail closed on a missing browser. A wrapper that "best-effort"s this would
+// turn "no Chrome" into "no findings", which reads as a clean site.
+let browser;
+try {
+	browser = await chromium.launch( { channel: 'chrome', headless: true } );
+} catch ( e ) {
+	console.error( `Could not launch Chrome: ${ e.message.split( '\n' )[ 0 ] }` );
+	console.error( 'This instrument needs a local Google Chrome. It reports nothing rather than reporting zero.' );
+	process.exit( 2 );
+}
+const page = await browser.newPage( {
+	viewport: { width: 1280, height: 900 },
+	deviceScaleFactor: 1,
+} );
+if ( deterministic ) {
+	// Emulated rather than inherited: the answer must not depend on the OS
+	// settings of whoever happens to run this.
+	await page.emulateMedia( { reducedMotion: 'no-preference', colorScheme: 'light' } );
+}
+
+let skipped = 0;
 
 for ( const url of targets ) {
 	process.stdout.write( `scanning ${ url } … ` );
 	try {
-		await page.goto( url, { waitUntil: 'networkidle', timeout: 45000 } );
+		// networkidle is a property of the NETWORK, not the page — it is the
+		// single largest source of run-to-run variance here.
+		await page.goto( url, {
+			waitUntil: deterministic ? 'load' : 'networkidle',
+			timeout: 45000,
+		} );
 	} catch ( e ) {
 		console.log( `SKIP (${ e.message.split( '\n' )[ 0 ] })` );
+		skipped++;
 		continue;
+	}
+	if ( deterministic ) {
+		await page.addStyleTag( { content: FREEZE_MOTION } );
 	}
 
 	const record = ( rows, state ) => {
@@ -418,8 +498,31 @@ if ( findings.length ) {
 		console.log( `         ${ f.path }` );
 		console.log( `         "${ f.text }"  — ${ f.url }` );
 	}
-} else {
+} else if ( measured > 0 ) {
 	console.log( '\nNo rendered pairing falls below AA.' );
+}
+
+/**
+ * FAIL CLOSED when nothing was measured — unconditional, not gated behind
+ * --deterministic.
+ *
+ * Before this, a `page.goto` failure logged SKIP and continued, and the process
+ * exited `findings.length ? 1 : 0`. So a run where EVERY target failed to load
+ * printed "No rendered pairing falls below AA" and exited 0: a clean bill of
+ * health from a scan that measured nothing. That is this repo's most-repeated
+ * defect shape (a suite with no summary line counting as green), and it is a
+ * false green in the unpinned mode exactly as much as in the pinned one — so
+ * the gate is not a feature of the new flag.
+ */
+if ( targets.length > 0 && measured === 0 ) {
+	console.error(
+		`\nMEASURED NOTHING: ${ skipped } of ${ targets.length } target(s) skipped, 0 pairings sampled.`
+	);
+	console.error(
+		'This is not a clean site — it is a failed run. Exiting non-zero so it cannot be read as a pass.'
+	);
+	await browser.close();
+	process.exit( 2 );
 }
 
 if ( unscoreable.length ) {
@@ -452,8 +555,26 @@ if ( jsonPath ) {
 				urls: targets,
 				states: withStates ? [ 'rest', 'hover', 'focus-visible' ] : [ 'rest' ],
 				measurements: measured,
+				skipped,
 				decorativeSkipped,
 				pairings: seen.size,
+				// A pinned report and an unpinned one must be tellable apart
+				// later, or neither can be used as evidence. The Chrome version
+				// is the source this mode CANNOT pin, so it is named: two runs
+				// that disagree are then diagnosable instead of mysterious.
+				deterministic,
+				chrome: browser.version(),
+				pins: deterministic
+					? {
+						transitions: 'disabled',
+						animations: 'disabled',
+						waitUntil: 'load',
+						reducedMotion: 'no-preference',
+						colorScheme: 'light',
+						deviceScaleFactor: 1,
+						viewport: '1280x900',
+					}
+					: null,
 				findings,
 				unscoreable,
 			},
