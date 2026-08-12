@@ -2,6 +2,67 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [10.92.4] - 2026-08-11 — the render scan stops refusing what it can resolve exactly
+
+**PATCH** — `tools/` only, which is `export-ignore`d and ships in no zip. No
+runtime code touched.
+
+Auditing the rendered tier against the live site found the instrument declining
+to measure two `/notes/` titles that are **black on white at 21:1**. They carry
+a `linear-gradient(#000,#000)` underline sized `0px 1px` — a zero-width hairline
+that covers no glyph and is a solid colour besides. Nothing needed guessing.
+
+**A refusal is a verdict too.** "Refuse rather than guess" protects against a
+wrong answer and does nothing about a needless one — and the two are
+indistinguishable in the report. Worse, an unscoreable list padded with obvious
+non-problems trains the reader to skip it, which is exactly where a real
+unscoreable would then hide.
+
+`imageLayer()` now sorts a background-image into three outcomes:
+
+| condition | outcome |
+| --- | --- |
+| a zero dimension in `background-size` | **skip** — it paints nothing |
+| covers the box **and** every gradient stop is one colour | **resolve** — composites exactly |
+| anything else | **refuse** — unchanged |
+
+Multiple comma-separated layers still refuse; the comma scan is
+parenthesis-aware, since a gradient's own arguments contain commas.
+
+### The second pass, and why it was needed
+
+The first version resolved *any* single-colour gradient, and on the live page it
+**invented two 1:1 failures** — black composited under black text — on titles
+that are plainly 21:1. Caught by re-running against the site rather than
+trusting the fixture.
+
+The cause is a **transition race**, verified rather than assumed: that underline
+animates its *width* on hover/focus, so a scan sampling mid-flight sees a partial
+width at a 1px height. Probed directly afterwards it reads `0px 1px` again —
+which is why the first diagnosis was wrong. A hairline is neither "paints
+nothing" nor "covers the box", so it refuses.
+
+That race is now stated in the scan's own limits: **a single run's unscoreable
+list is a sample, not a census.** Re-run before concluding an entry appeared or
+vanished.
+
+### Calibration
+
+The self-test grows from 14 assertions to 18, and the fixture from 9 planted
+cases to 12 — the zero-width underline (scored, silent), a single-colour gradient
+at a deliberately distinct **2.74:1** (found, not refused), and the drawn
+hairline (refused). The 2.74 pair is distinct on purpose: findings dedupe on
+`fg|bg`, so reusing 3.80-on-asphalt would have folded into an existing finding
+and asserted nothing.
+
+Both rules mutation-checked. Dropping the zero-size check yields **7 findings
+instead of 6** — the invented 1:1 — so the ordering is load-bearing rather than
+commentary.
+
+Live re-run after the fix: 7 pages, 1,155 measurements, **0 findings, 0
+unscoreable**, and 153 distinct pairings where there were 151 — the two refused
+rows are now measured.
+
 ## [10.92.3] - 2026-08-11 — the provenance chip becomes safe AND scoreable
 
 **PATCH** — a checker widening and the swap it unblocked. No visual change: the

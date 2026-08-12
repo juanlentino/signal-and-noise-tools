@@ -43,6 +43,14 @@
  *   - States needing real interaction to exist at all (an open menu, a
  *     validation error). Forced pseudo-classes restyle what is already there;
  *     they do not create it.
+ *   - CSS TRANSITIONS, deterministically. Forcing a pseudo-class starts any
+ *     transition it triggers, and computed styles are sampled at whatever
+ *     moment the pass reaches the element — so a transitioning property can
+ *     read as its start value, its end value, or anything between, and can
+ *     differ between two runs against an unchanged site. Measured 2026-08-11 on
+ *     /notes/, where an animated underline's background-size was caught
+ *     mid-flight. Treat a single run's unscoreable list as a sample, not a
+ *     census, and re-run before concluding an entry appeared or vanished.
  *
  * ── RUN THIS ON YOUR WORKSTATION, NEVER ON THE WEB SERVER ─────────────────
  * The site is the SUBJECT, not the host. This drives a local Chrome and
@@ -142,15 +150,92 @@ const COLLECT = () => {
 		return parts.join( ' > ' );
 	};
 
+	// What a background-image contributes to the backdrop.
+	//
+	// Refusing to guess is right when the answer genuinely depends on pixels.
+	// It is NOT right when the image can be resolved exactly — a refusal costs
+	// the measurement just as a wrong answer does, and the two are
+	// indistinguishable in the report. Measured on /notes/ 2026-08-11: two
+	// black-on-white titles at 21:1 were refused because their <a> carried a
+	// `linear-gradient(#000,#000)` sized `0 1px` — a zero-width animated
+	// underline covering no glyph at all.
+	//
+	// Returns 'skip' (paints nothing), an rgba array (a solid layer), or null
+	// (genuinely unresolvable — refuse).
+	const imageLayer = ( s ) => {
+		const img = s.backgroundImage;
+		if ( ! img || img === 'none' ) return 'skip';
+
+		// Multiple comma-separated layers: not worth resolving, and rare. A
+		// gradient string contains commas too, so only treat it as multi-layer
+		// when a comma sits outside every parenthesis.
+		let depth = 0;
+		for ( const ch of img ) {
+			if ( ch === '(' ) depth++;
+			else if ( ch === ')' ) depth--;
+			else if ( ch === ',' && depth === 0 ) return null;
+		}
+
+		// THREE OUTCOMES, and the middle one is the whole point:
+		//
+		//   paints nothing   -> skip      (a zero dimension in background-size)
+		//   covers the box   -> resolve   (if it is a single colour)
+		//   anything else    -> refuse
+		//
+		// The middle case earned its own rule the hard way. The first version of
+		// this fix resolved ANY single-colour gradient, and on the live /notes/
+		// page it reported two invented 1:1 failures — black composited under
+		// black text — on titles that are plainly 21:1.
+		//
+		// The mechanism is a TRANSITION RACE, verified rather than assumed. Those
+		// titles carry a `linear-gradient(#000,#000)` underline sized `0px 1px`
+		// at rest, whose WIDTH animates on hover/focus. Sampled mid-transition it
+		// reads as a partial width at a 1px height — a hairline along the bottom
+		// edge, never a surface behind the glyphs. (Probed directly afterwards it
+		// reads `0px 1px` again, which is why the first diagnosis was wrong: the
+		// value depends on WHEN you look.)
+		//
+		// Inventing a failure is strictly worse than declining to measure, so a
+		// hairline goes back to unscoreable. Deciding it by geometry (a 1px rule
+		// cannot sit behind a 30px glyph) would mean modelling layout this
+		// scanner deliberately does not model.
+		const size = ( s.backgroundSize || '' ).trim();
+		if ( size && /(^|\s)0(px|%|)(\s|$)/.test( size ) ) return 'skip';
+		if ( size && ! /^(auto|auto auto|cover|contain|100%|100% 100%|100% auto)$/.test( size ) ) {
+			return null;
+		}
+
+		// A gradient whose every colour stop is identical is a solid colour,
+		// and composites exactly. Anything else depends on pixels.
+		if ( /gradient\(/.test( img ) ) {
+			const stops = img.match( /rgba?\([^)]*\)/g ) || [];
+			if ( stops.length ) {
+				const first = parse( stops[ 0 ] );
+				if ( first && stops.every( ( c ) => {
+					const p = parse( c );
+					return p && p.every( ( v, i ) => v === first[ i ] );
+				} ) ) {
+					return first;
+				}
+			}
+		}
+		return null;
+	};
+
 	// The effective backdrop: walk up compositing translucent layers until an
-	// opaque one. A background IMAGE anywhere in that stack makes the answer
-	// depend on pixels, so we refuse rather than guess.
+	// opaque one. A background IMAGE anywhere in that stack normally makes the
+	// answer depend on pixels — unless imageLayer() can resolve it exactly.
 	const backdrop = ( el ) => {
 		const layers = [];
 		for ( let n = el; n; n = n.parentElement ) {
 			const s = getComputedStyle( n );
-			if ( s.backgroundImage && s.backgroundImage !== 'none' ) {
+			const img = imageLayer( s );
+			if ( img === null ) {
 				return { unscoreable: 'background-image' };
+			}
+			if ( img !== 'skip' && img[ 3 ] > 0 ) {
+				layers.push( img );
+				if ( img[ 3 ] === 1 ) break;
 			}
 			const c = parse( s.backgroundColor );
 			if ( c && c[ 3 ] > 0 ) {

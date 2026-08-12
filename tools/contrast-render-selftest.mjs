@@ -78,9 +78,35 @@ ok( ! ratios.includes( 4.83 ), 'muted grey at 4.83:1 is NOT reported' );
 ok( ! found.some( ( f ) => f.large ), 'large text at 3:1 is NOT reported — the 3.0 threshold applies' );
 ok( ! ratios.includes( 21 ), 'black on white is NOT reported' );
 
+// A REFUSAL IS A VERDICT TOO. Measured on /notes/ 2026-08-11: the scan called
+// two 21:1 black-on-white titles unscoreable because their <a> carried a
+// background-image — which was a linear-gradient(#000,#000) at
+// `background-size: 0 1px`, a zero-width animated underline that covers no
+// glyph and is a solid colour besides. Refusing costs the measurement exactly
+// as a wrong answer does, and an unscoreable list padded with non-problems
+// trains the reader to skip it — which is where a real one would then hide.
+// So: refuse only what genuinely cannot be resolved.
+console.log( '\nGroup 2b: resolvable background-images are scored, not refused' );
+ok( at( 2.74, 'rest' ).length === 1, 'a single-colour gradient composites EXACTLY and its 2.74:1 failure is FOUND, not refused' );
+ok(
+	! ( report.unscoreable || [] ).some( ( u ) => /s-underline/.test( u.path || '' ) ),
+	'a background-image with a zero dimension in background-size paints nothing and is NOT refused'
+);
+// The other half of the same coin, and the reason this fix needed a second
+// pass: the FIRST version resolved any single-colour gradient as a solid layer,
+// which on the live /notes/ page composited a drawn 1px underline behind its
+// own black text and reported two invented 1:1 failures in the focus state. A
+// hairline is neither "paints nothing" nor "covers the box". Refusing is the
+// honest answer; inventing a failure is worse than declining to measure.
+ok(
+	( report.unscoreable || [] ).some( ( u ) => /s-hairline/.test( u.path || '' ) ),
+	'a DRAWN 1px underline is REFUSED, not resolved as a surface — no invented 1:1'
+);
+ok( ! found.some( ( f ) => f.ratio === 1 ), 'no 1:1 finding — black composited under black text is an artefact, never a real pairing' );
+
 console.log( '\nGroup 3: exact count — no phantoms, no misses' );
-ok( found.length === 5, `exactly 5 findings, got ${ found.length }` );
-ok( ( report.unscoreable || [] ).length === 1, `exactly 1 unscoreable (gradient refused, not guessed), got ${ ( report.unscoreable || [] ).length }` );
+ok( found.length === 6, `exactly 6 findings, got ${ found.length }` );
+ok( ( report.unscoreable || [] ).length === 2, `exactly 2 unscoreable — the REAL two-colour gradient and the drawn hairline, both refused rather than guessed — got ${ ( report.unscoreable || [] ).length }` );
 
 console.log( '\nGroup 4: state handling' );
 ok(
