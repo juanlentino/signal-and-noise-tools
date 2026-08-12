@@ -2,6 +2,63 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the 7.1 lifecycle guard was hooked to a name WordPress never shipped
+
+The [7.1 field guide](https://make.wordpress.org/core/2026/08/05/wordpress-7-1-field-guide/)
+landed, and with it the first look at the *final* Abilities lifecycle API. The
+v10.38.0 forward-compat pass was written against pre-release information and got
+one of its three hook names wrong.
+
+Shipped 7.1 fires **four filters and no actions**
+([dev note](https://make.wordpress.org/core/2026/07/29/new-execution-lifecycle-filters-for-the-abilities-api-in-wordpress-7-1/)):
+`wp_pre_execute_ability`, `wp_ability_normalize_input`,
+`wp_ability_permission_result`, `wp_ability_execute_result`. The guard's other
+two registrations were right, names and arity both. The third —
+`add_action( 'wp_ability_invoked', …, 10, 3 )` — was a hook that exists in no
+WordPress release.
+
+That handler was the `t0` stamp for latency. Its absence would not have thrown,
+logged, or reddened anything: `sn_ability_guard_filter_execute_result()` reads
+`null === $t0 ? 0`, so **every `direct`-door telemetry row would have carried a
+permanent `latency_ms` of 0** from the moment the site updated to 7.1. A fast
+ability and an unmeasured one are the same number.
+
+### Why the old test could not catch it
+
+[tests/abilities-lifecycle-guard.php](tests/abilities-lifecycle-guard.php)
+asserted `registers wp_ability_invoked action with arity 3` — and that was
+*true*. A registration assertion only ever confirms our side of a two-sided
+contract, and pre-7.1 a handler on a fictional hook is indistinguishable from a
+handler on a not-yet-shipped one. The suite passed for four months while the
+code was dead.
+
+So the fix is two things, not one:
+
+- **`sn_ability_guard_filter_pre_execute()`** replaces
+  `sn_ability_guard_on_invoked()`, registered as
+  `add_filter( 'wp_pre_execute_ability', …, 10, 4 )`. Because this is a
+  short-circuit filter it returns `$pre` **by identity, always** — any non-null
+  return here would silently replace every one of our abilities' results — and
+  it declines to stamp `t0` when `$pre` arrives non-null, since a short circuit
+  means `wp_ability_execute_result` never fires and the stamp would never be
+  popped, surfacing later as some other request's latency.
+- **`sn_ability_lifecycle_hooks_71()`** declares the shipped set as
+  name => arity, and the suite now asserts membership **in both directions**:
+  every registered hook exists in that set, at its declared arity, attached as a
+  filter. That is the assertion that would have caught this. It is mutation-fired
+  — restoring the v10.38.0 registration verbatim reds two asserts, a correct name
+  at the wrong arity reds two, and a handler that invents a return value reds one.
+
+`latency_ms` stays `0` rather than `NULL` on the unmeasured path, deliberately:
+`latency_ms INT NOT NULL DEFAULT 0` cannot hold NULL, the same constraint
+[inc/mcp/mcp-telemetry-agents.php](inc/mcp/mcp-telemetry-agents.php) already
+documents for the agent seams. The seam now says so in a comment, and points at
+the test as the thing that announces a regression, since the column cannot.
+
+Still inert on 7.0 — the hooks do not exist there either.
+([tests/abilities-lifecycle-guard.php](tests/abilities-lifecycle-guard.php) →
+47 asserts to 57; full sweep 422 suites / 16,507 assertions green; PHPCS and
+PHPStan clean.)
 ## [10.92.5] - 2026-08-11 — the usage scan stops reading `@media` as if it were unconditional
 
 **PATCH** — checker correctness. **No change to what the scan reports today.**
