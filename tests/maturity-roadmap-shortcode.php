@@ -79,7 +79,10 @@ ok( 28 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7
 // family with no future tense is information, not a gap. v10.71.1:
 // machine-readability planned is no longer empty; the live-read row
 // landed there when the static floor was resynced to the override.
-ok( 1 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly one empty cell renders the em-dash (v10.72.1: Operations planned populated)' );
+// 2026-08-12: ZERO empty cells — the last one (Accessibility considering)
+// took the embeds decline. A full board is the current truth, not a rule;
+// this pin moves whenever a cell honestly empties again.
+ok( 0 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'no empty cells on this board (the embeds decline filled the last one)' );
 
 // v10.63.0 "fold the future": the legend trio + counts + folds.
 $counts = sn_maturity_roadmap_counts( sn_maturity_roadmap_effective_board() );
@@ -94,7 +97,7 @@ ok( false !== strpos( $html, 'sn-maturity-roadmap-badge__n' ), 'header badges ca
 // fold per cell, summaries carrying their counts. 7 families × up to 2
 // future cells, minus the 2 empties = 12 folds on the static board.
 ok( false === strpos( $html, 'cell--done" data-label="Done"><details' ), 'a done cell never folds' );
-ok( 20 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (20 on this board, v10.73.0: 7 planned + 6 considering + 7 later)' );
+ok( 21 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (21 on this board, 2026-08-12: 7 planned + 7 considering + 7 later)' );
 
 // v10.71.1: no sentence may appear in two columns of the same family.
 // The static floor had the agent threat model in BOTH 'done' and
@@ -301,6 +304,18 @@ ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array
 // 5 calendar rows x 7 columns, 30 day cells on the bare URL).
 ok( false !== strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'ships with its voice built in' ), 'DR floor: the charts row sits in Accessibility DONE' );
 ok( false === strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'Charts that speak' ), 'DR floor: and no stale planned copy of it survives' );
+
+// The embeds row DECLINED 2026-08-12 (owner call): the facade was built,
+// shipped (theme v11.8.0), tried live, and reverted the same day (v11.8.1).
+// The read-door pattern: the decline and its reopening condition ride
+// inside the sentence, in considering — the board goes on record about the
+// shape the answer took rather than going quiet. Motion-that-asks-first
+// took the freed planned slot (its gate was already in its own sentence).
+ok( false === strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'third-party embeds' ), 'DR floor: the embeds row is NO LONGER promised as planned' );
+ok( false !== strpos( implode( ' | ', $floor['Accessibility']['considering'] ), 'DECLINED in practice' ), 'DR floor: the decline sits in considering and NAMES the decision' );
+ok( false !== strpos( implode( ' | ', $floor['Accessibility']['considering'] ), 'Reopens only if an embed ever lands in a note body' ), 'DR floor: and its reopening condition rides inside the sentence' );
+ok( false !== strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'Motion that asks first' ), 'DR floor: motion-that-asks-first took the freed planned slot' );
+ok( false === strpos( implode( ' | ', $floor['Accessibility']['later'] ), 'Motion that asks first' ), 'DR floor: and no stale later copy of it survives — a row moves, it is never copied' );
 
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );

@@ -205,12 +205,18 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Charts that speak: the stats page\'s chart ships with its voice built in — a deterministic one-paragraph summary and a calendar-shaped table twin a screen reader navigates with week and weekday context, the picture itself only decoration — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'An accessible treatment for third-party embeds: the embed replaced by an accessible card that links out, with the third party loaded only when a reader asks for it — so nothing is fetched on a reader\'s behalf before they choose it', 'signal-and-noise-tools' ),
 				__( 'Contrast audited at the token level: every palette pairing the templates actually use, checked from computed styles so an inline override cannot hide — landing report-first, findings published before any fix ships', 'signal-and-noise-tools' ),
-			),
-			'considering' => array(),
-			'later'       => array(
 				__( 'Motion that asks first: every animation paired with its reduced-motion counterpart, verified by a report-first scan — respecting a visitor\'s motion setting checked, not assumed', 'signal-and-noise-tools' ),
+			),
+			'considering' => array(
+				// 2026-08-12: the facade was BUILT (theme v11.8.0), tried live,
+				// and reverted the same day by owner choice (v11.8.1). The
+				// decline and its reopening condition ride inside the sentence,
+				// the read-door pattern: the board records the shape the answer
+				// took, not merely that one exists.
+				__( 'An accessible facade for third-party embeds: built, shipped, and DECLINED in practice — the music page\'s hero returned to an eager player by owner choice after a day live, trading no-fetch-before-consent for immediacy; the discography grid keeps click-to-play. Reopens only if an embed ever lands in a note body, where the consent argument outweighs a catalog page\'s.', 'signal-and-noise-tools' ),
+			),
+			'later'       => array(
 				__( 'Conformance said out loud: a public accessibility self-assessment on the hub, fed by the scans and honest about what fails — the site\'s accessibility posture stated the way its rights posture already is', 'signal-and-noise-tools' ),
 			),
 		),

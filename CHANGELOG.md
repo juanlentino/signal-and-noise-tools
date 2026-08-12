@@ -18,6 +18,23 @@ their gate clauses inside the claim. Board 60 → 59 rows, legend 21/9/16/13;
 floor fingerprint `d38c4bc9…` == the door-written board; sweep 16,609 →
 16,613.
 
+## [Unreleased]
+
+### The embeds row declines in the open, and motion takes its slot
+
+The accessible-facade row could not graduate as scoped — the facade was
+built (theme v11.8.0), tried live, and reverted the same day by owner
+choice (v11.8.1). Rather than going quiet, the row moves to `considering`
+with the decline and its reopening condition inside the sentence (the
+read-door pattern): *"built, shipped, and DECLINED in practice … Reopens
+only if an embed ever lands in a note body, where the consent argument
+outweighs a catalog page's."* The discography grid keeps click-to-play.
+**Motion that asks first** promotes `later` → `planned` into the freed
+slot — its gate was already written in its own sentence (report-first
+scan). The board's last empty cell is gone (the structural pins move with
+the truth: 0 empties, 21 folds). Legend 21/9/17/12; floor fingerprint
+`3231e3ae…` == the door-written board; sweep 16,613 → 16,618.
+
 ## [10.94.0] - 2026-08-12 — traffic rhythm flags: the cadence watch learns to read views
 
 The R4 row promoted this morning, delivered by evening — its gate honoured
