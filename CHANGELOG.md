@@ -59,9 +59,22 @@ Both rules mutation-checked. Dropping the zero-size check yields **7 findings
 instead of 6** — the invented 1:1 — so the ordering is load-bearing rather than
 commentary.
 
-Live re-run after the fix: 7 pages, 1,155 measurements, **0 findings, 0
-unscoreable**, and 153 distinct pairings where there were 151 — the two refused
-rows are now measured.
+Live re-run after the fix: 7 pages, 1,155 measurements, **0 findings**, and 153
+distinct pairings where there were 151 — the two refused rows are now measured
+**at rest**, which was the defect.
+
+> **Corrected after v10.92.4 was installed.** This entry originally also claimed
+> "0 unscoreable" from that run. It does not reproduce: three consecutive runs
+> give **2 unscoreable**, stably, both on the `/notes/` row titles and both in the
+> forced `focus-visible` state, where the underline is caught mid-transition as a
+> partial-width hairline and is correctly refused. **Rest-state refusals are 0,
+> and that is the number the fix was about.** Distinct pairings also drift run to
+> run (80/82/83 on a two-page subset), so the timing sensitivity is real rather
+> than theoretical.
+>
+> The original claim quoted a single draw from a distribution this very release
+> documents as non-deterministic — *"a single run's unscoreable list is a sample,
+> not a census"*, three paragraphs above. Writing a limit down does not apply it.
 
 ## [10.92.3] - 2026-08-11 — the provenance chip becomes safe AND scoreable
 
