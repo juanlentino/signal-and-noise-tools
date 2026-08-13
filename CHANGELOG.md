@@ -29,6 +29,12 @@ blanket authorization would quietly dissolve it.
 
 No code changed.
 
+### Added
+- **The remote analytics door gets its origin-side permission boundary (R3 §3D, Increment 1 origin half).** A dedicated `sn_read_remote_analytics` capability held by nothing, a per-slug permission callback that passes its own literal slug, and a separate `signal-noise/remote-get-analytics-summary` ability sharing the existing reader — all behind a kill switch that is **fail-CLOSED on absence**, inverting every other switch in the plugin. The remote surface therefore ships shut and stays shut until someone turns it on deliberately. No origin bridge, no data path, no version bump: nothing user-visible activates.
+
+### Fixed
+- **A slug held off the MCP read allowlist no longer escapes the rate ceiling.** `sn_mcp_read_guard_is_read_path()` gated on the read allowlist, so any run route for a non-allowlisted slug dispatched with no limit at all. The remote analytics slug now enters that one function — and only that one, so the read door's fail-OPEN kill switch never answers for a remote slug. This does not close F1 for the remote path; that counter lives at the edge.
+
 ## [10.100.0] - 2026-08-13 — the call log gets a reader, and the sensor chip stops crying wolf
 
 ### The §3D transport foundation gets its one fresh check, and it moved
