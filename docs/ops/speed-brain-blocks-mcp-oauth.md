@@ -346,9 +346,34 @@ The header disappearing is necessary, not sufficient. Increment 0's exit criteri
 | Half | Status 2026-08-13 |
 | --- | --- |
 | Browser OAuth completes; connector added and visible on phone | **CONFIRMED** |
-| A tool call succeeds **from the phone** (e.g. `sn_remote_ping`) | not yet tested |
-| Disconnect stops further calls within one access-token TTL | not yet tested |
-| Edge revoke stops further calls within one access-token TTL | not yet tested |
+| A tool call succeeds **from the phone** (`sn_remote_ping`) | **CONFIRMED** — 3 calls over 100 min, `ok: true`, advancing timestamps |
+| Disconnect stops further calls within one access-token TTL | **CONFIRMED — and immediately**, not TTL-bound |
+| Edge revoke stops further calls within one access-token TTL | **still untested** — see the caveat below |
+
+**The disconnect result is better than the criterion asked for, and weaker than it sounds.**
+Disconnecting the connector in Claude made the next call fail *immediately* rather than after the
+900s access-token TTL. But a client-side disconnect proves that **the honest client stops
+calling**. It does not prove that a **stolen token stops working** — nothing was revoked at the
+edge, and an attacker holding that token would not have pressed disconnect.
+
+Kill criterion 2 and adversary **A5** are about the hostile caller. So the row that actually
+bears on them is the **edge revoke**, and it is the one still open. Do not read three green rows
+as the exit criterion being met.
+
+**How to run the remaining half:** Cloudflare One → Team & Resources → Users →
+`juan.lentino@gmail.com` → **Session management → Revoke sessions**. As of 2026-08-13 that user
+had exactly **1** active session (`Bh6ppUzcANer6MmK`, application *SN Remote MCP*), logged in
+02:13 PM with an expiration of **Aug 14, 05:19 PM** — roughly 24 hours.
+
+That ~24h session expiry is a second clock, distinct from the 900s access token, and which one
+governs after a revoke is precisely what the test measures. Revoke, then call from the phone
+immediately; if it still succeeds, retry at ~5 and ~15 minutes to find the governing clock.
+
+**A note on what the re-add incidentally proved.** Re-adding the connector ran a genuinely fresh
+authorization **with Speed Brain ON and the WAF prefetch rule live**, and it completed. That is
+the first real OAuth flow under the current configuration, and it establishes that the WAF rule
+does not break the flow — a live risk when it was deployed. By this document's own asymmetry it
+clears nothing about the prefetch hypothesis: one success never does.
 
 The last row is what kill criterion 2 is about, and it is the one gating any real data path.
 
