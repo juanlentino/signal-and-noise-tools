@@ -667,7 +667,9 @@ If a parity assertion failed, correct `inc/abilities-remote-analytics.php` so it
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/abilities-remote-analytics.php`
-Expected: `OK (17 passed, 0 failed): abilities-remote-analytics.php` (13 + 4 parity)
+Expected: `OK (18 passed, 0 failed): abilities-remote-analytics.php` (14 + 4 parity)
+
+(14, not the 13 originally planned: Task 2's `$REMOTE !== $ADMIN` assertion compared two literals the test itself declares, so it could never fail. It was replaced with two real ones — the admin slug is absent from the captured registry, and exactly one ability registered. See commit `4f7cc99`.)
 
 - [ ] **Step 5: Commit**
 
@@ -860,21 +862,28 @@ Order matters: `mcp-remote-guard.php` defines `sn_remote_analytics_allows()`, wh
 - [ ] **Step 2: Run the full sweep**
 
 Run: `bash tests/run.sh`
-Expected summary: `-- swept 426 suites, 16945 assertions passed, 1 skipped --`
+Expected summary: `-- swept 426 suites, 16951 assertions passed, 1 skipped --`
 
 The arithmetic, so a mismatch is diagnosable rather than mysterious:
 
 | Source | New assertions |
 | --- | --- |
 | `tests/mcp-remote-guard.php` (new suite) | 22 |
-| `tests/abilities-remote-analytics.php` (new suite) | 17 |
+| `tests/abilities-remote-analytics.php` (new suite) | 18 |
 | `tests/mcp-read-guard-run-route.php` (Task 4) | 4 |
 | `tests/mcp-capabilities.php` (Task 5) | 2 |
-| **Total** | **45** |
+| **Total** | **46** |
 
-Baseline was 424 suites / 16,905 assertions → expect **426 / 16,950**.
+Baseline was 424 suites / 16,905 assertions → expect **426 / 16,951**.
 
-(`mcp-remote-guard.php` is 22 rather than the 17 originally planned: Task 1's dispatcher, `sn_mcp_remote_guard_run_route()`, was specified with no coverage at all, and five assertions were added to close that before Task 2 began. See commit `4d850c3`.)
+Two suites drifted from their planned counts, both because an assertion was found to be claiming more than it established. Recorded here so a mismatch is diagnosable rather than tempting:
+
+- **`mcp-remote-guard.php` is 22, not 17.** Task 1's dispatcher, `sn_mcp_remote_guard_run_route()`, was specified with no coverage at all — five assertions closed that before Task 2 began (`4d850c3`).
+- **`abilities-remote-analytics.php` is 18, not 17.** Task 2's `$REMOTE !== $ADMIN` compared two literals the test declares itself, so no implementation change could red it; it was replaced by two real assertions (`4f7cc99`), and Task 3's four parity pins sit on top of the resulting 14.
+
+A third case was found in Task 4 and cost no assertions: `'the read switch is engaged for this check'` was vacuously true, because the group sits after an irreversible `define( 'SN_MCP_READ_DISABLED', true )` at line 106 of that suite. It was rewritten to assert what actually engages the switch there.
+
+The pattern across all three is worth naming for whoever extends this: **an assertion's message is written by the same person who wrote the assertion, so a label that overclaims is invisible to its author.** Read the body, not the string.
 
 If the total differs, find out why before proceeding — do not adjust the expected number to match what you got. Count assertions *added*, never the absence of FAIL: a suite that fatals prints no summary line and contributes nothing, which reads as a smaller total rather than as a failure.
 

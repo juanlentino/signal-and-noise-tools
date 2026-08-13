@@ -302,6 +302,27 @@ Named so they are not silently assumed done:
 
 ---
 
+## A gap that opens at Increment 2, not now
+
+`snt_ability_perm_remote_analytics_summary()` passes its own slug as a literal, and
+the whole point of that choice is that the literal cannot be confused by nested
+execution. **Nothing currently proves the literal is the right one.**
+
+The reason is structural rather than an oversight: `sn_mcp_remote_slugs()` has exactly
+one member, so a mutation replacing the literal with a *different* remote slug has no
+other value to use. Every wrong literal is either the same string or a non-member,
+and the non-member case is already covered. A test written today would assert
+something the type system effectively guarantees.
+
+This stops being true the moment Increment 2 adds a second remote slug. At that point
+a per-slug callback carrying the *wrong* member's literal would pass every existing
+assertion — the gates all fire correctly, just for the wrong ability. **The test to
+add then:** each per-slug callback is allowed for its own slug and refused for every
+other member of the remote list.
+
+Recorded here rather than only in a code comment, because the moment it matters is
+the moment nobody is re-reading Increment 1's tests.
+
 ## Open question deliberately left open
 
 **Does the remote principal end up as a real WordPress user, or a synthetic
