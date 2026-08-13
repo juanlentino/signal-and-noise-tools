@@ -492,3 +492,65 @@ Unverified third-party claims about directory auth enums (`static_headers`, etc.
 ---
 
 *End of proposal. No implementation is authorized by this document alone.*
+
+---
+
+## DECIDED 2026-08-12 (owner) — the two questions this proposal left open
+
+### 1. The permission boundary: dedicated capability **and** remote-only callback
+
+The proposal's non-negotiable #4 asked how a remote principal satisfies an
+ability's `permission_callback` without `manage_options`. Owner decision: **both
+halves, not either.**
+
+- A **dedicated capability** (e.g. `sn_read_remote_analytics`) — the thing the
+  remote principal actually holds. Never `manage_options`, never a role that
+  implies it.
+- A **remote-only permission callback** that checks that capability *and*
+  re-checks the named-ability allowlist at the point of use. Not
+  `snt_ability_perm_manage_options`, and not a bare `current_user_can()` on the
+  new capability either.
+
+**Why both, when either sounds sufficient.** A capability alone is a bearer
+claim: whatever holds it reaches every ability whose callback accepts it, and
+the set of such abilities grows silently as new ones are registered. A callback
+alone has no principal to test. Together they compose the way the door's other
+gates do — the capability answers *who*, the callback answers *which*, and a new
+ability registered tomorrow is out of scope by default rather than in it.
+
+This is the same shape as the read door's own allowlist-plus-permission design,
+which is why it should look familiar rather than novel. It also directly answers
+`per-post-analytics-ability.md` §5, which had the identical question pointed the
+other way.
+
+**Test obligation:** registering a new ability must NOT widen the remote surface.
+Pin it — add an ability in a fixture, assert the remote callback still refuses
+it. A gate whose scope grows by accident is the failure this decision exists to
+prevent.
+
+### 2. Cloudflare plan: **Workers Paid** (owner confirmed 2026-08-12)
+
+This resolves the proposal's `KV / Durable Object / rate-limit binding` choice
+for F1's brokered counter, and it resolves it toward **Durable Objects**.
+
+The reason is not capacity, it is **consistency**:
+
+- **KV is eventually consistent.** A counter in KV under-counts across colos
+  during the window that matters. A rate limiter that under-counts is fail-OPEN
+  *in effect*, even when its error path correctly denies — the requests got
+  through while the count caught up.
+- **The `ratelimit` binding is colo-local**, by design. `sn-login-guard` already
+  uses it that way (`LOGIN_RL`, 8/60s per IP per colo) and that is right for
+  *attempt throttling*, where the worst case is waiting out one window. It is
+  the wrong instrument for a **credential-bearing** path, where the question is
+  "how much has this token read, in total".
+- **A Durable Object gives a single, strongly-consistent counter** for the token
+  — which is the only shape where "deny on error" and "deny on cap" mean the
+  same thing to the caller.
+
+So: F1's brokered counter is a Durable Object keyed by token subject, and the
+allow path requires a successful acknowledged increment. Unreachable DO → deny.
+
+**Do not read this as "paid plan, therefore more budget."** The plan removes a
+constraint on the *correct* design; it does not license a more generous one. The
+remote cap stays stricter than the local 120/min, per the table above.

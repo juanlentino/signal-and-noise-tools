@@ -4,6 +4,36 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### §3D's two open questions get answered
+
+Owner decisions, recorded into both proposals so the build does not reopen them.
+
+**The permission boundary: a dedicated capability AND a remote-only callback —
+both, not either.** The capability (`sn_read_remote_analytics`-shaped) is what
+the remote principal holds; the callback checks it *and* re-checks the named
+allowlist at the point of use. A capability alone is a bearer claim that reaches
+every ability whose callback accepts it, and that set grows silently as new
+abilities register. A callback alone has no principal to test. Together the
+capability answers *who* and the callback answers *which*, so an ability
+registered tomorrow is out of scope **by default** rather than in it. That last
+property is the whole point, and it carries a test obligation: adding an ability
+in a fixture must NOT widen the remote surface, and the pin has to prove it.
+
+**Cloudflare is on Workers Paid**, which resolves the proposal's
+`KV / Durable Object / ratelimit` choice for F1's brokered counter — toward
+**Durable Objects**, and for a consistency reason rather than a capacity one.
+KV is eventually consistent, so a counter there under-counts across colos during
+exactly the window that matters: a limiter that under-counts is fail-**open** in
+effect even when its error path denies correctly. The `ratelimit` binding is
+colo-local by design — right for `sn-login-guard`'s attempt throttling, where the
+worst case is waiting out one window, and wrong for a credential-bearing path
+where the question is "how much has this token read in total". A Durable Object
+is the only shape where "deny on error" and "deny on cap" mean the same thing to
+the caller.
+
+The paid plan removed a constraint on the *correct* design; it does not license a
+more generous one. The remote cap stays stricter than the local 120/min.
+
 ### The phone-door row reopens as planned, and names its gate
 
 Owner reopened R3 §3D — *"I want to have the MCP on my phone. All the stats we

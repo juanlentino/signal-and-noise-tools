@@ -152,8 +152,13 @@ brokered token has to satisfy — see
 [remote-mcp-transport.md](remote-mcp-transport.md) §"The REST flank". Two
 things must hold and neither is this spec's to decide:
 
-1. The remote identity must map to a capability that satisfies the callback
-   **without** granting `manage_options` wholesale.
+1. ~~The remote identity must map to a capability that satisfies the callback
+   without granting `manage_options` wholesale.~~ **DECIDED 2026-08-12 (owner):
+   a dedicated capability (`sn_read_remote_analytics`-shaped) AND a remote-only
+   callback that re-checks the named-ability allowlist. Both, not either — the
+   capability answers *who*, the callback answers *which*, and a new ability
+   registered tomorrow stays out of scope by default.** See
+   [remote-mcp-transport.md](remote-mcp-transport.md) § DECIDED.
 2. The published-only gate in §4 must not be reachable-around via the REST
    route, since that route exists whether or not MCP exposes the tool.
 
