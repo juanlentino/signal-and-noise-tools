@@ -243,9 +243,10 @@ const SN_MR_VERSION_ENDPOINT = 'https://juanlentino.com/_sn/rights-signals/versi
 /**
  * Deployed sensor version + deploy date (owner ask: "know the version and all
  * that" from inside wp-admin). Same outbound gate as every other read here;
- * version allowlisted to a SemVer-ish charset (a hostile body yields null, so
- * the card degrades to its quiet dash and no worker string reaches the page).
- * Null on ANY failure; 15-minute display transient.
+ * version allowlisted to a SemVer-ish charset. A 200 with a null, absent, or
+ * hostile version is still reachable: version becomes '', never the raw
+ * string, so no worker string reaches the page. Null only on transport or
+ * parse failure; 15-minute display transient.
  *
  * v10.70.2: the result carries `fetched_at`, because the card was describing
  * this as a live read and it is not — it is up to fifteen minutes old. That
@@ -258,7 +259,7 @@ const SN_MR_VERSION_ENDPOINT = 'https://juanlentino.com/_sn/rights-signals/versi
  * the renderer omits the age line rather than printing an invented time.
  * Absent and "just now" are different answers.
  *
- * @return array{version:string,deployed_at:string,fetched_at?:int}|null
+ * @return array{version:string,reachable:bool,deployed_at:string,fetched_at?:int,sensor?:array}|null
  */
 function snt_mr_sensor_info() {
 	$cached = get_transient( 'sn_mr_sensor_info' );
@@ -285,13 +286,15 @@ function snt_mr_sensor_info() {
 		return null;
 	}
 	$decoded = json_decode( (string) wp_remote_retrieve_body( $resp ), true );
-	$version = is_array( $decoded ) && is_string( $decoded['version'] ?? null ) ? $decoded['version'] : '';
-	if ( 1 !== preg_match( '/^[0-9A-Za-z.+-]{1,32}$/', $version ) ) {
+	if ( ! is_array( $decoded ) ) {
 		return null;
 	}
+	$raw      = $decoded['version'] ?? null;
+	$version  = ( is_string( $raw ) && 1 === preg_match( '/^[0-9A-Za-z.+-]{1,32}$/', $raw ) ) ? $raw : '';
 	$deployed = is_string( $decoded['deployed_at'] ?? null ) ? substr( $decoded['deployed_at'], 0, 32 ) : '';
 	$info     = array(
 		'version'     => $version,
+		'reachable'   => true,
 		'deployed_at' => $deployed,
 		'fetched_at'  => time(),
 	);
