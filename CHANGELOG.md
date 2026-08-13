@@ -2,6 +2,55 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### The phone-door row reopens as planned, and names its gate
+
+Owner reopened R3 §3D — *"I want to have the MCP on my phone. All the stats we
+can cram into the MCP."* Read-only; writes stay on the desktop app. Sequencing
+set: **transport first, per-post second.** Target version **v11.0.0**.
+
+**The board row was wrong on a live public page**, not merely stale. AI
+`considering` recorded the phone door as `DECLINED`, and the reopening condition
+it named — *"a real task needing an agent to read the **corpus** from a
+phone"* — is not the one that fired. The ask is **analytics** from a phone: a
+different asset, a different risk, and precisely why the calculus inverts.
+
+Promoted `considering` → `planned`. A planned row names its gate on this board,
+so the sentence carries the three preconditions the original decline was right
+about — a scoped token that expires rather than the site's own password, a rate
+ceiling that fails **closed** instead of open, and a stop switch reachable from
+the phone it protects — plus the drafts boundary, which is the asset the decline
+was actually defending.
+
+Two pre-existing pins broke, **correctly**: they asserted the row sits in
+`considering` and names `DECLINED`. Both are false *by decision*, not by
+regression. Replaced rather than deleted, with the supersession commented where
+they stood — the original pin's own comment warned that a decision leaving no
+assertion behind is one the next session cannot see, and a reversal earns the
+same treatment.
+
+Two scoping documents land with it, both `export-ignore`d so neither ships:
+`docs/proposals/remote-mcp-transport.md` (Grok under a bounded brief, reviewed
+here) and `docs/proposals/per-post-analytics-ability.md`. The transport verdict
+softened my own 27-day-old note: remote + OAuth-obtained Bearer is required for
+private analytics and application passwords are not a mobile-connector auth, but
+Anthropic's Client ID/Secret is "optional advanced" and catalog-connector auth
+types were **not** verified for owner-added connectors — marked unverified
+rather than assumed. It also found a protocol-version gap the session did not
+know about: plugin fallback `2025-06-18` against a connector ecosystem at
+`2025-11-25` and a 2026-07-28 RC pushing stateless Streamable HTTP.
+
+**A correction I own:** the transport proposal states the read allowlist is 38
+tools. It is **28** (`sn_mcp_allowlist()`, `inc/mcp/mcp-capabilities.php:63`;
+65 abilities are registered, 28 reach the read door). The wrong number came from
+my own memory file, into the brief I wrote, and back as fact in a
+security-scoping document. Memory corrected; the proposal annotated in review
+rather than silently patched, since it is Grok's document.
+
+4 net new assertions (103 → 107). Mutation-checked: stripping the fail-closed
+clause fires 1, restoring the `DECLINED` row fires 2. Sweep 16,835.
+
 ## [10.99.2] - 2026-08-12 — the stats page graduates off the board, and the digest row gets its slot
 
 ### The public stats page retires off the hub board, freeing the digest row's slot
