@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.99.3] - 2026-08-12 — the board stops saying the phone door was declined
 
 ### The MCP telemetry table has no reader — spec'd
 
