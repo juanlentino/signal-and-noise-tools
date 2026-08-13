@@ -219,6 +219,28 @@ echo "\nRead-door kill switch (v10.9.0)\n\n";
 ok( true === sn_mcp_read_kill_switch_decision( true, true ), 'constant disabled wins even when the option says enabled' );
 ok( true === sn_mcp_read_kill_switch_decision( false, false ), 'option off → disabled' );
 ok( false === sn_mcp_read_kill_switch_decision( false, true ), 'constant unset + option on → enabled' );
+ok( true === sn_mcp_read_kill_switch_decision( true, false ), 'constant disabled + option off → disabled (the fourth combination; the table is now exhaustive)' );
+
+// THE LIVE WRAPPER'S DEFAULT, pinned directly.
+//
+// The predicate above is pure — it RECEIVES $option_enabled and can say nothing
+// about what the live caller passes. The read door's FAIL-OPEN-ON-ABSENCE
+// property lives entirely in the `true` default of the get_option() call inside
+// sn_mcp_read_kill_switch_engaged(): an untouched option means "the owner never
+// turned it off", so the door stays open.
+//
+// That default sits one file away from the remote door's, which deliberately
+// fails CLOSED. Adjacent switches pointing opposite directions is exactly the
+// shape that invites someone to "fix the inconsistency" — flipping this `true`
+// to `false` would darken the read door for every caller who never touched the
+// option. These two assertions are what stops that from being a silent change.
+// They exercise the wrapper directly rather than through
+// sn_mcp_read_permission(), so they survive any refactor of the permission
+// callback's shape or its capability coupling.
+unset( $GLOBALS['__opts'][ SN_MCP_READ_ENABLED_OPTION ] );
+ok( false === sn_mcp_read_kill_switch_engaged(), 'live wrapper: option ABSENT from the store → NOT engaged (the get_option() default is `true`; the read door fails OPEN on absence)' );
+update_option( SN_MCP_READ_ENABLED_OPTION, false );
+ok( true === sn_mcp_read_kill_switch_engaged(), 'live wrapper: option present and false → engaged (the owner\'s explicit off is honoured)' );
 
 $GLOBALS['__cap'] = true;
 unset( $GLOBALS['__opts'][ SN_MCP_READ_ENABLED_OPTION ] );

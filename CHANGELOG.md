@@ -4,6 +4,31 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### The read door's fail-open default gets its own assertion
+
+`sn_mcp_read_kill_switch_engaged()` reads `get_option( SN_MCP_READ_ENABLED_OPTION, true )`. That
+`true` is a deliberate property, not an accident: an option nobody has ever touched means "the
+owner never turned the read door off", so the door stays open. The remote analytics door being
+designed in `docs/proposals/remote-mcp-increment1-origin-half.md` inverts that on purpose — it
+fails CLOSED. Two defaults now sit in adjacent files pointing opposite directions, which is
+precisely the arrangement where someone eventually "fixes the inconsistency" and darkens the read
+door for every caller who never touched the option.
+
+`tests/mcp-endpoint.php` now pins the live wrapper directly: absent option → not engaged, option
+present and `false` → engaged. It also completes the pure predicate's truth table with the fourth
+combination, `sn_mcp_read_kill_switch_decision( true, false )`, so the table is exhaustive rather
+than three-quarters covered.
+
+The default was not wholly unguarded before — the existing `sn_mcp_read_permission()` assertion
+reds under the same mutation. But that assertion reaches the default through the permission
+callback and `current_user_can()`, so it pins the door's *behaviour for an admin*, not the
+default itself; a refactor of the callback's shape could have carried the only witness away with
+it. The two new assertions name the property they protect.
+
+Mutation-verified: flipping the default to `false` reds both, with the applied mutation confirmed
+in the diff before the run. 48 assertions in the suite, up from 45. Test-only; no plugin code
+changed.
+
 ### The §3D proposal stops claiming nothing was built
 
 `docs/proposals/remote-mcp-transport.md` opened with **"SCOPING ONLY — nothing implemented from
