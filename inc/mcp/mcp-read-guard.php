@@ -185,7 +185,22 @@ function sn_mcp_read_guard_is_read_path( $route ) {
 		return true;
 	}
 	$slug = sn_mcp_read_guard_route_slug( $route );
-	if ( '' === $slug || ! function_exists( 'sn_mcp_allowlist' ) ) {
+	if ( '' === $slug ) {
+		return false;
+	}
+	// The remote analytics slugs are deliberately OFF sn_mcp_allowlist() — the
+	// laptop door must not gain them. But "off the exposure list" must not mean
+	// "off the ceiling": left out, a remote slug's run route would have no rate
+	// limit at all. A ceiling is about LOAD, and load is load whoever is asking.
+	//
+	// This is the ONLY read-guard function remote slugs enter. In particular
+	// sn_mcp_read_guard_run_route() is untouched, so the READ kill switch — which
+	// is fail-OPEN on absence — never answers for a remote slug. The remote door
+	// has its own switch in mcp-remote-guard.php, and it fails CLOSED.
+	if ( function_exists( 'sn_mcp_remote_slugs' ) && in_array( $slug, sn_mcp_remote_slugs(), true ) ) {
+		return true;
+	}
+	if ( ! function_exists( 'sn_mcp_allowlist' ) ) {
 		return false;
 	}
 	return in_array( $slug, sn_mcp_allowlist(), true );
