@@ -2,6 +2,33 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### The §3D proposal stops claiming nothing was built
+
+`docs/proposals/remote-mcp-transport.md` opened with **"SCOPING ONLY — nothing implemented from
+this document"** and closed with **"no implementation is authorized by this document alone"**.
+Both were true when written and both became false on 2026-08-13, when Increment 0 was built as
+`sn-remote-mcp-worker`. A design document that describes shipped code as unbuilt is the same
+class of defect as a chip reporting a healthy sensor as unreachable — a readout that no longer
+matches the thing it describes.
+
+The proposal now carries an **Implementation status** block under Increment 0: where the code
+lives, that it is built but undeployed pending owner-only setup, its test and mutation evidence,
+and a table of what the build settled beyond what the document specified — the Cloudflare Access
+consent gate, pre-registered client over deprecated DCR, the stateless session model, no refresh
+token, and RFC 8707 audience binding pulled forward into the first increment.
+
+What is still deferred is named too: binding α vs β for the origin bridge. The Worker has no
+origin channel at all, which is what makes "no data path" true rather than merely guarded.
+
+The closing line now distinguishes what was authorized from what was not. Increment 1 adds the
+first real data path and stays gated on Increment 0's exit criteria being observed by a human —
+that gate is the whole reason the work was cut into increments, and a document that reads as
+blanket authorization would quietly dissolve it.
+
+No code changed.
+
 ## [10.100.0] - 2026-08-13 — the call log gets a reader, and the sensor chip stops crying wolf
 
 ### The §3D transport foundation gets its one fresh check, and it moved
