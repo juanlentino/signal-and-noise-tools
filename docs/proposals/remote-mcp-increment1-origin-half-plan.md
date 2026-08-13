@@ -839,13 +839,15 @@ The arithmetic, so a mismatch is diagnosable rather than mysterious:
 
 | Source | New assertions |
 | --- | --- |
-| `tests/mcp-remote-guard.php` (new suite) | 17 |
+| `tests/mcp-remote-guard.php` (new suite) | 22 |
 | `tests/abilities-remote-analytics.php` (new suite) | 17 |
 | `tests/mcp-read-guard-run-route.php` (Task 4) | 4 |
 | `tests/mcp-capabilities.php` (Task 5) | 2 |
-| **Total** | **40** |
+| **Total** | **45** |
 
-Baseline was 424 suites / 16,905 assertions → expect **426 / 16,945**.
+Baseline was 424 suites / 16,905 assertions → expect **426 / 16,950**.
+
+(`mcp-remote-guard.php` is 22 rather than the 17 originally planned: Task 1's dispatcher, `sn_mcp_remote_guard_run_route()`, was specified with no coverage at all, and five assertions were added to close that before Task 2 began. See commit `4d850c3`.)
 
 If the total differs, find out why before proceeding — do not adjust the expected number to match what you got. Count assertions *added*, never the absence of FAIL: a suite that fatals prints no summary line and contributes nothing, which reads as a smaller total rather than as a failure.
 
