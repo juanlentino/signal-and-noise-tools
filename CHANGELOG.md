@@ -2,6 +2,48 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### The IPv6 gauge stops counting rows written before its own sensor
+
+Found by reading the live panel: it reported `family sensor since 2026-07-18`,
+four days **before** `blob8` shipped in login-guard worker v1.5.0 (tagged
+2026-07-22). A sensor cannot predate itself.
+
+Rows written before v1.5.0 carry no `blob8`, so Analytics Engine returns them
+grouped under an **empty-string family**. The reducer was taking `min(first_seen)`
+across every group including that one, and adding its hits to the denominator.
+Two consequences pulling opposite ways:
+
+- **Coverage was overstated** — `measured_days` counted from before the sensor
+  existed, so the gauge would have declared the window `complete` early. That is
+  precisely the failure the measured-window work exists to prevent, one level
+  deeper than where it was fixed.
+- **The share was understated** — pre-sensor rows sat in the denominator while
+  being structurally unable to reach the numerator.
+
+**Three family values, one exclusion, and the distinction is the whole fix.**
+`v4` and `v6` are parsed addresses. `unknown` is a *present* sensor that could
+not parse the address — it stays in the denominator, because an unparseable
+address is still attacker-reachable surface, and its `first_seen` still dates the
+sensor. The empty string is different **in kind**: the sensor was absent. Those
+hits are not a measurement. Excluding `unknown` too would look like a tidier fix
+and would flatter the share — it is guarded by its own regression pin.
+
+The exclusion is **counted**, not silent: `pre_sensor_hits` is returned and named
+in the copy when non-zero, omitted when zero. A filter that drops rows without
+counting them hides the coverage assumption it exists to detect — the same rule
+the Trust findings cap earned earlier today.
+
+All-empty rows mean the sensor never wrote in the window: `share_pct`,
+`measured_days` and `window_complete` are all `null`, never `0`.
+
+Implemented by Grok Build under a bounded brief; reviewed here against the
+codebase. 12 new assertions (46 → 58). Mutations re-run by the session rather
+than taken on report: dropping the exclusion fires **8**, over-correcting to also
+exclude `unknown` fires **4**, returning `pre_sensor_hits` as always-zero fires
+**3**. Sweep 16,860.
+
 ## [10.99.4] - 2026-08-12 — the IPv6 gauge measures its window for real this time
 
 ### The IPv6 gauge measures its window for real this time
