@@ -32,8 +32,9 @@
  *    does not deliver them. The family sensor (blob8) was appended in worker
  *    v1.5.0, so the same SQL returned a real share off a partial window for
  *    the first month of its life — and Analytics Engine flags none of that.
- *    So the window is MEASURED here (min(timestamp), carried through as
- *    measured_days) and NAMED in the copy, and "sustained" is withheld until
+ *    So the window is MEASURED here (min(timestamp) over rows the sensor
+ *    actually wrote — the empty-family group predates blob8 and does not
+ *    date it) and NAMED in the copy, and "sustained" is withheld until
  *    the sensor has actually covered the span the rule is written over. A
  *    crossed line on an unfinished window is a real share and a decision
  *    nobody is authorised to make yet.
@@ -86,6 +87,9 @@ function sn_login_defense_failopen_trend_sql( $days = 7 ) {
  * 30-day question with whatever days exist without saying so. `first_seen` is
  * what makes the window measurable, so the caller never has to trust the query
  * bound as if it were coverage.
+ *
+ * The empty-string family group is legitimate data: those rows predate blob8.
+ * The reducer excludes them; this query must not.
  *
  * @param int $days Window in days (the criterion is written for 30).
  * @return string
@@ -155,27 +159,6 @@ function sn_login_defense_failopen_totals( $rows, $days = 7 ) {
 }
 
 /**
- * Reduce the family rows to the IPv6 share AND to the window that share was
- * actually measured over. share_pct is null when nothing was measured
- * (never-measured is not 0%); 'unknown' families stay in the denominator — an
- * unparseable address is still attacker-reachable surface.
- *
- * `crossed` answers the numeric half of the criterion (share > 5%).
- * `window_complete` answers the other half, the one a 30-day query bound can
- * only assume: true when the sensor covered the whole window, false when it
- * did not, NULL when the rows carry no first_seen and coverage is unknown.
- * Both halves must hold before "sustained over 30 days" is a claim anyone can
- * make — see the callers, which never announce the decision on `crossed`
- * alone.
- *
- * @param array    $rows [{family, hits, first_seen}]. first_seen is UTC.
- * @param int      $days The criterion window asked for.
- * @param int|null $now  Unix time, injectable for fixtures.
- * @return array{v6:int, total:int, share_pct:float|null, crossed:bool,
- *               first_seen:string|null, measured_days:int|null,
- *               window_complete:bool|null}
- */
-/**
  * Parse a timestamp as Analytics Engine returns it, into a unix instant.
  *
  * WHY THIS IS ITS OWN FUNCTION. The first version selected
@@ -215,15 +198,52 @@ function sn_login_defense_parse_ae_ts( $raw ) {
 	return false === $ts ? null : $ts;
 }
 
+/**
+ * Reduce the family rows to the IPv6 share AND to the window that share was
+ * actually measured over. share_pct is null when nothing was measured
+ * (never-measured is not 0%).
+ *
+ * Three family values, one exclusion. 'v4' and 'v6' are parsed addresses.
+ * 'unknown' is a present sensor that could not parse the address — it stays
+ * in the denominator (an unparseable address is still attacker-reachable
+ * surface) and its first_seen still dates the sensor. The empty string is
+ * different in kind: the sensor was absent, the row predates blob8. Those
+ * hits are not a measurement. They are counted as pre_sensor_hits and
+ * excluded from both the denominator and the first_seen minimum — a filter
+ * that dropped them silently would hide the coverage assumption it exists
+ * to detect. If every row is empty-family, the sensor never wrote: share,
+ * measured_days, and window_complete are all null.
+ *
+ * `crossed` answers the numeric half of the criterion (share > 5%).
+ * `window_complete` answers the other half, the one a 30-day query bound can
+ * only assume: true when the sensor covered the whole window, false when it
+ * did not, NULL when the rows carry no first_seen and coverage is unknown.
+ * Both halves must hold before "sustained over 30 days" is a claim anyone can
+ * make — see the callers, which never announce the decision on `crossed`
+ * alone.
+ *
+ * @param array    $rows [{family, hits, first_seen}]. first_seen is UTC.
+ * @param int      $days The criterion window asked for.
+ * @param int|null $now  Unix time, injectable for fixtures.
+ * @return array{v6:int, total:int, share_pct:float|null, crossed:bool,
+ *               first_seen:string|null, measured_days:int|null,
+ *               window_complete:bool|null, pre_sensor_hits:int}
+ */
 function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
-	$v6    = 0;
-	$total = 0;
-	$first = null;
-	$now   = null === $now ? time() : (int) $now;
+	$v6         = 0;
+	$total      = 0;
+	$pre_sensor = 0;
+	$first      = null;
+	$now        = null === $now ? time() : (int) $now;
 	foreach ( (array) $rows as $r ) {
 		$hits   = (int) ( $r['hits'] ?? 0 );
+		$family = (string) ( $r['family'] ?? '' );
+		if ( '' === $family ) {
+			$pre_sensor += $hits;
+			continue;
+		}
 		$total += $hits;
-		if ( 'v6' === (string) ( $r['family'] ?? '' ) ) {
+		if ( 'v6' === $family ) {
 			$v6 += $hits;
 		}
 		$ts = sn_login_defense_parse_ae_ts( $r['first_seen'] ?? '' );
@@ -245,6 +265,7 @@ function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 		'first_seen'      => null === $first ? null : gmdate( 'Y-m-d', $first ),
 		'measured_days'   => $measured,
 		'window_complete' => null === $measured ? null : $measured >= (int) $days,
+		'pre_sensor_hits' => $pre_sensor,
 	);
 }
 
@@ -339,6 +360,17 @@ function sn_login_defense_render_gauges( $days = 7 ) {
 					$share['measured_days'],
 					SN_LG_IPV6_CRITERION_DAYS,
 					$share['first_seen']
+				);
+			}
+
+			// Same fact as the measured window: what the sensor did and did
+			// not see. Named when the query returned pre-sensor rows; omitted
+			// when it did not — a phantom clause would invent a filter.
+			if ( $share['pre_sensor_hits'] > 0 ) {
+				$window .= ', ' . sprintf(
+					/* translators: %s: hit count written before the family sensor existed */
+					_n( '%s pre-sensor hit excluded', '%s pre-sensor hits excluded', $share['pre_sensor_hits'], 'signal-and-noise-tools' ),
+					number_format_i18n( $share['pre_sensor_hits'] )
 				);
 			}
 

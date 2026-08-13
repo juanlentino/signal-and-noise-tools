@@ -165,6 +165,55 @@ ok( null === sn_login_defense_ipv6_share( array(
 ), 30, $now )['window_complete'],
 	'no first_seen -> window_complete is null (unknown coverage is not proven coverage)' );
 
+// LIVE DEFECT 2026-08-12: the panel dated the family sensor to 2026-07-18 —
+// four days before blob8 shipped in worker v1.5.0 (tagged 2026-07-22). Rows
+// written before the sensor have no blob8; AE groups them under family ''.
+// That empty group is not a measurement. It is the absence of the instrument.
+// Including it overstated coverage (min first_seen predates the sensor) and
+// understated the share (pre-sensor hits sat in the denominator, never in v6).
+$sensor_only = array(
+	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => '2026-07-23 00:00:00' ),
+	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => '2026-07-25 00:00:00' ),
+);
+$with_empty = array_merge( $sensor_only, array(
+	array( 'family' => '', 'hits' => 50, 'first_seen' => '2026-07-13 00:00:00' ),
+) );
+$base  = sn_login_defense_ipv6_share( $sensor_only, 30, $now );
+$empty = sn_login_defense_ipv6_share( $with_empty, 30, $now );
+ok( $base['share_pct'] === $empty['share_pct'] && 20.0 === $empty['share_pct'],
+	'empty-family is excluded from the denominator: same v4/v6 hits keep the same share' );
+ok( $base['first_seen'] === $empty['first_seen'] && $base['measured_days'] === $empty['measured_days'],
+	'empty-family does NOT lower first_seen or inflate measured_days' );
+ok( false === $empty['window_complete'] && 20 === $empty['measured_days'],
+	'empty-family must not complete the window: 20d of sensor stays incomplete even when pre-sensor rows span 30d' );
+ok( 50 === $empty['pre_sensor_hits'] && 0 === $base['pre_sensor_hits'],
+	'pre_sensor_hits reports the excluded count exactly (50), and is 0 when nothing was dropped' );
+ok( 100 === $empty['total'] && 100 === $base['total'],
+	'empty-family hits never enter total — the denominator is sensor-covered traffic only' );
+
+// REGRESSION GUARD: 'unknown' is the opposite kind of string. The sensor WAS
+// present and could not parse the address — still attacker-reachable surface.
+// An over-correction that dropped it would flatter the share. The share MUST
+// change when an unknown row is added, and its first_seen MUST participate.
+$with_unknown = array_merge( $sensor_only, array(
+	array( 'family' => 'unknown', 'hits' => 25, 'first_seen' => '2026-07-18 00:00:00' ),
+) );
+$unk = sn_login_defense_ipv6_share( $with_unknown, 30, $now );
+ok( $unk['share_pct'] !== $base['share_pct'] && 16.0 === $unk['share_pct'] && 125 === $unk['total'],
+	'REGRESSION: unknown stays in the denominator — adding it CHANGES the share (20% -> 16%)' );
+ok( '2026-07-18' === $unk['first_seen'] && $unk['measured_days'] > $base['measured_days'],
+	'REGRESSION: unknown first_seen still participates (sensor was present, address unparseable)' );
+ok( 0 === $unk['pre_sensor_hits'],
+	'unknown is not pre-sensor: pre_sensor_hits stays 0' );
+
+$all_pre = sn_login_defense_ipv6_share( array(
+	array( 'family' => '', 'hits' => 77, 'first_seen' => '2026-07-13 00:00:00' ),
+), 30, $now );
+ok( null === $all_pre['share_pct'] && null === $all_pre['measured_days'] && null === $all_pre['window_complete'],
+	'all-empty-family rows: share_pct, measured_days, window_complete are all null (never-measured, not 0%)' );
+ok( 77 === $all_pre['pre_sensor_hits'] && 0 === $all_pre['total'],
+	'all-empty-family rows still report the excluded hits; total is 0' );
+
 // --- render: the proven-to-move gate ----------------------------------------
 function render_gauges_html() { ob_start(); sn_login_defense_render_gauges( 7 ); return ob_get_clean(); }
 
@@ -264,6 +313,26 @@ $GLOBALS['__q_family'] = array(
 $n = render_gauges_html();
 ok( stripos( $n, 'coverage unknown' ) !== false,
 	'no first_seen: the window is reported as unknown coverage, never as a full 30d' );
+
+// Pre-sensor hits belong beside the measured-window clause: same fact, what
+// the sensor did and did not see. Named when they exist; no phantom clause
+// when they do not.
+$GLOBALS['__q_trend']  = $seven;
+$GLOBALS['__q_family'] = array(
+	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => $ago( 20 ) ),
+	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => $ago( 12 ) ),
+	array( 'family' => '', 'hits' => 40, 'first_seen' => $ago( 45 ) ),
+);
+$pre_html = render_gauges_html();
+ok( strpos( $pre_html, '20%' ) !== false && strpos( $pre_html, '40 pre-sensor hits excluded' ) !== false,
+	'render: pre-sensor hits are named beside the measured window; share stays undiluted' );
+$GLOBALS['__q_family'] = array(
+	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => $ago( 20 ) ),
+	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => $ago( 12 ) ),
+);
+$no_pre_html = render_gauges_html();
+ok( strpos( $no_pre_html, 'pre-sensor' ) === false,
+	'render: no phantom pre-sensor clause when pre_sensor_hits is 0' );
 
 // Zero-vs-null honesty: AE failure renders "unknown", never a fake zero.
 $GLOBALS['__q_trend']  = null;
