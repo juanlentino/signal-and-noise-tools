@@ -211,6 +211,102 @@ URL: https://modelcontextprotocol.io/specification/2025-11-25/basic/transports
 
 **Protocol version gap to plan for:** plugin fallback `2025-06-18` vs connector ecosystem moving through `2025-11-25` and a 2026-07-28 RC that stresses stateless Streamable HTTP. The remote surface should negotiate versions explicitly and not assume WP REST JSON-RPC alone is enough for Claude’s client.
 
+> **STALE AS WRITTEN — `2026-07-28` is no longer an RC.** It was ratified and is the
+> **current** protocol version. See [Re-verification 2026-08-13](#re-verification-2026-08-13)
+> below for what that changes and, just as importantly, what it does not.
+
+---
+
+## Re-verification 2026-08-13
+
+The design above rests on external docs read **once**, on 2026-08-12, and the handoff
+flagged that a foundation resting on a single dated read deserves one fresh check before
+any code is written. This is that check. **All four cited sources re-read 2026-08-13.**
+
+### The headline: the RC shipped
+
+`2026-07-28` is **Current**, not a release candidate
+([versioning](https://modelcontextprotocol.io/specification/versioning): *“The **current**
+protocol version is 2026-07-28”*). The proposal was written against `2025-11-25` and
+treated `2026-07-28` as a future stressor. It is now the live specification, and it is a
+backwards-incompatible revision.
+
+What changed, versus the `2025-11-25` the design targets:
+
+| Area | `2025-11-25` (design target) | `2026-07-28` (current) |
+| --- | --- | --- |
+| Session | `Mcp-Session-Id` header; server **MAY** assign at init | **Removed.** Protocol-level session is gone |
+| Handshake | `initialize` / `initialized` required | **Removed.** Stateless core |
+| Version negotiation | Negotiated during `initialize` | Per-request `_meta` `io.modelcontextprotocol/protocolVersion`, plus `MCP-Protocol-Version` header on Streamable HTTP; `UnsupportedProtocolVersionError` lists supported versions |
+| Discovery | — | `server/discover` RPC (server implements; client calling it is optional) |
+| Client registration | DCR (RFC 7591) or pre-registration | **DCR deprecated** in favour of Client ID Metadata Documents (CIMD) |
+| Auth hardening | — | RFC 9207 `iss` returned and validated; application-type binding at registration; client credentials bound to their issuing AS |
+| Legacy HTTP+SSE | Deprecated since 2024-11-05 shape | **Officially deprecated**, twelve-month offramp |
+
+### The counterweight: Claude’s client has NOT moved
+
+This is the half that stops the finding from becoming a panic. Anthropic’s connector
+surface is still on the `2025-11-25` family:
+
+- Platform MCP connector beta header is **`mcp-client-2025-11-20`**; the `authorization_token`
+  field documents itself against the **`2025-11-25`** authorization spec.
+- It supports **both Streamable HTTP and SSE**; every example server URL is a `/sse` endpoint.
+- `2026-07-28` appears **nowhere** on Anthropic’s connector documentation.
+- Help Center is unchanged in substance: server must be reachable over the public internet
+  from Anthropic’s IP ranges; OAuth client id/secret remain *optional advanced*; still no
+  documented application-password path.
+
+**So the build target does not move.** A server speaking the `2025-11-25` profile is what
+Claude actually connects to today. The spec ratification changes what to *avoid building*,
+not what to build against.
+
+### What this changes in the design
+
+1. **Build the Worker stateless from day one.** `2025-11-25` makes sessions optional
+   (server **MAY** assign `Mcp-Session-Id`); `2026-07-28` removes them. A stateless server
+   satisfies both. This costs nothing to decide now and is a rewrite to retrofit later —
+   it is only free because the decision is being made before the first line of code.
+   The proposal never depended on a protocol-level session; its “session” language is
+   consistently about **OAuth** sessions and tokens, which are unaffected.
+2. **Open question 7 is effectively answered: CIMD, not DCR.** The proposal left
+   “pre-register Claude’s client vs CIMD/DCR” open. DCR is now deprecated-on-arrival, so
+   building it would be shipping a control with a removal clock already running. The
+   Increment-0 guard at *“do not ship DCR open to the world without rate limits”* should
+   harden to **do not ship DCR at all**; pre-registration or CIMD only.
+3. **The DO-backed F1 counter is unaffected.** It is rate-limit consistency, not session
+   state. The [[cloudflare-workers-paid]] reasoning stands unchanged.
+4. **RFC 9207 `iss` validation is worth emitting now.** The spec states a future revision
+   upgrades AS inclusion of `iss` from **SHOULD** to **MUST**, and explicitly encourages
+   implementers to emit and validate it today to ease that transition.
+
+### The gap this check actually found
+
+The proposal cites RFC 8414, 7591 and 9728, and **never cites RFC 8707**. That is a real
+omission, and it is the security-relevant one:
+
+- MCP clients **MUST** send a `resource` parameter (RFC 8707) in **both** the authorization
+  and token requests, identifying the canonical URI of the target MCP server.
+- MCP servers **MUST** validate that access tokens were issued **specifically for them as
+  the intended audience**, and **MUST NOT accept or transit any other tokens**.
+- MCP servers **MUST** implement Protected Resource Metadata (RFC 9728) — a **MUST**, not
+  part of a general profile.
+
+Audience binding is precisely the confused-deputy control this proposal’s own threat model
+worries about: it is what stops a token minted for some other resource from being replayed
+at the analytics door. **Token audience validation belongs on the Increment 0 ship list**,
+alongside the fail-closed rate limit — not deferred to a later increment.
+
+### Verdict
+
+The transport claim **survives re-verification**. Remote HTTPS + OAuth-obtained Bearer is
+still the path; application passwords are still a dead end; the Worker-as-resource-server
+shape is still correct. Two corrections and one addition: build stateless, drop DCR in
+favour of CIMD, and add RFC 8707 audience validation to the first increment.
+
+**Re-check trigger:** when Anthropic's connector docs advertise a beta header past
+`mcp-client-2025-11-20`, or cite `2026-07-28`. Until then the `2025-11-25` profile is the
+interoperable target and this section is current.
+
 ---
 
 ## Options considered
@@ -488,6 +584,21 @@ A valid successful outcome of this scoping effort is: **build Increment 0 only, 
 | MCP Authorization tutorial (2026-07-28 docs tree) | https://modelcontextprotocol.io/docs/2026-07-28/tutorials/security/authorization |
 
 Unverified third-party claims about directory auth enums (`static_headers`, etc.) were **not** used as design foundations.
+
+### Appendix B.1 — Re-verification sources (dated 2026-08-13)
+
+All four originals above were re-read on 2026-08-13. These were read in addition:
+
+| Source | URL | Why it mattered |
+| --- | --- | --- |
+| MCP versioning (status of each revision) | https://modelcontextprotocol.io/specification/versioning | Established `2026-07-28` as **Current**, not RC |
+| MCP `2026-07-28` release notes | https://blog.modelcontextprotocol.io/posts/2026-07-28/ | Enumerated the breaking changes and the DCR→CIMD deprecation |
+| MCP Authorization `2026-07-28` | https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization | Source of the RFC 8707 audience-binding **MUST** the proposal had omitted |
+
+**Instrument note:** `WebFetch` caches per-URL for 15 minutes. Every fetch above was a
+first read of that URL on 2026-08-13, so none was served from a stale entry — but a
+*re*-check inside that window would be, and the previous session was misled exactly that
+way. Re-read with a fresh instrument, not a repeat call.
 
 ---
 
