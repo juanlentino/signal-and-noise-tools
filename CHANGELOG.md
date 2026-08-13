@@ -80,6 +80,55 @@ unversioned-but-healthy worker, where it previously saw nothing at all. That
 produces no new finding — the findings logic compares with `false ===`, and the
 live values are `true` and `null` — so the health check simply stops being blind
 on exactly the deploys it was blind on.
+### The call log gets a reader
+
+`sn_tool_call` had three code paths — install, insert, prune — and **no `SELECT`
+anywhere in the plugin**. Its own docblock names six metrics it "feeds"; nothing
+consumed any of them. So the retirement program's gate — *nothing retires until
+usage data justifies it* — was not merely unmet, it was **unmeetable**: evidence
+accrued into a table with no reader and was deleted at 90 days whether or not
+anyone looked. A measurement that exists and a readout that does not.
+
+This ships both halves, because shipping the accessor alone would have
+reproduced the defect exactly.
+
+**Zero rows is not "unused".** A call the client's proxy rejects on schema
+grounds never reaches the recorder, so an unusable tool and an unused one leave
+identical evidence — no rows — and point at opposite conclusions. Every
+zero-call tool now carries a `reachable` flag and a verdict: `unused`,
+`unreachable`, or `undetermined`. **Only `unused` is a retirement candidate.**
+`unreachable` is a bug report, and retiring it would delete the evidence of the
+defect. Reachability is read through the same path `tools/list` uses, and the
+readout says plainly that this is necessary rather than sufficient — from inside
+the plugin nothing can see a proxy refusing a schema.
+
+**The measured window is not the nominal one.** `measured_since` comes from
+`MIN(ts)` riding in the same query as the aggregate, never from the 90-day
+retention constant. The table began writing 2026-08-01, so any report today
+covers days, not months, and the headline says which. `window_days` (what was
+asked) and `measured_days` (what exists) are separate fields, with `complete`
+naming the gap. Same fix as both gauges earlier in this line.
+
+**Three ways to have no data, three different answers.** A missing table returns
+`null`. A failed query returns `null` — a `wpdb` error yields `false`, never an
+empty result set, and treating it as "no rows" would report an unused corpus on
+a database fault. An installed, empty table returns a real report with
+`total_rows: 0` and `measured_since: null`. The admin block distinguishes all
+three in prose rather than printing one message for the lot.
+
+Two things the spec did not anticipate, found while reading the code:
+
+- **Schema-error rows carry an empty `tool_name`** — the call never resolved to
+  a tool. They are real traffic and count toward the total, but attributing them
+  to a tool would invent a caller, so they create no `by_tool` entry.
+- **Telemetry stores the projected tool name, not the slug.** The zero-call diff
+  runs on projected names; comparing slugs against stored names would have
+  reported the entire corpus as zero-call, confidently and wrongly.
+
+Deliberately **not** an ability and **not** an MCP tool. Beyond the per-turn rent
+argument the AI invocation log already makes: a tool that reads the call log
+writes to the call log, so it would appear in its own zero-call analysis, always
+non-zero, inflating the corpus it exists to measure.
 
 ## [10.99.5] - 2026-08-12 — the IPv6 gauge stops counting rows written before its own sensor
 
