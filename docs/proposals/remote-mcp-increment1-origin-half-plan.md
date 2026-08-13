@@ -872,9 +872,14 @@ The arithmetic, so a mismatch is diagnosable rather than mysterious:
 | `tests/abilities-remote-analytics.php` (new suite) | 18 |
 | `tests/mcp-read-guard-run-route.php` (Task 4) | 4 |
 | `tests/mcp-capabilities.php` (Task 5) | 2 |
-| **Total** | **46** |
+| `tests/abilities-categories.php` (**automatic**, see below) | 2 |
+| **Total** | **48** |
 
-Baseline was 424 suites / 16,905 assertions → expect **426 / 16,951**.
+Baseline was 424 suites / 16,905 assertions → expect **426 / 16,953**.
+
+**The last row was not predicted, and it is not a defect.** `tests/abilities-categories.php` inspects every `inc/abilities-*.php` structurally, so creating `inc/abilities-remote-analytics.php` made it claim two new assertions on its own: Group D (the ability's cited `category` must be registered) and Group E (a no-`required` readonly ability must type its input as the `[object, null]` union). It reacts to the file existing on disk, not to the bootstrap requires — the count was already 87 before Task 6 wired anything.
+
+Worth knowing for any future increment that adds an abilities file: **your assertion budget grows by two before you write a single test**, and those two are real coverage you did not author.
 
 Two suites drifted from their planned counts, both because an assertion was found to be claiming more than it established. Recorded here so a mismatch is diagnosable rather than tempting:
 
