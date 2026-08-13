@@ -105,6 +105,22 @@ echo "Group: the ability is annotated read-only, like its admin twin\n";
 ok( true === $reg['meta']['annotations']['readonly'], 'annotated readonly' );
 ok( true === $reg['meta']['annotations']['idempotent'], 'annotated idempotent' );
 
+echo "Group: SCHEMA PARITY — the duplicated schemas may not drift apart\n";
+// The remote registration copies its schemas rather than extracting shared ones,
+// because extracting would modify the admin registration this increment promises
+// to leave unchanged. That trade is only safe while something notices drift.
+require_once __DIR__ . '/../inc/abilities-analytics.php';
+$GLOBALS['__abilities'] = array();
+foreach ( $GLOBALS['__actions']['wp_abilities_api_init'] as $cb ) { $cb(); }
+
+$r = $GLOBALS['__abilities'][ $REMOTE ];
+$a = $GLOBALS['__abilities'][ $ADMIN ];
+
+ok( $r['input_schema'] === $a['input_schema'], 'input_schema is identical to the admin ability\'s' );
+ok( $r['output_schema'] === $a['output_schema'], 'output_schema is identical to the admin ability\'s' );
+ok( $r['execute_callback'] === $a['execute_callback'], 'both dispatch to the same reader' );
+ok( $r['permission_callback'] !== $a['permission_callback'], 'but their gates are different — that is the whole point' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): abilities-remote-analytics.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): abilities-remote-analytics.php\n";
