@@ -328,9 +328,11 @@ if ( function_exists( 'add_filter' ) ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-remote-guard.php`
-Expected: `OK (17 passed, 0 failed): mcp-remote-guard.php`
+Expected: `OK (22 passed, 0 failed): mcp-remote-guard.php`
 
-(3 + 2 + 1 + 7 + 2 + 2 across the six groups. If your count differs, you changed the test — reconcile before moving on rather than editing the expected number.)
+(3 + 2 + 1 + 7 + 2 + 5 + 2 across the seven groups. If your count differs, you changed the test — reconcile before moving on rather than editing the expected number.)
+
+The 5-assertion run-route group was added after this plan was first written: as drafted, `sn_mcp_remote_guard_run_route()` was the one control in the file that nothing asserted, and Task 4 covers the READ guard's dispatcher on remote slugs rather than this one. A kill switch no test exercises is indistinguishable from one that does not work. The group must sit BEFORE the constant group, because `define()` cannot be undone and the "switch open" half of its assertions would otherwise be unreachable.
 
 - [ ] **Step 5: Commit**
 

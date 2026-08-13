@@ -79,6 +79,44 @@ $fixture = 'signal-noise/fixture-registered-after-the-gate';
 ok( false === sn_remote_analytics_allows( $fixture ), 'a brand-new ability slug is out of remote scope BY DEFAULT' );
 ok( ! in_array( $fixture, sn_mcp_remote_slugs(), true ), 'and it did not appear on the remote list' );
 
+echo "Group: the switch reaches the native run route, not just the predicate\n";
+// Without these, sn_mcp_remote_guard_run_route() would be the one control in the
+// file that nothing asserts — and a kill switch no test exercises is
+// indistinguishable from one that does not work. It exists precisely so a remote
+// slug held off the read allowlist cannot reach
+// POST /wp-abilities/v1/abilities/<slug>/run with no switch consulted at all.
+// This group runs BEFORE the constant group below on purpose: define() cannot be
+// undone, so once SN_MCP_REMOTE_DISABLED exists the "switch open" half of these
+// assertions could never be reached.
+
+/** A minimal REST request stand-in: the guard only ever asks for the route. */
+class RemoteG_Req {
+	private $route;
+	public function __construct( $r ) { $this->route = $r; }
+	public function get_route() { return $this->route; }
+}
+
+$remote_route = '/wp-abilities/v1/abilities/' . $REMOTE . '/run';
+
+$GLOBALS['__options'] = array();
+$denied               = sn_mcp_remote_guard_run_route( null, null, new RemoteG_Req( $remote_route ) );
+ok( is_wp_error( $denied ) && 'sn_mcp_remote_disabled' === $denied->get_error_code(), 'switch engaged -> the remote run route is refused as sn_mcp_remote_disabled' );
+
+$GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
+ok( null === sn_mcp_remote_guard_run_route( null, null, new RemoteG_Req( $remote_route ) ), 'switch open -> the guard stands down and claims nothing' );
+
+// THE NEGATIVE ONE: the remote switch must not darken slugs that are not its
+// business. The admin analytics ability is reached by the owner's own laptop
+// through the read door, and a remote kill that also closed it would be a worse
+// bug than the gap this dispatcher was added to close.
+$GLOBALS['__options'] = array();
+ok( null === sn_mcp_remote_guard_run_route( null, null, new RemoteG_Req( '/wp-abilities/v1/abilities/signal-noise/get-analytics-summary/run' ) ), 'THE NEGATIVE ONE: an admin analytics run route is untouched by the REMOTE switch' );
+
+$prior = new WP_Error( 'someone_elses_refusal', 'x', array( 'status' => 401 ) );
+ok( $prior === sn_mcp_remote_guard_run_route( $prior, null, new RemoteG_Req( $remote_route ) ), 'a non-null prior result passes through untouched — the guard never overrides another answer' );
+
+ok( null === sn_mcp_remote_guard_run_route( null, null, new RemoteG_Req( '/wp/v2/posts' ) ), 'an unrelated REST route is not a run route and is untouched' );
+
 echo "Group: the wp-config constant wins over an enabled option, LIVE and not only in the predicate\n";
 // Defined last, because define() cannot be undone: every assertion after this
 // point sees the constant. An attacker holding only a leaked credential can
