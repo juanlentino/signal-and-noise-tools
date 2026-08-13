@@ -252,9 +252,15 @@ ok( false === strpos( implode( ' | ', $floor['Operations']['planned'] ), 'Spend 
 // threat model declined the edge broker. The pin moves with it rather than being
 // deleted — the floor still has to say where the row IS, and a decision that
 // leaves no assertion behind is a decision the next session cannot see.
-ok( false === strpos( implode( ' | ', $floor['AI']['planned'] ), 'Reach the read door' ), 'DR floor: the remote read-door row is NO LONGER promised as planned' );
-ok( false !== strpos( implode( ' | ', $floor['AI']['considering'] ), 'Reach the read door' ), 'DR floor: it sits in AI CONSIDERING' );
-ok( false !== strpos( implode( ' | ', $floor['AI']['considering'] ), 'DECLINED' ), 'DR floor: and the row NAMES the decision, so the board does not merely go quiet about it' );
+// SUPERSEDED 2026-08-12 — the decline is REVERSED, so these pins move rather
+// than being deleted. The three assertions above used to read: not-planned,
+// sits-in-considering, names-DECLINED. All three are now false BY DECISION, not
+// by regression. The replacements below assert the new position and, more
+// importantly, the gate — because "planned" on this board is a promise, and a
+// promise without its gate is the thing the considering column exists to avoid.
+// Kept as a comment rather than dropped silently: a reversal that leaves no
+// trace is exactly what the original pin's own comment warned about.
+ok( false === strpos( implode( ' | ', $floor['AI']['considering'] ), 'Reach the read door' ), 'DR floor: the old declined phrasing is gone from considering' );
 // The give-back row moved PLANNED -> DONE on 2026-08-11. Its gate (an explicit
 // operator map) and its purpose clause both shipped in v10.91.0; only the literal
 // RATIO was declined, because crawls are requests and referred visits are
@@ -308,6 +314,25 @@ ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array
 // conceals nothing. Same shape as the founding row: absent from EVERY column,
 // not merely moved out of done.
 ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'A public stats page' ), 'DR floor: the retired stats-page row appears in NO Analytics column' );
+
+// R3 §3D REOPENED 2026-08-12 (owner: "I want to have the MCP on my phone").
+// The row sat in AI 'considering' worded as DECLINED — and the reopening
+// condition it named ("a real task needing an agent to read the CORPUS from a
+// phone") is not the one that fired: the owner wants ANALYTICS from a phone,
+// which is a different asset and a different risk. A public board row that
+// states a decision the owner has reversed is worse than a stale row; it is a
+// wrong one.
+$ai_all = implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['AI'] ) ) );
+ok( false === strpos( $ai_all, 'DECLINED' ), 'DR floor: no AI row still records the phone door as declined' );
+ok( false === strpos( $ai_all, 'the asset is unpublished drafts' ), 'DR floor: and the old decline reasoning survives in no column' );
+// A planned row must NAME ITS GATE — that is what separates planned from
+// considering on this board. Pin the three preconditions, because they are the
+// ones a future session would be tempted to soften.
+$ai_planned = implode( ' | ', $floor['AI']['planned'] );
+ok( false !== strpos( $ai_planned, 'phone' ), 'DR floor: the phone-door row is PLANNED (the owner committed to it)' );
+ok( false !== strpos( $ai_planned, 'fail' ) && false !== strpos( $ai_planned, 'closed' ), 'DR floor: its gate names the fail-CLOSED ceiling — the local ceiling is deliberately fail-open and that is not acceptable where a credential exists' );
+ok( false !== strpos( $ai_planned, 'expire' ), 'DR floor: its gate names a token that EXPIRES — a credential the site cannot rotate was what killed the first attempt' );
+ok( false !== strpos( $ai_planned, 'draft' ), 'DR floor: and the gate names the drafts boundary, the asset the original decline was actually protecting' );
 ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'aggregate numbers published for readers' ), 'DR floor: and no fragment of its sentence survives anywhere in the family' );
 // The POINT of the retirement, stated as its own claim. The wall canary above
 // (max_done <= MAX_DONE - 1) already reds at 5, and Analytics sat at 4 — legal,
