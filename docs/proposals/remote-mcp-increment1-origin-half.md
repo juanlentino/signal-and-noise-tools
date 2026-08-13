@@ -330,3 +330,33 @@ request-scoped identity?** This design does not decide it, because it does not n
 to: `current_user_can()` answers correctly for either, and the choice belongs with
 the bridge that establishes the principal. Recording it here so the next session
 knows it was left open on purpose rather than overlooked.
+
+---
+
+## Mutation verification
+
+Run 2026-08-13 against the completed increment. Every mutation was applied to source,
+confirmed landed with `git diff` on the exact path, run, then reverted. The Verified
+column quotes the assertion names as the suites printed them.
+
+| Mutation | Pins that red | Verified |
+| --- | --- | --- |
+| Remove the kill-switch check from `sn_remote_analytics_allows()` | switch-absent refusal | `FAIL - THE ONE THAT MATTERS: capability held, slug listed, switch ABSENT -> refused` and `FAIL - and the gate refuses a fully-credentialled caller` (2 failed / 20 passed) |
+| Flip the `get_option()` default to `true` (fail-open) | absent-option engaged + switch-absent refusal | `FAIL - absent option -> engaged (fail CLOSED)`, `FAIL - THE ONE THAT MATTERS: capability held, slug listed, switch ABSENT -> refused`, plus `FAIL - switch engaged -> the remote run route is refused as sn_mcp_remote_disabled` (3 failed / 19 passed) |
+| Remove the capability check | capability-absent + admin-without-capability | `FAIL - switch on, capability absent -> refused` and `FAIL - a manage_options admin WITHOUT the remote capability -> refused` (2 failed / 20 passed) |
+| Replace slug membership with `return true` | scope-stability fixture + corpus + write slug | `FAIL - a brand-new ability slug is out of remote scope BY DEFAULT`, `FAIL - a corpus slug is not on the remote list -> refused`, `FAIL - a write slug -> refused`, plus `FAIL - an empty slug -> refused` (4 failed / 18 passed) |
+| Add the remote slug to `sn_mcp_allowlist()` | allowlist absence, in both suites | `mcp-capabilities.php`: `FAIL: signal-noise/remote-get-analytics-summary is absent from the READ allowlist`, plus both cardinality pins (`read-door allowlist has exactly 38 slugs`, `read door carries exactly 28 plugin slugs`) — 3 failed / 117 passed. `abilities-remote-analytics.php`: `FAIL - the remote slug is ABSENT from the MCP read allowlist` — 1 failed / 17 passed |
+
+No mutation reddened fewer pins than expected; three reddened more. The extras are
+real coverage, not noise:
+
+- The fail-open mutation also reds the **run-route** assertion, because the
+  `rest_pre_dispatch` guard reads the same predicate. The switch is therefore pinned
+  at two independent call sites, not one — the ability gate and the native run route.
+- The kill-switch removal also reds the constant-wins group's live assertion, which
+  confirms `SN_MCP_REMOTE_DISABLED` reaches the gate through the same path rather
+  than through a second mechanism that would need its own pin.
+- The `return true` mutation also reds the empty-slug refusal, so the string guard is
+  pinned separately from the membership test.
+
+After the sweep with all five reverted: `-- swept 426 suites, 16953 assertions passed, 1 skipped --`.
