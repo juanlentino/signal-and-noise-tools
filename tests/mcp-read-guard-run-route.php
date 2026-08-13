@@ -118,12 +118,24 @@ $remote_route = '/wp-abilities/v1/abilities/' . $remote_slug . '/run';
 
 ok( true === sn_mcp_read_guard_is_read_path( $remote_route ), 'the remote run route IS on the read path, so the ceiling reaches it' );
 
-// Engage the READ kill switch and confirm it does not answer for the remote slug.
-$GLOBALS['__options']['sn_mcp_read_enabled'] = false;
-ok( true === sn_mcp_read_kill_switch_engaged(), 'the read switch is engaged for this check' );
+// The negative assertion below is only meaningful while the READ switch is
+// ENGAGED — otherwise it would pass for the boring reason that the guard is
+// letting everything through. So state that precondition, accurately.
+//
+// WHY IT IS STATED VIA THE CONSTANT, and do not "improve" this by writing the
+// option instead: the group above calls define( 'SN_MCP_READ_DISABLED', true ),
+// and define() is permanent. Every group placed after it sees the constant
+// engaged no matter what sn_mcp_read_enabled holds, so an option-based
+// assertion here would be VACUOUS — it would pass with the option set either
+// way, while its label claimed it had exercised the option route. It cannot be
+// exercised at this point in the file at all. If the option route needs its own
+// check, it belongs in a group ABOVE the define(), or in another suite.
+ok(
+	defined( 'SN_MCP_READ_DISABLED' ) && true === SN_MCP_READ_DISABLED && true === sn_mcp_read_kill_switch_engaged(),
+	'the read switch is engaged here BY THE CONSTANT, so the next assertion is not vacuous'
+);
 ok( null === sn_mcp_read_guard_run_route( null, null, new RG_Req( $remote_route ) ), 'THE NEGATIVE ONE: the READ kill switch does not darken a remote slug' );
 ok( is_wp_error( sn_mcp_read_guard_run_route( null, null, new RG_Req( '/wp-abilities/v1/abilities/' . $a_read . '/run' ) ) ), 'while it still darkens a genuine read-allowlist slug' );
-$GLOBALS['__options']['sn_mcp_read_enabled'] = true;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
