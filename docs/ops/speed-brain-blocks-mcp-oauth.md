@@ -1,16 +1,20 @@
 # Speed Brain blocked browser OAuth on the remote MCP host — CONFIRMED and worked around
 
-**Status:** **CAUSE CONFIRMED 2026-08-13.** Speed Brain is currently **OFF ZONE-WIDE** as a
-temporary workaround. The durable fix is not yet built.
-**Unblocked:** R3 §3D Increment 0's OAuth path. Browser OAuth now completes and the connector
+**Status:** **CAUSE CONFIRMED and RESOLVED 2026-08-13.** Speed Brain is **OFF ZONE-WIDE**, and
+that is the settled answer, not a workaround awaiting a better one.
+**Unblocked:** R3 §3D Increment 0's OAuth path. Browser OAuth completes and the connector
 appears on the phone.
 **Related:** [`../proposals/remote-mcp-transport.md`](../proposals/remote-mcp-transport.md),
 [`../proposals/remote-mcp-increment1-origin-half.md`](../proposals/remote-mcp-increment1-origin-half.md)
 
-> **If you are here because the site feels slower:** Speed Brain was turned off on the whole
-> `juanlentino.com` zone on 2026-08-13 to unblock MCP OAuth. That is a **temporary** state, not
-> a policy. Turning it back on requires the Worker-side guard in
-> [The durable fix](#the-durable-fix-not-yet-built) first, or OAuth breaks again.
+> **If you are here because the site feels slower:** Speed Brain is off on the whole
+> `juanlentino.com` zone, deliberately, since 2026-08-13. It is what makes remote MCP OAuth
+> work. **Re-enabling it breaks the MCP connector**, and no code-side guard can prevent that —
+> see [A Worker-side guard was scoped, and it CANNOT work](#a-worker-side-guard-was-scoped-and-it-cannot-work).
+>
+> Reversing this is cheap and legitimate — one toggle, owner decision, `Speed → Settings →
+> Content Optimization`. Just know what it costs: the phone loses the connector. If the apex
+> ever needs prefetch badly enough, the path is a separate zone for `mcp.`, not a re-enable.
 
 ---
 
@@ -78,32 +82,56 @@ invisible until someone opened the rule builder.
 
 ---
 
-## The durable fix (NOT yet built)
+## A Worker-side guard was scoped, and it CANNOT work
 
-Leaving Speed Brain off zone-wide costs the whole site its prefetch benefit to protect five
-OAuth endpoints on one subdomain. The better control lives in the Worker.
+The obvious durable fix is to refuse prefetches rather than disable prefetching. Cloudflare's
+docs state prefetch requests carry `sec-purpose: prefetch`, and that *"prefetches that are not
+successful will respond with a 503 status code"* — so refusing one with a 503 is documented
+behaviour, not an invention. A guard in the Worker would be version-controlled, unit-testable,
+and would cost the apex nothing.
 
-**Refuse prefetches on the OAuth endpoints.** Cloudflare's docs state prefetch requests carry
-`sec-purpose: prefetch`, and that *"prefetches that are not successful will respond with a 503
-status code"* — so a 503 is the documented, expected outcome for a prefetch that does not
-succeed, not an error condition invented here.
+**It cannot be built, because the Worker never sees the requests that matter.**
 
-Sketch, for `juanlentino/sn-remote-mcp-worker`:
+From `sn-remote-mcp-worker/src/index.mjs:8-17`:
 
-- On the authorize endpoint, the callback, and anything else that consumes a single-use value:
-  if the request carries `Sec-Purpose` containing `prefetch`, return **503** without touching
-  the nonce, code, or state.
-- Do **not** apply it to `/mcp` itself or the `.well-known` documents — those are idempotent
-  and safely prefetchable, and refusing them would slow the real flow for no gain.
-- Test in the workerd runtime: a request with the header gets 503 and leaves the nonce
-  unconsumed; the same request without it completes normally. Mutation-verify by deleting the
-  header check and confirming the nonce-unconsumed assertion reds.
+> AUTHORIZATION IS CLOUDFLARE ACCESS MANAGED OAUTH. Access is the authorization server: it
+> issues tokens, publishes the RFC 8414 + RFC 9728 discovery documents on the team domain, runs
+> the browser flow… Consequently this Worker serves NO /.well-known route and NO /authorize or
+> /token endpoints.
 
-Why this is better than the zone toggle: it is version-controlled, unit-testable, costs the
-apex nothing, and does not depend on a plan feature that could move. **The zone toggle is a
-configuration claim; the header check is code with a test.**
+The Worker's entire routing table is `/mcp`, `/mcp/status`, and `/_sn/remote-mcp/status`. The
+nonce is issued and consumed by **Cloudflare Access**, at a layer the Worker sits *behind*. A
+header check in Worker code cannot reach a request Access answers.
 
-Once it ships and is verified, **turn Speed Brain back on** and confirm OAuth still completes.
+And that is also the confirmation of the mechanism. Access serves its endpoints **on our
+hostname** — the 401 from `/mcp/status` returns
+`resource_metadata: https://mcp.juanlentino.com/.well-known/cloudflare-access-protected-resource/mcp/status`
+— which is exactly how a zone-level feature reached them.
+
+**This is the second control in this document scoped to the wrong layer.** The first was a
+Configuration Rule for a setting Configuration Rules do not expose; the second was Worker code
+for requests the Worker never receives. Both failed the same way: the control was scoped to the
+layer whose source was easiest to read. The standing lesson —
+*zone config sits above Access, and Access sits above the Worker* — now has two witnesses in one
+incident.
+
+## Where that leaves the durable fix
+
+Speed Brain has no per-hostname scoping, and the endpoints that need protecting are not ours to
+guard. Three options, honestly ranked:
+
+1. **Leave Speed Brain off zone-wide. ← CHOSEN (owner, 2026-08-13).** Costs the apex a beta
+   prefetch feature on a personal site; buys a working OAuth door. Chosen on the reasoning that
+   the trade is small and **reversible at any time** — one toggle, with the connector as the
+   known cost.
+2. **Move `mcp.` to its own Cloudflare zone**, where the setting can differ independently. Real
+   isolation. Costs a zone to set up and keep configured correctly, and adds a second place
+   where a wrong setting can break this door. This is the path **if the apex ever needs
+   prefetch back** — not a re-enable on the shared zone.
+3. Per-hostname Speed Brain from Cloudflare. Not available, not announced. Not a plan.
+
+**Do not** re-enable Speed Brain expecting a Worker-side guard to protect the flow. That is the
+specific wrong turn this section exists to prevent.
 
 ---
 
