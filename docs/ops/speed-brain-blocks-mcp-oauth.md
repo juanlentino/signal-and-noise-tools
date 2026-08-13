@@ -24,19 +24,41 @@
 > never asked the one question that would have caught it: **was it already working before I
 > changed anything?**
 >
-> **What is still true:** Speed Brain *was* on and *did* inject `speculation-rules` on this
-> hostname (measured, both hosts, 22:31:47Z). Prefetching a single-use OAuth URL is a real,
-> documented hazard. It remains a *plausible* cause of a *past* failure. It is not a
-> demonstrated cause of *this* one.
+> **What is still true, and it is more than "plausible":** a prior session diagnosed this
+> mechanism specifically — the Access approve step is a **GET carrying a single-use nonce**, and
+> Speed Brain's prefetch (`eagerness: conservative`, `href_matches: /*`) spends it on
+> pointerdown, producing *"Invalid nonce"* rather than *"expired"*. That diagnosis stands. Speed
+> Brain *was* on and *did* inject `speculation-rules` here (measured, both hosts, 22:31:47Z).
 >
-> **What would settle it** — and note it cannot be settled with pings:
-> 1. Re-enable Speed Brain.
-> 2. **Remove the connector and add it again**, so a genuinely new authorization flow runs.
-> 3. If OAuth fails, causation is established and Speed Brain goes back off for good. If it
->    succeeds, Speed Brain was never the blocker and should stay on.
+> **The reconciliation — and this is the actually useful finding.** A real past failure and a
+> working connector tonight are not in conflict, because **the hazard is intermittent by
+> design**. `conservative` eagerness means the browser prefetches on pointerdown over a link,
+> not on every navigation, and Cloudflare's own dashboard warns that *"even when enabled, it
+> might not be actively running at all times on your website."* So OAuth can succeed with Speed
+> Brain on, repeatedly, and still fail the next time.
 >
-> Until that runs, **leaving Speed Brain off is a precaution, not a fix**, and the zone is
-> paying for a benefit nobody has shown it buys.
+> That makes this **a flaky failure mode, not a deterministic one** — which changes what counts
+> as evidence. A single successful authorization does not clear Speed Brain, and a single
+> failure does not convict it. Neither does turning it off and watching one success, which is
+> precisely the error made above.
+>
+> **What would settle it — harder than it first looks.** Pings cannot do it (they reuse an
+> issued token), and *neither can a single connector re-add*, because an intermittent hazard
+> passes single trials routinely. A `conservative`-eagerness prefetch that fires on pointerdown
+> will simply not fire on many attempts.
+>
+> A test that actually discriminates needs **repeated fresh authorizations**, and ideally the
+> failing signal rather than the passing one:
+>
+> 1. Speed Brain **on** (restored 2026-08-13 ~23:10Z — no evidence justified leaving it off).
+> 2. Remove and re-add the connector **several times**, deliberately hovering/pointer-downing
+>    the approve button before clicking, since that is what triggers a conservative prefetch.
+> 3. Any *"Invalid nonce"* convicts it — one failure is significant where one success is not,
+>    because the mechanism is documented and the failure is hard to produce by other means.
+>
+> Given the asymmetry, the pragmatic posture is: **leave Speed Brain on, and if OAuth ever fails
+> with "Invalid nonce" again, turn it off immediately and treat that as confirmation.** The cost
+> of being wrong is one retry of a flow the owner runs a handful of times a year.
 >
 > The rest of this document is left intact rather than rewritten, because the reasoning that
 > produced a wrong conclusion is worth more to a future reader than a tidy record. Read it as
