@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.100.0] - 2026-08-13 — the call log gets a reader, and the sensor chip stops crying wolf
 
 ### The §3D transport foundation gets its one fresh check, and it moved
 
