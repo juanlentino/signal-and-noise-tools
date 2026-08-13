@@ -267,8 +267,14 @@ function snt_mr_sensor_pills( $info, $status, $result ) {
 	$pills   = array();
 
 	// 1. The deployed edge sensor.
-	if ( '' === $version ) {
+	if ( null === $info ) {
 		$pills[] = array( 'unknown', __( 'Sensor unreachable', 'signal-and-noise-tools' ), '' );
+	} elseif ( is_array( $info ) && true === ( $info['reachable'] ?? false ) && '' === $version ) {
+		$pills[] = array(
+			'warn',
+			__( 'Sensor reachable, version unreported', 'signal-and-noise-tools' ),
+			__( 'The deploy does not set SN_VERSION, so these panels cannot check the minimum version.', 'signal-and-noise-tools' ),
+		);
 	} elseif ( version_compare( $version, $min, '<' ) ) {
 		$pills[] = array(
 			'warn',

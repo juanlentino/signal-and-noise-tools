@@ -249,7 +249,7 @@ function snt_mr_render_tab() {
 	// bespoke bar: same vocabulary as sn_worker_version_render_data().
 	echo '<div class="notice notice-info notice-alt inline">';
 	echo '<p><strong>' . esc_html__( 'Worker', 'signal-and-noise-tools' ) . '</strong> <code>sn-rights-signals</code>';
-	if ( is_array( $sn_mr_info ) && isset( $sn_mr_info['version'] ) ) {
+	if ( is_array( $sn_mr_info ) && '' !== (string) ( $sn_mr_info['version'] ?? '' ) ) {
 		echo ' <code>v' . esc_html( (string) $sn_mr_info['version'] ) . '</code>';
 	}
 	echo '</p>';

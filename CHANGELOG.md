@@ -4,6 +4,82 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### The §3D transport foundation gets its one fresh check, and it moved
+
+The remote-MCP transport proposal was designed against external docs read **once**, on
+2026-08-12, and it said so at the top. A design whose foundation is a single dated doc read
+earns exactly one re-read before code. This is that re-read, and it found the foundation had
+shifted underneath.
+
+**`2026-07-28` is no longer a release candidate — it is the current MCP specification.**
+The proposal called it "a 2026-07-28 RC that stresses stateless Streamable HTTP" and planned
+around it as a future stressor. It shipped. It is a backwards-incompatible revision that
+removes the `Mcp-Session-Id` header and the `initialize`/`initialized` handshake outright,
+moves version negotiation into per-request `_meta`, adds a `server/discover` RPC, and
+deprecates Dynamic Client Registration in favour of Client ID Metadata Documents.
+
+**And yet the build target does not move — which is the half that matters.** Anthropic's
+connector client is still on the `2025-11-25` family: the Platform beta header is
+`mcp-client-2025-11-20`, its `authorization_token` field documents itself against the
+`2025-11-25` authorization spec, and `2026-07-28` appears nowhere on Anthropic's connector
+documentation. A server speaking `2025-11-25` is what Claude actually connects to today. The
+ratification changes what to **avoid building**, not what to build against. Reporting only
+the first half would have read as "the design is obsolete", which is false.
+
+**Two corrections and one addition:**
+
+- **Build the Worker stateless from day one.** `2025-11-25` makes sessions optional;
+  `2026-07-28` removes them. Stateless satisfies both, costs nothing to decide now, and is a
+  rewrite to retrofit. It is free *only* because the decision precedes the first line of code.
+- **CIMD, not DCR.** This answers the proposal's own open question 7. Building DCR now would
+  ship a control with its removal clock already running.
+- **RFC 8707 audience binding was missing entirely.** The proposal cites RFC 8414, 7591 and
+  9728 and never cites 8707 — yet the spec requires servers to validate that a token was
+  issued *specifically for them*, and to accept or transit no other token. That is precisely
+  the confused-deputy control this proposal's own threat model worries about. It moves onto
+  the **Increment 0** ship list, not a later increment.
+
+The DO-backed fail-closed counter is unaffected: it is rate-limit consistency, not session
+state.
+
+No code changed. The proposal now carries a dated re-verification section, a stale-marker on
+the superseded paragraph, and a named re-check trigger — when Anthropic advertises a beta
+header past `mcp-client-2025-11-20`, this section needs reading again.
+### The sensor chip stops crying wolf
+
+Measurement → Machine Readers showed **"Sensor unreachable"** while every other
+indicator on the tab was green and the table below was current to the same day.
+The sensor was fine: `/_sn/rights-signals/version` answered HTTP 200 in 0.13s
+with `ae_bound: true`. What it did not answer was a version, because a
+git-connected Worker deploys through Workers Builds and never runs the script
+that passes `--var SN_VERSION`. That half is fixed in the Worker repo.
+
+This half is the plugin believing the wrong thing about it. `snt_mr_sensor_info()`
+returned `null` for a null or malformed version — the **identical** return value
+it uses for a WP_Error, a non-200, and a blocked SSRF host. Four distinct states
+collapsed into one, and the renderer named the single cause that was not
+happening.
+
+**Reached-it and named-a-version are now separate answers.** The function returns
+`reachable => true` whenever a 200 parsed, with `version` set to `''` when the
+body did not carry a usable one. Genuine transport failure still returns `null`,
+unchanged, so nothing that depended on that distinction moved.
+
+The security property is preserved and pinned harder than before: a hostile
+version string is never propagated. Absent and hostile both yield exactly `''` —
+never the rejected string, never a sanitised derivative — and the pin now asserts
+the string appears nowhere in the returned structure rather than merely that the
+call failed.
+
+The chip gained a third state to match: **"Sensor reachable, version unreported"**,
+carrying the reason. A panel that reports a healthy sensor as unreachable trains
+you to ignore it, and it is the same chip that would announce a real outage.
+
+`snt_mr_sensor_info()` now feeds the health check a `sensor` block on an
+unversioned-but-healthy worker, where it previously saw nothing at all. That
+produces no new finding — the findings logic compares with `false ===`, and the
+live values are `true` and `null` — so the health check simply stops being blind
+on exactly the deploys it was blind on.
 ### The call log gets a reader
 
 `sn_tool_call` had three code paths — install, insert, prune — and **no `SELECT`
