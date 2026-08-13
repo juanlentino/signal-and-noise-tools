@@ -4,6 +4,47 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### The §3D transport foundation gets its one fresh check, and it moved
+
+The remote-MCP transport proposal was designed against external docs read **once**, on
+2026-08-12, and it said so at the top. A design whose foundation is a single dated doc read
+earns exactly one re-read before code. This is that re-read, and it found the foundation had
+shifted underneath.
+
+**`2026-07-28` is no longer a release candidate — it is the current MCP specification.**
+The proposal called it "a 2026-07-28 RC that stresses stateless Streamable HTTP" and planned
+around it as a future stressor. It shipped. It is a backwards-incompatible revision that
+removes the `Mcp-Session-Id` header and the `initialize`/`initialized` handshake outright,
+moves version negotiation into per-request `_meta`, adds a `server/discover` RPC, and
+deprecates Dynamic Client Registration in favour of Client ID Metadata Documents.
+
+**And yet the build target does not move — which is the half that matters.** Anthropic's
+connector client is still on the `2025-11-25` family: the Platform beta header is
+`mcp-client-2025-11-20`, its `authorization_token` field documents itself against the
+`2025-11-25` authorization spec, and `2026-07-28` appears nowhere on Anthropic's connector
+documentation. A server speaking `2025-11-25` is what Claude actually connects to today. The
+ratification changes what to **avoid building**, not what to build against. Reporting only
+the first half would have read as "the design is obsolete", which is false.
+
+**Two corrections and one addition:**
+
+- **Build the Worker stateless from day one.** `2025-11-25` makes sessions optional;
+  `2026-07-28` removes them. Stateless satisfies both, costs nothing to decide now, and is a
+  rewrite to retrofit. It is free *only* because the decision precedes the first line of code.
+- **CIMD, not DCR.** This answers the proposal's own open question 7. Building DCR now would
+  ship a control with its removal clock already running.
+- **RFC 8707 audience binding was missing entirely.** The proposal cites RFC 8414, 7591 and
+  9728 and never cites 8707 — yet the spec requires servers to validate that a token was
+  issued *specifically for them*, and to accept or transit no other token. That is precisely
+  the confused-deputy control this proposal's own threat model worries about. It moves onto
+  the **Increment 0** ship list, not a later increment.
+
+The DO-backed fail-closed counter is unaffected: it is rate-limit consistency, not session
+state.
+
+No code changed. The proposal now carries a dated re-verification section, a stale-marker on
+the superseded paragraph, and a named re-check trigger — when Anthropic advertises a beta
+header past `mcp-client-2025-11-20`, this section needs reading again.
 ### The sensor chip stops crying wolf
 
 Measurement → Machine Readers showed **"Sensor unreachable"** while every other
