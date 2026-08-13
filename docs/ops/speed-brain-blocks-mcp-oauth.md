@@ -1,7 +1,71 @@
 # Speed Brain blocked browser OAuth on the remote MCP host — CONFIRMED and worked around
 
-**Status:** **CAUSE CONFIRMED and RESOLVED 2026-08-13.** Speed Brain is **OFF ZONE-WIDE**, and
-that is the settled answer, not a workaround awaiting a better one.
+> ## ⚠️ CORRECTION 2026-08-13, ~23:05Z — THE CAUSAL CLAIM BELOW IS NOT SUPPORTED
+>
+> **Everything in this file about Speed Brain *causing* the OAuth failure is retracted.** The
+> mechanism is real and documented; the causation was never established. Two independent
+> reasons, either one sufficient:
+>
+> **1. The connector was already working before the change.** A `sn_remote_ping` call from the
+> phone succeeded at **21:20:38Z**. My first measurement of `speculation-rules` was at
+> **22:31:47Z**, and I disabled Speed Brain *after* that — so the phone was working at least
+> **71 minutes before** the fix. The phone-side Claude flagged this itself and I read past it:
+> *"that's since I started checking, not since it started working. It may well have been up for
+> days."*
+>
+> **2. Pings are not evidence about OAuth in the first place.** `sn_remote_ping` runs against an
+> **already-issued token**. The nonce is consumed exactly once, during authorization. Three
+> pings across 100 minutes prove the token still resolves; they exercise the OAuth flow **zero
+> times**. So neither the pings before the change nor the ones after say anything about whether
+> the flow was broken or fixed.
+>
+> **What this was:** post hoc. I changed a setting, observed a success, and reported causation —
+> the failure mode the house rule *"a first working answer ends the search"* exists to catch. I
+> never asked the one question that would have caught it: **was it already working before I
+> changed anything?**
+>
+> **What is still true, and it is more than "plausible":** a prior session diagnosed this
+> mechanism specifically — the Access approve step is a **GET carrying a single-use nonce**, and
+> Speed Brain's prefetch (`eagerness: conservative`, `href_matches: /*`) spends it on
+> pointerdown, producing *"Invalid nonce"* rather than *"expired"*. That diagnosis stands. Speed
+> Brain *was* on and *did* inject `speculation-rules` here (measured, both hosts, 22:31:47Z).
+>
+> **The reconciliation — and this is the actually useful finding.** A real past failure and a
+> working connector tonight are not in conflict, because **the hazard is intermittent by
+> design**. `conservative` eagerness means the browser prefetches on pointerdown over a link,
+> not on every navigation, and Cloudflare's own dashboard warns that *"even when enabled, it
+> might not be actively running at all times on your website."* So OAuth can succeed with Speed
+> Brain on, repeatedly, and still fail the next time.
+>
+> That makes this **a flaky failure mode, not a deterministic one** — which changes what counts
+> as evidence. A single successful authorization does not clear Speed Brain, and a single
+> failure does not convict it. Neither does turning it off and watching one success, which is
+> precisely the error made above.
+>
+> **What would settle it — harder than it first looks.** Pings cannot do it (they reuse an
+> issued token), and *neither can a single connector re-add*, because an intermittent hazard
+> passes single trials routinely. A `conservative`-eagerness prefetch that fires on pointerdown
+> will simply not fire on many attempts.
+>
+> A test that actually discriminates needs **repeated fresh authorizations**, and ideally the
+> failing signal rather than the passing one:
+>
+> 1. Speed Brain **on** (restored 2026-08-13 ~23:10Z — no evidence justified leaving it off).
+> 2. Remove and re-add the connector **several times**, deliberately hovering/pointer-downing
+>    the approve button before clicking, since that is what triggers a conservative prefetch.
+> 3. Any *"Invalid nonce"* convicts it — one failure is significant where one success is not,
+>    because the mechanism is documented and the failure is hard to produce by other means.
+>
+> Given the asymmetry, the pragmatic posture is: **leave Speed Brain on, and if OAuth ever fails
+> with "Invalid nonce" again, turn it off immediately and treat that as confirmation.** The cost
+> of being wrong is one retry of a flow the owner runs a handful of times a year.
+>
+> The rest of this document is left intact rather than rewritten, because the reasoning that
+> produced a wrong conclusion is worth more to a future reader than a tidy record. Read it as
+> evidence-gathering, not as findings.
+
+**Status:** ~~**CAUSE CONFIRMED and RESOLVED 2026-08-13.**~~ **RETRACTED — see the correction
+above.** Speed Brain is **OFF ZONE-WIDE** as an unproven precaution.
 **Unblocked:** R3 §3D Increment 0's OAuth path. Browser OAuth completes and the connector
 appears on the phone.
 **Related:** [`../proposals/remote-mcp-transport.md`](../proposals/remote-mcp-transport.md),
