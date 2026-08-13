@@ -209,5 +209,17 @@ ok( $rw_info['version'] === $read_info['version'], 'both doors report the same p
 
 ok( ! in_array( 'signal-noise/draft-release-notes', sn_mcp_rw_allowlist(), true ), 'v10.0.0: draft-release-notes is off the rw door (ability retired)' );
 
+echo "Group: the remote analytics slugs never join the laptop door's lists\n";
+// Pinned HERE, in the allowlist's own suite, and not only in the remote suite:
+// whoever widens sn_mcp_allowlist() next will be running this file.
+// No filter is registered at this point, so the apply_filters stub is an
+// identity pass-through and these two assertions pin the STATIC list only —
+// they are not coverage of the sn_mcp_allowlist filter path.
+require_once __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
+foreach ( sn_mcp_remote_slugs() as $remote_slug ) {
+	ok( ! in_array( $remote_slug, sn_mcp_allowlist(), true ), "$remote_slug is absent from the READ allowlist" );
+	ok( ! in_array( $remote_slug, sn_mcp_rw_allowlist(), true ), "$remote_slug is absent from the WRITE allowlist" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
