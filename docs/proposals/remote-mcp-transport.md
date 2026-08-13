@@ -1,9 +1,13 @@
 # Remote MCP transport + OAuth (R3 §3D) — design proposal
 
-**Status:** SCOPING ONLY — nothing implemented from this document.  
+**Status:** **Increment 0 BUILT** (2026-08-13) — see [Implementation](#implementation-status)
+below. Increments 1–4 remain scoping only.  
 **Audited against:** `origin/main` @ `3211713` (v10.99.2).  
-**External docs read:** 2026-08-12.  
-**Target version if built:** v11.0.0 (MAJOR — setup requires user action).  
+**External docs read:** 2026-08-12; **re-verified 2026-08-13** — see
+[Re-verification](#re-verification-2026-08-13), which found the spec had ratified underneath
+this design and that RFC 8707 was missing from it entirely.  
+**Target version if built:** v11.0.0 (MAJOR — setup requires user action). **Unchanged by
+Increment 0**, which is Worker-only and touches no plugin code, so it carries no plugin version.  
 **Question:** what OAuth + transport layer would make a **phone-reachable, analytics-only MCP read door** safe enough to ship — and under what findings should it not be built?
 
 This is not a proposal to reopen drafts on the phone. Corpus-spanning reads are out by construction. This is the transport and credential design for a **named, curated set of ~N read-only analytics/stats tools**, reached from Claude mobile/web.
@@ -476,6 +480,31 @@ Smallest shippable slices. Stop after any increment if kill criteria trip.
 **Does not prove:** data safety, REST flank, or product value.  
 **Exit:** connector works end-to-end on phone; disconnect + edge revoke both stop further calls within one access-token TTL.
 
+#### Implementation status
+
+**BUILT 2026-08-13 — `juanlentino/sn-remote-mcp-worker` (private), v0.1.0.** Not yet deployed:
+it needs five `wrangler secret put` values and a Cloudflare Access application, both owner-only.
+Until then `/mcp/status` reports `configured: false` and every authenticated path returns 503,
+by design.
+
+63 tests in the real workerd runtime. Two mutation-verified: removing the audience check reds
+exactly the RFC 8707 pins, and porting the local read door's fail-open inversion into the
+counter reds exactly the fail-closed pin.
+
+**What the build settled, beyond what this document specified:**
+
+| Question | Resolution in code |
+| --- | --- |
+| Consent-step identity | **Cloudflare Access**, verified by JWT *signature* against the team's keys with `aud`/`iss` bound and the algorithm pinned from our side. Header presence is never treated as proof — that header is attacker-supplied whenever Access is not actually in front of the route. |
+| Open question 7 — client registration | **Pre-registered client.** No DCR: it is deprecated in favour of CIMD, so building it would ship a control with its removal clock already running. `registration_endpoint` is deliberately absent from AS metadata, and the live verifier asserts it stays absent. |
+| Session model | **Stateless — no `Mcp-Session-Id` ever issued.** `2025-11-25` makes sessions optional and `2026-07-28` removes them, so issuing none satisfies both. Free to decide before the first line of code; a rewrite to retrofit. |
+| Refresh tokens | **None in Increment 0.** Access-token TTL (900s) is then the only bound on a stolen token — which is precisely what this increment's exit criterion measures. A refresh token would make that criterion untestable while the phone revoke path does not yet exist. |
+| RFC 8707 audience binding | **Enforced at `/mcp`**, moved into Increment 0 rather than deferred. A token minted for any other resource is refused *even when this Worker signed it*. |
+
+**Still deferred to Increment 1, as specified:** binding α vs β for the origin bridge. The
+Worker has no origin channel at all — that is what makes "no data path" true rather than merely
+guarded.
+
 ### Increment 1 — One real analytics tool + origin bridge
 
 **Ship:** `get-analytics-summary` only (or equivalent single ability); bridge auth; permission callback that is not full admin; session id in logs; edge kill flag; absolute session TTL.
@@ -602,7 +631,11 @@ way. Re-read with a fresh instrument, not a repeat call.
 
 ---
 
-*End of proposal. No implementation is authorized by this document alone.*
+*End of proposal. **Increment 0 was authorized separately and is built** (see
+[Implementation status](#implementation-status)); it remains undeployed pending owner-only
+setup. No FURTHER increment is authorized by this document alone — Increment 1 adds the first
+real data path and is gated on Increment 0's exit criteria being observed by a human, which is
+the whole reason the work was cut into increments.*
 
 ---
 
