@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.99.5] - 2026-08-12 — the IPv6 gauge stops counting rows written before its own sensor
 
 ### The IPv6 gauge stops counting rows written before its own sensor
 
