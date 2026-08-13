@@ -1,4 +1,36 @@
-# Speed Brain blocked browser OAuth on the remote MCP host — CONFIRMED and worked around
+# Speed Brain, prefetch, and the remote MCP OAuth nonce — an unresolved investigation
+
+> ## ✅ RESOLUTION-OF-SORTS 2026-08-13, ~23:40Z — A GUARD IS DEPLOYED; THE DIAGNOSIS IS NOT PROVEN
+>
+> **Speed Brain is ON. A WAF custom rule now blocks prefetch requests to this hostname.** Read
+> that as a cheap precaution, not a fix for a proven cause — the nonce-burning diagnosis is
+> *less* supported tonight than when the investigation started.
+>
+> **What was measured, immediately after deploying the rule** (all against
+> `https://mcp.juanlentino.com/.well-known/oauth-protected-resource`, an **Access-served** path
+> — the Worker serves no `/.well-known`):
+>
+> | Request | Status | Answered by |
+> | --- | --- | --- |
+> | no header | `200` | Access — normal traffic untouched |
+> | `Sec-Purpose: prefetch` | `503` | **NOT the rule** — a Block returns 403 |
+> | `Sec-Purpose: prefetch;prerender` | `403` | the WAF rule |
+> | apex `https://juanlentino.com/` + `Sec-Purpose: prefetch` | `503` | zone-wide, **not covered by the rule** |
+>
+> The apex row is the load-bearing one: it proves the `503` is **Cloudflare's own zone-wide
+> Speed Brain safeguard**, present before this rule existed and independent of it.
+>
+> **So the rule's measured contribution is narrower than the analysis predicted.** It closes the
+> **compound** `prefetch;prerender` form on this hostname. The **plain** form — which is what
+> Chrome actually sends — was already being stopped. The rule stays deployed because it is free,
+> harmless, and closes a form the zone-wide safeguard demonstrably does not catch.
+>
+> **And it moves the original diagnosis further from proven, not closer.** If plain prefetches
+> to Access-served paths already return `503`, they were not spending nonces on those paths.
+>
+> **The one path that matters is still untested:** the approve endpoint under `/cdn-cgi/access/`,
+> which is what actually carries the single-use nonce. It cannot be reached from a terminal —
+> only during a live browser flow. Do not generalise the `.well-known` measurement to it.
 
 > ## ⚠️ CORRECTION 2026-08-13, ~23:05Z — THE CAUSAL CLAIM BELOW IS NOT SUPPORTED
 >
@@ -59,6 +91,19 @@
 > Given the asymmetry, the pragmatic posture is: **leave Speed Brain on, and if OAuth ever fails
 > with "Invalid nonce" again, turn it off immediately and treat that as confirmation.** The cost
 > of being wrong is one retry of a flow the owner runs a handful of times a year.
+>
+> **Updated ~23:40Z:** a WAF rule now blocks prefetch to this hostname *before* Access, so the
+> posture is unchanged but better defended. The rule is deployed and **not verified against a
+> real prefetch** — only against synthetic `curl` headers. Verifying it properly needs
+> [Cloudflare Trace](https://developers.cloudflare.com/rules/trace-request/) to confirm which
+> rule fires, plus DevTools with forced **pointerdown** on the approve control, since
+> `conservative` eagerness fires on pointer/touch down rather than on every navigation
+> ([Chrome eagerness](https://developer.chrome.com/docs/web-platform/prerender-pages#eagerness)).
+> **That check has not been run.**
+>
+> The asymmetry still governs: **one prefetch reaching Access convicts; one clean login clears
+> nothing.** And `curl -D-` remains valid for *"is the header gone?"* and never for *"OAuth is
+> fixed."*
 >
 > The rest of this document is left intact rather than rewritten, because the reasoning that
 > produced a wrong conclusion is worth more to a future reader than a tidy record. Read it as
@@ -179,7 +224,73 @@ layer whose source was easiest to read. The standing lesson —
 *zone config sits above Access, and Access sits above the Worker* — now has two witnesses in one
 incident.
 
+## The pipeline — why every control tried before this one was in the wrong place
+
+Cloudflare's [phases list](https://developers.cloudflare.com/ruleset-engine/reference/phases-list/)
+gives the order:
+
+```
+WAF custom rules → rate limiting → managed WAF → bot fight → ACCESS →
+bulk redirects → request header transforms → CACHE → Snippets → Cloud Connector → origin/Workers
+```
+
+Two consequences fall straight out of it, and they explain both dead ends above:
+
+1. **Everything I reached for sits at or below Access.** Configuration Rules, Snippets, Cloud
+   Connector, Workers — all of them run *after* Access has already answered. That is the
+   structural reason a Worker-side `Sec-Purpose` guard could never work, stated as ordering
+   rather than as the anecdote it was recorded as earlier in this file.
+2. **WAF custom rules run *before* Access**, in `http_request_firewall_custom`, and a **Block**
+   is terminating — later phases never execute. That is the only surface we control that sits
+   above Access.
+
+Speed Brain's own safeguard is documented as cache-based: a prefetch carrying
+`sec-purpose: prefetch` is served only from CDN cache, otherwise Cloudflare answers `503`
+without forwarding
+([Speed Brain](https://developers.cloudflare.com/speed/optimization/content/speed-brain/)).
+
+**The inference that followed — and that measurement partly contradicts.** Because Access
+answers before cache, the reasoning went, that safeguard cannot protect the approve GET, so the
+nonce is spent. It is a clean argument from documented ordering. But an **Access-served** path
+returned `503` under a plain prefetch in the table at the top of this file, which means the
+safeguard *does* reach at least some Access paths. Either the ordering is more subtle than the
+phases list suggests, or prefetch handling is not purely cache-phase.
+
+Grok, which produced this pipeline analysis, flagged the step as inference rather than citation
+at the time — *"docs do not say the sentence 'WAF custom rules apply to Access login/approve
+HTML'"*. That caution was warranted and is why the claim is recorded here as narrowed rather
+than as a finding.
+
+## The control that is deployed
+
+A **WAF custom rule**, created 2026-08-13, rule 4 of 5 (Free plan allows 5):
+
+| Field | Value |
+| --- | --- |
+| Name | `Block prefetch on remote MCP host (protects Access OAuth nonce)` |
+| Expression | `(http.host eq "mcp.juanlentino.com" and any(http.request.headers["sec-purpose"][*] contains "prefetch"))` |
+| Action | **Block** (terminating — later phases, including Access, never run) |
+| Order | Last |
+| Status | Active |
+
+`contains`, not `eq`: Chrome sends `prefetch` **or** `prefetch;prerender`, and an equality match
+misses the compound form — which, per the measurements, is the only form this rule actually
+catches.
+
+Both conditions are ANDed and **the hostname is pinned**. A rule matching `sec-purpose` alone
+would block prefetches zone-wide including the apex, which is the shape that broke this zone
+once before.
+
+**What it does not do:** it does not remove the `Speculation-Rules` header. The browser may
+still attempt a prefetch. It simply never reaches Access. Speed Brain stays on for the whole
+zone.
+
 ## Where that leaves the durable fix
+
+> **Superseded by the WAF rule above.** The ranking below was written when every candidate sat
+> at or below Access, and it concluded no deterministic control existed. That conclusion was
+> wrong — it was a search that never looked *up* the pipeline. Kept because the alternatives and
+> their verdicts remain accurate and someone will re-ask each of them.
 
 Speed Brain has no per-hostname scoping, and the endpoints that need protecting are not ours to
 guard. Three options, honestly ranked:
