@@ -62,6 +62,12 @@ function sn_admin_render_mcp_connect_section() {
 	sn_admin_render_mcp_resources_prompts();
 	sn_admin_render_mcp_door_adapter();
 
+	// After the inventories, because it describes what those slugs actually
+	// did. Folded: on a healthy site this is a long list nobody needs open.
+	if ( function_exists( 'sn_admin_render_mcp_usage' ) ) {
+		sn_admin_render_mcp_usage();
+	}
+
 	echo '<div class="sn-callout">';
 	echo '<p class="sn-callout-h">' . esc_html__( 'Not the same as Connector Approvals', 'signal-and-noise-tools' ) . '</p>';
 	echo '<p>' . esc_html__( 'Tools → Connector Approvals (if the AI plugin is active) gates OUTBOUND use of this site’s configured AI-provider connectors by server-side plugin and theme code: it decides which of your plugins may spend against your Anthropic, OpenAI, or Google key. It has nothing to do with an external MCP client connecting IN. That inbound grant is the Application Password below.', 'signal-and-noise-tools' ) . '</p>';
