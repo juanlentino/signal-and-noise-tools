@@ -48,8 +48,8 @@ function sn_admin_render_mcp_usage() {
 		return;
 	}
 
-	/* translators: 1: measured days, 2: window days, 3: zero-call tool count. */
 	$summary = sprintf(
+		/* translators: 1: measured days, 2: window days, 3: zero-call tool count. */
 		__( 'Measured over %1$d days of a %2$d-day window · %3$d tools with no calls', 'signal-and-noise-tools' ),
 		(int) $usage['measured_days'],
 		(int) $usage['window_days'],

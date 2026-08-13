@@ -137,13 +137,14 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 	// the retention constant instead of the data would have claimed 90 days
 	// over a table that started writing on 2026-08-01 — a confident wrong
 	// answer, and the exact failure the IPv6 gauge was fixed for twice.
+	// SQL kept on ONE line deliberately: the sniff reports at the interpolated
+	// token's own line, and a comment cannot live inside a string literal — so
+	// a multi-line query has no line on which to carry its own suppression.
+	// Same shape as inc/analytics-session-rollup.php.
+	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery -- reads the plugin-owned telemetry table; no core API exists for it.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT tool_name, door, outcome, COUNT(*) AS calls,
-			        MAX(ts) AS last_seen, MIN(ts) AS first_seen
-			 FROM {$table}
-			 WHERE ts >= %s
-			 GROUP BY tool_name, door, outcome",
+			"SELECT tool_name, door, outcome, COUNT(*) AS calls, MAX(ts) AS last_seen, MIN(ts) AS first_seen FROM {$table} WHERE ts >= %s GROUP BY tool_name, door, outcome", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static SELECT template; $table is $wpdb->prefix + a plugin constant, and the only value binds via prepare().
 			$since
 		),
 		ARRAY_A
