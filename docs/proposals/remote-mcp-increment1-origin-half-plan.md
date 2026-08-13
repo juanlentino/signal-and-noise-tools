@@ -391,6 +391,10 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok  - 
 
 function __( $s, $d = null ) { return (string) $s; }
 function add_filter( $t, $c, $p = 10, $a = 1 ) { return true; }
+// Identity pass-through: sn_mcp_allowlist()/sn_mcp_rw_allowlist() end in
+// apply_filters(). Nothing here registers a callback, so this suite reads the
+// STATIC lists — which is the thing the negative assertion is about.
+function apply_filters( $h, $v ) { return $v; }
 
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
@@ -420,9 +424,19 @@ foreach ( $GLOBALS['__actions']['wp_abilities_api_init'] as $cb ) { $cb(); }
 $REMOTE = 'signal-noise/remote-get-analytics-summary';
 $ADMIN  = 'signal-noise/get-analytics-summary';
 
-echo "Group: the remote ability registered, and it is its own slug\n";
+echo "Group: the remote ability registered, and it registered ONLY itself\n";
+// The obvious phrasing here was `ok( $REMOTE !== $ADMIN, ... )`. It was rejected
+// because it compares two constants THIS FILE declares: no change to the code
+// under test could ever red it, so it reads as coverage while proving nothing.
+// A tautological assertion is worse than a missing one for exactly that reason.
+//
+// The property it was gesturing at is real and testable. Only
+// inc/abilities-remote-analytics.php has been required at this point, so the
+// admin slug appearing in the registry would mean the remote file registered or
+// shadowed it — which is the concrete way "it is its own slug" could be false.
 ok( isset( $GLOBALS['__abilities'][ $REMOTE ] ), 'the remote ability registered' );
-ok( $REMOTE !== $ADMIN, 'it is a different slug from the admin ability' );
+ok( ! isset( $GLOBALS['__abilities'][ $ADMIN ] ), 'and the remote file did NOT register or shadow the admin analytics slug' );
+ok( 1 === count( $GLOBALS['__abilities'] ), 'exactly one ability registered — no second, unexpected registration' );
 
 $reg = $GLOBALS['__abilities'][ $REMOTE ];
 
@@ -438,7 +452,14 @@ ok( ! in_array( $REMOTE, sn_mcp_allowlist(), true ), 'the remote slug is ABSENT 
 ok( ! in_array( $REMOTE, sn_mcp_rw_allowlist(), true ), 'and absent from the write allowlist' );
 ok( in_array( $ADMIN, sn_mcp_allowlist(), true ), 'while the admin analytics slug is still on the read allowlist (unchanged)' );
 
-echo "Group: the per-slug callback passes its OWN literal, and honours all three gates\n";
+echo "Group: the per-slug callback honours all three gates\n";
+// This group deliberately does NOT claim to prove the callback passes its own
+// slug as a literal, because with one member in sn_mcp_remote_slugs() there is
+// no other value to mutate the literal into: swapping it for any other listed
+// slug is not an available mutation, so no assertion here could catch it.
+// That becomes a real gap at Increment 2, when a second remote slug exists —
+// at which point this group needs an assertion that the callback is refused for
+// a DIFFERENT listed slug's conditions. Recorded here so it is not rediscovered.
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
 $GLOBALS['__caps']    = array( 'sn_read_remote_analytics' => true );
 ok( true === snt_ability_perm_remote_analytics_summary(), 'switch on + capability -> allowed' );
@@ -574,9 +595,15 @@ add_action( 'wp_abilities_api_init', function () {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/abilities-remote-analytics.php`
-Expected: `OK (13 passed, 0 failed): abilities-remote-analytics.php`
+Expected: `OK (14 passed, 0 failed): abilities-remote-analytics.php`
 
-(2 + 2 + 1 + 3 + 3 + 2 across the six groups.)
+(3 + 2 + 1 + 3 + 3 + 2 across the six groups.)
+
+Was 13 when this plan was drafted. The first group gained one net assertion: the
+tautological `$REMOTE !== $ADMIN` was replaced by two that can actually red — the
+admin slug being absent from the registry, and the registration count being
+exactly one. Both were mutation-verified against a remote file that also
+registers the admin slug; both fail under it.
 
 - [ ] **Step 5: Commit**
 
