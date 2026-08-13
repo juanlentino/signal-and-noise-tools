@@ -121,6 +121,13 @@ ok( $r['output_schema'] === $a['output_schema'], 'output_schema is identical to 
 ok( $r['execute_callback'] === $a['execute_callback'], 'both dispatch to the same reader' );
 ok( $r['permission_callback'] !== $a['permission_callback'], 'but their gates are different — that is the whole point' );
 
+// THIS GROUP MUST STAY LAST. It resets $GLOBALS['__abilities'] and re-fires the
+// init hook with the admin file also loaded, so from here on the registry holds
+// TWO abilities. A group appended below would read that two-ability registry and
+// quietly invalidate the premise of "exactly one ability registered" above —
+// which would still pass, while no longer meaning what it says.
+// Append new groups ABOVE the parity group, not here.
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): abilities-remote-analytics.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): abilities-remote-analytics.php\n";
