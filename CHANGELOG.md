@@ -4,6 +4,49 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### The MCP telemetry table has no reader — spec'd
+
+`inc/mcp/mcp-telemetry.php` has three code paths against its own table: install
+(`:112`), insert (`:406`), prune (`:445`). **No `SELECT` anywhere in the
+codebase.** Its docblock says it feeds "the six telemetry metrics (zero-call
+set, misroute rate, schema-error rate, candidate acceptance, gate refusals)" and
+nothing consumes any of them. The tests assert the insert and the prune; there
+is no read to assert.
+
+So the retirement program's gate — *"nothing retires until usage data justifies
+it"* — is not thinly met, it is **unmeetable from inside the plugin**. Evidence
+accrues into a table with no reader and is deleted at 90 days whether or not
+anyone looked.
+
+`docs/proposals/mcp-zero-call-reader.md` specs the reader, and three traps it
+must not fall into:
+
+- **Zero rows is not "unused".** Proxy `-32602` refusals never reach the
+  recording call site, so a tool with no rows either went unused or *could not
+  be called*. Opposite conclusions, identical evidence. The reader reports
+  reachability as a separate fact, and only `verdict: unused` is retirable —
+  `unreachable` is a bug report, and retiring it would delete the evidence of a
+  defect.
+- **The nominal window is not the measured window.** Retention is 90 days but
+  the table began writing at v10.25.0 (2026-08-01), so a report today covers ~11
+  days. `measured_since` comes from `MIN(ts)` in the same query, never from the
+  retention constant — the same fix the IPv6 and fail-open gauges shipped today.
+- **The prune will eventually lie.** A tool used 91 days ago reads as zero
+  forever after; harmless while the sensor is younger than the window, a hazard
+  the first time a retirement is decided after it is not.
+
+Deliberately **not** an ability: the precedent is set by
+`inc/ai-tool-invocation-log.php:22`, and a tool that reads the call log writes to
+the call log on every call — it would appear in its own analysis and inflate the
+corpus it measures.
+
+**Consequence for v11.0.0:** §A5's retirement cannot ride it on evidence. The
+reader ships as a normal minor, reports against real data for a window the owner
+judges sufficient, and the retirement follows in its own major. v11.0.0 carries
+the phone door and the deprecated legacy-quartet removal, both of which are
+ready.
+
+
 ### §3D's two open questions get answered
 
 Owner decisions, recorded into both proposals so the build does not reopen them.
