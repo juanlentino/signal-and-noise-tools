@@ -105,6 +105,18 @@ ok( in_array( 'warn', $states, true ), 'an unconfigured sensor shows a warn pill
 $whtml = snt_mr_render_sensor_status( $warn );
 ok( false !== strpos( $whtml, 'sn-an-pipeline-warn' ), 'and its explanation renders in the Analytics warn line, below the pills' );
 
+echo "\nGroup: reachable-but-unversioned is a warn, not unreachable\n";
+$unreported = snt_mr_sensor_pills(
+	array( 'version' => '', 'reachable' => true, 'deployed_at' => '2026-08-13T01:49:33Z' ),
+	null,
+	array( 'ok' => true )
+);
+ok( 'warn' === ( $unreported[0][0] ?? '' ), 'reachable + empty version → warn' );
+ok( 'Sensor reachable, version unreported' === ( $unreported[0][1] ?? '' ), 'label names reachable-but-unreported' );
+ok( 'Sensor unreachable' !== ( $unreported[0][1] ?? '' ), 'label is NOT Sensor unreachable' );
+$dead = snt_mr_sensor_pills( null, null, array( 'ok' => true ) );
+ok( 'unknown' === ( $dead[0][0] ?? '' ) && 'Sensor unreachable' === ( $dead[0][1] ?? '' ), 'null info is still exactly Sensor unreachable' );
+
 echo "\nGroup: v10.2.1 R4 — the feed-fetcher column (rss-feed-tracker stays the source)\n";
 $feed = snt_mr_render_feed_table( array( 'most_recent' => '2026-07-28 12:00:00', 'windows' => array( 7 => array( 'total' => 42, 'uniques' => 9 ), 30 => array( 'total' => 130, 'uniques' => 21 ) ) ) );
 ok( false !== strpos( $feed, 'sn-an-table' ), 'uses the central table class, like the surface table beside it' );
