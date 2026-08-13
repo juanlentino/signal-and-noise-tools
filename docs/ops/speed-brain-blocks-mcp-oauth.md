@@ -1,7 +1,49 @@
 # Speed Brain blocked browser OAuth on the remote MCP host — CONFIRMED and worked around
 
-**Status:** **CAUSE CONFIRMED and RESOLVED 2026-08-13.** Speed Brain is **OFF ZONE-WIDE**, and
-that is the settled answer, not a workaround awaiting a better one.
+> ## ⚠️ CORRECTION 2026-08-13, ~23:05Z — THE CAUSAL CLAIM BELOW IS NOT SUPPORTED
+>
+> **Everything in this file about Speed Brain *causing* the OAuth failure is retracted.** The
+> mechanism is real and documented; the causation was never established. Two independent
+> reasons, either one sufficient:
+>
+> **1. The connector was already working before the change.** A `sn_remote_ping` call from the
+> phone succeeded at **21:20:38Z**. My first measurement of `speculation-rules` was at
+> **22:31:47Z**, and I disabled Speed Brain *after* that — so the phone was working at least
+> **71 minutes before** the fix. The phone-side Claude flagged this itself and I read past it:
+> *"that's since I started checking, not since it started working. It may well have been up for
+> days."*
+>
+> **2. Pings are not evidence about OAuth in the first place.** `sn_remote_ping` runs against an
+> **already-issued token**. The nonce is consumed exactly once, during authorization. Three
+> pings across 100 minutes prove the token still resolves; they exercise the OAuth flow **zero
+> times**. So neither the pings before the change nor the ones after say anything about whether
+> the flow was broken or fixed.
+>
+> **What this was:** post hoc. I changed a setting, observed a success, and reported causation —
+> the failure mode the house rule *"a first working answer ends the search"* exists to catch. I
+> never asked the one question that would have caught it: **was it already working before I
+> changed anything?**
+>
+> **What is still true:** Speed Brain *was* on and *did* inject `speculation-rules` on this
+> hostname (measured, both hosts, 22:31:47Z). Prefetching a single-use OAuth URL is a real,
+> documented hazard. It remains a *plausible* cause of a *past* failure. It is not a
+> demonstrated cause of *this* one.
+>
+> **What would settle it** — and note it cannot be settled with pings:
+> 1. Re-enable Speed Brain.
+> 2. **Remove the connector and add it again**, so a genuinely new authorization flow runs.
+> 3. If OAuth fails, causation is established and Speed Brain goes back off for good. If it
+>    succeeds, Speed Brain was never the blocker and should stay on.
+>
+> Until that runs, **leaving Speed Brain off is a precaution, not a fix**, and the zone is
+> paying for a benefit nobody has shown it buys.
+>
+> The rest of this document is left intact rather than rewritten, because the reasoning that
+> produced a wrong conclusion is worth more to a future reader than a tidy record. Read it as
+> evidence-gathering, not as findings.
+
+**Status:** ~~**CAUSE CONFIRMED and RESOLVED 2026-08-13.**~~ **RETRACTED — see the correction
+above.** Speed Brain is **OFF ZONE-WIDE** as an unproven precaution.
 **Unblocked:** R3 §3D Increment 0's OAuth path. Browser OAuth completes and the connector
 appears on the phone.
 **Related:** [`../proposals/remote-mcp-transport.md`](../proposals/remote-mcp-transport.md),
