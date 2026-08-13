@@ -93,7 +93,7 @@ function sn_login_defense_failopen_trend_sql( $days = 7 ) {
 function sn_login_defense_family_share_sql( $days = 30 ) {
 	$d = (int) $days;
 	return 'SELECT blob8 AS family, sum(_sample_interval) AS hits, '
-		. "formatDateTime(min(timestamp), '%Y-%m-%d %H:%M:%S') AS first_seen "
+		. 'min(timestamp) AS first_seen '
 		. 'FROM ' . SN_LG_DATASET . ' '
 		. "WHERE timestamp > now() - INTERVAL '" . $d . "' DAY "
 		. 'GROUP BY family';
@@ -175,6 +175,46 @@ function sn_login_defense_failopen_totals( $rows, $days = 7 ) {
  *               first_seen:string|null, measured_days:int|null,
  *               window_complete:bool|null}
  */
+/**
+ * Parse a timestamp as Analytics Engine returns it, into a unix instant.
+ *
+ * WHY THIS IS ITS OWN FUNCTION. The first version selected
+ * `formatDateTime(min(timestamp), …)` — an aggregate wrapped in a scalar
+ * function, the only such construct in this repo — and appended `' UTC'` before
+ * `strtotime()`. Live, `first_seen` never arrived and the panel rendered
+ * "coverage unknown" against real data. The fixtures could not catch it: they
+ * fed rows that ALREADY contained a `first_seen` in the exact shape the reducer
+ * wanted, so they proved the reducer and nothing about the API.
+ *
+ * The SQL now selects the aggregate RAW, which moves the shape question into
+ * PHP where it is testable. AE may hand back a ClickHouse-style
+ * `Y-m-d H:i:s`, or ISO-8601 with `Z`, or ISO with an offset.
+ *
+ * The `' UTC'` suffix is unconditional, and that is VERIFIED rather than
+ * assumed. An earlier version of this function guarded it behind a
+ * zone-detection regex, on the belief that `…Z UTC` would fail to parse. It
+ * does not: PHP tolerates the doubled zone, and where the string carries a real
+ * offset the EMBEDDED offset wins and the appended UTC is ignored — checked
+ * against `+02:00` and `-05:00`, both of which resolve to the correct instant
+ * with or without the suffix. The guard was an unnecessary branch justified by
+ * a false claim, which is worse than no guard.
+ *
+ * Unparseable input returns NULL, never 0 — a fabricated instant would date the
+ * sensor to 1970 and report a 30-day window as complete.
+ *
+ * @param mixed $raw Whatever AE put in the column.
+ * @return int|null Unix seconds, or null when nothing usable was returned.
+ */
+function sn_login_defense_parse_ae_ts( $raw ) {
+	$s = trim( (string) $raw );
+	if ( '' === $s ) {
+		return null;
+	}
+	$ts = strtotime( $s . ' UTC' );
+
+	return false === $ts ? null : $ts;
+}
+
 function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 	$v6    = 0;
 	$total = 0;
@@ -186,13 +226,9 @@ function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 		if ( 'v6' === (string) ( $r['family'] ?? '' ) ) {
 			$v6 += $hits;
 		}
-		$seen = trim( (string) ( $r['first_seen'] ?? '' ) );
-		if ( '' !== $seen ) {
-			// AE reports UTC; strtotime() would otherwise read it as server-local.
-			$ts = strtotime( $seen . ' UTC' );
-			if ( false !== $ts && ( null === $first || $ts < $first ) ) {
-				$first = $ts;
-			}
+		$ts = sn_login_defense_parse_ae_ts( $r['first_seen'] ?? '' );
+		if ( null !== $ts && ( null === $first || $ts < $first ) ) {
+			$first = $ts;
 		}
 	}
 	$share = $total > 0 ? round( $v6 / $total * 100, 1 ) : null;
@@ -255,11 +291,17 @@ function sn_login_defense_render_gauges( $days = 7 ) {
 				)
 			);
 			if ( ! $tot['window_complete'] ) {
+				$uncovered = (int) $days - $tot['days_covered'];
 				echo ' ' . esc_html(
 					sprintf(
-						/* translators: 1: uncovered days, 2: earliest logged day */
-						__( 'The other %1$s hold no telemetry at all (earliest logged day %2$s), so the count covers the days it names and no more.', 'signal-and-noise-tools' ),
-						number_format_i18n( (int) $days - $tot['days_covered'] ),
+						/* translators: 1: uncovered day count, 2: earliest logged day */
+						_n(
+							'The other %1$s day holds no telemetry at all (earliest logged day %2$s), so the count covers the days it names and no more.',
+							'The other %1$s days hold no telemetry at all (earliest logged day %2$s), so the count covers the days it names and no more.',
+							$uncovered,
+							'signal-and-noise-tools'
+						),
+						number_format_i18n( $uncovered ),
 						$tot['first_day']
 					)
 				);

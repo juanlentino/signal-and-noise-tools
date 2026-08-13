@@ -19,6 +19,10 @@ function ok( $c, $m ) { global $fails, $passes; if ( $c ) { echo "PASS: $m\n"; $
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_html__( $s, $d = null ) { return (string) $s; }
 function __( $s, $d = null ) { return (string) $s; }
+// Models WP's real signature: the PLURAL is returned for every count except
+// exactly 1, including 0. A stub that always returned $single would hide the
+// singular/plural defect this fixture exists to pin.
+function _n( $single, $plural, $number, $d = null ) { return 1 === (int) $number ? (string) $single : (string) $plural; }
 function number_format_i18n( $n ) { return (string) $n; }
 
 // Panel primitives: record open/close, echo the head so it is assertable.
@@ -57,6 +61,44 @@ ok( strpos( $f, 'blob8 AS family' ) !== false && strpos( $f, 'sum(_sample_interv
 	'family SQL: blob8 alias, de-sampled, 30d, grouped' );
 ok( strpos( $f, 'min(timestamp)' ) !== false && strpos( $f, 'first_seen' ) !== false,
 	'family SQL carries the sensor birth (min(timestamp) AS first_seen) so the window can be MEASURED, not assumed' );
+// LIVE DEFECT 2026-08-12: the panel rendered "coverage unknown" against real
+// data — first_seen never arrived. The first version wrapped the aggregate in a
+// scalar function, `formatDateTime(min(timestamp), …)`, which is the ONLY such
+// construct in this repo and was never verified against the API. min() and
+// formatDateTime() are each supported; nesting them was the untested guess.
+// Select the aggregate RAW and format in PHP, where it is testable.
+ok( strpos( $f, 'formatDateTime(min(' ) === false,
+	'family SQL does NOT nest an aggregate inside a scalar function — the untested construct that returned nothing live' );
+ok( strpos( $f, 'min(timestamp) AS first_seen' ) !== false,
+	'family SQL selects the aggregate raw, so whatever shape AE returns is parsed in PHP' );
+
+// --- AE timestamp parsing, the half the stubs could not reach ---------------
+// The old fixtures fed rows that ALREADY contained a first_seen in the exact
+// shape the reducer wanted, so they proved the reducer and nothing about the
+// API. Pin the SHAPES instead: AE may return a space-separated datetime, an
+// ISO-8601 with Z, or one with an offset. All three must parse to the same
+// instant, and anything unparseable must yield null (never a fabricated span).
+$t_expected = strtotime( '2026-07-22 18:00:00 UTC' );
+foreach ( array(
+	'2026-07-22 18:00:00'      => 'space-separated (ClickHouse DateTime)',
+	'2026-07-22T18:00:00Z'     => 'ISO-8601 with Z',
+	'2026-07-22T18:00:00+00:00' => 'ISO-8601 with a zero offset',
+) as $raw => $label ) {
+	ok( $t_expected === sn_login_defense_parse_ae_ts( $raw ),
+		"AE timestamp parses: $label" );
+}
+ok( null === sn_login_defense_parse_ae_ts( '' ), 'AE timestamp: empty string -> null, never epoch 0' );
+ok( null === sn_login_defense_parse_ae_ts( 'not-a-date' ), 'AE timestamp: garbage -> null, never a fabricated span' );
+ok( null === sn_login_defense_parse_ae_ts( null ), 'AE timestamp: null -> null' );
+// All three shapes must resolve to the SAME instant. (An earlier version of
+// this pin claimed a blind " UTC" suffix would corrupt the Z form. Checked:
+// it does not — PHP tolerates the doubled zone, and a real embedded offset
+// wins over the suffix. The guard that claim justified has been removed.)
+ok( sn_login_defense_parse_ae_ts( '2026-07-22T18:00:00Z' ) === sn_login_defense_parse_ae_ts( '2026-07-22 18:00:00' ),
+	'AE timestamp: the Z form and the space form resolve to the same instant' );
+// A NON-ZERO offset must be honoured, not flattened to the appended zone.
+ok( strtotime( '2026-07-22 16:00:00 UTC' ) === sn_login_defense_parse_ae_ts( '2026-07-22T18:00:00+02:00' ),
+	'AE timestamp: a +02:00 offset resolves to 16:00Z — the embedded offset wins over the appended UTC' );
 
 // --- reducers ----------------------------------------------------------------
 $tot = sn_login_defense_failopen_totals( array(
@@ -164,6 +206,23 @@ $GLOBALS['__q_trend'] = array(
 $m = render_gauges_html();
 ok( strpos( $m, '4 fail-opens' ) !== false && strpos( $m, '1 degraded' ) !== false,
 	'PROVEN TO MOVE: fail-open gauge changes when fail-open rows exist (4, 1)' );
+// LIVE 2026-08-12: rendered "The other 1 hold no telemetry" — a plain __() where
+// the count varies. Singular and plural both have to read as English.
+ok( strpos( $m, 'The other 5 days hold no telemetry' ) !== false,
+	'partial coverage, plural: "The other 5 days hold"' );
+$GLOBALS['__q_trend'] = array(
+	array( 'day' => '2026-08-07', 'failopen' => 0, 'degraded' => 0 ),
+	array( 'day' => '2026-08-08', 'failopen' => 0, 'degraded' => 0 ),
+	array( 'day' => '2026-08-09', 'failopen' => 0, 'degraded' => 0 ),
+	array( 'day' => '2026-08-10', 'failopen' => 0, 'degraded' => 0 ),
+	array( 'day' => '2026-08-11', 'failopen' => 0, 'degraded' => 0 ),
+	array( 'day' => '2026-08-12', 'failopen' => 0, 'degraded' => 0 ),
+);
+$one = render_gauges_html();
+ok( strpos( $one, 'The other 1 day holds no telemetry' ) !== false,
+	'partial coverage, SINGULAR: "The other 1 day holds" — the live grammar defect' );
+ok( strpos( $one, 'The other 1 hold' ) === false,
+	'…and the ungrammatical form is gone' );
 
 // Windows are relative to the run, so the fixtures date first_seen off time()
 // rather than pinning a calendar day that would rot.

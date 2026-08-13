@@ -2,6 +2,53 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### The IPv6 gauge measures its window for real this time
+
+Two live defects, found by the owner reading the panel on install — which is the
+only place either could have been found.
+
+**`first_seen` never arrived, so coverage read "unknown" against real data.**
+The SQL selected `formatDateTime(min(timestamp), …)` — an aggregate wrapped in a
+scalar function, and the **only such construct in this repo**. `min()` and
+`formatDateTime()` are each supported by Analytics Engine (docs re-read
+2026-08-12); nesting them was never verified against the API and returned
+nothing usable. The SQL now selects the aggregate **raw** and formats in PHP,
+where the shape is testable.
+
+**The fixtures could not have caught it, and that is the lesson.** They stubbed
+`sn_analytics_query()` and fed rows that *already contained* a `first_seen` in
+the exact shape the reducer wanted — proving the reducer and nothing about the
+API. The new pins test the SHAPES instead: a ClickHouse `Y-m-d H:i:s`, an
+ISO-8601 with `Z`, and one with an offset must all resolve to the same instant;
+a non-zero `+02:00` must resolve to 16:00Z rather than being flattened;
+unparseable input must return `null`, never `0` — a fabricated instant would
+date the sensor to 1970 and report a 30-day window as **complete**.
+
+**And a correction inside the fix.** The first version of the parser guarded the
+`' UTC'` suffix behind a zone-detection regex, on the belief that `…Z UTC` would
+fail to parse. Checked: it does not. PHP tolerates the doubled zone, and where
+the string carries a real offset the embedded offset wins — verified against
+`+02:00` and `-05:00`. The guard was an unnecessary branch justified by a false
+claim, which is worse than no guard, so it is gone and the docblock now records
+what was actually measured.
+
+**"The other 1 hold no telemetry"** — a plain `__()` where the count varies.
+Now `_n()`, reading "The other 1 day holds" / "The other 5 days hold". The
+fixture gained an `_n()` stub modelling WP's real signature (plural for every
+count except exactly 1, including 0).
+
+17 new assertions (29 → 46). Mutation-checked: restoring the nested SQL fires 2,
+returning `0` for unparseable input fires 1, reverting the singular string fires
+2. Sweep 16,848.
+
+> **Standing finding, unrelated to these defects:** the gauge reports the IPv6
+> share of checked login traffic at **59.6%** against a pre-committed 5%
+> criterion — twelve times the threshold, with the guard's denylist IPv4-only by
+> construction. The panel correctly withholds the decision while coverage is
+> unproven, but the number itself is not marginal.
+
 ## [10.99.3] - 2026-08-12 — the board stops saying the phone door was declined
 
 ### The MCP telemetry table has no reader — spec'd
