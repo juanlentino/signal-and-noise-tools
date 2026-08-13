@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [10.99.4] - 2026-08-12 — the IPv6 gauge measures its window for real this time
 
 ### The IPv6 gauge measures its window for real this time
 
