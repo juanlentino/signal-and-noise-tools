@@ -49,7 +49,10 @@ echo "Group: registration + contract\n";
 ok( isset( $GLOBALS['__shortcodes']['sn_ai_maturity'] ) && 'sn_ai_maturity_shortcode' === $GLOBALS['__shortcodes']['sn_ai_maturity'], 'shortcode registered on load' );
 ok( array() === $GLOBALS['__enq'], 'loading the file enqueues nothing — the stylesheet rides the render, not the pageload' );
 ok( array( 'spec', 'generate', 'check', 'review', 'mark', 'bound' ) === array_keys( sn_ai_maturity_layers() ), 'layer slugs in walk order: spec, generate, check, review, mark, bound' );
-ok( 8 === count( sn_ai_maturity_principles() ), 'eight honesty principles, matching the sibling pages' );
+// 2026-08-14: nine, one MORE than the siblings. The ninth arrived by
+// graduation off the hub roadmap board, not by authoring, so the count
+// deliberately breaks the sibling symmetry the eighth was pinned to.
+ok( 9 === count( sn_ai_maturity_principles() ), 'nine honesty principles — the ninth graduated in off the roadmap board, breaking the sibling symmetry on purpose' );
 ok( in_array( 'never', SN_AI_MATURITY_STATUSES, true ), "the scope whitelist carries 'never' — the one deliberate divergence from the siblings" );
 
 echo "\nGroup: formats\n";
@@ -77,6 +80,17 @@ ok( false !== strpos( $scope_html, 'Sentence-level edit proposals' ), 'the sente
 ok( false !== strpos( $scope_html, 'sn-ai-maturity-scope-badge--live"><strong>Sentence-level edit proposals' ), 'and it renders as LIVE' );
 $principles_html = sn_ai_maturity_principles_html();
 ok( false !== strpos( $principles_html, 'staged revision a person accepts' ), 'principle 1 states the staged-revision acceptance path, not the pre-sentence_replace absolute' );
+// THE GRADUATION PIN. The threat-model claim left the hub roadmap board on
+// 2026-08-14 to make room under the done ceiling; this is the assertion that
+// the move was a MOVE and not a deletion. Pinned on the RENDERED html, not on
+// sn_ai_maturity_principles(), because a claim sitting in an array that no
+// format emits is exactly the mechanism-without-surface shape this project
+// keeps re-learning — the array is where it lives, the page is where it counts.
+// Substance, not wording: the three parts of the claim are pinned separately so
+// a rewrite may reword it freely but cannot quietly drop half of it.
+ok( false !== strpos( $principles_html, 'threat model' ), 'GRADUATION: the threat-model claim renders on the AI page — it retired off the board, it did not vanish' );
+ok( false !== strpos( $principles_html, 'gate by gate' ), 'GRADUATION: and it keeps the gate-by-gate argument, the part that makes it a method rather than a reassurance' );
+ok( false !== strpos( $principles_html, 'rather than closed by assertion' ), 'GRADUATION: and it keeps the residuals-carried-by-name half — a threat model whose leftovers are waved away is the failure this row was written against' );
 add_filter( 'sn_ai_maturity_scope', function ( $scope ) {
 	$scope['voice'] = array( 'Voice cloning', 'evil-raw-status' );
 	return $scope;
