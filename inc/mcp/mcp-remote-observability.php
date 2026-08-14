@@ -156,3 +156,68 @@ function sn_mcp_remote_log_save_blob( $blob ) {
 		update_option( SN_MCP_REMOTE_LOG_OPTION, $blob, false );
 	}
 }
+
+/**
+ * Apply ONE outcome to the persisted blob, immediately.
+ *
+ * This is the un-coalesced path. sn_mcp_remote_record() decides whether an
+ * outcome comes straight here or buffers first; keeping the two separate is
+ * what makes the buffering testable without a clock.
+ *
+ * @param string $outcome One of SN_MCP_REMOTE_OUTCOMES. Anything else is dropped.
+ * @param string $slug    The requested slug, or '' when there was none.
+ * @return void
+ */
+function sn_mcp_remote_log_apply( $outcome, $slug = '' ) {
+	$outcome = (string) $outcome;
+	if ( ! in_array( $outcome, SN_MCP_REMOTE_OUTCOMES, true ) ) {
+		return;
+	}
+
+	$blob = sn_mcp_remote_log_get_blob();
+	$day  = sn_mcp_remote_log_day_key();
+	$now  = sn_mcp_remote_log_now();
+
+	$blob = sn_mcp_remote_log_add_count( $blob, $day, $outcome, 1 );
+
+	// ONLY a dispatch is a "use". A refusal means somebody knocked; last_used
+	// answering that would make the headline fact far less alarming than it
+	// reads, because the owner would see a timestamp for every failed probe.
+	if ( 'dispatched' === $outcome ) {
+		$blob['last_used'] = $now;
+	}
+
+	array_unshift(
+		$blob['recent'],
+		array( 'ts' => $now, 'slug' => (string) $slug, 'outcome' => $outcome )
+	);
+	if ( count( $blob['recent'] ) > SN_MCP_REMOTE_LOG_RING_CAP ) {
+		$blob['recent'] = array_slice( $blob['recent'], 0, SN_MCP_REMOTE_LOG_RING_CAP );
+	}
+
+	sn_mcp_remote_log_save_blob( $blob );
+}
+
+/**
+ * Add to one day's counter, creating the bucket if needed.
+ *
+ * Separated so the flush path can add several counts to a bucket without
+ * repeating the initialisation, and so neither path can drift from the other.
+ *
+ * @param array  $blob
+ * @param string $day     'Y-m-d'.
+ * @param string $outcome One of SN_MCP_REMOTE_OUTCOMES.
+ * @param int    $n       How many to add.
+ * @return array The modified blob.
+ */
+function sn_mcp_remote_log_add_count( $blob, $day, $outcome, $n ) {
+	if ( ! in_array( $outcome, SN_MCP_REMOTE_OUTCOMES, true ) ) {
+		return $blob;
+	}
+	if ( ! isset( $blob['counters'][ $day ] ) || ! is_array( $blob['counters'][ $day ] ) ) {
+		$blob['counters'][ $day ] = array();
+	}
+	$current = isset( $blob['counters'][ $day ][ $outcome ] ) ? (int) $blob['counters'][ $day ][ $outcome ] : 0;
+	$blob['counters'][ $day ][ $outcome ] = $current + (int) $n;
+	return $blob;
+}

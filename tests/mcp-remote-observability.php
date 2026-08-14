@@ -86,6 +86,61 @@ $GLOBALS['__options'] = array();
 sn_mcp_remote_log_save_blob( sn_mcp_remote_log_get_blob() );
 ok( false === $GLOBALS['__autoload'][ SN_MCP_REMOTE_LOG_OPTION ], 'THE ONE THAT MATTERS FOR EVERY PAGE LOAD: the log option is saved with autoload FALSE' );
 
+echo "Group: a persisted outcome moves a counter, the ring, and last_used\n";
+$GLOBALS['__options'] = array();
+$today = sn_mcp_remote_log_day_key();
+
+sn_mcp_remote_log_apply( 'dispatched', 'signal-noise/remote-get-analytics-summary' );
+$blob = sn_mcp_remote_log_get_blob();
+ok( 1 === $blob['counters'][ $today ]['dispatched'], 'a dispatch increments today\'s dispatched counter' );
+ok( 1 === count( $blob['recent'] ), 'and appends one ring row' );
+ok( 'signal-noise/remote-get-analytics-summary' === $blob['recent'][0]['slug'], 'carrying the slug' );
+ok( 'dispatched' === $blob['recent'][0]['outcome'], 'and the outcome' );
+ok( is_string( $blob['last_used'] ) && '' !== $blob['last_used'], 'and last_used is now set' );
+
+echo "Group: the recorded timestamp also comes from wp_date\n";
+// Task 1 pinned the DAY KEY by call; this pins the TIMESTAMP the same way. A
+// gmdate swap in sn_mcp_remote_log_now() would otherwise be invisible — on a
+// UTC server the strings are identical, so only the call log can tell.
+$GLOBALS['__wp_date_calls'] = array();
+sn_mcp_remote_log_apply( 'dispatched', 'slug-x' );
+ok( in_array( 'Y-m-d H:i:s', $GLOBALS['__wp_date_calls'], true ), 'THE OTHER TIMEZONE PIN: the ring timestamp is produced by wp_date too' );
+
+echo "Group: only a DISPATCH sets last_used — a refusal is not a use\n";
+// Without this, last_used answers "was this endpoint touched", which is a
+// different and much less alarming question than "did someone get data out".
+$GLOBALS['__options'] = array();
+sn_mcp_remote_log_apply( 'refused_auth', '' );
+$blob = sn_mcp_remote_log_get_blob();
+ok( null === $blob['last_used'], 'THE ONE THAT MATTERS: a refusal leaves last_used null' );
+ok( 1 === $blob['counters'][ $today ]['refused_auth'], 'while still counting the refusal' );
+
+echo "Group: an unknown outcome is dropped, not stored\n";
+// Mirrors SN_AUDIT_COUNTER_TYPES' guard. A typo'd outcome silently creating a
+// key would produce a counter no label ever reads.
+$GLOBALS['__options'] = array();
+sn_mcp_remote_log_apply( 'not_a_real_outcome', '' );
+$blob = sn_mcp_remote_log_get_blob();
+ok( array() === $blob['counters'], 'an unknown outcome creates no counter' );
+ok( array() === $blob['recent'], 'and no ring row' );
+
+echo "Group: the ring is capped, and NEWEST FIRST\n";
+// Asserting only "count <= cap" cannot tell a working cap from a ring that
+// never filled. Overfill it, then assert the oldest is GONE and the newest is
+// at index 0 — those two together are what pin the behaviour.
+$GLOBALS['__options'] = array();
+for ( $i = 0; $i < SN_MCP_REMOTE_LOG_RING_CAP + 5; $i++ ) {
+	sn_mcp_remote_log_apply( 'dispatched', 'slug-' . $i );
+}
+$blob = sn_mcp_remote_log_get_blob();
+ok( SN_MCP_REMOTE_LOG_RING_CAP === count( $blob['recent'] ), 'the ring stops at the cap' );
+ok( 'slug-' . ( SN_MCP_REMOTE_LOG_RING_CAP + 4 ) === $blob['recent'][0]['slug'], 'THE ORDER PIN: the newest entry is at index 0' );
+$slugs = array();
+foreach ( $blob['recent'] as $row ) { $slugs[] = $row['slug']; }
+ok( ! in_array( 'slug-0', $slugs, true ), 'THE EVICTION PIN: the oldest entry is gone, so the cap evicts rather than refusing to append' );
+ok( SN_MCP_REMOTE_LOG_RING_CAP + 5 === $blob['counters'][ $today ]['dispatched'], 'and the COUNTER kept counting past the ring cap — the ring is a display aid, the counter is the record' );
+ok( is_string( $blob['last_used'] ) && '' !== $blob['last_used'], 'THE OTHER DENORMALISATION PIN: last_used survives the ring rolling over — it is stored outside the ring precisely so it can' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-remote-observability.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-remote-observability.php\n";
