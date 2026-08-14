@@ -403,3 +403,41 @@ function snt_corpus_integrity_last_scan() {
 	$val = get_transient( 'snt_corpus_integrity_candidates_' . (int) get_current_user_id() );
 	return is_array( $val ) ? $val : null;
 }
+
+/**
+ * Dismiss one corpus-integrity finding: append "<check>:<fingerprint>" to
+ * the post's dismiss meta and drop the user's cached scan. Mirrors
+ * snt_block_migrations_dismiss_impl() including the phantom-empty-entry
+ * filter (get_post_meta returns '' when unset; (array)'' is array('')).
+ *
+ * @param int    $post_id
+ * @param string $fingerprint Post+path-bound block fingerprint.
+ * @param string $check       One of the three check slugs.
+ * @return array{ok:bool,message:string}|WP_Error
+ */
+function snt_corpus_integrity_dismiss_impl( $post_id, $fingerprint, $check ) {
+	$post_id     = (int) $post_id;
+	$fingerprint = (string) $fingerprint;
+	$check       = (string) $check;
+
+	if ( ! $post_id || ! $fingerprint || ! $check ) {
+		return new WP_Error( 'snt_corpus_integrity_invalid_input', __( 'post_id, block_fingerprint, and candidate_type are required.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	if ( ! in_array( $check, array( 'intra_post_duplication', 'splice_artifact', 'date_coherence' ), true ) ) {
+		return new WP_Error( 'snt_corpus_integrity_invalid_check', __( 'candidate_type must be one of: intra_post_duplication, splice_artifact, date_coherence.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+
+	$existing = array_values( array_filter(
+		(array) get_post_meta( $post_id, SNT_CORPUS_INTEGRITY_DISMISS_META, true ),
+		'strlen'
+	) );
+	$key = $check . ':' . $fingerprint;
+	if ( ! in_array( $key, $existing, true ) ) {
+		$existing[] = $key;
+		update_post_meta( $post_id, SNT_CORPUS_INTEGRITY_DISMISS_META, $existing );
+	}
+
+	delete_transient( 'snt_corpus_integrity_candidates_' . (int) get_current_user_id() );
+
+	return array( 'ok' => true, 'message' => __( 'Finding dismissed.', 'signal-and-noise-tools' ) );
+}
