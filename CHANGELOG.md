@@ -2,6 +2,11 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Added
+- **A runbook for stopping the remote analytics door** (`docs/ops/remote-mcp-revoke-runbook.md`), closing R3 §3D Increment 3. Five controls ordered fastest-first, with the trap named: disconnecting the connector in Claude does **not** end the Cloudflare Access session — measured 2026-08-13, two sessions were live after a disconnect and re-add. Disconnect stops the honest client; only the edge revoke defeats a stolen token. Records the wp-admin session list as unbuildable at the origin, and the magic-link kill URL as considered and declined.
+
 ## [11.0.0] - 2026-08-14 — the remote analytics door gets its origin channel, and a switch a phone can reach
 
 ### The read door's fail-open default gets its own assertion
