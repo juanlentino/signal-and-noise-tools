@@ -251,9 +251,39 @@ a human would notice, and no others.** Split honestly:
 
 | Seam | Status |
 |---|---|
-| Dock item, desktop icons, Cmd+K commands, widgets, chromeless nav, Plugins-window icon | **Field-verified.** These fail *visibly* — a missing tile, a dead command, an unmounted widget. Daily use is a real oracle here |
-| Copilot tool-invocation log (`sn_ai_tool_invocations`), agent telemetry (`{prefix}sn_tool_call`) | **Still unverified.** These fail *silently* — a hook that stopped firing writes no row, logs no error, and shows no symptom. Nobody notices a counter that stopped counting |
+| Dock item, desktop icons, widgets, chromeless nav, dropzone | **Field-verified live** 2026-08-14 |
+| **Cmd+K commands + the `wp.desktop` alias** | **BROKEN on v1.1.0** — see below |
+| Copilot tool-invocation log (`sn_ai_tool_invocations`) | **Verified live** 2026-08-14 — delta exactly `+1` |
+| Agent telemetry (`{prefix}sn_tool_call`) | **Unreachable, not unverified** — agents disabled by owner decision 2026-08-07, so the producer cannot fire |
 | Living-tree traffic | **Unverifiable by observation** — falls back to a plausible default rather than an error |
+
+**The visible/silent split still holds as a principle** — a seam that fails
+without a symptom cannot be vouched for by daily use — but note which way it
+cut here. The *silent* sink (§H) passed; the seam that broke was a **visible**
+one that nobody happened to look at, because Cmd+K is not on the daily path.
+"Fails visibly" only helps when someone exercises it.
+
+### Cmd+K commands are dead on v1.1.0 — `defer` broke the load order
+
+`window.wp.desktop` is never set, so `assets/desktop-mode.js` bails at its gate
+and none of its 23 commands register. Confirmed against the live palette ("No
+commands matching `sn-cmd`", negative-controlled: "post" returns many).
+
+Cause: OpenStation's `desktop.min.js` — which installs `wp.os` — is loaded with
+**`defer`** (DOM index 56), while our alias prelude (63) and `desktop-mode.js`
+(89) are not. Deferred scripts execute after every non-deferred script, so the
+shell that *appears* first *runs* last, and both our scripts execute while
+`window.wp.os` still does not exist.
+
+**The durable lesson: `wp_register_script` dependency edges order the printed
+markup, not the execution.** Once a dependency is deferred and its dependent is
+not, the edge is silently inverted at runtime. REJECT #11 correctly identified
+this hazard but bound it to the lazy-loader path; it is live on the ordinary
+page-load path. Any future "runs after X" reasoning in this file must check
+X's *loading strategy*, not just its dependency edge.
+
+Full root-cause, blast radius, and proposed fix:
+[docs/ops/openstation-1-1-0-runtime-verification.md](ops/openstation-1-1-0-runtime-verification.md).
 
 The inversion is worth stating plainly: the seams most likely to be quietly
 broken are precisely the ones production use cannot vouch for, because their

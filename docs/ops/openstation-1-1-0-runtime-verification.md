@@ -28,6 +28,98 @@
 Owner-run. **~5 minutes** for §H + §I; the original ~30 minute estimate
 covered the now-superseded full pass.
 
+## RESULTS — 2026-08-14, live on juanlentino.com (OpenStation v1.1.0, plugin v11.7.0)
+
+| § | Seam | Result |
+|---|---|---|
+| **§C** | `wp.desktop` ⇄ `wp.os` alias | **FAIL** — probe returned `["object","undefined",false,"undefined"]`; `window.wp.desktop` never set |
+| **§D** | Cmd+K commands | **FAIL** — palette reports *"No commands matching sn-cmd."* All 23 SN commands dead |
+| §A | Dock item | PASS — single SN megaphone tile, plugin cluster, opens dashboard |
+| §B | Desktop icons | PASS — `sn-icon-dashboard` present, badge target resolves |
+| §E | Widgets | PASS — all 8 SN ids in `openStationWidgets`, and it `===` `desktopModeWidgets`; Deploy Status / Quick Actions rendering live data |
+| §F | Chromeless nav | PASS — single nav row, no doubled tab strip |
+| §G | Plugins-window icon | Not separately probed (shell surfaces rendered normally) |
+| **§H** | Copilot tool log | **PASS** — see below |
+| §I | Agent telemetry | **NOT RUNNABLE** — see below |
+| §J | Dropzone | PASS (mechanism) — both `desktop-mode.drop.files-detected` and `os.drop.files-detected` registered on `wp.hooks` |
+
+### §H — PASS, delta exactly +1
+
+Before: `16 calls across 9 tools`, `provenance_integrity_status` = **1**.
+Asked the Site Assistant *"What is the current provenance integrity status of
+this site?"*; it answered with real ledger data (32 Notes, 10 checked, 0
+failed, key verdict `ok`).
+After: `17 calls across 9 tools`, `provenance_integrity_status` = **2**.
+
+Reading against the three-way table: not `0` (seam dead), not `+2`
+(double-fire guard regressed) — **exactly `+1`**. This confirms, in one shot:
+`openstation_ai_tool_called` fires and reaches our listener; the family-aware
+guard neither over- nor under-suppresses on a single hook family; and
+`openstation_ai_tools` schema normalization holds, since a malformed tool
+schema would have 400'd the whole provider request instead of answering.
+
+### §I — NOT RUNNABLE (not "unverified")
+
+The producer does not exist on this install. OpenStation's **agents feature is
+disabled and the Editorial Agent was deleted by owner decision (2026-08-07)**
+— "we have the MCP to do what the WP agents would do". `openstation_agent_tool_result`
+and `openstation_agent_completed` fire only from `includes/agents/runner.php`,
+so with no agents there is nothing to invoke.
+
+Record this as **unreachable, not unverified** — the distinction matters.
+Unverified implies a seam that might be silently broken; unreachable means it
+cannot fire at all, so it cannot be broken either. Running §I would first
+require re-enabling agents on production, reversing a deliberate owner
+decision, and the standing direction is to revisit only when OpenStation
+agents are stable rather than Experimental.
+
+### UNPLANNED FINDING — §C/§D are a live regression, root-caused
+
+`window.wp.desktop` is `undefined` after full page load. The only code path
+leaving it undefined is `assets/desktop-mode.js`'s first gate returning early,
+because line 37 (`window.wp.desktop = window.wp.desktop || window.wp.os`) runs
+before every other exit. So the gate saw **neither** global — and therefore
+never reached `registerCommand`.
+
+**Mechanism: `defer` decouples DOM order from execution order.**
+Measured in the live DOM:
+
+| Script | DOM index | `defer` |
+|---|---|---|
+| OpenStation `desktop.min.js` (installs `wp.os`) | 56 | **true** |
+| ours `desktop-mode-os-compat.js` (alias prelude) | 63 | false |
+| ours `desktop-mode.js` (23 commands) | 89 | false |
+
+Deferred scripts execute after **all** non-deferred ones, so despite appearing
+*earlier* in the document, OpenStation's shell runs *last*. Both our scripts
+execute while `window.wp.os` does not yet exist: the prelude's one-shot
+`if ( wp.os && ! wp.desktop )` matches neither branch and silently no-ops, and
+`desktop-mode.js` bails at its gate.
+
+This is the ordering hazard [openstation-compat.md](../openstation-compat.md)'s
+REJECT #11 anticipated — but it attributed it to the *lazy widget/command
+loader* path. It is in fact happening on the **ordinary page-load path**, via
+`defer`. `wp_register_script` dependency edges guarantee print order; they
+cannot make a non-deferred script wait for a deferred one.
+
+**Why widgets survived and commands did not:** REJECT #11's fix made each
+widget file self-aliasing onto a plain global that upstream reads *later*, so
+write-before-read still works. Commands must call an API that must already
+exist — self-aliasing cannot help when the callee is absent.
+
+**Blast radius:** the 23 Cmd+K commands, plus the attention badge (same IIFE,
+after the same gate — currently masked because `snDesktopAttention.total` is
+`"0"`, which renders no badge either way). Dock, icons, widgets, dropzone and
+all PHP seams are unaffected.
+
+**Suggested fix (not yet implemented):** make `desktop-mode.js` re-attempt
+after deferred scripts have run. Deferred scripts execute *before*
+`DOMContentLoaded`, so that event is a reliable second chance: extract the
+body into an `init()`, call it immediately when either global is present, and
+otherwise re-run it on `DOMContentLoaded`, preferring `wp.os.whenReady()` when
+available by then. That is immune to any future change in load strategy,
+rather than betting on a specific one.
+
 ## The hazard this checklist is built around
 
 The post-rename path is **silent when it works and silent when it is
