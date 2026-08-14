@@ -4,6 +4,8 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.1.1] - 2026-08-14 — the analytics descriptions name the ratio that is not diluted
+
 ### Fixed
 - **The analytics descriptions now steer a caller to the undiluted ratio.** `pageviews_per_visitor_day` is diluted by design — a server-side feed beacon creates a visitor-day with no pageview, so the value reads below 1.0 on a perfectly healthy site. Both the admin and remote ability descriptions now say to prefer `view_visit_ratio` and state plainly that a low `pageviews_per_visitor_day` is not a defect to investigate. This is a real observed failure, not a hypothetical: a model reading the remote tool cold picked the diluted metric twice in one session and twice concluded the site had a beacon bug, once proposing a classifier investigation off the back of it. Measured while writing this: over 7 days the human bucket reads 0.46 pageviews/visitor-day against 595 feed requests from 28 unique subscribers — the denominator working exactly as documented. The clean number was in the same response the whole time.
 
