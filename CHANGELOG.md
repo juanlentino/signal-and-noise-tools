@@ -4,6 +4,36 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.6.1] - 2026-08-14 — the verifier's own provenance, anchored and honestly bounded
+
+**PATCH** — R5's software-provenance row closes, completing the standalone verifier's
+trust story one layer down. The mechanism lives in the LEDGER repo (workflow + release
++ VERIFY.md section, ledger `v1.0.0`); this release is the site half: the board
+graduation and one /verify sentence.
+
+### Added
+- **Attested releases of the verifier** (ledger repo, owner-selected anchor): every
+  `v*` tag builds the verifier tarball in public CI and publishes a real release with a
+  Sigstore build attestation — `gh attestation verify <tarball> --repo …` proves which
+  commit built the copy you hold. **Verified end-to-end from the stranger's position
+  before the board claim shipped**: the genuine artifact passes, and the negative
+  control (one appended byte) refuses. The ledger repo deliberately publishes REAL
+  releases — unlike the plugin/theme drafts-forever rule — because there the release IS
+  the distribution. First release raced the anchor watcher's confirmation commits
+  (one of the four pending v2s confirmed mid-tag); resolved by the tag-is-contended
+  rule: delete, rebase, re-tag on the verified main commit — never `-f`.
+- **/verify states the new fact within P-54's wording gate**: what the attestation
+  proves, its anchor named (the code host), and the trust floor unchanged (read the
+  code in your clone). The claim-phrase absence pins stay green — the copy is stronger
+  and still never claim-shaped.
+
+### Changed
+- **Board: the software-provenance row graduates** considering → done (Proof of origin
+  3→4, ceiling-legal), same day as its sibling — it is the verifier row's completion,
+  with the anchor's limit stated inside the claim. Threat model §9.5 P-54 marked LANDED
+  with the self-contained site-key path recorded as the unscheduled upgrade (a separate
+  release-scoped key — never the content key, whose scope must not broaden to code).
+
 ## [11.6.0] - 2026-08-14 — the verifier that was already there gets the surface it was missing
 
 **MINOR** — R5's first row ships. The premise check found the standalone verifier
