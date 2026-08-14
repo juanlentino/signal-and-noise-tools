@@ -212,6 +212,14 @@ function wp_get_ability( $slug ) {
 // the same constant is a PHP warning and the value would not change.
 $REMOTE = sn_mcp_remote_slugs()[0];
 
+// THE SWITCH GOES BACK ON HERE, and it is not housekeeping. The group above left
+// it OFF to prove the AND, and the handler now re-reads both gates at step 0
+// (defence in depth against a toggle flipped mid-request), so every dispatch
+// below would answer 404 with it still off. Leaving this line out does not make
+// the suite stricter — it makes twelve pins assert the step-0 refusal while
+// their labels claim to be testing the Bearer, the slug list and the envelope.
+$GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
+
 $r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
 ok( is_wp_error( $r ) && 404 === $r->data['status'], 'no Authorization -> 404' );
 
@@ -231,10 +239,10 @@ ok( is_wp_error( $r ) && 404 === $r->data['status'], 'wrong Bearer -> 404' );
 // below exists to deny. An unauthenticated caller must learn NOTHING about the
 // body it sent, so every pre-auth refusal has to be the same 401.
 $r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => 'signal-noise/get-post-content' ) ) );
-ok( is_wp_error( $r ) && 404 === $r->data['status'] && 'sn_bridge_not_found' === $r->code, 'THE INDISTINGUISHABILITY PIN: no Authorization + an OFF-LIST slug is the SAME status AND code as every other anonymous refusal' );
+ok( is_wp_error( $r ) && 404 === $r->data['status'] && 'rest_no_route' === $r->code, 'THE INDISTINGUISHABILITY PIN: no Authorization + an OFF-LIST slug is the SAME status AND code as every other anonymous refusal' );
 
 $r = sn_bridge_handle_request( new SNB_Req( array(), array() ) );
-ok( is_wp_error( $r ) && 404 === $r->data['status'] && 'sn_bridge_not_found' === $r->code, 'and no Authorization + no slug is the same again -> an anonymous caller learns nothing about its body OR the slug' );
+ok( is_wp_error( $r ) && 404 === $r->data['status'] && 'rest_no_route' === $r->code, 'and no Authorization + no slug is the same again -> an anonymous caller learns nothing about its body OR the slug' );
 
 $good = array( 'authorization' => 'Bearer topsecret' );
 $offlist = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
@@ -307,13 +315,61 @@ echo "Group: an anonymous probe cannot tell an ARMED door from a shut one\n";
 // Finding 1 from the 2026-08-14 adversarial review. The handler used to answer
 // 401 for a bad Bearer while an unregistered route answers 404 — so the status
 // alone announced "this door is armed". Grok: "You cannot keep 401 and keep
-// claim 5." These pin the fix; a regression to 401 reds them.
+// claim 5." v11.0.0 answered that with 404, which closed the STATUS half.
+//
+// THE BODY HALF WAS STILL OPEN, and these pins are what closes it. A REST client
+// reads JSON, not a status line, and `sn_bridge_not_found` / "Not found." is not
+// what WordPress says about a route that does not exist. Two 404s with different
+// codes are the same oracle one field further down — which is the shape this
+// increment has now been bitten by twice.
 $anon = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
 $bad  = sn_bridge_handle_request( new SNB_Req( array( 'authorization' => 'Bearer nope' ), array( 'slug' => $REMOTE ) ) );
 $off  = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
 ok( 404 === $anon->data['status'] && 404 === $bad->data['status'] && 404 === $off->data['status'], 'anonymous, wrong-secret and off-list refusals all carry status 404' );
-ok( $anon->code === $bad->code && $bad->code === $off->code, 'and all three carry the SAME error code — status parity alone is not indistinguishability' );
-ok( 'sn_bridge_not_found' === $anon->code, 'and that code is sn_bridge_not_found, never an auth-flavoured one' );
+ok( $anon->code === $bad->code, 'and the two ANONYMOUS refusals carry the same error code — status parity alone is not indistinguishability' );
+
+// THE VALUE-LEVEL PARITY PIN, and it must stay value-level. The suite cannot
+// call WP_REST_Server::dispatch() to compare against the real thing, so the
+// literals below stand in for it — copied verbatim from core's
+// src/wp-includes/rest-api/class-wp-rest-server.php:
+//
+//     return new WP_Error(
+//         'rest_no_route',
+//         __( 'No route was found matching the URL and request method.' ),
+//         array( 'status' => 404 )
+//     );
+//
+// Asserting `$anon->code === $bad->code` alone would stay green if BOTH drifted
+// to some third code, which is precisely the state that reopens the oracle. Each
+// of the three fields therefore gets pinned to its core value, not to its twin.
+ok( 'rest_no_route' === $anon->code, 'THE PARITY PIN (code): an anonymous refusal carries core\'s rest_no_route, so it is not distinguishable from an unregistered route' );
+ok( 'No route was found matching the URL and request method.' === $anon->message, 'THE PARITY PIN (message): and core\'s message verbatim — the body is what a REST client actually reads' );
+ok( array( 'status' => 404 ) === $anon->data, 'THE PARITY PIN (data): and core\'s data array exactly, with no extra keys to read the door by' );
+
+// The secret-holder's refusal is DELIBERATELY distinct, and that asymmetry is
+// the design rather than a leftover. They are authenticated; a distinct code
+// tells them their slug was unknown and gives the Worker something to log.
+// Without this pin, collapsing every refusal to rest_no_route would look like an
+// improvement and would quietly cost the Worker its only diagnostic.
+ok( 'sn_bridge_not_found' === $off->code, 'and a caller who HOLDS the secret gets the distinct sn_bridge_not_found — telling an authenticated caller its slug was unknown leaks nothing' );
+
+echo "Group: the gates are read AGAIN at dispatch, so a toggle flipped mid-request lands\n";
+// Defence in depth for the one-request TOCTOU window: the route was registered
+// while both gates were open, and the owner unchecks the toggle before the
+// request dispatches. Never a durable bypass — the next request would not
+// register the route at all — but the refusal costs one predicate call and the
+// window is exactly the moment an owner is trying to shut the door.
+//
+// The refusal must be the ANONYMOUS shape, not a distinct one: a caller holding
+// a valid secret who could tell "shut mid-flight" from "never registered" would
+// have a live read on the toggle.
+$GLOBALS['__options'] = array();
+$flipped = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+ok( is_wp_error( $flipped ) && 404 === $flipped->data['status'], 'a VALID secret is refused once the switch goes off, without waiting for the next registration pass' );
+ok( 'rest_no_route' === $flipped->code, 'and it is refused in the anonymous shape, so the mid-flight case is not its own tell' );
+$GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
+$restored = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+ok( ! is_wp_error( $restored ), 'THE ONE THAT PROVES IT REOPENS: switching back on dispatches again, so step 0 is a gate and not a permanent shutdown' );
 
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
