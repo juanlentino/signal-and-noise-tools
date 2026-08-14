@@ -120,9 +120,9 @@ if ( ! function_exists( 'sn_analytics_derive_metrics' ) ) {
 	 *     @type float|null $view_visit_ratio          views / pageview_visits.
 	 *     @type float|null $pageviews_per_visitor_day views / unique_visitor_days.
 	 *     @type float|null $scroll_avg_per_view       25 × scroll_events / views (true mean max depth, 0–100).
-	 *     @type float|null $time_avg_per_view         time_sum / views (exact).
+	 *     @type float|null $time_avg_per_view         time_sum / views (exact). MILLISECONDS.
 	 *     @type float|null $scroll_avg_per_visit      25 × scroll_events / unique_visitor_days (diluted by viewless days).
-	 *     @type float|null $time_avg_per_visit        time_sum / unique_visitor_days (diluted by viewless days).
+	 *     @type float|null $time_avg_per_visit        time_sum / unique_visitor_days (diluted by viewless days). MILLISECONDS.
 	 *     @type bool       $integrity_violation       true iff both known AND views < pageview_visits.
 	 * }
 	 */
