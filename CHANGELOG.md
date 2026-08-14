@@ -4,6 +4,15 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **The reading-path direction label loses its opacity fade** (`assets/ml-paths.css`),
+  owner-flagged as a register deviation. The brutalist idiom differentiates by size, case,
+  and weight — never by fading — and the sibling it mirrors (`ml-related-front.css`) uses
+  no opacity anywhere. Sharper than taste: `opacity:.75` on `currentColor` resolves to a
+  colour no token names, making it a contrast modifier the site's own contrast checker
+  structurally cannot see. Hierarchy now rides size and case alone. Asset-only; rides the
+  next version bump.
+
 ## [11.3.1] - 2026-08-14 — the label speaks prose, and a raced artifact heals itself
 
 Both defects were found by LIVE VERIFICATION of v11.3.0, minutes after install — neither
