@@ -39,9 +39,16 @@
  * fresh Uptime API / GitHub fetch) — the 2am case this door exists for needs
  * the last known answer, not a fresh probe, and a brokered caller triggering
  * third-party fetches on a shared host is a cost amplifier the aggregate rate
- * cap does not model. The twin's `additionalProperties: false` refuses the key
- * at the origin even if the edge gate regresses; the edge gate refuses it
- * without spending an origin round trip. Spec: remote-mcp-increments-2-and-4.md
+ * cap does not model. The second layer is a DEPENDENCY, not a property this
+ * repo proves: the twin schemas declare additionalProperties:false, and
+ * refusing a smuggled key before execute_callback is WP_Ability::execute()'s
+ * validate_input step — external code this harness cannot pin (an
+ * adversarial trace of core trunk on 2026-08-14 confirmed the order
+ * normalize→validate→permissions→execute, with unknown keys failing schema;
+ * re-verify against the PINNED Abilities API version before citing this
+ * layer as a control). The layer this repo DOES prove is the edge gate,
+ * mutation-verified in the Worker suite, plus the strip pins here proving
+ * the twins never declare the key. Spec: remote-mcp-increments-2-and-4.md
  * §3. Each stripped twin below carries the strip comment inline.
  *
  * @package SignalNoiseTools
