@@ -4,6 +4,9 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Security
+- **XML-RPC hardening is now two independent layers, so the brute-force amplifier stays shut even when the endpoint is left on.** The module's XML-RPC block was all-or-nothing: `sn_security_disable_xmlrpc` (default on) emptied the whole method map, which meant leaving XML-RPC on for a client that needs it — a monitoring tool required it enabled 2026-08-14 — also re-exposed `system.multicall`. That method is the credential-stuffing amplifier: one HTTP POST wraps hundreds of login attempts and authenticates through a path `wp-login.php`'s rate limiting and the login-guard worker never see. A new independent switch, `sn_security_strip_xmlrpc_dangerous` (default on), removes only `system.multicall` and the pingback methods (`pingback.ping` is an SSRF vector) while leaving the rest, and it survives the full-disable switch being turned off — so the amplifier is closed whether or not the endpoint is open. Paired with a Cloudflare WAF rule that IP-allowlists the needing client on `/xmlrpc.php` and blocks the rest; this layer is what holds if that rule is ever removed or the client's IPs drift. The decision logic is a pure `sn_security_xmlrpc_methods_filter()` with the dangerous-method list named for a test, and eleven new assertions pin it — including that a legitimate method survives the strip and that turning off the full block does not turn off the amplifier strip.
+
 ## [11.7.0] - 2026-08-14 — verifying travels with the content, and R5 closes
 
 **MINOR** — the verification quartet's last two rows ship as one module

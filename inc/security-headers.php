@@ -1,12 +1,12 @@
 <?php
 /**
- * Signal & Noise — WordPress hardening at the theme layer.
+ * Signal & Noise — WordPress hardening at the plugin layer.
  *
  * Closes the gaps Cloudflare's edge config doesn't already cover for
  * juanlentino.com, per WordPress's hardening documentation
  * (https://wordpress.org/documentation/article/hardening-wordpress/).
  *
- * Empirically scoped (verified 2026-05-08 via `curl -I`):
+ * Empirically scoped (headers verified 2026-05-08 via `curl -I`):
  *
  *   ✓ Already emitted by Cloudflare → not duplicated here:
  *     X-Content-Type-Options, X-Frame-Options, Referrer-Policy,
@@ -14,10 +14,8 @@
  *     them from PHP would be redundant — CF proxies all traffic, so
  *     edge values reach the browser regardless of origin headers.
  *
- *   ✓ Already closed at the edge → no theme work needed:
- *     /xmlrpc.php (CF returns 520 for POSTs, X-Pingback header
- *     stripped from homepage), /?author=N (returns 404, no author
- *     archive registered).
+ *   ✓ Already closed at the edge → no plugin work needed:
+ *     /?author=N (returns 404, no author archive registered).
  *
  * What THIS module actually does:
  *
@@ -30,20 +28,28 @@
  *      pre-fix on production. Authenticated callers (block editor, REST
  *      clients, Plausible widget proxy etc.) keep working.
  *
- *   3. Belt-and-suspenders: disables XML-RPC at the WP layer in case
- *      the edge rule is ever removed, and redirects ?author=N to home
- *      in case author archives are ever enabled. Both effectively
- *      no-op against the current edge config but cost nothing and
- *      survive an edge config drift.
+ *   3. XML-RPC, in TWO independent layers (see the method-filter block):
+ *      full-disable (default on) empties the method map entirely; a
+ *      scoped strip (default on, INDEPENDENT of full-disable) removes
+ *      system.multicall and pingback even when the endpoint is left on
+ *      for a client that needs it. 2026-08-14: XML-RPC is currently ON
+ *      (a monitoring tool required it), so the scoped strip is the live
+ *      protection, with a Cloudflare WAF rule allowlisting the client's
+ *      IPs and blocking the rest of /xmlrpc.php as the outer layer.
+ *
+ *   4. Redirects ?author=N to home in case author archives are ever
+ *      enabled — a no-op against the current edge 404 but it survives
+ *      edge config drift.
  *
  * Filterable so individual hardenings can be reverted without editing
  * this file:
- *   - sn_security_permissions_policy (default true)
- *   - sn_security_lock_rest_users    (default true)
- *   - sn_security_block_author_enum  (default true)
- *   - sn_security_disable_xmlrpc     (default true)
+ *   - sn_security_permissions_policy       (default true)
+ *   - sn_security_lock_rest_users          (default true)
+ *   - sn_security_block_author_enum        (default true)
+ *   - sn_security_disable_xmlrpc           (default true)
+ *   - sn_security_strip_xmlrpc_dangerous   (default true)
  *
- * @package SignalNoise
+ * @package SignalNoiseTools
  * @since 7.2.1
  */
 
@@ -145,23 +151,94 @@ add_filter( 'rest_authentication_errors', function( $result ) {
 }, 99 );
 
 /**
- * Disable XML-RPC entirely.
+ * XML-RPC hardening, in two independent layers so the dangerous methods stay
+ * closed even when the endpoint itself is deliberately left on.
  *
- *   - `xmlrpc_enabled` filter — turns the endpoint off at the WP layer.
- *   - `xmlrpc_methods` filter — empties the method map so any code path
- *     that bypasses the enabled-flag check still gets nothing.
- *   - `pings_open` / `pingback_url` — kill pingbacks at the source.
+ *   - `xmlrpc_enabled` — turns the endpoint off at the WP layer. Gated by
+ *     sn_security_disable_xmlrpc (default true). Turn this off for a client
+ *     that genuinely needs XML-RPC.
+ *   - `xmlrpc_methods` — the method-map filter below. Empties the map under
+ *     full-disable, and strips system.multicall + pingback UNDER ITS OWN
+ *     switch even when full-disable is off. This is the layer that survives
+ *     the endpoint being left on: see sn_security_xmlrpc_methods_filter().
+ *   - `pings_open` — kills the pingback advertisement at the source. Belt to
+ *     the method strip's suspenders (pingback.ping is removed regardless).
  *
- * Belt + suspenders: the .htaccess / nginx layer should also block
- * /xmlrpc.php for total coverage, but those edits aren't theme-owned.
+ * Outer layer, not plugin-owned: a Cloudflare WAF custom rule allowlists the
+ * needing client's IP ranges on /xmlrpc.php and blocks the rest, so brute
+ * force never reaches the origin. This module is what holds if that rule is
+ * ever removed or the client's IPs drift — the same edge-config-drift posture
+ * as the author-enum guard below.
  */
 add_filter( 'xmlrpc_enabled', function( $enabled ) {
 	return apply_filters( 'sn_security_disable_xmlrpc', true ) ? false : $enabled;
 } );
 
-add_filter( 'xmlrpc_methods', function( $methods ) {
-	return apply_filters( 'sn_security_disable_xmlrpc', true ) ? array() : $methods;
-}, 99 );
+/**
+ * The XML-RPC methods that must never be reachable, whether or not the
+ * endpoint as a whole is disabled.
+ *
+ *   - system.multicall — the brute-force AMPLIFIER. One HTTP request carries
+ *     hundreds of wrapped calls, so a single POST attempts hundreds of logins.
+ *     It authenticates through a path wp-login.php's rate limiting and the
+ *     login-guard worker never see, which is exactly why it is the method
+ *     credential-stuffing tools reach for.
+ *   - pingback.ping / pingback.extensions.getPingbacks — the SSRF vector.
+ *     pingback.ping makes the server fetch an attacker-chosen URL.
+ *
+ * A function, not a const array, so a test can read it and a future edit
+ * cannot silently shrink it.
+ *
+ * @return string[]
+ */
+function sn_security_xmlrpc_dangerous_methods() {
+	return array(
+		'system.multicall',
+		'pingback.ping',
+		'pingback.extensions.getPingbacks',
+	);
+}
+
+/**
+ * Filter the XML-RPC method map through TWO independent hardenings, each with
+ * its own switch, so the dangerous methods stay closed even when the endpoint
+ * is deliberately left open.
+ *
+ *   1. sn_security_disable_xmlrpc (default true) — empty the whole map. The
+ *      endpoint still answers but exposes nothing. Correct when nothing
+ *      legitimate uses XML-RPC.
+ *   2. sn_security_strip_xmlrpc_dangerous (default true) — remove ONLY
+ *      sn_security_xmlrpc_dangerous_methods(), leaving the rest. This is what
+ *      survives switch 1 being turned off: a client that genuinely needs
+ *      XML-RPC (Jetpack et al.) never needs system.multicall or pingback, so
+ *      the brute-force amplifier stays shut without breaking that client.
+ *
+ * Order is deliberate: full-disable wins, because an empty map has nothing to
+ * strip. Both switches off is the only path that leaves multicall reachable,
+ * and it takes two explicit opt-outs to get there.
+ *
+ * Registered at priority 99 so it runs AFTER anything that populates the map —
+ * Jetpack adds its methods on this same filter, and a strip that ran first
+ * would find nothing to remove.
+ *
+ * @param mixed $methods The XML-RPC method map (name => callable).
+ * @return array
+ */
+function sn_security_xmlrpc_methods_filter( $methods ) {
+	if ( ! is_array( $methods ) ) {
+		$methods = array();
+	}
+	if ( apply_filters( 'sn_security_disable_xmlrpc', true ) ) {
+		return array();
+	}
+	if ( apply_filters( 'sn_security_strip_xmlrpc_dangerous', true ) ) {
+		foreach ( sn_security_xmlrpc_dangerous_methods() as $method ) {
+			unset( $methods[ $method ] );
+		}
+	}
+	return $methods;
+}
+add_filter( 'xmlrpc_methods', 'sn_security_xmlrpc_methods_filter', 99 );
 
 add_filter( 'pings_open', function( $open ) {
 	return apply_filters( 'sn_security_disable_xmlrpc', true ) ? false : $open;
