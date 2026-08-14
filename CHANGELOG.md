@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.0.0] - 2026-08-14 — the remote analytics door gets its origin channel, and a switch a phone can reach
 
 ### The read door's fail-open default gets its own assertion
 

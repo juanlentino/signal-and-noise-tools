@@ -142,6 +142,10 @@ Hard constraints from the brief and from prior art. Violating any makes the desi
 5. **Writes / drafts out of scope.** Desktop retains write door. Phone slice excludes drafts-adjacent abilities by construction.
 6. **GitHub Actions:** public repo minutes are free, but do not design CI that would be copied into private repos as multi-job tax; no browser CI, no per-PR multi-minute matrix for this feature.
 7. **v11.0.0 MAJOR** if shipped — owner setup action required (connector + OAuth + revoke surface).
+   **Superseded on the revoke-surface clause:** `mcp-zero-call-reader.md` §5.4 allocates v11.0.0 to
+   the phone door plus the legacy quartet removal, both ready, with the §A5 retirement deferred to a
+   later major. The phone door shipped at v11.0.0 without a phone-first revoke surface; Increment 3
+   still owes that, and it does not gate the version.
 
 ---
 
