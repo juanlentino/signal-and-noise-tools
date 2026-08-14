@@ -134,10 +134,10 @@ Read tools return corpus content, site facts, telemetry, and candidate lists. Tw
   path that escapes §3's sentence-scale confinement; R1 closes first.
 - **Scheduled read-only agent runs (considering):** run under a routine credential
   (revision-only by grant); their outputs are R2-class prose and inherit its rule.
-- **In-page verification tool surface (considering):** exposes calls to *anonymous*
-  agents — a new trust boundary this document does not yet cover. Requires its own §
-  before shipping: enumerate what a hostile page-context caller can reach (must be
-  read-only verification, no state, no billing).
+- **In-page verification tool surface (R5, the verification quartet):** exposes calls to
+  *anonymous* agents — covered by **§9** (written 2026-08-14, before the arc opened).
+  Build sessions gate on §9.5's preconditions P-51…P-56; the sharpest is P-51 — the
+  origin publishes inputs and never asserts a verdict.
 - **Read door from web/phone (R3 3D, planned):** covered by **§8**, which is model
   only and recommends fixing two current-build defects (F1, F2) before any broker.
 - **Native desktop agents migration (planned/parked):** the same fences (§2–§3) must be
@@ -370,3 +370,129 @@ and they are worth fixing on their own merits, today, with the door still behind
 laptop. Ship those, then decide whether the row still wants an edge broker or whether
 something narrower (a scoped, expiring, read-only token) buys most of the value at a
 fraction of the boundary.
+
+## §9 — The verification quartet: anonymous callers arrive on purpose (roadmap R5)
+
+**Status: model only. No code exists, and none should until the preconditions in §9.5
+are met.** Written 2026-08-14, before R5 opens, because §6 said this section must exist
+before the in-page surface ships — and because the quartet's four rows are not one
+boundary but two boundaries and two non-boundaries, and building them as one arc without
+saying which is which is how a verdict endpoint gets shipped by accident.
+
+### §9.1 — The rows, sorted by what they actually open
+
+| Row | Opens a new boundary? |
+| --- | --- |
+| An in-page tool surface for verification | **YES** — machine-readable *calls* published to anonymous page-context callers |
+| Provenance pointers in the machine surfaces | **YES, the same one** — pointers are the same class of published instruction-shaped data |
+| A standalone verifier anyone can run | No new *caller* boundary — but it moves CODE outside the trust domain (§9.4-T6) |
+| Provenance for the software itself | No boundary; it is the standalone verifier's own **completion** (§9.4-T6), threaded to Operations |
+
+**Configuration drift is not in this section.** It is an owner-facing Operations row with
+no agent surface and no anonymous caller; modelling it here would only dilute the section
+that §6 actually demanded. It needs ops design (what is snapshotted, where the diff
+lives), not an adversary model.
+
+### §9.2 — The new adversary: A6, the anonymous page-context caller
+
+§1's A5 was an unauthorized party *becoming* authorized through a broker. **A6 never
+authorizes at all**: a reader's browser, a crawler, or an agent that landed on a page and
+follows the verification calls the page itself advertises. A6 is not an intruder — the
+quartet's entire point is to INVITE A6. That inversion is the section's organizing fact:
+every prior boundary in this document exists to keep callers out; this one exists to let
+strangers in and still have nothing to lose.
+
+What A6 holds: whatever a page says, plus unlimited anonymous HTTP. What A6 must never
+be able to do: make the origin compute, make the origin spend, make the origin *assert*,
+or be steered by a poisoned pointer into carrying data somewhere hostile.
+
+### §9.3 — What an anonymous caller can already reach (the posture to extend)
+
+The site has run anonymous verification surfaces for months, and their shared shape is
+the precedent the quartet must extend rather than replace:
+
+| Surface | Origin compute per request | Verdict computed by |
+| --- | --- | --- |
+| `/verify` shell ([provenance-verify.php](../../inc/provenance-verify.php)) | emit static HTML + endpoint data-attributes | **the reader's browser** (assets/js/prov-verify.js: crypto client-side, `credentials:'omit'`, abort timeouts, browser-direct fetches to ledger/mempool/DID/keys) |
+| `/credential/(uid)` REST route | read stored data, serialize | the caller |
+| DID document, key history | static document emit | the caller |
+| The public ledger (GitHub) + mempool | none — not our origin | the caller |
+
+The invariant those four share, stated once so §9.5 can bind it: **the origin publishes
+verifiable INPUTS; the caller computes the verdict.** No surface asserts "verified" on
+the site's behalf — which is not an implementation accident but the standalone-verifier
+row's own argument ("don't trust the site's own button") applied uniformly.
+
+### §9.4 — The attacks, argued gate by gate
+
+- **T1 — the verdict endpoint (the attack the site commits against itself).** A
+  `/wp-json/...?verify=uid` route that fetches the ledger, checks the signature, and
+  returns `{verified: true}` would be: free per-request crypto for any anonymous caller
+  (CPU amplification), an origin-paid upstream fetch (SSRF-shaped, quota-spending —
+  every anonymous request becomes an origin request to GitHub/mempool), and a
+  self-asserted verdict that defeats the quartet's premise. **Forbidden by P-51/P-52.**
+  This is the sharpest line in the section because it is the *convenient* design.
+- **T2 — poisoned pointers (the confused deputy).** An agent follows the pointers the
+  machine surfaces publish. A pointer rewritten to a hostile host turns every verifying
+  agent into a courier — and pointer fields ride surfaces the write door can influence.
+  Gates today: board/machine copy passes leak sweeps, and pointers in code are reviewed.
+  Precondition P-53: pointer TARGETS are pinned in reviewed code (same-origin, or the
+  fixed ledger/DID hosts) — never assembled from options or post content. The client-half
+  spec's lesson ("a typo in a var would deliver the secret to another host") applies with
+  the payload reversed: here a bad pointer delivers the *caller*.
+- **T3 — instruction-shaped machine surfaces.** The in-page tool descriptions are text an
+  agent reads and acts on — the R2/A1 hostile-paragraph channel, now deliberately
+  published to strangers. P-56: call descriptions are schema-shaped data (method, URL,
+  params), never imperative prose; and the "injection self-sweep" later-row becomes the
+  lint for it when it lands.
+- **T4 — origin resource exhaustion on the non-static remainder.** `/credential/(uid)`
+  computes a read+serialize per request. Bounded and cacheable — but every NEW anonymous
+  route the quartet adds must clear P-52 (static or edge-cacheable, no per-request
+  crypto, no upstream fetch). The worker caveat carries from operations memory: worker
+  `ratelimit` bindings are colo-local, so a ceiling there is per-colo, not global.
+- **T5 — reflection.** The current shell renders no caller input. Any quartet page that
+  accepts a uid/hash parameter must treat it as hostile (escape, never reflect raw,
+  whitelist charset — `[A-Za-z0-9-]` as the credential route already does).
+- **T6 — the tampered verifier.** A standalone verifier is code the site hands to
+  strangers with the instruction "trust this instead of us" — so its *distribution* is
+  the asset. A tampered copy lies with the site's own credibility. P-54: the verifier
+  lives in the public ledger repo (versioned, diffable, hash-pinned in release notes),
+  and its integrity story is completed by the software-provenance row — which is why
+  those two rows are one thread, not siblings: **a verifier whose own provenance is
+  unverifiable is the site's-own-button problem moved one layer down.**
+- **T7 — enumeration, declined as a non-threat.** Verification surfaces reveal which
+  posts carry records. The ledger is public by design; there is nothing to enumerate
+  that is not already published. Recorded so nobody "fixes" it with an auth wall that
+  would break the quartet's purpose.
+
+### §9.5 — Preconditions (the build sessions' gate)
+
+- **P-51 — the origin never asserts.** No endpoint returns a verdict. The origin
+  publishes inputs (documents, credentials, keys, pointers); verification executes in
+  the caller's runtime. The standalone verifier and the in-page tool are CONSUMERS of
+  published inputs, never oracles.
+- **P-52 — no new anonymous origin compute.** Any new anonymous route serves static or
+  edge-cacheable content: no per-request cryptography, no origin-paid upstream fetches,
+  charset-whitelisted params. If it cannot be static, it does not ship on the origin.
+- **P-53 — pointers are pinned in reviewed code.** Same-origin or the fixed public
+  artifact hosts; never assembled from options, meta, or content. A pointer test pins
+  the allowed host set the way the board pins its banned tokens.
+- **P-54 — the verifier's distribution is verifiable.** Public repo, versioned,
+  hash-stated; the software-provenance row gates any "independent verification" claim
+  in site copy — until it lands, the copy says what the verifier is, not what trusting
+  it proves.
+- **P-55 — no state, no billing (restating §6 as a hard gate).** Nothing an anonymous
+  caller reaches may write anything (no logging tables keyed by caller input, no
+  counters that grow unboundedly with anonymous traffic — the refusal-buffer lesson
+  from the bridge applies) and nothing may touch AI spend.
+- **P-56 — machine-published call descriptions are data, not prose.** Schema-shaped
+  fields only; no imperative sentences in any surface an anonymous agent parses.
+
+### §9.6 — What this section deliberately declines
+
+No CAPTCHA or bot-gating on verification surfaces (the callers we want ARE bots); no
+per-caller identity or logging (P-55 — and the door's no-identity property at the origin
+is a feature here, not a gap); no rate ceiling on the static surfaces (the edge cache is
+the ceiling; a ceiling below it would only throttle the honest). The quartet's rows may
+be built in any order EXCEPT one: no site copy may claim independent verifiability
+before P-54's gating row lands.
