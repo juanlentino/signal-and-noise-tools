@@ -67,10 +67,39 @@ function makeContext() {
 	};
 }
 
+/**
+ * `registerCommand` VALIDATES in OpenStation v1.1.0 and throws on a missing
+ * `label`, aborting the caller's whole script:
+ *
+ *   RegistrationError: [openstation] Command registration rejected —
+ *     fields: label (missing).
+ *
+ * Captured live 2026-08-14 from `desktop.min.js`, thrown out of our own
+ * `boot` at `desktop-mode.js:206` — the FIRST registerCommand call. One throw
+ * there kills all 22. The stub must reproduce that or the harness would
+ * happily accept registrations the real shell rejects, which is precisely the
+ * stub-drift trap: a fake that is more permissive than the callee turns a
+ * production error into a green test.
+ */
+function makeRegisterCommand( ctx ) {
+	return ( c ) => {
+		const missing = [];
+		if ( ! c || typeof c.slug !== 'string' || ! c.slug ) { missing.push( 'slug' ); }
+		if ( ! c || typeof c.label !== 'string' || ! c.label ) { missing.push( 'label' ); }
+		if ( missing.length ) {
+			throw new Error(
+				'[openstation] Command registration rejected — fields: ' +
+					missing.join( ', ' ) + ' (missing).'
+			);
+		}
+		ctx.registered.push( c.slug );
+	};
+}
+
 /** The subset of the OpenStation API this file actually touches. */
 function installShellApi( ctx ) {
 	const api = {
-		registerCommand: ( c ) => ctx.registered.push( c && c.slug ),
+		registerCommand: makeRegisterCommand( ctx ),
 		notify: () => {},
 		dock: { setBadge: () => {} },
 		sideDock: null, // v1.1.0 default 'unified' layout — genuinely null.
@@ -86,6 +115,16 @@ function installShellApi( ctx ) {
 
 const run = ( src, ctx ) => vm.runInContext( src, ctx, { filename: 'desktop-mode.js' } );
 
+/**
+ * Swallow-and-report, never crash the harness. A registration throw is a
+ * RESULT we want reported next to the count — if it propagated, the run would
+ * abort and every later scenario would go unmeasured, which reads as "no
+ * output" rather than "this failed here, for this reason".
+ */
+const attempt = ( fn ) => {
+	try { fn(); return null; } catch ( e ) { return e.message; }
+};
+
 const results = [];
 const check = ( name, pass, detail ) => results.push( { name, pass: !! pass, detail } );
 
@@ -93,17 +132,19 @@ const check = ( name, pass, detail ) => results.push( { name, pass: !! pass, det
 {
 	const { ctx, fire, listenerCount } = makeContext();
 	ctx.wp = {}; // wp core exists; wp.os does NOT yet — the deferred shell hasn't run.
-	run( SRC, ctx );
+	const threwEarly = attempt( () => run( SRC, ctx ) );
 	const registeredBeforeShell = ctx.registered.length;
 
 	installShellApi( ctx ); // the deferred bundle finally executes…
-	fire( 'DOMContentLoaded' ); // …and deferred scripts all run before this event.
+	// …and deferred scripts all run before this event.
+	const threwOnRetry = attempt( () => fire( 'DOMContentLoaded' ) );
 
 	check(
 		'deferred-shell: commands register after the shell lands',
 		ctx.registered.length >= 20,
 		`registered ${ ctx.registered.length } (before shell: ${ registeredBeforeShell }), ` +
-			`DOMContentLoaded listeners: ${ listenerCount( 'DOMContentLoaded' ) }`
+			`listeners: ${ listenerCount( 'DOMContentLoaded' ) }, ` +
+			`threw early: ${ threwEarly }, threw on retry: ${ threwOnRetry }`
 	);
 	check(
 		'deferred-shell: sn-cmd slugs present',
@@ -122,11 +163,11 @@ const check = ( name, pass, detail ) => results.push( { name, pass: !! pass, det
 {
 	const { ctx } = makeContext();
 	installShellApi( ctx );
-	run( SRC, ctx );
+	const threw = attempt( () => run( SRC, ctx ) );
 	check(
 		'shell-first: commands register synchronously, no event needed',
-		ctx.registered.length >= 20,
-		`registered ${ ctx.registered.length } with no DOMContentLoaded`
+		ctx.registered.length >= 20 && threw === null,
+		`registered ${ ctx.registered.length } with no DOMContentLoaded, threw: ${ threw }`
 	);
 }
 
@@ -134,15 +175,15 @@ const check = ( name, pass, detail ) => results.push( { name, pass: !! pass, det
 {
 	const { ctx } = makeContext();
 	ctx.wp = {
-		desktop: { registerCommand: ( c ) => ctx.registered.push( c && c.slug ), notify: () => {} },
+		desktop: { registerCommand: makeRegisterCommand( ctx ), notify: () => {} },
 		apiFetch: () => Promise.resolve( {} ),
 		hooks: { addFilter: () => {}, filters: {} },
 	};
-	run( SRC, ctx );
+	const threw = attempt( () => run( SRC, ctx ) );
 	check(
 		'pre-rename family: still registers via wp.desktop alone',
-		ctx.registered.length >= 20,
-		`registered ${ ctx.registered.length }`
+		ctx.registered.length >= 20 && threw === null,
+		`registered ${ ctx.registered.length }, threw: ${ threw }`
 	);
 }
 
@@ -152,13 +193,7 @@ const check = ( name, pass, detail ) => results.push( { name, pass: !! pass, det
 {
 	const { ctx, fire } = makeContext();
 	ctx.wp = {};
-	let threw = null;
-	try {
-		run( SRC, ctx );
-		fire( 'DOMContentLoaded' );
-	} catch ( e ) {
-		threw = e.message;
-	}
+	const threw = attempt( () => { run( SRC, ctx ); fire( 'DOMContentLoaded' ); } );
 	check(
 		'no-shell: registers nothing and does not throw',
 		ctx.registered.length === 0 && threw === null,

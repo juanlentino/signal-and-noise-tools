@@ -205,6 +205,7 @@
 	// Maintenance.
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-force-check',
+		label: 'SN: Force-check updates',
 		aiCallable: true, // v2.5.5: idempotent, clears transients only — safe.
 		run: function() {
 			callRest( 'force-check' )
@@ -223,6 +224,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-purge-caches',
+		label: 'SN: Purge all caches',
 		// v2.5.5: aiCallable INTENTIONALLY OMITTED — destructive. Manual ⌘K only.
 		run: function() {
 			callRest( 'purge-caches' )
@@ -233,6 +235,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-clear-overrides',
+		label: 'SN: Clear template overrides',
 		// v2.5.5: aiCallable INTENTIONALLY OMITTED — deletes DB rows. Manual only.
 		run: function() {
 			callRest( 'clear-overrides' )
@@ -243,6 +246,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-full-reset',
+		label: 'SN: Full reset',
 		// v2.5.5: aiCallable INTENTIONALLY OMITTED — combines the two destructive
 		// commands above; even bigger blast radius. Manual ⌘K only.
 		run: function() {
@@ -267,20 +271,21 @@
 	} );
 
 	// Navigation. All aiCallable — pure navigation, no state change.
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard',    aiCallable: true, run: function() { navigate( pages.dashboard ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-identity',     aiCallable: true, run: function() { navigate( pages.identity ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-login',        aiCallable: true, run: function() { navigate( pages.login ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-cloudflare',   aiCallable: true, run: function() { navigate( pages.cloudflare ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-rss',          aiCallable: true, run: function() { navigate( pages.rss ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-reading-time', aiCallable: true, run: function() { navigate( pages.reading_time ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-dashboard', label: 'SN: Open Dashboard',    aiCallable: true, run: function() { navigate( pages.dashboard ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-identity', label: 'SN: Open Identity',     aiCallable: true, run: function() { navigate( pages.identity ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-login', label: 'SN: Open Login',        aiCallable: true, run: function() { navigate( pages.login ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-cloudflare', label: 'SN: Open Cloudflare',   aiCallable: true, run: function() { navigate( pages.cloudflare ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-rss', label: 'SN: Open RSS',          aiCallable: true, run: function() { navigate( pages.rss ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-nav-reading-time', label: 'SN: Open Reading Time', aiCallable: true, run: function() { navigate( pages.reading_time ); } } );
 
 	// Info. Both aiCallable — read-only toast.
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-theme',  aiCallable: true, run: function() { versionToast( 'theme' ); } } );
-	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-plugin', aiCallable: true, run: function() { versionToast( 'plugin' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-theme', label: 'SN: Theme version',  aiCallable: true, run: function() { versionToast( 'theme' ); } } );
+	window.wp.desktop.registerCommand( { slug: 'sn-cmd-version-plugin', label: 'SN: Plugin version', aiCallable: true, run: function() { versionToast( 'plugin' ); } } );
 
 	// Cron Dashboard (v3.0.0) — both aiCallable, read-only.
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-cron-health',
+		label: 'SN: Cron health overview',
 		aiCallable: true,
 		run: function() {
 			var summary = data.cronSummary || {};
@@ -296,6 +301,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-cron-list',
+		label: 'SN: Open Cron tab',
 		aiCallable: true,
 		run: function() {
 			navigate( pages.cron );
@@ -305,6 +311,7 @@
 	// Insights (v3.6.0) — aiCallable, read-only summary toast + navigate.
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-insights',
+		label: 'SN: Open Insights tab',
 		aiCallable: true,
 		run: function() {
 			var summary = data.insightsSummary || {};
@@ -323,6 +330,7 @@
 	// Audit log (v3.8.3) — both aiCallable, read-only fetch + toast.
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-audit-summary',
+		label: 'SN: Audit log summary',
 		aiCallable: true,
 		run: function() {
 			if ( ! window.sntAbilityRun ) {
@@ -354,6 +362,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-audit-recent-logins',
+		label: 'SN: Recent successful logins',
 		aiCallable: true,
 		run: function() {
 			if ( ! window.sntAbilityRun ) {
@@ -387,6 +396,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-health-scan',
+		label: 'SN: Run health scan',
 		run: function() {
 			callRest( 'run-health-scan' )
 				.then( function( res ) {
@@ -400,6 +410,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-insights-scan',
+		label: 'SN: Run insights scan',
 		run: function() {
 			callRest( 'run-insights-scan' )
 				.then( function() { toast( 'Insights scan complete.' ); } )
@@ -409,6 +420,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-narration',
+		label: 'SN: Run narration',
 		run: function() {
 			callRest( 'run-narration' )
 				.then( function() { toast( 'Narration regenerated.' ); } )
@@ -418,6 +430,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-prune-tags',
+		label: 'SN: Prune unused tags',
 		run: function() {
 			callRest( 'prune-unused-tags' )
 				.then( function( res ) {
@@ -431,6 +444,7 @@
 
 	window.wp.desktop.registerCommand( {
 		slug: 'sn-cmd-anchor-sweep',
+		label: 'SN: Sweep anchors',
 		run: function() {
 			callRest( 'anchor-sweep' )
 				.then( function( res ) {
