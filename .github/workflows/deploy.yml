@@ -54,6 +54,13 @@ concurrency:
   group: deploy
   cancel-in-progress: false
 
+# Least privilege: this workflow's only GITHUB_TOKEN use is actions/checkout
+# reading this repo. Everything else (Cloudways SSH, Cloudflare purge) runs on
+# its own secrets, not the token. Unset, the token would inherit the repo
+# default, which is broader than a deploy job has any need for.
+permissions:
+  contents: read
+
 jobs:
   deploy:
     name: Archive deploy + CF purge
