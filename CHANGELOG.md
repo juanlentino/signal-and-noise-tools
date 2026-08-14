@@ -2,9 +2,98 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.7.1] - 2026-08-14 — the Cmd+K commands come back
+
+**PATCH** — a live regression found by running the OpenStation v1.1.0 verification
+checklist against production. All 22 Cmd+K commands were silently dead.
+
+### Fixed
+- **`assets/desktop-mode.js` now retries instead of giving up when the shell
+  has not loaded yet.** OpenStation v1.1.0 ships its shell bundle
+  (`desktop.min.js`, which installs `window.wp.os`) with **`defer`**; our
+  scripts are not deferred. Deferred scripts execute after *every* non-deferred
+  script, so the shell appearing at DOM index 56 ran **after** ours at 63 and
+  89. Both of our gates found neither `window.wp.desktop` nor `window.wp.os`,
+  the file returned, and none of its 22 commands registered — no error, no
+  console warning, no symptom, until someone opened Cmd+K and looked.
+  Confirmed live at the palette ("No commands matching `sn-cmd`"), and
+  negative-controlled ("post" returned many, so the palette itself was fine).
+  The IIFE is now named and a failed gate schedules a single re-invocation:
+  `wp.os.whenReady()` when OpenStation's early shim is already present,
+  otherwise `DOMContentLoaded` — which *all* deferred scripts are guaranteed to
+  precede, making it load-strategy-independent rather than a bet on `defer`
+  specifically — with a `setTimeout` fallback for the post-parse lazy-injection
+  path. The body below the gates is untouched and unreachable until a gate
+  passes, so a retry cannot double-register.
+  **The lesson, recorded because it generalizes:** `wp_register_script`
+  dependency edges order the printed **markup**, not the **execution**. Once a
+  dependency defers and its dependent does not, the edge is silently inverted
+  at runtime and no amount of dependency declaration corrects it.
+  Also restored by the same fix: the attention badge, which sits in the same
+  IIFE below the same gates (masked in the field because the current total is
+  `"0"`, which renders no badge either way).
+
+### Added
+- **`tests/desktop-mode-boot-order.php` + `tests/js/desktop-mode-boot.mjs` — a
+  suite that EXECUTES the asset instead of grepping it.** The existing coverage
+  asserted the self-alias line `window.wp.desktop = window.wp.desktop || window.wp.os`
+  was *present* in the source. It was present, it passed continuously, and the
+  commands were dead in production the whole time — the line sits below an early
+  `return` that fired first. **A source-presence assertion cannot see
+  reachability.** The new harness runs the real file under `node`'s `vm` in a
+  browser-shaped context across four scenarios: the deferred-shell regression,
+  plus three controls (shell-first must still register *synchronously*, so the
+  fix cannot make the healthy path lazy; pre-rename `wp.desktop`-only; and a
+  no-shell negative control proving the harness can tell "registered" from
+  "did not"). Mutation-verified — disabling the retry turns exactly the three
+  deferred-shell assertions red while all three controls stay green, which is
+  precisely the signature production wore during the outage. Node is
+  **asserted, never skipped**: a skip would silently delete the only coverage
+  that catches this class of bug. 12 assertions; sweep now 437 suites / 17,534.
 
 ### Docs
+- **OpenStation v1.1.0 compat re-verification — no code change required**
+  (`docs/openstation-compat.md`). OpenStation released v1.1.0 on 2026-08-14;
+  v1.0.0 (2026-08-07) was already the first *tagged* post-rename release, which
+  retires this document's central caveat that the PR #475 rename was "in trunk,
+  **not yet in any tagged release**" and that end-to-end verification was
+  "structurally impossible". Both were true when written and are now false.
+  A both-directions membership check — all 17 upstream `openstation_*` names
+  this plugin references, counted in v1.1.0's `includes/` — returned non-zero
+  for every one: nothing removed, nothing renamed. Full suite green against
+  that reading (exit `0`, zero indented `FAIL`, 17,522 assertions).
+  Four v1.1.0 changes looked capable of breaking us and were each run down to
+  ground: **PR #545** (single-dock consolidation) now drops items whose
+  `placement` is `'hidden'` and partitions on a new `isCore` flag, and our
+  injected dock item supplies neither — it survives only because upstream reads
+  both defensively (`?? 'dock'`, `empty()`), filing us into the plugin group;
+  **`wp.os.sideDock` is now `null` under the new default `unified` layout**, but
+  our badge call is optional-chained and the SN tile rides the primary rail in
+  both layouts; **PR #574** (SSE transport dropped) churned ~365/269 lines in
+  `ai-copilot/search.php` where three of our nine seams live, yet touches none
+  of them — the deleted code is stream-narration machinery, and `request_id`
+  keeps the per-run semantics the double-fire guard's family-awareness depends
+  on; **PR #549** adds `openstation_ai_model_config`, an unconsumed new seam
+  noted as a cleaner alternative to the `http_request_args` route.
+  Ten `file:line` citations had rotted (e.g. `dock_items`
+  `payload.php:212`→`:235`, `ai_tool_called` `1322/1399/1753`→`1292/1361/1714`,
+  `agent_tool_result` `runner.php:579`→`:588`) and are corrected and now
+  explicitly **pinned to tag `v1.1.0`**. Added a *Re-verifying after an
+  upstream release* section carrying the durable instrument instead of the
+  perishable one: a membership-check loop, a command that regenerates the name
+  list from our own source so a new consumer is covered automatically, a
+  `perl -0777` paragraph-mode sweep (a single-line grep reports the multi-line
+  `openstation_ai_tools` filter as **missing**), and a scoped `git diff --stat`.
+  Every recipe was run verbatim and negative-controlled — a fabricated name and
+  the pre-rename `desktop_mode_dock_items` both report `0` against the real
+  name's `1`, which also re-confirms zero back-compat shim upstream.
+  Two corrections of record: the rename is **incomplete upstream at the
+  packaging level** (v1.1.0's main file is still `desktop-mode.php`, text domain
+  still `'desktop-mode'`), vindicating `function_exists()` detection over
+  filename/constant; and the honest verification gap is restated as
+  **source-verified against v1.1.0, runtime-unverified on both lines** — the
+  post-rename path remains unexercised against a live admin, but that is now
+  merely unperformed rather than impossible.
 - **R6 prep: the split proposal** (`docs/r6-prep.md`) — R6's eight rows (the
   table's seven plus Configuration drift, carried unshipped from R5's table)
   sorted by gate into three sub-releases and one spike: R6a plugin-native

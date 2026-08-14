@@ -1,52 +1,82 @@
 # OpenStation rename compatibility — audit trail
 
-WordPress/openstation PR #475 (merged 2026-08-03, in `trunk`, **not yet in
-any tagged release** — the owner runs pre-rename Desktop Mode **v0.9.8**
-today) renames the plugin from "Desktop Mode" to "OpenStation":
-`desktop_mode_*()` functions/hooks → `openstation_*()` (no underscore
-between "open" and "station" — verified, not the mechanically-guessed
-`open_station_*`), `DESKTOP_MODE_*` constants → `OPENSTATION_*`,
-`Desktop_Mode_*` classes → `Open_Station_*`, JS `wp.desktop` → `wp.os`,
-`window.desktopModeWidgets` → `window.openStationWidgets`, CSS
-`.desktop-mode-*` → `.os-*`, `--wpd-*`/`--desktop-mode-*` → `--os-ui-*`/`--os-*`.
+WordPress/openstation PR #475 (merged 2026-08-03) renames the plugin from
+"Desktop Mode" to "OpenStation": `desktop_mode_*()` functions/hooks →
+`openstation_*()` (no underscore between "open" and "station" — verified,
+not the mechanically-guessed `open_station_*`), `DESKTOP_MODE_*` constants →
+`OPENSTATION_*`, `Desktop_Mode_*` classes → `Open_Station_*`, JS
+`wp.desktop` → `wp.os`, `window.desktopModeWidgets` →
+`window.openStationWidgets`, CSS `.desktop-mode-*` → `.os-*`,
+`--wpd-*`/`--desktop-mode-*` → `--os-ui-*`/`--os-*`.
 
-**No back-compat shim exists upstream.** A fresh GitHub code search of
-post-#475 `WordPress/openstation` for any `desktop_mode_*` name returns zero
-hits. Exactly one naming family is ever active for a given install, decided
+**Every line citation in this file is pinned to tag `v1.1.0`** (released
+2026-08-14) unless stated otherwise. Line numbers rot on every upstream
+release — see [Re-verifying after an upstream release](#re-verifying-after-an-upstream-release)
+for the instrument that does not.
+
+**No back-compat shim exists upstream.** A code search of post-#475
+`WordPress/openstation` for any `desktop_mode_*` name returns zero hits.
+Exactly one naming family is ever active for a given install, decided
 entirely by which release the owner is running.
 
 Compat layer: [inc/openstation-compat.php](../inc/openstation-compat.php).
-Every mapping below was verified against real post-#475 source (file:line),
-not derived mechanically from the rename table — the source of truth was
-fetched from `https://raw.githubusercontent.com/WordPress/openstation/trunk/...`
-and cross-checked with `gh api search/code` on 2026-08-04.
+
+## Release timeline
+
+| Tag | Date | Rename status |
+|---|---|---|
+| v0.9.8 | 2026-07-31 | **Pre-rename** — last release on the `desktop_mode_*` family |
+| v1.0.0 | 2026-08-07 | First tagged post-rename release |
+| v1.0.1 | 2026-08-11 | Post-rename |
+| **v1.1.0** | **2026-08-14** | Post-rename — **the release this file is verified against** |
+
+An earlier revision of this file said the rename was "in trunk, **not yet in
+any tagged release**", and that end-to-end verification was "structurally
+impossible" because no post-rename release existed. Both statements were true
+when written and are **now false** — v1.0.0 shipped the rename a week later.
+See [What is verified vs. what is not](#what-is-verified-vs-what-is-not) for
+what the honest remaining gap actually is.
+
+Note that the rename is **incomplete upstream at the packaging level**: as of
+v1.1.0 the main plugin file is still `desktop-mode.php`, and the i18n text
+domain is still `'desktop-mode'`. This is why `snt_os_is_post_rename()`
+detects the active family via `function_exists( 'openstation_register_command' )`
+rather than by filename, constant, or text domain — the register function is
+what every consumer already depends on, and it is the thing that actually
+renamed.
 
 ## The 9 PHP hooks this plugin consumes
 
-| Old hook (v0.9.8) | New hook (post-#475) | Upstream firing site | Our consumer |
+| Old hook (v0.9.8) | New hook (v1.0.0+) | Upstream firing site @ v1.1.0 | Our consumer |
 |---|---|---|---|
-| `desktop_mode_dock_items` | `openstation_dock_items` | `includes/core/payload.php:212` — `apply_filters( 'openstation_dock_items', $items )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — the "Signal & Noise" dock entry |
-| `desktop_mode_dock_placement` | `openstation_dock_placement` | `includes/core/payload.php:1137` — `apply_filters( 'openstation_dock_placement', 'dock', $menu_slug )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — suppresses the auto-imported SN dock item |
-| `desktop_mode_ai_tools` | `openstation_ai_tools` | `includes/ai-copilot/search.php:1124` — `apply_filters( 'openstation_ai_tools', $tools, $context )` (2nd arg is new; our callback still declares only `$tools`) | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — Anthropic tool-schema normalizer + Copilot prune list |
-| `desktop_mode_ai_system_prompt_appendix` | `openstation_ai_system_prompt_appendix` | `includes/ai-copilot/search.php:1594` — `apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — analytics-vocabulary appendix |
-| `desktop_mode_ai_tool_called` | `openstation_ai_tool_called` | `includes/ai-copilot/search.php:1322` / `:1399` / `:1753` — `do_action( 'openstation_ai_tool_called', array( 'tool_name' => …, 'args' => …, 'user_id' => …, 'request_id' => … ) )` | [inc/ai-tool-invocation-log.php](../inc/ai-tool-invocation-log.php) — Copilot tool-invocation log |
+| `desktop_mode_dock_items` | `openstation_dock_items` | `includes/core/payload.php:235` — `apply_filters( 'openstation_dock_items', $items )` | [inc/desktop-mode-dock.php](../inc/desktop-mode-dock.php) — the "Signal & Noise" dock entry |
+| `desktop_mode_dock_placement` | `openstation_dock_placement` | `includes/core/payload.php:1160` — `apply_filters( 'openstation_dock_placement', 'dock', $menu_slug )`, inside `openstation_dock_placement()` at `:1148` | [inc/desktop-mode-dock.php](../inc/desktop-mode-dock.php) — suppresses the auto-imported SN dock item |
+| `desktop_mode_ai_tools` | `openstation_ai_tools` | `includes/ai-copilot/search.php:1106` — `apply_filters( 'openstation_ai_tools', $tools, $context )` (2nd arg is post-rename; our callback still declares only `$tools`) | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — Anthropic tool-schema normalizer + Copilot prune list |
+| `desktop_mode_ai_system_prompt_appendix` | `openstation_ai_system_prompt_appendix` | `includes/ai-copilot/search.php:1556` — `apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — analytics-vocabulary appendix |
+| `desktop_mode_ai_tool_called` | `openstation_ai_tool_called` | `includes/ai-copilot/search.php:1292` / `:1361` / `:1714` — `do_action( 'openstation_ai_tool_called', array( 'tool_name' => …, 'args' => …, 'user_id' => …, 'request_id' => … ) )` | [inc/ai-tool-invocation-log.php](../inc/ai-tool-invocation-log.php) — Copilot tool-invocation log |
 | `desktop_mode_agent_completed` | `openstation_agent_completed` | `includes/agents/runner.php:243` — `do_action( 'openstation_agent_completed', (int) $user->ID, $message, $result, (array) $context )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 2, failure-visibility backfill |
-| `desktop_mode_agent_tool_result` | `openstation_agent_tool_result` | `includes/agents/runner.php:579` — `apply_filters( 'openstation_agent_tool_result', $output, $slug, $args, $agent_user_id )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 1, success-path telemetry |
+| `desktop_mode_agent_tool_result` | `openstation_agent_tool_result` | `includes/agents/runner.php:588` — `apply_filters( 'openstation_agent_tool_result', $output, $slug, $args, $agent_user_id )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 1, success-path telemetry |
 | `desktop_mode_living_tree_traffic` | `openstation_living_tree_traffic` | `includes/living-tree/helpers.php:91` — `apply_filters( 'openstation_living_tree_traffic', $views )`, inside `openstation_living_tree_traffic()` at `:76` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — wallpaper wind driven by real 14-day traffic |
-| `desktop_mode_plugins_window_icon_url` | `openstation_plugins_window_icon_url` | `includes/plugins-window/rest-fields.php:465`, inside `openstation_plugins_window_field_icon_url()` at `:422` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — our plugin's icon in the shell's Plugins window |
+| `desktop_mode_plugins_window_icon_url` | `openstation_plugins_window_icon_url` | `includes/plugins-window/rest-fields.php:521`, inside `openstation_plugins_window_field_icon_url()` at `:479` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — our plugin's icon in the shell's Plugins window |
 
-All 9 verified — none flagged unverifiable.
+All 9 present at v1.1.0 — none removed, none renamed, none flagged
+unverifiable.
+
+**`openstation_ai_tools` is a multi-line `apply_filters(` call.** A
+single-line `grep "apply_filters( 'openstation_ai_tools'"` reports it
+**missing** and will convince you upstream deleted it. Use the `perl -0777`
+sweep in [Re-verifying after an upstream release](#re-verifying-after-an-upstream-release).
 
 ## The direct function calls this plugin makes into upstream
 
 No hook is involved here; these are ordinary PHP function calls this plugin
-makes, dispatched through `inc/openstation-compat.php`'s wrappers
-(`snt_os_register_command()`, `snt_os_register_widget()`,
+makes, dispatched through [inc/openstation-compat.php](../inc/openstation-compat.php)'s
+wrappers (`snt_os_register_command()`, `snt_os_register_widget()`,
 `snt_os_register_icon()`, `snt_os_is_enabled()`,
-`snt_os_ai_ability_tool_name()`), preferring the post-#475 name when both
+`snt_os_ai_ability_tool_name()`), preferring the post-rename name when both
 exist and falling back to the pre-rename name otherwise.
 
-| Old function | New function | Verified at |
+| Old function | New function | Verified @ v1.1.0 |
 |---|---|---|
 | `desktop_mode_register_command()` | `openstation_register_command()` | `includes/commands.php:115` |
 | `desktop_mode_register_widget()` | `openstation_register_widget()` | `includes/registries/widgets.php:83` |
@@ -54,156 +84,316 @@ exist and falling back to the pre-rename name otherwise.
 | `desktop_mode_is_enabled()` | `openstation_is_enabled()` | `includes/helpers.php:58` |
 | `desktop_mode_ai_ability_tool_name()` | `openstation_ai_ability_tool_name()` | `includes/ai-copilot/abilities.php:93` |
 
-Constant, for detection: `DESKTOP_MODE_VERSION` (v0.9.8) →
-`OPENSTATION_VERSION` (post-#475), defined in the plugin's main file.
-`snt_os_is_post_rename()` detects the active family via
-`function_exists( 'openstation_register_command' )` rather than the
-constant, since the register function is what every consumer already
-depends on.
+All five still accept exactly the argument shapes we pass at v1.1.0
+(re-checked against each function's `$defaults` array, not just its
+signature).
+
+Constant, for detection only: `DESKTOP_MODE_VERSION` (v0.9.8) →
+`OPENSTATION_VERSION` (v1.0.0+, `desktop-mode.php:21` — note the pre-rename
+*filename*, see above). We do not read it; `snt_os_is_post_rename()` uses
+`function_exists()` instead.
 
 ## JS surface
 
-| Old (Desktop Mode) | New (OpenStation) | Verified at | Our consumer |
+| Old (Desktop Mode) | New (OpenStation) | Verified @ v1.1.0 | Our consumer |
 |---|---|---|---|
-| `window.desktopModeWidgets[ id ]` | `window.openStationWidgets[ id ]` | `src/widgets/server-sync.ts:9,36,85,96` — `( window as unknown as WidgetGlobals ).openStationWidgets \|\| {}` | All 9 widget scripts under `assets/desktop-mode-widget*.js` (unchanged — the compat prelude aliases both globals onto one object) |
-| `window.wp.desktop` | `window.wp.os` | `src/api/facade.ts:858` — `window.wp.os = api` | `assets/desktop-mode.js` (65 call sites, unchanged — aliased) |
-| `desktop-mode.drop.files-detected` (wp.hooks filter) | `os.drop.files-detected` | `src/os-file-drop/hooks.ts:19` — `FILE_DROP_HOOKS.FILES_DETECTED` | `assets/desktop-dropzone.js` — registers under both names directly (a WeakSet guards a hypothetical double-fire) |
+| `window.desktopModeWidgets[ id ]` | `window.openStationWidgets[ id ]` | `src/widgets/server-sync.ts:85` — `( window as unknown as WidgetGlobals ).openStationWidgets \|\| {}` | All 9 widget scripts under `assets/desktop-mode-widget*.js` (each self-aliases both globals onto one object) |
+| `window.wp.desktop` | `window.wp.os` | `src/api/facade.ts:879` — `window.wp.os = api` | `assets/desktop-mode.js` (65 call sites, unchanged — self-aliased at the gate) |
+| `desktop-mode.drop.files-detected` (wp.hooks filter) | `os.drop.files-detected` | `src/hooks.ts:1445` — `FILE_DROP_FILES_DETECTED` | `assets/desktop-dropzone.js` — registers under both names directly (a WeakSet guards a hypothetical double-fire) |
 
 The `wp.os` public API object's shape (`registerCommand`, `notify`, `dock`,
 `sideDock`, `icons`, `registerWidget`) is unchanged from `wp.desktop` — only
-the top-level namespace renamed (`src/api/facade.ts:188-234`).
+the top-level namespace renamed.
+
+### The early partial `wp.os` shim, and why aliasing by reference is safe
+
+Upstream installs `window.wp.os` **twice**, in two stages
+(`src/desktop.ts:356`, then `src/api/facade.ts:879`):
+
+1. An early shim carrying only `whenReady` / `ready` / `isReady`, installed
+   before bootstrap so a consumer racing `init()` does not blow up on
+   `wp.os.whenReady is not a function`.
+2. The full API, merged onto **that same object** via `Object.assign` —
+   deliberately *not* a reassignment, because reassigning would sever the
+   shim's closure binding to its callback queue.
+
+That second property is what makes our by-reference alias
+(`window.wp.desktop = window.wp.os` in
+[assets/desktop-mode-os-compat.js](../assets/desktop-mode-os-compat.js)) sound:
+the object we alias is the object that later grows the full API, so the alias
+is never left pointing at a stale husk.
+
+The shim is **not new in v1.1.0** — it is present in v1.0.1 too. Our gate at
+[assets/desktop-mode.js:34-38](../assets/desktop-mode.js) accepts either
+global, self-aliases locally, and then checks
+`typeof window.wp.desktop.registerCommand !== 'function'` — which is
+precisely the check that distinguishes the partial shim from the full API, so
+a consumer that runs mid-bootstrap bails cleanly instead of registering into a
+void.
 
 ## CSS
 
-Verified: our plugin's CSS does **not** consume any `--wpd-*` or
-`--desktop-mode-*` custom property (grepped `assets/*.css` — zero hits),
-confirming the discipline noted in project memory (TRAP 8 — the widget card
-deliberately avoids upstream color tokens) still holds.
+Our plugin's CSS does **not** consume any `--wpd-*` or `--desktop-mode-*`
+custom property (grepped `assets/*.css` — zero hits), confirming the
+discipline noted in project memory (TRAP 8 — the widget card deliberately
+avoids upstream color tokens) still holds.
 
 The one class selector we DO read from upstream — `body.desktop-mode-chromeless`
 in `assets/admin.css` (hides our in-page tab nav inside a chromeless shell
 window, so the shell's own in-window tab strip is the only nav shown) — IS a
 real exposure: it's a body class the shell adds via `admin_body_class`, not a
-hook we register on, so it sits outside the dual-registration mechanism
-above. Verified real post-#475: `includes/render/body-classes.php`,
-`openstation_admin_body_classes()` — `ltrim( $classes . ' os-chromeless' )`,
-the `.desktop-mode-*` → `.os-*` CSS rule holding exactly. `assets/admin.css`
-now lists both selectors (`body.desktop-mode-chromeless .sn-nav-tabs,
+hook we register on, so it sits outside the dual-registration mechanism above.
+Verified @ v1.1.0: `includes/render/body-classes.php:30`,
+`openstation_admin_body_classes()` — `ltrim( $classes . ' os-chromeless' )` at
+`:32`, the `.desktop-mode-*` → `.os-*` CSS rule holding exactly.
+`assets/admin.css` lists both selectors (`body.desktop-mode-chromeless .sn-nav-tabs,
 body.os-chromeless .sn-nav-tabs`); exactly one will ever match on a given
 install.
 
-## What is verified vs. what cannot be
+## v1.1.0 delta — four changes assessed, zero code changes required
+
+Reviewed 2026-08-14 against the v1.1.0 release notes and a
+`git diff v1.0.1 v1.1.0` restricted to the files this plugin consumes. Four
+changes looked capable of breaking us. None do.
+
+**PR #545 — "Consolidate navigation into a single dock."** The highest-risk
+change. `openstation_build_menu_payload()` now drops any dock item whose
+`placement` is `'hidden'`, and partitions the survivors on a new per-item
+`isCore` flag. Our injected item
+([inc/desktop-mode-dock.php:118](../inc/desktop-mode-dock.php)) supplies
+neither key. It survives because upstream reads both defensively —
+`'hidden' !== ( $item['placement'] ?? 'dock' )` keeps it, and
+`empty( $item['isCore'] )` files it into the plugin group, which is where a
+plugin's item belongs. The same PR also adds `selfLabel`, and
+`dockOrder`/`placeable` on native windows; all three are additive and we
+register no native windows.
+
+**`wp.os.sideDock` is `null` under the new default layout.** PR #545 makes
+`unified` the default (`includes/os-settings.php:103` —
+`'desktopLayout' => 'unified'`), and only the `classic` layout mounts a side
+rail. Our attention badge calls `sideDock?.setBadge?.()` at
+[assets/desktop-mode.js:436](../assets/desktop-mode.js) — optional-chained, so
+it no-ops rather than throwing, and the SN tile sits on the primary rail in
+both layouts, so the badge still renders. Benign; the surrounding comment's
+"three rails" framing remains accurate because `classic` still exists.
+
+**PR #574 — "Drop the SSE transport and answer over a single request."**
+Churned ~365/269 lines in `includes/ai-copilot/search.php`, which is where
+three of our nine seams live. Filtering that diff for our seam names shows it
+touches **none** of them — what was deleted is the progress-message
+machinery (`openstation_ai_progress_message()`) that only existed to narrate a
+stream. Our integration hooks filters and actions, never the transport, so the
+transport swap is invisible to us. `request_id` retains its per-run semantics
+(a UUID correlating the whole run, reused across the agent iteration loop),
+which is the assumption the double-fire guard's family-awareness rests on —
+see [REJECT #11](#review-round--reject-11) below.
+
+**PR #549 — "AI: add a filter for the model config sent to the provider."**
+New seam, `openstation_ai_model_config`. Not consumed, and nothing requires
+us to. Noted here because it is a cleaner hook than the `http_request_args`
+route currently used to reach Anthropic-specific request fields, should that
+layer ever be revisited.
+
+## Re-verifying after an upstream release
+
+Do this **instead of** re-reading the citation tables above. Line numbers are
+a snapshot; membership is the contract.
+
+```bash
+git clone --depth 1 --branch vX.Y.Z https://github.com/WordPress/openstation.git
+```
+
+Then, from the clone, assert that every upstream name this plugin references
+still exists — a count of `0` on any row is the finding:
+
+```bash
+for n in openstation_agent_completed openstation_agent_runner_generate openstation_agent_tool_result openstation_ai_ability_tool_name openstation_ai_system_prompt_appendix openstation_ai_tool_called openstation_ai_tools openstation_dock_items openstation_dock_placement openstation_icon_url openstation_is_enabled openstation_living_tree_traffic openstation_plugins_window_icon_url openstation_register_command openstation_register_icon openstation_register_widget openstation_resolve_script_payload; do printf '%4s  %s\n' "$(grep -rho "\b$n\b" includes/ --include='*.php' | wc -l | tr -d ' ')" "$n"; done
+```
+
+Regenerate that name list from our own source rather than pasting it, so a
+newly-added consumer is covered automatically:
+
+```bash
+grep -rhoE "openstation_[a-z_]+" inc/ assets/ --include='*.php' --include='*.js' | sort -u
+```
+
+Multi-line `apply_filters(` / `do_action(` calls need a paragraph-mode sweep;
+a single-line grep will report a live hook as missing:
+
+```bash
+perl -0777 -ne 'while (/(apply_filters|do_action)\s*\(\s*.(openstation_[a-z_]+)./gs) { print "$2 ($1)\n" }' $(grep -rl openstation_ includes/ --include='*.php') | sort -u
+```
+
+Finally, diff only the files we actually consume — it is a far smaller read
+than the release notes, and it catches silent shape changes the notes omit:
+
+```bash
+git diff --stat v1.0.1 v1.1.0 -- includes/core/payload.php includes/ai-copilot/search.php includes/agents/runner.php includes/living-tree/helpers.php includes/plugins-window/rest-fields.php includes/registries/ includes/commands.php includes/helpers.php includes/render/body-classes.php
+```
+
+## What is verified vs. what is not
 
 Every mapping above — 9 hooks, 5 functions, 3 JS surfaces, and the
-`.desktop-mode-chromeless`/`.os-chromeless` CSS class — was checked against
-real post-#475 `WordPress/openstation` trunk source. Nothing in this audit
-is flagged unverified.
+`.desktop-mode-chromeless`/`.os-chromeless` CSS class — is checked against
+real `WordPress/openstation` source at tag **v1.1.0**. The full plugin suite
+passes unmodified against it (exit `0`, zero `FAIL`, 17,522 assertions,
+2026-08-14).
 
-What is **structurally impossible** to verify right now: end-to-end
-behavior against a real post-#475 **release**. No such release exists —
-v0.9.8 is the latest tag and predates the rename entirely. This compat
-layer is source-verified against `trunk`, dual-registers defensively, and
-every existing test passes unmodified on the v0.9.8 line, but the
-post-rename path has never executed against a real WordPress admin. Revisit
-this file when a post-#475 OpenStation release ships, to confirm live.
+**The site runs v1.1.0 in production** (owner-confirmed 2026-08-14). The
+post-rename path is therefore the live path, not a hypothetical one, and it
+carries daily traffic without incident. Two earlier claims in this file —
+that the post-rename path "has never executed against a real WordPress admin"
+and that the site "has not been upgraded off the pre-rename line" — were
+wrong and are withdrawn.
+
+That said, **"in production without complaints" verifies exactly the surfaces
+a human would notice, and no others.** Split honestly:
+
+| Seam | Status |
+|---|---|
+| Dock item, desktop icons, widgets, chromeless nav, dropzone | **Field-verified live** 2026-08-14 |
+| **Cmd+K commands + the `wp.desktop` alias** | **Was BROKEN on v1.1.0; FIXED in v11.7.1** — re-verify live after deploy — see below |
+| Copilot tool-invocation log (`sn_ai_tool_invocations`) | **Verified live** 2026-08-14 — delta exactly `+1` |
+| Agent telemetry (`{prefix}sn_tool_call`) | **Unreachable, not unverified** — agents disabled by owner decision 2026-08-07, so the producer cannot fire |
+| Living-tree traffic | **Unverifiable by observation** — falls back to a plausible default rather than an error |
+
+**The visible/silent split still holds as a principle** — a seam that fails
+without a symptom cannot be vouched for by daily use — but note which way it
+cut here. The *silent* sink (§H) passed; the seam that broke was a **visible**
+one that nobody happened to look at, because Cmd+K is not on the daily path.
+"Fails visibly" only helps when someone exercises it.
+
+### Cmd+K commands are dead on v1.1.0 — `defer` broke the load order
+
+`window.wp.desktop` is never set, so `assets/desktop-mode.js` bails at its gate
+and none of its 23 commands register. Confirmed against the live palette ("No
+commands matching `sn-cmd`", negative-controlled: "post" returns many).
+
+Cause: OpenStation's `desktop.min.js` — which installs `wp.os` — is loaded with
+**`defer`** (DOM index 56), while our alias prelude (63) and `desktop-mode.js`
+(89) are not. Deferred scripts execute after every non-deferred script, so the
+shell that *appears* first *runs* last, and both our scripts execute while
+`window.wp.os` still does not exist.
+
+**The durable lesson: `wp_register_script` dependency edges order the printed
+markup, not the execution.** Once a dependency is deferred and its dependent is
+not, the edge is silently inverted at runtime. REJECT #11 correctly identified
+this hazard but bound it to the lazy-loader path; it is live on the ordinary
+page-load path. Any future "runs after X" reasoning in this file must check
+X's *loading strategy*, not just its dependency edge.
+
+**Fixed in v11.7.1** — a failed gate now schedules one retry
+(`wp.os.whenReady()`, else `DOMContentLoaded`, else `setTimeout`) instead of
+returning. Pinned by `tests/desktop-mode-boot-order.php`, which **executes**
+the asset rather than grepping it; the old assertion checked that the
+self-alias *string* was present, and it was, for the entire outage.
+
+Full root-cause, blast radius, and proposed fix:
+[docs/ops/openstation-1-1-0-runtime-verification.md](ops/openstation-1-1-0-runtime-verification.md).
+
+The inversion is worth stating plainly: the seams most likely to be quietly
+broken are precisely the ones production use cannot vouch for, because their
+failure mode is *absence of a row* — and absence is what a never-fired hook
+and a genuinely quiet week look like alike. See
+[[realtime-zero-vs-null]]-style reasoning: never-measured and measured-zero
+are different answers, and this sink cannot tell you which it is.
+
+**If that ever matters**, §H and §I of
+[docs/ops/openstation-1-1-0-runtime-verification.md](ops/openstation-1-1-0-runtime-verification.md)
+are the two sections still worth running — each is a single `wp eval` counter
+read before and after one deliberate invocation. The rest of that checklist is
+superseded by the field evidence above, and its v0.9.8 baseline pass is no
+longer available.
 
 ## Review round — REJECT #11
 
-Adversarial review of the initial ship (above) REJECTed on one HIGH, one
-MEDIUM, and three LOWs. All four findings were fixed in-worktree,
-watched-RED first for every behavioral change.
+*Historical record of the original ship's adversarial review (2026-08-04,
+against trunk). Retained as-is; the reasoning below still describes why the
+current code is shaped the way it is.*
+
+Adversarial review of the initial ship REJECTed on one HIGH, one MEDIUM, and
+three LOWs. All four findings were fixed in-worktree, watched-RED first for
+every behavioral change.
 
 **HIGH — the double-fire guard dropped legitimate identical-repeat events,
 today.** `snt_os_compat_seen_once()` was a plain per-request boolean keyed
 on a call's full identity hash — it suppressed the SECOND of ANY two calls
 sharing that key, whether or not they were actually the same event. That
-is not a hypothetical shim scenario: `openstation_agent_tool_result` (real
-post-#475 `includes/agents/runner.php:579`) passes no `call_id` in its
-payload, so two identical tool calls with byte-identical output within one
-agent run are indistinguishable by payload; a Copilot `$request_id` is
-per-RUN (`includes/ai-copilot/search.php:888-890`, reused across the
-iteration loop), so a same-tool same-args repeat within one turn hashes
-identically too. The old guard silently dropped the second row on TODAY's
-v0.9.8 — single hook family, zero transition shims anywhere in play —
-corrupting the exact telemetry the MCP consolidation program's retirement
-decisions read. Fixed by making the guard **family-aware**:
-`snt_os_compat_seen_once()` now counts firings per `(key, hook family)`,
-family derived from `current_filter()`'s prefix (`desktop_mode_` vs
-`openstation_`, via the new `snt_os_compat_current_family()`), and
-suppresses a firing only when the OTHER family has fired MORE times for
-that key than THIS family has. A same-family repeat's own count only ever
-grows when it records, so same-family firings never trip that condition —
-both proceed. A true future both-families transition shim still fires each
-event once per family and collapses to exactly one recorded row, which was
-always the guard's actual job. Two inline comments in
-[inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) and
-[inc/ai-tool-invocation-log.php](../inc/ai-tool-invocation-log.php) claiming
-the guard "only matters if a future release ever ships both as a transition
-shim" were FALSE and are corrected.
+is not a hypothetical shim scenario: `openstation_agent_tool_result` passes
+no `call_id` in its payload, so two identical tool calls with byte-identical
+output within one agent run are indistinguishable by payload; a Copilot
+`$request_id` is per-RUN (reused across the iteration loop), so a same-tool
+same-args repeat within one turn hashes identically too. The old guard
+silently dropped the second row on the v0.9.8 line — single hook family, zero
+transition shims anywhere in play — corrupting the exact telemetry the MCP
+consolidation program's retirement decisions read. Fixed by making the guard
+**family-aware**: `snt_os_compat_seen_once()` now counts firings per
+`(key, hook family)`, family derived from `current_filter()`'s prefix
+(`desktop_mode_` vs `openstation_`, via `snt_os_compat_current_family()`), and
+suppresses a firing only when the OTHER family has fired MORE times for that
+key than THIS family has. A same-family repeat's own count only ever grows
+when it records, so same-family firings never trip that condition — both
+proceed. A true both-families transition shim would still fire each event once
+per family and collapse to exactly one recorded row, which was always the
+guard's actual job. Two inline comments claiming the guard "only matters if a
+future release ever ships both as a transition shim" were FALSE and were
+corrected.
 
 **MEDIUM — the lazy widget/command loader bypasses the alias prelude
-entirely.** `openstation_resolve_script_payload()` (real post-#475
-`includes/core/payload.php:1371-1449`) resolves only a script handle's own
+entirely.** `openstation_resolve_script_payload()` (v1.1.0:
+`includes/core/payload.php:1395-1476`) resolves only a script handle's own
 `src` and never walks its declared `wp_register_script` deps; upstream's
-server-sync/command-sync inject one bare `<script src="...">` tag per URL.
-So `sn-desktop-mode-os-compat`'s dependency edges (every `sn-desktop-mode*`
-handle declares it as a dep) guarantee the alias runs first only on the
-ordinary WP-enqueued boot path — never on this lazy-load path. A post-#475
-mid-session shell activation could load a widget file or `assets/desktop-mode.js`
-before the prelude ever ran, leaving `window.openStationWidgets` (the name
-upstream actually reads) empty even though the widget wrote to
-`window.desktopModeWidgets` — `widget-missing-mount`, and every Cmd+K
-command dead until reload. Fixed by making every consumer
-**self-sufficient** instead of order-dependent: all 8
+server-sync/command-sync inject one bare `<script src="...">` tag per URL. So
+`sn-desktop-mode-os-compat`'s dependency edges guarantee the alias runs first
+only on the ordinary WP-enqueued boot path — never on this lazy-load path. A
+post-rename mid-session shell activation could load a widget file or
+`assets/desktop-mode.js` before the prelude ever ran, leaving
+`window.openStationWidgets` (the name upstream actually reads) empty even
+though the widget wrote to `window.desktopModeWidgets` —
+`widget-missing-mount`, and every Cmd+K command dead until reload. Fixed by
+making every consumer **self-sufficient** instead of order-dependent: all 8
 `assets/desktop-mode-widget*.js` files' single-line
-`window.desktopModeWidgets = window.desktopModeWidgets || {}` prologue
-became a 3-statement merge-and-alias onto ONE object under both names
-(survivor = `openStationWidgets`, the name upstream itself reads
-post-#475; a both-populated-and-differing race copies the loser's keys in
-first, so no already-mounted widget is lost); `assets/desktop-mode.js`'s
-gate now accepts either `window.wp.desktop` or `window.wp.os` and
-self-aliases `window.wp.desktop` locally, so its 65 existing
-`window.wp.desktop.*` call sites keep working unchanged either way. The
-`sn-desktop-mode-os-compat` prelude registration is KEPT — it still runs
-first on the ordinary boot path, print-order tidiness — but its docblock's
-claim that ordering is "always in place first, on either OpenStation line"
-was overbroad, and its claim that "`src/widgets/server-sync.ts` awaits our
-script's `<script>` load" was outright FALSE (server-sync awaits the
-WIDGET's own URL load; upstream has no awareness this compat file exists at
-all). Both corrected, along with the matching claim in
-[inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php)'s
-registration comment.
+`window.desktopModeWidgets = window.desktopModeWidgets || {}` prologue became
+a 3-statement merge-and-alias onto ONE object under both names (survivor =
+`openStationWidgets`, the name upstream itself reads post-rename; a
+both-populated-and-differing race copies the loser's keys in first, so no
+already-mounted widget is lost); `assets/desktop-mode.js`'s gate now accepts
+either `window.wp.desktop` or `window.wp.os` and self-aliases
+`window.wp.desktop` locally, so its 65 existing `window.wp.desktop.*` call
+sites keep working unchanged either way. The `sn-desktop-mode-os-compat`
+prelude registration is KEPT — it still runs first on the ordinary boot path,
+print-order tidiness — but its docblock's claim that ordering is "always in
+place first, on either OpenStation line" was overbroad, and its claim that
+"`src/widgets/server-sync.ts` awaits our script's `<script>` load" was
+outright FALSE (server-sync awaits the WIDGET's own URL load; upstream has no
+awareness this compat file exists at all). Both corrected.
 
 **LOW — the REST icon-URL belt only ever wrote the pre-rename field key.**
 `inc/desktop-mode-integration.php`'s `rest_prepare_plugin` belt (v2.1.7,
-"ALWAYS override") wrote `desktop_mode_icon_url` only. Post-#475
-OpenStation renames the REST field's JSON *key itself* to
-`openstation_icon_url` — a different seam from the already-dual-registered
+"ALWAYS override") wrote `desktop_mode_icon_url` only. Post-rename OpenStation
+renames the REST field's JSON *key itself* to `openstation_icon_url` — a
+different seam from the already-dual-registered
 `desktop_mode_plugins_window_icon_url` / `openstation_plugins_window_icon_url`
 *filter*, which supplies the field's *value* via `get_callback` but cannot
 rename the key the response carries. The belt now dual-writes both keys.
+(Still correct at v1.1.0: the field is registered as `openstation_icon_url` at
+`includes/plugins-window/rest-fields.php:74`.)
 
-**LOW — two `payload.php` line citations were off by one.** The
-`desktop_mode_dock_items` → `openstation_dock_items` firing site is
-`includes/core/payload.php:212` (not `:213`), and
-`desktop_mode_dock_placement` → `openstation_dock_placement` is `:1137`
-(not `:1138`). Corrected in the hooks table above and in both matching
-inline comments in `inc/desktop-mode-integration.php`. Every other cited
-line number (`search.php:1124/:1594/:1322/:1399/:1753`,
-`runner.php:243/:579`, `helpers.php:91`, `rest-fields.php:465`) was
-re-verified against the review's ledger and found correct as originally
-recorded.
+**LOW — two `payload.php` line citations were off by one.** Corrected at the
+time against trunk. Both have since moved again with v1.1.0 and are recorded
+at their current values in the table above — which is the whole reason the
+[re-verification recipe](#re-verifying-after-an-upstream-release) exists.
 
-**LOW — the appendix filter under-declared its real arg count.** The real
-post-#475 call site is
+**LOW — the appendix filter under-declared its real arg count.** The
+post-rename call site is
 `apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter )`
 — two args — but the callback was registered with the default
 `accepted_args=1`. Cheap future-proofing: now registered with
 `accepted_args=2`, so a future need to read `$ctx_for_filter` only means
 widening the closure's own signature, not touching the registration.
 
-Every fix above was RED-pinned (a failing assertion against the pre-fix
-code, confirmed to fail for the right reason) before the corresponding code
-change landed. Full account, including exact RED output, per-file
-assertion deltas, and final sweep/phpstan/phpcs numbers: see the
-`[10.43.0]` review-round entry in [CHANGELOG.md](../CHANGELOG.md).
+Every fix above was RED-pinned (a failing assertion against the pre-fix code,
+confirmed to fail for the right reason) before the corresponding code change
+landed. Full account, including exact RED output, per-file assertion deltas,
+and final sweep/phpstan/phpcs numbers: see the `[10.43.0]` review-round entry
+in [CHANGELOG.md](../CHANGELOG.md).

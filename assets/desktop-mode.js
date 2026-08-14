@@ -16,7 +16,7 @@
  *
  * @since plugin v1.15.0
  */
-( function() {
+( function boot() {
 	'use strict';
 
 	// v10.43.0 — OpenStation rename compat (REJECT #11 MEDIUM fix):
@@ -31,11 +31,60 @@
 	// so every one of the 65 window.wp.desktop.* call sites below keeps
 	// working unchanged regardless of which naming family (or ordering)
 	// is live.
+	//
+	// v11.7.1 — ACCEPTING EITHER NAME WAS NOT ENOUGH: neither name exists yet.
+	// Measured live on OpenStation v1.1.0 — the shell bundle that installs
+	// window.wp.os (`desktop.min.js`) is loaded with `defer`; this file is not.
+	// Deferred scripts execute after EVERY non-deferred script, so the shell
+	// that appears earlier in the document (DOM index 56) runs LAST, after ours
+	// (89). Both gates below then failed, this file returned, and all 22
+	// commands were silently dead — no error, no symptom, until someone opened
+	// Cmd+K and looked. wp_register_script dependency edges order the printed
+	// MARKUP, not the EXECUTION: once a dependency defers and its dependent
+	// does not, the edge is inverted at runtime and no amount of dependency
+	// declaration fixes it.
+	//
+	// So a failed gate now SCHEDULES A RETRY instead of giving up. This IIFE is
+	// named and simply re-invokes itself once the shell can exist; the body
+	// below is untouched and unreachable until a gate actually passes, so a
+	// retry cannot double-register.
+	function retryLater() {
+		if ( boot._scheduled || typeof window === 'undefined' ) {
+			return;
+		}
+		boot._scheduled = true;
+		// OpenStation installs an early `wp.os` shim carrying whenReady BEFORE
+		// its full API merges onto that same object. If the shim is already
+		// here, its own readiness signal beats guessing at document events.
+		if ( window.wp && window.wp.os && typeof window.wp.os.whenReady === 'function' ) {
+			window.wp.os.whenReady( boot );
+			return;
+		}
+		if ( typeof document === 'undefined' || ! document.addEventListener ) {
+			return;
+		}
+		if ( 'loading' === document.readyState ) {
+			// Deferred scripts are all guaranteed to have executed by the time
+			// DOMContentLoaded fires, which makes this the earliest moment a
+			// deferred shell bundle is certain to have installed wp.os. This is
+			// the load-strategy-independent hook: it holds whether upstream
+			// ships the bundle deferred, async, or classic.
+			document.addEventListener( 'DOMContentLoaded', boot );
+		} else {
+			// Already past parsing — the lazy mid-session injection path, where
+			// the shell that injected us necessarily exists. One macrotask is
+			// enough to clear an in-flight assignment.
+			window.setTimeout( boot, 0 );
+		}
+	}
+
 	if ( typeof window === 'undefined' || ! window.wp || ( ! window.wp.desktop && ! window.wp.os ) ) {
+		retryLater();
 		return;
 	}
 	window.wp.desktop = window.wp.desktop || window.wp.os;
 	if ( typeof window.wp.desktop.registerCommand !== 'function' ) {
+		retryLater();
 		return;
 	}
 
