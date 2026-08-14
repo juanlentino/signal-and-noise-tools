@@ -48,6 +48,38 @@ function sn_prov_verify_is_request( $uri ) {
  * @param string $raw
  * @return string
  */
+/**
+ * THE ONE producer of verification endpoints (v11.7.0, R5, §9.5 P-53).
+ *
+ * Extracted from the shell so the /verify page and the in-page verification
+ * manifest (inc/provenance-machine-pointers.php) consume the SAME derivation
+ * — one definition, structural parity, no drift between the two surfaces an
+ * anonymous agent might follow. Every host here is pinned in reviewed code:
+ * the site's own origin (rest_url/home_url), the fixed ledger raw host via
+ * the same owner/repo filters sn_prov_ledger_note_url() uses, and the fixed
+ * mempool explorer. Nothing is assembled from options, meta, or content.
+ *
+ * rest_url(), never a hand-built /wp-json/ prefix: a site with a customized
+ * rest prefix (rest_url_prefix filter) serves REST somewhere else entirely,
+ * and the hardcoded path dies silently there.
+ *
+ * @return array{credential_base:string,did_url:string,keys_url:string,owner:string,repo:string,ledger_base:string,mempool_base:string}
+ */
+function sn_prov_verify_endpoints() {
+	$ns    = defined( 'SN_REST_NAMESPACE' ) ? SN_REST_NAMESPACE : 'signal-noise/v1';
+	$owner = (string) apply_filters( 'sn_prov_ledger_owner', 'juanlentino' );
+	$repo  = (string) apply_filters( 'sn_prov_ledger_repo', 'signal-and-noise-provenance' );
+	return array(
+		'credential_base' => rest_url( $ns . '/credential/' ),
+		'did_url'         => home_url( '/.well-known/did.json' ),
+		'keys_url'        => home_url( '/.well-known/provenance-keys.json' ),
+		'owner'           => $owner,
+		'repo'            => $repo,
+		'ledger_base'     => "https://raw.githubusercontent.com/{$owner}/{$repo}/main/",
+		'mempool_base'    => 'https://mempool.space/api/',
+	);
+}
+
 function sn_prov_verify_sanitize_uid( $raw ) {
 	$raw = strtolower( trim( (string) $raw ) );
 	if ( ! preg_match( '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/', $raw ) ) {
@@ -106,19 +138,14 @@ function sn_prov_verify_send() {
 	$uid         = sn_prov_verify_sanitize_uid( $raw_note );
 	$version     = sn_prov_verify_sanitize_version( $raw_version );
 
-	$ns = defined( 'SN_REST_NAMESPACE' ) ? SN_REST_NAMESPACE : 'signal-noise/v1';
-	// rest_url(), never a hand-built /wp-json/ prefix: a site with a customized
-	// rest prefix (rest_url_prefix filter) serves REST somewhere else entirely,
-	// and the hardcoded path dies silently there.
-	$credential_base = rest_url( $ns . '/credential/' );
-	$did_url         = home_url( '/.well-known/did.json' );
-	$keys_url        = home_url( '/.well-known/provenance-keys.json' );
-	// Same filters sn_prov_ledger_note_url() uses, so the ledger base the JS
-	// fetches from always matches the panel's own "Git ledger" link.
-	$owner        = (string) apply_filters( 'sn_prov_ledger_owner', 'juanlentino' );
-	$repo         = (string) apply_filters( 'sn_prov_ledger_repo', 'signal-and-noise-provenance' );
-	$ledger_base  = "https://raw.githubusercontent.com/{$owner}/{$repo}/main/";
-	$mempool_base = 'https://mempool.space/api/';
+	$sn_v_ep         = sn_prov_verify_endpoints();
+	$credential_base = $sn_v_ep['credential_base'];
+	$did_url         = $sn_v_ep['did_url'];
+	$keys_url        = $sn_v_ep['keys_url'];
+	$owner           = $sn_v_ep['owner'];
+	$repo            = $sn_v_ep['repo'];
+	$ledger_base     = $sn_v_ep['ledger_base'];
+	$mempool_base    = $sn_v_ep['mempool_base'];
 
 	$css_url  = sn_prov_verify_asset_url( 'assets/css/prov-verify.css' );
 	$core_url = sn_prov_verify_asset_url( 'assets/js/prov-verify-core.js' );

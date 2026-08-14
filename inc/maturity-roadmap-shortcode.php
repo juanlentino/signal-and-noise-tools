@@ -223,6 +223,15 @@ function sn_maturity_roadmap_static_board() {
 			'done'        => array(
 				__( 'A crawler manifest in the site\'s own words, structured data on every surface, and machine-readable rights declarations', 'signal-and-noise-tools' ),
 				__( 'The rights-read count published on the machine-readability page itself, served from an hourly snapshot the site already holds — no sensor call on a reader\'s path, and a count never measured renders as unmeasured, never as zero — a thread shared with Analytics', 'signal-and-noise-tools' ),
+				// 2026-08-14 (v11.7.0, R5): both quartet MR rows graduated
+				// considering -> done in one release — they publish the same
+				// pointer set to the same invited anonymous caller (threat
+				// model A6) and shipped as one module. Built against §9.5:
+				// the manifest asserts nothing, adds no anonymous compute,
+				// and every URL comes from the one endpoint producer the
+				// /verify page itself consumes.
+				__( 'Provenance pointers in the machine surfaces: a signed note\'s structured data carries its ledger identifier, joined to the record an agent can fetch — so a machine that reads the site can also verify it — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
+				__( 'An in-page tool surface for verification: every signed page ships a data-shaped manifest of the exact calls — credential, record, proof, key history, block header — so verifying travels with the content; the page lists inputs and asserts nothing, because the verdict belongs to the caller — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Speak the coming standard: publish the usage-preference header and robots rule the day the internet standards body finalizes them, with a parity sweep proving every rights dialect the site speaks states the same reservation — one policy, never a family of drifting translations', 'signal-and-noise-tools' ),
