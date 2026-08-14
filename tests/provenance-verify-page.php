@@ -274,5 +274,23 @@ vp_true( false !== strpos( $sn_v_tabs_js, 'walk-empty' ), 'the tab script syncs 
 // The compare panel still carries every hook prov-verify-diff.js binds to.
 vp_true( 1 === preg_match( '/id="sn-panel-compare"[^>]*data-role="compare"/', $sn_walk_src ), 'the compare panel keeps its data-role="compare" hook' );
 
+// ── v11.6.0 (R5): the standalone section — "don't trust the site's own
+// button" made literal, wording gated by §9.5 P-54. Substance pins, not
+// literal wording (link-presence-is-not-claim-coverage): the escape hatch,
+// the command, the trust statement, and the honest lede each pinned as
+// CLAIMS a rewrite may reword but cannot drop.
+vp_true( false !== strpos( $sn_walk_src, 'sn-verify-standalone' ), 'R5: the standalone section exists on the page where the trust question arises' );
+vp_true( false !== strpos( $sn_walk_src, 'verify.mjs' ), 'R5: it names the actual command a stranger runs — the pointer is to the tool, not just the repo' );
+vp_true( false !== strpos( $sn_walk_src, 'VERIFY.md' ), 'R5: and links the walkthrough of every check the tool runs' );
+vp_true( false !== strpos( $sn_walk_src, 'git clone' ), 'R5: the path starts from clone — the verifier is obtained from the public repo, never served by this site' );
+vp_true( false === strpos( $sn_walk_src, 'Nothing is taken on trust from this site' ), 'R5/P-51: THE OVERCLAIM IS GONE — the page served the verifying JS, so that sentence was false on the page built to answer it' );
+vp_true( false !== strpos( $sn_walk_src, 'code running them was served by this site' ), 'R5: the lede names its own residual trust — the honest claim the overclaim replaced' );
+// P-54's wording gate: no site copy claims the verifier is itself verified
+// until the software-provenance row lands. Pin the ABSENCE (absences need
+// pins): none of the claim-shaped phrases appear anywhere in the shell.
+foreach ( array( 'independently verified', 'independently-verified', 'proves independence', 'verified verifier' ) as $sn_v_claim ) {
+	vp_true( false === stripos( $sn_walk_src, $sn_v_claim ), "P-54 wording gate: '$sn_v_claim' appears nowhere — the copy says what the verifier IS, not what trusting it proves (that claim waits on the software-provenance row)" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -451,3 +451,22 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	.sn-verify-check-state,.sn-verify-check[data-state] .sn-verify-check-state{animation:none;transform:none}
 	.sn-verify-check-no,.sn-verify-tally-seg{transition:none}
 }
+
+/* ── The standalone section (v11.6.0, R5): the escape hatch from trusting
+   this page's own JS. Register: hard border frame, Bebas display heading,
+   mono command block — the page's existing vocabulary, no new colours. */
+.sn-verify-standalone{margin:3.2rem 0 0;border:2px solid var(--bone);padding:1.4rem 1.6rem 1.6rem}
+.sn-verify-standalone h2{
+	font-family:'Bebas Neue',Impact,sans-serif;font-weight:400;
+	font-size:1.7rem;letter-spacing:.04em;margin:0 0 .6rem;
+}
+.sn-verify-standalone p{font-size:.86rem;line-height:1.75;margin:.7rem 0 0}
+.sn-verify-standalone a{color:inherit}
+.sn-verify-standalone-cmd{
+	margin:1rem 0 0;padding:.9rem 1.1rem;background:var(--paper);
+	border:1px solid var(--asphalt);overflow-x:auto;
+}
+.sn-verify-standalone-cmd code{
+	font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+	font-size:.78rem;line-height:1.8;white-space:pre;
+}

@@ -175,7 +175,13 @@ function sn_prov_verify_send() {
 	<header class="sn-verify-head">
 		<p class="sn-verify-kicker">Signal &amp; Noise</p>
 		<h1>Verify a Note</h1>
-		<p class="sn-verify-lede">Four checks run right here, in your browser. Nothing is taken on trust from this site: the signature, the content hash, and the Bitcoin anchor are all independently checkable against the public ledger and the Bitcoin chain themselves.</p>
+		<?php // v11.6.0 (R5, §9/P-51): the lede stops overclaiming. The old copy
+		// said "nothing is taken on trust from this site" — while the CODE
+		// running the checks came from this site, which is exactly the trust
+		// the standalone verifier below exists to remove. The honest claim:
+		// the checks run against public artifacts, and the page names its own
+		// residual trust and the way out of it. ?>
+		<p class="sn-verify-lede">Four checks run right here, in your browser, against the public ledger and the Bitcoin chain. One honest caveat: the code running them was served by this site. If that is the trust you came to question, the section at the end of this page shows how to run the same checks without it.</p>
 	</header>
 
 	<?php // The verdict band leads the page in the DOM, not only on screen: it is
@@ -311,6 +317,23 @@ function sn_prov_verify_send() {
 		</form>
 		<div class="sn-verify-compare-out" data-role="compare-out" aria-live="polite"></div>
 	</div>
+
+	<?php // v11.6.0 (R5): the standalone path — "don't trust the site's own
+	// button" made literal, which is the board row's whole sentence. WORDING
+	// IS GATED BY §9.5 P-54: this section says what the verifier IS (code in
+	// the public ledger repo, readable before you run it) and what trusting
+	// it means (you trust the code you cloned, not this site) — it does NOT
+	// claim the verifier carries a verification of its own; that claim waits
+	// on the software-provenance row. (The page suite pins the banned claim
+	// phrases over this whole file, comments included — keep them out.) ?>
+	<section class="sn-verify-standalone" aria-labelledby="sn-verify-standalone-h">
+		<h2 id="sn-verify-standalone-h">Don&#8217;t trust this page either</h2>
+		<p>Every check above was run by JavaScript this site served — so the page can vouch for the ledger, but not for itself. The same checks exist as a small standalone program inside the public ledger repository. It needs Node 22 and nothing else: no packages, no this-site, no trust in the page you are reading.</p>
+		<pre class="sn-verify-standalone-cmd"><code>git clone https://github.com/<?php echo esc_html( $owner . '/' . $repo ); ?>.git
+cd <?php echo esc_html( $repo ); ?>
+node verify.mjs<?php echo '' !== $uid ? ' ' . esc_html( $uid ) : ' &lt;note_uid&gt;'; ?></code></pre>
+		<p>What you are trusting then: the code in your clone, which you can read first &#8212; it is a few small files &#8212; and one public block-explorer lookup for the Bitcoin header. <a href="<?php echo esc_url( 'https://github.com/' . $owner . '/' . $repo . '/blob/main/VERIFY.md' ); ?>" rel="noopener">VERIFY.md</a> in the repository walks through every check it runs and every byte it recomputes.</p>
+	</section>
 
 	<footer class="sn-verify-foot">
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>">juanlentino.com</a>

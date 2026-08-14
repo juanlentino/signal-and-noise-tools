@@ -4,6 +4,42 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.6.0] - 2026-08-14 — the verifier that was already there gets the surface it was missing
+
+**MINOR** — R5's first row ships. The premise check found the standalone verifier
+SUBSTANTIALLY EXISTED (`verify.mjs` in the public ledger repo: zero runtime deps, one
+command, offline except a single block-header lookup, six specialized siblings,
+`VERIFY.md`) — what did not exist was the surface: no reader standing at the trust
+question could find it, and the /verify page overclaimed. The mechanism-without-surface
+trap, caught by premise-checking the row before building it.
+
+### Added
+- **The /verify page hands the reader the way out of trusting it** (`inc/provenance-verify.php`):
+  a new "Don't trust this page either" section names the page's own residual trust —
+  every check above ran in JavaScript this site served — and gives the clone-and-run
+  path (`git clone … && node verify.mjs <uid>`, uid pre-filled when the page has one),
+  linking the ledger's `VERIFY.md` walkthrough. **Wording is gated by §9.5 P-54**: the
+  copy says what the verifier IS (readable code in the public ledger repo; you trust
+  the code in your clone and one block-header source), and the page suite pins the
+  ABSENCE of every claim-shaped phrase ("independently verified" et al.) across the
+  whole file — comments included, which the pin's first run proved by catching its own
+  author's comment — so the its-own-verification claim structurally cannot appear
+  before the software-provenance row lands.
+- **The receiving half in the ledger repo** (`VERIFY.md` @ `a739e29`): the doc a
+  stranger lands on now opens with "What you are trusting when you run this" — the
+  code in the clone, the Node runtime, one block-header source, nothing from the site.
+
+### Fixed
+- **The /verify lede stops overclaiming.** "Nothing is taken on trust from this site"
+  was false on the page built to answer the trust question — the verifying CODE came
+  from the site. The lede now states the residual trust and points at the section that
+  removes it. Pinned in both directions (overclaim absent, honest claim present).
+
+### Changed
+- **The board graduates the standalone-verifier row** considering → done (Proof of
+  origin, 2→3 under the ceiling), rewritten present-tense with the P-54 posture inside
+  the claim.
+
 ### Added
 - **The verification quartet's threat model, written before its arc opens** (§9 of
   `docs/security/agent-surface-threat-model.md`, closing the §6 precondition). The
