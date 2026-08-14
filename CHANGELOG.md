@@ -4,6 +4,51 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.2.1] - 2026-08-14 — the heading linter stops defending the bug it was built to catch
+
+**Headline:** `block-migrations-scan`'s rule flagged H3-without-H2 only, on the
+documented premise that H4-without-H2 was "the accepted house pattern" for
+Notes. The premise was wrong: the single-note template titles with H1, so the
+correct first-level body subhead is H2, and H4-without-H2 is the same WCAG
+1.3.1 hierarchy skip as H3. The corpus audit that surfaced this found 11
+posts on H2, 10 on H3 and 11 on H4 — the linter was encoding the majority
+defect as the standard.
+
+### Changed
+- The detector (`inc/block-migrations-detect.php`) now flags ANY first-level
+  body subhead that is not H2 — level 3+ core/heading blocks with no
+  preceding level-2 heading (H3 and H4 alike; 5/6 too, same shape). One
+  candidate per heading, each with its own block fingerprint — the existing
+  apply contract (one block replacement per call) is unchanged, and that is
+  safe for the ledger: heading-level changes normalize identically
+  (`sn-normalize-v1` strips block delimiters and tags), so N applies to one
+  Note coalesce to ZERO new signed versions. `migration_type` stays
+  `heading-hierarchy-skip` so dismiss keys and the `sn-apply`
+  `block_migration` payload are untouched.
+- The scan now walks scheduled (`status=future`) posts as well as published
+  ones: Notes publish as permanently dated and canonical, so a heading fix
+  is free BEFORE publish — the 9 currently-scheduled notes surface while
+  that is still true.
+- The suggest builder (`inc/block-migrations-suggest.php`) derives the
+  source tag from the block's own `level` attr instead of hardcoding `<h3>`
+  — an H4 candidate now rewrites `<h4>` → `<h2>`; the old builder would
+  have emitted attrs claiming h2 over surviving `<h4>` markup, a Gutenberg
+  block-validation mismatch on next editor load.
+
+### Fixed
+- The walker treated a MISSING `level` attr as level 0, but canonical
+  `wp:heading` serialization omits the attr for h2 (the block default) —
+  so a real-world h2 never registered as "seen" and could not legitimize
+  the h3/h4s after it. Missing level now reads as 2, mutation-tested.
+
+### Improvements
+- The 1-hour per-user scan cache, fingerprint minting, dismiss filtering
+  and the compute/run_scan purity split are all deliberately unchanged.
+  Ability + admin copy rewritten to state the new rule.
+
+> **Why PATCH:** recalibrates an existing check to its correct target and
+> fixes a detection bug; no new tool, route or schema.
+
 ## [11.2.0] - 2026-08-14 — the corpus looks at itself, and refuses to speak from thin years
 
 **MINOR** — R4 4A ships: corpus drift as an editorial mirror, ML pipeline #9. The paired
