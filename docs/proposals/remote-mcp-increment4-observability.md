@@ -1,6 +1,7 @@
 # Remote analytics door — observability (R3 §3D Increment 4, first slice)
 
-**Status:** design, approved 2026-08-14. Not built.
+**Status:** BUILT 2026-08-14. Execution plan (with two corrections found during execution):
+`docs/proposals/remote-mcp-increment4-observability-plan.md`.
 **Closes:** part of **R-3D-c** (read volume as a signal), and the "how would I know to open
 the runbook" gap left by Increment 3.
 **Does NOT close:** the §8.4 *"audit the caller, not just the call"* requirement. See
@@ -202,6 +203,28 @@ New `tests/mcp-remote-observability.php`, plus additions to `tests/mcp-bridge-ro
 
 - **No MCP ability or REST view** for this data. The panel is the surface. Adding a read tool
   would widen the very surface this increment exists to watch.
-- **No alerting.** Deferred by decision, not oversight — see §2.
+- **No alerting.** Deferred by decision, not oversight — see §2. **Ownership settled
+  2026-08-14 by cross-session agreement:** R-3D-c volume alerting is Worker-side, keyed
+  per-`sub`, because an anomaly worth alerting on is per-session and only Workers Logs can
+  name the session (the same wall as §7). This record is the display layer and the
+  origin-side cross-check.
 - **No `who`.** See §7.
 - **No Worker changes.** This is an origin-side increment end to end.
+
+## 11. Forward notes (recorded so nobody rediscovers them)
+
+- **This record partially opens the rotation blind spot.** The client-half spec
+  (`docs/proposals/remote-mcp-increment1-client-half.md`) records that a `SN_BRIDGE_TOKEN`
+  mismatch is unobservable by construction — the wire collapses every anonymous refusal into
+  one `rest_no_route`, deliberately. The record does not: it counts which **branch** fired.
+  **`refused_auth` climbing while the toggle is ON and the Worker believes itself healthy is
+  the specific signature of the two secret halves disagreeing** — a botched rotation's first
+  observable symptom anywhere in the estate. `refused_shut` climbing is the different fact
+  that calls arrived while the owner had the door off. The wire stays sealed; the diagnosis
+  moved to an authenticated surface, which is where the original 503's job was supposed to
+  live all along.
+- **Per-tool counters are a schema v2, when Increment 2 lands.** Increment 2 widens
+  `sn_mcp_remote_slugs()` from 1 to 8, at which point per-tool volume becomes meaningful.
+  Today the ring's per-slug rows carry per-tool recency and the counters are day→outcome
+  only, deliberately (YAGNI at one tool). The blob carries a `schema` field for exactly this
+  migration; key the v2 buckets by the `tool`/slug field rather than assuming one tool.
