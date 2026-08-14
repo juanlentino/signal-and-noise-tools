@@ -38,6 +38,11 @@ concurrency:
   group: cron-orphan-cleanup
   cancel-in-progress: false
 
+# Least privilege: this workflow never touches the GitHub API or the repo —
+# it configures SSH from secrets and runs wp-cli on the remote host. It does
+# not even check out the code, so the GITHUB_TOKEN needs NO scopes at all.
+permissions: {}
+
 jobs:
   cleanup:
     name: SSH wp-cli cron event delete
