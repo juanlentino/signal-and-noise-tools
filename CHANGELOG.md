@@ -4,6 +4,8 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.1.0] - 2026-08-14 — the remote door opens onto eight tools, learns to count, and joins the health panel
+
 ### Fixed
 - **The engagement-time unit is now stated where a caller can read it.** `time_avg_per_view` and `time_avg_per_visit` are MILLISECONDS — the beacon reports `performance.now()` deltas as `ms` and nothing downstream converts — but no schema, description or docblock ever said so. The gap surfaced on the remote door's first live phone call: the model, reasoning correctly from an undocumented number, had to guess the unit from plausibility ("38,690 reads like milliseconds"). A guess that happens to land is still a gap. The unit is now stated in the admin ability description, in `analytics-derive.php`'s docblocks, and — most importantly — in the REMOTE ability's own description, which previously deferred to the admin ability's text: a pointer a remote caller cannot follow, because that ability is deliberately absent from the remote allowlist. The remote description now carries the units, the visitor-days semantics, and the views/visits estimate caveat inline, so the surface most likely to be read without estate context is the one that explains itself.
 
