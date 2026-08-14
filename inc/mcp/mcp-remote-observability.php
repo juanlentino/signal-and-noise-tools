@@ -68,9 +68,17 @@ const SN_MCP_REMOTE_PENDING_TTL = HOUR_IN_SECONDS;
  *
  * refused_shut and refused_auth are BYTE-IDENTICAL TO THE CALLER — that is the
  * whole point of the 404 parity fix — and separable only here, in a record that
- * is admin-only and never echoed. "Calls arrived while I had it switched off"
- * is a different and more alarming fact than "someone guessed at the token".
- * Do not collapse them to match the wire, and do not leak the distinction to it.
+ * is admin-only and never echoed. Do not collapse them to match the wire, and
+ * do not leak the distinction to it.
+ *
+ * WHAT refused_shut ACTUALLY MEASURES, precisely: a call that was ALREADY IN
+ * FLIGHT when the door shut — registered at rest_api_init, gate re-check failed
+ * at dispatch. It does NOT count shut-door traffic generally: with the toggle
+ * off the route is never registered, so those requests die in WordPress's own
+ * rest_no_route without reaching the handler or this module. Over a shut-door
+ * day this counter stays at zero no matter how many calls arrive. A nonzero
+ * value is therefore rare and specific — someone was mid-request at the moment
+ * the owner closed the door.
  */
 const SN_MCP_REMOTE_OUTCOMES = array(
 	'dispatched',
@@ -183,9 +191,13 @@ function sn_mcp_remote_log_bound_slug( $slug ) {
 /**
  * Apply ONE outcome to the persisted blob, immediately.
  *
- * This is the un-coalesced path. sn_mcp_remote_record() decides whether an
- * outcome comes straight here or buffers first; keeping the two separate is
- * what makes the buffering testable without a clock.
+ * IN FINAL FORM, ONLY sn_mcp_remote_record()'s DISPATCH path reaches here.
+ * Refusal flushes go through sn_mcp_remote_log_add_count() directly, so a
+ * refusal never gains a ring row. Calling this directly with a refusal outcome
+ * WOULD create one — silently defeating record()'s "a flood must not wash the
+ * ring" guarantee — so do not route refusals here from any future call site;
+ * go through sn_mcp_remote_record(). Kept separate from record() because the
+ * split is what makes the buffering testable without a clock.
  *
  * @param string $outcome One of SN_MCP_REMOTE_OUTCOMES. Anything else is dropped.
  * @param string $slug    The requested slug, or '' when there was none.

@@ -177,7 +177,9 @@ The presenter lives in the new module and returns a formatted string; `inc/admin
 prints it under the existing remote card and gains no logic. That file is already 318 lines.
 
 - Never used: **"Never used."**
-- Used: **"Last used 2 hours ago · 3 calls today · 12 refused"**
+- Used: **"Last used 2026-08-14 02:41:51 · 3 calls today · 12 refused"** — the absolute
+  site-timezone timestamp, not a relative "2 hours ago" (an earlier draft's example): a
+  relative form goes stale the moment it renders, and this panel is not live-updating.
 
 The refused count is shown next to the dispatch count on purpose. A dispatch count alone reads as
 reassuring; the pair is what makes a probe legible.
@@ -219,10 +221,21 @@ New `tests/mcp-remote-observability.php`, plus additions to `tests/mcp-bridge-ro
   one `rest_no_route`, deliberately. The record does not: it counts which **branch** fired.
   **`refused_auth` climbing while the toggle is ON and the Worker believes itself healthy is
   the specific signature of the two secret halves disagreeing** — a botched rotation's first
-  observable symptom anywhere in the estate. `refused_shut` climbing is the different fact
-  that calls arrived while the owner had the door off. The wire stays sealed; the diagnosis
-  moved to an authenticated surface, which is where the original 503's job was supposed to
-  live all along.
+  observable symptom anywhere in the estate. The wire stays sealed; the diagnosis moved to an
+  authenticated surface, which is where the original 503's job was supposed to live all along.
+
+  Two qualifications, so this claim is not read as more than it is. **The panel gives the
+  prompt; the record gives the diagnosis.** The surfaced line shows a *summed* refusal count —
+  refusals climbing while calls and last-used stay flat is the prompt to look closer. Confirming
+  `refused_auth` specifically (versus scanner noise on `refused_slug`/`refused_request`) means
+  reading the per-outcome counters: `wp option get sn_mcp_remote_log_v1`. And **`refused_shut`
+  counts only a call already in flight when the door shut** — with the toggle off the route is
+  never registered, so shut-door traffic dies at core's `rest_no_route` before this module ever
+  sees it. A shut-door day reads zero regardless of how hard the door was knocked on.
+- **The ring has no renderer yet, by declaration rather than accident.** The reader returns
+  `recent` and the panel does not show it; the counters are the surfaced record and the ring
+  is readable via `wp option get sn_mcp_remote_log_v1`. A ring view becomes worth building
+  when Increment 2's eight tools make "which tool, in what order" a real question.
 - **Per-tool counters are a schema v2, when Increment 2 lands.** Increment 2 widens
   `sn_mcp_remote_slugs()` from 1 to 8, at which point per-tool volume becomes meaningful.
   Today the ring's per-slug rows carry per-tool recency and the counters are day→outcome

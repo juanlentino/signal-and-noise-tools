@@ -173,9 +173,6 @@ function sn_admin_mcp_status_cards( array $state ) {
 		case 'bridge_ready':
 			$remote_value = __( 'Bridge ready', 'signal-and-noise-tools' );
 			$remote_meta  = __( 'The switch is on and the bridge secret is defined, so the route is registered and answers the Worker.', 'signal-and-noise-tools' );
-			if ( function_exists( 'sn_mcp_remote_log_summary_text' ) ) {
-				$remote_meta .= '<br>' . esc_html( sn_mcp_remote_log_summary_text() );
-			}
 			$remote_pill  = array( 'kind' => 'ok', 'text' => __( 'ready', 'signal-and-noise-tools' ) );
 			break;
 		case 'option_off':
@@ -188,6 +185,14 @@ function sn_admin_mcp_status_cards( array $state ) {
 			);
 			$remote_pill = array( 'kind' => 'warn', 'text' => __( 'off', 'signal-and-noise-tools' ) );
 			break;
+	}
+
+	// The usage line renders in EVERY remote-card state, not only bridge_ready.
+	// History matters most precisely when the door is off — "Last used yesterday
+	// · 12 refused" under a Switched-off card is the record of why it was shut.
+	// Appended after the switch so no future state can forget it.
+	if ( function_exists( 'sn_mcp_remote_log_summary_text' ) ) {
+		$remote_meta .= '<br>' . esc_html( sn_mcp_remote_log_summary_text() );
 	}
 
 	$remote_card = array(
