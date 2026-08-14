@@ -4,6 +4,50 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.5.0] - 2026-08-14 — replay protection stops being opt-in
+
+**MINOR** — closes the design gap the same-day reinsertion audit recorded: the write
+door's gate 4 (idempotency) protected only callers who supplied a key, and keyless
+retries were safe purely via gate-1 fingerprint **side effects** — a property of the
+current fingerprint schemes, not a designed invariant. Field data from the heading batch
+(103 live applies, keyed rate-limit retries, zero double-applies) confirmed the keyed
+path; this release makes the keyless path equally deliberate.
+
+### Added
+- **Auto-derived idempotency keys for keyless mutating calls**
+  (`snt_sn_apply_effective_idempotency_key()`, `inc/sn-apply-gates.php`): when a
+  `dry_run:false` call arrives without an `idempotency_key`, the server derives
+  `auto:sha256(canonical_target | type | mode | fingerprint | payload)` and runs gate 4
+  with it — a byte-identical retry (the MCP timeout-retry shape) replays the first
+  response instead of executing twice. Any difference in what is being done — payload,
+  fingerprint, target, or mode — derives a different key and executes fresh; a retry that
+  re-serializes its payload differently falls back to the pre-11.5.0 posture (executed,
+  then caught by gate 1's stale fingerprint) — fail-open to the old behavior, never a
+  wrong replay. Caller-supplied keys keep their exact existing contract. Dry runs derive
+  no key: previews never touch the store (the REJECT #10 rule) and are harmless to repeat.
+- **The classification fails closed INTO protection, and the exclusions argue their
+  case**: `snt_sn_apply_autokey_excluded_types()` names exactly `og_card` and
+  `anchor_sweep` — the two side-effect types where an identical repeat is a *legitimate*
+  new call (force-regenerating a card after a template change; re-dispatching a sweep) and
+  which write no post body, so double-fire cannot produce the duplicated-text corruption
+  class the audit hunted. A future change type added to the enum is auto-protected the
+  moment it exists; the exclusion list is value-pinned
+  (`tests/sn-apply-idempotency-autokey.php`, which also walks the whole
+  `SNT_SN_APPLY_CHANGE_TYPES` enum asserting every non-excluded type derives a key), so
+  extending it is a reviewed edit, not a drift. Requiring keys from every caller
+  (option a) was evaluated and rejected: it breaks existing keyless agents and adds
+  per-call ceremony the server can make unnecessary unilaterally.
+
+### Fixed
+- **Multi-block replacement markup now refuses loudly** (`inc/block-fingerprint-engine.php`,
+  the audit's LOW): the shared block engine replaces exactly one tree node, and everything
+  after the first named block in `replacement_markup` used to be **silently discarded** —
+  the caller believed their full markup applied when only its head did. It now refuses
+  `invalid_markup` (422) naming the block count, whitespace nodes excluded from the count.
+- One write-count pin retargeted with its reason: a keyless `roadmap_board` publish now
+  makes **two** option writes — the board override plus the auto-key replay record that is
+  the entire point of this release (`tests/abilities-sn-apply-delegation-sweep.php` RB5.3).
+
 ## [11.4.0] - 2026-08-14 — the corpus learns to read itself, and fingerprints learn where they live
 
 **Headline:** a hand audit found four published Notes carrying content-level

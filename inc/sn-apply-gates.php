@@ -277,6 +277,93 @@ function snt_sn_apply_idempotency_store_key( $idempotency_key, $canonical_target
 }
 
 /**
+ * The change types EXCLUDED from auto-key derivation (v11.5.0) — and the
+ * burden of proof each carries. An identical repeat of these is a
+ * LEGITIMATE new call, not a retry:
+ *
+ * - og_card: regenerates a PNG from current state; calling it twice with
+ *   identical params is how a card is force-refreshed after a template or
+ *   palette change. Deduping it would silently suppress the second render.
+ * - anchor_sweep: dispatches a live HTTP sweep to the provenance Worker;
+ *   re-sweeping with identical params is routine operations.
+ *
+ * Neither type writes a post body, so an accidental double-fire cannot
+ * produce the duplicated-text corruption class the 2026-08-14 audit was
+ * hunting — the exclusion trades replay protection they don't need for
+ * repeats they do.
+ *
+ * DELIBERATELY A VALUE-PINNED LIST (tests/sn-apply-idempotency-autokey.php):
+ * a new change type added to SNT_SN_APPLY_CHANGE_TYPES is auto-protected
+ * the moment it exists — classification fails closed INTO protection —
+ * and extending THIS list is a reviewed edit that must argue its case in
+ * this docblock and move the pin.
+ *
+ * @since 11.5.0
+ * @return string[]
+ */
+function snt_sn_apply_autokey_excluded_types() {
+	return array( 'og_card', 'anchor_sweep' );
+}
+
+/**
+ * The effective idempotency key for a call (v11.5.0): the caller's own key
+ * when supplied, a server-derived auto-key for keyless MUTATING calls, and
+ * '' (no protection, matching pre-11.5.0 behavior) only for dry runs and
+ * the excluded side-effect types.
+ *
+ * WHY (2026-08-14 reinsertion audit): gate 4 was entirely opt-in — an MCP
+ * client whose response timed out and which retried WITHOUT a key got zero
+ * replay protection, and every change type was safe only "by accident" via
+ * gate-1 fingerprint side effects (content_hash changes after a successful
+ * write, so the stale retry 409s). That accidental safety is a property of
+ * the CURRENT fingerprint schemes, not a designed invariant; this function
+ * makes the invariant real: identical keyless retries dedupe on a hash of
+ * the call's own logical identity.
+ *
+ * The derivation folds in mode and the change's type/fingerprint/payload
+ * plus the canonical target: any difference in WHAT is being done derives a
+ * different key and executes fresh — only the byte-identical retry replays.
+ * (A retry that re-serializes its payload in a different key order derives
+ * a different key and falls back to the pre-11.5.0 posture: executed, and
+ * caught by gate 1's stale fingerprint. Fail-open to the old behavior,
+ * never a wrong replay.)
+ *
+ * Dry runs derive no key: previews never consult nor write the store (the
+ * REJECT #10 rule in inc/abilities-sn-apply.php), and repeating one is
+ * harmless by construction.
+ *
+ * @since 11.5.0
+ * @param string $caller_key       The caller-supplied idempotency_key ('' if none).
+ * @param string $type             change.type.
+ * @param string $mode             'revision' | 'publish'.
+ * @param bool   $dry_run          The call's dry_run flag.
+ * @param array  $change           The full change object (fingerprint + payload read).
+ * @param string $canonical_target From snt_sn_apply_canonical_target().
+ * @return string The key to use for gate 4 and the record step; '' = none.
+ */
+function snt_sn_apply_effective_idempotency_key( $caller_key, $type, $mode, $dry_run, $change, $canonical_target ) {
+	$caller_key = (string) $caller_key;
+	if ( '' !== $caller_key ) {
+		return $caller_key; // The caller's contract is unchanged, excluded types included.
+	}
+	if ( $dry_run ) {
+		return '';
+	}
+	if ( in_array( (string) $type, snt_sn_apply_autokey_excluded_types(), true ) ) {
+		return '';
+	}
+	$change = (array) $change;
+	return 'auto:' . hash(
+		'sha256',
+		(string) $canonical_target
+		. '|' . (string) $type
+		. '|' . (string) $mode
+		. '|' . (string) ( $change['fingerprint'] ?? '' )
+		. '|' . (string) wp_json_encode( (array) ( $change['payload'] ?? array() ) )
+	);
+}
+
+/**
  * Gate 4: idempotency. Looks up (key, target) — never writes here (the
  * write happens once, in snt_sn_apply_idempotency_record(), only after
  * every gate has passed AND the call actually executed, dry-run or not).

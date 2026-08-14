@@ -524,7 +524,11 @@ $rrb5 = snt_ability_sn_apply( array(
 ) );
 ok( ! is_wp_error( $rrb5 ) && true === $rrb5['applied'], 'RB5.1: publish write applies' );
 eq( $rb_board, sn_maturity_roadmap_effective_board(), 'RB5.2: the EFFECTIVE board is now the override — the exact array the shortcode will render' );
-eq( 1, $GLOBALS['__write_calls']['update_option'], 'RB5.3: exactly one option write' );
+// v11.5.0: TWO option writes, both deliberate — the board override itself,
+// plus the idempotency RECORD that keyless mutating calls now make (the
+// auto-key means this call's response is stored for replay; pre-11.5.0 a
+// keyless call recorded nothing, which was exactly the audit finding).
+eq( 2, $GLOBALS['__write_calls']['update_option'], 'RB5.3: exactly two option writes — the board override + the auto-key replay record, nothing incidental' );
 ok( sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ) !== $rb_fp, 'RB5.4: the fingerprint moved with the board' );
 
 // reset:true deletes the override — back to code-canonical, and the
