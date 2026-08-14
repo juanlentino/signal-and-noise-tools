@@ -158,6 +158,26 @@ function sn_mcp_remote_log_save_blob( $blob ) {
 }
 
 /**
+ * Bound a slug for storage.
+ *
+ * From Task 6 on, $slug originates in an UNAUTHENTICATED request body. Today
+ * every path that stores one has already checked it against the allowlist, but
+ * that guarantee lives in CALLER ORDERING, and this module's header promises
+ * isolation. Bounding here means a future call site recording a refusal with
+ * the raw slug cannot store attacker-length strings in 50 ring rows. 191 chars
+ * covers every real ability slug with room to spare.
+ *
+ * @param mixed $slug
+ * @return string
+ */
+function sn_mcp_remote_log_bound_slug( $slug ) {
+	if ( ! is_scalar( $slug ) ) {
+		return '';
+	}
+	return substr( (string) $slug, 0, 191 );
+}
+
+/**
  * Apply ONE outcome to the persisted blob, immediately.
  *
  * This is the un-coalesced path. sn_mcp_remote_record() decides whether an
@@ -189,11 +209,13 @@ function sn_mcp_remote_log_apply( $outcome, $slug = '' ) {
 
 	array_unshift(
 		$blob['recent'],
-		array( 'ts' => $now, 'slug' => (string) $slug, 'outcome' => $outcome )
+		array( 'ts' => $now, 'slug' => sn_mcp_remote_log_bound_slug( $slug ), 'outcome' => $outcome )
 	);
 	if ( count( $blob['recent'] ) > SN_MCP_REMOTE_LOG_RING_CAP ) {
 		$blob['recent'] = array_slice( $blob['recent'], 0, SN_MCP_REMOTE_LOG_RING_CAP );
 	}
+
+	$blob = sn_mcp_remote_log_prune( $blob );
 
 	sn_mcp_remote_log_save_blob( $blob );
 }
@@ -219,5 +241,50 @@ function sn_mcp_remote_log_add_count( $blob, $day, $outcome, $n ) {
 	}
 	$current = isset( $blob['counters'][ $day ][ $outcome ] ) ? (int) $blob['counters'][ $day ][ $outcome ] : 0;
 	$blob['counters'][ $day ][ $outcome ] = $current + (int) $n;
+	return $blob;
+}
+
+/**
+ * Is a day-bucket key past the cutoff?
+ *
+ * PURE, so the boundary has a witness that does not depend on the clock. An
+ * unparseable key returns FALSE — keeping data you cannot classify beats
+ * deleting it, and a malformed key is a bug to notice rather than to erase.
+ *
+ * @param string $day_key 'Y-m-d'.
+ * @param string $cutoff  'Y-m-d'; anything strictly before this is expired.
+ * @return bool
+ */
+function sn_mcp_remote_log_is_expired( $day_key, $cutoff ) {
+	$day_key = (string) $day_key;
+	if ( 1 !== preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day_key ) ) {
+		return false;
+	}
+	return $day_key < (string) $cutoff;
+}
+
+/**
+ * Drop expired day-buckets.
+ *
+ * OPPORTUNISTIC, on write, rather than on cron. A cron can drift, be
+ * unscheduled, or fail silently; a prune that runs as part of the write cannot
+ * get out of step with the data it prunes. It also avoids touching the
+ * cron-events registry, which is a full-sweep contract.
+ *
+ * The ring is capped independently, by count, so a single busy day cannot evict
+ * the record that the door was used last month.
+ *
+ * @param array $blob
+ * @return array
+ */
+function sn_mcp_remote_log_prune( $blob ) {
+	$cutoff = function_exists( 'wp_date' )
+		? wp_date( 'Y-m-d', time() - ( SN_MCP_REMOTE_LOG_RETENTION_DAYS * DAY_IN_SECONDS ) )
+		: date( 'Y-m-d', time() - ( SN_MCP_REMOTE_LOG_RETENTION_DAYS * DAY_IN_SECONDS ) );
+	foreach ( array_keys( $blob['counters'] ) as $day_key ) {
+		if ( sn_mcp_remote_log_is_expired( $day_key, $cutoff ) ) {
+			unset( $blob['counters'][ $day_key ] );
+		}
+	}
 	return $blob;
 }

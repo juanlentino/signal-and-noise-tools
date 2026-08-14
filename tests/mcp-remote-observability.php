@@ -141,6 +141,53 @@ ok( ! in_array( 'slug-0', $slugs, true ), 'THE EVICTION PIN: the oldest entry is
 ok( SN_MCP_REMOTE_LOG_RING_CAP + 5 === $blob['counters'][ $today ]['dispatched'], 'and the COUNTER kept counting past the ring cap — the ring is a display aid, the counter is the record' );
 ok( is_string( $blob['last_used'] ) && '' !== $blob['last_used'], 'THE OTHER DENORMALISATION PIN: last_used survives the ring rolling over — it is stored outside the ring precisely so it can' );
 
+echo "Group: old day-buckets are dropped on write, and recent ones are KEPT\n";
+// A prune asserted only by "the old bucket is gone" is satisfied by a prune
+// that deletes everything. The keep-assertion is the discriminator.
+$GLOBALS['__options'] = array();
+$old    = wp_date( 'Y-m-d', time() - ( ( SN_MCP_REMOTE_LOG_RETENTION_DAYS + 5 ) * DAY_IN_SECONDS ) );
+$recent = wp_date( 'Y-m-d', time() - ( 3 * DAY_IN_SECONDS ) );
+$GLOBALS['__options'][ SN_MCP_REMOTE_LOG_OPTION ] = array(
+	'schema'    => 1,
+	'last_used' => '2020-01-01 00:00:00',
+	'counters'  => array(
+		$old    => array( 'dispatched' => 7 ),
+		$recent => array( 'dispatched' => 2 ),
+	),
+	'recent'    => array(),
+);
+sn_mcp_remote_log_apply( 'dispatched', 'slug' );
+$blob = sn_mcp_remote_log_get_blob();
+ok( ! array_key_exists( $old, $blob['counters'] ), 'a bucket past retention is dropped' );
+ok( array_key_exists( $recent, $blob['counters'] ), 'THE DISCRIMINATOR: a bucket inside retention survives' );
+ok( 2 === $blob['counters'][ $recent ]['dispatched'], 'with its count intact' );
+
+echo "Group: last_used survives a prune that removes its own day\n";
+// last_used is denormalised out of the ring and the counters precisely so it
+// can outlive both. Nothing else proves it does.
+ok( is_string( $blob['last_used'] ), 'THE DENORMALISATION PIN: last_used is still set after pruning' );
+
+echo "Group: the pure prune predicate is exhaustive on the boundary\n";
+// Testing the predicate directly rather than only through a write, so the
+// off-by-one at the cutoff has its own witness.
+ok( true  === sn_mcp_remote_log_is_expired( '2026-01-01', '2026-01-02' ), 'a day strictly before the cutoff is expired' );
+ok( false === sn_mcp_remote_log_is_expired( '2026-01-02', '2026-01-02' ), 'THE BOUNDARY: the cutoff day itself is NOT expired' );
+ok( false === sn_mcp_remote_log_is_expired( '2026-01-03', '2026-01-02' ), 'a day after the cutoff is not expired' );
+ok( false === sn_mcp_remote_log_is_expired( 'garbage', '2026-01-02' ), 'and an unparseable key is KEPT, not silently deleted' );
+
+echo "Group: a stored slug is BOUNDED, whatever the caller passes\n";
+// From Task 6 on the slug originates in an unauthenticated request body. The
+// bound lives HERE, in the module, because caller-ordering guarantees are
+// invisible to this file and its header promises isolation.
+$GLOBALS['__options'] = array();
+sn_mcp_remote_log_apply( 'dispatched', str_repeat( 'a', 5000 ) );
+$blob = sn_mcp_remote_log_get_blob();
+ok( 191 === strlen( $blob['recent'][0]['slug'] ), 'THE BOUND PIN: a 5000-char slug is stored truncated to 191' );
+$GLOBALS['__options'] = array();
+sn_mcp_remote_log_apply( 'dispatched', array( 'not', 'a', 'string' ) );
+$blob = sn_mcp_remote_log_get_blob();
+ok( '' === $blob['recent'][0]['slug'], 'and a non-scalar slug stores as the empty string, not "Array" plus a PHP warning' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-remote-observability.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-remote-observability.php\n";
