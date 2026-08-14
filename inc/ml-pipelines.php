@@ -32,6 +32,7 @@ if ( ! function_exists( 'snt_ml_pipelines' ) ) {
 			'cadence-flags'    => 'snt_ml_pipeline_cadence_flags',    // v10.22.0: publish + cron rhythm deviations (inc/ml-cadence.php).
 			'draft-echoes'     => 'snt_ml_pipeline_draft_echoes',     // v10.77.0: the notes one draft echoes (inc/ml-draft-echoes.php).
 			'link-isolation'   => 'snt_ml_pipeline_link_isolation',   // v10.83.0: published notes nothing links to (inc/ml-link-isolation.php).
+			'corpus-drift'     => 'snt_ml_pipeline_corpus_drift',     // v11.2.0: per-term vocabulary movement across years (inc/ml-drift.php).
 		);
 		return apply_filters( 'snt_ml_pipelines', $pipelines );
 	}
@@ -370,5 +371,35 @@ if ( ! function_exists( 'snt_ml_pipeline_link_isolation' ) ) {
 			? (int) $args['limit']
 			: 50;
 		return snt_ml_link_isolation( $limit );
+	}
+}
+
+if ( ! function_exists( 'snt_ml_pipeline_corpus_drift' ) ) {
+	/**
+	 * 'corpus-drift' pipeline: per-term vocabulary movement across years.
+	 *
+	 * Thin gate over snt_ml_drift_report() (inc/ml-drift.php), which owns the
+	 * corpus walk, the UTC year bucketing, and the thin-verdict floor. Takes no
+	 * arguments: the mirror is the whole published corpus against itself.
+	 *
+	 * Registered for the REGISTRY's completeness (one dispatcher, nine
+	 * pipelines) — but deliberately consumed ONLY by the admin leaf. No
+	 * ability wraps this slug and none may: the row's contract is "shown to
+	 * the writer, never to a model", and tests/ml-drift.php pins the absence.
+	 *
+	 * @param array $args Unused.
+	 * @return array|WP_Error Envelope from snt_ml_drift_report(), or
+	 *                        snt_ml_unavailable (500) when the module is not loaded.
+	 */
+	function snt_ml_pipeline_corpus_drift( $args ) {
+		unset( $args );
+		if ( ! function_exists( 'snt_ml_drift_report' ) ) {
+			return new WP_Error(
+				'snt_ml_unavailable',
+				'Corpus-drift module (inc/ml-drift.php) is not loaded.',
+				array( 'status' => 500 )
+			);
+		}
+		return snt_ml_drift_report();
 	}
 }

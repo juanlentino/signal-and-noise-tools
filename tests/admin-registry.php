@@ -108,13 +108,13 @@ ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo', 'fr
 
 // Content: page editors + the three sibling content scanners (finding 5 —
 // Tags / Pattern Adoption / Block Migrations were in three different tabs).
-ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'now', 'uses', 'resume', 'tags', 'pattern-adoption', 'block-migrations' ),
-	'content leaves: now, uses, resume, tags, pattern-adoption, block-migrations (the three scanners reunited)' );
-// All three scanners own their own .sn-fieldset card, so all three must be
+ok( array_keys( $by_tab['content']['sub_tabs'] ) === array( 'now', 'uses', 'resume', 'tags', 'pattern-adoption', 'block-migrations', 'vocabulary' ),
+	'content leaves: now, uses, resume, tags, pattern-adoption, block-migrations, vocabulary (three scanners reunited + the v11.2.0 drift mirror)' );
+// All four scanners own their own .sn-fieldset card, so all four must be
 // 'wide' — a capped leaf would wrap that card in a second one. block-migrations
 // had exactly that defect until v10.46.0; putting the siblings side by side is
 // what made it visible.
-foreach ( array( 'tags', 'pattern-adoption', 'block-migrations' ) as $__scanner ) {
+foreach ( array( 'tags', 'pattern-adoption', 'block-migrations', 'vocabulary' ) as $__scanner ) {
 	ok( ! empty( $by_tab['content']['sub_tabs'][ $__scanner ]['wide'] ),
 		"content scanner '$__scanner' is wide (owns its own card — capped would nest a card in a card)" );
 }

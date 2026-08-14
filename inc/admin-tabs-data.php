@@ -185,6 +185,12 @@ function sn_admin_top_tabs() {
 				'tags'             => array( 'label' => 'Tags', 'render' => 'sn_admin_render_tag_cleanup_section', 'wide' => true ),
 				'pattern-adoption' => array( 'label' => 'Pattern Adoption', 'render' => 'sn_admin_render_pattern_adoption_section', 'wide' => true ),
 				'block-migrations' => array( 'label' => 'Block Migrations', 'render' => 'sn_admin_render_block_migrations_section', 'wide' => true ),
+				// v11.2.0: the FOURTH read surface (R4 4A). Vocabulary drift is a
+				// scanner in the same sense as its three siblings — it reads what
+				// is already published and writes nothing — but proposes nothing
+				// either: no queue, no buttons, the mirror recomputes on render.
+				// 'wide' earned by the four-column movement grid per year pair.
+				'vocabulary'       => array( 'label' => 'Vocabulary', 'render' => 'sn_admin_render_drift_section', 'wide' => true ),
 			),
 		),
 		array(

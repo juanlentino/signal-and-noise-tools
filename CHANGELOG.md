@@ -4,6 +4,64 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.2.0] - 2026-08-14 — the corpus looks at itself, and refuses to speak from thin years
+
+**MINOR** — R4 4A ships: corpus drift as an editorial mirror, ML pipeline #9. The paired
+row (reading paths from cluster geometry) is deliberately **split off as its own arc**
+(`docs/r4-prep.md`): it is reader-facing, so it needs the theme's half, and shipping a
+mechanism whose surface arrives later is the exact shape of the R2A `/about/` incident —
+provenance CSS enqueued, nothing rendered.
+
+### Added
+- **A drift primitive the kernel did not have** (`inc/ml-kernel.php`): `snt_ml_doc_share()`
+  and `snt_ml_corpus_drift()`. The mirror could not be built on what existed, for a reason
+  worth recording: `snt_ml_cosine()` collapses two periods to ONE scalar — "your vocabulary
+  changed 0.31" tells a writer nothing about *what* changed — and TF-IDF weights are
+  **incomparable across buckets**, because idf is computed with N = that call's own docs, so
+  cross-year deltas would measure corpus growth, not vocabulary movement. Document share
+  (notes containing the term / notes in the period) is on one scale everywhere. The drift
+  report is four **disjoint** lists — risen, fallen, entered, silenced — because a term with
+  no earlier presence has no share to move *from*: entered is not a delta from zero, silenced
+  is not a fall to zero, and a term that held its share appears in **no** list at all.
+  Deterministic by construction: ties break on the term, never hash order.
+- **THE THIN GATE: a year below the floor refuses to speak.** Either period under
+  `SNT_ML_DRIFT_MIN_DOCS` (5) returns verdict `thin` with every list empty — a **distinct
+  answer from "no drift"**, carrying the sizes that disqualified it. A term appearing in one
+  note and then two has not risen; a confident 0.00 over three notes is the failure this
+  exists to prevent (the cadence SPAN lesson pointed at corpus size). The floor is
+  mutation-pinned load-bearing: the suite raises it above a passing fixture and asserts the
+  verdict flips.
+- **The glue and the surface** (`inc/ml-drift.php`, `inc/ml-drift-admin.php`): the published
+  corpus bucketed by UTC calendar year — drafts excluded (not part of the public
+  vocabulary), zero-date and markup-only bodies skipped — compared per **adjacent** pair, so
+  a decade never collapses into one comparison that hides the year the move happened. **No
+  snapshots by design**: post dates already carry the history, and a stored time series
+  would be a second source of truth able to disagree with the first. Renders as the
+  **fourth content read surface** — Content → Vocabulary, beside the three scanners the tab's
+  own subtitle names — through the same delegator idiom as its siblings. Thin pairs render
+  as their own state, never as "the vocabulary held still".
+- **The row's contract is an ABSENCE, and absences got pins** (`tests/ml-drift.php`, 26
+  assertions). "Shown to the writer, never to a model" means: no ability wraps the pipeline,
+  and the remote set carries no drift twin. Both are grep-pinned over the ability files —
+  with a negative control proving the needle matches registration-shaped text, so the empty
+  result is a real absence rather than a broken instrument. An unregistered surface is one
+  helpful future session away from existing; the #641 `show_in_rest` lesson, applied before
+  the fact this time.
+
+### Fixed
+- **A stationary term at a whole-number share leaked into risen/fallen.** PHP's `/` returns
+  an **int** when evenly divisible, so a term in 5 of 5 notes had share `int 1`, its delta
+  was `int 0`, and the strict `0.0 ===` no-movement check missed it — every such term
+  misfiled as movement. Caught by the glue suite's stationary pin before ever shipping: the
+  kernel's own fixtures used fractional shares (always floats), and only a bucket where a
+  term appears in *every* doc produces the int. The share cast is now explicit and
+  commented load-bearing.
+
+### Changed
+- The ML maturity page's scope map gains **`Vocabulary drift mirror` — live** (ninth
+  consumer), flipped in the same release as the feature per the maturity convention, and
+  claimed by name in the pins, not inferred from a count.
+
 ## [11.1.2] - 2026-08-14 — the phone door graduates, and the threat model moves rather than dies
 
 ### Changed
