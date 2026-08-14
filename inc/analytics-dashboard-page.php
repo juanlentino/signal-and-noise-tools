@@ -67,6 +67,7 @@ function snt_analytics_dashboard_page() {
 	if ( isset( $_GET['sn_flash'] ) && function_exists( 'sn_admin_flash_to_notice' ) ) {
 		$notice = sn_admin_flash_to_notice( sanitize_text_field( wp_unslash( $_GET['sn_flash'] ) ) );
 		if ( is_array( $notice ) && isset( $notice[0], $notice[1] ) ) {
+			// nosemgrep: php.lang.security.injection.echoed-request.echoed-request -- the request value is sanitize_text_field'd, mapped through sn_admin_flash_to_notice()'s fixed table, and both halves are escaped at the sink (esc_attr / wp_kses_post). The rule cannot see the sink-side escaping.
 			echo '<div class="notice notice-' . esc_attr( $notice[0] ) . ' is-dismissible"><p>' . wp_kses_post( $notice[1] ) . '</p></div>';
 		}
 	}
