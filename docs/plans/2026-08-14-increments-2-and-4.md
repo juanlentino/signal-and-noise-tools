@@ -174,6 +174,23 @@ Backups to `/tmp/inc2-sweep/` by `cp`; per row: apply → `git diff --stat` prov
 
 - [ ] Record results in this plan under `## Mutation results — origin (measured)`, then commit: `test: origin sweep — six mutations, each redding its named pin`
 
+## Mutation results — origin (measured)
+
+Backups kept in the session scratchpad (not `/tmp`, per this harness's file-placement rule;
+functionally identical — `cp` in, `cp` back, `git diff --stat` empty after every restore).
+All six applied to a clean `git status`, confirmed landed via `git diff --stat`, confirmed
+restored via `git diff --stat` again. Full sweep was exit 0 / 431 suites / 17291 assertions
+both before row 1 and after the final restore.
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| 1 | `snt_ability_perm_remote_insights()` literal → narration's slug | RED as named. `tests/abilities-remote-set.php`: `solo list [signal-noise/remote-get-insights]: snt_ability_perm_remote_insights() is true` and `solo list [signal-noise/remote-get-narration]: snt_ability_perm_remote_insights() is false` — exactly insights' own-slug row and narration's-solo-list row, no other row moved (109/111 passed; full sweep 17289/17291 assertions). |
+| 2 | `force_refresh` added back to `remote-uptime-status`'s twin schema | RED as named. `THE STRIP PIN: remote-uptime-status — the twin refuses what the admin accepts` (110/111 passed). |
+| 3 | `remote-get-rss-stats`'s `show_in_rest` flipped to `true` | RED as named. `#641: signal-noise/remote-get-rss-stats carries no public run route (show_in_rest: false)` (110/111 passed). |
+| 4 | `signal-noise/remote-get-insights` added to `sn_mcp_allowlist()` | RED as named, on BOTH suites. `tests/abilities-remote-set.php`: `signal-noise/remote-get-insights is absent from the READ allowlist`. `tests/mcp-capabilities.php`: both cardinality pins (`read-door allowlist has exactly 38 slugs`, `read door carries exactly 28 plugin slugs`) plus its own absence pin for the same slug. |
+| 5 | `remote-get-deploy-status`'s `execute_callback` → `snt_ability_get_health_scan` | RED as named. `signal-noise/remote-get-deploy-status execute_callback string-equals signal-noise/get-deploy-status's` (110/111 passed). |
+| 6 | `remote-get-narration` removed from the PRODUCTION `sn_mcp_remote_slugs()` (`inc/mcp/mcp-remote-guard.php`) | PARTIAL — deviation from the plan's expected surface, recorded here rather than silently reconciled. `tests/mcp-remote-guard.php`'s count pin reds as named (`the remote list holds exactly the eight Increment 1 + Increment 2 slugs`, 21/22 passed). **`tests/abilities-remote-set.php`'s matrix did NOT red**, because that suite's matrix runs against a self-contained test double of `sn_mcp_remote_slugs()`/`sn_remote_analytics_allows()` (`$GLOBALS['__remote_slugs']`), not the production function in `inc/mcp/mcp-remote-guard.php` — a design necessity documented in the test file's header: PHP has no runkit/uopz in this harness, so the ONLY way to narrow "the list" to one member per matrix iteration without redeclaring a global function is for the suite to own its own mutable copy. The double is exercised by the REAL production callbacks from `inc/abilities-remote-set.php` (so mutation #1, a bug in THIS file, is caught correctly), but it is deliberately decoupled from the production `sn_mcp_remote_slugs()` array, whose own correctness is covered instead by `tests/mcp-remote-guard.php`'s pins (count + scope-stability). Net coverage is intact — the production array's cardinality is pinned, and the matrix's sibling-literal property is pinned — but they are two different suites' pins where the plan describes one row hitting both. |
+
 ---
 
 ## Phase W — client half + anomaly (worker repo)
