@@ -58,7 +58,58 @@ echo "Group: the rest_api_init callback registers nothing while a gate is shut\n
 $GLOBALS['__routes'] = array();
 sn_bridge_register_routes();
 ok( array() === $GLOBALS['__routes'], 'no route table entry when a gate is shut' );
-ok( ! isset( $GLOBALS['__routes']['signal-noise/v1/bridge'] ), 'and specifically no bridge key' );
+
+// The empty-constant path — SN_BRIDGE_TOKEN defined as '' — is NOT asserted
+// separately, and deliberately so. define() cannot be undone and the constant can
+// only be defined once per process, so reaching it would mean either a second
+// fixture file or contorting this one. It is covered by construction instead:
+// sn_bridge_secret() decides absence and emptiness in ONE expression,
+// `defined( ... ) && '' !== (string) SN_BRIDGE_TOKEN`, whose false branch is the
+// constant-absent assertion at the top of this file. Splitting that expression in
+// a future refactor is what would break the coverage — not this omission.
+
+// EVERYTHING BELOW SEES THE CONSTANT. define() is permanent, so no assertion
+// after this line can exercise the secret-absent half; that is why every
+// secret-absent assertion above is placed first and must stay there.
+define( 'SN_BRIDGE_TOKEN', 'topsecret' );
+
+echo "Group: the gate OPENS when both are satisfied — the direction nothing else proves\n";
+// Without this assertion the entire suite is one-directional: every other
+// expectation here is false-or-absent, so `return false;` in
+// sn_bridge_should_register() would be a mutant no test could detect, and a
+// permanently-shut gate would be indistinguishable from a working one.
+$GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
+ok( true === sn_bridge_should_register(), 'THE ONE THAT PROVES IT OPENS: switch ON + secret PRESENT -> register' );
+
+$GLOBALS['__routes'] = array();
+sn_bridge_register_routes();
+ok( isset( $GLOBALS['__routes']['signal-noise/v1/bridge'] ), 'and the route is actually in the route table' );
+
+// Pin the registration ARGUMENTS. Nothing else in this increment asserts what is
+// registered — only whether. The permission_callback is deliberately open:
+// authentication happens in the handler, in ONE ordered place, so a request is
+// never partially authenticated while already inside the abilities layer. Do not
+// "harden" it to a capability check — that would split verification across two
+// layers, which is the thing this design refuses.
+// Read defensively so that a mutation which stops registration reddens these
+// pins cleanly instead of burying them under undefined-key warnings. Under
+// correct code the key always exists, so this costs no strictness.
+$args = isset( $GLOBALS['__routes']['signal-noise/v1/bridge'] ) ? $GLOBALS['__routes']['signal-noise/v1/bridge'] : array();
+ok( 'POST' === ( $args['methods'] ?? null ), 'the route is POST only' );
+ok( 'sn_bridge_handle_request' === ( $args['callback'] ?? null ), 'the callback is the bridge handler' );
+ok( '__return_true' === ( $args['permission_callback'] ?? null ), 'permission_callback is open BY DESIGN — the handler verifies, in one place' );
+
+echo "Group: the mirror case — with the secret PRESENT, the switch alone still shuts the gate\n";
+// This is what makes "switch ON but secret ABSENT" above meaningful. One
+// direction alone is satisfied by OR; the two together are only satisfied by AND.
+// Without this, deleting the kill-switch check from sn_bridge_should_register()
+// would leave the suite fully green.
+$GLOBALS['__options'] = array();
+ok( false === sn_bridge_should_register(), 'THE AND-DISCRIMINATOR: secret PRESENT but switch OFF -> do not register' );
+
+$GLOBALS['__routes'] = array();
+sn_bridge_register_routes();
+ok( array() === $GLOBALS['__routes'], 'and it registers nothing, so the route ceases to exist when the owner darkens the door' );
 
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
