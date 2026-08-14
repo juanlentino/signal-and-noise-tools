@@ -238,6 +238,26 @@ function snt_block_fp_apply( $args ) {
 		return $err( 'invalid_markup', 422, __( 'Replacement markup did not parse to a valid block.', 'signal-and-noise-tools' ) );
 	}
 
+	// v11.5.0 (audit LOW): refuse MULTI-block replacement markup loudly.
+	// This engine replaces exactly ONE tree node; everything after the
+	// first named block used to be silently discarded — the caller believed
+	// their full markup applied when only its head did. parse_blocks() also
+	// emits null-blockName whitespace nodes between real blocks, so the
+	// count is over NAMED blocks only.
+	$named = 0;
+	foreach ( $replacement as $node ) {
+		if ( is_array( $node ) && ! empty( $node['blockName'] ) ) {
+			$named++;
+		}
+	}
+	if ( $named > 1 ) {
+		return $err( 'invalid_markup', 422, sprintf(
+			/* translators: %d: number of blocks in the replacement markup. */
+			__( 'Replacement markup parsed to %d blocks; this operation replaces exactly one. Send a single block, or apply per-block candidates separately.', 'signal-and-noise-tools' ),
+			$named
+		) );
+	}
+
 	// v6.39.2 SECURITY (now both surfaces): the replacement is untrusted —
 	// user-editable in the modal before apply. Sanitize the parsed node so a
 	// <script>/onerror payload can't be stored (front-end stored-XSS).

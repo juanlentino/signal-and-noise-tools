@@ -211,6 +211,13 @@ if ( function_exists( 'snt_block_fp_apply' ) ) {
 	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 10, 'block_fingerprint' => $fp, 'replacement_markup' => 'not block markup' ) ) );
 	t( is_wp_error( $r ) && 'snt_block_migration_invalid_markup' === $r->get_error_code(), 'C.4 unnamed/unparseable replacement → surface code' );
 
+	// v11.5.0 (audit LOW): multi-block replacement refuses LOUDLY. This
+	// engine replaces exactly one node; pre-fix, blocks after [0] were
+	// silently discarded — the caller believed their full markup applied.
+	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 10, 'block_fingerprint' => $fp, 'replacement_markup' => json_encode( array( $H2, $H3 ) ) ) ) );
+	t( is_wp_error( $r ) && 'snt_block_migration_invalid_markup' === $r->get_error_code(), 'C.4b MULTI-block replacement → invalid_markup refusal, never a silent head-only apply' );
+	t( is_wp_error( $r ) && false !== strpos( $r->get_error_message(), '2 blocks' ), 'C.4c and the refusal names the count, so the caller knows what to split' );
+
 	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 10, 'block_fingerprint' => 'wrong', 'replacement_markup' => json_encode( array( $H2 ) ) ) ) );
 	t( is_wp_error( $r ) && 'snt_block_migration_conflict' === $r->get_error_code(), 'C.5 fingerprint drift → conflict code (409)' );
 
