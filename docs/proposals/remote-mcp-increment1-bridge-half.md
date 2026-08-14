@@ -255,6 +255,49 @@ and a valid token with an unknown slug must not be separable by an unauthenticat
 - **Mutations:** delete the `hash_equals` check; delete the `finally` that removes the filter;
   change the slug refusal from 404 to 403. Each must red a named pin.
 
+### Mutation results — measured
+
+Every mutation below was applied to the shipped source, the affected suite run, and the source
+restored. Baselines: `mcp-bridge-route.php` **43**, `admin-remote-toggle.php` **8**,
+`mcp-connect-render.php` **253**. Each row's `passed + failed` was checked against that baseline
+before the result was believed — a short sum means assertions *vanished* rather than failed, and
+the number would be fiction.
+
+| # | Mutation | Result | Failing assertions observed |
+|---|---|---|---|
+| 0 | `sn_bridge_should_register()` body → `return false;` | killed, 38+5=43 | `THE ONE THAT PROVES IT OPENS: switch ON + secret PRESENT -> register`; `and the route is actually in the route table`; `the route is POST only`; `the callback is the bridge handler`; `permission_callback is open BY DESIGN — the handler verifies, in one place` |
+| 1 | drop `'' !== sn_bridge_secret()` from the gate | killed, 41+2=43 | `THE ONE THAT MATTERS: switch ON but secret ABSENT -> do not register`; `no route table entry when a gate is shut` |
+| 1b | drop `sn_mcp_remote_kill_switch_engaged()` from the gate | killed, 41+2=43 | `THE AND-DISCRIMINATOR: secret PRESENT but switch OFF -> do not register`; `and it registers nothing, so the route ceases to exist when the owner darkens the door` |
+| 2a | `hash_equals` → `==` (**type-juggling half**) | killed, 42+1=43 | `THE TYPE-JUGGLING PIN: two distinct numeric strings must not authenticate each other (PHP == would say 0 == 0)` |
+| 2b | `hash_equals` → `==` (**timing half**) | **SURVIVES BY CONSTRUCTION** | none, and none is possible — nothing in a standalone PHP fixture observes the wall-clock difference between a prefix-matching and a non-matching compare with any reliability. Recorded with its cause rather than covered by a test that only appears to assert it. The type-juggling half above is the half that is a real auth bypass, and it stays pinned. |
+| 3 | remove the `if ( ! sn_bridge_is_verified() )` guard | killed, 41+2=43 | `THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight`; `clearing the flag revokes the grant` |
+| 3a | add `$allcaps['manage_options'] = null;` beside the grant | killed, 42+1=43 | `and never manage_options` |
+| 3b | unverified branch `return $allcaps;` → `return array();` | killed, 41+2=43 | `and it passes other capabilities through untouched`; `and the revoked path still passes other capabilities through` |
+| 4 | delete the `finally` block's two lines | killed, 39+4=43 | `THE OTHER ONE THAT MATTERS: the verified flag is cleared after dispatch`; `and the capability filter was removed`; `THE ONE THE finally EXISTS FOR: a throwing ability still leaves the flag cleared`; `and the capability filter is still removed when the ability throws` |
+| 4a | delete the `try`/`finally` **construct**, keeping both cleanup lines inline | killed, 41+2=43 | `THE ONE THE finally EXISTS FOR: a throwing ability still leaves the flag cleared`; `and the capability filter is still removed when the ability throws` |
+| 5 | off-list slug refusal 404 → 403 | killed, 42+1=43 | `THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403` |
+| 5a | move both slug checks **above** the Bearer check | killed, 41+2=43 | `THE ORDER PIN: no Authorization + an OFF-LIST slug -> 401, not 404 — the Bearer is checked FIRST`; `and no Authorization + no slug -> 401, not 400 — an unauthenticated caller learns nothing about its body` |
+| 5b | return the ability's raw output instead of the `ok`/`data` envelope | killed, 42+1=43 | `and it comes back in the ok/data envelope, with the ability output under data` |
+| 5c | delete the `if ( ! $ability )` guard | **killed as a PHP FATAL**, no summary line | no `FAIL -` row. `PHP Fatal error: Uncaught Error: Call to a member function execute() on null in inc/mcp/mcp-bridge-route.php:247`. `tests/run.sh` gates on the summary line, so a crashed suite fails the sweep rather than contributing zero silently — but the kill shape is a crash, not a named assertion, and is recorded that way. |
+| 5d | third refusal's code `'sn_bridge_not_found'` → `'sn_bridge_ability_missing'` | killed, 42+1=43 | `and it carries the SAME error code as the off-list refusal — the two are not distinguishable from outside` |
+| 6 | delete the `SN_MCP_REMOTE_DISABLED` guard from `sn_handle_remote_toggle()` | killed, 6+2=8 | `the form refuses when the constant kills the door`; `and writes NOTHING — a killed door cannot be re-opened from a web request` |
+| 6a | `(bool) get_option( ... )` → `true === get_option( ... )` in `sn_mcp_remote_kill_switch_engaged()` | killed, 7+1=8 | `checked -> the door is OPEN` |
+| 6b | **control on the harness:** test's `update_option()` stub stores the raw value instead of `'1'`/`''` | killed, 6+2=8 | `checked -> option stored as WordPress stores true`; `unchecked (absent key) -> option stored as WordPress stores false` — and the two round-trip pins still passed, exactly as predicted. That asymmetry is the demonstration: the stub's transform, not the assertions alone, is what carries mutation 6a's coverage. |
+| 7 | **(added here, not in the plan)** status resolver's `secret_missing` → `option_off` | killed, 252+1=253 | `LIVE: switch ON with no SN_BRIDGE_TOKEN resolves to secret_missing, not option_off and not ready` |
+
+Row 7 is not one of the plan's steps. It re-runs the mutation that **survived** during Task 6 —
+the status resolver's remote branch had zero coverage, so swapping `secret_missing` for
+`option_off` reddened nothing at all. It now reds a named pin, which is the evidence that the
+branch went from unmeasured to pinned rather than merely from untested to written.
+
+`inc/mcp/mcp-remote-guard.php` was mutated for 6a and restored byte-identically; confirmed with
+`git diff --stat origin/main -- inc/mcp/mcp-remote-guard.php inc/abilities-remote-analytics.php`
+returning nothing.
+
+Every mutation was reverted by `cp` from a scratchpad copy taken before the edit. Neither
+`git checkout --` nor `git stash` was used: both discard *all* uncommitted work in their path,
+and `stash` is the more dangerous of the two because it looks reversible right up until `drop`.
+
 ---
 
 ## What this still does not do
