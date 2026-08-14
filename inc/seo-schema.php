@@ -282,6 +282,18 @@ function sn_schema_article() {
 	// v4.8.1: structured-data enrichment. Each addition is guarded so a
 	// missing source leaves the key absent rather than emitting an empty value.
 
+	// v11.7.0 (R5): the provenance pointer. A signed subject's Article node
+	// carries its ledger uid as a standard PropertyValue identifier, so a
+	// structured-data consumer can join the page to its record without
+	// parsing the verification manifest. Guarded: unsigned posts (and any
+	// load order without the pointers module) leave the key absent.
+	if ( function_exists( 'sn_prov_machine_pointers_identifier' ) ) {
+		$sn_prov_ident = sn_prov_machine_pointers_identifier( (int) $post->ID );
+		if ( null !== $sn_prov_ident ) {
+			$article['identifier'] = $sn_prov_ident;
+		}
+	}
+
 	// wordCount — strip shortcodes + tags before counting words.
 	$word_count = snt_word_count( wp_strip_all_tags( strip_shortcodes( $post->post_content ) ) ); // v10.24.0: Unicode-safe — str_word_count published wrong schema.org numbers for digit-bearing prose.
 	if ( $word_count > 0 ) {

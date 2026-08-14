@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     11.6.1
+ * Version:     11.7.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -88,6 +88,7 @@ require_once SNT_PATH . 'inc/provenance-chain-backfill.php'; // v10.3.0: one-sho
 require_once SNT_PATH . 'inc/provenance-did.php';        // v9.23.0: did:web DID document (verifiable provenance D1)
 require_once SNT_PATH . 'inc/provenance-credential.php'; // v9.23.0: per-Note Verifiable Credential + REST route (D1)
 require_once SNT_PATH . 'inc/provenance-verify.php';     // v9.73.0: human-facing /verify client-side verifier
+require_once SNT_PATH . 'inc/provenance-machine-pointers.php'; // v11.7.0: R5 — the in-page verification manifest + schema identifier (needs provenance-verify's endpoint producer above)
 // Scheduled-content subsystem (v6.40.0, Phase 1): hand-authored fragments and
 // pages flipped on/off on a date, with a surgical Cloudflare purge at each
 // window edge. Loaded right after cloudflare-purge.php so the purge-by-URL fn

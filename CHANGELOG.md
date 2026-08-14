@@ -4,6 +4,47 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.7.0] - 2026-08-14 — verifying travels with the content, and R5 closes
+
+**MINOR** — the verification quartet's last two rows ship as one module
+(`inc/provenance-machine-pointers.php`), because they publish the same pointer set to the
+same invited anonymous caller (threat model A6). R5 is complete: threat model first, then
+all four rows, each built against §9.5's preconditions.
+
+### Added
+- **The in-page verification manifest**: every signed singular subject ships a
+  data-shaped `<script type="application/json" id="sn-verification-manifest">` listing
+  the exact calls — credential, ledger record, OTS proof, key history, DID, and a
+  block-header URL *template* the caller fills — plus the standalone verifier's repo.
+  The preconditions are each executable pins, not intentions: **P-51** as an absence (no
+  verdict-shaped token exists anywhere in the manifest), **P-52** by construction (the
+  manifest renders into the cached page; no new route, no origin fetch — the block-header
+  call is a template precisely so the origin never resolves it), **P-53** as a host
+  allowlist plus structural parity (every URL derives from `sn_prov_verify_endpoints()`,
+  newly extracted as THE one producer the /verify shell itself now consumes — one
+  definition, drift impossible), **P-56** as an exact key-shape walk (every call is
+  `{method, url|url_template, type}` — no prose slot exists to inject into). The PHP
+  kind→directory map is pinned against the shipped JS's `SUBJECT_ROOTS`, not assumed.
+- **The schema pointer**: a signed subject's Article node gains a standard
+  `PropertyValue` identifier (propertyID anchored on the site's own /verify) carrying the
+  ledger uid — structured-data consumers join the page to its record without parsing the
+  manifest.
+- Unsigned subjects, genesis-only subjects, and non-singular contexts emit **nothing** —
+  absence over scaffold, the three-way discipline. Slash-escaping stays on in the emitted
+  JSON so no payload byte sequence can close the script tag (pinned: exactly one
+  `</script>` in the output).
+
+### Changed
+- **Board: both rows graduate** considering → done (Machine readability 2→4,
+  ceiling-legal), rewritten present-tense with P-51's posture inside the in-page row's
+  claim ("the page lists inputs and asserts nothing, because the verdict belongs to the
+  caller"). Threat model §9.1 marks both rows LANDED with the pin locations.
+
+R5 final state: §9 (threat model) → standalone verifier (v11.6.0) → software provenance
+(v11.6.1, ledger v1.0.0 attested) → pointers + in-page tool (this release). The one
+quartet row that opened no boundary — configuration drift — was excluded from §9 by
+design and remains an Operations row.
+
 ## [11.6.1] - 2026-08-14 — the verifier's own provenance, anchored and honestly bounded
 
 **PATCH** — R5's software-provenance row closes, completing the standalone verifier's

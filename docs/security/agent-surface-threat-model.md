@@ -383,8 +383,8 @@ saying which is which is how a verdict endpoint gets shipped by accident.
 
 | Row | Opens a new boundary? |
 | --- | --- |
-| An in-page tool surface for verification | **YES** — machine-readable *calls* published to anonymous page-context callers |
-| Provenance pointers in the machine surfaces | **YES, the same one** — pointers are the same class of published instruction-shaped data |
+| An in-page tool surface for verification | **YES** — machine-readable *calls* published to anonymous page-context callers. **LANDED v11.7.0** as the in-page manifest; P-51/52/53/55/56 each pinned in `tests/provenance-machine-pointers.php` |
+| Provenance pointers in the machine surfaces | **YES, the same one** — pointers are the same class of published instruction-shaped data. **LANDED v11.7.0** (schema `identifier` + the manifest's pointer set, one endpoint producer shared with /verify) |
 | A standalone verifier anyone can run | No new *caller* boundary — but it moves CODE outside the trust domain (§9.4-T6) |
 | Provenance for the software itself | No boundary; it is the standalone verifier's own **completion** (§9.4-T6), threaded to Operations |
 
