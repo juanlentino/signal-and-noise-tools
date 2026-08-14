@@ -2,7 +2,54 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.7.1] - 2026-08-14 — the Cmd+K commands come back
+
+**PATCH** — a live regression found by running the OpenStation v1.1.0 verification
+checklist against production. All 22 Cmd+K commands were silently dead.
+
+### Fixed
+- **`assets/desktop-mode.js` now retries instead of giving up when the shell
+  has not loaded yet.** OpenStation v1.1.0 ships its shell bundle
+  (`desktop.min.js`, which installs `window.wp.os`) with **`defer`**; our
+  scripts are not deferred. Deferred scripts execute after *every* non-deferred
+  script, so the shell appearing at DOM index 56 ran **after** ours at 63 and
+  89. Both of our gates found neither `window.wp.desktop` nor `window.wp.os`,
+  the file returned, and none of its 22 commands registered — no error, no
+  console warning, no symptom, until someone opened Cmd+K and looked.
+  Confirmed live at the palette ("No commands matching `sn-cmd`"), and
+  negative-controlled ("post" returned many, so the palette itself was fine).
+  The IIFE is now named and a failed gate schedules a single re-invocation:
+  `wp.os.whenReady()` when OpenStation's early shim is already present,
+  otherwise `DOMContentLoaded` — which *all* deferred scripts are guaranteed to
+  precede, making it load-strategy-independent rather than a bet on `defer`
+  specifically — with a `setTimeout` fallback for the post-parse lazy-injection
+  path. The body below the gates is untouched and unreachable until a gate
+  passes, so a retry cannot double-register.
+  **The lesson, recorded because it generalizes:** `wp_register_script`
+  dependency edges order the printed **markup**, not the **execution**. Once a
+  dependency defers and its dependent does not, the edge is silently inverted
+  at runtime and no amount of dependency declaration corrects it.
+  Also restored by the same fix: the attention badge, which sits in the same
+  IIFE below the same gates (masked in the field because the current total is
+  `"0"`, which renders no badge either way).
+
+### Added
+- **`tests/desktop-mode-boot-order.php` + `tests/js/desktop-mode-boot.mjs` — a
+  suite that EXECUTES the asset instead of grepping it.** The existing coverage
+  asserted the self-alias line `window.wp.desktop = window.wp.desktop || window.wp.os`
+  was *present* in the source. It was present, it passed continuously, and the
+  commands were dead in production the whole time — the line sits below an early
+  `return` that fired first. **A source-presence assertion cannot see
+  reachability.** The new harness runs the real file under `node`'s `vm` in a
+  browser-shaped context across four scenarios: the deferred-shell regression,
+  plus three controls (shell-first must still register *synchronously*, so the
+  fix cannot make the healthy path lazy; pre-rename `wp.desktop`-only; and a
+  no-shell negative control proving the harness can tell "registered" from
+  "did not"). Mutation-verified — disabling the retry turns exactly the three
+  deferred-shell assertions red while all three controls stay green, which is
+  precisely the signature production wore during the outage. Node is
+  **asserted, never skipped**: a skip would silently delete the only coverage
+  that catches this class of bug. 12 assertions; sweep now 437 suites / 17,534.
 
 ### Docs
 - **OpenStation v1.1.0 compat re-verification — no code change required**

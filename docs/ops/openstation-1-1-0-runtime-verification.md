@@ -112,13 +112,23 @@ after the same gate — currently masked because `snDesktopAttention.total` is
 `"0"`, which renders no badge either way). Dock, icons, widgets, dropzone and
 all PHP seams are unaffected.
 
-**Suggested fix (not yet implemented):** make `desktop-mode.js` re-attempt
-after deferred scripts have run. Deferred scripts execute *before*
-`DOMContentLoaded`, so that event is a reliable second chance: extract the
-body into an `init()`, call it immediately when either global is present, and
-otherwise re-run it on `DOMContentLoaded`, preferring `wp.os.whenReady()` when
-available by then. That is immune to any future change in load strategy,
-rather than betting on a specific one.
+**FIXED in v11.7.1.** The IIFE is named and a failed gate now schedules one
+re-invocation — `wp.os.whenReady()` when OpenStation's early shim is already
+present, else `DOMContentLoaded` (which every deferred script is guaranteed to
+precede, so this is load-strategy-independent rather than a bet on `defer`),
+with a `setTimeout` fallback for the post-parse lazy-injection path. The body
+below the gates is unchanged and unreachable until a gate passes, so a retry
+cannot double-register.
+
+Pinned by `tests/desktop-mode-boot-order.php`, which **executes** the asset
+under `node`'s `vm` rather than grepping it — the previous coverage asserted
+the self-alias line was *present*, which it was, throughout the outage.
+Mutation-verified: disabling the retry reddens exactly the three
+deferred-shell assertions while all three controls stay green.
+
+**Re-verify on the live site after deploying v11.7.1** by re-running §C and
+§D. The version bump also changes the script's `ver=` query string, so the
+browser will fetch the fixed file rather than a cached one.
 
 ## The hazard this checklist is built around
 

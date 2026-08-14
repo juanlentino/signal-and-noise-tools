@@ -252,7 +252,7 @@ a human would notice, and no others.** Split honestly:
 | Seam | Status |
 |---|---|
 | Dock item, desktop icons, widgets, chromeless nav, dropzone | **Field-verified live** 2026-08-14 |
-| **Cmd+K commands + the `wp.desktop` alias** | **BROKEN on v1.1.0** — see below |
+| **Cmd+K commands + the `wp.desktop` alias** | **Was BROKEN on v1.1.0; FIXED in v11.7.1** — re-verify live after deploy — see below |
 | Copilot tool-invocation log (`sn_ai_tool_invocations`) | **Verified live** 2026-08-14 — delta exactly `+1` |
 | Agent telemetry (`{prefix}sn_tool_call`) | **Unreachable, not unverified** — agents disabled by owner decision 2026-08-07, so the producer cannot fire |
 | Living-tree traffic | **Unverifiable by observation** — falls back to a plausible default rather than an error |
@@ -281,6 +281,12 @@ not, the edge is silently inverted at runtime. REJECT #11 correctly identified
 this hazard but bound it to the lazy-loader path; it is live on the ordinary
 page-load path. Any future "runs after X" reasoning in this file must check
 X's *loading strategy*, not just its dependency edge.
+
+**Fixed in v11.7.1** — a failed gate now schedules one retry
+(`wp.os.whenReady()`, else `DOMContentLoaded`, else `setTimeout`) instead of
+returning. Pinned by `tests/desktop-mode-boot-order.php`, which **executes**
+the asset rather than grepping it; the old assertion checked that the
+self-alias *string* was present, and it was, for the entire outage.
 
 Full root-cause, blast radius, and proposed fix:
 [docs/ops/openstation-1-1-0-runtime-verification.md](ops/openstation-1-1-0-runtime-verification.md).
