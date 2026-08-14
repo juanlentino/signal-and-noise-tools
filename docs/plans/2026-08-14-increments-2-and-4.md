@@ -396,6 +396,38 @@ configured-absent fixture, and two worker-identity fixtures).
 | 1 | `killed: true` made to append a finding | RED as named, same pin, same row count: `THE STATE-NOT-FAILURE PIN` (49/50 passed post-fix). |
 | 2 | Anomaly note embeds an email-shaped literal | RED as named, same pin: `THE NO-IDENTITY PIN (health half)` (49/50 passed post-fix). |
 
+**MERGE-BLOCKER fix (Grok adversarial pass, verified against the live endpoint, 2026-08-14):**
+`sn_health_edge_worker_findings()` was indexing `configured`/`bridge_secret_bound` at the TOP
+level while the live Worker nests both (and `killed`) under a `config` sub-object. Consequence on
+a healthy door: the lost-readout finding fired ALWAYS (the top-level key is genuinely absent) and
+`configured: false` NEVER fired (`false === null` is false) — a permanent false outage masking a
+silent real one. `anomaly` is correctly top-level, so that branch was unaffected; `killed` was
+never read at all, which accidentally preserved the state-not-failure behavior for the wrong
+reason. The fixture in `tests/health-edge-workers.php` INVENTED a flat shape and every existing
+pin passed against it — this estate's most-bitten trap (test-stub-drift), now at 10 occurrences.
+
+Fix: read `$remote_mcp['config']` defensively (`is_array(...) ? ... : array()`), then index
+`configured`/`bridge_secret_bound`/`killed` from that. THE REAL-SHAPE PIN — the healthy REAL
+(nested) body yields zero findings, and `config.configured => false` yields the misconfig outage
+— was verified to RED against the OLD code (9 of 51 pins failed, including both REAL-SHAPE PIN
+assertions) and PASS against the fixed code (51/51). Full sweep after the fix: exit 0 / 431
+suites / 17308 assertions.
+
+Both H1 mutations re-run a second time against the corrected nested-shape code/fixture:
+
+| # | Mutation (re-run 2, post nesting-fix) | Result |
+| --- | --- | --- |
+| 1 | `config.killed: true` made to append a finding | RED as named: `THE STATE-NOT-FAILURE PIN: config.killed:true -> NO finding` (50/51 passed). |
+| 2 | Anomaly note embeds an email-shaped literal | RED as named: `THE NO-IDENTITY PIN (health half)` (50/51 passed). |
+
+Two smaller items folded into the same fix commit: the two origin strip pins in
+`tests/abilities-remote-set.php` are strengthened to assert `properties === array()` outright on
+both stripped twins (subsuming `force_refresh`, `detail` — a bigger quota amplifier Grok noted
+the old pin missed — and anything future), and both the runbook and the client-half amendment now
+record the correlated `refused_auth` signature's false negative: a DELETED `SN_BRIDGE_TOKEN`
+constant never registers the route, so `refused_auth` never climbs; the panel's `secret_missing`
+state names that failure mode instead.
+
 ### Task H2: The reconciliation amendments (docs only)
 
 **Files:**

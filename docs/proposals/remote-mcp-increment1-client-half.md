@@ -399,8 +399,8 @@ belong in the runbook rather than in code:
 falsify "unobservable by construction."** The wire still collapses every anonymous refusal into
 one 404 — that has not changed. But `docs/proposals/remote-mcp-increment4-observability.md` §11
 records that the origin now counts *which branch* refused, and that is a second readout this
-section did not have when it was written. Two qualifications, carried faithfully from that
-document so this is not read as more than it is:
+section did not have when it was written. Two qualifications carried faithfully from that
+document, plus a third from a later adversarial pass, so this is not read as more than it is:
 
 - **The status-panel line is a prompt, not the diagnosis.** It shows a *summed* refusal count;
   refusals climbing while calls and last-used stay flat is what says "look closer." Confirming the
@@ -418,6 +418,14 @@ document so this is not read as more than it is:
   *at the same time* the legitimate client — the Worker's own bridge calls — starts failing with
   `door_closed_or_credential_or_tool`, while the toggle is confirmed ON. That pairing is what names
   the two `SN_BRIDGE_TOKEN` halves disagreeing; `refused_auth` alone is not enough to conclude it.
+- **The correlated signature has a false negative (Grok adversarial pass, 2026-08-14): a DELETED
+  origin constant misses it entirely.** It assumes `SN_BRIDGE_TOKEN` is still *defined*, just
+  wrong. If the constant is deleted outright rather than changed, the bridge route never
+  registers, so the handler that would report `refused_auth` never runs — the count stays flat
+  regardless of how badly the two halves disagree. That case surfaces through the panel's
+  `secret_missing` state instead (see `docs/ops/remote-mcp-revoke-runbook.md`'s panel-state
+  table), not through the counters. The counters close the gap for *mismatched-but-present*
+  secrets; they do not close it for an absent one.
 
 1. **Rotation is a two-step with an unavoidable dark window.** Whatever order it is done in, the
    door 404s between the two edits. Expect it; do not diagnose it.

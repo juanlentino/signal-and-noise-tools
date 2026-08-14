@@ -223,7 +223,14 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 				'sn-remote-mcp worker is unreachable at /_sn/remote-mcp/status: it may be undeployed, or this host cannot hairpin to the edge. Re-run the scan to rule out a transient blip.'
 			);
 		} else {
-			if ( false === ( $remote_mcp['configured'] ?? null ) ) {
+			// THE REAL-SHAPE FIX: the live body nests configured/bridge_secret_bound/
+			// killed under `config`, not at the top level (top level carries worker,
+			// version, source_commit, cf_version_id, deployed_at, increment, config).
+			// `anomaly` IS top-level. Defensive: a v0.2.0-era body or garbage still
+			// degrades to "not measured" rather than throwing.
+			$rm_config = is_array( $remote_mcp['config'] ?? null ) ? $remote_mcp['config'] : array();
+
+			if ( false === ( $rm_config['configured'] ?? null ) ) {
 				$findings[] = $mk(
 					'sn-remote-mcp',
 					'',
@@ -231,10 +238,16 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 				);
 			}
 
-			// killed:true is DELIBERATELY excluded from the checks above and below:
-			// a dark door is a state the owner chose, not a failure. Do not fold it
-			// into an "outage" branch — that is the mutation this pin guards against.
-			if ( ! array_key_exists( 'bridge_secret_bound', $remote_mcp ) ) {
+			// Read (same nested source as configured/bridge_secret_bound) but
+			// DELIBERATELY produces no finding either way: a dark door is a state
+			// the owner chose, not a failure. Naming the read makes the no-finding
+			// behavior an intentional read-and-ignore rather than an accidental
+			// miss of a key nothing was looking at in the first place — do not
+			// fold this into an "outage" branch; that is the mutation this pin
+			// guards against.
+			$rm_killed = ! empty( $rm_config['killed'] ); // intentionally unused below.
+
+			if ( ! array_key_exists( 'bridge_secret_bound', $rm_config ) ) {
 				$findings[] = $mk(
 					'sn-remote-mcp',
 					'',

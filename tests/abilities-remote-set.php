@@ -202,6 +202,25 @@ ok(
 	! array_key_exists( 'force_refresh', $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['input_schema']['properties'] ),
 	'THE STRIP PIN: remote-get-deploy-status — the twin refuses what the admin accepts'
 );
+// THE STRIP PINS, STRENGTHENED (Grok adversarial pass): the admin uptime
+// ability ALSO reads `detail` — a bigger quota amplifier than force_refresh
+// (SLA + response times + incidents, not just a cache bypass). A pin naming
+// only force_refresh would stay green if `detail` (or any FUTURE admin key)
+// were ever added to a twin. Assert `properties === array()` outright on
+// both stripped twins: it subsumes force_refresh, detail, and anything not
+// yet invented.
+ok(
+	array_key_exists( 'detail', $GLOBALS['__abilities'][ $ADMIN_UPTIME ]['input_schema']['properties'] ),
+	'THE STRIP PIN (context): the admin uptime-status ability ALSO has `detail` — a bigger quota amplifier than force_refresh'
+);
+ok(
+	array() === $GLOBALS['__abilities'][ $REMOTE_UPTIME ]['input_schema']['properties'],
+	'THE STRIP PIN, STRENGTHENED: remote-uptime-status properties === array() — pins force_refresh, detail, and anything future, not just the one named key'
+);
+ok(
+	array() === $GLOBALS['__abilities'][ $REMOTE_DEPLOY ]['input_schema']['properties'],
+	'THE STRIP PIN, STRENGTHENED: remote-get-deploy-status properties === array() — pins force_refresh and anything future, not just the one named key'
+);
 
 echo "Group: show_in_rest is false for all seven — #641, applied at birth\n";
 foreach ( array( $REMOTE_EVENTS, $REMOTE_INSIGHTS, $REMOTE_NARRATION, $REMOTE_UPTIME, $REMOTE_HEALTH, $REMOTE_RSS, $REMOTE_DEPLOY ) as $slug ) {

@@ -84,6 +84,15 @@ different fact — a call already in flight when the toggle flipped off, not cal
 — and reads zero here regardless, because a shut door never registers the route in the first
 place.)
 
+**This signature has a false negative (Grok adversarial pass, 2026-08-14): a DELETED constant
+misses it entirely.** The correlated signature above assumes the origin constant is still
+*defined*, just wrong — `refused_auth` requires the bridge route to have registered and a Bearer
+check to have run against a present-but-mismatched value. If `SN_BRIDGE_TOKEN` is **deleted**
+rather than changed, the route never registers at all: `refused_auth` never climbs, because the
+handler that would report it never runs. That failure mode is what `secret_missing` in the panel
+table above names instead — check the panel state itself before concluding "no `refused_auth`
+climb" means "not a rotation problem."
+
 **After step 2**, the Cloudflare Users page should show **0 active sessions** and the Session
 identities table should read *"No results... yet!"*. Reload before believing the count — the page
 renders a stale number immediately after a revoke.

@@ -41,18 +41,46 @@ function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
 // Defaults to a HEALTHY body so every pre-existing wrapper-level test above
 // the dedicated remote-mcp group (which predates this worker) keeps its
 // count/finding pins unmoved; the dedicated group below overrides per-case.
+//
+// THIS FIXTURE IS THE WORKER'S REAL BODY SHAPE, not an invented one. The
+// first version of this suite invented a FLAT body; the Worker nests
+// configured/bridge_secret_bound/killed under `config`, so every pin passed
+// while the consumer read keys that never existed. A fixture that models a
+// shape the producer never emits is a green test for code that cannot work.
+// Verified against the live endpoint (2026-08-14): top-level carries worker,
+// version, source_commit, cf_version_id, deployed_at, increment, config;
+// config carries configured, missing, edge_state_bound, bridge_secret_bound,
+// bridge_origin, killed. `anomaly` IS top-level (Increment 4's DO counter is
+// not part of `config`).
+function sn_ew_real_remote_mcp_body( array $overrides = array(), array $config_overrides = array() ) {
+	return array_merge(
+		array(
+			'worker'        => 'sn-remote-mcp',
+			'version'       => '0.3.0',
+			'source_commit' => 'abc1234',
+			'cf_version_id' => 'deadbeef-0000-0000-0000-000000000000',
+			'deployed_at'   => '2026-08-14T00:00:00Z',
+			'increment'     => 2,
+			'config'        => array_merge(
+				array(
+					'configured'          => true,
+					'missing'             => array(),
+					'edge_state_bound'    => true,
+					'bridge_secret_bound' => true,
+					'bridge_origin'       => 'https://juanlentino.com',
+					'killed'              => false,
+				),
+				$config_overrides
+			),
+			'anomaly'       => array( 'flagged' => false, 'total_today' => 0, 'subjects_over' => 0 ),
+		),
+		$overrides
+	);
+}
+
 $GLOBALS['__ew']['remote_mcp_resp']  = array(
 	'code' => 200,
-	'body' => json_encode(
-		array(
-			'worker'              => 'sn-remote-mcp',
-			'configured'          => true,
-			'killed'              => false,
-			'bridge_secret_bound' => true,
-			'anomaly'             => array( 'flagged' => false, 'total_today' => 0, 'subjects_over' => 0 ),
-			'version'             => '0.3.0',
-		)
-	),
+	'body' => json_encode( sn_ew_real_remote_mcp_body() ),
 );
 $GLOBALS['__ew']['remote_mcp_error'] = false;
 function wp_remote_get( $url, $args = array() ) { return $GLOBALS['__ew']['remote_mcp_resp']; }
@@ -208,37 +236,42 @@ ok( array() === $f, 'BC: 8-arg call (remote_mcp defaulted to false/not-measured)
 $f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, null );
 ok( 1 === count( $f ) && 'sn-remote-mcp' === $f[0]['subject_label'] && false !== strpos( $f[0]['note'], 'unreachable' ), 'remote-mcp: null (probe unreachable) -> unreachable finding' );
 
-$healthyRemote = array(
-	'worker'              => 'sn-remote-mcp',
-	'configured'          => true,
-	'killed'              => false,
-	'bridge_secret_bound' => true,
-	'anomaly'             => array( 'flagged' => false, 'total_today' => 3, 'subjects_over' => 0 ),
-	'version'             => '0.3.0',
-);
+// $healthyRemote models the REAL body sn_ew_real_remote_mcp_body() returns —
+// configured/bridge_secret_bound/killed nested under `config`, anomaly
+// top-level. Passed directly to the PURE findings function below (which
+// does not care about `worker` — that field only matters to the probe) AND
+// reused as the wrapper-level JSON body further down.
+$healthyRemote = sn_ew_real_remote_mcp_body( array( 'anomaly' => array( 'flagged' => false, 'total_today' => 3, 'subjects_over' => 0 ) ) );
 
+// THE REAL-SHAPE PIN: the healthy REAL (nested) body yields zero findings —
+// this is the pin that would have caught the top-level/nested mismatch: the
+// old flat-fixture suite asserted this exact claim and passed while the
+// consumer read keys ($remote_mcp['configured'], array_key_exists(
+// 'bridge_secret_bound', $remote_mcp)) that do not exist on this shape.
 $f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $healthyRemote );
-ok( array() === $f, 'remote-mcp: healthy body -> no findings' );
+ok( array() === $f, 'THE REAL-SHAPE PIN: the healthy REAL (nested) body -> zero findings' );
 
-$notConfigured                = $healthyRemote;
-$notConfigured['configured']  = false;
-$f                             = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $notConfigured );
-ok( 1 === count( $f ) && 'sn-remote-mcp' === $f[0]['subject_label'] && false !== strpos( $f[0]['note'], 'missing' ), 'remote-mcp: configured:false -> outage finding naming what is missing' );
+// THE REAL-SHAPE PIN, part 2: config.configured => false must yield the
+// MISCONFIG outage finding (not the lost-readout one) — this is the half of
+// the old bug that went the other way: `false === null` never fired, so a
+// real outage was silently swallowed.
+$notConfigured = sn_ew_real_remote_mcp_body( array(), array( 'configured' => false ) );
+$f             = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $notConfigured );
+ok( 1 === count( $f ) && 'sn-remote-mcp' === $f[0]['subject_label'] && false !== strpos( $f[0]['note'], 'missing' ), 'THE REAL-SHAPE PIN: config.configured:false -> the misconfig outage finding naming what is missing' );
 
-$killed           = $healthyRemote;
-$killed['killed'] = true;
-$f                = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $killed );
-ok( array() === $f, 'THE STATE-NOT-FAILURE PIN: killed:true -> NO finding (a deliberately dark door is a state)' );
+$killed = sn_ew_real_remote_mcp_body( array(), array( 'killed' => true ) );
+$f      = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $killed );
+ok( array() === $f, 'THE STATE-NOT-FAILURE PIN: config.killed:true -> NO finding (a deliberately dark door is a state)' );
 
 $lostReadout = $healthyRemote;
-unset( $lostReadout['bridge_secret_bound'] );
+unset( $lostReadout['config']['bridge_secret_bound'] );
 $f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $lostReadout );
-ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'lost the readout' ), 'remote-mcp: bridge_secret_bound key ABSENT -> finding, note distinct from an unbound secret' );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'lost the readout' ), 'remote-mcp: config.bridge_secret_bound key ABSENT -> finding, note distinct from an unbound secret' );
 
-$anomalous              = $healthyRemote;
-$anomalous['anomaly']   = array( 'flagged' => true, 'total_today' => 611, 'subjects_over' => 2 );
-$f                      = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $anomalous );
-ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], '611' ) && false !== strpos( $f[0]['note'], '2' ), 'remote-mcp: anomaly.flagged -> finding, note carries the counts' );
+$anomalous            = $healthyRemote;
+$anomalous['anomaly'] = array( 'flagged' => true, 'total_today' => 611, 'subjects_over' => 2 );
+$f                    = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $anomalous );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], '611' ) && false !== strpos( $f[0]['note'], '2' ), 'remote-mcp: anomaly.flagged (top-level) -> finding, note carries the counts' );
 ok( 0 === preg_match( '/[^\s@]+@[^\s@]+\.[^\s@]+/', $f[0]['note'] ), 'THE NO-IDENTITY PIN (health half): the anomaly note contains no email-shaped string' );
 
 // THE DEGRADED-INSTRUMENT PIN: anomaly null/non-array is UNKNOWN, never a
@@ -266,14 +299,27 @@ unset( $preAnomalyWorker['anomaly'] );
 $f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $preAnomalyWorker );
 ok( array() === $f, 'remote-mcp: v0.2.0-era body with no anomaly block at all -> absent measurement, no finding' );
 
-// Item 4: `configured` key ABSENT entirely (distinct from configured:false)
-// is also absent measurement, never a finding — the same absent!=false
-// doctrine this file already applies to $mr_sensor and the login-guard
-// refresh-reason fields. Only an explicit `configured: false` is an outage.
+// Item 4: `config.configured` key ABSENT entirely (distinct from
+// configured:false) is also absent measurement, never a finding — the same
+// absent!=false doctrine this file already applies to $mr_sensor and the
+// login-guard refresh-reason fields. Only an explicit `configured: false`
+// is an outage.
 $noConfiguredKey = $healthyRemote;
-unset( $noConfiguredKey['configured'] );
+unset( $noConfiguredKey['config']['configured'] );
 $f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $noConfiguredKey );
-ok( array() === $f, 'remote-mcp: configured key ABSENT (not false) -> absent measurement, no finding' );
+ok( array() === $f, 'remote-mcp: config.configured key ABSENT (not false) -> absent measurement, no finding' );
+
+// A body with `config` missing ENTIRELY (e.g. a garbage/partial body)
+// degrades to an empty $rm_config: `configured` reads as absent (no
+// misconfig finding — absent!=false), but `bridge_secret_bound` is
+// ALSO absent from that empty array, so the lost-readout finding still
+// fires — a config block gone missing is at least as strong a signal as
+// one field gone missing from it, and the existing check already covers it
+// without a special case.
+$noConfigBlock = $healthyRemote;
+unset( $noConfigBlock['config'] );
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $noConfigBlock );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'lost the readout' ), 'remote-mcp: config block missing ENTIRELY -> the lost-readout finding fires (bridge_secret_bound is also absent from the empty fallback)' );
 
 // ── I/O wrapper: the probe is unconditional (fixed URL, no config skip) ──
 // $healthyLg is "fresh" relative to the fixed $NOW used by the pure-function
@@ -286,7 +332,7 @@ $GLOBALS['__ew']['lg']        = array( 'denylistCount' => 4586, 'compiledAt' => 
 $GLOBALS['__ew']['remote_mcp_resp']  = array( 'code' => 200, 'body' => json_encode( $healthyRemote ) );
 $GLOBALS['__ew']['remote_mcp_error'] = false;
 $r = sn_health_check_edge_workers();
-ok( 0 === $r['count'], 'wrapper: healthy remote-mcp body contributes no findings' );
+ok( 0 === $r['count'], 'wrapper: THE REAL-SHAPE PIN — a healthy REAL (nested) body over the wire contributes no findings' );
 
 $GLOBALS['__ew']['transient']       = array();
 $GLOBALS['__ew']['remote_mcp_error'] = true;
@@ -299,7 +345,7 @@ $GLOBALS['__ew']['remote_mcp_error'] = false;
 // the `worker` field must be read before believing anything else in the
 // body. A well-shaped 200 whose `worker` field names a DIFFERENT worker (or
 // omits it) must be treated exactly like an unparseable body: unreachable.
-$wrongWorker           = $healthyRemote;
+$wrongWorker = $healthyRemote;
 $wrongWorker['worker'] = 'sn-analytics';
 $GLOBALS['__ew']['transient']       = array();
 $GLOBALS['__ew']['remote_mcp_resp'] = array( 'code' => 200, 'body' => json_encode( $wrongWorker ) );
