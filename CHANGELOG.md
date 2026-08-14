@@ -4,6 +4,22 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Added
+- **The verification quartet's threat model, written before its arc opens** (§9 of
+  `docs/security/agent-surface-threat-model.md`, closing the §6 precondition). The
+  quartet's four rows sort into two boundaries and two non-boundaries: the in-page tool
+  surface and the machine-surface pointers open the SAME new boundary (A6, the anonymous
+  page-context caller — invited, not intruding), the standalone verifier moves code
+  outside the trust domain, and software-provenance is that verifier's completion rather
+  than a sibling; configuration drift is explicitly out of the section (Operations, no
+  agent surface). Seven attacks argued gate by gate — the sharpest being T1, the verdict
+  endpoint the site would be tempted to build against itself — and six preconditions
+  (P-51…P-56) gate the build sessions, anchored by P-51: **the origin publishes
+  verifiable inputs; the caller computes the verdict; no endpoint ever asserts.** The
+  existing `/verify` posture (client-side crypto, browser-direct fetches, zero origin
+  compute) is named as the precedent the quartet extends rather than replaces. Docs
+  only; rides the next bump.
+
 ## [11.5.0] - 2026-08-14 — replay protection stops being opt-in
 
 **MINOR** — closes the design gap the same-day reinsertion audit recorded: the write
