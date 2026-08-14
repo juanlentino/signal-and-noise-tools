@@ -260,6 +260,40 @@ foreach ( $topics_opt['clusters'] as $c ) {
 	if ( ! is_string( $c['label'] ) || '' === $c['label'] ) { $c_labels_ok = false; }
 }
 ok( $c_labels_ok, '(c) every stored cluster carries a non-empty deterministic label' );
+// v11.3.1: THE PIN THIS ARC SHIPPED WITHOUT. tests/ml-paths.php proved the
+// kernel chain and the resolver, but nothing asserted the REAL BUILD writes
+// the path field — a mechanism only its author had run. Found live: a raced
+// rebuild produced clusters without paths and every green suite stayed green.
+$c_paths_ok = true;
+foreach ( $topics_opt['clusters'] as $c ) {
+	$path = $c['path'] ?? null;
+	if ( ! is_array( $path ) || count( $path ) !== count( $c['members'] ) || array() !== array_diff( $c['members'], $path ) ) {
+		$c_paths_ok = false;
+	}
+}
+ok( $c_paths_ok, '(c) THE BUILD WRITES THE ORDERING: every stored cluster carries a path over exactly its members' );
+ok( 'test' === ( $topics_opt['built_by'] ?? null ), '(c) the artifact stamps WHICH VERSION wrote it (SNT_VERSION at build time)' );
+
+// v11.3.1: the stale-shape self-heal. An artifact stamped by another version
+// schedules the coalesced rebuild; a current stamp schedules nothing; and a
+// never-built site is the daily backstop\'s case, not this trigger\'s.
+$GLOBALS['__cron']['single'] = array();
+snt_ml_stale_shape_check();
+ok( array() === $GLOBALS['__cron']['single'], '(c) a CURRENT stamp schedules no rebuild — the check is not a rebuild loop' );
+$mismatched             = $topics_opt;
+$mismatched['built_by'] = 'v-from-before-the-upgrade';
+update_option( SNT_ML_TOPICS_OPT, $mismatched, false );
+snt_ml_stale_shape_check();
+ok( 1 === count( $GLOBALS['__cron']['single'] ) && SNT_ML_REBUILD_ASYNC_HOOK === $GLOBALS['__cron']['single'][0]['hook'], '(c) SELF-HEAL: a version-mismatched artifact schedules the coalesced rebuild (the measured install race, closed)' );
+// A PRE-stamp artifact (no built_by at all — exactly what the live race
+// produced) must also heal: absent stamp ≠ current stamp.
+unset( $mismatched['built_by'] );
+update_option( SNT_ML_TOPICS_OPT, $mismatched, false );
+$GLOBALS['__cron']['single'] = array();
+snt_ml_stale_shape_check();
+ok( 1 === count( $GLOBALS['__cron']['single'] ), '(c) an UNSTAMPED artifact (pre-11.3.1 shape, the live case) heals too — absent and current are different answers' );
+update_option( SNT_ML_TOPICS_OPT, $topics_opt, false ); // Restore for the groups below.
+$GLOBALS['__cron']['single'] = array();
 ok( isset( $env['clusters'] ) && count( $topics_opt['clusters'] ) === $env['clusters'], '(c) envelope reports the stored cluster count' );
 ok( is_array( snt_ml_topics_get() ) && $topics_opt['clusters'] === snt_ml_topics_get(), '(c) snt_ml_topics_get() returns the stored clusters' );
 

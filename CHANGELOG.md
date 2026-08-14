@@ -4,6 +4,37 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.3.1] - 2026-08-14 — the label speaks prose, and a raced artifact heals itself
+
+Both defects were found by LIVE VERIFICATION of v11.3.0, minutes after install — neither
+was visible to any suite, which is the finding worth keeping.
+
+### Fixed
+- **A cluster label read "currentcolor · fill" on its way to the public.** The tokenizer's
+  tag-stripper removes tags but keeps their text, so the CSS inside an inline SVG figure's
+  `<style>` block tokenized as vocabulary — and two provenance notes clustered partly on
+  their shared stylesheet, labelling the site's first reader-facing reading path with CSS
+  identifiers. `snt_ml_tokenize()` now drops non-prose containers (`style`, `script`)
+  whole, contents included, before the tag strip; the SVG's visible `<text>` is prose and
+  survives. Harmless while labels were admin-only; the reading-path nav is what made it a
+  reader-facing defect.
+- **An artifact written by a raced rebuild now heals itself.** Measured on the v11.3.0
+  install: the install triggered a rebuild ~3 seconds after the files were replaced, old
+  code ran, and the artifact came out without `path` keys — then would have sat stale
+  until the daily backstop, with every consumer honestly reporting "not built" (the
+  three-way contract held: no broken UI, no literal token; but the honest absence had no
+  heal trigger except luck). The build now stamps `built_by` (SNT_VERSION) into the topics
+  option, and an `init` check schedules the same coalesced +30s rebuild every other
+  trigger uses when the stamp mismatches — including the **unstamped** pre-11.3.1 shape,
+  which is exactly what the live race produced: absent and current are different answers.
+
+### Added
+- **The pin this arc shipped without.** `tests/ml-paths.php` proved the kernel chain and
+  the resolver; nothing asserted the REAL build writes the `path` field — a mechanism only
+  its author had run. The artifacts suite now pins that every stored cluster carries a
+  path over exactly its members, the version stamp, and all three self-heal cases (current
+  stamp → no rebuild; mismatched stamp → rebuild; missing stamp → rebuild).
+
 ## [11.3.0] - 2026-08-14 — every cluster learns its reading order, and the board closes R4's ML pair
 
 **MINOR** — R4 4B ships: reading paths from cluster geometry, ML pipeline #10. The plugin

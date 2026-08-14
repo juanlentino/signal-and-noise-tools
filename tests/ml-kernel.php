@@ -78,6 +78,17 @@ ok( snt_ml_tokenize( 'a I x of to' ) === array(), '(a) min length 2 + stopwords:
 ok( snt_ml_tokenize( 'Über naïve Ω-θεωρία' ) === array( 'über', 'naïve', 'θεωρία' ),
 	'(a) unicode-safe: mb lowercase (Ü→ü) and \p{L} split keep non-ASCII words; lone Ω drops on length' );
 ok( snt_ml_tokenize( '' ) === array() && snt_ml_tokenize( '<!-- wp:x --><br/>' ) === array(), '(a) empty and markup-only inputs yield []' );
+// 2026-08-14, found LIVE on the first reader-facing use of cluster labels: the
+// tag-stripper removes <style> TAGS but keeps their CSS text, so an inline SVG
+// figure's stylesheet dominated a real cluster's vocabulary — the public label
+// read "currentcolor · fill". Container elements whose CONTENT is not prose
+// (style, script) must drop whole. The SVG's visible <text> is prose and stays.
+$svg = '<p>The provenance argument.</p><svg><style>.ph-box { fill: none; stroke: currentColor; } .ph-label { font-size: 13px; }</style><text>pipeline</text></svg><script>var ledger = "never";</script>';
+$svg_tokens = snt_ml_tokenize( $svg );
+ok( ! in_array( 'currentcolor', $svg_tokens, true ) && ! in_array( 'fill', $svg_tokens, true ) && ! in_array( 'stroke', $svg_tokens, true ) && ! in_array( '13px', $svg_tokens, true ), '(a) THE LIVE LABEL BUG: style-element CSS never tokenizes — a cluster label must be prose, not a stylesheet' );
+ok( ! in_array( 'var', $svg_tokens, true ) && ! in_array( 'ledger', $svg_tokens, true ), '(a) script contents drop whole for the same reason' );
+ok( in_array( 'provenance', $svg_tokens, true ) && in_array( 'pipeline', $svg_tokens, true ), '(a) prose around AND inside the figure (the visible <text>) still tokenizes — the fix removes noise, not signal' );
+ok( snt_ml_tokenize( '<style>.a{fill:red}</style>signal' ) === array( 'signal' ), '(a) an unclosed-tag-free style block leaves only the prose after it' );
 ok( snt_ml_tokenize( 'noise noise noise' ) === array( 'noise', 'noise', 'noise' ), '(a) duplicates preserved in order — TF depends on it' );
 
 echo "\nGroup (b): corpus stats — df, smoothed idf edges, lengths\n";
