@@ -32,8 +32,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *     @type int      $rw_last_used   Unix timestamp; 0 = never used.
  *     @type bool     $adapter_active Whether WP\MCP\Core\McpAdapter is loaded.
  *     @type string   $adapter_url    Adapter default-server REST URL.
+ *     @type string   $remote_state   constant_killed|option_off|secret_missing|bridge_ready.
  * }
- * @return array<int,array<string,mixed>> Exactly three cards for sn_admin_glance_grid().
+ * @return array<int,array<string,mixed>> Exactly four cards for sn_admin_glance_grid().
  */
 function sn_admin_mcp_status_cards( array $state ) {
 	$read_count     = array_key_exists( 'read_count', $state ) ? $state['read_count'] : null;
@@ -45,6 +46,7 @@ function sn_admin_mcp_status_cards( array $state ) {
 	$rw_last_used   = isset( $state['rw_last_used'] ) ? (int) $state['rw_last_used'] : 0;
 	$adapter_active = ! empty( $state['adapter_active'] );
 	$adapter_url    = isset( $state['adapter_url'] ) ? (string) $state['adapter_url'] : '';
+	$remote_state   = isset( $state['remote_state'] ) ? (string) $state['remote_state'] : 'option_off';
 
 	$read_card = array(
 		'label'     => __( 'Read door', 'signal-and-noise-tools' ),
@@ -144,7 +146,55 @@ function sn_admin_mcp_status_cards( array $state ) {
 		'meta_html' => '<code>' . esc_url( $adapter_url ) . '</code>',
 	);
 
-	return array( $read_card, $rw_card, $adapter_card );
+	// The bridge endpoint answers 404 for a closed switch, an undefined
+	// SN_BRIDGE_TOKEN and an unknown slug alike — deliberately, so an
+	// unauthenticated caller cannot tell a dark switch from a broken deploy.
+	// The cost is that the OWNER cannot tell either, and this card is where
+	// that cost is paid: on an authenticated surface, the states are named.
+	switch ( $remote_state ) {
+		case 'constant_killed':
+			$remote_value = __( 'Killed in wp-config', 'signal-and-noise-tools' );
+			$remote_meta  = sprintf(
+				/* translators: %s: SN_MCP_REMOTE_DISABLED wrapped in <code>. */
+				__( 'The %s constant is set in wp-config, so the toggle below cannot reopen this door.', 'signal-and-noise-tools' ),
+				'<code>SN_MCP_REMOTE_DISABLED</code>'
+			);
+			$remote_pill = array( 'kind' => 'err', 'text' => __( 'killed', 'signal-and-noise-tools' ) );
+			break;
+		case 'secret_missing':
+			$remote_value = __( 'On, but unusable', 'signal-and-noise-tools' );
+			$remote_meta  = sprintf(
+				/* translators: %s: SN_BRIDGE_TOKEN wrapped in <code>. */
+				__( 'The door is on but %s is not defined in wp-config.php, so the bridge route is not registered. The endpoint answers 404 — the same as a closed door — on purpose.', 'signal-and-noise-tools' ),
+				'<code>SN_BRIDGE_TOKEN</code>'
+			);
+			$remote_pill = array( 'kind' => 'err', 'text' => __( 'secret missing', 'signal-and-noise-tools' ) );
+			break;
+		case 'bridge_ready':
+			$remote_value = __( 'Bridge ready', 'signal-and-noise-tools' );
+			$remote_meta  = __( 'The switch is on and the bridge secret is defined, so the route is registered and answers the Worker.', 'signal-and-noise-tools' );
+			$remote_pill  = array( 'kind' => 'ok', 'text' => __( 'ready', 'signal-and-noise-tools' ) );
+			break;
+		case 'option_off':
+		default:
+			$remote_value = __( 'Switched off', 'signal-and-noise-tools' );
+			$remote_meta  = sprintf(
+				/* translators: %s: sn_mcp_remote_enabled wrapped in <code>. */
+				__( 'The %s option is off, so the endpoint answers 404.', 'signal-and-noise-tools' ),
+				'<code>sn_mcp_remote_enabled</code>'
+			);
+			$remote_pill = array( 'kind' => 'warn', 'text' => __( 'off', 'signal-and-noise-tools' ) );
+			break;
+	}
+
+	$remote_card = array(
+		'label'     => __( 'Remote door', 'signal-and-noise-tools' ),
+		'value'     => $remote_value,
+		'meta_html' => $remote_meta,
+		'pill'      => $remote_pill,
+	);
+
+	return array( $read_card, $rw_card, $adapter_card, $remote_card );
 }
 
 /**
@@ -197,6 +247,20 @@ function sn_admin_mcp_status_state() {
 		}
 	}
 
+	// Remote door. Everything after the constant is guarded, because this file
+	// renders in test harnesses that do not load the bridge lane at all.
+	$remote_state = 'option_off';
+	if ( defined( 'SN_MCP_REMOTE_DISABLED' ) && SN_MCP_REMOTE_DISABLED ) {
+		$remote_state = 'constant_killed';
+	} elseif ( function_exists( 'sn_mcp_remote_kill_switch_engaged' ) && ! sn_mcp_remote_kill_switch_engaged() ) {
+		// The door is open. Distinguish "ready" from "on but unusable", because
+		// the endpoint deliberately answers 404 for both and the owner cannot
+		// tell them apart from outside.
+		$remote_state = ( function_exists( 'sn_bridge_secret' ) && '' !== sn_bridge_secret() )
+			? 'bridge_ready'
+			: 'secret_missing';
+	}
+
 	return array(
 		'read_count'     => $read_count,
 		'read_url'       => $read_url,
@@ -207,7 +271,37 @@ function sn_admin_mcp_status_state() {
 		'rw_last_used'   => $rw_last_used,
 		'adapter_active' => $adapter_active,
 		'adapter_url'    => $adapter_url,
+		'remote_state'   => $remote_state,
 	);
+}
+
+/**
+ * Echo the remote-door toggle. The house admin form pattern: a POST back to the
+ * same screen carrying the shared sn_theme_options_nonce and an sn_action, read
+ * by the existing options handler — no settings-API registration, no bespoke
+ * admin_post_ hook.
+ *
+ * The checkbox is disabled when SN_MCP_REMOTE_DISABLED is set: a door killed in
+ * wp-config must not look reopenable from the web.
+ *
+ * @return void
+ */
+function sn_admin_render_mcp_remote_toggle() {
+	$constant_killed = defined( 'SN_MCP_REMOTE_DISABLED' ) && SN_MCP_REMOTE_DISABLED;
+	$door_open       = function_exists( 'sn_mcp_remote_kill_switch_engaged' ) && ! sn_mcp_remote_kill_switch_engaged();
+	?>
+	<form method="post">
+		<?php wp_nonce_field( 'sn_theme_options_nonce' ); ?>
+		<input type="hidden" name="sn_action" value="remote_toggle" />
+		<label>
+			<input type="checkbox" name="sn_remote_enabled" value="1"
+				<?php checked( $door_open ); ?>
+				<?php disabled( $constant_killed ); ?> />
+			<?php esc_html_e( 'Remote analytics door enabled', 'signal-and-noise-tools' ); ?>
+		</label>
+		<?php submit_button( __( 'Save', 'signal-and-noise-tools' ), 'secondary' ); ?>
+	</form>
+	<?php
 }
 
 /**
@@ -220,4 +314,5 @@ function sn_admin_render_mcp_status_glance() {
 		return;
 	}
 	sn_admin_glance_grid( sn_admin_mcp_status_cards( sn_admin_mcp_status_state() ) );
+	sn_admin_render_mcp_remote_toggle();
 }

@@ -36,6 +36,7 @@ function sn_admin_post_handlers() {
 		'cf_save'                    => 'sn_handle_cf_save',
 		'cf_purge_now'               => 'sn_handle_cf_purge_now',
 		'health_scan'                => 'sn_handle_health_scan',
+		'remote_toggle'              => 'sn_handle_remote_toggle',
 		'webhook_add'                => 'sn_handle_webhook_add',
 		'webhook_update'             => 'sn_handle_webhook_update',
 		'webhook_delete'             => 'sn_handle_webhook_delete',

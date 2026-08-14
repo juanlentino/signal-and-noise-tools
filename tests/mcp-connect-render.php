@@ -80,6 +80,27 @@ function selected( $a, $b = true, $echo = true ) {
 	return $r;
 }
 
+// The remote-door toggle form's four WordPress functions. Modelled on the real
+// callees' shapes: checked()/disabled() ECHO by default and also return, and
+// esc_html_e() ECHOES (esc_html__() returns — using the returning one where
+// output is expected prints nothing, silently). Absent stubs would fatal this
+// suite, and a fataled suite prints no summary line, so run.sh would count it
+// missing rather than failing.
+function checked( $a, $b = true, $echo = true ) {
+	$r = ( $a == $b ) ? ' checked' : ''; // phpcs:ignore Universal.Operators.StrictComparisons -- core checked() is loose.
+	if ( $echo ) { echo $r; }
+	return $r;
+}
+function disabled( $a, $b = true, $echo = true ) {
+	$r = ( $a == $b ) ? ' disabled' : ''; // phpcs:ignore Universal.Operators.StrictComparisons -- core disabled() is loose.
+	if ( $echo ) { echo $r; }
+	return $r;
+}
+function submit_button( $text = '', $type = 'primary', $name = 'submit', $wrap = true ) {
+	echo '<button type="submit" name="' . htmlspecialchars( (string) $name, ENT_QUOTES ) . '">' . htmlspecialchars( (string) $text, ENT_QUOTES ) . '</button>';
+}
+function esc_html_e( $s, $d = null ) { sn_test_i18n_record( $s, $d ); echo htmlspecialchars( (string) $s, ENT_QUOTES, 'UTF-8' ); }
+
 function wp_kses_post( $s ) { return (string) $s; } // admin-glance meta_html pass-through (M3 glance).
 
 require __DIR__ . '/../inc/admin-glance.php';       // sn_admin_glance_grid() — the M3 status glance renders through it.
@@ -349,13 +370,17 @@ $GLOBALS['__app_passwords'] = array(
 	array( 'uuid' => $uuid_b, 'name' => $escaping_name, 'created' => 1700000000, 'last_used' => null ),
 );
 
-// ── MIRROR RULE, updated for R9: the binding form is the ONE deliberate
-// write surface on this leaf — assert there is EXACTLY one <form>, and that
-// its action is the credential-bind action (never some other, unreviewed
-// write surface slipping in unnoticed). ──
-ok( 1 === substr_count( $html, '<form' ), 'MIRROR RULE: exactly ONE <form> on the whole leaf (the R9 binding form)' );
+// ── MIRROR RULE, updated for the bridge half: this leaf now carries TWO
+// deliberate write surfaces — the R9 credential-binding form and the remote
+// door's kill-switch toggle. The rule's point is that no THIRD, unreviewed
+// write surface slips in unnoticed, so the count rises only alongside the
+// sn_action pins below that name each surface's action. ──
+ok( 2 === substr_count( $html, '<form' ), 'MIRROR RULE: exactly TWO <form>s on the whole leaf (R9 binding + remote toggle)' );
+ok( 2 === substr_count( $html, 'name="sn_action"' ), 'MIRROR RULE: both forms declare an sn_action, so neither is an unnamed write surface' );
+ok( 1 === substr_count( $html, 'value="bind_mcp_rw_credential"' ), 'MIRROR RULE: exactly one form carries the credential-bind action' );
+ok( 1 === substr_count( $html, 'value="remote_toggle"' ), 'MIRROR RULE: exactly one form carries the remote_toggle action' );
 ok( 1 === substr_count( $html, '<select' ), 'MIRROR RULE: exactly ONE <select> on the whole leaf' );
-ok( 1 === substr_count( $html, '<button' ), 'MIRROR RULE: exactly ONE <button> on the whole leaf' );
+ok( 2 === substr_count( $html, '<button' ), 'MIRROR RULE: exactly TWO <button>s on the whole leaf (one submit per form)' );
 ok( false === strpos( $html, '<textarea' ), 'MIRROR RULE: still no <textarea> anywhere in the leaf' );
 
 // ── M1 (IA): bind form + Connect-a-client sit ABOVE both tool lists ──
@@ -454,10 +479,52 @@ ok( false === strpos( $nolist, '0 tools' ), 'M3: and never "0 tools" — unknown
 $present = sn_test_render_status_cards( array_merge( $base_state, array( 'adapter_active' => true ) ) );
 ok( stripos( $present, 'Present' ) !== false, 'M3: an installed adapter reads Present' );
 
-// The glance is DISPLAY-ONLY: it must add no second write surface. The mirror
-// rule above already counts forms/selects/buttons on the full page — re-assert
-// here so M3 cannot regress it.
-ok( 1 === substr_count( $html, '<form' ), 'M3: still exactly ONE form after the glance landed' );
+ok( 2 === substr_count( $html, '<form' ), 'M3: still exactly TWO forms after the glance landed' );
+
+// ══════════════════════════════════════════════════════════════════════════
+// The remote door card + toggle (bridge half). The endpoint answers 404 for a
+// closed switch, an undefined SN_BRIDGE_TOKEN and an unknown slug alike, on
+// purpose — so the OWNER's only way to tell them apart is this authenticated
+// surface. Each state is pinned through the PURE builder, because neither
+// SN_MCP_REMOTE_DISABLED nor SN_BRIDGE_TOKEN can be flipped twice in one
+// process.
+// ══════════════════════════════════════════════════════════════════════════
+$remote_off = sn_test_render_status_cards( array_merge( $base_state, array( 'remote_state' => 'option_off' ) ) );
+ok( stripos( $remote_off, 'Switched off' ) !== false, 'REMOTE: option_off reads as switched off' );
+ok( false !== strpos( $remote_off, 'sn_mcp_remote_enabled' ), 'REMOTE: option_off names the option it reads' );
+
+$remote_killed = sn_test_render_status_cards( array_merge( $base_state, array( 'remote_state' => 'constant_killed' ) ) );
+ok( false !== strpos( $remote_killed, 'SN_MCP_REMOTE_DISABLED' ), 'REMOTE: constant_killed NAMES the constant' );
+ok( stripos( $remote_killed, 'wp-config' ) !== false, 'REMOTE: constant_killed says where the constant lives' );
+
+$remote_secret = sn_test_render_status_cards( array_merge( $base_state, array( 'remote_state' => 'secret_missing' ) ) );
+ok( false !== strpos( $remote_secret, 'SN_BRIDGE_TOKEN' ), 'REMOTE: secret_missing NAMES the undefined constant' );
+ok( stripos( $remote_secret, 'not registered' ) !== false, 'REMOTE: secret_missing explains the route is not registered' );
+ok( stripos( $remote_secret, '404' ) !== false, 'REMOTE: secret_missing says the endpoint answers 404 like a closed door' );
+ok( stripos( $remote_secret, 'Switched off' ) === false, 'REMOTE: secret_missing is NOT rendered as option_off — that is the whole point of this card' );
+ok( stripos( $remote_off, 'SN_BRIDGE_TOKEN' ) === false, 'REMOTE: and option_off does not claim the secret is missing' );
+
+$remote_ready = sn_test_render_status_cards( array_merge( $base_state, array( 'remote_state' => 'bridge_ready' ) ) );
+ok( stripos( $remote_ready, 'ready' ) !== false, 'REMOTE: bridge_ready is its own named state' );
+ok( stripos( $remote_ready, '404' ) === false, 'REMOTE: bridge_ready does not carry any closed-door wording' );
+
+// An unknown/absent remote_state must fall back to the CLOSED reading, never
+// to "ready" — the same fail-closed default the live kill switch uses.
+$remote_absent = sn_test_render_status_cards( $base_state );
+ok( stripos( $remote_absent, 'Switched off' ) !== false, 'REMOTE: an absent remote_state falls back to switched off (fail closed)' );
+
+// ── The toggle form's mechanics, on the real full-page render ──
+ok( false !== strpos( $html, '<input type="hidden" name="sn_action" value="remote_toggle" />' ), 'REMOTE: the toggle form carries the remote_toggle sn_action' );
+ok( false !== strpos( $html, 'name="sn_remote_enabled"' ), 'REMOTE: the toggle form carries the sn_remote_enabled checkbox' );
+ok( 2 === substr_count( $html, 'test-nonce-for-sn_theme_options_nonce' ), 'REMOTE: the toggle form carries the SAME house nonce action as the binding form' );
+ok( sn_i18n_seen( 'Remote analytics door enabled' ), 'REMOTE: the toggle label is translatable' );
+// esc_html_e() ECHOES; esc_html__() returns. Using the returning one here would
+// print nothing at all — pin the label's actual presence, not just its i18n.
+ok( stripos( $html, 'Remote analytics door enabled' ) !== false, 'REMOTE: the toggle label is actually RENDERED (esc_html_e echoes; esc_html__ would print nothing)' );
+// SN_MCP_REMOTE_DISABLED is undefined in this process, so the live render must
+// NOT be disabled. The killed-and-therefore-disabled case is the constant path
+// and is pinned by the state card above plus tests/mcp-remote-guard.php.
+ok( false === strpos( $html, 'disabled />' ), 'REMOTE: with no kill constant defined, the checkbox is not disabled' );
 
 // ── M4 (IA): Claude desktop-app steps fold; slug-list CSS lands ──
 // The callout heading stays outside the fold (section still findable). The
@@ -475,13 +542,42 @@ $oauth_at = strpos( $html, 'application password will not work there' );
 ok( is_int( $claude_fold_at ) && is_int( $oauth_at ) && is_int( $claude_fold_end )
 	&& $claude_fold_at < $oauth_at && $oauth_at < $claude_fold_end,
 	'M4: the OAuth warning is inside the same fold' );
-ok( 1 === substr_count( $html, '<form' ), 'M4 MIRROR RULE: still exactly ONE <form> on the leaf' );
+ok( 2 === substr_count( $html, '<form' ), 'M4 MIRROR RULE: still exactly TWO <form>s on the leaf' );
 ok( 1 === substr_count( $html, '<select' ), 'M4 MIRROR RULE: still exactly ONE <select> on the leaf' );
-ok( 1 === substr_count( $html, '<button' ), 'M4 MIRROR RULE: still exactly ONE <button> on the leaf' );
+ok( 2 === substr_count( $html, '<button' ), 'M4 MIRROR RULE: still exactly TWO <button>s on the leaf' );
 ok( 1 === substr_count( $html, '<pre>' ), 'M4 MIRROR RULE: still exactly ONE <pre> on the leaf' );
 ok( false === strpos( $html, '<textarea' ), 'M4 MIRROR RULE: still no <textarea> on the leaf' );
 $admin_css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
 ok( false !== strpos( $admin_css, '.sn-mcp-tool-list' ), 'M4: .sn-mcp-tool-list has a rule in assets/admin.css' );
+
+// ══════════════════════════════════════════════════════════════════════════
+// The LIVE remote-state resolver. Everything above pins the pure builder, which
+// leaves sn_admin_mcp_status_state()'s remote branch at zero coverage — and a
+// zero-coverage branch shows no red when it is mutated. Drive the REAL guard
+// and secret functions (both files register their hooks only behind
+// function_exists('add_filter'/'add_action'), neither of which is stubbed here,
+// so requiring them has no side effects). Runs LAST: it defines SN_BRIDGE_TOKEN,
+// which cannot be undefined again.
+// ══════════════════════════════════════════════════════════════════════════
+require __DIR__ . '/../inc/mcp/mcp-remote-guard.php'; // the REAL sn_mcp_remote_kill_switch_engaged().
+require __DIR__ . '/../inc/mcp/mcp-bridge-route.php'; // the REAL sn_bridge_secret().
+
+$GLOBALS['__opts'][ SN_MCP_REMOTE_ENABLED_OPTION ] = '';
+$live = sn_admin_mcp_status_state();
+ok( 'option_off' === $live['remote_state'], 'LIVE: the switch off resolves to option_off' );
+
+$GLOBALS['__opts'][ SN_MCP_REMOTE_ENABLED_OPTION ] = '1';
+ok( ! defined( 'SN_BRIDGE_TOKEN' ), 'sanity: SN_BRIDGE_TOKEN is undefined at this point' );
+$live = sn_admin_mcp_status_state();
+ok( 'secret_missing' === $live['remote_state'], 'LIVE: switch ON with no SN_BRIDGE_TOKEN resolves to secret_missing, not option_off and not ready' );
+
+define( 'SN_BRIDGE_TOKEN', 'test-bridge-secret' );
+$live = sn_admin_mcp_status_state();
+ok( 'bridge_ready' === $live['remote_state'], 'LIVE: switch ON with the secret defined resolves to bridge_ready' );
+
+$GLOBALS['__opts'][ SN_MCP_REMOTE_ENABLED_OPTION ] = '';
+$live = sn_admin_mcp_status_state();
+ok( 'option_off' === $live['remote_state'], 'LIVE: a defined secret does NOT reopen a switched-off door' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

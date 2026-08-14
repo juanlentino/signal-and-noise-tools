@@ -1,0 +1,1267 @@
+# Remote analytics bridge (origin side) — Implementation Plan
+
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+
+**Goal:** Give the Cloudflare Worker an authenticated origin channel to exactly one read-only analytics ability, plus a wp-admin toggle so the owner can darken the path from a phone.
+
+**Architecture:** A new `inc/mcp/mcp-bridge-route.php` registers `POST /signal-noise/v1/bridge` **only** when the remote kill switch is on and `SN_BRIDGE_TOKEN` is defined — so both failure modes are a non-existent route rather than a handler branch. The handler compares the Bearer with `hash_equals()`, sets a module flag, grants `sn_read_remote_analytics` through a `user_has_cap` filter, dispatches the ability, and removes the filter in a `finally`. A checkbox on the existing MCP admin surface writes `sn_mcp_remote_enabled` through the plugin's existing `sn_action` dispatch.
+
+**Tech Stack:** PHP 8.3, WordPress REST API, Abilities API. Tests are standalone PHP fixture files with hand-rolled WP stubs, swept by `bash tests/run.sh`. No DB, no WP install.
+
+**Spec:** [`remote-mcp-increment1-bridge-half.md`](remote-mcp-increment1-bridge-half.md)
+
+**Baseline before starting:** `bash tests/run.sh` → `-- swept 426 suites, 16956 assertions passed, 1 skipped --`
+
+---
+
+## Orientation — five things that will otherwise look arbitrary
+
+**1. Tests are standalone scripts, not PHPUnit.** Each `tests/*.php` defines its own WP stubs, `require`s the `inc/` file, and uses a local `ok( $condition, $message )` helper. Run one with `php tests/<name>.php`. `tests/run.sh` gates on each suite's **summary line**, never on absence of FAIL — a fataled suite prints no summary and silently contributes zero. Read `tests/mcp-remote-guard.php` first; this work is its sibling.
+
+**2. The kill switch fails CLOSED.** `sn_mcp_remote_enabled` absent means OFF (`inc/mcp/mcp-remote-guard.php:92` is `get_option( ..., false )`). This inverts every other switch in the plugin and is deliberate. Never "fix" it toward the read door's `true`.
+
+**3. Admin saves go through one dispatcher.** Forms carry `wp_nonce_field( 'sn_theme_options_nonce' )` plus a hidden `sn_action`. `inc/admin-post-handler.php:155` checks the nonce, looks the action up in `sn_admin_post_handlers()` (line 29), and calls a handler in `inc/admin-post-actions.php` which receives raw `$_POST`, unslashes per field, and returns a flash string. Follow that exactly — do not add a bespoke `admin_post_` hook.
+
+**4. Constant-wins is an established admin pattern.** `sn_handle_cf_save()` (`inc/admin-post-actions.php:63`) checks `defined( 'SN_CLOUDFLARE_API_TOKEN' )` and refuses to let the form override it. The toggle does the same with `SN_MCP_REMOTE_DISABLED`.
+
+**5. `inc/admin-tabs-data.php` is a full-sweep contract.** If you touch it, run the entire suite, not one file.
+
+---
+
+## File Structure
+
+| File | Responsibility |
+| --- | --- |
+| **Create** `inc/mcp/mcp-bridge-route.php` | Registration gate, secret compare, capability filter, dispatch |
+| **Create** `tests/mcp-bridge-route.php` | Gate, verification order, capability lifecycle |
+| **Modify** `inc/admin-post-handler.php:29-…` | One line in the handler registry |
+| **Modify** `inc/admin-post-actions.php` | `sn_handle_remote_toggle()` |
+| **Create** `tests/admin-remote-toggle.php` | Toggle handler incl. constant-wins |
+| **Modify** `inc/admin-forms/mcp-connect-status.php` | Remote row states + the toggle form |
+| **Modify** `signal-and-noise-tools.php` | One `require_once` |
+| **Modify** `CHANGELOG.md` | `[Unreleased]` entry |
+
+**Out of scope, tracked elsewhere:** the Worker's `sub` log line lives in `~/Projects/sn-remote-mcp-worker` and is Task 7.
+
+---
+
+## Task 1: The registration gate
+
+**Files:**
+- Create: `inc/mcp/mcp-bridge-route.php`
+- Test: `tests/mcp-bridge-route.php`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `tests/mcp-bridge-route.php`:
+
+```php
+<?php
+/**
+ * Tests: the bridge route does not EXIST unless both gates are open.
+ *
+ * The strongest property in this increment is that "switch off" and "secret
+ * absent" are the same thing from outside: a route that was never registered.
+ * An unregistered route cannot be reached by a handler bug, a filter ordering
+ * mistake, or a future refactor — the code path does not exist.
+ *
+ * THE ASSERTION THAT MATTERS MOST asserts ABSENCE FROM THE ROUTE TABLE, not a
+ * 404 status. A handler that returned 404 would satisfy a status assertion while
+ * leaving the path reachable, which is the bug this design exists to prevent.
+ */
+if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+
+$pass = 0; $fail = 0;
+function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok  - $m\n"; } else { $fail++; echo "  FAIL - $m\n"; } }
+
+function __( $s, $d = null ) { return (string) $s; }
+function add_filter( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__filters'][ $t ][] = $c; return true; }
+function remove_filter( $t, $c, $p = 10 ) { $GLOBALS['__removed'][] = $t; return true; }
+function add_action( $t, $c, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $t ][] = $c; return true; }
+
+$GLOBALS['__options'] = array();
+function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
+
+$GLOBALS['__caps'] = array();
+function current_user_can( $c ) { return ! empty( $GLOBALS['__caps'][ $c ] ); }
+
+class WP_Error {
+	public $code; public $message; public $data;
+	public function __construct( $c = '', $m = '', $d = array() ) { $this->code = $c; $this->message = $m; $this->data = $d; }
+	public function get_error_code() { return $this->code; }
+}
+function is_wp_error( $t ) { return $t instanceof WP_Error; }
+
+// Capture route registrations instead of standing up the REST server.
+$GLOBALS['__routes'] = array();
+function register_rest_route( $ns, $route, $args = array() ) { $GLOBALS['__routes'][ $ns . $route ] = $args; return true; }
+
+require __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
+require __DIR__ . '/../inc/mcp/mcp-bridge-route.php';
+
+echo "Group: the secret reader treats absent and empty alike\n";
+ok( '' === sn_bridge_secret(), 'undefined constant -> empty string' );
+
+echo "Group: BOTH gates must be open, and neither alone is enough\n";
+// Switch off, no secret.
+$GLOBALS['__options'] = array();
+ok( false === sn_bridge_should_register(), 'switch off + no secret -> do not register' );
+
+// Switch on, still no secret.
+$GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
+ok( false === sn_bridge_should_register(), 'THE ONE THAT MATTERS: switch ON but secret ABSENT -> do not register' );
+
+echo "Group: the rest_api_init callback registers nothing while a gate is shut\n";
+$GLOBALS['__routes'] = array();
+sn_bridge_register_routes();
+ok( array() === $GLOBALS['__routes'], 'no route table entry when a gate is shut' );
+
+// The empty-constant path — SN_BRIDGE_TOKEN defined as '' — is NOT asserted
+// separately, and deliberately so. define() cannot be undone and the constant can
+// only be defined once per process, so reaching it would mean either a second
+// fixture file or contorting this one. It is covered by construction instead:
+// sn_bridge_secret() decides absence and emptiness in ONE expression,
+// `defined( ... ) && '' !== (string) SN_BRIDGE_TOKEN`, whose false branch is the
+// constant-absent assertion at the top of this file. Splitting that expression in
+// a future refactor is what would break the coverage — not this omission.
+
+// EVERYTHING BELOW SEES THE CONSTANT. define() is permanent, so no assertion
+// after this line can exercise the secret-absent half; that is why every
+// secret-absent assertion above is placed first and must stay there.
+define( 'SN_BRIDGE_TOKEN', 'topsecret' );
+
+echo "Group: the gate OPENS when both are satisfied — the direction nothing else proves\n";
+// Without this assertion the entire suite is one-directional: every other
+// expectation here is false-or-absent, so `return false;` in
+// sn_bridge_should_register() would be a mutant no test could detect, and a
+// permanently-shut gate would be indistinguishable from a working one.
+$GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
+ok( true === sn_bridge_should_register(), 'THE ONE THAT PROVES IT OPENS: switch ON + secret PRESENT -> register' );
+
+$GLOBALS['__routes'] = array();
+sn_bridge_register_routes();
+ok( isset( $GLOBALS['__routes']['signal-noise/v1/bridge'] ), 'and the route is actually in the route table' );
+
+// Pin the registration ARGUMENTS. Nothing else in this increment asserts what is
+// registered — only whether. The permission_callback is deliberately open:
+// authentication happens in the handler, in ONE ordered place, so a request is
+// never partially authenticated while already inside the abilities layer. Do not
+// "harden" it to a capability check — that would split verification across two
+// layers, which is the thing this design refuses.
+// Read defensively so that a mutation which stops registration reddens these
+// pins cleanly instead of burying them under undefined-key warnings. Under
+// correct code the key always exists, so this costs no strictness.
+$args = isset( $GLOBALS['__routes']['signal-noise/v1/bridge'] ) ? $GLOBALS['__routes']['signal-noise/v1/bridge'] : array();
+ok( 'POST' === ( $args['methods'] ?? null ), 'the route is POST only' );
+ok( 'sn_bridge_handle_request' === ( $args['callback'] ?? null ), 'the callback is the bridge handler' );
+ok( '__return_true' === ( $args['permission_callback'] ?? null ), 'permission_callback is open BY DESIGN — the handler verifies, in one place' );
+
+echo "Group: the mirror case — with the secret PRESENT, the switch alone still shuts the gate\n";
+// This is what makes "switch ON but secret ABSENT" above meaningful. One
+// direction alone is satisfied by OR; the two together are only satisfied by AND.
+// Without this, deleting the kill-switch check from sn_bridge_should_register()
+// would leave the suite fully green.
+$GLOBALS['__options'] = array();
+ok( false === sn_bridge_should_register(), 'THE AND-DISCRIMINATOR: secret PRESENT but switch OFF -> do not register' );
+
+$GLOBALS['__routes'] = array();
+sn_bridge_register_routes();
+ok( array() === $GLOBALS['__routes'], 'and it registers nothing, so the route ceases to exist when the owner darkens the door' );
+
+echo ( 0 === $fail )
+	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
+	: "\nFAILURES ($pass passed, $fail failed): mcp-bridge-route.php\n";
+exit( $fail > 0 ? 1 : 0 );
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `php tests/mcp-bridge-route.php`
+Expected: PHP fatal — `Failed to open stream` for `inc/mcp/mcp-bridge-route.php`.
+
+- [ ] **Step 3: Write the implementation**
+
+Create `inc/mcp/mcp-bridge-route.php`:
+
+```php
+<?php
+/**
+ * Signal & Noise — the Worker→origin bridge (R3 §3D, Increment 1 bridge half).
+ *
+ * ONE route, POST /signal-noise/v1/bridge, that lets the remote analytics Worker
+ * call exactly the slugs on sn_mcp_remote_slugs() and nothing else.
+ *
+ * THE REGISTRATION GATE IS THE DESIGN. The route is registered only when the
+ * remote kill switch is on AND SN_BRIDGE_TOKEN is defined. Both failure modes
+ * are therefore a route that does not exist — a 404 — rather than a handler that
+ * decides to refuse. An unregistered route cannot be reached by a handler bug, a
+ * filter ordering mistake, or a future refactor.
+ *
+ * It also refuses to leak: an earlier draft answered 503 when the secret was
+ * missing, to separate misconfiguration from a client error. A 503 tells an
+ * unauthenticated caller the route exists and the site means to serve it, which
+ * is exactly the reconnaissance a 404 denies. Diagnosis lives in the admin
+ * status panel, which is authenticated.
+ *
+ * THE SECRET IS A CONSTANT, NOT AN OPTION, and that is stronger rather than more
+ * awkward: an option is readable by anything that reaches the database — an
+ * admin-level compromise, a plugin vulnerability, a leaked SQL dump — while
+ * wp-config.php is readable by no web request. Same reasoning as
+ * SN_MCP_READ_DISABLED and SN_MCP_REMOTE_DISABLED.
+ *
+ * Prior art for verifying an INBOUND Worker credential is
+ * inc/analytics-refresh-rest.php, which compares SN_SRV_TOKEN with hash_equals().
+ * (SN_MR_READ_TOKEN in inc/machine-readers-api.php is OUTBOUND — WP calling a
+ * Worker — and is not the pattern here.)
+ *
+ * @package SignalNoiseTools
+ * @since 10.101.0
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+/**
+ * The bridge secret, or '' when it is not usable.
+ *
+ * Absent and empty are deliberately the same answer: a constant defined as ''
+ * must never authenticate anybody.
+ *
+ * @return string
+ */
+function sn_bridge_secret() {
+	return ( defined( 'SN_BRIDGE_TOKEN' ) && '' !== (string) SN_BRIDGE_TOKEN )
+		? (string) SN_BRIDGE_TOKEN
+		: '';
+}
+
+/**
+ * Should the bridge route exist at all on this request?
+ *
+ * BOTH gates, and neither alone. The kill switch is checked through the remote
+ * guard so there is one definition of "the remote door is open".
+ *
+ * @return bool
+ */
+function sn_bridge_should_register() {
+	if ( ! function_exists( 'sn_mcp_remote_kill_switch_engaged' ) ) {
+		return false;
+	}
+	if ( sn_mcp_remote_kill_switch_engaged() ) {
+		return false;
+	}
+	return '' !== sn_bridge_secret();
+}
+
+/**
+ * Register the route, or do nothing at all.
+ *
+ * @return void
+ */
+function sn_bridge_register_routes() {
+	if ( ! sn_bridge_should_register() ) {
+		return;
+	}
+	if ( ! function_exists( 'register_rest_route' ) ) {
+		return;
+	}
+	register_rest_route(
+		'signal-noise/v1',
+		'/bridge',
+		array(
+			'methods'  => 'POST',
+			// Authentication happens in the handler, in ONE ordered place, so
+			// there is never a state where a partially-authenticated request is
+			// already inside the abilities layer.
+			'permission_callback' => '__return_true',
+			'callback'            => 'sn_bridge_handle_request',
+		)
+	);
+}
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'rest_api_init', 'sn_bridge_register_routes' );
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `php tests/mcp-bridge-route.php`
+Expected: `OK (11 passed, 0 failed): mcp-bridge-route.php`
+
+If the count differs from 11, reconcile why rather than editing the number.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add inc/mcp/mcp-bridge-route.php tests/mcp-bridge-route.php
+git commit -m "feat: the bridge route does not exist unless both gates are open
+
+Registration requires the remote kill switch ON and SN_BRIDGE_TOKEN defined, so
+'switch off' and 'secret absent' are the same thing from outside: a route that
+was never registered. An unregistered route cannot be reached by a handler bug,
+a filter ordering mistake, or a future refactor.
+
+An earlier draft answered 503 on a missing secret to separate misconfiguration
+from a client error. That leaks — a 503 tells an unauthenticated caller the route
+exists and the site means to serve it. Diagnosis moves to the admin status panel,
+which is authenticated.
+
+The test asserts ABSENCE FROM THE ROUTE TABLE rather than a 404 status, because a
+handler returning 404 would satisfy a status assertion while leaving the path
+reachable."
+```
+
+---
+
+## Task 2: Secret comparison and the verification order
+
+**Files:**
+- Modify: `inc/mcp/mcp-bridge-route.php`
+- Test: `tests/mcp-bridge-route.php`
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `tests/mcp-bridge-route.php`, immediately before the summary block:
+
+```php
+echo "Group: the Bearer is compared in constant time, and absence is refusal\n";
+// A minimal request stand-in: the handler only asks for a header and the body.
+class SNB_Req {
+	private $headers; private $body;
+	public function __construct( $headers = array(), $body = array() ) { $this->headers = $headers; $this->body = $body; }
+	public function get_header( $k ) { $k = strtolower( $k ); return isset( $this->headers[ $k ] ) ? $this->headers[ $k ] : null; }
+	public function get_json_params() { return $this->body; }
+}
+
+ok( false === sn_bridge_bearer_matches( null, 'secret' ), 'a null Authorization header never matches' );
+ok( false === sn_bridge_bearer_matches( '', 'secret' ), 'an empty Authorization header never matches' );
+ok( false === sn_bridge_bearer_matches( 'Bearer wrong', 'secret' ), 'a wrong bearer does not match' );
+ok( false === sn_bridge_bearer_matches( 'secret', 'secret' ), 'the bare secret without the Bearer prefix does not match' );
+ok( true  === sn_bridge_bearer_matches( 'Bearer secret', 'secret' ), 'the correct Bearer matches' );
+ok( false === sn_bridge_bearer_matches( 'Bearer secret', '' ), 'THE ONE THAT MATTERS: an empty configured secret matches NOTHING' );
+
+// DO NOT "tidy" these two values into something readable — the strangeness IS the
+// test. Both are numeric strings in scientific notation, so PHP's == coerces each
+// to the float 0 and reports 0 == 0, i.e. TRUE: the classic magic-hash bypass.
+// hash_equals() compares them as strings and returns false. This assertion is
+// therefore the witness that distinguishes the two operators, and it is the only
+// one that does. Replacing hash_equals() with == would be an AUTHENTICATION
+// BYPASS for any numeric-looking SN_BRIDGE_TOKEN, not merely a timing regression.
+// (The timing half of hash_equals()'s job remains unassertable in this harness —
+// that is a known and accepted gap, recorded rather than papered over.)
+ok( false === sn_bridge_bearer_matches( 'Bearer 0e222222', '0e111111' ), 'THE TYPE-JUGGLING PIN: two distinct numeric strings must not authenticate each other (PHP == would say 0 == 0)' );
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `php tests/mcp-bridge-route.php`
+Expected: `PHP Fatal error: Uncaught Error: Call to undefined function sn_bridge_bearer_matches()`
+
+- [ ] **Step 3: Write the implementation**
+
+Add to `inc/mcp/mcp-bridge-route.php`, after `sn_bridge_secret()`:
+
+```php
+/**
+ * Does the Authorization header carry the configured secret?
+ *
+ * hash_equals() rather than === so the comparison does not leak the secret's
+ * prefix through timing. Mirrors inc/analytics-refresh-rest.php.
+ *
+ * An empty $secret refuses everything. That case cannot reach here through
+ * sn_bridge_register_routes() — the route would not exist — but the function is
+ * public and must not become an authenticator for a misconfigured site if it is
+ * ever called from somewhere else.
+ *
+ * @param string|null $header The raw Authorization header.
+ * @param string      $secret The configured secret.
+ * @return bool
+ */
+function sn_bridge_bearer_matches( $header, $secret ) {
+	$secret = (string) $secret;
+	if ( '' === $secret ) {
+		return false;
+	}
+	$header = (string) $header;
+	if ( 0 !== strncmp( $header, 'Bearer ', 7 ) ) {
+		return false;
+	}
+	return hash_equals( $secret, substr( $header, 7 ) );
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `php tests/mcp-bridge-route.php`
+Expected: `OK (18 passed, 0 failed): mcp-bridge-route.php`
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add inc/mcp/mcp-bridge-route.php tests/mcp-bridge-route.php
+git commit -m "feat: the bridge compares its Bearer in constant time
+
+hash_equals rather than === so the comparison cannot leak the secret's prefix
+through timing — the same shape inc/analytics-refresh-rest.php already uses for
+SN_SRV_TOKEN, which is the house pattern for verifying an inbound Worker call.
+
+An empty configured secret refuses everything. That state cannot reach this
+function through the registration gate, but the function is public and must not
+become an authenticator for a misconfigured site if it is ever called from
+somewhere else."
+```
+
+---
+
+## Task 3: The request-scoped capability
+
+**Files:**
+- Modify: `inc/mcp/mcp-bridge-route.php`
+- Test: `tests/mcp-bridge-route.php`
+
+This is where the increment could leak a capability, so the tests assert the *lifecycle*, not just the grant.
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `tests/mcp-bridge-route.php`, before the summary block:
+
+```php
+echo "Group: the capability is granted ONLY while a verified request is in flight\n";
+// The filter must consult the module flag, never the request alone.
+ok( false === sn_bridge_is_verified(), 'nothing is verified at rest' );
+
+// EVERY ABSENCE PIN BELOW USES array_key_exists(), NEVER isset(). isset() is
+// false for a key whose value is null, so it cannot tell "never granted" from
+// "granted null" — a grant of `$allcaps['manage_options'] = null;` would sail
+// past an isset() pin while the label still claimed the capability was never
+// granted. array_key_exists() asserts genuine absence, which is what these
+// labels say. Do not "simplify" them back to isset().
+$caps = sn_bridge_grant_capability( array( 'read' => true ) );
+ok( ! array_key_exists( 'sn_read_remote_analytics', $caps ), 'THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight' );
+ok( true === $caps['read'], 'and it passes other capabilities through untouched' );
+
+sn_bridge_set_verified( true );
+ok( true === sn_bridge_is_verified(), 'the flag can be set' );
+$caps = sn_bridge_grant_capability( array( 'read' => true ) );
+ok( true === $caps['sn_read_remote_analytics'], 'a verified request grants exactly the remote capability' );
+ok( ! array_key_exists( 'manage_options', $caps ), 'and never manage_options' );
+
+// The revoke case is handed a NON-EMPTY array on purpose. Passed array(), this
+// pin could not tell "revoked the grant" from "returned an empty array" — an
+// implementation whose unverified branch did `return array();` would look
+// revoked while silently discarding every capability the caller already held.
+// The second assertion is the discriminator.
+sn_bridge_set_verified( false );
+$caps = sn_bridge_grant_capability( array( 'read' => true ) );
+ok( ! array_key_exists( 'sn_read_remote_analytics', $caps ), 'clearing the flag revokes the grant' );
+ok( true === $caps['read'], 'and the revoked path still passes other capabilities through' );
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `php tests/mcp-bridge-route.php`
+Expected: `PHP Fatal error: Uncaught Error: Call to undefined function sn_bridge_is_verified()`
+
+- [ ] **Step 3: Write the implementation**
+
+Add to `inc/mcp/mcp-bridge-route.php`:
+
+```php
+/**
+ * The in-flight verification flag.
+ *
+ * A module-scoped static rather than a global so nothing outside this file can
+ * set it. The capability filter consults ONLY this — never the request — so a
+ * request that did not pass verification cannot be granted anything even if the
+ * filter is somehow still attached.
+ *
+ * @param bool $value
+ * @return void
+ */
+function sn_bridge_set_verified( $value ) {
+	sn_bridge_verified_state( (bool) $value );
+}
+
+/**
+ * @return bool
+ */
+function sn_bridge_is_verified() {
+	return sn_bridge_verified_state( null );
+}
+
+/**
+ * Single owner of the flag's storage.
+ *
+ * @param bool|null $set Null reads; a bool writes.
+ * @return bool
+ */
+function sn_bridge_verified_state( $set = null ) {
+	static $verified = false;
+	if ( null !== $set ) {
+		$verified = (bool) $set;
+	}
+	return $verified;
+}
+
+/**
+ * Grant the remote capability, and ONLY while a verified request is in flight.
+ *
+ * Attached to `user_has_cap` for the duration of one dispatch and removed in a
+ * `finally`. Grants exactly one capability — never a role, never
+ * manage_options, and never anything derived from the request.
+ *
+ * @param array $allcaps
+ * @return array
+ */
+function sn_bridge_grant_capability( $allcaps ) {
+	if ( ! sn_bridge_is_verified() ) {
+		return $allcaps;
+	}
+	$allcaps = is_array( $allcaps ) ? $allcaps : array();
+	$cap     = defined( 'SN_MCP_REMOTE_CAPABILITY' ) ? SN_MCP_REMOTE_CAPABILITY : 'sn_read_remote_analytics';
+	$allcaps[ $cap ] = true;
+	return $allcaps;
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `php tests/mcp-bridge-route.php`
+Expected: `OK (26 passed, 0 failed): mcp-bridge-route.php`
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add inc/mcp/mcp-bridge-route.php tests/mcp-bridge-route.php
+git commit -m "feat: the bridge capability exists only while a verified request is in flight
+
+The user_has_cap filter consults a module-scoped flag and NEVER the request, so
+a request that did not pass verification cannot be granted anything even if the
+filter is somehow still attached. It grants exactly one capability — never a
+role, never manage_options.
+
+The tests assert the LIFECYCLE rather than the grant: nothing at rest, granted
+while verified, revoked when the flag clears. A test that only checked the grant
+would pass against an implementation that never removed it."
+```
+
+---
+
+## Task 4: The handler — verification order and dispatch
+
+**Files:**
+- Modify: `inc/mcp/mcp-bridge-route.php`
+- Test: `tests/mcp-bridge-route.php`
+
+- [ ] **Step 1: Write the failing test**
+
+Append to `tests/mcp-bridge-route.php`, before the summary block:
+
+```php
+// LABEL REWORDED to match what the bodies below actually establish. It formerly
+// read "refuses in order, and never leaks which gate refused" while asserting
+// neither: every 401 pin sent an on-list slug, so the ordering was free, and no
+// two refusals were ever compared against each other. Both properties now have
+// witnesses — the pre-auth 401 pins for the first, the two identical 404s for the
+// second — and the label is narrowed to exactly those, because a caller holding a
+// VALID secret still learns 400-vs-404-vs-401, which is deliberate and not a leak.
+echo "Group: the handler refuses in ORDER, and its two 404s are indistinguishable\n";
+// A stub ability layer: one known slug that echoes its args.
+$GLOBALS['__executed'] = array();
+class SNB_Ability {
+	private $slug;
+	public function __construct( $s ) { $this->slug = $s; }
+	public function execute( $args ) {
+		$GLOBALS['__executed'][] = array( $this->slug, $args );
+		// The throwing half of the stub. An ability CAN throw — a DB error, a
+		// remote timeout, a TypeError inside a callback — and the handler's
+		// cleanup has to survive it. See the throw group at the bottom.
+		if ( ! empty( $GLOBALS['__throw'] ) ) { throw new RuntimeException( 'the ability exploded' ); }
+		return array( 'ran' => $this->slug );
+	}
+}
+/**
+ * The ability lookup, with a suppression flag.
+ *
+ * $GLOBALS['__no_ability'] holds a slug that this stub refuses to resolve EVEN
+ * THOUGH it is on sn_mcp_remote_slugs(). That is not a contrived state: the list
+ * and the ability registry are separate things, and a slug can be listed while
+ * its ability is not registered — a module deactivated, a load-order change, a
+ * registration hook that ran too late. Do not delete this flag as dead
+ * scaffolding; it is the only way to reach the handler's third refusal.
+ */
+function wp_get_ability( $slug ) {
+	if ( isset( $GLOBALS['__no_ability'] ) && $slug === $GLOBALS['__no_ability'] ) {
+		return null;
+	}
+	return in_array( $slug, sn_mcp_remote_slugs(), true ) ? new SNB_Ability( $slug ) : null;
+}
+
+// NOTE: SN_BRIDGE_TOKEN is ALREADY defined as 'topsecret' above, which the
+// gate-opens assertion needs. Do not define it again here — a second define() of
+// the same constant is a PHP warning and the value would not change.
+$REMOTE = sn_mcp_remote_slugs()[0];
+
+$r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'no Authorization -> 401' );
+
+$r = sn_bridge_handle_request( new SNB_Req( array( 'authorization' => 'Bearer wrong' ), array( 'slug' => $REMOTE ) ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'wrong Bearer -> 401' );
+
+// THE ORDER PINS. The two 401s above both send an ON-LIST slug, so they are
+// satisfied no matter which check runs first — moving the slug checks above the
+// Bearer check leaves them green. These two are the only witnesses that
+// AUTHENTICATION RUNS FIRST.
+//
+// Why that ordering is the security property and not a style preference: with
+// the slug checks first, an UNAUTHENTICATED caller gets 404 for a slug that is
+// off the remote list and 401 for one that is on it. That difference is a
+// complete enumeration oracle for sn_mcp_remote_slugs(), readable with no
+// credential at all — which is precisely what answering 404-rather-than-403
+// below exists to deny. An unauthenticated caller must learn NOTHING about the
+// body it sent, so every pre-auth refusal has to be the same 401.
+$r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => 'signal-noise/get-post-content' ) ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'THE ORDER PIN: no Authorization + an OFF-LIST slug -> 401, not 404 — the Bearer is checked FIRST' );
+
+$r = sn_bridge_handle_request( new SNB_Req( array(), array() ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'and no Authorization + no slug -> 401, not 400 — an unauthenticated caller learns nothing about its body' );
+
+$good = array( 'authorization' => 'Bearer topsecret' );
+$offlist = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
+ok( is_wp_error( $offlist ) && 404 === $offlist->data['status'], 'THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403' );
+
+$r = sn_bridge_handle_request( new SNB_Req( $good, array() ) );
+ok( is_wp_error( $r ) && 400 === $r->data['status'], 'a missing slug -> 400' );
+
+// THE THIRD REFUSAL, which nothing else in this file can reach. A slug can be on
+// sn_mcp_remote_slugs() and still have no registered ability: the list and the
+// ability registry are separate, so a deactivated module, a load-order change, or
+// a registration hook that ran after rest_api_init all produce exactly this state
+// in production. It is not hypothetical, and it must not be the one path that
+// 500s or fatals — a stack trace from an authenticated bridge call is both an
+// availability bug and an information leak.
+$GLOBALS['__no_ability'] = $REMOTE;
+$r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+unset( $GLOBALS['__no_ability'] );
+ok( is_wp_error( $r ) && 404 === $r->data['status'], 'an ON-LIST slug whose ability does not resolve -> 404, not a 500 and not a fatal' );
+// AND INDISTINGUISHABLE FROM THE OFF-LIST REFUSAL. Matching the status alone is
+// not enough: two refusals carrying different error CODES would rebuild the same
+// enumeration oracle one field further down, telling a caller who holds a valid
+// secret which listed slugs are actually wired up. The identical code IS the
+// property, so it gets its own witness.
+ok( $offlist->get_error_code() === $r->get_error_code(), 'and it carries the SAME error code as the off-list refusal — the two are not distinguishable from outside' );
+
+echo "Group: a verified call dispatches, and leaves nothing behind\n";
+$GLOBALS['__executed'] = array();
+$GLOBALS['__removed']  = array();
+$r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE, 'args' => array( 'range' => 7 ) ) ) );
+ok( ! is_wp_error( $r ), 'a fully valid call is not an error' );
+// THE ENVELOPE PIN. `! is_wp_error()` is true of the ability's raw return too, so
+// without this the wrapper is unasserted and returning $out unwrapped is a
+// mutation no pin catches. The Worker parses this shape; changing it silently is
+// a cross-artifact break that shows up only at the far end of the bridge.
+ok( array( 'ok' => true, 'data' => array( 'ran' => $REMOTE ) ) === $r, 'and it comes back in the ok/data envelope, with the ability output under data' );
+ok( 1 === count( $GLOBALS['__executed'] ), 'the ability executed exactly once' );
+ok( array( 'range' => 7 ) === $GLOBALS['__executed'][0][1], 'and received its args' );
+ok( false === sn_bridge_is_verified(), 'THE OTHER ONE THAT MATTERS: the verified flag is cleared after dispatch' );
+ok( in_array( 'user_has_cap', $GLOBALS['__removed'], true ), 'and the capability filter was removed' );
+
+echo "Group: the cleanup survives an ability that THROWS — the reason the finally exists\n";
+// NOT COVERED BY THE GROUP ABOVE, and that is the whole point of adding it.
+// Every pin above dispatches an ability that RETURNS, and on that path a handler
+// with no try/finally at all — a plain `$out = $ability->execute( $args );`
+// followed by the same two cleanup lines — is INDISTINGUISHABLE from the correct
+// one. Deleting the finally leaves this suite green without these three.
+//
+// Only a throw separates them. Without the finally the exception unwinds straight
+// past the cleanup, and every capability check for the remainder of that request
+// is answered by a filter that is still attached and a flag that still says
+// verified — the request keeps sn_read_remote_analytics that nothing took back.
+$GLOBALS['__throw']   = true;
+$GLOBALS['__removed'] = array();
+$threw = false;
+try {
+	sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+} catch ( RuntimeException $e ) {
+	$threw = true;
+}
+$GLOBALS['__throw'] = false;
+// The propagation pin is a discriminator, not decoration: a handler that
+// swallowed the exception and returned a success envelope would satisfy both
+// cleanup pins below while telling the Worker a failed call succeeded.
+ok( $threw, 'the ability failure propagates rather than being swallowed into a success envelope' );
+ok( false === sn_bridge_is_verified(), 'THE ONE THE finally EXISTS FOR: a throwing ability still leaves the flag cleared' );
+ok( in_array( 'user_has_cap', $GLOBALS['__removed'], true ), 'and the capability filter is still removed when the ability throws' );
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `php tests/mcp-bridge-route.php`
+Expected: `PHP Fatal error: Uncaught Error: Call to undefined function sn_bridge_handle_request()`
+
+- [ ] **Step 3: Write the implementation**
+
+Add to `inc/mcp/mcp-bridge-route.php`:
+
+```php
+/**
+ * Handle one bridge call.
+ *
+ * VERIFICATION ORDER, each step failing closed. The registration gate has
+ * already guaranteed the switch is on and the secret exists, so this function
+ * starts at the Bearer.
+ *
+ *   1. Bearer matches            -> else 401
+ *   2. slug is on the remote list -> else 404 (never 403)
+ *   3. the ability resolves       -> else 404
+ *
+ * STEP 2 ANSWERS 404, NOT 403, ON PURPOSE. A 403 confirms the slug exists and
+ * turns this endpoint into an enumeration oracle for the remote allowlist.
+ * sn_mcp_call_tool() already answers unknown tools with -32602 rather than a
+ * permission error; this is the REST-shaped equivalent.
+ *
+ * There is no separate scope check: THE REMOTE SLUG LIST IS THE SCOPE. With one
+ * secret and one list, a per-secret scope field would encode the same fact twice
+ * and could drift out of step with it.
+ *
+ * @param object $request The REST request.
+ * @return array|WP_Error
+ */
+function sn_bridge_handle_request( $request ) {
+	$header = is_object( $request ) && method_exists( $request, 'get_header' )
+		? $request->get_header( 'authorization' )
+		: null;
+
+	if ( ! sn_bridge_bearer_matches( $header, sn_bridge_secret() ) ) {
+		return new WP_Error(
+			'sn_bridge_unauthorized',
+			__( 'Unauthorized.', 'signal-and-noise-tools' ),
+			array( 'status' => 401 )
+		);
+	}
+
+	$body = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) )
+		? (array) $request->get_json_params()
+		: array();
+	$slug = isset( $body['slug'] ) ? (string) $body['slug'] : '';
+	$args = ( isset( $body['args'] ) && is_array( $body['args'] ) ) ? $body['args'] : array();
+
+	if ( '' === $slug ) {
+		return new WP_Error(
+			'sn_bridge_bad_request',
+			__( 'Missing slug.', 'signal-and-noise-tools' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	if ( ! function_exists( 'sn_mcp_remote_slugs' ) || ! in_array( $slug, sn_mcp_remote_slugs(), true ) ) {
+		return new WP_Error(
+			'sn_bridge_not_found',
+			__( 'Not found.', 'signal-and-noise-tools' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $slug ) : null;
+	if ( ! $ability ) {
+		return new WP_Error(
+			'sn_bridge_not_found',
+			__( 'Not found.', 'signal-and-noise-tools' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	// Grant, dispatch, and ALWAYS put it back. The finally is the reason this is
+	// safe: an ability that throws must not leave the capability attached.
+	sn_bridge_set_verified( true );
+	add_filter( 'user_has_cap', 'sn_bridge_grant_capability', 10, 1 );
+	try {
+		$out = $ability->execute( $args );
+	} finally {
+		remove_filter( 'user_has_cap', 'sn_bridge_grant_capability', 10 );
+		sn_bridge_set_verified( false );
+	}
+
+	return is_wp_error( $out ) ? $out : array( 'ok' => true, 'data' => $out );
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `php tests/mcp-bridge-route.php`
+Expected: `OK (43 passed, 0 failed): mcp-bridge-route.php`
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add inc/mcp/mcp-bridge-route.php tests/mcp-bridge-route.php
+git commit -m "feat: the bridge handler verifies in order and cleans up in a finally
+
+Bearer, then slug membership, then ability resolution — each failing closed. The
+slug refusal answers 404 rather than 403 on purpose: a 403 confirms the slug
+exists and turns the endpoint into an enumeration oracle for the remote
+allowlist, which is why sn_mcp_call_tool() already answers unknown tools with
+-32602 rather than a permission error.
+
+There is no separate scope check. The remote slug list IS the scope; a per-secret
+scope field would encode the same fact twice and could drift.
+
+The finally is load-bearing: an ability that throws must not leave the capability
+attached. The test asserts the flag is cleared and the filter removed AFTER a
+successful dispatch, not merely that the grant worked."
+```
+
+---
+
+## Task 5: The wp-admin toggle
+
+**Files:**
+- Modify: `inc/admin-post-handler.php` (the `sn_admin_post_handlers()` array at line 29)
+- Modify: `inc/admin-post-actions.php`
+- Test: `tests/admin-remote-toggle.php`
+
+- [ ] **Step 1: Write the failing test**
+
+Create `tests/admin-remote-toggle.php`:
+
+```php
+<?php
+/**
+ * Tests: the remote-door toggle, and the constant that overrides it.
+ *
+ * This is the phone-reachable control. sn_mcp_remote_enabled is absent by
+ * default, so without this the door needs WP-CLI to turn ON and WP-CLI to turn
+ * OFF — a terminal in both directions, which is exactly what the owner cannot
+ * reach from a phone.
+ *
+ * THE ASSERTION THAT MATTERS MOST is that SN_MCP_REMOTE_DISABLED beats the form.
+ * A wp-config kill must not be re-openable from a web request, or the constant
+ * is decorative. Same shape as sn_handle_cf_save() refusing to override
+ * SN_CLOUDFLARE_API_TOKEN.
+ *
+ * ORDERING IS LOAD-BEARING. SN_MCP_REMOTE_DISABLED is define()d partway down and
+ * cannot be undefined, so the constant-locked group MUST REMAIN LAST. Everything
+ * that needs an unlocked door — every write pin, and both round-trip pins — has
+ * to run above that define. A new group appended below it will see a permanently
+ * killed door and fail in a way that looks like a handler bug rather than a test
+ * ordering bug.
+ */
+if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
+
+$pass = 0; $fail = 0;
+function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "  ok  - $m\n"; } else { $fail++; echo "  FAIL - $m\n"; } }
+
+function __( $s, $d = null ) { return (string) $s; }
+function wp_unslash( $v ) { return is_string( $v ) ? stripslashes( $v ) : $v; }
+function sanitize_text_field( $v ) { return is_string( $v ) ? trim( strip_tags( $v ) ) : ''; }
+
+/**
+ * THESE STUBS MODEL WORDPRESS'S STORAGE TRANSFORM, NOT A PLAIN ARRAY.
+ *
+ * WordPress does NOT preserve booleans through the options table. update_option()
+ * serializes on the way in and the value comes back out of wp_options as a
+ * STRING: `true` round-trips as '1' and `false` round-trips as '' (the empty
+ * string). A site never hands anyone back the bool that was written.
+ *
+ * That is why sn_mcp_remote_kill_switch_engaged() reads
+ * `(bool) get_option( SN_MCP_REMOTE_ENABLED_OPTION, false )` — the cast is what
+ * turns '1'/'' back into true/false, and it is the only reason the door works.
+ *
+ * A stub that returned the raw boolean the handler passed in would validate a
+ * shape WordPress never produces. Under such a stub, "simplifying" the guard's
+ * cast to `true === get_option( ... )` would break production — every real site
+ * would read '1', which is not identical to true, and the door would refuse to
+ * open — while this suite stayed green. Modelling the transform here is what
+ * makes the round-trip pins below able to catch that refactor.
+ */
+$GLOBALS['__options'] = array();
+function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['__options'][ $k ] = $v ? '1' : ''; return true; }
+
+require __DIR__ . '/../inc/admin-post-actions.php';
+require __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
+
+echo "Group: the toggle writes the option in both directions\n";
+$GLOBALS['__options'] = array();
+$flash = sn_handle_remote_toggle( array( 'sn_remote_enabled' => '1' ) );
+ok( '1' === get_option( 'sn_mcp_remote_enabled', null ), 'checked -> option stored as WordPress stores true' );
+ok( 'remote_enabled' === $flash, 'and reports the enabled flash' );
+
+$flash = sn_handle_remote_toggle( array() );
+ok( '' === get_option( 'sn_mcp_remote_enabled', null ), 'unchecked (absent key) -> option stored as WordPress stores false' );
+ok( 'remote_disabled' === $flash, 'and reports the disabled flash' );
+
+echo "Group: the toggle CONTROLS THE GUARD — what it achieved, not what it wrote\n";
+// The pins above assert what the handler WROTE. These assert what it ACHIEVED:
+// that flipping the checkbox changes whether the door is actually open, read
+// through the same predicate production reads. This is the property the owner
+// cares about, and it is the one that survives a refactor of either side.
+// Must run while SN_MCP_REMOTE_DISABLED is still absent — see the file header.
+$GLOBALS['__options'] = array();
+sn_handle_remote_toggle( array( 'sn_remote_enabled' => '1' ) );
+ok( false === sn_mcp_remote_kill_switch_engaged(), 'checked -> the door is OPEN' );
+
+sn_handle_remote_toggle( array() );
+ok( true === sn_mcp_remote_kill_switch_engaged(), 'unchecked -> the door is SHUT' );
+
+echo "Group: THE ONE THAT MATTERS — the wp-config constant beats the form\n";
+// MUST BE LAST: the define below cannot be undone for the rest of this process.
+define( 'SN_MCP_REMOTE_DISABLED', true );
+$GLOBALS['__options'] = array();
+$flash = sn_handle_remote_toggle( array( 'sn_remote_enabled' => '1' ) );
+ok( 'remote_constant_locked' === $flash, 'the form refuses when the constant kills the door' );
+ok( ! array_key_exists( 'sn_mcp_remote_enabled', $GLOBALS['__options'] ), 'and writes NOTHING — a killed door cannot be re-opened from a web request' );
+
+echo ( 0 === $fail )
+	? "\nOK ($pass passed, $fail failed): admin-remote-toggle.php\n"
+	: "\nFAILURES ($pass passed, $fail failed): admin-remote-toggle.php\n";
+exit( $fail > 0 ? 1 : 0 );
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `php tests/admin-remote-toggle.php`
+Expected: `PHP Fatal error: Uncaught Error: Call to undefined function sn_handle_remote_toggle()`
+
+- [ ] **Step 3: Write the implementation**
+
+Append to `inc/admin-post-actions.php`:
+
+```php
+/**
+ * Toggle the remote analytics door (R3 §3D).
+ *
+ * THE PHONE-REACHABLE CONTROL. sn_mcp_remote_enabled is absent by default and
+ * fails CLOSED, so without this handler the door needs WP-CLI to turn on and
+ * WP-CLI to turn off — a terminal in both directions. The "off" half is the one
+ * that matters at 2am away from a laptop.
+ *
+ * SN_MCP_REMOTE_DISABLED WINS UNCONDITIONALLY. A wp-config kill that a web form
+ * could undo would be decorative. Same shape as sn_handle_cf_save() refusing to
+ * override SN_CLOUDFLARE_API_TOKEN.
+ *
+ * The secret itself has no UI here, deliberately: an option is readable by
+ * anything that reaches the database, while wp-config.php is readable by no web
+ * request. Stopping the door is urgent and belongs on the web; rotating the
+ * secret is rare and belongs on a laptop.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash key.
+ */
+function sn_handle_remote_toggle( $post ) {
+	if ( defined( 'SN_MCP_REMOTE_DISABLED' ) && SN_MCP_REMOTE_DISABLED ) {
+		return 'remote_constant_locked';
+	}
+	$on = ! empty( $post['sn_remote_enabled'] );
+	update_option( 'sn_mcp_remote_enabled', $on, false );
+	return $on ? 'remote_enabled' : 'remote_disabled';
+}
+```
+
+Then add one line to the array in `sn_admin_post_handlers()` in `inc/admin-post-handler.php`, after `'health_scan' => 'sn_handle_health_scan',`:
+
+```php
+		'remote_toggle'              => 'sn_handle_remote_toggle',
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `php tests/admin-remote-toggle.php`
+Expected: `OK (8 passed, 0 failed): admin-remote-toggle.php`
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add inc/admin-post-actions.php inc/admin-post-handler.php tests/admin-remote-toggle.php
+git commit -m "feat: the remote door gets a toggle that a phone can reach
+
+sn_mcp_remote_enabled is absent by default and fails closed, so without this the
+door needed WP-CLI to turn on AND WP-CLI to turn off — a terminal in both
+directions, which is exactly what is unavailable from a phone. The 'off' half is
+the one that matters away from a laptop.
+
+SN_MCP_REMOTE_DISABLED wins unconditionally and the handler writes nothing when
+it is set: a wp-config kill a web form could undo would be decorative. Same shape
+as sn_handle_cf_save() refusing to override SN_CLOUDFLARE_API_TOKEN.
+
+The secret gets no UI, deliberately. An option is readable by anything reaching
+the database; wp-config.php is readable by no web request. Stopping is urgent and
+belongs on the web, rotating is rare and belongs on a laptop."
+```
+
+---
+
+## Task 6: The status panel distinguishes what the endpoint hides
+
+**Files:**
+- Modify: `inc/admin-forms/mcp-connect-status.php`
+
+The endpoint answers 404 for three different conditions on purpose. The owner still needs to tell them apart, and this is where that is paid for.
+
+- [ ] **Step 1: Read the file first**
+
+Run: `sed -n '1,80p' inc/admin-forms/mcp-connect-status.php`
+
+Note how `$rw_state` is computed and rendered as a pill (`constant_killed | option_off | inactive | bound | unresolvable`). The remote row follows the same shape. **This file currently contains zero `<form>` and zero `<input>` — it is a read-only display, and this task makes it interactive for the first time.**
+
+- [ ] **Step 2: Add the remote state resolver and the toggle form**
+
+Add a `$remote_state` computed the same way `$rw_state` is:
+
+```php
+$remote_state = 'option_off';
+if ( defined( 'SN_MCP_REMOTE_DISABLED' ) && SN_MCP_REMOTE_DISABLED ) {
+	$remote_state = 'constant_killed';
+} elseif ( function_exists( 'sn_mcp_remote_kill_switch_engaged' ) && ! sn_mcp_remote_kill_switch_engaged() ) {
+	// The door is open. Distinguish "ready" from "on but unusable", because the
+	// endpoint deliberately answers 404 for both and the owner cannot tell them
+	// apart from outside.
+	$remote_state = ( function_exists( 'sn_bridge_secret' ) && '' !== sn_bridge_secret() )
+		? 'bridge_ready'
+		: 'secret_missing';
+}
+```
+
+Render `secret_missing` with an error pill reading `secret missing` and the help text: *"The door is on but `SN_BRIDGE_TOKEN` is not defined in wp-config.php, so the bridge route is not registered. The endpoint answers 404 — the same as a closed door — on purpose."*
+
+Add the toggle form, following the house pattern exactly:
+
+```php
+<form method="post">
+	<?php wp_nonce_field( 'sn_theme_options_nonce' ); ?>
+	<input type="hidden" name="sn_action" value="remote_toggle" />
+	<label>
+		<input type="checkbox" name="sn_remote_enabled" value="1"
+			<?php checked( function_exists( 'sn_mcp_remote_kill_switch_engaged' ) && ! sn_mcp_remote_kill_switch_engaged() ); ?>
+			<?php disabled( defined( 'SN_MCP_REMOTE_DISABLED' ) && SN_MCP_REMOTE_DISABLED ); ?> />
+		<?php esc_html_e( 'Remote analytics door enabled', 'signal-and-noise-tools' ); ?>
+	</label>
+	<?php submit_button( __( 'Save', 'signal-and-noise-tools' ), 'secondary' ); ?>
+</form>
+```
+
+**Use `esc_html_e()`, not `esc_html__()`, where the string is being output** — `esc_html_e` echoes. Getting this backwards prints nothing and is a known trap in this codebase.
+
+- [ ] **Step 3: Check the render suite's stubs BEFORE running it**
+
+This form introduces four WordPress functions into a file that `tests/mcp-connect-render.php`
+renders: `wp_nonce_field()`, `checked()`, `disabled()`, `submit_button()`. **If that suite does
+not stub them, it fatals** — and a fataled suite prints no summary line, so `tests/run.sh`
+counts it as *missing* rather than *failing*. The sweep total drops and nothing says why.
+
+Run first:
+
+```bash
+grep -n "function wp_nonce_field\|function checked\|function disabled\|function submit_button" tests/mcp-connect-render.php
+```
+
+Add a stub for each one that is absent, matching the file's existing stub style, e.g.:
+
+```php
+function wp_nonce_field( $a = '', $n = '_wpnonce', $r = true, $e = true ) { echo '<input type="hidden" name="' . $n . '" value="nonce" />'; }
+function checked( $a, $b = true, $e = true ) { $r = ( $a == $b ) ? ' checked' : ''; if ( $e ) { echo $r; } return $r; }
+function disabled( $a, $b = true, $e = true ) { $r = ( $a == $b ) ? ' disabled' : ''; if ( $e ) { echo $r; } return $r; }
+function submit_button( $t = '', $c = '', $n = 'submit', $w = true ) { echo '<button>' . $t . '</button>'; }
+```
+
+Then: `php -l inc/admin-forms/mcp-connect-status.php` → `No syntax errors detected`
+
+Then: `php tests/mcp-connect-render.php` → the suite still prints its summary line. If it asserts
+on rendered markup its count may rise; record the true number and do not edit an expected value
+to match.
+
+- [ ] **Step 4: Commit**
+
+```bash
+git add inc/admin-forms/mcp-connect-status.php
+git commit -m "feat: the status panel tells apart what the endpoint deliberately hides
+
+The bridge answers 404 for three different conditions — switch off, secret
+missing, unknown slug — so an unauthenticated caller cannot tell a dark switch
+from a broken deploy. That is the design, and its cost is that the OWNER cannot
+tell either.
+
+This is where that cost is paid: the remote row now renders secret_missing as a
+distinct state from option_off, on an authenticated surface. Diagnosis moves to
+wp-admin instead of living on the endpoint.
+
+Also the first interactive control in this file, which until now had zero form
+and zero input elements."
+```
+
+---
+
+## Task 7: Wire, sweep, changelog, and the Worker line
+
+**Files:**
+- Modify: `signal-and-noise-tools.php`
+- Modify: `CHANGELOG.md`
+- Modify (other repo): `~/Projects/sn-remote-mcp-worker`
+
+- [ ] **Step 1: Require the bridge route**
+
+In `signal-and-noise-tools.php`, immediately after the `inc/mcp/mcp-remote-guard.php` require:
+
+```php
+require_once SNT_PATH . 'inc/mcp/mcp-bridge-route.php'; // R3 §3D Increment 1 bridge half: Worker→origin channel, registered only when the switch is on AND SN_BRIDGE_TOKEN is defined.
+```
+
+Order matters: the bridge calls `sn_mcp_remote_kill_switch_engaged()` and `sn_mcp_remote_slugs()`.
+
+- [ ] **Step 2: Run the full sweep**
+
+Run: `bash tests/run.sh`
+
+Baseline was `426 suites, 16956 assertions`. Expect **428 suites** (two new files) and roughly **+49** assertions — 43 from `mcp-bridge-route.php`, 6 from `admin-remote-toggle.php` — plus any the connect-render suite gains from the new form.
+
+**Do not adjust an expected number to match what you got.** A lower count usually means a suite fataled: `tests/run.sh` gates on the summary line precisely because a crashed suite prints none and contributes zero. Record the real figure.
+
+- [ ] **Step 3: Lint and static analysis**
+
+Run: `composer lint` — expected clean.
+Run: `composer phpstan` — expected clean. If it flags the new files, fix the code; do not add them to `phpstan-baseline.neon`.
+
+- [ ] **Step 4: CHANGELOG**
+
+Append under `## [Unreleased]` (contended across sessions — append, do not restructure):
+
+```markdown
+### Added
+- **The remote analytics door gets its origin channel (R3 §3D, Increment 1 bridge half).** `POST /signal-noise/v1/bridge` accepts a Worker call carrying `SN_BRIDGE_TOKEN`, grants `sn_read_remote_analytics` for that one request, dispatches exactly one allowlisted ability, and removes the grant in a `finally`. The route is **registered only** when the remote kill switch is on and the constant is defined, so both failure modes are a route that does not exist.
+- **A wp-admin toggle for the remote door**, so it can be darkened from a phone. `SN_MCP_REMOTE_DISABLED` still wins unconditionally and the form writes nothing when it is set.
+```
+
+- [ ] **Step 5: Commit the plugin side**
+
+```bash
+git add signal-and-noise-tools.php CHANGELOG.md
+git commit -m "chore: load the bridge route, after the guard it depends on
+
+The bridge calls sn_mcp_remote_kill_switch_engaged() and sn_mcp_remote_slugs(),
+so mcp-remote-guard.php must be required first.
+
+No version bump in this commit; the toggle makes the increment user-visible, so
+the release that carries it is MINOR."
+```
+
+- [ ] **Step 6: The Worker's one line**
+
+In `~/Projects/sn-remote-mcp-worker`, on the `tools/call` path, log the Access subject that `guard()` already returns (`src/guard.mjs` returns `{ sub, email }`).
+
+This is the **only** place the Claude session has a name — the origin sees only the Worker, so threat-model §8.3 precondition 5 cannot be satisfied at the origin. Optionally forward it as a non-authoritative `X-SN-Bridge-Subject` header; the origin must **never** authenticate on it, since it is attacker-supplied on any request that reaches the origin outside the Worker.
+
+Commit in that repo separately. It is not part of the plugin's sweep.
+
+---
+
+## Task 8: Mutation verification
+
+Commit first — you will be editing source and reverting. Verify each mutation **actually applied** with `git diff` before believing a result; a mutation that silently fails to land produces a passing run indistinguishable from a correct one.
+
+**How to revert a mutation — this cost real work twice tonight.**
+
+Copy the file to the scratchpad before mutating, and restore with `cp`. Do **not** use:
+
+- `git checkout -- <path>` — discards *everything* uncommitted in that path, not just your mutation. One agent lost a whole handler this way, and the next three mutation runs then fataled against a missing function.
+- `git stash` / `git stash drop` — worse, because it looks reversible. It sweeps up every uncommitted change in the tree and `drop` makes the loss permanent. Another agent destroyed a test group it had just written this way.
+
+**And check an invariant, not just the exit status.** The second loss was caught only because `41 passed` was arithmetically impossible against a 43-assertion suite — two assertions had *vanished*, not failed. The mutation that run reported as "surviving" had been measured against the reverted, weaker test file, so the number was fiction; re-measured properly it was killed. Before believing any mutation result, confirm `passed + failed` equals the suite's known total. A mutation measured against the wrong test state produces a confident number with nothing behind it.
+
+- [ ] **Step 0:** Replace the body of `sn_bridge_should_register()` with `return false;`.
+Run `php tests/mcp-bridge-route.php` → expect `FAIL - THE ONE THAT PROVES IT OPENS: switch ON + secret PRESENT -> register` plus the three argument pins. Revert.
+
+**This is the mutation that found the original defect.** Task 1's first draft asserted only false-or-absence, five times, so a permanently-shut gate survived every assertion. Any future edit that leaves this mutation green has removed the only proof the bridge can open at all.
+
+- [ ] **Step 1:** Delete the `'' !== sn_bridge_secret()` check from `sn_bridge_should_register()`.
+Run `php tests/mcp-bridge-route.php` → expect `FAIL - THE ONE THAT MATTERS: switch ON but secret ABSENT -> do not register`. Revert.
+
+- [ ] **Step 1b:** Delete the `sn_mcp_remote_kill_switch_engaged()` check from `sn_bridge_should_register()`.
+Run → expect `FAIL - THE AND-DISCRIMINATOR: secret PRESENT but switch OFF -> do not register`. Steps 1 and 1b together are what prove the gate is AND rather than OR; either one alone is satisfied by an implementation that ignores the other input. Revert.
+
+- [ ] **Step 2:** Change `hash_equals` to `==` in `sn_bridge_bearer_matches()`.
+Run → expect `FAIL - THE TYPE-JUGGLING PIN: two distinct numeric strings must not authenticate each other (PHP == would say 0 == 0)`, and that assertion alone. Revert.
+
+`hash_equals()` defends **two distinct properties**, and only one of them was ever a "cannot test this" case. Do not collapse them:
+
+- **Type-juggling — CAUGHT, and it must stay caught.** `==` coerces two numeric strings in scientific notation to the float `0` and reports `0 == 0`, so `'0e222222' == '0e111111'` is `true`. With `==` in place, any numeric-looking `SN_BRIDGE_TOKEN` is an **authentication bypass**, not a subtle weakening. The pin passes the magic-hash pair as arguments rather than through the fixture constant, which is why it costs nothing and needs no second fixture file. If this mutation ever survives again, the pin has been "tidied" into readable values and the coverage is gone.
+- **Timing — GENUINELY UNASSERTABLE here, and recorded as such.** Nothing in a standalone PHP fixture can observe the wall-clock difference between a prefix-matching and a non-matching compare with any reliability. This half of the mutation survives by construction. Leave it recorded with its reason rather than inventing a test that appears to cover it; a survivor documented with its cause is useful, a survivor silently dropped is not.
+
+- [ ] **Step 3:** Remove the `if ( ! sn_bridge_is_verified() )` guard from `sn_bridge_grant_capability()`.
+Run → expect `FAIL - THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight` **and** `FAIL - clearing the flag revokes the grant`. Revert.
+
+- [ ] **Step 3a:** Add `$allcaps['manage_options'] = null;` — note **null**, not true — beside the real grant in `sn_bridge_grant_capability()`.
+Run → expect `FAIL - and never manage_options`. Revert.
+
+**This is the mutation that forced the absence pins off `isset()`.** Measured: with `! isset( $caps['manage_options'] )` the suite ran **26 passed, 0 failed** against this mutant — `isset()` reads a null value as absent, so a null grant passed a pin whose label claimed the capability was never granted. `array_key_exists()` reds it. The same reasoning applies to every absence pin in the file, which is why all three use `array_key_exists()`. If someone "simplifies" them back to `isset()`, this mutation goes green again and the labels start lying.
+
+- [ ] **Step 3b:** Change the unverified branch of `sn_bridge_grant_capability()` from `return $allcaps;` to `return array();`.
+Run → expect `FAIL - and it passes other capabilities through untouched` **and** `FAIL - and the revoked path still passes other capabilities through`. Revert.
+
+This mutant looks revoked and is not: it discards every capability the caller already held. It is invisible to a revoke assertion handed `array()`, because an empty input cannot distinguish "removed our grant" from "returned nothing at all". The revoke case is therefore handed `array( 'read' => true )` and asserts both halves.
+
+- [ ] **Step 4:** Delete the `finally` block's two lines in `sn_bridge_handle_request()`.
+Run → expect `FAIL - THE OTHER ONE THAT MATTERS: the verified flag is cleared after dispatch` and the filter-removed pin. Revert.
+
+- [ ] **Step 5:** Change the off-list slug refusal from 404 to 403.
+Run → expect `FAIL - THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403`. Revert.
+
+- [ ] **Step 4a:** Delete the `try`/`finally` **construct** while KEEPING its two lines — i.e. `$out = $ability->execute( $args );` followed by the same `remove_filter()` and `sn_bridge_set_verified( false )` inline.
+Run → expect `FAIL - THE ONE THE finally EXISTS FOR: a throwing ability still leaves the flag cleared` and `FAIL - and the capability filter is still removed when the ability throws`. Revert.
+
+**This mutation SURVIVED the original Task 4 test group, measured at 35 passed / 0 failed.** Step 4 above deletes the *lines* and reds four pins; this one deletes only the *construct*, and on an ability that RETURNS the two shapes are indistinguishable — the cleanup runs either way. Every pin in the original group dispatched a returning ability, so nothing could tell them apart. Only a throw separates them: without the `finally` the exception unwinds straight past the cleanup and the remainder of the request runs holding `sn_read_remote_analytics` with the filter still attached. The throwing group and its `$GLOBALS['__throw']` stub flag exist for this mutation and nothing else. If it ever survives again, that group has been removed or the stub no longer throws.
+
+- [ ] **Step 5a:** Move the slug checks (the `''  === $slug` 400 and the membership 404) **above** the Bearer check in `sn_bridge_handle_request()`.
+Run → expect `FAIL - THE ORDER PIN: no Authorization + an OFF-LIST slug -> 401, not 404 — the Bearer is checked FIRST` and `FAIL - and no Authorization + no slug -> 401, not 400 — an unauthenticated caller learns nothing about its body`. Revert.
+
+**THE MOST VALUABLE FINDING IN THIS PLAN. This mutation SURVIVED the original Task 4 test group, measured at 35 passed / 0 failed.** Both of the group's 401 pins sent an ON-LIST slug, so they are satisfied whichever check runs first — the ordering had no witness at all. Under the mutant an **unauthenticated** caller receives 404 for an off-list slug and 401 for an on-list one, which is a complete enumeration oracle for `sn_mcp_remote_slugs()` readable with no credential whatsoever. That is precisely what Step 5's 404-not-403 choice exists to deny, rebuilt one check earlier and opened to everyone. Every pre-auth refusal must be the same 401. The two order pins are the only witnesses; do not "consolidate" them with the on-list 401s above, which cannot see this.
+
+- [ ] **Step 5b:** Return the ability's raw output — `return $out;` in place of `return is_wp_error( $out ) ? $out : array( 'ok' => true, 'data' => $out );`.
+Run → expect `FAIL - and it comes back in the ok/data envelope, with the ability output under data`. Revert.
+
+**This mutation SURVIVED the original Task 4 test group, measured at 35 passed / 0 failed.** The group's only success-path shape assertion was `! is_wp_error( $r )`, which is equally true of the ability's raw return, so the envelope had no witness. The Worker parses `{ ok, data }`; changing that shape is a cross-artifact break that surfaces only at the far end of the bridge, where it is hardest to attribute. The pin asserts the whole structure with `===`, not just the presence of a key.
+
+- [ ] **Step 5c:** Delete the `if ( ! $ability )` guard from `sn_bridge_handle_request()`, keeping the `wp_get_ability()` call.
+Run → expect a **PHP fatal**, `Call to a member function execute() on null`, and therefore NO summary line. Revert.
+
+Note the shape of this kill honestly: it reds as a **crashed suite**, not as a named failing assertion. `tests/run.sh` gates on the summary line precisely so a fataled suite fails the sweep rather than contributing zero silently, so the gate does catch it — but do not expect a `FAIL -` row. The production consequence is what the pin's label names: an authenticated bridge call returning a stack trace instead of a 404, which is both an availability bug and an information leak.
+
+- [ ] **Step 5d:** Change the ability-resolution refusal's error code from `'sn_bridge_not_found'` to anything else, e.g. `'sn_bridge_ability_missing'`, leaving the 404 status alone.
+Run → expect `FAIL - and it carries the SAME error code as the off-list refusal — the two are not distinguishable from outside`. Revert.
+
+The third refusal had **no witness at all** before this increment's follow-up: the test's `wp_get_ability()` stub resolved exactly the slugs on `sn_mcp_remote_slugs()`, so the branch was unreachable from the suite while being entirely reachable in production — the remote list and the ability registry are separate, and a deactivated module, a load-order change, or a registration hook that ran after `rest_api_init` each leave a listed slug with nothing behind it. A `$GLOBALS['__no_ability']` suppression flag reaches it. Matching only the STATUS would not be enough, which is why this mutation exists: two 404s carrying different error codes rebuild the enumeration oracle one field further down, for a caller who already holds a valid secret.
+
+- [ ] **Step 6:** Delete the `SN_MCP_REMOTE_DISABLED` guard from `sn_handle_remote_toggle()`.
+Run `php tests/admin-remote-toggle.php` → expect both constant-wins pins red. Revert.
+
+- [ ] **Step 6a:** Change `(bool) get_option( SN_MCP_REMOTE_ENABLED_OPTION, false )` in `sn_mcp_remote_kill_switch_engaged()` to `true === get_option( SN_MCP_REMOTE_ENABLED_OPTION, false )`. **This edits `inc/mcp/mcp-remote-guard.php`, which is another increment's shipped code — it is temporary, and the file must be byte-identical afterwards.** Verify with `git diff --stat -- inc/mcp/mcp-remote-guard.php` (expect no output) before moving on.
+Run `php tests/admin-remote-toggle.php` → expect `FAIL - checked -> the door is OPEN`. Revert.
+
+**This is the mutation that keeps the option stubs honest.** WordPress does not preserve booleans through the options table: `true` round-trips as `'1'` and `false` as `''`. The `(bool)` cast is the only reason the door works, so dropping it breaks every real site — the option reads `'1'`, which is not identical to `true`, and the door refuses to open. A stub that handed back the raw boolean the handler passed in would validate a shape WordPress never produces, and this mutation would run **green while production was broken**. `tests/admin-remote-toggle.php` therefore models the transform in `update_option()` rather than storing the raw value. If this mutation ever survives, the stub has been "simplified" back to a plain array and the round-trip pins are measuring fiction.
+
+Confirm the converse too: make the test's `update_option()` stub store the raw value instead of `'1'`/`''`, and the two round-trip pins must still pass while the two write pins red — that is what demonstrates the stub's transform, not the assertions alone, is carrying this coverage. Revert.
+
+- [ ] **Step 7:** Confirm the tree is clean and the sweep matches Task 7 Step 2.
+
+Run: `git status --short && bash tests/run.sh | tail -1`
+
+- [ ] **Step 8:** Record results in the spec
+
+Append a mutation table to `docs/proposals/remote-mcp-increment1-bridge-half.md` with the actual failing assertion names observed. Record **Step 2 as a split row**: the type-juggling half reds on the type-juggling pin, the timing half survives by construction. That split is the honest entry that stops a later reader either assuming timing-safety is pinned or assuming the whole mutation is untested.
+
+---
+
+## Definition of done
+
+- [ ] `bash tests/run.sh` green, suite count +2, zero failures, real number recorded
+- [ ] `composer lint` and `composer phpstan` clean, nothing added to the baseline
+- [ ] All mutations observed reddening their named pins, except Step 2's documented survivor
+- [ ] `inc/mcp/mcp-remote-guard.php` and `inc/abilities-remote-analytics.php` **unmodified** — verify with `git diff --stat origin/main -- inc/mcp/mcp-remote-guard.php inc/abilities-remote-analytics.php` (expect no output)
+- [ ] With `SN_BRIDGE_TOKEN` undefined, `sn_bridge_should_register()` returns false
+- [ ] CHANGELOG `[Unreleased]` entry present, no version bump in these commits
+
+## Explicitly NOT done by this plan
+
+F1's fail-closed counter (edge Durable Object), Increment 3's phone-first *secret rotation*, more than one remote slug, and any change to the read or rw doors.
