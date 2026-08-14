@@ -206,7 +206,7 @@ require __DIR__ . '/../inc/abilities-sn-apply.php';
 
 $block_500 = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Old</h3>', 'innerContent' => array( '<h3>Old</h3>' ) );
 tf_post( 500, array( 'post_content' => json_encode( array( $block_500 ) ) ) );
-$fp_500          = md5( serialize_block( $block_500 ) );
+$fp_500          = snt_block_fp_fingerprint( $block_500, 500, '0/0' );
 $replacement_500 = json_encode( array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 2 ), 'innerBlocks' => array(), 'innerHTML' => '<h2>New</h2>', 'innerContent' => array( '<h2>New</h2>' ) ) );
 
 function tf_reset_writes() {

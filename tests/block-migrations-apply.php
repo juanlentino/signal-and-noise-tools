@@ -145,7 +145,7 @@ bma_eq( 'snt_block_migration_conflict', $result->get_error_code(), 'Test 3.2: er
 echo "\nTest 4: successful apply\n";
 $GLOBALS['__test_posts'] = array();
 $h3_block  = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Section</h3>', 'innerContent' => array( '<h3>Section</h3>' ) );
-$fp        = md5( serialize_block( $h3_block ) );
+$fp        = snt_block_fp_fingerprint( $h3_block, 403, '0/0' );
 _bma_post( 403, array( $h3_block ) );
 
 $replacement_markup = json_encode( array( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>Section</h2>', 'innerContent' => array( '<h2>Section</h2>' ) ) ) );
@@ -161,7 +161,7 @@ echo "\nTest 5: write failed\n";
 $GLOBALS['__test_posts'] = array();
 $GLOBALS['__test_update_fail'] = true;
 $h3_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Section</h3>', 'innerContent' => array( '<h3>Section</h3>' ) );
-$fp       = md5( serialize_block( $h3_block ) );
+$fp       = snt_block_fp_fingerprint( $h3_block, 404, '0/0' );
 _bma_post( 404, array( $h3_block ) );
 $replacement_markup = json_encode( array( array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>Section</h2>', 'innerContent' => array( '<h2>Section</h2>' ) ) ) );
 $result = snt_block_migrations_apply_impl( 404, $fp, $replacement_markup, 'heading-hierarchy-skip' );
@@ -186,7 +186,7 @@ bma_eq( 'snt_block_migration_invalid_markup', $result->get_error_code(), 'Test 6
 echo "\nTest 7: replacement sanitized (stored-XSS parity with pattern-adoption)\n";
 $GLOBALS['__test_posts'] = array();
 $h3_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Section</h3>', 'innerContent' => array( '<h3>Section</h3>' ) );
-$fp       = md5( serialize_block( $h3_block ) );
+$fp       = snt_block_fp_fingerprint( $h3_block, 406, '0/0' );
 _bma_post( 406, array( $h3_block ) );
 $evil_markup = json_encode( array( array(
 	'blockName'    => 'core/heading',

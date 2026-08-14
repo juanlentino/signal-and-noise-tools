@@ -137,7 +137,7 @@ $quote_block = array(
 	'innerHTML'   => '<blockquote class="wp-block-quote"><cite>Juan</cite></blockquote>',
 );
 _tas_post( 201, array( $quote_block ) );
-$fp = md5( serialize_block( $quote_block ) );
+$fp = snt_block_fp_fingerprint( $quote_block, 201, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 201, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 1.1: result is array (not WP_Error)' );
 ps_true( ! empty( $result['suggestion_markup'] ), 'Test 1.2: suggestion_markup non-empty' );
@@ -161,7 +161,7 @@ $list_block = array(
 	'innerHTML'   => '<ol class="wp-block-list"></ol>',
 );
 _tas_post( 202, array( $list_block ) );
-$fp = md5( serialize_block( $list_block ) );
+$fp = snt_block_fp_fingerprint( $list_block, 202, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 202, $fp, 'steps-enumerated' );
 ps_true( is_array( $result ), 'Test 2.1: result is array (not WP_Error)' );
 ps_contains( $result['suggestion_markup'], 'sn-pattern-steps-enumerated', 'Test 2.2: suggestion uses sn-pattern-steps-enumerated className' );
@@ -180,7 +180,7 @@ ps_eq( 'snt_pattern_adoption_candidate_not_found', $result->get_error_code(), 'T
 // ─── Test 4: invalid pattern_type returns WP_Error 422 ───────────────
 echo "\nTest 4: invalid pattern_type rejected\n";
 _tas_post( 204, array( $quote_block ) );
-$fp = md5( serialize_block( $quote_block ) );
+$fp = snt_block_fp_fingerprint( $quote_block, 204, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 204, $fp, 'compare-columns' );
 ps_true( is_wp_error( $result ), 'Test 4.1: result is WP_Error' );
 ps_eq( 'snt_pattern_adoption_invalid_pattern_type', $result->get_error_code(), 'Test 4.2: error code correct' );
@@ -202,7 +202,7 @@ $quote_no_cite = array(
 	'innerHTML'   => '<blockquote class="wp-block-quote"></blockquote>',
 );
 _tas_post( 206, array( $quote_no_cite ) );
-$fp = md5( serialize_block( $quote_no_cite ) );
+$fp = snt_block_fp_fingerprint( $quote_no_cite, 206, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 206, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 6.1: result is array' );
 ps_true( false === strpos( $result['suggestion_markup'], 'sn-pull-quote__attribution' ), 'Test 6.2: attribution paragraph absent when no cite' );
@@ -218,7 +218,7 @@ $quote_inline = array(
 	'innerHTML'   => '<blockquote class="wp-block-quote"><cite>Juan</cite></blockquote>',
 );
 _tas_post( 207, array( $quote_inline ) );
-$fp = md5( serialize_block( $quote_inline ) );
+$fp = snt_block_fp_fingerprint( $quote_inline, 207, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 207, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 7.1: result is array' );
 ps_contains( $result['suggestion_markup'], '<strong>classifier</strong>', 'Test 7.2: <strong> preserved' );
@@ -236,7 +236,7 @@ $list_inline = array(
 	'innerHTML'   => '<ol class="wp-block-list"></ol>',
 );
 _tas_post( 208, array( $list_inline ) );
-$fp = md5( serialize_block( $list_inline ) );
+$fp = snt_block_fp_fingerprint( $list_inline, 208, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 208, $fp, 'steps-enumerated' );
 ps_true( is_array( $result ), 'Test 8.1: result is array' );
 ps_contains( $result['suggestion_markup'], '<strong>Capture</strong>', 'Test 8.2: <strong> preserved in item' );
@@ -251,7 +251,7 @@ $quote_empty = array(
 	'innerHTML'   => '<blockquote class="wp-block-quote"><cite>Author</cite></blockquote>',
 );
 _tas_post( 209, array( $quote_empty ) );
-$fp = md5( serialize_block( $quote_empty ) );
+$fp = snt_block_fp_fingerprint( $quote_empty, 209, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 209, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 9.1: degenerate quote produces result (no fatal)' );
 ps_contains( $result['suggestion_markup'], 'sn-pull-quote__body', 'Test 9.2: body paragraph still present (empty text)' );
@@ -266,7 +266,7 @@ $list_empty = array(
 	'innerHTML'   => '<ol class="wp-block-list"></ol>',
 );
 _tas_post( 210, array( $list_empty ) );
-$fp = md5( serialize_block( $list_empty ) );
+$fp = snt_block_fp_fingerprint( $list_empty, 210, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 210, $fp, 'steps-enumerated' );
 ps_true( is_array( $result ), 'Test 10.1: degenerate list produces result' );
 ps_contains( $result['suggestion_markup'], 'sn-steps__list', 'Test 10.2: list wrapper still present' );
@@ -283,7 +283,7 @@ $quote_empty_cite = array(
 	'innerHTML'   => '<blockquote class="wp-block-quote"><cite><em></em></cite></blockquote>',
 );
 _tas_post( 211, array( $quote_empty_cite ) );
-$fp = md5( serialize_block( $quote_empty_cite ) );
+$fp = snt_block_fp_fingerprint( $quote_empty_cite, 211, '0/0' );
 $result = snt_ai_pattern_adoption_suggest_impl( 211, $fp, 'pull-quote' );
 ps_true( is_array( $result ), 'Test 11.1: result is array (not WP_Error)' );
 ps_true( false === strpos( $result['suggestion_markup'], 'sn-pull-quote__attribution' ), 'Test 11.2: attribution paragraph omitted when cite has only empty inline tags' );

@@ -7,9 +7,9 @@
  * find/replace walkers and near-identical apply pipelines since 4.3.0/4.5.0
  * (each file said "mirrors" the other — this module IS the mirror):
  *
- *   snt_block_fp_fingerprint( $block )                   md5(serialize_block)
- *   snt_block_fp_find( $tree, $fp )                      node|null, depth-first
- *   snt_block_fp_replace_in_tree( &$tree, $fp, $n, &$f ) first match, in place
+ *   snt_block_fp_fingerprint( $block, $post_id, $path )  md5(post|path|serialize_block)
+ *   snt_block_fp_find( $tree, $fp, $post_id )            node|null, depth-first
+ *   snt_block_fp_replace_in_tree( &$tree, $fp, $n, &$f, $post_id )  first match, in place
  *   snt_block_fp_sanitize_node( $node )                  recursive wp_kses_post
  *   snt_block_fp_apply( $args )                          the shared pipeline
  *
@@ -37,29 +37,52 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Concurrency fingerprint for a parsed block node.
+ * Concurrency fingerprint for a parsed block node, BOUND to the post and
+ * the block's position in the tree.
  *
- * @param array $block Parsed block (parse_blocks node).
- * @return string 32-char md5 of the serialized block.
+ * The pre-v11.4.0 scheme hashed the serialized block alone, which made
+ * identical blocks collide: two posts sharing a heading produced ONE
+ * fingerprint that validated against either post, and a repeated block
+ * inside one post produced an ambiguous locate. Since apply resolves a
+ * block BY fingerprint, both shapes were live foot-guns (observed on the
+ * real corpus: a cross-post collision between posts 1589/1587 and in-post
+ * duplicates on 1570). Binding post_id + block_path makes the wrong write
+ * unrepresentable rather than unlikely: a fingerprint minted against one
+ * post cannot validate against another, a duplicate block resolves to one
+ * position, and a block that MOVES invalidates its candidates (409 →
+ * re-scan), which is exactly what a concurrency fingerprint is for.
+ *
+ * $block_path uses the scanners' shared grammar: "0/<idx>" at top level,
+ * "0/<idx>/innerBlocks/<idx>" nested — the same string the candidates
+ * report as block_path.
+ *
+ * @param array  $block      Parsed block (parse_blocks node).
+ * @param int    $post_id    The post the block belongs to.
+ * @param string $block_path Position in the tree (scanner grammar).
+ * @return string 32-char md5.
  */
-function snt_block_fp_fingerprint( $block ) {
-	return md5( serialize_block( $block ) );
+function snt_block_fp_fingerprint( $block, $post_id, $block_path ) {
+	return md5( (int) $post_id . '|' . (string) $block_path . '|' . serialize_block( $block ) );
 }
 
 /**
- * Depth-first search for the block matching $fingerprint.
+ * Depth-first search for the block matching $fingerprint, regenerating
+ * each node's path with the scanner grammar so position-bound fingerprints
+ * resolve to exactly one node.
  *
  * @param array  $tree        parse_blocks() output (or an innerBlocks array).
  * @param string $fingerprint md5 from the scan.
+ * @param int    $post_id     The post being searched.
+ * @param string $path_prefix Internal recursion state; leave default.
  * @return array|null The matching block, or null.
  */
-function snt_block_fp_find( $tree, $fingerprint ) {
-	foreach ( $tree as $block ) {
-		if ( snt_block_fp_fingerprint( $block ) === $fingerprint ) {
+function snt_block_fp_find( $tree, $fingerprint, $post_id, $path_prefix = '0' ) {
+	foreach ( $tree as $idx => $block ) {
+		if ( snt_block_fp_fingerprint( $block, $post_id, $path_prefix . '/' . $idx ) === $fingerprint ) {
 			return $block;
 		}
 		if ( ! empty( $block['innerBlocks'] ) ) {
-			$found = snt_block_fp_find( $block['innerBlocks'], $fingerprint );
+			$found = snt_block_fp_find( $block['innerBlocks'], $fingerprint, $post_id, $path_prefix . '/' . $idx . '/innerBlocks' );
 			if ( null !== $found ) {
 				return $found;
 			}
@@ -69,25 +92,28 @@ function snt_block_fp_find( $tree, $fingerprint ) {
 }
 
 /**
- * Recursive in-place mutator. Replaces the FIRST block whose fingerprint
- * matches with $replacement_node and sets $found = true.
+ * Recursive in-place mutator. Replaces the block whose position-bound
+ * fingerprint matches with $replacement_node and sets $found = true.
+ * With path-bound fingerprints at most one node can match.
  *
  * @param array  $tree             By reference.
  * @param string $fingerprint      md5 from the scan.
  * @param array  $replacement_node Parsed replacement block node.
  * @param bool   $found            By reference.
+ * @param int    $post_id          The post being mutated.
+ * @param string $path_prefix      Internal recursion state; leave default.
  * @return void
  */
-function snt_block_fp_replace_in_tree( &$tree, $fingerprint, $replacement_node, &$found ) {
+function snt_block_fp_replace_in_tree( &$tree, $fingerprint, $replacement_node, &$found, $post_id, $path_prefix = '0' ) {
 	foreach ( $tree as $i => &$block ) {
 		if ( $found ) { return; }
-		if ( snt_block_fp_fingerprint( $block ) === $fingerprint ) {
+		if ( snt_block_fp_fingerprint( $block, $post_id, $path_prefix . '/' . $i ) === $fingerprint ) {
 			$tree[ $i ] = $replacement_node;
 			$found = true;
 			return;
 		}
 		if ( ! empty( $block['innerBlocks'] ) ) {
-			snt_block_fp_replace_in_tree( $block['innerBlocks'], $fingerprint, $replacement_node, $found );
+			snt_block_fp_replace_in_tree( $block['innerBlocks'], $fingerprint, $replacement_node, $found, $post_id, $path_prefix . '/' . $i . '/innerBlocks' );
 		}
 	}
 }
@@ -218,7 +244,7 @@ function snt_block_fp_apply( $args ) {
 	$replacement_node = snt_block_fp_sanitize_node( $replacement_node );
 
 	$found = false;
-	snt_block_fp_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found );
+	snt_block_fp_replace_in_tree( $blocks, $block_fingerprint, $replacement_node, $found, $post_id );
 
 	if ( ! $found ) {
 		return $err( 'conflict', 409, __( 'Block changed or removed since scan. Re-run scan.', 'signal-and-noise-tools' ) );

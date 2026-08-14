@@ -145,7 +145,7 @@ _taa_post( 301, array(
 	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>After.</p>' ),
 ) );
 
-$fp = md5( serialize_block( $source_block ) );
+$fp = snt_block_fp_fingerprint( $source_block, 301, '0/1' );
 $replacement = json_encode( array( array(
 	'blockName'   => 'core/group',
 	'attrs'       => array( 'className' => 'sn-pattern-pull-quote' ),
@@ -191,7 +191,7 @@ pa_eq( 'snt_pattern_adoption_post_not_found', $result->get_error_code(), 'Test 3
 echo "\nTest 4: invalid pattern_type rejected\n";
 $GLOBALS['__test_posts'] = array();
 _taa_post( 304, array( $source_block ) );
-$fp = md5( serialize_block( $source_block ) );
+$fp = snt_block_fp_fingerprint( $source_block, 304, '0/0' );
 $result = snt_ai_pattern_adoption_apply_impl( 304, $fp, $replacement, 'compare-columns' );
 pa_true( is_wp_error( $result ), 'Test 4.1: result is WP_Error' );
 pa_eq( 'snt_pattern_adoption_invalid_pattern_type', $result->get_error_code(), 'Test 4.2: error code correct' );
@@ -211,7 +211,7 @@ _taa_post( 305, array(
 		$nested_quote,
 	), 'innerHTML' => '<div class="wp-block-group"></div>' ),
 ) );
-$fp = md5( serialize_block( $nested_quote ) );
+$fp = snt_block_fp_fingerprint( $nested_quote, 305, '0/0/innerBlocks/0' );
 $result = snt_ai_pattern_adoption_apply_impl( 305, $fp, $replacement, 'pull-quote' );
 pa_true( is_array( $result ), 'Test 5.1: nested replacement succeeds' );
 pa_eq( 1, count( $GLOBALS['__test_wp_updates'] ), 'Test 5.2: one wp_update_post call' );
@@ -226,7 +226,7 @@ $GLOBALS['__test_posts']       = array();
 $GLOBALS['__test_wp_updates']  = array();
 $GLOBALS['__test_caps']        = false;
 _taa_post( 306, array( $source_block ) );
-$fp     = md5( serialize_block( $source_block ) );
+$fp     = snt_block_fp_fingerprint( $source_block, 306, '0/0' );
 $result = snt_ai_pattern_adoption_apply_impl( 306, $fp, $replacement, 'pull-quote' );
 pa_true( is_wp_error( $result ), 'Test 6.1: result is WP_Error' );
 pa_eq( 'snt_pattern_adoption_capability', $result->get_error_code(), 'Test 6.2: error code = capability' );
@@ -242,7 +242,7 @@ echo "\nTest 7: empty/garbage replacement_markup → 422 invalid_pattern_type\n"
 $GLOBALS['__test_posts']      = array();
 $GLOBALS['__test_wp_updates'] = array();
 _taa_post( 307, array( $source_block ) );
-$fp     = md5( serialize_block( $source_block ) );
+$fp     = snt_block_fp_fingerprint( $source_block, 307, '0/0' );
 $result = snt_ai_pattern_adoption_apply_impl( 307, $fp, '', 'pull-quote' );
 pa_true( is_wp_error( $result ), 'Test 7.1: empty replacement is WP_Error' );
 pa_eq( 'snt_pattern_adoption_invalid_pattern_type', $result->get_error_code(), 'Test 7.2: error code = invalid_pattern_type (existing conflation)' );
@@ -254,7 +254,7 @@ $GLOBALS['__test_posts']            = array();
 $GLOBALS['__test_wp_updates']       = array();
 $GLOBALS['__test_force_wp_error']   = true;
 _taa_post( 308, array( $source_block ) );
-$fp     = md5( serialize_block( $source_block ) );
+$fp     = snt_block_fp_fingerprint( $source_block, 308, '0/0' );
 $result = snt_ai_pattern_adoption_apply_impl( 308, $fp, $replacement, 'pull-quote' );
 pa_true( is_wp_error( $result ), 'Test 8.1: result is WP_Error' );
 pa_eq( 'snt_pattern_adoption_write_failed', $result->get_error_code(), 'Test 8.2: error code = write_failed' );
@@ -271,7 +271,7 @@ echo "\nTest 9: replacement_markup <script> is stripped before wp_update_post\n"
 $GLOBALS['__test_posts']      = array();
 $GLOBALS['__test_wp_updates'] = array();
 _taa_post( 309, array( $source_block ) );
-$fp = md5( serialize_block( $source_block ) );
+$fp = snt_block_fp_fingerprint( $source_block, 309, '0/0' );
 $xss_replacement = json_encode( array( array(
 	'blockName'   => 'core/pullquote',
 	'attrs'       => array(),
@@ -291,7 +291,7 @@ echo "\nTest 10: nested innerBlocks markup is sanitized recursively\n";
 $GLOBALS['__test_posts']      = array();
 $GLOBALS['__test_wp_updates'] = array();
 _taa_post( 310, array( $source_block ) );
-$fp = md5( serialize_block( $source_block ) );
+$fp = snt_block_fp_fingerprint( $source_block, 310, '0/0' );
 $nested_xss = json_encode( array( array(
 	'blockName'   => 'core/group',
 	'attrs'       => array(),

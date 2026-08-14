@@ -321,7 +321,7 @@ $GLOBALS['__post_meta'][700]['_sn_meta_description'] = 'Old meta description.';
 // Post 710: pattern_adoption target — a quote-ish block to replace.
 $pa_block = array( 'blockName' => 'core/quote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<blockquote>Q</blockquote>', 'innerContent' => array( '<blockquote>Q</blockquote>' ) );
 tf_post( 710, array( 'post_content' => json_encode( array( $pa_block ) ) ) );
-$pa_fp          = md5( serialize_block( $pa_block ) );
+$pa_fp          = snt_block_fp_fingerprint( $pa_block, 710, '0/0' );
 $pa_replacement = json_encode( array( 'blockName' => 'core/pullquote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<figure>PQ</figure>', 'innerContent' => array( '<figure>PQ</figure>' ) ) );
 
 // Posts 720 (source) + 721 (published link target): link_insert.
@@ -340,7 +340,7 @@ tf_post( 740, array( 'post_type' => 'attachment', 'post_status' => 'inherit' ) )
 // Post 750: block_migration (for the all-types sweep).
 $bm_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>H</h3>', 'innerContent' => array( '<h3>H</h3>' ) );
 tf_post( 750, array( 'post_content' => json_encode( array( $bm_block ) ) ) );
-$bm_fp          = md5( serialize_block( $bm_block ) );
+$bm_fp          = snt_block_fp_fingerprint( $bm_block, 750, '0/0' );
 $bm_replacement = json_encode( array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 2 ), 'innerBlocks' => array(), 'innerHTML' => '<h2>H</h2>', 'innerContent' => array( '<h2>H</h2>' ) ) );
 
 // Post 760: drift_replace (for the all-types sweep).

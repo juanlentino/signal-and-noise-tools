@@ -221,7 +221,7 @@ require __DIR__ . '/../inc/abilities-sn-apply.php';
 // Post 100: block_migration target — one core/heading block, level 3.
 $block_100 = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Old</h3>', 'innerContent' => array( '<h3>Old</h3>' ) );
 tf_post( 100, array( 'post_content' => json_encode( array( $block_100 ) ) ) );
-$fp_100 = md5( serialize_block( $block_100 ) );
+$fp_100 = snt_block_fp_fingerprint( $block_100, 100, '0/0' );
 $replacement_100 = json_encode( array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 2 ), 'innerBlocks' => array(), 'innerHTML' => '<h2>New</h2>', 'innerContent' => array( '<h2>New</h2>' ) ) );
 
 // Post 200: drift_replace target.

@@ -74,6 +74,10 @@ if ( file_exists( $dep_helper ) ) {
 	require_once $dep_helper;
 }
 require_once __DIR__ . '/../inc/abilities-block-migrations.php';
+// v11.4.0: the corpus-integrity dismiss impl lives in the scan module.
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id() { return 1; } }
+require_once __DIR__ . '/../inc/corpus-integrity-scan.php';
 $dismiss_module = __DIR__ . '/../inc/abilities-dismiss.php';
 $dismiss_module_exists = file_exists( $dismiss_module );
 if ( $dismiss_module_exists ) {
@@ -107,7 +111,7 @@ t( is_array( $dc ), 'A.2 dismiss-candidate: registered' );
 t_eq( 'tools', $dc['category'] ?? '', 'A.3 category tools (deterministic, not ai-generation)' );
 t_eq( 'snt_ability_perm_edit_post', $dc['permission_callback'] ?? '', 'A.4 per-resource edit_post gate (no IDOR via blanket cap)' );
 t_eq( array( 'surface', 'post_id', 'block_fingerprint', 'candidate_type' ), $dc['input_schema']['required'] ?? null, 'A.5 required quartet' );
-t_eq( array( 'block-migrations', 'pattern-adoption' ), $dc['input_schema']['properties']['surface']['enum'] ?? null, 'A.6 surface enum exact' );
+t_eq( array( 'block-migrations', 'pattern-adoption', 'corpus-integrity' ), $dc['input_schema']['properties']['surface']['enum'] ?? null, 'A.6 surface enum exact (v11.4.0 adds corpus-integrity)' );
 t( ( $dc['meta']['annotations']['idempotent'] ?? null ) === true && ( $dc['meta']['annotations']['destructive'] ?? null ) === false, 'A.7 idempotent + non-destructive' );
 t( ( $dc['meta']['show_in_rest'] ?? false ) === true, 'A.8 show_in_rest' );
 
@@ -166,6 +170,30 @@ if ( function_exists( 'snt_ability_dismiss_candidate' ) ) {
 }
 
 // ════ shared-impl extraction + canonical silence ═════════════════════
+// ════ corpus-integrity surface (v11.4.0) ═════════════════════════════
+echo "\nGroup D: surface=corpus-integrity dispatch\n";
+if ( function_exists( 'snt_ability_dismiss_candidate' ) && function_exists( 'snt_corpus_integrity_dismiss_impl' ) ) {
+	$GLOBALS['__meta'] = array();
+	$out = snt_ability_dismiss_candidate( array(
+		'surface'           => 'corpus-integrity',
+		'post_id'           => 77,
+		'block_fingerprint' => str_repeat( 'a', 32 ),
+		'candidate_type'    => 'splice_artifact',
+	) );
+	t( is_array( $out ) && ! empty( $out['ok'] ), 'D.1 corpus-integrity dismiss dispatches to its impl' );
+	$stored = $GLOBALS['__meta'][77]['_snt_corpus_integrity_dismissed'] ?? array();
+	t( in_array( 'splice_artifact:' . str_repeat( 'a', 32 ), (array) $stored, true ), 'D.2 appends check:fingerprint to _snt_corpus_integrity_dismissed' );
+	$out2 = snt_ability_dismiss_candidate( array(
+		'surface'           => 'corpus-integrity',
+		'post_id'           => 77,
+		'block_fingerprint' => str_repeat( 'a', 32 ),
+		'candidate_type'    => 'splice_artifact',
+	) );
+	t( is_array( $out2 ) && 1 === count( (array) ( $GLOBALS['__meta'][77]['_snt_corpus_integrity_dismissed'] ?? array() ) ), 'D.3 idempotent — re-dismiss is a no-op' );
+} else {
+	for ( $i = 1; $i <= 3; $i++ ) { t( false, "D.$i corpus-integrity dismiss available" ); }
+}
+
 // (The v7.x Group D also executed the deprecated per-surface wrapper;
 // that surface was removed in v8.0.0 — tests/abilities-removals-v8.php
 // guards its absence.)

@@ -128,32 +128,42 @@ $GRP = array( 'blockName' => 'core/group', 'attrs' => array(), 'innerBlocks' => 
 
 echo "Block-fingerprint engine suite — plugin v7.7.1\n";
 
-echo "\nGroup A: primitives\n";
+echo "\nGroup A: primitives (v11.4.0: post+path-bound fingerprints)\n";
 t( $engine_exists, 'A.1 inc/block-fingerprint-engine.php exists' );
 if ( function_exists( 'snt_block_fp_fingerprint' ) ) {
-	t_eq( md5( serialize_block( $H3 ) ), snt_block_fp_fingerprint( $H3 ), 'A.2 fingerprint = md5(serialize_block)' );
+	t_eq( md5( '10|0/1|' . serialize_block( $H3 ) ), snt_block_fp_fingerprint( $H3, 10, '0/1' ), 'A.2 fingerprint = md5(post_id|block_path|serialize_block)' );
 
-	$fp = snt_block_fp_fingerprint( $H3 );
-	t_eq( $H3, snt_block_fp_find( array( $H2, $H3 ), $fp ), 'A.3 find: top-level match' );
-	t_eq( $H3, snt_block_fp_find( array( $H2, $GRP ), $fp ), 'A.4 find: nested match (innerBlocks recursion)' );
-	t( null === snt_block_fp_find( array( $H2 ), $fp ), 'A.5 find: null on miss' );
+	$fp = snt_block_fp_fingerprint( $H3, 10, '0/1' );
+	t_eq( $H3, snt_block_fp_find( array( $H2, $H3 ), $fp, 10 ), 'A.3 find: top-level match at its path' );
+	$fp_nested = snt_block_fp_fingerprint( $H3, 10, '0/1/innerBlocks/0' );
+	t_eq( $H3, snt_block_fp_find( array( $H2, $GRP ), $fp_nested, 10 ), 'A.4 find: nested match (innerBlocks recursion, path grammar)' );
+	t( null === snt_block_fp_find( array( $H2 ), $fp, 10 ), 'A.5 find: null on miss' );
 
 	$tree  = array( $H2, $H3, $H3 );
 	$found = false;
-	snt_block_fp_replace_in_tree( $tree, $fp, $H2, $found );
-	t( $found && $tree[1] === $H2 && $tree[2] === $H3, 'A.6 replace: first match only, in place, found=true' );
+	snt_block_fp_replace_in_tree( $tree, $fp, $H2, $found, 10 );
+	t( $found && $tree[1] === $H2 && $tree[2] === $H3, 'A.6 replace: the addressed occurrence only, in place, found=true' );
 
-	$tree  = array( $GRP );
+	$tree  = array( $GRP, $H3 );
 	$found = false;
-	snt_block_fp_replace_in_tree( $tree, $fp, $H2, $found );
-	t( $found && $tree[0]['innerBlocks'][0] === $H2, 'A.7 replace: nested match mutates through references' );
+	snt_block_fp_replace_in_tree( $tree, snt_block_fp_fingerprint( $H3, 10, '0/0/innerBlocks/0' ), $H2, $found, 10 );
+	t( $found && $tree[0]['innerBlocks'][0] === $H2 && $tree[1] === $H3, 'A.7 replace: nested match mutates through references' );
 
 	$tree  = array( $H2 );
 	$found = false;
-	snt_block_fp_replace_in_tree( $tree, $fp, $H3, $found );
+	snt_block_fp_replace_in_tree( $tree, $fp, $H3, $found, 10 );
 	t( ! $found && $tree[0] === $H2, 'A.8 replace: no match → untouched, found=false' );
+
+	// ── v11.4.0 collision regression (the live corpus shapes) ──
+	t( snt_block_fp_fingerprint( $H3, 10, '0/1' ) !== snt_block_fp_fingerprint( $H3, 11, '0/1' ), 'A.9 same block, different POST → different fingerprint (1589/1587 cross-post collision closed)' );
+	t( snt_block_fp_fingerprint( $H3, 10, '0/1' ) !== snt_block_fp_fingerprint( $H3, 10, '0/3' ), 'A.10 same block, different PATH → different fingerprint (1570 in-post duplicate closed)' );
+	t( md5( serialize_block( $H3 ) ) !== snt_block_fp_fingerprint( $H3, 10, '0/1' ), 'A.11 pre-11.4.0 fingerprints no longer validate (stale candidates 409 → re-scan)' );
+	$tree  = array( $H3, $H2, $H3 );
+	$found = false;
+	snt_block_fp_replace_in_tree( $tree, snt_block_fp_fingerprint( $H3, 10, '0/2' ), $H2, $found, 10 );
+	t( $found && $tree[0] === $H3 && $tree[2] === $H2, 'A.12 duplicate blocks: the SECOND occurrence is addressable (path-bound), first untouched' );
 } else {
-	for ( $i = 2; $i <= 8; $i++ ) { t( false, "A.$i engine primitive available" ); }
+	for ( $i = 2; $i <= 12; $i++ ) { t( false, "A.$i engine primitive available" ); }
 }
 
 echo "\nGroup B: sanitize_node\n";
@@ -179,7 +189,9 @@ if ( function_exists( 'snt_block_fp_sanitize_node' ) ) {
 
 echo "\nGroup C: apply pipeline (parameterized codes)\n";
 if ( function_exists( 'snt_block_fp_apply' ) ) {
-	$fp = md5( serialize_block( $H3 ) );
+	$fp   = snt_block_fp_fingerprint( $H3, 10, '0/0' );
+	$fp11 = snt_block_fp_fingerprint( $H3, 11, '0/0' );
+	$fp12 = snt_block_fp_fingerprint( $H3, 12, '0/0' );
 
 	// C.1 capability FIRST — even with an invalid type, an incapable caller
 	// gets the capability code (the normalized v7.7.1 order).
@@ -209,12 +221,12 @@ if ( function_exists( 'snt_block_fp_apply' ) ) {
 	// C.8 sanitize-before-splice: script payload in the replacement never lands.
 	_bfe_post( 11, array( $H3 ) );
 	$evil = array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>x<script>alert(1)</script></h2>', 'innerContent' => array( '<h2>x<script>alert(1)</script></h2>' ) );
-	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 11, 'block_fingerprint' => $fp, 'replacement_markup' => json_encode( array( $evil ) ) ) ) );
+	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 11, 'block_fingerprint' => $fp11, 'replacement_markup' => json_encode( array( $evil ) ) ) ) );
 	t( is_array( $r ) && false === strpos( $GLOBALS['__test_posts'][11]->post_content, '<script' ), 'C.8 replacement sanitized before write' );
 
 	$GLOBALS['__test_update_fail'] = true;
 	_bfe_post( 12, array( $H3 ) );
-	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 12, 'block_fingerprint' => $fp, 'replacement_markup' => json_encode( array( $H2 ) ) ) ) );
+	$r = snt_block_fp_apply( _bfe_args( array( 'post_id' => 12, 'block_fingerprint' => $fp12, 'replacement_markup' => json_encode( array( $H2 ) ) ) ) );
 	t( is_wp_error( $r ) && 'snt_block_migration_write_failed' === $r->get_error_code(), 'C.9 wp_update_post failure → surface code' );
 	t( false !== strpos( $r->get_error_message(), 'mocked failure' ), 'C.10 write-failed message carries the underlying error' );
 	$GLOBALS['__test_update_fail'] = false;
