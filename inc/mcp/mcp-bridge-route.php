@@ -51,6 +51,33 @@ function sn_bridge_secret() {
 }
 
 /**
+ * Does the Authorization header carry the configured secret?
+ *
+ * hash_equals() rather than === so the comparison does not leak the secret's
+ * prefix through timing. Mirrors inc/analytics-refresh-rest.php.
+ *
+ * An empty $secret refuses everything. That case cannot reach here through
+ * sn_bridge_register_routes() — the route would not exist — but the function is
+ * public and must not become an authenticator for a misconfigured site if it is
+ * ever called from somewhere else.
+ *
+ * @param string|null $header The raw Authorization header.
+ * @param string      $secret The configured secret.
+ * @return bool
+ */
+function sn_bridge_bearer_matches( $header, $secret ) {
+	$secret = (string) $secret;
+	if ( '' === $secret ) {
+		return false;
+	}
+	$header = (string) $header;
+	if ( 0 !== strncmp( $header, 'Bearer ', 7 ) ) {
+		return false;
+	}
+	return hash_equals( $secret, substr( $header, 7 ) );
+}
+
+/**
  * Should the bridge route exist at all on this request?
  *
  * BOTH gates, and neither alone. The kill switch is checked through the remote

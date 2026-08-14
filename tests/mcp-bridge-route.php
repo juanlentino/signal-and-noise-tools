@@ -111,6 +111,22 @@ $GLOBALS['__routes'] = array();
 sn_bridge_register_routes();
 ok( array() === $GLOBALS['__routes'], 'and it registers nothing, so the route ceases to exist when the owner darkens the door' );
 
+echo "Group: the Bearer is compared in constant time, and absence is refusal\n";
+// A minimal request stand-in: the handler only asks for a header and the body.
+class SNB_Req {
+	private $headers; private $body;
+	public function __construct( $headers = array(), $body = array() ) { $this->headers = $headers; $this->body = $body; }
+	public function get_header( $k ) { $k = strtolower( $k ); return isset( $this->headers[ $k ] ) ? $this->headers[ $k ] : null; }
+	public function get_json_params() { return $this->body; }
+}
+
+ok( false === sn_bridge_bearer_matches( null, 'secret' ), 'a null Authorization header never matches' );
+ok( false === sn_bridge_bearer_matches( '', 'secret' ), 'an empty Authorization header never matches' );
+ok( false === sn_bridge_bearer_matches( 'Bearer wrong', 'secret' ), 'a wrong bearer does not match' );
+ok( false === sn_bridge_bearer_matches( 'secret', 'secret' ), 'the bare secret without the Bearer prefix does not match' );
+ok( true  === sn_bridge_bearer_matches( 'Bearer secret', 'secret' ), 'the correct Bearer matches' );
+ok( false === sn_bridge_bearer_matches( 'Bearer secret', '' ), 'THE ONE THAT MATTERS: an empty configured secret matches NOTHING' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-bridge-route.php\n";
