@@ -5,6 +5,48 @@ All notable changes to Signal & Noise Tools are documented here.
 ## [Unreleased]
 
 ### Docs
+- **OpenStation v1.1.0 compat re-verification — no code change required**
+  (`docs/openstation-compat.md`). OpenStation released v1.1.0 on 2026-08-14;
+  v1.0.0 (2026-08-07) was already the first *tagged* post-rename release, which
+  retires this document's central caveat that the PR #475 rename was "in trunk,
+  **not yet in any tagged release**" and that end-to-end verification was
+  "structurally impossible". Both were true when written and are now false.
+  A both-directions membership check — all 17 upstream `openstation_*` names
+  this plugin references, counted in v1.1.0's `includes/` — returned non-zero
+  for every one: nothing removed, nothing renamed. Full suite green against
+  that reading (exit `0`, zero indented `FAIL`, 17,522 assertions).
+  Four v1.1.0 changes looked capable of breaking us and were each run down to
+  ground: **PR #545** (single-dock consolidation) now drops items whose
+  `placement` is `'hidden'` and partitions on a new `isCore` flag, and our
+  injected dock item supplies neither — it survives only because upstream reads
+  both defensively (`?? 'dock'`, `empty()`), filing us into the plugin group;
+  **`wp.os.sideDock` is now `null` under the new default `unified` layout**, but
+  our badge call is optional-chained and the SN tile rides the primary rail in
+  both layouts; **PR #574** (SSE transport dropped) churned ~365/269 lines in
+  `ai-copilot/search.php` where three of our nine seams live, yet touches none
+  of them — the deleted code is stream-narration machinery, and `request_id`
+  keeps the per-run semantics the double-fire guard's family-awareness depends
+  on; **PR #549** adds `openstation_ai_model_config`, an unconsumed new seam
+  noted as a cleaner alternative to the `http_request_args` route.
+  Ten `file:line` citations had rotted (e.g. `dock_items`
+  `payload.php:212`→`:235`, `ai_tool_called` `1322/1399/1753`→`1292/1361/1714`,
+  `agent_tool_result` `runner.php:579`→`:588`) and are corrected and now
+  explicitly **pinned to tag `v1.1.0`**. Added a *Re-verifying after an
+  upstream release* section carrying the durable instrument instead of the
+  perishable one: a membership-check loop, a command that regenerates the name
+  list from our own source so a new consumer is covered automatically, a
+  `perl -0777` paragraph-mode sweep (a single-line grep reports the multi-line
+  `openstation_ai_tools` filter as **missing**), and a scoped `git diff --stat`.
+  Every recipe was run verbatim and negative-controlled — a fabricated name and
+  the pre-rename `desktop_mode_dock_items` both report `0` against the real
+  name's `1`, which also re-confirms zero back-compat shim upstream.
+  Two corrections of record: the rename is **incomplete upstream at the
+  packaging level** (v1.1.0's main file is still `desktop-mode.php`, text domain
+  still `'desktop-mode'`), vindicating `function_exists()` detection over
+  filename/constant; and the honest verification gap is restated as
+  **source-verified against v1.1.0, runtime-unverified on both lines** — the
+  post-rename path remains unexercised against a live admin, but that is now
+  merely unperformed rather than impossible.
 - **R6 prep: the split proposal** (`docs/r6-prep.md`) — R6's eight rows (the
   table's seven plus Configuration drift, carried unshipped from R5's table)
   sorted by gate into three sub-releases and one spike: R6a plugin-native
