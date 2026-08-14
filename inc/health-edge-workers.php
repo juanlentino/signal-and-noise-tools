@@ -17,6 +17,19 @@
  * measurement, never a failure). The login-guard finding note now carries
  * lastRefreshReason (worker v1.x+) when the last refresh attempt failed.
  *
+ * v11.x (H1, R3 §3D Increments 2+4): a FIFTH worker, sn-remote-mcp, reading
+ * /_sn/remote-mcp/status. Unlike the other four, this URL is fixed on our own
+ * zone (not a setting), so the probe is unconditional and a transport/parse
+ * failure is a real outage, not a config skip. Three findings, one deliberate
+ * non-finding: `configured: false` and a missing `bridge_secret_bound` field
+ * both flag as outages (the latter's note says so distinctly — a lost readout
+ * is not the same claim as an unbound secret); `anomaly.flagged` flags as a
+ * volume warning carrying COUNTS ONLY, never a subject identity (the origin
+ * structurally cannot name the caller — see the client-half spec's blind-spot
+ * section). `killed: true` is deliberately NOT a finding: a dark door the
+ * owner chose is a state, not a failure, and folding it into the outage
+ * branch is exactly the mutation this file's test sweep guards against.
+ *
  * The two owned Cloudflare Workers (sn-analytics, sn-login-guard) are already
  * surfaced for DISPLAY — the analytics version card (inc/worker-version.php) and
  * the Login-defense panel + dashboard view (inc/login-defense*.php). What nothing
@@ -50,6 +63,18 @@ if ( ! defined( 'SN_HEALTH_DENYLIST_STALE_DAYS' ) ) {
 const SN_HEALTH_EDGE_LG_TRANSIENT = 'sn_health_edge_lg_status';
 const SN_HEALTH_EDGE_LG_TTL       = 6 * HOUR_IN_SECONDS;
 
+// Shared 6h probe cache TTL (quality-review item 3). Introduced alongside the
+// fifth worker rather than migrating SN_HEALTH_EDGE_LG_TTL's existing call
+// sites — those stay as they are to avoid churning unrelated lines.
+const SN_HEALTH_EDGE_PROBE_TTL = 6 * HOUR_IN_SECONDS;
+
+// v11.x (H1, R3 §3D Increments 2+4): the fifth worker. Unlike the analytics/
+// login-guard/provenance/rights-signals probes above, this URL is FIXED on our
+// own zone — there is no "collector endpoint" or "worker URL" setting to be
+// absent, so there is no config-skip valve here. The probe always runs.
+const SN_HEALTH_EDGE_REMOTE_MCP_TRANSIENT = 'sn_health_edge_remote_mcp_status';
+const SN_HEALTH_EDGE_REMOTE_MCP_URL       = 'https://juanlentino.com/_sn/remote-mcp/status';
+
 /**
  * Build the findings array from already-fetched inputs. PURE (no I/O) so the
  * reachability + staleness logic is exhaustively testable. Mirrors the non-post
@@ -69,9 +94,26 @@ const SN_HEALTH_EDGE_LG_TTL       = 6 * HOUR_IN_SECONDS;
  * @param array|null $mr_sensor        sn-rights-signals sensor block ({ae_bound,last_write_ok,last_write_at})
  *                                     from its version endpoint, or null when the worker predates it /
  *                                     the probe failed (absent measurement — never a finding by itself).
+ * @param bool|array|null $remote_mcp  sn-remote-mcp worker status ({configured,killed,bridge_secret_bound,
+ *                                     anomaly:{flagged,total_today,subjects_over},version}) from
+ *                                     /_sn/remote-mcp/status. `null` means the probe RAN and could not
+ *                                     reach/parse it — an outage, never a config skip (the URL is fixed
+ *                                     on our own zone, unlike $prov's 'unconfigured'). The default `false`
+ *                                     means "not measured" (a caller that predates this param) and, like
+ *                                     $mr_sensor's `null`, is never a finding by itself. `anomaly` missing,
+ *                                     null, or a non-array scalar (the Worker's own fail-open degrade
+ *                                     shape when ITS observability store is unreachable) is UNKNOWN, never
+ *                                     a finding — direct-indexing `$anomaly['flagged']` without the
+ *                                     is_array() guard below would silently misread that degrade as
+ *                                     "not flagged" instead of "not measured"; a mutation pin guards this.
+ *                                     `version` is CARRIED in the shape above but not yet read by any
+ *                                     code here: spec §8 promises a "stale-deploy hint", but there is no
+ *                                     reliable known-current-version source on the plugin side today, so
+ *                                     comparison is deliberately deferred rather than built against a
+ *                                     guess.
  * @return array[] Finding rows.
  */
-function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $now, $stale_secs, $analytics_config = array(), $prov = 'unconfigured', $mr_sensor = null ) {
+function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $now, $stale_secs, $analytics_config = array(), $prov = 'unconfigured', $mr_sensor = null, $remote_mcp = false ) {
 	$findings = array();
 	$mk       = static function ( $label, $url, $note ) {
 		return array(
@@ -168,6 +210,69 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 		}
 	}
 
+	// sn-remote-mcp (v11.x, H1): false = "not measured" (a caller that predates
+	// this param) — absent measurement, never a finding, mirroring $mr_sensor's
+	// doctrine but on a distinct sentinel because an explicit null HERE is a
+	// measured outage (the URL is fixed on our own zone; there is no config to
+	// be absent, unlike $prov's 'unconfigured').
+	if ( false !== $remote_mcp ) {
+		if ( ! is_array( $remote_mcp ) ) {
+			$findings[] = $mk(
+				'sn-remote-mcp',
+				'',
+				'sn-remote-mcp worker is unreachable at /_sn/remote-mcp/status: it may be undeployed, or this host cannot hairpin to the edge. Re-run the scan to rule out a transient blip.'
+			);
+		} else {
+			// THE REAL-SHAPE FIX: the live body nests configured/bridge_secret_bound/
+			// killed under `config`, not at the top level (top level carries worker,
+			// version, source_commit, cf_version_id, deployed_at, increment, config).
+			// `anomaly` IS top-level. Defensive: a v0.2.0-era body or garbage still
+			// degrades to "not measured" rather than throwing.
+			$rm_config = is_array( $remote_mcp['config'] ?? null ) ? $remote_mcp['config'] : array();
+
+			if ( false === ( $rm_config['configured'] ?? null ) ) {
+				$findings[] = $mk(
+					'sn-remote-mcp',
+					'',
+					'sn-remote-mcp reports configured: false — the remote MCP door has not been deployed with its secrets and Access application, and every authenticated path returns 503. Something is missing: the bridge secret / Access wiring (see /_sn/remote-mcp/status).'
+				);
+			}
+
+			// Read (same nested source as configured/bridge_secret_bound) but
+			// DELIBERATELY produces no finding either way: a dark door is a state
+			// the owner chose, not a failure. Naming the read makes the no-finding
+			// behavior an intentional read-and-ignore rather than an accidental
+			// miss of a key nothing was looking at in the first place — do not
+			// fold this into an "outage" branch; that is the mutation this pin
+			// guards against.
+			$rm_killed = ! empty( $rm_config['killed'] ); // intentionally unused below.
+
+			if ( ! array_key_exists( 'bridge_secret_bound', $rm_config ) ) {
+				$findings[] = $mk(
+					'sn-remote-mcp',
+					'',
+					'sn-remote-mcp status is missing the bridge_secret_bound field entirely: a deploy lost the readout (distinct from the secret being present-but-unbound). Re-deploy the worker and confirm /_sn/remote-mcp/status reports the field again.'
+				);
+			}
+
+			$anomaly = is_array( $remote_mcp['anomaly'] ?? null ) ? $remote_mcp['anomaly'] : array();
+			if ( ! empty( $anomaly['flagged'] ) ) {
+				// Counts only, never identities — subject_over is a NUMBER; the
+				// per-session detail lives in Workers Logs, never in this note.
+				$findings[] = $mk(
+					'sn-remote-mcp',
+					'',
+					sprintf(
+						/* translators: 1: brokered calls today, 2: subjects over the per-sub threshold */
+						'sn-remote-mcp reports a volume anomaly: %1$d brokered calls today, %2$d subject(s) over the per-subject threshold. This flags a flood, not an outage — read Workers Logs for the per-session detail; the origin structurally cannot name the caller.',
+						(int) ( $anomaly['total_today'] ?? 0 ),
+						(int) ( $anomaly['subjects_over'] ?? 0 )
+					)
+				);
+			}
+		}
+	}
+
 	if ( ! is_array( $lg ) ) {
 		$findings[] = $mk(
 			'sn-login-guard',
@@ -261,6 +366,57 @@ function sn_health_prov_status_probe() {
 }
 
 /**
+ * Probe the sn-remote-mcp worker's /_sn/remote-mcp/status. Unlike
+ * sn_health_prov_status_probe(), the URL is FIXED on our own zone (not a
+ * setting), so there is no 'unconfigured' skip — the probe always runs and
+ * a transport/parse failure is a real outage (null). Mirrors the same shape
+ * otherwise: 200/503 both parse (a killed door still answers with its own
+ * state), cached 6h, and a failure is NEVER cached so an unreachable edge
+ * self-heals on the next scan.
+ *
+ * WORKER-IDENTITY CHECK: this estate has a standing memory about exactly this
+ * zone — /_sn/version answers as sn-analytics regardless of which worker's
+ * config endpoint was probed, so the body's `worker` field must be read
+ * before believing anything else in it. A 200/503 with the right shape but
+ * the wrong `worker` value is treated the same as an unparseable body (null),
+ * mirroring sn_health_prov_status_probe()'s own `'sn-provenance' !== worker`
+ * guard.
+ *
+ * @since 11.x (H1, R3 §3D Increments 2+4)
+ * @return array|null
+ */
+function sn_health_remote_mcp_status_probe() {
+	$cached = get_transient( SN_HEALTH_EDGE_REMOTE_MCP_TRANSIENT );
+	if ( is_array( $cached ) ) {
+		return $cached;
+	}
+
+	$url  = SN_HEALTH_EDGE_REMOTE_MCP_URL;
+	$host = (string) wp_parse_url( $url, PHP_URL_HOST );
+	if ( ! wp_http_validate_url( $url )
+		|| 'https' !== wp_parse_url( $url, PHP_URL_SCHEME )
+		|| ( function_exists( 'sn_ssrf_host_blocked' ) && sn_ssrf_host_blocked( $host ) )
+	) {
+		return null;
+	}
+
+	$response = wp_remote_get( $url, array( 'timeout' => 6, 'redirection' => 0 ) );
+	if ( is_wp_error( $response ) ) {
+		return null;
+	}
+	$code = (int) wp_remote_retrieve_response_code( $response );
+	if ( 200 !== $code && 503 !== $code ) {
+		return null;
+	}
+	$data = json_decode( wp_remote_retrieve_body( $response ), true );
+	if ( ! is_array( $data ) || 'sn-remote-mcp' !== (string) ( $data['worker'] ?? '' ) ) {
+		return null;
+	}
+	set_transient( SN_HEALTH_EDGE_REMOTE_MCP_TRANSIENT, $data, SN_HEALTH_EDGE_PROBE_TTL );
+	return $data;
+}
+
+/**
  * CHECK 8: edge-worker reachability + login-guard denylist freshness.
  *
  * @since 6.49.0
@@ -268,7 +424,7 @@ function sn_health_prov_status_probe() {
  */
 function sn_health_check_edge_workers() {
 	$label    = 'Edge workers';
-	$fix_hint = 'Reachability + freshness of the four owned Cloudflare Workers (analytics, login-guard, provenance, rights-signals), read from their status/version endpoints. A DEGRADED provenance pipeline or a DEAD machine-reader sensor is a finding — silence from either falsifies a public promise. An unreachable worker may be undeployed or unreachable from this host (re-run to rule out a transient blip); a stale or empty login-guard denylist means the daily refresh cron has stalled, leaving the edge on an outdated blocklist. Re-deploy with `npm run deploy` and check Workers Logs / `wrangler tail`.';
+	$fix_hint = 'Reachability + freshness of the five owned Cloudflare Workers (analytics, login-guard, provenance, rights-signals, remote-mcp), read from their status/version endpoints. A DEGRADED provenance pipeline or a DEAD machine-reader sensor is a finding — silence from either falsifies a public promise. An unreachable worker may be undeployed or unreachable from this host (re-run to rule out a transient blip); a stale or empty login-guard denylist means the daily refresh cron has stalled, leaving the edge on an outdated blocklist. sn-remote-mcp flags an outage (unreachable, unconfigured, or a lost bridge_secret_bound readout) and a volume anomaly (counts only, never a caller identity) — but NOT a deliberately killed door, which is a state the owner chose, not a failure. Re-deploy with `npm run deploy` and check Workers Logs / `wrangler tail`.';
 
 	if ( ! apply_filters( 'sn_health_edge_workers_check_enabled', true ) ) {
 		return sn_health_pack_check( $label, array(), $fix_hint );
@@ -312,8 +468,12 @@ function sn_health_check_edge_workers() {
 	$mr_info   = function_exists( 'snt_mr_sensor_info' ) ? snt_mr_sensor_info() : null;
 	$mr_sensor = ( is_array( $mr_info ) && isset( $mr_info['sensor'] ) && is_array( $mr_info['sensor'] ) ) ? $mr_info['sensor'] : null;
 
+	// v11.x (H1) — the fifth worker. Unconditional: the URL is fixed on our
+	// own zone, so unlike $prov there is no config-skip valve to fall back on.
+	$remote_mcp = sn_health_remote_mcp_status_probe();
+
 	$stale_secs = (int) apply_filters( 'sn_health_denylist_stale_secs', SN_HEALTH_DENYLIST_STALE_DAYS * DAY_IN_SECONDS );
-	$findings   = sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, time(), $stale_secs, $analytics_config, $prov, $mr_sensor );
+	$findings   = sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, time(), $stale_secs, $analytics_config, $prov, $mr_sensor, $remote_mcp );
 
 	return sn_health_pack_check( $label, $findings, $fix_hint );
 }

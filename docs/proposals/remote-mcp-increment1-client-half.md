@@ -395,6 +395,38 @@ It is not fixable at the endpoint: any response that separated "wrong secret" fr
 would rebuild exactly the oracle #641 and #642 closed. So the mitigations are procedural, and they
 belong in the runbook rather than in code:
 
+**Amendment (R3 §3D Increment 4, peer session, 2026-08-14): the peer's outcome counters partially
+falsify "unobservable by construction."** The wire still collapses every anonymous refusal into
+one 404 — that has not changed. But `docs/proposals/remote-mcp-increment4-observability.md` §11
+records that the origin now counts *which branch* refused, and that is a second readout this
+section did not have when it was written. Two qualifications carried faithfully from that
+document, plus a third from a later adversarial pass, so this is not read as more than it is:
+
+- **The status-panel line is a prompt, not the diagnosis.** It shows a *summed* refusal count;
+  refusals climbing while calls and last-used stay flat is what says "look closer." Confirming the
+  specific branch means reading the per-outcome counters directly: `wp option get
+  sn_mcp_remote_log_v1`.
+- **`refused_shut` counts only the in-flight toggle-race window** — a call already in flight when
+  the toggle flips off. It does NOT count calls that *arrive* after: with the toggle off, the route
+  is never registered, so that traffic dies at core's `rest_no_route` before the peer's module ever
+  sees it. A shut-door day reads zero regardless of how hard the door was knocked on afterward.
+- **`refused_auth` climbing is not, by itself, diagnostic — it needs a correlated second fact.**
+  `sn_bridge_handle_request()` checks the Bearer token before the slug, so any anonymous scanner
+  POST to the armed route also lands in `refused_auth`; that is benign in exactly the way scanner
+  noise on `refused_slug`/`refused_request` is benign, and isolated growth in the count is internet
+  background, not a rotation. The actual signature is the **correlation**: `refused_auth` climbing
+  *at the same time* the legitimate client — the Worker's own bridge calls — starts failing with
+  `door_closed_or_credential_or_tool`, while the toggle is confirmed ON. That pairing is what names
+  the two `SN_BRIDGE_TOKEN` halves disagreeing; `refused_auth` alone is not enough to conclude it.
+- **The correlated signature has a false negative (Grok adversarial pass, 2026-08-14): a DELETED
+  origin constant misses it entirely.** It assumes `SN_BRIDGE_TOKEN` is still *defined*, just
+  wrong. If the constant is deleted outright rather than changed, the bridge route never
+  registers, so the handler that would report `refused_auth` never runs — the count stays flat
+  regardless of how badly the two halves disagree. That case surfaces through the panel's
+  `secret_missing` state instead (see `docs/ops/remote-mcp-revoke-runbook.md`'s panel-state
+  table), not through the counters. The counters close the gap for *mismatched-but-present*
+  secrets; they do not close it for an absent one.
+
 1. **Rotation is a two-step with an unavoidable dark window.** Whatever order it is done in, the
    door 404s between the two edits. Expect it; do not diagnose it.
 2. **"Did I just rotate?" is the first question** when the door goes dark with both panels green.

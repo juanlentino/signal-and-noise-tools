@@ -69,6 +69,30 @@ from the endpoint either.
 | `secret_missing` | Toggle on, but `SN_BRIDGE_TOKEN` undefined (step 4) |
 | `bridge_ready` | Both gates open — **the door is live** |
 
+**Door dark + both panels green (R3 §3D Increment 4, added 2026-08-14):** if `bridge_ready` and
+the Worker's own status both read healthy but calls still 404, this is the [rotation blind
+spot](remote-mcp-increment1-client-half.md#the-rotation-blind-spot) — a mismatched `SN_BRIDGE_TOKEN`
+between the `wp-config.php` constant and the Worker secret reads identical to a closed door from
+both sides. Do not stop at the panel: read the observability record's refused counts first —
+`wp option get sn_mcp_remote_log_v1`. `refused_auth` climbing **alone** is not enough to conclude
+a rotation — the bridge checks the Bearer token before the slug, so any anonymous scanner POST to
+the armed route also lands in `refused_auth`, same as benign scanner noise on
+`refused_slug`/`refused_request`. The actual signature is the pairing: `refused_auth` climbing **at
+the same time** the legitimate client (the Worker's own bridge calls) starts failing with
+`door_closed_or_credential_or_tool`, while the toggle is confirmed ON. (`refused_shut` is a
+different fact — a call already in flight when the toggle flipped off, not calls that arrive after
+— and reads zero here regardless, because a shut door never registers the route in the first
+place.)
+
+**This signature has a false negative (Grok adversarial pass, 2026-08-14): a DELETED constant
+misses it entirely.** The correlated signature above assumes the origin constant is still
+*defined*, just wrong — `refused_auth` requires the bridge route to have registered and a Bearer
+check to have run against a present-but-mismatched value. If `SN_BRIDGE_TOKEN` is **deleted**
+rather than changed, the route never registers at all: `refused_auth` never climbs, because the
+handler that would report it never runs. That failure mode is what `secret_missing` in the panel
+table above names instead — check the panel state itself before concluding "no `refused_auth`
+climb" means "not a rotation problem."
+
 **After step 2**, the Cloudflare Users page should show **0 active sessions** and the Session
 identities table should read *"No results... yet!"*. Reload before believing the count — the page
 renders a stale number immediately after a revoke.
