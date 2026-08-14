@@ -5,6 +5,16 @@ All notable changes to Signal & Noise Tools are documented here.
 ## [Unreleased]
 
 ### Docs
+- **R6 prep: the split proposal** (`docs/r6-prep.md`) — R6's eight rows (the
+  table's seven plus Configuration drift, carried unshipped from R5's table)
+  sorted by gate into three sub-releases and one spike: R6a plugin-native
+  (morning brief, config drift, corpus schema surface, scheduled read-only
+  agent runs — no external gates), R6c `[w]` (toolchain refresh then the
+  dependency-provenance gate, second-anchor queue-jump decided at arc open),
+  R6b the GSC arc (one client, three consumers — gated on owner-side Google
+  credentials, the long-lead item requested now), and the restore-proof
+  scoping spike that decides where that row lands. Ordering: R6a → R6c → R6b,
+  freely swappable if the credential lands early.
 - **Attestation-coverage audit (R6 gate spike)** — the one-time audit the
   *Dependency provenance gate* row declares it lands after, recorded at
   `docs/ops/attestation-coverage-audit-2026-08-14.md`. 354 unique locked
