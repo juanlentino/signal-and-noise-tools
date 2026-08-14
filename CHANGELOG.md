@@ -4,6 +4,18 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Docs
+- **Attestation-coverage audit (R6 gate spike)** — the one-time audit the
+  *Dependency provenance gate* row declares it lands after, recorded at
+  `docs/ops/attestation-coverage-audit-2026-08-14.md`. 354 unique locked
+  `package@version` pairs across the five workers probed against npm's
+  attestation endpoint (negative-controlled both ways, zero probe errors):
+  union coverage 69.5%, rising to an estimated low-80s after a toolchain
+  refresh because 41 of the 99 unattested names attest at their latest
+  version. Verdict: the gate is meaningful — all five workers have zero
+  runtime deps (the tree is pure toolchain), the never-attests allowlist is
+  an enumerable 58 names, and the cooldown leg needs no attestations at all.
+
 ## [11.7.0] - 2026-08-14 — verifying travels with the content, and R5 closes
 
 **MINOR** — the verification quartet's last two rows ship as one module
