@@ -340,6 +340,27 @@ $GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ] = array(
 $view = sn_mcp_remote_log_read();
 ok( 0 === $view['today_refused'], 'THE ROLLOVER-READ PIN: yesterday\'s buffered counts do not appear in today\'s totals' );
 
+echo "Group: the presenter says never-used, and says it plainly\n";
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+$text = sn_mcp_remote_log_summary_text();
+ok( false !== strpos( $text, 'Never used' ), 'a fresh install reads "Never used"' );
+ok( false === strpos( $text, '1970' ), 'and never renders an epoch timestamp for a null last_used' );
+
+echo "Group: the presenter shows dispatches AND refusals together\n";
+// The pair is the point. A dispatch count alone reads as reassuring; it is the
+// refusal count beside it that makes a probe legible.
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+sn_mcp_remote_record( 'dispatched', 'signal-noise/remote-get-analytics-summary' );
+sn_mcp_remote_record( 'refused_auth', '' );
+sn_mcp_remote_record( 'refused_auth', '' );
+$text = sn_mcp_remote_log_summary_text();
+ok( false !== strpos( $text, '1 call' ), 'the dispatch count is rendered' );
+ok( false !== strpos( $text, '2 refused' ), 'THE PAIR PIN: the refusal count is rendered beside it' );
+ok( false === strpos( $text, 'UTC' ), 'and "today" carries no timezone label — buckets are in the site timezone, so the reader\'s "today" and the record\'s already agree' );
+ok( false === strpos( $text, 'Never used' ), 'and it no longer claims the door is unused' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-remote-observability.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-remote-observability.php\n";

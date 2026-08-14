@@ -390,6 +390,14 @@ $GLOBALS['__recorded'] = array();
 // which is after the pin. Do not "simplify" the wrapper away; the pin reds.
 if ( ! function_exists( 'sn_mcp_remote_record' ) ) {
 	function sn_mcp_remote_record( $outcome, $slug = '' ) {
+		// The stub REFUSES unknown outcomes rather than recording them. The real
+		// module silently drops them, so a typo'd literal in the bridge would
+		// otherwise stay green here and vanish in production.
+		$known = array( 'dispatched', 'refused_shut', 'refused_auth', 'refused_slug', 'refused_request' );
+		if ( ! in_array( (string) $outcome, $known, true ) ) {
+			$GLOBALS['__recorded'][] = array( '__UNKNOWN_OUTCOME__: ' . (string) $outcome, $slug );
+			return;
+		}
 		$GLOBALS['__recorded'][] = array( $outcome, $slug );
 	}
 }
@@ -423,7 +431,17 @@ ok( array( array( 'refused_shut', $REMOTE ) ) === $GLOBALS['__recorded'], 'a cal
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
 $anon = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
 ok( $shut->code === $anon->code && $shut->message === $anon->message && $shut->data === $anon->data, 'THE ASYMMETRY PIN: shut and bad-auth refusals stay byte-identical on the wire' );
-ok( 'refused_shut' !== 'refused_auth', 'while remaining distinct outcomes in the record' );
+// $GLOBALS['__recorded'] was NOT reset before this call — it still holds the
+// $shut call's entry — so the anon call's outcome APPENDS rather than replaces.
+// The record-derived witness: two entries, the first the shut call's, the
+// second the anon call's, and the two outcomes differ.
+ok(
+	array(
+		array( 'refused_shut', $REMOTE ),
+		array( 'refused_auth', $REMOTE ),
+	) === $GLOBALS['__recorded'] && $GLOBALS['__recorded'][0][0] !== $GLOBALS['__recorded'][1][0],
+	'while the RECORD tells them apart — the shut call recorded refused_shut, the anon call (unreset) appended refused_auth, and the two differ'
+);
 
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"

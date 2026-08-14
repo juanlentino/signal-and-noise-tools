@@ -508,3 +508,37 @@ function sn_mcp_remote_log_read() {
 		'recent'        => $blob['recent'],
 	);
 }
+
+/**
+ * One line for the admin remote card.
+ *
+ * THE LOGIC LIVES HERE, NOT IN THE VIEW. inc/admin-forms/mcp-connect-status.php
+ * is already 318 lines and is a renderer; it prints this string and decides
+ * nothing.
+ *
+ * "today" carries NO timezone label, and that is correct rather than an
+ * omission: buckets are keyed with wp_date(), so the record's "today" and the
+ * reader's are the same day. A label would only be needed if they could differ.
+ * See sn_mcp_remote_log_day_key().
+ *
+ * @return string Escaped-safe plain text (no markup).
+ */
+function sn_mcp_remote_log_summary_text() {
+	$view = sn_mcp_remote_log_read();
+
+	if ( null === $view['last_used'] && 0 === $view['today_refused'] ) {
+		return __( 'Never used.', 'signal-and-noise-tools' );
+	}
+
+	$last = ( null === $view['last_used'] )
+		? __( 'never', 'signal-and-noise-tools' )
+		: $view['last_used'];
+
+	return sprintf(
+		/* translators: 1: last-used timestamp or "never", 2: dispatch count, 3: refusal count. */
+		__( 'Last used %1$s · %2$d calls today · %3$d refused', 'signal-and-noise-tools' ),
+		$last,
+		(int) $view['today']['dispatched'],
+		(int) $view['today_refused']
+	);
+}

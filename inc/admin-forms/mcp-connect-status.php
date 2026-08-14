@@ -173,6 +173,9 @@ function sn_admin_mcp_status_cards( array $state ) {
 		case 'bridge_ready':
 			$remote_value = __( 'Bridge ready', 'signal-and-noise-tools' );
 			$remote_meta  = __( 'The switch is on and the bridge secret is defined, so the route is registered and answers the Worker.', 'signal-and-noise-tools' );
+			if ( function_exists( 'sn_mcp_remote_log_summary_text' ) ) {
+				$remote_meta .= '<br>' . esc_html( sn_mcp_remote_log_summary_text() );
+			}
 			$remote_pill  = array( 'kind' => 'ok', 'text' => __( 'ready', 'signal-and-noise-tools' ) );
 			break;
 		case 'option_off':
