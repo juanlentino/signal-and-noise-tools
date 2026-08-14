@@ -477,10 +477,18 @@ row's own argument ("don't trust the site's own button") applied uniformly.
 - **P-53 — pointers are pinned in reviewed code.** Same-origin or the fixed public
   artifact hosts; never assembled from options, meta, or content. A pointer test pins
   the allowed host set the way the board pins its banned tokens.
-- **P-54 — the verifier's distribution is verifiable.** Public repo, versioned,
-  hash-stated; the software-provenance row gates any "independent verification" claim
-  in site copy — until it lands, the copy says what the verifier is, not what trusting
-  it proves.
+- **P-54 — the verifier's distribution is verifiable. LANDED 2026-08-14** (plugin
+  v11.6.1 + ledger v1.0.0): releases are tagged, built in the ledger repo's public CI,
+  and published with Sigstore build attestations (`gh attestation verify`); verified
+  end-to-end including the negative control (a tampered artifact refuses). The
+  owner-selected anchor is GitHub/Sigstore — the same party hosting the clone, adding
+  tamper-evidence without adding a trust party — and the copy states that limit inside
+  the claim. The claim-phrase absence pins on the /verify shell STAY: the copy still
+  says what the attestation proves, never "independently verified" as a blanket
+  property. The self-contained upgrade path (a release manifest signed through the
+  site's own key infrastructure, a SEPARATE release-scoped key added to the key
+  history — never the content key, whose scope must not broaden to code) remains
+  open, unscheduled, and would strengthen rather than replace.
 - **P-55 — no state, no billing (restating §6 as a hard gate).** Nothing an anonymous
   caller reaches may write anything (no logging tables keyed by caller input, no
   counters that grow unboundedly with anonymous traffic — the refusal-buffer lesson

@@ -333,6 +333,10 @@ function sn_prov_verify_send() {
 cd <?php echo esc_html( $repo ); ?>
 node verify.mjs<?php echo '' !== $uid ? ' ' . esc_html( $uid ) : ' &lt;note_uid&gt;'; ?></code></pre>
 		<p>What you are trusting then: the code in your clone, which you can read first &#8212; it is a few small files &#8212; and one public block-explorer lookup for the Bitcoin header. <a href="<?php echo esc_url( 'https://github.com/' . $owner . '/' . $repo . '/blob/main/VERIFY.md' ); ?>" rel="noopener">VERIFY.md</a> in the repository walks through every check it runs and every byte it recomputes.</p>
+		<?php // v11.6.1 (R5): the software-provenance half. Wording still
+		// bound by the P-54 absence pins: states what the attestation proves
+		// and names its anchor — never a claim-shaped phrase. ?>
+		<p>Releases of the verifier are built in the repository&#8217;s public CI and published with a build attestation, so a downloaded copy can prove which commit built it. The attestation&#8217;s anchor is the code host itself &#8212; reading the code in your clone remains the trust floor. VERIFY.md&#8217;s &#8220;Verify the verifier&#8221; section shows the check and states plainly what it does and does not prove.</p>
 	</section>
 
 	<footer class="sn-verify-foot">

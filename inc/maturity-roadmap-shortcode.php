@@ -142,13 +142,19 @@ function sn_maturity_roadmap_static_board() {
 				// the clone-and-run path. Rewritten present-tense; the wording
 				// honours §9.5 P-54 (says what the verifier IS).
 				__( 'A standalone verifier anyone can run outside the site: the checks live as a small readable program in the public ledger repository — clone, run, trust only the code in front of you — and the site\'s own verify page points at it as the way out of trusting the page itself', 'signal-and-noise-tools' ),
+				// 2026-08-14 (v11.6.1, R5): graduated considering -> done, same
+				// day as its sibling — the verifier row's completion, not a
+				// separate idea. Owner-selected anchor: public-CI build
+				// attestations, with the honest limit INSIDE the claim (the
+				// anchor is the code host); the self-contained site-key path
+				// stays recorded in threat model §9.5 P-54 as the upgrade.
+				__( 'Provenance for the software itself: releases of the verifier are built in public CI and published with a build attestation, so the tool a stranger downloads can prove which commit built it — the verifier argument applied one layer down, with its limit stated: the attestation\'s anchor is the code host, and reading the cloned code remains the trust floor — a thread shared with Operations', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Extend signing and anchoring beyond notes, to pages and then media', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'A second, independent anchor: a standards-based timestamp authority alongside Bitcoin, so the chain\'s integrity never rests on a single mechanism\'s longevity', 'signal-and-noise-tools' ),
-				__( 'Provenance for the software itself: signed releases for the code that signs the content — the verifier argument applied one layer down — a thread shared with Operations', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'A second witness that names the author: each note\'s chain head countersigned into a public transparency log — an independent record binding the proof to an identity, not just a moment', 'signal-and-noise-tools' ),
