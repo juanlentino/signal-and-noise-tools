@@ -346,9 +346,72 @@ The header disappearing is necessary, not sufficient. Increment 0's exit criteri
 | Half | Status 2026-08-13 |
 | --- | --- |
 | Browser OAuth completes; connector added and visible on phone | **CONFIRMED** |
-| A tool call succeeds **from the phone** (e.g. `sn_remote_ping`) | not yet tested |
-| Disconnect stops further calls within one access-token TTL | not yet tested |
-| Edge revoke stops further calls within one access-token TTL | not yet tested |
+| A tool call succeeds **from the phone** (`sn_remote_ping`) | **CONFIRMED** — 3 calls over 100 min, `ok: true`, advancing timestamps |
+| Disconnect stops further calls within one access-token TTL | **CONFIRMED — and immediately**, not TTL-bound |
+| Edge revoke stops further calls within one access-token TTL | **CONFIRMED** — revoke `23:57:39Z`, call refused by `00:00Z`, ~2.5 min ≪ 900s |
+
+## ✅ Increment 0's exit criterion is MET (2026-08-13)
+
+All four rows are green. The edge revoke was run from Cloudflare One → Team & Resources → Users
+→ `juan.lentino@gmail.com` → **Session management → Revoke sessions**, and the evidence is
+unambiguous on both sides of the boundary:
+
+**At the edge**, active sessions went **2 → 0** and the Session identities table went from four
+rows to *"No results... yet!"* — including `Bh6ppUzcANer6MmK`, the session that the client-side
+disconnect had left fully alive.
+
+**At the client**, the next `sn_remote_ping` from the phone did not error — it returned
+**"SN MCP — Claude needs access to continue"** with a Connect button. That is the correct
+outcome: Access refused the resolved token and Claude surfaced a re-authorization prompt rather
+than a failure.
+
+**The finding that makes the two revoke paths genuinely different.** Before the edge revoke, the
+user had **2** active sessions: the original `Bh6ppUzcANer6MmK` from 02:13 PM *and* a new
+`3TmiV0scc9buFEgx` from the 07:53 PM re-add. **Disconnecting the connector had not ended the
+first one** — it was still live, still expiring Aug 14. So:
+
+- **Disconnect** stops the honest client from calling. The edge session survives.
+- **Edge revoke** ends the session itself, and the token stops being accepted.
+
+Only the second is a control against adversary **A5** — a hostile caller holding a token would
+never press disconnect. That distinction was written into this file as a caveat before the test
+and the test confirmed it directly, which is the rare case of a prediction surviving contact.
+
+**What this unblocks.** Kill criterion 2 — *"no phone-reachable revoke that stops traffic within
+one access-token TTL without a laptop"* — is satisfied. It was the stated gate on Increment 1's
+**bridge half**. That work is no longer blocked by Increment 0.
+
+**What it does not settle.** The revoke was performed from a laptop dashboard, not from a phone.
+Increment 3 ("phone-first revoke UX") remains real work: a magic link or equivalent that reaches
+the same control without a laptop. The criterion's phrasing is about the *timing* guarantee,
+which is met; the *ergonomics* are not.
+
+**The disconnect result is better than the criterion asked for, and weaker than it sounds** —
+and the edge-revoke test above confirmed exactly this, by finding the disconnected session still
+alive.
+Disconnecting the connector in Claude made the next call fail *immediately* rather than after the
+900s access-token TTL. But a client-side disconnect proves that **the honest client stops
+calling**. It does not prove that a **stolen token stops working** — nothing was revoked at the
+edge, and an attacker holding that token would not have pressed disconnect.
+
+Kill criterion 2 and adversary **A5** are about the hostile caller. So the row that actually
+bears on them is the **edge revoke**, and it is the one still open. Do not read three green rows
+as the exit criterion being met.
+
+**How to run the remaining half:** Cloudflare One → Team & Resources → Users →
+`juan.lentino@gmail.com` → **Session management → Revoke sessions**. As of 2026-08-13 that user
+had exactly **1** active session (`Bh6ppUzcANer6MmK`, application *SN Remote MCP*), logged in
+02:13 PM with an expiration of **Aug 14, 05:19 PM** — roughly 24 hours.
+
+That ~24h session expiry is a second clock, distinct from the 900s access token, and which one
+governs after a revoke is precisely what the test measures. Revoke, then call from the phone
+immediately; if it still succeeds, retry at ~5 and ~15 minutes to find the governing clock.
+
+**A note on what the re-add incidentally proved.** Re-adding the connector ran a genuinely fresh
+authorization **with Speed Brain ON and the WAF prefetch rule live**, and it completed. That is
+the first real OAuth flow under the current configuration, and it establishes that the WAF rule
+does not break the flow — a live risk when it was deployed. By this document's own asymmetry it
+clears nothing about the prefetch hypothesis: one success never does.
 
 The last row is what kill criterion 2 is about, and it is the one gating any real data path.
 
