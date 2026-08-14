@@ -288,3 +288,137 @@ function sn_mcp_remote_log_prune( $blob ) {
 	}
 	return $blob;
 }
+
+/**
+ * Should the pending buffer be folded into the option now?
+ *
+ * PURE — it takes the buffer's age and whether this is a dispatch, and reads no
+ * clock and no storage. The live wrapper supplies both. Same split as
+ * sn_mcp_remote_kill_switch_decision() / …_engaged().
+ *
+ * @param int  $age_seconds  Seconds since the buffer's first_seen.
+ * @param bool $is_dispatch  True when a successful dispatch is being recorded.
+ * @return bool
+ */
+function sn_mcp_remote_should_flush( $age_seconds, $is_dispatch ) {
+	if ( (bool) $is_dispatch ) {
+		return true;
+	}
+	return (int) $age_seconds >= SN_MCP_REMOTE_FLUSH_SECONDS;
+}
+
+/**
+ * Read the pending buffer, or null when there is none.
+ *
+ * @return array|null { day: string, first_seen: int, counts: array }
+ */
+function sn_mcp_remote_pending_get() {
+	if ( ! function_exists( 'get_transient' ) ) {
+		return null;
+	}
+	$pending = get_transient( SN_MCP_REMOTE_PENDING_TRANSIENT );
+	if ( ! is_array( $pending ) || ! isset( $pending['day'], $pending['first_seen'], $pending['counts'] ) ) {
+		return null;
+	}
+	if ( ! is_array( $pending['counts'] ) ) {
+		return null;
+	}
+	return $pending;
+}
+
+/**
+ * Fold a pending buffer into a blob and clear it.
+ *
+ * THE DAY KEY COMES FROM THE BUFFER, never from the clock. A set recorded at
+ * 23:59:58 and flushed at 00:00:05 belongs to the day it was recorded;
+ * recomputing here would file it under the wrong date and understate the busy
+ * day. That is pinned.
+ *
+ * @param array      $blob
+ * @param array|null $pending
+ * @return array The blob with the pending counts folded in.
+ */
+function sn_mcp_remote_pending_fold( $blob, $pending ) {
+	if ( null === $pending ) {
+		return $blob;
+	}
+	foreach ( $pending['counts'] as $outcome => $n ) {
+		$blob = sn_mcp_remote_log_add_count( $blob, (string) $pending['day'], (string) $outcome, (int) $n );
+	}
+	return $blob;
+}
+
+/**
+ * Record one outcome from the bridge. THE ONLY ENTRY POINT THE BRIDGE CALLS.
+ *
+ * A dispatch is written straight through — it is rare, and it is the fact worth
+ * having immediately. Refusals buffer, because /wp-json/signal-noise/v1/bridge
+ * is a PUBLIC origin route while the door is armed — it is not behind Access
+ * the way mcp.juanlentino.com is — so an uncoalesced counter would hand an
+ * anonymous caller one option write per request.
+ *
+ * This function must never throw and must never alter the caller's behaviour.
+ *
+ * @param string $outcome One of SN_MCP_REMOTE_OUTCOMES.
+ * @param string $slug    The requested slug, or ''.
+ * @return void
+ */
+function sn_mcp_remote_record( $outcome, $slug = '' ) {
+	$outcome = (string) $outcome;
+	if ( ! in_array( $outcome, SN_MCP_REMOTE_OUTCOMES, true ) ) {
+		return;
+	}
+
+	$is_dispatch = ( 'dispatched' === $outcome );
+	$pending     = sn_mcp_remote_pending_get();
+	$age         = ( null === $pending ) ? 0 : max( 0, time() - (int) $pending['first_seen'] );
+
+	if ( ! $is_dispatch && ! sn_mcp_remote_should_flush( $age, false ) ) {
+		sn_mcp_remote_pending_add( $outcome );
+		return;
+	}
+
+	$blob = sn_mcp_remote_log_get_blob();
+	$blob = sn_mcp_remote_pending_fold( $blob, $pending );
+	if ( null !== $pending && function_exists( 'delete_transient' ) ) {
+		delete_transient( SN_MCP_REMOTE_PENDING_TRANSIENT );
+	}
+	if ( ! $is_dispatch ) {
+		// A stale buffer flushed by a refusal: that refusal counts too.
+		$blob = sn_mcp_remote_log_add_count( $blob, sn_mcp_remote_log_day_key(), $outcome, 1 );
+	}
+	$blob = sn_mcp_remote_log_prune( $blob );
+	sn_mcp_remote_log_save_blob( $blob );
+
+	if ( $is_dispatch ) {
+		sn_mcp_remote_log_apply( $outcome, $slug );
+	}
+}
+
+/**
+ * Add one refusal to the pending buffer, creating it if absent.
+ *
+ * first_seen is stamped ONCE, at creation, so the buffer ages from when it
+ * started rather than from the last thing added to it — otherwise a steady
+ * flood would keep resetting the age and never flush.
+ *
+ * @param string $outcome
+ * @return void
+ */
+function sn_mcp_remote_pending_add( $outcome ) {
+	if ( ! function_exists( 'set_transient' ) ) {
+		return;
+	}
+	$pending = sn_mcp_remote_pending_get();
+	if ( null === $pending || sn_mcp_remote_log_day_key() !== $pending['day'] ) {
+		$pending = array(
+			'day'        => sn_mcp_remote_log_day_key(),
+			'first_seen' => time(),
+			'counts'     => array(),
+		);
+	}
+	$current                       = isset( $pending['counts'][ $outcome ] ) ? (int) $pending['counts'][ $outcome ] : 0;
+	$pending['counts'][ $outcome ] = $current + 1;
+
+	set_transient( SN_MCP_REMOTE_PENDING_TRANSIENT, $pending, SN_MCP_REMOTE_PENDING_TTL );
+}

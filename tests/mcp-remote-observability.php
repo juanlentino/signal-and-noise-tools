@@ -188,6 +188,59 @@ sn_mcp_remote_log_apply( 'dispatched', array( 'not', 'a', 'string' ) );
 $blob = sn_mcp_remote_log_get_blob();
 ok( '' === $blob['recent'][0]['slug'], 'and a non-scalar slug stores as the empty string, not "Array" plus a PHP warning' );
 
+echo "Group: the flush predicate is pure and covers all four combinations\n";
+// Truth table, exhaustively. A predicate tested on two of four combinations is
+// satisfied by `return $is_dispatch;` — which would never flush a pure-refusal
+// probe at all, the exact case this buffer exists for.
+ok( true  === sn_mcp_remote_should_flush( 999, false ), 'stale buffer, no dispatch -> flush' );
+ok( true  === sn_mcp_remote_should_flush( 0,   true  ), 'fresh buffer, dispatch -> flush (it is writing anyway)' );
+ok( true  === sn_mcp_remote_should_flush( 999, true  ), 'stale buffer, dispatch -> flush' );
+ok( false === sn_mcp_remote_should_flush( 0,   false ), 'THE ONE THAT MAKES IT A BUFFER: fresh buffer, no dispatch -> hold' );
+
+echo "Group: a refusal buffers instead of writing the option\n";
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+sn_mcp_remote_record( 'refused_auth', '' );
+ok( ! array_key_exists( SN_MCP_REMOTE_LOG_OPTION, $GLOBALS['__options'] ), 'THE ONE THAT MATTERS FOR A FLOOD: a single refusal writes NO option' );
+ok( array_key_exists( SN_MCP_REMOTE_PENDING_TRANSIENT, $GLOBALS['__transients'] ), 'it lands in the pending transient instead' );
+ok( 1 === $GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ]['counts']['refused_auth'], 'with a count of one' );
+
+sn_mcp_remote_record( 'refused_auth', '' );
+sn_mcp_remote_record( 'refused_auth', '' );
+ok( 3 === $GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ]['counts']['refused_auth'], 'and further refusals accumulate there — three requests, still zero option writes' );
+ok( ! array_key_exists( SN_MCP_REMOTE_LOG_OPTION, $GLOBALS['__options'] ), 'confirmed: still no option write after three refusals' );
+
+echo "Group: the pending TTL is far longer than the flush window\n";
+// Nothing SCHEDULES a flush. If a probe stops, the tail sits here until an
+// admin read collects it. A TTL near the flush window would discard exactly
+// the counts most worth having.
+ok( $GLOBALS['__ttls'][ SN_MCP_REMOTE_PENDING_TRANSIENT ] > SN_MCP_REMOTE_FLUSH_SECONDS * 10, 'THE TAIL-LOSS PIN: the pending TTL is more than ten flush windows' );
+
+echo "Group: a dispatch flushes the buffer along with itself\n";
+$today = sn_mcp_remote_log_day_key();
+sn_mcp_remote_record( 'dispatched', 'signal-noise/remote-get-analytics-summary' );
+$blob = sn_mcp_remote_log_get_blob();
+ok( 3 === $blob['counters'][ $today ]['refused_auth'], 'the three buffered refusals landed in the persisted counters' );
+ok( 1 === $blob['counters'][ $today ]['dispatched'], 'alongside the dispatch that flushed them' );
+ok( ! array_key_exists( SN_MCP_REMOTE_PENDING_TRANSIENT, $GLOBALS['__transients'] ), 'and the buffer was cleared, so nothing double-counts' );
+
+echo "Group: a pending set files under the day it was RECORDED, not flushed\n";
+// The midnight bug. A set recorded at 23:59:58 and flushed at 00:00:05 belongs
+// to the day it was recorded; recomputing the key at flush time would file it
+// under the wrong date and understate the busy day.
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+$yesterday = wp_date( 'Y-m-d', time() - DAY_IN_SECONDS );
+$GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ] = array(
+	'day'        => $yesterday,
+	'first_seen' => time() - 3600,
+	'counts'     => array( 'refused_auth' => 4 ),
+);
+sn_mcp_remote_record( 'dispatched', 'slug' );
+$blob = sn_mcp_remote_log_get_blob();
+ok( 4 === $blob['counters'][ $yesterday ]['refused_auth'], 'THE MIDNIGHT PIN: buffered counts land in YESTERDAY\'s bucket' );
+ok( ! isset( $blob['counters'][ sn_mcp_remote_log_day_key() ]['refused_auth'] ), 'and not in today\'s' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-remote-observability.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-remote-observability.php\n";
