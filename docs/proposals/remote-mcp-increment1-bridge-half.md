@@ -103,6 +103,39 @@ Three corrections came out of that review, and each is load-bearing:
 
 ---
 
+## Correction 2026-08-14 — an adversarial review found claim 5 false as written
+
+An independent review (Grok, `run-mssas366-uy2uh7`) attacked the six claimed properties. **No
+data path broke** — it could not extract analytics without the token, ride the grant onto another
+slug, persist the capability, flip `SN_MCP_REMOTE_DISABLED` from the web, or reach the toggle as a
+non-admin. Two leaks landed, and both were mine.
+
+**1. The handler answered 401 for a bad Bearer**, while an unregistered route answers 404. The
+status alone announced *"this door is armed"* — precisely the leak this document folded the old
+503 into registration to prevent. The public REST index made it cheaper still, listing `/bridge`
+only when both gates were open. **Fixed:** a bad Bearer now returns 404 with
+`sn_bridge_not_found`, byte-identical to an off-list slug, and the route carries
+`show_in_index => false`.
+
+**2. The ability registered with `show_in_rest => true`**, so
+`POST /wp-abilities/v1/abilities/<slug>/run` existed on every install and returned a different
+error code depending on the switch — a switch-state oracle available the day the plugin is
+installed. **Fixed:** `show_in_rest => false`. The bridge dispatches via
+`wp_get_ability( $slug )->execute( $args )` and never needed that route. **That route is also what
+reopened the F2-shaped gap the origin half then had to paper over with a guard** — deleting the
+surface beats guarding it.
+
+**Both were the same blind spot:** I threat-modelled the endpoint I *wrote* and not the surfaces
+WordPress creates on my behalf.
+
+**One wording correction, no behaviour change.** This document said the bridge uses "the same path
+the MCP door uses." It does not — `sn_mcp_call_tool()` calls `check_permissions()` *then*
+`execute()`; the bridge calls only `execute()`. Real core `WP_Ability::execute()` runs
+`check_permissions()` internally, so the property holds, but **the test suite cannot see it**: the
+`SNB_Ability` fixture never calls `check_permissions`. A faithful fixture is owed.
+
+---
+
 ## Architecture
 
 ### 1. The secret — `SN_BRIDGE_TOKEN`

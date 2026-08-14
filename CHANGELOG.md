@@ -4,6 +4,9 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Fixed
+- **Two unauthenticated oracles on the remote analytics door**, found by an adversarial review. The bridge answered `401` for a bad Bearer while an unregistered route answers `404` — the status alone announced the door was armed, the exact leak folding the old 503 into registration was meant to prevent. It now answers `404 sn_bridge_not_found`, byte-identical to an off-list slug, and the route is hidden from the public REST index. Separately, the remote ability registered with `show_in_rest => true`, creating `POST /wp-abilities/v1/abilities/<slug>/run` on every install and leaking the switch state through its error code; that route is now not created at all. No data path was affected — neither leak returned analytics.
+
 ### Added
 - **A runbook for stopping the remote analytics door** (`docs/ops/remote-mcp-revoke-runbook.md`), closing R3 §3D Increment 3. Five controls ordered fastest-first, with the trap named: disconnecting the connector in Claude does **not** end the Cloudflare Access session — measured 2026-08-13, two sessions were live after a disconnect and re-add. Disconnect stops the honest client; only the edge revoke defeats a stolen token. Records the wp-admin session list as unbuildable at the origin, and the magic-link kill URL as considered and declined.
 

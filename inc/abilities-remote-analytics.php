@@ -89,7 +89,19 @@ add_action( 'wp_abilities_api_init', function () {
 			),
 		),
 		'meta'                => array(
-			'show_in_rest' => true,
+			// FALSE, DELIBERATELY — this is the surface, not a setting.
+			//
+			// With `true`, WordPress registers
+			// POST /wp-abilities/v1/abilities/<slug>/run on every install, and an
+			// UNAUTHENTICATED caller learns the switch state from the error code:
+			// sn_mcp_remote_disabled when off, ability_invalid_permissions when on.
+			// A switch-state oracle, present the day the plugin is installed.
+			//
+			// That run route is also what reopened the F2-shaped gap the origin
+			// half then had to paper over with a guard. The bridge dispatches via
+			// wp_get_ability( $slug )->execute( $args ) and never needs it.
+			// Deleting the surface beats guarding it.
+			'show_in_rest' => false,
 			'annotations'  => array(
 				'readonly'   => true,
 				'idempotent' => true,

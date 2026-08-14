@@ -213,10 +213,10 @@ function wp_get_ability( $slug ) {
 $REMOTE = sn_mcp_remote_slugs()[0];
 
 $r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
-ok( is_wp_error( $r ) && 401 === $r->data['status'], 'no Authorization -> 401' );
+ok( is_wp_error( $r ) && 404 === $r->data['status'], 'no Authorization -> 404' );
 
 $r = sn_bridge_handle_request( new SNB_Req( array( 'authorization' => 'Bearer wrong' ), array( 'slug' => $REMOTE ) ) );
-ok( is_wp_error( $r ) && 401 === $r->data['status'], 'wrong Bearer -> 401' );
+ok( is_wp_error( $r ) && 404 === $r->data['status'], 'wrong Bearer -> 404' );
 
 // THE ORDER PINS. The two 401s above both send an ON-LIST slug, so they are
 // satisfied no matter which check runs first — moving the slug checks above the
@@ -231,10 +231,10 @@ ok( is_wp_error( $r ) && 401 === $r->data['status'], 'wrong Bearer -> 401' );
 // below exists to deny. An unauthenticated caller must learn NOTHING about the
 // body it sent, so every pre-auth refusal has to be the same 401.
 $r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => 'signal-noise/get-post-content' ) ) );
-ok( is_wp_error( $r ) && 401 === $r->data['status'], 'THE ORDER PIN: no Authorization + an OFF-LIST slug -> 401, not 404 — the Bearer is checked FIRST' );
+ok( is_wp_error( $r ) && 404 === $r->data['status'] && 'sn_bridge_not_found' === $r->code, 'THE INDISTINGUISHABILITY PIN: no Authorization + an OFF-LIST slug is the SAME status AND code as every other anonymous refusal' );
 
 $r = sn_bridge_handle_request( new SNB_Req( array(), array() ) );
-ok( is_wp_error( $r ) && 401 === $r->data['status'], 'and no Authorization + no slug -> 401, not 400 — an unauthenticated caller learns nothing about its body' );
+ok( is_wp_error( $r ) && 404 === $r->data['status'] && 'sn_bridge_not_found' === $r->code, 'and no Authorization + no slug is the same again -> an anonymous caller learns nothing about its body OR the slug' );
 
 $good = array( 'authorization' => 'Bearer topsecret' );
 $offlist = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
@@ -302,6 +302,18 @@ $GLOBALS['__throw'] = false;
 ok( $threw, 'the ability failure propagates rather than being swallowed into a success envelope' );
 ok( false === sn_bridge_is_verified(), 'THE ONE THE finally EXISTS FOR: a throwing ability still leaves the flag cleared' );
 ok( in_array( 'user_has_cap', $GLOBALS['__removed'], true ), 'and the capability filter is still removed when the ability throws' );
+
+echo "Group: an anonymous probe cannot tell an ARMED door from a shut one\n";
+// Finding 1 from the 2026-08-14 adversarial review. The handler used to answer
+// 401 for a bad Bearer while an unregistered route answers 404 — so the status
+// alone announced "this door is armed". Grok: "You cannot keep 401 and keep
+// claim 5." These pin the fix; a regression to 401 reds them.
+$anon = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
+$bad  = sn_bridge_handle_request( new SNB_Req( array( 'authorization' => 'Bearer nope' ), array( 'slug' => $REMOTE ) ) );
+$off  = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
+ok( 404 === $anon->data['status'] && 404 === $bad->data['status'] && 404 === $off->data['status'], 'anonymous, wrong-secret and off-list refusals all carry status 404' );
+ok( $anon->code === $bad->code && $bad->code === $off->code, 'and all three carry the SAME error code — status parity alone is not indistinguishability' );
+ok( 'sn_bridge_not_found' === $anon->code, 'and that code is sn_bridge_not_found, never an auth-flavoured one' );
 
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
