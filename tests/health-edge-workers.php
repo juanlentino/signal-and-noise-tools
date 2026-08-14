@@ -45,6 +45,7 @@ $GLOBALS['__ew']['remote_mcp_resp']  = array(
 	'code' => 200,
 	'body' => json_encode(
 		array(
+			'worker'              => 'sn-remote-mcp',
 			'configured'          => true,
 			'killed'              => false,
 			'bridge_secret_bound' => true,
@@ -208,6 +209,7 @@ $f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(
 ok( 1 === count( $f ) && 'sn-remote-mcp' === $f[0]['subject_label'] && false !== strpos( $f[0]['note'], 'unreachable' ), 'remote-mcp: null (probe unreachable) -> unreachable finding' );
 
 $healthyRemote = array(
+	'worker'              => 'sn-remote-mcp',
 	'configured'          => true,
 	'killed'              => false,
 	'bridge_secret_bound' => true,
@@ -239,6 +241,40 @@ $f                      = sn_health_edge_worker_findings( true, 'u', $healthyLg,
 ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], '611' ) && false !== strpos( $f[0]['note'], '2' ), 'remote-mcp: anomaly.flagged -> finding, note carries the counts' );
 ok( 0 === preg_match( '/[^\s@]+@[^\s@]+\.[^\s@]+/', $f[0]['note'] ), 'THE NO-IDENTITY PIN (health half): the anomaly note contains no email-shaped string' );
 
+// THE DEGRADED-INSTRUMENT PIN: anomaly null/non-array is UNKNOWN, never a
+// finding. This is the Worker's own fail-open shape (its DO's day-counter
+// store unreachable -> the anomaly state degrades to unknown rather than
+// throwing) — a future refactor that indexes $anomaly['flagged'] directly,
+// without the is_array() guard, would misread "not measured" as "not
+// flagged" and must red here instead of silently degrading a warning into
+// a false negative.
+$anomalyNull            = $healthyRemote;
+$anomalyNull['anomaly'] = null;
+$f                      = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $anomalyNull );
+ok( array() === $f, 'THE DEGRADED-INSTRUMENT PIN: anomaly null/non-array is UNKNOWN, never a finding (anomaly: null)' );
+
+$anomalyScalar            = $healthyRemote;
+$anomalyScalar['anomaly'] = 'unknown';
+$f                        = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $anomalyScalar );
+ok( array() === $f, 'THE DEGRADED-INSTRUMENT PIN: anomaly null/non-array is UNKNOWN, never a finding (anomaly: "unknown" scalar)' );
+
+// A v0.2.0-era body (pre-Increment-4 Worker, no anomaly block at all): absent
+// field = absent measurement, never a finding by itself — the file's
+// existing doctrine, extended to this worker.
+$preAnomalyWorker = $healthyRemote;
+unset( $preAnomalyWorker['anomaly'] );
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $preAnomalyWorker );
+ok( array() === $f, 'remote-mcp: v0.2.0-era body with no anomaly block at all -> absent measurement, no finding' );
+
+// Item 4: `configured` key ABSENT entirely (distinct from configured:false)
+// is also absent measurement, never a finding — the same absent!=false
+// doctrine this file already applies to $mr_sensor and the login-guard
+// refresh-reason fields. Only an explicit `configured: false` is an outage.
+$noConfiguredKey = $healthyRemote;
+unset( $noConfiguredKey['configured'] );
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $noConfiguredKey );
+ok( array() === $f, 'remote-mcp: configured key ABSENT (not false) -> absent measurement, no finding' );
+
 // ── I/O wrapper: the probe is unconditional (fixed URL, no config skip) ──
 // $healthyLg is "fresh" relative to the fixed $NOW used by the pure-function
 // group above; the wrapper calls time() for real, so a login-guard fixture
@@ -257,6 +293,27 @@ $GLOBALS['__ew']['remote_mcp_error'] = true;
 $r = sn_health_check_edge_workers();
 ok( $r['count'] >= 1 && false !== strpos( json_encode( $r['findings'] ), 'sn-remote-mcp' ), 'wrapper: a transport failure surfaces the sn-remote-mcp finding' );
 $GLOBALS['__ew']['remote_mcp_error'] = false;
+
+// THE WORKER-IDENTITY PIN: this zone has a standing memory that /_sn/version
+// answers as sn-analytics regardless of which config endpoint was probed —
+// the `worker` field must be read before believing anything else in the
+// body. A well-shaped 200 whose `worker` field names a DIFFERENT worker (or
+// omits it) must be treated exactly like an unparseable body: unreachable.
+$wrongWorker           = $healthyRemote;
+$wrongWorker['worker'] = 'sn-analytics';
+$GLOBALS['__ew']['transient']       = array();
+$GLOBALS['__ew']['remote_mcp_resp'] = array( 'code' => 200, 'body' => json_encode( $wrongWorker ) );
+$r = sn_health_check_edge_workers();
+ok( 1 === $r['count'] && false !== strpos( $r['findings'][0]['note'], 'unreachable' ), 'THE WORKER-IDENTITY PIN: a 200 body naming the WRONG worker is treated as unreachable, not believed' );
+
+$missingWorkerField = $healthyRemote;
+unset( $missingWorkerField['worker'] );
+$GLOBALS['__ew']['transient']       = array();
+$GLOBALS['__ew']['remote_mcp_resp'] = array( 'code' => 200, 'body' => json_encode( $missingWorkerField ) );
+$r = sn_health_check_edge_workers();
+ok( 1 === $r['count'] && false !== strpos( $r['findings'][0]['note'], 'unreachable' ), 'THE WORKER-IDENTITY PIN: a 200 body with the worker field ABSENT is also treated as unreachable' );
+
+$GLOBALS['__ew']['remote_mcp_resp'] = array( 'code' => 200, 'body' => json_encode( $healthyRemote ) );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

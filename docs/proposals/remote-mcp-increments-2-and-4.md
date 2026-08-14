@@ -207,7 +207,7 @@ was missing was anyone writing down that the two readouts compose.
 | `killed` | `false` | **info, not outage** — a deliberately dark door is a state, not a failure |
 | `bridge_secret_bound` | present (boolean) | absent field ⇒ outage (a deploy lost the readout) |
 | `anomaly.flagged` | `false` | warning, distinct from outage |
-| `version` | present | stale-deploy hint |
+| `version` | present | stale-deploy hint (deferred — carried, not yet compared; needs a known-current source) |
 
 The probe follows the existing four workers' idiom, including the estate rule that a host
 false-positive gets added to the shared classifier, not inline.

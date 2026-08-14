@@ -74,10 +74,15 @@ the Worker's own status both read healthy but calls still 404, this is the [rota
 spot](remote-mcp-increment1-client-half.md#the-rotation-blind-spot) — a mismatched `SN_BRIDGE_TOKEN`
 between the `wp-config.php` constant and the Worker secret reads identical to a closed door from
 both sides. Do not stop at the panel: read the observability record's refused counts first —
-`wp option get sn_mcp_remote_log_v1`. A climbing `refused_auth` count while the toggle is ON names
-a botched rotation; it has no benign explanation. (`refused_shut` is a different fact — calls that
-arrived while the toggle was off — and reads zero here because a shut door never registers the
-route.)
+`wp option get sn_mcp_remote_log_v1`. `refused_auth` climbing **alone** is not enough to conclude
+a rotation — the bridge checks the Bearer token before the slug, so any anonymous scanner POST to
+the armed route also lands in `refused_auth`, same as benign scanner noise on
+`refused_slug`/`refused_request`. The actual signature is the pairing: `refused_auth` climbing **at
+the same time** the legitimate client (the Worker's own bridge calls) starts failing with
+`door_closed_or_credential_or_tool`, while the toggle is confirmed ON. (`refused_shut` is a
+different fact — a call already in flight when the toggle flipped off, not calls that arrive after
+— and reads zero here regardless, because a shut door never registers the route in the first
+place.)
 
 **After step 2**, the Cloudflare Users page should show **0 active sessions** and the Session
 identities table should read *"No results... yet!"*. Reload before believing the count — the page

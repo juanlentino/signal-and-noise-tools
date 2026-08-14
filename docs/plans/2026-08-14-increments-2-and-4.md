@@ -383,6 +383,19 @@ the final restore.
 | 1 | `killed: true` made to append a finding (folded into the checks instead of being deliberately excluded) | RED as named. `THE STATE-NOT-FAILURE PIN: killed:true -> NO finding (a deliberately dark door is a state)` (43/44 passed). No other row moved. |
 | 2 | The anomaly note's `sprintf` format string made to embed an email-shaped literal (`owner@example.com`) alongside the counts | RED as named. `THE NO-IDENTITY PIN (health half): the anomaly note contains no email-shaped string` (43/44 passed). No other row moved. |
 
+**Re-run after the quality-review fix commit** (worker-identity guard, degraded-instrument pins,
+shared TTL constant, `configured`-absent pin, version-row docblock/spec note — see that commit's
+message): both rows re-applied to the post-fix file, confirmed landed via `git diff --stat`,
+confirmed restored via `git diff --stat` again. Full sweep was exit 0 / 431 suites / 17307
+assertions both before row 1's re-run and after the final restore (the +6 over 17301 is the six
+new pins the fix commit added: two degraded-instrument fixtures, the v0.2.0-era-body fixture, the
+configured-absent fixture, and two worker-identity fixtures).
+
+| # | Mutation (re-run) | Result |
+| --- | --- | --- |
+| 1 | `killed: true` made to append a finding | RED as named, same pin, same row count: `THE STATE-NOT-FAILURE PIN` (49/50 passed post-fix). |
+| 2 | Anomaly note embeds an email-shaped literal | RED as named, same pin: `THE NO-IDENTITY PIN (health half)` (49/50 passed post-fix). |
+
 ### Task H2: The reconciliation amendments (docs only)
 
 **Files:**

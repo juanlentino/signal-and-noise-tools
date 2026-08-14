@@ -63,6 +63,11 @@ if ( ! defined( 'SN_HEALTH_DENYLIST_STALE_DAYS' ) ) {
 const SN_HEALTH_EDGE_LG_TRANSIENT = 'sn_health_edge_lg_status';
 const SN_HEALTH_EDGE_LG_TTL       = 6 * HOUR_IN_SECONDS;
 
+// Shared 6h probe cache TTL (quality-review item 3). Introduced alongside the
+// fifth worker rather than migrating SN_HEALTH_EDGE_LG_TTL's existing call
+// sites — those stay as they are to avoid churning unrelated lines.
+const SN_HEALTH_EDGE_PROBE_TTL = 6 * HOUR_IN_SECONDS;
+
 // v11.x (H1, R3 §3D Increments 2+4): the fifth worker. Unlike the analytics/
 // login-guard/provenance/rights-signals probes above, this URL is FIXED on our
 // own zone — there is no "collector endpoint" or "worker URL" setting to be
@@ -95,7 +100,17 @@ const SN_HEALTH_EDGE_REMOTE_MCP_URL       = 'https://juanlentino.com/_sn/remote-
  *                                     reach/parse it — an outage, never a config skip (the URL is fixed
  *                                     on our own zone, unlike $prov's 'unconfigured'). The default `false`
  *                                     means "not measured" (a caller that predates this param) and, like
- *                                     $mr_sensor's `null`, is never a finding by itself.
+ *                                     $mr_sensor's `null`, is never a finding by itself. `anomaly` missing,
+ *                                     null, or a non-array scalar (the Worker's own fail-open degrade
+ *                                     shape when ITS observability store is unreachable) is UNKNOWN, never
+ *                                     a finding — direct-indexing `$anomaly['flagged']` without the
+ *                                     is_array() guard below would silently misread that degrade as
+ *                                     "not flagged" instead of "not measured"; a mutation pin guards this.
+ *                                     `version` is CARRIED in the shape above but not yet read by any
+ *                                     code here: spec §8 promises a "stale-deploy hint", but there is no
+ *                                     reliable known-current-version source on the plugin side today, so
+ *                                     comparison is deliberately deferred rather than built against a
+ *                                     guess.
  * @return array[] Finding rows.
  */
 function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $now, $stale_secs, $analytics_config = array(), $prov = 'unconfigured', $mr_sensor = null, $remote_mcp = false ) {
@@ -346,6 +361,14 @@ function sn_health_prov_status_probe() {
  * state), cached 6h, and a failure is NEVER cached so an unreachable edge
  * self-heals on the next scan.
  *
+ * WORKER-IDENTITY CHECK: this estate has a standing memory about exactly this
+ * zone — /_sn/version answers as sn-analytics regardless of which worker's
+ * config endpoint was probed, so the body's `worker` field must be read
+ * before believing anything else in it. A 200/503 with the right shape but
+ * the wrong `worker` value is treated the same as an unparseable body (null),
+ * mirroring sn_health_prov_status_probe()'s own `'sn-provenance' !== worker`
+ * guard.
+ *
  * @since 11.x (H1, R3 §3D Increments 2+4)
  * @return array|null
  */
@@ -373,10 +396,10 @@ function sn_health_remote_mcp_status_probe() {
 		return null;
 	}
 	$data = json_decode( wp_remote_retrieve_body( $response ), true );
-	if ( ! is_array( $data ) ) {
+	if ( ! is_array( $data ) || 'sn-remote-mcp' !== (string) ( $data['worker'] ?? '' ) ) {
 		return null;
 	}
-	set_transient( SN_HEALTH_EDGE_REMOTE_MCP_TRANSIENT, $data, SN_HEALTH_EDGE_LG_TTL );
+	set_transient( SN_HEALTH_EDGE_REMOTE_MCP_TRANSIENT, $data, SN_HEALTH_EDGE_PROBE_TTL );
 	return $data;
 }
 

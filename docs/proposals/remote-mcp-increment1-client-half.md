@@ -406,12 +406,18 @@ document so this is not read as more than it is:
   refusals climbing while calls and last-used stay flat is what says "look closer." Confirming the
   specific branch means reading the per-outcome counters directly: `wp option get
   sn_mcp_remote_log_v1`.
-- **`refused_shut` counts only the in-flight toggle-race window** — with the toggle off, the route
-  is never registered, so shut-door traffic dies at core's `rest_no_route` before the peer's module
-  ever sees it. A shut-door day reads zero regardless of how hard the door was knocked on. The
-  actual signature, therefore, is narrower than "refusals climbing": **`refused_auth` climbing
-  specifically, while the toggle is ON**, is what names the two `SN_BRIDGE_TOKEN` halves
-  disagreeing — and `refused_auth` has no benign explanation once the toggle is confirmed on.
+- **`refused_shut` counts only the in-flight toggle-race window** — a call already in flight when
+  the toggle flips off. It does NOT count calls that *arrive* after: with the toggle off, the route
+  is never registered, so that traffic dies at core's `rest_no_route` before the peer's module ever
+  sees it. A shut-door day reads zero regardless of how hard the door was knocked on afterward.
+- **`refused_auth` climbing is not, by itself, diagnostic — it needs a correlated second fact.**
+  `sn_bridge_handle_request()` checks the Bearer token before the slug, so any anonymous scanner
+  POST to the armed route also lands in `refused_auth`; that is benign in exactly the way scanner
+  noise on `refused_slug`/`refused_request` is benign, and isolated growth in the count is internet
+  background, not a rotation. The actual signature is the **correlation**: `refused_auth` climbing
+  *at the same time* the legitimate client — the Worker's own bridge calls — starts failing with
+  `door_closed_or_credential_or_tool`, while the toggle is confirmed ON. That pairing is what names
+  the two `SN_BRIDGE_TOKEN` halves disagreeing; `refused_auth` alone is not enough to conclude it.
 
 1. **Rotation is a two-step with an unavoidable dark window.** Whatever order it is done in, the
    door 404s between the two edits. Expect it; do not diagnose it.
