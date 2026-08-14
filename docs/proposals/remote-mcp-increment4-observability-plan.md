@@ -1002,6 +1002,8 @@ git commit -m "feat: a reader that folds pending counts, idempotently"
 
 ## Task 6: Wire the bridge — and pin that it does not depend on this
 
+**Corrected during execution:** the recorder stub must be declared conditionally — PHP hoists unconditional top-level declarations at compile time, so the independence pin was unsatisfiable as originally written.
+
 **Files:**
 - Modify: `inc/mcp/mcp-bridge-route.php`
 - Modify: `signal-and-noise-tools.php`
@@ -1023,8 +1025,16 @@ ok( ! function_exists( 'sn_mcp_remote_record' ), 'THE INDEPENDENCE PIN: every pi
 // Now define one and confirm the handler feeds it. Declared HERE rather than at
 // the top of the file precisely so the pin above can be true.
 $GLOBALS['__recorded'] = array();
-function sn_mcp_remote_record( $outcome, $slug = '' ) {
-	$GLOBALS['__recorded'][] = array( $outcome, $slug );
+// Declared CONDITIONALLY, and the guard is doing real work: PHP hoists an
+// unconditional top-level `function` declaration at COMPILE time, so it would
+// exist from the file's first line and make the independence pin above
+// unsatisfiable — function_exists() would be true before any code ran. A
+// conditional declaration is defined at RUNTIME, when execution reaches it,
+// which is after the pin. Do not "simplify" the wrapper away; the pin reds.
+if ( ! function_exists( 'sn_mcp_remote_record' ) ) {
+	function sn_mcp_remote_record( $outcome, $slug = '' ) {
+		$GLOBALS['__recorded'][] = array( $outcome, $slug );
+	}
 }
 
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
