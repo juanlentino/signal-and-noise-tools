@@ -372,6 +372,17 @@ export async function bumpBridgeDay(env, subject) {
 - [ ] **Step 2:** implement — probe `https://juanlentino.com/_sn/remote-mcp/status` via the same guarded fetch + a 6h transient (mirror `SN_HEALTH_EDGE_LG_TRANSIENT`'s shape); thread the new param through `sn_health_check_edge_workers()`; extend the findings builder. Suite + full sweep green.
 - [ ] **Step 3: Mutations** — flip the `killed` handling to flag (must red the state-not-failure pin); make the anomaly note echo a subject (must red the no-identity pin). Record, restore, commit — `feat: the remote door joins the health panel — outage, lost readouts and anomalies become findings; a dark door stays a state`
 
+## Mutation results — H1 (measured)
+
+Backup kept in the session scratchpad; `cp` in, `cp` back, `git diff --stat` confirmed empty
+after restore. Full sweep was exit 0 / 431 suites / 17301 assertions both before row 1 and after
+the final restore.
+
+| # | Mutation | Result |
+| --- | --- | --- |
+| 1 | `killed: true` made to append a finding (folded into the checks instead of being deliberately excluded) | RED as named. `THE STATE-NOT-FAILURE PIN: killed:true -> NO finding (a deliberately dark door is a state)` (43/44 passed). No other row moved. |
+| 2 | The anomaly note's `sprintf` format string made to embed an email-shaped literal (`owner@example.com`) alongside the counts | RED as named. `THE NO-IDENTITY PIN (health half): the anomaly note contains no email-shaped string` (43/44 passed). No other row moved. |
+
 ### Task H2: The reconciliation amendments (docs only)
 
 **Files:**

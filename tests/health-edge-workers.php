@@ -34,6 +34,33 @@ function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
 	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint );
 }
 
+// ── sn-remote-mcp probe stubs (v11.x, H1): the URL is fixed on our own zone
+// (no function_exists skip valve like the provenance probe), so the wrapper
+// ALWAYS calls wp_remote_get() for it. Controlled via __ew['remote_mcp_resp']
+// (array 'code'/'body') + __ew['remote_mcp_error'] (bool, is_wp_error()).
+// Defaults to a HEALTHY body so every pre-existing wrapper-level test above
+// the dedicated remote-mcp group (which predates this worker) keeps its
+// count/finding pins unmoved; the dedicated group below overrides per-case.
+$GLOBALS['__ew']['remote_mcp_resp']  = array(
+	'code' => 200,
+	'body' => json_encode(
+		array(
+			'configured'          => true,
+			'killed'              => false,
+			'bridge_secret_bound' => true,
+			'anomaly'             => array( 'flagged' => false, 'total_today' => 0, 'subjects_over' => 0 ),
+			'version'             => '0.3.0',
+		)
+	),
+);
+$GLOBALS['__ew']['remote_mcp_error'] = false;
+function wp_remote_get( $url, $args = array() ) { return $GLOBALS['__ew']['remote_mcp_resp']; }
+function is_wp_error( $x ) { return $GLOBALS['__ew']['remote_mcp_error']; }
+function wp_remote_retrieve_response_code( $r ) { return $r['code'] ?? 0; }
+function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; }
+function wp_parse_url( $url, $component = -1 ) { return parse_url( (string) $url, $component ); }
+function wp_http_validate_url( $url ) { return false !== filter_var( (string) $url, FILTER_VALIDATE_URL ) ? $url : false; }
+
 require __DIR__ . '/../inc/health-edge-workers.php';
 
 // The worker emits compiledAt with sub-second precision + a Z suffix (verified
@@ -167,6 +194,69 @@ ok( 1 === count( $f ) && false === strpos( $f[0]['note'], 'onerror' ), 'lg: a re
 
 $f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $old, 'lastRefreshOk' => true ), $NOW, $STALE );
 ok( 1 === count( $f ) && false === strpos( $f[0]['note'], 'Last refresh attempt failed' ), 'lg: a successful last refresh appends nothing (stale is age, not reason)' );
+
+echo "\nGroup: sn-remote-mcp status consumer (H1, R3 §3D Increments 2+4)\n";
+
+// BC: every call above omitted the new 9th param — the default (false, "not
+// measured") must produce zero remote-mcp findings, same as before this task.
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null );
+ok( array() === $f, 'BC: 8-arg call (remote_mcp defaulted to false/not-measured) still yields zero findings' );
+
+// null = the probe ran and could not reach/parse the endpoint. The URL is fixed
+// on our own zone, so there is no "unconfigured" skip here — null is an outage.
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, null );
+ok( 1 === count( $f ) && 'sn-remote-mcp' === $f[0]['subject_label'] && false !== strpos( $f[0]['note'], 'unreachable' ), 'remote-mcp: null (probe unreachable) -> unreachable finding' );
+
+$healthyRemote = array(
+	'configured'          => true,
+	'killed'              => false,
+	'bridge_secret_bound' => true,
+	'anomaly'             => array( 'flagged' => false, 'total_today' => 3, 'subjects_over' => 0 ),
+	'version'             => '0.3.0',
+);
+
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $healthyRemote );
+ok( array() === $f, 'remote-mcp: healthy body -> no findings' );
+
+$notConfigured                = $healthyRemote;
+$notConfigured['configured']  = false;
+$f                             = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $notConfigured );
+ok( 1 === count( $f ) && 'sn-remote-mcp' === $f[0]['subject_label'] && false !== strpos( $f[0]['note'], 'missing' ), 'remote-mcp: configured:false -> outage finding naming what is missing' );
+
+$killed           = $healthyRemote;
+$killed['killed'] = true;
+$f                = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $killed );
+ok( array() === $f, 'THE STATE-NOT-FAILURE PIN: killed:true -> NO finding (a deliberately dark door is a state)' );
+
+$lostReadout = $healthyRemote;
+unset( $lostReadout['bridge_secret_bound'] );
+$f = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $lostReadout );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'lost the readout' ), 'remote-mcp: bridge_secret_bound key ABSENT -> finding, note distinct from an unbound secret' );
+
+$anomalous              = $healthyRemote;
+$anomalous['anomaly']   = array( 'flagged' => true, 'total_today' => 611, 'subjects_over' => 2 );
+$f                      = sn_health_edge_worker_findings( true, 'u', $healthyLg, $NOW, $STALE, array(), 'unconfigured', null, $anomalous );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], '611' ) && false !== strpos( $f[0]['note'], '2' ), 'remote-mcp: anomaly.flagged -> finding, note carries the counts' );
+ok( 0 === preg_match( '/[^\s@]+@[^\s@]+\.[^\s@]+/', $f[0]['note'] ), 'THE NO-IDENTITY PIN (health half): the anomaly note contains no email-shaped string' );
+
+// ── I/O wrapper: the probe is unconditional (fixed URL, no config skip) ──
+// $healthyLg is "fresh" relative to the fixed $NOW used by the pure-function
+// group above; the wrapper calls time() for real, so a login-guard fixture
+// must be built against real-time freshness here, or it reads STALE and
+// contaminates the remote-mcp-only assertion below.
+$GLOBALS['__ew']['transient'] = array();
+$GLOBALS['__ew']['wv']        = array( 'ok' => true, 'url' => 'https://x.test/_sn/version' );
+$GLOBALS['__ew']['lg']        = array( 'denylistCount' => 4586, 'compiledAt' => gmdate( 'Y-m-d\TH:i:s' ) . '.000Z' );
+$GLOBALS['__ew']['remote_mcp_resp']  = array( 'code' => 200, 'body' => json_encode( $healthyRemote ) );
+$GLOBALS['__ew']['remote_mcp_error'] = false;
+$r = sn_health_check_edge_workers();
+ok( 0 === $r['count'], 'wrapper: healthy remote-mcp body contributes no findings' );
+
+$GLOBALS['__ew']['transient']       = array();
+$GLOBALS['__ew']['remote_mcp_error'] = true;
+$r = sn_health_check_edge_workers();
+ok( $r['count'] >= 1 && false !== strpos( json_encode( $r['findings'] ), 'sn-remote-mcp' ), 'wrapper: a transport failure surfaces the sn-remote-mcp finding' );
+$GLOBALS['__ew']['remote_mcp_error'] = false;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
