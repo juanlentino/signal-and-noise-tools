@@ -1474,3 +1474,32 @@ function sn_handle_bind_mcp_rw_credential( $post ) {
 
 	return sn_mcp_set_rw_bound_uuid( $uuid ) ? 'mcp_rw_bound' : 'mcp_rw_bind_invalid';
 }
+
+/**
+ * Toggle the remote analytics door (R3 §3D).
+ *
+ * THE PHONE-REACHABLE CONTROL. sn_mcp_remote_enabled is absent by default and
+ * fails CLOSED, so without this handler the door needs WP-CLI to turn on and
+ * WP-CLI to turn off — a terminal in both directions. The "off" half is the one
+ * that matters at 2am away from a laptop.
+ *
+ * SN_MCP_REMOTE_DISABLED WINS UNCONDITIONALLY. A wp-config kill that a web form
+ * could undo would be decorative. Same shape as sn_handle_cf_save() refusing to
+ * override SN_CLOUDFLARE_API_TOKEN.
+ *
+ * The secret itself has no UI here, deliberately: an option is readable by
+ * anything that reaches the database, while wp-config.php is readable by no web
+ * request. Stopping the door is urgent and belongs on the web; rotating the
+ * secret is rare and belongs on a laptop.
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash key.
+ */
+function sn_handle_remote_toggle( $post ) {
+	if ( defined( 'SN_MCP_REMOTE_DISABLED' ) && SN_MCP_REMOTE_DISABLED ) {
+		return 'remote_constant_locked';
+	}
+	$on = ! empty( $post['sn_remote_enabled'] );
+	update_option( 'sn_mcp_remote_enabled', $on, false );
+	return $on ? 'remote_enabled' : 'remote_disabled';
+}
