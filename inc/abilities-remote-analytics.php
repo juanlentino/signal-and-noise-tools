@@ -56,8 +56,15 @@ add_action( 'wp_abilities_api_init', function () {
 		'label'               => 'Get analytics summary (remote)',
 		'description'         => 'Remote-scoped twin of signal-noise/get-analytics-summary. '
 			. 'Returns range analytics totals (range: 7|14|30|90|365|all, class: human|suspect|bot). '
-			. 'Read-only. Identical response contract to the admin ability — see that ability\'s '
-			. 'description for every denominator and its traps. Reachable only by a principal '
+			. 'Read-only. Identical response contract to the admin ability. '
+			. 'UNITS, stated here rather than by reference: engagement times are MILLISECONDS '
+			. '(38690 is ~39 seconds, not ~11 hours); `scroll_avg_*` is true mean max depth 0-100. '
+			. '`visits`/`unique_visitor_days` counts visitor-DAYS over all event types with no '
+			. 'pageview gate, so `viewless_visits` is expected and is not a defect; `views` is '
+			. 'sample-corrected while visitor-days are a raw distinct count, so treat views/visits '
+			. 'as an estimate and not a precise ratio. See the admin ability\'s description for the '
+			. 'full denominator set and its traps — though note that ability is deliberately absent '
+			. 'from the remote allowlist, so a remote caller cannot read it. Reachable only by a principal '
 			. 'holding the sn_read_remote_analytics capability, and only while the remote door '
 			. 'is explicitly enabled.',
 		'category'            => 'analytics',

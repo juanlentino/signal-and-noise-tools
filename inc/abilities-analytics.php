@@ -72,7 +72,8 @@ add_action( 'wp_abilities_api_init', function () {
 			. '(`integrity_violation: true` means a genuine rollup bug upstream, values served unclamped). '
 			. '`viewless_visits` = unique_visitor_days - pageview_visits (visitor-days with zero pageviews). '
 			. 'Ratios: `view_visit_ratio` = views/pageview_visits (>=1); `pageviews_per_visitor_day` = views/unique_visitor_days (may be <1). '
-			. 'Engagement in two exact denominations: `time_avg_per_view` = time_sum/views; `time_avg_per_visit` = time_sum/unique_visitor_days, diluted by viewless days. '
+			. 'Engagement in two exact denominations, both in MILLISECONDS: `time_avg_per_view` = time_sum/views; `time_avg_per_visit` = time_sum/unique_visitor_days, diluted by viewless days. '
+			. '(The beacon reports `performance.now()` deltas in ms and nothing downstream converts, so 38690 is ~39 SECONDS, not ~11 hours. Divide by 1000 before presenting it.) '
 			. 'Scroll depth (v9.64.0 unit): `scroll_avg_per_view` = 25 * scroll_events / views and `scroll_avg_per_visit` = 25 * scroll_events / unique_visitor_days (diluted by viewless days): the true mean max scroll depth (0-100), '
 			. 'because the beacon fires one cumulative milestone event per 25/50/75/100% reached, each at most once per view; scroll_sum is stored as the same identity since v9.66.0 (25 * scroll_events, true depth units: a full-depth view contributes 100, not the pre-v9.66.0 raw milestone-point 250) and feeds no ratio. '
 						. 'Exact engagement + gated fields are null over any range containing days before `exact_metrics_since` (Y-m-d; null until the backfill has run): a data discontinuity, not an error.',
