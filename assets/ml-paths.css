@@ -1,0 +1,12 @@
+/* Signal & Noise — Reading path front styling (v11.3.0, R4 4B).
+   The family's brutalist idiom (model: ml-related-front.css): hard borders,
+   mono kicker, currentColor throughout — so it inherits both themes for free.
+   Scoped to .sn-reading-path; enqueued only when the nav actually renders. */
+.sn-reading-path{margin:3rem 0 0;border-top:2px solid currentColor;padding-top:1.25rem;line-height:1.6}
+.sn-reading-path__meta{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:0 0 .85rem}
+.sn-reading-path__nav{display:flex;flex-wrap:wrap;gap:.55rem}
+.sn-reading-path__link{border:2px solid currentColor;padding:.6rem .85rem;color:inherit;text-decoration:none;flex:1 1 16rem;min-width:0}
+.sn-reading-path__link--next{text-align:right;margin-left:auto}
+.sn-reading-path__link:hover,.sn-reading-path__link:focus-visible{outline:3px solid currentColor;outline-offset:2px}
+.sn-reading-path__dir{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;text-transform:uppercase;letter-spacing:.07em;opacity:.75}
+.sn-reading-path__title{display:block;font-weight:700;overflow-wrap:anywhere}

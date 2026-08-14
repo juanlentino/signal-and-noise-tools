@@ -4,6 +4,58 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.3.0] - 2026-08-14 — every cluster learns its reading order, and the board closes R4's ML pair
+
+**MINOR** — R4 4B ships: reading paths from cluster geometry, ML pipeline #10. The plugin
+half is complete and self-contained; the THEME half (placing `[sn_reading_path]` in
+`single.html`) ships as its own theme release the same day — the renderer self-gates to
+nothing until the slot exists, so installing either half first is safe in both orders.
+
+### Added
+- **The ordering the stored partition never had** (`inc/ml-kernel.php`,
+  `snt_ml_cluster_path()`): a deterministic chain through each topic cluster — entered at
+  the most **central** member (highest summed cosine: the bridge note sharing vocabulary
+  with both wings, the one a reader can enter cold), then greedy nearest-neighbour, so
+  consecutive notes share the most vocabulary and an outlier lands at the end rather than
+  mid-flow. Every tie breaks on the lowest id: an unchanged corpus can never flap its
+  chains between rebuilds. A chain of one is **no chain** — the singleton rule travelling
+  with the geometry.
+- **The build stores it additively** (`inc/ml-artifacts.php`): each stored cluster gains a
+  `path` key, computed in the same pass because the vectors are already in memory.
+  Consumers reading only `members`/`label` are untouched — the additive-key rule.
+- **A three-way resolver, because the option outlives the code that wrote it**
+  (`inc/ml-paths.php`, `snt_ml_path_for_post()`): `null` = paths not built — covering both
+  the never-built case **and an artifact written by pre-11.3.0 code**, whose clusters carry
+  no `path` keys; an absent ordering is unknown, never "no path", and the next rebuild
+  heals it. `[]` = a real "this note is on no path". A row = label, 1-based position,
+  total, prev/next in **chain** order. One option read, zero kernel calls — the read path
+  never computes.
+- **`[sn_reading_path]`** (`inc/ml-paths-render.php`): plugin owns the renderer, the theme
+  owns the placement — the `[sn_prov_panel]` notes pattern, with the panel-incident rule
+  observed from birth: ONE placement mechanism, no content-filter sibling. Self-gates to
+  `''` (and enqueues nothing) when paths are unbuilt, the note is unchained, or the context
+  is not a single post. Each neighbour link is gated on `is_post_publicly_viewable()`: the
+  artifact rebuild coalesces ~30s behind a publish transition, so a chain can briefly name
+  a retracted note — a missing link beats leaking a title the site no longer publishes.
+  Styling rides the render (`assets/ml-paths.css`, the family's brutalist idiom).
+- **Pipeline #10** (`reading-path`) joins the registry with the sibling envelope: missing
+  `post_id` refuses 400, not-built is the 503 a machine caller can distinguish from the
+  real "on no path" answer (`ok:true, path:null`).
+
+### Changed
+- **The board closes R4's ML pair**: both rows graduate `considering` → `done` in one
+  sweep — the features shipped the same day the commitment was made, so `planned` was
+  never their state. Rewritten, not moved: the drift row now names the thin-year refusal
+  and the four movement lists; the paths row names the central entry and the
+  identical-for-every-reader property. This **empties the ML considering cell** — the
+  board's zero-empty pin moves to 1 and the fold count to 20, honestly, with the reason in
+  the pin. No override exists, so this release moving `origin/main` IS the public-page
+  change ([[board-override-may-not-exist]]).
+- The ML maturity scope map gains **`Reading paths` — live** (tenth consumer), claimed by
+  name in the pins. The reader-facing surface becomes visible when the theme half places
+  the slot; until then the renderer self-gates, so the badge claims the pipeline, which is
+  real either way.
+
 ## [11.2.1] - 2026-08-14 — the heading linter stops defending the bug it was built to catch
 
 **Headline:** `block-migrations-scan`'s rule flagged H3-without-H2 only, on the

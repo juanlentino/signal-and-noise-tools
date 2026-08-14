@@ -156,6 +156,11 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 			$topic_rows[] = array(
 				'members' => $members,
 				'label'   => snt_ml_cluster_label( $vectors, $members ),
+				// v11.3.0 (R4 4B), ADDITIVE: the reading chain — the ordering
+				// the partition never stored. Rides the same pass because the
+				// vectors are already in memory; consumers that read only
+				// members/label are untouched (the additive-key rule).
+				'path'    => snt_ml_cluster_path( $vectors, $members ),
 			);
 		}
 		update_option( SNT_ML_TOPICS_OPT, array(

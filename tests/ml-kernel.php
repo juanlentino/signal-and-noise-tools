@@ -471,6 +471,42 @@ ok( 'ok' === snt_ml_corpus_drift( $before_docs, $after_docs, 5, 12 )['verdict'],
 $capped = snt_ml_corpus_drift( $before_docs, $after_docs, 5, 1 );
 ok( 1 >= count( $capped['risen'] ) && 1 >= count( $capped['entered'] ), '(d) top caps each list independently' );
 
+// ── (p) reading paths — R4 4B, the ordering the stored partition never had ──
+// The chain is a READING order, so adjacency is the property that matters:
+// each step goes to the most similar unvisited member (greedy NN), starting
+// from the most central member (highest summed cosine to the rest). Central
+// first because the hub note is the one a reader can enter cold; NN after
+// because consecutive notes should share the most vocabulary.
+echo "\nGroup (p): reading paths — a deterministic chain through a cluster\n";
+
+// Geometry fixture: A and B nearly identical, C angled between the A/B pair
+// and D, D distant from all but still in-cluster. Central = C (summed cosine
+// 2.10 vs B's 2.05, verified by hand): the BRIDGE note is the most central,
+// because it shares vocabulary with both wings — which is exactly the note a
+// reader can enter cold.
+$pv = array(
+	1 => array( 'x' => 0.9, 'y' => 0.1 ),                 // A
+	2 => array( 'x' => 0.8, 'y' => 0.2 ),                 // B
+	3 => array( 'x' => 0.6, 'y' => 0.4 ),                 // C — the bridge, central
+	4 => array( 'y' => 0.5, 'z' => 0.9 ),                 // D — the outlier
+);
+$path = snt_ml_cluster_path( $pv, array( 1, 2, 3, 4 ) );
+ok( is_array( $path ) && 4 === count( $path ) && array() === array_diff( array( 1, 2, 3, 4 ), $path ), '(p) the path visits every member exactly once' );
+ok( 3 === $path[0], '(p) the chain starts at the CENTRAL member — here the bridge note, the one sharing vocabulary with both wings' );
+ok( 4 === $path[3], '(p) the outlier lands at the END of the chain, never in the middle of the flow' );
+ok( $path === snt_ml_cluster_path( $pv, array( 4, 3, 2, 1 ) ), '(p) member input order never changes the chain' );
+
+// Ties must break on the id, never hash order: two IDENTICAL vectors.
+$tv = array( 7 => array( 'a' => 1.0 ), 9 => array( 'a' => 1.0 ), 8 => array( 'a' => 1.0 ) );
+$tp = snt_ml_cluster_path( $tv, array( 9, 7, 8 ) );
+ok( array( 7, 8, 9 ) === $tp, '(p) identical vectors chain by ascending id — deterministic, never insertion order' );
+
+// Degenerates are answers.
+ok( array( 5, 6 ) === snt_ml_cluster_path( array( 5 => array( 'a' => 1.0 ), 6 => array( 'a' => 0.9, 'b' => 0.1 ) ), array( 6, 5 ) ), '(p) a two-member cluster chains central-first' );
+ok( array() === snt_ml_cluster_path( $pv, array( 1 ) ), '(p) a single member is NO path — a chain of one is not a chain (the singleton rule travels)' );
+ok( array() === snt_ml_cluster_path( $pv, array() ), '(p) an empty member list is no path, no notices' );
+ok( array() === snt_ml_cluster_path( array(), array( 1, 2 ) ), '(p) members with no vectors cannot chain — no fabricated order over missing geometry' );
+
 echo "\nGroup (k): no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], '(k) zero notices/warnings/deprecations raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
 

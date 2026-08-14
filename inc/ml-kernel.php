@@ -754,3 +754,86 @@ if ( ! function_exists( 'snt_ml_corpus_drift' ) ) {
 		);
 	}
 }
+
+if ( ! function_exists( 'snt_ml_cluster_path' ) ) {
+	/**
+	 * A deterministic reading chain through one cluster (R4 4B).
+	 *
+	 * The stored partition holds membership and a label — no geometry. This is
+	 * the ordering: start at the most CENTRAL member (highest summed cosine to
+	 * the rest — the note a reader can enter cold), then repeatedly step to the
+	 * most similar unvisited member (greedy nearest-neighbour — consecutive
+	 * notes should share the most vocabulary). An outlier therefore lands at
+	 * the chain's end, never mid-flow.
+	 *
+	 * Sequencing, not personalization: pure arithmetic over the vectors, the
+	 * same chain for every reader, recomputed only when the artifact rebuilds.
+	 *
+	 * Every tie breaks on the LOWEST id (centrality ties and step ties alike),
+	 * so an unchanged corpus can never flap its chains between rebuilds.
+	 *
+	 * A chain of one is NO chain: fewer than two members with vectors returns
+	 * array() — the singleton exclusion travelling with the geometry.
+	 *
+	 * @param array<int,array<string,float>> $vectors Sparse vectors keyed by doc id.
+	 * @param array<int,int>                 $members Cluster member ids.
+	 * @return int[] Ordered member ids; array() when no chain exists.
+	 */
+	function snt_ml_cluster_path( $vectors, $members ) {
+		$ids = array();
+		foreach ( (array) $members as $id ) {
+			if ( isset( $vectors[ $id ] ) ) {
+				$ids[] = (int) $id;
+			}
+		}
+		sort( $ids );
+		$n = count( $ids );
+		if ( $n < 2 ) {
+			return array();
+		}
+
+		// Pairwise cosines once; the walk below only reads.
+		$sim = array();
+		for ( $i = 0; $i < $n; $i++ ) {
+			for ( $j = $i + 1; $j < $n; $j++ ) {
+				$c = snt_ml_cosine( $vectors[ $ids[ $i ] ], $vectors[ $ids[ $j ] ] );
+				$sim[ $ids[ $i ] ][ $ids[ $j ] ] = $c;
+				$sim[ $ids[ $j ] ][ $ids[ $i ] ] = $c;
+			}
+		}
+
+		// Central member: highest summed similarity; ties to the lowest id
+		// (the ascending $ids walk with a strict > keeps the first seen).
+		$start = $ids[0];
+		$best  = -1.0;
+		foreach ( $ids as $id ) {
+			$total = array_sum( $sim[ $id ] ?? array() );
+			if ( $total > $best ) {
+				$best  = $total;
+				$start = $id;
+			}
+		}
+
+		$path    = array( $start );
+		$visited = array( $start => true );
+		$at      = $start;
+		while ( count( $path ) < $n ) {
+			$next      = null;
+			$next_best = -1.0;
+			foreach ( $ids as $id ) {
+				if ( isset( $visited[ $id ] ) ) {
+					continue;
+				}
+				$c = $sim[ $at ][ $id ] ?? 0.0;
+				if ( $c > $next_best ) {
+					$next_best = $c;
+					$next      = $id;
+				}
+			}
+			$path[]           = $next;
+			$visited[ $next ] = true;
+			$at               = $next;
+		}
+		return $path;
+	}
+}

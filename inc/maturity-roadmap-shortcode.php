@@ -190,14 +190,18 @@ function sn_maturity_roadmap_static_board() {
 			'done'        => array(
 				__( 'A deterministic layer — related notes, topic clusters, cadence watch — computed from corpus statistics, with no model ever in the reader\'s browser', 'signal-and-noise-tools' ),
 				__( 'Draft-time echoes: while writing, the most similar existing note surfaces, so overlap is a choice instead of a surprise — the same corpus statistics the related layer already computes, asked from the draft\'s side, and below the bar it stays quiet rather than offering the least-bad match', 'signal-and-noise-tools' ),
+				// 2026-08-14 (v11.2.0 + v11.3.0): both R4 ML rows graduated in
+				// one sweep — considering → done, skipping planned, because the
+				// features shipped the same day the commitment was made. This
+				// EMPTIES the ML considering cell: the board's zero-empty pin
+				// moves to 1, honestly (see tests). Rewritten, not moved.
+				__( 'Corpus drift as an editorial mirror: the vocabulary\'s year-to-year movement shown to the writer as which terms rose, fell, entered, or went silent — and a year too thin to speak says so instead of publishing a confident zero — computed from corpus statistics, shown to the writer, never to a model', 'signal-and-noise-tools' ),
+				__( 'Reading paths from cluster geometry: each topic cluster carries a precomputed note-to-note chain, entered at its most central note, identical for every reader and recomputed only when the corpus changes — sequencing, not personalization', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Extend the deterministic layer pipeline by pipeline, as real editorial questions demand it', 'signal-and-noise-tools' ),
 			),
-			'considering' => array(
-				__( 'Corpus drift as an editorial mirror: how the site\'s vocabulary and topic weights shift across the years, computed from corpus statistics and shown to the writer — never to a model', 'signal-and-noise-tools' ),
-				__( 'Reading paths from cluster geometry: static note-to-note chains that belong to the corpus, precomputed and identical for every reader — sequencing, not personalization', 'signal-and-noise-tools' ),
-			),
+			'considering' => array(),
 			'later'       => array(
 				__( 'A better lexical spine: the similarity core under related notes upgraded to the ranking statistics that stop long notes from hogging every match — the same deterministic corpus mathematics, corrected for length', 'signal-and-noise-tools' ),
 				__( 'The shape of a sentence, watched: a deterministic readability fingerprint per note, trended across the corpus and surfaced at draft time — so prose complexity drift becomes visible the way topic drift already is', 'signal-and-noise-tools' ),
