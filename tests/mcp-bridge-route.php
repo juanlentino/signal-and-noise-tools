@@ -196,6 +196,24 @@ ok( is_wp_error( $r ) && 401 === $r->data['status'], 'no Authorization -> 401' )
 $r = sn_bridge_handle_request( new SNB_Req( array( 'authorization' => 'Bearer wrong' ), array( 'slug' => $REMOTE ) ) );
 ok( is_wp_error( $r ) && 401 === $r->data['status'], 'wrong Bearer -> 401' );
 
+// THE ORDER PINS. The two 401s above both send an ON-LIST slug, so they are
+// satisfied no matter which check runs first — moving the slug checks above the
+// Bearer check leaves them green. These two are the only witnesses that
+// AUTHENTICATION RUNS FIRST.
+//
+// Why that ordering is the security property and not a style preference: with
+// the slug checks first, an UNAUTHENTICATED caller gets 404 for a slug that is
+// off the remote list and 401 for one that is on it. That difference is a
+// complete enumeration oracle for sn_mcp_remote_slugs(), readable with no
+// credential at all — which is precisely what answering 404-rather-than-403
+// below exists to deny. An unauthenticated caller must learn NOTHING about the
+// body it sent, so every pre-auth refusal has to be the same 401.
+$r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => 'signal-noise/get-post-content' ) ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'THE ORDER PIN: no Authorization + an OFF-LIST slug -> 401, not 404 — the Bearer is checked FIRST' );
+
+$r = sn_bridge_handle_request( new SNB_Req( array(), array() ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'and no Authorization + no slug -> 401, not 400 — an unauthenticated caller learns nothing about its body' );
+
 $good = array( 'authorization' => 'Bearer topsecret' );
 $r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
 ok( is_wp_error( $r ) && 404 === $r->data['status'], 'THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403' );
@@ -208,6 +226,11 @@ $GLOBALS['__executed'] = array();
 $GLOBALS['__removed']  = array();
 $r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE, 'args' => array( 'range' => 7 ) ) ) );
 ok( ! is_wp_error( $r ), 'a fully valid call is not an error' );
+// THE ENVELOPE PIN. `! is_wp_error()` is true of the ability's raw return too, so
+// without this the wrapper is unasserted and returning $out unwrapped is a
+// mutation no pin catches. The Worker parses this shape; changing it silently is
+// a cross-artifact break that shows up only at the far end of the bridge.
+ok( array( 'ok' => true, 'data' => array( 'ran' => $REMOTE ) ) === $r, 'and it comes back in the ok/data envelope, with the ability output under data' );
 ok( 1 === count( $GLOBALS['__executed'] ), 'the ability executed exactly once' );
 ok( array( 'range' => 7 ) === $GLOBALS['__executed'][0][1], 'and received its args' );
 ok( false === sn_bridge_is_verified(), 'THE OTHER ONE THAT MATTERS: the verified flag is cleared after dispatch' );
