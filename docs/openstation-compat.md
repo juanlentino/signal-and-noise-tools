@@ -253,6 +253,14 @@ dual-registers, so the pre-rename path is exercised on every real page load
 today, and the post-rename path is the one carrying risk. That risk is
 bounded by the membership check above, not eliminated by it.
 
+**To close the gap**, work through
+[docs/ops/openstation-1-1-0-runtime-verification.md](ops/openstation-1-1-0-runtime-verification.md)
+— an owner-run checklist (~30 min) covering all 9 hooks, both JS globals, the
+CSS class, and both telemetry sinks. Its central instruction is to run the
+whole thing on v0.9.8 **before** upgrading, which converts every check from
+"does this work?" into "did the upgrade change this?" and negative-controls
+every instrument in it. Update this section with what that run establishes.
+
 ## Review round — REJECT #11
 
 *Historical record of the original ship's adversarial review (2026-08-04,
