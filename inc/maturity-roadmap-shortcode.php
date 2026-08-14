@@ -135,12 +135,18 @@ function sn_maturity_roadmap_static_board() {
 			'done'        => array(
 				__( 'Notes carry a signed commit chain anchored to Bitcoin, and every accepted edit re-anchors the note as a new version', 'signal-and-noise-tools' ),
 				__( 'Key history with a future: the signing key\'s verifiable history published at a well-known path, retired keys kept inside dated validity windows so anchors made under them still verify, and the next key committed by hash before it is ever used — so a rotation never orphans years of anchors', 'signal-and-noise-tools' ),
+				// 2026-08-14 (v11.6.0, R5): graduated considering -> done. The
+				// verifier had substantially existed in the ledger repo; what
+				// shipped here is the missing half — the surface: the /verify
+				// page now names its own residual trust and hands the reader
+				// the clone-and-run path. Rewritten present-tense; the wording
+				// honours §9.5 P-54 (says what the verifier IS).
+				__( 'A standalone verifier anyone can run outside the site: the checks live as a small readable program in the public ledger repository — clone, run, trust only the code in front of you — and the site\'s own verify page points at it as the way out of trusting the page itself', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Extend signing and anchoring beyond notes, to pages and then media', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
-				__( 'A standalone verifier anyone can run outside the site — "don\'t trust the site\'s own button" made literal', 'signal-and-noise-tools' ),
 				__( 'A second, independent anchor: a standards-based timestamp authority alongside Bitcoin, so the chain\'s integrity never rests on a single mechanism\'s longevity', 'signal-and-noise-tools' ),
 				__( 'Provenance for the software itself: signed releases for the code that signs the content — the verifier argument applied one layer down — a thread shared with Operations', 'signal-and-noise-tools' ),
 			),
