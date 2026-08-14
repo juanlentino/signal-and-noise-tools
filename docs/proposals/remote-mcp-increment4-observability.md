@@ -42,12 +42,19 @@ Option `sn_mcp_remote_log_v1`, **autoload `false`**. It is read by the admin pan
 on a front-end request, so autoloading it would tax every page view for data only one screen
 reads.
 
+**All times are in the site timezone**, via `wp_date()` — the same call `snt_audit_today_key()`
+uses. The remote log sits beside the login audit log in the same admin area and is read by the
+same human; two security readouts disagreeing about what "today" means would be a defect, and a
+UTC bucket would read as wrong to anyone looking at the panel in the evening. The cost is that
+changing the site timezone reinterprets stored values — acceptable for a diagnostic line, and the
+same trade the audit log already makes.
+
 ```php
 array(
     'schema'    => 1,
-    'last_used' => null,   // GMT 'Y-m-d H:i:s' of the last SUCCESSFUL dispatch, or null
+    'last_used' => null,   // 'Y-m-d H:i:s' (site timezone) of the last SUCCESSFUL dispatch, or null
     'counters'  => array(
-        // 'Y-m-d' in UTC => array( outcome => int )
+        // 'Y-m-d' (site timezone) => array( outcome => int )
         '2026-08-14' => array( 'dispatched' => 3, 'refused_auth' => 12 ),
     ),
     'recent'    => array(
@@ -184,7 +191,7 @@ New `tests/mcp-remote-observability.php`, plus additions to `tests/mcp-bridge-ro
 | **Coalesced refusals are not lost before a flush** | Record refusals, read back before any flush, counts must appear. Guards §4's under-reporting failure directly. |
 | Each handler branch records its own outcome | Otherwise one shared "something happened" counter satisfies every label while distinguishing nothing. |
 | `refused_shut` ≠ `refused_auth` in the record, `==` on the wire | Both directions red. See §3.1. |
-| Day buckets are keyed in **UTC** | The analytics traps record "UTC today" as a repeat offender. |
+| Day buckets use `wp_date()`, not `gmdate()` | Pins agreement with `snt_audit_today_key()`. Two security readouts in one admin area must not disagree about "today". |
 | A pending set files under the day it was **recorded**, not flushed | Record with a day key of *yesterday*, flush, assert yesterday's bucket grew. Without this, a midnight flush silently moves counts to the wrong day and understates the busy one. |
 | The ring is capped and newest-first | A cap asserted only by "it has ≤ N" cannot tell capping from never having filled. Overfill it, then assert the oldest is gone AND the newest is at index 0. |
 | Prune drops old buckets and **keeps recent ones** | A prune that deleted everything would satisfy a drop-only assertion. |
