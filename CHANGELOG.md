@@ -56,6 +56,8 @@ No code changed.
 
 ### Added
 - **The remote analytics door gets its origin-side permission boundary (R3 §3D, Increment 1 origin half).** A dedicated `sn_read_remote_analytics` capability held by nothing, a per-slug permission callback that passes its own literal slug, and a separate `signal-noise/remote-get-analytics-summary` ability sharing the existing reader — all behind a kill switch that is **fail-CLOSED on absence**, inverting every other switch in the plugin. The remote surface therefore ships shut and stays shut until someone turns it on deliberately. No origin bridge, no data path, no version bump: nothing user-visible activates.
+- **The remote analytics door gets its origin channel (R3 §3D, Increment 1 bridge half).** `POST /signal-noise/v1/bridge` accepts a Worker call carrying `SN_BRIDGE_TOKEN`, grants `sn_read_remote_analytics` for that one request, dispatches exactly one allowlisted ability, and removes the grant in a `finally`. The route is **registered only** when the remote kill switch is on and the constant is defined, so both failure modes are a route that does not exist.
+- **A wp-admin toggle for the remote door**, so it can be darkened from a phone. `SN_MCP_REMOTE_DISABLED` still wins unconditionally and the form writes nothing when it is set.
 
 ### Fixed
 - **A slug held off the MCP read allowlist no longer escapes the rate ceiling.** `sn_mcp_read_guard_is_read_path()` gated on the read allowlist, so any run route for a non-allowlisted slug dispatched with no limit at all. The remote analytics slug now enters that one function — and only that one, so the read door's fail-OPEN kill switch never answers for a remote slug. This does not close F1 for the remote path; that counter lives at the edge.
