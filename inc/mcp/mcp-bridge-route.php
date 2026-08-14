@@ -235,6 +235,25 @@ if ( function_exists( 'add_action' ) ) {
 }
 
 /**
+ * Report an outcome to the observability module, if one is installed.
+ *
+ * OBSERVATIONAL, AND SUBORDINATE TO THE DOOR. The function_exists() guard is
+ * the whole contract: the bridge behaves byte-identically with no recorder
+ * present, which tests/mcp-bridge-route.php pins by running its entire suite
+ * without one. A broken log must not be able to shut the door, and must not be
+ * able to open it either.
+ *
+ * @param string $outcome One of SN_MCP_REMOTE_OUTCOMES.
+ * @param string $slug    The requested slug, or ''.
+ * @return void
+ */
+function sn_bridge_report( $outcome, $slug = '' ) {
+	if ( function_exists( 'sn_mcp_remote_record' ) ) {
+		sn_mcp_remote_record( $outcome, $slug );
+	}
+}
+
+/**
  * Handle one bridge call.
  *
  * VERIFICATION ORDER, each step failing closed:
@@ -266,9 +285,19 @@ if ( function_exists( 'add_action' ) ) {
  * @return array|WP_Error
  */
 function sn_bridge_handle_request( $request ) {
+	// Read the slug up front FOR REPORTING ONLY. No refusal below branches on
+	// it before authentication — doing so would rebuild the enumeration oracle
+	// the ordering exists to deny. It is recorded, not acted on.
+	$body = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) )
+		? (array) $request->get_json_params()
+		: array();
+	$slug = isset( $body['slug'] ) ? (string) $body['slug'] : '';
+	$args = ( isset( $body['args'] ) && is_array( $body['args'] ) ) ? $body['args'] : array();
+
 	// STEP 0 — the gates, read again as late as possible. Same predicate as
 	// registration, so there is one definition of "the door is open".
 	if ( ! sn_bridge_should_register() ) {
+		sn_bridge_report( 'refused_shut', $slug );
 		return sn_bridge_absent_route_error();
 	}
 
@@ -290,16 +319,12 @@ function sn_bridge_handle_request( $request ) {
 	// the secret still learns 400-vs-404 and a distinct code, which is
 	// deliberate — they are authenticated, so it leaks nothing.
 	if ( ! sn_bridge_bearer_matches( $header, sn_bridge_secret() ) ) {
+		sn_bridge_report( 'refused_auth', $slug );
 		return sn_bridge_absent_route_error();
 	}
 
-	$body = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) )
-		? (array) $request->get_json_params()
-		: array();
-	$slug = isset( $body['slug'] ) ? (string) $body['slug'] : '';
-	$args = ( isset( $body['args'] ) && is_array( $body['args'] ) ) ? $body['args'] : array();
-
 	if ( '' === $slug ) {
+		sn_bridge_report( 'refused_request', '' );
 		return new WP_Error(
 			'sn_bridge_bad_request',
 			__( 'Missing slug.', 'signal-and-noise-tools' ),
@@ -308,6 +333,7 @@ function sn_bridge_handle_request( $request ) {
 	}
 
 	if ( ! function_exists( 'sn_mcp_remote_slugs' ) || ! in_array( $slug, sn_mcp_remote_slugs(), true ) ) {
+		sn_bridge_report( 'refused_slug', $slug );
 		return new WP_Error(
 			'sn_bridge_not_found',
 			__( 'Not found.', 'signal-and-noise-tools' ),
@@ -317,6 +343,7 @@ function sn_bridge_handle_request( $request ) {
 
 	$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $slug ) : null;
 	if ( ! $ability ) {
+		sn_bridge_report( 'refused_slug', $slug );
 		return new WP_Error(
 			'sn_bridge_not_found',
 			__( 'Not found.', 'signal-and-noise-tools' ),
@@ -334,6 +361,8 @@ function sn_bridge_handle_request( $request ) {
 		remove_filter( 'user_has_cap', 'sn_bridge_grant_capability', 10 );
 		sn_bridge_set_verified( false );
 	}
+
+	sn_bridge_report( 'dispatched', $slug );
 
 	return is_wp_error( $out ) ? $out : array( 'ok' => true, 'data' => $out );
 }

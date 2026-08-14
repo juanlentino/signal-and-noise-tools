@@ -187,6 +187,14 @@ function sn_admin_mcp_status_cards( array $state ) {
 			break;
 	}
 
+	// The usage line renders in EVERY remote-card state, not only bridge_ready.
+	// History matters most precisely when the door is off — "Last used yesterday
+	// · 12 refused" under a Switched-off card is the record of why it was shut.
+	// Appended after the switch so no future state can forget it.
+	if ( function_exists( 'sn_mcp_remote_log_summary_text' ) ) {
+		$remote_meta .= '<br>' . esc_html( sn_mcp_remote_log_summary_text() );
+	}
+
 	$remote_card = array(
 		'label'     => __( 'Remote door', 'signal-and-noise-tools' ),
 		'value'     => $remote_value,

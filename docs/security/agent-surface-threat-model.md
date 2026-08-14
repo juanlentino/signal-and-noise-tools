@@ -243,6 +243,17 @@ owner does not administer and cannot rotate from wp-admin.
   drafts reachable from anywhere. The mitigation is scope, not just throttling: the
   broker should reach a **named subset** of read abilities, not the read door entire.
 
+  **Partially addressed 2026-08-14** by `inc/mcp/mcp-remote-observability.php`: per-day
+  counters by outcome, a denormalised last-used timestamp, and a capped ring, surfaced
+  beside the toggle in the MCP status panel. Volume is now *recorded* at the origin; it
+  is not yet *alerted on*, and the row stays open until it is. **Alerting is owned by
+  the Worker side** (coordinated 2026-08-14): an anomaly worth alerting on is per-`sub`,
+  which only Workers Logs can see — the origin's record is the display layer and the
+  cross-check (a Worker `outcome` that disagrees with the origin's counter is the first
+  observable symptom of a `SN_BRIDGE_TOKEN` mismatch). §8.4's "audit the caller" is
+  untouched and cannot be satisfied at the origin — see
+  `docs/proposals/remote-mcp-increment4-observability.md` §7.
+
 ### §8.6 — F2, closed (2026-08-11)
 
 `rest_pre_dispatch` now carries `sn_mcp_read_guard_run_route()`, so the read kill

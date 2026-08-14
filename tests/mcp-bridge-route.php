@@ -371,6 +371,78 @@ $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
 $restored = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
 ok( ! is_wp_error( $restored ), 'THE ONE THAT PROVES IT REOPENS: switching back on dispatches again, so step 0 is a gate and not a permanent shutdown' );
 
+echo "Group: the handler reports its outcome, WITHOUT depending on a recorder\n";
+// THE PROPERTY THAT MATTERS MOST HERE is the second half. Every assertion above
+// this line ran with NO sn_mcp_remote_record() defined at all — this suite never
+// loads the observability module — so they are already the byte-identical-
+// without-the-module evidence, and this group only makes that explicit and
+// then checks the wiring with a recorder present.
+ok( ! function_exists( 'sn_mcp_remote_record' ), 'THE INDEPENDENCE PIN: every pin above ran with no recorder defined, so the door does not need one' );
+
+// Now define one and confirm the handler feeds it. Declared HERE rather than at
+// the top of the file precisely so the pin above can be true.
+$GLOBALS['__recorded'] = array();
+// Declared CONDITIONALLY, and the guard is doing real work: PHP hoists an
+// unconditional top-level `function` declaration at COMPILE time, so it would
+// exist from the file's first line and make the independence pin above
+// unsatisfiable — function_exists() would be true before any code ran. A
+// conditional declaration is defined at RUNTIME, when execution reaches it,
+// which is after the pin. Do not "simplify" the wrapper away; the pin reds.
+if ( ! function_exists( 'sn_mcp_remote_record' ) ) {
+	function sn_mcp_remote_record( $outcome, $slug = '' ) {
+		// The stub REFUSES unknown outcomes rather than recording them. The real
+		// module silently drops them, so a typo'd literal in the bridge would
+		// otherwise stay green here and vanish in production.
+		$known = array( 'dispatched', 'refused_shut', 'refused_auth', 'refused_slug', 'refused_request' );
+		if ( ! in_array( (string) $outcome, $known, true ) ) {
+			$GLOBALS['__recorded'][] = array( '__UNKNOWN_OUTCOME__: ' . (string) $outcome, $slug );
+			return;
+		}
+		$GLOBALS['__recorded'][] = array( $outcome, $slug );
+	}
+}
+
+$GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
+
+$GLOBALS['__recorded'] = array();
+sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+ok( array( array( 'dispatched', $REMOTE ) ) === $GLOBALS['__recorded'], 'a dispatch records dispatched, with the slug' );
+
+$GLOBALS['__recorded'] = array();
+sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
+ok( array( array( 'refused_auth', $REMOTE ) ) === $GLOBALS['__recorded'], 'an anonymous call records refused_auth' );
+
+$GLOBALS['__recorded'] = array();
+sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
+ok( array( array( 'refused_slug', 'signal-noise/get-post-content' ) ) === $GLOBALS['__recorded'], 'an off-list slug records refused_slug' );
+
+$GLOBALS['__recorded'] = array();
+sn_bridge_handle_request( new SNB_Req( $good, array() ) );
+ok( array( array( 'refused_request', '' ) ) === $GLOBALS['__recorded'], 'a missing slug records refused_request' );
+
+$GLOBALS['__options']  = array();
+$GLOBALS['__recorded'] = array();
+$shut = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+ok( array( array( 'refused_shut', $REMOTE ) ) === $GLOBALS['__recorded'], 'a call arriving while the switch is off records refused_shut' );
+
+// THE ASYMMETRY PIN, both directions. refused_shut and refused_auth are
+// distinct IN THE RECORD and identical ON THE WIRE. Collapsing the record loses
+// the signal; leaking the distinction reopens the oracle #642 closed.
+$GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
+$anon = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
+ok( $shut->code === $anon->code && $shut->message === $anon->message && $shut->data === $anon->data, 'THE ASYMMETRY PIN: shut and bad-auth refusals stay byte-identical on the wire' );
+// $GLOBALS['__recorded'] was NOT reset before this call — it still holds the
+// $shut call's entry — so the anon call's outcome APPENDS rather than replaces.
+// The record-derived witness: two entries, the first the shut call's, the
+// second the anon call's, and the two outcomes differ.
+ok(
+	array(
+		array( 'refused_shut', $REMOTE ),
+		array( 'refused_auth', $REMOTE ),
+	) === $GLOBALS['__recorded'] && $GLOBALS['__recorded'][0][0] !== $GLOBALS['__recorded'][1][0],
+	'while the RECORD tells them apart — the shut call recorded refused_shut, the anon call (unreset) appended refused_auth, and the two differ'
+);
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-bridge-route.php\n";
