@@ -32,14 +32,19 @@ The door is half-built. This document specifies the other half.
 | Auth | `Authorization: Bearer <SN_BRIDGE_TOKEN>`, compared with `hash_equals()` |
 | Body | `{ "slug": "...", "args": { ... } }` |
 | Success | `{ "ok": true, "data": <ability output> }` — the envelope is pinned (bridge-half mutation 5b) |
-| 404 | Bearer missing or wrong, **or** slug not on the remote list, **or** the route was never registered — all `sn_bridge_not_found`, byte-identical |
+| 404 **pre-auth** | Route never registered (door off · secret absent) **or Bearer wrong** — core's `rest_no_route`, verbatim |
+| 404 **post-auth** | Valid Bearer, but slug not on the remote list, or the ability does not resolve — `sn_bridge_not_found` |
 | 400 | Malformed body (reachable only by a caller holding the secret) |
 | Allowlisted slug | `signal-noise/remote-get-analytics-summary`, and only that one |
 
 The route registers **only** when `sn_mcp_remote_enabled` is on **and** `SN_BRIDGE_TOKEN` is
 defined in `wp-config.php`. Both default to off, so **the expected steady state is a 404.**
 
-The ability's `input_schema` (`inc/abilities-remote-analytics.php:69-76`) accepts an object with
+The two 404 shapes are the post-#642 split, and they are the subject of
+[A signal the client does not yet consume](#a-signal-the-client-does-not-yet-consume): the client
+maps both to one class in Increment 1, on purpose.
+
+The ability's `input_schema` (`inc/abilities-remote-analytics.php:66-73` on `main`) accepts an object with
 exactly two optional keys — `range` (string or integer) and `class` (string) — and
 `additionalProperties: false`. Documented values are `7|14|30|90|365|all` and
 `human|suspect|bot`.
@@ -53,14 +58,18 @@ An adversarial review of the shipped origin half ran during this scoping (Grok
 extract analytics without the token, ride the capability grant onto another slug, persist the
 capability, flip `SN_MCP_REMOTE_DISABLED` from the web, or reach the toggle as a non-admin.
 
-It landed two low-severity reconnaissance findings, and **a concurrent session had already fixed
-both before this document was finished** — commit `a20c4f9`, branch `claude/grok-findings-404`,
-pushed but not yet merged to `main`:
+It landed two low-severity reconnaissance findings, and **a concurrent session fixed both, then
+found a third, while this document was being written.** All three are merged to `main`
+(PR #641 → `a1e229f`, PR #642 → `fc60d63`):
 
 | Finding | Fix |
 | --- | --- |
-| Handler answered **401** for a bad Bearer while an unregistered route answered 404, so the status code announced "this door is armed". The REST index listed `/bridge` only when both gates were open. | Bad Bearer now returns **404 `sn_bridge_not_found`**, byte-identical to an off-list slug; route carries `show_in_index => false`. |
-| The ability registered `show_in_rest => true`, so `POST /wp-abilities/v1/abilities/<slug>/run` existed on every install and leaked switch state via its error code. | `show_in_rest => false` (`inc/abilities-remote-analytics.php:92-104`). The bridge dispatches via `wp_get_ability()->execute()` and never needed that route. |
+| Handler answered **401** for a bad Bearer while an unregistered route answered 404, so the status code announced "this door is armed". The REST index listed `/bridge` only when both gates were open. | Bad Bearer now answers 404; route carries `show_in_index => false`. (#641) |
+| The ability registered `show_in_rest => true`, so `POST /wp-abilities/v1/abilities/<slug>/run` existed on every install and leaked switch state via its error code. | `show_in_rest => false`. The bridge dispatches via `wp_get_ability()->execute()` and never needed that route. (#641) |
+| **The oracle was closed on the status and left open on the BODY.** An unregistered route answers core's `rest_no_route` / *"No route was found matching the URL and request method."*; the handler answered `sn_bridge_not_found` / *"Not found."* A REST client reads JSON, not a status line — so an anonymous prober could still separate armed from shut. | Every **pre-authentication** refusal now returns core's `WP_Error` verbatim — code, message and `default` text domain alike, so the two bodies cannot diverge on a non-English install. (#642) |
+
+The third is the one worth internalising: **closing a leak on one channel does not close it.**
+Status and body are two channels, and the fix for the first made the second the tell.
 
 **This was caught by checking, not by being told.** The line numbers cited in an earlier draft of
 this document did not match the file, which is what exposed the divergence. Worth recording as
@@ -77,10 +86,41 @@ That is correct for the anonymous prober the fix targeted. It has a real cost on
 [Error handling](#error-handling) and [The rotation blind spot](#the-rotation-blind-spot) both
 carry it rather than pretending the ambiguity is narrow.
 
-**This document specifies behaviour that is correct whether or not `claude/grok-findings-404`
-merges.** The Worker maps 401 → `credential_rejected` *and* 404 → the ambiguous class. Against
-the fixed origin the 401 branch is simply unreachable; against the current `main` it is the
-credential answer. Neither case needs a Worker change, which is the point of specifying both.
+**This document specifies behaviour that is correct against either origin version.** The Worker
+maps 401 → `credential_rejected` *and* 404 → the ambiguous class. Against the fixed origin (now
+`main`) the 401 branch is unreachable; against the pre-fix origin it was the credential answer.
+Neither case needs a Worker change, which is the point of specifying both — and the 401 branch is
+pinned anyway, because a mapping branch with no test is a branch nobody has checked.
+
+### A signal the client does not yet consume
+
+#642 split the refusals by **authentication state**, and that has a consequence for this client
+that is worth recording before someone rediscovers it:
+
+| Origin condition | Body |
+| --- | --- |
+| Door off · secret absent · **wrong secret** | `rest_no_route` (core's, verbatim) |
+| Valid secret + off-list slug · ability missing | `sn_bridge_not_found` |
+
+So **`sn_bridge_not_found` proves the Worker's secret matched** — the origin only reaches that
+branch after `hash_equals()` passes. That is a positive credential signal the Worker currently
+throws away, because it never reads an error body at all.
+
+**Increment 1 deliberately does not consume it**, for two reasons and one non-reason:
+
+- It buys almost nothing *now*. The Worker only ever sends the single allowlisted slug, so
+  `sn_bridge_not_found` would mean the origin's remote list changed underneath it — real, but
+  rare, and already visible as a `door_closed_or_credential_or_tool` in the logs.
+- It does not close the [rotation blind spot](#the-rotation-blind-spot). A mismatched secret and
+  a dark door both answer `rest_no_route`; they remain indistinguishable, which is the whole
+  point of #642.
+- **The non-reason:** it would *not* violate the never-echo property. Branching on a `code` field
+  is not the same as putting origin text in a tool result. If a later increment wants this, the
+  pin to preserve is "no origin *text* reaches the caller", not "no origin body is ever parsed".
+
+**Increment 2 should reconsider**, because the moment there is more than one remote slug, the
+difference between "your credential is wrong" and "that tool is not on the list" stops being
+academic.
 
 ---
 
@@ -321,7 +361,7 @@ But it is still `isError: true`. Those are different questions: the MCP error fl
 *operator* whether to care. Collapsing them — returning `isError: false` with an "unavailable"
 payload — risks a model treating the refusal as a reading.
 
-**The 404 message names all three possibilities and resolves none.** After `a20c4f9` the Worker
+**The 404 message names all three possibilities and resolves none.** After #641 and #642 the Worker
 cannot distinguish "door off" from "our secret is wrong" from "slug not allowlisted", and a
 message that picked one would be a guess presented as a diagnosis. It points instead at the
 authenticated surface that can tell *some* of them apart:
@@ -340,7 +380,7 @@ Naming a hole the oracle fix opened on this side of the wire, because nothing el
 records it.
 
 `SN_BRIDGE_TOKEN` exists in two places that must agree: a `wp-config.php` constant and a Worker
-secret. **Nothing can observe that they disagree.** After `a20c4f9`, a mismatch answers 404 —
+secret. **Nothing can observe that they disagree.** After #641 and #642, a mismatch answers 404 —
 identical to a dark door. Meanwhile:
 
 - wp-admin reports `bridge_ready`, because the origin constant *is* defined;
@@ -352,7 +392,7 @@ move" shape — each side truthfully reports its *own* half, and the property th
 is the *agreement*, which is unobservable by construction.
 
 It is not fixable at the endpoint: any response that separated "wrong secret" from "door off"
-would rebuild exactly the oracle `a20c4f9` closed. So the mitigations are procedural, and they
+would rebuild exactly the oracle #641 and #642 closed. So the mitigations are procedural, and they
 belong in the runbook rather than in code:
 
 1. **Rotation is a two-step with an unavoidable dark window.** Whatever order it is done in, the
@@ -499,31 +539,30 @@ indistinguishable from a deliberate stop. Rotate when you can watch the Workers 
 
 ---
 
-## Dependency on the plugin repo
+## Dependency on the plugin repo — none outstanding
 
-Both Grok findings are **fixed** on `claude/grok-findings-404` (`a20c4f9`, pushed, not yet merged
-to `main`). Nothing is owed to the plugin repo by this increment.
+All three review findings are **merged to `main`** (#641, #642). Nothing is owed to the plugin
+repo by this increment, and nothing in the Worker blocks on it.
 
-**Ordering:** this Worker work does not block on that merge, because the error mapping is
-specified to be correct against both origin versions. But the *ambiguity* documented here — and
-the [rotation blind spot](#the-rotation-blind-spot) — describe the **post-merge** origin. If
-`claude/grok-findings-404` is abandoned rather than merged, a wrong secret answers 401 and is
-cleanly diagnosable, and this document's pessimism about diagnosis is simply unearned. Re-read
-this section before implementing if that branch has not landed.
-
-One observation from the review remains **open and unaddressed by `a20c4f9`**, carried here so it
-is not lost with the review job:
+The review's one *non-finding* observation is also closed, and by a better fix than the one it
+suggested:
 
 > The bridge dispatches with `execute()` alone, while `sn_mcp_call_tool()` calls
 > `check_permissions()` **and** `execute()`. Real `WP_Ability::execute()` runs
-> `check_permissions()` internally, so the three-gate design holds — but the test fixture
-> `SNB_Ability::execute()` (`tests/mcp-bridge-route.php`) does not call it, so **nothing in the
-> suite would notice if that ever stopped being true.** A core change, or a wrapper calling the
-> execute callback directly, would keep the suite green while removing a gate.
+> `check_permissions()` internally, so the three-gate design holds — but the suite's fixture
+> `SNB_Ability::execute()` did not call it, so **nothing would have noticed if that stopped
+> being true.**
 
-That is a plugin-repo test gap, not a Worker one, and not this increment's to close. The
-bridge-half doc's phrase "the same path the MCP door uses" is inaccurate; the security property
-it describes is not.
+`tests/mcp-bridge-permission-callback.php` now models core's real order, is built from the
+ability's actual registration arguments (so a renamed callback reds it), and resolves
+`current_user_can()` through the registered `user_has_cap` filters from a principal holding
+nothing. The assertion that earns it is the counterfactual: **detach the grant filter and the
+same call returns `ability_invalid_permissions`** — proving the bridge *satisfies* the callback
+rather than bypassing it. That is the difference between testing that a gate is present and
+testing that it is load-bearing.
+
+The bridge-half doc's phrase "the same path the MCP door uses" remains inaccurate — the bridge
+calls `execute()` alone — but the security property it describes now has a witness.
 
 ---
 
