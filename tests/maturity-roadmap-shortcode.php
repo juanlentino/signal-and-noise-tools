@@ -325,14 +325,26 @@ ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array
 $ai_all = implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['AI'] ) ) );
 ok( false === strpos( $ai_all, 'DECLINED' ), 'DR floor: no AI row still records the phone door as declined' );
 ok( false === strpos( $ai_all, 'the asset is unpublished drafts' ), 'DR floor: and the old decline reasoning survives in no column' );
-// A planned row must NAME ITS GATE — that is what separates planned from
-// considering on this board. Pin the three preconditions, because they are the
-// ones a future session would be tempted to soften.
-$ai_planned = implode( ' | ', $floor['AI']['planned'] );
-ok( false !== strpos( $ai_planned, 'phone' ), 'DR floor: the phone-door row is PLANNED (the owner committed to it)' );
-ok( false !== strpos( $ai_planned, 'fail' ) && false !== strpos( $ai_planned, 'closed' ), 'DR floor: its gate names the fail-CLOSED ceiling — the local ceiling is deliberately fail-open and that is not acceptable where a credential exists' );
-ok( false !== strpos( $ai_planned, 'expire' ), 'DR floor: its gate names a token that EXPIRES — a credential the site cannot rotate was what killed the first attempt' );
-ok( false !== strpos( $ai_planned, 'draft' ), 'DR floor: and the gate names the drafts boundary, the asset the original decline was actually protecting' );
+// 2026-08-14 GRADUATED planned -> done: the door shipped and is phone-proven.
+// The three preconditions stay pinned, and they FOLLOW THE CLAIM into done
+// rather than staying with the column — they were the reason this was a legal
+// planned row, and they are now facts about a shipped door. Retargeting them
+// is the point: a pin that guards a sentence must move when the sentence does,
+// or it silently stops guarding anything while still reading green.
+$ai_done = implode( ' | ', $floor['AI']['done'] );
+ok( false !== strpos( $ai_done, 'phone' ), 'DR floor: the phone-door row is DONE (shipped v11.0.0-v11.1.0, phone-proven)' );
+ok( false === strpos( implode( ' | ', $floor['AI']['planned'] ), 'phone' ), 'DR floor: and it is GONE from planned — a row in two columns is the drift this floor exists to catch' );
+ok( false !== strpos( $ai_done, 'fail' ) && false !== strpos( $ai_done, 'closed' ), 'DR floor: it still names the fail-CLOSED ceiling — the local ceiling is deliberately fail-open and that is not acceptable where a credential exists' );
+ok( false !== strpos( $ai_done, 'expire' ), 'DR floor: it still names a token that EXPIRES — a credential the site cannot rotate was what killed the first attempt' );
+ok( false !== strpos( $ai_done, 'draft' ), 'DR floor: and it still names the drafts boundary, the asset the original decline was actually protecting' );
+// THE RETIREMENT, pinned as its own claim. Promoting the phone door would have
+// put AI done at 5 and red the wall canary above, so the threat-model row
+// retired onto the AI maturity page. Retirement is removal from the HUB, so
+// pin it in NO column — "not in done" alone would pass while the row sat in
+// considering, which is the failure mode of a half-finished retirement.
+$ai_all_post = implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['AI'] ) ) );
+ok( false === strpos( $ai_all_post, 'threat model' ), 'DR floor: the threat-model row is in NO column — retirement is removal from the hub, not demotion within it' );
+ok( count( $floor['AI']['done'] ) <= SN_MATURITY_ROADMAP_MAX_DONE - 1, 'DR floor: AI done clears the wall canary after the swap — the retirement bought exactly the slot the promotion spent' );
 ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) ), 'aggregate numbers published for readers' ), 'DR floor: and no fragment of its sentence survives anywhere in the family' );
 // The POINT of the retirement, stated as its own claim. The wall canary above
 // (max_done <= MAX_DONE - 1) already reds at 5, and Analytics sat at 4 — legal,

@@ -154,20 +154,27 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Two isolated agent doors — read-only and write — behind curated allowlists, kill switches, an audit trail, and rate limits', 'signal-and-noise-tools' ),
 				__( 'Staged body edits: an AI may propose a sentence-scale change, server-side gates stage it as a revision, and only a person\'s acceptance makes it live', 'signal-and-noise-tools' ),
 				__( 'The roadmap board as data: an agent proposes the whole board at once behind a fingerprint and a leak sweep, so planning copy ships like content instead of code', 'signal-and-noise-tools' ),
-				__( 'A written threat model for the agent surfaces: what a hostile paragraph could reach, argued gate by gate, with ranked residual risks and the preconditions any new agent surface must clear before it ships', 'signal-and-noise-tools' ),
+				// 2026-08-14 GRADUATION: the phone door shipped, and the done
+				// ceiling reds at 5, so a row had to retire to make room. The
+				// threat model retired rather than any of its neighbours for
+				// one reason: it is a written document, so the claim survives
+				// the board — it now stands as an honesty principle on the AI
+				// maturity page (sn_ai_maturity_principles()), where a reader
+				// who wants it can still find it. The three rows left here are
+				// mechanisms with no document to point at; retiring one of
+				// those would have deleted the claim, not moved it. Retirement
+				// is removal from the HUB only, and the floor pins it in NO
+				// column — see the DR-floor pins in the test.
+				//
+				// Rewritten, not moved: a done row states what acts today, so
+				// the gate clauses that made it a legal PLANNED row stay inside
+				// the claim as facts about the shipped door rather than as
+				// preconditions it has yet to meet.
+				__( 'Read the site\'s numbers from a phone: an analytics-only door, reached through a scoped token that expires rather than the site\'s own password, with the rate ceiling that guards it failing closed instead of open, a stop switch reachable from the phone it protects, and a record of what it served — writing stays on the desktop, and nothing that can name an unpublished draft goes through it', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Move the operative AI channel to the desktop platform\'s native agents, once that runner is stable enough to trust with the same fences', 'signal-and-noise-tools' ),
 				__( 'Retire the legacy single-purpose tools the consolidated set absorbed, on usage evidence rather than on a date', 'signal-and-noise-tools' ),
-				// 2026-08-12: REOPENED and promoted considering -> planned. The
-				// old row recorded the edge broker as DECLINED, and named a
-				// reopening condition — an agent reading the CORPUS from a
-				// phone — that is not the one that fired. The owner asked for
-				// ANALYTICS from a phone: a different asset, a different risk,
-				// and the reason the calculus inverts. A planned row names its
-				// gate, so this one carries the three preconditions the decline
-				// was right about.
-				__( 'Read the site\'s numbers from a phone: an analytics-only door, reached through a scoped token that expires rather than the site\'s own password, with the rate ceiling that guards it failing closed instead of open, and a stop switch reachable from the phone it protects — writing stays on the desktop, and nothing that can name an unpublished draft goes through it', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),

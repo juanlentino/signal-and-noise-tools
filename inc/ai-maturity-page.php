@@ -85,6 +85,20 @@ function sn_ai_maturity_principles() {
 		__( 'Agents get the smallest door that does the job: reads and writes are split, and every write is bounded and audited, with a revision to walk back.', 'signal-and-noise-tools' ),
 		__( 'Either door can be darkened instantly, server-side, and no agent credential can disable its own leash.', 'signal-and-noise-tools' ),
 		__( 'What AI may not touch is a decision, not an accident: destructive operations and site-structure levers sit outside agent reach by construction.', 'signal-and-noise-tools' ),
+		// 2026-08-14: arrived here by GRADUATION, not by authoring. This was a
+		// done row on the hub roadmap board; the done column has a ceiling that
+		// forces the oldest shipped rows onto their family page, and this claim
+		// was the one that could make the move without being lost — a written
+		// document survives the board, whereas a mechanism with no document to
+		// point at would have simply vanished with its row. Stated as a
+		// standing commitment rather than a past event, because the model is
+		// re-argued for each new surface rather than written once.
+		//
+		// Bound by this file's SECURITY CONTRACT like every other principle:
+		// it names the PRACTICE, never a gate, a path, or a residual — the
+		// threat model itself is not a public document, and a principle that
+		// enumerated what it found would defeat the point of having one.
+		__( 'No agent surface ships unargued: each is walked against a written threat model first - what a hostile paragraph could reach, gate by gate - and the risks that remain are ranked and carried forward by name rather than closed by assertion.', 'signal-and-noise-tools' ),
 	);
 }
 

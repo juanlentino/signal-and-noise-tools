@@ -4,6 +4,15 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.1.2] - 2026-08-14 — the phone door graduates, and the threat model moves rather than dies
+
+### Changed
+- **The public board stops calling the phone door "planned" a day after it shipped.** R3 §3D closed with v11.0.0 and v11.1.0 — the door is live, owner-installed, and phone-proven — but the AI family's roadmap row still described it in the future tense on `/maturity/roadmap/`. This was **not drift**: the standing check compares the static floor's fingerprint against the door's observed one, and here both sides agreed the row was `planned`. A board that agrees with itself and disagrees with the shipped plugin is a graduation nobody started, which is the failure mode the drift check cannot see. The row is **rewritten, not moved** — a done row states what acts today, so the three gate clauses that made it a legal `planned` row (a token that expires rather than the site's own password, a rate ceiling that fails closed, and the drafts boundary) now read as facts about a shipped door, and it gains the fourth thing that actually shipped: a record of what the door served.
+- **The written threat model retires off the hub board onto the AI maturity page** (`inc/ai-maturity-page.php`), as a ninth honesty principle. Promoting the phone door would have put AI's `done` column at 5 against `SN_MATURITY_ROADMAP_MAX_DONE`, and the CI canary reds at the ceiling minus one — so the promotion had to buy its slot. The threat model was the right row to spend because it is the only one of the four that is **a written document**: the claim survives leaving the board. Its three neighbours are mechanisms with no artifact to point a reader at, and retiring one of those would have deleted the claim rather than relocating it. Retirement is removal from the **hub** only; the floor now pins the row in **no column**, because "absent from `done`" alone would read green while a half-finished retirement left it sitting in `considering`. The new principle names the practice and not the findings — the AI page's security contract forbids naming levers, and a principle that enumerated what the threat model found would defeat the point of having one.
+
+### Fixed
+- **A DR-floor pin that would have stopped guarding anything.** Three assertions pinned the phone-door row's preconditions against `$floor['AI']['planned']` — the column, not the claim. Graduating the row would have left all three passing against the two unrelated rows that remain in `planned`, still green, guarding nothing. They now follow the sentence into `done`, joined by a pin that the row is **gone from `planned`**: a row present in two columns is exactly the drift this floor exists to catch. The graduation pin on the AI page asserts against the **rendered** principles HTML rather than `sn_ai_maturity_principles()`, because a claim sitting in an array that no format emits is the mechanism-without-surface shape this project keeps re-learning.
+
 ## [11.1.1] - 2026-08-14 — the analytics descriptions name the ratio that is not diluted
 
 ### Fixed
