@@ -65,6 +65,7 @@ function sn_ml_maturity_scope() {
 		'echoes'    => array( __( 'Draft-time echoes', 'signal-and-noise-tools' ), 'live' ), // v10.77.0: pipeline #7 — one draft against the corpus, editor-side read only.
 		'search'    => array( __( 'Ranked search', 'signal-and-noise-tools' ), 'live' ), // v10.20.1: flipped with theme v11.2.0's ⌘K ranked palette.
 		'drift'     => array( __( 'Vocabulary drift mirror', 'signal-and-noise-tools' ), 'live' ), // v11.2.0: pipeline #9 — writer-facing, admin-only by contract.
+		'paths'     => array( __( 'Reading paths', 'signal-and-noise-tools' ), 'live' ), // v11.3.0: pipeline #10 — reader-facing once the theme places the slot; the renderer self-gates until then.
 		'verdicts'  => array( __( 'Provenance verdicts', 'signal-and-noise-tools' ), 'never' ),
 		'readers'   => array( __( 'Reader profiling', 'signal-and-noise-tools' ), 'never' ),
 		'browser'   => array( __( 'Models in the reader\'s browser', 'signal-and-noise-tools' ), 'never' ),

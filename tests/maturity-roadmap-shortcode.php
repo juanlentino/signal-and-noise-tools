@@ -82,7 +82,11 @@ ok( 28 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7
 // 2026-08-12: ZERO empty cells — the last one (Accessibility considering)
 // took the embeds decline. A full board is the current truth, not a rule;
 // this pin moves whenever a cell honestly empties again.
-ok( 0 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'no empty cells on this board (the embeds decline filled the last one)' );
+// 2026-08-14: ONE empty cell again — ML considering emptied when both R4 rows
+// (drift, reading paths) graduated to done in the v11.2.0/v11.3.0 pair. An
+// honestly empty cell beats a padded one; this pin moves whenever a cell
+// honestly empties or fills.
+ok( 1 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly one empty cell (ML considering — both R4 rows graduated)' );
 
 // v10.63.0 "fold the future": the legend trio + counts + folds.
 $counts = sn_maturity_roadmap_counts( sn_maturity_roadmap_effective_board() );
@@ -97,7 +101,7 @@ ok( false !== strpos( $html, 'sn-maturity-roadmap-badge__n' ), 'header badges ca
 // fold per cell, summaries carrying their counts. 7 families × up to 2
 // future cells, minus the 2 empties = 12 folds on the static board.
 ok( false === strpos( $html, 'cell--done" data-label="Done"><details' ), 'a done cell never folds' );
-ok( 21 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (21 on this board, 2026-08-12: 7 planned + 7 considering + 7 later)' );
+ok( 20 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (20 on this board, 2026-08-14: 7 planned + 6 considering + 7 later — ML considering emptied)' );
 
 // v10.71.1: no sentence may appear in two columns of the same family.
 // The static floor had the agent threat model in BOTH 'done' and

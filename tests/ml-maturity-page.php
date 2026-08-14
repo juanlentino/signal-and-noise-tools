@@ -72,7 +72,8 @@ ok( 3 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--never' ), 'exa
 ok( false !== strpos( $scope_html, 'Provenance verdicts' ), 'never #1 present by name: provenance verdicts' );
 ok( false !== strpos( $scope_html, 'Reader profiling' ), 'never #2 present by name: reader profiling' );
 ok( false !== strpos( $scope_html, 'reader&#039;s browser' ) || false !== strpos( $scope_html, 'reader\'s browser' ), "never #3 present by name: models in the reader's browser" );
-ok( 9 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--live' ), 'nine live consumers: related, cousins, keywords, links, ranked search, topic analytics, cadence flags, draft-time echoes, vocabulary drift (v11.2.0)' );
+ok( 10 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--live' ), 'ten live consumers: related, cousins, keywords, links, ranked search, topic analytics, cadence flags, draft-time echoes, vocabulary drift, reading paths (v11.3.0)' );
+ok( false !== strpos( $scope_html, 'Reading paths' ), 'the v11.3.0 pipeline is claimed live by name — the badge flip is stated, not inferred' );
 ok( false !== strpos( $scope_html, 'Draft-time echoes' ), 'the v10.77.0 pipeline is claimed live by name — a badge flip must be stated, not inferred from a count' );
 ok( false !== strpos( $scope_html, 'Vocabulary drift mirror' ), 'the v11.2.0 pipeline is claimed live by name — same rule, the badge flip is stated' );
 ok( 0 === substr_count( $scope_html, 'sn-ml-maturity-scope-badge--planned' ), 'zero planned: the launch scope map is fully live (nevers stay never)' );
