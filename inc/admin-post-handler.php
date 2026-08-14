@@ -162,6 +162,8 @@ function sn_handle_admin_post() {
 	}
 	// Handlers receive the RAW $_POST and unslash per-field exactly as their
 	// original arms did (see inc/admin-post-actions.php docblock).
+	//
+	// nosemgrep: php.lang.security.injection.tainted-callable.tainted-callable -- $action only SELECTS from the fixed sn_admin_post_handlers() registry behind the isset() above; the callable is never attacker-supplied, and the dispatcher has already enforced the nonce (and capability, per-handler where required).
 	$flash = (string) call_user_func( $handlers[ $action ], $_POST );
 
 	// v9.2.0: Dashboard-submenu pages (sn-analytics) redirect back to index.php

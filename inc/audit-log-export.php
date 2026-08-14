@@ -312,6 +312,7 @@ function sn_audit_export_download_handler() {
 	header( 'Content-Type: ' . ( 'csv' === $format ? 'text/csv; charset=utf-8' : 'application/json; charset=utf-8' ) );
 	header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
 
+	// nosemgrep: php.lang.security.injection.echoed-request.echoed-request -- $content derives from the STORED audit blob via sn_audit_export_render(), not from the request; $format is normalized to the csv|json pair above. This is a raw file download (Content-Disposition: attachment), not HTML output.
 	echo $content; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- raw export download (CSV/JSON), not HTML.
 	exit;
 }

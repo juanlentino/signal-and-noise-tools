@@ -1,0 +1,41 @@
+name: Semgrep
+# PHP taint-style SAST — the layer nothing else in this CI covers. CodeQL cannot
+# analyse PHP (it watches the JS half), and PHPStan level 1 checks types, not
+# taint. Part of the free security stack bridging until Aikido is paid for —
+# see the free-security-stack memory / 2026-08-14 decision.
+#
+# BLOCKING from day one, deliberately: the baseline scan found three findings,
+# all triaged as false positives and suppressed INLINE with `nosemgrep` comments
+# that state the reason (fixed handler registry; sink-side escaping; stored-data
+# export). Zero findings is the clean state, so a new finding is signal, not
+# noise. If this job reds on code you believe is safe, add an inline nosemgrep
+# WITH the justification — never a blanket ignore, and never silence it here.
+#
+# This repo is PUBLIC, so this job bills no Actions minutes. If the repo ever
+# goes private, this becomes ~1-2 billed minutes per run — fold it into ci.yml
+# as a step (not a job) that day, per the per-job rounding rule.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  semgrep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      # Pinned by digest-equivalent tag; bump deliberately, not via latest.
+      image: semgrep/semgrep:1.172.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # `--error` exits non-zero on any finding — that IS the gate. Rulesets are
+      # fetched from the registry at run time; pinning the ENGINE (image above)
+      # keeps behaviour stable while rules stay current, which is the trade a
+      # security scanner wants (frozen rules rot; a frozen engine does not).
+      - name: Semgrep scan (PHP + security-audit rulesets)
+        run: semgrep scan --config p/php --config p/security-audit --metrics=off --error
