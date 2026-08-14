@@ -241,6 +241,31 @@ $blob = sn_mcp_remote_log_get_blob();
 ok( 4 === $blob['counters'][ $yesterday ]['refused_auth'], 'THE MIDNIGHT PIN: buffered counts land in YESTERDAY\'s bucket' );
 ok( ! isset( $blob['counters'][ sn_mcp_remote_log_day_key() ]['refused_auth'] ), 'and not in today\'s' );
 
+echo "Group: a STALE buffer flushed by a refusal counts that refusal too\n";
+// The flush trigger is itself an event. Without this pin, deleting the
+// self-count line inside the flush branch loses exactly one refusal per
+// flush window — a steady undercount no other assertion can see.
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+$GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ] = array(
+	'day'        => sn_mcp_remote_log_day_key(),
+	'first_seen' => time() - ( SN_MCP_REMOTE_FLUSH_SECONDS + 5 ),
+	'counts'     => array( 'refused_auth' => 2 ),
+);
+sn_mcp_remote_record( 'refused_auth', '' );
+$blob = sn_mcp_remote_log_get_blob();
+ok( 3 === $blob['counters'][ sn_mcp_remote_log_day_key() ]['refused_auth'], 'THE SELF-COUNT PIN: two buffered + the stale-triggering refusal itself = 3 persisted' );
+ok( ! array_key_exists( SN_MCP_REMOTE_PENDING_TRANSIENT, $GLOBALS['__transients'] ), 'and the buffer is cleared by the refusal-triggered flush too' );
+
+echo "Group: first_seen is stamped ONCE — a steady flood cannot keep the buffer forever young\n";
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+sn_mcp_remote_record( 'refused_auth', '' );
+$stamped = $GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ]['first_seen'];
+$GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ]['first_seen'] = $stamped - 30;
+sn_mcp_remote_record( 'refused_auth', '' );
+ok( $stamped - 30 === $GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ]['first_seen'], 'THE AGEING PIN: a second add left first_seen untouched, so the buffer keeps ageing under load' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-remote-observability.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-remote-observability.php\n";
