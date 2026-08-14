@@ -121,7 +121,7 @@ bms_eq( 'snt_block_migration_candidate_not_found', $result->get_error_code(), 'T
 echo "\nTest 4: successful suggestion (h3 → h2)\n";
 $GLOBALS['__test_posts'] = array();
 $h3_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Skip me</h3>', 'innerContent' => array( '<h3>Skip me</h3>' ) );
-$fp       = md5( serialize_block( $h3_block ) );
+$fp       = snt_block_fp_fingerprint( $h3_block, 303, '0/0' );
 _bms_post( 303, array( $h3_block ) );
 
 $result = snt_block_migrations_suggest_impl( 303, $fp, 'heading-hierarchy-skip' );
@@ -136,7 +136,7 @@ bms_true( strpos( $result['suggestion_markup'], '"level":3' ) === false, 'Test 4
 echo "\nTest 5: inner text preserved\n";
 $GLOBALS['__test_posts'] = array();
 $h3_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Configuration steps</h3>', 'innerContent' => array( '<h3>Configuration steps</h3>' ) );
-$fp       = md5( serialize_block( $h3_block ) );
+$fp       = snt_block_fp_fingerprint( $h3_block, 304, '0/0' );
 _bms_post( 304, array( $h3_block ) );
 
 $result = snt_block_migrations_suggest_impl( 304, $fp, 'heading-hierarchy-skip' );
@@ -177,7 +177,7 @@ bms_true( strpos( $result_paragraph, '<h2>' ) === false, 'Test 6.4: non-heading 
 echo "\nTest 7: successful suggestion (h4 → h2)\n";
 $GLOBALS['__test_posts'] = array();
 $h4_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 4, 'className' => 'keep-me' ), 'innerBlocks' => array(), 'innerHTML' => '<h4 class="wp-block-heading keep-me">Deep subhead</h4>', 'innerContent' => array( '<h4 class="wp-block-heading keep-me">Deep subhead</h4>' ) );
-$fp       = md5( serialize_block( $h4_block ) );
+$fp       = snt_block_fp_fingerprint( $h4_block, 305, '0/0' );
 _bms_post( 305, array( $h4_block ) );
 
 $result = snt_block_migrations_suggest_impl( 305, $fp, 'heading-hierarchy-skip' );

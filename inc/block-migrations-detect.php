@@ -103,7 +103,7 @@ function snt_block_migrations_walk_blocks( $tree, $post, $dismissed, &$candidate
 		}
 
 		if ( 'core/heading' === $name && $level > 2 && ! $seen_h2 ) {
-			$fp        = snt_block_fp_fingerprint( $block );
+			$fp        = snt_block_fp_fingerprint( $block, (int) $post->ID, $path_prefix . '/' . $idx );
 			$dismiss_k = 'heading-hierarchy-skip:' . $fp;
 			if ( ! in_array( $dismiss_k, $dismissed, true ) ) {
 				$candidates[] = array(

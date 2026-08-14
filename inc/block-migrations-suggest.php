@@ -64,7 +64,7 @@ function snt_block_migrations_suggest_impl( $post_id, $block_fingerprint, $migra
 	}
 
 	$blocks = parse_blocks( (string) $post->post_content );
-	$match  = snt_block_fp_find( $blocks, $block_fingerprint );
+	$match  = snt_block_fp_find( $blocks, $block_fingerprint, $post_id );
 
 	if ( null === $match ) {
 		return new WP_Error(

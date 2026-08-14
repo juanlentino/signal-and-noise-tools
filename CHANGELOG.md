@@ -4,14 +4,76 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [11.4.0] - 2026-08-14 — the corpus learns to read itself, and fingerprints learn where they live
+
+**Headline:** a hand audit found four published Notes carrying content-level
+corruption that every structural dashboard read as healthy — a mid-sentence
+paste splice live since April ("hostile to it.mance rights organization"), a
+duplicated half-draft, contradictory event dates on a backdated post. This
+release ships the detector that makes that class visible, and fixes the
+fingerprint collisions that blocked the heading migration.
+
+### New
+- **`inc/corpus-integrity-scan.php` + the `signal-noise/corpus-integrity-scan`
+  ability** — three independent deterministic checks over post bodies
+  (publish, future, draft AND pending), zero AI:
+  - `intra_post_duplication`: near-duplicate paragraph/heading pairs within
+    one post (similarity > 0.80 via `similar_text`, 40-char floor, length
+    pre-filter so impossible pairs are never measured). Reports both block
+    paths, both texts, and the ratio.
+  - `splice_artifact`: a lowercase word fused to a period with no space
+    (`/[a-z]{2}\.[a-z]{3,}/`) — the 1495 signature. Exclusions before it
+    ever fires: URLs, domain-shaped tokens, file extensions, tokens with
+    digits, inline `<code>` spans (removed pre-strip), and wp:html/wp:code
+    blocks (never walked). Reports the surrounding sentence.
+  - `date_coherence`: an in-body date later than post_date. WARNING when the
+    sentence carries a past-tense event verb (a May-dated post narrating a
+    June announcement as history — the backdating signature), INFO otherwise
+    (future regulation dates are normal prose). The spec'd same-event-two-dates
+    check is deliberately NOT shipped: "the same event" needs entity
+    resolution, and every cheap proxy (two dates near one proper noun)
+    false-positives on legitimate timeline narration; check 1 already catches
+    the observed class.
+  Every finding is severity warning or info, NEVER a blocking error, and
+  nothing here writes to any post — findings are owner-review reports, and
+  the correction path for a published Note is a signed supersede.
+  Positive fixtures in the test suite are the REAL corpus defects, trimmed
+  but not cleaned up (fixture shapes come from the emitter).
+- **`dismiss-candidate` gains `surface=corpus-integrity`** — appends
+  `<check>:<fingerprint>` to `_snt_corpus_integrity_dismissed`, idempotent,
+  same mechanism as the sibling scans.
+
 ### Fixed
 - **The reading-path direction label loses its opacity fade** (`assets/ml-paths.css`),
   owner-flagged as a register deviation. The brutalist idiom differentiates by size, case,
   and weight — never by fading — and the sibling it mirrors (`ml-related-front.css`) uses
   no opacity anywhere. Sharper than taste: `opacity:.75` on `currentColor` resolves to a
   colour no token names, making it a contrast modifier the site's own contrast checker
-  structurally cannot see. Hierarchy now rides size and case alone. Asset-only; rides the
-  next version bump.
+  structurally cannot see. Hierarchy now rides size and case alone. Asset-only; folded into this
+  release from #656 (un-versioned at merge).
+- **Block fingerprints now bind post ID + block path**
+  (`snt_block_fp_fingerprint( $block, $post_id, $block_path )`, scheme
+  `md5(post|path|serialized-block)`). The old scheme hashed the block alone,
+  so identical blocks collided: the live scan showed one fingerprint shared
+  ACROSS posts 1589 and 1587, and in-post duplicates on 1570 — and since
+  apply resolves a block BY fingerprint, a cross-post fingerprint could
+  validate against the wrong post and a duplicate was ambiguous. Both wrongs
+  are now unrepresentable: find/replace regenerate each node's path with the
+  scanners' shared grammar, so a fingerprint resolves to exactly one position
+  in exactly one post, and a block that MOVES invalidates its candidates
+  (409 → re-scan). Engine, both detectors, both suggest modules, the sn-apply
+  fingerprint gate, and ~12 test fixtures updated together.
+
+### Changed
+- Fingerprints minted before this release no longer validate (the 409
+  conflict path → re-run the scan; the 1-hour candidate caches age out on
+  their own). Dismissals stored under old fingerprints are orphaned — they
+  no longer match any candidate and are harmless dead rows; re-dismiss from
+  a fresh scan if one resurfaces.
+
+> **Why MINOR:** a new user-visible capability (the corpus-integrity scan
+> ability + the third dismiss surface); the fingerprint fix rides along as
+> the safety prerequisite for the heading migration.
 
 ## [11.3.1] - 2026-08-14 — the label speaks prose, and a raced artifact heals itself
 

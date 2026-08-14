@@ -43,7 +43,7 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
 			}
 			$blocks = parse_blocks( (string) $post->post_content );
-			$found  = function_exists( 'snt_block_fp_find' ) ? snt_block_fp_find( $blocks, $fingerprint ) : null;
+			$found  = function_exists( 'snt_block_fp_find' ) ? snt_block_fp_find( $blocks, $fingerprint, (int) $resolved['post_id'] ) : null;
 			if ( null === $found ) {
 				return array(
 					'passed'      => false,
@@ -556,7 +556,7 @@ function snt_sn_apply_compute_block_replacement( $post_id, $fingerprint, $replac
 	}
 	$replacement_node = snt_block_fp_sanitize_node( $replacement_node );
 	$found = false;
-	snt_block_fp_replace_in_tree( $blocks, $fingerprint, $replacement_node, $found );
+	snt_block_fp_replace_in_tree( $blocks, $fingerprint, $replacement_node, $found, (int) $post_id );
 	if ( ! $found ) {
 		return new WP_Error( 'snt_sn_apply_conflict', __( 'Block changed or removed since scan.', 'signal-and-noise-tools' ), array( 'status' => 409 ) );
 	}

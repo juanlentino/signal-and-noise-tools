@@ -155,7 +155,7 @@ _bm_post( 204, array(
 	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Skip me</h3>', 'innerContent' => array( '<h3>Skip me</h3>' ) ),
 ) );
 $block_for_fp = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Skip me</h3>', 'innerContent' => array( '<h3>Skip me</h3>' ) );
-$fp_dismissed = md5( serialize_block( $block_for_fp ) );
+$fp_dismissed = snt_block_fp_fingerprint( $block_for_fp, 204, '0/0' );
 $GLOBALS['__test_post_meta'][ 204 ]['_snt_block_migrations_dismissed'] = array( 'heading-hierarchy-skip:' . $fp_dismissed );
 $candidates = snt_block_migrations_detect_candidates();
 bm_eq( 0, count( $candidates ), 'Test 4.1: dismissed fingerprint excluded' );
@@ -214,7 +214,7 @@ $candidates = snt_block_migrations_detect_candidates();
 bm_eq( 1, count( $candidates ), 'Test 8.1: only the leading h3 is flagged (trailing h3 after h2 is valid)' );
 // Compute fingerprint of the leading h3 and verify the candidate matches it (not the trailing one).
 $leading_h3 = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Leading skip</h3>', 'innerContent' => array( '<h3>Leading skip</h3>' ) );
-$leading_fp = md5( serialize_block( $leading_h3 ) );
+$leading_fp = snt_block_fp_fingerprint( $leading_h3, 208, '0/0' );
 bm_eq( $leading_fp, $candidates[0]['block_fingerprint'] ?? '', 'Test 8.2: candidate fingerprint matches the leading h3 (not the trailing one)' );
 
 // ─── Test 9: compute()/run_scan() split (v10.29.0, adversarial review) ─

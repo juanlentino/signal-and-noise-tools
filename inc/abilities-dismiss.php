@@ -33,7 +33,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/dismiss-candidate', array(
 		'label'               => 'Dismiss a scan candidate',
-		'description'         => 'Unified dismiss for scan candidates. surface=block-migrations dismisses a block-migrations-scan candidate (candidate_type is the migration_type, e.g. heading-hierarchy-skip); surface=pattern-adoption dismisses a pattern-adoption-scan candidate (candidate_type is the pattern slug, e.g. pull-quote). Appends candidate_type:block_fingerprint to the surface\'s dismissed-meta store so the candidate never reappears on subsequent scans. Idempotent — re-dismissing is a no-op.',
+		'description'         => 'Unified dismiss for scan candidates. surface=block-migrations dismisses a block-migrations-scan candidate (candidate_type is the migration_type, e.g. heading-hierarchy-skip); surface=pattern-adoption dismisses a pattern-adoption-scan candidate (candidate_type is the pattern slug, e.g. pull-quote); surface=corpus-integrity dismisses a corpus-integrity-scan finding (candidate_type is the check slug: intra_post_duplication, splice_artifact, or date_coherence). Appends candidate_type:block_fingerprint to the surface\'s dismissed-meta store so the candidate never reappears on subsequent scans. Idempotent — re-dismissing is a no-op.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_edit_post',
 		'execute_callback'    => 'snt_ability_dismiss_candidate',
@@ -43,7 +43,7 @@ add_action( 'wp_abilities_api_init', function() {
 			'properties'           => array(
 				'surface'           => array(
 					'type'        => 'string',
-					'enum'        => array( 'block-migrations', 'pattern-adoption' ),
+					'enum'        => array( 'block-migrations', 'pattern-adoption', 'corpus-integrity' ),
 					'description' => 'Which scanner produced the candidate.',
 				),
 				'post_id'           => array(
@@ -112,6 +112,14 @@ function snt_ability_dismiss_candidate( $input ) {
 		}
 		// The pattern-adoption impl's signature is ( post_id, pattern_type, fingerprint ).
 		return snt_pattern_adoption_dismiss_impl( $post_id, $type, $fingerprint );
+	}
+
+	if ( 'corpus-integrity' === $surface ) {
+		if ( ! function_exists( 'snt_corpus_integrity_dismiss_impl' ) ) {
+			return new WP_Error( 'snt_helper_unavailable', __( 'Corpus-integrity module not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+		}
+		// candidate_type carries the check slug (splice_artifact, ...).
+		return snt_corpus_integrity_dismiss_impl( $post_id, $fingerprint, $type );
 	}
 
 	// Schema enum already blocks this via the run controller; guard anyway for

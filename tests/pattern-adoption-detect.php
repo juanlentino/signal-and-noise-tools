@@ -166,7 +166,7 @@ _ta_post( 104, array(
 ) );
 // Pre-compute the fingerprint the detector will produce and mark it dismissed.
 $block_for_fp = array( 'blockName' => 'core/quote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<blockquote>Dismissed quote.</blockquote>' );
-$fp_dismissed = md5( serialize_block( $block_for_fp ) );
+$fp_dismissed = snt_block_fp_fingerprint( $block_for_fp, 104, '0/0' );
 $GLOBALS['__test_post_meta'][ 104 ]['_snt_pattern_adoption_dismissed'] = array( array( 'pull-quote:' . $fp_dismissed ) );
 $candidates = snt_pattern_adoption_detect_candidates();
 pa_eq( 0, count( $candidates ), 'Test 4.1: dismissed fingerprint excluded from candidates' );
