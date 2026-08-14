@@ -252,7 +252,7 @@ a human would notice, and no others.** Split honestly:
 | Seam | Status |
 |---|---|
 | Dock item, desktop icons, widgets, chromeless nav, dropzone | **Field-verified live** 2026-08-14 |
-| **Cmd+K commands + the `wp.desktop` alias** | **Was BROKEN on v1.1.0; FIXED in v11.7.1** — re-verify live after deploy — see below |
+| **Cmd+K commands + the `wp.desktop` alias** | **Two independent v1.1.0 breakages** — load order (fixed v11.7.1) and a new `label` requirement (fixed v11.7.2) — see below |
 | Copilot tool-invocation log (`sn_ai_tool_invocations`) | **Verified live** 2026-08-14 — delta exactly `+1` |
 | Agent telemetry (`{prefix}sn_tool_call`) | **Unreachable, not unverified** — agents disabled by owner decision 2026-08-07, so the producer cannot fire |
 | Living-tree traffic | **Unverifiable by observation** — falls back to a plausible default rather than an error |
@@ -287,6 +287,34 @@ X's *loading strategy*, not just its dependency edge.
 returning. Pinned by `tests/desktop-mode-boot-order.php`, which **executes**
 the asset rather than grepping it; the old assertion checked that the
 self-alias *string* was present, and it was, for the entire outage.
+
+### …and a second, independent v1.1.0 break underneath it (fixed v11.7.2)
+
+Making the file run revealed that **`registerCommand()` now validates and
+throws on a missing `label`** — `RegistrationError: [openstation] Command
+registration rejected — fields: label (missing)`. All 22 of our calls passed
+only `{ slug, aiCallable, run }`; the label had always come from the PHP-side
+registration. The throw fired on the **first** call and aborted the rest of
+the IIFE, so every `run` callback went unattached. Labels now mirror the PHP
+ones exactly.
+
+**Two corrections to how the first outage was reported**, kept because the
+mistake is more instructive than the fix:
+
+- **"No commands matching `sn-cmd`" was an invalid oracle.** The palette
+  searches command **labels**, not slugs. Ours are `SN: …`, so that query
+  could never match — broken or healthy. It was a *negative control I never
+  ran*: I confirmed the palette worked by searching `post`, which proved the
+  palette was alive but not that my query shape could ever match our commands.
+- **The failure's shape was misdescribed.** The commands were never missing
+  from the palette — the palette is fed by the **PHP** `serverCommands`
+  payload, which was never broken. They were **listed but inert**: visible,
+  selectable, and silently doing nothing. That is worse than absence, because
+  absence is legible and an inert control looks healthy.
+
+The `defer` root cause and the v11.7.1 fix stand on independent evidence:
+`window.wp.desktop` was `undefined` after full load, and the only assignment
+to it sits below the first gate and above everything else.
 
 Full root-cause, blast radius, and proposed fix:
 [docs/ops/openstation-1-1-0-runtime-verification.md](ops/openstation-1-1-0-runtime-verification.md).

@@ -2,6 +2,52 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.7.2] - 2026-08-14 — the second half of the same outage
+
+**PATCH** — v11.7.1 was necessary but **not sufficient**. Fixing the load order
+let `assets/desktop-mode.js` finally run, which revealed a *second, independent*
+OpenStation v1.1.0 breaking change sitting underneath it.
+
+### Fixed
+- **Every `registerCommand()` call now passes a `label`.** OpenStation v1.1.0
+  validates command registrations and throws when `label` is missing:
+  `RegistrationError: [openstation] Command registration rejected — fields:
+  label (missing)`. All 22 of our calls passed only `{ slug, aiCallable, run }`
+  — the label had always come from the PHP-side `snt_os_register_command()`
+  registration. The throw came out of the **first** call
+  (`desktop-mode.js:206`), and one throw aborts the rest of the IIFE, so **all
+  22 `run` callbacks went unattached**. Labels now mirror the PHP ones exactly,
+  so the palette's wording is unchanged.
+
+### Corrected — the v11.7.1 diagnosis was right, its evidence was not
+- **"No commands matching `sn-cmd`" was a bad oracle.** The palette searches
+  command **labels**, not slugs, and our labels are `SN: …` — so that query
+  could never have matched, broken or healthy. Searching `SN:` lists them
+  fine, and did so *throughout* the outage, because the palette is populated
+  from the **PHP** `serverCommands` payload, which was never affected.
+- **So the failure's SHAPE was misdescribed.** The commands were never
+  "missing from the palette". They were **listed but inert** — visible,
+  selectable, and doing nothing on activation, because only the PHP half had
+  registered. That is a worse failure mode than absence: absence is legible,
+  an inert control looks fine.
+- **What actually stands from v11.7.1** is the independent evidence:
+  `window.wp.desktop` was `undefined` after full load, and the only assignment
+  to it sits *below* the first gate and *above* everything else. That still
+  proves the file early-returned. The `defer` root cause, the fix, and its
+  test are unchanged and correct.
+
+### Added
+- **The harness's `registerCommand` stub now VALIDATES like the real one.** It
+  previously accepted anything with a slug, which is exactly why it passed
+  while production threw — **a stub more permissive than its callee converts a
+  production error into a green test**. It now reproduces v1.1.0's rejection
+  message verbatim; watched RED (all three registration scenarios, with the
+  identical `boot (desktop-mode.js:206)` frame the browser reported) before
+  the labels went in.
+- Scenario throws are now caught and reported next to the count rather than
+  crashing the run — an uncaught throw left later scenarios unmeasured, which
+  reads as "no output" instead of "failed here, for this reason".
+
 ## [11.7.1] - 2026-08-14 — the Cmd+K commands come back
 
 **PATCH** — a live regression found by running the OpenStation v1.1.0 verification
