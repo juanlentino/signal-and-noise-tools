@@ -459,3 +459,47 @@ function sn_mcp_remote_pending_add( $outcome ) {
 
 	set_transient( SN_MCP_REMOTE_PENDING_TRANSIENT, $pending, SN_MCP_REMOTE_PENDING_TTL );
 }
+
+/**
+ * The display-ready view of the record.
+ *
+ * IT FOLDS THE PENDING BUFFER IN. Without that the panel under-reports by up to
+ * a flush window, and the owner reads "0 refused" while a probe is in progress.
+ * A readout that is quietly wrong is worse than one that is absent, because it
+ * is trusted.
+ *
+ * It folds WITHOUT clearing — a read is not a write path, and clearing here
+ * would make two consecutive reads disagree. Folding is therefore idempotent,
+ * which is pinned.
+ *
+ * @return array {
+ *     @type string|null $last_used     Site-timezone timestamp of the last dispatch.
+ *     @type array       $today         outcome => int, every outcome present.
+ *     @type int         $today_refused Sum of every refusal outcome today.
+ *     @type array       $recent        The ring, newest first.
+ * }
+ */
+function sn_mcp_remote_log_read() {
+	$blob = sn_mcp_remote_log_get_blob();
+	$blob = sn_mcp_remote_pending_fold( $blob, sn_mcp_remote_pending_get() );
+
+	$day    = sn_mcp_remote_log_day_key();
+	$bucket = isset( $blob['counters'][ $day ] ) ? $blob['counters'][ $day ] : array();
+
+	$today   = array();
+	$refused = 0;
+	foreach ( SN_MCP_REMOTE_OUTCOMES as $outcome ) {
+		$n                 = isset( $bucket[ $outcome ] ) ? (int) $bucket[ $outcome ] : 0;
+		$today[ $outcome ] = $n;
+		if ( 'dispatched' !== $outcome ) {
+			$refused += $n;
+		}
+	}
+
+	return array(
+		'last_used'     => $blob['last_used'],
+		'today'         => $today,
+		'today_refused' => $refused,
+		'recent'        => $blob['recent'],
+	);
+}

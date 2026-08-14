@@ -954,7 +954,7 @@ Append to `inc/mcp/mcp-remote-observability.php`:
  * which is pinned.
  *
  * @return array {
- *     @type string|null $last_used     GMT timestamp of the last dispatch.
+ *     @type string|null $last_used     Site-timezone timestamp of the last dispatch.
  *     @type array       $today         outcome => int, every outcome present.
  *     @type int         $today_refused Sum of every refusal outcome today.
  *     @type array       $recent        The ring, newest first.

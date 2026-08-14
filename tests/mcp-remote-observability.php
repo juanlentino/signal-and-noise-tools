@@ -284,6 +284,46 @@ $blob = sn_mcp_remote_log_get_blob();
 ok( 5 === ( $blob['counters'][ $yesterday ]['refused_auth'] ?? 0 ), 'THE ROLLOVER-LOSS PIN: a FRESH buffer from yesterday is FLUSHED under yesterday\'s key when today\'s first refusal arrives, not discarded' );
 ok( 1 === ( $blob['counters'][ sn_mcp_remote_log_day_key() ]['refused_auth'] ?? 0 ), 'and the triggering refusal lands under TODAY' );
 
+echo "Group: the reader folds PENDING counts, so nothing is under-reported\n";
+// Guards §4's failure directly. Without folding, the owner reads "0 refused"
+// while a probe is in progress — a readout that is quietly wrong is worse than
+// one that is absent, because it is trusted.
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+sn_mcp_remote_record( 'refused_auth', '' );
+sn_mcp_remote_record( 'refused_auth', '' );
+ok( ! array_key_exists( SN_MCP_REMOTE_LOG_OPTION, $GLOBALS['__options'] ), 'precondition: the two refusals are still only buffered' );
+$view = sn_mcp_remote_log_read();
+ok( 2 === $view['today']['refused_auth'], 'THE UNDER-REPORTING PIN: the reader still shows both buffered refusals' );
+
+echo "Group: the reader reports totals the panel actually renders\n";
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+sn_mcp_remote_record( 'dispatched', 'signal-noise/remote-get-analytics-summary' );
+sn_mcp_remote_record( 'refused_auth', '' );
+$view = sn_mcp_remote_log_read();
+ok( 1 === $view['today']['dispatched'], 'today\'s dispatch count' );
+ok( 1 === $view['today_refused'], 'today\'s refusals summed across every refusal outcome' );
+ok( is_string( $view['last_used'] ), 'and last_used comes through' );
+
+echo "Group: an empty record reads as never-used rather than as zero-shaped garbage\n";
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+$view = sn_mcp_remote_log_read();
+ok( null === $view['last_used'], 'last_used is null on a fresh install' );
+ok( 0 === $view['today']['dispatched'], 'and every counter reads 0 rather than being absent' );
+ok( 0 === $view['today_refused'], 'including the refusal total' );
+
+echo "Group: reading does not DOUBLE-count what it folded\n";
+// The reader folds pending without clearing it (a read is not a write path).
+// Reading twice must not inflate the numbers.
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+sn_mcp_remote_record( 'refused_auth', '' );
+$first  = sn_mcp_remote_log_read();
+$second = sn_mcp_remote_log_read();
+ok( $first['today_refused'] === $second['today_refused'], 'THE IDEMPOTENCE PIN: two consecutive reads report the same total' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-remote-observability.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-remote-observability.php\n";
