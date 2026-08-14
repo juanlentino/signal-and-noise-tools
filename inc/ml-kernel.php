@@ -69,6 +69,13 @@ if ( ! function_exists( 'snt_ml_tokenize' ) ) {
 		// Block comments BEFORE tags: `<!-- wp:x {"a":1} -->` carries JSON the
 		// tag-stripper would otherwise leak as tokens.
 		$text = preg_replace( '/<!--.*?-->/s', ' ', $text );
+		// Non-prose CONTAINERS drop whole, contents included, BEFORE the tag
+		// stripper — that pass removes tags but keeps their text, and style/
+		// script text is not prose. Found live (v11.3.1): an inline SVG
+		// figure's <style> block dominated a cluster's vocabulary, and the
+		// first reader-facing label read "currentcolor · fill". The SVG's
+		// visible <text> is prose and survives the ordinary tag strip.
+		$text = preg_replace( '/<(style|script)\b[^>]*>.*?<\/\1\s*>/is', ' ', $text );
 		$text = preg_replace( '/<[^>]*>/', ' ', $text );
 		$text = mb_strtolower( $text, 'UTF-8' );
 

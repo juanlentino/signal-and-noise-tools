@@ -167,6 +167,13 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 			'built_at'  => $built_at,
 			'threshold' => SNT_ML_TOPIC_THRESHOLD,
 			'clusters'  => $topic_rows,
+			// v11.3.1, ADDITIVE: which plugin version WROTE this artifact.
+			// Measured live on the v11.3.0 install: the install itself
+			// triggered a rebuild ~3s after the files changed, old code ran,
+			// and the artifact came out pre-upgrade-shaped — then sat stale
+			// until the daily backstop. The stamp lets a shape mismatch heal
+			// itself (snt_ml_stale_shape_check below) instead of by luck.
+			'built_by'  => defined( 'SNT_VERSION' ) ? (string) SNT_VERSION : '',
 		), false );
 
 		sort( $stamp );
@@ -267,6 +274,37 @@ if ( ! function_exists( 'snt_ml_schedule_rebuild' ) ) {
 		}
 	}
 }
+
+if ( ! function_exists( 'snt_ml_stale_shape_check' ) ) {
+	/**
+	 * Self-heal for artifacts written by a DIFFERENT plugin version.
+	 *
+	 * The option outlives the code that wrote it — and the reverse race is
+	 * real too: measured 2026-08-14, the v11.3.0 install triggered a rebuild
+	 * ~3 seconds after the files were replaced, the old code produced a
+	 * pre-path artifact, and every consumer honestly reported "not built"
+	 * until the daily backstop. A version mismatch now schedules the same
+	 * coalesced rebuild every other trigger uses (+30s, so the rebuilding
+	 * request is a fresh process on the new files, not the racing one).
+	 *
+	 * Never-built stays never-built: an absent option means the corpus has
+	 * not earned an artifact yet, and the daily backstop owns that case.
+	 *
+	 * @return void
+	 */
+	function snt_ml_stale_shape_check() {
+		$stored = get_option( SNT_ML_TOPICS_OPT );
+		if ( ! is_array( $stored ) || ! isset( $stored['built_at'] ) ) {
+			return;
+		}
+		$built_by = (string) ( $stored['built_by'] ?? '' );
+		$current  = defined( 'SNT_VERSION' ) ? (string) SNT_VERSION : '';
+		if ( $built_by !== $current ) {
+			snt_ml_schedule_rebuild();
+		}
+	}
+}
+add_action( 'init', 'snt_ml_stale_shape_check' );
 
 if ( ! function_exists( 'snt_ml_on_transition' ) ) {
 	/**
