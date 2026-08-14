@@ -23,6 +23,14 @@
  * switch, then capability, then membership against a MUTABLE list — closely
  * enough that a bug in the double would look exactly like a bug in the guard
  * it replaces.
+ *
+ * WHEN sn_mcp_remote_slugs() GROWS, THIS FILE MUST GROW WITH IT. The guard
+ * suite's verbatim-array pin is the tripwire that brings you here: it reds on
+ * any widening, and updating it WITHOUT extending $FULL_SET + $MAP below
+ * leaves the new callback's literal unexercised — a wrong literal would then
+ * survive every suite. There is no mechanical link between the two lists and
+ * there cannot be one (requiring the real guard here fatals on redeclare —
+ * see test-unguarded-fn-declarations); this sentence is the link.
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
@@ -53,7 +61,7 @@ function add_action( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $hoo
 
 // The eight-member list, mutable for the matrix's single-member iterations.
 // Restored to the full eight before every group that follows the matrix.
-$FULL_EIGHT = array(
+$FULL_SET = array(
 	'signal-noise/remote-get-analytics-summary',
 	'signal-noise/remote-get-analytics-events',
 	'signal-noise/remote-get-insights',
@@ -63,7 +71,7 @@ $FULL_EIGHT = array(
 	'signal-noise/remote-get-rss-stats',
 	'signal-noise/remote-get-deploy-status',
 );
-$GLOBALS['__remote_slugs'] = $FULL_EIGHT;
+$GLOBALS['__remote_slugs'] = $FULL_SET;
 
 function sn_mcp_remote_slugs() { return $GLOBALS['__remote_slugs']; }
 
@@ -138,7 +146,7 @@ foreach ( $MAP as $solo_slug => $ignored_cb ) {
 		ok( $expected === $actual, $label );
 	}
 }
-$GLOBALS['__remote_slugs'] = $FULL_EIGHT;
+$GLOBALS['__remote_slugs'] = $FULL_SET;
 
 echo "Group: PARITY, output — the seven twins' output_schema copies the admin's byte-identically\n";
 $pairs_output = array(
