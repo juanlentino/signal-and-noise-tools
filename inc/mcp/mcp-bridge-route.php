@@ -78,6 +78,62 @@ function sn_bridge_bearer_matches( $header, $secret ) {
 }
 
 /**
+ * The in-flight verification flag.
+ *
+ * A module-scoped static rather than a global so nothing outside this file can
+ * set it. The capability filter consults ONLY this — never the request — so a
+ * request that did not pass verification cannot be granted anything even if the
+ * filter is somehow still attached.
+ *
+ * @param bool $value
+ * @return void
+ */
+function sn_bridge_set_verified( $value ) {
+	sn_bridge_verified_state( (bool) $value );
+}
+
+/**
+ * @return bool
+ */
+function sn_bridge_is_verified() {
+	return sn_bridge_verified_state( null );
+}
+
+/**
+ * Single owner of the flag's storage.
+ *
+ * @param bool|null $set Null reads; a bool writes.
+ * @return bool
+ */
+function sn_bridge_verified_state( $set = null ) {
+	static $verified = false;
+	if ( null !== $set ) {
+		$verified = (bool) $set;
+	}
+	return $verified;
+}
+
+/**
+ * Grant the remote capability, and ONLY while a verified request is in flight.
+ *
+ * Attached to `user_has_cap` for the duration of one dispatch and removed in a
+ * `finally`. Grants exactly one capability — never a role, never
+ * manage_options, and never anything derived from the request.
+ *
+ * @param array $allcaps
+ * @return array
+ */
+function sn_bridge_grant_capability( $allcaps ) {
+	if ( ! sn_bridge_is_verified() ) {
+		return $allcaps;
+	}
+	$allcaps = is_array( $allcaps ) ? $allcaps : array();
+	$cap     = defined( 'SN_MCP_REMOTE_CAPABILITY' ) ? SN_MCP_REMOTE_CAPABILITY : 'sn_read_remote_analytics';
+	$allcaps[ $cap ] = true;
+	return $allcaps;
+}
+
+/**
  * Should the bridge route exist at all on this request?
  *
  * BOTH gates, and neither alone. The kill switch is checked through the remote

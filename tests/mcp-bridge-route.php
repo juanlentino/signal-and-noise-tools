@@ -138,6 +138,24 @@ ok( false === sn_bridge_bearer_matches( 'Bearer secret', '' ), 'THE ONE THAT MAT
 // that is a known and accepted gap, recorded rather than papered over.)
 ok( false === sn_bridge_bearer_matches( 'Bearer 0e222222', '0e111111' ), 'THE TYPE-JUGGLING PIN: two distinct numeric strings must not authenticate each other (PHP == would say 0 == 0)' );
 
+echo "Group: the capability is granted ONLY while a verified request is in flight\n";
+// The filter must consult the module flag, never the request alone.
+ok( false === sn_bridge_is_verified(), 'nothing is verified at rest' );
+
+$caps = sn_bridge_grant_capability( array( 'read' => true ) );
+ok( ! isset( $caps['sn_read_remote_analytics'] ), 'THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight' );
+ok( true === $caps['read'], 'and it passes other capabilities through untouched' );
+
+sn_bridge_set_verified( true );
+ok( true === sn_bridge_is_verified(), 'the flag can be set' );
+$caps = sn_bridge_grant_capability( array( 'read' => true ) );
+ok( true === $caps['sn_read_remote_analytics'], 'a verified request grants exactly the remote capability' );
+ok( ! isset( $caps['manage_options'] ), 'and never manage_options' );
+
+sn_bridge_set_verified( false );
+$caps = sn_bridge_grant_capability( array() );
+ok( ! isset( $caps['sn_read_remote_analytics'] ), 'clearing the flag revokes the grant' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-bridge-route.php\n";
