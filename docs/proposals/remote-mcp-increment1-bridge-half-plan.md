@@ -560,19 +560,48 @@ would pass against an implementation that never removed it."
 Append to `tests/mcp-bridge-route.php`, before the summary block:
 
 ```php
-echo "Group: the handler refuses in order, and never leaks which gate refused\n";
+// LABEL REWORDED to match what the bodies below actually establish. It formerly
+// read "refuses in order, and never leaks which gate refused" while asserting
+// neither: every 401 pin sent an on-list slug, so the ordering was free, and no
+// two refusals were ever compared against each other. Both properties now have
+// witnesses — the pre-auth 401 pins for the first, the two identical 404s for the
+// second — and the label is narrowed to exactly those, because a caller holding a
+// VALID secret still learns 400-vs-404-vs-401, which is deliberate and not a leak.
+echo "Group: the handler refuses in ORDER, and its two 404s are indistinguishable\n";
 // A stub ability layer: one known slug that echoes its args.
 $GLOBALS['__executed'] = array();
 class SNB_Ability {
 	private $slug;
 	public function __construct( $s ) { $this->slug = $s; }
-	public function execute( $args ) { $GLOBALS['__executed'][] = array( $this->slug, $args ); return array( 'ran' => $this->slug ); }
+	public function execute( $args ) {
+		$GLOBALS['__executed'][] = array( $this->slug, $args );
+		// The throwing half of the stub. An ability CAN throw — a DB error, a
+		// remote timeout, a TypeError inside a callback — and the handler's
+		// cleanup has to survive it. See the throw group at the bottom.
+		if ( ! empty( $GLOBALS['__throw'] ) ) { throw new RuntimeException( 'the ability exploded' ); }
+		return array( 'ran' => $this->slug );
+	}
 }
-function wp_get_ability( $slug ) { return in_array( $slug, sn_mcp_remote_slugs(), true ) ? new SNB_Ability( $slug ) : null; }
+/**
+ * The ability lookup, with a suppression flag.
+ *
+ * $GLOBALS['__no_ability'] holds a slug that this stub refuses to resolve EVEN
+ * THOUGH it is on sn_mcp_remote_slugs(). That is not a contrived state: the list
+ * and the ability registry are separate things, and a slug can be listed while
+ * its ability is not registered — a module deactivated, a load-order change, a
+ * registration hook that ran too late. Do not delete this flag as dead
+ * scaffolding; it is the only way to reach the handler's third refusal.
+ */
+function wp_get_ability( $slug ) {
+	if ( isset( $GLOBALS['__no_ability'] ) && $slug === $GLOBALS['__no_ability'] ) {
+		return null;
+	}
+	return in_array( $slug, sn_mcp_remote_slugs(), true ) ? new SNB_Ability( $slug ) : null;
+}
 
-// NOTE: SN_BRIDGE_TOKEN is ALREADY defined as 'topsecret' by Task 1's block, which
-// needs it to assert that the gate opens. Do not define it again here — a second
-// define() of the same constant is a PHP warning and the value would not change.
+// NOTE: SN_BRIDGE_TOKEN is ALREADY defined as 'topsecret' above, which the
+// gate-opens assertion needs. Do not define it again here — a second define() of
+// the same constant is a PHP warning and the value would not change.
 $REMOTE = sn_mcp_remote_slugs()[0];
 
 $r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
@@ -581,22 +610,90 @@ ok( is_wp_error( $r ) && 401 === $r->data['status'], 'no Authorization -> 401' )
 $r = sn_bridge_handle_request( new SNB_Req( array( 'authorization' => 'Bearer wrong' ), array( 'slug' => $REMOTE ) ) );
 ok( is_wp_error( $r ) && 401 === $r->data['status'], 'wrong Bearer -> 401' );
 
+// THE ORDER PINS. The two 401s above both send an ON-LIST slug, so they are
+// satisfied no matter which check runs first — moving the slug checks above the
+// Bearer check leaves them green. These two are the only witnesses that
+// AUTHENTICATION RUNS FIRST.
+//
+// Why that ordering is the security property and not a style preference: with
+// the slug checks first, an UNAUTHENTICATED caller gets 404 for a slug that is
+// off the remote list and 401 for one that is on it. That difference is a
+// complete enumeration oracle for sn_mcp_remote_slugs(), readable with no
+// credential at all — which is precisely what answering 404-rather-than-403
+// below exists to deny. An unauthenticated caller must learn NOTHING about the
+// body it sent, so every pre-auth refusal has to be the same 401.
+$r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => 'signal-noise/get-post-content' ) ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'THE ORDER PIN: no Authorization + an OFF-LIST slug -> 401, not 404 — the Bearer is checked FIRST' );
+
+$r = sn_bridge_handle_request( new SNB_Req( array(), array() ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'and no Authorization + no slug -> 401, not 400 — an unauthenticated caller learns nothing about its body' );
+
 $good = array( 'authorization' => 'Bearer topsecret' );
-$r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
-ok( is_wp_error( $r ) && 404 === $r->data['status'], 'THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403' );
+$offlist = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
+ok( is_wp_error( $offlist ) && 404 === $offlist->data['status'], 'THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403' );
 
 $r = sn_bridge_handle_request( new SNB_Req( $good, array() ) );
 ok( is_wp_error( $r ) && 400 === $r->data['status'], 'a missing slug -> 400' );
+
+// THE THIRD REFUSAL, which nothing else in this file can reach. A slug can be on
+// sn_mcp_remote_slugs() and still have no registered ability: the list and the
+// ability registry are separate, so a deactivated module, a load-order change, or
+// a registration hook that ran after rest_api_init all produce exactly this state
+// in production. It is not hypothetical, and it must not be the one path that
+// 500s or fatals — a stack trace from an authenticated bridge call is both an
+// availability bug and an information leak.
+$GLOBALS['__no_ability'] = $REMOTE;
+$r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+unset( $GLOBALS['__no_ability'] );
+ok( is_wp_error( $r ) && 404 === $r->data['status'], 'an ON-LIST slug whose ability does not resolve -> 404, not a 500 and not a fatal' );
+// AND INDISTINGUISHABLE FROM THE OFF-LIST REFUSAL. Matching the status alone is
+// not enough: two refusals carrying different error CODES would rebuild the same
+// enumeration oracle one field further down, telling a caller who holds a valid
+// secret which listed slugs are actually wired up. The identical code IS the
+// property, so it gets its own witness.
+ok( $offlist->get_error_code() === $r->get_error_code(), 'and it carries the SAME error code as the off-list refusal — the two are not distinguishable from outside' );
 
 echo "Group: a verified call dispatches, and leaves nothing behind\n";
 $GLOBALS['__executed'] = array();
 $GLOBALS['__removed']  = array();
 $r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE, 'args' => array( 'range' => 7 ) ) ) );
 ok( ! is_wp_error( $r ), 'a fully valid call is not an error' );
+// THE ENVELOPE PIN. `! is_wp_error()` is true of the ability's raw return too, so
+// without this the wrapper is unasserted and returning $out unwrapped is a
+// mutation no pin catches. The Worker parses this shape; changing it silently is
+// a cross-artifact break that shows up only at the far end of the bridge.
+ok( array( 'ok' => true, 'data' => array( 'ran' => $REMOTE ) ) === $r, 'and it comes back in the ok/data envelope, with the ability output under data' );
 ok( 1 === count( $GLOBALS['__executed'] ), 'the ability executed exactly once' );
 ok( array( 'range' => 7 ) === $GLOBALS['__executed'][0][1], 'and received its args' );
 ok( false === sn_bridge_is_verified(), 'THE OTHER ONE THAT MATTERS: the verified flag is cleared after dispatch' );
 ok( in_array( 'user_has_cap', $GLOBALS['__removed'], true ), 'and the capability filter was removed' );
+
+echo "Group: the cleanup survives an ability that THROWS — the reason the finally exists\n";
+// NOT COVERED BY THE GROUP ABOVE, and that is the whole point of adding it.
+// Every pin above dispatches an ability that RETURNS, and on that path a handler
+// with no try/finally at all — a plain `$out = $ability->execute( $args );`
+// followed by the same two cleanup lines — is INDISTINGUISHABLE from the correct
+// one. Deleting the finally leaves this suite green without these three.
+//
+// Only a throw separates them. Without the finally the exception unwinds straight
+// past the cleanup, and every capability check for the remainder of that request
+// is answered by a filter that is still attached and a flag that still says
+// verified — the request keeps sn_read_remote_analytics that nothing took back.
+$GLOBALS['__throw']   = true;
+$GLOBALS['__removed'] = array();
+$threw = false;
+try {
+	sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+} catch ( RuntimeException $e ) {
+	$threw = true;
+}
+$GLOBALS['__throw'] = false;
+// The propagation pin is a discriminator, not decoration: a handler that
+// swallowed the exception and returned a success envelope would satisfy both
+// cleanup pins below while telling the Worker a failed call succeeded.
+ok( $threw, 'the ability failure propagates rather than being swallowed into a success envelope' );
+ok( false === sn_bridge_is_verified(), 'THE ONE THE finally EXISTS FOR: a throwing ability still leaves the flag cleared' );
+ok( in_array( 'user_has_cap', $GLOBALS['__removed'], true ), 'and the capability filter is still removed when the ability throws' );
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -694,7 +791,7 @@ function sn_bridge_handle_request( $request ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-bridge-route.php`
-Expected: `OK (35 passed, 0 failed): mcp-bridge-route.php`
+Expected: `OK (43 passed, 0 failed): mcp-bridge-route.php`
 
 - [ ] **Step 5: Commit**
 
@@ -1018,7 +1115,7 @@ Order matters: the bridge calls `sn_mcp_remote_kill_switch_engaged()` and `sn_mc
 
 Run: `bash tests/run.sh`
 
-Baseline was `426 suites, 16956 assertions`. Expect **428 suites** (two new files) and roughly **+33** assertions — 27 from `mcp-bridge-route.php`, 6 from `admin-remote-toggle.php` — plus any the connect-render suite gains from the new form.
+Baseline was `426 suites, 16956 assertions`. Expect **428 suites** (two new files) and roughly **+49** assertions — 43 from `mcp-bridge-route.php`, 6 from `admin-remote-toggle.php` — plus any the connect-render suite gains from the new form.
 
 **Do not adjust an expected number to match what you got.** A lower count usually means a suite fataled: `tests/run.sh` gates on the summary line precisely because a crashed suite prints none and contributes zero. Record the real figure.
 
@@ -1101,6 +1198,31 @@ Run → expect `FAIL - THE OTHER ONE THAT MATTERS: the verified flag is cleared 
 
 - [ ] **Step 5:** Change the off-list slug refusal from 404 to 403.
 Run → expect `FAIL - THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403`. Revert.
+
+- [ ] **Step 4a:** Delete the `try`/`finally` **construct** while KEEPING its two lines — i.e. `$out = $ability->execute( $args );` followed by the same `remove_filter()` and `sn_bridge_set_verified( false )` inline.
+Run → expect `FAIL - THE ONE THE finally EXISTS FOR: a throwing ability still leaves the flag cleared` and `FAIL - and the capability filter is still removed when the ability throws`. Revert.
+
+**This mutation SURVIVED the original Task 4 test group, measured at 35 passed / 0 failed.** Step 4 above deletes the *lines* and reds four pins; this one deletes only the *construct*, and on an ability that RETURNS the two shapes are indistinguishable — the cleanup runs either way. Every pin in the original group dispatched a returning ability, so nothing could tell them apart. Only a throw separates them: without the `finally` the exception unwinds straight past the cleanup and the remainder of the request runs holding `sn_read_remote_analytics` with the filter still attached. The throwing group and its `$GLOBALS['__throw']` stub flag exist for this mutation and nothing else. If it ever survives again, that group has been removed or the stub no longer throws.
+
+- [ ] **Step 5a:** Move the slug checks (the `''  === $slug` 400 and the membership 404) **above** the Bearer check in `sn_bridge_handle_request()`.
+Run → expect `FAIL - THE ORDER PIN: no Authorization + an OFF-LIST slug -> 401, not 404 — the Bearer is checked FIRST` and `FAIL - and no Authorization + no slug -> 401, not 400 — an unauthenticated caller learns nothing about its body`. Revert.
+
+**THE MOST VALUABLE FINDING IN THIS PLAN. This mutation SURVIVED the original Task 4 test group, measured at 35 passed / 0 failed.** Both of the group's 401 pins sent an ON-LIST slug, so they are satisfied whichever check runs first — the ordering had no witness at all. Under the mutant an **unauthenticated** caller receives 404 for an off-list slug and 401 for an on-list one, which is a complete enumeration oracle for `sn_mcp_remote_slugs()` readable with no credential whatsoever. That is precisely what Step 5's 404-not-403 choice exists to deny, rebuilt one check earlier and opened to everyone. Every pre-auth refusal must be the same 401. The two order pins are the only witnesses; do not "consolidate" them with the on-list 401s above, which cannot see this.
+
+- [ ] **Step 5b:** Return the ability's raw output — `return $out;` in place of `return is_wp_error( $out ) ? $out : array( 'ok' => true, 'data' => $out );`.
+Run → expect `FAIL - and it comes back in the ok/data envelope, with the ability output under data`. Revert.
+
+**This mutation SURVIVED the original Task 4 test group, measured at 35 passed / 0 failed.** The group's only success-path shape assertion was `! is_wp_error( $r )`, which is equally true of the ability's raw return, so the envelope had no witness. The Worker parses `{ ok, data }`; changing that shape is a cross-artifact break that surfaces only at the far end of the bridge, where it is hardest to attribute. The pin asserts the whole structure with `===`, not just the presence of a key.
+
+- [ ] **Step 5c:** Delete the `if ( ! $ability )` guard from `sn_bridge_handle_request()`, keeping the `wp_get_ability()` call.
+Run → expect a **PHP fatal**, `Call to a member function execute() on null`, and therefore NO summary line. Revert.
+
+Note the shape of this kill honestly: it reds as a **crashed suite**, not as a named failing assertion. `tests/run.sh` gates on the summary line precisely so a fataled suite fails the sweep rather than contributing zero silently, so the gate does catch it — but do not expect a `FAIL -` row. The production consequence is what the pin's label names: an authenticated bridge call returning a stack trace instead of a 404, which is both an availability bug and an information leak.
+
+- [ ] **Step 5d:** Change the ability-resolution refusal's error code from `'sn_bridge_not_found'` to anything else, e.g. `'sn_bridge_ability_missing'`, leaving the 404 status alone.
+Run → expect `FAIL - and it carries the SAME error code as the off-list refusal — the two are not distinguishable from outside`. Revert.
+
+The third refusal had **no witness at all** before this increment's follow-up: the test's `wp_get_ability()` stub resolved exactly the slugs on `sn_mcp_remote_slugs()`, so the branch was unreachable from the suite while being entirely reachable in production — the remote list and the ability registry are separate, and a deactivated module, a load-order change, or a registration hook that ran after `rest_api_init` each leave a listed slug with nothing behind it. A `$GLOBALS['__no_ability']` suppression flag reaches it. Matching only the STATUS would not be enough, which is why this mutation exists: two 404s carrying different error codes rebuild the enumeration oracle one field further down, for a caller who already holds a valid secret.
 
 - [ ] **Step 6:** Delete the `SN_MCP_REMOTE_DISABLED` guard from `sn_handle_remote_toggle()`.
 Run `php tests/admin-remote-toggle.php` → expect both constant-wins pins red. Revert.
