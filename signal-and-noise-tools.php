@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     11.1.2
+ * Version:     11.2.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -397,6 +397,8 @@ require_once __DIR__ . '/inc/ml-related-render.php';   // v10.15.0: reader-facin
 require_once __DIR__ . '/inc/ml-cousins.php';          // v10.16.0: near-duplicate cousin pairs (kernel cosine over the corpus walk, needs ml-pipelines + corpus-inspect above) — ML pipeline #2
 require_once __DIR__ . '/inc/ml-draft-echoes.php';     // v10.77.0: draft-time echoes — one draft vs the corpus, editor-side read only (needs ml-cousins above for the shared threshold bounds)
 require_once __DIR__ . '/inc/ml-link-isolation.php';   // v10.83.0: link isolation — published notes nothing links to (corpus link graph; needs corpus-inspect above) — ML pipeline #8
+require_once __DIR__ . '/inc/ml-drift.php';            // v11.2.0: corpus drift — per-term vocabulary movement across years (needs ml-kernel + corpus-inspect above) — ML pipeline #9, writer-facing only
+require_once __DIR__ . '/inc/ml-drift-admin.php';      // v11.2.0: the Vocabulary leaf (Content tab) — the drift mirror's ONLY surface
 require_once __DIR__ . '/inc/ml-candidates.php';       // v10.17.0: keyword + link candidate generators (needs ml-pipelines, ml-artifacts + corpus-inspect above) — ML pipeline #3
 require_once __DIR__ . '/inc/ai-maturity-page.php'; // v10.10.0: [sn_ai_maturity] public explainer (third maturity sibling; leak-proof by test contract)
 require_once __DIR__ . '/inc/maturity-roadmap-shortcode.php'; // [sn_maturity_roadmap]: the HUB-WIDE roadmap (done/planned/considering across every maturity family), same static-data + filter-seam + leak-proof pattern, own front stylesheet

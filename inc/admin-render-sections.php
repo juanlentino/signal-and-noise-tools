@@ -80,6 +80,15 @@ function sn_admin_render_pattern_adoption_section() {
 	do_action( 'sn_admin_pattern_adoption_tab' );
 }
 
+/**
+ * Content → Vocabulary (v11.2.0, R4 4A). The FOURTH content read surface: the
+ * corpus-drift mirror. Delegates exactly like its three sibling scanners; the
+ * module (inc/ml-drift-admin.php) hooks the action.
+ */
+function sn_admin_render_drift_section() {
+	do_action( 'sn_admin_drift_tab' );
+}
+
 /** Content → RSS. The tracker module (inc/rss-feed-tracker.php) is always
  *  loaded by the bootstrap, so it always hooks sn_admin_rss_tab; the guard is
  *  a defensive no-op fallback should the module ever be filtered out. */

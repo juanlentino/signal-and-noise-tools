@@ -398,6 +398,79 @@ ok( is_array( $rmetro ) && null === $rmetro['z'] && 0.0 === (float) $rmetro['mad
 $rord = snt_ml_cadence_deviation_robust( array( 320, 0, 400, 100, 180 ), 700 );
 ok( $rob === $rord, '(n2) input order never changes the verdict' );
 
+// ── (d) corpus drift — R4 4A, pipeline #9 ────────────────────────────────────
+// WHY DOCUMENT SHARE AND NOT TF-IDF: idf is computed with N = the docs in THAT
+// call (see snt_ml_corpus_stats), so a term's tf-idf weight is relative to its
+// own bucket. Comparing 2024's weights to 2025's would compare two different
+// scales and report drift that is an artefact of how many notes each year held.
+// Document share (docs containing the term / docs in the period) is on one
+// scale across every bucket, and is robust to a single verbose note repeating a
+// word — which is exactly the noise that dominates at small N.
+echo "\nGroup (d): corpus drift — per-term movement, and a bucket that refuses to speak\n";
+
+$mk = function ( array $docs ) { return $docs; };
+$before_docs = $mk( array(
+	1 => array( 'provenance', 'ledger', 'anchor' ),
+	2 => array( 'provenance', 'ledger', 'signature' ),
+	3 => array( 'provenance', 'crawler' ),
+	4 => array( 'crawler', 'robots' ),
+	5 => array( 'crawler', 'robots', 'anchor' ),
+) );
+$after_docs = $mk( array(
+	6  => array( 'provenance', 'agent', 'door' ),
+	7  => array( 'agent', 'door', 'token' ),
+	8  => array( 'agent', 'door' ),
+	9  => array( 'agent', 'ledger' ),
+	10 => array( 'door', 'token', 'ledger' ),
+) );
+
+$share = snt_ml_doc_share( $before_docs );
+ok( 5 === $share['docs'], '(d) doc share reports its own bucket size' );
+ok( abs( $share['shares']['provenance'] - 0.6 ) < 1e-9, '(d) share is docs-containing / docs, not token frequency (provenance in 3 of 5 = 0.6)' );
+ok( ! isset( $share['shares']['agent'] ), '(d) a term absent from the bucket is ABSENT from shares, never a 0.0 entry — absent and zero are different answers' );
+
+$drift = snt_ml_corpus_drift( $before_docs, $after_docs, 5, 12 );
+ok( 'ok' === $drift['verdict'], '(d) two buckets at the floor produce a real verdict' );
+ok( 5 === $drift['docs']['before'] && 5 === $drift['docs']['after'], '(d) the verdict carries both bucket sizes — a reader must be able to judge the base' );
+
+$risen_terms = array_column( $drift['risen'], 'term' );
+$fallen_terms = array_column( $drift['fallen'], 'term' );
+$entered_terms = array_column( $drift['entered'], 'term' );
+$silenced_terms = array_column( $drift['silenced'], 'term' );
+
+ok( in_array( 'provenance', $fallen_terms, true ), '(d) provenance fell (0.6 -> 0.2) and lands in fallen' );
+ok( in_array( 'agent', $entered_terms, true ) && in_array( 'door', $entered_terms, true ), '(d) terms with no before-bucket presence are ENTERED, not a delta from zero' );
+ok( in_array( 'crawler', $silenced_terms, true ) && in_array( 'robots', $silenced_terms, true ), '(d) terms that stopped appearing are SILENCED, not a fall to zero' );
+ok( ! in_array( 'agent', $risen_terms, true ) && ! in_array( 'agent', $fallen_terms, true ), '(d) an entered term never ALSO appears as movement — the four lists are disjoint' );
+ok( ! in_array( 'ledger', $entered_terms, true ) && ! in_array( 'ledger', $silenced_terms, true ), '(d) a term present in both buckets is movement, never entry/exit (ledger 0.4 -> 0.4)' );
+ok( ! in_array( 'ledger', $risen_terms, true ) && ! in_array( 'ledger', $fallen_terms, true ), '(d) and an UNCHANGED term appears in no list at all — no movement is not a movement of zero' );
+
+// Determinism: ties must break on the term, never on hash order.
+$tie_a = array( 1 => array( 'alpha' ), 2 => array( 'beta' ), 3 => array( 'x' ), 4 => array( 'x' ), 5 => array( 'x' ) );
+$tie_b = array( 6 => array( 'alpha', 'beta' ), 7 => array( 'alpha', 'beta' ), 8 => array( 'x' ), 9 => array( 'x' ), 10 => array( 'x' ) );
+$d1 = snt_ml_corpus_drift( $tie_a, $tie_b, 5, 12 );
+$d2 = snt_ml_corpus_drift( $tie_a, $tie_b, 5, 12 );
+ok( $d1 === $d2, '(d) same input, byte-identical output' );
+$tie_risen = array_column( $d1['risen'], 'term' );
+ok( array( 'alpha', 'beta' ) === array_slice( $tie_risen, 0, 2 ), '(d) equal deltas break on the term ascending, never on array/hash order' );
+
+// THE THIN GATE. A bucket too small cannot speak, and "thin" is a DIFFERENT
+// answer from "no drift" — a confident 0.00 over three notes is the failure
+// this exists to prevent (the cadence SPAN lesson, applied to corpus size).
+$thin = snt_ml_corpus_drift( array( 1 => array( 'a' ), 2 => array( 'b' ) ), $after_docs, 5, 12 );
+ok( 'thin' === $thin['verdict'], '(d) THE THIN GATE: a bucket under the floor refuses to speak' );
+ok( array() === $thin['risen'] && array() === $thin['fallen'] && array() === $thin['entered'] && array() === $thin['silenced'], '(d) and a thin verdict carries NO term movement — not one row a writer could mistake for a finding' );
+ok( 2 === $thin['docs']['before'], '(d) but it still reports the size that disqualified it, so the writer knows WHY' );
+// Mutation pin on the floor itself: raise it above a bucket that just passed
+// and the verdict must flip. Without this, a floor of 0 would pass every
+// assertion above and the gate would be decoration.
+ok( 'thin' === snt_ml_corpus_drift( $before_docs, $after_docs, 6, 12 )['verdict'], '(d) the floor is LOAD-BEARING: raising it above a passing bucket flips the verdict' );
+ok( 'ok' === snt_ml_corpus_drift( $before_docs, $after_docs, 5, 12 )['verdict'], '(d) and lowering it back restores it — the gate reads the floor, not a constant' );
+
+// The top cap, and that it caps rather than silently truncating meaning.
+$capped = snt_ml_corpus_drift( $before_docs, $after_docs, 5, 1 );
+ok( 1 >= count( $capped['risen'] ) && 1 >= count( $capped['entered'] ), '(d) top caps each list independently' );
+
 echo "\nGroup (k): no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], '(k) zero notices/warnings/deprecations raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
 

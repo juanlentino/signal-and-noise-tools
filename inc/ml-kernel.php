@@ -582,3 +582,175 @@ if ( ! function_exists( 'snt_ml_cadence_deviation' ) ) {
 		);
 	}
 }
+
+if ( ! function_exists( 'snt_ml_doc_share' ) ) {
+	/**
+	 * Document share per term: the fraction of documents in this bucket that
+	 * contain the term at least once.
+	 *
+	 * WHY SHARE AND NOT TF-IDF (the load-bearing choice for drift): idf is
+	 * computed with N = the documents in that same call (snt_ml_corpus_stats),
+	 * so a term's tf-idf weight is relative to its OWN bucket. Comparing one
+	 * period's weights against another's would compare two different scales and
+	 * report movement that is an artefact of how many notes each period held.
+	 * Document share is on one scale across every bucket. It is also robust to a
+	 * single verbose note repeating a word — the noise that dominates at small N.
+	 *
+	 * A term absent from the bucket is ABSENT from the returned map, never a 0.0
+	 * entry: absent and zero are different answers, and the caller classifies
+	 * them differently (entered/silenced versus movement).
+	 *
+	 * @param array<int|string,string[]> $docs Doc id => token array.
+	 * @return array {
+	 *     @type array<string,float> $shares Term => docs containing it / docs.
+	 *     @type int                 $docs   Bucket size (0 => shares is empty).
+	 * }
+	 */
+	function snt_ml_doc_share( array $docs ) {
+		$n = count( $docs );
+		if ( 0 === $n ) {
+			return array( 'shares' => array(), 'docs' => 0 );
+		}
+		$df = array();
+		foreach ( $docs as $tokens ) {
+			$tokens = is_array( $tokens ) ? $tokens : array();
+			foreach ( array_unique( $tokens ) as $term ) {
+				$df[ $term ] = ( $df[ $term ] ?? 0 ) + 1;
+			}
+		}
+		$shares = array();
+		foreach ( $df as $term => $count ) {
+			// The float cast is LOAD-BEARING: PHP's / returns an INT when
+			// evenly divisible, so a 5-of-5 share would be int 1, its delta
+			// int 0, and the caller's strict 0.0 no-movement check would miss
+			// it — every stationary term at a whole-number share would leak
+			// into risen/fallen. Caught by the ml-drift suite's stationary pin.
+			$shares[ $term ] = (float) ( $count / $n );
+		}
+		return array( 'shares' => $shares, 'docs' => $n );
+	}
+}
+
+if ( ! function_exists( 'snt_ml_corpus_drift' ) ) {
+	/**
+	 * Per-term vocabulary movement between two periods of the corpus.
+	 *
+	 * The mirror snt_ml_cosine() cannot be: cosine returns ONE scalar, which
+	 * tells a writer their vocabulary changed and nothing about WHAT changed.
+	 * This returns four disjoint lists, because the four cases are editorially
+	 * different questions:
+	 *
+	 * - risen / fallen — the term is present in BOTH periods and moved.
+	 * - entered        — no presence before, present after. Not a delta from
+	 *                    zero: the term had no share to move from.
+	 * - silenced       — present before, no presence after. Likewise.
+	 *
+	 * A term present in both periods at the SAME share appears in no list at
+	 * all. No movement is not a movement of zero, and padding the lists with
+	 * stationary terms would bury the finding.
+	 *
+	 * THE THIN GATE: either period below $min_docs returns verdict 'thin' with
+	 * every list empty — a distinct answer from "no drift". A term appearing in
+	 * one note and then two has not risen; the corpus is too small for the word
+	 * to mean anything. Same discipline as snt_ml_cadence_deviation_robust()
+	 * reporting SPAN: a window that saw almost nothing must be able to say so
+	 * rather than publish a confident number. The bucket sizes are reported
+	 * either way, so the caller can render WHY it refused.
+	 *
+	 * Deterministic: every list sorts by magnitude descending, ties broken on
+	 * the term ascending — never on array insertion or hash order.
+	 *
+	 * @param array<int|string,string[]> $before   Doc id => tokens, earlier period.
+	 * @param array<int|string,string[]> $after    Doc id => tokens, later period.
+	 * @param int                        $min_docs Floor per period (default 5).
+	 * @param int                        $top      Max rows per list (default 12).
+	 * @return array {
+	 *     @type string $verdict  'ok' | 'thin'.
+	 *     @type array  $docs     {before:int, after:int}.
+	 *     @type array  $risen    list of {term, before, after, delta}.
+	 *     @type array  $fallen   list of {term, before, after, delta}.
+	 *     @type array  $entered  list of {term, after}.
+	 *     @type array  $silenced list of {term, before}.
+	 * }
+	 */
+	function snt_ml_corpus_drift( array $before, array $after, $min_docs = 5, $top = 12 ) {
+		$a = snt_ml_doc_share( $before );
+		$b = snt_ml_doc_share( $after );
+
+		$empty = array(
+			'verdict'  => 'thin',
+			'docs'     => array( 'before' => $a['docs'], 'after' => $b['docs'] ),
+			'risen'    => array(),
+			'fallen'   => array(),
+			'entered'  => array(),
+			'silenced' => array(),
+		);
+		$min_docs = max( 0, (int) $min_docs );
+		if ( $a['docs'] < $min_docs || $b['docs'] < $min_docs ) {
+			return $empty;
+		}
+
+		$risen    = array();
+		$fallen   = array();
+		$entered  = array();
+		$silenced = array();
+
+		foreach ( $b['shares'] as $term => $after_share ) {
+			if ( ! array_key_exists( $term, $a['shares'] ) ) {
+				$entered[] = array( 'term' => (string) $term, 'after' => $after_share );
+				continue;
+			}
+			// Both operands are floats by snt_ml_doc_share()'s cast, so the
+			// strict 0.0 comparison below is sound. Belt-and-braces cast
+			// anyway: this fn also accepts share maps a future caller built
+			// by hand, and int-typed shares would resurrect the leak.
+			$delta = (float) $after_share - (float) $a['shares'][ $term ];
+			if ( 0.0 === $delta ) {
+				continue;
+			}
+			$row = array(
+				'term'   => (string) $term,
+				'before' => $a['shares'][ $term ],
+				'after'  => $after_share,
+				'delta'  => $delta,
+			);
+			if ( $delta > 0.0 ) {
+				$risen[] = $row;
+			} else {
+				$fallen[] = $row;
+			}
+		}
+		foreach ( $a['shares'] as $term => $before_share ) {
+			if ( ! array_key_exists( $term, $b['shares'] ) ) {
+				$silenced[] = array( 'term' => (string) $term, 'before' => $before_share );
+			}
+		}
+
+		// Ties break on the term so the output is stable across PHP versions
+		// and insertion orders — a mirror that reshuffles between runs reads as
+		// drift that did not happen.
+		$by = function ( $key, $desc ) {
+			return function ( $x, $y ) use ( $key, $desc ) {
+				$cmp = $x[ $key ] < $y[ $key ] ? -1 : ( $x[ $key ] > $y[ $key ] ? 1 : 0 );
+				if ( 0 !== $cmp ) {
+					return $desc ? -$cmp : $cmp;
+				}
+				return strcmp( $x['term'], $y['term'] );
+			};
+		};
+		usort( $risen, $by( 'delta', true ) );
+		usort( $fallen, $by( 'delta', false ) );
+		usort( $entered, $by( 'after', true ) );
+		usort( $silenced, $by( 'before', true ) );
+
+		$top = max( 0, (int) $top );
+		return array(
+			'verdict'  => 'ok',
+			'docs'     => array( 'before' => $a['docs'], 'after' => $b['docs'] ),
+			'risen'    => array_slice( $risen, 0, $top ),
+			'fallen'   => array_slice( $fallen, 0, $top ),
+			'entered'  => array_slice( $entered, 0, $top ),
+			'silenced' => array_slice( $silenced, 0, $top ),
+		);
+	}
+}
