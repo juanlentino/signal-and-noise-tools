@@ -48,8 +48,17 @@ ok( true === sn_mcp_remote_kill_switch_engaged(), 'absent option -> engaged (fai
 $GLOBALS['__options']['sn_mcp_remote_enabled'] = true;
 ok( false === sn_mcp_remote_kill_switch_engaged(), 'option true -> not engaged' );
 
-echo "Group: the slug list names exactly one member, and it is not on either MCP allowlist\n";
-ok( array( $REMOTE ) === sn_mcp_remote_slugs(), 'the remote list holds exactly the one Increment 1 slug' );
+echo "Group: the slug list names exactly eight members, and it is not on either MCP allowlist\n";
+ok( array(
+	'signal-noise/remote-get-analytics-summary',
+	'signal-noise/remote-get-analytics-events',
+	'signal-noise/remote-get-insights',
+	'signal-noise/remote-get-narration',
+	'signal-noise/remote-uptime-status',
+	'signal-noise/remote-get-health-scan',
+	'signal-noise/remote-get-rss-stats',
+	'signal-noise/remote-get-deploy-status',
+) === sn_mcp_remote_slugs(), 'the remote list holds exactly the eight Increment 1 + Increment 2 slugs' );
 
 echo "Group: all three gates must pass, and each alone is insufficient\n";
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
