@@ -168,7 +168,14 @@ $caps = sn_bridge_grant_capability( array( 'read' => true ) );
 ok( ! array_key_exists( 'sn_read_remote_analytics', $caps ), 'clearing the flag revokes the grant' );
 ok( true === $caps['read'], 'and the revoked path still passes other capabilities through' );
 
-echo "Group: the handler refuses in order, and never leaks which gate refused\n";
+// LABEL REWORDED to match what the bodies below actually establish. It formerly
+// read "refuses in order, and never leaks which gate refused" while asserting
+// neither: every 401 pin sent an on-list slug, so the ordering was free, and no
+// two refusals were ever compared against each other. Both properties now have
+// witnesses — the pre-auth 401 pins for the first, the two identical 404s for the
+// second — and the label is narrowed to exactly those, because a caller holding a
+// VALID secret still learns 400-vs-404-vs-401, which is deliberate and not a leak.
+echo "Group: the handler refuses in ORDER, and its two 404s are indistinguishable\n";
 // A stub ability layer: one known slug that echoes its args.
 $GLOBALS['__executed'] = array();
 class SNB_Ability {
@@ -183,7 +190,22 @@ class SNB_Ability {
 		return array( 'ran' => $this->slug );
 	}
 }
-function wp_get_ability( $slug ) { return in_array( $slug, sn_mcp_remote_slugs(), true ) ? new SNB_Ability( $slug ) : null; }
+/**
+ * The ability lookup, with a suppression flag.
+ *
+ * $GLOBALS['__no_ability'] holds a slug that this stub refuses to resolve EVEN
+ * THOUGH it is on sn_mcp_remote_slugs(). That is not a contrived state: the list
+ * and the ability registry are separate things, and a slug can be listed while
+ * its ability is not registered — a module deactivated, a load-order change, a
+ * registration hook that ran too late. Do not delete this flag as dead
+ * scaffolding; it is the only way to reach the handler's third refusal.
+ */
+function wp_get_ability( $slug ) {
+	if ( isset( $GLOBALS['__no_ability'] ) && $slug === $GLOBALS['__no_ability'] ) {
+		return null;
+	}
+	return in_array( $slug, sn_mcp_remote_slugs(), true ) ? new SNB_Ability( $slug ) : null;
+}
 
 // NOTE: SN_BRIDGE_TOKEN is ALREADY defined as 'topsecret' above, which the
 // gate-opens assertion needs. Do not define it again here — a second define() of
@@ -215,11 +237,29 @@ $r = sn_bridge_handle_request( new SNB_Req( array(), array() ) );
 ok( is_wp_error( $r ) && 401 === $r->data['status'], 'and no Authorization + no slug -> 401, not 400 — an unauthenticated caller learns nothing about its body' );
 
 $good = array( 'authorization' => 'Bearer topsecret' );
-$r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
-ok( is_wp_error( $r ) && 404 === $r->data['status'], 'THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403' );
+$offlist = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
+ok( is_wp_error( $offlist ) && 404 === $offlist->data['status'], 'THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403' );
 
 $r = sn_bridge_handle_request( new SNB_Req( $good, array() ) );
 ok( is_wp_error( $r ) && 400 === $r->data['status'], 'a missing slug -> 400' );
+
+// THE THIRD REFUSAL, which nothing else in this file can reach. A slug can be on
+// sn_mcp_remote_slugs() and still have no registered ability: the list and the
+// ability registry are separate, so a deactivated module, a load-order change, or
+// a registration hook that ran after rest_api_init all produce exactly this state
+// in production. It is not hypothetical, and it must not be the one path that
+// 500s or fatals — a stack trace from an authenticated bridge call is both an
+// availability bug and an information leak.
+$GLOBALS['__no_ability'] = $REMOTE;
+$r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+unset( $GLOBALS['__no_ability'] );
+ok( is_wp_error( $r ) && 404 === $r->data['status'], 'an ON-LIST slug whose ability does not resolve -> 404, not a 500 and not a fatal' );
+// AND INDISTINGUISHABLE FROM THE OFF-LIST REFUSAL. Matching the status alone is
+// not enough: two refusals carrying different error CODES would rebuild the same
+// enumeration oracle one field further down, telling a caller who holds a valid
+// secret which listed slugs are actually wired up. The identical code IS the
+// property, so it gets its own witness.
+ok( $offlist->get_error_code() === $r->get_error_code(), 'and it carries the SAME error code as the off-list refusal — the two are not distinguishable from outside' );
 
 echo "Group: a verified call dispatches, and leaves nothing behind\n";
 $GLOBALS['__executed'] = array();
