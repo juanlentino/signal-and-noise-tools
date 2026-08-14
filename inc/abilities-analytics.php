@@ -72,6 +72,8 @@ add_action( 'wp_abilities_api_init', function () {
 			. '(`integrity_violation: true` means a genuine rollup bug upstream, values served unclamped). '
 			. '`viewless_visits` = unique_visitor_days - pageview_visits (visitor-days with zero pageviews). '
 			. 'Ratios: `view_visit_ratio` = views/pageview_visits (>=1); `pageviews_per_visitor_day` = views/unique_visitor_days (may be <1). '
+			. 'PREFER `view_visit_ratio` when judging engagement: `pageviews_per_visitor_day` is DILUTED BY DESIGN by feed- and beacon-only visitor-days '
+			. '(a server-side feed beacon creates a visitor-day with no pageview), so it reads below 1.0 on a healthy site and a low value there is not a defect to investigate. '
 			. 'Engagement in two exact denominations, both in MILLISECONDS: `time_avg_per_view` = time_sum/views; `time_avg_per_visit` = time_sum/unique_visitor_days, diluted by viewless days. '
 			. '(The beacon reports `performance.now()` deltas in ms and nothing downstream converts, so 38690 is ~39 SECONDS, not ~11 hours. Divide by 1000 before presenting it.) '
 			. 'Scroll depth (v9.64.0 unit): `scroll_avg_per_view` = 25 * scroll_events / views and `scroll_avg_per_visit` = 25 * scroll_events / unique_visitor_days (diluted by viewless days): the true mean max scroll depth (0-100), '
