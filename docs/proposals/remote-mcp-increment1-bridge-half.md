@@ -4,8 +4,14 @@
 **Parent proposal:** [`remote-mcp-transport.md`](remote-mcp-transport.md) §"Increment 1"
 **Sibling:** [`remote-mcp-increment1-origin-half.md`](remote-mcp-increment1-origin-half.md) (merged, PR #632)
 **Scope:** plugin only. One Worker change is named but belongs to `sn-remote-mcp-worker`.
-**Version impact:** MINOR — a new admin control is user-visible. Not the v11.0.0 MAJOR; that
-remains the increment requiring owner setup action.
+**Version impact:** **v11.0.0 (MAJOR).** `mcp-zero-call-reader.md` §5.4 allocates v11.0.0 to
+**the phone door** — this work — plus the deprecated legacy quartet removal, with the §A5 tool
+retirement pushed to a later major because it needs the zero-call reader's evidence first.
+
+An earlier draft of this line said MINOR, reasoning that installing requires no action because
+every gate ships shut. That reasoning is sound on its own terms and was overruled by the
+allocation, which is the older and more considered decision. Corrected rather than argued with:
+the version number's job here is to mark where the phone door landed.
 
 ---
 
