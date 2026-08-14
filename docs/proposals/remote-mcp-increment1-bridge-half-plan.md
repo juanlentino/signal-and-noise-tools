@@ -1161,6 +1161,15 @@ Commit in that repo separately. It is not part of the plugin's sweep.
 
 Commit first — you will be editing source and reverting. Verify each mutation **actually applied** with `git diff` before believing a result; a mutation that silently fails to land produces a passing run indistinguishable from a correct one.
 
+**How to revert a mutation — this cost real work twice tonight.**
+
+Copy the file to the scratchpad before mutating, and restore with `cp`. Do **not** use:
+
+- `git checkout -- <path>` — discards *everything* uncommitted in that path, not just your mutation. One agent lost a whole handler this way, and the next three mutation runs then fataled against a missing function.
+- `git stash` / `git stash drop` — worse, because it looks reversible. It sweeps up every uncommitted change in the tree and `drop` makes the loss permanent. Another agent destroyed a test group it had just written this way.
+
+**And check an invariant, not just the exit status.** The second loss was caught only because `41 passed` was arithmetically impossible against a 43-assertion suite — two assertions had *vanished*, not failed. The mutation that run reported as "surviving" had been measured against the reverted, weaker test file, so the number was fiction; re-measured properly it was killed. Before believing any mutation result, confirm `passed + failed` equals the suite's known total. A mutation measured against the wrong test state produces a confident number with nothing behind it.
+
 - [ ] **Step 0:** Replace the body of `sn_bridge_should_register()` with `return false;`.
 Run `php tests/mcp-bridge-route.php` → expect `FAIL - THE ONE THAT PROVES IT OPENS: switch ON + secret PRESENT -> register` plus the three argument pins. Revert.
 
