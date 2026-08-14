@@ -142,19 +142,31 @@ echo "Group: the capability is granted ONLY while a verified request is in fligh
 // The filter must consult the module flag, never the request alone.
 ok( false === sn_bridge_is_verified(), 'nothing is verified at rest' );
 
+// EVERY ABSENCE PIN BELOW USES array_key_exists(), NEVER isset(). isset() is
+// false for a key whose value is null, so it cannot tell "never granted" from
+// "granted null" — a grant of `$allcaps['manage_options'] = null;` would sail
+// past an isset() pin while the label still claimed the capability was never
+// granted. array_key_exists() asserts genuine absence, which is what these
+// labels say. Do not "simplify" them back to isset().
 $caps = sn_bridge_grant_capability( array( 'read' => true ) );
-ok( ! isset( $caps['sn_read_remote_analytics'] ), 'THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight' );
+ok( ! array_key_exists( 'sn_read_remote_analytics', $caps ), 'THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight' );
 ok( true === $caps['read'], 'and it passes other capabilities through untouched' );
 
 sn_bridge_set_verified( true );
 ok( true === sn_bridge_is_verified(), 'the flag can be set' );
 $caps = sn_bridge_grant_capability( array( 'read' => true ) );
 ok( true === $caps['sn_read_remote_analytics'], 'a verified request grants exactly the remote capability' );
-ok( ! isset( $caps['manage_options'] ), 'and never manage_options' );
+ok( ! array_key_exists( 'manage_options', $caps ), 'and never manage_options' );
 
+// The revoke case is handed a NON-EMPTY array on purpose. Passed array(), this
+// pin could not tell "revoked the grant" from "returned an empty array" — an
+// implementation whose unverified branch did `return array();` would look
+// revoked while silently discarding every capability the caller already held.
+// The second assertion is the discriminator.
 sn_bridge_set_verified( false );
-$caps = sn_bridge_grant_capability( array() );
-ok( ! isset( $caps['sn_read_remote_analytics'] ), 'clearing the flag revokes the grant' );
+$caps = sn_bridge_grant_capability( array( 'read' => true ) );
+ok( ! array_key_exists( 'sn_read_remote_analytics', $caps ), 'clearing the flag revokes the grant' );
+ok( true === $caps['read'], 'and the revoked path still passes other capabilities through' );
 
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"

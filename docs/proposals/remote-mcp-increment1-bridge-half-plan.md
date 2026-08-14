@@ -432,19 +432,31 @@ echo "Group: the capability is granted ONLY while a verified request is in fligh
 // The filter must consult the module flag, never the request alone.
 ok( false === sn_bridge_is_verified(), 'nothing is verified at rest' );
 
+// EVERY ABSENCE PIN BELOW USES array_key_exists(), NEVER isset(). isset() is
+// false for a key whose value is null, so it cannot tell "never granted" from
+// "granted null" — a grant of `$allcaps['manage_options'] = null;` would sail
+// past an isset() pin while the label still claimed the capability was never
+// granted. array_key_exists() asserts genuine absence, which is what these
+// labels say. Do not "simplify" them back to isset().
 $caps = sn_bridge_grant_capability( array( 'read' => true ) );
-ok( ! isset( $caps['sn_read_remote_analytics'] ), 'THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight' );
+ok( ! array_key_exists( 'sn_read_remote_analytics', $caps ), 'THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight' );
 ok( true === $caps['read'], 'and it passes other capabilities through untouched' );
 
 sn_bridge_set_verified( true );
 ok( true === sn_bridge_is_verified(), 'the flag can be set' );
 $caps = sn_bridge_grant_capability( array( 'read' => true ) );
 ok( true === $caps['sn_read_remote_analytics'], 'a verified request grants exactly the remote capability' );
-ok( ! isset( $caps['manage_options'] ), 'and never manage_options' );
+ok( ! array_key_exists( 'manage_options', $caps ), 'and never manage_options' );
 
+// The revoke case is handed a NON-EMPTY array on purpose. Passed array(), this
+// pin could not tell "revoked the grant" from "returned an empty array" — an
+// implementation whose unverified branch did `return array();` would look
+// revoked while silently discarding every capability the caller already held.
+// The second assertion is the discriminator.
 sn_bridge_set_verified( false );
-$caps = sn_bridge_grant_capability( array() );
-ok( ! isset( $caps['sn_read_remote_analytics'] ), 'clearing the flag revokes the grant' );
+$caps = sn_bridge_grant_capability( array( 'read' => true ) );
+ok( ! array_key_exists( 'sn_read_remote_analytics', $caps ), 'clearing the flag revokes the grant' );
+ok( true === $caps['read'], 'and the revoked path still passes other capabilities through' );
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -517,7 +529,7 @@ function sn_bridge_grant_capability( $allcaps ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-bridge-route.php`
-Expected: `OK (25 passed, 0 failed): mcp-bridge-route.php`
+Expected: `OK (26 passed, 0 failed): mcp-bridge-route.php`
 
 - [ ] **Step 5: Commit**
 
@@ -682,7 +694,7 @@ function sn_bridge_handle_request( $request ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-bridge-route.php`
-Expected: `OK (34 passed, 0 failed): mcp-bridge-route.php`
+Expected: `OK (35 passed, 0 failed): mcp-bridge-route.php`
 
 - [ ] **Step 5: Commit**
 
@@ -1031,7 +1043,17 @@ Run → expect `FAIL - THE TYPE-JUGGLING PIN: two distinct numeric strings must 
 - **Timing — GENUINELY UNASSERTABLE here, and recorded as such.** Nothing in a standalone PHP fixture can observe the wall-clock difference between a prefix-matching and a non-matching compare with any reliability. This half of the mutation survives by construction. Leave it recorded with its reason rather than inventing a test that appears to cover it; a survivor documented with its cause is useful, a survivor silently dropped is not.
 
 - [ ] **Step 3:** Remove the `if ( ! sn_bridge_is_verified() )` guard from `sn_bridge_grant_capability()`.
-Run → expect `FAIL - THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight`. Revert.
+Run → expect `FAIL - THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight` **and** `FAIL - clearing the flag revokes the grant`. Revert.
+
+- [ ] **Step 3a:** Add `$allcaps['manage_options'] = null;` — note **null**, not true — beside the real grant in `sn_bridge_grant_capability()`.
+Run → expect `FAIL - and never manage_options`. Revert.
+
+**This is the mutation that forced the absence pins off `isset()`.** Measured: with `! isset( $caps['manage_options'] )` the suite ran **26 passed, 0 failed** against this mutant — `isset()` reads a null value as absent, so a null grant passed a pin whose label claimed the capability was never granted. `array_key_exists()` reds it. The same reasoning applies to every absence pin in the file, which is why all three use `array_key_exists()`. If someone "simplifies" them back to `isset()`, this mutation goes green again and the labels start lying.
+
+- [ ] **Step 3b:** Change the unverified branch of `sn_bridge_grant_capability()` from `return $allcaps;` to `return array();`.
+Run → expect `FAIL - and it passes other capabilities through untouched` **and** `FAIL - and the revoked path still passes other capabilities through`. Revert.
+
+This mutant looks revoked and is not: it discards every capability the caller already held. It is invisible to a revoke assertion handed `array()`, because an empty input cannot distinguish "removed our grant" from "returned nothing at all". The revoke case is therefore handed `array( 'read' => true )` and asserts both halves.
 
 - [ ] **Step 4:** Delete the `finally` block's two lines in `sn_bridge_handle_request()`.
 Run → expect `FAIL - THE OTHER ONE THAT MATTERS: the verified flag is cleared after dispatch` and the filter-removed pin. Revert.
