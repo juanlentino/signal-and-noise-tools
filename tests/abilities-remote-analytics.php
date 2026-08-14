@@ -128,6 +128,18 @@ ok( $r['permission_callback'] !== $a['permission_callback'], 'but their gates ar
 // which would still pass, while no longer meaning what it says.
 // Append new groups ABOVE the parity group, not here.
 
+echo "Group: the ability creates NO public REST run route\n";
+// Finding 1 from the 2026-08-14 adversarial review. With show_in_rest => true,
+// WordPress registers POST /wp-abilities/v1/abilities/<slug>/run on EVERY
+// install, and an unauthenticated caller learns the switch state from the error
+// code — sn_mcp_remote_disabled when off, ability_invalid_permissions when on.
+// A switch-state oracle present the day the plugin is installed.
+//
+// The bridge dispatches via wp_get_ability( $slug )->execute( $args ) and never
+// needs that route. Deleting the surface beats guarding it — and that run route
+// is what reopened the F2-shaped gap the origin half had to paper over.
+ok( false === $reg['meta']['show_in_rest'], 'THE SURFACE THAT IS NOT CREATED: show_in_rest is false, so no anonymous run route exists to leak the switch state' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): abilities-remote-analytics.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): abilities-remote-analytics.php\n";

@@ -167,7 +167,11 @@ function sn_bridge_register_routes() {
 		'signal-noise/v1',
 		'/bridge',
 		array(
-			'methods'  => 'POST',
+			'methods'             => 'POST',
+			// Absent from GET /wp-json/signal-noise/v1. The index listed /bridge
+			// only when both gates were open, which was a free oracle for
+			// "the door is armed" — cheaper than probing the endpoint itself.
+			'show_in_index'       => false,
 			// Authentication happens in the handler, in ONE ordered place, so
 			// there is never a state where a partially-authenticated request is
 			// already inside the abilities layer.
@@ -208,11 +212,21 @@ function sn_bridge_handle_request( $request ) {
 		? $request->get_header( 'authorization' )
 		: null;
 
+	// A BAD BEARER ANSWERS 404, BYTE-IDENTICAL TO AN OFF-LIST SLUG, AND THAT IS
+	// THE POINT. An earlier version answered 401 here, which told an
+	// unauthenticated caller the route exists and the site means to serve it —
+	// exactly the leak this design folded the old 503 into registration to
+	// prevent. A 401 did the same job as that 503 from one step further in.
+	//
+	// With 404 here, an anonymous probe cannot distinguish: switch off, secret
+	// absent, wrong secret, or unknown slug. A caller who ALREADY HOLDS the
+	// secret still learns 400-vs-404, which is deliberate — they are
+	// authenticated, so telling them their body was malformed leaks nothing.
 	if ( ! sn_bridge_bearer_matches( $header, sn_bridge_secret() ) ) {
 		return new WP_Error(
-			'sn_bridge_unauthorized',
-			__( 'Unauthorized.', 'signal-and-noise-tools' ),
-			array( 'status' => 401 )
+			'sn_bridge_not_found',
+			__( 'Not found.', 'signal-and-noise-tools' ),
+			array( 'status' => 404 )
 		);
 	}
 
