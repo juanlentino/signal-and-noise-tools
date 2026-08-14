@@ -179,3 +179,84 @@ function sn_bridge_register_routes() {
 if ( function_exists( 'add_action' ) ) {
 	add_action( 'rest_api_init', 'sn_bridge_register_routes' );
 }
+
+/**
+ * Handle one bridge call.
+ *
+ * VERIFICATION ORDER, each step failing closed. The registration gate has
+ * already guaranteed the switch is on and the secret exists, so this function
+ * starts at the Bearer.
+ *
+ *   1. Bearer matches            -> else 401
+ *   2. slug is on the remote list -> else 404 (never 403)
+ *   3. the ability resolves       -> else 404
+ *
+ * STEP 2 ANSWERS 404, NOT 403, ON PURPOSE. A 403 confirms the slug exists and
+ * turns this endpoint into an enumeration oracle for the remote allowlist.
+ * sn_mcp_call_tool() already answers unknown tools with -32602 rather than a
+ * permission error; this is the REST-shaped equivalent.
+ *
+ * There is no separate scope check: THE REMOTE SLUG LIST IS THE SCOPE. With one
+ * secret and one list, a per-secret scope field would encode the same fact twice
+ * and could drift out of step with it.
+ *
+ * @param object $request The REST request.
+ * @return array|WP_Error
+ */
+function sn_bridge_handle_request( $request ) {
+	$header = is_object( $request ) && method_exists( $request, 'get_header' )
+		? $request->get_header( 'authorization' )
+		: null;
+
+	if ( ! sn_bridge_bearer_matches( $header, sn_bridge_secret() ) ) {
+		return new WP_Error(
+			'sn_bridge_unauthorized',
+			__( 'Unauthorized.', 'signal-and-noise-tools' ),
+			array( 'status' => 401 )
+		);
+	}
+
+	$body = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) )
+		? (array) $request->get_json_params()
+		: array();
+	$slug = isset( $body['slug'] ) ? (string) $body['slug'] : '';
+	$args = ( isset( $body['args'] ) && is_array( $body['args'] ) ) ? $body['args'] : array();
+
+	if ( '' === $slug ) {
+		return new WP_Error(
+			'sn_bridge_bad_request',
+			__( 'Missing slug.', 'signal-and-noise-tools' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	if ( ! function_exists( 'sn_mcp_remote_slugs' ) || ! in_array( $slug, sn_mcp_remote_slugs(), true ) ) {
+		return new WP_Error(
+			'sn_bridge_not_found',
+			__( 'Not found.', 'signal-and-noise-tools' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	$ability = function_exists( 'wp_get_ability' ) ? wp_get_ability( $slug ) : null;
+	if ( ! $ability ) {
+		return new WP_Error(
+			'sn_bridge_not_found',
+			__( 'Not found.', 'signal-and-noise-tools' ),
+			array( 'status' => 404 )
+		);
+	}
+
+	// Grant, dispatch, and ALWAYS put it back. The finally is the reason this is
+	// safe: an ability that throws must not leave the capability attached.
+	sn_bridge_set_verified( true );
+	add_filter( 'user_has_cap', 'sn_bridge_grant_capability', 10, 1 );
+	try {
+		$out = $ability->execute( $args );
+	} finally {
+		remove_filter( 'user_has_cap', 'sn_bridge_grant_capability', 10 );
+		sn_bridge_set_verified( false );
+	}
+
+	return is_wp_error( $out ) ? $out : array( 'ok' => true, 'data' => $out );
+}

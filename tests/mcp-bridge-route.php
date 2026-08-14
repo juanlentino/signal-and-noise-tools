@@ -168,6 +168,78 @@ $caps = sn_bridge_grant_capability( array( 'read' => true ) );
 ok( ! array_key_exists( 'sn_read_remote_analytics', $caps ), 'clearing the flag revokes the grant' );
 ok( true === $caps['read'], 'and the revoked path still passes other capabilities through' );
 
+echo "Group: the handler refuses in order, and never leaks which gate refused\n";
+// A stub ability layer: one known slug that echoes its args.
+$GLOBALS['__executed'] = array();
+class SNB_Ability {
+	private $slug;
+	public function __construct( $s ) { $this->slug = $s; }
+	public function execute( $args ) {
+		$GLOBALS['__executed'][] = array( $this->slug, $args );
+		// The throwing half of the stub. An ability CAN throw — a DB error, a
+		// remote timeout, a TypeError inside a callback — and the handler's
+		// cleanup has to survive it. See the throw group at the bottom.
+		if ( ! empty( $GLOBALS['__throw'] ) ) { throw new RuntimeException( 'the ability exploded' ); }
+		return array( 'ran' => $this->slug );
+	}
+}
+function wp_get_ability( $slug ) { return in_array( $slug, sn_mcp_remote_slugs(), true ) ? new SNB_Ability( $slug ) : null; }
+
+// NOTE: SN_BRIDGE_TOKEN is ALREADY defined as 'topsecret' above, which the
+// gate-opens assertion needs. Do not define it again here — a second define() of
+// the same constant is a PHP warning and the value would not change.
+$REMOTE = sn_mcp_remote_slugs()[0];
+
+$r = sn_bridge_handle_request( new SNB_Req( array(), array( 'slug' => $REMOTE ) ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'no Authorization -> 401' );
+
+$r = sn_bridge_handle_request( new SNB_Req( array( 'authorization' => 'Bearer wrong' ), array( 'slug' => $REMOTE ) ) );
+ok( is_wp_error( $r ) && 401 === $r->data['status'], 'wrong Bearer -> 401' );
+
+$good = array( 'authorization' => 'Bearer topsecret' );
+$r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => 'signal-noise/get-post-content' ) ) );
+ok( is_wp_error( $r ) && 404 === $r->data['status'], 'THE ONE THAT MATTERS: a valid secret with an off-list slug -> 404, never 403' );
+
+$r = sn_bridge_handle_request( new SNB_Req( $good, array() ) );
+ok( is_wp_error( $r ) && 400 === $r->data['status'], 'a missing slug -> 400' );
+
+echo "Group: a verified call dispatches, and leaves nothing behind\n";
+$GLOBALS['__executed'] = array();
+$GLOBALS['__removed']  = array();
+$r = sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE, 'args' => array( 'range' => 7 ) ) ) );
+ok( ! is_wp_error( $r ), 'a fully valid call is not an error' );
+ok( 1 === count( $GLOBALS['__executed'] ), 'the ability executed exactly once' );
+ok( array( 'range' => 7 ) === $GLOBALS['__executed'][0][1], 'and received its args' );
+ok( false === sn_bridge_is_verified(), 'THE OTHER ONE THAT MATTERS: the verified flag is cleared after dispatch' );
+ok( in_array( 'user_has_cap', $GLOBALS['__removed'], true ), 'and the capability filter was removed' );
+
+echo "Group: the cleanup survives an ability that THROWS — the reason the finally exists\n";
+// NOT COVERED BY THE GROUP ABOVE, and that is the whole point of adding it.
+// Every pin above dispatches an ability that RETURNS, and on that path a handler
+// with no try/finally at all — a plain `$out = $ability->execute( $args );`
+// followed by the same two cleanup lines — is INDISTINGUISHABLE from the correct
+// one. Deleting the finally leaves this suite green without these three.
+//
+// Only a throw separates them. Without the finally the exception unwinds straight
+// past the cleanup, and every capability check for the remainder of that request
+// is answered by a filter that is still attached and a flag that still says
+// verified — the request keeps sn_read_remote_analytics that nothing took back.
+$GLOBALS['__throw']   = true;
+$GLOBALS['__removed'] = array();
+$threw = false;
+try {
+	sn_bridge_handle_request( new SNB_Req( $good, array( 'slug' => $REMOTE ) ) );
+} catch ( RuntimeException $e ) {
+	$threw = true;
+}
+$GLOBALS['__throw'] = false;
+// The propagation pin is a discriminator, not decoration: a handler that
+// swallowed the exception and returned a success envelope would satisfy both
+// cleanup pins below while telling the Worker a failed call succeeded.
+ok( $threw, 'the ability failure propagates rather than being swallowed into a success envelope' );
+ok( false === sn_bridge_is_verified(), 'THE ONE THE finally EXISTS FOR: a throwing ability still leaves the flag cleared' );
+ok( in_array( 'user_has_cap', $GLOBALS['__removed'], true ), 'and the capability filter is still removed when the ability throws' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-bridge-route.php\n";
