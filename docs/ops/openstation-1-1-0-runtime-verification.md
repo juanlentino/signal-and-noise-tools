@@ -1,11 +1,32 @@
 # OpenStation v1.1.0 — runtime verification checklist
 
-Closes the one gap [docs/openstation-compat.md](../openstation-compat.md)
-cannot close from source: the post-rename (`openstation_*`) path has never
-executed against a live WordPress admin. Everything in that file is
-source-verified at tag `v1.1.0`; nothing in it is runtime-verified.
+> **SUPERSEDED IN PART, 2026-08-14 — read this before using the document.**
+>
+> This checklist was written believing the site still ran the pre-rename
+> v0.9.8 and would be upgraded. **The site was already on v1.1.0.** Two
+> consequences:
+>
+> 1. **The baseline pass is gone.** Its whole design — run everything on
+>    v0.9.8 first, so each check becomes *"did the upgrade change this?"* and
+>    every instrument gets negative-controlled — required a pre-upgrade
+>    window that no longer exists. §Pre-flight and §Baseline pass below are
+>    **dead as written**; the "Expect `0.9.8`" instruction will simply fail.
+> 2. **Most of the remaining checks are already answered by production.**
+>    §A–§G cover surfaces that fail *visibly* (missing dock tile, dead
+>    command, unmounted widget). The site runs daily on v1.1.0 without those
+>    symptoms, which is real evidence.
+>
+> **What is still worth running: §H and §I only.** Those two sinks fail
+> *silently* — a hook that stopped firing writes no row and logs nothing, and
+> no amount of normal use surfaces it. Each is one `wp eval` counter read,
+> one deliberate invocation, one re-read. Skip the baseline language and read
+> the delta against the count you take immediately beforehand.
+>
+> Everything below is retained as-is for the failure-signature tables, which
+> remain correct and are the useful part.
 
-Owner-run. Budget ~30 minutes.
+Owner-run. **~5 minutes** for §H + §I; the original ~30 minute estimate
+covered the now-superseded full pass.
 
 ## The hazard this checklist is built around
 

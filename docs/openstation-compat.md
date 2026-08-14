@@ -239,27 +239,35 @@ real `WordPress/openstation` source at tag **v1.1.0**. The full plugin suite
 passes unmodified against it (exit `0`, zero `FAIL`, 17,522 assertions,
 2026-08-14).
 
-What remains **unverified**, stated precisely: this is *source* verification
-against a tagged release, not *runtime* verification. The post-rename path
-has still never executed against a real WordPress admin running OpenStation,
-because the owner's site has not been upgraded off the pre-rename line. What
-changed on 2026-08-14 is that this gap is now merely *unperformed* rather
-than structurally impossible — a post-rename release exists and can be
-installed. The honest characterisation is: **source-verified against v1.1.0,
-runtime-unverified on both lines.**
+**The site runs v1.1.0 in production** (owner-confirmed 2026-08-14). The
+post-rename path is therefore the live path, not a hypothetical one, and it
+carries daily traffic without incident. Two earlier claims in this file —
+that the post-rename path "has never executed against a real WordPress admin"
+and that the site "has not been upgraded off the pre-rename line" — were
+wrong and are withdrawn.
 
-Note the asymmetry that makes this tolerable: our compat layer
-dual-registers, so the pre-rename path is exercised on every real page load
-today, and the post-rename path is the one carrying risk. That risk is
-bounded by the membership check above, not eliminated by it.
+That said, **"in production without complaints" verifies exactly the surfaces
+a human would notice, and no others.** Split honestly:
 
-**To close the gap**, work through
+| Seam | Status |
+|---|---|
+| Dock item, desktop icons, Cmd+K commands, widgets, chromeless nav, Plugins-window icon | **Field-verified.** These fail *visibly* — a missing tile, a dead command, an unmounted widget. Daily use is a real oracle here |
+| Copilot tool-invocation log (`sn_ai_tool_invocations`), agent telemetry (`{prefix}sn_tool_call`) | **Still unverified.** These fail *silently* — a hook that stopped firing writes no row, logs no error, and shows no symptom. Nobody notices a counter that stopped counting |
+| Living-tree traffic | **Unverifiable by observation** — falls back to a plausible default rather than an error |
+
+The inversion is worth stating plainly: the seams most likely to be quietly
+broken are precisely the ones production use cannot vouch for, because their
+failure mode is *absence of a row* — and absence is what a never-fired hook
+and a genuinely quiet week look like alike. See
+[[realtime-zero-vs-null]]-style reasoning: never-measured and measured-zero
+are different answers, and this sink cannot tell you which it is.
+
+**If that ever matters**, §H and §I of
 [docs/ops/openstation-1-1-0-runtime-verification.md](ops/openstation-1-1-0-runtime-verification.md)
-— an owner-run checklist (~30 min) covering all 9 hooks, both JS globals, the
-CSS class, and both telemetry sinks. Its central instruction is to run the
-whole thing on v0.9.8 **before** upgrading, which converts every check from
-"does this work?" into "did the upgrade change this?" and negative-controls
-every instrument in it. Update this section with what that run establishes.
+are the two sections still worth running — each is a single `wp eval` counter
+read before and after one deliberate invocation. The rest of that checklist is
+superseded by the field evidence above, and its v0.9.8 baseline pass is no
+longer available.
 
 ## Review round — REJECT #11
 
