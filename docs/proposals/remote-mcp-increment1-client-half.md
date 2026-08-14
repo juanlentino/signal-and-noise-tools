@@ -395,6 +395,24 @@ It is not fixable at the endpoint: any response that separated "wrong secret" fr
 would rebuild exactly the oracle #641 and #642 closed. So the mitigations are procedural, and they
 belong in the runbook rather than in code:
 
+**Amendment (R3 §3D Increment 4, peer session, 2026-08-14): the peer's outcome counters partially
+falsify "unobservable by construction."** The wire still collapses every anonymous refusal into
+one 404 — that has not changed. But `docs/proposals/remote-mcp-increment4-observability.md` §11
+records that the origin now counts *which branch* refused, and that is a second readout this
+section did not have when it was written. Two qualifications, carried faithfully from that
+document so this is not read as more than it is:
+
+- **The status-panel line is a prompt, not the diagnosis.** It shows a *summed* refusal count;
+  refusals climbing while calls and last-used stay flat is what says "look closer." Confirming the
+  specific branch means reading the per-outcome counters directly: `wp option get
+  sn_mcp_remote_log_v1`.
+- **`refused_shut` counts only the in-flight toggle-race window** — with the toggle off, the route
+  is never registered, so shut-door traffic dies at core's `rest_no_route` before the peer's module
+  ever sees it. A shut-door day reads zero regardless of how hard the door was knocked on. The
+  actual signature, therefore, is narrower than "refusals climbing": **`refused_auth` climbing
+  specifically, while the toggle is ON**, is what names the two `SN_BRIDGE_TOKEN` halves
+  disagreeing — and `refused_auth` has no benign explanation once the toggle is confirmed on.
+
 1. **Rotation is a two-step with an unavoidable dark window.** Whatever order it is done in, the
    door 404s between the two edits. Expect it; do not diagnose it.
 2. **"Did I just rotate?" is the first question** when the door goes dark with both panels green.
