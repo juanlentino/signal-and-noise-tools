@@ -128,11 +128,68 @@ surface beats guarding it.
 **Both were the same blind spot:** I threat-modelled the endpoint I *wrote* and not the surfaces
 WordPress creates on my behalf.
 
+> **Superseded in part — see the 2026-08-14 (later) correction below.** Fix 1 above chose the
+> wrong parity target. Making a bad Bearer *"byte-identical to an off-list slug"* aligned it with
+> the wrong twin: the off-list slug is what a caller **holding the secret** sees. The refusal an
+> anonymous prober needs to be indistinguishable from is the one WordPress gives for a route that
+> was never registered. The original wording is left in place because the reasoning it records —
+> and the target it picked — is the finding.
+
 **One wording correction, no behaviour change.** This document said the bridge uses "the same path
 the MCP door uses." It does not — `sn_mcp_call_tool()` calls `check_permissions()` *then*
 `execute()`; the bridge calls only `execute()`. Real core `WP_Ability::execute()` runs
 `check_permissions()` internally, so the property holds, but **the test suite cannot see it**: the
 `SNB_Ability` fixture never calls `check_permissions`. A faithful fixture is owed.
+
+---
+
+## Correction 2026-08-14 (later) — the oracle was closed on status and left open on body
+
+Working through the three pins the review asked for and this document owed, the first one —
+*"unauthenticated POST `/bridge` is the same status registered vs unregistered"* — turned out to
+be **already true and not the property**. Both are 404. The bodies were not:
+
+| | code | message |
+| --- | --- | --- |
+| route never registered (core) | `rest_no_route` | No route was found matching the URL and request method. |
+| registered, bad Bearer (ours) | `sn_bridge_not_found` | Not found. |
+
+A REST client reads JSON, not a status line. **So the armed-vs-shut oracle survived the v11.0.0
+fix, one field further down** — which is the third time this increment has been bitten by the same
+shape, after the 503 and after the 401. Answering 404 was necessary and was not sufficient.
+
+**Fixed:** `sn_bridge_absent_route_error()` returns core's `WP_Error` verbatim — code, message and
+data — copied from `WP_REST_Server::dispatch()`. It is used for **every pre-authentication
+refusal**. The `default` text domain is part of the fix, not an oversight: core translates that
+string in `default`, so resolving ours anywhere else would diverge on every non-English site.
+
+**The asymmetry is deliberate and now has its own pin.** A caller who already holds the secret
+still gets `sn_bridge_not_found` for an off-list slug. They are authenticated; a distinct code
+leaks nothing and gives the Worker something to log. Collapsing every refusal to `rest_no_route`
+would read as an improvement and would cost the Worker its only diagnostic.
+
+### Also closed
+
+- **The faithful `execute()` fixture** — `tests/mcp-bridge-permission-callback.php`, 21
+  assertions. It models core's order (`check_permissions()` before `do_execute()`, refusing with
+  `ability_invalid_permissions`) and is **built from the ability's real registration arguments**,
+  so renaming a callback reds it rather than leaving it testing a callback nothing uses. Its
+  `current_user_can()` is core-shaped too: it starts from a principal holding nothing — the shape
+  of `WP_User( 0 )`, which every bridge call is — and runs the registered `user_has_cap` filters,
+  so the grant appearing is an observed consequence rather than a value the fixture wrote down.
+  **The counterfactual is the pin that matters:** detach the grant filter and the same call
+  returns `ability_invalid_permissions`. The permission callback is satisfied, not bypassed.
+- **The one-request TOCTOU** — the handler now re-reads both gates at step 0, through the same
+  predicate registration uses, and refuses in the anonymous shape. Never a durable bypass; the
+  window is exactly the moment an owner is trying to shut the door.
+
+### What this cost, and what it says about the suite
+
+Adding step 0 turned **twelve** existing pins in `tests/mcp-bridge-route.php` red — because that
+suite had been dispatching with the switch **off** the whole time, and the handler allowed it. The
+labels said Bearer, slug list and envelope; the fixture state said the door was shut. Nothing was
+wrong with the assertions, and nothing was wrong with the shipped code. It is the same failure
+this increment keeps producing: **a label describing a property the group did not establish.**
 
 ---
 

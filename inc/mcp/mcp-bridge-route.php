@@ -134,6 +134,51 @@ function sn_bridge_grant_capability( $allcaps ) {
 }
 
 /**
+ * The refusal an UNAUTHENTICATED caller sees — byte-identical to the one
+ * WordPress itself returns for a route that was never registered.
+ *
+ * WHY IT IS COPIED FROM CORE RATHER THAN NAMED OURSELVES. The registration gate
+ * means "switch off" and "secret absent" are a route that does not exist, and
+ * core answers that with `rest_no_route` / 404. If our own pre-auth refusal
+ * carries a DIFFERENT code or message, an anonymous prober still separates the
+ * two — the status matches but the body does not, and a REST client reads the
+ * body. Answering 404 instead of 401 (v11.0.0) closed the status half of that
+ * oracle and left the body half open. This closes it.
+ *
+ * The literal is `WP_REST_Server::dispatch()`'s, verbatim:
+ *
+ *     return new WP_Error(
+ *         'rest_no_route',
+ *         __( 'No route was found matching the URL and request method.' ),
+ *         array( 'status' => 404 )
+ *     );
+ *
+ * THE `default` TEXT DOMAIN IS THE POINT, not an oversight. Core translates that
+ * string in the `default` domain; ours must resolve through the same catalogue
+ * or the two bodies diverge on every non-English site — which would rebuild the
+ * oracle for exactly the installs least likely to notice. Do not "fix" it to
+ * signal-and-noise-tools.
+ *
+ * A caller who ALREADY HOLDS the secret is answered with sn_bridge_not_found
+ * instead. That distinction is deliberate: they are authenticated, so telling
+ * them the slug was unknown leaks nothing, and the Worker gets a code it can log.
+ *
+ * @return WP_Error
+ */
+function sn_bridge_absent_route_error() {
+	return new WP_Error(
+		'rest_no_route',
+		// phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- Deliberate: byte-parity with core's own rest_no_route body. See the docblock above.
+		// THIS IGNORE IS FOR PLUGIN CHECK, NOT FOR `composer lint`. Removing it
+		// leaves the local WPCS run green — that sniff is not enabled here — and
+		// reds CI, where Plugin Check compares the domain against the plugin
+		// SLUG and sees 'default' as a mismatch. Verified 2026-08-14.
+		__( 'No route was found matching the URL and request method.', 'default' ),
+		array( 'status' => 404 )
+	);
+}
+
+/**
  * Should the bridge route exist at all on this request?
  *
  * BOTH gates, and neither alone. The kill switch is checked through the remote
@@ -187,13 +232,21 @@ if ( function_exists( 'add_action' ) ) {
 /**
  * Handle one bridge call.
  *
- * VERIFICATION ORDER, each step failing closed. The registration gate has
- * already guaranteed the switch is on and the secret exists, so this function
- * starts at the Bearer.
+ * VERIFICATION ORDER, each step failing closed:
  *
- *   1. Bearer matches            -> else 401
- *   2. slug is on the remote list -> else 404 (never 403)
- *   3. the ability resolves       -> else 404
+ *   0. both gates still open      -> else 404 (rest_no_route)
+ *   1. Bearer matches             -> else 404 (rest_no_route)
+ *   2. slug is on the remote list -> else 404 sn_bridge_not_found (never 403)
+ *   3. the ability resolves       -> else 404 sn_bridge_not_found
+ *
+ * STEP 0 IS DEFENCE IN DEPTH, not the primary control. The registration gate
+ * already guaranteed both gates were open when `rest_api_init` ran, so this can
+ * only differ from it inside the window between registration and dispatch on a
+ * SINGLE request — an owner unchecking the toggle mid-flight. That is not a
+ * durable bypass and was never one; re-checking simply means the last word on
+ * "is the door open" is read as late as possible rather than as early. It shares
+ * a predicate with registration on purpose: two answers to that question is how
+ * they drift apart.
  *
  * STEP 2 ANSWERS 404, NOT 403, ON PURPOSE. A 403 confirms the slug exists and
  * turns this endpoint into an enumeration oracle for the remote allowlist.
@@ -208,26 +261,31 @@ if ( function_exists( 'add_action' ) ) {
  * @return array|WP_Error
  */
 function sn_bridge_handle_request( $request ) {
+	// STEP 0 — the gates, read again as late as possible. Same predicate as
+	// registration, so there is one definition of "the door is open".
+	if ( ! sn_bridge_should_register() ) {
+		return sn_bridge_absent_route_error();
+	}
+
 	$header = is_object( $request ) && method_exists( $request, 'get_header' )
 		? $request->get_header( 'authorization' )
 		: null;
 
-	// A BAD BEARER ANSWERS 404, BYTE-IDENTICAL TO AN OFF-LIST SLUG, AND THAT IS
-	// THE POINT. An earlier version answered 401 here, which told an
+	// A BAD BEARER ANSWERS EXACTLY WHAT AN UNREGISTERED ROUTE ANSWERS, AND THAT
+	// IS THE POINT. An earlier version answered 401 here, which told an
 	// unauthenticated caller the route exists and the site means to serve it —
 	// exactly the leak this design folded the old 503 into registration to
-	// prevent. A 401 did the same job as that 503 from one step further in.
+	// prevent. v11.0.0 changed it to 404, which closed the STATUS half of the
+	// oracle and left the BODY half open: `sn_bridge_not_found` / "Not found."
+	// still read differently from core's `rest_no_route`, and a REST client
+	// reads the body. sn_bridge_absent_route_error() is core's, verbatim.
 	//
-	// With 404 here, an anonymous probe cannot distinguish: switch off, secret
-	// absent, wrong secret, or unknown slug. A caller who ALREADY HOLDS the
-	// secret still learns 400-vs-404, which is deliberate — they are
-	// authenticated, so telling them their body was malformed leaks nothing.
+	// So an anonymous probe cannot distinguish: switch off, secret absent, wrong
+	// secret, or a plugin that was never installed. A caller who ALREADY HOLDS
+	// the secret still learns 400-vs-404 and a distinct code, which is
+	// deliberate — they are authenticated, so it leaks nothing.
 	if ( ! sn_bridge_bearer_matches( $header, sn_bridge_secret() ) ) {
-		return new WP_Error(
-			'sn_bridge_not_found',
-			__( 'Not found.', 'signal-and-noise-tools' ),
-			array( 'status' => 404 )
-		);
+		return sn_bridge_absent_route_error();
 	}
 
 	$body = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) )
