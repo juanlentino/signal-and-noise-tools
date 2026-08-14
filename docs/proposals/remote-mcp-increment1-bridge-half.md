@@ -130,11 +130,25 @@ request is already inside the abilities layer.
 ### 3. Verification order, each step failing closed
 
 ```
-1. constant present?           → else 503   (misconfiguration, not a client error)
-2. Bearer matches (hash_equals)→ else 401
-3. slug ∈ sn_mcp_remote_slugs()→ else 404   (never 403 — see below)
-4. body shape valid            → else 400
+0. REGISTRATION GATE: switch on AND constant present → else the route does not exist (404)
+1. Bearer matches (hash_equals) → else 401
+2. slug ∈ sn_mcp_remote_slugs() → else 404   (never 403 — see below)
+3. body shape valid             → else 400
 ```
+
+**The constant check lives in registration, not the handler.** An earlier draft answered 503 when
+`SN_BRIDGE_TOKEN` was undefined, to distinguish misconfiguration from a client error. That leaks:
+a 503 tells an unauthenticated caller the route exists and the site intends to serve it, which is
+exactly the reconnaissance a 404 denies. Folding the check into registration makes both failure
+modes — switch off, secret absent — indistinguishable from the outside **and** removes a handler
+branch. One condition, one outcome.
+
+**The operational cost, and where it is paid.** A 404 that means "misconfigured" is harder to
+debug than a 503 that says so. That diagnosis belongs in wp-admin, not on the endpoint:
+`inc/admin-forms/mcp-connect-status.php` already renders read/rw door states as pills
+(`constant_killed | option_off | inactive | bound | unresolvable`). The remote row must
+distinguish **switch off** from **secret missing** there, so the owner can tell a deliberate
+dark switch from a broken deploy without the endpoint ever revealing which.
 
 **Step 3 returns 404, not 403.** A 403 confirms the slug exists and turns the endpoint into an
 enumeration oracle for the remote allowlist. `sn_mcp_call_tool()` already answers unknown tools
@@ -204,11 +218,15 @@ This is the one change in `sn-remote-mcp-worker` and it is named here so it is n
 | Condition | Response |
 | --- | --- |
 | Kill switch off | 404 (route not registered) |
-| `SN_BRIDGE_TOKEN` undefined or empty | 503 |
+| `SN_BRIDGE_TOKEN` undefined or empty | 404 (route not registered) |
 | Bearer missing or wrong | 401 |
 | Slug not on the remote list | 404 |
 | Malformed body | 400 |
 | Ability returns `WP_Error` | pass through with its own status |
+
+Three distinct conditions answer 404, and that is the point: an unauthenticated caller cannot
+tell a dark switch from a missing secret from an unknown slug. Diagnosis lives in the admin
+status panel, which is authenticated.
 
 No response distinguishes *which* check failed beyond these codes. In particular a wrong token
 and a valid token with an unknown slug must not be separable by an unauthenticated caller.
@@ -218,9 +236,12 @@ and a valid token with an unknown slug must not be separable by an unauthenticat
 ## Testing
 
 - **Verification matrix:** each of the four steps refuses in isolation while the other three pass.
-- **Constant absent → 503**, and mutation-verify by defining it and watching the pin flip.
-- **Kill switch off → route absent.** Assert `rest_get_server()->get_routes()` has no bridge key,
-  not merely that a request 403s.
+- **Registration gate, both conditions.** Switch off → no bridge key in
+  `rest_get_server()->get_routes()`. Constant absent → likewise. Assert the route's **absence**,
+  not that a request 403s — a handler that returns 404 would pass a status assertion while
+  leaving the code path reachable.
+- **The admin status panel distinguishes them** even though the endpoint does not: switch-off and
+  secret-missing render as different states.
 - **The capability does not leak:** after a bridge dispatch, `current_user_can(
   'sn_read_remote_analytics' )` is false again. Assert the filter was removed even when the
   ability throws.
