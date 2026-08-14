@@ -476,7 +476,10 @@ function sn_mcp_remote_pending_add( $outcome ) {
  *     @type string|null $last_used     Site-timezone timestamp of the last dispatch.
  *     @type array       $today         outcome => int, every outcome present.
  *     @type int         $today_refused Sum of every refusal outcome today.
- *     @type array       $recent        The ring, newest first.
+ *     @type array       $recent        The ring, newest first. Untrusted display
+ *                                       data — slug is caller-influenced (bounded
+ *                                       to 191 chars at the write site); escape
+ *                                       at render.
  * }
  */
 function sn_mcp_remote_log_read() {
@@ -491,6 +494,8 @@ function sn_mcp_remote_log_read() {
 	foreach ( SN_MCP_REMOTE_OUTCOMES as $outcome ) {
 		$n                 = isset( $bucket[ $outcome ] ) ? (int) $bucket[ $outcome ] : 0;
 		$today[ $outcome ] = $n;
+		// "Refused" deliberately means everything that is not a dispatch. A future
+		// non-refusal outcome (e.g. throttled) must revisit this sum.
 		if ( 'dispatched' !== $outcome ) {
 			$refused += $n;
 		}

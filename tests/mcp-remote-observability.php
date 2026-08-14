@@ -323,6 +323,22 @@ sn_mcp_remote_record( 'refused_auth', '' );
 $first  = sn_mcp_remote_log_read();
 $second = sn_mcp_remote_log_read();
 ok( $first['today_refused'] === $second['today_refused'], 'THE IDEMPOTENCE PIN: two consecutive reads report the same total' );
+ok( ! array_key_exists( SN_MCP_REMOTE_LOG_OPTION, $GLOBALS['__options'] ), 'THE READ-ONLY PIN (storage half): two reads wrote NO option — a read is not a write path' );
+ok( 1 === ( $GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ]['counts']['refused_auth'] ?? 0 ), 'and the pending buffer still holds the refusal — folding did not clear it' );
+
+echo "Group: a pre-flush buffer from YESTERDAY does not inflate today\n";
+// The fold files counts under the buffer's own day; the reader then selects
+// today's bucket. Yesterday's tail is not lost — it lands at the next flush —
+// it is just not headlined as today. "Today" must mean today.
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+$GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ] = array(
+	'day'        => wp_date( 'Y-m-d', time() - DAY_IN_SECONDS ),
+	'first_seen' => time() - 30,
+	'counts'     => array( 'refused_auth' => 4 ),
+);
+$view = sn_mcp_remote_log_read();
+ok( 0 === $view['today_refused'], 'THE ROLLOVER-READ PIN: yesterday\'s buffered counts do not appear in today\'s totals' );
 
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-remote-observability.php\n"
