@@ -341,6 +341,17 @@ ok( false === sn_bridge_bearer_matches( 'Bearer wrong', 'secret' ), 'a wrong bea
 ok( false === sn_bridge_bearer_matches( 'secret', 'secret' ), 'the bare secret without the Bearer prefix does not match' );
 ok( true  === sn_bridge_bearer_matches( 'Bearer secret', 'secret' ), 'the correct Bearer matches' );
 ok( false === sn_bridge_bearer_matches( 'Bearer secret', '' ), 'THE ONE THAT MATTERS: an empty configured secret matches NOTHING' );
+
+// DO NOT "tidy" these two values into something readable — the strangeness IS the
+// test. Both are numeric strings in scientific notation, so PHP's == coerces each
+// to the float 0 and reports 0 == 0, i.e. TRUE: the classic magic-hash bypass.
+// hash_equals() compares them as strings and returns false. This assertion is
+// therefore the witness that distinguishes the two operators, and it is the only
+// one that does. Replacing hash_equals() with == would be an AUTHENTICATION
+// BYPASS for any numeric-looking SN_BRIDGE_TOKEN, not merely a timing regression.
+// (The timing half of hash_equals()'s job remains unassertable in this harness —
+// that is a known and accepted gap, recorded rather than papered over.)
+ok( false === sn_bridge_bearer_matches( 'Bearer 0e222222', '0e111111' ), 'THE TYPE-JUGGLING PIN: two distinct numeric strings must not authenticate each other (PHP == would say 0 == 0)' );
 ```
 
 - [ ] **Step 2: Run test to verify it fails**
@@ -384,7 +395,7 @@ function sn_bridge_bearer_matches( $header, $secret ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-bridge-route.php`
-Expected: `OK (17 passed, 0 failed): mcp-bridge-route.php`
+Expected: `OK (18 passed, 0 failed): mcp-bridge-route.php`
 
 - [ ] **Step 5: Commit**
 
@@ -506,7 +517,7 @@ function sn_bridge_grant_capability( $allcaps ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-bridge-route.php`
-Expected: `OK (24 passed, 0 failed): mcp-bridge-route.php`
+Expected: `OK (25 passed, 0 failed): mcp-bridge-route.php`
 
 - [ ] **Step 5: Commit**
 
@@ -671,7 +682,7 @@ function sn_bridge_handle_request( $request ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-bridge-route.php`
-Expected: `OK (33 passed, 0 failed): mcp-bridge-route.php`
+Expected: `OK (34 passed, 0 failed): mcp-bridge-route.php`
 
 - [ ] **Step 5: Commit**
 
@@ -1012,7 +1023,12 @@ Run `php tests/mcp-bridge-route.php` → expect `FAIL - THE ONE THAT MATTERS: sw
 Run → expect `FAIL - THE AND-DISCRIMINATOR: secret PRESENT but switch OFF -> do not register`. Steps 1 and 1b together are what prove the gate is AND rather than OR; either one alone is satisfied by an implementation that ignores the other input. Revert.
 
 - [ ] **Step 2:** Change `hash_equals` to `==` in `sn_bridge_bearer_matches()`.
-Run → the wrong-bearer pins still pass (both are false), so this mutation is **expected to survive**. That is not a gap in the tests — timing-safety cannot be asserted in this harness. Note it and move on rather than inventing a test that appears to cover it.
+Run → expect `FAIL - THE TYPE-JUGGLING PIN: two distinct numeric strings must not authenticate each other (PHP == would say 0 == 0)`, and that assertion alone. Revert.
+
+`hash_equals()` defends **two distinct properties**, and only one of them was ever a "cannot test this" case. Do not collapse them:
+
+- **Type-juggling — CAUGHT, and it must stay caught.** `==` coerces two numeric strings in scientific notation to the float `0` and reports `0 == 0`, so `'0e222222' == '0e111111'` is `true`. With `==` in place, any numeric-looking `SN_BRIDGE_TOKEN` is an **authentication bypass**, not a subtle weakening. The pin passes the magic-hash pair as arguments rather than through the fixture constant, which is why it costs nothing and needs no second fixture file. If this mutation ever survives again, the pin has been "tidied" into readable values and the coverage is gone.
+- **Timing — GENUINELY UNASSERTABLE here, and recorded as such.** Nothing in a standalone PHP fixture can observe the wall-clock difference between a prefix-matching and a non-matching compare with any reliability. This half of the mutation survives by construction. Leave it recorded with its reason rather than inventing a test that appears to cover it; a survivor documented with its cause is useful, a survivor silently dropped is not.
 
 - [ ] **Step 3:** Remove the `if ( ! sn_bridge_is_verified() )` guard from `sn_bridge_grant_capability()`.
 Run → expect `FAIL - THE ONE THAT MATTERS: the filter grants NOTHING when no verified request is in flight`. Revert.
@@ -1032,7 +1048,7 @@ Run: `git status --short && bash tests/run.sh | tail -1`
 
 - [ ] **Step 8:** Record results in the spec
 
-Append a mutation table to `docs/proposals/remote-mcp-increment1-bridge-half.md` with the actual failing assertion names observed — including **Step 2's expected survivor**, which is the honest entry that stops a later reader assuming timing-safety is pinned.
+Append a mutation table to `docs/proposals/remote-mcp-increment1-bridge-half.md` with the actual failing assertion names observed. Record **Step 2 as a split row**: the type-juggling half reds on the type-juggling pin, the timing half survives by construction. That split is the honest entry that stops a later reader either assuming timing-safety is pinned or assuming the whole mutation is untested.
 
 ---
 

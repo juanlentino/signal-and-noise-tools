@@ -127,6 +127,17 @@ ok( false === sn_bridge_bearer_matches( 'secret', 'secret' ), 'the bare secret w
 ok( true  === sn_bridge_bearer_matches( 'Bearer secret', 'secret' ), 'the correct Bearer matches' );
 ok( false === sn_bridge_bearer_matches( 'Bearer secret', '' ), 'THE ONE THAT MATTERS: an empty configured secret matches NOTHING' );
 
+// DO NOT "tidy" these two values into something readable — the strangeness IS the
+// test. Both are numeric strings in scientific notation, so PHP's == coerces each
+// to the float 0 and reports 0 == 0, i.e. TRUE: the classic magic-hash bypass.
+// hash_equals() compares them as strings and returns false. This assertion is
+// therefore the witness that distinguishes the two operators, and it is the only
+// one that does. Replacing hash_equals() with == would be an AUTHENTICATION
+// BYPASS for any numeric-looking SN_BRIDGE_TOKEN, not merely a timing regression.
+// (The timing half of hash_equals()'s job remains unassertable in this harness —
+// that is a known and accepted gap, recorded rather than papered over.)
+ok( false === sn_bridge_bearer_matches( 'Bearer 0e222222', '0e111111' ), 'THE TYPE-JUGGLING PIN: two distinct numeric strings must not authenticate each other (PHP == would say 0 == 0)' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-bridge-route.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-bridge-route.php\n";
