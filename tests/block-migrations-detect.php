@@ -29,7 +29,10 @@ $GLOBALS['__test_post_meta']  = array();
 $GLOBALS['__test_transients'] = array();
 
 if ( ! function_exists( 'get_posts' ) ) {
-	function get_posts( $args ) { return array_values( $GLOBALS['__test_posts'] ); }
+	function get_posts( $args ) {
+		$GLOBALS['__test_get_posts_args'] = $args; // captured for the status-scope pin (Test 12)
+		return array_values( $GLOBALS['__test_posts'] );
+	}
 }
 if ( ! function_exists( 'get_post_meta' ) ) {
 	function get_post_meta( $post_id, $key, $single = false ) {
@@ -234,6 +237,73 @@ bm_eq( 1, count( $GLOBALS['__test_transients'] ), 'Test 9.4: run_scan() still wr
 $key9 = 'snt_block_migrations_candidates_' . (int) get_current_user_id();
 bm_true( isset( $GLOBALS['__test_transients'][ $key9 ] ), 'Test 9.5: run_scan() writes the documented per-user key' );
 bm_eq( json_encode( $scan9 ), json_encode( $GLOBALS['__test_transients'][ $key9 ] ), 'Test 9.6: the written transient is byte-identical to run_scan()\'s return value' );
+
+// ─── Test 10: h4 with no preceding h2 IS a candidate (rule rewrite) ──
+// The old premise ("H4-without-H2 is the accepted house pattern") was wrong:
+// H2 is the correct first-level body subhead under the template's H1 title,
+// and H4-without-H2 is the same WCAG 1.3.1 skip as H3-without-H2.
+echo "\nTest 10: h4 with no preceding h2 is a candidate\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_post_meta'] = array();
+$GLOBALS['__test_transients'] = array();
+_bm_post( 210, array(
+	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>Intro.</p>' ),
+	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 4 ), 'innerBlocks' => array(), 'innerHTML' => '<h4>Subsection</h4>', 'innerContent' => array( '<h4>Subsection</h4>' ) ),
+) );
+$candidates = snt_block_migrations_detect_candidates();
+bm_eq( 1, count( $candidates ), 'Test 10.1: h4-skip is now a candidate' );
+bm_eq( 4, $candidates[0]['current_level'] ?? 0, 'Test 10.2: current_level reports 4' );
+bm_eq( 2, $candidates[0]['target_level'] ?? 0, 'Test 10.3: target_level is 2' );
+bm_eq( 'heading-hierarchy-skip', $candidates[0]['migration_type'] ?? '', 'Test 10.4: same migration_type (dismiss keys + sn-apply payload unchanged)' );
+
+// ─── Test 11: one candidate PER HEADING in an h4-only post ───────────
+echo "\nTest 11: h4-only post mints one candidate per heading, distinct fingerprints\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_post_meta'] = array();
+$GLOBALS['__test_transients'] = array();
+_bm_post( 211, array(
+	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 4 ), 'innerBlocks' => array(), 'innerHTML' => '<h4>One</h4>', 'innerContent' => array( '<h4>One</h4>' ) ),
+	array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>p</p>' ),
+	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Two</h3>', 'innerContent' => array( '<h3>Two</h3>' ) ),
+) );
+$candidates = snt_block_migrations_detect_candidates();
+bm_eq( 2, count( $candidates ), 'Test 11.1: mixed h4 + h3 skips both flagged' );
+bm_true( ( $candidates[0]['block_fingerprint'] ?? '' ) !== ( $candidates[1]['block_fingerprint'] ?? '' ), 'Test 11.2: distinct per-block fingerprints (the apply contract)' );
+bm_eq( 1, $GLOBALS ? count( array_unique( array_column( $candidates, 'post_id' ) ) ) : 0, 'Test 11.3: both candidates belong to the one post' );
+
+// ─── Test 12: scan walks scheduled (future) posts too ────────────────
+// Notes publish as permanently dated + canonical; a heading fix is free
+// BEFORE publish and mints ledger history after. The 9 scheduled notes
+// must surface while the fix is still free.
+echo "\nTest 12: get_posts scope includes status=future\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_post_meta'] = array();
+$GLOBALS['__test_transients'] = array();
+$GLOBALS['__test_get_posts_args'] = null;
+_bm_post( 212, array(
+	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 4 ), 'innerBlocks' => array(), 'innerHTML' => '<h4>Scheduled</h4>', 'innerContent' => array( '<h4>Scheduled</h4>' ) ),
+) );
+$GLOBALS['__test_posts'][212]->post_status = 'future';
+$candidates = snt_block_migrations_detect_candidates();
+$status_arg = (array) ( $GLOBALS['__test_get_posts_args']['post_status'] ?? array() );
+bm_true( in_array( 'publish', $status_arg, true ), 'Test 12.1: publish still walked' );
+bm_true( in_array( 'future', $status_arg, true ), 'Test 12.2: future now walked' );
+bm_eq( 1, count( $candidates ), 'Test 12.3: the scheduled post\'s h4-skip is a candidate' );
+
+// ─── Test 13: h4 after an h2 stays valid (first-level rule only) ─────
+echo "\nTest 13: h4 after h2 is not flagged\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_post_meta'] = array();
+$GLOBALS['__test_transients'] = array();
+_bm_post( 213, array(
+	array( 'blockName' => 'core/heading', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<h2>Section</h2>', 'innerContent' => array( '<h2>Section</h2>' ) ),
+	array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 4 ), 'innerBlocks' => array(), 'innerHTML' => '<h4>Deep sub</h4>', 'innerContent' => array( '<h4>Deep sub</h4>' ) ),
+) );
+$candidates = snt_block_migrations_detect_candidates();
+bm_eq( 0, count( $candidates ), 'Test 13.1: h4 under a section h2 is not a first-level subhead (per-section validity stays YAGNI)' );
+// NOTE Test 13's h2 block carries NO level attr — the canonical wp:heading
+// serialization for h2 omits the key. The walker must treat a missing level
+// as 2, not 0, or every real-world h2 stops registering as seen.
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

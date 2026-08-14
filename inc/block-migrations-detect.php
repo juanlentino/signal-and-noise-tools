@@ -2,19 +2,22 @@
 /**
  * Signal & Noise Tools — Block-migrations detector.
  *
- * Walks parse_blocks() output for all published post_type=post posts,
- * identifies core/heading blocks with attrs.level === 3 that have NO
- * preceding core/heading with attrs.level === 2 in the same post
+ * Walks parse_blocks() output for all published AND scheduled
+ * post_type=post posts, identifies core/heading blocks at level 3+ that
+ * have NO preceding level-2 core/heading in the same post
  * (heading-hierarchy-skip — WCAG 1.3.1 violation).
  *
- * SCOPE (documented 2026-08-08, audit item 3): level 3 ONLY, deliberately.
- * H4-without-H2 is the same WCAG 1.3.1 shape but it is the accepted house
- * pattern for Notes (most of the corpus uses H4 subheads with nothing above
- * them) — generalizing the check would flag nearly every published Note.
- * What this check catches is drift AGAINST that convention: a Note using H3
- * where the house pattern says H4. Publish-only by the get_posts() args
- * below — a scheduled post (e.g. an H3-skip written while the corpus was
- * still on H3 subheads) surfaces only after it publishes.
+ * SCOPE (rewritten 2026-08-14; supersedes the 2026-08-08 note): the old
+ * rule flagged level 3 ONLY, on the premise that H4-without-H2 was the
+ * accepted house pattern. That premise was wrong — the single-note
+ * template titles with H1, so the correct first-level body subhead is H2,
+ * and H4-without-H2 is the same hierarchy skip as H3. The rule now flags
+ * ANY first-level body subhead that is not H2 (H3 and H4 alike; level 5/6
+ * too, same shape). A canonical wp:heading h2 stores NO level attr —
+ * missing level means 2 here, never 0. Scheduled (status=future) posts
+ * are walked too: Notes publish as permanently dated and canonical, so a
+ * heading fix is free BEFORE publish and mints ledger history after —
+ * the linter must surface a scheduled skip while the fix is still free.
  *
  * Each candidate gets a fingerprint = md5(serialize_block($node)) for
  * concurrency-safe apply later. Candidates whose fingerprints appear in
@@ -51,7 +54,7 @@ const SNT_BLOCK_MIGRATIONS_VALID_TYPES   = array( 'heading-hierarchy-skip' );
 function snt_block_migrations_detect_candidates() {
 	$posts = get_posts( array(
 		'post_type'      => 'post',
-		'post_status'    => 'publish',
+		'post_status'    => array( 'publish', 'future' ),
 		'posts_per_page' => -1,
 		'no_found_rows'  => true,
 	) );
@@ -64,7 +67,7 @@ function snt_block_migrations_detect_candidates() {
 		$blocks = parse_blocks( (string) $post->post_content );
 
 		// For heading-hierarchy-skip, track per-post state: once any h2
-		// appears in the walk, subsequent h3s are valid. This is a
+		// appears in the walk, subsequent h3/h4s are valid. This is a
 		// simplification — true per-section validity is deferred (YAGNI).
 		$seen_h2 = false;
 		snt_block_migrations_walk_blocks( $blocks, $post, $dismissed, $candidates, '0', $seen_h2 );
@@ -75,7 +78,8 @@ function snt_block_migrations_detect_candidates() {
 
 /**
  * Recursive walker. Updates $seen_h2 by reference as it encounters h2
- * blocks. Appends h3-skip candidates to $candidates by reference.
+ * blocks. Appends heading-skip candidates (any level-3+ heading before
+ * the first h2) to $candidates by reference.
  *
  * @param array  $tree
  * @param object $post
@@ -89,14 +93,16 @@ function snt_block_migrations_detect_candidates() {
  */
 function snt_block_migrations_walk_blocks( $tree, $post, $dismissed, &$candidates, $path_prefix, &$seen_h2 ) {
 	foreach ( $tree as $idx => $block ) {
-		$name  = $block['blockName'] ?? '';
-		$level = (int) ( $block['attrs']['level'] ?? 0 );
+		$name = $block['blockName'] ?? '';
+		// Canonical wp:heading serialization OMITS the level attr for h2
+		// (the block default) — a missing level is 2, never 0.
+		$level = isset( $block['attrs']['level'] ) ? (int) $block['attrs']['level'] : 2;
 
 		if ( 'core/heading' === $name && 2 === $level ) {
 			$seen_h2 = true;
 		}
 
-		if ( 'core/heading' === $name && 3 === $level && ! $seen_h2 ) {
+		if ( 'core/heading' === $name && $level > 2 && ! $seen_h2 ) {
 			$fp        = snt_block_fp_fingerprint( $block );
 			$dismiss_k = 'heading-hierarchy-skip:' . $fp;
 			if ( ! in_array( $dismiss_k, $dismissed, true ) ) {
@@ -107,7 +113,7 @@ function snt_block_migrations_walk_blocks( $tree, $post, $dismissed, &$candidate
 					'block_path'        => $path_prefix . '/' . $idx,
 					'post_title'        => (string) ( $post->post_title ?? '' ),
 					'permalink'         => (string) get_permalink( $post->ID ),
-					'current_level'     => 3,
+					'current_level'     => $level,
 					'target_level'      => 2,
 				);
 			}

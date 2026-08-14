@@ -57,7 +57,7 @@ function snt_block_migrations_render_section() {
 	}
 	echo '</h2>';
 
-	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans existing posts for structural issues like heading-hierarchy skips (h3 without preceding h2, WCAG 1.3.1). Pure structural detection: no AI. Each candidate is reviewed and applied per-row.', 'signal-and-noise-tools' ) . '</p>';
+	echo '<p class="sn-fieldset-intro">' . esc_html__( 'Scans published and scheduled posts for structural issues like heading-hierarchy skips (an h3 or h4 subhead with no preceding h2, WCAG 1.3.1). Pure structural detection: no AI. Each candidate is reviewed and applied per-row.', 'signal-and-noise-tools' ) . '</p>';
 
 	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );

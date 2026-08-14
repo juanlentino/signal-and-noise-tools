@@ -170,5 +170,23 @@ $result_paragraph = snt_block_migrations_build_heading_promotion( $paragraph_blo
 bms_true( strpos( $result_paragraph, '<p>' ) !== false, 'Test 6.3: non-heading block is passed through unchanged' );
 bms_true( strpos( $result_paragraph, '<h2>' ) === false, 'Test 6.4: non-heading block does NOT get h2 injected' );
 
+// ─── Test 7: h4 promotion (rule rewrite: any non-h2 first-level subhead) ─
+// The builder must derive the source tag from the block's OWN level attr —
+// an h4 candidate whose markup stayed <h4> while attrs claimed h2 would
+// fail Gutenberg block validation on next editor load.
+echo "\nTest 7: successful suggestion (h4 → h2)\n";
+$GLOBALS['__test_posts'] = array();
+$h4_block = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 4, 'className' => 'keep-me' ), 'innerBlocks' => array(), 'innerHTML' => '<h4 class="wp-block-heading keep-me">Deep subhead</h4>', 'innerContent' => array( '<h4 class="wp-block-heading keep-me">Deep subhead</h4>' ) );
+$fp       = md5( serialize_block( $h4_block ) );
+_bms_post( 305, array( $h4_block ) );
+
+$result = snt_block_migrations_suggest_impl( 305, $fp, 'heading-hierarchy-skip' );
+bms_true( is_array( $result ) && ! empty( $result['ok'] ), 'Test 7.1: h4 candidate suggests successfully' );
+bms_true( strpos( $result['suggestion_markup'], '<h2 ' ) !== false, 'Test 7.2: suggestion opens with <h2>' );
+bms_true( strpos( $result['suggestion_markup'], '</h4>' ) === false && strpos( $result['suggestion_markup'], '<h4' ) === false, 'Test 7.3: no <h4> markup survives' );
+bms_true( strpos( $result['suggestion_markup'], '"level":4' ) === false, 'Test 7.4: level attr stripped (h2 is the attrs default)' );
+bms_true( strpos( $result['suggestion_markup'], 'Deep subhead' ) !== false, 'Test 7.5: inner text preserved' );
+bms_true( strpos( $result['suggestion_markup'], 'keep-me' ) !== false, 'Test 7.6: other attributes (className) preserved' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
