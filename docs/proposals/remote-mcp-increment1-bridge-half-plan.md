@@ -384,7 +384,7 @@ function sn_bridge_bearer_matches( $header, $secret ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-bridge-route.php`
-Expected: `OK (11 passed, 0 failed): mcp-bridge-route.php`
+Expected: `OK (17 passed, 0 failed): mcp-bridge-route.php`
 
 - [ ] **Step 5: Commit**
 
@@ -506,7 +506,7 @@ function sn_bridge_grant_capability( $allcaps ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-bridge-route.php`
-Expected: `OK (18 passed, 0 failed): mcp-bridge-route.php`
+Expected: `OK (24 passed, 0 failed): mcp-bridge-route.php`
 
 - [ ] **Step 5: Commit**
 
@@ -671,7 +671,7 @@ function sn_bridge_handle_request( $request ) {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run: `php tests/mcp-bridge-route.php`
-Expected: `OK (27 passed, 0 failed): mcp-bridge-route.php`
+Expected: `OK (33 passed, 0 failed): mcp-bridge-route.php`
 
 - [ ] **Step 5: Commit**
 
