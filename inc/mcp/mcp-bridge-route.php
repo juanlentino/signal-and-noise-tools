@@ -169,10 +169,15 @@ function sn_bridge_absent_route_error() {
 	return new WP_Error(
 		'rest_no_route',
 		// phpcs:ignore WordPress.WP.I18n.TextDomainMismatch -- Deliberate: byte-parity with core's own rest_no_route body. See the docblock above.
-		// THIS IGNORE IS FOR PLUGIN CHECK, NOT FOR `composer lint`. Removing it
-		// leaves the local WPCS run green — that sniff is not enabled here — and
-		// reds CI, where Plugin Check compares the domain against the plugin
-		// SLUG and sees 'default' as a mismatch. Verified 2026-08-14.
+		// WHAT IS VERIFIED ABOUT THIS IGNORE, and what is not. Removing it leaves
+		// `composer lint` green — that sniff is not enabled in the local WPCS
+		// ruleset — so the ignore is NOT load-bearing there. It is kept for
+		// Plugin Check, which compares the domain against the plugin SLUG and
+		// would read 'default' as a mismatch. That second half is REASONED, not
+		// measured: CI has only ever run this file WITH the ignore present, and
+		// a pass in that state cannot tell "needed" from "harmless". If you ever
+		// want to know, drop the ignore on a throwaway branch and read Plugin
+		// Check — do not infer it from a green run that included it.
 		__( 'No route was found matching the URL and request method.', 'default' ),
 		array( 'status' => 404 )
 	);
