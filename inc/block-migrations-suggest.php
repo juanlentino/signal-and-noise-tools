@@ -11,7 +11,7 @@
  *
  * Migration types (extensible via SNT_BLOCK_MIGRATIONS_VALID_TYPES in
  * inc/block-migrations-detect.php):
- *   - heading-hierarchy-skip  ← h3-without-preceding-h2 → h2
+ *   - heading-hierarchy-skip  ← any non-h2 first-level subhead (h3/h4) → h2
  *
  * @package SignalNoiseTools
  * @since 4.5.0
@@ -119,29 +119,37 @@ function snt_block_migrations_build_heading_promotion( $heading_block ) {
 		return serialize_block( $heading_block );
 	}
 
+	// The source tag comes from the block's OWN level attr (2026-08-14 rule
+	// rewrite: candidates are ANY non-h2 first-level subhead — h3 AND h4).
+	// A hardcoded h3 regex here would leave an h4 candidate's markup as
+	// <h4> while attrs claimed h2 — a Gutenberg block-validation mismatch
+	// on next editor load. Missing level = 2 (the attrs default).
+	$level = isset( $heading_block['attrs']['level'] ) ? (int) $heading_block['attrs']['level'] : 2;
+
 	// Unset level: serialize_block omits the JSON key when attrs is empty,
 	// which is canonical for h2 (default level).
 	unset( $heading_block['attrs']['level'] );
 
+	if ( 2 === $level || $level < 1 || $level > 6 ) {
+		// Already h2 (nothing to rewrite) or a level no core/heading can
+		// carry — serialize as-is rather than regex-guessing a tag name.
+		return serialize_block( $heading_block );
+	}
+
+	$patterns     = array( '/<h' . $level . '(?=[\s>])([^>]*)>/', '/<\/h' . $level . '>/' );
+	$replacements = array( '<h2$1>', '</h2>' );
+
 	// Mutate innerContent — what serialize_block uses for reconstruction.
 	foreach ( $heading_block['innerContent'] ?? array() as $i => $content ) {
 		if ( is_string( $content ) ) {
-			$heading_block['innerContent'][ $i ] = preg_replace(
-				array( '/<h3(?=[\s>])([^>]*)>/', '/<\/h3>/' ),
-				array( '<h2$1>', '</h2>' ),
-				$content
-			);
+			$heading_block['innerContent'][ $i ] = preg_replace( $patterns, $replacements, $content );
 		}
 	}
 
 	// innerHTML mutation is informational — serialize_block ignores it for
 	// reconstruction. Update for consistency.
 	if ( isset( $heading_block['innerHTML'] ) ) {
-		$heading_block['innerHTML'] = preg_replace(
-			array( '/<h3(?=[\s>])([^>]*)>/', '/<\/h3>/' ),
-			array( '<h2$1>', '</h2>' ),
-			$heading_block['innerHTML']
-		);
+		$heading_block['innerHTML'] = preg_replace( $patterns, $replacements, $heading_block['innerHTML'] );
 	}
 
 	return serialize_block( $heading_block );
