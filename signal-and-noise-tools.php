@@ -431,6 +431,7 @@ require_once __DIR__ . '/inc/abilities-lifecycle-guard.php'; // v10.38.0: WP 7.1
 require_once __DIR__ . '/inc/abilities-registration.php';
 require_once SNT_PATH . 'inc/abilities-analytics.php';  // v6.1.0: read-only analytics Abilities
 require_once SNT_PATH . 'inc/abilities-remote-analytics.php'; // R3 §3D Increment 1: remote-scoped analytics ability, off the MCP allowlists by design.
+require_once SNT_PATH . 'inc/abilities-remote-set.php'; // R3 §3D Increment 2: the remote set widens 1 -> 8, same isolation pattern applied to seven more twins.
 require_once __DIR__ . '/inc/migrate-orphan-options.php';  // v5.0.0: one-time orphan-option cleanup
 require_once __DIR__ . '/inc/command-palette.php';
 require_once __DIR__ . '/inc/pre-publish-gate.php';      // v4.11.0: editor pre-publish advisory gate (client-side, no AI)

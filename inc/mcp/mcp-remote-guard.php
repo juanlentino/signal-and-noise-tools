@@ -61,6 +61,13 @@ const SN_MCP_REMOTE_CAPABILITY = 'sn_read_remote_analytics';
 function sn_mcp_remote_slugs() {
 	return array(
 		'signal-noise/remote-get-analytics-summary',
+		'signal-noise/remote-get-analytics-events',
+		'signal-noise/remote-get-insights',
+		'signal-noise/remote-get-narration',
+		'signal-noise/remote-uptime-status',
+		'signal-noise/remote-get-health-scan',
+		'signal-noise/remote-get-rss-stats',
+		'signal-noise/remote-get-deploy-status',
 	);
 }
 
