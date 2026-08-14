@@ -57,6 +57,9 @@ const SN_MCP_REMOTE_FLUSH_SECONDS = 60;
  * here with no further request to trigger one. The admin read collects them. A
  * TTL near the flush window would silently discard the tail of an attack that
  * stopped — the counts most worth having.
+ *
+ * On object-cache sites a transient can evict before its TTL; that loses
+ * buffered counts gracefully and nothing else.
  */
 const SN_MCP_REMOTE_PENDING_TTL = HOUR_IN_SECONDS;
 
@@ -292,16 +295,28 @@ function sn_mcp_remote_log_prune( $blob ) {
 /**
  * Should the pending buffer be folded into the option now?
  *
- * PURE — it takes the buffer's age and whether this is a dispatch, and reads no
- * clock and no storage. The live wrapper supplies both. Same split as
+ * PURE — it takes the buffer's age, whether this is a dispatch, and whether the
+ * day has changed since the buffer started, and reads no clock and no storage.
+ * The live wrapper supplies all three. Same split as
  * sn_mcp_remote_kill_switch_decision() / …_engaged().
+ *
+ * A day change is a flush condition in its own right, not just an age check:
+ * a buffer created at 23:59:30 is only 50s old at 00:00:20, well under the
+ * flush window, but it is holding YESTERDAY's counts. Buffering into it further
+ * (or replacing it) would either mis-file today's count under yesterday or
+ * silently drop yesterday's — the same loss the midnight pin on the flush path
+ * exists to prevent, one path over.
  *
  * @param int  $age_seconds  Seconds since the buffer's first_seen.
  * @param bool $is_dispatch  True when a successful dispatch is being recorded.
+ * @param bool $day_changed  True when the buffer's day no longer matches today.
  * @return bool
  */
-function sn_mcp_remote_should_flush( $age_seconds, $is_dispatch ) {
+function sn_mcp_remote_should_flush( $age_seconds, $is_dispatch, $day_changed = false ) {
 	if ( (bool) $is_dispatch ) {
+		return true;
+	}
+	if ( (bool) $day_changed ) {
 		return true;
 	}
 	return (int) $age_seconds >= SN_MCP_REMOTE_FLUSH_SECONDS;
@@ -354,8 +369,17 @@ function sn_mcp_remote_pending_fold( $blob, $pending ) {
  * A dispatch is written straight through — it is rare, and it is the fact worth
  * having immediately. Refusals buffer, because /wp-json/signal-noise/v1/bridge
  * is a PUBLIC origin route while the door is armed — it is not behind Access
- * the way mcp.juanlentino.com is — so an uncoalesced counter would hand an
- * anonymous caller one option write per request.
+ * the way mcp.juanlentino.com is. On a DB-backed transient (the common case)
+ * set_transient() IS itself an option write per request; the coalescing win is
+ * not "fewer writes to the database" but a constant-size, non-autoloaded row
+ * that never grows with request volume, and skipping the ring/prune work on
+ * every refusal — versus rewriting a growing blob and pruning it per request.
+ *
+ * Refusals never produce ring rows — deliberate: a flood must not wash the
+ * dispatch history out of a 50-row ring.
+ *
+ * Best-effort under concurrency: read-modify-write races on the transient can
+ * lose or duplicate a handful of counts; acceptable for a diagnostic counter.
  *
  * This function must never throw and must never alter the caller's behaviour.
  *
@@ -372,23 +396,33 @@ function sn_mcp_remote_record( $outcome, $slug = '' ) {
 	$is_dispatch = ( 'dispatched' === $outcome );
 	$pending     = sn_mcp_remote_pending_get();
 	$age         = ( null === $pending ) ? 0 : max( 0, time() - (int) $pending['first_seen'] );
+	$day_changed = ( null !== $pending && sn_mcp_remote_log_day_key() !== (string) $pending['day'] );
 
-	if ( ! $is_dispatch && ! sn_mcp_remote_should_flush( $age, false ) ) {
+	if ( ! $is_dispatch && ! sn_mcp_remote_should_flush( $age, false, $day_changed ) ) {
 		sn_mcp_remote_pending_add( $outcome );
 		return;
 	}
 
-	$blob = sn_mcp_remote_log_get_blob();
-	$blob = sn_mcp_remote_pending_fold( $blob, $pending );
-	if ( null !== $pending && function_exists( 'delete_transient' ) ) {
-		delete_transient( SN_MCP_REMOTE_PENDING_TRANSIENT );
+	// A dispatch with no pending buffer has nothing to fold: skip straight to
+	// sn_mcp_remote_log_apply()'s own read-modify-write rather than doing a
+	// redundant get/fold/prune/save pass here first.
+	//
+	// (A refusal with no pending buffer never reaches this point: $age is 0 and
+	// $day_changed is false when $pending is null, so should_flush() above is
+	// always false and the early-return buffering path already handled it.)
+	if ( null !== $pending ) {
+		$blob = sn_mcp_remote_log_get_blob();
+		$blob = sn_mcp_remote_pending_fold( $blob, $pending );
+		if ( function_exists( 'delete_transient' ) ) {
+			delete_transient( SN_MCP_REMOTE_PENDING_TRANSIENT );
+		}
+		if ( ! $is_dispatch ) {
+			// A stale or day-rolled buffer flushed by a refusal: that refusal counts too.
+			$blob = sn_mcp_remote_log_add_count( $blob, sn_mcp_remote_log_day_key(), $outcome, 1 );
+		}
+		$blob = sn_mcp_remote_log_prune( $blob );
+		sn_mcp_remote_log_save_blob( $blob );
 	}
-	if ( ! $is_dispatch ) {
-		// A stale buffer flushed by a refusal: that refusal counts too.
-		$blob = sn_mcp_remote_log_add_count( $blob, sn_mcp_remote_log_day_key(), $outcome, 1 );
-	}
-	$blob = sn_mcp_remote_log_prune( $blob );
-	sn_mcp_remote_log_save_blob( $blob );
 
 	if ( $is_dispatch ) {
 		sn_mcp_remote_log_apply( $outcome, $slug );
@@ -410,6 +444,9 @@ function sn_mcp_remote_pending_add( $outcome ) {
 		return;
 	}
 	$pending = sn_mcp_remote_pending_get();
+	// The day-mismatch half of this condition is unreachable via
+	// sn_mcp_remote_record(), which flushes on day change before buffering;
+	// kept so a direct caller cannot make counts leak across days.
 	if ( null === $pending || sn_mcp_remote_log_day_key() !== $pending['day'] ) {
 		$pending = array(
 			'day'        => sn_mcp_remote_log_day_key(),

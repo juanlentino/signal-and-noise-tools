@@ -266,6 +266,24 @@ $GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ]['first_seen'] = $sta
 sn_mcp_remote_record( 'refused_auth', '' );
 ok( $stamped - 30 === $GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ]['first_seen'], 'THE AGEING PIN: a second add left first_seen untouched, so the buffer keeps ageing under load' );
 
+echo "Group: a day-rollover FLUSHES the buffer instead of discarding it\n";
+// The quality review found the buffered path could replace a fresh buffer
+// holding yesterday's counts — the same loss the midnight pin prevents on the
+// flush path, rebuilt one path over. A day change is now a flush condition.
+ok( true === sn_mcp_remote_should_flush( 0, false, true ), 'THE ROLLOVER ROW: fresh buffer, no dispatch, but the day changed -> flush' );
+$GLOBALS['__options']    = array();
+$GLOBALS['__transients'] = array();
+$yesterday = wp_date( 'Y-m-d', time() - DAY_IN_SECONDS );
+$GLOBALS['__transients'][ SN_MCP_REMOTE_PENDING_TRANSIENT ] = array(
+	'day'        => $yesterday,
+	'first_seen' => time() - 30,
+	'counts'     => array( 'refused_auth' => 5 ),
+);
+sn_mcp_remote_record( 'refused_auth', '' );
+$blob = sn_mcp_remote_log_get_blob();
+ok( 5 === ( $blob['counters'][ $yesterday ]['refused_auth'] ?? 0 ), 'THE ROLLOVER-LOSS PIN: a FRESH buffer from yesterday is FLUSHED under yesterday\'s key when today\'s first refusal arrives, not discarded' );
+ok( 1 === ( $blob['counters'][ sn_mcp_remote_log_day_key() ]['refused_auth'] ?? 0 ), 'and the triggering refusal lands under TODAY' );
+
 echo ( 0 === $fail )
 	? "\nOK ($pass passed, $fail failed): mcp-remote-observability.php\n"
 	: "\nFAILURES ($pass passed, $fail failed): mcp-remote-observability.php\n";
