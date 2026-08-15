@@ -14,6 +14,26 @@ ledger that cannot go red has stopped being a ledger.
 
 Ledger-side changes ship in `signal-and-noise-provenance`; this entry covers the plugin half.
 
+### Added — the `sn_settings` clobber rule becomes a test
+- **`tests/settings-subtree-preservation.php`.** `sn_settings_save()` ends in a whole-option
+  replace, so any subtree not re-included is **silently wiped** on the next save of any tab — no
+  error, no notice, no failing test. That has bitten this codebase four times, and each fix added
+  another hand-written preservation block to a list that only stays correct while someone
+  remembers to extend it. This test is the thing that remembers: it compares every subtree read
+  via `sn_setting()`/`sn_setting_update()` against those `sn_settings_save()` re-includes, and
+  fails naming the subtree that would be lost.
+- **Why a test and not a prompt.** The rule lived as a Claude Review prompt instruction; that
+  workflow was disabled after producing zero comments in its entire history. It was then moved to
+  the security audit's custom instructions — and a control PR adding an unpreserved subtree
+  produced `total_original_findings: 0`, because that tool scopes to security vulnerabilities and
+  this is a data-integrity bug. A deterministic property deserves a deterministic check.
+- **Guarded against passing vacuously.** A broken extractor yields two empty sets and a trivially
+  satisfied comparison, so the suite asserts the extractors found real data, that known subtrees
+  are recognised, and that the comparison logic itself detects a synthetic missing entry.
+- Sources are **tokenised, not regexed raw** — `settings.php:8` documents the convention with the
+  example `sn_setting('cat.field')`, and a comment-blind scan reports a phantom `cat` subtree and
+  fails forever. Pinned by its own assertion.
+
 ### Added — one editing pass, one signed version
 - **Multiple versions are correct; bleeding them is not.** A Note revised next week *should* be
   v4 — the chain exists to record exactly that. What this stops is one editing pass producing two
