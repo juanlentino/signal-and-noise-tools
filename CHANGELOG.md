@@ -2,6 +2,58 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased] — the alarm stops crying wolf
+
+**MINOR** — the public provenance ledger's `verify.yml` went red ten times between 2026-08-04 and
+2026-08-15. Not once was the ledger's integrity actually in doubt: every recurring red was a
+**live-world check running on a push that was, by construction, mid-transaction**. No offline
+integrity check has ever failed operationally, and every scheduled run in the last 100 was green.
+Two genuine bugs were hiding inside that noise. The ask was "make the ledger never error again";
+the delivered thing is "the ledger never errors for a reason that is not a real defect", because a
+ledger that cannot go red has stopped being a ledger.
+
+Ledger-side changes ship in `signal-and-noise-provenance`; this entry covers the plugin half.
+
+### Fixed — the per-post Cloudflare purge could fail silently, and did
+- **The incident.** On 2026-08-15 a Note was edited three times (18:55, 19:00, 19:05). Each save
+  fired the per-post purge. Fifty minutes later the bare URL still served HTML with
+  `last-modified: Fri, 14 Aug 16:25:36 GMT` — 27 hours old — carrying a sentence the edit had
+  removed. The same URL cache-busted returned the current render, as did the `.json` twin. A
+  manual **zone** purge cleared it immediately. Three per-URL purges ran and did not work; one
+  zone purge did.
+- **Why nothing saw it.** `sn_cf_purge_urls()` is documented as *"Fire-and-forget (non-blocking);
+  Caller doesn't get a success signal"*, and the Cloudflare tab reports purge **dispatch**, never
+  edge **freshness** for the purged URL. The readout was green for the entire fifty minutes the
+  public was being served a stale page and the ledger was going red for it.
+- **`inc/cloudflare-purge-verify.php`** (pure) + **`inc/cloudflare-purge-probe.php`** (scheduled).
+  After a per-post purge, a probe 120s later compares the public URL against a cache-busted fetch
+  of the same URL. Still stale ⇒ escalate **once** to a zone purge, record the outcome, fire
+  `sn_cf_purge_stayed_stale`.
+- **Escalation is bounded on purpose.** A zone purge discards every cached object site-wide, so a
+  retry loop would trade a stale page for a permanently cold cache. One escalation clears the
+  object; still stale after that is not propagation, and a human needs to see it.
+- **A re-save replaces the pending probe rather than stacking one per save** — three edits in ten
+  minutes probe once, after the last.
+- **Unknown is never fresh.** An unreadable fetch returns `null`, not `false`. The caller escalates
+  on `true` only, so `null` correctly does nothing — but `false` would have been recorded in the
+  log as a clean bill of health. Same rule the rights-drift check follows: an outage is a gap in
+  evidence, never evidence of health.
+- **Volatile tokens are normalized away** (nonces, inline JSON nonces, asset `?ver=`, the probe's
+  own cache-buster, whitespace) — without this the probe would call every page stale and fire a
+  zone purge on every single post save, which is worse than the bug. Pinned by a test that a
+  genuine content change is *still* detected through differing nonces.
+
+### Fixed — the ledger health chip was watching the wrong runs
+- `SN_LEDGER_CI_RUNS_URL` read the latest **completed** run with no event filter, so it reported
+  *"the trust repo is reporting a problem nobody may have seen"* for transitional record pushes —
+  a condition the ledger itself now tolerates on that trigger. Roughly ten false alarms in twelve
+  days. Now `&event=schedule`: the daily run is the one that verifies with nothing tolerated, so
+  it is the only authoritative verdict.
+- A chip that fires on transitional noise trains its reader to ignore it, which is exactly how the
+  2026-07-25..28 incident this check was *born from* went unseen for three days.
+- The probe URL is now pinned by test (`event=schedule`, `status=completed`, `per_page=1`); it
+  never was before.
+
 ## [11.9.0] - 2026-08-15 — the evidence becomes reachable
 
 **MINOR** — v11.8.0 added the `change_type` dimension and the `conflict` outcome to `sn_tool_call`
