@@ -14,6 +14,11 @@ ledger that cannot go red has stopped being a ledger.
 
 Ledger-side changes ship in `signal-and-noise-provenance`; this entry covers the plugin half.
 
+### Added — weekly digest preferences
+- **`inc/digest-settings.php`** — a small Tools-tab section for whether the weekly digest is sent
+  and which day it goes out. Stored under the `digest` subtree and written through
+  `sn_setting_update()`, the same way the monitoring and perf sections persist their knobs.
+
 ### Added — one editing pass, one signed version
 - **Multiple versions are correct; bleeding them is not.** A Note revised next week *should* be
   v4 — the chain exists to record exactly that. What this stops is one editing pass producing two
