@@ -86,10 +86,68 @@ happens to be run by the author, which makes it benign in practice and still wro
 This reframes gap 2. Opening the minting path makes the signer *auditable*; it does not make it
 *not an intermediary*. Both papers' architecture wants the key at the point of authorship.
 
-**Not a recommendation to move the key today.** Browser-side or workstation-side signing raises
-exactly P2's named open question — "who runs the key infrastructure for independent artists?" —
-which it flags as capable of excluding "precisely the population most damaged by the existing
-identifier failures". Recorded here as a known divergence to be argued, not silently carried.
+### D-1: Custodial signing — ACCEPTED as a deliberate deviation
+
+Owner decision 2026-08-15. Should become a numbered ADR if this document is ever published.
+
+**The deviation.** P2 requires self-issuance — the creator's key, no agency. In the notes
+system a Worker under the author's sole control holds the key and signs on their behalf.
+
+**Why it is accepted.**
+
+1. **The notes system is one instantiation of the thesis, deliberately narrow**: a solo author,
+   self-signing, over text. It is not the general implementation and must never be cited as
+   though it were. Its scope is a feature — it isolates the authorship-and-integrity claim from
+   the multi-party problems — provided the scope is stated wherever it is cited.
+
+2. **The Worker is an instrument, not an authority.** P1's own Layer 1 puts signing *inside the
+   DAW*: the creator's key, applied by software the creator runs. Nobody reads Ableton as an
+   issuing agency. The Worker is architecturally the same move — automated signing infrastructure
+   under sole author control. What P2 argues against is *external administrative authorities*
+   (ISRC agencies, PROs, allocation blocks) whose records "can be inconsistent across
+   territories, can have stale data, and can be inaccessible". None of that describes a service
+   the author alone operates.
+
+3. **It is reversible by an operation the system already supports.** `keys/key-history.json`
+   models multiple key generations with **signed transitions**, per-key validity windows and an
+   optional `next_key_commitment`. Moving to an author-held key is a signed key transition — not
+   a schema break, not a ledger rewrite — and records signed under the Worker key stay
+   verifiable against the historical key. The deviation does not compound.
+
+**What it actually costs, stated rather than implied.**
+
+The DAW applies the key at the moment of authorship, on the author's machine, under their
+control. The Worker applies it *remotely, to whatever the site sends it*, gated by an HMAC
+secret. The key is bound to the plugin's credential, not to the author's presence or intent.
+
+Concretely: **a compromise of the site or the shared secret yields validly signed records.**
+With an author-held key it would not. That is a real security property surrendered, and the
+honest framing of the deviation has to say so.
+
+**The claim the signature actually supports.**
+
+Not *"Juan's hand signed this."* Rather: **"the author's own publishing infrastructure witnessed
+this content at this time, and the record has not changed since."**
+
+The owner's framing — the Worker *as* the attestation — is the accurate one, and public-facing
+text should say it that way. An automated witness to a publication event is a weaker claim than
+a hand-signature, and it is *true*, which is worth more than a stronger claim that is not.
+
+There is a non-obvious upside. With `edit_log` (approved above), the Worker's witness statement
+extends from the artifact to the **editing pass** — process evidence recorded by an observer
+rather than asserted by the party with the incentive. For P1's specific claim, which is about a
+human *creation event* rather than a finished file, an observed process is arguably better
+evidence than a self-signature over an output. The witness's independence is bounded by author
+control, which is precisely why **gap 2 matters**: opening the minting path makes the witness's
+method inspectable, and an inspectable method is what makes a witness statement worth anything.
+
+**When the deviation must end.** Whichever comes first:
+
+- **Gap 3, step 2.** Additive co-author signatures are meaningless under one shared Worker key —
+  a second party must hold their own. This is the hard boundary.
+- **Any presentation of the notes system as the general implementation** rather than one narrow
+  instantiation.
+- **Paper 3**, whose subject is identity and key custody directly.
 
 ### Gap 4 is a core claim, not a refinement
 
@@ -373,11 +431,12 @@ Still open:
 1. **A proving ground for gap 3.** Multi-contributor attribution needs a second real signer
    holding their own key. The notes corpus cannot supply one. This is the first decision gap 3
    needs and everything else in it is downstream.
-2. **Custodial signing — argue it or change it.** The worker signs on the author's behalf, which
-   P2's self-issuance property rules out. It is benign today because the author runs the agency.
-   Options: (a) document it as a deliberate deviation with reasoning, (b) move signing to the
-   point of authorship, which walks straight into P2's own open question about who runs key
-   infrastructure for independent creators. Recommend (a) now, (b) as paper-3 work.
+2. ~~Custodial signing — argue it or change it.~~ **Resolved 2026-08-15: documented as
+   deliberate deviation D-1**, with its cost stated and its end conditions named. One follow-on
+   remains: the public-facing wording. `VERIFY.md` and the provenance surfaces should describe
+   what the signature attests — the author's publishing infrastructure witnessing a publication
+   event — rather than implying a hand-signature. That is a copy change to live public text and
+   has not been made.
 3. **Sequencing of `edit_log` against gap 2.** Its first emission is permanent on an append-only
    ledger. Gap 2 makes every emitted field auditable. Recommend gap 2 lands **before** the first
    `edit_log` record is written, so the field is evidence from its first appearance rather than
