@@ -54,10 +54,11 @@ The paper already specifies the fix, and it is the same one: store a *hashed rep
 the edit sequence, not its content. Applied to text, the settle window is the natural place to
 compute it — it is the only component that knows a pass happened at all.
 
-**Proposed (not built):** each signed commit carries an `edit_log` summary — number of saves in
-the pass, pass duration, first/last save offsets — as counts, never content. One public version
-per pass, plus the proof that the pass was a human revising. That converts the settle window
-from evidence destroyer to evidence compactor, and it is Layer 1's design applied to prose.
+**APPROVED 2026-08-15, specified in "The `edit_log` specification" below. Not built.** Each
+signed commit carries an `edit_log` summary — counts and coarse magnitudes, never content. One
+public version per pass, plus the proof that the pass was a human revising. That converts the
+settle window from evidence destroyer to evidence compactor, and it is Layer 1's design applied
+to prose.
 
 ---
 
@@ -100,10 +101,108 @@ why sequencing gap 1 behind its publication is correct.
 
 ---
 
+## The `edit_log` specification
+
+Approved 2026-08-15. **Design only — explicitly not authorized for implementation.**
+
+### What it records
+
+A summary of the editing pass that produced this version. Counts and coarse magnitudes only.
+
+```
+"edit_log": {
+  "algo":          "sn-editlog-v1",
+  "saves":         3,                      // provenance-bearing saves in the pass
+  "pass_bucket":   "10m",                  // coarse duration, see below
+  "first_save":    "2026-08-15T18:55:12Z",
+  "last_save":     "2026-08-15T19:05:41Z",
+  "shape":         ["m:+", "s:-", "xs:+"]  // per-save magnitude + direction
+}
+```
+
+`shape` carries one token per save after the first: a magnitude bucket and a direction —
+`+` net insertion, `-` net deletion, `=` net-neutral rewrite. Magnitude buckets are logarithmic
+over the normalized-prose length delta: `xs` <16 chars, `s` <128, `m` <1024, `l` <8192, `xl`
+beyond. Nothing else. No content, no positions, no diffs.
+
+### Why buckets rather than exact counts
+
+The paper's discriminating example is orders-of-magnitude — "a session with 3,000 discrete edit
+events across 14 hours from one with 12 events across 45 seconds". Coarse buckets preserve that
+entirely. Exact character deltas would not add signal but would leak the shape of unpublished
+intermediate prose, which the paper explicitly rules out: the framework must not "raise
+legitimate privacy concerns for artists who do not want their full creative process recorded".
+
+`pass_bucket` is rounded for the same reason — precise durations across many notes fingerprint
+working habits without strengthening the claim. Suggested buckets: `<1m`, `1m`, `5m`, `10m`,
+`30m`, `1h`, `2h+`.
+
+### Where it lives in the record — and the one subtlety
+
+`edit_log` goes in the **payload** (covered by `content_hash`, therefore signed and
+tamper-evident) but **must NOT** be added to `sn_prov_bearing_fields()`.
+
+The bearing hash exists solely to coalesce saves where nothing provenance-bearing changed. Put
+`edit_log` in the bearing fields and every save produces a different bearing hash, the coalesce
+never fires, and the markup-only-edits-coalesce-to-no-commit property is destroyed — the exact
+behaviour the settle window was built to protect.
+
+So: bearing fields stay `algo, author, content, note_uid, published_at, title`. The payload
+gains `edit_log`.
+
+### Accumulation
+
+The settle window already computes the pass boundary; it is the only component that can. On
+supersede, the head commit's `edit_log` is carried forward and extended with one new `shape`
+token and an updated `last_save`, `saves`, `pass_bucket`. It freezes when the pass dispatches.
+
+A note published in a single save records `saves: 1`, an empty `shape`, and `pass_bucket`
+`<1m`. That is honest and must never be read as a negative signal — see below.
+
+### Schema compatibility — a public append-only ledger
+
+Forward-only. Records already published have no `edit_log` and stay valid.
+
+**Absent must mean "not recorded", never zero and never invalid.** This is the same trap that
+reddened CI three times this month: a record written before worker v1.10.1 omitted
+`bitcoin_block` while the index wrote explicit `null`, and a verifier comparing them strictly
+failed on shape alone. Any verifier reading `edit_log` must distinguish absent / empty /
+present, and treat absent as unknown.
+
+### What this newly enables — closing the Layer 3 gap
+
+Layer 3 asks that "session metadata is internally consistent — that the production timeline,
+edit volume, and export parameters form a coherent record of human production activity". Today
+there is nothing to check. With `edit_log` a verifier can assert:
+
+- `last_save >= first_save`, and both consistent with `pass_bucket`
+- `saves >= 1`, and `len(shape) == saves - 1`
+- version *N*'s `first_save` is at or after version *N−1*'s `last_save` — no overlapping passes
+- `committed_at` falls within the pass
+
+That is the paper's "export timestamps that precede session creation dates" check, in the text
+domain.
+
+### What it does NOT prove — stated so the doc cannot overclaim
+
+- **Not a detector.** Paper: "The absence of a credential does not prove AI generation." The
+  same holds here — a one-save note is a weak signal, not a negative one, and must never be
+  surfaced as a verdict. This is consistent with the standing rule that the ML kernel issues no
+  provenance verdicts.
+- **It proves revision happened in the editor, not that a human composed the prose.** Someone
+  could paste generated text and revise it. The paper concedes the equivalent for audio and
+  rests the claim on economics: "no provenance system is manipulation-proof… What the framework
+  does is change the economics of fraud at scale."
+- **It is fabricable** by anyone controlling the signing path. Which is precisely why gap 2
+  (opening the minting path) is sequenced first — an unauditable signer makes every field it
+  emits, including this one, an assertion rather than evidence.
+
+---
+
 ## Plan
 
 Owner decision 2026-08-15: **do gaps 2 and 4 now; gap 1 after the third paper is public.**
-Planning only — no implementation authorized.
+`edit_log` approved as design. Planning only — no implementation authorized.
 
 ### Gap 2 — open the minting path
 
@@ -162,9 +261,12 @@ would need a different proving ground.
    Maybe we'd add 4, too" — 4 appears twice. Assumed the second was **3** (multi-contributor);
    confirm.
 2. ***Provenance as Substrate*** is not on disk. Supply it, or this analysis stays partial.
-3. **Should `edit_log` be added to the settle window?** It is the single change that would move
-   the notes ledger from proving existence to proving creation, and it is cheap because the
-   settle window already computes the pass boundary.
+3. ~~Should `edit_log` be added to the settle window?~~ **Resolved 2026-08-15: yes.** Specified
+   above; not built.
 4. **Where should this document live?** Currently in the plugin repo, which is public. The
    ledger repo is the system's canonical home but publishing a roadmap that names the closed
    minting path as a weakness is a disclosure decision, not a filing decision.
+5. **Sequencing.** `edit_log` is a schema change to a public append-only ledger, so its first
+   emission is permanent. Gap 2 opens the minting path and makes every emitted field auditable.
+   Recommend gap 2 lands **before** the first `edit_log` record is written, so the field is
+   evidence from its first appearance rather than an assertion retrofitted with credibility.
