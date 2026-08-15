@@ -34,3 +34,11 @@ jobs:
           comment-pr: 'true'
           run-every-commit: 'false'
           exclude-directories: 'vendor,node_modules,tests'
+          # Project-specific findings this codebase has actually shipped,
+          # appended to the audit prompt. Currently the sn_settings subtree
+          # clobber (bitten 4x): sn_settings_save() whole-option replaces, so a
+          # new subtree not re-included is silently wiped on the next save of
+          # ANY tab. Inherited from the Claude Review prompt, which was disabled
+          # 2026-08-15 after producing zero comments in its entire history —
+          # this is the one thing it knew that the security audit did not.
+          custom-security-scan-instructions: '.github/security-scan-instructions.md'
