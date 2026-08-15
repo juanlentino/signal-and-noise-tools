@@ -8,7 +8,17 @@ jobs:
     # is empty), so this review can't run there — skip the bot's own PRs.
     if: github.event.pull_request.head.repo.full_name == github.repository && github.actor != 'dependabot[bot]'
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 10, not 30. Measured durations of successful runs: 50s, 56s, 65s, 76s,
+    # 265s — so 30 minutes was ~7x the slowest success, and the guidance is to
+    # set the ceiling above the observed mean, not far above the observed max.
+    #
+    # On 2026-08-15 this action HUNG on PR #678 and the 30-minute ceiling held
+    # the PR unmergeable for half an hour before reporting anything; a re-run of
+    # the identical commit then succeeded, so the hang was infrastructure
+    # flakiness rather than a finding. A 10-minute ceiling still clears the
+    # slowest observed success by ~2.3x while surfacing the next hang in a third
+    # of the time.
+    timeout-minutes: 10
     permissions:
       pull-requests: write
       contents: read
