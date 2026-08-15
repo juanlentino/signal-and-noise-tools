@@ -102,9 +102,20 @@ jobs:
     name: CHANGELOG entry present
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # Only meaningful on PRs (compares against the base branch). A version bump
-    # without a matching CHANGELOG.md entry is the exact gap that shipped the
-    # v4.5.2 release changelog-less (an editor no-op went unnoticed).
+    # Only meaningful on PRs (compares against the base branch). Two rules, both
+    # in this ONE job so they share a single rounded-up billed minute.
+    #
+    #   1. A version bump needs a matching '## [x.y.z]' entry — the gap that
+    #      shipped the v4.5.2 release changelog-less (an editor no-op).
+    #   2. Shippable code changing WITHOUT a version bump needs SOME addition to
+    #      CHANGELOG.md.
+    #
+    # Rule 2 exists because rule 1 alone exempts almost everything. Releases here
+    # bump the version at release time, not per PR, so head_ver = base_ver on
+    # essentially every feature PR and rule 1 exits 0 without reading CHANGELOG.md
+    # at all. Caught 2026-08-15: PR #677 shipped the provenance settle window and
+    # rule 1 reported "Version unchanged - CHANGELOG entry not required". The
+    # entry was written by hand during review; nothing would have required it.
     if: github.event_name == 'pull_request'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -135,3 +146,53 @@ jobs:
             echo "::error file=CHANGELOG.md::Version bumped to ${head_ver} but no '## [${head_ver}]' entry in CHANGELOG.md. Add one (see global rule: ALWAYS update CHANGELOG.md)."
             exit 1
           fi
+      # Rule 2. Shippable code changed but the version did not, so rule 1 above
+      # exited 0 without reading CHANGELOG.md. Require the PR to have ADDED
+      # something to it — normally under '## [Unreleased]'.
+      #
+      # "Added lines", not merely "file changed": a deletion-only edit or a mode
+      # change satisfies the weaker test while documenting nothing. It does NOT
+      # claim to detect a reflow — re-wrapping a paragraph does add lines, and
+      # this gate would accept it. The bar is deliberately low; its job is to
+      # stop a PR shipping with the CHANGELOG untouched, not to judge prose.
+      #
+      # Scope is what reaches a reader's site. tests/, docs/, .github/ and
+      # tooling change nothing a user experiences and are exempt, so this does
+      # not tax refactors of the test suite.
+      #
+      # Escape hatch is the 'no-changelog' LABEL, evaluated by Actions rather
+      # than the shell — a label cannot inject into `run:` the way a title or a
+      # commit message can.
+      - name: Require a CHANGELOG addition when shippable code changes
+        if: ${{ !contains(github.event.pull_request.labels.*.name, 'no-changelog') }}
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -e
+          base="origin/${BASE_REF}"
+
+          head_ver=$(grep -m1 -E '^\s*\*\s*Version:' signal-and-noise-tools.php | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+          base_ver=$(git show "${base}:signal-and-noise-tools.php" 2>/dev/null | grep -m1 -E '^\s*\*\s*Version:' | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' || echo "")
+          if [ "$head_ver" != "$base_ver" ]; then
+            echo "Version bumped - rule 1 above already required the entry."
+            exit 0
+          fi
+
+          shipped=$(git diff --name-only "${base}...HEAD" \
+            | grep -E '^(inc/|blocks/|assets/|signal-and-noise-tools\.php$)' || true)
+          if [ -z "$shipped" ]; then
+            echo "No shippable code changed - CHANGELOG addition not required."
+            exit 0
+          fi
+
+          added=$(git diff --numstat "${base}...HEAD" -- CHANGELOG.md | awk '{print $1}')
+          added=${added:-0}
+          if [ "$added" -gt 0 ]; then
+            echo "CHANGELOG.md gained ${added} line(s) alongside shippable changes."
+            exit 0
+          fi
+
+          echo "Shippable files changed by this PR:"
+          printf '  %s\n' $shipped
+          echo "::error file=CHANGELOG.md::This PR changes shippable code but adds nothing to CHANGELOG.md. Add an entry under '## [Unreleased]' (global rule: ALWAYS update CHANGELOG.md). If it genuinely needs none, apply the 'no-changelog' label."
+          exit 1
