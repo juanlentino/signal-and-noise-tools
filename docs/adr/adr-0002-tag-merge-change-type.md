@@ -105,6 +105,74 @@ This is a smaller change than the merge engine and it addresses the cause rather
 Sequenced the other way round, the merge tool gets run again in six months against a fresh crop of
 singletons.
 
+### 6. Telemetry — and the dimensionality gap that blocks it
+
+The consolidation program is telemetry-first: surfaces are retired on measured evidence after a
+baseline window. A change type that cannot be measured cannot participate, so this is a
+precondition, not a follow-up.
+
+**What `tag_merge` inherits for free.** Per FINDINGS.md (c), the rw door already carries the
+kill switch (`SN_MCP_RW_DISABLED` + `sn_mcp_rw_enabled`), credential split, rate limiting, and
+audit logging (`sn_mcp_rw_audit_record()`), all door-level and automatic for anything on the rw
+allowlist. Layer B (v10.25.0) inserts one `{$prefix}sn_tool_call` row per `tools/call`, fail-open,
+one INSERT on the hot path, retention by probabilistic prune, kill switch
+`sn_mcp_telemetry_enabled`. **None of this should be reimplemented.**
+
+**The gap — verified in source, not assumed.** `inc/mcp/mcp-telemetry.php:144` documents the
+captured field as *"Sorted, comma-joined, truncated **top-level** argument keys. **Never a
+value.**"*, and `:153` is a plain `array_keys( $args )`.
+
+`change.type` is a **nested value**. It is therefore not captured, and **every `sn-apply` change
+type today aggregates into one undifferentiated `sn-apply` count** — `link_reshape`, `unlink`,
+`link_insert`, `og_card`, `create_draft` and the rest are indistinguishable in telemetry.
+
+Shipping `tag_merge` into that makes the most destructive change type in the system the least
+observable one. It also silently degrades the retirement model: `sn-apply`'s aggregate count can
+never justify retiring or keeping any individual change type.
+
+**Fix: add a bounded `change_type` dimension.** Populate it at the existing interception point,
+`sn_mcp_call_tool()` — not the JSON-RPC router, for exactly the reason Layer B chose it: by the
+router the `WP_Error` code and status are already flattened to a message string.
+
+**This is a deliberate, bounded exception to the "never a value" privacy pin, and must be written
+into the telemetry spec as an explicit carve-out rather than left implicit.** It is defensible
+because `change.type` is a closed enum of 16 schema-fixed identifiers, carries no user content,
+and has bounded cardinality. The carve-out should enumerate the permitted values, so it cannot
+later drift into "log the payload".
+
+**Outcome classification needs a `conflict` bucket.** The Layer B classifier is status-first:
+4xx → `schema_error`, 429 → `refused`, 5xx → `server_error`. A term-state **409 is contention, not
+malformed input** — and the 409 rate is the single most important signal for whether the token
+granularity from §3 is right. Under the current classifier it is buried with genuine schema
+errors and unreadable. Splitting 409 into its own `conflict` outcome fixes this here and
+retroactively improves every existing fingerprint-gated change type.
+
+**What to measure, and what each number decides:**
+
+| Metric | Decides |
+|---|---|
+| `dry_run` : live ratio | A destructive op should be overwhelmingly dry runs. An inverted ratio means the gate is being skipped. |
+| 409 `conflict` rate | Whether the term-state token (§3) is the right granularity, or too coarse and thrashing. |
+| posts affected per call | Blast radius. A merge touching far more posts than the map predicted is the signal to stop. |
+| merge : delete split | Whether `delete: true` is being used as a blunt instrument. |
+| rollback manifest written | Must be 100%. Any `false` is a defect, not a statistic — see below. |
+| idempotency replay rate | Whether retries are landing as intended no-ops. |
+
+**The rollback manifest must not live in the audit log.** `inc/audit-log.php:24` states
+*"Retention: 90 days, enforced by daily cron `sn_audit_log_prune`."* A manifest stored there is
+pruned at 90 days, and the rollback capability required by §4 **evaporates with no signal at
+all** — the merge stays irreversible while the record that could have reversed it is deleted on a
+schedule. The manifest needs its own durable store, or an explicit exemption from the prune.
+This interaction is the reason §4 is a hard requirement rather than a nice-to-have.
+
+**Baseline-window hygiene.** Executing the 83 → 23 map is a one-time burst of ~60 operations. Run
+it outside the consolidation program's baseline window, or tag it so it can be excluded — a
+migration burst inside the baseline would badly distort the usage evidence the program retires
+surfaces on.
+
+**Schedule nothing.** The "schedule nothing" guardrail holds; the probabilistic prune model needs
+no new cron, and `tag_merge` should add none.
+
 ## Consequences
 
 **Good**

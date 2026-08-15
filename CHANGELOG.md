@@ -15,6 +15,23 @@ those.
 - **`tag-merge-map.md`** — execution plan for the notes corpus taxonomy: 83 tags → 23, via 53
   merges and 7 deletions, with a from→to row for all 83 terms and before/after tag lists for all
   42 notes. Planning document; nothing was written to the live site.
+
+### Found while wiring ADR-0002 to telemetry — two pre-existing gaps
+- **Every `sn-apply` change type is indistinguishable in telemetry.**
+  `inc/mcp/mcp-telemetry.php:144` captures *"top-level argument keys. Never a value."* and `:153`
+  is `array_keys( $args )`. `change.type` is nested, so `link_reshape`, `unlink`, `link_insert`,
+  `og_card`, `create_draft` and the rest all aggregate into one undifferentiated `sn-apply`
+  count — which means the consolidation program's aggregate can never justify retiring or keeping
+  any individual change type. ADR-0002 §6 proposes a bounded `change_type` dimension, with the
+  privacy carve-out stated explicitly (closed 16-value enum, no user content) rather than left
+  implicit.
+- **A 409 is classified as `schema_error`.** The Layer B classifier is status-first, so
+  fingerprint contention lands in the same bucket as malformed input. For every existing
+  fingerprint-gated change type the conflict rate is currently unreadable. ADR-0002 §6 proposes
+  splitting 409 into its own `conflict` outcome.
+- **Noted, not a gap yet:** `inc/audit-log.php:24` prunes the audit log at 90 days via daily
+  cron. Any future rollback manifest stored there would expire silently, taking the reversibility
+  guarantee with it — which is why ADR-0002 §4 requires a durable store outside it.
 - **`docs/ops/notes-structural-sweep-2026-08-15.md`** — session record for the corpus structural
   sweep.
 
