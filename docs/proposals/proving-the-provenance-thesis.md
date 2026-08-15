@@ -1,11 +1,15 @@
 # Proving the provenance thesis: gap analysis and plan
 
-**Status**: planning only — nothing to implement yet
+**Status**: planning only — nothing to implement yet. Document stays local (owner decision).
 **Date**: 2026-08-15
-**Audited against**: *Provenance Over Detection: A Cryptographic Framework for Human
-Authorship Verification in Music Distribution* (Lentino, March 2026), read in full, 22pp.
-**Not audited against**: *Provenance as Substrate* — not found on disk. This analysis is
-therefore incomplete and must be re-run when that paper is available.
+**Audited against**, both read in full:
+- **P1** — *Provenance Over Detection: A Cryptographic Framework for Human Authorship
+  Verification in Music Distribution* (Lentino, March 2026), 22pp.
+- **P2** — *Provenance as Substrate: A Cryptographic Identifier Framework for Music Rights and
+  Royalty Infrastructure* (Lentino, May 2026), 20pp, SSRN 6730343.
+
+Owner selection 2026-08-15: **gaps 2 and 3 now**; gap 1 after the third paper is public; gap 4
+retained because P2 promotes it from a nice-to-have to a core architectural claim (below).
 
 ---
 
@@ -62,6 +66,47 @@ to prose.
 
 ---
 
+## What P2 changes
+
+### The signature is custodial, and P2 rules that out
+
+P2's most consequential structural claim is **self-issuance**:
+
+> There is no registrant, no agency, no allocation block… The token exists from that moment
+> forward as a fact about the file.
+
+and P1 specifies that the signature "uses the creator's private key".
+
+The notes ledger does not do this. **`sn-provenance-worker` holds the signing key and signs on
+the author's behalf**, with the key installed via `wrangler secret put`. The signature therefore
+attests *"the Signal & Noise worker signed this"*, not *"Juan signed this"*. That is a custodial
+signature with an issuing agency — the structure P2 defines the substrate against. The agency
+happens to be run by the author, which makes it benign in practice and still wrong in kind.
+
+This reframes gap 2. Opening the minting path makes the signer *auditable*; it does not make it
+*not an intermediary*. Both papers' architecture wants the key at the point of authorship.
+
+**Not a recommendation to move the key today.** Browser-side or workstation-side signing raises
+exactly P2's named open question — "who runs the key infrastructure for independent artists?" —
+which it flags as capable of excluding "precisely the population most damaged by the existing
+identifier failures". Recorded here as a known divergence to be argued, not silently carried.
+
+### Gap 4 is a core claim, not a refinement
+
+P2 makes site-independent verification the substrate's defining advantage over the legacy stack:
+
+> ISRC, ISWC, and ISNI all rely on a registry as the source of truth… A cryptographic identifier
+> carries its truth in its construction. Verification does not require querying anything; it
+> requires only computing the hash and comparing.
+
+and: "Verification requires the public key, the file, and the token. Nothing else."
+
+Today a full `npm run verify` cannot complete without `juanlentino.com`. `verify-pages.mjs`
+fetches the live site — correctly, because it answers a *different* and worthwhile question
+(what is a stranger actually served). But the **identity and integrity verdict must not depend
+on the origin**, and today the two are not separated. That is the system contradicting P2's
+central differentiator, which is why gap 4 stays in scope even though it was not selected.
+
 ## Claim-by-claim: paper vs. shipped system
 
 | Paper claim | Shipped | Status |
@@ -81,7 +126,24 @@ to prose.
 | **Durability** hard binding (content hash) | `content_hash` in every record | **met** |
 | **Durability** soft binding (survives stripping, registry lookup) | ledger is the registry; never tested without the origin site | **gap 4** |
 
-### Limitations the paper already concedes — do not re-report as findings
+### P2's substrate claims vs. shipped system
+
+| P2 claim | Shipped | Status |
+|---|---|---|
+| Hash over a canonical representation | `sn_prov_canonical_json` + `normalize_v1`, pinned by parity tests | **met**, and unusually well-specified |
+| Self-issuing — no agency, no registration step | Worker signs on the author's behalf | **divergence** — see above |
+| Signed authorship attestation naming author(s) **and roles** | single `author` string, no roles | **gap 3** |
+| Signature "can only be added to" — co-authors sign later | one signature per record, no additive path | **gap 3** |
+| Dispute annotation via a separate dispute-record format | none | **gap 3** |
+| Public key reference via W3C DID | `provenance-did.php`, did:web | **met** — P2 explicitly endorses DID alignment |
+| Issuance timestamp from a trusted timestamp authority | OTS + Bitcoin anchor | **met, and stronger** than P2 asks |
+| **Ownership pointer, mutable, separate from authorship** | absent entirely | **gap** — benign for a single-author corpus, but unimplemented |
+| Signed transfer records forming an auditable ownership chain | absent | follows from the above |
+| Derivation: claim block names the parent token | `parent` hash per note | **met within a note**, absent across works |
+| Algorithm agility (EdDSA default, PQ available) | `algo` field exists; single scheme | **partial** — the field is declared, the agility is not |
+| Verification needs only key + file + token | blocked by the live-site fetch | **gap 4** |
+
+### Limitations the papers already concede — do not re-report as findings
 
 - **Legacy catalog**: no retroactive session history is possible; a lighter-weight attestation
   credential is the stated migration path.
@@ -91,6 +153,13 @@ to prose.
 - **Adversarial resistance**: conceded — "no provenance system is manipulation-proof". The
   claim is that it *changes the economics of fraud at scale*, not that it detects perfectly.
 - **Industry coordination**: conceded; adoption "follows demonstration, not consensus".
+
+**P2's own open questions**, named in its *Open Implementation Questions* section and not to be
+re-reported as findings: canonicalization (the likely answer is a hybrid — cryptographic hash
+over the source master plus a perceptual fingerprint alongside); signature scheme selection and
+algorithm agility; key management and revocation, especially "who runs the key infrastructure
+for independent artists?"; ownership transfer under bankruptcy, court order and contested
+estates; and legacy catalog migration. P2 states plainly that it "is not a finished design".
 
 **Correction to an earlier reading of mine:** paper 1 does *not* claim identity without
 institutions. It accepts "a trust list of certificate authorities" and proposes professional
@@ -246,27 +315,72 @@ survive the origin disappearing.
 Blocked on publication of *Provenance Without Institutions: A Weighted Identity Framework for
 Music Contributors*. Paper 1's tiered model is the interim position and is already largely met.
 
-### Gap 3 — multi-contributor (needs an owner decision)
+### Gap 3 — multi-contributor attribution (SELECTED)
 
-Not selected, but note that paper 1 **already scopes it**: Layer 1 lists "collaborator
-identities and contribution timestamps", and *Derivative Chain Tracking* is a full section. It
-is not solely paper 3 material. The notes corpus cannot demonstrate it — one author — so it
-would need a different proving ground.
+Confirmed by the owner 2026-08-15 as the second item alongside gap 2.
+
+**It is not paper-3 material.** P1 Layer 1 lists "collaborator identities and contribution
+timestamps" and devotes a full section to *Derivative Chain Tracking*. P2 specifies the
+mechanics precisely, which means this can be designed against published text rather than
+against an unpublished paper:
+
+> Authorship is permanent and cryptographically bound. The signature on a token cannot be
+> replaced; it can only be added to (in the case of co-authors signing later) or annotated (in
+> the case of disputes, which require a separate dispute-record format). Ownership is mutable.
+
+So the design has four separable pieces, in dependency order:
+
+1. **Roles in the claim block.** P2: the claim block "names the author or authors, their roles
+   (composer, lyricist, performer, producer)". Today there is one `author` string. First change
+   is a structured claim block — a list of parties with roles — replacing the scalar.
+2. **Additive signatures.** A record must accept co-author signatures *after* issuance without
+   altering the original attestation or its hash. This is the hard part: the current record has
+   exactly one signature and `content_hash` covers the whole payload, so a later signature
+   cannot live inside the hashed payload. It needs a sidecar signature set that references the
+   record hash — append-only, each entry independently verifiable.
+3. **Ownership pointer.** Mutable, separate from the immutable authorship attestation, updated
+   by signed transfer records that accumulate into an auditable chain. Absent today. Benign for
+   a single-author text corpus and structurally required by the substrate.
+4. **Dispute records.** A distinct format that annotates rather than modifies. P2 is explicit
+   that disputes must not touch the attestation.
+
+**The proving-ground problem stands.** The notes corpus has one author, so it can demonstrate
+(1) and (3) structurally but cannot exercise (2) or (4) honestly — a second real signer is
+required, holding their own key. Choosing that proving ground is an owner decision and is the
+first thing this gap needs; everything else is downstream of it.
+
+**Sequencing note.** (2) is where the custodial-signing divergence bites hardest: co-authors
+signing "later" is meaningless if a single worker key signs for everyone. Gap 3 step 2 is
+therefore partly blocked on the key-custody question, which is gap 1's territory and deferred
+to paper 3. Steps 1, 3 and 4 are not blocked.
+
+### Gap 4 — retained, not selected
+
+Not chosen, but P2 promotes it from durability nicety to the substrate's defining property
+(see *What P2 changes*). Recommend it rides along with gap 2, since both are about making the
+verification story stand on its own: an auditable signer that still cannot be verified without
+the origin site proves less than either change suggests alone.
 
 ---
 
 ## Open questions for the owner
 
-1. **Gap 3 or gap 4?** The selection said "2 and 4, and 1 when the third paper is public.
-   Maybe we'd add 4, too" — 4 appears twice. Assumed the second was **3** (multi-contributor);
-   confirm.
-2. ***Provenance as Substrate*** is not on disk. Supply it, or this analysis stays partial.
-3. ~~Should `edit_log` be added to the settle window?~~ **Resolved 2026-08-15: yes.** Specified
-   above; not built.
-4. **Where should this document live?** Currently in the plugin repo, which is public. The
-   ledger repo is the system's canonical home but publishing a roadmap that names the closed
-   minting path as a weakness is a disclosure decision, not a filing decision.
-5. **Sequencing.** `edit_log` is a schema change to a public append-only ledger, so its first
-   emission is permanent. Gap 2 opens the minting path and makes every emitted field auditable.
-   Recommend gap 2 lands **before** the first `edit_log` record is written, so the field is
-   evidence from its first appearance rather than an assertion retrofitted with credibility.
+Resolved 2026-08-15: the second selected gap is **3**, not a repeat of 4. *Provenance as
+Substrate* supplied and audited. `edit_log` approved as design. This document stays **local**.
+
+Still open:
+
+1. **A proving ground for gap 3.** Multi-contributor attribution needs a second real signer
+   holding their own key. The notes corpus cannot supply one. This is the first decision gap 3
+   needs and everything else in it is downstream.
+2. **Custodial signing — argue it or change it.** The worker signs on the author's behalf, which
+   P2's self-issuance property rules out. It is benign today because the author runs the agency.
+   Options: (a) document it as a deliberate deviation with reasoning, (b) move signing to the
+   point of authorship, which walks straight into P2's own open question about who runs key
+   infrastructure for independent creators. Recommend (a) now, (b) as paper-3 work.
+3. **Sequencing of `edit_log` against gap 2.** Its first emission is permanent on an append-only
+   ledger. Gap 2 makes every emitted field auditable. Recommend gap 2 lands **before** the first
+   `edit_log` record is written, so the field is evidence from its first appearance rather than
+   an assertion retrofitted with credibility later.
+4. **Whether gap 4 rides with gap 2.** An auditable signer that still cannot be verified without
+   the origin site proves less than either change suggests alone.
