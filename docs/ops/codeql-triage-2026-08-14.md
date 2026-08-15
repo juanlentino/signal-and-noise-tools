@@ -133,6 +133,60 @@ internet-facing door.
 
 An empty alert list there is **absence of measurement, not absence of
 findings** — the same never-measured-vs-measured-zero distinction that applies
-to the telemetry sinks. Enabling default CodeQL on the four worker repos is
-cheap (public repos are free; the private ones sit inside the Actions budget
-the org rules already track) and would convert an unknown into a number.
+to the telemetry sinks.
+
+### CORRECTION — "just enable CodeQL there" is not available
+
+An earlier draft of this section said enabling default CodeQL on the worker
+repos was cheap. **That was wrong, and the reason matters.** Tested
+empirically 2026-08-14:
+
+```
+PUT /repos/juanlentino/sn-provenance-worker/code-scanning/default-setup
+→ 404 Not Found
+```
+
+The correlation is exact, and it is not a coincidence:
+
+| Repo | Visibility | Code scanning |
+|---|---|---|
+| `signal-and-noise-tools` | public | **ON** |
+| `signal-and-noise` | public | **ON** |
+| `signal-and-noise-provenance` | public | **ON** |
+| `sn-rights-signals-worker` | public | **ON** |
+| `sn-provenance-worker` | private | off |
+| `signal-and-noise-analytics-worker` | private | off |
+| `sn-remote-mcp-worker` | private | off |
+| `signal-and-noise-login-guard-worker` | private | off |
+
+**Every public repo has it; every private repo cannot.** `security_and_analysis`
+returns `null` on the private repos and a full feature set on the public ones.
+Code scanning on private repos requires GitHub Advanced Security / Code
+Security, which is not included in Pro. The blocker is **entitlement, not
+Actions minutes** — so the earlier framing ("sits inside the Actions budget")
+diagnosed the wrong constraint entirely.
+
+### What would actually work
+
+**Port the existing Semgrep workflow to the private workers.** It is already
+the documented free bridge for exactly this gap — `.github/workflows/semgrep.yml`
+in this repo, blocking since 2026-08-14 — and it runs as an ordinary CI step,
+so no entitlement is involved.
+
+The one caveat is already written into that workflow's own header and applies
+directly here:
+
+> This repo is PUBLIC, so this job bills no Actions minutes. If the repo ever
+> goes private, this becomes ~1-2 billed minutes per run — fold it into
+> `ci.yml` as a **step** (not a job) that day, per the per-job rounding rule.
+
+The workers are private, so that day is now: add Semgrep as a **step inside
+each worker's existing CI job**, never as a separate job. Four separate jobs
+would bill four rounded-up minutes per run against a quota the org rules
+already measure at ~99% consumed, and exhaustion blocks Actions
+account-wide — including for unrelated client work.
+
+Other options, for completeness: make a worker public (they are private for
+real reasons — secrets and business logic), or pay for Code Security (the
+owner decision on 2026-08-14 was that Aikido gets paid for when budget
+allows, so a second paid scanner is unlikely to be the answer).
