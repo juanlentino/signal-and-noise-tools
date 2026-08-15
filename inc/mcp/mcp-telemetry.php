@@ -487,6 +487,108 @@ function sn_mcp_telemetry_insert_row( $row ) {
 }
 
 /**
+ * Read rollup of sn_tool_call, for sn_site_facts' "tool_telemetry" fact
+ * (v11.9.0). Two grouped SELECTs, no per-row reads, never any argument values.
+ *
+ * WHY THIS EXISTS: v11.8.0 added the `change_type` dimension so individual
+ * sn-apply change types could be retired or kept on evidence, and the
+ * `conflict` outcome so fingerprint contention was distinguishable from
+ * malformed input — then shipped both into a table with no read path. The data
+ * was collected and unreachable from the place the decisions get made. This is
+ * that path.
+ *
+ * `table_present` carries the same meaning it does in
+ * snt_scan_telemetry_summary(): an empty rollup with table_present:true is an
+ * honest empty window; table_present:false means the table is missing or the
+ * query failed, the fail-open insert path has been eating rows, and NO number
+ * here is a measurement. Zero and null are different answers.
+ *
+ * `by_change_type` is the half that services the consolidation programme —
+ * rows where change_type IS NOT NULL, which today is sn-apply only.
+ *
+ * @param int $days Window, in days.
+ * @return array{window_days:int,generated_at:string,table_present:bool,total_calls:int,by_tool:array,by_change_type:array}
+ */
+function sn_mcp_telemetry_summary( $days = 30 ) {
+	global $wpdb;
+
+	$days = max( 1, (int) $days );
+	$out  = array(
+		'window_days'    => $days,
+		'generated_at'   => gmdate( 'c' ),
+		'table_present'  => false,
+		'total_calls'    => 0,
+		'by_tool'        => array(),
+		'by_change_type' => array(),
+	);
+
+	if ( ! isset( $wpdb ) || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_results' ) ) {
+		return $out;
+	}
+
+	$table  = $wpdb->prefix . SN_MCP_TELEMETRY_TABLE;
+	$cutoff = gmdate( 'Y-m-d H:i:s', time() - ( $days * DAY_IN_SECONDS ) );
+
+	$wpdb->last_error = '';
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is $wpdb->prefix + a plugin constant, never user input; $cutoff is bound via prepare() below.
+	$sql  = $wpdb->prepare( "SELECT tool_name, door, outcome, COUNT(*) AS calls, AVG(latency_ms) AS avg_latency_ms, MAX(ts) AS last_call FROM {$table} WHERE ts >= %s GROUP BY tool_name, door, outcome ORDER BY calls DESC, tool_name ASC", $cutoff );
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql is the STRING RETURNED BY $wpdb->prepare() one line above, already safely bound.
+	$rows = $wpdb->get_results( $sql, ARRAY_A );
+
+	// A FAILED wpdb query returns []/null with last_error SET — it does not
+	// throw, and a missing table yields an EMPTY ARRAY, not false. Checking
+	// is_array() alone would report a missing table as an honest zero, which is
+	// the exact lie table_present exists to prevent. Mirrors
+	// snt_scan_telemetry_summary()'s check, including resetting last_error
+	// first so a pre-existing error from an unrelated query cannot leak in.
+	// A FAILED wpdb query returns []/null with last_error SET — it does not
+	// throw, and a missing table yields an EMPTY ARRAY, not false. Checking
+	// is_array() alone would report a missing table as an honest zero, which is
+	// the exact lie table_present exists to prevent. Mirrors
+	// snt_scan_telemetry_summary()'s check, including resetting last_error
+	// first so a pre-existing error from an unrelated query cannot leak in.
+	if ( '' !== (string) $wpdb->last_error || null === $rows ) {
+		return $out;
+	}
+
+	foreach ( (array) $rows as $r ) {
+		$calls               = (int) ( $r['calls'] ?? 0 );
+		$out['total_calls'] += $calls;
+		$out['by_tool'][]    = array(
+			'tool_name'      => (string) ( $r['tool_name'] ?? '' ),
+			'door'           => (string) ( $r['door'] ?? '' ),
+			'outcome'        => (string) ( $r['outcome'] ?? '' ),
+			'calls'          => $calls,
+			'avg_latency_ms' => isset( $r['avg_latency_ms'] ) && null !== $r['avg_latency_ms'] ? (int) round( (float) $r['avg_latency_ms'] ) : null,
+			'last_call'      => (string) ( $r['last_call'] ?? '' ),
+		);
+	}
+
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is $wpdb->prefix + a plugin constant, never user input; $cutoff is bound via prepare() below.
+	$sql2  = $wpdb->prepare( "SELECT change_type, outcome, COUNT(*) AS calls, AVG(latency_ms) AS avg_latency_ms, MAX(ts) AS last_call FROM {$table} WHERE ts >= %s AND change_type IS NOT NULL GROUP BY change_type, outcome ORDER BY calls DESC, change_type ASC", $cutoff );
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql2 is the STRING RETURNED BY $wpdb->prepare() one line above, already safely bound.
+	$rows2 = $wpdb->get_results( $sql2, ARRAY_A );
+
+	// The by_tool half already succeeded, so the table is present either way;
+	// a failure HERE degrades only this section rather than discarding a good
+	// rollup, and by_change_type stays empty rather than partly filled.
+	if ( '' === (string) $wpdb->last_error && null !== $rows2 ) {
+		foreach ( (array) $rows2 as $r ) {
+			$out['by_change_type'][] = array(
+				'change_type'    => (string) ( $r['change_type'] ?? '' ),
+				'outcome'        => (string) ( $r['outcome'] ?? '' ),
+				'calls'          => (int) ( $r['calls'] ?? 0 ),
+				'avg_latency_ms' => isset( $r['avg_latency_ms'] ) && null !== $r['avg_latency_ms'] ? (int) round( (float) $r['avg_latency_ms'] ) : null,
+				'last_call'      => (string) ( $r['last_call'] ?? '' ),
+			);
+		}
+	}
+
+	$out['table_present'] = true;
+	return $out;
+}
+
+/**
  * Live: opportunistic retention prune. ~1-in-50 chance per insert (never a
  * cron, per the standing "schedule nothing" guardrail this week), capped at
  * SN_MCP_TELEMETRY_PRUNE_LIMIT rows per fire so a single request can never be
