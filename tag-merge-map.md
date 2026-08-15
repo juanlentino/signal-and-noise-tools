@@ -2,6 +2,9 @@
 
 Prepared 2026-08-15. **Planning document. Nothing here has been written to the live site.**
 
+**To execute it: `./tag-merge-apply.sh` (dry run) then `--apply`.** That script is generated from
+this file's own per-post table, so the two cannot drift; regenerate it rather than hand-editing.
+
 There is no MCP path to reassign tags on existing posts: `suggest-tags` is read-only,
 `prune-unused-tags` only deletes terms that already have zero posts, and the only place tags
 appear in a write payload is `create_draft`. This is a WP admin pass, executed by hand.
