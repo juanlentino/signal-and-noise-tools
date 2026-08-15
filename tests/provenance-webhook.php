@@ -203,6 +203,21 @@ if ( ! function_exists( 'wp_next_scheduled' ) ) {
 		return false;
 	}
 }
+// v11.10.0: the settle debounce clears a pending dispatch before rescheduling,
+// so the seam needs a real removal, not a no-op — a stub that "succeeded"
+// without removing anything would let the double-schedule bug pass unnoticed.
+if ( ! function_exists( 'wp_unschedule_event' ) ) {
+	function wp_unschedule_event( $ts, $hook, $args = array() ) {
+		foreach ( $GLOBALS['__pv_sched'] as $i => $e ) {
+			if ( $e['hook'] === $hook && $e['args'] === $args && $e['ts'] === $ts ) {
+				unset( $GLOBALS['__pv_sched'][ $i ] );
+				$GLOBALS['__pv_sched'] = array_values( $GLOBALS['__pv_sched'] );
+				return true;
+			}
+		}
+		return false;
+	}
+}
 // Deterministic resolver seam for the shared SSRF guard — defined BEFORE
 // inc/ssrf-guard.php so its function_exists() guard keeps THIS one (mirrors
 // tests/worker-version.php). Encoded metadata IP + an RFC-1918 hostname are
@@ -221,6 +236,9 @@ if ( ! function_exists( 'sn_ssrf_resolve_host' ) ) {
 }
 
 require_once SNT_PATH . 'inc/ssrf-guard.php';
+// v11.10.0: mirror the plugin loader's order — settle before core/webhook, both
+// of which call into it. Omitting it here fatals inside sn_prov_enqueue_dispatch.
+require_once SNT_PATH . 'inc/provenance-settle.php';
 require_once SNT_PATH . 'inc/provenance-core.php';
 require_once SNT_PATH . 'inc/provenance-webhook.php';
 

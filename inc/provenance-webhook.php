@@ -97,6 +97,16 @@ function sn_prov_dispatch( $post_id, $commit, $canonical ) {
 		'version'      => (int) $commit['version'],
 		'kind'         => '' !== $kind ? $kind : 'note',
 	) );
+	// v11.10.0: mark BEFORE the POST, not after. A request whose response is
+	// lost still reached the Worker, which may already have signed and published
+	// this version — so a later save must never supersede it. Set afterwards, a
+	// dropped response would let the next save rewrite a version the ledger had
+	// already published under the same number with a different hash. Marking
+	// first costs at most a spare version; marking last risks contradicting a
+	// public record.
+	sn_prov_update_commit( (int) $post_id, (int) $commit['version'], array(
+		'dispatch_attempted' => time(),
+	) );
 	$response = wp_remote_post( $url, array(
 		'timeout'     => 15,
 		'redirection' => 0,
@@ -143,9 +153,46 @@ const SN_PROV_DISPATCH_ASYNC_HOOK = 'sn_prov_dispatch_async';
  */
 function sn_prov_enqueue_dispatch( $post_id ) {
 	$post_id = (int) $post_id;
-	if ( ! wp_next_scheduled( SN_PROV_DISPATCH_ASYNC_HOOK, array( $post_id ) ) ) {
-		wp_schedule_single_event( time(), SN_PROV_DISPATCH_ASYNC_HOOK, array( $post_id ) );
+	$args    = array( $post_id );
+
+	// v11.10.0: DEBOUNCE, not dedupe. The old guard only skipped scheduling when
+	// an event was already pending, and the event was scheduled for time() — a
+	// window one page-load wide — so saves minutes apart each got their own
+	// version. Measured 2026-08-15: three saves in ten minutes minted v1, v2 and
+	// v3, all permanent and public.
+	//
+	// Now each save pushes the dispatch out again, so an editing pass signs once
+	// when it goes quiet. A revision tomorrow is still a new version, which is
+	// correct — the goal is to stop versions BLEEDING within one pass, not to
+	// have fewer of them.
+	$existing = wp_next_scheduled( SN_PROV_DISPATCH_ASYNC_HOOK, $args );
+	if ( $existing ) {
+		if ( ! function_exists( 'wp_unschedule_event' ) ) {
+			return; // Cannot debounce; leave the pending dispatch exactly as before.
+		}
+		wp_unschedule_event( $existing, SN_PROV_DISPATCH_ASYNC_HOOK, $args );
 	}
+	// Guarded like sn_prov_record()'s call to the supersede gate: if the settle
+	// module is somehow absent, degrade to the previous immediate dispatch
+	// rather than fatalling inside a post save.
+	$settle = function_exists( 'sn_prov_settle_seconds' ) ? sn_prov_settle_seconds() : 0;
+	wp_schedule_single_event( time() + $settle, SN_PROV_DISPATCH_ASYNC_HOOK, $args );
+}
+
+/**
+ * Is a settle-window dispatch still pending for this post? (v11.10.0)
+ *
+ * The supersede gate's "still private" signal. Lives here because the hook
+ * constant does; sn_prov_record() reaches it through function_exists().
+ *
+ * @param int $post_id
+ * @return bool
+ */
+function sn_prov_dispatch_pending( $post_id ) {
+	if ( ! function_exists( 'wp_next_scheduled' ) ) {
+		return false;
+	}
+	return (bool) wp_next_scheduled( SN_PROV_DISPATCH_ASYNC_HOOK, array( (int) $post_id ) );
 }
 add_action( 'sn_prov_committed', 'sn_prov_enqueue_dispatch', 10, 1 );
 add_action( SN_PROV_DISPATCH_ASYNC_HOOK, 'sn_prov_reconcile_post', 10, 1 );

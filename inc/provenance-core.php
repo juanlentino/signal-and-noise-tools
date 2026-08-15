@@ -251,6 +251,31 @@ function sn_prov_append_commit( $post_id, array $commit ) {
 }
 
 /**
+ * Replace the head commit in place (v11.10.0, settle window).
+ *
+ * Only ever called for a commit sn_prov_commit_is_supersedable() has cleared —
+ * still private, never dispatched, unsigned. Replacing anything the Worker has
+ * seen would rewrite an append-only ledger.
+ *
+ * An empty chain falls through to append, so a caller that gets its bookkeeping
+ * wrong still produces a valid chain rather than losing the commit.
+ *
+ * @param int   $post_id
+ * @param array $commit  Replacement head.
+ * @return array The full chain.
+ */
+function sn_prov_replace_head_commit( $post_id, array $commit ) {
+	$chain = sn_prov_get_chain( $post_id );
+	if ( ! $chain ) {
+		return sn_prov_append_commit( $post_id, $commit );
+	}
+	array_pop( $chain );
+	$chain[] = $commit;
+	update_post_meta( (int) $post_id, SN_PROV_CHAIN_META, $chain );
+	return $chain;
+}
+
+/**
  * Hash of the provenance-BEARING fields only (no version, no parent). Two
  * saves with identical words/title/author/date produce the same bearing
  * hash — the basis for coalescing trivial diffs.
@@ -301,14 +326,37 @@ function sn_prov_record( $post, $author ) {
 		}
 	}
 
+	// v11.10.0: one editing pass, one signed version. While the head commit is
+	// provably still private — settle event pending, unsigned, never dispatched
+	// — a further save REPLACES it rather than appending. See
+	// inc/provenance-settle.php for why every uncertainty resolves to append.
+	//
+	// Superseding keeps the head's OWN version and parent, so the chain stays
+	// contiguous and no link is rewritten: the reader sees one v1, not a v1
+	// that changed underneath them.
+	$supersede = false;
+	if ( $chain && function_exists( 'sn_prov_commit_is_supersedable' ) ) {
+		$dispatch_pending = function_exists( 'sn_prov_dispatch_pending' )
+			? sn_prov_dispatch_pending( $post->ID )
+			: false;
+		$supersede = sn_prov_commit_is_supersedable( $last, $dispatch_pending );
+	}
+
 	// Genesis persists a v0 entry first, so last_version + 1 correctly yields v1
 	// for the first real commit (no gap). For a chain with no genesis (starts at
 	// v1, contiguous), last_version + 1 equals count( $chain ) + 1 — unchanged.
 	$last_version = $chain ? (int) ( $last['version'] ?? 0 ) : 0;
-	$version      = $last_version + 1;
-	$parent       = $chain
-		? ( $last['content_hash'] ?? null )
-		: sn_prov_genesis_parent( $post->ID );
+	$version      = $supersede ? $last_version : $last_version + 1;
+	if ( $supersede ) {
+		// Inherit the head's parent: the commit being replaced never existed
+		// publicly, so the chain must read as though this content was always
+		// what v{$version} said.
+		$parent = $last['parent'] ?? null;
+	} else {
+		$parent = $chain
+			? ( $last['content_hash'] ?? null )
+			: sn_prov_genesis_parent( $post->ID );
+	}
 
 	$payload = sn_prov_build_payload_from_fields( $bearing_fields, $version, $parent );
 	$canon   = sn_prov_canonical_json( $payload );
@@ -324,7 +372,9 @@ function sn_prov_record( $post, $author ) {
 		'committed_at' => gmdate( 'Y-m-d\TH:i:s\Z' ),
 	);
 
-	$full = sn_prov_append_commit( $post->ID, $commit );
+	$full = $supersede
+		? sn_prov_replace_head_commit( $post->ID, $commit )
+		: sn_prov_append_commit( $post->ID, $commit );
 
 	/**
 	 * Fires after a provenance commit is appended. Plan 3's Worker webhook

@@ -14,6 +14,38 @@ ledger that cannot go red has stopped being a ledger.
 
 Ledger-side changes ship in `signal-and-noise-provenance`; this entry covers the plugin half.
 
+### Added — one editing pass, one signed version
+- **Multiple versions are correct; bleeding them is not.** A Note revised next week *should* be
+  v4 — the chain exists to record exactly that. What this stops is one editing pass producing two
+  or three versions at once. Measured 2026-08-15 on `the-master-never-moves`: saves at 18:55,
+  19:00 and 19:05 minted v1, v2 and v3, all permanent, public and Bitcoin-anchored. v1 still
+  carries a sentence removed minutes later that never appeared on the published page — prose
+  still being worked on, preserved forever in a public repo because the webhook fired mid-edit.
+- **The existing coalesce asks the wrong question.** It asks "did the content change?", and during
+  an editing pass the answer is yes on every save — precisely when the most half-formed text
+  exists. A permanent public record needs "are you finished?", approximated by a settle window.
+- **`inc/provenance-settle.php`** (pure) holds the window and the supersede gate.
+  `sn_prov_enqueue_dispatch()` becomes a **debounce rather than a dedupe**: each save pushes the
+  dispatch out again, so a pass signs once when it goes quiet. The old guard only skipped
+  scheduling when an event was already pending, and scheduled at `time()` — a window one
+  page-load wide.
+- **`sn_prov_record()` supersedes the head commit in place** while it is provably still private,
+  reusing its version and inheriting its parent so the chain stays contiguous and no link is
+  rewritten. A reader sees one v1, never a v1 that changed underneath them.
+- **Once the Worker has signed a commit and written it to the public ledger it is immutable** —
+  that is the property the whole system exists to provide. Superseding therefore happens only
+  *before* dispatch, and every uncertainty resolves to append (the previous behaviour), never to
+  rewrite. Four independent conditions each block it: window closed, status not `unanchored`, a
+  signature present (ground truth — it is public whatever the status says), or `dispatch_attempted`
+  set.
+- **`dispatch_attempted` is written BEFORE the POST, not after.** A request whose response is lost
+  still reached the Worker, which may already have signed and published that version; marking
+  afterwards would let the next save rewrite a published version under the same number with a
+  different hash. Marking first costs at most a spare version.
+- Malformed input, and a truthy-but-not-`true` pending flag, both append. The window is clamped
+  to 1800s so the **hourly** reconcile sweep can never dispatch a commit the debounce still
+  believes is private — pinned by test.
+
 ### Fixed — the per-post Cloudflare purge could fail silently, and did
 - **The incident.** On 2026-08-15 a Note was edited three times (18:55, 19:00, 19:05). Each save
   fired the per-post purge. Fifty minutes later the bare URL still served HTML with
