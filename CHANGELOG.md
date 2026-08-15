@@ -2,12 +2,64 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.8.0] - 2026-08-15 — the instruments answer the question
 
-Docs only. No plugin code changed, so **no version bump and no tag** — the release train owns
-those.
+**MINOR** — three changes that make already-collected telemetry able to answer questions it
+could only gesture at. Each one was found by trying to *use* the instrument, not by reading it.
 
-### Added
+### Fixed — `sn-apply` change types were invisible in telemetry
+`inc/mcp/mcp-telemetry.php` records **top-level argument keys, never a value** (`:144`, `:153`),
+and `change.type` is nested. Every `sn-apply` call recorded the identical shape
+`change,dry_run,idempotency_key,mode,target` regardless of what it did, so `link_reshape`,
+`unlink`, `create_draft`, `og_card` and the rest were indistinguishable — the consolidation
+programme's aggregate could never justify retiring or keeping any individual change type, and
+the most destructive surface in the system was the least observable.
+
+New `change_type` column plus a `sn_mcp_telemetry_change_type()` helper. It is an **allowlist,
+never a passthrough**: a value is recorded only if it is a member of `SNT_SN_APPLY_CHANGE_TYPES`,
+sourced from the registration constant rather than a local copy so a type added there is picked
+up automatically and cannot drift. An arbitrary caller string — or a secret pasted into the
+field — resolves to `NULL`. That is the bounded carve-out to the privacy pin, and it is pinned
+by a test.
+
+`SN_MCP_TELEMETRY_DB_VERSION` bumped to `'2'` so `dbDelta` adds the column on an existing
+install; without the bump the installer short-circuits and every insert silently drops it.
+
+### Fixed — a 409 was filed as `schema_error`
+The Layer B classifier is status-first, so fingerprint contention landed in the same bucket as
+malformed input. A **paren-balanced (`perl -0777`) sweep** — never a single-line grep, per the
+lesson recorded twice in `docs/mcp-consolidation/FINDINGS.md` — found **24** `new WP_Error(`
+constructions under `inc/` carrying `array('status'=>409)`: the whole apply family's stale-state
+surface (anchor moved, phrase moved, revision belongs to another post, idempotency key reused
+against another target) plus `ai-orphan-suggest`'s TOCTOU re-check. All 24 were unreadable as
+conflicts.
+
+409 now classifies as its own `conflict` outcome, split out **before** the 400–428 band, with no
+`refusal_gate` — a conflict is a lost race, not a gate refusal. The band either side of it is
+pinned by tests so the split cannot widen.
+
+### Added — the cache probe can now place a call, not just count it
+The probe is origin-agnostic by design: it hooks `http_response` and records every
+`api.anthropic.com/v1/messages` call the site makes, **including other plugins routed through the
+WP AI Client**. So a model this plugin never pins can legitimately appear — as
+`claude-sonnet-4-6` did, 2 calls against 198 — and the aggregate gave no way to place it.
+
+Each model now carries up to `SN_AI_CACHE_PROBE_SAMPLES` (5) content-free sample rows —
+`ts`, `tools_count`, `sys_bytes`, `msg_count`, newest first — and the Insights panel renders them
+for the **non-dominant** models only. A tool count separates an agent run from a bare
+connectivity call; a timestamp is usually enough to recognise the caller. Prompt text is still
+never stored, and a test pins the sample shape to exactly those four keys so it cannot be widened.
+
+### Tests
+`tests/mcp-telemetry.php` 100 asserts, `tests/ai-cache-probe.php` 64. The change-type allowlist
+fixture is **extracted from the real registration at runtime** rather than copied, so it cannot
+drift; the extractor is negative-controlled before anything is built on it. The insert
+column/format-count assertion was itself found wrong first — anchored on a `$wpdb->insert()`
+mention in a docblock 440 lines above the real call, it reported 41 columns vs 13 formats and
+RED-ed on correct code — then scoped to the function body and negative-controlled by deleting a
+format string. Full sweep at ship time: **438 files, 15,038 asserts, 0 failures.**
+
+### Also in this release (docs, landed earlier)
 - **`docs/adr/adr-0002-tag-merge-change-type.md`** — proposes tag reassignment as a term-level
   `tag_merge` `change.type` on `sn-apply` rather than a new tool, with a term-state concurrency
   token (content hash has no analogue for a taxonomy write) and a mandatory per-post rollback

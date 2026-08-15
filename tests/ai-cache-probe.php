@@ -385,5 +385,66 @@ hc_true( false === strpos( $flat, $secret_msg ), 'prompt text is never stored' )
 hc_true( false === strpos( $flat, 'get_posts' ), 'tool schemas are never stored' );
 hc_true( false === strpos( $flat, 'ok' ), 'response content is never stored' );
 
+/* ════════════════════════════════════════════════════════════════════════
+ * v11.8.0 — per-model content-free samples, so a model the site never pins
+ * can actually be placed instead of just counted.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+// Mirrors the real shape: a dominant model plus 2 calls on one SN never pins
+// (SN_AI_DEFAULT_MODEL and sn_theme_ai_models() both exclude claude-sonnet-4-6),
+// which is exactly the situation the panel could not explain.
+$mix_log = array();
+for ( $i = 0; $i < 6; $i++ ) {
+	$mix_log[] = array(
+		'ts' => 1000 + $i, 'model' => 'claude-sonnet-5', 'prefix_hash' => 'aaaa',
+		'tools_bytes' => 50000, 'sys_bytes' => 8000, 'tools_count' => 12, 'msg_count' => 3, 'in' => 19000,
+	);
+}
+$mix_log[] = array(
+	'ts' => 2000, 'model' => 'claude-sonnet-4-6', 'prefix_hash' => 'bbbb',
+	'tools_bytes' => 0, 'sys_bytes' => 2863, 'tools_count' => 0, 'msg_count' => 1, 'in' => 900,
+);
+$mix_log[] = array(
+	'ts' => 2100, 'model' => 'claude-sonnet-4-6', 'prefix_hash' => 'cccc',
+	'tools_bytes' => 0, 'sys_bytes' => 2000, 'tools_count' => 0, 'msg_count' => 1, 'in' => 700,
+);
+$mix_v = snt_ai_cache_probe_verdict( $mix_log );
+
+$by_model = array();
+foreach ( $mix_v['models'] as $mm ) {
+	$by_model[ $mm['model'] ] = $mm;
+}
+hc_true( isset( $by_model['claude-sonnet-4-6']['samples'] ), 'verdict: a non-dominant model carries samples' );
+hc_true( 2 === count( $by_model['claude-sonnet-4-6']['samples'] ), 'verdict: both of its calls are sampled' );
+// Newest first — the recognisable end of a rolling log.
+hc_true( 2100 === (int) $by_model['claude-sonnet-4-6']['samples'][0]['ts'], 'verdict: samples are newest-first' );
+// The two fields that actually discriminate a caller.
+hc_true( 0 === (int) $by_model['claude-sonnet-4-6']['samples'][0]['tools_count'], 'verdict: tools_count is carried (0 here = not an agent run)' );
+hc_true( 12 === (int) $by_model['claude-sonnet-5']['samples'][0]['tools_count'], 'verdict: a tool-carrying call is distinguishable from a bare one' );
+hc_true( 2863 === (int) $by_model['claude-sonnet-4-6']['samples'][1]['sys_bytes'], 'verdict: sys_bytes is carried' );
+
+// Bounded: a rolling 200-entry log must not become a 200-row panel.
+$big = array();
+for ( $i = 0; $i < 40; $i++ ) {
+	$big[] = array( 'ts' => 5000 + $i, 'model' => 'claude-opus-5', 'prefix_hash' => 'h' . $i, 'tools_bytes' => 10, 'sys_bytes' => 10, 'tools_count' => 0, 'msg_count' => 1 );
+}
+$big_v = snt_ai_cache_probe_verdict( $big );
+hc_true( count( $big_v['models'][0]['samples'] ) === SN_AI_CACHE_PROBE_SAMPLES, 'verdict: samples are capped at SN_AI_CACHE_PROBE_SAMPLES (' . SN_AI_CACHE_PROBE_SAMPLES . '), not unbounded' );
+hc_true( 5039 === (int) $big_v['models'][0]['samples'][0]['ts'], 'verdict: the cap keeps the NEWEST rows, not the first ones seen' );
+
+// The privacy pin still holds with samples attached — same assertion style as
+// the existing sweep above, re-run against the verdict (not just the entry).
+$flat_v = wp_json_encode( $mix_v );
+hc_true( false === strpos( (string) $flat_v, 'secret' ), 'verdict with samples: still no prompt/system text anywhere in the payload' );
+// Pin the sample SHAPE exactly. An allowlist of keys is what stops a future
+// edit from quietly widening a content-free record into a content-carrying one
+// — asserting "no secrets in this fixture" would pass even then.
+$sample_keys = array_keys( $by_model['claude-sonnet-4-6']['samples'][0] );
+sort( $sample_keys );
+hc_true(
+	array( 'msg_count', 'sys_bytes', 'tools_count', 'ts' ) === $sample_keys,
+	'verdict with samples: a sample carries EXACTLY ts/tools_count/sys_bytes/msg_count — no field can be widened in without failing here'
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -272,6 +272,42 @@ function snt_insights_render_cache_probe_section() {
 					. '<td>' . wp_kses_post( $verdict ) . '</td></tr>';
 			}
 			echo '</tbody></table>';
+
+			// v11.8.0: the aggregate cannot answer "where did THAT come from?".
+			// The probe is origin-agnostic by design (it hooks http_response and
+			// records every api.anthropic.com/v1/messages call the site makes,
+			// including other plugins routed through the WP AI Client), so a
+			// model SN never pins can legitimately appear here — and the table
+			// above gives no way to place it. Timestamps and a tool count do:
+			// an agent run carries a large tool manifest, a connectivity check
+			// carries none. Shown ONLY for the non-dominant models, because the
+			// dominant one is the site's own traffic and needs no explaining.
+			$minor = array();
+			foreach ( $v['models'] as $m ) {
+				$is_best = isset( $v['best']['model'] ) && $v['best']['model'] === $m['model'];
+				if ( ! $is_best && ! empty( $m['samples'] ) ) {
+					$minor[] = $m;
+				}
+			}
+			if ( $minor ) {
+				echo '<p class="sn-field-helper">Recent calls on the models above that are not the dominant one. '
+					. 'The probe records every Anthropic call the site makes, including other plugins, so a model this plugin never pins can appear here. '
+					. 'Sizes and counts only &mdash; prompt text is never stored.</p>';
+				echo '<table class="widefat striped"><thead><tr><th>Model</th><th>When</th><th>Tools</th><th>System prompt</th><th>Messages</th></tr></thead><tbody>';
+				foreach ( $minor as $m ) {
+					foreach ( $m['samples'] as $s ) {
+						$when = (int) $s['ts'] > 0
+							? esc_html( wp_date( 'Y-m-d H:i:s T', (int) $s['ts'] ) )
+							: '&mdash;';
+						echo '<tr><td><code>' . esc_html( '' !== $m['model'] ? $m['model'] : 'unknown' ) . '</code></td>'
+							. '<td>' . wp_kses_post( $when ) . '</td>'
+							. '<td>' . esc_html( number_format_i18n( (int) $s['tools_count'] ) ) . '</td>'
+							. '<td>' . esc_html( number_format_i18n( (int) $s['sys_bytes'] ) ) . ' bytes</td>'
+							. '<td>' . esc_html( number_format_i18n( (int) $s['msg_count'] ) ) . '</td></tr>';
+					}
+				}
+				echo '</tbody></table>';
+			}
 		}
 
 		// Absent vs measured-zero, surfaced rather than flattened: "0 of 0

@@ -407,5 +407,95 @@ $call = sn_mcp_call_tool( 'signal-noise__prune-unused-tags', array(), SN_MCP_DOO
 ok( isset( $call['result'] ) && false === $call['result']['isError'], 'sanity: the rw call itself still succeeds' );
 ok( 'app-pw:ffffffff' === $wpdb->insert_calls[0]['data']['actor'], 'wiring: actor resolves to app-pw:<uuid prefix> on an authenticated rw call' );
 
+/* ════════════════════════════════════════════════════════════════════════
+ * v11.8.0 — the `conflict` outcome and the `change_type` dimension.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+// The change-type allowlist fixture is EXTRACTED from the real registration
+// (inc/sn-apply-executors.php's SNT_SN_APPLY_CHANGE_TYPES) rather than copied,
+// so it cannot drift from it — this repo's #1 recurring trap. A hand-copied
+// list would still pass every assertion below on the day a type is added.
+$sn_exec_src = file_get_contents( __DIR__ . '/../inc/sn-apply-executors.php' );
+$sn_types    = array();
+if ( is_string( $sn_exec_src ) && preg_match( '/const\s+SNT_SN_APPLY_CHANGE_TYPES\s*=\s*array\s*\((.*?)\);/s', $sn_exec_src, $sn_m ) ) {
+	preg_match_all( '/\'([a-z_]+)\'/', $sn_m[1], $sn_hits );
+	$sn_types = $sn_hits[1];
+}
+// Negative-control the extractor itself before trusting anything built on it:
+// a silently-empty match would make every allowlist assertion below vacuous.
+ok( count( $sn_types ) >= 16, 'fixture: extracted the REAL change-type list from inc/sn-apply-executors.php (' . count( $sn_types ) . ' types)' );
+ok( in_array( 'link_reshape', $sn_types, true ) && in_array( 'unlink', $sn_types, true ), 'fixture: extraction found known members (link_reshape, unlink) — the regex really parsed the const' );
+if ( ! defined( 'SNT_SN_APPLY_CHANGE_TYPES' ) ) {
+	define( 'SNT_SN_APPLY_CHANGE_TYPES', $sn_types );
+}
+
+// --- status 409 → conflict, grounded on REAL constructions ---
+// All four cited below were found by a paren-balanced (perl -0777) sweep of
+// every `new WP_Error(` under inc/ carrying array('status'=>409) — 24 sites.
+// A single-line grep would have missed the multi-line ones, per the standing
+// lesson recorded twice in docs/mcp-consolidation/FINDINGS.md.
+$cf1 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_sn_apply_anchor_not_found', 'No <a> element with exactly this inner text exists.', array( 'status' => 409 ) ) );
+ok( 'conflict' === $cf1['outcome'], 'classify: snt_sn_apply_anchor_not_found (409, inc/sn-apply-link-reshape.php:117) → conflict' );
+$cf2 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_orphan_no_longer', 'Attachment is now referenced and was not deleted.', array( 'status' => 409 ) ) );
+ok( 'conflict' === $cf2['outcome'], 'classify: snt_orphan_no_longer (409, inc/ai-orphan-suggest.php:191, a TOCTOU re-check) → conflict' );
+$cf3 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_sn_apply_idempotency_target_mismatch', 'key was previously used against another target.', array( 'status' => 409 ) ) );
+ok( 'conflict' === $cf3['outcome'], 'classify: snt_sn_apply_idempotency_target_mismatch (409, inc/abilities-sn-apply.php:251) → conflict' );
+$cf4 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_sn_apply_batch_phrase_not_found', 'edit 2: phrase not present in post content.', array( 'status' => 409 ) ) );
+ok( 'conflict' === $cf4['outcome'], 'classify: snt_sn_apply_batch_phrase_not_found (409, inc/sn-apply-batch-edits.php:200) → conflict' );
+// The regression this closes: 409 used to fall in the 400-428 band.
+ok( 'schema_error' !== $cf1['outcome'], 'classify: a 409 is NO LONGER schema_error — fingerprint contention is distinguishable from malformed input' );
+ok( null === $cf1['refusal_gate'], 'classify: conflict carries no refusal_gate (it is not a gate refusal)' );
+
+// --- the 4xx band around 409 must be UNCHANGED (boundary integrity) ---
+$cb1 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_sn_apply_bad_change_type', 'change.type must be one of: ...', array( 'status' => 422 ) ) );
+ok( 'schema_error' === $cb1['outcome'], 'classify: 422 still → schema_error (inc/abilities-sn-apply.php:190, a REAL construction)' );
+$cb2 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'x', '', array( 'status' => 408 ) ) );
+ok( 'schema_error' === $cb2['outcome'], 'classify: 408 (just below 409) still → schema_error' );
+$cb3 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'x', '', array( 'status' => 410 ) ) );
+ok( 'schema_error' === $cb3['outcome'], 'classify: 410 (just above 409) still → schema_error' );
+$cb4 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'x', '', array( 'status' => 429 ) ) );
+ok( 'refused' === $cb4['outcome'], 'classify: 429 still → refused, not swallowed by the new branch' );
+$cb5 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'x', '', array( 'status' => 500 ) ) );
+ok( 'server_error' === $cb5['outcome'], 'classify: 500 still → server_error' );
+
+// --- change_type extraction: ALLOWLIST, never passthrough ---
+ok( 'link_reshape' === sn_mcp_telemetry_change_type( array( 'change' => array( 'type' => 'link_reshape' ) ) ), 'change_type: a real allowlisted type is recorded' );
+ok( 'unlink' === sn_mcp_telemetry_change_type( array( 'target' => array( 'post_id' => 1 ), 'change' => array( 'type' => 'unlink' ), 'mode' => 'publish' ) ), 'change_type: extracted from a full sn-apply argument shape' );
+ok( null === sn_mcp_telemetry_change_type( array( 'change' => array( 'type' => 'tag_merge' ) ) ), 'change_type: an UNREGISTERED type (tag_merge, ADR-0002, not yet in the enum) → null, not echoed' );
+ok( null === sn_mcp_telemetry_change_type( array() ), 'change_type: absent change → null' );
+ok( null === sn_mcp_telemetry_change_type( array( 'change' => 'link_reshape' ) ), 'change_type: non-array change → null' );
+ok( null === sn_mcp_telemetry_change_type( array( 'change' => array( 'payload' => array() ) ) ), 'change_type: change without a type → null' );
+ok( null === sn_mcp_telemetry_change_type( 'not-an-array' ), 'change_type: non-array args → null' );
+ok( null === sn_mcp_telemetry_change_type( array( 'change' => array( 'type' => array( 'link_reshape' ) ) ) ), 'change_type: a non-string type → null (never stringified)' );
+// PRIVACY: the carve-out is "a closed enum", so anything off-enum must not be
+// stored. This is the assertion that keeps it from degrading into "log a value".
+$leak = 'sk-secret-token-value-that-must-never-be-stored';
+ok( null === sn_mcp_telemetry_change_type( array( 'change' => array( 'type' => $leak ) ) ), 'change_type PRIVACY: an arbitrary caller string is NEVER recorded — allowlist, not passthrough' );
+
+// --- the row and the insert carry the new column ---
+$row_ct = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'rw', 'human', 'signal-noise__sn-apply', 'change,mode,target', str_repeat( 'a', 64 ), 'conflict', null, 12, null, 'link_reshape' );
+ok( array_key_exists( 'change_type', $row_ct ), 'build_row: emits a change_type key' );
+ok( 'link_reshape' === $row_ct['change_type'], 'build_row: carries the resolved change_type' );
+ok( 'conflict' === $row_ct['outcome'], 'build_row: accepts the new conflict outcome' );
+$row_null = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__sn-posts', 'scope', str_repeat( 'b', 64 ), 'ok', null, 3, 5, null );
+ok( null === $row_null['change_type'], 'build_row: change_type is NULL for a tool that has no change.type' );
+
+// The insert uses an EXPLICIT format array; a column added without its %s
+// silently misbinds every column after it.
+$sn_tel_src = file_get_contents( __DIR__ . '/../inc/mcp/mcp-telemetry.php' );
+// Scope to the FUNCTION BODY first. An earlier cut of this assertion anchored
+// on /\$wpdb->insert\(/ against the whole file and matched the docblock mention
+// at line 27, so the span ran down to the real call and swallowed build_row's
+// keys — it reported 41 columns vs 13 formats and RED-ed on correct code. The
+// instrument was wrong, not the subject; scoping it is the fix.
+$ins_body = preg_match( '/function sn_mcp_telemetry_insert_row\s*\(.*?\n\}/s', (string) $sn_tel_src, $fn_m ) ? $fn_m[0] : '';
+ok( '' !== $ins_body && false !== strpos( $ins_body, '$wpdb->insert(' ), 'fixture: isolated the insert_row() function body (not the docblock mention 440 lines above it)' );
+$n_cols    = substr_count( $ins_body, '=>' );
+$n_formats = preg_match_all( "/'%[sd]'/", $ins_body );
+ok( $n_cols > 0 && $n_cols === $n_formats, "insert_row: column count ($n_cols) matches format count ($n_formats) — a new column without its %s would misbind every column after it" );
+ok( false !== strpos( $ins_body, 'change_type' ), 'insert_row: change_type is actually inserted' );
+ok( false !== strpos( (string) $sn_tel_src, 'change_type VARCHAR' ), 'schema: change_type column is in the CREATE TABLE' );
+ok( '1' !== SN_MCP_TELEMETRY_DB_VERSION, 'schema: DB version was bumped, so dbDelta actually adds the column on an existing install' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
