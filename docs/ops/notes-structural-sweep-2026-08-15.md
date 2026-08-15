@@ -156,7 +156,34 @@ deliberate two-note island outside the research corpus.
 
 ## Provenance versions
 
-**Expected: zero new versions corpus-wide, and certainly no note gaining more than one.**
+**VERIFIED: zero new provenance versions from all 12 writes.** Not inferred — read off the
+public ledger. Method and reasoning below.
+
+## Verification: the public git ledger, not the Content-Health scan
+
+The Content-Health scan turned out to be both unreachable *and* the weaker oracle — it samples
+10 of 32. The ground truth for "did a version get minted" is the ledger itself:
+**`github.com/juanlentino/signal-and-noise-provenance`**, public, "ed25519-signed,
+OpenTimestamps-anchored commit records".
+
+- Timezone confirmed first, so the comparison is apples to apples: cron ts `1786756503` renders as
+  `2026-08-15 01:15:03 UTC`, exactly what the site reported. **The site reports UTC.**
+- First write of this sweep: **2026-08-15 01:13:20 UTC**. Last: ~01:31 UTC.
+- **Most recent ledger commit: `2026-08-14T22:00:24Z`** — 3h13m *before* the first write.
+  **Nothing on 2026-08-15 at all.**
+
+**Why that is conclusive rather than merely suggestive.** The obvious objection is that mints
+might be batched into the hourly `sn_prov_reconcile` (fires at :15), in which case only the first
+three writes would have been swept yet. The ledger's own history rules that out: the record
+commits land at `18:55:06`, `19:40:17`, `19:45:46`, `22:00:19`, and the index sweeps at `18:00:28`,
+`19:40:19`, `19:45:49`, `22:00:24`. **None aligns to :15.** Mints are event-driven — the worker's
+own description is `HMAC webhook → ed25519 sign + OTS stamp → public git ledger` — so a minted
+version produces an immediate `(pending)` commit, later upgraded to `(confirmed)` by the OTS
+sweep. No `(pending)` commit appeared for any of the twelve writes.
+
+That covers all 12: nine `sn-apply` writes across eight notes and three `ai-link-apply` links.
+
+**Expected, and now confirmed: zero new versions corpus-wide.**
 
 - All 8 Phase 1 writes were `link_reshape`/`unlink` — markup-only, rendered prose byte-identical
   in every diff. These coalesce to no new commit.
