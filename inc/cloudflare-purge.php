@@ -314,6 +314,22 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 
 	$urls = apply_filters( 'sn_cf_purge_urls_for_post', $urls, $post_id, $post );
 	sn_cf_purge_urls( $urls );
+
+	// v11.10.0: the purge above is fire-and-forget and CANNOT report whether it
+	// worked. On 2026-08-15 three of them ran against one Note and the edge kept
+	// serving a 27-hour-old render for fifty minutes; the public provenance
+	// ledger went red for it three times while this code path looked healthy.
+	// Schedule a probe that checks the URL a reader would actually get, and
+	// escalates once to a zone purge if it is still stale. Rescheduling is
+	// deliberate: three saves in ten minutes should probe once, after the last.
+	if ( function_exists( 'wp_schedule_single_event' ) && defined( 'SN_CF_PROBE_HOOK' ) ) {
+		$args = array( $post_id );
+		$next = wp_next_scheduled( SN_CF_PROBE_HOOK, $args );
+		if ( $next ) {
+			wp_unschedule_event( $next, SN_CF_PROBE_HOOK, $args );
+		}
+		wp_schedule_single_event( time() + SN_CF_PROBE_DELAY, SN_CF_PROBE_HOOK, $args );
+	}
 }, 30, 4 );
 
 /**

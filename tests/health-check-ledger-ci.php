@@ -63,6 +63,17 @@ $GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( run_body( 'suc
 $pack = snt_health_check_ledger_ci();
 ok( 0 === $pack['count'] && '' === $pack['fix_hint'], 'green ledger packs zero findings, no hint' );
 ok( false !== strpos( (string) ( $GLOBALS['__req']['args']['headers']['User-Agent'] ?? '' ), 'ledger-ci-check' ), 'the probe identifies itself to the GitHub API' );
+// v11.10.0: the chip must read the SCHEDULED run, not merely the latest one.
+// The ledger's verify.yml also runs on every Worker record push, which lands
+// seconds after an edit while the page cache has not propagated — a state the
+// ledger itself now tolerates on that trigger. Reading those runs made the
+// chip report "the trust repo is reporting a problem" for a condition the
+// trust repo had already forgiven. The daily scheduled run is the one that
+// verifies with nothing tolerated, so it is the only authoritative verdict.
+$probe_url = (string) ( $GLOBALS['__req']['url'] ?? '' );
+ok( false !== strpos( $probe_url, 'event=schedule' ), 'the probe reads only SCHEDULED runs, not transitional record pushes' );
+ok( false !== strpos( $probe_url, 'status=completed' ), 'the probe still reads only completed runs' );
+ok( false !== strpos( $probe_url, 'per_page=1' ), 'the probe still reads exactly the newest run' );
 $GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( run_body( 'failure' ) ) );
 $pack = snt_health_check_ledger_ci();
 ok( 1 === $pack['count'] && 'ledger_ci' === $pack['findings'][0]['subject_type'], 'red ledger raises exactly one finding' );

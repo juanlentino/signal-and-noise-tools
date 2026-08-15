@@ -22,7 +22,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_LEDGER_CI_RUNS_URL = 'https://api.github.com/repos/juanlentino/signal-and-noise-provenance/actions/workflows/verify.yml/runs?status=completed&per_page=1';
+/*
+ * `event=schedule` is load-bearing, not a refinement (v11.10.0).
+ *
+ * verify.yml also runs on every Worker record push. Such a push lands seconds
+ * after an edit, while the page cache has provably not propagated — a state
+ * the ledger itself now tolerates on that trigger alone. Reading the merely
+ * LATEST completed run meant this chip reported "the trust repo is reporting a
+ * problem nobody may have seen" for a condition the trust repo had already
+ * forgiven, roughly ten times between 2026-08-04 and 2026-08-15.
+ *
+ * The daily scheduled run is the one that verifies with NOTHING tolerated. It
+ * is therefore the only authoritative verdict, and the only one worth waking
+ * anybody for. A chip that fires on transitional noise trains its reader to
+ * ignore it — which is exactly how the 2026-07-25..28 incident this check was
+ * born from went unseen for three days.
+ */
+const SN_LEDGER_CI_RUNS_URL = 'https://api.github.com/repos/juanlentino/signal-and-noise-provenance/actions/workflows/verify.yml/runs?status=completed&event=schedule&per_page=1';
 
 /**
  * Pure evaluator: the decoded GitHub workflow-runs response in, one verdict

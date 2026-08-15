@@ -76,6 +76,10 @@ require_once SNT_PATH . 'inc/seo.php';
 require_once SNT_PATH . 'inc/robots-txt.php'; // v6.53.0: robots.txt AI-crawler policy (filterable allow/deny) + idempotent Sitemap pointer
 require_once SNT_PATH . 'inc/security-headers.php';
 require_once SNT_PATH . 'inc/rest-hardening.php'; // v9.83.0: anonymous REST surface — route removal (users/comments/batch), rendered-field stripping on posts/pages, TDM headers on every dispatch
+// v11.10.0: purge VERIFICATION must load before cloudflare-purge.php, which
+// reads SN_CF_PROBE_HOOK/SN_CF_PROBE_DELAY when scheduling its probe.
+require_once SNT_PATH . 'inc/cloudflare-purge-verify.php'; // pure: render normalization + staleness decision
+require_once SNT_PATH . 'inc/cloudflare-purge-probe.php';  // scheduled probe + bounded zone-purge escalation
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: reliable Varnish clear via the Cloudways API (rides breeze_clear_varnish)
 require_once SNT_PATH . 'inc/freshness-indicator.php'; // v8.5.1: dashboard cache-freshness dot (client-checked CSS-hash)
