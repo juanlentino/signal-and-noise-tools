@@ -11,6 +11,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 define( 'SN_MCP_TEST', true );
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! defined( 'ARRAY_A' ) ) { define( 'ARRAY_A', 'ARRAY_A' ); }
 
 if ( ! class_exists( 'WP_Error' ) ) {
 	// Mirrors real WP_Error's multi-code storage + get_error_data() default
@@ -496,6 +497,86 @@ ok( $n_cols > 0 && $n_cols === $n_formats, "insert_row: column count ($n_cols) m
 ok( false !== strpos( $ins_body, 'change_type' ), 'insert_row: change_type is actually inserted' );
 ok( false !== strpos( (string) $sn_tel_src, 'change_type VARCHAR' ), 'schema: change_type column is in the CREATE TABLE' );
 ok( '1' !== SN_MCP_TELEMETRY_DB_VERSION, 'schema: DB version was bumped, so dbDelta actually adds the column on an existing install' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v11.9.0 — sn_mcp_telemetry_summary(), the read path for the table.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+// The stub models wpdb's REAL failure shape: a failed query returns an EMPTY
+// ARRAY with last_error SET — it does not return false and does not throw.
+// A stub that returned false would let an is_array() check pass this suite
+// while reporting a missing table as an honest zero on the live site.
+class SN_Test_Summary_Wpdb {
+	public $prefix     = 'wp_';
+	public $last_error = '';
+	public $rows1      = array();
+	public $rows2      = array();
+	public $fail_on    = 0; // 1 = first select fails, 2 = second.
+	private $n         = 0;
+	public function prepare( $sql, ...$a ) {
+		foreach ( $a as $v ) {
+			$sql = preg_replace( '/%s|%d/', (string) $v, $sql, 1 );
+		}
+		return $sql;
+	}
+	public function get_results( $sql, $mode = null ) {
+		++$this->n;
+		if ( $this->fail_on === $this->n ) {
+			$this->last_error = 'Table \'wp_sn_tool_call\' doesn\'t exist';
+			return array();
+		}
+		return 1 === $this->n ? $this->rows1 : $this->rows2;
+	}
+	public function reset() {
+		$this->n          = 0;
+		$this->last_error = '';
+	}
+}
+
+$sw               = new SN_Test_Summary_Wpdb();
+$GLOBALS['wpdb']  = $sw;
+$sw->rows1        = array(
+	array( 'tool_name' => 'signal-noise__sn-apply', 'door' => 'rw', 'outcome' => 'ok', 'calls' => '9', 'avg_latency_ms' => '120.4', 'last_call' => '2026-08-15 01:00:00.000' ),
+	array( 'tool_name' => 'signal-noise__sn-apply', 'door' => 'rw', 'outcome' => 'conflict', 'calls' => '2', 'avg_latency_ms' => '40.0', 'last_call' => '2026-08-15 01:05:00.000' ),
+);
+$sw->rows2        = array(
+	array( 'change_type' => 'link_reshape', 'outcome' => 'ok', 'calls' => '7', 'avg_latency_ms' => '110.0', 'last_call' => '2026-08-15 01:00:00.000' ),
+	array( 'change_type' => 'link_reshape', 'outcome' => 'conflict', 'calls' => '2', 'avg_latency_ms' => '40.0', 'last_call' => '2026-08-15 01:05:00.000' ),
+);
+$sum = sn_mcp_telemetry_summary();
+ok( true === $sum['table_present'], 'summary: table_present true on a clean query' );
+ok( 11 === $sum['total_calls'], 'summary: total_calls sums the grouped rows (9+2)' );
+ok( 'conflict' === $sum['by_tool'][1]['outcome'], 'summary: the new conflict outcome surfaces as its own row' );
+ok( 120 === $sum['by_tool'][0]['avg_latency_ms'], 'summary: avg latency rounded to an int' );
+// The whole reason the column was added: an individual change type, visible.
+ok( 2 === count( $sum['by_change_type'] ), 'summary: by_change_type is populated — an INDIVIDUAL change type is finally measurable' );
+ok( 'link_reshape' === $sum['by_change_type'][0]['change_type'], 'summary: change_type carried through' );
+ok( 2 === $sum['by_change_type'][1]['calls'] && 'conflict' === $sum['by_change_type'][1]['outcome'], 'summary: per-change-type CONFLICT rate is readable — the signal for whether a fingerprint granularity is right' );
+
+// Honest zero.
+$sw->reset(); $sw->rows1 = array(); $sw->rows2 = array();
+$sum = sn_mcp_telemetry_summary();
+ok( true === $sum['table_present'] && 0 === $sum['total_calls'], 'summary: empty window with a clean query is table_present:true — a measurement, not an unknown' );
+
+// Missing table: EMPTY ARRAY + last_error. This is the case an is_array()
+// check would silently pass as an honest zero.
+$sw->reset(); $sw->fail_on = 1;
+$sum = sn_mcp_telemetry_summary();
+ok( false === $sum['table_present'] && 0 === $sum['total_calls'], 'summary: a failed query is table_present:false even though wpdb returned [] not false' );
+ok( array() === $sum['by_tool'], 'summary: no rows are invented on a failed query' );
+
+// Second select failing degrades only its own section.
+$sw->reset(); $sw->fail_on = 2;
+$sw->rows1 = array( array( 'tool_name' => 'x', 'door' => 'read', 'outcome' => 'ok', 'calls' => '3', 'avg_latency_ms' => null, 'last_call' => '2026-08-15 01:00:00.000' ) );
+$sum = sn_mcp_telemetry_summary();
+ok( true === $sum['table_present'] && 3 === $sum['total_calls'], 'summary: a by_change_type failure does not discard the good by_tool rollup' );
+ok( array() === $sum['by_change_type'], 'summary: by_change_type stays EMPTY rather than partly filled' );
+ok( null === $sum['by_tool'][0]['avg_latency_ms'], 'summary: a NULL avg stays null, never coerced to 0' );
+
+// Window is bounded and sane.
+$sw->reset(); $sw->fail_on = 0; $sw->rows1 = array(); $sw->rows2 = array();
+ok( 30 === sn_mcp_telemetry_summary()['window_days'], 'summary: default window is 30 days' );
+ok( 1 === sn_mcp_telemetry_summary( 0 )['window_days'], 'summary: a zero/negative window clamps to 1, never a division or an unbounded scan' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

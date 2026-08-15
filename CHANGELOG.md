@@ -2,8 +2,6 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
-
 ### Fixed — `tag-merge-apply.sh` could never have run
 - **`--by=name` is not a valid value.** `wp post term set --by=` accepts only `slug` or `id`, so
   every one of the 42 commands failed with *"Invalid value specified for 'by'"* and the run died
@@ -17,6 +15,44 @@ All notable changes to Signal & Noise Tools are documented here.
   term.
 - **The dry run now says it is a dry run.** It printed bare `wp` commands with no banner, which
   reads exactly like execution scrolling past.
+
+## [11.9.0] - 2026-08-15 — the evidence becomes reachable
+
+**MINOR** — v11.8.0 added the `change_type` dimension and the `conflict` outcome to `sn_tool_call`
+and then shipped both into a table with **no read path**. The data the consolidation programme
+retires surfaces on was being collected and was unreachable from the place the decisions get made.
+This closes that.
+
+### Added — `tool_telemetry` fact on `sn_site_facts`
+- **A fact, not a twelfth top-level tool.** `scan_telemetry` set the precedent — telemetry
+  rollups live inside `sn_site_facts` as plugin-internal facts resolved by a direct call, never
+  an ability dispatch. Following it adds zero tool surface, which matters against a programme
+  actively reducing it 68 → 11.
+- `sn_mcp_telemetry_summary( $days = 30 )` returns two grouped SELECTs: **`by_tool`** per
+  (tool_name, door, outcome) with calls, avg latency and last_call, and **`by_change_type`** —
+  the same split for `sn-apply`'s change types, which is the query the v11.8.0 column exists to
+  serve. An individual change type can finally be retired or kept on evidence instead of hiding
+  inside `sn-apply`'s aggregate, and the per-change-type **conflict rate** — the signal for
+  whether a fingerprint's granularity is right — is readable.
+- **`table_present` carries `scan_telemetry`'s exact meaning.** An empty rollup with
+  `table_present: true` is an honest quiet window; `false` means the table is missing or the
+  query failed, the fail-open insert path has been eating rows, and no number in the payload is a
+  measurement. `{error: "unavailable"}` is a third, distinct answer meaning the module is not
+  loaded. Zero, null and unknown stay three different answers.
+- A failure of the second SELECT degrades only `by_change_type`, leaving a good `by_tool` rollup
+  intact rather than discarding both.
+
+### Fixed in development, worth recording
+The first cut detected a failed query with `! is_array( $rows )`. **A missing table returns an
+empty array, not `false`** — so that check would have reported a missing table as an honest zero,
+the exact lie `table_present` exists to prevent. Caught by modelling the stub on wpdb's real
+failure shape (empty array **plus** `last_error`) rather than a convenient one, and pinned by a
+test that was negative-controlled against the naive check.
+
+### Tests
+`tests/mcp-telemetry.php` 115 asserts, `tests/abilities-sn-site-facts.php` 53. The repo's own
+count-and-map drift pins on the fact map fired correctly on the new entry and were updated
+deliberately. Full sweep: **438 files, 16,530 asserts, 0 failures.**
 
 ## [11.8.0] - 2026-08-15 — the instruments answer the question
 

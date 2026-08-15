@@ -93,7 +93,7 @@ echo "sn_site_facts (consolidated) — plugin v10.26.0\n\n";
 
 // ─── Fact map: exactly 10 facts, none pointing at the retired ability ───
 $map = snt_sn_site_facts_map();
-ok( 11 === count( $map ), 'the fact map has exactly 11 entries (get-design-system-summary retired, not absorbed; scan_telemetry added v10.61.0)' );
+ok( 12 === count( $map ), 'the fact map has exactly 12 entries (get-design-system-summary retired, not absorbed; scan_telemetry added v10.61.0, tool_telemetry v11.9.0)' );
 ok( ! in_array( 'signal-and-noise/get-design-system-summary', $map, true ), 'the retired ability is not a source for any fact' );
 $expected_map = array(
 	'theme_version'      => 'signal-and-noise/get-theme-version',
@@ -107,6 +107,7 @@ $expected_map = array(
 	'pillars'            => 'signal-and-noise/get-page-notes-pillars',
 	'reading_time'       => 'signal-and-noise/get-reading-time-for-slug',
 	'scan_telemetry'     => 'internal:scan-telemetry-summary',
+	'tool_telemetry'     => 'internal:tool-telemetry-summary',
 );
 ok( $expected_map === $map, 'the fact->source-slug map matches the verified live registrations exactly' );
 ok( array( 'reading_time', 'seo_route_meta', 'active_template' ) === snt_sn_site_facts_slug_required(), 'R1 fix: reading_time + seo_route_meta + active_template all require slug (active_template\'s source ability has no no-args default path — see the file docblock)' );
@@ -227,7 +228,7 @@ ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), '
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-site-facts is annotated readonly + non-destructive + idempotent' );
 ok( array( 'facts' ) === ( $a['input_schema']['required'] ?? array() ), 'sn-site-facts requires facts' );
 ok( 'object' === ( $a['input_schema']['type'] ?? '' ), 'sn-site-facts input type is plain object (required field present, no bodyless-GET union)' );
-ok( 11 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 11 values' );
+ok( 12 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 12 values' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * scan_telemetry (v10.61.0) — plugin-internal fact, the active_template
@@ -250,6 +251,30 @@ if ( ! function_exists( 'snt_scan_telemetry_summary' ) ) {
 		return array( 'window_days' => $days, 'table_present' => true, 'total_runs' => 2, 'rows' => array( array( 'scan_type' => 'block_migrations', 'outcome' => 'ok', 'runs' => 1 ) ) );
 	}
 }
+/*
+ * tool_telemetry (v11.9.0) — same plugin-internal pattern. Asserted BEFORE the
+ * summary function is defined below, so the module-absent branch is exercised
+ * for real rather than assumed.
+ */
+$t_absent = snt_ability_sn_site_facts( array( 'facts' => array( 'tool_telemetry' ) ) );
+ok( array( 'error' => 'unavailable' ) === ( $t_absent['facts']['tool_telemetry'] ?? null ), 'tool_telemetry: telemetry module absent -> uniform {error:unavailable}' );
+ok( ! in_array( 'internal:tool-telemetry-summary', $GLOBALS['__ability_lookups'], true ), 'tool_telemetry: the internal sentinel is NEVER passed to wp_get_ability' );
+
+if ( ! function_exists( 'sn_mcp_telemetry_summary' ) ) {
+	function sn_mcp_telemetry_summary( $days = 30 ) {
+		return array(
+			'window_days'    => $days,
+			'table_present'  => true,
+			'total_calls'    => 5,
+			'by_tool'        => array(),
+			'by_change_type' => array( array( 'change_type' => 'link_reshape', 'outcome' => 'conflict', 'calls' => 2 ) ),
+		);
+	}
+}
+$t_present = snt_ability_sn_site_facts( array( 'facts' => array( 'tool_telemetry' ) ) );
+ok( 5 === ( $t_present['facts']['tool_telemetry']['total_calls'] ?? null ), 'tool_telemetry: summary returned verbatim when the module is loaded' );
+ok( 'link_reshape' === ( $t_present['facts']['tool_telemetry']['by_change_type'][0]['change_type'] ?? null ), 'tool_telemetry: by_change_type reaches the caller — the whole point of the v11.8.0 column' );
+
 $r_present = snt_ability_sn_site_facts( array( 'facts' => array( 'scan_telemetry', 'theme_version' ) ) );
 ok( 2 === ( $r_present['facts']['scan_telemetry']['total_runs'] ?? null ), 'scan_telemetry: summary returned verbatim when the module is loaded' );
 ok( true === ( $r_present['facts']['scan_telemetry']['table_present'] ?? null ), 'scan_telemetry: table_present travels (zero-vs-null: honest empty window vs eaten rows)' );
