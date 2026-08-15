@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+Docs only. No plugin code changed, so **no version bump and no tag** — the release train owns
+those.
+
+### Added
+- **`docs/adr/adr-0002-tag-merge-change-type.md`** — proposes tag reassignment as a term-level
+  `tag_merge` `change.type` on `sn-apply` rather than a new tool, with a term-state concurrency
+  token (content hash has no analogue for a taxonomy write) and a mandatory per-post rollback
+  manifest, since a merge is the one `sn-apply` operation that cannot invert itself.
+- **`tag-merge-map.md`** — execution plan for the notes corpus taxonomy: 83 tags → 23, via 53
+  merges and 7 deletions, with a from→to row for all 83 terms and before/after tag lists for all
+  42 notes. Planning document; nothing was written to the live site.
+- **`docs/ops/notes-structural-sweep-2026-08-15.md`** — session record for the corpus structural
+  sweep.
+
+### Fixed (live corpus, not this repo)
+- **All 9 `anchor_violations` cleared; the scan now reads 0.** Nine `link_reshape`/`unlink` writes
+  across eight notes, every diff prose-byte-identical.
+- Three internal links added via `ai-link-apply`; link candidates 252 → 249.
+
+### Traps recorded
+- **`anchor_equals_sentence` ignores terminal punctuation**, so pulling a period outside a link
+  looks like a fix in the diff and does not clear the rule. Only a substring *shrink* clears it.
+  This is why post 1681 was reported fixed and still scanned as a violation.
+- **`ai-pair-suggest` does not enforce the house anchor rules** — it returned
+  `verdict: link, can_apply: true` for an anchor sitting inside an `<h2>`. It also structurally
+  refuses links to the `start-here` hub, because it answers a topical question and a hub link is a
+  navigational intent.
+- **`anchor_violations` may report stale after `ai-link-apply` writes.** Its corpus fingerprint
+  moved on every `sn-apply` write and on none of the three `ai-link-apply` writes. Hypothesis
+  fitting four observations, not a verified mechanism.
+
 ## [11.7.2] - 2026-08-14 — the second half of the same outage
 
 **PATCH** — v11.7.1 was necessary but **not sufficient**. Fixing the load order
