@@ -164,10 +164,35 @@ deliberate two-note island outside the research corpus.
   these should coalesce too.
 - One link per source note by design, so the ceiling holds even if a splice does mint.
 
-**I could not verify this directly.** `provenance-integrity-status` is read-only and never
-triggers a sweep; the latest sweep predates this session (10 of 32 checked, 10 clean, 0 failed,
-keys ok). It confirms no pre-existing corruption. It cannot confirm my writes' version counts.
-That needs a Content-Health scan to trigger a fresh sweep.
+**I could not verify this directly, and the Content-Health scan cannot be run from here.**
+
+`provenance-integrity-status` is read-only and never triggers a sweep. The latest sweep predates
+this session — `swept_at: 1786723412` = **2026-08-14 16:03:32**, about 9¼ hours before the first
+write (10 of 32 checked, 10 clean, 0 failed, keys ok). It confirms no pre-existing corruption. It
+cannot speak to my writes.
+
+I went looking for the trigger and there isn't one:
+
+- **Every health-scan surface exposed over MCP is read-only.** `get-health-scan`,
+  `sn_remote_health_scan`, and the portal duplicate all state "never triggers a scan". The write
+  namespace's `run-*` tools are different scans — `run-insights-scan` reads Plausible/publish
+  history/cron freshness, `run-narration` and `run-audit-prune` are unrelated.
+- **It is not on cron.** All 43 scheduled events were listed; no content-health hook exists.
+  `wp_site_health_scheduled_check` is WordPress core's own Site Health, not this.
+
+**So the Content-Health scan is on-demand only, from wp-admin.** `get-health-scan.scanned_at` and
+`provenance-integrity-status.swept_at` are the same value (1786723412), confirming one run
+populates both — so triggering it in admin refreshes the provenance answer too.
+
+**Caveat that survives running it:** the sweep reports `fleet: 32, checked: 10`. It samples rather
+than covering the fleet, so a single fresh run may still not cover all nine notes touched here.
+Check `checked` and the `failing` list against the touched set before reading a clean result as
+coverage — a healthy readout can measure the wrong posts.
+
+**One thing I deliberately did not read as evidence:** `sn_prov_reconcile` runs hourly and fired
+at 01:15:03, mid-Phase-1, in 172ms. That is tempting to read as "no extra work, so no new
+commits". It is not evidence — the six most recent runs span 60–267ms with no writes at all, so
+172ms sits well inside ordinary variance. The metric cannot answer the question either way.
 
 **One anomaly, now partly explained — and it has a practical consequence.**
 `anchor_violations` returned an identical `scan_run_id` and `corpus_fingerprint` before and after
