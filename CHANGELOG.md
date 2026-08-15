@@ -2,6 +2,22 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Fixed — `tag-merge-apply.sh` could never have run
+- **`--by=name` is not a valid value.** `wp post term set --by=` accepts only `slug` or `id`, so
+  every one of the 42 commands failed with *"Invalid value specified for 'by'"* and the run died
+  on the first. Slugs are not safely derivable from names either, so the script now reads the real
+  `name -> term_id` map from the site in one call and passes ids. Every term is resolved **before**
+  any write, so an unresolvable name aborts at zero changes rather than halfway through.
+- **The trailing "terms now at zero posts" list was wrong and slow.** It filtered with `--name=`
+  per term, which was not applied, so `tail -1` returned an arbitrary row — it named terms that
+  still had posts (`Art Market`, `Content Authentication`). Replaced with a single
+  `wp term list --fields=name,count` call filtered on count, instead of one `wp` invocation per
+  term.
+- **The dry run now says it is a dry run.** It printed bare `wp` commands with no banner, which
+  reads exactly like execution scrolling past.
+
 ## [11.8.0] - 2026-08-15 — the instruments answer the question
 
 **MINOR** — three changes that make already-collected telemetry able to answer questions it

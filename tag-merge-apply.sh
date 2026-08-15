@@ -1,178 +1,218 @@
 #!/usr/bin/env bash
-# Tag merge pass for the juanlentino.com notes corpus — 83 tags -> 23.
+# Tag merge pass for the juanlentino.com notes corpus — 83 assigned tags -> 23.
 #
-# GENERATED from tag-merge-map.md by parsing its own per-post table, so it
-# cannot drift from the map. Regenerate rather than hand-edit.
+# GENERATED from tag-merge-map.md by parsing its own per-post table, so the
+# commands cannot drift from the map. Regenerate rather than hand-editing.
 #
-# WHY THIS IS A SCRIPT AND NOT AN MCP CALL: there is no MCP path to reassign
-# tags on existing posts. Verified against the tool contracts themselves —
-# suggest-tags states "does not assign anything", prune-unused-tags only
-# deletes terms that ALREADY have zero posts, and update-post-surfaces carries
-# no tags field. ADR-0002 proposes closing that gap with a term-level
-# tag_merge change.type on sn-apply; until it ships, this is the path.
+# WHY NAMES ARE RESOLVED TO IDS FIRST: `wp post term set --by=` accepts ONLY
+# `slug` or `id`. An earlier cut of this script passed `--by=name` and every
+# command failed with "Invalid value specified for 'by'". Slugs are not safe to
+# derive from names either (a slug can be anything), so the script reads the
+# real name->term_id map from the site once and passes ids.
 #
-# WHAT IT DOES: sets each post\'s COMPLETE tag list to the map\'s After column.
-# `wp post term set` replaces the whole set, so merges and deletions both fall
-# out of it and the operation is idempotent — re-running changes nothing.
-#
-# USAGE (from the WordPress root, e.g. over Cloudways SSH):
-#   ./tag-merge-apply.sh          # dry run, prints every command, changes nothing
+# USAGE, from the WordPress root:
+#   ./tag-merge-apply.sh          # DRY RUN — prints, changes nothing
 #   ./tag-merge-apply.sh --apply  # executes
-#
-# AFTERWARDS: 60 terms are left with zero posts. Sweep them with the MCP tool
-# signal-noise/prune-unused-tags, which deletes only zero-post terms and so
-# cannot touch anything still in use.
 set -euo pipefail
 
 APPLY=0
 [ "${1:-}" = "--apply" ] && APPLY=1
-# Pass "$@" through UNCHANGED — never eval. An earlier cut used eval "$@",
-# which re-parses the joined string and destroys the quoting, so every
-# multi-word term ("AI Training", "Music Rights") would have arrived as two
-# separate tags and silently corrupted the taxonomy it was meant to fix.
-run() {
-	if [ "$APPLY" = "1" ]; then
-		"$@"
-	else
-		printf '%q ' "$@"
-		printf '\n'
-	fi
-}
 
 command -v wp >/dev/null || { echo "wp-cli not found on PATH" >&2; exit 1; }
 wp option get home >/dev/null || { echo "wp-cli cannot reach this WordPress install" >&2; exit 1; }
 
+if [ "$APPLY" = "1" ]; then
+	echo "=== APPLYING — this writes to $(wp option get home) ==="
+else
+	echo "=== DRY RUN — nothing will be written. Re-run with --apply to execute. ==="
+fi
 echo "# tags before: $(wp term list post_tag --hide_empty=0 --format=count)"
 
+# One read for the whole name->id map. --fields order is fixed so awk can rely
+# on it; names here contain no commas or quotes (asserted at generation time).
+MAP="$(mktemp)"
+trap 'rm -f "$MAP"' EXIT
+wp term list post_tag --hide_empty=0 --fields=term_id,name --format=csv | tail -n +2 > "$MAP"
+
+tid() {
+	awk -F, -v want="$1" '{ n=$2; for (i=3; i<=NF; i++) n = n "," $i; gsub(/^"|"$/, "", n); if (n == want) { print $1; exit } }' "$MAP"
+}
+
+# Resolve every term the map needs BEFORE writing anything, so a typo or a
+# renamed term stops the run at zero changes instead of halfway through.
+MISSING=0
+for t in \
+	"AI Detection" \
+	"AI Disclosure" \
+	"AI Music" \
+	"AI Training" \
+	"Artist Verification" \
+	"Authorship" \
+	"Black Box Royalties" \
+	"C2PA" \
+	"Content Authenticity" \
+	"Cryptographic Signatures" \
+	"Digital Identity" \
+	"Freelance Business" \
+	"Independent Artists" \
+	"Legacy Catalog" \
+	"Music Distribution" \
+	"Music Industry" \
+	"Music Metadata" \
+	"Music Production" \
+	"Music Rights" \
+	"Music Royalties" \
+	"Provenance" \
+	"Standards" \
+	"Writing"
+do
+	if [ -z "$(tid "$t")" ]; then echo "UNRESOLVED TERM: $t" >&2; MISSING=1; fi
+done
+[ "$MISSING" = "0" ] || { echo "Aborting: the map references terms this site does not have." >&2; exit 1; }
+echo "# all 23 surviving terms resolved to ids"
+
+set_tags() {
+	local pid="$1"; shift
+	local ids=()
+	local t
+	for t in "$@"; do ids+=("$(tid "$t")"); done
+	if [ "$APPLY" = "1" ]; then
+		wp post term set "$pid" post_tag "${ids[@]}" --by=id
+	else
+		printf 'wp post term set %s post_tag %s --by=id   # %s\n' "$pid" "${ids[*]}" "$*"
+	fi
+}
+
 # A list binds nobody
-run wp post term set 2213 post_tag "AI Training" "Authorship" "Music Rights" "Provenance" --by=name
+set_tags 2213 "AI Training" "Authorship" "Music Rights" "Provenance"
 
 # Nobody is paid to check
-run wp post term set 2184 post_tag "Cryptographic Signatures" "Music Distribution" "Provenance" "Standards" --by=name
+set_tags 2184 "Cryptographic Signatures" "Music Distribution" "Provenance" "Standards"
 
 # The estate cannot sign
-run wp post term set 2180 post_tag "Authorship" "Cryptographic Signatures" "Legacy Catalog" "Music Rights" --by=name
+set_tags 2180 "Authorship" "Cryptographic Signatures" "Legacy Catalog" "Music Rights"
 
 # Being read is not being cited
-run wp post term set 2183 post_tag "AI Training" "Authorship" --by=name
+set_tags 2183 "AI Training" "Authorship"
 
 # The signer keeps moving
-run wp post term set 1969 post_tag "Artist Verification" "Content Authenticity" "Cryptographic Signatures" "Provenance" --by=name
+set_tags 1969 "Artist Verification" "Content Authenticity" "Cryptographic Signatures" "Provenance"
 
 # Provenance is the wrong half
-run wp post term set 1986 post_tag "Content Authenticity" "Provenance" --by=name
+set_tags 1986 "Content Authenticity" "Provenance"
 
 # An empty field says nothing
-run wp post term set 2286 post_tag "AI Disclosure" "Authorship" "Provenance" --by=name
+set_tags 2286 "AI Disclosure" "Authorship" "Provenance"
 
 # The rights files nobody reads
-run wp post term set 2071 post_tag "AI Training" "Music Rights" --by=name
+set_tags 2071 "AI Training" "Music Rights"
 
 # Payment systems pay what they can name
-run wp post term set 2088 post_tag "Black Box Royalties" "Music Metadata" "Music Royalties" --by=name
+set_tags 2088 "Black Box Royalties" "Music Metadata" "Music Royalties"
 
 # The master never moves
-run wp post term set 1943 post_tag "Authorship" "Music Rights" "Provenance" --by=name
+set_tags 1943 "Authorship" "Music Rights" "Provenance"
 
 # The label comes last
-run wp post term set 1848 post_tag "AI Disclosure" "Music Metadata" --by=name
+set_tags 1848 "AI Disclosure" "Music Metadata"
 
 # Trust doesn't disappear, it relocates
-run wp post term set 1743 post_tag "Artist Verification" "Cryptographic Signatures" "Music Metadata" "Provenance" --by=name
+set_tags 1743 "Artist Verification" "Cryptographic Signatures" "Music Metadata" "Provenance"
 
 # The pen is not the notary
-run wp post term set 1716 post_tag "C2PA" "Content Authenticity" "Cryptographic Signatures" "Provenance" --by=name
+set_tags 1716 "C2PA" "Content Authenticity" "Cryptographic Signatures" "Provenance"
 
 # Better models erase the evidence
-run wp post term set 2076 post_tag "AI Training" "Music Rights" "Provenance" --by=name
+set_tags 2076 "AI Training" "Music Rights" "Provenance"
 
 # Provenance signs the claim, not the truth
-run wp post term set 1721 post_tag "Content Authenticity" "Cryptographic Signatures" "Provenance" --by=name
+set_tags 1721 "Content Authenticity" "Cryptographic Signatures" "Provenance"
 
 # The gate is not the signature
-run wp post term set 1675 post_tag "Artist Verification" "Cryptographic Signatures" "Independent Artists" "Provenance" --by=name
+set_tags 1675 "Artist Verification" "Cryptographic Signatures" "Independent Artists" "Provenance"
 
 # Two kinds of provenance
-run wp post term set 1661 post_tag "C2PA" "Digital Identity" "Music Rights" "Provenance" --by=name
+set_tags 1661 "C2PA" "Digital Identity" "Music Rights" "Provenance"
 
 # Provenance as a CFO problem
-run wp post term set 1589 post_tag "AI Music" "Music Rights" "Music Royalties" "Provenance" --by=name
+set_tags 1589 "AI Music" "Music Rights" "Music Royalties" "Provenance"
 
 # Where provenance has to live
-run wp post term set 1835 post_tag "AI Music" "Authorship" "Provenance" --by=name
+set_tags 1835 "AI Music" "Authorship" "Provenance"
 
 # Why platforms wait on provenance
-run wp post term set 1593 post_tag "AI Music" "Music Distribution" "Music Industry" "Provenance" --by=name
+set_tags 1593 "AI Music" "Music Distribution" "Music Industry" "Provenance"
 
 # The unlabeled majority
-run wp post term set 1858 post_tag "AI Disclosure" "AI Music" "Music Industry" --by=name
+set_tags 1858 "AI Disclosure" "AI Music" "Music Industry"
 
 # How a music file gets corrected
-run wp post term set 1572 post_tag "Cryptographic Signatures" "Music Metadata" "Provenance" --by=name
+set_tags 1572 "Cryptographic Signatures" "Music Metadata" "Provenance"
 
 # The court found the floor
-run wp post term set 1833 post_tag "Black Box Royalties" "Music Rights" "Provenance" --by=name
+set_tags 1833 "Black Box Royalties" "Music Rights" "Provenance"
 
 # Open standards or no standards
-run wp post term set 1591 post_tag "Music Distribution" "Music Metadata" "Provenance" "Standards" --by=name
+set_tags 1591 "Music Distribution" "Music Metadata" "Provenance" "Standards"
 
 # The seat was never given
-run wp post term set 1681 post_tag "Artist Verification" "Music Industry" "Music Royalties" "Provenance" --by=name
+set_tags 1681 "Artist Verification" "Music Industry" "Music Royalties" "Provenance"
 
 # Start here
-run wp post term set 1746 post_tag "Content Authenticity" "Digital Identity" "Music Rights" "Provenance" --by=name
+set_tags 1746 "Content Authenticity" "Digital Identity" "Music Rights" "Provenance"
 
 # The music industry talks to itself in code
-run wp post term set 1523 post_tag "Music Industry" "Writing" --by=name
+set_tags 1523 "Music Industry" "Writing"
 
 # Who vouches for the independent artist?
-run wp post term set 1570 post_tag "Authorship" "Cryptographic Signatures" "Digital Identity" "Independent Artists" "Provenance" --by=name
+set_tags 1570 "Authorship" "Cryptographic Signatures" "Digital Identity" "Independent Artists" "Provenance"
 
 # What happens to old music?
-run wp post term set 1568 post_tag "Legacy Catalog" "Music Metadata" "Standards" --by=name
+set_tags 1568 "Legacy Catalog" "Music Metadata" "Standards"
 
 # Signing the inputs at the source
-run wp post term set 1581 post_tag "Cryptographic Signatures" "Music Metadata" "Music Production" "Provenance" --by=name
+set_tags 1581 "Cryptographic Signatures" "Music Metadata" "Music Production" "Provenance"
 
 # Falsifiability is the line
-run wp post term set 1531 post_tag "AI Detection" "Cryptographic Signatures" "Music Royalties" "Provenance" --by=name
+set_tags 1531 "AI Detection" "Cryptographic Signatures" "Music Royalties" "Provenance"
 
 # Fingerprints, not name tags
-run wp post term set 1566 post_tag "Cryptographic Signatures" "Digital Identity" "Music Industry" "Music Metadata" "Music Royalties" --by=name
+set_tags 1566 "Cryptographic Signatures" "Digital Identity" "Music Industry" "Music Metadata" "Music Royalties"
 
 # Detection scales the wrong way
-run wp post term set 1587 post_tag "AI Detection" "AI Music" "Provenance" --by=name
+set_tags 1587 "AI Detection" "AI Music" "Provenance"
 
 # Five layers, one system
-run wp post term set 1518 post_tag "Music Distribution" "Music Production" "Music Royalties" "Provenance" --by=name
+set_tags 1518 "Music Distribution" "Music Production" "Music Royalties" "Provenance"
 
 # Five years of remote freelance work
-run wp post term set 1516 post_tag "Freelance Business" --by=name
+set_tags 1516 "Freelance Business"
 
 # Music's billion-dollar metadata problem
-run wp post term set 1504 post_tag "Black Box Royalties" "Music Metadata" "Music Rights" "Music Royalties" "Provenance" --by=name
+set_tags 1504 "Black Box Royalties" "Music Metadata" "Music Rights" "Music Royalties" "Provenance"
 
 # Verifying the artist isn't enough
-run wp post term set 1549 post_tag "AI Music" "Artist Verification" "Content Authenticity" "Music Distribution" --by=name
+set_tags 1549 "AI Music" "Artist Verification" "Content Authenticity" "Music Distribution"
 
 # Where AI actually saves time in record production
-run wp post term set 1514 post_tag "AI Music" "Music Production" --by=name
+set_tags 1514 "AI Music" "Music Production"
 
 # Provenance is for humans, not against AI
-run wp post term set 1498 post_tag "AI Detection" "Authorship" "Music Rights" "Provenance" --by=name
+set_tags 1498 "AI Detection" "Authorship" "Music Rights" "Provenance"
 
 # Where artist signatures live
-run wp post term set 1551 post_tag "Artist Verification" "Content Authenticity" "Cryptographic Signatures" "Independent Artists" "Music Distribution" --by=name
+set_tags 1551 "Artist Verification" "Content Authenticity" "Cryptographic Signatures" "Independent Artists" "Music Distribution"
 
 # Pricing in dollars from Argentina
-run wp post term set 1512 post_tag "Freelance Business" --by=name
+set_tags 1512 "Freelance Business"
 
 # Why C2PA isn't enough for music
-run wp post term set 1495 post_tag "C2PA" "Content Authenticity" "Music Distribution" "Music Metadata" "Provenance" --by=name
+set_tags 1495 "C2PA" "Content Authenticity" "Music Distribution" "Music Metadata" "Provenance"
 
 echo "# tags after (before prune): $(wp term list post_tag --hide_empty=0 --format=count)"
 echo "# terms now at zero posts, ready for prune-unused-tags:"
-wp term list post_tag --hide_empty=0 --field=name --format=csv \
-  | while read -r t; do
-      [ "$(wp term list post_tag --name="$t" --field=count --format=csv 2>/dev/null | tail -1)" = "0" ] && echo "  $t"
-    done || true
+# ONE call, not one per term. The previous cut filtered with --name= per term,
+# which was not applied, so `tail -1` returned an arbitrary row and the list was
+# simply wrong — it named terms that still had posts.
+wp term list post_tag --hide_empty=0 --fields=name,count --format=csv \
+	| tail -n +2 | awk -F, '$NF == 0 { $NF=""; sub(/,$/, ""); print "  " $0 }'
