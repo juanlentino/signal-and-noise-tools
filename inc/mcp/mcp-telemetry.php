@@ -52,7 +52,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_MCP_TELEMETRY_TABLE          = 'sn_tool_call';
-const SN_MCP_TELEMETRY_DB_VERSION     = '1';
+// v11.8.0 bumps this to '2' so dbDelta adds the `change_type` column on an
+// existing install. Without the bump sn_mcp_telemetry_maybe_install() short-
+// circuits and every insert would silently drop the new column.
+const SN_MCP_TELEMETRY_DB_VERSION     = '2';
 const SN_MCP_TELEMETRY_DB_VERSION_OPT = 'sn_mcp_telemetry_db_version';
 const SN_MCP_TELEMETRY_RETENTION_DAYS = 90;
 const SN_MCP_TELEMETRY_PRUNE_LIMIT    = 500;
@@ -103,6 +106,7 @@ function sn_mcp_telemetry_schema_sql() {
 		latency_ms INT NOT NULL DEFAULT 0,
 		result_count INT NULL,
 		candidate_id VARCHAR(64) NULL,
+		change_type VARCHAR(32) NULL,
 		PRIMARY KEY  (id),
 		KEY ts_idx (ts)
 	) {$charset};";
@@ -153,6 +157,44 @@ function sn_mcp_telemetry_args_shape( $args ) {
 	$keys = array_map( 'strval', array_keys( $args ) );
 	sort( $keys );
 	return substr( implode( ',', $keys ), 0, 255 );
+}
+
+/**
+ * The ONE nested value this module records, and the only exception to the
+ * "top-level keys, never a value" rule above (v11.8.0).
+ *
+ * WHY THE EXCEPTION EXISTS: args_shape captures top-level keys only, so every
+ * sn-apply call recorded the identical shape `change,dry_run,idempotency_key,
+ * mode,target` regardless of what it actually did. link_reshape, unlink,
+ * create_draft, og_card and the rest were indistinguishable in telemetry, which
+ * meant the consolidation programme's aggregate sn-apply count could never
+ * justify retiring or keeping any individual change type — and the most
+ * destructive surface in the system was the least observable.
+ *
+ * WHY IT IS SAFE: this is an ALLOWLIST, never a passthrough. The value is
+ * returned only when it is a member of SNT_SN_APPLY_CHANGE_TYPES — a closed,
+ * schema-fixed enum of identifiers that carry no user content and have bounded
+ * cardinality. An arbitrary caller string (or a secret pasted into the field)
+ * resolves to NULL and is never stored. Sourcing the allowlist from the
+ * registration constant rather than a local copy means a type added there is
+ * picked up automatically and cannot drift.
+ *
+ * Guarded with defined(): telemetry is fail-open and must never depend on
+ * another module's load order.
+ *
+ * @param mixed $args The raw tool arguments.
+ * @return string|null An allowlisted change type, or null.
+ */
+function sn_mcp_telemetry_change_type( $args ) {
+	if ( ! is_array( $args ) || ! isset( $args['change'] ) || ! is_array( $args['change'] ) ) {
+		return null;
+	}
+	$type = $args['change']['type'] ?? null;
+	if ( ! is_string( $type ) || '' === $type ) {
+		return null;
+	}
+	$allowed = defined( 'SNT_SN_APPLY_CHANGE_TYPES' ) ? (array) constant( 'SNT_SN_APPLY_CHANGE_TYPES' ) : array();
+	return in_array( $type, $allowed, true ) ? $type : null;
 }
 
 /**
@@ -293,6 +335,21 @@ function sn_mcp_telemetry_classify_wp_error( $error ) {
 			$gate = in_array( $code, sn_mcp_telemetry_throttle_codes(), true ) ? 'write_throttle' : 'rate_limit';
 			return array( 'outcome' => 'refused', 'refusal_gate' => $gate );
 		}
+		// v11.8.0: 409 is OPTIMISTIC-CONCURRENCY contention, not malformed
+		// input, and must be split out BEFORE the 4xx band that used to
+		// swallow it. A paren-balanced (perl -0777) sweep of every
+		// `new WP_Error(` under inc/ found 24 constructions carrying
+		// array('status'=>409) — the whole apply family's stale-state surface
+		// (fingerprint mismatch, anchor moved, phrase moved, revision belongs
+		// to another post, idempotency key reused against another target) plus
+		// ai-orphan-suggest's TOCTOU re-check. Filed as schema_error they were
+		// indistinguishable from a caller typo, which made the contention rate
+		// — the primary signal for whether a fingerprint's granularity is
+		// right — unreadable. No refusal_gate: a conflict is not a gate
+		// refusal, it is a lost race.
+		if ( 409 === $status ) {
+			return array( 'outcome' => 'conflict', 'refusal_gate' => null );
+		}
 		if ( ( $status >= 400 && $status <= 428 ) || ( $status >= 431 && $status <= 499 ) ) {
 			return array( 'outcome' => 'schema_error', 'refusal_gate' => null );
 		}
@@ -321,13 +378,16 @@ function sn_mcp_telemetry_classify_wp_error( $error ) {
  * @param string      $tool_name
  * @param string      $args_shape
  * @param string      $args_hash
- * @param string      $outcome      'ok'|'schema_error'|'not_found'|'refused'|'server_error'.
+ * @param string      $outcome      'ok'|'schema_error'|'conflict'|'not_found'|'refused'|'server_error'.
  * @param string|null $refusal_gate
  * @param int         $latency_ms
  * @param int|null    $result_count
+ * @param string|null $change_type  Allowlisted sn-apply change.type, or null.
+ *                                  Appended last so existing positional callers
+ *                                  keep working. @since v11.8.0.
  * @return array<string,mixed>
  */
-function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape, $args_hash, $outcome, $refusal_gate, $latency_ms, $result_count ) {
+function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape, $args_hash, $outcome, $refusal_gate, $latency_ms, $result_count, $change_type = null ) {
 	return array(
 		'ts'           => (string) $ts,
 		'layer'        => 'server',
@@ -341,6 +401,7 @@ function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape
 		'latency_ms'   => (int) $latency_ms,
 		'result_count' => null === $result_count ? null : (int) $result_count,
 		'candidate_id' => null, // Reserved; always NULL this session.
+		'change_type'  => null === $change_type ? null : (string) $change_type,
 	);
 }
 
@@ -419,8 +480,9 @@ function sn_mcp_telemetry_insert_row( $row ) {
 			'latency_ms'   => $row['latency_ms'],
 			'result_count' => $row['result_count'],
 			'candidate_id' => $row['candidate_id'],
+			'change_type'  => $row['change_type'] ?? null,
 		),
-		array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s' )
+		array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s' )
 	);
 }
 
@@ -484,7 +546,8 @@ function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refu
 			(string) $outcome,
 			$refusal_gate,
 			(int) $latency_ms,
-			$result_count
+			$result_count,
+			sn_mcp_telemetry_change_type( $args )
 		);
 		sn_mcp_telemetry_insert_row( $row );
 		sn_mcp_telemetry_maybe_prune();

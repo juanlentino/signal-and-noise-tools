@@ -53,6 +53,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * different shape, and must never be confused with the spend ledger.
  */
 define( 'SN_AI_CACHE_PROBE_OPT', 'sn_ai_cache_probe' );
+
+/**
+ * Per-model content-free sample rows retained by snt_ai_cache_probe_verdict()
+ * (v11.8.0). Five is enough to recognise a caller from its timestamps without
+ * turning a rolling 200-entry log into a 200-row panel.
+ */
+const SN_AI_CACHE_PROBE_SAMPLES = 5;
 define( 'SN_AI_CACHE_PROBE_CAP', 200 );
 
 /**
@@ -546,6 +553,36 @@ function snt_ai_cache_probe_verdict( $log = null ) {
 		$models[ $model ]['may_clear_floor'] = null === $floor
 			? null
 			: ( $models[ $model ]['max_prefix_tokens'] >= $floor );
+
+		// v11.8.0: keep a bounded, CONTENT-FREE sample per model. The probe is
+		// deliberately origin-agnostic — it hooks http_response and records
+		// every api.anthropic.com/v1/messages call the site makes, including
+		// other plugins routed through the WP AI Client — so a model appearing
+		// here that SN never pins (SN_AI_DEFAULT_MODEL and the
+		// sn_theme_ai_models() allowlist both exclude it) is a real question
+		// the aggregate cannot answer: WHEN did it happen, and did it carry
+		// tools? Those two fields discriminate an agent run from a one-off
+		// connectivity call, and neither is content. Prompt text is never
+		// stored by this module and nothing here changes that.
+		$models[ $model ]['samples'][] = array(
+			'ts'          => $ts,
+			'tools_count' => (int) ( $row['tools_count'] ?? 0 ),
+			'sys_bytes'   => (int) ( $row['sys_bytes'] ?? 0 ),
+			'msg_count'   => (int) ( $row['msg_count'] ?? 0 ),
+		);
+	}
+
+	// Most recent first, capped — a rolling 200-entry log must not turn into a
+	// 200-row panel, and the newest calls are the ones worth recognising.
+	foreach ( $models as $m_key => $m_val ) {
+		$s = isset( $m_val['samples'] ) && is_array( $m_val['samples'] ) ? $m_val['samples'] : array();
+		usort(
+			$s,
+			static function ( $a, $b ) {
+				return (int) $b['ts'] <=> (int) $a['ts'];
+			}
+		);
+		$models[ $m_key ]['samples'] = array_slice( $s, 0, SN_AI_CACHE_PROBE_SAMPLES );
 	}
 
 	// Strongest candidate first: clears the floor and repeats, then by prefix size.
