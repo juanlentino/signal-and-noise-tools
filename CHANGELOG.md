@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the alarm stops crying wolf
+## [11.10.0] - 2026-08-15 — the alarm stops crying wolf, and the colophon stops being a dead end
 
 **MINOR** — the public provenance ledger's `verify.yml` went red ten times between 2026-08-04 and
 2026-08-15. Not once was the ledger's integrity actually in doubt: every recurring red was a
@@ -105,6 +105,29 @@ Ledger-side changes ship in `signal-and-noise-provenance`; this entry covers the
   2026-07-25..28 incident this check was *born from* went unseen for three days.
 - The probe URL is now pinned by test (`event=schedule`, `status=completed`, `per_page=1`); it
   never was before.
+
+### Added — the colophon stops being a dead end
+
+**MINOR** (separate arc) — an Automattic dev diary (2026-08-15) linked `/colophon` as the
+destination for "Signal & Noise Tools", so WordPress developers now land on a spec sheet whose
+only outbound reference was the maturity index. The sheet keeps its register and resolves its own
+references instead:
+
+- **Tooling** — "Signal & Noise Tools" links the public plugin repo.
+- **New `interop` bullet** after Tooling: *Interop - runs inside OpenStation*, linking
+  openstation.me. Same label/text shape and filter seam as every other item.
+- **The version stamp's numbers are links** to each package's `CHANGELOG.md` on GitHub — not the
+  releases pages, which are deliberately draft-only (the updater reads tags) and therefore render
+  empty to the public. Visible text is unchanged: `Theme vX · plugin vY`, still read live from
+  `wp_get_theme()` + `SNT_VERSION`.
+- **One closing line below the stamp**: *Why any of this is built the way it is: notes.* — "notes"
+  resolved from the page via the existing resolver, plain text when the page is absent, mirroring
+  the trust line's never-a-dead-link rule.
+- External URLs route through a new `sn_colophon_urls` filter (the items-seam idiom); a URL
+  filtered to `''` degrades that reference to the original plain text. External links carry the
+  codebase's `target="_blank" rel="noopener noreferrer"` convention.
+- Test suite extended 14 → 31 assertions: every new link, the interop position, the stamp's
+  byte-parity regex, and all three degrade paths are pinned.
 
 ## [11.9.0] - 2026-08-15 — the evidence becomes reachable
 
