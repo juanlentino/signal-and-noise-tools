@@ -3,7 +3,9 @@
  * Tests for inc/colophon-page.php — [sn_colophon], the CMS-owned colophon.
  * Pins: content parity items, the maturity loop-closer resolved from the
  * page (linked when resolvable, plain text when not — never a dead link),
- * live version footer, escaping, and the filter seam.
+ * the Tooling repo link, the Interop bullet and its position, the linked
+ * live version footer, the notes closing line, escaping, and both filter
+ * seams (items + urls — a blanked URL degrades to text, never a dead link).
  * Run: php tests/colophon-page.php
  * @since plugin v10.13.0
  */
@@ -22,9 +24,14 @@ function apply_filters( $tag, $value ) {
 }
 $GLOBALS['__shortcodes'] = array();
 function add_shortcode( $tag, $cb ) { $GLOBALS['__shortcodes'][ $tag ] = $cb; }
-// The maturity resolver, stubbed with a switch so both branches are testable.
-$GLOBALS['__maturity_url'] = 'https://example.com/maturity/';
-function sn_maturity_index_resolve_url( $slug ) { return 'maturity' === $slug ? $GLOBALS['__maturity_url'] : ''; }
+// The page resolver, stubbed as a slug map so every branch is testable.
+$GLOBALS['__page_urls'] = array(
+	'maturity' => 'https://example.com/maturity/',
+	'notes'    => 'https://example.com/notes/',
+);
+function sn_maturity_index_resolve_url( $slug ) {
+	return isset( $GLOBALS['__page_urls'][ $slug ] ) ? $GLOBALS['__page_urls'][ $slug ] : '';
+}
 function wp_get_theme() {
 	return new class() {
 		public function get( $k ) { return 'Version' === $k ? '11.1.10-test' : ''; }
@@ -39,27 +46,59 @@ echo "Group: registration + content parity\n";
 ok( isset( $GLOBALS['__shortcodes']['sn_colophon'] ), 'shortcode registered on load' );
 $html = sn_colophon_shortcode();
 ok( false !== strpos( $html, 'custom WordPress block theme' ), 'intro paragraph present' );
-foreach ( array( 'platform', 'type', 'build', 'hosting', 'tooling', 'ai', 'trust' ) as $slug ) {
+foreach ( array( 'platform', 'type', 'build', 'hosting', 'tooling', 'interop', 'ai', 'trust' ) as $slug ) {
 	ok( false !== strpos( $html, 'sn-colophon-item--' . $slug ), "item present: $slug" );
 }
 ok( false !== strpos( $html, 'pair-programmer' ), 'the AI-assistance credit is kept verbatim' );
+ok( strpos( $html, 'sn-colophon-item--tooling' ) < strpos( $html, 'sn-colophon-item--interop' )
+	&& strpos( $html, 'sn-colophon-item--interop' ) < strpos( $html, 'sn-colophon-item--ai' ),
+	'interop sits between tooling and AI assistance' );
 
 echo "\nGroup: the maturity loop-closer\n";
 ok( false !== strpos( $html, 'href="https://example.com/maturity/"' ), 'trust line links the maturity index when it resolves' );
-$GLOBALS['__maturity_url'] = '';
+$GLOBALS['__page_urls']['maturity'] = '';
 $plain = sn_colophon_shortcode();
-ok( false === strpos( $plain, '<a href' ) && false !== strpos( $plain, 'maturity index' ), 'unresolvable index → plain text, never a dead link' );
-$GLOBALS['__maturity_url'] = 'https://example.com/maturity/';
+ok( false === strpos( $plain, 'https://example.com/maturity' ) && false !== strpos( $plain, 'maturity index' ), 'unresolvable index → plain text, never a dead link' );
+$GLOBALS['__page_urls']['maturity'] = 'https://example.com/maturity/';
 
-echo "\nGroup: versions + escaping + seam\n";
-ok( false !== strpos( $html, 'Theme v11.1.10-test' ) && false !== strpos( $html, 'plugin v10.13.0-test' ), 'live version footer carries both versions' );
+echo "\nGroup: outbound references (repo, OpenStation)\n";
+ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise-tools"' ), 'tooling line links the plugin repo' );
+ok( false !== strpos( $html, '>Signal &amp; Noise Tools</a>' ), 'the repo link label is the plugin name, escaped' );
+ok( false !== strpos( $html, 'href="https://openstation.me/"' ), 'interop line links OpenStation' );
+ok( substr_count( $html, 'target="_blank" rel="noopener noreferrer"' ) >= 4, 'external links carry the codebase target/rel convention' );
+
+echo "\nGroup: versions + notes line\n";
+ok( false !== strpos( $html, '>v11.1.10-test</a>' ) && false !== strpos( $html, '>v10.13.0-test</a>' ), 'both version numbers are links' );
+ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise/blob/main/CHANGELOG.md"' ), 'theme version links the theme changelog' );
+ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise-tools/blob/main/CHANGELOG.md"' ), 'plugin version links the plugin changelog' );
+ok( 1 === preg_match( '/Theme <a[^>]*>v11\.1\.10-test<\/a> · plugin <a[^>]*>v10\.13\.0-test<\/a>/u', $html ), 'stamp text reads Theme vX · plugin vY, numbers linked' );
+ok( false !== strpos( $html, 'Why any of this is built the way it is:' ), 'notes line present below the stamp' );
+ok( false !== strpos( $html, '<a href="https://example.com/notes/">notes</a>.' ), 'notes links the notes page when it resolves' );
+ok( strpos( $html, 'sn-colophon-versions' ) < strpos( $html, 'sn-colophon-notes' ), 'notes line sits below the version stamp' );
+$GLOBALS['__page_urls']['notes'] = '';
+$no_notes = sn_colophon_shortcode();
+ok( false === strpos( $no_notes, 'https://example.com/notes' ) && false !== strpos( $no_notes, 'Why any of this is built the way it is:' ), 'unresolvable notes page → plain text, never a dead link' );
+$GLOBALS['__page_urls']['notes'] = 'https://example.com/notes/';
+
+echo "\nGroup: escaping + seams\n";
 add_filter( 'sn_colophon_items', function ( $items ) {
 	$items['evil'] = array( '<script>x</script>', 'text with <b>markup</b>' );
 	return $items;
 } );
 $f = sn_colophon_shortcode();
-ok( false === strpos( $f, '<script>' ) && false === strpos( $f, '<b>' ), 'filtered items are escaped at build — markup never survives' );
+ok( false === strpos( $f, '<script>' ) && false === strpos( $f, 'with <b>' ), 'filtered items are escaped at build — markup never survives' );
 ok( false !== strpos( $f, 'sn-colophon-item--evil' ), 'filter seam adds a line without markup changes' );
+add_filter( 'sn_colophon_urls', function ( $urls ) {
+	$urls['plugin_repo'] = '';
+	$urls['openstation'] = '';
+	$urls['theme_changelog'] = '';
+	return $urls;
+} );
+$u = sn_colophon_shortcode();
+ok( false === strpos( $u, 'github.com/juanlentino/signal-and-noise-tools"' ) && false !== strpos( $u, 'companion plugin Signal &amp; Noise Tools for SEO' ), 'blanked repo URL → tooling line degrades to the original plain text' );
+ok( false === strpos( $u, 'openstation.me' ) && false !== strpos( $u, 'runs inside OpenStation' ), 'blanked OpenStation URL → plain text' );
+ok( false === strpos( $u, 'signal-and-noise/blob' ) && false !== strpos( $u, 'Theme v11.1.10-test' ), 'blanked theme changelog → unlinked version, stamp text intact' );
+$GLOBALS['__filters'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
