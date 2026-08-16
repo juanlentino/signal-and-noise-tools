@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased] — the alarm stops crying wolf
+## [11.10.0] - 2026-08-15 — the alarm stops crying wolf, and the colophon stops being a dead end
 
 **MINOR** — the public provenance ledger's `verify.yml` went red ten times between 2026-08-04 and
 2026-08-15. Not once was the ledger's integrity actually in doubt: every recurring red was a
