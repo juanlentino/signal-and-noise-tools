@@ -4,8 +4,9 @@
  * Pins: content parity items, the maturity loop-closer resolved from the
  * page (linked when resolvable, plain text when not — never a dead link),
  * the Tooling repo link, the Interop bullet and its position, the linked
- * live version footer, the notes closing line, escaping, and both filter
- * seams (items + urls — a blanked URL degrades to text, never a dead link).
+ * live version footer, the ABSENCE of the dropped /notes line, escaping,
+ * and both filter seams (items + urls — a blanked URL degrades to text,
+ * never a dead link).
  * Run: php tests/colophon-page.php
  * @since plugin v10.13.0
  */
@@ -67,18 +68,16 @@ ok( false !== strpos( $html, '>Signal &amp; Noise Tools</a>' ), 'the repo link l
 ok( false !== strpos( $html, 'href="https://openstation.me/"' ), 'interop line links OpenStation' );
 ok( substr_count( $html, 'target="_blank" rel="noopener noreferrer"' ) >= 4, 'external links carry the codebase target/rel convention' );
 
-echo "\nGroup: versions + notes line\n";
+echo "\nGroup: versions\n";
 ok( false !== strpos( $html, '>v11.1.10-test</a>' ) && false !== strpos( $html, '>v10.13.0-test</a>' ), 'both version numbers are links' );
 ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise/blob/main/CHANGELOG.md"' ), 'theme version links the theme changelog' );
 ok( false !== strpos( $html, 'href="https://github.com/juanlentino/signal-and-noise-tools/blob/main/CHANGELOG.md"' ), 'plugin version links the plugin changelog' );
 ok( 1 === preg_match( '/Theme <a[^>]*>v11\.1\.10-test<\/a> · plugin <a[^>]*>v10\.13\.0-test<\/a>/u', $html ), 'stamp text reads Theme vX · plugin vY, numbers linked' );
-ok( false !== strpos( $html, 'Why any of this is built the way it is:' ), 'notes line present below the stamp' );
-ok( false !== strpos( $html, '<a href="https://example.com/notes/">notes</a>.' ), 'notes links the notes page when it resolves' );
-ok( strpos( $html, 'sn-colophon-versions' ) < strpos( $html, 'sn-colophon-notes' ), 'notes line sits below the version stamp' );
-$GLOBALS['__page_urls']['notes'] = '';
-$no_notes = sn_colophon_shortcode();
-ok( false === strpos( $no_notes, 'https://example.com/notes' ) && false !== strpos( $no_notes, 'Why any of this is built the way it is:' ), 'unresolvable notes page → plain text, never a dead link' );
-$GLOBALS['__page_urls']['notes'] = 'https://example.com/notes/';
+// The /notes closing line shipped in 11.10.0 and was dropped in 11.10.1:
+// /notes is provenance research, not build rationale (owner decision
+// 2026-08-16). Pinned absent so it does not drift back in.
+ok( false === strpos( $html, 'sn-colophon-notes' ) && false === strpos( $html, 'example.com/notes' ), 'no notes line — dropped in 11.10.1, stays dropped' );
+ok( 1 === preg_match( '/<\/p><\/div>$/', $html ), 'the version stamp is the last element before the wrapper closes' );
 
 echo "\nGroup: escaping + seams\n";
 add_filter( 'sn_colophon_items', function ( $items ) {

@@ -2,6 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.10.1] - 2026-08-16 — the notes line pointed at the wrong "why"
+
+**PATCH** — reverts one line of v11.10.0. The colophon's closing line ("Why any of this is built
+the way it is: notes.") labelled `/notes` as build rationale, but `/notes` is the provenance
+research. The build reasoning lives at the maturity index, which the Trust bullet already links —
+so the line is dropped rather than reworded (owner decision 2026-08-16). `sn_colophon_notes_url()`
+goes with it (shipped in 11.10.0 only, no consumers). The test suite now pins the line's ABSENCE
+and that the version stamp closes the sheet.
+
 ## [11.10.0] - 2026-08-15 — the alarm stops crying wolf, and the colophon stops being a dead end
 
 **MINOR** — the public provenance ledger's `verify.yml` went red ten times between 2026-08-04 and

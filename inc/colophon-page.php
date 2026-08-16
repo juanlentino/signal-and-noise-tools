@@ -20,10 +20,13 @@
  * Since the Automattic dev-diary link (2026-08-15) this page is also an
  * arrival point for developers expecting the plugin, so the spec sheet now
  * resolves its own references: the Tooling bullet links the plugin repo, an
- * Interop bullet links OpenStation, the version numbers link each package's
- * changelog (the GitHub releases pages are deliberately draft-only, so the
- * CHANGELOG blobs are the public record), and one closing line links /notes.
- * External URLs route through the `sn_colophon_urls` filter seam.
+ * Interop bullet links OpenStation, and the version numbers link each
+ * package's changelog (the GitHub releases pages are deliberately draft-only,
+ * so the CHANGELOG blobs are the public record). External URLs route through
+ * the `sn_colophon_urls` filter seam. A closing line linking /notes shipped
+ * in 11.10.0 and was dropped in 11.10.1: /notes is the provenance research,
+ * not build rationale — the maturity index (Trust bullet) already carries
+ * the "why".
  *
  * @package SignalNoiseTools @since 10.13.0
  */
@@ -99,18 +102,6 @@ function sn_colophon_maturity_url() {
 }
 
 /**
- * Resolve the notes index URL from the page itself ('' when absent).
- *
- * @return string
- */
-function sn_colophon_notes_url() {
-	if ( function_exists( 'sn_maturity_index_resolve_url' ) ) {
-		return sn_maturity_index_resolve_url( 'notes' );
-	}
-	return '';
-}
-
-/**
  * [sn_colophon] — the how-this-is-built page body. Returns, never echoes.
  *
  * @param array|string $atts Unused; present for the shortcode signature.
@@ -160,15 +151,6 @@ function sn_colophon_shortcode( $atts = array() ) {
 	if ( array() !== $stamp ) {
 		$out .= '<p class="sn-colophon-versions">' . implode( ' · ', $stamp ) . '</p>';
 	}
-
-	// The reasoning behind the sheet lives at /notes (resolved from the page
-	// per the never-hardcode-paths rule; absent page → plain text, no link).
-	$notes_url = sn_colophon_notes_url();
-	$out      .= '<p class="sn-colophon-notes">' . esc_html__( 'Why any of this is built the way it is:', 'signal-and-noise-tools' ) . ' '
-		. ( '' !== $notes_url
-			? '<a href="' . esc_url( $notes_url ) . '">' . esc_html__( 'notes', 'signal-and-noise-tools' ) . '</a>'
-			: esc_html__( 'notes', 'signal-and-noise-tools' ) )
-		. '.</p>';
 
 	return $out . '</div>';
 }
