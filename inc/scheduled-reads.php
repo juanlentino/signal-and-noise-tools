@@ -40,7 +40,19 @@ function snt_scheduled_reads_run() {
 	if ( ! function_exists( 'sn_mcp_call_tool' ) ) {
 		return null;
 	}
-	$door  = defined( 'SN_MCP_DOOR_READ' ) ? SN_MCP_DOOR_READ : 'read';
+	$door = defined( 'SN_MCP_DOOR_READ' ) ? SN_MCP_DOOR_READ : 'read';
+	// The read kill switch lives on the REST layer, NOT inside
+	// sn_mcp_call_tool — an in-process call would sail straight past a
+	// darkened door. Honor it here explicitly so the owner's switch governs
+	// scheduled runs the same way it governs remote callers.
+	if ( function_exists( 'sn_mcp_read_kill_switch_engaged' ) && sn_mcp_read_kill_switch_engaged() ) {
+		$run     = array( 'ran_at' => time(), 'door' => $door, 'kill_switch' => true, 'tools' => array() );
+		$history = get_option( SNT_SCHEDULED_READS_HISTORY, array() );
+		$history = is_array( $history ) ? $history : array();
+		array_unshift( $history, $run );
+		update_option( SNT_SCHEDULED_READS_HISTORY, array_slice( $history, 0, SNT_SCHEDULED_READS_HISTORY_CAP ), false );
+		return $run;
+	}
 	$tools = array();
 	foreach ( snt_scheduled_reads_tools() as $name => $args ) {
 		$res    = sn_mcp_call_tool( $name, $args, $door );
@@ -68,7 +80,25 @@ function snt_scheduled_reads_maybe_schedule_cron() {
 	}
 }
 add_action( 'init', 'snt_scheduled_reads_maybe_schedule_cron' );
-function snt_scheduled_reads_daily_cron_cb() { snt_scheduled_reads_run(); }
+/**
+ * WP-Cron carries no authenticated user, and every listed ability gates on
+ * manage_options — an anonymous run would refuse all five reads on every
+ * fire. The run executes the owner's standing instruction (the opt-in
+ * toggle), so the callback assumes the first administrator's identity for
+ * the duration of the fixed read-only list, then restores the previous
+ * user. Exposure is bounded by the read-door allowlist and the code-pinned
+ * tool list; no user input reaches this path.
+ */
+function snt_scheduled_reads_daily_cron_cb() {
+	$admins = get_users( array( 'role' => 'administrator', 'number' => 1, 'fields' => 'ID', 'orderby' => 'ID', 'order' => 'ASC' ) );
+	if ( empty( $admins ) ) {
+		return;
+	}
+	$previous = get_current_user_id();
+	wp_set_current_user( (int) $admins[0] );
+	snt_scheduled_reads_run();
+	wp_set_current_user( $previous );
+}
 add_action( SNT_SCHEDULED_READS_CRON_HOOK, 'snt_scheduled_reads_daily_cron_cb' );
 
 function snt_scheduled_reads_render_settings() {
