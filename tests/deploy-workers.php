@@ -41,6 +41,12 @@ $GLOBALS['__dw_http']            = array(); // queue of responses
 $GLOBALS['__dw_get_calls']       = array();
 $GLOBALS['__dw_filters']         = array();
 $GLOBALS['__dw_options']         = array(); // durable last-good store (v11.11.2)
+$GLOBALS['__dw_scheduled']       = array(); // one-off warm events (v11.11.5)
+
+if ( ! function_exists( 'wp_next_scheduled' ) ) {
+	function wp_next_scheduled( $hook ) { return isset( $GLOBALS['__dw_scheduled'][ $hook ] ) ? $GLOBALS['__dw_scheduled'][ $hook ] : false; }
+	function wp_schedule_single_event( $ts, $hook ) { $GLOBALS['__dw_scheduled'][ $hook ] = $ts; return true; }
+}
 
 if ( ! function_exists( 'get_option' ) ) {
 	function get_option( $key, $default = false ) {
@@ -389,6 +395,12 @@ dw_assert( 1 === count( $GLOBALS['__dw_get_calls'] ), 'probe_budget=1 issues one
 dw_assert( '1.0.0' === ( $list[0]['live'] ?? '' ), 'first worker spends the budget' );
 dw_assert( '' === ( $list[1]['live'] ?? 'X' ), 'second worker stays cache-cold (empty live)' );
 dw_assert( 'unknown' === ( $list[1]['state'] ?? '' ), 'cache-cold worker is unknown, not omitted' );
+// v11.11.5: cold is not broken, and a cold render self-heals.
+dw_assert( 'warming' === ( $list[1]['reason'] ?? '' ), 'a budget-skipped row says warming, never the internal skipped token' );
+dw_assert( isset( $GLOBALS['__dw_scheduled']['snt_deploy_workers_warm'] ), 'a render that left workers cold schedules the one-off warm event' );
+$GLOBALS['__dw_get_calls'] = array();
+snt_deploy_workers_warm_cb();
+dw_assert( count( $GLOBALS['__dw_get_calls'] ) >= 2, 'the warm cron probes the remaining cold workers with a full budget' );
 
 // ── v11.11.2: a transport failure must not demote a KNOWN tag ──────────────
 // Learned live during the 2026-08-17 GitHub outage: minutes after five tags

@@ -479,7 +479,11 @@ function snt_deploy_worker_status_for( $id, $opts = array() ) {
 			$reason = 'no public version route';
 		} elseif ( '' === $live ) {
 			$err = (string) ( $live_result['error'] ?? '' );
-			$reason = '' !== $err ? $err : 'probe failed';
+			// Cold is not broken: a budget-skipped row has simply never been
+			// probed this cache cycle (the warm cron is already scheduled).
+			// Say so, instead of leaking the internal 'skipped' token as if
+			// it were a failure.
+			$reason = ( 'skipped' === $err ) ? 'warming' : ( '' !== $err ? $err : 'probe failed' );
 		} elseif ( '' === $latest ) {
 			$reason = 'no GitHub tag';
 		}
@@ -517,7 +521,8 @@ function snt_deploy_workers_status( $opts = array() ) {
 		$budget = PHP_INT_MAX;
 	}
 
-	$out = array();
+	$out  = array();
+	$cold = 0;
 	foreach ( snt_deploy_workers_registry() as $id => $cfg ) {
 		if ( ! is_array( $cfg ) ) {
 			continue;
@@ -531,6 +536,9 @@ function snt_deploy_workers_status( $opts = array() ) {
 			$allow = true;
 			--$budget;
 		}
+		if ( ! $allow ) {
+			$cold++;
+		}
 
 		$out[] = snt_deploy_worker_status_for(
 			(string) $id,
@@ -540,8 +548,25 @@ function snt_deploy_workers_status( $opts = array() ) {
 			)
 		);
 	}
+
+	// A render that left workers cold (post-flush, post-install) schedules an
+	// immediate out-of-band warm so the NEXT render reads every cache hot —
+	// the budget keeps THIS render unblocked, the cron removes the four
+	// dead-eyed "unknown" cards the budget would otherwise leave behind for
+	// several page loads (observed live minutes after v11.11.4 installed).
+	if ( $cold > 0 && function_exists( 'wp_schedule_single_event' )
+		&& function_exists( 'wp_next_scheduled' )
+		&& ! wp_next_scheduled( 'snt_deploy_workers_warm' ) ) {
+		wp_schedule_single_event( time() + 5, 'snt_deploy_workers_warm' );
+	}
 	return $out;
 }
+
+/** Cron: probe every cold worker with a full budget (never in a page load). */
+function snt_deploy_workers_warm_cb() {
+	snt_deploy_workers_status( array( 'probe_budget' => 10 ) );
+}
+add_action( 'snt_deploy_workers_warm', 'snt_deploy_workers_warm_cb' );
 
 /**
  * Drop live + tag caches for every registered worker (force_refresh path).
