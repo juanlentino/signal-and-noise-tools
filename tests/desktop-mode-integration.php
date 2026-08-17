@@ -139,7 +139,34 @@ $GLOBALS['__sources'] = array();
 function sn_analytics_class_series( $from, $to, $granularity = 'day' ) { return $GLOBALS['__classes']; }
 function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) { return array_slice( $GLOBALS['__top'], 0, $limit ); }
 function sn_analytics_top_sources( $from, $to, $class = 'human', $limit = 10 ) { return array_slice( $GLOBALS['__sources'], 0, $limit ); }
-function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day', $refresh = false ) { return $GLOBALS['__series']; }
+function sn_analytics_daily_series( $from, $to, $class = 'human', $granularity = 'day', $refresh = false ) {
+	$GLOBALS['__series_calls'] = (int) ( $GLOBALS['__series_calls'] ?? 0 ) + 1;
+	return $GLOBALS['__series'];
+}
+// Real shapes from inc/analytics-derived.php — do not invent keys.
+//   engaged_rate       → int 0–100 | null (no timed pageviews)
+//   engaged_rate_delta → array{current:?int, previous:?int, pct:?int, dir:string}
+//                        dir ∈ up|down|flat; 3-arg call (null $cwin) = adjacent prior
+//   sn_analytics_movers (inc/analytics-movers.php) → list<array{path, views, delta}>
+//                        sorted by |delta| desc; [] when none; own 15-min cache
+$GLOBALS['__engaged']       = null;
+$GLOBALS['__engaged_delta'] = array( 'current' => null, 'previous' => null, 'pct' => null, 'dir' => 'flat' );
+$GLOBALS['__engaged_calls'] = array();
+$GLOBALS['__movers']        = array();
+$GLOBALS['__movers_calls']  = array();
+$GLOBALS['__series_calls']  = 0;
+function sn_analytics_engaged_rate( $from, $to, $class = 'human' ) {
+	$GLOBALS['__engaged_calls'][] = array( $from, $to, $class );
+	return $GLOBALS['__engaged'];
+}
+function sn_analytics_engaged_rate_delta( $from, $to, $class = 'human', $cwin = null ) {
+	$GLOBALS['__engaged_delta_cwin'] = $cwin;
+	return $GLOBALS['__engaged_delta'];
+}
+function sn_analytics_movers( $from, $to, $class = 'human', $limit = 3, $cwin = null ) {
+	$GLOBALS['__movers_calls'][] = array( $from, $to, $class, $limit );
+	return $GLOBALS['__movers'];
+}
 function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = false ) {
 	$key = $from . '|' . $to;
 	return $GLOBALS['__totals'][ $key ] ?? ( $GLOBALS['__totals']['*'] ?? array( 'views' => 0, 'visits' => 0, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
@@ -378,7 +405,7 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 //
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
 $expected_height = array(
-	'sn-site-views'       => 450, // budgeted: measured-463 −3 forecast lines +2 pages rows
+	'sn-site-views'       => 510, // budgeted: 450 + 3 glance rows (today/engaged/top_mover) ~+60
 	'sn-health'           => 160, // measured 148 all-passing
 	'sn-uptime'           => 220, // measured 210
 	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
@@ -819,6 +846,132 @@ $res2  = call_user_func( $route['callback'] );
 $body2 = $res2 instanceof WP_REST_Response ? $res2->get_data() : $res2;
 ok( array_key_exists( 'forecast', $body2 ) && $body2['forecast'] === null,
 	'one day of history yields NO forecast (present-and-null) — never a fabricated number' );
+
+echo "\n── v11.11.4: glance rows — today / engaged / top_mover (additive) ──\n";
+// Restore the 60-day noisy series + the enrichment fixtures so the old keys
+// stay byte-identical to the block above while the new optional keys appear.
+$GLOBALS['__series'] = array();
+foreach ( $noise as $i => $v ) {
+	$GLOBALS['__series'][] = array( 'day' => gmdate( 'Y-m-d', strtotime( '2026-07-16 -' . ( 59 - $i ) . ' days' ) ), 'views' => $v, 'visits' => (int) round( $v * 0.6 ) );
+}
+$GLOBALS['__totals']  = array( '*' => array( 'views' => 189, 'visits' => 98, 'scroll_avg' => 0.0, 'time_avg' => 0.0 ) );
+$GLOBALS['__classes'] = array(
+	array( 'day' => '2026-07-13', 'total' => 100, 'bot' => 25, 'bot_pct' => 25 ),
+	array( 'day' => '2026-07-14', 'total' => 100, 'bot' => 35, 'bot_pct' => 35 ),
+);
+$GLOBALS['__top']     = array(
+	array( 'path' => '/notes/provenance', 'views' => 42, 'visits' => 30, 'scroll_avg' => 0.7, 'time_avg' => 90.0 ),
+	array( 'path' => '/notes/signal',     'views' => 18, 'visits' => 14, 'scroll_avg' => 0.6, 'time_avg' => 70.0 ),
+	array( 'path' => '/',                 'views' => 11, 'visits' => 9,  'scroll_avg' => 0.5, 'time_avg' => 40.0 ),
+	array( 'path' => '/about',            'views' => 3,  'visits' => 2,  'scroll_avg' => 0.4, 'time_avg' => 20.0 ),
+);
+$GLOBALS['__sources'] = array(
+	array( 'value' => '(direct)',    'views' => 50, 'visits' => 40, 'hosts' => array() ),
+	array( 'value' => 'Google',      'views' => 18, 'visits' => 13, 'hosts' => array( 'google.com' ) ),
+	array( 'value' => 'Hacker News', 'views' => 9,  'visits' => 7,  'hosts' => array( 'news.ycombinator.com' ) ),
+	array( 'value' => 'Bing',        'views' => 2,  'visits' => 1,  'hosts' => array( 'bing.com' ) ),
+);
+$GLOBALS['__engaged']       = 48;
+$GLOBALS['__engaged_delta'] = array( 'current' => 48, 'previous' => 44, 'pct' => 9, 'dir' => 'up' );
+$GLOBALS['__engaged_calls'] = array();
+// Real sn_analytics_movers shape: sorted by |delta| desc, limit applied by
+// the producer — the payload asks for limit 1 and trusts row 0.
+$GLOBALS['__movers']        = array(
+	array( 'path' => '/notes/two-kinds-of-provenance', 'views' => 31, 'delta' => 12 ),
+);
+$GLOBALS['__movers_calls'] = array();
+$GLOBALS['__series_calls'] = 0;
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+$res  = call_user_func( $route['callback'] );
+$body = $res instanceof WP_REST_Response ? $res->get_data() : $res;
+
+// Additive compat: every pre-v11.11.4 key keeps its value. New keys sit beside.
+ok( ( $body['visits'] ?? null ) === 98, 'compat: visits is byte-unchanged' );
+ok( ( $body['bot_pct'] ?? null ) === 30, 'compat: bot_pct is byte-unchanged' );
+ok( ( $body['top_path']['path'] ?? '' ) === '/notes/provenance' && ( $body['top_path']['views'] ?? null ) === 42,
+	'compat: top_path is byte-unchanged' );
+ok( is_array( $body['top_paths'] ?? null ) && count( $body['top_paths'] ) === 3
+	&& ( $body['top_paths'][0]['path'] ?? '' ) === '/notes/provenance',
+	'compat: top_paths is byte-unchanged' );
+ok( is_array( $body['top_sources'] ?? null ) && ( $body['top_sources'][0]['value'] ?? '' ) === '(direct)'
+	&& ( $body['top_sources'][0]['visits'] ?? null ) === 40,
+	'compat: top_sources is byte-unchanged' );
+ok( array_key_exists( 'forecast', $body ), 'compat: forecast key still present' );
+ok( ( $body['total'] ?? null ) === 189, 'compat: total is byte-unchanged' );
+
+// today — extracted from the already-fetched 60-day series (last row is 2026-07-16).
+$today_row = null;
+foreach ( $GLOBALS['__series'] as $row ) {
+	if ( ( $row['day'] ?? '' ) === '2026-07-16' ) {
+		$today_row = $row;
+		break;
+	}
+}
+ok( is_array( $today_row ) && array_key_exists( 'views', $today_row ), 'fixture: the 60-day series includes today' );
+ok( array_key_exists( 'today', $body ) && $body['today'] === (int) $today_row['views'],
+	'today is the views from the already-fetched series row for today (got ' . ( $body['today'] ?? 'absent' ) . ')' );
+ok( $GLOBALS['__series_calls'] === 1,
+	'today is extracted from the fit series — daily_series called once, not re-queried (got ' . (int) $GLOBALS['__series_calls'] . ')' );
+
+// engaged — real delta shape reduced to a glance { rate, pts, dir }.
+ok( is_array( $body['engaged'] ?? null ), 'payload carries engaged when the rate is a measured int' );
+ok( ( $body['engaged']['rate'] ?? null ) === 48, 'engaged.rate is the engaged_rate() int (0–100)' );
+ok( ( $body['engaged']['pts'] ?? null ) === 4, 'engaged.pts is current−previous (48−44), percentage POINTS not relative pct' );
+ok( ( $body['engaged']['dir'] ?? '' ) === 'up', 'engaged.dir is the delta dir' );
+ok( isset( $GLOBALS['__engaged_calls'][0] ) && array( '2026-07-03', '2026-07-16', 'human' ) === $GLOBALS['__engaged_calls'][0],
+	'engaged uses the display window + 3-arg convention (null cwin = adjacent prior)' );
+ok( array_key_exists( '__engaged_delta_cwin', $GLOBALS ) && null === $GLOBALS['__engaged_delta_cwin'],
+	'engaged_rate_delta is called with null $cwin — the glance/widget convention, not an explicit compare window' );
+
+// top_mover — the strongest PATH mover from sn_analytics_movers (the rail
+// tile's producer: {path, views, delta} behind its own 15-min cache).
+ok( is_array( $body['top_mover'] ?? null ), 'payload carries top_mover when movers is a non-empty list' );
+ok( ( $body['top_mover']['path'] ?? '' ) === '/notes/two-kinds-of-provenance'
+	&& ( $body['top_mover']['delta'] ?? null ) === 12,
+	'top_mover is row 0 of the path movers, real keys path+delta' );
+ok( is_array( $body['top_mover'] ?? null ) && ! array_key_exists( 'metric', $body['top_mover'] ),
+	'top_mover carries no metric key — it is the PATH mover, not the baseline metric mover' );
+ok( isset( $GLOBALS['__movers_calls'][0] ) && '2026-07-03' === $GLOBALS['__movers_calls'][0][0]
+	&& '2026-07-16' === $GLOBALS['__movers_calls'][0][1] && 'human' === $GLOBALS['__movers_calls'][0][2]
+	&& 1 === $GLOBALS['__movers_calls'][0][3],
+	'top_mover uses the display window and asks the producer for exactly one row' );
+
+echo "\n── v11.11.4: null/empty producers omit the key — never a fabricated 0 ──\n";
+$GLOBALS['__engaged']       = null;
+$GLOBALS['__engaged_delta'] = array( 'current' => null, 'previous' => null, 'pct' => null, 'dir' => 'flat' );
+$GLOBALS['__movers']        = array();
+$GLOBALS['__series']        = array( array( 'day' => '2026-07-15', 'views' => 10, 'visits' => 5 ) );
+$GLOBALS['__series_calls']  = 0;
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+$res3  = call_user_func( $route['callback'] );
+$body3 = $res3 instanceof WP_REST_Response ? $res3->get_data() : $res3;
+ok( ! array_key_exists( 'today', $body3 ),
+	'no today row in the series → today key omitted, never a fabricated 0' );
+ok( ! array_key_exists( 'engaged', $body3 ),
+	'null engaged_rate → engaged key omitted (0 and null are different answers)' );
+ok( ! array_key_exists( 'top_mover', $body3 ),
+	'empty movers [] → top_mover key omitted, never a fabricated row' );
+
+$GLOBALS['__movers'] = null;
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+$res3b  = call_user_func( $route['callback'] );
+$body3b = $res3b instanceof WP_REST_Response ? $res3b->get_data() : $res3b;
+ok( ! array_key_exists( 'top_mover', $body3b ),
+	'null movers → top_mover key omitted (defensive: the real callee returns [])' );
+
+// A measured 0 is an answer and must survive.
+$GLOBALS['__series']        = array( array( 'day' => '2026-07-16', 'views' => 0, 'visits' => 0 ) );
+$GLOBALS['__engaged']       = 0;
+$GLOBALS['__engaged_delta'] = array( 'current' => 0, 'previous' => 5, 'pct' => -100, 'dir' => 'down' );
+delete_transient( 'sn_desktop_site_views_' . substr( current_time( 'mysql' ), 0, 10 ) );
+$res4  = call_user_func( $route['callback'] );
+$body4 = $res4 instanceof WP_REST_Response ? $res4->get_data() : $res4;
+ok( array_key_exists( 'today', $body4 ) && 0 === $body4['today'],
+	'measured 0 views today is present — 0 and null are different answers' );
+ok( array_key_exists( 'engaged', $body4 ) && 0 === ( $body4['engaged']['rate'] ?? null ),
+	'measured 0% engaged is present — not omitted as if unmeasured' );
+ok( ( $body4['engaged']['pts'] ?? null ) === -5 && ( $body4['engaged']['dir'] ?? '' ) === 'down',
+	'engaged pts/dir still compute when the rate is a measured 0' );
 
 echo "\n── v9.53.0: Health enrichment — which checks actually failed ──\n";
 $GLOBALS['__health_scan'] = fixture_scan( array(
@@ -1496,6 +1649,23 @@ ok(
 );
 ok( false === strpos( $views_js, 'forecastBlock( payload.forecast )' ),
 	'the widget no longer calls forecastBlock on payload.forecast — the producer still ships the key' );
+
+echo "\n── v11.11.4: Site Views tile glance rows (today / engaged / top_mover) ──\n";
+ok( false !== strpos( $views_js, "'Today so far'" ), 'tile renders a Today so far row' );
+ok( false !== strpos( $views_js, 'payload.today' ), 'tile reads the additive today key' );
+ok( 1 === preg_match( '/typeof payload\.today === \'number\'/', $views_js ),
+	'today render is guarded on a number — an older cached payload without the key paints nothing' );
+ok( false !== strpos( $views_js, "'Engaged'" ), 'tile renders an Engaged row' );
+ok( false !== strpos( $views_js, 'payload.engaged' ), 'tile reads the additive engaged key' );
+ok( 1 === preg_match( '/payload\.engaged\s*&&\s*typeof payload\.engaged\.rate === \'number\'/', $views_js ),
+	'engaged render is guarded on a numeric rate — missing/malformed key paints nothing' );
+ok( false !== strpos( $views_js, "' pts'" ) || false !== strpos( $views_js, '" pts"' ),
+	'engaged delta is labelled pts (percentage points), not a relative %' );
+ok( false !== strpos( $views_js, 'payload.top_mover' ), 'tile reads the additive top_mover key' );
+ok( 1 === preg_match( '/payload\.top_mover\s*&&\s*payload\.top_mover\.path/', $views_js ),
+	'top_mover render is guarded on path — empty/absent movers paint nothing' );
+ok( false === strpos( $views_js, 'innerHTML' ),
+	'views tile never uses innerHTML — glance strings reach the DOM as textContent only' );
 
 echo "\n── v10.43.0: the OpenStation compat prelude aliases both surfaces ──\n";
 $compat_path = __DIR__ . '/../assets/desktop-mode-os-compat.js';

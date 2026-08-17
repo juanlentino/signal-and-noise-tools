@@ -323,6 +323,68 @@ function snt_desktop_site_views_payload() {
 		'forecast'    => $forecast,
 	);
 
+	// v11.11.4 glance rows — each key is ADDITIVE and OPTIONAL. An older
+	// cached payload without them renders exactly the current widget.
+	// Null/absent producers omit the key; a measured 0 is an answer and stays.
+
+	// Today's views from the already-fetched 60-day fit series
+	// (sn_analytics_daily_series( $fit_from, $today ) above) — no second
+	// query. The payload transient is ~15 min, so this number lags ≤15 min;
+	// acceptable for a glance row.
+	foreach ( $fit_series as $row ) {
+		if ( ! is_array( $row ) || (string) ( $row['day'] ?? '' ) !== $today ) {
+			continue;
+		}
+		if ( array_key_exists( 'views', $row ) && null !== $row['views'] ) {
+			$payload['today'] = (int) $row['views'];
+		}
+		break;
+	}
+
+	// Display-window convention, matching the widget/narration call sites:
+	// sn_analytics_engaged_rate( $from, $to, 'human' ) +
+	// sn_analytics_engaged_rate_delta( $from, $to, 'human' ) with null $cwin
+	// (adjacent prior window). Rate is int 0–100 or null; delta is
+	// { current:?int, previous:?int, pct:?int, dir: up|down|flat }.
+	// Glance shape: { rate, pts?, dir? } — pts is current−previous (percentage
+	// POINTS), not the relative pct the accessor also returns.
+	if ( function_exists( 'sn_analytics_engaged_rate' ) ) {
+		$rate = sn_analytics_engaged_rate( $from, $today, 'human' );
+		if ( null !== $rate ) {
+			$engaged = array( 'rate' => (int) $rate );
+			if ( function_exists( 'sn_analytics_engaged_rate_delta' ) ) {
+				$d = sn_analytics_engaged_rate_delta( $from, $today, 'human' );
+				if ( is_array( $d )
+					&& array_key_exists( 'current', $d ) && array_key_exists( 'previous', $d )
+					&& null !== $d['current'] && null !== $d['previous']
+					&& is_numeric( $d['current'] ) && is_numeric( $d['previous'] ) ) {
+					$engaged['pts'] = (int) $d['current'] - (int) $d['previous'];
+					$dir            = (string) ( $d['dir'] ?? '' );
+					if ( in_array( $dir, array( 'up', 'down', 'flat' ), true ) ) {
+						$engaged['dir'] = $dir;
+					}
+				}
+			}
+			$payload['engaged'] = $engaged;
+		}
+	}
+
+	// One strongest PATH mover from sn_analytics_movers( $from, $to, 'human', 1 )
+	// — the rail tile's own producer: rows of { path, views, delta } sorted by
+	// |delta|, behind its OWN 15-min transient (no new query rides this
+	// payload). A path with a signed delta is the glance ("/notes +12");
+	// metric-level baseline movers read too abstract on a tile. Empty/null →
+	// key omitted — zero and null are different answers.
+	if ( function_exists( 'sn_analytics_movers' ) ) {
+		$movers = sn_analytics_movers( $from, $today, 'human', 1 );
+		if ( is_array( $movers ) && isset( $movers[0]['path'], $movers[0]['delta'] ) ) {
+			$payload['top_mover'] = array(
+				'path'  => (string) $movers[0]['path'],
+				'delta' => (int) $movers[0]['delta'],
+			);
+		}
+	}
+
 	set_transient( $cache_key, $payload, 15 * MINUTE_IN_SECONDS );
 	return new WP_REST_Response( $payload, 200 );
 }

@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.11.4] - 2026-08-17 — three more things worth a glance
+
+### Added
+- **OpenStation Site Views widget glance rows.** Three additive payload
+  keys on `snt_desktop_site_views_payload()`: `today` (today's views
+  extracted from the already-fetched 60-day fit series — the 15-min
+  payload transient means the number lags ≤15 min), `engaged` (display-
+  window engaged rate + points delta), and `top_mover` (the strongest
+  path mover from `sn_analytics_movers()`, the rail tile's own cached
+  producer — path + signed delta reads as a glance where a metric-level
+  z-score does not). Each key is omitted
+  when its producer is null or empty; an older cached payload renders
+  exactly the previous widget. Height re-budgeted 450 → 510.
+
 ## [11.11.3] - 2026-08-17 — the widgets say more and cry less
 
 ### Changed
