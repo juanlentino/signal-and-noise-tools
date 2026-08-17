@@ -2,7 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.11.0] - 2026-08-17 — telemetry names the failure, and operations gets a morning voice
+
+**MINOR** — two arcs: Layer B telemetry gains the `error_code` dimension (v11.10.0 board
+scope, item 2), and R6a lands its buildable rows — the daily Operations morning brief with
+configuration drift, and scheduled read-only agent runs. The R6a corpus-schema row returns
+to the board (no storage exists to publish from). Both arcs carried independent-eyes review
+(Grok) with every finding fixed and pinned: dropped classify-site codes, persist-path
+allowlisting, DST re-anchoring, suffix-named secret hashing, cron identity, and the
+in-process kill-switch gap.
 
 ### Added
 - An opt-in daily Operations morning brief now composes cached health, cron
