@@ -249,6 +249,7 @@ sn_test_agents_reset();
 $wp_err = new WP_Error( 'snt_helper_unavailable', 'dependency missing', array( 'status' => 500 ) );
 sn_mcp_telemetry_agent_tool_result( $wp_err, 'signal-noise/get-rss-stats', array(), 1 );
 ok( 'server_error' === $wpdb->insert_calls[0]['data']['outcome'], 'outcome: a defensively-received status-500 WP_Error classifies as server_error (reuses sn_mcp_telemetry_classify_wp_error)' );
+ok( 'snt_helper_unavailable' === $wpdb->insert_calls[0]['data']['error_code'], 'outcome: the WP_Error\'s code reaches the agent-door row (12th build_row arg wired)' );
 
 sn_test_agents_reset();
 $wp_err_422 = new WP_Error( 'snt_invalid_hook', 'no such hook', array( 'status' => 422 ) );

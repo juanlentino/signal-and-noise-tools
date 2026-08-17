@@ -199,6 +199,7 @@ function sn_mcp_telemetry_agent_classify_output( $output ) {
 	return array(
 		'outcome'      => 'ok',
 		'refusal_gate' => null,
+		'error_code'   => null,
 	);
 }
 
@@ -261,7 +262,9 @@ function sn_mcp_telemetry_agent_record( $output, $slug, $args, $agent_user_id ) 
 		$classified['outcome'],
 		$classified['refusal_gate'],
 		0, // No timing seam at this call site — see file docblock.
-		$result_count
+		$result_count,
+		null,
+		$classified['error_code'] ?? null
 	);
 
 	sn_mcp_telemetry_insert_row( $row );

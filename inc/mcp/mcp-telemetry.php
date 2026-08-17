@@ -214,7 +214,19 @@ function sn_mcp_telemetry_error_code( $error ) {
 	if ( ! is_object( $error ) || ! method_exists( $error, 'get_error_code' ) ) {
 		return null;
 	}
-	$code = $error->get_error_code();
+	return sn_mcp_telemetry_error_code_allowed( $error->get_error_code() );
+}
+
+/**
+ * The identifier grammar itself, callable on a bare string. build_row()
+ * re-applies it so the allowlist holds at the persist choke point too, not
+ * only at the classify site — a future caller passing an unfiltered string
+ * positionally must not be able to put user content in the column.
+ *
+ * @param mixed $code Candidate error-code value.
+ * @return string|null The code if it passes the grammar, else null.
+ */
+function sn_mcp_telemetry_error_code_allowed( $code ) {
 	if ( ! is_string( $code ) || ! preg_match( '/^[a-z][a-z0-9_]{0,63}$/', $code ) ) {
 		return null;
 	}
@@ -426,7 +438,7 @@ function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape
 		'result_count' => null === $result_count ? null : (int) $result_count,
 		'candidate_id' => null, // Reserved; always NULL this session.
 		'change_type'  => null === $change_type ? null : (string) $change_type,
-		'error_code'   => 'ok' === $outcome || null === $error_code ? null : (string) $error_code,
+		'error_code'   => 'ok' === $outcome ? null : sn_mcp_telemetry_error_code_allowed( $error_code ),
 	);
 }
 

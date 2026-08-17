@@ -327,7 +327,7 @@ $after = sn_mcp_call_tool( 'signal-noise__get-health-scan', array() );
 ok( $before == $after, 'wiring: the tool response is BYTE-IDENTICAL with telemetry recording on' ); // phpcs:ignore -- deep value compare intentional
 ok( 1 === count( $wpdb->insert_calls ), 'wiring: success records exactly one telemetry row' );
 ok( 'ok' === $wpdb->insert_calls[0]['data']['outcome'], 'wiring: success outcome is "ok"' );
-ok( null === $wpdb->insert_calls[0]['data']['error_code'], 'wiring: success records error_code NULL' );
+ok( array_key_exists( 'error_code', $wpdb->insert_calls[0]['data'] ) && null === $wpdb->insert_calls[0]['data']['error_code'], 'wiring: success writes the error_code key and records it NULL (key presence pinned — a missing key would read null too)' );
 ok( 'read' === $wpdb->insert_calls[0]['data']['door'], 'wiring: read-door call records door=read' );
 ok( $wpdb->insert_calls[0]['data']['latency_ms'] >= 0, 'wiring: latency_ms is a non-negative measured value' );
 
