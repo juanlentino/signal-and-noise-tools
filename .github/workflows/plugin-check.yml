@@ -95,7 +95,7 @@ jobs:
       # slug resolves to the repo dir (signal-and-noise-tools), matching the
       # signal-and-noise-tools.php main file.
       - name: Run Plugin Check (wp.org-submission categories filtered out)
-        uses: WordPress/plugin-check-action@98a1788320d0add90df2d8183934ecccbc4e05d2 # v1.1.7
+        uses: WordPress/plugin-check-action@10857da14b6c2246d15402b3e69f777edcf8c12e # v1.1.9
         with:
           # Whitelist the meaningful categories. This opt-in drops the whole
           # `plugin_repo` (wp.org submission) category and stays correct even if
