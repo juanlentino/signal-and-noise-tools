@@ -165,12 +165,14 @@ add_action( 'init', function() {
 
 		snt_os_register_widget( 'sn-deploy-status', array_merge( $sn_drag, array(
 			'label'          => 'SN Deploy Status',
-			'description'    => 'Theme + plugin version and last deploy time.',
+			'description'    => 'Theme, plugin, and worker versions with last deploy time.',
 			'icon'           => 'dashicons-update',
 			'script'         => 'sn-desktop-mode-widget',
-			// Measured 192: the theme/plugin grid, the deploy line, the link.
-			// A failed update check adds a reason paragraph and scrolls.
-			'default_height' => 200,
+			// v11.11.2: BUDGETED 310, not browser-measured — the old measured
+			// 192 covered the two-row grid; five worker rows add ~22px each.
+			// If the owner reports clipping, rebuild the Trap-11 measurement
+			// recipe rather than guessing again.
+			'default_height' => 310,
 		) ) );
 
 		// v2.1.0: Quick Actions widget — replaces the 3-click path of
