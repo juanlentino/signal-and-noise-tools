@@ -61,6 +61,11 @@ const SNT_DEPLOY_HISTORY_PURGE_HOOK = 'sn_deploy_history_purge_rollover';
  * records from this module (the renderer strips the `-tools` suffix
  * for the "plugin" label).
  *
+ * Intentionally theme + plugin ONLY. The five Cloudflare workers on
+ * Deploy Status (inc/deploy-workers.php / snt_deploy_workers_registry)
+ * never install via the WP upgrader, so they have no history rows here
+ * and must not be added to this map just to "keep the mirror complete".
+ *
  * Keys here are the wp-admin upgrader's identifier — plugin uses
  * the `{folder}/{file}.php` basename, theme uses the stylesheet slug.
  */

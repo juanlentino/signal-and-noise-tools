@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     11.11.0
+ * Version:     11.11.1
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -355,6 +355,7 @@ require_once __DIR__ . '/inc/wp-update-integration.php';
 require_once __DIR__ . '/inc/wp-update-git-preservation.php';
 require_once __DIR__ . '/inc/github-actions-api.php';
 require_once __DIR__ . '/inc/deploy-history.php';
+require_once __DIR__ . '/inc/deploy-workers.php'; // Deploy Status: five Cloudflare workers beside theme/plugin
 require_once __DIR__ . '/inc/api-rate-monitor.php';
 require_once __DIR__ . '/inc/admin-tab-dashboard.php';
 require_once __DIR__ . '/inc/desktop-mode-integration.php';

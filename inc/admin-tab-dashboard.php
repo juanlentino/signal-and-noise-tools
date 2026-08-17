@@ -317,6 +317,15 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	$cards[] = snt_dashboard_version_card( 'Theme', $theme );
 	$cards[] = snt_dashboard_version_card( 'Plugin', $plugin );
 
+	// ── Cloudflare workers (Deploy Status): always render a row per worker.
+	// probe_budget=1 so a cold page load never fans out five live HTTP calls;
+	// warm cache hits are free. Unprobeable / failed probes stay as UNKNOWN.
+	if ( function_exists( 'snt_deploy_workers_status' ) ) {
+		foreach ( snt_deploy_workers_status( array( 'probe_budget' => 1 ) ) as $worker ) {
+			$cards[] = snt_dashboard_worker_card( $worker );
+		}
+	}
+
 	// ── Deploys: last age + count in 24h. ──
 	$count_24h = snt_dashboard_count_recent_runs( (array) $runs, DAY_IN_SECONDS );
 	$cards[]   = array(
@@ -468,7 +477,9 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	// present cards follow this relative order. usort is stable on PHP 8+ (the
 	// plugin's floor), and every built card is in the map (an unlisted label
 	// sorts last, defensively).
-	$order = array( 'Theme', 'Plugin', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Login blocks 7d', 'Views 7d', 'AI spend 30d' );
+	// Worker Deploy Status labels sit under Theme/Plugin; "Provenance edge" is
+	// the worker semver card (distinct from the "Provenance" anchor card).
+	$order = array( 'Theme', 'Plugin', 'Analytics', 'Provenance edge', 'Login guard', 'Remote MCP', 'Rights signals', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Login blocks 7d', 'Views 7d', 'AI spend 30d' );
 	$rank  = array_flip( $order );
 	usort( $cards, function ( $a, $b ) use ( $rank ) {
 		$ra = $rank[ is_array( $a ) ? ( $a['label'] ?? '' ) : '' ] ?? 999;
@@ -490,7 +501,8 @@ function snt_dashboard_version_card( $label, $pkg ) {
 	$pill = array( 'kind' => 'err', 'text' => 'unknown' );
 	if ( 'ok' === ( $pkg['state'] ?? '' ) ) {
 		$pill = array( 'kind' => 'ok', 'text' => 'up to date' );
-	} elseif ( 'available' === ( $pkg['state'] ?? '' ) ) {
+	} elseif ( 'available' === ( $pkg['state'] ?? '' ) || 'behind' === ( $pkg['state'] ?? '' ) ) {
+		// Workers use "behind"; theme/plugin use "available". Same warn pill.
 		$pill = array( 'kind' => 'warn', 'text' => 'v' . (string) ( $pkg['latest'] ?? '' ) . ' available' );
 	}
 	$card = array(
@@ -506,6 +518,24 @@ function snt_dashboard_version_card( $label, $pkg ) {
 		$card['meta_html'] = esc_html( $reason );
 	}
 	return $card;
+}
+
+/**
+ * Glance card for one Cloudflare worker row (Deploy Status).
+ * Maps live/latest/state onto the theme/plugin version-card shape.
+ *
+ * @param array $worker snt_deploy_worker_status_for() struct.
+ * @return array Glance card.
+ */
+function snt_dashboard_worker_card( $worker ) {
+	$live = (string) ( $worker['live'] ?? '' );
+	$pkg  = array(
+		'current' => '' !== $live ? $live : '—',
+		'latest'  => (string) ( $worker['latest'] ?? '' ),
+		'state'   => (string) ( $worker['state'] ?? 'unknown' ),
+		'reason'  => (string) ( $worker['reason'] ?? '' ),
+	);
+	return snt_dashboard_version_card( (string) ( $worker['label'] ?? 'Worker' ), $pkg );
 }
 
 /**

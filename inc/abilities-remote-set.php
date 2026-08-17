@@ -468,6 +468,22 @@ add_action( 'wp_abilities_api_init', function () {
 					'type'        => 'string',
 					'description' => 'Relative time of the most recent deploy GHA workflow run across both repos — the pre-v9.63.3 last_deploy reading, kept as a clearly-labeled secondary field. deploy.yml is the workflow_dispatch-only emergency fallback, so this moves only on manual dispatches. Empty string if unknown. Added v9.63.3.',
 				),
+				// Additive: theme/plugin keys stay byte-stable for morning-brief + desktop widget.
+				'workers' => array(
+					'type'        => 'array',
+					'description' => 'Deploy status for the five owned Cloudflare workers (analytics, provenance, login-guard, remote-mcp, rights-signals). Each row: id, label, live (probed version or "unprobeable"), latest (highest GitHub tag), state (ok|behind|unknown), repo. Rows with no probe route or a failed probe stay present as unknown — never omitted. Added with the Deploy Status worker surface.',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'id'     => array( 'type' => 'string' ),
+							'label'  => array( 'type' => 'string' ),
+							'live'   => array( 'type' => 'string' ),
+							'latest' => array( 'type' => 'string' ),
+							'state'  => array( 'type' => 'string', 'enum' => array( 'ok', 'behind', 'unknown' ) ),
+							'repo'   => array( 'type' => 'string' ),
+						),
+					),
+				),
 			),
 		),
 		'meta'                => array(

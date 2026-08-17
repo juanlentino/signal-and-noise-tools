@@ -85,7 +85,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/get-deploy-status', array(
 		'label'               => 'Get theme + plugin deploy status',
-		'description'         => 'Returns current theme version, current plugin version, latest available versions from GitHub, and whether updates are available. Pass force_refresh=true to clear the GitHub-tag + update_themes/update_plugins transients first so the answer is freshly fetched (replaces the removed force-check-updates ability; clears caches only, never user data). Read-only; safe to call anytime.',
+		'description'         => 'Returns current theme version, current plugin version, latest available versions from GitHub, and whether updates are available — plus a `workers` array for the five owned Cloudflare workers (live probe vs latest GitHub tag; unprobeable/unknown rows stay visible). Pass force_refresh=true to clear the GitHub-tag + update_themes/update_plugins + worker probe transients first so the answer is freshly fetched (replaces the removed force-check-updates ability; clears caches only, never user data). Read-only; safe to call anytime.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_deploy_status',
@@ -128,6 +128,22 @@ add_action( 'wp_abilities_api_init', function() {
 				'last_gha_run' => array(
 					'type'        => 'string',
 					'description' => 'Relative time of the most recent deploy GHA workflow run across both repos — the pre-v9.63.3 last_deploy reading, kept as a clearly-labeled secondary field. deploy.yml is the workflow_dispatch-only emergency fallback, so this moves only on manual dispatches. Empty string if unknown. Added v9.63.3.',
+				),
+				// Additive: theme/plugin keys stay byte-stable for morning-brief + desktop widget.
+				'workers' => array(
+					'type'        => 'array',
+					'description' => 'Deploy status for the five owned Cloudflare workers (analytics, provenance, login-guard, remote-mcp, rights-signals). Each row: id, label, live (probed version or "unprobeable"), latest (highest GitHub tag), state (ok|behind|unknown), repo. Rows with no probe route or a failed probe stay present as unknown — never omitted. Added with the Deploy Status worker surface.',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'id'     => array( 'type' => 'string' ),
+							'label'  => array( 'type' => 'string' ),
+							'live'   => array( 'type' => 'string' ),
+							'latest' => array( 'type' => 'string' ),
+							'state'  => array( 'type' => 'string', 'enum' => array( 'ok', 'behind', 'unknown' ) ),
+							'repo'   => array( 'type' => 'string' ),
+						),
+					),
 				),
 			),
 		),
@@ -384,8 +400,15 @@ function snt_ability_get_deploy_status( $input = null ) {
 	// v7.7.0: force_refresh clears the GitHub-tag + WP update transients first
 	// (the removed force-check-updates ability's whole job), so one call
 	// both busts the caches and returns the freshly-fetched status.
-	if ( is_array( $input ) && ! empty( $input['force_refresh'] ) && function_exists( 'snt_cmd_impl_force_check' ) ) {
-		snt_cmd_impl_force_check();
+	// Worker live/tag caches (inc/deploy-workers.php) clear alongside so the
+	// additive `workers` rows re-probe rather than serving a stale unknown.
+	if ( is_array( $input ) && ! empty( $input['force_refresh'] ) ) {
+		if ( function_exists( 'snt_cmd_impl_force_check' ) ) {
+			snt_cmd_impl_force_check();
+		}
+		if ( function_exists( 'snt_deploy_workers_flush_caches' ) ) {
+			snt_deploy_workers_flush_caches();
+		}
 	}
 
 	// v6.55.0: fold in last_deploy so the desktop-mode deploy-status widget
@@ -415,11 +438,19 @@ function snt_ability_get_deploy_status( $input = null ) {
 		$last_deploy = $last_gha_run;
 	}
 
+	$workers = function_exists( 'snt_deploy_workers_status' )
+		? snt_deploy_workers_status( array(
+			'force'        => is_array( $input ) && ! empty( $input['force_refresh'] ),
+			'probe_budget' => 5,
+		) )
+		: array();
+
 	return array(
 		'theme'        => snt_deploy_status_for( 'theme' ),
 		'plugin'       => snt_deploy_status_for( 'plugin' ),
 		'last_deploy'  => $last_deploy,
 		'last_gha_run' => $last_gha_run,
+		'workers'      => $workers,
 	);
 }
 

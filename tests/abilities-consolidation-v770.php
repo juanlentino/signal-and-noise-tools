@@ -86,6 +86,11 @@ function snt_cmd_impl_force_check() {
 	return array( 'ok' => true, 'message' => 'Update caches cleared.' );
 }
 
+if ( ! function_exists( 'snt_deploy_workers_status' ) ) {
+	function snt_deploy_workers_status( $opts = array() ) {
+		return array();
+	}
+}
 function snt_deploy_status_for( $which ) {
 	return array( 'current' => '7.7.0', 'latest' => '7.7.0', 'state' => 'ok' );
 }
@@ -202,6 +207,7 @@ $GLOBALS['__force_check_calls'] = 0;
 $out = snt_ability_get_deploy_status( array() );
 t_eq( 0, $GLOBALS['__force_check_calls'], 'D.2 plain read does NOT clear update transients' );
 t( isset( $out['theme'], $out['plugin'] ) && array_key_exists( 'last_deploy', $out ) && array_key_exists( 'last_gha_run', $out ), 'D.3 plain read output shape intact (incl. v9.63.3 last_gha_run)' );
+t( array_key_exists( 'workers', $out ) && is_array( $out['workers'] ), 'D.3b workers key present (additive Deploy Status workers surface)' );
 
 $out = snt_ability_get_deploy_status( array( 'force_refresh' => true ) );
 t_eq( 1, $GLOBALS['__force_check_calls'], 'D.4 force_refresh=true clears update transients first (subsumes force-check-updates)' );
