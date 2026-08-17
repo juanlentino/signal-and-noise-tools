@@ -32,7 +32,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * WP_Error codes:
  *   snt_block_migration_invalid_type           (422)
  *   snt_block_migration_post_not_found         (404)
- *   snt_block_migration_candidate_not_found    (404)
+ *   snt_block_migration_candidate_not_found    (409) — optimistic-concurrency
+ *     contention: the fingerprint no longer matches any block (content moved
+ *     or was already applied). Caller should re-run scan. Telemetry classifies
+ *     status 409 as outcome "conflict" (sn_mcp_telemetry_classify_wp_error).
  *
  * @since 4.5.0
  */
@@ -67,10 +70,13 @@ function snt_block_migrations_suggest_impl( $post_id, $block_fingerprint, $migra
 	$match  = snt_block_fp_find( $blocks, $block_fingerprint, $post_id );
 
 	if ( null === $match ) {
+		// 409 (not 404): the post exists; the candidate fingerprint is stale —
+		// optimistic-concurrency contention. Re-run scan. Owner-approved
+		// public contract change (was 404 through v11.11.5).
 		return new WP_Error(
 			'snt_block_migration_candidate_not_found',
 			__( 'Candidate block not found in current post content. Re-run scan.', 'signal-and-noise-tools' ),
-			array( 'status' => 404 )
+			array( 'status' => 409 )
 		);
 	}
 

@@ -107,7 +107,9 @@ $result = snt_block_migrations_suggest_impl( 999, 'abc123', 'heading-hierarchy-s
 bms_true( is_wp_error( $result ), 'Test 2.1: returns WP_Error' );
 bms_eq( 'snt_block_migration_post_not_found', $result->get_error_code(), 'Test 2.2: error code = post_not_found' );
 
-// ─── Test 3: fingerprint not in post → WP_Error 404 (candidate_not_found) ─
+// ─── Test 3: fingerprint not in post → WP_Error 409 (candidate_not_found) ─
+// 409 (not 404): optimistic-concurrency contention — post exists, fingerprint
+// is stale. Owner-approved public contract change (was 404 through v11.11.5).
 echo "\nTest 3: fingerprint not in post\n";
 $GLOBALS['__test_posts'] = array();
 _bms_post( 302, array(
@@ -116,6 +118,7 @@ _bms_post( 302, array(
 $result = snt_block_migrations_suggest_impl( 302, 'deadbeefdeadbeefdeadbeefdeadbeef', 'heading-hierarchy-skip' );
 bms_true( is_wp_error( $result ), 'Test 3.1: returns WP_Error' );
 bms_eq( 'snt_block_migration_candidate_not_found', $result->get_error_code(), 'Test 3.2: error code = candidate_not_found' );
+bms_eq( 409, $result->data['status'], 'Test 3.3: HTTP status 409 (optimistic-concurrency, not missing resource)' );
 
 // ─── Test 4: successful heading-skip suggestion ─────────────────────
 echo "\nTest 4: successful suggestion (h3 → h2)\n";

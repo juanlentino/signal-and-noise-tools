@@ -364,6 +364,12 @@ ok( $r1['scan_run_id'] === $r2['scan_run_id'], 'ACCEPTANCE TEST 1: scan_run_id i
 ok( 64 === strlen( $r1['candidates'][0]['candidate_id'] ) && ctype_xdigit( $r1['candidates'][0]['candidate_id'] ), 'candidate_id is a 64-char hex sha256' );
 ok( false === $r1['candidates'][0]['dismissed'], 'a fresh candidate is not dismissed' );
 ok( 'fresh' === $r1['freshness'], 'block_migrations always reports freshness=fresh (no cache to read from)' );
+// block_path is load-bearing for multi-candidate apply (position-bound fingerprints).
+// Surfaced on targets[] (apply identity) and evidence; same-post apply must be DESC by path.
+ok( isset( $r1['candidates'][0]['targets'][0]['block_path'] ) && '' !== $r1['candidates'][0]['targets'][0]['block_path'], 'block_migrations surfaces block_path on targets[] (apply identity)' );
+ok( isset( $r1['candidates'][0]['evidence']['block_path'] ) && '' !== $r1['candidates'][0]['evidence']['block_path'], 'block_migrations also keeps block_path on evidence' );
+ok( $r1['candidates'][0]['targets'][0]['block_path'] === $r1['candidates'][0]['evidence']['block_path'], 'targets.block_path matches evidence.block_path' );
+ok( '0/1' === $r1['candidates'][0]['targets'][0]['block_path'], 'block_path is the detector path (paragraph at 0/0, h3 at 0/1)' );
 
 $bm_cid = $r1['candidates'][0]['candidate_id'];
 $bm_fp  = $r1['candidates'][0]['targets'][0]['block_fingerprint'];
@@ -680,6 +686,24 @@ foreach ( SNT_SN_SCAN_TYPES as $t ) {
 $GLOBALS['__dup_flip_ids'] = null;
 
 /* ════════════════════════════════════════════════════════════════════════
+ * block_migrations: same-post multi-candidate surfaces distinct block_paths.
+ * List order is confidence DESC / candidate_id ASC (pinned elsewhere) — NOT
+ * position order. Callers applying multiple same-post candidates MUST re-sort
+ * DESC by block_path (mirrors sn_apply payload.edits descending splice).
+ * ════════════════════════════════════════════════════════════════════════ */
+$h3_a = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>First skip</h3>', 'innerContent' => array( '<h3>First skip</h3>' ) );
+$h3_b = array( 'blockName' => 'core/heading', 'attrs' => array( 'level' => 3 ), 'innerBlocks' => array(), 'innerHTML' => '<h3>Second skip</h3>', 'innerContent' => array( '<h3>Second skip</h3>' ) );
+$GLOBALS['__posts'][310] = tf_post( 310, 'publish', json_encode( array( $h3_a, $h3_b ) ), array( 'title' => 'Two skips', 'slug' => 'two-skips' ) );
+// Scope to this post so we do not pick up leftover candidates from other fixtures.
+$multi = snt_ability_sn_scan( array( 'scan_type' => 'block_migrations', 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( 310 ) ) ) );
+ok( is_array( $multi ) && 2 === count( $multi['candidates'] ), 'same-post multi: two h3-before-h2 candidates' );
+$paths = array_map( static function ( $c ) {
+	return (string) ( $c['targets'][0]['block_path'] ?? '' );
+}, $multi['candidates'] );
+sort( $paths );
+ok( array( '0/0', '0/1' ) === $paths, 'same-post multi: distinct block_paths 0/0 and 0/1 (position-bound identity)' );
+
+/* ════════════════════════════════════════════════════════════════════════
  * candidate_id derivation: same target/content, different scan_type -> different ID.
  * ════════════════════════════════════════════════════════════════════════ */
 $id_a = snt_sn_scan_candidate_id( 'block_migrations', '301', 'deadbeef' );
@@ -705,6 +729,12 @@ ok( array( 'scan_type' ) === ( $a['input_schema']['required'] ?? array() ), 'sca
 // in v10.51.0 when emdash reached the adapter map but not the constant.
 ok( ( $a['input_schema']['properties']['scan_type']['enum'] ?? array() ) === SNT_SN_SCAN_TYPES, 'the published scan_type enum IS SNT_SN_SCAN_TYPES (not a hand-kept copy)' );
 ok( false === ( $a['input_schema']['additionalProperties'] ?? true ), 'input schema rejects unknown properties' );
+// Tool description documents the DESC-by-path apply contract for same-post
+// block_migrations candidates (not enforced server-side — sn_scan is read-only).
+// Pin so a rewrite cannot drop the guidance or the sn_apply payload.edits cite.
+$desc = (string) ( $a['description'] ?? '' );
+ok( false !== strpos( $desc, 'DESCENDING position order' ), 'sn_scan description documents same-post block_migrations DESCENDING position-order apply' );
+ok( false !== strpos( $desc, 'payload.edits' ) || false !== strpos( $desc, 'descending-splice' ), 'sn_scan description cites sn_apply payload.edits descending-splice precedent' );
 
 echo "\nGroup: no PHP notices/warnings anywhere in the suite\n";
 ok( array() === $GLOBALS['__php_errors'], 'zero notices/warnings/deprecations raised: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );

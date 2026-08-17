@@ -445,6 +445,12 @@ $cf3 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_sn_apply_idempoten
 ok( 'conflict' === $cf3['outcome'], 'classify: snt_sn_apply_idempotency_target_mismatch (409, inc/abilities-sn-apply.php:251) → conflict' );
 $cf4 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_sn_apply_batch_phrase_not_found', 'edit 2: phrase not present in post content.', array( 'status' => 409 ) ) );
 ok( 'conflict' === $cf4['outcome'], 'classify: snt_sn_apply_batch_phrase_not_found (409, inc/sn-apply-batch-edits.php:200) → conflict' );
+// v11.11.6 straggler: snt_block_migration_candidate_not_found restated 404→409
+// (optimistic-concurrency: re-run scan). Pin the classifier bucket explicitly.
+$cf5 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_block_migration_candidate_not_found', 'Candidate block not found in current post content. Re-run scan.', array( 'status' => 409 ) ) );
+ok( 'conflict' === $cf5['outcome'], 'classify: snt_block_migration_candidate_not_found (409, inc/block-migrations-suggest.php) → conflict' );
+ok( 'snt_block_migration_candidate_not_found' === $cf5['error_code'], 'classify: candidate_not_found preserves its error_code under the conflict outcome' );
+ok( null === $cf5['refusal_gate'], 'classify: candidate_not_found conflict carries no refusal_gate' );
 // The regression this closes: 409 used to fall in the 400-428 band.
 ok( 'schema_error' !== $cf1['outcome'], 'classify: a 409 is NO LONGER schema_error — fingerprint contention is distinguishable from malformed input' );
 ok( null === $cf1['refusal_gate'], 'classify: conflict carries no refusal_gate (it is not a gate refusal)' );
