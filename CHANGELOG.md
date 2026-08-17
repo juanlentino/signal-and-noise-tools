@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.11.3] - 2026-08-17 — the widgets say more and cry less
+
+### Changed
+- **OpenStation Machine Readers widget drops the Sensor section.** Version now
+  lives on Deploy Status's Rights signals row; rendering it here was
+  duplication. Crawler-list drift still warns — one amber line when the
+  verdict is not `in sync`, silent when healthy. A new Purposes section
+  renders `payload.purposes` (already on the payload, never painted): cap 4,
+  and `null` (pre-taxonomy sensor) paints no heading at all.
+- **OpenStation Site Views widget drops the 7-day forecast.** On this site's
+  volumes the honest interval is so wide it communicates nothing and the red
+  arrow cried wolf on healthy trends. The server-side forecast producer is
+  untouched. The single top-path row is now a Top pages list of 3
+  (`top_paths`, additive; `top_path` kept for cached payloads).
+
 ## [11.11.2] - 2026-08-17 — the widget catches up, and a known tag survives an outage
 
 **PATCH** — two fixes to the worker deploy-status surface, both born the hour it shipped.

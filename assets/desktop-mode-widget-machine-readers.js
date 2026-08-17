@@ -2,8 +2,9 @@
  * Signal & Noise Tools — desktop-mode "SN Machine Readers" widget.
  *
  * The machine half of the audience, at a glance: how many machine reads in
- * the window, which crawler families lead, how much of it is declared
- * AI-training traffic, and whether the edge sensor is actually answering.
+ * the window, which crawler families lead, which purposes they declare,
+ * how much of it is declared AI-training traffic. Sensor version lives on
+ * the Deploy Status tile; crawler-list drift still warns here when unhealthy.
  * Human readership is the sn-site-views tile's job and the two are NEVER
  * summed — beacons see people, the edge sees crawlers.
  *
@@ -178,18 +179,27 @@
 				body.appendChild( ai );
 			}
 
-			// Sensor line: version + drift verdict, the two facts that say
-			// whether to trust the numbers above.
-			var sensor = section( 'Sensor' );
-			sensor.appendChild( statRow( 'Version', payload.sensor_version ? String( payload.sensor_version ) : '—' ) );
-			if ( payload.crawler_list ) {
-				sensor.appendChild( statRow(
-					'Crawler list',
-					String( payload.crawler_list ),
-					( 'in sync' === payload.crawler_list ) ? '' : 'color:#d29922;'
-				) );
+			// Purposes: already on the payload, never rendered until now.
+			// null (not []) means the deployed sensor predates the taxonomy —
+			// never-measured, so no section at all. An empty array is
+			// measured-zero and also paints nothing (no empty heading).
+			if ( payload.purposes && payload.purposes.length ) {
+				var purp = section( 'Purposes' );
+				payload.purposes.slice( 0, 4 ).forEach( function( row ) {
+					purp.appendChild( statRow( String( row.purpose ), String( row.hits ) ) );
+				} );
+				body.appendChild( purp );
 			}
-			body.appendChild( sensor );
+
+			// Crawler-list drift only. Version moved to Deploy Status.
+			// Verdicts: 'in sync' | 'drift' | 'check failed' | null.
+			// Healthy or unknown is silent; anything else is one amber line.
+			if ( payload.crawler_list && 'in sync' !== payload.crawler_list ) {
+				body.appendChild( el( 'div', {
+					text:  'Crawler list ' + String( payload.crawler_list ),
+					style: 'font-size:11px;opacity:.55;color:#d29922;margin-top:8px;'
+				} ) );
+			}
 		}
 
 		function fail() {

@@ -378,14 +378,14 @@ echo "\n── v10.68.0: the sizes are MEASURED, and pinned value-level ──\n
 //
 // Changing a card's content SHOULD fail this test. Re-measure, don't re-guess.
 $expected_height = array(
-	'sn-site-views'       => 470, // measured 463
+	'sn-site-views'       => 450, // budgeted: measured-463 −3 forecast lines +2 pages rows
 	'sn-health'           => 160, // measured 148 all-passing
 	'sn-uptime'           => 220, // measured 210
 	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
 	'sn-quick-actions'    => 250, // measured 242
 	'sn-rss-subscribers'  => 220, // measured 207
 	'sn-anchors'          => 180, // measured 167 idle
-	'sn-machine-readers'  => 520, // measured 508
+	'sn-machine-readers'  => 560, // budgeted: measured-508 −3 sensor rows +≤5 purpose rows
 );
 ok( array_keys( $expected_height ) === array_keys( $widgets ),
 	'the measured-height table covers exactly the registered widgets, in registration order' );
@@ -734,7 +734,16 @@ $GLOBALS['__classes'] = array(
 	array( 'day' => '2026-07-13', 'total' => 100, 'bot' => 25, 'bot_pct' => 25 ),
 	array( 'day' => '2026-07-14', 'total' => 100, 'bot' => 35, 'bot_pct' => 35 ),
 );
-$GLOBALS['__top']     = array( array( 'path' => '/notes/provenance', 'views' => 42, 'visits' => 30, 'scroll_avg' => 0.7, 'time_avg' => 90.0 ) );
+// Four rows so the top_paths cap-at-3 assertion has something to cut.
+// Shape is the REAL sn_analytics_top_paths() row (inc/analytics-read.php):
+// path / views / visits / scroll_avg / time_avg — the payload only surfaces
+// path + views, same as the existing top_path compat key.
+$GLOBALS['__top']     = array(
+	array( 'path' => '/notes/provenance', 'views' => 42, 'visits' => 30, 'scroll_avg' => 0.7, 'time_avg' => 90.0 ),
+	array( 'path' => '/notes/signal',     'views' => 18, 'visits' => 14, 'scroll_avg' => 0.6, 'time_avg' => 70.0 ),
+	array( 'path' => '/',                 'views' => 11, 'visits' => 9,  'scroll_avg' => 0.5, 'time_avg' => 40.0 ),
+	array( 'path' => '/about',            'views' => 3,  'visits' => 2,  'scroll_avg' => 0.4, 'time_avg' => 20.0 ),
+);
 // Four rows, views DESC — so the cap-at-3 assertion has something to cut, and
 // '(direct)' carries an empty hosts[] because it aggregates and is never drillable.
 $GLOBALS['__sources'] = array(
@@ -750,6 +759,22 @@ ok( ( $body['visits'] ?? null ) === 98, 'payload carries visits alongside views'
 ok( ( $body['bot_pct'] ?? null ) === 30, 'payload carries the window bot share (weighted across the class series, not the last day)' );
 ok( ( $body['top_path']['path'] ?? '' ) === '/notes/provenance', 'payload carries the top path' );
 ok( ( $body['top_path']['views'] ?? null ) === 42, 'the top path carries its view count' );
+
+echo "\n── top_paths is additive (top_path stays the first row, for cached-payload compat) ──\n";
+$top_paths = is_array( $body['top_paths'] ?? null ) ? $body['top_paths'] : array();
+ok( is_array( $body['top_paths'] ?? null ), 'payload carries top_paths beside the existing top_path' );
+ok( count( $top_paths ) === 3, 'top_paths is capped at 3 — a tile is a glance' );
+ok( ( $top_paths[0]['path'] ?? '' ) === '/notes/provenance' && ( $top_paths[0]['views'] ?? null ) === 42,
+	'top_paths[0] is the same row top_path already carried — the compat key is unchanged, not recomputed' );
+ok( ( $top_paths[1]['path'] ?? '' ) === '/notes/signal' && ( $top_paths[1]['views'] ?? null ) === 18,
+	'top_paths[1] is the second path by views' );
+ok( ( $top_paths[2]['path'] ?? '' ) === '/' && ( $top_paths[2]['views'] ?? null ) === 11,
+	'top_paths[2] is the third path by views — /about (4th) is cut' );
+ok( isset( $top_paths[0] ) && array( 'path', 'views' ) === array_keys( $top_paths[0] ),
+	'top_paths rows are { path, views } — visits/scroll/time stay on the accessor, not this glance' );
+ok( ( $body['top_path']['path'] ?? '' ) === ( $top_paths[0]['path'] ?? null )
+	&& ( $body['top_path']['views'] ?? null ) === ( $top_paths[0]['views'] ?? null ),
+	'top_path remains byte-identical to the first top_paths row' );
 
 echo "\n── v9.57.0: top sources (folded in from the retired sn-analytics-hud) ──\n";
 // The desktop had no surface for WHERE traffic comes from. The HUD existed
@@ -1437,6 +1462,40 @@ ok(
 $dm_src = dm_integration_src();
 ok( false !== strpos( $dm_src, "'/desktop/machine-readers'" ), 'the desktop route is registered' );
 ok( false !== strpos( $dm_src, "'machine_readers' => snt_desktop_admin_url" ), 'the pages map carries the tab link for the tile footer' );
+
+echo "\n── Machine Readers tile: Sensor section gone, Purposes in, crawler drift stays loud ──\n";
+// Version now lives on Deploy Status's Rights signals row. Rendering it here
+// is duplication. The crawler-list verdict must NOT go blind: one amber line
+// only when the verdict is not the healthy 'in sync' (the three verdicts
+// the builder emits are 'in sync' | 'drift' | 'check failed', or null).
+ok( false === strpos( $mr_js, "section( 'Sensor' )" ), 'tile no longer paints a Sensor section (version lives on Deploy Status)' );
+ok( false === strpos( $mr_js, "'Version'" ), 'tile no longer renders the sensor Version row' );
+ok( false !== strpos( $mr_js, "section( 'Purposes' )" ), 'tile renders a Purposes section from payload.purposes' );
+ok( false !== strpos( $mr_js, "section( 'Top families' )" ), 'Top families is unchanged' );
+ok( false !== strpos( $mr_js, "section( 'Declared AI-training' )" ), 'Declared AI-training is unchanged' );
+ok(
+	1 === preg_match( '/payload\.purposes\s*&&\s*payload\.purposes\.length/', $mr_js ),
+	'Purposes is guarded on a truthy non-empty array — null (never-measured) paints no heading'
+);
+ok( false !== strpos( $mr_js, '.slice( 0, 4 )' ) || false !== strpos( $mr_js, '.slice(0, 4)' ) || false !== strpos( $mr_js, '.slice(0,4)' ),
+	'Purposes is capped at 4 rows — a tile is a glance' );
+ok( false !== strpos( $mr_js, 'crawler_list' ), 'tile still reads payload.crawler_list — drift must not go blind' );
+ok( false !== strpos( $mr_js, "'in sync'" ), 'the healthy crawler-list verdict is the literal the builder emits' );
+ok( false !== strpos( $mr_js, 'color:#d29922' ), 'the crawler-list warning reuses the existing amber warning idiom' );
+
+echo "\n── Site Views tile: forecast gone, Top pages list of 3 ──\n";
+$views_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-views.js' ) );
+ok( false === strpos( $views_js, 'function forecastBlock' ), 'forecastBlock is gone — the interval cried wolf on this site\'s volumes' );
+ok( false === strpos( $views_js, "'Next 7 days'" ), 'the Next 7 days heading is gone with the forecast block' );
+ok( false !== strpos( $views_js, "'Top pages'" ), 'tile renders a Top pages list' );
+ok( false !== strpos( $views_js, 'payload.top_paths' ), 'tile reads the additive top_paths array' );
+ok( false !== strpos( $views_js, 'payload.top_path' ), 'tile still knows the old single top_path key (cached-payload fallback)' );
+ok(
+	1 === preg_match( '/payload\.top_paths\s*&&\s*payload\.top_paths\.length/', $views_js ),
+	'top_paths render is guarded — an older cached payload without the array falls through'
+);
+ok( false === strpos( $views_js, 'forecastBlock( payload.forecast )' ),
+	'the widget no longer calls forecastBlock on payload.forecast — the producer still ships the key' );
 
 echo "\n── v10.43.0: the OpenStation compat prelude aliases both surfaces ──\n";
 $compat_path = __DIR__ . '/../assets/desktop-mode-os-compat.js';
