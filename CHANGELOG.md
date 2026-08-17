@@ -2,7 +2,28 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.11.6] - 2026-08-17 — the candidate names its position, and contention says 409
+
+### Changed
+- **`snt_block_migration_candidate_not_found` is now HTTP 409 (was 404).** The
+  post exists; the candidate fingerprint is stale — optimistic-concurrency
+  contention ("re-run scan"), not a missing resource. Telemetry classifies
+  status 409 as outcome `conflict` via `sn_mcp_telemetry_classify_wp_error`
+  (already true for the apply family's 409 surface). **Public contract change**
+  (owner-approved): any caller that branched on 404 for this error code must
+  treat 409 the same way. Constructed in
+  [`inc/block-migrations-suggest.php`](inc/block-migrations-suggest.php).
+
+### Added
+- **`sn_scan` `block_migrations` candidates surface `block_path` on
+  `targets[]`** (and keep it on `evidence`). Block fingerprints are
+  position-bound (`md5(post_id|block_path|serialize_block)`), so applying
+  same-post candidates top-to-bottom invalidates later paths. The tool
+  description now documents that same-post candidates **MUST** be applied in
+  **DESCENDING** position order — mirroring `sn_apply` `change.payload.edits`'
+  descending-splice algorithm in
+  [`inc/sn-apply-batch-edits.php`](inc/sn-apply-batch-edits.php). List order
+  remains confidence DESC / candidate_id ASC (unchanged, pinned).
 
 ### Documentation
 - The provenance-thesis planning docs go to main: the gap analysis against both

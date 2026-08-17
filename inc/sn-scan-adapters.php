@@ -116,6 +116,13 @@ function snt_sn_scan_adapter_block_migrations( $allowed_ids ) {
 			continue;
 		}
 		$post = get_post( $post_id );
+		// block_path is load-bearing for multi-candidate apply: fingerprints
+		// are position-bound (md5(post_id|block_path|serialize_block)), so a
+		// caller applying same-post candidates top-to-bottom invalidates later
+		// paths. Surface it on targets[] (apply identity) as well as evidence.
+		// Same-post apply MUST be DESCENDING by block_path — mirrors
+		// sn_apply payload.edits' descending-splice (inc/sn-apply-batch-edits.php).
+		$block_path = (string) ( $c['block_path'] ?? '' );
 		$candidates[] = array(
 			'target_identity'     => (string) $post_id,
 			'content_fingerprint' => (string) ( $c['block_fingerprint'] ?? '' ),
@@ -123,11 +130,12 @@ function snt_sn_scan_adapter_block_migrations( $allowed_ids ) {
 				'post_id'           => $post_id,
 				'slug'              => $post ? (string) ( $post->post_name ?? '' ) : '',
 				'block_fingerprint' => (string) ( $c['block_fingerprint'] ?? '' ),
+				'block_path'        => $block_path,
 			) ),
 			'confidence'          => SNT_SN_SCAN_CONF_BLOCK_MIGRATIONS,
 			'evidence'            => array(
 				'migration_type' => (string) ( $c['migration_type'] ?? '' ),
-				'block_path'     => (string) ( $c['block_path'] ?? '' ),
+				'block_path'     => $block_path,
 				'current_level'  => (int) ( $c['current_level'] ?? 0 ),
 				'target_level'   => (int) ( $c['target_level'] ?? 0 ),
 				'permalink'      => (string) ( $c['permalink'] ?? '' ),
