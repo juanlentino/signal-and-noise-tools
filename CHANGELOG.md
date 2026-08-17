@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Documentation
+- The provenance-thesis planning docs go to main: the gap analysis against both
+  SSRN papers, the edit_log specification (approved, not built), gap 3 confirmed
+  and specified, and D-1 custodial signing accepted as a deliberate deviation —
+  plus the C2PA text-provenance related-work brief (2026-08-17 ecosystem sweep).
+
 ## [11.11.5] - 2026-08-17 — cold is not broken
 
 **PATCH** — the post-install dashboard stops crying wolf.
