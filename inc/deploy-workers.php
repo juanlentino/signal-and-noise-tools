@@ -191,14 +191,12 @@ function snt_deploy_worker_latest_tag( $repo, $cache_id, $force = false ) {
 	);
 	$code = is_wp_error( $response ) ? 0 : (int) wp_remote_retrieve_response_code( $response );
 	if ( 200 !== $code ) {
-		set_site_transient( $key, '', SNT_DEPLOY_WORKER_LIVE_TTL_FAIL );
-		return null;
+		return snt_deploy_worker_tag_stale( $key, $cache_id );
 	}
 
 	$tags = json_decode( wp_remote_retrieve_body( $response ), true );
 	if ( ! is_array( $tags ) ) {
-		set_site_transient( $key, '', SNT_DEPLOY_WORKER_LIVE_TTL_FAIL );
-		return null;
+		return snt_deploy_worker_tag_stale( $key, $cache_id );
 	}
 
 	$highest = '';
@@ -214,8 +212,32 @@ function snt_deploy_worker_latest_tag( $repo, $cache_id, $force = false ) {
 	}
 
 	// Empty sentinel = "fetched, nothing usable" (distinct from a cache miss).
+	// Only a POSITIVE 200-with-no-matching-tags may write it — a transport
+	// failure goes through snt_deploy_worker_tag_stale() instead, so a known
+	// tag is never demoted to "no GitHub tag" by an outage or rate limit
+	// (learned live 2026-08-17: all five workers went red during the GitHub
+	// incident minutes after their tags were pushed).
 	set_site_transient( $key, $highest, '' === $highest ? SNT_DEPLOY_WORKER_LIVE_TTL_FAIL : SNT_DEPLOY_WORKER_TAG_TTL );
+	if ( '' !== $highest ) {
+		update_option( 'snt_dw_tag_good_' . $cache_id, $highest, false );
+	}
 	return '' === $highest ? null : $highest;
+}
+
+/**
+ * Failure path for the tag lookup: serve the last tag a SUCCESSFUL fetch
+ * recorded, re-cached briefly so the next render retries GitHub. Returns
+ * null only when no good value has ever been seen.
+ *
+ * @param string $key      Transient key for this worker's tag cache.
+ * @param string $cache_id Sanitized registry key.
+ * @return string|null
+ */
+function snt_deploy_worker_tag_stale( $key, $cache_id ) {
+	$good = get_option( 'snt_dw_tag_good_' . $cache_id, '' );
+	$good = is_string( $good ) ? $good : '';
+	set_site_transient( $key, $good, SNT_DEPLOY_WORKER_LIVE_TTL_FAIL );
+	return '' === $good ? null : $good;
 }
 
 /**

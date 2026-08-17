@@ -74,6 +74,9 @@
 		switch ( state ) {
 			case 'ok':        return { label: '✓', color: '#3fb950' };
 			case 'available': return { label: '↑', color: '#d29922' };
+			// v11.11.2: worker rows say 'behind' where theme/plugin say
+			// 'available' — same amber arrow, different producer vocabulary.
+			case 'behind':    return { label: '↑', color: '#d29922' };
 			default:          return { label: '?',      color: '#ff9d94' };
 		}
 	}
@@ -135,6 +138,32 @@
 			// line below is read.
 			if ( info.reason ) { glyphEl.title = info.reason; }
 			grid.appendChild( glyphEl );
+		} );
+
+		// v11.11.2: the five workers join the card beneath theme/plugin —
+		// same grid, same glyph vocabulary. Rows come from the ability's
+		// additive `workers` array; a missing/older payload (array absent)
+		// renders exactly the old two-row card. Each row: label, live
+		// version ('unprobeable' shortens to an em dash with the reason on
+		// the glyph), state ok/behind/unknown.
+		( Array.isArray( status.workers ) ? status.workers : [] ).forEach( function( w ) {
+			if ( ! w || typeof w !== 'object' ) { return; }
+			var wGlyph = stateGlyph( w.state || 'unknown' );
+			grid.appendChild( el( 'span', {
+				style: 'opacity:.6;',
+				text:  w.label || w.id || 'worker',
+			} ) );
+			grid.appendChild( el( 'span', {
+				style: 'font-variant-numeric:tabular-nums;font-weight:500;',
+				text:  ( w.live && w.live !== 'unprobeable' ) ? w.live : '—',
+			} ) );
+			var wGlyphEl = el( 'span', {
+				style: 'color:' + wGlyph.color + ';font-weight:600;',
+				text:  wGlyph.label,
+			} );
+			if ( w.reason ) { wGlyphEl.title = w.reason; }
+			else if ( w.live === 'unprobeable' ) { wGlyphEl.title = 'no version route to probe'; }
+			grid.appendChild( wGlyphEl );
 		} );
 
 		wrap.appendChild( grid );
