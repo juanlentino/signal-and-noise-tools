@@ -2,7 +2,10 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.11.1] - 2026-08-17 — the workers stop being scattered and hidden
+
+**PATCH** — the Deploy Status surface grows worker rows (owner-requested visibility fix
+after a morning of hand-discovering three different deploy stories across five workers).
 
 ### Added
 - **Deploy Status now tracks the five Cloudflare workers** beside theme and
