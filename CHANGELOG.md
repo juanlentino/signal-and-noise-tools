@@ -2,6 +2,14 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Added
+- Layer B MCP telemetry now records an allowlisted `error_code` from the real
+  `WP_Error` before the tool result is flattened to message-only. The nullable
+  field is grouped per tool and outcome in `tool_telemetry`, while successful
+  calls continue to store `NULL`.
+
 ## [11.10.2] - 2026-08-17 — the desktop widgets audited against the shell maintainer's own extensions
 
 **PATCH** — three fixes and two comment corrections out of an audit of our OpenStation/desktop-mode

@@ -268,12 +268,14 @@ if ( ! function_exists( 'sn_mcp_telemetry_summary' ) ) {
 			'total_calls'    => 5,
 			'by_tool'        => array(),
 			'by_change_type' => array( array( 'change_type' => 'link_reshape', 'outcome' => 'conflict', 'calls' => 2 ) ),
+			'by_error_code'  => array( array( 'tool_name' => 'signal-noise__sn-apply', 'error_code' => 'snt_sn_apply_fingerprint_stale', 'outcome' => 'conflict', 'calls' => 2 ) ),
 		);
 	}
 }
 $t_present = snt_ability_sn_site_facts( array( 'facts' => array( 'tool_telemetry' ) ) );
 ok( 5 === ( $t_present['facts']['tool_telemetry']['total_calls'] ?? null ), 'tool_telemetry: summary returned verbatim when the module is loaded' );
 ok( 'link_reshape' === ( $t_present['facts']['tool_telemetry']['by_change_type'][0]['change_type'] ?? null ), 'tool_telemetry: by_change_type reaches the caller — the whole point of the v11.8.0 column' );
+ok( 'snt_sn_apply_fingerprint_stale' === ( $t_present['facts']['tool_telemetry']['by_error_code'][0]['error_code'] ?? null ), 'tool_telemetry: by_error_code reaches the caller verbatim' );
 
 $r_present = snt_ability_sn_site_facts( array( 'facts' => array( 'scan_telemetry', 'theme_version' ) ) );
 ok( 2 === ( $r_present['facts']['scan_telemetry']['total_runs'] ?? null ), 'scan_telemetry: summary returned verbatim when the module is loaded' );

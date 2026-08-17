@@ -327,6 +327,7 @@ $after = sn_mcp_call_tool( 'signal-noise__get-health-scan', array() );
 ok( $before == $after, 'wiring: the tool response is BYTE-IDENTICAL with telemetry recording on' ); // phpcs:ignore -- deep value compare intentional
 ok( 1 === count( $wpdb->insert_calls ), 'wiring: success records exactly one telemetry row' );
 ok( 'ok' === $wpdb->insert_calls[0]['data']['outcome'], 'wiring: success outcome is "ok"' );
+ok( null === $wpdb->insert_calls[0]['data']['error_code'], 'wiring: success records error_code NULL' );
 ok( 'read' === $wpdb->insert_calls[0]['data']['door'], 'wiring: read-door call records door=read' );
 ok( $wpdb->insert_calls[0]['data']['latency_ms'] >= 0, 'wiring: latency_ms is a non-negative measured value' );
 
@@ -361,6 +362,7 @@ $GLOBALS['__abilities']['signal-noise/get-cron-history'] = new SN_Test_Ability( 
 ) );
 sn_mcp_call_tool( 'signal-noise__get-cron-history', array( 'hook' => 'bogus' ) );
 ok( 'schema_error' === $wpdb->insert_calls[0]['data']['outcome'], 'wiring: execute() WP_Error with a status-422 code → schema_error' );
+ok( 'snt_invalid_hook' === $wpdb->insert_calls[0]['data']['error_code'], 'wiring: execute() WP_Error records its real code before the result is flattened to message-only' );
 ok( false === strpos( wp_json_encode( $wpdb->insert_calls[0]['data'] ), 'bogus' ), 'wiring: the argument VALUE ("bogus") never reaches the inserted row' );
 
 // --- execute() WP_Error, status-500 → server_error (real shape: inc/abilities-content.php) ---
@@ -459,6 +461,13 @@ ok( 'refused' === $cb4['outcome'], 'classify: 429 still → refused, not swallow
 $cb5 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'x', '', array( 'status' => 500 ) ) );
 ok( 'server_error' === $cb5['outcome'], 'classify: 500 still → server_error' );
 
+// --- error_code extraction: ALLOWLIST, never passthrough ---
+$code_error = new WP_Error( 'snt_helper_unavailable', 'dependency missing', array( 'status' => 500 ) );
+ok( 'snt_helper_unavailable' === sn_mcp_telemetry_error_code( $code_error ), 'error_code: a real plugin-authored identifier is allowlisted' );
+ok( 'snt_helper_unavailable' === sn_mcp_telemetry_classify_wp_error( $code_error )['error_code'], 'classify: captures the code from the same WP_Error object whose status it classifies' );
+ok( null === sn_mcp_telemetry_error_code( new WP_Error( 'sk-secret-token', 'not an identifier', array( 'status' => 500 ) ) ), 'error_code PRIVACY: punctuation/content syntax is rejected, never passed through' );
+ok( null === sn_mcp_telemetry_error_code( 'snt_helper_unavailable' ), 'error_code: a later bare string cannot be recorded in place of the real WP_Error object' );
+
 // --- change_type extraction: ALLOWLIST, never passthrough ---
 ok( 'link_reshape' === sn_mcp_telemetry_change_type( array( 'change' => array( 'type' => 'link_reshape' ) ) ), 'change_type: a real allowlisted type is recorded' );
 ok( 'unlink' === sn_mcp_telemetry_change_type( array( 'target' => array( 'post_id' => 1 ), 'change' => array( 'type' => 'unlink' ), 'mode' => 'publish' ) ), 'change_type: extracted from a full sn-apply argument shape' );
@@ -480,6 +489,10 @@ ok( 'link_reshape' === $row_ct['change_type'], 'build_row: carries the resolved 
 ok( 'conflict' === $row_ct['outcome'], 'build_row: accepts the new conflict outcome' );
 $row_null = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__sn-posts', 'scope', str_repeat( 'b', 64 ), 'ok', null, 3, 5, null );
 ok( null === $row_null['change_type'], 'build_row: change_type is NULL for a tool that has no change.type' );
+$row_error = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__get-rss-stats', '', str_repeat( 'c', 64 ), 'server_error', null, 8, null, null, 'snt_helper_unavailable' );
+ok( 'snt_helper_unavailable' === $row_error['error_code'], 'build_row: carries the classifier-captured error_code on an error outcome' );
+$row_success_code = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__sn-posts', '', str_repeat( 'd', 64 ), 'ok', null, 3, null, null, 'snt_must_not_survive' );
+ok( null === $row_success_code['error_code'], 'build_row: success forces error_code NULL even if an internal caller supplies one' );
 
 // The insert uses an EXPLICIT format array; a column added without its %s
 // silently misbinds every column after it.
@@ -495,8 +508,10 @@ $n_cols    = substr_count( $ins_body, '=>' );
 $n_formats = preg_match_all( "/'%[sd]'/", $ins_body );
 ok( $n_cols > 0 && $n_cols === $n_formats, "insert_row: column count ($n_cols) matches format count ($n_formats) — a new column without its %s would misbind every column after it" );
 ok( false !== strpos( $ins_body, 'change_type' ), 'insert_row: change_type is actually inserted' );
+ok( false !== strpos( $ins_body, 'error_code' ), 'insert_row: error_code is actually inserted' );
 ok( false !== strpos( (string) $sn_tel_src, 'change_type VARCHAR' ), 'schema: change_type column is in the CREATE TABLE' );
-ok( '1' !== SN_MCP_TELEMETRY_DB_VERSION, 'schema: DB version was bumped, so dbDelta actually adds the column on an existing install' );
+ok( false !== strpos( (string) $sn_tel_src, 'error_code VARCHAR(64) NULL' ), 'schema: nullable VARCHAR error_code column is in the CREATE TABLE' );
+ok( '3' === SN_MCP_TELEMETRY_DB_VERSION, 'schema: DB version is exactly 3, so dbDelta runs for the 2-to-3 column addition' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * v11.9.0 — sn_mcp_telemetry_summary(), the read path for the table.
@@ -511,7 +526,8 @@ class SN_Test_Summary_Wpdb {
 	public $last_error = '';
 	public $rows1      = array();
 	public $rows2      = array();
-	public $fail_on    = 0; // 1 = first select fails, 2 = second.
+	public $rows3      = array();
+	public $fail_on    = 0; // 1 = first select fails, 2 = second, 3 = third.
 	private $n         = 0;
 	public function prepare( $sql, ...$a ) {
 		foreach ( $a as $v ) {
@@ -525,7 +541,10 @@ class SN_Test_Summary_Wpdb {
 			$this->last_error = 'Table \'wp_sn_tool_call\' doesn\'t exist';
 			return array();
 		}
-		return 1 === $this->n ? $this->rows1 : $this->rows2;
+		if ( 1 === $this->n ) {
+			return $this->rows1;
+		}
+		return 2 === $this->n ? $this->rows2 : $this->rows3;
 	}
 	public function reset() {
 		$this->n          = 0;
@@ -543,6 +562,9 @@ $sw->rows2        = array(
 	array( 'change_type' => 'link_reshape', 'outcome' => 'ok', 'calls' => '7', 'avg_latency_ms' => '110.0', 'last_call' => '2026-08-15 01:00:00.000' ),
 	array( 'change_type' => 'link_reshape', 'outcome' => 'conflict', 'calls' => '2', 'avg_latency_ms' => '40.0', 'last_call' => '2026-08-15 01:05:00.000' ),
 );
+$sw->rows3        = array(
+	array( 'tool_name' => 'signal-noise__sn-apply', 'error_code' => 'snt_sn_apply_fingerprint_stale', 'outcome' => 'conflict', 'calls' => '2', 'avg_latency_ms' => '40.0', 'last_call' => '2026-08-15 01:05:00.000' ),
+);
 $sum = sn_mcp_telemetry_summary();
 ok( true === $sum['table_present'], 'summary: table_present true on a clean query' );
 ok( 11 === $sum['total_calls'], 'summary: total_calls sums the grouped rows (9+2)' );
@@ -552,9 +574,11 @@ ok( 120 === $sum['by_tool'][0]['avg_latency_ms'], 'summary: avg latency rounded 
 ok( 2 === count( $sum['by_change_type'] ), 'summary: by_change_type is populated — an INDIVIDUAL change type is finally measurable' );
 ok( 'link_reshape' === $sum['by_change_type'][0]['change_type'], 'summary: change_type carried through' );
 ok( 2 === $sum['by_change_type'][1]['calls'] && 'conflict' === $sum['by_change_type'][1]['outcome'], 'summary: per-change-type CONFLICT rate is readable — the signal for whether a fingerprint granularity is right' );
+ok( 'snt_sn_apply_fingerprint_stale' === $sum['by_error_code'][0]['error_code'], 'summary: error_code reaches the grouped read path' );
+ok( 'signal-noise__sn-apply' === $sum['by_error_code'][0]['tool_name'] && 'conflict' === $sum['by_error_code'][0]['outcome'], 'summary: error_code remains attributable per tool and outcome' );
 
 // Honest zero.
-$sw->reset(); $sw->rows1 = array(); $sw->rows2 = array();
+$sw->reset(); $sw->rows1 = array(); $sw->rows2 = array(); $sw->rows3 = array();
 $sum = sn_mcp_telemetry_summary();
 ok( true === $sum['table_present'] && 0 === $sum['total_calls'], 'summary: empty window with a clean query is table_present:true — a measurement, not an unknown' );
 
@@ -574,7 +598,7 @@ ok( array() === $sum['by_change_type'], 'summary: by_change_type stays EMPTY rat
 ok( null === $sum['by_tool'][0]['avg_latency_ms'], 'summary: a NULL avg stays null, never coerced to 0' );
 
 // Window is bounded and sane.
-$sw->reset(); $sw->fail_on = 0; $sw->rows1 = array(); $sw->rows2 = array();
+$sw->reset(); $sw->fail_on = 0; $sw->rows1 = array(); $sw->rows2 = array(); $sw->rows3 = array();
 ok( 30 === sn_mcp_telemetry_summary()['window_days'], 'summary: default window is 30 days' );
 ok( 1 === sn_mcp_telemetry_summary( 0 )['window_days'], 'summary: a zero/negative window clamps to 1, never a division or an unbounded scan' );
 
