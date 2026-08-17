@@ -100,6 +100,11 @@ function snt_cmd_impl_force_check() {
 	return array( 'ok' => true, 'message' => 'Update caches cleared.' );
 }
 
+if ( ! function_exists( 'snt_deploy_workers_status' ) ) {
+	function snt_deploy_workers_status( $opts = array() ) {
+		return array();
+	}
+}
 function snt_deploy_status_for( $which ) {
 	return array( 'current' => '8.0.0', 'latest' => '8.0.0', 'state' => 'ok' );
 }

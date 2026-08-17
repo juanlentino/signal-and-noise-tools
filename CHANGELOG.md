@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Added
+- **Deploy Status now tracks the five Cloudflare workers** beside theme and
+  plugin (`inc/deploy-workers.php`, Dashboard glance cards, additive
+  `workers` key on `signal-noise/get-deploy-status`). Each row shows live
+  (probed version) vs latest GitHub tag, with state `ok` / `behind` /
+  `unknown`. A worker with no public version route reports `live: "unprobeable"`;
+  probe failures are `unknown`, never silent absence. Live probes and tag
+  fetches are transient-cached (dashboard cold-loads probe at most one worker
+  per request; the ability may probe all five). Morning-brief theme/plugin
+  keys are unchanged.
+
 ## [11.11.0] - 2026-08-17 — telemetry names the failure, and operations gets a morning voice
 
 **MINOR** — two arcs: Layer B telemetry gains the `error_code` dimension (v11.10.0 board

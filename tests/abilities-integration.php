@@ -172,6 +172,19 @@ if ( ! function_exists( 'snt_deploy_status_for' ) ) {
 		);
 	}
 }
+// Additive workers key on get-deploy-status. Models the real
+// snt_deploy_workers_status() list shape (id/label/live/latest/state/repo).
+if ( ! function_exists( 'snt_deploy_workers_status' ) ) {
+	function snt_deploy_workers_status( $opts = array() ) {
+		return array(
+			array( 'id' => 'sn-analytics', 'label' => 'Analytics', 'live' => '1.0.0', 'latest' => '1.0.0', 'state' => 'ok', 'repo' => 'juanlentino/signal-and-noise-analytics-worker' ),
+			array( 'id' => 'sn-provenance', 'label' => 'Provenance edge', 'live' => 'unprobeable', 'latest' => '1.0.0', 'state' => 'unknown', 'repo' => 'juanlentino/sn-provenance-worker' ),
+			array( 'id' => 'sn-login-guard', 'label' => 'Login guard', 'live' => '1.0.0', 'latest' => '1.1.0', 'state' => 'behind', 'repo' => 'juanlentino/signal-and-noise-login-guard-worker' ),
+			array( 'id' => 'sn-remote-mcp', 'label' => 'Remote MCP', 'live' => '', 'latest' => '0.3.0', 'state' => 'unknown', 'repo' => 'juanlentino/sn-remote-mcp-worker' ),
+			array( 'id' => 'sn-rights-signals', 'label' => 'Rights signals', 'live' => '1.0.0', 'latest' => '1.0.0', 'state' => 'ok', 'repo' => 'juanlentino/sn-rights-signals-worker' ),
+		);
+	}
+}
 // v6.55.0: get-deploy-status folds in last_deploy so the desktop-mode status
 // widget keeps that line after migrating off /cmd/status. Stub returns one run;
 // human_time_diff stub → '5 minutes'. v9.63.3: last_deploy reads the MERGED
@@ -715,6 +728,28 @@ ap_true( is_array( $out ) && array_key_exists( 'last_deploy', $out ), 'get-deplo
 ap_eq( '5 minutes ago', $out['last_deploy'], 'get-deploy-status: last_deploy falls back to the GHA run when snt_deploy_history_merged is absent (v9.63.3 degraded path)' );
 ap_true( array_key_exists( 'last_gha_run', $out ), 'get-deploy-status: last_gha_run key present (v9.63.3 additive field)' );
 ap_eq( '5 minutes ago', $out['last_gha_run'], 'get-deploy-status: last_gha_run carries the GHA-only reading' );
+// Additive workers key — theme/plugin/last_* shape above must stay byte-stable.
+ap_true( array_key_exists( 'workers', $out ) && is_array( $out['workers'] ), 'get-deploy-status: workers key present (additive)' );
+ap_eq( 5, count( $out['workers'] ), 'get-deploy-status: workers lists five rows' );
+$worker_ids = array_map( function ( $w ) { return is_array( $w ) ? ( $w['id'] ?? '' ) : ''; }, $out['workers'] );
+ap_eq(
+	array( 'sn-analytics', 'sn-provenance', 'sn-login-guard', 'sn-remote-mcp', 'sn-rights-signals' ),
+	$worker_ids,
+	'get-deploy-status: workers ids match the five owned edge workers'
+);
+// Unprobeable honesty rides through the ability envelope.
+$prov = null;
+foreach ( $out['workers'] as $w ) {
+	if ( is_array( $w ) && 'sn-provenance' === ( $w['id'] ?? '' ) ) {
+		$prov = $w;
+		break;
+	}
+}
+ap_true( is_array( $prov ) && 'unprobeable' === ( $prov['live'] ?? '' ), 'get-deploy-status: unprobeable worker reports live "unprobeable"' );
+ap_eq( 'unknown', $prov['state'] ?? '', 'get-deploy-status: unprobeable worker state is unknown' );
+// theme/plugin keys still the same shape morning-brief reads.
+ap_true( isset( $out['theme']['current'], $out['theme']['latest'], $out['theme']['state'] ), 'get-deploy-status: theme keys byte-stable (current/latest/state)' );
+ap_true( isset( $out['plugin']['current'], $out['plugin']['latest'], $out['plugin']['state'] ), 'get-deploy-status: plugin keys byte-stable (current/latest/state)' );
 
 // list-template-overrides
 $out = wp_get_ability( 'signal-noise/list-template-overrides' )->execute( array() );

@@ -106,6 +106,12 @@ if ( ! function_exists( 'human_time_diff' ) ) {
 }
 
 // ─── Sibling-impl stubs (live in modules not under test here) ─────────
+// Additive workers list (inc/deploy-workers.php); empty stub is enough here.
+if ( ! function_exists( 'snt_deploy_workers_status' ) ) {
+	function snt_deploy_workers_status( $opts = array() ) {
+		return array();
+	}
+}
 // snt_deploy_status_for() lives in inc/admin-tab-dashboard.php.
 if ( ! function_exists( 'snt_deploy_status_for' ) ) {
 	function snt_deploy_status_for( $package ) {

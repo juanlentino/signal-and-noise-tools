@@ -355,6 +355,7 @@ require_once __DIR__ . '/inc/wp-update-integration.php';
 require_once __DIR__ . '/inc/wp-update-git-preservation.php';
 require_once __DIR__ . '/inc/github-actions-api.php';
 require_once __DIR__ . '/inc/deploy-history.php';
+require_once __DIR__ . '/inc/deploy-workers.php'; // Deploy Status: five Cloudflare workers beside theme/plugin
 require_once __DIR__ . '/inc/api-rate-monitor.php';
 require_once __DIR__ . '/inc/admin-tab-dashboard.php';
 require_once __DIR__ . '/inc/desktop-mode-integration.php';
