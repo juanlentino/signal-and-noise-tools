@@ -135,12 +135,10 @@ add_action( 'init', function() {
 			'description'    => 'First-party traffic: 14-day sparkline, bot share, top pages.',
 			'icon'           => 'dashicons-chart-area',
 			'script'         => 'sn-desktop-mode-widget-views',
-			// BUDGETED 450, not browser-measured — the old measured 463 covered
-			// sparkline + stats + sources + 3 forecast lines. Forecast is gone
-			// (the honest interval is too wide to communicate); Top pages adds
-			// 2 rows over the old single top_path. 463 − 3×22 + 2×22 = 441,
-			// rounded up with slack.
-			'default_height' => 450,
+			// BUDGETED 510, not browser-measured — 450 + 3 glance rows
+			// (today + engaged + top_mover) × ~20px = +60. "Today so far"
+			// rides the 15-min payload transient so the number lags ≤15 min.
+			'default_height' => 510,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(

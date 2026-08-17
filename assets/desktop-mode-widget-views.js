@@ -155,6 +155,12 @@
 				style: 'font-size:11px;opacity:.6;margin-bottom:6px;'
 			} ) );
 
+			// Additive: an older cached payload without `today` paints nothing.
+			// A measured 0 is a number and renders; absent/null does not.
+			if ( typeof payload.today === 'number' ) {
+				body.appendChild( statRow( 'Today so far', String( payload.today ) ) );
+			}
+
 			var chart = el( 'div', { style: 'color:#4a9eff;margin:4px 0 6px;' } );
 			chart.appendChild( sparkline( payload.days ) );
 			body.appendChild( chart );
@@ -166,6 +172,39 @@
 
 			if ( typeof payload.visits === 'number' ) {
 				stats.appendChild( statRow( 'Visits', String( payload.visits ) ) );
+			}
+
+			// Additive engaged glance. Rate is 0–100 or the key is absent
+			// (null producer omits it). pts is percentage POINTS
+			// (current − previous), shown only when both sides were known.
+			if ( payload.engaged && typeof payload.engaged.rate === 'number' ) {
+				var engText = String( payload.engaged.rate ) + '%';
+				var engStyle = '';
+				if ( typeof payload.engaged.pts === 'number'
+					&& ( payload.engaged.dir === 'up' || payload.engaged.dir === 'down' ) ) {
+					var engUp = payload.engaged.dir === 'up';
+					engText += ( engUp ? ' ▲ ' : ' ▼ ' ) + Math.abs( payload.engaged.pts ) + ' pts';
+					engStyle = 'color:' + ( engUp ? '#3fb950' : '#c9503f' ) + ';';
+				}
+				stats.appendChild( statRow( 'Engaged', engText, engStyle ) );
+			}
+
+			// Additive: the strongest PATH mover (path + signed views delta,
+			// from the rail tile's own producer). Absent/malformed key → no
+			// row. Same path-row idiom as Top pages.
+			if ( payload.top_mover && payload.top_mover.path
+				&& typeof payload.top_mover.delta === 'number' && payload.top_mover.delta !== 0 ) {
+				var mvUp = payload.top_mover.delta > 0;
+				var mv = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+				mv.appendChild( el( 'span', {
+					text:  payload.top_mover.path,
+					style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+				} ) );
+				mv.appendChild( el( 'span', {
+					text:  ( mvUp ? '▲ +' : '▼ ' ) + payload.top_mover.delta,
+					style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;color:' + ( mvUp ? '#3fb950' : '#c9503f' ) + ';'
+				} ) );
+				stats.appendChild( mv );
 			}
 
 			// bot_pct is null (not 0) when there was nothing to divide by —
