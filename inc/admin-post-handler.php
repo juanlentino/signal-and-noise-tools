@@ -55,6 +55,7 @@ function sn_admin_post_handlers() {
 		'audit_save_retention'       => 'sn_handle_audit_save_retention',
 		'security_digest_save'       => 'sn_handle_security_digest_save',
 		'morning_brief_save'         => 'sn_handle_morning_brief_save',
+		'scheduled_reads_save'       => 'sn_handle_scheduled_reads_save',
 		'now_save'                   => 'sn_handle_now_save',
 		'uses_save'                  => 'sn_handle_uses_save',
 		'resume_save'                => 'sn_handle_resume_save',

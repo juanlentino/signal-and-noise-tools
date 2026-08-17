@@ -143,9 +143,12 @@ function sn_settings_defaults() {
 			'weekly_cron_enabled' => false,
 		),
 		// R6a: the daily Operations morning brief is a new mail surface, so it
-		// is opt-in and dormant on every existing install.
+		// is opt-in and dormant on every existing install. scheduled_reads
+		// lives in the same subtree (one preservation branch) even though the
+		// board files it under AI: both are opt-in daily crons off this tab.
 		'operations' => array(
-			'morning_brief_enabled' => false,
+			'morning_brief_enabled'   => false,
+			'scheduled_reads_enabled' => false,
 		),
 		// v6.23.0: analytics owner/role exclusion (Plausible-style "exclude my
 		// own visits"). exclude_roles lists role slugs whose logged-in users are

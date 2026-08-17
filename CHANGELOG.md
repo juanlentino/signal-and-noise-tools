@@ -14,6 +14,13 @@ All notable changes to Signal & Noise Tools are documented here.
   `WP_Error` before the tool result is flattened to message-only. The nullable
   field is grouped per tool and outcome in `tool_telemetry`, while successful
   calls continue to store `NULL`.
+- Opt-in daily scheduled read-only runs: a fixed, code-defined list of five
+  read-door abilities executes through the real MCP dispatch (kill switch,
+  permissions, and telemetry all apply) and keeps a two-week per-tool outcome
+  history, with a "Run now" action on the Cron tab. The R6a corpus-schema row
+  is deliberately not built: author-stated tier/number/relation has no
+  existing storage to publish from, and the storage design goes back to the
+  board rather than being invented inside a build slice.
 
 ## [11.10.2] - 2026-08-17 — the desktop widgets audited against the shell maintainer's own extensions
 
