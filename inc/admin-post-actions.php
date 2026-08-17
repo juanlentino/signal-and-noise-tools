@@ -234,6 +234,22 @@ function sn_handle_security_digest_save( $post ) {
 	return 'digest_saved';
 }
 
+/** Save/test the Operations brief, or explicitly move the drift baseline. */
+function sn_handle_morning_brief_save( $post ) {
+	if ( isset( $post['snt_morning_brief_test'] ) ) {
+		return snt_morning_brief_send( true ) ? 'morning_brief_test_sent' : 'morning_brief_test_failed';
+	}
+	if ( isset( $post['snt_config_drift_acknowledge'] ) && function_exists( 'snt_config_drift_acknowledge' ) ) {
+		snt_config_drift_acknowledge();
+		return 'config_drift_acknowledged';
+	}
+	sn_setting_update( 'operations.morning_brief_enabled', isset( $post['snt_morning_brief_enabled'] ) );
+	if ( function_exists( 'snt_morning_brief_maybe_schedule_cron' ) ) {
+		snt_morning_brief_maybe_schedule_cron();
+	}
+	return 'morning_brief_saved';
+}
+
 /**
  * v8.0.1: dispatch a targeted CF edge purge for a virtual content route.
  *

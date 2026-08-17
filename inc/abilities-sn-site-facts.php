@@ -19,10 +19,11 @@
  * `signal-noise/sn-site-facts`, which projects to the MCP tool name
  * `signal-noise__sn-site-facts`. Noted in FINDINGS.md.
  *
- * CRITICAL property this file is built around: 9 of the 10 fact sources are
- * THEME abilities (`signal-and-noise/*`) that this plugin's MCP door merely
- * re-exposes — the theme registers them, this plugin never re-implements
- * their logic. Each fact is dispatched via wp_get_ability(<source
+ * CRITICAL property this file is built around: 9 of the original 10 fact
+ * sources are THEME abilities (`signal-and-noise/*`) that this plugin's MCP
+ * door merely re-exposes — the theme registers them, this plugin never
+ * re-implements their logic. The three additive telemetry/drift facts are
+ * plugin-internal reads. Each external fact is dispatched via wp_get_ability(<source
  * slug>)->execute(), mirroring inc/mcp/mcp-tools.php's own
  * check_permissions() → execute() sequence (see
  * snt_sn_site_facts_dispatch()) so a theme-absent site or a since-retired
@@ -55,6 +56,9 @@
  *   reading_time       -> signal-and-noise/get-reading-time-for-slug   (args: slug — REQUIRED input, confirmed via
  *                          the `[sn_reading_time slug="..."]` shortcode contract in
  *                          tests/reading-time-shortcode-oracle.php)
+ *   scan_telemetry     -> internal snt_scan_telemetry_summary()
+ *   tool_telemetry     -> internal sn_mcp_telemetry_summary()
+ *   configuration_drift -> internal snt_config_drift_status()
  *
  * R1 FIX (adversarial review round 2, same v10.26.0 ship): the first cut of
  * this file dispatched active_template with NO args, reasoning its
@@ -93,7 +97,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-site-facts', array(
 		'label'               => 'Batch-read site facts (consolidated)',
-		'description'         => 'Consolidated read for 12 site facts otherwise requiring sequential calls (get-design-system-summary is retired, not absorbed — its raw counterpart design_tokens supersedes it): theme_version, latest_theme_tag, design_tokens, block_patterns, template_overrides, active_template, llms_txt, seo_route_meta, pillars, reading_time, scan_telemetry, tool_telemetry. tool_telemetry (v11.9.0) is plugin-internal, not a theme dispatch: the 30-day rollup of the sn_tool_call Layer B table — by_tool gives per (tool_name, door, outcome) calls, avg latency and last_call; by_change_type gives the same split for sn_apply\'s change.type, the dimension added in v11.8.0 so an INDIVIDUAL change type can be retired or kept on evidence rather than hiding inside sn_apply\'s aggregate; by_error_code names the plugin-authored failure identifiers per tool and outcome so distinct causes do not collapse into one bucket. The outcome vocabulary includes "conflict" (HTTP 409, optimistic-concurrency contention — a lost race), which v11.8.0 split out of schema_error so fingerprint contention is distinguishable from malformed input; historical rows predating that release still carry 409s as schema_error and cannot be reclassified, so a window spanning it shows the mix shift for non-behavioural reasons. table_present has the same meaning as in scan_telemetry. scan_telemetry (v10.61.0) is plugin-internal, not a theme dispatch: the per-scan_type 30-day rollup of the sn_scan_run telemetry table — per (scan_type, outcome): runs, avg duration_ms, avg total_candidates (yield), avg apply-hint coverage, last_run — plus table_present, which distinguishes an honest empty window (true, no rows) from a missing/failed table (false: the fail-open insert path has been eating rows and no number here is a measurement). Pass the subset you need in `facts`; `slug` is REQUIRED when reading_time, seo_route_meta, OR active_template is requested — each targets a specific post and has no site-wide default (400 if missing for any of the three). active_template accepts BOTH page and post slugs: it is resolved page-first, then retried once as a post. Returns a map keyed by requested fact. Each fact dispatches to its real underlying ability (most are theme-owned; this tool never duplicates their logic) — if the theme is absent, a source ability is unregistered, or its own permission/execute step fails, that ONE fact\'s entry becomes {error:"unavailable"} while every other requested fact still returns normally. The call as a whole only fails on invalid input: an empty or unrecognized facts[] entry, or a missing required slug.',
+		'description'         => 'Consolidated read for 13 site facts otherwise requiring sequential calls (get-design-system-summary is retired, not absorbed — its raw counterpart design_tokens supersedes it): theme_version, latest_theme_tag, design_tokens, block_patterns, template_overrides, active_template, llms_txt, seo_route_meta, pillars, reading_time, scan_telemetry, tool_telemetry, configuration_drift. configuration_drift is plugin-internal and returns only changed dot-path keys/counts against the acknowledged effective-settings snapshot, never stored values. tool_telemetry (v11.9.0) is plugin-internal, not a theme dispatch: the 30-day rollup of the sn_tool_call Layer B table — by_tool gives per (tool_name, door, outcome) calls, avg latency and last_call; by_change_type gives the same split for sn_apply\'s change.type, the dimension added in v11.8.0 so an INDIVIDUAL change type can be retired or kept on evidence rather than hiding inside sn_apply\'s aggregate; by_error_code names the plugin-authored failure identifiers per tool and outcome so distinct causes do not collapse into one bucket. The outcome vocabulary includes "conflict" (HTTP 409, optimistic-concurrency contention — a lost race), which v11.8.0 split out of schema_error so fingerprint contention is distinguishable from malformed input; historical rows predating that release still carry 409s as schema_error and cannot be reclassified, so a window spanning it shows the mix shift for non-behavioural reasons. table_present has the same meaning as in scan_telemetry. scan_telemetry (v10.61.0) is plugin-internal, not a theme dispatch: the per-scan_type 30-day rollup of the sn_scan_run telemetry table — per (scan_type, outcome): runs, avg duration_ms, avg total_candidates (yield), avg apply-hint coverage, last_run — plus table_present, which distinguishes an honest empty window (true, no rows) from a missing/failed table (false: the fail-open insert path has been eating rows and no number here is a measurement). Pass the subset you need in `facts`; `slug` is REQUIRED when reading_time, seo_route_meta, OR active_template is requested — each targets a specific post and has no site-wide default (400 if missing for any of the three). active_template accepts BOTH page and post slugs: it is resolved page-first, then retried once as a post. Returns a map keyed by requested fact. Each fact dispatches to its real underlying ability (most are theme-owned; this tool never duplicates their logic) — if the theme is absent, a source ability is unregistered, or its own permission/execute step fails, that ONE fact\'s entry becomes {error:"unavailable"} while every other requested fact still returns normally. The call as a whole only fails on invalid input: an empty or unrecognized facts[] entry, or a missing required slug.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_site_facts',
@@ -170,6 +174,7 @@ function snt_sn_site_facts_map() {
 		// read path, so the evidence the consolidation programme retires
 		// surfaces on was collected and unreachable. This is that path.
 		'tool_telemetry'     => 'internal:tool-telemetry-summary',
+		'configuration_drift' => 'internal:configuration-drift-status',
 	);
 }
 
@@ -323,6 +328,12 @@ function snt_ability_sn_site_facts( $input ) {
 			// none of them is "zero calls".
 			$out[ $fact ] = function_exists( 'sn_mcp_telemetry_summary' )
 				? sn_mcp_telemetry_summary()
+				: array( 'error' => 'unavailable' );
+			continue;
+		}
+		if ( 'configuration_drift' === $fact ) {
+			$out[ $fact ] = function_exists( 'snt_config_drift_status' )
+				? snt_config_drift_status()
 				: array( 'error' => 'unavailable' );
 			continue;
 		}

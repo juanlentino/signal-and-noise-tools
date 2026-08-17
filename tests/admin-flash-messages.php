@@ -114,6 +114,7 @@ $emitted = array(
 	'purged','wh_updated','wh_deleted','wh_invalid','wh_not_found','insights_scanned','insights_failed','insights_ai_unavailable',
 	'insights_dismissed','insights_snoozed','insights_done','insights_settings_saved','health_scanned','health_scanned_clean',
 	'pattern_adoption_scanned','block_migrations_scanned','audit_retention_saved','audit_retention_unchanged',
+	'morning_brief_saved','morning_brief_test_sent','morning_brief_test_failed','config_drift_acknowledged',
 );
 foreach ( $emitted as $code ) {
 	fm_eq( true, null !== sn_admin_flash_to_notice( $code ), "resolver covers '$code'" );

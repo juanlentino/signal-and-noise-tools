@@ -5,6 +5,11 @@ All notable changes to Signal & Noise Tools are documented here.
 ## [Unreleased]
 
 ### Added
+- An opt-in daily Operations morning brief now composes cached health, cron
+  history, uptime, deploy, and configuration-drift facts into deterministic
+  prose, scheduled for 7:00 a.m. in the site's timezone. The settings surface
+  is snapshotted durably and diffed until explicit acknowledgement (or a plugin
+  version transition), with drift also exposed through `sn_site_facts`.
 - Layer B MCP telemetry now records an allowlisted `error_code` from the real
   `WP_Error` before the tool result is flattened to message-only. The nullable
   field is grouped per tool and outcome in `tool_telemetry`, while successful
