@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.11.2] - 2026-08-17 — the widget catches up, and a known tag survives an outage
+
+**PATCH** — two fixes to the worker deploy-status surface, both born the hour it shipped.
+
+### Fixed
+- **A transport failure no longer demotes a known tag to "no GitHub tag".** The tag
+  lookup cached an empty sentinel over knowledge a successful fetch had already
+  recorded — during the Aug-17 GitHub outage all five worker cards went red minutes
+  after their tags were pushed. Failures now serve the last good value from a durable
+  store (briefly re-cached so the next render retries); only a positive
+  200-with-no-matching-tags writes the no-tag sentinel.
+- **The OpenStation SN Deploy Status widget renders the five worker rows** it was
+  deferred from: same grid and glyph vocabulary as theme/plugin (`behind` maps to the
+  amber arrow), unprobeable shows an em dash with the reason on hover, and an older
+  ability payload without `workers` renders exactly the old two-row card. Widget
+  height re-budgeted 200 → 310 for the five extra rows.
+
 ## [11.11.1] - 2026-08-17 — the workers stop being scattered and hidden
 
 **PATCH** — the Deploy Status surface grows worker rows (owner-requested visibility fix

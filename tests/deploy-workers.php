@@ -40,6 +40,17 @@ $GLOBALS['__dw_site_transients'] = array();
 $GLOBALS['__dw_http']            = array(); // queue of responses
 $GLOBALS['__dw_get_calls']       = array();
 $GLOBALS['__dw_filters']         = array();
+$GLOBALS['__dw_options']         = array(); // durable last-good store (v11.11.2)
+
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $key, $default = false ) {
+		return array_key_exists( $key, $GLOBALS['__dw_options'] ) ? $GLOBALS['__dw_options'][ $key ] : $default;
+	}
+	function update_option( $key, $value, $autoload = null ) {
+		$GLOBALS['__dw_options'][ $key ] = $value;
+		return true;
+	}
+}
 
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action() {}
@@ -184,6 +195,7 @@ function dw_reset() {
 	$GLOBALS['__dw_http']            = array();
 	$GLOBALS['__dw_get_calls']       = array();
 	$GLOBALS['__dw_filters']         = array();
+	$GLOBALS['__dw_options']         = array();
 }
 
 // ─── A: registry contents ────────────────────────────────────────────
@@ -377,6 +389,25 @@ dw_assert( 1 === count( $GLOBALS['__dw_get_calls'] ), 'probe_budget=1 issues one
 dw_assert( '1.0.0' === ( $list[0]['live'] ?? '' ), 'first worker spends the budget' );
 dw_assert( '' === ( $list[1]['live'] ?? 'X' ), 'second worker stays cache-cold (empty live)' );
 dw_assert( 'unknown' === ( $list[1]['state'] ?? '' ), 'cache-cold worker is unknown, not omitted' );
+
+// ── v11.11.2: a transport failure must not demote a KNOWN tag ──────────────
+// Learned live during the 2026-08-17 GitHub outage: minutes after five tags
+// were pushed, every worker card read "no GitHub tag" because the failure
+// path cached '' over knowledge a successful fetch had already recorded.
+dw_reset();
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array( array( 'name' => 'v2.5.0' ), array( 'name' => 'v2.4.0' ) ) );
+dw_assert( '2.5.0' === snt_deploy_worker_latest_tag( 'o/r', 'stale1' ), 'stale-on-error: good fetch records 2.5.0' );
+unset( $GLOBALS['__dw_site_transients']['snt_dw_tag_stale1'] ); // expire the cache
+$GLOBALS['__dw_http'][] = dw_http_json( 503, array( 'message' => 'outage' ) );
+dw_assert( '2.5.0' === snt_deploy_worker_latest_tag( 'o/r', 'stale1' ), 'stale-on-error: a 503 serves the last GOOD tag, never null' );
+dw_assert( '2.5.0' === ( $GLOBALS['__dw_site_transients']['snt_dw_tag_stale1'] ?? '' ), 'stale-on-error: the stale value re-caches (briefly) so the next render retries' );
+// A POSITIVE 200-with-no-matching-tags is the only writer of the no-tag sentinel.
+dw_reset();
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array( array( 'name' => 'not-semver' ) ) );
+dw_assert( null === snt_deploy_worker_latest_tag( 'o/r', 'stale2' ), 'a real empty tag list still reads as no tag' );
+unset( $GLOBALS['__dw_site_transients']['snt_dw_tag_stale2'] );
+$GLOBALS['__dw_http'][] = dw_http_json( 500, array() );
+dw_assert( null === snt_deploy_worker_latest_tag( 'o/r', 'stale2' ), 'failure with NO prior good value stays null (never fabricates)' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
