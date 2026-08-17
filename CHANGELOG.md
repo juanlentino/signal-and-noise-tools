@@ -2,6 +2,33 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.10.2] - 2026-08-17 — the desktop widgets audited against the shell maintainer's own extensions
+
+**PATCH** — three fixes and two comment corrections out of an audit of our OpenStation/desktop-mode
+widgets against the maintainer's `desktop-mode-official-extensions` repo (16 canonical extensions).
+
+### Fixed
+- **The compat shim now aliases `window.wpDesktopWidgets`** — the registry name official
+  extensions actually publish to (verified in alcazaba-monitor). The shim aliased
+  `desktopModeWidgets` ↔ `openStationWidgets` onto one object but guessed the wrong canonical
+  pre-rename name, so an official-style widget mounting via `wpDesktopWidgets` and our shim's
+  aliases would live in different objects. All three names now point at ONE registry.
+- **The anchors widget returns a teardown** (official contract: `mount(container, ctx) → teardown`).
+  It returned nothing, so disabling it mid-session left its DOM painted and let in-flight
+  `sntAbilityRun` callbacks render into the dead card; a `torn` flag now gates every async render.
+- **The quick-actions toast timer is reaped on teardown** — the auto-dismiss timeout was
+  untracked and outlived the widget.
+
+### Changed
+- Comment corrections from the audit, both dated in place: the `init:5/6` registration split is
+  NOT a shell-mandated contract (the real invariant is handle-registered-before-widget-call;
+  official examples use one plain `init` callback) — the split stays, the citation softens. And
+  current official extensions consume a `--wpd-surface/--wpd-text/--wpd-border` role-token family
+  our "tokens are defined nowhere" comment predates — noted for any future restyle.
+- Audit verdicts recorded: Panacea's pn-analytics widget came out CLEAN (registration args,
+  teardown, geometry all within official variance); no registration-args gap on any of the eight
+  S&N widgets.
+
 ## [11.10.1] - 2026-08-16 — the notes line pointed at the wrong "why"
 
 **PATCH** — reverts one line of v11.10.0. The colophon's closing line ("Why any of this is built

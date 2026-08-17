@@ -68,10 +68,14 @@
 		return;
 	}
 
-	// Widget mount-callback registry: alias both names onto ONE object so a
-	// write through either name is visible through the other, regardless of
-	// which one the active OpenStation release actually reads.
-	var widgets = window.desktopModeWidgets || window.openStationWidgets || {};
+	// Widget mount-callback registry: alias every known name onto ONE object
+	// so a write through any name is visible through the others, regardless
+	// of which one the active shell release actually reads. wpDesktopWidgets
+	// is the name the OFFICIAL desktop-mode extensions publish to (verified
+	// against desktop-mode-official-extensions/alcazaba-monitor, 2026-08-17)
+	// — the original shim guessed desktopModeWidgets and missed it.
+	var widgets = window.wpDesktopWidgets || window.desktopModeWidgets || window.openStationWidgets || {};
+	window.wpDesktopWidgets   = widgets;
 	window.desktopModeWidgets = widgets;
 	window.openStationWidgets = widgets;
 
