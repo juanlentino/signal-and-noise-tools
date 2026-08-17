@@ -535,7 +535,16 @@ function snt_dashboard_worker_card( $worker ) {
 		'state'   => (string) ( $worker['state'] ?? 'unknown' ),
 		'reason'  => (string) ( $worker['reason'] ?? '' ),
 	);
-	return snt_dashboard_version_card( (string) ( $worker['label'] ?? 'Worker' ), $pkg );
+	$card = snt_dashboard_version_card( (string) ( $worker['label'] ?? 'Worker' ), $pkg );
+	// Cold is not broken: a never-probed row (budget-skipped, warm cron
+	// pending) gets an amber "warming…" pill, not the red "unknown" that
+	// belongs to probes that actually FAILED. Observed live after the
+	// v11.11.4 install: four alarm-red cards whose only sin was a cold cache.
+	if ( 'unknown' === $pkg['state'] && 'warming' === $pkg['reason'] ) {
+		$card['pill']      = array( 'kind' => 'warn', 'text' => 'warming…' );
+		$card['meta_html'] = esc_html( 'first probe scheduled' );
+	}
+	return $card;
 }
 
 /**

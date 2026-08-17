@@ -2,6 +2,19 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.11.5] - 2026-08-17 — cold is not broken
+
+**PATCH** — the post-install dashboard stops crying wolf.
+
+### Fixed
+- **A render that leaves worker cards cold now schedules an immediate out-of-band
+  warm**, so the next page load reads every probe cache hot instead of needing five
+  loads to warm five workers (observed live minutes after the v11.11.4 install:
+  four alarm-red cards whose only sin was a flushed cache).
+- **Never-probed reads as "warming…" (amber), not "unknown — skipped" (red).**
+  The internal budget-skip token no longer leaks to humans; red is reserved for
+  probes that actually failed. Cold and broken are different answers.
+
 ## [11.11.4] - 2026-08-17 — three more things worth a glance
 
 ### Added
