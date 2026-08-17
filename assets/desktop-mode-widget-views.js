@@ -126,58 +126,6 @@
 		return row;
 	}
 
-	/**
-	 * v9.53.0 — the forecast.
-	 *
-	 * THE INTERVAL IS THE STORY, not a footnote. sn_analytics_forecast_of()
-	 * returns a ~95% interval whose width is honest about how noisy the traffic
-	 * is: on real low-volume data a point of ~21/day can carry a 0–87 interval.
-	 * Rendering "21/day" large with the range hidden would be the dishonest
-	 * version — it reads as precision the model never claimed. So the range gets
-	 * equal billing, and `confidence` is shown for what it actually is: the
-	 * backtest's MEASURED interval coverage ("how often reality landed inside
-	 * this band"), NOT "how accurate the number is".
-	 *
-	 * The server sends null when the engine suppressed (under 21 days of
-	 * history, or a zero median level). We render NOTHING then — never a
-	 * fabricated number.
-	 */
-	function forecastBlock( f ) {
-		if ( ! f || typeof f.value === 'undefined' || ! f.interval ) {
-			return null;
-		}
-		var wrap = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
-
-		var arrow = ( 'up' === f.direction ) ? '▲' : ( ( 'down' === f.direction ) ? '▼' : '→' );
-		var tint  = ( 'up' === f.direction ) ? '#3fb950' : ( ( 'down' === f.direction ) ? '#c9503f' : 'inherit' );
-
-		wrap.appendChild( el( 'div', {
-			text:  'Next 7 days',
-			style: 'font-size:11px;opacity:.55;margin-bottom:2px;'
-		} ) );
-
-		var line = el( 'div', { style: 'display:flex;align-items:baseline;gap:6px;' } );
-		line.appendChild( el( 'span', {
-			text:  arrow + ' ≈' + Math.round( f.value ) + '/day',
-			style: 'font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:' + tint + ';'
-		} ) );
-		line.appendChild( el( 'span', {
-			text:  Math.round( f.interval.low ) + '–' + Math.round( f.interval.high ),
-			style: 'font-size:12px;opacity:.75;font-variant-numeric:tabular-nums;'
-		} ) );
-		wrap.appendChild( line );
-
-		wrap.appendChild( el( 'div', {
-			// Name what `confidence` measures. "high" here means the interval
-			// reliably contained reality in backtesting — not that ≈N is exact.
-			text:  '95% interval · ' + String( f.confidence ) + ' interval coverage',
-			title: 'Coverage is measured by backtesting the forecast against history: how often the real value landed inside this band. A wide band with high coverage means honest uncertainty, not precision.',
-			style: 'font-size:10px;opacity:.45;margin-top:2px;'
-		} ) );
-
-		return wrap;
-	}
-
 	window.desktopModeWidgets['sn-site-views'] = function( container, ctx ) {
 		var aborted = false;
 		var ctrl    = ( typeof AbortController !== 'undefined' ) ? new AbortController() : null;
@@ -234,7 +182,9 @@
 				) );
 			}
 
-			if ( payload.top_path && payload.top_path.path ) {
+			// Prefer the additive top_paths list. An older cached payload
+			// without that key falls back to the original single top_path row.
+			if ( ! ( payload.top_paths && payload.top_paths.length ) && payload.top_path && payload.top_path.path ) {
 				var top = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
 				top.appendChild( el( 'span', {
 					text:  payload.top_path.path,
@@ -252,6 +202,29 @@
 				body.appendChild( stats );
 			}
 
+			if ( payload.top_paths && payload.top_paths.length ) {
+				var pages = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
+				pages.appendChild( el( 'div', {
+					text:  'Top pages',
+					style: 'font-size:11px;opacity:.55;margin-bottom:2px;'
+				} ) );
+				payload.top_paths.forEach( function( pg ) {
+					if ( ! pg || ! pg.path ) { return; }
+					var prow = el( 'div', { style: 'display:flex;align-items:baseline;justify-content:space-between;gap:8px;padding:2px 0;font-size:11px;' } );
+					prow.appendChild( el( 'span', {
+						text:  pg.path,
+						title: pg.path,
+						style: 'opacity:.55;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
+					} ) );
+					prow.appendChild( el( 'span', {
+						text:  String( pg.views ),
+						style: 'font-variant-numeric:tabular-nums;font-weight:600;flex:0 0 auto;'
+					} ) );
+					pages.appendChild( prow );
+				} );
+				body.appendChild( pages );
+			}
+
 			// ── v9.57.0: top sources ──
 			// The desktop had no surface for WHERE traffic comes from. The retired
 			// sn-analytics-hud existed largely to show this; everything else it
@@ -266,8 +239,7 @@
 			// failure, so it simply renders nothing rather than claiming anything.
 			if ( payload.top_sources && payload.top_sources.length ) {
 				var srcs = el( 'div', { style: 'margin-top:8px;padding-top:8px;border-top:1px solid rgba(255,255,255,0.12);' } );
-				// Sentence case at 11px/.55 — the same shape forecastBlock() uses for
-				// "Next 7 days". NOT uppercase: the suite forbids
+				// Sentence case at 11px/.55. NOT uppercase: the suite forbids
 				// text-transform:uppercase in every widget file, because the label
 				// registered in PHP is the single source of truth for a card's name
 				// and the chrome header already paints it. A section heading is not
@@ -291,9 +263,6 @@
 				} );
 				body.appendChild( srcs );
 			}
-
-			var fc = forecastBlock( payload.forecast );
-			if ( fc ) { body.appendChild( fc ); }
 		}
 
 		function fail() {

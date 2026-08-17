@@ -132,13 +132,15 @@ add_action( 'init', function() {
 
 		snt_os_register_widget( 'sn-site-views', array_merge( $sn_drag, array(
 			'label'          => 'SN Site Views',
-			'description'    => 'First-party traffic: 14-day sparkline, bot share, top page, forecast.',
+			'description'    => 'First-party traffic: 14-day sparkline, bot share, top pages.',
 			'icon'           => 'dashicons-chart-area',
 			'script'         => 'sn-desktop-mode-widget-views',
-			// The tallest card on the desktop, and honestly so: a 26px headline,
-			// a 40px sparkline, the delta line, three stat rows, a three-row
-			// sources block and the forecast block all stack here. Measured 463.
-			'default_height' => 470,
+			// BUDGETED 450, not browser-measured — the old measured 463 covered
+			// sparkline + stats + sources + 3 forecast lines. Forecast is gone
+			// (the honest interval is too wide to communicate); Top pages adds
+			// 2 rows over the old single top_path. 463 − 3×22 + 2×22 = 441,
+			// rounded up with slack.
+			'default_height' => 450,
 		) ) );
 
 		snt_os_register_widget( 'sn-health', array_merge( $sn_drag, array(
@@ -221,15 +223,15 @@ add_action( 'init', function() {
 		// are never summed.
 		snt_os_register_widget( 'sn-machine-readers', array_merge( $sn_drag, array(
 			'label'          => 'SN Machine Readers',
-			'description'    => 'AI crawler readership: top families, declared AI-training reads, sensor state.',
+			'description'    => 'AI crawler readership: top families, purposes, declared AI-training reads.',
 			'icon'           => 'dashicons-visibility',
 			'script'         => 'sn-desktop-mode-widget-machine-readers',
-			// Measured 508 — the second-tallest, and the card that was worst
-			// served by the old 260: headline, three family rows, the
-			// AI-training block (Reads + rights + six per-surface rows) and
-			// the two sensor rows. `ai_surfaces` is variable-length, so this
-			// is the one card whose height genuinely moves with the data.
-			'default_height' => 520,
+			// BUDGETED 560, not browser-measured — the old measured 508 covered
+			// headline + families + AI-training + 3 sensor rows. Sensor rows
+			// are gone (version lives on Deploy Status); Purposes adds a
+			// heading + ≤4 rows (≤5). 508 − 3×22 + ≤5×22 = 552, rounded up
+			// with slack. `ai_surfaces` is still variable-length.
+			'default_height' => 560,
 		) ) );
 	}
 }, 6 );

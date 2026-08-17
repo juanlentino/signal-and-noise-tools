@@ -56,6 +56,10 @@ function snt_mr_crawler_list_status() { return $GLOBALS['__status']; }
 // family / AI-training math has to agree with the tab's, and a stub at that
 // boundary would hide exactly the drift this file exists to catch.
 // inc/machine-readers-render.php only declares functions at load.
+// inc/machine-readers-taxonomy.php is the real snt_mr_taxonomy_absent()
+// (never-measured vs measured-zero) — stubbing it would hide the null
+// purposes contract the widget now has to honour.
+require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-render.php';
 // v10.2.0: the ONE shared builder lives here now (both this ability and the
 // desktop tile route call it), so the fixture drives the real thing.
@@ -308,6 +312,54 @@ ok( false === strpos( $mr_src, 'snt_ability_mr_summary_for' ), 'no second copy o
 // — only the file that now holds the route.
 $mr_dm = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-payloads.php' );
 ok( false !== strpos( $mr_dm, 'snt_mr_summary_payload( 30 )' ), 'the desktop route calls the same builder' );
+
+echo "\nGroup: purposes rows pass through when the taxonomy is present\n";
+// Real normalized-row shape (snt_mr_normalize_rows + snt_mr_normalize_taxonomy_fields):
+// family/surface/day/hits + vendor/agent/purpose/taxonomy_version/
+// training_corpus_source/first_party/ua_sample. first_party is a bool.
+// A first-party row is excluded from purposes (self-traffic is not readership).
+$GLOBALS['__mr'] = array(
+	'ok'    => true,
+	'error' => null,
+	'rows'  => array(
+		array(
+			'family' => 'openai', 'surface' => 'html', 'day' => '2026-08-16', 'hits' => 40,
+			'vendor' => 'openai', 'agent' => 'openai-gptbot', 'purpose' => 'train',
+			'taxonomy_version' => '1.0.0', 'training_corpus_source' => true,
+			'first_party' => false, 'ua_sample' => 'GPTBot/1.0',
+		),
+		array(
+			'family' => 'search', 'surface' => 'html', 'day' => '2026-08-16', 'hits' => 25,
+			'vendor' => 'google', 'agent' => 'googlebot', 'purpose' => 'search',
+			'taxonomy_version' => '1.0.0', 'training_corpus_source' => false,
+			'first_party' => false, 'ua_sample' => 'Googlebot/2.1',
+		),
+		array(
+			'family' => 'anthropic', 'surface' => 'html', 'day' => '2026-08-16', 'hits' => 12,
+			'vendor' => 'anthropic', 'agent' => 'claudebot', 'purpose' => 'retrieval',
+			'taxonomy_version' => '1.0.0', 'training_corpus_source' => false,
+			'first_party' => false, 'ua_sample' => 'ClaudeBot/1.0',
+		),
+		array(
+			'family' => 'uptime', 'surface' => 'html', 'day' => '2026-08-16', 'hits' => 99,
+			'vendor' => 'self', 'agent' => 'betterstack', 'purpose' => 'ops',
+			'taxonomy_version' => '1.0.0', 'training_corpus_source' => false,
+			'first_party' => true, 'ua_sample' => 'Better Stack',
+		),
+	),
+);
+$out = snt_ability_get_machine_readers_summary( array( 'days' => 7 ) );
+ok( is_array( $out['purposes'] ?? null ), 'taxonomy-bearing rows report purposes as an array, not null' );
+ok(
+	array(
+		array( 'purpose' => 'train',     'hits' => 40 ),
+		array( 'purpose' => 'search',    'hits' => 25 ),
+		array( 'purpose' => 'retrieval', 'hits' => 12 ),
+	) === ( $out['purposes'] ?? null ),
+	'purposes rows are { purpose, hits }, sorted desc, first-party excluded'
+);
+ok( ! in_array( 'ops', array_column( (array) ( $out['purposes'] ?? array() ), 'purpose' ), true ),
+	'the first-party ops row never appears in purposes' );
 
 echo "\nGroup K: orchestrator wiring\n";
 $reg = (string) file_get_contents( __DIR__ . '/../inc/abilities-registration.php' );

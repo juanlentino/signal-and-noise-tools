@@ -234,14 +234,29 @@ function snt_desktop_site_views_payload() {
 		}
 	}
 
-	$top_path = null;
+	$top_path  = null;
+	$top_paths = array();
 	if ( function_exists( 'sn_analytics_top_paths' ) ) {
-		$top = sn_analytics_top_paths( $from, $today, 'human', 1 );
-		if ( is_array( $top ) && isset( $top[0]['path'] ) ) {
-			$top_path = array(
-				'path'  => (string) $top[0]['path'],
-				'views' => (int) ( $top[0]['views'] ?? 0 ),
-			);
+		// Limit 3: the tile renders a Top pages list. top_path stays the
+		// first row (same shape as before) so cached/older consumers keep
+		// working; top_paths is additive.
+		$top = sn_analytics_top_paths( $from, $today, 'human', 3 );
+		if ( is_array( $top ) ) {
+			foreach ( $top as $row ) {
+				if ( ! is_array( $row ) || ! isset( $row['path'] ) ) {
+					continue;
+				}
+				$top_paths[] = array(
+					'path'  => (string) $row['path'],
+					'views' => (int) ( $row['views'] ?? 0 ),
+				);
+				if ( count( $top_paths ) >= 3 ) {
+					break;
+				}
+			}
+			if ( isset( $top_paths[0] ) ) {
+				$top_path = $top_paths[0];
+			}
 		}
 	}
 
@@ -303,6 +318,7 @@ function snt_desktop_site_views_payload() {
 		'delta_pct'   => $delta_pct,
 		'bot_pct'     => $bot_pct,
 		'top_path'    => $top_path,
+		'top_paths'   => $top_paths,
 		'top_sources' => $top_sources,
 		'forecast'    => $forecast,
 	);
