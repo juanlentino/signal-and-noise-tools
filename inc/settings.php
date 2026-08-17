@@ -142,6 +142,14 @@ function sn_settings_defaults() {
 		'insights' => array(
 			'weekly_cron_enabled' => false,
 		),
+		// R6a: the daily Operations morning brief is a new mail surface, so it
+		// is opt-in and dormant on every existing install. scheduled_reads
+		// lives in the same subtree (one preservation branch) even though the
+		// board files it under AI: both are opt-in daily crons off this tab.
+		'operations' => array(
+			'morning_brief_enabled'   => false,
+			'scheduled_reads_enabled' => false,
+		),
 		// v6.23.0: analytics owner/role exclusion (Plausible-style "exclude my
 		// own visits"). exclude_roles lists role slugs whose logged-in users are
 		// NOT counted — the theme's sn_beacon_enabled filter suppresses the
@@ -398,6 +406,12 @@ function sn_settings_save( $raw ) {
 	// user's cron preference would diverge from the actually-scheduled event.
 	if ( isset( $existing_settings['insights'] ) && is_array( $existing_settings['insights'] ) ) {
 		$sanitized['insights'] = $existing_settings['insights'];
+	}
+
+	// R6a: preserve the Operations subtree (the opt-in morning brief), which
+	// is written from Connections -> Cron rather than the Identity form.
+	if ( isset( $existing_settings['operations'] ) && is_array( $existing_settings['operations'] ) ) {
+		$sanitized['operations'] = $existing_settings['operations'];
 	}
 
 	// v6.23.0: preserve the analytics subtree (Measurement → Analytics → "Exclude

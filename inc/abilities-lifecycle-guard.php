@@ -316,7 +316,7 @@ function sn_ability_guard_filter_execute_result( $result, $ability_name, $input 
 	if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
 		if ( $is_error && function_exists( 'sn_mcp_telemetry_classify_wp_error' ) ) {
 			$class = sn_mcp_telemetry_classify_wp_error( $result );
-			sn_mcp_telemetry_record( (string) $ability_name, $args, 'direct', $class['outcome'], $class['refusal_gate'], $latency_ms );
+			sn_mcp_telemetry_record( (string) $ability_name, $args, 'direct', $class['outcome'], $class['refusal_gate'], $latency_ms, null, $class['error_code'] ?? null );
 		} elseif ( ! $is_error ) {
 			$count = function_exists( 'sn_mcp_telemetry_result_count' ) ? sn_mcp_telemetry_result_count( $result ) : null;
 			sn_mcp_telemetry_record( (string) $ability_name, $args, 'direct', 'ok', null, $latency_ms, $count );

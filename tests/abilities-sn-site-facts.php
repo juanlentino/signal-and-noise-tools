@@ -91,9 +91,9 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 
 echo "sn_site_facts (consolidated) — plugin v10.26.0\n\n";
 
-// ─── Fact map: exactly 10 facts, none pointing at the retired ability ───
+// ─── Fact map: external + additive internal facts; retired source absent ───
 $map = snt_sn_site_facts_map();
-ok( 12 === count( $map ), 'the fact map has exactly 12 entries (get-design-system-summary retired, not absorbed; scan_telemetry added v10.61.0, tool_telemetry v11.9.0)' );
+ok( 13 === count( $map ), 'the fact map has exactly 13 entries (configuration_drift added by R6a)' );
 ok( ! in_array( 'signal-and-noise/get-design-system-summary', $map, true ), 'the retired ability is not a source for any fact' );
 $expected_map = array(
 	'theme_version'      => 'signal-and-noise/get-theme-version',
@@ -108,6 +108,7 @@ $expected_map = array(
 	'reading_time'       => 'signal-and-noise/get-reading-time-for-slug',
 	'scan_telemetry'     => 'internal:scan-telemetry-summary',
 	'tool_telemetry'     => 'internal:tool-telemetry-summary',
+	'configuration_drift' => 'internal:configuration-drift-status',
 );
 ok( $expected_map === $map, 'the fact->source-slug map matches the verified live registrations exactly' );
 ok( array( 'reading_time', 'seo_route_meta', 'active_template' ) === snt_sn_site_facts_slug_required(), 'R1 fix: reading_time + seo_route_meta + active_template all require slug (active_template\'s source ability has no no-args default path — see the file docblock)' );
@@ -228,7 +229,7 @@ ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), '
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-site-facts is annotated readonly + non-destructive + idempotent' );
 ok( array( 'facts' ) === ( $a['input_schema']['required'] ?? array() ), 'sn-site-facts requires facts' );
 ok( 'object' === ( $a['input_schema']['type'] ?? '' ), 'sn-site-facts input type is plain object (required field present, no bodyless-GET union)' );
-ok( 12 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 12 values' );
+ok( 13 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 13 values' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * scan_telemetry (v10.61.0) — plugin-internal fact, the active_template
@@ -268,12 +269,23 @@ if ( ! function_exists( 'sn_mcp_telemetry_summary' ) ) {
 			'total_calls'    => 5,
 			'by_tool'        => array(),
 			'by_change_type' => array( array( 'change_type' => 'link_reshape', 'outcome' => 'conflict', 'calls' => 2 ) ),
+			'by_error_code'  => array( array( 'tool_name' => 'signal-noise__sn-apply', 'error_code' => 'snt_sn_apply_fingerprint_stale', 'outcome' => 'conflict', 'calls' => 2 ) ),
 		);
 	}
 }
 $t_present = snt_ability_sn_site_facts( array( 'facts' => array( 'tool_telemetry' ) ) );
 ok( 5 === ( $t_present['facts']['tool_telemetry']['total_calls'] ?? null ), 'tool_telemetry: summary returned verbatim when the module is loaded' );
 ok( 'link_reshape' === ( $t_present['facts']['tool_telemetry']['by_change_type'][0]['change_type'] ?? null ), 'tool_telemetry: by_change_type reaches the caller — the whole point of the v11.8.0 column' );
+ok( 'snt_sn_apply_fingerprint_stale' === ( $t_present['facts']['tool_telemetry']['by_error_code'][0]['error_code'] ?? null ), 'tool_telemetry: by_error_code reaches the caller verbatim' );
+
+$drift_absent = snt_ability_sn_site_facts( array( 'facts' => array( 'configuration_drift' ) ) );
+ok( array( 'error' => 'unavailable' ) === ( $drift_absent['facts']['configuration_drift'] ?? null ), 'configuration_drift: module absent -> uniform {error:unavailable}' );
+ok( ! in_array( 'internal:configuration-drift-status', $GLOBALS['__ability_lookups'], true ), 'configuration_drift: internal sentinel is never dispatched as an ability' );
+if ( ! function_exists( 'snt_config_drift_status' ) ) {
+	function snt_config_drift_status() { return array( 'has_drift' => true, 'count' => 1, 'changed' => array( 'theme.reading_wpm' ), 'added' => array(), 'removed' => array() ); }
+}
+$drift_present = snt_ability_sn_site_facts( array( 'facts' => array( 'configuration_drift' ) ) );
+ok( 1 === ( $drift_present['facts']['configuration_drift']['count'] ?? 0 ), 'configuration_drift: owner-safe status is returned verbatim' );
 
 $r_present = snt_ability_sn_site_facts( array( 'facts' => array( 'scan_telemetry', 'theme_version' ) ) );
 ok( 2 === ( $r_present['facts']['scan_telemetry']['total_runs'] ?? null ), 'scan_telemetry: summary returned verbatim when the module is loaded' );

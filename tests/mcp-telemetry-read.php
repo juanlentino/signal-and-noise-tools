@@ -89,11 +89,12 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 function sn_test_all_reachable() {
 	$GLOBALS['__abilities'] = array_merge( sn_mcp_allowlist(), sn_mcp_rw_allowlist() );
 }
-function sn_test_row( $tool, $calls, $first, $last, $door = 'read', $outcome = 'success' ) {
+function sn_test_row( $tool, $calls, $first, $last, $door = 'read', $outcome = 'success', $error_code = null ) {
 	return array(
 		'tool_name'  => $tool,
 		'door'       => $door,
 		'outcome'    => $outcome,
+		'error_code' => $error_code,
 		'calls'      => $calls,
 		'first_seen' => $first,
 		'last_seen'  => $last,
@@ -150,6 +151,23 @@ ok( 5 === $u['total_rows'], 'total_rows sums every group' );
 ok( array( 'read', 'rw' ) === $u['by_tool'][ $first_tool ]['doors'], 'both doors are recorded, de-duplicated' );
 ok( 3 === $u['by_tool'][ $first_tool ]['outcomes']['success'] && 2 === $u['by_tool'][ $first_tool ]['outcomes']['refused'], 'outcomes are counted separately' );
 ok( $u['by_tool'][ $first_tool ]['last_seen'] === $ago( 1 ), 'last_seen is the LATEST across groups' );
+
+echo "\nGroup: error_code splits the GROUP BY without corrupting tool totals\n";
+// The v11.10-line GROUP BY adds error_code, so one tool's calls arrive as
+// MORE sql rows than before. by_tool and zero_call must re-sum across the
+// split; by_error_code carries the per-code lines.
+$wpdb->rows = array(
+	sn_test_row( $first_tool, 4, $ago( 5 ), $ago( 2 ), 'read', 'schema_error', 'snt_block_migration_candidate_not_found' ),
+	sn_test_row( $first_tool, 1, $ago( 4 ), $ago( 1 ), 'read', 'server_error', 'snt_helper_unavailable' ),
+	sn_test_row( $first_tool, 2, $ago( 3 ), $ago( 1 ), 'read', 'success' ),
+);
+$u = sn_mcp_telemetry_usage( 90 );
+ok( 7 === $u['by_tool'][ $first_tool ]['calls'], 'error_code split: by_tool still sums the tool\'s calls across code groups' );
+ok( ! in_array( $first_tool, $u['zero_call'], true ), 'error_code split: a tool with traffic never lands in zero_call' );
+$codes = array();
+foreach ( $u['by_error_code'] as $line ) { $codes[ $line['error_code'] ] = $line['calls']; }
+ok( 4 === ( $codes['snt_block_migration_candidate_not_found'] ?? null ) && 1 === ( $codes['snt_helper_unavailable'] ?? null ), 'error_code split: by_error_code carries each code with its own call count' );
+ok( 2 === count( $u['by_error_code'] ), 'error_code split: success rows (NULL code) produce no by_error_code line' );
 
 echo "\nGroup: schema-error rows carry an empty tool_name\n";
 // mcp-tools.php:436 records schema errors with tool_name '' — the call never

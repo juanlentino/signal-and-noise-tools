@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.11.0] - 2026-08-17 — telemetry names the failure, and operations gets a morning voice
+
+**MINOR** — two arcs: Layer B telemetry gains the `error_code` dimension (v11.10.0 board
+scope, item 2), and R6a lands its buildable rows — the daily Operations morning brief with
+configuration drift, and scheduled read-only agent runs. The R6a corpus-schema row returns
+to the board (no storage exists to publish from). Both arcs carried independent-eyes review
+(Grok) with every finding fixed and pinned: dropped classify-site codes, persist-path
+allowlisting, DST re-anchoring, suffix-named secret hashing, cron identity, and the
+in-process kill-switch gap.
+
+### Added
+- An opt-in daily Operations morning brief now composes cached health, cron
+  history, uptime, deploy, and configuration-drift facts into deterministic
+  prose, scheduled for 7:00 a.m. in the site's timezone. The settings surface
+  is snapshotted durably and diffed until explicit acknowledgement (or a plugin
+  version transition), with drift also exposed through `sn_site_facts`.
+- Layer B MCP telemetry now records an allowlisted `error_code` from the real
+  `WP_Error` before the tool result is flattened to message-only. The nullable
+  field is grouped per tool and outcome in `tool_telemetry`, while successful
+  calls continue to store `NULL`.
+- Opt-in daily scheduled read-only runs: a fixed, code-defined list of five
+  read-door abilities executes through the real MCP dispatch (kill switch,
+  permissions, and telemetry all apply) and keeps a two-week per-tool outcome
+  history, with a "Run now" action on the Cron tab. The R6a corpus-schema row
+  is deliberately not built: author-stated tier/number/relation has no
+  existing storage to publish from, and the storage design goes back to the
+  board rather than being invented inside a build slice.
+
 ## [11.10.2] - 2026-08-17 — the desktop widgets audited against the shell maintainer's own extensions
 
 **PATCH** — three fixes and two comment corrections out of an audit of our OpenStation/desktop-mode

@@ -52,10 +52,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SN_MCP_TELEMETRY_TABLE          = 'sn_tool_call';
-// v11.8.0 bumps this to '2' so dbDelta adds the `change_type` column on an
-// existing install. Without the bump sn_mcp_telemetry_maybe_install() short-
-// circuits and every insert would silently drop the new column.
-const SN_MCP_TELEMETRY_DB_VERSION     = '2';
+// Bump on every schema change so dbDelta runs for existing installs. Without
+// the delta, inserts silently drop columns that are present only in code.
+const SN_MCP_TELEMETRY_DB_VERSION     = '3';
 const SN_MCP_TELEMETRY_DB_VERSION_OPT = 'sn_mcp_telemetry_db_version';
 const SN_MCP_TELEMETRY_RETENTION_DAYS = 90;
 const SN_MCP_TELEMETRY_PRUNE_LIMIT    = 500;
@@ -107,6 +106,7 @@ function sn_mcp_telemetry_schema_sql() {
 		result_count INT NULL,
 		candidate_id VARCHAR(64) NULL,
 		change_type VARCHAR(32) NULL,
+		error_code VARCHAR(64) NULL,
 		PRIMARY KEY  (id),
 		KEY ts_idx (ts)
 	) {$charset};";
@@ -195,6 +195,42 @@ function sn_mcp_telemetry_change_type( $args ) {
 	}
 	$allowed = defined( 'SNT_SN_APPLY_CHANGE_TYPES' ) ? (array) constant( 'SNT_SN_APPLY_CHANGE_TYPES' ) : array();
 	return in_array( $type, $allowed, true ) ? $type : null;
+}
+
+/**
+ * Error-code identifier captured from the real WP_Error, at classification.
+ *
+ * Like change_type, this is an ALLOWLIST, never an arbitrary passthrough. The
+ * error-code surface has no central enum equivalent to
+ * SNT_SN_APPLY_CHANGE_TYPES, so its allowlist is the WordPress identifier
+ * grammar plus the column's 64-byte bound. The input is the WP_Error object,
+ * not caller arguments or a later message-only result; values containing
+ * spaces, punctuation, or other content-bearing syntax resolve to NULL.
+ *
+ * @param mixed $error A WP_Error (or test stand-in) exposing get_error_code().
+ * @return string|null An allowlisted error-code identifier, or null.
+ */
+function sn_mcp_telemetry_error_code( $error ) {
+	if ( ! is_object( $error ) || ! method_exists( $error, 'get_error_code' ) ) {
+		return null;
+	}
+	return sn_mcp_telemetry_error_code_allowed( $error->get_error_code() );
+}
+
+/**
+ * The identifier grammar itself, callable on a bare string. build_row()
+ * re-applies it so the allowlist holds at the persist choke point too, not
+ * only at the classify site — a future caller passing an unfiltered string
+ * positionally must not be able to put user content in the column.
+ *
+ * @param mixed $code Candidate error-code value.
+ * @return string|null The code if it passes the grammar, else null.
+ */
+function sn_mcp_telemetry_error_code_allowed( $code ) {
+	if ( ! is_string( $code ) || ! preg_match( '/^[a-z][a-z0-9_]{0,63}$/', $code ) ) {
+		return null;
+	}
+	return $code;
 }
 
 /**
@@ -317,12 +353,10 @@ function sn_mcp_telemetry_throttle_codes() {
  *
  * @param mixed $error A WP_Error (or test stand-in) exposing get_error_code()
  *                      and get_error_data().
- * @return array{outcome:string,refusal_gate:string|null}
+ * @return array{outcome:string,refusal_gate:string|null,error_code:string|null}
  */
 function sn_mcp_telemetry_classify_wp_error( $error ) {
-	$code = ( is_object( $error ) && method_exists( $error, 'get_error_code' ) )
-		? (string) $error->get_error_code()
-		: '';
+	$code = sn_mcp_telemetry_error_code( $error );
 	$data = ( is_object( $error ) && method_exists( $error, 'get_error_data' ) )
 		? $error->get_error_data()
 		: null;
@@ -333,7 +367,7 @@ function sn_mcp_telemetry_classify_wp_error( $error ) {
 	if ( null !== $status ) {
 		if ( 429 === $status ) {
 			$gate = in_array( $code, sn_mcp_telemetry_throttle_codes(), true ) ? 'write_throttle' : 'rate_limit';
-			return array( 'outcome' => 'refused', 'refusal_gate' => $gate );
+			return array( 'outcome' => 'refused', 'refusal_gate' => $gate, 'error_code' => $code );
 		}
 		// v11.8.0: 409 is OPTIMISTIC-CONCURRENCY contention, not malformed
 		// input, and must be split out BEFORE the 4xx band that used to
@@ -348,21 +382,21 @@ function sn_mcp_telemetry_classify_wp_error( $error ) {
 		// right — unreadable. No refusal_gate: a conflict is not a gate
 		// refusal, it is a lost race.
 		if ( 409 === $status ) {
-			return array( 'outcome' => 'conflict', 'refusal_gate' => null );
+			return array( 'outcome' => 'conflict', 'refusal_gate' => null, 'error_code' => $code );
 		}
 		if ( ( $status >= 400 && $status <= 428 ) || ( $status >= 431 && $status <= 499 ) ) {
-			return array( 'outcome' => 'schema_error', 'refusal_gate' => null );
+			return array( 'outcome' => 'schema_error', 'refusal_gate' => null, 'error_code' => $code );
 		}
 		if ( $status >= 500 ) {
-			return array( 'outcome' => 'server_error', 'refusal_gate' => null );
+			return array( 'outcome' => 'server_error', 'refusal_gate' => null, 'error_code' => $code );
 		}
 	}
 
 	if ( in_array( $code, sn_mcp_telemetry_status_less_schema_codes(), true ) ) {
-		return array( 'outcome' => 'schema_error', 'refusal_gate' => null );
+		return array( 'outcome' => 'schema_error', 'refusal_gate' => null, 'error_code' => $code );
 	}
 
-	return array( 'outcome' => 'server_error', 'refusal_gate' => null );
+	return array( 'outcome' => 'server_error', 'refusal_gate' => null, 'error_code' => $code );
 }
 
 /**
@@ -385,9 +419,11 @@ function sn_mcp_telemetry_classify_wp_error( $error ) {
  * @param string|null $change_type  Allowlisted sn-apply change.type, or null.
  *                                  Appended last so existing positional callers
  *                                  keep working. @since v11.8.0.
+ * @param string|null $error_code   Allowlisted WP_Error code captured by the
+ *                                  classifier, or null.
  * @return array<string,mixed>
  */
-function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape, $args_hash, $outcome, $refusal_gate, $latency_ms, $result_count, $change_type = null ) {
+function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape, $args_hash, $outcome, $refusal_gate, $latency_ms, $result_count, $change_type = null, $error_code = null ) {
 	return array(
 		'ts'           => (string) $ts,
 		'layer'        => 'server',
@@ -402,6 +438,7 @@ function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape
 		'result_count' => null === $result_count ? null : (int) $result_count,
 		'candidate_id' => null, // Reserved; always NULL this session.
 		'change_type'  => null === $change_type ? null : (string) $change_type,
+		'error_code'   => 'ok' === $outcome ? null : sn_mcp_telemetry_error_code_allowed( $error_code ),
 	);
 }
 
@@ -481,14 +518,15 @@ function sn_mcp_telemetry_insert_row( $row ) {
 			'result_count' => $row['result_count'],
 			'candidate_id' => $row['candidate_id'],
 			'change_type'  => $row['change_type'] ?? null,
+			'error_code'   => $row['error_code'] ?? null,
 		),
-		array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s' )
+		array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s' )
 	);
 }
 
 /**
  * Read rollup of sn_tool_call, for sn_site_facts' "tool_telemetry" fact
- * (v11.9.0). Two grouped SELECTs, no per-row reads, never any argument values.
+ * (v11.9.0). Grouped SELECTs only, no per-row reads, never argument values.
  *
  * WHY THIS EXISTS: v11.8.0 added the `change_type` dimension so individual
  * sn-apply change types could be retired or kept on evidence, and the
@@ -505,9 +543,11 @@ function sn_mcp_telemetry_insert_row( $row ) {
  *
  * `by_change_type` is the half that services the consolidation programme —
  * rows where change_type IS NOT NULL, which today is sn-apply only.
+ * `by_error_code` keeps each plugin-authored failure identifier attributable
+ * to its tool and outcome instead of collapsing distinct causes into a bucket.
  *
  * @param int $days Window, in days.
- * @return array{window_days:int,generated_at:string,table_present:bool,total_calls:int,by_tool:array,by_change_type:array}
+ * @return array{window_days:int,generated_at:string,table_present:bool,total_calls:int,by_tool:array,by_change_type:array,by_error_code:array}
  */
 function sn_mcp_telemetry_summary( $days = 30 ) {
 	global $wpdb;
@@ -520,6 +560,7 @@ function sn_mcp_telemetry_summary( $days = 30 ) {
 		'total_calls'    => 0,
 		'by_tool'        => array(),
 		'by_change_type' => array(),
+		'by_error_code'  => array(),
 	);
 
 	if ( ! isset( $wpdb ) || ! is_object( $wpdb ) || ! method_exists( $wpdb, 'get_results' ) ) {
@@ -584,6 +625,25 @@ function sn_mcp_telemetry_summary( $days = 30 ) {
 		}
 	}
 
+	$wpdb->last_error = '';
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is $wpdb->prefix + a plugin constant, never user input; $cutoff is bound via prepare() below.
+	$sql3  = $wpdb->prepare( "SELECT tool_name, error_code, outcome, COUNT(*) AS calls, AVG(latency_ms) AS avg_latency_ms, MAX(ts) AS last_call FROM {$table} WHERE ts >= %s AND error_code IS NOT NULL GROUP BY tool_name, error_code, outcome ORDER BY calls DESC, tool_name ASC, error_code ASC", $cutoff );
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql3 is the STRING RETURNED BY $wpdb->prepare() one line above, already safely bound.
+	$rows3 = $wpdb->get_results( $sql3, ARRAY_A );
+
+	if ( '' === (string) $wpdb->last_error && null !== $rows3 ) {
+		foreach ( (array) $rows3 as $r ) {
+			$out['by_error_code'][] = array(
+				'tool_name'      => (string) ( $r['tool_name'] ?? '' ),
+				'error_code'     => (string) ( $r['error_code'] ?? '' ),
+				'outcome'        => (string) ( $r['outcome'] ?? '' ),
+				'calls'          => (int) ( $r['calls'] ?? 0 ),
+				'avg_latency_ms' => isset( $r['avg_latency_ms'] ) && null !== $r['avg_latency_ms'] ? (int) round( (float) $r['avg_latency_ms'] ) : null,
+				'last_call'      => (string) ( $r['last_call'] ?? '' ),
+			);
+		}
+	}
+
 	$out['table_present'] = true;
 	return $out;
 }
@@ -630,9 +690,11 @@ function sn_mcp_telemetry_maybe_prune() {
  * @param string|null $refusal_gate
  * @param int         $latency_ms
  * @param int|null    $result_count
+ * @param string|null $error_code   Captured by the WP_Error classifier before
+ *                                  the result is flattened to message-only.
  * @return void
  */
-function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refusal_gate, $latency_ms, $result_count = null ) {
+function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refusal_gate, $latency_ms, $result_count = null, $error_code = null ) {
 	if ( ! sn_mcp_telemetry_enabled() ) {
 		return;
 	}
@@ -649,7 +711,8 @@ function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refu
 			$refusal_gate,
 			(int) $latency_ms,
 			$result_count,
-			sn_mcp_telemetry_change_type( $args )
+			sn_mcp_telemetry_change_type( $args ),
+			$error_code
 		);
 		sn_mcp_telemetry_insert_row( $row );
 		sn_mcp_telemetry_maybe_prune();

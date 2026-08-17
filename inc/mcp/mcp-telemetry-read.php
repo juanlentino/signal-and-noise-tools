@@ -144,7 +144,7 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 	// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter, WordPress.DB.DirectDatabaseQuery -- reads the plugin-owned telemetry table; no core API exists for it.
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			"SELECT tool_name, door, outcome, COUNT(*) AS calls, MAX(ts) AS last_seen, MIN(ts) AS first_seen FROM {$table} WHERE ts >= %s GROUP BY tool_name, door, outcome", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static SELECT template; $table is $wpdb->prefix + a plugin constant, and the only value binds via prepare().
+			"SELECT tool_name, door, outcome, error_code, COUNT(*) AS calls, MAX(ts) AS last_seen, MIN(ts) AS first_seen FROM {$table} WHERE ts >= %s GROUP BY tool_name, door, outcome, error_code", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- static SELECT template; $table is $wpdb->prefix + a plugin constant, and the only value binds via prepare().
 			$since
 		),
 		ARRAY_A
@@ -156,9 +156,10 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 		return null;
 	}
 
-	$by_tool    = array();
-	$total_rows = 0;
-	$earliest   = null;
+	$by_tool     = array();
+	$error_codes = array();
+	$total_rows  = 0;
+	$earliest    = null;
 
 	foreach ( $rows as $row ) {
 		$name    = (string) ( $row['tool_name'] ?? '' );
@@ -167,6 +168,7 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 		$door    = (string) ( $row['door'] ?? '' );
 		$first   = (string) ( $row['first_seen'] ?? '' );
 		$last    = (string) ( $row['last_seen'] ?? '' );
+		$code    = (string) ( $row['error_code'] ?? '' );
 
 		$total_rows += $calls;
 		if ( '' !== $first && ( null === $earliest || $first < $earliest ) ) {
@@ -199,6 +201,14 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 		if ( '' !== $outcome ) {
 			$by_tool[ $name ]['outcomes'][ $outcome ] = ( $by_tool[ $name ]['outcomes'][ $outcome ] ?? 0 ) + $calls;
 		}
+		if ( '' !== $code ) {
+			$error_codes[] = array(
+				'tool_name'  => $name,
+				'error_code' => $code,
+				'outcome'    => $outcome,
+				'calls'      => $calls,
+			);
+		}
 	}
 
 	$measured_days = null;
@@ -213,6 +223,7 @@ function sn_mcp_telemetry_usage( $days = SN_MCP_TELEMETRY_RETENTION_DAYS ) {
 		'window_days'    => $days,
 		'complete'       => ( null !== $measured_days && $measured_days >= $days ),
 		'by_tool'        => $by_tool,
+		'by_error_code'  => $error_codes,
 		'zero_call'      => sn_mcp_telemetry_zero_call( $by_tool ),
 		'total_rows'     => $total_rows,
 	);
