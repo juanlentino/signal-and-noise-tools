@@ -69,7 +69,16 @@
 	}
 
 	window.desktopModeWidgets[ 'sn-anchors' ] = function( container ) {
+		// Official mount contract: mount(container, ctx) → teardown. This
+		// widget returned nothing (audit finding 2026-08-17), so disabling it
+		// mid-session left its DOM painted and in-flight ability calls
+		// rendering into a dead card. The torn flag gates every async render.
+		var torn = false;
+
 		function render( overview, note ) {
+			if ( torn ) {
+				return;
+			}
 			clearChildren( container );
 			var wrap = el( 'div', {
 				style: 'padding:14px 16px;color:inherit;font-size:13px;line-height:1.5;',
@@ -163,5 +172,10 @@
 		}
 
 		load();
+
+		return function teardown() {
+			torn = true;
+			clearChildren( container );
+		};
 	};
 } )();

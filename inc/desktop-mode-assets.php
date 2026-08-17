@@ -35,7 +35,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 /*
  * v9.52.1 — THE HOOK. Scripts register on `init` priority 5, widgets and
  * commands on `init` priority 6, exactly as desktop-mode's own
- * docs/examples/register-widget.md prescribes.
+ * docs/examples/register-widget.md prescribed at the time.
+ *
+ * 2026-08-17 audit vs desktop-mode-official-extensions: the REAL invariant
+ * is only "the script handle must already be registered when the widget
+ * registration call fires" (my-echo.php documents it; alcazaba-monitor does
+ * both in ONE plain init callback). The 5/6 split satisfies that invariant
+ * with margin — keep it, but don't cite it as a shell-mandated contract.
  *
  * This is not stylistic. desktop-mode builds its serverWidgets /
  * serverCommands / desktopIcons payload inside desktop_mode_enqueue_assets(),

@@ -86,7 +86,11 @@
 	 * NOT using desktop-mode's --wpd-color-* tokens: first-party widget CSS
 	 * consumes them, but v0.9.5 DEFINES them nowhere (no :root rule, no
 	 * setProperty), so var(--wpd-color-text, …) always resolves to its
-	 * fallback. That's why their own widget-starter.css falls back to
+	 * fallback. [2026-08-17 audit: current official extensions use a
+	 * DIFFERENT role-token family — --wpd-surface/--wpd-text/--wpd-border/
+	 * --wpd-text-muted (cron-manager, table-showcase) — though not
+	 * consistently (monitor still hardcodes literals). If these cards ever
+	 * get restyled, adopt the role tokens WITH literal fallbacks.] That's why their own widget-starter.css falls back to
 	 * near-black while widget-jazz-quote.css falls back to near-white — the
 	 * two disagree because the variable never resolves. Style against the card
 	 * that exists.
@@ -163,10 +167,15 @@
 		} );
 		widget.appendChild( t );
 
-		window.setTimeout( function() {
+		// Tracked so teardown can reap it — an untracked timeout outliving the
+		// widget touches a detached node (harmless) but keeps the closure
+		// alive; audit finding 2026-08-17.
+		pendingToastTimer = window.setTimeout( function() {
+			pendingToastTimer = 0;
 			if ( t.parentNode ) { t.parentNode.removeChild( t ); }
 		}, TOAST_MS );
 	}
+	var pendingToastTimer = 0;
 
 	function runAction( widget, button, action, busyLabel, defaultMessage ) {
 		if ( ! window.sntAbilityRun ) {
@@ -264,6 +273,10 @@
 		container.appendChild( wrap );
 
 		return function teardown() {
+			if ( pendingToastTimer ) {
+				window.clearTimeout( pendingToastTimer );
+				pendingToastTimer = 0;
+			}
 			clearChildren( container );
 		};
 	}
