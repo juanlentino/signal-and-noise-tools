@@ -40,7 +40,12 @@ function snt_config_drift_current_values() {
 	$merged   = array_replace_recursive( $defaults, is_array( $stored ) ? $stored : array() );
 	$flat     = snt_config_drift_flatten( $merged );
 	foreach ( $flat as $path => $value ) {
-		if ( preg_match( '/(?:^|\.)(?:token|secret|password|api_key|private_key|read_token)$/i', $path ) ) {
+		// Suffix match, not exact-leaf match: credential-like leaves are named
+		// with prefixes (read_token, uptime_kuma_push_url), so requiring the
+		// whole leaf name would store some secrets in plaintext. A false
+		// positive only hashes a non-secret; a false negative copies a secret
+		// into a second option.
+		if ( preg_match( '/(?:token|secret|password|api_key|private_key|push_url)$/i', $path ) ) {
 			$flat[ $path ] = 'sha256:' . hash( 'sha256', serialize( $value ) );
 		}
 	}

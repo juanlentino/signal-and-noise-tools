@@ -15,6 +15,7 @@ function wp_specialchars_decode( $value, $flags = 0 ) { return $value; }
 function is_email( $email ) { return false !== strpos( $email, '@' ); }
 function human_time_diff( $from, $to = 0 ) { return '2 hours'; }
 function current_datetime() { return new DateTimeImmutable( '2026-08-17 06:30:00', new DateTimeZone( 'America/New_York' ) ); }
+function wp_timezone() { return new DateTimeZone( 'America/New_York' ); }
 
 $GLOBALS['__settings'] = array();
 function sn_setting( $key, $default = null ) { return $GLOBALS['__settings'][ $key ] ?? $default; }
@@ -85,6 +86,14 @@ snt_morning_brief_maybe_schedule_cron();
 ok( 'daily' === $GLOBALS['__cron'][ SNT_MORNING_BRIEF_CRON_HOOK ]['recurrence'], 'cron schedules daily when enabled' );
 snt_morning_brief_maybe_schedule_cron();
 ok( 1 === count( $GLOBALS['__cron'] ), 'cron scheduling is idempotent' );
+// DST drift: wp_schedule_event repeats at fixed +86400s, so after a
+// transition the pending firing lands off 7:00 site time. The init hook
+// must re-anchor it rather than no-op on "already scheduled".
+$drifted = ( new DateTimeImmutable( '2026-11-02 06:00:00', new DateTimeZone( 'America/New_York' ) ) )->getTimestamp();
+$GLOBALS['__cron'][ SNT_MORNING_BRIEF_CRON_HOOK ] = array( 'timestamp' => $drifted, 'recurrence' => 'daily' );
+snt_morning_brief_maybe_schedule_cron();
+$re_anchored = ( new DateTimeImmutable( '@' . $GLOBALS['__cron'][ SNT_MORNING_BRIEF_CRON_HOOK ]['timestamp'] ) )->setTimezone( new DateTimeZone( 'America/New_York' ) )->format( 'H:i' );
+ok( '07:00' === $re_anchored, 'a DST-drifted firing (6:00 site time) is re-anchored to 7:00' );
 $GLOBALS['__settings']['operations.morning_brief_enabled'] = false;
 snt_morning_brief_maybe_schedule_cron();
 ok( false === wp_next_scheduled( SNT_MORNING_BRIEF_CRON_HOOK ), 'cron unschedules when disabled' );

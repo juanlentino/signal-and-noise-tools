@@ -5,6 +5,12 @@
  * R2 channel review: no AI and no content prose enters this path. It narrates
  * bounded counts/states from owner-only operational readers, so an injected
  * post or remote label cannot become instructions in the owner's inbox.
+ *
+ * Transport note: the uptime and deploy readers serve short-lived transients
+ * and fall back to LIVE fetches (5s-bounded) on a cold cache, which the 7:00
+ * cron will usually hit. That is deliberate: the send runs in the spawned
+ * wp-cron process, never a visitor request, and a brief that only ever said
+ * "unavailable" at 7:00 would not be worth mailing.
  */
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
@@ -122,6 +128,17 @@ function snt_morning_brief_next_run() {
 }
 function snt_morning_brief_maybe_schedule_cron() {
 	$scheduled = wp_next_scheduled( SNT_MORNING_BRIEF_CRON_HOOK );
+	if ( snt_morning_brief_enabled() && $scheduled ) {
+		// wp_schedule_event repeats at a fixed +86400s, so a DST transition
+		// walks the firing to 6:00 or 8:00 site time permanently. Re-anchor
+		// whenever the pending firing is no longer at 7:00 site time.
+		$tz   = function_exists( 'wp_timezone' ) ? wp_timezone() : new DateTimeZone( 'UTC' );
+		$hour = (int) ( new DateTimeImmutable( '@' . $scheduled ) )->setTimezone( $tz )->format( 'G' );
+		if ( 7 !== $hour ) {
+			wp_unschedule_event( $scheduled, SNT_MORNING_BRIEF_CRON_HOOK );
+			$scheduled = false;
+		}
+	}
 	if ( snt_morning_brief_enabled() && ! $scheduled ) { wp_schedule_event( snt_morning_brief_next_run(), 'daily', SNT_MORNING_BRIEF_CRON_HOOK ); }
 	elseif ( ! snt_morning_brief_enabled() && $scheduled ) { wp_unschedule_event( $scheduled, SNT_MORNING_BRIEF_CRON_HOOK ); }
 }

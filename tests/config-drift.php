@@ -10,10 +10,14 @@ function get_option( $key, $default = false ) { return array_key_exists( $key, $
 function update_option( $key, $value, $autoload = null ) { $GLOBALS['__options'][ $key ] = $value; return true; }
 function add_action() {}
 function sn_settings_defaults() {
+	// Mirrors the REAL defaults' credential-bearing leaves (settings.php):
+	// monitoring.uptime_kuma_push_url is the one whose exact-leaf regex miss
+	// shipped in the first cut — a suffix-named secret must stay pinned here.
 	return array(
 		'identity' => array( 'site_name' => 'Test Site' ),
 		'theme' => array( 'reading_wpm' => 225 ),
 		'machine_readers' => array( 'read_token' => '' ),
+		'monitoring' => array( 'uptime_kuma_push_url' => 'https://kuma.example/api/push/s3cr3t' ),
 	);
 }
 
@@ -49,6 +53,8 @@ ok( in_array( 'feature.new_switch', $status['added'], true ), 'status names an a
 $current = snt_config_drift_current_values();
 ok( false === strpos( $current['machine_readers.read_token'], 'top-secret-token' ), 'secret-like values are hashed, never copied into the snapshot' );
 ok( 0 === strpos( $current['machine_readers.read_token'], 'sha256:' ), 'secret hash remains change-detectable' );
+ok( false === strpos( (string) $current['monitoring.uptime_kuma_push_url'], 's3cr3t' ), 'suffix-named secret (…_push_url) is hashed — the exact-leaf regex shipped plaintext here once' );
+ok( 0 === strpos( (string) $current['monitoring.uptime_kuma_push_url'], 'sha256:' ), 'push_url hash remains change-detectable' );
 
 snt_config_drift_acknowledge();
 ok( false === snt_config_drift_status()['has_drift'], 'explicit acknowledgement moves the baseline' );
