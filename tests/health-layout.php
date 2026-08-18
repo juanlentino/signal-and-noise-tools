@@ -129,16 +129,23 @@ $cards = snt_health_glance_cards( $GLOBALS['__scan'] );
 he_assert( 3 === count( $cards ), 'a scan yields exactly 3 hero cards' );
 he_assert( 'Findings' === $cards[0]['label'] && '2 findings' === $cards[0]['value'], 'Findings card sums the per-check counts' );
 he_assert( 'warn' === $cards[0]['pill']['kind'], 'Findings card pills warn when issues exist' );
-// v10.83.0: 3 checks run, 1 flagged, 1 report-only → 1 passed out of 3. The
-// DENOMINATOR still counts every check (sn_health_check_total is untouched, so
-// no other surface has to be re-derived); the report-only check simply leaves
-// the numerator, and the meta line says where it went.
-he_assert( 'Checks passed' === $cards[1]['label'] && '1 / 3' === $cards[1]['value'], 'Checks-passed counts real passes over every check run' );
+// v11.16.2: 3 checks run, but the hero speaks for the HEALTH surface, and
+// contrast_tokens is an `integrity`-surface check — so the health population is
+// 2 (missing_alt flagged, broken_links passing) → 1 / 2. Before v11.16.2 the
+// numerator was scoped (sn_health_passing_checks) against a hand-counted raw
+// denominator of 3, which is the parity bug this suite now pins: a scoped
+// numerator over a raw denominator makes "N of N passed" true by construction.
+he_assert( 'Checks passed' === $cards[1]['label'] && '1 / 2' === $cards[1]['value'], 'Checks-passed counts real passes over the checks THIS SURFACE runs' );
 // v11.12.1: the meta names EVERY bucket that left the numerator, not just the
 // report-only one. It previously said "2 report-only checks not counted" beside
 // "17 / 21", leaving two checks unexplained — one a finding, one an ADVISORY the
 // same page calls "never alarming". The line now closes the arithmetic.
-he_assert( false !== strpos( (string) $cards[1]['meta_html'], '1 report-only' ), 'the report-only check is NAMED, not silently absorbed into the ratio' );
+// v11.16.2: the report-only check is no longer NAMED here, for the same reason
+// v11.16.1 stopped naming advisories (see H5): it is not on the surface this
+// hero counts, so naming it would put a bucket in the explanation that is not in
+// the total. Relocating must never read as deleting — the "Also scanned, shown
+// elsewhere" block carries it — pinned in H5 below.
+he_assert( false === strpos( (string) $cards[1]['meta_html'], 'report-only' ), 'an OFF-SURFACE report-only check is not named by a hero that does not count it' );
 he_assert( false !== strpos( (string) $cards[1]['meta_html'], 'not counted as passed' ), 'the meta says what the named buckets mean' );
 he_assert( false !== strpos( (string) $cards[1]['meta_html'], '1 with findings' ), 'the FLAGGED check is named too — passed + named === total, or the fraction lies' );
 he_assert( 'Last scan' === $cards[2]['label'] && false !== strpos( $cards[2]['value'], 'ago' ), 'Last-scan card shows the age' );
@@ -361,7 +368,13 @@ he_assert( false !== strpos( $html4, 'ink / paper' ), 'its pair table renders' )
 he_assert( false === strpos( $html4, 'sn-health-passing' ), 'NO passing disclosure — nothing actually passed, so the card would be a lie' );
 he_assert( false === strpos( $html4, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section (it raises none by design)' );
 $cards4 = snt_health_glance_cards( $GLOBALS['__scan'] );
-he_assert( '0 / 1' === $cards4[1]['value'], 'hero reads 0 / 1 passed — the report-only check is not a pass' );
+// v11.16.2: this fixture's ONLY check is contrast_tokens, an `integrity`-surface
+// check — so the health surface ran nothing and the hero honestly reads 0 / 0.
+// The Reports section above still renders it (sn_health_report_checks is
+// deliberately unscoped), which is the point: the payload is never lost, it is
+// simply not counted by a surface it does not belong to.
+he_assert( '0 / 0' === $cards4[1]['value'], 'hero reads 0 / 0 — the health surface ran no checks in this scan' );
+he_assert( '' === (string) $cards4[1]['meta_html'], 'and it explains no buckets, because there are none on this surface to explain' );
 
 // ─── Test E: an UNKNOWN report-only check still gets a home ──────────────────
 // The regression this whole change exists to prevent: a report payload with no

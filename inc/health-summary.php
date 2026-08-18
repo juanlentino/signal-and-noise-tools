@@ -239,6 +239,14 @@ function sn_health_check_partition( $scan ) {
 	if ( ! is_array( $scan ) ) {
 		return $out;
 	}
+	// v11.16.2: scope, like every sibling accessor. This partition feeds
+	// sn_health_passed_meta(), whose whole contract is that
+	// `passed + (what it names) === total`. Once the displayed total narrowed to
+	// the health surface, an unscoped partition named buckets that were not in
+	// the denominator and the arithmetic stopped closing. Same argument v11.16.1
+	// made for advisories: a relocated check is named by the tab's "Also
+	// scanned, shown elsewhere" block, never by the hero that no longer counts it.
+	$scan          = sn_health_scan_for_surface( $scan );
 	$advisory_keys = sn_health_advisory_checks();
 	foreach ( (array) ( $scan['checks'] ?? array() ) as $key => $check ) {
 		++$out['total'];
