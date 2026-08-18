@@ -170,8 +170,25 @@ function sn_admin_resolve_active_sub( $tab_slug ) {
  * @param bool     $wide         When true, emit a bare full-width .sn-section
  *                               instead of the capped .sn-fieldset card.
  */
-function sn_admin_render_section( $section_slug, $callback, $wide = false ) {
-	$cls = $wide ? 'sn-section' : 'sn-fieldset';
+function sn_admin_render_section( $section_slug, $callback, $wide = false, $wide_card = false ) {
+	// THREE shapes, and the first two are easy to confuse:
+	//
+	//   wide       — the leaf lays ITSELF out. Emits a bare full-width
+	//                .sn-section and brings its own cards (copilot-usage).
+	//   wide_card  — the leaf keeps the card and the card uncaps. The v8.0.2
+	//                .sn-fieldset--wide modifier, for a leaf whose own
+	//                renderers emit no chrome but whose content wants width.
+	//   default    — the capped .sn-fieldset card.
+	//
+	// Marking a chrome-less leaf `wide` strips its card and leaves the content
+	// floating across the full width, which is why the two are separate flags
+	// rather than one.
+	$cls = 'sn-fieldset';
+	if ( $wide ) {
+		$cls = 'sn-section';
+	} elseif ( $wide_card ) {
+		$cls = 'sn-fieldset sn-fieldset--wide';
+	}
 	echo '<div class="' . esc_attr( $cls ) . '" id="sn-sec-' . esc_attr( $section_slug ) . '">';
 	call_user_func( $callback );
 	echo '</div>';

@@ -80,5 +80,5 @@ function sn_admin_render_active_tab( $active_tab, $active_sub ) {
 	// Leaves that lay themselves out with the full-width two-column shell mark
 	// 'wide' => true in the registry so the wrapper emits a bare full-width
 	// .sn-section instead of the default capped .sn-fieldset card.
-	sn_admin_render_section( $leaf_slug, $render, ! empty( $leaf['wide'] ) );
+	sn_admin_render_section( $leaf_slug, $render, ! empty( $leaf['wide'] ), ! empty( $leaf['wide_card'] ) );
 }

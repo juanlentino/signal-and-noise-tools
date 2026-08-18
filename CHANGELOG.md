@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+Queued for the next release at the owner's request — no version bump, no tag.
+
+### Changed
+- **The MCP Clients settings leaf takes the full content width.** Its door inventories
+  are long slug lists that were reading inside the default capped card.
+- The obvious lever was wrong and worth recording: `'wide' => true` means *"this leaf
+  lays itself out"* — it emits a bare `.sn-section` and expects the leaf to bring its
+  own cards, which is why `copilot-usage` uses it. Every one of the MCP leaf's eight
+  sub-renderers emits **no chrome at all**, so that flag would have stripped the card
+  and left the inventories floating across the page. It wants a wider CARD, not no card.
+- Added a third shape, `'wide_card' => true`, which keeps the card and applies the
+  **v8.0.2 `.sn-fieldset--wide` modifier** — a `max-width: none` opt-out written for
+  exactly this ("a `.sn-fieldset` that holds a wide data table earns the full content
+  width"). `wide` still wins when both are set.
+
 ## [11.13.0] - 2026-08-18 — Health answers one question again
 
 ### Changed

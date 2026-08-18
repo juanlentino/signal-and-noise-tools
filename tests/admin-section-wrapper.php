@@ -97,5 +97,34 @@ asw_assert( false === strpos( $escaped_def, 'id="sn-sec-a"b<c"' ), 'default: raw
 asw_contains( $escaped_def, 'sn-sec-a&quot;b&lt;c', 'default: slug is HTML-attribute escaped' );
 asw_contains( $escaped_wide, 'sn-sec-a&quot;b&lt;c', 'wide: slug is HTML-attribute escaped' );
 
+// ─── Test E: the THIRD shape — wide_card (v11.13.1) ──────────────────
+//
+// Two different "wide" concepts, easy to confuse and NOT interchangeable:
+//
+//   wide       the leaf lays itself out — bare .sn-section, brings its own cards
+//   wide_card  the leaf keeps the card and the card uncaps (.sn-fieldset--wide)
+//
+// The MCP Clients leaf is the case that forced the distinction: its sub-
+// renderers emit no chrome at all, so marking it `wide` would have stripped the
+// card and left the door inventories floating across the full width. It wants a
+// WIDER CARD, not no card.
+echo "\nTest E: wide_card keeps the card and lifts the cap\n";
+ob_start();
+sn_admin_render_section( 'mcp-connect', function () { echo 'BODY'; }, false, true );
+$wide_card = ob_get_clean();
+asw_contains( $wide_card, 'class="sn-fieldset sn-fieldset--wide"', 'wide_card emits the card PLUS the v8.0.2 uncap modifier' );
+asw_contains( $wide_card, 'BODY', 'the callback still renders inside it' );
+asw_assert( false === strpos( $wide_card, 'class="sn-section"' ), 'wide_card is NOT the bare full-width section — that would strip the card' );
+
+ob_start();
+sn_admin_render_section( 'x', function () {}, true, true );
+$both = ob_get_clean();
+asw_contains( $both, 'class="sn-section"', 'wide WINS when both are set — a leaf that lays itself out never wants a card wrapper' );
+
+ob_start();
+sn_admin_render_section( 'x', function () {} );
+$plain = ob_get_clean();
+asw_assert( false === strpos( $plain, 'sn-fieldset--wide' ), 'the default card is still capped — the uncap is opt-in, not the new normal' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
