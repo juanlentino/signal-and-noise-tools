@@ -504,7 +504,13 @@ he_assert( is_int( $adv_row ) && is_int( $adv_end ) && $adv_det < $adv_row && $a
 // The alarm calculus is untouched: advisories still do not flip the hero.
 $cardsi = snt_health_glance_cards( $GLOBALS['__scan'] );
 he_assert( '3 findings' === $cardsi[0]['value'], 'H5: the hero still counts only fault-tier findings (2 + 1), never the 3 advisories' );
-he_assert( false !== strpos( (string) $cardsi[0]['meta_html'], 'advisor' ), 'H5: while still NAMING the advisories, so they are surfaced rather than silently dropped' );
+// v11.16.1: the hero no longer NAMES advisories, because they are no longer on
+// the surface it counts — they moved to the worklist/scan door in v11.13.0. The
+// intent of the original assertion survives and is asserted where it now lives:
+// relocating must never read as deleting, so the tab's "Also scanned, shown
+// elsewhere" block names every relocated check WITH ITS COUNT.
+he_assert( false === strpos( (string) $cardsi[0]['meta_html'], 'advisor' ), 'H5: the hero no longer names advisories — they are not on the surface it counts' );
+he_assert( false !== strpos( $htmli, 'Also scanned, shown elsewhere' ), 'H5: and they are surfaced rather than silently dropped — the Elsewhere block carries them' );
 // Fault cards keep their warn pill; the advisory card must not wear one.
 $adv_card_start = strpos( $htmli, 'External links' );
 $adv_card_chunk = substr( $htmli, (int) $adv_card_start, 400 );

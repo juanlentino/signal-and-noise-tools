@@ -111,8 +111,10 @@ function snt_ability_get_health_scan( $input ) {
 		// asking "how many health findings" gets the same answer the tab shows.
 		// `flagged` and the check counts above still describe every check the scan
 		// ran — the envelope is not reshaped, only the totals are scoped.
-		'finding_total'  => sn_health_finding_total( sn_health_scan_for_surface( $scan ) ),
-		'advisory_total' => sn_health_advisory_total( sn_health_scan_for_surface( $scan ) ),
+		// Scoped inside the accessors since v11.16.1; `flagged` and the counts
+		// above still describe every check the scan ran.
+		'finding_total'  => sn_health_finding_total( $scan ),
+		'advisory_total' => sn_health_advisory_total( $scan ),
 		'checks_total'   => count( $checks ),
 		'checks_passed'  => count( $checks ) - count( $flagged ),
 		'flagged'        => $flagged,
