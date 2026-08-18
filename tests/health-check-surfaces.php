@@ -88,6 +88,25 @@ $both     = array_intersect( $advisory, $health );
 ok( empty( $both ), 'no key is BOTH a defect and an advisory: ' . ( empty( $both ) ? 'none' : 'CONTRADICTORY → ' . implode( ', ', $both ) ) );
 ok( in_array( 'external_links', $advisory, true ), 'external_links stays advisory — unchanged contract, only its render surface moved' );
 
+echo "\nGroup: EVERY health readout narrows the same way\n";
+// Filtering was applied per-consumer, and per-consumer meant missed consumers:
+// after v11.13.0 the desktop widget was fixed while the S&N Dashboard card, the
+// WP Site Health widget and the MCP ability all still counted the whole
+// envelope — reporting ledger_ci as a Health finding while the tab did not.
+// This pins the shared narrowing they now all go through.
+require_once __DIR__ . '/../inc/health-summary.php';
+$mixed = array( 'scanned_at' => 123, 'checks' => array(
+	'broken_links'       => array( 'count' => 2 ),   // health  — a defect
+	'ledger_ci'          => array( 'count' => 1 ),   // INTEGRITY — a trust check
+	'link_opportunities' => array( 'count' => 18 ),  // WORKLIST
+) );
+$narrowed = sn_health_scan_for_surface( $mixed );
+ok( array( 'broken_links' ) === array_keys( $narrowed['checks'] ), 'narrowing keeps only the health surface' );
+ok( 2 === sn_health_finding_total( $narrowed ), 'the finding total counts the defect only — NOT ledger_ci' );
+ok( 3 === count( $mixed['checks'] ), 'the caller\'s scan is not mutated — the full envelope survives for anything that wants all 21' );
+ok( 123 === $narrowed['scanned_at'], 'and the rest of the envelope rides along' );
+ok( null === sn_health_scan_for_surface( null ), 'a missing scan stays missing, never a fatal' );
+
 echo "\nGroup: the surfaces partition the scan — nothing lost, nothing double-counted\n";
 $total = count( $map );
 $sum   = 0;

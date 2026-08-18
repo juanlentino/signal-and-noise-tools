@@ -27,6 +27,25 @@ All notable changes to Signal & Noise Tools are documented here.
 - The render reads `post_type` off the `WP_Post` it was handed instead of re-fetching
   it — a lookup would be a second source for a fact already in hand.
 
+### Fixed (second pass)
+- **Three more readouts were still counting the whole scan.** After v11.13.0 the
+  desktop widget was narrowed to the health surface, but the **S&N Dashboard HEALTH
+  card**, the **WP Site Health widget** and the **`get-health-scan` ability** were not
+  — so all three kept reporting `ledger_ci` as a Health finding while the Health tab,
+  correctly, did not. Filtering per-consumer is what let consumers be missed; they now
+  share one `sn_health_scan_for_surface()`.
+- The ability narrows only its **headline totals**. `flagged` and the check counts
+  still describe every check the scan ran, so the envelope is scoped, never reshaped.
+- The caller's scan is never mutated — narrowing returns a copy.
+
+### Not a bug: `ledger_ci`
+- The chip reads `event=schedule` runs only, and v11.10.0 made that deliberate (a
+  Worker record push lands seconds after an edit, before the cache has propagated, and
+  reading the merely-latest run made this chip cry wolf). The last **scheduled** run is
+  2026-08-18T07:03:57Z, which failed; the ledger fix landed after it and was proven by
+  a `workflow_dispatch` run. The chip is reporting the last unattended daily proof
+  honestly, and clears on the next cron at 06:17 UTC.
+
 ### Verified
 - **449 test files pass, zero failures**, including a new 12-assertion suite whose
   first two assertions are exactly the ones that would have caught v10.84.0's gap:

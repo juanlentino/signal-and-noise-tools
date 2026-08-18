@@ -158,6 +158,32 @@ function sn_health_passing_checks( $scan ) {
 }
 
 /**
+ * A scan narrowed to one surface, for any readout that speaks about "health".
+ *
+ * v11.15.0. Filtering was applied per-consumer, and per-consumer meant missed
+ * consumers: after v11.13.0 moved measurements and trust checks off the Health
+ * surface, the desktop widget was fixed but the S&N Dashboard card, the WP
+ * Site Health widget and the MCP ability all still counted the whole envelope.
+ * They kept reporting `ledger_ci` as a Health finding while the Health tab —
+ * correctly — did not. Every surface that says "health" now narrows the same
+ * way, through here.
+ *
+ * The scan itself is never mutated: callers get a copy, and the full envelope
+ * stays available for anything that genuinely wants all 21 checks.
+ *
+ * @param array|null $scan
+ * @param string     $surface
+ * @return array|null
+ */
+function sn_health_scan_for_surface( $scan, $surface = 'health' ) {
+	if ( ! is_array( $scan ) || ! function_exists( 'sn_health_checks_for_surface' ) ) {
+		return $scan;
+	}
+	$scan['checks'] = sn_health_checks_for_surface( $scan, $surface );
+	return $scan;
+}
+
+/**
  * The COMPLETE partition of a scan's checks, in one place.
  *
  * WHY THIS EXISTS: the Health tab showed "17 / 21 passed · 2 report-only checks
