@@ -36,7 +36,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 8.0.4
  */
 function sn_health_advisory_checks() {
-	return array( 'external_links', 'link_opportunities' );
+	return array( 'external_links', 'link_opportunities', 'stale_posts_evergreen' );
 }
 
 /**

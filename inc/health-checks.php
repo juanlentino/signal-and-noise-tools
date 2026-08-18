@@ -23,7 +23,8 @@
  *                             AI verdict + force-delete since v4.1.0.
  *   3. broken_links         — internal links in post_content that 404 or
  *                             return network errors (cached HEAD requests).
- *   4. stale_posts          — published posts unedited in the last 12 months
+ *   4. stale_posts          — published posts whose last SUBSTANTIVE change is >12mo
+ *      stale_posts_evergreen — the same, but declared Evergreen: advisory, not counted
  *                             (excluding those flagged `_sn_evergreen`, v8.11.0 B5).
  *                             Read-only; AI Suggest was scoped out of v4.1.0
  *                             per evergreen-site mismatch.
@@ -94,6 +95,11 @@ const SNT_AI_DRIFT_SYSTEM = "You are an editor evaluating whether time-relative 
 function sn_health_run_scan() {
 	$started = microtime( true );
 
+	// v11.11.9: one stale-posts query feeds BOTH tiers (fault + evergreen
+	// advisory), so the two checks can never disagree about which posts are
+	// stale or which clock said so.
+	$stale = sn_health_stale_posts_scan();
+
 	$result = array(
 		'scanned_at'   => time(),
 		'elapsed_ms'   => 0,
@@ -103,7 +109,11 @@ function sn_health_run_scan() {
 			'orphaned_media'      => sn_health_check_orphaned_media(),
 			'broken_links'        => sn_health_check_broken_links(),
 			'external_links'      => sn_health_check_external_links(),
-			'stale_posts'         => sn_health_check_stale_posts(),
+			'stale_posts'         => sn_health_check_stale_posts( $stale ),
+			// Advisory tier (v11.11.9): declared-Evergreen posts that are stale
+			// by measurement. Reported, never counted — see
+			// sn_health_advisory_checks().
+			'stale_posts_evergreen' => sn_health_check_stale_posts_evergreen( $stale ),
 			'drift_time_phrases'  => sn_health_check_drift_time_phrases(),
 			'color_drift'         => sn_health_check_color_drift(),
 			'unlinked_mentions'   => sn_health_check_unlinked_mentions(),
