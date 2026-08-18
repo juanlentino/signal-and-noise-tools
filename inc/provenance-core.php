@@ -21,6 +21,7 @@ const SN_PROV_ALGO        = 'sn-normalize-v1';
 const SN_PROV_CHAIN_META  = '_sn_prov_chain';   // serialized array of commit records
 const SN_PROV_UID_META    = '_sn_prov_uid';     // per-Note UUID (ledger key)
 const SN_PROV_GENESIS_META = '_sn_prov_genesis_parent'; // set by Plan 4
+const SN_PROV_LAST_COMMIT_META = '_sn_prov_last_commit_gmt'; // v11.11.8: denormalized freshness clock (MySQL datetime, GMT)
 
 /**
  * Is the provenance subsystem operable? Requires ext-intl for reproducible
@@ -239,6 +240,72 @@ function sn_prov_latest_hash( $post_id ) {
 }
 
 /**
+ * The chain's newest `committed_at`, as a MySQL GMT datetime ('Y-m-d H:i:s').
+ *
+ * FORMAT IS LOAD-BEARING, not cosmetic. Commits store ISO-8601
+ * ('Y-m-d\TH:i:s\Z'), but the consumer (Check 4, inc/health-check-stale-posts.php)
+ * compares this value against a cutoff built by gmdate( 'Y-m-d H:i:s', ... ) in
+ * SQL — a STRING comparison. 'T' sorts above ' ', so an ISO value would compare
+ * as newer than any same-day cutoff and the post would never read stale. The
+ * conversion is what makes the column comparable at all.
+ *
+ * Scans the whole chain rather than trusting the last element's position: a
+ * superseded head is replaced in place, and nothing else guarantees ordering.
+ *
+ * @param array $chain sn_prov_get_chain() result.
+ * @return string MySQL GMT datetime, or '' when the chain commits nothing.
+ */
+function sn_prov_last_commit_gmt_from_chain( $chain ) {
+	$newest = '';
+	foreach ( (array) $chain as $entry ) {
+		$at = is_array( $entry ) ? trim( (string) ( $entry['committed_at'] ?? '' ) ) : '';
+		if ( '' === $at ) {
+			continue;
+		}
+		$ts = strtotime( $at );
+		if ( ! $ts ) {
+			continue; // an unparseable stamp is not a fresh one
+		}
+		$mysql = gmdate( 'Y-m-d H:i:s', $ts );
+		if ( $mysql > $newest ) {
+			$newest = $mysql;
+		}
+	}
+	return $newest;
+}
+
+/**
+ * Denormalize the chain's newest commit time onto the post.
+ *
+ * WHY A COLUMN AND NOT A FILTER: Check 4's query is
+ * `WHERE <clock> < cutoff ... ORDER BY <clock> LIMIT 200`. A post that is stale
+ * by provenance but recently *touched* never enters the result set, so
+ * post-filtering in PHP cannot recover a row the WHERE clause already excluded
+ * — and the LIMIT would truncate on the wrong ordering besides. The right clock
+ * has to be available to SQL, which means denormalized meta.
+ *
+ * Called from BOTH write paths: supersede replaces the head in place and must
+ * still refresh the stamp, or a settled edit leaves the clock reading the
+ * commit it replaced.
+ *
+ * @param int   $post_id
+ * @param array $chain
+ * @return string The value written ('' when the meta was removed instead).
+ */
+function sn_prov_stamp_last_commit( $post_id, $chain ) {
+	$stamp = sn_prov_last_commit_gmt_from_chain( $chain );
+	if ( '' === $stamp ) {
+		// Never leave a stale stamp behind a chain that no longer justifies it;
+		// absence makes the consumer fall back to post_modified_gmt, which is
+		// the honest answer for a post provenance has nothing to say about.
+		delete_post_meta( (int) $post_id, SN_PROV_LAST_COMMIT_META );
+		return '';
+	}
+	update_post_meta( (int) $post_id, SN_PROV_LAST_COMMIT_META, $stamp );
+	return $stamp;
+}
+
+/**
  * @param int   $post_id
  * @param array $commit
  * @return array the full chain after appending
@@ -247,6 +314,7 @@ function sn_prov_append_commit( $post_id, array $commit ) {
 	$chain   = sn_prov_get_chain( $post_id );
 	$chain[] = $commit;
 	update_post_meta( (int) $post_id, SN_PROV_CHAIN_META, $chain );
+	sn_prov_stamp_last_commit( (int) $post_id, $chain );
 	return $chain;
 }
 
@@ -272,6 +340,7 @@ function sn_prov_replace_head_commit( $post_id, array $commit ) {
 	array_pop( $chain );
 	$chain[] = $commit;
 	update_post_meta( (int) $post_id, SN_PROV_CHAIN_META, $chain );
+	sn_prov_stamp_last_commit( (int) $post_id, $chain );
 	return $chain;
 }
 

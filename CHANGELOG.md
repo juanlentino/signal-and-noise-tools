@@ -2,6 +2,57 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.11.8] - 2026-08-18 — the staleness clock stops resetting on a save that changed nothing
+
+### Changed
+- **Health Check 4 (stale posts) now measures the last SUBSTANTIVE change.** It
+  filtered on `post_modified_gmt`, which bumps on **any** save — a block-migration
+  pass, a bulk re-save, a metadata tweak — so the staleness clock silently reset
+  across the catalogue without a word of prose changing. Provenance only commits
+  when the prose changes, so the new clock is `_sn_prov_last_commit_gmt`.
+- **Denormalized, not post-filtered — and that is a correctness point, not a
+  performance one.** Check 4's query is `WHERE <clock> < cutoff … LIMIT 200`. A post
+  stale by provenance but recently *touched* never enters the result set at all, so
+  filtering in PHP afterwards cannot recover a row the `WHERE` already excluded, and
+  the `LIMIT` would truncate on the wrong ordering besides. The right clock has to be
+  visible to SQL.
+- **Posts with no commit still get scanned.** The query `COALESCE`s back to
+  `post_modified_gmt` (with `NULLIF` so an empty meta row reads as "no answer", not
+  as the epoch). Filtering strictly on the new meta would make every un-committed
+  post permanently invisible to the check — silence read as freshness, which is the
+  exact failure this check exists to catch.
+- **Findings name the clock they used**: *"Last substantive change … (provenance)"*
+  vs *"Last modified … (no provenance commit)"*. A reader who touched a post
+  yesterday would rightly distrust a "last modified" verdict that disagrees.
+
+### Added
+- `sn_prov_stamp_last_commit()` on **both** provenance write paths
+  ([inc/provenance-core.php](inc/provenance-core.php)) — append **and** the settle
+  window's in-place head replacement, or a superseded edit would leave the clock
+  reading the commit it just replaced.
+- **The ISO → MySQL datetime conversion is load-bearing.** Commits store
+  `Y-m-d\TH:i:s\Z`; the cutoff is `Y-m-d H:i:s` and the comparison happens in SQL as
+  a **string**. `T` sorts above a space, so a raw ISO value reads as *newer* than any
+  same-day cutoff and the post would never surface. Pinned with a negative control
+  that asserts the un-converted form really does compare wrong.
+- One-shot backfill for existing chains
+  ([inc/provenance-freshness-backfill.php](inc/provenance-freshness-backfill.php)),
+  deliberately **not** in `sn_content_migrations_registry()`: that registry sits
+  behind a master sentinel and `sn_run_content_migrations()` returns early once it is
+  set, so an entry appended there would look registered, pass the registry's own
+  pinning test, and never execute on a finished install. New backfills need their own
+  flag and their own hook.
+
+### Fixed
+- `tests/provenance-chain.php` stubbed `update_post_meta` but not `delete_post_meta`,
+  which the new stamp calls when clearing an unstampable chain. Real WordPress always
+  defines it; the stub set did not model the callee.
+
+### Verified
+- Full sweep: **446 test files pass, zero failures** (445 + the new suite).
+- The new suite's harness is negative-controlled: a deliberately false assertion
+  produces a `FAIL` line and exit 1.
+
 ## [11.11.7] - 2026-08-18 — one word stops meaning two things
 
 ### Changed

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     11.11.7
+ * Version:     11.11.8
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -91,6 +91,7 @@ require_once SNT_PATH . 'inc/provenance-genesis.php'; // Notes provenance: genes
 require_once SNT_PATH . 'inc/provenance-render.php'; // Notes provenance: public surfaces (Plan 6)
 require_once SNT_PATH . 'inc/provenance-admin.php'; // Notes provenance: admin surface (Plan 6)
 require_once SNT_PATH . 'inc/provenance-chain-backfill.php'; // v10.3.0: one-shot WP chain import for ledger-backfilled Notes
+require_once SNT_PATH . 'inc/provenance-freshness-backfill.php'; // v11.11.8: one-shot stamp of _sn_prov_last_commit_gmt onto existing chains (Check 4's clock)
 require_once SNT_PATH . 'inc/provenance-did.php';        // v9.23.0: did:web DID document (verifiable provenance D1)
 require_once SNT_PATH . 'inc/provenance-credential.php'; // v9.23.0: per-Note Verifiable Credential + REST route (D1)
 require_once SNT_PATH . 'inc/provenance-verify.php';     // v9.73.0: human-facing /verify client-side verifier

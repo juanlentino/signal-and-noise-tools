@@ -44,6 +44,16 @@ if ( ! function_exists( 'update_post_meta' ) ) {
 		return true;
 	}
 }
+// v11.11.8: sn_prov_append_commit()/sn_prov_replace_head_commit() now stamp the
+// denormalized freshness clock, and clearing it on an unstampable chain calls
+// delete_post_meta(). Real WordPress always defines it; this stub set did not,
+// so the harness fataled on a function the callee genuinely uses.
+if ( ! function_exists( 'delete_post_meta' ) ) {
+	function delete_post_meta( $id, $key ) {
+		unset( $GLOBALS['__pv_meta'][ $id ][ $key ] );
+		return true;
+	}
+}
 if ( ! function_exists( 'wp_generate_uuid4' ) ) {
 	function wp_generate_uuid4() {
 		return sprintf(
