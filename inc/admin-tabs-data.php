@@ -264,7 +264,8 @@ function sn_admin_top_tabs() {
 				// config / observation / config before.
 				// v9.47.0: read-only "how to connect an external MCP client" doc leaf.
 				// No form, no side effects — pure reference, like Links.
-				'mcp-connect'   => array( 'label' => 'MCP Clients', 'render' => 'sn_admin_render_mcp_connect_section' ),
+				'mcp-connect'   => array( 'label' => 'MCP Clients', 'wide_card' => true, // v11.13.1: the door inventories are wide lists; the leaf's own renderers emit no card chrome, so it takes the .sn-fieldset--wide uncap rather than 'wide' (which would strip the card entirely).
+					'render' => 'sn_admin_render_mcp_connect_section' ),
 				// v9.62.2: Copilot tool-usage diagnostic. 'wide' => true so the
 				// wrapper emits a bare .sn-section: the render fn owns its own
 				// .sn-card, so a capped .sn-fieldset here would nest a card in a card.
