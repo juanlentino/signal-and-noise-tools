@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.15.0] - 2026-08-18 — the page-signing opt-in finally has a control
+
+### Added
+- **A "Sign this page (provenance)" checkbox in the Signal & Noise box, on Pages.**
+  v10.84.0 added the per-page opt-in that `sn_prov_subject_kind()` reads and shipped
+  **no way to set it**: `_sn_prov_sign` existed in exactly two places in the entire
+  codebase — its own `const` and a single `get_post_meta`. No metabox field, no REST
+  registration, no CLI. Ticking nothing and saving produced nothing, because there was
+  nothing to tick. (Found when the owner signed a page, saved, and correctly reported
+  that nothing happened.)
+- Pages only. A post is a provenance subject by **category** (`sn_prov_is_note`), so
+  the control would decide nothing there and is not registered for posts.
+- The helper states what cannot be undone, because it cannot: *"Anchoring is permanent:
+  unticking later hides the badge and stops new versions, but cannot withdraw a record
+  already anchored."* The ledger is append-only and Bitcoin-anchored; a control that
+  mints permanent public records should say so before it is used, not after.
+
+### Fixed
+- The first draft of the control rendered **inside the freshness field's already-open
+  `<label>`**, nesting a `<p>` and a second `<label>` within it. The fixture suite
+  caught it; the tests now count opening and closing tags rather than trusting that it
+  looked right.
+- The render reads `post_type` off the `WP_Post` it was handed instead of re-fetching
+  it — a lookup would be a second source for a fact already in hand.
+
+### Verified
+- **449 test files pass, zero failures**, including a new 12-assertion suite whose
+  first two assertions are exactly the ones that would have caught v10.84.0's gap:
+  the meta is registered for pages, and not for posts.
+
 ## [11.14.0] - 2026-08-18 — the widget agrees with the tab, and the MCP leaf gets its width
 
 ### Fixed

@@ -80,6 +80,17 @@ function sn_post_settings_register_meta() {
 	$title_args                      = $text_args;
 	$title_args['sanitize_callback'] = 'sanitize_text_field';
 
+	// v11.15.0: the page-signing opt-in. PAGES ONLY and deliberately outside the
+	// shared loop — a post is a subject by CATEGORY (sn_prov_is_note), never by
+	// this flag, so registering it for posts would advertise a control that
+	// decides nothing.
+	// Literal key, not the SN_PROV_SIGN_META constant: inc/provenance-core.php
+	// owns it with `const`, and this file is loaded standalone by the fixture
+	// suites, which do not boot the provenance module. A defined() guard here
+	// would risk redeclaring a top-level const depending on load order. Same
+	// precedent as the theme reading `_sn_prov_uid` by its literal name.
+	register_post_meta( 'page', '_sn_prov_sign', $bool_args );
+
 	foreach ( SN_POST_SETTINGS_POST_TYPES as $post_type ) {
 		register_post_meta( $post_type, '_sn_noindex',          $bool_args );
 		register_post_meta( $post_type, '_sn_noarchive',        $bool_args );
@@ -165,6 +176,7 @@ add_action( 'add_meta_boxes', 'sn_post_settings_register_meta_box' );
 function sn_post_settings_render( $post ) {
 	wp_nonce_field( SN_POST_SETTINGS_NONCE, 'sn_post_settings_nonce' );
 
+	$prov_sign     = (bool) get_post_meta( $post->ID, '_sn_prov_sign', true );
 	$evergreen     = (bool) get_post_meta( $post->ID, '_sn_evergreen', true );
 	$noindex       = (bool) get_post_meta( $post->ID, '_sn_noindex', true );
 	$noarchive     = (bool) get_post_meta( $post->ID, '_sn_noarchive', true );
@@ -181,6 +193,33 @@ function sn_post_settings_render( $post ) {
 	// a prepop sentinel is set for this post).
 	if ( function_exists( 'sn_prepop_render_notice' ) ) {
 		sn_prepop_render_notice( $post );
+	}
+
+	// ─── Provenance signing (v11.15.0) ───
+	//
+	// THE MISSING HALF OF v10.84.0. That release added the per-page opt-in the
+	// resolver reads (sn_prov_subject_kind) and shipped no way to set it:
+	// `_sn_prov_sign` existed in exactly two places, its own const and a single
+	// get_post_meta. Ticking nothing and saving produced nothing, because there
+	// was nothing to tick.
+	//
+	// Pages only — a post is a subject by CATEGORY (sn_prov_is_note), so this
+	// control would decide nothing there. The helper states what cannot be
+	// undone, because it cannot: the ledger is append-only and Bitcoin-anchored,
+	// so unticking later hides the badge and stops new versions being written,
+	// and can never withdraw a record already anchored.
+	// Read the type off the post we were handed rather than re-fetching it:
+	// sn_post_settings_render() receives the WP_Post, so a lookup would be a
+	// second source for a fact already in hand.
+	$post_type_now = isset( $post->post_type ) ? (string) $post->post_type : (string) get_post_type( $post );
+	if ( 'page' === $post_type_now ) {
+		echo '<div class="sn-field">';
+		echo '<label class="sn-field-label sn-field-label--inline">';
+		echo '<input type="checkbox" name="sn_prov_sign" value="1"' . checked( $prov_sign, true, false ) . '> ';
+		echo 'Sign this page (provenance)';
+		echo '</label>';
+		echo '<p class="sn-field-helper">Publishes a signed record of this page to the public ledger on every update, and shows the verification badge above the title. Anchoring is permanent: unticking later hides the badge and stops new versions, but cannot withdraw a record already anchored.</p>';
+		echo '</div>';
 	}
 
 	// ─── Freshness (v8.11.0, B5) ───
@@ -317,6 +356,9 @@ function sn_post_settings_save( $post_id ) {
 
 	// Boolean flags — checkbox unchecked = absent from $_POST.
 	$bool_fields = array(
+		// Page-only in the UI; harmless in this shared map because the checkbox
+		// never renders for a post, so the key is simply always absent there.
+		'_sn_prov_sign'    => 'sn_prov_sign',
 		'_sn_evergreen'    => 'sn_evergreen',
 		'_sn_noindex'      => 'sn_noindex',
 		'_sn_noarchive'    => 'sn_noarchive',
