@@ -343,10 +343,8 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	if ( function_exists( 'sn_health_last_scan' ) ) {
 		$scan = sn_health_last_scan();
 		if ( is_array( $scan ) ) {
-			// v11.15.0: the HEALTH card counts the health surface, like the tab it
-			// links to. It was counting the whole envelope, so ledger_ci — an
-			// Integrity trust check since v11.13.0 — still read as a Health finding.
-			$findings = sn_health_finding_total( sn_health_scan_for_surface( $scan ) );
+			// Scoped inside sn_health_finding_total() since v11.16.1.
+			$findings = sn_health_finding_total( $scan );
 			$age  = ! empty( $scan['scanned_at'] ) ? human_time_diff( (int) $scan['scanned_at'], time() ) . ' ago' : 'age unknown';
 			$cards[] = array(
 				'label'     => 'Health',

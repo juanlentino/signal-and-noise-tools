@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.16.1] - 2026-08-18 — the scoping moves into the accessors
+
+### Fixed
+- **The Dashboard contradicted itself.** The HEALTH card read *"0 findings · all
+  clear"* while the attention strip directly beneath it said *"Needs attention: 1
+  health finding"* — two readouts, one page, opposite answers.
+- **The real defect was the method, not the strip.** v11.13.0 moved measurements,
+  trust checks and worklists off the Health surface, and every readout that says
+  "health" had to follow. That was done caller by caller, and caller by caller is
+  exactly how callers get missed: it took three passes (desktop widget, then
+  Dashboard card + Site Health widget + MCP ability) and **five were still unscoped**
+  — the attention strip, the desktop attention badge, the run-scan ability, the
+  morning brief, and the post-scan notice.
+- **So the scoping moved into the accessors.** `sn_health_finding_total()`,
+  `advisory_total()`, `flagged_checks()`, `passing_checks()` and `check_total()` now
+  narrow to the health surface themselves. "How many findings" means "health
+  findings" wherever it is asked, and a new consumer is correct without knowing any
+  of this history. Narrowing is idempotent, so callers that already scoped lose
+  nothing, and the per-caller narrowing added in v11.15.0 is simplified back out.
+- **The envelope is untouched.** `sn_health_run_scan()` still returns all 21 checks
+  and the MCP payload keeps its shape; anything that genuinely wants the whole scan
+  reads `$scan['checks']` directly.
+
+### Changed
+- The Health hero no longer names advisories, because they are no longer on the
+  surface it counts. The intent of that line survives where it now belongs: the
+  tab's **"Also scanned, shown elsewhere"** block names every relocated check with
+  its count, so relocating still never reads as deleting.
+
+### Verified
+- **449 test files pass, zero failures.**
+- The behaviour is pinned at the accessor, which is the assertion that would have
+  ended this in one pass instead of four: each of the five now proves it scopes
+  itself, that narrowing twice equals narrowing once, and that the caller's scan is
+  never mutated. Negative-controlled by un-scoping `finding_total` and watching it
+  fail.
+
 ## [11.16.0] - 2026-08-18 — a cold cache stops leading the Dashboard
 
 ### Fixed

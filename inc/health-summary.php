@@ -53,6 +53,7 @@ function sn_health_advisory_checks() {
  * @return int Sum of every fault-tier check's count (0 when there is no scan).
  */
 function sn_health_finding_total( $scan ) {
+	$scan  = sn_health_scan_for_surface( $scan );
 	$total = 0;
 	if ( ! is_array( $scan ) ) {
 		return $total;
@@ -75,6 +76,7 @@ function sn_health_finding_total( $scan ) {
  * @since 8.0.4
  */
 function sn_health_advisory_total( $scan ) {
+	$scan  = sn_health_scan_for_surface( $scan );
 	$total = 0;
 	if ( ! is_array( $scan ) ) {
 		return $total;
@@ -142,6 +144,7 @@ function sn_health_report_checks( $scan ) {
  * @since 10.83.0
  */
 function sn_health_passing_checks( $scan ) {
+	$scan = sn_health_scan_for_surface( $scan );
 	if ( ! is_array( $scan ) ) {
 		return array();
 	}
@@ -182,6 +185,29 @@ function sn_health_scan_for_surface( $scan, $surface = 'health' ) {
 	$scan['checks'] = sn_health_checks_for_surface( $scan, $surface );
 	return $scan;
 }
+
+/**
+ * WHY THE ACCESSORS BELOW NARROW THEMSELVES (v11.16.1).
+ *
+ * v11.13.0 moved measurements, trust checks and worklists off the Health
+ * surface, and every readout that says "health" had to follow. That was done
+ * caller by caller — and caller by caller is precisely how callers get missed.
+ * It took three passes: the desktop widget, then the Dashboard card + Site
+ * Health widget + MCP ability, and the Dashboard's own attention strip STILL
+ * said "1 health finding" beside a card reading "0 findings · all clear". Two
+ * readouts, one page, opposite answers. Five more consumers were still
+ * unscoped: the attention strip, the desktop attention badge, the run-scan
+ * ability, the morning brief, and the post-scan notice.
+ *
+ * So the scoping moved INTO the accessors. "How many findings" now means
+ * "health findings" wherever it is asked, and a new consumer is correct
+ * without having to know this history. Anything that genuinely wants the whole
+ * envelope reads $scan['checks'] directly — sn_health_run_scan() still returns
+ * all 21 checks and the MCP envelope is unchanged.
+ *
+ * Narrowing is idempotent, so a caller that already scoped (the Health tab)
+ * loses nothing by passing a scoped scan in.
+ */
 
 /**
  * The COMPLETE partition of a scan's checks, in one place.
@@ -274,6 +300,7 @@ function sn_health_passed_meta( $scan ) {
  * @since 7.1.0
  */
 function sn_health_check_total( $scan ) {
+	$scan = sn_health_scan_for_surface( $scan );
 	if ( ! is_array( $scan ) ) {
 		return 0;
 	}
@@ -291,6 +318,7 @@ function sn_health_check_total( $scan ) {
  * @return array<string,array> key => check envelope, count>0 only, count-desc.
  */
 function sn_health_flagged_checks( $scan ) {
+	$scan = sn_health_scan_for_surface( $scan );
 	if ( ! is_array( $scan ) ) {
 		return array();
 	}

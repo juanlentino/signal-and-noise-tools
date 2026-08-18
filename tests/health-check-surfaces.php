@@ -107,6 +107,33 @@ ok( 3 === count( $mixed['checks'] ), 'the caller\'s scan is not mutated — the 
 ok( 123 === $narrowed['scanned_at'], 'and the rest of the envelope rides along' );
 ok( null === sn_health_scan_for_surface( null ), 'a missing scan stays missing, never a fatal' );
 
+echo "\nGroup: the accessors scope THEMSELVES — no consumer can forget\n";
+// This is the assertion that would have ended the whole saga in one pass.
+// v11.13.0 moved checks off the Health surface and every readout that says
+// "health" had to follow. Doing it caller-by-caller took THREE passes and still
+// missed five: the Dashboard attention strip said "1 health finding" directly
+// beneath a card reading "0 findings · all clear" — two readouts, one page,
+// opposite answers. The scoping now lives in the accessors, so a consumer is
+// correct without knowing any of this.
+$mixed2 = array( 'checks' => array(
+	'broken_links'       => array( 'count' => 2 ),   // health   — a defect
+	'ledger_ci'          => array( 'count' => 1 ),   // integrity
+	'link_opportunities' => array( 'count' => 18 ),  // worklist, advisory
+	'contrast_tokens'    => array( 'count' => 0, 'report' => array( 'x' => 1 ) ), // integrity
+) );
+ok( 2 === sn_health_finding_total( $mixed2 ), 'finding_total scopes itself — ledger_ci is not a Health finding' );
+ok( 0 === sn_health_advisory_total( $mixed2 ), 'advisory_total scopes itself — the health surface carries no advisory tier' );
+ok( array( 'broken_links' ) === array_keys( sn_health_flagged_checks( $mixed2 ) ), 'flagged_checks scopes itself — attention badges cannot promote an off-surface check' );
+ok( 1 === sn_health_check_total( $mixed2 ), 'check_total scopes itself — the denominator counts this surface' );
+ok( array() === array_keys( sn_health_passing_checks( $mixed2 ) ), 'passing_checks scopes itself (the one health check here has findings)' );
+
+// Idempotent: the Health tab already narrows before calling, and must lose nothing.
+$pre = sn_health_scan_for_surface( $mixed2 );
+ok( sn_health_finding_total( $pre ) === sn_health_finding_total( $mixed2 ), 'narrowing twice is the same as narrowing once' );
+
+// And the raw envelope is still whole for anything that genuinely wants it.
+ok( 4 === count( $mixed2['checks'] ), 'the caller\'s scan still holds every check the scan ran' );
+
 echo "\nGroup: the surfaces partition the scan — nothing lost, nothing double-counted\n";
 $total = count( $map );
 $sum   = 0;
