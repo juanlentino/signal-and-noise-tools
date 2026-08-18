@@ -52,7 +52,12 @@ hcf_ok(
 echo "\n-- exhaustiveness against sn_health_run_scan()'s registry --\n";
 $src = (string) file_get_contents( __DIR__ . '/../inc/health-checks.php' );
 // The registry lines look like: 'missing_alt' => sn_health_check_missing_alt(),
-$matched = preg_match_all( "/'([a-z0-9_]+)'\s*=>\s*(?:sn|snt)_health_check_[a-z0-9_]+\(\s*\)/", $src, $m );
+// v11.11.9: a check may now take ONE pre-computed argument — the stale-posts
+// pair share a single query, so both tiers agree on which posts are stale.
+// The optional group is kept deliberately narrow (one $variable, nothing else)
+// rather than a permissive [^)]*, so this stays a registry parser and does not
+// start matching arbitrary nested calls.
+$matched = preg_match_all( "/'([a-z0-9_]+)'\s*=>\s*(?:sn|snt)_health_check_[a-z0-9_]+\(\s*(?:\\$[a-z_][a-z0-9_]*\s*)?\)/", $src, $m );
 hcf_ok( $matched >= 15, "parsed the scan registry from source (found {$matched} check keys — a parse that found ~0 would make every assertion below vacuous)" );
 
 $map     = sn_health_check_family_map();

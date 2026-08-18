@@ -61,6 +61,7 @@ function sn_health_check_family_map() {
 		// Content: what the posts and media themselves say.
 		'orphaned_media'       => 'content',
 		'stale_posts'          => 'content',
+		'stale_posts_evergreen' => 'content',
 		'drift_time_phrases'   => 'content',
 		'color_drift'          => 'content',
 

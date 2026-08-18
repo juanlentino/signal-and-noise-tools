@@ -81,7 +81,13 @@ echo "\n-- accessor: advisory tier --\n";
 // advisory check (the v8.0.4 state). link_opportunities joins the tier in
 // v8.1.0 — semantic-pair candidates are opportunities, not rot, so they
 // must not flip the site off "all clear" either.
-ok( function_exists( 'sn_health_advisory_checks' ) && sn_health_advisory_checks() === array( 'external_links', 'link_opportunities' ), 'advisory_checks: external_links + link_opportunities are the advisory-tier checks' );
+// v11.11.9 DELIBERATE FLIP, same shape as the v8.1.0 one above: stale_posts_evergreen
+// joins the tier. `_sn_evergreen` stopped being an EXEMPTION (which let the flag
+// hide genuine staleness — ticking a box removed the row instead of explaining
+// it) and became a DECLARATION. The flagged posts are now reported in their own
+// check and must not flip the site off "all clear", because the author already
+// ruled on them.
+ok( function_exists( 'sn_health_advisory_checks' ) && sn_health_advisory_checks() === array( 'external_links', 'link_opportunities', 'stale_posts_evergreen' ), 'advisory_checks: external_links + link_opportunities + stale_posts_evergreen are the advisory-tier checks' );
 ok( sn_health_advisory_total( null ) === 0, 'advisory_total: null scan -> 0' );
 ok( sn_health_advisory_total( $only_ext ) === 4, 'advisory_total: sums advisory-check counts' );
 ok( sn_health_advisory_total( $scan3 ) === 2, 'advisory_total: mixed scan counts only the advisory checks' );

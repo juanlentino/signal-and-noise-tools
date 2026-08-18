@@ -2,6 +2,49 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.12.0] - 2026-08-18 — Evergreen stops hiding what it was only meant to explain
+
+### Changed
+- **`_sn_evergreen` is now ADVISORY, not an exemption** (owner decision). It used to
+  remove a post from Check 4's query outright — `AND ID NOT IN (SELECT … _sn_evergreen …)`
+  — so ticking the box made the row *disappear* rather than explain itself. That is how a
+  declaration turns into a silencer: the flag could hide genuine staleness, and nothing
+  on the Health tab would ever say so.
+- The flag now **partitions instead of filtering**, into two checks fed by ONE query:
+  - `stale_posts` — the fault tier. Unflagged, counts toward the defect total.
+  - `stale_posts_evergreen` — the advisory tier. Flagged, fully reported, and excluded
+    from the defect total by `sn_health_advisory_checks()`.
+- **Why a tier and not just a finding.** A flagged post is stale by measurement *and*
+  intentional by declaration, and both are true at once. Counting it as a defect would
+  hold Health permanently red for posts the author has already ruled on; hiding it was
+  the previous bug. An advisory states the fact without scoring it — the same tier
+  `external_links` and `link_opportunities` already use.
+- This lands on top of v11.11.8's clock change, which is what made the distinction sharp:
+  the question stopped being "has anyone saved this post?" and became "has the prose
+  changed?" — so "the author says it is timeless" and "nobody has touched the argument in
+  two years" are now genuinely separate answers.
+- Rows in both tiers name the clock that measured them, and an advisory row says why it
+  is not a defect (*"marked Evergreen, so this is a note rather than a defect"*).
+
+### Fixed
+- `tests/health-check-families.php` discovered the scan registry with a regex requiring
+  **empty parens**, so the shared-`$scan` argument made both stale checks read as
+  unregistered. Widened to allow exactly one `$variable` — deliberately not a permissive
+  `[^)]*`, so it stays a registry parser. The first fix was itself wrong in a way worth
+  recording: written as `"\$"` in a PHP double-quoted string it collapses to a bare `$`,
+  which the regex engine reads as an **end-of-string anchor**, and the pattern silently
+  matched nothing. It needs `"\\$"`. Key count went 19 → 21, which is the proof.
+
+### Verified
+- **447 test files pass, zero failures** (446 + a new 18-assertion suite,
+  harness negative-controlled).
+- The absent `NOT IN` is asserted directly against the generated SQL — its presence *was*
+  the bug, so its absence is the thing worth pinning.
+- The clock still appears in SELECT, WHERE and ORDER BY (asserted as exactly 3
+  occurrences), or `LIMIT 200` would truncate on a different ordering than it filtered by.
+- Passing a pre-computed scan runs **no** further queries, so the two tiers can never
+  disagree about which posts are stale or which cutoff applied.
+
 ## [11.11.8] - 2026-08-18 — the staleness clock stops resetting on a save that changed nothing
 
 ### Changed
