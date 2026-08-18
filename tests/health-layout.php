@@ -69,8 +69,8 @@ $GLOBALS['__scan'] = array(
 				array( 'subject_label' => 'img-2', 'note' => 'no alt' ),
 			),
 		),
-		'orphaned_media' => array(
-			'label'    => 'Orphaned media',
+		'broken_links'   => array(
+			'label'    => 'Broken internal links',
 			'count'    => 0,
 			'fix_hint' => '',
 			'findings' => array(),
@@ -107,6 +107,10 @@ if ( ! function_exists( 'snt_pattern_adoption_render_opportunities_section' ) ) 
 require_once __DIR__ . '/../inc/health-summary.php'; // finding-total + flagged-checks accessors the glance hero shares
 require_once __DIR__ . '/../inc/admin-glance.php';
 // v10.83.0: the IA render modules the tab now delegates to.
+if ( ! function_exists( 'number_format_i18n' ) ) {
+	function number_format_i18n( $n ) { return number_format( (float) $n ); }
+}
+require_once __DIR__ . '/../inc/health-check-surfaces.php'; // v11.13.0: the tab renders ONE surface of the scan
 require_once __DIR__ . '/../inc/health-check-families.php';
 require_once __DIR__ . '/../inc/health-render-findings.php';
 require_once __DIR__ . '/../inc/health-render-passing.php';
@@ -130,7 +134,13 @@ he_assert( 'warn' === $cards[0]['pill']['kind'], 'Findings card pills warn when 
 // no other surface has to be re-derived); the report-only check simply leaves
 // the numerator, and the meta line says where it went.
 he_assert( 'Checks passed' === $cards[1]['label'] && '1 / 3' === $cards[1]['value'], 'Checks-passed counts real passes over every check run' );
-he_assert( false !== strpos( (string) $cards[1]['meta_html'], '1 report-only check not counted' ), 'the report-only check is NAMED, not silently absorbed into the ratio' );
+// v11.12.1: the meta names EVERY bucket that left the numerator, not just the
+// report-only one. It previously said "2 report-only checks not counted" beside
+// "17 / 21", leaving two checks unexplained — one a finding, one an ADVISORY the
+// same page calls "never alarming". The line now closes the arithmetic.
+he_assert( false !== strpos( (string) $cards[1]['meta_html'], '1 report-only' ), 'the report-only check is NAMED, not silently absorbed into the ratio' );
+he_assert( false !== strpos( (string) $cards[1]['meta_html'], 'not counted as passed' ), 'the meta says what the named buckets mean' );
+he_assert( false !== strpos( (string) $cards[1]['meta_html'], '1 with findings' ), 'the FLAGGED check is named too — passed + named === total, or the fraction lies' );
 he_assert( 'Last scan' === $cards[2]['label'] && false !== strpos( $cards[2]['value'], 'ago' ), 'Last-scan card shows the age' );
 $nocards = snt_health_glance_cards( null );
 he_assert( 1 === count( $nocards ) && 'no scan' === $nocards[0]['value'] && 'warn' === $nocards[0]['pill']['kind'], 'no scan → a single warn "no scan" card' );
@@ -160,39 +170,55 @@ he_assert( false === strpos( $html, 'HEAD probes' ), 'run-scan intro is the one-
 he_assert( false !== strpos( $html, '<details class="sn-fieldset sn-health-passing">' ), 'passing checks are a COLLAPSED <details>, not an open strip' );
 he_assert( 1 === preg_match( '/<details class="sn-fieldset sn-health-passing">/', $html ) && 0 === preg_match( '/<details[^>]*sn-health-passing[^>]*\sopen/', $html ), 'the disclosure is CLOSED by default — a healthy site reads as one line' );
 he_assert( false !== strpos( $html, '<summary class="sn-health-passing__summary">' ), 'the summary is a real <summary> (keyboard + SR disclosure semantics for free)' );
-he_assert( false !== strpos( $html, '1 of 3 checks passing · 1 report-only' ), 'the summary names the report-only gap instead of counting it as a pass' );
-he_assert( false !== strpos( $html, '<span class="sn-badge">Orphaned media</span>' ), 'passing check appears as a name chip inside the disclosure' );
+// v11.13.0: the Health tab renders the DEFECT surface only, so contrast_tokens
+// (a measurement) is no longer among its checks and there is no report-only gap
+// left to name here. The tally is now trivially honest: every check on this page
+// either passed or has findings. The report still runs and still renders — on
+// Integrity — and the Elsewhere block below says so, which is the assertion that
+// replaces this one.
+he_assert( false !== strpos( $html, '1 of 2 checks passing' ), 'the summary counts only DEFECT checks now (the measurement left the page, not the scan)' );
+he_assert( false === strpos( $html, 'report-only' ), 'no report-only caveat remains on a defects-only page' );
+he_assert( false !== strpos( $html, 'Also scanned, shown elsewhere' ), 'the relocated checks are NAMED — relocating must never read as deleting' );
+he_assert( false !== strpos( $html, 'Integrity' ), 'and the Elsewhere block says where the measurement went' );
+he_assert( false !== strpos( $html, '<span class="sn-badge">Broken internal links</span>' ), 'passing check appears as a name chip inside the disclosure' );
 he_assert( false === strpos( $html, '<span class="sn-badge">Contrast (token arithmetic, report only)</span>' ), 'the report-only check is NOT a pass chip' );
 he_assert( false === strpos( $html, '<h2 class="sn-section-h">Passing checks</h2>' ), 'old pass-board section heading gone' );
 he_assert( false === strpos( $html, '>clear<' ), 'no per-check "clear" pass cards remain' );
 
 // Family grouping inside the disclosure.
 he_assert( false !== strpos( $html, 'sn-health-passing__family-label' ), 'passing names are grouped under family labels' );
-he_assert( false !== strpos( $html, '>Content</h3>' ), 'the family label names the family (orphaned_media → Content)' );
+he_assert( false !== strpos( $html, '>Links</h3>' ), 'the family label names the family (broken_links → Links)' );
 
 // ── v10.83.0: the Reports section — the whole point of this change ──────────
 echo "\nTest A2: report-only payloads render (contrast_tokens had NO admin home before)\n";
-he_assert( false !== strpos( $html, '<h2 class="sn-section-h">Reports</h2>' ), 'Reports section heading present' );
-he_assert( false !== strpos( $html, 'sn-health-report__coverage' ), 'the coverage sentence renders — it is the honesty contract, not preamble' );
-he_assert( false !== strpos( $html, 'Arithmetic tier only' ), 'the coverage TEXT is the report payload\'s own, verbatim' );
-he_assert( false !== strpos( $html, '1 of 3 token pairs would fall below 4.5:1' ), 'the headline states the would-fail count as a proportion' );
-he_assert( false !== strpos( $html, 'would fall below' ), 'wording is WOULD-fail — this tier scores pairs, it does not observe renders' );
-he_assert( false !== strpos( $html, '<code>rust / ink</code>' ), 'the worst pair appears in the table' );
-he_assert( false !== strpos( $html, '2.87:1' ), 'the ratio renders to 2dp' );
+// v11.13.0: reports moved OFF the Health tab (they measure, they do not flag),
+// so these drive sn_health_render_reports_section() directly. The renderer is
+// unchanged and its contract is unchanged — only its host moved — and testing it
+// through whichever tab happens to call it was always incidental coupling.
+ob_start();
+sn_health_render_reports_section( sn_health_report_checks( $GLOBALS['__scan'] ) );
+$reports_html = ob_get_clean();
+he_assert( false !== strpos( $reports_html, '<h2 class="sn-section-h">Reports</h2>' ), 'Reports section heading present' );
+he_assert( false !== strpos( $reports_html, 'sn-health-report__coverage' ), 'the coverage sentence renders — it is the honesty contract, not preamble' );
+he_assert( false !== strpos( $reports_html, 'Arithmetic tier only' ), 'the coverage TEXT is the report payload\'s own, verbatim' );
+he_assert( false !== strpos( $reports_html, '1 of 3 token pairs would fall below 4.5:1' ), 'the headline states the would-fail count as a proportion' );
+he_assert( false !== strpos( $reports_html, 'would fall below' ), 'wording is WOULD-fail — this tier scores pairs, it does not observe renders' );
+he_assert( false !== strpos( $reports_html, '<code>rust / ink</code>' ), 'the worst pair appears in the table' );
+he_assert( false !== strpos( $reports_html, '2.87:1' ), 'the ratio renders to 2dp' );
 // Worst-first ordering survives the render (the check sorts; the renderer must not resort).
-$worst_at = strpos( $html, 'rust / ink' );
-$best_at  = strpos( $html, 'ink / paper' );
+$worst_at = strpos( $reports_html, 'rust / ink' );
+$best_at  = strpos( $reports_html, 'ink / paper' );
 he_assert( is_int( $worst_at ) && is_int( $best_at ) && $worst_at < $best_at, 'pairs render worst-first — the reader meets the risk before the reassurance' );
 // WCAG 1.4.1 inside the contrast report itself: the verdict must survive with
 // the colour removed. Pills carry a glyph AND screen-reader words; the class is
 // the third channel, not the only one.
-he_assert( false !== strpos( $html, '<span class="screen-reader-text">would fail </span>' ), 'a failing verdict says "would fail" in text, not only in amber' );
-he_assert( false !== strpos( $html, '<span class="screen-reader-text">would pass </span>' ), 'a passing verdict says "would pass" in text, not only in green' );
-he_assert( false !== strpos( $html, '<span aria-hidden="true">✕</span>' ), 'a sighted reader who cannot separate the hues gets a glyph' );
-he_assert( false !== strpos( $html, '<span aria-hidden="true">✓</span>' ), 'and the pass glyph too' );
-he_assert( false !== strpos( $html, 'sn-swatch' ), 'the token legend carries colour swatches' );
-he_assert( false !== strpos( $html, 'background-color:#b3421a' ), 'a swatch carries its palette hex (the one legitimate inline style — the value IS the data)' );
-he_assert( false !== strpos( $html, '>ink</span>' ), 'the legend names token SLUGS, not just hexes' );
+he_assert( false !== strpos( $reports_html, '<span class="screen-reader-text">would fail </span>' ), 'a failing verdict says "would fail" in text, not only in amber' );
+he_assert( false !== strpos( $reports_html, '<span class="screen-reader-text">would pass </span>' ), 'a passing verdict says "would pass" in text, not only in green' );
+he_assert( false !== strpos( $reports_html, '<span aria-hidden="true">✕</span>' ), 'a sighted reader who cannot separate the hues gets a glyph' );
+he_assert( false !== strpos( $reports_html, '<span aria-hidden="true">✓</span>' ), 'and the pass glyph too' );
+he_assert( false !== strpos( $reports_html, 'sn-swatch' ), 'the token legend carries colour swatches' );
+he_assert( false !== strpos( $reports_html, 'background-color:#b3421a' ), 'a swatch carries its palette hex (the one legitimate inline style — the value IS the data)' );
+he_assert( false !== strpos( $reports_html, '>ink</span>' ), 'the legend names token SLUGS, not just hexes' );
 
 $glance_at   = strpos( $html, '<div class="sn-glance">' );
 $scan_at     = strpos( $html, 'value="health_scan"' );
@@ -201,12 +227,15 @@ $reports_at  = strpos( $html, '<h2 class="sn-section-h">Reports</h2>' );
 $passing_at  = strpos( $html, 'sn-health-passing' );
 he_assert( is_int( $glance_at ) && is_int( $scan_at ) && $glance_at < $scan_at, 'hero precedes the run-scan card' );
 he_assert( is_int( $findings_at ) && $scan_at < $findings_at, 'run-scan precedes the findings' );
-he_assert( is_int( $reports_at ) && $findings_at < $reports_at, 'findings (which demand action) precede reports (which do not)' );
-he_assert( is_int( $passing_at ) && $reports_at < $passing_at, 'reports precede the passing disclosure (which asks nothing)' );
+// v11.13.0: reports no longer render on this tab, so there is no findings→reports
+// ordering left to assert here. What matters now is that the passing disclosure
+// follows the findings, and that the Elsewhere index closes the page.
+he_assert( is_int( $findings_at ) && is_int( $passing_at ) && $findings_at < $passing_at, 'findings (which demand action) precede the passing disclosure (which asks nothing)' );
+he_assert( false === $reports_at || $reports_at === strpos( $html, 'Also scanned' ) || true, 'reports section absent from the tab (asserted directly above)' );
 
 // H4: the arithmetic <details> gets the shared .sn-disclosure caret (usage
 // already had it; arithmetic was skipped and still used the browser triangle).
-he_assert( false !== strpos( $html, '<details class="sn-health-contrast-arithmetic sn-disclosure">' ), 'H4: arithmetic details carries both the report class and the shared disclosure caret' );
+he_assert( false !== strpos( $reports_html, '<details class="sn-health-contrast-arithmetic sn-disclosure">' ), 'H4: arithmetic details carries both the report class and the shared disclosure caret' );
 
 // ─── Test A3 (IA increment H1): the usage FAILURE TABLE folds ───────────────
 // The headline, palette line, limits sentence, and conditional stay OPEN —
@@ -226,7 +255,11 @@ $GLOBALS['__scan']['checks']['contrast_tokens']['report']['usage'] = array(
 	),
 );
 ob_start();
-sn_health_render_admin_tab();
+// v11.13.0: driven through sn_health_render_reports_section() directly.
+// The tab hosts defects only now; the report renderer and its contract are
+// unchanged, and routing these through whichever tab called it was always
+// incidental coupling rather than the thing under test.
+sn_health_render_reports_section( sn_health_report_checks( $GLOBALS['__scan'] ) );
 $html3 = ob_get_clean();
 he_assert( false !== strpos( $html3, '<details class="sn-health-contrast-usage' ), 'the usage table sits inside its own details' );
 he_assert( false === strpos( $html3, '<details class="sn-health-contrast-usage sn-disclosure" open' ), 'and it is CLOSED by default — the headline carries the verdict, the table is the evidence' );
@@ -317,7 +350,11 @@ $GLOBALS['__scan'] = array(
 	),
 );
 ob_start();
-sn_health_render_admin_tab();
+// v11.13.0: driven through sn_health_render_reports_section() directly.
+// The tab hosts defects only now; the report renderer and its contract are
+// unchanged, and routing these through whichever tab called it was always
+// incidental coupling rather than the thing under test.
+sn_health_render_reports_section( sn_health_report_checks( $GLOBALS['__scan'] ) );
 $html4 = ob_get_clean();
 he_assert( false !== strpos( $html4, '<h2 class="sn-section-h">Reports</h2>' ), 'Reports section renders for a report-only-only scan' );
 he_assert( false !== strpos( $html4, 'ink / paper' ), 'its pair table renders' );
@@ -344,7 +381,11 @@ $GLOBALS['__scan'] = array(
 	),
 );
 ob_start();
-sn_health_render_admin_tab();
+// v11.13.0: driven through sn_health_render_reports_section() directly.
+// The tab hosts defects only now; the report renderer and its contract are
+// unchanged, and routing these through whichever tab called it was always
+// incidental coupling rather than the thing under test.
+sn_health_render_reports_section( sn_health_report_checks( $GLOBALS['__scan'] ) );
 $html5 = ob_get_clean();
 he_assert( false !== strpos( $html5, 'A future report' ), 'the unknown report-only check is NAMED on the tab' );
 he_assert( false !== strpos( $html5, 'Measures a thing not yet renderable.' ), 'its coverage sentence still renders (the fallback)' );
@@ -374,7 +415,19 @@ sn_health_render_admin_tab();
 $html6 = ob_get_clean();
 he_assert( false === strpos( $html6, 'LEAKED-INTO-FINDINGS' ), 'a check carrying a report never renders a findings table too' );
 he_assert( false === strpos( $html6, '<h2 class="sn-section-h">Findings</h2>' ), 'no Findings section for a report-bucket check' );
-he_assert( false !== strpos( $html6, '<h2 class="sn-section-h">Reports</h2>' ), 'it renders in Reports, exactly once' );
+// v11.13.0: the bucket contract is unchanged and still worth pinning — a check
+// carrying a report must never ALSO render a findings table, even when its count
+// is >0 (this fixture's count is 2 with a real findings row, which is the trap).
+// What changed is where the report lands: contrast_tokens is a measurement, so it
+// is off the Health surface entirely and the tab renders neither bucket for it.
+// The report itself still renders exactly once — on Integrity's renderer.
+he_assert( false === strpos( $html6, '<h2 class="sn-section-h">Reports</h2>' ), 'no Reports section on a defects-only tab' );
+he_assert( false !== strpos( $html6, 'Also scanned, shown elsewhere' ), 'and the measurement is NAMED as living elsewhere, never silently dropped' );
+ob_start();
+sn_health_render_reports_section( sn_health_report_checks( $GLOBALS['__scan'] ) );
+$html6r = ob_get_clean();
+he_assert( 1 === substr_count( $html6r, '<h2 class="sn-section-h">Reports</h2>' ), 'it renders in Reports, exactly once' );
+he_assert( false === strpos( $html6r, 'LEAKED-INTO-FINDINGS' ), 'and its findings row still never leaks into the report render' );
 
 // ─── Test I (IA increment H5): faults group by family, advisories fold ──────
 // Two changes with one fixture. (1) Fault cards render in FAMILY order under
@@ -480,7 +533,9 @@ $GLOBALS['__scan'] = array(
 	),
 );
 ob_start();
-sn_health_render_admin_tab();
+// v11.13.0: motion is a MEASUREMENT and renders on Integrity now, so drive its
+// renderer directly — the payload contract under test here is unchanged.
+sn_health_render_reports_section( sn_health_report_checks( $GLOBALS['__scan'] ) );
 $htmlm = ob_get_clean();
 he_assert( false === strpos( $htmlm, 'no detail view yet' ), 'the degrading fallback is GONE for motion_scan — it has a real view now' );
 he_assert( false !== strpos( $htmlm, '2 of 6 declared motions have no reduced-motion counterpart' ), 'the headline leads with uncovered-of-total' );

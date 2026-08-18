@@ -69,6 +69,37 @@ function sn_admin_render_trust_section() {
 }
 
 /**
+ * Integrity → Reports (v11.13.0).
+ *
+ * The report-only checks, read out of the same cached Health scan the trust
+ * leaf uses. Nothing about the renderer changed — only its host. A measurement
+ * that spends four sentences explaining it is not counting defects does not
+ * belong on a page whose headline number is a defect count.
+ *
+ * Reads the INTEGRITY surface rather than "every report in the scan", so a
+ * future report-only DEFECT would stay on Health where it belongs.
+ */
+function sn_admin_render_health_reports_section() {
+	$scan = function_exists( 'sn_health_last_scan' ) ? sn_health_last_scan() : null;
+	if ( ! is_array( $scan ) ) {
+		echo '<div class="sn-fieldset"><p class="sn-fieldset-intro">' . esc_html__( 'No scan yet — run one from Measurement → Health.', 'signal-and-noise-tools' ) . '</p></div>';
+		return;
+	}
+	$integrity = sn_health_checks_for_surface( $scan, 'integrity' );
+	$reports   = array();
+	foreach ( $integrity as $key => $check ) {
+		if ( sn_health_check_has_report( $check ) ) {
+			$reports[ $key ] = $check;
+		}
+	}
+	if ( ! $reports ) {
+		echo '<div class="sn-fieldset"><p class="sn-fieldset-intro">' . esc_html__( 'The last scan produced no reports.', 'signal-and-noise-tools' ) . '</p></div>';
+		return;
+	}
+	sn_health_render_reports_section( $reports );
+}
+
+/**
  * Content → Pattern Adoption (v10.46.0).
  *
  * Was not a leaf at all until now: the Opportunities card rendered inline in
