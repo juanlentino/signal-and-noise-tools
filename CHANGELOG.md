@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.16.0] - 2026-08-18 — a cold cache stops leading the Dashboard
+
+### Fixed
+- **Four never-probed workers were outranking a real health finding.** The glance
+  grid sorts by attention and read the pill's `kind` to decide. v11.11.5 had
+  correctly stopped painting a never-probed worker alarm-red — *"cold is not
+  broken"* — and gave it an amber `warn` pill instead; this sort then read the amber
+  and promoted it. A cache purge clears every worker transient at once, so the next
+  Dashboard load put **four cold caches above the HEALTH card**, pushing a genuine
+  finding to fifth. The card's own comment said cold is not broken while the sort
+  said it was the most urgent thing on the page.
+- **The pill was doing two jobs**: how a card *looks* and whether it *jumps*. They're
+  now separate. A card may carry `'attention' => false` to keep its pill and decline
+  to lead; the warming worker card sets it.
+- **The pill stays amber deliberately.** Painting it `ok` would have fixed the order
+  by lying in the other direction — a cold probe is not healthy, it is *unknown*, and
+  telling that truth is exactly what v11.11.5 was for.
+- Absent key means opts-in, so every existing caller is unchanged.
+
+### Verified
+- **449 test files pass, zero failures.**
+- The sort's rule and the dashboard's *wiring* are pinned in separate suites — the
+  glance suite drives the sort directly and passed with or without the dashboard
+  setting the flag, so the fix could have been reverted in that file with everything
+  still green. Both halves now fail loudly: removing the flag fails
+  `tests/admin-tab-dashboard-glance.php`, and expecting the old order fails
+  `tests/admin-glance.php`.
+
 ## [11.15.0] - 2026-08-18 — the page-signing opt-in finally has a control
 
 ### Added

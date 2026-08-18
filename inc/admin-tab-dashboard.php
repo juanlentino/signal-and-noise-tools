@@ -546,6 +546,12 @@ function snt_dashboard_worker_card( $worker ) {
 	if ( 'unknown' === $pkg['state'] && 'warming' === $pkg['reason'] ) {
 		$card['pill']      = array( 'kind' => 'warn', 'text' => 'warming…' );
 		$card['meta_html'] = esc_html( 'first probe scheduled' );
+		// v11.16.0: amber, but not urgent. A purge clears every worker transient
+		// at once, so without this the next Dashboard load puts four cold caches
+		// above a real finding — which is the same sentence this branch already
+		// writes ("cold is not broken"), applied to the ORDER as well as the
+		// colour.
+		$card['attention'] = false;
 	}
 	return $card;
 }
