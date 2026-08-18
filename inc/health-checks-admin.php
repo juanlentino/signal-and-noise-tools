@@ -72,8 +72,10 @@ function snt_health_glance_cards( $scan ) {
 		);
 	}
 
-	$checks      = is_array( $scan['checks'] ?? null ) ? $scan['checks'] : array();
-	$check_count = count( $checks );
+	// v11.16.2: use the scoping accessor, not a hand count. This was correct only
+	// because sn_health_render_admin_tab() pre-narrows the scan it passes in — a
+	// caller handing a RAW scan mixed a scoped numerator with a raw denominator.
+	$check_count = sn_health_check_total( $scan );
 	// Shared accessors (inc/health-summary.php) so this hero, the Dashboard-tab
 	// glance card + attention strip, and the S&N Health widget never disagree.
 	$total    = sn_health_finding_total( $scan );

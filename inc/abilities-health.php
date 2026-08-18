@@ -94,7 +94,12 @@ function snt_ability_get_health_scan( $input ) {
 	if ( ! is_array( $scan ) ) {
 		return null;
 	}
-	$checks  = is_array( $scan['checks'] ?? null ) ? $scan['checks'] : array();
+	// v11.16.2: the DENOMINATOR narrows with the numerator. sn_health_flagged_checks()
+	// has scoped itself to the health surface since v11.16.1, so a hand count of the raw
+	// $scan['checks'] made 'N of N passed' true by construction — a check flagged on
+	// another surface (ledger_ci) left the numerator but stayed in the total.
+	$surface = sn_health_scan_for_surface( $scan );
+	$checks  = is_array( $surface['checks'] ?? null ) ? $surface['checks'] : array();
 	$flagged = array();
 	foreach ( sn_health_flagged_checks( $scan ) as $key => $check ) {
 		$flagged[] = array(
@@ -109,13 +114,12 @@ function snt_ability_get_health_scan( $input ) {
 		'elapsed_ms'     => isset( $scan['elapsed_ms'] ) ? (int) $scan['elapsed_ms'] : null,
 		// v11.15.0: the HEADLINE numbers narrow to the health surface so a caller
 		// asking "how many health findings" gets the same answer the tab shows.
-		// `flagged` and the check counts above still describe every check the scan
-		// ran — the envelope is not reshaped, only the totals are scoped.
-		// Scoped inside the accessors since v11.16.1; `flagged` and the counts
-		// above still describe every check the scan ran.
+		// Scoped inside the accessors since v11.16.1, and since v11.16.2 `flagged`
+		// and BOTH check counts narrow with them — every number in this envelope
+		// now describes the same population, so passed + flagged === total.
 		'finding_total'  => sn_health_finding_total( $scan ),
 		'advisory_total' => sn_health_advisory_total( $scan ),
-		'checks_total'   => count( $checks ),
+		'checks_total'   => sn_health_check_total( $scan ),
 		'checks_passed'  => count( $checks ) - count( $flagged ),
 		'flagged'        => $flagged,
 	);

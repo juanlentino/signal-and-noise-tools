@@ -2,6 +2,51 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.16.2] - 2026-08-18 — the denominator narrows with the numerator
+
+### Fixed
+- **`get-health-scan` reported "21 of 21 checks passed" while a check was failing.**
+  Verified live: `finding_total 0, checks_total 21, checks_passed 21` at a moment when
+  `ledger_ci` genuinely had a finding. A success-only readout — the one shape a health
+  number must never take.
+- **The cause was arithmetic across two populations.** v11.16.1 moved the scoping into
+  the accessors, which was right. But three places still counted `$scan['checks']` BY
+  HAND, so a numerator narrowed to the health surface met a denominator that still
+  counted all 21 checks. A check flagged on the Integrity surface left the numerator
+  and stayed in the total, which makes "N of N passed" true by construction.
+- **All three now ask the accessor.** The MCP ability (the live one), the Health hero
+  in `snt_health_glance_cards()` (correct only because its caller pre-narrowed — a
+  caller handing a raw scan mixed the two), and the morning brief (unattended, the
+  worst place for two numbers that disagree).
+- **A fourth site the audit had missed: the meta line.** `sn_health_check_partition()`
+  was one of only two accessors that did not scope itself, and it feeds
+  `sn_health_passed_meta()`, whose entire contract is that *passed + (what it names) ===
+  total*. With the total finally correct, the explanation underneath it started naming
+  buckets that were not in it. It scopes now, on the same argument v11.16.1 made for
+  advisories: a relocated check is named by "Also scanned, shown elsewhere", never by
+  the hero that no longer counts it.
+- **`sn_health_report_checks()` stays deliberately unscoped.** The Reports section
+  renders `contrast_tokens` — an Integrity-surface check — by design. Scoping it would
+  delete the section rather than fix it.
+
+### Tests
+- **`tests/abilities-health.php` never loaded the surface map**, so
+  `sn_health_scan_for_surface()` hit its `function_exists` guard and handed back an
+  UNSCOPED scan. Every assertion there about a scoped total was vacuous — which is why
+  the suite best placed to catch this regression stayed green through it. It now loads
+  `inc/health-check-surfaces.php`, three assertions were retargeted from the
+  pre-v11.13.0 world they were still describing, and a case with an off-surface check
+  carrying a real finding pins the invariant: *passed + flagged === total, on one
+  population*. Negative-controlled — reintroducing the hand count fails it.
+
+### Known — needs an owner call
+- `advisory_total` is now structurally always **0**. All three advisory-tier checks
+  (`external_links`, `link_opportunities`, `stale_posts_evergreen`) live on the
+  `worklist` surface, so a total scoped to `health` can never see one. Pinned as-is so
+  the constant is visible rather than mistaken for "no advisories"; which surface that
+  field should speak for is a decision like the v11.13.0 "Health = defects only" one,
+  not a silent redefinition.
+
 ## [11.16.1] - 2026-08-18 — the scoping moves into the accessors
 
 ### Fixed

@@ -28,12 +28,13 @@ function snt_morning_brief_collect() {
 	if ( function_exists( 'sn_health_last_scan' ) ) {
 		$scan = sn_health_last_scan();
 		if ( is_array( $scan ) ) {
-			$checks = (array) ( $scan['checks'] ?? array() );
+			// v11.16.2: scoped accessor, so `checks` cannot outrun `findings` in an
+			// unattended email — the worst place for two numbers that disagree.
 			$data['health'] = array(
 				'scanned_at' => (int) ( $scan['scanned_at'] ?? 0 ),
 				'findings'   => function_exists( 'sn_health_finding_total' ) ? sn_health_finding_total( $scan ) : 0,
 				'advisories' => function_exists( 'sn_health_advisory_total' ) ? sn_health_advisory_total( $scan ) : 0,
-				'checks'     => count( $checks ),
+				'checks'     => function_exists( 'sn_health_check_total' ) ? sn_health_check_total( $scan ) : count( (array) ( $scan['checks'] ?? array() ) ),
 			);
 		}
 	}
