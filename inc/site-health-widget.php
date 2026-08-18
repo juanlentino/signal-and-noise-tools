@@ -81,6 +81,9 @@ function sn_site_health_widget_render() {
 		return;
 	}
 
+	// v11.15.0: narrowed to the health surface so this agrees with the Health
+	// tab it links to (see sn_health_scan_for_surface).
+	$scan        = function_exists( 'sn_health_scan_for_surface' ) ? sn_health_scan_for_surface( $scan ) : $scan;
 	$total       = sn_health_finding_total( $scan );
 	$check_total = function_exists( 'sn_health_check_total' ) ? sn_health_check_total( $scan ) : 0;
 	$scanned_at  = ! empty( $scan['scanned_at'] ) ? (int) $scan['scanned_at'] : 0;
