@@ -2,9 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
-
-Queued for the next release at the owner's request — no version bump, no tag.
+## [11.14.0] - 2026-08-18 — the widget agrees with the tab, and the MCP leaf gets its width
 
 ### Fixed
 - **The SN Health desktop widget now counts the same checks the tab does.** After
