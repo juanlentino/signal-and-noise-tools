@@ -114,7 +114,8 @@ function sn_admin_glance_grid( array $cards ) {
  * Sort glance cards so anything needing attention leads. (v10.48.0)
  *
  * PURE and STABLE: err before warn before everything else, and within a class
- * the caller's order is preserved. Stability matters more than it looks — the
+ * the caller's order is preserved. A card carrying `'attention' => false` keeps
+ * its pill but never leads — see the note in the loop. Stability matters more than it looks — the
  * Dashboard's cards are in a deliberate reading order, and a sort that reshuffled
  * the calm ones would make the grid move for no reason on every page load, which
  * is exactly the kind of churn that trains someone to stop reading it.
@@ -124,11 +125,25 @@ function sn_admin_glance_grid( array $cards ) {
  * @return array<int,array<string,mixed>>
  */
 function sn_admin_glance_sort_by_attention( array $cards ) {
-	$rank = array( 'err' => 0, 'warn' => 1 );
+	$rank  = array( 'err' => 0, 'warn' => 1 );
 	$keyed = array();
 	foreach ( array_values( $cards ) as $i => $card ) {
-		$kind    = isset( $card['pill']['kind'] ) ? (string) $card['pill']['kind'] : '';
-		$keyed[] = array( 'r' => $rank[ $kind ] ?? 2, 'i' => $i, 'c' => $card );
+		$kind = isset( $card['pill']['kind'] ) ? (string) $card['pill']['kind'] : '';
+		// v11.16.0: a card may opt OUT of promotion while keeping its pill.
+		//
+		// The pill was doing two jobs — how a card LOOKS and whether it JUMPS —
+		// and the two came apart in v11.11.5. That release correctly stopped
+		// painting a never-probed worker alarm-red ("cold is not broken") and
+		// gave it an amber warming pill instead; this sort then read the amber
+		// and promoted it, so FOUR cold caches led the Dashboard and pushed a
+		// real health finding to fifth. The card's own comment said cold is not
+		// broken while the sort said it was the most urgent thing on the page.
+		//
+		// Painting it 'ok' would fix the order by lying in the other direction:
+		// a cold probe is not healthy, it is unknown. So the pill stays amber
+		// and the card says, separately, that it is not asking for anyone.
+		$wants = ! array_key_exists( 'attention', $card ) || false !== $card['attention'];
+		$keyed[] = array( 'r' => $wants ? ( $rank[ $kind ] ?? 2 ) : 2, 'i' => $i, 'c' => $card );
 	}
 	usort( $keyed, function ( $a, $b ) {
 		return $a['r'] === $b['r'] ? $a['i'] <=> $b['i'] : $a['r'] <=> $b['r'];

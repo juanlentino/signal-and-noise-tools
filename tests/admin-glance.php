@@ -160,5 +160,42 @@ sn_admin_glance_grid( array( array( 'label' => 'A', 'value' => 'B' ) ) );
 $out_i = ob_get_clean();
 ag_assert( false === strpos( $out_i, ' id=' ), 'no id attribute is emitted when the card omits id' );
 
+// ─── attention sort: a card may keep its pill and decline to lead (v11.16.0) ───
+echo "\nattention sort\n";
+$cards = array(
+	array( 'label' => 'Health',        'pill' => array( 'kind' => 'warn', 'text' => 'issues found' ) ),
+	array( 'label' => 'Theme',         'pill' => array( 'kind' => 'ok',   'text' => 'up to date' ) ),
+	array( 'label' => 'Provenance edge','pill' => array( 'kind' => 'warn', 'text' => 'warming…' ), 'attention' => false ),
+	array( 'label' => 'Login guard',   'pill' => array( 'kind' => 'warn', 'text' => 'warming…' ), 'attention' => false ),
+	array( 'label' => 'Broken thing',  'pill' => array( 'kind' => 'err',  'text' => 'failed' ) ),
+);
+$sorted = array_column( sn_admin_glance_sort_by_attention( $cards ), 'label' );
+
+// THE BUG THIS FIXES: v11.11.5 correctly stopped painting a never-probed worker
+// alarm-red and gave it an amber "warming" pill. This sort read the amber and
+// promoted it, so after any cache purge FOUR cold workers led the Dashboard and
+// pushed a real health finding to fifth — the sort contradicting the very
+// sentence that branch had just written, "cold is not broken".
+ag_assert( 'Broken thing' === $sorted[0], 'a real error still leads' );
+ag_assert( 'Health' === $sorted[1], 'a real warning comes next — NOT four cold caches' );
+ag_assert( array_search( 'Provenance edge', $sorted, true ) > array_search( 'Health', $sorted, true ), 'a warming card never outranks a genuine finding' );
+ag_assert( array_search( 'Theme', $sorted, true ) < array_search( 'Provenance edge', $sorted, true ), 'and it sorts with the calm cards, in its declared reading order' );
+
+// The pill itself is untouched: amber is honest, because a cold probe is not
+// healthy — it is unknown. Painting it green would fix the order by lying the
+// other way.
+$warming = null;
+foreach ( sn_admin_glance_sort_by_attention( $cards ) as $c ) {
+	if ( 'Provenance edge' === $c['label'] ) { $warming = $c; }
+}
+ag_assert( 'warn' === ( $warming['pill']['kind'] ?? '' ), 'the warming card KEEPS its amber pill — it opts out of leading, not out of being noticed' );
+
+// Absent key = opts in, so every existing caller is unchanged.
+$legacy = array(
+	array( 'label' => 'Calm', 'pill' => array( 'kind' => 'ok', 'text' => 'fine' ) ),
+	array( 'label' => 'Loud', 'pill' => array( 'kind' => 'warn', 'text' => 'look' ) ),
+);
+ag_assert( 'Loud' === array_column( sn_admin_glance_sort_by_attention( $legacy ), 'label' )[0], 'a card with no attention key still leads on its pill (no behaviour change for existing callers)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

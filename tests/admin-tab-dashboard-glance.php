@@ -319,5 +319,32 @@ dg_assert( ! isset( $bare['meta_html'] ), 'unknown with no recorded reason degra
 // a stale error from an hour ago must not caption a card that just succeeded.
 dg_assert( '' === ( $theme['reason'] ?? 'MISSING' ), 'deploy_status_for always returns a reason key (empty when there is nothing to say)' );
 
+// ─── the warming worker card opts out of leading (v11.16.0) ───
+//
+// The sort's own suite covers the RULE; this covers the WIRING, which is the
+// half that was missing: tests/admin-glance.php passes with or without the
+// dashboard setting the flag, because it drives the sort directly. Without an
+// assertion here, the fix could be reverted in this file and every suite would
+// still be green.
+echo "\nwarming worker card\n";
+$cold = snt_dashboard_worker_card( array(
+	'label'  => 'Provenance edge',
+	'live'   => '',
+	'latest' => '1.10.3',
+	'state'  => 'unknown',
+	'reason' => 'warming',
+) );
+dg_assert( 'warn' === ( $cold['pill']['kind'] ?? '' ), 'a cold probe is amber — unknown, not healthy and not broken' );
+dg_assert( isset( $cold['attention'] ) && false === $cold['attention'], 'and it declines to lead: a purge clears every worker transient at once, so four cold caches must not outrank a real finding' );
+
+$hot = snt_dashboard_worker_card( array(
+	'label'  => 'Provenance edge',
+	'live'   => '1.10.3',
+	'latest' => '1.10.3',
+	'state'  => 'ok',
+	'reason' => '',
+) );
+dg_assert( ! isset( $hot['attention'] ) || false !== $hot['attention'], 'a probed card is untouched — the opt-out is scoped to the warming branch' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
