@@ -2,6 +2,63 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.13.0] - 2026-08-18 — Health answers one question again
+
+### Changed
+- **The Health tab renders defects only.** It had become four kinds of thing on one
+  scroll under a single fraction — defects, worklists, measurements, scan meta — and
+  carried **seven disclaimers**, four of which existed to tell the reader the numbers
+  above them do not mean what they look like ("a red row here is a 'would fail', not a
+  live defect"; "a clean sweep here is not proof a reduced-motion visitor sees no
+  motion"). **21 checks → 8.**
+- **Nothing was accreted on purpose; that is the point.** Every arc that added a tier
+  added a disclaimer with it, and each one explicitly declined to remove anything —
+  v10.97.0 says so in its own words: *"Nothing is dropped or relocated: every row stays
+  on the page."* Individually justified, cumulatively unreadable.
+- **Ownership moved into a map, not more prose.** [inc/health-check-surfaces.php](inc/health-check-surfaces.php)
+  gives every check exactly one surface — `health` (a defect), `integrity` (a
+  measurement), `deploy` (a fact about a repo or worker), `worklist` (an opportunity
+  the scan door already owns). A check earns the Health surface only if its finding is
+  a defect, it can reach zero, and no other surface already owns it.
+- **The scan is unchanged.** All 21 checks still run and the envelope keeps its shape,
+  so every MCP consumer and the desktop payloads are untouched. The scan is the data
+  layer; a tab is one renderer of it.
+
+### Fixed
+- **Four checks were rendering on two surfaces at once.** `provenance_integrity`,
+  `rights_signals`, `rights_anchored` and `ledger_ci` moved to Integrity → Trust checks
+  in **v10.47.0** — as "the four trust checks that had been marooned as rows inside an
+  eighteen-row Health tab" — and were still being counted and rendered on Health as
+  well. The earlier move was right; it simply never removed the original.
+- **`external_links` was mis-tiered as advisory.** A cited source that now 4xx/5xx is
+  wrong on the page today — link ROT, not a link opportunity. It is a defect, and its
+  presence in the advisory tier is part of why the advisory disclaimer outlived the
+  tier's real membership.
+- **The passed fraction did not account for itself.** "17 / 21 · 2 report-only checks
+  not counted" left two checks unexplained, reading as two failures when one was a
+  finding and one an advisory. `sn_health_passed_meta()` now names every bucket that
+  left the numerator, so `passed + what the line names === total` always closes.
+
+### Added
+- **Integrity → Reports**, hosting `contrast_tokens` and `motion_scan`. The renderer is
+  unchanged; only its host moved. They join the trust checks that left the same page
+  for the same reason.
+- **"Also scanned, shown elsewhere"** on Health — every relocated check named, with its
+  count and where it now lives. Relocating must never read as deleting; silence taken
+  for freshness is the failure this whole arc is about. Counts are shown deliberately:
+  omitting them would have re-hidden the declared-Evergreen posts that v11.12.0 exists
+  to surface.
+
+### Verified
+- **448 test files pass, zero failures**, including a new 27-assertion surfaces suite.
+- The surface map is EXHAUSTIVE by contract in both directions — a new check must
+  declare where it renders instead of defaulting onto the defect count, which is the
+  accretion this map exists to stop.
+- Every destination named on the page was checked to exist. The first draft pointed at
+  "Content → scan", which is not a leaf (Content is now/uses/resume/tags/
+  pattern-adoption/block-migrations/vocabulary) — a pointer to a tab that isn't there
+  would be a worse failure than the clutter removed.
+
 ## [11.12.0] - 2026-08-18 — Evergreen stops hiding what it was only meant to explain
 
 ### Changed

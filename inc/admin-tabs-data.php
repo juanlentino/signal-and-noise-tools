@@ -316,6 +316,12 @@ function sn_admin_top_tabs() {
 				// Second in order deliberately — Provenance already opens with its own
 				// glance hero, and two heroes stacked would read as one repeated.
 				'trust'      => array( 'label' => 'Trust checks', 'render' => 'sn_admin_render_trust_section', 'wide' => true ),
+				// v11.13.0: the two report-only checks. They measure and publish
+				// rather than flag — their own copy says "a red row here is a
+				// 'would fail', not a live defect" — so a page whose headline is
+				// a defect count was the wrong host. They join the trust checks
+				// that already moved here for the same reason in v10.47.0.
+				'reports'    => array( 'label' => 'Reports', 'render' => 'sn_admin_render_health_reports_section', 'wide' => true ),
 				// Links last — reference shortcuts (GitHub, release pages, Cloudflare, Cloudways).
 				'links'      => array( 'label' => 'Links', 'render' => 'sn_admin_render_links_section' ),
 			),

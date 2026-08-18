@@ -151,6 +151,87 @@ function sn_health_passing_checks( $scan ) {
 }
 
 /**
+ * The COMPLETE partition of a scan's checks, in one place.
+ *
+ * WHY THIS EXISTS: the Health tab showed "17 / 21 passed · 2 report-only checks
+ * not counted", which invites the reader to conclude 21-17-2 = two failures. In
+ * fact only ONE was a finding; the other was `link_opportunities`, an ADVISORY —
+ * a tier the same page describes as "surfaced, never alarming… a clean site can
+ * carry them indefinitely". The fraction silently demoted an advisory into the
+ * defect bucket, and that gap is most of the "Health feels unreliable" problem.
+ *
+ * v10.83.0 already fixed exactly this shape for the report-only tier by naming
+ * it in a meta line. The bug was that the fix was specific to one tier instead
+ * of general, so the NEXT tier to leave the numerator re-opened the hole —
+ * which `stale_posts_evergreen` (v11.12.0) would have done the moment it
+ * carried a row.
+ *
+ * The buckets are mutually exclusive and MUST sum to the total. That invariant
+ * is asserted in tests/health-tally-partition.php: a future tier that forgets to
+ * declare itself fails the suite instead of quietly vanishing from the tally.
+ *
+ * Precedence matches sn_health_passing_checks(): a report is a report first.
+ *
+ * @param array|null $scan
+ * @return array{passed:int,findings:int,advisories:int,reports:int,total:int}
+ */
+function sn_health_check_partition( $scan ) {
+	$out = array( 'passed' => 0, 'findings' => 0, 'advisories' => 0, 'reports' => 0, 'total' => 0 );
+	if ( ! is_array( $scan ) ) {
+		return $out;
+	}
+	$advisory_keys = sn_health_advisory_checks();
+	foreach ( (array) ( $scan['checks'] ?? array() ) as $key => $check ) {
+		++$out['total'];
+		if ( sn_health_check_has_report( $check ) ) {
+			++$out['reports'];
+			continue;
+		}
+		if ( 0 === (int) ( $check['count'] ?? 0 ) ) {
+			// An advisory check with nothing to say has genuinely passed.
+			++$out['passed'];
+			continue;
+		}
+		if ( in_array( (string) $key, $advisory_keys, true ) ) {
+			++$out['advisories'];
+			continue;
+		}
+		++$out['findings'];
+	}
+	return $out;
+}
+
+/**
+ * The one-line accounting for everything that is NOT in the passed numerator.
+ *
+ * Returns '' when every check passed — there is nothing to explain. Otherwise
+ * it names each bucket, so `passed + (what this line lists) === total` always
+ * closes on screen. Counts CHECKS, never items: `link_opportunities` is one
+ * advisory-carrying check whatever its 18 rows say, and conflating the two is
+ * how "18 advisories" started reading like eighteen missing checks.
+ *
+ * @param array|null $scan
+ * @return string
+ */
+function sn_health_passed_meta( $scan ) {
+	$p     = sn_health_check_partition( $scan );
+	$parts = array();
+	if ( $p['findings'] > 0 ) {
+		$parts[] = sprintf( '%d with findings', $p['findings'] );
+	}
+	if ( $p['advisories'] > 0 ) {
+		$parts[] = sprintf( '%d advisory-only', $p['advisories'] );
+	}
+	if ( $p['reports'] > 0 ) {
+		$parts[] = sprintf( '%d report-only', $p['reports'] );
+	}
+	if ( ! $parts ) {
+		return '';
+	}
+	return implode( ' · ', $parts ) . ' — not counted as passed';
+}
+
+/**
  * Total number of checks in a scan (regardless of findings). Lets a surface show
  * a reassuring "M checks passed" (all-clear) or "F of M checks flagged" without
  * re-deriving the denominator inline. Single source of truth, like its siblings.
