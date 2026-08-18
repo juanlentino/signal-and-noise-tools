@@ -54,7 +54,10 @@ $health = array_keys( array_filter( $map, function ( $s ) { return 'health' === 
 foreach ( array( 'link_opportunities', 'contrast_tokens', 'motion_scan', 'ledger_ci', 'unlinked_mentions', 'ml_cousins', 'orphaned_media', 'ml_cadence', 'stale_posts_evergreen', 'edge_workers', 'provenance_integrity', 'rights_signals', 'rights_anchored' ) as $off ) {
 	ok( ! in_array( $off, $health, true ), "'$off' is NOT on the Health surface" );
 }
-ok( in_array( 'external_links', $health, true ), "external_links IS a defect (link ROT — a cited source that 4xx/5xx is wrong on the page today), re-tiered off advisory" );
+// external_links is NOT a defect: a dead cited source is wrong on the page, but
+// it can never reach zero (the external web rots outside our control), which is
+// the second half of the Health test. It stays advisory and renders as a queue.
+ok( ! in_array( 'external_links', $health, true ), 'external_links is a standing QUEUE, not a defect — it can never reach zero' );
 ok( in_array( 'stale_posts', $health, true ), 'stale_posts stays a defect' );
 ok( in_array( 'broken_links', $health, true ) && in_array( 'missing_alt', $health, true ), 'the obvious defects stay' );
 
@@ -71,6 +74,19 @@ ok( array( 'edge_workers' ) === array_keys( sn_health_checks_for_surface( $scan,
 ok( array( 'ledger_ci' ) === array_keys( sn_health_checks_for_surface( $scan, 'integrity' ) ) || true, 'ledger_ci is an Integrity trust check (it already rendered there)' );
 ok( array( 'link_opportunities' ) === array_keys( sn_health_checks_for_surface( $scan, 'worklist' ) ), 'worklist surface returns the opportunity' );
 ok( array() === sn_health_checks_for_surface( null, 'health' ), 'a missing scan yields nothing, never a fatal' );
+
+echo "\nGroup: the two sources of truth may not contradict each other\n";
+// A key that is health-surface AND advisory makes two opposite claims: "counts
+// as a defect" and "never counts as a defect". external_links was exactly that
+// for one commit — the surface map called it a defect while
+// sn_health_advisory_checks() still excluded it from the finding count, so it
+// silently failed to appear as a fault anywhere.
+require_once __DIR__ . '/../inc/health-summary.php';
+$advisory = sn_health_advisory_checks();
+$health   = array_keys( array_filter( $map, function ( $s ) { return 'health' === $s; } ) );
+$both     = array_intersect( $advisory, $health );
+ok( empty( $both ), 'no key is BOTH a defect and an advisory: ' . ( empty( $both ) ? 'none' : 'CONTRADICTORY → ' . implode( ', ', $both ) ) );
+ok( in_array( 'external_links', $advisory, true ), 'external_links stays advisory — unchanged contract, only its render surface moved' );
 
 echo "\nGroup: the surfaces partition the scan — nothing lost, nothing double-counted\n";
 $total = count( $map );

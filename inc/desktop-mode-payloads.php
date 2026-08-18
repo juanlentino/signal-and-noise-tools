@@ -91,6 +91,22 @@ function snt_health_summary_for_localize() {
 		return null;
 	}
 
+	// v11.13.2: this is the SN **Health** widget, so it counts the HEALTH
+	// surface — the same eight defect checks the tab renders. It was reading
+	// the whole envelope, which is why it still said "17/19 · 18 advisories"
+	// and listed Public ledger CI as a fault after v11.13.0 moved that check to
+	// Integrity. The envelope deliberately did not change; the widget's reading
+	// of it had to.
+	//
+	// A widget disagreeing with the tab it links to is worse than either number
+	// alone: the reader cannot tell which one is stale.
+	if ( function_exists( 'sn_health_checks_for_surface' ) ) {
+		$scan['checks'] = sn_health_checks_for_surface( $scan, 'health' );
+		if ( ! $scan['checks'] ) {
+			return null;
+		}
+	}
+
 	$flagged_map = sn_health_flagged_checks( $scan );
 	$flagged_n   = count( $flagged_map );
 
@@ -99,12 +115,14 @@ function snt_health_summary_for_localize() {
 	// a verdict a check that cannot fail must not be able to earn.
 	//
 	// This widget drops them from the DENOMINATOR as well as the numerator,
-	// unlike the Health tab. That is deliberate, not drift: the tab has room
-	// for a meta line naming the gap ("17 of 19 · 1 report-only"), and this
-	// card is a one-line glance where a green dot beside "17/19" would read as
-	// two silent failures. Both surfaces agree on the number that matters —
-	// 17 passed — and neither counts a report as one. `report_only` rides the
-	// payload so the card can name the gap later without a server change.
+	// unlike the Health tab. `report_only` rides the payload so the card can
+	// name the gap without a server change.
+	//
+	// v11.13.2: on the health surface this is now always 0 — measurements live
+	// on Integrity. The subtraction stays because it is the CORRECT rule for a
+	// report-only check, and a future report-only DEFECT would land here; a
+	// guard removed because it currently matches nothing is a guard that is
+	// missing the day it would have mattered.
 	$report_n = function_exists( 'sn_health_report_checks' ) ? count( (array) sn_health_report_checks( $scan ) ) : 0;
 	$total    = max( 0, sn_health_check_total( $scan ) - $report_n );
 	$passed   = function_exists( 'sn_health_passing_checks' )

@@ -177,6 +177,7 @@ function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = fal
 // imagined. (v9.52.0 review caught exactly that: an invented `passed` key on
 // each check, a shape sn_health_run_scan() has never produced.)
 require_once __DIR__ . '/../inc/health-summary.php';
+require_once __DIR__ . '/../inc/health-check-surfaces.php'; // v11.13.2: the widget counts the HEALTH surface, like the tab
 
 // Same rule for the forecast engine: inc/analytics-signals.php is pure array
 // maths (its only WP touchpoints are apply_filters + wp_parse_url, both stubbed
@@ -649,6 +650,41 @@ ok( ( $h['passed'] ?? 0 ) === 3, 'health summary counts passed = checks with zer
 ok( ( $h['all_passed'] ?? true ) === false, 'health summary flags the failing check' );
 ok( ( $h['scanned_at'] ?? null ) === 1752660000, 'health summary carries scanned_at as the INT timestamp it really is' );
 
+// ── v11.13.2: the widget counts the HEALTH surface, exactly like the tab ──
+//
+// It read the whole envelope, so after v11.13.0 moved measurements to Integrity
+// and worklists to the scan door it still reported "17/19 · 18 advisories" and
+// listed Public ledger CI as a fault — a widget disagreeing with the tab it
+// links to, which is worse than either number alone because the reader cannot
+// tell which is stale.
+$GLOBALS['__health_scan'] = fixture_scan( array(
+	'missing_alt'        => 0,   // health  — passes
+	'broken_links'       => 3,   // health  — a real defect
+	'ledger_ci'          => 1,   // INTEGRITY — a trust check, not a content defect
+	'link_opportunities' => 18,  // WORKLIST  — an opportunity, never a fault
+	'ml_cousins'         => 4,   // WORKLIST
+), 1752660000 );
+$hs = snt_health_summary_for_localize();
+ok( ( $hs['total'] ?? 0 ) === 2, 'widget total counts ONLY the health surface (2), not all five checks' );
+ok( ( $hs['passed'] ?? 0 ) === 1, 'widget passed counts only health-surface passes' );
+$flagged_keys = array_map( static function ( $f ) { return $f['key'] ?? ''; }, (array) ( $hs['flagged'] ?? array() ) );
+ok( in_array( 'broken_links', $flagged_keys, true ), 'a real defect still shows in the widget' );
+ok( ! in_array( 'ledger_ci', $flagged_keys, true ), 'ledger_ci does NOT show as a fault — it is an Integrity trust check now' );
+ok( ! in_array( 'link_opportunities', $flagged_keys, true ), 'a worklist never shows as a fault' );
+
+// Same scan, same numbers, both surfaces: the widget and the tab must agree.
+$tab_passed = count( sn_health_passing_checks( array( 'checks' => sn_health_checks_for_surface( $GLOBALS['__health_scan'], 'health' ) ) ) );
+ok( ( $hs['passed'] ?? -1 ) === $tab_passed, 'widget and tab derive the SAME passed count from the same scan' );
+
+// Restore the four-check fixture the assertions below were written against —
+// this block borrowed the global and must hand it back unchanged.
+$GLOBALS['__health_scan'] = fixture_scan( array(
+	'missing_alt'  => 0,
+	'broken_links' => 3,
+	'stale_posts'  => 0,
+	'color_drift'  => 0,
+), 1752660000 );
+
 // ═══ v10.83.0: report-only checks are neither passes nor denominator ═══
 // `total - flagged` counted a report-only check as a pass. This card is a
 // one-line glance with no room to name the gap, so report-only leaves BOTH
@@ -668,7 +704,13 @@ $GLOBALS['__health_scan']['checks']['contrast_tokens']['report'] = array(
 $rep = snt_health_summary_for_localize();
 ok( ( $rep['passed'] ?? -1 ) === 1, 'report-only: passed counts ONLY the real pass (1), not the report' );
 ok( ( $rep['total'] ?? -1 ) === 2, 'report-only: the report leaves the denominator too (2, not 3)' );
-ok( ( $rep['report_only'] ?? -1 ) === 1, 'report-only: the payload carries the count so the card can name it later' );
+// v11.13.2: contrast_tokens is a MEASUREMENT and lives on Integrity, so it is
+// not on the health surface this widget counts — report_only is 0 here. The KEY
+// must still be present and zero, never absent: never-measured and measured-zero
+// are different answers, and a card that cannot tell them apart is the bug this
+// payload field exists to prevent.
+ok( array_key_exists( 'report_only', (array) $rep ), 'report-only: the payload still CARRIES the key (present-and-zero, not absent)' );
+ok( ( $rep['report_only'] ?? -1 ) === 0, 'report-only: zero on the health surface — measurements moved to Integrity' );
 ok( ( $rep['all_passed'] ?? true ) === false, 'report-only: a real fault still fails the summary' );
 
 // And on a clean site the ratio must be FULL — the green dot and the numbers
@@ -691,15 +733,26 @@ $clean = snt_health_summary_for_localize();
 ok( ( $clean['passed'] ?? -1 ) === 3, 'a spotless scan reports every check passed (not 0)' );
 ok( ( $clean['all_passed'] ?? false ) === true, 'a spotless scan is all_passed' );
 
-// Advisory-tier checks (external_links, link_opportunities) carry findings by
-// nature and must NOT read as failures — mirrors sn_health_flagged_checks().
+// Advisory-tier checks carry findings by nature and must NOT read as failures —
+// mirrors sn_health_flagged_checks(). v11.13.2: external_links is no longer one
+// of them (link rot is a defect), so the fixture uses the two that remain, both
+// of which now live off the health surface entirely.
 $GLOBALS['__health_scan'] = fixture_scan( array(
-	'missing_alt'       => 0,
-	'external_links'    => 42,
-	'link_opportunities' => 7,
+	'missing_alt'           => 0,
+	'link_opportunities'    => 7,
+	'stale_posts_evergreen' => 4,
 ) );
 $adv = snt_health_summary_for_localize();
 ok( ( $adv['all_passed'] ?? false ) === true, 'advisory findings alone do not fail the health summary' );
+
+// Link rot alone still leaves the site all-clear: advisory, never alarming.
+$GLOBALS['__health_scan'] = fixture_scan( array(
+	'missing_alt'        => 0,
+	'external_links'     => 42,
+	'link_opportunities' => 7,
+) );
+$rot = snt_health_summary_for_localize();
+ok( ( $rot['all_passed'] ?? false ) === true, 'link rot alone does NOT fail the summary — it can never reach zero, so it is a queue' );
 
 $GLOBALS['__health_scan'] = null;
 ok( snt_health_summary_for_localize() === null, 'health summary is null with no scan (never a fake pass)' );
@@ -988,7 +1041,13 @@ ok( count( $h['flagged'] ) === 2, 'only the two real faults are flagged (advisor
 ok( ( $h['flagged'][0]['count'] ?? 0 ) === 7, 'flagged checks are ranked by count, worst first' );
 ok( ( $h['flagged'][0]['label'] ?? '' ) !== '', 'each flagged check carries a human label — "what is wrong", not just a key' );
 ok( ( $h['findings_total'] ?? null ) === 10, 'findings_total sums the fault-tier findings (3 + 7)' );
-ok( ( $h['advisory_total'] ?? null ) === 47, 'advisory_total is reported separately (42 + 5) — advisories are not faults' );
+// external_links keeps its ADVISORY TIER — link rot can never reach zero, so it
+// is a queue, not a defect. What moved is only its render SURFACE: it and
+// link_opportunities are both worklists now, so this widget (which counts the
+// health surface, like the tab it links to) sees neither. advisory_total is 0
+// here not because the tier vanished but because none of it is on this surface.
+ok( ( $h['advisory_total'] ?? null ) === 0, 'the widget reports 0 advisories — the health surface carries none (the tier still exists elsewhere)' );
+ok( in_array( 'external_links', sn_health_advisory_checks(), true ), 'and external_links is still advisory globally — the tier is unchanged, only the surface moved' );
 ok( ( $h['all_passed'] ?? true ) === false, 'a scan with faults is not all_passed' );
 
 echo "\n── site-views fail-soft (the REAL failure mode: empty rollup, not AE) ──\n";

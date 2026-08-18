@@ -49,10 +49,6 @@ function sn_health_check_surface_map() {
 		// ── DEFECTS ────────────────────────────────────────────────────────
 		'missing_alt'           => 'health',
 		'broken_links'          => 'health',
-		// Link ROT, not a link opportunity: a cited source that now 4xx/5xx is
-		// wrong on the page today. It sat in the advisory tier, which is why the
-		// advisory disclaimer outlived the tier's real membership.
-		'external_links'        => 'health',
 		'stale_posts'           => 'health',
 		'drift_time_phrases'    => 'health',
 		'color_drift'           => 'health',
@@ -92,6 +88,12 @@ function sn_health_check_surface_map() {
 		// Same shape: a mention that could be a link. Zero-AI at scan time,
 		// applied through ai-link-suggest — the same door as the pairs above.
 		'unlinked_mentions'     => 'worklist',
+		// Link rot. A dead cited source IS wrong on the page — but it can never
+		// reach zero: the external web decays continuously and outside our
+		// control, which is the second half of the Health test and the reason
+		// this has been advisory since 2026-07-02. It is a standing queue, not
+		// a fault, so it renders with the other queues.
+		'external_links'        => 'worklist',
 		// Duplicated by sn_scan's near_duplicate adapter.
 		'ml_cousins'            => 'worklist',
 		// Duplicated by sn_scan's orphan_media adapter; its own fix hint is
