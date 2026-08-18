@@ -468,9 +468,16 @@ $GLOBALS['__scan'] = array(
 		),
 	),
 );
+// v11.13.0: advisories no longer reach the Health tab — they render on the
+// worklist/scan surfaces. The advisory RENDERING contract below is unchanged and
+// still worth pinning, so drive sn_health_render_findings_section() directly with
+// the fixture's own checks rather than through a tab that now filters them out.
 ob_start();
 sn_health_render_admin_tab();
 $htmli = ob_get_clean();
+ob_start();
+sn_health_render_findings_section( array_filter( $GLOBALS['__scan']['checks'], static function ( $c ) { return (int) ( $c['count'] ?? 0 ) > 0; } ), false, array() );
+$htmli_adv = ob_get_clean();
 // (1) Family labels present, and ordered canonically rather than by scan order.
 he_assert( false !== strpos( $htmli, 'Content' ) && false !== strpos( $htmli, 'Accessibility' ), 'H5: fault findings carry their family labels' );
 $fam_content = strpos( $htmli, '>Content<' );
@@ -480,18 +487,19 @@ $stale_at = strpos( $htmli, 'Stale posts' );
 $alt_at   = strpos( $htmli, 'Missing alt text' );
 he_assert( is_int( $stale_at ) && is_int( $alt_at ) && $stale_at < $alt_at, 'H5: and the CARDS follow their families, not the scan registry' );
 // (2) Advisories: separated, folded, and worded as advisories.
-he_assert( false !== strpos( $htmli, 'Advisories' ), 'H5: advisory checks sit under their own subhead' );
-$adv_at = strpos( $htmli, 'Advisories' );
-he_assert( is_int( $adv_at ) && $alt_at < $adv_at, 'H5: advisories come after every fault family — they ask for attention, not action' );
-he_assert( false !== strpos( $htmli, '<details class="sn-health-advisory sn-disclosure">' ), 'H5: an advisory table sits inside a closed disclosure' );
-he_assert( false === strpos( $htmli, '<details class="sn-health-advisory sn-disclosure" open' ), 'H5: and it is closed by default' );
-$adv_det = strpos( $htmli, '<details class="sn-health-advisory' );
-$adv_sum = substr( $htmli, (int) $adv_det, 260 );
+he_assert( false !== strpos( $htmli_adv, 'Advisories' ), 'H5: advisory checks sit under their own subhead' );
+$adv_at = strpos( $htmli_adv, 'Advisories' );
+$alt_at_adv = strpos( $htmli_adv, 'Missing alt text' );
+he_assert( is_int( $adv_at ) && is_int( $alt_at_adv ) && $alt_at_adv < $adv_at, 'H5: advisories come after every fault family — they ask for attention, not action' );
+he_assert( false !== strpos( $htmli_adv, '<details class="sn-health-advisory sn-disclosure">' ), 'H5: an advisory table sits inside a closed disclosure' );
+he_assert( false === strpos( $htmli_adv, '<details class="sn-health-advisory sn-disclosure" open' ), 'H5: and it is closed by default' );
+$adv_det = strpos( $htmli_adv, '<details class="sn-health-advisory' );
+$adv_sum = substr( $htmli_adv, (int) $adv_det, 260 );
 he_assert( false !== stripos( $adv_sum, 'advisor' ) && false === stripos( $adv_sum, 'finding' ), 'H5: the advisory summary says advisory, never finding — the words carry the tier' );
 he_assert( false !== strpos( $adv_sum, '3' ), 'H5: and it names the count, so a closed fold never hides that there is something inside' );
 // Rows are NOT dropped, only folded.
-$adv_row = strpos( $htmli, 'ADVISORY-ROW-1' );
-$adv_end = is_int( $adv_det ) ? strpos( $htmli, '</details>', $adv_det ) : false;
+$adv_row = strpos( $htmli_adv, 'ADVISORY-ROW-1' );
+$adv_end = is_int( $adv_det ) ? strpos( $htmli_adv, '</details>', $adv_det ) : false;
 he_assert( is_int( $adv_row ) && is_int( $adv_end ) && $adv_det < $adv_row && $adv_row < $adv_end, 'H5: every advisory row is still on the page, inside the fold' );
 // The alarm calculus is untouched: advisories still do not flip the hero.
 $cardsi = snt_health_glance_cards( $GLOBALS['__scan'] );

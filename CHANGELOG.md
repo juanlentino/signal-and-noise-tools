@@ -6,6 +6,26 @@ All notable changes to Signal & Noise Tools are documented here.
 
 Queued for the next release at the owner's request — no version bump, no tag.
 
+### Fixed
+- **The SN Health desktop widget now counts the same checks the tab does.** After
+  v11.13.0 it still read the whole scan envelope, so it reported *"17/19 checks
+  passed · 18 advisories"* and listed **Public ledger CI** as a fault — a check that
+  had moved to Integrity. A widget disagreeing with the tab it links to is worse than
+  either number alone, because the reader cannot tell which one is stale. It reads the
+  `health` surface now, like the tab.
+- **`external_links` moved to the worklist surface — and KEEPS its advisory tier.**
+  I briefly re-tiered it as a defect on the reasoning that link rot is "wrong on the
+  page today". True, but it fails the second half of the Health test: a defect must be
+  able to **reach zero and stay there**, and the external web decays continuously and
+  outside our control. That is exactly why it has been advisory since 2026-07-02.
+  Fifteen assertions across five suites pushing back was the signal. Only its render
+  surface moved; the tier is unchanged.
+- **The two sources of truth can no longer contradict each other.** A key that is both
+  health-surface and advisory makes opposite claims — "counts as a defect" and "never
+  counts as a defect" — and for one commit `external_links` was exactly that, which is
+  why it silently stopped appearing as a fault anywhere. `tests/health-check-surfaces.php`
+  now asserts the intersection is empty.
+
 ### Changed
 - **The MCP Clients settings leaf takes the full content width.** Its door inventories
   are long slug lists that were reading inside the default capped card.

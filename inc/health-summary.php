@@ -36,6 +36,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @since 8.0.4
  */
 function sn_health_advisory_checks() {
+	// external_links stays ADVISORY, as it has since the 2026-07-02 re-tier.
+	// v11.13.2 briefly moved it to the defect tier on the theory that link rot
+	// is "wrong on the page today" — true, but it fails the second half of the
+	// Health test: a defect must be able to REACH ZERO and stay there, and the
+	// external web rots continuously and outside our control. An advisory that
+	// can never resolve is precisely what this tier is for. What changed is
+	// only WHERE it renders (the worklist surface), not what it is.
 	return array( 'external_links', 'link_opportunities', 'stale_posts_evergreen' );
 }
 
