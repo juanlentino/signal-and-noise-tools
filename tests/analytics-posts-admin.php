@@ -40,7 +40,7 @@ $subject = array(
 );
 $leaderboard = array(
 	array( 'id' => 7, 'title' => 'My Note', 'permalink' => '/notes/x/', 'age' => 3,  'by_dol' => array( 0 => 90, 1 => 20, 2 => 10 ), 'lifetime' => 120, 'per_day' => 30.0, 'velocity' => 110, 'decay' => 'spike' ),
-	array( 'id' => 5, 'title' => 'Older Note', 'permalink' => '/notes/y/', 'age' => 30, 'by_dol' => array( 0 => 10, 20 => 390 ), 'lifetime' => 400, 'per_day' => 12.9, 'velocity' => 14, 'decay' => 'evergreen' ),
+	array( 'id' => 5, 'title' => 'Older Note', 'permalink' => '/notes/y/', 'age' => 30, 'by_dol' => array( 0 => 10, 20 => 390 ), 'lifetime' => 400, 'per_day' => 12.9, 'velocity' => 14, 'decay' => 'sustained' ),
 );
 $bundle = array( 'subject' => $subject, 'leaderboard' => $leaderboard, 'generated' => 1750000000 );
 
@@ -83,7 +83,7 @@ $lb = cap( function () use ( $leaderboard ) { snt_analytics_render_posts_leaderb
 ok( strpos( $lb, 'wp-list-table widefat striped' ) !== false, 'leaderboard table uses the shared list-table chrome' );
 ok( strpos( $lb, 'My Note' ) !== false && strpos( $lb, 'Older Note' ) !== false, 'every recent post is listed' );
 ok( strpos( $lb, '>400<' ) !== false, 'lifetime views column rendered (400)' );
-ok( strpos( $lb, 'spike' ) !== false && strpos( $lb, 'evergreen' ) !== false, 'decay verdict chip per post' );
+ok( strpos( $lb, 'spike' ) !== false && strpos( $lb, 'sustained' ) !== false, 'decay verdict chip per post' );
 // v9.40.0 D4: the catalog postbox is "plain" (no sn-overview) — adopts the primitive marker only.
 ok( strpos( $lb, 'class="postbox sn-an-postbox"' ) !== false, 'catalog panel adopts the primitive (plain, no sn-overview)' );
 

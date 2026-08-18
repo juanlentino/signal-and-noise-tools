@@ -33,7 +33,7 @@ const SN_POSTS_LIFECYCLE_TTL = 21600; // 6h transient — a whole-catalogue read
  * Classify one post's lifecycle: its decay shape plus whether it's a refresh
  * candidate. A candidate is a post the data says is COOLING that the editor has
  * NOT flagged evergreen — the actionable intersection of A4 and B5. Spikes
- * (front-loaded, their moment passed) and evergreen shapes are never candidates.
+ * (front-loaded, their moment passed) and sustained shapes are never candidates.
  *
  * @param array<int,int> $by_dol       [day_of_life => views]
  * @param int            $early_days   Early-life window (SN_POSTS_DECAY_DAYS).
@@ -96,10 +96,10 @@ function sn_analytics_posts_lifecycle_rows( $posts, $series_by_path, $now ) {
  * ('' — no traffic yet) rows bucket as 'unknown'.
  *
  * @param array $rows Lifecycle rows.
- * @return array{counts:array{spike:int,cooling:int,evergreen:int,unknown:int},refresh_candidates:int,total:int}
+ * @return array{counts:array{spike:int,cooling:int,sustained:int,unknown:int},refresh_candidates:int,total:int}
  */
 function sn_analytics_lifecycle_summary( $rows ) {
-	$counts     = array( 'spike' => 0, 'cooling' => 0, 'evergreen' => 0, 'unknown' => 0 );
+	$counts     = array( 'spike' => 0, 'cooling' => 0, 'sustained' => 0, 'unknown' => 0 );
 	$candidates = 0;
 	foreach ( (array) $rows as $r ) {
 		$decay = (string) ( $r['decay'] ?? '' );

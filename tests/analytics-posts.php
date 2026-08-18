@@ -65,9 +65,9 @@ ok( 13 === sn_analytics_posts_velocity( array( 0 => 10, 1 => 3, 2 => 5 ), 2 ), '
 ok( 10 === sn_analytics_posts_velocity( array( 0 => 10, 5 => 99 ), 2 ), 'velocity ignores days outside the window' );
 ok( 0 === sn_analytics_posts_velocity( array(), 2 ), 'no data → 0 velocity (no crash)' );
 
-echo "\nGroup: evergreen vs spike (decay classification)\n";
+echo "\nGroup: sustained vs spike (decay classification)\n";
 ok( 'spike' === sn_analytics_posts_decay( array( 0 => 90, 1 => 5, 8 => 5 ), 7 ), 'front-loaded (95% in week 1) → spike' );
-ok( 'evergreen' === sn_analytics_posts_decay( array( 0 => 20, 10 => 30, 20 => 50 ), 7 ), 'sustained tail (20% in week 1) → evergreen' );
+ok( 'sustained' === sn_analytics_posts_decay( array( 0 => 20, 10 => 30, 20 => 50 ), 7 ), 'sustained tail (20% in week 1) → sustained' );
 ok( 'cooling' === sn_analytics_posts_decay( array( 0 => 40, 2 => 25, 10 => 35 ), 7 ), 'mid-share (65% in week 1) → cooling' );
 ok( '' === sn_analytics_posts_decay( array(), 7 ), 'no data → no classification (empty string)' );
 

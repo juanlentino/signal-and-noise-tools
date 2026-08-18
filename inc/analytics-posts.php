@@ -23,9 +23,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Classification windows + thresholds (named, not magic).
 const SN_POSTS_RECENT_LIMIT  = 12;   // cohort size for the baseline + leaderboard.
 const SN_POSTS_VELOCITY_DAYS = 2;    // "launch window" ≈ first 48h (daily granularity).
-const SN_POSTS_DECAY_DAYS    = 7;    // early-life window for the evergreen/spike split.
+const SN_POSTS_DECAY_DAYS    = 7;    // early-life window for the sustained/spike split.
 const SN_POSTS_SPIKE_SHARE   = 0.8;  // ≥ this share of lifetime views in week 1 → spike.
-const SN_POSTS_EVERGREEN_SHARE = 0.5; // ≤ this share → evergreen (sustained tail).
+const SN_POSTS_SUSTAINED_SHARE = 0.5; // ≤ this share → sustained (a long tail, not a spike).
 const SN_POSTS_BUNDLE_TTL    = 900;  // 15-min transient cache for the N-read bundle.
 
 /* ───────────────────────── pure age-alignment math ───────────────────────── */
@@ -129,7 +129,7 @@ function sn_analytics_posts_velocity( $by_dol, $n ) {
 
 /**
  * Decay classification from the early-life share of lifetime views.
- * '' when there is no data; else 'spike' | 'cooling' | 'evergreen'.
+ * '' when there is no data; else 'spike' | 'cooling' | 'sustained'.
  *
  * @param array<int,int> $by_dol
  * @param int            $early_days
@@ -148,8 +148,8 @@ function sn_analytics_posts_decay( $by_dol, $early_days ) {
 	if ( $share >= SN_POSTS_SPIKE_SHARE ) {
 		return 'spike';
 	}
-	if ( $share <= SN_POSTS_EVERGREEN_SHARE ) {
-		return 'evergreen';
+	if ( $share <= SN_POSTS_SUSTAINED_SHARE ) {
+		return 'sustained';
 	}
 	return 'cooling';
 }

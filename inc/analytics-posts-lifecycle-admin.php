@@ -3,7 +3,7 @@
  * Signal & Noise — A4 "Lifecycle at scale" RENDER layer (freshness arc, v8.11.0).
  *
  * The catalogue-wide companion to the recent-cohort Posts view: a shape census
- * (spike / cooling / evergreen) over every published Note and a leaderboard that
+ * (spike / cooling / sustained) over every published Note and a leaderboard that
  * floats REFRESH CANDIDATES — cooling posts NOT flagged evergreen (B5) — to the
  * top. Reuses the dashboard's native vocabulary only (.sn-kpi glance, the
  * .wp-list-table chrome, .sn-pill) — no new CSS. Read-only.
@@ -61,7 +61,7 @@ function snt_analytics_render_lifecycle_section( $lifecycle ) {
 			'sub_class' => $cands > 0 ? 'sn-delta-down' : 'sn-delta-flat',
 		),
 		array( 'l' => __( 'Cooling', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['cooling'] ?? 0 ) ), 'sub' => __( 'losing steam', 'signal-and-noise-tools' ) ),
-		array( 'l' => __( 'Evergreen', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['evergreen'] ?? 0 ) ), 'sub' => __( 'sustained tail', 'signal-and-noise-tools' ) ),
+		array( 'l' => __( 'Sustained', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['sustained'] ?? 0 ) ), 'sub' => __( 'holds its audience', 'signal-and-noise-tools' ) ),
 		array( 'l' => __( 'Spike', 'signal-and-noise-tools' ), 'n' => number_format_i18n( (int) ( $counts['spike'] ?? 0 ) ), 'sub' => __( 'front-loaded', 'signal-and-noise-tools' ) ),
 	);
 	snt_an_kpi_row( $cards );

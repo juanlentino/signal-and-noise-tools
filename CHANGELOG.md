@@ -2,6 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.11.7] - 2026-08-18 — one word stops meaning two things
+
+### Changed
+- **The computed decay shape `'evergreen'` is now `'sustained'`.** The word named
+  two unrelated things: the **author-declared flag** `_sn_evergreen` ("I say this
+  post is timeless") and a **computed shape** from `sn_analytics_posts_decay()`
+  ("≤50% of lifetime views landed in week one"). A single lifecycle row could
+  read `decay => 'evergreen', evergreen => false` — or the exact inverse — and
+  both were correct. `sustained` reads properly beside its siblings `spike` and
+  `cooling`, all three now describing the *curve* rather than an intention.
+- **The codebase already used the new name to explain the old one.** The KPI tile
+  subtitle read "sustained tail" and a test case was literally named
+  *"sustained tail (20% in week 1) → evergreen"*. This adopts the word the code
+  reached for whenever it had to say what the shape meant.
+- **The flag is untouched.** `_sn_evergreen`, `sn_post_is_evergreen()` and
+  `SN_EVERGREEN_META` keep their names — that meta is REST-exposed, so renaming
+  it would break a public contract. Only the computed shape moved, and it has no
+  public surface: no MCP tool, ability field, REST route, option key, or
+  non-PHP consumer contains it (verified by sweep).
+- Threshold constant `SN_POSTS_EVERGREEN_SHARE` → `SN_POSTS_SUSTAINED_SHARE`.
+- Admin labels follow: the KPI tile is **Sustained** ("holds its audience" — the
+  old "sustained tail" subtitle became redundant once the label said it), the
+  shape-distribution bar relabels via its existing `ucfirst()` of the key, and the
+  lifecycle annotation now reads *"Most of your catalogue holds: N of M posts have
+  a sustained tail."* rather than "…are evergreen", which had been describing the
+  shape in the flag's words.
+
+### Fixed
+- **A byte-parity fixture was quietly drifting.** The refresh-queue HTML pin passes
+  `decay => 'evergreen'` in as input and asserts the renderer echoes it, so it
+  stayed green through the rename — while modelling a decay value the classifier
+  can no longer produce. Its row is also where the collision was most visible:
+  `decay => 'evergreen'` (the shape) sat beside `evergreen => true` rendering the
+  **Evergreen** pill (the flag). The shape half moved; the flag half did not.
+
+### Verified
+- Full sweep: **445 test files pass, zero failures.** Flag identifier counts
+  unchanged (`_sn_evergreen` 14, `sn_post_is_evergreen` 6, `SN_EVERGREEN_META` 2).
+  Three suites went red on the production rename before their fixtures were
+  updated — the intended negative control that the change reached each surface.
+
 ## [11.11.6] - 2026-08-17 — the candidate names its position, and contention says 409
 
 ### Changed

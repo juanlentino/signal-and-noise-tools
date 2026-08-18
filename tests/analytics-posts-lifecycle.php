@@ -37,10 +37,10 @@ ok( 'cooling' === $c['decay'] && true === $c['refresh_candidate'], 'cooling + no
 $c = sn_analytics_lifecycle_classify( $cooling, SN_POSTS_DECAY_DAYS, true );
 ok( 'cooling' === $c['decay'] && false === $c['refresh_candidate'], 'cooling + evergreen flag → editor overrode, not a candidate' );
 
-// Sustained tail (≤50% in week 1) → evergreen shape; never a candidate.
+// Sustained tail (≤50% in week 1) → sustained shape; never a candidate.
 $eg = array( 0 => 10, 20 => 20, 60 => 30 );
 $c = sn_analytics_lifecycle_classify( $eg, SN_POSTS_DECAY_DAYS, false );
-ok( 'evergreen' === $c['decay'] && false === $c['refresh_candidate'], 'evergreen shape is never a refresh candidate' );
+ok( 'sustained' === $c['decay'] && false === $c['refresh_candidate'], 'sustained shape is never a refresh candidate' );
 
 // No data → empty shape, not a candidate.
 $c = sn_analytics_lifecycle_classify( array(), SN_POSTS_DECAY_DAYS, false );

@@ -202,9 +202,9 @@ function sn_annotation_anomalies( $anom ) {
 
 /**
  * Lifecycle read: the catalogue's shape. Fires on a refresh-candidate cluster,
- * else on an evergreen majority. Null on a thin catalogue or no clear shape.
+ * else on a sustained majority. Null on a thin catalogue or no clear shape.
  *
- * @param array $summary { counts:{spike,cooling,evergreen,unknown}, refresh_candidates, total } from sn_analytics_lifecycle_summary().
+ * @param array $summary { counts:{spike,cooling,sustained,unknown}, refresh_candidates, total } from sn_analytics_lifecycle_summary().
  * @return string|null
  */
 function sn_annotation_lifecycle( $summary ) {
@@ -215,7 +215,7 @@ function sn_annotation_lifecycle( $summary ) {
 	}
 	$counts    = is_array( $summary['counts'] ?? null ) ? $summary['counts'] : array();
 	$cooling   = (int) ( $counts['cooling'] ?? 0 );
-	$evergreen = (int) ( $counts['evergreen'] ?? 0 );
+	$sustained = (int) ( $counts['sustained'] ?? 0 );
 	$cands     = (int) ( $summary['refresh_candidates'] ?? 0 );
 
 	if ( $cands >= SN_ANNOTATION_LIFECYCLE_MIN_CANDIDATES ) {
@@ -227,11 +227,11 @@ function sn_annotation_lifecycle( $summary ) {
 			$cands
 		);
 	}
-	if ( $evergreen * 2 > $total ) {
+	if ( $sustained * 2 > $total ) {
 		return sprintf(
-			/* translators: 1: evergreen count, 2: total posts */
-			__( 'Most of your catalogue holds: %1$d of %2$d posts are evergreen.', 'signal-and-noise-tools' ),
-			$evergreen,
+			/* translators: 1: sustained count, 2: total posts */
+			__( 'Most of your catalogue holds: %1$d of %2$d posts have a sustained tail.', 'signal-and-noise-tools' ),
+			$sustained,
 			$total
 		);
 	}

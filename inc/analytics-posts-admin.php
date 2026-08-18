@@ -20,7 +20,7 @@ require_once __DIR__ . '/analytics-panels.php'; // the empty-fold collector this
 
 /**
  * The whole Posts view: hero + lifecycle trajectory + catalog leaderboard +
- * launch-velocity + evergreen/spike bars. Null bundle (no published posts) → a
+ * launch-velocity + sustained/spike bars. Null bundle (no published posts) → a
  * single empty-state note.
  *
  * @param array|null $bundle From sn_analytics_posts_bundle().
@@ -47,8 +47,8 @@ function snt_analytics_render_posts_view( $bundle ) {
 	}
 	snt_analytics_render_distribution( __( 'Launch velocity (first 48h)', 'signal-and-noise-tools' ), $vel, __( 'No launch data yet.', 'signal-and-noise-tools' ), true );
 
-	// Evergreen vs spike — how the catalog breaks down by decay shape.
-	$shape = array( 'evergreen' => 0, 'cooling' => 0, 'spike' => 0 );
+	// Sustained vs spike — how the catalog breaks down by decay shape.
+	$shape = array( 'sustained' => 0, 'cooling' => 0, 'spike' => 0 );
 	foreach ( (array) $bundle['leaderboard'] as $r ) {
 		$d = (string) ( $r['decay'] ?? '' );
 		if ( isset( $shape[ $d ] ) ) {
