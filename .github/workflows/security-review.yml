@@ -18,7 +18,8 @@ jobs:
     # flakiness rather than a finding. A 10-minute ceiling still clears the
     # slowest observed success by ~2.3x while surfacing the next hang in a third
     # of the time.
-    timeout-minutes: 10
+    # Measured max over the last 8 successful runs: 200s. Set above that with real headroom, not at it.
+    timeout-minutes: 8
     permissions:
       pull-requests: write
       contents: read

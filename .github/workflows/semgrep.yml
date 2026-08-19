@@ -25,7 +25,8 @@ permissions:
 jobs:
   semgrep:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    # Measured max over the last 8 successful runs: 28s. Set above that with real headroom, not at it.
+    timeout-minutes: 3
     container:
       # Pinned by digest-equivalent tag; bump deliberately, not via latest.
       image: semgrep/semgrep:1.172.0
