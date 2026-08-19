@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.30.2] - 2026-08-19 — tested against WordPress 7.1
+
+Header-only compatibility bump, backed by an audit of the 7.1 Field Guide against
+this plugin's actual surface rather than an assumption that nothing broke.
+
+### Changed
+- **`Tested up to: 7.1`.** Each documented 7.1 breaking surface was checked:
+  - **Abilities API.** 7.1 adds a unified `public` exposure flag, filtering on
+    `wp_get_abilities()`, and execution lifecycle hooks. `public` defaults to
+    **false** and merely supplies the default for `show_in_rest`; signatures and
+    return values are unchanged. All 119 `wp_register_ability()` calls here pass
+    `show_in_rest` explicitly, so exposure is unchanged and nothing becomes newly
+    public. Core's own note is explicit that no exposure flag is a security
+    boundary — the `permission_callback` on each ability remains the gate.
+  - **Enforced iframed editor.** One script is enqueued into the editor canvas
+    (`snt-ability-run`, via `enqueue_block_editor_assets`); it contains zero
+    `document`/DOM references and is a pure `wp.apiFetch` wrapper, so it does not
+    reach across the document boundary.
+  - **Deprecated editor JS.** No use of `__experimentalApplyValueToSides`,
+    `__experimentalCloneSanitizedBlock`, `__experimentalSanitizeBlockAttributes`
+    or `@wordpress/reusable-blocks` — no `__experimental*` reference at all.
+  - **jQuery UI 1.14.2, media sideloading REST changes, `notify_post_author`.**
+    No usage.
+  - **`WP_Theme_JSON::to_ruleset()` coercion change.** The only reference is to
+    `WP_Theme_JSON_Resolver::get_style_variations()` — a different class — and it
+    is `class_exists`/`method_exists` guarded.
+
+### Internal
+- `phpstan.neon` records that **no 7.1 stubs exist yet** (`php-stubs/wordpress-stubs`
+  is at v7.0.1). A green PHPStan run currently verifies the 7.0 surface, not 7.1;
+  the `^7.0` constraint will pick 7.1 up automatically once published. Without this
+  note a future reader would take the gate as evidence it never gave.
+
 ## [11.30.1] - 2026-08-19 — what the screen was actually showing
 
 Four defects in v11.30.0, found by installing it and looking. Three were data
