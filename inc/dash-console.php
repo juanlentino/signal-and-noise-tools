@@ -75,3 +75,90 @@ function snt_dashboard_snapshot() {
 
 	return $snap;
 }
+
+/**
+ * The six Dashboard boxes, in registration order.
+ *
+ * Registration order is only the DEFAULT — core persists the user's own order
+ * in `meta-box-order_{page}` and applies it on top.
+ *
+ * @since 11.29.0
+ * @return array<int,array{id:string,title:string,callback:string,context:string}>
+ */
+function snt_dash_boxes() {
+	return array(
+		array(
+			'id'       => 'sn-dash-systems',
+			'title'    => __( 'Systems', 'signal-and-noise-tools' ),
+			'callback' => 'snt_dash_box_systems',
+			'context'  => 'normal',
+		),
+		array(
+			'id'       => 'sn-dash-fleet',
+			'title'    => __( 'Fleet', 'signal-and-noise-tools' ),
+			'callback' => 'snt_dash_box_fleet',
+			'context'  => 'normal',
+		),
+		array(
+			'id'       => 'sn-dash-traffic',
+			'title'    => __( 'Traffic', 'signal-and-noise-tools' ),
+			'callback' => 'snt_dash_box_traffic',
+			'context'  => 'normal',
+		),
+		array(
+			'id'       => 'sn-dash-glance',
+			'title'    => __( 'At a glance', 'signal-and-noise-tools' ),
+			'callback' => 'snt_dash_box_glance',
+			'context'  => 'side',
+		),
+		array(
+			'id'       => 'sn-dash-maintenance',
+			'title'    => __( 'Maintenance', 'signal-and-noise-tools' ),
+			'callback' => 'snt_dash_box_maintenance',
+			'context'  => 'side',
+		),
+		array(
+			'id'       => 'sn-dash-diagnostics',
+			'title'    => __( 'Diagnostics', 'signal-and-noise-tools' ),
+			'callback' => 'snt_dash_box_diagnostics',
+			'context'  => 'side',
+		),
+	);
+}
+
+/**
+ * Register the boxes for one screen. MUST run on `load-{$hook}`.
+ *
+ * TIMING, verified against wp-admin/admin.php: `load-{$page_hook}` fires, THEN
+ * admin-header.php renders Screen Options, THEN the page callback runs. If we
+ * registered inside the renderer, $wp_meta_boxes would be empty when Screen
+ * Options draws and the show/hide checkboxes would silently never appear —
+ * no error, just a feature that quietly does not exist.
+ *
+ * THE TAB GATE: every SN tab shares the screen id, and Screen Options is
+ * per-screen. WP_Screen::render_meta_boxes_preferences() early-returns unless
+ * $wp_meta_boxes[$screen->id] is set, so registering only on the Dashboard tab
+ * leaves the panel empty elsewhere by construction rather than by a second
+ * guard we would have to maintain.
+ *
+ * @since 11.29.0
+ * @param string $hook_suffix The screen id to register against.
+ * @return void
+ */
+function snt_dash_boxes_register( $hook_suffix ) {
+	if ( ! function_exists( 'sn_admin_page_active_tab' ) || 'dashboard' !== sn_admin_page_active_tab() ) {
+		return;
+	}
+
+	add_screen_option(
+		'layout_columns',
+		array(
+			'max'     => 2,
+			'default' => 2,
+		)
+	);
+
+	foreach ( snt_dash_boxes() as $box ) {
+		add_meta_box( $box['id'], $box['title'], $box['callback'], $hook_suffix, $box['context'] );
+	}
+}

@@ -78,6 +78,32 @@ add_action( 'admin_menu', function() {
 	}
 
 	sn_admin_page_hooks( $hooks );
+
+	// v11.29.0: the Dashboard tab is a metabox host, and metaboxes MUST be
+	// registered on `load-{$hook}`.
+	//
+	// Order in wp-admin/admin.php is: do_action( "load-{$page_hook}" ), THEN
+	// admin-header.php (which renders the Screen Options panel), THEN the page
+	// callback. Registering inside the page callback is too late — $wp_meta_boxes
+	// would still be empty when Screen Options draws, so the show/hide
+	// checkboxes would silently never appear. No error; the feature would just
+	// not exist.
+	//
+	// Hooked here because the hook suffixes only exist once add_menu_page() has
+	// returned them, and `admin_menu` fires before `load-`.
+	foreach ( $hooks as $sn_hook ) {
+		if ( ! is_string( $sn_hook ) || '' === $sn_hook ) {
+			continue;
+		}
+		add_action(
+			'load-' . $sn_hook,
+			function () use ( $sn_hook ) {
+				if ( function_exists( 'snt_dash_boxes_register' ) ) {
+					snt_dash_boxes_register( $sn_hook );
+				}
+			}
+		);
+	}
 } );
 
 /**
@@ -122,6 +148,12 @@ add_action( 'admin_enqueue_scripts', function( $hook ) {
 		array( 'sn-admin', 'snt-analytics-tokens' ),
 		SNT_VERSION
 	);
+	// v11.29.0: core's postbox behaviour — drag-to-reorder, collapse, and the
+	// Screen Options show/hide toggles — for the Dashboard tab's metaboxes.
+	// Enqueued for every SN page rather than gated on the tab: the handle is
+	// tiny, and the shell's inline init (inc/dash-console.php) is what actually
+	// binds it, so loading it elsewhere is inert.
+	wp_enqueue_script( 'postbox' );
 	// v9.34.0 (maturity I5): brush-to-select on the trend chart (the chart becomes
 	// the range control). Self-gating: no-op unless a [data-brush-from] chart exists.
 	wp_enqueue_script(
