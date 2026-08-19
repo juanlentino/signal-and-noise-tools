@@ -71,12 +71,27 @@ function sn_health_finding_total( $scan ) {
 /**
  * Total findings across advisory-tier checks only (the "N advisories" figure).
  *
- * @param array|null $scan A sn_health_last_scan() array (or null / non-array).
+ * ADVISORY IS A TIER, NOT A SURFACE — and that distinction is what v11.17.0
+ * fixes. The tier is enumerated by key (sn_health_advisory_checks()); the
+ * surface is where a check RENDERS. Since v11.13.0 all three advisory-tier
+ * keys render on the `worklist` surface, so a total scoped to `health` could
+ * never see one: this returned a structural 0 while the ability's own schema
+ * pointed callers here for advisory counts. Zero read as "measured, none
+ * found" when the truth was "not measured on this surface"
+ * (see the realtime zero-vs-null rule).
+ *
+ * The DEFAULT stays 'health' so every rendering caller is byte-identical: on
+ * the Health tab advisories are deliberately not shown, which is a shipped
+ * decision (v11.16.1), not an accident. Pass NULL to count the tier wherever
+ * it lives — what an agent-facing readout means by "how many advisories".
+ *
+ * @param array|null  $scan    A sn_health_last_scan() array (or null / non-array).
+ * @param string|null $surface Surface to narrow to, or NULL for every surface.
  * @return int
  * @since 8.0.4
  */
-function sn_health_advisory_total( $scan ) {
-	$scan  = sn_health_scan_for_surface( $scan );
+function sn_health_advisory_total( $scan, $surface = 'health' ) {
+	$scan  = ( null === $surface ) ? $scan : sn_health_scan_for_surface( $scan, $surface );
 	$total = 0;
 	if ( ! is_array( $scan ) ) {
 		return $total;

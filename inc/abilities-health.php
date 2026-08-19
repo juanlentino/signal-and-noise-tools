@@ -45,11 +45,14 @@ add_action( 'wp_abilities_api_init', function() {
 				'elapsed_ms'    => array( 'type' => array( 'integer', 'null' ) ),
 				'finding_total' => array(
 					'type'        => 'integer',
-					'description' => 'Fault-tier findings only. Advisory-tier counts (external link rot) live in advisory_total since v8.0.4.',
+					'description' => 'Fault-tier findings only, narrowed to the health surface. Advisory-tier counts live in advisory_total.',
 				),
 				// v8.0.4: additive — external link rot re-tiered to advisory
 				// (third-party rot must not flip the site off "all clear").
-				'advisory_total' => array( 'type' => 'integer' ),
+				'advisory_total' => array(
+					'type'        => 'integer',
+					'description' => 'Advisory-tier findings (external link rot, link opportunities, evergreen stale posts) counted across EVERY surface. These render on the worklist, not the Health tab, so this number is deliberately not the one the Health surface shows.',
+				),
 				'checks_total'  => array( 'type' => 'integer' ),
 				'checks_passed' => array( 'type' => 'integer' ),
 				'flagged'       => array(
@@ -118,7 +121,11 @@ function snt_ability_get_health_scan( $input ) {
 		// and BOTH check counts narrow with them — every number in this envelope
 		// now describes the same population, so passed + flagged === total.
 		'finding_total'  => sn_health_finding_total( $scan ),
-		'advisory_total' => sn_health_advisory_total( $scan ),
+		// v11.17.0: NULL surface — the advisory TIER, wherever it renders. The
+		// health-scoped default returns a structural 0 (all three advisory keys
+		// moved to the worklist surface in v11.13.0), which made this field
+		// contradict the schema line above that points callers here.
+		'advisory_total' => sn_health_advisory_total( $scan, null ),
 		'checks_total'   => sn_health_check_total( $scan ),
 		'checks_passed'  => count( $checks ) - count( $flagged ),
 		'flagged'        => $flagged,
