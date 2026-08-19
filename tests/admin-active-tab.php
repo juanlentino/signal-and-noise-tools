@@ -2,7 +2,16 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! function_exists( '__' ) ) { function __( $t, $d = '' ) { return $t; } }
-if ( ! function_exists( 'sanitize_text_field' ) ) { function sanitize_text_field( $s ) { return trim( strip_tags( (string) $s ) ); } }
+// FAITHFUL to WordPress: _sanitize_text_fields() returns '' for an array or
+// object BEFORE any string operation. A stub that casts instead would make
+// "Array" a plausible tab value here while production returns '' — the stub
+// must not be less safe than the thing it stands in for.
+if ( ! function_exists( 'sanitize_text_field' ) ) {
+	function sanitize_text_field( $s ) {
+		if ( is_object( $s ) || is_array( $s ) ) { return ''; }
+		return trim( strip_tags( (string) $s ) );
+	}
+}
 if ( ! function_exists( 'wp_unslash' ) ) { function wp_unslash( $s ) { return is_string( $s ) ? stripslashes( $s ) : $s; } }
 
 // The two collaborators the resolver calls. Modelled on their REAL shapes:
@@ -43,6 +52,11 @@ ok( 'dashboard' === sn_admin_page_active_tab(), 'an unknown tab falls back to da
 // 6. Injection attempt — the value is sanitised and then allowlisted.
 $_GET = array( 'tab' => '<script>alert(1)</script>' );
 ok( 'dashboard' === sn_admin_page_active_tab(), 'a hostile tab value cannot escape the allowlist' );
+
+// 7. ?tab[]=x — an ARRAY where a string is expected. WordPress returns '' from
+//    sanitize_text_field() for arrays, so this must fall back rather than fatal.
+$_GET = array( 'tab' => array( 'x' ) );
+ok( 'dashboard' === sn_admin_page_active_tab(), 'AN ARRAY TAB FALLS BACK, it does not fatal' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
