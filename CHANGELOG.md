@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.29.1] - 2026-08-19 — the console arrives, and the data global reaches the page
+
+### Fixed
+- **Every localize-fed desktop widget was blank.** After an OpenStation reinstall, SN Health,
+  SN Cron and SN Cache all reported "not measured" at once on a site with 62 scheduled
+  events, 7/7 checks passing and 11 recorded verdicts — while every widget fed by an ability
+  or REST kept working. `wp_localize_script()` attaches data to a **handle**, and WordPress
+  prints it only when that handle is enqueued. Nothing ever enqueued `sn-desktop-mode`: it
+  was registered, localized, and left to be pulled in as a dependency — and the shell's
+  script resolver never walks dependencies. `window.snDesktopData` simply was not on the
+  page. The widgets were honest throughout, which is why the failure was legible at all.
+- **The purge verifier reported every healthy purge as stale.** It compared a *cached*
+  render against a *cache-busted* one, which on this site can never be equal: Breeze injects
+  a prefetch script on the cache-busted request only, and the cached copy is minified
+  (whitespace **and** HTML comments stripped) — 122,960 vs 132,288 bytes on `/about/`. So the
+  first divergence was at byte 15 of every page, every verdict read stale, and every one
+  escalated to a full zone purge. Eleven times. It now compares `<main>` with comments and
+  whitespace removed; verified against three live URLs, all of which flipped stale → fresh.
+
+### Changed
+- **The Dashboard is a console.** The v11.28.0 collapsing zones are replaced by a briefing
+  band, a systems rail showing every check and component **at rest**, and a stage carrying
+  the figures and a 30-day trend. The old page was 53% empty on a healthy site, because
+  "state earns space" describes what alarms do and never says what the page **is** when
+  nothing is wrong — which is nearly always.
+- **Maintenance is a toolbar, not four cards.** Those actions were a third of the viewport:
+  the least-used thing on screen with the most weight. Same form, same nonce, same actions.
+- `sn_dash_zone_fleet()` returns its pending count instead of making callers read card text.
+
+### Removed
+- The pin setter and its REST route. Nothing called them, so no pin could ever be set, so
+  the feature had no effect while a live endpoint sat on the surface. The reader stays: the
+  safety property — a pin can open a zone, never close one — is worth keeping correct.
+
 ## [11.29.0] - 2026-08-19 — the desktop learns whether the site is awake, and whether a purge worked
 
 ### Added

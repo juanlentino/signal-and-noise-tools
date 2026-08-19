@@ -210,18 +210,57 @@ function snt_dashboard_tab_render() {
 	$fleet_zone = sn_dash_zone_fleet( snt_dashboard_fleet_components( $theme, $plugin, $workers ), $last_deploy_ago );
 	$fleet_zone['body_html'] = $deploys_html;
 
-	echo '<section class="sn-dash-zones" aria-label="Status">';
-	sn_dash_render_zone( sn_dash_zone_attention( $attention_cards ), $pins );
-	sn_dash_render_zone( $fleet_zone, $pins );
-	echo '</section>';
-
-	// ── MEASUREMENT ── never collapses: it has no green/red state, so there is
-	// nothing to fold. A figure whose accessor is absent renders unknown.
-	if ( function_exists( 'sn_dash_render_measurement_strip' ) ) {
-		sn_dash_render_measurement_strip(
-			sn_dash_measurement_figures( snt_dashboard_measurement_data() )
-		);
+	// ── 1. THE CONSOLE ── v11.29.1, direction B with C's band.
+	//
+	// Replaces the v11.28.0 collapsing zones. Those implemented "state earns
+	// space" faithfully and produced a page that was 53% empty on a healthy
+	// site, because that rule describes what ALARMS do and never says what the
+	// page IS when nothing is wrong — which is nearly always. The console is
+	// dense at rest: every check and every component is readable without
+	// expanding anything, and the band states the situation above it.
+	$needy = 0;
+	foreach ( $cards as $card ) {
+		$kind = isset( $card['pill']['kind'] ) ? (string) $card['pill']['kind'] : '';
+		if ( sn_admin_card_wants_attention( $card ) && ( 'err' === $kind || 'warn' === $kind ) ) {
+			++$needy;
+		}
 	}
+
+	$fleet_zone = sn_dash_zone_fleet(
+		snt_dashboard_fleet_components( $theme, $plugin, $workers ),
+		$last_deploy_ago
+	);
+
+	$measurement = function_exists( 'snt_dashboard_measurement_data' ) ? snt_dashboard_measurement_data() : array();
+
+	$series = ( function_exists( 'sn_analytics_daily_series' ) && function_exists( 'sn_analytics_config' ) && sn_analytics_config() )
+		? sn_analytics_daily_series( gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() ), 'human', 'day' )
+		: array();
+
+	sn_dash_render_console(
+		$attention_cards,
+		$fleet_zone['cards'],
+		$measurement,
+		array_merge(
+			$measurement,
+			array(
+				'needy'   => $needy,
+				'warming' => (int) ( $fleet_zone['pending'] ?? 0 ),
+			)
+		),
+		array(
+			'needy'             => $needy,
+			'last_deploy_ago'   => $last_deploy_ago,
+			'series'            => is_array( $series ) ? $series : array(),
+			// Same construction as the maintenance card's link — one handler,
+			// one nonce action. Built here because the toolbar now owns it.
+			'check_updates_url' => wp_nonce_url(
+				admin_url( 'admin-post.php?action=sn_force_update_check' ),
+				'sn_force_update_check',
+				'sn_force_update_check_nonce'
+			),
+		)
+	);
 
 	// ── 2. ATTENTION STRIP ── one warning row, only when something is off.
 	snt_dashboard_render_attention_strip( $runs, count( $overrides ) );
@@ -235,11 +274,13 @@ function snt_dashboard_tab_render() {
 		snt_dashboard_render_api_summary();
 	}
 
-	// ── 4. MAINTENANCE ── and ── 5. DIAGNOSTICS ──
-	// v11.29.0: both extracted into their own functions so they can be called
-	// from more than one host. Behaviour and markup are unchanged; this renderer
-	// still calls them in the same order and place as before.
-	snt_dashboard_render_maintenance_actions();
+	// ── DIAGNOSTICS ──
+	// v11.29.1: the Maintenance CARD GRID is gone. Those four actions were a
+	// third of the viewport on the v11.28.0 page — the least-used thing on
+	// screen carrying the most weight — and they now render as a compact
+	// toolbar inside the stage (sn_dash_render_toolbar). Same form, same nonce,
+	// same action values. snt_dashboard_render_maintenance_actions() is kept
+	// for any surface that still wants the long form.
 	snt_dashboard_render_diagnostics();
 
 	// v9.62.2: the Copilot tool-usage card moved to its own AI → Copilot Usage

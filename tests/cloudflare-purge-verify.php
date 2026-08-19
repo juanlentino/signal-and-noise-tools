@@ -39,6 +39,65 @@ ok( false === snt_cf_probe_is_stale( $page, $page ), 'identical renders are not 
 $stale_body = '<html><body><p>The master never moves.</p><p>There is no diff to read.</p></body></html>';
 ok( true === snt_cf_probe_is_stale( $stale_body, $page ), 'the 2026-08-15 shape: cached copy carries a sentence the origin no longer serves' );
 
+// ── v11.29.1: the false positive that fired eleven zone purges ──────────────
+// Measured against the live site 2026-08-19. The two fetches this probe
+// compares are NOT comparable as whole documents:
+//   1. Breeze injects <script id="breeze-prefetch-js-extra"> on the
+//      cache-busted request and not on the cached one — a different code path
+//      through the caching plugin, present on every URL.
+//   2. The cached copy is MINIFIED (inter-tag whitespace AND HTML comments
+//      stripped); the cache-busted copy is not. /about/ measured 122,960 vs
+//      132,288 bytes.
+// So every probe returned stale, every one escalated to a full zone purge, and
+// the log read 11 stale of 11. Not a stale edge — a detector that could not
+// return anything else.
+
+$cached_min = '<html><head><link rel="canonical" href="/x/"><script id="a"></script></head><body><main><div class="hero"><p>One truth.</p></div></main><footer>f</footer></body></html>';
+
+$fresh_full = <<<'HTML'
+<html>
+ <head>
+  <link rel="canonical" href="/x/">
+  <script id="breeze-prefetch-js-extra">var breeze_prefetch = {"local_url":"https://x.test"};</script>
+  <script id="a"></script>
+ </head>
+ <body>
+  <main>
+   <!-- HERO SECTION - full-width. -->
+   <div class="hero">
+    <p>One truth.</p>
+   </div>
+  </main>
+  <footer>f</footer>
+ </body>
+</html>
+HTML;
+
+ok( false === snt_cf_probe_is_stale( $cached_min, $fresh_full ),
+	'A MINIFIED CACHED COPY vs AN UNMINIFIED FRESH ONE IS NOT STALE - the eleven-zone-purge bug' );
+
+// Each cause on its own, so a partial fix cannot pass.
+ok( false === snt_cf_probe_is_stale( '<main><p>a</p></main>', "<main>\n  <p>a</p>\n</main>" ),
+	'inter-tag whitespace alone is not staleness' );
+ok( false === snt_cf_probe_is_stale( '<main><p>a</p></main>', '<main><!-- a note --><p>a</p></main>' ),
+	'an HTML comment alone is not staleness' );
+ok( false === snt_cf_probe_is_stale(
+	'<html><head><script id="a"></script></head><body><main><p>a</p></main></body></html>',
+	'<html><head><script id="breeze-prefetch-js-extra">var b={};</script><script id="a"></script></head><body><main><p>a</p></main></body></html>' ),
+	'a head-injected caching script alone is not staleness' );
+
+// AND THE DETECTOR MUST STILL DETECT. Real drift inside <main> survives every
+// one of those normalisations.
+ok( true === snt_cf_probe_is_stale(
+	'<html><body><main><p>The old sentence.</p></main></body></html>',
+	"<html>\n<body>\n<main>\n  <!-- c -->\n  <p>The new sentence.</p>\n</main>\n</body>\n</html>" ),
+	'REAL CONTENT DRIFT IS STILL CAUGHT through minification, comments and injection' );
+
+// A page with no <main> falls back to the whole document rather than comparing
+// nothing - a theme without that element must not silently always read fresh.
+ok( true === snt_cf_probe_is_stale( '<html><body><p>old</p></body></html>', '<html><body><p>new</p></body></html>' ),
+	'a document with no <main> still compares' );
+
 echo "\nGroup: unknown is never fresh\n";
 // A probe that could not answer must not report "fresh" — the caller escalates
 // on true only, so null correctly does nothing, but false would be a LIE that

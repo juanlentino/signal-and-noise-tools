@@ -116,5 +116,17 @@ $ok_components = snt_dashboard_fleet_components(
 $z = sn_dash_zone_fleet( $ok_components, '1 minute ago' );
 ok( 'ok' === $z['state'], 'BUT A WARMING-ONLY FLEET READS OK, end to end from the producer' );
 
+// v11.29.1: the pending count is returned, not re-derived by the caller from
+// card text. The briefing band reads it to say "N workers still warming".
+$z = sn_dash_zone_fleet( array(
+	'Theme'      => '11.12.0',
+	'Remote MCP' => array( 'version' => '', 'reason' => 'warming' ),
+	'Edge'       => array( 'version' => '', 'reason' => 'warming' ),
+), '' );
+ok( 2 === $z['pending'], 'THE ZONE RETURNS ITS PENDING COUNT rather than making callers count card text' );
+ok( 'ok' === $z['state'], 'and two warming workers still leave the fleet ok' );
+$z = sn_dash_zone_fleet( array( 'Theme' => '11.12.0' ), '' );
+ok( 0 === $z['pending'], 'nothing warming is a pending count of zero' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

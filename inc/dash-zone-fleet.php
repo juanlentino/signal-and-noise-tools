@@ -82,6 +82,9 @@ function sn_dash_zone_fleet( array $components, $last_deploy_ago = '' ) {
 	return array(
 		'id'      => 'fleet',
 		'state'   => $state,
+		// v11.29.1: the count is already computed here, so return it rather
+		// than making callers re-derive it by inspecting card values.
+		'pending' => $pending,
 		'summary' => $summary,
 		'detail'  => $detail,
 		'cards'   => $cards,

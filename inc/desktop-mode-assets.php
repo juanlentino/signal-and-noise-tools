@@ -273,4 +273,29 @@ add_action( 'admin_enqueue_scripts', function() {
 	// transitively on wp-api-fetch), so the global will be set by the time it
 	// runs.
 	wp_localize_script( 'sn-desktop-mode', 'snDesktopData', $shared );
+
+	// v11.29.1 — ENQUEUE THE CARRIER, don't assume the shell will.
+	//
+	// wp_localize_script attaches data to a HANDLE, and WordPress prints that
+	// data only when the handle is enqueued. Until now nothing enqueued
+	// 'sn-desktop-mode': it was registered, localized, and left to be pulled in
+	// as a dependency of a widget script.
+	//
+	// The shell does not pull it in. openstation_resolve_script_payload()
+	// resolves only the handle's OWN src and never walks dependencies — the
+	// same gap this file's own comments describe for the widget prelude — so
+	// server-sync injects one bare <script src> per widget and the dependency
+	// carrying window.snDesktopData is never printed.
+	//
+	// Symptom, observed after an OpenStation reinstall on 2026-08-19: every
+	// widget fed by an ABILITY or REST kept working (Uptime, Site Views,
+	// Machine Readers, Anchors, RSS, Deploy Status) while every widget fed by
+	// the LOCALIZE went blank at once — SN Health "No health scan yet", SN Cron
+	// "Cron not measured", SN Cache "No purge verified yet" — on a site with 62
+	// scheduled events, 7/7 checks passing and 11 recorded verdicts. The
+	// widgets were honest; the data global simply was not on the page.
+	//
+	// Safe on any admin screen: assets/desktop-mode.js no-ops when neither
+	// wp.desktop nor wp.os is present.
+	wp_enqueue_script( 'sn-desktop-mode' );
 } );
