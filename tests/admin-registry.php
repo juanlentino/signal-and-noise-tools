@@ -58,6 +58,14 @@ function sn_admin_render_ai_settings_form() { $GLOBALS['__calls'][] = 'fn:sn_adm
 // NB: we stub sn_admin_render_section/sub_tabs/toc above to record routing, so we
 // must NOT require inc/admin-tabs.php (it defines them for real → redeclare fatal).
 // The dispatcher lives in its own inc/admin-dispatch.php (required from Task 3 on).
+// R6b: load the REAL Search Console register fn, not a stub of it. The leaf is
+// spliced through `function_exists( 'snt_gsc_admin_register' )`, so without this
+// the guard is false, the leaf never registers, and the ordered-slug assertion
+// below passes while being BLIND to it — a contract test certifying a structure
+// it cannot see. (machine-readers is genuinely optional and stays invisible on
+// purpose; this leaf always registers, so it belongs in the contract.)
+// Required BEFORE admin-tabs-data.php, whose function runs the guard at call time.
+require __DIR__ . '/../inc/search-console-admin.php';
 require __DIR__ . '/../inc/admin-tabs-data.php';
 require __DIR__ . '/../inc/admin-render-sections.php';
 require __DIR__ . '/../inc/admin-dispatch.php'; // dispatcher (own file so the helper stubs above don't collide with admin-tabs.php)
@@ -127,8 +135,13 @@ ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'w
 // Measurement: every surface that reads the site and tunes what is measured.
 // RSS joins it because the RSS leaf is feed-request *analytics*.
 ok( ( $by_tab['monitoring']['label'] ?? '' ) === 'Measurement', "monitoring relabelled 'Measurement' — KEY still 'monitoring'" );
-ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'rss', 'insights', 'health' ),
-	'monitoring leaves: analytics, rss, insights, health — recording surfaces first, then the two that interpret them (machine-readers splices in after rss when the module loads)' );
+ok( array_keys( $by_tab['monitoring']['sub_tabs'] ) === array( 'analytics', 'search-console', 'rss', 'insights', 'health' ),
+	'monitoring leaves: analytics, search-console, rss, insights, health — recording surfaces first, then the two that interpret them (machine-readers splices in after rss when the module loads)' );
+// R6b: prove the assertion above is not vacuous. If the register fn were absent
+// the list would silently lose its leaf and still read as a pass, which is how
+// this suite stayed green through the leaf being invisible to it.
+ok( function_exists( 'snt_gsc_admin_register' ), 'the Search Console register fn is LOADED here — without it the leaf is invisible and the list above proves nothing' );
+ok( in_array( 'search-console', array_keys( $by_tab['monitoring']['sub_tabs'] ), true ), 'and the leaf is actually present in the registry it registered into' );
 
 // AI: the surface that had no home — budget was field 10 of a render-knobs form.
 ok( ( $by_tab['ai']['slug'] ?? '' ) === 'sn-ai', "ai tab slug is 'sn-ai' (allow-lists itself — sn_admin_post_allowed_pages derives from this registry)" );

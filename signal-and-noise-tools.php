@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     11.17.0
+ * Version:     11.18.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -271,6 +271,8 @@ require_once SNT_PATH . 'inc/machine-readers-narration.php';
 // detector plus one guarded fetch wrapper, no hooks, no side effects.
 require_once SNT_PATH . 'inc/machine-readers-insights.php';
 require_once SNT_PATH . 'inc/machine-readers-admin.php';
+require_once SNT_PATH . 'inc/search-console-credential.php'; // R6b: the GSC service-account credential (storage + validation).
+require_once SNT_PATH . 'inc/search-console-admin.php';      // R6b: Measurement -> Search Console leaf.
 
 // RSS feed-request tracker. (v1.1.0–v6.20.0 this was inc/rss-plausible-tracker.php,
 // migrated from a theme MU-plugin of the same name; the v1.1.0 MU-twin redeclare

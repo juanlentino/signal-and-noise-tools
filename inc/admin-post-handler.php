@@ -92,6 +92,7 @@ function sn_admin_post_handlers() {
 		// v9.85.0 (Session 3): Machine Readers sensor settings (worker URL +
 		// write-only read token under the machine_readers subtree).
 		'machine_readers_save'       => 'sn_handle_machine_readers_save',
+		'gsc_credential_save'        => 'sn_handle_gsc_credential_save',
 	);
 }
 

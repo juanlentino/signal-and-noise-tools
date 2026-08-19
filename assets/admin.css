@@ -2350,3 +2350,17 @@ a.sn-glance-card:focus {
 .sn-rsm-lines {
 	margin: var(--sn-space-2) 0 0;
 }
+
+/* R6b — Measurement → Search Console (the service-account credential leaf).
+   The identity card prints values that are long and unbreakable by nature: a
+   service-account email is ~50 chars with no spaces, and the key fingerprint is
+   a hash. Without an explicit break they push the table wider than its column
+   on a narrow admin screen. */
+.sn-gsc-identity code {
+	word-break: break-all;
+	font-size: 12px;
+}
+.sn-gsc-settings textarea {
+	font-family: Menlo, Consolas, monospace;
+	font-size: 12px;
+}

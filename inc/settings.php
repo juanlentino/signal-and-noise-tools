@@ -159,6 +159,15 @@ function sn_settings_defaults() {
 		// sn_setting_update('analytics.exclude_roles', …) by
 		// sn_handle_analytics_exclude_save() — NOT in the Identity form payload,
 		// so it also needs a preserve block in sn_settings_save() below.
+		// R6b: the Google Search Console service-account key. A SETTINGS leaf,
+		// not its own option, because inc/config-drift.php snapshots only
+		// SN_SETTINGS_OPTION — a credential stored elsewhere is drift-INVISIBLE,
+		// and a silently-replaced credential is what drift detection exists for.
+		// The leaf name ends in `credential` so the drift suffix regex hashes it
+		// rather than copying a private key into a second option.
+		'search_console' => array(
+			'gsc_credential' => '',
+		),
 		'analytics' => array(
 			'exclude_roles' => array(),
 			// v9.36.0 settings hub: predictive-engine tuning knobs. Scalar
@@ -430,6 +439,15 @@ function sn_settings_save( $raw ) {
 	// they must re-derive it from the Worker secret. Fifth subtree in this class.
 	if ( isset( $existing_settings['machine_readers'] ) && is_array( $existing_settings['machine_readers'] ) ) {
 		$sanitized['machine_readers'] = $existing_settings['machine_readers'];
+	}
+
+	// R6b: same hazard, search_console subtree. Its credential is written from
+	// Measurement -> Search Console and is WRITE-ONLY in the UI (the screen never
+	// echoes it back), so an Identity save clobbering it destroys a value the owner
+	// cannot re-read — they would have to re-download the key from Google Cloud.
+	// Sixth subtree in this class.
+	if ( isset( $existing_settings['search_console'] ) && is_array( $existing_settings['search_console'] ) ) {
+		$sanitized['search_console'] = $existing_settings['search_console'];
 	}
 
 	$sanitized['seo_copy'] = array(

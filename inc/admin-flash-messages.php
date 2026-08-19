@@ -151,6 +151,12 @@ function sn_admin_flash_messages() {
 		'mcp_rw_bind_invalid'         => array( 'error', 'Could not bind that Application Password &mdash; it doesn&rsquo;t belong to your account, or no longer exists.' ),
 		// v9.85.0 (Session 3): Machine Readers sensor settings.
 		'machine_readers_saved'       => array( 'success', 'Machine Readers sensor settings saved. The panels read with the new credentials on the next load.' ),
+		'gsc_credential_saved'        => array( 'success', 'Search Console credential saved. The private key is never displayed; the identity card above shows which key is stored.' ),
+		'gsc_credential_cleared'      => array( 'success', 'Search Console credential removed.' ),
+		'gsc_credential_unchanged'    => array( 'info', 'Search Console credential unchanged.' ),
+		'gsc_credential_not_json'     => array( 'error', 'That is not valid JSON. Paste the whole downloaded key file, including the outer braces — the stored credential was not changed.' ),
+		'gsc_credential_not_service_account' => array( 'error', 'That JSON is not a service-account key. An OAuth client JSON looks similar and comes from the same screen, but cannot be used here — the stored credential was not changed.' ),
+		'gsc_credential_rejected'     => array( 'error', 'The pasted credential was rejected: a required field is missing or the private key is not a PEM block. Re-download the key from Google Cloud and paste it whole — the stored credential was not changed.' ),
 	);
 }
 
