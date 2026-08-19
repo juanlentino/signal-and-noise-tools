@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.19.1] - 2026-08-18 — the Search tab rendered nothing
+
+### Fixed
+- **Analytics → Search was BLANK.** Reported from a live install one release after
+  shipping: the tab highlighted, the shared header drew, and the view body produced
+  no output at all.
+- **`snt_an_note_empty()` does not render — it COLLECTS.** Each view queues notes and
+  then flushes its own fold with `snt_an_flush_empty_fold()` at its end; every other
+  view does this and there is no dispatcher-level fallback. The Search view used the
+  collector for its three setup states and `return`ed immediately, so the notes were
+  queued, never emitted, and the tab drew nothing. The name reads like a renderer,
+  which is exactly how it was used.
+- **Setup states now render a real panel.** They are not "this panel had no rows in
+  your range" — the fold's own summary line says *"No data in this range yet"*, which
+  is the wrong sentence for "you have not chosen a property". Each state now names its
+  single next action: add a credential, run Test connection and choose a property, or
+  Sync now.
+- **The view flushes its fold**, so genuinely-empty tables appear AND their notes
+  cannot leak into whichever view flushes next.
+
+### Tests
+- New `tests/analytics-view-search.php` (20 assertions). Every assertion is
+  **"output is non-empty"**, because the failure mode was SILENCE, not wrongness — a
+  suite asserting on content would have passed a blank page as happily as a full one.
+  The collector is reproduced with its REAL semantics (collect, then flush) rather
+  than stubbed as an echo, which would have hidden the bug under test.
+- Also pins the units on their way to the screen: `ctr` 0.05 renders as `5.0%` and is
+  not mistaken for an already-percentage value.
+- Negative-controlled: restoring the v11.19.0 shape fails four assertions, including
+  the exact state reported.
+
 ## [11.19.0] - 2026-08-18 — the pre-click half of the funnel
 
 ### Added
