@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Added
+- **WebFinger (RFC 7033) at `/.well-known/webfinger`.** The signing identity already
+  answers at `/.well-known/did.json`; this is a second standard way to ASK for it, and
+  it resolves to the same `did:web:juanlentino.com` document and the same Ed25519 key
+  the provenance chain signs with. The claim is **coherence** — one entity, discoverable
+  by several standard mechanisms, all agreeing — which is a stronger statement than any
+  single mechanism makes alone. Not federation.
+- The endpoint answers to the `acct:`, `did:web:` and `https://` forms of the same
+  identity, folding case and treating a trailing slash as the same identity, and it
+  carries `Access-Control-Allow-Origin: *` because cross-origin discovery is the point
+  (§5). `rel` filtering is implemented per §4.3: an unmatched `rel` returns an empty
+  link array, which is a correct answer rather than an error. A missing `resource`
+  parameter is a 400, not a 404.
+- **Identity discovery** joins the Machine Readability coverage table as its own row.
+
+### Not added, on purpose
+- **NodeInfo, WebFinger's usual companion, is NOT served — it cannot be served
+  truthfully.** Its schema makes `protocols` required with `minItems: 1`, and the enum
+  admits only federation protocols (`activitypub`, `diaspora`, `ostatus`, and seven
+  more). This site speaks none of them, so every schema-valid NodeInfo document it
+  could emit would be a false machine-readable claim standing beside `did.json` and
+  `tdmrep.json`, which are true. Verified against the raw 2.0 and 2.1 schemas on
+  2026-08-19. This is the same shape as the styled RSS feed removed in v11.9.4: the
+  standard cannot express the honest answer, so the honest answer is silence.
+
+### Notes
+- The link set is built from what exists: `did.json` 404s when no signing key is
+  configured, so without a key WebFinger omits the `self` and `describedby` links
+  rather than pointing at a resource that is not there. The subject and the profile
+  page survive — the identity still answers, it just claims less. Both halves are
+  pinned by tests, and both pins were negative-controlled by mutation.
+
 ## [11.26.0] - 2026-08-19 — the kernel adopts semantic embeddings
 
 Shadow mode ends. Related notes now rank on centred semantic vectors, and the ML
