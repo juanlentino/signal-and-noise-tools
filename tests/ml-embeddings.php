@@ -123,5 +123,17 @@ ok( false === strpos( $kernel, 'snt_ml_vec_cosine' ), 'and does not use embeddin
 $page = (string) file_get_contents( __DIR__ . '/../inc/ml-maturity-page.php' );
 ok( false !== strpos( $page, 'No neural network' ), 'the public page still claims no neural network — TRUE while this stays shadow, and the claim that must change before any swap' );
 
+echo "\nGroup: the token has a CONTROL, not just a leaf\n";
+// v11.22.0 shipped the setting with no way to set it — the v10.84.0 failure
+// repeated. These assertions exist so it cannot ship that way again.
+$form    = (string) file_get_contents( __DIR__ . '/../inc/admin-forms/ai-settings.php' );
+$handler = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions.php' );
+ok( false !== strpos( $form, 'sn_ml_embeddings_token' ), 'the AI settings form renders a field for the token' );
+ok( false !== strpos( $form, 'sn_mask_secret' ), 'and masks it rather than echoing the secret back' );
+ok( false !== strpos( $form, 'Workers AI' ) && false !== strpos( $form, 'Read' ), 'and names the exact permission (ACCOUNT scope, Workers AI, Read) — the step that is easy to get wrong' );
+ok( false !== strpos( $handler, "sn_setting_update( 'ml.embeddings_token'" ), 'the save handler writes the leaf' );
+ok( false !== strpos( $handler, "0 !== strpos( \$embed, '••••' )" ), 'and IGNORES an un-edited mask, so saving the form never overwrites the real token with dots' );
+ok( false !== strpos( $handler, "'clear' === strtolower( \$embed )" ), 'with an explicit clear sentinel' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );

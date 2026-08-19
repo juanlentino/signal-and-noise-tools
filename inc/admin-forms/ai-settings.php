@@ -127,6 +127,25 @@ function sn_admin_render_ai_settings_form() {
 	}
 	echo '</div>';
 
+	// item 8: the Workers AI token for SHADOW semantic embeddings. Shipped in
+	// v11.22.0 with NO control to set it — the same failure v10.84.0 made with
+	// the page-signing gate, which then sat unreachable for thirty releases.
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label" for="sn_ml_embeddings_token">' . esc_html__( 'Workers AI token (semantic embeddings)', 'signal-and-noise-tools' ) . '</label>';
+	$embed_token = function_exists( 'snt_ml_embed_token' ) ? snt_ml_embed_token() : '';
+	echo '<input type="text" id="sn_ml_embeddings_token" name="sn_ml_embeddings_token" class="regular-text" value="' . esc_attr( sn_mask_secret( $embed_token ) ) . '" placeholder="' . esc_attr__( 'Paste a token; type clear to remove', 'signal-and-noise-tools' ) . '">';
+	echo '<p class="sn-field-helper">' . esc_html__( 'Cloudflare dashboard → My Profile → API Tokens → Create Custom Token. The permission is under the ACCOUNT scope (not User or Zone), named "Workers AI", set to Read. The account ID is shared with Analytics.', 'signal-and-noise-tools' ) . '</p>';
+	if ( function_exists( 'snt_ml_embed_configured' ) ) {
+		if ( snt_ml_embed_configured() ) {
+			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--ok">' . esc_html__( 'Configured', 'signal-and-noise-tools' ) . '</span> ' . esc_html__( 'Embeddings run in SHADOW mode: they are computed and compared against the existing ranking, and nothing the site serves uses them yet.', 'signal-and-noise-tools' ) . '</p>';
+		} elseif ( '' === ( function_exists( 'snt_ml_embed_account_id' ) ? snt_ml_embed_account_id() : '' ) ) {
+			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--warn">' . esc_html__( 'No Cloudflare account ID — set it under Measurement → Analytics first.', 'signal-and-noise-tools' ) . '</span></p>';
+		} else {
+			echo '<p class="sn-field-helper"><span class="sn-pill">' . esc_html__( 'Not configured.', 'signal-and-noise-tools' ) . '</span></p>';
+		}
+	}
+	echo '</div>';
+
 	echo '<div class="sn-fieldset-actions">';
 	echo '<p class="sn-fieldset-actions-hint">' . esc_html__( 'Model changes apply to the next AI call. The budget is evaluated per calendar month.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<button type="submit" class="button button-primary">' . esc_html__( 'Save AI settings', 'signal-and-noise-tools' ) . '</button>';

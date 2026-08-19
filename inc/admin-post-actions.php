@@ -871,6 +871,18 @@ function sn_handle_ai_settings_save( $post ) {
 	// v9.26.0: monthly AI budget in USD. Clamp to >= 0 at cents precision; 0 = off.
 	$ok &= sn_setting_update( 'theme.ai_monthly_budget', round( max( 0, (float) ( $post['theme_ai_monthly_budget'] ?? 0 ) ), 2 ) );
 
+	// item 8: the Workers AI token. Masked field, so an un-edited '••••…'
+	// placeholder must never be written back over the real value — the same
+	// round-trip the analytics token already uses. 'clear' removes it.
+	if ( isset( $post['sn_ml_embeddings_token'] ) ) {
+		$embed = sanitize_text_field( wp_unslash( $post['sn_ml_embeddings_token'] ) );
+		if ( 'clear' === strtolower( $embed ) ) {
+			$ok &= sn_setting_update( 'ml.embeddings_token', '' );
+		} elseif ( '' !== $embed && 0 !== strpos( $embed, '••••' ) ) {
+			$ok &= sn_setting_update( 'ml.embeddings_token', $embed );
+		}
+	}
+
 	return $ok ? 'ai_settings_saved' : 'ai_settings_unchanged';
 }
 

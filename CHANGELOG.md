@@ -2,6 +2,30 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.22.1] - 2026-08-18 — the embeddings token had no control
+
+### Fixed
+- **v11.22.0 shipped the `ml.embeddings_token` setting with no way to set it.** The leaf
+  existed, the drift pin existed, the client read it — and no screen wrote it. That is
+  the v10.84.0 failure repeated: the page-signing gate shipped the same way and sat
+  unreachable for thirty releases. It was called out in this same session's notes and
+  avoided deliberately for the Search Console credential, then made here anyway.
+- The field now sits on **AI → Models & Budget**, where AI configuration already lives —
+  no new leaf, no registry change. Masked with `sn_mask_secret()`, an un-edited `••••`
+  placeholder is ignored on save so the real token is never overwritten with dots, and
+  `clear` removes it.
+- **It names the exact permission**, because this is the step that is easy to get wrong:
+  Cloudflare → My Profile → API Tokens → Create Custom Token, permission under the
+  **Account** scope (not User or Zone), named **Workers AI**, set to **Read**. Verified
+  against the API-token permissions reference rather than recalled.
+- The status line distinguishes three states: configured, no account ID yet (pointing at
+  Measurement → Analytics, which owns it), and not configured.
+
+### Tests
+Six assertions that exist so this cannot ship control-less again: the form renders the
+field, masks it, and names the permission; the handler writes the leaf, ignores an
+un-edited mask, and honours `clear`.
+
 ## [11.22.0] - 2026-08-18 — semantic embeddings, in shadow
 
 ### Added
