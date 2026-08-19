@@ -24,7 +24,7 @@ function snt_morning_brief_enabled() {
 
 /** Collect cached/local readers behind the health, cron, uptime and deploy abilities. */
 function snt_morning_brief_collect() {
-	$data = array( 'health' => null, 'cron' => null, 'uptime' => null, 'deploy' => null, 'drift' => null );
+	$data = array( 'health' => null, 'cron' => null, 'uptime' => null, 'deploy' => null, 'drift' => null, 'search' => null );
 	if ( function_exists( 'sn_health_last_scan' ) ) {
 		$scan = sn_health_last_scan();
 		if ( is_array( $scan ) ) {
@@ -69,6 +69,32 @@ function snt_morning_brief_collect() {
 			$data['deploy']['last_deploy'] = snt_deploy_runs_age_label( snt_deploy_history_merged( array_values( SNT_DEPLOY_REPOS ), 1 ) );
 		}
 	}
+	// R6b: the search section. Reads the STORED window — the brief must never
+	// make a network call to Google on a cron firing, and a stale window is a
+	// fact worth stating rather than a reason to fetch.
+	if ( function_exists( 'snt_gsc_data' ) ) {
+		$gsc = snt_gsc_data();
+		if ( is_array( $gsc ) ) {
+			$impressions = 0;
+			$clicks      = 0;
+			foreach ( (array) $gsc['pages'] as $m ) {
+				$impressions += (int) $m['impressions'];
+				$clicks      += (int) $m['clicks'];
+			}
+			$zero = 0;
+			foreach ( (array) $gsc['pages'] as $m ) {
+				if ( (int) $m['impressions'] >= 50 && 0 === (int) $m['clicks'] ) { ++$zero; }
+			}
+			$data['search'] = array(
+				'impressions' => $impressions,
+				'clicks'      => $clicks,
+				'zero_click'  => $zero,
+				'top_query'   => (string) ( $gsc['queries'][0]['key'] ?? '' ),
+				'synced_at'   => (int) $gsc['synced_at'],
+				'window'      => $gsc['window'],
+			);
+		}
+	}
 	if ( function_exists( 'snt_config_drift_status' ) ) { $data['drift'] = snt_config_drift_status(); }
 	return $data;
 }
@@ -96,6 +122,35 @@ function snt_morning_brief_compose( $data ) {
 		$sentences[] = 0 === $available && 0 === $unknown ? 'The theme and plugin both match their latest known releases.' : sprintf( 'Deploy status shows %d update%s available and %d package%s with an unknown latest release.', $available, 1 === $available ? '' : 's', $unknown, 1 === $unknown ? '' : 's' );
 		if ( '' !== (string) ( $d['last_deploy'] ?? '' ) ) { $sentences[] = 'The last recorded deploy was ' . $d['last_deploy'] . '.'; }
 	}
+	// R6b: search. Silent when nothing has synced — an operations brief that
+	// says "no search data" every morning for a site that never connected GSC
+	// is noise, and the setup nag belongs on the settings screen, not here.
+	$sr = is_array( $data['search'] ?? null ) ? $data['search'] : null;
+	if ( null !== $sr ) {
+		$age_days = (int) floor( ( time() - (int) $sr['synced_at'] ) / DAY_IN_SECONDS );
+		$sentences[] = sprintf(
+			'Google showed the site %s times and sent %s clicks over %s to %s.',
+			number_format_i18n( (int) $sr['impressions'] ),
+			number_format_i18n( (int) $sr['clicks'] ),
+			(string) $sr['window']['start'],
+			(string) $sr['window']['end']
+		);
+		if ( (int) $sr['zero_click'] > 0 ) {
+			$sentences[] = sprintf(
+				'%d page%s drew meaningful impressions without a single click.',
+				(int) $sr['zero_click'],
+				1 === (int) $sr['zero_click'] ? '' : 's'
+			);
+		}
+		if ( '' !== (string) $sr['top_query'] ) {
+			$sentences[] = sprintf( 'The most-seen query was "%s".', (string) $sr['top_query'] );
+		}
+		// A window nobody refreshed is reported as stale rather than as current.
+		if ( $age_days >= 3 ) {
+			$sentences[] = sprintf( 'That search window is %d days old and has not been re-synced.', $age_days );
+		}
+	}
+
 	$drift = is_array( $data['drift'] ?? null ) ? $data['drift'] : null;
 	if ( $drift && ! empty( $drift['has_drift'] ) ) {
 		$sentences[] = sprintf( 'Configuration drift is present in %d setting%s since the acknowledged snapshot: %d changed, %d added, and %d removed.', $drift['count'], 1 === (int) $drift['count'] ? '' : 's', count( $drift['changed'] ), count( $drift['added'] ), count( $drift['removed'] ) );

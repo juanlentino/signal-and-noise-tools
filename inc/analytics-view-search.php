@@ -152,6 +152,29 @@ function snt_analytics_render_view_search() {
 		__( 'No pages in this window.', 'signal-and-noise-tools' )
 	);
 
+	// R6b: the cross-exam. Placed AFTER the tables because it is a check ON
+	// them, not another table — and it is skipped silently when the ledger
+	// module or sensor is unavailable, since "could not ask" is not a finding.
+	if ( function_exists( 'snt_gsc_crossexam' ) ) {
+		$x = snt_gsc_crossexam();
+		if ( ! empty( $x['ok'] ) ) {
+			snt_an_panel_open( __( 'Cross-exam: Google vs the crawler ledger', 'signal-and-noise-tools' ) );
+			echo '<p>' . esc_html( snt_gsc_crossexam_reading( $x ) ) . '</p>';
+			echo '<p class="description">';
+			printf(
+				/* translators: 1: impressions, 2: search-crawler hits, 3: robots hits, 4: sitemap hits, 5: ledger days. */
+				esc_html__( 'Google: %1$s impressions in its window. Worker ledger: %2$s search-engine fetches over %5$d days (%3$s to robots.txt, %4$s to the sitemap). The two windows are offset by a few days, so this compares magnitude, not equality.', 'signal-and-noise-tools' ),
+				esc_html( number_format_i18n( (int) $x['gsc']['impressions'] ) ),
+				esc_html( number_format_i18n( (int) $x['ledger']['search_hits'] ) ),
+				esc_html( number_format_i18n( (int) $x['ledger']['robots_hits'] ) ),
+				esc_html( number_format_i18n( (int) $x['ledger']['sitemap_hits'] ) ),
+				(int) $x['ledger']['days']
+			);
+			echo '</p>';
+			snt_an_panel_close();
+		}
+	}
+
 	// The one list with no first-party counterpart AND a clear action: Google
 	// shows the page often and nobody clicks. Ranked by impressions, because a
 	// page with 3 impressions and no clicks is noise, not an opportunity.
