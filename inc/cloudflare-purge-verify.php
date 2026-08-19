@@ -59,6 +59,33 @@ const SN_CF_PROBE_LOG_OPT = 'sn_cf_purge_probe_log';
  */
 function snt_cf_normalize_render( $html ) {
 	$html = (string) $html;
+
+	// v11.29.1 — COMPARE THE CONTENT REGION, NOT THE DOCUMENT.
+	//
+	// Measured against the live site 2026-08-19: the two fetches this probe
+	// compares are not comparable as whole documents, for reasons that have
+	// nothing to do with staleness.
+	//
+	//   Breeze injects <script id="breeze-prefetch-js-extra"> on the
+	//   cache-busted request and not on the cached one — a different code path
+	//   through the caching plugin, present on EVERY url.
+	//
+	// So every probe returned stale, every one escalated to a full zone purge,
+	// and the log read 11 stale of 11. Not a stale edge: a detector that could
+	// not return anything else.
+	//
+	// <main> is the region both paths render identically — verified byte-equal
+	// on /about/, / and /resume/ after the normalisation below. Falling back to
+	// the whole document when there is no <main> keeps a theme without that
+	// element comparing something rather than silently reading fresh.
+	if ( preg_match( '#<main\b[^>]*>(.*)</main>#is', $html, $main ) ) {
+		$html = $main[1];
+	}
+
+	// Minification strips HTML comments, so a comment is not evidence of drift.
+	// Done BEFORE the volatile patterns so a token inside a comment cannot
+	// survive as a difference.
+	$html = preg_replace( '/<!--.*?-->/s', '', $html );
 	// Volatile per-request tokens. Filterable because a future plugin can add
 	// its own, and a false "stale" verdict costs a needless zone purge.
 	$patterns = apply_filters( 'sn_cf_probe_volatile_patterns', array(
@@ -71,7 +98,17 @@ function snt_cf_normalize_render( $html ) {
 	foreach ( $patterns as $pattern ) {
 		$html = preg_replace( $pattern, '', $html );
 	}
-	return trim( preg_replace( '/\s+/u', ' ', $html ) );
+	// Whitespace is REMOVED, not collapsed. The cached copy is minified and the
+	// cache-busted copy is not, so `><` and `> <` must compare equal; collapsing
+	// runs to a single space leaves that difference intact. Measured 122,960 vs
+	// 132,288 bytes on /about/ — about 9KB of inter-tag whitespace.
+	//
+	// The cost, stated: this also ignores whitespace inside <pre> and
+	// <textarea>, so a change that is ONLY whitespace in preformatted text
+	// reads as fresh. That is the right trade against eleven needless zone
+	// purges, and the alternative — parsing to compare structurally — is a
+	// large amount of machinery for a heuristic.
+	return preg_replace( '/\s+/u', '', $html );
 }
 
 /**
