@@ -5,6 +5,28 @@ All notable changes to Signal & Noise Tools are documented here.
 ## [Unreleased]
 
 ### Added
+- **Search Console feeds the clicks figure.** It reads the stored payload — no API call on
+  a page render — and stays *unknown* until something has synced. A property never fetched
+  and one Google reports no clicks for are different facts; the second is a measured zero,
+  and both now render as what they are.
+
+### Fixed
+- **The clicks figure no longer claims a window it does not hold.** The stored Search
+  Console window is 28 days by default, ending a few days back because Google has not
+  finished counting the most recent ones. The label was hardcoded `clicks 7d`, which would
+  have presented a month of clicks as a week's — a four-fold overstatement that reads as
+  entirely plausible. The label is now derived from the window the last sync actually used.
+
+### Changed
+- **One attention opt-out rule, one copy.** The predicate deciding whether a card asks to
+  be promoted lived in three byte-identical copies. Three copies is three chances to update
+  two, and when the count and the state disagree you get the v11.16.0
+  cold-caches-lead-the-dashboard regression back in a new place. Extracted to
+  `sn_admin_card_wants_attention()`, where a single mutation now breaks all three callers.
+- **The Dashboard orchestrator is 734 lines, down from 1105.** Deploy-run formatting, the
+  external-API summary, and the Site Health Info panel move to their own files. The last of
+  those never rendered on the Dashboard at all — it lived there only by history.
+
 - **The Dashboard is composed from zones, and state earns space.** The flat 15-tile grid
   becomes three collapsing zones plus the measurement strip. A zone that is fine collapses
   to one line; a zone needing attention expands and leads. `unknown` outranks `attention`
