@@ -185,7 +185,7 @@ git commit -m "feat: dashboard zone state derivation (unknown outranks attention
 - Modify: `inc/dash-zones.php`
 - Modify: `tests/dash-zones.php`
 
-- [ ] **Step 1: Add the failing test**
+- [x] **Step 1: Add the failing test**
 
 Append before the `Result:` line in `tests/dash-zones.php`:
 
@@ -207,12 +207,12 @@ ok( sn_dash_zone_is_open( $z_att, array( 'other' ) ) === true, 'A PIN CANNOT CLO
 ok( sn_dash_zone_is_open( array( 'id' => 'x' ), array() ) === false, 'a zone with no state is closed, not open' );
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `php tests/dash-zones.php; echo "EXIT=$?"`
 Expected: fatal — `Call to undefined function sn_dash_zone_is_open()`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Append to `inc/dash-zones.php`:
 
@@ -238,12 +238,12 @@ function sn_dash_zone_is_open( array $zone, array $pins ) {
 }
 ```
 
-- [ ] **Step 4: Run and confirm it passes**
+- [x] **Step 4: Run and confirm it passes**
 
 Run: `php tests/dash-zones.php; echo "EXIT=$?"`
-Expected: `Result: 17 passed, 0 failed.` and `EXIT=0`.
+Expected: `Result: 16 passed, 0 failed.` and `EXIT=0`.
 
-- [ ] **Step 5: Negative-control the safety property**
+- [x] **Step 5: Negative-control the safety property**
 
 ```bash
 cp inc/dash-zones.php /tmp/dz2.php
@@ -252,9 +252,10 @@ php tests/dash-zones.php; echo "EXIT=$?"
 cp /tmp/dz2.php inc/dash-zones.php
 ```
 
-Expected: the mutated run fails `A PIN CANNOT CLOSE AN ATTENTION ZONE` and the two attention-open assertions.
+Expected: the mutated run fails `A PIN CANNOT CLOSE AN ATTENTION ZONE` and the two attention-open assertions — THREE failures, `EXIT=1`.
+  Note: those two are the same call (`$z_att, array()`) under different messages, so the safety property is pinned by two distinct calls, not three. Left as written; the duplicate documents intent at the point the safety banner appears.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add inc/dash-zones.php tests/dash-zones.php
