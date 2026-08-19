@@ -89,19 +89,74 @@ function sn_dash_signals_from_measurement( array $data ) {
 		? sprintf( __( 'Clicks · %dd', 'signal-and-noise-tools' ), $days )
 		: __( 'Clicks', 'signal-and-noise-tools' );
 
+	// CONTEXT IS WHATEVER LETS YOU JUDGE THE NUMBER — a prior period where one
+	// exists, otherwise a denominator or a companion metric. Reading Few's rule
+	// as "always a prior period" produced five stacked "no prior period" lines,
+	// which is worse than the bare numbers it replaced.
+	$views   = isset( $data['views_7d'] ) ? (int) $data['views_7d'] : null;
+	$prior   = isset( $data['views_prior'] ) ? (int) $data['views_prior'] : null;
+	$delta   = array_key_exists( 'views_delta', $data ) && null !== $data['views_delta'] ? (int) $data['views_delta'] : null;
+	$imps    = isset( $data['search_impressions'] ) ? (int) $data['search_impressions'] : null;
+	$calls   = isset( $data['ai_calls_30d'] ) ? (int) $data['ai_calls_30d'] : null;
+	$anch_t  = isset( $data['anchored_total'] ) ? (int) $data['anchored_total'] : null;
+	$capped  = ! empty( $data['search_clicks_capped'] );
+
+	$views_ctx = '';
+	$views_dir = '';
+	if ( null !== $delta ) {
+		$views_dir = $delta > 0 ? 'up' : ( $delta < 0 ? 'down' : '' );
+		$sign      = $delta > 0 ? '+' : ( $delta < 0 ? '−' : '' );
+		$views_ctx = null !== $prior
+			/* translators: 1: signed change, 2: prior period total */
+			? sprintf( __( '%1$s · %2$s prior 7d', 'signal-and-noise-tools' ), $sign . number_format_i18n( abs( $delta ) ), number_format_i18n( $prior ) )
+			/* translators: %s signed change against the prior seven days */
+			: sprintf( __( '%s on prior 7d', 'signal-and-noise-tools' ), $sign . number_format_i18n( abs( $delta ) ) );
+	}
+
 	$spec = array(
-		array( 'key' => 'views_7d', 'label' => __( 'Views · 7d', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'search_clicks', 'label' => $clicks_label ),
-		array( 'key' => 'ai_spend_30d', 'label' => __( 'AI spend · 30d', 'signal-and-noise-tools' ), 'money' => true ),
-		array( 'key' => 'anchored', 'label' => __( 'Anchored', 'signal-and-noise-tools' ) ),
-		array( 'key' => 'citations', 'label' => __( 'Citations', 'signal-and-noise-tools' ) ),
+		array( 'key' => 'views_7d', 'label' => __( 'Views · 7d', 'signal-and-noise-tools' ), 'ctx' => $views_ctx, 'dir' => $views_dir ),
+		array(
+			'key'   => 'search_clicks',
+			'label' => $clicks_label,
+			// A click count is a RATE question. 5 against 1,240 impressions is
+			// legible; 5 alone is not.
+			'ctx'   => null !== $imps && $imps > 0
+				/* translators: %s impressions in the same window */
+				? sprintf( __( 'of %s impressions', 'signal-and-noise-tools' ), number_format_i18n( $imps ) )
+				: '',
+			'suffix' => $capped ? '+' : '',
+		),
+		array(
+			'key'   => 'ai_spend_30d',
+			'label' => __( 'AI spend · 30d', 'signal-and-noise-tools' ),
+			'money' => true,
+			'ctx'   => null !== $calls && $calls > 0
+				/* translators: %s number of AI calls */
+				? sprintf( __( 'across %s calls', 'signal-and-noise-tools' ), number_format_i18n( $calls ) )
+				: '',
+		),
+		array(
+			'key'   => 'anchored',
+			'label' => __( 'Anchored', 'signal-and-noise-tools' ),
+			// The denominator IS the context: "33" is a count, "33 of 33" is an
+			// answer to "is anything unanchored?".
+			'ctx'   => null !== $anch_t && $anch_t > 0
+				/* translators: %s total notes */
+				? sprintf( __( 'of %s notes', 'signal-and-noise-tools' ), number_format_i18n( $anch_t ) )
+				: '',
+		),
+		array(
+			'key'   => 'citations',
+			'label' => __( 'Citations', 'signal-and-noise-tools' ),
+			'ctx'   => null !== $anch_t && $anch_t > 0
+				/* translators: %s total notes */
+				? sprintf( __( 'across %s notes', 'signal-and-noise-tools' ), number_format_i18n( $anch_t ) )
+				: '',
+		),
 	);
 
 	$out = array();
 	foreach ( $spec as $f ) {
-		// array_key_exists + an explicit null test: isset() would fold a
-		// measured null and an absent key into the same answer, and only one
-		// of those is a transport problem.
 		$measured = array_key_exists( $f['key'], $data ) && null !== $data[ $f['key'] ];
 		$raw      = $measured ? $data[ $f['key'] ] : null;
 
@@ -110,27 +165,17 @@ function sn_dash_signals_from_measurement( array $data ) {
 		} elseif ( ! empty( $f['money'] ) ) {
 			$value = '$' . number_format_i18n( (float) $raw, 2 );
 		} else {
-			$value = number_format_i18n( (int) $raw );
-		}
-
-		$compare = '';
-		$dir     = '';
-		if ( 'views_7d' === $f['key'] && $measured && array_key_exists( 'views_delta', $data ) && null !== $data['views_delta'] ) {
-			$d   = (int) $data['views_delta'];
-			$dir = $d > 0 ? 'up' : ( $d < 0 ? 'down' : '' );
-			$compare = sprintf(
-				/* translators: %s signed change against the prior seven days */
-				__( '%s on prior 7d', 'signal-and-noise-tools' ),
-				( $d > 0 ? '+' : ( $d < 0 ? '−' : '' ) ) . number_format_i18n( abs( $d ) )
-			);
+			// A capped window's sum is a FLOOR. Showing it as an exact number
+			// is a lie with a decimal point; "5+" is the honest render.
+			$value = number_format_i18n( (int) $raw ) . (string) ( $f['suffix'] ?? '' );
 		}
 
 		$out[] = array(
 			'label'    => $f['label'],
 			'value'    => $value,
 			'measured' => $measured,
-			'compare'  => $compare,
-			'dir'      => $dir,
+			'compare'  => $measured ? (string) ( $f['ctx'] ?? '' ) : '',
+			'dir'      => (string) ( $f['dir'] ?? '' ),
 		);
 	}
 

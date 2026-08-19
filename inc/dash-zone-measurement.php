@@ -153,8 +153,13 @@ function snt_dashboard_measurement_data() {
 		$deltas = sn_analytics_period_deltas( $from, $to, 'human' );
 		if ( is_array( $deltas ) && isset( $deltas['views'] ) ) {
 			$data['views_7d'] = (int) ( $deltas['views']['current'] ?? 0 );
-			if ( isset( $deltas['views']['delta'] ) ) {
-				$data['views_delta'] = (int) $deltas['views']['delta'];
+			// DERIVED, not read. sn_analytics_period_deltas() returns
+			// current/previous/pct/dir and has never returned a `delta` key —
+			// so the isset() this replaces was always false and the Views
+			// figure has been silently missing its comparison since v11.28.0.
+			if ( isset( $deltas['views']['previous'] ) ) {
+				$data['views_prior']  = (int) $deltas['views']['previous'];
+				$data['views_delta']  = (int) ( $deltas['views']['current'] ?? 0 ) - (int) $deltas['views']['previous'];
 			}
 		}
 
@@ -173,6 +178,9 @@ function snt_dashboard_measurement_data() {
 		$s30 = snt_ai_usage_summary( 30 );
 		if ( is_array( $s30 ) ) {
 			$data['ai_spend_30d'] = (float) ( $s30['cost'] ?? 0 );
+			// Context for the spend figure: cost alone cannot be judged, but
+			// cost across N calls can.
+			$data['ai_calls_30d'] = (int) ( $s30['calls'] ?? 0 );
 		}
 	}
 
@@ -180,6 +188,11 @@ function snt_dashboard_measurement_data() {
 		$ov = snt_prov_anchor_overview();
 		if ( is_array( $ov ) && array_key_exists( 'confirmed', $ov ) ) {
 			$data['anchored'] = (int) $ov['confirmed'];
+			// The denominator IS the context: "33" means nothing, "33 of 33"
+			// is an answer.
+			if ( array_key_exists( 'total', $ov ) ) {
+				$data['anchored_total'] = (int) $ov['total'];
+			}
 		}
 	}
 
@@ -204,8 +217,10 @@ function snt_dashboard_measurement_data() {
 	if ( function_exists( 'snt_gsc_window_totals' ) ) {
 		$gsc = snt_gsc_window_totals();
 		if ( is_array( $gsc ) ) {
-			$data['search_clicks']      = (int) $gsc['clicks'];
-			$data['search_clicks_days'] = (int) $gsc['days'];
+			$data['search_clicks']       = (int) $gsc['clicks'];
+			$data['search_clicks_days']  = (int) $gsc['days'];
+			$data['search_impressions']  = (int) ( $gsc['impressions'] ?? 0 );
+			$data['search_clicks_capped'] = ! empty( $gsc['capped'] );
 		}
 	}
 

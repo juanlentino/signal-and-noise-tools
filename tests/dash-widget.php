@@ -25,6 +25,7 @@ function wp_remote_get( $u, $a = array() ) { $GLOBALS['__http_calls']++; return 
 function wp_remote_post( $u, $a = array() ) { $GLOBALS['__http_calls']++; return array(); }
 function sn_health_run_scan() { $GLOBALS['__scans']++; return array(); }
 function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
+function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_url( $s ) { return (string) $s; }
 function esc_html__( $t, $d = '' ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); }
@@ -33,6 +34,19 @@ function _n( $s, $p, $n, $d = '' ) { return 1 === (int) $n ? $s : $p; }
 function admin_url( $p = '' ) { return '/wp-admin/' . $p; }
 require __DIR__ . '/../inc/admin-glance.php';
 require __DIR__ . '/../inc/dash-verdict.php';
+// Drive the REAL card sources rather than stubbing sn_dash_widget_cards() —
+// a stub of the unit under test would assert nothing about it.
+function sn_health_last_scan() { return array( 'scanned_at' => 1000, 'checks' => array() ); }
+function sn_health_finding_total( $scan ) { return 0; }
+function snt_cron_summary_for_localize() { return array( 'total' => 64, 'sn_count' => 12, 'orphans' => 0, 'state' => 'ok', 'note' => '' ); }
+require __DIR__ . '/../inc/dash-signals.php';
+// A stub measurement source — the widget must not require the whole
+// analytics stack to be loadable in order to render.
+function snt_dashboard_measurement_data() { return array(
+	'views_7d' => 128, 'views_delta' => 39, 'views_prior' => 89,
+	'search_clicks' => 5, 'search_clicks_days' => 28, 'search_impressions' => 1240,
+	'anchored' => 33, 'anchored_total' => 33, 'citations' => 0,
+); }
 require __DIR__ . '/../inc/dash-widget.php';
 
 $pass = 0; $fail = 0;
@@ -84,6 +98,31 @@ ob_start(); call_user_func( $GLOBALS['__widgets']['sn_dashboard'][1] ); $stats_h
 ok( false === strpos( $stats_html, 'sn-dw__exceptions' ),
 	'BUT NOT THE EXCEPTION BAND — health findings and cron faults are manage_options business, and the folded Health widget was gated that way' );
 $GLOBALS['__cap'] = 'manage_options';
+
+// ── THE WIDGET MUST EARN ITS COLUMN ─────────────────────────────────────────
+// v11.30.1. Shipped, this box was two lines of text sitting beside At a Glance,
+// Activity, AI Status and Object Cache Pro — all of which carry real content.
+// "One decision" was the right principle and the wrong amount: in a column of
+// dense neighbours, restraint reads as an empty box rather than as calm.
+//
+// It still does NOT reproduce the full screen — a widget column is ~400px and
+// the single-screen rule is what makes that layout work. It carries the verdict
+// plus the evidence a glance actually needs.
+echo "\nThe widget carries evidence, not just a verdict\n";
+$GLOBALS['__cap'] = 'manage_options';
+fire();
+ob_start(); call_user_func( $GLOBALS['__widgets']['sn_dashboard'][1] ); $w = ob_get_clean();
+
+ok( false !== strpos( $w, 'sn-dw__signals' ), 'IT RENDERS SIGNALS, not just a sentence' );
+ok( substr_count( $w, 'sn-dw__sig"' ) >= 4, 'at least four of them — enough to read the site at a glance' );
+ok( false !== strpos( $w, 'sn-dw__sub' ), 'and a subline of standing facts under the verdict' );
+ok( false !== strpos( $w, 'sn-dw__foot' ), 'and still links through to the full screen' );
+
+// The zero-cost invariant is NOT relaxed to buy that density.
+$GLOBALS['__http_calls'] = 0; $GLOBALS['__scans'] = 0;
+ob_start(); call_user_func( $GLOBALS['__widgets']['sn_dashboard'][1] ); ob_end_clean();
+ok( 0 === $GLOBALS['__http_calls'], 'STILL ZERO HTTP — index.php renders on every admin login' );
+ok( 0 === $GLOBALS['__scans'], 'STILL NO SCAN' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

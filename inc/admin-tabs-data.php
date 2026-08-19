@@ -105,7 +105,13 @@ function sn_admin_top_tabs() {
 			'tab'      => 'dashboard',
 			'label'    => 'Dashboard',
 			'title'    => 'Signal & Noise. Dashboard',
-			'subtitle' => 'Status overview and maintenance actions.',
+			// v11.30.1: EMPTY, deliberately. The Dashboard screen opens with a
+			// verdict line — "Everything is holding." — and a generic subtitle
+			// directly above it says the same thing worse, while spending the
+			// scale contrast the verdict depends on. The key stays (the
+			// registry contract requires it); sn_admin_page_render() already
+			// skips a falsy subtitle, so nothing renders.
+			'subtitle' => '',
 			// Phase 1: landing tab has no sub_tabs; the dispatcher calls this
 			// tab-level render directly (inc/admin-render-sections.php).
 			'render'   => 'sn_admin_render_dashboard',

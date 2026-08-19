@@ -114,7 +114,10 @@ function sn_dash_ops_panels( array $data ) {
 			function ( $row ) {
 				$row = is_array( $row ) ? $row : array();
 				return array(
-					'label' => (string) ( $row['label'] ?? ( $row['referrer'] ?? '' ) ),
+					// `value` — sn_analytics_top_sources() canonicalises the
+					// referrer into that key. `label`/`referrer` were invented
+					// by the first version of this file and rendered blank.
+					'label' => (string) ( $row['value'] ?? '' ),
 					'value' => number_format_i18n( (int) ( $row['visits'] ?? 0 ) ),
 				);
 			},
@@ -131,7 +134,9 @@ function sn_dash_ops_panels( array $data ) {
 			function ( $row ) {
 				$row = is_array( $row ) ? $row : array();
 				return array(
-					'label' => (string) ( $row['query'] ?? '' ),
+					// `key` — snt_gsc_top_queries() passes Google's rows through
+					// with the dimension in `key`, not `query`.
+					'label' => (string) ( $row['key'] ?? '' ),
 					'value' => number_format_i18n( (int) ( $row['clicks'] ?? 0 ) ),
 				);
 			},

@@ -30,9 +30,18 @@ $all = sn_dash_ops_panels( array(
 		array( 'repo' => 'juanlentino/signal-and-noise-tools', 'ref' => 'main', 'conclusion' => 'success', 'created_at' => '2026-08-19T15:00:00Z' ),
 		array( 'repo' => 'juanlentino/sn-theme', 'ref' => 'main', 'conclusion' => 'failure', 'created_at' => '2026-08-19T13:00:00Z' ),
 	),
-	'pages'   => array( array( 'path' => '/notes/two-kinds', 'views' => 41 ) ),
-	'sources' => array( array( 'label' => 'google.com', 'visits' => 12 ) ),
-	'queries' => array( array( 'query' => 'provenance over detection', 'clicks' => 4 ) ),
+	// SHAPES COPIED FROM THE PRODUCERS, NOT INVENTED.
+	//
+	// The first version of this suite made these up — `label` for a source and
+	// `query` for a query — and both were wrong. sn_analytics_top_sources()
+	// returns `value`; snt_gsc_top_queries() returns `key`. The tests passed
+	// green while the shipped wall rendered a column of bare numbers with no
+	// labels at all, because a stub that models the caller's WISH tests nothing
+	// about the callee. Bitten enough times that the shape is now quoted with
+	// its source.
+	'pages'   => array( array( 'path' => '/notes/two-kinds', 'views' => 41 ) ),          // sn_analytics_top_paths(): path, views
+	'sources' => array( array( 'value' => 'google.com', 'visits' => 12, 'views' => 20 ) ), // sn_analytics_top_sources(): value, views, visits, hosts
+	'queries' => array( array( 'key' => 'provenance over detection', 'clicks' => 4 ) ),   // snt_gsc_top_queries(): key, clicks, impressions, ctr, position
 	'api'     => array( 'github' => array( 'remaining' => 4200, 'limit' => 5000, 'kind' => 'ok' ) ),
 ) );
 
@@ -52,6 +61,21 @@ ok( 2 === count( $dep['rows'] ), 'a deploy row per run' );
 ok( '' === $dep['rows'][0]['dot'],   'A SUCCESSFUL RUN PAINTS NOTHING — healthy is the absence of a state, not a green one' );
 ok( 'err' === $dep['rows'][1]['dot'], 'A FAILED RUN PAINTS AN ERR DOT — the wall is where you would see it' );
 ok( false !== strpos( $dep['rows'][0]['label'], 'plugin' ), 'the repo is shortened, not printed whole' );
+
+// THE GAP THAT LET THE BUG SHIP. This suite asserted the DEPLOYS rows and the
+// PAGES rows and never once asserted a source or a query label — so changing
+// the fixture to the producers' real shapes changed nothing, and the wall
+// rendered a column of bare numbers in production while the suite stayed green.
+// A stub is only evidence if something asserts on what it produced.
+$src = by_title( $all, 'Top sources' );
+ok( 'google.com' === $src['rows'][0]['label'],
+	'A SOURCE ROW CARRIES ITS NAME — sn_analytics_top_sources() returns `value`, not `label`' );
+ok( '12' === $src['rows'][0]['value'], 'and its visit count' );
+
+$qs = by_title( $all, 'Top queries' );
+ok( 'provenance over detection' === $qs['rows'][0]['label'],
+	'A QUERY ROW CARRIES ITS TEXT — snt_gsc_top_queries() returns `key`, not `query`' );
+ok( '4' === $qs['rows'][0]['value'], 'and its click count' );
 
 $pg = by_title( $all, 'Top pages' );
 ok( '/notes/two-kinds' === $pg['rows'][0]['label'] && '41' === $pg['rows'][0]['value'], 'a page row is path + views' );
