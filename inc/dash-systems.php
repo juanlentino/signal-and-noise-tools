@@ -35,7 +35,13 @@ function sn_dash_render_system_cell( array $card ) {
 	$state = ( 'ok' !== $kind && sn_admin_card_wants_attention( $card ) ) ? $kind : '';
 
 	$href = (string) ( $card['href'] ?? '' );
-	echo '<div class="sn-sys' . ( '' !== $state ? ' sn-sys--' . esc_attr( $state ) : '' ) . '">';
+	// Some cards are ASYNC: snt_freshness_card() renders a neutral "Checking…"
+	// and assets/freshness-dot.js finds it BY ID to fill in the live edge
+	// result. v11.30.0 dropped the id here, so Caches read "Checking…" forever.
+	// A card that carries an id is a card something else is going to write to.
+	$id = (string) ( $card['id'] ?? '' );
+	echo '<div class="sn-sys' . ( '' !== $state ? ' sn-sys--' . esc_attr( $state ) : '' ) . '"'
+		. ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . '>';
 	echo '<span class="sn-sys__k">' . esc_html( (string) ( $card['label'] ?? '' ) ) . '</span>';
 	if ( '' !== $href ) {
 		echo '<a class="sn-sys__v" href="' . esc_url( $href ) . '">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</a>';

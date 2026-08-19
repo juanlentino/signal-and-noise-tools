@@ -71,5 +71,34 @@ ok( '' === sig( $novd, 'views' )['compare'],
 	'NO DELTA MEANS AN EMPTY COMPARISON, NOT A FABRICATED ZERO — the renderer says "no prior period"; the builder must not say "+0"' );
 ok( '' === sig( $novd, 'views' )['dir'], 'and no direction, so nothing is coloured on invented evidence' );
 
+// ── CONTEXT IS NOT ONLY A PRIOR PERIOD ──────────────────────────────────────
+// v11.30.1. The first cut read Few's "context over isolation" as "compare to
+// last week", so four of five signals rendered the literal words "no prior
+// period" — five identical strings stacked across the page, which is worse than
+// the bare numbers it replaced. A denominator is context. A companion metric is
+// context. Only where NOTHING is available does the slot say so.
+echo "\nGroup: every signal finds real context\n";
+$rich = sn_dash_signals_from_measurement( array(
+	'views_7d' => 128, 'views_delta' => 39, 'views_prior' => 89,
+	'search_clicks' => 5, 'search_clicks_days' => 28, 'search_impressions' => 1240,
+	'ai_spend_30d' => 0.61, 'ai_calls_30d' => 214,
+	'anchored' => 33, 'anchored_total' => 33,
+	'citations' => 0,
+) );
+foreach ( $rich as $one ) {
+	ok( '' !== $one['compare'], $one['label'] . ': HAS REAL CONTEXT, not a placeholder' );
+	ok( false === stripos( $one['compare'], 'no prior period' ), $one['label'] . ': and does not fall back to the placeholder' );
+}
+ok( false !== strpos( sig( $rich, 'views' )['compare'], '89' ), 'views names the prior period it beat' );
+ok( false !== strpos( sig( $rich, 'clicks' )['compare'], '1,240' ), 'CLICKS IS READ AGAINST IMPRESSIONS — 5 of 1,240 is a rate; 5 alone is not' );
+ok( false !== strpos( sig( $rich, 'AI' )['compare'], '214' ), 'spend is read across its call count' );
+ok( false !== strpos( sig( $rich, 'anchored' )['compare'], '33' ), 'anchored carries its denominator' );
+ok( '' !== sig( $rich, 'citations' )['compare'], 'citations says something rather than nothing' );
+
+// The capped GSC window must SAY it is a floor, per v11.30.0.
+$capped = sn_dash_signals_from_measurement( array( 'search_clicks' => 5, 'search_clicks_days' => 28, 'search_clicks_capped' => true ) );
+ok( false !== strpos( sig( $capped, 'clicks' )['value'], '+' ),
+	'A CAPPED WINDOW RENDERS "5+" — the 250-page cap makes the sum a floor, and a floor shown as an exact number is a lie with a decimal point' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

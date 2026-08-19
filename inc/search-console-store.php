@@ -199,10 +199,12 @@ function snt_gsc_window_totals() {
 		return null;
 	}
 
-	$clicks = 0;
+	$clicks      = 0;
+	$impressions = 0;
 	foreach ( $data['pages'] as $row ) {
 		if ( is_array( $row ) ) {
-			$clicks += (int) ( $row['clicks'] ?? 0 );
+			$clicks      += (int) ( $row['clicks'] ?? 0 );
+			$impressions += (int) ( $row['impressions'] ?? 0 );
 		}
 	}
 
@@ -227,5 +229,5 @@ function snt_gsc_window_totals() {
 	// wrong in a knowable direction should be labelled, not annotated.
 	$capped = count( (array) $data['pages'] ) >= SNT_GSC_PAGE_ROW_LIMIT;
 
-	return array( 'clicks' => $clicks, 'days' => $days, 'capped' => $capped );
+	return array( 'clicks' => $clicks, 'impressions' => $impressions, 'days' => $days, 'capped' => $capped );
 }

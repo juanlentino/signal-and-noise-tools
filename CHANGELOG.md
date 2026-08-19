@@ -2,6 +2,56 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.30.1] - 2026-08-19 — what the screen was actually showing
+
+Four defects in v11.30.0, found by installing it and looking. Three were data
+mapping; one was a design error of mine.
+
+### Fixed
+- **Top sources and Top queries rendered a column of bare numbers.** The wall read
+  `label`/`referrer` from sources and `query` from Search Console; the producers
+  return `value` and `key`. The suite stayed green because it asserted the deploys
+  and pages rows and **never once asserted a source or a query label** — a stub is
+  only evidence if something asserts on what it produced. Both shapes are now
+  quoted from their producers in the fixture, and both labels are pinned.
+- **Caches read "Checking…" forever.** `snt_freshness_card()` renders a neutral
+  placeholder that `assets/freshness-dot.js` fills in *by id*, and the systems-cell
+  renderer dropped the id. A card carrying an id is a card something else intends
+  to write to.
+- **Views never had a comparison.** `sn_analytics_period_deltas()` returns
+  `current`/`previous`/`pct`/`dir` and has never returned a `delta` key, so the
+  `isset( $deltas['views']['delta'] )` guarding it was false on every render since
+  v11.28.0. The delta is now derived from current − previous.
+- **The Search Console page cap now shows as "5+".** v11.30.0 reported `capped` in
+  the return value but nothing rendered it; a floor displayed as an exact number is
+  a lie with a decimal point.
+
+### Changed
+- **Context is no longer only a prior period.** Reading Few's "context over
+  isolation" as "compare to last week" put the literal words *no prior period*
+  under four of five signals — five identical strings stacked down the page, worse
+  than the bare numbers they replaced. A denominator is context and a companion
+  metric is context: clicks now read against impressions, spend across its call
+  count, anchored and citations against the note total. Only where nothing is
+  available does the slot say so.
+- **The index.php widget carries evidence, not just a verdict.** Shipped as two
+  lines of text it sat beside At a Glance, Activity, AI Status and Object Cache Pro
+  and read as an empty box rather than as calm. It now carries the verdict, a
+  standing-facts subline and four signals in a 2×2 grid — still not the full screen,
+  because a widget column is ~400px and the single-screen rule is what makes that
+  layout work. The zero-cost invariant is unchanged: no remote call, no scan.
+- **The systems grid is a fixed six columns**, stepping to 4/3/2 by width. `auto-fit`
+  sized columns to the container, so twelve systems wrapped 9 + 3 and left border
+  stubs hanging into empty space.
+- **The Dashboard tab's subtitle is blank.** "Status overview and maintenance
+  actions." sat directly above "Everything is holding." — the same thing said worse,
+  spending the scale contrast the verdict depends on.
+
+### Added
+- `snt_gsc_window_totals()` also returns `impressions`; `snt_dashboard_measurement_data()`
+  adds `views_prior`, `ai_calls_30d`, `anchored_total`, `search_impressions` and
+  `search_clicks_capped`. All are additive reads over accessors that already existed.
+
 ## [11.30.0] - 2026-08-19 — the quiet instrument
 
 The Dashboard is redesigned against the literature rather than against another guess, and the

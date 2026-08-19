@@ -93,22 +93,72 @@ function sn_dash_widget_cards() {
 }
 
 /**
- * Render the box: verdict, then exceptions, then a way through.
+ * The compact signal set for the widget column.
+ *
+ * FOUR, not five. AI spend is the least-glanced of the set and the column is
+ * ~400px; the full screen carries all five.
+ *
+ * @since 11.30.1
+ * @param array<string,mixed> $m Measurement data.
+ * @return array<int,array<string,mixed>>
+ */
+function sn_dash_widget_signals( array $m ) {
+	if ( ! function_exists( 'sn_dash_signals_from_measurement' ) ) {
+		return array();
+	}
+	$wanted = array( 'Views', 'Clicks', 'Anchored', 'Citations' );
+	$out    = array();
+	foreach ( sn_dash_signals_from_measurement( $m ) as $sig ) {
+		foreach ( $wanted as $w ) {
+			if ( 0 === stripos( (string) $sig['label'], $w ) ) {
+				$out[] = $sig;
+				break;
+			}
+		}
+	}
+	return $out;
+}
+
+/**
+ * Render the box: verdict, standing facts, exceptions, signals, a way through.
+ *
+ * WHY IT IS NOT JUST A SENTENCE. Shipped as verdict-only it sat beside At a
+ * Glance, Activity, AI Status and Object Cache Pro — all carrying real content
+ * — and read as an empty box rather than as restraint. "One decision" was the
+ * right principle at the wrong amount.
+ *
+ * It still does not reproduce the screen: a widget column is ~400px, and the
+ * single-screen rule is exactly what makes that layout work.
  *
  * @since 11.30.0
  * @return void
  */
 function sn_dash_widget_render() {
 	$admin   = current_user_can( 'manage_options' );
-	$verdict = sn_dash_verdict( $admin ? sn_dash_widget_cards() : array( array( 'label' => '', 'pill' => array( 'kind' => 'ok' ) ) ) );
+	$cards   = $admin ? sn_dash_widget_cards() : array();
+	$verdict = sn_dash_verdict( $admin ? $cards : array( array( 'label' => '', 'pill' => array( 'kind' => 'ok' ) ) ) );
 	$url     = admin_url( 'admin.php?page=sn-theme-options&tab=dashboard' );
+
+	// DB-local reads only: no remote call and no scan, which is the invariant
+	// index.php imposes (it renders on every admin login). This is still a net
+	// reduction — the four boxes this replaced each did at least as much.
+	$m = function_exists( 'snt_dashboard_measurement_data' ) ? snt_dashboard_measurement_data() : array();
 
 	echo '<div class="sn-dw sn-dw--' . esc_attr( $verdict['state'] ) . '">';
 	echo '<p class="sn-dw__verdict">' . esc_html( $verdict['headline'] ) . '</p>';
 
-	// The exception band is manage_options business: findings and cron faults
-	// are only actionable by an admin, and the S&N Health widget this replaces
-	// was gated exactly that way. A view_stats reader gets the verdict only.
+	$standing = array_filter( array(
+		$admin && $cards
+			/* translators: %d checks reporting */
+			? sprintf( _n( '%d check', '%d checks', count( $cards ), 'signal-and-noise-tools' ), count( $cards ) )
+			: '',
+	) );
+	if ( $standing ) {
+		echo '<p class="sn-dw__sub">' . esc_html( implode( ' · ', $standing ) ) . '</p>';
+	}
+
+	// manage_options business: findings and cron faults are only actionable by
+	// an admin, and the S&N Health box this replaced was gated that way.
 	if ( $admin && ! empty( $verdict['exceptions'] ) ) {
 		echo '<ul class="sn-dw__exceptions">';
 		foreach ( $verdict['exceptions'] as $ex ) {
@@ -117,6 +167,23 @@ function sn_dash_widget_render() {
 			echo '</li>';
 		}
 		echo '</ul>';
+	}
+
+	$signals = sn_dash_widget_signals( $m );
+	if ( $signals ) {
+		echo '<div class="sn-dw__signals">';
+		foreach ( $signals as $sig ) {
+			$cls = 'sn-dw__sig' . ( empty( $sig['measured'] ) ? ' sn-dw__sig--unmeasured' : '' );
+			echo '<div class="' . esc_attr( $cls ) . '">';
+			echo '<span class="sn-dw__k">' . esc_html( (string) $sig['label'] ) . '</span>';
+			echo '<span class="sn-dw__n">' . esc_html( (string) $sig['value'] ) . '</span>';
+			if ( '' !== (string) $sig['compare'] ) {
+				$d = ( 'up' === $sig['dir'] || 'down' === $sig['dir'] ) ? ' sn-dw__c--' . $sig['dir'] : '';
+				echo '<span class="sn-dw__c' . esc_attr( $d ) . '">' . esc_html( (string) $sig['compare'] ) . '</span>';
+			}
+			echo '</div>';
+		}
+		echo '</div>';
 	}
 
 	echo '<p class="sn-dw__foot"><a href="' . esc_url( $url ) . '">'
