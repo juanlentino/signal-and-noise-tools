@@ -176,6 +176,11 @@ require_once SNT_PATH . 'inc/admin-render-sections.php'; // admin refactor Phase
 require_once SNT_PATH . 'inc/admin-dispatch.php';        // admin refactor Phase 1: registry-driven render dispatcher
 require_once SNT_PATH . 'inc/admin-shell.php';           // v6.42.0: two-column main+rail layout primitive
 require_once SNT_PATH . 'inc/admin-glance.php';          // Phase 1 redesign: reusable first-glance stat-card grid
+require_once SNT_PATH . 'inc/dash-zones.php';            // v11.28.0: zone contract, state, renderer
+require_once SNT_PATH . 'inc/dash-pins.php';             // v11.28.0: per-user zone pins + REST toggle
+require_once SNT_PATH . 'inc/dash-zone-attention.php';   // v11.28.0: is anything wrong?
+require_once SNT_PATH . 'inc/dash-zone-fleet.php';       // v11.28.0: did it ship?
+require_once SNT_PATH . 'inc/dash-zone-measurement.php'; // v11.28.0: how is the site doing?
 require_once SNT_PATH . 'inc/admin-legacy-redirect.php';
 require_once SNT_PATH . 'inc/admin-menu.php';
 require_once SNT_PATH . 'inc/admin-flash-messages.php';

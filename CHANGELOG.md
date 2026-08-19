@@ -5,6 +5,40 @@ All notable changes to Signal & Noise Tools are documented here.
 ## [Unreleased]
 
 ### Added
+- **The Dashboard is composed from zones, and state earns space.** The flat 15-tile grid
+  becomes three collapsing zones plus the measurement strip. A zone that is fine collapses
+  to one line; a zone needing attention expands and leads. `unknown` outranks `attention`
+  in that decision, deliberately — a zone holding an unmeasured probe reports unknown even
+  beside a real warning, because you cannot triage what you did not measure.
+- **A pin can open a zone, never close one.** Pinning is a personal view preference stored
+  in user meta, so it must not be able to hide a problem: an `attention` zone is checked
+  before pins and returns open unconditionally. Zone ids are validated against an allowlist
+  on the way in, not merely filtered on the way out.
+- **The measurement strip.** Five figures — views 7d, clicks 7d, AI spend 30d, anchored,
+  citations — that never collapse, because they have no green/red state to fold. A figure
+  whose accessor is absent renders an em dash and is dimmed, never a `0`. Search Console is
+  not wired yet, so clicks reads unknown, which is exactly what the design specifies for a
+  cache miss or an API error.
+- **Views carries a sparkline**, which is what earns it the full-width hero row on narrow
+  viewports. It reuses the shared `snt_analytics_sparkline()` — the same smooth-path SVG
+  treatment as the Analytics Overview chart — rather than minting a second one. It is never
+  drawn for an unmeasured figure: a trend line under an em dash would assert exactly the
+  knowledge the em dash exists to deny.
+- Recent deploys is **folded into the fleet zone** rather than cut — it answers the same
+  question the zone does, so it belongs inside it instead of competing with it.
+
+### Changed
+- **External APIs surfaces only when a rate limit is actually low** (warn or crit, via the
+  rate monitor's own classifier). It is interesting at 4% remaining and noise at 99%.
+- The measurement strip distinguishes *absent* from *zero*. A Search Console read that
+  failed is missing evidence, not zero clicks, and renders as an em dash.
+
+### Removed
+- **RSS feed activity** — the RSS tab already renders the full view; this was the detail
+  view pasted onto the summary. (It last appeared on the Dashboard in v1.13.0, was cut in
+  v1.14.0, and returned in v2.0.1. The difference this time is that it has a destination.)
+- **Login blocks 7d** — the Security tab owns it, and it has read `0` since it shipped.
+
 - **The citation graph gets its public surface.** A "Cited by" aside on single notes,
   listing only the tiers the site can vouch for — `verified` and `unattributed`. An
   `asserted` claim, one whose link has since gone, stays in the admin and is shown to

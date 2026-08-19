@@ -167,33 +167,29 @@ function snt_dashboard_tab_render() {
 	// AI spend, cron, login blocks, views), built only from accessors that
 	// actually exist on this install.
 	$cards = snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago );
-	if ( ! empty( $cards ) ) {
-		echo '<section class="sn-dash-glance" aria-label="Site at a glance">';
-		// v10.48.0: what needs you leads. Stable within each class, so the calm
-		// cards keep their deliberate reading order instead of reshuffling on
-		// every load.
-		sn_admin_glance_grid( sn_admin_glance_sort_by_attention( $cards ) );
-		echo '</section>';
+	$pins  = function_exists( 'sn_dash_pins' ) ? sn_dash_pins( get_current_user_id() ) : array();
+
+	// v11.28.0: state earns space. Attention collapses to a line when nothing is
+	// wrong; fleet collapses unless a component was never probed. The cards
+	// themselves are unchanged — sn_admin_glance_grid() still renders an
+	// expanded zone, so the reading order inside a zone is the v10.48.0 one.
+	$attention_labels = array( 'Health', 'Cron', 'Caches', 'Provenance' );
+	$attention_cards  = array();
+	foreach ( $cards as $card ) {
+		if ( in_array( (string) ( $card['label'] ?? '' ), $attention_labels, true ) ) {
+			$attention_cards[] = $card;
+		}
 	}
 
-	// ── 2. ATTENTION STRIP ── one warning row, only when something is off.
-	snt_dashboard_render_attention_strip( $runs, count( $overrides ) );
+	$workers = function_exists( 'snt_deploy_workers_status' )
+		? snt_deploy_workers_status( array( 'probe_budget' => 1 ) )
+		: array();
 
-	// ── 3. STATUS SUMMARY ── external-API + RSS health (single-line scannable).
-	if ( function_exists( 'snt_rate_limit_all_statuses' ) ) {
-		snt_dashboard_render_api_summary();
-	}
-	if ( function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
-		snt_dashboard_render_rss_summary();
-	}
-
-	// ── 4. LOWER ROW ── Recent deploys (wider) + Maintenance, two columns
-	// that collapse to one on narrow viewports (.sn-dash-cols).
-	echo '<div class="sn-dash-cols">';
-
-	// Left: Recent deploys.
-	echo '<div class="sn-dash-cols__main">';
-	echo '<h2 class="sn-section-h">Recent deploys</h2>';
+	// v11.28.0: Recent deploys is FOLDED into the fleet zone, not cut. It answers
+	// the same question the zone does — did it ship? — so it belongs inside the
+	// zone body rather than as a standalone section competing for the same
+	// attention.
+	ob_start();
 	if ( empty( $runs ) ) {
 		echo '<p class="description"><em>No recent runs (or GitHub API unreachable).</em></p>';
 	} else {
@@ -203,9 +199,42 @@ function snt_dashboard_tab_render() {
 		}
 		echo '</ul>';
 	}
-	echo '</div>'; // .sn-dash-cols__main
+	$deploys_html = (string) ob_get_clean();
 
-	// Right: Maintenance 3-card action grid (unchanged actions).
+	$fleet_zone = sn_dash_zone_fleet( snt_dashboard_fleet_components( $theme, $plugin, $workers ), $last_deploy_ago );
+	$fleet_zone['body_html'] = $deploys_html;
+
+	echo '<section class="sn-dash-zones" aria-label="Status">';
+	sn_dash_render_zone( sn_dash_zone_attention( $attention_cards ), $pins );
+	sn_dash_render_zone( $fleet_zone, $pins );
+	echo '</section>';
+
+	// ── MEASUREMENT ── never collapses: it has no green/red state, so there is
+	// nothing to fold. A figure whose accessor is absent renders unknown.
+	if ( function_exists( 'sn_dash_render_measurement_strip' ) ) {
+		sn_dash_render_measurement_strip(
+			sn_dash_measurement_figures( snt_dashboard_measurement_data() )
+		);
+	}
+
+	// ── 2. ATTENTION STRIP ── one warning row, only when something is off.
+	snt_dashboard_render_attention_strip( $runs, count( $overrides ) );
+
+	// ── 3. EXTERNAL APIs, ONLY WHEN LOW ── v11.28.0. A rate limit is interesting
+	// at 4% remaining and noise at 99%, so it earns space only when a host is
+	// actually warn or crit. RSS activity is gone from here entirely: the RSS
+	// tab already renders the full view, and this was the detail view pasted
+	// onto the summary.
+	if ( function_exists( 'snt_rate_limit_all_statuses' ) && snt_dashboard_api_summary_is_notable() ) {
+		snt_dashboard_render_api_summary();
+	}
+
+	// ── 4. LOWER ROW ── v11.28.0: Recent deploys moved into the fleet zone
+	// above, so this row is Maintenance alone. The .sn-dash-cols wrapper stays
+	// for the existing responsive behaviour and the Diagnostics fold below it.
+	echo '<div class="sn-dash-cols">';
+
+	// Maintenance 3-card action grid (unchanged actions).
 	echo '<div class="sn-dash-cols__side">';
 	echo '<h2 class="sn-section-h">Maintenance</h2>';
 	echo '<form method="post">';
@@ -394,20 +423,6 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 		);
 	}
 
-	// ── Login blocks (7d): the same source as the login-defense widget. ──
-	if ( function_exists( 'sn_login_defense_headline' ) ) {
-		$lg = sn_login_defense_headline();
-		if ( is_array( $lg ) && ! empty( $lg['configured'] ) ) {
-			$blocked = (int) ( $lg['blocked'] ?? 0 );
-			$cards[] = array(
-				'label'     => 'Login blocks 7d',
-			'href'      => admin_url( 'admin.php?page=sn-theme-options&tab=security&sub=login-defense' ),
-				'value'     => number_format_i18n( $blocked ),
-				'meta_html' => esc_html( sprintf( '%d%% block rate', (int) ( $lg['block_rate'] ?? 0 ) ) ),
-			);
-		}
-	}
-
 	// ── Views 7d + week-over-week delta (reuse the analytics delta accessor;
 	// do NOT recompute). ──
 	if ( function_exists( 'sn_analytics_config' ) && sn_analytics_config()
@@ -480,7 +495,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 	// sorts last, defensively).
 	// Worker Deploy Status labels sit under Theme/Plugin; "Provenance edge" is
 	// the worker semver card (distinct from the "Provenance" anchor card).
-	$order = array( 'Theme', 'Plugin', 'Analytics', 'Provenance edge', 'Login guard', 'Remote MCP', 'Rights signals', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Login blocks 7d', 'Views 7d', 'AI spend 30d' );
+	$order = array( 'Theme', 'Plugin', 'Analytics', 'Provenance edge', 'Login guard', 'Remote MCP', 'Rights signals', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Views 7d', 'AI spend 30d' );
 	$rank  = array_flip( $order );
 	usort( $cards, function ( $a, $b ) use ( $rank ) {
 		$ra = $rank[ is_array( $a ) ? ( $a['label'] ?? '' ) : '' ] ?? 999;
@@ -883,61 +898,6 @@ function snt_dashboard_render_api_summary() {
 	echo '</p>';
 }
 
-/**
- * RSS activity summary — single line, content-driven (not arithmetic).
- *
- * Mirrors the External APIs summary pattern: most-recent timestamp +
- * three rolling windows (24h/7d/30d) showing total requests + unique
- * subscribers. Click-through to the RSS tab for deeper data.
- *
- * Re-added in v2.0.1 (RSS activity was on the dashboard in v1.13.0 then
- * dropped in v1.14.0's redesign for being "arithmetic, not content-
- * driven." This treatment fixes that critique — it's the same scannable
- * single-line shape as External APIs, with a clear next-action link).
- */
-function snt_dashboard_render_rss_summary() {
-	$stats = sn_rss_tracker_window_stats_multi( array( 1, 7, 30 ) );
-	$sep   = '<span class="sn-api-summary__sep" aria-hidden="true">&middot;</span>';
-
-	$last_request = '';
-	if ( ! empty( $stats['most_recent'] ) ) {
-		$t = strtotime( $stats['most_recent'] );
-		if ( $t ) {
-			$last_request = human_time_diff( $t, time() ) . ' ago';
-		}
-	}
-
-	$windows = $stats['windows'] ?? array();
-	$w24h    = $windows[1]  ?? array( 'total' => 0, 'uniques' => 0 );
-	$w7d     = $windows[7]  ?? array( 'total' => 0, 'uniques' => 0 );
-	$w30d    = $windows[30] ?? array( 'total' => 0, 'uniques' => 0 );
-
-	// v6.30.1: the standalone `page=sn-rss` slug isn't registered (every SN
-	// admin surface lives under page=sn-theme-options&tab=…), so the old link
-	// hit WP's "not allowed to access this page" guard. Point straight at the
-	// canonical RSS sub-section, mirroring tab=connections&sub=cron /
-	// tab=monitoring&sub=analytics. RSS went Monitoring → Content in v6.18.0 and
-	// back to Measurement in v10.46.0 (the leaf is feed-request analytics).
-	$rss_url = admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=rss' );
-
-	echo '<h2 class="sn-section-h">RSS feed activity</h2>';
-	echo '<p class="sn-api-summary">';
-	echo '<span class="sn-api-summary__item">Last request: <em>' . esc_html( $last_request ?: 'none yet' ) . '</em></span>';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sep is static, hardcoded markup.
-	echo ' ' . $sep . ' ';
-	echo '<span class="sn-api-summary__item">24h: <span class="sn-mono">' . esc_html( number_format_i18n( $w24h['total'] ) ) . '</span> req &middot; <span class="sn-mono">' . esc_html( number_format_i18n( $w24h['uniques'] ) ) . '</span> uniq</span>';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sep is static, hardcoded markup.
-	echo ' ' . $sep . ' ';
-	echo '<span class="sn-api-summary__item">7d: <span class="sn-mono">' . esc_html( number_format_i18n( $w7d['total'] ) ) . '</span> req &middot; <span class="sn-mono">' . esc_html( number_format_i18n( $w7d['uniques'] ) ) . '</span> uniq</span>';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sep is static, hardcoded markup.
-	echo ' ' . $sep . ' ';
-	echo '<span class="sn-api-summary__item">30d: <span class="sn-mono">' . esc_html( number_format_i18n( $w30d['total'] ) ) . '</span> req &middot; <span class="sn-mono">' . esc_html( number_format_i18n( $w30d['uniques'] ) ) . '</span> uniq</span>';
-	// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $sep is static, hardcoded markup.
-	echo ' ' . $sep . ' ';
-	echo '<a class="button-link" href="' . esc_url( $rss_url ) . '">' . esc_html__( 'Open RSS tab', 'signal-and-noise-tools' ) . '</a>';
-	echo '</p>';
-}
-
 /* ════════════════════════════════════════════════════════════════════════
  * FORCE-CHECK HANDLER
  *
@@ -1112,3 +1072,34 @@ function snt_dashboard_debug_information( $info ) {
 
 	return $info;
 }
+
+
+/**
+ * Is the external-API rate picture worth the space? (v11.28.0)
+ *
+ * A rate limit is interesting at 4% remaining and noise at 99%, so the summary
+ * surfaces only when a host is actually low. Reuses the module's own bucket
+ * classifier rather than inventing a second threshold.
+ *
+ * `unknown` deliberately does NOT surface. Elsewhere on this Dashboard an
+ * unmeasured probe forces its zone to `unknown`, because a claim of health
+ * needs evidence. This is the opposite case: the summary makes no claim when
+ * it is hidden, and a never-yet-fetched rate snapshot on a fresh install is
+ * not news.
+ *
+ * @since 11.28.0
+ * @return bool
+ */
+function snt_dashboard_api_summary_is_notable() {
+	if ( ! function_exists( 'snt_rate_limit_all_statuses' ) || ! function_exists( 'snt_rate_limit_state' ) ) {
+		return false;
+	}
+	foreach ( snt_rate_limit_all_statuses() as $row ) {
+		$state = snt_rate_limit_state( $row['snapshot'] ?? null );
+		if ( 'warn' === $state || 'crit' === $state ) {
+			return true;
+		}
+	}
+	return false;
+}
+
