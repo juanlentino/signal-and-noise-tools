@@ -19,6 +19,10 @@ $GLOBALS['__actions'] = array(); $GLOBALS['__widgets'] = array();
 $GLOBALS['__http_calls'] = 0; $GLOBALS['__scans'] = 0; $GLOBALS['__cap'] = 'manage_options';
 
 function add_action( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $h ][] = $cb; }
+$GLOBALS['__styles'] = array();
+function wp_enqueue_style( $h, $src = '', $deps = array(), $ver = null ) { $GLOBALS['__styles'][ $h ] = $src; }
+if ( ! defined( 'SNT_URL' ) ) { define( 'SNT_URL', 'https://x.test/wp-content/plugins/snt/' ); }
+if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '11.30.2-test' ); }
 function wp_add_dashboard_widget( $id, $title, $cb ) { $GLOBALS['__widgets'][ $id ] = array( $title, $cb ); }
 function current_user_can( $c ) { return 'manage_options' === $GLOBALS['__cap'] ? true : ( 'view_stats' === $c ); }
 function wp_remote_get( $u, $a = array() ) { $GLOBALS['__http_calls']++; return array(); }
@@ -123,6 +127,21 @@ $GLOBALS['__http_calls'] = 0; $GLOBALS['__scans'] = 0;
 ob_start(); call_user_func( $GLOBALS['__widgets']['sn_dashboard'][1] ); ob_end_clean();
 ok( 0 === $GLOBALS['__http_calls'], 'STILL ZERO HTTP — index.php renders on every admin login' );
 ok( 0 === $GLOBALS['__scans'], 'STILL NO SCAN' );
+
+// ── THE WIDGET'S CSS MUST ACTUALLY REACH index.php ──────────────────────────
+// v11.30.2. The .sn-dw-* rules were written into assets/admin.css, which is
+// enqueued ONLY on S&N page hooks. On the WordPress home dashboard the widget
+// therefore rendered completely unstyled — label, number and comparison running
+// together on one line. Shipping CSS to a screen that never loads it is the
+// same class of bug as the localize carrier that was never enqueued (v11.29.1).
+echo "\nStylesheet reaches the screen that renders the widget\n";
+$GLOBALS['__styles'] = array();
+foreach ( $GLOBALS['__actions']['admin_enqueue_scripts'] ?? array() as $cb ) { $cb( 'index.php' ); }
+ok( isset( $GLOBALS['__styles']['sn-dash-widget'] ), 'THE WIDGET STYLESHEET IS ENQUEUED ON index.php' );
+
+$GLOBALS['__styles'] = array();
+foreach ( $GLOBALS['__actions']['admin_enqueue_scripts'] ?? array() as $cb ) { $cb( 'edit.php' ); }
+ok( ! isset( $GLOBALS['__styles']['sn-dash-widget'] ), 'and nowhere else — it is dead weight on every other screen' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

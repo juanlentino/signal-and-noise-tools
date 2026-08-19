@@ -2,10 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [11.30.2] - 2026-08-19 — tested against WordPress 7.1
+## [11.30.2] - 2026-08-19 — the widget's CSS never reached the screen, and WordPress 7.1
 
-Header-only compatibility bump, backed by an audit of the 7.1 Field Guide against
-this plugin's actual surface rather than an assumption that nothing broke.
+### Fixed
+- **The index.php widget rendered completely unstyled.** Its rules were written
+  into `assets/admin.css`, which is enqueued only on S&N page hooks — so on the
+  WordPress home dashboard the label, number and comparison ran together on one
+  line. Shipping CSS to a screen that never loads it is the same class of mistake
+  as localizing data onto a handle nothing enqueues (v11.29.1). The rules now live
+  in `assets/dash-widget.css`, enqueued on `index.php` only, and a test asserts
+  it reaches that screen and no other.
+- **Caches showed "Checking…" *and* "all fresh" at once.** v11.30.1 gave the cell
+  its id, which let `assets/freshness-dot.js` find it — but the filler replaces
+  text inside `.sn-glance-card__value` and reuses `.sn-pill`, and the cell had
+  neither. So the JS left the placeholder standing and appended its verdict
+  underneath. Async cells now carry the class their filler reads, and only cards
+  that actually have a filler carry it.
+
+Also: a compatibility bump backed by an audit of the 7.1 Field Guide against this
+plugin's actual surface rather than an assumption that nothing broke.
 
 ### Changed
 - **`Tested up to: 7.1`.** Each documented 7.1 breaking surface was checked:

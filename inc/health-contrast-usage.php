@@ -108,6 +108,9 @@ function sn_health_contrast_usage_admin_sheets() {
 	return array(
 		'admin.css',
 		'audit-log.css',
+		// v11.30.2: the index.php dashboard widget's sheet. Admin-only and not
+		// named "admin", so it needs declaring here like uptime-status.css.
+		'dash-widget.css',
 		'machine-readers.css',
 		'provenance-admin.css',
 		'uptime-status.css',
