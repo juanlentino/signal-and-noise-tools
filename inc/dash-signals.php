@@ -118,8 +118,8 @@ function sn_dash_signals_from_measurement( array $data ) {
 		if ( 'views_7d' === $f['key'] && $measured && array_key_exists( 'views_delta', $data ) && null !== $data['views_delta'] ) {
 			$d   = (int) $data['views_delta'];
 			$dir = $d > 0 ? 'up' : ( $d < 0 ? 'down' : '' );
-			/* translators: %s signed change against the prior seven days */
 			$compare = sprintf(
+				/* translators: %s signed change against the prior seven days */
 				__( '%s on prior 7d', 'signal-and-noise-tools' ),
 				( $d > 0 ? '+' : ( $d < 0 ? '−' : '' ) ) . number_format_i18n( abs( $d ) )
 			);
