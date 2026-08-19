@@ -118,12 +118,59 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 		$n       = count( $ids );
 		$related = array_fill_keys( $ids, array() );
 		$pairs   = 0;
+
+		/**
+		 * v11.26.0: the LEXICAL term may come from semantic embeddings instead of
+		 * TF-IDF. Only that term — the tag and link graph signals are independent
+		 * evidence and keep their weights.
+		 *
+		 * ALL-OR-NOTHING, decided once here and never per pair. Embedding cosine
+		 * and TF-IDF cosine have different distributions, so a ranking that mixed
+		 * them would be meaningless while every individual number still looked
+		 * plausible. If any vector is missing, the whole build stays lexical.
+		 *
+		 * CENTRED, per the 2026-08-19 measurement: raw cosine put one note in
+		 * 23 of 33 results (hub share 69.7%) because a corpus restating one
+		 * argument shares a large common component. Centring removes it and
+		 * takes hub share to 30.3% while keeping the semantic pairs TF-IDF
+		 * cannot see.
+		 */
+		$embed_vectors = array();
+		// function_exists on sn_setting too: this build runs in lean contexts
+		// (and its own suite) with no settings layer loaded, and the honest
+		// default when the toggle cannot be READ is the deterministic path.
+		$use_embed     = ( ! function_exists( 'sn_setting' ) || 'embeddings' === (string) sn_setting( 'ml.related_source', 'embeddings' ) )
+			&& function_exists( 'snt_ml_embedding_for_post' )
+			&& function_exists( 'snt_ml_embed_configured' )
+			&& snt_ml_embed_configured();
+		if ( $use_embed ) {
+			foreach ( $ids as $id ) {
+				$vec = snt_ml_embedding_for_post( (int) $id, snt_corpus_content_hash( (string) get_post_field( 'post_content', (int) $id ) ) );
+				if ( is_wp_error( $vec ) || ! is_array( $vec ) || ! $vec ) {
+					// One failure disqualifies the whole pass rather than
+					// producing a half-embedded ranking.
+					$use_embed = false;
+					$embed_vectors = array();
+					break;
+				}
+				$embed_vectors[ (int) $id ] = $vec;
+			}
+		}
+		if ( $use_embed && function_exists( 'snt_ml_vec_center_all' ) ) {
+			$embed_vectors = snt_ml_vec_center_all( $embed_vectors );
+		}
 		for ( $i = 0; $i < $n; $i++ ) {
 			for ( $j = $i + 1; $j < $n; $j++ ) {
 				$a = $ids[ $i ];
 				$b = $ids[ $j ];
+				$lexical = ( $use_embed && isset( $embed_vectors[ $a ], $embed_vectors[ $b ] ) )
+					? snt_ml_vec_cosine( $embed_vectors[ $a ], $embed_vectors[ $b ] )
+					: snt_ml_cosine( $vectors[ $a ], $vectors[ $b ] );
+				// Centred cosine is signed; a negative similarity is "less alike
+				// than average", which the blend must read as zero rather than as
+				// a penalty that could drag a well-linked pair below zero.
 				$score = snt_ml_related_score(
-					snt_ml_cosine( $vectors[ $a ], $vectors[ $b ] ),
+					max( 0.0, (float) $lexical ),
 					snt_ml_graph_signals( $profile[ $a ], $profile[ $b ] ),
 					$weights
 				);
@@ -146,6 +193,11 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 			} );
 			update_post_meta( $id, SNT_ML_RELATED_META, array_slice( $rows, 0, SNT_ML_TOP_N ) );
 		}
+
+		// Stamp WHICH lexical source built this artifact. Without it a reader
+		// cannot tell an embeddings build from a fallback one, and "why did
+		// related change" has no answer.
+		$GLOBALS['snt_ml_last_lexical_source'] = $use_embed ? 'embeddings' : 'tfidf';
 
 		// v10.21.0: topic clusters ride the same pass — the vectors are already
 		// in memory, so the partition costs one extra upper-triangle walk.

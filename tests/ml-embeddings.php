@@ -116,12 +116,17 @@ $s2 = snt_ml_embed_summary( array( $d, $d ) );
 ok( close_to( $s2['divergence'], 2 / 6 ), 'divergence is only_embedding over ranked slots' );
 ok( $s2['posts'] === 2, 'posts counted' );
 
-echo "\nGroup: nothing here is wired into what the site serves\n";
+echo "\nGroup: SHADOW MODE IS OVER — these pins are inverted on purpose\n";
+// Until v11.26.0 these asserted the opposite: that the artifact build called
+// NEITHER embedding function, and that the page still claimed "No neural
+// network". Both were true and both had to stop being true in the same
+// release, because the page describes the method and the method changed.
 $kernel = (string) file_get_contents( __DIR__ . '/../inc/ml-artifacts.php' );
-ok( false === strpos( $kernel, 'snt_ml_embedding_for_post' ), 'the artifact build does NOT call embeddings — shadow mode, by construction' );
-ok( false === strpos( $kernel, 'snt_ml_vec_cosine' ), 'and does not use embedding cosine' );
+ok( false !== strpos( $kernel, 'snt_ml_embedding_for_post' ), 'the artifact build now DOES embed' );
+ok( false !== strpos( $kernel, 'snt_ml_vec_cosine' ), 'and ranks on embedding cosine' );
 $page = (string) file_get_contents( __DIR__ . '/../inc/ml-maturity-page.php' );
-ok( false !== strpos( $page, 'No neural network' ), 'the public page still claims no neural network — TRUE while this stays shadow, and the claim that must change before any swap' );
+ok( false === strpos( $page, 'No neural network' ), 'and the page no longer claims otherwise — the method and its description moved together' );
+ok( false !== strpos( $page, 'hosted embedding model' ), 'it names the dependency instead' );
 
 echo "\nGroup: centering removes the shared mass\n";
 // A corpus that is one argument restated shares a large common component.
