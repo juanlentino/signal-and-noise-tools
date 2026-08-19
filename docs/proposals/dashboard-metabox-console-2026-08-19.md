@@ -1,5 +1,11 @@
 # The Dashboard becomes a real console
 
+**Status:** PARKED 2026-08-19 — superseded on its central premise. The owner works in
+OpenStation, where WP metaboxes are not the native idiom. See
+[where-the-console-lives-2026-08-19.md](where-the-console-lives-2026-08-19.md).
+The verified core contract below is still accurate and worth keeping if the Classic
+Admin surface ever wants a metabox console.
+
 **Status:** design, approved 2026-08-19
 **Supersedes:** the *presentation* half of [dashboard-mission-control-2026-08-19.md](dashboard-mission-control-2026-08-19.md).
 That proposal's rules — `unknown` is a third state, absence is never zero, a view preference must not

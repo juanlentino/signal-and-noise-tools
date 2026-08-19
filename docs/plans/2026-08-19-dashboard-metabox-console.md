@@ -1,5 +1,10 @@
 # Dashboard Metabox Console Implementation Plan
 
+> **PARKED 2026-08-19 after task 5.** Direction changed: the owner works in OpenStation,
+> where metaboxes are not native. Tasks 1-4 shipped and are direction-neutral; task 5's
+> registration is committed but inert. See
+> `docs/proposals/where-the-console-lives-2026-08-19.md`.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Turn the Dashboard tab into a WordPress metabox host, so drag-to-reorder, collapse and Screen Options show/hide come from core — and the page is dense and arrangeable instead of three grey lines above a maintenance panel.
