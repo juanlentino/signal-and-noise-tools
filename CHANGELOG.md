@@ -2,6 +2,35 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.31.1] - 2026-08-19 — API limits read the wrong shape, and mono was on the wrong things
+
+### Fixed
+- **API limits rendered raw hostnames against em dashes** — `api.github.com  —`.
+  `snt_rate_limit_all_statuses()` returns `[ host => { label, snapshot } ]`: the
+  numbers live inside `snapshot` and the state comes from `snt_rate_limit_state()`.
+  The panel read `$st['limit']`, `$st['remaining']`, `$st['kind']` and the array
+  **key** for a label — four fields, all wrong. A human label, `GitHub API`, has
+  been sitting in `snt_rate_limit_hosts()` the whole time. Rows now read
+  **GitHub API · 4,231 / 5,000**.
+
+  This is the **third** invented shape in this file (sources → `value`, queries →
+  `key`, now this), so the test no longer uses a fixture I wrote: it calls
+  `snt_rate_limit_all_statuses()` for real and feeds its output straight into the
+  panel builder. A fixture cannot catch a shape I misread, because I write the
+  fixture from the same wrong belief as the code.
+- **A host with no observed request reads "not seen yet", not a zero.** `snapshot`
+  is `null` until a request is seen, and `crit` is mapped explicitly to the wall's
+  `err` rather than passed through, where it would have painted nothing.
+
+### Changed
+- **Mono is for labels and aligned numerals, never for language.** v11.31.0 set
+  `.sn-sys__v` in the mono face, which put phrases like "33 confirmed", "0 findings"
+  and "warming…" in a typewriter — harder to scan, and it drained the character out
+  of the micro-labels mono is actually there for. Values keep tabular figures so
+  their numbers still align.
+- **The verdict has air above it.** At 30px it sat hard against the tab bar and read
+  as clipped.
+
 ## [11.31.0] - 2026-08-19 — the instrument face
 
 The screen had structure but no design language. This gives it one: a precision
