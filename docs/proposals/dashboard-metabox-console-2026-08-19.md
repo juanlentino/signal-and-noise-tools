@@ -196,8 +196,10 @@ open/closed decision.
 - **Absent accessors** render "not measured", never `0` — the existing discipline, unchanged.
 - **JS disabled**: boxes render open and un-draggable; the page is still fully readable. Collapse is
   progressive enhancement.
-- **`snt_dashboard_snapshot()` on a screen that is not the Dashboard tab** returns early and fetches
-  nothing.
+- **`snt_dashboard_snapshot()` needs no off-tab guard.** Its only callers are the box callbacks and
+  the tab renderer, and neither runs anywhere but the Dashboard tab — box registration already
+  early-returns on other tabs. A guard here would be unreachable code that reads like a real
+  protection, which is worse than none.
 
 ---
 
