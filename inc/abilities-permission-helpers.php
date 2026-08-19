@@ -42,6 +42,28 @@ function snt_ability_perm_manage_options() {
 }
 
 /**
+ * `edit_others_posts` — the corpus READ tier (v11.21.0).
+ *
+ * Policy: docs/ops/ability-permission-policy.md. Every ability using this reads
+ * post bodies, titles or corpus statistics and writes nothing.
+ *
+ * WHY NOT `edit_posts`, which the arc's scaffold proposed: these abilities read
+ * across publish, future, draft, pending AND private statuses, and `edit_posts`
+ * is held by the Author role — who must not read other people's unpublished
+ * work. `edit_others_posts` is held by Editor and above and by neither Author
+ * nor Contributor, which is precisely the sentence these abilities need: *may
+ * read other people's unpublished content*.
+ *
+ * This is a PUBLIC permission contract. Loosening one is a reviewed decision
+ * recorded in the policy document, never a sweep.
+ *
+ * @return bool
+ */
+function snt_ability_perm_read_corpus() {
+	return current_user_can( 'edit_others_posts' );
+}
+
+/**
  * `edit_post` capability on `$input['post_id']`.
  *
  * Used by: regenerate-og-card, ai-generate-meta-description,

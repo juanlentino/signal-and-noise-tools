@@ -2,6 +2,58 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.21.0] - 2026-08-18 — least privilege becomes available
+
+### Fixed
+- **Every ability was gated at `manage_options` — including pure reads.** An agent
+  asked to run `sn-scan` had to be an Administrator, which is the capability to
+  install plugins and edit users. Least privilege was not inconvenient, it was
+  **unavailable**: there was no role between "cannot call the tool" and "can take
+  over the site".
+- **Twelve content reads move to `edit_others_posts`**: `sn-posts`, `sn-scan`,
+  `sn-validate`, `get-post-content`, `list-posts`, `duplicate-body-scan`,
+  `draft-echoes`, `near-duplicate-scan`, `keyword-candidates`, `link-candidates`,
+  `topic-clusters`, `cadence-flags`. An Editor-role agent can now run the read tools.
+
+### Why `edit_others_posts` and not `edit_posts`
+The scaffold for this arc proposed `edit_posts`. That is too loose. These abilities
+read across publish, future, draft, pending **and private** statuses, and `edit_posts`
+is held by the **Author** role — who must not read other people's unpublished work.
+`edit_others_posts` is Editor-and-above and neither Author nor Contributor, which is
+exactly the sentence these abilities need: *may read other people's unpublished
+content*. It meets the goal that opened the arc without granting it to a role that
+should not have it.
+
+### What did NOT move, and why it is written down
+`get-audit-log` / `export-audit-log` stay at `manage_options`: they record **usernames
+and login events**, and the module carries an explicit `$include_pii` redaction path —
+the tell that the data is sensitive by design. Analytics, collector/provider config,
+cron internals, deploy status, provenance chain state and the operational readouts all
+stay too, each with its reason recorded in the policy rather than left to be
+re-derived.
+
+### A keyword grep is not a classification
+Scanning the 29 candidates for `token|secret|credential|api_key` produced ten hits and
+**every one was a false positive** — `px_token_set` (a boolean presence flag), LLM
+"token figures", CSS `design_tokens`, validation "check tokens". The genuine PII, in
+the audit log, matched none of those patterns. The classification came from reading the
+callbacks.
+
+### Added
+- **`docs/ops/ability-permission-policy.md`** — the written policy the scaffold asked
+  for: the three-part rule, both tiers, and the reason each Tier B ability stayed.
+- **`tests/ability-permission-policy.php`** (69 assertions) — a CONTRACT test that
+  parses every registration. A new ability fails it until deliberately classified, and
+  it pins the set using the read helper as EXACTLY the policy list, so nothing can join
+  the tier quietly. Negative-controlled in both directions, including that the helper
+  must not be `edit_posts`.
+
+### Changed
+- Nine existing pins asserted `manage_options` for the moved abilities and were
+  retargeted. `tests/ml-draft-echoes.php` framed its pin as a SECURITY property
+  ("REST-reachable, but gated") — the level dropped, the claim did not, and its wording
+  now says gated-at-the-read-tier rather than quietly dropping the word.
+
 ## [11.20.0] - 2026-08-18 — R6b closes: the cross-exam and the digest section
 
 ### Added
