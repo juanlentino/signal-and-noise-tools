@@ -241,7 +241,8 @@ function sn_dash_zone_is_open( array $zone, array $pins ) {
 - [x] **Step 4: Run and confirm it passes**
 
 Run: `php tests/dash-zones.php; echo "EXIT=$?"`
-Expected: `Result: 16 passed, 0 failed.` and `EXIT=0`.
+Expected: `Result: 28 passed, 0 failed.` and `EXIT=0`.
+  (The plan's 16 assumed task 4's original 10; task 4 shipped 13, and step 5 below adds more.)
 
 - [x] **Step 5: Negative-control the safety property**
 
@@ -570,7 +571,7 @@ git commit -m "feat: per-user dashboard zone pins with an id allowlist"
 - Modify: `inc/dash-pins.php`
 - Modify: `tests/dash-pins.php`
 
-- [ ] **Step 1: Add the failing test**
+- [x] **Step 1: Add the failing test**
 
 Append before the `Result:` line in `tests/dash-pins.php`:
 
@@ -595,12 +596,12 @@ $r = sn_dash_pin_route_handler( new Fake_Req( array( 'zone' => 'fleet', 'pinned'
 ok( sn_dash_pins( 9 ) === array(), 'unpinning through the route works' );
 ```
 
-- [ ] **Step 2: Run and confirm it fails**
+- [x] **Step 2: Run and confirm it fails**
 
 Run: `php tests/dash-pins.php; echo "EXIT=$?"`
 Expected: fatal — `Call to undefined function sn_dash_pin_route_handler()`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Append to `inc/dash-pins.php`:
 
@@ -644,12 +645,39 @@ if ( ! defined( 'SN_DASH_PINS_TEST' ) || ! SN_DASH_PINS_TEST ) {
 }
 ```
 
-- [ ] **Step 4: Run and confirm it passes**
+- [x] **Step 4: Run and confirm it passes**
 
 Run: `php tests/dash-pins.php; echo "EXIT=$?"`
 Expected: `Result: 16 passed, 0 failed.` and `EXIT=0`.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Negative-control the route AND its gate**
+
+Three deviations from the code block above, all shipped:
+
+- **Use `snt_ability_perm_manage_options()`**, not an inline closure — the
+  house pattern across `inc/abilities-*.php`. Verify `manage_options` really is
+  the admin page's capability (`inc/admin-menu.php`) rather than trusting the
+  comment.
+- **Validate the zone id in the route**, so a 400 means "unknown zone" and a
+  500 means "the write failed". The plan returned 400 for both.
+
+| Mutation | Result as written | Action |
+|---|---|---|
+| `permission_callback` → `__return_true` | fatal (undefined fn), not an assertion | define `__return_true` in the harness so it FAILS |
+| drop the route's zone-id check | fails the 400 assertion | pinned |
+| collapse 500 into 400 | **failed nothing** | added a write-failure fixture |
+
+**The `permission_callback` was never exercised.** `SN_DASH_PINS_TEST` skips the
+`add_action`, and nothing called `sn_dash_pin_register_route()`, so the only gate
+on this route was unpinned. Stub `register_rest_route` to capture the args, then
+assert the callback exists, refuses a capability-less user, and asks for
+`manage_options`.
+
+**The 500 path needs a fixture.** Add a `__meta_fail` flag to the
+`update_user_meta` stub — without a reachable write failure the 400/500
+distinction is unpinnable.
+
+- [x] **Step 6: Commit**
 
 ```bash
 git add inc/dash-pins.php tests/dash-pins.php
