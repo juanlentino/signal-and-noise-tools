@@ -230,6 +230,14 @@ require_once SNT_PATH . 'inc/admin-forms/mcp-usage-block.php'; // the READOUT ha
 // health-external-links all call sn_ssrf_host_blocked(). (v6.13.2: moved up from
 // the webhooks group so the earliest consumer, rss-feed-tracker, is covered.)
 require_once SNT_PATH . 'inc/ssrf-guard.php';
+// v11.27.0: the verified citation graph. Loads AFTER ssrf-guard — the verifier
+// re-validates every redirect hop through it, because wp_http_validate_url()
+// does not cover the link-local range that guard exists to close.
+require_once SNT_PATH . 'inc/citations-core.php';     // pure: URL normalising, link + identity detection, the tier ladder
+require_once SNT_PATH . 'inc/citations-store.php';    // the table; last_checked_gmt is NULLable on purpose (never-measured is its own answer)
+require_once SNT_PATH . 'inc/citations-verify.php';   // the adjudicator + hourly cron
+require_once SNT_PATH . 'inc/citations-endpoint.php'; // the public inbox AND its discovery advertisement
+require_once SNT_PATH . 'inc/citations-admin.php';    // Integrity -> Citations leaf: a three-way readout, never a fraction
 
 // Machine Readers surface (v9.85.0, Session 3): the rights-signals sensor read
 // (Bearer-token worker fetch + enum-allowlist normalization), the pure table

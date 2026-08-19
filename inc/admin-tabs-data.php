@@ -330,6 +330,11 @@ function sn_admin_top_tabs() {
 				// a defect count was the wrong host. They join the trust checks
 				// that already moved here for the same reason in v10.47.0.
 				'reports'    => array( 'label' => 'Reports', 'render' => 'sn_admin_render_health_reports_section', 'wide' => true ),
+				// v11.27.0: the INBOUND half of the provenance story. Provenance proves
+				// what left this site; citations adjudicate who says they took it. The
+				// renderer brings its OWN .sn-card, so it takes plain 'wide' — which
+				// strips the wrapper. 'wide_card' here would nest a card in a card.
+				'citations'  => array( 'label' => 'Citations', 'render' => 'sn_admin_render_citations_section', 'wide' => true ),
 				// Links last — reference shortcuts (GitHub, release pages, Cloudflare, Cloudways).
 				'links'      => array( 'label' => 'Links', 'render' => 'sn_admin_render_links_section' ),
 			),

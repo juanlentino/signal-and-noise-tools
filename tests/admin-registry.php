@@ -35,6 +35,7 @@ function sn_login_defense_render() { $GLOBALS['__calls'][] = 'fn:sn_login_defens
 function sn_login_defense_view_render() { $GLOBALS['__calls'][] = 'fn:sn_login_defense_view_render'; }
 function snt_audit_log_render_tab() { $GLOBALS['__calls'][] = 'fn:snt_audit_log_render_tab'; }
 function sn_admin_render_indexnow_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_indexnow_section'; }
+function sn_admin_render_citations_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_citations_section'; }
 function snt_analytics_render_settings_section() { $GLOBALS['__calls'][] = 'fn:snt_analytics_render_settings_section'; }
 function sn_admin_render_music_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_music_section'; }
 function sn_admin_render_links_section() { $GLOBALS['__calls'][] = 'fn:sn_admin_render_links_section'; }
@@ -153,8 +154,8 @@ ok( ! empty( $by_tab['ai']['sub_tabs']['copilot-usage']['wide'] ),
 	'copilot-usage leaf keeps its wide flag across the move (bare .sn-section — no card-in-a-card around the fn’s own .sn-card)' );
 
 ok( ( $by_tab['tools']['label'] ?? '' ) === 'Integrity', "tools relabelled 'Integrity' — KEY still 'tools' (v10.47.0)" );
-ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'provenance', 'trust', 'reports', 'links' ),
-	'tools leaves: provenance, trust, reports, links — v11.13.0: Reports joins them — the two report-only checks measure and publish rather than flag, so they left the defect-count page for the same reason the trust checks did in v10.47.0' );
+ok( array_keys( $by_tab['tools']['sub_tabs'] ) === array( 'provenance', 'trust', 'reports', 'citations', 'links' ),
+	'tools leaves: provenance, trust, reports, citations, links — v11.13.0: Reports joins them — the two report-only checks measure and publish rather than flag, so they left the defect-count page for the same reason the trust checks did in v10.47.0' );
 ok( ! empty( $by_tab['tools']['sub_tabs']['trust']['wide'] ), 'trust leaf is wide (glance hero + full-width table)' );
 ok( ! empty( $by_tab['ai']['sub_tabs']['models-budget']['wide'] ),
 	'models-budget is wide (v10.47.0: it joins the Phase-4a field grid instead of sitting as a 620px card in a 1200px tab)' );
