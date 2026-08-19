@@ -78,6 +78,7 @@ add_action( 'admin_menu', function() {
 	}
 
 	sn_admin_page_hooks( $hooks );
+
 } );
 
 /**

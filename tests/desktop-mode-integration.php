@@ -300,7 +300,7 @@ echo "\n── REGISTRATION TIMING (the v9.52.1 root cause) ──\n";
 // a refresh — so a late registry can also actively remove live widgets.
 fire( 'init' );
 $widgets = $GLOBALS['__dm_widgets'];
-ok( count( $widgets ) === 8, 'all eight widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
+ok( count( $widgets ) === 10, 'all ten widgets are registered by the end of init (NOT admin_enqueue_scripts), got ' . count( $widgets ) );
 ok( count( $GLOBALS['__dm_commands'] ) === 22, 'all 22 Cmd+K commands are registered by the end of init, got ' . count( $GLOBALS['__dm_commands'] ) );
 ok( count( $GLOBALS['__dm_icons'] ) === 2, 'both desktop icons are registered on init (this part was always correct)' );
 foreach ( array( 'sn-desktop-mode', 'sn-desktop-mode-widget', 'sn-desktop-mode-widget-views', 'sn-desktop-mode-widget-uptime', 'sn-desktop-mode-widget-health' ) as $h ) {
@@ -338,7 +338,7 @@ foreach ( $widgets as $id => $args ) {
 // one row Pulse alone carried — uptime — becomes its own SN Uptime widget.
 // Registration order IS picker order: traffic, then site condition, then ops.
 // v9.78.0 appends SN Anchors (provenance) at the end of the ops group.
-ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-anchors', 'sn-machine-readers' ),
+ok( array_keys( $widgets ) === array( 'sn-site-views', 'sn-health', 'sn-uptime', 'sn-deploy-status', 'sn-cache', 'sn-cron', 'sn-quick-actions', 'sn-rss-subscribers', 'sn-anchors', 'sn-machine-readers' ),
 	'widgets register one-per-domain in display order (Site Views first, no Pulse)' );
 ok( ! isset( $widgets['sn-pulse'] ), 'SN Pulse is retired — it duplicated Site Views + Health' );
 
@@ -410,7 +410,9 @@ $expected_height = array(
 	'sn-health'           => 160, // measured 148 all-passing
 	'sn-uptime'           => 220, // measured 210
 	'sn-deploy-status'    => 310, // v11.11.2 budgeted: measured-192 two-row grid + five worker rows ~22px each
-	'sn-quick-actions'    => 250, // measured 242
+	'sn-cache'            => 190, // v11.29.0 BUDGETED: health's 148 shape + a relative-time line + a third list row on escalation
+	'sn-cron'             => 170, // v11.29.0 BUDGETED: health measures 148 for the same dot-row + hairline-list shape, +1 line when orphans exist
+	'sn-quick-actions'    => 290, // v11.29.0 BUDGETED: measured-242 three buttons + a fourth ~40px (8px pad x2 + 13px/1.2 + 1px border x2 + 6px margin)
 	'sn-rss-subscribers'  => 220, // measured 207
 	'sn-anchors'          => 180, // measured 167 idle
 	'sn-machine-readers'  => 560, // budgeted: measured-508 −3 sensor rows +≤5 purpose rows
@@ -552,7 +554,7 @@ $widgets = $GLOBALS['__dm_widgets'];
 ok( isset( $widgets['sn-site-views'] ), 'W1: registers the sn-site-views widget' );
 ok( isset( $widgets['sn-uptime'] ),     'W2: registers the sn-uptime widget' );
 ok( isset( $widgets['sn-health'] ),     'W3: registers the sn-health widget' );
-ok( count( $widgets ) === 8, 'all eight widgets register (v10.1.0 adds SN Machine Readers), got ' . count( $widgets ) );
+ok( count( $widgets ) === 10, 'all ten widgets register (v11.29.0 adds SN Cache + SN Cron), got ' . count( $widgets ) );
 
 ok( ( $widgets['sn-site-views']['label'] ?? '' ) === 'SN Site Views', 'W1 carries its label' );
 ok( ( $widgets['sn-uptime']['label'] ?? '' ) === 'SN Uptime',         'W2 carries its label' );
@@ -1659,6 +1661,56 @@ $mr_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/de
 ok( false !== strpos( $mr_js, "window.desktopModeWidgets['sn-machine-readers']" ), 'tile assigns the PHP-declared mount global (not wp.desktop.registerWidget)' );
 ok( false !== strpos( $mr_js, 'return function teardown' ), 'tile returns a teardown' );
 ok( false !== strpos( $mr_js, 'AbortController' ), 'tile aborts its fetch on teardown (the site-views precedent)' );
+
+// ── v11.29.0: the SN Cron tile. The desktop could report traffic, health,
+// uptime, versions and anchors but never whether the site's scheduled work was
+// still running — the one "is it awake?" question with no surface.
+// ── v11.29.0: the SN Cache tile. Quick Actions could purge the edge; nothing
+// reported whether a purge WORKED. Reads snt_cf_freshness_summary(), the first
+// reader the v11.10.0 verification log has ever had.
+$cache_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-cache.js' ) );
+ok( false !== strpos( $cache_js, "window.openStationWidgets['sn-cache']" ), 'cache tile assigns the PHP-declared mount global' );
+ok( false !== strpos( $cache_js, 'return function teardown' ), 'cache tile returns a teardown' );
+
+// NULL IS NOT ALL-FRESH. The log records nothing for an unreadable probe, so an
+// empty log means verification never ran. A green edge there would be the exact
+// 2026-08-15 failure: green readout over a 27-hour-old render.
+ok( false !== strpos( $cache_js, 'No purge verified yet' ),
+	'A NEVER-VERIFIED EDGE SAYS SO — it does not render as fresh' );
+ok( false !== strpos( $cache_js, "'stale' === last" ),
+	'a stale verdict is read by identity, not by truthiness' );
+// Match the FULL dot expression, not the bare 'escalated > 0' substring — that
+// also appears in the list-row condition below, so the loose version stays green
+// when the dot logic is gutted.
+ok( false !== strpos( $cache_js, "'unknown' === last || escalated > 0" ),
+	'an escalation colours the dot even when the last verdict is fresh — needing a zone purge is not a clean bill' );
+
+$cache_php = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-assets.php' );
+ok( false !== strpos( $cache_php, "function_exists( 'snt_cf_freshness_summary' ) ? snt_cf_freshness_summary() : null" ),
+	'and the PHP sends NULL when the accessor is absent, not an empty struct' );
+
+$cron_js = strip_js_comments( (string) file_get_contents( __DIR__ . '/../assets/desktop-mode-widget-cron.js' ) );
+ok( false !== strpos( $cron_js, "window.openStationWidgets['sn-cron']" ), 'cron tile assigns the PHP-declared mount global' );
+ok( false !== strpos( $cron_js, 'return function teardown' ), 'cron tile returns a teardown' );
+ok( false === strpos( $cron_js, 'apiFetch' ) && false === strpos( $cron_js, 'sntAbilityRun' ),
+	'cron tile reads the localized global only — no REST call, no ability run' );
+
+// ABSENT IS NOT ZERO. hasOwnProperty distinguishes "the cron module is not on
+// this install" from "there are genuinely 0 scheduled events". A falsy check on
+// summary.total would collapse the two and render a synthetic all-clear.
+ok( false !== strpos( $cron_js, "hasOwnProperty.call( summary, 'total' )" ),
+	'CRON TILE DISTINGUISHES ABSENT FROM ZERO via hasOwnProperty, not a falsy check' );
+
+// The dot tracks ORPHANS, not the event count: a count is not a verdict, and an
+// orphan is the only thing here that asks for action.
+ok( false !== strpos( $cron_js, 'orphans > 0 ? WARN_FG : OK_FG' ),
+	'the cron dot tracks orphans rather than the raw event count' );
+
+// The PHP seam the JS guard depends on: when the accessor is missing the payload
+// must be an EMPTY array (no `total` key), not a zeroed struct.
+$cron_assets_src = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-assets.php' );
+ok( false !== strpos( $cron_assets_src, "function_exists( 'snt_cron_summary_for_localize' ) ? snt_cron_summary_for_localize() : array()" ),
+	'and the PHP sends array() when the cron module is absent, so that guard has something to see' );
 ok( false === strpos( $mr_js, 'innerHTML' ), 'tile never uses innerHTML — worker-derived strings reach the DOM as text only' );
 ok( false !== strpos( $mr_js, '/signal-noise/v1/desktop/machine-readers' ), 'tile reads its own desktop route, not the localize' );
 // v10.27.0: the additive ai_surfaces field (per-surface split for AI-training

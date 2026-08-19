@@ -177,14 +177,46 @@ add_action( 'init', function() {
 
 		// v2.1.0: Quick Actions widget — replaces the 3-click path of
 		// S&N → Dashboard → Maintenance with single-click access from desktop.
+		// v11.29.0: SN Cache. Quick Actions could purge the edge; nothing said
+		// whether a purge WORKED, so you purged blind. Reads the verification
+		// log that has been written since v11.10.0 and read by nothing.
+		snt_os_register_widget( 'sn-cache', array_merge( $sn_drag, array(
+			'label'          => 'SN Cache',
+			'description'    => 'Whether the last purge actually cleared the edge.',
+			'icon'           => 'dashicons-cloud',
+			'script'         => 'sn-desktop-mode-widget-cache',
+			// BUDGETED, not browser-measured: health measures 148 for a dot row +
+			// a 2-row hairline list; this adds a relative-time line and a third
+			// list row when an escalation exists. 190 with slack.
+			'default_height' => 190,
+		) ) );
+
+		// v11.29.0: SN Cron. The desktop could report traffic, health, uptime,
+		// versions and anchors but not whether the site's scheduled work was
+		// still running — the one "is it awake?" question with no surface.
+		// Reads the already-localized cronSummary; no new data layer.
+		snt_os_register_widget( 'sn-cron', array_merge( $sn_drag, array(
+			'label'          => 'SN Cron',
+			'description'    => 'Scheduled events, how many are ours, and any orphaned.',
+			'icon'           => 'dashicons-clock',
+			'script'         => 'sn-desktop-mode-widget-cron',
+			// BUDGETED, not browser-measured: the health card measures 148 for a
+			// dot row + a 2-row hairline list, and this is the same shape with one
+			// extra 11px line when orphans exist. 170 with slack.
+			'default_height' => 170,
+		) ) );
+
 		snt_os_register_widget( 'sn-quick-actions', array_merge( $sn_drag, array(
 			'label'          => 'SN Quick Actions',
 			'description'    => 'One-click purge, clear overrides, force update-check.',
 			'icon'           => 'dashicons-controls-repeat',
 			'script'         => 'sn-desktop-mode-widget-actions',
-			// Measured 242: three full-width buttons + the footnote. A toast
-			// appends beneath them for TOAST_MS and is allowed to scroll.
-			'default_height' => 250,
+			// Was measured 242 for THREE full-width buttons + the footnote.
+			// v11.29.0 adds the force update-check button the description has
+			// always promised. 290 is DERIVED, not browser-measured: a button is
+			// 8px padding x2 + 13px/1.2 text + 1px border x2 + 6px margin ~= 40px,
+			// so 250 + 40 = 290. If it clips, measure rather than guess again.
+			'default_height' => 290,
 		) ) );
 
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that

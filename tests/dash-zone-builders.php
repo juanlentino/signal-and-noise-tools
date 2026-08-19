@@ -59,5 +59,62 @@ ok( $z['state'] === 'unknown', 'an EMPTY-STRING version is unmeasured, not curre
 // No deploy time means no detail line — not a dangling "deploy" label.
 ok( $z['detail'] === '', 'an absent deploy time renders no detail line at all' );
 
+// ── warming is pending, not unknown (v11.29.0) ──────────────────────────────
+// A cold worker is one this page load CHOSE not to probe (probe_budget = 1).
+// Reporting that as "never probed" states our own budget as a fact about the
+// fleet — and forces the zone to `unknown`, which outranks everything. The
+// Deploy Status widget beside it probes with budget 5 and shows all seven, so
+// the two surfaces contradicted each other on screen.
+// v11.16.0 settled this one layer down: cold is not broken.
+$z = sn_dash_zone_fleet( array( 'Theme' => '11.12.0', 'Remote MCP' => array( 'version' => '', 'reason' => 'warming' ) ), '1 minute ago' );
+$vals = array_column( $z['cards'], 'value', 'label' );
+// Assert the VALUE first. Without this the state assertion below passes
+// vacuously: an array is neither null nor '', so the pre-fix code calls it
+// measured and renders the literal string "Array" — green for the wrong reason.
+ok( 'Array' !== $vals['Remote MCP'], 'THE COMPONENT IS NOT RENDERED AS THE STRING "Array"' );
+ok( false !== stripos( (string) $vals['Remote MCP'], 'warming' ), 'a warming component says so in its own cell' );
+ok( $z['state'] === 'ok', 'A WARMING WORKER LEAVES THE FLEET OK — pending is not unknown' );
+ok( false !== stripos( $z['summary'], 'warming' ), 'and the summary says warming rather than never probed' );
+
+// A probe that actually FAILED is real missing evidence and still forces unknown.
+$z = sn_dash_zone_fleet( array( 'Theme' => '11.12.0', 'Edge' => array( 'version' => '', 'reason' => 'http_500' ) ), '' );
+ok( $z['state'] === 'unknown', 'a FAILED probe is genuinely unknown' );
+
+// The plain-string form still works — most components have no reason to give.
+$z = sn_dash_zone_fleet( array( 'Theme' => '11.12.0', 'Plugin' => '11.28.0' ), '' );
+ok( $z['state'] === 'ok', 'plain version strings still read as measured' );
+$z = sn_dash_zone_fleet( array( 'Theme' => '11.12.0', 'Plugin' => null ), '' );
+ok( $z['state'] === 'unknown', 'a null with no reason is still unknown' );
+
+// THE SEAM. Everything above hand-builds components. In production they come
+// from snt_dashboard_fleet_components(), and if THAT drops the probe's reason
+// the whole warming fix is inert while every assertion above still passes.
+$components = snt_dashboard_fleet_components(
+	array( 'current' => '11.12.0' ),
+	array( 'current' => '11.28.0' ),
+	array(
+		array( 'label' => 'Analytics', 'live' => '1.20.0', 'reason' => '' ),
+		array( 'label' => 'Remote MCP', 'live' => '', 'reason' => 'warming' ),
+		array( 'label' => 'Edge', 'live' => '', 'reason' => 'http_500' ),
+	)
+);
+ok( is_array( $components['Remote MCP'] ) && 'warming' === $components['Remote MCP']['reason'],
+	'THE PRODUCER CARRIES THE PROBE REASON THROUGH — without it the fix is inert live' );
+ok( is_array( $components['Edge'] ) && 'http_500' === $components['Edge']['reason'],
+	'and a failure reason survives too, so it can still read unknown' );
+ok( '1.20.0' === $components['Analytics'], 'a worker that answered is still a plain version string' );
+
+// End to end through both functions: one warming worker must not condemn the fleet.
+$z = sn_dash_zone_fleet( $components, '1 minute ago' );
+ok( 'unknown' === $z['state'], 'a FAILED probe still makes the real fleet unknown' );
+
+$ok_components = snt_dashboard_fleet_components(
+	array( 'current' => '11.12.0' ),
+	array( 'current' => '11.28.0' ),
+	array( array( 'label' => 'Remote MCP', 'live' => '', 'reason' => 'warming' ) )
+);
+$z = sn_dash_zone_fleet( $ok_components, '1 minute ago' );
+ok( 'ok' === $z['state'], 'BUT A WARMING-ONLY FLEET READS OK, end to end from the producer' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

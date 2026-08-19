@@ -160,6 +160,27 @@ add_action( 'init', function() {
 		true
 	);
 
+	// v11.29.0: the cron widget. Reads window.snDesktopData.cronSummary only —
+	// no REST call, no ability run — so its dependencies are exactly the compat
+	// prelude and the handle that carries the data global. Deliberately NOT in
+	// the analytics loop below, which hands out wp-api-fetch this widget never
+	// uses.
+	wp_register_script(
+		'sn-desktop-mode-widget-cache',
+		plugins_url( 'assets/desktop-mode-widget-cache.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'sn-desktop-mode-os-compat', 'snt-ability-run', 'sn-desktop-mode' ),
+		SNT_VERSION,
+		true
+	);
+
+	wp_register_script(
+		'sn-desktop-mode-widget-cron',
+		plugins_url( 'assets/desktop-mode-widget-cron.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'sn-desktop-mode-os-compat', 'sn-desktop-mode' ),
+		SNT_VERSION,
+		true
+	);
+
 	// v9.52.0: three analytics widgets. These read the site-views REST
 	// endpoint (below) rather than the ability run-path, so they depend on
 	// wp-api-fetch only — no snt-ability-run.
@@ -209,6 +230,10 @@ add_action( 'admin_enqueue_scripts', function() {
 		'theme'         => $theme,
 		'plugin'        => $plugin,
 		'cronSummary'   => function_exists( 'snt_cron_summary_for_localize' ) ? snt_cron_summary_for_localize() : array(),
+		// v11.29.0: NULL when verification has never run — deliberately not an
+		// empty struct, because "never probed" and "every purge succeeded" are
+		// different facts and the widget renders them differently.
+		'cacheFreshness' => function_exists( 'snt_cf_freshness_summary' ) ? snt_cf_freshness_summary() : null,
 		'insightsSummary' => function_exists( 'snt_insights_summary_for_localize' ) ? snt_insights_summary_for_localize() : null,
 		// v9.52.0: cheap/durable summaries for the Pulse + Health widgets.
 		// Both are a single option read; both return null (never a fabricated

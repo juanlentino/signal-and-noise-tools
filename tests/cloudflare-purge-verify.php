@@ -24,6 +24,11 @@ function ok( $cond, $label ) {
 // apply_filters is the only WP call the pure half makes.
 function apply_filters( $hook, $value ) { return $value; }
 
+// v11.29.0: the summary accessor reads the probe log option.
+$GLOBALS['__opts'] = array();
+function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opts'] ) ? $GLOBALS['__opts'][ $k ] : $d; }
+function update_option( $k, $v, $autoload = null ) { $GLOBALS['__opts'][ $k ] = $v; return true; }
+
 require __DIR__ . '/../inc/cloudflare-purge-verify.php';
 
 echo "Group: staleness decision\n";
@@ -89,6 +94,51 @@ $loader = file_get_contents( __DIR__ . '/../signal-and-noise-tools.php' );
 $pos_verify = strpos( $loader, 'cloudflare-purge-verify.php' );
 $pos_purge  = strpos( $loader, "inc/cloudflare-purge.php" );
 ok( false !== $pos_verify && false !== $pos_purge && $pos_verify < $pos_purge, 'the constants load BEFORE the purge that reads them' );
+
+echo "\nGroup: the freshness summary (v11.29.0)\n";
+
+// The probe log has been written since v11.10.0 and read by NOTHING. This
+// accessor is its first reader — the desktop needs a verdict, and the data
+// already exists.
+
+// NEVER PROBED is not ALL FRESH. snt_cf_verify_post_purge() deliberately records
+// nothing when a probe is unreadable ("an outage is a gap in evidence, not a
+// verdict"), so an empty log means no purge has been verified — not that every
+// purge succeeded. Collapsing the two would report a green edge for a site whose
+// verification has never once run.
+$GLOBALS['__opts'] = array();
+ok( null === snt_cf_freshness_summary(), 'AN EMPTY LOG IS NULL, NOT A CLEAN BILL OF HEALTH' );
+
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = 'not-an-array';
+ok( null === snt_cf_freshness_summary(), 'corrupt option reads as never-probed rather than fataling' );
+
+// Newest first, as snt_cf_probe_record() array_unshifts them.
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
+	array( 'time' => 1000, 'result' => 'fresh', 'url' => 'https://x.test/a' ),
+	array( 'time' =>  900, 'result' => 'stale', 'url' => 'https://x.test/b', 'escalated' => true ),
+	array( 'time' =>  800, 'result' => 'fresh', 'url' => 'https://x.test/c' ),
+);
+$sum = snt_cf_freshness_summary();
+ok( is_array( $sum ), 'a populated log yields a summary' );
+ok( 'fresh' === $sum['last'], 'the LAST verdict is the newest entry, not the first written' );
+ok( 1000 === $sum['last_time'], 'and carries its timestamp' );
+ok( 3 === $sum['total'], 'the window counts every recorded verdict' );
+ok( 1 === $sum['stale'], 'and how many were stale' );
+ok( 1 === $sum['escalated'], 'escalations are counted separately — a stale purge that escalated is a worse fact' );
+
+// A stale newest entry must surface as the verdict even with fresh history.
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
+	array( 'time' => 2000, 'result' => 'stale', 'url' => 'https://x.test/a' ),
+	array( 'time' => 1000, 'result' => 'fresh', 'url' => 'https://x.test/b' ),
+);
+$sum = snt_cf_freshness_summary();
+ok( 'stale' === $sum['last'], 'A STALE NEWEST ENTRY IS THE VERDICT, however good the history' );
+ok( 0 === $sum['escalated'], 'a stale entry that did not escalate is not counted as one' );
+
+// An entry with an unrecognised result is not silently counted as fresh.
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array( array( 'time' => 5, 'result' => 'weird' ) );
+$sum = snt_cf_freshness_summary();
+ok( 'unknown' === $sum['last'], 'an unrecognised result reads as unknown, never as fresh' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

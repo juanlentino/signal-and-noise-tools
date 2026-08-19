@@ -27,6 +27,37 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Which tab is active for this request? (v11.29.0)
+ *
+ * Extracted so the RENDERER and the metabox registration cannot disagree.
+ * Registration runs on `load-{$hook}`, long before the renderer, and a second
+ * copy of this logic would be a third chance to get it wrong.
+ *
+ * Dispatch order is unchanged from the inline version it replaces:
+ *   1. explicit ?tab=… (v1.8.x deep links must keep working)
+ *   2. derive from ?page=… (v1.9.0 — each submenu has its own slug)
+ *   3. default to dashboard
+ *
+ * The Dashboard is normally reached with NO ?tab= at all, so a bare
+ * $_GET['tab'] check would miss the most common case.
+ *
+ * @since 11.29.0
+ * @return string A slug guaranteed to be in sn_admin_page_valid_tabs().
+ */
+function sn_admin_page_active_tab() {
+	// phpcs:disable WordPress.Security.NonceVerification.Recommended -- read-only tab dispatch, no state change.
+	if ( isset( $_GET['tab'] ) ) {
+		$active = sanitize_text_field( wp_unslash( $_GET['tab'] ) );
+	} else {
+		$slug   = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : 'sn-theme-options';
+		$active = sn_admin_page_tab_for_slug( $slug );
+	}
+	// phpcs:enable WordPress.Security.NonceVerification.Recommended
+
+	return in_array( $active, sn_admin_page_valid_tabs(), true ) ? $active : 'dashboard';
+}
+
 function sn_theme_options_page() {
 	// Defense-in-depth capability check. WordPress's add_theme_page()
 	// already gates access to the admin URL itself, but re-checking here
@@ -41,23 +72,11 @@ function sn_theme_options_page() {
 	// Must run BEFORE any output so headers can still be sent.
 	sn_admin_maybe_redirect_legacy();
 
-	$notices    = array();
-	$valid_tabs = sn_admin_page_valid_tabs();
+	$notices = array();
 
-	// Dispatch order: (1) explicit ?tab=… in URL (v1.8.x legacy deep links;
-	// must keep working); (2) derive from the current ?page=… slug (v1.9.0
-	// path — each sidebar submenu has a unique slug). Default to dashboard
-	// if neither resolves.
-	if ( isset( $_GET['tab'] ) ) {
-		$active_tab = sanitize_text_field( wp_unslash( $_GET['tab'] ) );
-	} else {
-		$current_slug = isset( $_GET['page'] ) ? sanitize_text_field( wp_unslash( $_GET['page'] ) ) : 'sn-theme-options';
-		$active_tab   = sn_admin_page_tab_for_slug( $current_slug );
-	}
-
-	if ( ! in_array( $active_tab, $valid_tabs, true ) ) {
-		$active_tab = 'dashboard';
-	}
+	// v11.29.0: one source of truth, shared with the metabox registration that
+	// runs on load-{$hook} long before this renderer.
+	$active_tab = sn_admin_page_active_tab();
 
 	// Form processing happens in sn_handle_admin_post() on admin_init —
 	// before any output. This block just translates ?sn_flash=… into a

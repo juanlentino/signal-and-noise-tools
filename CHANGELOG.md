@@ -2,6 +2,57 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.29.0] - 2026-08-19 — the desktop learns whether the site is awake, and whether a purge worked
+
+### Added
+- **SN Cron widget.** The desktop could report traffic, health, uptime, versions, anchors, RSS
+  and machine readers — but nothing answered whether the site's scheduled work was still
+  running. Shows scheduled events, how many are ours, and any **orphaned** (registered with no
+  handler, so they fire into nothing). The dot tracks orphans rather than the raw count: a
+  count is not a verdict.
+- **SN Cache widget.** Quick Actions could purge the edge; nothing reported whether a purge
+  actually **worked**, so you purged blind. This reads the purge-verification log — which has
+  been written since v11.10.0 and had **no reader anywhere in the codebase**. An escalation
+  outranks the last verdict: a green "fresh" reached only because the whole zone had to be
+  dropped is not a clean bill, so it colours the dot amber.
+- **Quick Actions gains its fourth button.** The card has advertised "purge, clear overrides,
+  force update-check" since it shipped, with three buttons. It dispatches `get-deploy-status`
+  with `force_refresh` — the `force-check-updates` ability was removed and this absorbed its
+  job, so wiring the button to the name in the description would have 404'd.
+
+### Fixed
+- **A warming worker no longer reports a fleet that cannot be measured.** The Dashboard said
+  "Fleet not measured — 1 of 7 never probed" while the Deploy Status widget beside it listed
+  all seven with versions. Both were correct as coded: the widget probes with budget 5, the
+  Dashboard with budget 1. The zone was stating its own probe budget as a fact about the
+  fleet — and because `unknown` outranks everything, one cold cache condemned the whole box
+  for several page loads after any purge. A worker now carries its probe *reason*, so a
+  budget-skipped probe reads **pending** and only a probe that ran and failed reads unknown.
+  The v11.16.0 lesson one layer up: cold is not broken.
+
+### Changed
+- One source of truth for the active admin tab. The resolution lived inline in the page
+  renderer; the Dashboard is normally reached with **no `?tab=` at all**, so any second copy
+  checking `$_GET['tab']` would have missed the most common case.
+- Maintenance and Diagnostics are their own functions rather than inline blocks. Same markup,
+  same order, same nonce.
+
+### Notes
+- **Absent is not zero, in both new widgets.** Cron distinguishes "0 events scheduled" from
+  "the cron module is not on this install". Cache distinguishes "edge fresh" from "no purge
+  verified yet" — the verification log deliberately records *nothing* for an unreadable probe,
+  because an outage is a gap in evidence rather than a verdict, so reading an empty log as a
+  green edge would reproduce 2026-08-15 exactly: three purges fired, a 27-hour-old render
+  served for fifty minutes, every readout green.
+- Both widget heights are **budgeted, not browser-measured**, and labelled as such in the
+  height table beside the three entries that already are.
+- `inc/openstation-compat.php` no longer claims the owner runs v0.9.8. It is v1.1.0 —
+  post-rename, so the shim's new-name branch is the live path. Both branches stay.
+- A metabox-console direction was explored and parked: OpenStation refuses shell styling for
+  admin pages in windows by design (`AGENTS.md`, enforced by `brand-palette.test.ts`), and the
+  desktop widgets are the native surface there. The parked code was removed before release
+  rather than shipped inert; the spec and plan record why.
+
 ## [11.28.0] - 2026-08-19 — the Dashboard becomes mission control, and the citation graph goes public
 
 ### Added

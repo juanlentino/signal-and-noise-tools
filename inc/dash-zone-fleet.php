@@ -15,22 +15,41 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * @param array<string,string|null> $components name => version, null = never probed.
- * @param string                    $last_deploy_ago Human string, may be ''.
+ * @param array<string,string|null|array{version:string,reason:string}> $components
+ *        name => version. A plain string or null is a version (null = never probed).
+ *        An ARRAY carries the probe's own `reason` so a budget-skipped probe can be
+ *        told apart from one that ran and failed.
+ * @param string $last_deploy_ago Human string, may be ''.
  * @return array<string,mixed>
  */
 function sn_dash_zone_fleet( array $components, $last_deploy_ago = '' ) {
 	$cards   = array();
 	$unknown = 0;
-	foreach ( $components as $name => $version ) {
+	$pending = 0;
+	foreach ( $components as $name => $component ) {
+		// Unwrap FIRST. An array is neither null nor '', so testing the raw value
+		// would call it measured and render the literal string "Array".
+		$version = is_array( $component ) ? (string) ( $component['version'] ?? '' ) : $component;
+		$reason  = is_array( $component ) ? (string) ( $component['reason'] ?? '' ) : '';
+
 		$measured = null !== $version && '' !== $version;
-		if ( ! $measured ) {
-			$unknown++;
+		$warming  = ! $measured && 'warming' === $reason;
+
+		if ( $warming ) {
+			++$pending;
+		} elseif ( ! $measured ) {
+			++$unknown;
 		}
+
 		$cards[] = array(
-			'label'     => (string) $name,
-			'value'     => $measured ? (string) $version : '—',
-			'measured'  => $measured,
+			'label' => (string) $name,
+			'value' => $measured ? (string) $version : ( $warming ? __( 'warming…', 'signal-and-noise-tools' ) : '—' ),
+			// A warming probe is PENDING, not unknown. Marking it unmeasured would
+			// force the whole zone to `unknown`, which outranks everything — so one
+			// cold cache would report the entire fleet as unmeasurable while the
+			// Deploy Status widget beside it listed every version. v11.16.0 settled
+			// the same question for the glance sort: cold is not broken.
+			'measured'  => $measured || $warming,
 			'attention' => false, // a version is never an alarm; drift is reported elsewhere.
 		);
 	}
@@ -42,6 +61,13 @@ function sn_dash_zone_fleet( array $components, $last_deploy_ago = '' ) {
 			__( 'Fleet not measured — %1$d of %2$d never probed', 'signal-and-noise-tools' ),
 			$unknown,
 			$total
+		);
+	} elseif ( $pending > 0 ) {
+		$summary = sprintf(
+			/* translators: 1: total components, 2: count still warming */
+			__( 'Fleet current — %1$d components, %2$d warming', 'signal-and-noise-tools' ),
+			$total,
+			$pending
 		);
 	} else {
 		$summary = sprintf(
@@ -99,10 +125,20 @@ function snt_dashboard_fleet_components( $theme, $plugin, $workers = array() ) {
 		if ( '' === $label ) {
 			continue;
 		}
-		// `live` is the version the worker actually answered with. Empty means
-		// never probed (cold, budget-skipped) — null, not a version.
-		$live          = (string) ( $worker['live'] ?? '' );
-		$out[ $label ] = '' !== $live ? $live : null;
+		// `live` is the version the worker actually answered with. Empty means it
+		// did not answer — but WHY matters: a budget-skipped probe is pending,
+		// while one that ran and failed is genuinely unknown. Pass the reason
+		// through so sn_dash_zone_fleet() can tell them apart instead of
+		// reporting our own probe budget as a fact about the fleet.
+		$live   = (string) ( $worker['live'] ?? '' );
+		$reason = (string) ( $worker['reason'] ?? '' );
+
+		$out[ $label ] = '' !== $live
+			? $live
+			: array(
+				'version' => '',
+				'reason'  => $reason,
+			);
 	}
 
 	return $out;

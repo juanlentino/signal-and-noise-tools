@@ -2,9 +2,17 @@
 /**
  * Signal & Noise Tools — WordPress/openstation rename compatibility layer.
  *
- * WordPress/openstation PR #475 (merged 2026-08-03, in trunk, NOT yet in any
- * tagged release — the owner runs v0.9.8 today, which predates the rename)
- * renames the plugin from "Desktop Mode" to "OpenStation":
+ * WordPress/openstation PR #475 (merged 2026-08-03) renames the plugin from
+ * "Desktop Mode" to "OpenStation".
+ *
+ * v11.29.0: the owner now runs **v1.1.0**, which is POST-rename — the shim's
+ * new-name branch is the live path, not the fallback. (This docblock said
+ * "the owner runs v0.9.8 today, which predates the rename" from when that was
+ * true; upstream is at v1.1.1 as of 2026-08-19.) The compat layer was verified
+ * clean against v1.1.0 on 2026-08-14 — all 17 names survived. Keep BOTH
+ * branches: the plugin must still work on a pre-rename shell.
+ *
+ * The rename maps:
  * `desktop_mode_*()` functions/hooks → `openstation_*()` (NOT `open_station_*`
  * — verified against real post-#475 source; there is no underscore between
  * "open" and "station" anywhere: functions, hooks, or constants),
