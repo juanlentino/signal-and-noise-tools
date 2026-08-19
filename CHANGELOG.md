@@ -19,6 +19,11 @@ All notable changes to Signal & Noise Tools are documented here.
   whose accessor is absent renders an em dash and is dimmed, never a `0`. Search Console is
   not wired yet, so clicks reads unknown, which is exactly what the design specifies for a
   cache miss or an API error.
+- **Views carries a sparkline**, which is what earns it the full-width hero row on narrow
+  viewports. It reuses the shared `snt_analytics_sparkline()` — the same smooth-path SVG
+  treatment as the Analytics Overview chart — rather than minting a second one. It is never
+  drawn for an unmeasured figure: a trend line under an em dash would assert exactly the
+  knowledge the em dash exists to deny.
 - Recent deploys is **folded into the fleet zone** rather than cut — it answers the same
   question the zone does, so it belongs inside it instead of competing with it.
 

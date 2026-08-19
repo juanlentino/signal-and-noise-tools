@@ -5,6 +5,7 @@ if ( ! function_exists( '__' ) ) { function __( $t, $d = '' ) { return $t; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $t, $d = '' ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); } }
+function snt_analytics_sparkline( $series ) { return '<span class="sn-an-spark">SPARK' . count( $series ) . '</span>'; }
 
 require __DIR__ . '/../inc/dash-zone-measurement.php';
 
@@ -63,6 +64,40 @@ ok( substr_count( $h, 'sn-dash-fig--unmeasured' ) === 4, 'and exactly the four t
 
 // Escaping: labels are ours, but values pass through the same door.
 ok( false === strpos( strip( array( 'views_7d' => '<script>' ) ), '<script>' ), 'the strip escapes its values' );
+
+// ── the sparkline ───────────────────────────────────────────────────────────
+// Reuses the shared analytics helper — the same SVG treatment as the Overview
+// chart — rather than minting a second sparkline.
+$series = array( array( 'day' => '2026-08-13', 'views' => 4 ), array( 'day' => '2026-08-14', 'views' => 11 ) );
+
+$figs = sn_dash_measurement_figures( array( 'views_7d' => 103, 'views_series' => $series ) );
+$byk  = array(); foreach ( $figs as $f ) { $byk[ $f['key'] ] = $f; }
+ok( $byk['views_7d']['series'] === $series, 'the hero figure carries the series as DATA — the builder stays pure' );
+ok( $byk['citations']['series'] === null, 'no other figure carries a series' );
+
+$h = strip( array( 'views_7d' => 103, 'views_series' => $series ) );
+ok( false !== strpos( $h, 'sn-an-spark' ), 'the hero renders the shared sparkline' );
+ok( substr_count( $h, 'sn-an-spark' ) === 1, 'exactly one sparkline on the strip' );
+
+// No series, no sparkline — an empty chart is worse than no chart.
+ok( false === strpos( strip( array( 'views_7d' => 103 ) ), 'sn-an-spark' ), 'no series means no sparkline' );
+ok( false === strpos( strip( array( 'views_7d' => 103, 'views_series' => array() ) ), 'sn-an-spark' ), 'an EMPTY series draws nothing, not an empty chart' );
+
+// The one that matters: never draw a trend for a figure we did not measure.
+$h = strip( array( 'views_series' => $series ) );
+ok( false !== strpos( $h, 'sn-dash-fig--unmeasured' ), 'views with no value is unmeasured' );
+ok( false === strpos( $h, 'sn-an-spark' ), 'AN UNMEASURED FIGURE NEVER DRAWS A SPARKLINE' );
+
+// The renderer is public, so pin its own guard rather than relying on the
+// builder having nulled an empty series upstream. Handed one directly, the
+// shared helper would emit its `--empty` marker; the strip must draw nothing.
+ob_start();
+sn_dash_render_measurement_strip( array(
+	array( 'key' => 'views_7d', 'label' => 'views 7d', 'hero' => true, 'measured' => true, 'value' => '9', 'series' => array() ),
+) );
+$direct = ob_get_clean();
+ok( false !== strpos( $direct, 'sn-dash-fig--hero' ), 'the hand-built hero renders' );
+ok( false === strpos( $direct, 'sn-an-spark' ), 'AN EMPTY SERIES HANDED STRAIGHT TO THE RENDERER DRAWS NOTHING' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
