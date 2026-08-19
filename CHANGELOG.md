@@ -2,6 +2,57 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.22.0] - 2026-08-18 — semantic embeddings, in shadow
+
+### Added
+- **A second opinion beside the kernel, not instead of it.** Item 8 rests on one claim:
+  that lexical TF-IDF cosine has a recall ceiling on a corpus deliberately restating one
+  argument in changing vocabulary. Plausible — and still a claim. This ships the
+  embedding path and the instrument to MEASURE it. **Nothing the site serves changes.**
+- `inc/ml-embeddings.php` — Workers AI (`@cf/baai/bge-base-en-v1.5`) over the REST API,
+  vectors cached in post meta keyed by **content hash AND model id**: an edited note must
+  re-embed, and a different model is a different vector space in which old numbers are
+  meaningless rather than merely old.
+- `inc/ml-embeddings-compare.php` — both rankings over the same corpus, reporting where
+  they DISAGREE. Agreement proves nothing either way; the disagreements are the evidence.
+
+### No Vectorize, despite the ticket naming it
+Vectorize is an **approximate** nearest-neighbour index for large vector sets. The corpus
+is **55 notes**: exact cosine over 55 vectors is microseconds in PHP and the whole set is
+under a megabyte of post meta. Vectorize would buy an index to keep in sync, a new
+service dependency, and approximate answers where exact ones are free. That removes the
+"+ worker" half of the ticket entirely.
+
+### What adopting this would cost — recorded before any number exists
+The public ML maturity page states *"No neural network, no training run, no weights
+file… computed exactly"* and *"Compute: inside the site."* An embedding model breaks
+**all four** clauses. That is a decision about what the site publicly claims, on a site
+whose subject is honest disclosure of method — not a refactor. The page is left untouched
+and remains TRUE while this stays in shadow.
+
+### How to read the result, stated in advance so it cannot be read backwards
+- large `only_embedding` sets → the ceiling is real and the swap is justified
+- near-total overlap → TF-IDF was already finding these pairs, and adopting a hosted
+  neural model would break four public claims to buy very little
+
+Neither outcome is a failure of this release. Not knowing was.
+
+### Refusals that make the instrument trustworthy
+- **A vector-count mismatch REFUSES.** If the API returned fewer vectors than texts, the
+  pairing would shift onto the wrong notes and every downstream score would remain
+  entirely plausible. It errors instead of aligning by hope.
+- **Cosine computes its own magnitudes.** bge output is normalised in practice; assuming
+  it would silently inflate every score if a model swap changed that. Pinned with a
+  non-unit parallel pair that returns 1.0, not 10.
+- **Ties break on post_id**, so a rerun is byte-identical and the comparison is not noisy
+  for reasons that are not the method under test.
+
+### Tests
+`tests/ml-embeddings.php` (32). Includes a pin that the artifact build calls **neither**
+embedding function — shadow mode asserted by construction, not by intention — and that
+the maturity page still says "No neural network", which is the claim that must change
+before any swap.
+
 ## [11.21.0] - 2026-08-18 — least privilege becomes available
 
 ### Fixed

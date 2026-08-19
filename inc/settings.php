@@ -165,6 +165,13 @@ function sn_settings_defaults() {
 		// and a silently-replaced credential is what drift detection exists for.
 		// The leaf name ends in `credential` so the drift suffix regex hashes it
 		// rather than copying a private key into a second option.
+		// item 8: the Workers AI token for SHADOW embeddings. A settings leaf for
+		// the same reason the GSC credential is one — inc/config-drift.php
+		// snapshots only SN_SETTINGS_OPTION, so a credential stored elsewhere is
+		// drift-INVISIBLE. The `token` suffix is already in the drift regex.
+		'ml' => array(
+			'embeddings_token' => '',
+		),
 		'search_console' => array(
 			'gsc_credential' => '',
 			// The property string Google knows this site by. NOT derivable from the
@@ -453,6 +460,11 @@ function sn_settings_save( $raw ) {
 	// Sixth subtree in this class.
 	if ( isset( $existing_settings['search_console'] ) && is_array( $existing_settings['search_console'] ) ) {
 		$sanitized['search_console'] = $existing_settings['search_console'];
+	}
+
+	// item 8: same hazard, ml subtree (the Workers AI token). Seventh in this class.
+	if ( isset( $existing_settings['ml'] ) && is_array( $existing_settings['ml'] ) ) {
+		$sanitized['ml'] = $existing_settings['ml'];
 	}
 
 	$sanitized['seo_copy'] = array(
