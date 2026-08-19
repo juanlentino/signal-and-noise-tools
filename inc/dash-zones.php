@@ -74,3 +74,38 @@ function sn_dash_zone_is_open( array $zone, array $pins ) {
 	$id = isset( $zone['id'] ) ? (string) $zone['id'] : '';
 	return '' !== $id && in_array( $id, $pins, true );
 }
+
+/**
+ * Render one zone as a <details> block.
+ *
+ * The open state is server-rendered so the correct shape is present on first
+ * paint with no flash. A collapsed zone does not call the grid helper at all —
+ * there is no point building tiles nobody will see.
+ *
+ * @param array<string,mixed> $zone
+ * @param string[]            $pins
+ * @return void
+ */
+function sn_dash_render_zone( array $zone, array $pins = array() ) {
+	$state   = isset( $zone['state'] ) ? (string) $zone['state'] : 'ok';
+	$id      = isset( $zone['id'] ) ? (string) $zone['id'] : '';
+	$summary = isset( $zone['summary'] ) ? (string) $zone['summary'] : '';
+	$detail  = isset( $zone['detail'] ) ? (string) $zone['detail'] : '';
+	$cards   = isset( $zone['cards'] ) && is_array( $zone['cards'] ) ? $zone['cards'] : array();
+	$open    = sn_dash_zone_is_open( $zone, $pins );
+
+	echo '<details class="sn-dash-zone sn-dash-zone--' . esc_attr( $state ) . '"'
+		. ' data-zone="' . esc_attr( $id ) . '"' . ( $open ? ' open' : '' ) . '>';
+	echo '<summary class="sn-dash-zone-summary">';
+	echo '<span class="sn-dash-zone-label">' . esc_html( $summary ) . '</span>';
+	if ( '' !== $detail ) {
+		echo ' <span class="sn-dash-zone-detail">' . esc_html( $detail ) . '</span>';
+	}
+	echo '</summary>';
+	if ( $open && ! empty( $cards ) ) {
+		echo '<div class="sn-dash-zone-body">';
+		sn_admin_glance_grid( sn_admin_glance_sort_by_attention( $cards ) );
+		echo '</div>';
+	}
+	echo '</details>';
+}
