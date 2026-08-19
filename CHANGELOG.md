@@ -2,6 +2,33 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.19.2] - 2026-08-18 — the 403 message was confidently wrong
+
+### Fixed
+- **The 403 asserted one cause and discarded the evidence.** It read *"the service
+  account is almost certainly not a user on the Search Console property yet"* and
+  shipped that as the whole explanation. On the first real credential the account
+  **had** been added, with Full permission, and the 403 persisted — so the message
+  sent the owner to a door that was already open.
+- **Worse, it threw away Google's own `error.message`**, which names the actual
+  reason and contains nothing secret. A confident guess replaced the one authoritative
+  signal in the response.
+- **A 403 here has at least three distinct causes**, and only Google knows which:
+  the Search Console API is not **enabled** in the credential's Cloud project
+  (`PERMISSION_DENIED` / `SERVICE_DISABLED`, and nothing about the property or the key
+  is wrong); the service account genuinely is not a user on the property; or it was
+  added moments ago and the grant has not propagated.
+- **`SERVICE_DISABLED` now gets its own error code and message**, says explicitly that
+  it is *not* a property-permission problem, and passes Google's activation link
+  through. Detected from `details[].reason`, from the legacy `errors[].reason`, and
+  from the message text alone — the shape varies by response.
+- **Every other 403 now leads with Google's sentence, attributed to Google**, then
+  offers the three causes as hypotheses rather than asserting one.
+
+### Tests
+- New `tests/search-console-403.php` (14 assertions), including a pin that the phrase
+  **"almost certainly" is gone** — the overconfidence was the defect, not the wording.
+
 ## [11.19.1] - 2026-08-18 — the Search tab rendered nothing
 
 ### Fixed
