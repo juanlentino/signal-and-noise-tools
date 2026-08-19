@@ -43,7 +43,7 @@
 - Create: `inc/dash-zones.php`
 - Test: `tests/dash-zones.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -83,12 +83,13 @@ echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
 ```
 
-- [ ] **Step 2: Run it and confirm it fails**
+- [x] **Step 2: Run it and confirm it fails**
 
 Run: `php tests/dash-zones.php; echo "EXIT=$?"`
-Expected: fatal — `Call to undefined function sn_dash_zone_state()`, `EXIT=255`.
+Expected: fatal — `Failed opening required '.../inc/dash-zones.php'`, `EXIT=255`.
+  (The require fails before the first assertion, so no `FAIL:` line prints — which is exactly why this plan gates on the exit code.)
 
-- [ ] **Step 3: Write the minimal implementation**
+- [x] **Step 3: Write the minimal implementation**
 
 Create `inc/dash-zones.php`:
 
@@ -151,12 +152,12 @@ function sn_dash_zone_state( array $cards ) {
 }
 ```
 
-- [ ] **Step 4: Run it and confirm it passes**
+- [x] **Step 4: Run it and confirm it passes**
 
 Run: `php tests/dash-zones.php; echo "EXIT=$?"`
-Expected: `Result: 9 passed, 0 failed.` and `EXIT=0`.
+Expected: `Result: 8 passed, 0 failed.` and `EXIT=0`.
 
-- [ ] **Step 5: Negative-control the suite**
+- [x] **Step 5: Negative-control the suite**
 
 ```bash
 cp inc/dash-zones.php /tmp/dz.php
@@ -169,7 +170,7 @@ diff -q /tmp/dz.php inc/dash-zones.php
 
 Expected: the mutated run fails the two precedence assertions with `EXIT=1`; the restored run is `EXIT=0` and `diff` reports no difference. If the mutation fails nothing, the test is not pinning the rule — fix the test before continuing.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add inc/dash-zones.php tests/dash-zones.php
