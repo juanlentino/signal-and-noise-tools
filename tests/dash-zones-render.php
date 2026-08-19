@@ -43,6 +43,22 @@ $GLOBALS['__grid_calls'] = 0;
 render( $ok_zone );
 ok( $GLOBALS['__grid_calls'] === 0, 'a collapsed zone does not build a grid it will not show' );
 
+// ── folded body content ─────────────────────────────────────────────────────
+// The fleet zone folds the Recent deploys list inside itself, so a zone may
+// carry pre-rendered HTML alongside its cards. It is TRUSTED markup built by
+// the tab, not user input — but it must only appear when the zone is open.
+$folded = array( 'id' => 'fleet', 'state' => 'ok', 'summary' => 'Fleet current', 'detail' => '',
+	'cards' => array( $card ), 'body_html' => '<ul class="sn-deploy-list"><li>a deploy</li></ul>' );
+ok( false === strpos( render( $folded ), 'sn-deploy-list' ), 'a COLLAPSED zone does not emit its folded body' );
+$h = render( $folded, array( 'fleet' ) );
+ok( false !== strpos( $h, 'sn-deploy-list' ), 'an expanded zone emits its folded body' );
+ok( strpos( $h, 'sn-deploy-list' ) > strpos( $h, '</summary>' ), 'and the folded body sits inside the details, after the summary' );
+
+// A zone with folded content but NO cards still opens a body for it.
+$only = array( 'id' => 'fleet', 'state' => 'ok', 'summary' => 's', 'detail' => '',
+	'cards' => array(), 'body_html' => '<p class="lonely">no runs</p>' );
+ok( false !== strpos( render( $only, array( 'fleet' ) ), 'lonely' ), 'folded content renders even when the zone has no cards' );
+
 // Escaping.
 $evil = array( 'id' => 'x', 'state' => 'ok', 'summary' => '<script>alert(1)</script>', 'detail' => '', 'cards' => array() );
 ok( false === strpos( render( $evil ), '<script>' ), 'the summary is escaped' );

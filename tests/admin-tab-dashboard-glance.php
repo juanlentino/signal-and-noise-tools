@@ -136,7 +136,9 @@ dg_assert( in_array( 'Plugin', $labels, true ), 'includes a Plugin card' );
 dg_assert( in_array( 'Health', $labels, true ), 'includes a Health card (sn_health_last_scan present)' );
 dg_assert( in_array( 'AI spend 30d', $labels, true ), 'includes an AI spend card (snt_ai_usage_summary present)' );
 dg_assert( in_array( 'Cron', $labels, true ), 'includes a Cron card (snt_cron_summary_for_localize present)' );
-dg_assert( in_array( 'Login blocks 7d', $labels, true ), 'includes a Login blocks card (sn_login_defense_headline present)' );
+// v11.28.0: the Login blocks card is CUT. The Security tab already owns it and
+// it has read 0 since it shipped, so it fails the earning rule on both counts.
+dg_assert( ! in_array( 'Login blocks 7d', $labels, true ), 'LOGIN BLOCKS IS CUT — the Security tab owns it' );
 dg_assert( in_array( 'Views 7d', $labels, true ), 'includes a Views card (analytics configured)' );
 dg_assert( in_array( 'Caches', $labels, true ), 'includes the Caches freshness card (v8.5.1)' );
 $has_freshness_id = false;
@@ -146,9 +148,10 @@ foreach ( $cards as $c ) {
 dg_assert( $has_freshness_id, 'the freshness card carries id=snt-freshness-card' );
 dg_assert( in_array( 'Provenance', $labels, true ), 'includes a Provenance card (configured)' );
 
-// Grouped 2×5 order: release/integrity row then runtime/audience row.
-$expected_order = array( 'Theme', 'Plugin', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Login blocks 7d', 'Views 7d', 'AI spend 30d' );
-dg_assert( $labels === $expected_order, 'cards render in the grouped 2×5 order (release/integrity, then runtime/audience)' );
+// Grouped order: release/integrity then runtime/audience. v11.28.0 drops the
+// Login blocks slot; the rest of the deliberate reading order is unchanged.
+$expected_order = array( 'Theme', 'Plugin', 'Deploys', 'Provenance', 'Health', 'Cron', 'Caches', 'Views 7d', 'AI spend 30d' );
+dg_assert( $labels === $expected_order, 'cards render in the grouped order (release/integrity, then runtime/audience)' );
 
 // Provenance card content: confirmed count + pending pill.
 $prov_card = null;

@@ -68,15 +68,23 @@ ok( false === strpos( $html, 'page=sn-content' ), 'no per-tab wayfinding links (
 // v11.28.0: the always-present glance hero is gone. Zones collapse when nothing
 // needs attention, and a collapsed zone never builds a grid — so `sn-glance` is
 // legitimately absent here. The zone SECTION is the stable anchor now.
-$glance  = strpos( $html, 'sn-dash-zones' );
-$api     = strpos( $html, 'External APIs' );
-$deploys = strpos( $html, 'Recent deploys' );
+$zones   = strpos( $html, 'sn-dash-zones' );
 $maint   = strpos( $html, 'Maintenance' );
 
-ok( false !== $glance && false !== $api && false !== $deploys && false !== $maint, 'all four sections render (fixture sanity)' );
-ok( $glance < $api, 'glance hero renders before the External APIs status line' );
-ok( $api < $deploys, 'External APIs status renders ABOVE Recent deploys (status grouped at top)' );
-ok( $api < $maint, 'External APIs status renders ABOVE Maintenance (no longer dangling below the actions)' );
+ok( false !== $zones && false !== $maint, 'the zone section and Maintenance both render (fixture sanity)' );
+ok( $zones < $maint, 'status leads — the zone section renders above the Maintenance actions' );
+
+// v11.28.0, three sections deliberately no longer stand alone:
+//   External APIs  — surfaces ONLY when a host is warn/crit. This fixture is
+//                    healthy, so its ABSENCE is the assertion.
+//   RSS activity   — cut; the RSS tab owns the full view.
+//   Recent deploys — folded INTO the fleet zone, not removed from the product.
+ok( false === strpos( $html, 'External APIs' ), 'a healthy rate limit does not spend space on the Dashboard' );
+ok( false === strpos( $html, 'RSS feed activity' ), 'RSS activity is cut — the RSS tab owns it' );
+$deploys = strpos( $html, 'sn-deploy-list' );
+$fleet   = strpos( $html, 'data-zone="fleet"' );
+ok( false === $deploys || ( false !== $fleet && $deploys > $fleet ),
+	'RECENT DEPLOYS IS FOLDED INSIDE THE FLEET ZONE, never a standalone section' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

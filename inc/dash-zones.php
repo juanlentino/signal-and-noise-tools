@@ -102,9 +102,20 @@ function sn_dash_render_zone( array $zone, array $pins = array() ) {
 		echo ' <span class="sn-dash-zone-detail">' . esc_html( $detail ) . '</span>';
 	}
 	echo '</summary>';
-	if ( $open && ! empty( $cards ) ) {
+	// v11.28.0: a zone may fold pre-rendered markup in beside its cards — the
+	// fleet zone carries the Recent deploys list this way. It is TRUSTED markup
+	// built by the tab, never user input, so it is echoed unescaped; the zone's
+	// own summary/detail/id are still escaped above.
+	$body_html = isset( $zone['body_html'] ) ? (string) $zone['body_html'] : '';
+
+	if ( $open && ( ! empty( $cards ) || '' !== $body_html ) ) {
 		echo '<div class="sn-dash-zone-body">';
-		sn_admin_glance_grid( sn_admin_glance_sort_by_attention( $cards ) );
+		if ( ! empty( $cards ) ) {
+			sn_admin_glance_grid( sn_admin_glance_sort_by_attention( $cards ) );
+		}
+		if ( '' !== $body_html ) {
+			echo $body_html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- tab-built markup, see above.
+		}
 		echo '</div>';
 	}
 	echo '</details>';
