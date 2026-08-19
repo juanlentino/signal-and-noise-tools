@@ -1034,7 +1034,7 @@ Append to `inc/admin-tab-dashboard.php`:
  */
 function snt_dashboard_fleet_components() {
 	$out  = array();
-	$list = function_exists( 'sn_deploy_probe_registry' ) ? sn_deploy_probe_registry() : array();
+	$list = function_exists( 'snt_deploy_workers_registry' ) ? snt_deploy_workers_registry() : array();
 	foreach ( $list as $key => $_meta ) {
 		$status     = snt_deploy_status_for( $key );
 		$out[ $key ] = ( '' === $status ) ? null : $status;
@@ -1043,13 +1043,17 @@ function snt_dashboard_fleet_components() {
 }
 ```
 
-**Verify the two helper names before relying on them:**
+**Both helper names are verified** (checked 2026-08-19, so do not re-derive):
+`snt_deploy_status_for()` is `inc/admin-tab-dashboard.php:63`, and the registry is
+`snt_deploy_workers_registry()` at `inc/deploy-workers.php:51`. An earlier draft of this plan
+guessed `sn_deploy_probe_registry()`, which does not exist — confirm with:
 
 ```bash
-grep -rn "function sn_deploy_probe_registry\|function snt_deploy_status_for" --include='*.php' inc/
+grep -rn "function snt_deploy_workers_registry\|function snt_deploy_status_for" --include='*.php' inc/
 ```
 
-If `sn_deploy_probe_registry()` does not exist under that name, find the real registry in `inc/deploy-workers.php` and substitute it. Do not invent a name.
+Note the theme/plugin versions are NOT in the worker registry; add them to the components map
+from the `$theme` and `$plugin` values already in scope in `snt_dashboard_tab_render()`.
 
 - [ ] **Step 4: Remove the cut items**
 
@@ -1164,4 +1168,9 @@ git add CHANGELOG.md && git commit -m "docs: changelog for the mission-control d
 
 **Deviations from the spec, both deliberate and flagged in place:** pins live in their own file (six files, not five) to respect the ~150-line preference; the deploy list is removed in Task 8 rather than folded, with the fold left as a follow-up.
 
-**Unverified helper names:** `sn_deploy_probe_registry()` and `snt_deploy_status_for()` — Task 8 Step 3 makes verifying them a required step rather than an assumption.
+**Helper names verified after the first draft:** the plan originally guessed
+`sn_deploy_probe_registry()`, which does not exist. The real registry is
+`snt_deploy_workers_registry()` (`inc/deploy-workers.php:51`); `snt_deploy_status_for()`
+(`inc/admin-tab-dashboard.php:63`) was correct. Both are now named in Task 8 with line
+references. This is the one place the plan referenced something that was not real — worth
+noting as the class of error to look for on re-reads.
