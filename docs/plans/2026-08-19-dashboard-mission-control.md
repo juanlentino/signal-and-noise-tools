@@ -376,7 +376,8 @@ function sn_dash_render_zone( array $zone, array $pins = array() ) {
 - [x] **Step 4: Run and confirm it passes**
 
 Run: `php tests/dash-zones-render.php; echo "EXIT=$?"`
-Expected: `Result: 14 passed, 0 failed.` and `EXIT=0`.
+Expected: `Result: 17 passed, 0 failed.` and `EXIT=0`.
+  (13 as written — the plan said 14 — plus four added in the mutation step below.)
   (12 as written, plus two added during execution — see step 5.)
 
 - [x] **Step 5: Negative-control the renderer**
@@ -849,7 +850,7 @@ git commit -m "feat: measurement strip figures — absent is unknown, zero is ze
 
 Both builders take already-fetched cards and shape them into a zone. Keeping the fetch outside makes them pure and testable, and it lets Task 8 reuse `snt_dashboard_glance_cards()` as the data source without rewriting it.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -897,12 +898,12 @@ echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
 ```
 
-- [ ] **Step 2: Run and confirm it fails**
+- [x] **Step 2: Run and confirm it fails**
 
 Run: `php tests/dash-zone-builders.php; echo "EXIT=$?"`
 Expected: fatal — `Call to undefined function sn_dash_zone_attention()`.
 
-- [ ] **Step 3: Implement the attention zone**
+- [x] **Step 3: Implement the attention zone**
 
 Create `inc/dash-zone-attention.php`:
 
@@ -957,7 +958,7 @@ function sn_dash_zone_attention( array $cards ) {
 }
 ```
 
-- [ ] **Step 4: Implement the fleet zone**
+- [x] **Step 4: Implement the fleet zone**
 
 Create `inc/dash-zone-fleet.php`:
 
@@ -1027,12 +1028,28 @@ function sn_dash_zone_fleet( array $components, $last_deploy_ago = '' ) {
 }
 ```
 
-- [ ] **Step 5: Run and confirm it passes**
+- [x] **Step 5: Run and confirm it passes**
 
 Run: `php tests/dash-zone-builders.php; echo "EXIT=$?"`
 Expected: `Result: 14 passed, 0 failed.` and `EXIT=0`.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Negative-control both builders**
+
+The plan had no mutation step here. Three guards **failed nothing**:
+
+| Mutation | Effect if shipped | Action |
+|---|---|---|
+| count ignores the `attention` opt-out | "2 need attention" on a zone that considers 1 needy | pinned |
+| `'' !== $version` dropped | an empty-string version renders as current | pinned |
+| detail line always emitted | dangling "deploy" label with no time | pinned |
+
+The first is the important one. Confirm it is a real contradiction before
+writing the assertion — build a zone with one genuine `err` and one cold
+`warn` carrying `'attention' => false`, and check the state and summary
+disagree. It is the v11.16.0 cold-caches-lead-the-dashboard regression
+resurfacing in the summary line rather than the sort.
+
+- [x] **Step 7: Commit**
 
 ```bash
 git add inc/dash-zone-attention.php inc/dash-zone-fleet.php tests/dash-zone-builders.php
