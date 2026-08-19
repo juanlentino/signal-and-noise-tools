@@ -139,5 +139,61 @@ foreach ( array( '.sn-scr__signals', '.sn-stage__trend', '.sn-scr__systems', '.s
 	ok( false !== strpos( $blk, 'border-radius' ), $sel . ': and a radius, so it reads as a surface rather than a rule' );
 }
 
+// ── THE PAGE READS AS AN INSTRUMENT, NOT A REPORT ───────────────────────────
+// v11.31.0. Each region gets a header band — a mono eyebrow plus, where the
+// region has one, a reading. Without it the cards were unlabelled rectangles
+// and the reader had to infer what each one was from its contents.
+//
+// The chart earns the most: a 30-day plot with no axis and no values is a
+// decoration of a number nobody can read off it.
+echo "\nGroup: the instrument face\n";
+$plot = array();
+foreach ( array( 10, 40, 22, 187, 60, 129 ) as $k => $v ) {
+	$plot[] = array( 'day' => '2026-07-0' . ( $k + 1 ), 'views' => $v );
+}
+ob_start(); sn_dash_render_trend( $plot ); $t = ob_get_clean();
+
+ok( false !== strpos( $t, 'sn-card__head' ), 'the trend card carries a header band' );
+ok( false !== strpos( $t, 'sn-card__eyebrow' ), 'with a mono eyebrow naming the region' );
+ok( false !== strpos( $t, '187' ),
+	'THE PEAK IS READABLE AS A NUMBER — a plot whose maximum you cannot read is a decoration' );
+ok( false !== strpos( $t, '129' ), 'and so is the latest value' );
+ok( false !== strpos( $t, 'sn-trend__axis' ), 'the plot is bounded by an axis, so the window is stated rather than assumed' );
+
+// Labels are HTML, never SVG text: the plot stretches with
+// preserveAspectRatio="none", which would distort any glyph inside it.
+$svg_inner = substr( $t, strpos( $t, '<svg' ), strpos( $t, '</svg>' ) - strpos( $t, '<svg' ) );
+ok( false === strpos( $svg_inner, '<text' ),
+	'NO TEXT INSIDE THE STRETCHED SVG — preserveAspectRatio="none" would distort every glyph' );
+
+// Region headers on the other two cards.
+ob_start(); sn_dash_render_systems( $healthy_cards, $components ); $sysout = ob_get_clean();
+ok( false !== strpos( $sysout, 'sn-card__eyebrow' ), 'the systems card is labelled too' );
+ob_start(); sn_dash_render_ops( $panels ); $opsout = ob_get_clean();
+ok( false !== strpos( $opsout, 'sn-card__eyebrow' ), 'and so is the detail card' );
+
+// ── THE CELL RENDERS WHAT THE CARD ACTUALLY CARRIES ─────────────────────────
+// v11.31.0. Glance cards carry `meta_html` — a pre-escaped detail line built by
+// the source (snt_freshness_report_meta() writes the "last purge" summary into
+// it). The systems cell dropped it, so a fact the plugin had already computed
+// never reached the screen. Rendering data you already hold costs nothing and
+// is the cheapest density there is.
+echo "\nGroup: cells carry their meta line\n";
+ob_start(); sn_dash_render_system_cell( array(
+	'label' => 'Caches', 'value' => '3 / 3 fresh', 'pill' => array( 'kind' => 'ok' ),
+	'meta_html' => '<em>last purge 4m ago</em>',
+) ); $withmeta = ob_get_clean();
+ok( false !== strpos( $withmeta, 'sn-sys__meta' ), 'a card with meta_html renders a meta line' );
+ok( false !== strpos( $withmeta, 'last purge 4m ago' ), 'carrying the source-built detail' );
+ok( false !== strpos( $withmeta, '<em>' ),
+	'AS HTML, NOT ESCAPED TEXT — the source escapes at build (snt_freshness_report_meta), and re-escaping would print the tags' );
+
+ob_start(); sn_dash_render_system_cell( array( 'label' => 'Health', 'value' => '0 findings', 'pill' => array( 'kind' => 'ok' ) ) ); $nometa = ob_get_clean();
+ok( false === strpos( $nometa, 'sn-sys__meta' ), 'a card without one renders no empty line' );
+
+// A non-ok state names itself: "warming" is more use than an amber tint alone.
+ob_start(); sn_dash_render_system_cell( array( 'label' => 'Remote MCP', 'value' => '0.4.0', 'pill' => array( 'kind' => 'warn', 'text' => 'warming' ), 'attention' => false ) ); $cold = ob_get_clean();
+ok( false !== strpos( $cold, 'warming' ), 'a cold probe SAYS "warming" rather than relying on a tint that is not even applied to it' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

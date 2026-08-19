@@ -2664,6 +2664,155 @@ a.sn-ops__label { text-decoration: none; }
 /* Not measured must not look like a zero. */
 .sn-ops__empty { margin: 0; font-size: 12px; color: var(--sn-text-muted); font-style: italic; }
 
+/* ══ THE INSTRUMENT FACE (v11.31.0) ═══════════════════════════════════════════
+   Direction: a precision measurement panel — engineering plot, tabular figures,
+   mono eyebrows, depth from layering rather than ornament. No webfont: an admin
+   screen should not pay a network round-trip on every load, and the system mono
+   (SF Mono on this machine) already carries the character.
+
+   Still monochrome at rest. Everything below is structure and hierarchy; the
+   only hue on a healthy page is the plot and its links.
+   ══════════════════════════════════════════════════════════════════════════ */
+:root {
+	--sn-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+	--sn-card-head: rgba( 16, 24, 40, .022 );
+}
+
+/* Region header band. Every card says what it is; unlabelled rectangles made
+   the reader infer each region from its contents. */
+.sn-card__head {
+	display: flex;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: var(--sn-space-3);
+	padding: 9px var(--sn-space-4) 8px;
+	background: var(--sn-card-head);
+	border-bottom: 1px solid var(--sn-border);
+	border-radius: 6px 6px 0 0;
+}
+.sn-card__eyebrow {
+	font-family: var(--sn-mono);
+	font-size: 10.5px;
+	font-weight: 600;
+	letter-spacing: .12em;
+	text-transform: uppercase;
+	color: var(--sn-text-muted);
+}
+.sn-card__meta {
+	font-family: var(--sn-mono);
+	font-size: 11px;
+	color: var(--sn-text-muted);
+	font-variant-numeric: tabular-nums;
+	display: inline-flex;
+	align-items: baseline;
+	gap: 6px;
+}
+.sn-card__meta b { color: var(--sn-text); font-weight: 600; }
+.sn-card__sep {
+	width: 3px; height: 3px; border-radius: 50%;
+	background: var(--sn-border); display: inline-block; align-self: center;
+}
+
+/* Cards own their padding via the head/body split now. The two that used to BE
+   grids must become blocks: with a header child added, a grid container lays the
+   header out as a CELL and the real grid as another, which collapsed the systems
+   wall into a single column. */
+.sn-stage__trend,
+.sn-scr__systems,
+.sn-scr__detail {
+	padding: 0;
+	display: block;
+}
+.sn-scr__grid {
+	display: grid;
+	grid-template-columns: repeat( 6, minmax( 0, 1fr ) );
+}
+@media (max-width: 1400px) { .sn-scr__grid { grid-template-columns: repeat( 4, minmax( 0, 1fr ) ); } }
+@media (max-width: 900px)  { .sn-scr__grid { grid-template-columns: repeat( 3, minmax( 0, 1fr ) ); } }
+@media (max-width: 600px)  { .sn-scr__grid { grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); } }
+.sn-scr__cols {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 220px, 1fr ) );
+	gap: var(--sn-space-4) var(--sn-space-5);
+	padding: var(--sn-space-4);
+}
+
+/* SCALE CONTRAST: views leads. Five equal figures is a readout; one that leads
+   is a reading. */
+.sn-scr__signals { grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr; }
+@media (max-width: 1100px) { .sn-scr__signals { grid-template-columns: repeat( auto-fit, minmax( 150px, 1fr ) ); } }
+.sn-sig:first-child .sn-sig__n { font-size: 30px; }
+.sn-sig__n { font-variant-numeric: tabular-nums lining-nums; }
+.sn-sig__k, .sn-sys__k, .sn-scr__colhead {
+	font-family: var(--sn-mono);
+	letter-spacing: .1em;
+}
+.sn-sys__v, .sn-ops__value { font-family: var(--sn-mono); }
+
+/* Third and fourth lines on a cell: the state word a colourless probe cannot
+   convey, and whatever detail the card's source already built. */
+.sn-sys__state {
+	font-family: var(--sn-mono);
+	font-size: 10px;
+	letter-spacing: .08em;
+	text-transform: uppercase;
+	color: var(--sn-warn);
+	font-weight: 600;
+}
+.sn-sys--err .sn-sys__state { color: var(--sn-err); }
+.sn-sys__meta {
+	font-size: 11px;
+	color: var(--sn-text-muted);
+	line-height: 1.35;
+}
+.sn-sys__meta em { font-style: normal; }
+
+/* The plot as an instrument: a gradient ground, a bounded axis, an endpoint
+   that reads as a current position rather than a dot. */
+.sn-trend-plot { padding: var(--sn-space-3) var(--sn-space-4) 0; }
+.sn-trend { height: 132px; }
+.sn-trend__stop-a { stop-color: var(--sn-link); stop-opacity: .16; }
+.sn-trend__stop-b { stop-color: var(--sn-link); stop-opacity: .01; }
+.sn-trend__area { fill: url( #sn-trend-fill ); }
+.sn-trend__end { fill: var(--sn-link); stroke: var(--sn-surface); stroke-width: 2; vector-effect: non-scaling-stroke; }
+.sn-trend__axis {
+	display: flex;
+	justify-content: space-between;
+	padding: 6px var(--sn-space-4) 11px;
+	font-family: var(--sn-mono);
+	font-size: 10.5px;
+	letter-spacing: .04em;
+	color: var(--sn-faint, var(--sn-text-muted));
+	opacity: .8;
+}
+
+/* DESIGNED STATES. A row that responds is a row you trust is live. */
+.sn-ops__row { transition: background-color 120ms ease; }
+.sn-ops__row:hover { background: var(--sn-card-head); }
+.sn-sys { transition: background-color 120ms ease; }
+.sn-sys:hover { background: var(--sn-card-head); }
+.sn-sys__v:focus-visible,
+.sn-ops__label:focus-visible {
+	outline: 2px solid var(--sn-link);
+	outline-offset: 2px;
+	border-radius: 2px;
+}
+a.sn-ops__label:hover, .sn-sys__v[href]:hover { text-decoration: underline; }
+
+/* One orchestrated load, not scattered micro-motion. */
+@media (prefers-reduced-motion: no-preference) {
+	.sn-scr > * { animation: sn-scr-in 320ms cubic-bezier( .16, 1, .3, 1 ) both; }
+	.sn-scr > *:nth-child(2) { animation-delay: 40ms; }
+	.sn-scr > *:nth-child(3) { animation-delay: 80ms; }
+	.sn-scr > *:nth-child(4) { animation-delay: 120ms; }
+	.sn-scr > *:nth-child(5) { animation-delay: 160ms; }
+	.sn-scr > *:nth-child(6) { animation-delay: 200ms; }
+	@keyframes sn-scr-in {
+		from { opacity: 0; transform: translateY( 4px ); }
+		to   { opacity: 1; transform: none; }
+	}
+}
+
 .sn-toolbar {
 	display: flex;
 	flex-wrap: wrap;

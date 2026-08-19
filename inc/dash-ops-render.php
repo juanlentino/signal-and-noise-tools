@@ -45,7 +45,11 @@ function sn_dash_render_ops( array $panels ) {
 		return;
 	}
 
-	echo '<div class="sn-scr__detail">';
+	echo '<section class="sn-scr__detail">';
+	echo '<header class="sn-card__head">';
+	echo '<span class="sn-card__eyebrow">' . esc_html__( 'Detail', 'signal-and-noise-tools' ) . '</span>';
+	echo '</header>';
+	echo '<div class="sn-scr__cols">';
 	foreach ( $panels as $panel ) {
 		if ( ! is_array( $panel ) ) {
 			continue;
@@ -74,6 +78,7 @@ function sn_dash_render_ops( array $panels ) {
 		echo '</section>';
 	}
 	echo '</div>';
+	echo '</section>';
 }
 
 /**

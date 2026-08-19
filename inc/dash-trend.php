@@ -56,15 +56,52 @@ function sn_dash_render_trend( array $series ) {
 	$area = $line . ' L ' . round( ( $n - 1 ) * $step, 2 ) . ',' . $base . ' L 0,' . $base . ' Z';
 	$last = explode( ',', $pts[ $n - 1 ] );
 
+	// Peak and latest are rendered as HTML beside the plot, never as SVG <text>:
+	// the chart stretches with preserveAspectRatio="none", which would distort
+	// every glyph inside it. A 30-day plot whose maximum you cannot read off is
+	// a decoration of a number, not a reading of one.
+	$latest = (int) ( $series[ $n - 1 ]['views'] ?? 0 );
+	$first  = (string) ( $series[0]['day'] ?? '' );
+	$lastd  = (string) ( $series[ $n - 1 ]['day'] ?? '' );
+
 	echo '<section class="sn-stage__trend">';
-	echo '<h2 class="sn-stage__head">' . esc_html__( 'Views · 30 days', 'signal-and-noise-tools' ) . '</h2>';
+
+	echo '<header class="sn-card__head">';
+	echo '<span class="sn-card__eyebrow">' . esc_html__( 'Views · 30 days', 'signal-and-noise-tools' ) . '</span>';
+	echo '<span class="sn-card__meta">';
+	/* translators: %s the most recent day's views */
+	echo '<b>' . esc_html( number_format_i18n( $latest ) ) . '</b> ' . esc_html__( 'latest', 'signal-and-noise-tools' );
+	echo '<i class="sn-card__sep" aria-hidden="true"></i>';
+	/* translators: %s the highest daily views in the window */
+	echo esc_html__( 'peak', 'signal-and-noise-tools' ) . ' <b>' . esc_html( number_format_i18n( $max ) ) . '</b>';
+	echo '</span>';
+	echo '</header>';
+
+	echo '<div class="sn-trend-plot">';
 	echo '<svg class="sn-trend" viewBox="0 0 600 96" preserveAspectRatio="none" role="img" aria-label="'
-		. esc_attr__( 'Views over the last 30 days', 'signal-and-noise-tools' ) . '">';
+		. esc_attr(
+			sprintf(
+				/* translators: 1: latest views, 2: peak views */
+				__( 'Views over the last 30 days. Latest %1$s, peak %2$s.', 'signal-and-noise-tools' ),
+				number_format_i18n( $latest ),
+				number_format_i18n( $max )
+			)
+		) . '">';
+	echo '<defs><linearGradient id="sn-trend-fill" x1="0" y1="0" x2="0" y2="1">';
+	echo '<stop offset="0%" class="sn-trend__stop-a" /><stop offset="100%" class="sn-trend__stop-b" />';
+	echo '</linearGradient></defs>';
 	echo '<line x1="0" y1="28" x2="600" y2="28" class="sn-trend__grid" />';
 	echo '<line x1="0" y1="58" x2="600" y2="58" class="sn-trend__grid" />';
 	echo '<path d="' . esc_attr( $area ) . '" class="sn-trend__area" />';
 	echo '<path d="' . esc_attr( $line ) . '" class="sn-trend__line" />';
 	echo '<circle cx="' . esc_attr( $last[0] ) . '" cy="' . esc_attr( $last[1] ) . '" r="3.5" class="sn-trend__end" />';
 	echo '</svg>';
+	echo '</div>';
+
+	echo '<footer class="sn-trend__axis">';
+	echo '<span>' . esc_html( '' !== $first ? $first : __( '30 days ago', 'signal-and-noise-tools' ) ) . '</span>';
+	echo '<span>' . esc_html( '' !== $lastd ? $lastd : __( 'today', 'signal-and-noise-tools' ) ) . '</span>';
+	echo '</footer>';
+
 	echo '</section>';
 }
