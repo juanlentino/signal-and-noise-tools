@@ -694,7 +694,7 @@ git commit -m "feat: pin toggle REST route gated on manage_options"
 
 This zone never collapses — it has no green/red state. Its builder returns figures, not cards.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -735,12 +735,12 @@ echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
 ```
 
-- [ ] **Step 2: Run and confirm it fails**
+- [x] **Step 2: Run and confirm it fails**
 
 Run: `php tests/dash-zone-measurement.php; echo "EXIT=$?"`
 Expected: fatal — `Call to undefined function sn_dash_measurement_figures()`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `inc/dash-zone-measurement.php`:
 
@@ -805,12 +805,13 @@ function sn_dash_measurement_figures( array $data ) {
 }
 ```
 
-- [ ] **Step 4: Run and confirm it passes**
+- [x] **Step 4: Run and confirm it passes**
 
 Run: `php tests/dash-zone-measurement.php; echo "EXIT=$?"`
-Expected: `Result: 19 passed, 0 failed.` and `EXIT=0`.
+Expected: `Result: 22 passed, 0 failed.` and `EXIT=0`.
+  (17 as written — the plan said 19 — plus five added in step 5.)
 
-- [ ] **Step 5: Negative-control the zero-vs-null rule**
+- [x] **Step 5: Negative-control the zero-vs-null rule**
 
 ```bash
 cp inc/dash-zone-measurement.php /tmp/dm.php
@@ -820,9 +821,17 @@ cp /tmp/dm.php inc/dash-zone-measurement.php
 php tests/dash-zone-measurement.php; echo "EXIT=$?"
 ```
 
-Expected: the mutated run fails every `zero is MEASURED` assertion (a falsy check turns a measured 0 into unknown); the restored run is `EXIT=0`.
+Expected: the mutated run fails seven assertions (a falsy check turns a measured 0 into unknown); the restored run is `EXIT=0`.
 
-- [ ] **Step 6: Commit**
+Two further mutations **failed nothing** as the plan was written, and both
+misreport silently rather than break:
+
+| Mutation | Effect if shipped | Action |
+|---|---|---|
+| drop the `money` branch | AI spend `$0.61` renders as `"0"` | pinned: `$0.61` and `$0.00` |
+| drop the `views_7d` guard on `delta` | every figure borrows the views delta | pinned: non-hero deltas are null |
+
+- [x] **Step 6: Commit**
 
 ```bash
 git add inc/dash-zone-measurement.php tests/dash-zone-measurement.php
