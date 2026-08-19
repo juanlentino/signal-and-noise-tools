@@ -55,9 +55,16 @@
 		// v7.7.0: full-reset is deprecated (removal v8.0.0) — same behavior is
 		// purge-all-caches with include_template_overrides (see CMD_INPUT).
 		'full-reset':      'purge-all-caches',
+		// v11.29.0: the force-check-updates ability was REMOVED — get-deploy-status
+		// with force_refresh does the same job (clears the GitHub-tag,
+		// update_themes/update_plugins and worker-probe transients, then
+		// re-fetches). See inc/abilities-system.php:88. Calling the old slug
+		// would 404.
+		'force-check':     'get-deploy-status',
 	};
 	var CMD_INPUT = {
-		'full-reset': { include_template_overrides: true },
+		'full-reset':  { include_template_overrides: true },
+		'force-check': { force_refresh: true },
 	};
 	var TOAST_MS = 3500;
 
@@ -253,6 +260,21 @@
 		} );
 		hoverable( btnClear, SURFACE, SURFACE_HOVER );
 		wrap.appendChild( btnClear );
+
+		// v11.29.0: this widget's own description has promised a force update-check
+		// since it shipped ("One-click purge, clear overrides, force update-check")
+		// while the button was never here. Closing the gap between what the card
+		// says it does and what it does.
+		var btnCheck = el( 'button', {
+			text:  'Check for updates',
+			style: btnStyle,
+			title: 'Clear the GitHub tag + WordPress update transients and re-fetch',
+		} );
+		btnCheck.addEventListener( 'click', function() {
+			runAction( wrap, btnCheck, 'force-check', 'Checking…', 'Update check complete.' );
+		} );
+		hoverable( btnCheck, SURFACE, SURFACE_HOVER );
+		wrap.appendChild( btnCheck );
 
 		var btnReset = el( 'button', {
 			text:  'Full reset',

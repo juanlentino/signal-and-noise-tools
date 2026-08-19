@@ -182,9 +182,12 @@ add_action( 'init', function() {
 			'description'    => 'One-click purge, clear overrides, force update-check.',
 			'icon'           => 'dashicons-controls-repeat',
 			'script'         => 'sn-desktop-mode-widget-actions',
-			// Measured 242: three full-width buttons + the footnote. A toast
-			// appends beneath them for TOAST_MS and is allowed to scroll.
-			'default_height' => 250,
+			// Was measured 242 for THREE full-width buttons + the footnote.
+			// v11.29.0 adds the force update-check button the description has
+			// always promised. 290 is DERIVED, not browser-measured: a button is
+			// 8px padding x2 + 13px/1.2 text + 1px border x2 + 6px margin ~= 40px,
+			// so 250 + 40 = 290. If it clips, measure rather than guess again.
+			'default_height' => 290,
 		) ) );
 
 		// v2.1.0: RSS Subscribers widget — surfaces RSS feed activity that
