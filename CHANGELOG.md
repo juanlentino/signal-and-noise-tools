@@ -2,6 +2,59 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.18.0] - 2026-08-18 — R6b starts with the control, not the client
+
+### Added
+- **Measurement → Search Console.** A leaf whose only job is to give the Google
+  service-account key somewhere to land. R6b's long pole is an OWNER action — create
+  the service account in Google Cloud, grant it the Search Console property — and that
+  action had nowhere to go. v10.84.0 shipped the page-signing gate with no way to set
+  it and the setting sat unreachable for thirty releases; this ships the control FIRST,
+  before the client that spends it.
+- **`snt_gsc_credential_validate()`** refuses anything that could not mint a token:
+  non-JSON, a top-level JSON array, a non-`service_account` type, a missing
+  `client_email` / `private_key` / `private_key_id` / `project_id`, a `private_key`
+  that is not a PEM block, a malformed email. **An OAuth client JSON gets its own
+  error code** — it comes off the same Google Cloud screen, looks almost identical,
+  and cannot do a JWT grant, so the notice names that mistake specifically.
+- **A non-secret identity card** on the screen: service account, project, key ID, key
+  fingerprint — plus whether `openssl_sign()` even exists on this host. The JWT grant
+  is RS256 and the plugin carries no composer dependencies, so signing readiness is
+  reported beside the credential rather than discovered at the first token request.
+
+### Security
+- **The private key is never echoed.** The analytics-token pattern (echo a `••••` mask,
+  ignore it on save) is right for a 40-char token and wrong for a multi-line 1.7KB PEM,
+  where a partial edit of a masked blob would corrupt it silently. The textarea is
+  ALWAYS empty: an empty submit means "leave it alone", `clear` removes it, and the
+  only way to change a stored key is to paste a whole new one.
+- **A rejected paste never overwrites a stored credential.** Storing an unusable key
+  would trade a clear error at the moment of the mistake for an opaque token failure
+  later, with the screen still reading "configured".
+- **`credential` joins the config-drift suffix regex**, so the key is hashed into the
+  drift snapshot rather than copied into a second option — pinned by value in
+  `tests/config-drift.php`, mirroring the `push_url` pin.
+- **`search_console` gets a preservation branch** in `sn_settings_save()`. Sixth
+  subtree in that class: the credential is write-only in the UI, so an Identity save
+  clobbering it would destroy a value the owner cannot re-read.
+
+### Why it is a settings leaf and not its own option
+The scaffold said `autoload=false`, which a dedicated option would give. But
+`inc/config-drift.php` snapshots **only** `SN_SETTINGS_OPTION` — a credential stored
+elsewhere is drift-INVISIBLE, and a silently-replaced credential is precisely what
+drift detection exists for. Same trade `machine_readers.read_token` already makes.
+
+### Tests
+- New `tests/search-console-credential.php` (31 assertions). The load-bearing ones are
+  NEGATIVE and assert by VALUE: the identity card is searched for the private key's own
+  bytes, not merely checked for an unset field. One positive assertion pins that the
+  signing accessor DOES return the key, so "nothing leaks" cannot be achieved by
+  nothing working.
+- `tests/admin-registry.php` now **loads the real register fn**. It previously passed
+  while blind to this leaf: the splice is guarded by `function_exists()`, so an
+  unloaded module meant the ordered-slug assertion certified a list it could not see.
+  Negative-controlled — removing the require fails three assertions.
+
 ## [11.17.0] - 2026-08-18 — advisory is a tier, not a surface
 
 ### Fixed

@@ -44,8 +44,10 @@ function snt_config_drift_current_values() {
 		// with prefixes (read_token, uptime_kuma_push_url), so requiring the
 		// whole leaf name would store some secrets in plaintext. A false
 		// positive only hashes a non-secret; a false negative copies a secret
-		// into a second option.
-		if ( preg_match( '/(?:token|secret|password|api_key|private_key|push_url)$/i', $path ) ) {
+		// into a second option. R6b added `credential` for the GSC
+		// service-account key — a PEM private key is the worst possible
+		// thing for this snapshot to copy in plaintext.
+		if ( preg_match( '/(?:token|secret|password|api_key|private_key|push_url|credential)$/i', $path ) ) {
 			$flat[ $path ] = 'sha256:' . hash( 'sha256', serialize( $value ) );
 		}
 	}

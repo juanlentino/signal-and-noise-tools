@@ -1208,6 +1208,61 @@ function sn_handle_analytics_save( $post ) {
 }
 
 /**
+ * R6b: save the Google Search Console service-account credential.
+ *
+ * The textarea is ALWAYS submitted empty unless the owner pasted something, so
+ * an empty value means "leave the stored credential alone" — never "clear it".
+ * Removal is the explicit `clear` sentinel the analytics token already uses.
+ *
+ * A paste that fails validation is REFUSED and the stored value is untouched.
+ * Storing an unusable credential would trade a clear error at the moment of the
+ * mistake for an opaque token failure later, with the screen still showing
+ * "configured".
+ *
+ * @param array $post Raw $_POST.
+ * @return string Flash code.
+ */
+function sn_handle_gsc_credential_save( $post ) {
+	if ( ! isset( $post['sn_gsc_credential'] ) ) {
+		return 'gsc_credential_unchanged';
+	}
+	// NOT sanitize_textarea_field(): it strips and re-encodes, and a PEM block
+	// plus JSON escaping must survive byte-exact or the key stops parsing.
+	$raw = trim( (string) wp_unslash( $post['sn_gsc_credential'] ) );
+
+	if ( '' === $raw ) {
+		return 'gsc_credential_unchanged';
+	}
+	if ( 'clear' === strtolower( $raw ) ) {
+		if ( '' === snt_gsc_credential_raw() ) {
+			return 'gsc_credential_unchanged';
+		}
+		sn_setting_update( SNT_GSC_CREDENTIAL_PATH, '' );
+		return 'gsc_credential_cleared';
+	}
+	$check = snt_gsc_credential_validate( $raw );
+	if ( ! $check['ok'] ) {
+		// Distinct codes for the two mistakes that change what the owner does
+		// next; everything else (a missing field, a mangled PEM) collapses into
+		// one message, because the fix is the same: re-download and re-paste.
+		// A flash code is all that survives the redirect, so the reason has to
+		// BE the code — a global would be gone by the time the notice renders.
+		if ( 'not_json' === $check['error'] ) {
+			return 'gsc_credential_not_json';
+		}
+		if ( 'not_service_account' === $check['error'] ) {
+			return 'gsc_credential_not_service_account';
+		}
+		return 'gsc_credential_rejected';
+	}
+	if ( $raw === snt_gsc_credential_raw() ) {
+		return 'gsc_credential_unchanged';
+	}
+	sn_setting_update( SNT_GSC_CREDENTIAL_PATH, $raw );
+	return 'gsc_credential_saved';
+}
+
+/**
  * v9.85.0 (Session 3): save the Machine Readers sensor settings (worker URL
  * override + write-only read token) under the machine_readers subtree. The
  * pure, subtree-preserving merge lives in snt_mr_settings_save()

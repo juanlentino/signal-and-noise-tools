@@ -91,6 +91,13 @@ function sn_admin_top_tabs() {
 	if ( function_exists( 'snt_mr_admin_register' ) ) {
 		$monitoring_sub_tabs = snt_mr_admin_register( $monitoring_sub_tabs );
 	}
+	// R6b: Search Console splices in after Analytics — Measurement orders the
+	// RECORDING surfaces before the ones that interpret them (v10.47.0), and
+	// this records what Google saw. Registered through a function for the same
+	// reason Machine Readers is: the leaf's render lives in its own file.
+	if ( function_exists( 'snt_gsc_admin_register' ) ) {
+		$monitoring_sub_tabs = snt_gsc_admin_register( $monitoring_sub_tabs );
+	}
 
 	return array(
 		array(
