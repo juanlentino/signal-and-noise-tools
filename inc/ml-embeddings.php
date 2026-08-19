@@ -185,3 +185,78 @@ function snt_ml_embedding_for_post( $post_id, $content_hash ) {
 	update_post_meta( $post_id, SNT_ML_EMBED_STAMP_META, $stamp );
 	return $vectors[0];
 }
+
+/**
+ * The corpus centroid — the average direction of every vector.
+ *
+ * PURE. No WP calls, like the kernel it sits beside.
+ *
+ * @param array $vectors id => float[]
+ * @return array float[] (empty when there is nothing to average)
+ */
+function snt_ml_vec_centroid( $vectors ) {
+	$vectors = (array) $vectors;
+	if ( ! $vectors ) {
+		return array();
+	}
+	$sum = null;
+	$n   = 0;
+	foreach ( $vectors as $v ) {
+		$v = (array) $v;
+		if ( ! $v ) {
+			continue;
+		}
+		if ( null === $sum ) {
+			$sum = array_fill( 0, count( $v ), 0.0 );
+		}
+		if ( count( $v ) !== count( $sum ) ) {
+			// Mixed dimensions mean mixed vector spaces — averaging them would
+			// produce a centroid describing neither.
+			continue;
+		}
+		foreach ( $v as $i => $x ) {
+			$sum[ $i ] += (float) $x;
+		}
+		++$n;
+	}
+	if ( null === $sum || 0 === $n ) {
+		return array();
+	}
+	foreach ( $sum as $i => $x ) {
+		$sum[ $i ] = $x / $n;
+	}
+	return $sum;
+}
+
+/**
+ * Subtract the centroid from every vector.
+ *
+ * WHY: on a corpus that is one argument restated, every vector shares a large
+ * common component — the subject itself. Raw cosine therefore reports that a
+ * note near the centre of that shared mass is the nearest neighbour of almost
+ * everything, which is HUBNESS: measured live at 17 of 33 rows pairing with the
+ * same note. Removing the common component leaves what actually distinguishes
+ * one note from another, which is the question "related" is asking.
+ *
+ * @param array $vectors id => float[]
+ * @return array id => float[]
+ */
+function snt_ml_vec_center_all( $vectors ) {
+	$centroid = snt_ml_vec_centroid( $vectors );
+	if ( ! $centroid ) {
+		return (array) $vectors;
+	}
+	$out = array();
+	foreach ( (array) $vectors as $id => $v ) {
+		$v = (array) $v;
+		if ( count( $v ) !== count( $centroid ) ) {
+			$out[ $id ] = $v; // Leave a foreign-dimension vector untouched rather than corrupt it.
+			continue;
+		}
+		foreach ( $v as $i => $x ) {
+			$v[ $i ] = (float) $x - $centroid[ $i ];
+		}
+		$out[ $id ] = $v;
+	}
+	return $out;
+}
