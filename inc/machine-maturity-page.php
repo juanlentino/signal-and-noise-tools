@@ -61,6 +61,14 @@ function sn_machine_maturity_scope() {
 		'feeds'       => array( __( 'Feeds', 'signal-and-noise-tools' ), 'live' ),
 		'cards'       => array( __( 'Stamped share cards', 'signal-and-noise-tools' ), 'live' ),
 		'agents'      => array( __( 'Agent door', 'signal-and-noise-tools' ), 'live' ),
+		// v11.27.0: identity discovery. The signing identity already answers at
+		// /.well-known/did.json; WebFinger (RFC 7033) is a second standard way to
+		// ASK for it, resolving to the same did:web document and the same Ed25519
+		// key. Its own row because coherence is the claim — one entity findable
+		// several ways, all agreeing — not an implementation detail of the DID.
+		// NodeInfo, WebFinger's usual companion, is deliberately absent: its schema
+		// requires at least one federation protocol and this site speaks none.
+		'identity'    => array( __( 'Identity discovery', 'signal-and-noise-tools' ), 'live' ),
 	);
 	return apply_filters( 'sn_machine_maturity_scope', $scope );
 }
