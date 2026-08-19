@@ -135,6 +135,70 @@ function snt_gsc_access_token( $force = false ) {
 }
 
 /**
+ * Turn a 403 into a message that reports what Google SAID, not what I guessed.
+ *
+ * The first cut asserted one cause — "the service account is almost certainly
+ * not a user on the property" — and shipped it as the whole message. It was
+ * wrong on the first real credential: the account HAD been added with Full
+ * permission and the 403 persisted, because a 403 here has at least three
+ * distinct causes and only Google knows which:
+ *
+ *   1. The Search Console API is not ENABLED in the Cloud project. Google
+ *      answers PERMISSION_DENIED / SERVICE_DISABLED and includes an activation
+ *      URL. Nothing about the property or the key is wrong.
+ *   2. The service account is genuinely not a user on the property.
+ *   3. It was added moments ago and the grant has not propagated yet.
+ *
+ * Google's own `error.message` distinguishes them and contains no secret, so it
+ * leads. My hypotheses follow it, as hypotheses.
+ *
+ * @param array|null $data Decoded error body, if any.
+ * @return WP_Error
+ */
+function snt_gsc_forbidden_error( $data ) {
+	$message = is_array( $data ) ? trim( (string) ( $data['error']['message'] ?? '' ) ) : '';
+	$reason  = '';
+	if ( is_array( $data ) ) {
+		foreach ( (array) ( $data['error']['details'] ?? array() ) as $detail ) {
+			if ( is_array( $detail ) && ! empty( $detail['reason'] ) ) {
+				$reason = (string) $detail['reason'];
+				break;
+			}
+		}
+		if ( '' === $reason ) {
+			$reason = (string) ( $data['error']['errors'][0]['reason'] ?? '' );
+		}
+	}
+
+	// The one cause with a precise, actionable remedy that is NOT about the
+	// property at all — worth naming outright when Google says it.
+	$disabled = ( 'SERVICE_DISABLED' === $reason )
+		|| ( '' !== $message && false !== stripos( $message, 'has not been used in project' ) )
+		|| ( '' !== $message && false !== stripos( $message, 'is disabled' ) );
+
+	if ( $disabled ) {
+		return new WP_Error(
+			'snt_gsc_api_disabled',
+			sprintf(
+				/* translators: %s: Google's own error message, which includes an activation link. */
+				__( 'The Search Console API is not enabled for this credential\'s Google Cloud project. This is not a property-permission problem — enable "Google Search Console API" in that project, wait a minute, then test again. Google said: %s', 'signal-and-noise-tools' ),
+				$message
+			)
+		);
+	}
+
+	$lead = '' !== $message
+		/* translators: %s: Google's own error message. */
+		? sprintf( __( 'Google refused the data (403). Google said: %s', 'signal-and-noise-tools' ), $message )
+		: __( 'Google refused the data (403) without explaining why.', 'signal-and-noise-tools' );
+
+	return new WP_Error(
+		'snt_gsc_forbidden',
+		$lead . ' ' . __( 'The usual causes, in order: the Search Console API is not enabled in the credential\'s Cloud project; the service account is not a user on the property; or it was added moments ago and the grant has not propagated yet — that can take a few minutes.', 'signal-and-noise-tools' )
+	);
+}
+
+/**
  * An authorized GET against the Search Console API.
  *
  * @param string $path Path under SNT_GSC_API_BASE, e.g. '/sites'.
@@ -162,11 +226,7 @@ function snt_gsc_api_get( $path, $force_token = false ) {
 	$code = (int) wp_remote_retrieve_response_code( $res );
 	$body = json_decode( (string) wp_remote_retrieve_body( $res ), true );
 	if ( 403 === $code ) {
-		// The single most likely outcome of a first run: the key is valid, the
-		// token minted, and nobody added the service account to the property.
-		// Naming it precisely is the difference between a two-minute fix and an
-		// afternoon re-checking the credential, which is not the problem.
-		return new WP_Error( 'snt_gsc_forbidden', __( 'Google accepted the credential but refused the data (403). The service account is almost certainly not a user on the Search Console property yet — add its client_email in Search Console → Settings → Users and permissions.', 'signal-and-noise-tools' ) );
+		return snt_gsc_forbidden_error( $body );
 	}
 	if ( 200 !== $code || ! is_array( $body ) ) {
 		$detail = is_array( $body ) ? (string) ( $body['error']['message'] ?? '' ) : '';
@@ -245,7 +305,7 @@ function snt_gsc_api_post( $path, $body ) {
 	$code = (int) wp_remote_retrieve_response_code( $res );
 	$data = json_decode( (string) wp_remote_retrieve_body( $res ), true );
 	if ( 403 === $code ) {
-		return new WP_Error( 'snt_gsc_forbidden', __( 'Google accepted the credential but refused the data (403). The service account is almost certainly not a user on this property — add its client_email in Search Console → Settings → Users and permissions.', 'signal-and-noise-tools' ) );
+		return snt_gsc_forbidden_error( $data );
 	}
 	if ( 200 !== $code || ! is_array( $data ) ) {
 		$detail = is_array( $data ) ? (string) ( $data['error']['message'] ?? '' ) : '';
