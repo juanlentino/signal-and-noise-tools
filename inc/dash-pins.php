@@ -68,3 +68,63 @@ function sn_dash_set_pin( $user_id, $zone_id, $pinned ) {
 
 	return (bool) update_user_meta( (int) $user_id, SN_DASH_PIN_META, $next );
 }
+
+/**
+ * REST handler for the pin toggle.
+ *
+ * The two failure modes are kept APART on purpose. `sn_dash_set_pin()` returns
+ * false for an unknown zone id (the caller's fault, 400) and for a failed write
+ * (ours, 500). Collapsing both into "unknown zone" would send someone hunting a
+ * typo in a zone id that was spelled correctly all along.
+ *
+ * Note it can no longer return false merely because nothing changed — see the
+ * unchanged-write short-circuit in sn_dash_set_pin(). Re-pinning a pinned zone
+ * is a 200, not a 400.
+ *
+ * @param WP_REST_Request $request
+ * @return WP_REST_Response
+ */
+function sn_dash_pin_route_handler( $request ) {
+	$zone   = (string) $request->get_param( 'zone' );
+	$pinned = (bool) $request->get_param( 'pinned' );
+
+	if ( ! in_array( $zone, SN_DASH_ZONE_IDS, true ) ) {
+		return new WP_REST_Response( array( 'error' => 'unknown zone' ), 400 );
+	}
+
+	$user_id = get_current_user_id();
+	if ( ! sn_dash_set_pin( $user_id, $zone, $pinned ) ) {
+		return new WP_REST_Response( array( 'error' => 'could not save the preference' ), 500 );
+	}
+
+	return new WP_REST_Response( array( 'pins' => sn_dash_pins( $user_id ) ), 200 );
+}
+
+/**
+ * Register the route.
+ *
+ * Gated on `manage_options` — VERIFIED to be the same capability that gates the
+ * admin page itself (inc/admin-menu.php). Uses the house permission helper
+ * rather than an inline closure so the gate is named, greppable, and shared.
+ *
+ * @return void
+ */
+function sn_dash_pin_register_route() {
+	register_rest_route(
+		'signal-noise/v1',
+		'/dash-pin',
+		array(
+			'methods'             => 'POST',
+			'callback'            => 'sn_dash_pin_route_handler',
+			'permission_callback' => 'snt_ability_perm_manage_options',
+			'args'                => array(
+				'zone'   => array( 'required' => true ),
+				'pinned' => array( 'required' => true ),
+			),
+		)
+	);
+}
+
+if ( ! defined( 'SN_DASH_PINS_TEST' ) || ! SN_DASH_PINS_TEST ) {
+	add_action( 'rest_api_init', 'sn_dash_pin_register_route' );
+}
