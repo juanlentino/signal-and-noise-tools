@@ -179,7 +179,7 @@ function snt_gsc_top_queries( $limit = 10 ) {
  * figure, wrong for a report; that is why this lives beside the data rather
  * than being re-derived by each caller.
  *
- * @since 11.28.1
+ * @since 11.28.0
  * @return array{clicks:int,days:int}|null
  */
 function snt_gsc_window_totals() {

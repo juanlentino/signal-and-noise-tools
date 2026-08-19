@@ -4,7 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! function_exists( '__' ) ) { function __( $t, $d = '' ) { return $t; } }
 if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = '' ) { return 1 === (int) $n ? $s : $p; } }
 
-// v11.28.1: the shared opt-out predicate lives with its original owner.
+// v11.28.0: the shared opt-out predicate lives with its original owner.
 require __DIR__ . '/../inc/admin-glance.php';
 require __DIR__ . '/../inc/dash-zones.php';
 require __DIR__ . '/../inc/dash-zone-attention.php';

@@ -58,7 +58,7 @@ ok( array( 'D', 'B', 'E', 'A', 'C', 'F' ) === $sorted,
 	'err first, then warn, then the rest — and ORIGINAL order is preserved inside each class (a reshuffling grid trains people to stop reading it)' );
 ok( array() === sn_admin_glance_sort_by_attention( array() ), 'an empty set sorts to empty' );
 
-// ── the shared opt-out predicate (v11.28.1) ─────────────────────────────────
+// ── the shared opt-out predicate (v11.28.0) ─────────────────────────────────
 // This rule lived in THREE byte-identical copies: here, sn_dash_zone_state(),
 // and sn_dash_zone_attention(). Three copies is three chances to update two —
 // and the count/state disagreement that produces is exactly the v11.16.0

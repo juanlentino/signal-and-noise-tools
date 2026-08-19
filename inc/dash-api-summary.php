@@ -7,7 +7,7 @@
  * surfaces only when a host is warn or crit.
  *
  * @package SignalNoiseTools
- * @since 11.28.1
+ * @since 11.28.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
