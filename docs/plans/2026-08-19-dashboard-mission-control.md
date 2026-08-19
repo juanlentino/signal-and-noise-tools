@@ -409,7 +409,7 @@ git commit -m "feat: zone renderer — server-rendered details, reuses the glanc
 - Create: `inc/dash-pins.php`
 - Test: `tests/dash-pins.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -458,12 +458,12 @@ echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
 ```
 
-- [ ] **Step 2: Run and confirm it fails**
+- [x] **Step 2: Run and confirm it fails**
 
 Run: `php tests/dash-pins.php; echo "EXIT=$?"`
 Expected: fatal — `Call to undefined function sn_dash_pins()`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `inc/dash-pins.php`:
 
@@ -529,12 +529,33 @@ function sn_dash_set_pin( $user_id, $zone_id, $pinned ) {
 }
 ```
 
-- [ ] **Step 4: Run and confirm it passes**
+- [x] **Step 4: Run and confirm it passes**
 
 Run: `php tests/dash-pins.php; echo "EXIT=$?"`
-Expected: `Result: 10 passed, 0 failed.` and `EXIT=0`.
+Expected: `Result: 13 passed, 0 failed.` and `EXIT=0`.
+  (10 as written, plus three added during execution — see step 5.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Negative-control the storage**
+
+The plan as written had no mutation step and an over-permissive stub. Both
+hid a defect.
+
+| Mutation | Result as written | Action |
+|---|---|---|
+| remove the no-change short-circuit | n/a — the fix did not exist yet | added, now pinned |
+| drop the zone-id allowlist guard | **failed nothing** | write-side assertions added |
+| drop the `is_array()` corrupt-meta guard | fatals, `EXIT=255`, zero `FAIL:` lines | caught by the exit code |
+
+**Make the `update_user_meta` stub faithful.** Real WordPress returns `false`
+when the stored value is already identical. The plan's stub returned `true`
+unconditionally, which hid `sn_dash_set_pin()` reporting a failed write when
+re-pinning an already-pinned zone. See the shipped test for the faithful stub.
+
+**The allowlist guard needs a write-side assertion.** `sn_dash_pins()` filters
+through the allowlist on read, so `sn_dash_pins( 3 ) === array()` passes even
+with the write guard deleted — while the hostile id sits in user meta.
+
+- [x] **Step 6: Commit**
 
 ```bash
 git add inc/dash-pins.php tests/dash-pins.php
