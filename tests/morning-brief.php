@@ -3,6 +3,14 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
 define( 'SNT_DEPLOY_REPOS', array( 'theme' => 'owner/theme', 'plugin' => 'owner/plugin' ) );
+// WordPress core constants + i18n helper the composer relies on. WP always
+// defines these; the harness did not, and the R6b search section was the first
+// code path here to reach for them — it fataled the moment a fixture exercised it.
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+if ( ! function_exists( 'number_format_i18n' ) ) {
+	function number_format_i18n( $n, $dec = 0 ) { return number_format( (float) $n, (int) $dec ); }
+}
 
 function add_action() {}
 function __( $s, $d = null ) { return $s; }
@@ -74,6 +82,34 @@ $data['drift'] = array( 'has_drift' => true, 'count' => 3, 'changed' => array( '
 $body = snt_morning_brief_compose( $data );
 ok( 1 === substr_count( $body, 'Configuration drift' ), 'compose adds exactly one drift sentence' );
 ok( false !== strpos( $body, '1 changed, 1 added, and 1 removed' ), 'drift sentence states the diff shape' );
+
+echo "\nTest: R6b search section\n";
+// SILENT without data, on purpose: an operations brief that says "no search
+// data" every morning for a site that never connected GSC is noise, and the
+// setup nag belongs on the settings screen.
+ok( false === strpos( $body, 'Google showed the site' ), 'compose is SILENT when nothing has synced' );
+$data['search'] = array(
+	'impressions' => 4200, 'clicks' => 61, 'zero_click' => 3,
+	'top_query' => 'music provenance', 'synced_at' => time(),
+	'window' => array( 'start' => '2026-07-01', 'end' => '2026-07-28' ),
+);
+$body = snt_morning_brief_compose( $data );
+ok( false !== strpos( $body, 'Google showed the site 4,200 times' ), 'search sentence reports impressions' );
+ok( false !== strpos( $body, '61 clicks' ), 'and clicks' );
+ok( false !== strpos( $body, '2026-07-01 to 2026-07-28' ), "and names GOOGLE's window, not the brief's day" );
+ok( false !== strpos( $body, '3 pages drew meaningful impressions without a single click' ), 'the zero-click count is called out — it is the actionable one' );
+ok( false !== strpos( $body, '"music provenance"' ), 'and the most-seen query is quoted' );
+ok( false === strpos( $body, 'has not been re-synced' ), 'a FRESH window raises no staleness sentence' );
+
+// A window nobody refreshed must read as stale, not as current.
+$data['search']['synced_at'] = time() - ( 9 * DAY_IN_SECONDS );
+$body = snt_morning_brief_compose( $data );
+ok( false !== strpos( $body, 'search window is 9 days old' ), 'a STALE window says so — otherwise old numbers read as this morning\'s' );
+
+$data['search']['zero_click'] = 0;
+$body = snt_morning_brief_compose( $data );
+ok( false === strpos( $body, 'without a single click' ), 'no zero-click sentence when there are none' );
+ok( 1 === substr_count( $body, 'Google showed the site' ), 'exactly one search sentence' );
 
 echo "\nTest: subject, send, and cron\n";
 ok( false !== strpos( snt_morning_brief_subject( $data ), '[Test Site] Morning operations brief' ), 'subject names the site and brief' );

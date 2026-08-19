@@ -2,6 +2,52 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.20.0] - 2026-08-18 — R6b closes: the cross-exam and the digest section
+
+### Added
+- **Cross-exam: Google vs the crawler ledger.** Two independent instruments that
+  should agree. If Google is ranking pages, something Google-shaped must be fetching
+  them; when one instrument sees that and the other does not, the disagreement IS the
+  finding — and which way round it falls names a different problem:
+  - *impressions, no search-engine fetches* → the ledger is blind, most likely the
+    edge serving the crawler from cache. Not "the site is unvisited".
+  - *fetches, no impressions* → a ranking or indexing problem. The opposite diagnosis.
+  - *neither* → nothing contradicted, nothing confirmed. Silence is not health.
+- **A search section in the morning brief.** Impressions, clicks, Google's window, the
+  zero-click count, and the most-seen query.
+
+### The scaffold assumed a join that does not exist
+R6's plan called this a *per-page* cross-exam against the crawler ledger. The ledger
+aggregates to `{family, surface, day, hits}` and carries **no path dimension**, so
+GSC's path-keyed rows have nothing to join to. The shared dimension is a window, and
+the check is coarse agreement. Claiming a per-page comparison would have invented a
+precision neither instrument has.
+
+### Refusals that make the check trustworthy
+- **A sensor that did not answer is never reported as "zero crawler hits."** That
+  would manufacture the exact disagreement this exists to find, so an unavailable
+  ledger yields no verdict at all.
+- **`seo`-family crawlers do not count.** Ahrefs or Semrush fetching the site says
+  nothing about whether Google is; counting them would make the ledger side look
+  healthy while the actual question went unanswered.
+- **The windows are stated, not smoothed.** Google's ends ~3 days back; the ledger
+  runs to now. The panel says it compares magnitude, not equality.
+
+### The digest stays quiet when it has nothing
+No search sentence at all until something has synced — a brief that says "no search
+data" every morning for a site that never connected GSC is noise, and the setup nag
+belongs on the settings screen. A window nobody re-synced reports its age rather than
+letting old numbers read as this morning's.
+
+### Tests
+- New `tests/search-console-crossexam.php` (16): every verdict, the family exclusions,
+  and the no-answer refusal.
+- `tests/morning-brief.php` +10, including that the section is SILENT without data and
+  that a stale window says so.
+- The harness was missing `DAY_IN_SECONDS` / `number_format_i18n` — WP always defines
+  them and no prior path here had reached for them, so the first fixture that
+  exercised the new section fataled. Defined now.
+
 ## [11.19.3] - 2026-08-18 — the setup list was missing the step that blocks
 
 ### Fixed
