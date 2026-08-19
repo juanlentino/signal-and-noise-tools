@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.27.0] - 2026-08-19 — the site answers to a second name, and to its citations
 
 ### Added
 - **The verified citation graph — inbound Webmentions, adjudicated (queue item 10).**
