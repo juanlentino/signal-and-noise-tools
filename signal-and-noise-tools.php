@@ -238,6 +238,7 @@ require_once SNT_PATH . 'inc/citations-store.php';    // the table; last_checked
 require_once SNT_PATH . 'inc/citations-verify.php';   // the adjudicator + hourly cron
 require_once SNT_PATH . 'inc/citations-endpoint.php'; // the public inbox AND its discovery advertisement
 require_once SNT_PATH . 'inc/citations-admin.php';    // Integrity -> Citations leaf: a three-way readout, never a fraction
+require_once SNT_PATH . 'inc/citations-render.php';   // v11.28.0: the public "Cited by" aside — publishable tiers only, silent when empty
 
 // Machine Readers surface (v9.85.0, Session 3): the rights-signals sensor read
 // (Bearer-token worker fetch + enum-allowlist normalization), the pure table
