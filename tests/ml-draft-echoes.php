@@ -210,8 +210,12 @@ ok( false === strpos( $render, 'snt_ml_draft_echoes' ) && false === strpos( $ren
 
 $abilities = file_get_contents( __DIR__ . '/../inc/abilities-corpus.php' );
 ok( false !== strpos( $abilities, "'signal-noise/draft-echoes'" )
-	&& preg_match( "/'signal-noise\/draft-echoes'.*?'permission_callback'\s*=>\s*'snt_ability_perm_manage_options'/s", $abilities ),
-	'the only door to it is a manage_options ability — REST-reachable, but gated' );
+	&& preg_match( "/'signal-noise\/draft-echoes'.*?'permission_callback'\s*=>\s*'snt_ability_perm_read_corpus'/s", $abilities ),
+	// v11.21.0: the level dropped, the CLAIM did not. Abilities are
+	// REST-reachable and the permission_callback is the only gate, so this
+	// assertion still says "gated" — now at edit_others_posts, which is Editor
+	// and above and neither Author nor Contributor.
+	'the only door to it is a gated ability (corpus READ tier) — REST-reachable, but gated' );
 ok( preg_match( "/'signal-noise\/draft-echoes'.*?'readonly'\s*=>\s*true/s", $abilities )
 	&& preg_match( "/'signal-noise\/draft-echoes'.*?'destructive'\s*=>\s*false/s", $abilities ),
 	'the ability is annotated readonly and non-destructive' );

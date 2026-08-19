@@ -44,7 +44,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'List or fetch corpus posts (consolidated)',
 		'description'         => 'Consolidated post query, absorbing list-posts (metadata) and get-post-content (bodies) into one record: content is an opt-in FIELD, not a different shape. scope selects the target set: {kind:"all"} (default) walks every non-trash post of scope.post_type (default "post"); {kind:"post_ids", post_ids:[...]} fetches a bounded ID set, unknown/trashed IDs reported in `missing` rather than silently dropped; {kind:"modified_since", modified_since:"<date>"} walks posts modified at/after that date, newest-modified first; {kind:"post_type", post_type:"<type>"} walks one specific registered+public type. include_content:true attaches full post_content per row but is REJECTED (422, never silently truncated) when the resolved scope exceeds 20 posts — narrow the scope instead. Paginated via an opaque cursor (max default/cap 100 per page); the post_ids scope always returns its whole bounded set in one page. Same visibility as list-posts/get-post-content: all five non-trash statuses (publish/future/draft/pending/private) across registered public types, gated by manage_options + the MCP door\'s own auth.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_sn_posts',
 		'input_schema'        => array(
 			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null; every field has a safe default.

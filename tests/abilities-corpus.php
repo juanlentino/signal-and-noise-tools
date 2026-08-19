@@ -212,7 +212,7 @@ $expected = array( 'signal-noise/duplicate-body-scan', 'signal-noise/list-posts'
 foreach ( $expected as $slug ) {
 	$a = $GLOBALS['__abilities'][ $slug ] ?? null;
 	ok( is_array( $a ), "$slug is registered" );
-	ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), "$slug gates on manage_options" );
+	ok( 'snt_ability_perm_read_corpus' === ( $a['permission_callback'] ?? '' ), "$slug gates on edit_others_posts (corpus READ tier)" );
 	ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ), "$slug is annotated readonly + non-destructive" );
 	ok( 'tools' === ( $a['category'] ?? '' ), "$slug sits in the tools category" );
 }

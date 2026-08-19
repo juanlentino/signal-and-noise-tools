@@ -720,7 +720,7 @@ foreach ( $GLOBALS['__test_actions']['wp_abilities_api_init'] ?? array() as $cb 
 
 $a = $GLOBALS['__abilities']['signal-noise/sn-scan'] ?? null;
 ok( is_array( $a ), 'signal-noise/sn-scan is registered' );
-ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), 'sn-scan gates on manage_options' );
+ok( 'snt_ability_perm_read_corpus' === ( $a['permission_callback'] ?? '' ), 'sn-scan gates on edit_others_posts (corpus READ tier)' );
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-scan is annotated readonly + non-destructive + idempotent' );
 ok( array( 'scan_type' ) === ( $a['input_schema']['required'] ?? array() ), 'scan_type is the only required field' );
 // Relationship, not a literal: the published enum must equal SNT_SN_SCAN_TYPES

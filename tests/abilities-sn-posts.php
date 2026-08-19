@@ -217,7 +217,7 @@ foreach ( $GLOBALS['__test_actions']['wp_abilities_api_init'] ?? array() as $cb 
 
 $a = $GLOBALS['__abilities']['signal-noise/sn-posts'] ?? null;
 ok( is_array( $a ), 'signal-noise/sn-posts is registered' );
-ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), 'sn-posts gates on manage_options' );
+ok( 'snt_ability_perm_read_corpus' === ( $a['permission_callback'] ?? '' ), 'sn-posts gates on edit_others_posts (corpus READ tier)' );
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-posts is annotated readonly + non-destructive + idempotent' );
 ok( array( 'object', 'null' ) === ( $a['input_schema']['type'] ?? null ), 'sn-posts input schema is bodyless-GET-safe (no required fields)' );
 

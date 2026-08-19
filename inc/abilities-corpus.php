@@ -39,7 +39,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'Scan the corpus for posts with identical bodies',
 		'description'         => 'Hashes trimmed post_content for every post across publish, future, draft, pending, and private statuses; returns groups where the same non-empty hash appears more than once (each member: post ID, title, slug, status, post_date). Exact duplicates only — catches duplicate-to-seed posts whose body was never replaced. Empty bodies never group. No caching: always a fresh walk.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_duplicate_scan',
 		'input_schema'        => array(
 			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
@@ -74,7 +74,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'Find the existing notes a draft echoes',
 		'description'         => 'Scores ONE draft against the rest of the corpus and returns the existing notes it most overlaps, so the writer sees the overlap while changing course is still cheap. Same kernel as near-duplicate-scan (TF-IDF cosine over the same corpus walk), asked from the other direction: one document against many, rather than all pairs. The draft is excluded from its own comparison corpus. Below the threshold (clamped 0.3-0.95, default 0.45 — lower than the 0.6 cousin bar because a draft in progress covers only part of the ground its finished twin does) the answer is an EMPTY list, never the least-bad match. Pass content to score unsaved editor text; omit it to score the saved body. No caching, no writes, nothing on the reader-facing render path.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_draft_echoes',
 		'input_schema'        => array(
 			'type'                 => array( 'object', 'null' ),
@@ -127,7 +127,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'Scan the corpus for near-duplicate (cousin) post pairs',
 		'description'         => 'Tokenizes every non-empty body across publish, future, draft, pending, and private statuses, vectors them as TF-IDF against the corpus\' own stats, and returns pairs whose cosine similarity meets the threshold (clamped 0.3-0.95, default 0.6) — each pair: two {post_id, title, slug, status} members plus the 4dp cosine, sorted cosine-descending. Byte-exact duplicates are EXCLUDED (those are duplicate-body-scan\'s finding); empty bodies never pair. Catches the duplicated-then-lightly-edited post the exact scan cannot see. No caching: always a fresh walk.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_near_duplicate_scan',
 		'input_schema'        => array(
 			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
@@ -174,7 +174,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'Rank a post\'s own terms as keyword candidates (TF-IDF)',
 		'description'         => 'Deterministic candidate generator, no AI: tokenizes the post\'s body and ranks its own unigrams plus adjacent bigrams (both members must survive tokenization; a stopword between two words breaks adjacency — bigrams are phrases that literally appear) by TF-IDF weight against corpus statistics built over ALL five non-trash statuses, bigrams boosted 1.25x, weights 4dp, sorted weight-descending. Returns candidates for a human to accept as focus keywords or tags — nothing auto-writes. Empty body returns ok with zero candidates (an empty body is an answer); unknown/trash/non-post IDs are a 404.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_keyword_candidates',
 		'input_schema'        => array(
 			'type'                 => 'object',
@@ -216,7 +216,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'Suggest related notes the post does not link to yet',
 		'description'         => 'Deterministic candidate generator, no AI: reads the prebuilt ML related index (_snt_ml_related) for the post and subtracts every target the body ALREADY links to (internal /notes/ hrefs, the same extractor the artifact build uses) and every non-published target. Returns {post_id, title, slug, url, score} rows (url = resolved permalink), score-descending, for a human to turn into internal links — nothing auto-writes. Returns a 503 while the ML artifacts are unbuilt (same contract as the related pipeline); an empty result after exclusions is a real answer, not an error.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_link_candidates',
 		'input_schema'        => array(
 			'type'                 => 'object',
@@ -258,7 +258,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'Read the corpus topic partition',
 		'description'         => 'Deterministic topic map, no AI: the stored partition of published notes into topics — connected components over TF-IDF cosine similarity, computed at artifact-build time (publish transitions + the nightly rebuild), never on demand. Each cluster: {members: [post IDs ascending], label: top shared terms}. Singletons are excluded (a topic needs two notes). Returns a 503 while the ML artifacts are unbuilt; an empty cluster list is a real answer, not an error.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_topic_clusters',
 		'input_schema'        => array(
 			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
@@ -289,7 +289,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'Scan operational rhythms for cadence deviations',
 		'description'         => 'Deterministic rhythm watch, no AI: z-score of the CURRENT gap against each rhythm\'s own history — the publishing cadence (EWMA) plus every cron hook with enough recorded firings (median/MAD, burst-resistant). One-sided (late only; a burst never flags), conservative (three sigmas). A hook never flags before 1.5x its registered interval — the registration is ground truth. Each flag carries expected_gap (the rhythm the history implies); the legacy ewma key mirrors it. Honest unknowns: thin history never flags, an on-demand hook with no registered recurrence is watched but never flagged (its cadence tracks site activity, not cron health), a rigid metronome is watched but unquantifiable, a window that has not spanned a week (and whose learned rhythm does not match its registered schedule) is watched but untrusted, and a failed cron-history read skips that section and says so (cron_skipped). Computed on demand from bounded local reads.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_cadence_flags',
 		'input_schema'        => array(
 			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
@@ -320,7 +320,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'List corpus metadata for every post',
 		'description'         => 'Metadata-only corpus listing across all non-trash statuses, optionally filtered by status and post_type. Per post: ID, title, slug, status, post_type, post_date, post_modified, categories, tags, word count, content hash, and the excerpt (manual excerpt, else a 55-word trim). Never returns bodies — pair with get-post-content for the few posts that turn out genuinely close.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_list_posts',
 		'input_schema'        => array(
 			'type'                 => array( 'object', 'null' ), // bodyless GET delivers null
@@ -358,7 +358,7 @@ add_action( 'wp_abilities_api_init', function() {
 		'label'               => 'Fetch full bodies for a bounded set of posts',
 		'description'         => 'Given 1-20 post IDs, returns full post_content plus the same metadata row list-posts returns for each. Unknown or trashed IDs come back in `missing` rather than being silently dropped. For the small number of posts a collision check flags as genuinely close — not a corpus dump.',
 		'category'            => 'tools',
-		'permission_callback' => 'snt_ability_perm_manage_options',
+		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_corpus_get_post_content',
 		'input_schema'        => array(
 			'type'                 => 'object',

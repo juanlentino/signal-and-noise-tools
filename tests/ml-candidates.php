@@ -286,7 +286,7 @@ foreach ( $GLOBALS['__test_actions']['wp_abilities_api_init'] ?? array() as $cb 
 foreach ( array( 'signal-noise/keyword-candidates', 'signal-noise/link-candidates' ) as $slug ) {
 	$a = $GLOBALS['__abilities'][ $slug ] ?? null;
 	ok( is_array( $a ), "$slug is registered" );
-	ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), "$slug gates on manage_options" );
+	ok( 'snt_ability_perm_read_corpus' === ( $a['permission_callback'] ?? '' ), "$slug gates on edit_others_posts (corpus READ tier)" );
 	ok( 'tools' === ( $a['category'] ?? '' ), "$slug sits in the tools category" );
 	ok( true === ( $a['meta']['annotations']['readonly'] ?? false )
 		&& false === ( $a['meta']['annotations']['destructive'] ?? true )
