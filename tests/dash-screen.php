@@ -110,5 +110,34 @@ ob_start(); sn_dash_render_system_cell( $plain ); $plain_cell = ob_get_clean();
 ok( false === strpos( $plain_cell, 'sn-glance-card__value' ),
 	'a card with no id is not async and does not carry the hook — the coupling is declared, not sprayed' );
 
+// ── SURFACE: FOUR CARDS, NOT TEN, AND NOT ZERO ──────────────────────────────
+// v11.30.3. v11.30.0 removed every drawn box on Few's data-pixel argument and
+// landed on a page that reads as a wireframe. The project's own standard —
+// "generous spacing, shadows on cards, consistent type scale" — takes precedence
+// over my reading of a book, and the two are reconcilable: the mistake was ten
+// boxes competing at figure level, not surface as such.
+//
+// One card per REGION. Cards group; hairlines separate WITHIN a card. That is
+// still Few's argument (grouping is what the pixels must earn) applied at the
+// altitude where grouping actually happens.
+echo "\nGroup: CSS — the screen has surface\n";
+// Comments stripped before asserting: a rule whose comment explains a removed
+// declaration still contains that declaration's text.
+function block_for( $css, $sel ) {
+	$i = strpos( $css, $sel );
+	if ( false === $i ) {
+		return '';
+	}
+	$block = substr( $css, $i, strpos( $css, '}', $i ) - $i );
+	return (string) preg_replace( '#/\*.*?\*/#s', '', $block );
+}
+$css2 = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
+foreach ( array( '.sn-scr__signals', '.sn-stage__trend', '.sn-scr__systems', '.sn-scr__detail' ) as $sel ) {
+	$blk = block_for( $css2, $sel . ' {' );
+	ok( '' !== $blk, $sel . ' rule present' );
+	ok( false !== strpos( $blk, 'box-shadow' ), $sel . ': CARRIES A SHADOW — the project standard is shadows on cards' );
+	ok( false !== strpos( $blk, 'border-radius' ), $sel . ': and a radius, so it reads as a surface rather than a rule' );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
