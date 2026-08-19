@@ -235,91 +235,13 @@ function snt_dashboard_tab_render() {
 		snt_dashboard_render_api_summary();
 	}
 
-	// ── 4. LOWER ROW ── v11.28.0: Recent deploys moved into the fleet zone
-	// above, so this row is Maintenance alone. The .sn-dash-cols wrapper stays
-	// for the existing responsive behaviour and the Diagnostics fold below it.
-	echo '<div class="sn-dash-cols">';
+	// ── 4. MAINTENANCE ── and ── 5. DIAGNOSTICS ──
+	// v11.29.0: both extracted into their own functions so they can be called
+	// from more than one host. Behaviour and markup are unchanged; this renderer
+	// still calls them in the same order and place as before.
+	snt_dashboard_render_maintenance_actions();
+	snt_dashboard_render_diagnostics();
 
-	// Maintenance 3-card action grid (unchanged actions).
-	echo '<div class="sn-dash-cols__side">';
-	echo '<h2 class="sn-section-h">Maintenance</h2>';
-	echo '<form method="post">';
-	wp_nonce_field( 'sn_theme_options_nonce' );
-	echo '<div class="sn-card-grid sn-card-grid--dash">';
-
-	// v4.1.6 (U-13): button hierarchy matches action gravity.
-	//   - Full Reset is the most destructive (overrides + caches in one go) → button-link-delete (red).
-	//   - Purge All Caches is the most-common routine action → button-primary.
-	//   - Clear Overrides + Check for Updates are reversible/informational → bare button.
-	echo '<div class="sn-card">';
-	echo '<strong>Full Reset</strong>';
-	echo '<p class="sn-helper">Clears all overrides and purges every cache. Use after theme updates.</p>';
-	echo '<button type="submit" name="sn_action" value="full_reset" class="button button-link-delete">Run Full Reset</button>';
-	echo '</div>';
-
-	echo '<div class="sn-card">';
-	echo '<strong>Clear Overrides</strong>';
-	echo '<p class="sn-helper">Removes template, template part, and navigation DB entries.</p>';
-	echo '<button type="submit" name="sn_action" value="clear_overrides" class="button">Clear Overrides</button>';
-	echo '</div>';
-
-	echo '<div class="sn-card">';
-	echo '<strong>Purge Caches</strong>';
-	echo '<p class="sn-helper">WP object cache, transients, Breeze page/minification, Varnish.</p>';
-	echo '<button type="submit" name="sn_action" value="purge_caches" class="button button-primary">Purge All Caches</button>';
-	echo '</div>';
-
-	// v2.5.3: visible UI shortcut for the "tagged a new release, where's
-	// the Updates UI?" workflow. Replaces the need to run
-	// `gh workflow run deploy.yml --ref vX.Y.Z` for every release.
-	//
-	// Why this exists: WP's `update_plugins` site transient has a ~12h TTL.
-	// Our pre_set_site_transient_update_plugins filter only fires when WP
-	// is about to RE-SET that transient — i.e., on cache miss, on
-	// WP_FORCE_UPDATE_CHECK, or on `?force-check=1`. Without an explicit
-	// re-check, a freshly-tagged release can stay invisible to Updates UI
-	// for up to 12 hours. This button is one click → both transients
-	// cleared → redirect to update-core.php?force-check=1 → WP repolls →
-	// our filter injects the new tag → Updates UI shows it.
-	//
-	// As a bonus, this is just an admin-bar-free version of the
-	// `signal-noise/get-deploy-status` ability's force_refresh path (Cmd+K;
-	// force-check-updates removed v8.0.0), reachable without depending on
-	// the ⌘K palette working.
-	// v2.5.3: re-use the existing sn_force_update_check admin-post handler
-	// (lower in this file) which clears both transients + redirects to
-	// update-core.php?force-check=1. Same handler as the API summary's
-	// "Refresh now" link — single source of truth for force-check.
-	$check_updates_url = wp_nonce_url(
-		admin_url( 'admin-post.php?action=sn_force_update_check' ),
-		'sn_force_update_check',
-		'sn_force_update_check_nonce'
-	);
-	echo '<div class="sn-card">';
-	echo '<strong>Check for Updates</strong>';
-	echo '<p class="sn-helper">Clears the theme + plugin update caches and re-polls GitHub. Use after tagging a new release.</p>';
-	echo '<a class="button" href="' . esc_url( $check_updates_url ) . '">Check Now</a>';
-	echo '</div>';
-
-	echo '</div>'; // .sn-card-grid--dash
-	echo '</form>';
-	echo '</div>'; // .sn-dash-cols__side
-	echo '</div>'; // .sn-dash-cols
-
-	// ── DIAGNOSTICS ── only when there's anything to show (full-width, below
-	// the two-column row). The override count surfaces in the attention strip
-	// above; this stays for deep inspection.
-	if ( ! empty( $overrides ) ) {
-		echo '<h2 class="sn-section-h" id="sn-dash-diagnostics">Diagnostics</h2>';
-		echo '<details class="sn-override-details" open>';
-		echo '<summary>' . esc_html( sprintf( '%d database override%s: click to expand', count( $overrides ), count( $overrides ) === 1 ? '' : 's' ) ) . '</summary>';
-		echo '<ul>';
-		foreach ( $overrides as $tpl ) {
-			echo '<li><code>' . esc_html( $tpl->post_type ) . '/' . esc_html( $tpl->post_name ) . '</code></li>';
-		}
-		echo '</ul>';
-		echo '</details>';
-	}
 	// v9.62.2: the Copilot tool-usage card moved to its own AI → Copilot Usage
 	// sub-tab (a diagnostic, off the main Dashboard). Rendered there via the
 	// registry leaf 'copilot-usage' (snt_ai_tool_invocations_render).
@@ -730,3 +652,120 @@ add_action( 'admin_post_sn_force_update_check', function() {
 // took its add_filter with it. It never rendered on this tab — it lived here
 // only by history.
 
+/**
+ * The Maintenance action grid.
+ *
+ * v11.29.0: extracted from the tab renderer so a metabox can call it. The
+ * markup and the nonce are unchanged; the <h2> is dropped because the box
+ * title now carries that word and repeating it reads as a stutter.
+ *
+ * @since 11.29.0
+ * @return void
+ */
+function snt_dashboard_render_maintenance_actions() {
+	echo '<h2 class="sn-section-h">Maintenance</h2>';
+	// ── 4. LOWER ROW ── v11.28.0: Recent deploys moved into the fleet zone
+	// above, so this row is Maintenance alone. The .sn-dash-cols wrapper stays
+	// for the existing responsive behaviour and the Diagnostics fold below it.
+	echo '<div class="sn-dash-cols">';
+
+	// Maintenance 3-card action grid (unchanged actions).
+	echo '<div class="sn-dash-cols__side">';
+	echo '<form method="post">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<div class="sn-card-grid sn-card-grid--dash">';
+
+	// v4.1.6 (U-13): button hierarchy matches action gravity.
+	//   - Full Reset is the most destructive (overrides + caches in one go) → button-link-delete (red).
+	//   - Purge All Caches is the most-common routine action → button-primary.
+	//   - Clear Overrides + Check for Updates are reversible/informational → bare button.
+	echo '<div class="sn-card">';
+	echo '<strong>Full Reset</strong>';
+	echo '<p class="sn-helper">Clears all overrides and purges every cache. Use after theme updates.</p>';
+	echo '<button type="submit" name="sn_action" value="full_reset" class="button button-link-delete">Run Full Reset</button>';
+	echo '</div>';
+
+	echo '<div class="sn-card">';
+	echo '<strong>Clear Overrides</strong>';
+	echo '<p class="sn-helper">Removes template, template part, and navigation DB entries.</p>';
+	echo '<button type="submit" name="sn_action" value="clear_overrides" class="button">Clear Overrides</button>';
+	echo '</div>';
+
+	echo '<div class="sn-card">';
+	echo '<strong>Purge Caches</strong>';
+	echo '<p class="sn-helper">WP object cache, transients, Breeze page/minification, Varnish.</p>';
+	echo '<button type="submit" name="sn_action" value="purge_caches" class="button button-primary">Purge All Caches</button>';
+	echo '</div>';
+
+	// v2.5.3: visible UI shortcut for the "tagged a new release, where's
+	// the Updates UI?" workflow. Replaces the need to run
+	// `gh workflow run deploy.yml --ref vX.Y.Z` for every release.
+	//
+	// Why this exists: WP's `update_plugins` site transient has a ~12h TTL.
+	// Our pre_set_site_transient_update_plugins filter only fires when WP
+	// is about to RE-SET that transient — i.e., on cache miss, on
+	// WP_FORCE_UPDATE_CHECK, or on `?force-check=1`. Without an explicit
+	// re-check, a freshly-tagged release can stay invisible to Updates UI
+	// for up to 12 hours. This button is one click → both transients
+	// cleared → redirect to update-core.php?force-check=1 → WP repolls →
+	// our filter injects the new tag → Updates UI shows it.
+	//
+	// As a bonus, this is just an admin-bar-free version of the
+	// `signal-noise/get-deploy-status` ability's force_refresh path (Cmd+K;
+	// force-check-updates removed v8.0.0), reachable without depending on
+	// the ⌘K palette working.
+	// v2.5.3: re-use the existing sn_force_update_check admin-post handler
+	// (lower in this file) which clears both transients + redirects to
+	// update-core.php?force-check=1. Same handler as the API summary's
+	// "Refresh now" link — single source of truth for force-check.
+	$check_updates_url = wp_nonce_url(
+		admin_url( 'admin-post.php?action=sn_force_update_check' ),
+		'sn_force_update_check',
+		'sn_force_update_check_nonce'
+	);
+	echo '<div class="sn-card">';
+	echo '<strong>Check for Updates</strong>';
+	echo '<p class="sn-helper">Clears the theme + plugin update caches and re-polls GitHub. Use after tagging a new release.</p>';
+	echo '<a class="button" href="' . esc_url( $check_updates_url ) . '">Check Now</a>';
+	echo '</div>';
+
+	echo '</div>'; // .sn-card-grid--dash
+	echo '</form>';
+	echo '</div>'; // .sn-dash-cols__side
+	echo '</div>'; // .sn-dash-cols
+}
+
+/**
+ * The override diagnostics fold.
+ *
+ * v11.29.0: extracted. Still renders nothing when there are no overrides — an
+ * empty <details> is worse than no section. Re-queries rather than reading the
+ * snapshot, which carries the COUNT only: the full post objects are needed by
+ * nothing else on the page.
+ *
+ * @since 11.29.0
+ * @return void
+ */
+function snt_dashboard_render_diagnostics() {
+	$overrides = get_posts(
+		array(
+			'post_type'      => snt_dashboard_override_post_types(),
+			'posts_per_page' => -1,
+			'post_status'    => 'any',
+		)
+	);
+	// ── DIAGNOSTICS ── only when there's anything to show (full-width, below
+	// the two-column row). The override count surfaces in the attention strip
+	// above; this stays for deep inspection.
+	if ( ! empty( $overrides ) ) {
+		echo '<h2 class="sn-section-h" id="sn-dash-diagnostics">Diagnostics</h2>';
+		echo '<details class="sn-override-details" open>';
+		echo '<summary>' . esc_html( sprintf( '%d database override%s: click to expand', count( $overrides ), count( $overrides ) === 1 ? '' : 's' ) ) . '</summary>';
+		echo '<ul>';
+		foreach ( $overrides as $tpl ) {
+			echo '<li><code>' . esc_html( $tpl->post_type ) . '/' . esc_html( $tpl->post_name ) . '</code></li>';
+		}
+		echo '</ul>';
+		echo '</details>';
+	}
+}
