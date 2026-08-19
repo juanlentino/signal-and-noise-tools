@@ -160,3 +160,52 @@ function snt_gsc_top_queries( $limit = 10 ) {
 	}
 	return array_slice( (array) $data['queries'], 0, max( 1, (int) $limit ) );
 }
+
+/**
+ * Site-wide clicks in the stored window, with the window's real length.
+ *
+ * NULL when nothing has ever synced — never a zero row. A property that has
+ * never been fetched and one Google reports no clicks for are different facts,
+ * and a 0 would state the second while meaning the first.
+ *
+ * The day count is returned WITH the total because the window is whatever the
+ * last sync used (28 days by default, ending `lag_days` back), not a fixed
+ * seven. A caller that labels this "7d" without asking would be reporting a
+ * month of clicks as a week's.
+ *
+ * Sums the per-path rows: the payload stores pages, not a site total, and the
+ * page dimension is capped at 250 rows — so on a large site this is the total
+ * over the pages Google ranked highest, not every click. Fine for a dashboard
+ * figure, wrong for a report; that is why this lives beside the data rather
+ * than being re-derived by each caller.
+ *
+ * @since 11.28.1
+ * @return array{clicks:int,days:int}|null
+ */
+function snt_gsc_window_totals() {
+	$data = snt_gsc_data();
+	if ( null === $data || ! isset( $data['pages'] ) || ! is_array( $data['pages'] ) ) {
+		return null;
+	}
+
+	$clicks = 0;
+	foreach ( $data['pages'] as $row ) {
+		if ( is_array( $row ) ) {
+			$clicks += (int) ( $row['clicks'] ?? 0 );
+		}
+	}
+
+	$days  = 0;
+	$start = isset( $data['window']['start'] ) ? (string) $data['window']['start'] : '';
+	$end   = isset( $data['window']['end'] ) ? (string) $data['window']['end'] : '';
+	if ( '' !== $start && '' !== $end ) {
+		$s = strtotime( $start . ' 00:00:00 UTC' );
+		$e = strtotime( $end . ' 00:00:00 UTC' );
+		if ( false !== $s && false !== $e && $e >= $s ) {
+			// Inclusive of both endpoints, matching how the window is built.
+			$days = (int) floor( ( $e - $s ) / DAY_IN_SECONDS ) + 1;
+		}
+	}
+
+	return array( 'clicks' => $clicks, 'days' => $days );
+}
