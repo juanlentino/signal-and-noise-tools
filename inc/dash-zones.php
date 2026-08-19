@@ -44,7 +44,8 @@ function sn_dash_zone_state( array $cards ) {
 		$kind = isset( $card['pill']['kind'] ) ? (string) $card['pill']['kind'] : '';
 		// Same opt-out the existing attention sort honours: a card may look amber
 		// without asking to be promoted (a cold probe is unknown, not broken).
-		$wants = ! array_key_exists( 'attention', $card ) || false !== $card['attention'];
+		// One rule, one copy — shared with the sort and the attention builder.
+		$wants = sn_admin_card_wants_attention( $card );
 		if ( $wants && ( 'err' === $kind || 'warn' === $kind ) ) {
 			$attention = true;
 		}

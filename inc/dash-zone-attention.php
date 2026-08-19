@@ -22,7 +22,9 @@ function sn_dash_zone_attention( array $cards ) {
 	$needy = 0;
 	foreach ( $cards as $c ) {
 		$kind  = isset( $c['pill']['kind'] ) ? (string) $c['pill']['kind'] : '';
-		$wants = ! array_key_exists( 'attention', $c ) || false !== $c['attention'];
+		// Same predicate sn_dash_zone_state() uses, so the COUNT and the STATE can
+		// never disagree about what counts.
+		$wants = sn_admin_card_wants_attention( $c );
 		if ( $wants && ( 'err' === $kind || 'warn' === $kind ) ) {
 			$needy++;
 		}
