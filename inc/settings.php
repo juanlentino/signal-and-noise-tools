@@ -171,6 +171,10 @@ function sn_settings_defaults() {
 		// drift-INVISIBLE. The `token` suffix is already in the drift regex.
 		'ml' => array(
 			'embeddings_token' => '',
+			// v11.26.0: which lexical signal the related-notes blend uses.
+			// 'embeddings' | 'tfidf'. A toggle, not a release, so an adoption that
+			// reads badly on the live site is reversible in one click.
+			'related_source'   => 'embeddings',
 		),
 		'search_console' => array(
 			'gsc_credential' => '',

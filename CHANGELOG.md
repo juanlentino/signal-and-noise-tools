@@ -2,6 +2,52 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.26.0] - 2026-08-19 — the kernel adopts semantic embeddings
+
+Shadow mode ends. Related notes now rank on centred semantic vectors, and the ML
+maturity page changes in the SAME release, because the page describes the method and
+the method changed.
+
+### What actually swapped
+**Only the lexical term.** The relatedness score is a blend — lexical 0.55, tags 0.25,
+direct links 0.15, co-links 0.05 — and the tag and link signals are independent evidence
+that keep their weights untouched. They also damp hubness on their own: a centroid-hugging
+note does not share tags or links with everything.
+
+This means the shipped result differs from the diagnostic in a useful direction. The
+measurement compared PURE embedding ranking against a BLENDED baseline; the swap is
+blend against blend, so expect less divergence and better hub numbers than the panel
+showed.
+
+### The failure modes this guards
+- **All-or-nothing, decided once per build.** Embedding cosine and TF-IDF cosine have
+  different distributions, so a ranking mixing both scales is meaningless while every
+  number in it still looks plausible. One missing vector disqualifies the whole pass and
+  the build stays lexical.
+- **Centred cosine is SIGNED.** A negative value means "less alike than average".
+  Unclamped it would act as a penalty and could drag a well-linked pair below zero,
+  deleting a relationship the graph signals had earned. Clamped at zero.
+- **The build stamps its source**, so an embeddings build is distinguishable from a
+  fallback one and "why did related change" has an answer.
+- **`ml.related_source` reverts it without a release.** An adoption that reads badly on
+  the live site should be one click away from undone.
+
+### The public page, rewritten
+Three claims stopped being true and are gone: *"No neural network"*, *"no weights file"*,
+and unconditional determinism. In their place the page states the dependency plainly —
+a hosted model the site *"neither hosts nor pins"*, so identical text is *"not guaranteed
+to give identical output across model revisions"*.
+
+What survives is what is still true and still worth claiming: ranking arithmetic runs
+inside the site, results are computed once and stored, and **no reader request ever waits
+on any of it**. The three NEVERS are untouched.
+
+### Tests
+`tests/ml-related-source.php` (23) pins the fallback, the clamp, the stamp, the toggle,
+and — in both directions — that the page dropped the false claims and gained the honest
+one. Three assertions in `tests/ml-embeddings.php` were INVERTED on purpose: they
+asserted shadow mode, which had to stop being true in the same release as the page copy.
+
 ## [11.25.0] - 2026-08-19 — the recommended variant is centring alone
 
 ### Changed
