@@ -270,7 +270,7 @@ git commit -m "feat: zone open/closed decision — a pin can open, never close"
 - Modify: `inc/dash-zones.php`
 - Test: `tests/dash-zones-render.php`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 ```php
 <?php
@@ -326,12 +326,12 @@ echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
 ```
 
-- [ ] **Step 2: Run and confirm it fails**
+- [x] **Step 2: Run and confirm it fails**
 
 Run: `php tests/dash-zones-render.php; echo "EXIT=$?"`
 Expected: fatal — `Call to undefined function sn_dash_render_zone()`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Append to `inc/dash-zones.php`:
 
@@ -372,12 +372,29 @@ function sn_dash_render_zone( array $zone, array $pins = array() ) {
 }
 ```
 
-- [ ] **Step 4: Run and confirm it passes**
+- [x] **Step 4: Run and confirm it passes**
 
 Run: `php tests/dash-zones-render.php; echo "EXIT=$?"`
-Expected: `Result: 12 passed, 0 failed.` and `EXIT=0`.
+Expected: `Result: 14 passed, 0 failed.` and `EXIT=0`.
+  (12 as written, plus two added during execution — see step 5.)
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Negative-control the renderer**
+
+The plan as written had no mutation step here. Four were run; two found gaps:
+
+| Mutation | Result as written | Action |
+|---|---|---|
+| drop `esc_html( $summary )` | fails `the summary is escaped` | pinned already |
+| force `$open = true` | fails 2 assertions | pinned already |
+| drop `esc_html( $detail )` | **failed nothing** | assertion added |
+| drop `esc_attr( $id )` | **failed nothing** | assertion added |
+
+`detail` carries probe output in the zone builders and `id` lands in an
+attribute, so both are pinnable — unlike #726's tier gate, which was
+unpinnable by construction. After the two additions each mutation fails
+its intended pin.
+
+- [x] **Step 6: Commit**
 
 ```bash
 git add inc/dash-zones.php tests/dash-zones-render.php
