@@ -328,9 +328,12 @@ add_action( 'wp_abilities_api_init', function () {
 				'elapsed_ms'    => array( 'type' => array( 'integer', 'null' ) ),
 				'finding_total' => array(
 					'type'        => 'integer',
-					'description' => 'Fault-tier findings only. Advisory-tier counts (external link rot) live in advisory_total since v8.0.4.',
+					'description' => 'Fault-tier findings only, narrowed to the health surface. Advisory-tier counts live in advisory_total.',
 				),
-				'advisory_total' => array( 'type' => 'integer' ),
+				'advisory_total' => array(
+					'type'        => 'integer',
+					'description' => 'Advisory-tier findings (external link rot, link opportunities, evergreen stale posts) counted across EVERY surface. These render on the worklist, not the Health tab, so this number is deliberately not the one the Health surface shows.',
+				),
 				'checks_total'  => array( 'type' => 'integer' ),
 				'checks_passed' => array( 'type' => 'integer' ),
 				'flagged'       => array(

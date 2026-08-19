@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.17.0] - 2026-08-18 — advisory is a tier, not a surface
+
+### Fixed
+- **`get-health-scan` reported `advisory_total: 0` no matter what.** Not a coincidence —
+  a structural zero. All three advisory-tier checks (`external_links`,
+  `link_opportunities`, `stale_posts_evergreen`) moved to the `worklist` surface in
+  v11.13.0, so a total narrowed to `health` could never see one.
+- **The field contradicted the schema that pointed at it.** `finding_total`'s own
+  description reads *"Advisory-tier counts live in advisory_total"* — so an agent was
+  told where to find advisories, followed the pointer, and got 0. Advisory counts lived
+  nowhere in the ability's output. **Zero read as "measured, none found" when the truth
+  was "not measured on this surface"** — the two are different answers.
+- **The root cause was a category error.** Advisory is a **tier**, enumerated by key;
+  a surface is where a check **renders**. Narrowing a tier by surface asks a question
+  neither one answers. `sn_health_advisory_total()` now takes an explicit `$surface`,
+  and the abilities pass `null` — the tier wherever it lives.
+- Fixes the **remote** door in the same change: `signal-noise/get-health-scan-remote`
+  reuses the same `execute_callback`.
+
+### Changed
+- Both ability schemas now describe what the field actually contains, including that
+  these render on the worklist rather than the Health tab, so the number is deliberately
+  not the one the Health surface shows.
+
+### Unchanged — deliberately
+- **Every rendering surface.** The accessor's default stays `'health'`, so the Health
+  hero, the S&N Health widget and the desktop payload are byte-identical. On the Health
+  tab advisories are deliberately not shown — a shipped decision (v11.16.1, pinned by
+  the H5 assertions), not an accident of a zeroed accessor. This release makes the
+  agent-facing readout honest without reopening that call.
+
+### Tests
+- Pins both readings AND that they **differ** on the same fixture — without that third
+  assertion the first two would pass against any implementation. Negative-controlled:
+  restoring the health-scoped call fails exactly two assertions.
+
 ## [11.16.2] - 2026-08-18 — the denominator narrows with the numerator
 
 ### Fixed

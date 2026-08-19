@@ -72,14 +72,12 @@ ok( is_array( $s ), 'returns a summary object for a cached scan' );
 // v8.0.4 owner re-tier: external rot is an ADVISORY — excluded from
 // finding_total/flagged, surfaced additively as advisory_total.
 ok( 10 === $s['finding_total'], 'finding_total sums non-advisory checks (3+7=10; external rot re-tiered)' );
-// v11.16.2: 0, not 2 — and this suite only says so now that it loads the real
-// surface map. external_links is advisory-tier AND lives on the `worklist`
-// surface, so an advisory_total scoped to `health` cannot see it. NOTE FOR THE
-// OWNER: all three advisory keys are on `worklist`, which makes this field
-// structurally always 0. Pinned as-is so the constant is visible rather than
-// mistaken for "no advisories"; which surface it should speak for is a call
-// like the v11.13.0 "Health = defects only" one, not a silent redefinition.
-ok( 0 === $s['advisory_total'], 'advisory_total is scoped to health, where no advisory-tier check renders' );
+// v11.16.2 pinned this at 0 and flagged it as an owner call: all three advisory
+// keys live on `worklist`, so a health-scoped total was structurally always 0
+// while the schema pointed callers here for advisory counts.
+// v11.17.0 TOOK that call — advisory is a TIER, not a surface, so the ability
+// now counts it wherever it renders. The rendering surfaces are unchanged.
+ok( 2 === $s['advisory_total'], 'advisory_total carries the external-rot count from the worklist surface' );
 ok( isset( $reg['output_schema']['properties']['advisory_total'] ), 'output schema declares advisory_total' );
 // v11.16.2: 3, not 4 — external_links is counted by the worklist, not here.
 // The INVARIANT is the load-bearing half: both sides must describe one population.
@@ -111,6 +109,30 @@ ok( 1 === $o['checks_passed'], 'checks_passed stays the honest one (stale_posts)
 ok( 1 === count( $o['flagged'] ) && 'missing_alt' === $o['flagged'][0]['check'], 'flagged lists only on-surface checks' );
 ok( $o['checks_total'] === $o['checks_passed'] + count( $o['flagged'] ), 'the invariant that broke: passed + flagged === total, on ONE population' );
 ok( ! ( 0 === $o['finding_total'] && $o['checks_total'] === $o['checks_passed'] ), 'never an all-clear built from a scoped numerator over a raw denominator' );
+
+// ── v11.17.0: advisory_total counts the TIER, not the health surface ────────
+// The bug this pins: all three advisory-tier keys render on the `worklist`
+// surface since v11.13.0, so a total scoped to `health` returned a structural
+// 0 — while the schema's own finding_total description pointed callers HERE for
+// advisory counts. Zero read as "measured, none found" when the truth was "not
+// measured on this surface".
+$GLOBALS['__scan'] = array(
+	'scanned_at' => 1700,
+	'elapsed_ms' => 42,
+	'checks'     => array(
+		'missing_alt'    => mk_check( 3, 'Missing alt text' ),   // health, fault
+		'external_links' => mk_check( 2, 'External link rot' ),  // WORKLIST, advisory
+	),
+);
+$a = snt_ability_get_health_scan( null );
+ok( 2 === $a['advisory_total'], 'advisory_total sees the tier on the worklist surface (2), not a structural 0' );
+ok( 3 === $a['finding_total'], 'finding_total still counts fault-tier on the health surface only' );
+ok( 1 === $a['checks_total'], 'checks_total still narrows to health — the two fields answer different questions' );
+// The accessor's two readings must actually DIFFER here, or this pins nothing.
+ok( 0 === sn_health_advisory_total( $GLOBALS['__scan'] ), 'the health-scoped DEFAULT is still 0 — rendering callers are unchanged' );
+ok( 2 === sn_health_advisory_total( $GLOBALS['__scan'], null ), 'the unscoped reading is the real count' );
+ok( sn_health_advisory_total( $GLOBALS['__scan'] ) !== sn_health_advisory_total( $GLOBALS['__scan'], null ),
+    'the two readings DIFFER on this fixture — without that the assertions above are vacuous' );
 
 // ── never triggers a scan (sn_health_run_scan is not even defined here) ──
 ok( ! function_exists( 'sn_health_run_scan' ), 'ability path never referenced sn_health_run_scan (read-only)' );
