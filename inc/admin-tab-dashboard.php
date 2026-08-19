@@ -167,14 +167,31 @@ function snt_dashboard_tab_render() {
 	// AI spend, cron, login blocks, views), built only from accessors that
 	// actually exist on this install.
 	$cards = snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago );
-	if ( ! empty( $cards ) ) {
-		echo '<section class="sn-dash-glance" aria-label="Site at a glance">';
-		// v10.48.0: what needs you leads. Stable within each class, so the calm
-		// cards keep their deliberate reading order instead of reshuffling on
-		// every load.
-		sn_admin_glance_grid( sn_admin_glance_sort_by_attention( $cards ) );
-		echo '</section>';
+	$pins  = function_exists( 'sn_dash_pins' ) ? sn_dash_pins( get_current_user_id() ) : array();
+
+	// v11.28.0: state earns space. Attention collapses to a line when nothing is
+	// wrong; fleet collapses unless a component was never probed. The cards
+	// themselves are unchanged — sn_admin_glance_grid() still renders an
+	// expanded zone, so the reading order inside a zone is the v10.48.0 one.
+	$attention_labels = array( 'Health', 'Cron', 'Caches', 'Provenance' );
+	$attention_cards  = array();
+	foreach ( $cards as $card ) {
+		if ( in_array( (string) ( $card['label'] ?? '' ), $attention_labels, true ) ) {
+			$attention_cards[] = $card;
+		}
 	}
+
+	$workers = function_exists( 'snt_deploy_workers_status' )
+		? snt_deploy_workers_status( array( 'probe_budget' => 1 ) )
+		: array();
+
+	echo '<section class="sn-dash-zones" aria-label="Status">';
+	sn_dash_render_zone( sn_dash_zone_attention( $attention_cards ), $pins );
+	sn_dash_render_zone(
+		sn_dash_zone_fleet( snt_dashboard_fleet_components( $theme, $plugin, $workers ), $last_deploy_ago ),
+		$pins
+	);
+	echo '</section>';
 
 	// ── 2. ATTENTION STRIP ── one warning row, only when something is off.
 	snt_dashboard_render_attention_strip( $runs, count( $overrides ) );
@@ -1111,4 +1128,50 @@ function snt_dashboard_debug_information( $info ) {
 	);
 
 	return $info;
+}
+
+/**
+ * Component name => version for the fleet zone.
+ *
+ * A component the probe has never seen returns null, which makes the zone
+ * unknown rather than letting an unprobed worker read as current.
+ *
+ * NOT snt_deploy_status_for(): that takes 'theme'|'plugin' only and returns a
+ * STRUCT, so passing it a worker key returns plugin data and the card renders
+ * "Array". Worker versions come from snt_deploy_workers_status(), the same
+ * source the glance cards use — `live` is the version actually answering.
+ *
+ * Theme and plugin are NOT in the worker registry; they arrive as the structs
+ * already in scope in snt_dashboard_tab_render().
+ *
+ * @since 11.28.0
+ * @param array<string,mixed> $theme   snt_deploy_status_for( 'theme' ) struct.
+ * @param array<string,mixed> $plugin  snt_deploy_status_for( 'plugin' ) struct.
+ * @param array<int,array>    $workers snt_deploy_workers_status() rows.
+ * @return array<string,string|null>
+ */
+function snt_dashboard_fleet_components( $theme, $plugin, $workers = array() ) {
+	$theme_v  = is_array( $theme ) ? (string) ( $theme['current'] ?? '' ) : '';
+	$plugin_v = is_array( $plugin ) ? (string) ( $plugin['current'] ?? '' ) : '';
+
+	$out = array(
+		'Theme'  => '' !== $theme_v ? $theme_v : null,
+		'Plugin' => '' !== $plugin_v ? $plugin_v : null,
+	);
+
+	foreach ( $workers as $worker ) {
+		if ( ! is_array( $worker ) ) {
+			continue;
+		}
+		$label = (string) ( $worker['label'] ?? '' );
+		if ( '' === $label ) {
+			continue;
+		}
+		// `live` is the version the worker actually answered with. Empty means
+		// never probed (cold, budget-skipped) — null, not a version.
+		$live          = (string) ( $worker['live'] ?? '' );
+		$out[ $label ] = '' !== $live ? $live : null;
+	}
+
+	return $out;
 }

@@ -41,6 +41,12 @@ function sn_rss_tracker_window_stats_multi( $w ) { return array( 'windows' => ar
 
 require __DIR__ . '/../inc/admin-tabs-data.php';   // (only the removed wayfinder used this; harmless to load)
 require __DIR__ . '/../inc/admin-glance.php';      // Phase 1: the glance-grid helper the hero uses
+if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id() { return 1; } }
+if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $s = false ) { return $s ? '' : array(); } }
+require __DIR__ . '/../inc/dash-zones.php';          // v11.28.0: zone contract + renderer
+require __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user pins
+require __DIR__ . '/../inc/dash-zone-attention.php'; // v11.28.0
+require __DIR__ . '/../inc/dash-zone-fleet.php';     // v11.28.0
 require __DIR__ . '/../inc/admin-tab-dashboard.php';
 
 $pass = 0; $fail = 0;
@@ -58,8 +64,11 @@ $html = ob_get_clean();
 ok( false === strpos( $html, 'Jump to' ), 'no "Jump to" wayfinding section in the rendered dashboard' );
 ok( false === strpos( $html, 'page=sn-content' ), 'no per-tab wayfinding links (page=sn-content absent)' );
 
-// ── Status is grouped at the top: glance hero → External APIs → above deploys/maintenance ──
-$glance  = strpos( $html, 'sn-glance' );
+// ── Status is grouped at the top: zone section → External APIs → above deploys/maintenance ──
+// v11.28.0: the always-present glance hero is gone. Zones collapse when nothing
+// needs attention, and a collapsed zone never builds a grid — so `sn-glance` is
+// legitimately absent here. The zone SECTION is the stable anchor now.
+$glance  = strpos( $html, 'sn-dash-zones' );
 $api     = strpos( $html, 'External APIs' );
 $deploys = strpos( $html, 'Recent deploys' );
 $maint   = strpos( $html, 'Maintenance' );

@@ -98,6 +98,13 @@ function apply_filters( $t, $v = null ) { return $v; }
 
 require_once __DIR__ . '/../inc/health-summary.php'; // real finding-total accessor the glance card + attention strip now share
 require_once __DIR__ . '/../inc/admin-glance.php';
+if ( ! function_exists( '_n' ) ) { function _n( $s, $pl, $n, $d = '' ) { return 1 === (int) $n ? $s : $pl; } }
+if ( ! function_exists( 'get_current_user_id' ) ) { function get_current_user_id() { return 1; } }
+if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $s = false ) { return $s ? '' : array(); } }
+require_once __DIR__ . '/../inc/dash-zones.php';          // v11.28.0: zone contract + renderer
+require_once __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user pins
+require_once __DIR__ . '/../inc/dash-zone-attention.php'; // v11.28.0
+require_once __DIR__ . '/../inc/dash-zone-fleet.php';     // v11.28.0
 require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
 require_once __DIR__ . '/../inc/freshness-indicator.php'; // v8.5.1: freshness card appended to the grid
 
@@ -277,7 +284,7 @@ ob_start();
 snt_dashboard_tab_render();
 $tab = ob_get_clean();
 dg_contains( $tab, '<div class="sn-glance">', 'dashboard tab opens with the glance grid' );
-dg_contains( $tab, 'sn-dash-glance', 'glance section carries the dashboard-scoped 2×5 wrapper class' );
+dg_contains( $tab, 'sn-dash-zones', 'v11.28.0: the flat glance grid is now a zone section — state earns space' );
 
 echo "\nTest Z: v9.54.0 — an \"unknown\" version card must say WHY\n";
 // THE INCIDENT (2026-07-16): both cards showed a red "unknown" and nothing
