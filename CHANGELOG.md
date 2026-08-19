@@ -5,6 +5,27 @@ All notable changes to Signal & Noise Tools are documented here.
 ## [Unreleased]
 
 ### Added
+- **The verified citation graph — inbound Webmentions, adjudicated (queue item 10).**
+  A webmention is an *unverified claim* that someone cited you, and stock plugins render
+  that claim as though it were a fact. Adjudicating unverified claims of authorship is
+  this site's actual subject, so claims are sorted by what can actually be checked:
+  - **verified** — re-fetched, the link is still there, and the source origin publishes a
+    discoverable identity (`rel=me`, a webfinger link, or a `did:web`).
+  - **unattributed** — re-fetched, the link is still there, but nobody is discoverably
+    behind the domain.
+  - **asserted** — fetched, and the link is gone. The claim stands; the evidence does not.
+  - **unverified** — never checked, or unreachable. **This fourth state is load-bearing.**
+    The original three-tier sketch did not name it, and without it the first network blip
+    convicts a live citation of having dropped its link. Missing evidence is not absent
+    evidence.
+- Only **verified** and **unattributed** are ever shown publicly. An `asserted` claim is
+  recorded, shown to the owner, and shown to nobody else.
+- **Integrity → Citations**, a three-way readout that never collapses to a fraction: every
+  declared tier prints even at zero, and never-checked is its own figure — the lesson the
+  Health tally learned in v11.13.0, applied before this surface could repeat it.
+- The inbox is advertised **both** ways the spec allows — a `Link` header and a
+  `<link rel="webmention">` — on every publicly viewable singular page. An inbox nobody
+  can discover receives nothing.
 - **WebFinger (RFC 7033) at `/.well-known/webfinger`.** The signing identity already
   answers at `/.well-known/did.json`; this is a second standard way to ASK for it, and
   it resolves to the same `did:web:juanlentino.com` document and the same Ed25519 key
@@ -20,6 +41,10 @@ All notable changes to Signal & Noise Tools are documented here.
 - **Identity discovery** joins the Machine Readability coverage table as its own row.
 
 ### Not added, on purpose
+- **The public per-note citation list is deliberately not in this change.** The tier
+  engine, the inbox, the adjudicator and the owner-facing surface are complete and work
+  end to end; how a citation list should read inside the note's own type system is a
+  design pass of its own, not a hurried appendix to this one.
 - **NodeInfo, WebFinger's usual companion, is NOT served — it cannot be served
   truthfully.** Its schema makes `protocols` required with `minItems: 1`, and the enum
   admits only federation protocols (`activitypub`, `diaspora`, `ostatus`, and seven
@@ -29,7 +54,22 @@ All notable changes to Signal & Noise Tools are documented here.
   2026-08-19. This is the same shape as the styled RSS feed removed in v11.9.4: the
   standard cannot express the honest answer, so the honest answer is silence.
 
+### Security
+- The citation endpoint is public by protocol necessity, so it is built to accept a claim
+  and nothing else: it can only ever create an `unverified` row. It cannot set a tier,
+  cannot trigger a synchronous outbound fetch, refuses on-site and internal sources before
+  storing them, and refuses any target that is not publicly viewable — so the inbox cannot
+  be used to probe whether a draft exists.
+- **Redirects are followed by hand and re-validated through `sn_ssrf_host_blocked()` on
+  every hop.** `wp_safe_remote_get()` validates hops with `wp_http_validate_url()`, which
+  does not cover the link-local `169.254.0.0/16` range that `inc/ssrf-guard.php` exists to
+  close. The transport is pinned to `redirection => 0` and hops are capped, so a redirect
+  chain pointing into an internal address is refused rather than followed.
+
 ### Notes
+- `last_checked_gmt` is nullable **in the schema**: `NULL` means never measured. Had it
+  defaulted to the row's creation time, "not looked at yet" and "looked and found nothing"
+  would have become one value, and no care taken downstream could have separated them.
 - The link set is built from what exists: `did.json` 404s when no signing key is
   configured, so without a key WebFinger omits the `self` and `describedby` links
   rather than pointing at a resource that is not there. The subject and the profile
