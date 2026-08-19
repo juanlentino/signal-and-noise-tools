@@ -99,10 +99,16 @@ function snt_gsc_render_settings_section() {
 		echo '<p><span class="sn-pill sn-pill--warn">' . esc_html__( 'A credential is stored but no longer parses as a service-account key. Paste a fresh one, or type clear to remove it.', 'signal-and-noise-tools' ) . '</span></p>';
 	} else {
 		echo '<p><span class="sn-pill">' . esc_html__( 'Not configured.', 'signal-and-noise-tools' ) . '</span></p>';
+		// Step 1 is FIRST because it is the one that was missing, and its absence
+		// is indistinguishable from a permission problem: the credential is valid,
+		// the token mints, the account is a user on the property, and the API still
+		// answers 403 because it was never switched on in the project. Found the
+		// hard way on the first real credential (v11.19.2).
 		echo '<ol class="description">';
-		echo '<li>' . esc_html__( 'In Google Cloud, create a service account and download a JSON key.', 'signal-and-noise-tools' ) . '</li>';
-		echo '<li>' . esc_html__( 'In Search Console, add that service account\'s email as a user on the property.', 'signal-and-noise-tools' ) . '</li>';
-		echo '<li>' . esc_html__( 'Paste the whole JSON key file below.', 'signal-and-noise-tools' ) . '</li>';
+		echo '<li>' . esc_html__( 'In Google Cloud, ENABLE the "Google Search Console API" for the project. Skipping this returns 403 later even when everything else is correct — the error looks exactly like a missing permission.', 'signal-and-noise-tools' ) . '</li>';
+		echo '<li>' . esc_html__( 'In that same project, create a service account and download a JSON key.', 'signal-and-noise-tools' ) . '</li>';
+		echo '<li>' . esc_html__( 'In Search Console → Settings → Users and permissions, add that service account\'s email as a user on the property.', 'signal-and-noise-tools' ) . '</li>';
+		echo '<li>' . esc_html__( 'Paste the whole JSON key file below, then Test connection.', 'signal-and-noise-tools' ) . '</li>';
 		echo '</ol>';
 	}
 
