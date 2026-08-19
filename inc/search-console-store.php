@@ -50,6 +50,17 @@ function snt_gsc_url_to_path( $url ) {
 }
 
 /**
+ * The page-dimension row limit the sync requests.
+ *
+ * Named because TWO places depend on the same number: the fetch that sets it,
+ * and snt_gsc_window_totals(), which can only report that its sum is a floor by
+ * comparing against it. A literal 250 in both is a silent contract.
+ *
+ * @since 11.30.0
+ */
+const SNT_GSC_PAGE_ROW_LIMIT = 250;
+
+/**
  * The stored payload, or null when nothing has synced.
  *
  * @return array|null
@@ -74,7 +85,7 @@ function snt_gsc_sync( $force = false ) {
 	}
 	$window = snt_gsc_window();
 
-	$pages = snt_gsc_query( $property, array( 'page' ), $window, 250 );
+	$pages = snt_gsc_query( $property, array( 'page' ), $window, SNT_GSC_PAGE_ROW_LIMIT );
 	if ( is_wp_error( $pages ) ) {
 		return $pages;
 	}
@@ -207,5 +218,14 @@ function snt_gsc_window_totals() {
 		}
 	}
 
-	return array( 'clicks' => $clicks, 'days' => $days );
+	// v11.30.0: SAY WHEN THE SUM IS A FLOOR.
+	//
+	// snt_gsc_query() fetches the page dimension with rowLimit 250, so this sums
+	// at most 250 pages. Past that the total undercounts, in a known direction,
+	// while presenting as exact — and the docblock saying so was no help to a
+	// caller, because the RETURN VALUE never mentioned it. A figure that is
+	// wrong in a knowable direction should be labelled, not annotated.
+	$capped = count( (array) $data['pages'] ) >= SNT_GSC_PAGE_ROW_LIMIT;
+
+	return array( 'clicks' => $clicks, 'days' => $days, 'capped' => $capped );
 }

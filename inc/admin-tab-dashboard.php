@@ -237,23 +237,56 @@ function snt_dashboard_tab_render() {
 		? sn_analytics_daily_series( gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() ), 'human', 'day' )
 		: array();
 
-	sn_dash_render_console(
+	$subline = implode(
+		' · ',
+		array_filter( array(
+			/* translators: %d fleet components */
+			sprintf( _n( '%d component', '%d components', count( $fleet_zone['cards'] ), 'signal-and-noise-tools' ), count( $fleet_zone['cards'] ) ),
+			'' !== (string) $last_deploy_ago ? sprintf( /* translators: %s time since last deploy */ __( 'last deploy %s', 'signal-and-noise-tools' ), $last_deploy_ago ) : '',
+		) )
+	);
+
+	// ── THE OPS WALL ── "everything without bloating" (owner, 2026-08-19).
+	// Every source is fetched behind its own guard, and an ABSENT one passes
+	// NULL rather than an empty array: the panel still renders, saying it is
+	// not measured. A wall that quietly shrinks when a source dies looks
+	// complete on the one day it is not.
+	$from = gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS );
+	$to   = gmdate( 'Y-m-d', time() );
+	$analytics_on = function_exists( 'sn_analytics_config' ) && sn_analytics_config();
+
+	$ops_data = array( 'deploys' => is_array( $runs ) ? array_slice( $runs, 0, 6 ) : null );
+
+	if ( $analytics_on && function_exists( 'sn_analytics_top_paths' ) ) {
+		$ops_data['pages'] = (array) sn_analytics_top_paths( $from, $to, 'human', 6 );
+	}
+	if ( $analytics_on && function_exists( 'sn_analytics_top_sources' ) ) {
+		$ops_data['sources'] = (array) sn_analytics_top_sources( $from, $to, 'human', 6 );
+	}
+	// snt_gsc_data() NULL means never synced — which is not the same fact as a
+	// synced window with no queries, so only the second becomes an empty array.
+	if ( function_exists( 'snt_gsc_data' ) && function_exists( 'snt_gsc_top_queries' ) && null !== snt_gsc_data() ) {
+		$ops_data['queries'] = (array) snt_gsc_top_queries( 6 );
+	}
+	if ( function_exists( 'snt_rate_limit_all_statuses' ) ) {
+		$ops_data['api'] = (array) snt_rate_limit_all_statuses();
+	}
+
+	// ── THE SIGNALS ── every one carries a comparison. A bare number cannot be
+	// judged (Few, context over isolation), and v11.29.x shipped four of five
+	// with nothing to judge them against.
+	$signals = sn_dash_signals_from_measurement( $measurement );
+
+	sn_dash_render_screen(
 		$attention_cards,
 		$fleet_zone['cards'],
-		$measurement,
-		array_merge(
-			$measurement,
-			array(
-				'needy'   => $needy,
-				'warming' => (int) ( $fleet_zone['pending'] ?? 0 ),
-			)
-		),
+		$signals,
 		array(
-			'needy'             => $needy,
-			'last_deploy_ago'   => $last_deploy_ago,
+			'subline'           => $subline,
 			'series'            => is_array( $series ) ? $series : array(),
+			'panels'            => sn_dash_ops_panels( $ops_data ),
 			// Same construction as the maintenance card's link — one handler,
-			// one nonce action. Built here because the toolbar now owns it.
+			// one nonce action. Built here because the toolbar owns it.
 			'check_updates_url' => wp_nonce_url(
 				admin_url( 'admin-post.php?action=sn_force_update_check' ),
 				'sn_force_update_check',
@@ -265,14 +298,13 @@ function snt_dashboard_tab_render() {
 	// ── 2. ATTENTION STRIP ── one warning row, only when something is off.
 	snt_dashboard_render_attention_strip( $runs, count( $overrides ) );
 
-	// ── 3. EXTERNAL APIs, ONLY WHEN LOW ── v11.28.0. A rate limit is interesting
-	// at 4% remaining and noise at 99%, so it earns space only when a host is
-	// actually warn or crit. RSS activity is gone from here entirely: the RSS
-	// tab already renders the full view, and this was the detail view pasted
-	// onto the summary.
-	if ( function_exists( 'snt_rate_limit_all_statuses' ) && snt_dashboard_api_summary_is_notable() ) {
-		snt_dashboard_render_api_summary();
-	}
+	// ── 3. EXTERNAL APIs ── v11.29.2: GONE from here. Every host now holds a
+	// permanent row on the ops wall above, so this conditional block would be
+	// the same fact twice on exactly the days it mattered. The v11.28.0 note
+	// said a limit "earns space only when warn or crit" — that is the collapse
+	// rule, and the collapse rule is what made this page empty when healthy.
+	// snt_dashboard_render_api_summary() is kept for surfaces that want the
+	// long form.
 
 	// ── DIAGNOSTICS ──
 	// v11.29.1: the Maintenance CARD GRID is gone. Those four actions were a

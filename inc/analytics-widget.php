@@ -11,11 +11,15 @@
  *       Filtered), each trended KPI carrying a week-over-week delta badge (v6.38.0).
  *   - "Analytics — Top content" (sn_aw_top_content) — top 7 pages + top 7 sources, 7d.
  *
- * History: four discrete widgets were consolidated to these two in v6.19.2 to cut
- * dashboard clutter. The widget IDs are intentionally kept as sn_plausible_snapshot
- * / sn_plausible_pages — NOT renamed — so existing per-user dashboard layout and
- * visibility meta survive; the two retired IDs (sn_plausible_realtime /
- * sn_plausible_sources) orphan harmlessly (WP simply stops rendering them).
+ * History: four discrete widgets → two in v6.19.2 (ids deliberately kept so
+ * per-user dashboard layout meta survived) → ZERO in v11.30.0, when all four
+ * remaining S&N boxes were folded into the single "Signal & Noise" widget in
+ * inc/dash-widget.php.
+ *
+ * The id-preservation rationale above no longer applies and is recorded as
+ * history, not as current behaviour: consolidation necessarily drops that meta,
+ * because there is no box left to remember a position for. The RENDERS below
+ * (sn_aw_overview / sn_aw_top_content) are untouched and still reachable.
  *
  * Requires SN_CF_ANALYTICS_TOKEN + SN_CF_ACCOUNT_ID in wp-config.php; renders a
  * config empty-state otherwise.
@@ -27,15 +31,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-add_action( 'wp_dashboard_setup', function() {
-	if ( ! current_user_can( 'view_stats' ) && ! current_user_can( 'manage_options' ) ) {
-		return;
-	}
-	// Two consolidated widgets; IDs kept as sn_plausible_* to preserve per-user
-	// dashboard layout/visibility meta (full history + retired IDs in the file docblock).
-	wp_add_dashboard_widget( 'sn_plausible_snapshot', 'Analytics — Overview',    'sn_aw_overview' );
-	wp_add_dashboard_widget( 'sn_plausible_pages',    'Analytics — Top content', 'sn_aw_top_content' );
-} );
+/*
+ * ── CONSOLIDATED AWAY IN v11.30.0 ──────────────────────────────────────────
+ * The standalone dashboard-widget registration is REMOVED. Four S&N boxes on
+ * index.php — Login defense, Analytics Overview, Analytics Top content and
+ * S&N Health — each answered a fragment, so the home screen never answered the
+ * question. They are now one "Signal & Noise" widget (inc/dash-widget.php)
+ * carrying the verdict and its exceptions, linking through to the full screen.
+ *
+ * This is the same move v8.3.0 made when it folded S&N Uptime into S&N Health.
+ * Removal guards in tests/dash-widget.php keep this registration gone.
+ *
+ * The RENDER functions below are deliberately kept: they are still reachable
+ * from the full Dashboard screen, and deleting them would take working surfaces
+ * out with a layout change.
+ *
+ * NOTE ON THE LOST META: the old IDs (sn_plausible_*) carried per-user
+ * dashboard layout and visibility meta. Consolidation necessarily drops it —
+ * there is no box left to remember a position for.
+ *
+ * sn_aw_enqueue_styles() below is UNCHANGED and still hooks index.php: it is
+ * gated on the screen, never on these registrations, and the consolidated
+ * widget reads the same .sn-aw-* palette.
+ */
 
 /**
  * Enqueue the dashboard-widget stylesheet, scoped to the Dashboard home screen.

@@ -410,10 +410,35 @@ function snt_cron_summary_for_localize() {
 			$orphans++;
 		}
 	}
+	// v11.29.2: a STATE, not just counts.
+	//
+	// A WordPress install always carries core events — wp_version_check,
+	// wp_scheduled_delete and friends — so a total of ZERO does not mean "a
+	// tidy schedule", it means the scheduler is disabled (DISABLE_WP_CRON with
+	// nothing replacing it) or the array was wiped. The widget rendered that
+	// GREEN, because nothing was wrong with any event it could see.
+	//
+	// Absence of faults is not evidence of running. That is the same error the
+	// purge verifier made for three months, and the reason it is amber rather
+	// than red is that this is a strong suspicion about the site, not a fault
+	// this function can prove.
+	$state = 'ok';
+	$note  = '';
+	if ( 0 === $total ) {
+		$state = 'warn';
+		$note  = __( 'No scheduled events at all — WP-Cron is probably disabled', 'signal-and-noise-tools' );
+	} elseif ( $orphans > 0 ) {
+		$state = 'warn';
+		/* translators: %d orphaned cron events */
+		$note = sprintf( _n( '%d event has no handler', '%d events have no handler', $orphans, 'signal-and-noise-tools' ), $orphans );
+	}
+
 	return array(
 		'total'    => $total,
 		'sn_count' => $sn_count,
 		'orphans'  => $orphans,
+		'state'    => $state,
+		'note'     => $note,
 	);
 }
 

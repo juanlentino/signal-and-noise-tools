@@ -106,12 +106,18 @@ require_once __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user 
 require_once __DIR__ . '/../inc/dash-zone-attention.php'; // v11.28.0
 // v11.29.1: the console — band + rail + stage.
 require_once __DIR__ . '/../inc/dash-briefing.php';
+require_once __DIR__ . '/../inc/dash-trend.php';
+require_once __DIR__ . '/../inc/dash-ops-render.php';
 require_once __DIR__ . '/../inc/dash-console.php';
 require_once __DIR__ . '/../inc/dash-zone-fleet.php';     // v11.28.0
 require_once __DIR__ . '/../inc/dash-zone-measurement.php'; // v11.28.0: the five figures + strip
 // v11.28.0: split out of admin-tab-dashboard.php.
 require_once __DIR__ . '/../inc/dash-deploy-rows.php';
 require_once __DIR__ . '/../inc/dash-api-summary.php';
+require_once __DIR__ . '/../inc/dash-verdict.php';      // v11.30.0: the shared verdict
+require_once __DIR__ . '/../inc/dash-signals.php';      // v11.30.0: signals with comparisons
+require_once __DIR__ . '/../inc/dash-systems.php';      // v11.30.0: the systems grid
+require_once __DIR__ . '/../inc/dash-ops-panels.php';    // v11.30.0: the wall's panels
 require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
 require_once __DIR__ . '/../inc/freshness-indicator.php'; // v8.5.1: freshness card appended to the grid
 
@@ -293,20 +299,23 @@ function esc_attr__( $s, $d = null ) { return (string) $s; }
 ob_start();
 snt_dashboard_tab_render();
 $tab = ob_get_clean();
-// v11.29.1: the tab no longer opens with the flat glance GRID. The same cards
-// now render as rail rows — sn_admin_glance_grid() is still the helper an
-// expanded surface uses elsewhere, but the console reads them one per line.
-dg_contains( $tab, '<li class="sn-rail__row">', 'the dashboard tab opens with the console rail, one row per card' );
-dg_contains( $tab, 'sn-console', 'v11.29.1: the tab opens with the console — band, rail, stage' );
-dg_contains( $tab, 'sn-rail', 'and the systems rail is present at rest, not behind a disclosure' );
-dg_assert( false === strpos( $tab, '<details class="sn-dash-zone' ), 'NOTHING ON THE CONSOLE COLLAPSES — the v11.28.0 zones are gone' );
+// v11.30.0: the tab opens with the SCREEN — verdict first, then the evidence.
+// The left rail is gone; the same cards render as a systems grid, which is what
+// lets a healthy screen be monochrome (a rail row per card meant a state dot
+// per card, and seventeen green dots make green meaningless).
+dg_contains( $tab, 'sn-scr__verdict', 'THE TAB OPENS WITH THE VERDICT — one page, one decision' );
+dg_contains( $tab, 'sn-scr__systems', 'the systems grid renders' );
+dg_contains( $tab, '<div class="sn-sys"', 'one cell per card, at rest, not behind a disclosure' );
+dg_assert( false === strpos( $tab, '<details class="sn-dash-zone' ), 'NOTHING ON THE SCREEN COLLAPSES — the v11.28.0 zones stay gone' );
+dg_assert( false === strpos( $tab, 'sn-rail__row' ), 'and the v11.29.1 rail stays gone too' );
 
-// The measurement strip never collapses, so it is always in the markup.
-dg_contains( $tab, 'sn-figs', 'v11.29.1: the figures render as cards on the stage, not an inline strip' );
-dg_contains( $tab, 'sn-fig--hero', 'views is the hero figure — 1.5fr wide, full row on narrow' );
-// Search Console is not wired yet, so its figure MUST read unknown rather than 0.
-dg_assert( false !== strpos( $tab, 'sn-fig--unmeasured' ),
-	'AN UNWIRED FIGURE RENDERS UNMEASURED, NOT ZERO' );
+// The signals never collapse, so they are always in the markup — and each one
+// carries a comparison slot, because a bare number cannot be judged.
+dg_contains( $tab, 'sn-scr__signals', 'v11.30.0: the five signals render' );
+dg_contains( $tab, 'sn-sig__compare', 'EVERY SIGNAL CARRIES ITS COMPARISON SLOT' );
+// Search Console is not wired here, so its signal MUST read unknown, not 0.
+dg_assert( false !== strpos( $tab, 'sn-sig--unmeasured' ),
+	'AN UNWIRED SIGNAL RENDERS UNMEASURED, NOT ZERO' );
 
 echo "\nTest Z: v9.54.0 — an \"unknown\" version card must say WHY\n";
 // THE INCIDENT (2026-07-16): both cards showed a red "unknown" and nothing

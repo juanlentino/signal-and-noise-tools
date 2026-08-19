@@ -241,11 +241,33 @@ $sn_rows = snt_cron_get_events_impl( true );
 assert_eq( 1, count( $sn_rows ), 'sn_only=true filters to 1 SN-owned row' );
 assert_eq( 'sn_rss_tracker_daily_prune', $sn_rows[0]['hook'], 'filtered row is the SN hook' );
 
+$__cron_fixture = $GLOBALS['__test_cron_array'];
+
 // ─── Test 7: empty cron array ────────────────────────────────────────
 echo "\nTest 7: empty cron array\n";
 $GLOBALS['__test_cron_array'] = array();
 $empty = snt_cron_get_events_impl();
 assert_eq( array(), $empty, 'empty cron returns empty array' );
+
+// ─── Test 7b: ZERO SCHEDULED EVENTS IS NOT A HEALTHY SITE ────────────
+// v11.29.2. A WordPress install always carries core events (wp_version_check,
+// wp_scheduled_delete, ...). A total of ZERO means the scheduler is disabled
+// or the array was wiped — and the desktop widget rendered that green, because
+// nothing was wrong with any event it could see. Absence of faults is not the
+// same as evidence of running, which is the same mistake the purge verifier
+// made for three months.
+echo "\nTest 7b: zero scheduled events reads amber, not green\n";
+$GLOBALS['__test_cron_array'] = array();
+$sum_zero = snt_cron_summary_for_localize();
+assert_eq( 0, $sum_zero['total'], 'the empty install reports zero events' );
+assert_eq( 'warn', $sum_zero['state'], 'ZERO EVENTS IS AMBER — a scheduler with nothing scheduled is not a working scheduler' );
+assert_true( '' !== (string) ( $sum_zero['note'] ?? '' ), 'and it says why, rather than showing a bare amber dot' );
+
+$GLOBALS['__test_cron_array'] = $__cron_fixture;
+$sum_ok = snt_cron_summary_for_localize();
+assert_true( $sum_ok['total'] > 0, 'the populated fixture reports events' );
+assert_eq( 'ok', $sum_ok['state'], 'a populated schedule with handlers reads ok' );
+assert_eq( '', (string) ( $sum_ok['note'] ?? '' ), 'and carries no note' );
 
 // ─── Test 8: snt_cron_run_event_impl permission gate ─────────────────
 echo "\nTest 8: snt_cron_run_event_impl permission gate\n";

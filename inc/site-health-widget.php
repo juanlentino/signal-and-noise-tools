@@ -26,7 +26,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** Max ranked rows shown in the findings state before overflowing to the link. */
 const SN_SITE_HEALTH_WIDGET_MAX_ROWS = 4;
 
-add_action( 'wp_dashboard_setup', 'sn_site_health_widget_register' );
+/*
+ * ── CONSOLIDATED AWAY IN v11.30.0 ──────────────────────────────────────────
+ * The standalone dashboard-widget registration is REMOVED. Four S&N boxes on
+ * index.php — Login defense, Analytics Overview, Analytics Top content and
+ * S&N Health — each answered a fragment, so the home screen never answered the
+ * question. They are now one "Signal & Noise" widget (inc/dash-widget.php)
+ * carrying the verdict and its exceptions, linking through to the full screen.
+ *
+ * This is the same move v8.3.0 made when it folded S&N Uptime into S&N Health.
+ * Removal guards in tests/dash-widget.php keep this registration gone.
+ *
+ * The RENDER functions below are deliberately kept: they are still reachable
+ * from the full Dashboard screen, and deleting them would take working surfaces
+ * out with a layout change.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
 
 /**
  * Register the widget. manage_options only — intentionally narrower than the
@@ -37,7 +53,10 @@ function sn_site_health_widget_register() {
 	if ( ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	wp_add_dashboard_widget( 'sn_site_health', __( 'S&N Health', 'signal-and-noise-tools' ), 'sn_site_health_widget_render_full' );
+	// v11.30.0: no longer registers a box — see the consolidation note above.
+	// sn_site_health_widget_render_full() still renders the health glance plus
+	// the Uptime and Spend sections, and the full Dashboard screen calls it.
+	return;
 }
 
 /**

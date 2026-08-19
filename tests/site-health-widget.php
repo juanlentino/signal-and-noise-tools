@@ -117,11 +117,20 @@ sn_site_health_widget_register();
 ok( empty( $GLOBALS['__widgets'] ), 'register: non-manage_options user does not register the widget' );
 $GLOBALS['__can'] = true; $GLOBALS['__widgets'] = array();
 sn_site_health_widget_register();
-ok( isset( $GLOBALS['__widgets']['sn_site_health'] ), 'register: manage_options user registers sn_site_health' );
-ok( isset( $GLOBALS['__widgets']['sn_site_health']['title'] ) && $GLOBALS['__widgets']['sn_site_health']['title'] === 'S&N Health', 'register: title is "S&N Health"' );
-// v8.3.0: the registered callback is the _full wrapper (health render +
-// uptime section) — asserted in depth in the uptime-section block below.
-ok( isset( $GLOBALS['__widgets']['sn_site_health']['cb'] ) && $GLOBALS['__widgets']['sn_site_health']['cb'] === 'sn_site_health_widget_render_full', 'register: full (health + uptime) render callback wired' );
+// v11.30.0: THE BOX IS GONE, THE RENDER IS NOT.
+//
+// S&N Health was folded into the single "Signal & Noise" widget along with the
+// two Analytics boxes and Login defense — the same consolidation v8.3.0 made
+// when it folded S&N Uptime into THIS widget. Four boxes each answering a
+// fragment meant the home screen never answered the question.
+//
+// These three assertions used to prove the registration existed. Inverted, they
+// now prove it stays gone; the render assertions below are untouched, because
+// sn_site_health_widget_render_full() still owns the health glance plus the
+// Uptime and Spend sections and the full Dashboard screen calls it.
+ok( ! isset( $GLOBALS['__widgets']['sn_site_health'] ), 'register: NO standalone sn_site_health box (folded in v11.30.0)' );
+ok( empty( $GLOBALS['__widgets'] ), 'register: an admin gets no box from this module at all' );
+ok( function_exists( 'sn_site_health_widget_render_full' ), 'register: but the full render survives the consolidation' );
 
 // ═══ render: state 1 (no scan) ═══
 echo "\n-- render: no scan --\n";
@@ -232,8 +241,14 @@ require __DIR__ . '/../inc/uptime-status.php';
 require __DIR__ . '/../inc/uptime-status-widget.php';
 $GLOBALS['__can'] = true; $GLOBALS['__widgets'] = array();
 sn_site_health_widget_register();
-$full_cb = $GLOBALS['__widgets']['sn_site_health']['cb'] ?? '';
-ok( 'sn_site_health_widget_render_full' === $full_cb, 'uptime: widget registers the full (health + uptime) callback' );
+// v11.30.0 REMOVAL GUARD: the S&N Health box was folded into the single
+// "Signal & Noise" widget (inc/dash-widget.php), so registering must now add
+// NOTHING. The render below is unchanged and still owns the health glance plus
+// the Uptime and Spend sections — only the box is gone.
+ok( ! isset( $GLOBALS['__widgets']['sn_site_health'] ), 'v11.30.0: no standalone S&N Health box is registered any more' );
+$__src = (string) file_get_contents( __DIR__ . '/../inc/site-health-widget.php' );
+ok( false === strpos( $__src, "wp_add_dashboard_widget( 'sn_site_health'" ), 'and the module holds no registration call' );
+$full_cb = 'sn_site_health_widget_render_full';
 
 $GLOBALS['__opt'][ SN_HEALTH_CACHE_KEY ] = mk_scan( array( 'ok1' => mk_check( 0, 'Fine' ) ) );
 unset( $GLOBALS['__opt']['sn_betterstack_api_token'] );
