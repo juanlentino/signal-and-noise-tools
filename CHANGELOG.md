@@ -2,6 +2,53 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.24.0] - 2026-08-19 — hubness, measured and corrected
+
+### The finding the first measurement could not see
+The v11.23.0 run reported **59.4% divergence** — real signal, and genuine semantic pairs
+TF-IDF misses (*"The pen is not the notary"* and *"The gate is not the signature"* share
+almost no vocabulary and make the identical argument). But reading the output showed one
+note, *"Who vouches for the independent artist?"*, appearing in roughly **17 of 33 rows**.
+
+That is **hubness**: on a corpus that is one argument restated, a note near the centroid
+becomes everyone's nearest neighbour — not because it is most related to each, but
+because it is generically central. Shipping it would have put the same note in half the
+site's Related Notes while divergence still read 59.4%, because divergence measures
+disagreement, not quality.
+
+### Added — the metric that was missing
+`snt_ml_embed_hub_stats()`: top target, **hub share** (fraction of source notes whose
+results include the single most frequent target), and distinct-target count. The readout
+now shows three variants side by side — raw, centred, centred+mutual — so the correction
+is verified rather than assumed.
+
+### Added — two corrections, both pure math
+- **Mean-centering** (`snt_ml_vec_centroid`, `snt_ml_vec_center_all`): subtract the corpus
+  centroid before cosine. The shared component IS the subject; removing it leaves what
+  distinguishes one note from another, which is the question "related" asks.
+- **Mutual k-NN** (`snt_ml_embed_mutual`): keep a pair only if each note is in the other's
+  top-N. A hub survives because everything points at it and it rarely points back —
+  requiring reciprocity removes that asymmetry with no threshold to tune.
+
+### Fixed — the measurement covered 60% of the corpus
+The first run scored **33 of 55 notes**; the 22 scheduled ones were never embedded. Three
+roles now take three status sets, because collapsing them is what hid the gap:
+- **Centroid**: publish + future — centering subtracts the corpus's shared mass, and 22
+  unseen notes move exactly that.
+- **Sources**: publish only — a scheduled note has no `_snt_ml_related` artifact yet, so
+  scoring it would diff against an EMPTY baseline and report 100% divergence, an artifact
+  of indexing rather than a miss.
+- **Targets**: publish only — Related Notes cannot link a reader to an unpublished note.
+
+The scope is printed on screen, so 33-of-55 can never be silent again.
+
+### Tests
+Twenty new assertions, including that raw cosine calls two same-subject notes nearly
+identical while centred cosine separates them; that a one-way link to a hub is dropped
+while a reciprocated pair survives; and that `distinct_targets` does NOT discriminate —
+the hubby fixture has MORE distinct targets while being worse, which is why `hub_share`
+is the number on screen.
+
 ## [11.23.0] - 2026-08-19 — the comparison can actually be run
 
 ### Fixed

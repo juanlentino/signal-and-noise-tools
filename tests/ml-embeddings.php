@@ -123,6 +123,58 @@ ok( false === strpos( $kernel, 'snt_ml_vec_cosine' ), 'and does not use embeddin
 $page = (string) file_get_contents( __DIR__ . '/../inc/ml-maturity-page.php' );
 ok( false !== strpos( $page, 'No neural network' ), 'the public page still claims no neural network — TRUE while this stays shadow, and the claim that must change before any swap' );
 
+echo "\nGroup: centering removes the shared mass\n";
+// A corpus that is one argument restated shares a large common component.
+// Three vectors that all lean the same way plus one that does not:
+$corpus = array( 1 => array( 1.0, 0.1 ), 2 => array( 1.0, 0.2 ), 3 => array( 1.0, -0.3 ) );
+$c = snt_ml_vec_centroid( $corpus );
+ok( close_to( $c[0], 1.0 ), 'centroid averages the shared direction' );
+ok( close_to( $c[1], 0.0 ), 'and the differing one' );
+$centred = snt_ml_vec_center_all( $corpus );
+ok( close_to( $centred[1][0], 0.0 ), 'centering removes the shared component entirely' );
+// THE POINT: before centering these three are near-identical (all dominated by
+// the shared axis); after, only what distinguishes them remains.
+$raw_sim = snt_ml_vec_cosine( $corpus[1], $corpus[3] );
+$ctr_sim = snt_ml_vec_cosine( $centred[1], $centred[3] );
+ok( $raw_sim > 0.9, 'raw cosine calls two notes on the same subject nearly identical (' . round( $raw_sim, 3 ) . ')' );
+ok( $ctr_sim < $raw_sim, 'centred cosine separates them — the shared subject no longer dominates' );
+ok( array() === snt_ml_vec_centroid( array() ), 'empty corpus -> empty centroid, never a divide by zero' );
+$mixed = snt_ml_vec_center_all( array( 1 => array( 1, 2 ), 2 => array( 1, 2, 3 ) ) );
+ok( array( 1, 2, 3 ) === $mixed[2], 'a foreign-dimension vector is left UNTOUCHED rather than corrupted' );
+
+echo "\nGroup: hub stats make hubness measurable\n";
+// The metric the first run lacked: divergence said 59.4% and could not see
+// that one note occupied half the results.
+$hubby = array( 1 => array( 9, 2 ), 2 => array( 9, 3 ), 3 => array( 9, 4 ), 4 => array( 9, 5 ) );
+$h = snt_ml_embed_hub_stats( $hubby );
+ok( 9 === $h['top_target'], 'names the hub' );
+ok( 4 === $h['top_count'] && 1.0 === $h['hub_share'], 'and reports it appearing for every source' );
+$even = array( 1 => array( 2, 3 ), 2 => array( 3, 4 ), 3 => array( 4, 5 ) );
+ok( snt_ml_embed_hub_stats( $even )['hub_share'] < 1.0, 'an even spread scores lower' );
+// distinct_targets alone does NOT discriminate — it depends on the fixture, and
+// this one has FEWER distinct targets while being far less hubby. hub_share is
+// the metric that separates them, which is why it is the one on screen.
+ok( 4 === snt_ml_embed_hub_stats( $even )['distinct_targets'], 'distinct targets is counted accurately (4 here)' );
+ok( 5 === $h['distinct_targets'], 'and 5 for the hubby fixture — MORE, despite being worse: the count is context, not a verdict' );
+ok( snt_ml_embed_hub_stats( $even )['hub_share'] < $h['hub_share'], 'hub_share is what actually separates the two' );
+
+echo "\nGroup: mutual k-NN breaks the asymmetry hubness is made of\n";
+// 9 is everyone's neighbour; 9 does not point back at everyone.
+$ranked = array( 1 => array( 9, 2 ), 2 => array( 9, 1 ), 9 => array( 1, 2 ) );
+$mut = snt_ml_embed_mutual( $ranked );
+ok( in_array( 9, $mut[1], true ), '9 survives for 1, because 9 points back at 1' );
+ok( in_array( 2, $mut[1], true ), 'and the reciprocated 1<->2 pair survives' );
+$one_way = array( 1 => array( 9 ), 2 => array( 9 ), 9 => array( 1 ) );
+$mut2 = snt_ml_embed_mutual( $one_way );
+ok( array() === $mut2[2], 'a ONE-WAY link to the hub is dropped — 9 never points back at 2' );
+ok( array( 9 ) === $mut2[1], 'while the reciprocated one is kept' );
+
+echo "\nGroup: the three status roles are distinct\n";
+$cmp_src = (string) file_get_contents( __DIR__ . '/../inc/ml-embeddings-compare.php' );
+ok( false !== strpos( $cmp_src, "array( 'publish', 'future' )" ), 'the CENTROID spans published AND scheduled — 22 unseen notes move exactly that' );
+ok( false !== strpos( $cmp_src, 'scheduled_in_centroid' ), 'and the scope is reported, so 33-of-55 can never be silent again' );
+ok( false !== strpos( $cmp_src, '$vec_pub' ), 'while ranking stays within the published subset' );
+
 echo "\nGroup: the instrument has a RUNNER, not just parts\n";
 // v11.22.0 shipped rank/diff/summary with NOTHING calling them: the comparison
 // existed and could not be read. Same shape as the missing token control.

@@ -155,20 +155,49 @@ function sn_admin_render_ai_settings_form() {
 		if ( is_array( $cmp ) && empty( $cmp['ok'] ) ) {
 			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--warn">' . esc_html( (string) ( $cmp['error'] ?? '' ) ) . '</span></p>';
 		} elseif ( is_array( $cmp ) && ! empty( $cmp['ok'] ) ) {
-			$sum = (array) ( $cmp['result']['summary'] ?? array() );
-			echo '<p class="sn-field-helper">';
-			printf(
-				/* translators: 1: divergence percent, 2: only-embedding count, 3: ranked slots, 4: posts, 5: model. */
-				esc_html__( 'Divergence %1$s%% — embeddings surfaced %2$d results in %3$d ranked slots across %4$d notes that TF-IDF did not (model %5$s).', 'signal-and-noise-tools' ),
-				esc_html( number_format_i18n( 100 * (float) ( $sum['divergence'] ?? 0 ), 1 ) ),
-				(int) ( $sum['only_embedding'] ?? 0 ),
-				(int) ( $sum['ranked_slots'] ?? 0 ),
-				(int) ( $sum['posts'] ?? 0 ),
-				esc_html( (string) ( $sum['model'] ?? '' ) )
+			$res  = (array) ( $cmp['result'] ?? array() );
+			$vars = (array) ( $res['variants'] ?? array() );
+			$scope = (array) ( $res['scope'] ?? array() );
+			if ( $scope ) {
+				echo '<p class="sn-field-helper">';
+				printf(
+					/* translators: 1: embedded total, 2: scored sources, 3: scheduled notes. */
+					esc_html__( '%1$d notes embedded (%2$d published and scored; %3$d scheduled, counted in the centroid only \u2014 a scheduled note has no baseline artifact to diverge from).', 'signal-and-noise-tools' ),
+					(int) ( $scope['embedded_total'] ?? 0 ),
+					(int) ( $scope['scored_sources'] ?? 0 ),
+					(int) ( $scope['scheduled_in_centroid'] ?? 0 )
+				);
+				echo '</p>';
+			}
+			$labels = array(
+				'raw'             => __( 'Raw cosine', 'signal-and-noise-tools' ),
+				'centered'        => __( 'Centred', 'signal-and-noise-tools' ),
+				'centered_mutual' => __( 'Centred + mutual', 'signal-and-noise-tools' ),
 			);
-			echo '</p>';
-			$div = (array) ( $cmp['result']['divergent'] ?? array() );
+			echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
+			echo '<th scope="col">' . esc_html__( 'Variant', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Divergence', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Hub share', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Distinct targets', 'signal-and-noise-tools' ) . '</th>';
+			echo '</tr></thead><tbody>';
+			foreach ( $labels as $key => $label ) {
+				if ( ! isset( $vars[ $key ] ) ) { continue; }
+				$v   = (array) $vars[ $key ];
+				$hub = (array) ( $v['hub'] ?? array() );
+				$is_rec = ( ( $res['recommended'] ?? '' ) === $key );
+				echo '<tr>';
+				echo '<td>' . esc_html( $label ) . ( $is_rec ? ' <span class="sn-pill sn-pill--ok">' . esc_html__( 'recommended', 'signal-and-noise-tools' ) . '</span>' : '' ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( 100 * (float) ( $v['divergence'] ?? 0 ), 1 ) ) . '%</td>';
+				// Hub share is the metric the FIRST run lacked: one note occupied
+				// half the results and divergence could not see it.
+				echo '<td>' . esc_html( number_format_i18n( 100 * (float) ( $hub['hub_share'] ?? 0 ), 1 ) ) . '% (' . esc_html( (string) ( $hub['top_count'] ?? 0 ) ) . ' of ' . esc_html( (string) ( $hub['sources'] ?? 0 ) ) . ')</td>';
+				echo '<td>' . esc_html( (string) ( $hub['distinct_targets'] ?? 0 ) ) . '</td>';
+				echo '</tr>';
+			}
+			echo '</tbody></table></div>';
+			$div = (array) ( $res['divergent'] ?? array() );
 			if ( $div ) {
+				echo '<p class="sn-field-helper">' . esc_html__( 'Pairs the recommended variant finds that TF-IDF does not:', 'signal-and-noise-tools' ) . '</p>';
 				echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
 				echo '<th scope="col">' . esc_html__( 'Note', 'signal-and-noise-tools' ) . '</th>';
 				echo '<th scope="col">' . esc_html__( 'Found only by embeddings', 'signal-and-noise-tools' ) . '</th>';
@@ -176,7 +205,7 @@ function sn_admin_render_ai_settings_form() {
 				foreach ( array_slice( $div, 0, 25 ) as $row ) {
 					$names = array();
 					foreach ( (array) $row['only_embedding'] as $o ) { $names[] = (string) $o['title']; }
-					echo '<tr><td>' . esc_html( (string) $row['title'] ) . '</td><td>' . esc_html( implode( ' · ', $names ) ) . '</td></tr>';
+					echo '<tr><td>' . esc_html( (string) $row['title'] ) . '</td><td>' . esc_html( implode( ' \u00b7 ', $names ) ) . '</td></tr>';
 				}
 				echo '</tbody></table></div>';
 			} else {

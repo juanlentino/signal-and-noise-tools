@@ -124,10 +124,28 @@ function snt_ml_embedding_compare_corpus( $depth = 5 ) {
 	if ( ! snt_ml_embed_configured() ) {
 		return new WP_Error( 'snt_ml_embed_unconfigured', __( 'Set the Workers AI token on the AI tab first.', 'signal-and-noise-tools' ) );
 	}
+	// THREE STATUS SETS, because the three roles are not the same question and
+	// collapsing them into one filter is what hid 40% of the corpus in the first
+	// run (33 of 55 notes measured; the 22 scheduled ones never seen).
+	//
+	//  CENTROID  publish + future — centering subtracts the corpus's shared mass,
+	//            and 22 unseen notes move exactly that.
+	//  SOURCES   publish only — a scheduled note has no _snt_ml_related artifact
+	//            yet, so scoring it would diff against an EMPTY baseline and
+	//            report 100% divergence: an artifact of indexing, not a miss.
+	//  TARGETS   publish only — Related Notes cannot link a reader to a note that
+	//            has not been published (snt_ml_related_for_post enforces this).
+	$embed_ids = get_posts( array(
+		'post_type'        => 'post',
+		'post_status'      => array( 'publish', 'future' ),
+		'numberposts'      => 400,
+		'fields'           => 'ids',
+		'suppress_filters' => true,
+	) );
 	$posts = get_posts( array(
 		'post_type'        => 'post',
 		'post_status'      => 'publish',
-		'numberposts'      => 200,
+		'numberposts'      => 400,
 		'fields'           => 'ids',
 		'suppress_filters' => true,
 	) );
@@ -138,7 +156,7 @@ function snt_ml_embedding_compare_corpus( $depth = 5 ) {
 	// Embed everything first, so a mid-walk API failure cannot produce a
 	// PARTIAL comparison that still returns a confident-looking number.
 	$vectors = array();
-	foreach ( $posts as $pid ) {
+	foreach ( $embed_ids as $pid ) {
 		// The CANONICAL hash (inc/corpus-inspect.php), not a local md5. Two
 		// different definitions of "has this content changed" would drift, and
 		// the cache would go stale silently — the vector staying attached to
@@ -156,36 +174,136 @@ function snt_ml_embedding_compare_corpus( $depth = 5 ) {
 		return new WP_Error( 'snt_ml_too_few_vectors', __( 'Fewer than two posts embedded; nothing to compare.', 'signal-and-noise-tools' ) );
 	}
 
-	$diffs = array();
-	$rows  = array();
-	foreach ( array_keys( $vectors ) as $pid ) {
-		$tfidf_rows = snt_ml_related_for_post( (int) $pid, $depth );
-		if ( null === $tfidf_rows ) {
+	// The TF-IDF baseline, read once — the artifact the site actually serves.
+	$tfidf = array();
+	foreach ( $published_sources = array_map( 'intval', $posts ) as $pid ) {
+		$rows_t = snt_ml_related_for_post( (int) $pid, $depth );
+		if ( null === $rows_t ) {
 			return new WP_Error( 'snt_ml_not_built', __( 'The ML artifacts have never been built, so there is no baseline to compare against.', 'signal-and-noise-tools' ) );
 		}
-		$tfidf_ids = array_map( static function ( $r ) {
+		$tfidf[ (int) $pid ] = array_map( static function ( $r ) {
 			return (int) ( $r['post_id'] ?? 0 );
-		}, (array) $tfidf_rows );
-		$embed_ids = array_map( static function ( $r ) {
-			return (int) $r['post_id'];
-		}, snt_ml_embed_rank( $vectors, (int) $pid, $depth ) );
-
-		$d = snt_ml_embed_diff( $tfidf_ids, $embed_ids );
-		$diffs[] = $d;
-		if ( $d['only_embedding'] ) {
-			$rows[] = array(
-				'post_id'        => (int) $pid,
-				'title'          => (string) get_the_title( (int) $pid ),
-				'only_embedding' => array_map( static function ( $id ) {
-					return array( 'post_id' => (int) $id, 'title' => (string) get_the_title( (int) $id ) );
-				}, $d['only_embedding'] ),
-			);
-		}
+		}, (array) $rows_t );
 	}
 
-	$summary = snt_ml_embed_summary( $diffs );
-	$summary['depth']    = (int) $depth;
-	$summary['embedded'] = count( $vectors );
-	$summary['model']    = SNT_ML_EMBED_MODEL;
-	return array( 'summary' => $summary, 'divergent' => $rows );
+	// THREE variants, measured side by side rather than one adopted on faith.
+	// The first run reported 59.4% divergence and could not see that one note
+	// occupied half the results; hub stats are now part of every variant.
+	// Centre over the WHOLE corpus (published + scheduled), then rank within the
+	// publishable subset. The centroid is the thing the scheduled notes belong
+	// in; the results are the thing they must stay out of.
+	$centered = snt_ml_vec_center_all( $vectors );
+	$published = array_map( 'intval', $posts );
+	$vec_pub   = array_intersect_key( $vectors, array_flip( $published ) );
+	$ctr_pub   = array_intersect_key( $centered, array_flip( $published ) );
+	$rank_raw = array();
+	$rank_ctr = array();
+	foreach ( array_keys( $vec_pub ) as $pid ) {
+		$rank_raw[ (int) $pid ] = array_map( static function ( $r ) { return (int) $r['post_id']; }, snt_ml_embed_rank( $vec_pub, (int) $pid, $depth ) );
+		$rank_ctr[ (int) $pid ] = array_map( static function ( $r ) { return (int) $r['post_id']; }, snt_ml_embed_rank( $ctr_pub, (int) $pid, $depth ) );
+	}
+	$rank_mut = snt_ml_embed_mutual( $rank_ctr );
+
+	$variants = array(
+		'raw'              => $rank_raw,
+		'centered'         => $rank_ctr,
+		'centered_mutual'  => $rank_mut,
+	);
+	$out = array();
+	$divergent = array();
+	foreach ( $variants as $name => $ranked ) {
+		$diffs = array();
+		foreach ( $ranked as $pid => $ids ) {
+			$d = snt_ml_embed_diff( $tfidf[ $pid ] ?? array(), $ids );
+			$diffs[] = $d;
+			if ( 'centered_mutual' === $name && $d['only_embedding'] ) {
+				$divergent[] = array(
+					'post_id'        => (int) $pid,
+					'title'          => (string) get_the_title( (int) $pid ),
+					'only_embedding' => array_map( static function ( $id ) {
+						return array( 'post_id' => (int) $id, 'title' => (string) get_the_title( (int) $id ) );
+					}, $d['only_embedding'] ),
+				);
+			}
+		}
+		$sum          = snt_ml_embed_summary( $diffs );
+		$sum['hub']   = snt_ml_embed_hub_stats( $ranked );
+		$sum['depth'] = (int) $depth;
+		$sum['model'] = SNT_ML_EMBED_MODEL;
+		$out[ $name ] = $sum;
+	}
+	$out['raw']['embedded'] = count( $vectors );
+	$scope = array(
+		'embedded_total'   => count( $vectors ),          // publish + future
+		'scored_sources'   => count( $vec_pub ),          // publish only
+		'scheduled_in_centroid' => count( $vectors ) - count( $vec_pub ),
+	);
+	// `divergent` describes the RECOMMENDED variant, so the table on screen and
+	// the numbers beside it can never be describing different rankings.
+	return array( 'variants' => $out, 'divergent' => $divergent, 'recommended' => 'centered_mutual', 'scope' => $scope );
+}
+
+/**
+ * How concentrated a set of rankings is on a few targets.
+ *
+ * The metric the first run LACKED. Divergence said 59.4% and said nothing about
+ * one note occupying half the results — quality and disagreement are different
+ * questions, and only one of them had a number.
+ *
+ * @param array $ranked post_id => int[] target ids
+ * @return array
+ */
+function snt_ml_embed_hub_stats( $ranked ) {
+	$freq = array();
+	$slots = 0;
+	foreach ( (array) $ranked as $targets ) {
+		foreach ( (array) $targets as $t ) {
+			$t = (int) $t;
+			$freq[ $t ] = ( $freq[ $t ] ?? 0 ) + 1;
+			++$slots;
+		}
+	}
+	if ( ! $freq ) {
+		return array( 'top_target' => 0, 'top_count' => 0, 'hub_share' => 0.0, 'distinct_targets' => 0, 'sources' => 0 );
+	}
+	arsort( $freq );
+	$top_id    = (int) array_key_first( $freq );
+	$top_count = (int) $freq[ $top_id ];
+	$sources   = count( (array) $ranked );
+	return array(
+		'top_target'       => $top_id,
+		'top_count'        => $top_count,
+		// Share of SOURCE notes whose results include the single most frequent
+		// target. 17/33 = 0.515 is what the raw run produced.
+		'hub_share'        => $sources > 0 ? round( $top_count / $sources, 4 ) : 0.0,
+		'distinct_targets' => count( $freq ),
+		'sources'          => $sources,
+		'slots'            => $slots,
+	);
+}
+
+/**
+ * Keep only reciprocated pairs.
+ *
+ * A hub survives raw ranking because everything points AT it; it rarely points
+ * back at everything in return. Requiring the relationship to be mutual removes
+ * the asymmetry that hubness is made of, without any threshold to tune.
+ *
+ * @param array $ranked post_id => int[] target ids
+ * @return array post_id => int[]
+ */
+function snt_ml_embed_mutual( $ranked ) {
+	$ranked = (array) $ranked;
+	$out    = array();
+	foreach ( $ranked as $src => $targets ) {
+		$keep = array();
+		foreach ( (array) $targets as $t ) {
+			$back = (array) ( $ranked[ (int) $t ] ?? array() );
+			if ( in_array( (int) $src, array_map( 'intval', $back ), true ) ) {
+				$keep[] = (int) $t;
+			}
+		}
+		$out[ (int) $src ] = $keep;
+	}
+	return $out;
 }
