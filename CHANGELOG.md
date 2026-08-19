@@ -2,6 +2,21 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.19.3] - 2026-08-18 — the setup list was missing the step that blocks
+
+### Fixed
+- **The Search Console setup instructions never mentioned enabling the API.** They
+  listed three steps — create a service account, add it to the property, paste the
+  key — and omitted the one that actually blocked the first real credential:
+  **enable "Google Search Console API" in the Google Cloud project.**
+- Its absence is **indistinguishable from a permission problem**. The credential is
+  valid, the token mints, the account IS a user on the property, and the API still
+  answers 403. Confirmed live: adding the service account with Full permission
+  changed nothing; enabling the API fixed it immediately.
+- It is now **step one**, and says what skipping it looks like, so the next
+  environment does not spend the same hour re-checking a permission that was
+  already correct.
+
 ## [11.19.2] - 2026-08-18 — the 403 message was confidently wrong
 
 ### Fixed
