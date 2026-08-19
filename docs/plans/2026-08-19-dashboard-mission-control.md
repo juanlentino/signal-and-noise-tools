@@ -1184,7 +1184,7 @@ git commit -m "feat: compose the Dashboard from zones and drop the cut sections"
 
 No new stylesheet — this file is already enqueued for the admin page.
 
-- [ ] **Step 1: Append the CSS**
+- [x] **Step 1: Append the CSS**
 
 ```css
 /* v11.28.0 — Dashboard zones. State earns space: ok/unknown collapse to a line,
@@ -1215,12 +1215,12 @@ No new stylesheet — this file is already enqueued for the admin page.
 }
 ```
 
-- [ ] **Step 2: Verify**
+- [x] **Step 2: Verify**
 
 Run: `bash tests/run.sh; echo "EXIT=$?"` then `vendor/bin/phpcs --standard=phpcs.xml.dist inc/dash-*.php inc/admin-tab-dashboard.php`
 Expected: sweep `EXIT=0`, PHPCS reports no errors.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add assets/admin.css
