@@ -119,7 +119,7 @@ ok( false === $GLOBALS['__autoload'][ SNT_GSC_DATA_OPTION ], 'the option is writ
 ok( 'sc-domain:x.test' === $payload['property'] && isset( $payload['window']['start'] ), 'the payload records WHICH property and WHICH window it describes' );
 ok( isset( $payload['synced_at'] ), 'and when it was taken — a stale window must be visible as stale' );
 
-// ── window totals (v11.28.1) ────────────────────────────────────────────────
+// ── window totals (v11.28.0) ────────────────────────────────────────────────
 // The Dashboard's clicks figure reads this. NULL vs 0 is the whole contract: a
 // property that has never synced and one Google reports no clicks for are
 // different facts, and a 0 would state the second while meaning the first.

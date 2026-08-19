@@ -6,7 +6,7 @@
  * Dashboard tab itself; it lived in that file only by history.
  *
  * @package SignalNoiseTools
- * @since 11.28.1
+ * @since 11.28.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -159,7 +159,7 @@ function snt_dashboard_debug_information( $info ) {
  * state, AI availability, cron internals) are marked private => true so
  * they're excluded from the "Copy site info to clipboard" export.
  *
- * The registration lives WITH the callback (v11.28.1). A filter registered in
+ * The registration lives WITH the callback (v11.28.0). A filter registered in
  * one file for a function defined in another resolves fine at runtime and is
  * invisible to anyone reading either file on its own.
  * ════════════════════════════════════════════════════════════════════════ */

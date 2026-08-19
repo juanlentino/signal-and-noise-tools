@@ -46,7 +46,7 @@ if ( ! function_exists( 'snt_rate_limit_all_statuses' ) ) {
     function snt_rate_limit_all_statuses() { return $GLOBALS['__statuses']; }
 }
 
-// v11.28.1: split out of admin-tab-dashboard.php.
+// v11.28.0: split out of admin-tab-dashboard.php.
 require __DIR__ . '/../inc/dash-api-summary.php';
 require __DIR__ . '/../inc/admin-tab-dashboard.php';
 

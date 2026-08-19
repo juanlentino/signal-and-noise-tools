@@ -4,11 +4,11 @@
  *
  * Presentation for one GitHub Actions / wp-admin install run: the glyph, the
  * repo short name, the duration and the relative time. Split out of
- * admin-tab-dashboard.php in v11.28.1 — the orchestrator composes, it does not
+ * admin-tab-dashboard.php in v11.28.0 — the orchestrator composes, it does not
  * format.
  *
  * @package SignalNoiseTools
- * @since 11.28.1
+ * @since 11.28.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

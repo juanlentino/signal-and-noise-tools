@@ -111,7 +111,7 @@ function sn_admin_glance_grid( array $cards ) {
 }
 
 /**
- * Does this card want to be promoted for attention? (v11.28.1)
+ * Does this card want to be promoted for attention? (v11.28.0)
  *
  * A card may keep an amber pill while declining to lead — see the long note in
  * sn_admin_glance_sort_by_attention() for why the pill and the promotion came
@@ -126,7 +126,7 @@ function sn_admin_glance_grid( array $cards ) {
  * chances to update two, and when the count and the state disagree you get the
  * v11.16.0 regression back in a new place.
  *
- * @since 11.28.1
+ * @since 11.28.0
  * @param array<string,mixed> $card
  * @return bool
  */

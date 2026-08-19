@@ -7,22 +7,28 @@
  * Override details + Actions card grid that previously rendered inline
  * in admin-page.php were absorbed into this file in v1.14.0.
  *
- * Composition (top to bottom), after the Phase 1 "open and wide" redesign:
- *   1. GLANCE GRID       — full-width first-glance hero (theme/plugin versions,
- *                          deploys, health findings, AI spend 30d, cron, login
- *                          blocks, views 7d). Built by snt_dashboard_glance_cards()
- *                          from existing accessors only; absent sources are
- *                          omitted. Rendered via sn_admin_glance_grid().
- *   2. ATTENTION STRIP   — one bg-warning row, shown only when something is off
+ * Composition (top to bottom), after the v11.28.0 mission-control redesign.
+ * This file COMPOSES; the zones and their formatting live in inc/dash-*.php.
+ *   1. ZONES             — attention and fleet, each rendered by
+ *                          sn_dash_render_zone(). STATE decides whether a zone
+ *                          takes space: ok/unknown collapse to a line, attention
+ *                          expands and leads. Cards still come from
+ *                          snt_dashboard_glance_cards() and an expanded zone
+ *                          still renders them via sn_admin_glance_grid() — the
+ *                          v10.48.0 reading order inside a zone is unchanged.
+ *                          Recent deploys is FOLDED into the fleet zone.
+ *   2. MEASUREMENT STRIP — five figures that never collapse, because they have
+ *                          no green/red state to fold. Absent renders as an em
+ *                          dash, never a 0.
+ *   3. ATTENTION STRIP   — one bg-warning row, shown only when something is off
  *                          (health findings, DB overrides, cron orphans, stale
  *                          scan, failed deploy), linking to the relevant tab.
- *   3. STATUS SUMMARIES  — External-API + RSS single-line summaries.
- *   4. LOWER ROW         — two columns (.sn-dash-cols): Recent deploys (last 5
- *                          merged GHA runs) on the left, Maintenance 3-card
- *                          action grid on the right. Collapses to one column on
- *                          narrow viewports. Forms POST to sn_handle_admin_post()
- *                          via the existing sn_theme_options_nonce.
- *   5. DIAGNOSTICS       — collapsible override-detail list (only renders
+ *   4. EXTERNAL APIs     — only when a host is warn/crit. Interesting at 4%
+ *                          remaining, noise at 99%. (RSS activity was cut in
+ *                          v11.28.0; the RSS tab owns the full view.)
+ *   5. MAINTENANCE       — 3-card action grid. Forms POST to
+ *                          sn_handle_admin_post() via sn_theme_options_nonce.
+ *   6. DIAGNOSTICS       — collapsible override-detail list (only renders
  *                          when there ARE overrides)
  *
  * Design principles (per memory: feedback_no_brutalist_in_admin_ui.md):
@@ -720,7 +726,7 @@ add_action( 'admin_post_sn_force_update_check', function() {
 	exit;
 } );
 
-// v11.28.1: the Site Health > Info panel moved to inc/dash-debug-info.php and
+// v11.28.0: the Site Health > Info panel moved to inc/dash-debug-info.php and
 // took its add_filter with it. It never rendered on this tab — it lived here
 // only by history.
 

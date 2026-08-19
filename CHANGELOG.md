@@ -2,31 +2,9 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.28.0] - 2026-08-19 — the Dashboard becomes mission control, and the citation graph goes public
 
 ### Added
-- **Search Console feeds the clicks figure.** It reads the stored payload — no API call on
-  a page render — and stays *unknown* until something has synced. A property never fetched
-  and one Google reports no clicks for are different facts; the second is a measured zero,
-  and both now render as what they are.
-
-### Fixed
-- **The clicks figure no longer claims a window it does not hold.** The stored Search
-  Console window is 28 days by default, ending a few days back because Google has not
-  finished counting the most recent ones. The label was hardcoded `clicks 7d`, which would
-  have presented a month of clicks as a week's — a four-fold overstatement that reads as
-  entirely plausible. The label is now derived from the window the last sync actually used.
-
-### Changed
-- **One attention opt-out rule, one copy.** The predicate deciding whether a card asks to
-  be promoted lived in three byte-identical copies. Three copies is three chances to update
-  two, and when the count and the state disagree you get the v11.16.0
-  cold-caches-lead-the-dashboard regression back in a new place. Extracted to
-  `sn_admin_card_wants_attention()`, where a single mutation now breaks all three callers.
-- **The Dashboard orchestrator is 734 lines, down from 1105.** Deploy-run formatting, the
-  external-API summary, and the Site Health Info panel move to their own files. The last of
-  those never rendered on the Dashboard at all — it lived there only by history.
-
 - **The Dashboard is composed from zones, and state earns space.** The flat 15-tile grid
   becomes three collapsing zones plus the measurement strip. A zone that is fine collapses
   to one line; a zone needing attention expands and leads. `unknown` outranks `attention`
@@ -36,31 +14,20 @@ All notable changes to Signal & Noise Tools are documented here.
   in user meta, so it must not be able to hide a problem: an `attention` zone is checked
   before pins and returns open unconditionally. Zone ids are validated against an allowlist
   on the way in, not merely filtered on the way out.
-- **The measurement strip.** Five figures — views 7d, clicks 7d, AI spend 30d, anchored,
+- **The measurement strip.** Five figures — views, search clicks, AI spend 30d, anchored,
   citations — that never collapse, because they have no green/red state to fold. A figure
-  whose accessor is absent renders an em dash and is dimmed, never a `0`. Search Console is
-  not wired yet, so clicks reads unknown, which is exactly what the design specifies for a
-  cache miss or an API error.
+  whose accessor is absent renders an em dash and is dimmed, never a `0`.
 - **Views carries a sparkline**, which is what earns it the full-width hero row on narrow
   viewports. It reuses the shared `snt_analytics_sparkline()` — the same smooth-path SVG
   treatment as the Analytics Overview chart — rather than minting a second one. It is never
   drawn for an unmeasured figure: a trend line under an em dash would assert exactly the
   knowledge the em dash exists to deny.
+- **Search Console feeds the clicks figure.** It reads the stored payload — no API call on
+  a page render — and stays *unknown* until something has synced. A property never fetched
+  and one Google reports no clicks for are different facts; the second is a measured zero,
+  and both render as what they are.
 - Recent deploys is **folded into the fleet zone** rather than cut — it answers the same
   question the zone does, so it belongs inside it instead of competing with it.
-
-### Changed
-- **External APIs surfaces only when a rate limit is actually low** (warn or crit, via the
-  rate monitor's own classifier). It is interesting at 4% remaining and noise at 99%.
-- The measurement strip distinguishes *absent* from *zero*. A Search Console read that
-  failed is missing evidence, not zero clicks, and renders as an em dash.
-
-### Removed
-- **RSS feed activity** — the RSS tab already renders the full view; this was the detail
-  view pasted onto the summary. (It last appeared on the Dashboard in v1.13.0, was cut in
-  v1.14.0, and returned in v2.0.1. The difference this time is that it has a destination.)
-- **Login blocks 7d** — the Security tab owns it, and it has read `0` since it shipped.
-
 - **The citation graph gets its public surface.** A "Cited by" aside on single notes,
   listing only the tiers the site can vouch for — `verified` and `unattributed`. An
   `asserted` claim, one whose link has since gone, stays in the admin and is shown to
@@ -75,7 +42,37 @@ All notable changes to Signal & Noise Tools are documented here.
 - Outbound links carry `rel="noopener nofollow ugc"`: these are third-party links the site
   did not choose.
 
+### Changed
+- **External APIs surfaces only when a rate limit is actually low** (warn or crit, via the
+  rate monitor's own classifier). It is interesting at 4% remaining and noise at 99%.
+- The measurement strip distinguishes *absent* from *zero*. A Search Console read that
+  failed is missing evidence, not zero clicks, and renders as an em dash.
+- **One attention opt-out rule, one copy.** The predicate deciding whether a card asks to
+  be promoted lived in three byte-identical copies. Three copies is three chances to update
+  two, and when the count and the state disagree you get the v11.16.0
+  cold-caches-lead-the-dashboard regression back in a new place. Extracted to
+  `sn_admin_card_wants_attention()`, where a single mutation now breaks all three callers.
+- **The Dashboard orchestrator is 726 lines, down from 1105.** Deploy-run formatting, the
+  external-API summary, and the Site Health Info panel move to their own files. The last of
+  those never rendered on the Dashboard at all — it lived there only by history.
+
+### Fixed
+- **The clicks figure no longer claims a window it does not hold.** The stored Search
+  Console window is 28 days by default, ending a few days back because Google has not
+  finished counting the most recent ones. The label was hardcoded `clicks 7d`, which would
+  have presented a month of clicks as a week's — a four-fold overstatement that reads as
+  entirely plausible. The label is now derived from the window the last sync actually used.
+
+### Removed
+- **RSS feed activity** — the RSS tab already renders the full view; this was the detail
+  view pasted onto the summary. (It last appeared on the Dashboard in v1.13.0, was cut in
+  v1.14.0, and returned in v2.0.1. The difference this time is that it has a destination.)
+- **Login blocks 7d** — the Security tab owns it, and it has read `0` since it shipped.
+
 ### Notes
+- Why MINOR: new user-visible capability (the zones, the pin preference, the measurement
+  strip, the public citation aside). The two Dashboard removals are not breaking — both
+  facts still live on the tabs that own them, and neither requires user action.
 - **Silent when empty.** No citations means no aside — not an empty heading, not
   "Cited by (0)". A note nobody has cited should look like a note nobody has cited. Since
   the graph is currently empty, this change is invisible on the live site until a real
@@ -84,10 +81,9 @@ All notable changes to Signal & Noise Tools are documented here.
   aside (both 20): the note, then what it says, then who says they took it. Guards mirror
   `ml-related-render.php`, including the `get_the_excerpt` one — core's `wp_trim_excerpt()`
   runs `the_content`, so without it the aside would leak into auto-excerpts.
-- 30 assertions. One mutation deliberately fails nothing and the test says so: deleting the
-  tier gate inside the render loop changes no behaviour, because the link-text and label
-  helpers each independently refuse a non-public tier. The property is pinned twice; the
-  loop gate is defence-in-depth and unpinnable by construction.
+- Every new guard in this release is negative-controlled by mutation. Nine were found
+  unpinned during implementation — a guard that is present and correct but unpinned is one
+  "simplification" away from gone, with the suite staying green through its removal.
 
 ## [11.27.0] - 2026-08-19 — the site answers to a second name, and to its citations
 
