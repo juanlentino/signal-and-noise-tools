@@ -30,6 +30,30 @@ if ( ! defined( 'ABSPATH' ) ) {
 add_action( 'wp_dashboard_setup', 'sn_dash_widget_register' );
 
 /**
+ * The widget's stylesheet, on index.php only.
+ *
+ * Gated on the screen rather than on whether the widget registered: the hook
+ * suffix is the cheap, reliable signal, and a style enqueued on any other admin
+ * page is dead weight on every request.
+ *
+ * @since 11.30.2
+ * @param string $hook Current admin page hook suffix.
+ * @return void
+ */
+function sn_dash_widget_enqueue( $hook ) {
+	if ( 'index.php' !== $hook ) {
+		return;
+	}
+	wp_enqueue_style(
+		'sn-dash-widget',
+		SNT_URL . 'assets/dash-widget.css',
+		array(),
+		SNT_VERSION
+	);
+}
+add_action( 'admin_enqueue_scripts', 'sn_dash_widget_enqueue' );
+
+/**
  * Register the one box.
  *
  * Gated view_stats || manage_options — the WIDER of the two gates it replaces,

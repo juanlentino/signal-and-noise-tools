@@ -8,6 +8,12 @@
 # resolves to nothing, so PHPStan errors on it (undefined-symbol checks fire at
 # level 0+), before it can fatal in production.
 #
+# NOTE (2026-08-19, WP 7.1): php-stubs/wordpress-stubs has NO 7.1 release yet —
+# v7.0.1 (2026-07-10) is the newest. So a green run here is verified against the
+# 7.0 API surface, NOT 7.1. The `^7.0` constraint in composer.json will pick up
+# 7.1 stubs automatically once published; until then, 7.1 compatibility rests on
+# the field-guide audit recorded in the CHANGELOG, not on this gate.
+#
 # Architecture: we bootstrap php-stubs/wordpress-stubs DIRECTLY on phpstan core,
 # NOT via szepeviktor/phpstan-wordpress. That extension is abandoned (maintainer
 # stepped away from the WP ecosystem) and its stable release capped stubs at

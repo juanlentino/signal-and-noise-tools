@@ -92,5 +92,23 @@ ok( false !== strpos( $h, 'sn-sig--unmeasured' ), 'an unmeasured signal is marke
 ok( false === strpos( $h, 'sn-ops__panel' ),
 	'THE BOXED OPS PANELS ARE GONE — the detail columns group with rules and whitespace instead' );
 
+// ── AN ASYNC CARD MUST SPEAK THE FILLER'S LANGUAGE ──────────────────────────
+// v11.30.2. Carrying the id (v11.30.1) was necessary and not sufficient:
+// assets/freshness-dot.js finds the card by id, then replaces the text inside
+// `.sn-glance-card__value` and reuses `.sn-pill`. The systems cell had neither,
+// so the JS left "Checking…" in place and APPENDED its verdict pill underneath —
+// the card ended up showing a stale placeholder and a fresh answer at once.
+echo "\nGroup: async cells carry the contract their filler reads\n";
+$async = array( 'label' => 'Caches', 'value' => 'Checking…', 'id' => 'snt-freshness-card', 'pill' => array( 'kind' => 'ok' ) );
+ob_start(); sn_dash_render_system_cell( $async ); $cell = ob_get_clean();
+ok( false !== strpos( $cell, 'id="snt-freshness-card"' ), 'the cell keeps its id' );
+ok( false !== strpos( $cell, 'sn-glance-card__value' ),
+	'AND THE VALUE CARRIES THE CLASS THE FILLER REPLACES — without it the placeholder is permanent' );
+
+$plain = array( 'label' => 'Health', 'value' => '0 findings', 'pill' => array( 'kind' => 'ok' ) );
+ob_start(); sn_dash_render_system_cell( $plain ); $plain_cell = ob_get_clean();
+ok( false === strpos( $plain_cell, 'sn-glance-card__value' ),
+	'a card with no id is not async and does not carry the hook — the coupling is declared, not sprayed' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

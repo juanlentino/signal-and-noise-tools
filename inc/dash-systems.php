@@ -43,10 +43,17 @@ function sn_dash_render_system_cell( array $card ) {
 	echo '<div class="sn-sys' . ( '' !== $state ? ' sn-sys--' . esc_attr( $state ) : '' ) . '"'
 		. ( '' !== $id ? ' id="' . esc_attr( $id ) . '"' : '' ) . '>';
 	echo '<span class="sn-sys__k">' . esc_html( (string) ( $card['label'] ?? '' ) ) . '</span>';
+	// An async card's value is REPLACED in place by its filler. freshness-dot.js
+	// looks for `.sn-glance-card__value` inside the card it found by id — so
+	// carrying the id without this class left "Checking…" on screen forever
+	// while the JS appended its real verdict underneath. Declared only on cards
+	// that actually have a filler, so the coupling is visible rather than
+	// sprayed across every cell.
+	$vclass = 'sn-sys__v' . ( '' !== $id ? ' sn-glance-card__value' : '' );
 	if ( '' !== $href ) {
-		echo '<a class="sn-sys__v" href="' . esc_url( $href ) . '">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</a>';
+		echo '<a class="' . esc_attr( $vclass ) . '" href="' . esc_url( $href ) . '">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</a>';
 	} else {
-		echo '<span class="sn-sys__v">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</span>';
+		echo '<span class="' . esc_attr( $vclass ) . '">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</span>';
 	}
 	echo '</div>';
 }
