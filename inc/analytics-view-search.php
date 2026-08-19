@@ -67,6 +67,22 @@ function snt_gsc_render_metrics_table( $title, $key_label, $rows, $empty ) {
 }
 
 /**
+ * A visible, actionable setup panel.
+ *
+ * Separate from the empty-fold collector on purpose: these states are not
+ * "this panel had no rows in your range", they are "the pipeline is not
+ * connected yet, and here is the one next step".
+ *
+ * @param string $message
+ */
+function snt_gsc_render_setup_notice( $message ) {
+	snt_an_panel_open( __( 'Search', 'signal-and-noise-tools' ) );
+	echo '<p>' . esc_html( $message ) . '</p>';
+	echo '<p class="description">' . esc_html__( 'Search Console reports what happened BEFORE the click — impressions, position, and the queries first-party analytics can never see.', 'signal-and-noise-tools' ) . '</p>';
+	snt_an_panel_close();
+}
+
+/**
  * The Search view body.
  *
  * @since 11.19.0
@@ -76,16 +92,22 @@ function snt_analytics_render_view_search() {
 
 	// Empty states are SPECIFIC: each one names the single next action. "No data"
 	// would be true for all four and useful for none.
+	// SETUP states render a real panel, NOT snt_an_note_empty(): that helper
+	// COLLECTS into a fold flushed at the end of a view, and its summary reads
+	// "No data in this range yet" — wrong words for "you have not chosen a
+	// property", and invisible entirely if the view returns before flushing.
+	// Which is exactly what shipped in v11.19.0: three early returns queued a
+	// note, returned, and rendered a blank tab.
 	if ( ! function_exists( 'snt_gsc_credential_is_configured' ) || ! snt_gsc_credential_is_configured() ) {
-		snt_an_note_empty( __( 'Search', 'signal-and-noise-tools' ), __( 'No Search Console credential yet. Add one under Measurement → Search Console.', 'signal-and-noise-tools' ) );
+		snt_gsc_render_setup_notice( __( 'No Search Console credential yet. Add one under Measurement → Search Console.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	if ( '' === (string) sn_setting( 'search_console.property', '' ) ) {
-		snt_an_note_empty( __( 'Search', 'signal-and-noise-tools' ), __( 'The credential works, but no property is selected yet. Choose one under Measurement → Search Console.', 'signal-and-noise-tools' ) );
+		snt_gsc_render_setup_notice( __( 'The credential is stored, but no property is selected yet. Open Measurement → Search Console, run Test connection, then choose the property to read.', 'signal-and-noise-tools' ) );
 		return;
 	}
 	if ( null === $data ) {
-		snt_an_note_empty( __( 'Search', 'signal-and-noise-tools' ), __( 'Nothing has synced yet. Run a sync under Measurement → Search Console.', 'signal-and-noise-tools' ) );
+		snt_gsc_render_setup_notice( __( 'A property is selected but nothing has synced yet. Open Measurement → Search Console and choose Sync now.', 'signal-and-noise-tools' ) );
 		return;
 	}
 
@@ -142,4 +164,9 @@ function snt_analytics_render_view_search() {
 		array_slice( $missed, 0, 15 ),
 		__( 'Every page with meaningful impressions has earned at least one click in this window.', 'signal-and-noise-tools' )
 	);
+
+	// The per-view contract: snt_an_note_empty() only COLLECTS, and every view
+	// flushes its own fold. Omitting this renders nothing AND leaks these notes
+	// into whichever view flushes next.
+	snt_an_flush_empty_fold();
 }
