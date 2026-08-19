@@ -162,7 +162,7 @@ function sn_admin_render_ai_settings_form() {
 				echo '<p class="sn-field-helper">';
 				printf(
 					/* translators: 1: embedded total, 2: scored sources, 3: scheduled notes. */
-					esc_html__( '%1$d notes embedded (%2$d published and scored; %3$d scheduled, counted in the centroid only \u2014 a scheduled note has no baseline artifact to diverge from).', 'signal-and-noise-tools' ),
+					esc_html__( '%1$d notes embedded (%2$d published and scored; %3$d scheduled, counted in the centroid only — a scheduled note has no baseline artifact to diverge from).', 'signal-and-noise-tools' ),
 					(int) ( $scope['embedded_total'] ?? 0 ),
 					(int) ( $scope['scored_sources'] ?? 0 ),
 					(int) ( $scope['scheduled_in_centroid'] ?? 0 )
@@ -197,7 +197,17 @@ function sn_admin_render_ai_settings_form() {
 			echo '</tbody></table></div>';
 			$div = (array) ( $res['divergent'] ?? array() );
 			if ( $div ) {
-				echo '<p class="sn-field-helper">' . esc_html__( 'Pairs the recommended variant finds that TF-IDF does not:', 'signal-and-noise-tools' ) . '</p>';
+				// FOLDED by default: the three-row variant summary above is the
+				// decision, and an unbounded pair list pushed the form (and the
+				// Save button) off the panel. snt-scroll-table caps at 50vh,
+				// which is still ~550px here — a cap is not the same as not
+				// taking the space.
+				echo '<details class="sn-disclosure">';
+				echo '<summary>' . sprintf(
+					/* translators: %d: number of notes with pairs only embeddings found. */
+					esc_html( _n( '%d note has a pair TF-IDF does not find', '%d notes have pairs TF-IDF does not find', count( $div ), 'signal-and-noise-tools' ) ),
+					count( $div )
+				) . '</summary>';
 				echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
 				echo '<th scope="col">' . esc_html__( 'Note', 'signal-and-noise-tools' ) . '</th>';
 				echo '<th scope="col">' . esc_html__( 'Found only by embeddings', 'signal-and-noise-tools' ) . '</th>';
@@ -205,9 +215,10 @@ function sn_admin_render_ai_settings_form() {
 				foreach ( array_slice( $div, 0, 25 ) as $row ) {
 					$names = array();
 					foreach ( (array) $row['only_embedding'] as $o ) { $names[] = (string) $o['title']; }
-					echo '<tr><td>' . esc_html( (string) $row['title'] ) . '</td><td>' . esc_html( implode( ' \u00b7 ', $names ) ) . '</td></tr>';
+					echo '<tr><td>' . esc_html( (string) $row['title'] ) . '</td><td>' . esc_html( implode( ' · ', $names ) ) . '</td></tr>';
 				}
 				echo '</tbody></table></div>';
+				echo '</details>';
 			} else {
 				echo '<p class="sn-field-helper">' . esc_html__( 'No divergence at all: TF-IDF already found every pair the embeddings did. That is a real answer, and it argues against adopting a hosted model.', 'signal-and-noise-tools' ) . '</p>';
 			}
