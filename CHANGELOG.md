@@ -2,6 +2,67 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.19.0] - 2026-08-18 — the pre-click half of the funnel
+
+### Added
+- **The Search Console client.** No library — the plugin carries no composer
+  dependencies, so the service-account flow is done by hand: build a JWT, sign it
+  RS256 with `openssl_sign()`, exchange it for a bearer token. Verified against the
+  current Google docs rather than from memory.
+- **Analytics → Search**, its own view. It earns a tab rather than folding entirely
+  into Content because **a merge-only design structurally cannot show two of its three
+  outputs**: a search *query* has no page to join onto, and a page with impressions and
+  zero clicks has no first-party row to merge *with* — nobody visited, so no analytics
+  row exists. "Seen but never clicked" is invisible to any joined table by construction.
+- **Search columns beside Top pages** (impressions, average position), joined on path.
+  Rendered ONLY when a window is stored, so the table never widens by two columns to
+  show a row of em-dashes.
+- **Property selection.** The property is CHOSEN from what the credential can actually
+  read, never derived from the site URL: a domain property (`sc-domain:example.com`)
+  and a URL-prefix property are different strings and only one may be granted.
+
+### Units and clocks, encoded rather than discovered
+- **`ctr` is a FRACTION 0..1, not a percentage.** Rendering Google's `0.032` as "3.2"
+  is a 100× error that looks entirely plausible.
+- **`position` is an average where LOWER IS BETTER.** Sorting it descending puts the
+  worst rankings at the top of a "best pages" table.
+- **Google reports in Pacific Time; the analytics rollups are UTC.** For several hours
+  a day "today" is a different date in the two systems, so every date sent is derived
+  in PT.
+- **The window ends three days back on purpose.** Google is still counting the most
+  recent days, and a fresh zero there is not a measurement — a range ending today
+  renders a cliff that reads as a traffic collapse.
+- **Two Google URLs can normalise to one path** (http/https, trailing slash, a
+  URL-prefix property overlapping a domain one). Counts SUM, position is
+  **impression-weighted**, and CTR is **derived after merging** — the mean of two
+  averages would let a 10-impression row drag a 1000-impression one, and the mean of
+  two rates is not the rate of the pair.
+
+### Null is not zero
+`snt_gsc_metrics_for_path()` returns **null** for a page Google never showed, and a
+real zero for a page shown 400 times with no clicks. The merged table prints an
+em-dash for the first. Those are different facts and a zero would state the second
+while meaning the first.
+
+### Honest about what it is not
+The Search view reports Google's own rolling window and **does not follow the
+dashboard's date range** — the data is fetched on a schedule, not queried per range.
+The view says so on screen. Silently rendering a stored window under a "Last 7 days"
+heading would be a number that is right about a period nobody asked for.
+
+### Errors name their stage
+A credential can fail in five distinct places — no openssl, a key that will not sign,
+a refused grant, a transport error, a 403 because nobody granted the service account
+the property. "Connection failed" for all five sends the owner to the wrong fix, so
+each is its own `WP_Error`. The 403 in particular names the actual remedy, because it
+is the single most likely first-run outcome.
+
+### Tests
+- New `tests/search-console-store.php` (30 assertions): every path-normalisation case,
+  and the merge math pinned by value INCLUDING the anti-assertions — position is not
+  the mean of means, CTR is not the mean of rates.
+- View registry 12 → 13; handler map 58 → 61.
+
 ## [11.18.0] - 2026-08-18 — R6b starts with the control, not the client
 
 ### Added

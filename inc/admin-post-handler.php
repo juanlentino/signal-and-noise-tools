@@ -93,6 +93,9 @@ function sn_admin_post_handlers() {
 		// write-only read token under the machine_readers subtree).
 		'machine_readers_save'       => 'sn_handle_machine_readers_save',
 		'gsc_credential_save'        => 'sn_handle_gsc_credential_save',
+		'gsc_test'                   => 'sn_handle_gsc_test',
+		'gsc_property_save'          => 'sn_handle_gsc_property_save',
+		'gsc_sync'                   => 'sn_handle_gsc_sync',
 	);
 }
 
