@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.24.1] - 2026-08-19 — the readout said "\u00b7" and pushed the form off
+
+### Fixed
+- **Literal `\uXXXX` escapes rendered as text.** PHP single-quoted strings do not
+  interpret `\u`, so `'\u00b7'` produced six literal characters — the separator showed
+  as `\u00b7` between every title and the scope line carried a literal `\u2014`. Replaced
+  with the actual `·` and `—`.
+- **`tests/no-literal-unicode-escapes.php`** greps every `inc/` and `inc/admin-forms/`
+  file for `\uXXXX` inside quoted strings. Easy to repeat because the escape LOOKS right
+  in source and only reveals itself on screen. Negative-controlled: reintroducing one
+  fails the suite naming the file and line.
+- **The pair list pushed the form off the panel.** `snt-scroll-table` caps at 50vh, which
+  is still ~550px here — a cap is not the same as not taking the space. The list is now a
+  folded `<details class="sn-disclosure">` whose summary names the count, so the
+  three-row variant table (which carries the decision) stays visible and the Save button
+  stays reachable.
+
 ## [11.24.0] - 2026-08-19 — hubness, measured and corrected
 
 ### The finding the first measurement could not see
