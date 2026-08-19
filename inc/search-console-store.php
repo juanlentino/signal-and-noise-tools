@@ -1,0 +1,162 @@
+<?php
+/**
+ * Signal & Noise Tools — Search Console data store (R6b step 2).
+ *
+ * NO NEW TABLE. The whole payload is a rolling window of the top N pages and
+ * top N queries — kilobytes, refreshed daily. The analytics tables exist because
+ * per-event rows grow without bound; this does not, so an option (autoload
+ * FALSE) is the honest size of the thing.
+ *
+ * THE JOIN KEY IS THE PATH. Google returns absolute URLs; the analytics rollups
+ * are path-keyed. Storing Google's URL verbatim would mean every read does
+ * string surgery, and the two would silently fail to match on the trailing
+ * slash. Normalisation happens ONCE, here, on write.
+ *
+ * @package SignalNoiseTools
+ */
+
+if ( ! defined( 'ABSPATH' ) ) {
+	exit;
+}
+
+define( 'SNT_GSC_DATA_OPTION', 'snt_gsc_data' );
+
+/**
+ * Reduce an absolute URL from Google to the site-relative path the analytics
+ * rollups key on.
+ *
+ * Trailing slash is KEPT for '/' and stripped elsewhere, which is what
+ * sn_analytics_top_paths() stores. A mismatch here does not error — it silently
+ * joins nothing, and a table of empty search columns looks like "no search
+ * traffic" rather than "the key is wrong". That failure mode is why this is one
+ * function with one test rather than an inline expression at each call site.
+ *
+ * @param string $url Absolute URL, or already a path.
+ * @return string Path beginning with '/'.
+ */
+function snt_gsc_url_to_path( $url ) {
+	$url  = trim( (string) $url );
+	if ( '' === $url ) {
+		return '';
+	}
+	$path = ( 0 === strpos( $url, 'http' ) ) ? (string) wp_parse_url( $url, PHP_URL_PATH ) : $url;
+	if ( '' === $path || null === $path ) {
+		$path = '/';
+	}
+	if ( '/' !== $path ) {
+		$path = rtrim( $path, '/' );
+	}
+	return '/' === substr( $path, 0, 1 ) ? $path : '/' . $path;
+}
+
+/**
+ * The stored payload, or null when nothing has synced.
+ *
+ * @return array|null
+ */
+function snt_gsc_data() {
+	$data = get_option( SNT_GSC_DATA_OPTION, null );
+	return is_array( $data ) && isset( $data['synced_at'] ) ? $data : null;
+}
+
+/**
+ * Fetch the current window and store it.
+ *
+ * @param bool $force Unused today; reserved so a caller can bypass a future
+ *                    minimum-interval guard without changing the signature.
+ * @return array|WP_Error The stored payload.
+ */
+function snt_gsc_sync( $force = false ) {
+	unset( $force );
+	$property = (string) sn_setting( 'search_console.property', '' );
+	if ( '' === $property ) {
+		return new WP_Error( 'snt_gsc_no_property', __( 'Select a Search Console property first.', 'signal-and-noise-tools' ) );
+	}
+	$window = snt_gsc_window();
+
+	$pages = snt_gsc_query( $property, array( 'page' ), $window, 250 );
+	if ( is_wp_error( $pages ) ) {
+		return $pages;
+	}
+	$queries = snt_gsc_query( $property, array( 'query' ), $window, 100 );
+	if ( is_wp_error( $queries ) ) {
+		return $queries;
+	}
+
+	$by_path = array();
+	foreach ( $pages as $row ) {
+		$path = snt_gsc_url_to_path( $row['key'] );
+		if ( '' === $path ) {
+			continue;
+		}
+		// Two Google URLs can normalise to one path (http/https, trailing slash,
+		// a URL-prefix property overlapping a domain one). SUM the counts and
+		// take the impression-weighted position — averaging two averages
+		// unweighted would let a 3-impression page drag a 3000-impression one.
+		if ( isset( $by_path[ $path ] ) ) {
+			$prev = $by_path[ $path ];
+			$imp  = $prev['impressions'] + $row['impressions'];
+			$by_path[ $path ] = array(
+				'clicks'      => $prev['clicks'] + $row['clicks'],
+				'impressions' => $imp,
+				'position'    => $imp > 0
+					? ( ( $prev['position'] * $prev['impressions'] ) + ( $row['position'] * $row['impressions'] ) ) / $imp
+					: $prev['position'],
+			);
+		} else {
+			$by_path[ $path ] = array(
+				'clicks'      => $row['clicks'],
+				'impressions' => $row['impressions'],
+				'position'    => $row['position'],
+			);
+		}
+	}
+	// CTR is derived AFTER merging, never averaged: clicks/impressions of the
+	// merged pair is the real rate; the mean of two rates is not.
+	foreach ( $by_path as $path => $m ) {
+		$by_path[ $path ]['ctr'] = $m['impressions'] > 0 ? $m['clicks'] / $m['impressions'] : 0.0;
+	}
+
+	$payload = array(
+		'property'  => $property,
+		'window'    => $window,
+		'pages'     => $by_path,
+		'queries'   => array_slice( $queries, 0, 100 ),
+		'synced_at' => time(),
+	);
+	update_option( SNT_GSC_DATA_OPTION, $payload, false );
+	return $payload;
+}
+
+/**
+ * Search metrics for one path, or null when that path has none.
+ *
+ * NULL, not a zero row: a page Google has never shown and a page shown 400
+ * times with no clicks are different facts, and a zero would state the second
+ * while meaning the first.
+ *
+ * @param string $path
+ * @return array|null ['clicks','impressions','ctr','position']
+ */
+function snt_gsc_metrics_for_path( $path ) {
+	$data = snt_gsc_data();
+	if ( null === $data ) {
+		return null;
+	}
+	$key = snt_gsc_url_to_path( $path );
+	return isset( $data['pages'][ $key ] ) ? $data['pages'][ $key ] : null;
+}
+
+/**
+ * Top search queries in the stored window.
+ *
+ * @param int $limit
+ * @return array
+ */
+function snt_gsc_top_queries( $limit = 10 ) {
+	$data = snt_gsc_data();
+	if ( null === $data ) {
+		return array();
+	}
+	return array_slice( (array) $data['queries'], 0, max( 1, (int) $limit ) );
+}

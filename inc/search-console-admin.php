@@ -109,6 +109,93 @@ function snt_gsc_render_settings_section() {
 	echo '<p><label for="sn_gsc_credential"><strong>' . esc_html__( 'Service-account JSON', 'signal-and-noise-tools' ) . '</strong></label><br>';
 	echo '<textarea id="sn_gsc_credential" name="sn_gsc_credential" rows="8" class="large-text code" spellcheck="false" autocomplete="off" placeholder="' . esc_attr( $stored ? __( 'Paste a fresh key file to replace; type clear to remove; leave empty to keep the current one', 'signal-and-noise-tools' ) : __( '{ "type": "service_account", … }', 'signal-and-noise-tools' ) ) . '"></textarea></p>';
 
-	echo '<p><button type="submit" name="sn_action" value="gsc_credential_save" class="button button-primary">' . esc_html__( 'Save credential', 'signal-and-noise-tools' ) . '</button></p>';
+	echo '<p><button type="submit" name="sn_action" value="gsc_credential_save" class="button button-primary">' . esc_html__( 'Save credential', 'signal-and-noise-tools' ) . '</button>';
+	if ( null !== $identity ) {
+		echo ' <button type="submit" name="sn_action" value="gsc_test" class="button">' . esc_html__( 'Test connection', 'signal-and-noise-tools' ) . '</button>';
+	}
+	echo '</p>';
+	echo '</form>';
+
+	if ( null !== $identity ) {
+		snt_gsc_render_property_form();
+	}
+}
+
+/**
+ * Property selection + sync, shown once a credential is stored.
+ *
+ * The property list comes from the last Test connection rather than a fresh API
+ * call on every page load: rendering an admin screen should not spend quota, and
+ * a stale list is visibly stale (its age is printed) where a silent per-load
+ * fetch would be neither visible nor free.
+ */
+function snt_gsc_render_property_form() {
+	$last     = get_transient( 'snt_gsc_last_test' );
+	$current  = (string) sn_setting( 'search_console.property', '' );
+	$data     = function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null;
+
+	echo '<form method="post" class="sn-gsc-settings">';
+	wp_nonce_field( 'sn_theme_options_nonce' );
+	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Property', 'signal-and-noise-tools' ) . '</h3>';
+
+	if ( is_array( $last ) && empty( $last['ok'] ) ) {
+		// The failure text is the client's stage-specific WP_Error message, which
+		// is the whole point of having five error codes instead of one.
+		echo '<p><span class="sn-pill sn-pill--warn">' . esc_html( (string) ( $last['error'] ?? '' ) ) . '</span></p>';
+	}
+
+	$sites = ( is_array( $last ) && ! empty( $last['ok'] ) ) ? (array) ( $last['sites'] ?? array() ) : array();
+	if ( empty( $sites ) ) {
+		echo '<p class="description">' . esc_html__( 'Run Test connection above to list the properties this service account can read.', 'signal-and-noise-tools' ) . '</p>';
+		if ( '' !== $current ) {
+			/* translators: %s: the stored property string. */
+			echo '<p>' . sprintf( esc_html__( 'Currently reading: %s', 'signal-and-noise-tools' ), '<code>' . esc_html( $current ) . '</code>' ) . '</p>';
+		}
+	} else {
+		echo '<p><label for="sn_gsc_property"><strong>' . esc_html__( 'Read search data for', 'signal-and-noise-tools' ) . '</strong></label><br>';
+		echo '<select id="sn_gsc_property" name="sn_gsc_property">';
+		echo '<option value="">' . esc_html__( '— choose a property —', 'signal-and-noise-tools' ) . '</option>';
+		foreach ( $sites as $site ) {
+			$url = (string) ( $site['siteUrl'] ?? '' );
+			if ( '' === $url ) {
+				continue;
+			}
+			printf(
+				'<option value="%1$s"%2$s>%3$s (%4$s)</option>',
+				esc_attr( $url ),
+				selected( $url, $current, false ),
+				esc_html( $url ),
+				esc_html( (string) ( $site['permissionLevel'] ?? 'unknown' ) )
+			);
+		}
+		echo '</select></p>';
+		echo '<p><button type="submit" name="sn_action" value="gsc_property_save" class="button button-primary">' . esc_html__( 'Use this property', 'signal-and-noise-tools' ) . '</button></p>';
+	}
+
+	if ( '' !== $current ) {
+		echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Sync', 'signal-and-noise-tools' ) . '</h3>';
+		if ( null === $data ) {
+			echo '<p><span class="sn-pill">' . esc_html__( 'Never synced.', 'signal-and-noise-tools' ) . '</span></p>';
+		} else {
+			echo '<p>';
+			printf(
+				/* translators: 1: start date, 2: end date, 3: human-readable age. */
+				esc_html__( 'Window %1$s to %2$s, synced %3$s ago.', 'signal-and-noise-tools' ),
+				esc_html( (string) $data['window']['start'] ),
+				esc_html( (string) $data['window']['end'] ),
+				esc_html( human_time_diff( (int) $data['synced_at'], time() ) )
+			);
+			echo ' ';
+			printf(
+				/* translators: 1: page count, 2: query count. */
+				esc_html__( '%1$d pages, %2$d queries.', 'signal-and-noise-tools' ),
+				count( (array) $data['pages'] ),
+				count( (array) $data['queries'] )
+			);
+			echo '</p>';
+		}
+		echo '<p><button type="submit" name="sn_action" value="gsc_sync" class="button">' . esc_html__( 'Sync now', 'signal-and-noise-tools' ) . '</button></p>';
+		echo '<p class="description">' . esc_html__( 'Data appears in Analytics → Search, and as impressions/position columns beside Top pages.', 'signal-and-noise-tools' ) . '</p>';
+	}
 	echo '</form>';
 }

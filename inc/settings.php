@@ -167,6 +167,11 @@ function sn_settings_defaults() {
 		// rather than copying a private key into a second option.
 		'search_console' => array(
 			'gsc_credential' => '',
+			// The property string Google knows this site by. NOT derivable from the
+			// site URL: a domain property ('sc-domain:example.com') and a URL-prefix
+			// property ('https://example.com/') are different strings and only one
+			// may be granted, so it is CHOSEN from what the credential can see.
+			'property'       => '',
 		),
 		'analytics' => array(
 			'exclude_roles' => array(),

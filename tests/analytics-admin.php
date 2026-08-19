@@ -349,7 +349,7 @@ echo "\nGroup: v9.68.0: the Overview is the DEFAULT landing (promoted, wired, sh
 // preview machinery is GONE (the experiment graduated).
 ok( 'overview' === array_key_first( SN_ANALYTICS_VIEWS ), 'registry: overview is FIRST' );
 ok( 'Overview' === ( SN_ANALYTICS_VIEWS['overview'] ?? '' ), 'registry: labeled "Overview"' );
-ok( 12 === count( SN_ANALYTICS_VIEWS ), 'registry: 12 views (11 + the promoted overview)' );
+ok( 13 === count( SN_ANALYTICS_VIEWS ), 'registry: 13 views (R6b: +search, the pre-click half with no first-party counterpart)' );
 ok( snt_analytics_views() === SN_ANALYTICS_VIEWS, 'effective registry: identical to the const: no flag branch left' );
 ok( ! function_exists( 'snt_analytics_landing_preview_enabled' ), 'flag: the sn_analytics_landing_preview helper no longer exists' );
 ok( 'overview' === snt_analytics_resolve_view( 'overview' ), 'resolve_view: overview resolves' );
@@ -581,7 +581,7 @@ foreach ( SN_ANALYTICS_VIEWS as $slug => $label ) {
 	ok( strpos( $html, 'sn_view=' . $slug ) !== false, "unconfigured: tab link to '$slug' present" );
 	++$tab_count;
 }
-ok( 12 === $tab_count, 'unconfigured: sanity: the registry has all 12 views incl. the promoted overview (test isn\'t vacuous)' );
+ok( 13 === $tab_count, 'unconfigured: sanity: the registry has all 13 views incl. search (test isn\'t vacuous)' );
 // v9.65.0 units-collision fix: the tab LABEL says what its number counts
 // (within-day sessions from the live session engine), while the SLUG stays
 // 'visits' — cache keys, ?sn_view= links, and the dispatch switch all key on

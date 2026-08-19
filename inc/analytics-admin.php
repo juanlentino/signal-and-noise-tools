@@ -63,6 +63,9 @@ const SN_ANALYTICS_VIEWS = array(
 	// on it (renaming the slug breaks them; renaming the label is free).
 	'visits'     => 'Sessions',
 	'quality'    => 'Quality',
+	// R6b: the pre-click half of the funnel. Its own tab because the metrics have
+	// NO first-party counterpart — the collector can never see a search query.
+	'search'     => 'Search',
 	'events'     => 'Events',
 	'edge'       => 'Traffic & edge',
 	'login-defense' => 'Login defense',
@@ -504,6 +507,13 @@ function snt_analytics_render_dashboard() {
 
 		case 'events':
 			snt_analytics_render_view_events( $from, $to ); // v8.5.0: inc/analytics-view-events.php
+			break;
+
+		case 'search':
+			// Takes NO range arguments on purpose: Search Console data is a stored
+			// rolling window, not a per-range query. Passing $from/$to would imply
+			// a filter this view cannot honour. inc/analytics-view-search.php
+			snt_analytics_render_view_search();
 			break;
 
 		case 'visits':

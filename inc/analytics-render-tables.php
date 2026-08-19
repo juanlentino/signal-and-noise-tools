@@ -29,20 +29,42 @@ function snt_analytics_render_paths_table( $paths ) {
 	}
 	snt_an_panel_open( __( 'Top pages', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	snt_an_clamp_open( count( $paths ), 10 ); // v8.5.0: full rows in the DOM; 10 visible — the primary table fills its column beside the sources stack (owner: no blank spaces)
+	// R6b: the pre-click half, joined on path. Columns appear ONLY when a Search
+	// Console window is stored — otherwise every row would read '—' and the table
+	// would get two columns wider to say nothing. Impressions + position, not all
+	// four metrics: Views/Visits already carry the post-click side, and "shown N
+	// times, ranked X" is the pair that adds something this row did not have.
+	$gsc = function_exists( 'snt_gsc_data' ) && null !== snt_gsc_data();
 	echo '<table class="wp-list-table widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Scroll', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Time', 'signal-and-noise-tools' ) . '</th>'
+		. ( $gsc ? '<th scope="col" class="manage-column num">' . esc_html__( 'Impr.', 'signal-and-noise-tools' ) . '</th>' : '' )
+		. ( $gsc ? '<th scope="col" class="manage-column num">' . esc_html__( 'Pos.', 'signal-and-noise-tools' ) . '</th>' : '' )
 		. '</tr></thead><tbody>';
 	foreach ( $paths as $r ) {
+		// Escaping stays INLINE in the echo below rather than being pre-built into
+		// a variable: a pre-escaped HTML string is invisible to phpcs, which reads
+		// `. $var .` in output as unescaped regardless of what went into it.
+		$impr = '';
+		$pos  = '';
+		if ( $gsc ) {
+			$m = snt_gsc_metrics_for_path( (string) $r['path'] );
+			// NULL means Google never showed this page; 0 would claim it showed it
+			// and nobody looked. An em-dash says "no reading", which is the truth.
+			$impr = null === $m ? '—' : number_format_i18n( (int) $m['impressions'] );
+			$pos  = null === $m ? '—' : number_format_i18n( (float) $m['position'], 1 );
+		}
 		echo '<tr>'
 			. '<td class="column-primary" data-colname="Path"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
 			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
 			. '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td>'
 			. '<td class="num" data-colname="Scroll">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
 			. '<td class="num" data-colname="Time">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td>'
+			. ( $gsc ? '<td class="num" data-colname="Impr.">' . esc_html( $impr ) . '</td>' : '' )
+			. ( $gsc ? '<td class="num" data-colname="Pos.">' . esc_html( $pos ) . '</td>' : '' )
 			. '</tr>';
 	}
 	echo '</tbody></table>';

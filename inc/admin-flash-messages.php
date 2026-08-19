@@ -157,6 +157,15 @@ function sn_admin_flash_messages() {
 		'gsc_credential_not_json'     => array( 'error', 'That is not valid JSON. Paste the whole downloaded key file, including the outer braces — the stored credential was not changed.' ),
 		'gsc_credential_not_service_account' => array( 'error', 'That JSON is not a service-account key. An OAuth client JSON looks similar and comes from the same screen, but cannot be used here — the stored credential was not changed.' ),
 		'gsc_credential_rejected'     => array( 'error', 'The pasted credential was rejected: a required field is missing or the private key is not a PEM block. Re-download the key from Google Cloud and paste it whole — the stored credential was not changed.' ),
+		'gsc_test_ok'                 => array( 'success', 'Connection works. The properties this service account can read are listed below.' ),
+		'gsc_test_no_properties'      => array( 'warning', 'The credential works, but this service account has been granted NO Search Console properties. Add its client_email in Search Console → Settings → Users and permissions.' ),
+		'gsc_test_failed'             => array( 'error', 'The connection test failed. The reason is shown below the credential.' ),
+		'gsc_test_not_configured'     => array( 'error', 'There is no credential to test yet.' ),
+		'gsc_property_saved'          => array( 'success', 'Search Console property selected. Run a sync to pull the first window.' ),
+		'gsc_property_unchanged'      => array( 'info', 'No property was chosen.' ),
+		'gsc_property_unknown'        => array( 'error', 'That property is not one this service account can read. Run Test connection to see the list it actually has.' ),
+		'gsc_sync_ok'                 => array( 'success', 'Search Console data synced. It appears in Analytics → Search and beside Top pages.' ),
+		'gsc_sync_failed'             => array( 'error', 'The sync failed. The reason is shown below the credential.' ),
 	);
 }
 
