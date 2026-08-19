@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Added
+- **The citation graph gets its public surface.** A "Cited by" aside on single notes,
+  listing only the tiers the site can vouch for — `verified` and `unattributed`. An
+  `asserted` claim, one whose link has since gone, stays in the admin and is shown to
+  nobody else; publishing it would be the exact conflation this module exists to avoid.
+- **The tier governs how much of the source we repeat.** A `verified` source publishes a
+  discoverable identity, so quoting the page's own title is fair — there is someone to
+  hold to it. An `unattributed` source has nobody discoverably behind it, and its
+  `<title>` is attacker-controlled text that would otherwise be reprinted on the author's
+  own note. Those entries show the **domain only**. The safety property falls out of the
+  epistemics rather than being bolted on. The `href` still carries the URL verbatim —
+  stripping `www.` is a display choice, not a rewrite of someone's address.
+- Outbound links carry `rel="noopener nofollow ugc"`: these are third-party links the site
+  did not choose.
+
+### Notes
+- **Silent when empty.** No citations means no aside — not an empty heading, not
+  "Cited by (0)". A note nobody has cited should look like a note nobody has cited. Since
+  the graph is currently empty, this change is invisible on the live site until a real
+  citation arrives.
+- Appends at `the_content` priority **21**, after the provenance panel and related-notes
+  aside (both 20): the note, then what it says, then who says they took it. Guards mirror
+  `ml-related-render.php`, including the `get_the_excerpt` one — core's `wp_trim_excerpt()`
+  runs `the_content`, so without it the aside would leak into auto-excerpts.
+- 30 assertions. One mutation deliberately fails nothing and the test says so: deleting the
+  tier gate inside the render loop changes no behaviour, because the link-text and label
+  helpers each independently refuse a non-public tier. The property is pinned twice; the
+  loop gate is defence-in-depth and unpinnable by construction.
+
 ## [11.27.0] - 2026-08-19 — the site answers to a second name, and to its citations
 
 ### Added
