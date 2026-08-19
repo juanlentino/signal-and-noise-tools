@@ -1064,7 +1064,7 @@ git commit -m "feat: attention and fleet zone builders"
 - Modify: `inc/admin-tab-dashboard.php:144-200` (`snt_dashboard_tab_render()`)
 - Modify: `signal-and-noise-tools.php`
 
-- [ ] **Step 1: Register the new files**
+- [x] **Step 1: Register the new files**
 
 In `signal-and-noise-tools.php`, immediately after the line requiring `inc/admin-glance.php`, add:
 
@@ -1079,7 +1079,7 @@ require_once SNT_PATH . 'inc/dash-zone-measurement.php'; // v11.28.0: how is the
 Run: `php -l signal-and-noise-tools.php`
 Expected: `No syntax errors detected`.
 
-- [ ] **Step 2: Split the glance cards into zones**
+- [x] **Step 2: Split the glance cards into zones**
 
 In `snt_dashboard_tab_render()`, replace the block that currently reads:
 
@@ -1114,7 +1114,7 @@ with:
 	echo '</section>';
 ```
 
-- [ ] **Step 3: Add the fleet component reader**
+- [x] **Step 3: Add the fleet component reader**
 
 Append to `inc/admin-tab-dashboard.php`:
 
@@ -1137,7 +1137,14 @@ function snt_dashboard_fleet_components() {
 }
 ```
 
-**Both helper names are verified** (checked 2026-08-19, so do not re-derive):
+**The helper names are verified but the CONTRACT was not.** `snt_deploy_status_for()`
+accepts `'theme'|'plugin'` only and returns a STRUCT, not a version string — passing it a
+worker key returns plugin data, and `'' === $status` never fires, so every fleet card
+would render the literal "Array". The registry holds metadata (label, repo, probe_url),
+not versions. Worker versions come from `snt_deploy_workers_status()`; `live` is the
+version that answered. See the shipped `snt_dashboard_fleet_components()`.
+
+Original note, kept for the record:
 `snt_deploy_status_for()` is `inc/admin-tab-dashboard.php:63`, and the registry is
 `snt_deploy_workers_registry()` at `inc/deploy-workers.php:51`. An earlier draft of this plan
 guessed `sn_deploy_probe_registry()`, which does not exist — confirm with:
@@ -1149,14 +1156,19 @@ grep -rn "function snt_deploy_workers_registry\|function snt_deploy_status_for" 
 Note the theme/plugin versions are NOT in the worker registry; add them to the components map
 from the `$theme` and `$plugin` values already in scope in `snt_dashboard_tab_render()`.
 
-- [ ] **Step 4: Remove the cut items**
+- [x] **Step 4: Remove the cut items**
 
-Delete from `snt_dashboard_tab_render()`: the External APIs block, the RSS feed activity block, and the standalone Recent deploys `<h2>` section (the deploy list moves inside the fleet zone in a later pass; for now it is removed from the tab). Delete the `Login blocks 7d` card from `snt_dashboard_glance_cards()`.
+**SUPERSEDED — this step diverged from the proposal and the owner chose the proposal.**
+Delete outright only what another surface already owns: the `Login blocks 7d` card
+(Security tab) and the RSS feed activity block (RSS tab owns the full view; remove its
+renderer and orphaned suite too). External APIs is **conditional, not cut** — render only
+when `snt_rate_limit_state()` reports warn or crit. Recent deploys is **folded into the
+fleet zone now**, via the renderer's `body_html`, not deferred to a later pass.
 
 Run: `php -l inc/admin-tab-dashboard.php && bash tests/run.sh; echo "EXIT=$?"`
 Expected: no syntax errors, sweep `EXIT=0`. If a suite asserts on the removed sections, update that suite — the removal is intended.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add inc/admin-tab-dashboard.php signal-and-noise-tools.php
