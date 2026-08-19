@@ -2,6 +2,35 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.25.0] - 2026-08-19 — the recommended variant is centring alone
+
+### Changed
+- **`centered`, not `centered_mutual`.** Measured on 33 published notes:
+
+  | variant | divergence | hub share |
+  |---|---|---|
+  | raw | 59.4% | 69.7% (23/33) |
+  | **centred** | **56.4%** | **30.3% (10/33)** |
+  | centred + mutual | 53.0% | 15.2% (5/33) |
+
+  Mutual filtering reaches the lowest hub share and gets there by **deleting the
+  clearest evidence for the whole arc**: *"The pen is not the notary"* and *"The gate is
+  not the signature"* make the identical argument in almost no shared vocabulary, and
+  mutual k-NN discards the pair because the relation is **asymmetric** — one note holds
+  the other close while the reverse has five it holds closer. In a corpus of
+  restatements that asymmetry is normal, not an error to filter away.
+
+  Centring alone removes the shared-subject mass that CAUSES hubness, rather than
+  deleting the pairs hubness produces: a 2.3× improvement in hub share while keeping
+  more recall. All three variants are still computed and displayed, because dropping the
+  losers would destroy the evidence that the choice was measured rather than asserted.
+
+### Fixed
+- **The recommendation is now one constant**, `SNT_ML_EMBED_RECOMMENDED`. It was a
+  hardcoded string in two places — the ranking the pair list is built from and the value
+  returned to the badge. That is exactly how a screen ends up showing numbers for one
+  ranking and pairs from another.
+
 ## [11.24.1] - 2026-08-19 — the readout said "\u00b7" and pushed the form off
 
 ### Fixed

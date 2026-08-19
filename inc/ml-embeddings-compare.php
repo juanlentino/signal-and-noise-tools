@@ -24,6 +24,28 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The variant the readout recommends and the pair list describes.
+ *
+ * ONE constant because these are the same fact in three places: the badge on
+ * the table, which ranking the divergent list is built from, and what a future
+ * swap would adopt. Hardcoding the string separately is how a screen ends up
+ * showing numbers for one ranking and pairs from another.
+ *
+ * WHY 'centered' AND NOT 'centered_mutual', measured 2026-08-19 on 33 published
+ * notes: mutual filtering took hub share to 15.2% but DROPPED the clearest
+ * evidence for the whole arc — "The pen is not the notary" and "The gate is not
+ * the signature" make the identical argument in almost no shared vocabulary,
+ * and mutual k-NN discards it because the relation is asymmetric (one note
+ * considers the other close; the reverse has five closer). Asymmetry is normal
+ * in a corpus of restatements, not an error to filter out.
+ *
+ * Centering alone: hub share 69.7% -> 30.3% (a 2.3x improvement) while keeping
+ * 56.4% divergence against 53.0%. It removes the shared-subject mass that
+ * CAUSES hubness rather than deleting the pairs hubness produces.
+ */
+const SNT_ML_EMBED_RECOMMENDED = 'centered';
+
+/**
  * Rank every other post against one post, by embedding cosine.
  *
  * @param array $vectors post_id => float[]
@@ -216,7 +238,7 @@ function snt_ml_embedding_compare_corpus( $depth = 5 ) {
 		foreach ( $ranked as $pid => $ids ) {
 			$d = snt_ml_embed_diff( $tfidf[ $pid ] ?? array(), $ids );
 			$diffs[] = $d;
-			if ( 'centered_mutual' === $name && $d['only_embedding'] ) {
+			if ( SNT_ML_EMBED_RECOMMENDED === $name && $d['only_embedding'] ) {
 				$divergent[] = array(
 					'post_id'        => (int) $pid,
 					'title'          => (string) get_the_title( (int) $pid ),
@@ -240,7 +262,7 @@ function snt_ml_embedding_compare_corpus( $depth = 5 ) {
 	);
 	// `divergent` describes the RECOMMENDED variant, so the table on screen and
 	// the numbers beside it can never be describing different rankings.
-	return array( 'variants' => $out, 'divergent' => $divergent, 'recommended' => 'centered_mutual', 'scope' => $scope );
+	return array( 'variants' => $out, 'divergent' => $divergent, 'recommended' => SNT_ML_EMBED_RECOMMENDED, 'scope' => $scope );
 }
 
 /**

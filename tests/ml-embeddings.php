@@ -169,6 +169,19 @@ $mut2 = snt_ml_embed_mutual( $one_way );
 ok( array() === $mut2[2], 'a ONE-WAY link to the hub is dropped — 9 never points back at 2' );
 ok( array( 9 ) === $mut2[1], 'while the reciprocated one is kept' );
 
+echo "\nGroup: the recommendation is ONE fact in one place\n";
+ok( defined( 'SNT_ML_EMBED_RECOMMENDED' ), 'the recommended variant is a constant' );
+ok( 'centered' === SNT_ML_EMBED_RECOMMENDED, "and is 'centered' — mutual filtering dropped the arc's clearest pair (pen/notary <-> gate/signature) because that relation is ASYMMETRIC, which is normal in a corpus of restatements" );
+$cmp_c = (string) file_get_contents( __DIR__ . '/../inc/ml-embeddings-compare.php' );
+ok( 1 === substr_count( $cmp_c, "const SNT_ML_EMBED_RECOMMENDED" ), 'defined exactly once' );
+// The failure this prevents: a screen showing numbers for one ranking and a
+// pair table built from another.
+ok( false === strpos( $cmp_c, "'centered_mutual' === \$name" ), 'the pair list keys off the CONSTANT, never a second hardcoded string' );
+ok( false !== strpos( $cmp_c, "SNT_ML_EMBED_RECOMMENDED === \$name" ), 'so the table and the pairs always describe the same variant' );
+// All three still computed — dropping the losers would destroy the evidence
+// that the choice was measured rather than asserted.
+ok( false !== strpos( $cmp_c, "'centered_mutual'  =>" ), 'and mutual is still COMPUTED and shown, so the comparison stays auditable' );
+
 echo "\nGroup: the three status roles are distinct\n";
 $cmp_src = (string) file_get_contents( __DIR__ . '/../inc/ml-embeddings-compare.php' );
 ok( false !== strpos( $cmp_src, "array( 'publish', 'future' )" ), 'the CENTROID spans published AND scheduled — 22 unseen notes move exactly that' );
