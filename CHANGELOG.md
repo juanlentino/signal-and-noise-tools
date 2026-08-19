@@ -2,6 +2,45 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.31.0] - 2026-08-19 — the instrument face
+
+The screen had structure but no design language. This gives it one: a precision
+measurement panel — engineering plot, tabular figures, mono eyebrows, depth from
+layering rather than ornament. No webfont; an admin screen should not pay a network
+round-trip on every load, and the system mono already carries the character.
+
+### Added
+- **Region header bands.** Every card names itself with a mono eyebrow and, where it
+  has one, a reading: Systems shows "12 reporting", the plot shows "129 latest · peak
+  187". Unlabelled rectangles made the reader infer each region from its contents.
+- **The plot became an instrument.** A gradient ground, an emphasised endpoint ringed
+  against the surface, and a bounded axis stating the window. Its peak and latest are
+  rendered as **HTML beside the plot, never as SVG `<text>`** — the chart stretches
+  with `preserveAspectRatio="none"`, which distorts every glyph inside it. A 30-day
+  plot whose maximum you cannot read off is a decoration of a number, not a reading.
+- **Cells render what the card already carries.** `meta_html` — the pre-escaped detail
+  line a card's source builds, such as `snt_freshness_report_meta()`'s "last purge"
+  summary — was being dropped. A fact the plugin had already computed never reached
+  the screen.
+- **A cold probe says "warming".** It paints no colour by design (v11.16.0, cold is not
+  broken), which left the reader no way to tell warming from current: the honesty of
+  not alarming had cost the fact itself.
+
+### Changed
+- **Scale contrast: Views leads.** Five equal figures is a readout; one that leads is a
+  reading. The signals row is `1.5fr 1fr 1fr 1fr 1fr` and the hero number is 30px.
+- **Designed states.** Rows and cells respond on hover, links underline, and focus is
+  visible with an offset ring.
+- **One orchestrated load** — a 320ms staggered reveal, behind
+  `prefers-reduced-motion: no-preference`. Scattered micro-interactions were not the goal.
+
+### Fixed
+- **Eleven of twelve system cells escaped their grid.** A stray `</section>` in the
+  *cell* renderer closed the card after the first cell. The edit that added it matched
+  the cell function's closing `echo` before the container's — the same
+  earlier-occurrence-than-intended mistake that mangled a CSS slice the same day.
+  Caught by rendering it and counting parents in the DOM, not by reading the diff.
+
 ## [11.30.3] - 2026-08-19 — a broken instrument's readings are not data
 
 ### Fixed

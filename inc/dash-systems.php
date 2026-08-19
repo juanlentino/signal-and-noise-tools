@@ -55,6 +55,24 @@ function sn_dash_render_system_cell( array $card ) {
 	} else {
 		echo '<span class="' . esc_attr( $vclass ) . '">' . esc_html( (string) ( $card['value'] ?? '' ) ) . '</span>';
 	}
+	// The state WORD, not just a tint. A cold probe paints no colour by design
+	// (v11.16.0), so without this the reader has no way to tell "warming" from
+	// "current" — the honesty of not alarming cost the fact itself.
+	$pill_text = (string) ( $card['pill']['text'] ?? '' );
+	if ( '' !== $pill_text && 'ok' !== $kind ) {
+		echo '<span class="sn-sys__state">' . esc_html( $pill_text ) . '</span>';
+	}
+
+	// meta_html is built and ESCAPED by its source — snt_freshness_report_meta()
+	// composes the "last purge" line that way. Re-escaping here would print the
+	// tags. Dropping it, as v11.30.0 did, threw away a fact already computed.
+	$meta = (string) ( $card['meta_html'] ?? '' );
+	if ( '' !== $meta ) {
+		echo '<span class="sn-sys__meta">';
+		echo $meta; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- escaped at build by the card's source; see snt_freshness_report_meta().
+		echo '</span>';
+	}
+
 	echo '</div>';
 }
 
@@ -75,11 +93,18 @@ function sn_dash_render_systems( array $checks, array $components ) {
 	if ( empty( $all ) ) {
 		return;
 	}
-	echo '<div class="sn-scr__systems">';
+	echo '<section class="sn-scr__systems">';
+	echo '<header class="sn-card__head">';
+	echo '<span class="sn-card__eyebrow">' . esc_html__( 'Systems', 'signal-and-noise-tools' ) . '</span>';
+	/* translators: %d components and checks reporting */
+	echo '<span class="sn-card__meta">' . esc_html( sprintf( _n( '%d reporting', '%d reporting', count( $all ), 'signal-and-noise-tools' ), count( $all ) ) ) . '</span>';
+	echo '</header>';
+	echo '<div class="sn-scr__grid">';
 	foreach ( $all as $card ) {
 		if ( is_array( $card ) ) {
 			sn_dash_render_system_cell( $card );
 		}
 	}
 	echo '</div>';
+	echo '</section>';
 }
