@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.30.3] - 2026-08-19 — a broken instrument's readings are not data
+
+### Fixed
+- **SN Cache reported a stale edge that had been fixed a day earlier.** The widget
+  showed a red "Edge served a stale render", 11 verdicts, 11 stale, 11 zone purges
+  forced — while the Dashboard screen reported every zone fresh. Both were reading
+  honestly; only one was reading *evidence*. Those 11 rows were written by the
+  pre-v11.29.1 detector, which compared a cached render against a cache-busted one
+  and, as this file's own comment says, "could not return anything else".
+
+  Verdicts are now stamped with the algorithm that produced them
+  (`SN_CF_PROBE_ALGO`), and `snt_cf_freshness_summary()` counts only entries from
+  the current one. An entry with no stamp predates the fix by definition. When
+  nothing has been measured since the repair the summary returns **null**, which
+  the widget already renders as "records a verdict after the next post purge" —
+  the true statement. The log is kept on disk for forensics; it is simply no
+  longer evidence. Bump the constant whenever `snt_cf_normalize_render()` changes
+  what it compares.
+
+### Changed
+- **The Dashboard screen has surface again.** v11.30.0 removed every drawn box on
+  Few's data-pixel argument and landed on a page that read as a wireframe. The
+  project's own standard — generous spacing, shadows on cards, a consistent type
+  scale — takes precedence, and the two reconcile: the mistake was ten boxes
+  competing at *figure* level, not surface as such. Signals, trend, systems and
+  detail are now **one card each** — four surfaces, not ten and not zero — with
+  hairlines separating rows *within* a card, which is still exactly Few's argument
+  applied at the altitude where grouping happens. Spacing between regions moves
+  from 12px to 20px and the verdict from 28px to 30px.
+
 ## [11.30.2] - 2026-08-19 — the widget's CSS never reached the screen, and WordPress 7.1
 
 ### Fixed

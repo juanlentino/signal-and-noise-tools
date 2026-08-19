@@ -173,9 +173,13 @@ ok( null === snt_cf_freshness_summary(), 'corrupt option reads as never-probed r
 
 // Newest first, as snt_cf_probe_record() array_unshifts them.
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
-	array( 'time' => 1000, 'result' => 'fresh', 'url' => 'https://x.test/a' ),
-	array( 'time' =>  900, 'result' => 'stale', 'url' => 'https://x.test/b', 'escalated' => true ),
-	array( 'time' =>  800, 'result' => 'fresh', 'url' => 'https://x.test/c' ),
+	// v11.30.3: fixtures carry `algo` because the summary now counts only
+	// verdicts the CURRENT detector produced. These exercise the counting
+	// logic, so they must be current-detector rows; the epoch filter itself is
+	// exercised further down with deliberately unstamped entries.
+	array( 'time' => 1000, 'result' => 'fresh', 'url' => 'https://x.test/a', 'algo' => SN_CF_PROBE_ALGO ),
+	array( 'time' =>  900, 'result' => 'stale', 'url' => 'https://x.test/b', 'escalated' => true, 'algo' => SN_CF_PROBE_ALGO ),
+	array( 'time' =>  800, 'result' => 'fresh', 'url' => 'https://x.test/c', 'algo' => SN_CF_PROBE_ALGO ),
 );
 $sum = snt_cf_freshness_summary();
 ok( is_array( $sum ), 'a populated log yields a summary' );
@@ -187,17 +191,68 @@ ok( 1 === $sum['escalated'], 'escalations are counted separately — a stale pur
 
 // A stale newest entry must surface as the verdict even with fresh history.
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
-	array( 'time' => 2000, 'result' => 'stale', 'url' => 'https://x.test/a' ),
-	array( 'time' => 1000, 'result' => 'fresh', 'url' => 'https://x.test/b' ),
+	array( 'time' => 2000, 'result' => 'stale', 'url' => 'https://x.test/a', 'algo' => SN_CF_PROBE_ALGO ),
+	array( 'time' => 1000, 'result' => 'fresh', 'url' => 'https://x.test/b', 'algo' => SN_CF_PROBE_ALGO ),
 );
 $sum = snt_cf_freshness_summary();
 ok( 'stale' === $sum['last'], 'A STALE NEWEST ENTRY IS THE VERDICT, however good the history' );
 ok( 0 === $sum['escalated'], 'a stale entry that did not escalate is not counted as one' );
 
 // An entry with an unrecognised result is not silently counted as fresh.
-$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array( array( 'time' => 5, 'result' => 'weird' ) );
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array( array( 'time' => 5, 'result' => 'weird', 'algo' => SN_CF_PROBE_ALGO ) );
 $sum = snt_cf_freshness_summary();
 ok( 'unknown' === $sum['last'], 'an unrecognised result reads as unknown, never as fresh' );
+
+// ── A MEASUREMENT FROM A BROKEN INSTRUMENT IS NOT A MEASUREMENT ─────────────
+// v11.30.3. Until v11.29.1 this probe compared a CACHED render against a
+// CACHE-BUSTED one, which on this site can never be equal — Breeze injects a
+// prefetch script on one path only. Every probe therefore returned stale and
+// every one escalated: the log read 11 stale of 11, from a detector that could
+// not return anything else.
+//
+// The verdict half was fixed; the LOG was not. So the desktop widget kept
+// showing a red "Edge served a stale render" over a day-old pre-fix entry while
+// the Dashboard screen said every zone was fresh — two surfaces disagreeing
+// because one was counting known-bad evidence.
+//
+// Entries are now stamped with the algorithm that produced them, and the
+// summary ignores anything older than the current one. Absence of a current
+// verdict must read as NOT MEASURED — never as fresh, and never as stale.
+echo "\nGroup: the summary ignores pre-fix verdicts\n";
+
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
+	array( 'result' => 'stale', 'time' => 1000, 'escalated' => true ),
+	array( 'result' => 'stale', 'time' => 900,  'escalated' => true ),
+);
+ok( null === snt_cf_freshness_summary(),
+	'A LOG OF ONLY PRE-FIX ENTRIES SUMMARISES TO NULL — not measured since the detector was repaired' );
+
+// A current-algorithm entry is real evidence and counts.
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
+	array( 'result' => 'fresh', 'time' => 2000, 'algo' => SN_CF_PROBE_ALGO ),
+	array( 'result' => 'stale', 'time' => 1000, 'escalated' => true ),
+);
+$sum = snt_cf_freshness_summary();
+ok( is_array( $sum ), 'a log containing a current entry summarises' );
+ok( 'fresh' === $sum['last'], 'and the newest CURRENT verdict leads' );
+ok( 1 === $sum['total'], 'THE TOTAL COUNTS ONLY CURRENT-ALGORITHM ENTRIES — 11 known-bad rows are not a denominator' );
+ok( 0 === $sum['stale'], 'and the pre-fix stale rows do not inflate the stale count' );
+ok( 0 === $sum['escalated'], 'nor the escalation count' );
+
+// A genuine stale verdict from the CURRENT detector must still alarm.
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
+	array( 'result' => 'stale', 'time' => 3000, 'escalated' => true, 'algo' => SN_CF_PROBE_ALGO ),
+);
+$sum2 = snt_cf_freshness_summary();
+ok( 'stale' === $sum2['last'] && 1 === $sum2['stale'] && 1 === $sum2['escalated'],
+	'A REAL STALE VERDICT STILL ALARMS — the filter drops old evidence, not bad news' );
+
+// And the recorder stamps what produced the entry, or the filter is worthless.
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array();
+snt_cf_probe_record( array( 'result' => 'fresh', 'time' => 4000 ) );
+$rec = $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ][0];
+ok( isset( $rec['algo'] ) && SN_CF_PROBE_ALGO === $rec['algo'],
+	'THE RECORDER STAMPS THE ALGORITHM — without it every new entry reads as pre-fix and the widget never recovers' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

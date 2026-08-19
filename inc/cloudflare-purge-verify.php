@@ -42,6 +42,33 @@ const SN_CF_PROBE_HOOK = 'sn_cf_verify_post_purge';
 const SN_CF_PROBE_LOG_OPT = 'sn_cf_purge_probe_log';
 
 /**
+ * The comparison algorithm that produced a verdict.
+ *
+ * WHY A VERDICT NEEDS A VERSION. Until v11.29.1 this probe compared a CACHED
+ * render against a CACHE-BUSTED one, which on this site can never be equal —
+ * Breeze injects a prefetch script on one path only. Every probe returned stale
+ * and every one escalated: the log read 11 stale of 11, from a detector that
+ * could not return anything else.
+ *
+ * The detector was fixed. The LOG was not, and nothing in an entry said which
+ * detector wrote it — so the desktop widget kept showing a red "Edge served a
+ * stale render" over a day-old pre-fix row while the Dashboard screen reported
+ * every zone fresh. Two surfaces disagreeing, because one was counting evidence
+ * from a broken instrument.
+ *
+ * A measurement made by a broken instrument is not a measurement. Bump this
+ * whenever snt_cf_normalize_render() changes what it compares, and every older
+ * verdict stops counting — the log is kept on disk for forensics, but it is no
+ * longer evidence.
+ *
+ * 1 = pre-v11.29.1 whole-document comparison (never explicitly stamped).
+ * 2 = v11.29.1 <main>-region comparison, comments and whitespace stripped.
+ *
+ * @since 11.30.3
+ */
+const SN_CF_PROBE_ALGO = 2;
+
+/**
  * Reduce a rendered page to something comparable across two fetches.
  *
  * Two fetches of the SAME page differ in ways that are not staleness: nonces,
@@ -139,6 +166,10 @@ function snt_cf_probe_is_stale( $bare_html, $fresh_html ) {
  * @return void
  */
 function snt_cf_probe_record( array $entry ) {
+	// Stamp WHAT MEASURED IT. Without this every new verdict is
+	// indistinguishable from the pre-fix rows and the summary never recovers.
+	$entry['algo'] = SN_CF_PROBE_ALGO;
+
 	$log = get_option( SN_CF_PROBE_LOG_OPT, array() );
 	if ( ! is_array( $log ) ) {
 		$log = array();
@@ -169,12 +200,26 @@ function snt_cf_freshness_summary() {
 		return null;
 	}
 
+	// Keep only verdicts the CURRENT detector produced. An entry with no `algo`
+	// predates the stamp and therefore predates the fix; counting it would put
+	// a broken instrument's readings in the numerator AND the denominator.
+	$current = array();
+	foreach ( $log as $entry ) {
+		if ( is_array( $entry ) && (int) ( $entry['algo'] ?? 1 ) >= SN_CF_PROBE_ALGO ) {
+			$current[] = $entry;
+		}
+	}
+
+	// Nothing measured since the repair is NOT MEASURED — never fresh, never
+	// stale. The widget already renders null as "records a verdict after the
+	// next post purge", which is exactly the true statement here.
+	if ( empty( $current ) ) {
+		return null;
+	}
+
 	$stale     = 0;
 	$escalated = 0;
-	foreach ( $log as $entry ) {
-		if ( ! is_array( $entry ) ) {
-			continue;
-		}
+	foreach ( $current as $entry ) {
 		if ( 'stale' === ( $entry['result'] ?? '' ) ) {
 			++$stale;
 			if ( ! empty( $entry['escalated'] ) ) {
@@ -184,14 +229,14 @@ function snt_cf_freshness_summary() {
 	}
 
 	// snt_cf_probe_record() array_unshifts, so index 0 is the newest.
-	$newest = is_array( $log[0] ) ? $log[0] : array();
+	$newest = is_array( $current[0] ) ? $current[0] : array();
 	$result = (string) ( $newest['result'] ?? '' );
 
 	return array(
 		// Anything we do not recognise is `unknown`, never silently `fresh`.
 		'last'      => in_array( $result, array( 'fresh', 'stale' ), true ) ? $result : 'unknown',
 		'last_time' => (int) ( $newest['time'] ?? 0 ),
-		'total'     => count( $log ),
+		'total'     => count( $current ),
 		'stale'     => $stale,
 		'escalated' => $escalated,
 	);

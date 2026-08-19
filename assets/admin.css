@@ -2473,7 +2473,7 @@ a.sn-glance-card:focus {
 /* The verdict is the largest type on the page, by a distance. Scale contrast
    is what carries the hierarchy — not colour, and not weight alone. */
 .sn-scr__verdict {
-	font-size: 28px;
+	font-size: 30px;
 	line-height: 1.2;
 	font-weight: 400;
 	letter-spacing: -.015em;
@@ -2484,9 +2484,9 @@ a.sn-glance-card:focus {
 .sn-scr--err  .sn-scr__verdict { color: var(--sn-err); }
 .sn-scr--unknown .sn-scr__verdict { color: var(--sn-text-muted); }
 .sn-scr__sub {
-	font-size: 12px;
+	font-size: 13px;
 	color: var(--sn-text-muted);
-	margin: 0 0 var(--sn-space-3);
+	margin: 0 0 var(--sn-space-5);
 }
 
 /* The exception band. On a healthy day this element does not exist at all —
@@ -2503,15 +2503,22 @@ a.sn-glance-card:focus {
 .sn-scr__ex--err b { color: var(--sn-err); }
 
 /* Signals: hairline-separated cells, no card borders. */
+/* ONE CARD PER REGION — four surfaces, not ten and not zero. v11.30.0 removed
+   every box on Few's data-pixel argument and produced a wireframe; the mistake
+   was boxes competing at FIGURE level, not surface as such. Cards group,
+   hairlines separate within a card. */
 .sn-scr__signals {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 150px, 1fr ) );
-	border-top: 1px solid var(--sn-border);
-	border-bottom: 1px solid var(--sn-border);
-	margin: 0 0 var(--sn-space-3);
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-radius: 6px;
+	box-shadow: 0 1px 2px rgba( 16, 24, 40, .05 ), 0 1px 3px rgba( 16, 24, 40, .04 );
+	margin: 0 0 var(--sn-space-5);
+	overflow: hidden;
 }
 .sn-sig {
-	padding: 10px var(--sn-space-3) 11px;
+	padding: var(--sn-space-3) var(--sn-space-4) 15px;
 	border-right: 1px solid var(--sn-border-light, var(--sn-border));
 	display: flex;
 	flex-direction: column;
@@ -2540,7 +2547,14 @@ a.sn-glance-card:focus {
 .sn-sig__compare--down { color: var(--sn-err); font-weight: 600; }
 
 /* The trend: a chart with a size. NOT flex:1 — see the header note. */
-.sn-stage__trend { margin: 0 0 var(--sn-space-3); }
+.sn-stage__trend {
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-radius: 6px;
+	box-shadow: 0 1px 2px rgba( 16, 24, 40, .05 ), 0 1px 3px rgba( 16, 24, 40, .04 );
+	padding: var(--sn-space-3) var(--sn-space-4) var(--sn-space-4);
+	margin: 0 0 var(--sn-space-5);
+}
 .sn-stage__head {
 	font-size: 11px;
 	text-transform: uppercase;
@@ -2570,15 +2584,18 @@ a.sn-glance-card:focus {
 .sn-scr__systems {
 	display: grid;
 	grid-template-columns: repeat( 6, minmax( 0, 1fr ) );
-	border-top: 1px solid var(--sn-border);
-	border-left: 1px solid var(--sn-border);
-	margin: 0 0 var(--sn-space-3);
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-radius: 6px;
+	box-shadow: 0 1px 2px rgba( 16, 24, 40, .05 ), 0 1px 3px rgba( 16, 24, 40, .04 );
+	margin: 0 0 var(--sn-space-5);
+	overflow: hidden;
 }
 @media (max-width: 1400px) { .sn-scr__systems { grid-template-columns: repeat( 4, minmax( 0, 1fr ) ); } }
 @media (max-width: 900px)  { .sn-scr__systems { grid-template-columns: repeat( 3, minmax( 0, 1fr ) ); } }
 @media (max-width: 600px)  { .sn-scr__systems { grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); } }
 .sn-sys {
-	padding: 7px var(--sn-space-3) 8px;
+	padding: 11px var(--sn-space-3) 12px;
 	border-right: 1px solid var(--sn-border);
 	border-bottom: 1px solid var(--sn-border);
 	display: flex;
@@ -2613,10 +2630,13 @@ a.sn-glance-card:focus {
 .sn-scr__detail {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 220px, 1fr ) );
-	gap: 0 var(--sn-space-5);
-	border-top: 1px solid var(--sn-border);
-	padding-top: var(--sn-space-3);
-	margin: 0 0 var(--sn-space-3);
+	gap: var(--sn-space-4) var(--sn-space-5);
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-radius: 6px;
+	box-shadow: 0 1px 2px rgba( 16, 24, 40, .05 ), 0 1px 3px rgba( 16, 24, 40, .04 );
+	padding: var(--sn-space-4);
+	margin: 0 0 var(--sn-space-5);
 }
 .sn-scr__col { min-width: 0; }
 .sn-scr__colhead {
@@ -2649,8 +2669,7 @@ a.sn-ops__label { text-decoration: none; }
 	flex-wrap: wrap;
 	align-items: center;
 	gap: var(--sn-space-2);
-	border-top: 1px solid var(--sn-border);
-	padding-top: var(--sn-space-3);
+	padding-top: var(--sn-space-2);
 }
 .sn-toolbar__k {
 	font-size: 11px;
