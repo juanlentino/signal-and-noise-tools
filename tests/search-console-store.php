@@ -119,5 +119,41 @@ ok( false === $GLOBALS['__autoload'][ SNT_GSC_DATA_OPTION ], 'the option is writ
 ok( 'sc-domain:x.test' === $payload['property'] && isset( $payload['window']['start'] ), 'the payload records WHICH property and WHICH window it describes' );
 ok( isset( $payload['synced_at'] ), 'and when it was taken — a stale window must be visible as stale' );
 
+// ── window totals (v11.28.1) ────────────────────────────────────────────────
+// The Dashboard's clicks figure reads this. NULL vs 0 is the whole contract: a
+// property that has never synced and one Google reports no clicks for are
+// different facts, and a 0 would state the second while meaning the first.
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+
+$GLOBALS['__opts'] = array();
+ok( null === snt_gsc_window_totals(), 'NEVER SYNCED IS NULL, NOT ZERO CLICKS' );
+
+$GLOBALS['__opts'][ SNT_GSC_DATA_OPTION ] = array(
+	'synced_at' => 1,
+	'window'    => array( 'start' => '2026-07-01', 'end' => '2026-07-28' ),
+	'pages'     => array(
+		'/a' => array( 'clicks' => 10, 'impressions' => 100 ),
+		'/b' => array( 'clicks' => 5,  'impressions' => 50 ),
+	),
+);
+$t = snt_gsc_window_totals();
+ok( 15 === $t['clicks'], 'clicks sum across the stored pages' );
+ok( 28 === $t['days'], 'the window length counts BOTH endpoints — 07-01..07-28 is 28 days, not 27' );
+
+// A synced property with genuinely no clicks is a measured zero.
+$GLOBALS['__opts'][ SNT_GSC_DATA_OPTION ] = array(
+	'synced_at' => 1,
+	'window'    => array( 'start' => '2026-07-01', 'end' => '2026-07-28' ),
+	'pages'     => array(),
+);
+$t = snt_gsc_window_totals();
+ok( is_array( $t ) && 0 === $t['clicks'], 'A SYNCED PROPERTY WITH NO CLICKS IS A MEASURED ZERO, not null' );
+
+// A payload with no window still reports its clicks, and says the length is
+// unknown rather than guessing one.
+$GLOBALS['__opts'][ SNT_GSC_DATA_OPTION ] = array( 'synced_at' => 1, 'pages' => array( '/a' => array( 'clicks' => 3 ) ) );
+$t = snt_gsc_window_totals();
+ok( 3 === $t['clicks'] && 0 === $t['days'], 'a missing window yields days=0, which the label reads as unknown' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );

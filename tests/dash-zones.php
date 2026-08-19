@@ -3,6 +3,9 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! function_exists( '__' ) ) { function __( $t, $d = '' ) { return $t; } }
 
+// v11.28.1: the opt-out predicate is shared, and lives with its original owner
+// (the v11.16.0 glance sort). Pure function definitions, no side effects on load.
+require __DIR__ . '/../inc/admin-glance.php';
 require __DIR__ . '/../inc/dash-zones.php';
 
 $pass = 0; $fail = 0;

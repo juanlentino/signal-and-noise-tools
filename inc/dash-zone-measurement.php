@@ -21,15 +21,26 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Build the five figures in display order.
  *
- * @param array<string,mixed> $data Keys: views_7d, views_delta, search_clicks_7d,
+ * @param array<string,mixed> $data Keys: views_7d, views_delta, search_clicks,
  *                                  ai_spend_30d, anchored, citations. An absent or
  *                                  null key is UNMEASURED.
  * @return array<int,array<string,mixed>>
  */
 function sn_dash_measurement_figures( array $data ) {
+	// The Search Console window is whatever the last sync used — 28 days by
+	// default, ending a few days back because Google has not finished counting
+	// the most recent ones. Labelling that "clicks 7d" would overstate a week by
+	// a month's worth and read as entirely plausible, so the label is DERIVED.
+	// An unknown length says "clicks" rather than inventing "clicks 0d".
+	$clicks_days  = isset( $data['search_clicks_days'] ) ? (int) $data['search_clicks_days'] : 0;
+	$clicks_label = $clicks_days > 0
+		/* translators: %d number of days in the Search Console window */
+		? sprintf( __( 'clicks %dd', 'signal-and-noise-tools' ), $clicks_days )
+		: __( 'clicks', 'signal-and-noise-tools' );
+
 	$spec = array(
 		array( 'key' => 'views_7d', 'label' => __( 'views 7d', 'signal-and-noise-tools' ), 'hero' => true ),
-		array( 'key' => 'search_clicks_7d', 'label' => __( 'clicks 7d', 'signal-and-noise-tools' ), 'hero' => false ),
+		array( 'key' => 'search_clicks', 'label' => $clicks_label, 'hero' => false ),
 		array( 'key' => 'ai_spend_30d', 'label' => __( 'AI 30d', 'signal-and-noise-tools' ), 'hero' => false, 'money' => true ),
 		array( 'key' => 'anchored', 'label' => __( 'anchored', 'signal-and-noise-tools' ), 'hero' => false ),
 		array( 'key' => 'citations', 'label' => __( 'citations', 'signal-and-noise-tools' ), 'hero' => false ),
@@ -123,7 +134,7 @@ function sn_dash_render_measurement_strip( array $figures ) {
  * reads as unmeasured and renders as an em dash. That is the point: a missing
  * module is missing evidence, and a 0 here would be a claim we cannot support.
  *
- * `search_clicks_7d` is deliberately absent. The Search Console read sits
+ * `search_clicks` is deliberately absent. The Search Console read sits
  * outside the glance cache and needs its own transient; until that lands the
  * figure renders unknown, which is the same thing the proposal specifies for a
  * cache miss or an API error. Citations reads the local table, where 0 is a
@@ -182,6 +193,19 @@ function snt_dashboard_measurement_data() {
 				$total += (int) ( $counts[ $tier ] ?? 0 );
 			}
 			$data['citations'] = $total;
+		}
+	}
+
+	// Search Console reads the STORED payload — no API call on a page render.
+	// snt_gsc_window_totals() returns null until something has synced, which
+	// keeps the key absent and the figure unknown. That is the same answer the
+	// design specifies for a failed read: an unreachable API is missing
+	// evidence, not zero clicks.
+	if ( function_exists( 'snt_gsc_window_totals' ) ) {
+		$gsc = snt_gsc_window_totals();
+		if ( is_array( $gsc ) ) {
+			$data['search_clicks']      = (int) $gsc['clicks'];
+			$data['search_clicks_days'] = (int) $gsc['days'];
 		}
 	}
 

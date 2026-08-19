@@ -111,6 +111,30 @@ function sn_admin_glance_grid( array $cards ) {
 }
 
 /**
+ * Does this card want to be promoted for attention? (v11.28.1)
+ *
+ * A card may keep an amber pill while declining to lead — see the long note in
+ * sn_admin_glance_sort_by_attention() for why the pill and the promotion came
+ * apart in v11.11.5.
+ *
+ * ONLY an explicit `false` opts out. `array_key_exists` + identity, never a
+ * falsy check: an absent key, a null, and a 0 all mean "no opinion", and
+ * treating them as opt-outs would silence real warnings.
+ *
+ * Extracted because this rule lived in three byte-identical copies — here,
+ * sn_dash_zone_state() and sn_dash_zone_attention(). Three copies is three
+ * chances to update two, and when the count and the state disagree you get the
+ * v11.16.0 regression back in a new place.
+ *
+ * @since 11.28.1
+ * @param array<string,mixed> $card
+ * @return bool
+ */
+function sn_admin_card_wants_attention( array $card ) {
+	return ! array_key_exists( 'attention', $card ) || false !== $card['attention'];
+}
+
+/**
  * Sort glance cards so anything needing attention leads. (v10.48.0)
  *
  * PURE and STABLE: err before warn before everything else, and within a class
@@ -142,7 +166,7 @@ function sn_admin_glance_sort_by_attention( array $cards ) {
 		// Painting it 'ok' would fix the order by lying in the other direction:
 		// a cold probe is not healthy, it is unknown. So the pill stays amber
 		// and the card says, separately, that it is not asking for anyone.
-		$wants = ! array_key_exists( 'attention', $card ) || false !== $card['attention'];
+		$wants = sn_admin_card_wants_attention( $card );
 		$keyed[] = array( 'r' => $wants ? ( $rank[ $kind ] ?? 2 ) : 2, 'i' => $i, 'c' => $card );
 	}
 	usort( $keyed, function ( $a, $b ) {

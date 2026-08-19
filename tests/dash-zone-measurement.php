@@ -15,7 +15,7 @@ echo "dashboard measurement zone\n\n";
 
 $figs = sn_dash_measurement_figures( array(
 	'views_7d' => 103, 'views_delta' => 39, 'ai_spend_30d' => 0.61,
-	'anchored' => 33, 'citations' => 0, 'search_clicks_7d' => 18,
+	'anchored' => 33, 'citations' => 0, 'search_clicks' => 18,
 ) );
 ok( count( $figs ) === 5, 'five figures, the agreed cap' );
 ok( $figs[0]['key'] === 'views_7d', 'views leads — it is the hero row on narrow' );
@@ -30,11 +30,11 @@ ok( $byk['ai_spend_30d']['value'] === '$0.61', 'AI SPEND KEEPS ITS CENTS — not
 // The delta belongs to views alone. Unguarded it staples the views delta onto
 // every figure, so "clicks 7d" would show a change it never measured.
 ok( $byk['views_7d']['delta'] === 39, 'the hero carries its delta' );
-ok( $byk['search_clicks_7d']['delta'] === null, 'A NON-HERO FIGURE NEVER BORROWS THE VIEWS DELTA' );
+ok( $byk['search_clicks']['delta'] === null, 'A NON-HERO FIGURE NEVER BORROWS THE VIEWS DELTA' );
 ok( $byk['citations']['delta'] === null, 'nor does citations' );
 
 // A measured zero renders as zero.
-$z = sn_dash_measurement_figures( array( 'views_7d' => 0, 'citations' => 0, 'ai_spend_30d' => 0, 'anchored' => 0, 'search_clicks_7d' => 0 ) );
+$z = sn_dash_measurement_figures( array( 'views_7d' => 0, 'citations' => 0, 'ai_spend_30d' => 0, 'anchored' => 0, 'search_clicks' => 0 ) );
 foreach ( $z as $f ) { ok( $f['measured'] === true, "{$f['key']} zero is MEASURED, not unknown" ); }
 ok( $z[0]['value'] === '0', 'a measured zero prints 0' );
 $zk = array(); foreach ( $z as $f ) { $zk[ $f['key'] ] = $f; }
@@ -43,14 +43,14 @@ ok( $zk['ai_spend_30d']['value'] === '$0.00', 'and a measured zero SPEND still p
 // An absent value is unknown, never zero. This is the zero-vs-null rule.
 $u = sn_dash_measurement_figures( array( 'views_7d' => 103 ) );
 $by = array(); foreach ( $u as $f ) { $by[ $f['key'] ] = $f; }
-ok( $by['search_clicks_7d']['measured'] === false, 'an absent Search Console read is UNKNOWN' );
-ok( $by['search_clicks_7d']['value'] !== '0', 'and it never renders as 0' );
+ok( $by['search_clicks']['measured'] === false, 'an absent Search Console read is UNKNOWN' );
+ok( $by['search_clicks']['value'] !== '0', 'and it never renders as 0' );
 ok( $by['views_7d']['measured'] === true, 'the supplied figure is still measured' );
 
 // ── the strip renderer ──────────────────────────────────────────────────────
 function strip( $data ) { ob_start(); sn_dash_render_measurement_strip( sn_dash_measurement_figures( $data ) ); return ob_get_clean(); }
 
-$h = strip( array( 'views_7d' => 103, 'views_delta' => 39, 'ai_spend_30d' => 0.61, 'anchored' => 33, 'citations' => 0, 'search_clicks_7d' => 18 ) );
+$h = strip( array( 'views_7d' => 103, 'views_delta' => 39, 'ai_spend_30d' => 0.61, 'anchored' => 33, 'citations' => 0, 'search_clicks' => 18 ) );
 ok( false !== strpos( $h, 'sn-dash-strip' ), 'the strip renders its wrapper' );
 ok( false !== strpos( $h, 'sn-dash-fig--hero' ), 'the hero figure carries the hero class the reflow targets' );
 ok( substr_count( $h, 'sn-dash-fig-value' ) === 5, 'all five figures render' );
@@ -98,6 +98,25 @@ sn_dash_render_measurement_strip( array(
 $direct = ob_get_clean();
 ok( false !== strpos( $direct, 'sn-dash-fig--hero' ), 'the hand-built hero renders' );
 ok( false === strpos( $direct, 'sn-an-spark' ), 'AN EMPTY SERIES HANDED STRAIGHT TO THE RENDERER DRAWS NOTHING' );
+
+// ── the search window is whatever the last sync used ────────────────────────
+// The stored Search Console window is 28 days by default, not 7. A figure
+// labelled "clicks 7d" over a month of data is a four-fold overstatement that
+// reads as perfectly plausible, so the label is DERIVED from the real window.
+$f28 = sn_dash_measurement_figures( array( 'search_clicks' => 412, 'search_clicks_days' => 28 ) );
+$k28 = array(); foreach ( $f28 as $f ) { $k28[ $f['key'] ] = $f; }
+ok( $k28['search_clicks']['value'] === '412', 'the click total renders' );
+ok( false !== strpos( $k28['search_clicks']['label'], '28' ), 'THE LABEL REPORTS THE REAL WINDOW, not a hardcoded 7d' );
+ok( false === strpos( $k28['search_clicks']['label'], '7d' ), 'and never claims 7d for a 28-day window' );
+
+$f7 = sn_dash_measurement_figures( array( 'search_clicks' => 9, 'search_clicks_days' => 7 ) );
+$k7 = array(); foreach ( $f7 as $f ) { $k7[ $f['key'] ] = $f; }
+ok( false !== strpos( $k7['search_clicks']['label'], '7' ), 'a genuine 7-day window says 7' );
+
+// An unknown window length must not invent one.
+$f0 = sn_dash_measurement_figures( array( 'search_clicks' => 5 ) );
+$k0 = array(); foreach ( $f0 as $f ) { $k0[ $f['key'] ] = $f; }
+ok( false === strpos( $k0['search_clicks']['label'], '0' ), 'an unknown window length does not render "clicks 0d"' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

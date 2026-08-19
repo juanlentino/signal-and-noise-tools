@@ -158,6 +158,8 @@ if ( ! function_exists( 'snt_asb_summary_line' ) ) {
 	}
 }
 
+// v11.28.1: split out of admin-tab-dashboard.php.
+require_once __DIR__ . '/../inc/dash-debug-info.php';
 require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
