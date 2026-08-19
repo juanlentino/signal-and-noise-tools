@@ -14,6 +14,19 @@ if ( ! function_exists( '__' ) ) { function __( $t, $d = '' ) { return $t; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'number_format_i18n' ) ) { function number_format_i18n( $n ) { return number_format( (float) $n ); } }
 if ( ! function_exists( 'human_time_diff' ) ) { function human_time_diff( $f, $t = 0 ) { return '19 minutes'; } }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+$GLOBALS['__site_transients'] = array();
+if ( ! function_exists( 'get_site_transient' ) ) { function get_site_transient( $k ) { return $GLOBALS['__site_transients'][ $k ] ?? false; } }
+if ( ! function_exists( 'set_site_transient' ) ) { function set_site_transient( $k, $v, $t = 0 ) { $GLOBALS['__site_transients'][ $k ] = $v; return true; } }
+if ( ! function_exists( 'sanitize_key' ) ) { function sanitize_key( $k ) { return preg_replace( '/[^a-z0-9_]/', '_', strtolower( (string) $k ) ); } }
+if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $t, $v ) { return $v; } }
+if ( ! function_exists( 'add_action' ) ) { function add_action() {} }
+if ( ! function_exists( 'add_filter' ) ) { function add_filter() {} }
+// The REAL accessor, not a stand-in: a fixture I write cannot catch a shape I
+// misread, because I would write the fixture from the same wrong belief.
+require __DIR__ . '/../inc/api-rate-monitor.php';
 require __DIR__ . '/../inc/dash-ops-panels.php';
 
 $pass = 0; $fail = 0;
@@ -94,6 +107,52 @@ $ep    = by_title( $empty, 'Top pages' );
 ok( is_array( $ep['rows'] ) && 0 === count( $ep['rows'] ), 'a fetched-but-empty source yields an EMPTY ARRAY, not null' );
 ok( '' !== (string) $ep['empty'], 'and its own measured-empty wording, distinct from the not-measured one' );
 ok( $ep['empty'] !== $ep['unmeasured'], 'THE TWO STRINGS DIFFER — one for both would state a zero while meaning silence' );
+
+// ── API LIMITS, DRIVEN BY THE REAL PRODUCER ─────────────────────────────────
+// v11.31.1. This shipped reading $st['limit'], $st['remaining'], $st['kind'] and
+// the array KEY for a label. Every one was wrong: snt_rate_limit_all_statuses()
+// returns [ host => { label, snapshot } ] with the numbers nested inside
+// `snapshot` and the state derived by snt_rate_limit_state(). So the panel
+// rendered raw hostnames against em dashes — "api.github.com  —".
+//
+// That is the THIRD invented shape in this file's history (sources -> `value`,
+// queries -> `key`, and now this). A fixture I write cannot catch it, because I
+// write the fixture from the same wrong belief as the code. So this block calls
+// the REAL accessor and feeds its REAL output straight into the panel builder.
+echo "\nGroup: API limits, fed by the real accessor\n";
+// Keys BUILT from the real constant, not typed from memory — the first pass
+// invented `snt_rl_…` and the lookups silently missed, which is the same class
+// of mistake as inventing the return shape.
+$GLOBALS['__site_transients'] = array(
+	SNT_RATE_CACHE_KEY_PREFIX . sanitize_key( 'api.github.com' )     => array( 'remaining' => 4231, 'limit' => 5000, 'reset' => 0 ),
+	SNT_RATE_CACHE_KEY_PREFIX . sanitize_key( 'api.cloudflare.com' ) => array( 'remaining' => 92,   'limit' => 1200, 'reset' => 0 ),
+);
+$real = snt_rate_limit_all_statuses();
+$api  = by_title( sn_dash_ops_panels( array( 'api' => $real ) ), 'API limits' );
+
+ok( is_array( $api['rows'] ) && count( $api['rows'] ) >= 2, 'a row per tracked host' );
+$labels = array_map( function ( $r ) { return $r['label']; }, $api['rows'] );
+ok( in_array( 'GitHub API', $labels, true ),
+	'THE HOST RENDERS ITS HUMAN LABEL — snt_rate_limit_hosts() has carried "GitHub API" all along; the panel printed the array KEY instead' );
+ok( in_array( 'Cloudflare API', $labels, true ), 'and Cloudflare API, not api.cloudflare.com' );
+
+$gh = null;
+foreach ( $api['rows'] as $r ) { if ( 'GitHub API' === $r['label'] ) { $gh = $r; } }
+ok( false !== strpos( $gh['value'], '4,231' ) && false !== strpos( $gh['value'], '5,000' ),
+	'AND ITS ACTUAL NUMBERS — the values live under `snapshot`, which is why every row read as an em dash' );
+ok( '' === $gh['dot'], 'a host with headroom paints no dot' );
+
+$cf = null;
+foreach ( $api['rows'] as $r ) { if ( 'Cloudflare API' === $r['label'] ) { $cf = $r; } }
+ok( 'err' === $cf['dot'],
+	'A HOST UNDER 10% PAINTS err — snt_rate_limit_state() calls that "crit"; the dot vocabulary calls it err, and the mapping is explicit' );
+
+// NEVER SEEN IS NOT ZERO. snapshot === null means no request has been observed.
+$GLOBALS['__site_transients'] = array();
+$none = by_title( sn_dash_ops_panels( array( 'api' => snt_rate_limit_all_statuses() ) ), 'API limits' );
+$row0 = $none['rows'][0];
+ok( 'unknown' === $row0['dot'], 'AN UNSEEN HOST IS `unknown`, NOT `ok` — no request observed is not a healthy limit' );
+ok( false === strpos( $row0['value'], '0' ), 'and it must not render a zero it never measured' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -146,22 +146,52 @@ function sn_dash_ops_panels( array $data ) {
 		'unmeasured' => __( 'Not measured — Search Console has never synced', 'signal-and-noise-tools' ),
 	);
 
-	$api = $get( 'api' );
+	$api  = $get( 'api' );
 	$rows = null;
 	if ( null !== $api ) {
 		$rows = array();
 		foreach ( $api as $host => $st ) {
-			$st     = is_array( $st ) ? $st : array();
-			$limit  = (int) ( $st['limit'] ?? 0 );
-			$left   = (int) ( $st['remaining'] ?? 0 );
+			$st = is_array( $st ) ? $st : array();
+
+			// SHAPE, FROM snt_rate_limit_all_statuses() — read, not assumed:
+			//   [ host => [ 'label' => 'GitHub API', 'snapshot' => array|null ] ]
+			// The numbers live INSIDE `snapshot`; the state is derived by
+			// snt_rate_limit_state(). v11.30.0 read $st['limit'] / $st['remaining']
+			// / $st['kind'] and the array KEY for a label, so every row rendered a
+			// raw hostname against an em dash.
+			$label = (string) ( $st['label'] ?? $host );
+			$snap  = isset( $st['snapshot'] ) && is_array( $st['snapshot'] ) ? $st['snapshot'] : null;
+
+			if ( null === $snap ) {
+				// No request to this host has been observed. Not measured — and
+				// emphatically not a healthy limit.
+				$rows[] = array(
+					'label' => $label,
+					'value' => __( 'not seen yet', 'signal-and-noise-tools' ),
+					'dot'   => 'unknown',
+				);
+				continue;
+			}
+
+			$limit = (int) ( $snap['limit'] ?? 0 );
+			$left  = (int) ( $snap['remaining'] ?? 0 );
+			$state = function_exists( 'snt_rate_limit_state' ) ? (string) snt_rate_limit_state( $snap ) : 'unknown';
+
+			// snt_rate_limit_state() speaks ok|warn|crit|unknown; the wall's dot
+			// vocabulary is ''|warn|err|unknown. Mapped explicitly rather than
+			// passed through, because "crit" would silently paint nothing.
+			$dot = 'ok' === $state ? '' : ( 'crit' === $state ? 'err' : $state );
+
 			$rows[] = array(
-				'label' => (string) $host,
-				'value' => $limit > 0 ? number_format_i18n( $left ) . ' / ' . number_format_i18n( $limit ) : '—',
-				// Same rule: a host with headroom is not news.
-				'dot'   => 'ok' === (string) ( $st['kind'] ?? 'ok' ) ? '' : (string) $st['kind'],
+				'label' => $label,
+				'value' => $limit > 0
+					? number_format_i18n( $left ) . ' / ' . number_format_i18n( $limit )
+					: number_format_i18n( $left ),
+				'dot'   => $dot,
 			);
 		}
 	}
+
 	$panels[] = array(
 		'title'      => __( 'API limits', 'signal-and-noise-tools' ),
 		// v11.29.2: shown ALWAYS. It used to render only when a host was warn

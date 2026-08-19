@@ -2472,6 +2472,11 @@ a.sn-glance-card:focus {
 
 /* The verdict is the largest type on the page, by a distance. Scale contrast
    is what carries the hierarchy — not colour, and not weight alone. */
+.sn-scr {
+	/* The verdict is the first thing on the tab and sat hard against the tab
+	   bar. A headline that large needs air above it or it reads as clipped. */
+	padding-top: var(--sn-space-5);
+}
 .sn-scr__verdict {
 	font-size: 30px;
 	line-height: 1.2;
@@ -2743,11 +2748,20 @@ a.sn-ops__label { text-decoration: none; }
 @media (max-width: 1100px) { .sn-scr__signals { grid-template-columns: repeat( auto-fit, minmax( 150px, 1fr ) ); } }
 .sn-sig:first-child .sn-sig__n { font-size: 30px; }
 .sn-sig__n { font-variant-numeric: tabular-nums lining-nums; }
+/* MONO IS FOR LABELS AND ALIGNED NUMERALS — never for language.
+   v11.31.0 put it on `.sn-sys__v` too, which set phrases like "33 confirmed",
+   "0 findings" and "warming…" in a typewriter face. Those are sentences, not
+   readings; mono makes them harder to scan and drains the character out of the
+   micro-labels it is actually there for. The value keeps tabular figures so the
+   numbers inside it still line up. */
 .sn-sig__k, .sn-sys__k, .sn-scr__colhead {
 	font-family: var(--sn-mono);
 	letter-spacing: .1em;
 }
-.sn-sys__v, .sn-ops__value { font-family: var(--sn-mono); }
+.sn-sys__v {
+	font-variant-numeric: tabular-nums lining-nums;
+}
+.sn-ops__value { font-family: var(--sn-mono); }
 
 /* Third and fourth lines on a cell: the state word a colourless probe cannot
    convey, and whatever detail the card's source already built. */
