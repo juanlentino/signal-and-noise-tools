@@ -857,6 +857,27 @@ function sn_handle_analytics_collector_save( $post ) {
 	return 'analytics_collector_saved';
 }
 
+/**
+ * item 8: run the TF-IDF vs embeddings comparison across the corpus.
+ *
+ * The result is stashed in a transient because a flash code cannot carry a
+ * table, and because re-running costs real API calls — the readout should
+ * survive a page refresh rather than silently re-spending.
+ *
+ * @param array $post Raw $_POST (unused).
+ * @return string Flash code.
+ */
+function sn_handle_ml_embed_compare( $post ) {
+	unset( $post );
+	$res = snt_ml_embedding_compare_corpus( 5 );
+	if ( is_wp_error( $res ) ) {
+		set_transient( 'snt_ml_embed_compare', array( 'ok' => false, 'error' => $res->get_error_message(), 'when' => time() ), HOUR_IN_SECONDS );
+		return 'ml_embed_compare_failed';
+	}
+	set_transient( 'snt_ml_embed_compare', array( 'ok' => true, 'result' => $res, 'when' => time() ), DAY_IN_SECONDS );
+	return 'ml_embed_compare_ok';
+}
+
 function sn_handle_ai_settings_save( $post ) {
 	$allowed = array_keys( sn_theme_ai_models() );
 	$model   = isset( $post['theme_ai_model'] ) ? sanitize_text_field( wp_unslash( $post['theme_ai_model'] ) ) : '';

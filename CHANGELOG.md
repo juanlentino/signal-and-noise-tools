@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.23.0] - 2026-08-19 — the comparison can actually be run
+
+### Fixed
+- **v11.22.0 shipped the instrument with nothing calling it.** `snt_ml_embed_rank()`,
+  `_diff()` and `_summary()` all existed; the orchestrator that walks the corpus did not,
+  and `snt_ml_embedding_compare()` was named in a docblock without being written. The
+  comparison existed and could not be read — the same shape as the token that shipped
+  without a control one release earlier.
+
+### Added
+- **`snt_ml_embedding_compare_corpus()`** — embeds every published note (cached by
+  content hash), ranks each against the rest, and diffs that against the ranking the site
+  actually serves.
+- **A Run comparison button** on AI → Models & Budget, with the readout beside it:
+  divergence, the raw counts, and a table of exactly which notes embeddings paired that
+  TF-IDF did not.
+
+### Three decisions inside the runner
+- **It compares against `snt_ml_related_for_post()` — the SHIPPED artifact — not a fresh
+  TF-IDF recomputation.** Reimplementing the baseline would measure my arithmetic against
+  my arithmetic; the question is whether the ranking the site serves misses pairs.
+- **It embeds everything before diffing anything.** A mid-walk API failure would otherwise
+  produce a partial comparison that still returns a confident-looking number.
+- **It keys the cache on `snt_corpus_content_hash()`**, the canonical definition, not a
+  local `md5()`. Two definitions of "has this changed" drift, and a drifted cache leaves
+  a vector attached to text it no longer describes.
+
+### The readout can say no
+If divergence is zero the panel says so in words: *"TF-IDF already found every pair the
+embeddings did. That is a real answer, and it argues against adopting a hosted model."*
+An instrument that can only report a reason to proceed is not an instrument.
+
 ## [11.22.1] - 2026-08-18 — the embeddings token had no control
 
 ### Fixed
