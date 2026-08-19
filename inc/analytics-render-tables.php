@@ -45,15 +45,17 @@ function snt_analytics_render_paths_table( $paths ) {
 		. ( $gsc ? '<th scope="col" class="manage-column num">' . esc_html__( 'Pos.', 'signal-and-noise-tools' ) . '</th>' : '' )
 		. '</tr></thead><tbody>';
 	foreach ( $paths as $r ) {
-		$search = '';
+		// Escaping stays INLINE in the echo below rather than being pre-built into
+		// a variable: a pre-escaped HTML string is invisible to phpcs, which reads
+		// `. $var .` in output as unescaped regardless of what went into it.
+		$impr = '';
+		$pos  = '';
 		if ( $gsc ) {
 			$m = snt_gsc_metrics_for_path( (string) $r['path'] );
 			// NULL means Google never showed this page; 0 would claim it showed it
 			// and nobody looked. An em-dash says "no reading", which is the truth.
-			$search = null === $m
-				? '<td class="num" data-colname="Impr.">&mdash;</td><td class="num" data-colname="Pos.">&mdash;</td>'
-				: '<td class="num" data-colname="Impr.">' . esc_html( number_format_i18n( (int) $m['impressions'] ) ) . '</td>'
-					. '<td class="num" data-colname="Pos.">' . esc_html( number_format_i18n( (float) $m['position'], 1 ) ) . '</td>';
+			$impr = null === $m ? '—' : number_format_i18n( (int) $m['impressions'] );
+			$pos  = null === $m ? '—' : number_format_i18n( (float) $m['position'], 1 );
 		}
 		echo '<tr>'
 			. '<td class="column-primary" data-colname="Path"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
@@ -61,7 +63,8 @@ function snt_analytics_render_paths_table( $paths ) {
 			. '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td>'
 			. '<td class="num" data-colname="Scroll">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
 			. '<td class="num" data-colname="Time">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td>'
-			. $search
+			. ( $gsc ? '<td class="num" data-colname="Impr.">' . esc_html( $impr ) . '</td>' : '' )
+			. ( $gsc ? '<td class="num" data-colname="Pos.">' . esc_html( $pos ) . '</td>' : '' )
 			. '</tr>';
 	}
 	echo '</tbody></table>';
