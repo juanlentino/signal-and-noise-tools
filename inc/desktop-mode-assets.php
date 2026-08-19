@@ -160,6 +160,19 @@ add_action( 'init', function() {
 		true
 	);
 
+	// v11.29.0: the cron widget. Reads window.snDesktopData.cronSummary only —
+	// no REST call, no ability run — so its dependencies are exactly the compat
+	// prelude and the handle that carries the data global. Deliberately NOT in
+	// the analytics loop below, which hands out wp-api-fetch this widget never
+	// uses.
+	wp_register_script(
+		'sn-desktop-mode-widget-cron',
+		plugins_url( 'assets/desktop-mode-widget-cron.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'sn-desktop-mode-os-compat', 'sn-desktop-mode' ),
+		SNT_VERSION,
+		true
+	);
+
 	// v9.52.0: three analytics widgets. These read the site-views REST
 	// endpoint (below) rather than the ability run-path, so they depend on
 	// wp-api-fetch only — no snt-ability-run.
