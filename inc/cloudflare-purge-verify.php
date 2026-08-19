@@ -109,3 +109,53 @@ function snt_cf_probe_record( array $entry ) {
 	array_unshift( $log, $entry );
 	update_option( SN_CF_PROBE_LOG_OPT, array_slice( $log, 0, 20 ), false );
 }
+
+/**
+ * Summarise the purge-verification log for a glance surface. (v11.29.0)
+ *
+ * The log has been written since v11.10.0 and read by NOTHING — an instrument
+ * with no reader. This is its first one.
+ *
+ * NULL means never probed, and that is NOT the same as all-fresh.
+ * snt_cf_verify_post_purge() deliberately records nothing when a probe is
+ * unreadable — "an outage is a gap in evidence, not a verdict" — so an empty
+ * log means verification has not run, and reporting that as a clean edge would
+ * be the same green-readout-over-a-stale-page failure this module exists to
+ * catch (2026-08-15).
+ *
+ * @since 11.29.0
+ * @return array{last:string,last_time:int,total:int,stale:int,escalated:int}|null
+ */
+function snt_cf_freshness_summary() {
+	$log = get_option( SN_CF_PROBE_LOG_OPT, array() );
+	if ( ! is_array( $log ) || empty( $log ) ) {
+		return null;
+	}
+
+	$stale     = 0;
+	$escalated = 0;
+	foreach ( $log as $entry ) {
+		if ( ! is_array( $entry ) ) {
+			continue;
+		}
+		if ( 'stale' === ( $entry['result'] ?? '' ) ) {
+			++$stale;
+			if ( ! empty( $entry['escalated'] ) ) {
+				++$escalated;
+			}
+		}
+	}
+
+	// snt_cf_probe_record() array_unshifts, so index 0 is the newest.
+	$newest = is_array( $log[0] ) ? $log[0] : array();
+	$result = (string) ( $newest['result'] ?? '' );
+
+	return array(
+		// Anything we do not recognise is `unknown`, never silently `fresh`.
+		'last'      => in_array( $result, array( 'fresh', 'stale' ), true ) ? $result : 'unknown',
+		'last_time' => (int) ( $newest['time'] ?? 0 ),
+		'total'     => count( $log ),
+		'stale'     => $stale,
+		'escalated' => $escalated,
+	);
+}
