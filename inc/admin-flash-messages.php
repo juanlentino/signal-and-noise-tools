@@ -161,6 +161,8 @@ function sn_admin_flash_messages() {
 		'gsc_test_no_properties'      => array( 'warning', 'The credential works, but this service account has been granted NO Search Console properties. Add its client_email in Search Console → Settings → Users and permissions.' ),
 		'gsc_test_failed'             => array( 'error', 'The connection test failed. The reason is shown below the credential.' ),
 		'gsc_test_not_configured'     => array( 'error', 'There is no credential to test yet.' ),
+		'ml_embed_compare_ok'         => array( 'success', 'Comparison complete. The result is below — divergence is the number item 8 turns on.' ),
+		'ml_embed_compare_failed'     => array( 'error', 'The comparison could not run. The reason is shown below.' ),
 		'gsc_property_saved'          => array( 'success', 'Search Console property selected. Run a sync to pull the first window.' ),
 		'gsc_property_unchanged'      => array( 'info', 'No property was chosen.' ),
 		'gsc_property_unknown'        => array( 'error', 'That property is not one this service account can read. Run Test connection to see the list it actually has.' ),

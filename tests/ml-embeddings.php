@@ -123,6 +123,21 @@ ok( false === strpos( $kernel, 'snt_ml_vec_cosine' ), 'and does not use embeddin
 $page = (string) file_get_contents( __DIR__ . '/../inc/ml-maturity-page.php' );
 ok( false !== strpos( $page, 'No neural network' ), 'the public page still claims no neural network — TRUE while this stays shadow, and the claim that must change before any swap' );
 
+echo "\nGroup: the instrument has a RUNNER, not just parts\n";
+// v11.22.0 shipped rank/diff/summary with NOTHING calling them: the comparison
+// existed and could not be read. Same shape as the missing token control.
+$cmp     = (string) file_get_contents( __DIR__ . '/../inc/ml-embeddings-compare.php' );
+$handler = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions.php' );
+$router  = (string) file_get_contents( __DIR__ . '/../inc/admin-post-handler.php' );
+$form    = (string) file_get_contents( __DIR__ . '/../inc/admin-forms/ai-settings.php' );
+ok( false !== strpos( $cmp, 'function snt_ml_embedding_compare_corpus' ), 'the corpus orchestrator exists' );
+ok( false !== strpos( $cmp, 'snt_ml_related_for_post' ), 'and compares against the SHIPPED artifact, not a fresh reimplementation of TF-IDF' );
+ok( false !== strpos( $cmp, 'snt_corpus_content_hash' ), 'and keys the cache on the CANONICAL hash, so two definitions of "changed" cannot drift' );
+ok( false !== strpos( $handler, 'function sn_handle_ml_embed_compare' ), 'a handler runs it' );
+ok( false !== strpos( $router, "'ml_embed_compare'" ), 'the router reaches the handler' );
+ok( false !== strpos( $form, 'value="ml_embed_compare"' ), 'and a button reaches the router' );
+ok( false !== strpos( $form, 'No divergence at all' ), 'the readout can report a NULL result as a real answer, not as a failure' );
+
 echo "\nGroup: the token has a CONTROL, not just a leaf\n";
 // v11.22.0 shipped the setting with no way to set it — the v10.84.0 failure
 // repeated. These assertions exist so it cannot ship that way again.

@@ -146,6 +146,49 @@ function sn_admin_render_ai_settings_form() {
 	}
 	echo '</div>';
 
+	// item 8: the RUNNER. v11.22.0 shipped the instrument with nothing calling
+	// it, so the comparison existed and could not be read.
+	if ( function_exists( 'snt_ml_embed_configured' ) && snt_ml_embed_configured() ) {
+		echo '<div class="sn-field">';
+		echo '<label class="sn-field-label">' . esc_html__( 'TF-IDF vs embeddings', 'signal-and-noise-tools' ) . '</label>';
+		$cmp = get_transient( 'snt_ml_embed_compare' );
+		if ( is_array( $cmp ) && empty( $cmp['ok'] ) ) {
+			echo '<p class="sn-field-helper"><span class="sn-pill sn-pill--warn">' . esc_html( (string) ( $cmp['error'] ?? '' ) ) . '</span></p>';
+		} elseif ( is_array( $cmp ) && ! empty( $cmp['ok'] ) ) {
+			$sum = (array) ( $cmp['result']['summary'] ?? array() );
+			echo '<p class="sn-field-helper">';
+			printf(
+				/* translators: 1: divergence percent, 2: only-embedding count, 3: ranked slots, 4: posts, 5: model. */
+				esc_html__( 'Divergence %1$s%% — embeddings surfaced %2$d results in %3$d ranked slots across %4$d notes that TF-IDF did not (model %5$s).', 'signal-and-noise-tools' ),
+				esc_html( number_format_i18n( 100 * (float) ( $sum['divergence'] ?? 0 ), 1 ) ),
+				(int) ( $sum['only_embedding'] ?? 0 ),
+				(int) ( $sum['ranked_slots'] ?? 0 ),
+				(int) ( $sum['posts'] ?? 0 ),
+				esc_html( (string) ( $sum['model'] ?? '' ) )
+			);
+			echo '</p>';
+			$div = (array) ( $cmp['result']['divergent'] ?? array() );
+			if ( $div ) {
+				echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
+				echo '<th scope="col">' . esc_html__( 'Note', 'signal-and-noise-tools' ) . '</th>';
+				echo '<th scope="col">' . esc_html__( 'Found only by embeddings', 'signal-and-noise-tools' ) . '</th>';
+				echo '</tr></thead><tbody>';
+				foreach ( array_slice( $div, 0, 25 ) as $row ) {
+					$names = array();
+					foreach ( (array) $row['only_embedding'] as $o ) { $names[] = (string) $o['title']; }
+					echo '<tr><td>' . esc_html( (string) $row['title'] ) . '</td><td>' . esc_html( implode( ' · ', $names ) ) . '</td></tr>';
+				}
+				echo '</tbody></table></div>';
+			} else {
+				echo '<p class="sn-field-helper">' . esc_html__( 'No divergence at all: TF-IDF already found every pair the embeddings did. That is a real answer, and it argues against adopting a hosted model.', 'signal-and-noise-tools' ) . '</p>';
+			}
+		} else {
+			echo '<p class="sn-field-helper">' . esc_html__( 'Not run yet. This embeds every published note once (cached by content hash) and compares both rankings.', 'signal-and-noise-tools' ) . '</p>';
+		}
+		echo '<p><button type="submit" name="sn_action" value="ml_embed_compare" class="button">' . esc_html__( 'Run comparison', 'signal-and-noise-tools' ) . '</button></p>';
+		echo '</div>';
+	}
+
 	echo '<div class="sn-fieldset-actions">';
 	echo '<p class="sn-fieldset-actions-hint">' . esc_html__( 'Model changes apply to the next AI call. The budget is evaluated per calendar month.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<button type="submit" class="button button-primary">' . esc_html__( 'Save AI settings', 'signal-and-noise-tools' ) . '</button>';
