@@ -48,6 +48,9 @@ require __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user pins
 require __DIR__ . '/../inc/dash-zone-attention.php'; // v11.28.0
 require __DIR__ . '/../inc/dash-zone-fleet.php';     // v11.28.0
 require __DIR__ . '/../inc/dash-zone-measurement.php'; // v11.28.0: the five figures + strip
+// v11.28.1: split out of admin-tab-dashboard.php.
+require __DIR__ . '/../inc/dash-deploy-rows.php';
+require __DIR__ . '/../inc/dash-api-summary.php';
 require __DIR__ . '/../inc/admin-tab-dashboard.php';
 
 $pass = 0; $fail = 0;

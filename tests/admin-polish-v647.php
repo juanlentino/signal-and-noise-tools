@@ -134,6 +134,8 @@ ap_ok( false === strpos( $h, 'sn-rss-activity-card' ), '#4 the bespoke .sn-rss-a
 
 // ── Group: deploy status SR text (#18) ──────────────────────────────────────
 echo "\nGroup: deploy status — screen-reader text\n";
+// v11.28.1: split out of admin-tab-dashboard.php.
+require_once __DIR__ . '/../inc/dash-deploy-rows.php';
 require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
 $g = snt_dashboard_run_glyph_html( 'sn-deploy-row__status--ok', '&#x2713;', 'Success' );
 ap_ok( false !== strpos( $g, 'screen-reader-text' ) && false !== strpos( $g, 'Success' ), '#18 status glyph carries a screen-reader label' );
