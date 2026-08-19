@@ -155,5 +155,28 @@ $GLOBALS['__opts'][ SNT_GSC_DATA_OPTION ] = array( 'synced_at' => 1, 'pages' => 
 $t = snt_gsc_window_totals();
 ok( 3 === $t['clicks'] && 0 === $t['days'], 'a missing window yields days=0, which the label reads as unknown' );
 
+// ── ITEM 5: THE 250-ROW CAP MUST BE VISIBLE, NOT JUST DOCUMENTED ────────────
+// v11.29.2. snt_gsc_query() fetches the page dimension with rowLimit 250, so
+// snt_gsc_window_totals() sums AT MOST 250 pages. On a site with more ranked
+// pages the clicks figure silently undercounts, and a number that is wrong in
+// a knowable direction while presenting as exact is worse than one labelled
+// approximate. The docblock said so; the RETURN VALUE did not, so no caller
+// could act on it.
+echo "\nGroup: the page cap is reported, not just documented\n";
+
+$GLOBALS['__opts']['snt_gsc_data'] = array(
+	'synced_at' => 1000,
+	'window'    => array( 'start' => '2026-07-01', 'end' => '2026-07-28' ),
+	'pages'     => array_fill( 0, 250, array( 'clicks' => 1 ) ),
+	'queries'   => array(),
+);
+$capped = snt_gsc_window_totals();
+ok( 250 === $capped['clicks'], 'it still sums what it has' );
+ok( true === $capped['capped'], 'AT THE CAP IT SAYS SO — the total is a floor, not a measurement' );
+
+$GLOBALS['__opts']['snt_gsc_data']['pages'] = array_fill( 0, 12, array( 'clicks' => 1 ) );
+$under = snt_gsc_window_totals();
+ok( false === $under['capped'], 'under the cap it does not, so the label is not permanently hedged' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );

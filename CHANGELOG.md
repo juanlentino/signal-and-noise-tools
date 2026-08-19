@@ -2,6 +2,71 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.30.0] - 2026-08-19 — the quiet instrument
+
+The Dashboard is redesigned against the literature rather than against another guess, and the
+four scattered S&N boxes on the WordPress home screen become one. Three previous attempts at
+this page missed because they designed the **full** state; monitoring dashboards are designed
+around their **empty** one, which is nearly every day.
+
+### Changed
+- **The Dashboard tab is a single screen, sized to fit.** Verdict, then exceptions, then five
+  signals, a trend, the systems grid and the detail columns — in strict order of how fast you
+  need each one. Scale contrast carries the hierarchy: the verdict is the largest type on the
+  page and the detail the smallest, so the answer arrives before you have decided to read.
+  v11.29.2's viewport `min-height` is **reverted**: it stretched the page to *fill* a viewport,
+  which is the inverse of Few's single-screen rule. Filling admits unlimited content; fitting
+  forces the cut.
+- **A healthy screen is grey.** Colour appears only on what needs attention, so it means
+  something when it does. v11.29.1 painted a state dot on all seventeen system rows and on
+  every successful deploy and healthy API host — green everywhere is green nowhere, and amber
+  had to compete with a field of colour on the day it mattered.
+- **Every signal carries a comparison.** Views, clicks, AI spend, anchored and citations each
+  render what they are to be judged against; where no prior period exists the slot says so
+  rather than silently collapsing to a bare number. Four of the five previously had nothing.
+- **Grouping is hairlines and whitespace, not drawn boxes.** The bordered figure cards and the
+  five bordered wall panels are gone — at that density they were ten framed rectangles
+  competing for the same attention.
+- **Four dashboard widgets become one.** Login defense, Analytics — Overview, Analytics — Top
+  content and S&N Health are folded into a single **Signal & Noise** widget carrying the
+  verdict and its exceptions, linking through to the full screen. This is the same move v8.3.0
+  made when it folded S&N Uptime into S&N Health. The render stays zero-cost — `index.php`
+  renders on every admin login, so it reads cached options only, never a scan or a remote call.
+  Removal guards in [tests/dash-widget.php](tests/dash-widget.php) keep the four gone. Their
+  per-user layout meta is necessarily dropped: there is no box left to remember a position for.
+- **External APIs are always on the wall.** They used to render only when a host was warn or
+  crit — the collapse rule again, and the reason the page was empty on a healthy site. A limit
+  at 99% is the answer to "is it fine?".
+
+### Added
+- **One shared verdict.** `sn_dash_verdict()` derives "is anything wrong?" once, from the same
+  cards both surfaces render, so the widget and the screen cannot disagree. Its headline counts
+  the exception list it introduces rather than tallying separately — the v11.16.2 shape, where
+  a numerator counted one way and a denominator another read 21/21 while a check was failing.
+- **A data-driven detail wall.** `sn_dash_ops_panels()` projects existing accessors — deploys,
+  top pages, top sources, top queries, API limits — into panels. Adding or cutting one is a
+  single array entry, and no new data layer, query, option or cron was introduced. An absent
+  source still renders its panel saying it is not measured: a wall that quietly shrinks looks
+  complete on the one day it is not.
+
+### Fixed
+- **Zero scheduled cron events read green.** A WordPress install always carries core events, so
+  a total of zero means the scheduler is disabled or the array was wiped — not a tidy schedule.
+  `snt_cron_summary_for_localize()` now returns a `state` and a `note`, amber rather than red
+  because it is a strong suspicion about the site rather than a fault this function can prove.
+- **The Search Console page cap is reported, not just documented.** `snt_gsc_window_totals()`
+  sums at most 250 pages, so on a larger site the clicks figure undercounts in a knowable
+  direction while presenting as exact. It now returns `capped`, and the limit is a named
+  constant shared with the fetch that sets it rather than a literal in two places.
+
+### Internal
+- `inc/dash-console.php` split into `dash-trend.php` and `dash-ops-render.php`; new
+  `dash-verdict.php`, `dash-signals.php`, `dash-systems.php`, `dash-widget.php`,
+  `dash-ops-panels.php`. Every file back under the project's ~150-line ceiling.
+- 475 suites, 18,847 assertions, PHPCS and PHPStan clean. The verdict's count-parity and
+  cold-is-not-broken guards, and the wall's absent-vs-empty guard, are mutation-tested — each
+  mutation killed by a failed assertion rather than a fatal, and each killing only its own guard.
+
 ## [11.29.1] - 2026-08-19 — the console arrives, and the data global reaches the page
 
 ### Fixed

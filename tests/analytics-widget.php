@@ -88,15 +88,22 @@ echo "\nGroup: consolidated into 2 widgets (Overview + Top content)\n";
 // Fire the captured wp_dashboard_setup callback to record what gets registered.
 $GLOBALS['__widgets'] = array();
 foreach ( $GLOBALS['__actions']['wp_dashboard_setup'] ?? array() as $cb ) { $cb(); }
-ok( count( $GLOBALS['__widgets'] ) === 2, 'exactly 2 dashboard widgets registered (was 4)' );
-ok( isset( $GLOBALS['__widgets']['sn_plausible_snapshot'] )
-	&& 'Analytics — Overview' === $GLOBALS['__widgets']['sn_plausible_snapshot']['title']
-	&& 'sn_aw_overview' === $GLOBALS['__widgets']['sn_plausible_snapshot']['cb'],
-	'Overview reuses the sn_plausible_snapshot id (layout preserved) + renders sn_aw_overview' );
-ok( isset( $GLOBALS['__widgets']['sn_plausible_pages'] )
-	&& 'Analytics — Top content' === $GLOBALS['__widgets']['sn_plausible_pages']['title']
-	&& 'sn_aw_top_content' === $GLOBALS['__widgets']['sn_plausible_pages']['cb'],
-	'Top content reuses the sn_plausible_pages id + renders sn_aw_top_content' );
+// v11.30.0: THE TWO ANALYTICS BOXES ARE GONE.
+//
+// They were folded into the single "Signal & Noise" widget along with S&N
+// Health and Login defense. The lineage this file records — four widgets → two
+// in an earlier pass, ids preserved to keep per-user layout meta — ends here at
+// one. Consolidating necessarily drops that meta: there is no box left to
+// remember a position for.
+//
+// These assertions are INVERTED rather than deleted, because a registration
+// that quietly comes back is exactly what a removal guard exists to catch (the
+// pattern tests/uptime-status-widget.php has held since v8.3.0).
+ok( 0 === count( $GLOBALS['__widgets'] ), 'v11.30.0: this module registers NO dashboard widgets (was 4, then 2, now 0)' );
+$__src = (string) file_get_contents( __DIR__ . '/../inc/analytics-widget.php' );
+ok( false === strpos( $__src, "wp_add_dashboard_widget( 'sn_plausible_snapshot'" ), 'no sn_plausible_snapshot registration remains' );
+ok( false === strpos( $__src, "wp_add_dashboard_widget( 'sn_plausible_pages'" ), 'no sn_plausible_pages registration remains' );
+ok( function_exists( 'sn_aw_overview' ) && function_exists( 'sn_aw_top_content' ), 'but both renders survive — only the boxes went' );
 ok( ! isset( $GLOBALS['__widgets']['sn_plausible_realtime'] ) && ! isset( $GLOBALS['__widgets']['sn_plausible_sources'] ),
 	'old realtime + sources widget ids no longer registered (orphaned, harmless)' );
 

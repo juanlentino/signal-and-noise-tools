@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     11.29.1
+ * Version:     11.30.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -182,7 +182,14 @@ require_once SNT_PATH . 'inc/dash-zone-attention.php';   // v11.28.0: is anythin
 require_once SNT_PATH . 'inc/dash-zone-fleet.php';       // v11.28.0: did it ship?
 require_once SNT_PATH . 'inc/dash-zone-measurement.php'; // v11.28.0: how is the site doing?
 require_once SNT_PATH . 'inc/dash-briefing.php';         // v11.29.1: the briefing band — fixed chrome, cannot be hidden
+require_once SNT_PATH . 'inc/dash-trend.php';            // v11.30.0: the 30-day chart
+require_once SNT_PATH . 'inc/dash-ops-render.php';       // v11.30.0: the detail columns
 require_once SNT_PATH . 'inc/dash-console.php';          // v11.29.1: direction B — band + systems rail + stage
+require_once SNT_PATH . 'inc/dash-signals.php';          // v11.30.0: the five signals, each with a comparison
+require_once SNT_PATH . 'inc/dash-systems.php';          // v11.30.0: the systems grid (monochrome when healthy)
+require_once SNT_PATH . 'inc/dash-verdict.php';          // v11.30.0: one verdict, shared by the widget and the screen
+require_once SNT_PATH . 'inc/dash-widget.php';           // v11.30.0: the consolidated index.php widget (folds four boxes)
+require_once SNT_PATH . 'inc/dash-ops-panels.php';       // v11.29.2: the ops wall's panels — a projection of existing accessors
 require_once SNT_PATH . 'inc/dash-deploy-rows.php';      // v11.28.1: one deploy run's glyph, repo, duration, relative time
 require_once SNT_PATH . 'inc/dash-api-summary.php';      // v11.28.1: the rate-limit line + whether it earns its space
 require_once SNT_PATH . 'inc/dash-debug-info.php';       // v11.28.1: the Site Health > Info panel (not a Dashboard surface)

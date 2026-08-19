@@ -12,7 +12,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-add_action( 'wp_dashboard_setup', 'sn_login_defense_widget_register' );
+/*
+ * ── CONSOLIDATED AWAY IN v11.30.0 ──────────────────────────────────────────
+ * The standalone dashboard-widget registration is REMOVED. Four S&N boxes on
+ * index.php — Login defense, Analytics Overview, Analytics Top content and
+ * S&N Health — each answered a fragment, so the home screen never answered the
+ * question. They are now one "Signal & Noise" widget (inc/dash-widget.php)
+ * carrying the verdict and its exceptions, linking through to the full screen.
+ *
+ * This is the same move v8.3.0 made when it folded S&N Uptime into S&N Health.
+ * Removal guards in tests/dash-widget.php keep this registration gone.
+ *
+ * The RENDER functions below are deliberately kept: they are still reachable
+ * from the full Dashboard screen, and deleting them would take working surfaces
+ * out with a layout change.
+ * ──────────────────────────────────────────────────────────────────────────
+ */
+
 
 /**
  * Register the widget (same capability gate as inc/analytics-widget.php).
@@ -21,7 +37,10 @@ function sn_login_defense_widget_register() {
 	if ( ! current_user_can( 'view_stats' ) && ! current_user_can( 'manage_options' ) ) {
 		return;
 	}
-	wp_add_dashboard_widget( 'sn_login_defense', __( 'Login defense', 'signal-and-noise-tools' ), 'sn_login_defense_widget_render' );
+	// v11.30.0: no longer registers a box. Kept as a named no-op so any caller
+	// or test referencing it still resolves, and so the removal is visible here
+	// rather than being an unexplained absence.
+	return;
 }
 
 /**
