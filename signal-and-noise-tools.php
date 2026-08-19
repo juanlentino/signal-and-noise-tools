@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     11.21.0
+ * Version:     11.22.0
  * Requires at least: 7.0
  * Tested up to: 7.0
  * Requires PHP: 8.3
@@ -411,6 +411,8 @@ require_once __DIR__ . '/inc/ml-kernel.php';           // v10.15.0: pure ML prim
 require_once __DIR__ . '/inc/ml-pipelines.php';        // v10.15.0: filterable slug=>callable pipeline registry + dispatcher over the kernel
 require_once __DIR__ . '/inc/ml-artifacts.php';        // v10.15.0: corpus build (per-post related meta + cron/publish triggers) + the contract reader (needs corpus-inspect.php above)
 require_once __DIR__ . '/inc/ml-related-render.php';   // v10.15.0: reader-facing "Related notes" aside (the_content @20, zero JS, render-time stylesheet)
+require_once __DIR__ . '/inc/ml-embeddings.php';        // item 8 slice 1: SHADOW semantic vectors — nothing the site serves changes
+require_once __DIR__ . '/inc/ml-embeddings-compare.php'; // item 8 slice 1: the TF-IDF vs embeddings instrument (measure before adopting)
 require_once __DIR__ . '/inc/ml-cousins.php';          // v10.16.0: near-duplicate cousin pairs (kernel cosine over the corpus walk, needs ml-pipelines + corpus-inspect above) — ML pipeline #2
 require_once __DIR__ . '/inc/ml-draft-echoes.php';     // v10.77.0: draft-time echoes — one draft vs the corpus, editor-side read only (needs ml-cousins above for the shared threshold bounds)
 require_once __DIR__ . '/inc/ml-link-isolation.php';   // v10.83.0: link isolation — published notes nothing links to (corpus link graph; needs corpus-inspect above) — ML pipeline #8
