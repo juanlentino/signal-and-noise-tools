@@ -181,6 +181,8 @@ require_once SNT_PATH . 'inc/dash-pins.php';             // v11.28.0: per-user z
 require_once SNT_PATH . 'inc/dash-zone-attention.php';   // v11.28.0: is anything wrong?
 require_once SNT_PATH . 'inc/dash-zone-fleet.php';       // v11.28.0: did it ship?
 require_once SNT_PATH . 'inc/dash-zone-measurement.php'; // v11.28.0: how is the site doing?
+require_once SNT_PATH . 'inc/dash-briefing.php';         // v11.29.1: the briefing band — fixed chrome, cannot be hidden
+require_once SNT_PATH . 'inc/dash-console.php';          // v11.29.1: direction B — band + systems rail + stage
 require_once SNT_PATH . 'inc/dash-deploy-rows.php';      // v11.28.1: one deploy run's glyph, repo, duration, relative time
 require_once SNT_PATH . 'inc/dash-api-summary.php';      // v11.28.1: the rate-limit line + whether it earns its space
 require_once SNT_PATH . 'inc/dash-debug-info.php';       // v11.28.1: the Site Health > Info panel (not a Dashboard surface)

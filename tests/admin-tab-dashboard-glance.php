@@ -104,6 +104,9 @@ if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $s
 require_once __DIR__ . '/../inc/dash-zones.php';          // v11.28.0: zone contract + renderer
 require_once __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user pins
 require_once __DIR__ . '/../inc/dash-zone-attention.php'; // v11.28.0
+// v11.29.1: the console — band + rail + stage.
+require_once __DIR__ . '/../inc/dash-briefing.php';
+require_once __DIR__ . '/../inc/dash-console.php';
 require_once __DIR__ . '/../inc/dash-zone-fleet.php';     // v11.28.0
 require_once __DIR__ . '/../inc/dash-zone-measurement.php'; // v11.28.0: the five figures + strip
 // v11.28.0: split out of admin-tab-dashboard.php.
@@ -290,14 +293,19 @@ function esc_attr__( $s, $d = null ) { return (string) $s; }
 ob_start();
 snt_dashboard_tab_render();
 $tab = ob_get_clean();
-dg_contains( $tab, '<div class="sn-glance">', 'dashboard tab opens with the glance grid' );
-dg_contains( $tab, 'sn-dash-zones', 'v11.28.0: the flat glance grid is now a zone section — state earns space' );
+// v11.29.1: the tab no longer opens with the flat glance GRID. The same cards
+// now render as rail rows — sn_admin_glance_grid() is still the helper an
+// expanded surface uses elsewhere, but the console reads them one per line.
+dg_contains( $tab, '<li class="sn-rail__row">', 'the dashboard tab opens with the console rail, one row per card' );
+dg_contains( $tab, 'sn-console', 'v11.29.1: the tab opens with the console — band, rail, stage' );
+dg_contains( $tab, 'sn-rail', 'and the systems rail is present at rest, not behind a disclosure' );
+dg_assert( false === strpos( $tab, '<details class="sn-dash-zone' ), 'NOTHING ON THE CONSOLE COLLAPSES — the v11.28.0 zones are gone' );
 
 // The measurement strip never collapses, so it is always in the markup.
-dg_contains( $tab, 'sn-dash-strip', 'the measurement strip renders — it has no state, so it never folds' );
-dg_contains( $tab, 'sn-dash-fig--hero', 'views is the hero figure the narrow reflow gives a full row' );
+dg_contains( $tab, 'sn-figs', 'v11.29.1: the figures render as cards on the stage, not an inline strip' );
+dg_contains( $tab, 'sn-fig--hero', 'views is the hero figure — 1.5fr wide, full row on narrow' );
 // Search Console is not wired yet, so its figure MUST read unknown rather than 0.
-dg_assert( false !== strpos( $tab, 'sn-dash-fig--unmeasured' ),
+dg_assert( false !== strpos( $tab, 'sn-fig--unmeasured' ),
 	'AN UNWIRED FIGURE RENDERS UNMEASURED, NOT ZERO' );
 
 echo "\nTest Z: v9.54.0 — an \"unknown\" version card must say WHY\n";

@@ -46,6 +46,10 @@ if ( ! function_exists( 'get_user_meta' ) ) { function get_user_meta( $u, $k, $s
 require __DIR__ . '/../inc/dash-zones.php';          // v11.28.0: zone contract + renderer
 require __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user pins
 require __DIR__ . '/../inc/dash-zone-attention.php'; // v11.28.0
+if ( ! function_exists( '_n' ) ) { function _n( $s, $p, $n, $d = '' ) { return 1 === (int) $n ? $s : $p; } }
+// v11.29.1: the console — band + rail + stage.
+require __DIR__ . '/../inc/dash-briefing.php';
+require __DIR__ . '/../inc/dash-console.php';
 require __DIR__ . '/../inc/dash-zone-fleet.php';     // v11.28.0
 require __DIR__ . '/../inc/dash-zone-measurement.php'; // v11.28.0: the five figures + strip
 // v11.28.0: split out of admin-tab-dashboard.php.
@@ -72,11 +76,11 @@ ok( false === strpos( $html, 'page=sn-content' ), 'no per-tab wayfinding links (
 // v11.28.0: the always-present glance hero is gone. Zones collapse when nothing
 // needs attention, and a collapsed zone never builds a grid — so `sn-glance` is
 // legitimately absent here. The zone SECTION is the stable anchor now.
-$zones   = strpos( $html, 'sn-dash-zones' );
+$zones   = strpos( $html, 'sn-console' );
 $maint   = strpos( $html, 'Maintenance' );
 
-ok( false !== $zones && false !== $maint, 'the zone section and Maintenance both render (fixture sanity)' );
-ok( $zones < $maint, 'status leads — the zone section renders above the Maintenance actions' );
+ok( false !== $zones && false !== $maint, 'the console and Maintenance both render (fixture sanity)' );
+ok( $zones < $maint, 'status leads — the console renders above the Maintenance actions' );
 
 // v11.28.0, three sections deliberately no longer stand alone:
 //   External APIs  — surfaces ONLY when a host is warn/crit. This fixture is

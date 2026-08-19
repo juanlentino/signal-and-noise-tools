@@ -76,6 +76,9 @@ function wp_register_script( $handle, $src = '', $deps = array(), $ver = false, 
 
 $GLOBALS['__localized'] = array();
 function wp_localize_script( $handle, $name, $data ) { $GLOBALS['__localized'][ $name ] = $data; }
+// v11.29.1: the carrier is now enqueued explicitly, so record enqueues too.
+$GLOBALS['__enqueued'] = array();
+function wp_enqueue_script( $handle, ...$rest ) { $GLOBALS['__enqueued'][] = $handle; }
 
 $GLOBALS['__dm_widgets']  = array();
 $GLOBALS['__dm_commands'] = array();
@@ -1961,6 +1964,16 @@ $clean_res = new WP_REST_Response( array(
 $clean_out = $rpp_cb( $clean_res, $item, null );
 ok( $clean_out->get_data()['name'] === 'Signal & Noise Tools', 'an already-clean Name round-trips unchanged' );
 ok( $clean_out->set_data_calls === 0, 'an already-clean response is never re-written — the dirty flag prevents a wasted set_data() call' );
+
+
+// ── v11.29.1: the localize carrier must be ENQUEUED, not just registered ────
+// wp_localize_script attaches data to a HANDLE; WordPress prints it only when
+// that handle is enqueued. Nothing enqueued 'sn-desktop-mode' — it was left to
+// be pulled in as a dependency, and upstream's resolver never walks deps. The
+// result, seen live after an OpenStation reinstall: every ability-fed widget
+// kept working while every localize-fed one went blank at once.
+ok( in_array( 'sn-desktop-mode', $GLOBALS['__enqueued'], true ),
+	'THE LOCALIZE CARRIER IS ENQUEUED — window.snDesktopData cannot print otherwise' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

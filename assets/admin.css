@@ -2445,3 +2445,193 @@ a.sn-glance-card:focus {
 		border-bottom: 1px solid var(--sn-border);
 	}
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   v11.29.1 — The Dashboard console. Direction B with C's band.
+
+   Replaces the v11.28.0 collapsing zones. Those were 53% empty on a healthy
+   site, because "state earns space" describes what ALARMS do and never says
+   what the page IS when nothing is wrong — which is nearly always. A console
+   is dense at rest and lets alarms assert themselves over that density.
+
+   Tokens only, no var() fallbacks: every token is defined at :root in this
+   same file, and a fallback that disagrees with its token is worse than none.
+   ────────────────────────────────────────────────────────────────────────── */
+.sn-dash-briefing {
+	border: 1px solid var(--sn-border);
+	border-left: 3px solid var(--sn-ok);
+	border-radius: var(--sn-radius);
+	background: var(--sn-surface);
+	padding: var(--sn-space-3);
+	margin-bottom: var(--sn-space-3);
+}
+.sn-dash-briefing--attention { border-left-color: var(--sn-err); }
+.sn-dash-briefing p { margin: 0; font-size: 14px; line-height: 1.5; }
+
+/* Rail beside stage on wide; rail first on narrow, because the answer to
+   "is anything wrong" should not be below a chart. */
+.sn-console {
+	display: grid;
+	grid-template-columns: 260px minmax(0, 1fr);
+	gap: var(--sn-space-3);
+	align-items: start;
+}
+@media (max-width: 782px) {
+	.sn-console { grid-template-columns: 1fr; }
+}
+
+.sn-rail {
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	background: var(--sn-surface);
+	padding: var(--sn-space-2) var(--sn-space-3) var(--sn-space-3);
+}
+.sn-rail__head {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	color: var(--sn-text-muted);
+	margin: var(--sn-space-3) 0 var(--sn-space-1);
+	font-weight: 600;
+}
+.sn-rail__head:first-child { margin-top: var(--sn-space-1); }
+.sn-rail__list { margin: 0; list-style: none; }
+.sn-rail__row {
+	display: flex;
+	align-items: baseline;
+	gap: var(--sn-space-2);
+	padding: 5px 0;
+	border-bottom: 1px solid var(--sn-border);
+	font-size: 13px;
+	margin: 0;
+}
+.sn-rail__row:last-child { border-bottom: 0; }
+.sn-rail__label { flex: 1; text-decoration: none; }
+.sn-rail__value {
+	font-variant-numeric: tabular-nums;
+	color: var(--sn-text-muted);
+	flex: 0 0 auto;
+}
+
+/* The dot is 9px and carries a shape difference too: `unknown` is a ring
+   rather than a fill, so the third state does not depend on hue alone. */
+.sn-rail__dot {
+	width: 9px;
+	height: 9px;
+	border-radius: 50%;
+	flex: 0 0 auto;
+	align-self: center;
+	background: var(--sn-border);
+}
+.sn-rail__dot--ok { background: var(--sn-ok); }
+.sn-rail__dot--warn { background: var(--sn-warn); }
+.sn-rail__dot--err { background: var(--sn-err); }
+/* A cold probe keeps its amber pill elsewhere but must not read as an alarm
+   here — v11.16.0's "cold is not broken", applied to the rail. */
+.sn-rail__dot--muted { background: var(--sn-border); }
+.sn-rail__dot--unknown {
+	background: transparent;
+	box-shadow: inset 0 0 0 1px var(--sn-text-muted);
+}
+
+.sn-stage { display: flex; flex-direction: column; gap: var(--sn-space-3); }
+.sn-stage__trend {
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	background: var(--sn-surface);
+	padding: var(--sn-space-3);
+}
+.sn-stage__head {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	color: var(--sn-text-muted);
+	margin: 0 0 var(--sn-space-2);
+	font-weight: 600;
+}
+/* Status row at the top of the stage. */
+.sn-attn {
+	display: flex;
+	align-items: center;
+	gap: var(--sn-space-2);
+	margin: 0;
+	padding: 7px var(--sn-space-3);
+	border: 1px solid #a8d5b5;
+	background: #edfaef;
+	border-radius: var(--sn-radius);
+	font-size: 13px;
+}
+.sn-attn--attention { border-color: #f0b4ae; background: #fce8e6; }
+.sn-attn__meta { color: var(--sn-text-muted); }
+
+/* Five figures as instruments, not a footnote. Views takes 1.5fr because it
+   carries the trend below it. */
+.sn-figs {
+	display: grid;
+	grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr;
+	gap: var(--sn-space-2);
+}
+@media (max-width: 782px) {
+	.sn-figs { grid-template-columns: 1fr 1fr; }
+	.sn-fig--hero { grid-column: 1 / -1; }
+}
+.sn-fig {
+	background: var(--sn-surface);
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	padding: 9px 11px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+}
+.sn-fig__k {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: .05em;
+	color: var(--sn-text-muted);
+	font-weight: 600;
+}
+.sn-fig__num {
+	font-size: 22px;
+	font-weight: 600;
+	line-height: 1.1;
+	font-variant-numeric: tabular-nums;
+	letter-spacing: -.02em;
+}
+/* An em dash is not a value: dim it so an unmeasured figure never reads as data. */
+.sn-fig--unmeasured .sn-fig__num { color: var(--sn-text-muted); font-weight: 400; }
+.sn-fig__delta { font-size: 11px; font-weight: 600; }
+.sn-fig__delta--up { color: var(--sn-ok); }
+.sn-fig__delta--down { color: var(--sn-err); }
+
+/* The stage chart: a baseline to read against, not a bare line. */
+.sn-trend { display: block; width: 100%; height: 96px; }
+.sn-trend__grid { stroke: var(--sn-border); stroke-width: 1; opacity: .55; }
+.sn-trend__area { fill: var(--sn-link); fill-opacity: .10; stroke: none; }
+.sn-trend__line {
+	fill: none;
+	stroke: var(--sn-link);
+	stroke-width: 2;
+	stroke-linejoin: round;
+	stroke-linecap: round;
+	vector-effect: non-scaling-stroke;
+}
+.sn-trend__end { fill: var(--sn-link); }
+
+/* Maintenance demoted to a toolbar: on the v11.28.0 page these four actions
+   were the least-used thing on screen with the most weight. */
+.sn-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: var(--sn-space-2);
+	padding-top: var(--sn-space-1);
+}
+.sn-toolbar__k {
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: .06em;
+	color: var(--sn-text-muted);
+	font-weight: 600;
+	margin-right: var(--sn-space-1);
+}
