@@ -31,5 +31,21 @@ ok( sn_dash_zone_state( array( $zero ) ) === 'ok', 'a probe that ran and returne
 // The attention opt-out is honoured, same as the existing glance sort.
 ok( sn_dash_zone_state( array( $green, $optout ) ) === 'ok', 'a warn card that opted out of attention does not promote the zone' );
 
+// ── open/closed ─────────────────────────────────────────────────────────────
+$z_ok      = array( 'id' => 'fleet', 'state' => 'ok' );
+$z_att     = array( 'id' => 'attention', 'state' => 'attention' );
+$z_unknown = array( 'id' => 'fleet', 'state' => 'unknown' );
+
+ok( sn_dash_zone_is_open( $z_ok, array() ) === false, 'an ok zone is closed by default' );
+ok( sn_dash_zone_is_open( $z_unknown, array() ) === false, 'an unknown zone is closed by default' );
+ok( sn_dash_zone_is_open( $z_att, array() ) === true, 'an attention zone is open by default' );
+ok( sn_dash_zone_is_open( $z_ok, array( 'fleet' ) ) === true, 'a pin opens an ok zone' );
+ok( sn_dash_zone_is_open( $z_unknown, array( 'fleet' ) ) === true, 'a pin opens an unknown zone' );
+
+// THE SAFETY PROPERTY. A pin is a view convenience; it must never hide a problem.
+ok( sn_dash_zone_is_open( $z_att, array() ) === true, 'an attention zone is open with no pins' );
+ok( sn_dash_zone_is_open( $z_att, array( 'other' ) ) === true, 'A PIN CANNOT CLOSE AN ATTENTION ZONE' );
+ok( sn_dash_zone_is_open( array( 'id' => 'x' ), array() ) === false, 'a zone with no state is closed, not open' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

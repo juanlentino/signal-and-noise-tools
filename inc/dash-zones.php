@@ -54,3 +54,23 @@ function sn_dash_zone_state( array $cards ) {
 	}
 	return $attention ? 'attention' : 'ok';
 }
+
+/**
+ * Should this zone render expanded?
+ *
+ * An `attention` zone is ALWAYS open — a pin can force a zone open, never closed.
+ * Pinning is a personal view preference and must not be able to hide a problem.
+ * Pure.
+ *
+ * @param array<string,mixed> $zone
+ * @param string[]            $pins Zone ids the current user has pinned open.
+ * @return bool
+ */
+function sn_dash_zone_is_open( array $zone, array $pins ) {
+	$state = isset( $zone['state'] ) ? (string) $zone['state'] : '';
+	if ( 'attention' === $state ) {
+		return true;
+	}
+	$id = isset( $zone['id'] ) ? (string) $zone['id'] : '';
+	return '' !== $id && in_array( $id, $pins, true );
+}
