@@ -209,6 +209,14 @@ function snt_dashboard_tab_render() {
 	sn_dash_render_zone( $fleet_zone, $pins );
 	echo '</section>';
 
+	// ── MEASUREMENT ── never collapses: it has no green/red state, so there is
+	// nothing to fold. A figure whose accessor is absent renders unknown.
+	if ( function_exists( 'sn_dash_render_measurement_strip' ) ) {
+		sn_dash_render_measurement_strip(
+			sn_dash_measurement_figures( snt_dashboard_measurement_data() )
+		);
+	}
+
 	// ── 2. ATTENTION STRIP ── one warning row, only when something is off.
 	snt_dashboard_render_attention_strip( $runs, count( $overrides ) );
 
@@ -1065,51 +1073,6 @@ function snt_dashboard_debug_information( $info ) {
 	return $info;
 }
 
-/**
- * Component name => version for the fleet zone.
- *
- * A component the probe has never seen returns null, which makes the zone
- * unknown rather than letting an unprobed worker read as current.
- *
- * NOT snt_deploy_status_for(): that takes 'theme'|'plugin' only and returns a
- * STRUCT, so passing it a worker key returns plugin data and the card renders
- * "Array". Worker versions come from snt_deploy_workers_status(), the same
- * source the glance cards use — `live` is the version actually answering.
- *
- * Theme and plugin are NOT in the worker registry; they arrive as the structs
- * already in scope in snt_dashboard_tab_render().
- *
- * @since 11.28.0
- * @param array<string,mixed> $theme   snt_deploy_status_for( 'theme' ) struct.
- * @param array<string,mixed> $plugin  snt_deploy_status_for( 'plugin' ) struct.
- * @param array<int,array>    $workers snt_deploy_workers_status() rows.
- * @return array<string,string|null>
- */
-function snt_dashboard_fleet_components( $theme, $plugin, $workers = array() ) {
-	$theme_v  = is_array( $theme ) ? (string) ( $theme['current'] ?? '' ) : '';
-	$plugin_v = is_array( $plugin ) ? (string) ( $plugin['current'] ?? '' ) : '';
-
-	$out = array(
-		'Theme'  => '' !== $theme_v ? $theme_v : null,
-		'Plugin' => '' !== $plugin_v ? $plugin_v : null,
-	);
-
-	foreach ( $workers as $worker ) {
-		if ( ! is_array( $worker ) ) {
-			continue;
-		}
-		$label = (string) ( $worker['label'] ?? '' );
-		if ( '' === $label ) {
-			continue;
-		}
-		// `live` is the version the worker actually answered with. Empty means
-		// never probed (cold, budget-skipped) — null, not a version.
-		$live          = (string) ( $worker['live'] ?? '' );
-		$out[ $label ] = '' !== $live ? $live : null;
-	}
-
-	return $out;
-}
 
 /**
  * Is the external-API rate picture worth the space? (v11.28.0)
@@ -1139,3 +1102,4 @@ function snt_dashboard_api_summary_is_notable() {
 	}
 	return false;
 }
+

@@ -4,6 +4,7 @@ if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! function_exists( '__' ) ) { function __( $t, $d = '' ) { return $t; } }
 if ( ! function_exists( 'esc_html' ) ) { function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
 if ( ! function_exists( 'esc_attr' ) ) { function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); } }
+if ( ! function_exists( 'esc_attr__' ) ) { function esc_attr__( $t, $d = '' ) { return htmlspecialchars( (string) $t, ENT_QUOTES ); } }
 
 require __DIR__ . '/../inc/dash-zone-measurement.php';
 
@@ -44,6 +45,24 @@ $by = array(); foreach ( $u as $f ) { $by[ $f['key'] ] = $f; }
 ok( $by['search_clicks_7d']['measured'] === false, 'an absent Search Console read is UNKNOWN' );
 ok( $by['search_clicks_7d']['value'] !== '0', 'and it never renders as 0' );
 ok( $by['views_7d']['measured'] === true, 'the supplied figure is still measured' );
+
+// ── the strip renderer ──────────────────────────────────────────────────────
+function strip( $data ) { ob_start(); sn_dash_render_measurement_strip( sn_dash_measurement_figures( $data ) ); return ob_get_clean(); }
+
+$h = strip( array( 'views_7d' => 103, 'views_delta' => 39, 'ai_spend_30d' => 0.61, 'anchored' => 33, 'citations' => 0, 'search_clicks_7d' => 18 ) );
+ok( false !== strpos( $h, 'sn-dash-strip' ), 'the strip renders its wrapper' );
+ok( false !== strpos( $h, 'sn-dash-fig--hero' ), 'the hero figure carries the hero class the reflow targets' );
+ok( substr_count( $h, 'sn-dash-fig-value' ) === 5, 'all five figures render' );
+ok( false !== strpos( $h, '$0.61' ), 'money keeps its cents in the markup' );
+ok( false === strpos( $h, 'sn-dash-fig--unmeasured' ), 'nothing is marked unmeasured when everything was measured' );
+
+// The unmeasured class is what the CSS dims. Without it an em dash looks like data.
+$h = strip( array( 'views_7d' => 103 ) );
+ok( false !== strpos( $h, 'sn-dash-fig--unmeasured' ), 'AN UNMEASURED FIGURE CARRIES THE CLASS THE CSS DIMS' );
+ok( substr_count( $h, 'sn-dash-fig--unmeasured' ) === 4, 'and exactly the four that were never supplied' );
+
+// Escaping: labels are ours, but values pass through the same door.
+ok( false === strpos( strip( array( 'views_7d' => '<script>' ) ), '<script>' ), 'the strip escapes its values' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

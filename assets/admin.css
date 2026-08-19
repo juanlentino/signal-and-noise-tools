@@ -2364,3 +2364,84 @@ a.sn-glance-card:focus {
 	font-family: Menlo, Consolas, monospace;
 	font-size: 12px;
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   v11.28.0 — Dashboard zones and the measurement strip.
+
+   State earns space: `ok` and `unknown` collapse to a line, `attention`
+   expands and leads. The `open` attribute is server-rendered, so the correct
+   shape is present on first paint with no flash.
+
+   Tokens, not literals, for border and radius: --sn-border is #c3c4c7 and
+   --sn-radius is 3px (the v8.0.3 crisp-console radius). No var() fallbacks
+   here — every token below is defined at :root in this same file, and a
+   fallback that disagrees with its token is worse than none.
+   ────────────────────────────────────────────────────────────────────────── */
+.sn-dash-zone {
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+	margin-bottom: var(--sn-space-2);
+}
+.sn-dash-zone-summary {
+	cursor: pointer;
+	padding: var(--sn-space-2) var(--sn-space-3);
+	display: flex;
+	gap: var(--sn-space-2);
+	align-items: baseline;
+}
+.sn-dash-zone-summary:hover { background: rgba(0, 0, 0, .02); }
+.sn-dash-zone-summary:focus-visible {
+	outline: 2px solid var(--sn-link);
+	outline-offset: -2px;
+}
+.sn-dash-zone-detail {
+	color: var(--sn-text-muted);
+	font-size: 12px;
+}
+.sn-dash-zone-body { padding: 0 var(--sn-space-3) var(--sn-space-3); }
+
+.sn-dash-zone--ok { border-color: #a8d5b5; background: #e6f4ea; }
+.sn-dash-zone--attention { border-color: #f0b4ae; background: #fce8e6; }
+/* Unknown is neither, and must not read as either: dashed and neutral,
+   because never-probed is not healthy and not broken. The dash is the
+   signal — it survives a monochrome print and a colour-blind reader, so
+   the third state does not depend on hue alone. */
+.sn-dash-zone--unknown {
+	border-style: dashed;
+	border-color: var(--sn-border);
+	background: #f6f7f8;
+}
+
+/* The strip never collapses — it has no state to fold. */
+.sn-dash-strip {
+	display: flex;
+	flex-wrap: wrap;
+	gap: var(--sn-space-5);
+	padding: var(--sn-space-2) var(--sn-space-3);
+	border: 1px solid var(--sn-border);
+	border-radius: var(--sn-radius);
+}
+.sn-dash-fig-value { font-size: 16px; font-weight: 600; }
+.sn-dash-fig-label { color: var(--sn-text-muted); font-size: 12px; }
+/* An em dash on its own reads as data at a glance. Dimming is what tells a
+   reader the figure was never measured rather than measured as nothing. */
+.sn-dash-fig--unmeasured .sn-dash-fig-value {
+	color: var(--sn-text-muted);
+	font-weight: 400;
+}
+
+@media (max-width: 600px) {
+	/* Views is the hero — it carries the only sparkline — so it takes a full
+	   row and the remaining four fall into a 2x2. One plus four, no orphan:
+	   this reflow is what enforces the five-figure cap, not taste. */
+	.sn-dash-strip {
+		display: grid;
+		grid-template-columns: 1fr 1fr;
+		gap: var(--sn-space-1) var(--sn-space-3);
+	}
+	.sn-dash-fig--hero {
+		grid-column: 1 / -1;
+		padding-bottom: var(--sn-space-2);
+		border-bottom: 1px solid var(--sn-border);
+	}
+}

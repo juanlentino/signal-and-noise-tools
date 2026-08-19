@@ -105,6 +105,7 @@ require_once __DIR__ . '/../inc/dash-zones.php';          // v11.28.0: zone cont
 require_once __DIR__ . '/../inc/dash-pins.php';           // v11.28.0: per-user pins
 require_once __DIR__ . '/../inc/dash-zone-attention.php'; // v11.28.0
 require_once __DIR__ . '/../inc/dash-zone-fleet.php';     // v11.28.0
+require_once __DIR__ . '/../inc/dash-zone-measurement.php'; // v11.28.0: the five figures + strip
 require_once __DIR__ . '/../inc/admin-tab-dashboard.php';
 require_once __DIR__ . '/../inc/freshness-indicator.php'; // v8.5.1: freshness card appended to the grid
 
@@ -288,6 +289,13 @@ snt_dashboard_tab_render();
 $tab = ob_get_clean();
 dg_contains( $tab, '<div class="sn-glance">', 'dashboard tab opens with the glance grid' );
 dg_contains( $tab, 'sn-dash-zones', 'v11.28.0: the flat glance grid is now a zone section — state earns space' );
+
+// The measurement strip never collapses, so it is always in the markup.
+dg_contains( $tab, 'sn-dash-strip', 'the measurement strip renders — it has no state, so it never folds' );
+dg_contains( $tab, 'sn-dash-fig--hero', 'views is the hero figure the narrow reflow gives a full row' );
+// Search Console is not wired yet, so its figure MUST read unknown rather than 0.
+dg_assert( false !== strpos( $tab, 'sn-dash-fig--unmeasured' ),
+	'AN UNWIRED FIGURE RENDERS UNMEASURED, NOT ZERO' );
 
 echo "\nTest Z: v9.54.0 — an \"unknown\" version card must say WHY\n";
 // THE INCIDENT (2026-07-16): both cards showed a red "unknown" and nothing

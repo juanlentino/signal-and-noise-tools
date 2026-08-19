@@ -14,6 +14,11 @@ All notable changes to Signal & Noise Tools are documented here.
   in user meta, so it must not be able to hide a problem: an `attention` zone is checked
   before pins and returns open unconditionally. Zone ids are validated against an allowlist
   on the way in, not merely filtered on the way out.
+- **The measurement strip.** Five figures — views 7d, clicks 7d, AI spend 30d, anchored,
+  citations — that never collapse, because they have no green/red state to fold. A figure
+  whose accessor is absent renders an em dash and is dimmed, never a `0`. Search Console is
+  not wired yet, so clicks reads unknown, which is exactly what the design specifies for a
+  cache miss or an API error.
 - Recent deploys is **folded into the fleet zone** rather than cut — it answers the same
   question the zone does, so it belongs inside it instead of competing with it.
 
