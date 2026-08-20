@@ -248,17 +248,20 @@ function sn_fecc_audit_nontext( $file, $palettes, $on_surface, $allow ) {
 		if ( false !== strpos( $sel, ':root' ) ) { continue; }
 		$decls = sn_fecc_decls( $body );
 
-		// A BORDER IS JUDGED AGAINST WHAT IS OUTSIDE THE ELEMENT, not against
-		// the element's own fill — it is drawn at the boundary, and the
-		// boundary's job is to separate the component from the page. This is
-		// where the two passes legitimately differ: ink sits ON the fill, so
-		// the ink pass reads the rule's own background; an edge does not.
+		// A BORDER IS PAINTED OVER THE ELEMENT'S OWN BACKGROUND. `background-clip`
+		// defaults to `border-box`, so the element's fill extends UNDER the
+		// border; a translucent edge composites over that fill, not over the
+		// page. Same surface rule as the ink pass, therefore — and it is the
+		// same helper, so the two cannot drift.
 		//
-		// Scoring an edge against its own fill is not merely imprecise, it is
-		// degenerate: the roadmap glyph sets background AND border-color to
-		// --sn-signal-ink, which self-compares at exactly 1.00:1 and would be
-		// a permanent, unfixable false positive. Pinned below.
-		$surface = $on_surface[ $sel ] ?? 'var(--wp--preset--color--void)';
+		// v12.5.0 shipped the opposite rule (always the page ground) and got
+		// the right numbers by luck: `.sn-prov-chip` pins its own background to
+		// `void`, which IS the page ground, so the two models coincided.
+		// Confirmed in a live DOM read on 2026-08-20 (`fillEqualsPage: true`).
+		// Put a chip on any other surface and the old rule measured a backdrop
+		// the border is not drawn on. tests/fixtures/fecc-probe.css carries the
+		// case that tells the two models apart.
+		$surface = sn_fecc_surface_of( $decls, $sel, $on_surface );
 
 		foreach ( $props as $prop ) {
 			$edge = $decls[ $prop ] ?? '';
@@ -272,6 +275,15 @@ function sn_fecc_audit_nontext( $file, $palettes, $on_surface, $allow ) {
 				$a      = sn_fecc_resolve( $edge, $map );
 				$b      = sn_fecc_resolve( $surface, $map );
 				if ( null === $a || null === $b ) { continue; }
+				// AN EDGE THE SAME COLOUR AS ITS OWN FILL IS NOT A BOUNDARY.
+				// It is fill: there is no visible edge to contrast with
+				// anything, and it self-compares at exactly 1.00:1 forever.
+				// The roadmap glyph does this deliberately (background and
+				// border-color both --sn-signal-ink) to draw a solid chip.
+				// Derived from the values, not a named exemption — a list
+				// would silently cover the next one too.
+				if ( strtolower( trim( $a ) ) === strtolower( trim( $b ) ) ) { continue; }
+
 				// Composite FIRST. A translucent edge scored opaque reports a
 				// ratio no reader will ever meet.
 				$over = sn_fecc_over( $a, $b );
@@ -506,11 +518,21 @@ $naive = sn_fecc_ratio( 'rgba(18,112,58,.45)', '#ffffff' );
 $real  = sn_fecc_ratio( sn_fecc_over( 'rgba(18,112,58,.45)', '#ffffff' ), '#ffffff' );
 ok( $naive > 6.0 && $real < 2.5, sprintf( 'IGNORING ALPHA WOULD LIE: the same edge scores %.2f:1 opaque vs %.2f:1 composited', $naive, $real ) );
 ok( $real < 3.0, 'NEGATIVE CONTROL: the edge value as SHIPPED in v12.3.0 (alpha .45) IS below 3:1' );
-// A border matching its own fill must be judged against the PAGE. Sharing the
-// ink pass's surface rule here scores it 1.00:1 by construction — a false
-// positive no CSS change could ever clear. This pins the two passes apart.
+// A border is measured against the fill it is PAINTED OVER, not the page.
+// This fixture rule clears 12.63:1 against the page ground and 1.66:1 against
+// its own dark fill, so it tells the two models apart: the old rule passed it,
+// the correct one fails it. Light palettes only — `bone` inverts to #ffffff in
+// dark, where the same edge genuinely clears.
+$edge_probe = sn_fecc_audit_nontext( __DIR__ . '/fixtures/fecc-probe.css', $palettes, $on_surface, $allow );
+ok( 2 === count( $edge_probe ), 'a border is judged against the element\'s OWN fill, not the page — the discriminating fixture fires in both light palettes (' . count( $edge_probe ) . ' finding(s))' );
+ok( 0 === count( preg_grep( '/\[dark\]/', $edge_probe ) ), 'and NOT in dark, where that same edge clears against the inverted fill — so the fixture is measuring the fill, not merely failing everywhere' );
+ok( 2 === count( preg_grep( '/over #000000/', $edge_probe ) ), 'both findings name the FILL (#000000) as the surface, not the page ground' );
+
+// The degenerate case is skipped by a rule derived from the values: an edge
+// identical to its own fill is not a boundary. The roadmap glyph does this
+// deliberately, and it would otherwise self-compare at 1.00:1 forever.
 $glyph = sn_fecc_audit_nontext( dirname( __DIR__ ) . '/assets/maturity-roadmap-front.css', $palettes, $on_surface, $allow );
-ok( array() === $glyph, 'a border the same colour as its own FILL is judged against the page, not the fill (' . count( $glyph ) . ' finding(s) on the roadmap sheet)' );
+ok( array() === $glyph, 'an edge the same colour as its own fill is skipped as fill, not reported (' . count( $glyph ) . ' finding(s) on the roadmap sheet)' );
 
 // ── negative controls ──────────────────────────────────────────────────────
 // The instrument must be able to emit a POSITIVE. Each control drives the real
