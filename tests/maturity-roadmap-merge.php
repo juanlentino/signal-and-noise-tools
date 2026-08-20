@@ -126,6 +126,10 @@ $theirs2 = $base;
 $theirs2['NEW'] = array( 'done' => array( 'n' ) );
 $r = snt_roadmap_merge( $base, $base, $theirs2 );
 ok( isset( $r['merged']['NEW'] ), 'a family added in code appears in the merged board' );
+ok(
+	array( array( 'family' => 'NEW', 'column' => 'done' ) ) === $r['code_landed'],
+	'and is recorded in code_landed with the exact expected entry'
+);
 
 // Code deleted a family the override never touched -> dropped.
 $r = snt_roadmap_merge( $base, $base, array() );
@@ -135,13 +139,20 @@ ok( array() === $r['merged'], 'code deleting a family the override never touched
 $ours3 = array( 'F' => array( 'done' => array( 'OVERRIDE' ), 'planned' => array( 'p' ) ) );
 $r = snt_roadmap_merge( $base, $ours3, array() );
 ok( isset( $r['merged']['F'] ), 'code deleting a family the override changed keeps it' );
-ok( array() !== $r['conflicts'], 'and reports the conflict' );
+ok(
+	array( array( 'family' => 'F', 'column' => 'done' ) ) === $r['conflicts'],
+	'and reports the exact conflict — code deleting "planned" (which the override never touched) names nothing'
+);
 
 // Absence is a value: a column code removed, untouched by the override.
 $ours4   = $base;
 $theirs4 = array( 'F' => array( 'done' => array( 'a' ) ) );
 $r = snt_roadmap_merge( $base, $ours4, $theirs4 );
 ok( ! isset( $r['merged']['F']['planned'] ), 'code removing a COLUMN the override never touched drops it' );
+ok(
+	array() === $r['conflicts'] && array() === $r['code_landed'] && array() === $r['override_held'],
+	'and names nothing in any report list — the cell is gone, not landed'
+);
 
 // Identity.
 $r = snt_roadmap_merge( $base, $base, $base );
@@ -151,6 +162,10 @@ ok( array() === $r['conflicts'] && array() === $r['code_landed'] && array() === 
 // A null base (v1) means the override owns everything.
 $r = snt_roadmap_merge( null, $ours3, $theirs2 );
 ok( $ours3 === $r['merged'], 'a NULL base makes the override authoritative wholesale' );
+ok(
+	array() === $r['conflicts'] && array() === $r['code_landed'] && array() === $r['override_held'],
+	'and nothing lands from code — the report is empty, not just merged === ours'
+);
 
 // A family present only in base: both writers deleted it. Nobody "held" or
 // "landed" a cell that exists nowhere in the merged board.
@@ -173,6 +188,30 @@ ok(
 	array() === $r['conflicts'] && array() === $r['code_landed'] && array() === $r['override_held'],
 	'and does not appear in any report list either'
 );
+
+// MIRROR of the phantom fixed in 8c49b7f, on the other branch: the OVERRIDE
+// alone deletes a cell (code leaves it untouched, i.e. theirs === base for
+// this cell). oc is null, tc equals bc, so ours_moved fires and theirs_moved
+// does not — this exercises `elseif ( $ours_moved )` with a null pick, the
+// mirror of the `elseif ( $theirs_moved )` case already covered above.
+$ours6 = array( 'F' => array( 'done' => array( 'a' ) ) );
+$r = snt_roadmap_merge( $base, $ours6, $base );
+ok( ! isset( $r['merged']['F']['planned'] ), 'the override alone deleting a cell removes it from merged' );
+ok(
+	array() === $r['conflicts'] && array() === $r['code_landed'] && array() === $r['override_held'],
+	'and names nothing in any report list — nobody "held" a cell that does not exist'
+);
+
+// Explicitly not sentence-level: a multi-sentence cell where ours and theirs
+// differ in only ONE sentence must still resolve as a whole-cell conflict
+// taking ours wholesale, never a sentence-by-sentence blend. This is the
+// assertion that stops someone "improving" this into a sentence merge later.
+$base_multi   = array( 'F' => array( 'done' => array( 'a', 'b' ) ) );
+$ours_multi   = array( 'F' => array( 'done' => array( 'a', 'B2' ) ) );
+$theirs_multi = array( 'F' => array( 'done' => array( 'a', 'B3' ) ) );
+$r = snt_roadmap_merge( $base_multi, $ours_multi, $theirs_multi );
+ok( array( 'a', 'B2' ) === $r['merged']['F']['done'], 'a conflict inside a multi-sentence cell takes OURS wholesale, not a sentence blend' );
+ok( array( array( 'family' => 'F', 'column' => 'done' ) ) === $r['conflicts'], 'and is reported as one cell-level conflict' );
 
 // NEGATIVE CONTROL: every cell that moved must appear in exactly one list,
 // AND every cell named in a list must actually exist in merged. The first
