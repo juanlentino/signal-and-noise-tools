@@ -243,16 +243,20 @@ ok( ( $rw_tool['annotations']['idempotentHint'] ?? null ) === false, 'no declare
 
 // --- tools/list is door-aware: only projects abilities on the resolved door's
 //     allowlist, and only those that resolve via wp_get_ability ---
-$GLOBALS['__abilities']['signal-noise/ai-alt-suggest'] = new SN_Test_Ability( 'signal-noise/ai-alt-suggest', array(
-	'label' => 'Suggest alt text', 'result' => array( 'suggestion' => 'a cat' ),
+$GLOBALS['__abilities']['signal-noise/ai-pair-suggest'] = new SN_Test_Ability( 'signal-noise/ai-pair-suggest', array(
+	// v11.34.0: ai-alt-suggest was RETIRED from the rw door, so it is no longer
+	// projected and every assertion keyed to it failed. Swapped for another
+	// rw-only, AI-billed suggestion ability; the properties under test (rw-only
+	// projection, and the R7 per-window call cap) are about the DOOR, not the slug.
+	'label' => 'Suggest a pair', 'result' => array( 'suggestion' => 'a cat' ),
 ) );
 $read_list = sn_mcp_list_tools( SN_MCP_DOOR_READ );
 $read_names = array_column( $read_list['tools'], 'name' );
-ok( ! in_array( 'signal-noise__ai-alt-suggest', $read_names, true ), 'tools/list(read): an rw-only ability is not projected' );
+ok( ! in_array( 'signal-noise__ai-pair-suggest', $read_names, true ), 'tools/list(read): an rw-only ability is not projected' );
 
 $rw_list = sn_mcp_list_tools( SN_MCP_DOOR_RW );
 $rw_names = array_column( $rw_list['tools'], 'name' );
-ok( in_array( 'signal-noise__ai-alt-suggest', $rw_names, true ), 'tools/list(rw): the rw-only ability IS projected' );
+ok( in_array( 'signal-noise__ai-pair-suggest', $rw_names, true ), 'tools/list(rw): the rw-only ability IS projected' );
 ok( ! in_array( 'signal-noise__get-health-scan', $rw_names, true ), 'tools/list(rw): a read-only ability is not projected (no duplication across doors)' );
 foreach ( $rw_list['tools'] as $t ) {
 	ok( isset( $t['annotations']['readOnlyHint'], $t['annotations']['destructiveHint'], $t['annotations']['idempotentHint'] ),
@@ -261,10 +265,10 @@ foreach ( $rw_list['tools'] as $t ) {
 
 // --- D6: per-door CALL gating — the security property holds at the call gate,
 //     not just the advertised list ---
-$rw_only_on_read = sn_mcp_call_tool( 'signal-noise__ai-alt-suggest', array(), SN_MCP_DOOR_READ );
+$rw_only_on_read = sn_mcp_call_tool( 'signal-noise__ai-pair-suggest', array(), SN_MCP_DOOR_READ );
 ok( isset( $rw_only_on_read['error'] ) && -32602 === $rw_only_on_read['error']['code'], 'an rw-only slug called on the read door -> unknown tool (-32602), never executes' );
 
-$rw_only_on_rw = sn_mcp_call_tool( 'signal-noise__ai-alt-suggest', array(), SN_MCP_DOOR_RW );
+$rw_only_on_rw = sn_mcp_call_tool( 'signal-noise__ai-pair-suggest', array(), SN_MCP_DOOR_RW );
 ok( isset( $rw_only_on_rw['result'] ) && false === $rw_only_on_rw['result']['isError'], 'the same rw-only slug called on the rw door succeeds' );
 
 $read_only_on_rw = sn_mcp_call_tool( 'signal-noise__get-health-scan', array(), SN_MCP_DOOR_RW );
@@ -318,15 +322,22 @@ ok( false === get_option( SN_MCP_RW_AUDIT_OPTION, false ), 'READ-DOOR-FROZEN: su
 
 // --- RW DOOR: success outcome + redaction integration (a real content-
 //     bearing arg, alt_text, must never reach the stored row) ---
-$GLOBALS['__abilities']['signal-noise/ai-alt-apply'] = new SN_Test_Ability( 'signal-noise/ai-alt-apply', array(
-	'perm' => true, 'result' => array( 'ok' => true, 'attachment_id' => 9, 'written_alt' => 'a cat' ),
+// v11.34.0: the vehicle moved from ai-alt-apply to update-post-surfaces. The
+// former was RETIRED from the rw door, so sn_mcp_call_tool() now refuses it and
+// writes no audit row at all — this block crashed on a null blob rather than
+// failing an assertion. The PROPERTY under test is unchanged and is not about
+// either slug: sn_mcp_rw_audit_safe_args() is deliberately slug-independent
+// ("Reserved for a future per-slug override; not used in v1"), so any doored rw
+// slug carrying one safe scalar key and one content-bearing key exercises it.
+$GLOBALS['__abilities']['signal-noise/update-post-surfaces'] = new SN_Test_Ability( 'signal-noise/update-post-surfaces', array(
+	'perm' => true, 'result' => array( 'ok' => true, 'post_id' => 9 ),
 ) );
-sn_mcp_call_tool( 'signal-noise__ai-alt-apply', array( 'attachment_id' => 9, 'alt_text' => 'a cat sitting on a fence' ), SN_MCP_DOOR_RW );
+sn_mcp_call_tool( 'signal-noise__update-post-surfaces', array( 'post_id' => 9, 'alt_text' => 'a cat sitting on a fence' ), SN_MCP_DOOR_RW );
 $blob = get_option( SN_MCP_RW_AUDIT_OPTION );
 ok( is_array( $blob ) && 1 === count( $blob['rows'] ), 'RW DOOR: a successful rw call appends exactly one audit row' );
 $row0 = $blob['rows'][0];
-ok( 'signal-noise/ai-alt-apply' === $row0['slug'] && 'ok' === $row0['outcome'], 'the row records the slug + ok outcome' );
-ok( ( $row0['args_redacted']['attachment_id'] ?? null ) === 9, 'the row keeps the safe scalar key (attachment_id)' );
+ok( 'signal-noise/update-post-surfaces' === $row0['slug'] && 'ok' === $row0['outcome'], 'the row records the slug + ok outcome' );
+ok( ( $row0['args_redacted']['post_id'] ?? null ) === 9, 'the row keeps the safe scalar key (post_id)' );
 ok( ! array_key_exists( 'alt_text', $row0['args_redacted'] ), 'PROBE PIN: the row NEVER contains the real content-bearing arg (alt_text), end-to-end from the call site' );
 
 // --- RW DOOR: permission-denied outcome ---
@@ -391,13 +402,13 @@ ok( false === ( $ai_gen_tool['annotations']['idempotentHint'] ?? null ), 'R6 PIN
 //     declares 'destructive' OR 'readonly' at all (only 'idempotent'). Without
 //     the override, destructiveHint would wrongly default true for a call that
 //     only returns a suggestion and never touches WP state. ---
-$GLOBALS['__abilities']['signal-noise/ai-alt-suggest'] = new SN_Test_Ability( 'signal-noise/ai-alt-suggest', array(
+$GLOBALS['__abilities']['signal-noise/ai-pair-suggest'] = new SN_Test_Ability( 'signal-noise/ai-pair-suggest', array(
 	'result' => array( 'suggestion' => 'a cat' ),
 	'meta'   => array( 'annotations' => array( 'idempotent' => true ) ),
 ) );
-$suggest_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/ai-alt-suggest'], SN_MCP_DOOR_RW );
-ok( false === ( $suggest_tool['annotations']['destructiveHint'] ?? null ), 'KNOWN-WRONG override: ai-alt-suggest (AI-BILLED verdict, no destructive declared) advertises destructiveHint:false, not the dangerous absent-key default' );
-ok( true === ( $suggest_tool['annotations']['idempotentHint'] ?? null ), 'ai-alt-suggest: declares idempotent:true -> idempotentHint true (trusted)' );
+$suggest_tool = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/ai-pair-suggest'], SN_MCP_DOOR_RW );
+ok( false === ( $suggest_tool['annotations']['destructiveHint'] ?? null ), 'KNOWN-WRONG override: ai-pair-suggest (AI-BILLED verdict, no destructive declared) advertises destructiveHint:false, not the dangerous absent-key default' );
+ok( true === ( $suggest_tool['annotations']['idempotentHint'] ?? null ), 'ai-pair-suggest: declares idempotent:true -> idempotentHint true (trusted)' );
 
 // --- A read-only ability (readonly:true declared) cannot be destructive by
 //     definition — destructiveHint resolves to false even with no explicit
@@ -429,18 +440,23 @@ echo "\nMCP tools — R7 rate limit call-site gate (v9.51.0, lane SEC-C)\n\n";
 $GLOBALS['__transients'] = array();
 $GLOBALS['__wp_cache']   = array();
 
-$GLOBALS['__abilities']['signal-noise/dismiss-candidate'] = new SN_Test_Ability( 'signal-noise/dismiss-candidate', array( 'result' => array( 'ok' => true ) ) );
+// v11.34.0: dismiss-candidate was RETIRED from the rw door, so every call
+// below was refused before reaching the rate-limit gate and the cap never
+// engaged. prune-unused-tags is still doored and equally side-effect-light
+// for a drain loop; R7 is a property of the DOOR's per-identity window, not of
+// any particular tool.
+$GLOBALS['__abilities']['signal-noise/prune-unused-tags'] = new SN_Test_Ability( 'signal-noise/prune-unused-tags', array( 'result' => array( 'ok' => true ) ) );
 
 // Drain the per-minute cap for a fresh identity by calling the rw door
 // SN_MCP_RW_RATE_LIMIT_PER_MINUTE times — every one of those must still
 // succeed (each is a legitimate, allowed call).
 for ( $i = 0; $i < SN_MCP_RW_RATE_LIMIT_PER_MINUTE; $i++ ) {
-	$r = sn_mcp_call_tool( 'signal-noise__dismiss-candidate', array(), SN_MCP_DOOR_RW );
+	$r = sn_mcp_call_tool( 'signal-noise__prune-unused-tags', array(), SN_MCP_DOOR_RW );
 	ok( isset( $r['result'] ) && false === $r['result']['isError'], "R7: rw call " . ( $i + 1 ) . " within the cap succeeds" );
 }
 // The next one, same identity (same test-uuid from the stub), must be a
 // JSON-RPC error carrying a retry hint — never a silent execute().
-$over = sn_mcp_call_tool( 'signal-noise__dismiss-candidate', array(), SN_MCP_DOOR_RW );
+$over = sn_mcp_call_tool( 'signal-noise__prune-unused-tags', array(), SN_MCP_DOOR_RW );
 ok( isset( $over['error'] ), 'R7: the call past the per-minute cap on the rw door returns a JSON-RPC error, not a result' );
 ok( false !== stripos( $over['error']['message'] ?? '', 'rate limit' ) || false !== stripos( $over['error']['message'] ?? '', 'Retry' ), 'R7: the rate-limit error message is identifiable as a rate-limit denial' );
 ok( isset( $over['error']['data']['retry_after'] ) && $over['error']['data']['retry_after'] > 0, 'R7: the error carries a retry_after hint in its data (JSON-RPC has no HTTP header seam mid-batch)' );

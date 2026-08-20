@@ -401,7 +401,11 @@ ok( $r4['corpus_state']['corpus_fingerprint'] !== $r1['corpus_state']['corpus_fi
  * (scan -> suggest -> apply), never 409.
  * ════════════════════════════════════════════════════════════════════════ */
 $bm_target = $r4['candidates'][0]['targets'][0];
-ok( 'signal-noise/block-migrations-apply' === $r4['candidates'][0]['apply_hint']['tool'], 'block_migrations apply_hint names the real apply ability' );
+// v12.0.0: block-migrations-apply is RETIRED from the rw door, so naming it
+// would hand a caller a tool the door refuses. sn-apply's block_migration
+// change type performs the identical write and IS doored.
+ok( 'signal-noise/sn-apply' === $r4['candidates'][0]['apply_hint']['tool'], 'block_migrations apply_hint names a REACHABLE apply tool' );
+ok( in_array( 'change.type:block_migration', $r4['candidates'][0]['apply_hint']['required_args'], true ), 'and it names the change type that does the work' );
 $suggest = snt_block_migrations_suggest_impl( $bm_target['post_id'], $bm_target['block_fingerprint'], 'heading-hierarchy-skip' );
 ok( is_array( $suggest ) && true === ( $suggest['ok'] ?? false ), 'suggest impl accepts the scan-emitted fingerprint' );
 $apply = snt_block_migrations_apply_impl( $bm_target['post_id'], $bm_target['block_fingerprint'], $suggest['suggestion_markup'], 'heading-hierarchy-skip' );
@@ -411,7 +415,9 @@ ok( ! is_wp_error( $apply ) || 409 !== ( is_wp_error( $apply ) ? ( $apply->get_e
 $pa_scan = snt_ability_sn_scan( array( 'scan_type' => 'pattern_adoption' ) );
 ok( 1 === count( $pa_scan['candidates'] ), 'pattern_adoption finds the one core/quote candidate' );
 $pa_target = $pa_scan['candidates'][0]['targets'][0];
-ok( 'signal-noise/pattern-adoption-apply' === $pa_scan['candidates'][0]['apply_hint']['tool'], 'pattern_adoption apply_hint names the real apply ability' );
+// v12.0.0: same as block_migrations above.
+ok( 'signal-noise/sn-apply' === $pa_scan['candidates'][0]['apply_hint']['tool'], 'pattern_adoption apply_hint names a REACHABLE apply tool' );
+ok( in_array( 'change.type:pattern_adoption', $pa_scan['candidates'][0]['apply_hint']['required_args'], true ), 'and it names the change type that does the work' );
 // snt_ai_pattern_adoption_suggest_impl() hand-emits REAL WordPress block
 // comment markup (<!-- wp:group ... -->), not serialize_block() output —
 // unlike block-migrations' suggest, which stays inside this fixture's
@@ -565,8 +571,12 @@ $GLOBALS['__featured']    = array();
 $om = snt_ability_sn_scan( array( 'scan_type' => 'orphan_media' ) );
 ok( is_array( $om ) && 1 === count( $om['candidates'] ), 'orphan_media wraps the pure-SQL detector and finds exactly the one true orphan' );
 ok( 702 === $om['candidates'][0]['targets'][0]['attachment_id'], 'the flagged candidate is the unreferenced attachment' );
-ok( 'signal-noise/ai-orphan-apply' === ( $om['candidates'][0]['apply_hint']['tool'] ?? '' ), 'orphan_media apply_hint names ai-orphan-apply (no fingerprint gate to violate)' );
-ok( array( 'attachment_id' ) === $om['candidates'][0]['apply_hint']['required_args'], 'apply_hint required_args is exactly attachment_id, matching the real ability schema' );
+// v12.0.0: NULL, joining duplicate_body / near_duplicate / link_candidates.
+// ai-orphan-apply is on NEITHER door and never was — this hint was a dead
+// pointer before the v12.0.0 retirements, not because of them. There is no
+// sn-apply equivalent on purpose: its change types are post-content
+// operations, and force-deleting an attachment is not one.
+ok( null === $om['candidates'][0]['apply_hint'], 'orphan_media apply_hint is NULL — it will not name a tool no door exposes' );
 ok( 2 === $om['corpus_state']['posts_examined'], 'orphan_media corpus_state reports the total attachments sized (sizing-only COUNT, no detection logic)' );
 
 $om_scoped = snt_ability_sn_scan( array( 'scan_type' => 'orphan_media', 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( 701 ) ) ) );

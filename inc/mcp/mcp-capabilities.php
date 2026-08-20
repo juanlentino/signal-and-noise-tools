@@ -62,6 +62,21 @@ if ( ! defined( 'SN_MCP_DOOR_RW' ) ) {
  */
 function sn_mcp_allowlist() {
 	$slugs = array(
+		// ── v11.34.0 — RETIRED FROM THE DOOR (tier A) ──────────────────────
+		// Removed here, NOT deleted: the ability still exists, still answers
+		// wp_get_ability()->execute(), still serves its internal callers and
+		// stays REST-reachable behind its own permission_callback. This list
+		// gates the MCP DOOR only, so retirement is reversible by one line.
+		//
+		// Each was absorbed by a consolidated tool AND had ZERO calls across
+		// the 30-day telemetry window (1,855 calls total, table_present:true):
+		//   get-latest-theme-tag        -> sn-site-facts{latest_theme_tag}
+		//   list-block-patterns         -> sn-site-facts{block_patterns}
+		//   get-seo-route-meta          -> sn-site-facts{seo_route_meta}
+		//   link-candidates             -> sn-scan{link_candidates}
+		//   get-design-system-summary   -> design_tokens (sn-site-facts' own
+		//     description already called this one "retired, not absorbed" while
+		//     it sat in this list — a contradiction, now closed)
 		// Plugin (signal-noise/) — operational reads.
 		'signal-noise/get-health-scan',
 		'signal-noise/uptime-status',
@@ -73,9 +88,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/get-insights',
 		'signal-noise/get-narration',
 		'signal-noise/get-analytics-events',
-		'signal-noise/block-migrations-scan',
 		'signal-noise/pattern-adoption-scan',
-		'signal-noise/list-template-overrides',
 		// v9.82.0 — operational status. Both readonly, both sub-second, and what
 		// they return is status an agent should be able to see for itself.
 		'signal-noise/anchor-status',
@@ -84,34 +97,21 @@ function sn_mcp_allowlist() {
 		// (inc/corpus-inspect.php never writes); they span non-public statuses
 		// (future/draft/pending/private) on purpose — pre-publish collision
 		// checking is the point — double-gated by manage_options + door auth.
-		'signal-noise/duplicate-body-scan',
 		'signal-noise/list-posts',
 		'signal-noise/get-post-content',
 		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by
 		// construction (kernel cosine over the same corpus walk, no writes);
 		// spans non-public statuses for the same pre-publish reason as the
 		// trio above. Read door 28 → 29.
-		'signal-noise/near-duplicate-scan',
 		// v10.17.0 (2026-07-30) — deterministic candidate generators: PURE-READ
 		// by construction (inc/ml-candidates.php never writes — the kernel
 		// proposes, a person decides); keyword ranking spans non-public
 		// statuses for the same pre-publish reason as the trio above.
 		// Read door 29 → 31.
 		'signal-noise/keyword-candidates',
-		'signal-noise/link-candidates',
 		'signal-noise/topic-clusters', // v10.21.0: the stored topic partition (ML pipeline #4).
 		'signal-noise/cadence-flags',  // v10.22.0: publish + cron rhythm deviations (ML pipeline #5).
 		// Theme (signal-and-noise/) — identity + design system.
-		'signal-and-noise/get-theme-version',
-		'signal-and-noise/get-latest-theme-tag',
-		'signal-and-noise/get-design-tokens',
-		'signal-and-noise/get-design-system-summary',
-		'signal-and-noise/get-active-template-structure',
-		'signal-and-noise/list-block-patterns',
-		'signal-and-noise/get-seo-route-meta',
-		'signal-and-noise/get-llms-txt',
-		'signal-and-noise/get-page-notes-pillars',
-		'signal-and-noise/get-reading-time-for-slug',
 		// v10.26.0 — MCP consolidation, phase 2: the first two CONSOLIDATED
 		// tools, registered NEW alongside every ability they absorb (nothing
 		// above this line was touched). Both PURE-READ by construction:
@@ -188,34 +188,49 @@ function sn_mcp_allowlist() {
  */
 function sn_mcp_rw_allowlist() {
 	$slugs = array(
+		// ── v11.34.0 — RETIRED FROM THE DOOR (tiers B and C) ──────────────
+		// Tier B: absorbed, with a trickle of calls the consolidated tool now
+		// serves — ai-link-apply's siblings block-migrations-apply and the
+		// theme fact tools, listed on sn_mcp_allowlist().
+		//
+		// Tier C, ABSORBED (2):
+		//   ai-alt-apply    -> sn-apply{change.type:alt_text}
+		//   ai-drift-apply  -> sn-apply{change.type:drift_replace}
+		//
+		// Tier C, NOT ABSORBED (19) — owner decision 2026-08-19, taken with the
+		// consequence stated. These lose their MCP path and gain no equivalent:
+		// the AI GENERATION tools (alt/drift/orphan/link suggestions, excerpt,
+		// meta description, og-card title, page-note summary, block-pattern
+		// suggestion + content, brand-voice rewrite + validation, suggest-tags),
+		// the audit-log trio, and the two dismissal tools.
+		//
+		// Their zero call count is NOT evidence they are unused: this telemetry
+		// counts MCP doors only, and these have live non-MCP callers —
+		// inc/ai-excerpt.php, inc/ai-drift-phrase-suggest.php, sn-validate's own
+		// checks, and the wp-admin AI surfaces. Every one remains registered,
+		// callable via wp_get_ability()->execute(), and REST-reachable behind
+		// its own permission_callback. This list gates the MCP DOOR only.
+		//
+		// WATCH: dismiss-candidate backed sn-scan's `dismissed` flow, and
+		// ai-alt-apply was the only application path for alt-text staged rows
+		// (sn-apply's own docs call those rows "stranded"). If either is missed,
+		// re-adding one line here restores it.
+		// ── v11.34.0 — RETIRED FROM THE DOOR (tier A) ──────────────────────
+		// Absorbed AND zero calls in the 30-day telemetry window. Removed from
+		// the door, not deleted — see the note on sn_mcp_allowlist().
+		//   duplicate-body-scan       -> sn-scan{duplicate_body}
+		//   pattern-adoption-suggest  -> sn-scan{pattern_adoption}
+		//   pattern-adoption-apply    -> sn-apply{change.type:pattern_adoption}
+		//   anchor-sweep              -> sn-apply{change.type:anchor_sweep}
+		//   regenerate-og-card        -> sn-apply{change.type:og_card}
 		// Plugin (signal-noise/) — 30.
-		'signal-noise/ai-alt-suggest',
-		'signal-noise/ai-alt-apply',
-		'signal-noise/ai-drift-suggest',
-		'signal-noise/ai-drift-apply',
-		'signal-noise/ai-alt-inline-suggest',
-		'signal-noise/ai-orphan-suggest',
-		'signal-noise/ai-link-suggest',
 		'signal-noise/ai-link-apply',
 		'signal-noise/ai-pair-suggest',
-		'signal-noise/pattern-adoption-suggest',
-		'signal-noise/pattern-adoption-apply',
-		'signal-noise/ai-generate-excerpt',
-		'signal-noise/ai-generate-meta-description',
-		'signal-noise/ai-generate-og-card-title',
-		'signal-noise/run-audit-prune',
-		'signal-noise/get-audit-log',
-		'signal-noise/export-audit-log',
-		'signal-noise/block-migrations-apply',
 		'signal-noise/block-migrations-suggest',
-		'signal-noise/suggest-tags',
 		'signal-noise/prune-unused-tags',
-		'signal-noise/regenerate-og-card',
 		'signal-noise/unschedule-cron-event',
-		'signal-noise/dismiss-candidate',
 		'signal-noise/run-insights-scan',
 		'signal-noise/run-narration',
-		'signal-noise/prepop-dismiss',
 		'signal-noise/purge-all-caches',
 		// v10.7.0 — the reviewed-text apply step (draft → review → apply):
 		// writes excerpt/meta-desc/OG title to caller-supplied text. No AI,
@@ -225,18 +240,12 @@ function sn_mcp_rw_allowlist() {
 		// (timeout 20) asking the provenance Worker to upgrade already-confirmed
 		// proofs. The rw door's kill switch, app-password binding, rate limit,
 		// and audit trail are exactly the envelope this wants.
-		'signal-noise/anchor-sweep',
 		// v10.40.0 — MCP consolidation session 6b: the consolidated write
 		// tool. Four ability-level gates (fingerprint/validation/capability/
 		// idempotency) on TOP of this door's existing hardening — see
 		// inc/abilities-sn-apply.php.
 		'signal-noise/sn-apply',
 		// Theme (signal-and-noise/) — 5, all AI-billed + return-only.
-		'signal-and-noise/ai-generate-page-note-summary',
-		'signal-and-noise/ai-suggest-block-pattern',
-		'signal-and-noise/ai-validate-brand-alignment',
-		'signal-and-noise/ai-generate-pattern-content',
-		'signal-and-noise/ai-rewrite-in-brand-voice',
 	);
 
 	/**
