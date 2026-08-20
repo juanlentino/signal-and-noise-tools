@@ -7,6 +7,10 @@ name: CI
 #   3. tests     — the standalone tests/*.php fixture sweep (no WP/DB needed).
 #   4. changelog — on PRs, fail if the plugin Version: bumped without a matching
 #                  CHANGELOG.md entry (the gap that shipped v4.5.2 changelog-less).
+#   5. cron-liveness — is the SCHEDULED parity workflow still firing? A cron
+#                  cannot witness its own absence, so the guard rides a
+#                  different trigger. Its own job, and its own failure row,
+#                  because it answers a different question from the others.
 #
 # This is the code gate. Deployment is manual via the WP self-updater
 # (deploy.yml, workflow_dispatch only) — CI passing does NOT deploy.
@@ -247,3 +251,47 @@ jobs:
           printf '  %s\n' $shipped
           echo "::error file=CHANGELOG.md::This PR changes shippable code but adds nothing to CHANGELOG.md. Add an entry under '## [Unreleased]' (global rule: ALWAYS update CHANGELOG.md). If it genuinely needs none, apply the 'no-changelog' label."
           exit 1
+
+  cron-liveness:
+    name: Parity cron still firing
+    runs-on: ubuntu-latest
+    # One API-bound step. Measured: ~8s. Set with headroom, not at it — and set
+    # at all, because a hung job holds a runner and leaves this PR's checks
+    # unresolved for up to six hours (the argument here is runner-hold and
+    # blocked-PR time; Actions minutes are FREE on this public repo).
+    timeout-minutes: 3
+    # Reading workflow runs needs actions:read. Scoped to THIS job rather than
+    # widened at the top of the file, and deliberately READ — the check that
+    # shipped in #752 and was removed in #753 failed because it needed WRITE
+    # scope to see a draft release. Nothing here needs write.
+    permissions:
+      contents: read
+      actions: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Has version-tag-parity fired on schedule recently?
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          WF: version-tag-parity.yml
+        run: |
+          set -euo pipefail
+          # Retry the API, don't red on a hiccup. A flaky read reported as a
+          # finding is worse than no check: it trains everyone to re-run and
+          # stop reading. Three tries, then let the failure stand.
+          api() {
+            for i in 1 2 3; do
+              if out=$(gh api "$1" --jq "$2" 2>/dev/null); then printf '%s' "$out"; return 0; fi
+              sleep 5
+            done
+            return 1
+          }
+          created=$(api "repos/${REPO}/actions/workflows/${WF}" '.created_at') || created=""
+          runs=$(api "repos/${REPO}/actions/workflows/${WF}/runs?event=schedule&per_page=10" '[.workflow_runs[].created_at]') || runs="[]"
+          # An empty created_at reaches the script as null, which it reports as
+          # 'indeterminate' rather than passing — a blind instrument goes red.
+          if [ -z "$created" ]; then created_json=null; else created_json="\"${created}\""; fi
+          printf '{"workflow_created_at":%s,"scheduled_run_times":%s}' "$created_json" "${runs:-[]}" \
+            | php tools/cron-liveness.php --check --grace-hours=48
