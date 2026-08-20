@@ -46,24 +46,38 @@ class PR_Stub_wpdb {
 			$this->last_error = "Table 'wp_sn_analytics_page_roles' doesn't exist";
 			return array();
 		}
-		if ( ! preg_match( '/FROM\s+(\S+)/i', $sql, $tm ) ) { return array(); }
-		$rows = $this->rows[ $tm[1] ] ?? array();
+		// `FROM` also appears inside TRIM(TRAILING '/' FROM path) — resolve
+		// against a table this mock actually holds, never by position.
+		if ( ! preg_match_all( '/FROM\s+(\S+)/i', $sql, $tm ) ) { return array(); }
+		$rows = array();
+		foreach ( $tm[1] as $cand ) {
+			if ( isset( $this->rows[ $cand ] ) ) { $rows = $this->rows[ $cand ]; break; }
+		}
 		// Filter by role if "AND role = '...'" present.
 		if ( preg_match( "/AND role = '([^']*)'/i", $sql, $rm ) ) {
 			$role = $rm[1];
 			$rows = array_values( array_filter( $rows, function ( $r ) use ( $role ) { return (string) $r['role'] === $role; } ) );
 		}
 		// GROUP BY path → sum views/visits per path, order by views desc.
-		if ( stripos( $sql, 'GROUP BY path' ) !== false ) {
+		// Read the group key OUT OF THE GROUP BY CLAUSE — a mock that merges on
+		// its own initiative reports a merge the database is not performing.
+		$canonical = 1 === preg_match( '/GROUP BY\s+CASE\b/i', $sql );
+		if ( $canonical || stripos( $sql, 'GROUP BY path' ) !== false ) {
 			$agg = array();
 			foreach ( $rows as $r ) {
-				$key = (string) $r['path'];
+				$key = $canonical ? sn_analytics_canonical_path( (string) $r['path'] ) : (string) $r['path'];
 				if ( ! isset( $agg[ $key ] ) ) { $agg[ $key ] = array( 'path' => $key, 'views' => 0, 'visits' => 0 ); }
 				$agg[ $key ]['views']  += (int) $r['views'];
 				$agg[ $key ]['visits'] += (int) $r['visits'];
 			}
 			usort( $agg, function ( $a, $b ) { return (int) $b['views'] - (int) $a['views']; } );
-			return array_values( $agg );
+			$agg = array_values( $agg );
+			// LIMIT is load-bearing: the database truncates the GROUPED figure,
+			// so a split page can be cut before any PHP merge could reach it.
+			if ( preg_match( '/LIMIT\s+(\d+)/i', $sql, $lm ) ) {
+				$agg = array_slice( $agg, 0, (int) $lm[1] );
+			}
+			return $agg;
 		}
 		return $rows;
 	}
@@ -126,7 +140,7 @@ $GLOBALS['wpdb']->rows['wp_sn_analytics_page_roles'] = array(
 $GLOBALS['wpdb']->queries = array();
 $entry = sn_analytics_top_entry_pages( '2026-05-01', '2026-05-31' );
 $esql  = end( $GLOBALS['wpdb']->queries );
-ok( strpos( $esql, 'GROUP BY path' ) !== false, 'top_entry_pages: GROUP BY path' );
+ok( strpos( $esql, 'GROUP BY CASE' ) !== false, 'top_entry_pages: groups by the CANONICAL path, not the raw column' );
 ok( strpos( $esql, 'ORDER BY views DESC' ) !== false, 'top_entry_pages: ORDER BY views DESC' );
 ok( strpos( $esql, "AND role = 'entry'" ) !== false, 'top_entry_pages: filters role=entry' );
 ok( is_array( $entry ) && count( $entry ) === 2, 'top_entry_pages: 2 entry paths (exit excluded)' );

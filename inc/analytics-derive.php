@@ -160,3 +160,60 @@ if ( ! function_exists( 'sn_analytics_derive_metrics' ) ) {
 		);
 	}
 }
+
+/**
+ * Canonical form of a stored request path.
+ *
+ * A trailing slash is a SPELLING, not a page. Ingestion never normalises one
+ * (inc/analytics-rollup.php stores `path` verbatim under the (day, path, class)
+ * key), so `/notes` and `/notes/` are two stored rows for one page and every
+ * read that groups by the raw column reports them as two pages — which is what
+ * the owner saw on 2026-08-19: two `/notes` entries, 27 views each.
+ *
+ * TWO EDGES, both deliberate:
+ *
+ * - The ROOT keeps its slash. `/` trimmed is the empty string, which is not a
+ *   path at all; collapsing it would delete the home page from every report.
+ * - An EMPTY path stays empty. Ingestion refuses to store one, so encountering
+ *   it means something upstream is wrong — inventing a `/` here would hide that
+ *   behind a plausible-looking row.
+ *
+ * sn_analytics_canonical_path_sql() is the SQL twin of this function and MUST
+ * agree with it on all four cases; the read suite pins both.
+ *
+ * @since 11.32.0
+ * @param string $path Stored path.
+ * @return string
+ */
+if ( ! function_exists( 'sn_analytics_canonical_path' ) ) {
+	function sn_analytics_canonical_path( $path ) {
+		$p = (string) $path;
+		if ( '' === $p ) {
+			return '';
+		}
+		$trimmed = rtrim( $p, '/' );
+		return '' === $trimmed ? '/' : $trimmed;
+	}
+}
+
+/**
+ * The SQL expression that canonicalises a path column, for use in GROUP BY.
+ *
+ * This belongs in the GROUP BY and NOT in PHP after the query. The reads that
+ * use it all end in `ORDER BY views DESC LIMIT n`, so the database ranks and
+ * truncates on the grouped figure: with the raw column as the key, one spelling
+ * of a page can be cut by the LIMIT before any PHP ever sees it, and a merge
+ * done afterwards has nothing left to merge. Same trap as the freshness clock,
+ * where post-filtering could not recover a row the WHERE clause had excluded.
+ *
+ * @since 11.32.0
+ * @param string $col Column name — CALLER-CONTROLLED LITERAL ONLY, never input.
+ * @return string
+ */
+if ( ! function_exists( 'sn_analytics_canonical_path_sql' ) ) {
+	function sn_analytics_canonical_path_sql( $col = 'path' ) {
+		return "CASE WHEN {$col} = '' THEN ''"
+			. " WHEN TRIM(TRAILING '/' FROM {$col}) = '' THEN '/'"
+			. " ELSE TRIM(TRAILING '/' FROM {$col}) END";
+	}
+}

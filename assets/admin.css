@@ -2728,13 +2728,38 @@ a.sn-ops__label { text-decoration: none; }
 	padding: 0;
 	display: block;
 }
+/* v11.31.2 — THE LAST ROW FILLS ITSELF.
+   A fixed 6-column grid holding 11 cells leaves a twelfth slot empty, and
+   because each cell draws its own right and bottom hairline the hole reads as
+   an empty BORDERED cell: a stub of vertical rule ending in nothing, with a
+   horizontal rule above it. Filling the twelfth would mean inventing a system
+   we do not have, so the last row's cells stretch instead.
+
+   Flex-wrap rather than grid, because this has to hold at every breakpoint:
+   a grid cannot grow the last row's spans without knowing the column count,
+   and the column count is exactly what the media queries change. `flex-basis`
+   sets the nominal column width and `flex-grow` distributes whatever the last
+   row leaves over — 5 cells in a 6-wide row become 5 equal fifths, and a full
+   row is untouched. */
 .sn-scr__grid {
-	display: grid;
-	grid-template-columns: repeat( 6, minmax( 0, 1fr ) );
+	display: flex;
+	flex-wrap: wrap;
 }
-@media (max-width: 1400px) { .sn-scr__grid { grid-template-columns: repeat( 4, minmax( 0, 1fr ) ); } }
-@media (max-width: 900px)  { .sn-scr__grid { grid-template-columns: repeat( 3, minmax( 0, 1fr ) ); } }
-@media (max-width: 600px)  { .sn-scr__grid { grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); } }
+/* box-sizing is explicit: the cells carry hairline borders, and without it
+   six 16.67% basis cells plus their borders exceed 100% and wrap to five. We
+   do not rely on wp-admin's global reset for something load-bearing. */
+.sn-scr__grid > .sn-sys { flex: 1 1 calc( 100% / 6 ); box-sizing: border-box; }
+@media (max-width: 1400px) { .sn-scr__grid > .sn-sys { flex-basis: calc( 100% / 4 ); } }
+@media (max-width: 900px)  { .sn-scr__grid > .sn-sys { flex-basis: calc( 100% / 3 ); } }
+@media (max-width: 600px)  { .sn-scr__grid > .sn-sys { flex-basis: calc( 100% / 2 ); } }
+
+/* v11.31.2 — EVERY CELL RESERVES THE TALLEST COMPOSITION.
+   Caches is the only cell that carries all four parts (label, value, pill and
+   a meta line), so its row grew a line taller than the others and the wall sat
+   unevenly. A floor sized to the four-part cell keeps every row on the same
+   rhythm; cells with less to say simply have air, which is what the spacing
+   rule wants anyway. */
+.sn-scr__grid > .sn-sys { min-height: 76px; }
 .sn-scr__cols {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 220px, 1fr ) );
@@ -2784,6 +2809,20 @@ a.sn-ops__label { text-decoration: none; }
 /* The plot as an instrument: a gradient ground, a bounded axis, an endpoint
    that reads as a current position rather than a dot. */
 .sn-trend-plot { padding: var(--sn-space-3) var(--sn-space-4) 0; }
+/* The ticks position against the SVG's own box, never the padded wrapper. */
+.sn-trend__frame { position: relative; display: block; }
+.sn-trend__tick {
+	position: absolute;
+	left: 0;
+	transform: translateY( -50% );
+	padding: 0 4px 0 0;
+	background: var(--sn-surface);
+	font-size: 11px;
+	line-height: 1;
+	font-variant-numeric: tabular-nums;
+	color: var(--sn-text-muted);
+	pointer-events: none;
+}
 .sn-trend { height: 132px; }
 .sn-trend__stop-a { stop-color: var(--sn-link); stop-opacity: .16; }
 .sn-trend__stop-b { stop-color: var(--sn-link); stop-opacity: .01; }

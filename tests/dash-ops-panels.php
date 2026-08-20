@@ -41,7 +41,7 @@ echo "ops wall panel builder\n\n";
 $all = sn_dash_ops_panels( array(
 	'deploys' => array(
 		array( 'repo' => 'juanlentino/signal-and-noise-tools', 'ref' => 'main', 'conclusion' => 'success', 'created_at' => '2026-08-19T15:00:00Z' ),
-		array( 'repo' => 'juanlentino/sn-theme', 'ref' => 'main', 'conclusion' => 'failure', 'created_at' => '2026-08-19T13:00:00Z' ),
+		array( 'repo' => 'juanlentino/signal-and-noise', 'ref' => 'main', 'conclusion' => 'failure', 'created_at' => '2026-08-19T13:00:00Z' ),
 	),
 	// SHAPES COPIED FROM THE PRODUCERS, NOT INVENTED.
 	//
@@ -74,6 +74,22 @@ ok( 2 === count( $dep['rows'] ), 'a deploy row per run' );
 ok( '' === $dep['rows'][0]['dot'],   'A SUCCESSFUL RUN PAINTS NOTHING — healthy is the absence of a state, not a green one' );
 ok( 'err' === $dep['rows'][1]['dot'], 'A FAILED RUN PAINTS AN ERR DOT — the wall is where you would see it' );
 ok( false !== strpos( $dep['rows'][0]['label'], 'plugin' ), 'the repo is shortened, not printed whole' );
+
+// v11.32.0: the SECOND row was in this fixture from the day the file was
+// written and nothing ever read it — so `sn_dash_ops_repo_label()` shipped
+// returning the bare repo NAME for every non-tools repo, and Recent deploys
+// printed "signal-and-noise v11.12.3" beside "plugin v11.31.1": a repo name
+// standing next to a role. Both rows are asserted now, because a mapper with
+// two branches needs two assertions.
+ok( false !== strpos( $dep['rows'][1]['label'], 'theme' ), 'a NON-tools repo reads THEME — a role, never the bare repo name' );
+ok( false === strpos( $dep['rows'][1]['label'], 'signal-and-noise' ), 'the bare repo name never reaches the label' );
+
+// The deleted duplicate DID have one behaviour worth keeping: an absent repo
+// rendered an em dash, not an empty gap. That is this file's own stated rule —
+// "a source that is absent still gets its panel, saying it is not measured" —
+// so it survives the deletion, at the display layer where it belongs.
+$norepo = sn_dash_ops_panels( array( 'deploys' => array( array( 'ref' => 'main', 'conclusion' => 'success' ) ) ) );
+ok( 0 === strpos( by_title( $norepo, 'Recent deploys' )['rows'][0]['label'], "\xe2\x80\x94" ), 'AN ABSENT REPO STILL SAYS SO — em dash, never a silent gap' );
 
 // THE GAP THAT LET THE BUG SHIP. This suite asserted the DEPLOYS rows and the
 // PAGES rows and never once asserted a source or a query label — so changing

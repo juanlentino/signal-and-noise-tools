@@ -26,16 +26,24 @@ class LE_Stub_wpdb {
 	}
 	public function get_results( $sql, $output = ARRAY_A ) {
 		$this->queries[] = $sql;
-		if ( ! preg_match( '/FROM\s+(\S+)/', $sql, $tm ) ) { return array(); }
-		$rows = isset( $this->rows[ $tm[1] ] ) ? $this->rows[ $tm[1] ] : array();
+		// `FROM` also appears inside TRIM(TRAILING '/' FROM path) — resolve
+		// against a table this mock actually holds, never by position.
+		if ( ! preg_match_all( '/FROM\s+(\S+)/', $sql, $tm ) ) { return array(); }
+		$rows = array();
+		foreach ( $tm[1] as $cand ) {
+			if ( isset( $this->rows[ $cand ] ) ) { $rows = $this->rows[ $cand ]; break; }
+		}
 		if ( preg_match( "/class = '([^']*)'/", $sql, $cm ) ) {
 			$rows = array_values( array_filter( $rows, function ( $r ) use ( $cm ) { return (string) ( $r['class'] ?? 'human' ) === $cm[1]; } ) );
 		}
 		// GROUP BY path → per-path views-weighted aggregate with HAVING filter.
-		if ( stripos( $sql, 'GROUP BY path' ) !== false ) {
+		// Read the group key OUT OF THE GROUP BY CLAUSE — never assume a merge
+		// the query has not asked for.
+		$canonical = 1 === preg_match( '/GROUP BY\s+CASE\b/i', $sql );
+		if ( $canonical || stripos( $sql, 'GROUP BY path' ) !== false ) {
 			$agg = array();
 			foreach ( $rows as $r ) {
-				$p = (string) $r['path'];
+				$p = $canonical ? sn_analytics_canonical_path( (string) $r['path'] ) : (string) $r['path'];
 				if ( ! isset( $agg[ $p ] ) ) { $agg[ $p ] = array( 'path' => $p, 'views' => 0, 'visits' => 0, 'sw' => 0.0, 'tw' => 0.0 ); }
 				$agg[ $p ]['views']  += (int) $r['views'];
 				$agg[ $p ]['visits'] += (int) $r['visits'];
@@ -84,6 +92,20 @@ ok( strpos( $sql, 'scroll_avg * views' ) !== false, 'weights scroll by views (co
 ok( (int) SN_ANALYTICS_LOWENGAGE_MIN_VIEWS > 0, 'min-views threshold constant defined' );
 ok( count( $rows ) === 1, 'HAVING filter: only the low-engagement path returns' );
 ok( isset( $rows[0]['path'] ) && $rows[0]['path'] === '/bouncy', 'HAVING filter: /bouncy survives, /skip-me excluded' );
+
+echo "\nGroup: low_engagement_paths — a split page clears the floor as ONE page (v11.32.0)\n";
+// The min-views floor is 20. Split across two spellings a bouncy page shows
+// 12 and 11 — NEITHER half clears it, so the page the owner most needs to see
+// is silently absent from the report. Merged it is 23 and qualifies. This is
+// why the canonicalisation belongs in the GROUP BY: HAVING filters the group.
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
+	array( 'path' => '/bouncy',  'views' => 12, 'visits' => 12, 'scroll_avg' => 8, 'time_avg' => 1500, 'class' => 'human' ),
+	array( 'path' => '/bouncy/', 'views' => 11, 'visits' => 11, 'scroll_avg' => 8, 'time_avg' => 1500, 'class' => 'human' ),
+);
+$split = sn_analytics_low_engagement_paths( '2026-06-01', '2026-06-12', 'human' );
+ok( count( $split ) === 1, 'A SPLIT PAGE IS STILL ONE PAGE — 12 + 11 clears the 20-view floor that neither half does' );
+ok( isset( $split[0]['path'] ) && $split[0]['path'] === '/bouncy', 'low_engagement: the canonical spelling is what is reported' );
+ok( isset( $split[0]['views'] ) && 23 === (int) $split[0]['views'], 'low_engagement: views are summed across both spellings' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

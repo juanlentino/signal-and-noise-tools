@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     11.31.1
+ * Version:     11.32.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -187,6 +187,7 @@ require_once SNT_PATH . 'inc/dash-ops-render.php';       // v11.30.0: the detail
 require_once SNT_PATH . 'inc/dash-console.php';          // v11.29.1: direction B — band + systems rail + stage
 require_once SNT_PATH . 'inc/dash-signals.php';          // v11.30.0: the five signals, each with a comparison
 require_once SNT_PATH . 'inc/dash-systems.php';          // v11.30.0: the systems grid (monochrome when healthy)
+require_once SNT_PATH . 'inc/dash-freshness.php';        // v11.32.0: how old is the screen — the oldest reading behind the verdict
 require_once SNT_PATH . 'inc/dash-verdict.php';          // v11.30.0: one verdict, shared by the widget and the screen
 require_once SNT_PATH . 'inc/dash-widget.php';           // v11.30.0: the consolidated index.php widget (folds four boxes)
 require_once SNT_PATH . 'inc/dash-ops-panels.php';       // v11.29.2: the ops wall's panels — a projection of existing accessors

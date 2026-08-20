@@ -28,24 +28,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-/**
- * Shorten a repo to the word a human uses for it.
- *
- * @since 11.29.2
- * @param string $repo owner/name.
- * @return string
- */
-function sn_dash_ops_repo_label( $repo ) {
-	$name = (string) $repo;
-	if ( false !== strpos( $name, '/' ) ) {
-		$parts = explode( '/', $name );
-		$name  = (string) end( $parts );
-	}
-	if ( '' !== $name && str_ends_with( $name, '-tools' ) ) {
-		return 'plugin';
-	}
-	return '' === $name ? '—' : $name;
-}
+// snt_dashboard_short_repo() is the repo→role mapper this file used to
+// duplicate — worse: the duplicate fell through to the bare repo NAME for
+// anything not ending in `-tools`, so the wall read "signal-and-noise v11.12.3"
+// beside "plugin v11.31.1". Required explicitly, not left to loader order: four
+// test files pull this builder in without the deploy rows, and a
+// function_exists() guard here would degrade the label back to the bug.
+require_once __DIR__ . '/dash-deploy-rows.php';
 
 /**
  * Build the wall.
@@ -74,7 +63,8 @@ function sn_dash_ops_panels( array $data ) {
 				$run = is_array( $run ) ? $run : array();
 				$c   = (string) ( $run['conclusion'] ?? '' );
 				return array(
-					'label' => sn_dash_ops_repo_label( $run['repo'] ?? '' ) . '  ' . (string) ( $run['ref'] ?? '' ),
+					'label' => ( snt_dashboard_short_repo( (string) ( $run['repo'] ?? '' ) ) ?: '—' )
+						. '  ' . (string) ( $run['ref'] ?? '' ),
 					'value' => function_exists( 'snt_dashboard_relative_time' )
 						? snt_dashboard_relative_time( (string) ( $run['created_at'] ?? '' ) )
 						: '',

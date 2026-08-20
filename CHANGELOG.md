@@ -2,6 +2,121 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.32.0] - 2026-08-19 — The dashboard says how old it is
+
+Why MINOR and not a patch: six of the seven items below are fixes, but the
+screen gained a capability it did not have — it now states the age of the
+oldest reading behind its verdict, and refuses to stay green when standing on
+stale evidence. A new user-visible capability is a minor under
+[docs/VERSIONING.md](https://github.com/juanlentino/signal-and-noise/blob/main/docs/VERSIONING.md),
+whatever the ratio of fixes around it. No caps on this project, so the patch
+line simply ends at .1.
+
+
+### Fixed
+- **Recent deploys printed a repo NAME beside a role** — "signal-and-noise
+  v11.12.3" next to "plugin v11.31.1". `sn_dash_ops_repo_label()` was a
+  from-scratch duplicate of `snt_dashboard_short_repo()`, which had always
+  handled the non-`-tools` case correctly by returning `theme`; the duplicate
+  fell through to the bare repo name. The duplicate is deleted and the panel
+  calls the existing mapper, which is now required explicitly rather than left
+  to loader order. Its one worthwhile behaviour — an em dash for an absent repo
+  — survives at the display layer.
+
+  The fixture had carried a non-`-tools` repo since the file was written and
+  **nothing ever asserted that row**, which is why a two-branch mapper shipped
+  with one branch wrong. Both branches are asserted now.
+- **`/notes` and `/notes/` counted as two pages**, 27 views each on the owner's
+  Top pages panel. Ingestion stores `path` verbatim under a (day, path, class)
+  key, so the two spellings are two rows, and every read that grouped by the raw
+  column reported them as two pages.
+
+  Fixed in the **GROUP BY**, not in PHP afterwards, and that distinction is the
+  whole point: these reads end in `ORDER BY views DESC LIMIT n`, so the database
+  ranks and truncates the grouped figure — one spelling of a page can be cut by
+  the LIMIT before any PHP could reach it, and in `low_engagement_paths()` a
+  split page can fall under the min-views floor that neither half clears. Same
+  trap as the freshness clock, where post-filtering could not recover a row the
+  WHERE clause had already excluded.
+
+  `sn_analytics_canonical_path()` and its SQL twin
+  `sn_analytics_canonical_path_sql()` live in the pure derive layer and are
+  applied to `sn_analytics_top_paths()`, `sn_analytics_low_engagement_paths()`
+  and `sn_analytics_pageroles_top()`. The root `/` keeps its slash; an empty
+  path is not invented into one.
+
+- **Three worker cells read "warming…" for hours while every worker was
+  answering.** Not a broken probe — arithmetic. The dashboard probes with
+  `probe_budget => 1` across FIVE workers so a cold edge can never block the
+  page, and the live-probe cache lives ten minutes. The warm was scheduled
+  REACTIVELY as a one-off, which fixes the next render and nothing after it, so
+  on a screen visited every few hours the caches were always expired on
+  arrival. The warm now RECURS every five minutes, and the suite pins the
+  relationship that makes it work — the recurrence must stay shorter than
+  `SNT_DEPLOY_WORKER_LIVE_TTL_OK`, or every cycle leaves a cold window and the
+  fix evaporates. An install carrying the old one-off event is migrated onto
+  the recurrence; `wp_next_scheduled()` cannot tell the two apart, so the code
+  reads the event itself.
+- **Two counts of the same wall, on one screen.** The verdict subline said "7
+  components" and the Systems header said "11 reporting" — both true (11 is the
+  fleet plus the checks) and irreconcilable, because a total cannot show that
+  one number contains the other. The header now names its parts: **4 checks · 7
+  components**. An empty set is omitted rather than printed as a zero.
+- **The systems grid left an empty bordered cell.** Eleven cells in a fixed
+  six-column grid is 6 + 5, and because each cell draws its own right and
+  bottom hairline the twelfth slot read as an empty tile. The grid is now
+  flex-wrap, so the last row's cells stretch to fill it — chosen over grid
+  because a grid cannot grow the last row's spans without knowing the column
+  count, which is exactly what the breakpoints change. Verified by measurement,
+  not by eye: both rows end on the container's right edge at every breakpoint.
+- **The Caches cell stood a line taller than every other cell**, so its row sat
+  unevenly. It is the only cell carrying all four parts (label, value, pill and
+  a meta line); every cell now reserves that height. Measured: all eleven cells
+  render at exactly 76px, with nothing clipped.
+- **The trend's gridlines marked no value at all.** They were hardcoded at
+  y=28 and y=58 in a scale of `y = 88 - (views/max) * 80` — 75% and 37.5% of
+  peak. Nobody chooses 37.5%. They now sit at the peak and at half the peak,
+  derived from the same scale the path uses, and each carries its number as
+  HTML positioned against the SVG's own box (never SVG `<text>`: the chart
+  stretches). Verified at 0px offset from the lines they name.
+
+### Added
+- **The dashboard now says how old it is.** Every figure rendered in the same
+  type under one present-tense headline while the readings behind it were taken
+  across half a day: measured live, `sn_analytics_rollup_daily` had last fired
+  ~13 hours earlier, so the views figure and the whole 30-day trend were most
+  of a day old beside a worker version ten minutes old. The subline carries
+  **oldest reading N** and an overdue source becomes an exception, so the
+  verdict stops being green when it is standing on stale evidence.
+
+  Two rules, both load-bearing and both mutation-tested. **Never-measured is
+  not old** — a source that has never reported is unknown, not infinitely
+  stale, or one untracked hook would pin the line to a permanent fake maximum.
+  And **staleness is per-source** — thirteen hours is routine for a daily
+  rollup and badly overdue for a five-minute probe, so any single global
+  threshold gets one of them wrong. A stale reading enters as a CARD through
+  the one shared `sn_dash_verdict()`, and both surfaces collect their readings
+  from one `sn_dash_freshness_readings()` — the first cut wired them inline in
+  the Dashboard tab only, which would have left the index.php widget reporting
+  a calm green above an amber screen, the exact failure `dash-verdict.php`'s
+  own header exists to prevent.
+
+### Removed
+- **Dead markup built on every dashboard load.** The v11.28.0 "Recent deploys
+  folded into the fleet zone" block rendered a list into an output buffer,
+  assigned it to `$fleet_zone['body_html']`, and was then overwritten wholesale
+  by a second `sn_dash_zone_fleet()` call a few lines below. v11.30.0 had
+  replaced the zone screen with the console and given deploys their own ops
+  panel; its only consumer, `sn_dash_render_zone()`, has no production caller
+  left.
+
+### Changed
+- **Three test mocks stopped assuming the grouping and now read it out of the
+  SQL.** A mock that merges rows on its own initiative reports a merge the
+  database is not performing — and the first version of one did exactly that,
+  surviving the mutation that reverted the fix. They also model `LIMIT`, without
+  which the suite could not tell the two designs apart.
+
 ## [11.31.1] - 2026-08-19 — API limits read the wrong shape, and mono was on the wrong things
 
 ### Fixed

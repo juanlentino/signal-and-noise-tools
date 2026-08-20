@@ -96,8 +96,24 @@ function sn_dash_render_systems( array $checks, array $components ) {
 	echo '<section class="sn-scr__systems">';
 	echo '<header class="sn-card__head">';
 	echo '<span class="sn-card__eyebrow">' . esc_html__( 'Systems', 'signal-and-noise-tools' ) . '</span>';
-	/* translators: %d components and checks reporting */
-	echo '<span class="sn-card__meta">' . esc_html( sprintf( _n( '%d reporting', '%d reporting', count( $all ), 'signal-and-noise-tools' ), count( $all ) ) ) . '</span>';
+	// NAME THE PARTS, do not print a total. On v11.31.1 this header read
+	// "11 reporting" while the verdict subline read "7 components" — both true
+	// (11 is the fleet plus the checks) and irreconcilable from the screen,
+	// because an opaque total cannot show that one number contains the other.
+	// Stating the composition makes the subline's 7 visibly a part of this
+	// card, and costs nothing: both sets already arrive here separately.
+	// A set that is empty is omitted rather than printed as a zero — on a wall
+	// whose rule is that anything visible matters, "0 checks" is noise.
+	$parts = array();
+	if ( ! empty( $checks ) ) {
+		/* translators: %d health checks on the wall */
+		$parts[] = sprintf( _n( '%d check', '%d checks', count( $checks ), 'signal-and-noise-tools' ), count( $checks ) );
+	}
+	if ( ! empty( $components ) ) {
+		/* translators: %d fleet components on the wall */
+		$parts[] = sprintf( _n( '%d component', '%d components', count( $components ), 'signal-and-noise-tools' ), count( $components ) );
+	}
+	echo '<span class="sn-card__meta">' . esc_html( implode( ' · ', $parts ) ) . '</span>';
 	echo '</header>';
 	echo '<div class="sn-scr__grid">';
 	foreach ( $all as $card ) {

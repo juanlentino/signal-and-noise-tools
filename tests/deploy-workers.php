@@ -43,9 +43,35 @@ $GLOBALS['__dw_filters']         = array();
 $GLOBALS['__dw_options']         = array(); // durable last-good store (v11.11.2)
 $GLOBALS['__dw_scheduled']       = array(); // one-off warm events (v11.11.5)
 
+// The mock records the RECURRENCE, not merely "something is scheduled". A
+// single event and a recurring one are both truthy to wp_next_scheduled(), and
+// the difference is the entire bug: a one-off warm fires once and stops, and
+// the live-probe cache expires cold again ten minutes later.
+$GLOBALS['__dw_schedules'] = array(); // hook => false (single) | 'sn_five_minutes'
 if ( ! function_exists( 'wp_next_scheduled' ) ) {
 	function wp_next_scheduled( $hook ) { return isset( $GLOBALS['__dw_scheduled'][ $hook ] ) ? $GLOBALS['__dw_scheduled'][ $hook ] : false; }
-	function wp_schedule_single_event( $ts, $hook ) { $GLOBALS['__dw_scheduled'][ $hook ] = $ts; return true; }
+	function wp_schedule_single_event( $ts, $hook ) {
+		$GLOBALS['__dw_scheduled'][ $hook ] = $ts;
+		$GLOBALS['__dw_schedules'][ $hook ] = false;
+		return true;
+	}
+	function wp_schedule_event( $ts, $recurrence, $hook ) {
+		$GLOBALS['__dw_scheduled'][ $hook ] = $ts;
+		$GLOBALS['__dw_schedules'][ $hook ] = $recurrence;
+		return true;
+	}
+	function wp_get_scheduled_event( $hook ) {
+		if ( ! isset( $GLOBALS['__dw_scheduled'][ $hook ] ) ) { return false; }
+		return (object) array(
+			'hook'      => $hook,
+			'timestamp' => $GLOBALS['__dw_scheduled'][ $hook ],
+			'schedule'  => $GLOBALS['__dw_schedules'][ $hook ] ?? false,
+		);
+	}
+	function wp_clear_scheduled_hook( $hook ) {
+		unset( $GLOBALS['__dw_scheduled'][ $hook ], $GLOBALS['__dw_schedules'][ $hook ] );
+		return 1;
+	}
 }
 
 if ( ! function_exists( 'get_option' ) ) {
@@ -60,6 +86,8 @@ if ( ! function_exists( 'get_option' ) ) {
 
 if ( ! function_exists( 'add_action' ) ) {
 	function add_action() {}
+	function add_filter() {}
+	function __( $t, $d = '' ) { return $t; }
 }
 if ( ! function_exists( 'apply_filters' ) ) {
 	function apply_filters( $tag, $value ) {
@@ -420,6 +448,53 @@ dw_assert( null === snt_deploy_worker_latest_tag( 'o/r', 'stale2' ), 'a real emp
 unset( $GLOBALS['__dw_site_transients']['snt_dw_tag_stale2'] );
 $GLOBALS['__dw_http'][] = dw_http_json( 500, array() );
 dw_assert( null === snt_deploy_worker_latest_tag( 'o/r', 'stale2' ), 'failure with NO prior good value stays null (never fabricates)' );
+
+
+// ── v11.32.0: the warm must RECUR, or "warming…" is the steady state ───────
+// Observed live: three worker cells read "warming…" for hours. The probes were
+// fine — get-deploy-status returned real versions for all five. The mechanism
+// is arithmetic: the dashboard probes with probe_budget 1 against FIVE
+// workers, so on a cold cache four rows read `skipped` → "warming…", and the
+// live-probe cache lives only SNT_DEPLOY_WORKER_LIVE_TTL_OK seconds. A one-off
+// warm heals the next render and nothing keeps it warm after that, so on an
+// admin screen visited every few hours "warming…" is what you almost always
+// see. That is a lie by omission about a healthy fleet.
+echo "\nGroup: the warm schedule\n";
+$GLOBALS['__dw_scheduled'] = array();
+$GLOBALS['__dw_schedules'] = array();
+
+snt_deploy_workers_warm_schedule();
+dw_assert( isset( $GLOBALS['__dw_scheduled']['snt_deploy_workers_warm'] ), 'the warm event is scheduled' );
+dw_assert(
+	! empty( $GLOBALS['__dw_schedules']['snt_deploy_workers_warm'] ),
+	'THE WARM RECURS — a one-off fires once and lets every cache expire cold behind it'
+);
+
+// The load-bearing arithmetic, pinned as arithmetic: a recurrence LONGER than
+// the cache TTL leaves a cold window on every cycle, and the whole fix
+// evaporates. This assertion is what stops a later "let us make it hourly".
+$sched = snt_deploy_workers_cron_schedules( array() );
+$interval = (int) ( $sched['sn_five_minutes']['interval'] ?? 0 );
+dw_assert( $interval > 0, 'the five-minute recurrence is registered on cron_schedules' );
+dw_assert(
+	$interval < SNT_DEPLOY_WORKER_LIVE_TTL_OK,
+	'THE RECURRENCE IS SHORTER THAN THE CACHE TTL — otherwise the cache expires cold between runs and nothing is fixed'
+);
+
+// Idempotent: init runs on every request.
+$was = $GLOBALS['__dw_scheduled']['snt_deploy_workers_warm'];
+snt_deploy_workers_warm_schedule();
+dw_assert( $was === $GLOBALS['__dw_scheduled']['snt_deploy_workers_warm'], 'scheduling is idempotent — init fires on every request' );
+
+// Migration: installs carrying the OLD one-off event must be upgraded, not
+// left on it. wp_next_scheduled() alone cannot tell them apart.
+$GLOBALS['__dw_scheduled']['snt_deploy_workers_warm'] = 1000;
+$GLOBALS['__dw_schedules']['snt_deploy_workers_warm'] = false;
+snt_deploy_workers_warm_schedule();
+dw_assert(
+	! empty( $GLOBALS['__dw_schedules']['snt_deploy_workers_warm'] ),
+	'A LEFTOVER ONE-OFF IS REPLACED by the recurrence — an existing install must not stay on the old event'
+);
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

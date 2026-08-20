@@ -48,16 +48,32 @@ class RD_Stub_wpdb {
 	public function get_results( $sql, $output = ARRAY_A ) {
 		$this->queries[] = $sql;
 		if ( '' !== $this->last_error ) { return array(); } // real wpdb: failed query → last_error set, empty ARRAY_A result.
-		if ( ! preg_match( '/FROM\s+(\S+)/', $sql, $tm ) ) { return array(); }
-		$rows = isset( $this->rows[ $tm[1] ] ) ? $this->rows[ $tm[1] ] : array();
+		// `FROM` also appears INSIDE TRIM(TRAILING '/' FROM path), so the first
+		// match is not necessarily the table. Resolve against a table this mock
+		// actually holds rather than trusting position.
+		if ( ! preg_match_all( '/FROM\s+(\S+)/', $sql, $tm ) ) { return array(); }
+		$rows = array();
+		foreach ( $tm[1] as $cand ) {
+			if ( isset( $this->rows[ $cand ] ) ) { $rows = $this->rows[ $cand ]; break; }
+		}
 		if ( preg_match( "/class = '([^']*)'/", $sql, $cm ) ) {
 			$rows = array_values( array_filter( $rows, function ( $r ) use ( $cm ) { return (string) ( $r['class'] ?? 'human' ) === $cm[1]; } ) );
 		}
 		// GROUP BY path → per-path views-weighted aggregate.
-		if ( stripos( $sql, 'GROUP BY path' ) !== false ) {
+		//
+		// The mock READS WHICH KEY the SQL asked for; it must never assume. A
+		// mock that merges `/notes` and `/notes/` on its own initiative would
+		// report a merge the database is not performing — the exact shape of
+		// lie that shipped three invented payload shapes in one file.
+		// Read it out of the GROUP BY CLAUSE specifically. Keying off the
+		// expression appearing ANYWHERE in the SQL made this mock merge rows
+		// that a `GROUP BY path` query would have returned split — it survived
+		// the mutation that reverted exactly this bug.
+		$canonical = 1 === preg_match( '/GROUP BY\s+CASE\b/i', $sql );
+		if ( $canonical || stripos( $sql, 'GROUP BY path' ) !== false ) {
 			$agg = array();
 			foreach ( $rows as $r ) {
-				$p = (string) $r['path'];
+				$p = $canonical ? sn_analytics_canonical_path( (string) $r['path'] ) : (string) $r['path'];
 				if ( ! isset( $agg[ $p ] ) ) { $agg[ $p ] = array( 'path' => $p, 'views' => 0, 'visits' => 0, 'sw' => 0.0, 'tw' => 0.0 ); }
 				$agg[ $p ]['views']  += (int) $r['views'];
 				$agg[ $p ]['visits'] += (int) $r['visits'];
@@ -70,6 +86,14 @@ class RD_Stub_wpdb {
 					'scroll_avg' => $a['views'] ? $a['sw'] / $a['views'] : 0, 'time_avg' => $a['views'] ? $a['tw'] / $a['views'] : 0 );
 			}
 			usort( $out, function ( $x, $y ) { return (int) $y['views'] - (int) $x['views']; } );
+			// LIMIT is modelled because it is LOAD-BEARING for this fix: the
+			// database orders and truncates on the GROUPED figure, so a merge
+			// done afterwards in PHP could never recover a row the LIMIT had
+			// already dropped. Without this the suite cannot tell the two
+			// designs apart.
+			if ( preg_match( '/LIMIT\s+(\d+)/i', $sql, $lm ) ) {
+				$out = array_slice( $out, 0, (int) $lm[1] );
+			}
 			return $out;
 		}
 		// GROUP BY day  → per-day series.
@@ -165,7 +189,7 @@ ok( abs( $a['scroll_avg'] - 75.0 ) < 0.01, 'top_paths: scroll_avg views-weighted
 ok( abs( $a['time_avg'] - 210.0 ) < 0.01, 'top_paths: time_avg views-weighted ((120*100+240*300)/400=210, not plain-avg 180)' );
 ok( is_float( $a['scroll_avg'] ) && is_int( $a['views'] ), 'top_paths: types normalized' );
 $sql = end( $GLOBALS['wpdb']->queries );
-ok( strpos( $sql, 'GROUP BY path' ) !== false && strpos( $sql, 'ORDER BY views DESC' ) !== false, 'top_paths: SQL groups by path, orders by views' );
+ok( strpos( $sql, 'GROUP BY CASE' ) !== false && strpos( $sql, 'ORDER BY views DESC' ) !== false, 'top_paths: SQL groups by the canonical path, orders by views' );
 // SQL-shape pins: a plain AVG() regression must not slip through green.
 ok(
 	strpos( $sql, 'scroll_avg * views' ) !== false && strpos( $sql, 'NULLIF(SUM(views)' ) !== false,
@@ -184,6 +208,46 @@ ok(
 	preg_match( '/SUM\(\s*visits\s*\)\s+AS\s+visits/i', $sql ) === 1,
 	'top_paths: SUM(visits) AS visits — alias mapping correct'
 );
+
+echo "\nGroup: top_paths — one page is ONE row (v11.32.0)\n";
+// The owner's Top pages panel listed `/notes` and `/notes/` as two pages, 27
+// views each. Nothing in ingestion normalises a trailing slash — the daily
+// table's primary key is (day, path, class), so the two spellings are two
+// stored rows and every read that GROUPs BY the raw column reports them as two
+// pages.
+//
+// The fix has to live in the GROUP BY, not in PHP afterwards. This fixture is
+// built to prove exactly that: split, `/about` (20) outranks `/notes` (15) and
+// `/notes/` (12) individually, so at LIMIT 2 the second spelling is TRUNCATED
+// BY THE DATABASE and a later PHP merge has nothing left to merge. Merged,
+// /notes is 27 and leads. Same trap as the freshness clock: you cannot
+// post-filter a row the WHERE/LIMIT already excluded.
+$GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = array(
+	array( 'day' => '2026-08-18', 'path' => '/notes',  'class' => 'human', 'views' => 15, 'visits' => 10, 'scroll_avg' => 40, 'time_avg' => 100 ),
+	array( 'day' => '2026-08-18', 'path' => '/notes/', 'class' => 'human', 'views' => 12, 'visits' => 8,  'scroll_avg' => 90, 'time_avg' => 300 ),
+	array( 'day' => '2026-08-18', 'path' => '/about',  'class' => 'human', 'views' => 20, 'visits' => 15, 'scroll_avg' => 50, 'time_avg' => 200 ),
+	array( 'day' => '2026-08-18', 'path' => '/x',      'class' => 'human', 'views' => 5,  'visits' => 4,  'scroll_avg' => 10, 'time_avg' => 10 ),
+);
+$slash = sn_analytics_top_paths( '2026-08-01', '2026-08-19', 'human', 2 );
+ok( count( $slash ) === 2, 'top_paths: the LIMIT is honoured' );
+ok( $slash[0]['path'] === '/notes', 'A TRAILING SLASH IS THE SAME PAGE — merged, /notes leads; split, it never reaches the top 2 at all' );
+ok( $slash[0]['views'] === 27, 'top_paths: the merged page carries the SUM of both spellings (15 + 12)' );
+ok( count( array_filter( $slash, function ( $r ) { return $r['path'] === '/notes/'; } ) ) === 0, 'top_paths: the slashed spelling never appears as its own page' );
+// Views-weighted averages must weight across the MERGED group, not one spelling.
+ok( abs( $slash[0]['scroll_avg'] - ( ( 40 * 15 + 90 * 12 ) / 27 ) ) < 0.01, 'top_paths: scroll_avg is views-weighted ACROSS the merged spellings' );
+// The mock reads the grouping out of the SQL, so this pin is what stops the
+// mock from being taught a belief the query does not hold.
+$ssql = end( $GLOBALS['wpdb']->queries );
+ok( stripos( $ssql, "GROUP BY CASE" ) !== false && stripos( $ssql, "TRIM(TRAILING '/'" ) !== false, 'top_paths: the SQL groups by the CANONICAL path, not the raw column' );
+ok( preg_match( '/GROUP BY\s+path\b/i', $ssql ) !== 1, 'top_paths: the bare column is no longer the group key' );
+
+// The root path is not a trailing slash to strip — it would collapse to the
+// empty string and stop being a page at all.
+ok( sn_analytics_canonical_path( '/' ) === '/', 'canonical: the ROOT stays "/" — never trimmed to nothing' );
+ok( sn_analytics_canonical_path( '/notes/' ) === '/notes', 'canonical: one trailing slash is dropped' );
+ok( sn_analytics_canonical_path( '/notes//' ) === '/notes', 'canonical: repeated trailing slashes are dropped' );
+ok( sn_analytics_canonical_path( '/notes' ) === '/notes', 'canonical: an already-canonical path is unchanged' );
+ok( sn_analytics_canonical_path( '' ) === '', 'canonical: an empty path is NOT invented into a root — ingestion refuses it, so neither do we' );
 
 echo "\nGroup: range_totals\n";
 $GLOBALS['wpdb']->rows['wp_sn_analytics_daily'] = $fixture;

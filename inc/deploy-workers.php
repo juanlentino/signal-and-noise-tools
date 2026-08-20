@@ -569,6 +569,73 @@ function snt_deploy_workers_warm_cb() {
 add_action( 'snt_deploy_workers_warm', 'snt_deploy_workers_warm_cb' );
 
 /**
+ * Register the 5-minute recurrence the warm runs on.
+ *
+ * The interval is not a taste: it MUST stay below
+ * SNT_DEPLOY_WORKER_LIVE_TTL_OK, or every cycle leaves a window in which the
+ * cache has expired and the dashboard is cold again. The suite pins that
+ * relationship as arithmetic rather than as a comment.
+ *
+ * @since 11.32.0
+ * @param array<string,array<string,mixed>> $schedules Existing schedules.
+ * @return array<string,array<string,mixed>>
+ */
+function snt_deploy_workers_cron_schedules( $schedules ) {
+	if ( ! is_array( $schedules ) ) {
+		$schedules = array();
+	}
+	if ( ! isset( $schedules['sn_five_minutes'] ) ) {
+		$schedules['sn_five_minutes'] = array(
+			'interval' => 5 * MINUTE_IN_SECONDS,
+			'display'  => __( 'Every 5 minutes (Signal & Noise)', 'signal-and-noise-tools' ),
+		);
+	}
+	return $schedules;
+}
+add_filter( 'cron_schedules', 'snt_deploy_workers_cron_schedules' ); // phpcs:ignore WordPress.WP.CronInterval.ChangeDetected -- 5 min is required to stay under the live-probe TTL; see the docblock.
+
+/**
+ * Keep the fleet's live-probe cache warm ahead of any human arriving.
+ *
+ * WHY THIS EXISTS. The dashboard renders with `probe_budget => 1` across FIVE
+ * workers so a cold edge can never block the page. That is correct — but it
+ * means a cold cache leaves four rows reading "warming…", and the cache lives
+ * ten minutes. The previous design healed that reactively: a render that left
+ * workers cold scheduled a ONE-OFF warm. That fixes the NEXT render and
+ * nothing after it, so on an admin screen visited every few hours the caches
+ * are always expired on arrival and "warming…" is the steady state. Observed
+ * live 2026-08-19: three cells reading "warming…" for hours while every worker
+ * was in fact answering with a current version.
+ *
+ * Warming on a schedule shorter than the TTL inverts that: the cache is hot
+ * before anyone looks, the render never pays for a probe, and "warming…" goes
+ * back to meaning what it says — a genuinely cold start.
+ *
+ * MIGRATION. An install carrying the old one-off event must be moved onto the
+ * recurrence. wp_next_scheduled() cannot tell the two apart (both return a
+ * timestamp), so this reads the event itself and clears a non-recurring one.
+ *
+ * @since 11.32.0
+ * @return void
+ */
+function snt_deploy_workers_warm_schedule() {
+	if ( ! function_exists( 'wp_get_scheduled_event' ) || ! function_exists( 'wp_schedule_event' ) ) {
+		return;
+	}
+
+	$event = wp_get_scheduled_event( 'snt_deploy_workers_warm' );
+	if ( $event && empty( $event->schedule ) ) {
+		// A leftover one-off. Firing once and stopping is exactly the bug.
+		wp_clear_scheduled_hook( 'snt_deploy_workers_warm' );
+		$event = false;
+	}
+	if ( ! $event ) {
+		wp_schedule_event( time() + MINUTE_IN_SECONDS, 'sn_five_minutes', 'snt_deploy_workers_warm' );
+	}
+}
+add_action( 'init', 'snt_deploy_workers_warm_schedule' );
+
+/**
  * Drop live + tag caches for every registered worker (force_refresh path).
  *
  * @return void

@@ -113,6 +113,13 @@ function sn_dash_widget_cards() {
 		);
 	}
 
+	// The SAME freshness the full screen uses. Two get_option reads, and it is
+	// what stops this widget reporting a calm green while the Dashboard tab is
+	// amber about a reading neither of them can vouch for.
+	if ( function_exists( 'sn_dash_freshness' ) && function_exists( 'sn_dash_freshness_cards' ) ) {
+		$cards = array_merge( $cards, sn_dash_freshness_cards( sn_dash_freshness( sn_dash_freshness_readings() ) ) );
+	}
+
 	return $cards;
 }
 
