@@ -8,7 +8,7 @@
 .sn-maturity-index{--sn-signal:var(--wp--preset--color--signal,#ff4c47);margin:2rem 0;line-height:1.6}
 .sn-maturity-index p.sn-maturity-index-intro{margin:0 0 1.5rem}
 .sn-maturity-index-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem}
-.sn-maturity-index-card{display:flex;flex-direction:column;gap:.35em;border:2px solid currentColor;padding:1rem 1.1rem;text-decoration:none;color:inherit;background:#fff;transition:transform .14s ease,box-shadow .14s ease}
+.sn-maturity-index-card{display:flex;flex-direction:column;gap:.35em;border:2px solid currentColor;padding:1rem 1.1rem;text-decoration:none;color:inherit;background:var(--wp--preset--color--void,#fff);transition:transform .14s ease,box-shadow .14s ease}
 .sn-maturity-index-card:hover{transform:translate(-3px,-3px);box-shadow:6px 6px 0 currentColor}
 .sn-maturity-index-card:focus-visible{outline:3px solid var(--sn-signal,#ff4c47);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.sn-maturity-index-card{transition:none}.sn-maturity-index-card:hover{transform:none}}
