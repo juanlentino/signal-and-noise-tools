@@ -34,9 +34,10 @@
  *     wrong one on a given install is simply a no-op / fatal-avoided-by-guard,
  *     not a silent success — the wrapper always calls whichever one is real.
  *   - snt_os_compat_add_filter() / snt_os_compat_add_action() — dual
- *     registration for the 9 upstream hooks this plugin CONSUMES (dock
+ *     registration for the 11 upstream hooks this plugin CONSUMES (dock
  *     items/placement, AI tools/appendix/tool-called, agent completed/
- *     tool-result, living-tree traffic, plugins-window icon URL). Attaches
+ *     tool-result, living-tree traffic, plugins-window icon URL, WP
+ *     Explorer entities/window-args). Attaches
  *     the SAME callback under both the pre-rename and post-#475 hook name;
  *     harmless today (only one name ever fires), and correct if a future
  *     OpenStation release ever ships a transition shim that fires both.
@@ -240,7 +241,7 @@ function snt_os_ai_ability_tool_name( $ability_name ) {
 }
 
 /* ════════════════════════════════════════════════════════════════════════
- * Dual hook registration — the 9 (+1 JS) upstream hooks this plugin
+ * Dual hook registration — the 11 (+1 JS) upstream hooks this plugin
  * CONSUMES. See docs/openstation-compat.md for the source-verified
  * old-name → new-name → firing-site mapping.
  * ════════════════════════════════════════════════════════════════════════ */

@@ -45,10 +45,18 @@ rather than by filename, constant, or text domain — the register function is
 what every consumer already depends on, and it is the thing that actually
 renamed.
 
-## The 9 PHP hooks this plugin consumes
+## The 11 PHP hooks this plugin consumes
+
+Note on the two WP Explorer rows (v12.4.0): the pre-rename v0.9.8 shell
+predates the WP Explorer feature entirely, so their old-family names exist
+nowhere upstream and can never fire. They are dual-registered anyway —
+one pattern, no special cases — and both callbacks are idempotent by
+construction (id/handle dedupe), so no seen-once guard applies.
 
 | Old hook (v0.9.8) | New hook (v1.0.0+) | Upstream firing site @ v1.1.0 | Our consumer |
 |---|---|---|---|
+| `desktop_mode_my_wordpress_entities` (never existed — see note) | `openstation_my_wordpress_entities` | `includes/my-wordpress/window.php:199` — `apply_filters( 'openstation_my_wordpress_entities', $entities )`, frozen at `init` 99 | [inc/desktop-mode-explorer.php](../inc/desktop-mode-explorer.php) — the Notes + Discography Explorer sections |
+| `desktop_mode_my_wordpress_window_args` (never existed — see note) | `openstation_my_wordpress_window_args` | `includes/my-wordpress/window.php:292` — `apply_filters( 'openstation_my_wordpress_window_args', $window_args )` | [inc/desktop-mode-explorer.php](../inc/desktop-mode-explorer.php) — rides the window's `scripts` companion list |
 | `desktop_mode_dock_items` | `openstation_dock_items` | `includes/core/payload.php:235` — `apply_filters( 'openstation_dock_items', $items )` | [inc/desktop-mode-dock.php](../inc/desktop-mode-dock.php) — the "Signal & Noise" dock entry |
 | `desktop_mode_dock_placement` | `openstation_dock_placement` | `includes/core/payload.php:1160` — `apply_filters( 'openstation_dock_placement', 'dock', $menu_slug )`, inside `openstation_dock_placement()` at `:1148` | [inc/desktop-mode-dock.php](../inc/desktop-mode-dock.php) — suppresses the auto-imported SN dock item |
 | `desktop_mode_ai_tools` | `openstation_ai_tools` | `includes/ai-copilot/search.php:1106` — `apply_filters( 'openstation_ai_tools', $tools, $context )` (2nd arg is post-rename; our callback still declares only `$tools`) | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — Anthropic tool-schema normalizer + Copilot prune list |

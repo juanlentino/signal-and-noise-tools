@@ -2,9 +2,9 @@
 /**
  * Signal & Noise Tools — WordPress/desktop-mode (OpenStation) integration.
  *
- * THIS FILE IS THE LOADER. Since v10.87.2 the integration lives in seven
- * modules beside it; this file requires them in the order the hooks demand and
- * carries the architectural notes that span all seven. Nothing else belongs
+ * THIS FILE IS THE LOADER. Since v10.87.2 the integration lives in modules
+ * beside it (eight as of v12.4.0); this file requires them in the order the
+ * hooks demand and carries the architectural notes that span them. Nothing else belongs
  * here — a new surface gets a new module, not another 200 lines in this file.
  *
  * Makes the SN plugin a first-class participant in the shell (when installed +
@@ -27,6 +27,10 @@
  *                                              → desktop-mode-widgets.php
  *   5. (v9.52.0) The living_tree_traffic filter, so the wallpaper tree's
  *      wind responds to real 14-day traffic.   → desktop-mode-payloads.php
+ *   6. (v12.4.0) A "Signal & Noise" folder in the shell's WP Explorer
+ *      window: Notes with their provenance chains (tile badges + preview
+ *      pane) and the Discography as a cover-art grid via a custom entity
+ *      kind.                                   → desktop-mode-explorer.php
  *
  * EVERY integration is gated on function_exists() (through the snt_os_*
  * shims in inc/openstation-compat.php) — the plugin behaves identically when
@@ -121,3 +125,8 @@ require_once __DIR__ . '/desktop-mode-widgets.php';
 require_once __DIR__ . '/desktop-mode-dock.php';
 require_once __DIR__ . '/desktop-mode-plugins-window.php';
 require_once __DIR__ . '/desktop-mode-ai.php';
+// v12.4.0: the WP Explorer surface — a "Signal & Noise" folder (Notes with
+// provenance + Discography) in the shell's file-explorer window. Last on
+// purpose: it shares no registration slot with the modules above, and
+// appending keeps the shell's payload order for them byte-identical.
+require_once __DIR__ . '/desktop-mode-explorer.php';

@@ -2,6 +2,67 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.4.0] - 2026-08-20 — the plugin's collections become places you can walk into
+
+The shell's WP Explorer renders WordPress as a file system: folders at the
+root, tiles inside, a preview pane. Until now Signal & Noise data was visible
+there only as undifferentiated posts. This release gives the plugin its own
+folder — and uses the two collections that BENEFIT from being spatial: the
+provenance-signed Notes and the cover-art Discography.
+
+### Added
+- **[inc/desktop-mode-explorer.php](inc/desktop-mode-explorer.php)** — a
+  "Signal & Noise" folder in the shell's WP Explorer window, registered via
+  the `openstation_my_wordpress_entities` / `..._window_args` filters
+  (dual-family through the compat seam, like every other upstream hook we
+  consume). Two sections:
+  - **Notes** rides the shell's built-in `post` kind against `wp/v2/posts`
+    scoped by `listQuery` to the Notes category (resolved through the same
+    `sn_prov_note_category` filter `sn_prov_is_note()` honours) — preview,
+    trash, locks and editor links all come free from upstream.
+  - **Discography** declares the custom `signal-noise/album` kind and is
+    fed by a new `manage_options`-gated route,
+    `GET signal-noise/v1/desktop/discography`, returning the store verbatim
+    (entries are boundary-sanitized at write time; cron is the sole writer).
+    The section only registers when the store holds entries — an empty
+    folder on every never-synced site would be noise posing as signal.
+- **`sn_provenance` REST field on posts** — a chain summary (head version,
+  latest anchor status, anchored count, the newest 20 commits, ledger UID)
+  for Notes; `null` — never an empty struct — for non-Notes and unsigned
+  Notes, because "unsigned" and "signed zero times" are different facts.
+  Deliberately public for published Notes: every field is already published
+  by the ledger, /verify, and the client-side verifier. Reads the UID meta
+  RAW — `sn_prov_note_uid()` mints and persists on first read, and a REST
+  GET must never write post meta.
+- **[assets/desktop-mode-explorer.js](assets/desktop-mode-explorer.js)** —
+  the companion bundle. Rides the Explorer window's `scripts` list (the
+  same lazy vehicle upstream's WooCommerce integration uses): loaded on
+  first window open, never on ordinary admin pages, config attached to the
+  handle as an inline blob at admin_enqueue_scripts:5 so the shell's :10
+  payload build can harvest it. Notes tiles get a version badge colored by
+  anchor status and the preview pane gets the signed commit chain (via
+  `os.my-wordpress.list-tile` / `preview-extras`); the album renderer
+  registers through `wp.os.myWordpress.registerEntityKind()` and paints a
+  cover grid + release pane (roles, identifiers, per-track credits,
+  Spotify/Muso links). Self-aliases wp.os/wp.desktop and fetches with
+  window.fetch + nonce — the shell's lazy loader injects script tags by URL
+  and never walks the dependency graph, so the bundle depends on nothing
+  but wp-hooks.
+- **[tests/desktop-mode-explorer.php](tests/desktop-mode-explorer.php)** —
+  46 assertions pinning the four contracts: shell-absent neutrality (the
+  module is inert without either OpenStation family — asserted, not
+  assumed), the entity descriptors and their per-section gates, the REST
+  surface, and no-minting-on-read.
+
+### Changed
+- [tests/desktop-mode-integration.php](tests/desktop-mode-integration.php)
+  gains a `register_rest_field` stub — the loader now pulls in the explorer
+  module, whose rest_api_init hook the harness replays.
+- [docs/openstation-compat.md](docs/openstation-compat.md) — the consumed-
+  hook audit grows the two WP Explorer filters (post-rename family only in
+  practice: the pre-rename v0.9.8 shell predates the Explorer, so the old
+  names are registered for pattern uniformity and can never fire).
+
 ## [12.3.0] - 2026-08-20 — the epistemic tiers invert, and a fallback stops posing as a value
 
 v12.2.0 closed the LITERAL class and said in writing what it could not see: a
