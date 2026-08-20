@@ -51,16 +51,20 @@ jobs:
           done < <(find . -name '*.php' -not -path './vendor/*' -not -path './node_modules/*')
           exit $fail
 
-      # Rides the lint job ON PURPOSE. Billing rounds up PER JOB, so a separate
-      # 5-second job for this would bill a whole extra minute on every run —
-      # more than the failure it guards against costs in a typical month.
+      # Rides the lint job rather than taking its own. NOT for billing: this
+      # repo is PUBLIC, and standard runners are free on public repos on any
+      # plan — the per-job rounding argument that shaped this file elsewhere
+      # simply does not apply here. It rides along because a separate job pays
+      # checkout + setup again for a check that takes well under a second, and
+      # adds another row to the PR's status list for no signal.
       - name: Every job declares a timeout
         run: |
-          # A job with no `timeout-minutes` silently inherits GitHubs default of
-          # SIX HOURS: 360 billed minutes from one hang, against a 3,000-minute
-          # monthly pool shared by every private repo on the account. Neither
-          # actionlint nor zizmor enforces this (actionlint#49, zizmor#1023 are
-          # both still open), so it is checked here.
+          # A job with no `timeout-minutes` silently inherits GitHubs default
+          # of SIX HOURS. On this PUBLIC repo that costs no MONEY — standard
+          # runners are free on public repos — but it holds a runner and leaves
+          # the PR's checks unresolved for the whole six hours, which is the
+          # real damage. Neither actionlint nor zizmor enforces this
+          # (actionlint#49, zizmor#1023 are both still open), so it is here.
           #
           # YAML-aware on purpose. The first version of this counted lines with
           # grep and reported 28 jobs against 12 real ones, because `^  \w+:$`
@@ -148,7 +152,9 @@ jobs:
     # Measured max over the last 8 successful runs: 10s. Set above that with real headroom, not at it.
     timeout-minutes: 3
     # Only meaningful on PRs (compares against the base branch). Two rules, both
-    # in this ONE job so they share a single rounded-up billed minute.
+    # in this ONE job — originally to share a rounded-up billed minute, which
+    # does not apply on a public repo; they stay together because they answer
+    # one question and one failure row is easier to read than two.
     #
     #   1. A version bump needs a matching '## [x.y.z]' entry — the gap that
     #      shipped the v4.5.2 release changelog-less (an editor no-op).

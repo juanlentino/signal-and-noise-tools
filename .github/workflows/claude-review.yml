@@ -20,9 +20,18 @@ jobs:
     # run longer than anything in that sample, and a false timeout costs a
     # re-run of the whole job.
     #
-    # It was 30, set with no data. A timeout is a BILLING CEILING, not a
-    # prediction: a hung job bills its full timeout, so 30 was 1% of the monthly
-    # 3,000-minute pool per hang. Do not raise this without measuring again.
+    # It was 30, set with no data.
+    #
+    # CORRECTION (same day): the first version of this comment justified the cut
+    # as a billing saving — "30 was 1% of the monthly 3,000-minute pool per
+    # hang". That is WRONG for this repo. signal-and-noise-tools is PUBLIC, and
+    # GitHub-hosted standard runners are free on public repos on every plan, so
+    # a hang here costs no minutes at all. The 3,000-minute pool is real, but it
+    # is spent by the account's PRIVATE repos.
+    #
+    # The cut still stands on its own merits: a stuck review job holds a runner
+    # and leaves the PR's checks unresolved for half an hour, and a timeout is a
+    # ceiling on that wait. Do not raise it without measuring again.
     timeout-minutes: 15
     permissions:
       pull-requests: write
