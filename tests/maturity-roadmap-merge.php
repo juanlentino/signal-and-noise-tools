@@ -10,6 +10,11 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 define( 'ABSPATH', '/' );
 if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', dirname( __DIR__ ) . '/' ); }
+// merge.php deliberately does NOT define this (it must stay loadable without
+// maturity-roadmap-shortcode.php, whose top-level `const` of the same name
+// can't be re-declared behind a defined() guard) — so the suite defines its
+// own copy, standing in for the shortcode file's const in a real load.
+define( 'SN_MATURITY_ROADMAP_OPTION', 'snt_maturity_roadmap_board' );
 
 $GLOBALS['snt_options'] = array();
 function get_option( $k, $d = null ) { return $GLOBALS['snt_options'][ $k ] ?? $d; }

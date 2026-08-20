@@ -17,17 +17,17 @@
 
 if ( ! defined( 'ABSPATH' ) ) { exit; }
 
-if ( ! defined( 'SN_MATURITY_ROADMAP_OPTION' ) ) {
-	define( 'SN_MATURITY_ROADMAP_OPTION', 'snt_maturity_roadmap_board' );
-}
-
 /**
  * The stored override, normalised to an envelope.
  *
  * @return array{v:int,board:array,base:array|null}|null Null when nothing is stored.
  */
 function snt_roadmap_stored_envelope() {
-	$stored = get_option( SN_MATURITY_ROADMAP_OPTION, null );
+	// Literal, not the SN_MATURITY_ROADMAP_OPTION const from
+	// maturity-roadmap-shortcode.php: this module must stay loadable without
+	// the shortcode (that's what makes the merge testable without a renderer),
+	// and a top-level `const` can't be re-declared behind a defined() guard.
+	$stored = get_option( 'snt_maturity_roadmap_board', null );
 	if ( ! is_array( $stored ) || array() === $stored ) {
 		return null;
 	}
@@ -52,8 +52,9 @@ function snt_roadmap_stored_envelope() {
  * @return bool
  */
 function snt_roadmap_store_envelope( array $board, array $base ) {
+	// Literal here too, for the same reason as the read side above.
 	return update_option(
-		SN_MATURITY_ROADMAP_OPTION,
+		'snt_maturity_roadmap_board',
 		array( 'v' => 2, 'board' => $board, 'base' => $base ),
 		false
 	);
