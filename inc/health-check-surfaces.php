@@ -54,6 +54,7 @@ function sn_health_check_surface_map() {
 		'color_drift'           => 'health',
 		'cf_security_headers'   => 'health',
 		'analytics_integrity'   => 'health',
+		'roadmap_drift'         => 'health',
 
 		// ── MEASUREMENTS (Integrity) ───────────────────────────────────────
 		// Both disclaim their own authority in their own copy — "a red row here

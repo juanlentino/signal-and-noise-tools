@@ -107,16 +107,51 @@ function snt_sn_apply_gate2_roadmap_board( array $change ) {
  * docblock), after is the proposed board (null on reset, mirroring the
  * deletion it previews).
  *
+ * merge carries the drift a writer needs to see BEFORE overwriting: which
+ * cells code and the override have both moved since the override's base
+ * (see inc/maturity-roadmap-merge.php). Before this, a conflict was only
+ * discoverable by reading the rendered page and noticing an edit didn't
+ * appear — now it's in the same call a caller already makes to observe the
+ * fingerprint. `before` and `merge` come from ONE sn_maturity_roadmap_
+ * effective_report() call here, so THOSE TWO can never disagree with EACH
+ * OTHER. That is narrower than "computed once per request": gate 1
+ * (snt_sn_apply_gate1_roadmap_board()) always runs before this function and
+ * independently calls sn_maturity_roadmap_effective_board(), which computes
+ * the same report a second time — a pre-existing duplicate call this change
+ * didn't introduce and doesn't remove. Harmless: the merge is deterministic
+ * and nothing mutates the option mid-request, so a second computation reads
+ * the same inputs and produces the same output; not worth threading a
+ * computed report through the gate pipeline just to save an in-memory array
+ * rebuild.
+ *
  * @param array $change The raw change{} input.
- * @return array{before:mixed,after:mixed,blocks_touched:int}
+ * @return array{before:mixed,after:mixed,blocks_touched:int,merge:array{conflicts:array,code_landed:array,override_held:array}}
  */
 function snt_sn_apply_roadmap_board_diff( array $change ) {
 	$payload = (array) ( $change['payload'] ?? array() );
 	$after   = true === ( $payload['reset'] ?? false ) ? null : ( $payload['board'] ?? null );
+	$report  = sn_maturity_roadmap_effective_report();
 	return array(
-		'before'         => sn_maturity_roadmap_effective_board(),
+		'before'         => $report['merged'],
 		'after'          => $after,
 		'blocks_touched' => 0,
+		// The drift a writer needs to see BEFORE writing: cells where code and
+		// the override have both moved. Empty is the normal case.
+		'merge'          => array(
+			'conflicts'     => $report['conflicts'],
+			'code_landed'   => $report['code_landed'],
+			'override_held' => $report['override_held'],
+			// `invalid`: the CURRENT merge (the one this write is about to
+			// replace) failed validation, so `before` above is the static
+			// board rather than the real merge, and `conflicts` reads empty
+			// by construction — a dry run against a broken merge must not
+			// look like a dry run against a clean one. Default false, not
+			// absent: an absent key and a false one read identically to a
+			// careless caller, the same argument RB8 makes for the three
+			// list fields (see inc/health-check-roadmap-drift.php, the
+			// Health check that reads this same signal).
+			'invalid'       => (bool) ( $report['invalid'] ?? false ),
+		),
 	);
 }
 
@@ -147,7 +182,20 @@ function snt_sn_apply_write_roadmap_board( array $payload ) {
 	if ( array() !== sn_maturity_roadmap_board_problems( $board ) ) {
 		return new WP_Error( 'snt_sn_apply_roadmap_board_invalid', __( 'payload.board failed validation at the write step.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
-	update_option( SN_MATURITY_ROADMAP_OPTION, $board, false );
+	// Record the static board this override was derived from. That base is what
+	// lets the read path tell an override edit from a code edit, so both can
+	// land — see inc/maturity-roadmap-merge.php. Writing a BARE board here (as
+	// this did until v12.6.0) reads back as v1 "unknown provenance", which
+	// collapses the merge into the wholesale shadowing it exists to replace.
+	//
+	// The bool return is deliberately ignored: update_option() (which this
+	// wraps) returns false both when the write fails AND when the new value
+	// is identical to what's already stored — an ordinary idempotent rewrite,
+	// not a failure. The option holds exactly what was asked for either way,
+	// so there is nothing here for a caller to react to. Do not add an
+	// `if ( ! snt_roadmap_store_envelope( … ) )` error path on this — it
+	// would fail a write that succeeded in every sense that matters.
+	snt_roadmap_store_envelope( $board, sn_maturity_roadmap_static_board() );
 	return array(
 		'ok'           => true,
 		'diff'         => array( 'before' => $before, 'after' => $board, 'blocks_touched' => 0 ),

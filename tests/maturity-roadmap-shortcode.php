@@ -46,6 +46,7 @@ function plugins_url( $path = '', $plugin = '' ) {
 	return 'https://example.com/wp-content/plugins/snt/' . ltrim( (string) $path, '/' );
 }
 
+require __DIR__ . '/../inc/maturity-roadmap-merge.php'; // sn_maturity_roadmap_effective_board() now reads through the three-way merge
 require __DIR__ . '/../inc/maturity-roadmap-shortcode.php';
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     12.5.2
+ * Version:     12.6.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -450,6 +450,7 @@ require_once __DIR__ . '/inc/ml-paths.php';            // v11.3.0: reading paths
 require_once __DIR__ . '/inc/ml-paths-render.php';     // v11.3.0: [sn_reading_path] — plugin owns the renderer, the THEME places it (single.html)
 require_once __DIR__ . '/inc/ml-candidates.php';       // v10.17.0: keyword + link candidate generators (needs ml-pipelines, ml-artifacts + corpus-inspect above) — ML pipeline #3
 require_once __DIR__ . '/inc/ai-maturity-page.php'; // v10.10.0: [sn_ai_maturity] public explainer (third maturity sibling; leak-proof by test contract)
+require_once __DIR__ . '/inc/maturity-roadmap-merge.php'; // roadmap board: the three-way merge that lets code and MCP edits both land
 require_once __DIR__ . '/inc/maturity-roadmap-shortcode.php'; // [sn_maturity_roadmap]: the HUB-WIDE roadmap (done/planned/considering across every maturity family), same static-data + filter-seam + leak-proof pattern, own front stylesheet
 require_once __DIR__ . '/inc/machine-maturity-page.php'; // v10.11.0: [sn_machine_maturity] — how machines read the site
 require_once __DIR__ . '/inc/ops-maturity-page.php';     // v10.11.0: [sn_ops_maturity] — how the site runs itself
@@ -523,6 +524,7 @@ require_once SNT_PATH . 'inc/health-external-links.php'; // D1 (v6.13.0): 7th ch
 require_once SNT_PATH . 'inc/health-link-opportunities.php'; // v8.1.0: advisory check — semantic pairs that should link (C2 approach C)
 require_once SNT_PATH . 'inc/health-edge-workers.php'; // 8th check (v6.49.0): owned-Worker reachability + login-guard denylist freshness
 require_once SNT_PATH . 'inc/health-analytics-integrity.php'; // 12th check (v9.65.0): reader of the never-invert sn_analytics_integrity_alert (Phase A P0.4 closed for real)
+require_once SNT_PATH . 'inc/health-check-roadmap-drift.php'; // 21st check (v12.6.0): roadmap board merge conflicts between code and sn_apply's override
 require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0): server-side provenance integrity sweep (triangle self-check over the anchored-Note fleet) + readonly status ability
 // v10.83.0: the Health tab's IA split into three render modules — family
 // grouping data, the collapsed passing disclosure, and report-only payloads

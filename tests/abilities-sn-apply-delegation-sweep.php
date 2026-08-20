@@ -265,6 +265,7 @@ require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5
 require __DIR__ . '/../inc/sn-apply-create-draft.php';
 require __DIR__ . '/../inc/sn-apply-restore-revision.php';
 require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
+require __DIR__ . '/../inc/maturity-roadmap-merge.php'; // sn_maturity_roadmap_effective_board() now reads through the three-way merge
 require __DIR__ . '/../inc/maturity-roadmap-shortcode.php'; // roadmap_board's board/validator/fingerprint helpers — the REAL impl, never restubbed here.
 require __DIR__ . '/../inc/sn-apply-roadmap-board.php';
 require __DIR__ . '/../inc/sn-apply-executors.php';
@@ -468,10 +469,20 @@ eq( 'snt_ai_link_already_linked', $rli3->get_error_code(), 'LI3.2: the refusal c
  * ════════════════════════════════════════════════════════════════════════ */
 echo "\nroadmap_board: fingerprint oracle + stale conflict + leak refusal + publish write + reset\n";
 
-$rb_target = array( 'scope' => 'maturity_roadmap' );
-$rb_board  = array(
-	'Analytics' => array( 'done' => array( 'A rewritten done sentence for the sweep' ), 'planned' => array(), 'considering' => array() ),
-);
+$rb_target       = array( 'scope' => 'maturity_roadmap' );
+// A REALISTIC override payload: the door's own docblock requires the FULL
+// board (wholesale, no per-cell patch shape) — a caller reads the effective
+// board via dry_run, edits one cell, and writes the whole thing back. Only
+// 'Analytics'.'done' is touched here; every other family/column is carried
+// forward byte-for-byte from code, which is what lets RB5.2 and RB7 below
+// tell "the override touched this" from "the override just doesn't say."
+// (A payload that only ever names the ONE family it edits — this fixture's
+// shape before v12.6.0 — is a genuine wholesale delete of every other
+// family under the merge's own "absent counts as changed" rule; that is
+// unchanged by this session and not what these assertions are testing.)
+$rb_static_board = sn_maturity_roadmap_static_board();
+$rb_board         = $rb_static_board;
+$rb_board['Analytics']['done'] = array( 'A rewritten done sentence for the sweep' );
 $rb_fp     = sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() );
 
 // Missing fingerprint: 422 with the type's own code; the encoded response
@@ -523,7 +534,7 @@ $rrb5 = snt_ability_sn_apply( array(
 	'mode'   => 'publish', 'dry_run' => false,
 ) );
 ok( ! is_wp_error( $rrb5 ) && true === $rrb5['applied'], 'RB5.1: publish write applies' );
-eq( $rb_board, sn_maturity_roadmap_effective_board(), 'RB5.2: the EFFECTIVE board is now the override — the exact array the shortcode will render' );
+eq( $rb_board, sn_maturity_roadmap_effective_board(), 'RB5.2: the EFFECTIVE board merges the override over code — the override\'s own edited cell lands, and every family the override didn\'t touch survives (equal to $rb_board here only because $rb_board itself already carries every untouched family forward from code; RB7 below is the version where code moves AFTER this write, which is the case that actually distinguishes a merge from the shadowing this session removes)' );
 // v11.5.0: TWO option writes, both deliberate — the board override itself,
 // plus the idempotency RECORD that keyless mutating calls now make (the
 // auto-key means this call's response is stored for replay; pre-11.5.0 a
@@ -542,6 +553,131 @@ $rrb6   = snt_ability_sn_apply( array(
 ok( ! is_wp_error( $rrb6 ) && true === $rrb6['applied'], 'RB6.1: reset applies' );
 eq( sn_maturity_roadmap_static_board(), sn_maturity_roadmap_effective_board(), 'RB6.2: the effective board is the static board again — code-canonical restored' );
 eq( $rb_fp, sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ), 'RB6.3: and the original fingerprint is current again' );
+
+// RB7: the merge actually ENGAGES on a write made through the REAL door —
+// every merge test elsewhere in the suite (tests/maturity-roadmap-merge*)
+// calls snt_roadmap_store_envelope() directly, which proves the merge
+// FUNCTION works but never proves sn_apply's write step actually calls it.
+// This is the assertion that would have caught the whole defect this
+// session exists to close: write one cell through snt_ability_sn_apply(),
+// then have CODE move an untouched family (a later release's static-board
+// edit — exactly the "WHY THIS EXISTS" scenario documented at the top of
+// inc/maturity-roadmap-merge.php), and confirm that code edit lands beside
+// the override instead of being shadowed by it.
+tf_reset_writes();
+$rb7_static_before = sn_maturity_roadmap_static_board();
+$rb7_board          = $rb7_static_before;
+$rb7_board['Analytics']['done'] = array( 'RB7: the owner rewrote this sentence through the real write door' );
+$rb7_fp    = sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() );
+$rb7_write = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => $rb7_fp, 'payload' => array( 'board' => $rb7_board ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $rb7_write ) && true === $rb7_write['applied'], 'RB7.1: the override write goes through the REAL sn_apply door, not a direct envelope call' );
+// The sibling structurally-identical publish call (RB5.3) makes exactly two
+// option writes — the board override plus the auto-key idempotency replay
+// record. This call is that same shape (fresh fingerprint, publish, a board
+// payload), so it should read alike; if it doesn't, the envelope write
+// changed how many option writes a publish performs and that's worth a look,
+// not a silent number swap here.
+eq( 2, $GLOBALS['__write_calls']['update_option'], 'RB7.1b: exactly two option writes, same as RB5.3 — the board override + the auto-key replay record' );
+
+// Code moves on: a family the override never named changes underneath it.
+// snt_roadmap_merge_report() is the same function sn_maturity_roadmap_
+// effective_report() calls in production — passing it a hand-advanced
+// static board simulates "the plugin shipped a release" without needing to
+// redefine sn_maturity_roadmap_static_board() itself.
+$rb7_static_after = $rb7_static_before;
+$rb7_new_sentence  = 'RB7: a brand-new code-shipped sentence, added after the override write';
+$rb7_static_after['Proof of origin']['done'][] = $rb7_new_sentence;
+$rb7_report = snt_roadmap_merge_report( $rb7_static_after );
+
+ok( in_array( $rb7_new_sentence, $rb7_report['merged']['Proof of origin']['done'], true ), 'RB7.3: the code edit to a family the override never touched LANDS in the merged board — the exact defect this session closes' );
+eq( $rb7_board['Analytics']['done'], $rb7_report['merged']['Analytics']['done'], 'RB7.4: the override\'s own edited cell still holds — code moving elsewhere does not clobber it' );
+ok( in_array( array( 'family' => 'Proof of origin', 'column' => 'done' ), $rb7_report['code_landed'], true ), 'RB7.5: the report attributes the landed change to code_landed, not override_held — correct provenance from a REAL write, not a fixture the test hand-assembled' );
+
+// Clean up: back to code-canonical for the sections that follow.
+$rrb7 = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ), 'payload' => array( 'reset' => true ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $rrb7 ) && true === $rrb7['applied'], 'RB7.6: reset applies, restoring code-canonical for the sections below' );
+
+echo "\nroadmap_board: Task 5 — diff.merge exposes drift BEFORE a write\n";
+
+// RB8: a dry run with NO override stored (exactly the state RB7.6 just left
+// behind) exposes diff.merge with all three lists EMPTY. Quiet is the
+// normal case, and it must be REPORTED quiet, not simply absent — an absent
+// key and an empty one look identical to a careless caller that only checks
+// truthiness, and that's the whole difference between "no drift" and "this
+// build doesn't report drift". $rb_board is RB1-7's own fixture (a full,
+// valid board), reused here only so the dry run's gates pass cleanly.
+$rb8_fp  = sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() );
+$rb8_dry = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => $rb8_fp, 'payload' => array( 'board' => $rb_board ) ),
+	'mode'   => 'publish', 'dry_run' => true,
+) );
+ok( ! is_wp_error( $rb8_dry ), 'RB8.1: the dry run itself succeeds' );
+ok( is_array( $rb8_dry['diff'] ) && array_key_exists( 'merge', $rb8_dry['diff'] ), 'RB8.2: diff.merge EXISTS on a quiet dry run — not merely absent' );
+eq( array(), $rb8_dry['diff']['merge']['conflicts'], 'RB8.3: diff.merge.conflicts is empty with no override stored' );
+eq( array(), $rb8_dry['diff']['merge']['code_landed'], 'RB8.4: diff.merge.code_landed is empty with no override stored' );
+eq( array(), $rb8_dry['diff']['merge']['override_held'], 'RB8.5: diff.merge.override_held is empty with no override stored' );
+// RB8.6: same argument as RB8.2, applied to `invalid` — an absent key and a
+// `false` one look identical to a careless caller, so the key must be
+// PRESENT and false in the quiet case, not merely falsy-by-omission.
+ok( array_key_exists( 'invalid', $rb8_dry['diff']['merge'] ), 'RB8.6: diff.merge.invalid EXISTS on a quiet dry run — not merely absent' );
+ok( false === $rb8_dry['diff']['merge']['invalid'], 'RB8.7: diff.merge.invalid is false with no override stored' );
+
+// RB9: a dry run while a CONFLICT exists names the conflicting cell in
+// diff.merge.conflicts. Built the honest way per the task brief: a real
+// write, then the static board "advancing" on the same cell. RB7 above
+// proved code_landed works this way by calling snt_roadmap_merge_report()
+// directly with a hand-advanced static board — but sn_maturity_roadmap_
+// static_board() is a hard-coded PHP function this test cannot redefine to
+// simulate a second, conflicting release. So this reaches ONE layer lower
+// than RB7: snt_roadmap_store_envelope() lets a caller set the envelope's
+// recorded `base` directly (which is exactly what a real write does,
+// stamping it with the static board AT THAT MOMENT — see inc/sn-apply-
+// roadmap-board.php's write step) — a synthetic, deliberately-stale `base`
+// stands in for "code shipped a release since this override was written".
+// Everything downstream of that write — sn_maturity_roadmap_effective_
+// report(), snt_roadmap_merge_report(), snt_roadmap_merge(), and the REAL
+// current sn_maturity_roadmap_static_board() — runs for real; only the
+// stored base is synthetic. The layer reached: snt_sn_apply_roadmap_board_
+// diff() is called DIRECTLY (the function this task modifies), not through
+// the full snt_ability_sn_apply() door — a real write's gate 1 always
+// stamps base from the live static board, which can never differ from
+// itself within one test run.
+$rb9_static = sn_maturity_roadmap_static_board();
+$rb9_base   = $rb9_static;
+$rb9_base['Analytics']['done'] = array( 'RB9: a synthetic OLD base sentence, never actually shipped by code' );
+$rb9_override_board = $rb9_static;
+$rb9_override_board['Analytics']['done'] = array( "RB9: the override's own edit to this cell" );
+snt_roadmap_store_envelope( $rb9_override_board, $rb9_base );
+$rb9_diff = snt_sn_apply_roadmap_board_diff( array( 'payload' => array( 'board' => $rb9_override_board ) ) );
+ok( in_array( array( 'family' => 'Analytics', 'column' => 'done' ), $rb9_diff['merge']['conflicts'], true ), 'RB9.1: the conflicting cell is named in diff.merge.conflicts BEFORE any write — code and the override both moved Analytics.done since base' );
+eq( $rb9_override_board['Analytics']['done'], $rb9_diff['before']['Analytics']['done'], 'RB9.2: a conflict still resolves to the OVERRIDE\'s value in diff.before, per the merge\'s own "a conflict renders the override" rule' );
+delete_option( 'snt_maturity_roadmap_board' );
+
+// RB10: diff.before equals the MERGED board, not the raw stored override.
+// Distinguishing case: the override's stored snapshot holds a STALE cell
+// (Analytics.planned) it never touched, so the raw override and the merged
+// board disagree there by construction — code_landed's current value must
+// win in diff.before, never the override's old copy. Same layer as RB9
+// (snt_sn_apply_roadmap_board_diff() called directly), for the same reason.
+$rb10_static = sn_maturity_roadmap_static_board();
+$rb10_base   = $rb10_static;
+$rb10_base['Analytics']['planned'] = array( "RB10: an OLD planned sentence, the override's stale snapshot of this cell" );
+$rb10_override_board = $rb10_base; // the override never touched this cell: its stored board IS the stale base.
+snt_roadmap_store_envelope( $rb10_override_board, $rb10_base );
+$rb10_diff = snt_sn_apply_roadmap_board_diff( array( 'payload' => array() ) );
+eq( sn_maturity_roadmap_effective_board(), $rb10_diff['before'], 'RB10.1: diff.before equals sn_maturity_roadmap_effective_board() exactly — the same merged read surface, computed once' );
+eq( $rb10_static['Analytics']['planned'], $rb10_diff['before']['Analytics']['planned'], 'RB10.2: diff.before carries CODE\'s current value for a cell only code moved...' );
+ok( $rb10_diff['before']['Analytics']['planned'] !== $rb10_override_board['Analytics']['planned'], 'RB10.3: ...and that value is NOT the raw stored override\'s stale snapshot' );
+delete_option( 'snt_maturity_roadmap_board' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * ALL EIGHT change types: structural dry_run zero-writes sweep (session-4
