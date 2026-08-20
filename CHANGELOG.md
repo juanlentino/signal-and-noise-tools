@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.5.2] - 2026-08-20 — the roadmap's contrast item says which half is left
+
+The Accessibility family's `planned` column has read "Contrast audited at the
+token level: every palette pairing the templates actually use, **checked from
+computed styles so an inline override cannot hide** — landing report-first,
+findings published before any fix ships" since long before this week.
+
+v12.3.0–v12.5.1 and the theme's v12.1.0 delivered part of it and explicitly not
+the rest. The sweeps read **stylesheets**, not computed styles — which is the
+exact blind spot every finding this week ran into — and nothing landed
+report-first; each fix shipped in the PR that found it.
+
+### Changed
+- That planned item now names **only the half that remains**: verification from
+  computed styles, where an inline override or an undeclared nesting can still
+  hide. The delivered half is not claimed.
+
+### Decisions
+- **No `done` row was added, and the board is where this lives.** The live board
+  was byte-identical to `sn_maturity_roadmap_static_board()` — fingerprint
+  `15df9c3f…`, no override had ever been written. Editing the code rather than
+  writing an override through `sn_apply` keeps ONE source of truth: an override
+  makes the static board inert, so a later code edit renders nothing until
+  someone calls `reset:true`.
+- **A `done` row is blocked on a graduation, not on this release.** The canary
+  in `tests/maturity-roadmap-shortcode.php` requires the fullest `done` column
+  to stay a row BELOW the ceiling; Accessibility is at 4 of 5. Adding a fifth
+  means graduating an existing row onto `/maturity/a11y-maturity/` first — and
+  that page currently carries **none** of the four, so graduating means
+  authoring new prose there. Owner's call, owner's voice.
+
+### Verified
+- **483 suites, 19,145 assertions, `EXIT=0`.** The canary caught the fifth row
+  on the first attempt, which is what it is for.
+- Board fingerprint moves `15df9c3f…` → `69059f9f…` on install.
+
 ## [12.5.1] - 2026-08-20 — a border token was doing a surface's job, on the palette the site serves
 
 The v12.5.0 guard reported this pair at 7.34:1. A reader on the live site met
