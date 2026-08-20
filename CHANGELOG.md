@@ -2,6 +2,48 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.2.0] - 2026-08-20 — the front end inverts with the palette
+
+### Fixed
+- **/stats rendered its charts as SOLID WHITE BLOCKS in dark mode.** Owner-visible
+  on the live site. One `background:#fff` on the chart SVG in
+  [assets/public-stats-front.css](assets/public-stats-front.css); the prose around
+  it was fine because the prose used tokens. Reported by the theme session.
+- **The same class across ELEVEN front-end stylesheets.** Dark mode is a token
+  layer — theme v12.0.0 redefines `--wp--preset--color--*` under
+  `:root[data-theme="dark"]`, so anything referencing a token inverts for free and
+  a hardcoded literal cannot, by construction. Grounds now use
+  `var(--wp--preset--color--void)`, hairlines `concrete`, muted borders `rust`,
+  accents `signal`/`blood` — each with its original literal kept as the var()
+  fallback, so a missing or older theme renders exactly as before.
+
+### Added
+- **[tests/front-end-css-inverts.php](tests/front-end-css-inverts.php)** — no
+  front-end stylesheet may paint a hardcoded colour. Mutation-tested by
+  reintroducing the exact reported bug.
+
+### Decisions
+- **A literal is not always a bug.** White ink on a fixed dark-red button must
+  NOT invert — tying it to the palette would put dark ink on dark red. Those rules
+  carry an `sn-allow-literal` comment and are exempt by design.
+- **`provenance-front.css` is EXEMPT, deliberately and temporarily.** Its eleven
+  remaining literals are the three-tier epistemic status palette — verified
+  `#12703a`, asserted `#7a5200`, unattributed `#5b6270` — which have no palette
+  equivalent and whose dark-mode treatment is a design decision about legibility,
+  not a mechanical swap. Named in the guard so the debt is countable, with a pin
+  that it may shrink and never grow.
+
+### Verified
+- **480 suites, 19,028 assertions, `EXIT=0`.** An existing pin caught a real error
+  mid-work: the blanket accent replacement rewrote a literal that was ALREADY a
+  var() fallback, and `tests/prov-verify-contrast.php` failed on the assertion
+  written for exactly that risk — "a sweep that removed every occurrence would
+  pass while deleting the focus rings". Corrected; over-broad edits unwrapped.
+- **What this guard CANNOT see, stated:** it reads stylesheets, not rendered
+  pages. A token used in the wrong ROLE — the theme's own "ink as chrome" bug,
+  where an INK token meant "a surface that contrasts with the page" and so
+  inverted twice — passes cleanly. That needs a real render.
+
 ## [12.1.1] - 2026-08-20 — the palette keys stop conflating variation with scheme
 
 v12.1.0 fixed half of this and got the model wrong. It keyed the palettes

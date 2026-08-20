@@ -10,7 +10,7 @@
 .sn-public-stats__window{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;opacity:.6;margin:0 0 .6rem}
 
 /* The tile trio: the roadmap legend's idiom at page-content scale. */
-.sn-public-stats__tiles{display:grid;grid-template-columns:repeat(3,1fr);border:2px solid currentColor;box-shadow:6px 6px 0 currentColor;background:#fff;margin-bottom:6px}
+.sn-public-stats__tiles{display:grid;grid-template-columns:repeat(3,1fr);border:2px solid currentColor;box-shadow:6px 6px 0 currentColor;background:var(--wp--preset--color--void,#fff);margin-bottom:6px}
 .sn-public-stats__tile{padding:1rem 1.2rem .9rem}
 .sn-public-stats__tile+.sn-public-stats__tile{border-left:2px solid currentColor}
 .sn-public-stats__tile--dim{opacity:.55}
@@ -21,10 +21,10 @@
 
 /* Most-read: the family's ruled list, rank numerals in the gutter. */
 .sn-public-stats__top{list-style:none;margin:0;padding:0;counter-reset:sn-top;font-size:.9rem}
-.sn-public-stats__top li{counter-increment:sn-top;display:flex;align-items:baseline;gap:.75em;padding:.55em 0;border-bottom:1px solid rgba(0,0,0,.12)}
+.sn-public-stats__top li{counter-increment:sn-top;display:flex;align-items:baseline;gap:.75em;padding:.55em 0;border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.12))}
 .sn-public-stats__top li:last-child{border-bottom:0}
 .sn-public-stats__top li::before{content:counter(sn-top,decimal-leading-zero);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;opacity:.45}
-.sn-public-stats__top a{flex:1;min-width:0;color:inherit;text-decoration:none;border-bottom:1px solid rgba(0,0,0,.25)}
+.sn-public-stats__top a{flex:1;min-width:0;color:inherit;text-decoration:none;border-bottom:1px solid var(--wp--preset--color--rust,rgba(0,0,0,.25))}
 .sn-public-stats__top a:hover{border-bottom-color:currentColor}
 .sn-public-stats__views{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;font-variant-numeric:tabular-nums;opacity:.7}
 
@@ -32,13 +32,13 @@
  * content; the SVG is a decorative silhouette of the same series — flat
  * currentColor bars in the tile idiom, no second palette, no gradients. */
 .sn-public-stats__rhythm-summary{font-size:.9rem;max-width:60ch;margin:0 0 .9rem}
-.sn-public-stats__chart{display:block;width:100%;height:72px;border:2px solid currentColor;background:#fff;padding:6px;box-sizing:border-box}
+.sn-public-stats__chart{display:block;width:100%;height:72px;border:2px solid currentColor;background:var(--wp--preset--color--void,#fff);padding:6px;box-sizing:border-box}
 .sn-public-stats__chart rect{fill:currentColor}
 .sn-public-stats__twin{margin-top:.6rem;font-size:.85rem}
 .sn-public-stats__twin summary{cursor:pointer;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:.3em 0}
 .sn-public-stats__twin table{border-collapse:collapse;margin-top:.5rem;font-variant-numeric:tabular-nums}
 .sn-public-stats__twin caption{text-align:left;font-size:.72rem;opacity:.6;padding-bottom:.4em}
-.sn-public-stats__twin th,.sn-public-stats__twin td{text-align:left;padding:.2em 1.4em .2em 0;border-bottom:1px solid rgba(0,0,0,.12)}
+.sn-public-stats__twin th,.sn-public-stats__twin td{text-align:left;padding:.2em 1.4em .2em 0;border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.12))}
 .sn-public-stats__twin th{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}
 .sn-public-stats__twin td{text-align:right;padding-right:.9em}
 .sn-public-stats__twin th[scope="row"]{white-space:nowrap;text-transform:none;letter-spacing:0}
