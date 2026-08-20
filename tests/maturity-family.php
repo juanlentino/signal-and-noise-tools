@@ -96,7 +96,22 @@ foreach ( array( 'sn_machine_maturity', 'sn_ops_maturity', 'sn_a11y_maturity', '
 }
 ok( array() === $GLOBALS['__enq'], 'loading the files enqueues nothing — stylesheets ride the render' );
 ok( 6 === count( sn_machine_maturity_layers() ) && 5 === count( sn_ops_maturity_layers() ) && 5 === count( sn_a11y_maturity_layers() ), 'ops and a11y walk five layers; machine readability walks six (v10.71.0 added the rights layer)' );
-ok( 8 === count( sn_machine_maturity_principles() ) && 8 === count( sn_ops_maturity_principles() ) && 8 === count( sn_a11y_maturity_principles() ), 'eight principles per page, matching the family' );
+ok( 8 === count( sn_machine_maturity_principles() ) && 8 === count( sn_ops_maturity_principles() ), 'eight principles per page, matching the family' );
+// a11y is the SECOND page to break the family's eight, and for the same reason
+// the AI page broke it at nine: the extra principle arrived by GRADUATION off
+// the hub roadmap board, not by authoring. The done column's ceiling forces a
+// shipped row off the board once the column fills, and the family page is where
+// it lands -- so an asymmetric count here is the mechanism working, not drift.
+ok( 9 === count( sn_a11y_maturity_principles() ), 'a11y carries NINE - the ninth graduated in off the roadmap board when the done column filled' );
+// THE GRADUATION PIN, mirroring the AI page's. Pinned on the RENDERED html, not
+// on the array: a claim sitting in an array no format emits is the
+// mechanism-without-surface shape this project keeps re-learning. Substance in
+// two halves so a rewrite may reword freely but cannot quietly drop either --
+// repairing heading order and refusing to land on a moved block are different
+// promises, and the second is the one that makes the first safe to run.
+$a11y_principles = sn_a11y_maturity_principles_html();
+ok( false !== strpos( $a11y_principles, 'heading order' ), 'GRADUATION: the structural-scan claim renders on the a11y page - it retired off the board, it did not vanish' );
+ok( false !== strpos( $a11y_principles, 'fingerprint' ), 'GRADUATION: and it keeps the fingerprint-bound half - a repair that cannot prove where it is landing is the failure this row was written against' );
 ok( 8 === count( sn_maturity_index_items() ), 'the index lists all eight cards (v10.55.1: + the hub-wide roadmap)' );
 
 echo "\nGroup: format contract (spot: each page's format whitelist behaves)\n";

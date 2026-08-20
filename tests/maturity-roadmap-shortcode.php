@@ -376,6 +376,16 @@ ok( false !== strpos( implode( ' | ', $floor['Accessibility']['considering'] ), 
 ok( false !== strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'Motion that asks first' ), 'DR floor: motion-that-asks-first took the freed planned slot' );
 ok( false === strpos( implode( ' | ', $floor['Accessibility']['later'] ), 'Motion that asks first' ), 'DR floor: and no stale later copy of it survives — a row moves, it is never copied' );
 
+// v12.6.3: the delivered half of the contrast audit took the slot the
+// structural-scan row vacated by graduating onto /maturity/a11y-maturity/.
+// A one-for-one swap, so the wall canary never moves: Accessibility done
+// stays at four. The planned row still owns the undelivered half (computed
+// styles), which is why both can sit on the board without contradicting.
+ok( false !== strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'three palettes the site actually serves' ), 'DR floor: the delivered contrast half sits in Accessibility DONE' );
+ok( false !== strpos( implode( ' | ', $floor['Accessibility']['done'] ), '3:1' ), 'DR floor: and it keeps the non-text 3:1 half, which is the part a token-level sweep alone never covered' );
+ok( false === strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'fingerprint-safe' ), 'DR floor: the structural-scan row is GONE from done - it graduated onto the a11y page, and a row moves, it is never copied' );
+ok( 4 === count( $floor['Accessibility']['done'] ), 'DR floor: Accessibility done is back to four - the graduation bought exactly the slot the contrast row spent' );
+
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );
 ok( $static_html === call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] ), 'deleting the override returns the render to code-canonical, byte-identical' );
