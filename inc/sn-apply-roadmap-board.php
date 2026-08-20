@@ -112,10 +112,17 @@ function snt_sn_apply_gate2_roadmap_board( array $change ) {
  * (see inc/maturity-roadmap-merge.php). Before this, a conflict was only
  * discoverable by reading the rendered page and noticing an edit didn't
  * appear — now it's in the same call a caller already makes to observe the
- * fingerprint. Computed from ONE sn_maturity_roadmap_effective_report()
- * call, shared with `before`, so the two can never disagree within this
- * request even though the board is read twice conceptually (write is a
- * separate request and re-reads fresh — see gate 1's own re-observe).
+ * fingerprint. `before` and `merge` come from ONE sn_maturity_roadmap_
+ * effective_report() call here, so THOSE TWO can never disagree with EACH
+ * OTHER. That is narrower than "computed once per request": gate 1
+ * (snt_sn_apply_gate1_roadmap_board()) always runs before this function and
+ * independently calls sn_maturity_roadmap_effective_board(), which computes
+ * the same report a second time — a pre-existing duplicate call this change
+ * didn't introduce and doesn't remove. Harmless: the merge is deterministic
+ * and nothing mutates the option mid-request, so a second computation reads
+ * the same inputs and produces the same output; not worth threading a
+ * computed report through the gate pipeline just to save an in-memory array
+ * rebuild.
  *
  * @param array $change The raw change{} input.
  * @return array{before:mixed,after:mixed,blocks_touched:int,merge:array{conflicts:array,code_landed:array,override_held:array}}
