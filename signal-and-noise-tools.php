@@ -450,6 +450,7 @@ require_once __DIR__ . '/inc/ml-paths.php';            // v11.3.0: reading paths
 require_once __DIR__ . '/inc/ml-paths-render.php';     // v11.3.0: [sn_reading_path] — plugin owns the renderer, the THEME places it (single.html)
 require_once __DIR__ . '/inc/ml-candidates.php';       // v10.17.0: keyword + link candidate generators (needs ml-pipelines, ml-artifacts + corpus-inspect above) — ML pipeline #3
 require_once __DIR__ . '/inc/ai-maturity-page.php'; // v10.10.0: [sn_ai_maturity] public explainer (third maturity sibling; leak-proof by test contract)
+require_once __DIR__ . '/inc/maturity-roadmap-merge.php'; // roadmap board: the three-way merge that lets code and MCP edits both land
 require_once __DIR__ . '/inc/maturity-roadmap-shortcode.php'; // [sn_maturity_roadmap]: the HUB-WIDE roadmap (done/planned/considering across every maturity family), same static-data + filter-seam + leak-proof pattern, own front stylesheet
 require_once __DIR__ . '/inc/machine-maturity-page.php'; // v10.11.0: [sn_machine_maturity] — how machines read the site
 require_once __DIR__ . '/inc/ops-maturity-page.php';     // v10.11.0: [sn_ops_maturity] — how the site runs itself

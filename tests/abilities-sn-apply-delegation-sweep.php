@@ -265,6 +265,7 @@ require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5
 require __DIR__ . '/../inc/sn-apply-create-draft.php';
 require __DIR__ . '/../inc/sn-apply-restore-revision.php';
 require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
+require __DIR__ . '/../inc/maturity-roadmap-merge.php'; // sn_maturity_roadmap_effective_board() now reads through the three-way merge
 require __DIR__ . '/../inc/maturity-roadmap-shortcode.php'; // roadmap_board's board/validator/fingerprint helpers — the REAL impl, never restubbed here.
 require __DIR__ . '/../inc/sn-apply-roadmap-board.php';
 require __DIR__ . '/../inc/sn-apply-executors.php';

@@ -199,3 +199,21 @@ function snt_roadmap_merge( $base, array $ours, array $theirs ) {
 	}
 	return $report;
 }
+
+/**
+ * The merge report for the CURRENT stored override against a given static board.
+ *
+ * Takes the static board as an argument rather than calling
+ * sn_maturity_roadmap_static_board() so this module has no dependency on the
+ * shortcode — the merge is testable without loading a renderer.
+ *
+ * @param array $static The static (code) board.
+ * @return array{merged:array,conflicts:array,code_landed:array,override_held:array}
+ */
+function snt_roadmap_merge_report( array $static ) {
+	$env = snt_roadmap_stored_envelope();
+	if ( null === $env ) {
+		return array( 'merged' => $static, 'conflicts' => array(), 'code_landed' => array(), 'override_held' => array() );
+	}
+	return snt_roadmap_merge( $env['base'], $env['board'], $static );
+}

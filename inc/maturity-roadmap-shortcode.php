@@ -412,8 +412,24 @@ function sn_maturity_roadmap_override_board() {
  * @return array<string,array<string,string[]>>
  */
 function sn_maturity_roadmap_effective_board() {
-	$override = sn_maturity_roadmap_override_board();
-	return null !== $override ? $override : sn_maturity_roadmap_static_board();
+	$report = sn_maturity_roadmap_merge_report();
+	return $report['merged'];
+}
+
+/**
+ * The merge report against the CURRENT static board — what the Health check
+ * and sn_apply's dry run consume.
+ *
+ * @return array{merged:array,conflicts:array,code_landed:array,override_held:array}
+ */
+function sn_maturity_roadmap_merge_report() {
+	$report = snt_roadmap_merge_report( sn_maturity_roadmap_static_board() );
+	// A merged board that fails validation is not served: fall back to code,
+	// the same posture the old override_board() had for an invalid option.
+	if ( array() !== sn_maturity_roadmap_board_problems( $report['merged'] ) ) {
+		return array( 'merged' => sn_maturity_roadmap_static_board(), 'conflicts' => array(), 'code_landed' => array(), 'override_held' => array() );
+	}
+	return $report;
 }
 
 /**

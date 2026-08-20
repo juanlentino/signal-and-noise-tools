@@ -266,5 +266,31 @@ foreach ( $all_named as $cell ) {
 }
 ok( $all_exist, 'NEGATIVE CONTROL: every cell named in a report list exists in merged' );
 
+echo "\nGroup: the report the surfaces consume\n";
+$GLOBALS['snt_options'] = array();
+$static = array( 'F' => array( 'done' => array( 'a' ) ) );
+$r = snt_roadmap_merge_report( $static );
+ok( $static === $r['merged'], 'with no override stored, the merged board IS the static board' );
+ok( array() === $r['conflicts'], 'and there is nothing to report' );
+
+snt_roadmap_store_envelope( array( 'F' => array( 'done' => array( 'O' ) ) ), $static );
+$r = snt_roadmap_merge_report( array( 'F' => array( 'done' => array( 'a' ), 'planned' => array( 'NEW' ) ) ) );
+ok( array( 'O' ) === $r['merged']['F']['done'], 'the override holds its cell' );
+ok( array( 'NEW' ) === $r['merged']['F']['planned'], 'and a cell code added lands beside it' );
+
+echo "\nGroup: the fingerprint tracks what actually renders\n";
+$GLOBALS['snt_options'] = array();
+$static = array( 'F' => array( 'done' => array( 'a' ) ) );
+$plain  = md5( wp_json_encode( snt_roadmap_merge_report( $static )['merged'] ) );
+ok( $plain === md5( wp_json_encode( $static ) ), 'with no override, the fingerprint is the static board\'s' );
+
+snt_roadmap_store_envelope( array( 'F' => array( 'done' => array( 'O' ) ) ), $static );
+$merged = snt_roadmap_merge_report( $static )['merged'];
+ok( md5( wp_json_encode( $merged ) ) !== $plain, 'an override moves the fingerprint' );
+
+$moved   = array( 'F' => array( 'done' => array( 'a' ), 'planned' => array( 'NEW' ) ) );
+$merged2 = snt_roadmap_merge_report( $moved )['merged'];
+ok( md5( wp_json_encode( $merged2 ) ) !== md5( wp_json_encode( $merged ) ), 'and a CODE edit that lands moves it too — a stale writer gets the 409 it should' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
