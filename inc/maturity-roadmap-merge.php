@@ -91,6 +91,12 @@ function snt_roadmap_store_envelope( array $board, array $base ) {
  * one sentence of a cell the override rewrote is a conflict, not a merge:
  * auto-merging inside a cell is how a board nobody authored gets published.
  *
+ * DEGRADES RATHER THAN THROWS. A family value in $ours or $theirs that isn't
+ * itself an array (corrupted option storage, a caller that skipped
+ * validation) is coerced to array() and read as absent from that writer,
+ * rather than raising — callers may rely on this, notably a page render that
+ * must show a degraded board instead of fataling on a corrupted option.
+ *
  * @param array|null $base   Static board at the time of the override write; null = unknown (v1).
  * @param array      $ours   The override board.
  * @param array      $theirs The static board now.
@@ -117,9 +123,20 @@ function snt_roadmap_merge( $base, array $ours, array $theirs ) {
 	// a future caller that passes a diff instead of a snapshot.
 	$families = array_keys( $ours + $theirs + $base );
 	foreach ( $families as $family ) {
+		// `??` only substitutes on a missing/null key — a family value that
+		// IS present but isn't an array (corrupted option storage, or a
+		// caller that skipped validation) would survive into the `+` union
+		// below and throw a TypeError. Mirror snt_roadmap_stored_envelope()
+		// twenty lines up, which treats a non-array 'board' as unreadable
+		// rather than fatal: coerce a non-array family to array() so it
+		// reads as absent from that writer, degrading the board instead of
+		// crashing the whole merge.
 		$b = $base[ $family ]   ?? array();
 		$o = $ours[ $family ]   ?? array();
 		$t = $theirs[ $family ] ?? array();
+		if ( ! is_array( $b ) ) { $b = array(); }
+		if ( ! is_array( $o ) ) { $o = array(); }
+		if ( ! is_array( $t ) ) { $t = array(); }
 
 		$columns = array_keys( $o + $t + $b );
 		$cells   = array();
@@ -135,6 +152,15 @@ function snt_roadmap_merge( $base, array $ours, array $theirs ) {
 				$pick = $oc;
 				$list = 'conflicts';
 			} elseif ( $ours_moved ) {
+				// Also absorbs the case where both writers changed the cell
+				// but landed on the SAME value ($oc === $tc, so the conflict
+				// guard above didn't fire): deliberately filed as
+				// override_held rather than a fourth "converged" list. The
+				// merged value is correct either way; only the audit trail
+				// calls it the override holding its ground when code
+				// independently landed on the same value. Accepted as a
+				// known nuance rather than a fourth report list, which would
+				// break "every moved cell appears in exactly one list".
 				$pick = $oc;
 				$list = 'override_held';
 			} elseif ( $theirs_moved ) {

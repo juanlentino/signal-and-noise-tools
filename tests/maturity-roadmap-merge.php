@@ -121,6 +121,23 @@ $r = snt_roadmap_merge( $base, $ours, $theirs );
 ok( array( 'OVERRIDE' ) === $r['merged']['F']['done'], 'a conflict renders the OVERRIDE — an install must not silently revert authored copy' );
 ok( array( array( 'family' => 'F', 'column' => 'done' ) ) === $r['conflicts'], 'and the conflict is reported by name' );
 
+// Both writers converge on the same value independently (base='old' -> both
+// write 'new'): oc !== tc is false, so this is NOT filed as a conflict — the
+// merged value is right either way, but the audit trail calls it
+// override_held, as if the override held its ground, even though code
+// independently landed on the identical value. Pinning current behaviour
+// deliberately: see the comment at the elseif below for why.
+$base_conv   = array( 'F' => array( 'done' => array( 'old' ) ) );
+$ours_conv   = array( 'F' => array( 'done' => array( 'new' ) ) );
+$theirs_conv = array( 'F' => array( 'done' => array( 'new' ) ) );
+$r = snt_roadmap_merge( $base_conv, $ours_conv, $theirs_conv );
+ok( array( 'new' ) === $r['merged']['F']['done'], 'both writers converging on the same value merges to that value' );
+ok( array() === $r['conflicts'], 'when both writers converge on the same value it is not a conflict' );
+ok(
+	array( array( 'family' => 'F', 'column' => 'done' ) ) === $r['override_held'],
+	'and is attributed to the override, even though code independently landed on the same value'
+);
+
 // A family only code knows about appears.
 $theirs2 = $base;
 $theirs2['NEW'] = array( 'done' => array( 'n' ) );
@@ -212,6 +229,22 @@ $theirs_multi = array( 'F' => array( 'done' => array( 'a', 'B3' ) ) );
 $r = snt_roadmap_merge( $base_multi, $ours_multi, $theirs_multi );
 ok( array( 'a', 'B2' ) === $r['merged']['F']['done'], 'a conflict inside a multi-sentence cell takes OURS wholesale, not a sentence blend' );
 ok( array( array( 'family' => 'F', 'column' => 'done' ) ) === $r['conflicts'], 'and is reported as one cell-level conflict' );
+
+// Malformed shapes reaching the merge: a family value that is not itself an
+// array (corrupted option storage, or a caller that skipped validation).
+// Mirrors snt_roadmap_stored_envelope() treating a non-array 'board' as
+// unreadable rather than fatal — here a non-array FAMILY must read as
+// absent (coerced to array()), not crash the whole merge. This matters more
+// once the merge is wired into the public page render (Task 3): a corrupted
+// option must degrade the board, not fatal a reader's page.
+$ours_malformed   = array( 'F' => 'not-an-array' );
+$theirs_malformed = $base;
+$r = snt_roadmap_merge( $base, $ours_malformed, $theirs_malformed );
+ok( is_array( $r['merged'] ), 'a non-array family in ours degrades instead of crashing the merge' );
+
+$theirs_malformed2 = array( 'F' => 'also-not-an-array' );
+$r = snt_roadmap_merge( $base, $base, $theirs_malformed2 );
+ok( is_array( $r['merged'] ), 'a non-array family in theirs degrades instead of crashing the merge' );
 
 // NEGATIVE CONTROL: every cell that moved must appear in exactly one list,
 // AND every cell named in a list must actually exist in merged. The first
