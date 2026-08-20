@@ -125,7 +125,7 @@ function sn_health_check_drift_time_phrases() {
 	$fix_hint = 'Open each post and replace dated phrasing with absolute references (years, dates) or remove time-relative language entirely.';
 
 	if ( ! function_exists( 'snt_ai_is_available' ) || ! snt_ai_is_available() ) {
-		return sn_health_pack_check( $label, array(), 'AI provider not configured: skipping drift detection. Configure Settings → Connectors + Settings → AI to enable.' );
+		return sn_health_pack_check( $label, array(), 'AI provider not configured: skipping drift detection. Configure Settings → Connectors + Settings → AI to enable.', 'AI provider not configured' );
 	}
 
 	global $wpdb;

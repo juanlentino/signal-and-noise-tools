@@ -2,6 +2,77 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.33.0] - 2026-08-19 — a check that could not run is not a check that passed
+
+Why MINOR: Health gains a state it could not previously express. The scan
+envelope, the tally, the ability contract and the tab all learn to distinguish
+"ran and found nothing" from "never ran".
+
+### Fixed
+- **Health could report 7/7 while three of the seven had not run.**
+  `sn_health_check_partition()` counted any check with zero findings as passed,
+  and `sn_health_pack_check()` gave a check no way to say otherwise — the
+  envelope was `count`/`findings`/`label`/`fix_hint` and nothing else. So a
+  check that bailed out was indistinguishable from one that examined everything
+  and found nothing wrong.
+
+  Four of the seven Health-surface checks have such a path:
+  `drift_time_phrases` (AI provider not configured), `color_drift` (theme
+  palette unavailable), `cf_security_headers` (filtered off on non-Cloudflare
+  hosting), and `broken_links` (site host unresolved, or the post query
+  failed). The first three announced the skip in a **prose `fix_hint` the tally
+  never reads**; the fourth said nothing at all.
+
+  This is v11.13.0's own stated failure — *"silence taken for freshness"* —
+  left open for UNRUN checks after that arc closed it for RELOCATED ones. It is
+  also the never-measured-vs-measured-zero trap in a new place.
+- **A skipped check was rendered in the PASSING list.**
+  `sn_health_passing_checks()` feeds the "Checks passed N / M" card, the WP
+  dashboard widget's numerator, and the printed list of passing checks — so the
+  page named a check that never executed as having passed. The tally lying is
+  bad; the page asserting it by name is worse.
+- **`get-health-scan` computed `checks_passed` by hand.**
+  `count( $checks ) - count( $flagged )` is the fourth site of the class
+  v11.16.2 fixed in three others, and the only one that is a live MCP surface.
+  A skipped check is not flagged, so the subtraction counted it as passed and
+  the ability would have reported 7 passed while the tab reported 5 passed and
+  2 skipped. It asks the accessor now.
+
+### Added
+- **`skipped` on the check envelope.** `null` means the check ran; a non-empty
+  string is the reason it did not. The key is always present, so an envelope
+  WITHOUT it is a scan cached before this shipped and is treated as "ran" —
+  old cached scans do not become a wall of unknowns.
+- **A skipped bucket in the tally**, named by `sn_health_passed_meta()` so the
+  contract still closes: *passed + findings + advisories + reports + skipped
+  === total*.
+- **`checks_skipped`** on `get-health-scan` and its remote twin, declared in
+  both schemas (an existing parity test caught the one-sided first attempt).
+- **A "could not run" section on the Health tab**, naming each check and its
+  reason. Deliberately not styled as an error: a gap in evidence is not a
+  defect, and colour on that page has to keep meaning something is wrong.
+
+### Decisions
+- **Evidence outranks absence.** A check that bailed out but had already found
+  something is filed under its findings, not under skipped. Reporting a live
+  defect as "skipped" would discard it — worse than over-reporting a partial
+  scan.
+- **One predicate.** `sn_health_check_is_skipped()` holds that ordering rule in
+  a single place rather than restating it at each call site.
+
+### Verified
+- **477 suites, 19,009 assertions, `EXIT=0`.** A new 24-assertion suite drives
+  the REAL packer, and four mutations were each killed by a failed assertion:
+  moving the skip test after the zero-count branch (restores the bug exactly),
+  dropping the evidence-outranks-absence guard, restoring the ability's hand
+  count, and two renderer mutations.
+- Three of the four items in the 2026-08-17 Health recon were ALREADY SHIPPED
+  by v11.13.0 the following day (link-opportunities retired to `worklist`,
+  contrast/motion moved to Integrity → Reports, `ledger_ci` moved to Trust
+  checks). Only the skips item remained. The recon was read against the
+  CHANGELOG before any code was touched, which is what stopped the rest of it
+  being rebuilt.
+
 ## [11.32.2] - 2026-08-19 — Stretching the window gives the console the room
 
 ### Fixed

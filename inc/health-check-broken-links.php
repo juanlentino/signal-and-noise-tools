@@ -27,7 +27,10 @@ function sn_health_check_broken_links() {
 
 	$findings = array();
 	$site_host = wp_parse_url( home_url(), PHP_URL_HOST );
-	if ( ! $site_host ) { return sn_health_pack_check( 'Broken internal links', $findings ); }
+	// Both bail-outs below returned an empty result with NO hint at all, so a
+	// check that never examined a single link was indistinguishable from one
+	// that examined every link and found none broken.
+	if ( ! $site_host ) { return sn_health_pack_check( 'Broken internal links', $findings, '', 'site host could not be resolved' ); }
 
 	$posts = $wpdb->get_results(
 		"SELECT ID, post_title, post_content FROM {$wpdb->posts}
@@ -37,7 +40,7 @@ function sn_health_check_broken_links() {
 		 LIMIT 500",
 		ARRAY_A
 	);
-	if ( ! is_array( $posts ) ) { return sn_health_pack_check( 'Broken internal links', $findings ); }
+	if ( ! is_array( $posts ) ) { return sn_health_pack_check( 'Broken internal links', $findings, '', 'post query failed' ); }
 
 	// Build a deduplicated URL → posts-using-it map first.
 	$url_to_posts = array();

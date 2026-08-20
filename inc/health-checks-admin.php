@@ -245,6 +245,10 @@ function sn_health_render_admin_tab() {
 	// whole message a healthy site needs; the names are one click away, grouped
 	// by family. ──
 	sn_health_render_passing_section( $passing, sn_health_check_total( $health_scan ), count( $reports ) );
+	// Directly after passing, because the two answer the same question — what
+	// did the scan conclude about the checks that are not flagged? — and the
+	// honest answer is now two answers, not one.
+	sn_health_render_skipped_section( sn_health_skipped_checks( $health_scan ) );
 
 	// ── Where the rest went (v11.13.0). Relocating a check must never make it
 	// silently disappear — silence read as freshness is the exact failure this

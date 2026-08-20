@@ -88,7 +88,9 @@ function sn_health_check_color_drift() {
 
 	$allowed = sn_health_allowed_palette_hexes();
 	if ( empty( $allowed ) ) {
-		return sn_health_pack_check( $label, array(), 'Theme palette unavailable: skipping (never flags everything on a missing palette). ' . $fix_hint );
+		// Declared, not narrated: the reason used to live only in this prose,
+		// where the tally could not see it and counted the check as passed.
+		return sn_health_pack_check( $label, array(), 'Theme palette unavailable: skipping (never flags everything on a missing palette). ' . $fix_hint, 'theme palette unavailable' );
 	}
 
 	global $wpdb;

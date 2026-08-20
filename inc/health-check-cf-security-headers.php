@@ -44,7 +44,9 @@ function sn_health_check_cf_security_headers() {
 
 	// Allow the whole check to be filtered off (e.g., non-Cloudflare hosting).
 	if ( ! apply_filters( 'sn_health_cf_header_check_enabled', true ) ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+		// Filtered off (non-Cloudflare hosting) is NOT a pass — nothing was
+		// measured, and five missing edge headers would read identically.
+		return sn_health_pack_check( $label, array(), $fix_hint, 'edge header check disabled by filter' );
 	}
 
 	$expected = array(

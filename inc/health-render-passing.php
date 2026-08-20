@@ -92,3 +92,61 @@ function sn_health_render_passing_section( $passing, $check_total, $report_count
 
 	echo '</details>';
 }
+
+/**
+ * The checks that could not run, each with the reason it could not.
+ *
+ * WHY THIS IS ITS OWN SECTION. These used to be counted as passes and printed
+ * inside "passing", so the page asserted that a check had cleared when it had
+ * never executed. A count in the meta line fixes the arithmetic but still
+ * leaves the reader knowing only that something is missing; naming the check
+ * and its reason is what makes it actionable — "AI provider not configured"
+ * tells you where to go, "1 skipped" does not.
+ *
+ * Deliberately NOT styled as an error. A skipped check is a gap in evidence,
+ * not a defect: the same principle health-check-ledger-ci.php words as "an
+ * outage is a gap in evidence, not a red ledger". It renders in the neutral
+ * register so the colour on this page keeps meaning "something is wrong".
+ *
+ * @since 11.33.0
+ * @param array<string,array> $skipped From sn_health_skipped_checks().
+ * @return void
+ */
+function sn_health_render_skipped_section( $skipped ) {
+	$skipped = (array) $skipped;
+	if ( empty( $skipped ) ) {
+		return; // Nothing to explain, so nothing is drawn.
+	}
+
+	echo '<details class="sn-fieldset sn-health-passing sn-health-skipped">';
+	echo '<summary class="sn-health-passing__summary">';
+	echo '<span class="sn-health-passing__title">' . esc_html(
+		sprintf(
+			/* translators: %d number of checks that could not run */
+			_n( '%d check could not run', '%d checks could not run', count( $skipped ), 'signal-and-noise-tools' ),
+			count( $skipped )
+		)
+	) . '</span>';
+	echo '<span class="sn-pill">not measured</span>';
+	echo '</summary>';
+
+	echo '<p class="description">These produced no evidence either way this scan. They are not counted as passed.</p>';
+
+	echo '<ul class="sn-health-skipped__list">';
+	foreach ( $skipped as $check ) {
+		if ( ! is_array( $check ) ) {
+			continue;
+		}
+		echo '<li>';
+		echo '<b>' . esc_html( (string) ( $check['label'] ?? '' ) ) . '</b> — ';
+		echo esc_html( (string) ( $check['skipped'] ?? '' ) );
+		$hint = trim( (string) ( $check['fix_hint'] ?? '' ) );
+		if ( '' !== $hint ) {
+			echo '<br><span class="description">' . esc_html( $hint ) . '</span>';
+		}
+		echo '</li>';
+	}
+	echo '</ul>';
+
+	echo '</details>';
+}
