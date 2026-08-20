@@ -31,14 +31,31 @@ function snt_roadmap_stored_envelope() {
 	if ( ! is_array( $stored ) || array() === $stored ) {
 		return null;
 	}
-	// v2 envelope.
-	if ( isset( $stored['v'], $stored['board'] ) && 2 === (int) $stored['v'] ) {
+
+	// An explicit int 'v' key marks intent to be a v2+ envelope, not a bare
+	// v1 board. is_int() — rather than leaning on `2 === (int) $stored['v']`
+	// below being false for anything that isn't already an int — is the
+	// deliberate guard against a v1 board that happens to have a family
+	// literally named "v": a non-empty array cast to int is always 1, never
+	// a version number, so that collision is theoretical today, but relying
+	// on the cast's quirk is luck, not design. is_int() makes the split
+	// explicit so a later edit to the version check can't reopen it.
+	if ( isset( $stored['v'] ) && is_int( $stored['v'] ) ) {
+		// Envelope-shaped (an int 'v'), but either a version this code
+		// doesn't understand, or a 'board' that isn't itself an array
+		// (e.g. corrupted storage). Either way it's unreadable — treat it
+		// as no override rather than handing callers the wrapper's own
+		// {v, board, base} keys as if they were roadmap family data.
+		if ( 2 !== $stored['v'] || ! isset( $stored['board'] ) || ! is_array( $stored['board'] ) ) {
+			return null;
+		}
 		return array(
 			'v'     => 2,
 			'board' => (array) $stored['board'],
 			'base'  => isset( $stored['base'] ) && is_array( $stored['base'] ) ? (array) $stored['base'] : null,
 		);
 	}
+
 	// v1: a BARE board. Unknown provenance, so base is null and every cell
 	// counts as override-owned — no code edit may land through it.
 	return array( 'v' => 1, 'board' => $stored, 'base' => null );
