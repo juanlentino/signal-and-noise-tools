@@ -180,6 +180,12 @@ assert_eq( false, snt_cron_is_sn_owned( '' ), 'Empty string is not SN-owned' );
 // refused, not just RSS (a docblock claimed this but the list omitted 8 of 9).
 // Retired hooks (sn_plausible_*, asserted above) stay cleanable.
 assert_true( snt_cron_is_sn_owned( 'sn_analytics_rollup_daily' ), 'analytics daily rollup is SN-owned' );
+// v11.32.1: the fleet warm became RECURRING in v11.32.0 and was not added to
+// the list, so the unschedule ability would have cheerfully removed it — and
+// the only symptom would have been worker cells drifting back to "warming…"
+// with nothing on any screen explaining why. This registry is the guard; a
+// recurring hook that is not in it is unprotected.
+assert_true( snt_cron_is_sn_owned( 'snt_deploy_workers_warm' ), 'THE FLEET WARM IS SN-OWNED — a recurring hook we own must be refused by the unschedule guard' );
 assert_true( snt_cron_is_sn_owned( 'sn_analytics_rollup' ), 'analytics on-demand warmer is SN-owned' );
 assert_true( snt_cron_is_sn_owned( 'snt_cron_history_prune' ), 'cron-history prune is SN-owned (snt_ prefix)' );
 assert_true( snt_cron_is_sn_owned( 'sn_audit_log_prune' ), 'audit-log prune is SN-owned' );

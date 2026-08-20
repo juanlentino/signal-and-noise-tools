@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.32.1] - 2026-08-19 — The console sizes itself from its own width
+
+### Fixed
+- **The Dashboard did not respond to the window it renders in.** Every
+  breakpoint on the console was a **viewport** media query. In stock wp-admin
+  that reads correctly by accident, because the tab's width tracks the browser
+  window. In desktop mode the app renders inside a floating, resizable window
+  whose width has nothing to do with the viewport — so dragging it narrow left
+  the systems wall at six columns while the media queries, still watching a
+  1440px viewport, reported that everything was fine.
+
+  Measured in a harness with the **viewport pinned at 1440** and only the
+  container resized: before, the wall stayed at 6 cells per row at every
+  container width, crushing cells to **63px** at 380px. After, it reflows
+  6 → 4 → 3 → 2 with every row filling its width.
+
+  The systems wall now needs no breakpoint at all — `flex-basis: max(180px,
+  100%/6)` gives the basis a floor, so flex wraps from the space actually
+  available. The signals row keeps its deliberate 1.5fr lead for Views and
+  falls back under a `@container` query rather than a viewport one.
+- **`snt_deploy_workers_warm` was not registered as an SN-owned hook.**
+  v11.32.0 made it recurring; `snt_cron_sn_owned_hooks()` — whose own docblock
+  says "ADD any new recurring SN hook here" — was not updated. The visible
+  effect was a miscount in the Cron widget, but the real one is that the
+  `unschedule-cron-event` ability would have removed it without refusing, and
+  the only symptom would have been worker cells drifting back to "warming…"
+  with nothing on any screen explaining why.
+
+### Removed
+- **Three dead breakpoints.** `.sn-scr__systems` became a block-level card in
+  v11.31.0 and the grid moved to `.sn-scr__grid`, so its `grid-template-columns`
+  media queries had been overriding nothing since.
+
 ## [11.32.0] - 2026-08-19 — The dashboard says how old it is
 
 Why MINOR and not a patch: six of the seven items below are fixes, but the
