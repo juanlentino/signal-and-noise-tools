@@ -58,13 +58,40 @@ function pfc_ratio( $a, $b ) {
 	return ( $hi + 0.05 ) / ( $lo + 0.05 );
 }
 
+/**
+ * The LIGHT value of a plugin-owned token, read from this stylesheet's own
+ * `:root` block.
+ *
+ * As of v12.3.0 the three-tier epistemic palette is tokenised so it can invert.
+ * The tokens are declared in this same file, so resolving them here keeps this
+ * suite reading the SHIPPED value rather than a copy — which was the whole
+ * point of it. The dark declarations are deliberately NOT read: every assertion
+ * below is a light-scheme claim, and silently averaging two schemes into one
+ * number is the false green this file's own commentary warns about.
+ */
+function pfc_token_light( $css, $name ) {
+	if ( ! preg_match( '/:root\s*\{([^}]*)\}/', $css, $m ) ) {
+		return '';
+	}
+	return preg_match( '/' . preg_quote( $name, '/' ) . '\s*:\s*(#[0-9a-fA-F]{3,6})/', $m[1], $c ) ? $c[1] : '';
+}
+
 /** The `color:` value declared for a selector in the shipped stylesheet. */
 function pfc_color_of( $css, $selector ) {
 	$q = preg_quote( $selector, '#' );
 	if ( ! preg_match( '#(?:^|[},\s])' . $q . '\s*\{([^}]*)\}#m', $css, $m ) ) {
 		return '';
 	}
-	return preg_match( '/(?<![-\w])color\s*:\s*(#[0-9a-fA-F]{3,6})/', $m[1], $c ) ? $c[1] : '';
+	if ( preg_match( '/(?<![-\w])color\s*:\s*(#[0-9a-fA-F]{3,6})/', $m[1], $c ) ) {
+		return $c[1];
+	}
+	// A token reference resolves to its declaration in this file. An UNKNOWN
+	// token returns '' and fails the assertion loudly — it is never quietly
+	// resolved to its fallback, because the fallback is not what ships.
+	if ( preg_match( '/(?<![-\w])color\s*:\s*var\(\s*(--sn-[a-zA-Z0-9-]+)/', $m[1], $c ) ) {
+		return pfc_token_light( $css, $c[1] );
+	}
+	return '';
 }
 
 echo "Provenance front-end contrast — AA on the SHIPPED stylesheet (v10.89.1)\n\n";
@@ -230,6 +257,25 @@ ok( abs( pfc_ratio( '#ffffff', '#ffffff' ) - 1.0 ) < 0.001, 'a colour against it
 ok( abs( pfc_ratio( '#767676', '#ffffff' ) - 4.54 ) < 0.01, '#767676 on white is 4.54:1 (the canonical just-passes grey)' );
 // And prove the gate can FAIL: the colour this release removed must not pass.
 ok( pfc_ratio( '#1f9d55', '#ffffff' ) < 4.5, 'the REMOVED confirmed green (#1f9d55) still measures below AA — the gate is falsifiable' );
+
+/* ═══════════════════════════════════════════════════════════════════
+ * The DARK half, and where it lives
+ * ═══════════════════════════════════════════════════════════════════
+ * Every assertion above is a LIGHT-scheme claim. Dark is not checked here on
+ * purpose — it is checked in tests/front-end-css-contrast.php, which resolves
+ * each token per palette and sweeps all three. What is asserted here is that
+ * the handoff EXISTS: a suite that quietly stopped covering half the schemes
+ * looks exactly like one that never covered them.
+ */
+$dark_suite = __DIR__ . '/front-end-css-contrast.php';
+ok( is_file( $dark_suite ), 'the per-palette contrast suite exists to carry the dark half' );
+ok( is_file( $dark_suite ) && false !== strpos( (string) file_get_contents( $dark_suite ), '*front*.css' ),
+	'and it sweeps the front-end stylesheets by glob, so this file is in its scope by construction' );
+foreach ( array( '--sn-prov-verified', '--sn-prov-asserted', '--sn-prov-unattributed', '--sn-signal-ink' ) as $tok ) {
+	ok( '' !== pfc_token_light( $css, $tok ), "$tok has a light declaration in this stylesheet" );
+	ok( preg_match( '/:root\[data-theme="dark"\]\s*\{[^}]*' . preg_quote( $tok, '/' ) . '\s*:/', $css ) === 1,
+		"$tok has a dark declaration too — a tier that cannot invert is the defect this file was widened for" );
+}
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

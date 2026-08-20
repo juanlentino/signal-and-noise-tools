@@ -2,6 +2,79 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.3.0] - 2026-08-20 — the epistemic tiers invert, and a fallback stops posing as a value
+
+v12.2.0 closed the LITERAL class and said in writing what it could not see: a
+token used in the wrong ROLE passes a literal sweep cleanly, and that failure
+"needs a real render". The theme found its instance of that class by
+SCREENSHOT. This makes it mechanical, and the instrument then found two defects
+nobody had reported.
+
+### Added
+- **[tests/front-end-css-contrast.php](tests/front-end-css-contrast.php)** —
+  resolves every front-end ink/surface pair per palette and computes the real
+  WCAG ratio in all three the theme serves (`root`, `high-contrast`, `dark`),
+  failing below AA. Ported from the approach the theme wrote for its command
+  palette in v12.0.3.
+- The three-tier epistemic palette and the emphasis red are now plugin-owned
+  tokens — `--sn-prov-verified`, `--sn-prov-asserted`, `--sn-prov-unattributed`,
+  their `-edge` siblings, `--sn-signal-ink` and `--sn-signal-ink-on` — declared
+  for both schemes.
+
+### Fixed
+- **The provenance status chips were below AA in dark mode**: verified 3.21:1,
+  asserted 2.86:1, unattributed 3.23:1 on dark `void`. This was the debt
+  v12.2.0 exempted deliberately; the exemption list is now EMPTY.
+- **`--sn-signal-ink` was referenced four times across two stylesheets and
+  declared NOWHERE in either repo.** Every use rendered its fallback, so the
+  value was constant by accident and measured 2.70:1 on dark `void`. An
+  undefined token turns its fallback into the shipped value — a hardcoded
+  colour wearing a var() costume, which the literal sweep passes BY
+  CONSTRUCTION because "a fallback literal is the point of a fallback".
+  Now defined per scheme, and a new assertion fails on any undefined `--sn-*`.
+- **An `sn-allow-literal` exemption whose justification depended on that bug.**
+  White ink on the roadmap fold glyph was exempted on the stated grounds that
+  "`--sn-signal-ink` is the same in both schemes, so this must NOT invert" —
+  true only while the token was unreachable. Defining the token made the surface
+  invert and would have put white ink on light red. Now `--sn-signal-ink-on`.
+- **The literal sweep counted hex values quoted in COMMENTS.** The old
+  exemption tally read 11 where the file had ten paints and one sentence about
+  them.
+
+### Decisions
+- **The dark tiers sit in the same contrast band as their light counterparts**
+  (6.50–6.58:1 dark against 6.13–6.92:1 light), not as bright as the ground
+  allows. The three tiers encode epistemic STATUS, not priority; a tier that
+  shouts louder than its siblings asserts an importance the data does not carry.
+- **"Hover goes darker" is a light-mode fact, not a rule.** `--sn-signal-ink`
+  inverts direction with the scheme — darker than `blood` on a light ground,
+  lighter on a dark one.
+- **A token DEFINITION may hold a literal; that is what a token is.** The
+  literal sweep now skips custom-property declarations, and the compensating
+  check lives in the new suite: any literal-valued `--sn-*` token must also be
+  declared for dark. Neither file is sufficient alone, and both say so.
+- **The theme palettes are pinned here, and the pin is reconciled.** When a
+  sibling theme checkout exists the suite compares against `theme.json`,
+  `styles/high-contrast.json` and the dark override in `critical.css`; when it
+  does not, it prints SKIP and says the pass means "correct GIVEN the pin"
+  rather than passing quietly.
+
+### Verified
+- **481 suites, 19,063 assertions, `EXIT=0`.** PHPStan clean; PHPCS clean over
+  386 files in `inc/` (confirmed with `-v` — the repo-wide `8 / 8` readout is
+  the parallel-batch display, not a file count).
+- **Mutation-tested**: restoring the exact reported literal to
+  `.sn-prov-confirmed` fails the new suite with `#12703a on #0a0a0a = 3.21:1`
+  and nothing else; restoring the token returns it to green.
+- **Every control drives the real resolver and the real maths** — the planted
+  role error is caught once per palette, an at-rule condition survives the
+  descent, and a known token beats its fallback.
+- **What this still CANNOT see, stated:** non-text contrast (borders, icons,
+  the 3:1 minimum) is out of scope and is not implied by a pass; a surface
+  declared in a DIFFERENT rule from its ink is assumed to be the page ground
+  unless named; opacity, blend modes and background images are invisible to it;
+  and dead CSS is checked and passes.
+
 ## [12.2.0] - 2026-08-20 — the front end inverts with the palette
 
 ### Fixed

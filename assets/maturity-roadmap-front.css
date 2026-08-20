@@ -1,3 +1,35 @@
+/* --sn-signal-ink: the emphasis red for hover/focus and for small tabular
+   numbers, where `signal` itself (3.29:1 on white) fails AA as text.
+
+   IT INVERTS. Until v12.3.0 this token was REFERENCED here and declared
+   nowhere in either repo, so every use rendered its fallback and the value was
+   constant by accident. tests/front-end-css-contrast.php now fails on an
+   undefined --sn-* token, because an unreachable token turns its fallback into
+   the shipped value — a hardcoded colour wearing a var() costume.
+
+   --sn-signal-ink-on is the ink that sits ON that red. It has to invert with
+   it: the emphasis red is DARK on a light ground and LIGHT on a dark one, so
+   fixed white ink would land on light red in dark mode. The exemption comment
+   below used to argue the opposite, and it was right only for as long as the
+   token was broken.
+
+   These values are duplicated in assets/provenance-front.css because plain CSS
+   gives two stylesheets no way to share a declaration and they are not enqueued
+   together. The identity is asserted, not hoped for. */
+:root{
+	--sn-signal-ink:#b00303;
+	--sn-signal-ink-on:#ffffff;
+}
+:root[data-theme="dark"]{
+	--sn-signal-ink:#ff7a75;
+	--sn-signal-ink-on:#0a0a0a;
+}
+@media (prefers-color-scheme: dark){
+	:root:not([data-theme="light"]){
+		--sn-signal-ink:#ff7a75;
+		--sn-signal-ink-on:#0a0a0a;
+	}
+}
 /* Signal & Noise — [sn_maturity_roadmap] front-end styling: the BOARD,
    v10.63.0 "fold the future". The maturity family's brutalist register —
    hard borders, square corners, mono accents, currentColor, light-only —
@@ -67,8 +99,8 @@
 .sn-maturity-roadmap-badge--considering{border-style:dotted;border-color:var(--wp--preset--color--rust,rgba(0,0,0,.45))}
 .sn-maturity-roadmap-badge--later{border-style:dotted;border-width:1px;border-color:var(--wp--preset--color--rust,rgba(0,0,0,.45))}
 /* var(--wp--preset--color--signal,#ff4c47) is 3.29:1 on white — fine as an outline (non-text, 3:1), a failure as
-   an 11.5px tabular number. --sn-signal-ink is the darker sibling the
-   provenance links already established at 7.34:1. */
+   an 11.5px tabular number. --sn-signal-ink is the emphasis sibling the
+   provenance links established -- 7.34:1 on white, 7.82:1 on dark void. */
 .sn-maturity-roadmap-badge__n{font-weight:400;font-variant-numeric:tabular-nums;color:var(--sn-signal-ink,#b00303)}
 
 .sn-maturity-roadmap-board td{border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.16));padding:.7em .85em;vertical-align:top}
@@ -98,11 +130,12 @@
 .sn-maturity-roadmap-fold[open] .sn-maturity-roadmap-fold__glyph::before{content:"\2212"}
 .sn-maturity-roadmap-fold[open] .sn-maturity-roadmap-fold__glyph{transform:rotate(180deg)}
 .sn-maturity-roadmap-fold summary:hover{color:var(--sn-signal-ink,#b00303)}
-/* sn-allow-literal: white INK on a fixed dark-red surface. The background is
-   --sn-signal-ink in both schemes, so this must NOT invert -- tying it to the
-   palette would put dark ink on dark red in dark mode. A literal is correct
-   when the surface under it never inverts. */
-.sn-maturity-roadmap-fold summary:hover .sn-maturity-roadmap-fold__glyph{background:var(--sn-signal-ink,#b00303);border-color:var(--sn-signal-ink,#b00303);color:#fff}
+/* Ink on the emphasis red. This USED to be a literal `#fff`, exempted on the
+   grounds that "--sn-signal-ink is the same in both schemes, so this must NOT
+   invert". That premise held only because the token was undefined; now that it
+   resolves, the surface inverts and the ink must invert with it. An exemption
+   is only as sound as the fact it cites. */
+.sn-maturity-roadmap-fold summary:hover .sn-maturity-roadmap-fold__glyph{background:var(--sn-signal-ink,#b00303);border-color:var(--sn-signal-ink,#b00303);color:var(--sn-signal-ink-on,#fff)}
 .sn-maturity-roadmap-fold summary:focus-visible{outline:3px solid var(--sn-signal,#ff4c47);outline-offset:3px}
 .sn-maturity-roadmap-fold ul{margin-top:.3em;border-top:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.16))}
 @media (prefers-reduced-motion:no-preference){
