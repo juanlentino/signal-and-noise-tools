@@ -170,5 +170,70 @@ ok(
 );
 ok( isset( $reg['output_schema']['properties']['checks_skipped'] ), 'checks_skipped is declared in the ability schema, not smuggled in' );
 
+
+// ── THE PAYLOAD IS VALIDATED AGAINST ITS OWN DECLARATION ───────────────
+// Every assertion above checks that a KEY IS DECLARED in output_schema. None
+// checked that what the callback RETURNS satisfies it — and the WordPress
+// Abilities API validates execute results against that schema, so a mismatch
+// fails on contact with a real WordPress while every test here stays green.
+//
+// This is not hypothetical. The sibling theme repo shipped exactly this on
+// 2026-08-20: get-design-tokens reshaped `colors` from a flat slug=>hex map to
+// a nested struct without updating a declaration that said every property of
+// `colors` is a STRING. The ability died live; 2,349 assertions passed, because
+// they all called the execute callback DIRECTLY, bypassing registration and
+// therefore bypassing the schema. tests/abilities-health.php has the same shape.
+function sn_t_validate( $value, $schema, $path = '' ) {
+	$errors = array();
+	$types  = isset( $schema['type'] ) ? (array) $schema['type'] : array();
+
+	if ( $types ) {
+		$actual = null === $value ? 'null'
+			: ( is_int( $value ) ? 'integer'
+			: ( is_float( $value ) ? 'number'
+			: ( is_bool( $value ) ? 'boolean'
+			: ( is_string( $value ) ? 'string'
+			: ( array_is_list( (array) $value ) && is_array( $value ) ? 'array' : 'object' ) ) ) ) );
+		$okish = in_array( $actual, $types, true )
+			|| ( 'integer' === $actual && in_array( 'number', $types, true ) )
+			|| ( 'array' === $actual && in_array( 'object', $types, true ) && array() === $value );
+		if ( ! $okish ) {
+			$errors[] = trim( $path, '.' ) . ': expected ' . implode( '|', $types ) . ', got ' . $actual;
+		}
+	}
+	if ( isset( $schema['properties'] ) && is_array( $value ) ) {
+		foreach ( $schema['properties'] as $key => $sub ) {
+			if ( array_key_exists( $key, $value ) ) {
+				$errors = array_merge( $errors, sn_t_validate( $value[ $key ], $sub, $path . '.' . $key ) );
+			}
+		}
+	}
+	if ( isset( $schema['items'] ) && is_array( $value ) ) {
+		foreach ( $value as $i => $item ) {
+			$errors = array_merge( $errors, sn_t_validate( $item, $schema['items'], $path . "[$i]" ) );
+		}
+	}
+	return $errors;
+}
+
+$GLOBALS['__scan'] = array(
+	'scanned_at' => 1700, 'elapsed_ms' => 42,
+	'checks' => array(
+		'missing_alt'  => mk_check( 2, 'Missing alt' ),
+		'broken_links' => mk_check( 0, 'Broken links' ),
+		'color_drift'  => mk_skipped( 'Color drift', 'theme palette unavailable' ),
+	),
+);
+$live_payload = snt_ability_get_health_scan( null );
+$schema_errs  = sn_t_validate( $live_payload, $reg['output_schema'] );
+ok( array() === $schema_errs, 'THE REAL PAYLOAD SATISFIES ITS OWN output_schema' . ( $schema_errs ? ' -- ' . implode( '; ', $schema_errs ) : '' ) );
+
+// NEGATIVE CONTROL: the validator must be able to FAIL. Without this the
+// assertion above passes for a validator that returns array() unconditionally,
+// which is the vacuous-guard trap this repo keeps hitting.
+$broken = $reg['output_schema'];
+$broken['properties']['checks_skipped'] = array( 'type' => 'string' );
+ok( array() !== sn_t_validate( $live_payload, $broken ), 'NEGATIVE CONTROL: a declaration that contradicts the payload is DETECTED (checks_skipped as string)' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );
