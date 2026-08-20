@@ -86,8 +86,11 @@ All notable changes to Signal & Noise Tools are documented here.
   And **staleness is per-source** — thirteen hours is routine for a daily
   rollup and badly overdue for a five-minute probe, so any single global
   threshold gets one of them wrong. A stale reading enters as a CARD through
-  the one shared `sn_dash_verdict()`, so the widget cannot disagree with the
-  screen.
+  the one shared `sn_dash_verdict()`, and both surfaces collect their readings
+  from one `sn_dash_freshness_readings()` — the first cut wired them inline in
+  the Dashboard tab only, which would have left the index.php widget reporting
+  a calm green above an amber screen, the exact failure `dash-verdict.php`'s
+  own header exists to prevent.
 
 ### Removed
 - **Dead markup built on every dashboard load.** The v11.28.0 "Recent deploys

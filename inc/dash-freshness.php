@@ -28,9 +28,13 @@
  *    every day, or stays silent while a probe is dead. Each reading therefore
  *    declares the cadence it is late against.
  *
- * PURE MODULE. Zero WordPress calls beyond translation and human_time_diff,
- * zero I/O: the caller fetches the timestamps and this decides what they mean,
- * which is what lets the index.php widget use it on every admin login.
+ * SHAPE. The three decision functions are pure — zero I/O, zero queries — and
+ * sn_dash_freshness_readings() is the single seam that reads the timestamps.
+ * That seam is deliberately ONE function rather than one per surface: the
+ * Dashboard tab and the index.php widget both call it, because two surfaces
+ * deriving the same alarm independently is how you get a green widget sitting
+ * above a red screen (dash-verdict.php's own header). It costs two get_option
+ * reads, which is what lets the widget run it on every admin login.
  *
  * @package SignalNoiseTools
  * @since 11.31.2
@@ -154,4 +158,46 @@ function sn_dash_freshness_cards( array $freshness ) {
 	}
 
 	return $cards;
+}
+
+/**
+ * Collect the readings whose age the screen can actually vouch for.
+ *
+ * ONLY sources with a real recorded timestamp. snt_cron_last_fired_for()
+ * returns null for a hook that has never been tracked, and that null is passed
+ * straight through — an unknown age is reported as unknown, never rounded into
+ * a plausible-looking number.
+ *
+ * A subsystem that is switched OFF is not listed at all. An unconfigured
+ * analytics install is not a late reading; it is not a reading.
+ *
+ * Each source declares the cadence it is late against, because a single global
+ * threshold necessarily gets one of these wrong: thirteen hours is routine for
+ * a daily rollup and twelve missed runs for a five-minute probe.
+ *
+ * @since 11.31.2
+ * @return array<int,array{label:string,measured_at:int|null,stale_after:int}>
+ */
+function sn_dash_freshness_readings() {
+	if ( ! function_exists( 'snt_cron_last_fired_for' ) ) {
+		return array();
+	}
+
+	$readings = array();
+
+	if ( function_exists( 'sn_analytics_config' ) && sn_analytics_config() ) {
+		$readings[] = array(
+			'label'       => __( 'Analytics', 'signal-and-noise-tools' ),
+			'measured_at' => snt_cron_last_fired_for( 'sn_analytics_rollup_daily' ),
+			'stale_after' => 2 * DAY_IN_SECONDS, // daily cron, plus a day of slack.
+		);
+	}
+
+	$readings[] = array(
+		'label'       => __( 'Fleet', 'signal-and-noise-tools' ),
+		'measured_at' => snt_cron_last_fired_for( 'snt_deploy_workers_warm' ),
+		'stale_after' => HOUR_IN_SECONDS, // 5-minute warm; an hour is twelve missed runs.
+	);
+
+	return $readings;
 }

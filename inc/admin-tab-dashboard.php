@@ -229,28 +229,12 @@ function snt_dashboard_tab_render() {
 		: array();
 
 	// ── HOW OLD IS THIS SCREEN? ──────────────────────────────────────────────
-	// The headline is present tense; its inputs are not. Only sources with a
-	// REAL recorded timestamp are listed — snt_cron_last_fired_for() returns
-	// null for a hook that has never been tracked, and null stays null rather
-	// than becoming a plausible-looking age. Each declares the cadence it is
-	// late against: the same thirteen hours is routine for a daily rollup and
-	// badly overdue for a five-minute probe.
-	$readings = array();
-	if ( function_exists( 'snt_cron_last_fired_for' ) ) {
-		if ( $analytics_on ) {
-			$readings[] = array(
-				'label'       => __( 'Analytics', 'signal-and-noise-tools' ),
-				'measured_at' => snt_cron_last_fired_for( 'sn_analytics_rollup_daily' ),
-				'stale_after' => 2 * DAY_IN_SECONDS, // daily cron, plus a day of slack.
-			);
-		}
-		$readings[] = array(
-			'label'       => __( 'Fleet', 'signal-and-noise-tools' ),
-			'measured_at' => snt_cron_last_fired_for( 'snt_deploy_workers_warm' ),
-			'stale_after' => HOUR_IN_SECONDS, // 5-minute warm; an hour is twelve missed runs.
-		);
-	}
-	$freshness = function_exists( 'sn_dash_freshness' ) ? sn_dash_freshness( $readings ) : array();
+	// The headline is present tense; its inputs are not. The readings come from
+	// the SHARED collector the index.php widget also calls — deriving them here
+	// instead would let the widget stay green while this screen went amber.
+	$freshness = function_exists( 'sn_dash_freshness' )
+		? sn_dash_freshness( sn_dash_freshness_readings() )
+		: array();
 
 	$subline = implode(
 		' · ',

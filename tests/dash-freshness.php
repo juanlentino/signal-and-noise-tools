@@ -106,5 +106,39 @@ ok( false !== strpos( sn_dash_freshness_label( $f ), 'oldest reading' ), 'the su
 ok( false !== strpos( sn_dash_freshness_label( $f ), '13 hours' ), 'and states it in human units' );
 ok( '' === sn_dash_freshness_label( sn_dash_freshness( array(), $now ) ), 'with nothing measured the fragment is EMPTY — never "oldest reading unknown ago"' );
 
+
+// ── ONE COLLECTOR, OR THE TWO SURFACES DRIFT ──────────────────────────────
+// dash-verdict.php's own header: "Two surfaces deriving this independently is
+// how you get a green widget sitting above a red screen." The first cut of
+// this feature wired the readings inline in the Dashboard tab and left the
+// index.php widget building its own cards — which would have produced exactly
+// that. Both surfaces call this collector now.
+$GLOBALS['__fired'] = array();
+$GLOBALS['__analytics_on'] = true;
+function snt_cron_last_fired_for( $hook ) { return $GLOBALS['__fired'][ $hook ] ?? null; }
+function sn_analytics_config() { return $GLOBALS['__analytics_on']; }
+
+$GLOBALS['__fired'] = array( 'sn_analytics_rollup_daily' => $now - 13 * HOUR_IN_SECONDS, 'snt_deploy_workers_warm' => $now - 60 );
+$r = sn_dash_freshness_readings();
+$labels = array_column( $r, 'label' );
+ok( in_array( 'Analytics', $labels, true ) && in_array( 'Fleet', $labels, true ), 'the collector returns both tracked sources' );
+$by = array();
+foreach ( $r as $one ) { $by[ $one['label'] ] = $one; }
+ok( $by['Fleet']['stale_after'] < $by['Analytics']['stale_after'], 'THE BUDGETS DIFFER BY SOURCE — a 5-minute probe is late long before a daily rollup is' );
+ok( $now - 13 * HOUR_IN_SECONDS === $by['Analytics']['measured_at'], 'the timestamp comes from the REAL cron record, not a constant' );
+
+// Analytics is not a source at all when it is not configured — listing it
+// would report an unmeasured reading for a subsystem that is switched off.
+$GLOBALS['__analytics_on'] = false;
+$off = array_column( sn_dash_freshness_readings(), 'label' );
+ok( ! in_array( 'Analytics', $off, true ), 'an UNCONFIGURED subsystem is not a reading — it is not late, it is absent' );
+ok( in_array( 'Fleet', $off, true ), 'and the fleet is still collected' );
+$GLOBALS['__analytics_on'] = true;
+
+// A never-tracked hook stays null all the way through the collector.
+$GLOBALS['__fired'] = array();
+$none = sn_dash_freshness_readings();
+ok( null === $none[0]['measured_at'], 'an untracked hook yields NULL, never a fabricated age' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
