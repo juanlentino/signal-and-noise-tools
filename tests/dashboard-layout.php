@@ -59,7 +59,7 @@ require __DIR__ . '/../inc/dash-ops-panels.php';  // v11.29.2: the ops wall
 require __DIR__ . '/../inc/dash-zone-fleet.php';     // v11.28.0
 require __DIR__ . '/../inc/dash-zone-measurement.php'; // v11.28.0: the five figures + strip
 // v11.28.0: split out of admin-tab-dashboard.php.
-require __DIR__ . '/../inc/dash-deploy-rows.php';
+require_once __DIR__ . '/../inc/dash-deploy-rows.php';
 require __DIR__ . '/../inc/dash-api-summary.php';
 require __DIR__ . '/../inc/admin-tab-dashboard.php';
 

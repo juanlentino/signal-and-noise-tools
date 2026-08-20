@@ -43,15 +43,20 @@ function sn_analytics_top_paths( $from, $to, $class = 'human', $limit = 25 ) {
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
 
+	// A trailing slash is a spelling, not a page: group by the CANONICAL path
+	// so the ORDER BY and LIMIT below rank and truncate the merged figure.
+	$path_expr = sn_analytics_canonical_path_sql( 'path' );
+
 	$results = $wpdb->get_results( $wpdb->prepare(
-		"SELECT path,
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $path_expr is a constant expression over a literal column name; no input reaches it.
+		"SELECT {$path_expr} AS path,
 		        SUM(views)  AS views,
 		        SUM(visits) AS visits,
 		        SUM(scroll_avg * views) / NULLIF(SUM(views), 0) AS scroll_avg,
 		        SUM(time_avg  * views) / NULLIF(SUM(views), 0) AS time_avg
 		 FROM {$table}
 		 WHERE day >= %s AND day <= %s AND class = %s
-		 GROUP BY path
+		 GROUP BY {$path_expr}
 		 ORDER BY views DESC
 		 LIMIT %d",
 		(string) $from,
@@ -489,14 +494,20 @@ function sn_analytics_low_engagement_paths( $from, $to, $class = 'human', $limit
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
 
+	// Same rule as top_paths: the HAVING thresholds and the LIMIT must see one
+	// page, not two spellings each carrying half its views — a split page can
+	// fall under the min-views floor that neither half alone clears.
+	$path_expr = sn_analytics_canonical_path_sql( 'path' );
+
 	$results = $wpdb->get_results( $wpdb->prepare(
-		"SELECT path,
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $path_expr is a constant expression over a literal column name; no input reaches it.
+		"SELECT {$path_expr} AS path,
 		        SUM(views) AS views,
 		        SUM(scroll_avg * views) / NULLIF(SUM(views), 0) AS scroll_avg,
 		        SUM(time_avg  * views) / NULLIF(SUM(views), 0) AS time_avg
 		 FROM {$table}
 		 WHERE day >= %s AND day <= %s AND class = %s
-		 GROUP BY path
+		 GROUP BY {$path_expr}
 		 HAVING views >= %d
 		        AND scroll_avg < %d
 		        AND time_avg  < %d

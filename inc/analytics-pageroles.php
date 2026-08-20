@@ -34,6 +34,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// sn_analytics_canonical_path_sql() — pure, zero WP calls, safe to require both
+// under the plugin loader and in the standalone CLI harness.
+require_once __DIR__ . '/analytics-derive.php';
+
 const SN_ANALYTICS_PAGEROLES_TABLE          = 'sn_analytics_page_roles';
 const SN_ANALYTICS_PAGEROLES_DB_VERSION     = '1';
 const SN_ANALYTICS_PAGEROLES_DB_VERSION_OPT = 'sn_analytics_page_roles_db_version';
@@ -176,11 +180,17 @@ function sn_analytics_pageroles_top( $role, $from, $to, $limit = 25 ) {
 	global $wpdb;
 	$table = $wpdb->prefix . SN_ANALYTICS_PAGEROLES_TABLE;
 
+	// A trailing slash is a spelling, not a page — group by the CANONICAL path
+	// so the ORDER BY and LIMIT rank and truncate one entry page, not two
+	// halves of one. Same rule as sn_analytics_top_paths().
+	$path_expr = sn_analytics_canonical_path_sql( 'path' );
+
 	$results = $wpdb->get_results( $wpdb->prepare(
-		"SELECT path, SUM(views) AS views, SUM(visits) AS visits
+		// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $path_expr is a constant expression over a literal column name; no input reaches it.
+		"SELECT {$path_expr} AS path, SUM(views) AS views, SUM(visits) AS visits
 		 FROM {$table}
 		 WHERE day >= %s AND day <= %s AND role = %s
-		 GROUP BY path
+		 GROUP BY {$path_expr}
 		 ORDER BY views DESC
 		 LIMIT %d",
 		(string) $from,

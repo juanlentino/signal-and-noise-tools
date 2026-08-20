@@ -2,6 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Fixed
+- **Recent deploys printed a repo NAME beside a role** — "signal-and-noise
+  v11.12.3" next to "plugin v11.31.1". `sn_dash_ops_repo_label()` was a
+  from-scratch duplicate of `snt_dashboard_short_repo()`, which had always
+  handled the non-`-tools` case correctly by returning `theme`; the duplicate
+  fell through to the bare repo name. The duplicate is deleted and the panel
+  calls the existing mapper, which is now required explicitly rather than left
+  to loader order. Its one worthwhile behaviour — an em dash for an absent repo
+  — survives at the display layer.
+
+  The fixture had carried a non-`-tools` repo since the file was written and
+  **nothing ever asserted that row**, which is why a two-branch mapper shipped
+  with one branch wrong. Both branches are asserted now.
+- **`/notes` and `/notes/` counted as two pages**, 27 views each on the owner's
+  Top pages panel. Ingestion stores `path` verbatim under a (day, path, class)
+  key, so the two spellings are two rows, and every read that grouped by the raw
+  column reported them as two pages.
+
+  Fixed in the **GROUP BY**, not in PHP afterwards, and that distinction is the
+  whole point: these reads end in `ORDER BY views DESC LIMIT n`, so the database
+  ranks and truncates the grouped figure — one spelling of a page can be cut by
+  the LIMIT before any PHP could reach it, and in `low_engagement_paths()` a
+  split page can fall under the min-views floor that neither half clears. Same
+  trap as the freshness clock, where post-filtering could not recover a row the
+  WHERE clause had already excluded.
+
+  `sn_analytics_canonical_path()` and its SQL twin
+  `sn_analytics_canonical_path_sql()` live in the pure derive layer and are
+  applied to `sn_analytics_top_paths()`, `sn_analytics_low_engagement_paths()`
+  and `sn_analytics_pageroles_top()`. The root `/` keeps its slash; an empty
+  path is not invented into one.
+
+### Changed
+- **Three test mocks stopped assuming the grouping and now read it out of the
+  SQL.** A mock that merges rows on its own initiative reports a merge the
+  database is not performing — and the first version of one did exactly that,
+  surviving the mutation that reverted the fix. They also model `LIMIT`, without
+  which the suite could not tell the two designs apart.
+
 ## [11.31.1] - 2026-08-19 — API limits read the wrong shape, and mono was on the wrong things
 
 ### Fixed
