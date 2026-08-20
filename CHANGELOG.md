@@ -2,6 +2,67 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.1.0] - 2026-08-20 — Health scores every palette the theme serves
+
+Shipped AHEAD of the theme's own v12.0.0, deliberately. Guarded, it is inert
+today and correct the moment the theme lands, so the two releases do not have to
+be co-ordinated in a window.
+
+### Fixed
+- **Two Health call sites measured one palette and reported as though it were
+  all.** Both read `wp_get_global_settings( array( 'color', 'palette' ) )`, which
+  returns the ROOT palette:
+  - `sn_health_contrast_named_palette()` — the Contrast panel
+  - `sn_health_allowed_palette_hexes()` — **the `color_drift` CHECK**, one of the
+    seven on the Health surface
+
+  Correct while the theme served one palette. Theme v12.0.0 adds
+  `:root[data-theme="dark"]`, where **all seven slugs are redefined**, so from
+  that release the site paints two and Health sees one. Found by the theme
+  session; the second call site was theirs, the first was ours.
+
+  Measured consequence: `blood` `#e00404` on the dark ground `#0a0a0a` is
+  **3.95:1 — fails AA**, which is why the theme re-points blood to `#ff4c47`
+  (6.01:1). The panel would have read green on that pair. (The theme session
+  quoted 4.19:1; that is against pure `#000000`, not the shipped `#0a0a0a`
+  token — the real figure is worse. Corrected back to them.)
+
+### Added
+- **`sn_health_theme_palettes()`** — every palette the theme serves, keyed by
+  scheme, always at least `light`. The dark palette comes from the theme's own
+  `sn_theme_dark_palette()`, `function_exists`-guarded because the theme may be
+  absent or older than v12.0.0.
+- **Per-palette contrast scoring.** The report gains `by_palette` (tokens, pairs
+  and would-fail count for each), plus `palettes_measured` and
+  `palettes_complete`. Top-level `tokens`/`pairs` still carry the light palette,
+  so existing consumers are untouched — this is additive.
+
+### Decisions
+- **The two sites needed OPPOSITE treatments, and that is the whole design.**
+  `color_drift` takes a **union**: a dark-palette hex is a theme colour, and
+  flagging it as drift is a false positive. It is a membership set keyed by hex,
+  so nothing can collide. The contrast panel must **not** merge: the slugs
+  collide seven-for-seven, so a flat merge OVERWRITES every light value with its
+  dark counterpart and scores a palette that exists nowhere — and a pair drawn
+  across palettes (light `void` against dark `bone`) never co-occurs on screen.
+- **Coverage is stated, not implied.** `palettes_complete` is FALSE when the
+  theme did not supply its dark palette. A guard that silently degrades a
+  coverage claim is the same bug v11.33.0 fixed on the tally: a palette that
+  could not be measured is not a palette that passed.
+- **No memo.** A `static` cache here served a stale palette to any caller that
+  re-reads after the global settings change — which the color-drift suite does
+  between assertions. Nothing to gain: core caches `wp_get_global_settings()`
+  and the theme's accessor holds its own static.
+
+### Verified
+- **479 suites, 19,019 assertions, `EXIT=0`.** PHPStan clean; PHPCS clean.
+- Two mutations killed: flat-merging the palettes (4 assertions, incl. "LIGHT IS
+  NOT OVERWRITTEN"), and claiming completeness when dark is absent.
+- The new suite's "theme absent" phase declares the stub accessor inside a
+  conditional on purpose — a top-level `function` is hoisted at compile time, so
+  `function_exists()` would be true from line 1 and that phase would pass while
+  testing nothing.
+
 ## [12.0.0] - 2026-08-19 — the consolidation collects: 74 MCP tools become 33
 
 **BREAKING.** 41 tools were removed from the MCP doors. Any client calling one

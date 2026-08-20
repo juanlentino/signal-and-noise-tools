@@ -85,6 +85,61 @@ function sn_health_contrast_ratio( $hex_a, $hex_b ) {
  *                              under each slug (aliases like void/white are
  *                              both real names the templates use).
  */
+/**
+ * EVERY palette the theme serves, keyed by scheme.
+ *
+ * WHY THIS EXISTS. Two Health call sites read
+ * `wp_get_global_settings( array( 'color', 'palette' ) )`, which returns the
+ * ROOT palette — correct while the theme served one, wrong the moment it served
+ * two. Theme v12.0.0 adds `:root[data-theme="dark"]`, where all SEVEN slugs are
+ * redefined, so the site paints two palettes and Health measured one.
+ *
+ * THE MERGE TRAP, stated because it is the whole reason this returns a MAP OF
+ * MAPS rather than one flat array: light and dark share every slug. A flat
+ * merge does not union them, it OVERWRITES — you would score seven dark values
+ * believing you scored the theme. And a pair drawn across palettes
+ * (light `void` against dark `bone`) never co-occurs on a screen, so scoring it
+ * invents failures. Consumers that SCORE must iterate palettes; only a consumer
+ * that wants a membership SET (color_drift's allowed hexes) may flatten.
+ *
+ * The dark palette comes from the theme's own `sn_theme_dark_palette()`, which
+ * parses the block that ships it. function_exists-guarded because the theme may
+ * be absent or older than v12.0.0 — and when it is, callers must SAY they
+ * measured one palette rather than implying completeness. A guard that silently
+ * degrades a coverage claim is the bug this whole file is about.
+ *
+ * DELIBERATELY NOT MEMOIZED. A static cache here served a stale palette to any
+ * caller that legitimately re-reads after the global settings change — which
+ * the color-drift suite does between assertions, and which a filter could do at
+ * runtime. There is nothing to gain: wp_get_global_settings() is cached by core
+ * and the theme's own sn_theme_dark_palette() holds its own static.
+ *
+ * @since 12.1.0
+ * @return array<string,array<string,string>> scheme => (slug => '#rrggbb'),
+ *                                            always at least 'light'.
+ */
+function sn_health_theme_palettes() {
+	$palettes = array( 'light' => sn_health_contrast_named_palette() );
+
+	if ( function_exists( 'sn_theme_dark_palette' ) ) {
+		$dark = sn_theme_dark_palette();
+		if ( is_array( $dark ) && ! empty( $dark ) ) {
+			$clean = array();
+			foreach ( $dark as $slug => $hex ) {
+				$norm = sn_health_normalize_hex( (string) $hex );
+				if ( '' !== $norm ) {
+					$clean[ (string) $slug ] = $norm;
+				}
+			}
+			if ( ! empty( $clean ) ) {
+				$palettes['dark'] = $clean;
+			}
+		}
+	}
+
+	return $palettes;
+}
+
 function sn_health_contrast_named_palette() {
 	if ( ! function_exists( 'wp_get_global_settings' ) ) {
 		return array();
@@ -157,15 +212,33 @@ function sn_health_contrast_pair_table( $named ) {
  * @return array Packed check + report{coverage, pairs, tokens, would_fail_body}.
  */
 function sn_health_check_contrast_tokens() {
-	$named = sn_health_contrast_named_palette();
-	$pairs = sn_health_contrast_pair_table( $named );
-
+	// Score EACH palette on its own. Not merged: light and dark share all seven
+	// slugs, so a flat merge overwrites rather than unions, and a pair drawn
+	// across palettes never co-occurs on screen. See sn_health_theme_palettes().
+	$palettes   = sn_health_theme_palettes();
+	$by_palette = array();
 	$would_fail = 0;
-	foreach ( $pairs as $row ) {
-		if ( ! $row['aa_body'] ) {
-			$would_fail++;
+
+	foreach ( $palettes as $scheme => $scheme_named ) {
+		$scheme_pairs = sn_health_contrast_pair_table( $scheme_named );
+		$scheme_fail  = 0;
+		foreach ( $scheme_pairs as $row ) {
+			if ( ! $row['aa_body'] ) {
+				$scheme_fail++;
+			}
 		}
+		$by_palette[ $scheme ] = array(
+			'tokens'          => $scheme_named,
+			'pairs'           => $scheme_pairs,
+			'would_fail_body' => $scheme_fail,
+		);
+		$would_fail += $scheme_fail;
 	}
+
+	// The light palette stays the top-level `tokens`/`pairs` payload so existing
+	// consumers keep working unchanged; the per-palette breakdown is additive.
+	$named = isset( $palettes['light'] ) ? $palettes['light'] : array();
+	$pairs = isset( $by_palette['light']['pairs'] ) ? $by_palette['light']['pairs'] : array();
 
 	$packed = sn_health_pack_check(
 		'Contrast (token arithmetic, report only)',
@@ -182,7 +255,15 @@ function sn_health_check_contrast_tokens() {
 		'tokens'          => $named,
 		'pairs'           => $pairs,
 		'would_fail_body' => $would_fail,
-		'usage'           => sn_health_contrast_usage_report(),
+		// Coverage, stated rather than implied. `palettes_complete` is FALSE when
+		// the theme did not supply its dark palette (absent, or older than
+		// v12.0.0) — the reader is told the sweep is partial instead of reading a
+		// clean panel as a clean site. Same rule as v11.33.0's skipped checks: a
+		// palette that could not be measured is not a palette that passed.
+		'by_palette'        => $by_palette,
+		'palettes_measured' => count( $by_palette ),
+		'palettes_complete' => isset( $by_palette['dark'] ),
+		'usage'             => sn_health_contrast_usage_report(),
 	);
 
 	return $packed;
