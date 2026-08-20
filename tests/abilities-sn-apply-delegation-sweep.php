@@ -575,6 +575,13 @@ $rb7_write = snt_ability_sn_apply( array(
 	'mode'   => 'publish', 'dry_run' => false,
 ) );
 ok( ! is_wp_error( $rb7_write ) && true === $rb7_write['applied'], 'RB7.1: the override write goes through the REAL sn_apply door, not a direct envelope call' );
+// The sibling structurally-identical publish call (RB5.3) makes exactly two
+// option writes — the board override plus the auto-key idempotency replay
+// record. This call is that same shape (fresh fingerprint, publish, a board
+// payload), so it should read alike; if it doesn't, the envelope write
+// changed how many option writes a publish performs and that's worth a look,
+// not a silent number swap here.
+eq( 2, $GLOBALS['__write_calls']['update_option'], 'RB7.1b: exactly two option writes, same as RB5.3 — the board override + the auto-key replay record' );
 
 // Code moves on: a family the override never named changes underneath it.
 // snt_roadmap_merge_report() is the same function sn_maturity_roadmap_
@@ -586,9 +593,9 @@ $rb7_new_sentence  = 'RB7: a brand-new code-shipped sentence, added after the ov
 $rb7_static_after['Proof of origin']['done'][] = $rb7_new_sentence;
 $rb7_report = snt_roadmap_merge_report( $rb7_static_after );
 
-ok( in_array( $rb7_new_sentence, $rb7_report['merged']['Proof of origin']['done'], true ), 'RB7.2: the code edit to a family the override never touched LANDS in the merged board — the exact defect this session closes' );
-eq( $rb7_board['Analytics']['done'], $rb7_report['merged']['Analytics']['done'], 'RB7.3: the override\'s own edited cell still holds — code moving elsewhere does not clobber it' );
-ok( in_array( array( 'family' => 'Proof of origin', 'column' => 'done' ), $rb7_report['code_landed'], true ), 'RB7.4: the report attributes the landed change to code_landed, not override_held — correct provenance from a REAL write, not a fixture the test hand-assembled' );
+ok( in_array( $rb7_new_sentence, $rb7_report['merged']['Proof of origin']['done'], true ), 'RB7.3: the code edit to a family the override never touched LANDS in the merged board — the exact defect this session closes' );
+eq( $rb7_board['Analytics']['done'], $rb7_report['merged']['Analytics']['done'], 'RB7.4: the override\'s own edited cell still holds — code moving elsewhere does not clobber it' );
+ok( in_array( array( 'family' => 'Proof of origin', 'column' => 'done' ), $rb7_report['code_landed'], true ), 'RB7.5: the report attributes the landed change to code_landed, not override_held — correct provenance from a REAL write, not a fixture the test hand-assembled' );
 
 // Clean up: back to code-canonical for the sections that follow.
 $rrb7 = snt_ability_sn_apply( array(
@@ -596,7 +603,7 @@ $rrb7 = snt_ability_sn_apply( array(
 	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ), 'payload' => array( 'reset' => true ) ),
 	'mode'   => 'publish', 'dry_run' => false,
 ) );
-ok( ! is_wp_error( $rrb7 ) && true === $rrb7['applied'], 'RB7.5: reset applies, restoring code-canonical for the sections below' );
+ok( ! is_wp_error( $rrb7 ) && true === $rrb7['applied'], 'RB7.6: reset applies, restoring code-canonical for the sections below' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * ALL EIGHT change types: structural dry_run zero-writes sweep (session-4

@@ -152,6 +152,14 @@ function snt_sn_apply_write_roadmap_board( array $payload ) {
 	// land — see inc/maturity-roadmap-merge.php. Writing a BARE board here (as
 	// this did until v12.6.0) reads back as v1 "unknown provenance", which
 	// collapses the merge into the wholesale shadowing it exists to replace.
+	//
+	// The bool return is deliberately ignored: update_option() (which this
+	// wraps) returns false both when the write fails AND when the new value
+	// is identical to what's already stored — an ordinary idempotent rewrite,
+	// not a failure. The option holds exactly what was asked for either way,
+	// so there is nothing here for a caller to react to. Do not add an
+	// `if ( ! snt_roadmap_store_envelope( … ) )` error path on this — it
+	// would fail a write that succeeded in every sense that matters.
 	snt_roadmap_store_envelope( $board, sn_maturity_roadmap_static_board() );
 	return array(
 		'ok'           => true,
