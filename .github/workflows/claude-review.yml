@@ -9,7 +9,21 @@ jobs:
   review:
     if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # MEASURED 2026-08-19 over the last 20 successful runs, via the per-job API
+    # (started_at/completed_at; the /timing endpoint returns total_ms 0 on this
+    # account and reports every run as free):
+    #
+    #   fastest 0m55s · slowest 5m44s · mean ~3m28s · every run under 6 minutes
+    #
+    # 15 is 2.6x the observed maximum. The headroom is deliberate — this job's
+    # duration scales with the size of the diff, so a large PR can legitimately
+    # run longer than anything in that sample, and a false timeout costs a
+    # re-run of the whole job.
+    #
+    # It was 30, set with no data. A timeout is a BILLING CEILING, not a
+    # prediction: a hung job bills its full timeout, so 30 was 1% of the monthly
+    # 3,000-minute pool per hang. Do not raise this without measuring again.
+    timeout-minutes: 15
     permissions:
       pull-requests: write
       contents: read

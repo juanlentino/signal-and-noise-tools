@@ -51,6 +51,47 @@ jobs:
           done < <(find . -name '*.php' -not -path './vendor/*' -not -path './node_modules/*')
           exit $fail
 
+      # Rides the lint job ON PURPOSE. Billing rounds up PER JOB, so a separate
+      # 5-second job for this would bill a whole extra minute on every run —
+      # more than the failure it guards against costs in a typical month.
+      - name: Every job declares a timeout
+        run: |
+          # A job with no `timeout-minutes` silently inherits GitHubs default of
+          # SIX HOURS: 360 billed minutes from one hang, against a 3,000-minute
+          # monthly pool shared by every private repo on the account. Neither
+          # actionlint nor zizmor enforces this (actionlint#49, zizmor#1023 are
+          # both still open), so it is checked here.
+          #
+          # YAML-aware on purpose. The first version of this counted lines with
+          # grep and reported 28 jobs against 12 real ones, because `^  \w+:$`
+          # also matches push:, pull_request:, contents: and every other
+          # two-space key. Ruby ships on ubuntu-latest, so psych costs nothing.
+          ruby -ryaml -e '
+            bad = []; total = 0
+            Dir[".github/workflows/*.yml"].sort.each do |f|
+              d = YAML.load_file(f)
+              (d["jobs"] || {}).each do |name, job|
+                total += 1
+                bad << "#{f}: job (#{name})" unless job.is_a?(Hash) && job["timeout-minutes"]
+              end
+            end
+            # The guard guards ITSELF: zero jobs found means the glob or the
+            # parse broke, and a silent 0 == 0 would pass while checking nothing.
+            # NOTE: keep this ruby source ASCII-only. `ruby -e` defaults to
+            # US-ASCII, so a stray em dash here aborts the step on EVERY run,
+            # identically on a clean tree and a broken one.
+            if total.zero?
+              puts "::error::no jobs found - this check is not checking anything"
+              exit 1
+            end
+            unless bad.empty?
+              bad.each { |b| puts "::error::#{b} declares no timeout-minutes (inherits a 6-hour default)" }
+              puts "#{bad.size} of #{total} job(s) missing timeout-minutes"
+              exit 1
+            end
+            puts "#{total} job(s) across #{Dir[".github/workflows/*.yml"].length} workflows, every one declares a timeout"
+          '
+
   phpcs:
     name: WordPress Coding Standards
     runs-on: ubuntu-latest
