@@ -2,6 +2,46 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.1.1] - 2026-08-20 — the palette keys stop conflating variation with scheme
+
+v12.1.0 fixed half of this and got the model wrong. It keyed the palettes
+`light` / `dark` — which conflates a VARIATION with a SCHEME, the exact
+criticism this session had made of the theme's original `{light, dark}` shape a
+few hours earlier. Corrected against the theme's shipped v12.0.0 contract.
+
+### Fixed
+- **The panel was still blind to High Contrast**, which is not new as of dark
+  mode. `styles/high-contrast.json` has shipped for a while and is what the live
+  site runs, so `wp_get_global_settings()` was returning the SERVED palette and
+  was correct BY LUCK — there was one served palette. It could never see the
+  others, and it cannot see dark at all, because dark lives in CSS.
+- **`sn_health_theme_palettes()` now keys by palette IDENTITY** (`root`,
+  `high-contrast`, `dark`) with `scheme` and `source` as FIELDS, matching
+  `sn_theme_all_palettes()`. High Contrast is a light-scheme variation; dark
+  overrides whichever variation is active. They are orthogonal axes — a High
+  Contrast reader on a dark OS gets dark, not a blend — so a flat
+  `{light, dark, high-contrast}` namespace would assert they are alternatives to
+  one another. Identity keys also make a fourth palette additive.
+- **The fallback stops asserting what it did not measure.** With no theme
+  accessor there is one palette and no way to know WHICH, so it is keyed
+  `resolved` with an EMPTY scheme. v12.1.0 called it `light`, which is simply
+  wrong on a site running a variation.
+- **Top-level `tokens`/`pairs` follow the SERVED palette**, via
+  `sn_theme_served_palette_id()`. v12.1.0 pointed them at a palette it called
+  `light` — not what is on screen when a variation is active.
+
+### Added
+- `sn_health_served_palette_id()` and a `served` key on the report.
+- `by_palette` entries now carry `scheme` and `source`.
+
+### Verified
+- **479 suites, 19,023 assertions, `EXIT=0`.** PHPStan clean; PHPCS clean.
+- Two mutations killed: claiming a complete sweep from the fallback, and
+  re-introducing the `light` label on it.
+- The theme's contract was read from ITS origin/main, not from the description
+  of it — keys, `scheme`/`source` fields and the merged-complete-palette
+  guarantee all confirmed in `inc/palettes.php` before a line was written here.
+
 ## [12.1.0] - 2026-08-20 — Health scores every palette the theme serves
 
 Shipped AHEAD of the theme's own v12.0.0, deliberately. Guarded, it is inert
