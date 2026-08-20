@@ -41,6 +41,12 @@ foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
+// Hand-built, like mk_check above, because this suite stubs sn_health_last_scan()
+// and so cannot load inc/health-checks.php without a redeclare fatal. The
+// ENVELOPE SHAPE is pinned against the real sn_health_pack_check() in
+// tests/health-skipped-checks.php, which drives the producer directly; this
+// suite is about the ABILITY'S ARITHMETIC over that shape.
+function mk_skipped( $label, $reason ) { return array( 'count' => 0, 'findings' => array(), 'label' => $label, 'fix_hint' => '', 'skipped' => $reason ); }
 function mk_check( $count, $label ) { return array( 'count' => $count, 'findings' => array(), 'label' => $label, 'fix_hint' => 'fix ' . $label ); }
 
 echo "get-health-scan ability — v7.0.0\n";
@@ -136,6 +142,33 @@ ok( sn_health_advisory_total( $GLOBALS['__scan'] ) !== sn_health_advisory_total(
 
 // ── never triggers a scan (sn_health_run_scan is not even defined here) ──
 ok( ! function_exists( 'sn_health_run_scan' ), 'ability path never referenced sn_health_run_scan (read-only)' );
+
+
+// ── v11.33.0: A SKIPPED CHECK MUST NOT BE REPORTED AS PASSED ──────────────
+// `checks_passed` was a HAND COUNT — count(checks) - count(flagged) — which is
+// the fourth site of the class v11.16.2 fixed in three others. A skipped check
+// is not flagged, so the ability would have reported it as passing while the
+// Health tab reported it as skipped: two numbers about one scan that disagree,
+// which is the exact failure that arc existed to end.
+$GLOBALS['__scan'] = array(
+	'scanned_at' => 1700,
+	'elapsed_ms' => 42,
+	'checks'     => array(
+		'missing_alt'  => mk_check( 0, 'Missing alt' ),                             // ran, clean
+		'broken_links' => mk_check( 2, 'Broken links' ),                            // ran, flagged
+		'color_drift'  => mk_skipped( 'Color drift', 'theme palette unavailable' ), // did NOT run
+	),
+);
+$sk = snt_ability_get_health_scan( null );
+ok( 3 === $sk['checks_total'], 'the denominator still counts every health-surface check' );
+ok( 1 === $sk['checks_passed'], 'A SKIPPED CHECK IS NOT PASSED — only missing_alt actually passed' );
+ok( 1 === $sk['checks_skipped'], 'and the ability reports the skipped count as its own field' );
+ok( 1 === count( $sk['flagged'] ), 'the real finding is unaffected' );
+ok(
+	$sk['checks_passed'] + $sk['checks_skipped'] + count( $sk['flagged'] ) === $sk['checks_total'],
+	'PASSED + SKIPPED + FLAGGED === TOTAL — the envelope arithmetic closes for a consumer'
+);
+ok( isset( $reg['output_schema']['properties']['checks_skipped'] ), 'checks_skipped is declared in the ability schema, not smuggled in' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );

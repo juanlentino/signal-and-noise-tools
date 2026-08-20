@@ -54,7 +54,14 @@ add_action( 'wp_abilities_api_init', function() {
 					'description' => 'Advisory-tier findings (external link rot, link opportunities, evergreen stale posts) counted across EVERY surface. These render on the worklist, not the Health tab, so this number is deliberately not the one the Health surface shows.',
 				),
 				'checks_total'  => array( 'type' => 'integer' ),
-				'checks_passed' => array( 'type' => 'integer' ),
+				'checks_passed' => array(
+					'type'        => 'integer',
+					'description' => 'Checks that RAN and found nothing. A check that could not run (absent AI provider, unavailable theme palette, non-Cloudflare hosting) is NOT counted here — it is in checks_skipped. passed + skipped + flagged === total.',
+				),
+				'checks_skipped' => array(
+					'type'        => 'integer',
+					'description' => 'Checks that could not run this scan, so produced no evidence either way. Never folded into checks_passed: zero findings from a check that never executed is not a pass.',
+				),
 				'flagged'       => array(
 					'type'  => 'array',
 					'items' => array(
@@ -112,6 +119,8 @@ function snt_ability_get_health_scan( $input ) {
 			'fix_hint' => (string) ( $check['fix_hint'] ?? '' ),
 		);
 	}
+	$partition = sn_health_check_partition( $scan );
+
 	return array(
 		'scanned_at'     => isset( $scan['scanned_at'] ) ? (int) $scan['scanned_at'] : null,
 		'elapsed_ms'     => isset( $scan['elapsed_ms'] ) ? (int) $scan['elapsed_ms'] : null,
@@ -127,7 +136,14 @@ function snt_ability_get_health_scan( $input ) {
 		// contradict the schema line above that points callers here.
 		'advisory_total' => sn_health_advisory_total( $scan, null ),
 		'checks_total'   => sn_health_check_total( $scan ),
-		'checks_passed'  => count( $checks ) - count( $flagged ),
+		// ASK THE ACCESSOR. `count( $checks ) - count( $flagged )` was a hand
+		// count — the fourth site of the class v11.16.2 fixed in three others,
+		// and the only one that is a live MCP surface. A skipped check is not
+		// flagged, so the subtraction counted it as PASSED, and this ability
+		// would have reported 7 passed while the Health tab reported 5 passed
+		// and 2 skipped: two numbers about one scan that disagree.
+		'checks_passed'  => $partition['passed'],
+		'checks_skipped' => $partition['skipped'],
 		'flagged'        => $flagged,
 	);
 }

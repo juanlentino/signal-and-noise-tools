@@ -168,11 +168,64 @@ function sn_health_passing_checks( $scan ) {
 		if ( sn_health_check_has_report( $check ) ) {
 			continue;
 		}
+		// A check that could not run is not a passing check. This accessor feeds
+		// the "Checks passed N / M" card, the WP dashboard widget's numerator,
+		// AND the rendered list of passing checks — so leaving it here would
+		// have PRINTED a check that never executed under "passing".
+		if ( sn_health_check_is_skipped( $check ) ) {
+			continue;
+		}
 		if ( 0 === (int) ( $check['count'] ?? 0 ) ) {
 			$passing[ $key ] = $check;
 		}
 	}
 	return $passing;
+}
+
+/**
+ * Is this check reporting that it could not run?
+ *
+ * One predicate, so the ordering rule (a skip only counts as a skip when the
+ * check produced no findings — evidence outranks absence) lives in exactly one
+ * place rather than being restated at each call site.
+ *
+ * @since 11.33.0
+ * @param array $check Packed check.
+ * @return bool
+ */
+function sn_health_check_is_skipped( $check ) {
+	if ( ! is_array( $check ) ) {
+		return false;
+	}
+	// array_key_exists, not isset: `skipped => null` is the producer SAYING the
+	// check ran, and a MISSING key is a scan cached before the field existed —
+	// both mean "ran", but for different reasons worth keeping distinguishable.
+	$reason = array_key_exists( 'skipped', $check ) ? $check['skipped'] : null;
+	return is_string( $reason ) && '' !== $reason && 0 === (int) ( $check['count'] ?? 0 );
+}
+
+/**
+ * The checks that could not run this scan, keyed as they are in the scan.
+ *
+ * A count alone tells a reader that something is missing without telling them
+ * what to do about it, so each entry keeps its `skipped` reason.
+ *
+ * @since 11.33.0
+ * @param array|null $scan A sn_health_last_scan() array.
+ * @return array<string,array>
+ */
+function sn_health_skipped_checks( $scan ) {
+	$scan = sn_health_scan_for_surface( $scan );
+	if ( ! is_array( $scan ) ) {
+		return array();
+	}
+	$out = array();
+	foreach ( (array) ( $scan['checks'] ?? array() ) as $key => $check ) {
+		if ( sn_health_check_is_skipped( $check ) ) {
+			$out[ $key ] = $check;
+		}
+	}
+	return $out;
 }
 
 /**
@@ -250,7 +303,7 @@ function sn_health_scan_for_surface( $scan, $surface = 'health' ) {
  * @return array{passed:int,findings:int,advisories:int,reports:int,total:int}
  */
 function sn_health_check_partition( $scan ) {
-	$out = array( 'passed' => 0, 'findings' => 0, 'advisories' => 0, 'reports' => 0, 'total' => 0 );
+	$out = array( 'passed' => 0, 'findings' => 0, 'advisories' => 0, 'reports' => 0, 'skipped' => 0, 'total' => 0 );
 	if ( ! is_array( $scan ) ) {
 		return $out;
 	}
@@ -267,6 +320,23 @@ function sn_health_check_partition( $scan ) {
 		++$out['total'];
 		if ( sn_health_check_has_report( $check ) ) {
 			++$out['reports'];
+			continue;
+		}
+		// v11.33.0: a check that COULD NOT RUN is not a check that passed.
+		// This is tested BEFORE the zero-count branch below, which is the whole
+		// fix — a skipped check has zero findings, so it used to fall straight
+		// into `passed` and the tab reported 7/7 while three of the seven had
+		// not run. Ordered after the count test would restore the bug exactly.
+		//
+		// EVIDENCE OUTRANKS ABSENCE: a check that bailed out but had already
+		// found something is filed under its findings, not here. Reporting a
+		// live defect as "skipped" would discard it, which is worse than
+		// over-reporting a partial scan.
+		//
+		// array_key_exists, not isset: `skipped => null` is the producer SAYING
+		// the check ran, and isset() cannot tell that from a missing key.
+		if ( sn_health_check_is_skipped( $check ) ) {
+			++$out['skipped'];
 			continue;
 		}
 		if ( 0 === (int) ( $check['count'] ?? 0 ) ) {
@@ -306,6 +376,11 @@ function sn_health_passed_meta( $scan ) {
 	}
 	if ( $p['reports'] > 0 ) {
 		$parts[] = sprintf( '%d report-only', $p['reports'] );
+	}
+	// Named, never silently dropped from the numerator. The reader has to be
+	// able to reconcile the line: passed + everything named here === total.
+	if ( $p['skipped'] > 0 ) {
+		$parts[] = sprintf( '%d skipped', $p['skipped'] );
 	}
 	if ( ! $parts ) {
 		return '';

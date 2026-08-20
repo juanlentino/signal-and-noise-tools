@@ -226,11 +226,26 @@ require_once __DIR__ . '/health-motion-scan.php';
 /**
  * Common per-check result envelope used by 2-4.
  */
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
 	return array(
 		'count'    => count( $findings ),
 		'findings' => $findings,
 		'label'    => $label,
 		'fix_hint' => $fix_hint,
+		// v11.33.0 — WHY THIS FIELD EXISTS. Zero findings used to mean
+		// "passed", and a check that COULD NOT RUN also has zero findings, so
+		// the two were indistinguishable. Four Health checks bail out when a
+		// dependency is absent (no AI provider, no theme palette, non-Cloudflare
+		// hosting, no site host) and every one of them was counted as a pass —
+		// so the tab could report 7/7 on a day when three of the seven had not
+		// run. Three said so in a prose fix_hint the tally never reads; one
+		// said nothing.
+		//
+		// NULL means the check RAN. A non-empty string is the reason it did
+		// not, and it is a FIELD precisely so the arithmetic can see it.
+		// The key is always present: a consumer meeting an envelope WITHOUT it
+		// is reading a scan cached before this shipped, and must treat that as
+		// "ran" rather than turning every old scan into a wall of unknowns.
+		'skipped'  => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null,
 	);
 }

@@ -335,7 +335,14 @@ add_action( 'wp_abilities_api_init', function () {
 					'description' => 'Advisory-tier findings (external link rot, link opportunities, evergreen stale posts) counted across EVERY surface. These render on the worklist, not the Health tab, so this number is deliberately not the one the Health surface shows.',
 				),
 				'checks_total'  => array( 'type' => 'integer' ),
-				'checks_passed' => array( 'type' => 'integer' ),
+				'checks_passed' => array(
+					'type'        => 'integer',
+					'description' => 'Checks that RAN and found nothing. A check that could not run (absent AI provider, unavailable theme palette, non-Cloudflare hosting) is NOT counted here — it is in checks_skipped. passed + skipped + flagged === total.',
+				),
+				'checks_skipped' => array(
+					'type'        => 'integer',
+					'description' => 'Checks that could not run this scan, so produced no evidence either way. Never folded into checks_passed: zero findings from a check that never executed is not a pass.',
+				),
 				'flagged'       => array(
 					'type'  => 'array',
 					'items' => array(
