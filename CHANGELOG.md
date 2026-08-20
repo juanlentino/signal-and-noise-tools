@@ -36,6 +36,68 @@ All notable changes to Signal & Noise Tools are documented here.
   and `sn_analytics_pageroles_top()`. The root `/` keeps its slash; an empty
   path is not invented into one.
 
+- **Three worker cells read "warming…" for hours while every worker was
+  answering.** Not a broken probe — arithmetic. The dashboard probes with
+  `probe_budget => 1` across FIVE workers so a cold edge can never block the
+  page, and the live-probe cache lives ten minutes. The warm was scheduled
+  REACTIVELY as a one-off, which fixes the next render and nothing after it, so
+  on a screen visited every few hours the caches were always expired on
+  arrival. The warm now RECURS every five minutes, and the suite pins the
+  relationship that makes it work — the recurrence must stay shorter than
+  `SNT_DEPLOY_WORKER_LIVE_TTL_OK`, or every cycle leaves a cold window and the
+  fix evaporates. An install carrying the old one-off event is migrated onto
+  the recurrence; `wp_next_scheduled()` cannot tell the two apart, so the code
+  reads the event itself.
+- **Two counts of the same wall, on one screen.** The verdict subline said "7
+  components" and the Systems header said "11 reporting" — both true (11 is the
+  fleet plus the checks) and irreconcilable, because a total cannot show that
+  one number contains the other. The header now names its parts: **4 checks · 7
+  components**. An empty set is omitted rather than printed as a zero.
+- **The systems grid left an empty bordered cell.** Eleven cells in a fixed
+  six-column grid is 6 + 5, and because each cell draws its own right and
+  bottom hairline the twelfth slot read as an empty tile. The grid is now
+  flex-wrap, so the last row's cells stretch to fill it — chosen over grid
+  because a grid cannot grow the last row's spans without knowing the column
+  count, which is exactly what the breakpoints change. Verified by measurement,
+  not by eye: both rows end on the container's right edge at every breakpoint.
+- **The Caches cell stood a line taller than every other cell**, so its row sat
+  unevenly. It is the only cell carrying all four parts (label, value, pill and
+  a meta line); every cell now reserves that height. Measured: all eleven cells
+  render at exactly 76px, with nothing clipped.
+- **The trend's gridlines marked no value at all.** They were hardcoded at
+  y=28 and y=58 in a scale of `y = 88 - (views/max) * 80` — 75% and 37.5% of
+  peak. Nobody chooses 37.5%. They now sit at the peak and at half the peak,
+  derived from the same scale the path uses, and each carries its number as
+  HTML positioned against the SVG's own box (never SVG `<text>`: the chart
+  stretches). Verified at 0px offset from the lines they name.
+
+### Added
+- **The dashboard now says how old it is.** Every figure rendered in the same
+  type under one present-tense headline while the readings behind it were taken
+  across half a day: measured live, `sn_analytics_rollup_daily` had last fired
+  ~13 hours earlier, so the views figure and the whole 30-day trend were most
+  of a day old beside a worker version ten minutes old. The subline carries
+  **oldest reading N** and an overdue source becomes an exception, so the
+  verdict stops being green when it is standing on stale evidence.
+
+  Two rules, both load-bearing and both mutation-tested. **Never-measured is
+  not old** — a source that has never reported is unknown, not infinitely
+  stale, or one untracked hook would pin the line to a permanent fake maximum.
+  And **staleness is per-source** — thirteen hours is routine for a daily
+  rollup and badly overdue for a five-minute probe, so any single global
+  threshold gets one of them wrong. A stale reading enters as a CARD through
+  the one shared `sn_dash_verdict()`, so the widget cannot disagree with the
+  screen.
+
+### Removed
+- **Dead markup built on every dashboard load.** The v11.28.0 "Recent deploys
+  folded into the fleet zone" block rendered a list into an output buffer,
+  assigned it to `$fleet_zone['body_html']`, and was then overwritten wholesale
+  by a second `sn_dash_zone_fleet()` call a few lines below. v11.30.0 had
+  replaced the zone screen with the console and given deploys their own ops
+  panel; its only consumer, `sn_dash_render_zone()`, has no production caller
+  left.
+
 ### Changed
 - **Three test mocks stopped assuming the grouping and now read it out of the
   SQL.** A mock that merges rows on its own initiative reports a merge the

@@ -166,6 +166,26 @@ $svg_inner = substr( $t, strpos( $t, '<svg' ), strpos( $t, '</svg>' ) - strpos( 
 ok( false === strpos( $svg_inner, '<text' ),
 	'NO TEXT INSIDE THE STRETCHED SVG — preserveAspectRatio="none" would distort every glyph' );
 
+// ── v11.31.2: A GRIDLINE THAT MARKS NO VALUE IS DECORATION ─────────────────
+// The plot maps views to y = 88 - (views/max) * 80, and the two gridlines were
+// hardcoded at y=28 and y=58 — which is 75% and 37.5% of peak. Nobody chooses
+// 37.5%. They were not merely unlabelled, they marked nothing, so a reader
+// could not place a point against a value at all. They now sit at the peak and
+// at half the peak, derived from the same scale the path uses, and each one
+// carries its number as HTML beside the plot (never SVG <text>: the chart
+// stretches, and a stretched glyph is worse than no glyph).
+ok( false !== strpos( $svg_inner, 'y1="8"' ), 'a gridline sits at the PEAK of the scale (y=8), not at an arbitrary pixel' );
+ok( false !== strpos( $svg_inner, 'y1="48"' ), 'and one at HALF the scale (y=48) — 88 - 0.5 * 80' );
+ok( false === strpos( $svg_inner, 'y1="58"' ), 'the 37.5%-of-peak line is gone — it marked no value anyone would choose' );
+ok( false !== strpos( $t, 'sn-trend__tick' ), 'the gridlines carry readable values' );
+// peak 187 → half 94 (rounded). The number must be the value, not the pixel.
+ok( false !== strpos( $t, '>94<' ), 'THE HALF-SCALE GRIDLINE IS LABELLED WITH ITS VALUE — half of a 187 peak is 94' );
+
+// A tiny series must not print the same number twice, one above the other.
+$tiny = array( array( 'day' => '2026-07-01', 'views' => 1 ), array( 'day' => '2026-07-02', 'views' => 1 ) );
+ob_start(); sn_dash_render_trend( $tiny ); $tt = ob_get_clean();
+ok( 1 === substr_count( $tt, 'sn-trend__tick' ), 'A DEGENERATE SCALE DRAWS ONE TICK — half of 1 rounds back to 1, and two identical labels is worse than one' );
+
 // Region headers on the other two cards.
 ob_start(); sn_dash_render_systems( $healthy_cards, $components ); $sysout = ob_get_clean();
 ok( false !== strpos( $sysout, 'sn-card__eyebrow' ), 'the systems card is labelled too' );
@@ -194,6 +214,28 @@ ok( false === strpos( $nometa, 'sn-sys__meta' ), 'a card without one renders no 
 // A non-ok state names itself: "warming" is more use than an amber tint alone.
 ob_start(); sn_dash_render_system_cell( array( 'label' => 'Remote MCP', 'value' => '0.4.0', 'pill' => array( 'kind' => 'warn', 'text' => 'warming' ), 'attention' => false ) ); $cold = ob_get_clean();
 ok( false !== strpos( $cold, 'warming' ), 'a cold probe SAYS "warming" rather than relying on a tint that is not even applied to it' );
+
+
+// ── v11.31.2: TWO COUNTS OF THE SAME WALL READ AS A CONTRADICTION ──────────
+// Live on v11.31.1: the verdict subline said "7 components" and the Systems
+// header said "11 reporting". Both were true — 7 is the fleet, 11 is the fleet
+// PLUS the checks — but nothing on the screen said so, and a reader cannot
+// reconcile two totals for one wall. A total that hides its own composition is
+// the problem; showing the composition removes it without picking a winner.
+ob_start(); sn_dash_render_systems( array( array( 'label' => 'Health', 'value' => '0 findings' ) ), array( array( 'label' => 'Theme', 'value' => '11.12.4' ), array( 'label' => 'Plugin', 'value' => '11.31.1' ) ) ); $split = ob_get_clean();
+ok( false !== strpos( $split, '1 check' ), 'THE SYSTEMS HEADER NAMES ITS PARTS — the check count is stated' );
+ok( false !== strpos( $split, '2 components' ), 'and so is the component count, which is the number the subline also prints' );
+ok( false === strpos( $split, '3 reporting' ), 'the opaque total is gone — it was unreconcilable with the subline' );
+
+// Pluralisation, both directions.
+ob_start(); sn_dash_render_systems( array( array( 'label' => 'A', 'value' => '1' ), array( 'label' => 'B', 'value' => '2' ) ), array( array( 'label' => 'C', 'value' => '3' ) ) ); $plural = ob_get_clean();
+ok( false !== strpos( $plural, '2 checks' ) && false !== strpos( $plural, '1 component' ), 'both counts pluralise independently' );
+
+// A set that is EMPTY is not printed as a zero: "0 checks" is noise on a wall
+// whose whole job is that anything present matters.
+ob_start(); sn_dash_render_systems( array(), array( array( 'label' => 'Theme', 'value' => '11.12.4' ) ) ); $nochecks = ob_get_clean();
+ok( false === strpos( $nochecks, '0 check' ), 'an empty set is omitted, never rendered as a zero' );
+ok( false !== strpos( $nochecks, '1 component' ), 'and the set that does exist is still stated' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

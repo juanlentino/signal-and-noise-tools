@@ -191,24 +191,13 @@ function snt_dashboard_tab_render() {
 		? snt_deploy_workers_status( array( 'probe_budget' => 1 ) )
 		: array();
 
-	// v11.28.0: Recent deploys is FOLDED into the fleet zone, not cut. It answers
-	// the same question the zone does — did it ship? — so it belongs inside the
-	// zone body rather than as a standalone section competing for the same
-	// attention.
-	ob_start();
-	if ( empty( $runs ) ) {
-		echo '<p class="description"><em>No recent runs (or GitHub API unreachable).</em></p>';
-	} else {
-		echo '<ul class="sn-deploy-list">';
-		foreach ( $runs as $run ) {
-			snt_dashboard_render_deploy_row( $run );
-		}
-		echo '</ul>';
-	}
-	$deploys_html = (string) ob_get_clean();
-
-	$fleet_zone = sn_dash_zone_fleet( snt_dashboard_fleet_components( $theme, $plugin, $workers ), $last_deploy_ago );
-	$fleet_zone['body_html'] = $deploys_html;
+	// v11.31.2: the v11.28.0 "Recent deploys folded into the fleet zone" markup
+	// used to be built here. v11.30.0 replaced the zone screen with the console
+	// and gave deploys their own ops panel, and this block was left behind —
+	// assigned to $fleet_zone['body_html'] and then overwritten wholesale by
+	// the second sn_dash_zone_fleet() call a few lines down, so it rendered a
+	// list into a buffer and threw it away on every dashboard load. Its only
+	// consumer, sn_dash_render_zone(), now has no production caller at all.
 
 	// ── 1. THE CONSOLE ── v11.29.1, direction B with C's band.
 	//
@@ -226,6 +215,8 @@ function snt_dashboard_tab_render() {
 		}
 	}
 
+	$analytics_on = function_exists( 'sn_analytics_config' ) && sn_analytics_config();
+
 	$fleet_zone = sn_dash_zone_fleet(
 		snt_dashboard_fleet_components( $theme, $plugin, $workers ),
 		$last_deploy_ago
@@ -237,12 +228,37 @@ function snt_dashboard_tab_render() {
 		? sn_analytics_daily_series( gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS ), gmdate( 'Y-m-d', time() ), 'human', 'day' )
 		: array();
 
+	// ── HOW OLD IS THIS SCREEN? ──────────────────────────────────────────────
+	// The headline is present tense; its inputs are not. Only sources with a
+	// REAL recorded timestamp are listed — snt_cron_last_fired_for() returns
+	// null for a hook that has never been tracked, and null stays null rather
+	// than becoming a plausible-looking age. Each declares the cadence it is
+	// late against: the same thirteen hours is routine for a daily rollup and
+	// badly overdue for a five-minute probe.
+	$readings = array();
+	if ( function_exists( 'snt_cron_last_fired_for' ) ) {
+		if ( $analytics_on ) {
+			$readings[] = array(
+				'label'       => __( 'Analytics', 'signal-and-noise-tools' ),
+				'measured_at' => snt_cron_last_fired_for( 'sn_analytics_rollup_daily' ),
+				'stale_after' => 2 * DAY_IN_SECONDS, // daily cron, plus a day of slack.
+			);
+		}
+		$readings[] = array(
+			'label'       => __( 'Fleet', 'signal-and-noise-tools' ),
+			'measured_at' => snt_cron_last_fired_for( 'snt_deploy_workers_warm' ),
+			'stale_after' => HOUR_IN_SECONDS, // 5-minute warm; an hour is twelve missed runs.
+		);
+	}
+	$freshness = function_exists( 'sn_dash_freshness' ) ? sn_dash_freshness( $readings ) : array();
+
 	$subline = implode(
 		' · ',
 		array_filter( array(
 			/* translators: %d fleet components */
 			sprintf( _n( '%d component', '%d components', count( $fleet_zone['cards'] ), 'signal-and-noise-tools' ), count( $fleet_zone['cards'] ) ),
 			'' !== (string) $last_deploy_ago ? sprintf( /* translators: %s time since last deploy */ __( 'last deploy %s', 'signal-and-noise-tools' ), $last_deploy_ago ) : '',
+			function_exists( 'sn_dash_freshness_label' ) ? sn_dash_freshness_label( $freshness ) : '',
 		) )
 	);
 
@@ -253,8 +269,6 @@ function snt_dashboard_tab_render() {
 	// complete on the one day it is not.
 	$from = gmdate( 'Y-m-d', time() - 29 * DAY_IN_SECONDS );
 	$to   = gmdate( 'Y-m-d', time() );
-	$analytics_on = function_exists( 'sn_analytics_config' ) && sn_analytics_config();
-
 	$ops_data = array( 'deploys' => is_array( $runs ) ? array_slice( $runs, 0, 6 ) : null );
 
 	if ( $analytics_on && function_exists( 'sn_analytics_top_paths' ) ) {
@@ -277,8 +291,14 @@ function snt_dashboard_tab_render() {
 	// with nothing to judge them against.
 	$signals = sn_dash_signals_from_measurement( $measurement );
 
+	// A stale reading is an exception, not a footnote: it flows in as a CARD so
+	// the one shared sn_dash_verdict() raises it on both surfaces at once.
+	$screen_checks = function_exists( 'sn_dash_freshness_cards' )
+		? array_merge( $attention_cards, sn_dash_freshness_cards( $freshness ) )
+		: $attention_cards;
+
 	sn_dash_render_screen(
-		$attention_cards,
+		$screen_checks,
 		$fleet_zone['cards'],
 		$signals,
 		array(

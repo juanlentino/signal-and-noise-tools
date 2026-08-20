@@ -77,7 +77,24 @@ function sn_dash_render_trend( array $series ) {
 	echo '</span>';
 	echo '</header>';
 
+	// GRIDLINES ARE DERIVED FROM THE SCALE, never hardcoded. They used to sit
+	// at y=28 and y=58, which under y = base - (v/max) * (base - top) is 75%
+	// and 37.5% of peak — nobody chooses 37.5%, so they marked nothing and a
+	// reader could not place a point against a value. Peak and half-peak are
+	// values a reader can actually use, and each carries its number.
+	$span      = $base - $top;
+	$grid_max  = $top;                              // 1/1 of the scale.
+	$grid_half = round( $base - 0.5 * $span, 2 );   // 1/2 of the scale.
+	$half      = (int) round( $max / 2 );
+	// On a tiny scale half rounds back to the peak. Two identical numbers
+	// stacked on one plot is worse than one, so the half tick is dropped.
+	$show_half = $half > 0 && $half !== $max;
+
 	echo '<div class="sn-trend-plot">';
+	// The ticks are positioned as a percentage of the svg's own box, so they
+	// need a containing block that IS that box — not the padded plot wrapper,
+	// where the same percentage would land a few pixels off at every height.
+	echo '<div class="sn-trend__frame">';
 	echo '<svg class="sn-trend" viewBox="0 0 600 96" preserveAspectRatio="none" role="img" aria-label="'
 		. esc_attr(
 			sprintf(
@@ -90,12 +107,31 @@ function sn_dash_render_trend( array $series ) {
 	echo '<defs><linearGradient id="sn-trend-fill" x1="0" y1="0" x2="0" y2="1">';
 	echo '<stop offset="0%" class="sn-trend__stop-a" /><stop offset="100%" class="sn-trend__stop-b" />';
 	echo '</linearGradient></defs>';
-	echo '<line x1="0" y1="28" x2="600" y2="28" class="sn-trend__grid" />';
-	echo '<line x1="0" y1="58" x2="600" y2="58" class="sn-trend__grid" />';
+	echo '<line x1="0" y1="' . esc_attr( $grid_max ) . '" x2="600" y2="' . esc_attr( $grid_max ) . '" class="sn-trend__grid" />';
+	if ( $show_half ) {
+		echo '<line x1="0" y1="' . esc_attr( $grid_half ) . '" x2="600" y2="' . esc_attr( $grid_half ) . '" class="sn-trend__grid" />';
+	}
 	echo '<path d="' . esc_attr( $area ) . '" class="sn-trend__area" />';
 	echo '<path d="' . esc_attr( $line ) . '" class="sn-trend__line" />';
 	echo '<circle cx="' . esc_attr( $last[0] ) . '" cy="' . esc_attr( $last[1] ) . '" r="3.5" class="sn-trend__end" />';
 	echo '</svg>';
+	// The values ride OUTSIDE the svg, positioned as a percentage of the same
+	// 0..96 viewBox the lines use, so they track the gridlines at any height.
+	// aria-hidden: the svg's own label already states latest and peak, and a
+	// screen reader reading two bare numbers off an axis is noise.
+	printf(
+		'<span class="sn-trend__tick" style="top:%s%%" aria-hidden="true">%s</span>',
+		esc_attr( (string) round( $grid_max / 96 * 100, 3 ) ),
+		esc_html( number_format_i18n( $max ) )
+	);
+	if ( $show_half ) {
+		printf(
+			'<span class="sn-trend__tick" style="top:%s%%" aria-hidden="true">%s</span>',
+			esc_attr( (string) round( $grid_half / 96 * 100, 3 ) ),
+			esc_html( number_format_i18n( $half ) )
+		);
+	}
+	echo '</div>';
 	echo '</div>';
 
 	echo '<footer class="sn-trend__axis">';
