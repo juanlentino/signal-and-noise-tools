@@ -1,3 +1,54 @@
+/* THE THREE-TIER EPISTEMIC PALETTE, as tokens (v12.3.0).
+   These encode a claim's epistemic status — verified on chain, asserted by the
+   author, unattributed — and they have no equivalent in the theme's palette,
+   which is why they stayed hardcoded when v12.2.0 converted every other
+   front-end stylesheet. Hardcoded, they could not invert: on dark `void`
+   (#0a0a0a) the three measured 3.21 / 2.86 / 3.23:1, all below AA, and the
+   link-hover red measured 2.70:1.
+
+   The dark values are chosen to sit in the SAME contrast band as their light
+   counterparts (6.50-6.58:1 dark against 6.13-6.92:1 light) rather than as
+   bright as the ground allows. The three tiers must read as EQUALS: they encode
+   status, not priority, and a tier that shouts louder than its siblings asserts
+   an importance the data does not carry.
+
+   --sn-signal-ink is the emphasis red for hover/focus. Its direction INVERTS
+   with the scheme: darker than `blood` on a light ground, lighter than `blood`
+   on a dark one. "Hover goes darker" is a light-mode fact, not a rule.
+
+   Both dark selectors are required and must not drift: [data-theme="dark"] is
+   an explicit choice, the media block is the OS default. Plain CSS cannot share
+   them; tests/front-end-css-contrast.php asserts they agree.
+   Every ratio here is computed, per palette, by that same file. */
+:root{
+	--sn-prov-verified:#12703a;
+	--sn-prov-verified-edge:rgba(18,112,58,.45);
+	--sn-prov-asserted:#7a5200;
+	--sn-prov-asserted-edge:rgba(122,82,0,.45);
+	--sn-prov-unattributed:#5b6270;
+	--sn-prov-unattributed-edge:rgba(91,98,112,.45);
+	--sn-signal-ink:#b00303;
+}
+:root[data-theme="dark"]{
+	--sn-prov-verified:#35a862;
+	--sn-prov-verified-edge:rgba(53,168,98,.45);
+	--sn-prov-asserted:#c08a1a;
+	--sn-prov-asserted-edge:rgba(192,138,26,.45);
+	--sn-prov-unattributed:#8d95a5;
+	--sn-prov-unattributed-edge:rgba(141,149,165,.45);
+	--sn-signal-ink:#ff7a75;
+}
+@media (prefers-color-scheme: dark){
+	:root:not([data-theme="light"]){
+		--sn-prov-verified:#35a862;
+		--sn-prov-verified-edge:rgba(53,168,98,.45);
+		--sn-prov-asserted:#c08a1a;
+		--sn-prov-asserted-edge:rgba(192,138,26,.45);
+		--sn-prov-unattributed:#8d95a5;
+		--sn-prov-unattributed-edge:rgba(141,149,165,.45);
+		--sn-signal-ink:#ff7a75;
+	}
+}
 /* The chip carries its OWN background (v10.89.1). It used to set only a
    colour and inherit whatever surface it landed on — so its contrast was a
    property of PLACEMENT, not of the component, and it was unscoreable in
@@ -7,14 +58,14 @@
    Pinning the surface makes the ratios below true wherever the chip is used —
    a byline, a page brow, or anywhere added later. Same move the panel made. */
 .sn-prov-chip{display:inline-flex;align-items:center;gap:.35em;font-size:.72rem;font-weight:600;padding:.15em .6em;border-radius:999px;border:1px solid;line-height:1.6;background:var(--wp--preset--color--void,#fff)}
-.sn-prov-confirmed{color:#12703a;border-color:rgba(18,112,58,.45)}
-.sn-prov-pending{color:#7a5200;border-color:rgba(122,82,0,.45)}
-.sn-prov-genesis{color:#5b6270;border-color:rgba(91,98,112,.45)}
+.sn-prov-confirmed{color:var(--sn-prov-verified,#12703a);border-color:var(--sn-prov-verified-edge,rgba(18,112,58,.45))}
+.sn-prov-pending{color:var(--sn-prov-asserted,#7a5200);border-color:var(--sn-prov-asserted-edge,rgba(122,82,0,.45))}
+.sn-prov-genesis{color:var(--sn-prov-unattributed,#5b6270);border-color:var(--sn-prov-unattributed-edge,rgba(91,98,112,.45))}
 /* A founding-snapshot chip that's confirmed on Bitcoin (both classes present)
    reads as verified — green — overriding the gray genesis default by specificity,
    not source order. The "founding snapshot" distinction lives in the panel copy
    and the data-genesis attribute, so the chip itself is a plain verified badge. */
-.sn-prov-confirmed.sn-prov-genesis{color:#12703a;border-color:rgba(18,112,58,.45)}
+.sn-prov-confirmed.sn-prov-genesis{color:var(--sn-prov-verified,#12703a);border-color:var(--sn-prov-verified-edge,rgba(18,112,58,.45))}
 /* The panel frame, in the site's own register (v10.88-era, after the first
    signed PAGE surfaced it standalone at the foot of /about/ and the owner
    called the old 12px-radius hairline what it was): hard 2px border, square
@@ -56,7 +107,7 @@
    separated by a rule from the record above — actions, not chain rows. */
 .sn-prov-links{display:flex;flex-wrap:wrap;gap:.4em 1.4em;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:.9rem 0 0;padding-top:.8rem;border-top:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.1))}
 .sn-prov-links a{color:var(--wp--preset--color--blood,#e00404);text-decoration:underline;text-underline-offset:3px;padding:.45em 0;margin:-.45em 0}
-/* Hover/focus goes DARKER, not lighter. The site's signal red (var(--wp--preset--color--signal,#ff4c47)) is
+/* Hover/focus gains emphasis: DARKER on a light ground, LIGHTER on a dark one (--sn-signal-ink, defined at the top of this file). The site's signal red (var(--wp--preset--color--signal,#ff4c47)) is
    established — but everywhere else it is a border, an outline, or a tabular
    number, and as 0.7rem uppercase link text on white it measures 3.29:1 and
    fails WCAG AA (4.5:1 for normal text; these are smaller than normal, so the
@@ -66,7 +117,7 @@
    alone. NOTE this pair is invisible to the token-level contrast report: that
    report covers theme TOKEN pairs, and this is a hardcoded CSS pair — which is
    exactly what its coverage sentence exists to say. */
-.sn-prov-links a:hover,.sn-prov-links a:focus-visible{color:#b00303;text-decoration-thickness:2px}
+.sn-prov-links a:hover,.sn-prov-links a:focus-visible{color:var(--sn-signal-ink,#b00303);text-decoration-thickness:2px}
 
 /* The page badge wrapper: the appended chip's stand — clear of the prose
    above, no frame of its own (the chip carries its own border). */
@@ -85,4 +136,4 @@
    colour, which is where a keyboard user lands. Pre-dates this release
    (v9.74.0); fixed here because leaving one hover red compliant and its twin
    failing, in the same stylesheet, is worse than either. */
-.sn-prov-chip-verify:hover,.sn-prov-chip-verify:focus-visible{color:#b00303;text-decoration-thickness:2px}
+.sn-prov-chip-verify:hover,.sn-prov-chip-verify:focus-visible{color:var(--sn-signal-ink,#b00303);text-decoration-thickness:2px}

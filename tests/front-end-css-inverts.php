@@ -34,17 +34,36 @@ function sn_naked_colours( $css ) {
 	$css = preg_replace( '/var\(\s*--[a-zA-Z0-9-]+\s*,[^)]*\)/', 'VAR', $css );
 	// Drop any rule preceded by an sn-allow-literal comment.
 	$css = preg_replace( '#/\*[^*]*sn-allow-literal.*?\*/[^}]*\}#s', '', $css );
+	// Drop COMMENTS — after the allow-list pass above, which needs them. Prose
+	// paints nothing, and this file's own commentary quotes the very hex values
+	// it documents. Counting those made the old exemption tally read 11 when
+	// the file had ten real literals and one in a sentence about them.
+	$css = preg_replace( '#/\*.*?\*/#s', '', $css );
+	// Drop CUSTOM-PROPERTY declarations. A token DEFINITION is the one place a
+	// literal belongs — it is what every var() in the file resolves to, and a
+	// palette that referenced only other tokens would have no values at all.
+	//
+	// This exemption would be a laundering route on its own: declare
+	// `--sn-x:#fff` once, reference it everywhere, and this sweep goes quiet
+	// while nothing inverts. The compensating check is in
+	// tests/front-end-css-contrast.php — every literal-valued --sn-* token must
+	// ALSO be declared for dark, and every resulting ink/surface pair is
+	// contrast-checked in all three palettes. Neither file is sufficient alone.
+	$css = preg_replace( '/--[a-zA-Z0-9-]+\s*:[^;}]*/', '', $css );
 	preg_match_all( '/#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)/', $css, $m );
 	return $m[0];
 }
 
-// provenance-front.css is EXEMPT, deliberately and temporarily. Its remaining
-// literals are the three-tier epistemic status palette — verified #12703a,
-// asserted #7a5200, unattributed #5b6270 — which have no palette-token
-// equivalent and whose dark-mode treatment is a DESIGN decision about
-// legibility, not a mechanical swap. Named here so the debt is visible and
-// countable rather than silent.
-$exempt = array( 'assets/provenance-front.css' );
+// THE EXEMPTION IS PAID OFF (v12.3.0). provenance-front.css was exempt while
+// its three-tier epistemic palette — verified, asserted, unattributed — had no
+// dark treatment, because choosing one was a DESIGN decision about legibility
+// rather than a mechanical swap. That decision is made: the three tiers are now
+// plugin-owned tokens with dark values chosen to sit in the same contrast band
+// as their light counterparts, so the tiers stay equals in both schemes.
+//
+// The list stays here, empty, on purpose. An empty list is a claim anyone can
+// check; deleting the mechanism would make the next exemption silent.
+$exempt = array();
 
 $files = glob( dirname( __DIR__ ) . '/assets/*front*.css' );
 ok( count( $files ) > 5, 'the sweep finds the front-end stylesheets (guard: a glob matching nothing would pass vacuously)' );
@@ -67,15 +86,17 @@ foreach ( $dirty as $rel => $naked ) {
 }
 ok( empty( $dirty ), 'NO front-end stylesheet paints a hardcoded colour — every one inverts with the palette' );
 
-// The exemption must SHRINK, never grow silently.
-ok( 1 === count( $exempt ), 'exactly ONE stylesheet is exempt — if this grows, someone added dark-mode debt without saying so' );
-$prov = sn_naked_colours( (string) file_get_contents( dirname( __DIR__ ) . '/assets/provenance-front.css' ) );
-ok( count( $prov ) <= 11, 'the exempt file has at most the 11 literals it had when exempted (' . count( $prov ) . ') — the debt may shrink, never grow' );
+// The exemption must SHRINK, never grow silently. It is now zero.
+ok( 0 === count( $exempt ), 'NO stylesheet is exempt — the provenance debt is paid, and any new entry here is new dark-mode debt' );
 
 // Negative control: the detector must be able to FIND something.
 ok( array() !== sn_naked_colours( '.x{background:#fff}' ), 'NEGATIVE CONTROL: a bare literal IS detected' );
 ok( array() === sn_naked_colours( '.x{background:var(--wp--preset--color--void,#fff)}' ), 'and a var() fallback is NOT flagged' );
 ok( array() === sn_naked_colours( "/* sn-allow-literal: ink on a fixed surface */\n.x{color:#fff}" ), 'and an allow-listed rule is NOT flagged' );
+ok( array() === sn_naked_colours( ':root{--sn-x:#12703a}' ), 'and a token DEFINITION is not flagged — that is where a literal belongs' );
+ok( array() !== sn_naked_colours( ':root{--sn-x:#12703a;background:#fff}' ), 'but a naked literal in the SAME rule as a definition still is (the strip is per-declaration, not per-rule)' );
+ok( array() === sn_naked_colours( '/* the old value was #b00303 */ .x{color:var(--y)}' ), 'and a hex quoted in a COMMENT is not a paint instruction' );
+ok( array() !== sn_naked_colours( '/* a comment */ .x{color:#b00303}' ), 'while a real declaration after a comment still is' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

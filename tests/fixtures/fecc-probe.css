@@ -1,0 +1,6 @@
+/* Fixture for tests/front-end-css-contrast.php. NOT enqueued anywhere.
+   One rule is the ink-as-chrome role error: `asphalt` is a page GROUND, so
+   using it as ink puts near-white on white in light and #171717 on #0a0a0a in
+   dark. Every value here is a token, so the literal sweep passes it. */
+.sn-fecc-good{color:var(--wp--preset--color--bone);background:var(--wp--preset--color--void)}
+.sn-fecc-role-error{color:var(--wp--preset--color--asphalt);background:var(--wp--preset--color--void)}
