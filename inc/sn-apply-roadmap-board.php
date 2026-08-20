@@ -107,16 +107,34 @@ function snt_sn_apply_gate2_roadmap_board( array $change ) {
  * docblock), after is the proposed board (null on reset, mirroring the
  * deletion it previews).
  *
+ * merge carries the drift a writer needs to see BEFORE overwriting: which
+ * cells code and the override have both moved since the override's base
+ * (see inc/maturity-roadmap-merge.php). Before this, a conflict was only
+ * discoverable by reading the rendered page and noticing an edit didn't
+ * appear — now it's in the same call a caller already makes to observe the
+ * fingerprint. Computed from ONE sn_maturity_roadmap_effective_report()
+ * call, shared with `before`, so the two can never disagree within this
+ * request even though the board is read twice conceptually (write is a
+ * separate request and re-reads fresh — see gate 1's own re-observe).
+ *
  * @param array $change The raw change{} input.
- * @return array{before:mixed,after:mixed,blocks_touched:int}
+ * @return array{before:mixed,after:mixed,blocks_touched:int,merge:array{conflicts:array,code_landed:array,override_held:array}}
  */
 function snt_sn_apply_roadmap_board_diff( array $change ) {
 	$payload = (array) ( $change['payload'] ?? array() );
 	$after   = true === ( $payload['reset'] ?? false ) ? null : ( $payload['board'] ?? null );
+	$report  = sn_maturity_roadmap_effective_report();
 	return array(
-		'before'         => sn_maturity_roadmap_effective_board(),
+		'before'         => $report['merged'],
 		'after'          => $after,
 		'blocks_touched' => 0,
+		// The drift a writer needs to see BEFORE writing: cells where code and
+		// the override have both moved. Empty is the normal case.
+		'merge'          => array(
+			'conflicts'     => $report['conflicts'],
+			'code_landed'   => $report['code_landed'],
+			'override_held' => $report['override_held'],
+		),
 	);
 }
 
