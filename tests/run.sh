@@ -107,5 +107,16 @@ if [ -n "$only" ] && [ "$total" -eq 0 ] && [ "$skipped" -eq 0 ]; then
 	exit 2
 fi
 
-echo "-- swept $total suites, $passed assertions passed, $skipped skipped --"
+# The summary line reports FAILURES. It used to print only passed + skipped,
+# so a suite failing two assertions still contributed its passing ones and the
+# tail read healthy while the script exited 1. That is a real trap: the theme
+# repo's sibling runner has the same shape, and a session there quoted
+# "2,349 assertions, 0 failed" into a CHANGELOG, a commit message and a PR body
+# from a run that was failing. The exit code was always right; the sentence a
+# human reads was not, and the sentence is what gets quoted.
+if [ "$fail" -gt 0 ]; then
+	echo "-- swept $total suites, $passed assertions passed, $fail SUITE(S) FAILED, $skipped skipped --"
+else
+	echo "-- swept $total suites, $passed assertions passed, 0 failed, $skipped skipped --"
+fi
 exit $fail
