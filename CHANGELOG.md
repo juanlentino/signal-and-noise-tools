@@ -2,7 +2,16 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [11.32.0] - 2026-08-19 — The dashboard says how old it is
+
+Why MINOR and not a patch: six of the seven items below are fixes, but the
+screen gained a capability it did not have — it now states the age of the
+oldest reading behind its verdict, and refuses to stay green when standing on
+stale evidence. A new user-visible capability is a minor under
+[docs/VERSIONING.md](https://github.com/juanlentino/signal-and-noise/blob/main/docs/VERSIONING.md),
+whatever the ratio of fixes around it. No caps on this project, so the patch
+line simply ends at .1.
+
 
 ### Fixed
 - **Recent deploys printed a repo NAME beside a role** — "signal-and-noise

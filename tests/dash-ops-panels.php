@@ -75,7 +75,7 @@ ok( '' === $dep['rows'][0]['dot'],   'A SUCCESSFUL RUN PAINTS NOTHING — health
 ok( 'err' === $dep['rows'][1]['dot'], 'A FAILED RUN PAINTS AN ERR DOT — the wall is where you would see it' );
 ok( false !== strpos( $dep['rows'][0]['label'], 'plugin' ), 'the repo is shortened, not printed whole' );
 
-// v11.31.2: the SECOND row was in this fixture from the day the file was
+// v11.32.0: the SECOND row was in this fixture from the day the file was
 // written and nothing ever read it — so `sn_dash_ops_repo_label()` shipped
 // returning the bare repo NAME for every non-tools repo, and Recent deploys
 // printed "signal-and-noise v11.12.3" beside "plugin v11.31.1": a repo name

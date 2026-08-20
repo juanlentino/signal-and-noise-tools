@@ -191,7 +191,7 @@ function snt_dashboard_tab_render() {
 		? snt_deploy_workers_status( array( 'probe_budget' => 1 ) )
 		: array();
 
-	// v11.31.2: the v11.28.0 "Recent deploys folded into the fleet zone" markup
+	// v11.32.0: the v11.28.0 "Recent deploys folded into the fleet zone" markup
 	// used to be built here. v11.30.0 replaced the zone screen with the console
 	// and gave deploys their own ops panel, and this block was left behind —
 	// assigned to $fleet_zone['body_html'] and then overwritten wholesale by

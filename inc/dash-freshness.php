@@ -37,7 +37,7 @@
  * reads, which is what lets the widget run it on every admin login.
  *
  * @package SignalNoiseTools
- * @since 11.31.2
+ * @since 11.32.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -47,7 +47,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 /**
  * Reduce a set of readings to what the screen can honestly claim.
  *
- * @since 11.31.2
+ * @since 11.32.0
  * @param array<int,array{label:string,measured_at:int|null,stale_after:int}> $readings
  * @param int|null                                                           $now Unix time; defaults to now.
  * @return array{oldest:array{label:string,age:int}|null,unmeasured:array<int,string>,stale:array<int,array{label:string,age:int,stale_after:int}>}
@@ -103,7 +103,7 @@ function sn_dash_freshness( array $readings, $now = null ) {
  * Empty when nothing has been measured — an absent fact is not rendered as
  * "oldest reading unknown ago".
  *
- * @since 11.31.2
+ * @since 11.32.0
  * @param array<string,mixed> $freshness Output of sn_dash_freshness().
  * @return string
  */
@@ -131,7 +131,7 @@ function sn_dash_freshness_label( array $freshness ) {
  * proven bad, and painting it red would spend the colour that is supposed to
  * mean something is actually broken.
  *
- * @since 11.31.2
+ * @since 11.32.0
  * @param array<string,mixed> $freshness Output of sn_dash_freshness().
  * @return array<int,array<string,mixed>>
  */
@@ -175,7 +175,7 @@ function sn_dash_freshness_cards( array $freshness ) {
  * threshold necessarily gets one of these wrong: thirteen hours is routine for
  * a daily rollup and twelve missed runs for a five-minute probe.
  *
- * @since 11.31.2
+ * @since 11.32.0
  * @return array<int,array{label:string,measured_at:int|null,stale_after:int}>
  */
 function sn_dash_freshness_readings() {

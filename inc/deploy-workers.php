@@ -576,7 +576,7 @@ add_action( 'snt_deploy_workers_warm', 'snt_deploy_workers_warm_cb' );
  * cache has expired and the dashboard is cold again. The suite pins that
  * relationship as arithmetic rather than as a comment.
  *
- * @since 11.31.2
+ * @since 11.32.0
  * @param array<string,array<string,mixed>> $schedules Existing schedules.
  * @return array<string,array<string,mixed>>
  */
@@ -615,7 +615,7 @@ add_filter( 'cron_schedules', 'snt_deploy_workers_cron_schedules' ); // phpcs:ig
  * recurrence. wp_next_scheduled() cannot tell the two apart (both return a
  * timestamp), so this reads the event itself and clears a non-recurring one.
  *
- * @since 11.31.2
+ * @since 11.32.0
  * @return void
  */
 function snt_deploy_workers_warm_schedule() {

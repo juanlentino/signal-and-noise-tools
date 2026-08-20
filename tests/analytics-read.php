@@ -209,7 +209,7 @@ ok(
 	'top_paths: SUM(visits) AS visits — alias mapping correct'
 );
 
-echo "\nGroup: top_paths — one page is ONE row (v11.31.2)\n";
+echo "\nGroup: top_paths — one page is ONE row (v11.32.0)\n";
 // The owner's Top pages panel listed `/notes` and `/notes/` as two pages, 27
 // views each. Nothing in ingestion normalises a trailing slash — the daily
 // table's primary key is (day, path, class), so the two spellings are two

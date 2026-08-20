@@ -93,7 +93,7 @@ ok( (int) SN_ANALYTICS_LOWENGAGE_MIN_VIEWS > 0, 'min-views threshold constant de
 ok( count( $rows ) === 1, 'HAVING filter: only the low-engagement path returns' );
 ok( isset( $rows[0]['path'] ) && $rows[0]['path'] === '/bouncy', 'HAVING filter: /bouncy survives, /skip-me excluded' );
 
-echo "\nGroup: low_engagement_paths — a split page clears the floor as ONE page (v11.31.2)\n";
+echo "\nGroup: low_engagement_paths — a split page clears the floor as ONE page (v11.32.0)\n";
 // The min-views floor is 20. Split across two spellings a bouncy page shows
 // 12 and 11 — NEITHER half clears it, so the page the owner most needs to see
 // is silently absent from the report. Merged it is 23 and qualifies. This is

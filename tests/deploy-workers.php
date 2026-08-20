@@ -450,7 +450,7 @@ $GLOBALS['__dw_http'][] = dw_http_json( 500, array() );
 dw_assert( null === snt_deploy_worker_latest_tag( 'o/r', 'stale2' ), 'failure with NO prior good value stays null (never fabricates)' );
 
 
-// ── v11.31.2: the warm must RECUR, or "warming…" is the steady state ───────
+// ── v11.32.0: the warm must RECUR, or "warming…" is the steady state ───────
 // Observed live: three worker cells read "warming…" for hours. The probes were
 // fine — get-deploy-status returned real versions for all five. The mechanism
 // is arithmetic: the dashboard probes with probe_budget 1 against FIVE

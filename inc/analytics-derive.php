@@ -181,7 +181,7 @@ if ( ! function_exists( 'sn_analytics_derive_metrics' ) ) {
  * sn_analytics_canonical_path_sql() is the SQL twin of this function and MUST
  * agree with it on all four cases; the read suite pins both.
  *
- * @since 11.31.2
+ * @since 11.32.0
  * @param string $path Stored path.
  * @return string
  */
@@ -206,7 +206,7 @@ if ( ! function_exists( 'sn_analytics_canonical_path' ) ) {
  * done afterwards has nothing left to merge. Same trap as the freshness clock,
  * where post-filtering could not recover a row the WHERE clause had excluded.
  *
- * @since 11.31.2
+ * @since 11.32.0
  * @param string $col Column name — CALLER-CONTROLLED LITERAL ONLY, never input.
  * @return string
  */

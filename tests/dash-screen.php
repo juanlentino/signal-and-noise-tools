@@ -166,7 +166,7 @@ $svg_inner = substr( $t, strpos( $t, '<svg' ), strpos( $t, '</svg>' ) - strpos( 
 ok( false === strpos( $svg_inner, '<text' ),
 	'NO TEXT INSIDE THE STRETCHED SVG — preserveAspectRatio="none" would distort every glyph' );
 
-// ── v11.31.2: A GRIDLINE THAT MARKS NO VALUE IS DECORATION ─────────────────
+// ── v11.32.0: A GRIDLINE THAT MARKS NO VALUE IS DECORATION ─────────────────
 // The plot maps views to y = 88 - (views/max) * 80, and the two gridlines were
 // hardcoded at y=28 and y=58 — which is 75% and 37.5% of peak. Nobody chooses
 // 37.5%. They were not merely unlabelled, they marked nothing, so a reader
@@ -216,7 +216,7 @@ ob_start(); sn_dash_render_system_cell( array( 'label' => 'Remote MCP', 'value' 
 ok( false !== strpos( $cold, 'warming' ), 'a cold probe SAYS "warming" rather than relying on a tint that is not even applied to it' );
 
 
-// ── v11.31.2: TWO COUNTS OF THE SAME WALL READ AS A CONTRADICTION ──────────
+// ── v11.32.0: TWO COUNTS OF THE SAME WALL READ AS A CONTRADICTION ──────────
 // Live on v11.31.1: the verdict subline said "7 components" and the Systems
 // header said "11 reporting". Both were true — 7 is the fleet, 11 is the fleet
 // PLUS the checks — but nothing on the screen said so, and a reader cannot
