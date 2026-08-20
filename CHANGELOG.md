@@ -2,6 +2,66 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.6.0] - 2026-08-20 — the roadmap board takes edits from both writers
+
+The board has two writers — `sn_maturity_roadmap_static_board()` in code, and
+`sn_apply`'s `roadmap_board` option write — and only one of them could win. The
+override shadowed code totally and recorded nothing about what it was derived
+from, so the FIRST MCP write silently retired the code path: a later edit to the
+static board rendered nothing, with no error, until someone called `reset:true`.
+
+Nothing was broken when this shipped. The live board was still byte-identical to
+the static board (`15df9c3f…`), so no override had ever been written. **This is a
+trap that had not sprung**, closed before it did.
+
+### Added
+- **[inc/maturity-roadmap-merge.php](inc/maturity-roadmap-merge.php)** — the
+  override now stores the static board it was derived from, and the read path
+  merges three boards per `(family, column)` cell. A code edit to a cell the
+  override never touched lands normally.
+- **[inc/health-check-roadmap-drift.php](inc/health-check-roadmap-drift.php)** —
+  a Health check naming cells both writers moved, and separately naming a merged
+  board that failed validation. Silent otherwise.
+- **`diff.merge` on `sn_apply`'s dry run** — `conflicts`, `code_landed`,
+  `override_held`, `invalid` — so drift is visible BEFORE a write rather than
+  discovered after one. Documented in the ability's own description, because
+  that description is the only discovery path an MCP caller has.
+
+### Decisions
+- **A conflict renders the OVERRIDE.** The public page must not change under the
+  owner because of a plugin update they did not review; code winning would mean
+  an install silently reverting authored copy.
+- **The merge unit is a whole cell, not a sentence.** A code edit to one
+  sentence of a cell the override rewrote is a conflict, not a merge —
+  auto-merging inside a cell is how a board nobody authored gets published.
+- **Absent and present are different values**, which is what makes deletions
+  merge like any other edit.
+- **`base` records the STATIC board, never the effective one.** An effective
+  board already carries a prior override's values; recorded as base, the next
+  merge would read them as code's own and misattribute or manufacture conflicts.
+- **An unreadable envelope is no override at all** — unknown version, or a
+  `board` that is missing or not an array, returns null and code wins. The
+  alternative was handing callers the wrapper's own `{v, board, base}` keys as
+  if they were roadmap families.
+- **The envelope write's bool is deliberately ignored.** `update_option()`
+  returns `false` both on failure and on an idempotent no-op rewrite, and the
+  second is a success. Named at the call site so it is decided once.
+
+### Verified
+- **485 suites, 19,236 assertions, `EXIT=0`.** PHPStan clean; PHPCS clean over
+  418 files in `inc/` (file count checked, not the parallel-batch progress line).
+- **Built task-by-task with a spec review and a code-quality review after each.**
+  Those gates caught, among others: a `define()` colliding with a top-level
+  `const` (a warning on PHP 8.3, an error on PHP 9); a phantom report entry for
+  cells both writers deleted; a `TypeError` on a corrupted option, which would
+  have fataled a reader's page once the read path was wired; and five spec rules
+  implemented but unpinned — including the central one, since every test cell
+  held a single sentence and so nothing proved the merge unit was a cell.
+- **`RB5.2` had been green its whole life without discriminating anything.** Its
+  fixture was a single-family board, so wholesale shadowing and a correct merge
+  produced identical output. Replaced with a full board, and `RB7` added to
+  drive the real door end to end — under the old behaviour, `RB7` fails.
+
 ## [12.5.2] - 2026-08-20 — the roadmap's contrast item says which half is left
 
 The Accessibility family's `planned` column has read "Contrast audited at the
