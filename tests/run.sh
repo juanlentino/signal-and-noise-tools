@@ -36,6 +36,10 @@ cd "$(dirname "$0")/.." || exit 2
 SKIP="contracts-smoke.php"
 
 only="${1:-}"
+# A COUNT, not a flag. This was `fail=1` set in three places and printed as
+# "$fail SUITE(S) FAILED", so three broken suites reported as ONE. The exit code
+# was right; the number in the sentence was not — the same class of defect the
+# line below was added to fix, surviving inside the fix itself.
 fail=0
 total=0
 skipped=0
@@ -75,7 +79,7 @@ for f in tests/*.php; do
 	if [ -z "$summary" ]; then
 		annotate "$f" "no test summary line — the suite did not assert (crash, fatal, or silent skip). NOT a pass."
 		echo "$out" | tail -3
-		fail=1
+		fail=$((fail + 1))
 		continue
 	fi
 
@@ -90,13 +94,13 @@ for f in tests/*.php; do
 	# should be deleted rather than swept.
 	if [ "${p_count:-0}" -eq 0 ] && [ "${f_count:-0}" -eq 0 ]; then
 		annotate "$f" "summary present but ZERO assertions — the suite ran and tested nothing. NOT a pass."
-		fail=1
+		fail=$((fail + 1))
 		continue
 	fi
 
 	if [ "${f_count:-0}" -gt 0 ]; then
 		annotate "$f" "$summary"
-		fail=1
+		fail=$((fail + 1))
 	else
 		echo "OK ($summary): $base"
 	fi
@@ -116,7 +120,11 @@ fi
 # human reads was not, and the sentence is what gets quoted.
 if [ "$fail" -gt 0 ]; then
 	echo "-- swept $total suites, $passed assertions passed, $fail SUITE(S) FAILED, $skipped skipped --"
-else
-	echo "-- swept $total suites, $passed assertions passed, 0 failed, $skipped skipped --"
+	# Exit 1, not $fail: now that it is a count, exiting with it would report 3
+	# broken suites as status 3 — and anything above 125 wraps into the shell's
+	# signal range. The count belongs in the sentence, not the exit code.
+	exit 1
 fi
-exit $fail
+
+echo "-- swept $total suites, $passed assertions passed, 0 failed, $skipped skipped --"
+exit 0
