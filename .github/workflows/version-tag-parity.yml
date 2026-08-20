@@ -42,8 +42,8 @@ jobs:
   parity:
     name: Version header has a tag on main
     runs-on: ubuntu-latest
-    # Initial estimate, not a measurement: checkout + one PHP script. Revisit
-    # against real runs rather than leaving a number nobody has checked.
+    # MEASURED: the first real run (workflow_dispatch, 2026-08-20) took 7s.
+    # Kept at 5 minutes -- headroom above the observed time, not set at it.
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -61,23 +61,16 @@ jobs:
         # that can die mid-outage and red a green repo.
         run: php tools/version-tag-parity.php --check
 
-      - name: Note whether the draft release exists (step 3, not gated)
-        # Non-blocking BY STEP, not by job: continue-on-error at job level would
-        # mark the whole job green including the real gate above.
-        continue-on-error: true
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -uo pipefail
-          version=$(php -r 'require "tools/version-tag-parity.php"; echo sn_vtp_read_header("signal-and-noise-tools.php");')
-          if [ -z "$version" ]; then echo "no version read; nothing to check"; exit 0; fi
-          if gh release view "v${version}" --json isDraft >/dev/null 2>&1; then
-            echo "NOTE: a release object exists for v${version} (step 3 done)."
-          else
-            echo "NOTE: v${version} has NO release object. The updater does not need one —"
-            echo "      it reads tags — but this repo keeps a hand-written draft per tag as"
-            echo "      the human-readable record, and 39 tags were once left without one."
-            echo "      Cut it with: gh release create v${version} --draft --verify-tag \\"
-            echo "        --title \"<CHANGELOG heading minus version and date>\" \\"
-            echo "        --notes-file <that version's CHANGELOG section>"
-          fi
+# NO DRAFT-RELEASE CHECK HERE, DELIBERATELY. The first version of this workflow
+# carried one, and it was blind by construction: **draft releases are visible
+# only to tokens with PUSH access**, this job runs on `contents: read`, and this
+# repo's releases stay drafts FOREVER. So `gh release view` 404s on every
+# release that exists, and the step reported "v12.4.0 has NO release object" on
+# a run where that draft demonstrably existed -- it had been cut an hour
+# earlier. It swallowed stderr, so the 404 and a genuine absence were the same
+# observation, and the else-branch stated the negative as a fact.
+#
+# The fix is removal, not repair. Repairing it means granting `contents: write`
+# to a scheduled job so it can read a note nobody gates on -- a real permission
+# downgrade bought for a nicety. A probe that cannot see its subject should not
+# ship; if step 3 ever needs gating, gate it somewhere that already holds write.
