@@ -94,6 +94,13 @@ class WP_REST_Response {
 
 function plugins_url( $path = '', $plugin = '' ) { return 'https://example.test/wp-content/plugins/signal-and-noise-tools/' . ltrim( $path, '/' ); }
 function rest_url( $path = '' ) { return 'https://example.test/wp-json/' . ltrim( $path, '/' ); }
+function add_query_arg( $args, $url ) {
+	$pairs = array();
+	foreach ( (array) $args as $k => $v ) {
+		$pairs[] = rawurlencode( (string) $k ) . '=' . rawurlencode( (string) $v );
+	}
+	return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . implode( '&', $pairs );
+}
 function esc_url_raw( $u ) { return $u; }
 function wp_json_encode( $data ) { return json_encode( $data ); }
 function wp_create_nonce( $action = -1 ) { return 'nonce-' . $action; }
@@ -193,11 +200,11 @@ ok( 3 === count( $entities ), 'both SN sections are appended after the shell bui
 
 $notes = find_entity( $entities, 'sn-notes' );
 ok( is_array( $notes ), 'the Notes section is present' );
-ok( 'wp/v2/posts?categories=7' === ( $notes['restPath'] ?? '' ),
-	'Notes rides the core posts collection with the category filter IN restPath — the shell\'s folder counter probes restPath and ignores listQuery, so a listQuery-scoped section honestly lists 5 Notes while its tile claims the site\'s whole post count' );
+ok( 'wp/v2/posts' === ( $notes['restPath'] ?? '' ),
+	'restPath is the BARE collection route — the shell builds every per-item url as restPath/{id}, and a query string embedded there 400s detail/trash/revisions ("Invalid parameter(s): categories" in the preview pane; shipped briefly, reverted)' );
 ok( 'post' === ( $notes['kind'] ?? '' ), 'Notes uses the built-in post kind — preview/trash/locks come free' );
-ok( ! isset( $notes['listQuery'] ),
-	'no listQuery duplicate of the restPath filter — two spellings of one scope would be free to diverge' );
+ok( array( 'categories' => '7' ) === ( $notes['listQuery'] ?? null ),
+	'the category scope rides listQuery, resolved to the REAL term id at filter time (the folder-tile count that listQuery cannot reach is repainted by the bundle from notesCountUrl)' );
 ok( in_array( 'sn_provenance', (array) ( $notes['listFields'] ?? array() ), true ),
 	'sn_provenance survives the shell\'s _fields stripping via listFields' );
 
@@ -345,6 +352,10 @@ ok( false !== strpos( $inline, 'window.snExplorerConfig=' ), 'the inline config 
 // escaped form.
 ok( false !== strpos( $inline, 'signal-noise\/v1\/desktop\/discography' ),
 	'an admin\'s config carries the discography endpoint' );
+ok( false !== strpos( $inline, 'categories=7' ) && false !== strpos( $inline, 'per_page=1' ),
+	'notesCountUrl carries the category-scoped folder-count probe — same shape as the shell\'s own, PLUS the listQuery its probe ignores' );
+ok( false !== strpos( $inline, '"notesLabel":"Notes"' ),
+	'notesLabel rides along so the bundle can find the folder tile to repaint' );
 
 $GLOBALS['__inline'] = array();
 $GLOBALS['__caps']   = array( 'edit_posts' => true, 'manage_options' => false );

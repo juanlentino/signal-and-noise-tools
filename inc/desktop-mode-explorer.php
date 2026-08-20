@@ -109,14 +109,18 @@ function snt_explorer_group_fields() {
  * on BOTH list and detail requests — without it the companion bundle's badge
  * and pane block would never see the chain.
  *
- * THE CATEGORY FILTER RIDES restPath, NOT listQuery. The shell's folder-tile
- * counter (`fetchEntityTotal()`, upstream src/my-wordpress/rest.ts) probes
- * `restPath` with `per_page=1` and reads `X-WP-Total` — and it does NOT
- * apply `listQuery`. With the filter in `listQuery` the folder honestly
- * listed 5 Notes but its tile claimed the site's entire post count.
- * `joinRestUrl()` explicitly preserves a query string embedded in the path
- * (upstream src/rest-url.ts), so `?categories=N` reaches every URL the
- * Explorer builds from this descriptor — lists, details, and the counter.
+ * THE CATEGORY FILTER RIDES listQuery, AND ONLY listQuery. restPath must
+ * stay a bare collection route: the shell builds every PER-ITEM url as
+ * `${restPath}/${id}` (detail, trash, revisions — upstream
+ * src/my-wordpress/rest.ts), so a query string embedded in restPath lands
+ * INSIDE those paths and core 400s the request ("Invalid parameter(s):
+ * categories" in the preview pane — shipped briefly during 12.4.0 review
+ * and reverted). The cost of the correct spelling is the folder-tile
+ * counter (`fetchEntityTotal()`), which probes restPath WITHOUT applying
+ * listQuery and would claim the site's entire post count; the companion
+ * bundle repaints that one label with a category-scoped count fetched via
+ * `notesCountUrl` from the inline config (see the group-extras handler in
+ * assets/desktop-mode-explorer.js).
  *
  * @since 12.4.0
  * @return array<string,mixed>|null Null when the Notes category is absent
@@ -133,9 +137,10 @@ function snt_explorer_notes_entity() {
 			'id'         => SNT_EXPLORER_NOTES_ID,
 			'label'      => __( 'Notes', 'signal-and-noise-tools' ),
 			'icon'       => 'dashicons-edit-page',
-			'restPath'   => 'wp/v2/posts?categories=' . (int) $cat->term_id,
+			'restPath'   => 'wp/v2/posts',
 			'kind'       => 'post',
 			'post_type'  => 'post',
+			'listQuery'  => array( 'categories' => (string) (int) $cat->term_id ),
 			'listFields' => array( 'sn_provenance' ),
 		),
 		snt_explorer_group_fields()
@@ -287,22 +292,42 @@ add_action( 'admin_enqueue_scripts', function () {
 	if ( ! snt_os_active() || ! snt_os_is_enabled() || ! current_user_can( 'edit_posts' ) ) {
 		return;
 	}
+	$config = array(
+		'notesEntityId'  => SNT_EXPLORER_NOTES_ID,
+		'albumsEntityId' => SNT_EXPLORER_ALBUMS_ID,
+		'albumKind'      => SNT_EXPLORER_ALBUM_KIND,
+		'groupId'        => SNT_EXPLORER_GROUP_ID,
+		'discographyUrl' => current_user_can( 'manage_options' )
+			? esc_url_raw( rest_url( 'signal-noise/v1/desktop/discography' ) )
+			: '',
+		'restNonce'      => wp_create_nonce( 'wp_rest' ),
+	);
+
+	// The category-scoped count probe behind the folder-tile repaint. Same
+	// shape as the shell's own probe (per_page=1, id only, all statuses the
+	// list shows) PLUS the listQuery the shell's probe ignores — see the
+	// restPath/listQuery note on snt_explorer_notes_entity().
+	$notes = snt_explorer_notes_entity();
+	if ( is_array( $notes ) ) {
+		$config['notesLabel']    = (string) $notes['label'];
+		$config['notesCountUrl'] = esc_url_raw(
+			add_query_arg(
+				array_merge(
+					$notes['listQuery'],
+					array(
+						'per_page' => 1,
+						'_fields'  => 'id',
+						'status'   => 'publish,future,draft,pending,private',
+					)
+				),
+				rest_url( $notes['restPath'] )
+			)
+		);
+	}
+
 	wp_add_inline_script(
 		SNT_EXPLORER_SCRIPT_HANDLE,
-		sprintf(
-			'window.snExplorerConfig=%s;',
-			wp_json_encode(
-				array(
-					'notesEntityId'  => SNT_EXPLORER_NOTES_ID,
-					'albumsEntityId' => SNT_EXPLORER_ALBUMS_ID,
-					'albumKind'      => SNT_EXPLORER_ALBUM_KIND,
-					'discographyUrl' => current_user_can( 'manage_options' )
-						? esc_url_raw( rest_url( 'signal-noise/v1/desktop/discography' ) )
-						: '',
-					'restNonce'      => wp_create_nonce( 'wp_rest' ),
-				)
-			)
-		)
+		sprintf( 'window.snExplorerConfig=%s;', wp_json_encode( $config ) )
 	);
 }, 5 );
 

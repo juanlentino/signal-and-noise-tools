@@ -183,6 +183,81 @@
 	);
 
 	/* ────────────────────────────────────────────────────────────────────
+	 * 2b. The Notes folder-tile count.
+	 *
+	 * The shell's counter probes an entity's bare restPath and IGNORES
+	 * listQuery (fetchEntityTotal, upstream src/my-wordpress/rest.ts), so
+	 * the Notes tile would claim the site's entire post count over a
+	 * category-scoped list. The `group-extras` action fires as our group
+	 * view renders (the folder grid paints into the same body right
+	 * after), so: fetch the REAL count from `notesCountUrl` (the same
+	 * probe shape, WITH the category), then repaint the tile's label —
+	 * and hold it for a few seconds with a MutationObserver, because the
+	 * shell's own unscoped ping is in flight concurrently and whichever
+	 * response lands last would otherwise win.
+	 * ──────────────────────────────────────────────────────────────────── */
+	hooks.addAction(
+		'os.my-wordpress.group-extras',
+		'signal-noise/notes-folder-count',
+		function ( ctx ) {
+			var conf = cfg();
+			if ( ! ctx || ! ctx.container || ctx.groupId !== ( conf.groupId || 'plugin:signal-and-noise-tools' ) || ! conf.notesCountUrl ) {
+				return;
+			}
+			var countPromise = window
+				.fetch( conf.notesCountUrl, {
+					credentials: 'same-origin',
+					headers: { 'X-WP-Nonce': conf.restNonce || '' }
+				} )
+				.then( function ( response ) {
+					if ( ! response.ok ) {
+						throw new Error( 'HTTP ' + response.status );
+					}
+					response.json().catch( function () { return null; } );
+					return Number( response.headers.get( 'X-WP-Total' ) );
+				} );
+
+			// The folder grid does not exist yet at action time — it paints
+			// right after the extras slot is appended. One frame later both
+			// the grid and its labels are queryable.
+			window.requestAnimationFrame( function () {
+				countPromise.then( function ( total ) {
+					if ( ! isFinite( total ) ) {
+						return; // Probe failed — leave the shell's label alone.
+					}
+					var label   = null;
+					var prefix  = ( conf.notesLabel || 'Notes' );
+					var labels  = ( ctx.container.parentElement || ctx.container ).querySelectorAll( '.os-file-tile__label' );
+					Array.prototype.forEach.call( labels, function ( node ) {
+						var text = ( node.textContent || '' );
+						if ( text === prefix || text.indexOf( prefix + ' · ' ) === 0 ) {
+							label = node;
+						}
+					} );
+					if ( ! label ) {
+						return;
+					}
+					var wanted = prefix + ' · ' + total.toLocaleString();
+					label.textContent = wanted;
+					// Re-assert over the shell's late-landing unscoped count,
+					// then stand down — this is a repaint, not a takeover.
+					var observer = new MutationObserver( function () {
+						if ( label.textContent !== wanted ) {
+							label.textContent = wanted;
+						}
+					} );
+					observer.observe( label, { childList: true, characterData: true, subtree: true } );
+					window.setTimeout( function () {
+						observer.disconnect();
+					}, 6000 );
+				} ).catch( function () {
+					// Probe failed — the shell's own label stands.
+				} );
+			} );
+		}
+	);
+
+	/* ────────────────────────────────────────────────────────────────────
 	 * 3. Discography — the `signal-noise/album` entity kind.
 	 * ──────────────────────────────────────────────────────────────────── */
 

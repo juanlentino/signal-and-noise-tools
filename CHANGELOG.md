@@ -19,7 +19,13 @@ provenance-signed Notes and the cover-art Discography.
   - **Notes** rides the shell's built-in `post` kind against `wp/v2/posts`
     scoped by `listQuery` to the Notes category (resolved through the same
     `sn_prov_note_category` filter `sn_prov_is_note()` honours) — preview,
-    trash, locks and editor links all come free from upstream.
+    trash, locks and editor links all come free from upstream. The scope
+    must NOT ride the restPath query string: the shell builds every
+    per-item url as `restPath/{id}`, so an embedded query 400s
+    detail/trash/revisions (shipped briefly during review, reverted). The
+    one thing `listQuery` cannot reach — the shell's folder-tile counter
+    probes bare restPath and would claim the site's whole post count —
+    the bundle repaints from a category-scoped probe on `group-extras`.
   - **Discography** declares the custom `signal-noise/album` kind and is
     fed by a new `manage_options`-gated route,
     `GET signal-noise/v1/desktop/discography`, returning the store verbatim
