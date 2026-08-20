@@ -47,10 +47,14 @@ echo "Group: registration + content parity\n";
 ok( isset( $GLOBALS['__shortcodes']['sn_colophon'] ), 'shortcode registered on load' );
 $html = sn_colophon_shortcode();
 ok( false !== strpos( $html, 'custom WordPress block theme' ), 'intro paragraph present' );
-foreach ( array( 'platform', 'type', 'build', 'hosting', 'tooling', 'interop', 'ai', 'trust' ) as $slug ) {
+foreach ( array( 'platform', 'type', 'appearance', 'build', 'hosting', 'tooling', 'interop', 'ai', 'trust' ) as $slug ) {
 	ok( false !== strpos( $html, 'sn-colophon-item--' . $slug ), "item present: $slug" );
 }
 ok( false !== strpos( $html, 'pair-programmer' ), 'the AI-assistance credit is kept verbatim' );
+ok( strpos( $html, 'sn-colophon-item--type' ) < strpos( $html, 'sn-colophon-item--appearance' )
+	&& strpos( $html, 'sn-colophon-item--appearance' ) < strpos( $html, 'sn-colophon-item--build' ),
+	'appearance sits between type and build — both are how the page LOOKS, before how it is made' );
+ok( false !== strpos( $html, 'dark inversion' ), 'the appearance line names the dark inversion, not just "dark mode"' );
 ok( strpos( $html, 'sn-colophon-item--tooling' ) < strpos( $html, 'sn-colophon-item--interop' )
 	&& strpos( $html, 'sn-colophon-item--interop' ) < strpos( $html, 'sn-colophon-item--ai' ),
 	'interop sits between tooling and AI assistance' );

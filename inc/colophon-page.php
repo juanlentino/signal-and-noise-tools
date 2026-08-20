@@ -45,6 +45,7 @@ function sn_colophon_items() {
 	$items = array(
 		'platform' => array( __( 'Platform', 'signal-and-noise-tools' ), __( 'WordPress Full Site Editing (block theme)', 'signal-and-noise-tools' ) ),
 		'type'     => array( __( 'Type', 'signal-and-noise-tools' ), __( 'Bebas Neue (display), DM Mono (body & UI)', 'signal-and-noise-tools' ) ),
+		'appearance' => array( __( 'Appearance', 'signal-and-noise-tools' ), __( 'white-first, with a full dark inversion that follows your system and can be overridden by the toggle', 'signal-and-noise-tools' ) ),
 		'build'    => array( __( 'Build', 'signal-and-noise-tools' ), __( 'buildless: hand-written PHP, theme.json, vanilla ES5. No bundler.', 'signal-and-noise-tools' ) ),
 		'hosting'  => array( __( 'Hosting', 'signal-and-noise-tools' ), __( 'Cloudways, Cloudflare CDN & DNS', 'signal-and-noise-tools' ) ),
 		'tooling'  => array( __( 'Tooling', 'signal-and-noise-tools' ), __( 'companion plugin Signal & Noise Tools for SEO, search & ops', 'signal-and-noise-tools' ) ),
