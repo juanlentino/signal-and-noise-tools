@@ -132,14 +132,14 @@ function snt_roadmap_merge( $base, array $ours, array $theirs ) {
 			$theirs_moved = $tc !== $bc;
 
 			if ( $ours_moved && $theirs_moved && $oc !== $tc ) {
-				$report['conflicts'][] = array( 'family' => $family, 'column' => $column );
 				$pick = $oc;
+				$list = 'conflicts';
 			} elseif ( $ours_moved ) {
-				$report['override_held'][] = array( 'family' => $family, 'column' => $column );
 				$pick = $oc;
+				$list = 'override_held';
 			} elseif ( $theirs_moved ) {
-				$report['code_landed'][] = array( 'family' => $family, 'column' => $column );
 				$pick = $tc;
+				$list = 'code_landed';
 			} else {
 				// Neither writer moved this cell: $bc, $oc and $tc are all
 				// equal here, so the VALUE is the same whichever we pick.
@@ -149,10 +149,22 @@ function snt_roadmap_merge( $base, array $ours, array $theirs ) {
 				// written — so prefer it over $bc even though it can't
 				// change the result.
 				$pick = $tc;
+				$list = null;
 			}
 
+			// A cell that resolves to null does not exist in the merged
+			// board — it must not be recorded as moved either. This is what
+			// a base-only column/family hits: both writers agree it's gone
+			// ($oc and $tc both null), $bc still has a value, so the "moved"
+			// flags fire on both sides and it would otherwise be misfiled as
+			// override_held. Deciding $pick first and gating the report on
+			// it, rather than recording the entry inline with the branch
+			// that chose $pick, is what keeps that phantom out of the report.
 			if ( null !== $pick ) {
 				$cells[ $column ] = $pick;
+				if ( null !== $list ) {
+					$report[ $list ][] = array( 'family' => $family, 'column' => $column );
+				}
 			}
 		}
 		if ( array() !== $cells ) {

@@ -152,12 +152,47 @@ ok( array() === $r['conflicts'] && array() === $r['code_landed'] && array() === 
 $r = snt_roadmap_merge( null, $ours3, $theirs2 );
 ok( $ours3 === $r['merged'], 'a NULL base makes the override authoritative wholesale' );
 
-// NEGATIVE CONTROL: every cell that moved must appear in exactly one list.
+// A family present only in base: both writers deleted it. Nobody "held" or
+// "landed" a cell that exists nowhere in the merged board.
+$base_with_ghost = $base;
+$base_with_ghost['GONE'] = array( 'done' => array( 'g' ) );
+$r = snt_roadmap_merge( $base_with_ghost, $base, $base );
+ok( ! isset( $r['merged']['GONE'] ), 'a family present only in base is omitted from merged' );
+ok(
+	array() === $r['conflicts'] && array() === $r['code_landed'] && array() === $r['override_held'],
+	'and does not appear in any report list — nobody held or landed a cell that does not exist'
+);
+
+// Same shape one level down: a COLUMN present only in base, family present
+// in all three. 'planned' existed in base but neither writer kept it.
+$base_with_col_ghost = array( 'F' => array( 'done' => array( 'a' ), 'planned' => array( 'p' ) ) );
+$both_dropped_col    = array( 'F' => array( 'done' => array( 'a' ) ) );
+$r = snt_roadmap_merge( $base_with_col_ghost, $both_dropped_col, $both_dropped_col );
+ok( ! isset( $r['merged']['F']['planned'] ), 'a column present only in base is omitted from merged' );
+ok(
+	array() === $r['conflicts'] && array() === $r['code_landed'] && array() === $r['override_held'],
+	'and does not appear in any report list either'
+);
+
+// NEGATIVE CONTROL: every cell that moved must appear in exactly one list,
+// AND every cell named in a list must actually exist in merged. The first
+// half alone passed straight through the base-ghost bug above, because it
+// never constructs a cell absent from both ours and theirs; the second half
+// is the assertion that catches it.
 $ours5   = array( 'F' => array( 'done' => array( 'O' ), 'planned' => array( 'p' ) ) );
 $theirs5 = array( 'F' => array( 'done' => array( 'C' ), 'planned' => array( 'C2' ) ) );
 $r = snt_roadmap_merge( $base, $ours5, $theirs5 );
 $named = count( $r['conflicts'] ) + count( $r['code_landed'] ) + count( $r['override_held'] );
 ok( 2 === $named, 'NEGATIVE CONTROL: both moved cells are accounted for exactly once (' . $named . ')' );
+
+$all_named = array_merge( $r['conflicts'], $r['code_landed'], $r['override_held'] );
+$all_exist = true;
+foreach ( $all_named as $cell ) {
+	if ( ! isset( $r['merged'][ $cell['family'] ][ $cell['column'] ] ) ) {
+		$all_exist = false;
+	}
+}
+ok( $all_exist, 'NEGATIVE CONTROL: every cell named in a report list exists in merged' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
