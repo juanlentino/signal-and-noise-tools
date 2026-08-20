@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.6.2] - 2026-08-20 — the bound row says the doors refuse a stranger
+
+The AI maturity page named the two agent doors, the curated allowlists, the
+independent kill switches, the audit trail and the rate limits — every mechanism
+that bounds what an agent may touch — and never said the doors are shut to the
+public. That is the one property a reader cannot verify from outside, and it was
+the only thing missing from the layer.
+
+### Added
+- A closed-door clause on the `bound` engine string in
+  `sn_ai_maturity_layers()`: *"Neither door serves an unauthenticated caller -
+  both refuse the call before any work is done, and neither is advertised among
+  the site's public interfaces."* Measured from the shell, not a browser: the
+  read door answers `401` unauthenticated, the remote door `401` at the
+  Cloudflare Access edge, and the namespace is absent from the public API index.
+
+### Note on what it does NOT claim
+- It does not say "unreachable" or "no public endpoint". The doors **do** answer
+  — with `401`. Refusal is what was measured; unreachability was not, and a
+  claim on this page may not outrun the evidence behind it.
+- Refusing a caller and not advertising the door are **different** guarantees.
+  Both are stated, and both are pinned separately, because publishing only the
+  first would overclaim: a door that refuses you is still a door you found.
+
+### Verified
+- **485 suites, 19,241 assertions, `EXIT=0`.** Zero indented `FAIL` lines; the
+  single skip is `contracts-smoke.php`, which needs a booted WordPress.
+- **The claim was previously asserted by NOTHING.** `tests/ai-maturity-page.php`
+  pins layer *slugs* in walk order, so every word of the `bound` engine string
+  could have been reworded or dropped and the suite stayed green. Both new pins
+  were watched failing before the clause was written, then watched passing.
+- **The SECURITY CONTRACT block still passes.** That block forbids `wp-json`,
+  `signal-noise/v1`, `/mcp`, tool slugs and throttle numbers from appearing in
+  any rendered format — so the clause had to state "no public door" without
+  naming a single endpoint. It does.
+
 ## [12.6.1] - 2026-08-20 — the colophon says how the page looks
 
 Dark mode shipped in theme v12.0.0 and the colophon never mentioned it. The page
