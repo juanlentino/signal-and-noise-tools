@@ -255,7 +255,7 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Charts that speak: the stats page\'s chart ships with its voice built in — a deterministic one-paragraph summary and a calendar-shaped table twin a screen reader navigates with week and weekday context, the picture itself only decoration — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'Contrast audited at the token level: every palette pairing the templates actually use, checked from computed styles so an inline override cannot hide — landing report-first, findings published before any fix ships', 'signal-and-noise-tools' ),
+				__( 'Contrast verified from COMPUTED styles rather than source: the CI sweeps read stylesheets, so an inline override, or text nested inside a surface nobody declared, can still hide from them. The remaining half of the token-level audit, and the half a file cannot answer.', 'signal-and-noise-tools' ),
 				__( 'Motion that asks first: every animation paired with its reduced-motion counterpart, verified by a report-first scan — respecting a visitor\'s motion setting checked, not assumed', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
