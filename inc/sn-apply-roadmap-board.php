@@ -147,7 +147,12 @@ function snt_sn_apply_write_roadmap_board( array $payload ) {
 	if ( array() !== sn_maturity_roadmap_board_problems( $board ) ) {
 		return new WP_Error( 'snt_sn_apply_roadmap_board_invalid', __( 'payload.board failed validation at the write step.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
-	update_option( SN_MATURITY_ROADMAP_OPTION, $board, false );
+	// Record the static board this override was derived from. That base is what
+	// lets the read path tell an override edit from a code edit, so both can
+	// land — see inc/maturity-roadmap-merge.php. Writing a BARE board here (as
+	// this did until v12.6.0) reads back as v1 "unknown provenance", which
+	// collapses the merge into the wholesale shadowing it exists to replace.
+	snt_roadmap_store_envelope( $board, sn_maturity_roadmap_static_board() );
 	return array(
 		'ok'           => true,
 		'diff'         => array( 'before' => $before, 'after' => $board, 'blocks_touched' => 0 ),

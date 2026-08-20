@@ -469,10 +469,20 @@ eq( 'snt_ai_link_already_linked', $rli3->get_error_code(), 'LI3.2: the refusal c
  * ════════════════════════════════════════════════════════════════════════ */
 echo "\nroadmap_board: fingerprint oracle + stale conflict + leak refusal + publish write + reset\n";
 
-$rb_target = array( 'scope' => 'maturity_roadmap' );
-$rb_board  = array(
-	'Analytics' => array( 'done' => array( 'A rewritten done sentence for the sweep' ), 'planned' => array(), 'considering' => array() ),
-);
+$rb_target       = array( 'scope' => 'maturity_roadmap' );
+// A REALISTIC override payload: the door's own docblock requires the FULL
+// board (wholesale, no per-cell patch shape) — a caller reads the effective
+// board via dry_run, edits one cell, and writes the whole thing back. Only
+// 'Analytics'.'done' is touched here; every other family/column is carried
+// forward byte-for-byte from code, which is what lets RB5.2 and RB7 below
+// tell "the override touched this" from "the override just doesn't say."
+// (A payload that only ever names the ONE family it edits — this fixture's
+// shape before v12.6.0 — is a genuine wholesale delete of every other
+// family under the merge's own "absent counts as changed" rule; that is
+// unchanged by this session and not what these assertions are testing.)
+$rb_static_board = sn_maturity_roadmap_static_board();
+$rb_board         = $rb_static_board;
+$rb_board['Analytics']['done'] = array( 'A rewritten done sentence for the sweep' );
 $rb_fp     = sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() );
 
 // Missing fingerprint: 422 with the type's own code; the encoded response
@@ -524,7 +534,7 @@ $rrb5 = snt_ability_sn_apply( array(
 	'mode'   => 'publish', 'dry_run' => false,
 ) );
 ok( ! is_wp_error( $rrb5 ) && true === $rrb5['applied'], 'RB5.1: publish write applies' );
-eq( $rb_board, sn_maturity_roadmap_effective_board(), 'RB5.2: the EFFECTIVE board is now the override — the exact array the shortcode will render' );
+eq( $rb_board, sn_maturity_roadmap_effective_board(), 'RB5.2: the EFFECTIVE board merges the override over code — the override\'s own edited cell lands, and every family the override didn\'t touch survives (equal to $rb_board here only because $rb_board itself already carries every untouched family forward from code; RB7 below is the version where code moves AFTER this write, which is the case that actually distinguishes a merge from the shadowing this session removes)' );
 // v11.5.0: TWO option writes, both deliberate — the board override itself,
 // plus the idempotency RECORD that keyless mutating calls now make (the
 // auto-key means this call's response is stored for replay; pre-11.5.0 a
@@ -543,6 +553,50 @@ $rrb6   = snt_ability_sn_apply( array(
 ok( ! is_wp_error( $rrb6 ) && true === $rrb6['applied'], 'RB6.1: reset applies' );
 eq( sn_maturity_roadmap_static_board(), sn_maturity_roadmap_effective_board(), 'RB6.2: the effective board is the static board again — code-canonical restored' );
 eq( $rb_fp, sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ), 'RB6.3: and the original fingerprint is current again' );
+
+// RB7: the merge actually ENGAGES on a write made through the REAL door —
+// every merge test elsewhere in the suite (tests/maturity-roadmap-merge*)
+// calls snt_roadmap_store_envelope() directly, which proves the merge
+// FUNCTION works but never proves sn_apply's write step actually calls it.
+// This is the assertion that would have caught the whole defect this
+// session exists to close: write one cell through snt_ability_sn_apply(),
+// then have CODE move an untouched family (a later release's static-board
+// edit — exactly the "WHY THIS EXISTS" scenario documented at the top of
+// inc/maturity-roadmap-merge.php), and confirm that code edit lands beside
+// the override instead of being shadowed by it.
+tf_reset_writes();
+$rb7_static_before = sn_maturity_roadmap_static_board();
+$rb7_board          = $rb7_static_before;
+$rb7_board['Analytics']['done'] = array( 'RB7: the owner rewrote this sentence through the real write door' );
+$rb7_fp    = sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() );
+$rb7_write = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => $rb7_fp, 'payload' => array( 'board' => $rb7_board ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $rb7_write ) && true === $rb7_write['applied'], 'RB7.1: the override write goes through the REAL sn_apply door, not a direct envelope call' );
+
+// Code moves on: a family the override never named changes underneath it.
+// snt_roadmap_merge_report() is the same function sn_maturity_roadmap_
+// effective_report() calls in production — passing it a hand-advanced
+// static board simulates "the plugin shipped a release" without needing to
+// redefine sn_maturity_roadmap_static_board() itself.
+$rb7_static_after = $rb7_static_before;
+$rb7_new_sentence  = 'RB7: a brand-new code-shipped sentence, added after the override write';
+$rb7_static_after['Proof of origin']['done'][] = $rb7_new_sentence;
+$rb7_report = snt_roadmap_merge_report( $rb7_static_after );
+
+ok( in_array( $rb7_new_sentence, $rb7_report['merged']['Proof of origin']['done'], true ), 'RB7.2: the code edit to a family the override never touched LANDS in the merged board — the exact defect this session closes' );
+eq( $rb7_board['Analytics']['done'], $rb7_report['merged']['Analytics']['done'], 'RB7.3: the override\'s own edited cell still holds — code moving elsewhere does not clobber it' );
+ok( in_array( array( 'family' => 'Proof of origin', 'column' => 'done' ), $rb7_report['code_landed'], true ), 'RB7.4: the report attributes the landed change to code_landed, not override_held — correct provenance from a REAL write, not a fixture the test hand-assembled' );
+
+// Clean up: back to code-canonical for the sections that follow.
+$rrb7 = snt_ability_sn_apply( array(
+	'target' => $rb_target,
+	'change' => array( 'type' => 'roadmap_board', 'fingerprint' => sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ), 'payload' => array( 'reset' => true ) ),
+	'mode'   => 'publish', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $rrb7 ) && true === $rrb7['applied'], 'RB7.5: reset applies, restoring code-canonical for the sections below' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * ALL EIGHT change types: structural dry_run zero-writes sweep (session-4
