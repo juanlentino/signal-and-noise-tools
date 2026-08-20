@@ -45,6 +45,31 @@ function sn_health_normalize_hex( $color ) {
  * @return array<string,true> Set keyed by '#rrggbb'.
  */
 function sn_health_allowed_palette_hexes() {
+	// UNION across every palette the theme serves — the opposite treatment from
+	// the contrast panel, and for the opposite reason. A dark-palette hex IS a
+	// theme colour, so flagging it as drift is a false positive; here the seven
+	// shared slugs are irrelevant because this is a membership SET keyed by hex,
+	// not by slug, so nothing can overwrite anything. (The contrast panel must
+	// NOT do this: scoring needs the palettes kept apart.)
+	//
+	// Guarded: the accessor lives in inc/health-contrast-tokens.php, which the
+	// loader pulls in alongside this file, but color_drift is also exercised in
+	// isolation by its own suite.
+	if ( function_exists( 'sn_health_theme_palettes' ) ) {
+		$union = array();
+		foreach ( sn_health_theme_palettes() as $scheme_named ) {
+			foreach ( (array) $scheme_named as $hex ) {
+				$norm = sn_health_normalize_hex( (string) $hex );
+				if ( '' !== $norm ) {
+					$union[ $norm ] = true;
+				}
+			}
+		}
+		if ( ! empty( $union ) ) {
+			return $union;
+		}
+	}
+
 	if ( ! function_exists( 'wp_get_global_settings' ) ) {
 		return array();
 	}
