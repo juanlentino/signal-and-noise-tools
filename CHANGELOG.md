@@ -2,6 +2,54 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.5.1] - 2026-08-20 — a border token was doing a surface's job, on the palette the site serves
+
+The v12.5.0 guard reported this pair at 7.34:1. A reader on the live site met
+**2.74:1**. Both numbers were about the same text; only one of them was about
+the surface it actually sits on.
+
+### Fixed
+- **The roadmap board's row-hover fill was `concrete`, this file's
+  hairline/border token** (see its `td` and `th` rules), used as a surface.
+  That is the same role error as ink-as-chrome, and it had teeth: on **High
+  Contrast — the palette this site actually serves** — `concrete` is `#9e9e9e`,
+  and the badge number drawing `--sn-signal-ink` on it measured **2.74:1**.
+  Confirmed in the live DOM, not inferred. Now `asphalt`, the surface token:
+  **6.73 / 5.56 / 7.08:1** across root, high-contrast and dark.
+- **The guard could not see it.** `tests/front-end-css-contrast.php` assumed any
+  element without its own background sits on the page ground. That assumption
+  was documented as a limitation in v12.5.0 — and writing a gap down is not
+  checking whether anything stands in it. One rule in the codebase broke it,
+  and two inks were inside it.
+
+### Added
+- **A coverage assertion**: every non-`void` background a front-end stylesheet
+  paints must be named in `$tinted_surfaces` with an account of what draws on
+  it. A new tinted surface fails the suite until someone says. This is what
+  makes the unavoidable list mechanically complete — whether one element sits
+  inside another is a fact about the HTML that no stylesheet can answer, but
+  *how many tinted grounds exist* is answerable.
+- `$on_surface` entries take MULTIPLE grounds — an element that appears on two
+  surfaces must clear AA on each, not on whichever was thought of first.
+
+### Decisions
+- **A mapped ground is named by the RULE THAT PAINTS IT, never by a colour.**
+  The first version of this map hardcoded `asphalt`, and it passed every test
+  while being wrong: reverting the CSS to `concrete` left the map still claiming
+  asphalt, so the suite reported green through the exact defect it was written
+  for. Caught by mutation testing, which is the only reason it is not shipping.
+- **The trade is stated, not hidden.** `asphalt` is a lighter tint, so the hover
+  cue is subtler (1.09–1.32:1 against `void`, rather than up to 2.7:1). Text
+  legibility on the served palette outranks the strength of a supplementary
+  cue, and the row keeps its transition and cursor.
+
+### Verified
+- **483 suites, 19,145 assertions, `EXIT=0`.** PHPStan clean.
+- **Mutation-tested twice.** The first fix failed its mutation — reverting the
+  CSS produced ZERO findings — which is what exposed the hardcoded-colour flaw.
+  After the indirection, the same mutation fires with the live figure:
+  `#b00303 on #9e9e9e = 2.74:1 [high-contrast]`, on both affected inks.
+
 ## [12.5.0] - 2026-08-20 — the tier edges are measured, and alpha stops flattering them
 
 v12.3.0 gave the epistemic tiers dark values and measured every INK. It shipped

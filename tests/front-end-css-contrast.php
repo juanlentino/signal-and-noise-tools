@@ -58,8 +58,50 @@ $palettes = array(
 	'dark'          => array( 'void' => '#0a0a0a', 'asphalt' => '#171717', 'concrete' => '#383838', 'rust' => '#9e9e9e', 'bone' => '#ffffff', 'blood' => '#ff4c47', 'signal' => '#ff6b66' ),
 );
 
-/** Selectors whose surface is NOT the page ground, listed by name. */
-$on_surface = array();
+/**
+ * Selectors whose ink does NOT sit on the page ground, and every ground it can
+ * sit on. Checked against ALL of them: an element that appears on two surfaces
+ * must clear AA on both.
+ *
+ * THIS IS A LIST, AND A LIST IS THE FAILURE MODE — everything unlisted goes
+ * silently unchecked. It is unavoidable here: whether one element sits inside
+ * another is a fact about the HTML, and a stylesheet cannot answer it. What IS
+ * mechanical is COVERAGE, asserted below: every non-`void` background declared
+ * in a front-end stylesheet must be named in $tinted_surfaces with a note about
+ * what draws on it. A new tinted surface fails the suite until someone says.
+ */
+$on_surface = array(
+	// Both of these draw --sn-signal-ink INSIDE a board row, so they sit on the
+	// page ground normally and on the row-hover tint while hovered. Listed with
+	// BOTH grounds: an element that appears on two surfaces must clear AA on
+	// each, not on whichever was thought of first.
+	// The second ground is named by the SELECTOR THAT PAINTS IT, not by a colour.
+	// A hardcoded colour here is a second copy of a fact the stylesheet already
+	// states, and copies drift: the first version of this map said `asphalt`,
+	// and reverting the CSS to `concrete` left the map still claiming asphalt,
+	// so the suite reported green through the exact defect it was written for.
+	// Resolved from the rule at run time, a CSS change moves the measurement.
+	'.sn-maturity-roadmap-badge__n'           => array( 'var(--wp--preset--color--void)', array( 'from' => '.sn-maturity-roadmap-board tbody tr:hover' ) ),
+	'.sn-maturity-roadmap-fold summary:hover' => array( 'var(--wp--preset--color--void)', array( 'from' => '.sn-maturity-roadmap-board tbody tr:hover' ) ),
+);
+
+/**
+ * Every non-`void` background a front-end stylesheet paints, and what sits on
+ * it. The suite fails if a stylesheet declares one that is not named here.
+ */
+$tinted_surfaces = array(
+	// The row-hover tint. Its ink is mapped in $on_surface above.
+	'assets/maturity-roadmap-front.css :: .sn-maturity-roadmap-board tbody tr:hover'
+		=> 'row hover; the badge number and fold summary draw on it — both mapped in $on_surface',
+	// A 0-height bar that grows on hover/focus. Decorative, and NOTHING draws
+	// text on it: it has no children.
+	'assets/maturity-roadmap-front.css :: .sn-maturity-roadmap-legend__cell::after'
+		=> 'decorative signal bar, height 0 until hover; a pseudo-element with no text on it',
+	// The filled glyph. It declares its own background AND its own ink
+	// (--sn-signal-ink-on), so the ink pass already measures the real pair.
+	'assets/maturity-roadmap-front.css :: .sn-maturity-roadmap-fold summary:hover .sn-maturity-roadmap-fold__glyph'
+		=> 'declares its own background and its own ink; measured directly by the ink pass',
+);
 
 // ── colour maths (WCAG 2.x relative luminance) ─────────────────────────────
 function sn_fecc_rgb( $v ) {
@@ -203,6 +245,23 @@ function sn_fecc_over( $value, $surface ) {
 }
 
 /**
+ * The background a named selector paints, read from the stylesheet itself.
+ *
+ * This is what makes an $on_surface entry a REFERENCE rather than a copy. The
+ * entry names the rule that paints the ground; the value comes from that rule.
+ * Change the CSS and the measurement moves with it.
+ */
+function sn_fecc_bg_of_selector( array $rules, $selector ) {
+	foreach ( $rules as $rule ) {
+		if ( trim( $rule[0] ) !== $selector ) { continue; }
+		$d  = sn_fecc_decls( $rule[1] );
+		$bg = $d['background-color'] ?? ( $d['background'] ?? '' );
+		if ( '' !== $bg ) { return $bg; }
+	}
+	return null;
+}
+
+/**
  * What surface does this rule's content sit on?
  *
  * ONE implementation, used by both passes. Two copies of this rule drifting
@@ -213,6 +272,8 @@ function sn_fecc_surface_of( array $decls, $sel, array $on_surface ) {
 	if ( '' !== $surface && ( false !== strpos( $surface, 'var(' ) || null !== sn_fecc_rgb( $surface ) ) ) {
 		return $surface;
 	}
+	// May be an ARRAY: an element that appears on more than one ground must
+	// clear AA on every one of them, not on whichever was thought of first.
 	// Nothing usable declared here: it sits on whatever its ancestor painted.
 	// The page ground is `void` unless the selector is named otherwise.
 	return $on_surface[ $sel ] ?? 'var(--wp--preset--color--void)';
@@ -385,8 +446,19 @@ function sn_fecc_audit( $file, $palettes, $on_surface, $allow, $skip_ink ) {
 		$ink   = $decls['color'] ?? '';
 		if ( '' === $ink || in_array( strtolower( $ink ), $skip_ink, true ) ) { continue; }
 
-		$surface = sn_fecc_surface_of( $decls, $sel, $on_surface );
+		$surfaces = sn_fecc_surface_of( $decls, $sel, $on_surface );
 
+		foreach ( (array) $surfaces as $surface ) {
+		if ( is_array( $surface ) && isset( $surface['from'] ) ) {
+			$surface = sn_fecc_bg_of_selector( $rules, $surface['from'] );
+			// A reference to a rule that no longer exists is a BROKEN MAP, not
+			// an absent surface: fail loudly rather than silently checking one
+			// ground fewer.
+			if ( null === $surface ) {
+				$bad[] = $rel . ' :: ' . $sel . ' :: $on_surface names a rule that paints nothing';
+				continue;
+			}
+		}
 		foreach ( $palettes as $id => $tokens ) {
 			$scheme = ( 'dark' === $id ) ? 'dark' : 'light';
 			$map    = array_merge( $tokens, $local['light'], 'dark' === $scheme ? $local['dark'] : array() );
@@ -399,9 +471,38 @@ function sn_fecc_audit( $file, $palettes, $on_surface, $allow, $skip_ink ) {
 			if ( isset( $allow[ $key ] ) ) { continue; }
 			$bad[] = sprintf( '%s [%s] %s on %s = %.2f:1', $key, $id, $a, $b, $r );
 		}
+		}
 	}
 	return $bad;
 }
+
+// ── coverage: no tinted surface may appear without a declared account ──────
+echo "\nGroup: every non-void surface a stylesheet paints is accounted for\n";
+$declared_tints = array();
+foreach ( glob( dirname( __DIR__ ) . '/assets/*front*.css' ) as $file ) {
+	$rel = 'assets/' . basename( $file );
+	foreach ( sn_fecc_rules( (string) file_get_contents( $file ) ) as $rule ) {
+		list( $sel, $body ) = $rule;
+		if ( false !== strpos( $sel, ':root' ) ) { continue; }
+		$decls = sn_fecc_decls( $body );
+		$bg    = $decls['background-color'] ?? ( $decls['background'] ?? '' );
+		if ( '' === $bg || false === strpos( $bg, 'var(' ) ) { continue; }
+		$lit = sn_fecc_resolve( $bg, $palettes['root'] );
+		// `void` is the page ground; anything else is a TINT, and something may
+		// be drawing ink on it that this file would otherwise score against the
+		// page.
+		if ( null === $lit || strtolower( $lit ) === strtolower( $palettes['root']['void'] ) ) { continue; }
+		$declared_tints[ $rel . ' :: ' . $sel ] = $bg;
+	}
+}
+foreach ( $declared_tints as $where => $bg ) {
+	if ( ! isset( $tinted_surfaces[ $where ] ) ) {
+		echo "  -> UNACCOUNTED tinted surface: $where paints $bg\n";
+	}
+}
+$unaccounted = array_diff_key( $declared_tints, $tinted_surfaces );
+ok( empty( $unaccounted ), sprintf( 'every tinted surface is named in $tinted_surfaces (%d unaccounted)', count( $unaccounted ) ) );
+ok( ! empty( $declared_tints ) || 0 === count( $tinted_surfaces ), 'the scan finds tinted surfaces when they exist (guard against a vacuous pass)' );
 
 echo "\nGroup: every front-end ink/surface pair clears AA (4.5:1) in all three palettes\n";
 $files = glob( dirname( __DIR__ ) . '/assets/*front*.css' );
@@ -533,6 +634,19 @@ ok( 2 === count( preg_grep( '/over #000000/', $edge_probe ) ), 'both findings na
 // deliberately, and it would otherwise self-compare at 1.00:1 forever.
 $glyph = sn_fecc_audit_nontext( dirname( __DIR__ ) . '/assets/maturity-roadmap-front.css', $palettes, $on_surface, $allow );
 ok( array() === $glyph, 'an edge the same colour as its own fill is skipped as fill, not reported (' . count( $glyph ) . ' finding(s) on the roadmap sheet)' );
+
+// The $on_surface indirection must RESOLVE, not merely parse. A hardcoded
+// colour there passed every test while being wrong: reverting the CSS left the
+// map still asserting the old ground, and the suite reported green through the
+// exact defect it was written for. These drive the real resolver.
+echo "\nGroup: a mapped surface is READ FROM THE CSS, not copied into the map\n";
+$rm_rules = sn_fecc_rules( (string) file_get_contents( dirname( __DIR__ ) . '/assets/maturity-roadmap-front.css' ) );
+$row_bg   = sn_fecc_bg_of_selector( $rm_rules, '.sn-maturity-roadmap-board tbody tr:hover' );
+ok( null !== $row_bg && false !== strpos( $row_bg, 'asphalt' ), 'the row-hover ground resolves from the stylesheet (' . var_export( $row_bg, true ) . ')' );
+ok( null === sn_fecc_bg_of_selector( $rm_rules, '.sn-does-not-exist' ), 'a selector that paints nothing resolves to NULL, which the audit reports as a broken map rather than skipping' );
+$hc = $palettes['high-contrast'];
+ok( sn_fecc_ratio( '#b00303', $hc['concrete'] ) < 3.0, 'NEGATIVE CONTROL: the reported live defect — signal-ink on `concrete` in HIGH CONTRAST — is ' . sprintf( '%.2f:1', sn_fecc_ratio( '#b00303', $hc['concrete'] ) ) . ', far below AA' );
+ok( sn_fecc_ratio( '#b00303', $hc['asphalt'] ) >= 4.5, 'and on `asphalt`, the surface token, it clears at ' . sprintf( '%.2f:1', sn_fecc_ratio( '#b00303', $hc['asphalt'] ) ) );
 
 // ── negative controls ──────────────────────────────────────────────────────
 // The instrument must be able to emit a POSITIVE. Each control drives the real
