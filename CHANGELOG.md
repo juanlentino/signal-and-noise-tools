@@ -7,7 +7,7 @@ All notable changes to Signal & Noise Tools are documented here.
 > **Props [@AllTerrainDeveloper](https://github.com/AllTerrainDeveloper)** (Daniel
 > López Sánchez), who wrote this release and opened it as
 > [#751](https://github.com/juanlentino/signal-and-noise-tools/pull/751) from a
-> fork — the **first outside contribution** to this plugin. They are also the
+> fork — the **first outside contribution** to this plugin. He is also the
 > leading contributor to [WordPress/openstation](https://github.com/WordPress/openstation),
 > the shell this integrates with, which is why the module lands on upstream's own
 > `openstation_my_wordpress_entities` / `..._window_args` filters through the
