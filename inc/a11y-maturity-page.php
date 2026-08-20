@@ -51,6 +51,13 @@ function sn_a11y_maturity_principles() {
 		__( 'Keyboard is a first-class input, not a fallback.', 'signal-and-noise-tools' ),
 		__( 'A report from a reader outranks the self-assessment.', 'signal-and-noise-tools' ),
 		__( 'Decoration never carries meaning alone.', 'signal-and-noise-tools' ),
+		// THE NINTH. Graduated off the hub roadmap board (v12.6.3) when the
+		// Accessibility done column filled: the board's done ceiling forces a
+		// shipped row down a level rather than letting the column grow, and
+		// this page is where it lands. Longer than its siblings because it
+		// carries a mechanism, not an aphorism -- the same asymmetry the AI
+		// page took on for the same reason.
+		__( 'Structural scans repair heading order, and every repair is fingerprint-bound - a fix that cannot prove the block is still where it was does not land.', 'signal-and-noise-tools' ),
 	);
 }
 

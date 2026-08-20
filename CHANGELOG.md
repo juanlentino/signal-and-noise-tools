@@ -2,55 +2,75 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [12.6.2] - 2026-08-20 — the bound row says what the doors do with a stranger
+## [12.6.3] - 2026-08-20 — the shipped half of the contrast audit reaches the board
 
-The AI maturity page named the two agent doors, the curated allowlists, the
-independent kill switches, the audit trail and the rate limits — every mechanism
-that bounds what an agent may touch — and never said what happens when an
-unauthenticated caller knocks. That is the one property a reader cannot verify
-from outside, and it was the only thing missing from the layer.
+The contrast work shipped across v12.3.0, v12.5.0 and v12.5.1 and never reached
+the roadmap. The board's Accessibility column carried the *undelivered* half as
+`planned` and said nothing about the delivered half — so the page understated
+what the site actually does.
+
+The done column was full at four against a canary that reds one row before the
+wall, so the row could not simply be added. A row had to graduate.
 
 ### Added
-- A closed-door clause on the `bound` engine string in
-  `sn_ai_maturity_layers()`: *"Neither door serves an unauthenticated caller -
-  both refuse the call before any work is done. Neither is hidden, either: both
-  are listed in the site's public interface index, because an unlisted door is
-  not a closed one."*
+- **Accessibility `done`:** contrast enforced per palette rather than per token —
+  every text pair re-checked against each of the three palettes the site serves,
+  and non-text edges (borders, focus rings, chart strokes) held to 3:1 with alpha
+  composited against the surface beneath rather than assumed opaque. Verifiable
+  against five shipped suites, 201 assertions.
+- The `planned` row still owns the undelivered half (contrast from computed
+  styles). The two sit adjacent without contradicting.
 
-### Fixed before it shipped — the first draft of this clause was FALSE
-- The first draft read *"neither is advertised among the site's public
-  interfaces."* It was written from a prior session's note that *"no `mcp`
-  namespace is advertised"* — narrow and true, since the doors live under an
-  existing namespace rather than one of their own.
-- **A shell probe of the public interface index found BOTH routes listed there.**
-  Restating the note instead of re-deriving it widened a true, narrow finding
-  into a false, broad claim — and on this page of all pages, a claim any reader
-  could falsify in five seconds.
-- The clause was reworded to what is **true** rather than quietly narrowed to
-  what was defensible. The honest version is also the stronger one: it draws the
-  line between obscurity and refusal, which is the distinction the layer is
-  actually about. A door you cannot find is not a door that is shut.
+### Graduated
+- **Structural scans with fingerprint-safe fixes** left the board for
+  `/maturity/a11y-maturity/`, where it is now the page's **ninth** principle:
+  *"Structural scans repair heading order, and every repair is fingerprint-bound
+  - a fix that cannot prove the block is still where it was does not land."*
+- a11y is the second family page to break the eight-principle symmetry, for the
+  same reason the AI page did: the extra principle arrived by graduation, not by
+  authoring. The asymmetry is the ceiling mechanism working.
+- One for one, so the wall canary never moved — Accessibility done is back to
+  four, and the fullest column is still `Proof of origin` at four.
 
-### Measured, from the shell — not from a browser
-| probe | result |
-|---|---|
-| read door, unauthenticated `POST` | `401` |
-| remote door | `401` at the Cloudflare Access edge |
-| public interface index | **both routes listed** — the doors are discoverable |
-
-A browser `fetch()` establishes none of these; it throws on CORS and proves
-nothing about access control.
+### Changed
+- The v12.6.2 CHANGELOG entry trimmed from 50 lines to 26. The full account of
+  the false-claim correction lives in the commit, the PR and the session file;
+  the CHANGELOG is what a reader outside this project sees.
 
 ### Verified
-- **485 suites, 19,242 assertions, `EXIT=0`.** Zero indented `FAIL` lines; the
-  single skip is `contracts-smoke.php`, which needs a booted WordPress.
-- **The claim was previously asserted by NOTHING.** `tests/ai-maturity-page.php`
-  pins layer *slugs* in walk order, so every word of the `bound` engine string
-  could have been reworded or dropped and the suite stayed green. All three pins
-  were watched failing before the clause existed, then watched passing.
-- **The SECURITY CONTRACT block still passes.** It forbids `wp-json`, the
-  namespace, the route slugs and the throttle numbers from any rendered format,
-  so the clause had to describe the doors without naming one endpoint. It does.
+- **485 suites, 19,249 assertions, `EXIT=0`**, zero indented `FAIL` lines.
+- Seven new pins, six watched failing first. The seventh — *Accessibility done is
+  back to four* — passed immediately by design: it is an invariant that must hold
+  on **both** sides of the swap, so it guards against a net gain rather than
+  detecting the change.
+- Nothing pinned the graduated row before it moved, so the move could have been a
+  silent deletion. It is now pinned on the rendered a11y page, in two halves.
+
+## [12.6.2] - 2026-08-20 — the bound row says what the doors do with a stranger
+
+The AI maturity page named the two agent doors, the allowlists, the kill
+switches, the audit trail and the rate limits, and never said what happens when
+an unauthenticated caller knocks — the one property a reader cannot check from
+outside.
+
+### Added
+- A closed-door clause on the `bound` engine string: *"Neither door serves an
+  unauthenticated caller - both refuse the call before any work is done. Neither
+  is hidden, either: both are listed in the site's public interface index,
+  because an unlisted door is not a closed one."*
+- The clause says "refuses", not "unreachable": both doors answer `401`, which
+  is what was measured. Refusal and discoverability are separate guarantees, so
+  both are stated and both are pinned separately.
+
+### Fixed before shipping
+- The first draft claimed the doors were *not advertised*, widening a prior
+  session's narrower note. A shell probe found both routes listed in the public
+  index. Reworded to what is true rather than narrowed to what was defensible.
+
+### Verified
+- 485 suites, 19,242 assertions, `EXIT=0`. The `bound` string was previously
+  asserted by nothing; all three pins were watched failing first. The
+  SECURITY CONTRACT block still passes — the clause names no endpoint.
 
 ## [12.6.1] - 2026-08-20 — the colophon says how the page looks
 

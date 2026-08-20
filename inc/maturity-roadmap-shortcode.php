@@ -249,7 +249,12 @@ function sn_maturity_roadmap_static_board() {
 		),
 		__( 'Accessibility', 'signal-and-noise-tools' )       => array(
 			'done'        => array(
-				__( 'Structural scans with fingerprint-safe fixes, so a heading-hierarchy repair can never write over a block that moved', 'signal-and-noise-tools' ),
+				// v12.6.3: the DELIVERED half of the contrast audit. The planned
+				// row below still owns the undelivered half (computed styles), so
+				// the two sit adjacent without contradicting. It took the slot the
+				// structural-scan row vacated by graduating onto the a11y page --
+				// one for one, so the wall canary never moved.
+				__( 'Contrast enforced per palette rather than per token: every text pair re-checked against each of the three palettes the site actually serves, and non-text edges - borders, focus rings, chart strokes - held to 3:1 with alpha composited against the surface beneath rather than assumed opaque', 'signal-and-noise-tools' ),
 				__( 'Alt-text coverage extended to inline vector artwork, checked as an accessible name rather than an attribute — the title or label a screen reader would actually announce, or an explicit decorative marking — because that kind of image carries no alt attribute to find, and a sweep looking for one would call every drawing broken', 'signal-and-noise-tools' ),
 				__( 'Alt-text quality, not just coverage: filename echoes, caption duplicates, alt that repeats the heading beside it, and alt that names a category rather than the picture raised as findings a person accepts or rejects — the same human acceptance the coverage sweep already passes through, never a silent rewrite', 'signal-and-noise-tools' ),
 				__( 'Charts that speak: the stats page\'s chart ships with its voice built in — a deterministic one-paragraph summary and a calendar-shaped table twin a screen reader navigates with week and weekday context, the picture itself only decoration — a thread shared with Analytics', 'signal-and-noise-tools' ),
