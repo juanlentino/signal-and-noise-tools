@@ -4,3 +4,14 @@
    dark. Every value here is a token, so the literal sweep passes it. */
 .sn-fecc-good{color:var(--wp--preset--color--bone);background:var(--wp--preset--color--void)}
 .sn-fecc-role-error{color:var(--wp--preset--color--asphalt);background:var(--wp--preset--color--void)}
+
+/* Discriminates the BORDER-SURFACE MODEL. This element paints its own dark
+   fill, and its edge is mid-grey: 12.63:1 against the PAGE ground (white) and
+   1.66:1 against the fill it is actually drawn over. A checker that judges a
+   border against the page passes this; one that judges it against the
+   element's own background fails it. The browser paints the border over the
+   element's background (background-clip defaults to border-box), so failing
+   is the correct answer. Light palettes only -- `bone` is #ffffff in dark, so
+   there the same edge genuinely clears. */
+:root{--sn-probe-edge:#333333}
+.sn-fecc-edge-on-own-fill{background:var(--wp--preset--color--bone);border-color:var(--sn-probe-edge)}
