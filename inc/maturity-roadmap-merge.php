@@ -76,3 +76,88 @@ function snt_roadmap_store_envelope( array $board, array $base ) {
 		false
 	);
 }
+
+/**
+ * Three-way merge of a roadmap board, one (family, column) CELL at a time.
+ *
+ * ABSENT AND PRESENT ARE DIFFERENT VALUES. A cell in one board and not another
+ * counts as changed, which is what makes deletions merge like any other edit.
+ *
+ * A CONFLICT RENDERS THE OVERRIDE. The public page must not change under the
+ * owner because of a plugin update they did not review — code winning would
+ * mean an install silently reverting authored copy.
+ *
+ * The merge unit is deliberately a whole cell, not a sentence. A code edit to
+ * one sentence of a cell the override rewrote is a conflict, not a merge:
+ * auto-merging inside a cell is how a board nobody authored gets published.
+ *
+ * @param array|null $base   Static board at the time of the override write; null = unknown (v1).
+ * @param array      $ours   The override board.
+ * @param array      $theirs The static board now.
+ * @return array{merged:array,conflicts:array,code_landed:array,override_held:array}
+ */
+function snt_roadmap_merge( $base, array $ours, array $theirs ) {
+	$report = array( 'merged' => array(), 'conflicts' => array(), 'code_landed' => array(), 'override_held' => array() );
+
+	// Unknown provenance: the override owns everything, nothing lands from code.
+	if ( ! is_array( $base ) ) {
+		$report['merged'] = $ours;
+		return $report;
+	}
+
+	// $ours and $theirs are always FULL board snapshots, never diffs: if a
+	// writer didn't touch a family, its stored copy still carries that
+	// family's data unchanged from $base. So a family present ONLY in $base
+	// implies both writers already agreed to drop it, and array_keys( $ours
+	// + $theirs ) alone would enumerate everything that still needs a
+	// decision — the + $base term below is inert under that invariant (any
+	// key it alone contributes picks null cells throughout and is dropped
+	// before reaching $report['merged']). It's kept anyway, for both this
+	// union and the column-level one just below, as cheap insurance against
+	// a future caller that passes a diff instead of a snapshot.
+	$families = array_keys( $ours + $theirs + $base );
+	foreach ( $families as $family ) {
+		$b = $base[ $family ]   ?? array();
+		$o = $ours[ $family ]   ?? array();
+		$t = $theirs[ $family ] ?? array();
+
+		$columns = array_keys( $o + $t + $b );
+		$cells   = array();
+		foreach ( $columns as $column ) {
+			$bc = $b[ $column ] ?? null;
+			$oc = $o[ $column ] ?? null;
+			$tc = $t[ $column ] ?? null;
+
+			$ours_moved   = $oc !== $bc;
+			$theirs_moved = $tc !== $bc;
+
+			if ( $ours_moved && $theirs_moved && $oc !== $tc ) {
+				$report['conflicts'][] = array( 'family' => $family, 'column' => $column );
+				$pick = $oc;
+			} elseif ( $ours_moved ) {
+				$report['override_held'][] = array( 'family' => $family, 'column' => $column );
+				$pick = $oc;
+			} elseif ( $theirs_moved ) {
+				$report['code_landed'][] = array( 'family' => $family, 'column' => $column );
+				$pick = $tc;
+			} else {
+				// Neither writer moved this cell: $bc, $oc and $tc are all
+				// equal here, so the VALUE is the same whichever we pick.
+				// $tc (code's current copy) is the clearer statement of
+				// intent — an unmoved cell tracks the live source of truth,
+				// not a stale snapshot from whenever the override was last
+				// written — so prefer it over $bc even though it can't
+				// change the result.
+				$pick = $tc;
+			}
+
+			if ( null !== $pick ) {
+				$cells[ $column ] = $pick;
+			}
+		}
+		if ( array() !== $cells ) {
+			$report['merged'][ $family ] = $cells;
+		}
+	}
+	return $report;
+}

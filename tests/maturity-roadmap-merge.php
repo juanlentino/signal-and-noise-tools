@@ -100,5 +100,64 @@ ok(
 	'a v1 board with families literally named "v" and "board" is read as a bare board, not an envelope'
 );
 
+echo "\nGroup: the three-way merge\n";
+
+$base   = array( 'F' => array( 'done' => array( 'a' ), 'planned' => array( 'p' ) ) );
+
+// Code moved a cell the override never touched -> code lands.
+$ours   = array( 'F' => array( 'done' => array( 'a' ), 'planned' => array( 'OVERRIDE' ) ) );
+$theirs = array( 'F' => array( 'done' => array( 'CODE' ), 'planned' => array( 'p' ) ) );
+$r = snt_roadmap_merge( $base, $ours, $theirs );
+ok( array( 'CODE' ) === $r['merged']['F']['done'], 'code lands on a cell the override never touched' );
+ok( array( 'OVERRIDE' ) === $r['merged']['F']['planned'], 'and the override holds its own cell' );
+ok( array( array( 'family' => 'F', 'column' => 'done' ) ) === $r['code_landed'], 'the report names the cell code won' );
+ok( array( array( 'family' => 'F', 'column' => 'planned' ) ) === $r['override_held'], 'and the cell the override held' );
+ok( array() === $r['conflicts'], 'with no conflicts' );
+
+// Both moved the same cell -> conflict; the OVERRIDE renders.
+$ours   = array( 'F' => array( 'done' => array( 'OVERRIDE' ), 'planned' => array( 'p' ) ) );
+$theirs = array( 'F' => array( 'done' => array( 'CODE' ), 'planned' => array( 'p' ) ) );
+$r = snt_roadmap_merge( $base, $ours, $theirs );
+ok( array( 'OVERRIDE' ) === $r['merged']['F']['done'], 'a conflict renders the OVERRIDE — an install must not silently revert authored copy' );
+ok( array( array( 'family' => 'F', 'column' => 'done' ) ) === $r['conflicts'], 'and the conflict is reported by name' );
+
+// A family only code knows about appears.
+$theirs2 = $base;
+$theirs2['NEW'] = array( 'done' => array( 'n' ) );
+$r = snt_roadmap_merge( $base, $base, $theirs2 );
+ok( isset( $r['merged']['NEW'] ), 'a family added in code appears in the merged board' );
+
+// Code deleted a family the override never touched -> dropped.
+$r = snt_roadmap_merge( $base, $base, array() );
+ok( array() === $r['merged'], 'code deleting a family the override never touched drops it' );
+
+// Code deleted a family the override HAD changed -> conflict, kept.
+$ours3 = array( 'F' => array( 'done' => array( 'OVERRIDE' ), 'planned' => array( 'p' ) ) );
+$r = snt_roadmap_merge( $base, $ours3, array() );
+ok( isset( $r['merged']['F'] ), 'code deleting a family the override changed keeps it' );
+ok( array() !== $r['conflicts'], 'and reports the conflict' );
+
+// Absence is a value: a column code removed, untouched by the override.
+$ours4   = $base;
+$theirs4 = array( 'F' => array( 'done' => array( 'a' ) ) );
+$r = snt_roadmap_merge( $base, $ours4, $theirs4 );
+ok( ! isset( $r['merged']['F']['planned'] ), 'code removing a COLUMN the override never touched drops it' );
+
+// Identity.
+$r = snt_roadmap_merge( $base, $base, $base );
+ok( $base === $r['merged'], 'merging three identical boards is the identity' );
+ok( array() === $r['conflicts'] && array() === $r['code_landed'] && array() === $r['override_held'], 'and reports nothing moved' );
+
+// A null base (v1) means the override owns everything.
+$r = snt_roadmap_merge( null, $ours3, $theirs2 );
+ok( $ours3 === $r['merged'], 'a NULL base makes the override authoritative wholesale' );
+
+// NEGATIVE CONTROL: every cell that moved must appear in exactly one list.
+$ours5   = array( 'F' => array( 'done' => array( 'O' ), 'planned' => array( 'p' ) ) );
+$theirs5 = array( 'F' => array( 'done' => array( 'C' ), 'planned' => array( 'C2' ) ) );
+$r = snt_roadmap_merge( $base, $ours5, $theirs5 );
+$named = count( $r['conflicts'] ) + count( $r['code_landed'] ) + count( $r['override_held'] );
+ok( 2 === $named, 'NEGATIVE CONTROL: both moved cells are accounted for exactly once (' . $named . ')' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
