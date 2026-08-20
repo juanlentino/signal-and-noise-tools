@@ -4,6 +4,18 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [12.4.0] - 2026-08-20 — the plugin's collections become places you can walk into
 
+> **Props [@AllTerrainDeveloper](https://github.com/AllTerrainDeveloper)** (Daniel
+> López Sánchez), who wrote this release and opened it as
+> [#751](https://github.com/juanlentino/signal-and-noise-tools/pull/751) from a
+> fork — the **first outside contribution** to this plugin. He is also the
+> leading contributor to [WordPress/openstation](https://github.com/WordPress/openstation),
+> the shell this integrates with, which is why the module lands on upstream's own
+> `openstation_my_wordpress_entities` / `..._window_args` filters through the
+> existing compat seam rather than reaching around them.
+>
+> This entry establishes the convention: **work from outside gets named here, in
+> the release it shipped in.**
+
 The shell's WP Explorer renders WordPress as a file system: folders at the
 root, tiles inside, a preview pane. Until now Signal & Noise data was visible
 there only as undifferentiated posts. This release gives the plugin its own
