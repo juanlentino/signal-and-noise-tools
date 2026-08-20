@@ -2,6 +2,54 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.5.0] - 2026-08-20 — the tier edges are measured, and alpha stops flattering them
+
+v12.3.0 gave the epistemic tiers dark values and measured every INK. It shipped
+their `-edge` borders verified at **no threshold at all**, and said so. This
+closes that: the borders are checked, and they were failing.
+
+### Added
+- **Non-text contrast (WCAG 1.4.11, 3:1)** in
+  [tests/front-end-css-contrast.php](tests/front-end-css-contrast.php), with
+  **alpha compositing**. Scope is DERIVED, not listed: a border is checked when
+  its colour resolves through a plugin-owned `--sn-*` token, because those
+  tokens exist to carry meaning. Theme-palette hairlines are chrome and are
+  skipped — WCAG exempts decoration, and a blanket rule would red every
+  hairline against a standard that does not apply. A LIST would have been the
+  easy version and the wrong one: everything unlisted goes silently unchecked.
+
+### Fixed
+- **Every tier edge was below the non-text minimum.** At alpha `.45` the six
+  composited to **1.99–2.19:1** against their ground. They are now `.72`, which
+  lands them at **3.29–3.87:1**. The var() fallbacks carry `.72` too — a
+  fallback that disagrees with its token renders a different colour in the one
+  situation it exists for.
+- **The check's first version scored a border against its own FILL.** The
+  roadmap glyph sets `background` and `border-color` to the same token, which
+  self-compares at exactly 1.00:1 — a false positive no CSS change could clear.
+  A border is judged against what is OUTSIDE the element; it is drawn at the
+  boundary, and the boundary separates the component from the page. Pinned, so
+  a later simplification cannot merge the two passes.
+
+### Decisions
+- **ONE alpha for all three tiers**, not a per-tier value tuned to each hue —
+  the same reason the inks share a contrast band. A heavier edge on one tier
+  asserts an importance the data does not carry.
+- **Ignoring alpha is not a rounding error.** The same edge scores 6.17:1 read
+  as opaque and 2.05:1 composited. That is the difference between passing and
+  failing, and it is pinned by a control that asserts both numbers.
+
+### Verified
+- **483 suites, 19,136 assertions, `EXIT=0`.** PHPStan clean.
+- **Mutation-tested**: restoring the shipped `.45` to one tier fires exactly
+  that tier's rows and nothing else; restoring `.72` returns it to green.
+- The compositing maths is controlled on a hand-computable case (50% red over
+  white → `rgb(255, 128, 128)`).
+- **What this still cannot see:** a border using a PALETTE token to carry
+  meaning is informational and invisible to the scope rule; icons are not
+  checked at all; and the ink and edge passes now share one surface resolver,
+  so a wrong entry in it is wrong twice.
+
 ## [12.4.0] - 2026-08-20 — the plugin's collections become places you can walk into
 
 > **Props [@AllTerrainDeveloper](https://github.com/AllTerrainDeveloper)** (Daniel
