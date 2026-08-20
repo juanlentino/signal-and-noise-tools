@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.6.1] - 2026-08-20 — the colophon says how the page looks
+
+Dark mode shipped in theme v12.0.0 and the colophon never mentioned it. The page
+listed Platform, Type, Build, Hosting, Tooling, Interop, AI assistance and
+Trust — every fact about how the site is made, and nothing about the one choice
+a reader can actually make while reading it.
+
+### Added
+- An **Appearance** row in `sn_colophon_items()`, between `type` and `build`:
+  *"white-first, with a full dark inversion that follows your system and can be
+  overridden by the toggle."* Both of those are how the page LOOKS, before how
+  it is made — hence the placement, which is now pinned rather than incidental.
+
+### Verified
+- **485 suites, 19,239 assertions, `EXIT=0`.** PHPStan clean; PHPCS clean.
+- **Mutation-tested.** The existing suite iterates a FIXED slug list, so a new
+  row would have been rendered-but-unpinned — passing whether or not it existed.
+  The slug is now in that list, its placement asserted the way `tooling`/
+  `interop` already was, and its wording pinned on "dark inversion". Removing
+  the row fires all three and exits 1.
+
 ## [12.6.0] - 2026-08-20 — the roadmap board takes edits from both writers
 
 The board has two writers — `sn_maturity_roadmap_static_board()` in code, and
