@@ -101,6 +101,22 @@ ok( false === strpos( $filtered, 'evil-raw-status' ), 'a status outside the whit
 ok( false !== strpos( $filtered, 'sn-ai-maturity-scope-badge--planned"><strong>Voice cloning' ), 'unknown status renders as planned' );
 remove_all_filters( 'sn_ai_maturity_scope' );
 
+echo "\nGroup: the bound layer publishes the closed-door claim\n";
+// THE CLOSED-DOOR PIN. Until now the `bound` engine string was asserted by
+// NOTHING — the walk-order test pins layer SLUGS, so every word of the claim
+// could be rewritten or dropped and the suite stayed green. The page named the
+// doors, the allowlists, the kill switches and the audit trail, but never said
+// the doors are shut to the public web, which is the one thing a reader who
+// distrusts an agent surface actually wants to know. Pinned on the RENDERED
+// table, not on sn_ai_maturity_layers(), for the same reason the graduation
+// pin above is: the array is where it lives, the page is where it counts.
+// Substance in two halves so a rewrite may reword freely but cannot quietly
+// drop either one — refusing a caller and not advertising the door are
+// DIFFERENT properties, and publishing only the first would overclaim.
+ok( false !== strpos( $table, 'unauthenticated' ), 'CLOSED DOOR: the bound row says an unauthenticated caller is refused - the property a reader cannot verify from outside' );
+ok( false !== strpos( $table, 'listed' ), 'CLOSED DOOR: and it states the doors ARE listed publicly - both routes really do appear in the public interface index, so claiming they are hidden would be falsifiable by any reader in five seconds' );
+ok( false !== strpos( $table, 'unlisted' ), 'CLOSED DOOR: and it says why that is fine - an unlisted door is not a closed one, which is the difference between obscurity and refusal' );
+
 echo "\nGroup: SECURITY CONTRACT — no lever leaks in any rendered format\n";
 $all_output = '';
 foreach ( array( 'full', 'table', 'principles', 'scope', 'compact' ) as $f ) {

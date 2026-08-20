@@ -2,6 +2,56 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.6.2] - 2026-08-20 — the bound row says what the doors do with a stranger
+
+The AI maturity page named the two agent doors, the curated allowlists, the
+independent kill switches, the audit trail and the rate limits — every mechanism
+that bounds what an agent may touch — and never said what happens when an
+unauthenticated caller knocks. That is the one property a reader cannot verify
+from outside, and it was the only thing missing from the layer.
+
+### Added
+- A closed-door clause on the `bound` engine string in
+  `sn_ai_maturity_layers()`: *"Neither door serves an unauthenticated caller -
+  both refuse the call before any work is done. Neither is hidden, either: both
+  are listed in the site's public interface index, because an unlisted door is
+  not a closed one."*
+
+### Fixed before it shipped — the first draft of this clause was FALSE
+- The first draft read *"neither is advertised among the site's public
+  interfaces."* It was written from a prior session's note that *"no `mcp`
+  namespace is advertised"* — narrow and true, since the doors live under an
+  existing namespace rather than one of their own.
+- **A shell probe of the public interface index found BOTH routes listed there.**
+  Restating the note instead of re-deriving it widened a true, narrow finding
+  into a false, broad claim — and on this page of all pages, a claim any reader
+  could falsify in five seconds.
+- The clause was reworded to what is **true** rather than quietly narrowed to
+  what was defensible. The honest version is also the stronger one: it draws the
+  line between obscurity and refusal, which is the distinction the layer is
+  actually about. A door you cannot find is not a door that is shut.
+
+### Measured, from the shell — not from a browser
+| probe | result |
+|---|---|
+| read door, unauthenticated `POST` | `401` |
+| remote door | `401` at the Cloudflare Access edge |
+| public interface index | **both routes listed** — the doors are discoverable |
+
+A browser `fetch()` establishes none of these; it throws on CORS and proves
+nothing about access control.
+
+### Verified
+- **485 suites, 19,242 assertions, `EXIT=0`.** Zero indented `FAIL` lines; the
+  single skip is `contracts-smoke.php`, which needs a booted WordPress.
+- **The claim was previously asserted by NOTHING.** `tests/ai-maturity-page.php`
+  pins layer *slugs* in walk order, so every word of the `bound` engine string
+  could have been reworded or dropped and the suite stayed green. All three pins
+  were watched failing before the clause existed, then watched passing.
+- **The SECURITY CONTRACT block still passes.** It forbids `wp-json`, the
+  namespace, the route slugs and the throttle numbers from any rendered format,
+  so the clause had to describe the doors without naming one endpoint. It does.
+
 ## [12.6.1] - 2026-08-20 — the colophon says how the page looks
 
 Dark mode shipped in theme v12.0.0 and the colophon never mentioned it. The page
