@@ -116,19 +116,19 @@ $r_rw = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 12, 'method' =
 ok( ( $r_rw['result']['serverInfo']['name'] ?? '' ) === 'Signal & Noise (Write)', 'initialize on the rw door labels serverInfo (Write)' );
 
 // --- tools/list threads $door through the full router (not just sn_mcp_list_tools directly) ---
-$GLOBALS['__abilities']['signal-noise/ai-alt-suggest'] = new SN_Test_Ability( 'signal-noise/ai-alt-suggest', array( 'result' => array( 'suggestion' => 'a cat' ) ) );
+$GLOBALS['__abilities']['signal-noise/ai-pair-suggest'] = new SN_Test_Ability( 'signal-noise/ai-pair-suggest', array( 'result' => array( 'suggestion' => 'a cat' ) ) );
 $r_read_list = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 13, 'method' => 'tools/list' ), SN_MCP_DOOR_READ );
 $read_names  = array_column( $r_read_list['result']['tools'], 'name' );
-ok( ! in_array( 'signal-noise__ai-alt-suggest', $read_names, true ), 'router: tools/list(read) omits an rw-only ability' );
+ok( ! in_array( 'signal-noise__ai-pair-suggest', $read_names, true ), 'router: tools/list(read) omits an rw-only ability' );
 $r_rw_list = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 14, 'method' => 'tools/list' ), SN_MCP_DOOR_RW );
 $rw_names  = array_column( $r_rw_list['result']['tools'], 'name' );
-ok( in_array( 'signal-noise__ai-alt-suggest', $rw_names, true ), 'router: tools/list(rw) includes the rw-only ability' );
+ok( in_array( 'signal-noise__ai-pair-suggest', $rw_names, true ), 'router: tools/list(rw) includes the rw-only ability' );
 
 // --- tools/call threads $door through the full router (the call-gate security
 //     property proven end-to-end, not just at sn_mcp_call_tool directly) ---
-$r_denied = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 15, 'method' => 'tools/call', 'params' => array( 'name' => 'signal-noise__ai-alt-suggest', 'arguments' => array() ) ), SN_MCP_DOOR_READ );
+$r_denied = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 15, 'method' => 'tools/call', 'params' => array( 'name' => 'signal-noise__ai-pair-suggest', 'arguments' => array() ) ), SN_MCP_DOOR_READ );
 ok( ( $r_denied['error']['code'] ?? null ) === -32602, 'router: an rw-only tool called on the read door -> unknown tool' );
-$r_allowed = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 16, 'method' => 'tools/call', 'params' => array( 'name' => 'signal-noise__ai-alt-suggest', 'arguments' => array() ) ), SN_MCP_DOOR_RW );
+$r_allowed = sn_mcp_handle_request( array( 'jsonrpc' => '2.0', 'id' => 16, 'method' => 'tools/call', 'params' => array( 'name' => 'signal-noise__ai-pair-suggest', 'arguments' => array() ) ), SN_MCP_DOOR_RW );
 ok( ( $r_allowed['result']['isError'] ?? null ) === false, 'router: the same tool called on the rw door succeeds' );
 
 // --- resources/list + resources/read (R1/R2) ---

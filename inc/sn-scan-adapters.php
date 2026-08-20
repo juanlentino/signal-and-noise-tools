@@ -141,9 +141,15 @@ function snt_sn_scan_adapter_block_migrations( $allowed_ids ) {
 				'permalink'      => (string) ( $c['permalink'] ?? '' ),
 				'post_title'     => (string) ( $c['post_title'] ?? '' ),
 			),
+			// v12.0.0: block-migrations-apply was RETIRED from the rw door, so
+			// naming it here would hand a caller a tool the door refuses. The
+			// same operation is sn-apply's block_migration change type, which
+			// IS doored. Descending-position order still applies (see this
+			// tool's own description) — that is a property of the position-bound
+			// fingerprints, not of which tool performs the write.
 			'apply_hint'          => array(
-				'tool'          => 'signal-noise/block-migrations-apply',
-				'required_args' => array( 'post_id', 'block_fingerprint', 'replacement_markup', 'migration_type' ),
+				'tool'          => 'signal-noise/sn-apply',
+				'required_args' => array( 'change.type:block_migration', 'change.fingerprint', 'payload.replacement_markup', 'payload.migration_type' ),
 			),
 		);
 	}
@@ -203,9 +209,11 @@ function snt_sn_scan_adapter_pattern_adoption( $allowed_ids ) {
 				'permalink'    => (string) ( $c['permalink'] ?? '' ),
 				'post_title'   => (string) ( $c['post_title'] ?? '' ),
 			),
+			// v12.0.0: pattern-adoption-apply was RETIRED from the rw door;
+			// sn-apply's pattern_adoption change type performs the same write.
 			'apply_hint'          => array(
-				'tool'          => 'signal-noise/pattern-adoption-apply',
-				'required_args' => array( 'post_id', 'block_fingerprint', 'replacement_markup', 'pattern_type' ),
+				'tool'          => 'signal-noise/sn-apply',
+				'required_args' => array( 'change.type:pattern_adoption', 'change.fingerprint', 'payload.replacement_markup', 'payload.pattern_type' ),
 			),
 		);
 	}
@@ -506,10 +514,14 @@ function snt_sn_scan_adapter_orphan_media( $allowed_ids ) {
 			// (ai-orphan-suggest); that is a product judgment call for the
 			// caller, not something apply_hint's own contract (its
 			// required_args pass apply's OWN validation) forbids.
-			'apply_hint'          => array(
-				'tool'          => 'signal-noise/ai-orphan-apply',
-				'required_args' => array( 'attachment_id' ),
-			),
+			// v12.0.0: NULL, joining duplicate_body, near_duplicate and
+			// link_candidates. ai-orphan-apply is not on either door and has not
+			// been — this hint has been a dead pointer since the tool was doored,
+			// predating the v12.0.0 retirements rather than caused by them. There
+			// is deliberately no sn-apply equivalent: sn-apply's change types are
+			// post-content operations, and force-deleting an attachment is not
+			// one. Orphan media is actioned in wp-admin.
+			'apply_hint'          => null,
 		);
 	}
 

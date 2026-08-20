@@ -254,11 +254,18 @@ ok( sn_i18n_seen( 'Door 1b: the native write door' ), 'write door heading transl
 ok( stripos( $html, 'same Application Password' ) !== false, 'write door states it uses the SAME Application Password as the read door' );
 ok( stripos( $html, 'modify your content' ) !== false, 'write door states it can modify content' );
 ok( stripos( $html, 'spend the AI budget' ) !== false, 'write door states it can spend the AI budget' );
-// The real rw allowlist includes two PURE-READ, PII-flagged tools
-// (get-audit-log/export-audit-log — plaintext usernames) alongside the
-// content-mutating/AI-billed ones — a blanket "every tool here mutates or
-// spends budget" claim would overclaim, so the copy must not say "every".
-ok( in_array( 'signal-noise/get-audit-log', $rw_slugs, true ), 'sanity: the real rw allowlist includes the PII-flagged get-audit-log' );
+// The rw allowlist USED to include two PURE-READ, PII-flagged tools
+// (get-audit-log/export-audit-log — plaintext usernames), which is why the copy
+// must not claim "every tool here mutates or spends budget". v11.34.0 RETIRED
+// both, so that PII surface is off the write door entirely — a side effect of
+// the retirement worth pinning in its own right.
+//
+// The copy stays as it is: the door still carries purge-all-caches and
+// unschedule-cron-event, which are actions rather than content mutations, so
+// "every" would STILL overclaim. The reason narrowed; the rule did not change.
+foreach ( array( 'signal-noise/get-audit-log', 'signal-noise/export-audit-log' ) as $pii ) {
+	ok( ! in_array( $pii, $rw_slugs, true ), "v11.34.0: the PII-flagged $pii is off the write door" );
+}
 ok( stripos( $html, 'plaintext usernames' ) !== false, 'write door discloses the plaintext-username audit-log exception honestly' );
 ok( stripos( $html, 'every tool here can modify' ) === false, 'write door does not overclaim that EVERY rw tool mutates or spends budget' );
 

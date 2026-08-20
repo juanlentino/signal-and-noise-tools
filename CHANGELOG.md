@@ -2,6 +2,95 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.0.0] - 2026-08-19 — the consolidation collects: 74 MCP tools become 33
+
+**BREAKING.** 41 tools were removed from the MCP doors. Any client calling one
+gets nothing back. Nothing was DELETED — every ability stays registered, still
+answers `wp_get_ability()->execute()`, still serves its internal callers and
+stays REST-reachable behind its own permission_callback. The allowlists gate the
+MCP door only, so any single retirement is reversible by one line. But a client
+cannot see that, which is why this is a major.
+
+### Why now
+The MCP consolidation program has said since 2026-08-01: *"Then STOP building —
+phases 6-12 wait for the telemetry baseline window."* That was a deferral with a
+revisit condition, and the condition is met. The 30-day rollup reads **1,855
+calls, `table_present:true`** — enough to decide on evidence rather than taste.
+
+The rule applied was ABSORPTION, never usage alone: a legacy tool retires when a
+consolidated tool performs the same work. Absorption was traced in code, not
+assumed — `sn-site-facts` dispatches to 10 named abilities, `sn-scan` covers 7
+scan types, `sn-apply` has 16 change types.
+
+### Removed — tier A (10): absorbed, and zero calls in the window
+`get-latest-theme-tag`, `list-block-patterns`, `get-seo-route-meta` →
+`sn-site-facts` · `link-candidates`, `duplicate-body-scan`,
+`pattern-adoption-suggest` → `sn-scan` · `pattern-adoption-apply`,
+`anchor-sweep`, `regenerate-og-card` → `sn-apply` ·
+`get-design-system-summary`, which `sn-site-facts`' own description already
+called *"retired, not absorbed"* while it sat on the door — a contradiction, now
+closed.
+
+### Removed — tier B (10): absorbed, with a trickle the absorber now serves
+`get-theme-version`, `get-design-tokens`, `get-active-template-structure`,
+`get-llms-txt`, `get-page-notes-pillars`, `get-reading-time-for-slug`,
+`list-template-overrides` → `sn-site-facts` · `near-duplicate-scan`,
+`block-migrations-scan` → `sn-scan` · `block-migrations-apply` → `sn-apply`.
+
+`get-llms-txt` had 19 calls, 18 of them on the AGENT door — which this list does
+not gate, so those are unaffected. `get-active-template-structure` had exactly
+one call in 30 days, and it errored.
+
+### Removed — tier C (19): NO absorber, retired by owner decision
+The AI generation tools (alt, drift, orphan and link suggestions; excerpt, meta
+description, og-card title, page-note summary, block-pattern suggestion and
+content, brand-voice rewrite and validation, suggest-tags), the audit-log trio,
+and the two dismissal tools.
+
+These gain no consolidated equivalent, and that was stated before the decision.
+Their zero call count is NOT evidence they are unused: this telemetry counts MCP
+doors only, and they have live non-MCP callers — `inc/ai-excerpt.php`,
+`inc/ai-drift-phrase-suggest.php`, `sn-validate`'s own checks, and the wp-admin
+AI surfaces.
+
+One good side effect: `get-audit-log` and `export-audit-log` are PURE-READ,
+PII-flagged tools (plaintext usernames) that sat on the WRITE door. That surface
+is gone.
+
+### Fixed — a dead pointer, one of which predates this release
+`sn-scan` stays doored and hands every candidate an `apply_hint` naming the
+next-step apply tool. Two of those targets were retired above, and
+**`ai-orphan-apply` has been on neither door the whole time** — so orphan_media's
+hint was already a dead pointer before tonight. A doored tool telling a client to
+call something the door refuses is the failure v11.13.0 named on another surface:
+*"a pointer to a tab that isn't there would be a worse failure than the clutter
+removed."*
+
+`block_migrations` and `pattern_adoption` now point at `sn-apply` with the change
+type that does the work; `orphan_media`'s hint is NULL, joining `duplicate_body`,
+`near_duplicate` and `link_candidates`.
+
+### Changed — the invariant this replaces
+`tests/mcp-capabilities.php` pinned *"NEW ALONGSIDE OLD — all five absorbed scan
+abilities stay allowlisted, none removed."* That was correct while the
+consolidated tools were unproven. It is replaced by a stronger contract than a
+count: **for every retired slug, it is absent from BOTH doors AND its absorber is
+present.** The second half is the load-bearing one — retiring an absorbed tool
+while its absorber also went would delete the capability outright.
+
+The doors no longer span the theme namespace at all: every `signal-and-noise/*`
+slug was absorbed or retired. The theme's data stays reachable through
+`sn-site-facts`, which dispatches via the Abilities API.
+
+### Verified
+- **478 suites, 19,000 assertions, `EXIT=0`.** PHPStan clean; PHPCS clean.
+- Four mutations killed: re-adding a retired slug, removing an ABSORBER (kills 14
+  assertions including "its absorber is still doored"), naming a retired tool in
+  an apply_hint, and the reachability guard's own no-match case.
+- Blast radius established before any edit: `sn-site-facts` dispatches via
+  `wp_get_ability()->execute()` and `sn-scan` calls detector functions directly —
+  neither consults these allowlists — and the agent door is not allowlist-gated.
+
 ## [11.33.0] - 2026-08-19 — a check that could not run is not a check that passed
 
 Why MINOR: Health gains a state it could not previously express. The scan
