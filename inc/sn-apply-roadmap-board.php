@@ -141,6 +141,16 @@ function snt_sn_apply_roadmap_board_diff( array $change ) {
 			'conflicts'     => $report['conflicts'],
 			'code_landed'   => $report['code_landed'],
 			'override_held' => $report['override_held'],
+			// `invalid`: the CURRENT merge (the one this write is about to
+			// replace) failed validation, so `before` above is the static
+			// board rather than the real merge, and `conflicts` reads empty
+			// by construction — a dry run against a broken merge must not
+			// look like a dry run against a clean one. Default false, not
+			// absent: an absent key and a false one read identically to a
+			// careless caller, the same argument RB8 makes for the three
+			// list fields (see inc/health-check-roadmap-drift.php, the
+			// Health check that reads this same signal).
+			'invalid'       => (bool) ( $report['invalid'] ?? false ),
 		),
 	);
 }

@@ -43,13 +43,22 @@ function snt_roadmap_drift_findings( array $report ) {
 /**
  * The Health check.
  *
+ * sn_health_pack_check() takes one fix_hint for the whole check, but the two
+ * findings above call for different fixes: a cell conflict is reconciled by
+ * re-writing through sn_apply or editing the static board, while `invalid`
+ * has no cell to point at — the merged board itself failed validation, so
+ * the fix is to the override or the static board's SHAPE, not a sentence.
+ * Branch on which fired rather than write one hint vague enough to cover
+ * both — `invalid` firing implies the merge is broken, so its hint takes
+ * priority when both are somehow present at once.
+ *
  * @return array
  */
 function sn_health_check_roadmap_drift() {
-	$findings = snt_roadmap_drift_findings( sn_maturity_roadmap_effective_report() );
-	return sn_health_pack_check(
-		'Roadmap board drift',
-		$findings,
-		'Reconcile the cell: re-write the board through sn_apply to accept code\'s wording, or edit the static board to match the override. sn_apply reset:true drops the override entirely.'
-	);
+	$report   = sn_maturity_roadmap_effective_report();
+	$findings = snt_roadmap_drift_findings( $report );
+	$hint     = ! empty( $report['invalid'] )
+		? 'The merged board failed validation and is not being served. Inspect the saved override (sn_apply\'s roadmap_board change type, dry-run first) against sn_maturity_roadmap_board_problems() and either correct it or reset:true to drop it back to the static board.'
+		: 'Reconcile the cell: re-write the board through sn_apply to accept code\'s wording, or edit the static board to match the override. sn_apply reset:true drops the override entirely.';
+	return sn_health_pack_check( 'Roadmap board drift', $findings, $hint );
 }

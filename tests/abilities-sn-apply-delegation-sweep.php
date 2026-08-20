@@ -625,6 +625,11 @@ ok( is_array( $rb8_dry['diff'] ) && array_key_exists( 'merge', $rb8_dry['diff'] 
 eq( array(), $rb8_dry['diff']['merge']['conflicts'], 'RB8.3: diff.merge.conflicts is empty with no override stored' );
 eq( array(), $rb8_dry['diff']['merge']['code_landed'], 'RB8.4: diff.merge.code_landed is empty with no override stored' );
 eq( array(), $rb8_dry['diff']['merge']['override_held'], 'RB8.5: diff.merge.override_held is empty with no override stored' );
+// RB8.6: same argument as RB8.2, applied to `invalid` — an absent key and a
+// `false` one look identical to a careless caller, so the key must be
+// PRESENT and false in the quiet case, not merely falsy-by-omission.
+ok( array_key_exists( 'invalid', $rb8_dry['diff']['merge'] ), 'RB8.6: diff.merge.invalid EXISTS on a quiet dry run — not merely absent' );
+ok( false === $rb8_dry['diff']['merge']['invalid'], 'RB8.7: diff.merge.invalid is false with no override stored' );
 
 // RB9: a dry run while a CONFLICT exists names the conflicting cell in
 // diff.merge.conflicts. Built the honest way per the task brief: a real
