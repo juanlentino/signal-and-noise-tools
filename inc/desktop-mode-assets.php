@@ -11,7 +11,7 @@
  *
  * Split out of inc/desktop-mode-integration.php in v10.87.2; the code is
  * unchanged. That file is now the loader and still carries the architectural
- * notes covering all seven modules — read it first.
+ * notes covering the whole module set — read it first.
  *
  * @package SignalNoiseTools
  * @since 1.15.0

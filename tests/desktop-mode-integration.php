@@ -89,6 +89,11 @@ function desktop_mode_register_icon( $id, $args = array() ) { $GLOBALS['__dm_ico
 
 $GLOBALS['__routes'] = array();
 function register_rest_route( $ns, $route, $args = array() ) { $GLOBALS['__routes'][ $ns . $route ] = $args; }
+// v12.4.0: the explorer module (required by the loader) registers a REST
+// field on rest_api_init; its own contracts are pinned in
+// tests/desktop-mode-explorer.php — here it only needs to not fatal.
+$GLOBALS['__rest_fields'] = array();
+function register_rest_field( $type, $name, $args = array() ) { $GLOBALS['__rest_fields'][ $type . ':' . $name ] = $args; }
 
 function plugins_url( $path = '', $plugin = '' ) { return 'https://example.test/wp-content/plugins/signal-and-noise-tools/' . ltrim( $path, '/' ); }
 function admin_url( $path = '' ) { return 'https://example.test/wp-admin/' . ltrim( $path, '/' ); }
