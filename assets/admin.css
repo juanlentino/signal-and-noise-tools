@@ -2479,7 +2479,6 @@ a.sn-glance-card:focus {
 .sn-scr {
 	container-type: inline-size;
 	container-name: sn-console;
-	max-width: 1600px;
 }
 
 /* The verdict is the largest type on the page, by a distance. Scale contrast
@@ -2759,9 +2758,14 @@ a.sn-ops__label { text-decoration: none; }
    do not rely on wp-admin's global reset for something load-bearing. */
 /* No query needed here at all. `max()` gives the basis a FLOOR: while a sixth
    of the wall is wider than a readable cell it lays out six, and once it is
-   not, flex wraps to five, four, three… purely from the space available. The
-   breakpoints that used to do this were both viewport-bound and a worse
-   approximation of the same curve. */
+   not, flex wraps to five, four, three… purely from the space available.
+
+   The floor has no matching ceiling ON PURPOSE. A ceiling was tried and
+   reverted: it let the wall grow to eight and nine columns on a wide window,
+   which left the last row holding three cells at 866px beside eight at 320 —
+   the extra width bought a RAGGED wall rather than a denser one, because
+   eleven items do not divide evenly into eight. Six columns is the wall's
+   designed structure; widening should make it roomier, not reshape it. */
 .sn-scr__grid > .sn-sys {
 	flex: 1 1 max( 180px, calc( 100% / 6 ) );
 	box-sizing: border-box;
