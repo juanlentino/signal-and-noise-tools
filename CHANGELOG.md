@@ -2,6 +2,27 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [11.32.2] - 2026-08-19 — Stretching the window gives the console the room
+
+### Fixed
+- **The console stopped growing at 1600px.** v11.32.1 fixed shrinking; it did
+  nothing for stretching, because `.sn-scr` carried `max-width: 1600px`. Widen
+  the desktop-mode window past that and the extra was simply discarded —
+  measured at **1000px of dead space** in a 2600px window. That cap was sound
+  reasoning in the viewport era, where it stopped the console becoming an
+  unreadable band on a large monitor; in a resizable window it inverts, because
+  stretching the window IS the request for more room. Removed.
+
+### Changed
+- **Widening makes the wall roomier, not wider-structured.** A first attempt
+  gave the cell basis a ceiling as well as a floor, so extra width bought extra
+  COLUMNS. Measured and reverted: eleven items do not divide evenly into eight,
+  so a 2600px window laid out eight cells at 320px above three at **866px** —
+  the extra width bought a ragged wall rather than a denser one. Six columns is
+  the wall's designed structure, so only the floor remains. Measured 1400 →
+  3200px: the 6 + 5 shape and its 1.2 width ratio hold at every size, with zero
+  dead space, and narrowing still wraps 6 → 4 → 3 → 2.
+
 ## [11.32.1] - 2026-08-19 — The console sizes itself from its own width
 
 ### Fixed
