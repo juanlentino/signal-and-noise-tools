@@ -57,8 +57,8 @@ function sn_health_allowed_palette_hexes() {
 	// isolation by its own suite.
 	if ( function_exists( 'sn_health_theme_palettes' ) ) {
 		$union = array();
-		foreach ( sn_health_theme_palettes() as $scheme_named ) {
-			foreach ( (array) $scheme_named as $hex ) {
+		foreach ( sn_health_theme_palettes() as $palette ) {
+			foreach ( (array) ( $palette['colors'] ?? array() ) as $hex ) {
 				$norm = sn_health_normalize_hex( (string) $hex );
 				if ( '' !== $norm ) {
 					$union[ $norm ] = true;

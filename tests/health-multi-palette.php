@@ -56,61 +56,71 @@ echo "health: every palette the theme serves\n\n";
 
 // ── WITHOUT the theme accessor: one palette, and the report SAYS so ────────
 $p1 = sn_health_theme_palettes();
-ok( array( 'light' ) === array_keys( $p1 ), 'no theme accessor -> exactly one palette, keyed light' );
-ok( 3 === count( $p1['light'] ), 'and it carries the root palette' );
+ok( array( 'resolved' ) === array_keys( $p1 ), 'no theme accessor -> ONE palette, keyed `resolved`' );
+ok( '' === $p1['resolved']['scheme'], 'and its scheme is EMPTY — we do not know which palette WordPress resolved, so we do not claim one (12.1.0 called this `light`, which asserts something unmeasured)' );
+ok( 3 === count( $p1['resolved']['colors'] ), 'it carries the resolved palette' );
 
 $r1 = sn_health_check_contrast_tokens();
 ok( 1 === (int) ( $r1['report']['palettes_measured'] ?? 0 ), 'the report states it measured ONE palette' );
 ok( false === ( $r1['report']['palettes_complete'] ?? null ), 'AND that this is not the whole picture — never a silent implication of completeness' );
 
-// ── WITH the theme accessor: both palettes, scored SEPARATELY ─────────────
+// ── WITH the theme's REAL v12.0.0 accessor ────────────────────────────────
 // Declared inside a conditional ON PURPOSE. A top-level `function` is hoisted at
 // COMPILE time, so function_exists() would be true from line 1 and the
 // "theme absent" phase above could never actually run — it would pass while
-// testing nothing. Inside a block, the declaration happens HERE, at runtime.
+// testing nothing.
+//
+// This mirrors sn_theme_all_palettes()'s shipped contract exactly: keys are
+// palette IDENTITIES, every entry is a COMPLETE palette, and `scheme` is a
+// FIELD. That distinction is the fix — v12.1.0 keyed light/dark, which conflates
+// variation with scheme. High Contrast is a LIGHT-scheme variation; dark
+// overrides whichever variation is active. They are orthogonal axes, so a High
+// Contrast reader on a dark OS gets dark, not a blend — and a flat
+// {light,dark,high-contrast} namespace would claim they are alternatives.
 if ( true ) {
-	function sn_theme_dark_palette() {
-		return array( 'void' => '#0a0a0a', 'bone' => '#ffffff', 'blood' => '#ff4c47' );
+	function sn_theme_all_palettes() {
+		return array(
+			'root'          => array( 'scheme' => 'light', 'source' => 'theme.json',
+				'colors' => array( 'void' => '#ffffff', 'bone' => '#000000', 'blood' => '#e00404' ) ),
+			'high-contrast' => array( 'scheme' => 'light', 'source' => 'styles/high-contrast.json',
+				'colors' => array( 'void' => '#ffffff', 'bone' => '#000000', 'blood' => '#e00404', 'rust' => '#333333' ) ),
+			'dark'          => array( 'scheme' => 'dark', 'source' => 'assets/css/critical.css',
+				'colors' => array( 'void' => '#0a0a0a', 'bone' => '#ffffff', 'blood' => '#ff4c47' ) ),
+		);
 	}
+	function sn_theme_served_palette_id() { return 'high-contrast'; }
 }
-// No memo to bust — sn_health_theme_palettes() reads live every call, on purpose.
 
 $p2 = sn_health_theme_palettes();
-ok( array( 'light', 'dark' ) === array_keys( $p2 ), 'with the accessor -> two palettes' );
-ok( '#0a0a0a' === $p2['dark']['void'], 'dark carries the theme values' );
-ok( '#ffffff' === $p2['light']['void'], 'AND LIGHT IS NOT OVERWRITTEN — the 7 slugs collide, so a flat merge would score a palette that exists nowhere' );
+ok( array( 'root', 'high-contrast', 'dark' ) === array_keys( $p2 ), 'ALL THREE palettes, keyed by IDENTITY — not two, and not keyed by scheme' );
+ok( 'light' === $p2['high-contrast']['scheme'], 'SCHEME IS A FIELD — High Contrast is a light-scheme VARIATION, not an alternative to dark' );
+ok( 'dark' === $p2['dark']['scheme'], 'and dark carries its own scheme' );
+ok( 'styles/high-contrast.json' === $p2['high-contrast']['source'], 'each palette says where it came from' );
+ok( '#0a0a0a' === $p2['dark']['colors']['void'] && '#ffffff' === $p2['root']['colors']['void'], 'palettes are kept APART — no palette overwrites another' );
 
 $r2 = sn_health_check_contrast_tokens();
-ok( 2 === (int) $r2['report']['palettes_measured'], 'the report measured both' );
-ok( true === $r2['report']['palettes_complete'], 'and says so' );
-ok( isset( $r2['report']['by_palette']['light'], $r2['report']['by_palette']['dark'] ), 'pairs are scored PER PALETTE, not pooled' );
+ok( 3 === (int) $r2['report']['palettes_measured'], 'the panel scores all three' );
+ok( true === $r2['report']['palettes_complete'], 'and reports the sweep as complete' );
+ok( isset( $r2['report']['by_palette']['high-contrast'] ), 'HIGH CONTRAST IS SCORED — it shipped long before dark and was never measured' );
+ok( 'high-contrast' === $r2['report']['served'], 'the report names which palette is actually SERVED — the one a reader sees today' );
 
-// The pair that motivated all of this.
+// The pair that motivated the whole arc, scored on the palette that paints it.
 $dark_pairs = $r2['report']['by_palette']['dark']['pairs'];
-// Match on the SLUGS, not on a separator I guessed. The real producer emits
-// "blood / void"; my first draft assumed "blood + void" and failed for a reason
-// that had nothing to do with the behaviour under test.
-$blood_void = null;
+$bv = null;
 foreach ( $dark_pairs as $row ) {
-	if ( false !== strpos( $row['pair'], 'blood' ) && false !== strpos( $row['pair'], 'void' ) ) { $blood_void = $row; }
+	if ( false !== strpos( $row['pair'], 'blood' ) && false !== strpos( $row['pair'], 'void' ) ) { $bv = $row; }
 }
-ok( null !== $blood_void, 'the dark palette scores its own blood/void pair' );
-ok( $blood_void && $blood_void['ratio'] > 4.5, 'DARK blood #ff4c47 on #0a0a0a PASSES AA (6.01) — the theme re-pointed it for exactly this reason' );
+ok( $bv && $bv['ratio'] > 4.5, 'dark blood #ff4c47 on #0a0a0a passes AA (6.01)' );
 
-// And the light pair is still scored on LIGHT values, unpolluted.
-$light_pairs = $r2['report']['by_palette']['light']['pairs'];
-$lv = null;
-foreach ( $light_pairs as $row ) {
-	if ( false !== strpos( $row['pair'], 'blood' ) && false !== strpos( $row['pair'], 'void' ) ) { $lv = $row; }
-}
-ok( $lv && abs( $lv['ratio'] - 5.01 ) < 0.02, 'light blood #e00404 on #ffffff still scores 5.01 — not silently replaced by the dark value' );
+// Top-level tokens/pairs follow the SERVED palette, not an assumed root.
+ok( isset( $r2['report']['tokens']['rust'] ), 'top-level tokens follow the SERVED palette (high-contrast has rust; root does not)' );
 
-// ── color_drift takes the UNION — opposite treatment, same source ─────────
+// ── color_drift: UNION across every palette ───────────────────────────────
 $hexes = sn_health_allowed_palette_hexes();
-foreach ( array( '#ffffff', '#000000', '#e00404', '#0a0a0a', '#ff4c47' ) as $hex ) {
-	ok( isset( $hexes[ $hex ] ), "allowed-hex set is a UNION and contains $hex" );
+foreach ( array( '#ffffff', '#000000', '#e00404', '#0a0a0a', '#ff4c47', '#333333' ) as $hex ) {
+	ok( isset( $hexes[ $hex ] ), "allowed-hex UNION contains $hex" );
 }
-ok( 5 === count( $hexes ), 'exactly the five distinct hexes across both palettes — a dark colour is a THEME colour, never drift' );
+ok( 6 === count( $hexes ), 'exactly the six distinct hexes across all three — a variation colour is a THEME colour, never drift' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
