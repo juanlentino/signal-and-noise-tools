@@ -2,41 +2,55 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [12.6.2] - 2026-08-20 — the bound row says the doors refuse a stranger
+## [12.6.2] - 2026-08-20 — the bound row says what the doors do with a stranger
 
 The AI maturity page named the two agent doors, the curated allowlists, the
 independent kill switches, the audit trail and the rate limits — every mechanism
-that bounds what an agent may touch — and never said the doors are shut to the
-public. That is the one property a reader cannot verify from outside, and it was
-the only thing missing from the layer.
+that bounds what an agent may touch — and never said what happens when an
+unauthenticated caller knocks. That is the one property a reader cannot verify
+from outside, and it was the only thing missing from the layer.
 
 ### Added
 - A closed-door clause on the `bound` engine string in
   `sn_ai_maturity_layers()`: *"Neither door serves an unauthenticated caller -
-  both refuse the call before any work is done, and neither is advertised among
-  the site's public interfaces."* Measured from the shell, not a browser: the
-  read door answers `401` unauthenticated, the remote door `401` at the
-  Cloudflare Access edge, and the namespace is absent from the public API index.
+  both refuse the call before any work is done. Neither is hidden, either: both
+  are listed in the site's public interface index, because an unlisted door is
+  not a closed one."*
 
-### Note on what it does NOT claim
-- It does not say "unreachable" or "no public endpoint". The doors **do** answer
-  — with `401`. Refusal is what was measured; unreachability was not, and a
-  claim on this page may not outrun the evidence behind it.
-- Refusing a caller and not advertising the door are **different** guarantees.
-  Both are stated, and both are pinned separately, because publishing only the
-  first would overclaim: a door that refuses you is still a door you found.
+### Fixed before it shipped — the first draft of this clause was FALSE
+- The first draft read *"neither is advertised among the site's public
+  interfaces."* It was written from a prior session's note that *"no `mcp`
+  namespace is advertised"* — narrow and true, since the doors live under an
+  existing namespace rather than one of their own.
+- **A shell probe of the public interface index found BOTH routes listed there.**
+  Restating the note instead of re-deriving it widened a true, narrow finding
+  into a false, broad claim — and on this page of all pages, a claim any reader
+  could falsify in five seconds.
+- The clause was reworded to what is **true** rather than quietly narrowed to
+  what was defensible. The honest version is also the stronger one: it draws the
+  line between obscurity and refusal, which is the distinction the layer is
+  actually about. A door you cannot find is not a door that is shut.
+
+### Measured, from the shell — not from a browser
+| probe | result |
+|---|---|
+| read door, unauthenticated `POST` | `401` |
+| remote door | `401` at the Cloudflare Access edge |
+| public interface index | **both routes listed** — the doors are discoverable |
+
+A browser `fetch()` establishes none of these; it throws on CORS and proves
+nothing about access control.
 
 ### Verified
-- **485 suites, 19,241 assertions, `EXIT=0`.** Zero indented `FAIL` lines; the
+- **485 suites, 19,242 assertions, `EXIT=0`.** Zero indented `FAIL` lines; the
   single skip is `contracts-smoke.php`, which needs a booted WordPress.
 - **The claim was previously asserted by NOTHING.** `tests/ai-maturity-page.php`
   pins layer *slugs* in walk order, so every word of the `bound` engine string
-  could have been reworded or dropped and the suite stayed green. Both new pins
-  were watched failing before the clause was written, then watched passing.
-- **The SECURITY CONTRACT block still passes.** That block forbids `wp-json`,
-  `signal-noise/v1`, `/mcp`, tool slugs and throttle numbers from appearing in
-  any rendered format — so the clause had to state "no public door" without
-  naming a single endpoint. It does.
+  could have been reworded or dropped and the suite stayed green. All three pins
+  were watched failing before the clause existed, then watched passing.
+- **The SECURITY CONTRACT block still passes.** It forbids `wp-json`, the
+  namespace, the route slugs and the throttle numbers from any rendered format,
+  so the clause had to describe the doors without naming one endpoint. It does.
 
 ## [12.6.1] - 2026-08-20 — the colophon says how the page looks
 

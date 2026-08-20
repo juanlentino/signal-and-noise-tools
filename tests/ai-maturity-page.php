@@ -114,7 +114,8 @@ echo "\nGroup: the bound layer publishes the closed-door claim\n";
 // drop either one — refusing a caller and not advertising the door are
 // DIFFERENT properties, and publishing only the first would overclaim.
 ok( false !== strpos( $table, 'unauthenticated' ), 'CLOSED DOOR: the bound row says an unauthenticated caller is refused - the property a reader cannot verify from outside' );
-ok( false !== strpos( $table, 'advertised' ), 'CLOSED DOOR: and it keeps the not-advertised half - a door that refuses you is still a door you found, and discoverability is a separate claim' );
+ok( false !== strpos( $table, 'listed' ), 'CLOSED DOOR: and it states the doors ARE listed publicly - both routes really do appear in the public interface index, so claiming they are hidden would be falsifiable by any reader in five seconds' );
+ok( false !== strpos( $table, 'unlisted' ), 'CLOSED DOOR: and it says why that is fine - an unlisted door is not a closed one, which is the difference between obscurity and refusal' );
 
 echo "\nGroup: SECURITY CONTRACT — no lever leaks in any rendered format\n";
 $all_output = '';
