@@ -1,0 +1,83 @@
+name: Release tag parity
+
+# Does main's version header have a matching tag ON main?
+#
+# Releasing here is THREE steps — squash-merge, annotated tag, draft release —
+# and only the first leaves a trace in the repo's history. The WordPress
+# updater reads TAGS, so a version that merged and was never tagged is code on
+# main that cannot reach the site, and nothing anywhere says so.
+#
+# It happened on 2026-08-20: PR #751 (v12.4.0) came from an outside fork. The
+# contributor bumped the header, wrote the CHANGELOG entry and shipped tests —
+# everything a good contributor does. The two steps they omitted are the two
+# that require push access to THIS repo, so a fork contributor cannot perform
+# them and has no reason to know they exist. This is structural, not a lapse,
+# and it recurs on every outside PR.
+#
+# WHY SCHEDULED AND NOT ON PUSH. The tag is cut a minute or two AFTER the merge
+# commit lands, so a push-triggered check would fail on essentially every
+# release and teach everyone to ignore it. The failure being guarded is "nobody
+# noticed for days", which is a STATE, not an event — so it is checked as one.
+# workflow_dispatch is here for an immediate answer after a release.
+#
+# Schedules only fire on the default branch, and GitHub disables them after 60
+# days of REPOSITORY inactivity (public repos). This repo cuts releases most
+# days, so that is not a live risk — but it is a reason never to treat a silent
+# cron as evidence of a clean repo. An ABSENT run reads exactly like a passing
+# one; gate on a run EXISTING.
+#
+# Cost: this repo is PUBLIC, so standard-runner minutes are free and the
+# 3,000-minute pool is not involved. timeout-minutes is still set, because a
+# hung job holds a runner for up to six hours by default.
+
+on:
+  schedule:
+    - cron: '0 7 * * *'   # 07:00 UTC daily
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parity:
+    name: Version header has a tag on main
+    runs-on: ubuntu-latest
+    # Initial estimate, not a measurement: checkout + one PHP script. Revisit
+    # against real runs rather than leaving a number nobody has checked.
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Tags are the entire subject of this check, and ancestry needs real
+          # history — a shallow clone would make every tag look absent, which
+          # is a false RED rather than a false green, but still a broken run.
+          fetch-depth: 0
+          fetch-tags: true
+          persist-credentials: false
+
+      - name: Version header has a matching tag on main
+        # Uses the runner image's PHP rather than setting one up: the script is
+        # plain PHP with no extensions, and every tool download is another thing
+        # that can die mid-outage and red a green repo.
+        run: php tools/version-tag-parity.php --check
+
+      - name: Note whether the draft release exists (step 3, not gated)
+        # Non-blocking BY STEP, not by job: continue-on-error at job level would
+        # mark the whole job green including the real gate above.
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          version=$(php -r 'require "tools/version-tag-parity.php"; echo sn_vtp_read_header("signal-and-noise-tools.php");')
+          if [ -z "$version" ]; then echo "no version read; nothing to check"; exit 0; fi
+          if gh release view "v${version}" --json isDraft >/dev/null 2>&1; then
+            echo "NOTE: a release object exists for v${version} (step 3 done)."
+          else
+            echo "NOTE: v${version} has NO release object. The updater does not need one —"
+            echo "      it reads tags — but this repo keeps a hand-written draft per tag as"
+            echo "      the human-readable record, and 39 tags were once left without one."
+            echo "      Cut it with: gh release create v${version} --draft --verify-tag \\"
+            echo "        --title \"<CHANGELOG heading minus version and date>\" \\"
+            echo "        --notes-file <that version's CHANGELOG section>"
+          fi
