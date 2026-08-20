@@ -2468,7 +2468,19 @@ a.sn-glance-card:focus {
    CONTEXT OVER ISOLATION. Every signal renders a comparison slot, including
    when it has nothing to compare against — a gap in the instrument is a fact.
    ────────────────────────────────────────────────────────────────────────── */
-.sn-scr { max-width: 1600px; }
+/* v11.32.1 — THE CONSOLE SIZES ITSELF FROM ITS OWN WIDTH, NOT THE VIEWPORT.
+   Every breakpoint below used to be a viewport media query. In stock wp-admin
+   that reads correctly by accident, because the tab's width tracks the window.
+   In desktop mode the whole app renders inside a FLOATING, RESIZABLE WINDOW
+   whose width has nothing to do with the viewport — so dragging it narrow left
+   six columns crushed into a few hundred pixels while the media queries, still
+   watching a 1440px viewport, reported that everything was fine.
+   A container query asks the right question: how much room does THIS have? */
+.sn-scr {
+	container-type: inline-size;
+	container-name: sn-console;
+	max-width: 1600px;
+}
 
 /* The verdict is the largest type on the page, by a distance. Scale contrast
    is what carries the hierarchy — not colour, and not weight alone. */
@@ -2596,9 +2608,6 @@ a.sn-glance-card:focus {
 	margin: 0 0 var(--sn-space-5);
 	overflow: hidden;
 }
-@media (max-width: 1400px) { .sn-scr__systems { grid-template-columns: repeat( 4, minmax( 0, 1fr ) ); } }
-@media (max-width: 900px)  { .sn-scr__systems { grid-template-columns: repeat( 3, minmax( 0, 1fr ) ); } }
-@media (max-width: 600px)  { .sn-scr__systems { grid-template-columns: repeat( 2, minmax( 0, 1fr ) ); } }
 .sn-sys {
 	padding: 11px var(--sn-space-3) 12px;
 	border-right: 1px solid var(--sn-border);
@@ -2748,10 +2757,15 @@ a.sn-ops__label { text-decoration: none; }
 /* box-sizing is explicit: the cells carry hairline borders, and without it
    six 16.67% basis cells plus their borders exceed 100% and wrap to five. We
    do not rely on wp-admin's global reset for something load-bearing. */
-.sn-scr__grid > .sn-sys { flex: 1 1 calc( 100% / 6 ); box-sizing: border-box; }
-@media (max-width: 1400px) { .sn-scr__grid > .sn-sys { flex-basis: calc( 100% / 4 ); } }
-@media (max-width: 900px)  { .sn-scr__grid > .sn-sys { flex-basis: calc( 100% / 3 ); } }
-@media (max-width: 600px)  { .sn-scr__grid > .sn-sys { flex-basis: calc( 100% / 2 ); } }
+/* No query needed here at all. `max()` gives the basis a FLOOR: while a sixth
+   of the wall is wider than a readable cell it lays out six, and once it is
+   not, flex wraps to five, four, three… purely from the space available. The
+   breakpoints that used to do this were both viewport-bound and a worse
+   approximation of the same curve. */
+.sn-scr__grid > .sn-sys {
+	flex: 1 1 max( 180px, calc( 100% / 6 ) );
+	box-sizing: border-box;
+}
 
 /* v11.31.2 — EVERY CELL RESERVES THE TALLEST COMPOSITION.
    Caches is the only cell that carries all four parts (label, value, pill and
@@ -2769,8 +2783,13 @@ a.sn-ops__label { text-decoration: none; }
 
 /* SCALE CONTRAST: views leads. Five equal figures is a readout; one that leads
    is a reading. */
+/* SCALE CONTRAST: views leads at 1.5fr. That lead is a design decision, so it
+   survives until there is genuinely no room for it — judged on the console's
+   own width, not the window's. */
 .sn-scr__signals { grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr; }
-@media (max-width: 1100px) { .sn-scr__signals { grid-template-columns: repeat( auto-fit, minmax( 150px, 1fr ) ); } }
+@container sn-console (max-width: 1100px) {
+	.sn-scr__signals { grid-template-columns: repeat( auto-fit, minmax( 150px, 1fr ) ); }
+}
 .sn-sig:first-child .sn-sig__n { font-size: 30px; }
 .sn-sig__n { font-variant-numeric: tabular-nums lining-nums; }
 /* MONO IS FOR LABELS AND ALIGNED NUMERALS — never for language.
