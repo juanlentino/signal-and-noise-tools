@@ -524,6 +524,7 @@ require_once SNT_PATH . 'inc/health-external-links.php'; // D1 (v6.13.0): 7th ch
 require_once SNT_PATH . 'inc/health-link-opportunities.php'; // v8.1.0: advisory check — semantic pairs that should link (C2 approach C)
 require_once SNT_PATH . 'inc/health-edge-workers.php'; // 8th check (v6.49.0): owned-Worker reachability + login-guard denylist freshness
 require_once SNT_PATH . 'inc/health-analytics-integrity.php'; // 12th check (v9.65.0): reader of the never-invert sn_analytics_integrity_alert (Phase A P0.4 closed for real)
+require_once SNT_PATH . 'inc/health-check-roadmap-drift.php'; // 21st check (v12.6.0): roadmap board merge conflicts between code and sn_apply's override
 require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0): server-side provenance integrity sweep (triangle self-check over the anchored-Note fleet) + readonly status ability
 // v10.83.0: the Health tab's IA split into three render modules — family
 // grouping data, the collapsed passing disclosure, and report-only payloads

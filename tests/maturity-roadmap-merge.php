@@ -292,5 +292,18 @@ $moved   = array( 'F' => array( 'done' => array( 'a' ), 'planned' => array( 'NEW
 $merged2 = snt_roadmap_merge_report( $moved )['merged'];
 ok( md5( wp_json_encode( $merged2 ) ) !== md5( wp_json_encode( $merged ) ), 'and a CODE edit that lands moves it too — a stale writer gets the 409 it should' );
 
+echo "\nGroup: the health check reports conflicts and stays silent otherwise\n";
+require_once dirname( __DIR__ ) . '/inc/health-check-roadmap-drift.php';
+
+ok( array() === snt_roadmap_drift_findings( array( 'conflicts' => array() ) ), 'no conflicts -> no findings' );
+// An invalid merge is served as the static board and reports NO conflicts — a
+// silent revert, which is the exact shape this whole feature exists to end.
+$inv = snt_roadmap_drift_findings( array( 'conflicts' => array(), 'invalid' => true ) );
+ok( 1 === count( $inv ), 'a merged board that failed validation IS reported, even with zero conflicts' );
+ok( false !== strpos( $inv[0], 'validation' ), 'and the finding says why the override is not being served' );
+$f = snt_roadmap_drift_findings( array( 'conflicts' => array( array( 'family' => 'Accessibility', 'column' => 'done' ) ) ) );
+ok( 1 === count( $f ), 'one conflict -> one finding' );
+ok( false !== strpos( $f[0], 'Accessibility' ) && false !== strpos( $f[0], 'done' ), 'the finding names the family and the column, so it is actionable without opening the board' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

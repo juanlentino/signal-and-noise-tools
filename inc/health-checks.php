@@ -116,6 +116,12 @@ function sn_health_run_scan() {
 			'stale_posts_evergreen' => sn_health_check_stale_posts_evergreen( $stale ),
 			'drift_time_phrases'  => sn_health_check_drift_time_phrases(),
 			'color_drift'         => sn_health_check_color_drift(),
+			// 21st check (v12.6.0): the roadmap board's two writers — code and
+			// sn_apply — landing on the same (family, column) cell. The
+			// override renders and code's edit does not; that is deliberate,
+			// but it is a decision a person has to make, so it is surfaced
+			// here rather than settled quietly.
+			'roadmap_drift'       => sn_health_check_roadmap_drift(),
 			'unlinked_mentions'   => sn_health_check_unlinked_mentions(),
 			'link_opportunities'  => sn_health_check_link_opportunities(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
