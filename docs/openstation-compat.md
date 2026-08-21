@@ -9,10 +9,16 @@ not the mechanically-guessed `open_station_*`), `DESKTOP_MODE_*` constants →
 `window.openStationWidgets`, CSS `.desktop-mode-*` → `.os-*`,
 `--wpd-*`/`--desktop-mode-*` → `--os-ui-*`/`--os-*`.
 
-**Every line citation in this file is pinned to tag `v1.1.0`** (released
-2026-08-14) unless stated otherwise. Line numbers rot on every upstream
-release — see [Re-verifying after an upstream release](#re-verifying-after-an-upstream-release)
-for the instrument that does not.
+**This file cites no upstream line numbers, by design.** It used to, pinned to
+one tag, and they were wrong on the next release — silently, because a stale
+line number still points at real code. Citations are now the file plus the call
+expression, both of which survive a release and are what you would grep for
+anyway. `tests/openstation-compat.php` fails the build if a `file.php:NNN`
+citation reappears here.
+
+**Last verified against `v1.1.2`** (2026-08-21). See
+[Re-verifying after an upstream release](#re-verifying-after-an-upstream-release)
+for the instrument.
 
 **No back-compat shim exists upstream.** A code search of post-#475
 `WordPress/openstation` for any `desktop_mode_*` name returns zero hits.
@@ -28,7 +34,9 @@ Compat layer: [inc/openstation-compat.php](../inc/openstation-compat.php).
 | v0.9.8 | 2026-07-31 | **Pre-rename** — last release on the `desktop_mode_*` family |
 | v1.0.0 | 2026-08-07 | First tagged post-rename release |
 | v1.0.1 | 2026-08-11 | Post-rename |
-| **v1.1.0** | **2026-08-14** | Post-rename — **the release this file is verified against** |
+| v1.1.0 | 2026-08-14 | Post-rename — first post-rename release verified here (17 names) |
+| v1.1.1 | 2026-08-19 | Post-rename |
+| **v1.1.2** | **2026-08-21** | Post-rename — **the release this file is verified against** (19 names) |
 
 An earlier revision of this file said the rename was "in trunk, **not yet in
 any tagged release**", and that end-to-end verification was "structurally
@@ -53,21 +61,24 @@ nowhere upstream and can never fire. They are dual-registered anyway —
 one pattern, no special cases — and both callbacks are idempotent by
 construction (id/handle dedupe), so no seen-once guard applies.
 
-| Old hook (v0.9.8) | New hook (v1.0.0+) | Upstream firing site @ v1.1.0 | Our consumer |
+| Old hook (v0.9.8) | New hook (v1.0.0+) | Upstream firing site | Our consumer |
 |---|---|---|---|
-| `desktop_mode_my_wordpress_entities` (never existed — see note) | `openstation_my_wordpress_entities` | `includes/my-wordpress/window.php:199` — `apply_filters( 'openstation_my_wordpress_entities', $entities )`, frozen at `init` 99 | [inc/desktop-mode-explorer.php](../inc/desktop-mode-explorer.php) — the Notes + Discography Explorer sections |
-| `desktop_mode_my_wordpress_window_args` (never existed — see note) | `openstation_my_wordpress_window_args` | `includes/my-wordpress/window.php:292` — `apply_filters( 'openstation_my_wordpress_window_args', $window_args )` | [inc/desktop-mode-explorer.php](../inc/desktop-mode-explorer.php) — rides the window's `scripts` companion list |
-| `desktop_mode_dock_items` | `openstation_dock_items` | `includes/core/payload.php:235` — `apply_filters( 'openstation_dock_items', $items )` | [inc/desktop-mode-dock.php](../inc/desktop-mode-dock.php) — the "Signal & Noise" dock entry |
-| `desktop_mode_dock_placement` | `openstation_dock_placement` | `includes/core/payload.php:1160` — `apply_filters( 'openstation_dock_placement', 'dock', $menu_slug )`, inside `openstation_dock_placement()` at `:1148` | [inc/desktop-mode-dock.php](../inc/desktop-mode-dock.php) — suppresses the auto-imported SN dock item |
-| `desktop_mode_ai_tools` | `openstation_ai_tools` | `includes/ai-copilot/search.php:1106` — `apply_filters( 'openstation_ai_tools', $tools, $context )` (2nd arg is post-rename; our callback still declares only `$tools`) | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — Anthropic tool-schema normalizer + Copilot prune list |
-| `desktop_mode_ai_system_prompt_appendix` | `openstation_ai_system_prompt_appendix` | `includes/ai-copilot/search.php:1556` — `apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — analytics-vocabulary appendix |
-| `desktop_mode_ai_tool_called` | `openstation_ai_tool_called` | `includes/ai-copilot/search.php:1292` / `:1361` / `:1714` — `do_action( 'openstation_ai_tool_called', array( 'tool_name' => …, 'args' => …, 'user_id' => …, 'request_id' => … ) )` | [inc/ai-tool-invocation-log.php](../inc/ai-tool-invocation-log.php) — Copilot tool-invocation log |
-| `desktop_mode_agent_completed` | `openstation_agent_completed` | `includes/agents/runner.php:243` — `do_action( 'openstation_agent_completed', (int) $user->ID, $message, $result, (array) $context )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 2, failure-visibility backfill |
-| `desktop_mode_agent_tool_result` | `openstation_agent_tool_result` | `includes/agents/runner.php:588` — `apply_filters( 'openstation_agent_tool_result', $output, $slug, $args, $agent_user_id )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 1, success-path telemetry |
-| `desktop_mode_living_tree_traffic` | `openstation_living_tree_traffic` | `includes/living-tree/helpers.php:91` — `apply_filters( 'openstation_living_tree_traffic', $views )`, inside `openstation_living_tree_traffic()` at `:76` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — wallpaper wind driven by real 14-day traffic |
-| `desktop_mode_plugins_window_icon_url` | `openstation_plugins_window_icon_url` | `includes/plugins-window/rest-fields.php:521`, inside `openstation_plugins_window_field_icon_url()` at `:479` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — our plugin's icon in the shell's Plugins window |
+| `desktop_mode_my_wordpress_entities` (never existed — see note) | `openstation_my_wordpress_entities` | `includes/my-wordpress/window.php` — `apply_filters( 'openstation_my_wordpress_entities', $entities )`, frozen at `init` 99 | [inc/desktop-mode-explorer.php](../inc/desktop-mode-explorer.php) — the Notes + Discography Explorer sections |
+| `desktop_mode_my_wordpress_window_args` (never existed — see note) | `openstation_my_wordpress_window_args` | `includes/my-wordpress/window.php` — `apply_filters( 'openstation_my_wordpress_window_args', $window_args )` | [inc/desktop-mode-explorer.php](../inc/desktop-mode-explorer.php) — rides the window's `scripts` companion list |
+| `desktop_mode_dock_items` | `openstation_dock_items` | `includes/core/payload.php` — `apply_filters( 'openstation_dock_items', $items )` | [inc/desktop-mode-dock.php](../inc/desktop-mode-dock.php) — the "Signal & Noise" dock entry |
+| `desktop_mode_dock_placement` | `openstation_dock_placement` | `includes/core/payload.php` — `apply_filters( 'openstation_dock_placement', 'dock', $menu_slug )`, inside `openstation_dock_placement()` | [inc/desktop-mode-dock.php](../inc/desktop-mode-dock.php) — suppresses the auto-imported SN dock item |
+| `desktop_mode_ai_tools` | `openstation_ai_tools` | `includes/ai-copilot/search.php` — `apply_filters( 'openstation_ai_tools', $tools, $context )` (2nd arg is post-rename; our callback still declares only `$tools`) | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — Anthropic tool-schema normalizer + Copilot prune list |
+| `desktop_mode_ai_system_prompt_appendix` | `openstation_ai_system_prompt_appendix` | `includes/ai-copilot/search.php` — `apply_filters( 'openstation_ai_system_prompt_appendix', '', $ctx_for_filter )` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — analytics-vocabulary appendix |
+| `desktop_mode_ai_tool_called` | `openstation_ai_tool_called` | `includes/ai-copilot/search.php` — `do_action( 'openstation_ai_tool_called', array( 'tool_name' => …, 'args' => …, 'user_id' => …, 'request_id' => … ) )` | [inc/ai-tool-invocation-log.php](../inc/ai-tool-invocation-log.php) — Copilot tool-invocation log |
+| `desktop_mode_agent_completed` | `openstation_agent_completed` | `includes/agents/runner.php` — `do_action( 'openstation_agent_completed', (int) $user->ID, $message, $result, (array) $context )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 2, failure-visibility backfill |
+| `desktop_mode_agent_tool_result` | `openstation_agent_tool_result` | `includes/agents/runner.php` — `apply_filters( 'openstation_agent_tool_result', $output, $slug, $args, $agent_user_id )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 1, success-path telemetry |
+| `desktop_mode_living_tree_traffic` | `openstation_living_tree_traffic` | `includes/living-tree/helpers.php` — `apply_filters( 'openstation_living_tree_traffic', $views )`, inside `openstation_living_tree_traffic()` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — wallpaper wind driven by real 14-day traffic |
+| `desktop_mode_plugins_window_icon_url` | `openstation_plugins_window_icon_url` | `includes/plugins-window/rest-fields.php`, inside `openstation_plugins_window_field_icon_url()` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — our plugin's icon in the shell's Plugins window |
 
-All 9 present at v1.1.0 — none removed, none renamed, none flagged
+All present at v1.1.2 — none removed, none renamed, none flagged. Re-verified
+by both-directions membership check on 2026-08-21: 19 of 19 names resolve to a
+real seam upstream (8 functions, 10 hooks, 1 REST field), not merely a matching
+string
 unverifiable.
 
 **`openstation_ai_tools` is a multi-line `apply_filters(` call.** A
@@ -86,18 +97,18 @@ exist and falling back to the pre-rename name otherwise.
 
 | Old function | New function | Verified @ v1.1.0 |
 |---|---|---|
-| `desktop_mode_register_command()` | `openstation_register_command()` | `includes/commands.php:115` |
-| `desktop_mode_register_widget()` | `openstation_register_widget()` | `includes/registries/widgets.php:83` |
-| `desktop_mode_register_icon()` | `openstation_register_icon()` | `includes/registries/icons.php:88` |
-| `desktop_mode_is_enabled()` | `openstation_is_enabled()` | `includes/helpers.php:58` |
-| `desktop_mode_ai_ability_tool_name()` | `openstation_ai_ability_tool_name()` | `includes/ai-copilot/abilities.php:93` |
+| `desktop_mode_register_command()` | `openstation_register_command()` | `includes/commands.php` |
+| `desktop_mode_register_widget()` | `openstation_register_widget()` | `includes/registries/widgets.php` |
+| `desktop_mode_register_icon()` | `openstation_register_icon()` | `includes/registries/icons.php` |
+| `desktop_mode_is_enabled()` | `openstation_is_enabled()` | `includes/helpers.php` |
+| `desktop_mode_ai_ability_tool_name()` | `openstation_ai_ability_tool_name()` | `includes/ai-copilot/abilities.php` |
 
 All five still accept exactly the argument shapes we pass at v1.1.0
 (re-checked against each function's `$defaults` array, not just its
 signature).
 
 Constant, for detection only: `DESKTOP_MODE_VERSION` (v0.9.8) →
-`OPENSTATION_VERSION` (v1.0.0+, `desktop-mode.php:21` — note the pre-rename
+`OPENSTATION_VERSION` (v1.0.0+, `desktop-mode.php` — note the pre-rename
 *filename*, see above). We do not read it; `snt_os_is_post_rename()` uses
 `function_exists()` instead.
 
@@ -151,9 +162,9 @@ in `assets/admin.css` (hides our in-page tab nav inside a chromeless shell
 window, so the shell's own in-window tab strip is the only nav shown) — IS a
 real exposure: it's a body class the shell adds via `admin_body_class`, not a
 hook we register on, so it sits outside the dual-registration mechanism above.
-Verified @ v1.1.0: `includes/render/body-classes.php:30`,
+Verified @ v1.1.0: `includes/render/body-classes.php`,
 `openstation_admin_body_classes()` — `ltrim( $classes . ' os-chromeless' )` at
-`:32`, the `.desktop-mode-*` → `.os-*` CSS rule holding exactly.
+, the `.desktop-mode-*` → `.os-*` CSS rule holding exactly.
 `assets/admin.css` lists both selectors (`body.desktop-mode-chromeless .sn-nav-tabs,
 body.os-chromeless .sn-nav-tabs`); exactly one will ever match on a given
 install.
@@ -168,7 +179,7 @@ changes looked capable of breaking us. None do.
 change. `openstation_build_menu_payload()` now drops any dock item whose
 `placement` is `'hidden'`, and partitions the survivors on a new per-item
 `isCore` flag. Our injected item
-([inc/desktop-mode-dock.php:118](../inc/desktop-mode-dock.php)) supplies
+([inc/desktop-mode-dock.php](../inc/desktop-mode-dock.php)) supplies
 neither key. It survives because upstream reads both defensively —
 `'hidden' !== ( $item['placement'] ?? 'dock' )` keeps it, and
 `empty( $item['isCore'] )` files it into the plugin group, which is where a
@@ -177,7 +188,7 @@ plugin's item belongs. The same PR also adds `selfLabel`, and
 register no native windows.
 
 **`wp.os.sideDock` is `null` under the new default layout.** PR #545 makes
-`unified` the default (`includes/os-settings.php:103` —
+`unified` the default (`includes/os-settings.php` —
 `'desktopLayout' => 'unified'`), and only the `classic` layout mounts a side
 rail. Our attention badge calls `sideDock?.setBadge?.()` at
 [assets/desktop-mode.js:436](../assets/desktop-mode.js) — optional-chained, so
@@ -377,7 +388,7 @@ corrected.
 
 **MEDIUM — the lazy widget/command loader bypasses the alias prelude
 entirely.** `openstation_resolve_script_payload()` (v1.1.0:
-`includes/core/payload.php:1395-1476`) resolves only a script handle's own
+`includes/core/payload.php`) resolves only a script handle's own
 `src` and never walks its declared `wp_register_script` deps; upstream's
 server-sync/command-sync inject one bare `<script src="...">` tag per URL. So
 `sn-desktop-mode-os-compat`'s dependency edges guarantee the alias runs first
@@ -413,7 +424,7 @@ different seam from the already-dual-registered
 *filter*, which supplies the field's *value* via `get_callback` but cannot
 rename the key the response carries. The belt now dual-writes both keys.
 (Still correct at v1.1.0: the field is registered as `openstation_icon_url` at
-`includes/plugins-window/rest-fields.php:74`.)
+`includes/plugins-window/rest-fields.php`.)
 
 **LOW — two `payload.php` line citations were off by one.** Corrected at the
 time against trunk. Both have since moved again with v1.1.0 and are recorded

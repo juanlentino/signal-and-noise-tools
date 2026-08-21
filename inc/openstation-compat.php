@@ -5,12 +5,16 @@
  * WordPress/openstation PR #475 (merged 2026-08-03) renames the plugin from
  * "Desktop Mode" to "OpenStation".
  *
- * v11.29.0: the owner now runs **v1.1.0**, which is POST-rename — the shim's
- * new-name branch is the live path, not the fallback. (This docblock said
- * "the owner runs v0.9.8 today, which predates the rename" from when that was
- * true; upstream is at v1.1.1 as of 2026-08-19.) The compat layer was verified
- * clean against v1.1.0 on 2026-08-14 — all 17 names survived. Keep BOTH
- * branches: the plugin must still work on a pre-rename shell.
+ * WHICH FAMILY IS LIVE IS DETECTED, NOT DECLARED. snt_os_is_post_rename()
+ * answers it at runtime, so this docblock deliberately does not state which
+ * release the owner runs. It said so twice before and was wrong twice, each
+ * time within days of an upstream release: a version asserted in a comment is
+ * a fact with nothing checking it. Keep BOTH branches regardless — the plugin
+ * must still work on a pre-rename shell.
+ *
+ * The verification record lives in docs/openstation-compat.md, which
+ * tests/openstation-compat.php holds to two invariants: every openstation_*
+ * name consumed by inc/ is documented, and no upstream line numbers are cited.
  *
  * The rename maps:
  * `desktop_mode_*()` functions/hooks → `openstation_*()` (NOT `open_station_*`
@@ -49,10 +53,10 @@
  *     plain per-request boolean guard suppressed the SECOND of ANY two calls
  *     sharing an identity key — including two genuinely DISTINCT, LEGITIMATE
  *     events that merely hash identically within one request. That is not
- *     hypothetical: openstation_agent_tool_result (runner.php:579) carries no
+ *     hypothetical: openstation_agent_tool_result (runner.php) carries no
  *     call_id, so two identical tool calls with byte-identical output in one
  *     agent run are indistinguishable by payload, and a Copilot $request_id
- *     is per-RUN (search.php:888-890, reused across the iteration loop), so a
+ *     is per-RUN (search.php, reused across the iteration loop), so a
  *     same-tool same-args repeat within one turn hashes identically too. The
  *     old guard silently dropped the second row on TODAY's v0.9.8, single-
  *     hook-family, no-shim-in-play — corrupting the very telemetry the
@@ -105,7 +109,7 @@ function snt_os_active() {
 
 /**
  * True when the ACTIVE install is post-#475 OpenStation. Verified real:
- * `openstation_register_command()` is defined at includes/commands.php:115
+ * `openstation_register_command()` is defined at includes/commands.php
  * in post-rename trunk (there is no `desktop_mode_register_command` there at
  * all — zero hits, no shim). Useful for anything that must branch on the
  * naming family rather than just "is either one here"; not required by the
@@ -221,7 +225,7 @@ function snt_os_is_enabled() {
 /**
  * Ability-name → Copilot tool-name transform, under whichever naming family
  * is active. Verified real: `openstation_ai_ability_tool_name()` is defined
- * at includes/ai-copilot/abilities.php:93 post-#475, byte-identical logic to
+ * at includes/ai-copilot/abilities.php post-#475, byte-identical logic to
  * `desktop_mode_ai_ability_tool_name()`.
  *
  * @since 10.43.0
