@@ -264,5 +264,60 @@ ok( false === snt_os_compat_seen_once( 'unrelated-key' ), 'an unrelated hook nam
 ok( true === snt_os_compat_seen_once( 'unrelated-key' ), 'an unrelated hook name: second call is suppressed (simple guard fallback)' );
 snt_os_compat_pop_filter();
 
+// ── the doc cannot go stale silently (v12.6.4) ──────────────────────────
+//
+// Two failures kept recurring in this file's own history: a docblock asserting
+// a version the owner had already moved past, and upstream `file.php:LINE`
+// citations that every release invalidates. Both are hand-maintained facts
+// with nothing checking them, which is the shape that survives for months.
+//
+// These pins replace the hand-maintained parts with derived ones. The NAME of
+// a hook is stable — verified unchanged across v1.1.0, v1.1.1 and v1.1.2 —
+// so names are what the doc cites. Line numbers are not stable and are now
+// forbidden outright.
+echo "\n── docs/openstation-compat.md is self-checking ──\n";
+
+$doc_path = __DIR__ . '/../docs/openstation-compat.md';
+$doc      = (string) file_get_contents( $doc_path );
+ok( '' !== $doc, 'the compat doc is readable' );
+
+// 1. Every openstation_* name this plugin CONSUMES must be documented.
+//    Adding an integration point without documenting it now fails here,
+//    rather than being noticed two releases later.
+$inc_names = array();
+foreach ( glob( __DIR__ . '/../inc/*.php' ) as $f ) {
+	if ( preg_match_all( '/openstation_[a-z0-9_]+/', (string) file_get_contents( $f ), $m ) ) {
+		foreach ( $m[0] as $name ) { $inc_names[ $name ] = true; }
+	}
+}
+$inc_names = array_keys( $inc_names );
+sort( $inc_names );
+$undocumented = array();
+foreach ( $inc_names as $name ) {
+	if ( false === strpos( $doc, $name ) ) { $undocumented[] = $name; }
+}
+ok( array() !== $inc_names, 'the sweep found openstation_* names to check (guards against a regex that matches nothing)' );
+ok(
+	array() === $undocumented,
+	'every openstation_* name consumed by inc/ is documented' . ( $undocumented ? ' — MISSING: ' . implode( ', ', $undocumented ) : ' (' . count( $inc_names ) . ' names)' )
+);
+
+// 2. No upstream file.php:LINE citations. They are wrong on the next release
+//    and there is no error state for a stale line number — it just quietly
+//    points at the wrong code. Cite the file and the call expression instead;
+//    both survive a release, and the call expression is what you would grep
+//    for anyway.
+preg_match_all( '/[A-Za-z0-9_-]+\.php:[0-9]+/', $doc, $lm );
+ok(
+	array() === $lm[0],
+	'the doc cites no upstream line numbers' . ( $lm[0] ? ' — found ' . count( $lm[0] ) . ': ' . implode( ', ', array_slice( array_unique( $lm[0] ), 0, 6 ) ) : '' )
+);
+
+preg_match_all( '/[A-Za-z0-9_-]+\.php:[0-9]+/', (string) file_get_contents( __DIR__ . '/../inc/openstation-compat.php' ), $cm );
+ok(
+	array() === $cm[0],
+	'the compat layer cites no upstream line numbers either' . ( $cm[0] ? ' — found ' . count( $cm[0] ) . ': ' . implode( ', ', array_unique( $cm[0] ) ) : '' )
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

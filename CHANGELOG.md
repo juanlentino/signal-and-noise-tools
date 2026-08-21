@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.6.4] - 2026-08-21 — the OpenStation compat doc stops being a claim nobody checks
+
+OpenStation 1.1.2 landed today. Verifying it surfaced the same failure this
+file's own history records twice: documentation asserting facts with nothing
+holding them to account.
+
+### Fixed
+- **The compat docblock asserted a version.** It said the owner runs v1.1.0 and
+  upstream is at v1.1.1, both stale within days. Removed. `snt_os_is_post_rename()`
+  already answers which family is live **at runtime**, so the docblock now says
+  that instead of naming a release it cannot keep current.
+- **26 upstream `file.php:LINE` citations removed** — 22 in the doc, 4 in the
+  compat layer. Line numbers move on every upstream release and a stale one
+  still points at real code, so it is wrong without ever looking wrong.
+  Citations are now the file plus the call expression, both of which survive a
+  release and are what you would grep for anyway.
+
+### Added
+- **Two invariants in `tests/openstation-compat.php`**, replacing hand-maintained
+  facts with checked ones:
+  1. every `openstation_*` name consumed by `inc/` appears in
+     `docs/openstation-compat.md` — adding an integration point without
+     documenting it now fails the build;
+  2. neither the doc nor the compat layer may cite an upstream line number.
+- Both were **mutation-tested**: re-adding a `payload.php:999` citation fires the
+  second, and a fabricated `openstation_totally_new_seam` in `inc/` fires the
+  first. The line-number pins were watched failing before the fix; the
+  documented-names pin passed on arrival and is a regression guard, not a
+  change detector.
+
+### Verified
+- **v1.1.2 compat: 19 of 19 names resolve to a real seam upstream** — 8
+  functions, 10 hooks, 1 REST field — by both-directions membership check
+  against the tagged release, not a string grep. No code change required.
+- Release ladder in the doc extended through v1.1.1 and v1.1.2.
+- 486 suites, `EXIT=0`.
+
 ## [12.6.3] - 2026-08-20 — the shipped half of the contrast audit reaches the board
 
 The contrast work shipped across v12.3.0, v12.5.0 and v12.5.1 and never reached
