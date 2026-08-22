@@ -41,7 +41,18 @@ $GLOBALS['__vms']   = array();
 $GLOBALS['__types'] = array();
 function sn_prov_note_uid( $post_id ) { return $GLOBALS['__uids'][ (int) $post_id ] ?? ''; }
 function sn_prov_view_data( $post_id ) { return $GLOBALS['__vms'][ (int) $post_id ] ?? array(); }
-function sn_prov_subject_kind( $post ) { return ( 'page' === ( $post->post_type ?? '' ) ) ? 'page' : 'note'; }
+// v12.11.1 — CONTRACT-FAITHFUL STUB. The previous one returned 'note' for
+// everything that was not a page, so it could never produce the EMPTY string
+// the real inc/provenance-core.php returns for a page that is not opted in
+// (and for a 'post' that is not a Note). The coercion this suite now pins was
+// invisible for exactly that reason: the fixture could not express the input.
+function sn_prov_subject_kind( $post ) {
+	$type = (string) ( $post->post_type ?? '' );
+	$id   = (int) ( $post->ID ?? 0 );
+	if ( 'page' === $type ) { return ! empty( $GLOBALS['__opted_in'][ $id ] ) ? 'page' : ''; }
+	if ( 'post' === $type ) { return ! empty( $GLOBALS['__is_note'][ $id ] ) ? 'note' : ''; }
+	return '';
+}
 
 // The REAL endpoint producer — required from the verify module so parity is
 // structural, not stubbed. Its dependencies (rest_url/home_url/apply_filters)
@@ -56,8 +67,10 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m
 echo "Provenance machine pointers (v11.7.0)\n";
 
 $GLOBALS['__uids'][10] = '0abc-def1';
+$GLOBALS['__is_note'][10] = true;
 $GLOBALS['__vms'][10]  = array( 'version' => 3 );
 $GLOBALS['__uids'][20] = 'page-uid-9';
+$GLOBALS['__opted_in'][20] = true;   // v12.11.1: this fixture is a SIGNED page — the stub now demands opt-in, as the real producer does
 $GLOBALS['__vms'][20]  = array( 'version' => 1 );
 $GLOBALS['__types'][20] = 'page';
 $GLOBALS['__uids'][30] = 'gen-only';
@@ -139,6 +152,49 @@ ok( 'https://juanlentino.com/verify#uid' === $ident['propertyID'], 'propertyID a
 
 echo "\nGroup: no PHP notices\n";
 ok( array() === $GLOBALS['__php_errors'], 'zero notices/warnings: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
+
+echo "\nGroup: '' is never coerced into a kind (v12.11.1)\n";
+/* The owner-ratified rule, 2026-08-22: "'' is never coerced into a kind or a
+ * directory. A missed dispatch is recoverable; a misfiled anchored record is
+ * not." This emitter defaulted $kind to 'note' and only overrode it when the
+ * resolved kind was a key in the roots map — so '' silently kept 'note' and
+ * pointed the ledger base at notes/<uid>.
+ *
+ * LIVE CONSEQUENCE, measured 2026-08-22: /about/ published
+ *   "subject":{"uid":"01cea10c…","kind":"note","version":2}
+ * for a PAGE, matching the misfiled notes/01cea10c…/v2.json record. The site
+ * asserted a false kind to every verifier that read it.
+ *
+ * The right answer for an unresolvable kind is ABSENCE, the same choice this
+ * module already makes for an unanchored subject ("nothing to verify yet —
+ * absence, not a stub"). */
+$GLOBALS['__uids'][910]     = 'about-uid-1';   // present, so null can only mean the kind
+$GLOBALS['__types'][910]    = 'page';
+$GLOBALS['__vms'][910]      = array( 'version' => 2 );
+$GLOBALS['__opted_in'][910] = false;
+ok( null === sn_prov_machine_pointers_manifest( 910 ), "an unresolvable kind emits NO manifest — it does not fall back to note" );
+
+$GLOBALS['__opted_in'][910] = true;
+$m910 = sn_prov_machine_pointers_manifest( 910 );
+ok( is_array( $m910 ) && 'page' === $m910['subject']['kind'], 'an opted-in page resolves to kind page' );
+ok( is_array( $m910 ) && false !== strpos( $m910['calls']['record']['url'], '/pages/' ), 'and its ledger base is pages/, never notes/' );
+
+$GLOBALS['__uids'][911]    = 'notanote-uid-1';
+$GLOBALS['__types'][911]   = 'post';
+$GLOBALS['__vms'][911]     = array( 'version' => 1 );
+$GLOBALS['__is_note'][911] = false;
+ok( null === sn_prov_machine_pointers_manifest( 911 ), 'a non-Note post emits NO manifest either' );
+
+// The stub must mirror the REAL producer, not this fixture's convenience.
+$core_src = file_get_contents( __DIR__ . '/../inc/provenance-core.php' );
+ok( 1 === preg_match( "/function sn_prov_subject_kind\\(.*?return '';/s", $core_src ), 'the real sn_prov_subject_kind CAN return the empty string (the stub is not inventing a shape)' );
+
+// The resolver-absent branch cannot be driven from a fixture — PHP will not let
+// a defined function be undefined — so it is pinned at SOURCE level instead.
+// Without this, a mutation changing that fallback to 'note' SURVIVES, which is
+// exactly what happened when these pins were first mutation-tested.
+$mp_src = file_get_contents( __DIR__ . '/../inc/provenance-machine-pointers.php' );
+ok( 1 === preg_match( "/\\?\s*\(string\) sn_prov_subject_kind\( get_post\( \\\$post_id \) \)\s*:\s*'';/", $mp_src ), "the resolver-absent fallback is '' — never a kind (source-level: this branch is unreachable from a fixture)" );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

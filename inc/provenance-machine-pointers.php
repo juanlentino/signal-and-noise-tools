@@ -99,14 +99,28 @@ function sn_prov_machine_pointers_manifest( $post_id ) {
 	if ( $version < 1 ) {
 		return null; // Genesis-only / unanchored: nothing to verify yet — absence, not a stub.
 	}
-	$kind  = 'note';
-	if ( function_exists( 'sn_prov_subject_kind' ) && function_exists( 'get_post' ) ) {
-		$k = (string) sn_prov_subject_kind( get_post( $post_id ) );
-		if ( isset( sn_prov_machine_pointers_roots()[ $k ] ) ) {
-			$kind = $k;
-		}
+	// v12.11.1 — '' IS NEVER COERCED INTO A KIND OR A DIRECTORY (owner-ratified
+	// 2026-08-22). This defaulted to 'note' and only overrode on a resolvable
+	// kind, so sn_prov_subject_kind()'s documented EMPTY return — a page that
+	// never opted in, a post that is not a Note — silently kept 'note' and
+	// pointed the ledger base at notes/<uid>.
+	//
+	// Measured live 2026-08-22: /about/ published
+	//   "subject":{"uid":"01cea10c…","kind":"note","version":2}
+	// for a PAGE, matching the misfiled notes/01cea10c…/v2.json record. The
+	// site asserted a false kind to every verifier that read it.
+	//
+	// An unresolvable kind now emits NOTHING — the same choice this function
+	// already makes for an unanchored subject two branches up: absence, not a
+	// stub. A missing manifest is recoverable; a false one is not.
+	$roots = sn_prov_machine_pointers_roots();
+	$kind  = ( function_exists( 'sn_prov_subject_kind' ) && function_exists( 'get_post' ) )
+		? (string) sn_prov_subject_kind( get_post( $post_id ) )
+		: '';
+	if ( ! isset( $roots[ $kind ] ) ) {
+		return null;
 	}
-	$root = sn_prov_machine_pointers_roots()[ $kind ];
+	$root = $roots[ $kind ];
 	$ep   = sn_prov_verify_endpoints();
 	$base = rtrim( $ep['ledger_base'], '/' ) . '/' . $root . '/' . rawurlencode( $uid );
 
