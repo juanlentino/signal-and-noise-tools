@@ -89,7 +89,11 @@ function sn_uptime_status_rail_strip() {
  * @param string $hook Admin page hook suffix.
  */
 function sn_uptime_status_widget_enqueue( $hook ) {
-	$surfaces = array( 'index.php', 'dashboard_page_sn-analytics' );
+	// v12.10.0: the Analytics hook comes from the page that owns it. This line
+	// hardcoded 'dashboard_page_sn-analytics'; the page moved to a top-level menu
+	// (hook 'toplevel_page_…') and this widget would have gone quietly assetless
+	// on the one screen it most belongs on.
+	$surfaces = array( 'index.php', snt_analytics_page_hook() );
 	if ( ! in_array( $hook, $surfaces, true ) || ! sn_uptime_status_configured() ) {
 		return;
 	}

@@ -33,6 +33,8 @@
 
 // SECURITY: Prevent web access. CLI / WP-CLI only.
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
+
+
 	http_response_code( 404 );
 	exit;
 }
@@ -184,6 +186,21 @@ function sn_analytics_range_totals( $from, $to, $class = 'human', $refresh = fal
 // standalone — and a contract you actually CALL cannot drift from the one you
 // imagined. (v9.52.0 review caught exactly that: an invented `passed` key on
 // each check, a shape sn_health_run_scan() has never produced.)
+// v12.10.0 seam: the Analytics screen moved to its own top-level menu and its
+// URL is now an accessor owned by inc/analytics-dashboard-page.php. Placed
+// immediately before the requires — an earlier version of this stub landed
+// inside the non-CLI guard block above, which never executes under `php
+// tests/...`, so the function stayed undefined and the suite fataled.
+if ( ! function_exists( 'snt_analytics_page_url' ) ) {
+	function snt_analytics_page_url( $args = array() ) {
+		$url = 'https://example.test/wp-admin/admin.php?page=sn-analytics';
+		if ( is_array( $args ) && array() !== $args ) {
+			foreach ( $args as $k => $v ) { $url .= '&' . $k . '=' . $v; }
+		}
+		return $url;
+	}
+}
+
 require_once __DIR__ . '/../inc/health-summary.php';
 require_once __DIR__ . '/../inc/health-check-surfaces.php'; // v11.13.2: the widget counts the HEALTH surface, like the tab
 
@@ -1222,10 +1239,11 @@ foreach ( $GLOBALS['__dm_icons'] as $id => $args ) {
 ok( count( $sn_targets ) >= 10, 'sanity: the nav map + icons were captured (' . count( $sn_targets ) . ' links)' );
 foreach ( $sn_targets as $sn_label => $sn_url ) {
 	$sn_slug = preg_match( '/[?&]page=([a-z0-9-]+)/', (string) $sn_url, $m ) ? $m[1] : '';
-	// index.php?page=sn-analytics is legitimately registered — via
-	// add_dashboard_page(), under WP's Dashboard menu, not the SN menu.
+	// sn-analytics is legitimately registered — via add_menu_page() as its OWN
+	// top-level menu since v12.10.0 (it was a Dashboard submenu from v5.4.0), so
+	// it is not in the SN submenu registry this list is built from.
 	$sn_ok = in_array( $sn_slug, $sn_registered, true )
-		|| ( 'sn-analytics' === $sn_slug && false !== strpos( (string) $sn_url, 'index.php?page=' ) );
+		|| ( 'sn-analytics' === $sn_slug && false !== strpos( (string) $sn_url, 'admin.php?page=' ) );
 	ok( $sn_ok, "$sn_label → a REGISTERED page (got '" . ( $sn_slug ?: 'NONE' ) . "')" );
 }
 
@@ -1242,9 +1260,9 @@ $sn_expect = array(
 	'pages.insights'     => 'admin.php?page=sn-theme-options&tab=monitoring&sub=insights',
 	'pages.rss'          => 'admin.php?page=sn-theme-options&tab=monitoring&sub=rss',  // v10.46.0: RSS moved to Measurement
 	'pages.reading_time' => 'admin.php?page=sn-theme-options&tab=content', // v10.24.0: the cleanup tool retired in v10.0.0 — Content default, no ghost sub.
-	// NOT an SN tab: add_dashboard_page() puts it under index.php. The resolver
-	// alone sends it to tab=dashboard — loads fine, wrong page.
-	'pages.analytics'    => 'index.php?page=sn-analytics',
+	// NOT an SN tab: it is its own top-level menu (v12.10.0). The resolver alone
+	// sends it to tab=dashboard — loads fine, wrong page.
+	'pages.analytics'    => 'admin.php?page=sn-analytics',
 	'icon.sn-icon-identity' => 'admin.php?page=sn-theme-options&tab=site&sub=identity-and-seo#sn-sec-identity',
 );
 foreach ( $sn_expect as $sn_label => $sn_want ) {

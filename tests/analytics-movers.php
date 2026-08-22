@@ -8,6 +8,22 @@
  * @since plugin v8.5.0
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+
+// v12.10.0 seam: the Analytics screen moved to its own top-level menu and its
+// URL is now an accessor owned by inc/analytics-dashboard-page.php. Stubbed
+// here rather than guarded with function_exists() in the producer — a guard
+// there would silently emit an empty href and every link assertion would still
+// pass.
+if ( ! function_exists( 'snt_analytics_page_url' ) ) {
+	function snt_analytics_page_url( $args = array() ) {
+		$url = 'https://example.test/wp-admin/admin.php?page=sn-analytics';
+		if ( is_array( $args ) && array() !== $args ) {
+			foreach ( $args as $k => $v ) { $url .= '&' . $k . '=' . $v; }
+		}
+		return $url;
+	}
+}
+
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }

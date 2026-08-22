@@ -258,7 +258,7 @@ function sn_login_defense_render_body() {
 			echo ' &middot; ' . esc_html__( 'top network', 'signal-and-noise-tools' ) . ' ' . esc_html( (string) $net_e[0]['value'] );
 		}
 		echo '</p>';
-		echo '<p><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=edge' ) ) . '">'
+		echo '<p><a href="' . esc_url( snt_analytics_page_url( array( 'sn_view' => 'edge' ) ) ) . '">'
 			. esc_html__( 'Full breakdown in Traffic & edge', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 		snt_an_panel_close();
 	}

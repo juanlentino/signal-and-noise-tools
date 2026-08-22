@@ -60,7 +60,7 @@ function sn_analytics_rec_refresh() {
 		'title'        => sprintf( _n( '%d cooling post worth a refresh', '%d cooling posts worth a refresh', $n, 'signal-and-noise-tools' ), $n ),
 		'detail'       => 'These posts are past their peak and not marked evergreen: a refresh can revive them.',
 		'count'        => $n,
-		'action_url'   => admin_url( 'index.php?page=sn-analytics&sn_view=posts' ),
+		'action_url'   => snt_analytics_page_url( array( 'sn_view' => 'posts' ) ),
 		'action_label' => 'Open the refresh queue',
 	);
 }

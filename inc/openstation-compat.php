@@ -147,6 +147,30 @@ function snt_os_register_command( $args = array() ) {
 }
 
 /**
+ * Register a Station Home card under whichever naming family is active.
+ *
+ * Station Home arrived in OpenStation v1.1.2 (upstream #625), AFTER the
+ * desktop_mode_* → openstation_* rename, so there is no legacy twin to check
+ * for — unlike every other seam in this file. The single-name lookup is
+ * deliberate, not an omission.
+ *
+ * Returns null when OpenStation is absent or older, which is the whole point:
+ * the card is an OPT-IN enhancement and this plugin must not care whether the
+ * shell is installed.
+ *
+ * @since 12.10.0
+ * @param string $slug Card id.
+ * @param array  $args See openstation_register_station_home_card().
+ * @return mixed Upstream's own return value, or null when unavailable.
+ */
+function snt_os_register_station_home_card( $slug, $args = array() ) {
+	if ( function_exists( 'openstation_register_station_home_card' ) ) {
+		return openstation_register_station_home_card( $slug, $args );
+	}
+	return null;
+}
+
+/**
  * True when a widget-registration function exists under either name —
  * mirrors the pre-compat `function_exists( 'desktop_mode_register_widget' )`
  * gate at the call site.

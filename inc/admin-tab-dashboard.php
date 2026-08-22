@@ -439,7 +439,7 @@ function snt_dashboard_glance_cards( $theme, $plugin, $runs, $last_deploy_ago ) 
 			$views = (int) ( $deltas['views']['current'] ?? 0 );
 			$cards[] = array(
 				'label'     => 'Views 7d',
-			'href'      => admin_url( 'index.php?page=sn-analytics' ),
+			'href'      => snt_analytics_page_url(),
 				'value'     => number_format_i18n( $views ),
 				'meta_html' => snt_dashboard_delta_badge_html( $deltas['views'] ),
 			);

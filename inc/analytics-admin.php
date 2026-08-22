@@ -154,7 +154,7 @@ function snt_analytics_render_view_tabs( $active, $range, $class, $from = '', $t
 	// preserves these across window/class/compare changes.
 	$base = remove_query_arg( snt_analytics_view_reset_params(), add_query_arg( array() ) );
 	if ( '' === (string) $base ) {
-		$base = admin_url( 'index.php?page=sn-analytics' );
+		$base = snt_analytics_page_url();
 	}
 	echo '<nav class="nav-tab-wrapper sn-an-view-tabs" aria-label="Analytics views">';
 	foreach ( snt_analytics_views() as $slug => $label ) {
@@ -597,7 +597,7 @@ function snt_analytics_render_settings_section() {
 
 	// ── Left: writable settings (credentials + exclusion + engine tuning). ──
 	echo '<div class="sn-fieldset">';
-	echo '<p class="sn-an-settings-help">First-party analytics credentials. The comprehensive read-only dashboard lives under <strong>Dashboard &rarr; Analytics</strong>. <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">View dashboard &rarr;</a></p>';
+	echo '<p class="sn-an-settings-help">First-party analytics credentials. The comprehensive read-only dashboard has its own menu, <strong>S&amp;N Analytics</strong>. <a href="' . esc_url( snt_analytics_page_url() ) . '">View dashboard &rarr;</a></p>';
 	// v9.45.0 (§2): credentials starts open while the pipeline is incomplete —
 	// the same completeness seam the worker-setup conditional (§3) reads.
 	snt_an_settings_fold(

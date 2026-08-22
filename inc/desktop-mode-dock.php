@@ -177,15 +177,15 @@ function snt_desktop_dock_badge() {
  */
 function snt_desktop_admin_url( $slug, $sub = '' ) {
 	// SPECIAL CASE, and the one the resolver alone gets wrong: the analytics
-	// page is registered with add_dashboard_page() — i.e. under index.php, NOT
-	// the SN menu — so its real home is `index.php?page=sn-analytics`. It is not
-	// an SN tab at all, and sn_admin_page_tab_for_slug() has no entry for it, so
-	// it would fall through to the 'dashboard' default and land the user on the
-	// SN Dashboard: a link that loads perfectly and goes to the wrong place.
-	// (The old hardcoded `admin.php?page=sn-analytics` was dead for the opposite
-	// reason — right slug, wrong parent.)
+	// screen is its OWN top-level menu (v12.10.0, add_menu_page; it was a
+	// Dashboard submenu from v5.4.0). It is not an SN tab, and
+	// sn_admin_page_tab_for_slug() has no entry for it, so it would fall through
+	// to the 'dashboard' default and land the user on the SN Dashboard: a link
+	// that loads perfectly and goes to the wrong place. The URL comes from the
+	// accessor rather than a literal so this cannot drift the next time the page
+	// moves — which is exactly how the pre-v12.10.0 literal here went stale.
 	if ( 'sn-analytics' === $slug ) {
-		return admin_url( 'index.php?page=sn-analytics' );
+		return snt_analytics_page_url();
 	}
 
 	// Guarded because this file is loaded on every admin request and the tab

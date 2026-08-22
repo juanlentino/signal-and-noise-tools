@@ -93,6 +93,6 @@ function sn_login_defense_widget_render() {
 		echo '<p class="sn-aw-foot">' . esc_html__( 'Top network:', 'signal-and-noise-tools' )
 			. ' <strong>' . esc_html( $h['top_network'] ) . '</strong></p>';
 	}
-	echo '<p class="sn-aw-foot"><a href="' . esc_url( admin_url( 'index.php?page=sn-analytics&sn_view=login-defense' ) ) . '">'
+	echo '<p class="sn-aw-foot"><a href="' . esc_url( snt_analytics_page_url( array( 'sn_view' => 'login-defense' ) ) ) . '">'
 		. esc_html__( 'View login defense', 'signal-and-noise-tools' ) . ' →</a></p>';
 }

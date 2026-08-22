@@ -199,7 +199,7 @@ function sn_aw_realtime( $standalone = true ) {
 	}
 	echo '<div class="sn-aw-big">' . esc_html( null === $n ? '—' : number_format_i18n( (int) $n ) ) . '</div>';
 	if ( $standalone ) {
-		echo '<p class="sn-aw-foot">Last 5 min · refreshes every 30 s · <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">Open Analytics →</a></p>';
+		echo '<p class="sn-aw-foot">Last 5 min · refreshes every 30 s · <a href="' . esc_url( snt_analytics_page_url() ) . '">Open Analytics →</a></p>';
 	} else {
 		echo '<p class="sn-aw-foot">Visitors · last 5 min · refreshes every 30 s</p>';
 	}
@@ -413,7 +413,7 @@ function sn_aw_kv_list( $rows, $empty ) {
  * page (v5.4.0; was the plugin Dashboard tab in v5.3.0).
  */
 function sn_aw_footer() {
-	echo '<p class="sn-aw-foot">7d · first-party · <a href="' . esc_url( admin_url( 'index.php?page=sn-analytics' ) ) . '">Open Analytics →</a></p>';
+	echo '<p class="sn-aw-foot">7d · first-party · <a href="' . esc_url( snt_analytics_page_url() ) . '">Open Analytics →</a></p>';
 }
 
 function sn_aw_stat( $label, $value, $delta = null ) {
