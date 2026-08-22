@@ -87,15 +87,46 @@ function sn_prov_dispatch( $post_id, $commit, $canonical ) {
 	// Absent means 'note' THERE too, so an older Worker keeps working — but a
 	// worker older than 1.10.0 REFUSES an unknown key, which is why this only
 	// ships after the deployed /_sn/version was confirmed.
+	//
+	// v12.6.5: '' IS NOT 'note'. sn_prov_subject_kind() returns '' for "this is
+	// not a provenance subject" — an unopted page, a post outside the notes
+	// category, a $post that would not load. That is the one honest non-answer,
+	// and the previous code coerced it into a confident directory choice.
+	//
+	// The ledger is append-only and Bitcoin-anchored: a record filed under the
+	// wrong root cannot be moved back. The Worker says so itself — it REFUSES an
+	// unrecognised kind rather than defaulting, because "silently filing a page
+	// under notes/ is the exact irreversible mistake this field exists to
+	// prevent". Coercing '' here defeated that refusal from the caller's side.
+	//
+	// It really happened: the About PAGE's v2 was filed to notes/ on 2026-08-19
+	// and the public ledger's coverage check has been red ever since, because a
+	// page can never earn a row in the notes index. The old reasoning — "dispatch
+	// is only ever reached for a real subject" — is false: sn_prov_reconcile_post()
+	// re-dispatches stored unanchored commits WITHOUT re-resolving the subject,
+	// so a page whose opt-in is not readable in that context resolved to ''.
+	//
+	// So: refuse. A missed dispatch is recoverable (the sweep retries, and this
+	// commit stays unanchored); a misfiled anchored record is not.
 	$kind = function_exists( 'sn_prov_subject_kind' )
-		? sn_prov_subject_kind( get_post( $post_id ) )
-		: 'note';
+		? (string) sn_prov_subject_kind( get_post( $post_id ) )
+		: '';
+	if ( '' === $kind ) {
+		// Recorded, not silent. A refusal that leaves no trace is indistinguishable
+		// from a dispatch that never had a reason to run, and the reconcile sweep
+		// would retry it forever with nothing to read.
+		sn_prov_update_commit( (int) $post_id, (int) $commit['version'], array(
+			'dispatch_refused'        => time(),
+			'dispatch_refused_reason' => 'subject-kind-unresolved',
+		) );
+		return;
+	}
 	$body = wp_json_encode( array(
 		'canonical'    => $canonical,
 		'content_hash' => $commit['content_hash'],
 		'note_uid'     => sn_prov_note_uid( $post_id ),
 		'version'      => (int) $commit['version'],
-		'kind'         => '' !== $kind ? $kind : 'note',
+		'kind'         => $kind,
 	) );
 	// v11.10.0: mark BEFORE the POST, not after. A request whose response is
 	// lost still reached the Worker, which may already have signed and published
