@@ -115,6 +115,28 @@ function sn_prov_genesis_leaf( $post, $author ) {
  * Published Notes with no commit chain yet — the backlog to snapshot.
  * Ordered by post_date ASC so the leaf order is deterministic + reproducible.
  *
+ * WHY THIS IS NOTE-ONLY, AND MUST STAY THAT WAY.
+ *
+ * The `post_type => 'post'` line below is not what restricts this, and widening
+ * it would change nothing: `category_name` is the real gate, and WordPress
+ * registers `category` for the `post` type only
+ * (`register_taxonomy( 'category', 'post', … )`), so a Page can never satisfy
+ * it. This is the same second gate sn_prov_subject_kind() documents — a
+ * post-type widening here would look like shipping a feature and do nothing.
+ *
+ * More importantly it must not be widened. Genesis is a ONE-SHOT RFC 6962
+ * snapshot whose root is already anchored in Bitcoin. Leaves are ordered by
+ * post_date so the root is reproducible; adding leaves produces a DIFFERENT
+ * root, at which point every stored `_sn_prov_genesis_proof` stops verifying
+ * and the anchored root is no longer the root of the tree it describes.
+ *
+ * And nothing needs it. Genesis exists for exactly one condition: posts
+ * published BEFORE the commit chain existed, which therefore have no commits.
+ * A signed Page gets a normal v1 chain commit at signing time (page signing
+ * shipped in v10.84.0, long after the chain), so there is no page backlog to
+ * snapshot. If a Merkle snapshot of pages were ever wanted it would be a
+ * SECOND snapshot with its own root and date, never a mutation of this one.
+ *
  * @return int[] post IDs
  */
 function sn_prov_genesis_backlog() {
@@ -318,6 +340,13 @@ function sn_prov_genesis_reanchor() {
 	$root = (string) $state['root'];
 	$date = (string) ( $state['date'] ?? '' );
 
+	// This query reconstructs HISTORY, not the current corpus: it rebuilds the
+	// leaf set for the root already persisted above, keeping only posts whose
+	// SN_PROV_GENESIS_META equals it. Its correctness condition is reproducing
+	// what was anchored, exactly — so it is not a candidate for the subject-type
+	// widening the reconcile, integrity and backfill sweeps took. Widening it
+	// would not add pages (see sn_prov_genesis_backlog: category_name is the
+	// real gate); it would only risk computing a set that never was.
 	$ids = get_posts( array(
 		'post_type'     => 'post',
 		'post_status'   => 'publish',
