@@ -2,6 +2,54 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.11.1] - 2026-08-22 — /about/ was published as a Note
+
+Chasing the provenance ledger's daily red found a live defect, not a
+bookkeeping problem. The About **page** was publishing this in its verification
+manifest, to every verifier that read it:
+
+```json
+"subject":{"uid":"01cea10c…","kind":"note","version":2}
+```
+
+### Fixed
+- **`sn_prov_machine_pointers_manifest()` coerced an unresolvable kind to
+  `note`.** It defaulted `$kind = 'note'` and overrode only when the resolved
+  kind was a key in the roots map — so `sn_prov_subject_kind()`'s documented
+  **empty** return (a page that never opted in; a post that is not a Note)
+  silently kept `note` and pointed the ledger base at `notes/<uid>`.
+
+  This is the sixth site of the `''` → `note` coercion the v12.6.5–v12.8.0 arc
+  removed, and it violated the rule ratified with it: *"`''` is never coerced
+  into a kind or a directory."* An unresolvable kind now emits **nothing** —
+  the same choice this function already makes one branch up for an unanchored
+  subject: *absence, not a stub*. A missing manifest is recoverable; a false
+  one is not.
+
+### Why no suite caught it
+`tests/provenance-machine-pointers.php` stubbed the resolver as
+`'page' === $post->post_type ? 'page' : 'note'` — a stub that **cannot return
+the empty string the real producer returns**. The fixture could not express the
+input, so the branch was untestable and green. The stub now mirrors the real
+contract (opt-in meta for pages, Note status for posts), and a source-level
+assertion checks the real `sn_prov_subject_kind()` can still return `''`, so
+the stub cannot drift back into inventing a shape.
+
+### The layer, checked rather than assumed
+Three other sites default a kind to `note`. All three are correct and stay:
+`sn_prov_verify_send()` reads an **inbound** `?kind=` where absence has a
+defined legacy meaning (every link minted before v10.84.0), and the two
+`provenance-render.php` helpers are the ratified **link** fallback — *a link
+may fall back to `notes/`; a verification fetch must refuse.* Only the manifest
+was making an outbound claim about a subject.
+
+### Mutation notes
+Both new pins were mutation-tested, and the first pass **found a survivor**: the
+resolver-absent branch cannot be driven from a fixture (PHP will not undefine a
+function), so a mutation flipping its fallback to `note` survived silently. It
+is now pinned at source level. The first control also named a comment string
+that did not exist — a control that never ran. Both fixed before this shipped.
+
 ## [12.11.0] - 2026-08-22 — the IPv6 criterion can finally be asked
 
 The gauge has been right since v10.74.0 and unreadable by anything but a human
