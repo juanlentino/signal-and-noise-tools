@@ -98,11 +98,21 @@ function sn_prov_ledger_note_url( $uid, $kind = 'note' ) {
 	$repo  = (string) apply_filters( 'sn_prov_ledger_repo', 'signal-and-noise-provenance' );
 	// v10.84.0: the ledger directory follows the subject kind, mirroring
 	// SUBJECT_KINDS in the provenance Worker. A MAP to a fixed literal, never
-	// "{$kind}/" — this string becomes a URL, and an unrecognised kind falls
-	// back to notes/ rather than inventing a directory. The default keeps every
-	// existing caller (all of which pass a Note) byte-identical.
-	$roots = array( 'note' => 'notes', 'page' => 'pages' );
-	$root  = isset( $roots[ $kind ] ) ? $roots[ $kind ] : 'notes';
+	// "{$kind}/" — this string becomes a URL.
+	//
+	// v12.8.0: the map itself moved to sn_prov_ledger_dir(). It used to be
+	// duplicated here, and the two copies had already drifted apart on the case
+	// that matters: this one fell back to notes/, while the verification path
+	// refuses. One table now, and the fallback is a decision made HERE, in the
+	// open, rather than a second table quietly disagreeing with the first.
+	//
+	// Why a link may fall back where a verification fetch must not: this builds
+	// a READER-FACING href for a subject we already resolved, and every caller
+	// passes a real kind. A verification fetch that guesses turns its own 404
+	// into a false "the ledger is missing this record" claim; a link cannot
+	// manufacture evidence.
+	$root = function_exists( 'sn_prov_ledger_dir' ) ? sn_prov_ledger_dir( $kind ) : '';
+	$root = '' !== $root ? $root : 'notes';
 	return "https://github.com/{$owner}/{$repo}/tree/main/{$root}/" . rawurlencode( $uid );
 }
 

@@ -2,6 +2,70 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.8.0] - 2026-08-22 — the last two places that assumed every subject was a Note
+
+v12.7.0 gave the integrity sweep eyes for signed pages. This finishes the sweep
+of the same assumption through the two remaining modules, and removes the
+duplicate map that had already drifted.
+
+### Fixed
+- **The commits panel could not see a signed page** ([inc/provenance-admin.php](inc/provenance-admin.php)).
+  Both admin queries took `get_posts()`'s documented `'post'` default, so a
+  signed page appeared in neither the table nor the counts.
+- **And could not have linked to one.** The table emitted ONE ledger base for
+  every row and let the browser append the uid — correct only while every
+  subject is a Note. A page row would have been handed a `notes/` href that
+  404s, on the panel whose entire job is checkability. Each row now carries its
+  own `ledger_url`, resolved server-side so the kind→directory map never gains a
+  copy in JavaScript ([assets/provenance-admin.js](assets/provenance-admin.js)
+  prefers it, falling back to the base for any payload that predates the field).
+- **The chain backfill could not find or fetch one** ([inc/provenance-chain-backfill.php](inc/provenance-chain-backfill.php)).
+  Its candidate query had the same `'post'` default, and its ledger fetch
+  hardcoded `notes/`. A signed page whose chain meta was missing is exactly the
+  gap this module fills; it was never eligible to be found, and would have been
+  looked up in the wrong directory if it were. An unresolvable kind is now its
+  own skip reason (`kind_unresolved`) that fetches nothing, never a
+  `ledger_missing` verdict — that would blame the ledger for our own unanswered
+  question.
+
+### Changed
+- **The kind→directory map is deduplicated.** `sn_prov_ledger_note_url()` carried
+  its own copy, and the two had already drifted on the case that matters: it
+  fell back to `notes/` while the verification path refuses. There is one table
+  now (`sn_prov_ledger_dir()`), and the link fallback is a decision made in the
+  open at the call site rather than a second table quietly disagreeing.
+
+  The asymmetry is deliberate and documented: a reader-facing LINK may degrade
+  to `notes/`, because a link cannot manufacture evidence. A verification FETCH
+  must refuse, because a guessed directory turns its own 404 into a false "the
+  ledger is missing this record" claim.
+
+### Testing
+20 new assertions (487 suites / 19,355 in the sweep). Mutation-tested:
+narrowing either corpus fires, hardcoding `notes/` in the backfill fires 3,
+dropping the admin row's own url fires 3.
+
+**A mutation that fired NOTHING is why four of those assertions exist.** Forcing
+`sn_prov_ledger_note_url()` to the wrong root left the render suite fully green:
+the one line deciding where every reader-facing "verify it yourself" link points
+was asserted by nothing at all. It is pinned now, and the same mutation fires 3.
+
+Three harnesses gained the WP seams they had been missing — `get_post()` and
+`has_term()` — stubbed to core's documented behaviour, `category` answering for
+`post_type` `post` only. One stub had carried no `post_type` at all, which would
+have made every candidate resolve to no kind while the real site was fine.
+
+### Why MINOR
+The admin surface gains a whole subject class it never listed, and the status
+REST payload gains two additive fields (`kind`, `ledger_url`). No removed or
+renamed API, no settings schema change.
+
+### Still not widened
+`inc/provenance-genesis.php` keeps `post_type => 'post'`. Genesis is the
+historical Notes backlog Merkle tree — a fixed, closed set that predates signed
+pages entirely — so widening it would change what the manifest attests. Left
+alone deliberately.
+
 ## [12.7.0] - 2026-08-22 — the integrity sweep could not see half its subjects
 
 v12.6.5 stopped the plugin from filing a page's record under `notes/`. This is

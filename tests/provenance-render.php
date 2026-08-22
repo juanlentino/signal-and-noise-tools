@@ -531,5 +531,21 @@ rp_true( '' === $chip2, 'a SECOND caller for the same subject renders nothing �
 rp_true( '' !== sn_prov_render_chip( 6 ), 'a DIFFERENT subject still renders its own chip in the same request' );
 $GLOBALS['SN_PROV_RENDER_GUARD_OFF'] = true;
 
+echo "\nGroup: v12.8.0 — the ledger directory follows the subject kind\n";
+// This was unpinned until now: forcing the directory to the WRONG root left the
+// whole suite green, so the one line that decides where every reader-facing
+// "verify it yourself" link points was asserted by nothing.
+$lu_note = sn_prov_ledger_note_url( 'aaaa-uid', 'note' );
+$lu_page = sn_prov_ledger_note_url( 'aaaa-uid', 'page' );
+rp_true( false !== strpos( $lu_note, '/notes/' ) && false === strpos( $lu_note, '/pages/' ), 'a note links into notes/' );
+rp_true( false !== strpos( $lu_page, '/pages/' ) && false === strpos( $lu_page, '/notes/' ), 'a signed page links into pages/ — a notes/ link would 404 on the surface whose whole job is checkability' );
+rp_true( $lu_note !== $lu_page, 'and the two kinds never resolve to the same URL' );
+// The fallback is a DECISION, made here in the open, and documented: a link for
+// an unrecognised kind degrades to notes/ rather than emitting a broken root.
+// It differs from the verification path, which refuses — a link cannot
+// manufacture evidence, but a guessed fetch turns its own 404 into a false
+// "the ledger is missing this record" claim.
+rp_true( false !== strpos( sn_prov_ledger_note_url( 'aaaa-uid', 'wibble' ), '/notes/' ), 'an unrecognised kind falls back to notes/ for a LINK, deliberately and unlike the verification path' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

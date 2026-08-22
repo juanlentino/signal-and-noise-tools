@@ -75,7 +75,12 @@
     tr.appendChild(tdStatus);
 
     var tdLedger = el('td');
-    var href = ledgerUrl(full);
+    // v12.8.0: prefer the row's OWN ledger url. The shared base + uid only works
+    // while every subject is a Note; a signed page lives under pages/ and would
+    // get a 404 link from the base. The server resolves it so the kind ->
+    // directory map lives in exactly one place. Falls back to the base for any
+    // payload that predates the field.
+    var href = p.ledger_url || ledgerUrl(full);
     if (href) {
       var a = el('a', null, 'Ledger');
       a.href = href;
