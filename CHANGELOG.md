@@ -2,6 +2,72 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.10.0] - 2026-08-22 — S&N Analytics gets its own menu
+
+Metrics belong somewhere you can glance at them, not inside configuration. The
+Analytics screen moves off the WordPress Dashboard menu onto **its own
+top-level menu, `S&N Analytics`**, and gains a card on OpenStation's Station
+Home so it is at hand inside the shell too.
+
+### Why it moved
+v5.4.0 put this under `add_dashboard_page()`, welding two decisions together:
+the read/settings **split** (this screen carries no form; credentials stay in
+Measurement → Analytics) and the **relocation** onto core's Dashboard menu. The
+split was right and is kept. The relocation was not:
+
+- **It is a report, not a dashboard.** Eight edge dimensions, an hour-of-day
+  heatmap, scroll/time distributions, referrer categories and a bot breakdown
+  are an exploratory surface. Few's rule — the most important information on a
+  single screen, monitored at a glance — excludes reports by construction. A
+  report is a destination you navigate to. The plugin's own Dashboard tab
+  (operational mission control) is a different artifact and is untouched.
+- **Metrics should be at hand.** WooCommerce ships Analytics as its own
+  top-level menu, a sibling of its settings rather than a child; Jetpack Stats
+  does the same.
+- **`index.php` is not ours to rely on.** OpenStation v1.1.2's Station Home
+  claims that path — its URL matcher tests the pathname alone, so
+  `index.php?page=sn-analytics` was swallowed and the screen became unreachable
+  inside that shell. Reported upstream as
+  [WordPress/openstation#650](https://github.com/WordPress/openstation/issues/650).
+  `admin.php?page=…` cannot be claimed by a Dashboard remap.
+
+### Added
+- **`snt_analytics_page_url()` and `snt_analytics_page_hook()`** — the URL and
+  admin hook suffix are accessors now. **Twelve** call sites across ten files
+  built the old URL by hand and one pinned the `dashboard_page_` hook; moving
+  the page would have broken each silently and separately. One of the twelve
+  used a query arg the first find/replace pass missed, found only by grepping
+  again — which is why `tests/analytics-dashboard-page.php` now fails the build
+  if any `inc/` file rebuilds the legacy URL, with a sanity pin that the scan
+  actually read the tree.
+- **A Station Home card** ([inc/openstation-station-home-card.php](inc/openstation-station-home-card.php)).
+  Structured data, never plugin HTML — Station Home owns layout and escaping.
+  Starts enabled (the user can opt out); returns **null** rather than `0` when
+  analytics is unconfigured, because a card reading zero on a site that never
+  measured anything is a false statement, not an empty state.
+- **A 301 from the old URL**, carrying `sn_view` through so deep links keep
+  their destination and not merely their page.
+
+### Fixed
+- `inc/uptime-status-widget.php` hardcoded `dashboard_page_sn-analytics`. A
+  top-level menu produces `toplevel_page_…`, so the widget would have gone
+  quietly assetless on the one screen it most belongs on.
+- Three stale claims corrected rather than left standing: the settings help text
+  naming a home the page had left, and two docblocks asserting the old
+  registration. A test now pins that the help text cannot name it again.
+
+### Note on the compat instrument
+`tests/openstation-compat.php` verified 19/19 rename seams against upstream
+v1.1.2 on 2026-08-21 and was correct — it checks NAMES. Station Home shipped in
+that same release and claimed a URL without renaming anything, so the instrument
+could not have seen it. Recorded in the compat doc, alongside the sixth seam
+(`openstation_register_station_home_card()`), which has no `desktop_mode_*` twin
+because it postdates the rename — the one wrapper that checks a single name.
+
+### Why MINOR
+A new top-level admin menu and a new opt-out-able integration surface, both
+additive. No removed or renamed API; the old URL still resolves.
+
 ## [12.9.0] - 2026-08-22 — the panel counts the guard's newest refusal
 
 The login-guard worker gains an escalating throttle (worker v1.10.0): three

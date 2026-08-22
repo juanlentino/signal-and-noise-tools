@@ -9,6 +9,22 @@
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 
+// v12.10.0 seam: the Analytics screen moved to its own top-level menu and its
+// URL is now an accessor owned by inc/analytics-dashboard-page.php. Stubbed
+// here rather than guarded with function_exists() in the producer — a guard
+// there would silently emit an empty href and every link assertion would still
+// pass.
+if ( ! function_exists( 'snt_analytics_page_url' ) ) {
+	function snt_analytics_page_url( $args = array() ) {
+		$url = 'https://example.test/wp-admin/admin.php?page=sn-analytics';
+		if ( is_array( $args ) && array() !== $args ) {
+			foreach ( $args as $k => $v ) { $url .= '&' . $k . '=' . $v; }
+		}
+		return $url;
+	}
+}
+
+
 define( 'ABSPATH', '/' );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
@@ -628,7 +644,8 @@ ok( strpos( $html, 'value="analytics_test"' ) !== false, 'settings: analytics_te
 ok( strpos( $html, 'wrangler' ) !== false && strpos( $html, 'SN_PX_TOKEN' ) !== false, 'settings: Worker-setup console present' );
 ok( stripos( $html, 'View dashboard' ) !== false, 'settings: links back to the read-only dashboard' );
 ok( strpos( $html, '<details class="sn-an-form-fold" open>' ) !== false, 'settings: unconfigured pipeline -> the credentials fold carries open (v9.45.0 wiring pin)' );
-ok( strpos( $html, 'index.php?page=sn-analytics' ) !== false, 'settings: dashboard link targets the WP Dashboard → Analytics page' );
+ok( strpos( $html, 'admin.php?page=sn-analytics' ) !== false, 'settings: dashboard link targets the S&N Analytics menu (v12.10.0; was the WP Dashboard submenu)' );
+ok( false === strpos( $html, 'Dashboard &rarr; Analytics' ), 'settings: the help text no longer names a home the page left — copy that describes a move it did not make is how a stale claim outlives its code' );
 
 echo "\nGroup: settings section: escaping of stored values\n";
 $GLOBALS['__aa_opts'] = array( SN_CF_ACCOUNT_ID_OPT => 'acct"<script>' );

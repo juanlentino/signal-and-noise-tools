@@ -65,6 +65,13 @@ function sanitize_title( $s ) { return trim( strtolower( preg_replace( '/[^a-z0-
 
 require_once __DIR__ . '/../inc/analytics-panels.php'; // v8.5.0: strip + detail render through the primitive
 require_once __DIR__ . '/../inc/uptime-status.php';
+// v12.10.0: the widget gates its enqueue on the Analytics page's hook, which
+// that module owns. Stubbed as a SEAM rather than guarded with function_exists
+// in the producer — a guard there would degrade to "never enqueue" and this
+// suite would still pass.
+if ( ! function_exists( 'snt_analytics_page_hook' ) ) {
+	function snt_analytics_page_hook() { return 'toplevel_page_sn-analytics'; }
+}
 require_once __DIR__ . '/../inc/uptime-status-widget.php';
 
 $pass = 0;
@@ -150,7 +157,9 @@ uw_ok( false !== strpos( $js, 'sn-an-panel-open' ), 'JS keeps the legacy panel-o
 uw_ok( false !== strpos( $js, "closest( 'summary' )" ) && false !== strpos( $js, "setAttribute( 'aria-label'" ), 'JS swaps the summary accessible name to the status meta after paint' );
 uw_ok( false !== strpos( $js, 'data-sn-uptime-loaded' ), 'JS once-guards the detail fetch' );
 
-uw_fire_enqueue( 'dashboard_page_sn-analytics' );
+// v12.10.0: the Analytics page moved to a top-level menu, so its hook suffix
+// changed. The widget now reads snt_analytics_page_hook() rather than a literal.
+uw_fire_enqueue( 'toplevel_page_sn-analytics' );
 uw_ok( isset( $GLOBALS['__scripts']['sn-uptime-status'] ), 'assets enqueued on the Analytics page hook when configured' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

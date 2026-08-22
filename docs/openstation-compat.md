@@ -102,10 +102,27 @@ exist and falling back to the pre-rename name otherwise.
 | `desktop_mode_register_icon()` | `openstation_register_icon()` | `includes/registries/icons.php` |
 | `desktop_mode_is_enabled()` | `openstation_is_enabled()` | `includes/helpers.php` |
 | `desktop_mode_ai_ability_tool_name()` | `openstation_ai_ability_tool_name()` | `includes/ai-copilot/abilities.php` |
+| *(none — postdates the rename)* | `openstation_register_station_home_card()` | `includes/station-home/cards.php` |
 
-All five still accept exactly the argument shapes we pass at v1.1.0
-(re-checked against each function's `$defaults` array, not just its
+All five renamed functions still accept exactly the argument shapes we pass at
+v1.1.0 (re-checked against each function's `$defaults` array, not just its
 signature).
+
+**The sixth row has no old name, and that is the point.** Station Home shipped
+in upstream v1.1.2 (PR #625), *after* the rename, so
+`openstation_register_station_home_card()` never had a `desktop_mode_*` twin.
+`snt_os_register_station_home_card()` therefore checks ONE name where every
+other wrapper in the compat layer checks two — a deliberate asymmetry, not a
+missed case.
+
+Worth recording alongside it: the v1.1.2 verification pass on 2026-08-21
+reported 19/19 seams clean, and it was correct — it checks NAMES. Station Home
+landed in that same release and claimed `index.php` by pathname, which took the
+plugin's Analytics screen off its own URL without renaming anything at all. The
+compat instrument answers "did the names move?", never "did upstream grow a new
+claim on a surface we use". Reported upstream as
+[#650](https://github.com/WordPress/openstation/issues/650); the screen moved to
+its own top-level menu in plugin v12.10.0.
 
 Constant, for detection only: `DESKTOP_MODE_VERSION` (v0.9.8) →
 `OPENSTATION_VERSION` (v1.0.0+, `desktop-mode.php` — note the pre-rename

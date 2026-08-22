@@ -124,7 +124,7 @@ function snt_analytics_overview_tab_doorway( $slug, $label, $range, $class, $fro
 		? remove_query_arg( snt_analytics_view_reset_params(), add_query_arg( array() ) )
 		: ''; // partial harness without analytics-admin.php — fall through to the canonical route.
 	if ( '' === (string) $base ) {
-		$base = admin_url( 'index.php?page=sn-analytics' );
+		$base = snt_analytics_page_url();
 	}
 	$args = array( 'sn_view' => (string) $slug );
 	if ( function_exists( 'snt_analytics_window_args' ) ) {

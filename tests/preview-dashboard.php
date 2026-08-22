@@ -10,6 +10,8 @@
  * @since plugin v6.5.0
  */
 if ( PHP_SAPI !== 'cli' ) { exit; }
+
+
 define( 'ABSPATH', '/' );
 define( 'DAY_IN_SECONDS', 86400 );
 define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) );
@@ -178,6 +180,21 @@ function sn_analytics_views_today() { return 6; }
 if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; } }
 if ( ! function_exists( 'wp_parse_url' ) ) { function wp_parse_url( $u, $c = -1 ) { return parse_url( $u, $c ); } }
 if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $value ) { return $value; } }
+// v12.10.0 seam: the Analytics screen moved to its own top-level menu and its
+// URL is now an accessor owned by inc/analytics-dashboard-page.php. Placed
+// immediately before the requires — an earlier version of this stub landed
+// inside the non-CLI guard block above, which never executes under `php
+// tests/...`, so the function stayed undefined and the suite fataled.
+if ( ! function_exists( 'snt_analytics_page_url' ) ) {
+	function snt_analytics_page_url( $args = array() ) {
+		$url = 'https://example.test/wp-admin/admin.php?page=sn-analytics';
+		if ( is_array( $args ) && array() !== $args ) {
+			foreach ( $args as $k => $v ) { $url .= '&' . $k . '=' . $v; }
+		}
+		return $url;
+	}
+}
+
 require_once __DIR__ . '/../inc/analytics-sources.php';
 // v8.5.0 header-region dependencies (movers + primitive run real; uptime
 // surfaces absent = unconfigured install).

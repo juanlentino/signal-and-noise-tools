@@ -152,7 +152,7 @@ function snt_analytics_render_movers_tile( $from, $to, $class, $cwin = null, $mo
 		// whatever the Posts view's own defaults are (function_exists guard: the
 		// barrel that declares snt_analytics_window_args loads after this file —
 		// same load-order reality as the D2 resolve_cwin guard above).
-		$posts_url = admin_url( 'index.php?page=sn-analytics&sn_view=posts' );
+		$posts_url = snt_analytics_page_url( array( 'sn_view' => 'posts' ) );
 		if ( '' !== (string) $range && function_exists( 'snt_analytics_window_args' ) ) {
 			$posts_url = add_query_arg( snt_analytics_window_args( $range, $class, $from, $to ), $posts_url );
 		}

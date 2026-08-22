@@ -16,6 +16,8 @@
  */
 
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
+
+
 	http_response_code( 404 );
 	exit;
 }
@@ -95,6 +97,21 @@ function get_posts( $a = array() ) { return $GLOBALS['__d']['overrides_ids']; }
 function wp_get_theme( $s = null ) { return new class { public function get( $k ) { return '10.18.0'; } }; }
 if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '6.42.0' ); }
 function apply_filters( $t, $v = null ) { return $v; }
+
+// v12.10.0 seam: the Analytics screen moved to its own top-level menu and its
+// URL is now an accessor owned by inc/analytics-dashboard-page.php. Placed
+// immediately before the requires — an earlier version of this stub landed
+// inside the non-CLI guard block above, which never executes under `php
+// tests/...`, so the function stayed undefined and the suite fataled.
+if ( ! function_exists( 'snt_analytics_page_url' ) ) {
+	function snt_analytics_page_url( $args = array() ) {
+		$url = 'https://example.test/wp-admin/admin.php?page=sn-analytics';
+		if ( is_array( $args ) && array() !== $args ) {
+			foreach ( $args as $k => $v ) { $url .= '&' . $k . '=' . $v; }
+		}
+		return $url;
+	}
+}
 
 require_once __DIR__ . '/../inc/health-summary.php'; // real finding-total accessor the glance card + attention strip now share
 require_once __DIR__ . '/../inc/admin-glance.php';

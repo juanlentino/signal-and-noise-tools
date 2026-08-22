@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     12.9.0
+ * Version:     12.10.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -69,6 +69,7 @@ require_once SNT_PATH . 'inc/word-count.php'; // v10.24.0: pure Unicode word cou
 // release). Zero deps of its own; every desktop-mode-* / mcp-telemetry-agents
 // consumer below calls into it, so it loads FIRST among them.
 require_once SNT_PATH . 'inc/openstation-compat.php';
+require_once SNT_PATH . 'inc/openstation-station-home-card.php';
 require_once SNT_PATH . 'inc/openstation-agent-output-budget.php'; // WordPress/openstation#517 seam: inject adaptive thinking + effort (Claude 5) and ceiling headroom on agent-run generations; inert while the agents feature is off; remove per the conditions in its docblock (openstation#530/#531)
 require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/config-drift.php'; // R6a: durable effective-settings baseline + unexplained-drift diff
