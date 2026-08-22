@@ -2,6 +2,72 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.7.0] - 2026-08-22 — the integrity sweep could not see half its subjects
+
+v12.6.5 stopped the plugin from filing a page's record under `notes/`. This is
+the other half: the instrument that exists to catch exactly that drift was
+structurally blind to it.
+
+`sn_prov_integrity_run_sweep()` is the scheduled trust-triangle check — the
+13th Content-Health check. It could not see a signed page **twice over**:
+
+1. `'post_type' => 'post'`, so a signed page was never in its corpus at all.
+2. It built `notes/<uid>/vN.json` unconditionally, so even had a page been in
+   the corpus, it would have looked in a directory the record could never be in
+   and reported `ledger_missing` — a confident drift claim produced by asking
+   the wrong question.
+
+That is why a page record misfiled on 2026-08-19 went unnoticed until the
+provenance repo's own CI complained four days later. Asking whether this
+instrument was healthy was the wrong question: it was answering accurately
+about the half of the corpus it could see.
+
+### Added
+- **`sn_prov_ledger_dir( $kind )`** ([inc/provenance-core.php](inc/provenance-core.php)) —
+  the kind→directory map, mirroring the Worker's own `SUBJECT_KINDS`. It returns
+  `''` for an unknown kind and **has no `notes` default**, deliberately: a
+  guessed directory in an append-only, Bitcoin-anchored ledger is not a
+  recoverable mistake. Callers refuse rather than guess.
+- **A new finding, `subject_kind_unresolved`** — when the subject kind cannot be
+  resolved, the sweep says so and fetches nothing. A gap, never a drift claim,
+  the same rule leg (b) already applies to an unreachable twin. Reporting it as
+  `ledger_missing` would blame the ledger for our own unanswered question.
+- **The sweep summary stamps its `corpus`.** `fleet` changed meaning the moment
+  pages entered it, and a stored summary that does not say which corpus produced
+  it invites comparing it against an older number over a different population.
+
+### Fixed
+- The sweep walks `sn_prov_subject_post_types()` (`post` + `page`), the same
+  widening the reconcile sweep took in v10.84.0. `get_posts()` defaults to
+  `'post'`, which is precisely how the omission read as normal.
+- The ledger URL follows the subject kind instead of assuming `notes/`.
+
+### Testing
+11 new assertions (103 in the file; 487 suites / 19,335 in the sweep). Every one
+mutation-tested: narrowing the corpus fires 2, hardcoding `notes/` fires 3,
+giving `sn_prov_ledger_dir()` a `notes` default fires 4.
+
+The harness gained two WP seams it had been missing — `get_post()` and
+`has_term()` — stubbed to core's documented behaviour, with `category` answering
+only for `post_type` `post`, since core registers it as
+`register_taxonomy( 'category', 'post', … )`. A page can therefore never be a
+Note, which is what makes the page branch the only route by which a page is
+signed at all.
+
+### Why MINOR
+Net-new capability on a user-visible surface: the health sweep now covers a
+whole subject class it never examined, and a new finding can appear there. No
+removed or renamed API, no settings schema change. The Content-Health CHECK
+count is unchanged — `subject_kind_unresolved` is a finding within the existing
+provenance-integrity check, not a new check.
+
+### Not fixed here
+`provenance-chain-backfill.php`, `provenance-genesis.php` and
+`provenance-admin.php` still hardcode `post_type => 'post'`, and the first also
+hardcodes a `notes/` ledger URL. Genesis is historically note-only and may be
+correct as-is; the other two are not obviously so. Left deliberately, not
+overlooked.
+
 ## [12.6.5] - 2026-08-22 — an empty subject kind was never a note
 
 The public provenance ledger's daily verification has been red since
