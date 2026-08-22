@@ -55,6 +55,32 @@ if ( ! function_exists( 'get_option' ) ) {
 	function get_option( $k, $d = false ) {
 		return $GLOBALS['__pv_options'][ $k ] ?? $d; }
 }
+// v12.8.0: the commits table now resolves each row's subject KIND so the row can
+// carry its own ledger URL, which means the harness has to supply a real post.
+// post_type is the discriminator — pages and posts share wp_posts and are told
+// apart by that column — and core registers 'category' for posts only, so a page
+// can never satisfy the Note check.
+$GLOBALS['__pv_post_types'] = array();
+$GLOBALS['__pv_get_posts_args'] = array();
+if ( ! function_exists( 'get_post' ) ) {
+	function get_post( $id = 0 ) {
+		$id = (int) ( is_object( $id ) ? $id->ID : $id );
+		if ( 0 === $id ) {
+			return null;
+		}
+		return (object) array(
+			'ID'        => $id,
+			'post_type' => (string) ( $GLOBALS['__pv_post_types'][ $id ] ?? 'post' ),
+		);
+	}
+}
+if ( ! function_exists( 'has_term' ) ) {
+	function has_term( $term = '', $taxonomy = '', $post = null ) {
+		$id   = (int) ( is_object( $post ) ? $post->ID : $post );
+		$type = (string) ( $GLOBALS['__pv_post_types'][ $id ] ?? 'post' );
+		return 'category' === $taxonomy && 'post' === $type;
+	}
+}
 if ( ! function_exists( 'get_post_meta' ) ) {
 	function get_post_meta( $id, $k, $single = false ) {
 		$v = $GLOBALS['__pv_meta'][ $id ][ $k ] ?? null;
@@ -70,6 +96,7 @@ if ( ! function_exists( 'get_posts' ) ) {
 	// Return every seeded post id that carries the provenance UID meta —
 	// mirrors the real meta_key-only query sn_prov_admin_status() runs.
 	function get_posts( $args = array() ) {
+		$GLOBALS['__pv_get_posts_args'][] = $args;
 		$ids = array();
 		foreach ( $GLOBALS['__pv_meta'] as $pid => $meta ) {
 			if ( isset( $meta[ SN_PROV_UID_META ] ) ) {
@@ -304,6 +331,13 @@ require_once SNT_PATH . 'inc/admin-glance.php';
 // Load the REAL primitive (three tiny echo helpers; never stub — redeclare fatal)
 // so the smoke test asserts the real .sn-shell markup and column order.
 require_once SNT_PATH . 'inc/admin-shell.php';
+if ( ! function_exists( 'add_shortcode' ) ) {
+	function add_shortcode( $tag, $cb ) { $GLOBALS['__pv_shortcodes'][ $tag ] = $cb; return true; }
+}
+if ( ! function_exists( 'home_url' ) ) {
+	function home_url( $path = '' ) { return 'https://example.com' . (string) $path; }
+}
+require_once SNT_PATH . 'inc/provenance-render.php'; // v12.8.0: admin resolves each row's ledger URL through sn_prov_ledger_note_url()
 require_once SNT_PATH . 'inc/provenance-admin.php';
 
 $pass = 0;
@@ -655,6 +689,67 @@ foreach ( $et_cards as $c ) {
 }
 ad_true( false !== strpos( $worker_card, 'Reachable · Jul 9, 2026 3:31 PM EDT' ), 'Worker card renders "Reachable · <ET time>"' );
 ad_true( false === strpos( $worker_card, '2026-07-09T19:31:58Z' ), 'Worker card no longer leaks the raw UTC ISO string' );
+
+echo "\nTask 4z: v12.8.0 — the commits panel can see a signed page\n";
+
+// THE CORPUS. Both admin queries took get_posts()'s documented 'post' default,
+// so a signed page never appeared in the commits table or the counts at all.
+$GLOBALS['__pv_get_posts_args'] = array();
+sn_prov_admin_status();
+$args = $GLOBALS['__pv_get_posts_args'][0] ?? array();
+ad_true( is_array( $args['post_type'] ?? '' ) && in_array( 'page', (array) $args['post_type'], true ),
+	'the commits query asks for pages too — a signed page is in the panel, not silently outside it' );
+
+// THE LINK. The table emitted ONE ledger base for every row and let the browser
+// append the uid. That is correct only while every subject is a Note: a page
+// would have been handed a notes/ href that 404s, on the panel whose entire job
+// is checkability.
+$GLOBALS['__pv_post_types'][12] = 'page';
+$GLOBALS['__pv_meta'][12][ SN_PROV_SIGN_META ] = '1';
+update_post_meta( 12, SN_PROV_UID_META, 'u12' );
+update_post_meta( 12, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'bb', 'status' => 'pending', 'committed_at' => '2026-08-22T00:00:00Z' ) ) );
+$rows = sn_prov_admin_status()['pending'];
+$by   = array();
+foreach ( $rows as $r ) {
+	$by[ $r['note_uid'] ] = $r;
+}
+ad_eq( 'page', $by['u12']['kind'] ?? '', 'the page row reports kind=page' );
+ad_true( isset( $by['u12']['ledger_url'] ) && false !== strpos( $by['u12']['ledger_url'], '/pages/' ),
+	'and carries its OWN ledger url under pages/ — resolved server-side, so the kind map never gains a copy in JavaScript' );
+ad_true( false === strpos( (string) ( $by['u12']['ledger_url'] ?? '' ), '/notes/' ),
+	'and never points a page at notes/, which could only ever 404' );
+// A freshly seeded NOTE, not post 11: earlier tasks in this file mutate that
+// chain, so reusing it would make this block depend on test ORDER rather than
+// on behaviour.
+$GLOBALS['__pv_post_types'][14] = 'post';
+update_post_meta( 14, SN_PROV_UID_META, 'u14' );
+update_post_meta( 14, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'dd', 'status' => 'pending', 'committed_at' => '2026-08-22T00:00:00Z' ) ) );
+$by = array();
+foreach ( sn_prov_admin_status()['pending'] as $r ) {
+	$by[ $r['note_uid'] ] = $r;
+}
+ad_eq( 'note', $by['u14']['kind'] ?? '', 'a note row still reports kind=note' );
+ad_true( false !== strpos( (string) ( $by['u14']['ledger_url'] ?? '' ), '/notes/' ),
+	'and still links into notes/ — existing rows are unchanged' );
+
+// The link must actually be PRODUCED. Both resolvers sit behind function_exists,
+// so a load-order regression would blank every ledger link in the panel while
+// every other assertion here still passed. This is the pin that would catch it.
+ad_true( '' !== (string) ( $by['u14']['ledger_url'] ?? '' ) && '' !== (string) ( $by['u12']['ledger_url'] ?? '' ),
+	'every resolvable row actually gets a url — a silently empty link column is exactly what a guarded resolver degrades to' );
+
+// AN UNRESOLVED KIND LINKS NOWHERE. A page whose opt-in is gone is not a
+// subject, and the panel must not invent a directory to point at.
+$GLOBALS['__pv_post_types'][13] = 'page';
+$GLOBALS['__pv_meta'][13][ SN_PROV_SIGN_META ] = '';
+update_post_meta( 13, SN_PROV_UID_META, 'u13' );
+update_post_meta( 13, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'cc', 'status' => 'pending', 'committed_at' => '2026-08-22T00:00:00Z' ) ) );
+$by2 = array();
+foreach ( sn_prov_admin_status()['pending'] as $r ) {
+	$by2[ $r['note_uid'] ] = $r;
+}
+ad_eq( '', $by2['u13']['kind'] ?? 'x', 'an un-opted page resolves to no kind' );
+ad_eq( '', $by2['u13']['ledger_url'] ?? 'x', 'and gets NO ledger url — nothing is guessed' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

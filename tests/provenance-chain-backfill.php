@@ -33,7 +33,7 @@ function get_post_meta( $post_id, $key, $single = false ) {
 function update_post_meta( $post_id, $key, $value ) { $GLOBALS['__meta'][ (int) $post_id ][ $key ] = $value; return true; }
 
 $GLOBALS['__fleet'] = array();
-function get_posts( $args = array() ) { return $GLOBALS['__fleet']; }
+function get_posts( $args = array() ) { $GLOBALS['__get_posts_args'][] = $args; return $GLOBALS['__fleet']; }
 
 function wp_json_encode( $d, $f = 0, $depth = 512 ) { return json_encode( $d, $f, $depth ); }
 function get_transient( $k ) { return false; }
@@ -50,8 +50,19 @@ require SNT_PATH . 'inc/provenance-integrity.php';
 require SNT_PATH . 'inc/provenance-chain-backfill.php';
 // v10.67.0: the round-trip group drives sn_prov_credential() so the suite can
 // assert an imported commit is actually VERIFIABLE, not merely well-shaped.
-$GLOBALS['__post'] = (object) array( 'ID' => 0, 'post_status' => 'publish', 'post_password' => '' );
+// v12.8.0: the stub gained post_type, which it had never carried. The backfill
+// now resolves a subject KIND to pick the ledger directory, and post_type is the
+// column WordPress uses to tell a page from a post (both live in wp_posts). A
+// stub without it resolves to no kind at all — the fixture would have reported
+// every candidate unresolvable while the real site was fine.
+$GLOBALS['__post'] = (object) array( 'ID' => 0, 'post_status' => 'publish', 'post_password' => '', 'post_type' => 'post' );
 function get_post( $id = 0 ) { $p = clone $GLOBALS['__post']; $p->ID = (int) $id; return $p; }
+// Core registers this taxonomy as register_taxonomy( 'category', 'post', … ), so
+// it answers for posts only — which is why a page can never be a Note.
+function has_term( $term = '', $taxonomy = '', $post = null ) {
+	$type = (string) ( $GLOBALS['__post']->post_type ?? 'post' );
+	return 'category' === $taxonomy && 'post' === $type;
+}
 function get_permalink( $id ) { return 'https://juanlentino.com/notes/n-' . (int) $id . '/'; }
 function get_the_title( $id ) { return 'Note ' . (int) $id; }
 function get_the_date( $f, $id ) { return '2026-05-09T22:33:32-04:00'; }
@@ -96,7 +107,9 @@ function bf_record( $uid, $tamper = false, $ots = null ) {
 
 /** Fetcher stub: url => {code, body}. */
 $GLOBALS['__http'] = array();
+$GLOBALS['__asked'] = array();
 function bf_fetcher( $url ) {
+	$GLOBALS['__asked'][] = $url;
 	foreach ( $GLOBALS['__http'] as $needle => $res ) {
 		if ( false !== strpos( $url, $needle ) ) {
 			return $res;
@@ -293,6 +306,44 @@ ok( ! isset( sn_prov_get_chain( 99 )[0]['signature'] ), 'the stored commit is le
 echo "\nGroup: loader wiring\n";
 $loader = (string) file_get_contents( SNT_PATH . 'signal-and-noise-tools.php' );
 ok( false !== strpos( $loader, "inc/provenance-chain-backfill.php" ), 'the plugin loader requires inc/provenance-chain-backfill.php' );
+
+echo "\nGroup: v12.8.0 — a signed PAGE is a backfill candidate, and lives under pages/\n";
+
+// THE CORPUS. get_posts() defaults to post_type 'post' (documented) and this
+// module took that default, so a signed page whose chain meta was missing —
+// exactly the gap this module fills — was never eligible to be found.
+$GLOBALS['__get_posts_args'] = array();
+bf_reset( array() );
+sn_prov_backfill_run( 'bf_fetcher' );
+$bf_args = $GLOBALS['__get_posts_args'][0] ?? array();
+ok( is_array( $bf_args['post_type'] ?? '' ) && in_array( 'page', (array) $bf_args['post_type'], true ) && in_array( 'post', (array) $bf_args['post_type'], true ),
+	'the candidate query asks for BOTH post types' );
+
+// THE DIRECTORY. This fetch said notes/ unconditionally, so a page's record was
+// looked up where it can never be — and that 404 was counted as ledger_missing,
+// a real-sounding answer to a question asked of the wrong directory.
+$PUID = 'bbbb2222-0000-4000-8000-000000000002';
+bf_reset( array( 31 => $PUID ) );
+$GLOBALS['__post']->post_type = 'page';
+$GLOBALS['__meta'][31][ SN_PROV_SIGN_META ] = '1';
+$GLOBALS['__http'][ 'pages/' . $PUID . '/v1.json' ] = array( 'code' => 200, 'body' => json_encode( bf_record( $PUID ) ) );
+$GLOBALS['__asked'] = array();
+$sum = sn_prov_backfill_run( 'bf_fetcher' );
+ok( 1 === $sum['imported'], 'a signed page imports from pages/ — its record was found where it actually lives' );
+ok( false !== strpos( implode( ' ', $GLOBALS['__asked'] ), '/pages/' . $PUID ), 'the fetch asks pages/ for a page' );
+ok( false === strpos( implode( ' ', $GLOBALS['__asked'] ), '/notes/' . $PUID ), 'and never asks notes/ — that lookup could only 404 and be counted as ledger_missing' );
+
+// AN UNRESOLVED KIND IS A SKIP WITH ITS OWN REASON, AND FETCHES NOTHING.
+bf_reset( array( 32 => $PUID ) );
+$GLOBALS['__post']->post_type = 'page';
+$GLOBALS['__meta'][32][ SN_PROV_SIGN_META ] = ''; // opt-in gone: not a subject
+$GLOBALS['__asked'] = array();
+$sum = sn_prov_backfill_run( 'bf_fetcher' );
+ok( 1 === ( $sum['skipped']['kind_unresolved'] ?? 0 ), 'an unresolvable kind is its own skip reason' );
+ok( 0 === ( $sum['skipped']['ledger_missing'] ?? 0 ), 'and is NOT counted as a missing ledger record — that would blame the ledger for our own unanswered question' );
+ok( array() === $GLOBALS['__asked'], 'no URL is fetched at all when the directory is unknown — nothing is guessed' );
+
+$GLOBALS['__post']->post_type = 'post'; // leave the shared stub as we found it
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

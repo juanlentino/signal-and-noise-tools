@@ -64,8 +64,11 @@ function sn_prov_backfill_chain_has_real_commit( $chain ) {
  * @return int[] Post IDs, capped.
  */
 function sn_prov_backfill_candidates() {
+	// v12.8.0: the candidate corpus follows the subject set, like the reconcile
+	// and integrity sweeps. A signed PAGE whose chain meta is missing is exactly
+	// the gap this module fills; it was simply never eligible to be found.
 	$ids = get_posts( array(
-		'post_type'   => 'post',
+		'post_type'   => function_exists( 'sn_prov_subject_post_types' ) ? sn_prov_subject_post_types() : 'post',
 		'post_status' => 'publish',
 		'numberposts' => 100,
 		'fields'      => 'ids',
@@ -221,7 +224,19 @@ function sn_prov_backfill_run( $fetcher = null ) {
 			$bump( 'no_uid' );
 			continue;
 		}
-		$res = sn_prov_integrity_fetch_json( $base . 'notes/' . rawurlencode( $uid ) . '/v1.json', $fetcher );
+		// v12.8.0: the ledger directory follows the SUBJECT KIND. This said
+		// 'notes/' unconditionally, so a page's record was looked up where it
+		// can never be — and the 404 would have been counted as ledger_missing,
+		// a real-sounding answer to a question asked of the wrong directory.
+		$bf_kind = function_exists( 'sn_prov_subject_kind' ) ? (string) sn_prov_subject_kind( get_post( $post_id ) ) : '';
+		$bf_dir  = function_exists( 'sn_prov_ledger_dir' ) ? sn_prov_ledger_dir( $bf_kind ) : '';
+		if ( '' === $bf_dir ) {
+			// Nothing is guessed. An unresolved kind is a skip with its own
+			// reason, never a ledger verdict.
+			$bump( 'kind_unresolved' );
+			continue;
+		}
+		$res = sn_prov_integrity_fetch_json( $base . $bf_dir . '/' . rawurlencode( $uid ) . '/v1.json', $fetcher );
 		if ( 404 === (int) $res['code'] ) {
 			$bump( 'ledger_missing' ); // a real answer: this Note has no ledger record
 			continue;

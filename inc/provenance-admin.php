@@ -20,7 +20,7 @@ function sn_prov_admin_status() {
 	// toward in-flight commits); older pending commits beyond that window aren't
 	// listed. No pagination — the live stepper only needs the recent tail.
 	$ids = get_posts( array(
-		'post_type'   => 'post',
+		'post_type'   => function_exists( 'sn_prov_subject_post_types' ) ? sn_prov_subject_post_types() : 'post',
 		'post_status' => 'publish',
 		'numberposts' => 100,
 		'fields'      => 'ids',
@@ -31,9 +31,22 @@ function sn_prov_admin_status() {
 		foreach ( sn_prov_get_chain( (int) $id ) as $c ) {
 			$status = (string) ( $c['status'] ?? '' );
 			if ( 'pending' === $status || 'unanchored' === $status ) {
+				// v12.8.0: the row carries its OWN ledger URL. The table used to
+				// emit ONE base for every row and let the browser append the uid,
+				// which is only correct while every subject is a Note. Now that a
+				// signed page can appear here, a shared base would hand every page
+				// row a notes/ link that 404s — on the panel whose whole job is
+				// checkability. Resolved server-side so the kind→directory map
+				// stays in one place instead of gaining a copy in JavaScript.
+				$row_uid  = (string) get_post_meta( (int) $id, SN_PROV_UID_META, true );
+				$row_kind = function_exists( 'sn_prov_subject_kind' ) ? (string) sn_prov_subject_kind( get_post( (int) $id ) ) : '';
 				$pending[] = array(
 					'post_id'      => (int) $id,
-					'note_uid'     => (string) get_post_meta( (int) $id, SN_PROV_UID_META, true ),
+					'note_uid'     => $row_uid,
+					'kind'         => $row_kind,
+					'ledger_url'   => ( '' !== $row_uid && '' !== $row_kind && function_exists( 'sn_prov_ledger_note_url' ) )
+						? sn_prov_ledger_note_url( $row_uid, $row_kind )
+						: '',
 					'version'      => (int) ( $c['version'] ?? 0 ),
 					'status'       => $status,
 					'committed_at' => (string) ( $c['committed_at'] ?? '' ),
@@ -76,7 +89,7 @@ function sn_prov_admin_system_status() {
 	$last_contact = '';
 
 	$ids = get_posts( array(
-		'post_type'   => 'post',
+		'post_type'   => function_exists( 'sn_prov_subject_post_types' ) ? sn_prov_subject_post_types() : 'post',
 		'post_status' => 'publish',
 		'numberposts' => 100,
 		'fields'      => 'ids',
