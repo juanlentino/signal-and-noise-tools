@@ -2,6 +2,49 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.11.0] - 2026-08-22 — the IPv6 criterion can finally be asked
+
+The gauge has been right since v10.74.0 and unreadable by anything but a human
+eyeball. The criterion was **pre-committed** — worker v1.5.2: build 128-bit
+denylist ranges when the IPv6 share of block-eligible traffic exceeds 5%
+sustained over 30 days — precisely so the number triggers the call instead of
+reopening the argument. A number nobody can query triggers nothing, and the
+reading sat undone from the day it was asked for.
+
+### Added
+- **`signal-noise/login-defense-ipv6-criterion`** — read-only, `manage_options`,
+  on the **local** MCP read door. Returns the measured share, the window it was
+  **measured** over, and a named `decision`:
+  `build_ranges | withhold_unfinished_window | below_threshold | unknown`.
+- **Deliberately absent from the remote door.** The remote slice is
+  analytics-only by owner direction; login-defense telemetry stays on the
+  desktop. A test asserts the absence in both directions.
+
+### Why it returns a decision and not just the share
+Asked to read this gauge on 2026-08-22, I derived the window from the worker's
+v1.5.0 **tag** date (2026-07-22) and reported the criterion satisfied. The
+family sensor's first actual row is **2026-07-26**; the window held **27 of 30
+days**. The gauge measures `min(timestamp)` over rows the sensor really wrote
+for exactly this reason — its own docblock says a 30-day query bound *"asks for
+30 days; it does not deliver them."*
+
+The share was **51.7%**, ten times the line, and still authorised nothing. A
+caller handed a bare share has to re-derive the rule, and re-derivation is the
+thing that failed — so both halves of the criterion travel in the payload and
+the answer is named. The current live state is
+`withhold_unfinished_window`; the window closes **2026-08-25**.
+
+### Kept honest
+- **Zero-vs-null survives the port.** A failed analytics query reports
+  `measured: false` with a **null** share, never a reassuring 0%. Never-measured
+  — every row predating the family sensor — is the same three-state answer, and
+  `pre_sensor_hits` is reported rather than silently dropped.
+- **The read door's cardinality pin caught the widening**, as designed: 23 → 24,
+  and the change had to be declared in writing with its history rather than
+  slipped in. Mutation-tested — firing on `crossed` alone, reporting 0% on
+  failure, and downgrading the permission tier each go red — with a negative
+  control that stays green.
+
 ## [12.10.0] - 2026-08-22 — S&N Analytics gets its own menu
 
 Metrics belong somewhere you can glance at them, not inside configuration. The

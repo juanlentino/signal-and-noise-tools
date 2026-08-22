@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     12.10.0
+ * Version:     12.11.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -483,6 +483,7 @@ require_once __DIR__ . '/inc/abilities-rate-gate.php';  // v10.34.0: per-user co
 require_once __DIR__ . '/inc/abilities-lifecycle-guard.php'; // v10.38.0: WP 7.1 forward-compat — rw kill switch + telemetry/audit on core's ability lifecycle hooks (inert pre-7.1).
 require_once __DIR__ . '/inc/abilities-registration.php';
 require_once SNT_PATH . 'inc/abilities-analytics.php';  // v6.1.0: read-only analytics Abilities
+require_once SNT_PATH . 'inc/abilities-login-defense.php';  // v12.11.0: read-only IPv6-criterion gauge (wp-admin only until now)
 require_once SNT_PATH . 'inc/abilities-remote-analytics.php'; // R3 §3D Increment 1: remote-scoped analytics ability, off the MCP allowlists by design.
 require_once SNT_PATH . 'inc/abilities-remote-set.php'; // R3 §3D Increment 2: the remote set widens 1 -> 8, same isolation pattern applied to seven more twins.
 require_once __DIR__ . '/inc/migrate-orphan-options.php';  // v5.0.0: one-time orphan-option cleanup

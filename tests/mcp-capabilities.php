@@ -33,7 +33,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 23, 'read-door allowlist has exactly 23 slugs (v11.34.0 retired 15 from this door: the ten sn-site-facts theme/plugin facts, link-candidates + duplicate-body-scan + near-duplicate-scan + block-migrations-scan to sn-scan, and get-design-system-summary, which sn-site-facts already documented as retired while it sat here)' );
+ok( is_array( $list ) && count( $list ) === 24, 'read-door allowlist has exactly 24 slugs (v12.11.0 ADDED login-defense-ipv6-criterion — the gauge was wp-admin only, so a pre-committed criterion had no way to trigger its own call; v11.34.0 retired 15 from this door: the ten sn-site-facts theme/plugin facts, link-candidates + duplicate-body-scan + near-duplicate-scan + block-migrations-scan to sn-scan, and get-design-system-summary, which sn-site-facts already documented as retired while it sat here)' );
 ok( in_array( 'signal-noise/sn-validate', $list, true ), 'v10.30.0: sn-validate is allowlisted on the read door' );
 ok( in_array( 'signal-noise/ai-cache-probe-status', $list, true ), 'v10.69.0: ai-cache-probe-status is allowlisted on the read door — registering the ability alone would leave it invisible to MCP' );
 ok( in_array( 'signal-noise/topic-clusters', $list, true ), 'v10.21.0: topic-clusters is allowlisted on the read door' );
@@ -89,7 +89,7 @@ foreach ( array( 'signal-noise/keyword-candidates' ) as $slug ) {
 // still-correct count.
 $read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
 $read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
-ok( count( $read_plugin ) === 23, 'read door carries exactly 23 plugin slugs (v11.34.0; was 28 (13 -> 15 in v9.82.0, -> 18 in v10.6.0, -> 19 in v10.16.0, -> 21 in v10.17.0, -> 22 in v10.21.0, -> 23 in v10.22.0, -> 25 in v10.26.0: sn-posts + sn-site-facts, -> 26 in v10.29.0: sn-scan, -> 27 in v10.30.0: sn-validate, -> 28 in v10.69.0: ai-cache-probe-status, plugin-namespace)' );
+ok( count( $read_plugin ) === 24, 'read door carries exactly 24 plugin slugs (-> 24 in v12.11.0: login-defense-ipv6-criterion; 23 in v11.34.0; was 28 (13 -> 15 in v9.82.0, -> 18 in v10.6.0, -> 19 in v10.16.0, -> 21 in v10.17.0, -> 22 in v10.21.0, -> 23 in v10.22.0, -> 25 in v10.26.0: sn-posts + sn-site-facts, -> 26 in v10.29.0: sn-scan, -> 27 in v10.30.0: sn-validate, -> 28 in v10.69.0: ai-cache-probe-status, plugin-namespace)' );
 ok( count( $read_theme ) === 0, 'read door carries ZERO theme slugs (v11.34.0 — sn-site-facts DISPATCHES to them and is itself a plugin-namespace slug)' );
 ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
 
