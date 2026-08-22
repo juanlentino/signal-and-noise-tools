@@ -2,6 +2,23 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Documentation
+- **`inc/provenance-genesis.php` now says why it is Note-only**, because nothing
+  in it did and a grep for `post_type => 'post'` reads as an oversight. Two
+  comments, no code — verified comment-only: `php -w` output is byte-identical
+  before and after, so nothing executable changed.
+
+  The `post_type` line is not the constraint. Both queries also filter
+  `category_name`, and WordPress registers `category` for the `post` type only,
+  so a Page can never satisfy it — widening the post type here would change
+  nothing at all. And it must not be widened regardless: genesis is a one-shot
+  RFC 6962 snapshot whose root is already anchored in Bitcoin, so adding leaves
+  yields a different root and every stored `_sn_prov_genesis_proof` stops
+  verifying. Nothing needs it either — genesis exists for posts that predate the
+  commit chain, and a signed page gets a normal v1 commit at signing time.
+
 ## [12.8.0] - 2026-08-22 — the last two places that assumed every subject was a Note
 
 v12.7.0 gave the integrity sweep eyes for signed pages. This finishes the sweep
