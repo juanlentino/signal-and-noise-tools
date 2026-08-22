@@ -89,6 +89,11 @@ function sn_mcp_allowlist() {
 		'signal-noise/get-narration',
 		'signal-noise/get-analytics-events',
 		'signal-noise/pattern-adoption-scan',
+		// v12.11.0 — the IPv6 criterion gauge, previously wp-admin only. The
+		// criterion was pre-committed so the NUMBER triggers the call; a
+		// number nobody can query triggers nothing. LOCAL door only —
+		// login-defense telemetry is not the analytics-only remote slice.
+		'signal-noise/login-defense-ipv6-criterion',
 		// v9.82.0 — operational status. Both readonly, both sub-second, and what
 		// they return is status an agent should be able to see for itself.
 		'signal-noise/anchor-status',
