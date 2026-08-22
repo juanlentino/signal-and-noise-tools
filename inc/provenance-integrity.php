@@ -318,8 +318,19 @@ function sn_prov_integrity_check_note( $post_id, $fetcher ) {
 			break;
 		}
 	}
-	if ( null !== $anchored && '' !== $uid ) {
-		$ledger_url = sn_prov_integrity_ledger_base() . 'notes/' . rawurlencode( $uid ) . '/v' . (int) $anchored['version'] . '.json';
+	// v12.6.6: the ledger directory follows the SUBJECT KIND. This line said
+	// 'notes/' unconditionally, so a signed page was looked up in the wrong
+	// directory and would have reported ledger_missing — a confident drift
+	// claim produced by asking the wrong question.
+	//
+	// An unresolved kind is a GAP, never a drift claim, and never a guessed
+	// URL: the same rule leg (b) already applies to an unreachable twin.
+	$kind       = function_exists( 'sn_prov_subject_kind' ) ? (string) sn_prov_subject_kind( get_post( $post_id ) ) : '';
+	$ledger_dir = function_exists( 'sn_prov_ledger_dir' ) ? sn_prov_ledger_dir( $kind ) : '';
+	if ( null !== $anchored && '' !== $uid && '' === $ledger_dir ) {
+		$failures[] = 'subject_kind_unresolved';
+	} elseif ( null !== $anchored && '' !== $uid ) {
+		$ledger_url = sn_prov_integrity_ledger_base() . $ledger_dir . '/' . rawurlencode( $uid ) . '/v' . (int) $anchored['version'] . '.json';
 		$ledger     = sn_prov_integrity_fetch_json( $ledger_url, $fetcher );
 		if ( 404 === $ledger['code'] ) {
 			$failures[] = 'ledger_missing'; // a real answer: the record is absent from the ledger.
@@ -364,9 +375,14 @@ function sn_prov_integrity_check_note( $post_id, $fetcher ) {
 function sn_prov_integrity_run_sweep( $fetcher = null ) {
 	$fetcher = is_callable( $fetcher ) ? $fetcher : 'sn_prov_integrity_http_fetch';
 
+	// v12.6.6: the sweep walked ONLY post_type 'post', so a signed PAGE was
+	// never in its corpus — the instrument built to catch ledger drift could
+	// not see half the subjects it was meant to watch. get_posts() defaults to
+	// 'post' (documented), which is exactly how the omission read as normal.
+	// Same widening the reconcile sweep took in v10.84.0.
 	$ids = get_posts(
 		array(
-			'post_type'      => 'post',
+			'post_type'      => function_exists( 'sn_prov_subject_post_types' ) ? sn_prov_subject_post_types() : 'post',
 			'post_status'    => 'publish',
 			'posts_per_page' => -1,
 			'fields'         => 'ids',
@@ -436,8 +452,14 @@ function sn_prov_integrity_run_sweep( $fetcher = null ) {
 		);
 	}
 
+	// v12.6.6: stamp the CORPUS this sweep actually walked. 'fleet' changed
+	// meaning the moment pages entered it, and a stored summary that does not
+	// say which corpus produced it invites comparing a number against an older
+	// one computed over a different population. Repairing an instrument does
+	// not repair its log: the record has to say which instrument wrote it.
 	$summary = array(
 		'swept_at'    => $now,
+		'corpus'      => array_values( (array) ( function_exists( 'sn_prov_subject_post_types' ) ? sn_prov_subject_post_types() : array( 'post' ) ) ),
 		'fleet'       => count( $ids ),
 		'checked'     => count( $batch ),
 		'clean'       => $clean,
@@ -482,7 +504,8 @@ function sn_prov_integrity_findings( $state ) {
 		'twin_drift'           => 'the published .json twin\'s words no longer match the signed payload (twin drift)',
 		'twin_unreachable'     => 'the published .json twin could not be fetched (unreachable: an outage, not drift)',
 		'twin_missing'         => 'the published .json twin has 404ed for three consecutive sweeps (twin missing: the public twin is gone, not blipping)',
-		'ledger_missing'       => 'the public ledger record notes/<uid>/v<n>.json is absent (ledger missing)',
+		'ledger_missing'       => 'the public ledger record <notes|pages>/<uid>/v<n>.json is absent (ledger missing)',
+		'subject_kind_unresolved' => 'the subject kind could not be resolved, so the ledger directory is unknown and was NOT guessed (gap, never a drift claim)',
 		'ledger_unreachable'   => 'the public ledger could not be reached (unreachable: an outage, not drift)',
 		'ledger_hash_mismatch' => 'the public ledger record attests a different content hash (ledger contradiction)',
 		'ledger_record_malformed' => 'the public ledger record exists but carries no content_hash (malformed record: it attests nothing)',

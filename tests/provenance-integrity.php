@@ -49,6 +49,30 @@ $GLOBALS['__pi_fleet'] = array();
 $GLOBALS['__pi_get_posts_args'] = array();
 function get_posts( $args = array() ) { $GLOBALS['__pi_get_posts_args'][] = $args; return $GLOBALS['__pi_fleet']; }
 
+// v12.6.6: the sweep now resolves a subject KIND, so the harness must supply a
+// real post. Two WP seams, stubbed to match core's documented behaviour:
+//   - get_post() returns a WP_Post-shaped object whose post_type is the
+//     discriminator (pages and posts share wp_posts; post_type tells them apart).
+//   - has_term() answers for 'category' ONLY on post_type 'post', because core
+//     registers that taxonomy as register_taxonomy( 'category', 'post', … ).
+//     A page can therefore never be a Note, which is what makes the page branch
+//     of sn_prov_subject_kind() the only way a page is ever signed.
+$GLOBALS['__pi_post_types'] = array();
+function get_post( $post_id = 0 ) {
+	$id = (int) ( is_object( $post_id ) ? $post_id->ID : $post_id );
+	if ( 0 === $id ) {
+		return null;
+	}
+	return (object) array(
+		'ID'        => $id,
+		'post_type' => (string) ( $GLOBALS['__pi_post_types'][ $id ] ?? 'post' ),
+	);
+}
+function has_term( $term = '', $taxonomy = '', $post = null ) {
+	$id   = (int) ( is_object( $post ) ? $post->ID : $post );
+	$type = (string) ( $GLOBALS['__pi_post_types'][ $id ] ?? 'post' );
+	return 'category' === $taxonomy && 'post' === $type;
+}
 function get_permalink( $post_id ) { return 'https://example.com/notes/note-' . (int) $post_id . '/'; }
 function get_the_title( $post ) { return 'Note ' . ( is_object( $post ) ? (int) $post->ID : (int) $post ); }
 function wp_json_encode( $d, $f = 0, $depth = 512 ) { return json_encode( $d, $f, $depth ); }
@@ -489,6 +513,77 @@ ok( 'keys_unreachable' === $s['keys'], 'a keys network error resets the 404 stre
 // Recovery clears the streak + verdict.
 $s = sn_prov_integrity_run_sweep( $twin_ok_fetch );
 ok( 'ok' === $s['keys'], 'a recovered keys file goes back to ok' );
+
+// ── Group: v12.6.6 — the sweep can SEE a signed page, and looks in pages/ ───
+echo "\nGroup: v12.6.6 — signed pages are in the corpus, and in the right directory\n";
+
+// THE CORPUS. get_posts() defaults to post_type 'post' (documented), and this
+// sweep took that default explicitly. A signed PAGE was therefore never in the
+// corpus at all: the instrument built to catch ledger drift could not see half
+// the subjects it watches, and reported health over the half it could.
+$GLOBALS['__pi_get_posts_args'] = array();
+$GLOBALS['__pi_fleet']          = array();
+sn_prov_integrity_run_sweep( pi_fetcher( array() ) );
+$swept_args = $GLOBALS['__pi_get_posts_args'][0] ?? array();
+$swept_type = $swept_args['post_type'] ?? '';
+ok( is_array( $swept_type ) && in_array( 'page', $swept_type, true ) && in_array( 'post', $swept_type, true ),
+	'the sweep asks for BOTH post types — a signed page is in the corpus, not silently outside it' );
+ok( 'post' !== $swept_type, 'and it is no longer the bare "post" that made the omission read as normal' );
+
+// THE DIRECTORY. This line said notes/ unconditionally, so a signed page was
+// looked up in a directory it could never be in — a confident ledger_missing
+// produced by asking the wrong question.
+$UIDP = 'dddddddd-eeee-4fff-8aaa-bbbbbbbbbbbb';
+$GLOBALS['__pi_post_types'][201] = 'page';
+$GLOBALS['__pi_meta'][201][ SN_PROV_SIGN_META ] = '1';
+pi_note( 201, $UIDP, array( pi_commit( $UIDP, 1, $PARAS, 'confirmed' ) ) );
+$commitp = sn_prov_get_chain( 201 )[0];
+$asked   = array();
+$page_fetch = function ( $url ) use ( &$asked, $UIDP, $commitp, $FLAT ) {
+	$asked[] = $url;
+	if ( false !== strpos( $url, '.json' ) && false !== strpos( $url, 'note-201' ) ) {
+		return pi_json( array( 'content_text' => $FLAT, 'note_uid' => $UIDP ) );
+	}
+	if ( false !== strpos( $url, '/pages/' . $UIDP . '/v1.json' ) ) {
+		return pi_json( array( 'content_hash' => 'sha256:' . $commitp['content_hash'], 'ots' => array( 'bitcoin_txid' => 'cd34' ) ) );
+	}
+	return array( 'json' => null, 'code' => 404 );
+};
+$r = sn_prov_integrity_check_note( 201, $page_fetch );
+$ledger_asks = array_values( array_filter( $asked, function ( $u ) use ( $UIDP ) {
+	return false !== strpos( $u, $UIDP );
+} ) );
+ok( array() !== $ledger_asks && false !== strpos( $ledger_asks[0], '/pages/' ),
+	'a signed PAGE resolves its ledger record under pages/ — the directory follows the subject kind' );
+ok( false === strpos( implode( ' ', $ledger_asks ), '/notes/' ),
+	'and it never asks notes/ for a page — that lookup could only ever 404 and be reported as drift' );
+ok( ! in_array( 'ledger_missing', $r['failures'], true ),
+	'so the page does NOT report ledger_missing: its record was found where it actually lives' );
+
+// AN UNRESOLVED KIND IS A GAP, NEVER A GUESS. The old code had no third state:
+// every subject got notes/. A page whose opt-in is gone resolves to no kind at
+// all, and the sweep must say so rather than invent a directory and call the
+// resulting 404 a missing record.
+$GLOBALS['__pi_meta'][201][ SN_PROV_SIGN_META ] = '';
+$asked = array();
+$r     = sn_prov_integrity_check_note( 201, $page_fetch );
+ok( in_array( 'subject_kind_unresolved', $r['failures'], true ),
+	'an unresolvable subject kind is its own finding — a gap, never a drift claim' );
+ok( ! in_array( 'ledger_missing', $r['failures'], true ),
+	'and it is NOT reported as a missing ledger record — that would blame the ledger for our own unanswered question' );
+ok( array() === array_values( array_filter( $asked, function ( $u ) use ( $UIDP ) { return false !== strpos( $u, $UIDP ); } ) ),
+	'no ledger URL is fetched at all when the directory is unknown — nothing is guessed' );
+
+// The finding must be NAMED, or it renders as a bare slug on the health surface.
+$named = sn_prov_integrity_findings( array( 'notes' => array( 201 => array( 'failures' => array( 'subject_kind_unresolved' ) ) ) ) );
+ok( array() !== $named && false !== strpos( wp_json_encode( $named ), 'ledger directory is unknown' ),
+	'the new finding carries a human label, so it never surfaces as a raw code' );
+
+// The map itself never defaults. There is deliberately no fallback to notes/.
+ok( 'notes' === sn_prov_ledger_dir( 'note' ) && 'pages' === sn_prov_ledger_dir( 'page' ),
+	'sn_prov_ledger_dir maps the two known kinds' );
+ok( '' === sn_prov_ledger_dir( '' ) && '' === sn_prov_ledger_dir( 'revision' ) && '' === sn_prov_ledger_dir( 'wibble' ),
+	'and returns EMPTY for anything else — no notes/ default, because a guessed directory in an append-only ledger is not recoverable' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

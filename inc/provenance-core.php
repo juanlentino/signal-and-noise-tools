@@ -528,6 +528,32 @@ function sn_prov_subject_kind( $post ) {
 }
 
 /**
+ * The public ledger directory for a subject kind.
+ *
+ * Mirrors the Worker's SUBJECT_KINDS map (src/index.mjs), which is the thing
+ * that actually writes these paths. Kept as a map from a validated kind to a
+ * FIXED literal for the same reason the Worker does it that way: the directory
+ * must never be built from a caller's string.
+ *
+ * RETURNS '' FOR AN UNKNOWN KIND, AND CALLERS MUST REFUSE RATHER THAN GUESS.
+ * There is deliberately no 'notes' default. Defaulting is what filed the About
+ * page's v2 under notes/ on 2026-08-19 (fixed in v12.6.5) — in an append-only,
+ * Bitcoin-anchored ledger a guessed directory is not a recoverable mistake.
+ *
+ * @since 12.6.6
+ * @param string $kind 'note' | 'page'
+ * @return string 'notes' | 'pages' | '' when the kind is not a subject kind.
+ */
+function sn_prov_ledger_dir( $kind ) {
+	$map = array(
+		'note' => 'notes',
+		'page' => 'pages',
+	);
+	$kind = (string) $kind;
+	return isset( $map[ $kind ] ) ? $map[ $kind ] : '';
+}
+
+/**
  * Every post type that can hold a provenance subject.
  *
  * Used by the UID resolver and the reconcile sweep so a widened subject set
