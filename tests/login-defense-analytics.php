@@ -167,6 +167,9 @@ ok( strpos( $hd, '>failopen ' ) !== false, 'header: the failopen decision has it
 // pill, so no denial or degradation mode is invisible on the panel.
 ok( strpos( $hd, '>throttle ' ) !== false, 'header: the throttle decision has its own breakdown pill' );
 ok( strpos( $hd, '>degraded ' ) !== false, 'header: the degraded decision has its own breakdown pill' );
+// Worker v1.10.0: 'lockout' — the escalated throttle. Added WITH the release
+// that emits it, rather than discovered missing later the way 'degraded' was.
+ok( strpos( $hd, '>lockout ' ) !== false, 'header: the lockout decision has its own breakdown pill' );
 foreach ( array( 'block', 'pass', 'bypass', 'killswitch' ) as $sn_lg_d ) {
 	ok( strpos( $hd, '>' . $sn_lg_d . ' ' ) !== false, "header: the $sn_lg_d decision pill survives" );
 }

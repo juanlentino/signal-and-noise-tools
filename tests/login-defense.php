@@ -83,6 +83,31 @@ ok( $k['checked'] === 125 && $k['throttled'] === 25 && $k['block_rate'] === 24,
 	'KPIs: throttle joins checked (125), throttled=25, rate dilutes to 24%' );
 ok( sn_login_defense_kpis_from_rows( array() )['throttled'] === 0, 'KPIs: throttled defaults to 0' );
 
+// Worker v1.10.0: 'lockout' is the escalated throttle — a run of capped windows
+// earned a cooldown. It is a denial of a CHECKED request, exactly like throttle,
+// so it joins the denominator. The inflation pin below is the one that matters:
+// a lockout missing from `checked` does not just hide a count, it raises the
+// reported block rate, so the surface would read HEALTHIER the more the guard
+// was being hammered.
+$k = sn_login_defense_kpis_from_rows( array(
+	array( 'decision' => 'block', 'hits' => 30 ),
+	array( 'decision' => 'pass', 'hits' => 70 ),
+	array( 'decision' => 'lockout', 'hits' => 50 ),
+) );
+ok( 150 === $k['checked'], 'KPIs: lockout joins checked (150), like throttle before it' );
+ok( 50 === $k['locked_out'], 'KPIs: locked_out is its own key — distinct from throttled, because the operator questions differ' );
+ok( 20 === $k['block_rate'], 'KPIs: and it DILUTES the block rate (30/150 = 20%) — omitting it would have inflated the rate to 30%' );
+ok( 0 === sn_login_defense_kpis_from_rows( array() )['locked_out'], 'KPIs: locked_out defaults to 0' );
+
+// Throttle and lockout are counted SEPARATELY, never merged.
+$k = sn_login_defense_kpis_from_rows( array(
+	array( 'decision' => 'throttle', 'hits' => 7 ),
+	array( 'decision' => 'lockout', 'hits' => 3 ),
+	array( 'decision' => 'pass', 'hits' => 90 ),
+) );
+ok( 7 === $k['throttled'] && 3 === $k['locked_out'] && 100 === $k['checked'],
+	'KPIs: throttled and locked_out stay distinct and both land in checked' );
+
 $series = sn_login_defense_trend_series( array(
 	array( 'day' => '2026-06-20', 'blocked' => 5, 'passed' => 1 ),
 	array( 'day' => '2026-06-21', 'blocked' => 9, 'passed' => 2 ),

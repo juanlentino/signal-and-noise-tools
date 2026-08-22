@@ -2,22 +2,50 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [12.9.0] - 2026-08-22 — the panel counts the guard's newest refusal
+
+The login-guard worker gains an escalating throttle (worker v1.10.0): three
+consecutive capped windows earn a cooldown, emitted as a new decision,
+`lockout`. This is the consumer half, shipped WITH it rather than discovered
+missing later.
+
+### Fixed
+- **`lockout` would have INFLATED the reported block rate.**
+  `sn_login_defense_kpis_from_rows()` computes `block_rate` as
+  `blocked / checked`, and `checked` was `block + throttle + pass`. A decision
+  outside that sum is not merely uncounted — it shrinks the denominator, so the
+  panel would have read *healthier* the harder the guard was being hammered.
+  `lockout` now joins `checked`, exactly as `throttle` does, and carries its own
+  `locked_out` KPI because "who is bursting" and "who is hammering" are
+  different operator questions.
+
+### Added
+- **A `lockout` breakdown pill** on the Login-defense header. That list is
+  hand-maintained, and its own comment records why: `degraded` was missing from
+  it *for its entire life*. The standing rule there is "every decision the
+  worker can emit MUST appear here" — this is the first decision added in the
+  same change as the producer that emits it.
+
+### Note on coupling
+`lockout` is a STRING CONTRACT across two repos: the worker writes it as
+`blobs[1]`, this plugin reads `$by['lockout']`. Both sides pin the literal in
+their own suites, and neither suite can see the other. Until the worker deploys,
+this change is inert — it counts a decision nothing emits yet, which is a state
+that hides a typo perfectly. The string was verified against the worker source,
+not remembered.
 
 ### Documentation
-- **`inc/provenance-genesis.php` now says why it is Note-only**, because nothing
-  in it did and a grep for `post_type => 'post'` reads as an oversight. Two
-  comments, no code — verified comment-only: `php -w` output is byte-identical
-  before and after, so nothing executable changed.
+- **`inc/provenance-genesis.php` now says why it is Note-only** (was under
+  `## [Unreleased]`). Two comments, no code — `php -w` output byte-identical
+  before and after. The `post_type` line is not the constraint: both queries
+  also filter `category_name`, and WordPress registers `category` for `post`
+  only, so widening the post type would change nothing. And it must not be
+  widened regardless — genesis is a one-shot RFC 6962 snapshot whose root is
+  anchored in Bitcoin, so adding leaves breaks every stored inclusion proof.
 
-  The `post_type` line is not the constraint. Both queries also filter
-  `category_name`, and WordPress registers `category` for the `post` type only,
-  so a Page can never satisfy it — widening the post type here would change
-  nothing at all. And it must not be widened regardless: genesis is a one-shot
-  RFC 6962 snapshot whose root is already anchored in Bitcoin, so adding leaves
-  yields a different root and every stored `_sn_prov_genesis_proof` stops
-  verifying. Nothing needs it either — genesis exists for posts that predate the
-  commit chain, and a signed page gets a normal v1 commit at signing time.
+### Why MINOR
+A new counted decision and a new KPI key on a user-visible surface, both
+additive. No removed or renamed API, no settings schema change.
 
 ## [12.8.0] - 2026-08-22 — the last two places that assumed every subject was a Note
 
