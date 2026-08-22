@@ -271,11 +271,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - name: Has version-tag-parity fired on schedule recently?
+      # NOTE: the JOB name above is a REQUIRED status check in this repo's
+      # 'Require PR on main' ruleset, matched by exact string. Renaming it makes
+      # the context unreportable and every PR permanently unmergeable, so it
+      # stays as-is even though the guard now watches a list. Rename the STEP.
+      - name: Have the scheduled workflows fired recently?
         env:
           GH_TOKEN: ${{ github.token }}
           REPO: ${{ github.repository }}
-          WF: version-tag-parity.yml
         run: |
           set -euo pipefail
           # Retry the API, don't red on a hiccup. A flaky read reported as a
@@ -288,10 +291,23 @@ jobs:
             done
             return 1
           }
-          created=$(api "repos/${REPO}/actions/workflows/${WF}" '.created_at') || created=""
-          runs=$(api "repos/${REPO}/actions/workflows/${WF}/runs?event=schedule&per_page=10" '[.workflow_runs[].created_at]') || runs="[]"
-          # An empty created_at reaches the script as null, which it reports as
-          # 'indeterminate' rather than passing — a blind instrument goes red.
-          if [ -z "$created" ]; then created_json=null; else created_json="\"${created}\""; fi
-          printf '{"workflow_created_at":%s,"scheduled_run_times":%s}' "$created_json" "${runs:-[]}" \
-            | php tools/cron-liveness.php --check --grace-hours=48
+          # workflow:grace_hours. The grace states the tolerance that fits THAT
+          # cron's cadence — there is no shared default and the guard refuses a
+          # row without one, because a daily tolerance on an hourly cron can
+          # miss twenty-two runs and still report health.
+          rows=$(printf '%s\n' \
+            'version-tag-parity.yml:48' \
+            | while IFS=: read -r wf grace; do
+                [ -n "$wf" ] || continue
+                created=$(api "repos/${REPO}/actions/workflows/${wf}" '.created_at') || created=""
+                runs=$(api "repos/${REPO}/actions/workflows/${wf}/runs?event=schedule&per_page=10" '[.workflow_runs[].created_at]') || runs="[]"
+                # An empty created_at reaches the script as null, which it reports
+                # as 'indeterminate' rather than passing — a blind instrument goes red.
+                if [ -z "$created" ]; then created_json=null; else created_json="\"${created}\""; fi
+                printf '{"name":"%s","grace_hours":%s,"workflow_created_at":%s,"scheduled_run_times":%s}\n' \
+                  "$wf" "$grace" "$created_json" "${runs:-[]}"
+              done | paste -sd, -)
+          # An empty list is refused by the guard, not passed. That is deliberate:
+          # if the loop above ever produces nothing, nothing was checked, and
+          # nothing checked must never read as everything passing.
+          printf '{"workflows":[%s]}' "$rows" | php tools/cron-liveness.php --check
