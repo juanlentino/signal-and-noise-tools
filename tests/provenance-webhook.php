@@ -276,6 +276,14 @@ $GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'shh';
 update_post_meta( 42, SN_PROV_CHAIN_META, array( array( 'version' => 1, 'content_hash' => 'aa', 'status' => 'unanchored' ) ) );
 update_post_meta( 42, SN_PROV_UID_META, 'u' );
 
+// The subject must actually RESOLVE. Until v12.6.5 these assertions passed with
+// no post loaded at all: get_post() returned null, sn_prov_subject_kind() said
+// '' — not a subject — and the dispatch relabelled that as 'note'. So the pin
+// below ("body carries the subject kind, explicitly") was fixture-fed by the
+// very coercion that misfiled a page, and would have stayed green through it.
+$GLOBALS['__wh_has_term'] = true;
+$GLOBALS['__wh_post']     = (object) array( 'ID' => 42, 'post_type' => 'post' );
+
 $GLOBALS['__pv_http'] = array();
 $commit   = array( 'version' => 1, 'content_hash' => 'aa' );
 $canonical = '{"algo":"sn-normalize-v1"}';
@@ -295,16 +303,56 @@ wh_eq( 'u', $body['note_uid'], 'body carries note_uid' );
 // silently reinterpreted if the Worker's default ever changes.
 wh_eq( 'note', $body['kind'], 'body carries the subject kind, explicitly' );
 
-// A post that is NOT a note (no notes category) still dispatches as 'note'
-// rather than as an empty string — dispatch is only ever reached for a real
-// subject, and an empty kind would be REFUSED by the Worker's validator.
+// v12.6.5 — THE EMPTY KIND IS A REFUSAL, NOT A DEFAULT.
+//
+// This block previously asserted the opposite: that a non-subject "still
+// dispatches as 'note'", on the reasoning that dispatch is only ever reached
+// for a real subject so an empty kind could safely be relabelled. Both halves
+// were wrong. sn_prov_reconcile_post() re-dispatches stored unanchored commits
+// WITHOUT re-resolving the subject, and the right response to "the Worker would
+// refuse an empty kind" is to not send one — never to invent a directory.
+//
+// It cost a real record: the About PAGE's v2 was filed under notes/ on
+// 2026-08-19, and notes/ is where it stays. The ledger is append-only and
+// anchored; that is the whole point of it.
 $GLOBALS['__wh_has_term'] = false;
 $GLOBALS['__wh_post']     = (object) array( 'ID' => 42, 'post_type' => 'post' );
 $GLOBALS['__pv_http']     = array();
 sn_prov_dispatch( 42, $commit, $canonical );
-$last     = end( $GLOBALS['__pv_http'] );
-$fallback = json_decode( $last[1]['body'], true );
-wh_eq( 'note', $fallback['kind'], 'kind never dispatches empty — the Worker would refuse it' );
+wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'a post that is NOT a note does not dispatch at all — a missed dispatch is recoverable, a misfiled anchored record is not' );
+
+// The refusal is RECORDED. A silent return is indistinguishable from a dispatch
+// that never had a reason to run, and the reconcile sweep would retry forever
+// with nothing to read.
+$refused_chain = sn_prov_get_chain( 42 );
+$refused_row   = null;
+foreach ( $refused_chain as $row ) {
+	if ( (int) ( $row['version'] ?? 0 ) === (int) $commit['version'] ) {
+		$refused_row = $row;
+	}
+}
+wh_true( is_array( $refused_row ) && ! empty( $refused_row['dispatch_refused'] ), 'the refusal is stamped on the commit' );
+wh_eq( 'subject-kind-unresolved', $refused_row['dispatch_refused_reason'] ?? '', 'and it names WHY, so the sweep leaves a trace instead of a silent loop' );
+
+// A PAGE that opted in dispatches as 'page' — the case the whole kind field
+// exists for. Filed under pages/, never notes/.
+$GLOBALS['__wh_post'] = (object) array( 'ID' => 42, 'post_type' => 'page' );
+$GLOBALS['__pv_meta'][42][ SN_PROV_SIGN_META ] = '1';
+$GLOBALS['__pv_http'] = array();
+sn_prov_dispatch( 42, $commit, $canonical );
+wh_eq( 1, count( $GLOBALS['__pv_http'] ), 'an opted-in page dispatches' );
+$page_body = json_decode( $GLOBALS['__pv_http'][0][1]['body'], true );
+wh_eq( 'page', $page_body['kind'], 'and it dispatches kind=page — the Worker maps that to pages/, which is the only reason the field exists' );
+
+// A page that did NOT opt in is not a subject at all, so it must not dispatch —
+// this is the exact shape that misfiled About v2 under the old coercion.
+$GLOBALS['__pv_meta'][42][ SN_PROV_SIGN_META ] = '';
+$GLOBALS['__pv_http'] = array();
+sn_prov_dispatch( 42, $commit, $canonical );
+wh_eq( 0, count( $GLOBALS['__pv_http'] ), 'an un-opted page does not dispatch — under the old code this became kind=note and landed in notes/' );
+
+$GLOBALS['__wh_has_term'] = true;
+$GLOBALS['__wh_post']     = (object) array( 'ID' => 42, 'post_type' => 'post' );
 wh_eq( $canonical, $body['canonical'], 'body carries canonical bytes' );
 
 $chain = sn_prov_get_chain( 42 );

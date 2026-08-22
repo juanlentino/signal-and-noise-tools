@@ -2,6 +2,56 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.6.5] - 2026-08-22 — an empty subject kind was never a note
+
+The public provenance ledger's daily verification has been red since
+2026-08-20: `records missing from the index: 01cea10c…`. That record is the
+About **page**, and its v2 was filed under `notes/`.
+
+### Fixed
+- **`sn_prov_dispatch()` no longer invents a subject kind.** It sent
+  `'' !== $kind ? $kind : 'note'`, but `sn_prov_subject_kind()` returns `''` to
+  mean *this is not a provenance subject* — an unopted page, a post outside the
+  notes category, a `$post` that would not load. That is the one honest
+  non-answer in the function, and it was being converted into a confident,
+  irreversible directory choice.
+
+  The Worker already refuses to guess. Its own comment: an unrecognised kind is
+  refused rather than defaulted, because *"silently filing a page under notes/
+  is the exact irreversible mistake this field exists to prevent."* The plugin
+  defeated that refusal from the caller's side by never sending the empty value
+  the Worker would have rejected. An empty kind now **refuses to dispatch**.
+
+- **The refusal is recorded, not silent** — `dispatch_refused` plus
+  `dispatch_refused_reason` on the commit. The commit stays unanchored and the
+  reconcile sweep may retry it, so a silent return would have been an invisible
+  loop.
+
+### Why it happened
+The old reasoning was written down and wrong: *"dispatch is only ever reached
+for a real subject."* `sn_prov_reconcile_post()` re-dispatches stored unanchored
+commits **without re-resolving the subject**, so a page whose opt-in is not
+readable in that context resolves to `''`. The two `v2 (pending)` ledger commits
+landed two seconds apart on 2026-08-19, which is what a re-dispatch looks like.
+
+### The test asserted the bug
+`tests/provenance-webhook.php` pinned *"kind never dispatches empty — the Worker
+would refuse it"*, concluding that an empty kind should be relabelled `note`.
+The correct conclusion from that premise is to **not send one**. Worse, the
+neighbouring pin *"body carries the subject kind, explicitly"* was fixture-fed by
+the very coercion it should have caught: no post was loaded, `get_post()`
+returned null, the kind resolved to `''`, and the coercion made it `'note'`. The
+harness now resolves a real subject, so that pin means something.
+
+Four new assertions, mutation-tested: restoring the coercion fires all four.
+78 assertions in the file.
+
+### Not fixed here
+The misfiled `notes/01cea10c…/v2.json` **stays where it is**. The ledger is
+append-only and Bitcoin-anchored; records are never moved or deleted to satisfy
+a check. What that record needs is an owner decision, not a code change, and the
+ledger's coverage check stays red until one is made.
+
 ## [12.6.4] - 2026-08-21 — the OpenStation compat doc stops being a claim nobody checks
 
 OpenStation 1.1.2 landed today. Verifying it surfaced the same failure this
