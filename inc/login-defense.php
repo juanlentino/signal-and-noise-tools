@@ -93,9 +93,17 @@ function sn_login_defense_kpis_from_rows( $rows ) {
 	// and then rate-limited, so it belongs in the denominator; block_rate stays
 	// blocked/checked (denylist hits only) and dilutes accordingly.
 	$throttled = $by['throttle'] ?? 0;
-	$checked   = $blocked + $throttled + ( $by['pass'] ?? 0 );
-	$rate      = $checked > 0 ? (int) round( $blocked / $checked * 100 ) : 0;
-	return array( 'checked' => $checked, 'blocked' => $blocked, 'throttled' => $throttled, 'block_rate' => $rate, 'breakdown' => $by );
+	// Worker v1.10.0: a 'lockout' is the same shape of event one escalation
+	// further on — checked, passed the denylist, then refused by the cooldown a
+	// run of capped windows earned. It joins the denominator for the same reason
+	// 'throttle' does. Omitting it would not merely hide the count: block_rate is
+	// blocked/checked, so every lockout missing from the denominator INFLATES the
+	// reported block rate. A decision the producer can emit and this file cannot
+	// name is the failure 'degraded' already taught this surface once.
+	$locked_out = $by['lockout'] ?? 0;
+	$checked    = $blocked + $throttled + $locked_out + ( $by['pass'] ?? 0 );
+	$rate       = $checked > 0 ? (int) round( $blocked / $checked * 100 ) : 0;
+	return array( 'checked' => $checked, 'blocked' => $blocked, 'throttled' => $throttled, 'locked_out' => $locked_out, 'block_rate' => $rate, 'breakdown' => $by );
 }
 
 /**
