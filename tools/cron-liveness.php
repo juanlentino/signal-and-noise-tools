@@ -17,7 +17,15 @@
  *
  * Dev/CI tooling. Never bundled with the plugin.
  *
+ * Watches a LIST of workflows, each with its own grace, because one repo can
+ * carry crons of different cadence and a shared tolerance fits none of them.
+ *
  * Usage (stdin is JSON; the workflow assembles it from `gh api`):
+ *   echo '{"workflows":[{"name":"smoke-test.yml","grace_hours":6,
+ *          "workflow_created_at":"…","scheduled_run_times":["…"]}]}' \
+ *     | php tools/cron-liveness.php --check
+ *
+ * The older single-workflow shape still parses, taking --grace-hours:
  *   echo '{"workflow_created_at":"…","scheduled_run_times":["…"]}' \
  *     | php tools/cron-liveness.php --check [--grace-hours=48]
  *
@@ -114,6 +122,95 @@ function sn_cron_liveness_verdict( array $scheduled_run_times, $workflow_created
 	);
 }
 
+/**
+ * The same question asked of SEVERAL workflows, each with its OWN grace.
+ *
+ * Grace is per-workflow and REQUIRED — never a shared default — because the
+ * tolerance that fits a daily cron is nearly useless on an hourly one. The
+ * theme's smoke-test fires every hour and its largest observed gap between
+ * consecutive scheduled runs is 2.2h; watched at the daily guard's 48h it
+ * could miss twenty-two consecutive runs and still report health. Demanding
+ * the number forces whoever adds a row to look at the cadence first, which is
+ * the only way this file's answer means anything.
+ *
+ * An EMPTY list is a FAILURE, not a clean bill of health. This is the same
+ * shape as `jq 'all(.[]; …)'` over an empty array answering true: nothing was
+ * checked, and nothing checked reads exactly like everything passing. A guard
+ * built to catch absence must not be defeated by the absence of its own input.
+ *
+ * @param mixed $workflows List of {name, grace_hours, workflow_created_at, scheduled_run_times}.
+ * @param int   $now       Unix time to judge against.
+ * @return array{ok:bool,code:string,rows:array<int,array{name:string,verdict:array}>}
+ */
+function sn_cron_liveness_report( $workflows, $now ) {
+	if ( ! is_array( $workflows ) || array() === $workflows ) {
+		return array(
+			'ok'   => false,
+			'code' => 'no-workflows',
+			'rows' => array(),
+		);
+	}
+
+	$rows = array();
+	$ok   = true;
+
+	foreach ( $workflows as $entry ) {
+		$entry = is_array( $entry ) ? $entry : array();
+		$name  = isset( $entry['name'] ) && is_string( $entry['name'] ) ? trim( $entry['name'] ) : '';
+
+		if ( '' === $name ) {
+			// A nameless row cannot tell you WHICH cron died, which is the
+			// only thing the operator needs from a red.
+			$ok     = false;
+			$rows[] = array(
+				'name'    => '(unnamed)',
+				'verdict' => array(
+					'ok'        => false,
+					'code'      => 'unnamed-workflow',
+					'message'   => 'unnamed-workflow: a row arrived without a workflow name, so its verdict could not be attributed.',
+					'age_hours' => null,
+				),
+			);
+			continue;
+		}
+
+		$grace = isset( $entry['grace_hours'] ) ? (int) $entry['grace_hours'] : 0;
+		if ( $grace <= 0 ) {
+			// Deliberately NOT defaulted. Silently borrowing 48h is how an
+			// hourly cron ends up watched by a daily tolerance.
+			$ok     = false;
+			$rows[] = array(
+				'name'    => $name,
+				'verdict' => array(
+					'ok'        => false,
+					'code'      => 'bad-grace',
+					'message'   => sprintf( 'bad-grace: %s carries no usable grace_hours. State the tolerance that fits ITS cadence; there is no shared default.', $name ),
+					'age_hours' => null,
+				),
+			);
+			continue;
+		}
+
+		$runs    = isset( $entry['scheduled_run_times'] ) && is_array( $entry['scheduled_run_times'] ) ? $entry['scheduled_run_times'] : array();
+		$created = isset( $entry['workflow_created_at'] ) ? $entry['workflow_created_at'] : null;
+		$verdict = sn_cron_liveness_verdict( $runs, $created, $now, $grace );
+
+		if ( ! $verdict['ok'] ) {
+			$ok = false;
+		}
+		$rows[] = array(
+			'name'    => $name,
+			'verdict' => $verdict,
+		);
+	}
+
+	return array(
+		'ok'   => $ok,
+		'code' => $ok ? 'all-live' : 'some-failed',
+		'rows' => $rows,
+	);
+}
+
 if ( defined( 'SN_CRON_LIVENESS_NO_MAIN' ) ) {
 	return;
 }
@@ -135,16 +232,49 @@ if ( ! is_array( $payload ) ) {
 	exit( 1 );
 }
 
-$runs    = isset( $payload['scheduled_run_times'] ) && is_array( $payload['scheduled_run_times'] ) ? $payload['scheduled_run_times'] : array();
-$created = isset( $payload['workflow_created_at'] ) ? $payload['workflow_created_at'] : null;
-$verdict = sn_cron_liveness_verdict( $runs, $created, time(), $grace_hours );
+// Two accepted shapes. The single-workflow form predates the list and is kept
+// working so a repo can migrate its CI step separately from this file.
+if ( isset( $payload['workflows'] ) ) {
+	$workflows = $payload['workflows'];
+} else {
+	$workflows = array(
+		array(
+			'name'                => isset( $payload['name'] ) ? $payload['name'] : 'the scheduled workflow',
+			'grace_hours'         => $grace_hours,
+			'workflow_created_at' => isset( $payload['workflow_created_at'] ) ? $payload['workflow_created_at'] : null,
+			'scheduled_run_times' => isset( $payload['scheduled_run_times'] ) && is_array( $payload['scheduled_run_times'] ) ? $payload['scheduled_run_times'] : array(),
+		),
+	);
+}
 
+$report = sn_cron_liveness_report( $workflows, time() );
+
+if ( array() === $report['rows'] ) {
+	fwrite( STDERR, "FAIL: cron-liveness was handed no workflows to check. Nothing checked is not the same as nothing wrong. code=no-workflows\n" );
+	exit( 1 );
+}
+
+$failed = 0;
+foreach ( $report['rows'] as $row ) {
+	$verdict = $row['verdict'];
+	if ( ! $verdict['ok'] ) {
+		++$failed;
+	}
+	printf(
+		"%-6s %-24s %s\n",
+		$verdict['ok'] ? 'ok' : 'FAIL',
+		$row['name'],
+		$verdict['message']
+	);
+}
+
+// A summary line, never absence-of-FAIL. Something must be PRESENT to read.
 printf(
-	"%s: %s\ncode=%s ok=%s runs_seen=%d\n",
-	$verdict['ok'] ? 'OK' : 'FAIL',
-	$verdict['message'],
-	$verdict['code'],
-	$verdict['ok'] ? 'true' : 'false',
-	count( $runs )
+	"%s: %d workflow%s checked, %d failed. code=%s\n",
+	$report['ok'] ? 'OK' : 'FAIL',
+	count( $report['rows'] ),
+	1 === count( $report['rows'] ) ? '' : 's',
+	$failed,
+	$report['code']
 );
-exit( $verdict['ok'] ? 0 : 1 );
+exit( $report['ok'] ? 0 : 1 );

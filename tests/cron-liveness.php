@@ -73,5 +73,71 @@ echo "\nGroup: grace is a parameter, not a magic number\n";
 ok( 'stale' === v( array( '2026-08-24T07:00:00Z' ), '2026-08-01T00:00:00Z', $now, 12 )['code'], 'a tighter grace reds a run the default would call live' );
 ok( 'live' === v( array( '2026-08-20T07:00:00Z' ), '2026-08-01T00:00:00Z', $now, 240 )['code'], 'a looser grace accepts one the default would call stale' );
 
+echo "\nGroup: the list layer — one repo, several crons, one verdict\n";
+/** @return array */
+function wf( $name, $grace, $runs, $created = '2026-08-01T00:00:00Z' ) {
+	return array(
+		'name'                => $name,
+		'grace_hours'         => $grace,
+		'workflow_created_at' => $created,
+		'scheduled_run_times' => $runs,
+	);
+}
+$fresh = array( '2026-08-25T07:00:00Z' );
+// 29h old: inside a 48h grace, well outside a 6h one. The whole split rests on this one age.
+$old   = array( '2026-08-24T07:00:00Z' );
+
+$r = sn_cron_liveness_report( array(), $now );
+ok( false === $r['ok'] && 'no-workflows' === $r['code'], 'an EMPTY list does not pass — nothing checked reads exactly like everything passing, which is the vacuous `jq all` over an empty array that already shipped once' );
+$r = sn_cron_liveness_report( 'not-a-list', $now );
+ok( false === $r['ok'] && 'no-workflows' === $r['code'], 'a non-list payload is refused, not coerced' );
+
+$r = sn_cron_liveness_report( array( wf( 'a.yml', 48, $fresh ), wf( 'b.yml', 48, $fresh ) ), $now );
+ok( true === $r['ok'] && 'all-live' === $r['code'] && 2 === count( $r['rows'] ), 'every workflow live: the whole report is ok and every row is reported, not just the first' );
+
+$r = sn_cron_liveness_report( array( wf( 'a.yml', 48, $fresh ), wf( 'dead.yml', 48, array( '2026-08-20T07:00:00Z' ) ) ), $now );
+ok( false === $r['ok'] && 'some-failed' === $r['code'], 'ONE dead cron among live ones fails the whole report — a green summary must mean every row was green' );
+$named = false;
+foreach ( $r['rows'] as $row ) {
+	if ( ! $row['verdict']['ok'] && 'dead.yml' === $row['name'] ) {
+		$named = true;
+	}
+}
+ok( $named, 'the failing row carries the NAME of the workflow that died — a red that does not say which cron is a red nobody can act on' );
+
+echo "\nGroup: grace is PER-WORKFLOW, which is the whole reason the list exists\n";
+$r = sn_cron_liveness_report( array( wf( 'daily.yml', 48, $old ), wf( 'hourly.yml', 6, $old ) ), $now );
+$by = array();
+foreach ( $r['rows'] as $row ) {
+	$by[ $row['name'] ] = $row['verdict']['code'];
+}
+ok( 'live' === $by['daily.yml'] && 'stale' === $by['hourly.yml'], 'the SAME run age is live at 48h and stale at 6h IN ONE CALL — the theme smoke-test case: an hourly cron watched at the daily tolerance could miss twenty-two runs and still report health' );
+ok( false === $r['ok'], 'and the tighter row failing is enough to fail the report' );
+
+echo "\nGroup: a missing tolerance is refused, never borrowed\n";
+$r = sn_cron_liveness_report( array( array( 'name' => 'x.yml', 'workflow_created_at' => '2026-08-01T00:00:00Z', 'scheduled_run_times' => $fresh ) ), $now );
+ok( false === $r['ok'] && 'bad-grace' === $r['rows'][0]['verdict']['code'], 'grace_hours omitted is BAD-GRACE, not a silent 48h — silently borrowing the daily default is exactly how an hourly cron ends up unwatched' );
+$r = sn_cron_liveness_report( array( wf( 'x.yml', 0, $fresh ) ), $now );
+ok( false === $r['ok'] && 'bad-grace' === $r['rows'][0]['verdict']['code'], 'a zero grace is refused rather than treated as infinitely strict' );
+$r = sn_cron_liveness_report( array( wf( 'x.yml', -5, $fresh ) ), $now );
+ok( false === $r['ok'] && 'bad-grace' === $r['rows'][0]['verdict']['code'], 'a negative grace is refused too' );
+
+echo "\nGroup: a row that cannot be attributed is a failure\n";
+$r = sn_cron_liveness_report( array( array( 'grace_hours' => 48, 'scheduled_run_times' => $fresh ) ), $now );
+ok( false === $r['ok'] && 'unnamed-workflow' === $r['rows'][0]['verdict']['code'], 'a nameless row fails — it could not tell you which cron died' );
+$r = sn_cron_liveness_report( array( wf( '   ', 48, $fresh ) ), $now );
+ok( false === $r['ok'] && 'unnamed-workflow' === $r['rows'][0]['verdict']['code'], 'whitespace is not a name' );
+
+echo "\nGroup: the list layer does not re-implement the verdict it delegates to\n";
+foreach ( array(
+	array( array(), '2026-08-01T00:00:00Z', 'never-scheduled' ),
+	array( array(), null, 'indeterminate' ),
+	array( array( '2026-08-25T07:00:00Z' ), '2026-08-01T00:00:00Z', 'live' ),
+) as $case ) {
+	$direct = sn_cron_liveness_verdict( $case[0], $case[1], $now, 48 );
+	$via_list = sn_cron_liveness_report( array( wf( 'w.yml', 48, $case[0], $case[1] ) ), $now );
+	ok( $direct['code'] === $via_list['rows'][0]['verdict']['code'] && $case[2] === $direct['code'], "the list layer reports '{$case[2]}' identically to calling the verdict directly — one rule, asked twice" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
