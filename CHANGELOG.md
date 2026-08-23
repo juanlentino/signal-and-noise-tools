@@ -2,6 +2,52 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.15.0] - 2026-08-23 — a door you cannot see anyone use
+
+Two changes that only make sense together: a third discovery document, and the
+sensor change that makes all three of them **measurable**.
+
+### Added
+- **`/.well-known/ai-catalog.json`** — ARD capability manifest
+  (agenticresourcediscovery.org). Six entries, each a surface this site already
+  serves, each carrying 2–5 `representativeQueries` — the load-bearing part,
+  since they are what lets a registry find this site **semantically** rather
+  than by already knowing its address. The `host.identifier` is the site's real
+  `did:web`, which resolves at `/.well-known/did.json`; ARD only *suggests* that
+  format, and here it is the same identity the provenance chain signs against.
+- **`agent-discovery`** in `snt_mr_valid_surfaces()` (mirrors Worker v1.17.0).
+
+### Fixed — an over-count in a published claim
+The MCP server card and API catalog shipped in v12.14.0 classified as
+`well-known`, and `well-known` is **inside** `snt_mr_rights_surfaces()` — the set
+published as *"a machine read the terms"*. An agent fetching a server card was
+therefore counted as a machine reading the TDM policy. It never was.
+
+`agent-discovery` is deliberately **absent** from the rights subset, so the
+rights-reads figure gets SMALLER for windows containing such reads. That file's
+docblock says extending the set "widens a published claim, so it is a deliberate
+edit, never a convenience" — narrowing it is the same kind of act, which is why
+it is recorded here rather than passed off as a refactor.
+
+### Why the two halves shipped together
+Opening a discovery surface and being unable to measure whether anything reads
+it is the same defect as shipping a setting with no control. In one bucket with
+`security.txt`, `gpc.json` and `webfinger`, *"did any agent actually use the
+doors we opened?"* had no answer the sensor could give. It does now.
+
+### Not added, deliberately
+- **A2A Agent Card** (`/.well-known/agent-card.json`) — we do not run an A2A
+  agent. Zero A2A code exists in any of the five repos; the path 404s. A card
+  advertises `supportedInterfaces` with a service URL and transport an agent
+  will POST to. Publishing one would be describing a protocol endpoint that
+  isn't there — the same objection as the OAuth pair and `auth.md`.
+- **The OAuth pair + `auth.md`** — the MCP door is HTTP Basic with an
+  application password, not OAuth. There is no issuer, `token_endpoint` or
+  `jwks_uri` to name.
+
+Those three are what Level 5 requires. Level 4 is the honest ceiling until the
+site actually grows an agent and an authorization server.
+
 ## [12.14.0] - 2026-08-22 — the doors existed; nobody could find them
 
 Cloudflare's Agent Readiness scan reads this site as having **no MCP server and

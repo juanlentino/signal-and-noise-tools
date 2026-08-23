@@ -180,7 +180,7 @@ survives can carry markup even before escaping.
   Better Stack monitor was 6,403 of 17,463 reads (37%): the site measuring
   itself rather than readership. Purpose totals exclude it and say so.
 
-**10 surface classes** (`snt_mr_valid_surfaces()`), coarse on purpose so that no
+**11 surface classes** (`snt_mr_valid_surfaces()`), coarse on purpose so that no
 full path is ever stored:
 
 | Surface | Matches |
@@ -189,6 +189,7 @@ full path is ever stored:
 | `rights` | `/.well-known/tdmrep.json`, `/license.xml`, `/tdm-policy` |
 | `llms` | `/llms.txt`, `/llms-full.txt` |
 | `agents-manifest` | `/.well-known/agents.json` |
+| `agent-discovery` | `/.well-known/mcp/server-card.json`, `/.well-known/api-catalog`, `/.well-known/ai-catalog.json` |
 | `well-known` | any other `/.well-known/` path |
 | `feed` | the feed routes |
 | `wp-json` | the REST surface |
