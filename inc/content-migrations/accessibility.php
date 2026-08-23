@@ -23,6 +23,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// ── PHASE 2c: /accessibility + /contact/personal (frozen-seed prose pages) ──
+//
+// Unlike /now and /about/uses (edited from Content text boxes), these two prose
+// pages have no editor — their content lived inline in the theme's render files.
+// So they use the Phase-1 frozen-seed model: a one-time migration CREATES the
+// Page from a frozen *-body.html seed, seeds a native Excerpt, and never runs
+// again. After the flip they are edited in the block editor (Gutenberg). No text
+// box means no empty-box failure mode (the 2b /uses regression does not apply).
+
 /**
  * Load the frozen /accessibility body markup from disk. Mirrors
  * sn_load_about_body() — same empty-string fallback semantics.

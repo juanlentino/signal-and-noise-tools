@@ -1,20 +1,34 @@
 <?php
 /**
- * Signal & Noise Tools — content seed migrations.
+ * Signal & Noise Tools — content seed migrations (loader).
  *
- * One-shot DB seed scripts for the Provenance pillar and Notes
- * content surface. Each migration is gated by an SN_*_MIGR_OPT
- * option flag (defined in content-surfaces.php). Migrations run
- * exactly once per environment; idempotent re-runs are no-ops.
+ * One-shot DB seed scripts for the Provenance pillar and the Notes content
+ * surface. Each migration is gated by an SN_*_MIGR_OPT option flag (defined in
+ * content-surfaces.php), runs exactly once per environment, and is a no-op on
+ * re-run.
  *
- * v9.81.0: the whole set is SPENT on the live site, so the individual
- * admin_init hooks collapsed behind ONE master sentinel — see
- * sn_run_content_migrations() at the bottom of this file. The live
- * Now/Uses page-sync engine that used to share this file moved verbatim
- * to inc/page-sync-engine.php.
+ * The migrations themselves live in inc/content-migrations/, one file per
+ * subject. This file held all of them — 1,442 lines — until the v12.21.3 split.
+ * It keeps the SPINE: sn_content_seed_file(), sn_content_migrations_registry(),
+ * sn_run_content_migrations(), the master sentinel const, and the single
+ * admin_init registration. It is also required BY PATH from the plugin bootstrap
+ * and from nine test suites, so it stays regardless.
  *
- * Body loaders read HTML from inc/seed-content/ — moved from theme
- * to plugin alongside this file in Phase 3.
+ * The registry binds a callback NAME to a sentinel option and never names a
+ * file, which is what made the split invisible to the runner. Note the runner
+ * calls each entry behind function_exists(), so a migration that goes MISSING is
+ * silently skipped rather than fatal — the master sentinel would simply never
+ * stamp. tests/content-migrations-registry-coverage.php exists to turn that
+ * silence into a build failure.
+ *
+ * v9.81.0: the whole set is SPENT on the live site, so the individual admin_init
+ * hooks collapsed behind ONE master sentinel — see sn_run_content_migrations()
+ * at the bottom of this file. The live Now/Uses page-sync engine that used to
+ * share this file moved verbatim to inc/page-sync-engine.php.
+ *
+ * Body loaders read HTML from inc/seed-content/ — moved from theme to plugin
+ * alongside this file in Phase 3 — via sn_content_seed_file() below, which
+ * resolves from THIS file so a loader is safe to move to any depth.
  *
  * Moved from theme inc/notes-and-provenance.php in Phase 3
  * (theme v8.4.0 / plugin v1.3.0, 2026-05-16). Original ordering preserved.
@@ -25,7 +39,6 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
 /**
  * Absolute path to a bundled seed-content file.
  *
@@ -49,10 +62,9 @@ function sn_content_seed_file( $name ) {
 	return __DIR__ . '/seed-content/' . $name;
 }
 
-// The migrations live one directory down, one file per subject. This file
-// stays: it is required BY PATH from the plugin bootstrap and from nine test
-// suites, and it keeps the SPINE — the registry, the master runner, the master
-// sentinel const, and the single admin_init registration.
+// The migrations live one directory down, one file per subject, and are loaded
+// in the order they originally ran. Order does not matter to the registry —
+// it drives them explicitly — but preserving it removes a variable.
 //
 // __DIR__ rather than SNT_PATH: several suites require this file without the
 // plugin bootstrap, so that constant is not guaranteed to be defined.
@@ -74,65 +86,14 @@ require_once __DIR__ . '/content-migrations/personal.php';
 require_once __DIR__ . '/content-migrations/excerpts.php';
 require_once __DIR__ . '/content-migrations/notes-template.php';
 
-// ── BODY LOADERS ─────────────────────────────────────────────────
-
-
-
-
-
-
-
-
-
-
-
-
-// ── MIGRATIONS (one-shot, idempotent per SN_*_MIGR_OPT flag) ───────
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-// ── PHASE 2c: /accessibility + /contact/personal (frozen-seed prose pages) ──
-//
-// Unlike /now and /about/uses (edited from Content text boxes), these two prose
-// pages have no editor — their content lived inline in the theme's render files.
-// So they use the Phase-1 frozen-seed model: a one-time migration CREATES the
-// Page from a frozen *-body.html seed, seeds a native Excerpt, and never runs
-// again. After the flip they are edited in the block editor (Gutenberg). No text
-// box means no empty-box failure mode (the 2b /uses regression does not apply).
-
-
-
-
-
 // ── MASTER SENTINEL (v9.81.0) ────────────────────────────────────────
 //
-// Every migration above is SPENT on the live site — each has burned its
-// individual flag long ago. Instead of 24 admin_init hooks re-checking 24
-// options on every wp-admin pageload, ONE master sentinel short-circuits
-// the whole set. Each spent body stays callable and keeps its own flag, so
-// a fresh install still runs the full ordered set idempotently; the master
-// flag is only stamped once every individual flag is present (several
+// Every migration in inc/content-migrations/ is SPENT on the live site — each
+// has burned its individual flag long ago. Instead of 24 admin_init hooks
+// re-checking 24 options on every wp-admin pageload, ONE master sentinel
+// short-circuits the whole set. Each spent body stays callable and keeps its
+// own flag, so a fresh install still runs the full ordered set idempotently;
+// the master flag is only stamped once every individual flag is present (several
 // migrations are retry-safe and deliberately withhold their flag until
 // their preconditions land — the master respects that and keeps retrying).
 

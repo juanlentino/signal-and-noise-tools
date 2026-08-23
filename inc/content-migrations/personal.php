@@ -23,6 +23,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// Shares the Phase 2c frozen-seed model — no editor, a one-time CREATE from a
+// frozen *-body.html seed — documented in full in accessibility.php.
+
 /**
  * Load the frozen /contact/personal body markup from disk. Mirrors
  * sn_load_about_body() — same empty-string fallback semantics.
