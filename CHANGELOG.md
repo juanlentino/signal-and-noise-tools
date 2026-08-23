@@ -2,6 +2,52 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.20.0] - 2026-08-23 — two more standard doors
+
+Closes two of the three checks gating Agent Readiness **Level 5 "Agent-Native"**
+(`a2aAgentCard`, `agentSkills`). The third, `authMd`, is not here — it wants
+`agent_auth` advertised in OAuth Authorization Server metadata, which touches
+the remote-MCP auth path and deserves its own decision rather than being swept
+along. **Level stays at 4 until all three land**; these two do not move it by
+themselves, and are shipped because the documents are worth having.
+
+### Added
+- **`/.well-known/agent-card.json`** — an A2A-style Agent Card. Skills are
+  derived from the abilities registry intersected with the READ door's
+  allowlist, so the card cannot advertise a tool the door will not run.
+- **`/.well-known/agent-skills/index.json`** — Agent Skills Discovery RFC v0.2.0
+  index, plus three `SKILL.md` artifacts: `fetch-as-markdown`,
+  `discover-agent-surfaces`, `query-site-analytics`.
+- Both advertise themselves through the theme's `sn_agents_surfaces` filter, so
+  `/.well-known/agents.json` names them alongside the existing documents.
+
+### The agent card does NOT claim an A2A binding, deliberately
+A2A's own bindings are JSON-RPC, gRPC and HTTP+JSON. **This site speaks none of
+them; it speaks MCP.** Pointing `url` at the MCP endpoint while implying an A2A
+binding would advertise an interface that does not answer — the exact failure
+`inc/agent-discovery.php` was written to prevent. `preferredTransport` therefore
+declares `MCP`, which the specification permits (§12, "Custom Binding
+Guidelines", so the vocabulary is extensible rather than closed).
+
+That decision is **pinned**: `tests/agent-a2a.php` fails if `preferredTransport`
+ever becomes `JSONRPC`, `GRPC` or `HTTP+JSON`. A later attempt to satisfy a
+scanner by claiming a binding we do not implement cannot pass quietly. The pin
+was mutation-tested, and the mutation asserts its own search string was found
+first — a control that cannot silently no-op.
+
+### Why the skill digests cannot go stale
+The RFC requires a sha256 of the artifact's raw bytes. This module hashes **the
+same file it serves**, at request time, with no stored digest in between. Editing
+a `SKILL.md` changes its digest automatically; there is no second place to
+update and therefore no way to forget. Descriptions are parsed from each
+artifact's own first paragraph for the same reason.
+
+### Path safety
+A slug arriving in a URL is never used to build a filesystem path. It is matched
+against the registry built by scanning `skills/`, and only an already-known slug
+resolves to a file. Traversal attempts fall through to WordPress's 404, and five
+hostile paths are pinned as rejected.
+
 ## [12.19.1] - 2026-08-23 — finishing the removal
 
 Residue from v12.19.0. Comments in shipped files that describe a feature which
