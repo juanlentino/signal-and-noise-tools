@@ -253,7 +253,7 @@ function sn_analytics_query( $sql ) {
 		'body'        => $sql,
 		'timeout'     => 6,
 		// Do not follow redirects — keeps the Bearer token on the validated host.
-		// Mirrors inc/webhooks.php + inc/uptime-heartbeat.php.
+		// Mirrors inc/webhooks.php.
 		'redirection' => 0,
 	) );
 

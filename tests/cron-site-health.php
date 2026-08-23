@@ -113,7 +113,7 @@ class WP_Error {
 function is_wp_error( $v ) { return $v instanceof WP_Error; }
 
 // Feature gates (v8.1.5 config-aware expectations) — stubs mirror the real
-// gate functions in inc/insights.php / inc/uptime-heartbeat.php. Default ON so
+// gate functions in inc/insights.php. Default ON so
 // the all-healthy fixtures keep treating every hook as expected. (v9.5.0/R2: the
 // narration gate is gone with the retired weekly-digest cron.)
 $GLOBALS['__test_insights_cron_on'] = true;

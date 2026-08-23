@@ -4,7 +4,7 @@
  *
  * An outbound module consumed an admin/option-set host and dispatched a
  * wp_remote_* request WITHOUT the wp_http_validate_url() guard that the
- * codebase's own inc/webhooks.php (x4) + inc/uptime-heartbeat.php (x2) already
+ * codebase's own inc/webhooks.php (x4) already
  * apply. This locks it to the same pattern: https-only + wp_http_validate_url()
  * (which rejects reserved/internal IPs), so:
  *   - sn_rss_tracker_send_event(): an internal / non-https endpoint is skipped

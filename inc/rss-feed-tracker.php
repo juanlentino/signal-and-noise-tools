@@ -171,7 +171,7 @@ function sn_rss_tracker_send_event( $settings, $feed_path ) {
 		'timeout'     => 2,
 		'blocking'    => false,
 		// Don't follow a redirect off the validated host (redirect-to-internal
-		// SSRF bypass) — matches inc/webhooks.php + inc/uptime-heartbeat.php.
+		// SSRF bypass) — matches inc/webhooks.php.
 		'redirection' => 0,
 		'headers'     => array( 'Content-Type' => 'application/json' ),
 		'body'        => wp_json_encode( $payload ),

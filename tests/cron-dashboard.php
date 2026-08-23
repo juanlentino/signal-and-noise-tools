@@ -194,7 +194,9 @@ assert_true( snt_cron_is_sn_owned( 'sn_insights_weekly_scan' ), 'insights scan i
 // v9.5.0 (R2): the weekly-digest cron was retired, so it is no longer an SN-owned
 // live hook — the unschedule-cron-event ability may now clear the orphan.
 assert_true( ! snt_cron_is_sn_owned( 'sn_insights_narration_weekly' ), 'R2: retired narration cron is NOT SN-owned (orphan is removable)' );
-assert_true( snt_cron_is_sn_owned( 'sn_uptime_kuma_heartbeat' ), 'uptime heartbeat is SN-owned' );
+// v12.19.0: sn_uptime_kuma_heartbeat was removed with the push heartbeat. Its
+// ownership assertion is replaced by a hook that still ships.
+assert_true( snt_cron_is_sn_owned( 'sn_analytics_rollup_daily' ), 'analytics rollup is SN-owned' );
 assert_true( snt_cron_is_sn_owned( 'sn_discography_cron' ), 'discography sync is SN-owned' );
 
 // ─── Test 2: last-fired round trip ───────────────────────────────────

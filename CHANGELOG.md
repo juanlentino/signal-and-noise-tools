@@ -2,6 +2,44 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.19.0] - 2026-08-23 — the heartbeat is gone; the monitor stays
+
+### Removed
+- **The push heartbeat.** `inc/uptime-heartbeat.php`, its two settings keys
+  (`monitoring.uptime_kuma_enabled`, `monitoring.uptime_kuma_push_url`), the
+  Heartbeat URL field and Enabled toggle on Connections → Webhooks, their POST
+  handling, and the cron-dashboard entry plus expected-gate that knew about them.
+
+  It was still firing every five minutes into a monitor that had already been
+  deleted — Connections → Webhooks read **`Last heartbeat: HTTP 404`**.
+
+### Kept, deliberately
+Everything on the READ side. Better Stack still polls the site from outside, and
+its API token, the status rail on that tab, and the S&N Uptime dashboard widget
+are untouched — as are the Spend-watch credentials that render into the same
+fieldset. This removes the PUSH half only.
+
+It also takes the last **Uptime Kuma** references out of the UI. That provider is
+retired, and the copy still offered it as an option.
+
+### Added
+- **`inc/uptime-heartbeat-removal.php`** — a one-shot janitor. Deleting the module
+  removes the handler and nothing else: `sn_uptime_kuma_heartbeat` is SCHEDULED on
+  the live install and would keep firing forever against no listener, surfacing in
+  Connections → Cron as an orphan. The removed module's own docblock warned about
+  that exact shape. The janitor unschedules it and drops the two dead keys, once
+  per `SNT_VERSION`, and is safe to delete after this upgrade.
+
+### Why MINOR and not MAJOR
+`docs/VERSIONING.md` defines breaking as a settings-schema change *without* a
+migration, or a behavioural shift that *requires user action*. Neither applies:
+the janitor IS the migration, and the monitor was deleted on the provider side
+**before** this shipped — so by release time nothing was required of anyone.
+
+Shipped in the other order it would have been a MAJOR, because it would have
+paged the owner for an incident that was not one. The sequencing, not the diff,
+decided the number.
+
 ## [12.18.0] - 2026-08-23 — off a deprecated API, with a rollback that needs no release
 
 ### Changed

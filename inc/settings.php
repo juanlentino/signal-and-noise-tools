@@ -114,10 +114,10 @@ function sn_settings_defaults() {
 		// the feature is dormant on every existing install (migration-free —
 		// the array_replace_recursive deep-merge in sn_setting() fills these
 		// in). Key names are historical; renaming = schema change, so they stay.
-		'monitoring' => array(
-			'uptime_kuma_push_url' => '',
-			'uptime_kuma_enabled'  => false,
-		),
+		// v12.19.0: uptime_kuma_push_url / uptime_kuma_enabled REMOVED with the
+		// push heartbeat. The group stays — inc/spend-watch.php and
+		// inc/uptime-status.php write their credentials under it.
+		'monitoring' => array(),
 		'seo_copy' => array(
 			'home_title'             => '',
 			'home_description'       => '',
