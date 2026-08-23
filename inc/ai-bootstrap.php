@@ -101,6 +101,7 @@ require_once __DIR__ . '/ai-bootstrap/capability.php';
 require_once __DIR__ . '/ai-bootstrap/generate.php';
 require_once __DIR__ . '/ai-bootstrap/model-routes.php';
 require_once __DIR__ . '/ai-bootstrap/usage-log.php';
+require_once __DIR__ . '/ai-bootstrap/spend.php';
 
 
 
@@ -115,65 +116,8 @@ snt_ai_register_alt_text_model_route();
 snt_ai_register_economy_model_route();
 
 
-/**
- * v9.26.0: the current spend-rollup bucket key, site-local YYYY-MM.
- *
- * Uses wp_date() (site timezone) when available so the "month" matches the
- * owner's calendar; falls back to gmdate() outside WordPress (CLI tests).
- *
- * @return string
- * @since 9.26.0
- */
-function snt_ai_spend_month_key() {
-	return function_exists( 'wp_date' ) ? (string) wp_date( 'Y-m' ) : gmdate( 'Y-m' );
-}
 
-/**
- * v9.26.0: fold one call's USD cost into the current month's rollup bucket.
- *
- * A single autoload=no option keyed YYYY-MM, pruned to the last
- * SN_AI_SPEND_MONTHS buckets (keys sort chronologically). No-op on a
- * zero/negative cost (e.g. an unpriced model, per snt_ai_estimate_cost).
- *
- * @param float $cost USD cost of the call.
- * @return void
- * @since 9.26.0
- */
-function snt_ai_add_month_spend( $cost ) {
-	$cost = (float) $cost;
-	if ( $cost <= 0 ) {
-		return;
-	}
-	$roll = get_option( SN_AI_SPEND_ROLLUP_OPT, array() );
-	if ( ! is_array( $roll ) ) {
-		$roll = array();
-	}
-	$key          = snt_ai_spend_month_key();
-	$roll[ $key ] = round( ( isset( $roll[ $key ] ) ? (float) $roll[ $key ] : 0.0 ) + $cost, 6 );
-	if ( count( $roll ) > SN_AI_SPEND_MONTHS ) {
-		ksort( $roll );
-		$roll = array_slice( $roll, -SN_AI_SPEND_MONTHS, null, true );
-	}
-	update_option( SN_AI_SPEND_ROLLUP_OPT, $roll, false );
-}
 
-/**
- * v9.26.0: this calendar month's accumulated AI spend in USD (0.0 if none).
- *
- * Reads the durable rollup, so it reflects the whole month regardless of the
- * FIFO usage log's 200-entry cap. Feeds the budget cap and the spend readout.
- *
- * @return float
- * @since 9.26.0
- */
-function snt_ai_spend_this_month() {
-	$roll = get_option( SN_AI_SPEND_ROLLUP_OPT, array() );
-	if ( ! is_array( $roll ) ) {
-		return 0.0;
-	}
-	$key = snt_ai_spend_month_key();
-	return isset( $roll[ $key ] ) ? (float) $roll[ $key ] : 0.0;
-}
 
 /**
  * Per-model list pricing (USD per 1M tokens) for estimating AI spend from the
