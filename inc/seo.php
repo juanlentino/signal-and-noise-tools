@@ -276,7 +276,8 @@ add_action( 'wp_head', function() {
  * Honors per-post override flags for singulars (set via the post
  * settings meta box, added in v1.10.0 for noindex / v1.10.2 for
  * noarchive + noimageindex):
- *   _sn_noindex       — adds 'noindex,nofollow'
+ *   _sn_noindex       — adds 'noindex'      (v12.12.0: no longer implies nofollow)
+ *   _sn_nofollow      — adds 'nofollow'     (v12.12.0, standalone)
  *   _sn_noarchive     — adds 'noarchive'    (no cached copy)
  *   _sn_noimageindex  — adds 'noimageindex' (no Google Images)
  */
@@ -299,17 +300,30 @@ function sn_seo_robots_directives() {
 	if ( is_singular() ) {
 		$post = get_queried_object();
 		if ( $post ) {
-			// noindex — kept as the v1.6.0 semantic (also implies nofollow).
+			// noindex — v12.12.0 emits it ALONE. From v1.6.0 it also forced
+			// nofollow, which welded together two unrelated questions: whether
+			// a page belongs in the index, and whether the links leaving it
+			// should carry signal. A demo page pointing at the product it
+			// demos wants the first and not the second, and had no way to say
+			// so. noindex+nofollow is still reachable via the standalone flag
+			// below — it just has to be asked for now.
 			$noindex = function_exists( 'sn_post_settings_get_noindex' )
 				? sn_post_settings_get_noindex( $post->ID )
 				: ( '1' === (string) get_post_meta( $post->ID, '_sn_noindex', true ) );
 			if ( $noindex ) {
 				$directives[] = 'noindex';
+			}
+
+			// nofollow + noarchive + noimageindex — standalone flags
+			// (noarchive/noimageindex v1.10.2, nofollow v12.12.0). Layer on
+			// top of (or independent of) noindex.
+			$nofollow = function_exists( 'sn_post_settings_get_nofollow' )
+				? sn_post_settings_get_nofollow( $post->ID )
+				: ( '1' === (string) get_post_meta( $post->ID, '_sn_nofollow', true ) );
+			if ( $nofollow ) {
 				$directives[] = 'nofollow';
 			}
 
-			// noarchive + noimageindex — v1.10.2 standalone flags. Layer
-			// on top of (or independent of) noindex.
 			$noarchive = function_exists( 'sn_post_settings_get_noarchive' )
 				? sn_post_settings_get_noarchive( $post->ID )
 				: ( '1' === (string) get_post_meta( $post->ID, '_sn_noarchive', true ) );

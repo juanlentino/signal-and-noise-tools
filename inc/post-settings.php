@@ -3,7 +3,7 @@
  * Signal & Noise Tools — Per-post settings meta box.
  *
  * SEO/robots/OG override keys on posts + pages (grown from the original
- * three to ten: _sn_noindex, _sn_noarchive, _sn_noimageindex,
+ * three to eleven: _sn_noindex, _sn_nofollow, _sn_noarchive, _sn_noimageindex,
  * _sn_evergreen, _sn_meta_description, _sn_canonical_url,
  * _sn_og_image_url, _sn_og_card_title, _sn_seo_title,
  * _sn_focus_keyword), plus the pillar
@@ -93,6 +93,7 @@ function sn_post_settings_register_meta() {
 
 	foreach ( SN_POST_SETTINGS_POST_TYPES as $post_type ) {
 		register_post_meta( $post_type, '_sn_noindex',          $bool_args );
+		register_post_meta( $post_type, '_sn_nofollow',         $bool_args ); // v12.12.0: split out of _sn_noindex, which forced it from v1.6.0.
 		register_post_meta( $post_type, '_sn_noarchive',        $bool_args );
 		register_post_meta( $post_type, '_sn_noimageindex',     $bool_args );
 		register_post_meta( $post_type, '_sn_evergreen',        $bool_args ); // v8.11.0 (B5): freshness flag.
@@ -179,6 +180,7 @@ function sn_post_settings_render( $post ) {
 	$prov_sign     = (bool) get_post_meta( $post->ID, '_sn_prov_sign', true );
 	$evergreen     = (bool) get_post_meta( $post->ID, '_sn_evergreen', true );
 	$noindex       = (bool) get_post_meta( $post->ID, '_sn_noindex', true );
+	$nofollow      = (bool) get_post_meta( $post->ID, '_sn_nofollow', true );
 	$noarchive     = (bool) get_post_meta( $post->ID, '_sn_noarchive', true );
 	$noimageindex  = (bool) get_post_meta( $post->ID, '_sn_noimageindex', true );
 	$desc          = (string) get_post_meta( $post->ID, '_sn_meta_description', true );
@@ -237,7 +239,19 @@ function sn_post_settings_render( $post ) {
 	echo '<input type="checkbox" name="sn_noindex" value="1"' . checked( $noindex, true, false ) . '> ';
 	echo 'Hide from search engines (noindex)';
 	echo '</label>';
-	echo '<p class="sn-field-helper">Adds <code>noindex,nofollow</code> to the robots meta tag.</p>';
+	echo '<p class="sn-field-helper">Adds <code>noindex</code> to the robots meta tag. Links on this page still pass ranking signal &mdash; tick <em>nofollow</em> below as well if they shouldn&rsquo;t.</p>';
+	echo '</div>';
+
+	// v12.12.0: split out of the noindex checkbox, which forced nofollow from
+	// v1.6.0. Keeping a page out of the index and refusing to vouch for what it
+	// links to are different decisions; a demo page linking to the product it
+	// demos wants the first without the second.
+	echo '<div class="sn-field">';
+	echo '<label class="sn-field-label sn-field-label--inline">';
+	echo '<input type="checkbox" name="sn_nofollow" value="1"' . checked( $nofollow, true, false ) . '> ';
+	echo 'Don&rsquo;t vouch for outbound links (nofollow)';
+	echo '</label>';
+	echo '<p class="sn-field-helper">Adds <code>nofollow</code>: links leaving this page pass no ranking signal. Independent of <em>noindex</em> &mdash; before v12.12.0 ticking noindex forced this too.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field">';
@@ -361,6 +375,7 @@ function sn_post_settings_save( $post_id ) {
 		'_sn_prov_sign'    => 'sn_prov_sign',
 		'_sn_evergreen'    => 'sn_evergreen',
 		'_sn_noindex'      => 'sn_noindex',
+		'_sn_nofollow'     => 'sn_nofollow',
 		'_sn_noarchive'    => 'sn_noarchive',
 		'_sn_noimageindex' => 'sn_noimageindex',
 	);
@@ -464,6 +479,10 @@ add_action( 'save_post', 'sn_post_settings_save' );
  */
 function sn_post_settings_get_noindex( $post_id ) {
 	return '1' === (string) get_post_meta( $post_id, '_sn_noindex', true );
+}
+
+function sn_post_settings_get_nofollow( $post_id ) {
+	return '1' === (string) get_post_meta( $post_id, '_sn_nofollow', true );
 }
 
 function sn_post_settings_get_noarchive( $post_id ) {
