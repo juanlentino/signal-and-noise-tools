@@ -2,6 +2,67 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.23.0] - 2026-08-23 — the health scan gets a schedule, and a comment stops claiming it already had one
+
+The Content-Health scan now runs **daily at 08:00 UTC**. Until now nothing
+scheduled it at all.
+
+### The claim that was not true
+`inc/mcp/mcp-capabilities.php` justifies holding `run-health-scan` off both MCP
+doors — correctly, it is a 35–105s synchronous dispatch behind a ~100s edge cap —
+and then closed with:
+
+> Nothing is lost by holding it back: the results are already reachable through
+> the doored read ability get-health-scan, **and the scan runs on cron whether or
+> not anyone asks.**
+
+It did not. There is no `wp_schedule_event` for health anywhere in `inc/`, and
+`sn_health_run_scan()` had exactly two callers: that ability, and
+`sn_handle_health_scan()` behind the wp-admin **Run scan** button. The scan ran
+when a human clicked and at no other time.
+
+The visible cost: a Trust-checks leaf showing a red **Ledger CI** verdict that
+the trust repo had cleared eleven hours earlier. Nothing was broken — the panel
+was reading the last time anyone asked. The clause was load-bearing, since it was
+half the reason the exclusion cost nothing, so it is corrected in place rather
+than deleted. The exclusion still stands on its own; what does not follow from it
+is that the scan happens anyway.
+
+### Why daily, and why 08:00 — both derived
+**Cadence follows the fastest thing the checks watch, not the publishing rate.**
+Notes go out every **3.1 days** (measured over the last eight gaps: 3,2,3,3,3,3,4,4;
+3.6 days across 119 days), which would suggest something slower. But five of the
+sixteen checks watch surfaces that drift with no edit at all — `broken-links`,
+`cf-security-headers`, `rights-signals`, `rights-anchored`, and `ledger-ci`. The
+last reads the provenance repo's **daily** scheduled verify, so a scan slower
+than daily could never track it. That is precisely how a cleared verdict stayed
+on screen.
+
+**The hour is the free one, and it is after the thing it reads.**
+
+| constraint | measured | why 08:00 clears it |
+| --- | --- | --- |
+| provenance `verify.yml` | 07:00 UTC daily, ~40s | an hour of margin for a slow or retried run to settle |
+| `version-tag-parity`, theme parity | 07:00 / 07:20 UTC | clear of the whole Actions cluster |
+| WordPress daily hooks | 23:42, 01:43, 02:48, 11:44, 16:56, 21:07 UTC | 03:00–11:00 is empty; nearest neighbour 3h away |
+| the scan itself | ~48s, every post + external link probes | 04:00 EDT locally, when nothing else wants the box |
+
+### A deliberate divergence
+Every sibling daily hook schedules with `time() + HOUR_IN_SECONDS`, anchored to
+whenever the plugin first loaded — which is why they fire at 23:42 and 01:43
+rather than at any meaningful hour. For those it does not matter. Here it does,
+because this scan must run *after* a specific external job, so it anchors to a
+fixed UTC hour computed from `gmdate()` rather than `strtotime('today 08:00')`,
+which would resolve against the server's local timezone.
+
+`tests/health-scan-cron.php` (15 assertions) pins the hour as load-bearing rather
+than leaving it to a docblock: moving it before 07:00 UTC, or reverting to the
+relative-offset pattern, both turn it red. Mutation-tested both ways.
+
+### Verification
+**499 suites, 19,938 assertions, 0 failed, 1 skipped.** phpcs clean, PHPStan no
+errors.
+
 ## [12.22.1] - 2026-08-23 — the backfill panel counted its own guard
 
 The Provenance panel said **"25 published Notes cannot currently be verified"**.
