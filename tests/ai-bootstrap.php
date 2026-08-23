@@ -266,8 +266,8 @@ if ( ! function_exists( 'wp_ai_client_prompt' ) ) {
 	 *
 	 * NOTE on simulating "wp_ai_client_prompt does not exist":
 	 * PHP cannot undefine a function at runtime, so we cannot
-	 * directly exercise the early-return at ai-bootstrap.php:73
-	 * (function_exists check). The closest equivalent failure mode
+	 * directly exercise the early-return in snt_ai_can_text_generate()
+	 * (inc/ai-bootstrap/capability.php, the function_exists check). The closest equivalent failure mode
 	 * is "builder construction throws", which the catch block in
 	 * snt_ai_can_text_generate handles identically. Test 1 covers
 	 * that path; Test 2 covers the parallel non-object branch.
@@ -417,7 +417,8 @@ hc_eq( true, is_callable( array( $probe, 'is_supported_for_text_generation' ) ),
 // unavailable" the only way that's safe in a single test process: by
 // forcing the construct path to fail before the support check runs.
 // In production, function_exists('wp_ai_client_prompt') === false
-// hits the early return at ai-bootstrap.php:73. Here we cover the
+// hits the early return in snt_ai_can_text_generate()
+// (inc/ai-bootstrap/capability.php). Here we cover the
 // equivalent failure mode (any failure prior to support check returns
 // false) via construct-throws — which exercises the same outward
 // contract: "if you can't talk to the AI client, return false."

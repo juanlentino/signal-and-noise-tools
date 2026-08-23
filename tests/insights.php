@@ -265,7 +265,7 @@ if ( ! function_exists( 'wp_trim_words' ) ) {
 	}
 }
 
-// snt_ai_extract_post_text is normally in ai-bootstrap.php; replicate its
+// snt_ai_extract_post_text is normally in ai-bootstrap/post-signal.php; replicate its
 // observable contract here (shortcode + tag strip, word-capped, no
 // ellipsis, floor of 50 words) so the body-grounding fallback is exercised.
 if ( ! function_exists( 'snt_ai_extract_post_text' ) ) {

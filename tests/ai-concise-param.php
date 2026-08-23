@@ -53,7 +53,7 @@ function cp_recorded( $method ) {
 }
 
 // ─── WP primitives so the REAL snt_ai_extract_post_text() (declared,
-// unguarded, in inc/ai-bootstrap.php) returns canned 300-word content and
+// unguarded, in inc/ai-bootstrap/post-signal.php) returns canned 300-word content and
 // the impls reach the generator. We do NOT stub the extractor itself — the
 // bootstrap declares it without a function_exists guard, so a stub here
 // would fatal on redeclare. ──
