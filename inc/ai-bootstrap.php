@@ -1,42 +1,41 @@
 <?php
 /**
- * Signal & Noise Tools — AI integration bootstrap.
+ * Signal & Noise Tools — AI bootstrap (loader).
  *
- * Central function_exists() gate + shared helpers for WP 7.0's bundled AI
- * Client (and the wp-ai-client backport plugin on 6.x). All AI-feature
- * code is conditional on wp_has_ai_client() so the plugin behaves
- * identically on WP 6.x without the backport — dormant, no errors.
+ * The AI surface lives in inc/ai-bootstrap/, one file per concern. This file
+ * held all of it — 1,054 lines — until the v12.21.4 split.
  *
- * Why wp_has_ai_client() and not function_exists('wp_ai_client_prompt'):
- * `wp_has_ai_client()` is THE canonical compatibility function shipped by
- * the wp-ai-client package itself (see WordPress/wp-ai-client/autoload.php).
- * It's the recommended check per the package's own bootstrap — switching
- * between 7.0 native vs 6.x backport doesn't change the answer.
+ * Unlike the admin-post and content-migration splits before it, this layer has
+ * NO registry and NO dispatch map. Other modules call these functions DIRECTLY:
+ * snt_ai_is_available() from 26 files, snt_ai_generate_with_constraints() from
+ * 25, snt_ai_require_text_generation() from 17. The public surface IS the
+ * contract, which is what tests/ai-bootstrap-surface-coverage.php pins — all 21
+ * declarations, the eight SN_AI_* constants, the two load-time route
+ * registrations, and the single admin_enqueue_scripts hook.
  *
- * Why our code is provider-agnostic (no temperature/top_p/top_k):
- * The WP AI Client routes through whatever provider the user configures
- * in Settings > Connectors. Anthropic's Claude Opus 4.7 specifically
- * removed sampling parameters (returns 400 if you send them). The
- * portable choice is to set NO sampling params and rely on prompt
- * engineering + system instructions instead. See docs/WP-7.0-AI-API-MAP.md
- * in the theme repo for the full reasoning.
+ * This file keeps everything that RUNS at load time, in a deliberate order:
  *
- * Verified against:
- *   - WordPress/wp-ai-client/autoload.php — wp_has_ai_client() detection
- *   - WordPress/php-ai-client/src/AiClient.php — fluent API
- *   - WP make blog 7.0 Field Guide — provider model + Connectors UI
+ *   1. the SN_AI_* constants,
+ *   2. the requires,
+ *   3. the two model-route registrations and the admin_enqueue_scripts hook.
  *
- * Added in v1.16.0 (2026-05-17). Activates on WP 7.0 + Anthropic provider
- * (or 6.x + wp-ai-client plugin + Anthropic provider).
+ * Step 3 must follow step 2. Those registrations are BARE CALLS, not hooks, so
+ * the functions they invoke have to be declared by the time they execute. Lose
+ * one of those calls in a move and no filter is registered — alt-text generation
+ * silently falls back to the default model, at the wrong price, with nothing
+ * raised anywhere.
+ *
+ * One declaration here returns BY REFERENCE — `function &snt_ai_availability_cache()`
+ * in ai-bootstrap/availability.php. The `&` is load-bearing and is asserted
+ * verbatim by the surface suite; a regex that inventories declarations must
+ * account for it or the function becomes invisible.
  *
  * @package SignalNoiseTools
- * @since 1.16.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
-
 /**
  * Per-call AI token-usage observability (v6.29.0).
  *
@@ -87,12 +86,7 @@ define( 'SN_AI_CACHE_WRITE_MULT', 1.25 );
 define( 'SN_AI_CACHE_READ_MULT', 0.1 );
 
 // The surface lives one directory down, one file per concern. This file stays:
-// it is required BY PATH from the plugin bootstrap and from several suites, and
-// it keeps the parts that RUN at load time — the SN_AI_* constants above, the
-// two model-route registrations and the admin_enqueue_scripts hook below.
-//
-// The requires sit between them deliberately: the route registrations are bare
-// calls, not hooks, so the functions they invoke must already be declared.
+// it is required BY PATH from the plugin bootstrap and from several suites.
 //
 // __DIR__ rather than SNT_PATH: several suites require this file without the
 // plugin bootstrap, so that constant is not guaranteed to be defined.
@@ -107,25 +101,10 @@ require_once __DIR__ . '/ai-bootstrap/usage-summary.php';
 require_once __DIR__ . '/ai-bootstrap/post-signal.php';
 require_once __DIR__ . '/ai-bootstrap/editor-assets.php';
 
-
-
-
-
-
-
-
+// Load-time wiring. These are bare calls, not hooks — the requires above must
+// already have declared the functions they invoke. Each adds one filter on
+// snt_ai_model_preference; running either twice would add its filter twice.
 snt_ai_register_alt_text_model_route();
-
-
 snt_ai_register_economy_model_route();
-
-
-
-
-
-
-
-
-
 
 add_action( 'admin_enqueue_scripts', 'snt_register_status_script' );
