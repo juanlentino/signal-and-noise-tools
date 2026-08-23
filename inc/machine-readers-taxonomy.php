@@ -119,6 +119,11 @@ function snt_mr_normalize_taxonomy_fields( $row ) {
 		'training_corpus_source' => '1' === (string) ( $row['training_corpus_source'] ?? '' ),
 		'first_party'            => '1' === (string) ( $row['first_party'] ?? '' ),
 		'ua_sample'              => snt_mr_normalize_ua_sample( $row['user_agent'] ?? ( $row['ua_sample'] ?? null ) ),
+		// v12.16.0: did this reader ask for markdown? Worker v1.18.0's blob10.
+		// Same additive contract as the two booleans above — an older Worker
+		// sends no such column, the value lands on false, and the readout
+		// degrades to "nobody asked" rather than erroring.
+		'markdown_requested'     => '1' === (string) ( $row['markdown_requested'] ?? '' ),
 	);
 }
 

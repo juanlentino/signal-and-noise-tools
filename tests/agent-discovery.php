@@ -140,6 +140,22 @@ foreach ( $cat['linkset'] as $e ) { if ( ( $e['anchor'] ?? '' ) === 'https://jua
 ok( ( $mcp_entry['service-desc'][0]['href'] ?? '' ) === 'https://juanlentino.com/.well-known/mcp/server-card.json', "the MCP entry's service-desc is the server card" );
 ok( strpos( wp_json_encode( $cat, JSON_UNESCAPED_SLASHES ), 'mcp-rw' ) === false, 'catalog never names the rw door either' );
 
+// ---- agents.json advertisement (v12.16.0) ---------------------------------
+// The site's own richer index did not know about the standard documents next
+// to it. The theme's filter seam is how the plugin fixes that with no theme edit.
+$surfaces = sn_agent_advertise_discovery_surfaces( array() );
+ok( count( $surfaces ) === 2, 'advertises exactly the two documents this file owns' );
+$types = array_column( $surfaces, 'type' );
+ok( in_array( 'mcp-server-card', $types, true ), 'advertises the MCP server card' );
+ok( in_array( 'api-catalog', $types, true ), 'advertises the API catalog' );
+$adv_urls = array_column( $surfaces, 'url' );
+ok( in_array( 'https://juanlentino.com/.well-known/mcp/server-card.json', $adv_urls, true ), 'card URL matches the served path' );
+ok( in_array( 'https://juanlentino.com/.well-known/api-catalog', $adv_urls, true ), 'catalog URL matches the served path' );
+ok( count( sn_agent_advertise_discovery_surfaces( array( array( 'type' => 'existing' ) ) ) ) === 3, 'APPENDS to the existing surface list, never replaces it' );
+foreach ( $surfaces as $sfc ) {
+	ok( ! empty( $sfc['format'] ) && ! empty( $sfc['title'] ) && ! empty( $sfc['description'] ), 'advertised entry ' . $sfc['type'] . ' carries format/title/description' );
+}
+
 // ---- content types + send paths -------------------------------------------
 ok( SN_AGENT_CATALOG_TYPE === 'application/linkset+json; charset=utf-8', 'catalog is typed as a linkset (RFC 9727 §3), not plain json' );
 ok( SN_AGENT_CARD_TYPE === 'application/json; charset=utf-8', 'server card is typed application/json' );

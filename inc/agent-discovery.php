@@ -239,6 +239,41 @@ function sn_agent_discovery_maybe_serve() {
 	}
 }
 
+/**
+ * Advertise the two standard documents in /.well-known/agents.json.
+ *
+ * agents.json is the site's own, richer index — and until now it did not know
+ * about the standard-named documents published next to it, which is backwards.
+ * The theme owns the `sn_agents_surfaces` filter precisely so the plugin can
+ * append without a theme edit; sn_mcp_advertise_surface() is the precedent.
+ *
+ * Both entries are unauthenticated public documents, so naming them on an
+ * unattended surface adds nothing that /.well-known/ does not already give away.
+ * The rw door still never appears — see the file docblock.
+ *
+ * @param array<int,array<string,string>> $surfaces
+ * @return array<int,array<string,string>>
+ */
+function sn_agent_advertise_discovery_surfaces( $surfaces ) {
+	$home = function_exists( 'home_url' ) ? (string) home_url() : '';
+	$surfaces[] = array(
+		'type'        => 'mcp-server-card',
+		'url'         => $home . SN_AGENT_CARD_PATH,
+		'format'      => 'application/json',
+		'title'       => 'MCP Server Card',
+		'description' => 'SEP-1649 server card for the read door: transport endpoint, capabilities, and how to authenticate.',
+	);
+	$surfaces[] = array(
+		'type'        => 'api-catalog',
+		'url'         => $home . SN_AGENT_CATALOG_PATH,
+		'format'      => 'application/linkset+json',
+		'title'       => 'API catalog',
+		'description' => 'RFC 9727 linkset over the REST index, the Abilities API and the MCP read door.',
+	);
+	return $surfaces;
+}
+
 if ( ! defined( 'SN_AGENT_DISCOVERY_TEST' ) || ! SN_AGENT_DISCOVERY_TEST ) {
 	add_action( 'template_redirect', 'sn_agent_discovery_maybe_serve', 0 );
+	add_filter( 'sn_agents_surfaces', 'sn_agent_advertise_discovery_surfaces' );
 }

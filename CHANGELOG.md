@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.16.0] - 2026-08-23 — the index that did not know its own doors
+
+### Fixed
+- **`/.well-known/agents.json` did not list the three standard documents
+  published next to it.** The site's own, richer index knew nothing about the
+  MCP server card, the API catalog or the ARD manifest — backwards, since
+  agents.json is supposed to be the fuller picture.
+
+  Fixed entirely plugin-side. The theme owns the `sn_agents_surfaces` filter
+  precisely so later work appends without a theme edit
+  (`sn_mcp_advertise_surface()` is the precedent), so **no theme change was
+  needed or made**. Each document advertises itself from its own file, so
+  deleting a document deletes its advertisement with it.
+
+### Added
+- **`markdown_requested`** in the sensor's normalized rows — Worker v1.18.0's
+  tenth blob. `"1"` when the reader explicitly preferred `text/markdown`.
+
+  v12.14.0/v1.16.0 opened a markdown door and left it unmeasurable: a markdown
+  request lands on a content page, classifies as `html`, and the `Accept` header
+  is retained only for rights surfaces. *"How many agents actually use the
+  markdown door?"* — the number that says whether that build was worth anything
+  — had no answer. It does now.
+
+  Additive on the same contract as `training_corpus_source` and `first_party`:
+  an older Worker sends no such column, the value lands on **false**, and the
+  readout degrades to "nobody asked" rather than erroring. Pinned by test,
+  including the absent-column case.
+
+### Not changed
+- No theme edit. No new surface class — a `markdown` class would have drained
+  reads out of `html`, changing the meaning and population of an existing value,
+  which the sensor's additive rule forbids. It is a new axis, not a new bucket.
+
 ## [12.15.0] - 2026-08-23 — a door you cannot see anyone use
 
 Two changes that only make sense together: a third discovery document, and the

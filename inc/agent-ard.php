@@ -197,6 +197,26 @@ function sn_agent_ard_maybe_serve() {
 	}
 }
 
+/**
+ * Advertise the ARD manifest in /.well-known/agents.json. Its own callback, in
+ * its own file, so deleting this document deletes its advertisement with it.
+ *
+ * @param array<int,array<string,string>> $surfaces
+ * @return array<int,array<string,string>>
+ */
+function sn_agent_advertise_ard_surface( $surfaces ) {
+	$home = function_exists( 'home_url' ) ? (string) home_url() : '';
+	$surfaces[] = array(
+		'type'        => 'ard',
+		'url'         => $home . SN_AGENT_ARD_PATH,
+		'format'      => 'application/json',
+		'title'       => 'ARD capability manifest',
+		'description' => "Agentic Resource Discovery: this site's capabilities with representative queries, for semantic discovery by registries.",
+	);
+	return $surfaces;
+}
+
 if ( ! defined( 'SN_AGENT_DISCOVERY_TEST' ) || ! SN_AGENT_DISCOVERY_TEST ) {
 	add_action( 'template_redirect', 'sn_agent_ard_maybe_serve', 0 );
+	add_filter( 'sn_agents_surfaces', 'sn_agent_advertise_ard_surface' );
 }

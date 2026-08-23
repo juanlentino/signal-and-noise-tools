@@ -90,6 +90,13 @@ $json = wp_json_encode( $m, JSON_UNESCAPED_SLASHES );
 ok( strpos( $json, 'mcp-rw' ) === false, 'never names the rw MCP door' );
 ok( strpos( $json, '(Write)' ) === false, 'never names the rw door identity' );
 
+// ---- agents.json advertisement --------------------------------------------
+$adv = sn_agent_advertise_ard_surface( array() );
+ok( count( $adv ) === 1, 'ARD advertises exactly itself' );
+ok( ( $adv[0]['type'] ?? '' ) === 'ard', 'advertised as type=ard' );
+ok( ( $adv[0]['url'] ?? '' ) === 'https://juanlentino.com/.well-known/ai-catalog.json', 'advertised URL matches the served path' );
+ok( count( sn_agent_advertise_ard_surface( array( array( 'type' => 'x' ) ) ) ) === 2, 'appends rather than replacing' );
+
 // ---- content type + send ----------------------------------------------------
 // ARD is plain application/json; the RFC 9727 catalog is a linkset. Different
 // documents, different types — a test so they are never "harmonised".
