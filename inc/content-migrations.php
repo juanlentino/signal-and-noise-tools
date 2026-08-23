@@ -70,6 +70,7 @@ require_once __DIR__ . '/content-migrations/resume.php';
 require_once __DIR__ . '/content-migrations/music.php';
 require_once __DIR__ . '/content-migrations/now-uses.php';
 require_once __DIR__ . '/content-migrations/accessibility.php';
+require_once __DIR__ . '/content-migrations/personal.php';
 
 // ── BODY LOADERS ─────────────────────────────────────────────────
 
@@ -228,82 +229,8 @@ function sn_migrate_clear_notes_template_override() {
 // box means no empty-box failure mode (the 2b /uses regression does not apply).
 
 
-/**
- * Load the frozen /contact/personal body markup from disk. Mirrors
- * sn_load_about_body() — same empty-string fallback semantics.
- *
- * @return string
- */
-function sn_load_personal_body() {
-	$body_file = sn_content_seed_file( 'personal-body.html' );
-	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
-}
 
 
-/**
- * One-time migration: flip /contact/personal from a postless virtual route to a
- * real CHILD CMS Page (under /contact), seeded from the frozen personal-body.html.
- *
- * Same create-once/never-clobber semantics as sn_migrate_accessibility_page(),
- * plus child parenting: the Page is inserted with post_parent = the Contact Page
- * ID (mirrors sn_uses_upsert_page). Retry-safe: does nothing and does NOT flag
- * while the seed file is missing OR the Contact parent does not exist yet.
- */
-function sn_migrate_personal_page() {
-	if ( get_option( SN_PERSONAL_PAGE_MIGRATED_OPT ) ) {
-		return;
-	}
-
-	$page = get_page_by_path( SN_CONTACT_SLUG . '/' . SN_PERSONAL_SLUG );
-
-	// Existing, owner-edited Page — never touch it, but stop checking.
-	if ( $page && '' !== trim( (string) $page->post_content ) ) {
-		update_option( SN_PERSONAL_PAGE_MIGRATED_OPT, time(), true );
-		return;
-	}
-
-	$body = sn_load_personal_body();
-	if ( '' === trim( $body ) ) {
-		return; // Seed file missing — retry.
-	}
-
-	$excerpt = 'Why requests for synchronous time (coffees, calls, meetings) are a no, and the structural reason behind it.';
-
-	if ( $page ) {
-		// Child Page exists but is empty — seed it in place.
-		$update = array(
-			'ID'           => $page->ID,
-			'post_content' => $body,
-		);
-		if ( '' === trim( (string) $page->post_excerpt ) ) {
-			$update['post_excerpt'] = $excerpt;
-		}
-		wp_update_post( $update );
-		update_option( SN_PERSONAL_PAGE_MIGRATED_OPT, time(), true );
-		return;
-	}
-
-	$parent = get_page_by_path( SN_CONTACT_SLUG );
-	if ( ! $parent ) {
-		return; // Contact parent not ready — retry on the next admin_init.
-	}
-
-	wp_insert_post(
-		array(
-			'post_title'    => 'Personal',
-			'post_name'     => SN_PERSONAL_SLUG,
-			'post_parent'   => (int) $parent->ID,
-			'post_status'   => 'publish',
-			'post_type'     => 'page',
-			'post_content'  => $body,
-			'post_excerpt'  => $excerpt,
-			'page_template' => 'page-personal',
-		),
-		false
-	);
-
-	update_option( SN_PERSONAL_PAGE_MIGRATED_OPT, time(), true );
-}
 
 // ── MASTER SENTINEL (v9.81.0) ────────────────────────────────────────
 //
