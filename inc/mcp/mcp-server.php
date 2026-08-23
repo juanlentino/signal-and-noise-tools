@@ -75,11 +75,7 @@ function sn_mcp_handle_request( $request, $door = SN_MCP_DOOR_READ ) {
 				$id,
 				array(
 					'protocolVersion' => sn_mcp_negotiate_version( isset( $params['protocolVersion'] ) ? $params['protocolVersion'] : '' ),
-					'capabilities'    => array(
-						'tools'     => array( 'listChanged' => false ),
-						'resources' => array( 'listChanged' => false ),
-						'prompts'   => array( 'listChanged' => false ),
-					),
+					'capabilities'    => sn_mcp_capabilities_map(),
 					'serverInfo'      => sn_mcp_server_info( $door ),
 				)
 			);
