@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.19.1] - 2026-08-23 — finishing the removal
+
+Residue from v12.19.0. Comments in shipped files that describe a feature which
+no longer exists are a defect in a codebase that treats its comments as the
+documentation, so this closes them out.
+
+### Fixed
+- **`sn_handle_monitoring_save()`'s docblock** still said it saved the heartbeat
+  URL and toggle and "reconciles the cron schedule immediately". It does none of
+  those. Rewritten to describe what it actually is now: credential handling,
+  delegated to `inc/uptime-status.php` and `inc/spend-watch.php`.
+- **`inc/settings.php`** — the `monitoring` group still carried the v4.9.0 block
+  explaining the heartbeat keys it no longer has, and the subtree-preservation
+  comment still called the group "Uptime Kuma heartbeat". Both now describe the
+  credentials that actually live there.
+- **`tests/cron-site-health.php`** — the "config-off hooks don't downgrade the
+  status" case set up `sn_uptime_kuma_heartbeat` state that **nothing reads any
+  more**: the hook left the known-hooks list with the feature. An inert fixture
+  that made the assertion look like it covered two hooks when it covered one.
+  Now covers the one it actually tests.
+
+### Left alone, deliberately
+`inc/config-drift.php` still names `uptime_kuma_push_url` as an example of a
+suffix-named credential leaf, and its test still uses it as a fixture. That is a
+NAMING illustration for a regex design decision, not a claim the key exists, and
+the test pins a real past bug — a suffix-named secret once shipped in plaintext.
+The key being historical does not weaken either.
+
+### Not affected
+The MCP surface never mentioned it. Zero matches across `inc/abilities-*.php`
+and `inc/mcp/*.php` — the abilities and tool schemas were always provider-neutral.
+
 ## [12.19.0] - 2026-08-23 — the heartbeat is gone; the monitor stays
 
 ### Removed
