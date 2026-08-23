@@ -29,34 +29,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // __DIR__ rather than SNT_PATH: the test suite requires this file without the
 // plugin bootstrap, so that constant is not guaranteed to be defined.
 require_once __DIR__ . '/admin-post-actions/system.php';
-
-function sn_handle_cf_save( $post ) {
-	$token_const = defined( 'SN_CLOUDFLARE_API_TOKEN' );
-	$zone_const  = defined( 'SN_CLOUDFLARE_ZONE_ID' );
-
-	if ( ! $token_const ) {
-		$new_token = isset( $post['sn_cf_token'] ) ? sanitize_text_field( wp_unslash( $post['sn_cf_token'] ) ) : '';
-		if ( 'clear' === $new_token ) {
-			delete_option( SN_CF_TOKEN_OPT );
-		} elseif ( '' !== $new_token && 0 !== strpos( $new_token, '••••' ) ) {
-			update_option( SN_CF_TOKEN_OPT, $new_token, false ); // not autoloaded
-		}
-	}
-	if ( ! $zone_const ) {
-		$new_zone = isset( $post['sn_cf_zone'] ) ? sanitize_text_field( wp_unslash( $post['sn_cf_zone'] ) ) : '';
-		if ( 'clear' === $new_zone ) {
-			delete_option( SN_CF_ZONE_OPT );
-		} elseif ( '' !== $new_zone ) {
-			update_option( SN_CF_ZONE_OPT, $new_zone, true );
-		}
-	}
-	return 'cf_saved';
-}
-
-function sn_handle_cf_purge_now( $post ) {
-	return sn_cf_purge_everything() ? 'cf_purged_ok' : 'cf_purged_unconfigured';
-}
-
+require_once __DIR__ . '/admin-post-actions/cloudflare.php';
 
 function sn_handle_health_scan( $post ) {
 	// v3.5.1: route through the central dispatcher per the established pattern.
