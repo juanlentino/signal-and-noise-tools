@@ -362,3 +362,7 @@ function sn_handle_analytics_export( $post ) {
 	}
 	exit;
 }
+
+// v9.0.0 (D1): sn_handle_analytics_import() (the Plausible-CSV upload handler) was
+// removed with the rest of the importer. The analytics_export handler above stays —
+// export is a live first-party feature, unrelated to the retired Plausible path.
