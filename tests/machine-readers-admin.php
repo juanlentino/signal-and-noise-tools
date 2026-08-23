@@ -42,7 +42,7 @@ function sn_rss_tracker_window_stats_multi( $windows ) { return $GLOBALS['__mr_f
 require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-render.php';
 require __DIR__ . '/../inc/machine-readers-render-taxonomy.php'; // v10.79.0: the tab renders purpose/vendor tables.
-require __DIR__ . '/../inc/machine-readers-compose.php'; // v12.21.5: snt_mr_render_tab() delegates the arrangement to the pure composer.
+require __DIR__ . '/../inc/machine-readers-compose.php'; // v12.22.0: snt_mr_render_tab() delegates the arrangement to the pure composer.
 require __DIR__ . '/../inc/machine-readers-admin.php';
 
 echo "Group: registry callback (preview-flag gated, v9.67.0 Overview pattern)\n";
@@ -91,7 +91,7 @@ ok( strpos( $tab, 'sn-an-pipeline' ) < strpos( $tab, 'sn-kpi-row' ), 'Sensor sta
 ok( false === strpos( $tab, 'sn-prose' ), 'no bare intro paragraph; the intro is the data card help line' );
 // All four tables stack as sections INSIDE the left data card (one card, many
 // sections — the Analytics right-column pattern).
-// v12.21.5 RECOMPOSITION. The leaf is no longer "one data card of stacked
+// v12.22.0 RECOMPOSITION. The leaf is no longer "one data card of stacked
 // sections". A right column exists only when the leaf has a second job, and this
 // one has two — evidence (who read the rights) wide, reference + settings narrow
 // and folded. See docs/proposals/admin-leaf-composition-2026-08-23.md.

@@ -21,7 +21,7 @@
  * short form on the right, and the right side was empty for thousands of pixels.
  *
  * @package SignalNoiseTools
- * @since 12.21.5
+ * @since 12.22.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

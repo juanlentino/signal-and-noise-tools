@@ -401,7 +401,7 @@ function snt_mr_render_feed_table( $stats ) {
 /**
  * The deployed-worker readout, as a string.
  *
- * Extracted verbatim from snt_mr_render_tab()'s inline echo in v12.21.5 so the
+ * Extracted verbatim from snt_mr_render_tab()'s inline echo in v12.22.0 so the
  * leaf composition could become a pure function. Same markup, same native
  * notice-info treatment, same omissions: an entry cached before v10.70.2 has no
  * fetched_at and prints no age line at all, because an unknown read time and a

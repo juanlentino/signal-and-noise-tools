@@ -169,7 +169,7 @@ function snt_mr_render_tab() {
 
 	// The two extra reads stay gated on the aggregate having succeeded, so a down
 	// sensor still costs exactly one failed request (unchanged from before the
-	// v12.21.5 recomposition).
+	// v12.22.0 recomposition).
 	$unknown_rows = null;
 	$rights_rows  = null;
 	$cards        = array();

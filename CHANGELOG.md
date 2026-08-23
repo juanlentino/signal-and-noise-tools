@@ -2,6 +2,97 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.22.0] - 2026-08-23 — the right column has to earn its place
+
+The **Machine Readers** leaf is recomposed, and its rights log stops burying real
+crawler reads under our own CI traffic.
+
+### The complaint, and its mechanical cause
+The leaf stacked thirteen sections in the left card of an `sn-2up` while the
+right card held a short settings form. `.sn-2up` is a **symmetric** grid —
+`repeat(auto-fit, minmax(280px, 1fr))` — so the columns were equal and the
+content was not: one side ran for thousands of pixels past the end of the other.
+Owner: *"that leaf would need a redesign, or the box with all the numbers should
+be placed somewhere else."* Both observations were the same root cause.
+
+### The rule, which is the part that generalises
+`docs/proposals/admin-leaf-composition-2026-08-23.md` records it:
+
+> **A right column exists only when the leaf has a second job.**
+
+One job → one column. Two jobs → the 2-up, primary on the wide side, secondary
+folded on the narrow side. Applied to what each leaf actually renders today, that
+yields three kinds — **READOUT** (Analytics views, Insights, Health, RSS, Audit
+log…), **SETTINGS** (the 15 leaves in `inc/admin-forms/`), and **MIXED**
+(Machine Readers, Analytics, IndexNow — the only three rendering both a form and
+tables). Only MIXED earns the two-column row.
+
+**Only Machine Readers changes here.** The rule is written down so the other
+leaves can adopt it later, one at a time, on evidence.
+
+### Machine Readers, composed
+- **Full-width hero:** sensor pills, then the KPI row. The numbers summarise the
+  whole leaf, so they sit above both columns rather than at the top of one.
+- **Left, wide — evidence:** the rights log, un-buried from position 11; the
+  family delta cards; the unclassified-agent review list.
+- **Right, narrow — reference:** every table behind a closed disclosure, then the
+  Edge sensor readout and the settings form. A section that renders nothing
+  produces no fold at all.
+
+Folded reference is what makes the two columns comparable in height, which is
+what lets the grid be asymmetric (`1.55fr / 1fr`) **on purpose** rather than
+symmetric by accident.
+
+### Our own CI is not a machine reader
+The hourly `SignalNoise-SmokeTest/1.0 (GitHub Actions)` run fetches all three
+rights documents, so it wrote three rows an hour. On 2026-08-23 that buried the
+read that mattered: a single **`OAI-SearchBot/1.4`** pass took `/tdm-policy/`,
+`/.well-known/tdmrep.json` and `/license.xml` in five seconds — a declared
+crawler going to look at the terms on purpose, which is the entire point of the
+rights stack.
+
+The taxonomy already told them apart (`vendor = signal-and-noise`, `purpose =
+ops`); only the renderer ignored it. The log now shows **external readers by
+default**, with ours folded beneath and declared by count.
+
+**Hidden, never dropped, and never subtracted.** No figure anywhere else changes:
+the KPI row still counts the population it has always counted. A number that
+quietly stops counting part of its population makes every comparison across the
+change invalid — so the fold names both figures instead (`3 external reads` ·
+`+9 reads from our own CI`).
+
+### The structural change that made it reviewable
+`snt_mr_render_tab()` interleaved three network fetches with 118 lines of `echo`,
+so the leaf's **arrangement** could not be rendered or asserted without a live
+sensor. The arrangement is now `snt_mr_compose_tab()` in
+`inc/machine-readers-compose.php` — pure: fetched data plus two pre-rendered
+fragments in, the whole leaf as a string out. The caller keeps the I/O and the
+capability check. `snt_mr_render_edge_readout()` and `snt_mr_rights_table()` are
+extracted for the same reason.
+
+That purity paid immediately. Rendering the real composer against fixtures caught
+an undefined `$shown` left behind by the table extraction, and a mis-anchored
+splice that had appended the CI fold to `snt_mr_render_vendor_purpose_table()`
+instead of the rights log. Neither is visible to `php -l`, and both would have
+shipped.
+
+### Assertions that pinned the old arrangement
+Six in `tests/machine-readers-admin.php` were changed **deliberately** — the
+arrangement is what this release changes. They now pin the new one: evidence
+before reference, the KPI row above the columns, reference folded, and empty
+sections producing no fold. The load-bearing content assertions are unchanged in
+meaning, only re-anchored from the removed `.sn-mr-data` card to the whole tab,
+because presence was always the claim and that card was only where it happened to
+live. `not a measured zero` — never-measured is not measured-zero — still holds.
+
+`docs/MACHINE-READERS.md` described the old two-tier left card in detail; it is
+rewritten to the new composition with every substantive claim preserved.
+
+### Verification
+**498 suites, 19,918 assertions, 0 failed, 1 skipped.** phpcs clean, PHPStan no
+errors. The composition was reviewed as rendered output from the real
+`snt_mr_render_*` functions before any of it was committed.
+
 ## [12.21.4] - 2026-08-23 — the AI bootstrap splits, guarded by its own surface
 
 **No runtime change.** `inc/ai-bootstrap.php` — 1,054 lines — is now a 110-line

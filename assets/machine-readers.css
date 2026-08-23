@@ -9,7 +9,7 @@
  * cards), so this file shrank again — the worker readout now uses the native
  * notice-info treatment and needs no rule at all.
  *
- * v12.21.5 RECOMPOSITION (docs/proposals/admin-leaf-composition-2026-08-23.md).
+ * v12.22.0 RECOMPOSITION (docs/proposals/admin-leaf-composition-2026-08-23.md).
  * The leaf used to stack thirteen sections in the left card against a short
  * settings form on the right, and .sn-2up is a SYMMETRIC grid — auto-fit
  * minmax(280px, 1fr), equal columns — so the right side sat empty for thousands
