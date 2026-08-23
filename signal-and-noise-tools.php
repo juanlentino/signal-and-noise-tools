@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     12.21.4
+ * Version:     12.22.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -297,6 +297,7 @@ require_once SNT_PATH . 'inc/machine-readers-giveback.php';
 require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.
+require_once SNT_PATH . 'inc/machine-readers-compose.php'; // v12.22.0: the leaf's arrangement, pure — see docs/proposals/admin-leaf-composition-2026-08-23.md
 // The one-sentence summarizer, loaded AFTER the render module whose aggregate
 // helpers it reads. No side effects, no hooks: a pure string builder narrator
 // surfaces can call once they hold a payload.

@@ -157,122 +157,56 @@ function snt_mr_render_tab() {
 	}
 	$days   = 30;
 	$result = snt_mr_fetch( $days );
+	$rows   = ! empty( $result['ok'] ) && is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
 
-	// One tracker read serves the strip chip AND the feed table (R4: the feed
-	// half of the machine audience; the two counts are never summed).
-	$sn_mr_feed  = function_exists( 'sn_rss_tracker_window_stats_multi' ) ? (array) sn_rss_tracker_window_stats_multi( array( 7, 30 ) ) : array();
-	$sn_mr_feed_total = isset( $sn_mr_feed['windows'][30]['total'] ) ? (int) $sn_mr_feed['windows'][30]['total'] : null;
+	// One tracker read serves the hero chip AND the folded feed table (R4: the
+	// feed half of the machine audience; the two counts are never summed).
+	$feed       = function_exists( 'sn_rss_tracker_window_stats_multi' ) ? (array) sn_rss_tracker_window_stats_multi( array( 7, 30 ) ) : array();
+	$feed_total = isset( $feed['windows'][30]['total'] ) ? (int) $feed['windows'][30]['total'] : null;
 
-	echo '<div class="sn-an-settings-leaf">';
+	$info   = snt_mr_sensor_info();
+	$status = snt_mr_crawler_list_status();
 
-	// ── The hero: Sensor status first, exactly like Analytics' Pipeline
-	// status — connection state before data, natural .sn-fieldset cap.
-	echo '<div class="sn-fieldset sn-an-pipeline">';
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Sensor status', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'Edge sensor → Analytics Engine → this tab. Presence checks only, secret values are never shown.', 'signal-and-noise-tools' ) . '</p>';
-	$sn_mr_info   = snt_mr_sensor_info();
-	$sn_mr_status = snt_mr_crawler_list_status();
-	echo snt_mr_render_sensor_status( snt_mr_sensor_pills( $sn_mr_info, $sn_mr_status, $result ) ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
-	echo '</div>';
-
-	echo '<div class="sn-2up">';
-
-	// ── Left card: the readership data, stacked sections in ONE card.
-	echo '<div class="sn-fieldset sn-mr-data">';
-	// v10.44.0: the closing clause read "…and whether declared AI-training
-	// crawlers actually read the rights declarations that apply to them", which
-	// implied the rights only reach a crawler that goes and fetches them. Since
-	// rights-signals worker v1.5.0 the reservation rides every response, so the
-	// direct-fetch count stopped being a coverage measure and this copy stopped
-	// framing it as one.
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'What machine readers do with the site: which crawler families read it and which machine surfaces they touch. The rights reservation rides every response, so declared AI-training crawlers receive it whether or not they fetch the rights files directly: a non-zero direct-fetch count means a crawler went looking for the declarations on purpose.', 'signal-and-noise-tools' ) . '</p>';
+	// The two extra reads stay gated on the aggregate having succeeded, so a down
+	// sensor still costs exactly one failed request (unchanged from before the
+	// v12.22.0 recomposition).
+	$unknown_rows = null;
+	$rights_rows  = null;
+	$cards        = array();
 	if ( ! empty( $result['ok'] ) ) {
-		$rows = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
-		echo snt_mr_render_summary_chips( $rows, $days, $sn_mr_feed_total ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every value (fixture-pinned).
-		// v10.79.0: purpose first. `family` answers "which crawler", which is
-		// the axis that has always been here and is frozen; `purpose` answers
-		// "what for", which is the axis the published claims actually run
-		// along, so it leads.
-		echo snt_mr_render_purpose_table( $rows, $days ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
-		echo snt_mr_render_vendor_purpose_table( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
-		echo snt_mr_render_family_table( $rows, $days ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
-		echo snt_mr_render_surface_table( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
-		echo snt_mr_render_compliance( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
-		// v10.79.0: the frozen family count and the purpose count, side by side.
-		// The gap between them is the over-count the family enum carries, shown
-		// rather than reconciled away.
-		echo snt_mr_render_ai_reconciliation( $rows ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
-		echo snt_mr_render_feed_table( $sn_mr_feed ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
-
-		// v10.79.0 (RULE 2): the unclassified bucket, made inspectable. A
-		// SECOND outbound call, unlike the delta cards, because it is a
-		// different Analytics Engine query rather than a different reading of
-		// the same rows. Gated on the aggregate read having succeeded, so a
-		// down sensor still costs exactly one failed request.
-		$sn_mr_unknown = snt_mr_fetch( $days, 'unknown' );
-		if ( ! empty( $sn_mr_unknown['ok'] ) ) {
-			echo snt_mr_render_unknown_agents( $sn_mr_unknown['rows'] ?? array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+		$unknown = snt_mr_fetch( $days, 'unknown' );
+		if ( ! empty( $unknown['ok'] ) ) {
+			$unknown_rows = $unknown['rows'] ?? array();
 		}
-
-		// v10.79.0 (RULE 3): the rights-surface events in full. Logging them and
-		// providing no way to read them would repeat the failure RULE 2 fixes.
-		$sn_mr_rights = snt_mr_fetch( $days, 'rights' );
-		if ( ! empty( $sn_mr_rights['ok'] ) ) {
-			echo snt_mr_render_rights_detail( $sn_mr_rights['rows'] ?? array() ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+		$rights = snt_mr_fetch( $days, 'rights' );
+		if ( ! empty( $rights['ok'] ) ) {
+			$rights_rows = $rights['rows'] ?? array();
 		}
-
-		// v10.2.0 delta cards, from the SAME fetch (never a second outbound
-		// call — the API layer caches only success, so a down sensor would
-		// cost a live request on every admin page load).
+		// Delta cards come from the SAME fetch — never a second outbound call.
 		if ( function_exists( 'snt_mr_split_windows' ) && function_exists( 'snt_mr_family_delta_cards' ) ) {
-			$sn_mr_win   = snt_mr_split_windows( $rows, 15, gmdate( 'Y-m-d' ) );
-			$sn_mr_cards = snt_mr_family_delta_cards( $sn_mr_win['current'] ?? array(), $sn_mr_win['prior'] ?? array(), 15 );
-			if ( ! empty( $sn_mr_cards ) ) {
-				echo snt_mr_render_delta_cards( $sn_mr_cards ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every field (fixture-pinned).
-			}
-		}
-	} else {
-		echo '<p class="sn-mr-empty">' . esc_html__( 'No readership data yet: the Sensor status card above says why.', 'signal-and-noise-tools' ) . '</p>';
-		// The feed tracker is local WP data — it stays honest even when the
-		// edge sensor is unreachable.
-		if ( function_exists( 'sn_rss_tracker_window_stats_multi' ) ) {
-			echo snt_mr_render_feed_table( $sn_mr_feed ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure renderer escapes every cell (fixture-pinned).
+			$win   = snt_mr_split_windows( $rows, 15, gmdate( 'Y-m-d' ) );
+			$cards = snt_mr_family_delta_cards( $win['current'] ?? array(), $win['prior'] ?? array(), 15 );
 		}
 	}
-	echo '</div>';
 
-	// ── Right card: the read-only readout over the writable fold.
-	echo '<div class="sn-fieldset">';
-	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Edge sensor', 'signal-and-noise-tools' ) . '</h3>';
-	echo '<p class="sn-an-settings-help">' . esc_html__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here — purge caches to read it now.', 'signal-and-noise-tools' ) . '</p>';
-	// The Analytics Edge-worker readout treatment (native notice-info), not a
-	// bespoke bar: same vocabulary as sn_worker_version_render_data().
-	echo '<div class="notice notice-info notice-alt inline">';
-	echo '<p><strong>' . esc_html__( 'Worker', 'signal-and-noise-tools' ) . '</strong> <code>sn-rights-signals</code>';
-	if ( is_array( $sn_mr_info ) && '' !== (string) ( $sn_mr_info['version'] ?? '' ) ) {
-		echo ' <code>v' . esc_html( (string) $sn_mr_info['version'] ) . '</code>';
-	}
-	echo '</p>';
-	if ( is_array( $sn_mr_info ) && '' !== (string) ( $sn_mr_info['deployed_at'] ?? '' ) ) {
-		echo '<p><strong>' . esc_html__( 'Deployed:', 'signal-and-noise-tools' ) . '</strong> ' . esc_html( (string) $sn_mr_info['deployed_at'] ) . '</p>';
-	}
-	// The age line, not a freshness claim. Absent fetched_at (an entry cached
-	// before v10.70.2) prints nothing at all: an unknown read time and a read
-	// time of "just now" are different answers, and inventing one to fill the
-	// slot is how a stale panel passes for a live one.
-	if ( is_array( $sn_mr_info ) && isset( $sn_mr_info['fetched_at'] ) ) {
-		$sn_mr_age = human_time_diff( (int) $sn_mr_info['fetched_at'], time() );
-		echo '<p><strong>' . esc_html__( 'Read:', 'signal-and-noise-tools' ) . '</strong> '
-			/* translators: %s: human-readable duration, e.g. "5 mins". */
-			. esc_html( sprintf( __( '%s ago', 'signal-and-noise-tools' ), $sn_mr_age ) ) . '</p>';
-	}
-	echo '<p><em>' . esc_html__( 'Source:', 'signal-and-noise-tools' ) . '</em> <code>' . esc_html( defined( 'SN_MR_VERSION_ENDPOINT' ) ? SN_MR_VERSION_ENDPOINT : '' ) . '</code></p>';
-	echo '</div>';
+	// The settings form echoes; capture it so the composer stays pure.
+	ob_start();
 	snt_mr_render_settings_form();
-	echo '</div>';
+	$settings_html = (string) ob_get_clean();
 
-	echo '</div>'; // .sn-2up
-	echo '</div>'; // .sn-an-settings-leaf
+	echo snt_mr_compose_tab( array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure composer; every fragment escapes its own values (fixture-pinned).
+		'days'               => $days,
+		'ok'                 => ! empty( $result['ok'] ),
+		'rows'               => $rows,
+		'feed'               => $feed,
+		'feed_total'         => $feed_total,
+		'rights_rows'        => $rights_rows,
+		'unknown_rows'       => $unknown_rows,
+		'delta_cards'        => $cards,
+		'sensor_status_html' => snt_mr_render_sensor_status( snt_mr_sensor_pills( $info, $status, $result ) ),
+		'edge_readout_html'  => snt_mr_render_edge_readout( $info ),
+		'settings_form_html' => $settings_html,
+	) );
 }
 
 
