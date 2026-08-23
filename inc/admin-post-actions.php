@@ -34,6 +34,7 @@ require_once __DIR__ . '/admin-post-actions/health-insights.php';
 require_once __DIR__ . '/admin-post-actions/webhooks.php';
 require_once __DIR__ . '/admin-post-actions/reports.php';
 require_once __DIR__ . '/admin-post-actions/content.php';
+require_once __DIR__ . '/admin-post-actions/scans.php';
 
 
 
@@ -57,21 +58,7 @@ require_once __DIR__ . '/admin-post-actions/content.php';
 
 
 
-function sn_handle_pattern_adoption_scan( $post ) {
-	// v4.3.0: routes through the central dispatcher per the health_scan pattern.
-	if ( function_exists( 'snt_pattern_adoption_run_scan' ) ) {
-		snt_pattern_adoption_run_scan();
-	}
-	return 'pattern_adoption_scanned';
-}
 
-function sn_handle_block_migrations_scan( $post ) {
-	// v4.5.0: mirrors the pattern_adoption_scan dispatcher.
-	if ( function_exists( 'snt_block_migrations_run_scan' ) ) {
-		snt_block_migrations_run_scan();
-	}
-	return 'block_migrations_scanned';
-}
 
 /**
  * Save the monitoring CREDENTIALS from the Webhooks tab.
