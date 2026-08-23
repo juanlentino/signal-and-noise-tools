@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  * just render an empty post-content area, no fatal.
  */
 function sn_load_provenance_body() {
-	$body_file = __DIR__ . '/seed-content/provenance-body.html';
+	$body_file = sn_content_seed_file( 'provenance-body.html' );
 	return file_exists( $body_file ) ? file_get_contents( $body_file ) : '';
 }
 

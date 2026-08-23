@@ -26,6 +26,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * Absolute path to a bundled seed-content file.
+ *
+ * The body loaders used to build this with a bare __DIR__, which is position-
+ * DEPENDENT: moving a loader from inc/ into inc/content-migrations/ silently
+ * changes the path, file_exists() goes false, and the loader returns '' — an
+ * empty page body, with no error raised anywhere. That happened during the
+ * v12.21.3 split and survived a full green sweep, because no suite asserted a
+ * loader returns content; it was caught only when a body-content assertion in
+ * tests/provenance-verify-page.php failed one subject later.
+ *
+ * Resolving from THIS file, which stays in inc/, makes every loader safe to move
+ * to any depth. tests/content-migrations-registry-coverage.php now resolves every
+ * seed reference in the layer against its real directory and asserts the file is
+ * on disk, so the silent-empty case cannot return.
+ *
+ * @param string $name Seed file name, e.g. 'about-body.html'.
+ * @return string Absolute path (not guaranteed to exist).
+ */
+function sn_content_seed_file( $name ) {
+	return __DIR__ . '/seed-content/' . $name;
+}
+
 // The migrations live one directory down, one file per subject. This file
 // stays: it is required BY PATH from the plugin bootstrap and from nine test
 // suites, and it keeps the SPINE — the registry, the master runner, the master
@@ -37,6 +60,7 @@ require_once __DIR__ . '/content-migrations/provenance-body.php';
 require_once __DIR__ . '/content-migrations/provenance-readtimes.php';
 require_once __DIR__ . '/content-migrations/provenance-split.php';
 require_once __DIR__ . '/content-migrations/provenance-cards.php';
+require_once __DIR__ . '/content-migrations/verify-page.php';
 
 // ── BODY LOADERS ─────────────────────────────────────────────────
 
@@ -46,7 +70,7 @@ require_once __DIR__ . '/content-migrations/provenance-cards.php';
  * sn_load_provenance_body — same fallback semantics.
  */
 function sn_load_over_detection_body() {
-	$body_file = __DIR__ . '/seed-content/over-detection-body.html';
+	$body_file = sn_content_seed_file( 'over-detection-body.html' );
 	return file_exists( $body_file ) ? file_get_contents( $body_file ) : '';
 }
 
@@ -55,26 +79,17 @@ function sn_load_over_detection_body() {
  * sn_load_over_detection_body — same fallback semantics.
  */
 function sn_load_as_substrate_body() {
-	$body_file = __DIR__ . '/seed-content/as-substrate-body.html';
+	$body_file = sn_content_seed_file( 'as-substrate-body.html' );
 	return file_exists( $body_file ) ? file_get_contents( $body_file ) : '';
 }
 
-/**
- * Load the seeded "Verify a Note" body markup from disk. Mirrors
- * sn_load_as_substrate_body — same fallback semantics. The body carries the
- * [sn_provenance_verify] shortcode, so the_content() renders the live steps.
- */
-function sn_load_verify_body() {
-	$body_file = __DIR__ . '/seed-content/verify-body.html';
-	return file_exists( $body_file ) ? file_get_contents( $body_file ) : '';
-}
 
 /**
  * Load the seeded /about body markup from disk. Mirrors
  * sn_load_provenance_body — same empty-string fallback semantics.
  */
 function sn_load_about_body() {
-	$body_file = __DIR__ . '/seed-content/about-body.html';
+	$body_file = sn_content_seed_file( 'about-body.html' );
 	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
 }
 
@@ -83,7 +98,7 @@ function sn_load_about_body() {
  * sn_load_about_body() — same empty-string fallback semantics.
  */
 function sn_load_contact_body() {
-	$body_file = __DIR__ . '/seed-content/contact-body.html';
+	$body_file = sn_content_seed_file( 'contact-body.html' );
 	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
 }
 
@@ -92,7 +107,7 @@ function sn_load_contact_body() {
  * sn_load_about_body() — same empty-string fallback semantics.
  */
 function sn_load_services_body() {
-	$body_file = __DIR__ . '/seed-content/services-body.html';
+	$body_file = sn_content_seed_file( 'services-body.html' );
 	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
 }
 
@@ -102,7 +117,7 @@ function sn_load_services_body() {
  * sn_load_about_body() — same empty-string fallback semantics.
  */
 function sn_load_resume_above() {
-	$body_file = __DIR__ . '/seed-content/resume-above.html';
+	$body_file = sn_content_seed_file( 'resume-above.html' );
 	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
 }
 
@@ -112,7 +127,7 @@ function sn_load_resume_above() {
  * sn_load_resume_above() — same empty-string fallback semantics.
  */
 function sn_load_resume_below() {
-	$body_file = __DIR__ . '/seed-content/resume-below.html';
+	$body_file = sn_content_seed_file( 'resume-below.html' );
 	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
 }
 
@@ -122,7 +137,7 @@ function sn_load_resume_below() {
  * sn_load_about_body() — same empty-string fallback semantics.
  */
 function sn_load_music_above() {
-	$body_file = __DIR__ . '/seed-content/music-above.html';
+	$body_file = sn_content_seed_file( 'music-above.html' );
 	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
 }
 
@@ -133,7 +148,7 @@ function sn_load_music_above() {
  * fallback semantics.
  */
 function sn_load_music_below() {
-	$body_file = __DIR__ . '/seed-content/music-below.html';
+	$body_file = sn_content_seed_file( 'music-below.html' );
 	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
 }
 
@@ -467,33 +482,6 @@ function sn_migrate_as_substrate_seed() {
 	update_option( SN_AS_SUBSTRATE_SEED_OPT, time(), true );
 }
 
-/**
- * One-time migration that creates the public "Verify a Note" how-to page
- * (/provenance/verify) on installs whose `SN_SEED_FLAG_OPTION` was already set
- * before this page existed — the main seed flow short-circuits on those sites,
- * so the new ensure-call needs its own gate. Without this the byline panel's
- * "Verify it yourself" link 404s on every already-seeded production site.
- *
- * Idempotent on multiple axes: bails if the dedicated flag is set, and
- * `sn_ensure_verify_page()` itself bails if the child page exists.
- */
-function sn_migrate_verify_page_seed() {
-	if ( get_option( SN_PROV_VERIFY_PAGE_MIGR_OPT ) ) {
-		return;
-	}
-
-	$parent = get_page_by_path( SN_PROVENANCE_SLUG );
-	if ( ! $parent ) {
-		// Parent page doesn't exist yet — sn_seed_content_surfaces will
-		// create both in the same pass on its next admin_init firing.
-		// Mark migrated so we don't keep scanning.
-		update_option( SN_PROV_VERIFY_PAGE_MIGR_OPT, time(), true );
-		return;
-	}
-
-	sn_ensure_verify_page();
-	update_option( SN_PROV_VERIFY_PAGE_MIGR_OPT, time(), true );
-}
 
 
 
@@ -771,7 +759,7 @@ function sn_migrate_uses_page() {
  * @return string
  */
 function sn_load_uses_default() {
-	$f = __DIR__ . '/seed-content/uses-default.txt';
+	$f = sn_content_seed_file( 'uses-default.txt' );
 	return file_exists( $f ) ? (string) file_get_contents( $f ) : '';
 }
 
@@ -832,7 +820,7 @@ function sn_migrate_now_uses_dossier_repair() {
  * @return string
  */
 function sn_load_accessibility_body() {
-	$body_file = __DIR__ . '/seed-content/accessibility-body.html';
+	$body_file = sn_content_seed_file( 'accessibility-body.html' );
 	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
 }
 
@@ -843,7 +831,7 @@ function sn_load_accessibility_body() {
  * @return string
  */
 function sn_load_personal_body() {
-	$body_file = __DIR__ . '/seed-content/personal-body.html';
+	$body_file = sn_content_seed_file( 'personal-body.html' );
 	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
 }
 

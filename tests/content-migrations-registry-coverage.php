@@ -115,5 +115,59 @@ foreach ( $dir2 as $file ) {
 ok( 1 === $const_hits, "SN_CONTENT_MIGRATIONS_MASTER_OPT declared exactly once (found $const_hits)" );
 ok( 1 === $hook_hits, "sn_run_content_migrations hooked to admin_init exactly once (found $hook_hits)" );
 
+// 5. Every seed-content reference in the layer RESOLVES to a file on disk.
+//
+//    This is the silent-empty class. The body loaders build their path and then:
+//        return file_exists( $body_file ) ? file_get_contents( $body_file ) : '';
+//    so a path that does not resolve raises nothing — the loader just returns an
+//    empty string and the migration seeds a blank page body.
+//
+//    A bare __DIR__ is position-DEPENDENT: it changes the moment a loader moves
+//    from inc/ into inc/content-migrations/. That is exactly what happened during
+//    the v12.21.3 split, and a full 497-suite sweep stayed green through it,
+//    because no suite asserted that a loader returns content. Resolving each
+//    reference against its OWN file's directory is what makes the check honest.
+$layer = array_merge(
+	array( "$root/inc/content-migrations.php" ),
+	glob( "$root/inc/content-migrations/*.php" ) ?: array()
+);
+$seed_refs = 0;
+foreach ( $layer as $lf ) {
+	$src = (string) file_get_contents( $lf );
+	$rel = str_replace( "$root/", '', $lf );
+
+	// Form A: a bare __DIR__ with a literal name — position-dependent, resolve
+	// against THIS file's directory, which is what PHP would do at runtime.
+	if ( preg_match_all( "/__DIR__ \. '\/seed-content\/([A-Za-z0-9._-]+)'/", $src, $am ) ) {
+		foreach ( $am[1] as $name ) {
+			$seed_refs++;
+			ok( file_exists( dirname( $lf ) . "/seed-content/$name" ),
+				"$rel: __DIR__ seed '$name' resolves from its own directory" );
+		}
+	}
+
+	// Form B: the helper — always resolves from inc/, which is the point.
+	if ( preg_match_all( "/sn_content_seed_file\(\s*'([A-Za-z0-9._-]+)'\s*\)/", $src, $bm ) ) {
+		foreach ( $bm[1] as $name ) {
+			$seed_refs++;
+			ok( file_exists( "$root/inc/seed-content/$name" ),
+				"$rel: seed '$name' exists in inc/seed-content/" );
+		}
+	}
+}
+ok( $seed_refs > 10, "seed references found and resolved ($seed_refs)" );
+
+// 6. The helper is the ONLY place that builds a seed path from __DIR__. A loader
+//    that reintroduces a bare __DIR__ is a position-dependent regression waiting
+//    for its next move.
+$helper_hits = 0; $bare_hits = 0;
+foreach ( $layer as $lf ) {
+	$src = (string) file_get_contents( $lf );
+	$helper_hits += preg_match_all( "/function\s+sn_content_seed_file\s*\(/", $src );
+	$bare_hits   += preg_match_all( "/__DIR__ \. '\/seed-content\/[A-Za-z0-9._-]+'/", $src );
+}
+ok( 1 === $helper_hits, "sn_content_seed_file() declared exactly once (found $helper_hits)" );
+ok( 0 === $bare_hits, "no loader builds a seed path from a bare __DIR__ (found $bare_hits)" );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
