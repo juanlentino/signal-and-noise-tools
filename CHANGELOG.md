@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.18.0] - 2026-08-23 — off a deprecated API, with a rollback that needs no release
+
+### Changed
+- **Cloudways API base moves v1 → v2.** Cloudways' own v2 announcement states
+  *"the previous Cloudways API v1 is now deprecated"* and that migrating is
+  *"just replace v1 with v2 in the API call URL structure"*. Both legs this
+  module calls (`/oauth/access_token`, `/app/cache/purge`) keep their paths.
+
+  **v1 was still answering when this shipped** — Connections → Cloudways showed
+  a purge succeeding with HTTP 200 fifteen minutes earlier. So this is insurance
+  against a deprecated dependency, not a repair.
+
+### Added
+- **`SN_CLOUDWAYS_API_BASE`** — an optional wp-config override for the base URL.
+
+  It exists because v2 could **not** be verified against the live account before
+  shipping: the credentials are wp-config-only and never leave the site, so no
+  amount of local testing can prove v2 answers for this account. If it
+  misbehaves, `define( 'SN_CLOUDWAYS_API_BASE', 'https://api.cloudways.com/api/v1' )`
+  pins it back **without a plugin release** — a rollback that needs no deploy, on
+  the one path whose failure is silent by nature.
+
+  Constant, never an option — the same posture as the four credentials, for the
+  same reason.
+
+### How to check which one is answering
+Connections → Cloudways. A recent **OK** means the base in use is working. That
+leaf shipped in v12.17.0 and is what made the v1 question answerable in seconds
+rather than by guesswork.
+
 ## [12.17.0] - 2026-08-23 — the purge that reported to nobody
 
 ### Added
