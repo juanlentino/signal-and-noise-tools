@@ -135,7 +135,7 @@ function sn_discography_entries_filter( $entries ) {
 
 /**
  * Schedule the daily sync if it isn't already scheduled. Hooked on `init`
- * (mirrors inc/uptime-heartbeat.php / inc/insights.php) so it self-heals on the
+ * (mirrors inc/insights.php) so it self-heals on the
  * next request after install — never relying on the activation hook alone, which
  * runs in the OLD version's request and can't observe a new handler.
  *

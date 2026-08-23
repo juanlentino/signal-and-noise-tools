@@ -631,7 +631,7 @@ add_action( SN_SCHEDULE_RECONCILE_HOOK, 'sn_schedule_reconcile' );
 
 /**
  * Defensively register the 5-minute cron recurrence this subsystem schedules the
- * reconcile tick on. inc/uptime-heartbeat.php registers an identical
+ * reconcile tick on. inc/insights.php registers an identical
  * `sn_five_minutes` interval, but that module may not be loaded (it is opt-in),
  * so the reconcile MUST NOT depend on it: WP-Cron silently refuses to schedule an
  * event on an unknown recurrence. The `! isset` guard makes the two registrations

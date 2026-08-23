@@ -59,11 +59,12 @@ function assertEq( $expected, $actual, $label ) {
     }
 }
 
-// v4.9.0: the monitoring subtree (Uptime Kuma heartbeat) must deep-merge from
-// defaults on a fresh install (migration-free) and survive an Identity save.
+// v12.19.0: the monitoring subtree was this test's deep-merge guinea pig via the
+// Uptime Kuma heartbeat keys. That feature is gone and 'monitoring' now ships no
+// defaults, so the same property is asserted against indexnow — a group that
+// still HAS defaults. The property under test is unchanged.
 sn_setting_reset_cache();
-assertEq( false, sn_setting( 'monitoring.uptime_kuma_enabled', 'SENTINEL' ), 'fresh install: monitoring.uptime_kuma_enabled defaults to false (deep-merge)' );
-assertEq( '', sn_setting( 'monitoring.uptime_kuma_push_url', 'SENTINEL' ), 'fresh install: monitoring.uptime_kuma_push_url defaults to empty string (deep-merge)' );
+assertEq( '', sn_setting( 'seo_copy.home_title', 'SENTINEL' ), 'fresh install: seo_copy.home_title defaults to empty string (deep-merge)' );
 assertEq( false, sn_setting( 'insights.weekly_cron_enabled', 'SENTINEL' ), 'fresh install: insights.weekly_cron_enabled defaults to false (deep-merge)' );
 // v6.23.0: analytics owner-exclusion roles. MUST default to an EMPTY array so a
 // user who unchecks every role can actually store "exclude nobody" — a non-empty
@@ -80,8 +81,10 @@ assertEq( '', sn_setting( 'identity.availability', 'SENTINEL' ), 'fresh install:
 //    the monitoring heartbeat (Webhooks tab).
 sn_setting_update( 'audit.retention_days', 30 );
 sn_setting_update( 'login.slug', 'my-secret-login' );
-sn_setting_update( 'monitoring.uptime_kuma_enabled', true );
-sn_setting_update( 'monitoring.uptime_kuma_push_url', 'https://kuma.example.com/api/push/abc' );
+// v12.19.0: monitoring still receives writes (uptime-status + spend-watch store
+// credentials under it), so it remains a valid subject for the survive-a-save
+// property even though it ships no defaults.
+sn_setting_update( 'monitoring.uptime_api_token', 'tok-survives' );
 // v4.12.0: the theme subtree (Tools → Front-End render knobs) is configured via
 // sn_setting_update('theme.*', …), NOT in the Identity form payload. Same
 // whole-option-replace hazard as audit/monitoring/perf above.
@@ -115,8 +118,7 @@ sn_setting_reset_cache();
 assertEq( 'New Site Name', sn_setting( 'identity.site_name', '' ), 'Identity save persisted its own field' );
 assertEq( 'my-secret-login', sn_setting( 'login.slug', 'sn-login' ), 'login.slug survives an Identity save (existing v1.9.0 guard)' );
 assertEq( 30, (int) sn_setting( 'audit.retention_days', 90 ), 'audit.retention_days survives an Identity save (v4.5.2 fix)' );
-assertEq( true, sn_setting( 'monitoring.uptime_kuma_enabled', false ), 'monitoring.uptime_kuma_enabled survives an Identity save (v4.9.0 guard)' );
-assertEq( 'https://kuma.example.com/api/push/abc', sn_setting( 'monitoring.uptime_kuma_push_url', '' ), 'monitoring.uptime_kuma_push_url survives an Identity save (v4.9.0 guard)' );
+assertEq( 'tok-survives', sn_setting( 'monitoring.uptime_api_token', '' ), 'monitoring.uptime_api_token survives an Identity save (v4.9.0 guard, key updated v12.19.0)' );
 assertEq( 9, (int) sn_setting( 'theme.related_count', 3 ), 'theme.related_count survives an Identity save (v4.12.0 guard)' );
 assertEq( false, sn_setting( 'theme.palette_enabled', true ), 'theme.palette_enabled survives an Identity save (v4.12.0 guard)' );
 assertEq( 'claude-opus-4-8', sn_setting( 'theme.ai_model', 'claude-sonnet-4-6' ), 'theme.ai_model survives an Identity save (v4.12.0 guard)' );

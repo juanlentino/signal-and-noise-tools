@@ -164,7 +164,7 @@ function esc_url( $u ) {
 
 // Deterministic resolver seam for the shared SSRF guard — defined BEFORE
 // inc/ssrf-guard.php so its function_exists() guard keeps THIS one (mirrors
-// tests/uptime-heartbeat.php + tests/webhooks.php). Literal IPs pass through
+// tests/webhooks.php). Literal IPs pass through
 // filter_var; the encoded forms of 169.254.169.254 map to it offline; a
 // hostname models RFC-1918; everything else resolves public.
 function sn_ssrf_resolve_host( $host ) {
