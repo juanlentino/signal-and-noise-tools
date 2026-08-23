@@ -2,6 +2,53 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.21.0] - 2026-08-23 — the door gets a sign
+
+`/auth.md`: how an agent obtains a credential for the MCP read door.
+
+An agent that hit that door previously got a bare `401` and nothing else — no
+statement of which credential is needed, who issues it, or how to ask. That is a
+door with no sign on it. This is the sign.
+
+### Added
+- **`/auth.md`**, served as `text/markdown`, following the auth.md protocol's
+  procedural shape: Discover → Register → Claim → Exchange → Use → Handle
+  revoke. Endpoint URLs are derived, never typed.
+- Advertised on `/.well-known/agents.json` as an `auth-guide` surface.
+
+### It deliberately does NOT satisfy the `authMd` readiness check
+That check additionally requires `/.well-known/oauth-protected-resource` and an
+`agent_auth` block in `/.well-known/oauth-authorization-server` carrying a
+`register_uri`. Publishing those would declare this site an **OAuth
+authorization server**. It is not one: OAuth appears in this plugin only as a
+CLIENT (Search Console, Cloudways), the MCP door authenticates with HTTP Basic
+and a WordPress application password gated on `manage_options`, and there is no
+registration endpoint anywhere in the codebase.
+
+A `register_uri` pointing at nothing is the same failure as an agent card
+claiming a JSON-RPC binding it does not serve. **Level 5 is not worth buying
+with a document that is not true.** The protocol explicitly supports
+manually-issued credentials, so this is a case it anticipates, not a workaround.
+
+### What the document actually says
+- Public content — `/.well-known/`, `llms.txt`, the JSON feed, any page with
+  `Accept: text/markdown` — needs **no credential at all**, stated first so a
+  read-only agent does not start an auth flow it never needed.
+- Registration is manual, by the owner, to a named accountable human.
+- The credential is an application password; `manage_options` required; `401`
+  means missing or insufficient, not wrong endpoint.
+- The write door is a separate endpoint and is not obtainable this way.
+- A sudden `401` is revocation: stop retrying, ask again.
+
+### Pinned
+`tests/agent-auth-md.php` fails if the document ever advertises a
+`register_uri`, `registration_endpoint`, `token_endpoint`, `client_id` or
+`client_secret` **with a value or a URL** — while still allowing it to NAME them
+in order to deny them. Two first-draft pins were wrong in exactly the ways this
+repo has been bitten before: one matched the document's own explanatory prose,
+the other broke on a line wrap. Both are now anchored on behaviour, and the
+negative pins are mutation-tested.
+
 ## [12.20.1] - 2026-08-23 — the agent card names its interface
 
 The A2A Agent Card shipped in v12.20.0 was rejected by the conformance scanner:
