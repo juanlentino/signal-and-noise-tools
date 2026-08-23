@@ -39,6 +39,12 @@ function get_transient( $key ) {
 }
 function set_transient( $key, $value, $ttl = 0 ) { $GLOBALS['__transients'][ $key ] = $value; return true; }
 function add_action() {}
+// v12.23.0: sn_health_store_scan() fires sn_health_scan_stored so the rolling
+// history (inc/health-scan-history.php) can hang off a seam rather than being
+// wired into the writer. This suite drives the real store function, so it needs
+// the seam stubbed — a no-op here, because what is asserted below is the
+// PERSISTENCE contract, not what listens to it.
+function do_action( $hook, ...$args ) {}
 function home_url( $path = '/' ) { return 'https://example.test' . $path; }
 
 require_once __DIR__ . '/../inc/health-checks.php';

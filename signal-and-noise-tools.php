@@ -514,6 +514,7 @@ require_once SNT_PATH . 'inc/health-probe-classify.php'; // shared bot-challenge
 require_once SNT_PATH . 'inc/health-check-surfaces.php'; // v11.13.0: which surface owns each check — Health is defects only
 require_once SNT_PATH . 'inc/health-checks.php';
 require_once SNT_PATH . 'inc/health-scan-cron.php'; // v12.23.0: the scan finally has a schedule — daily 08:00 UTC, derived in that file's docblock.
+require_once SNT_PATH . 'inc/health-scan-history.php'; // v12.23.0: a daily verdict with no memory cannot say whether it is getting better.
 require_once SNT_PATH . 'inc/sn-validate-checks.php';       // v10.30.0: MCP consolidation session 5 — sn_validate deterministic checks, part 1 (excerpt/meta_description/og_card_title/note_summary/tags); needs SNT_SURFACES_FIELD_CAPS + SNT_AI_*_SYSTEM constants + word-count.php, all loaded above — functions resolve at call time, not require time
 require_once SNT_PATH . 'inc/sn-validate-checks-media.php'; // v10.30.0: MCP consolidation session 5 — sn_validate deterministic checks, part 2 (alt_text/links/body/brand_voice); needs health-checks.php's sn_health_drift_time_patterns() + sn_health_contains_note_link(), both loaded above
 require_once SNT_PATH . 'inc/abilities-sn-validate.php';    // v10.30.0: MCP consolidation session 5 — signal-noise/sn-validate, the consolidated read-door validation tool

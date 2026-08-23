@@ -190,6 +190,14 @@ function sn_health_run_scan() {
  */
 function sn_health_store_scan( $result ) {
 	update_option( SN_HEALTH_CACHE_KEY, $result, false );
+	/**
+	 * Fires after a scan is persisted. v12.23.0: the seam the rolling history
+	 * hangs off (inc/health-scan-history.php), so this file keeps owning exactly
+	 * one thing — the latest verdict — and the log stays removable.
+	 *
+	 * @param array $result The scan result just stored.
+	 */
+	do_action( 'sn_health_scan_stored', $result );
 }
 
 function sn_health_last_scan() {

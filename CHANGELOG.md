@@ -59,9 +59,53 @@ which would resolve against the server's local timezone.
 than leaving it to a docblock: moving it before 07:00 UTC, or reverting to the
 relative-offset pattern, both turn it red. Mutation-tested both ways.
 
+### And a memory, because a daily verdict invites "since when"
+`SN_HEALTH_CACHE_KEY` is `sn_health_last_scan` — one option, overwritten every
+run — so the stored data could only answer *what is true now*. While the scan
+only ran on a click there was no series to keep. Running daily, there is.
+
+`inc/health-scan-history.php` keeps a rolling log of scan **summaries**: when,
+how long, findings, advisories, checks run, and which checks were flagged with
+their counts. A summary rather than the scan itself, because a full result
+carries every check's payload and 200 of those in one option would be megabytes
+read on the Health tab. `sn_health_history_streak()` answers the question a
+series exists for — *how long has this been red* — counting back to the last
+clear scan.
+
+Three deliberate properties:
+
+- **The numbers are not recomputed.** Every figure comes from the same helpers
+  the Health tab and Dashboard read (`sn_health_finding_total()`,
+  `sn_health_advisory_total()`, `sn_health_check_total()`,
+  `sn_health_flagged_checks()`). A log that counted its own way would drift from
+  the panel above it, and then neither number could be trusted without going to
+  read which one was lying.
+- **An absent row and a clean row are different claims.** A malformed result
+  records *nothing* rather than a row saying zero findings.
+- **It is a FIFO and it forgets.** 200 rows at one scan a day is ~6.5 months;
+  older rows are dropped, not archived. So it can answer "has `broken-links`
+  been flagged all week" and can *never* answer "how many findings have there
+  ever been" — the same eviction that stopped the AI usage log carrying
+  month-to-date spend, which is why that module keeps a separate durable rollup.
+  Nothing here should be summed as if it were complete.
+
+It hangs off a new `sn_health_scan_stored` action rather than being wired into
+`sn_health_store_scan()`, so `health-checks.php` still owns exactly one thing —
+the latest verdict — and the log stays removable.
+
+`tests/health-scan-history.php` (17 assertions) pins the honesty properties, not
+the plumbing. Mutation-tested: letting a malformed scan record a row goes red
+three ways, and counting a lifetime total instead of the current run goes red on
+the streak.
+
 ### Verification
-**499 suites, 19,938 assertions, 0 failed, 1 skipped.** phpcs clean, PHPStan no
+**500 suites, 19,955 assertions, 0 failed, 1 skipped.** phpcs clean, PHPStan no
 errors.
+
+`tests/health-scan-persistence.php` drives the real `sn_health_store_scan()`, so
+it needed the new action stubbed; without it the suite fatalled and printed no
+summary line at all — caught by the sweep's own "no summary line is NOT a pass"
+guard rather than by a FAIL count.
 
 ## [12.22.1] - 2026-08-23 — the backfill panel counted its own guard
 
