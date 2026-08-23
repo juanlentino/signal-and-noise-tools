@@ -71,6 +71,7 @@ require_once __DIR__ . '/content-migrations/music.php';
 require_once __DIR__ . '/content-migrations/now-uses.php';
 require_once __DIR__ . '/content-migrations/accessibility.php';
 require_once __DIR__ . '/content-migrations/personal.php';
+require_once __DIR__ . '/content-migrations/excerpts.php';
 
 // ── BODY LOADERS ─────────────────────────────────────────────────
 
@@ -88,43 +89,6 @@ require_once __DIR__ . '/content-migrations/personal.php';
 // ── MIGRATIONS (one-shot, idempotent per SN_*_MIGR_OPT flag) ───────
 
 
-/**
- * Back-fill the native Excerpt on the five theme-authored Pages whose create
- * paths seed one (sn_seed_page_excerpts()) but which predate that excerpt on
- * production — the /notes index and the four provenance-family Pages. The
- * editorial Pages (about/contact/services/resume/music/now/uses/accessibility/
- * personal) each got their own body+excerpt back-fill; these five never did, so
- * on long-lived installs they ship descriptionless and the SEO layer has no
- * summary to emit (surfaced by the Analytics "N pages ship without a meta
- * description" recommendation).
- *
- * Runs once, guarded by a dedicated flag. Only writes an Excerpt that is
- * genuinely empty, so an owner-written summary is never clobbered and a page
- * that already carries one is a no-op. Pages not seeded yet are skipped — a
- * fresh install creates them WITH the excerpt via sn_ensure_* — and the flag is
- * still set so we stop scanning every admin_init.
- */
-function sn_migrate_seed_page_excerpts() {
-	if ( get_option( SN_SEED_EXCERPTS_BACKFILL_OPT ) ) {
-		return;
-	}
-
-	foreach ( sn_seed_page_excerpts() as $path => $excerpt ) {
-		$page = get_page_by_path( $path );
-		if ( ! is_object( $page ) ) {
-			continue;
-		}
-		if ( '' !== trim( (string) ( $page->post_excerpt ?? '' ) ) ) {
-			continue;
-		}
-		wp_update_post( array(
-			'ID'           => (int) $page->ID,
-			'post_excerpt' => $excerpt,
-		) );
-	}
-
-	update_option( SN_SEED_EXCERPTS_BACKFILL_OPT, time(), true );
-}
 
 
 
