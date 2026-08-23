@@ -21,8 +21,31 @@ define( 'SNT_PATH', dirname( __DIR__ ) . '/' );
 
 // ── WP stubs (the provenance-integrity harness pattern) ────────────────────
 function add_action( $tag, $cb = null, $prio = 10, $args = 1 ) { return true; }
-function add_filter() { return true; }
-function apply_filters( $tag, $value ) { return $value; }
+// v12.22.1: a REAL filter seam, not a no-op. The time budget is filterable and
+// this suite has to be able to move it; with add_filter stubbed away, a test
+// that "exercised" the budget would have exercised the default and passed
+// vacuously. Pass-through while nothing is registered, so every other group
+// behaves exactly as before.
+$GLOBALS['__filters'] = array();
+function add_filter( $tag, $cb, $prio = 10, $args = 1 ) {
+	$GLOBALS['__filters'][ $tag ][] = $cb;
+	return true;
+}
+function remove_filter( $tag, $cb, $prio = 10 ) {
+	if ( isset( $GLOBALS['__filters'][ $tag ] ) ) {
+		$GLOBALS['__filters'][ $tag ] = array_values( array_filter(
+			$GLOBALS['__filters'][ $tag ],
+			static function ( $c ) use ( $cb ) { return $c !== $cb; }
+		) );
+	}
+	return true;
+}
+function apply_filters( $tag, $value ) {
+	foreach ( (array) ( $GLOBALS['__filters'][ $tag ] ?? array() ) as $cb ) {
+		$value = $cb( $value );
+	}
+	return $value;
+}
 function do_action() {}
 
 $GLOBALS['__meta'] = array();
@@ -216,11 +239,31 @@ $sum = sn_prov_backfill_run( 'bf_fetcher' );
 ok( 0 === $sum['imported'], 'a second run imports nothing (the chain now exists)' );
 ok( 1 === count( sn_prov_get_chain( 42 ) ), 'and the chain still holds exactly one commit' );
 
-echo "\nGroup: the cap bounds a surprising candidate set\n";
+function bf_zero_budget() { return 0; }
+
+echo "\nGroup: the COUNT is a census; the RUN is what is bounded (v12.22.1)\n";
+// This group used to assert the opposite — that candidates() returned at most
+// SN_PROV_BACKFILL_CAP. That contract is what produced the panel reading
+// "25 published Notes cannot currently be verified" when the true number was
+// higher and unknowable: a guard had quietly become the answer. The bound moved
+// onto the run, where the cost actually is, so the number a human reads is now
+// the real one.
 $many = array();
 for ( $i = 100; $i < 140; $i++ ) { $many[ $i ] = sprintf( 'aaaa%04d-0000-4000-8000-00000000cap0', $i ); }
 bf_reset( $many );
-ok( SN_PROV_BACKFILL_CAP === count( sn_prov_backfill_candidates() ), 'candidates capped at ' . SN_PROV_BACKFILL_CAP );
+ok( 40 === count( sn_prov_backfill_candidates() ), 'every candidate is counted, not the first SN_PROV_BACKFILL_CAP of them (' . count( sn_prov_backfill_candidates() ) . ')' );
+ok( SN_PROV_BACKFILL_CAP > 40, 'the per-run ceiling is a backstop above this fixture, so the TIME budget is what this group exercises' );
+
+// A zero-second budget stops the run before the first fetch. The point is not
+// the number zero: it is that a bounded run REPORTS what it did not reach, so a
+// partial pass can never read as a finished one.
+add_filter( 'sn_prov_backfill_time_budget', 'bf_zero_budget' );
+$bounded = sn_prov_backfill_run( 'bf_fetcher' );
+remove_filter( 'sn_prov_backfill_time_budget', 'bf_zero_budget' );
+ok( 'time' === ( $bounded['stopped'] ?? '' ), 'a run that hits its time budget says so' );
+ok( 40 === (int) ( $bounded['total'] ?? 0 ), 'and reports the full population it was working against' );
+ok( 40 === (int) ( $bounded['remaining'] ?? 0 ), 'and reports what is still left, recomputed rather than subtracted' );
+ok( 0 === (int) ( $bounded['imported'] ?? -1 ), 'having imported nothing' );
 
 echo "\nGroup: an imported commit must be VERIFIABLE (v10.67.0 — the assertion nobody wrote)\n";
 // THE DEFECT THIS SUITE MISSED FOR A YEAR. Every gate below was tested: uid

@@ -33,9 +33,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-// Bound per run. 14 known candidates today; the cap only guards against a
-// future where the candidate query surprises us.
-const SN_PROV_BACKFILL_CAP = 25;
+/*
+ * Two bounds on a RUN, and none on the COUNT (v12.22.1).
+ *
+ * The cap used to bound both, and the count is what a human reads. It was set
+ * to 25 as headroom over "14 known candidates today" — then v12.8.0 widened the
+ * corpus from posts to posts AND pages, the population grew past 25, and the
+ * panel started reporting the CAP as if it were a census: "25 published Notes
+ * cannot currently be verified" was really "at least 25, and this panel cannot
+ * tell you the number". A guard that silently becomes the answer is worse than
+ * no guard, because it reads exactly like a measurement.
+ *
+ * So: sn_prov_backfill_candidates() now counts EVERY candidate, and the bounds
+ * moved onto the run, where the actual cost is. Each candidate costs one
+ * ledger fetch at SN_PROV_INTEGRITY_FETCH_TIMEOUT (5s) worst case, sequentially,
+ * inside one admin-post request — 61 subjects could be five minutes. The time
+ * budget is the real limiter and the count ceiling is the backstop; whichever
+ * trips first, the run stops and REPORTS WHAT IS LEFT, so a partial pass reads
+ * as progress rather than as a failure to finish.
+ */
+const SN_PROV_BACKFILL_CAP = 100;
+
+/** Wall-clock budget for one run, in seconds. Filterable for a slow ledger. */
+const SN_PROV_BACKFILL_TIME_BUDGET = 20;
 
 /**
  * True when the chain already carries a REAL commit (version >= 1). A
@@ -67,18 +87,18 @@ function sn_prov_backfill_candidates() {
 	// v12.8.0: the candidate corpus follows the subject set, like the reconcile
 	// and integrity sweeps. A signed PAGE whose chain meta is missing is exactly
 	// the gap this module fills; it was simply never eligible to be found.
+	// -1, not 100: this is a census now, and a bounded query is the same lie in
+	// a different place — it would silently stop counting on a corpus of 101.
+	// `fields => ids` keeps it one indexed meta lookup returning integers.
 	$ids = get_posts( array(
 		'post_type'   => function_exists( 'sn_prov_subject_post_types' ) ? sn_prov_subject_post_types() : 'post',
 		'post_status' => 'publish',
-		'numberposts' => 100,
+		'numberposts' => -1,
 		'fields'      => 'ids',
 		'meta_key'    => SN_PROV_UID_META,
 	) );
 	$out = array();
 	foreach ( (array) $ids as $id ) {
-		if ( count( $out ) >= SN_PROV_BACKFILL_CAP ) {
-			break;
-		}
 		$chain = sn_prov_get_chain( (int) $id );
 		// Two shapes qualify: never imported (no real commit), and imported
 		// UNSIGNED by the v10.3.x builder (v10.67.0). The second only became
@@ -218,7 +238,31 @@ function sn_prov_backfill_run( $fetcher = null ) {
 		$skipped[ $reason ] = (int) ( $skipped[ $reason ] ?? 0 ) + 1;
 	};
 
-	foreach ( sn_prov_backfill_candidates() as $post_id ) {
+	$all       = sn_prov_backfill_candidates();
+	$total     = count( $all );
+	$attempted = 0;
+	$started   = time();
+	$budget    = (int) apply_filters( 'sn_prov_backfill_time_budget', SN_PROV_BACKFILL_TIME_BUDGET );
+	$stopped   = '';
+
+	foreach ( $all as $post_id ) {
+		// Whichever bound trips first stops the run. Checked BEFORE the fetch,
+		// because the fetch is the thing that costs — stopping after it would
+		// overrun the budget by exactly the amount the budget exists to avoid.
+		if ( $attempted >= SN_PROV_BACKFILL_CAP ) {
+			$stopped = 'cap';
+			break;
+		}
+		// No special case for zero. `$budget > 0` would have made 0 mean
+		// "disabled", which is the opposite of what it reads like and made the
+		// bound untestable without waiting out a real clock. The rule is plain:
+		// stop once elapsed >= budget, so 0 stops before the first fetch and a
+		// large value is how you effectively turn it off.
+		if ( ( time() - $started ) >= $budget ) {
+			$stopped = 'time';
+			break;
+		}
+		++$attempted;
 		$uid = strtolower( trim( (string) get_post_meta( $post_id, SN_PROV_UID_META, true ) ) );
 		if ( '' === $uid ) {
 			$bump( 'no_uid' );
@@ -284,7 +328,22 @@ function sn_prov_backfill_run( $fetcher = null ) {
 		$imported++;
 	}
 
-	return array( 'ok' => true, 'imported' => $imported, 'repaired' => $repaired, 'skipped' => $skipped );
+	// 'remaining' is recomputed, never derived by subtraction: a candidate that
+	// was attempted and SKIPPED (ledger_missing, unreachable) is still a
+	// candidate, so total - attempted would under-report the backlog and the
+	// panel would claim progress it did not make.
+	$left = count( sn_prov_backfill_candidates() );
+
+	return array(
+		'ok'        => true,
+		'imported'  => $imported,
+		'repaired'  => $repaired,
+		'skipped'   => $skipped,
+		'total'     => $total,
+		'attempted' => $attempted,
+		'remaining' => $left,
+		'stopped'   => $stopped, // '' ran to the end · 'cap' · 'time'
+	);
 }
 
 /**
@@ -312,6 +371,18 @@ function sn_prov_backfill_render_fieldset() {
 				number_format_i18n( (int) ( $result['repaired'] ?? 0 ) )
 			) )
 			. ( $skips ? ' ' . esc_html__( 'Skipped:', 'signal-and-noise-tools' ) . ' ' . implode( ', ', $skips ) : '' ) // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- each item esc_html'd above.
+			// What is LEFT, always — a run that stopped on a bound and said
+			// nothing reads exactly like a run that finished the job.
+			. ( (int) ( $result['remaining'] ?? 0 ) > 0
+				? ' ' . esc_html( sprintf(
+					/* translators: 1: number still to repair, 2: why the run stopped. */
+					__( '%1$s still cannot be verified%2$s — run this again.', 'signal-and-noise-tools' ),
+					number_format_i18n( (int) $result['remaining'] ),
+					'time' === ( $result['stopped'] ?? '' )
+						? __( ' (this run hit its time budget)', 'signal-and-noise-tools' )
+						: ( 'cap' === ( $result['stopped'] ?? '' ) ? __( ' (this run hit its per-run ceiling)', 'signal-and-noise-tools' ) : '' )
+				) )
+				: ' ' . esc_html__( 'Nothing is left unverifiable.', 'signal-and-noise-tools' ) )
 			. '</p></div>';
 	}
 	if ( $candidates ) {
@@ -329,6 +400,14 @@ function sn_prov_backfill_render_fieldset() {
 			number_format_i18n( count( $candidates ) )
 		) ) . '</button>';
 		echo '</form>';
+		// Stated up front rather than discovered afterwards: each candidate costs
+		// one ledger fetch, so a run is bounded by wall clock. A residual is the
+		// design working, not the button failing.
+		echo '<p class="sn-fieldset-actions-hint">' . esc_html( sprintf(
+			/* translators: %s: the per-run time budget in seconds. */
+			__( 'Each Note costs one ledger fetch, so a run is bounded to about %s seconds. If any are left afterwards the panel says how many, and you can run it again.', 'signal-and-noise-tools' ),
+			number_format_i18n( (int) apply_filters( 'sn_prov_backfill_time_budget', SN_PROV_BACKFILL_TIME_BUDGET ) )
+		) ) . '</p>';
 	}
 	echo '</div>';
 }
