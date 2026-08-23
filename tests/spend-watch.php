@@ -182,7 +182,13 @@ ok( ! isset( $GLOBALS['__opts']['sn_spend_gh_token'] ) && in_array( 'sn_spend_gh
 // --- mount guards ------------------------------------------------------------
 $widget = (string) file_get_contents( __DIR__ . '/../inc/site-health-widget.php' );
 ok( strpos( $widget, 'sn_spend_watch_health_section' ) !== false, 'the S&N Health widget mounts the spend section' );
-$save = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions.php' );
+// Reads the admin-post LAYER, not one file: the handlers live in
+// inc/admin-post-actions/*.php behind a thin loader (v12.22.0), so scanning
+// the loader alone would find nothing.
+$save = (string) implode( '', array_map( 'file_get_contents', array_merge(
+	array( __DIR__ . '/../inc/admin-post-actions.php' ),
+	glob( __DIR__ . '/../inc/admin-post-actions/*.php' ) ?: array()
+) ) );
 ok( strpos( $save, 'sn_spend_watch_handle_save' ) !== false, 'the monitoring save handler routes the spend fields' );
 $fieldset = (string) file_get_contents( __DIR__ . '/../inc/uptime-status.php' );
 ok( strpos( $fieldset, 'sn_spend_watch_settings_fields_html' ) !== false, 'the monitoring fieldset renders the spend fields' );

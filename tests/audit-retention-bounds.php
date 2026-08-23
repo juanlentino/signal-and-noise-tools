@@ -66,7 +66,13 @@ sn_handle_audit_save_retention( array( 'audit_retention_days' => 1 ) );
 assertEq( 7, sn_setting( 'audit.retention_days' ), 'handler clamps 1 to 7 (real call)' );
 
 // The clamp expression now lives in inc/admin-post-actions.php (was admin-page.php).
-$actions_src = file_get_contents( __DIR__ . '/../inc/admin-post-actions.php' );
+// Reads the admin-post LAYER, not one file: the handlers live in
+// inc/admin-post-actions/*.php behind a thin loader (v12.22.0), so scanning
+// the loader alone would find nothing.
+$actions_src = implode( '', array_map( 'file_get_contents', array_merge(
+	array( __DIR__ . '/../inc/admin-post-actions.php' ),
+	glob( __DIR__ . '/../inc/admin-post-actions/*.php' ) ?: array()
+) ) );
 if ( false !== strpos( $actions_src, "max( 7, min( 365" ) ) {
     $pass++;
     echo "PASS: admin-post-actions.php contains the clamp expression\n";
