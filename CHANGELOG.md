@@ -2,6 +2,111 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.23.0] - 2026-08-23 — the health scan gets a schedule, and a comment stops claiming it already had one
+
+The Content-Health scan now runs **daily at 08:00 UTC**. Until now nothing
+scheduled it at all.
+
+### The claim that was not true
+`inc/mcp/mcp-capabilities.php` justifies holding `run-health-scan` off both MCP
+doors — correctly, it is a 35–105s synchronous dispatch behind a ~100s edge cap —
+and then closed with:
+
+> Nothing is lost by holding it back: the results are already reachable through
+> the doored read ability get-health-scan, **and the scan runs on cron whether or
+> not anyone asks.**
+
+It did not. There is no `wp_schedule_event` for health anywhere in `inc/`, and
+`sn_health_run_scan()` had exactly two callers: that ability, and
+`sn_handle_health_scan()` behind the wp-admin **Run scan** button. The scan ran
+when a human clicked and at no other time.
+
+The visible cost: a Trust-checks leaf showing a red **Ledger CI** verdict that
+the trust repo had cleared eleven hours earlier. Nothing was broken — the panel
+was reading the last time anyone asked. The clause was load-bearing, since it was
+half the reason the exclusion cost nothing, so it is corrected in place rather
+than deleted. The exclusion still stands on its own; what does not follow from it
+is that the scan happens anyway.
+
+### Why daily, and why 08:00 — both derived
+**Cadence follows the fastest thing the checks watch, not the publishing rate.**
+Notes go out every **3.1 days** (measured over the last eight gaps: 3,2,3,3,3,3,4,4;
+3.6 days across 119 days), which would suggest something slower. But five of the
+sixteen checks watch surfaces that drift with no edit at all — `broken-links`,
+`cf-security-headers`, `rights-signals`, `rights-anchored`, and `ledger-ci`. The
+last reads the provenance repo's **daily** scheduled verify, so a scan slower
+than daily could never track it. That is precisely how a cleared verdict stayed
+on screen.
+
+**The hour is the free one, and it is after the thing it reads.**
+
+| constraint | measured | why 08:00 clears it |
+| --- | --- | --- |
+| provenance `verify.yml` | 07:00 UTC daily, ~40s | an hour of margin for a slow or retried run to settle |
+| `version-tag-parity`, theme parity | 07:00 / 07:20 UTC | clear of the whole Actions cluster |
+| WordPress daily hooks | 23:42, 01:43, 02:48, 11:44, 16:56, 21:07 UTC | 03:00–11:00 is empty; nearest neighbour 3h away |
+| the scan itself | ~48s, every post + external link probes | 04:00 EDT locally, when nothing else wants the box |
+
+### A deliberate divergence
+Every sibling daily hook schedules with `time() + HOUR_IN_SECONDS`, anchored to
+whenever the plugin first loaded — which is why they fire at 23:42 and 01:43
+rather than at any meaningful hour. For those it does not matter. Here it does,
+because this scan must run *after* a specific external job, so it anchors to a
+fixed UTC hour computed from `gmdate()` rather than `strtotime('today 08:00')`,
+which would resolve against the server's local timezone.
+
+`tests/health-scan-cron.php` (15 assertions) pins the hour as load-bearing rather
+than leaving it to a docblock: moving it before 07:00 UTC, or reverting to the
+relative-offset pattern, both turn it red. Mutation-tested both ways.
+
+### And a memory, because a daily verdict invites "since when"
+`SN_HEALTH_CACHE_KEY` is `sn_health_last_scan` — one option, overwritten every
+run — so the stored data could only answer *what is true now*. While the scan
+only ran on a click there was no series to keep. Running daily, there is.
+
+`inc/health-scan-history.php` keeps a rolling log of scan **summaries**: when,
+how long, findings, advisories, checks run, and which checks were flagged with
+their counts. A summary rather than the scan itself, because a full result
+carries every check's payload and 200 of those in one option would be megabytes
+read on the Health tab. `sn_health_history_streak()` answers the question a
+series exists for — *how long has this been red* — counting back to the last
+clear scan.
+
+Three deliberate properties:
+
+- **The numbers are not recomputed.** Every figure comes from the same helpers
+  the Health tab and Dashboard read (`sn_health_finding_total()`,
+  `sn_health_advisory_total()`, `sn_health_check_total()`,
+  `sn_health_flagged_checks()`). A log that counted its own way would drift from
+  the panel above it, and then neither number could be trusted without going to
+  read which one was lying.
+- **An absent row and a clean row are different claims.** A malformed result
+  records *nothing* rather than a row saying zero findings.
+- **It is a FIFO and it forgets.** 200 rows at one scan a day is ~6.5 months;
+  older rows are dropped, not archived. So it can answer "has `broken-links`
+  been flagged all week" and can *never* answer "how many findings have there
+  ever been" — the same eviction that stopped the AI usage log carrying
+  month-to-date spend, which is why that module keeps a separate durable rollup.
+  Nothing here should be summed as if it were complete.
+
+It hangs off a new `sn_health_scan_stored` action rather than being wired into
+`sn_health_store_scan()`, so `health-checks.php` still owns exactly one thing —
+the latest verdict — and the log stays removable.
+
+`tests/health-scan-history.php` (17 assertions) pins the honesty properties, not
+the plumbing. Mutation-tested: letting a malformed scan record a row goes red
+three ways, and counting a lifetime total instead of the current run goes red on
+the streak.
+
+### Verification
+**500 suites, 19,955 assertions, 0 failed, 1 skipped.** phpcs clean, PHPStan no
+errors.
+
+`tests/health-scan-persistence.php` drives the real `sn_health_store_scan()`, so
+it needed the new action stubbed; without it the suite fatalled and printed no
+summary line at all — caught by the sweep's own "no summary line is NOT a pass"
+guard rather than by a FAIL count.
+
 ## [12.22.1] - 2026-08-23 — the backfill panel counted its own guard
 
 The Provenance panel said **"25 published Notes cannot currently be verified"**.

@@ -185,9 +185,23 @@ function sn_mcp_allowlist() {
  *     the scan takes roughly 35s today and up to ~105s when something is
  *     actually down, and Cloudflare's ~100s edge cap sits in front of it. Doored,
  *     it would hand an agent a tool that hangs and then dies at the edge with
- *     nothing to show for the wait. Nothing is lost by holding it back: the
- *     results are already reachable through the doored read ability
- *     get-health-scan, and the scan runs on cron whether or not anyone asks.
+ *     nothing to show for the wait. The results stay reachable through the
+ *     doored read ability get-health-scan, so an agent can still read the
+ *     verdict; it just cannot cause one.
+ *
+ *     CORRECTED 2026-08-23: this used to close with "and the scan runs on cron
+ *     whether or not anyone asks". It does not. Nothing schedules it — there is
+ *     no wp_schedule_event for health anywhere in inc/, and sn_health_run_scan()
+ *     has exactly two live callers: this ability, and sn_handle_health_scan()
+ *     behind the wp-admin "Run scan" button. So the scan runs when a human
+ *     clicks, and at no other time; a reading was found 18 hours stale, and
+ *     would have gone on ageing indefinitely if nobody had clicked.
+ *
+ *     That clause was load-bearing — it was half the reason holding the ability
+ *     back cost nothing — so it is corrected rather than deleted. The exclusion
+ *     itself still stands on its own: the wire really cannot carry a 35-105s
+ *     synchronous dispatch behind a ~100s edge cap. What does NOT follow from it
+ *     is that the scan happens anyway.
  *
  * @return string[]
  */
