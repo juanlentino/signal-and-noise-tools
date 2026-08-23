@@ -29,6 +29,11 @@ function sn_admin_render_cloudflare_section() {
 	do_action( 'sn_admin_cloudflare_tab' );
 }
 
+/** Connections → Cloudways (v12.17.0): display-only origin-cache status. */
+function sn_admin_render_cloudways_section() {
+	do_action( 'sn_admin_cloudways_tab' );
+}
+
 /** Automation → Cron. */
 function sn_admin_render_cron_section() {
 	do_action( 'sn_admin_cron_tab' );

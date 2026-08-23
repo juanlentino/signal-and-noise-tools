@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     12.16.0
+ * Version:     12.17.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -84,6 +84,7 @@ require_once SNT_PATH . 'inc/cloudflare-purge-verify.php'; // pure: render norma
 require_once SNT_PATH . 'inc/cloudflare-purge-probe.php';  // scheduled probe + bounded zone-purge escalation
 require_once SNT_PATH . 'inc/cloudflare-purge.php';
 require_once SNT_PATH . 'inc/cloudways-purge.php';    // v8.6.0: reliable Varnish clear via the Cloudways API (rides breeze_clear_varnish)
+require_once SNT_PATH . 'inc/admin-forms/cloudways.php'; // v12.17.0: Connections → Cloudways status glance (display-only; reads SNT_CW_LAST_PURGE_OPT written by the purge above)
 require_once SNT_PATH . 'inc/freshness-indicator.php'; // v8.5.1: dashboard cache-freshness dot (client-checked CSS-hash)
 require_once SNT_PATH . 'inc/provenance-settle.php'; // v11.10.0: settle window — one editing pass, one signed version (pure; loaded before core, which calls its predicate)
 require_once SNT_PATH . 'inc/provenance-core.php'; // Notes provenance: commit-chain core (Plan 1)
