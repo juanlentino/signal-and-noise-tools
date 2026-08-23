@@ -63,6 +63,7 @@ require_once __DIR__ . '/content-migrations/provenance-cards.php';
 require_once __DIR__ . '/content-migrations/verify-page.php';
 require_once __DIR__ . '/content-migrations/as-substrate.php';
 require_once __DIR__ . '/content-migrations/over-detection.php';
+require_once __DIR__ . '/content-migrations/about.php';
 
 // ── BODY LOADERS ─────────────────────────────────────────────────
 
@@ -70,14 +71,6 @@ require_once __DIR__ . '/content-migrations/over-detection.php';
 
 
 
-/**
- * Load the seeded /about body markup from disk. Mirrors
- * sn_load_provenance_body — same empty-string fallback semantics.
- */
-function sn_load_about_body() {
-	$body_file = sn_content_seed_file( 'about-body.html' );
-	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
-}
 
 /**
  * Load the seeded /contact body markup from disk. Mirrors
@@ -179,53 +172,6 @@ function sn_migrate_seed_page_excerpts() {
 	update_option( SN_SEED_EXCERPTS_BACKFILL_OPT, time(), true );
 }
 
-/**
- * One-time migration flipping /about from file-authored to CMS-authored:
- * seeds the existing (empty) About Page's body from the seed file, plus a
- * native Excerpt so the SEO layer reads a real excerpt instead of the theme's
- * hardcoded description map. Same safety as sn_migrate_provenance_body():
- * runs once, only writes when the field is genuinely empty.
- */
-function sn_migrate_about_body() {
-	if ( get_option( SN_ABOUT_BODY_MIGRATED_OPT ) ) {
-		return;
-	}
-
-	$page = get_page_by_path( SN_ABOUT_SLUG );
-	if ( ! $page ) {
-		// Page doesn't exist yet — the seed flow creates it later. Mark
-		// migrated so we don't keep checking.
-		update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
-		return;
-	}
-
-	if ( '' !== trim( (string) $page->post_content ) ) {
-		// Body already has content — could be edits we shouldn't touch.
-		update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
-		return;
-	}
-
-	$body = sn_load_about_body();
-	if ( '' === $body ) {
-		// Seed file missing — leave the Page alone, do not mark migrated
-		// so we retry on next admin_init in case the file lands later.
-		return;
-	}
-
-	$update = array(
-		'ID'           => $page->ID,
-		'post_content' => $body,
-	);
-
-	// Only seed the excerpt when it's genuinely empty — never clobber an
-	// owner-written excerpt.
-	if ( '' === trim( (string) $page->post_excerpt ) ) {
-		$update['post_excerpt'] = 'Music producer, mix engineer, and creative strategist based in Buenos Aires. The person behind the work, the studio, and the notes.';
-	}
-
-	wp_update_post( $update );
-	update_option( SN_ABOUT_BODY_MIGRATED_OPT, time(), true );
-}
 
 /**
  * One-time migration flipping /contact from file-authored to CMS-authored:
