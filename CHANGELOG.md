@@ -2,6 +2,97 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.21.2] - 2026-08-23 — the refactor the guard was for
+
+**No runtime change.** `inc/admin-post-actions.php` — 1,682 lines, the largest
+file in the plugin — is now a 52-line loader, and the 63 handler functions live
+in 15 per-domain files under `inc/admin-post-actions/`. Nothing about behaviour,
+dispatch, or the settings schema changed. Installing is optional.
+
+### Why this was safe, and what actually made it safe
+`sn_admin_post_handlers()` binds an **action name to a function name**, never to
+a file. PHP's function table is global once the loader runs, so moving a handler
+between files is invisible to dispatch — which is why no consumer, and not one
+line of the dispatch map, had to change.
+
+That leaves exactly one real failure mode: a function that is *dropped* rather
+than moved. It does not fatal at load. It fatals at click time, in production,
+on whichever admin action nobody exercised. `tests/admin-post-handler-map-coverage.php`
+(v12.21.1) exists for precisely that, and it walks `inc/` recursively, so it kept
+working through all 15 moves without an edit.
+
+The opposite error is loud: a copied function fatals on `Cannot redeclare`. The
+two error classes need opposite defences, so every move cut rather than copied.
+
+### The split
+`inc/admin-post-actions.php` stays — it is required BY PATH from
+`signal-and-noise-tools.php` and from the test suite — and now contains only a
+docblock, the `ABSPATH` guard, and 15 `require_once` lines. Those use `__DIR__`
+rather than `SNT_PATH`: the test suite requires the file without the plugin
+bootstrap, so the constant is not guaranteed to exist.
+
+| file | lines | file | lines |
+| --- | ---: | --- | ---: |
+| `content.php` | 382 | `reports.php` | 72 |
+| `analytics.php` | 368 | `indexnow.php` | 60 |
+| `gsc.php` | 158 | `system.php` | 59 |
+| `tags.php` | 146 | `webhooks.php` | 52 |
+| `theme-ai.php` | 140 | `cloudflare.php` | 46 |
+| `music.php` | 126 | `scans.php` | 35 |
+| `mcp.php` | 118 | *(loader)* | 52 |
+| `health-insights.php` | 109 | | |
+| `monitoring.php` | 77 | | |
+
+One domain per commit, with the full sweep between each — a single 1,682-line
+move is one commit you cannot bisect.
+
+### The trap the plan missed
+Three suites — `tests/ml-embeddings.php`, `tests/spend-watch.php`,
+`tests/audit-retention-bounds.php` — assert that a handler exists by scanning the
+**source text** of `admin-post-actions.php`, using that file as a stand-in for
+"the admin-post layer". A pure move empties the file and all three go red for a
+reason unrelated to the code they guard.
+
+They were made layer-aware (loader + `inc/admin-post-actions/*.php`) **first, in
+their own commit, and verified green before anything moved** — so a red after the
+move could only be the move. Written the other way round, the two changes would
+have confounded each other.
+
+### Comments that pointed at the wrong file
+23 cross-references across 15 files named `inc/admin-post-actions.php` as the
+place a given handler lives; each now names the domain file. Two are more than
+cosmetic:
+
+- `phpcs.xml.dist` justifies its whole-plugin `NonceVerification` exclusion by
+  tracing the nonce-to-handler flow **by path**. A stale path there weakens a
+  security argument, not just a comment.
+- A v9.0.0 note reading "the `analytics_export` handler **above** stays" was left
+  stranded at the bottom of the emptied loader. It moved to the end of
+  `analytics.php`, where `analytics_export` is the last function — so "above" is
+  true again.
+
+`CHANGELOG.md` and `docs/proposals/*` were deliberately left alone: they record
+what was true when written.
+
+### Deliberately NOT done
+`content.php` (382) and `analytics.php` (368) are still over the ~150-line house
+rule. The plan allows a second pass; it is not taken here. Both are cohesive, and
+splitting them further means designing a shared-helper seam
+(`sn_content_*` is used by all three content handlers) — that is a design
+decision, not a mechanical move, and it does not belong in the same release as
+the move it would be confused with. `docs/REFACTOR-admin-post-actions.md` is
+stamped EXECUTED and records this as the open item.
+
+### Verification
+Identical at every one of the 15 commits, and identical to the pre-refactor
+baseline: **496 suites, 19,786 assertions, 0 failed, 1 skipped**
+(`contracts-smoke.php`, CI-excluded, needs live WP). `tests/admin-post-actions.php`
+held at 238/0 and the handler-map guard at 133/0 throughout.
+
+phpcs: 443 files, 0 errors, 0 warnings — confirmed with `-v`, since the `8 / 8`
+progress line is a batch count that reads identically on a zero-file run.
+PHPStan: 442 files, no errors.
+
 ## [12.21.1] - 2026-08-23 — a guard before the refactor
 
 **No runtime change.** Tooling and documentation only; installing is optional.

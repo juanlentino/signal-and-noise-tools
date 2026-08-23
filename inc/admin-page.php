@@ -19,7 +19,7 @@
  *   - inc/admin-flash-messages.php  — ?sn_flash= → admin-notice resolver.
  *   - inc/admin-post-handler.php    — admin_init form dispatcher (PRG).
  *   - inc/admin-post-actions/       — the per-action handler functions,
- *                                    one file per domain (split in v12.22.0).
+ *                                    one file per domain (split in v12.21.2).
  *
  * @package SignalNoiseTools
  */

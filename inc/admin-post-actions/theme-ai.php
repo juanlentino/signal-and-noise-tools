@@ -2,7 +2,7 @@
 /**
  * Signal & Noise — admin POST handlers: theme settings and AI provider configuration.
  *
- * Split out of inc/admin-post-actions.php in v12.22.0, which had grown to
+ * Split out of inc/admin-post-actions.php in v12.21.2, which had grown to
  * 1,682 lines (see docs/REFACTOR-admin-post-actions.md). Nothing about the
  * contract changed: each handler is still fn( array $post ): string returning
  * a ?sn_flash=… code, and sn_admin_post_handlers() in inc/admin-post-handler.php
@@ -11,7 +11,7 @@
  * Actions served: save_theme, ml_embed_compare, ai_settings_save
  *
  * @package SignalNoiseTools
- * @since 12.22.0
+ * @since 12.21.2
  */
 
 if ( ! defined( 'ABSPATH' ) ) {

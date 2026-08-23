@@ -3,7 +3,7 @@
  * Every action in the dispatch map resolves to a function that exists.
  *
  * WHY THIS EXISTS. `inc/admin-post-actions.php` was 1,682 lines and was split
- * into 15 per-domain files in v12.22.0 (docs/REFACTOR-admin-post-actions.md). The
+ * into 15 per-domain files in v12.21.2 (docs/REFACTOR-admin-post-actions.md). The
  * dispatch map in `inc/admin-post-handler.php` binds action names to function
  * names and does not care which file a function lives in — which is exactly why
  * the split is safe, and exactly why a function that gets DROPPED during the

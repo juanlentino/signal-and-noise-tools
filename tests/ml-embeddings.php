@@ -198,7 +198,7 @@ echo "\nGroup: the instrument has a RUNNER, not just parts\n";
 // existed and could not be read. Same shape as the missing token control.
 $cmp     = (string) file_get_contents( __DIR__ . '/../inc/ml-embeddings-compare.php' );
 // Reads the admin-post LAYER, not one file: the handlers live in
-// inc/admin-post-actions/*.php behind a thin loader (v12.22.0), so scanning
+// inc/admin-post-actions/*.php behind a thin loader (v12.21.2), so scanning
 // the loader alone would find nothing.
 $handler = (string) implode( '', array_map( 'file_get_contents', array_merge(
 	array( __DIR__ . '/../inc/admin-post-actions.php' ),
@@ -221,7 +221,7 @@ echo "\nGroup: the token has a CONTROL, not just a leaf\n";
 // repeated. These assertions exist so it cannot ship that way again.
 $form    = (string) file_get_contents( __DIR__ . '/../inc/admin-forms/ai-settings.php' );
 // Reads the admin-post LAYER, not one file: the handlers live in
-// inc/admin-post-actions/*.php behind a thin loader (v12.22.0), so scanning
+// inc/admin-post-actions/*.php behind a thin loader (v12.21.2), so scanning
 // the loader alone would find nothing.
 $handler = (string) implode( '', array_map( 'file_get_contents', array_merge(
 	array( __DIR__ . '/../inc/admin-post-actions.php' ),

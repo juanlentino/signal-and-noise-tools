@@ -1,6 +1,6 @@
 # Refactor plan: `inc/admin-post-actions.php` (1,682 lines)
 
-> **STATUS: EXECUTED in v12.22.0.** The split is DONE — all 15 domain files
+> **STATUS: EXECUTED in v12.21.2.** The split is DONE — all 15 domain files
 > exist under `inc/admin-post-actions/`, and `inc/admin-post-actions.php` is a
 > 52-line loader. **Do not run this plan again.** It is kept as the record of
 > why the split was shaped this way, not as queued work.

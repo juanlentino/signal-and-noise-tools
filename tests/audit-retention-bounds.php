@@ -66,9 +66,9 @@ sn_handle_audit_save_retention( array( 'audit_retention_days' => 1 ) );
 assertEq( 7, sn_setting( 'audit.retention_days' ), 'handler clamps 1 to 7 (real call)' );
 
 // The clamp expression lives in inc/admin-post-actions/reports.php (admin-page.php
-// before v4.5.4; the single admin-post-actions.php file before the v12.22.0 split).
+// before v4.5.4; the single admin-post-actions.php file before the v12.21.2 split).
 // Reads the admin-post LAYER, not one file: the handlers live in
-// inc/admin-post-actions/*.php behind a thin loader (v12.22.0), so scanning
+// inc/admin-post-actions/*.php behind a thin loader (v12.21.2), so scanning
 // the loader alone would find nothing.
 $actions_src = implode( '', array_map( 'file_get_contents', array_merge(
 	array( __DIR__ . '/../inc/admin-post-actions.php' ),

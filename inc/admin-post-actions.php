@@ -3,7 +3,7 @@
  * Signal & Noise — admin POST action handlers (loader).
  *
  * The handlers live in inc/admin-post-actions/, one file per domain. This file
- * held all 63 of them — 1,682 lines — until the v12.22.0 split
+ * held all 63 of them — 1,682 lines — until the v12.21.2 split
  * (docs/REFACTOR-admin-post-actions.md).
  *
  * The contract did not change. Every handler is still fn( array $post ): string

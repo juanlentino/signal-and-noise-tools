@@ -183,7 +183,7 @@ ok( ! isset( $GLOBALS['__opts']['sn_spend_gh_token'] ) && in_array( 'sn_spend_gh
 $widget = (string) file_get_contents( __DIR__ . '/../inc/site-health-widget.php' );
 ok( strpos( $widget, 'sn_spend_watch_health_section' ) !== false, 'the S&N Health widget mounts the spend section' );
 // Reads the admin-post LAYER, not one file: the handlers live in
-// inc/admin-post-actions/*.php behind a thin loader (v12.22.0), so scanning
+// inc/admin-post-actions/*.php behind a thin loader (v12.21.2), so scanning
 // the loader alone would find nothing.
 $save = (string) implode( '', array_map( 'file_get_contents', array_merge(
 	array( __DIR__ . '/../inc/admin-post-actions.php' ),
