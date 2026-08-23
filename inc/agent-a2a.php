@@ -120,6 +120,21 @@ function sn_agent_a2a_card() {
 		'url'                => function_exists( 'sn_agent_mcp_endpoint_url' ) ? sn_agent_mcp_endpoint_url() : '',
 		'version'            => defined( 'SNT_VERSION' ) ? (string) SNT_VERSION : '',
 		'preferredTransport' => 'MCP',
+		// supportedInterfaces, not additionalInterfaces. The A2A specification
+		// page reachable on 2026-08-23 documented the latter; the conformance
+		// scanner rejected a card without the former ("Missing or empty
+		// required field \"supportedInterfaces\""), which is the live spec
+		// talking. Evidence over a partial doc read.
+		//
+		// The transport stays MCP. The scanner's complaint was a MISSING FIELD,
+		// never the value — and if it ever does reject the value, the answer is
+		// still not to claim a JSON-RPC binding this site does not serve.
+		'supportedInterfaces' => array(
+			array(
+				'url'       => function_exists( 'sn_agent_mcp_endpoint_url' ) ? sn_agent_mcp_endpoint_url() : '',
+				'transport' => 'MCP',
+			),
+		),
 		'capabilities'       => array(
 			'streaming'              => false,
 			'pushNotifications'      => false,
