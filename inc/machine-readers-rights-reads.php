@@ -40,6 +40,16 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return string[]
  */
 function snt_mr_rights_surfaces() {
+	// 'agent-discovery' is DELIBERATELY ABSENT, and its absence is the point.
+	//
+	// Before Worker v1.17.0 those documents (MCP server card, api-catalog,
+	// ai-catalog) classified as 'well-known', which IS in this set — so every
+	// agent that fetched a server card was counted here as "a machine read the
+	// terms". It never read the terms; it read a discovery document. That was
+	// an over-count in a published claim, and splitting the class corrects it.
+	//
+	// The number this function returns therefore gets SMALLER after v12.15.0
+	// for windows containing such reads. That is the fix, not a regression.
 	return array( 'robots', 'rights', 'llms', 'agents-manifest', 'well-known' );
 }
 

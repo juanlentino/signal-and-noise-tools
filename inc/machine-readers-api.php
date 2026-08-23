@@ -52,7 +52,11 @@ function snt_mr_valid_families() {
  * @return string[]
  */
 function snt_mr_valid_surfaces() {
-	return array( 'robots', 'rights', 'llms', 'agents-manifest', 'well-known', 'feed', 'wp-json', 'sitemap', 'asset', 'html' );
+	// v12.15.0 ADDITIVE: 'agent-discovery' — the Worker (v1.17.0) split the
+	// standard agent-discovery documents (MCP server card, RFC 9727 api-catalog,
+	// ARD ai-catalog) out of the generic 'well-known' class. Mirror rule: this
+	// list must match src/machine-readers.mjs classifySurface() exactly.
+	return array( 'robots', 'rights', 'llms', 'agents-manifest', 'agent-discovery', 'well-known', 'feed', 'wp-json', 'sitemap', 'asset', 'html' );
 }
 
 /**

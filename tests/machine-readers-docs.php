@@ -78,13 +78,13 @@ ok( false !== stripos( $doc, 'unclassified-machine' ), 'the doc names the additi
 
 echo "\nGroup: the surface enum mirrors inc/machine-readers-api.php\n";
 $surfaces = snt_mr_valid_surfaces();
-ok( 10 === count( $surfaces ), 'the source of truth still declares 10 surface classes' );
+ok( 11 === count( $surfaces ), 'the source of truth still declares 11 surface classes' ); // v12.15.0: +agent-discovery
 $missing = array();
 foreach ( $surfaces as $surface ) {
 	if ( false === strpos( $doc, '`' . $surface . '`' ) ) { $missing[] = $surface; }
 }
 ok( empty( $missing ), 'every surface class is named as code in the doc (missing: ' . ( $missing ? implode( ', ', $missing ) : 'none' ) . ')' );
-ok( false !== strpos( $doc, '10 surface' ), 'the doc states the surface count' );
+ok( false !== strpos( $doc, '11 surface' ), 'the doc states the surface count' );
 ok( false !== strpos( $doc, 'extend BOTH' ) || false !== stripos( $doc, 'extend both' ), 'the mirror rule is stated, not implied' );
 
 echo "\nGroup: the privacy posture is on the page, in full\n";
