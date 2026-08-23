@@ -281,5 +281,16 @@ ok( false !== strpos( $recon, '100' ) && false !== stripos( $recon, 'GoogleOther
 ok( false !== stripos( $recon, 'Cite the purpose count' ), 'and the reader is told which number to use' );
 ok( '' === snt_mr_render_ai_reconciliation( $legacy ), 'a pre-taxonomy sensor renders no comparison at all (never a false 0 vs 0)' );
 
+// v12.16.0: markdown_requested — Worker v1.18.0's blob10, normalized additively.
+$md_on     = snt_mr_normalize_taxonomy_fields( array( 'markdown_requested' => '1' ) );
+$md_off    = snt_mr_normalize_taxonomy_fields( array( 'markdown_requested' => '0' ) );
+$md_absent = snt_mr_normalize_taxonomy_fields( array() );
+ok( true === ( $md_on['markdown_requested'] ?? null ), "markdown_requested '1' normalizes to true" );
+ok( false === ( $md_off['markdown_requested'] ?? null ), "markdown_requested '0' normalizes to false" );
+// The additive contract: an OLDER Worker sends no such column at all. It must
+// land on false — "nobody asked" — never null and never a warning.
+ok( false === ( $md_absent['markdown_requested'] ?? null ), 'an older Worker sending no column degrades to false, not null' );
+ok( false === ( snt_mr_normalize_taxonomy_fields( array( 'markdown_requested' => 'yes' ) )['markdown_requested'] ?? null ), 'any non-"1" value is false (fails toward not-requested)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
