@@ -174,17 +174,20 @@ function sn_health_check_drift_time_phrases() {
 		// v4.0.1: cache AI verdicts per (post_id, post_modified, prompt_version).
 		// Verdicts are deterministic from (post_content, post_modified_gmt, system_prompt),
 		// so unchanged posts skip the AI call on subsequent Run scans.
-		$cache_key      = 'sn_drift_verdicts_' . (int) $r['ID'];
+		// v12.23.1: the store is an autoload=no option, not a transient. Same
+		// keys, same TTL, same verdicts — but it survives the object-cache flush
+		// a plugin update fires, which was re-paying this whole corpus on the
+		// first scan after every release. See inc/health-drift-verdict-cache.php.
 		$post_modified  = (string) $r['post_modified_gmt'];
 		$prompt_version = md5( SNT_AI_DRIFT_SYSTEM );
-		$cached         = get_transient( $cache_key );
+		$verdicts       = function_exists( 'sn_drift_verdict_get' )
+			? sn_drift_verdict_get( (int) $r['ID'], $post_modified, $prompt_version )
+			: null;
 
-		if ( is_array( $cached )
-			&& isset( $cached['post_modified'], $cached['prompt_version'], $cached['verdicts'] )
-			&& $cached['post_modified']  === $post_modified
-			&& $cached['prompt_version'] === $prompt_version ) {
-			$verdicts = $cached['verdicts'];
-		} else {
+		// null, never array(): a post with no cached verdicts and a post with no
+		// stale phrases are different answers, and confusing them would record
+		// "nothing stale" for a post nobody ever checked.
+		if ( null === $verdicts ) {
 			$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, 600, 'drift_detect' );
 			if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
 				continue;  // Soft fail — skip this post.
@@ -197,11 +200,9 @@ function sn_health_check_drift_time_phrases() {
 				continue;  // Malformed — skip this post.
 			}
 
-			set_transient( $cache_key, array(
-				'post_modified'  => $post_modified,
-				'prompt_version' => $prompt_version,
-				'verdicts'       => $verdicts,
-			), 30 * DAY_IN_SECONDS );
+			if ( function_exists( 'sn_drift_verdict_put' ) ) {
+				sn_drift_verdict_put( (int) $r['ID'], $post_modified, $prompt_version, $verdicts );
+			}
 		}
 
 		foreach ( $verdicts as $v ) {

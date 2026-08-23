@@ -2,6 +2,70 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.23.1] - 2026-08-23 — drift verdicts stop evaporating on every release
+
+The Content-Health drift check is the only check that spends money: one model
+call per candidate post. It has always cached its verdicts on deterministic keys
+— `(post_id, post_modified_gmt, prompt_version)` — so an unchanged post is never
+asked twice. It cached them in a **transient**, and that was the whole cost.
+
+### Measured, not assumed
+Two scans back to back, 2026-08-23:
+
+| scan | elapsed | model calls |
+| --- | ---: | --- |
+| 22:24:33 UTC | **48.0s** | yes |
+| 23:42:08 UTC | **5.4s** | **none** — the last call was 22s before it started |
+
+An **8.8× speedup** with zero calls: the cache working exactly as designed. But
+between those, the plugin was updated to 12.23.0 — and the scan straight after
+the update paid for the entire corpus again. On a persistent object cache a
+plugin update flushes transients, and this repo ships several releases a day.
+
+So the cost was driven by **releases**, not by edits and not by scan cadence,
+re-computing verdicts byte-identical to the ones just discarded because the
+posts had not changed. Roughly $0.09 per cold corpus, several times a day,
+against $0.15–$0.45/month with a warm cache.
+
+### The reasoning already existed one file over
+Above `sn_health_store_scan()`:
+
+> an autoload=no option (not a transient) **so the scan survives the object-cache
+> flush a caching plugin fires on a plugin update**
+
+That was applied to the scan *result* and never to the thing that costs money.
+`inc/health-drift-verdict-cache.php` applies it there.
+
+**Nothing about the verdicts changes** — same model, same prompt, same keys. An
+edited post still re-pays, and changing `SNT_AI_DRIFT_SYSTEM` still invalidates
+everything, because `prompt_version` is part of the key. One option, not one per
+post: a per-post option would put hundreds of cache rows in `wp_options`.
+
+An option does not expire on its own, so the module does the two jobs the
+transient did for free — it prunes past `SN_DRIFT_VERDICT_TTL` (30 days,
+carried over verbatim) and caps the store, oldest first.
+
+### The distinction that had to survive the move
+`sn_drift_verdict_get()` returns **null** for a miss and **`array()`** for a
+stored-but-empty verdict set. A post nobody has checked and a post with no stale
+phrases are different answers; collapsing them would skip the model call and
+record "nothing stale" for a post never looked at. `tests/health-drift-verdict-cache.php`
+(18 assertions) pins it, and mutation-testing confirms: returning `array()` on a
+miss goes red, and dropping the expiry prune goes red.
+
+### What was NOT done, and why
+Routing `drift_detect` to the Haiku economy tier was considered and **rejected**.
+The economy list is documented as *"short prose one-liners… reasoning +
+structured-JSON features stay on the default"*, and `drift_detect` returns parsed
+JSON while its similarly-named sibling `drift_phrase` returns one string. More to
+the point, a malformed response there is swallowed (`continue; // Malformed —
+skip this post`), so a less reliable JSON producer buys silently missed findings
+in exchange for about $0.10 a month. The routing was already correct.
+
+### Verification
+**501 suites, 19,973 assertions, 0 failed, 1 skipped.** phpcs clean, PHPStan no
+errors.
+
 ## [12.23.0] - 2026-08-23 — the health scan gets a schedule, and a comment stops claiming it already had one
 
 The Content-Health scan now runs **daily at 08:00 UTC**. Until now nothing
