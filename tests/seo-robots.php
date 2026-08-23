@@ -57,12 +57,20 @@ ok( in_array( 'max-image-preview:large', $d, true ), 'permissive default max-ima
 ok( in_array( 'max-video-preview:-1', $d, true ), 'permissive default max-video-preview present' );
 ok( ! in_array( 'noindex', $d, true ), 'nothing is noindexed by default' );
 
-echo "\nGroup: per-post overrides (unchanged v1.10.x semantics)\n";
+echo "\nGroup: per-post overrides (v12.12.0: noindex and nofollow are independent)\n";
 $GLOBALS['__singular'] = true;
 $GLOBALS['__queried']  = (object) array( 'ID' => 7 );
 $GLOBALS['__meta']     = array( 7 => array( '_sn_noindex' => '1' ) );
 $d = sn_seo_robots_directives();
-ok( in_array( 'noindex', $d, true ) && in_array( 'nofollow', $d, true ), 'post noindex flag adds noindex + nofollow' );
+ok( in_array( 'noindex', $d, true ), 'post noindex flag adds noindex' );
+ok( ! in_array( 'nofollow', $d, true ), 'noindex alone does NOT add nofollow (the v12.12.0 decoupling)' );
+$GLOBALS['__meta'] = array( 7 => array( '_sn_nofollow' => '1' ) );
+$d = sn_seo_robots_directives();
+ok( in_array( 'nofollow', $d, true ), 'the standalone nofollow flag adds nofollow' );
+ok( ! in_array( 'noindex', $d, true ), 'nofollow alone does NOT add noindex' );
+$GLOBALS['__meta'] = array( 7 => array( '_sn_noindex' => '1', '_sn_nofollow' => '1' ) );
+$d = sn_seo_robots_directives();
+ok( in_array( 'noindex', $d, true ) && in_array( 'nofollow', $d, true ), 'both flags together still reach noindex,nofollow' );
 $GLOBALS['__meta'] = array( 7 => array( '_sn_noarchive' => '1', '_sn_noimageindex' => '1' ) );
 $d = sn_seo_robots_directives();
 ok( in_array( 'noarchive', $d, true ) && in_array( 'noimageindex', $d, true ), 'noarchive + noimageindex flags honored' );

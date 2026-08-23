@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.12.0] - 2026-08-22 — noindex stops deciding what your links are worth
+
+Ticking "Hide from search engines" also emitted `nofollow`, and had done since
+v1.6.0. That welded together two unrelated questions: whether a page belongs in
+the index, and whether the links leaving it should carry signal. A demo page
+pointing at the product it demos wants the first and not the second, and there
+was no way to say so.
+
+### Added
+- **`_sn_nofollow` — a standalone nofollow flag**, registered, saved and
+  accessed alongside `_sn_noarchive` / `_sn_noimageindex`, and rendered as its
+  own checkbox ("Don't vouch for outbound links"). `noindex,nofollow` is still
+  reachable — it just has to be asked for now.
+- `sn_post_settings_get_nofollow()`, matching the typed accessors the other
+  robots flags already expose.
+
+### Changed
+- **`_sn_noindex` emits `noindex` alone.** The helper text under both
+  checkboxes now says which decision each one makes, since the pairing is no
+  longer implied.
+
+### Behaviour change worth knowing
+- **A page that already has noindex ticked stops emitting `nofollow`** from the
+  next request onward. This is deliberate and unmigrated: re-coupling every
+  existing page would undo the thing this release is for, and `noindex` without
+  `nofollow` is the better default for first-party content — a noindexed page's
+  links are still worth something, and nofollow on your own pages mostly
+  discards signal you meant to keep. If a specific page did want both, tick the
+  new checkbox on it.
+
 ## [12.11.1] - 2026-08-22 — /about/ was published as a Note
 
 Chasing the provenance ledger's daily red found a live defect, not a
