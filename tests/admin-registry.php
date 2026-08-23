@@ -130,8 +130,16 @@ foreach ( array( 'tags', 'pattern-adoption', 'block-migrations', 'vocabulary' ) 
 ok( ( $by_tab['content']['sub_tabs']['pattern-adoption']['render'] ?? '' ) === 'sn_admin_render_pattern_adoption_section',
 	'pattern-adoption names its own leaf render fn (not the Health-tab section fn)' );
 
-ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'webhooks', 'indexnow', 'music', 'cron', 'scheduled-content' ),
-	'connections leaves: cloudflare, webhooks, indexnow, music, cron, scheduled-content (Music is an external API credential form, Redirects left for Site)' );
+// v12.17.0: 'cloudways' sits directly after 'cloudflare' — edge cache then
+// origin cache, the same job at two layers. ORDER is asserted, not just
+// membership: a purge that clears one and not the other is the confusing case,
+// and the two leaves reading adjacently is what makes that legible.
+ok( array_keys( $by_tab['connections']['sub_tabs'] ) === array( 'cloudflare', 'cloudways', 'webhooks', 'indexnow', 'music', 'cron', 'scheduled-content' ),
+	'connections leaves: cloudflare, cloudways, webhooks, indexnow, music, cron, scheduled-content (Music is an external API credential form, Redirects left for Site)' );
+ok( ( $by_tab['connections']['sub_tabs']['cloudways']['render'] ?? '' ) === 'sn_admin_render_cloudways_section',
+	'cloudways names its own leaf render fn' );
+ok( ! empty( $by_tab['connections']['sub_tabs']['cloudways']['wide'] ),
+	'cloudways is wide, matching its Connections siblings' );
 
 // Measurement: every surface that reads the site and tunes what is measured.
 // RSS joins it because the RSS leaf is feed-request *analytics*.

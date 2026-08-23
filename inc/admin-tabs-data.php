@@ -219,6 +219,13 @@ function sn_admin_top_tabs() {
 				// out work + status/reference in the two-column sn_admin_shell; Cron and
 				// Scheduled lead with a glance hero over a full-width data table.
 				'cloudflare'        => array( 'label' => 'Cloudflare', 'render' => 'sn_admin_render_cloudflare_section', 'wide' => true ),
+				// v12.17.0: Cloudways sits directly under Cloudflare because the two
+				// are the same job at two layers — edge cache and origin cache — and
+				// a purge that clears one and not the other is the confusing case.
+				// DISPLAY-ONLY: the four credentials are wp-config-constant only (an
+				// account-wide key deliberately kept out of the DB), so this leaf has
+				// no form. 'wide' matches its Connections siblings.
+				'cloudways'         => array( 'label' => 'Cloudways', 'render' => 'sn_admin_render_cloudways_section', 'wide' => true ),
 				'webhooks'          => array( 'label' => 'Webhooks', 'render' => 'sn_admin_render_webhooks_section', 'wide' => true ),
 				'indexnow'          => array( 'label' => 'IndexNow', 'render' => 'sn_admin_render_indexnow_section', 'wide' => true ),
 				// v10.46.0: Music moves here from Content. What the leaf actually

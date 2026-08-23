@@ -2,6 +2,52 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.17.0] - 2026-08-23 — the purge that reported to nobody
+
+### Added
+- **Connections → Cloudways**, a display-only status leaf. Three glance cards:
+  whether the four credentials are present, when the last purge ran, and what
+  happened.
+
+  `inc/cloudways-purge.php` has written a full result record to
+  `SNT_CW_LAST_PURGE_OPT` on every attempt — success, failure, and the captured
+  error envelope — since v8.6.0. **Nothing read it.** A fire-and-forget purge
+  that cannot report that it failed is the defect this closes; the data was
+  already there.
+
+### Display-only is a security decision, not a shortcut
+
+Cloudways is the **only** integration here with no option fallback — zero
+`get_option()` calls, four wp-config constants, nothing else. Its own docblock
+says why: *"The account-wide API key lives in wp-config (never the database); a
+bearer minted from it grants the same powers, so persisting one widens the blast
+radius of a DB dump."*
+
+A Cloudflare token can be scoped to cache-purge alone, which is why that leaf may
+offer a field. A Cloudways key holds the whole hosting account. So this leaf
+renders whether each constant is **present** and never what it contains, and it
+offers no way to set one — an input here would put an account-wide credential in
+`wp_options` and undo that sentence.
+
+### Six outcomes, not two
+
+The purge module deliberately records `inconclusive`, `coalesced` and `reauthed`
+as states distinct from ok/fail, because each one previously sent a reader down
+the wrong path. The leaf renders all six — *Never run, OK, Coalesced, OK after
+re-auth, Inconclusive, Failed* — rather than collapsing them into a red or green
+pill and discarding what the module took care to capture. In particular
+**"Never run" is not an error**, and **"Inconclusive" is not a failure**: a
+timeout means we never heard back, and a purge started that way has been found
+still running afterwards.
+
+### A note on the test that had to be fixed before it was worth anything
+
+The assertion that no credential value can reach the output originally defined
+only two of the four constants — so `configured` computed **false**, and the only
+branch that could ever touch a credential never ran. A mutation test proved it
+passed with a live leak in the code. It now defines all four and asserts it is
+exercising the configured branch, and the same mutation turns it red.
+
 ## [12.16.0] - 2026-08-23 — the index that did not know its own doors
 
 ### Fixed
