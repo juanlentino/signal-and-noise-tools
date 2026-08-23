@@ -120,6 +120,21 @@ foreach ( array( 'JSONRPC', 'GRPC', 'HTTP+JSON' ) as $claimed ) {
 }
 ok( $card['url'] === sn_agent_mcp_endpoint_url(), 'url is the real MCP endpoint, shared with the server card' );
 
+// 3b. supportedInterfaces — required by the conformance scanner, and the field
+//     whose absence failed the card on first ship. It must name the same
+//     endpoint the server card does, and declare the same honest transport.
+ok( isset( $card['supportedInterfaces'] ) && is_array( $card['supportedInterfaces'] ),
+	'supportedInterfaces present and an array' );
+ok( count( $card['supportedInterfaces'] ) > 0, 'supportedInterfaces is NOT empty' );
+$iface = $card['supportedInterfaces'][0];
+ok( ( $iface['url'] ?? '' ) === sn_agent_mcp_endpoint_url(),
+	'supportedInterfaces[0].url is the same MCP endpoint as the server card' );
+ok( 'MCP' === ( $iface['transport'] ?? '' ), 'supportedInterfaces[0].transport declares MCP' );
+foreach ( array( 'JSONRPC', 'GRPC', 'HTTP+JSON' ) as $claimed ) {
+	ok( ( $iface['transport'] ?? '' ) !== $claimed,
+		"supportedInterfaces does NOT claim the A2A '$claimed' binding either" );
+}
+
 // 4. Capabilities are declared FALSE because none are implemented. A client
 //    reading streaming:true would open a stream and hang.
 foreach ( array( 'streaming', 'pushNotifications', 'stateTransitionHistory' ) as $c ) {

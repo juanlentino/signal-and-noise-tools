@@ -2,6 +2,34 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.20.1] - 2026-08-23 — the agent card names its interface
+
+The A2A Agent Card shipped in v12.20.0 was rejected by the conformance scanner:
+
+```
+Invalid A2A Agent Card: Missing or empty required field "supportedInterfaces"
+```
+
+### Fixed
+- **`supportedInterfaces` added**, naming the same MCP endpoint the server card
+  publishes. The A2A specification page reachable on 2026-08-23 documented
+  `additionalInterfaces`; the scanner — which tracks the live spec — requires
+  `supportedInterfaces`. The doc read was partial; the scanner is the evidence.
+
+### The transport is still MCP
+The rejection named a **missing field**, never the value. `preferredTransport`
+and `supportedInterfaces[0].transport` both still declare `MCP`, because this
+site speaks MCP and not A2A JSON-RPC. If the scanner ever rejects the value
+itself, the answer remains not to claim a binding we do not serve — a
+conformant-looking card over an endpoint that rejects `message/send` is a trap,
+and the pin in `tests/agent-a2a.php` fails on any attempt to add one.
+
+### Also confirmed this release
+`agentSkills` **passes**: the Agent Skills Discovery index and its three
+`SKILL.md` artifacts are live and valid. Two of the three Level 5 checks now
+turn on this card alone; the third, `authMd`, remains an open decision because
+it publishes auth metadata for a live MCP door.
+
 ## [12.20.0] - 2026-08-23 — two more standard doors
 
 Closes two of the three checks gating Agent Readiness **Level 5 "Agent-Native"**
