@@ -125,6 +125,10 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'string',
 					'description' => 'Relative time of the most recent deploy across both repos (e.g. "3 hours ago") from the MERGED feed — wp-admin Updates installs + deploy GHA runs, the same source as the admin Dashboard. Empty string if unknown. Added v6.55.0; reads the merged feed since v9.63.3 (GHA-only before, which froze once deploy.yml went workflow_dispatch-only).',
 				),
+				'last_deploy_component' => array(
+					'type'        => 'string',
+					'description' => 'Which package last_deploy refers to: "Theme", "Plugin", or "" when unknown. Added v12.13.0 because last_deploy is an age with no subject, and the Deploy Status card renders it under seven independently versioned rows — theme, plugin and five workers — so a bare age read as though it covered all of them. It never did: the workers do not install through the WP upgrader and have no records in this feed at all, so this field is the scope disclosure as much as the name.',
+				),
 				'last_gha_run' => array(
 					'type'        => 'string',
 					'description' => 'Relative time of the most recent deploy GHA workflow run across both repos — the pre-v9.63.3 last_deploy reading, kept as a clearly-labeled secondary field. deploy.yml is the workflow_dispatch-only emergency fallback, so this moves only on manual dispatches. Empty string if unknown. Added v9.63.3.',
@@ -424,18 +428,31 @@ function snt_ability_get_deploy_status( $input = null ) {
 	// "when did the last deploy happen" — is unchanged, only the broken source
 	// is fixed). snt_gh_recent_runs_merged is cache-backed (the widget's 60s
 	// cadence matches its TTL), so both reads stay cheap.
-	$repos        = array( 'juanlentino/signal-and-noise', 'juanlentino/signal-and-noise-tools' );
-	$last_gha_run = '';
+	// v12.13.0: each reading keeps the ROWS it came from, not just the age
+	// string. The newest record already knows its repo; discarding that is what
+	// left the widget saying "Last deploy: 40 minutes ago" under seven
+	// independently versioned rows, with no way to tell which one it meant.
+	// Reading the feed a second time to recover the name would risk labelling a
+	// different record than the age describes, if a deploy landed in between.
+	$repos         = array( 'juanlentino/signal-and-noise', 'juanlentino/signal-and-noise-tools' );
+	$last_gha_run  = '';
+	$last_gha_rows = array();
 	if ( function_exists( 'snt_gh_recent_runs_merged' ) ) {
-		$last_gha_run = snt_deploy_runs_age_label( snt_gh_recent_runs_merged( $repos, 1 ) );
+		$last_gha_rows = snt_gh_recent_runs_merged( $repos, 1 );
+		$last_gha_run  = snt_deploy_runs_age_label( $last_gha_rows );
 	}
 
 	if ( function_exists( 'snt_deploy_history_merged' ) ) {
-		$last_deploy = snt_deploy_runs_age_label( snt_deploy_history_merged( $repos, 1 ) );
+		$newest                = snt_deploy_history_merged( $repos, 1 );
+		$last_deploy           = snt_deploy_runs_age_label( $newest );
+		$last_deploy_component = snt_deploy_runs_source_label( $newest );
 	} else {
 		// Degraded fallback (deploy-history module absent): the pre-v9.63.3
-		// GHA-only reading — stale-prone but better than nothing.
-		$last_deploy = $last_gha_run;
+		// GHA-only reading — stale-prone but better than nothing. It is labelled
+		// from its own rows, so the degraded path is named as precisely as the
+		// healthy one rather than falling back to an anonymous age.
+		$last_deploy           = $last_gha_run;
+		$last_deploy_component = snt_deploy_runs_source_label( $last_gha_rows );
 	}
 
 	$workers = function_exists( 'snt_deploy_workers_status' )
@@ -446,12 +463,47 @@ function snt_ability_get_deploy_status( $input = null ) {
 		: array();
 
 	return array(
-		'theme'        => snt_deploy_status_for( 'theme' ),
-		'plugin'       => snt_deploy_status_for( 'plugin' ),
-		'last_deploy'  => $last_deploy,
-		'last_gha_run' => $last_gha_run,
-		'workers'      => $workers,
+		'theme'                 => snt_deploy_status_for( 'theme' ),
+		'plugin'                => snt_deploy_status_for( 'plugin' ),
+		'last_deploy'           => $last_deploy,
+		'last_deploy_component' => $last_deploy_component,
+		'last_gha_run'          => $last_gha_run,
+		'workers'               => $workers,
 	);
+}
+
+/**
+ * Which package the newest record in a deploy-runs list belongs to.
+ *
+ * snt_deploy_runs_age_label() answers "when"; this answers "what". The record
+ * carries its own repo and the age label throws it away, which is precisely
+ * what made the Deploy Status footer unreadable: seven independently versioned
+ * rows above a bare "Last deploy: 40 minutes ago".
+ *
+ * Theme and plugin only — and that is not a gap to close here. The five
+ * Cloudflare workers never install through the WP upgrader, so they have no
+ * history rows at all (see SNT_DEPLOY_HISTORY_PACKAGES, which says so and says
+ * not to add them). Naming the package is therefore the scope disclosure too:
+ * "Plugin" cannot be misread as covering Rights signals the way a bare age
+ * could, and did.
+ *
+ * @since 12.13.0
+ * @param array $runs Records in the snt_gh_recent_runs_merged() shape, newest first.
+ * @return string Capitalised package handle ('Theme', 'Plugin'), or '' when the
+ *                row carries no repo or the repo maps to no known package.
+ */
+function snt_deploy_runs_source_label( $runs ) {
+	if ( ! is_array( $runs ) || empty( $runs[0]['repo'] ) ) {
+		return '';
+	}
+	$repo = (string) $runs[0]['repo'];
+	$map  = defined( 'SNT_DEPLOY_HISTORY_PACKAGES' ) ? SNT_DEPLOY_HISTORY_PACKAGES : array();
+	foreach ( $map as $key => $meta ) {
+		if ( isset( $meta['repo'] ) && (string) $meta['repo'] === $repo ) {
+			return ucfirst( (string) $key );
+		}
+	}
+	return '';
 }
 
 /**

@@ -2,6 +2,46 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.13.0] - 2026-08-22 — "Last deploy" says what deployed
+
+The Deploy Status card ends in one line: `Last deploy: 40 minutes ago`. Above it
+sit **seven independently versioned rows** — theme, plugin, and five Cloudflare
+workers. Read there, that age looks like a statement about the card. It never
+was. It only ever covered theme and plugin, because only they install through
+the WordPress upgrader; the workers deploy via Cloudflare and have no records in
+that feed at all, exactly as `SNT_DEPLOY_HISTORY_PACKAGES` says they don't.
+
+The gap was observable: the card read "40 minutes ago" while Rights signals had
+deployed ten minutes earlier.
+
+### Added
+- **`last_deploy_component` on `signal-noise/get-deploy-status`** — `"Theme"`,
+  `"Plugin"`, or `""`. The newest record always knew its own repo;
+  `snt_deploy_runs_age_label()` discarded it and returned a bare age.
+- **`snt_deploy_runs_source_label()`**, mapping a feed row's repo to its package
+  via `SNT_DEPLOY_HISTORY_PACKAGES`. Exact match, never a prefix test —
+  `signal-and-noise` and `signal-and-noise-tools` differ only by a suffix, and
+  collapsing them would name the wrong component with total confidence.
+
+### Changed
+- **The widget renders `Last deploy: Plugin · 40 minutes ago`.** Naming the
+  package is the scope disclosure as much as the name: "Plugin" cannot be
+  misread as covering Rights signals the way a bare age could. A `title` states
+  the scope outright for the case where the feed names nothing.
+- **The morning brief says "The last recorded deploy was the plugin, 40 minutes
+  ago."** Same defect, same fix, one surface over.
+- Both callers now read the feed **once** and take both readings from the same
+  rows. Reading twice could name a different record than the age describes if a
+  deploy landed between the calls.
+
+### Notes
+- `last_deploy` itself is untouched and byte-stable — consumers pin it, and its
+  meaning ("when did the last deploy happen") was never the broken part. The
+  name is additive.
+- Per-row deploy times for the five workers are **not** possible from here: no
+  worker `/version` route exposes a deploy timestamp, so that would be a
+  five-repo change, not a widget change.
+
 ## [12.12.0] - 2026-08-22 — noindex stops deciding what your links are worth
 
 Ticking "Hide from search engines" also emitted `nofollow`, and had done since

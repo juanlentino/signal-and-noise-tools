@@ -64,9 +64,16 @@ function snt_morning_brief_collect() {
 		$data['uptime'] = array( 'configured' => true, 'total' => count( $rows ), 'up' => $up, 'attention' => count( $rows ) - $up, 'error' => $is_error );
 	}
 	if ( function_exists( 'snt_deploy_status_for' ) ) {
-		$data['deploy'] = array( 'theme' => snt_deploy_status_for( 'theme' ), 'plugin' => snt_deploy_status_for( 'plugin' ), 'last_deploy' => '' );
+		$data['deploy'] = array( 'theme' => snt_deploy_status_for( 'theme' ), 'plugin' => snt_deploy_status_for( 'plugin' ), 'last_deploy' => '', 'last_deploy_component' => '' );
 		if ( function_exists( 'snt_deploy_history_merged' ) && function_exists( 'snt_deploy_runs_age_label' ) && defined( 'SNT_DEPLOY_REPOS' ) ) {
-			$data['deploy']['last_deploy'] = snt_deploy_runs_age_label( snt_deploy_history_merged( array_values( SNT_DEPLOY_REPOS ), 1 ) );
+			// v12.13.0: one read, both readings — same reason as the ability.
+			// Fetching the feed twice could name a different record than the
+			// age describes if a deploy lands between the two calls.
+			$newest                        = snt_deploy_history_merged( array_values( SNT_DEPLOY_REPOS ), 1 );
+			$data['deploy']['last_deploy'] = snt_deploy_runs_age_label( $newest );
+			if ( function_exists( 'snt_deploy_runs_source_label' ) ) {
+				$data['deploy']['last_deploy_component'] = snt_deploy_runs_source_label( $newest );
+			}
 		}
 	}
 	// R6b: the search section. Reads the STORED window — the brief must never
@@ -120,7 +127,14 @@ function snt_morning_brief_compose( $data ) {
 		$available = ( 'available' === ( $d['theme']['state'] ?? '' ) ? 1 : 0 ) + ( 'available' === ( $d['plugin']['state'] ?? '' ) ? 1 : 0 );
 		$unknown = ( 'unknown' === ( $d['theme']['state'] ?? '' ) ? 1 : 0 ) + ( 'unknown' === ( $d['plugin']['state'] ?? '' ) ? 1 : 0 );
 		$sentences[] = 0 === $available && 0 === $unknown ? 'The theme and plugin both match their latest known releases.' : sprintf( 'Deploy status shows %d update%s available and %d package%s with an unknown latest release.', $available, 1 === $available ? '' : 's', $unknown, 1 === $unknown ? '' : 's' );
-		if ( '' !== (string) ( $d['last_deploy'] ?? '' ) ) { $sentences[] = 'The last recorded deploy was ' . $d['last_deploy'] . '.'; }
+		if ( '' !== (string) ( $d['last_deploy'] ?? '' ) ) {
+			// v12.13.0: name the package. An age on its own invites the reader to
+			// assume it covers everything the brief just listed.
+			$deploy_what = (string) ( $d['last_deploy_component'] ?? '' );
+			$sentences[] = '' !== $deploy_what
+				? 'The last recorded deploy was the ' . strtolower( $deploy_what ) . ', ' . $d['last_deploy'] . '.'
+				: 'The last recorded deploy was ' . $d['last_deploy'] . '.';
+		}
 	}
 	// R6b: search. Silent when nothing has synced — an operations brief that
 	// says "no search data" every morning for a site that never connected GSC
