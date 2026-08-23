@@ -183,10 +183,23 @@
 			} ) );
 		} );
 
-		wrap.appendChild( el( 'p', {
+		// v12.13.0: name the subject. This line sits under seven independently
+		// versioned rows — theme, plugin, five workers — so a bare age read as
+		// though it covered the whole card. It never did: only theme and plugin
+		// install through the WP upgrader, and only they have records in the
+		// feed behind it. The package name answers "of what" in the visible
+		// text, and doubles as the scope; the title states the scope outright
+		// for the case where the feed names nothing.
+		var deployAge  = status.last_deploy || 'unknown';
+		var deployWhat = status.last_deploy_component || '';
+		var deployEl   = el( 'p', {
 			style: 'margin:10px 0 0;padding-top:8px;border-top:1px solid rgba(255,255,255,0.14);font-size:11px;opacity:.6;',
-			text:  'Last deploy: ' + ( status.last_deploy || 'unknown' ),
-		} ) );
+			text:  deployWhat
+				? 'Last deploy: ' + deployWhat + ' · ' + deployAge
+				: 'Last deploy: ' + deployAge,
+		} );
+		deployEl.title = 'Theme and plugin only. The Cloudflare workers deploy outside the WordPress upgrader, so their releases are not recorded in this feed.';
+		wrap.appendChild( deployEl );
 
 		if ( dashboardUrl ) {
 			wrap.appendChild( el( 'a', {
@@ -219,7 +232,8 @@
 			window.sntAbilityRun( 'get-deploy-status' )
 				.then( function( res ) {
 					if ( torn ) { return; }
-					// The ability returns { theme, plugin, last_deploy, last_gha_run }
+					// The ability returns { theme, plugin, last_deploy,
+					// last_deploy_component, last_gha_run }
 					// at the root (no legacy { ok, data } envelope). v9.63.3:
 					// last_deploy reads the MERGED feed (wp-admin installs + GHA
 					// runs), so wp-admin Updates installs finally move this line;

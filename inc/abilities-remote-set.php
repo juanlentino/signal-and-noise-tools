@@ -474,6 +474,10 @@ add_action( 'wp_abilities_api_init', function () {
 					'type'        => 'string',
 					'description' => 'Relative time of the most recent deploy across both repos (e.g. "3 hours ago") from the MERGED feed — wp-admin Updates installs + deploy GHA runs, the same source as the admin Dashboard. Empty string if unknown. Added v6.55.0; reads the merged feed since v9.63.3 (GHA-only before, which froze once deploy.yml went workflow_dispatch-only).',
 				),
+				'last_deploy_component' => array(
+					'type'        => 'string',
+					'description' => 'Which package last_deploy refers to: "Theme", "Plugin", or "" when unknown. Added v12.13.0 because last_deploy is an age with no subject, and the Deploy Status card renders it under seven independently versioned rows — theme, plugin and five workers — so a bare age read as though it covered all of them. It never did: the workers do not install through the WP upgrader and have no records in this feed at all, so this field is the scope disclosure as much as the name.',
+				),
 				'last_gha_run' => array(
 					'type'        => 'string',
 					'description' => 'Relative time of the most recent deploy GHA workflow run across both repos — the pre-v9.63.3 last_deploy reading, kept as a clearly-labeled secondary field. deploy.yml is the workflow_dispatch-only emergency fallback, so this moves only on manual dispatches. Empty string if unknown. Added v9.63.3.',

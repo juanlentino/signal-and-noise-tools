@@ -205,5 +205,28 @@ echo "\nWire types\n";
 df_true( is_string( $out['last_deploy'] ?? null ), 'last_deploy is a string' );
 df_true( is_string( $out['last_gha_run'] ?? null ), 'last_gha_run is a string' );
 
+// ─── 5. v12.13.0: the age has a subject ───────────────────────────────
+// last_deploy is an age with nothing attached, and the Deploy Status card
+// renders it beneath SEVEN independently versioned rows (theme, plugin, five
+// workers). Read there, "40 minutes ago" looks like a statement about the
+// card; it was only ever about whichever of two repos moved last.
+echo "\nlast_deploy_component: the age names what deployed\n";
+df_true( array_key_exists( 'last_deploy_component', $props ), 'output_schema declares last_deploy_component' );
+df_eq( 'string', $props['last_deploy_component']['type'] ?? null, 'last_deploy_component is typed string' );
+df_eq( 'Plugin', $out['last_deploy_component'] ?? null, 'the just-installed plugin release is NAMED, not left as an anonymous age' );
+df_true( is_string( $out['last_deploy_component'] ?? null ), 'last_deploy_component is a string on the wire' );
+
+// The mapping itself, unit-tested. An integration assertion can only exercise
+// whichever repo happens to be newest at that moment, and the failure this
+// field exists to prevent is naming the WRONG component — so the repo→package
+// map is pinned directly, including the pair a prefix match would confuse.
+echo "\nsnt_deploy_runs_source_label: repo to package\n";
+df_eq( 'Plugin', snt_deploy_runs_source_label( array( array( 'repo' => 'juanlentino/signal-and-noise-tools' ) ) ), 'the plugin repo maps to Plugin' );
+df_eq( 'Theme', snt_deploy_runs_source_label( array( array( 'repo' => 'juanlentino/signal-and-noise' ) ) ), 'the theme repo maps to Theme — exact match, so the shared prefix cannot collapse the two' );
+df_eq( '', snt_deploy_runs_source_label( array( array( 'repo' => 'juanlentino/sn-rights-signals-worker' ) ) ), 'a worker repo maps to nothing: workers never install via the upgrader and hold no rows here' );
+df_eq( '', snt_deploy_runs_source_label( array( array( 'ref' => 'v1.0.0' ) ) ), 'a row carrying no repo yields no name rather than a guess' );
+df_eq( '', snt_deploy_runs_source_label( array() ), 'an empty feed yields no name' );
+df_eq( '', snt_deploy_runs_source_label( null ), 'a non-array yields no name' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
