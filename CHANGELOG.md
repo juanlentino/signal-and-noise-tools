@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.21.1] - 2026-08-23 — a guard before the refactor
+
+**No runtime change.** Tooling and documentation only; installing is optional.
+
+### Added
+- **`tests/admin-post-handler-map-coverage.php`** — asserts every action in
+  `sn_admin_post_handlers()` resolves to a function that exists, and that no
+  `sn_handle_*` is declared twice. 133 assertions across the 62 mapped actions.
+- **`docs/REFACTOR-admin-post-actions.md`** — a fresh-context plan for splitting
+  `inc/admin-post-actions.php` (1,682 lines, 64 functions) into 15 per-domain
+  files behind a thin loader.
+
+### Why the guard ships FIRST
+A handler dropped during the split does **not** fatal at load. It fatals at
+click time, in production, on whichever admin action nobody exercised. The
+dispatch map binds names to names and never touches the filesystem — which is
+what makes the split safe, and what makes a lost function invisible.
+
+Written before the refactor deliberately: a guard added afterwards proves the
+end state, not the move. It walks `inc/` recursively, so it keeps working once
+the handlers live in `inc/admin-post-actions/*.php`.
+
+Mutation-tested: renaming one handler as if lost in a move turns it red and
+names the exact action that would break.
+
 ## [12.21.0] - 2026-08-23 — the door gets a sign
 
 `/auth.md`: how an agent obtains a credential for the MCP read door.
