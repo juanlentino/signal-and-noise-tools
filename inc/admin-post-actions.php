@@ -642,12 +642,14 @@ function sn_handle_block_migrations_scan( $post ) {
 }
 
 /**
- * v4.9.0 (T4): save the uptime heartbeat settings from the Webhooks tab
- * (Better Stack heartbeat or Uptime Kuma push — provider-neutral copy
- * since v8.1.6; the uptime_kuma_* field/key names are historical, kept).
- * Writes through sn_setting_update('monitoring.*', …) then reconciles the
- * cron schedule immediately so toggling on/off takes effect without waiting
- * for the next init.
+ * Save the monitoring CREDENTIALS from the Webhooks tab.
+ *
+ * v12.19.0: the push heartbeat this action was built for (v4.9.0, T4) is gone,
+ * and with it the URL field, the enabled toggle and the cron reconcile this
+ * docblock used to describe. What remains is credential handling, delegated to
+ * the owning modules — inc/uptime-status.php (Better Stack token) and
+ * inc/spend-watch.php (GitHub billing, Anthropic admin) — each on its own
+ * masked/'clear' contract.
  */
 function sn_handle_monitoring_save( $post ) {
 	// v8.2.0: Better Stack API token (status panel). Handled FIRST and

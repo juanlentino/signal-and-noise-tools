@@ -117,10 +117,7 @@ function is_wp_error( $v ) { return $v instanceof WP_Error; }
 // the all-healthy fixtures keep treating every hook as expected. (v9.5.0/R2: the
 // narration gate is gone with the retired weekly-digest cron.)
 $GLOBALS['__test_insights_cron_on'] = true;
-$GLOBALS['__test_sn_settings']     = array(
-	'monitoring.uptime_kuma_enabled'  => true,
-	'monitoring.uptime_kuma_push_url' => 'https://uptime.example/api/push/abc',
-);
+$GLOBALS['__test_sn_settings']     = array();
 function snt_insights_weekly_cron_enabled() { return $GLOBALS['__test_insights_cron_on']; }
 function sn_setting( $path, $default = false ) {
 	return array_key_exists( $path, $GLOBALS['__test_sn_settings'] ) ? $GLOBALS['__test_sn_settings'][ $path ] : $default;
@@ -225,11 +222,12 @@ echo "\nTest 7: unscheduled hooks of config-off features → still good\n";
 ch_all_healthy();
 $GLOBALS['__test_filters'] = array( 'sn_cron_system_cron_configured' => true );
 $GLOBALS['__test_insights_cron_on'] = false;
-$GLOBALS['__test_sn_settings']     = array(
-	'monitoring.uptime_kuma_enabled'  => false,
-	'monitoring.uptime_kuma_push_url' => '',
-);
-foreach ( array( 'sn_insights_weekly_scan', 'sn_uptime_kuma_heartbeat' ) as $off_hook ) {
+$GLOBALS['__test_sn_settings']     = array();
+// v12.19.0: sn_uptime_kuma_heartbeat dropped from this list. It left the
+// known-hooks list with the feature, so the state this loop set up for it was
+// no longer read by anything — an inert fixture that made the assertion look
+// like it covered two hooks when it covered one.
+foreach ( array( 'sn_insights_weekly_scan' ) as $off_hook ) {
 	unset( $GLOBALS['__test_next_scheduled'][ $off_hook ] );
 	unset( $GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $off_hook ) ] );
 }

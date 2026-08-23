@@ -109,14 +109,11 @@ function sn_settings_defaults() {
 		'perf' => array(
 			'speculative_loading' => true,
 		),
-		// v4.9.0 (T4): opt-in push heartbeat (Better Stack heartbeat or Uptime
-		// Kuma push monitor since v8.1.6 — same GET mechanism). Default OFF so
-		// the feature is dormant on every existing install (migration-free —
-		// the array_replace_recursive deep-merge in sn_setting() fills these
-		// in). Key names are historical; renaming = schema change, so they stay.
-		// v12.19.0: uptime_kuma_push_url / uptime_kuma_enabled REMOVED with the
-		// push heartbeat. The group stays — inc/spend-watch.php and
-		// inc/uptime-status.php write their credentials under it.
+		// v12.19.0: the push heartbeat that owned this group's two keys was
+		// removed, and with it the last Uptime Kuma reference in the plugin.
+		// The GROUP stays and ships no defaults on purpose: inc/spend-watch.php
+		// and inc/uptime-status.php write credentials under it at runtime, and
+		// sn_settings_save() preserves the whole subtree (see below).
 		'monitoring' => array(),
 		'seo_copy' => array(
 			'home_title'             => '',
@@ -389,10 +386,10 @@ function sn_settings_save( $raw ) {
 		$sanitized['audit'] = $existing_settings['audit'];
 	}
 
-	// v4.9.0 (T4): preserve the monitoring subtree (Uptime Kuma heartbeat),
-	// configured on the Webhooks tab via sn_setting_update('monitoring.*', …),
-	// NOT in this Identity-tab form payload. Same whole-option-replace hazard
-	// as the audit subtree above.
+	// v4.9.0 (T4): preserve the monitoring subtree — since v12.19.0 that is the
+	// Better Stack and Spend-watch credentials, written on the Webhooks tab via
+	// sn_setting_update('monitoring.*', …) and NOT present in this Identity-tab
+	// form payload. Same whole-option-replace hazard as the audit subtree above.
 	if ( isset( $existing_settings['monitoring'] ) && is_array( $existing_settings['monitoring'] ) ) {
 		$sanitized['monitoring'] = $existing_settings['monitoring'];
 	}
