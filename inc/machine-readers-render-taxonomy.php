@@ -241,6 +241,61 @@ function snt_mr_render_ai_reconciliation( $rows ) {
  * @param int   $limit Sensor cap, reported.
  * @return string HTML.
  */
+/**
+ * One rights-log table. Extracted so the same shape renders twice: once for
+ * external readers, once for our own CI traffic inside its fold.
+ *
+ * @param array $visible Rows to paint, already sorted and capped.
+ * @return string
+ */
+/**
+ * Our own CI traffic, folded away but declared.
+ *
+ * Hidden by default and never subtracted from any count: the leaf's KPI row
+ * still counts the population it has always counted. This fold is what keeps
+ * the default view quiet without the display lying about what it left out.
+ *
+ * @param array $ours Rows whose vendor is signal-and-noise.
+ * @return string
+ */
+function snt_mr_rights_ours_fold( $ours ) {
+	$ours = (array) $ours;
+	if ( empty( $ours ) ) {
+		return '';
+	}
+	return '<details class="sn-disclosure sn-mr-ours"><summary>'
+		. esc_html( sprintf(
+			/* translators: %s: number of reads from this site's own CI. */
+			_n( '+%s read from our own CI — show it', '+%s reads from our own CI — show them', count( $ours ), 'signal-and-noise-tools' ),
+			number_format_i18n( count( $ours ) )
+		) )
+		. '</summary>'
+		. snt_mr_rights_table( array_slice( $ours, 0, SN_MR_RIGHTS_DISPLAY_MAX ) )
+		. '</details>';
+}
+
+function snt_mr_rights_table( $visible ) {
+	$out = '';
+	$out .= snt_mr_table_open( __( 'Rights-surface reads, in full , who asked for the declarations, and for which document.', 'signal-and-noise-tools' ), array(
+		__( 'When', 'signal-and-noise-tools' )       => '',
+		__( 'Vendor', 'signal-and-noise-tools' )     => '',
+		__( 'Purpose', 'signal-and-noise-tools' )    => '',
+		__( 'Document', 'signal-and-noise-tools' )   => '',
+		__( 'User agent', 'signal-and-noise-tools' ) => '',
+	) );
+	foreach ( $visible as $r ) {
+		$when   = substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 20 );
+		$vendor = snt_mr_normalize_vendor( $r['vendor'] ?? '' );
+		$out   .= '<tr><td class="column-primary" data-colname="When"><code>' . esc_html( $when ) . '</code></td>'
+			. '<td data-colname="Vendor">' . esc_html( '' !== $vendor ? $vendor : '—' ) . '</td>'
+			. '<td data-colname="Purpose">' . esc_html( (string) ( $r['purpose'] ?? 'unknown' ) ) . '</td>'
+			. '<td data-colname="Document"><code>' . esc_html( substr( (string) ( $r['path'] ?? '' ), 0, 120 ) ) . '</code></td>'
+			. '<td data-colname="User agent"><code>' . esc_html( substr( (string) ( $r['user_agent'] ?? '' ), 0, 200 ) ) . '</code></td></tr>';
+	}
+	$out .= '</tbody></table>';
+	return $out;
+}
+
 function snt_mr_render_rights_detail( $rows, $limit = 500 ) {
 	$rows = (array) $rows;
 	if ( empty( $rows ) ) {
@@ -248,6 +303,35 @@ function snt_mr_render_rights_detail( $rows, $limit = 500 ) {
 		// "0 events" would rhyme with a measured zero. An empty window is a
 		// sentence, the same one it has always been.
 		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No reads of the rights surfaces in this window.', 'signal-and-noise-tools' ) . '</p>';
+	}
+
+	// Our own CI is not a machine reader. The hourly SignalNoise-SmokeTest run
+	// fetches all three rights documents, so it writes three rows an hour and
+	// buries the reads that mean something — on 2026-08-23 a single
+	// OAI-SearchBot pass sat under a wall of our own traffic. The taxonomy
+	// already tells them apart (vendor = signal-and-noise, purpose = ops); only
+	// this renderer ignored it.
+	//
+	// They are HIDDEN, never dropped: the fold below declares how many there
+	// were and opens on all of them, and no count anywhere else changes. A
+	// number that quietly stops counting part of its population makes every
+	// comparison across the change invalid.
+	$ours     = array();
+	$external = array();
+	foreach ( $rows as $sn_mr_r ) {
+		if ( 'signal-and-noise' === snt_mr_normalize_vendor( $sn_mr_r['vendor'] ?? '' ) ) {
+			$ours[] = $sn_mr_r;
+		} else {
+			$external[] = $sn_mr_r;
+		}
+	}
+	$rows = $external;
+
+	if ( empty( $rows ) ) {
+		// Every read in the window was ours. Say so plainly rather than
+		// rendering an empty log that reads like nobody came at all.
+		return '<p class="sn-an-empty sn-an-empty--note">' . esc_html__( 'No external reads of the rights surfaces in this window.', 'signal-and-noise-tools' ) . '</p>'
+			. snt_mr_rights_ours_fold( $ours );
 	}
 
 	// MR1: the fold. Until now $limit was PRINTED in the footer and never
@@ -284,31 +368,13 @@ function snt_mr_render_rights_detail( $rows, $limit = 500 ) {
 	$out .= esc_html(
 		sprintf(
 			/* translators: %s: the true number of rights-surface events in the window. */
-			_n( '%s rights-surface event — show the log', '%s rights-surface events — show the log', $total, 'signal-and-noise-tools' ),
+			_n( '%s external read — show the log', '%s external reads — show the log', $total, 'signal-and-noise-tools' ),
 			number_format_i18n( $total )
 		)
 	);
 	$out .= '</summary>';
 
-	$out .= snt_mr_table_open( __( 'Rights-surface reads, in full , who asked for the declarations, and for which document.', 'signal-and-noise-tools' ), array(
-		__( 'When', 'signal-and-noise-tools' )       => '',
-		__( 'Vendor', 'signal-and-noise-tools' )     => '',
-		__( 'Purpose', 'signal-and-noise-tools' )    => '',
-		__( 'Document', 'signal-and-noise-tools' )   => '',
-		__( 'User agent', 'signal-and-noise-tools' ) => '',
-	) );
-	$shown = 0;
-	foreach ( $visible as $r ) {
-		++$shown;
-		$when   = substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 20 );
-		$vendor = snt_mr_normalize_vendor( $r['vendor'] ?? '' );
-		$out   .= '<tr><td class="column-primary" data-colname="When"><code>' . esc_html( $when ) . '</code></td>'
-			. '<td data-colname="Vendor">' . esc_html( '' !== $vendor ? $vendor : '—' ) . '</td>'
-			. '<td data-colname="Purpose">' . esc_html( (string) ( $r['purpose'] ?? 'unknown' ) ) . '</td>'
-			. '<td data-colname="Document"><code>' . esc_html( substr( (string) ( $r['path'] ?? '' ), 0, 120 ) ) . '</code></td>'
-			. '<td data-colname="User agent"><code>' . esc_html( substr( (string) ( $r['user_agent'] ?? '' ), 0, 200 ) ) . '</code></td></tr>';
-	}
-	$out .= '</tbody></table>';
+	$out .= snt_mr_rights_table( $visible );
 
 	if ( $hidden > 0 ) {
 		$out .= '<p class="description">' . esc_html( sprintf(
@@ -323,9 +389,10 @@ function snt_mr_render_rights_detail( $rows, $limit = 500 ) {
 	$out .= '<p class="description">' . esc_html( sprintf(
 		/* translators: 1: rows shown, 2: the sensor cap. */
 		__( 'Showing %1$s of at most %2$s events. These are the only reads the sensor records in full: rights surfaces are a closed set of fixed URLs, so the path identifies the document and nothing about the reader.', 'signal-and-noise-tools' ),
-		number_format_i18n( $shown ),
+		number_format_i18n( count( $visible ) ),
 		number_format_i18n( (int) $limit )
 	) ) . '</p>';
+	$out .= snt_mr_rights_ours_fold( $ours );
 	$out .= '</details>';
 	return $out;
 }

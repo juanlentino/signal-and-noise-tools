@@ -7,22 +7,47 @@
  * assets/analytics/analytics-admin.css (loads on every SN admin page).
  * v10.2.3: the tab is the Analytics leaf silhouette (hero + one .sn-2up of two
  * cards), so this file shrank again — the worker readout now uses the native
- * notice-info treatment and needs no rule at all. Only the data card's
- * internal rhythm lives here.
+ * notice-info treatment and needs no rule at all.
+ *
+ * v12.21.5 RECOMPOSITION (docs/proposals/admin-leaf-composition-2026-08-23.md).
+ * The leaf used to stack thirteen sections in the left card against a short
+ * settings form on the right, and .sn-2up is a SYMMETRIC grid — auto-fit
+ * minmax(280px, 1fr), equal columns — so the right side sat empty for thousands
+ * of pixels. The fix is structural, not cosmetic:
+ *
+ *   - the KPI row moves up into the hero, where it summarises the whole leaf;
+ *   - the wide column carries the EVIDENCE (who read the rights, what changed);
+ *   - the narrow column carries REFERENCE, every table folded, then settings.
+ *
+ * Folded reference is what makes the columns comparable in height, so the grid
+ * can finally be asymmetric on purpose rather than symmetric by accident.
  */
 
-/* The KPI row is built for six full-width analytics columns; inside the data
-   card it carries three or four chips (v10.2.2: + feed fetches when the
-   tracker is present). auto-fit keeps the cells equal either way and wraps on
-   narrow screens without re-stating the analytics breakpoints. */
-.sn-mr-kpi-row { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+/* The two jobs are not equal, so the columns are not either. Explicit tracks
+   rather than the shared auto-fit: this leaf always has exactly two children
+   and the primary one holds a log. minmax(0,…) so a long user-agent string
+   cannot force the evidence column wider than its track. */
+@media (min-width: 1100px) {
+	.sn-mr-2up {
+		grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr);
+	}
+}
 
-/* Section rhythm inside the ONE data card (the Analytics many-sections-one-
-   card pattern): each table caption reads as the section heading — the
-   .sn-fieldset-h anatomy, left-aligned over a hairline — never a UA-centered
-   float, and each table clears the section above it. */
-.sn-mr-data .sn-an-table { margin-top: 20px; }
-.sn-mr-data .sn-an-table caption {
+/* The hero KPI row is now full-width instead of sitting inside a column, so it
+   can breathe. auto-fit keeps three or four chips equal (v10.2.2: + feed
+   fetches when the tracker is present) and wraps on narrow screens without
+   re-stating the analytics breakpoints. */
+.sn-mr-kpi-row { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.sn-mr-hero .sn-kpi-row { margin-top: 16px; }
+
+/* Section rhythm inside a card (the Analytics many-sections-one-card pattern):
+   each table caption reads as the section heading — the .sn-fieldset-h anatomy,
+   left-aligned over a hairline — never a UA-centered float, and each table
+   clears the section above it. */
+.sn-mr-evidence .sn-an-table,
+.sn-mr-reference .sn-an-table { margin-top: 20px; }
+.sn-mr-evidence .sn-an-table caption,
+.sn-mr-reference .sn-an-table caption {
 	caption-side: top;
 	text-align: left;
 	font-weight: 600;
@@ -30,28 +55,39 @@
 	padding: 0 0 8px;
 	border-bottom: 1px solid #f0f0f1;
 }
-.sn-mr-data .sn-kpi-row { margin-top: 4px; }
 
-/* MR4 (IA): the three row-level payloads (rights stream, unclassified-agent
-   review list, agent/purpose breakdown) fold behind .sn-disclosure. A CLOSED
-   fold is a section of this card like any table, so it takes the same 20px
-   rhythm the captions take — the shared rule's 0.6em is tuned for the Health
-   tab's tighter stack and leaves the summary crowding the block above it here.
-   Inside an OPEN fold the table sits closer to its own summary, because that
-   summary is now the section heading and the 20px would double up. */
-.sn-mr-data .sn-disclosure { margin-top: 20px; }
-.sn-mr-data .sn-disclosure .sn-an-table { margin-top: 8px; }
+/* MR4 (IA): row-level payloads fold behind .sn-disclosure. A CLOSED fold is a
+   section of the card like any table, so it takes the same 20px rhythm the
+   captions take — the shared rule's 0.6em is tuned for the Health tab's tighter
+   stack and leaves the summary crowding the block above it here. Inside an OPEN
+   fold the table sits closer to its own summary, because that summary is now
+   the section heading and the 20px would double up. */
+.sn-mr-evidence .sn-disclosure,
+.sn-mr-reference .sn-disclosure { margin-top: 20px; }
+.sn-mr-evidence .sn-disclosure .sn-an-table,
+.sn-mr-reference .sn-disclosure .sn-an-table { margin-top: 8px; }
+
+/* The reference column is a list of closed folds. Tighter than the 20px card
+   rhythm, because here the folds ARE the content rather than punctuation
+   between tables, and a 20px gap between seven closed summaries reads as seven
+   unrelated sections instead of one index. */
+.sn-mr-reference .sn-mr-fold { margin-top: 10px; }
+.sn-mr-reference .sn-mr-fold:first-of-type { margin-top: 12px; }
+
+/* Our own CI traffic, folded inside the rights log. Subordinate on purpose: it
+   is a footnote to the log, not a peer section, so it sheds the section rhythm
+   and sits quietly under the table it was filtered out of. */
+.sn-mr-ours { margin-top: 12px; }
+.sn-mr-ours > summary { color: var(--sn-muted, #646970); font-size: 12px; }
 
 /* v10.2.5: the LAST mixed left edge — verified in a pixel repro against the
    live stylesheet stack. The KPI cells carry the Analytics 14px internal
-   padding; on the dashboard everything shares that gutter, but inside this
-   flat card the captions/cells sit flush, so the strip read as indented.
-   First cell sheds its left pad (aligning with every other line in the
-   card), the last sheds its right; interior cells keep padding after their
-   dividers. */
-.sn-mr-data .sn-kpi:first-child { padding-left: 0; }
-.sn-mr-data .sn-kpi-row .sn-kpi:last-child { padding-right: 0; }
-
+   padding; on the dashboard everything shares that gutter, but inside a flat
+   card the captions/cells sit flush, so the strip read as indented. First cell
+   sheds its left pad (aligning with every other line in the card), the last
+   sheds its right; interior cells keep padding after their dividers. */
+.sn-mr-hero .sn-kpi:first-child { padding-left: 0; }
+.sn-mr-hero .sn-kpi-row .sn-kpi:last-child { padding-right: 0; }
 
 /* Settings fields inside the Analytics fold. */
 .sn-mr-settings { margin: 0; }

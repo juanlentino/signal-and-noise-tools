@@ -397,3 +397,36 @@ function snt_mr_render_feed_table( $stats ) {
 	}
 	return $out;
 }
+
+/**
+ * The deployed-worker readout, as a string.
+ *
+ * Extracted verbatim from snt_mr_render_tab()'s inline echo in v12.21.5 so the
+ * leaf composition could become a pure function. Same markup, same native
+ * notice-info treatment, same omissions: an entry cached before v10.70.2 has no
+ * fetched_at and prints no age line at all, because an unknown read time and a
+ * read time of "just now" are different answers.
+ *
+ * @param array $info Sensor info: version, deployed_at, fetched_at.
+ * @return string
+ */
+function snt_mr_render_edge_readout( $info ) {
+	$info = is_array( $info ) ? $info : array();
+	$out  = '<div class="notice notice-info notice-alt inline">';
+	$out .= '<p><strong>' . esc_html__( 'Worker', 'signal-and-noise-tools' ) . '</strong> <code>sn-rights-signals</code>';
+	if ( '' !== (string) ( $info['version'] ?? '' ) ) {
+		$out .= ' <code>v' . esc_html( (string) $info['version'] ) . '</code>';
+	}
+	$out .= '</p>';
+	if ( '' !== (string) ( $info['deployed_at'] ?? '' ) ) {
+		$out .= '<p><strong>' . esc_html__( 'Deployed:', 'signal-and-noise-tools' ) . '</strong> ' . esc_html( (string) $info['deployed_at'] ) . '</p>';
+	}
+	if ( isset( $info['fetched_at'] ) ) {
+		$out .= '<p><strong>' . esc_html__( 'Read:', 'signal-and-noise-tools' ) . '</strong> '
+			/* translators: %s: human-readable duration, e.g. "5 mins". */
+			. esc_html( sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( (int) $info['fetched_at'], time() ) ) ) . '</p>';
+	}
+	$out .= '<p><em>' . esc_html__( 'Source:', 'signal-and-noise-tools' ) . '</em> <code>' . esc_html( defined( 'SN_MR_VERSION_ENDPOINT' ) ? SN_MR_VERSION_ENDPOINT : '' ) . '</code></p>';
+	$out .= '</div>';
+	return $out;
+}

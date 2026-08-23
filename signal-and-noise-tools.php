@@ -297,6 +297,7 @@ require_once SNT_PATH . 'inc/machine-readers-giveback.php';
 require_once SNT_PATH . 'inc/machine-readers-summary.php'; // v10.2.0: the one summary builder (tile route + ability).
 require_once SNT_PATH . 'inc/machine-readers-render.php';
 require_once SNT_PATH . 'inc/machine-readers-render-taxonomy.php'; // v10.79.0: purpose/vendor tables + the unknown-agent review.
+require_once SNT_PATH . 'inc/machine-readers-compose.php'; // v12.21.5: the leaf's arrangement, pure — see docs/proposals/admin-leaf-composition-2026-08-23.md
 // The one-sentence summarizer, loaded AFTER the render module whose aggregate
 // helpers it reads. No side effects, no hooks: a pure string builder narrator
 // surfaces can call once they hold a payload.
