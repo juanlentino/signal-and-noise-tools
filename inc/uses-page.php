@@ -20,7 +20,7 @@
  * when /about/uses became a real Page; this module no longer registers it.
  *
  * Admin surface: Content → Uses Page (inc/admin-forms/uses-page.php);
- * POST action `uses_save` (inc/admin-post-actions.php).
+ * POST action `uses_save` (inc/admin-post-actions/content.php).
  *
  * Load order: requires inc/now-page.php first (shared parser) — both are
  * required from signal-and-noise-tools.php in that order.

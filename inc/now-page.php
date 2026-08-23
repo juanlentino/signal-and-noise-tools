@@ -21,7 +21,7 @@
  * module no longer registers them.
  *
  * Admin surface: Content → Now Page (inc/admin-forms/now-page.php);
- * POST action `now_save` (inc/admin-post-actions.php).
+ * POST action `now_save` (inc/admin-post-actions/content.php).
  *
  * @package SignalNoiseTools
  * @since 7.5.0

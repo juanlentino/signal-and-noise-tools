@@ -65,14 +65,21 @@ assertEq( 365, sn_setting( 'audit.retention_days' ), 'handler clamps 999 to 365 
 sn_handle_audit_save_retention( array( 'audit_retention_days' => 1 ) );
 assertEq( 7, sn_setting( 'audit.retention_days' ), 'handler clamps 1 to 7 (real call)' );
 
-// The clamp expression now lives in inc/admin-post-actions.php (was admin-page.php).
-$actions_src = file_get_contents( __DIR__ . '/../inc/admin-post-actions.php' );
+// The clamp expression lives in inc/admin-post-actions/reports.php (admin-page.php
+// before v4.5.4; the single admin-post-actions.php file before the v12.21.2 split).
+// Reads the admin-post LAYER, not one file: the handlers live in
+// inc/admin-post-actions/*.php behind a thin loader (v12.21.2), so scanning
+// the loader alone would find nothing.
+$actions_src = implode( '', array_map( 'file_get_contents', array_merge(
+	array( __DIR__ . '/../inc/admin-post-actions.php' ),
+	glob( __DIR__ . '/../inc/admin-post-actions/*.php' ) ?: array()
+) ) );
 if ( false !== strpos( $actions_src, "max( 7, min( 365" ) ) {
     $pass++;
-    echo "PASS: admin-post-actions.php contains the clamp expression\n";
+    echo "PASS: the admin-post layer contains the clamp expression\n";
 } else {
     $fail++;
-    echo "FAIL: admin-post-actions.php does not contain expected clamp expression\n";
+    echo "FAIL: the admin-post layer does not contain expected clamp expression\n";
 }
 
 echo "\n--- $pass passed, $fail failed ---\n";

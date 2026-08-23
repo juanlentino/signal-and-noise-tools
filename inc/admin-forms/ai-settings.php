@@ -18,7 +18,7 @@
  * moved.
  *
  * SAVE PATH: sn_action=ai_settings_save → sn_handle_ai_settings_save()
- * (inc/admin-post-actions.php). Splitting one form into two is normally the
+ * (inc/admin-post-actions/theme-ai.php). Splitting one form into two is normally the
  * settings-subtree clobber trap, but sn_handle_save_theme() writes with per-key
  * sn_setting_update() rather than a subtree write, so the two handlers cannot
  * overwrite each other's keys. See the note on sn_handle_ai_settings_save().

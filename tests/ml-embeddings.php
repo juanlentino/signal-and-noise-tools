@@ -197,7 +197,13 @@ echo "\nGroup: the instrument has a RUNNER, not just parts\n";
 // v11.22.0 shipped rank/diff/summary with NOTHING calling them: the comparison
 // existed and could not be read. Same shape as the missing token control.
 $cmp     = (string) file_get_contents( __DIR__ . '/../inc/ml-embeddings-compare.php' );
-$handler = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions.php' );
+// Reads the admin-post LAYER, not one file: the handlers live in
+// inc/admin-post-actions/*.php behind a thin loader (v12.21.2), so scanning
+// the loader alone would find nothing.
+$handler = (string) implode( '', array_map( 'file_get_contents', array_merge(
+	array( __DIR__ . '/../inc/admin-post-actions.php' ),
+	glob( __DIR__ . '/../inc/admin-post-actions/*.php' ) ?: array()
+) ) );
 $router  = (string) file_get_contents( __DIR__ . '/../inc/admin-post-handler.php' );
 $form    = (string) file_get_contents( __DIR__ . '/../inc/admin-forms/ai-settings.php' );
 ok( false !== strpos( $cmp, 'function snt_ml_embedding_compare_corpus' ), 'the corpus orchestrator exists' );
@@ -214,7 +220,13 @@ echo "\nGroup: the token has a CONTROL, not just a leaf\n";
 // v11.22.0 shipped the setting with no way to set it — the v10.84.0 failure
 // repeated. These assertions exist so it cannot ship that way again.
 $form    = (string) file_get_contents( __DIR__ . '/../inc/admin-forms/ai-settings.php' );
-$handler = (string) file_get_contents( __DIR__ . '/../inc/admin-post-actions.php' );
+// Reads the admin-post LAYER, not one file: the handlers live in
+// inc/admin-post-actions/*.php behind a thin loader (v12.21.2), so scanning
+// the loader alone would find nothing.
+$handler = (string) implode( '', array_map( 'file_get_contents', array_merge(
+	array( __DIR__ . '/../inc/admin-post-actions.php' ),
+	glob( __DIR__ . '/../inc/admin-post-actions/*.php' ) ?: array()
+) ) );
 ok( false !== strpos( $form, 'sn_ml_embeddings_token' ), 'the AI settings form renders a field for the token' );
 ok( false !== strpos( $form, 'sn_mask_secret' ), 'and masks it rather than echoing the secret back' );
 ok( false !== strpos( $form, 'Workers AI' ) && false !== strpos( $form, 'Read' ), 'and names the exact permission (ACCOUNT scope, Workers AI, Read) — the step that is easy to get wrong' );

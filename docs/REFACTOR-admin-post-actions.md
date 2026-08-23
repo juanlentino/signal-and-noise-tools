@@ -1,5 +1,29 @@
 # Refactor plan: `inc/admin-post-actions.php` (1,682 lines)
 
+> **STATUS: EXECUTED in v12.21.2.** The split is DONE — all 15 domain files
+> exist under `inc/admin-post-actions/`, and `inc/admin-post-actions.php` is a
+> 52-line loader. **Do not run this plan again.** It is kept as the record of
+> why the split was shaped this way, not as queued work.
+>
+> What actually happened, against what this plan predicted:
+>
+> - 63 top-level functions, not 64. The map has 62 entries; the extra
+>   declarations are helpers with no action of their own.
+> - The full sweep held at **496 suites / 19,786 assertions / 0 failed /
+>   1 skipped** at every one of the 15 commits, and `tests/admin-post-actions.php`
+>   stayed at 238/0 throughout.
+> - **The plan missed a trap**: three suites — `tests/ml-embeddings.php`,
+>   `tests/spend-watch.php`, `tests/audit-retention-bounds.php` — assert on the
+>   SOURCE TEXT of `admin-post-actions.php` as a stand-in for "the admin-post
+>   layer". A pure move breaks them. They were made layer-aware FIRST, in their
+>   own commit, verified green BEFORE anything moved, so that a later red could
+>   only be the move.
+> - **Still over the house rule**: `content.php` (382) and `analytics.php` (364).
+>   The second pass described below is NOT done. See the CHANGELOG for why it was
+>   deliberately left: both are cohesive, and splitting them further trades one
+>   over-long file for a helper-sharing seam that has to be got right.
+
+
 **Written 2026-08-23** as a fresh-context handoff. Everything needed is here;
 you should not need the session that produced it.
 

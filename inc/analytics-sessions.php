@@ -32,7 +32,7 @@ const SN_ANALYTICS_FUNNELS_MAX_STEPS = 8;  // max steps per funnel.
 
 // Reason-surfacing task: the closed six-kind enum for sn_analytics_parse_funnels()
 // errors. Order is the STABLE encoding sn_handle_analytics_funnels_save()
-// (inc/admin-post-actions.php) packs into the flash code's <line>k<kindIndex>
+// (inc/admin-post-actions/analytics.php) packs into the flash code's <line>k<kindIndex>
 // pairs, and inc/admin-flash-messages.php decodes back into a reason line —
 // append new kinds at the END only; never reorder or remove an entry, or an
 // already-redirected flash code would decode to the WRONG reason.
@@ -156,7 +156,7 @@ function sn_analytics_funnels_resolve_setting( $configured, array $hardcoded ) {
  * sn_analytics_parse_funnels() pushes ['message'] onto its flat $errors list
  * (unchanged consumer contract) and the whole return value onto its new
  * $errors_detail list — sn_handle_analytics_funnels_save()
- * (inc/admin-post-actions.php) reads $kind to encode the flash code without
+ * (inc/admin-post-actions/analytics.php) reads $kind to encode the flash code without
  * ever regexing the human string.
  *
  * @since S2 (v9.42.0 arc); $kind param added (reason-surfacing task).
@@ -178,7 +178,7 @@ function sn_analytics_funnels_error( $line_num, $kind, $reason ) {
  * The single-sourced reason text (no "Line N: " prefix) for one
  * SN_ANALYTICS_FUNNELS_ERR_KINDS entry. sn_analytics_parse_funnels() calls
  * this directly for the five kinds whose wording never varies (colon / name /
- * long / step / few), so the flash-code round trip — inc/admin-post-actions.php
+ * long / step / few), so the flash-code round trip — inc/admin-post-actions/analytics.php
  * encodes the $kind, inc/admin-flash-messages.php later decodes it back
  * through THIS SAME function — can never drift from what the parser actually
  * said.

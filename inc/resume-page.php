@@ -24,7 +24,7 @@
  * bad save can never blank the live page.
  *
  * Admin surface: Content → Resume Page (inc/admin-forms/resume-page.php);
- * POST action `resume_save` (inc/admin-post-actions.php).
+ * POST action `resume_save` (inc/admin-post-actions/content.php).
  *
  * @package SignalNoiseTools
  * @since 10.33.0

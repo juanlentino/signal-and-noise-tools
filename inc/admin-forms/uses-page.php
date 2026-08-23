@@ -6,7 +6,7 @@
  * with a label field and repeatable name/note pair rows, replacing the
  * `## Label` / `- name | note` textarea. The text document STAYS the stored
  * format — sn_action=uses_save serializes the posted rows back into it
- * (sn_uses_rows_to_text, inc/admin-post-actions.php) and stores via
+ * (sn_uses_rows_to_text, inc/admin-post-actions/content.php) and stores via
  * sn_uses_page_save() (inc/uses-page.php) exactly as before; data layer,
  * sync engine, and migrations untouched. Since v9.20.0 /about/uses is a real
  * CMS child Page regenerated on every save. Zero rows clears (theme file

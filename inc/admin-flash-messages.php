@@ -191,7 +191,7 @@ function sn_admin_flash_messages() {
  * risking an undefined-index warning or a garbage-mapped reason.
  *
  * Decode-side SOURCE cap (mirrors the encode-side cap in
- * sn_analytics_funnels_error_flash_code(), inc/admin-post-actions.php): only
+ * sn_analytics_funnels_error_flash_code(), inc/admin-post-actions/analytics.php): only
  * the first FIVE pairs are ever rendered, even if a hostile code packs more
  * well-formed pairs into the 40-char budget.
  *
@@ -292,7 +292,7 @@ function sn_admin_flash_to_notice( $flash ) {
 		return array( 'success', 'Full reset: ' . $count . ' override(s) cleared + all caches purged.' );
 	}
 	// S2 §3 (v9.42.0 arc); pair-encoded reasons added (reason-surfacing task):
-	// sn_handle_analytics_funnels_save() (inc/admin-post-actions.php) encodes
+	// sn_handle_analytics_funnels_save() (inc/admin-post-actions/analytics.php) encodes
 	// bad line(s) straight into the flash code, so nothing was saved AND the
 	// notice can point at exactly which line(s) to fix, no transient plumbing
 	// required. Two formats decode here:

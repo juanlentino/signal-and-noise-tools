@@ -143,7 +143,7 @@ ok( array( 'administrator' ) === sn_beacon_sanitize_exclude_roles( array( 'admin
 ok( array() === sn_beacon_sanitize_exclude_roles( 'not-an-array' ), 'sanitize handles non-array input' );
 
 // NOTE: the admin-post save handler (sn_handle_analytics_exclude_save) lives in
-// inc/admin-post-actions.php with the other sn_handle_* handlers; its behaviour
+// inc/admin-post-actions/analytics.php with the other analytics handlers; its behaviour
 // is covered in tests/admin-post-actions.php.
 
 echo "\n--- $pass passed, $fail failed ---\n";
