@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     12.19.1
+ * Version:     12.20.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -242,6 +242,8 @@ require_once SNT_PATH . 'inc/mcp/mcp-remote-observability.php'; // R3 §3D Incre
 require_once SNT_PATH . 'inc/mcp/mcp-endpoint.php';
 require_once SNT_PATH . 'inc/agent-discovery.php'; // v12.14.0: MCP Server Card (SEP-1649) + RFC 9727 API catalog at their STANDARD .well-known paths. Needs sn_mcp_namespace()/sn_mcp_server_info()/sn_mcp_capabilities_map() from the MCP block above. Restates what agents.json already says, at addresses the ecosystem reads; adds no capability and no door.
 require_once SNT_PATH . 'inc/agent-ard.php'; // v12.15.0: ARD capability manifest (/.well-known/ai-catalog.json). Loads AFTER agent-discovery.php — reuses its sn_agent_normalize_path()/sn_agent_send_document() and its SN_AGENT_CARD_PATH/SN_AGENT_CATALOG_PATH constants.
+require_once SNT_PATH . 'inc/agent-a2a.php'; // v12.20.0: A2A Agent Card (/.well-known/agent-card.json). Loads AFTER agent-discovery.php — reuses its sn_agent_normalize_path()/sn_agent_send_document()/sn_agent_mcp_endpoint_url(). Declares an MCP transport, NOT an A2A JSON-RPC binding: the site does not speak A2A, and a conformant-looking card over an endpoint that rejects message/send is a trap, not discovery.
+require_once SNT_PATH . 'inc/agent-skills.php'; // v12.20.0: Agent Skills Discovery RFC v0.2.0 index (/.well-known/agent-skills/index.json) + its SKILL.md artifacts. Loads AFTER agent-discovery.php — reuses sn_agent_normalize_path()/sn_agent_send_document(). Digests are computed from the SAME file bytes served, at request time, so an edited skill cannot ship a stale digest.
 require_once SNT_PATH . 'inc/admin-forms/mcp-connect-status.php'; // IA M3: the status glance (pure cards + live gatherer)
 require_once SNT_PATH . 'inc/admin-forms/mcp-connect.php'; // v9.47.0: Tools → Connect an MCP client (read-only doc leaf; needs sn_mcp_allowlist() + sn_mcp_namespace() above)
 require_once SNT_PATH . 'inc/admin-forms/mcp-usage-block.php'; // the READOUT half of mcp-telemetry-read.php, folded into the MCP Clients tab. Shipping the accessor without a surface would have reproduced the very defect it fixes — a measurement that exists and a readout that does not.
