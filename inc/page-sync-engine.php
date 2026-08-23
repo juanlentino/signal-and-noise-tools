@@ -11,7 +11,8 @@
  * the engine never blanks a page.
  *
  * Moved VERBATIM out of inc/content-migrations.php in v9.81.0 — that file
- * now holds only the spent one-shot migrations behind the master sentinel;
+ * now holds only the loader spine for the spent one-shot migrations, which sit
+ * in inc/content-migrations/ behind the master sentinel (split in v12.21.3);
  * this engine is the live machinery those migrations originally seeded.
  *
  * @package SignalNoiseTools

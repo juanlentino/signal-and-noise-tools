@@ -2,6 +2,114 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.21.3] - 2026-08-23 — the migrations move, and a silent path bug does not survive it
+
+**No runtime change.** `inc/content-migrations.php` — 1,442 lines, the second
+largest file in the plugin — is now a 164-line loader, and the 37 migration and
+body-loader functions live in 17 per-subject files under
+`inc/content-migrations/`. Installing is optional.
+
+Same method as v12.21.2, one subject per commit with the full sweep between
+each. What differs is the failure mode, and it is worse.
+
+### A dropped migration here is SILENT, not fatal
+`sn_run_content_migrations()` calls every registered migration behind a guard:
+
+```php
+if ( ! get_option( $flag ) && function_exists( $callback ) ) { $callback(); }
+```
+
+So a migration that goes missing does not crash. It is skipped, its flag is
+never stamped, `$complete` stays false, and the master sentinel
+`SN_CONTENT_MIGRATIONS_MASTER_OPT` is withheld forever — the runner re-enters on
+every `admin_init`, does nothing, and reports nothing. In the admin-post split a
+lost handler fatalled loudly at click time. This one says nothing at all.
+
+`tests/content-migrations-registry-coverage.php` ships first for that reason: 24
+registered migrations each resolve and are declared exactly once, plus the
+runner, the registry, the master const, and the single `admin_init`
+registration. Mutation-tested three ways before the split began.
+
+### The bug the guards did not catch, and what it changed
+Every body loader built its seed path from a bare `__DIR__`:
+
+```php
+$body_file = __DIR__ . '/seed-content/verify-body.html';
+return file_exists( $body_file ) ? file_get_contents( $body_file ) : '';
+```
+
+`__DIR__` is **position-dependent**. Moving a loader from `inc/` into
+`inc/content-migrations/` changes it, `file_exists()` goes false, and the loader
+returns `''` — an empty page body, no error raised anywhere.
+
+This happened. The first subject commit moved `sn_load_provenance_body()` and
+broke it exactly this way, and **a full 497-suite sweep stayed green through
+that commit**, because no suite asserted that a body loader returns content. It
+surfaced three commits later, by luck, when a body-content assertion in
+`tests/provenance-verify-page.php` failed while moving an unrelated subject.
+
+The lesson is that "move verbatim" was never safe for these functions — they had
+to be made safe to move *before* being moved. All 14 seed references now resolve
+through one helper that lives in the loader, and therefore in `inc/`, no matter
+how deep the caller sits:
+
+```php
+function sn_content_seed_file( $name ) {
+	return __DIR__ . '/seed-content/' . $name;
+}
+```
+
+The guard grew 54 → 71 assertions: every seed reference in the layer is resolved
+against its **own** file's directory and asserted present on disk, the helper is
+pinned as the single declaration, and a bare `__DIR__` seed path anywhere in the
+layer is now a build failure. Reverting the moved loader turns it red twice.
+
+### The split
+| file | lines | file | lines |
+| --- | ---: | --- | ---: |
+| `now-uses.php` | 147 | `provenance-body.php` | 89 |
+| `provenance-cards.php` | 136 | `provenance-split.php` | 84 |
+| `provenance-readtimes.php` | 127 | `about.php` | 81 |
+| `as-substrate.php` | 121 | `contact.php` | 81 |
+| `resume.php` | 106 | `services.php` | 81 |
+| `personal.php` | 100 | `excerpts.php` | 62 |
+| `music.php` | 98 | `verify-page.php` | 62 |
+| `notes-template.php` | 97 | *(loader)* | 164 |
+| `over-detection.php` | 95 | | |
+| `accessibility.php` | 94 | | |
+
+Every subject file is under the ~150-line house rule — unlike the v12.21.2
+split, which left two files over it.
+
+The loader keeps the **spine** deliberately: `sn_content_seed_file()`,
+`sn_content_migrations_registry()`, `sn_run_content_migrations()`, the master
+sentinel const, and the single `admin_init` registration. Those are the parts a
+duplicate or a loss would break silently, so they stay in one place and the
+layer invariant asserts they are still there.
+
+### Comments that outlived their code
+- Two orphaned section banners, `── BODY LOADERS ──` and `── MIGRATIONS ──`,
+  labelling stretches of blank space.
+- A **Phase 2c** block explaining why `/accessibility` and `/contact/personal`
+  use the frozen-seed model. Both subjects had moved out from under it; it now
+  sits in `accessibility.php`, with a cross-reference from `personal.php` rather
+  than a second copy.
+- The master-sentinel comment opened "Every migration **above** is SPENT". They
+  are no longer above.
+- `inc/page-sync-engine.php` and `inc/split-hero-migration.php` pointed at the
+  old single file. `inc/pillar-meta-seed.php` was left alone — it names
+  `sn_run_content_migrations()`, which is still exactly where it says.
+
+`CHANGELOG.md` and `docs/proposals/*` were left alone: they record what was true
+when written.
+
+### Verification
+**497 suites, 19,857 assertions, 0 failed, 1 skipped** (`contracts-smoke.php`,
+CI-excluded, needs live WP), identical at every one of the 17 subject commits.
+Registry guard 71/0, layer invariant 40 declared / 40 expected with the spine
+still in the loader, at all 18 states. phpcs 18 layer files, 0 errors, 0
+warnings (confirmed with `-v`). PHPStan clean.
+
 ## [12.21.2] - 2026-08-23 — the refactor the guard was for
 
 **No runtime change.** `inc/admin-post-actions.php` — 1,682 lines, the largest

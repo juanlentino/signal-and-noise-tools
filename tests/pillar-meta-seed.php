@@ -64,7 +64,13 @@ echo "Group: wiring\n";
 // admin_init) drives it. tests/content-migrations-master.php pins that drive.
 ok( ! in_array( 'sn_pillar_meta_seed', $GLOBALS['__hooks']['admin_init'] ?? array(), true ),
 	'seed registers NO admin_init hook of its own (the migrations master drives it)' );
-ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/content-migrations.php' ), 'sn_pillar_meta_seed' ),
+// Reads the content-migrations LAYER, not one file: the migrations live in
+// inc/content-migrations/*.php behind a thin loader (v12.21.3), so pinning the
+// loader alone would couple this assertion to where the registry happens to sit.
+ok( false !== strpos( implode( '', array_map( 'file_get_contents', array_merge(
+	array( __DIR__ . '/../inc/content-migrations.php' ),
+	glob( __DIR__ . '/../inc/content-migrations/*.php' ) ?: array()
+) ) ), 'sn_pillar_meta_seed' ),
 	'the master runner references sn_pillar_meta_seed()' );
 
 echo "\nGroup: happy path seeds the three essays once\n";

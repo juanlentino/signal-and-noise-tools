@@ -13,7 +13,7 @@
  *      band md5-matches the frozen hash captured from the live body on
  *      2026-08-03. Any owner edit since means no match → that page is
  *      skipped forever (never clobbers, mirrors the never-clobber guards
- *      in inc/content-migrations.php).
+ *      in inc/content-migrations/).
  *   2. /resume, /now, /uses: regenerated once via their sync engines so
  *      the split-hero markup shipped in v10.35.0/v10.36.0 reaches the
  *      stored bodies without waiting for the next form save.
