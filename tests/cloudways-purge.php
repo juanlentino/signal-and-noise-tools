@@ -479,5 +479,16 @@ $GLOBALS['__token_response'] = array( 'body' => json_encode( array( 'access_toke
 $GLOBALS['__purge_response'] = array( 'body' => json_encode( array( 'status' => true, 'operation_id' => 12345 ) ), 'response' => array( 'code' => 200 ) );
 token_reset();
 
+// ---- API base: v2 default + wp-config rollback (v12.18.0) ------------------
+// v1 is deprecated. The override exists because v2 could not be verified against
+// the live account before shipping — the credentials are wp-config-only and
+// never leave the site — so wp-config must be able to pin back to v1 WITHOUT a
+// plugin release.
+ok( SNT_CW_API_DEFAULT_BASE === 'https://api.cloudways.com/api/v2', 'ships v2 as the default base' );
+ok( false === strpos( SNT_CW_API_DEFAULT_BASE, '/api/v1' ), 'the deprecated v1 base is not the default' );
+ok( sn_cloudways_api_base() === SNT_CW_API_DEFAULT_BASE, 'with no override, resolves to the shipped default' );
+define( 'SN_CLOUDWAYS_API_BASE', 'https://api.cloudways.com/api/v1/' );
+ok( sn_cloudways_api_base() === 'https://api.cloudways.com/api/v1', 'a wp-config override wins, and its trailing slash is trimmed' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

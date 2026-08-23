@@ -28,7 +28,38 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SNT_CW_API_BASE       = 'https://api.cloudways.com/api/v1';
+/**
+ * Cloudways API base.
+ *
+ * v2 since v12.18.0. v1 is DEPRECATED — Cloudways' own v2 announcement says
+ * "the previous Cloudways API v1 is now deprecated" and that migrating is
+ * "just replace v1 with v2 in the API call URL structure". Both legs this
+ * module calls (/oauth/access_token, /app/cache/purge) keep their paths.
+ *
+ * v1 was still answering when this shipped — the Connections → Cloudways leaf
+ * showed a purge succeeding with HTTP 200 fifteen minutes earlier — so this is
+ * insurance against a deprecated dependency, not a repair.
+ *
+ * OVERRIDABLE, and that is the point: v2 could not be verified against the live
+ * account before shipping (the credentials are wp-config-only and never leave
+ * the site). If v2 misbehaves, `define( 'SN_CLOUDWAYS_API_BASE', '…/api/v1' )`
+ * in wp-config.php pins it back WITHOUT a plugin release — a rollback that does
+ * not need a deploy, on the one path whose failure is silent by nature.
+ * The leaf is how you check which one is answering.
+ */
+const SNT_CW_API_DEFAULT_BASE = 'https://api.cloudways.com/api/v2';
+
+/**
+ * Resolve the API base: wp-config override first, else the shipped default.
+ * Same constant-first shape as the four credentials — and deliberately NOT an
+ * option, for the same reason.
+ *
+ * @return string
+ */
+function sn_cloudways_api_base() {
+	$override = sn_cloudways_cfg( 'SN_CLOUDWAYS_API_BASE' );
+	return '' !== $override ? rtrim( $override, '/' ) : SNT_CW_API_DEFAULT_BASE;
+}
 const SNT_CW_LAST_PURGE_OPT = 'sn_cloudways_last_purge';
 
 /**
@@ -205,7 +236,7 @@ function sn_cloudways_get_token( $force_fresh = false ) {
 
 	$GLOBALS['sn_cloudways_token_failure'] = null;
 
-	$res = wp_remote_post( SNT_CW_API_BASE . '/oauth/access_token', array(
+	$res = wp_remote_post( sn_cloudways_api_base() . '/oauth/access_token', array(
 		// Filterable since v10.52.5; see sn_cloudways_timeout() for why the
 		// default is 5s and not the original 15s.
 		'timeout' => sn_cloudways_timeout( 'auth' ),
@@ -299,7 +330,7 @@ function sn_cloudways_purge_app() {
 	}
 
 	$dispatch = static function ( $bearer ) {
-		return wp_remote_post( SNT_CW_API_BASE . '/app/cache/purge', array(
+		return wp_remote_post( sn_cloudways_api_base() . '/app/cache/purge', array(
 			// Filterable since v10.52.5 — see sn_cloudways_timeout().
 			'timeout' => sn_cloudways_timeout( 'purge' ),
 			'headers' => array( 'Authorization' => 'Bearer ' . $bearer ),
