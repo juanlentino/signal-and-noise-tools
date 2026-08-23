@@ -5,7 +5,7 @@
  * Handles all SN admin POST submissions on admin_init (before any output, so
  * wp_safe_redirect/header work cleanly — Post/Redirect/Get). Validates the
  * shared nonce + capability + page allowlist, dispatches to the matching
- * sn_handle_<action>() in inc/admin-post-actions.php via sn_admin_post_handlers(),
+ * sn_handle_<action>() in inc/admin-post-actions/ via sn_admin_post_handlers(),
  * then redirects to the canonical top-tab + sub-tab + anchor carrying the
  * resulting ?sn_flash=… code. Extracted from inc/admin-page.php in v4.5.4.
  *
@@ -21,7 +21,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 /**
  * Action → handler-callback map. Single source of truth for which form actions
- * the dispatcher accepts; each callback lives in inc/admin-post-actions.php and
+ * the dispatcher accepts; each callback lives in inc/admin-post-actions/ and
  * returns a ?sn_flash=… code.
  *
  * @return array<string,string>
@@ -88,7 +88,7 @@ function sn_admin_post_handlers() {
 		'schedule_repurge'           => 'sn_handle_schedule_repurge',
 		'schedule_swap_run_now'      => 'sn_handle_schedule_swap_run_now',
 		// R9 (v9.51.0, lane SEC-C): MCP write-door credential binding
-		// (handler body in inc/admin-post-actions.php).
+		// (handler body in inc/admin-post-actions/mcp.php).
 		'bind_mcp_rw_credential'     => 'sn_handle_bind_mcp_rw_credential',
 		// v9.85.0 (Session 3): Machine Readers sensor settings (worker URL +
 		// write-only read token under the machine_readers subtree).

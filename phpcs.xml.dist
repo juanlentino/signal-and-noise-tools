@@ -53,7 +53,7 @@
 		through the central dispatcher sn_handle_admin_post() (inc/admin-post-handler.php
 		since the v4.5.4 split; formerly admin-page.php), which calls
 		check_admin_referer('sn_theme_options_nonce') ONCE before routing via the
-		action→callback map to per-action handlers in inc/admin-post-actions.php.
+		action→callback map to per-action handlers in inc/admin-post-actions/*.php.
 		PHPCS can't follow that cross-function flow, so it flags every downstream
 		$_POST/$_GET/$_FILES read as "no nonce" — but the nonce IS verified. The
 		split kept the single shared-nonce design (one check before dispatch), so

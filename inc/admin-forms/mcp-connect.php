@@ -27,7 +27,7 @@
  * R1: an unbound sn_mcp_rw_app_password_uuid option denies every /mcp-rw call,
  * by design). This is still the one place every other write-door fact lives,
  * so it is also where the owner turns the door on. Submits to
- * sn_handle_bind_mcp_rw_credential() (inc/admin-post-actions.php), which is
+ * sn_handle_bind_mcp_rw_credential() (inc/admin-post-actions/mcp.php), which is
  * the ONLY function in this whole file's dependency chain that mutates
  * anything — see that handler's own docblock for the ownership check that
  * keeps a POSTed UUID from binding a credential this user doesn't hold.
@@ -187,7 +187,7 @@ function sn_admin_render_mcp_door_native_write() {
  * unresolvable (the UUID no longer matches any of this user's own Application
  * Passwords — revoked, or another user's — re-bind is the only path out).
  *
- * Submits to sn_handle_bind_mcp_rw_credential() (inc/admin-post-actions.php)
+ * Submits to sn_handle_bind_mcp_rw_credential() (inc/admin-post-actions/mcp.php)
  * via the plugin's standard sn_theme_options_nonce + sn_action POST contract
  * (see inc/admin-forms/login.php for the same minimal shape — no hidden
  * tab/sub fields needed, since a same-URL POST already carries them via the
