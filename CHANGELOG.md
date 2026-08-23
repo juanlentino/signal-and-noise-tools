@@ -2,6 +2,85 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.21.4] - 2026-08-23 — the AI bootstrap splits, guarded by its own surface
+
+**No runtime change.** `inc/ai-bootstrap.php` — 1,054 lines — is now a 110-line
+loader, and its 21 functions live in 10 per-concern files under
+`inc/ai-bootstrap/`. Installing is optional.
+
+### This one had no registry, which is why it went last
+The two splits before it were safe because each had a **name-based
+indirection** — `sn_admin_post_handlers()` mapped actions to handler names,
+`sn_content_migrations_registry()` mapped callbacks to sentinel options. Walking
+that map gave a guard something concrete to assert.
+
+`ai-bootstrap.php` has neither. What it has is a large **public surface**: other
+modules call its functions directly — `snt_ai_is_available()` from 26 files,
+`snt_ai_generate_with_constraints()` from 25, `snt_ai_require_text_generation()`
+from 17. That surface is the contract, so
+`tests/ai-bootstrap-surface-coverage.php` pins it: 21 declarations each declared
+exactly once, the eight `SN_AI_*` constants, the two load-time route
+registrations, and the single `admin_enqueue_scripts` hook. 56 assertions,
+mutation-tested six ways before a line moved.
+
+### Three silent hazards, one of them in the tooling itself
+**A by-reference declaration.** `function &snt_ai_availability_cache()` does not
+match `/^function\s+(\w+)/` — the `&` breaks it. The extractor used for the
+previous two splits would have left that function behind, and a guard built on
+the same regex would not have noticed, because tool and check would have shared
+one blind spot. Both are now `&`-aware, the by-reference form is asserted
+verbatim, and the failure was demonstrated live before it could bite: run
+against this file, the old regex reported **20 functions, not 21**.
+
+**Load-time registration calls.** `snt_ai_register_alt_text_model_route()` and
+`snt_ai_register_economy_model_route()` are invoked at top level, not hooked.
+Each adds a filter on `snt_ai_model_preference`. Lose the *call* in a move and no
+filter is registered: alt-text generation silently falls back to the default
+model. Nothing errors — the work still happens, on the wrong model, at the wrong
+price. Invoke one twice and the filter is added twice.
+
+**Eight `define()` constants.** `define()` is a runtime statement: a duplicate
+raises a notice and keeps the **first** value rather than failing loudly.
+
+### The split
+| file | lines | file | lines |
+| --- | ---: | --- | ---: |
+| `generate.php` | 245 | `usage-summary.php` | 101 |
+| `availability.php` | 124 | `post-signal.php` | 96 |
+| `model-routes.php` | 124 | `capability.php` | 90 |
+| `usage-log.php` | 115 | `spend.php` | 84 |
+| `pricing.php` | 110 | *(loader)* | 110 |
+| `editor-assets.php` | 108 | | |
+
+`generate.php` is over the ~150-line house rule because
+`snt_ai_generate_with_constraints()` is a single 188-line function. Splitting a
+function is a behaviour change, not a move, so it is left alone here.
+
+The loader keeps everything that **runs** at load time, in an order that
+matters: constants, then requires, then the two bare registration calls and the
+hook. Step three must follow step two — those registrations are calls, not
+hooks, so their functions must already be declared. That ordering is now stated
+in the file rather than implied by position.
+
+### Comments that outlived their code
+11 references across 10 files named the old file as a function's home. Two were
+worse than stale — they were **line citations**: `tests/ai-bootstrap.php` twice
+explained a test by pointing at "the early-return at `ai-bootstrap.php:73`". That
+function now lives in `ai-bootstrap/capability.php`, so the number named a
+different line in a different file. Both now name
+`snt_ai_can_text_generate()` instead. A function name survives a move; a line
+number does not survive an edit anywhere above it.
+
+`CHANGELOG.md` and `docs/proposals/*` were left alone: they record what was true
+when written.
+
+### Verification
+**498 suites, 19,913 assertions, 0 failed, 1 skipped** (`contracts-smoke.php`,
+CI-excluded, needs live WP), identical at every one of the 10 concern commits.
+Surface guard 56/0, behavioural `tests/ai-bootstrap.php` 130/0, layer invariant
+21 declared / 21 expected with the load-time spine still in the loader, at all 11
+states. phpcs 11 layer files, 0 errors (confirmed with `-v`). PHPStan no errors.
+
 ## [12.21.3] - 2026-08-23 — the migrations move, and a silent path bug does not survive it
 
 **No runtime change.** `inc/content-migrations.php` — 1,442 lines, the second
