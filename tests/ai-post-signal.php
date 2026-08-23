@@ -4,7 +4,8 @@
  * meta-description + excerpt AI generators consume so contentless template
  * Pages get a usable prompt instead of a 422. (plugin v9.3.0)
  *
- * snt_ai_extract_post_text() is declared UNGUARDED in inc/ai-bootstrap.php, so
+ * snt_ai_extract_post_text() is declared UNGUARDED in
+ * inc/ai-bootstrap/post-signal.php, so
  * we cannot stub it (redeclare fatal). We require the real bootstrap and drive
  * content through get_post()->post_content, mirroring tests/ai-concise-param.php.
  */

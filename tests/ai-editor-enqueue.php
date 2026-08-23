@@ -48,7 +48,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "  PASS: 
 
 echo "shared AI editor-asset enqueue helper\n";
 
-ok( function_exists( 'snt_ai_enqueue_editor_script' ), 'snt_ai_enqueue_editor_script() exists in ai-bootstrap.php' );
+ok( function_exists( 'snt_ai_enqueue_editor_script' ), 'snt_ai_enqueue_editor_script() exists in the ai-bootstrap layer' );
 
 // --- happy path: registers, localizes, enqueues, translates ---
 snt_ai_enqueue_editor_script( 'post.php', 'snt-ai-excerpt', 'ai-excerpt.js', 'sntAiExcerpt', array( 'metaBoxClass' => 'sn-post-settings' ), array( 'wp-data' ) );

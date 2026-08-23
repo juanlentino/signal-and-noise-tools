@@ -186,7 +186,7 @@ function snt_ai_meta_desc_impl( $post_id, $concise = false, $focus_keyword = '' 
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	// v9.81.0: shared helper (ai-bootstrap.php) replaces the drifted local copy.
+	// v9.81.0: shared helper (ai-bootstrap/editor-assets.php) replaces the drifted local copy.
 	snt_ai_enqueue_editor_script( $hook_suffix, 'snt-ai-meta-description', 'ai-meta-description.js', 'sntAiMetaDesc', array(
 		'targetId' => 'sn_meta_description', // matches inc/post-settings.php:146
 	) );

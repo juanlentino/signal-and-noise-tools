@@ -134,7 +134,7 @@ function snt_ai_excerpt_impl( $post_id, $concise = false ) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	// v9.81.0: shared helper (ai-bootstrap.php) replaces the drifted local copy.
+	// v9.81.0: shared helper (ai-bootstrap/editor-assets.php) replaces the drifted local copy.
 	// wp-data extra dep: editPost() writes the excerpt back into the editor store.
 	snt_ai_enqueue_editor_script( $hook_suffix, 'snt-ai-excerpt', 'ai-excerpt.js', 'sntAiExcerpt', array(
 		'metaBoxClass' => 'sn-post-settings',

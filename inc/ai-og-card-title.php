@@ -192,7 +192,7 @@ function snt_ai_og_card_title_write( $post_id ) {
  * ════════════════════════════════════════════════════════════════════════ */
 
 add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	// v9.81.0: shared helper (ai-bootstrap.php) replaces the drifted local copy.
+	// v9.81.0: shared helper (ai-bootstrap/editor-assets.php) replaces the drifted local copy.
 	snt_ai_enqueue_editor_script( $hook_suffix, 'snt-ai-og-card-title', 'ai-og-card-title.js', 'sntAiOgCardTitle', array(
 		'targetId' => 'sn_og_card_title',
 	) );

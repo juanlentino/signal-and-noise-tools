@@ -13,7 +13,7 @@
  * WHAT DID NOT MOVE: the `theme.` key namespace. `theme.ai_model`,
  * `theme.ai_alt_model` and `theme.ai_monthly_budget` keep their stored names —
  * renaming them would need a settings migration and would break the readers in
- * inc/analytics-render-settings.php and inc/ai-bootstrap.php. The keys describe
+ * inc/analytics-render-settings.php and inc/ai-bootstrap/. The keys describe
  * where they were born, not where they are edited; only the editing surface
  * moved.
  *
