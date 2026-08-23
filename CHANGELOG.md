@@ -2,6 +2,69 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.22.1] - 2026-08-23 — the backfill panel counted its own guard
+
+The Provenance panel said **"25 published Notes cannot currently be verified"**.
+25 was the **cap**, not a census.
+
+```php
+foreach ( (array) $ids as $id ) {
+    if ( count( $out ) >= SN_PROV_BACKFILL_CAP ) { break; }
+```
+
+The collector stopped at 25, so the panel could never report any other number.
+The honest reading was *"at least 25, and this panel cannot tell you"* — against a
+fleet of 61 signed subjects.
+
+### How a guard became the answer
+The cap was set to 25 as headroom over the module's own note: *"14 known
+candidates today"*. Then v12.8.0 widened the corpus from posts to posts **and
+pages** — *"a signed PAGE whose chain meta is missing is exactly the gap this
+module fills; it was simply never eligible to be found"*. The population grew past
+the guard, the guard became the limiter, and the docblock still said 14.
+
+A bound that silently becomes the reported figure is worse than no bound, because
+it reads exactly like a measurement.
+
+### The count is a census; the run is what is bounded
+- `sn_prov_backfill_candidates()` counts **every** candidate. `numberposts => -1`,
+  not 100: a bounded query is the same lie in a different place, and would have
+  silently stopped counting on a corpus of 101.
+- The bounds moved onto the **run**, where the cost actually is. Each candidate
+  is one ledger fetch at `SN_PROV_INTEGRITY_FETCH_TIMEOUT` (5s worst case),
+  sequentially, inside one admin-post request — 61 subjects could be five
+  minutes. So a **wall-clock budget** (20s, filterable) is the real limiter and
+  the count ceiling (raised 25 → 100) is the backstop.
+- Whichever bound trips, the run **reports what is left and why it stopped**. A
+  bounded run that says nothing reads exactly like a finished one.
+- `remaining` is **recomputed, never subtracted**: a candidate that was attempted
+  and skipped (`ledger_missing`, `ledger_unreachable`) is still a candidate, so
+  `total - attempted` would claim progress that was not made.
+- The panel states the bound **before** the click, so a residual reads as the
+  design working rather than the button failing.
+
+### Budget semantics
+No special case for zero. `$budget > 0` would have made `0` mean *disabled* — the
+opposite of how it reads, and it made the bound untestable without waiting out a
+real clock. The rule is plain: stop once `elapsed >= budget`; a large value is how
+you turn it off.
+
+### The assertion that was the bug, written down
+`tests/provenance-chain-backfill.php` pinned
+`SN_PROV_BACKFILL_CAP === count( sn_prov_backfill_candidates() )` — the old
+contract, asserting that the count was capped. Replaced with the census/run split,
+plus coverage that a bounded run names its stop reason, its total, and its
+remaining.
+
+The harness also stubbed `add_filter()` to a no-op and `apply_filters()` to
+pass-through, so a test that "exercised" the filterable budget would have
+exercised the default and passed **vacuously**. Both are now real, and
+pass-through while nothing is registered.
+
+### Verification
+**498 suites, 19,923 assertions, 0 failed, 1 skipped.** phpcs clean, PHPStan no
+errors.
+
 ## [12.22.0] - 2026-08-23 — the right column has to earn its place
 
 The **Machine Readers** leaf is recomposed, and its rights log stops burying real
