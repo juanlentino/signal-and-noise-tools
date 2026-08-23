@@ -317,6 +317,31 @@ function sn_mcp_server_info( $door = SN_MCP_DOOR_READ ) {
 }
 
 /**
+ * The capability map advertised at initialize AND published in the MCP Server
+ * Card (/.well-known/mcp/server-card.json, inc/agent-discovery.php).
+ *
+ * ONE declaration, two readers — the same discipline as POLICY_VERSION in the
+ * rights Worker. A server card that advertises a capability the handshake does
+ * not return is worse than no card: a client provisions against the card,
+ * connects, and finds the capability missing. Keeping the map here makes that
+ * drift impossible to write, and tests/agent-discovery.php pins the two
+ * against each other.
+ *
+ * `listChanged` is false throughout: neither door emits list-changed
+ * notifications, and advertising a notification we never send is the same
+ * class of lie.
+ *
+ * @return array<string,array<string,bool>>
+ */
+function sn_mcp_capabilities_map() {
+	return array(
+		'tools'     => array( 'listChanged' => false ),
+		'resources' => array( 'listChanged' => false ),
+		'prompts'   => array( 'listChanged' => false ),
+	);
+}
+
+/**
  * Negotiate the protocol version: echo the client's requested revision when we
  * recognize it, else our pinned default. Makes us robust to spec revisions
  * without a code change.

@@ -2,6 +2,58 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.14.0] - 2026-08-22 — the doors existed; nobody could find them
+
+Cloudflare's Agent Readiness scan reads this site as having **no MCP server and
+no API catalog**. Both exist. Both have been publicly named in
+`/.well-known/agents.json` since v9.22.0. The scan is not wrong — it looks at
+the addresses the ecosystem standardised on, and finds 404s.
+
+`agents.json` is a **bespoke** name, and its own docblock says why: *"no
+dominant 'agent discovery' standard exists"*. That was true when it was
+written. It is not true now.
+
+### Added
+- **`/.well-known/mcp/server-card.json`** — MCP Server Card (SEP-1649):
+  `serverInfo`, `protocolVersion`, the streamable-http transport endpoint,
+  `capabilities`, and an explicit `authentication` block.
+- **`/.well-known/api-catalog`** — RFC 9727 linkset (served as
+  `application/linkset+json`, per §3 — a consumer that content-type-sniffs will
+  not recognise a catalog served as plain `application/json`). Three anchors:
+  the WP REST index, the Abilities API, and the MCP read door, whose
+  `service-desc` is the server card next door.
+- **`sn_mcp_capabilities_map()`** — ONE capability declaration, read by both the
+  `initialize` handshake and the server card.
+
+### These add no capability and open no door
+
+Every endpoint named is authenticated exactly as it was before
+(`manage_options` + application password), and `agents.json` has named the same
+MCP URL publicly for a year. Publishing a location is not a grant.
+
+**Read door only.** The rw door is absent, and the reason is not new — it is the
+one `sn_mcp_advertise_surface()` (D5, v9.50.0) already gives for `agents.json`:
+a well-known file is an **unattended** discovery surface that any crawler reads
+without a session, so it may only name the door safe to hand to an unattended
+reader. A `.well-known` path is that argument's strongest case, not an exception
+to it. Two tests assert the rw door appears in neither document.
+
+### Why the capability map moved
+
+A server card that advertises a capability the handshake does not return is
+worse than no card: a client provisions against the card, connects, and finds
+the capability missing. `sn_mcp_capabilities_map()` makes that drift impossible
+to write, and `tests/agent-discovery.php` pins the two against each other by
+driving the **real** `sn_mcp_handle_request()` initialize path — not a fixture
+restating what the card says, which would stay green through the exact drift it
+exists to catch. Mutation-verified: adding a phantom capability to the card
+turns that assertion red and nothing else.
+
+### Unchanged
+- `/.well-known/agents.json` keeps its bespoke name and its richer surface list.
+  It remains what `/llms.txt` points at. These two documents are the same facts
+  at the standard addresses, not a replacement.
+
 ## [12.13.0] - 2026-08-22 — "Last deploy" says what deployed
 
 The Deploy Status card ends in one line: `Last deploy: 40 minutes ago`. Above it
