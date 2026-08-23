@@ -67,6 +67,7 @@ require_once __DIR__ . '/content-migrations/about.php';
 require_once __DIR__ . '/content-migrations/contact.php';
 require_once __DIR__ . '/content-migrations/services.php';
 require_once __DIR__ . '/content-migrations/resume.php';
+require_once __DIR__ . '/content-migrations/music.php';
 
 // ── BODY LOADERS ─────────────────────────────────────────────────
 
@@ -79,26 +80,7 @@ require_once __DIR__ . '/content-migrations/resume.php';
 
 
 
-/**
- * Load the seeded /music hero + Spotify-embeds-open markup (the part of the
- * page-music.html template that sits ABOVE wp:post-content). Mirrors
- * sn_load_about_body() — same empty-string fallback semantics.
- */
-function sn_load_music_above() {
-	$body_file = sn_content_seed_file( 'music-above.html' );
-	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
-}
 
-/**
- * Load the seeded /music discography-shortcode + Spotify-embeds-close +
- * Muso-credits markup (the part of the page-music.html template that sits
- * BELOW wp:post-content). Mirrors sn_load_music_above() — same empty-string
- * fallback semantics.
- */
-function sn_load_music_below() {
-	$body_file = sn_content_seed_file( 'music-below.html' );
-	return file_exists( $body_file ) ? (string) file_get_contents( $body_file ) : '';
-}
 
 // ── MIGRATIONS (one-shot, idempotent per SN_*_MIGR_OPT flag) ───────
 
@@ -145,58 +127,6 @@ function sn_migrate_seed_page_excerpts() {
 
 
 
-/**
- * One-time migration flipping /music from template-authored to
- * CMS-authored: the live Page's post_content today holds ONLY the
- * featured-player shortcode content (the theme template renders the hero
- * prose + Spotify-embeds wrapper + discography shortcode + Muso-credits
- * section AROUND it). Mirrors sn_migrate_resume_body() — same merge and
- * safety semantics, gated by SN_MUSIC_BODY_MERGED_OPT and the hero
- * eyebrow sentinel.
- */
-function sn_migrate_music_body() {
-	if ( get_option( SN_MUSIC_BODY_MERGED_OPT ) ) {
-		return;
-	}
-
-	$page = get_page_by_path( SN_MUSIC_SLUG );
-	if ( ! $page ) {
-		// Page doesn't exist yet — nothing to merge. Mark migrated so we
-		// don't keep checking.
-		update_option( SN_MUSIC_BODY_MERGED_OPT, time(), true );
-		return;
-	}
-
-	if ( false !== strpos( (string) $page->post_content, 'Catalog · Discography' ) ) {
-		// Already merged — the hero sentinel is present. Never double-merge.
-		update_option( SN_MUSIC_BODY_MERGED_OPT, time(), true );
-		return;
-	}
-
-	$above = sn_load_music_above();
-	$below = sn_load_music_below();
-	if ( '' === $above || '' === $below ) {
-		// Seed file missing — leave the Page alone, do not mark migrated
-		// so we retry on next admin_init in case the file lands later.
-		return;
-	}
-
-	$merged = $above . "\n\n" . (string) $page->post_content . "\n\n" . $below;
-
-	$update = array(
-		'ID'           => $page->ID,
-		'post_content' => $merged,
-	);
-
-	// Only seed the excerpt when it's genuinely empty — never clobber an
-	// owner-written excerpt.
-	if ( '' === trim( (string) $page->post_excerpt ) ) {
-		$update['post_excerpt'] = 'Selected discography: releases produced, mixed, and engineered by Juan Lentino, with credits and streaming links.';
-	}
-
-	wp_update_post( $update );
-	update_option( SN_MUSIC_BODY_MERGED_OPT, time(), true );
-}
 
 
 
