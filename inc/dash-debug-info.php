@@ -40,6 +40,17 @@ function snt_dashboard_debug_information( $info ) {
 		);
 	}
 
+	// Which build serves WordPress's own JS packages (public — v12.25.0).
+	// A plugin re-registering the wp-* handles is invisible in wp-admin until a
+	// screen dies of it; inc/script-package-origin.php carries the incident that
+	// bought this field.
+	if ( function_exists( 'snt_script_package_override_summary' ) ) {
+		$fields['script_packages'] = array(
+			'label' => __( 'WordPress JS packages served by', 'signal-and-noise-tools' ),
+			'value' => snt_script_package_override_summary(),
+		);
+	}
+
 	// DB override count (public).
 	$fields['db_overrides'] = array(
 		'label' => __( 'Database template/navigation overrides', 'signal-and-noise-tools' ),
