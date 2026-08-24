@@ -2,6 +2,50 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.24.0] - 2026-08-23 — the plugin can read who proved their identity
+
+Worker v1.19.0 started recording whether a machine reader carried a valid Web
+Bot Auth signature, and v1.20.0 exposed that column through the read query this
+plugin consumes. This is the plugin half: the column is normalized into a
+bounded vocabulary and lands in the taxonomy row alongside `markdown_requested`.
+
+### Added
+
+- **`signed_agent`** on every normalized taxonomy row — one of `valid`,
+  `invalid`, `unknown-key`, `unsigned`, `unmeasured`, or `other`.
+
+### Four states, not a boolean
+
+`invalid` and `unknown-key` are the two populations that would matter first if
+verification ever became a gate: an agent signing incorrectly, and an agent
+signing with a key no directory vouches for. A boolean erases both.
+
+### NOT-MEASURED IS NOT UNSIGNED
+
+Rows written before Worker v1.19.0 carry no value, and an older Worker sends no
+column at all. Both normalize to **`unmeasured`**, never to `unsigned`.
+
+Folding them together would inflate the did-not-sign population with every
+historical row and make adoption read worse than it is — the same class of error
+as counting a never-measured zero as a measured one. `unsigned` is a
+measurement: this agent was asked and did not sign.
+
+### A state we have never heard of reads as `other`
+
+If the Worker grows a fifth state, that surfaces as `other` rather than being
+dressed up as one of the four this plugin knows.
+
+### Cross-repo
+
+Requires **Worker v1.20.0+** for the column to arrive at all. Against an older
+Worker every row reads `unmeasured` and the readout degrades rather than
+erroring — the same additive contract `markdown_requested` established.
+
+### Known gap
+
+Like `markdown_requested` before it, this value is normalized and tested but
+**rendered nowhere yet**. Two metrics now sit one step short of a surface.
+
 ## [12.23.1] - 2026-08-23 — drift verdicts stop evaporating on every release
 
 The Content-Health drift check is the only check that spends money: one model
