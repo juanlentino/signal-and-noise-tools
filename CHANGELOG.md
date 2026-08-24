@@ -2,6 +2,46 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.25.1] - 2026-08-24 — Site Health names the plugin serving core's JS
+
+On 2026-08-23 the Gutenberg plugin was installed and `Settings → AI` went blank
+with a minified React error #130. Diagnosing it took a browser session, a patched
+JSX runtime and a diff of two minified bundles — because the question *"who is
+serving `wp.components`?"* had no answer anywhere on the site.
+
+A plugin may re-register `wp-components`, `wp-element` and every other `wp-*`
+handle against its own build. The Gutenberg plugin re-registers all of them, and
+wp-admin says so nowhere.
+
+### Added
+
+- **A Site Health → Info field naming which plugin serves WordPress's own JS
+  packages.** `snt_script_package_overrides()` walks the live script registry,
+  attributes every `wp-*` handle to core / plugin / theme / mu-plugin by its
+  registered `src`, and groups the non-core ones. With Gutenberg active it reads
+  `plugin:gutenberg — 154 handles (wp-a11y, wp-block-editor, wp-components,
+  +151)`. With it gone: `core — no plugin overrides WordPress JS packages`.
+
+  It **reports an override; it does not judge one.** Running Gutenberg is a
+  legitimate choice, so this is a diagnostic fact on a surface people already
+  open when a screen breaks — not a health finding that would train you to
+  ignore it. `debug_information` was already wired, so this is a field on an
+  existing surface rather than a new one.
+
+- **`docs/proposals/edge-capability-survey-2026-08-23.md`** — nine candidate
+  capabilities for the five Workers, scored against a cost and rules envelope,
+  with the already-shipped and the rejected both recorded so neither is
+  re-proposed. Two of the nine shipped the same night.
+
+- **`docs/dashboard-widget-contract-prep.md`** — a WATCH note on Gutenberg's
+  dashboard widget system, read against our nine OpenStation widgets. No
+  plugin-facing registration API exists, so it is not portable work yet.
+
+### Covered by
+
+`tests/script-package-origin.php` — 14 assertions, including a theme override, a
+srcless alias handle, and our own handles correctly ignored.
+
 ## [12.25.0] - 2026-08-24 — the updater's self-healing was unreachable from the command line
 
 Two identity problems in the self-updater, both silent by construction.

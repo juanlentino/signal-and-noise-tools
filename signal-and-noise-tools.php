@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     12.25.0
+ * Version:     12.25.1
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -195,6 +195,7 @@ require_once SNT_PATH . 'inc/dash-widget.php';           // v11.30.0: the consol
 require_once SNT_PATH . 'inc/dash-ops-panels.php';       // v11.29.2: the ops wall's panels — a projection of existing accessors
 require_once SNT_PATH . 'inc/dash-deploy-rows.php';      // v11.28.1: one deploy run's glyph, repo, duration, relative time
 require_once SNT_PATH . 'inc/dash-api-summary.php';      // v11.28.1: the rate-limit line + whether it earns its space
+require_once SNT_PATH . 'inc/script-package-origin.php'; // v12.24.0: names the plugin SERVING core's wp-* JS handles (the Gutenberg-override class of breakage)
 require_once SNT_PATH . 'inc/dash-debug-info.php';       // v11.28.1: the Site Health > Info panel (not a Dashboard surface)
 require_once SNT_PATH . 'inc/admin-legacy-redirect.php';
 require_once SNT_PATH . 'inc/admin-menu.php';
