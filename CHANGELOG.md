@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.24.1] - 2026-08-24 — the signature normalizer stops corrupting its own output
+
+`snt_mr_fetch()` normalizes rows before returning them. Any caller that
+normalized a fetched row again ran the value through twice — and on the second
+pass `unmeasured` was not in the accepted set, so it fell through to `other`.
+
+History therefore reported as an unrecognized state rather than as not-measured.
+The bug produced a plausible-looking answer instead of an error, which is the
+worst way for a data defect to behave: nothing failed, the number was simply
+wrong.
+
+### Fixed
+
+- **`snt_mr_normalize_signed_agent()` is now idempotent.** The accepted set
+  includes the function's own outputs (`unmeasured`, `other`), so every value it
+  can emit maps to itself.
+
+### The test that pins it
+
+The suite now asserts **fixed point** — `f(x) === x` for every value in the
+vocabulary — rather than mere stability. The weaker property, `f(x) === f(f(x))`,
+passes on the exact bug being fixed here: `unmeasured → other → other` is
+perfectly stable and perfectly wrong. It also drives the real path, normalizing
+an already-normalized row the way `snt_mr_fetch()` callers do.
+
+### Measured
+
+Raw Worker values over 30 days at the time of the fix: `'' → 58,286`,
+`'unsigned' → 56`. The Worker was correct throughout; only the plugin's second
+pass mislabelled it.
+
 ## [12.24.0] - 2026-08-23 — the plugin can read who proved their identity
 
 Worker v1.19.0 started recording whether a machine reader carried a valid Web

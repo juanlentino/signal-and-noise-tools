@@ -319,5 +319,29 @@ ok(
 	'an unrecognized state reads as other, never as a known state'
 );
 
+// v12.24.1: the normalizer must be IDEMPOTENT.
+//
+// snt_mr_fetch() already normalizes before returning, so any caller that
+// normalizes a fetched row again runs the value through twice. Before this
+// fix '' became 'unmeasured' on the first pass and 'other' on the second --
+// a silent corruption that produced a plausible-looking answer rather than an
+// error, which is the worst way for a data bug to behave.
+// The property is FIXED POINT, not mere stability: every value this function
+// can OUTPUT must map to itself. Asserting f(x) === f(f(x)) is weaker and
+// passes on the very bug being fixed ('unmeasured' -> 'other' -> 'other' is
+// stable, and wrong).
+foreach ( array( 'valid', 'invalid', 'unknown-key', 'unsigned', 'unmeasured', 'other' ) as $state ) {
+	ok(
+		$state === snt_mr_normalize_signed_agent( $state ),
+		"signed_agent '$state' is a fixed point — normalizing it again returns itself"
+	);
+}
+
+// The specific regression: a row that has already been through the normalizer
+// (which is every row snt_mr_fetch returns) must not drift on a second pass.
+$fetched = snt_mr_normalize_taxonomy_fields( array( 'signed_agent' => '' ) );
+$again   = snt_mr_normalize_taxonomy_fields( $fetched );
+ok( 'unmeasured' === ( $again['signed_agent'] ?? null ), 'an already-normalized unmeasured row stays unmeasured' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

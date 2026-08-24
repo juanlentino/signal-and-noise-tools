@@ -114,7 +114,13 @@ function snt_mr_normalize_signed_agent( $value ) {
 	if ( '' === $value ) {
 		return 'unmeasured';
 	}
-	return in_array( $value, array( 'unsigned', 'valid', 'invalid', 'unknown-key' ), true )
+	// The accepted set includes this function's OWN outputs, which makes it
+	// idempotent. snt_mr_fetch() normalizes before returning, so any caller
+	// that normalizes a fetched row runs the value through twice; without
+	// 'unmeasured' and 'other' here, the second pass turned 'unmeasured' into
+	// 'other' and reported history as an unrecognized state. A corruption that
+	// yields a plausible value rather than an error is the worst kind.
+	return in_array( $value, array( 'unsigned', 'valid', 'invalid', 'unknown-key', 'unmeasured', 'other' ), true )
 		? $value
 		: 'other';
 }
