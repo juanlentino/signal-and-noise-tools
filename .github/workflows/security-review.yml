@@ -19,7 +19,27 @@ jobs:
     # slowest observed success by ~2.3x while surfacing the next hang in a third
     # of the time.
     # Measured max over the last 8 successful runs: 200s. Set above that with real headroom, not at it.
-    timeout-minutes: 8
+    #
+    # 2026-08-24, RAISED 8 -> 15. Two new measurements broke the 200s model:
+    # this repo's PR #799 ran 8m30s and was CANCELLED by the 8-minute cap
+    # without producing a verdict, and the sibling theme repo's identical job
+    # completed SUCCESSFULLY at 9m44s on the same day. So ~10 minutes is now a
+    # real success duration, not a hang, and an 8-minute cap converts ordinary
+    # slow runs into red PRs.
+    #
+    # This is not merely cosmetic, because of how the cancellation fails:
+    # the action writes a per-SHA cache marker, and a run cancelled mid-scan
+    # leaves that marker behind. Every subsequent re-run of the same SHA then
+    # finds the marker, SKIPS the scan entirely
+    # (`claudecode-scan; outcome=skipped; duration_ms=0`, no findings.json)
+    # and reports the job GREEN in ~14 seconds. A timeout here therefore does
+    # not just fail a PR -- it poisons the check into passing without ever
+    # scanning, which is worse than the red it replaces. Observed twice on
+    # PR #799 before the cause was found in the job log.
+    #
+    # Note the prose above this line already argued for a 10-minute ceiling
+    # while the value read 8; that drift is resolved here too.
+    timeout-minutes: 15
     permissions:
       pull-requests: write
       contents: read
