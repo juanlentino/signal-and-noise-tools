@@ -92,6 +92,10 @@ function snt_mr_compose_tab( $ctx ) {
 	$out .= (string) ( $ctx['sensor_status_html'] ?? '' );
 	if ( $ok ) {
 		$out .= snt_mr_render_summary_chips( $rows, $days, $ctx['feed_total'] ?? null );
+		// v12.26.0: the identity row sits directly under the volume chips — the
+		// same KPI vocabulary, one question further in: not just how many machines
+		// read, but how many asked for markdown and how many proved who they are.
+		$out .= snt_mr_render_identity_row( $rows, $days );
 	}
 	$out .= '</div>';
 

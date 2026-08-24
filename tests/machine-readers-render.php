@@ -126,5 +126,49 @@ $hostile = snt_mr_render_feed_table( array( 'most_recent' => '<img src=x>', 'win
 ok( false === strpos( $hostile, '<img' ), 'tracker values are escaped at the sink' );
 ok( false !== strpos( snt_mr_render_feed_table( array() ), 'sn-an-empty' ), 'no tracker data renders the central empty state, not a fabricated zero' );
 
+// ── v12.26.0: the identity row (signed_agent + markdown_requested) ──────────
+//
+// Both metrics have been normalized and tested since v12.16.0 / v12.24.0 and
+// rendered NOWHERE. This is their door.
+$rows_unmeasured = array(
+	array( 'family' => 'openai', 'hits' => 900, 'signed_agent' => 'unmeasured', 'markdown_requested' => false ),
+	array( 'family' => 'anthropic', 'hits' => 100, 'signed_agent' => 'unmeasured', 'markdown_requested' => true ),
+);
+$rows_measured = array(
+	array( 'family' => 'openai', 'hits' => 60, 'signed_agent' => 'valid', 'markdown_requested' => true ),
+	array( 'family' => 'openai', 'hits' => 30, 'signed_agent' => 'unsigned', 'markdown_requested' => false ),
+	array( 'family' => 'perplexity', 'hits' => 10, 'signed_agent' => 'invalid', 'markdown_requested' => false ),
+);
+
+// THE LOAD-BEARING CASE. An hour after the sensor ships, every historical row
+// reads 'unmeasured'. Rendering "0 verified" there would be a FALSE ZERO — it
+// asserts a measurement that was never taken. Never-measured and measured-zero
+// are different answers and must not render the same.
+$t_un = snt_mr_identity_totals( $rows_unmeasured );
+ok( 0 === $t_un['measured'], 'an all-unmeasured window reports zero MEASURED reads' );
+ok( 1000 === $t_un['total'], 'while still counting the reads themselves' );
+$html_un = snt_mr_render_identity_row( $rows_unmeasured, 30 );
+ok( false !== strpos( $html_un, 'not yet measured' ), 'the unmeasured window says so in words' );
+ok( false === strpos( $html_un, '>0<' ), 'and never paints a bare 0 that would read as "none verified"' );
+
+// Markdown adoption is measurable even when signatures are not — different
+// sensor, different vintage. It must not be suppressed by the guard above.
+ok( false !== strpos( $html_un, '100' ), 'markdown adoption still renders in an unmeasured-signature window' );
+
+// With real signature data, the split is reported.
+$t_m = snt_mr_identity_totals( $rows_measured );
+ok( 100 === $t_m['measured'], 'measured counts every row that carries a real state' );
+ok( 60 === $t_m['valid'], 'valid hits are summed' );
+ok( 10 === $t_m['invalid'], 'invalid hits are summed separately — not folded into unsigned' );
+ok( 30 === $t_m['unsigned'], 'unsigned is its own bucket' );
+$html_m = snt_mr_render_identity_row( $rows_measured, 30 );
+ok( false !== strpos( $html_m, '60' ), 'the verified count is rendered' );
+ok( false === strpos( $html_m, 'not yet measured' ), 'and the unmeasured wording is gone once there is data' );
+
+// Escaping: family/state values reach the sink through esc_html like every
+// other fragment on this page.
+$evil = array( array( 'family' => '<script>', 'hits' => 5, 'signed_agent' => '<img>', 'markdown_requested' => false ) );
+ok( false === strpos( snt_mr_render_identity_row( $evil, 30 ), '<script>' ), 'raw markup never reaches the output' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -2,6 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.26.0] - 2026-08-24 — two measured numbers finally get a door
+
+`markdown_requested` has been normalized and tested since v12.16.0.
+`signed_agent` since v12.24.0. Neither was rendered anywhere. Both were one step
+short of a surface — the shape this project has been bitten by three times, and
+this time it had doubled.
+
+### Added
+
+- **An identity KPI row on Content → Machine Readers**, directly under the volume
+  chips and in the same `.sn-kpi` vocabulary. One question further in: not just
+  how many machines read, but how many asked for markdown, and how many proved
+  who they are.
+
+### The unmeasured guard is the whole design
+
+For the first weeks after the sensor shipped, nearly every read carries
+`unmeasured`. Painting **"0 verified"** there would be a FALSE ZERO: it asserts a
+measurement that was never taken, and it would make an absence of data look like
+a finding about agent behaviour.
+
+So `snt_mr_identity_totals()` counts `measured` as **only** those reads carrying
+a real signature state, and the card reads *"not yet measured — no read in this
+window carried a signature state"* until at least one does. A share computed
+against history would answer a question nobody asked: *"what fraction of all
+history signed?"* is not *"what fraction of the reads we can judge, signed?"*.
+
+Markdown adoption is a different sensor of a different vintage, so it renders
+regardless — suppressing a genuinely measured number to match an unmeasured one
+would be the same error inverted.
+
+`invalid` and `unknown-key` surface as a sub-note when non-zero, never folded
+into `unsigned`.
+
+### Covered by
+
+`tests/machine-readers-render.php` — the load-bearing case is an all-unmeasured
+window asserting both that it says so in words AND that it never paints a bare
+`0`, plus the measured split, and that markdown still renders when signatures
+cannot.
+
 ## [12.25.1] - 2026-08-24 — Site Health names the plugin serving core's JS
 
 On 2026-08-23 the Gutenberg plugin was installed and `Settings → AI` went blank
