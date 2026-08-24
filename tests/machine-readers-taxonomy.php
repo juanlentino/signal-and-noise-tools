@@ -292,5 +292,32 @@ ok( false === ( $md_off['markdown_requested'] ?? null ), "markdown_requested '0'
 ok( false === ( $md_absent['markdown_requested'] ?? null ), 'an older Worker sending no column degrades to false, not null' );
 ok( false === ( snt_mr_normalize_taxonomy_fields( array( 'markdown_requested' => 'yes' ) )['markdown_requested'] ?? null ), 'any non-"1" value is false (fails toward not-requested)' );
 
+// v12.24.0: signed_agent — Worker v1.19.0's blob11, exposed by the read query
+// in Worker v1.20.0. FOUR states plus two honesty cases, which is the whole
+// reason this is not a boolean.
+foreach ( array( 'valid', 'unsigned', 'invalid', 'unknown-key' ) as $state ) {
+	ok(
+		$state === ( snt_mr_normalize_taxonomy_fields( array( 'signed_agent' => $state ) )['signed_agent'] ?? null ),
+		"signed_agent '$state' passes through intact"
+	);
+}
+
+// THE DISTINCTION THAT MATTERS. An older Worker, or a row written before
+// v1.19.0, carries no value at all. That is NOT-MEASURED, and it must never
+// collapse into 'unsigned', which is a measurement that the agent did not sign.
+// Collapsing them would silently inflate the unsigned population with every
+// historical row and make adoption look worse than it is.
+$sa_absent = snt_mr_normalize_taxonomy_fields( array() );
+$sa_empty  = snt_mr_normalize_taxonomy_fields( array( 'signed_agent' => '' ) );
+ok( 'unmeasured' === ( $sa_absent['signed_agent'] ?? null ), 'an absent column is unmeasured, NOT unsigned' );
+ok( 'unmeasured' === ( $sa_empty['signed_agent'] ?? null ), 'an empty value is unmeasured, NOT unsigned' );
+
+// Forward-compat: a state this plugin has never heard of must not be dressed up
+// as one it has. 'other' says "the Worker knows something I do not".
+ok(
+	'other' === ( snt_mr_normalize_taxonomy_fields( array( 'signed_agent' => 'sideways' ) )['signed_agent'] ?? null ),
+	'an unrecognized state reads as other, never as a known state'
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

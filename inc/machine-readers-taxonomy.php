@@ -92,6 +92,34 @@ function snt_mr_normalize_ua_sample( $ua ) {
 }
 
 /**
+ * Normalize the Web Bot Auth signature state to a bounded vocabulary.
+ *
+ * NOT-MEASURED IS NOT UNSIGNED, and this is the whole point of the function.
+ * Rows written before Worker v1.19.0 carry no value, and an older Worker sends
+ * no column at all. Folding either into 'unsigned' would inflate the
+ * did-not-sign population with every historical row and make adoption read
+ * worse than it is — the same class of error as counting a never-measured zero
+ * as a measured one.
+ *
+ * An unrecognized value reads as 'other' rather than being dressed up as a
+ * state this plugin knows. If the Worker grows a fifth state, this surfaces
+ * that it did instead of silently mislabelling it.
+ *
+ * @since 12.24.0
+ * @param mixed $value Raw column value from the Worker's aggregate read.
+ * @return string One of: unmeasured, unsigned, valid, invalid, unknown-key, other.
+ */
+function snt_mr_normalize_signed_agent( $value ) {
+	$value = strtolower( trim( (string) $value ) );
+	if ( '' === $value ) {
+		return 'unmeasured';
+	}
+	return in_array( $value, array( 'unsigned', 'valid', 'invalid', 'unknown-key' ), true )
+		? $value
+		: 'other';
+}
+
+/**
  * Normalize the additive taxonomy fields on one sensor row.
  *
  * Same fail-into-the-enum discipline as the original normalizer: an
@@ -124,6 +152,11 @@ function snt_mr_normalize_taxonomy_fields( $row ) {
 		// sends no such column, the value lands on false, and the readout
 		// degrades to "nobody asked" rather than erroring.
 		'markdown_requested'     => '1' === (string) ( $row['markdown_requested'] ?? '' ),
+		// v12.24.0: did this reader PROVE who it is? Worker v1.19.0's blob11,
+		// exposed by v1.20.0's read query. Four states, not a boolean —
+		// 'invalid' and 'unknown-key' are the populations that would matter
+		// first if verification ever became a gate, and a boolean erases both.
+		'signed_agent'           => snt_mr_normalize_signed_agent( $row['signed_agent'] ?? null ),
 	);
 }
 
