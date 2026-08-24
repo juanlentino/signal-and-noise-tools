@@ -430,3 +430,114 @@ function snt_mr_render_edge_readout( $info ) {
 	$out .= '</div>';
 	return $out;
 }
+
+/**
+ * Sum the two identity signals across a window: did the reader ask for markdown,
+ * and did it PROVE who it is.
+ *
+ * `measured` counts only reads carrying a real signature state. Rows written
+ * before Worker v1.19.0 read `unmeasured` and are deliberately excluded from it,
+ * because a share computed against them would answer a question nobody asked:
+ * "what fraction of all history signed?" is not the same as "what fraction of
+ * reads we can actually judge signed?".
+ *
+ * @since 12.26.0
+ * @param array $rows Normalized taxonomy rows.
+ * @return array{total:int,measured:int,valid:int,invalid:int,unknown_key:int,unsigned:int,markdown:int}
+ */
+function snt_mr_identity_totals( $rows ) {
+	$out = array(
+		'total'       => 0,
+		'measured'    => 0,
+		'valid'       => 0,
+		'invalid'     => 0,
+		'unknown_key' => 0,
+		'unsigned'    => 0,
+		'markdown'    => 0,
+	);
+	foreach ( (array) $rows as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$hits           = max( 0, (int) ( $row['hits'] ?? 0 ) );
+		$out['total']  += $hits;
+		if ( ! empty( $row['markdown_requested'] ) ) {
+			$out['markdown'] += $hits;
+		}
+		$bucket = array(
+			'valid'       => 'valid',
+			'invalid'     => 'invalid',
+			'unknown-key' => 'unknown_key',
+			'unsigned'    => 'unsigned',
+		);
+		$state = (string) ( $row['signed_agent'] ?? '' );
+		// 'unmeasured', 'other' and '' fall through: counted in total, never in
+		// measured. Silence is not a measurement.
+		if ( isset( $bucket[ $state ] ) ) {
+			$out[ $bucket[ $state ] ] += $hits;
+			$out['measured']          += $hits;
+		}
+	}
+	return $out;
+}
+
+/**
+ * The identity KPI row: markdown adoption and signature verification.
+ *
+ * Both numbers existed and were rendered nowhere — markdown since v12.16.0,
+ * signatures since v12.24.0. This is their door.
+ *
+ * WHY THE UNMEASURED GUARD. For the first weeks after the sensor ships, nearly
+ * every read carries `unmeasured`. Painting "0 verified" there would be a FALSE
+ * ZERO: it asserts a measurement that was never taken, and it would make
+ * adoption look like a finding when it is an absence of data. The card says "not
+ * yet measured" until at least one read carries a real state.
+ *
+ * Markdown adoption is a DIFFERENT sensor of a different vintage, so it renders
+ * regardless — suppressing it would hide a number that is genuinely measured.
+ *
+ * @since 12.26.0
+ * @param array $rows Normalized taxonomy rows.
+ * @param int   $days Window length, for the label.
+ * @return string
+ */
+function snt_mr_render_identity_row( $rows, $days ) {
+	$t    = snt_mr_identity_totals( $rows );
+	$card = function ( $label, $value, $note = '' ) {
+		return '<div class="sn-kpi"><p class="sn-kpi-label">' . esc_html( $label ) . '</p>'
+			. '<p class="sn-kpi-value">' . esc_html( (string) $value ) . '</p>'
+			. ( '' !== $note ? '<p class="sn-kpi-note">' . esc_html( $note ) . '</p>' : '' )
+			. '</div>';
+	};
+
+	if ( 0 === $t['measured'] ) {
+		$signature = $card(
+			__( 'proved identity', 'signal-and-noise-tools' ),
+			'—',
+			__( 'not yet measured — no read in this window carried a signature state', 'signal-and-noise-tools' )
+		);
+	} else {
+		$note = '';
+		if ( $t['invalid'] > 0 || $t['unknown_key'] > 0 ) {
+			$note = sprintf(
+				/* translators: 1: invalid signature count, 2: unknown-key count. */
+				__( '%1$s invalid, %2$s unknown key', 'signal-and-noise-tools' ),
+				number_format_i18n( $t['invalid'] ),
+				number_format_i18n( $t['unknown_key'] )
+			);
+		}
+		$signature = $card(
+			__( 'proved identity', 'signal-and-noise-tools' ),
+			number_format_i18n( $t['valid'] ) . ' / ' . number_format_i18n( $t['measured'] ),
+			$note
+		);
+	}
+
+	return '<div class="sn-kpi-row sn-mr-kpi-row">'
+		. $signature
+		. $card(
+			sprintf( /* translators: %s: window length in days. */ __( 'asked for markdown, %sd', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ),
+			number_format_i18n( $t['markdown'] )
+		)
+		. '</div>';
+}
