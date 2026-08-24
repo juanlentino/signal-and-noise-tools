@@ -2,6 +2,74 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.25.0] - 2026-08-24 — the updater's self-healing was unreachable from the command line
+
+Two identity problems in the self-updater, both silent by construction.
+
+The version-change watchdog — the block that clears the GitHub tag cache, WP's
+`update_plugins` transient, the parsed plugin-header cache and the
+`plugin_information_<slug>` transient after an install — had been registered on
+`admin_init` since v1.11.1. WP-CLI is not an admin request and wp-cron is not an
+admin request, so neither ever fired it. Someone driving updates from the CLI
+got none of the invalidation and read whatever the object cache last held.
+
+On a site with a persistent object cache that is not academic: site transients
+live in Redis rather than `wp_options`, so `wp transient delete --all` cannot
+clear them either — it deletes only DB-backed transients, by design. The
+self-healing existed and was simply unreachable from the way the plugin is
+operated.
+
+### Fixed
+
+- **The watchdog moved from `admin_init` to `init`**, and became a named
+  function (`sn_plugin_update_version_watchdog()`) instead of an anonymous
+  closure. `init` fires in wp-admin, on the front end, under wp-cron and under
+  WP-CLI; admin requests fire it *before* `admin_init`, so the new registration
+  strictly dominates the old one and nothing that worked before stops working.
+- **`wp_clean_plugins_cache()` is now reachable in those contexts.** It lives in
+  `wp-admin/includes/plugin.php`, which is not loaded outside wp-admin, so the
+  watchdog pulls the include in rather than silently skipping the header-cache
+  clear. Skipping it would have been worse than the original bug: the last-seen
+  option is written either way, so the next admin request would find no version
+  change left to act on.
+
+### Added
+
+- **`sn_plugin_basename_mismatch()` and an admin notice.**
+  `SN_GH_PLUGIN_BASENAME` is hardcoded, and every update entry we write plus
+  every `upgrader_*` gate keys off it. There are two identities that must agree
+  — the directory WordPress loaded us from, and the basename we claim — and core
+  never reconciles them. When they diverge we announce an update for a plugin
+  WordPress does not have, so **no update row renders anywhere**, clearing caches
+  cannot help (the transient is rebuilt with the same wrong key), and the only
+  route to new code is delete-and-reinstall.
+
+  That last part makes it self-perpetuating: GitHub's tag archive unpacks to
+  `signal-and-noise-tools-<version>/`, and the rename filter that fixes this
+  gates on `$hook_extra['plugin']`, which is unset for a manual Upload Plugin.
+  The notice names the directory found, the directory expected, and the fix.
+
+### The tests that pin them
+
+`tests/wp-update-cache-watchdog.php` asserts the registration hook itself, then
+drives the real watchdog through a version change and a no-op second call —
+idempotence matters because this now runs on every request. `tests/wp-update-basename-assertion.php`
+asserts the notice **quotes the wrong directory it actually found**, not merely
+that it rendered; a notice that says "something is wrong" without naming the
+value is not actionable. Both suites were watched failing before either change
+was written.
+
+### Not a cause, and worth recording
+
+This work came out of diagnosing weeks of "updates not appearing", which turned
+out to be **wordpress.org lagging itself**: its `plugin_information` endpoint
+served OpenStation 1.1.3 while its `update-check` endpoint — the one WordPress
+actually builds the update transient from — still served 1.1.2, measured 171
+minutes after the tag. Nothing in this plugin, the theme or the workers was
+implicated; the runtime `$wp_filter` dump showed **zero** callbacks on
+`site_transient_update_plugins`, the only hook able to suppress another plugin's
+update. The changes above fix real defects found along the way, not the outage.
+
 ## [12.24.1] - 2026-08-24 — the signature normalizer stops corrupting its own output
 
 `snt_mr_fetch()` normalizes rows before returning them. Any caller that

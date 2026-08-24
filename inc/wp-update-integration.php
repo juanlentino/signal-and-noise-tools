@@ -61,6 +61,82 @@ const SN_GH_FAIL_TTL_TRANSIENT    = 5 * MINUTE_IN_SECONDS;
 const SN_GH_FAIL_TTL_DURABLE      = HOUR_IN_SECONDS;
 
 /**
+ * Whether this plugin is installed somewhere other than SN_GH_PLUGIN_BASENAME says.
+ *
+ * WHY THIS EXISTS (v12.25.0, 2026-08-24)
+ *
+ * SN_GH_PLUGIN_BASENAME is hardcoded, and everything in this file keys off it:
+ * the entry we write into WP's `update_plugins` transient, and the gates on
+ * upgrader_source_selection / upgrader_pre_install / upgrader_post_install.
+ * There are therefore two identities that must agree — the directory WordPress
+ * actually loaded us from, and the basename we CLAIM — and WP core never
+ * reconciles them.
+ *
+ * When they diverge the failure is silent by construction: we announce an
+ * update for a plugin WordPress does not have installed, so no update row
+ * renders anywhere, and clearing caches cannot help because the transient is
+ * rebuilt with the same wrong key. The only route to new code becomes
+ * delete-and-reinstall — which is precisely the path that CAUSES the
+ * divergence, since GitHub's tag archive unpacks to
+ * `signal-and-noise-tools-<version>/` and the rename filter below gates on
+ * `$hook_extra['plugin']`, which is unset for a manual Upload Plugin.
+ *
+ * So: assert it, and say so out loud. Returns '' when correct, otherwise the
+ * basename WordPress actually loaded — the wrong value is the useful one.
+ *
+ * @since 12.25.0
+ * @return string '' when correct, else the actual basename.
+ */
+function sn_plugin_basename_mismatch() {
+	if ( ! defined( 'SNT_PATH' ) || ! function_exists( 'plugin_basename' ) ) {
+		return '';
+	}
+
+	$actual = (string) plugin_basename( SNT_PATH . 'signal-and-noise-tools.php' );
+	if ( '' === $actual || SN_GH_PLUGIN_BASENAME === $actual ) {
+		return '';
+	}
+
+	return $actual;
+}
+
+/**
+ * The door for the assertion above. An instrument nobody reads is not a check,
+ * so a mismatch gets a notice that names both directories and the fix.
+ *
+ * Scoped to users who could actually act on it — a subscriber seeing this
+ * learns nothing and can do nothing about it.
+ *
+ * @since 12.25.0
+ * @return void
+ */
+function sn_plugin_basename_mismatch_notice() {
+	if ( ! function_exists( 'current_user_can' ) || ! current_user_can( 'update_plugins' ) ) {
+		return;
+	}
+
+	$actual = sn_plugin_basename_mismatch();
+	if ( '' === $actual ) {
+		return;
+	}
+
+	echo '<div class="notice notice-error"><p><strong>'
+		. esc_html__( 'Signal & Noise Tools: self-updates are disabled.', 'signal-and-noise-tools' )
+		. '</strong></p><p>'
+		. sprintf(
+			/* translators: 1: actual plugin basename, 2: expected plugin basename. */
+			esc_html__( 'WordPress loaded this plugin from %1$s, but its updater is hardcoded to %2$s. Because those disagree, no update will ever appear on the Updates screen, and clearing caches will not help.', 'signal-and-noise-tools' ),
+			'<code>' . esc_html( $actual ) . '</code>',
+			'<code>' . esc_html( SN_GH_PLUGIN_BASENAME ) . '</code>'
+		)
+		. '</p><p>'
+		. esc_html__( 'Fix: reinstall the plugin so its directory is named signal-and-noise-tools. A plain Upload Plugin of a GitHub tag archive keeps the version suffix, which is what causes this.', 'signal-and-noise-tools' )
+		. '</p></div>';
+}
+add_action( 'admin_notices', 'sn_plugin_basename_mismatch_notice' );
+
+
+/**
  * Turn a failed tags fetch into a short sentence a human can act on.
  *
  * WHY THIS EXISTS (v9.54.0, after a live incident)
@@ -476,14 +552,36 @@ add_filter( 'upgrader_source_selection', function( $source, $remote_source, $upg
  * version and is now stale.
  *
  * Handles the upgrade-just-happened case automatically:
- * - WP UI install completes → next admin pageview clears the cache
- * - workflow_dispatch deploy lands → next admin pageview clears the cache
+ * - WP UI install completes → next pageview clears the cache
+ * - workflow_dispatch deploy lands → next pageview clears the cache
+ * - `wp plugin install --force` lands → next WP-CLI command clears the cache
  *
- * Costs one get_option() call per admin pageview. Negligible.
+ * Costs one get_option() call per request. Negligible — the option is
+ * autoloaded, so the read is an array lookup, and the body only does work on
+ * the single request that observes the version change.
  *
- * Added in v1.11.1 (2026-05-16).
+ * HOOK CHOICE — `init`, NOT `admin_init` (v12.25.0, 2026-08-24)
+ *
+ * This was registered on `admin_init` from v1.11.1 until v12.25.0, which meant
+ * it only ever fired for a logged-in wp-admin pageview. WP-CLI is not an admin
+ * request and neither is wp-cron, so the two contexts that most need the
+ * invalidation never got it: a maintainer updating from the CLI read whatever
+ * the object cache last held (up to SN_GH_PLUGIN_CACHE_TTL for the tag, up to
+ * 12h for `update_plugins`), and the cron-driven update poll likewise.
+ *
+ * That is not academic on a site with a persistent object cache: site
+ * transients live in Redis rather than wp_options, so `wp transient delete
+ * --all` cannot clear them either — it deletes only DB-backed transients by
+ * design. The self-healing existed but was unreachable from the way the plugin
+ * is actually operated. Diagnosed 2026-08-24.
+ *
+ * `init` fires in wp-admin, on the front end, under wp-cron and under WP-CLI.
+ * Admin requests fire `init` *before* `admin_init`, so this strictly dominates
+ * the old registration — nothing that worked before stops working.
+ *
+ * Added in v1.11.1 (2026-05-16). Moved to `init` + named in v12.25.0.
  */
-add_action( 'admin_init', function() {
+function sn_plugin_update_version_watchdog() {
 	$last_seen = (string) get_option( SN_GH_PLUGIN_LAST_SEEN_OPT, '' );
 	$current   = defined( 'SNT_VERSION' ) ? SNT_VERSION : '';
 	if ( $current && $last_seen !== $current ) {
@@ -501,6 +599,16 @@ add_action( 'admin_init', function() {
 		// displayed as the literal text "Signal &amp; Noise Tools" in
 		// the plugins list (header was already plain `&`, but the cache
 		// retained an old double-escaped value across SSH deploys).
+		// wp_clean_plugins_cache() lives in wp-admin/includes/plugin.php, which
+		// is not loaded outside wp-admin. Now that this watchdog runs under
+		// WP-CLI, wp-cron and the front end too, pull the include in rather
+		// than silently skipping the header-cache clear in those contexts —
+		// skipping it would be worse than the bug this fixes, because the
+		// last-seen option is written either way and the next admin request
+		// would see no version change left to act on.
+		if ( ! function_exists( 'wp_clean_plugins_cache' ) && defined( 'ABSPATH' ) && is_readable( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+			require_once ABSPATH . 'wp-admin/includes/plugin.php';
+		}
 		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
 			wp_clean_plugins_cache();
 		}
@@ -511,7 +619,8 @@ add_action( 'admin_init', function() {
 		delete_site_transient( 'plugin_information_' . SN_GH_PLUGIN_SLUG );
 		update_option( SN_GH_PLUGIN_LAST_SEEN_OPT, $current );
 	}
-} );
+}
+add_action( 'init', 'sn_plugin_update_version_watchdog' );
 
 /**
  * Filter plugins_api to provide the View Details modal data for our
