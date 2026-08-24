@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [12.26.1] - 2026-08-24 — the new field stops crying wolf on a healthy site
+
+v12.25.1's Site Health field went live and immediately reported
+`unknown — 2 handles (wp-color-picker, wp-theme-plugin-editor)` on a site with
+no overrides at all.
+
+Both are CORE handles. Core does not ship every `wp-*` script from
+`wp-includes/` — the editor, the colour picker and friends come from
+`/wp-admin/js/`. The classifier only knew `wp-includes`, so core scripts read as
+unattributable and a diagnostic surface reported a problem on a clean install.
+
+### Fixed
+
+- **`/wp-admin/` classifies as core.** A healthy site now reads
+  `core — no plugin overrides WordPress JS packages`, which is the whole point
+  of the field.
+
+### Ordering is the guard
+
+The content tree is checked BEFORE `/wp-admin/`, deliberately. A plugin may ship
+its own `wp-admin` directory, and `/wp-content/plugins/evil/wp-admin/js/x.js`
+must be attributed to the plugin rather than laundered into `core` by a
+substring match. A test pins that ordering.
+
+### Why the tests missed it
+
+Every case in `tests/script-package-origin.php` used a `wp-includes` path. The
+field caught its own defect an hour after shipping — which is an argument for
+surfaces over suites, not a substitute for either.
+
 ## [12.26.0] - 2026-08-24 — two measured numbers finally get a door
 
 `markdown_requested` has been normalized and tested since v12.16.0.
