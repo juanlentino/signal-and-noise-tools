@@ -72,9 +72,19 @@ function snt_script_package_origin_for_src( $src ) {
 		return 'core';
 	}
 
+	// The content tree is checked BEFORE /wp-admin/ below, deliberately: a
+	// plugin is free to ship its own `wp-admin` directory, and
+	// `/wp-content/plugins/evil/wp-admin/js/x.js` must be attributed to the
+	// plugin rather than laundered into 'core' by a substring match. Order is
+	// the guard; a test pins it.
 	$content = (string) wp_parse_url( content_url(), PHP_URL_PATH );
 	if ( '' === $content || false === strpos( $path, $content . '/' ) ) {
-		return 'unknown';
+		// Core does not ship every wp-* handle from wp-includes: the editor,
+		// the colour picker and friends are served from /wp-admin/js/. Treating
+		// only wp-includes as core made a HEALTHY site report
+		// "unknown — 2 handles", which is a diagnostic surface crying wolf.
+		// Found by the field itself, an hour after it shipped.
+		return ( false !== strpos( $path, '/wp-admin/' ) ) ? 'core' : 'unknown';
 	}
 
 	$rest = substr( $path, strpos( $path, $content . '/' ) + strlen( $content ) );

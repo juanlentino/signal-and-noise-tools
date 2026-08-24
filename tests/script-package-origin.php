@@ -116,5 +116,28 @@ $GLOBALS['__registered'] = array(
 );
 t_ok( array() === snt_script_package_overrides(), "our own plugin's own handles are not core packages" );
 
+// ── v12.26.1: core ships wp-* handles from /wp-admin/ too ──────────────────
+//
+// Found by the field itself, an hour after it shipped: a clean site reported
+// "unknown — 2 handles (wp-color-picker, wp-theme-plugin-editor)". Both are
+// CORE, served from /wp-admin/js/. The classifier only knew /wp-includes/, so
+// core scripts read as unattributable and the field cried wolf on a healthy
+// site. Every test above used a /wp-includes/ path, which is why none caught it.
+$GLOBALS['__registered'] = array(
+	'wp-color-picker'        => '/wp-admin/js/color-picker.min.js',
+	'wp-theme-plugin-editor' => '/wp-admin/js/theme-plugin-editor.min.js',
+	'wp-components'          => '/wp-includes/js/dist/components.min.js',
+);
+t_ok( array() === snt_script_package_overrides(), 'core scripts served from /wp-admin/ are core, not unknown' );
+t_ok( 'core' === snt_script_package_origin_for_src( '/wp-admin/js/color-picker.min.js' ), '/wp-admin/ classifies as core' );
+t_ok( 'core' === snt_script_package_origin_for_src( 'https://example.test/wp-admin/js/x.js' ), 'and does so on an absolute URL' );
+
+// The negative control: a plugin path containing the substring must NOT be
+// mistaken for core just because "wp-admin" appears somewhere in it.
+t_ok(
+	'plugin:evil' === snt_script_package_origin_for_src( 'https://example.test/wp-content/plugins/evil/wp-admin/js/x.js' ),
+	'a plugin path that merely CONTAINS wp-admin is still attributed to the plugin'
+);
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
