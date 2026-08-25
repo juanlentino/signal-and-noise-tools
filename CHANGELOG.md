@@ -2,6 +2,33 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.1.1] - 2026-08-25 — the IPv6 gauge was doored, projected nowhere, and callable never
+
+Found by the v13.1.0 post-install verification, flagged by the MCP usage
+panel's own honest split: *"cannot be projected — this is a BUG, not a
+retirement candidate."* The panel was right.
+
+### Fixed
+
+- **`login-defense-ipv6-criterion` registered on a hook nothing fires.**
+  [inc/abilities-login-defense.php](inc/abilities-login-defense.php) hooked
+  `abilities_api_init` — missing the `wp_` prefix — while the other 35
+  ability files hook `wp_abilities_api_init`. The callback never ran, so
+  the ability was allowlisted on the read door but unregistered underneath:
+  uncallable over MCP and invisible to REST since v12.11.0. One line;
+  the ability was doored precisely so "the NUMBER triggers the call" on the
+  day the IPv6 window completes — which is tomorrow.
+
+### Why the suite was green through it
+
+[tests/abilities-login-defense.php](tests/abilities-login-defense.php)
+stubbed `add_action` inert and drove the registrar directly — it tested the
+callback and bypassed the wiring, so the wrong hook NAME was structurally
+invisible to it. The stub now captures, the hook name is asserted, and
+registration is driven through the captured wiring. A repo-wide source pin
+(the filters.md-parity class) reds any inc/ file that ever hooks the
+unprefixed name again.
+
 ## [13.1.0] - 2026-08-25 — two coherent readouts: the door answers questions, not fragments
 
 "Is the site healthy?" cost ten door calls; "how is it being read?" cost
