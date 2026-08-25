@@ -109,3 +109,29 @@ absent from both doors AND absorber present) to the new set. Doors land at
 Wave 3, if ever, is the sn_health/sn_metrics/sn_events build — decide it
 when the surface width actually hurts, and re-read telemetry then rather
 than trusting this sheet's window.
+
+---
+
+## Wave-3 decision — DESCOPED (owner, 2026-08-25)
+
+Taken the same day wave 2 shipped as v13.0.0, on this sheet's evidence:
+
+- **`sn_health`, `sn_metrics`, `sn_events`, `sn_danger`: NOT BUILT.** The
+  doors stay at **19 read + 6 rw = 25**. The consolidation payoff at this
+  point is context width only, the width is not hurting, and `sn_health`'s
+  five disjoint return shapes strain the spec's own merge-by-return-shape
+  rule. The spec's 11-tool figure was a target, not a contract.
+- **`sn_terms`: descoped** (would wrap exactly one tool).
+- **`sn_dismiss`: deferred, NOT descoped** — it gates phase 10: no MCP
+  dismissal path has existed since wave 1, and an unattended routine
+  without dismissal is a spam generator. Build it when phase 10 starts.
+- **Revisit condition:** an agent workflow measurably degraded by tool-list
+  width, or phase 10 starting (which forces `sn_dismiss` and reopens the
+  question with fresh telemetry). Do not reopen on taste.
+
+The consolidation SURFACE work (build-order phases 2–7) is complete.
+Phases 8–12 (server-side gate enforcement, credential scopes, the
+self-maintenance routine, the first unattended job, REST route deletion)
+are a different kind of decision — each expands unattended agency or
+deletes code, and each waits for an explicit owner start, not a telemetry
+threshold.
