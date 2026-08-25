@@ -33,14 +33,18 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 24, 'read-door allowlist has exactly 24 slugs (v12.11.0 ADDED login-defense-ipv6-criterion — the gauge was wp-admin only, so a pre-committed criterion had no way to trigger its own call; v11.34.0 retired 15 from this door: the ten sn-site-facts theme/plugin facts, link-candidates + duplicate-body-scan + near-duplicate-scan + block-migrations-scan to sn-scan, and get-design-system-summary, which sn-site-facts already documented as retired while it sat here)' );
+ok( is_array( $list ) && count( $list ) === 19, 'read-door allowlist has exactly 19 slugs (v13.0.0 wave 2 retired 5 more: pattern-adoption-scan to sn-scan, list-posts + get-post-content to sn-posts, and the get-insights/get-narration pair spec\'d "retired, not absorbed" since day one; v12.11.0 had ADDED login-defense-ipv6-criterion; wave 1 (v12.0.0) retired 15: the ten sn-site-facts theme/plugin facts, four scan siblings to sn-scan, and get-design-system-summary)' );
 ok( in_array( 'signal-noise/sn-validate', $list, true ), 'v10.30.0: sn-validate is allowlisted on the read door' );
 ok( in_array( 'signal-noise/ai-cache-probe-status', $list, true ), 'v10.69.0: ai-cache-probe-status is allowlisted on the read door — registering the ability alone would leave it invisible to MCP' );
 ok( in_array( 'signal-noise/topic-clusters', $list, true ), 'v10.21.0: topic-clusters is allowlisted on the read door' );
 ok( in_array( 'signal-noise/cadence-flags', $list, true ), 'v10.22.0: cadence-flags is allowlisted on the read door' );
 ok( in_array( 'signal-noise/sn-posts', $list, true ), 'v10.26.0: sn-posts is allowlisted on the read door' );
 ok( in_array( 'signal-noise/sn-site-facts', $list, true ), 'v10.26.0: sn-site-facts is allowlisted on the read door' );
-ok( in_array( 'signal-noise/list-posts', $list, true ) && in_array( 'signal-noise/get-post-content', $list, true ), 'v10.26.0: sn-posts is NEW ALONGSIDE OLD — list-posts and get-post-content stay allowlisted, neither removed' );
+// v10.26.0 pinned "NEW ALONGSIDE OLD — list-posts and get-post-content stay
+// allowlisted". That invariant was correct while sn-posts was unproven; wave 2
+// replaces it with the retirement contract at the bottom of this file (absent
+// from BOTH doors AND the absorber present).
+ok( ! in_array( 'signal-noise/list-posts', $list, true ) && ! in_array( 'signal-noise/get-post-content', $list, true ), 'v13.0.0 wave 2: list-posts and get-post-content are RETIRED from the read door — sn-posts absorbs both (content is an opt-in field)' );
 ok( in_array( 'signal-noise/sn-scan', $list, true ), 'v10.29.0: sn-scan is allowlisted on the read door' );
 ok( in_array( 'signal-noise/get-health-scan', $list, true ), 'plugin read is allowlisted' );
 // v11.34.0 — THE DOORS NO LONGER SPAN THE THEME NAMESPACE. Every
@@ -57,10 +61,10 @@ ok( ! in_array( 'signal-noise/purge-all-caches', $list, true ), 'a write ability
 // cut as redundant). This intentionally reverses the old v9.22.0 assertion.
 ok( ! in_array( 'signal-and-noise/get-llms-txt', $list, true ), 'v11.34.0: get-llms-txt is RETIRED from the read door — sn-site-facts{llms_txt} serves it (its 18 agent-door calls are not gated by this list)' );
 
-// --- D1: the exact 8 new read-door slugs, pinned individually ---
+// --- D1: the surviving D1 read-door slug (pattern-adoption-scan moved to the
+// wave-2 retirement contract below in v13.0.0 — sn-scan{pattern_adoption}) ---
 $new_read_slugs = array(
 	'signal-noise/get-analytics-events',
-	'signal-noise/pattern-adoption-scan',
 );
 foreach ( $new_read_slugs as $slug ) {
 	ok( in_array( $slug, $list, true ), "D1 new read-door slug present: $slug" );
@@ -89,11 +93,11 @@ foreach ( array( 'signal-noise/keyword-candidates' ) as $slug ) {
 // still-correct count.
 $read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
 $read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
-ok( count( $read_plugin ) === 24, 'read door carries exactly 24 plugin slugs (-> 24 in v12.11.0: login-defense-ipv6-criterion; 23 in v11.34.0; was 28 (13 -> 15 in v9.82.0, -> 18 in v10.6.0, -> 19 in v10.16.0, -> 21 in v10.17.0, -> 22 in v10.21.0, -> 23 in v10.22.0, -> 25 in v10.26.0: sn-posts + sn-site-facts, -> 26 in v10.29.0: sn-scan, -> 27 in v10.30.0: sn-validate, -> 28 in v10.69.0: ai-cache-probe-status, plugin-namespace)' );
+ok( count( $read_plugin ) === 19, 'read door carries exactly 19 plugin slugs (-> 19 in v13.0.0 wave 2: pattern-adoption-scan, list-posts, get-post-content, get-insights, get-narration retired; -> 24 in v12.11.0: login-defense-ipv6-criterion; 23 in v11.34.0; was 28 before wave 1, plugin-namespace)' );
 ok( count( $read_theme ) === 0, 'read door carries ZERO theme slugs (v11.34.0 — sn-site-facts DISPATCHES to them and is itself a plugin-namespace slug)' );
 ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
 
-ok( sn_mcp_is_allowed( 'signal-noise/get-narration' ) === true, 'is_allowed true for an allowlisted slug' );
+ok( sn_mcp_is_allowed( 'signal-noise/get-health-scan' ) === true, 'is_allowed true for an allowlisted slug' );
 ok( sn_mcp_is_allowed( 'signal-noise/run-narration' ) === false, 'is_allowed false for a non-allowlisted slug' );
 
 $info = sn_mcp_server_info();
@@ -109,25 +113,20 @@ ok( sn_mcp_negotiate_version( '1999-01-01' ) === SN_MCP_PROTOCOL_VERSION, 'negot
 echo "\nMCP rw-door allowlist (v9.50.0)\n\n";
 
 $rw = sn_mcp_rw_allowlist();
-ok( is_array( $rw ) && count( $rw ) === 10, 'rw allowlist is exactly 10 slugs (v11.34.0 retired 26 from this door: the absorbed apply/scan siblings, and the 19 AI-generation, audit-log and dismissal tools the owner retired knowing they gain no consolidated equivalent)' );
+ok( is_array( $rw ) && count( $rw ) === 6, 'rw allowlist is exactly 6 slugs (v13.0.0 wave 2 retired 4 more: block-migrations-suggest and update-post-surfaces to sn-scan/sn-apply, run-insights-scan + run-narration outright with their read siblings; wave 1 (v12.0.0) had retired 26)' );
 
-// --- exact membership: the 10 surviving plugin slugs, pinned individually ---
-// v11.34.0: was 30 plugin + 5 theme. The theme half is gone entirely and the
-// plugin half is down to the tools that are either consolidated (sn-apply) or
-// have no absorber and real traffic.
+// --- exact membership: the 6 surviving plugin slugs, pinned individually ---
+// v13.0.0: down to sn-apply, the deliberately-kept AI link pair (see the KEPT
+// pin below), and the three no-absorber operations tools.
 $rw_plugin = array(
 	'signal-noise/sn-apply',
-	'signal-noise/update-post-surfaces',
 	'signal-noise/purge-all-caches',
 	'signal-noise/prune-unused-tags',
 	'signal-noise/unschedule-cron-event',
-	'signal-noise/run-insights-scan',
-	'signal-noise/run-narration',
 	'signal-noise/ai-link-apply',
 	'signal-noise/ai-pair-suggest',
-	'signal-noise/block-migrations-suggest',
 );
-ok( count( $rw_plugin ) === 10, 'sanity: the pinned plugin rw list itself is 10 (v11.34.0)' );
+ok( count( $rw_plugin ) === 6, 'sanity: the pinned plugin rw list itself is 6 (v13.0.0)' );
 foreach ( $rw_plugin as $slug ) {
 	ok( in_array( $slug, $rw, true ), "rw-door plugin slug present: $slug" );
 }
@@ -244,6 +243,12 @@ $retired_to_absorber = array(
 	'signal-noise/regenerate-og-card'                => 'signal-noise/sn-apply',
 	'signal-noise/ai-alt-apply'                      => 'signal-noise/sn-apply',
 	'signal-noise/ai-drift-apply'                    => 'signal-noise/sn-apply',
+	// ── v13.0.0 — wave 2 (verdicts: docs/mcp-consolidation/retirement-verdicts-2026-08-25.md) ──
+	'signal-noise/pattern-adoption-scan'             => 'signal-noise/sn-scan',
+	'signal-noise/list-posts'                        => 'signal-noise/sn-posts',
+	'signal-noise/get-post-content'                  => 'signal-noise/sn-posts',
+	'signal-noise/block-migrations-suggest'          => 'signal-noise/sn-scan',
+	'signal-noise/update-post-surfaces'              => 'signal-noise/sn-apply',
 );
 $all_doors = array_merge( sn_mcp_allowlist(), sn_mcp_rw_allowlist() );
 foreach ( $retired_to_absorber as $retired => $absorber ) {
@@ -271,6 +276,29 @@ foreach ( $retired_without_absorber as $slug ) {
 	ok( ! in_array( $slug, $all_doors, true ), "tier C, no absorber, retired by decision: $slug" );
 }
 ok( 19 === count( $retired_without_absorber ), 'tier C is NINETEEN tools — if this number grows, someone retired capability without saying so' );
+
+// ── v13.0.0 — wave 2: the insights/narration quartet, retired outright ─────
+// Spec'd "retired, not absorbed" since day one. The weekly-report prompt was
+// rewritten in the same release; the prompt-text pins live in
+// tests/mcp-prompts.php (that harness loads the prompts module, this one
+// deliberately does not).
+$wave2_retired_outright = array(
+	'signal-noise/get-insights', 'signal-noise/get-narration',
+	'signal-noise/run-insights-scan', 'signal-noise/run-narration',
+);
+foreach ( $wave2_retired_outright as $slug ) {
+	ok( ! in_array( $slug, $all_doors, true ), "v13.0.0 wave 2, retired outright: $slug" );
+}
+
+// ── v13.0.0 — THE KEPT PAIR, pinned as a pair ──────────────────────────────
+// The spec's mapping calls ai-pair-suggest and ai-link-apply absorbed; the
+// shipped code disproves it — sn-scan deliberately emits apply_hint:null for
+// link_candidates because ai-link-apply validates a positional fingerprint
+// only the AI-mediated suggest can produce. No sn-apply bridge exists.
+// Retiring either half alone would strand the other; retiring both would
+// DELETE the AI link flow over MCP. Whoever builds the fingerprint bridge
+// gets to retire them — until then this pin holds the pair on the door.
+ok( in_array( 'signal-noise/ai-pair-suggest', $all_doors, true ) && in_array( 'signal-noise/ai-link-apply', $all_doors, true ), 'v13.0.0: the AI link pair stays doored TOGETHER — no sn-apply bridge exists for its fingerprint contract' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

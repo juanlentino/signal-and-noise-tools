@@ -122,8 +122,10 @@ $bad = sn_mcp_call_tool( 'signal-noise__purge-all-caches', array() );
 ok( isset( $bad['error'] ) && -32602 === $bad['error']['code'], 'un-allowlisted slug is rejected with -32602 (never executes)' );
 
 // --- tools/call: permission denied → isError result ---
-$GLOBALS['__abilities']['signal-noise/get-insights'] = new SN_Test_Ability( 'signal-noise/get-insights', array( 'perm' => false, 'result' => array( 'x' => 1 ) ) );
-$denied = sn_mcp_call_tool( 'signal-noise__get-insights', array() );
+// v13.0.0: vehicle moved get-insights → get-analytics-events (wave 2 retired
+// the former from the door; the property is slug-independent).
+$GLOBALS['__abilities']['signal-noise/get-analytics-events'] = new SN_Test_Ability( 'signal-noise/get-analytics-events', array( 'perm' => false, 'result' => array( 'x' => 1 ) ) );
+$denied = sn_mcp_call_tool( 'signal-noise__get-analytics-events', array() );
 ok( isset( $denied['result'] ) && true === $denied['result']['isError'], 'permission denial returns isError:true' );
 
 // --- tools/call: execute() WP_Error → isError result (not a crash) ---
@@ -187,30 +189,34 @@ ok( strpos( $lc['result']['content'][0]['text'], '"result"' ) !== false, 'array-
 //     encode the INNER value as {} (object), not [] — {"result":[]} would
 //     violate the advertised properties.result ["object","null"] union the
 //     same way the top-level belt already prevents for passthrough tools. ---
-$GLOBALS['__abilities']['signal-noise/get-insights'] = new SN_Test_Ability( 'signal-noise/get-insights', array(
-	'label' => 'Get insights', 'description' => 'Cached insights, or null pre-scan.',
+// v13.0.0: vehicle moved get-insights → ai-cache-probe-status (doored; same
+// object|null envelope class).
+$GLOBALS['__abilities']['signal-noise/ai-cache-probe-status'] = new SN_Test_Ability( 'signal-noise/ai-cache-probe-status', array(
+	'label' => 'AI cache probe', 'description' => 'Probe verdict, or null pre-data.',
 	'output_schema' => array( 'type' => array( 'object', 'null' ) ),
 	'result' => array(),
 ) );
-$ic = sn_mcp_call_tool( 'signal-noise__get-insights', array() );
+$ic = sn_mcp_call_tool( 'signal-noise__ai-cache-probe-status', array() );
 ok( is_object( $ic['result']['structuredContent']['result'] ?? null ), 'wrapped empty-array result: inner value casts to an object so it encodes {} not []' );
 
 // --- P2/P3: object|null-rooted ability returning null wraps too — null stays legal
 //     INSIDE properties.result (the get-narration/get-insights no-scan-yet class) ---
-$GLOBALS['__abilities']['signal-noise/get-narration'] = new SN_Test_Ability( 'signal-noise/get-narration', array(
-	'label' => 'Get narration', 'description' => 'Cached narration, or null pre-generation.',
+// v13.0.0: vehicle moved get-narration → anchor-status (doored; the
+// object|null no-data-yet class is what's under test, not the slug).
+$GLOBALS['__abilities']['signal-noise/anchor-status'] = new SN_Test_Ability( 'signal-noise/anchor-status', array(
+	'label' => 'Anchor status', 'description' => 'Anchor state, or null pre-scan.',
 	'output_schema' => array(
 		'type'       => array( 'object', 'null' ),
 		'properties' => array( 'headline' => array( 'type' => array( 'string', 'null' ) ) ),
 	),
 	'result' => null,
 ) );
-$nt = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/get-narration'] );
+$nt = sn_mcp_project_tool( $GLOBALS['__abilities']['signal-noise/anchor-status'] );
 ok( ( $nt['outputSchema']['type'] ?? '' ) === 'object', 'object|null-rooted ability: advertised outputSchema wraps to type object' );
 $result_schema_type = $nt['outputSchema']['properties']['result']['type'] ?? null;
 ok( is_array( $result_schema_type ) && in_array( 'null', $result_schema_type, true ) && in_array( 'object', $result_schema_type, true ), 'wrapped schema properties.result still allows the original ["object","null"] union untouched' );
 
-$nc = sn_mcp_call_tool( 'signal-noise__get-narration', array() );
+$nc = sn_mcp_call_tool( 'signal-noise__anchor-status', array() );
 ok( array_key_exists( 'result', $nc['result']['structuredContent'] ?? array() ) && null === $nc['result']['structuredContent']['result'], 'object|null-rooted ability returning null: call wraps to {result:null}, never bare null' );
 
 // --- P4: empty-array structuredContent must encode {} not [] ---
@@ -315,28 +321,28 @@ $GLOBALS['__opts'] = array(); // Fresh audit-log option state for this section.
 //     AND unknown-tool calls on the read door must never create the rw audit
 //     option AT ALL (not "empty rows" — the option itself stays untouched). ---
 sn_mcp_call_tool( 'signal-noise__get-health-scan', array(), SN_MCP_DOOR_READ );          // success
-sn_mcp_call_tool( 'signal-noise__get-insights', array(), SN_MCP_DOOR_READ );             // permission denied (perm=false fixture above)
+sn_mcp_call_tool( 'signal-noise__get-analytics-events', array(), SN_MCP_DOOR_READ );     // permission denied (perm=false fixture above)
 sn_mcp_call_tool( 'signal-noise__get-rss-stats', array(), SN_MCP_DOOR_READ );            // execute() WP_Error
 sn_mcp_call_tool( 'signal-noise__run-cron-event', array(), SN_MCP_DOOR_READ );           // unknown tool (protocol error)
 ok( false === get_option( SN_MCP_RW_AUDIT_OPTION, false ), 'READ-DOOR-FROZEN: success/denied/error/unknown calls on the read door never create the rw audit-log option' );
 
 // --- RW DOOR: success outcome + redaction integration (a real content-
 //     bearing arg, alt_text, must never reach the stored row) ---
-// v11.34.0: the vehicle moved from ai-alt-apply to update-post-surfaces. The
-// former was RETIRED from the rw door, so sn_mcp_call_tool() now refuses it and
-// writes no audit row at all — this block crashed on a null blob rather than
-// failing an assertion. The PROPERTY under test is unchanged and is not about
-// either slug: sn_mcp_rw_audit_safe_args() is deliberately slug-independent
-// ("Reserved for a future per-slug override; not used in v1"), so any doored rw
-// slug carrying one safe scalar key and one content-bearing key exercises it.
-$GLOBALS['__abilities']['signal-noise/update-post-surfaces'] = new SN_Test_Ability( 'signal-noise/update-post-surfaces', array(
+// v11.34.0 moved this vehicle ai-alt-apply → update-post-surfaces when the
+// former retired (this block CRASHES on a null blob rather than failing an
+// assertion when its slug leaves the door). v13.0.0 wave 2 retired
+// update-post-surfaces too, so the vehicle moves again → ai-pair-suggest.
+// The PROPERTY under test is unchanged and is not about any slug:
+// sn_mcp_rw_audit_safe_args() is deliberately slug-independent, so any doored
+// rw slug carrying one safe scalar key and one content-bearing key works.
+$GLOBALS['__abilities']['signal-noise/ai-pair-suggest'] = new SN_Test_Ability( 'signal-noise/ai-pair-suggest', array(
 	'perm' => true, 'result' => array( 'ok' => true, 'post_id' => 9 ),
 ) );
-sn_mcp_call_tool( 'signal-noise__update-post-surfaces', array( 'post_id' => 9, 'alt_text' => 'a cat sitting on a fence' ), SN_MCP_DOOR_RW );
+sn_mcp_call_tool( 'signal-noise__ai-pair-suggest', array( 'post_id' => 9, 'alt_text' => 'a cat sitting on a fence' ), SN_MCP_DOOR_RW );
 $blob = get_option( SN_MCP_RW_AUDIT_OPTION );
 ok( is_array( $blob ) && 1 === count( $blob['rows'] ), 'RW DOOR: a successful rw call appends exactly one audit row' );
 $row0 = $blob['rows'][0];
-ok( 'signal-noise/update-post-surfaces' === $row0['slug'] && 'ok' === $row0['outcome'], 'the row records the slug + ok outcome' );
+ok( 'signal-noise/ai-pair-suggest' === $row0['slug'] && 'ok' === $row0['outcome'], 'the row records the slug + ok outcome' );
 ok( ( $row0['args_redacted']['post_id'] ?? null ) === 9, 'the row keeps the safe scalar key (post_id)' );
 ok( ! array_key_exists( 'alt_text', $row0['args_redacted'] ), 'PROBE PIN: the row NEVER contains the real content-bearing arg (alt_text), end-to-end from the call site' );
 
@@ -348,8 +354,9 @@ $row1 = $blob['rows'][1];
 ok( 'denied' === $row1['outcome'] && 'permission_denied' === ( $row1['error_code'] ?? null ), 'RW DOOR: a permission-denied call is audited with outcome=denied + error_code=permission_denied' );
 
 // --- RW DOOR: execute() WP_Error outcome ---
-$GLOBALS['__abilities']['signal-noise/run-narration'] = new SN_Test_Ability( 'signal-noise/run-narration', array( 'perm' => true, 'result' => new WP_Error( 'ai_unavailable', 'AI client unreachable' ) ) );
-sn_mcp_call_tool( 'signal-noise__run-narration', array(), SN_MCP_DOOR_RW );
+// v13.0.0: vehicle moved run-narration → ai-link-apply (wave 2 retired the former).
+$GLOBALS['__abilities']['signal-noise/ai-link-apply'] = new SN_Test_Ability( 'signal-noise/ai-link-apply', array( 'perm' => true, 'result' => new WP_Error( 'ai_unavailable', 'AI client unreachable' ) ) );
+sn_mcp_call_tool( 'signal-noise__ai-link-apply', array(), SN_MCP_DOOR_RW );
 $blob = get_option( SN_MCP_RW_AUDIT_OPTION );
 $row2 = $blob['rows'][2];
 ok( 'error' === $row2['outcome'] && 'ai_unavailable' === ( $row2['error_code'] ?? null ), 'RW DOOR: an execute() WP_Error is audited with outcome=error + the WP_Error\'s own code' );

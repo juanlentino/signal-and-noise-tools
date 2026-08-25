@@ -2,6 +2,66 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.0.0] - 2026-08-25 — wave 2 collects: 34 MCP tools become 25, and the kept pair is kept on the record
+
+**BREAKING.** Nine more tools leave the MCP doors. As in wave 1 (v12.0.0),
+nothing is DELETED — every ability stays registered, still answers
+`wp_get_ability()->execute()`, still serves its internal callers and stays
+REST-reachable behind its own permission_callback. The allowlists gate the MCP
+door only, so any single retirement is reversible by one line. A client cannot
+see that, which is why this is a major.
+
+Verdicts and evidence:
+[docs/mcp-consolidation/retirement-verdicts-2026-08-25.md](docs/mcp-consolidation/retirement-verdicts-2026-08-25.md)
+— the six-day post-wave-1 stumble review found exactly ONE stumble
+(`get-theme-version` → `not_found`, once, on 08-20), which under the
+stumbles-twice rule re-adds nothing.
+
+### Removed — absorbed, absorber live and proven
+- `pattern-adoption-scan` → `sn-scan{pattern_adoption}`
+- `list-posts`, `get-post-content` → `sn-posts` (content is an opt-in field;
+  the absorber served 77 calls in the window)
+- `block-migrations-suggest` → `sn-scan{block_migrations}` +
+  `sn-apply{block_migration}` — 44% of its 219 windowed calls were
+  schema errors or refusals; the consolidated path carries the fingerprints
+  this one kept fumbling
+- `update-post-surfaces` → `sn-apply{change.type:surfaces}`
+
+### Removed — retired outright (spec'd "retired, not absorbed" since day one)
+- `get-insights`, `get-narration`, `run-insights-scan`, `run-narration`.
+  The Insights admin page is untouched — it never went through the door.
+
+### Kept — and pinned, because the spec's mapping is wrong here
+`ai-pair-suggest` + `ai-link-apply` stay. The consolidation mapping calls them
+absorbed; the shipped code disproves it — [inc/sn-scan-adapters.php](inc/sn-scan-adapters.php)
+deliberately emits `apply_hint: null` for `link_candidates` because
+`ai-link-apply` validates a positional fingerprint only the AI-mediated
+suggest call can produce. No `sn-apply` bridge exists, so retiring the pair
+would DELETE the AI link flow over MCP, not consolidate it. A test now holds
+the pair on the door together until someone builds the fingerprint bridge.
+
+### Fixed — two doored surfaces were lying about the doors
+- **The `content-audit` prompt has told clients to call
+  `block-migrations-scan` since wave 1 retired it** — a dead pointer shipped
+  for six days because nothing pinned prompt text against the door. Both
+  prompts now route through the consolidated tools
+  ([inc/mcp/mcp-prompts.php](inc/mcp/mcp-prompts.php)), and
+  [tests/mcp-prompts.php](tests/mcp-prompts.php) pins each prompt's tool
+  names against retirement.
+- **`sn-scan`'s description still named `block-migrations-apply`,
+  `pattern-adoption-apply` and `ai-orphan-apply` as apply hints** while its
+  code correctly emits `signal-noise/sn-apply` / null since wave 1
+  ([inc/abilities-sn-scan.php](inc/abilities-sn-scan.php)). The description
+  now matches the emitted hints.
+
+### Changed
+- The wave-1 retirement contract in
+  [tests/mcp-capabilities.php](tests/mcp-capabilities.php) extends to the new
+  set: every retired slug absent from BOTH doors AND its absorber present.
+  The v10.26.0 "new alongside old" pin for `list-posts`/`get-post-content`
+  is spent and replaced, the same way wave 1 spent the scan-siblings pin.
+- Doors land at **19 read + 6 rw = 25**.
+
 ## [12.26.1] - 2026-08-24 — the new field stops crying wolf on a healthy site
 
 v12.25.1's Site Health field went live and immediately reported
