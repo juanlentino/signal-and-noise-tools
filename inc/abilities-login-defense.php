@@ -150,4 +150,12 @@ function sn_abilities_login_defense_register() {
 		),
 	) );
 }
-add_action( 'abilities_api_init', 'sn_abilities_login_defense_register' );
+// v13.1.1: WAS 'abilities_api_init' — a hook that nothing fires. The missing
+// wp_ prefix left this the only unregistered ability file of the 36 (the other
+// 35 all hook wp_abilities_api_init), so the IPv6-criterion tool was doored,
+// projected nowhere, and uncallable since v12.11.0 — the exact "cannot be
+// projected — this is a BUG" verdict the MCP usage panel printed about it.
+// The suite stayed green because it stubbed add_action inert and drove the
+// registrar directly: it tested the callback, never the wiring. It pins the
+// wiring now.
+add_action( 'wp_abilities_api_init', 'sn_abilities_login_defense_register' );

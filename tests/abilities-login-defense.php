@@ -36,7 +36,8 @@ const SN_LG_DATASET = 'sn_login_guard';
 // Ability registry capture.
 $GLOBALS['__abilities'] = array();
 function wp_register_ability( $slug, $args ) { $GLOBALS['__abilities'][ $slug ] = $args; return true; }
-function add_action( $h, $cb, $p = 10, $a = 1 ) { return true; }
+$GLOBALS['__hooked'] = array();
+function add_action( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['__hooked'][ $h ][] = $cb; return true; }
 
 // AE seam. null = query failure, array = measured (the real contract).
 $GLOBALS['__family'] = array();
@@ -45,10 +46,28 @@ function sn_analytics_query( $sql ) { return $GLOBALS['__family']; }
 require __DIR__ . '/../inc/login-defense-gauges.php';   // the REAL producer
 require __DIR__ . '/../inc/abilities-login-defense.php';
 
-// add_action is stubbed inert, so drive the real registrar directly.
-sn_abilities_login_defense_register();
-
+// v13.1.1 — THE WIRING PIN. The registrar was hooked to 'abilities_api_init'
+// (no wp_ prefix, a hook nothing fires) from v12.11.0 to v13.1.0 and this
+// suite never noticed, because the old inert add_action stub meant "drive the
+// registrar directly" tested the callback while skipping the wiring. The
+// ability was doored but unregistered: uncallable over MCP the whole time.
+// Now the stub CAPTURES, the hook name is asserted, and registration is
+// driven THROUGH the captured wiring rather than around it.
 echo "Login-defense read ability (v12.11.0)\n\n";
+ok( isset( $GLOBALS['__hooked']['wp_abilities_api_init'] ), 'the registrar hooks wp_abilities_api_init — the hook WordPress actually fires' );
+ok( ! isset( $GLOBALS['__hooked']['abilities_api_init'] ), 'and never the unprefixed abilities_api_init, which nothing fires (the v12.11.0–v13.1.0 dead-registration bug)' );
+foreach ( $GLOBALS['__hooked']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
+ok( isset( $GLOBALS['__abilities']['signal-noise/login-defense-ipv6-criterion'] ), 'firing the REAL hook registers the ability — wiring exercised, not bypassed' );
+
+// v13.1.1 — repo-wide source pin: no ability file may hook the unprefixed
+// name again. Source-text guard, same class as the filters.md parity test.
+$offenders = array();
+foreach ( glob( __DIR__ . '/../inc/*.php' ) as $f ) {
+	if ( false !== strpos( (string) file_get_contents( $f ), "add_action( 'abilities_api_init'" ) ) {
+		$offenders[] = basename( $f );
+	}
+}
+ok( array() === $offenders, 'no inc/ file hooks the unprefixed abilities_api_init' . ( $offenders ? ' — offenders: ' . implode( ', ', $offenders ) : '' ) );
 
 // ── registration ────────────────────────────────────────────────────────────
 $slug = 'signal-noise/login-defense-ipv6-criterion';
