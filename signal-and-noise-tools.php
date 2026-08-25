@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.0.0
+ * Version:     13.1.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -439,6 +439,8 @@ require_once __DIR__ . '/inc/corpus-inspect.php';      // v10.6.0: read-only cor
 require_once __DIR__ . '/inc/abilities-corpus.php';    // v10.6.0: 3 abilities (duplicate-body-scan, list-posts, get-post-content) — sn read door only
 require_once __DIR__ . '/inc/abilities-sn-posts.php';      // v10.26.0: MCP consolidation — sn_posts, absorbs list-posts + get-post-content (both stay live)
 require_once __DIR__ . '/inc/abilities-sn-site-facts.php'; // v10.26.0: MCP consolidation — sn_site_facts, absorbs 10 of 11 site-facts reads (get-design-system-summary retired, not absorbed)
+require_once __DIR__ . '/inc/abilities-sn-status.php';  // v13.1.0: read-door coherence — sectioned batch over the ten narrow status reads (new-alongside-old; needs sn-site-facts' dispatcher above)
+require_once __DIR__ . '/inc/abilities-sn-metrics.php'; // v13.1.0: read-door coherence — sectioned batch over the three readership reads (same pattern, same dispatcher)
 require_once __DIR__ . '/inc/sn-scan-adapters.php';    // v10.29.0: MCP consolidation session 4 — six per-scan_type adapters behind sn_scan (needs corpus-inspect.php, ml-cousins.php, ml-candidates.php, health-checks.php — all required below; constants/functions resolve at call time, not require time)
 require_once __DIR__ . '/inc/sn-scan-anchor-violations.php'; // v10.58.0: scan_type "anchor_violations" — two binary link rules (anchor==sentence, link-in-heading); detector + adapter, own file per the emdash-scanner precedent
 require_once __DIR__ . '/inc/sn-scan-telemetry.php'; // v10.60.0: per-scan_type run telemetry — metrics builder (pure) + sn_scan_completed listener + sn_scan_run table; the ability itself stays zero-writes (observer split)

@@ -112,7 +112,21 @@ than trusting this sheet's window.
 
 ---
 
-## Wave-3 decision — DESCOPED (owner, 2026-08-25)
+## Wave-3 decision — DESCOPED, then SUPERSEDED same day (owner, 2026-08-25)
+
+> **Amendment (later the same day):** the owner reopened the read-door
+> consolidation with a coherence framing this section's descope did not
+> weigh: the fourteen narrow reads answer fragments of two questions
+> ("what is the site's operational state?" / "how is it being read?") that
+> a caller must stitch across many calls. v13.1.0 builds `sn-status` and
+> `sn-metrics` on the sn-site-facts SECTIONED-BATCH pattern — which is NOT
+> the `sn_health` this section rejected: no shape-gluing, each section
+> keeps its source's exact payload under its own key, so the
+> merge-by-return-shape objection below does not apply to what was built.
+> New-alongside-old; the thirteen absorbed singles retire in a wave 4 only
+> after a telemetry window. `sn_terms` stays descoped, `sn_dismiss` stays
+> deferred-gating-phase-10, `sn_danger` stays unbuilt. The paragraph below
+> is preserved as the decision it was when taken.
 
 Taken the same day wave 2 shipped as v13.0.0, on this sheet's evidence:
 

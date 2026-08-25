@@ -153,6 +153,16 @@ function sn_mcp_allowlist() {
 		// AI change should be able to settle for itself instead of asking a human
 		// to open wp-admin. Read door 37 → 38.
 		'signal-noise/ai-cache-probe-status',
+		// v13.1.0 — read-door coherence (owner-reopened consolidation, see the
+		// wave-3 decision amendment in retirement-verdicts-2026-08-25.md). Two
+		// SECTIONED-BATCH readouts on the sn-site-facts pattern — each answers
+		// one coherent question, each section keeps its source's exact shape.
+		// PURE-READ by construction: both only dispatch to already-registered
+		// read abilities via snt_sn_site_facts_dispatch(). NEW ALONGSIDE OLD:
+		// the thirteen absorbed singles above stay doored until a telemetry
+		// window justifies a wave-4 retirement. Read door 19 → 21.
+		'signal-noise/sn-status',
+		'signal-noise/sn-metrics',
 	);
 
 	/**

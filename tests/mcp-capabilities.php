@@ -33,13 +33,20 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 19, 'read-door allowlist has exactly 19 slugs (v13.0.0 wave 2 retired 5 more: pattern-adoption-scan to sn-scan, list-posts + get-post-content to sn-posts, and the get-insights/get-narration pair spec\'d "retired, not absorbed" since day one; v12.11.0 had ADDED login-defense-ipv6-criterion; wave 1 (v12.0.0) retired 15: the ten sn-site-facts theme/plugin facts, four scan siblings to sn-scan, and get-design-system-summary)' );
+ok( is_array( $list ) && count( $list ) === 21, 'read-door allowlist has exactly 21 slugs (v13.1.0 ADDED sn-status + sn-metrics, the sectioned-batch coherence readouts, new-alongside-old; v13.0.0 wave 2 retired 5: pattern-adoption-scan to sn-scan, list-posts + get-post-content to sn-posts, and the get-insights/get-narration pair; v12.11.0 had ADDED login-defense-ipv6-criterion; wave 1 (v12.0.0) retired 15)' );
 ok( in_array( 'signal-noise/sn-validate', $list, true ), 'v10.30.0: sn-validate is allowlisted on the read door' );
 ok( in_array( 'signal-noise/ai-cache-probe-status', $list, true ), 'v10.69.0: ai-cache-probe-status is allowlisted on the read door — registering the ability alone would leave it invisible to MCP' );
 ok( in_array( 'signal-noise/topic-clusters', $list, true ), 'v10.21.0: topic-clusters is allowlisted on the read door' );
 ok( in_array( 'signal-noise/cadence-flags', $list, true ), 'v10.22.0: cadence-flags is allowlisted on the read door' );
 ok( in_array( 'signal-noise/sn-posts', $list, true ), 'v10.26.0: sn-posts is allowlisted on the read door' );
 ok( in_array( 'signal-noise/sn-site-facts', $list, true ), 'v10.26.0: sn-site-facts is allowlisted on the read door' );
+ok( in_array( 'signal-noise/sn-status', $list, true ) && in_array( 'signal-noise/sn-metrics', $list, true ), 'v13.1.0: the two sectioned-batch coherence readouts are doored' );
+// v13.1.0 — NEW ALONGSIDE OLD holds for the coherence pair: every absorbed
+// single stays doored until a telemetry window justifies wave 4 (the exact
+// contract waves 1-2 ran under before their retirements).
+foreach ( array( 'uptime-status', 'get-deploy-status', 'get-health-scan', 'anchor-status', 'provenance-integrity-status', 'login-defense-ipv6-criterion', 'ai-cache-probe-status', 'cadence-flags', 'list-cron-events', 'get-cron-history', 'get-analytics-summary', 'get-analytics-events', 'get-rss-stats' ) as $single ) {
+	ok( in_array( "signal-noise/$single", $list, true ), "v13.1.0 new-alongside-old: $single stays doored" );
+}
 // v10.26.0 pinned "NEW ALONGSIDE OLD — list-posts and get-post-content stay
 // allowlisted". That invariant was correct while sn-posts was unproven; wave 2
 // replaces it with the retirement contract at the bottom of this file (absent
@@ -93,7 +100,7 @@ foreach ( array( 'signal-noise/keyword-candidates' ) as $slug ) {
 // still-correct count.
 $read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
 $read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
-ok( count( $read_plugin ) === 19, 'read door carries exactly 19 plugin slugs (-> 19 in v13.0.0 wave 2: pattern-adoption-scan, list-posts, get-post-content, get-insights, get-narration retired; -> 24 in v12.11.0: login-defense-ipv6-criterion; 23 in v11.34.0; was 28 before wave 1, plugin-namespace)' );
+ok( count( $read_plugin ) === 21, 'read door carries exactly 21 plugin slugs (-> 21 in v13.1.0: sn-status + sn-metrics added; -> 19 in v13.0.0 wave 2; -> 24 in v12.11.0; 23 in v11.34.0; was 28 before wave 1, plugin-namespace)' );
 ok( count( $read_theme ) === 0, 'read door carries ZERO theme slugs (v11.34.0 — sn-site-facts DISPATCHES to them and is itself a plugin-namespace slug)' );
 ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
 

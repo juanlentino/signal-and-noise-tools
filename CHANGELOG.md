@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.1.0] - 2026-08-25 — two coherent readouts: the door answers questions, not fragments
+
+"Is the site healthy?" cost ten door calls; "how is it being read?" cost
+three. Two new consolidated read tools answer each in ONE call, on the
+sectioned-batch pattern `sn-site-facts` proved — the caller names the
+sections it wants, and every section carries its source ability's exact
+payload shape, unreshaped. This is deliberately NOT the original spec's
+`sn_health`: no five-way merge of disjoint shapes, so the wave-2 sheet's
+merge-by-return-shape objection does not apply. (Owner reopened the wave-3
+descope with this framing the same day it was recorded — the decision doc
+carries the amendment.)
+
+### Added
+- **`sn-status`** ([inc/abilities-sn-status.php](inc/abilities-sn-status.php)) —
+  ten sections: `uptime`, `deploy`, `health_scan`, `anchor`,
+  `provenance_integrity`, `ipv6_criterion`, `ai_cache_probe`, `cadence`,
+  `cron_scheduled`, `cron_history`. `hook` is required input when (and only
+  when) `cron_history` is requested — the source ability requires it, and
+  dispatching without it would have been a permanently dead section. That is
+  the exact bug class sn-site-facts shipped for `active_template` and needed
+  an adversarial review round to catch; this time it was caught by reading
+  the live source registration at write time.
+- **`sn-metrics`** ([inc/abilities-sn-metrics.php](inc/abilities-sn-metrics.php)) —
+  three sections: `analytics_summary`, `analytics_events`, `rss_stats`, with
+  shared `range`/`class` args forwarded ONLY to the sources whose schemas
+  declare them (forwarding `class` to analytics_events would trip its
+  `additionalProperties:false` and kill a healthy section — the same bug
+  class, mirrored: dead by extra args instead of missing ones). A test pins
+  the scoping per section.
+
+Both dispatch through `snt_sn_site_facts_dispatch()` — the proven
+check_permissions → execute sequence with uniform `{error:"unavailable"}`
+per-section degradation — and both are **new alongside old**: all thirteen
+absorbed singles stay doored (a test pins each one) until a telemetry
+window justifies a wave-4 retirement. Read door 19 → 21.
+
 ## [13.0.0] - 2026-08-25 — wave 2 collects: 34 MCP tools become 25, and the kept pair is kept on the record
 
 **BREAKING.** Nine more tools leave the MCP doors. As in wave 1 (v12.0.0),
