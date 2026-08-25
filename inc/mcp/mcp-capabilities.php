@@ -77,6 +77,21 @@ function sn_mcp_allowlist() {
 		//   get-design-system-summary   -> design_tokens (sn-site-facts' own
 		//     description already called this one "retired, not absorbed" while
 		//     it sat in this list — a contradiction, now closed)
+		// ── v13.0.0 — WAVE 2 RETIRED FROM THE DOOR ─────────────────────────
+		// Same contract as wave 1 (v12.0.0): removed here, NOT deleted — every
+		// ability stays registered, still answers wp_get_ability()->execute(),
+		// still serves its internal callers and stays REST-reachable behind its
+		// own permission_callback. Verdicts + evidence:
+		// docs/mcp-consolidation/retirement-verdicts-2026-08-25.md.
+		//
+		// Absorbed, absorber live and proven:
+		//   pattern-adoption-scan -> sn-scan{pattern_adoption}
+		//   list-posts            -> sn-posts
+		//   get-post-content      -> sn-posts (content is an opt-in field)
+		// Retired outright (spec'd "retired, not absorbed" since day one;
+		// the weekly-digest prompt was rewritten in the same release so the
+		// door no longer hands out a recipe for two not_founds):
+		//   get-insights, get-narration
 		// Plugin (signal-noise/) — operational reads.
 		'signal-noise/get-health-scan',
 		'signal-noise/uptime-status',
@@ -85,10 +100,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/get-rss-stats',
 		'signal-noise/get-cron-history',
 		'signal-noise/list-cron-events',
-		'signal-noise/get-insights',
-		'signal-noise/get-narration',
 		'signal-noise/get-analytics-events',
-		'signal-noise/pattern-adoption-scan',
 		// v12.11.0 — the IPv6 criterion gauge, previously wp-admin only. The
 		// criterion was pre-committed so the NUMBER triggers the call; a
 		// number nobody can query triggers nothing. LOCAL door only —
@@ -98,12 +110,8 @@ function sn_mcp_allowlist() {
 		// they return is status an agent should be able to see for itself.
 		'signal-noise/anchor-status',
 		'signal-noise/provenance-integrity-status',
-		// v10.6.0 — corpus inspection. All three PURE-READ by construction
-		// (inc/corpus-inspect.php never writes); they span non-public statuses
-		// (future/draft/pending/private) on purpose — pre-publish collision
-		// checking is the point — double-gated by manage_options + door auth.
-		'signal-noise/list-posts',
-		'signal-noise/get-post-content',
+		// v10.6.0 — corpus inspection: list-posts + get-post-content moved to
+		// the wave-2 retirement block above (absorbed by sn-posts).
 		// v10.16.0 (2026-07-30) — near-duplicate cousin scan: PURE-READ by
 		// construction (kernel cosine over the same corpus walk, no writes);
 		// spans non-public statuses for the same pre-publish reason as the
@@ -242,19 +250,29 @@ function sn_mcp_rw_allowlist() {
 		//   pattern-adoption-apply    -> sn-apply{change.type:pattern_adoption}
 		//   anchor-sweep              -> sn-apply{change.type:anchor_sweep}
 		//   regenerate-og-card        -> sn-apply{change.type:og_card}
-		// Plugin (signal-noise/) — 30.
+		// ── v13.0.0 — WAVE 2 RETIRED FROM THE DOOR ─────────────────────────
+		// Same contract as wave 1: door-only removal, nothing deleted.
+		// Verdicts: docs/mcp-consolidation/retirement-verdicts-2026-08-25.md.
+		//   block-migrations-suggest -> sn-scan{block_migrations} +
+		//     sn-apply{block_migration} (44% of its 219 windowed calls were
+		//     schema_error/refused — the consolidated path carries the
+		//     fingerprints this one kept fumbling)
+		//   update-post-surfaces     -> sn-apply{change.type:surfaces}
+		//   run-insights-scan, run-narration — retired outright with their
+		//     read siblings (spec'd so since day one)
+		//
+		// KEPT ON PURPOSE — ai-pair-suggest + ai-link-apply. The spec's
+		// mapping calls them absorbed; the shipped code disproves it: sn-scan
+		// deliberately emits apply_hint:null for link_candidates because
+		// ai-link-apply validates a positional fingerprint only the
+		// AI-mediated suggest can produce. No sn-apply bridge exists, so
+		// retiring the pair would DELETE the AI link flow over MCP, not
+		// consolidate it. Code outranks the mapping table.
 		'signal-noise/ai-link-apply',
 		'signal-noise/ai-pair-suggest',
-		'signal-noise/block-migrations-suggest',
 		'signal-noise/prune-unused-tags',
 		'signal-noise/unschedule-cron-event',
-		'signal-noise/run-insights-scan',
-		'signal-noise/run-narration',
 		'signal-noise/purge-all-caches',
-		// v10.7.0 — the reviewed-text apply step (draft → review → apply):
-		// writes excerpt/meta-desc/OG title to caller-supplied text. No AI,
-		// edit_post-gated, revision-creating; belongs on the rw envelope.
-		'signal-noise/update-post-surfaces',
 		// v9.82.0 — not readonly, but idempotent: one bounded wp_remote_post
 		// (timeout 20) asking the provenance Worker to upgrade already-confirmed
 		// proofs. The rw door's kill switch, app-password binding, rate limit,

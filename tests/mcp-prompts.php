@@ -39,10 +39,15 @@ ok( isset( $weekly['messages'] ) && is_array( $weekly['messages'] ) && count( $w
 ok( ( $weekly['messages'][0]['role'] ?? '' ) === 'user', 'weekly-report message role is "user"' );
 ok( ( $weekly['messages'][0]['content']['type'] ?? '' ) === 'text', 'weekly-report message content type is "text"' );
 $weekly_text = $weekly['messages'][0]['content']['text'] ?? '';
-foreach ( array( 'get-analytics-summary', 'get-rss-stats', 'uptime-status', 'get-narration', 'get-insights' ) as $tool ) {
+foreach ( array( 'get-analytics-summary', 'get-analytics-events', 'get-rss-stats', 'uptime-status' ) as $tool ) {
 	ok( false !== strpos( $weekly_text, $tool ), "weekly-report instructs the agent to call $tool" );
 }
-ok( stripos( $weekly_text, 'null' ) !== false, 'weekly-report explicitly addresses the null-means-not-generated-yet case' );
+// v13.0.0 wave 2: get-narration and get-insights are off the doors. A doored
+// prompt naming an undoored tool is a recipe for a not_found — pinned absent.
+foreach ( array( 'get-narration', 'get-insights' ) as $tool ) {
+	ok( false === strpos( $weekly_text, $tool ), "weekly-report no longer names the retired $tool" );
+}
+ok( stripos( $weekly_text, 'empty' ) !== false || stripos( $weekly_text, 'sparse' ) !== false, 'weekly-report explicitly addresses the quiet-week sparse-data case' );
 // No literal template placeholder (e.g. "{{" or "TODO") should survive into the served text.
 ok( false === strpos( $weekly_text, '{{' ) && false === stripos( $weekly_text, 'TODO' ), 'weekly-report text is placeholder-free' );
 
@@ -51,9 +56,16 @@ $audit = sn_mcp_prompt_get( 'content-audit' );
 ok( ! empty( $audit['description'] ), 'content-audit result carries a description' );
 ok( isset( $audit['messages'][0]['content']['text'] ), 'content-audit returns a text message' );
 $audit_text = $audit['messages'][0]['content']['text'];
-foreach ( array( 'get-health-scan', 'block-migrations-scan', 'pattern-adoption-scan' ) as $tool ) {
-	ok( false !== strpos( $audit_text, $tool ), "content-audit instructs the agent to call $tool" );
+// v13.0.0 wave 2: routes through the consolidated scanner. block-migrations-scan
+// had been a DEAD POINTER in this prompt since wave 1 (v12.0.0) — nothing
+// pinned the prompt text against the door, which is what these pins now do.
+foreach ( array( 'get-health-scan', 'sn-scan', 'block_migrations', 'pattern_adoption' ) as $needle ) {
+	ok( false !== strpos( $audit_text, $needle ), "content-audit routes via: $needle" );
 }
+foreach ( array( 'block-migrations-scan', 'pattern-adoption-scan' ) as $tool ) {
+	ok( false === strpos( $audit_text, $tool ), "content-audit no longer names the retired $tool" );
+}
+ok( false !== strpos( $audit_text, 'ONE scan_type per call' ), 'content-audit tells the agent sn-scan takes one scan_type per call' );
 ok( stripos( $audit_text, 'priorit' ) !== false, 'content-audit asks for a prioritized findings list' );
 ok( false === strpos( $audit_text, '{{' ) && false === stripos( $audit_text, 'TODO' ), 'content-audit text is placeholder-free' );
 

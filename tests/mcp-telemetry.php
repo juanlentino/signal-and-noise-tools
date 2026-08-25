@@ -350,8 +350,11 @@ ok( 'schema_error' === $wpdb->insert_calls[0]['data']['outcome'], 'wiring: non-s
 
 // --- permission denied → refused ---
 sn_test_reset_telemetry();
-$GLOBALS['__abilities']['signal-noise/get-insights'] = new SN_Test_Ability( 'signal-noise/get-insights', array( 'perm' => false, 'result' => array( 'x' => 1 ) ) );
-sn_mcp_call_tool( 'signal-noise__get-insights', array() );
+// v13.0.0: was get-insights, which wave 2 retired from the door — the call
+// gate now refuses it before the permission callback ever runs, which is a
+// different refusal_gate than this test pins. Any DOORED read slug works.
+$GLOBALS['__abilities']['signal-noise/get-health-scan'] = new SN_Test_Ability( 'signal-noise/get-health-scan', array( 'perm' => false, 'result' => array( 'x' => 1 ) ) );
+sn_mcp_call_tool( 'signal-noise__get-health-scan', array() );
 ok( 'refused' === $wpdb->insert_calls[0]['data']['outcome'], 'wiring: permission denial → refused' );
 ok( 'permission' === $wpdb->insert_calls[0]['data']['refusal_gate'], 'wiring: permission denial names refusal_gate=permission' );
 
@@ -373,12 +376,16 @@ $GLOBALS['__abilities']['signal-noise/get-rss-stats'] = new SN_Test_Ability( 'si
 sn_mcp_call_tool( 'signal-noise__get-rss-stats', array() );
 ok( 'server_error' === $wpdb->insert_calls[0]['data']['outcome'], 'wiring: execute() WP_Error with a status-500 code → server_error' );
 
-// --- execute() WP_Error, status-429 write-throttle → refused/write_throttle (real shape: inc/abilities-update-post-surfaces.php) ---
+// --- execute() WP_Error, status-429 write-throttle → refused/write_throttle ---
+// The error SHAPE is inc/abilities-update-post-surfaces.php's
+// snt_surfaces_throttled; v13.0.0 retired that slug from the rw door, so the
+// shape is replayed on a slug the door still admits (the classification under
+// test keys on the WP_Error status/code, never the slug).
 sn_test_reset_telemetry();
-$GLOBALS['__abilities']['signal-noise/update-post-surfaces'] = new SN_Test_Ability( 'signal-noise/update-post-surfaces', array(
+$GLOBALS['__abilities']['signal-noise/unschedule-cron-event'] = new SN_Test_Ability( 'signal-noise/unschedule-cron-event', array(
 	'result' => new WP_Error( 'snt_surfaces_throttled', 'write cap reached', array( 'status' => 429 ) ),
 ) );
-sn_mcp_call_tool( 'signal-noise__update-post-surfaces', array( 'post_id' => 1 ), SN_MCP_DOOR_RW );
+sn_mcp_call_tool( 'signal-noise__unschedule-cron-event', array( 'hook' => 'x' ), SN_MCP_DOOR_RW );
 ok( 'refused' === $wpdb->insert_calls[0]['data']['outcome'] && 'write_throttle' === $wpdb->insert_calls[0]['data']['refusal_gate'], 'wiring: execute() WP_Error snt_surfaces_throttled → refused/write_throttle end-to-end' );
 
 // --- rate-limit refusal on the rw door → refused + refusal_gate=rate_limit ---
