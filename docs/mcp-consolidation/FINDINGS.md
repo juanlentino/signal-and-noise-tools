@@ -740,3 +740,26 @@ FAIL: Test 4d.8: the real value landed in postmeta, not the dry-run preview text
 ### Final verification (this fix round)
 
 NUL-safe sweep, `tests/*.php` minus `contracts-smoke.php`: **377 files, 14,183 assertions, 0 failures** (up from ship-time 377/14,154 — the delta is exactly this round's 12+7+10=29 new asserts, no regressions). `php -l` clean on every touched file. `composer phpstan` — **315/315 files, no errors** (file count unchanged; no new files this round). `composer lint` (phpcs) — clean. `tests/mcp-projection-schema-types.php` (31/31) and `tests/admin-registry.php` (56/56) explicitly re-verified green — this round touched no schema shape and no admin-registry-relevant file.
+
+---
+
+# Program close-out — waves 1–3 (recorded 2026-08-25)
+
+This file's session log stops at session 7 (v10.42.0); the retirement work
+was recorded elsewhere and is indexed here so FINDINGS.md is not silently
+truncated:
+
+- **Wave 1** — v12.0.0 (#745, 2026-08-19): 74 tools → 33 in three tiers.
+  Record: the v12.0.0 CHANGELOG entry + the tier comments in
+  `inc/mcp/mcp-capabilities.php` (which carry a stale "v11.34.0" draft
+  label — the release shipped as v12.0.0).
+- **Wave 2** — v13.0.0 (#806, 2026-08-25): 34 → 25 (19 read + 6 rw).
+  Evidence and verdicts: `retirement-verdicts-2026-08-25.md` (#805).
+  Notable: the ai-pair-suggest/ai-link-apply pair KEPT and test-pinned as a
+  pair — the shipped code disproves the spec's absorption mapping for it.
+- **Wave 3** — DESCOPED by owner decision 2026-08-25 (see the decision
+  section in `retirement-verdicts-2026-08-25.md`). The observers and
+  sn_danger are not built; sn_dismiss is deferred to phase-10 start.
+
+The retirement contract lives in `tests/mcp-capabilities.php`: every
+retired slug absent from BOTH doors AND its absorber present.
