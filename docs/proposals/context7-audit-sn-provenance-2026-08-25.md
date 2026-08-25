@@ -20,7 +20,8 @@ Every module below runs on Web Crypto + `fetch` only.
 | `src/bounded-body.mjs` | 39 | (none) | **Keep** — no package does this |
 
 No module is "merely older than its package." One latent defect was found in
-passing (§5) — it is a bounds disagreement, not a package question.
+passing (§5) — it is a bounds disagreement, not a package question. **Resolved
+same day** in sn-provenance-worker v1.12.2.
 
 ## 1. `ots.mjs` — the OpenTimestamps client
 
@@ -109,7 +110,17 @@ Size-capped response reading. There is no package for this because it is
 three ideas long; it exists so `ots.mjs` and the webhook path share one
 bound. Keep.
 
-## 5. Finding in passing: `toB64` vs the 1 MB calendar bound
+## 5. Finding in passing: `toB64` vs the 1 MB calendar bound — RESOLVED
+
+> **Resolved 2026-08-25** in sn-provenance-worker
+> [v1.12.2](https://github.com/juanlentino/sn-provenance-worker/releases/tag/v1.12.2)
+> ([PR #23](https://github.com/juanlentino/sn-provenance-worker/pull/23)):
+> `toB64` now builds the binary string in 32 KB slices before a single `btoa`,
+> and a test round-trips a 1 MB `Uint8Array` through `toB64`/`fromB64` so the
+> encoder's bound can never again fall below the calendar cap. The chunking
+> option was chosen over lowering `MAX_CALENDAR_BODY_BYTES` — the encoder now
+> meets the bound the calendar path already promises, rather than shrinking
+> that promise around the encoder's defect. The original finding follows.
 
 `toB64 = (u8) => btoa(String.fromCharCode(...u8))` spreads the whole array
 as arguments. Engines cap argument spreads around ~64–125k elements, so
