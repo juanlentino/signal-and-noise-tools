@@ -61,7 +61,7 @@
 .sn-maturity-roadmap-legend{display:grid;grid-template-columns:repeat(4,1fr);border:2px solid currentColor;box-shadow:8px 8px 0 currentColor;margin:0 0 2.5rem;background:var(--wp--preset--color--void,#fff)}
 .sn-maturity-roadmap-legend__cell{display:block;color:inherit;text-decoration:none;padding:1rem 1.2rem .9rem;position:relative}
 .sn-maturity-roadmap-legend__cell+.sn-maturity-roadmap-legend__cell{border-left:2px solid currentColor}
-.sn-maturity-roadmap-legend__stat{display:block;font-family:var(--wp--preset--font-family--heading,Impact,sans-serif);font-size:clamp(2.4rem,5vw,4.2rem);line-height:1;font-variant-numeric:tabular-nums}
+.sn-maturity-roadmap-legend__stat{display:block;font-family:var(--wp--preset--font-family--heading,'Bebas Neue',Impact,sans-serif);font-size:clamp(2.4rem,5vw,4.2rem);line-height:1;font-variant-numeric:tabular-nums}
 .sn-maturity-roadmap-legend__sub{display:block;font-size:.68rem;opacity:.55;margin-top:.4rem;letter-spacing:.02em}
 .sn-maturity-roadmap-legend__cell--planned{opacity:.62}
 .sn-maturity-roadmap-legend__cell--considering{opacity:.44}
@@ -85,8 +85,8 @@
    hold a floor wide enough for "NN considering" on one line. */
 .sn-maturity-roadmap-board__cell--planned,.sn-maturity-roadmap-board__cell--considering,.sn-maturity-roadmap-board__cell--later{min-width:185px}
 .sn-maturity-roadmap-board th:not(:last-child),.sn-maturity-roadmap-board td:not(:last-child){border-right:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.16))}
-.sn-maturity-roadmap-board__family-h{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
-.sn-maturity-roadmap-badge{display:inline-flex;align-items:baseline;gap:.5em;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
+.sn-maturity-roadmap-board__family-h{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.sn-maturity-roadmap-badge{display:inline-flex;align-items:baseline;gap:.5em;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
 /* The maturity fade used to be `opacity` on the whole badge, which fades the
    TEXT along with the frame: measured live, the counts ran 3.29 / 2.13 / 1.76 /
    1.45:1 as the badge got more speculative, and the `later` count was
@@ -119,7 +119,7 @@
    served palette outranks the strength of a supplementary hover cue, and the
    row keeps its transition and cursor. */
 .sn-maturity-roadmap-board tbody tr:hover{background:var(--wp--preset--color--asphalt,rgba(0,0,0,.022))}
-.sn-maturity-roadmap-board__family{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.76rem;font-weight:600;white-space:nowrap}
+.sn-maturity-roadmap-board__family{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.76rem;font-weight:600;white-space:nowrap}
 
 /* Cell lists: ruled items, no bullets; the future-tense columns dim as
    commitment weakens, so the left-to-right maturation is visible. */
@@ -129,13 +129,13 @@
 .sn-maturity-roadmap-board__cell--planned{opacity:.88}
 .sn-maturity-roadmap-board__cell--considering{opacity:.72}
 .sn-maturity-roadmap-board__cell--later{opacity:.58}
-.sn-maturity-roadmap-board__empty{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;opacity:.35}
+.sn-maturity-roadmap-board__empty{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);opacity:.35}
 
 /* The folds: native details, the signal spent on the act of opening.
    The glyph is a bordered +/− that inverts to signal on hover; the open
    animation rides ::details-content where supported and degrades to
    instant everywhere else. Find-in-page opens matching folds natively. */
-.sn-maturity-roadmap-fold summary{cursor:pointer;list-style:none;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:.15em 0;user-select:none;display:flex;align-items:center;gap:.55em;white-space:nowrap;transition:color .12s linear}
+.sn-maturity-roadmap-fold summary{cursor:pointer;list-style:none;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;padding:.15em 0;user-select:none;display:flex;align-items:center;gap:.55em;white-space:nowrap;transition:color .12s linear}
 .sn-maturity-roadmap-fold summary::-webkit-details-marker{display:none}
 .sn-maturity-roadmap-fold__glyph{display:inline-grid;place-items:center;width:1.35em;height:1.35em;border:2px solid currentColor;line-height:1;flex:none;transition:transform .16s ease,background .12s linear,color .12s linear,border-color .12s linear}
 .sn-maturity-roadmap-fold__glyph::before{content:"+"}
@@ -175,7 +175,7 @@
 	.sn-maturity-roadmap-board tbody tr:last-child{border-bottom:0}
 	.sn-maturity-roadmap-board th:not(:last-child),.sn-maturity-roadmap-board td:not(:last-child){border-right:0}
 	.sn-maturity-roadmap-board__family{white-space:normal;font-size:.85rem;padding-bottom:.2em}
-	.sn-maturity-roadmap-board__cell::before{content:attr(data-label);display:block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.6;margin-bottom:.15em}
+	.sn-maturity-roadmap-board__cell::before{content:attr(data-label);display:block;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;opacity:.6;margin-bottom:.15em}
 	.sn-maturity-roadmap-board__cell{border-bottom:0;padding-top:.35em}
 }
 

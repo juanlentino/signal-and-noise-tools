@@ -3,7 +3,7 @@
    borders, mono kicker, currentColor throughout. Scoped to .snt-ml-related;
    enqueued only when the section actually renders. */
 .snt-ml-related{margin:3rem 0 0;border-top:2px solid currentColor;padding-top:1.25rem;line-height:1.6}
-.snt-ml-related-title{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:0 0 .85rem}
+.snt-ml-related-title{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:0 0 .85rem}
 .snt-ml-related ul{list-style:none;margin:0;padding:0;display:grid;gap:.55rem}
 .snt-ml-related li{border:2px solid currentColor;padding:.6rem .85rem}
 .snt-ml-related li a{color:inherit;text-decoration:none;display:block}
