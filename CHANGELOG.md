@@ -2,6 +2,63 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.6.0] - 2026-08-26 — sn_scan names its rules, so an empty result finally means something
+
+`sn_scan` reported what it FOUND and never what it LOOKED FOR. An empty
+`candidates` array was ambiguous in the one direction that matters: it could
+mean "the corpus conforms" or "nothing is registered to detect against", and
+no caller could tell those apart.
+
+The ambiguity was live, not theoretical. `scan_type: "pattern_adoption"`
+returns zero candidates across the entire corpus. The reason is NOT that
+nothing is registered — two detectors are, and both are correct. They key on
+`core/quote` and ordered `core/list`, and a census of the 55-post corpus on
+2026-08-26 found `core/paragraph`, `core/heading` and `core/html` and nothing
+else. Zero quote blocks, zero list blocks. The rules simply have no material.
+
+### Added
+
+- **`detectors[]` on every `sn_scan` response**
+  ([inc/sn-scan-detectors.php](inc/sn-scan-detectors.php), new): the rules the
+  requested `scan_type` actually ran, each `{id, triggers_on}`. `id` is the
+  identifier the detector's OWN code uses (`pattern_type`, `migration_type`,
+  `rule`), so an entry correlates with the candidates it produced rather than
+  being prose about it. `triggers_on` states the literal condition, derived
+  from the detector source in every case — `SNT_EMDASH_PATTERN` for `emdash`,
+  `snt_pattern_adoption_match_block_type()` for `pattern_adoption`, the
+  `migration_type` enum for `block_migrations`, the rule keys for
+  `anchor_violations`.
+
+  Turns `0 candidates` into `2 detectors ran over 57 posts, 0 candidates`,
+  which is a finding: the corpus holds no quote or list blocks.
+
+### Why a registry and not more detectors
+
+The obvious alternative was to register additional `pattern_adoption` rules so
+the surface stops returning zero. That would not have worked. Every rule of
+that shape keys on a block TYPE, and this corpus contains three block types,
+two of which are paragraph and heading. A detector that could fire here would
+have to key on PROSE, which is a materially different and harder build. Naming
+the existing rules costs one field and makes the zero honest; inventing rules
+that also return zero would have cost a great deal and changed nothing.
+
+### Guarded
+
+- `tests/abilities-sn-scan.php` (+14): both-directions parity between the
+  registry and `SNT_SN_SCAN_TYPES`, mirroring the adapter guard already in that
+  file — a new `scan_type` cannot ship without naming its rules, and a registry
+  entry cannot outlive its type. Every entry must carry a non-empty `id` and
+  `triggers_on`. The advertised ids are checked by driving the REAL matcher
+  (`snt_pattern_adoption_match_block_type()`) rather than restating them, and
+  the ENVELOPE is asserted separately from the registry function, since a
+  correct registry the dispatcher never surfaces is worthless.
+
+  All three guards were mutation-verified red before being trusted: removing
+  `pattern_adoption` from the registry → 3 FAIL; renaming `steps-enumerated` →
+  1 FAIL; removing the envelope field → 2 FAIL. The envelope assertion was made
+  crash-safe after the first mutation produced a FATAL instead of a clean FAIL,
+  which a `grep FAIL` gate would have missed entirely.
+
 ## [13.5.0] - 2026-08-26 — the non-anchor locator: dynamic blocks stop being write-once
 
 The owner's brief, premise CONFIRMED live before building (scratch draft:
