@@ -531,6 +531,10 @@ ok( null === sn_mcp_telemetry_change_type( array( 'sections' => array( 'uptime' 
 ok( null === sn_mcp_telemetry_change_type( array( 'facts' => array( 'uptime' ) ), 'signal-noise__sn-site-facts' ), 'dimension: allowlists are PER TOOL — an sn-status section is not a site-facts fact' );
 ok( null === sn_mcp_telemetry_change_type( array( 'sections' => 'uptime' ), 'signal-noise__sn-status' ), 'dimension: a non-array sections value → null, never stringified' );
 ok( 'link_reshape' === sn_mcp_telemetry_change_type( array( 'change' => array( 'type' => 'link_reshape' ) ), 'signal-noise__sn-apply' ), 'dimension: sn-apply extraction is UNCHANGED with tool_name passed' );
+ok( 'uptime' === sn_mcp_telemetry_change_type( array( 'sections' => array( 'uptime' ) ), 'signal-noise/sn-status' ), 'dimension (review MEDIUM): the DIRECT door\'s raw ability-slug format is captured too — a REST-surface single-section read is not dropped from the dimension' );
+ok( null === sn_mcp_telemetry_change_type( array( 'sections' => array( array( 'nested' ) ) ), 'signal-noise__sn-status' ), 'dimension (review LOW): a non-string sections entry is filtered, never strval\'d (no warning, no coercion)' );
+$row_long = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__sn-status', 'sections', str_repeat( 'a', 64 ), 'ok', null, 3, null, str_repeat( 'x', 33 ) );
+ok( null === $row_long['change_type'], 'build_row (review LOW): a dimension value over VARCHAR(32) resolves to NULL at the persist choke point — never silent SQL truncation' );
 
 // The live wrapper threads tool_name through to the capture.
 sn_test_reset_telemetry();

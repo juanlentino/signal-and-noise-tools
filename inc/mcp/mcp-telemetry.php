@@ -206,10 +206,21 @@ function sn_mcp_telemetry_change_type( $args, $tool_name = '' ) {
 	// honest; a fabricated "first of three" dimension is not. Every value in
 	// those maps is a schema-fixed identifier with bounded cardinality and
 	// fits the column's VARCHAR(32).
+	// Keyed by BOTH name formats a recorder passes (review MEDIUM): the MCP
+	// door records the projected tool name (slug with '/'→'__'), while the
+	// lifecycle guard's 'direct' door (WP's native Abilities REST surface)
+	// records the raw ability slug. Missing the second format would silently
+	// drop every direct-door single-fact read from the dimension — recorded
+	// NULL, indistinguishable from a multi-entry call. The agent door builds
+	// its rows without this extractor and stays dimension-less (pre-existing,
+	// sn-apply included).
 	$sources = array(
 		'signal-noise__sn-status'     => array( 'key' => 'sections', 'map' => 'snt_sn_status_map' ),
+		'signal-noise/sn-status'      => array( 'key' => 'sections', 'map' => 'snt_sn_status_map' ),
 		'signal-noise__sn-metrics'    => array( 'key' => 'sections', 'map' => 'snt_sn_metrics_map' ),
+		'signal-noise/sn-metrics'     => array( 'key' => 'sections', 'map' => 'snt_sn_metrics_map' ),
 		'signal-noise__sn-site-facts' => array( 'key' => 'facts', 'map' => 'snt_sn_site_facts_map' ),
+		'signal-noise/sn-site-facts'  => array( 'key' => 'facts', 'map' => 'snt_sn_site_facts_map' ),
 	);
 	$source = $sources[ (string) $tool_name ] ?? null;
 	if ( null === $source || ! is_array( $args ) || ! function_exists( $source['map'] ) ) {
@@ -219,7 +230,9 @@ function sn_mcp_telemetry_change_type( $args, $tool_name = '' ) {
 	if ( ! is_array( $requested ) ) {
 		return null;
 	}
-	$requested = array_values( array_unique( array_map( 'strval', $requested ) ) );
+	// is_string filter FIRST (review LOW): extraction runs on raw,
+	// pre-validation args, and strval over a nested-array entry would warn.
+	$requested = array_values( array_unique( array_filter( $requested, 'is_string' ) ) );
 	if ( 1 !== count( $requested ) ) {
 		return null;
 	}
@@ -467,7 +480,10 @@ function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape
 		'latency_ms'   => (int) $latency_ms,
 		'result_count' => null === $result_count ? null : (int) $result_count,
 		'candidate_id' => null, // Reserved; always NULL this session.
-		'change_type'  => null === $change_type ? null : (string) $change_type,
+		// Persist-choke bound (review LOW): the column is VARCHAR(32); a
+		// longer identifier must resolve to NULL here, never silent SQL
+		// truncation — the same belt the error_code grammar re-applies.
+		'change_type'  => ( null === $change_type || strlen( (string) $change_type ) > 32 ) ? null : (string) $change_type,
 		'error_code'   => 'ok' === $outcome ? null : sn_mcp_telemetry_error_code_allowed( $error_code ),
 	);
 }
@@ -641,7 +657,7 @@ function sn_mcp_telemetry_summary( $days = 30 ) {
 	// requested section/fact for the batch read tools), so rows must name
 	// which tool's dimension they are. Additive key; sn-apply rows read as
 	// before with tool_name alongside.
-	$sql2  = $wpdb->prepare( "SELECT tool_name, change_type, outcome, COUNT(*) AS calls, AVG(latency_ms) AS avg_latency_ms, MAX(ts) AS last_call FROM {$table} WHERE ts >= %s AND change_type IS NOT NULL GROUP BY tool_name, change_type, outcome ORDER BY calls DESC, change_type ASC", $cutoff );
+	$sql2  = $wpdb->prepare( "SELECT tool_name, change_type, outcome, COUNT(*) AS calls, AVG(latency_ms) AS avg_latency_ms, MAX(ts) AS last_call FROM {$table} WHERE ts >= %s AND change_type IS NOT NULL GROUP BY tool_name, change_type, outcome ORDER BY calls DESC, change_type ASC, tool_name ASC", $cutoff );
 	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql2 is the STRING RETURNED BY $wpdb->prepare() one line above, already safely bound.
 	$rows2 = $wpdb->get_results( $sql2, ARRAY_A );
 

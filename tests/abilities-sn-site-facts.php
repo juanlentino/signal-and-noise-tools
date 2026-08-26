@@ -82,7 +82,12 @@ class SN_Test_Theme_Active_Template_Ability {
 	public function all_call_args() { return $this->calls_with; }
 }
 $GLOBALS['__abilities'] = array();
-if ( ! function_exists( 'wp_get_ability' ) ) { function wp_get_ability( $name ) { return $GLOBALS['__abilities'][ $name ] ?? null; } }
+$GLOBALS['__ability_lookups'] = array();
+// Review fix (v13.3.0 round): the stub RECORDS every lookup — without this,
+// the four "internal sentinel is never dispatched as an ability" assertions
+// passed unconditionally (the lookups array was initialized and never
+// written), verifying nothing.
+if ( ! function_exists( 'wp_get_ability' ) ) { function wp_get_ability( $name ) { $GLOBALS['__ability_lookups'][] = (string) $name; return $GLOBALS['__abilities'][ $name ] ?? null; } }
 
 require __DIR__ . '/../inc/abilities-sn-site-facts.php';
 

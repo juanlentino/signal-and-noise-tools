@@ -30,7 +30,11 @@ All notable changes to Signal & Noise Tools are documented here.
   own registration map, sourced live (a fact added to the map is covered
   automatically, `pattern_content` included from day one). Multi-entry
   calls record NULL: the aggregate row is honest, a fabricated "first of
-  three" is not. `by_change_type` rollup rows now carry `tool_name`
+  three" is not. Captured on the MCP door AND the direct (Abilities REST)
+  door — the recorder accepts both the projected tool name and the raw
+  ability slug (review round); the agent door builds its rows without
+  this extractor and stays dimension-less, as it always has for sn-apply
+  too. `by_change_type` rollup rows now carry `tool_name`
   (additive key; grouping gains tool_name) so mixed dimensions stay
   attributable. This is the evidence stream the wave-4 retirement sheet
   needs — per-section usage instead of per-tool aggregates.
