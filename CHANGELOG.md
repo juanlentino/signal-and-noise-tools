@@ -44,8 +44,28 @@ tool, purely additive.
   attempts a restore and fails loudly (500,
   `snt_sn_apply_schedule_violation`) — a scheduled post must never
   publish early as a silent side effect of a block edit. The guard's red
-  path is test-driven (a one-shot clobber stub forces the early publish
-  and the suite watches the guard catch it).
+  path is test-driven (a clobber stub forces the early publish and the
+  suite watches the guard catch it). **Hardened by the adversarial review
+  round (HIGH, confirmed against core source)**: `wp_insert_post()`
+  silently coerces an explicit `'future'` to `'publish'` whenever
+  `post_date_gmt` is within a minute of now — on an overdue scheduled
+  post (cron lag) the write would early-publish AND the restore would be
+  coerced identically while returning a plain post ID, so the pre-fix
+  message would have read "restore succeeded" over a still-published
+  post. Two-half fix: an overdue `'future'` post now refuses UP FRONT in
+  publish mode (409, `snt_sn_apply_schedule_overdue` — nothing written;
+  revision mode still stages), and the restore's effect is VERIFIED by
+  re-reading the row, with the verified outcome named in the error. The
+  write-failure path now also carries the error's message into the
+  response (`error.message`, additive — previously the human-readable
+  detail was dropped on exactly the failures that most need it). The
+  test stub now models core's coercion faithfully, and both new paths
+  are driven red (overdue refusal; a double-clobber that defeats the
+  restore and must be reported as "remains publish", never "succeeded").
+  Review round also fixed (MEDIUM): the prose-delta prefix/suffix trim
+  is now multibyte-safe — a byte-wise boundary could split a UTF-8
+  character ("café"→"cafè" shares the lead byte) and degrade the preview
+  to `?` under `wp_json_encode()`'s sanity pass.
 - Fingerprint: the LIVE `content_hash`, REQUIRED — `sentence_replace`'s
   binding exactly (missing 422, stale 409). `payload.edits` is refused
   for both types: block edits interact through tag structure the prose

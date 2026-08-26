@@ -19,6 +19,8 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) )       { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
 if ( ! defined( 'ARRAY_A' ) )       { define( 'ARRAY_A', 'ARRAY_A' ); }
 if ( ! defined( 'OBJECT' ) )        { define( 'OBJECT', 'OBJECT' ); }
 
@@ -71,7 +73,7 @@ $GLOBALS['__audit_calls']        = array();
 $GLOBALS['__bound_uuid']         = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 $GLOBALS['__auth_uuid']          = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; // = bound => owner, by default
 $GLOBALS['__revisions_to_keep']  = -1; // unlimited
-$GLOBALS['__clobber_schedule']   = false; // one-shot: forces the next wp_update_post to early-publish (drives the guard's red path)
+$GLOBALS['__clobber_schedule']   = 0; // counter: each wp_update_post while > 0 early-publishes the row (drives the guard's red path; 2 defeats the restore too)
 
 function tf_post( $id, $overrides = array() ) {
 	$GLOBALS['__posts'][ $id ] = array_merge( array(
@@ -116,12 +118,24 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 		$id = (int) ( $args['ID'] ?? 0 );
 		if ( ! isset( $GLOBALS['__posts'][ $id ] ) ) { return $wp_error ? new WP_Error( 'invalid_post', 'no such post' ) : 0; }
 		foreach ( $args as $k => $v ) { if ( 'ID' !== $k ) { $GLOBALS['__posts'][ $id ][ $k ] = $v; } }
-		// One-shot early-publish clobber: models core deciding on its own that
+		// REAL core behavior (wp-includes/post.php, wp_insert_post's status
+		// resolution): an explicitly-passed 'future' whose post_date_gmt is
+		// within a minute of now silently resolves to 'publish'. Modeled
+		// faithfully so the suite can see the failure class the adversarial
+		// review named (an overdue scheduled post early-publishing — and the
+		// restore being coerced by the same path).
+		if ( 'future' === (string) ( $args['post_status'] ?? '' ) ) {
+			$gmt = (string) ( $args['post_date_gmt'] ?? ( $GLOBALS['__posts'][ $id ]['post_date_gmt'] ?? '' ) );
+			if ( '' !== $gmt && ( strtotime( $gmt ) - time() ) < 60 ) {
+				$GLOBALS['__posts'][ $id ]['post_status'] = 'publish';
+			}
+		}
+		// Counted early-publish clobber: models core deciding on its own that
 		// this row should go live NOW (the exact disaster the SUT's schedule
-		// guard exists to catch). Auto-clears so the guard's restore attempt
-		// runs against an honest store.
-		if ( $GLOBALS['__clobber_schedule'] ) {
-			$GLOBALS['__clobber_schedule'] = false;
+		// guard exists to catch). A count of 2 defeats the guard's restore
+		// attempt too, driving the restore-verification honesty path.
+		if ( $GLOBALS['__clobber_schedule'] > 0 ) {
+			$GLOBALS['__clobber_schedule']--;
 			$GLOBALS['__posts'][ $id ]['post_status'] = 'publish';
 			$GLOBALS['__posts'][ $id ]['post_date']   = '2026-08-25 00:00:00';
 		}
@@ -502,6 +516,15 @@ eq( 'new_version', $r['diff']['ledger_impact'] ?? null, 'DELTA.6: ...and ledger_
 ok( false !== strpos( (string) ( $r['diff']['prose_added'] ?? '' ), 'freshly composed paragraph' ), 'DELTA.7: prose_added carries the new normalized text' );
 eq( '', $r['diff']['prose_removed'] ?? null, 'DELTA.8: an insert removes nothing' );
 
+// mb-safety (adversarial review, MEDIUM): "café"→"cafè" shares the 0xC3
+// lead byte, so a byte-wise trim would emit lone continuation bytes that
+// wp_json_encode() degrades to "?". The boundary must snap to whole
+// characters.
+$mb = snt_sn_apply_block_edit_prose_delta( '<p>The word café ends this.</p>', '<p>The word cafè ends this.</p>' );
+eq( "\u{00E9}", $mb['prose_removed'], 'DELTA.9: multibyte boundary — prose_removed is the WHOLE character (é), never a lone continuation byte' );
+eq( "\u{00E8}", $mb['prose_added'], 'DELTA.10: ...and prose_added likewise (è)' );
+ok( false !== json_encode( $mb ), 'DELTA.11: the delta survives json_encode without the invalid-UTF-8 fallback' );
+
 /* ════════════════════════════════════════════════════════════════════════
  * 7. mode:"revision" stages, live row untouched; mode:"publish" writes
  *    live — and the write's diff carries the SAME delta fields.
@@ -529,26 +552,74 @@ eq( 'publish', $GLOBALS['__posts'][900]['post_status'], 'PUB.4: a published post
  *    models core early-publishing the row; the SUT must catch it, restore,
  *    and error loudly — never a silent early publish).
  * ════════════════════════════════════════════════════════════════════════ */
-$sched_body = '<!-- wp:paragraph --><p>A scheduled note whose sentence is long enough to act as the anchor here.</p><!-- /wp:paragraph -->';
-tf_post( 910, array( 'post_status' => 'future', 'post_date' => '2026-09-15 09:00:00', 'post_date_gmt' => '2026-09-15 09:00:00', 'post_content' => $sched_body ) );
+$sched_body   = '<!-- wp:paragraph --><p>A scheduled note whose sentence is long enough to act as the anchor here.</p><!-- /wp:paragraph -->';
+// Dynamic date: a literal future date is a time bomb (once real time passes
+// it, the stub's now-faithful coercion model flips every assertion).
+$sched_future = gmdate( 'Y-m-d H:i:s', time() + 30 * DAY_IN_SECONDS );
+tf_post( 910, array( 'post_status' => 'future', 'post_date' => $sched_future, 'post_date_gmt' => $sched_future, 'post_content' => $sched_body ) );
 $sched_fp = snt_corpus_content_hash( $sched_body );
 
 $r = be_call( 'block_insert', array( 'target' => array( 'post_id' => 910 ), 'mode' => 'publish', 'change' => array( 'fingerprint' => $sched_fp, 'payload' => array( 'anchor' => 'sentence is long enough to act as the anchor' ) ) ) );
 ok( ! is_wp_error( $r ) && true === ( $r['applied'] ?? null ), 'SCHED.1: a publish-mode block edit on a scheduled post succeeds' );
 eq( 'future', $GLOBALS['__posts'][910]['post_status'], 'SCHED.2: post_status "future" preserved exactly' );
-eq( '2026-09-15 09:00:00', $GLOBALS['__posts'][910]['post_date'], 'SCHED.3: post_date preserved exactly' );
+eq( $sched_future, $GLOBALS['__posts'][910]['post_date'], 'SCHED.3: post_date preserved exactly' );
 ok( false !== strpos( (string) $GLOBALS['__posts'][910]['post_content'], 'freshly composed paragraph' ), 'SCHED.4: ...and the content edit landed' );
 
 // The guard's red path: prove it can fail before trusting its green.
 $sched_fp2 = snt_corpus_content_hash( (string) $GLOBALS['__posts'][910]['post_content'] );
-$GLOBALS['__clobber_schedule'] = true;
+$GLOBALS['__clobber_schedule'] = 1;
 $r = be_call( 'block_insert', array( 'target' => array( 'post_id' => 910 ), 'mode' => 'publish', 'change' => array( 'fingerprint' => $sched_fp2, 'payload' => array( 'anchor' => 'sentence is long enough to act as the anchor', 'position' => 'before' ) ) ) );
 ok( is_wp_error( $r ), 'SCHED.5: a write that early-publishes the row FAILS LOUDLY' );
 eq( 'snt_sn_apply_schedule_violation', $r->get_error_code(), 'SCHED.6: ...with the schedule-violation code' );
 eq( 500, (int) ( $r->get_error_data()['status'] ?? 0 ), 'SCHED.7: 500 — a tool bug, not a caller error' );
 eq( 'future', $GLOBALS['__posts'][910]['post_status'], 'SCHED.8: the restore attempt put the schedule back' );
-eq( '2026-09-15 09:00:00', $GLOBALS['__posts'][910]['post_date'], 'SCHED.9: ...date included' );
-$GLOBALS['__clobber_schedule'] = false;
+eq( $sched_future, $GLOBALS['__posts'][910]['post_date'], 'SCHED.9: ...date included' );
+$msg = json_decode( $r->get_error_message(), true );
+ok( false !== strpos( (string) json_encode( $msg ), 'verified restored' ) || false !== strpos( $r->get_error_message(), 'verified restored' ), 'SCHED.9b: ...and the outcome text says the restore was VERIFIED, not inferred from the return code' );
+$GLOBALS['__clobber_schedule'] = 0;
+
+// Restore-verification honesty (adversarial review, HIGH): when the restore
+// itself is defeated by the same mechanism (clobber count 2 — core's
+// coercion fires on write AND restore), the error must say the post
+// REMAINS published, never "succeeded" off a non-WP_Error return code.
+$sched_fp3 = snt_corpus_content_hash( (string) $GLOBALS['__posts'][910]['post_content'] );
+$GLOBALS['__clobber_schedule'] = 2;
+$r = be_call( 'block_insert', array( 'target' => array( 'post_id' => 910 ), 'mode' => 'publish', 'change' => array( 'fingerprint' => $sched_fp3, 'payload' => array( 'anchor' => 'sentence is long enough to act as the anchor', 'position' => 'after' ) ) ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_schedule_violation' === $r->get_error_code(), 'SCHED.10: a defeated restore still errors as a schedule violation' );
+// The response is wp_json_encode()d, which \u-escapes the em dash — decode
+// and read the carried error.message rather than grepping raw JSON bytes.
+$rep10   = json_decode( $r->get_error_message(), true );
+$msg10   = (string) ( $rep10['error']['message'] ?? '' );
+ok( false !== strpos( $msg10, 'the post remains publish' ) && false !== strpos( $msg10, 'FAILED' ), 'SCHED.10b: ...and the message reports the VERIFIED live state (remains publish), never a false "succeeded"' );
+eq( 'publish', $GLOBALS['__posts'][910]['post_status'], 'SCHED.10c: (sanity: the store really is in the bad state the message describes)' );
+$GLOBALS['__clobber_schedule'] = 0;
+// Repair the fixture for anything downstream.
+$GLOBALS['__posts'][910]['post_status'] = 'future';
+$GLOBALS['__posts'][910]['post_date']   = $sched_future;
+
+// The OVERDUE refusal (adversarial review, HIGH — the prevention half):
+// a 'future' post whose post_date_gmt has passed would be silently
+// early-published by core's own status resolution on ANY wp_update_post —
+// the write AND the restore alike — so the impl refuses UP FRONT, before
+// touching the row.
+$overdue_body = '<!-- wp:paragraph --><p>An overdue scheduled note whose sentence is long enough to anchor on.</p><!-- /wp:paragraph -->';
+$overdue_past = gmdate( 'Y-m-d H:i:s', time() - HOUR_IN_SECONDS );
+tf_post( 915, array( 'post_status' => 'future', 'post_date' => $overdue_past, 'post_date_gmt' => $overdue_past, 'post_content' => $overdue_body ) );
+$overdue_fp = snt_corpus_content_hash( $overdue_body );
+tf_reset_writes();
+$r = be_call( 'block_insert', array( 'target' => array( 'post_id' => 915 ), 'mode' => 'publish', 'change' => array( 'fingerprint' => $overdue_fp, 'payload' => array( 'anchor' => 'sentence is long enough to anchor on' ) ) ) );
+ok( is_wp_error( $r ), 'SCHED.11: a publish-mode edit on an OVERDUE scheduled post refuses up front' );
+eq( 'snt_sn_apply_schedule_overdue', $r->get_error_code(), 'SCHED.11b: ...with its own named code' );
+eq( 409, (int) ( $r->get_error_data()['status'] ?? 0 ), 'SCHED.11c: 409 — a state conflict, resolved by letting cron publish first' );
+eq( 0, $GLOBALS['__write_calls']['wp_update_post'], 'SCHED.11d: the live row was never written (core\'s coercion never got a chance)' );
+eq( 'future', $GLOBALS['__posts'][915]['post_status'], 'SCHED.11e: the overdue post is untouched' );
+
+// Revision mode on the same overdue post still WORKS — staging never
+// touches the live row, so there is nothing for core to coerce.
+tf_reset_writes();
+$r = be_call( 'block_insert', array( 'target' => array( 'post_id' => 915 ), 'mode' => 'revision', 'change' => array( 'fingerprint' => $overdue_fp, 'payload' => array( 'anchor' => 'sentence is long enough to anchor on' ) ) ) );
+ok( ! is_wp_error( $r ) && true === ( $r['applied'] ?? null ), 'SCHED.12: revision mode on the overdue post still stages fine' );
+eq( 'future', $GLOBALS['__posts'][915]['post_status'], 'SCHED.12b: ...live row untouched, schedule intact' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * 9. Gate 2 — the body check runs, and the brand-voice evidence pass over

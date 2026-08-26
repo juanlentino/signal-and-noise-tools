@@ -36,8 +36,14 @@
  *      see — same reason link_insert/link_reshape/unlink refuse it.
  *   6. Scheduled posts: post_status and post_date are captured before the
  *      write, passed EXPLICITLY through it, and re-asserted after — a
- *      violation attempts a restore and fails LOUDLY (500), because a
- *      silent early publish is the worst possible outcome of this type.
+ *      violation attempts a restore whose effect is VERIFIED by re-reading
+ *      the row (core's silent future→publish coercion returns a plain post
+ *      ID, so a return-code check would report success while the post
+ *      stayed published), and fails LOUDLY (500) naming the verified
+ *      outcome. An OVERDUE 'future' post (post_date_gmt within a minute of
+ *      now or past — core's own coercion threshold) refuses UP FRONT in
+ *      the publish path (409): any wp_update_post on it, restore included,
+ *      would be coerced to an early publish, so nothing is written at all.
  *
  * ── The prose delta (what matters most) ──
  *
@@ -381,9 +387,29 @@ function snt_sn_apply_block_edit_prose_delta( $old_content, $new_content ) {
 	while ( $prefix < $min_len && $old[ $prefix ] === $new[ $prefix ] ) {
 		$prefix++;
 	}
+	// mb-safe boundary snap (adversarial review, MEDIUM): the byte-wise trim
+	// can land mid-character ("café"→"cafè" shares the 0xC3 lead byte), and a
+	// lone continuation byte in prose_added/prose_removed degrades to "?"
+	// under wp_json_encode()'s sanity pass — a corrupted preview of exactly
+	// the delta this helper exists to show. Walk the boundary back off any
+	// UTF-8 continuation byte (0b10xxxxxx) in either string.
+	while ( $prefix > 0 && (
+		( $prefix < $old_len && 0x80 === ( ord( $old[ $prefix ] ) & 0xC0 ) )
+		|| ( $prefix < $new_len && 0x80 === ( ord( $new[ $prefix ] ) & 0xC0 ) )
+	) ) {
+		$prefix--;
+	}
 	$suffix = 0;
 	while ( $suffix < $min_len - $prefix && $old[ $old_len - 1 - $suffix ] === $new[ $new_len - 1 - $suffix ] ) {
 		$suffix++;
+	}
+	// Same snap for the suffix: its region must not START on a continuation
+	// byte in either string.
+	while ( $suffix > 0 && (
+		0x80 === ( ord( $old[ $old_len - $suffix ] ) & 0xC0 )
+		|| 0x80 === ( ord( $new[ $new_len - $suffix ] ) & 0xC0 )
+	) ) {
+		$suffix--;
 	}
 
 	return array(
@@ -441,6 +467,29 @@ function snt_sn_apply_block_edit_impl( $post_id, $type, array $payload, $fingerp
 	$before_date     = (string) $post->post_date;
 	$before_date_gmt = (string) $post->post_date_gmt;
 
+	// OVERDUE scheduled post, refused UP FRONT (adversarial review, HIGH):
+	// wp_insert_post() silently coerces an explicitly-passed 'future' to
+	// 'publish' whenever post_date_gmt is within a minute of now — core's
+	// own status resolution (wp-includes/post.php), the same path
+	// check_and_publish_future_post() calls "jumping the gun". On a post
+	// whose scheduled time has passed but whose cron hasn't fired yet, the
+	// write below WOULD early-publish it, and a restore attempt would be
+	// coerced identically — so the only honest move is to not write at all.
+	// The comparison mirrors core's own expression byte-for-byte.
+	$minute = defined( 'MINUTE_IN_SECONDS' ) ? MINUTE_IN_SECONDS : 60;
+	if ( ! is_callable( $write_callback ) && 'future' === $before_status
+		&& ( strtotime( $before_date_gmt ) - strtotime( gmdate( 'Y-m-d H:i:s' ) ) < $minute ) ) {
+		return new WP_Error(
+			'snt_sn_apply_schedule_overdue',
+			sprintf(
+				/* translators: %s: the post's scheduled datetime (GMT) */
+				__( 'This scheduled post is overdue (post_date_gmt %s has passed or is under a minute away, and WP-Cron has not published it yet). Writing now would trip WordPress core\'s own status resolution and publish it early as a side effect — refused. Wait for cron to publish it (or publish it deliberately), then retry with a fresh fingerprint.', 'signal-and-noise-tools' ),
+				$before_date_gmt
+			),
+			array( 'status' => 409 )
+		);
+	}
+
 	if ( is_callable( $write_callback ) ) {
 		$result = call_user_func( $write_callback, $post_id, $new_content );
 	} else {
@@ -474,6 +523,26 @@ function snt_sn_apply_block_edit_impl( $post_id, $type, array $payload, $fingerp
 			),
 			true
 		);
+		// The restore is VERIFIED by re-reading the row, never inferred from
+		// the return code (adversarial review, HIGH): core's silent
+		// future→publish coercion returns a plain post ID, so is_wp_error()
+		// alone would report "succeeded" while the post stayed published —
+		// a false all-clear on exactly the disaster this guard exists for.
+		$restored_row = get_post( $post_id );
+		$restore_held = $restored_row
+			&& (string) $restored_row->post_status === $before_status
+			&& (string) $restored_row->post_date === $before_date;
+		if ( is_wp_error( $restore ) ) {
+			$restore_outcome = 'FAILED — ' . $restore->get_error_message();
+		} elseif ( ! $restore_held ) {
+			$restore_outcome = sprintf(
+				'FAILED — the post remains %s @ %s; restore it manually in wp-admin NOW',
+				$restored_row ? (string) $restored_row->post_status : 'unknown',
+				$restored_row ? (string) $restored_row->post_date : 'unknown'
+			);
+		} else {
+			$restore_outcome = 'verified restored';
+		}
 		return new WP_Error(
 			'snt_sn_apply_schedule_violation',
 			sprintf(
@@ -483,7 +552,7 @@ function snt_sn_apply_block_edit_impl( $post_id, $type, array $payload, $fingerp
 				(string) $after->post_status,
 				$before_date,
 				(string) $after->post_date,
-				is_wp_error( $restore ) ? 'FAILED — ' . $restore->get_error_message() : 'succeeded'
+				$restore_outcome
 			),
 			array( 'status' => 500 )
 		);
