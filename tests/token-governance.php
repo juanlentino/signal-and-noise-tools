@@ -206,5 +206,87 @@ if ( isset( $BASELINE['__PLACEHOLDER__'] ) ) {
 	ok( array_sum( $actual ) <= array_sum( $BASELINE ), sprintf( 'estate total %d is at or below the %d baseline', array_sum( $actual ), array_sum( $BASELINE ) ) );
 }
 
+
+/* ════════════════════════════════════════════════════════════════════════
+ * FONT STACKS (v13.6.2). Colour was only half the estate: 52 declarations
+ * across 13 front-end sheets carried a SECOND monospace vocabulary
+ * (ui-monospace, SFMono-Regular, ...) against the theme's declared DM Mono.
+ * Nobody decided to have two; it accumulated.
+ *
+ * Scoped by SURFACE, exactly as the colour ratchet is:
+ *   - theme-dependent FRONT-END sheets must reference the font token
+ *   - wp-admin sheets may use the system stack, which is correct chrome
+ *   - prov-verify.css is EXEMPT and must stay exempt: /verify is a
+ *     standalone document that owns its own values on purpose, and the file
+ *     says so. Reaching into --wp--preset--* from it broke a pre-existing
+ *     guard in provenance-verify-page.php ("every custom property the
+ *     stylesheet READS must also be DECLARED in it") the moment it was tried.
+ *
+ * A fallback must AGREE with the token it guards, or the two disagree
+ * exactly when the fallback matters -- two `heading` fallbacks were missing
+ * 'Bebas Neue' entirely and would have dropped to Impact.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nGroup: front-end font stacks reference the token\n";
+
+function sn_tg_fonts( $css ) {
+	$css = preg_replace( '#/\*.*?\*/#s', '', (string) $css );
+	preg_match_all( '/font-family\s*:\s*([^;}\n]+)/i', $css, $m );
+	$out = array();
+	foreach ( $m[1] as $d ) {
+		$d = trim( preg_replace( '/\s+/', ' ', $d ), " \t;" );
+		if ( '' === $d || 0 === strpos( $d, 'var(' ) ) { continue; }
+		if ( in_array( strtolower( $d ), array( 'inherit', 'initial', 'unset' ), true ) ) { continue; }
+		$out[] = $d;
+	}
+	return $out;
+}
+ok( array( 'Comic Sans' ) === sn_tg_fonts( '.x{font-family:Comic Sans}' ), 'a literal font stack IS counted' );
+ok( array() === sn_tg_fonts( '.x{font-family:var(--wp--preset--font-family--body,\'DM Mono\')}' ), 'a token reference is not' );
+ok( array() === sn_tg_fonts( '/* we dropped ui-monospace, SFMono-Regular here */ .x{color:red}' ), 'a stack named in a COMMENT is not a declaration' );
+ok( array() === sn_tg_fonts( '.x{font-family:inherit}' ), 'inherit is not a stack' );
+
+$FONT_EXEMPT = array( 'assets/css/prov-verify.css' );
+$font_bad = array();
+foreach ( $files as $f ) {
+	$base = str_replace( $root . '/', '', $f );
+	if ( false !== strpos( $base, 'admin' ) || false !== strpos( $base, 'audit-log' ) ) { continue; }
+	if ( in_array( $base, $FONT_EXEMPT, true ) ) { continue; }
+	$lit = sn_tg_fonts( (string) file_get_contents( $f ) );
+	if ( $lit ) { $font_bad[ $base ] = $lit; }
+}
+foreach ( $font_bad as $b => $l ) { echo "  -> $b: " . implode( ' | ', array_slice( array_unique( $l ), 0, 3 ) ) . "\n"; }
+ok( empty( $font_bad ), sprintf( 'every theme-dependent front-end sheet uses the font token (%d sheet(s) with a literal stack)', count( $font_bad ) ) );
+ok( ! empty( sn_tg_fonts( (string) file_get_contents( $root . '/assets/css/prov-verify.css' ) ) ), 'and prov-verify.css STILL owns its own stacks — the exemption is real, not a file that happens to conform' );
+
+// A fallback that disagrees with its token is worse than no fallback: the two
+// differ exactly when the fallback is the thing being used.
+$theme_json = dirname( dirname( __DIR__ ) ) . '/signal-and-noise/theme.json';
+if ( is_readable( $theme_json ) ) {
+	$tj = json_decode( (string) file_get_contents( $theme_json ), true );
+	$fams = array();
+	foreach ( (array) ( $tj['settings']['typography']['fontFamilies'] ?? array() ) as $f ) {
+		$fams[ (string) $f['slug'] ] = preg_replace( '/\s*,\s*/', ',', trim( (string) $f['fontFamily'] ) );
+	}
+	ok( ! empty( $fams ), 'theme.json yields font families (' . implode( ', ', array_keys( $fams ) ) . ')' );
+	$disagree = array();
+	foreach ( $files as $f ) {
+		$css = (string) file_get_contents( $f );
+		if ( preg_match_all( '/var\(\s*--wp--preset--font-family--([a-z]+)\s*,\s*([^)]*)\)/i', $css, $ms, PREG_SET_ORDER ) ) {
+			foreach ( $ms as $set ) {
+				$fb = preg_replace( '/\s*,\s*/', ',', trim( $set[2] ) );
+				if ( ! isset( $fams[ $set[1] ] ) || $fb !== $fams[ $set[1] ] ) {
+					$disagree[] = str_replace( $root . '/', '', $f ) . ": --{$set[1]} => $fb";
+				}
+			}
+		}
+	}
+	foreach ( array_unique( $disagree ) as $d ) { echo "  -> $d\n"; }
+	ok( empty( $disagree ), sprintf( 'every font-family var() fallback AGREES with theme.json (%d disagreeing)', count( $disagree ) ) );
+} else {
+	echo "SKIP: no sibling theme checkout — font fallbacks were NOT reconciled this run.\n";
+	ok( true, 'font fallback reconciliation SKIPPED and said so' );
+}
+
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

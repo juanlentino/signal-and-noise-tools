@@ -12,7 +12,7 @@
 .sn-maturity-index-card:hover{transform:translate(-3px,-3px);box-shadow:6px 6px 0 currentColor}
 .sn-maturity-index-card:focus-visible{outline:3px solid var(--sn-signal,#ff4c47);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){.sn-maturity-index-card{transition:none}.sn-maturity-index-card:hover{transform:none}}
-.sn-maturity-index-card strong{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.sn-maturity-index-card strong{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
 .sn-maturity-index-card em{font-style:italic;font-size:.88rem;opacity:.75}
 .sn-maturity-index-card span{font-size:.88rem}
 .sn-maturity-index-card--unlinked{border-style:dashed;opacity:.55}

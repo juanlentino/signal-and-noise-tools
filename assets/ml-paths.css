@@ -3,7 +3,7 @@
    mono kicker, currentColor throughout — so it inherits both themes for free.
    Scoped to .sn-reading-path; enqueued only when the nav actually renders. */
 .sn-reading-path{margin:3rem 0 0;border-top:2px solid currentColor;padding-top:1.25rem;line-height:1.6}
-.sn-reading-path__meta{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:0 0 .85rem}
+.sn-reading-path__meta{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;margin:0 0 .85rem}
 .sn-reading-path__nav{display:flex;flex-wrap:wrap;gap:.55rem}
 .sn-reading-path__link{border:2px solid currentColor;padding:.6rem .85rem;color:inherit;text-decoration:none;flex:1 1 16rem;min-width:0}
 .sn-reading-path__link--next{text-align:right;margin-left:auto}
@@ -13,5 +13,5 @@
    and an opacity on currentColor is a contrast modifier the site's own
    contrast instruments cannot see: the token checker reads palette pairs,
    and 75% of currentColor is a color no token names. Owner-flagged. */
-.sn-reading-path__dir{display:block;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:.7rem;font-weight:400;text-transform:uppercase;letter-spacing:.07em}
+.sn-reading-path__dir{display:block;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.7rem;font-weight:400;text-transform:uppercase;letter-spacing:.07em}
 .sn-reading-path__title{display:block;font-weight:700;overflow-wrap:anywhere}

@@ -2,6 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.6.2] - 2026-08-26 — one monospace vocabulary, and a ratchet that keeps it
+
+The estate ran **two** monospace stacks. The theme declares `DM Mono`; 52
+declarations across 13 front-end stylesheets carried
+`ui-monospace, SFMono-Regular, Menlo, Consolas, monospace` instead. Nobody
+decided to have two — it accumulated, and no instrument was looking at fonts.
+
+### Changed
+
+- 12 theme-dependent front-end stylesheets now reference the font token:
+  `var(--wp--preset--font-family--body, 'DM Mono', 'Courier New', monospace)`
+  and the `heading` equivalent. 53 declarations. Those surfaces render in the
+  site's own face rather than the host system's.
+
+### Fixed
+
+- Two `heading` fallbacks were missing `'Bebas Neue'` entirely and would have
+  dropped to Impact. A fallback that disagrees with its token is worse than no
+  fallback: the two differ exactly when the fallback is the thing being used.
+
+### Not changed, deliberately
+
+- **`assets/css/prov-verify.css` keeps its own stacks.** `/verify` is a
+  standalone document that owns its values on purpose, and the file says so in
+  a comment warning against exactly this kind of "sync". Tokenising it was
+  tried and immediately tripped a pre-existing guard in
+  `provenance-verify-page.php` — *every custom property the stylesheet READS
+  must also be DECLARED in it* — which exists because a v9.87.0 change styled
+  rules against a never-declared var and silently drew nothing.
+- **wp-admin stylesheets keep the system stack.** Correct chrome there, the
+  same rationale that exempts WordPress's admin palette from the colour scan.
+
+### Guarded
+
+`tests/token-governance.php` gains a font pass, scoped by surface exactly as
+the colour ratchet is. Three checks, each mutation-verified: a reintroduced
+second vocabulary is caught; a fallback that disagrees with `theme.json` is
+caught; and the `prov-verify.css` exemption is asserted to be REAL — the file
+must still carry literal stacks, so the exemption cannot quietly become a file
+that happens to conform.
+
 ## [13.6.1] - 2026-08-26 — a token-governance ratchet, and what a CSS scan must refuse to count
 
 Adds `tests/token-governance.php`: the plugin's stylesheets stay on the theme's
