@@ -321,6 +321,7 @@ require __DIR__ . '/../inc/block-fingerprint-engine.php';
 require __DIR__ . '/../inc/block-migrations-detect.php';
 require __DIR__ . '/../inc/block-migrations-suggest.php';
 require __DIR__ . '/../inc/block-migrations-apply.php';
+require __DIR__ . '/../inc/sn-scan-detectors.php';
 require __DIR__ . '/../inc/pattern-adoption-detect.php';
 require __DIR__ . '/../inc/pattern-adoption-suggest.php';
 require __DIR__ . '/../inc/pattern-adoption-apply.php';
@@ -792,6 +793,60 @@ foreach ( $declared as $t ) {
 	ok( in_array( $t, $dispatched, true ), "declared type '$t' has a DISPATCHABLE adapter (otherwise the ability accepts it and then 500s)" );
 }
 ok( $declared === $dispatched, 'the two lists are identical, so neither can drift ahead of the other' );
+
+
+/* ════════════════════════════════════════════════════════════════════════
+ * DETECTOR REGISTRY (v13.6.0) — an empty candidates[] must be readable.
+ *
+ * The bug this guards: sn_scan reported what it FOUND and never what it
+ * LOOKED FOR, so "0 candidates" could mean "corpus conforms" or "nothing
+ * registered" and no caller could tell. pattern_adoption is the live case
+ * — it returns zero corpus-wide because both its detectors key on block
+ * types the corpus does not contain, NOT because it has no rules.
+ *
+ * Both-directions parity, same shape as the adapter guard above: a new
+ * scan_type cannot ship without naming its rules, and a registry entry
+ * cannot outlive its scan_type.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+$reg          = snt_sn_scan_detector_registry();
+$reg_types    = array_keys( $reg );
+$declared_d   = SNT_SN_SCAN_TYPES;
+sort( $reg_types ); sort( $declared_d );
+ok( $reg_types === $declared_d, 'DETECTORS: registry keys match SNT_SN_SCAN_TYPES exactly (neither list can drift)' );
+
+foreach ( $declared_d as $t ) {
+	$entries = snt_sn_scan_detectors_for( $t );
+	ok( is_array( $entries ) && count( $entries ) > 0, "DETECTORS: '$t' names at least one rule (an unnamed scan_type makes its zero unreadable)" );
+	$shaped = true;
+	foreach ( $entries as $e ) {
+		if ( ! isset( $e['id'], $e['triggers_on'] ) || '' === trim( (string) $e['id'] ) || '' === trim( (string) $e['triggers_on'] ) ) {
+			$shaped = false;
+		}
+	}
+	ok( $shaped, "DETECTORS: every '$t' entry carries a non-empty id and triggers_on" );
+}
+
+// The specific claim the field exists to make.
+$pa_ids = array_column( snt_sn_scan_detectors_for( 'pattern_adoption' ), 'id' );
+sort( $pa_ids );
+ok( array( 'pull-quote', 'steps-enumerated' ) === $pa_ids, 'DETECTORS: pattern_adoption names exactly the two rules snt_pattern_adoption_match_block_type() implements' );
+
+// Registry IDs must be the identifiers the detectors themselves return,
+// not prose. Drive the REAL matcher and compare.
+ok( 'pull-quote' === snt_pattern_adoption_match_block_type( array( 'blockName' => 'core/quote' ) ), 'DETECTORS: the real matcher returns the id the registry advertises for core/quote' );
+ok( 'steps-enumerated' === snt_pattern_adoption_match_block_type( array( 'blockName' => 'core/list', 'attrs' => array( 'ordered' => true ) ) ), 'DETECTORS: the real matcher returns the id the registry advertises for an ordered core/list' );
+ok( null === snt_pattern_adoption_match_block_type( array( 'blockName' => 'core/list' ) ), 'DETECTORS: an UNORDERED core/list matches nothing, exactly as triggers_on states' );
+ok( null === snt_pattern_adoption_match_block_type( array( 'blockName' => 'core/paragraph' ) ), 'DETECTORS: core/paragraph matches nothing — why the paragraph-only corpus returns zero' );
+
+// The ENVELOPE must actually carry it -- registry correctness is useless if
+// the dispatcher never surfaces it. $r1 is a real block_migrations run.
+ok( isset( $r1['detectors'] ) && is_array( $r1['detectors'] ) && count( $r1['detectors'] ) > 0, 'DETECTORS: the scan ENVELOPE carries detectors[] (not just the registry function)' );
+ok( array_column( is_array( $r1['detectors'] ?? null ) ? $r1['detectors'] : array(), 'id' ) === array_column( snt_sn_scan_detectors_for( 'block_migrations' ), 'id' ), 'DETECTORS: envelope detectors[] are the registry entries for that scan_type' );
+
+// Unknown type degrades to empty, never a notice.
+ok( array() === snt_sn_scan_detectors_for( 'no-such-scan-type' ), 'DETECTORS: an unknown scan_type returns an empty array, not a warning' );
+
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
