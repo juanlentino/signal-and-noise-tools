@@ -20,6 +20,21 @@ citation reappears here.
 [Re-verifying after an upstream release](#re-verifying-after-an-upstream-release)
 for the instrument.
 
+**The site runs `v1.1.3`, which is NOT verified here** (2026-08-26). It carries a
+known Cmd+K break — every command that needs a JS callback silently no-ops —
+diagnosed to upstream's deferred palette runtime. `WordPress/openstation` PR #683
+confirms the diagnosis in upstream's own words and carries the fix, so there is
+nothing to change here and no issue to file — **but #683 is MERGED TO TRUNK AND
+UNRELEASED.** Measured 2026-08-26: v1.1.3 is the latest tag, and #683's commit
+(`199a0851`) is **15 commits ahead of it, 0 behind** — no tagged release contains
+it. So the break is live on this site and stays live until upstream tags a
+release carrying #683 and we upgrade to it. Merged is not shipped; do not read
+"fixed upstream" as "working in production".
+
+The name-membership sweep below passes clean against v1.1.3: every upstream name
+this plugin references still exists. The break is behavioural, which is exactly
+the gap the runtime probe in that section now covers.
+
 **No back-compat shim exists upstream.** A code search of post-#475
 `WordPress/openstation` for any `desktop_mode_*` name returns zero hits.
 Exactly one naming family is ever active for a given install, decided
@@ -37,6 +52,7 @@ Compat layer: [inc/openstation-compat.php](../inc/openstation-compat.php).
 | v1.1.0 | 2026-08-14 | Post-rename — first post-rename release verified here (17 names) |
 | v1.1.1 | 2026-08-19 | Post-rename |
 | **v1.1.2** | **2026-08-21** | Post-rename — **the release this file is verified against** (19 names) |
+| **v1.1.3** | **2026-08-24** | Post-rename — **running in production, NOT verified here.** Deferred the palette's Gutenberg runtime to first ⌘K; broke plugin-contributed commands. Fix merged to trunk in #683 but **in no tagged release** as of 2026-08-26 — still broken here |
 
 An earlier revision of this file said the rename was "in trunk, **not yet in
 any tagged release**", and that end-to-end verification was "structurally
@@ -260,6 +276,77 @@ a single-line grep will report a live hook as missing:
 perl -0777 -ne 'while (/(apply_filters|do_action)\s*\(\s*.(openstation_[a-z_]+)./gs) { print "$2 ($1)\n" }' $(grep -rl openstation_ includes/ --include='*.php') | sort -u
 ```
 
+### Name membership is not enough — probe the runtime too
+
+Every sweep above answers "does the name still exist". All of them passed clean
+against v1.1.3 while Cmd+K commands were completely dead, because the break was
+behavioural: upstream deferred the `core/commands` runtime to first ⌘K, so a
+contributor registering at boot wrote into a store that did not exist yet.
+Nothing in this repo could detect that — `tests/desktop-mode-integration.php`
+asserts every registered command has a JS `run()`, which stayed true and green.
+
+So after any upgrade, open a wp-admin screen and run this in the console:
+
+```javascript
+performance.getEntriesByType('resource').filter(r=>/desktop-mode\.js|snt-ability-run|command-palette/.test(r.name)).forEach(r=>console.log('LOADED:',r.name.split('/').pop()));
+const cmds = wp.data.select('core/commands').getCommands?.() || [];
+console.log('SN commands in store:', cmds.map(c=>c.name).filter(n=>/signal-noise/.test(n)));
+cmds.find(c=>c.name==='signal-noise/get-deploy-status')?.callback({close:()=>console.log('close() called')});
+```
+
+Read it as: three scripts LOADED, 19 SN commands in the store, and
+`close() called` with no `[SN] ability error:` means **our side is healthy** and
+any palette failure is upstream. Then actually pick a command in the palette —
+that is the only step that exercises the shell/iframe round trip, and it is the
+half that broke at v1.1.3.
+
+Do not chase these first; all three were wrong on 2026-08-26. A core-store vs
+OpenStation-registry split (both registries were dead). The silent bail guards in
+`assets/desktop-mode.js` (`registerCommand` was a function; both guards cleared).
+An ad blocker (`ERR_BLOCKED_BY_CLIENT` was a red herring — disabling it changed
+nothing). Note also that `snDesktopData` being present does **not** prove the
+script ran: `wp_localize_script` prints it inline before the `<script src>`.
+
+**Adopting #683 will change this probe's own passing shape — read that as
+healthy, not as a regression.** The fix does not restore the current mechanism;
+it replaces it. Per upstream's description, a palette contributor is *dequeued
+from the boot document* and *hoisted to the shell's deferred manifest*, so it
+executes during the replay, after the `core/commands` store exists. This plugin
+has exactly one convicted contributor — and it is **not** the one most of this
+file is about. Keep the two palette surfaces apart:
+
+| Surface | Registers via | Touched by #683? |
+|---|---|---|
+| `inc/desktop-mode-commands.php` — 21 fixed `sn-cmd-*` on `init:6` | `snt_os_register_command()` → OpenStation's own registry | **No.** #683 trims script assets; this never declares `wp-commands` |
+| `inc/command-palette.php` → `assets/command-palette.js` | JS `dispatch('core/commands').registerCommand()` | **Yes.** Its dep array names `wp-commands` at `inc/command-palette.php:50`, and the walk spares only Core packages |
+
+Concretely, after the upgrade:
+
+- Windows will no longer load `snt-command-palette` at all. The `LOADED:` line
+  dropping that script *in a window* is the fix working, not the break returning.
+  Judge health by the store contents and the round trip, not by the resource list.
+- Block-editor screens are exempt upstream, so the chain still loads there.
+- **The escape-hatch filter is not needed here, and that is now settled rather
+  than assumed.** `openstation_command_palette_contributor_owns_screen`
+  (upstream `includes/render/chromeless-trim.php:449`, args
+  `$owns, $handle, $owner, $page`) exists for a contributor that must stay in a
+  window to register *screen-specific* commands. Ours registers two dynamic
+  families — `signal-noise/goto-<tab>` from `sn_admin_top_tabs()`, and
+  `signal-noise/edit-note-<id>` for the 5 most-recent Notes — and **both are pure
+  navigation**: each callback is `navigateTo( url, args.close )`. A navigation
+  target is globally meaningful by definition, so registering it once on the
+  shell is correct, not a leak. Hoisting also collapses the recent-Notes
+  `apiFetch` from once-per-window to once, which is strictly better.
+- Default routing already sends us down that path: `owns_screen()` keeps a
+  contributor in the window only when the URI is under
+  `/wp-content/plugins/<owner>/` or `$_GET['page']` *starts with* the plugin's
+  directory slug. Our slug is `signal-and-noise-tools`; our pages are
+  `page=sn-*`. No prefix match → not owned → hoisted → the fixed path.
+
+So the release that carries #683 is itself a seam event: it is the fourth
+consecutive upgrade to change this seam. Re-run the probe against it, and expect
+to rewrite the two bullets above once it is measured rather than predicted.
+
 Finally, diff only the files we actually consume — it is a far smaller read
 than the release notes, and it catches silent shape changes the notes omit:
 
@@ -288,7 +375,7 @@ a human would notice, and no others.** Split honestly:
 | Seam | Status |
 |---|---|
 | Dock item, desktop icons, widgets, chromeless nav, dropzone | **Field-verified live** 2026-08-14 |
-| **Cmd+K commands + the `wp.desktop` alias** | **Two independent v1.1.0 breakages** — load order (fixed v11.7.1) and a new `label` requirement (fixed v11.7.2) — see below |
+| **Cmd+K commands + the `wp.desktop` alias** | **Three breakages, three upgrades** — v1.1.0 load order (fixed v11.7.1), v1.1.0 `label` requirement (fixed v11.7.2), v1.1.3 deferred palette runtime (fix merged UPSTREAM in #683, **unreleased** — nothing to change here, and nothing fixed here yet) — see below. **Assume this seam is broken after every OpenStation upgrade until proven otherwise.** |
 | Copilot tool-invocation log (`sn_ai_tool_invocations`) | **Verified live** 2026-08-14 — delta exactly `+1` |
 | Agent telemetry (`{prefix}sn_tool_call`) | **Unreachable, not unverified** — agents disabled by owner decision 2026-08-07, so the producer cannot fire |
 | Living-tree traffic | **Unverifiable by observation** — falls back to a plausible default rather than an error |

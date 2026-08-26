@@ -2,6 +2,35 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Documentation
+
+- `docs/openstation-compat.md` records **v1.1.3** — the release actually running
+  in production, and the third time the Cmd+K seam has broken on an OpenStation
+  upgrade. Upstream deferred the palette's Gutenberg runtime to first ⌘K, so a
+  contributor registering at boot writes into a `core/commands` store that does
+  not exist yet. Every command needing a JS callback silently no-ops; the labels
+  still render. `WordPress/openstation` #683 confirms the diagnosis upstream and
+  carries the fix — nothing to change here, and no duplicate issue to file — but
+  **#683 is merged to trunk and unreleased**: measured 2026-08-26, v1.1.3 is the
+  latest tag and #683 sits 15 commits ahead of it. The break is live on this site
+  until upstream tags a release carrying it. Merged is not shipped.
+- The same section records what adopting #683 will change, because the fix
+  *replaces* the mechanism rather than restoring it: contributors get dequeued
+  from the boot document and hoisted to the shell's deferred manifest, so the
+  palette script legitimately stops loading in windows. That makes the release
+  carrying #683 the fourth consecutive upgrade to move this seam, and it changes
+  what a passing probe looks like.
+- The re-verification procedure gains a **runtime probe**. Every existing
+  instrument answers "does this upstream name still exist", and all of them pass
+  clean against v1.1.3 while the palette was completely dead — the break was
+  behavioural, not a rename. `tests/desktop-mode-integration.php` stayed green
+  for the same reason: it asserts every registered command has a JS `run()`,
+  which remained true. The probe checks the runtime instead, and the section
+  names the three hypotheses that were wrong on 2026-08-26 so the next
+  occurrence skips them.
+
 ## [13.6.2] - 2026-08-26 — one monospace vocabulary, and a ratchet that keeps it
 
 The estate ran **two** monospace stacks. The theme declares `DM Mono`; 52
