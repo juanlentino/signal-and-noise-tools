@@ -17,7 +17,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-const SN_PROV_ALGO        = 'sn-normalize-v1';
+const SN_PROV_ALGO        = 'sn-normalize-v2';
 const SN_PROV_CHAIN_META  = '_sn_prov_chain';   // serialized array of commit records
 const SN_PROV_UID_META    = '_sn_prov_uid';     // per-Note UUID (ledger key)
 const SN_PROV_GENESIS_META = '_sn_prov_genesis_parent'; // set by Plan 4
@@ -91,6 +91,100 @@ function sn_prov_normalize_v1( $post_content ) {
 	$s = implode( "\n", $lines );
 	$s = preg_replace( '/\n{3,}/', "\n\n", $s );                     // 7
 	return trim( $s );
+}
+
+/**
+ * sn-normalize-v2's step 0: expand the theme's dynamic-block TEXT into the
+ * prose stream, so the record can finally see it.
+ *
+ * WHY THIS EXISTS (v13.4.0): signal-noise/sidenote and signal-noise/
+ * pull-quote are dynamic blocks whose text lives entirely in attributes —
+ * serialized into the block delimiter as JSON, which step 1 of v1 removed
+ * wholesale. Their words were outside the signed record AND broke public
+ * verification outright: render.php emits that text into the served page,
+ * so the ledger's byte-equality check (verify.mjs: normalize(page) ===
+ * payload.content) could never pass for a signed subject using either
+ * block. Expansion closes both at once — the payload gains exactly the
+ * text the page shows.
+ *
+ * THE RULE, chosen so an OFFLINE verifier can apply it with nothing but
+ * the post_content bytes (no registry, no block.json, no WordPress):
+ * for every VOID `signal-noise/*` block delimiter, every TOP-LEVEL
+ * string-typed attribute value in its serialized JSON, in the JSON's own
+ * order, empty strings skipped, joined as paragraphs ("\n\n") in place of
+ * the delimiter. Deliberately NOT driven by block.json roles: the ledger
+ * repo's reference implementation must reproduce this from the delimiter
+ * alone. What block.json buys instead is enforcement — the THEME's
+ * render-parity test pins that each block's render.php emits exactly its
+ * string attributes' text in this order, so a future block that would
+ * break the rule fails at authoring time, and a future block that obeys
+ * it is signed on registration with no edit here.
+ *
+ * Boundaries, deliberate: core/* void blocks are NOT expanded (their
+ * string attrs are settings like "desc", not prose — and core dynamic
+ * blocks that render text remain unusable on signed subjects, exactly as
+ * before). Non-void signal-noise blocks are NOT expanded (inner content
+ * vs attribute ordering would be ambiguous; none exist). Nested values
+ * are NOT walked. Malformed attrs JSON expands to nothing — v1's step-1
+ * removal, unchanged. The `--`/`<`/`>`/`&`/`"` characters inside real
+ * serialized attrs arrive \u-escaped (core's serialize_block_attributes),
+ * so the non-greedy JSON grab below can never be truncated by a literal
+ * `-->` and the trailing `/-->` anchor forces the correct extent past any
+ * `}` inside string values.
+ *
+ * Mirrored byte-for-byte by the JS reference impl in the ledger repo
+ * (normalize/sn-normalize-v2.mjs) — DO NOT change without bumping the
+ * algo version again.
+ *
+ * @since 13.4.0
+ * @param string $s Raw post_content.
+ * @return string
+ */
+function sn_prov_expand_block_text( $s ) {
+	return (string) preg_replace_callback(
+		'#<!--\s+wp:signal-noise/[a-z][a-z0-9-]*(\s+(\{.*?\}))?\s+/-->#s',
+		static function ( $m ) {
+			$attrs = isset( $m[2] ) && '' !== $m[2] ? json_decode( $m[2], true ) : null;
+			if ( ! is_array( $attrs ) ) {
+				return '';
+			}
+			$parts = array();
+			foreach ( $attrs as $key => $value ) {
+				// Identifier-shaped keys ONLY (review MEDIUM): PHP iterates
+				// JSON keys in insertion order for ALL key types, but
+				// ECMA-262 hoists integer-like keys ("0", "10") FIRST — so a
+				// numeric-string key would make the two reference
+				// implementations sign DIFFERENT prose from the same bytes.
+				// Real block attributes are identifiers (block.json names);
+				// restricting to the identifier grammar makes cross-language
+				// iteration order identical by construction.
+				if ( ! preg_match( '/^[a-zA-Z][a-zA-Z0-9_]*$/', (string) $key ) ) {
+					continue;
+				}
+				if ( is_string( $value ) && '' !== $value ) {
+					$parts[] = $value;
+				}
+			}
+			return implode( "\n\n", $parts );
+		},
+		(string) $s
+	);
+}
+
+/**
+ * sn-normalize-v2: sn_prov_expand_block_text() (step 0), then the v1
+ * pipeline unchanged. BYTE-IDENTICAL to v1 for any content containing no
+ * void signal-noise/* delimiter — verified over the whole live corpus
+ * (2026-08-25: zero posts/pages carry one), so the bump re-signs nothing.
+ * The algo NAME is a bearing field; sn_prov_record()'s transition shim
+ * keeps a bearing-identical save coalescing across the generation change.
+ *
+ * @since 13.4.0
+ * @param string $post_content
+ * @return string
+ */
+function sn_prov_normalize_v2( $post_content ) {
+	return sn_prov_normalize_v1( sn_prov_expand_block_text( (string) $post_content ) );
 }
 
 /**
@@ -169,7 +263,7 @@ function sn_prov_bearing_fields( $post, $author ) {
 	return array(
 		'algo'         => SN_PROV_ALGO,
 		'author'       => (string) $author,
-		'content'      => sn_prov_normalize_v1( $post->post_content ),
+		'content'      => sn_prov_normalize_v2( $post->post_content ),
 		'note_uid'     => sn_prov_note_uid( $post->ID ),
 		'published_at' => sn_prov_published_at( $post ),
 		'title'        => (string) get_the_title( $post ),
@@ -392,6 +486,30 @@ function sn_prov_record( $post, $author ) {
 		$last = end( $chain );
 		if ( isset( $last['bearing_hash'] ) && $last['bearing_hash'] === $bearing ) {
 			return null; // coalesce: nothing provenance-bearing changed
+		}
+		// v13.4.0 transition shim: the algo NAME is itself a bearing field,
+		// so the v1→v2 generation bump alone would break coalescing exactly
+		// once per subject — the first markup-only save after the upgrade
+		// would mint a version nobody wrote. When the stored head is a v1
+		// commit, recompute the bearing AS v1 (v1 algo string + v1 content)
+		// and coalesce if THAT matches AND the two generations agree on this
+		// content (v2 == v1 — no expandable attribute text in play). The
+		// second condition is load-bearing, caught by this change's own
+		// suite: without it, ADDING a sidenote to a v1-headed note is
+		// invisible to the v1 comparison and would coalesce — silently
+		// re-opening, for every v1-era note, the exact unsigned-text hole
+		// v2 exists to close. A real edit still mints a v2 commit; a head
+		// already on v2 never enters this branch.
+		if ( isset( $last['bearing_hash'] ) && 'sn-normalize-v1' === (string) ( $last['payload']['algo'] ?? '' ) ) {
+			$v1_content = sn_prov_normalize_v1( $post->post_content );
+			if ( $v1_content === $bearing_fields['content'] ) {
+				$legacy_fields            = $bearing_fields;
+				$legacy_fields['algo']    = 'sn-normalize-v1';
+				$legacy_fields['content'] = $v1_content;
+				if ( $last['bearing_hash'] === sn_prov_content_hash( sn_prov_canonical_json( $legacy_fields ) ) ) {
+					return null; // coalesce: only the algo generation moved
+				}
+			}
 		}
 	}
 

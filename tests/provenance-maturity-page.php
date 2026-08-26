@@ -68,7 +68,11 @@ ok( file_exists( SNT_PATH . 'assets/provenance-maturity-front.css' ), 'the style
 
 echo "\nGroup: layer copy — verified claims only\n";
 // Canonical: the normalization + hash story (sn-normalize-v1, provenance-core.php).
-ok( false !== strpos( $html, 'sn-normalize-v1' ), 'canonical names the shipped normalization algo' );
+// v13.4.0: the copy names the FAMILY + current generation rather than a
+// hardcoded v1 (records carry their own payload.algo; v2 also signs
+// dynamic-block attribute text).
+ok( false !== strpos( $html, 'sn-normalize' ) && false !== strpos( $html, 'currently v2' ), 'canonical names the shipped normalization algo family and its current generation' );
+ok( false !== strpos( $html, 'dynamic-block attributes' ), 'canonical claims the v2 coverage extension it actually ships (dynamic-block attribute text is signed)' );
 ok( false !== strpos( $html, 'SHA-256' ), 'canonical names the hash' );
 ok( false !== strpos( $html, 'any independent implementation can rebuild' ), 'canonical states the rebuildability claim' );
 // Signed: Ed25519 + did:web + the external pin (provenance-did.php, v9.72.0).

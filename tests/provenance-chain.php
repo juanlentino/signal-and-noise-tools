@@ -121,7 +121,7 @@ function pv_eq( $expected, $actual, $msg ) {
 }
 
 echo "Notes-provenance core suite\n\nTask 1: bootstrap\n";
-pv_true( defined( 'SN_PROV_ALGO' ) && 'sn-normalize-v1' === SN_PROV_ALGO, 'SN_PROV_ALGO defined' );
+pv_true( defined( 'SN_PROV_ALGO' ) && 'sn-normalize-v2' === SN_PROV_ALGO, 'SN_PROV_ALGO defined (v13.4.0: the v2 generation)' );
 pv_true( defined( 'SN_PROV_CHAIN_META' ), 'SN_PROV_CHAIN_META defined' );
 pv_true( function_exists( 'sn_prov_active' ), 'sn_prov_active() exists' );
 
@@ -143,7 +143,7 @@ $post->post_author  = 1;
 pv_eq( '2026-06-12T09:30:00Z', sn_prov_published_at( $post ), 'published_at is ISO-8601 UTC' );
 
 $payload = sn_prov_build_payload( $post, 1, null, 'Juan Lentino' );
-pv_eq( 'sn-normalize-v1', $payload['algo'], 'payload.algo' );
+pv_eq( 'sn-normalize-v2', $payload['algo'], 'payload.algo (new commits record the v2 generation)' );
 pv_eq( 'Hello world.', $payload['content'], 'payload.content normalized' );
 pv_eq( 1, $payload['version'], 'payload.version' );
 pv_eq( null, $payload['parent'], 'payload.parent null for genesis-less first commit' );

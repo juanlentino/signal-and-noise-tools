@@ -80,7 +80,12 @@ const SN_PROV_INTEGRITY_404_STREAK = 3;
  * @return string
  */
 function sn_prov_integrity_flatten( $raw ) {
-	$s = sn_prov_normalize_v1( (string) $raw );
+	// v13.4.0: v2 (expand signal-noise void-block text, then the v1
+	// pipeline). Both comparison sides pass through here — a stored
+	// payload's content is already-normalized prose (no delimiters, so v2
+	// degrades to v1 over it), while a twin/raw side carrying a dynamic
+	// block gets its attribute text expanded exactly as signing did.
+	$s = sn_prov_normalize_v2( (string) $raw );
 	return trim( (string) preg_replace( '/\s+/u', ' ', $s ) );
 }
 

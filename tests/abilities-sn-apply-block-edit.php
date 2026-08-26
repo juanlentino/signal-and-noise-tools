@@ -265,7 +265,7 @@ if ( ! function_exists( 'serialize_blocks' ) ) {
 }
 if ( ! function_exists( 'serialize_block' ) ) { function serialize_block( $b ) { return serialize_blocks( array( $b ) ); } }
 
-$GLOBALS['__registered_blocks'] = array( 'core/paragraph', 'core/heading', 'core/list', 'core/list-item', 'core/quote', 'core/separator' );
+$GLOBALS['__registered_blocks'] = array( 'core/paragraph', 'core/heading', 'core/list', 'core/list-item', 'core/quote', 'core/separator', 'signal-noise/sidenote', 'signal-noise/pull-quote' );
 if ( ! class_exists( 'WP_Block_Type_Registry' ) ) {
 	class WP_Block_Type_Registry {
 		private static $inst = null;
@@ -277,6 +277,7 @@ if ( ! class_exists( 'WP_Block_Type_Registry' ) ) {
 /* ════════════════════════════════════════════════════════════════════════
  * Load the SUT
  * ════════════════════════════════════════════════════════════════════════ */
+require __DIR__ . '/../inc/provenance-core.php'; // v13.4.0: sn_prov_expand_block_text + normalize v2 — the prose delta must SEE dynamic-block attribute text
 require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/health-check-drift-time-phrases.php';
 require __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
@@ -515,6 +516,28 @@ eq( true, $r['diff']['prose_changed'] ?? null, 'DELTA.5: an insert with new text
 eq( 'new_version', $r['diff']['ledger_impact'] ?? null, 'DELTA.6: ...and ledger_impact "new_version" — visible BEFORE the write' );
 ok( false !== strpos( (string) ( $r['diff']['prose_added'] ?? '' ), 'freshly composed paragraph' ), 'DELTA.7: prose_added carries the new normalized text' );
 eq( '', $r['diff']['prose_removed'] ?? null, 'DELTA.8: an insert removes nothing' );
+
+// v13.4.0 (sn-normalize-v2): DYNAMIC-BLOCK attribute text is prose now.
+// The two owner-specified pins: a sidenote insert carrying new text mints
+// a version; a pure restructure with no new text still coalesces.
+$side_markup = '<!-- wp:signal-noise/sidenote {"content":"A margin note the ledger must see and sign."} /-->';
+$r = be_call( 'block_insert', array( 'dry_run' => true, 'change' => array( 'payload' => array( 'blocks' => $side_markup ) ) ) );
+ok( ! is_wp_error( $r ) && true === ( $r['gates']['fingerprint']['passed'] ?? null ), 'DELTA.12: a sidenote insert passes the markup gate (registered block, canonical void form)' );
+eq( true, $r['diff']['prose_changed'] ?? null, 'DELTA.13 (owner pin): a sidenote carrying NEW TEXT reports prose_changed true — the attribute is prose under sn-normalize-v2' );
+eq( 'new_version', $r['diff']['ledger_impact'] ?? null, 'DELTA.14 (owner pin): ...and ledger_impact "new_version" — no more text field the record cannot see' );
+// The LCP/LCS trim absorbs text shared with the surroundings (the leading
+// "A " matches the next block's "A heading…", the trailing "." its "."),
+// so the asserted span is the delta's exact interior, not the full sentence.
+ok( false !== strpos( (string) ( $r['diff']['prose_added'] ?? '' ), 'margin note the ledger must see and sign' ), 'DELTA.15: prose_added carries the sidenote\'s words themselves' );
+
+// Pure restructure: the heading becomes a SIDENOTE with IDENTICAL text —
+// same words, new housing (the DELTA.1 case with a dynamic block as the
+// destination) — and the ledger correctly stays quiet.
+$restr_side = '<!-- wp:signal-noise/sidenote {"content":"A heading anchoring the second section of the piece"} /-->';
+$r = be_call( 'block_replace', array( 'dry_run' => true, 'change' => array( 'payload' => array( 'anchor' => 'A heading anchoring the second section', 'blocks' => $restr_side ) ) ) );
+ok( ! is_wp_error( $r ) && true === ( $r['gates']['fingerprint']['passed'] ?? null ), 'DELTA.16: heading→sidenote restructure passes the gates' );
+eq( false, $r['diff']['prose_changed'] ?? null, 'DELTA.17 (owner pin): identical text in a new housing — prose_changed false' );
+eq( 'coalesces', $r['diff']['ledger_impact'] ?? null, 'DELTA.18 (owner pin): ...and ledger_impact "coalesces" — restructure-only, no new signed version' );
 
 // mb-safety (adversarial review, MEDIUM): "café"→"cafè" shares the 0xC3
 // lead byte, so a byte-wise trim would emit lone continuation bytes that
