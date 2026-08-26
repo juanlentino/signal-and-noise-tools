@@ -176,16 +176,22 @@ function snt_sn_scan_adapter_pattern_adoption( $allowed_ids ) {
 	if ( ! function_exists( 'snt_pattern_adoption_compute' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'Pattern-adoption scan helper not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
-	$result = snt_pattern_adoption_compute();
+	// v13.2.0: the scope goes INTO the query, and scheduled ('future') posts
+	// are included — adoption on a not-yet-published post is free, because no
+	// signed ledger version exists for it yet. posts_examined is the ACTUAL
+	// walked count from the detector (pre-13.2.0 this adapter counted ALL
+	// published posts regardless of scope and the walk skipped every
+	// scheduled note — the envelope claimed a corpus it never examined, and
+	// corpus_fingerprint/scan_run_id inherited the lie; they derive from
+	// posts_examined + ids in inc/abilities-sn-scan.php, so they become
+	// scope-honest with it).
+	$result = snt_pattern_adoption_compute( array(
+		'statuses' => array( 'publish', 'future' ),
+		'post__in' => $allowed_ids,
+	) );
 	$raw    = is_array( $result['candidates'] ?? null ) ? $result['candidates'] : array();
 
-	$posts_examined = count( get_posts( array(
-		'post_type'      => 'post',
-		'post_status'    => 'publish',
-		'posts_per_page' => -1,
-		'no_found_rows'  => true,
-		'fields'         => 'ids',
-	) ) );
+	$posts_examined = (int) ( $result['posts_examined'] ?? 0 );
 
 	$candidates = array();
 	foreach ( $raw as $c ) {

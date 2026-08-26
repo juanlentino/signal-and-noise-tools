@@ -32,8 +32,19 @@ $GLOBALS['__test_posts']     = array();
 $GLOBALS['__test_post_meta'] = array();
 
 if ( ! function_exists( 'get_posts' ) ) {
+	// Models the two query args the SUT actually passes (v13.2.0): a
+	// post_status string-or-array filter and an optional post__in id filter —
+	// stub-drift discipline: the stub must be able to DISAGREE with the SUT's
+	// query, or the scope/status tests below would pass vacuously.
 	function get_posts( $args ) {
-		return array_values( $GLOBALS['__test_posts'] );
+		$statuses = (array) ( $args['post_status'] ?? 'publish' );
+		$out      = array();
+		foreach ( $GLOBALS['__test_posts'] as $p ) {
+			if ( ! in_array( (string) $p->post_status, $statuses, true ) ) { continue; }
+			if ( isset( $args['post__in'] ) && ! in_array( (int) $p->ID, array_map( 'intval', (array) $args['post__in'] ), true ) ) { continue; }
+			$out[] = $p;
+		}
+		return $out;
 	}
 }
 if ( ! function_exists( 'get_post_meta' ) ) {
@@ -85,10 +96,10 @@ if ( ! function_exists( 'rest_ensure_response' ) ) {
 }
 
 // Helper to register a fixture post.
-function _ta_post( $id, $blocks_array ) {
+function _ta_post( $id, $blocks_array, $status = 'publish' ) {
 	$post = new stdClass();
 	$post->ID           = $id;
-	$post->post_status  = 'publish';
+	$post->post_status  = $status;
 	$post->post_type    = 'post';
 	$post->post_title   = "Fixture $id";
 	$post->post_content = json_encode( $blocks_array );
@@ -223,6 +234,37 @@ pa_eq( 1, count( $GLOBALS['__test_transients'] ), 'Test 7.4: run_scan() still wr
 $key7 = 'snt_pattern_adoption_candidates_' . (int) get_current_user_id();
 pa_true( isset( $GLOBALS['__test_transients'][ $key7 ] ), 'Test 7.5: run_scan() writes the documented per-user key' );
 pa_eq( json_encode( $scan7 ), json_encode( $GLOBALS['__test_transients'][ $key7 ] ), 'Test 7.6: the written transient is byte-identical to run_scan()\'s return value' );
+
+// ─── Test 8: v13.2.0 $args — statuses/post__in honored in the QUERY; the
+// legacy no-args default stays publish-only; posts_examined is the ACTUAL
+// walked count (the sn_scan adapter's scope-honesty fix rides on these).
+echo "\nTest 8: detect/compute \$args — statuses, post__in, posts_examined\n";
+$GLOBALS['__test_posts'] = array();
+$GLOBALS['__test_post_meta'] = array();
+$GLOBALS['__test_transients'] = array();
+_ta_post( 108, array( array( 'blockName' => 'core/quote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<blockquote>Published.</blockquote>' ) ) );
+_ta_post( 109, array( array( 'blockName' => 'core/quote', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<blockquote>Scheduled.</blockquote>' ) ), 'future' );
+
+$legacy = snt_pattern_adoption_detect_candidates();
+pa_eq( 1, count( $legacy ), 'Test 8.1: legacy no-args call walks ONLY published posts — byte-identical default for the admin tab / legacy ability' );
+pa_eq( 108, $legacy[0]['post_id'], 'Test 8.2: ...and it is the published one' );
+
+$both = snt_pattern_adoption_detect_candidates( array( 'statuses' => array( 'publish', 'future' ) ), $walked );
+pa_eq( 2, count( $both ), 'Test 8.3: statuses publish+future walks the scheduled post too — adoption is free before a ledger version exists' );
+pa_eq( 2, $walked, 'Test 8.4: posts_examined (by ref) is the ACTUAL walked count' );
+
+$scoped = snt_pattern_adoption_detect_candidates( array( 'statuses' => array( 'publish', 'future' ), 'post__in' => array( 109 ) ), $walked_scoped );
+pa_eq( 1, count( $scoped ), 'Test 8.5: post__in scopes the QUERY itself, not just the output' );
+pa_eq( 109, $scoped[0]['post_id'], 'Test 8.6: ...to the scheduled post asked for' );
+pa_eq( 1, $walked_scoped, 'Test 8.7: posts_examined honors the scope — never the whole corpus' );
+
+$none = snt_pattern_adoption_detect_candidates( array( 'post__in' => array() ), $walked_none );
+pa_eq( 0, count( $none ), 'Test 8.8: an explicit EMPTY scope is "no posts"...' );
+pa_eq( 0, $walked_none, 'Test 8.9: ...never WP_Query\'s historical "empty post__in means all posts" inversion' );
+
+$env = snt_pattern_adoption_compute( array( 'statuses' => array( 'publish', 'future' ) ) );
+pa_eq( 2, $env['posts_examined'], 'Test 8.10: compute() carries posts_examined in the envelope (additive key; counts/candidates unchanged)' );
+pa_eq( 2, $env['counts']['pull_quote'], 'Test 8.11: ...alongside the same candidate counts' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

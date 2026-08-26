@@ -30,23 +30,46 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SNT_PATTERN_ADOPTION_TRANSIENT_TTL = HOUR_IN_SECONDS;
 
 /**
- * Walk all published posts and return the list of pattern-adoption
- * candidates with their fingerprints, filtered against per-post
- * dismiss state.
+ * Walk posts and return the list of pattern-adoption candidates with their
+ * fingerprints, filtered against per-post dismiss state.
  *
+ * v13.2.0: optional $args — {statuses?: string[], post__in?: int[]} — so a
+ * scoped caller (sn_scan's adapter) can honor its scope IN THE QUERY and
+ * include scheduled ('future') posts, where adoption is free (no signed
+ * ledger version exists yet). Defaults are byte-identical to the legacy
+ * behavior (all published posts) for every existing caller — the wp-admin
+ * tab, the admin bar, and the legacy pattern-adoption-scan ability.
+ * $posts_examined (by ref, optional) reports the ACTUAL number of posts
+ * walked, so a scoped scan's envelope can stop claiming the whole corpus.
+ *
+ * @param array    $args           {statuses?: string[], post__in?: int[]}.
+ * @param int|null $posts_examined By reference; set to the walked-post count.
  * @return array<int,array{post_id:int,pattern_type:string,block_fingerprint:string,block_path:string,post_title:string,permalink:string}>
  *
  * @since 4.3.0
  */
-function snt_pattern_adoption_detect_candidates() {
-	$posts = get_posts( array(
+function snt_pattern_adoption_detect_candidates( $args = array(), &$posts_examined = null ) {
+	$args  = is_array( $args ) ? $args : array();
+	$query = array(
 		'post_type'      => 'post',
-		'post_status'    => 'publish',
+		'post_status'    => isset( $args['statuses'] ) ? array_values( (array) $args['statuses'] ) : 'publish',
 		'posts_per_page' => -1,
 		'no_found_rows'  => true,
-	) );
+	);
+	if ( isset( $args['post__in'] ) && is_array( $args['post__in'] ) ) {
+		// An explicit EMPTY scope means "no posts", never "all posts" —
+		// WP_Query's own post__in => array() historically inverted to an
+		// unconstrained query, which is exactly the failure to fence off.
+		if ( empty( $args['post__in'] ) ) {
+			$posts_examined = 0;
+			return array();
+		}
+		$query['post__in'] = array_map( 'intval', $args['post__in'] );
+	}
+	$posts = get_posts( $query );
 
-	$candidates = array();
+	$posts_examined = count( $posts );
+	$candidates     = array();
 
 	foreach ( $posts as $post ) {
 		// (array) cast on get_post_meta's $single=true return guarantees an array.
@@ -131,12 +154,19 @@ function snt_pattern_adoption_match_block_type( $block ) {
  * so a caller that must not write (sn_scan's read-only contract) can get
  * the identical envelope without the side-effecting set_transient() below.
  *
- * @return array{candidates:array,counts:array{pull_quote:int,steps_enumerated:int,posts_affected:int},scanned_at:int}
+ * v13.2.0: passes $args through to the detector and reports posts_examined
+ * (the ACTUAL walked count) in the envelope — an additive key; every
+ * pre-existing consumer reads candidates/counts by name.
+ *
+ * @param array $args {statuses?: string[], post__in?: int[]} — see
+ *                     snt_pattern_adoption_detect_candidates().
+ * @return array{candidates:array,counts:array{pull_quote:int,steps_enumerated:int,posts_affected:int},posts_examined:int,scanned_at:int}
  *
  * @since 10.29.0
  */
-function snt_pattern_adoption_compute() {
-	$candidates = snt_pattern_adoption_detect_candidates();
+function snt_pattern_adoption_compute( $args = array() ) {
+	$posts_examined = 0;
+	$candidates     = snt_pattern_adoption_detect_candidates( $args, $posts_examined );
 
 	$by_type   = array( 'pull-quote' => 0, 'steps-enumerated' => 0 );
 	$post_ids  = array();
@@ -146,13 +176,14 @@ function snt_pattern_adoption_compute() {
 	}
 
 	return array(
-		'candidates' => $candidates,
-		'counts'     => array(
+		'candidates'     => $candidates,
+		'counts'         => array(
 			'pull_quote'       => $by_type['pull-quote'],
 			'steps_enumerated' => $by_type['steps-enumerated'],
 			'posts_affected'   => count( $post_ids ),
 		),
-		'scanned_at' => time(),
+		'posts_examined' => $posts_examined,
+		'scanned_at'     => time(),
 	);
 }
 

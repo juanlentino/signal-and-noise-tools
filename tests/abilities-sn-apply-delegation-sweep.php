@@ -265,6 +265,7 @@ require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5
 require __DIR__ . '/../inc/sn-apply-create-draft.php';
 require __DIR__ . '/../inc/sn-apply-restore-revision.php';
 require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
+require __DIR__ . '/../inc/sn-apply-block-edit.php'; // v13.2.0: span scanner + locator + markup gate + prose delta + guarded write impl for change.types block_insert/block_replace
 require __DIR__ . '/../inc/maturity-roadmap-merge.php'; // sn_maturity_roadmap_effective_board() now reads through the three-way merge
 require __DIR__ . '/../inc/maturity-roadmap-shortcode.php'; // roadmap_board's board/validator/fingerprint helpers — the REAL impl, never restubbed here.
 require __DIR__ . '/../inc/sn-apply-roadmap-board.php';
@@ -700,6 +701,17 @@ $dd_fp = snt_corpus_content_hash( $GLOBALS['__posts'][790]['post_content'] );
 tf_post( 795, array( 'post_content' => '<!-- wp:paragraph --><p>Intro sentence here. <a href="/notes/target/">The whole overlong anchor text</a>. Outro sentence here.</p><!-- /wp:paragraph -->' ) );
 $lr_fp = snt_corpus_content_hash( $GLOBALS['__posts'][795]['post_content'] );
 
+// block_insert/block_replace fixture markup (v13.2.0): built with
+// json_encode() so this file's JSON stubs round-trip it byte-identically —
+// see the sweep-table comment on those two entries.
+$be_blocks = json_encode( array( array(
+	'blockName'    => 'core/paragraph',
+	'attrs'        => array(),
+	'innerBlocks'  => array(),
+	'innerHTML'    => '<p>A freshly composed paragraph for the sweep preview.</p>',
+	'innerContent' => array( '<p>A freshly composed paragraph for the sweep preview.</p>' ),
+) ) );
+
 echo "\nStructural sweep: every change type's dry_run path writes NOTHING\n";
 $sweep_calls = array(
 	'block_migration'  => array( 'target' => array( 'post_id' => 750 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_migration', 'fingerprint' => $bm_fp, 'payload' => array( 'migration_type' => 'heading-hierarchy-skip', 'replacement_markup' => $bm_replacement ) ) ),
@@ -739,6 +751,15 @@ $sweep_calls = array(
 	// unlink (v10.59.0): link_reshape's promised sibling — same fixture post,
 	// remove the wrapper, keep the text.
 	'unlink'           => array( 'target' => array( 'post_id' => 795 ), 'mode' => 'revision', 'change' => array( 'type' => 'unlink', 'fingerprint' => $lr_fp, 'payload' => array( 'anchor_text' => 'The whole overlong anchor text' ) ) ),
+	// block_insert / block_replace (v13.2.0): the caller-composed block edit
+	// family — post 780's fixture again (dry runs never mutate it), anchor a
+	// unique sentence-scale span inside its one paragraph block. The payload
+	// markup is built by json_encode() so this file's JSON-shaped
+	// parse/serialize stubs round-trip it byte-identically by construction —
+	// the sweep pins the ZERO-WRITES property, not the markup grammar (that
+	// lives in tests/abilities-sn-apply-block-edit.php against faithful stubs).
+	'block_insert'     => array( 'target' => array( 'post_id' => 780 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_insert', 'fingerprint' => $sr_fp, 'payload' => array( 'blocks' => $be_blocks, 'anchor' => 'deliberately long sentence that the sweep', 'position' => 'after' ) ) ),
+	'block_replace'    => array( 'target' => array( 'post_id' => 780 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_replace', 'fingerprint' => $sr_fp, 'payload' => array( 'blocks' => $be_blocks, 'anchor' => 'deliberately long sentence that the sweep' ) ) ),
 );
 eq( count( SNT_SN_APPLY_CHANGE_TYPES ), count( $sweep_calls ), 'SWEEP.0: the sweep table covers the FULL enum — a new change type added to SNT_SN_APPLY_CHANGE_TYPES fails here until it joins the sweep' );
 foreach ( SNT_SN_APPLY_CHANGE_TYPES as $sweep_type ) {
