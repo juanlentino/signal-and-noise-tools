@@ -198,10 +198,15 @@ function snt_sn_apply_link_reshape_compute( $content, array $match, $current_anc
  * @return string
  */
 function snt_sn_apply_link_prose_normalize( $s ) {
-	if ( function_exists( 'sn_prov_active' ) && function_exists( 'sn_prov_normalize_v1' ) && sn_prov_active() ) {
-		return sn_prov_normalize_v1( (string) $s );
+	if ( function_exists( 'sn_prov_active' ) && function_exists( 'sn_prov_normalize_v2' ) && sn_prov_active() ) {
+		return sn_prov_normalize_v2( (string) $s );
 	}
-	$stripped = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( (string) $s ) : strip_tags( (string) $s );
+	// Fallback path (ext-intl absent): the expansion still runs when its
+	// function is loaded — without it, a sidenote insert would read as
+	// "coalesces" in the prose delta under the fallback while the active
+	// path says "new_version" for the same edit. Same answer on both paths.
+	$s = function_exists( 'sn_prov_expand_block_text' ) ? sn_prov_expand_block_text( (string) $s ) : (string) $s;
+	$stripped = function_exists( 'wp_strip_all_tags' ) ? wp_strip_all_tags( $s ) : strip_tags( $s );
 	return trim( preg_replace( '/\s+/u', ' ', $stripped ) );
 }
 

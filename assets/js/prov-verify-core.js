@@ -130,6 +130,14 @@
 	 */
 	function roughNormalize( raw ) {
 		var s = String( raw || '' );
+		// v13.4.0 note (sn-normalize-v2): no expansion pre-pass here, on
+		// purpose. Both of this function's inputs are delimiter-free by
+		// construction — signedContent is already-normalized payload prose,
+		// and liveRaw is the twin's content_text, built from RENDERED
+		// the_content (so a sidenote's words are already present as text).
+		// Any future comparison over RAW post_content must use the ledger
+		// repo's reference impl (normalize/sn-normalize-v2.mjs), never grow
+		// a third copy here.
 		s = s.replace( /<!--\s*\/?wp:[\s\S]*?-->/g, '' );
 		s = s.replace( /<[^>]*>/g, '' );
 		s = s

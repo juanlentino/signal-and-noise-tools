@@ -558,7 +558,7 @@ function sn_prov_verify_shortcode( $atts ) {
 	$pub   = function_exists( 'sn_prov_pubkey_b64' ) ? sn_prov_pubkey_b64() : '';
 	$steps = array(
 		'Fetch the Note\'s <code>vN.json</code> from the git ledger.',
-		'Recompute <code>sn-normalize-v1</code> on the published text, rebuild the canonical JSON, and SHA-256 it: it must equal <code>content_hash</code>.',
+		'Recompute the normalization the record names in <code>payload.algo</code> (<code>sn-normalize-v1</code> or <code>sn-normalize-v2</code>) on the published text, rebuild the canonical JSON, and SHA-256 it: it must equal <code>content_hash</code>.',
 		'Verify the Ed25519 <code>signature</code> against the public key below.',
 		'Run <code>ots verify vN.ots</code>. Bitcoin attests the timestamp; no need to trust this site.',
 	);

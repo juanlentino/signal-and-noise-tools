@@ -2,6 +2,67 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.4.0] - 2026-08-25 — sn-normalize-v2: the record can finally see the theme's dynamic-block text
+
+Task 1 of the owner's 2026-08-25 brief — decision: SIGN IT. The
+investigation found the premise UNDERSOLD the problem: sidenote /
+pull-quote text was not just outside the signed record (editable with no
+version, no anchor, no trace) — it broke public verification outright.
+The twin's `content_text`, the nightly integrity sweep, and the ledger's
+`verify.mjs` all compare against RENDERED output (which includes the
+blocks' text via render.php) while the payload lacked it, byte-equality
+failing by construction. Signing the attributes closes the coverage gap
+AND makes the blocks usable on signed subjects at all. Corpus verified
+before the change: ZERO posts/pages carry either block (56 posts + 29
+pages swept in full), so nothing re-signs.
+
+### Changed
+
+- **`sn-normalize-v2`** ([inc/provenance-core.php](inc/provenance-core.php)):
+  ONE prepended step, then the v1 pipeline byte-unchanged — every VOID
+  `signal-noise/*` block delimiter expands to its top-level string-typed
+  attribute values (the delimiter's own serialized JSON, in order, empty
+  strings skipped) as paragraphs in place of the delimiter. THE RULE is
+  self-describing from post_content bytes: an offline verifier needs no
+  registry, no block.json, no WordPress — which is why it is not
+  block.json-role-driven. block.json enters as ENFORCEMENT instead: the
+  theme's new render-parity test (signal-and-noise v12.7.3,
+  tests/blocks-render-parity.php) pins that each block renders exactly its
+  string attributes' text in this order, so a future block that would
+  break the rule fails at authoring time and one that obeys it is signed
+  on registration with zero edits here. Boundaries: core/* void blocks
+  excluded (string attrs there are settings, not prose); non-void
+  signal-noise blocks untouched; `pillar-essays` (derived render, no text
+  attrs) remains forbidden on signed subjects and is test-pinned as such
+  in the theme.
+- **`SN_PROV_ALGO` → `sn-normalize-v2`** — the algo name is a signed
+  bearing field, so the generation is honest per record. Transition shim
+  in `sn_prov_record()`: a save whose v1-computed bearing matches a
+  v1-era head AND whose v2 content equals its v1 content coalesces (an
+  algorithm generation is not an edit). The second condition is
+  load-bearing and was caught by this change's own suite: without it,
+  ADDING a sidenote to a v1-headed note was invisible to the v1
+  comparison and coalesced — silently re-opening the exact hole v2
+  closes.
+- Integrity-sweep flatten and `snt_sn_apply_link_prose_normalize` moved
+  to v2 (the ext-intl-absent fallback expands too, so the sn-apply prose
+  delta answers identically on both paths); `/verify`'s
+  [assets/js/prov-verify-core.js](assets/js/prov-verify-core.js)
+  roughNormalize gained the same expansion pre-pass; render + maturity
+  copy now name the generation per record (`payload.algo`).
+- Companions, merged in lockstep: **ledger repo PR #22** (JS reference
+  impl `normalize/sn-normalize-v2.mjs`; `verify.mjs` selects the
+  normalizer from the record's own `payload.algo` and refuses unknown
+  names; parity with this PHP proven by a live-PHP oracle — 21 tests,
+  full suite 156/156) and **theme v12.7.3** (the render contract,
+  mutation-checked).
+- Tests here: normalize suite v2 vectors incl. the RENDER-ALIGNMENT
+  vector (v2(raw) == v1(rendered shape) — the byte-equality verify.mjs
+  demands) and the transition-shim vectors; the block-edit suite gains
+  the two owner pins — a sidenote insert carrying new text reports
+  `ledger_impact: "new_version"`, an identical-text restructure still
+  reports `"coalesces"`.
+
 ## [13.3.0] - 2026-08-25 — pattern_content: patterns become authorable, and the batch reads become measurable
 
 ### Added
