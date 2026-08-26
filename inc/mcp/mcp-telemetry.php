@@ -651,12 +651,12 @@ function sn_mcp_telemetry_summary( $days = 30 ) {
 		);
 	}
 
-	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is $wpdb->prefix + a plugin constant, never user input; $cutoff is bound via prepare() below.
 	// v13.3.0: tool_name joined the grouping — the change_type column now
 	// carries a per-tool dimension (sn-apply's change.type, and the single
 	// requested section/fact for the batch read tools), so rows must name
 	// which tool's dimension they are. Additive key; sn-apply rows read as
 	// before with tool_name alongside.
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is $wpdb->prefix + a plugin constant, never user input; $cutoff is bound via prepare() below.
 	$sql2  = $wpdb->prepare( "SELECT tool_name, change_type, outcome, COUNT(*) AS calls, AVG(latency_ms) AS avg_latency_ms, MAX(ts) AS last_call FROM {$table} WHERE ts >= %s AND change_type IS NOT NULL GROUP BY tool_name, change_type, outcome ORDER BY calls DESC, change_type ASC, tool_name ASC", $cutoff );
 	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql2 is the STRING RETURNED BY $wpdb->prepare() one line above, already safely bound.
 	$rows2 = $wpdb->get_results( $sql2, ARRAY_A );
