@@ -2,6 +2,58 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.6.1] - 2026-08-26 — a token-governance ratchet, and what a CSS scan must refuse to count
+
+Adds `tests/token-governance.php`: the plugin's stylesheets stay on the theme's
+tokens, measured, with the count allowed to move in one direction only.
+
+### The measurement, and the five things it must not count
+
+A governance scan of CSS is easy to write and easy to get wrong. Finding hex
+literals is `grep`; the hard part is knowing which literals are SUPPOSED to be
+literals. Five categories are legitimate, and each was found the hard way,
+after a measurement that looked like a finding:
+
+| excluded | why it is not drift |
+| --- | --- |
+| comments | prose paints nothing, and this estate's CSS quotes hex constantly while explaining past contrast bugs |
+| token definitions | `--sn-panel: #161616` is where a literal belongs — the theme defines its whole DARK palette this way |
+| selector text | `[fill="#222"] { fill: var(--token) }` matches a literal in order to remap it |
+| wp-admin chrome | `admin.css` styles wp-admin and should match WordPress's palette, not this brand |
+| `var()` fallbacks | `var(--token, #fff)` is governed BY the token; the literal applies only if it resolves to nothing |
+
+The effect is not marginal. A naive scan reported **73.0%** front-end coverage;
+with the first four exclusions it was **94.2%**. The fifth removed a further
+**39 phantom findings** and took **ten of sixteen stylesheets to zero**. The
+real figure is **64 ungoverned literals in four files**, `admin.css` carrying
+43 of them.
+
+### Ratchet, not gate
+
+64 findings predate this file, so failing on all of them would make the check
+permanently red and therefore ignored. It fails on an INCREASE. It also fails
+on a DECREASE that has not been pinned — a baseline allowed to sit above
+reality has already slipped, because the next regression is absorbed by the
+slack instead of being reported.
+
+### Guarded
+
+Every exclusion is probed in BOTH directions, because an exclusion is a hole
+and an unprobed hole is how a scanner ends up reporting zero by reading
+nothing. Mutation-verified five ways: a new literal in a listed file, a new
+stylesheet, cross-repo palette skew, an unpinned improvement, and a regression
+in a file clean enough to be absent from the baseline.
+
+One assertion in the first draft compared `$now` with itself and could never
+fail. It was caught by reading the code, not by running it, and the replacement
+is noted in the file so the shape is recognisable next time.
+
+### Cross-repo
+
+The pinned palette follows the `front-end-css-contrast.php` convention: it is
+reconciled against a sibling theme checkout when one exists, and says so out
+loud when it cannot, rather than passing quietly on a stale copy.
+
 ## [13.6.0] - 2026-08-26 — sn_scan names its rules, so an empty result finally means something
 
 `sn_scan` reported what it FOUND and never what it LOOKED FOR. An empty
