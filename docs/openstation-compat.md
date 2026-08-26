@@ -318,7 +318,7 @@ file is about. Keep the two palette surfaces apart:
 | Surface | Registers via | Touched by #683? |
 |---|---|---|
 | `inc/desktop-mode-commands.php` — 21 fixed `sn-cmd-*` on `init:6` | `snt_os_register_command()` → OpenStation's own registry | **No.** #683 trims script assets; this never declares `wp-commands` |
-| `inc/command-palette.php` → `assets/command-palette.js` | JS `dispatch('core/commands').registerCommand()` | **Yes.** Its dep array names `wp-commands` at `inc/command-palette.php:50`, and the walk spares only Core packages |
+| `inc/command-palette.php` → `assets/command-palette.js` | JS `dispatch('core/commands').registerCommand()` | **Yes.** Its dep array names `wp-commands` in `inc/command-palette.php` (`wp_register_script( 'snt-command-palette', … )`), and the walk spares only Core packages |
 
 Concretely, after the upgrade:
 
@@ -328,8 +328,10 @@ Concretely, after the upgrade:
 - Block-editor screens are exempt upstream, so the chain still loads there.
 - **The escape-hatch filter is not needed here, and that is now settled rather
   than assumed.** `openstation_command_palette_contributor_owns_screen`
-  (upstream `includes/render/chromeless-trim.php:449`, args
-  `$owns, $handle, $owner, $page`) exists for a contributor that must stay in a
+  (upstream `includes/render/chromeless-trim.php`, applied at the tail of
+  `openstation_command_palette_owns_screen()` as
+  `apply_filters( 'openstation_command_palette_contributor_owns_screen', $owns, $handle, $owner, $page )`)
+  exists for a contributor that must stay in a
   window to register *screen-specific* commands. Ours registers two dynamic
   families — `signal-noise/goto-<tab>` from `sn_admin_top_tabs()`, and
   `signal-noise/edit-note-<id>` for the 5 most-recent Notes — and **both are pure
