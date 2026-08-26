@@ -92,10 +92,55 @@ if ( ! function_exists( 'current_user_can' ) ) { function current_user_can( $cap
 if ( ! function_exists( 'post_type_exists' ) ) { function post_type_exists( $t ) { return in_array( $t, array( 'post', 'page', 'attachment' ), true ); } }
 if ( ! function_exists( 'get_post_type_object' ) ) { function get_post_type_object( $t ) { $o = new stdClass(); $o->public = 'attachment' !== $t; return $o; } }
 if ( ! function_exists( 'parse_blocks' ) ) {
+	// JSON convention first (every legacy fixture in this file); v13.5.0 adds
+	// a faithful TOP-LEVEL delimiter fallback so block_path targeting (which
+	// enumerates parse_blocks nodes, whitespace separators included) can be
+	// exercised against real-markup fixtures like post 796. Whitespace gaps
+	// become freeform nodes exactly as real core emits them.
 	function parse_blocks( $content ) {
-		$d = json_decode( (string) $content, true );
-		if ( ! is_array( $d ) ) { return array(); }
-		return array_key_exists( 'blockName', $d ) ? array( $d ) : $d;
+		$content = (string) $content;
+		$d = json_decode( $content, true );
+		if ( is_array( $d ) ) {
+			return array_key_exists( 'blockName', $d ) ? array( $d ) : $d;
+		}
+		if ( '' === $content ) { return array(); }
+		$ff = static function ( $s ) {
+			return array( 'blockName' => null, 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => (string) $s, 'innerContent' => array( (string) $s ) );
+		};
+		$re = '#<!--\\s+(/)?wp:([a-z][a-z0-9_-]*(?:/[a-z][a-z0-9_-]*)?)(\\s+\\{.*?\\})?\\s+?(/)?-->#s';
+		if ( ! preg_match_all( $re, $content, $m, PREG_OFFSET_CAPTURE | PREG_SET_ORDER ) ) {
+			return array( $ff( $content ) );
+		}
+		$out = array(); $pos = 0; $i = 0; $n = count( $m );
+		while ( $i < $n ) {
+			$mt = $m[ $i ]; $off = (int) $mt[0][1]; $len = strlen( $mt[0][0] );
+			if ( $off > $pos ) { $out[] = $ff( substr( $content, $pos, $off - $pos ) ); }
+			$closer = '' !== ( $mt[1][0] ?? '' ); $void = '' !== ( $mt[4][0] ?? '' );
+			$name = (string) $mt[2][0];
+			$full = false === strpos( $name, '/' ) ? 'core/' . $name : $name;
+			$attrs_raw = trim( (string) ( $mt[3][0] ?? '' ) );
+			$attrs = '' !== $attrs_raw ? (array) json_decode( $attrs_raw, true ) : array();
+			if ( $closer ) { $out[] = $ff( substr( $content, $off, $len ) ); $pos = $off + $len; $i++; continue; }
+			if ( $void ) {
+				$out[] = array( 'blockName' => $full, 'attrs' => $attrs, 'innerBlocks' => array(), 'innerHTML' => '', 'innerContent' => array() );
+				$pos = $off + $len; $i++; continue;
+			}
+			$depth = 1; $j = $i + 1; $close = null;
+			while ( $j < $n ) {
+				$jt = $m[ $j ];
+				if ( '' !== ( $jt[1][0] ?? '' ) ) { $depth--; if ( 0 === $depth ) { $close = $jt; break; } }
+				elseif ( '' === ( $jt[4][0] ?? '' ) ) { $depth++; }
+				$j++;
+			}
+			if ( null === $close ) { $out[] = $ff( substr( $content, $off, $len ) ); $pos = $off + $len; $i++; continue; }
+			$inner_start = $off + $len;
+			$inner = substr( $content, $inner_start, (int) $close[0][1] - $inner_start );
+			$out[] = array( 'blockName' => $full, 'attrs' => $attrs, 'innerBlocks' => array(), 'innerHTML' => $inner, 'innerContent' => array( $inner ) );
+			$pos = (int) $close[0][1] + strlen( $close[0][0] );
+			$i = $j + 1;
+		}
+		if ( $pos < strlen( $content ) ) { $out[] = $ff( substr( $content, $pos ) ); }
+		return $out;
 	}
 }
 if ( ! function_exists( 'serialize_block' ) )  { function serialize_block( $b ) { return json_encode( $b ); } }
@@ -712,6 +757,12 @@ $be_blocks = json_encode( array( array(
 	'innerContent' => array( '<p>A freshly composed paragraph for the sweep preview.</p>' ),
 ) ) );
 
+// block_delete/block_move fixture (v13.5.0): TWO parse nodes under the JSON
+// stubs (a list of two block objects), so delete never trips would_empty and
+// move has somewhere to go. Fingerprint = its live content_hash.
+tf_post( 796, array( 'post_content' => "<!-- wp:paragraph --><p>First block of the two-block fixture, long enough to anchor.</p><!-- /wp:paragraph -->\n\n<!-- wp:paragraph --><p>Second block of the two-block fixture, long enough to anchor.</p><!-- /wp:paragraph -->" ) );
+$bd_fp = snt_corpus_content_hash( $GLOBALS['__posts'][796]['post_content'] );
+
 echo "\nStructural sweep: every change type's dry_run path writes NOTHING\n";
 $sweep_calls = array(
 	'block_migration'  => array( 'target' => array( 'post_id' => 750 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_migration', 'fingerprint' => $bm_fp, 'payload' => array( 'migration_type' => 'heading-hierarchy-skip', 'replacement_markup' => $bm_replacement ) ) ),
@@ -760,6 +811,13 @@ $sweep_calls = array(
 	// lives in tests/abilities-sn-apply-block-edit.php against faithful stubs).
 	'block_insert'     => array( 'target' => array( 'post_id' => 780 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_insert', 'fingerprint' => $sr_fp, 'payload' => array( 'blocks' => $be_blocks, 'anchor' => 'deliberately long sentence that the sweep', 'position' => 'after' ) ) ),
 	'block_replace'    => array( 'target' => array( 'post_id' => 780 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_replace', 'fingerprint' => $sr_fp, 'payload' => array( 'blocks' => $be_blocks, 'anchor' => 'deliberately long sentence that the sweep' ) ) ),
+	// block_delete / block_move (v13.5.0): both target the REAL-markup
+	// two-block fixture (post 796) via block_path — real parse indices, so
+	// the paragraphs sit at 0/0 and 0/2 with the whitespace separator at 0/1.
+	// The pin here is the family zero-writes property; splice geometry lives
+	// in the dedicated suite.
+	'block_delete'     => array( 'target' => array( 'post_id' => 796 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_delete', 'fingerprint' => $bd_fp, 'payload' => array( 'block_path' => '0/2' ) ) ),
+	'block_move'       => array( 'target' => array( 'post_id' => 796 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_move', 'fingerprint' => $bd_fp, 'payload' => array( 'block_path' => '0/2', 'position' => 'before', 'to_block_path' => '0/0' ) ) ),
 );
 eq( count( SNT_SN_APPLY_CHANGE_TYPES ), count( $sweep_calls ), 'SWEEP.0: the sweep table covers the FULL enum — a new change type added to SNT_SN_APPLY_CHANGE_TYPES fails here until it joins the sweep' );
 foreach ( SNT_SN_APPLY_CHANGE_TYPES as $sweep_type ) {

@@ -329,7 +329,9 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 
 		case 'block_insert':
 		case 'block_replace':
-			// v13.2.0 — the caller-composed BLOCK edit family: link_reshape's
+		case 'block_delete':
+		case 'block_move':
+			// v13.2.0 (+ delete/move v13.5.0) — the caller-composed BLOCK edit family: link_reshape's
 			// gate shape exactly. Payload/markup refusals are 422 caller
 			// errors surfaced BEFORE the fingerprint check (each with its own
 			// error_code/error_status override); the fingerprint is the LIVE
@@ -565,7 +567,9 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 
 		case 'block_insert':
 		case 'block_replace':
-			// v13.2.0 — the body family's check, PLUS the brand-voice evidence
+		case 'block_delete':
+		case 'block_move':
+			// v13.2.0 (+ delete/move v13.5.0) — the body family's check, PLUS the brand-voice evidence
 			// pass over the PAYLOAD's own prose (spec: "reuse the brand_voice
 			// em-dash check against the payload's text"). brand_voice findings
 			// are severity 'info' by contract (evidence, never a verdict —
@@ -577,7 +581,9 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 			}
 			$checks   = array( 'body' );
 			$findings = snt_sn_validate_check_body( $new_content, $resolved['post_id'] ?? 0 );
-			if ( function_exists( 'snt_sn_validate_brand_voice_findings' ) && function_exists( 'snt_sn_apply_link_prose_normalize' ) ) {
+			// delete/move carry no payload.blocks — nothing composed to run the
+			// voice evidence over; the body check above covers the result.
+			if ( isset( $payload['blocks'] ) && function_exists( 'snt_sn_validate_brand_voice_findings' ) && function_exists( 'snt_sn_apply_link_prose_normalize' ) ) {
 				$checks[]   = 'brand_voice';
 				$blocks_txt = snt_sn_apply_link_prose_normalize( (string) ( $payload['blocks'] ?? '' ) );
 				$findings   = array_merge( $findings, snt_sn_validate_brand_voice_findings( 'body', $blocks_txt, (int) ( $resolved['post_id'] ?? 0 ) ) );
