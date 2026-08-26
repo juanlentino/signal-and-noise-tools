@@ -97,7 +97,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-site-facts', array(
 		'label'               => 'Batch-read site facts (consolidated)',
-		'description'         => 'Consolidated read for 13 site facts otherwise requiring sequential calls (get-design-system-summary is retired, not absorbed — its raw counterpart design_tokens supersedes it): theme_version, latest_theme_tag, design_tokens, block_patterns, template_overrides, active_template, llms_txt, seo_route_meta, pillars, reading_time, scan_telemetry, tool_telemetry, configuration_drift. configuration_drift is plugin-internal and returns only changed dot-path keys/counts against the acknowledged effective-settings snapshot, never stored values. tool_telemetry (v11.9.0) is plugin-internal, not a theme dispatch: the 30-day rollup of the sn_tool_call Layer B table — by_tool gives per (tool_name, door, outcome) calls, avg latency and last_call; by_change_type gives the same split for sn_apply\'s change.type, the dimension added in v11.8.0 so an INDIVIDUAL change type can be retired or kept on evidence rather than hiding inside sn_apply\'s aggregate; by_error_code names the plugin-authored failure identifiers per tool and outcome so distinct causes do not collapse into one bucket. The outcome vocabulary includes "conflict" (HTTP 409, optimistic-concurrency contention — a lost race), which v11.8.0 split out of schema_error so fingerprint contention is distinguishable from malformed input; historical rows predating that release still carry 409s as schema_error and cannot be reclassified, so a window spanning it shows the mix shift for non-behavioural reasons. table_present has the same meaning as in scan_telemetry. scan_telemetry (v10.61.0) is plugin-internal, not a theme dispatch: the per-scan_type 30-day rollup of the sn_scan_run telemetry table — per (scan_type, outcome): runs, avg duration_ms, avg total_candidates (yield), avg apply-hint coverage, last_run — plus table_present, which distinguishes an honest empty window (true, no rows) from a missing/failed table (false: the fail-open insert path has been eating rows and no number here is a measurement). Pass the subset you need in `facts`; `slug` is REQUIRED when reading_time, seo_route_meta, OR active_template is requested — each targets a specific post and has no site-wide default (400 if missing for any of the three). active_template accepts BOTH page and post slugs: it is resolved page-first, then retried once as a post. Returns a map keyed by requested fact. Each fact dispatches to its real underlying ability (most are theme-owned; this tool never duplicates their logic) — if the theme is absent, a source ability is unregistered, or its own permission/execute step fails, that ONE fact\'s entry becomes {error:"unavailable"} while every other requested fact still returns normally. The call as a whole only fails on invalid input: an empty or unrecognized facts[] entry, or a missing required slug.',
+		'description'         => 'Consolidated read for 14 site facts otherwise requiring sequential calls (get-design-system-summary is retired, not absorbed — its raw counterpart design_tokens supersedes it): theme_version, latest_theme_tag, design_tokens, block_patterns, template_overrides, active_template, llms_txt, seo_route_meta, pillars, reading_time, scan_telemetry, tool_telemetry, configuration_drift, pattern_content. pattern_content (v13.3.0) is plugin-internal: ONE registered block pattern\'s full record INCLUDING its serialized markup, by exact name via the top-level `pattern` input (REQUIRED when this fact is requested; 400 if missing) — block_patterns lists names/titles/keywords but not markup, which is enough to know a pattern exists and not enough to author against it, so a caller composing blocks for sn-apply block_insert/block_replace had to guess. A name the registry does not hold returns {registered:false, name} in the fact slot — an answer, distinct from {error:"unavailable"} (read path missing). configuration_drift is plugin-internal and returns only changed dot-path keys/counts against the acknowledged effective-settings snapshot, never stored values. tool_telemetry (v11.9.0) is plugin-internal, not a theme dispatch: the 30-day rollup of the sn_tool_call Layer B table — by_tool gives per (tool_name, door, outcome) calls, avg latency and last_call; by_change_type gives the same split for sn_apply\'s change.type, the dimension added in v11.8.0 so an INDIVIDUAL change type can be retired or kept on evidence rather than hiding inside sn_apply\'s aggregate; by_error_code names the plugin-authored failure identifiers per tool and outcome so distinct causes do not collapse into one bucket. The outcome vocabulary includes "conflict" (HTTP 409, optimistic-concurrency contention — a lost race), which v11.8.0 split out of schema_error so fingerprint contention is distinguishable from malformed input; historical rows predating that release still carry 409s as schema_error and cannot be reclassified, so a window spanning it shows the mix shift for non-behavioural reasons. table_present has the same meaning as in scan_telemetry. scan_telemetry (v10.61.0) is plugin-internal, not a theme dispatch: the per-scan_type 30-day rollup of the sn_scan_run telemetry table — per (scan_type, outcome): runs, avg duration_ms, avg total_candidates (yield), avg apply-hint coverage, last_run — plus table_present, which distinguishes an honest empty window (true, no rows) from a missing/failed table (false: the fail-open insert path has been eating rows and no number here is a measurement). Pass the subset you need in `facts`; `slug` is REQUIRED when reading_time, seo_route_meta, OR active_template is requested — each targets a specific post and has no site-wide default (400 if missing for any of the three). active_template accepts BOTH page and post slugs: it is resolved page-first, then retried once as a post. Returns a map keyed by requested fact. Each fact dispatches to its real underlying ability (most are theme-owned; this tool never duplicates their logic) — if the theme is absent, a source ability is unregistered, or its own permission/execute step fails, that ONE fact\'s entry becomes {error:"unavailable"} while every other requested fact still returns normally. The call as a whole only fails on invalid input: an empty or unrecognized facts[] entry, or a missing required slug or pattern.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_sn_site_facts',
@@ -116,6 +116,10 @@ add_action( 'wp_abilities_api_init', function() {
 				'slug'  => array(
 					'type'        => 'string',
 					'description' => 'Required when facts includes reading_time, seo_route_meta, or active_template (400 if any of those is requested and slug is missing or blank). Ignored by every other fact.',
+				),
+				'pattern' => array(
+					'type'        => 'string',
+					'description' => 'Required when facts includes pattern_content (400 if requested and this is missing or blank): the full registered pattern name, e.g. "signal-noise/references". Ignored by every other fact.',
 				),
 			),
 			'additionalProperties' => false,
@@ -175,7 +179,29 @@ function snt_sn_site_facts_map() {
 		// surfaces on was collected and unreachable. This is that path.
 		'tool_telemetry'     => 'internal:tool-telemetry-summary',
 		'configuration_drift' => 'internal:configuration-drift-status',
+		// v13.3.0 — PLUGIN-INTERNAL: one registered block pattern's serialized
+		// markup, by name (requires the top-level `pattern` input). The
+		// block_patterns fact lists names/titles/keywords but not markup, so
+		// an MCP caller composing blocks for sn-apply block_insert /
+		// block_replace had to guess at the 8 signal-noise patterns' content
+		// (six are core-block compositions with no block.json to read). Read
+		// directly from WP_Block_Type_Registry's sibling
+		// WP_Block_Patterns_Registry — the same registry sn_validate's
+		// block_pattern_registered check already reads; no theme dispatch
+		// exists to duplicate.
+		'pattern_content'    => 'internal:pattern-content',
 	);
+}
+
+/**
+ * Facts requiring the top-level `pattern` input (the slug_required shape,
+ * second verse): pattern_content targets one registered pattern by name and
+ * has no site-wide default — 400 when requested without it.
+ *
+ * @return string[]
+ */
+function snt_sn_site_facts_pattern_required() {
+	return array( 'pattern_content' );
 }
 
 /**
@@ -260,6 +286,47 @@ function snt_sn_site_facts_dispatch_active_template( $ability_slug, $slug ) {
 }
 
 /**
+ * pattern_content's read (v13.3.0): one registered block pattern's full
+ * registry record — serialized markup included — by exact name. Reads
+ * WP_Block_Patterns_Registry directly (the registry sn_validate's
+ * block_pattern_registered check already consumes; patterns registered from
+ * the theme's patterns/*.php files arrive here with their PHP already
+ * evaluated to markup, which is exactly the composable form a block_insert /
+ * block_replace caller needs).
+ *
+ * Three-state honesty, the scan_telemetry convention: {error:'unavailable'}
+ * = the registry class itself is absent (the read PATH is missing);
+ * {registered:false, name} = the registry answered and does not hold this
+ * name (a typo'd or retired pattern — an ANSWER, not an outage);
+ * a full record = the pattern, markup included.
+ *
+ * @param string $pattern Full registered name, e.g. 'signal-noise/references'.
+ * @return array
+ */
+function snt_sn_site_facts_pattern_content( $pattern ) {
+	if ( ! class_exists( 'WP_Block_Patterns_Registry' ) ) {
+		return array( 'error' => 'unavailable' );
+	}
+	$registry = WP_Block_Patterns_Registry::get_instance();
+	$record   = $registry->is_registered( $pattern ) ? $registry->get_registered( $pattern ) : null;
+	if ( ! is_array( $record ) || ! isset( $record['content'] ) ) {
+		return array(
+			'registered' => false,
+			'name'       => (string) $pattern,
+		);
+	}
+	return array(
+		'registered'  => true,
+		'name'        => (string) ( $record['name'] ?? $pattern ),
+		'title'       => (string) ( $record['title'] ?? '' ),
+		'description' => (string) ( $record['description'] ?? '' ),
+		'categories'  => array_values( array_map( 'strval', (array) ( $record['categories'] ?? array() ) ) ),
+		'keywords'    => array_values( array_map( 'strval', (array) ( $record['keywords'] ?? array() ) ) ),
+		'content'     => (string) $record['content'],
+	);
+}
+
+/**
  * Ability execute callback: signal-noise/sn-site-facts.
  *
  * @param array|null $input { facts: string[], slug?: string }.
@@ -300,6 +367,23 @@ function snt_ability_sn_site_facts( $input ) {
 		);
 	}
 
+	// v13.3.0 — the slug contract's exact shape for pattern_content's own
+	// required input: missing-when-needed is a 400 caller error at the door,
+	// never a degraded per-fact value.
+	$pattern        = isset( $input['pattern'] ) ? trim( (string) $input['pattern'] ) : '';
+	$pattern_needed = array_values( array_intersect( $facts, snt_sn_site_facts_pattern_required() ) );
+	if ( ! empty( $pattern_needed ) && '' === $pattern ) {
+		return new WP_Error(
+			'snt_site_facts_missing_pattern',
+			sprintf(
+				/* translators: %s: comma-separated list of facts requiring pattern. */
+				__( 'pattern is required when requesting: %s', 'signal-and-noise-tools' ),
+				implode( ', ', $pattern_needed )
+			),
+			array( 'status' => 400 )
+		);
+	}
+
 	$out = array();
 	foreach ( $facts as $fact ) {
 		if ( 'active_template' === $fact ) {
@@ -335,6 +419,15 @@ function snt_ability_sn_site_facts( $input ) {
 			$out[ $fact ] = function_exists( 'snt_config_drift_status' )
 				? snt_config_drift_status()
 				: array( 'error' => 'unavailable' );
+			continue;
+		}
+		if ( 'pattern_content' === $fact ) {
+			// Plugin-internal read (v13.3.0): one pattern's registry record,
+			// markup included, by exact registered name. A name the registry
+			// does not hold degrades to a NAMED per-fact shape (not the
+			// generic 'unavailable', which means the read PATH is missing —
+			// a typo'd name and an absent registry are different answers).
+			$out[ $fact ] = snt_sn_site_facts_pattern_content( $pattern );
 			continue;
 		}
 		$args         = in_array( $fact, snt_sn_site_facts_slug_required(), true ) ? array( 'slug' => $slug ) : array();

@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.3.0] - 2026-08-25 — pattern_content: patterns become authorable, and the batch reads become measurable
+
+### Added
+
+- **`sn-site-facts` fact `pattern_content`**
+  ([inc/abilities-sn-site-facts.php](inc/abilities-sn-site-facts.php)):
+  one registered block pattern's full record INCLUDING its serialized
+  markup, by exact name via the new required-when-requested `pattern`
+  input (400 when missing — the slug contract's shape). The existing
+  `block_patterns` fact lists names/titles/keywords but no markup: enough
+  to know a pattern exists, not enough to author against it, so an MCP
+  caller composing blocks for `sn-apply` `block_insert`/`block_replace`
+  had to guess at the 8 signal-noise patterns (six are core-block
+  compositions with no block.json to read). Plugin-internal read of
+  `WP_Block_Patterns_Registry` (the registry `sn_validate`'s
+  `block_pattern_registered` check already consumes). Three-state
+  honesty: `{error:"unavailable"}` = read path missing;
+  `{registered:false, name}` = the registry answered and does not hold
+  that name; a full record = the pattern. Read-only; the read door stays
+  at 21 tools — a fact, not a new tool.
+- **Per-dimension telemetry for the batch READ tools**
+  ([inc/mcp/mcp-telemetry.php](inc/mcp/mcp-telemetry.php)): the v11.8.0
+  `change_type` mechanism, second verse. When a call to `sn-status`,
+  `sn-metrics`, or `sn-site-facts` requests EXACTLY ONE section/fact, it
+  is recorded in the dimension column — allowlisted against each tool's
+  own registration map, sourced live (a fact added to the map is covered
+  automatically, `pattern_content` included from day one). Multi-entry
+  calls record NULL: the aggregate row is honest, a fabricated "first of
+  three" is not. Captured on the MCP door AND the direct (Abilities REST)
+  door — the recorder accepts both the projected tool name and the raw
+  ability slug (review round); the agent door builds its rows without
+  this extractor and stays dimension-less, as it always has for sn-apply
+  too. `by_change_type` rollup rows now carry `tool_name`
+  (additive key; grouping gains tool_name) so mixed dimensions stay
+  attributable. This is the evidence stream the wave-4 retirement sheet
+  needs — per-section usage instead of per-tool aggregates.
+
 ## [13.2.0] - 2026-08-25 — sn-apply learns block markup: block_insert + block_replace, with the ledger consequence up front
 
 Before this, an MCP caller could not ADD block markup to an existing post:

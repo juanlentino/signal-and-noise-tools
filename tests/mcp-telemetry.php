@@ -495,6 +495,53 @@ ok( null === sn_mcp_telemetry_change_type( array( 'change' => array( 'type' => a
 $leak = 'sk-secret-token-value-that-must-never-be-stored';
 ok( null === sn_mcp_telemetry_change_type( array( 'change' => array( 'type' => $leak ) ) ), 'change_type PRIVACY: an arbitrary caller string is NEVER recorded — allowlist, not passthrough' );
 
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.3.0 — the batch READ tools' single-section dimension (the v11.8.0
+ * mechanism, second verse: sn-status / sn-metrics / sn-site-facts).
+ * The allowlists are the tools' REAL registration maps — required here, not
+ * stubbed copies — so a section/fact added there is covered automatically.
+ * ════════════════════════════════════════════════════════════════════════ */
+require __DIR__ . '/../inc/abilities-sn-status.php';     // snt_sn_status_map(); registration rides the stubbed add_action, inert here
+require __DIR__ . '/../inc/abilities-sn-metrics.php';    // snt_sn_metrics_map()
+require __DIR__ . '/../inc/abilities-sn-site-facts.php'; // snt_sn_site_facts_map()
+
+$dim_maps = array(
+	'signal-noise__sn-status'     => array_keys( snt_sn_status_map() ),
+	'signal-noise__sn-metrics'    => array_keys( snt_sn_metrics_map() ),
+	'signal-noise__sn-site-facts' => array_keys( snt_sn_site_facts_map() ),
+);
+// Column-bound sanity over the REAL maps: every recordable value must fit
+// the change_type VARCHAR(32); a longer name added later fails here first.
+$dim_too_long = array();
+foreach ( $dim_maps as $dim_tool => $dim_keys ) {
+	foreach ( $dim_keys as $dim_key ) {
+		if ( strlen( $dim_key ) > 32 ) { $dim_too_long[] = $dim_key; }
+	}
+}
+ok( array() === $dim_too_long, 'dimension: every section/fact name in the three REAL maps fits the VARCHAR(32) column' );
+
+ok( 'uptime' === sn_mcp_telemetry_change_type( array( 'sections' => array( 'uptime' ) ), 'signal-noise__sn-status' ), 'dimension: a single sn-status section is recorded' );
+ok( 'pattern_content' === sn_mcp_telemetry_change_type( array( 'facts' => array( 'pattern_content' ), 'pattern' => 'signal-noise/references' ), 'signal-noise__sn-site-facts' ), 'dimension: the NEW pattern_content fact is recorded — its keep/retire evidence exists from day one' );
+$dim_metrics_first = $dim_maps['signal-noise__sn-metrics'][0];
+ok( $dim_metrics_first === sn_mcp_telemetry_change_type( array( 'sections' => array( $dim_metrics_first ) ), 'signal-noise__sn-metrics' ), 'dimension: a single sn-metrics section is recorded (first real map key: ' . $dim_metrics_first . ')' );
+ok( null === sn_mcp_telemetry_change_type( array( 'sections' => array( 'uptime', 'deploy' ) ), 'signal-noise__sn-status' ), 'dimension: a MULTI-section call records NULL — the aggregate row is honest; a fabricated "first of two" is not' );
+ok( 'uptime' === sn_mcp_telemetry_change_type( array( 'sections' => array( 'uptime', 'uptime' ) ), 'signal-noise__sn-status' ), 'dimension: duplicate entries of ONE section still count as a single-section call' );
+ok( null === sn_mcp_telemetry_change_type( array( 'sections' => array( $leak ) ), 'signal-noise__sn-status' ), 'dimension PRIVACY: an off-map string in sections is NEVER recorded — allowlist, not passthrough' );
+ok( null === sn_mcp_telemetry_change_type( array( 'sections' => array( 'uptime' ) ), 'signal-noise__sn-posts' ), 'dimension: an unmapped tool records nothing, whatever its args look like' );
+ok( null === sn_mcp_telemetry_change_type( array( 'facts' => array( 'uptime' ) ), 'signal-noise__sn-site-facts' ), 'dimension: allowlists are PER TOOL — an sn-status section is not a site-facts fact' );
+ok( null === sn_mcp_telemetry_change_type( array( 'sections' => 'uptime' ), 'signal-noise__sn-status' ), 'dimension: a non-array sections value → null, never stringified' );
+ok( 'link_reshape' === sn_mcp_telemetry_change_type( array( 'change' => array( 'type' => 'link_reshape' ) ), 'signal-noise__sn-apply' ), 'dimension: sn-apply extraction is UNCHANGED with tool_name passed' );
+ok( 'uptime' === sn_mcp_telemetry_change_type( array( 'sections' => array( 'uptime' ) ), 'signal-noise/sn-status' ), 'dimension (review MEDIUM): the DIRECT door\'s raw ability-slug format is captured too — a REST-surface single-section read is not dropped from the dimension' );
+ok( null === sn_mcp_telemetry_change_type( array( 'sections' => array( array( 'nested' ) ) ), 'signal-noise__sn-status' ), 'dimension (review LOW): a non-string sections entry is filtered, never strval\'d (no warning, no coercion)' );
+$row_long = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'read', 'human', 'signal-noise__sn-status', 'sections', str_repeat( 'a', 64 ), 'ok', null, 3, null, str_repeat( 'x', 33 ) );
+ok( null === $row_long['change_type'], 'build_row (review LOW): a dimension value over VARCHAR(32) resolves to NULL at the persist choke point — never silent SQL truncation' );
+
+// The live wrapper threads tool_name through to the capture.
+sn_test_reset_telemetry();
+sn_mcp_telemetry_record( 'signal-noise__sn-status', array( 'sections' => array( 'ipv6_criterion' ) ), 'read', 'ok', null, 3, null );
+ok( 'ipv6_criterion' === ( $wpdb->insert_calls[0]['data']['change_type'] ?? null ), 'record(): a single-section sn-status call persists its section in the dimension column' );
+sn_test_reset_telemetry();
+
 // --- the row and the insert carry the new column ---
 $row_ct = sn_mcp_telemetry_build_row( '2026-08-15 01:00:00.000', 'rw', 'human', 'signal-noise__sn-apply', 'change,mode,target', str_repeat( 'a', 64 ), 'conflict', null, 12, null, 'link_reshape' );
 ok( array_key_exists( 'change_type', $row_ct ), 'build_row: emits a change_type key' );
@@ -572,8 +619,8 @@ $sw->rows1        = array(
 	array( 'tool_name' => 'signal-noise__sn-apply', 'door' => 'rw', 'outcome' => 'conflict', 'calls' => '2', 'avg_latency_ms' => '40.0', 'last_call' => '2026-08-15 01:05:00.000' ),
 );
 $sw->rows2        = array(
-	array( 'change_type' => 'link_reshape', 'outcome' => 'ok', 'calls' => '7', 'avg_latency_ms' => '110.0', 'last_call' => '2026-08-15 01:00:00.000' ),
-	array( 'change_type' => 'link_reshape', 'outcome' => 'conflict', 'calls' => '2', 'avg_latency_ms' => '40.0', 'last_call' => '2026-08-15 01:05:00.000' ),
+	array( 'tool_name' => 'signal-noise__sn-apply', 'change_type' => 'link_reshape', 'outcome' => 'ok', 'calls' => '7', 'avg_latency_ms' => '110.0', 'last_call' => '2026-08-15 01:00:00.000' ),
+	array( 'tool_name' => 'signal-noise__sn-apply', 'change_type' => 'link_reshape', 'outcome' => 'conflict', 'calls' => '2', 'avg_latency_ms' => '40.0', 'last_call' => '2026-08-15 01:05:00.000' ),
 );
 $sw->rows3        = array(
 	array( 'tool_name' => 'signal-noise__sn-apply', 'error_code' => 'snt_sn_apply_fingerprint_stale', 'outcome' => 'conflict', 'calls' => '2', 'avg_latency_ms' => '40.0', 'last_call' => '2026-08-15 01:05:00.000' ),
@@ -586,6 +633,7 @@ ok( 120 === $sum['by_tool'][0]['avg_latency_ms'], 'summary: avg latency rounded 
 // The whole reason the column was added: an individual change type, visible.
 ok( 2 === count( $sum['by_change_type'] ), 'summary: by_change_type is populated — an INDIVIDUAL change type is finally measurable' );
 ok( 'link_reshape' === $sum['by_change_type'][0]['change_type'], 'summary: change_type carried through' );
+ok( 'signal-noise__sn-apply' === $sum['by_change_type'][0]['tool_name'], 'summary (v13.3.0): by_change_type rows NAME their tool — the column now carries a per-tool dimension, so an unattributed row would be ambiguous' );
 ok( 2 === $sum['by_change_type'][1]['calls'] && 'conflict' === $sum['by_change_type'][1]['outcome'], 'summary: per-change-type CONFLICT rate is readable — the signal for whether a fingerprint granularity is right' );
 ok( 'snt_sn_apply_fingerprint_stale' === $sum['by_error_code'][0]['error_code'], 'summary: error_code reaches the grouped read path' );
 ok( 'signal-noise__sn-apply' === $sum['by_error_code'][0]['tool_name'] && 'conflict' === $sum['by_error_code'][0]['outcome'], 'summary: error_code remains attributable per tool and outcome' );

@@ -82,7 +82,12 @@ class SN_Test_Theme_Active_Template_Ability {
 	public function all_call_args() { return $this->calls_with; }
 }
 $GLOBALS['__abilities'] = array();
-if ( ! function_exists( 'wp_get_ability' ) ) { function wp_get_ability( $name ) { return $GLOBALS['__abilities'][ $name ] ?? null; } }
+$GLOBALS['__ability_lookups'] = array();
+// Review fix (v13.3.0 round): the stub RECORDS every lookup — without this,
+// the four "internal sentinel is never dispatched as an ability" assertions
+// passed unconditionally (the lookups array was initialized and never
+// written), verifying nothing.
+if ( ! function_exists( 'wp_get_ability' ) ) { function wp_get_ability( $name ) { $GLOBALS['__ability_lookups'][] = (string) $name; return $GLOBALS['__abilities'][ $name ] ?? null; } }
 
 require __DIR__ . '/../inc/abilities-sn-site-facts.php';
 
@@ -93,7 +98,7 @@ echo "sn_site_facts (consolidated) — plugin v10.26.0\n\n";
 
 // ─── Fact map: external + additive internal facts; retired source absent ───
 $map = snt_sn_site_facts_map();
-ok( 13 === count( $map ), 'the fact map has exactly 13 entries (configuration_drift added by R6a)' );
+ok( 14 === count( $map ), 'the fact map has exactly 14 entries (configuration_drift added by R6a; pattern_content by v13.3.0)' );
 ok( ! in_array( 'signal-and-noise/get-design-system-summary', $map, true ), 'the retired ability is not a source for any fact' );
 $expected_map = array(
 	'theme_version'      => 'signal-and-noise/get-theme-version',
@@ -109,9 +114,11 @@ $expected_map = array(
 	'scan_telemetry'     => 'internal:scan-telemetry-summary',
 	'tool_telemetry'     => 'internal:tool-telemetry-summary',
 	'configuration_drift' => 'internal:configuration-drift-status',
+	'pattern_content'    => 'internal:pattern-content',
 );
 ok( $expected_map === $map, 'the fact->source-slug map matches the verified live registrations exactly' );
 ok( array( 'reading_time', 'seo_route_meta', 'active_template' ) === snt_sn_site_facts_slug_required(), 'R1 fix: reading_time + seo_route_meta + active_template all require slug (active_template\'s source ability has no no-args default path — see the file docblock)' );
+ok( array( 'pattern_content' ) === snt_sn_site_facts_pattern_required(), 'v13.3.0: pattern_content requires the top-level pattern input (the slug contract\'s shape)' );
 
 // ─── Input validation errors ─────────────────────────────────────────────
 $empty = snt_ability_sn_site_facts( array( 'facts' => array() ) );
@@ -229,7 +236,7 @@ ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), '
 ok( true === ( $a['meta']['annotations']['readonly'] ?? false ) && false === ( $a['meta']['annotations']['destructive'] ?? true ) && true === ( $a['meta']['annotations']['idempotent'] ?? false ), 'sn-site-facts is annotated readonly + non-destructive + idempotent' );
 ok( array( 'facts' ) === ( $a['input_schema']['required'] ?? array() ), 'sn-site-facts requires facts' );
 ok( 'object' === ( $a['input_schema']['type'] ?? '' ), 'sn-site-facts input type is plain object (required field present, no bodyless-GET union)' );
-ok( 13 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 13 values' );
+ok( 14 === count( $a['input_schema']['properties']['facts']['items']['enum'] ?? array() ), 'the advertised facts[] enum lists exactly 14 values' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * scan_telemetry (v10.61.0) — plugin-internal fact, the active_template
@@ -291,6 +298,50 @@ $r_present = snt_ability_sn_site_facts( array( 'facts' => array( 'scan_telemetry
 ok( 2 === ( $r_present['facts']['scan_telemetry']['total_runs'] ?? null ), 'scan_telemetry: summary returned verbatim when the module is loaded' );
 ok( true === ( $r_present['facts']['scan_telemetry']['table_present'] ?? null ), 'scan_telemetry: table_present travels (zero-vs-null: honest empty window vs eaten rows)' );
 ok( ! is_wp_error( $r_present ), 'scan_telemetry: needs NO slug (not in the slug-required set)' );
+
+// ─── pattern_content (v13.3.0): the authoring read ───────────────────────
+$pc_no_class = snt_ability_sn_site_facts( array( 'facts' => array( 'pattern_content' ), 'pattern' => 'signal-noise/references' ) );
+ok( array( 'error' => 'unavailable' ) === ( $pc_no_class['facts']['pattern_content'] ?? null ), 'pattern_content: registry class absent -> uniform {error:unavailable} (the read PATH is missing)' );
+
+$pc_missing = snt_ability_sn_site_facts( array( 'facts' => array( 'pattern_content' ) ) );
+ok( is_wp_error( $pc_missing ) && 'snt_site_facts_missing_pattern' === $pc_missing->get_error_code(), 'pattern_content: requested without pattern -> 400 caller error at the door, never a degraded fact' );
+ok( 400 === ( $pc_missing->get_error_data()['status'] ?? null ), 'pattern_content: missing pattern carries a 400 status' );
+$pc_blank = snt_ability_sn_site_facts( array( 'facts' => array( 'pattern_content' ), 'pattern' => '   ' ) );
+ok( is_wp_error( $pc_blank ) && 'snt_site_facts_missing_pattern' === $pc_blank->get_error_code(), 'pattern_content: a blank pattern is missing, not a lookup of whitespace' );
+
+if ( ! class_exists( 'WP_Block_Patterns_Registry' ) ) {
+	// Faithful-enough stub: is_registered/get_registered over a fixture map —
+	// the two registry calls the SUT makes, with the real record shape
+	// (patterns registered from files carry their markup in 'content').
+	class WP_Block_Patterns_Registry {
+		private static $inst = null;
+		public static function get_instance() { if ( null === self::$inst ) { self::$inst = new self(); } return self::$inst; }
+		public function is_registered( $name ) { return isset( $GLOBALS['__block_patterns'][ $name ] ); }
+		public function get_registered( $name ) { return $GLOBALS['__block_patterns'][ $name ] ?? null; }
+	}
+}
+$GLOBALS['__block_patterns'] = array(
+	'signal-noise/references' => array(
+		'name'       => 'signal-noise/references',
+		'title'      => 'References',
+		'description' => 'Numbered reference list.',
+		'categories' => array( 'signal-noise' ),
+		'keywords'   => array( 'references', 'citations' ),
+		'content'    => "<!-- wp:heading {\"level\":2} -->\n<h2 class=\"wp-block-heading\">References</h2>\n<!-- /wp:heading -->\n\n<!-- wp:list {\"ordered\":true} -->\n<ol><li>First reference.</li></ol>\n<!-- /wp:list -->",
+	),
+);
+
+$pc = snt_ability_sn_site_facts( array( 'facts' => array( 'pattern_content' ), 'pattern' => 'signal-noise/references' ) );
+ok( true === ( $pc['facts']['pattern_content']['registered'] ?? null ), 'pattern_content: a registered pattern reports registered:true' );
+ok( false !== strpos( (string) ( $pc['facts']['pattern_content']['content'] ?? '' ), '<!-- wp:list {"ordered":true} -->' ), 'pattern_content: the SERIALIZED MARKUP travels — the composable form block_insert/block_replace callers need' );
+ok( 'References' === ( $pc['facts']['pattern_content']['title'] ?? null ), 'pattern_content: title carried alongside' );
+ok( ! in_array( 'internal:pattern-content', $GLOBALS['__ability_lookups'], true ), 'pattern_content: internal sentinel is never dispatched as an ability' );
+
+$pc_unknown = snt_ability_sn_site_facts( array( 'facts' => array( 'pattern_content' ), 'pattern' => 'signal-noise/typo-name' ) );
+ok( array( 'registered' => false, 'name' => 'signal-noise/typo-name' ) === ( $pc_unknown['facts']['pattern_content'] ?? null ), 'pattern_content: an unregistered name is a NAMED answer ({registered:false}), never the unavailable outage shape' );
+
+$pc_batch = snt_ability_sn_site_facts( array( 'facts' => array( 'theme_version', 'pattern_content' ), 'pattern' => 'signal-noise/references' ) );
+ok( ! is_wp_error( $pc_batch ) && isset( $pc_batch['facts']['theme_version'] ) && true === ( $pc_batch['facts']['pattern_content']['registered'] ?? null ), 'pattern_content: batches with other facts; pattern is ignored by the rest' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
