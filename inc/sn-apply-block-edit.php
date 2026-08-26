@@ -391,6 +391,12 @@ function snt_sn_apply_block_edit_span_for_path( $content, $block_path ) {
 function snt_sn_apply_block_edit_resolve_span( $content, array $payload ) {
 	$path = trim( (string) ( $payload['block_path'] ?? '' ) );
 	if ( '' !== $path ) {
+		// context_snippet disambiguates ANCHOR matches; a path is already
+		// exact. Accepting-and-ignoring it would be a silent no-op input —
+		// the family refuses those by name (review round).
+		if ( '' !== trim( (string) ( $payload['context_snippet'] ?? '' ) ) ) {
+			return new WP_Error( 'snt_sn_apply_locator_conflict', __( 'payload.context_snippet disambiguates anchor matches and is unused with payload.block_path — omit it; a path is already exact.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
 		return snt_sn_apply_block_edit_span_for_path( $content, $path );
 	}
 	$located = snt_sn_apply_block_edit_locate( (string) $content, (string) ( $payload['anchor'] ?? '' ), (string) ( $payload['context_snippet'] ?? '' ) );
@@ -536,7 +542,11 @@ function snt_sn_apply_block_edit_compute( $content, $type, array $payload ) {
 	$blocks  = trim( (string) ( $payload['blocks'] ?? '' ) );
 
 	if ( 'block_insert' === $type && 'end' === (string) ( $payload['position'] ?? 'after' ) ) {
-		$new_content = '' === $content ? $blocks : $content . "\n\n" . $blocks;
+		// rtrim before appending (review round): a post with trailing
+		// whitespace after its last block would otherwise gain a \n\n\n run —
+		// parseable but off-rhythm, contradicting the canonical-separator
+		// promise. Same fix in block_move's 'end' branch.
+		$new_content = '' === trim( $content ) ? $blocks : rtrim( $content ) . "\n\n" . $blocks;
 		return array( 'new_content' => $new_content, 'replaced_block' => null );
 	}
 
@@ -640,7 +650,9 @@ function snt_sn_apply_block_edit_compute_move( $content, array $payload ) {
 	$point = $insert_at >= $r_end ? $insert_at - ( $r_end - $r_start ) : $insert_at;
 
 	if ( 'end' === $position ) {
-		$new_content = '' === $base ? $moved : $base . "\n\n" . $moved;
+		// rtrim mirrors block_insert's 'end' branch (review round): trailing
+		// whitespace on the base must not stack into a \n\n\n run.
+		$new_content = '' === trim( $base ) ? $moved : rtrim( $base ) . "\n\n" . $moved;
 	} elseif ( 'before' === $position ) {
 		$new_content = substr_replace( $base, $moved . "\n\n", $point, 0 );
 	} else {

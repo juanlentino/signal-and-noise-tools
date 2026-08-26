@@ -768,6 +768,16 @@ tf_post( 945, array( 'post_content' => $bp_solo ) );
 $r = bp_call( 'block_delete', array( 'block_path' => '0/0' ), 945, snt_corpus_content_hash( $bp_solo ) );
 ok( is_wp_error( $r ) && 'snt_sn_apply_delete_would_empty' === $r->get_error_code(), 'DEL.8: deleting the only block refuses — an empty post is never a block edit\'s intent' );
 
+// ── Review-round pins: trailing whitespace never stacks separators; a
+// context_snippet with a path refuses (no silent no-op inputs).
+$bp_trail = $bp_p1 . "\n\n" . $bp_p2 . "\n";
+$computed = snt_sn_apply_block_edit_compute_move( $bp_trail, array( 'block_path' => '0/0', 'position' => 'end' ) );
+eq( $bp_p2 . "\n\n" . $bp_p1, $computed['new_content'] ?? null, 'TRAIL.1: move-to-end over trailing whitespace stays canonical — no \n\n\n run' );
+$computed = snt_sn_apply_block_edit_compute( $bp_trail, 'block_insert', array( 'blocks' => $bp_side, 'position' => 'end' ) );
+eq( $bp_p1 . "\n\n" . $bp_p2 . "\n\n" . $bp_side, $computed['new_content'] ?? null, 'TRAIL.2: insert-at-end likewise rtrims before appending' );
+$r = bp_call( 'block_replace', array( 'block_path' => '0/0', 'context_snippet' => 'anything at all here', 'blocks' => $bp_new_side ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_locator_conflict' === $r->get_error_code(), 'TRAIL.3: context_snippet alongside block_path refuses by name — a path is already exact' );
+
 // ── The guard fix, red-provable: a DRAFT's floating post_date no longer
 // trips the schedule violation (found LIVE on a scratch draft: the write
 // landed, then a false 500 said restore-manually-NOW over core behavior).
