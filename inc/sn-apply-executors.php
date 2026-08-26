@@ -29,6 +29,8 @@
  * | link_reshape      |   yes    |   yes   | audit item 5 (v10.58.0): move an <a>'s boundaries within one text node. new_anchor must be a contiguous, unique substring of current_anchor; href carried over, never a parameter; prose byte-identity ASSERTED post-splice; fingerprint = live content_hash (sentence_replace's binding). Provenance-invisible by item 4's answer (normalized prose is unchanged -> bearing-hash coalesce -> no new commit). |
  * | unlink            |   yes    |   yes   | v10.59.0, link_reshape's promised sibling: remove an <a>'s wrapper, keep the inner text — same locator, same fingerprint binding, same post-splice prose-identity assertion. |
  * | delete_draft      |   yes    |   NO    | create_draft's mirror (audit item 6, v10.58.0): trash-only (wp_trash_post, never a hard delete), draft-only (gate 2 + a last-instant re-check in the write), fingerprint-gated on the draft's content_hash. Revision-only for create_draft's reason; rollback is wp-admin untrash (reported as method "manual_untrash" — a human action, not an MCP method). |
+ * | block_insert      |   yes    |   yes   | v13.2.0: caller-composed block markup spliced before/after an anchored top-level block (or appended); content field write via snt_sn_apply_block_edit_impl()'s injectable write_callback. Scheduled posts keep status+date, asserted post-write. |
+ * | block_replace     |   yes    |   yes   | v13.2.0: same module — the whole top-level block containing the anchor is replaced; diff reports the replaced block's serialized form. Same write/guard contract as block_insert. |
  * | restore_revision  |    NO    |   yes   | session 7 (the acceptance path — see inc/sn-apply-restore-revision.php's docblock): a restore IS the live write, so "staging a restore" would stage a revision of a revision. mode:"revision" refuses structurally, the exact mechanism og_card/anchor_sweep use. Publish-only means only the rw door's bound owner credential can ever execute it (gate 3's identity grant); a routine credential is refused there by construction, never by new identity code. Promotes a staged revision to live AND applies+clears any queued snt_sn_apply_stage_meta() rows for the same post — the queue's first application path. |
  *
  * "partial" on surfaces is intentionally not a clean yes/no: the TYPE
@@ -66,6 +68,13 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	// v10.59.0: link_reshape's promised sibling — remove an <a>'s wrapper,
 	// keep the inner text. Same module file, same identity assertion.
 	'unlink',
+	// v13.2.0: the caller-composed BLOCK edit family — insert markup
+	// before/after an anchored top-level block (or at the end), or replace
+	// the whole top-level block containing the anchor. Live content_hash
+	// fingerprint, round-trip + registry markup gate, prose-delta reporting.
+	// See inc/sn-apply-block-edit.php.
+	'block_insert',
+	'block_replace',
 );
 
 /**
@@ -87,6 +96,8 @@ function snt_sn_apply_mode_support( $type ) {
 		case 'sentence_replace':
 		case 'link_reshape':
 		case 'unlink':
+		case 'block_insert':
+		case 'block_replace':
 		case 'alt_text':
 		case 'surfaces':
 			return array( 'modes' => array( 'revision', 'publish' ), 'reason' => null );
@@ -364,6 +375,39 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 				'write_result' => $result,
 			);
 
+		case 'block_insert':
+		case 'block_replace':
+			// v13.2.0: the caller-composed block edit family — impl in
+			// inc/sn-apply-block-edit.php, sentence_replace's write-callback
+			// contract, plus the scheduled-post status/date guard and the
+			// prose-delta report (the ledger consequence, visible in the diff
+			// of the REAL write exactly as in the dry run's).
+			$revision_id = null;
+			$cb          = 'revision' === $mode ? snt_sn_apply_revision_write_callback( $revision_id ) : null;
+			$result      = snt_sn_apply_block_edit_impl(
+				$resolved['post_id'],
+				$type,
+				$payload,
+				(string) ( $change['fingerprint'] ?? '' ),
+				$cb
+			);
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			$diff = array_merge(
+				array( 'before' => $result['old_content'] ?? '', 'after' => $result['new_content'] ?? '', 'blocks_touched' => 1 ),
+				is_array( $result['prose_delta'] ?? null ) ? $result['prose_delta'] : array()
+			);
+			if ( 'block_replace' === $type ) {
+				$diff['replaced_block'] = $result['replaced_block'] ?? null;
+			}
+			return array(
+				'ok'           => true,
+				'diff'         => $diff,
+				'revision_id'  => $revision_id,
+				'write_result' => $result,
+			);
+
 		case 'unlink':
 			// v10.59.0: link_reshape's sibling — same module, same contracts.
 			$revision_id = null;
@@ -570,6 +614,29 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 				'after'          => $gate1['new_content'] ?? $before,
 				'blocks_touched' => in_array( $type, array( 'block_migration', 'pattern_adoption' ), true ) ? 1 : 0,
 			);
+
+		case 'block_insert':
+		case 'block_replace':
+			// v13.2.0: the content-family preview PLUS the prose delta — the
+			// ledger consequence must be visible BEFORE the write, so the dry
+			// run carries the same {prose_changed, prose_added, prose_removed,
+			// ledger_impact} fields the real write's diff does (one shared
+			// helper, never two computations drifting apart). block_replace
+			// additionally reports the replaced block's serialized form —
+			// gate 1 only carries new_content, so the (read-only, side-effect
+			// free) compute runs once more here to recover it.
+			$post   = get_post( $resolved['post_id'] ?? 0 );
+			$before = $post ? (string) $post->post_content : '';
+			$after  = $gate1['new_content'] ?? $before;
+			$diff   = array_merge(
+				array( 'before' => $before, 'after' => $after, 'blocks_touched' => 1 ),
+				function_exists( 'snt_sn_apply_block_edit_prose_delta' ) ? snt_sn_apply_block_edit_prose_delta( $before, (string) $after ) : array()
+			);
+			if ( 'block_replace' === $type && null !== ( $gate1['new_content'] ?? null ) ) {
+				$computed = snt_sn_apply_block_edit_compute( $before, $type, $payload );
+				$diff['replaced_block'] = is_array( $computed ) ? $computed['replaced_block'] : null;
+			}
+			return $diff;
 
 		case 'alt_text':
 			$attachment_id = $resolved['attachment_id'] ?? 0;

@@ -327,6 +327,68 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			}
 			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => null, 'new_content' => $new_content );
 
+		case 'block_insert':
+		case 'block_replace':
+			// v13.2.0 — the caller-composed BLOCK edit family: link_reshape's
+			// gate shape exactly. Payload/markup refusals are 422 caller
+			// errors surfaced BEFORE the fingerprint check (each with its own
+			// error_code/error_status override); the fingerprint is the LIVE
+			// content_hash, REQUIRED (missing 422, stale 409); locate/compute
+			// refusals carry their own codes (anchor_not_found 409,
+			// ambiguous/boundary/in_delimiter 422). Success hands gate 2 the
+			// exact content the write would produce.
+			$post = get_post( $resolved['post_id'] ?? 0 );
+			if ( ! $post ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
+			}
+			$payload_ok = function_exists( 'snt_sn_apply_block_edit_payload_error' )
+				? snt_sn_apply_block_edit_payload_error( $type, $payload )
+				: true;
+			if ( is_wp_error( $payload_ok ) ) {
+				$payload_data = (array) $payload_ok->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => null,
+					'skipped'      => null,
+					'detail'       => $payload_ok->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $payload_ok->get_error_code(),
+					'error_status' => (int) ( $payload_data['status'] ?? 422 ),
+				);
+			}
+			$observed = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
+			if ( ! array_key_exists( 'fingerprint', $change ) ) {
+				return array(
+					'passed'       => false,
+					'expected'     => null,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => sprintf( 'change.fingerprint is required for %s: pass the content_hash observed via sn_posts for this post before proposing the edit.', $type ),
+					'new_content'  => null,
+					'error_code'   => 'snt_sn_apply_missing_fingerprint',
+					'error_status' => 422,
+				);
+			}
+			if ( ! hash_equals( $observed, $fingerprint ) ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => 'Live post content has changed since this fingerprint was observed (re-fetch sn_posts\' content_hash and retry: the stale-branch merge conflict).', 'new_content' => null );
+			}
+			$computed = snt_sn_apply_block_edit_compute( (string) $post->post_content, $type, $payload );
+			if ( is_wp_error( $computed ) ) {
+				$compute_data = (array) $computed->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => $computed->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $computed->get_error_code(),
+					'error_status' => (int) ( $compute_data['status'] ?? 422 ),
+				);
+			}
+			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => null, 'new_content' => $computed['new_content'] );
+
 		case 'restore_revision':
 			// Session 7 — a REAL fingerprint scheme (not skipped): binds to
 			// the LIVE row's current content_hash, the SAME scheme
@@ -500,6 +562,27 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 				return array( 'checks' => array(), 'findings' => array() );
 			}
 			return array( 'checks' => array( 'body' ), 'findings' => snt_sn_validate_check_body( $new_content, $resolved['post_id'] ?? 0 ) );
+
+		case 'block_insert':
+		case 'block_replace':
+			// v13.2.0 — the body family's check, PLUS the brand-voice evidence
+			// pass over the PAYLOAD's own prose (spec: "reuse the brand_voice
+			// em-dash check against the payload's text"). brand_voice findings
+			// are severity 'info' by contract (evidence, never a verdict —
+			// inc/sn-validate-checks-media.php), so they surface in findings
+			// without ever failing the gate; only a severity-'error' body
+			// finding refuses.
+			if ( null === $new_content || ! function_exists( 'snt_sn_validate_check_body' ) ) {
+				return array( 'checks' => array(), 'findings' => array() );
+			}
+			$checks   = array( 'body' );
+			$findings = snt_sn_validate_check_body( $new_content, $resolved['post_id'] ?? 0 );
+			if ( function_exists( 'snt_sn_validate_brand_voice_findings' ) && function_exists( 'snt_sn_apply_link_prose_normalize' ) ) {
+				$checks[]   = 'brand_voice';
+				$blocks_txt = snt_sn_apply_link_prose_normalize( (string) ( $payload['blocks'] ?? '' ) );
+				$findings   = array_merge( $findings, snt_sn_validate_brand_voice_findings( 'body', $blocks_txt, (int) ( $resolved['post_id'] ?? 0 ) ) );
+			}
+			return array( 'checks' => $checks, 'findings' => $findings );
 
 		case 'create_draft':
 			// Its own gate-2 assembly (excerpt/body/block-pattern/tags plus
