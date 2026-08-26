@@ -96,6 +96,9 @@ if ( ! function_exists( 'get_posts' ) ) {
 		foreach ( $GLOBALS['__posts'] as $p ) {
 			if ( $p->post_type !== ( $args['post_type'] ?? 'post' ) ) { continue; }
 			if ( ! in_array( $p->post_status, (array) ( $args['post_status'] ?? array( 'publish' ) ), true ) ) { continue; }
+			// v13.2.0: the pattern_adoption adapter now scopes IN the query —
+			// the stub must honor post__in or the scope pins pass vacuously.
+			if ( isset( $args['post__in'] ) && ! in_array( (int) $p->ID, array_map( 'intval', (array) $args['post__in'] ), true ) ) { continue; }
 			$out[] = $p;
 		}
 		$cap = (int) ( $args['posts_per_page'] ?? -1 );
@@ -431,6 +434,27 @@ ok( in_array( 'change.type:pattern_adoption', $pa_scan['candidates'][0]['apply_h
 $pa_replacement = json_encode( array( 'blockName' => 'core/paragraph', 'attrs' => array(), 'innerBlocks' => array(), 'innerHTML' => '<p>Replaced.</p>', 'innerContent' => array( '<p>Replaced.</p>' ) ) );
 $pa_apply = snt_ai_pattern_adoption_apply_impl( $pa_target['post_id'], $pa_target['block_fingerprint'], $pa_replacement, 'pull-quote' );
 ok( is_array( $pa_apply ) && true === ( $pa_apply['ok'] ?? false ), 'ACCEPTANCE TEST 5 (pattern_adoption): apply on the scan-emitted fingerprint succeeds — no scanner/applier drift' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.2.0 — the pattern_adoption adapter honors scope IN the query and
+ * walks scheduled ('future') posts (pre-13.2.0: posts_examined counted ALL
+ * published posts regardless of scope, and the walk was publish-only, so
+ * 20 scheduled notes were invisible to the exact scan where adoption is
+ * still free — no signed ledger version exists for them yet).
+ * ════════════════════════════════════════════════════════════════════════ */
+$GLOBALS['__posts'][303] = tf_post( 303, 'future', json_encode( array( $quote_block ) ), array( 'title' => 'Scheduled quote', 'slug' => 'scheduled-quote' ) );
+
+$pa_unscoped = snt_sn_scan_adapter_pattern_adoption( null );
+$pa_ids      = array_map( static function ( $c ) { return (int) $c['targets'][0]['post_id']; }, $pa_unscoped['candidates'] );
+ok( in_array( 303, $pa_ids, true ), 'v13.2.0: a SCHEDULED post\'s candidate is visible to the adapter (status future walked)' );
+
+$pa_scoped = snt_sn_scan_adapter_pattern_adoption( array( 303 ) );
+ok( 1 === count( $pa_scoped['candidates'] ) && 303 === (int) $pa_scoped['candidates'][0]['targets'][0]['post_id'], 'v13.2.0: allowed_ids scopes the walk to the named post' );
+ok( 1 === $pa_scoped['posts_examined'], 'v13.2.0: posts_examined reports the SCOPED walked count — never the whole corpus (corpus_fingerprint/scan_run_id derive from it, so they become scope-honest with it)' );
+
+$pa_empty = snt_sn_scan_adapter_pattern_adoption( array() );
+ok( 0 === count( $pa_empty['candidates'] ) && 0 === $pa_empty['posts_examined'], 'v13.2.0: an explicitly EMPTY scope walks nothing — never inverts to "all posts"' );
+unset( $GLOBALS['__posts'][303] );
 
 /* ════════════════════════════════════════════════════════════════════════
  * Scope / cursor / clamp — 4xx errors
