@@ -31,6 +31,8 @@
  * | delete_draft      |   yes    |   NO    | create_draft's mirror (audit item 6, v10.58.0): trash-only (wp_trash_post, never a hard delete), draft-only (gate 2 + a last-instant re-check in the write), fingerprint-gated on the draft's content_hash. Revision-only for create_draft's reason; rollback is wp-admin untrash (reported as method "manual_untrash" — a human action, not an MCP method). |
  * | block_insert      |   yes    |   yes   | v13.2.0: caller-composed block markup spliced before/after an anchored top-level block (or appended); content field write via snt_sn_apply_block_edit_impl()'s injectable write_callback. Scheduled posts keep status+date, asserted post-write. |
  * | block_replace     |   yes    |   yes   | v13.2.0: same module — the whole top-level block containing the anchor is replaced; diff reports the replaced block's serialized form. Same write/guard contract as block_insert. |
+ * | block_delete      |   yes    |   yes   | v13.5.0: removes one top-level block (located by anchor OR block_path, exactly one); refuses to empty the post; diff reports removed_block. Same write/guard contract. |
+ * | block_move        |   yes    |   yes   | v13.5.0: relocates one top-level block in a SINGLE call (source by block_path; destination before/after a block or end); diff reports moved_block. Same write/guard contract. |
  * | restore_revision  |    NO    |   yes   | session 7 (the acceptance path — see inc/sn-apply-restore-revision.php's docblock): a restore IS the live write, so "staging a restore" would stage a revision of a revision. mode:"revision" refuses structurally, the exact mechanism og_card/anchor_sweep use. Publish-only means only the rw door's bound owner credential can ever execute it (gate 3's identity grant); a routine credential is refused there by construction, never by new identity code. Promotes a staged revision to live AND applies+clears any queued snt_sn_apply_stage_meta() rows for the same post — the queue's first application path. |
  *
  * "partial" on surfaces is intentionally not a clean yes/no: the TYPE
@@ -75,6 +77,14 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	// See inc/sn-apply-block-edit.php.
 	'block_insert',
 	'block_replace',
+	// v13.5.0: the block edit family's remaining verbs — delete (removal was
+	// otherwise impossible through MCP) and move as a SINGLE operation (two
+	// individually-legal replaces can strand a caller mid-swap; see
+	// inc/sn-apply-block-edit.php's compute_move docblock). Both accept the
+	// new block_path locator, the only way to reach a dynamic block whose
+	// text lives in its delimiter attributes.
+	'block_delete',
+	'block_move',
 );
 
 /**
@@ -98,6 +108,8 @@ function snt_sn_apply_mode_support( $type ) {
 		case 'unlink':
 		case 'block_insert':
 		case 'block_replace':
+		case 'block_delete':
+		case 'block_move':
 		case 'alt_text':
 		case 'surfaces':
 			return array( 'modes' => array( 'revision', 'publish' ), 'reason' => null );
@@ -377,7 +389,9 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 
 		case 'block_insert':
 		case 'block_replace':
-			// v13.2.0: the caller-composed block edit family — impl in
+		case 'block_delete':
+		case 'block_move':
+			// v13.2.0 (+ delete/move v13.5.0): the caller-composed block edit family — impl in
 			// inc/sn-apply-block-edit.php, sentence_replace's write-callback
 			// contract, plus the scheduled-post status/date guard and the
 			// prose-delta report (the ledger consequence, visible in the diff
@@ -400,6 +414,12 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 			);
 			if ( 'block_replace' === $type ) {
 				$diff['replaced_block'] = $result['replaced_block'] ?? null;
+			}
+			if ( 'block_delete' === $type ) {
+				$diff['removed_block'] = $result['removed_block'] ?? null;
+			}
+			if ( 'block_move' === $type ) {
+				$diff['moved_block'] = $result['moved_block'] ?? null;
 			}
 			return array(
 				'ok'           => true,
@@ -617,7 +637,9 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 
 		case 'block_insert':
 		case 'block_replace':
-			// v13.2.0: the content-family preview PLUS the prose delta — the
+		case 'block_delete':
+		case 'block_move':
+			// v13.2.0 (+ delete/move v13.5.0): the content-family preview PLUS the prose delta — the
 			// ledger consequence must be visible BEFORE the write, so the dry
 			// run carries the same {prose_changed, prose_added, prose_removed,
 			// ledger_impact} fields the real write's diff does (one shared
@@ -632,9 +654,13 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 				array( 'before' => $before, 'after' => $after, 'blocks_touched' => 1 ),
 				function_exists( 'snt_sn_apply_block_edit_prose_delta' ) ? snt_sn_apply_block_edit_prose_delta( $before, (string) $after ) : array()
 			);
-			if ( 'block_replace' === $type && null !== ( $gate1['new_content'] ?? null ) ) {
+			if ( in_array( $type, array( 'block_replace', 'block_delete', 'block_move' ), true ) && null !== ( $gate1['new_content'] ?? null ) ) {
 				$computed = snt_sn_apply_block_edit_compute( $before, $type, $payload );
-				$diff['replaced_block'] = is_array( $computed ) ? $computed['replaced_block'] : null;
+				if ( is_array( $computed ) ) {
+					if ( 'block_replace' === $type ) { $diff['replaced_block'] = $computed['replaced_block']; }
+					if ( 'block_delete' === $type ) { $diff['removed_block'] = $computed['removed_block'] ?? null; }
+					if ( 'block_move' === $type ) { $diff['moved_block'] = $computed['moved_block'] ?? null; }
+				}
 			}
 			return $diff;
 

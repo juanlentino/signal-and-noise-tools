@@ -2,6 +2,69 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.5.0] - 2026-08-26 — the non-anchor locator: dynamic blocks stop being write-once
+
+The owner's brief, premise CONFIRMED live before building (scratch draft:
+insert a sidenote, try to reach it again → `snt_sn_apply_anchor_in_delimiter`
+422): a dynamic block's text lives inside its delimiter, the anchor locator
+needs visible text, so sidenote/pull-quote were insertable then permanently
+unreachable through the very tool that signs their text since v13.4.0.
+
+### Added
+
+- **`payload.block_path` locator** for `block_insert` / `block_replace` /
+  `block_delete` ([inc/sn-apply-block-edit.php](inc/sn-apply-block-edit.php)):
+  `"0/<index>"` — the EXACT syntax `sn_scan` block_migrations surfaces on
+  `targets[].block_path` (a `0` seed plus RAW `parse_blocks` indices,
+  whitespace separator nodes included; verified against the detect walkers,
+  not assumed). Top-level only; nested paths refuse by name. EXACTLY ONE
+  locator per call — anchor and block_path together, or neither where one
+  is needed, is a named 422 (`locator_conflict` / `locator_required`),
+  never a silent precedence rule. STALENESS GUARANTEE: the required live
+  `content_hash` binds the caller's entire view and 409s at gate 1 BEFORE
+  any path is dereferenced; a fresh-hash miss is caller arithmetic,
+  refused naming the path and what actually sits there (out_of_range /
+  whitespace-separator / freeform). block_migrations' descending-order
+  rule does not apply: one call is one splice, and the next call needs a
+  fresh hash by construction.
+- **`change.type block_delete`**: removes one located top-level block
+  (consuming one adjacent whitespace separator so the rhythm stays
+  canonical), REFUSES to empty a post
+  (`snt_sn_apply_delete_would_empty`), reports `diff.removed_block`.
+- **`change.type block_move`**: relocation as a SINGLE call — source by
+  `block_path`, destination `before`/`after` one block (exactly one of
+  `anchor` / `to_block_path`) or `end`; no-op and source-is-destination
+  refuse by name; reports `diff.moved_block`. Built single because the
+  owner ran the two-replace version: step 1 (paragraph → sidenote) passed
+  every gate, step 2 was structurally impossible, and the paragraph was
+  gone with no scripted way back — the gates only ever see one call, so
+  the verb must BE one call. A move reorders prose, so the delta honestly
+  mints a version.
+- Both new types carry the full family contract: live-content_hash
+  fingerprint, four gates, prose delta, both modes, the scheduled-post
+  guarantee, the existing idempotency auto-key.
+
+### Fixed
+
+- **The schedule guard's draft false-positive** (found LIVE by this
+  brief's own repro, on the very first scratch-draft write): WordPress
+  core FLOATS a draft's `post_date` on save — a draft's date is
+  last-touched, not a schedule — and v13.2.0's guard bound the date for
+  every status, so a routine draft edit returned a scary 500
+  ("restore manually NOW") AFTER the content write had landed, over
+  benign core behavior a restore cannot even stick against. `post_date`
+  now binds strictly for status `future` only; `post_status` stays
+  asserted for EVERY status (a draft silently publishing is a real
+  disaster regardless of dates). Mutation-checked: restoring the
+  all-status binding goes red.
+
+Tests: the owner's three (sidenote reword in place by path; move up one
+position in one call; a stale path 409s at gate 1 with the store
+byte-identical — the path is never dereferenced) plus the full refusal
+matrix (conflict/required/out-of-range/separator-index/nested/bad-syntax/
+would-empty/no-op/blocks-not-accepted) and the draft-float driver in the
+stub. Suite 135/0; delegation sweep extended to both types (170/0).
+
 ## [13.4.0] - 2026-08-25 — sn-normalize-v2: the record can finally see the theme's dynamic-block text
 
 Task 1 of the owner's 2026-08-25 brief — decision: SIGN IT. The

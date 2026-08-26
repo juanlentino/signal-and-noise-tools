@@ -171,29 +171,68 @@ function snt_sn_apply_block_edit_unknown_block( $blocks ) {
  */
 function snt_sn_apply_block_edit_payload_error( $type, array $payload ) {
 	if ( array_key_exists( 'edits', $payload ) ) {
-		return new WP_Error( 'snt_sn_apply_edits_not_supported', __( 'payload.edits is not available for block_insert/block_replace: block edits interact through tag structure in ways the prose batch\'s byte-range overlap check cannot see. One call per block edit.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		return new WP_Error( 'snt_sn_apply_edits_not_supported', __( 'payload.edits is not available for the block edit family: block edits interact through tag structure in ways the prose batch\'s byte-range overlap check cannot see. One call per block edit.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 	}
 
-	$position = 'block_insert' === $type ? (string) ( $payload['position'] ?? 'after' ) : null;
-	if ( 'block_insert' === $type && ! in_array( $position, array( 'before', 'after', 'end' ), true ) ) {
-		return new WP_Error( 'snt_sn_apply_invalid_position', __( 'payload.position must be "before", "after" or "end" (default "after").', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
-	}
-
-	$anchor = (string) ( $payload['anchor'] ?? '' );
-	if ( 'end' === $position ) {
-		if ( '' !== $anchor ) {
-			return new WP_Error( 'snt_sn_apply_invalid_anchor', __( 'payload.anchor is unused with position "end" — omit it rather than passing one that does not anchor anything.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	$position = null;
+	if ( 'block_insert' === $type || 'block_move' === $type ) {
+		$position = (string) ( $payload['position'] ?? ( 'block_insert' === $type ? 'after' : '' ) );
+		if ( ! in_array( $position, array( 'before', 'after', 'end' ), true ) ) {
+			return new WP_Error( 'snt_sn_apply_invalid_position', __( 'payload.position must be "before", "after" or "end" (block_insert defaults to "after"; block_move states it explicitly — a move has no natural default direction).', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 		}
-	} elseif ( strlen( $anchor ) < SNT_SN_APPLY_BLOCK_EDIT_ANCHOR_MIN ) {
-		return new WP_Error(
-			'snt_sn_apply_invalid_anchor',
-			sprintf(
-				/* translators: %d is the minimum anchor length in characters */
-				__( 'payload.anchor must be a sentence-scale span (at least %d characters) copied byte-exactly from the stored post_content — a short token would resolve its first occurrence anywhere in the post.', 'signal-and-noise-tools' ),
-				SNT_SN_APPLY_BLOCK_EDIT_ANCHOR_MIN
-			),
-			array( 'status' => 422 )
-		);
+	}
+
+	$has_anchor = '' !== trim( (string) ( $payload['anchor'] ?? '' ) );
+	$has_path   = '' !== trim( (string) ( $payload['block_path'] ?? '' ) );
+
+	if ( 'block_move' === $type ) {
+		// The SOURCE of a move is always block_path — a text anchor names
+		// words, and the whole point of this family is blocks with no words
+		// outside the delimiter. The `anchor`/`to_block_path` inputs name
+		// the DESTINATION instead, exactly-one when position is not "end".
+		if ( ! $has_path ) {
+			return new WP_Error( 'snt_sn_apply_locator_required', __( 'block_move requires payload.block_path naming the SOURCE block ("0/<index>", the block_migrations path syntax). payload.anchor / payload.to_block_path name the destination, never the source.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		$has_dest_path = '' !== trim( (string) ( $payload['to_block_path'] ?? '' ) );
+		if ( 'end' === $position ) {
+			if ( $has_anchor || $has_dest_path ) {
+				return new WP_Error( 'snt_sn_apply_locator_conflict', __( 'position "end" takes no destination locator — omit payload.anchor and payload.to_block_path rather than passing one that does not anchor anything.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+			}
+		} elseif ( $has_anchor && $has_dest_path ) {
+			return new WP_Error( 'snt_sn_apply_locator_conflict', __( 'payload.anchor AND payload.to_block_path both name a destination — pass exactly one; this tool refuses a silent precedence rule.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		} elseif ( ! $has_anchor && ! $has_dest_path ) {
+			return new WP_Error( 'snt_sn_apply_locator_required', __( 'block_move with position "before"/"after" needs a destination: exactly one of payload.anchor (visible text inside the destination block) or payload.to_block_path.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		if ( $has_anchor && strlen( (string) $payload['anchor'] ) < SNT_SN_APPLY_BLOCK_EDIT_ANCHOR_MIN ) {
+			return snt_sn_apply_block_edit_anchor_min_error();
+		}
+	} else {
+		// block_insert / block_replace / block_delete: exactly ONE locator
+		// per call — both supplied, or neither, is a named 422, never a
+		// silent precedence rule (v13.5.0). block_insert position "end"
+		// needs none and refuses either.
+		$needs_locator = ! ( 'block_insert' === $type && 'end' === $position );
+		if ( ! $needs_locator ) {
+			if ( $has_anchor || $has_path ) {
+				return new WP_Error( 'snt_sn_apply_invalid_anchor', __( 'payload.anchor and payload.block_path are unused with position "end" — omit them rather than passing a locator that does not locate anything.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+			}
+		} elseif ( $has_anchor && $has_path ) {
+			return new WP_Error( 'snt_sn_apply_locator_conflict', __( 'payload.anchor AND payload.block_path both supplied — pass exactly one locator; this tool refuses a silent precedence rule.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		} elseif ( ! $has_anchor && ! $has_path ) {
+			return new WP_Error( 'snt_sn_apply_locator_required', __( 'This change type needs exactly one locator: payload.anchor (a sentence-scale span of the block\'s visible text) or payload.block_path ("0/<index>", the block_migrations path syntax — the only way to reach a block whose text lives in its delimiter attributes).', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		} elseif ( $has_anchor && strlen( (string) $payload['anchor'] ) < SNT_SN_APPLY_BLOCK_EDIT_ANCHOR_MIN ) {
+			return snt_sn_apply_block_edit_anchor_min_error();
+		}
+	}
+
+	// block_delete removes; block_move carries the existing block unchanged
+	// (a reword is block_replace). Accepting payload.blocks on either would
+	// silently ignore caller intent — refuse by name instead.
+	if ( 'block_delete' === $type || 'block_move' === $type ) {
+		if ( array_key_exists( 'blocks', $payload ) ) {
+			return new WP_Error( 'snt_sn_apply_blocks_not_accepted', __( 'payload.blocks is not accepted here: block_delete removes the located block and block_move carries it unchanged. To change a block\'s content, use block_replace.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		return true;
 	}
 
 	$blocks = (string) ( $payload['blocks'] ?? '' );
@@ -230,6 +269,174 @@ function snt_sn_apply_block_edit_payload_error( $type, array $payload ) {
 	}
 
 	return true;
+}
+
+/** The shared 422 for a present-but-sub-sentence anchor. */
+function snt_sn_apply_block_edit_anchor_min_error() {
+	return new WP_Error(
+		'snt_sn_apply_invalid_anchor',
+		sprintf(
+			/* translators: %d is the minimum anchor length in characters */
+			__( 'payload.anchor must be a sentence-scale span (at least %d characters) copied byte-exactly from the stored post_content — a short token would resolve its first occurrence anywhere in the post.', 'signal-and-noise-tools' ),
+			SNT_SN_APPLY_BLOCK_EDIT_ANCHOR_MIN
+		),
+		array( 'status' => 422 )
+	);
+}
+
+/**
+ * Resolve a block_path ("0/<index>") to its top-level span — the locator
+ * that does NOT depend on visible text (v13.5.0), for blocks whose content
+ * lives entirely in delimiter attributes (sidenote, pull-quote: write-once
+ * through the anchor locator by construction).
+ *
+ * THE SYNTAX IS REUSED, not invented: scan_type "block_migrations" already
+ * surfaces block_path on targets[] — a '0' seed plus RAW parse_blocks()
+ * indices (whitespace separator nodes between blocks COUNT, exactly as the
+ * detect walkers enumerate them), '/innerBlocks/<i>' for nesting. This
+ * family operates on TOP-LEVEL blocks only, so nested paths refuse by name.
+ *
+ * STALENESS: a path is position-bound, but it can never silently hit the
+ * wrong block — change.fingerprint (the REQUIRED live content_hash) binds
+ * the caller's entire view of the post and 409s at gate 1 BEFORE any path
+ * is dereferenced. A path that misses under a FRESH hash is caller
+ * arithmetic, refused here naming the path and what actually sits at it.
+ * block_migrations' descending-order constraint on same-post candidates
+ * does not apply: one call is one splice, and the next call must re-fetch
+ * the content_hash by construction.
+ *
+ * @param string $content    Raw stored post_content.
+ * @param string $block_path e.g. "0/2".
+ * @return array{span:array{start:int,end:int,block_name:string},ordinal:int,spans:array}|WP_Error
+ */
+function snt_sn_apply_block_edit_span_for_path( $content, $block_path ) {
+	$block_path = trim( (string) $block_path );
+	// Nested syntax is recognized BEFORE the numeric grammar, so a real
+	// scan-emitted nested path gets the honest top-level refusal instead of
+	// a generic syntax complaint.
+	if ( false !== strpos( $block_path, '/innerBlocks' ) ) {
+		return new WP_Error( 'snt_sn_apply_block_path_not_top_level', __( 'This family edits TOP-LEVEL blocks only — a nested path ("…/innerBlocks/…") has no whole-block splice to perform. Target the containing top-level block instead.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	if ( ! preg_match( '#^0(/[0-9]+)+$#', $block_path ) ) {
+		return new WP_Error( 'snt_sn_apply_bad_block_path', __( 'payload.block_path must use the block_migrations path syntax: "0/<index>" (a literal 0 seed, then the parse_blocks index) — copy it from a scan\'s targets[].block_path or count parse_blocks nodes, whitespace separators included.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	$segments = explode( '/', $block_path );
+	if ( count( $segments ) > 2 ) {
+		return new WP_Error( 'snt_sn_apply_block_path_not_top_level', __( 'This family edits TOP-LEVEL blocks only — a nested path ("…/innerBlocks/…") has no whole-block splice to perform. Target the containing top-level block instead.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	$n     = (int) $segments[1];
+	$nodes = parse_blocks( (string) $content );
+	$count = count( $nodes );
+	if ( $n >= $count ) {
+		return new WP_Error(
+			'snt_sn_apply_block_path_out_of_range',
+			sprintf(
+				/* translators: 1: the requested path, 2: the number of parse_blocks nodes */
+				__( 'payload.block_path "%1$s" points past the end of the post — parse_blocks yields %2$d nodes (whitespace separators included). The live content_hash you supplied is CURRENT, so this is a path arithmetic error, not staleness.', 'signal-and-noise-tools' ),
+				$block_path,
+				$count
+			),
+			array( 'status' => 422 )
+		);
+	}
+	$node = (array) $nodes[ $n ];
+	if ( null === ( $node['blockName'] ?? null ) ) {
+		$is_ws = '' === trim( (string) ( $node['innerHTML'] ?? '' ) );
+		return new WP_Error(
+			'snt_sn_apply_block_path_not_a_block',
+			$is_ws
+				? sprintf(
+					/* translators: %s: the requested path */
+					__( 'payload.block_path "%s" lands on a WHITESPACE separator between blocks — parse_blocks indices count them (block, separator, block, …), so real blocks usually sit at even indices. Aim one index up or down.', 'signal-and-noise-tools' ),
+					$block_path
+				)
+				: sprintf(
+					/* translators: %s: the requested path */
+					__( 'payload.block_path "%s" lands on freeform (non-block) HTML — this family splices whole delimiter-bounded blocks and cannot operate on classic content.', 'signal-and-noise-tools' ),
+					$block_path
+				),
+			array( 'status' => 422 )
+		);
+	}
+
+	$ordinal = 0;
+	for ( $i = 0; $i < $n; $i++ ) {
+		if ( null !== ( ( (array) $nodes[ $i ] )['blockName'] ?? null ) ) {
+			$ordinal++;
+		}
+	}
+	$scan  = snt_sn_apply_block_edit_scan_spans( (string) $content );
+	$spans = $scan['spans'];
+	if ( $ordinal >= count( $spans ) ) {
+		return new WP_Error( 'snt_sn_apply_block_path_unresolvable', __( 'The stored content\'s block delimiters and parse_blocks disagree about how many top-level blocks exist — the content is malformed; nothing was located. Repair the post in the editor first.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	// Belt: the span the ordinal picked must be the SAME block the parser
+	// saw (delimiter names elide the core/ namespace; normalize to compare).
+	$span      = $spans[ $ordinal ];
+	$span_full = false !== strpos( (string) $span['block_name'], '/' ) ? (string) $span['block_name'] : 'core/' . $span['block_name'];
+	if ( $span_full !== (string) $node['blockName'] ) {
+		return new WP_Error( 'snt_sn_apply_block_path_unresolvable', __( 'The block at this path does not match the delimiter scan (parser/scanner disagreement) — the content is malformed; nothing was located.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	return array( 'span' => $span, 'ordinal' => $ordinal, 'spans' => $spans );
+}
+
+/**
+ * Resolve whichever locator the payload carries (exactly-one already
+ * enforced by the payload validator) to {span, ordinal, spans}.
+ *
+ * @param string $content
+ * @param array  $payload
+ * @return array{span:array,ordinal:int,spans:array}|WP_Error
+ */
+function snt_sn_apply_block_edit_resolve_span( $content, array $payload ) {
+	$path = trim( (string) ( $payload['block_path'] ?? '' ) );
+	if ( '' !== $path ) {
+		// context_snippet disambiguates ANCHOR matches; a path is already
+		// exact. Accepting-and-ignoring it would be a silent no-op input —
+		// the family refuses those by name (review round).
+		if ( '' !== trim( (string) ( $payload['context_snippet'] ?? '' ) ) ) {
+			return new WP_Error( 'snt_sn_apply_locator_conflict', __( 'payload.context_snippet disambiguates anchor matches and is unused with payload.block_path — omit it; a path is already exact.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		return snt_sn_apply_block_edit_span_for_path( $content, $path );
+	}
+	$located = snt_sn_apply_block_edit_locate( (string) $content, (string) ( $payload['anchor'] ?? '' ), (string) ( $payload['context_snippet'] ?? '' ) );
+	if ( is_wp_error( $located ) ) {
+		return $located;
+	}
+	$scan    = snt_sn_apply_block_edit_scan_spans( (string) $content );
+	$ordinal = null;
+	foreach ( $scan['spans'] as $i => $candidate ) {
+		if ( $candidate['start'] === $located['span']['start'] ) {
+			$ordinal = $i;
+			break;
+		}
+	}
+	return array( 'span' => $located['span'], 'ordinal' => (int) $ordinal, 'spans' => $scan['spans'] );
+}
+
+/**
+ * The byte range a delete/move removes for a span: the span PLUS one
+ * adjacent whitespace-only separator (the following one when present, else
+ * the preceding one for a last block), so the remaining content keeps its
+ * canonical "\n\n" rhythm. A NON-whitespace gap (classic freeform HTML) is
+ * never consumed.
+ *
+ * @param string $content
+ * @param array  $spans   All top-level spans.
+ * @param int    $i       Index of the span being removed.
+ * @return array{0:int,1:int} [start, end) of the removal.
+ */
+function snt_sn_apply_block_edit_removal_range( $content, array $spans, $i ) {
+	$span = $spans[ $i ];
+	$next = $spans[ $i + 1 ] ?? null;
+	$prev = $i > 0 ? $spans[ $i - 1 ] : null;
+	if ( null !== $next && '' === trim( substr( $content, $span['end'], $next['start'] - $span['end'] ) ) ) {
+		return array( $span['start'], $next['start'] );
+	}
+	if ( null === $next && null !== $prev && '' === trim( substr( $content, $prev['end'], $span['start'] - $prev['end'] ) ) ) {
+		return array( $prev['end'], $span['end'] );
+	}
+	return array( $span['start'], $span['end'] );
 }
 
 /**
@@ -335,15 +542,23 @@ function snt_sn_apply_block_edit_compute( $content, $type, array $payload ) {
 	$blocks  = trim( (string) ( $payload['blocks'] ?? '' ) );
 
 	if ( 'block_insert' === $type && 'end' === (string) ( $payload['position'] ?? 'after' ) ) {
-		$new_content = '' === $content ? $blocks : $content . "\n\n" . $blocks;
+		// rtrim before appending (review round): a post with trailing
+		// whitespace after its last block would otherwise gain a \n\n\n run —
+		// parseable but off-rhythm, contradicting the canonical-separator
+		// promise. Same fix in block_move's 'end' branch.
+		$new_content = '' === trim( $content ) ? $blocks : rtrim( $content ) . "\n\n" . $blocks;
 		return array( 'new_content' => $new_content, 'replaced_block' => null );
 	}
 
-	$located = snt_sn_apply_block_edit_locate( $content, (string) ( $payload['anchor'] ?? '' ), (string) ( $payload['context_snippet'] ?? '' ) );
-	if ( is_wp_error( $located ) ) {
-		return $located;
+	if ( 'block_move' === $type ) {
+		return snt_sn_apply_block_edit_compute_move( $content, $payload );
 	}
-	$span = $located['span'];
+
+	$resolved = snt_sn_apply_block_edit_resolve_span( $content, $payload );
+	if ( is_wp_error( $resolved ) ) {
+		return $resolved;
+	}
+	$span = $resolved['span'];
 
 	if ( 'block_replace' === $type ) {
 		$replaced    = substr( $content, $span['start'], $span['end'] - $span['start'] );
@@ -351,11 +566,103 @@ function snt_sn_apply_block_edit_compute( $content, $type, array $payload ) {
 		return array( 'new_content' => $new_content, 'replaced_block' => $replaced );
 	}
 
+	if ( 'block_delete' === $type ) {
+		if ( count( $resolved['spans'] ) <= 1 ) {
+			return new WP_Error( 'snt_sn_apply_delete_would_empty', __( 'Refusing to delete the post\'s only block — an empty post is never the intent of a block edit. Deleting the whole draft is delete_draft; a published post is retired deliberately, never emptied.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		list( $r_start, $r_end ) = snt_sn_apply_block_edit_removal_range( $content, $resolved['spans'], (int) $resolved['ordinal'] );
+		return array(
+			'new_content'   => substr_replace( $content, '', $r_start, $r_end - $r_start ),
+			'replaced_block' => null,
+			'removed_block' => substr( $content, $span['start'], $span['end'] - $span['start'] ),
+		);
+	}
+
 	$position    = (string) ( $payload['position'] ?? 'after' );
 	$new_content = 'before' === $position
 		? substr_replace( $content, $blocks . "\n\n", $span['start'], 0 )
 		: substr_replace( $content, "\n\n" . $blocks, $span['end'], 0 );
 	return array( 'new_content' => $new_content, 'replaced_block' => null );
+}
+
+/**
+ * block_move (v13.5.0): relocate one top-level block in a SINGLE call.
+ *
+ * WHY A SINGLE OPERATION: without it, "move" is two individually-legal
+ * block_replace calls — and the owner ran exactly that sequence, where
+ * step 1 (paragraph → sidenote) passed all four gates and step 2 (the old
+ * sidenote → the paragraph) was structurally impossible, leaving the
+ * paragraph deleted with no scripted way back. The gates only ever see one
+ * call; the fix is a verb whose one call IS the whole move.
+ *
+ * Source is payload.block_path (required); destination is position
+ * before|after one block (exactly one of payload.anchor /
+ * payload.to_block_path) or "end". The removal consumes one adjacent
+ * whitespace separator (snt_sn_apply_block_edit_removal_range()); the
+ * insertion re-adds canonical "\n\n" separators. A move whose result is
+ * byte-identical to the input refuses as a no-op.
+ *
+ * @param string $content
+ * @param array  $payload
+ * @return array{new_content:string,replaced_block:null,moved_block:string}|WP_Error
+ */
+function snt_sn_apply_block_edit_compute_move( $content, array $payload ) {
+	$content = (string) $content;
+	$source  = snt_sn_apply_block_edit_span_for_path( $content, (string) ( $payload['block_path'] ?? '' ) );
+	if ( is_wp_error( $source ) ) {
+		return $source;
+	}
+	$span     = $source['span'];
+	$position = (string) ( $payload['position'] ?? '' );
+
+	if ( 'end' === $position ) {
+		$insert_at = strlen( $content );
+	} else {
+		$dest_path = trim( (string) ( $payload['to_block_path'] ?? '' ) );
+		if ( '' !== $dest_path ) {
+			$dest = snt_sn_apply_block_edit_span_for_path( $content, $dest_path );
+			if ( is_wp_error( $dest ) ) {
+				return $dest;
+			}
+			$dest_span = $dest['span'];
+		} else {
+			$located = snt_sn_apply_block_edit_locate( $content, (string) ( $payload['anchor'] ?? '' ), (string) ( $payload['context_snippet'] ?? '' ) );
+			if ( is_wp_error( $located ) ) {
+				return $located;
+			}
+			$dest_span = $located['span'];
+		}
+		if ( $dest_span['start'] === $span['start'] ) {
+			return new WP_Error( 'snt_sn_apply_move_source_is_destination', __( 'The destination locator resolves to the source block itself — a block cannot move relative to itself.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		$insert_at = 'before' === $position ? $dest_span['start'] : $dest_span['end'];
+	}
+
+	list( $r_start, $r_end ) = snt_sn_apply_block_edit_removal_range( $content, $source['spans'], (int) $source['ordinal'] );
+	if ( $insert_at > $r_start && $insert_at < $r_end ) {
+		// The insertion point sits INSIDE the removal range only when the
+		// destination is the separator being consumed — a geometry no
+		// resolvable destination produces. Refuse rather than guess.
+		return new WP_Error( 'snt_sn_apply_block_path_unresolvable', __( 'The destination falls inside the byte range the move removes — the content is malformed; nothing was moved.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	$moved = substr( $content, $span['start'], $span['end'] - $span['start'] );
+	$base  = substr_replace( $content, '', $r_start, $r_end - $r_start );
+	$point = $insert_at >= $r_end ? $insert_at - ( $r_end - $r_start ) : $insert_at;
+
+	if ( 'end' === $position ) {
+		// rtrim mirrors block_insert's 'end' branch (review round): trailing
+		// whitespace on the base must not stack into a \n\n\n run.
+		$new_content = '' === trim( $base ) ? $moved : rtrim( $base ) . "\n\n" . $moved;
+	} elseif ( 'before' === $position ) {
+		$new_content = substr_replace( $base, $moved . "\n\n", $point, 0 );
+	} else {
+		$new_content = substr_replace( $base, "\n\n" . $moved, $point, 0 );
+	}
+
+	if ( $new_content === $content ) {
+		return new WP_Error( 'snt_sn_apply_move_noop', __( 'The block already sits exactly where this move would put it — a no-op move refuses rather than minting an empty edit.', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+	}
+	return array( 'new_content' => $new_content, 'replaced_block' => null, 'moved_block' => $moved );
 }
 
 /**
@@ -509,11 +816,22 @@ function snt_sn_apply_block_edit_impl( $post_id, $type, array $payload, $fingerp
 		return new WP_Error( 'snt_sn_apply_write_failed', sprintf( __( 'Write failed: %s', 'signal-and-noise-tools' ), $result->get_error_message() ), array( 'status' => 500 ) );
 	}
 
-	// The guard's second half: ASSERT status/date survived, never assume.
+	// The guard's second half: ASSERT the schedule survived, never assume.
 	// (Revision mode never touches the live row — asserting it anyway is
 	// free and turns "never" from a belief into a checked fact.)
-	$after = get_post( $post_id );
-	if ( $after && ( (string) $after->post_status !== $before_status || (string) $after->post_date !== $before_date ) ) {
+	//
+	// v13.5.0 (found LIVE, 2026-08-26, writing to a scratch draft): the
+	// strict post_date binding applies to status 'future' ONLY. WordPress
+	// core FLOATS a draft's post_date on save (a draft's date is "when it
+	// was last touched", not a schedule) — binding it for every status made
+	// a routine draft edit 500 with a scary restore-manually message AFTER
+	// the content write had already landed, over a benign, expected core
+	// behavior that a restore cannot even stick against. post_status stays
+	// asserted for EVERY status: a draft silently becoming publish is a
+	// real disaster regardless of dates.
+	$strict_schedule = ( 'future' === $before_status );
+	$after           = get_post( $post_id );
+	if ( $after && ( (string) $after->post_status !== $before_status || ( $strict_schedule && (string) $after->post_date !== $before_date ) ) ) {
 		$restore = wp_update_post(
 			array(
 				'ID'            => $post_id,
@@ -531,7 +849,7 @@ function snt_sn_apply_block_edit_impl( $post_id, $type, array $payload, $fingerp
 		$restored_row = get_post( $post_id );
 		$restore_held = $restored_row
 			&& (string) $restored_row->post_status === $before_status
-			&& (string) $restored_row->post_date === $before_date;
+			&& ( ! $strict_schedule || (string) $restored_row->post_date === $before_date );
 		if ( is_wp_error( $restore ) ) {
 			$restore_outcome = 'FAILED — ' . $restore->get_error_message();
 		} elseif ( ! $restore_held ) {
@@ -562,6 +880,8 @@ function snt_sn_apply_block_edit_impl( $post_id, $type, array $payload, $fingerp
 		'ok'             => true,
 		'post_id'        => $post_id,
 		'replaced_block' => $computed['replaced_block'],
+		'removed_block'  => $computed['removed_block'] ?? null,
+		'moved_block'    => $computed['moved_block'] ?? null,
 		'old_content'    => $current_content,
 		'new_content'    => $new_content,
 		'prose_delta'    => snt_sn_apply_block_edit_prose_delta( $current_content, $new_content ),

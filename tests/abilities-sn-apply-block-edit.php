@@ -130,6 +130,12 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 				$GLOBALS['__posts'][ $id ]['post_status'] = 'publish';
 			}
 		}
+		// Real core: a DRAFT's post_date FLOATS to "now" on save (a draft's
+		// date is last-touched, not a schedule) — the v13.5.0 guard-fix
+		// driver, found live on a scratch draft. +8s keeps it deterministic.
+		if ( 'draft' === (string) ( $args['post_status'] ?? '' ) ) {
+			$GLOBALS['__posts'][ $id ]['post_date'] = gmdate( 'Y-m-d H:i:s', strtotime( (string) $GLOBALS['__posts'][ $id ]['post_date'] ) + 8 );
+		}
 		// Counted early-publish clobber: models core deciding on its own that
 		// this row should go live NOW (the exact disaster the SUT's schedule
 		// guard exists to catch). A count of 2 defeats the guard's restore
@@ -660,6 +666,133 @@ foreach ( ( $r['gates']['validation']['findings'] ?? array() ) as $f ) {
 	if ( 'em_dash_count' === ( $f['check'] ?? '' ) ) { $em_finding = $f; }
 }
 ok( is_array( $em_finding ) && 'info' === ( $em_finding['severity'] ?? '' ), 'BV.3: the em-dash count surfaces as a severity-info finding' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.5.0 — the non-anchor locator (block_path) + block_delete + block_move.
+ * Fixture: p1, sidenote, p2 as REAL markup — parse indices 0=p1, 1=ws,
+ * 2=sidenote, 3=ws, 4=p2 (whitespace separators COUNT, block_migrations'
+ * own enumeration).
+ * ════════════════════════════════════════════════════════════════════════ */
+$bp_p1   = '<!-- wp:paragraph --><p>Opening paragraph of the locator fixture, long enough to anchor on.</p><!-- /wp:paragraph -->';
+$bp_side = '<!-- wp:signal-noise/sidenote {"content":"The original margin note, reachable only by path."} /-->';
+$bp_p2   = '<!-- wp:paragraph --><p>Closing paragraph of the locator fixture, long enough to anchor on.</p><!-- /wp:paragraph -->';
+$bp_body = $bp_p1 . "\n\n" . $bp_side . "\n\n" . $bp_p2;
+tf_post( 940, array( 'post_content' => $bp_body ) );
+$bp_fp = snt_corpus_content_hash( $bp_body );
+
+function bp_call( $type, $payload, $post_id = 940, $fp = null, $dry = true ) {
+	$fp = null === $fp ? $GLOBALS['__bp_fp_current'] : $fp;
+	return snt_ability_sn_apply( array(
+		'target'  => array( 'post_id' => $post_id ),
+		'mode'    => 'revision',
+		'dry_run' => $dry,
+		'change'  => array( 'type' => $type, 'fingerprint' => $fp, 'payload' => $payload ),
+	) );
+}
+$GLOBALS['__bp_fp_current'] = $bp_fp;
+tf_reset_writes();
+
+// ── OWNER TEST 1: reword a sidenote IN PLACE (write-once no more) ──
+$bp_new_side = '<!-- wp:signal-noise/sidenote {"content":"The reworded margin note, corrected through the tool that signs it."} /-->';
+$r = bp_call( 'block_replace', array( 'block_path' => '0/2', 'blocks' => $bp_new_side ) );
+ok( ! is_wp_error( $r ) && true === ( $r['gates']['fingerprint']['passed'] ?? null ), 'PATH.1 (owner): a sidenote reword by block_path passes all gates — no visible text needed' );
+eq( $bp_p1 . "\n\n" . $bp_new_side . "\n\n" . $bp_p2, $r['diff']['after'] ?? null, 'PATH.2: the splice replaces exactly the pathed block' );
+eq( $bp_side, $r['diff']['replaced_block'] ?? null, 'PATH.3: replaced_block reports the old sidenote\'s serialized form' );
+eq( true, $r['diff']['prose_changed'] ?? null, 'PATH.4: the reword is a prose change (the attribute text signs since v13.4.0)' );
+eq( 'new_version', $r['diff']['ledger_impact'] ?? null, 'PATH.5: ...and mints a version — corrected through the tool that signs it' );
+
+// ── OWNER TEST 2: move the sidenote up one position (a SINGLE call) ──
+$r = bp_call( 'block_move', array( 'block_path' => '0/2', 'position' => 'before', 'to_block_path' => '0/0' ) );
+ok( ! is_wp_error( $r ) && true === ( $r['gates']['fingerprint']['passed'] ?? null ), 'MOVE.1 (owner): move-up-one is ONE call through all four gates — never two replaces that can strand mid-swap' );
+eq( $bp_side . "\n\n" . $bp_p1 . "\n\n" . $bp_p2, $r['diff']['after'] ?? null, 'MOVE.2: the sidenote now precedes the opening paragraph; separators stay canonical' );
+eq( $bp_side, $r['diff']['moved_block'] ?? null, 'MOVE.3: moved_block reports the block\'s serialized form' );
+eq( true, $r['diff']['prose_changed'] ?? null, 'MOVE.4: a move REORDERS prose — the ledger honestly mints a version' );
+eq( 0, tf_total_writes(), 'MOVE.5: dry runs wrote nothing' );
+
+// Destination by ANCHOR (the destination block has visible text).
+$r = bp_call( 'block_move', array( 'block_path' => '0/2', 'position' => 'after', 'anchor' => 'Closing paragraph of the locator fixture' ) );
+ok( ! is_wp_error( $r ) && ( $bp_p1 . "\n\n" . $bp_p2 . "\n\n" . $bp_side ) === ( $r['diff']['after'] ?? null ), 'MOVE.6: destination may be an anchor into a text-bearing block' );
+
+// A no-op move refuses (the sidenote already sits after p1).
+$r = bp_call( 'block_move', array( 'block_path' => '0/2', 'position' => 'after', 'to_block_path' => '0/0' ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_move_noop' === $r->get_error_code(), 'MOVE.7: a move to where the block already sits refuses as a no-op' );
+$r = bp_call( 'block_move', array( 'block_path' => '0/2', 'position' => 'before', 'to_block_path' => '0/2' ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_move_source_is_destination' === $r->get_error_code(), 'MOVE.8: source == destination refuses by name' );
+
+// ── OWNER TEST 3: a stale path FAILS rather than mutating a neighbour ──
+// The guarantee is the fingerprint: a path minted against yesterday's
+// content arrives with yesterday's content_hash, and gate 1 409s BEFORE
+// the path is ever dereferenced.
+$bp_mut = '<!-- wp:paragraph --><p>A concurrently prepended paragraph that shifts every index down.</p><!-- /wp:paragraph -->' . "\n\n" . $bp_body;
+$GLOBALS['__posts'][940]['post_content'] = $bp_mut; // concurrent edit lands
+tf_reset_writes();
+$bp_snap = $GLOBALS['__posts'];
+$r = bp_call( 'block_replace', array( 'block_path' => '0/2', 'blocks' => $bp_new_side ), 940, $bp_fp, false ); // OLD fingerprint, OLD path, REAL write requested
+ok( is_wp_error( $r ) && 'snt_sn_apply_fingerprint_stale' === $r->get_error_code(), 'STALEPATH.1 (owner): the stale view 409s at gate 1 — the path is never dereferenced' );
+eq( 0, tf_total_writes(), 'STALEPATH.2: zero writes' );
+eq( $bp_snap, $GLOBALS['__posts'], 'STALEPATH.3: no neighbour mutated — store byte-identical' );
+
+// Under a FRESH hash, a path that misses is caller arithmetic, named:
+$bp_fp2 = snt_corpus_content_hash( $bp_mut );
+$GLOBALS['__bp_fp_current'] = $bp_fp2;
+$r = bp_call( 'block_replace', array( 'block_path' => '0/99', 'blocks' => $bp_new_side ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_block_path_out_of_range' === $r->get_error_code(), 'STALEPATH.4: out-of-range under a fresh hash refuses naming the node count' );
+$r = bp_call( 'block_replace', array( 'block_path' => '0/1', 'blocks' => $bp_new_side ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_block_path_not_a_block' === $r->get_error_code(), 'STALEPATH.5: a whitespace-separator index refuses naming what sits there' );
+$r = bp_call( 'block_replace', array( 'block_path' => '0/1/innerBlocks/0', 'blocks' => $bp_new_side ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_block_path_not_top_level' === $r->get_error_code(), 'STALEPATH.6: nested paths refuse — this family splices top-level blocks only' );
+$r = bp_call( 'block_replace', array( 'block_path' => '2', 'blocks' => $bp_new_side ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_bad_block_path' === $r->get_error_code(), 'STALEPATH.7: a path without the 0 seed refuses — the syntax is block_migrations\' exactly' );
+
+// ── Exactly one locator, never a silent precedence rule ──
+$r = bp_call( 'block_replace', array( 'block_path' => '0/4', 'anchor' => 'Closing paragraph of the locator fixture', 'blocks' => $bp_new_side ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_locator_conflict' === $r->get_error_code(), 'LOC.1: anchor AND block_path together refuse by name' );
+$r = bp_call( 'block_replace', array( 'blocks' => $bp_new_side ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_locator_required' === $r->get_error_code(), 'LOC.2: neither locator refuses by name — and the message teaches block_path' );
+
+// ── block_delete ──
+$r = bp_call( 'block_delete', array( 'block_path' => '0/4' ) ); // the ORIGINAL sidenote, shifted by the prepend (0=new,1=ws,2=p1,3=ws,4=side)
+ok( ! is_wp_error( $r ) && true === ( $r['gates']['fingerprint']['passed'] ?? null ), 'DEL.1: delete by path passes the gates' );
+ok( false === strpos( (string) ( $r['diff']['after'] ?? '' ), 'wp:signal-noise/sidenote' ), 'DEL.2: the sidenote is gone from the preview' );
+eq( $bp_side, $r['diff']['removed_block'] ?? null, 'DEL.3: removed_block reports the deleted block\'s serialized form (the block_replace convention)' );
+ok( false === strpos( (string) ( $r['diff']['after'] ?? '' ), "\n\n\n" ), 'DEL.4: one adjacent separator went with it — no tripled newlines left behind' );
+eq( true, $r['diff']['prose_changed'] ?? null, 'DEL.5: deleting signed text is a prose change' );
+$r = bp_call( 'block_delete', array( 'anchor' => 'Closing paragraph of the locator fixture' ) );
+ok( ! is_wp_error( $r ) && false === strpos( (string) ( $r['diff']['after'] ?? '' ), 'Closing paragraph' ), 'DEL.6: delete locates by anchor too (exactly one locator, either kind)' );
+$r = bp_call( 'block_delete', array( 'block_path' => '0/2', 'blocks' => $bp_new_side ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_blocks_not_accepted' === $r->get_error_code(), 'DEL.7: payload.blocks on a delete refuses — a reword is block_replace' );
+
+// Refuse to empty a post.
+$bp_solo = '<!-- wp:paragraph --><p>The only block this post has, long enough to anchor on.</p><!-- /wp:paragraph -->';
+tf_post( 945, array( 'post_content' => $bp_solo ) );
+$r = bp_call( 'block_delete', array( 'block_path' => '0/0' ), 945, snt_corpus_content_hash( $bp_solo ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_delete_would_empty' === $r->get_error_code(), 'DEL.8: deleting the only block refuses — an empty post is never a block edit\'s intent' );
+
+// ── Review-round pins: trailing whitespace never stacks separators; a
+// context_snippet with a path refuses (no silent no-op inputs).
+$bp_trail = $bp_p1 . "\n\n" . $bp_p2 . "\n";
+$computed = snt_sn_apply_block_edit_compute_move( $bp_trail, array( 'block_path' => '0/0', 'position' => 'end' ) );
+eq( $bp_p2 . "\n\n" . $bp_p1, $computed['new_content'] ?? null, 'TRAIL.1: move-to-end over trailing whitespace stays canonical — no \n\n\n run' );
+$computed = snt_sn_apply_block_edit_compute( $bp_trail, 'block_insert', array( 'blocks' => $bp_side, 'position' => 'end' ) );
+eq( $bp_p1 . "\n\n" . $bp_p2 . "\n\n" . $bp_side, $computed['new_content'] ?? null, 'TRAIL.2: insert-at-end likewise rtrims before appending' );
+$r = bp_call( 'block_replace', array( 'block_path' => '0/0', 'context_snippet' => 'anything at all here', 'blocks' => $bp_new_side ) );
+ok( is_wp_error( $r ) && 'snt_sn_apply_locator_conflict' === $r->get_error_code(), 'TRAIL.3: context_snippet alongside block_path refuses by name — a path is already exact' );
+
+// ── The guard fix, red-provable: a DRAFT's floating post_date no longer
+// trips the schedule violation (found LIVE on a scratch draft: the write
+// landed, then a false 500 said restore-manually-NOW over core behavior).
+$bp_draft = $bp_p1 . "\n\n" . $bp_p2;
+tf_post( 950, array( 'post_status' => 'draft', 'post_content' => $bp_draft ) );
+tf_reset_writes();
+$r = snt_ability_sn_apply( array(
+	'target'  => array( 'post_id' => 950 ),
+	'mode'    => 'publish',
+	'dry_run' => false,
+	'change'  => array( 'type' => 'block_insert', 'fingerprint' => snt_corpus_content_hash( $bp_draft ), 'payload' => array( 'blocks' => $bp_side, 'anchor' => 'Opening paragraph of the locator fixture', 'position' => 'after' ) ),
+) );
+ok( ! is_wp_error( $r ) && true === ( $r['applied'] ?? null ), 'DRAFT.1 (guard fix): a draft edit SUCCEEDS while core floats its post_date — dates bind strictly for status future only' );
+eq( 'draft', $GLOBALS['__posts'][950]['post_status'], 'DRAFT.2: the status assertion still holds for every status — a draft stays a draft' );
+ok( false !== strpos( (string) $GLOBALS['__posts'][950]['post_content'], 'wp:signal-noise/sidenote' ), 'DRAFT.3: the edit landed' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
