@@ -2,6 +2,83 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.2.0] - 2026-08-25 — sn-apply learns block markup: block_insert + block_replace, with the ledger consequence up front
+
+Before this, an MCP caller could not ADD block markup to an existing post:
+`sentence_replace` is deliberately prose-only, and every markup-capable
+change type (block_migration, pattern_adoption) is candidate-driven — its
+fingerprint is minted by its own scan pipeline, which a composing caller
+cannot produce. MINOR: two new change types on the consolidated write
+tool, purely additive.
+
+### Added
+
+- **change.type `block_insert`** ([inc/sn-apply-block-edit.php](inc/sn-apply-block-edit.php)):
+  splice caller-composed Gutenberg markup before/after an anchored
+  top-level block, or append at the end. Payload
+  `{blocks, anchor (byte-exact, sentence-scale ≥ 20 chars; omittable only
+  with position "end"), position ("before"|"after"|"end", default
+  "after"), context_snippet?}`.
+- **change.type `block_replace`**: replaces the WHOLE top-level block
+  containing the anchor; the diff reports the replaced block's serialized
+  form (`diff.replaced_block`).
+- **The prose delta — the part that matters most.** Every diff, dry run
+  AND real write, carries `prose_changed`, `prose_added`, `prose_removed`
+  (normalized text) and `ledger_impact` (`"coalesces"` | `"new_version"`),
+  computed by ONE shared helper through the provenance normalizer itself.
+  The ledger signs normalized prose, so a restructure-only edit coalesces
+  to no new signed version while new text mints one — and that consequence
+  is now visible BEFORE anything is written.
+- **The markup gate, ordered deliberately**: (1) freeform refusal FIRST —
+  a malformed delimiter parses as freeform and byte-round-trips CLEANLY,
+  so the round-trip check alone is blind to exactly the failure it
+  targets (mutation-checked: disabling the freeform check goes red);
+  (2) registry check, recursive over innerBlocks, refusing BY NAME;
+  (3) parse/serialize round-trip byte-equality (trailing-whitespace
+  tolerant). Anchor refusals each carry their own code: not_found 409
+  (naming the anchor), ambiguous 422 (context_snippet window
+  disambiguation first), spanning a block boundary 422, intersecting a
+  delimiter comment 422.
+- **The scheduled-post guard**: post_status/post_date captured before the
+  write, passed EXPLICITLY through it, re-asserted after; a violation
+  attempts a restore and fails loudly (500,
+  `snt_sn_apply_schedule_violation`) — a scheduled post must never
+  publish early as a silent side effect of a block edit. The guard's red
+  path is test-driven (a one-shot clobber stub forces the early publish
+  and the suite watches the guard catch it).
+- Fingerprint: the LIVE `content_hash`, REQUIRED — `sentence_replace`'s
+  binding exactly (missing 422, stale 409). `payload.edits` is refused
+  for both types: block edits interact through tag structure the prose
+  batch's byte-range overlap check cannot see. Both modes supported;
+  idempotency rides the existing auto-key, no special casing.
+- Gate 2 runs the body-family check plus a brand-voice evidence pass over
+  the payload's own prose (severity `info` by contract — surfaces em-dash
+  counts, never refuses).
+- Tests: [tests/abilities-sn-apply-block-edit.php](tests/abilities-sn-apply-block-edit.php)
+  (81 assertions) with FAITHFUL parse/serialize mini-grammar stubs (attrs
+  JSON re-encoding, core/ namespace elision, freeform fallback) — the
+  sibling files' JSON stubs are structurally blind to the
+  malformed-delimiter case, negative-controlled in the suite itself
+  (STUB.1–4). Delegation sweep extended to both types; count pin held.
+
+### Fixed
+
+- **`sn_scan` `pattern_adoption` now honors scope and walks scheduled
+  posts** ([inc/sn-scan-adapters.php](inc/sn-scan-adapters.php),
+  [inc/pattern-adoption-detect.php](inc/pattern-adoption-detect.php)).
+  The adapter counted ALL published posts regardless of `allowed_ids`
+  (`posts_examined:35` always, same `scan_run_id`/`corpus_fingerprint`
+  for every scope) and the walk was publish-only, so the scheduled notes
+  were invisible to the exact scan where adoption is still FREE — no
+  signed ledger version exists for a future post yet. The detector gains
+  optional `$args` `{statuses?, post__in?}` with legacy-byte-identical
+  defaults for the wp-admin tab / admin bar / legacy ability; an
+  explicitly empty scope walks nothing (never WP_Query's historical
+  empty-`post__in`-means-all inversion); `posts_examined` is the actual
+  walked count, and `corpus_fingerprint`/`scan_run_id` become
+  scope-honest with it. Mutation-checked (publish-only regression → 3
+  reds).
+
 ## [13.1.1] - 2026-08-25 — the IPv6 gauge was doored, projected nowhere, and callable never
 
 Found by the v13.1.0 post-install verification, flagged by the MCP usage
