@@ -47,10 +47,11 @@ ok( ! isset( $m['args']['recommendedOsSettings'] ), 'no recommendedOsSettings �
 ok( ! isset( $m['args']['icons'] ) && ! isset( $m['args']['textures'] ), 'no icons, no textures — tokens only' );
 
 // ── Restraint: the owner steer as a ratchet ──────────────────────────
-// Ceiling moved 30 -> 35 in v13.7.1 (window-link family), 35 -> 50 in
-// v13.7.4 (the purple sweep: 12 measured brand-purple stragglers). A
-// ratchet may move when the reason is recorded; it may not drift.
-ok( count( $tokens ) <= 50, 'token count ' . count( $tokens ) . ' is at or under the 50-token restraint ceiling' );
+// Ceiling: 30 -> 35 (v13.7.1, window-links), -> 50 (v13.7.4, purple
+// sweep), -> 65 (v13.7.5, the FSE derivation adds semantics + the four
+// estate meshes). A ratchet may move when the reason is recorded; it
+// may not drift.
+ok( count( $tokens ) <= 65, 'token count ' . count( $tokens ) . ' is at or under the 65-token restraint ceiling' );
 $radius_like = array();
 foreach ( $tokens as $name => $v ) {
 	if ( false !== strpos( $name, 'radius' ) || false !== strpos( $name, 'corner' ) ) { $radius_like[] = $name; }
@@ -61,7 +62,7 @@ ok( array() === $radius_like, 'no radius/corner tokens — the shell keeps its o
 // chain (upstream doc: "Answering it with a literal restores nothing and
 // severs the chain"). holo-fill/ink/track are NOT derived (they are the
 // "on"-state literals Legacy itself answers) and are deliberately set.
-$derived = array( '--os-ui-accent-dim', '--os-ui-tab-wash', '--os-ui-tab-bloom', '--os-ui-tab-edge', '--os-ui-focus-ring', '--os-ui-focus-ring-field', '--os-ui-holo-glow', '--os-ui-holo-glow-strong', '--os-ui-holo-sheen', '--os-ui-holo-edge', '--os-ui-holo-edge-quiet' );
+$derived = array( '--os-ui-accent-dim', '--os-ui-tab-wash', '--os-ui-tab-bloom', '--os-ui-tab-edge', '--os-ui-focus-ring', '--os-ui-focus-ring-field', '--os-ui-holo-glow', '--os-ui-holo-glow-strong', '--os-ui-holo-sheen', '--os-ui-holo-edge' ); // holo-edge-quiet LEFT this list in v13.7.5: measured live, it is a brand CONSTANT (user accent #ff0000, value stayed purple), so setting it severs nothing
 $pinned  = array_values( array_intersect( $derived, array_keys( $tokens ) ) );
 ok( array() === $pinned, 'no accent-derived tokens pinned — one accent in, the derivations follow' . ( $pinned ? ' — FOUND: ' . implode( ', ', $pinned ) : '' ) );
 
@@ -83,7 +84,9 @@ ok( ! isset( $tokens['--os-ui-fg-on-accent'] ), '--os-ui-fg-on-accent is ABSENT 
 // signal-and-noise assets/css/critical.css `:root[data-theme="dark"]`,
 // recorded 2026-08-27. Plus #000000 (focused titlebar) and #e00404
 // (blood LIGHT, reused as the pressed danger state).
-$palette = array( '#0a0a0a', '#171717', '#383838', '#9e9e9e', '#ffffff', '#ff4c47', '#ff6b66', '#000000', '#e00404' );
+$palette = array( '#0a0a0a', '#171717', '#383838', '#9e9e9e', '#ffffff', '#ff4c47', '#ff6b66', '#000000', '#e00404',
+	'#161616', '#3a3a3a', '#a3a3a3', // --sn-panel / -edge / -ink-dim: the FSE panel idiom (v13.7.5)
+	'#3fb950', '#dba617' );          // estate status green/amber
 $off = array();
 foreach ( $tokens as $name => $v ) {
 	if ( 1 === preg_match( '/^#[0-9a-f]{6}$/i', $v ) && ! in_array( strtolower( $v ), $palette, true ) ) { $off[] = "$name=$v"; }
@@ -94,13 +97,20 @@ ok( array() === $off, 'every hex literal is a recorded estate palette value' . (
 $loose = array();
 foreach ( $tokens as $name => $v ) {
 	if ( 1 === preg_match( '/^#[0-9a-f]{6}$/i', $v ) ) { continue; }
-	$is_rgba = 1 === preg_match( '/^rgba\( (10, 10, 10|255, 255, 255|255, 76, 71), 0\.\d+ \)$/', $v ); // 255,76,71 = blood #ff4c47
+	// Allowed rgba() triples: void, bone, blood, signal, rust, amber.
+	$triples = '(10, 10, 10|255, 255, 255|255, 76, 71|255, 107, 102|158, 158, 158|219, 166, 23)';
+	$is_rgba = 1 === preg_match( '/^rgba\( ' . $triples . ', 0\.\d+ \)$/', $v );
 	$is_font = false !== strpos( $v, 'monospace' );
-	// Gradients allowed ONLY when every hex inside them is palette.
+	// Gradients (linear or radial) allowed ONLY when every color inside
+	// them is estate: every hex in $palette, every rgba triple allowed.
 	$is_grad = false;
-	if ( 0 === strpos( $v, 'linear-gradient(' ) ) {
+	if ( 1 === preg_match( '/^(linear|radial)-gradient\(/', $v ) ) {
 		preg_match_all( '/#[0-9a-f]{6}/i', $v, $gm );
-		$is_grad = array() !== $gm[0] && array() === array_diff( array_map( 'strtolower', $gm[0] ), $palette );
+		preg_match_all( '/rgba\( (\d+, \d+, \d+),/', $v, $rm );
+		$hex_ok = array() === array_diff( array_map( 'strtolower', $gm[0] ), $palette );
+		$rgb_ok = true;
+		foreach ( $rm[1] as $t ) { if ( 1 !== preg_match( '/^' . $triples . '$/', $t ) ) { $rgb_ok = false; } }
+		$is_grad = ( array() !== $gm[0] || array() !== $rm[1] ) && $hex_ok && $rgb_ok;
 	}
 	if ( ! $is_rgba && ! $is_font && ! $is_grad ) { $loose[] = "$name=$v"; }
 }
@@ -130,7 +140,7 @@ $sweep = array(
 	'--os-accent' => '#ff6b66', '--os-link' => '#ff6b66',
 	'--os-ui-color-accent' => '#ff6b66', '--os-ui-notice-link' => '#ff6b66',
 	'--os-titlebar-btn-focused-outline' => '#ff4c47',
-	'--os-ui-context-menu-bg' => '#171717',
+	'--os-ui-context-menu-bg' => '#161616', // <- --sn-panel
 	'--os-dock-item-bg-hover' => 'rgba( 255, 76, 71, 0.18 )',
 	'--os-drop-preview-bg' => 'rgba( 255, 76, 71, 0.1 )',
 	'--os-drop-preview-border' => 'rgba( 255, 76, 71, 0.55 )',
@@ -141,11 +151,21 @@ foreach ( $sweep as $n => $want ) {
 }
 $badge = 'linear-gradient( 180deg, #ff6b66 0%, #e00404 100% )';
 ok( ( $tokens['--os-dock-badge-bg'] ?? '' ) === $badge && ( $tokens['--os-icon-badge-bg'] ?? '' ) === $badge, 'both notification badge gradients are the blood ramp' );
-// The ambient holo/mesh family stays unset — accent-derived, forbidden above.
-foreach ( array( '--os-mesh-holo', '--os-ui-hero-mesh', '--os-tabs-active-crown' ) as $n ) {
-	ok( ! isset( $tokens[ $n ] ), "ambient mesh stays upstream's: $n" );
+// FLIPPED in v13.7.5: v13.7.4 pinned these ABSENT on the accent-derived
+// theory. Measured live, they are brand CONSTANTS (user accent #ff0000,
+// meshes stayed purple) — and hero-mesh is Station Home's entire rail.
+// Now set, estate-hued, on upstream's exact geometry; the value-grammar
+// check above proves every color in them is estate.
+foreach ( array( '--os-mesh-holo', '--os-ui-hero-mesh', '--os-tabs-active-crown', '--os-ui-holo-edge-quiet' ) as $n ) {
+	ok( isset( $tokens[ $n ] ) && 1 === preg_match( '/gradient\(/', $tokens[ $n ] ), "estate mesh is set and is a gradient: $n" );
 }
-ok( '#171717' === ( $tokens['--os-bg'] ?? '' ), 'the desk base / dock-menu tint (--os-bg) is ASPHALT, not void — v13.7.2 tried void and the popup glass became optically invisible against the desk (a popover must sit one surface step above what it covers)' );
+// FSE panel derivation pins (v13.7.5) — the owner's correction made law:
+ok( '#161616' === ( $tokens['--os-ui-surface'] ?? '' ) && '#161616' === ( $tokens['--os-window-bg'] ?? '' ), 'surfaces are the FSE panel #161616 (not asphalt #171717 — panels have their own token)' );
+ok( '#3a3a3a' === ( $tokens['--os-ui-border'] ?? '' ) && '#3a3a3a' === ( $tokens['--os-window-border'] ?? '' ), 'borders are the FSE panel-edge #3a3a3a (not concrete #383838)' );
+ok( '#a3a3a3' === ( $tokens['--os-ui-fg-muted'] ?? '' ), 'muted ink is the FSE panel-ink-dim #a3a3a3 (not rust #9e9e9e)' );
+ok( 'rgba( 255, 76, 71, 0.4 )' === ( $tokens['--os-ui-selection-bg'] ?? '' ), 'text selection is blood, not brand periwinkle' );
+ok( '#3fb950' === ( $tokens['--os-ui-success-fg'] ?? '' ) && '#dba617' === ( $tokens['--os-ui-warning-fg'] ?? '' ), 'semantic fgs run at estate temperature' );
+ok( '#161616' === ( $tokens['--os-bg'] ?? '' ), 'the desk base / dock-menu tint (--os-bg) is the FSE PANEL (#161616), not void — v13.7.2 tried void and the popup glass vanished against the desk; a popover sits one surface step above what it covers, and the estate name for that step is --sn-panel' );
 
 // ── The widget token bridge (v13.7.2) ────────────────────────────────
 // Our widget views color their links/spark line through
