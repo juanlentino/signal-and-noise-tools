@@ -31,6 +31,39 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.7.1] - 2026-08-27 — the theme's field pass: one token was dimming every widget
+
+v13.7.0 was verified against upstream *source*; this is what its first
+activation taught. Three changes, each measured on the live shell (via the
+owner's session, tokens and computed styles read in place):
+
+- **`--os-ui-fg-on-accent` is REMOVED, and its absence is now the pinned
+  invariant.** Upstream overloads that token as the desktop widget card's
+  body ink — `.os-widgets__card { color: var( --os-ui-fg-on-accent, #fff ) }`
+  in `assets/css/desktop.css` — so v13.7.0's "dark ink on the bright red"
+  painted every widget readout near-black on dark glass: the clock, the
+  health line, every number. Omitting it falls back to the brand's
+  `#fffbff`, correct on both surfaces. The test that previously pinned the
+  token PRESENT now pins it ABSENT, with the reason in place — the pin
+  flipped because the field contradicted the doc-derived design.
+- **The window-link splines go red.** All four color tokens
+  (`--os-window-link-color/-accent/-color-active/-glow`) verified consumed
+  by `window-links.css` at v1.1.3; the owner runs the svg-splines renderer,
+  so the connectors are the most visible accent on the desk. The glow is an
+  `rgba()` of blood. `--os-backstop` (the pre-wallpaper boot backdrop) goes
+  void. The widget-body links that stay blue are core wp-admin's literal
+  Blueberry on bare anchors — tokens cannot reach those, and this release
+  does not pretend to.
+- **The Themes picker card gets real art**: `assets/desktop-theme-preview.svg`
+  (2.6 KB, hand-drawn to the manifest's own palette), served via the
+  registry's absolute-URL contract, guarded so the standalone harness needs
+  no WP.
+
+The restraint ceiling moved 30 → 35 with the reason recorded (+5 field
+tokens, −1 bug token). Negative controls re-run on the flipped pin and the
+glow: both red on mutation, green restored. What did NOT change: no radius
+tokens, no accent-derived tokens, no fonts array — the field pass sharpened
+the theme; it did not grow its ambitions.
 ## [13.7.0] - 2026-08-27 — the estate reaches the shell: a Signal & Noise desktop theme
 
 OpenStation desktop themes are data, never code: upstream compiles the

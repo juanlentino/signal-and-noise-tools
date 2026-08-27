@@ -57,9 +57,15 @@ function snt_desktop_theme_manifest() {
 		'id'   => 'signal-noise/asphalt',
 		'args' => array(
 			'name'        => 'Signal & Noise',
-			'version'     => '1.0.0',
+			'version'     => '1.1.0',
 			'author'      => 'Signal & Noise Tools',
 			'description' => 'The juanlentino.com estate, on the shell: asphalt surfaces, monospace chrome, one red.',
+			// Absolute URL per the registry contract ("must be an absolute
+			// http(s) URL the plugin already serves"). Guarded so the
+			// standalone test harness can read the manifest without WP.
+			'preview'     => function_exists( 'plugins_url' ) && defined( 'SNT_PATH' )
+				? plugins_url( 'assets/desktop-theme-preview.svg', SNT_PATH . 'signal-and-noise-tools.php' )
+				: '',
 			'tokens'      => array(
 				// ── Type: the estate's admin mono, for shell chrome. ──
 				'--os-font'                   => $mono,
@@ -94,12 +100,34 @@ function snt_desktop_theme_manifest() {
 				// "the same red re-pointed so it clears AA against black". ──
 				'--os-ui-accent'              => '#ff6b66', // signal (dark)
 				'--os-ui-accent-strong'       => '#ff4c47', // blood (dark)
-				'--os-ui-fg-on-accent'        => '#0a0a0a', // dark ink on the bright red
+				// --os-ui-fg-on-accent is DELIBERATELY ABSENT — field-found
+				// v13.7.0, first activation. Upstream overloads that token as
+				// the desktop widget card's BODY INK:
+				//     .os-widgets__card { color: var( --os-ui-fg-on-accent, #fff ) }
+				// (assets/css/desktop.css, the "glass backdrop" card rule).
+				// Setting it to dark ink for accent-filled controls painted
+				// every widget body near-black on dark glass — the clock, the
+				// health line, every readout. Omitting it falls back to the
+				// brand's #fffbff, which is correct on BOTH surfaces. If a
+				// future release splits the card ink into its own token,
+				// revisit; until then this name is a trap for dark themes.
 				'--os-ui-danger'              => '#ff4c47',
 				'--os-ui-danger-hover'        => '#e00404', // blood (light) as the pressed state
 				'--os-ui-holo-fill'           => '#ff4c47', // the "on" state stops being Holomesh
 				'--os-ui-holo-ink'            => '#0a0a0a', // fill changed => ink changed (doc rule)
 				'--os-ui-holo-track'          => '#383838',
+
+				// ── Window links: the SVG splines connecting windows. All
+				// four color tokens verified consumed by window-links.css at
+				// v1.1.3; the owner runs windowLinkRenderer "svg-splines",
+				// so these are the most visible red on the desk. The glow is
+				// an rgba() of blood, mirroring Legacy's glow-as-rgba idiom. ──
+				'--os-window-link-color'      => '#ff6b66',
+				'--os-window-link-accent'     => '#ff4c47',
+				'--os-window-link-color-active' => '#ff4c47',
+				'--os-window-link-glow'       => 'rgba( 255, 76, 71, 0.45 )',
+				// The pre-wallpaper boot backdrop — void instead of WP ink.
+				'--os-backstop'               => '#0a0a0a',
 				'--wp-admin-theme-color'      => '#ff4c47',
 			),
 		),
