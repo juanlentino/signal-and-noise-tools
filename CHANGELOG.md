@@ -31,6 +31,39 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.11.2] - 2026-08-27 — CI finally tests the PHP the site actually runs
+
+Every job in this workflow pinned PHP **8.3**. The live server runs **8.4**
+(Cloudways package version, read 2026-08-27), so until now CI had never once
+exercised the version production serves on — and 8.3 left ACTIVE support on
+2025-12-31, making "we test 8.3" a statement about the past. A three-lane
+matrix fixes both ends:
+
+- **8.4 — production parity.** Blocking. The gap that mattered most, and the
+  one the backlog item did not know was there: this lane is not forward-looking
+  at all, it is the present.
+- **8.5 — current stable upstream. READINESS, not parity:** the host does not
+  offer 8.5 yet (owner-confirmed 2026-08-27), so nothing here can deploy to it.
+  It is blocking anyway, and only because it was measured first — both suites
+  run clean on a local 8.5.9, with a negative control confirming the harness
+  surfaces deprecation notices rather than swallowing them, so "zero
+  deprecations" is a reading and not an artifact. The bet is that an
+  incompatibility is cheapest to fix the day it is written; if this lane ever
+  reds for a version the site cannot run, demote it to the nightly lane's
+  step-level `continue-on-error` rather than arguing with it.
+- **8.6 — nightly `8.6.0-dev`.** Non-blocking, and non-blocking at STEP level
+  including the setup step: job-level `continue-on-error` still reports the
+  check-run as failed and reds the PR, which trips the never-merge-a-red-PR
+  rule.
+
+`fail-fast: false`, so a nightly break upstream cannot cancel the lane testing
+production parity. Each lane runs the same committed `tests/run.sh` as every
+other sweep, so no lane can drift into its own weaker gate.
+
+Deprecations matter more in CI than in production here, which is the argument
+for the lanes: the live server runs `error_reporting = E_ALL & ~E_DEPRECATED`,
+so a deprecation notice is invisible there. CI is the only place it can surface.
+
 ## [13.11.1] - 2026-08-27 — the stub-drift ambush becomes a red line
 
 The standalone suites stub WordPress functions, and the recurring trap is a

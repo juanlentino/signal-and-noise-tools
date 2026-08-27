@@ -165,6 +165,80 @@ jobs:
         # no summary line to fail on. The script's header tells that story.
         run: bash tests/run.sh
 
+  php-matrix:
+    name: PHP ${{ matrix.php }} — ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    # The blocking lanes measure ~50s (setup + lint + sweep). The nightly lane
+    # can be slower because setup-php builds from master; headroom, not a cap
+    # set at the observed mean.
+    timeout-minutes: 8
+    strategy:
+      # Independent lanes: a nightly break must not cancel the lane that tests
+      # what production actually runs.
+      fail-fast: false
+      matrix:
+        include:
+          # PRODUCTION PARITY. The live server runs PHP 8.4 (Cloudways package
+          # version, read 2026-08-27) while every other job in this file pins
+          # 8.3 — so until this lane existed, CI had never once exercised the
+          # version the site actually serves on. Blocking, deliberately.
+          - php: '8.4'
+            label: 'production parity (Cloudways)'
+            experimental: false
+          # CURRENT STABLE UPSTREAM — READINESS, not parity. The host does not
+          # offer 8.5 yet (owner-confirmed 2026-08-27), so nothing here can
+          # deploy to it; this lane exists because an incompatibility is
+          # cheapest to fix the day it is written, and because 8.3 left ACTIVE
+          # support on 2025-12-31, making "we test 8.3" a statement about the
+          # past. Blocking only because it was MEASURED first: both suites run
+          # clean on a local 8.5.9. If it ever reds for a version the site
+          # cannot run, demote it by giving its steps the nightly lane's
+          # step-level continue-on-error rather than arguing with the red.
+          - php: '8.5'
+            label: 'current stable (readiness)'
+            experimental: false
+          # THE ACTUAL NEXT: setup-php resolves 8.6 to a nightly 8.6.0-dev
+          # build from master. Upstream is a moving target, so every step in
+          # this lane is non-blocking — and that is STEP-level on purpose:
+          # job-level continue-on-error still reports the check-run as failed
+          # and reds the PR, which trips the never-merge-a-red-PR rule.
+          - php: '8.6'
+            label: 'nightly, non-blocking'
+            experimental: true
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up PHP ${{ matrix.php }}
+        # Non-blocking on the nightly lane too: a master build that fails to
+        # install must not red the PR, and the steps below stay guarded.
+        continue-on-error: ${{ matrix.experimental }}
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: ${{ matrix.php }}
+          coverage: none
+          tools: none
+      - name: Lint all .php files
+        continue-on-error: ${{ matrix.experimental }}
+        run: |
+          set -e
+          fail=0
+          while IFS= read -r f; do
+            if ! php -l "$f" > /dev/null; then
+              echo "::error file=$f::PHP parse error on PHP ${{ matrix.php }}"
+              fail=1
+            fi
+          done < <(find . -name '*.php' -not -path './vendor/*' -not -path './node_modules/*')
+          exit $fail
+      - name: Run standalone test sweep
+        continue-on-error: ${{ matrix.experimental }}
+        # The same committed tests/run.sh every other sweep uses, so a lane
+        # cannot drift into its own weaker gate. Deprecations matter MORE here
+        # than in production: the live server runs
+        # `error_reporting = E_ALL & ~E_DEPRECATED`, so a deprecation notice is
+        # invisible there and CI is the only place it can surface.
+        run: bash tests/run.sh
+
   changelog:
     name: CHANGELOG entry present
     runs-on: ubuntu-latest
