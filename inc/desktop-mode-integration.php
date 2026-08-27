@@ -125,6 +125,10 @@ require_once __DIR__ . '/desktop-mode-widgets.php';
 require_once __DIR__ . '/desktop-mode-dock.php';
 require_once __DIR__ . '/desktop-mode-plugins-window.php';
 require_once __DIR__ . '/desktop-mode-ai.php';
+// v13.7.0: the "Signal & Noise" desktop theme (data-only shell reskin).
+// Position is not load-bearing: it registers on init:10 and shares no
+// registration slot or payload-order contract with the modules above.
+require_once __DIR__ . '/desktop-mode-theme.php';
 // v12.4.0: the WP Explorer surface — a "Signal & Noise" folder (Notes with
 // provenance + Discography) in the shell's file-explorer window. Last on
 // purpose: it shares no registration slot with the modules above, and

@@ -31,6 +31,40 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.7.0] - 2026-08-27 — the estate reaches the shell: a Signal & Noise desktop theme
+
+OpenStation desktop themes are data, never code: upstream compiles the
+stylesheet from a sanitized token manifest, and a value outside its grammar
+silently does not apply. This release registers one — **"Signal & Noise"**
+(`signal-noise/asphalt`) — from `inc/desktop-mode-theme.php`, through a new
+single-name compat wrapper `snt_os_register_desktop_theme()` (the feature
+shipped in upstream v1.0.0, post-rename, so like Station Home it has no
+`desktop_mode_*` twin). Registration is site-wide and inert; activation is
+per-user in OpenStation Preferences → Themes, live-switching, one click back.
+
+**Deliberately small — three identity moves** (owner direction: "not too
+big, not too brutalist"): the accent goes signal/blood red instead of brand
+blue; shell chrome type goes to the estate's one admin monospace stack
+(v13.6.2's ratchet vocabulary, no font files served); surfaces anchor to the
+FSE theme's dark palette literals (asphalt/void/concrete/rust/bone). 28
+tokens total.
+
+**The restraint is pinned, not hoped for.** `tests/desktop-mode-theme.php`
+(21 assertions, key pins negative-controlled red) enforces: a 30-token
+ceiling; ZERO radius/corner tokens — the shell keeps its own geometry; zero
+accent-DERIVED tokens (`--os-ui-accent-dim`, washes, blooms, glows, focus
+rings) — pinning one severs the runtime accent chain, per upstream's own
+doc; every hex a recorded estate-palette literal and every other value an
+rgba() of bone/void or the mono stack; the `--os-ui-accent-text` naming trap
+absent; holo fill/ink set as a pair (bright fill ⇒ dark ink). Palette
+literals are RECORDED from the theme repo's dark block — cross-repo, so
+that test failing is the re-sync reminder when the theme re-tunes its dark
+palette.
+
+`docs/openstation-compat.md` gains the wrapper row (verified present at
+upstream v1.0.0 through v1.1.3) — one more name in the nightly membership
+sweep, and one more seam on the assume-broken-after-every-upgrade list.
+
 ## [13.6.2] - 2026-08-26 — one monospace vocabulary, and a ratchet that keeps it
 
 The estate ran **two** monospace stacks. The theme declares `DM Mono`; 52
