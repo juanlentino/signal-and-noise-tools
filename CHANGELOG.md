@@ -4,6 +4,33 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.16.1] - 2026-08-27 — the withheld reason quotes the number the decision used
+
+Caught on the live gauge minutes after v13.16.0 deployed, which is the only
+place it could have been caught: the withheld `reason` string printed
+`days_covered` — the ALL-FAMILY count — while the floor above it reads
+`v6_days_covered`. So the sentence read
+
+> the criterion asks for 20 days ... this window holds 25 and 162
+
+beside a verdict of `withhold_unfinished_window`. A reason that reads as
+SATISFIED next to a refusal is worse than no reason: it invites exactly the
+"why is this withholding when it says it holds 25?" argument the pre-committed
+criterion exists to prevent. It is also the same defect one layer up from the
+one v13.16.0 fixed — the narration speaking in a measure the decision does not
+use.
+
+The sentence now quotes `v6_days_covered` and says which days it counted
+("days carrying IPv6"), so the number cannot be read as the other one. Live,
+that turns the reason into "asks for 20 days carrying IPv6 ... holds 10 and
+162" — which agrees with the verdict.
+
+Pinned by four assertions on a fixture where the two day counts genuinely
+differ (IPv6 on 1 day, all-family 25); reintroducing the bug reds them. The
+fixture took two attempts — `ld_rows()` spreads by `intdiv`, so 40 hits over 25
+days covers all 25 rather than concentrating on one, which is the opposite of
+the case under test. Noted in the test.
+
 ## [13.16.0] - 2026-08-27 — the criterion's sustained half now measures IPv6, not the traffic around it
 
 The coverage half is re-specced so it can be satisfied, and — the owner's fix
