@@ -119,17 +119,21 @@ exist and falling back to the pre-rename name otherwise.
 | `desktop_mode_is_enabled()` | `openstation_is_enabled()` | `includes/helpers.php` |
 | `desktop_mode_ai_ability_tool_name()` | `openstation_ai_ability_tool_name()` | `includes/ai-copilot/abilities.php` |
 | *(none — postdates the rename)* | `openstation_register_station_home_card()` | `includes/station-home/cards.php` |
+| *(none — postdates the rename)* | `openstation_register_desktop_theme()` | `includes/desktop-themes/registry.php` |
 
 All five renamed functions still accept exactly the argument shapes we pass at
 v1.1.0 (re-checked against each function's `$defaults` array, not just its
 signature).
 
-**The sixth row has no old name, and that is the point.** Station Home shipped
-in upstream v1.1.2 (PR #625), *after* the rename, so
-`openstation_register_station_home_card()` never had a `desktop_mode_*` twin.
-`snt_os_register_station_home_card()` therefore checks ONE name where every
-other wrapper in the compat layer checks two — a deliberate asymmetry, not a
-missed case.
+**The sixth and seventh rows have no old name, and that is the point.**
+Station Home shipped in upstream v1.1.2 (PR #625) and desktop themes in
+v1.0.0 (`includes/desktop-themes/`, verified present at that tag) — both
+*after* the rename, so neither `openstation_register_station_home_card()`
+nor `openstation_register_desktop_theme()` ever had a `desktop_mode_*`
+twin. Their wrappers (`snt_os_register_station_home_card()`,
+`snt_os_register_desktop_theme()`) therefore check ONE name where every
+other wrapper in the compat layer checks two — a deliberate asymmetry, not
+a missed case.
 
 Worth recording alongside it: the v1.1.2 verification pass on 2026-08-21
 reported 19/19 seams clean, and it was correct — it checks NAMES. Station Home
