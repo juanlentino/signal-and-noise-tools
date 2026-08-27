@@ -31,6 +31,52 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.12.0] - 2026-08-27 — the editor's core dependencies, checked against the WordPress that ships next
+
+The block-editor surfaces here — the pre-publish gate, the ability-run client —
+are plain scripts against core's runtime globals. They declare `wp-*` handles
+as dependencies and call `wp.plugins.registerPlugin`,
+`wp.editor.PluginPrePublishPanel` and friends. Nothing is bundled, so nothing
+fails at build time: if core drops a handle or moves an export, the break
+appears in the editor, in the middle of a writing session, on the day
+WordPress ships. `tools/editor-api-smoke.php` asks that question against a
+NIGHTLY build — currently 7.2-alpha, two majors ahead of the 7.0 the site runs
+— on a daily cron, so a core change reds weeks early instead of mid-sentence.
+
+**Nothing is hand-maintained.** Both requirement sets are DERIVED from this
+repo's own source at run time: the handles from the `wp-*` dependency arrays in
+the enqueue calls, the symbols from the `wp.<package>.<Symbol>` usages in the
+enqueued scripts. A new dependency is covered the moment it is written, and no
+list can rot into a green that means nothing. Currently 19 requirements across
+10 handles.
+
+**THE LIMIT, stated because this instrument class has already lied here once.**
+A symbol check answers "does this upstream NAME still exist", and a name can
+outlive its behavior — exactly what happened to the command palette across the
+OpenStation upgrades, where every name-based probe passed clean while the
+palette was completely dead. A green run means core still ships what we
+reference. It does not mean the editor works.
+
+**Two false readings this tool produced before it was trusted**, both recorded
+in the file so they are not rebuilt:
+
+- Deriving handles from any `'wp-…'` string reported eight confident failures
+  that were all noise — REST paths (`wp-json`), file paths (`wp-config`,
+  `wp-login`), CSS prefixes (`wp-image-`), block names.
+- Narrowing to files that hook `enqueue_block_editor_assets` then produced the
+  opposite and worse error: a clean **0 failing** while never once looking at
+  the pre-publish gate, which registers on `admin_enqueue_scripts` gated by
+  hook suffix. A false green is worse than noise. The discriminator is the
+  dependency array itself, not the hook name.
+
+- `--self-test` runs in CI BEFORE the real check, with four controls — including
+  one that asks for a REAL symbol from the WRONG package, which an unscoped
+  search would pass, because core's own bundles import each other's exports.
+- A missing or non-WordPress tree exits 2 rather than reporting green, and a
+  derivation that yields no requirements does the same.
+- The workflow is registered in `ci.yml`'s cron-liveness list: an absent run
+  reads exactly like a passing one, so its silence now reds.
+
 ## [13.11.2] - 2026-08-27 — CI finally tests the PHP the site actually runs
 
 Every job in this workflow pinned PHP **8.3**. The live server runs **8.4**

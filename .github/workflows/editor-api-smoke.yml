@@ -1,0 +1,70 @@
+name: Editor API smoke
+
+# Does the WordPress the site will RUN NEXT still publish everything our
+# block-editor scripts reference?
+#
+# The editor surfaces here (the pre-publish gate, the ability-run client) are
+# plain scripts against core's runtime globals: they declare `wp-*` handles as
+# dependencies and call wp.plugins.registerPlugin,
+# wp.editor.PluginPrePublishPanel and friends. Nothing is bundled, so nothing
+# fails at build time. If core drops a handle or moves an export, the break
+# appears in the editor, mid-writing-session, the day WordPress ships.
+#
+# So the question is asked against NIGHTLY — currently two majors ahead of the
+# 7.0 the site runs — which turns "a core release broke the editor" into a
+# cron that reds weeks earlier.
+#
+# WHY SCHEDULED, NOT ON PUSH. The subject that changes is WordPress, not this
+# repo. A push-triggered run would re-answer an unchanged question on every
+# commit and tell us nothing on the days that matter. workflow_dispatch is here
+# for an immediate answer.
+#
+# AN ABSENT RUN READS EXACTLY LIKE A PASSING ONE, so this workflow is
+# registered in ci.yml's cron-liveness list: if it stops firing, that check
+# reds. A silent cron is not evidence of a healthy editor.
+#
+# Cost: this repo is PUBLIC, so standard-runner minutes are free and the
+# 3,000-minute pool is not involved. timeout-minutes is still set, because a
+# hung job holds a runner for up to six hours by default.
+
+on:
+  schedule:
+    - cron: '30 7 * * *'   # 07:30 UTC daily — offset from release-tag parity (07:00)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Editor API still published by WordPress nightly
+    runs-on: ubuntu-latest
+    # The download is ~61 MB; the check itself is milliseconds. Headroom for a
+    # slow wordpress.org, not a cap set at the observed time.
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Set up PHP
+        uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2
+        with:
+          php-version: '8.4'
+          coverage: none
+          tools: none
+      - name: Fetch the WordPress nightly build
+        run: |
+          set -euo pipefail
+          curl -sSf -o wp-nightly.zip https://wordpress.org/nightly-builds/wordpress-latest.zip
+          unzip -q wp-nightly.zip -d wp-nightly
+          # State the subject out loud: a run whose version line is missing from
+          # the log measured something other than what it claims to have.
+          grep -m1 'wp_version =' wp-nightly/wordpress/wp-includes/version.php
+      - name: Self-test the instrument (negative control)
+        # Four controls, including one that asks for a REAL symbol from the
+        # WRONG package: an unscoped search would pass that, because core's own
+        # bundles import each other's exports. Runs BEFORE the real check, so a
+        # green smoke is never a broken smoke.
+        run: php tools/editor-api-smoke.php --self-test --wp=wp-nightly/wordpress
+      - name: Smoke the editor API against nightly
+        run: php tools/editor-api-smoke.php --wp=wp-nightly/wordpress

@@ -386,6 +386,7 @@ jobs:
           # miss twenty-two runs and still report health.
           rows=$(printf '%s\n' \
             'version-tag-parity.yml:48' \
+            'editor-api-smoke.yml:48' \
             | while IFS=: read -r wf grace; do
                 [ -n "$wf" ] || continue
                 created=$(api "repos/${REPO}/actions/workflows/${wf}" '.created_at') || created=""
