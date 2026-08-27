@@ -109,6 +109,30 @@ $GLOBALS['__family'] = ld_rows( 10, 990, 30 );
 $out = sn_ability_login_defense_ipv6_criterion();
 ok( false === $out['crossed'] && 'below_threshold' === $out['decision'], 'a covered window under 5% is a real answer, not a withholding' );
 
+// ── COVERAGE TRAVELS WITH THE SPAN (2026-08-27) ─────────────────────────────
+// measured_days is a SPAN (now - first_seen). days_covered is the count of days
+// that actually wrote rows. On sparse traffic they disagree, and only the second
+// one answers "sustained over 30 days". The payload carries BOTH so no caller
+// has to know which one it is holding.
+$far = time() - ( 30 * 86400 );
+$GLOBALS['__family'] = array(
+	array( 'family' => 'v6', 'hits' => 517, 'first_seen' => gmdate( 'Y-m-d H:i:s', $far ), 'day' => gmdate( 'Y-m-d', $far ) ),
+	array( 'family' => 'v4', 'hits' => 483, 'first_seen' => gmdate( 'Y-m-d H:i:s', time() ), 'day' => gmdate( 'Y-m-d', time() ) ),
+);
+$out = sn_ability_login_defense_ipv6_criterion();
+ok( 2 === $out['days_covered'], 'days_covered travels in the payload: 2 days wrote' );
+ok( 30 === $out['measured_days'] && true === $out['window_complete'],
+	'NEGATIVE CONTROL: those same rows still span a COMPLETE 30d window — span and coverage disagree in one payload' );
+ok( 'build_ranges' === $out['decision'],
+	'decision logic UNCHANGED this release: measuring coverage is not re-speccing the criterion' );
+
+// A failed query must not report zero coverage — that would read as "measured,
+// nothing there" instead of "not measured".
+$GLOBALS['__family'] = null;
+$out = sn_ability_login_defense_ipv6_criterion();
+ok( null === $out['days_covered'] && false === $out['measured'],
+	'AE failure: days_covered is null, never 0' );
+
 // ── zero-vs-null honesty: a failed fetch is NOT a reassuring zero ──────────
 $GLOBALS['__family'] = null;
 $out = sn_ability_login_defense_ipv6_criterion();

@@ -214,6 +214,66 @@ ok( null === $all_pre['share_pct'] && null === $all_pre['measured_days'] && null
 ok( 77 === $all_pre['pre_sensor_hits'] && 0 === $all_pre['total'],
 	'all-empty-family rows still report the excluded hits; total is 0' );
 
+// ── COVERAGE IS NOT SPAN (2026-08-27) ────────────────────────────────────────
+// measured_days is min($days, now - first_seen): a SPAN. It cannot tell 30 days
+// of daily rows apart from two rows 30 days apart, because the family query
+// GROUPed BY family and aggregated the day dimension away. The reducer docblock
+// claimed min(timestamp) "measures coverage" — true only while traffic is dense
+// enough that EVERY day writes a row, a precondition the live sensor stopped
+// meeting: across five readings first_seen slid 07-26 -> 07-30 while
+// measured_days went 27 -> 29 -> 28 -> 28, which only happens when boundary days
+// hold no rows at all. days_covered is the real count, off a day dimension the
+// query now carries.
+
+$sparse = sn_login_defense_ipv6_share( array(
+	array( 'family' => 'v4', 'hits' => 40, 'first_seen' => '2026-07-13 00:00:00', 'day' => '2026-07-13' ),
+	array( 'family' => 'v6', 'hits' => 10, 'first_seen' => '2026-08-12 00:00:00', 'day' => '2026-08-12' ),
+), 30, $now );
+ok( 2 === $sparse['days_covered'],
+	'days_covered counts DAYS THAT WROTE ROWS (2), not the span between them' );
+ok( 30 === $sparse['measured_days'] && true === $sparse['window_complete'],
+	'NEGATIVE CONTROL: those same two rows read as a COMPLETE 30d window by span — the defect, pinned' );
+
+// The opposite population: every day in the window wrote. 30 calendar days
+// straddle a 29-day span, so days_covered is capped at the window asked for
+// (same reasoning as the fail-open reducer's cap).
+$dense_rows = array();
+for ( $i = 0; $i < 30; $i++ ) {
+	$d            = gmdate( 'Y-m-d', $now - ( $i * 86400 ) );
+	$dense_rows[] = array( 'family' => 'v4', 'hits' => 3, 'first_seen' => $d . ' 00:00:00', 'day' => $d );
+}
+$dense = sn_login_defense_ipv6_share( $dense_rows, 30, $now );
+ok( 30 === $dense['days_covered'],
+	'days_covered = 30 when every day in the window wrote a row (capped at the window asked for)' );
+
+// GROUP BY family, day emits ONE ROW PER (family, day): a day carrying v4, v6 and
+// an unparseable address is three rows and still ONE covered day. Counting rows
+// here would inflate coverage by roughly the family count on live traffic, where
+// most days carry both v4 and v6.
+$one_day = sn_login_defense_ipv6_share( array(
+	array( 'family' => 'v4', 'hits' => 30, 'first_seen' => '2026-08-11 00:00:00', 'day' => '2026-08-11' ),
+	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => '2026-08-11 01:00:00', 'day' => '2026-08-11' ),
+	array( 'family' => 'unknown', 'hits' => 5, 'first_seen' => '2026-08-11 02:00:00', 'day' => '2026-08-11' ),
+), 30, $now );
+ok( 1 === $one_day['days_covered'] && 55 === $one_day['total'],
+	'three family rows on ONE day is 1 covered day, not 3 (distinct days, never row count)' );
+
+// Pre-sensor days are the absence of the instrument, not an idle guard. They are
+// already out of the denominator and out of first_seen; they must stay out of
+// coverage too, or a sensor that shipped yesterday would claim a covered month.
+$cov_pre = sn_login_defense_ipv6_share( array(
+	array( 'family' => 'v4', 'hits' => 40, 'first_seen' => '2026-08-11 00:00:00', 'day' => '2026-08-11' ),
+	array( 'family' => '', 'hits' => 50, 'first_seen' => '2026-07-13 00:00:00', 'day' => '2026-07-13' ),
+), 30, $now );
+ok( 1 === $cov_pre['days_covered'],
+	'days_covered excludes pre-sensor days: the sensor was absent, never proven idle' );
+
+ok( null === $base['days_covered'],
+	'rows with no day dimension -> days_covered null (unknown coverage is not zero coverage)' );
+
+ok( strpos( $f, 'toStartOfDay' ) !== false && strpos( $f, 'GROUP BY family, day' ) !== false,
+	'family SQL carries a day dimension: per-day coverage is unknowable without it' );
+
 // --- render: the proven-to-move gate ----------------------------------------
 function render_gauges_html() { ob_start(); sn_login_defense_render_gauges( 7 ); return ob_get_clean(); }
 
@@ -313,6 +373,25 @@ $GLOBALS['__q_family'] = array(
 $n = render_gauges_html();
 ok( stripos( $n, 'coverage unknown' ) !== false,
 	'no first_seen: the window is reported as unknown coverage, never as a full 30d' );
+
+// A window can be COMPLETE BY SPAN and nearly empty by coverage. The panel must
+// disclose the covered-day count, or a reader takes "30d measured" to mean 30
+// days of data — the exact substitution that made this criterion unreadable.
+$day_ago = function ( $d ) { return gmdate( 'Y-m-d', time() - ( $d * 86400 ) ); };
+$GLOBALS['__q_family'] = array(
+	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => $ago( 30 ), 'day' => $day_ago( 30 ) ),
+	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => $ago( 0 ), 'day' => $day_ago( 0 ) ),
+);
+$sp = render_gauges_html();
+ok( strpos( $sp, '2 of 30 days covered' ) !== false,
+	'sparse window: the panel names DAYS COVERED (2 of 30) beside the 30d span' );
+ok( strpos( $sp, '30d measured' ) !== false,
+	'the span is still reported — coverage is added beside it, not swapped for it' );
+
+// Where the rows carry no day dimension the panel must stay silent about
+// coverage rather than print a fabricated count.
+ok( strpos( $p, 'days covered' ) === false,
+	'no day dimension: the panel omits the coverage clause instead of inventing one' );
 
 // Pre-sensor hits belong beside the measured-window clause: same fact, what
 // the sensor did and did not see. Named when they exist; no phantom clause

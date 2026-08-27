@@ -31,6 +31,45 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.13.0] - 2026-08-27 — the IPv6 criterion's window, measured instead of assumed
+
+### Added
+
+- The IPv6 criterion gauge now reports **`days_covered`** — a count of the days
+  that actually wrote rows — beside the existing `measured_days`. They are not
+  the same measurement, and on sparse traffic they disagree. `measured_days` is
+  `min(30, now − first_seen)`: a SPAN, which two rows thirty days apart are
+  enough to complete. The family-share query grouped by family alone, so the day
+  dimension was aggregated away and per-day coverage was **not derivable from it
+  at all**; it now groups by `family, day`, using the same `toStartOfDay` idiom
+  the fail-open trend query has always run against this dataset. The count is
+  carried in the `signal-noise/login-defense-ipv6-criterion` ability payload and
+  named in the Defense gauges panel ("2 of 30 days covered"). It is omitted
+  rather than fabricated when the rows carry no day dimension, and null — never
+  0 — when coverage is unknown, the same three-state honesty `share_pct` already
+  gets.
+
+### Changed
+
+- **The decision logic is deliberately unchanged.** `window_complete` and
+  `decision` still gate on the span, and a sparse-but-complete window still
+  reads `build_ranges`. The owner's call (2026-08-27) was to measure coverage
+  before re-speccing the criterion, so this adds the number and changes no
+  verdict.
+
+### Fixed
+
+- Two docblocks carried a claim this measurement falsifies. The gauge header
+  said the split between "asks for 30 days" and "delivers them" was enforced
+  here; what it enforced was sensor AGE. The fail-open reducer said
+  `min(timestamp)` "measures coverage" for the IPv6 gauge because the family
+  sensor writes on every guard row — true only while traffic stays dense enough
+  that every day writes at least one row. That is a precondition, not a
+  property, and live traffic stopped meeting it: across five readings
+  `first_seen` slid 2026-07-26 → 07-30 while `measured_days` went 27 → 29 → 28
+  → 28, which can only happen where boundary days hold no rows at all. Both now
+  say what they actually measure.
+
 ## [13.12.1] - 2026-08-27 — the editor smoke's silence now reds
 
 The follow-up v13.12.0 named: `editor-api-smoke.yml` joins `ci.yml`'s
