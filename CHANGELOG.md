@@ -31,6 +31,16 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.8.2] - 2026-08-27 — the tenth principle: a shipped row graduates off the board
+
+Closing the accessibility arc moved both planned rows to done and tripped the
+board's own ceiling: five done rows per family, because "the hub board is the
+planning surface, not the ledger" — the validation gate's words. The oldest
+shipped row (per-palette contrast enforcement) graduates to the Accessibility
+maturity page as the TENTH principle, mechanism-bearing like the ninth, which
+landed the same way at v12.6.3 when the column first filled. The page test's
+count pin moves 9 → 10 with both graduations named.
+
 ## [13.8.1] - 2026-08-27 — the roadmap legend clears AA, and the fade stops lying
 
 The theme's new computed-styles contrast instrument (v12.8.0, the board's

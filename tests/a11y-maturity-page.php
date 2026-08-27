@@ -62,7 +62,7 @@ ok( isset( $GLOBALS['__shortcodes']['sn_a11y_maturity'] ) && 'sn_a11y_maturity_s
 ok( array() === $GLOBALS['__enq'], 'loading the file enqueues nothing — the stylesheet rides the render, not the pageload' );
 ok( array( 'reach', 'drive', 'calm', 'read', 'admit' ) === array_keys( sn_a11y_maturity_layers() ), 'layer slugs in walk order: reach, drive, calm, read, admit — structure, then operation, then preference, then legibility, then the confession' );
 ok( 'admit' === array_key_last( sn_a11y_maturity_layers() ), 'ADMIT IS LAST ON PURPOSE: the page ends on what is still broken, not on a win' );
-ok( 9 === count( sn_a11y_maturity_principles() ), 'nine principles — the ninth graduated in off the roadmap board (v12.6.3), breaking the sibling eight on purpose' );
+ok( 10 === count( sn_a11y_maturity_principles() ), 'ten principles — the ninth graduated off the roadmap board at v12.6.3, the tenth (per-palette contrast) at v13.8.2 when the done column filled again' );
 ok( array( 'live', 'planned', 'never' ) === SN_A11Y_MATURITY_STATUSES, 'the status whitelist is the sibling three; a11y takes no divergence' );
 
 echo "\nGroup: formats\n";
