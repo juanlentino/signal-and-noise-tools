@@ -78,6 +78,52 @@ const SN_LG_IPV6_THRESHOLD_PCT = 5;
 const SN_LG_IPV6_CRITERION_DAYS = 30;
 
 /**
+ * The RE-SPECCED coverage half (owner decision, 2026-08-27).
+ *
+ * The rule asked for 30 days of coverage and got a 30-day SPAN, which is not
+ * the same claim (see sn_login_defense_ipv6_share). Once coverage was measured
+ * properly the span was not the only problem: ~14% of days carry no
+ * block-eligible traffic at all, so coverage plateaus near 26/30 and 30/30 is
+ * unreachable at this volume. A criterion nobody can satisfy does not set a
+ * high bar; it withholds a decision forever while looking rigorous.
+ *
+ * So "sustained" is re-specced as what it always meant — enough DAYS and
+ * enough OBSERVATIONS — at thresholds this traffic can actually reach:
+ *
+ *   BUILD 128-bit ranges when the IPv6 share exceeds 5%, over a window
+ *   holding >= 20 covered days AND >= 100 block-eligible observations.
+ *
+ * Both halves are load-bearing and each catches what the other misses: the
+ * days floor refuses a burst (300 hits in 8 days is not sustained), and the
+ * observations floor refuses a trickle (25 days holding 45 hits is not
+ * evidence). Fixed in advance of reading the number, exactly as v1.5.2's
+ * threshold was, so the data still decides rather than the arguing.
+ *
+ * WHICH DAYS, AND WHICH OBSERVATIONS — the two floors read DIFFERENT sets, and
+ * the difference is the whole point (owner fix, 2026-08-27):
+ *
+ *   - The days floor reads `v6_days_covered`: the days IPv6 ITSELF appeared on.
+ *     Its first cut read `days_covered`, which counts days ANY family wrote —
+ *     so a single-day v6 spike inside a month of steady IPv4 traffic cleared it
+ *     untouched, and the docblock's own "refuses a burst" claim was false as
+ *     shipped. At the reading that prompted the re-spec (46 of 72 v6 hits on
+ *     one day, none in the six days before) the all-family floor authorised
+ *     build_ranges on exactly the burst it claimed to refuse.
+ *   - The observations floor stays on `$total`, ALL families, deliberately. It
+ *     is not a presence test; it is denominator adequacy — a share of 44.7%
+ *     means nothing over nine requests, whichever family they came from.
+ *
+ * The floor is stricter now, and may prove unsatisfiable at this volume. That
+ * would be a finding about the traffic, not a fault in the rule: it would mean
+ * IPv6 arrives in bursts rather than sustained, which is precisely the claim
+ * the criterion exists to test. Re-tune from `v6_days_covered`, which is
+ * reported for that purpose — never by widening the floor back to a set that
+ * cannot see the thing being measured.
+ */
+const SN_LG_IPV6_MIN_DAYS_COVERED = 20;
+const SN_LG_IPV6_MIN_OBSERVATIONS = 100;
+
+/**
  * AE SQL: daily fail-open + degraded counts, de-sampled. Both open-door
  * states in one query so the gauge cannot cover one and miss the other.
  *
@@ -237,29 +283,35 @@ function sn_login_defense_parse_ae_ts( $raw ) {
  * measured_days, and window_complete are all null.
  *
  * `crossed` answers the numeric half of the criterion (share > 5%).
- * `window_complete` answers the other half AS A SPAN: true when the sensor's
- * earliest surviving row is a full window old, false when it is not, NULL when
- * the rows carry no first_seen. A span is not a coverage count — two rows 30
- * days apart complete this window — so `days_covered` reports the days that
- * actually wrote, and is NULL (never 0) when the rows carry no day dimension.
+ * `window_complete` answers the other half, re-specced 2026-08-27: true when
+ * IPv6 itself appeared on at least SN_LG_IPV6_MIN_DAYS_COVERED days AND the
+ * window holds at least SN_LG_IPV6_MIN_OBSERVATIONS block-eligible hits across
+ * all families, false when it does not, NULL when the rows carry no day
+ * dimension and distribution is unknowable. It no longer reads `measured_days`,
+ * which is a SPAN — two rows 30 days apart complete a span while covering two
+ * days — and the days half no longer reads `days_covered`, which counts days
+ * ANY family wrote and so cannot see an IPv6 burst. `measured_days` and
+ * `days_covered` are both still reported as context; `v6_days_covered` is what
+ * the sustained half rests on.
  * Both halves must hold before "sustained over 30 days" is a claim anyone can
  * make — see the callers, which never announce the decision on `crossed`
  * alone.
  *
- * @param array    $rows [{family, hits, first_seen}]. first_seen is UTC.
+ * @param array    $rows [{family, day, hits, first_seen}]. first_seen is UTC.
  * @param int      $days The criterion window asked for.
  * @param int|null $now  Unix time, injectable for fixtures.
  * @return array{v6:int, total:int, share_pct:float|null, crossed:bool,
  *               first_seen:string|null, measured_days:int|null,
- *               days_covered:int|null, window_complete:bool|null,
- *               pre_sensor_hits:int}
+ *               days_covered:int|null, v6_days_covered:int|null,
+ *               window_complete:bool|null, pre_sensor_hits:int}
  */
 function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 	$v6         = 0;
 	$total      = 0;
 	$pre_sensor = 0;
-	$first      = null;
-	$days_seen  = array();
+	$first        = null;
+	$days_seen    = array();
+	$v6_days_seen = array();
 	$now        = null === $now ? time() : (int) $now;
 	foreach ( (array) $rows as $r ) {
 		$hits   = (int) ( $r['hits'] ?? 0 );
@@ -269,10 +321,19 @@ function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 			continue;
 		}
 		$total += $hits;
+		$day    = trim( (string) ( $r['day'] ?? '' ) );
 		if ( 'v6' === $family ) {
 			$v6 += $hits;
+			// The days IPv6 ITSELF appeared on. This is the set the
+			// "sustained" floor has to read: $days_seen below counts days any
+			// family wrote, so a single-day v6 spike inside a month of steady
+			// v4 traffic clears an all-family floor untouched. Only rows that
+			// actually carried v6 hits count — a v6 row reporting 0 is the
+			// sensor saying "nothing today", not a day of IPv6 presence.
+			if ( '' !== $day && $hits > 0 ) {
+				$v6_days_seen[ $day ] = true;
+			}
 		}
-		$day = trim( (string) ( $r['day'] ?? '' ) );
 		if ( '' !== $day ) {
 			$days_seen[ $day ] = true;
 		}
@@ -293,6 +354,13 @@ function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 	// straddle an (N-1)-day span.
 	$covered = empty( $days_seen ) ? null : min( (int) $days, count( $days_seen ) );
 
+	// The same count, scoped to IPv6. Null follows $covered rather than being
+	// its own three-state: when the rows carry no day dimension NOTHING about
+	// daily distribution is knowable, and an empty v6 day-set under a KNOWN day
+	// dimension is a real 0 — v6 was absent every day, which is a finding, not
+	// an unknown.
+	$v6_covered = ( null === $covered ) ? null : min( (int) $days, count( $v6_days_seen ) );
+
 	return array(
 		'v6'              => $v6,
 		'total'           => $total,
@@ -301,7 +369,10 @@ function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 		'first_seen'      => null === $first ? null : gmdate( 'Y-m-d', $first ),
 		'measured_days'   => $measured,
 		'days_covered'    => $covered,
-		'window_complete' => null === $measured ? null : $measured >= (int) $days,
+		'v6_days_covered' => $v6_covered,
+		'window_complete' => null === $v6_covered
+			? null
+			: ( $v6_covered >= SN_LG_IPV6_MIN_DAYS_COVERED && $total >= SN_LG_IPV6_MIN_OBSERVATIONS ),
 		'pre_sensor_hits' => $pre_sensor,
 	);
 }
@@ -442,9 +513,10 @@ function sn_login_defense_render_gauges( $days = 7 ) {
 				// AND the sensor covered the whole window it is claimed over.
 				echo '<strong>' . esc_html(
 					sprintf(
-						/* translators: %s: criterion window in days */
-						__( 'crossed — sustained over the full %sd, this triggers the pre-committed decision: build 128-bit denylist ranges.', 'signal-and-noise-tools' ),
-						SN_LG_IPV6_CRITERION_DAYS
+						/* translators: 1: days IPv6 itself appeared on, 2: observation count */
+						__( 'crossed — sustained across %1$s days carrying IPv6 and %2$s observations, this triggers the pre-committed decision: build 128-bit denylist ranges.', 'signal-and-noise-tools' ),
+						number_format_i18n( $share['v6_days_covered'] ),
+						number_format_i18n( $share['total'] )
 					)
 				) . '</strong>';
 			} elseif ( null === $share['window_complete'] ) {
@@ -452,10 +524,12 @@ function sn_login_defense_render_gauges( $days = 7 ) {
 			} else {
 				echo esc_html(
 					sprintf(
-						/* translators: 1: criterion window in days, 2: measured days */
-						__( 'over the line, but not yet sustained — the criterion asks for %1$sd of sensor coverage and this window holds %2$sd. Real share, unfinished window.', 'signal-and-noise-tools' ),
-						SN_LG_IPV6_CRITERION_DAYS,
-						$share['measured_days']
+						/* translators: 1: required days carrying IPv6, 2: required observations, 3: days carrying IPv6 held, 4: observations held */
+						__( 'over the line, but not yet sustained — the criterion asks for %1$s days carrying IPv6 and %2$s observations; this window holds %3$s and %4$s. Real share, unfinished window.', 'signal-and-noise-tools' ),
+						SN_LG_IPV6_MIN_DAYS_COVERED,
+						SN_LG_IPV6_MIN_OBSERVATIONS,
+						number_format_i18n( $share['v6_days_covered'] ),
+						number_format_i18n( $share['total'] )
 					)
 				);
 			}

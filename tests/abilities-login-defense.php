@@ -77,54 +77,77 @@ ok( 'snt_ability_perm_manage_options' === ( $a['permission_callback'] ?? '' ), '
 ok( true === ( $a['meta']['annotations']['readonly'] ?? null ), 'annotated readonly' );
 ok( true === ( $a['meta']['annotations']['idempotent'] ?? null ), 'annotated idempotent' );
 
-// ── rows helper: first_seen N days back, in the AE timestamp shape ──────────
+// ── rows helper: ONE ROW PER (family, day), the shape AE now returns ────────
+// The old helper emitted a single row per family with a first_seen N days back,
+// which modelled the pre-`day` query and could not exercise coverage at all.
 function ld_rows( $v6, $v4, $days_back, $pre = 0 ) {
-	$seen = gmdate( 'Y-m-d H:i:s', time() - ( $days_back * 86400 ) );
-	$rows = array(
-		array( 'family' => 'v6', 'hits' => $v6, 'first_seen' => $seen ),
-		array( 'family' => 'v4', 'hits' => $v4, 'first_seen' => $seen ),
-	);
-	if ( $pre > 0 ) { $rows[] = array( 'family' => '', 'hits' => $pre, 'first_seen' => '2026-01-01 00:00:00' ); }
+	$rows = array();
+	$days = max( 1, (int) $days_back );
+	for ( $i = 0; $i < $days; $i++ ) {
+		$d   = gmdate( 'Y-m-d', time() - ( $i * 86400 ) );
+		$ts  = $d . ' 00:00:00';
+		// Spread the hits so days_covered is $days and the totals still sum to
+		// exactly what the caller asked for (remainder rides on day 0).
+		$v4d = intdiv( $v4, $days ) + ( 0 === $i ? $v4 % $days : 0 );
+		$v6d = intdiv( $v6, $days ) + ( 0 === $i ? $v6 % $days : 0 );
+		if ( $v4d > 0 ) { $rows[] = array( 'family' => 'v4', 'hits' => $v4d, 'first_seen' => $ts, 'day' => $d ); }
+		if ( $v6d > 0 ) { $rows[] = array( 'family' => 'v6', 'hits' => $v6d, 'first_seen' => $ts, 'day' => $d ); }
+	}
+	if ( $pre > 0 ) { $rows[] = array( 'family' => '', 'hits' => $pre, 'first_seen' => '2026-01-01 00:00:00', 'day' => '2026-01-01' ); }
 	return $rows;
 }
 
-// ── THE LIVE CASE, 2026-08-22: 51.7% over a 27-of-30-day window ────────────
+// ── THE RE-SPEC, 2026-08-27: 27 covered days now SATISFIES the criterion ────
+// Under the old rule this exact window was refused for want of a 30-day span,
+// and no amount of waiting could supply one. 27 covered days and 1,000
+// observations is what "sustained" was always reaching for.
 $GLOBALS['__family'] = ld_rows( 517, 483, 27 );
 $out = sn_ability_login_defense_ipv6_criterion();
 ok( 51.7 === $out['share_pct'], 'share_pct carries the measured share (51.7)' );
 ok( true === $out['crossed'], 'crossed is true — 51.7 is over the 5% line' );
-ok( 27 === $out['measured_days'], 'measured_days is the MEASURED window, not the one asked for' );
-ok( false === $out['window_complete'], 'window_complete is false at 27 of 30 days' );
-ok( 'withhold_unfinished_window' === $out['decision'], 'DECISION WITHHELD: a crossed line on an unfinished window authorises nothing' );
-ok( 30 === $out['criterion_days'] && 5 === $out['threshold_pct'], 'both halves of the criterion travel in the payload' );
+ok( 27 === $out['days_covered'] && 1000 === $out['total'], 'the helper spreads hits across real days: 27 covered, 1,000 observations' );
+ok( true === $out['window_complete'], 'RE-SPEC: 27 covered days and 1,000 observations SATISFIES the coverage halves' );
+ok( 'build_ranges' === $out['decision'], 'DECISION NAMED: the re-specced rule can actually fire' );
+ok( 30 === $out['criterion_days'] && 5 === $out['threshold_pct'], 'the lookback window and threshold travel in the payload' );
+ok( 20 === $out['criterion_min_days_covered'] && 100 === $out['criterion_min_observations'],
+	'the re-specced halves travel in the payload too — no caller reconstructs them from memory' );
 
-// ── the window closes ───────────────────────────────────────────────────────
-$GLOBALS['__family'] = ld_rows( 517, 483, 30 );
+// ── too few DAYS: a burst is not sustained, however many hits it carries ────
+$GLOBALS['__family'] = ld_rows( 517, 483, 8 );
 $out = sn_ability_login_defense_ipv6_criterion();
-ok( true === $out['window_complete'], 'window_complete is true at 30 of 30 days' );
-ok( 'build_ranges' === $out['decision'], 'DECISION NAMED once both halves hold' );
+ok( 8 === $out['days_covered'] && 1000 === $out['total'], '8 covered days holding 1,000 observations' );
+ok( false === $out['window_complete'] && 'withhold_unfinished_window' === $out['decision'],
+	'DECISION WITHHELD: 1,000 hits over 8 days is a burst, and a burst is not "sustained"' );
 
-// ── complete window, share under the line ──────────────────────────────────
-$GLOBALS['__family'] = ld_rows( 10, 990, 30 );
+// ── too few OBSERVATIONS: a trickle is not evidence, however many days ──────
+$GLOBALS['__family'] = ld_rows( 20, 25, 25 );
 $out = sn_ability_login_defense_ipv6_criterion();
-ok( false === $out['crossed'] && 'below_threshold' === $out['decision'], 'a covered window under 5% is a real answer, not a withholding' );
+ok( 25 === $out['days_covered'] && 45 === $out['total'], '25 covered days holding only 45 observations' );
+ok( false === $out['window_complete'] && 'withhold_unfinished_window' === $out['decision'],
+	'DECISION WITHHELD: 25 days is plenty of days and 45 hits is not enough evidence' );
 
-// ── COVERAGE TRAVELS WITH THE SPAN (2026-08-27) ─────────────────────────────
-// measured_days is a SPAN (now - first_seen). days_covered is the count of days
-// that actually wrote rows. On sparse traffic they disagree, and only the second
-// one answers "sustained over 30 days". The payload carries BOTH so no caller
-// has to know which one it is holding.
+// ── satisfied window, share under the line ─────────────────────────────────
+// v6 must be >= the day count to actually spread (ld_rows uses intdiv, so 10
+// hits over 25 days all land on day 0 and the v6-scoped floor refuses the
+// window rather than judging the share). 25 v6 + 975 v4 = 2.5%, still under.
+$GLOBALS['__family'] = ld_rows( 25, 975, 25 );
+$out = sn_ability_login_defense_ipv6_criterion();
+ok( false === $out['crossed'] && 'below_threshold' === $out['decision'], 'a satisfied window under 5% is a real answer, not a withholding' );
+
+// ── SPAN IS NOT COVERAGE, and no longer decides ────────────────────────────
+// Two rows thirty days apart: a full 30-day SPAN covering exactly two days.
+// The old rule called that a complete window and would have authorised the
+// build off it. That is the defect the re-spec closes.
 $far = time() - ( 30 * 86400 );
 $GLOBALS['__family'] = array(
 	array( 'family' => 'v6', 'hits' => 517, 'first_seen' => gmdate( 'Y-m-d H:i:s', $far ), 'day' => gmdate( 'Y-m-d', $far ) ),
 	array( 'family' => 'v4', 'hits' => 483, 'first_seen' => gmdate( 'Y-m-d H:i:s', time() ), 'day' => gmdate( 'Y-m-d', time() ) ),
 );
 $out = sn_ability_login_defense_ipv6_criterion();
-ok( 2 === $out['days_covered'], 'days_covered travels in the payload: 2 days wrote' );
-ok( 30 === $out['measured_days'] && true === $out['window_complete'],
-	'NEGATIVE CONTROL: those same rows still span a COMPLETE 30d window — span and coverage disagree in one payload' );
-ok( 'build_ranges' === $out['decision'],
-	'decision logic UNCHANGED this release: measuring coverage is not re-speccing the criterion' );
+ok( 2 === $out['days_covered'] && 30 === $out['measured_days'],
+	'span 30, coverage 2 — the payload reports both and they disagree' );
+ok( false === $out['window_complete'] && 'withhold_unfinished_window' === $out['decision'],
+	'THE FIX: a full SPAN covering two days authorises nothing — decision rests on coverage, not age' );
 
 // A failed query must not report zero coverage — that would read as "measured,
 // nothing there" instead of "not measured".

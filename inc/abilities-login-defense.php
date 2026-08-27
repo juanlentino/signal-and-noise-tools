@@ -53,12 +53,17 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 		'first_seen'      => null,
 		'measured_days'   => null,
 		'days_covered'    => null,
+		'v6_days_covered' => null,
 		'window_complete' => null,
 		'pre_sensor_hits' => 0,
 		// Both halves of the rule travel with the answer so no caller
 		// reconstructs it from memory.
 		'threshold_pct'   => SN_LG_IPV6_THRESHOLD_PCT,
 		'criterion_days'  => SN_LG_IPV6_CRITERION_DAYS,
+		// The re-specced coverage halves (2026-08-27). criterion_days is still
+		// the LOOKBACK window; these two are what "sustained" now requires.
+		'criterion_min_days_covered' => SN_LG_IPV6_MIN_DAYS_COVERED,
+		'criterion_min_observations' => SN_LG_IPV6_MIN_OBSERVATIONS,
 		'decision'        => 'unknown',
 		'reason'          => '',
 	);
@@ -83,6 +88,7 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 			'first_seen'      => $s['first_seen'],
 			'measured_days'   => $s['measured_days'],
 			'days_covered'    => $s['days_covered'],
+			'v6_days_covered' => $s['v6_days_covered'],
 			'window_complete' => $s['window_complete'],
 			'pre_sensor_hits' => $s['pre_sensor_hits'],
 		)
@@ -99,12 +105,14 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 		// The load-bearing branch. A crossed line on an unfinished window is a
 		// real share and a decision nobody is authorised to make.
 		$out['decision'] = 'withhold_unfinished_window';
-		$out['reason']   = null === $s['measured_days']
-			? sprintf( 'coverage unknown: the rows carry no first_seen, so the %dd window cannot be confirmed', SN_LG_IPV6_CRITERION_DAYS )
+		$out['reason']   = null === $s['days_covered']
+			? sprintf( 'coverage unknown: the rows carry no day dimension, so the %dd window cannot be assessed', SN_LG_IPV6_CRITERION_DAYS )
 			: sprintf(
-				'real share, unfinished window: the criterion asks for %dd of sensor coverage and this window holds %dd (family sensor since %s)',
-				SN_LG_IPV6_CRITERION_DAYS,
-				$s['measured_days'],
+				'real share, unfinished window: the criterion asks for %d covered days and %d observations; this window holds %d and %d (family sensor since %s)',
+				SN_LG_IPV6_MIN_DAYS_COVERED,
+				SN_LG_IPV6_MIN_OBSERVATIONS,
+				$s['days_covered'],
+				$s['total'],
 				$s['first_seen']
 			);
 		return $out;
@@ -112,9 +120,10 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 
 	$out['decision'] = $s['crossed'] ? 'build_ranges' : 'below_threshold';
 	$out['reason']   = sprintf(
-		'%s%% over %dd of measured coverage, against a %d%% criterion',
+		'%s%% over %d days carrying IPv6 and %d observations, against a %d%% criterion',
 		$s['share_pct'],
-		$s['measured_days'],
+		$s['v6_days_covered'],
+		$s['total'],
 		SN_LG_IPV6_THRESHOLD_PCT
 	);
 	return $out;
@@ -133,7 +142,7 @@ function sn_abilities_login_defense_register() {
 			. 'decision is one of build_ranges | withhold_unfinished_window | below_threshold | unknown. '
 			. 'The rule (worker v1.5.2): build 128-bit denylist ranges when the IPv6 share of block-eligible traffic exceeds 5% sustained over 30 days. '
 			. 'Read `decision`, never `crossed` alone — a crossed line on an unfinished window authorises nothing. '
-			. 'measured_days is a SPAN (now - first_seen); days_covered is how many days actually wrote rows. On sparse traffic they disagree, and only days_covered answers "sustained". '
+			. 'THREE window numbers, and they answer different questions: measured_days is a SPAN (now - first_seen); days_covered is how many days ANY family wrote; v6_days_covered is how many days IPv6 ITSELF appeared on. Only v6_days_covered answers "sustained" — an all-family count cannot see an IPv6 burst, and the observations floor stays all-family on purpose, because it is denominator adequacy for the share, not a presence test. '
 			. 'share_pct is null when unmeasured; never-measured is not 0%. Read-only.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
