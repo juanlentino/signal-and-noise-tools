@@ -41,7 +41,7 @@ function sn_analytics_rec_search_unclicked() {
 	if ( null === $data || empty( $data['pages'] ) || ! is_array( $data['pages'] ) ) {
 		return null;
 	}
-	$floor = 10; // impressions per window; pre-committed, not tuned to the data.
+	$floor = 50; // impressions per window; pre-committed — and ALIGNED with the Search view's own list (v13.11.0: two floors for one idea was drift).
 	$hits  = array();
 	foreach ( $data['pages'] as $path => $m ) {
 		if ( (int) ( $m['impressions'] ?? 0 ) >= $floor && 0 === (int) ( $m['clicks'] ?? 1 ) ) {
@@ -73,6 +73,44 @@ function sn_analytics_rec_search_unclicked() {
 }
 
 /**
+ * Position drift card (wiring item 2): pages sliding down the rankings
+ * before any view decay shows. Reads snt_gsc_position_drift() — the derive
+ * module owns the thresholds (floor +5 positions across 7+ days, written
+ * down before the query). Null when the history cannot answer yet AND when
+ * it answers "nothing drifts": a card exists only when there is something
+ * to act on; the view says the good zero out loud instead.
+ *
+ * @return array|null
+ */
+function sn_analytics_rec_position_drift() {
+	if ( ! function_exists( 'snt_gsc_position_drift' ) ) {
+		return null;
+	}
+	$drift = snt_gsc_position_drift();
+	if ( null === $drift || array() === $drift ) {
+		return null;
+	}
+	$n     = count( $drift );
+	$top   = array_key_first( $drift );
+	$worst = $drift[ $top ];
+	return array(
+		'id'           => 'position_drift',
+		// translators: %d is the number of pages whose search position worsened materially.
+		'title'        => sprintf( _n( '%d page sliding down the rankings', '%d pages sliding down the rankings', $n, 'signal-and-noise-tools' ), $n ),
+		'detail'       => sprintf(
+			/* translators: 1: path of the worst-drifting page, 2: earlier average position, 3: current average position. */
+			__( 'Google moves a page before readers stop arriving — the earlier of the two decay signals. Worst: %1$s, position %2$.1f → %3$.1f.', 'signal-and-noise-tools' ),
+			$top,
+			$worst['from'],
+			$worst['to']
+		),
+		'count'        => $n,
+		'action_url'   => snt_analytics_page_url( array( 'sn_view' => 'search' ) ),
+		'action_label' => 'Open the Search view',
+	);
+}
+
+/**
  * Build the ordered recommendation card list. Each rule returns one card or null;
  * nulls are filtered. Empty result is first-class ("nothing needs attention").
  *
@@ -92,6 +130,7 @@ function sn_analytics_recommendations( $refresh = false ) {
 			sn_analytics_rec_unlinked(),
 			sn_analytics_rec_seo_meta(),
 			sn_analytics_rec_search_unclicked(),
+			sn_analytics_rec_position_drift(),
 		);
 		$memo = array_values( array_filter( $cards ) );
 	}

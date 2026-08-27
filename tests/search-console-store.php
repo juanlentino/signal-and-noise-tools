@@ -36,7 +36,7 @@ function is_wp_error( $t ) { return $t instanceof WP_Error; }
 
 // Stand in for the client. Defined BEFORE the store is required so the store's
 // calls bind to these; the client file is not loaded here at all.
-function snt_gsc_window( $days = 28, $lag = 3 ) { return array( 'start' => '2026-07-01', 'end' => '2026-07-28' ); }
+function snt_gsc_window( $days = 28, $lag = 3 ) { return $GLOBALS['__window_override'] ?? array( 'start' => '2026-07-01', 'end' => '2026-07-28' ); }
 function snt_gsc_query( $property, $dimensions, $window, $row_limit = 250 ) {
 	return $GLOBALS['__rows'][ $dimensions[0] ];
 }
@@ -177,6 +177,28 @@ ok( true === $capped['capped'], 'AT THE CAP IT SAYS SO — the total is a floor,
 $GLOBALS['__opts']['snt_gsc_data']['pages'] = array_fill( 0, 12, array( 'clicks' => 1 ) );
 $under = snt_gsc_window_totals();
 ok( false === $under['capped'], 'under the cap it does not, so the label is not permanently hedged' );
+
+echo "\nGroup: history — bounded, deduped, appended by the REAL sync (v13.11.0)\n";
+// The harness drives real snt_gsc_sync() through the stubbed client; history
+// rides the same call, so these assertions exercise the true producer.
+$GLOBALS['__opts'] = array();
+$GLOBALS['__property'] = 'sc-domain:example.com';
+$GLOBALS['__rows']['page'] = array( array( 'key' => 'https://example.com/a/', 'clicks' => 2, 'impressions' => 100, 'ctr' => 0.02, 'position' => 5.04 ) );
+snt_gsc_sync();
+$h = snt_gsc_history();
+ok( 1 === count( $h ), 'first sync appends one snapshot' );
+$entry = array_values( $h )[0];
+ok( 5.0 === $entry['pages']['/a']['position'], 'position stored at display grain (5.04 -> 5.0), keyed by the NORMALISED path (/a, slash gone — the join key rule)' );
+snt_gsc_sync();
+ok( 1 === count( snt_gsc_history() ), 'same window end re-synced REPLACES — a manual Sync-now on cron day is one observation, not two' );
+for ( $i = 1; $i <= 12; $i++ ) {
+	$GLOBALS['__window_override'] = array( 'start' => '2026-07-01', 'end' => sprintf( '2026-08-%02d', $i ) );
+	snt_gsc_sync();
+}
+$h = snt_gsc_history();
+ok( SNT_GSC_HISTORY_MAX === count( $h ), 'the history caps at ' . SNT_GSC_HISTORY_MAX . ' snapshots' );
+ok( ! isset( $h['2026-08-01'] ) && isset( $h['2026-08-12'] ), 'oldest dropped, newest kept — chronological, ksorted' );
+unset( $GLOBALS['__window_override'] );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );

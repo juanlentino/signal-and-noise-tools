@@ -20,6 +20,10 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 define( 'SNT_GSC_DATA_OPTION', 'snt_gsc_data' );
+define( 'SNT_GSC_HISTORY_OPTION', 'snt_gsc_history' );
+// Ten snapshots ≈ ten sync days: enough span for a 7-day drift read with
+// slack for missed nights, small enough that the option stays kilobytes.
+const SNT_GSC_HISTORY_MAX = 10;
 
 /**
  * Reduce an absolute URL from Google to the site-relative path the analytics
@@ -136,7 +140,52 @@ function snt_gsc_sync( $force = false ) {
 		'synced_at' => time(),
 	);
 	update_option( SNT_GSC_DATA_OPTION, $payload, false );
+	snt_gsc_history_append( $payload );
 	return $payload;
+}
+
+/**
+ * Append one compact position snapshot to the bounded history (v13.11.0).
+ *
+ * The window OVERWRITES on every sync, which is right for the tables and
+ * blind for drift: position movement needs at least two observations.
+ * One entry per WINDOW END (a same-day re-sync replaces, never duplicates —
+ * the daily cron and a manual Sync-now on the same day are one observation),
+ * positions rounded to 0.1 (the display grain; finer is noise), capped at
+ * SNT_GSC_HISTORY_MAX with the oldest dropped.
+ *
+ * @param array $payload The just-stored window payload.
+ */
+function snt_gsc_history_append( $payload ) {
+	$end = isset( $payload['window']['end'] ) ? (string) $payload['window']['end'] : '';
+	if ( '' === $end || empty( $payload['pages'] ) ) {
+		return;
+	}
+	$compact = array();
+	foreach ( (array) $payload['pages'] as $path => $m ) {
+		$compact[ $path ] = array(
+			'position'    => round( (float) ( $m['position'] ?? 0 ), 1 ),
+			'impressions' => (int) ( $m['impressions'] ?? 0 ),
+		);
+	}
+	$history         = snt_gsc_history();
+	$history[ $end ] = array( 'end' => $end, 'pages' => $compact );
+	ksort( $history ); // window-end dates are ISO strings: lexical == chronological.
+	while ( count( $history ) > SNT_GSC_HISTORY_MAX ) {
+		array_shift( $history );
+	}
+	update_option( SNT_GSC_HISTORY_OPTION, $history, false );
+}
+
+/**
+ * The stored history, keyed by window end, chronological. [] when none —
+ * an empty history is a real "not yet accrued", distinct from no window.
+ *
+ * @return array<string,array{end:string,pages:array<string,array{position:float,impressions:int}>}>
+ */
+function snt_gsc_history() {
+	$h = get_option( SNT_GSC_HISTORY_OPTION, array() );
+	return is_array( $h ) ? $h : array();
 }
 
 /**

@@ -45,6 +45,8 @@ $GLOBALS['__scan'] = null;
 function sn_health_last_scan() { return $GLOBALS['__scan']; }
 $GLOBALS['__gsc'] = null;
 function snt_gsc_data() { return $GLOBALS['__gsc']; }
+$GLOBALS['__drift'] = null;
+function snt_gsc_position_drift() { return $GLOBALS['__drift']; }
 // D2: recommend() must NEVER self-fetch signals any more — this spy proves it.
 $GLOBALS['__sig_calls'] = 0;
 function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) { $GLOBALS['__sig_calls']++; return array(); }
@@ -251,13 +253,13 @@ echo "\nGroup: search_unclicked — the GSC cross, wiring item one of the R6b cl
 $GLOBALS['__gsc'] = null;
 r_true( null === r_card( sn_analytics_recommendations( true ), 'search_unclicked' ), 'no stored window -> SILENCE, never a zero card (unconfigured leaf is not a finding)' );
 $GLOBALS['__gsc'] = array( 'pages' => array(
-	'/quiet/'   => array( 'impressions' => 9,  'clicks' => 0, 'position' => 4.0 ),  // below the pre-committed floor
+	'/quiet/'   => array( 'impressions' => 45, 'clicks' => 0, 'position' => 4.0 ),  // below the pre-committed floor (50, aligned with the view)
 	'/clicked/' => array( 'impressions' => 80, 'clicks' => 3, 'position' => 2.1 ),  // clicked: excluded exactly
 ), 'synced_at' => 1 );
 r_true( null === r_card( sn_analytics_recommendations( true ), 'search_unclicked' ), 'below-floor and clicked pages produce no card — the floor is written down before the query' );
 $GLOBALS['__gsc'] = array( 'pages' => array(
 	'/services/' => array( 'impressions' => 400, 'clicks' => 0, 'position' => 8.2 ),
-	'/music/'    => array( 'impressions' => 25,  'clicks' => 0, 'position' => 31.0 ),
+	'/music/'    => array( 'impressions' => 60,  'clicks' => 0, 'position' => 31.0 ),
 	'/notes/x/'  => array( 'impressions' => 300, 'clicks' => 5, 'position' => 3.3 ),
 	'/one-click/' => array( 'impressions' => 50, 'clicks' => 1, 'position' => 6.0 ), // ONE click is a different fact — must not count
 ), 'synced_at' => 1 );
@@ -268,6 +270,20 @@ r_true( false !== strpos( $card['detail'], '/services/' ) && false !== strpos( $
 r_true( false !== strpos( $card['detail'], '8.2' ), "the offender's average position rides along (lower-is-better lives in the Search view's own header)" );
 r_true( false !== strpos( $card['action_url'], 'sn_view=search' ), 'the action deep-links the Search view' );
 r_true( 0 === (int) $GLOBALS['__sig_calls'], 'the rule reads the stored option only — no signals fetch, same contract as its peers' );
+
+echo "\nGroup: position_drift — wiring item two\n";
+$GLOBALS['__drift'] = null;
+r_true( null === r_card( sn_analytics_recommendations( true ), 'position_drift' ), 'history cannot answer yet -> no card (accruing is not drifting)' );
+$GLOBALS['__drift'] = array();
+r_true( null === r_card( sn_analytics_recommendations( true ), 'position_drift' ), 'history answers "nothing drifts" -> STILL no card; the good zero lives in the view, cards are for actions' );
+$GLOBALS['__drift'] = array(
+	'/notes/a/' => array( 'from' => 6.2, 'to' => 14.9, 'drift' => 8.7, 'impressions' => 120 ),
+	'/notes/b/' => array( 'from' => 3.0, 'to' => 9.1, 'drift' => 6.1, 'impressions' => 40 ),
+);
+$card = r_card( sn_analytics_recommendations( true ), 'position_drift' );
+r_true( is_array( $card ) && 2 === $card['count'], 'drifting pages -> the card, counted' );
+r_true( false !== strpos( $card['detail'], '/notes/a/' ) && false !== strpos( $card['detail'], '6.2' ) && false !== strpos( $card['detail'], '14.9' ), 'the detail names the worst slide with was -> now positions' );
+r_true( false !== strpos( $card['action_url'], 'sn_view=search' ), 'deep-links the Search view' );
 
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
 exit( $__fail > 0 ? 1 : 0 );
