@@ -29,8 +29,8 @@ release order, priorities, and gates actually live. Rules:
 
 | Item | What is needed | Payoff when done |
 |------|----------------|------------------|
-| **23 tag descriptions** | One written sentence per tag — editorial voice, deliberately not mine to write. Terms are edited in wp-admin → Posts → Tags (the `description` field) | Each sentence lights up BOTH surfaces at once: the tag archive's hero dek (theme v12.11.0) and the tag's meta description (plugin v13.14.0). Until then both correctly fall back rather than fabricate |
-| **Thin-tag decision** | 9 of 23 tags carry ≤3 notes and 2 carry exactly 1 (`legacy-catalog`, `writing`). A "hub" for one note is a page with one link | Either merge them into their neighbours (the 83→23 consolidation already has the machinery) or accept them as thin. Worth deciding BEFORE writing 23 sentences, so effort is not spent on tags that should not survive |
+| **Tag descriptions — partial is fine** | One written sentence per tag, in wp-admin → Posts → Tags (`description`). Editorial voice, deliberately not mine to write. **NOT all-or-nothing**: both consuming surfaces fall back cleanly per tag, so writing the top few first is a valid first pass | Each sentence lights up BOTH surfaces at once — the archive's hero dek (theme v12.11.0) and the tag's meta description (plugin v13.14.0). An undescribed tag keeps the corpus dek and emits no meta description, exactly as today |
+| ~~Thin-tag decision~~ **RESOLVED 2026-08-27: keep all 23** | Nothing to do — see the log entry below | The vocabulary stays as the 83→23 pass left it |
 
 ## Planned on the board — each waiting on its named gate
 
@@ -65,6 +65,15 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-08-27 — thin-tag decision RESOLVED: **keep all 23, merge nothing.** I proposed
+  merging 7 on count + co-occurrence evidence, then READ the affected notes and withdrew
+  it: every one of those tags is the most SPECIFIC descriptor its notes have
+  (`ai-disclosure` on two notes about disclosure labelling; `black-box-royalties` on the
+  note about money going to the largest nameable unit). Co-occurrence measures
+  co-PRESENCE, not duplicated meaning. The mechanical 4-tag CAP fails the same way — it
+  would strip `provenance`, the only PILLAR tag, from the two flagship provenance essays.
+  `freelance-business` is also load-bearing: its 2 notes carry no other tag, so merging
+  would orphan them. No note loses a tag, so no retagging is needed.
 - 2026-08-27 — topic-hub GROUNDWORK shipped both sides (plugin v13.14.0 #836, theme
   v12.11.0 #244), and the item turned out to sit on a LIVE DEFECT. Tag archives had no
   branch in `sn_seo_meta_for_current_view()` at all: 23 indexable archives with no
