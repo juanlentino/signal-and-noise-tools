@@ -31,6 +31,36 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.7.2] - 2026-08-27 — the theme wins its argument: the desk finally reads as Signal & Noise
+
+v13.7.1 fixed the theme's bug without changing what the desk *says*: the
+loudest color on screen was still blue (every widget link, the spark line)
+and the dock menu was still the brand's purple glass. Three changes, every
+one aimed at a verified consumer:
+
+- **`--os-bg` goes void.** The dock menus mix their glass from it —
+  `color-mix( in srgb, var( --os-bg, … ) 76%, transparent )` in
+  `dock-peek.css` — and the brand's value is a purple-tinted gradient,
+  which is exactly why the popup read purple. Flat `#0a0a0a` also grounds
+  the desk base under the wallpaper.
+- **The widget token bridge.** Our own widget views were the blue: four
+  anchors hardcoded the plugin's `#4a9eff`, five more inherited core
+  wp-admin's Blueberry by accident, and the spark line's wrapper hardcoded
+  the same blue. All eleven sites now color through
+  `var(--os-window-link-accent, #4a9eff)` (links, blood under the theme)
+  and `var(--os-window-link-color, #4a9eff)` (the spark line, signal — a
+  deliberate two-tone). **No theme ⇒ one consistent plugin blue**, closing
+  the pre-existing inconsistency; **S&N active ⇒ the desk's reds**. Core
+  admin literals stay untouched — tokens cannot reach them, and no rule
+  here pretends to.
+- The test suite pins the bridge: zero bare `color:#4a9eff` literals across
+  `assets/desktop-mode-widget*.js`, exactly 11 bridges. The glob caught an
+  11th anchor (`desktop-mode-widget.js`) that the hand-enumerated edit had
+  missed — the pin found real work before it shipped, which is the point of
+  writing it first.
+
+Negative controls: un-bridging one link reds two pins; dropping `--os-bg`
+reds its pin; green restored. 34 tokens, ceiling 35 unchanged.
 ## [13.7.1] - 2026-08-27 — the theme's field pass: one token was dimming every widget
 
 v13.7.0 was verified against upstream *source*; this is what its first

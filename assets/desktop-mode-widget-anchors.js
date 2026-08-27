@@ -150,7 +150,7 @@
 			actions.appendChild( sweepBtn );
 			if ( dashboardUrl ) {
 				actions.appendChild( el( 'a', {
-					style: 'font-size:11px;color:#4a9eff;text-decoration:none;',
+					style: 'font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;',
 					text:  'Open Dashboard →',
 					href:  dashboardUrl,
 				} ) );

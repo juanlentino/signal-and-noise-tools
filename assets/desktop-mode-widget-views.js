@@ -161,7 +161,10 @@
 				body.appendChild( statRow( 'Today so far', String( payload.today ) ) );
 			}
 
-			var chart = el( 'div', { style: 'color:#4a9eff;margin:4px 0 6px;' } );
+			// The spark line rides --os-window-link-color (signal under the S&N
+			// theme) where the links below ride -accent (blood) — a deliberate
+			// two-tone; both fall back to the plugin's own blue without a theme.
+			var chart = el( 'div', { style: 'color:var(--os-window-link-color, #4a9eff);margin:4px 0 6px;' } );
 			chart.appendChild( sparkline( payload.days ) );
 			body.appendChild( chart );
 
@@ -331,7 +334,7 @@
 			var link = el( 'a', {
 				href: analyticsUrl,
 				text: 'Open Analytics →',
-				style: 'display:inline-block;margin-top:8px;font-size:11px;text-decoration:none;opacity:.75;'
+				style: 'display:inline-block;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
 			} );
 			wrap.appendChild( link );
 		}

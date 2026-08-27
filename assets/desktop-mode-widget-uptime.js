@@ -95,7 +95,7 @@
 			wrap.appendChild( el( 'a', {
 				href: dashboardUrl,
 				text: 'Open Dashboard →',
-				style: 'display:inline-block;margin-top:8px;font-size:11px;color:#4a9eff;text-decoration:none;'
+				style: 'display:inline-block;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;'
 			} ) );
 		}
 		container.appendChild( wrap );
@@ -159,7 +159,7 @@
 			wrap.appendChild( el( 'a', {
 				href: dashboardUrl,
 				text: 'Open Uptime →',
-				style: 'display:inline-block;margin-top:8px;font-size:11px;color:#4a9eff;text-decoration:none;'
+				style: 'display:inline-block;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;'
 			} ) );
 		}
 

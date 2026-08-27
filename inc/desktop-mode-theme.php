@@ -128,6 +128,11 @@ function snt_desktop_theme_manifest() {
 				'--os-window-link-glow'       => 'rgba( 255, 76, 71, 0.45 )',
 				// The pre-wallpaper boot backdrop — void instead of WP ink.
 				'--os-backstop'               => '#0a0a0a',
+				// The desk base AND the tint the dock menus mix from —
+				// dock-peek.css: color-mix( in srgb, var( --os-bg, … ) 76%, transparent ).
+				// The brand's value is a purple-tinted gradient, which is why
+				// the dock popup read purple under v13.7.1. Flat void.
+				'--os-bg'                     => '#0a0a0a',
 				'--wp-admin-theme-color'      => '#ff4c47',
 			),
 		),
