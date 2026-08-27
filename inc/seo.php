@@ -181,6 +181,41 @@ function sn_seo_meta_for_current_view() {
 		if ( $paged > 1 ) {
 			$url = add_query_arg( 'paged', $paged, $url );
 		}
+	} elseif ( function_exists( 'is_tag' ) && is_tag() ) {
+		// v13.14.0: tag archives had NO branch here at all, so they fell
+		// through every conditional and the canonical emitter (which reads
+		// only $url) printed nothing. Measured on the live site: 23 indexable
+		// tag archives with no canonical, and /tag/provenance/ and
+		// /tag/provenance/page/2/ serving DIFFERENT notes under an identical
+		// <title> with no canonical on either — the duplicate-content shape
+		// the /notes/ branch fixed for itself back in v5.1.0 and tags never
+		// got.
+		//
+		// TITLE IS DELIBERATELY LEFT EMPTY. The document_title_parts filter
+		// below returns WP's own parts untouched when this is '', and WP's
+		// default is already the correct "Notes — <Tag> — Juan Lentino".
+		// Setting a title here would REPLACE that string, so the safe fix
+		// supplies only what is actually missing.
+		//
+		// The description is the term's own, never a fabricated one: an
+		// unwritten tag description stays empty and this view keeps emitting
+		// no og:description, exactly as it does today. When the description is
+		// written, the og block lights up on its own.
+		$term = get_queried_object();
+		if ( $term && isset( $term->term_id ) ) {
+			$description = trim( wp_strip_all_tags( (string) term_description( $term ) ) );
+			$link        = get_term_link( $term );
+			if ( ! is_wp_error( $link ) ) {
+				$url   = (string) $link;
+				$paged = sn_seo_current_paged();
+				if ( $paged > 1 ) {
+					// Pretty pagination: /tag/<slug>/page/N/ is the URL that
+					// actually serves, so the canonical must be that and not
+					// a ?paged= variant of it.
+					$url = trailingslashit( $url ) . 'page/' . $paged . '/';
+				}
+			}
+		}
 	} elseif ( is_page( 'provenance' ) ) {
 		$title       = sn_setting( 'seo_copy.provenance_title', '' );
 		$description = sn_setting( 'seo_copy.provenance_description', '' );
