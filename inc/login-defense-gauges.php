@@ -39,6 +39,23 @@
  *    crossed line on an unfinished window is a real share and a decision
  *    nobody is authorised to make yet.
  *
+ *    TWO MEASURES OF THAT WINDOW, and they are not the same (2026-08-27).
+ *    `measured_days` is min(30, now - first_seen): a SPAN. It was taken for
+ *    coverage on the reasoning that the family sensor writes on EVERY guard
+ *    row, so the earliest row dates the coverage. That holds only while
+ *    traffic is dense enough for every day to write at least one row — a
+ *    PRECONDITION, not a property, and live traffic stopped meeting it. Across
+ *    five readings first_seen slid 2026-07-26 -> 07-30 while measured_days
+ *    went 27 -> 29 -> 28 -> 28: the back edge sheds boundary days as fast as
+ *    the front edge gains them, which can only happen where boundary days hold
+ *    no rows at all. `days_covered` is the honest count, off the day dimension
+ *    the family query now carries. Both are reported; only coverage answers
+ *    "sustained".
+ *
+ *    The decision still gates on the SPAN, deliberately. The owner's call on
+ *    2026-08-27 was to MEASURE coverage before re-speccing the criterion, so
+ *    this gauge adds the number and changes no verdict.
+ *
  * Zero-vs-null honesty throughout: sn_analytics_query() returns array
  * (measured, possibly zero) or null (failure) — a fetch failure renders
  * "unknown", never a reassuring zero. Window coverage gets the same three
@@ -96,11 +113,13 @@ function sn_login_defense_failopen_trend_sql( $days = 7 ) {
  */
 function sn_login_defense_family_share_sql( $days = 30 ) {
 	$d = (int) $days;
-	return 'SELECT blob8 AS family, sum(_sample_interval) AS hits, '
+	return 'SELECT blob8 AS family, '
+		. "formatDateTime(toStartOfDay(timestamp), '%Y-%m-%d') AS day, "
+		. 'sum(_sample_interval) AS hits, '
 		. 'min(timestamp) AS first_seen '
 		. 'FROM ' . SN_LG_DATASET . ' '
 		. "WHERE timestamp > now() - INTERVAL '" . $d . "' DAY "
-		. 'GROUP BY family';
+		. 'GROUP BY family, day';
 }
 
 /**
@@ -112,7 +131,10 @@ function sn_login_defense_family_share_sql( $days = 30 ) {
  * the guard was clean for seven days or wrote nothing at all. The window is
  * therefore measured rather than assumed — and the instrument differs from the
  * IPv6 gauge's on purpose. There, the sensor writes on every row, so
- * min(timestamp) over the filtered rows measures coverage. Here the subject is
+ * min(timestamp) over the filtered rows DATES the sensor — which measures
+ * coverage only while traffic is dense enough that every day writes at least
+ * one row. Live traffic stopped meeting that precondition, so that gauge now
+ * counts days too, the way this reducer always has. Here the subject is
  * a RARE EVENT: filtering to failopen/degraded and taking the earliest row
  * would report "no coverage" on every healthy system, because sensor-absence
  * and event-absence look the same. So coverage comes from the shape the query
@@ -215,9 +237,11 @@ function sn_login_defense_parse_ae_ts( $raw ) {
  * measured_days, and window_complete are all null.
  *
  * `crossed` answers the numeric half of the criterion (share > 5%).
- * `window_complete` answers the other half, the one a 30-day query bound can
- * only assume: true when the sensor covered the whole window, false when it
- * did not, NULL when the rows carry no first_seen and coverage is unknown.
+ * `window_complete` answers the other half AS A SPAN: true when the sensor's
+ * earliest surviving row is a full window old, false when it is not, NULL when
+ * the rows carry no first_seen. A span is not a coverage count — two rows 30
+ * days apart complete this window — so `days_covered` reports the days that
+ * actually wrote, and is NULL (never 0) when the rows carry no day dimension.
  * Both halves must hold before "sustained over 30 days" is a claim anyone can
  * make — see the callers, which never announce the decision on `crossed`
  * alone.
@@ -227,13 +251,15 @@ function sn_login_defense_parse_ae_ts( $raw ) {
  * @param int|null $now  Unix time, injectable for fixtures.
  * @return array{v6:int, total:int, share_pct:float|null, crossed:bool,
  *               first_seen:string|null, measured_days:int|null,
- *               window_complete:bool|null, pre_sensor_hits:int}
+ *               days_covered:int|null, window_complete:bool|null,
+ *               pre_sensor_hits:int}
  */
 function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 	$v6         = 0;
 	$total      = 0;
 	$pre_sensor = 0;
 	$first      = null;
+	$days_seen  = array();
 	$now        = null === $now ? time() : (int) $now;
 	foreach ( (array) $rows as $r ) {
 		$hits   = (int) ( $r['hits'] ?? 0 );
@@ -246,6 +272,10 @@ function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 		if ( 'v6' === $family ) {
 			$v6 += $hits;
 		}
+		$day = trim( (string) ( $r['day'] ?? '' ) );
+		if ( '' !== $day ) {
+			$days_seen[ $day ] = true;
+		}
 		$ts = sn_login_defense_parse_ae_ts( $r['first_seen'] ?? '' );
 		if ( null !== $ts && ( null === $first || $ts < $first ) ) {
 			$first = $ts;
@@ -257,6 +287,12 @@ function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 	// window did not measure more of it than the window holds.
 	$measured = null === $first ? null : min( (int) $days, (int) floor( ( $now - $first ) / 86400 ) );
 
+	// Coverage the SPAN cannot see: a count of days that actually wrote rows.
+	// Null, never 0, when the rows carry no day dimension — unknown coverage is
+	// not zero coverage. Capped at the window asked for, because N calendar days
+	// straddle an (N-1)-day span.
+	$covered = empty( $days_seen ) ? null : min( (int) $days, count( $days_seen ) );
+
 	return array(
 		'v6'              => $v6,
 		'total'           => $total,
@@ -264,6 +300,7 @@ function sn_login_defense_ipv6_share( $rows, $days = 30, $now = null ) {
 		'crossed'         => null !== $share && $share > SN_LG_IPV6_THRESHOLD_PCT,
 		'first_seen'      => null === $first ? null : gmdate( 'Y-m-d', $first ),
 		'measured_days'   => $measured,
+		'days_covered'    => $covered,
 		'window_complete' => null === $measured ? null : $measured >= (int) $days,
 		'pre_sensor_hits' => $pre_sensor,
 	);
@@ -360,6 +397,20 @@ function sn_login_defense_render_gauges( $days = 7 ) {
 					$share['measured_days'],
 					SN_LG_IPV6_CRITERION_DAYS,
 					$share['first_seen']
+				);
+			}
+
+			// Coverage is NOT span. measured_days is now - first_seen; this is
+			// the count of days that actually wrote. On sparse traffic a window
+			// can be complete by span and nearly empty by coverage, so both are
+			// named. Omitted when the rows carry no day dimension: a fabricated
+			// count is worse than an absent one.
+			if ( null !== $share['days_covered'] ) {
+				$window .= ', ' . sprintf(
+					/* translators: 1: days that wrote rows, 2: criterion window in days */
+					__( '%1$s of %2$s days covered', 'signal-and-noise-tools' ),
+					number_format_i18n( $share['days_covered'] ),
+					SN_LG_IPV6_CRITERION_DAYS
 				);
 			}
 
