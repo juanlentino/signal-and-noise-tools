@@ -74,8 +74,13 @@ in the file so they are not rebuilt:
   search would pass, because core's own bundles import each other's exports.
 - A missing or non-WordPress tree exits 2 rather than reporting green, and a
   derivation that yields no requirements does the same.
-- The workflow is registered in `ci.yml`'s cron-liveness list: an absent run
-  reads exactly like a passing one, so its silence now reds.
+- An absent run reads exactly like a passing one, so this workflow belongs in
+  `ci.yml`'s cron-liveness list — registered in the FOLLOW-UP release, not this
+  one. Registering it here failed correctly: cron-liveness refuses to conclude
+  anything about a workflow that does not yet exist on the default branch
+  ("indeterminate … nothing can be concluded, so this does not pass"). The
+  guard was right and the sequencing was wrong; a workflow must exist before
+  its silence can be measured.
 
 ## [13.11.2] - 2026-08-27 — CI finally tests the PHP the site actually runs
 
