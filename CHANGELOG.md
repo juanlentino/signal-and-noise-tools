@@ -4,6 +4,30 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.16.2] - 2026-08-27 — the reason-string guard gets its negative and its invariant
+
+Test-only; no runtime change and nothing to deploy (`tests/` is export-ignore).
+
+v13.16.1 fixed the withheld reason and pinned it with four assertions. A peer
+session found the same defect independently and wrote a better guard for it, so
+this folds the two things theirs had that mine did not:
+
+- **The NEGATIVE half.** "Contains the v6 count" is satisfied by a sentence
+  carrying BOTH numbers, which would still read as satisfied. The all-family
+  figure must be provably ABSENT.
+- **The INVARIANT**, derived from `SN_LG_IPV6_MIN_DAYS_COVERED` and the payload's
+  own `v6_days_covered` rather than a literal: *the floor named in the reason and
+  the figure reported against it are the SAME population*. It survives a threshold
+  change, where a hardcoded expectation would have to be edited — and an edit is
+  exactly how the sentence drifted from the number in the first place.
+
+Reintroducing the v13.16.0 defect now reds THREE assertions instead of one.
+
+The root cause the peer named is worth keeping: the reason string had no test at
+all, which is how it drifted while everything around it was updated correctly.
+Prose is the least-tested surface here, and it is what both a person and a
+machine read to understand a verdict.
+
 ## [13.16.1] - 2026-08-27 — the withheld reason quotes the number the decision used
 
 Caught on the live gauge minutes after v13.16.0 deployed, which is the only

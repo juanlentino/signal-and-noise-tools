@@ -143,6 +143,17 @@ ok( false !== strpos( $out['reason'], 'holds 1 and' ),
 	'REASON: the withheld sentence quotes v6_days_covered (1), not days_covered (25)' );
 ok( false !== strpos( $out['reason'], 'days carrying IPv6' ),
 	'REASON: and names WHICH days it counted, so the number is not ambiguous' );
+// The NEGATIVE half, which the positive assertion above cannot give: the
+// all-family figure must be ABSENT. A sentence carrying both numbers would
+// satisfy "contains the right one" while still reading as satisfied.
+ok( false === strpos( $out['reason'], 'holds 25' ),
+	'REASON: and does NOT carry days_covered (25), which would read as SATISFIED against a floor of 20' );
+// The INVARIANT behind all of the above, derived from the constant and the
+// payload field rather than a literal — so it survives a threshold change and
+// a future edit cannot drift the sentence away from the number again.
+ok( false !== strpos( $out['reason'], 'asks for ' . SN_LG_IPV6_MIN_DAYS_COVERED . ' days carrying IPv6' )
+	&& false !== strpos( $out['reason'], 'holds ' . $out['v6_days_covered'] . ' ' ),
+	'INVARIANT: the floor named in the reason and the figure reported against it are the SAME population' );
 
 // ── satisfied window, share under the line ─────────────────────────────────
 // v6 must be >= the day count to actually spread (ld_rows uses intdiv, so 10
