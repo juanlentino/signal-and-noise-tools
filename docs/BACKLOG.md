@@ -23,9 +23,8 @@ release order, priorities, and gates actually live. Rules:
 
 | P | Item | Repo | Size | Notes / first step |
 |---|------|------|------|--------------------|
-| 1 | Next-PHP lane in CI | both (CI) | S | Repos pin PHP 8.3 only. One matrix lane on the next PHP RC; `continue-on-error` at STEP level, `timeout-minutes` set. Public repos — free minutes; the argument is runner-hold, not money |
-| 2 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
-| 3 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
+| 1 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
+| 2 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
 
 ## Planned on the board — each waiting on its named gate
 
@@ -60,6 +59,12 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-08-27 — PHP lanes SHIPPED in both repos (plugin v13.11.2 #832, theme v12.10.2
+  #243). The item assumed "next PHP"; the real gap was the PRESENT — production runs
+  **8.4** and CI pinned 8.3, so CI had never tested the live version. Lanes: 8.4
+  production parity (blocking), 8.5 readiness (blocking, measured clean first — the
+  host does NOT offer 8.5 yet), 8.6 nightly (non-blocking, step-level). All six lanes
+  green on first run.
 - 2026-08-27 — stub-parity sweep SHIPPED in BOTH repos (plugin v13.11.1 #831, theme
   v12.10.1 #242; byte-identical tools/stub-parity.php, wired into the existing PHPCS job).
   Findings: three suites stubbed wp_get_post_revision() by value where core declares
