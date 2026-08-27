@@ -118,6 +118,22 @@ foreach ( array( '--os-window-link-color' => '#ff6b66', '--os-window-link-accent
 }
 ok( 'rgba( 255, 76, 71, 0.45 )' === ( $tokens['--os-window-link-glow'] ?? '' ), 'the spline glow is an rgba() of blood, mirroring Legacy\'s glow-as-rgba idiom' );
 ok( '#0a0a0a' === ( $tokens['--os-backstop'] ?? '' ), 'the boot backstop is void' );
+ok( '#0a0a0a' === ( $tokens['--os-bg'] ?? '' ), 'the desk base / dock-menu tint (--os-bg) is void — the brand purple gradient is what made the dock popup purple' );
+
+// ── The widget token bridge (v13.7.2) ────────────────────────────────
+// Our widget views color their links/spark line through
+// var(--os-window-link-*) with the plugin's own blue as fallback: no
+// theme => the pre-theme look, one consistent blue; S&N active => red.
+// Pin: zero bare literals remain, and every bridge names the family.
+$bridge_files = glob( __DIR__ . '/../assets/desktop-mode-widget*.js' );
+$bare = 0; $bridged = 0;
+foreach ( $bridge_files as $bf ) {
+	$js = (string) file_get_contents( $bf );
+	$bare    += substr_count( $js, 'color:#4a9eff' );
+	$bridged += substr_count( $js, 'var(--os-window-link-' );
+}
+ok( 0 === $bare, 'no widget view hardcodes the link blue any more (bare color:#4a9eff count is ' . $bare . ')' );
+ok( 11 === $bridged, 'exactly 11 window-link bridges across the widget views (10 accent links + 1 color spark line), found ' . $bridged );
 
 // ── Preview (v13.7.1) ────────────────────────────────────────────────
 // Guarded on plugins_url/SNT_PATH so this harness needs no WP: here the

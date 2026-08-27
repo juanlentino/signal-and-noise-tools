@@ -91,7 +91,7 @@
 				wrap.appendChild( el( 'a', {
 					href: healthUrl,
 					text: 'Run a scan →',
-					style: 'display:inline-block;margin-top:8px;font-size:11px;text-decoration:none;opacity:.75;'
+					style: 'display:inline-block;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
 				} ) );
 			}
 			container.appendChild( wrap );
@@ -162,7 +162,7 @@
 			wrap.appendChild( el( 'a', {
 				href: healthUrl,
 				text: 'Open Health →',
-				style: 'display:inline-block;margin-top:8px;font-size:11px;text-decoration:none;opacity:.75;'
+				style: 'display:inline-block;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
 			} ) );
 		}
 
