@@ -118,7 +118,7 @@ foreach ( array( '--os-window-link-color' => '#ff6b66', '--os-window-link-accent
 }
 ok( 'rgba( 255, 76, 71, 0.45 )' === ( $tokens['--os-window-link-glow'] ?? '' ), 'the spline glow is an rgba() of blood, mirroring Legacy\'s glow-as-rgba idiom' );
 ok( '#0a0a0a' === ( $tokens['--os-backstop'] ?? '' ), 'the boot backstop is void' );
-ok( '#0a0a0a' === ( $tokens['--os-bg'] ?? '' ), 'the desk base / dock-menu tint (--os-bg) is void — the brand purple gradient is what made the dock popup purple' );
+ok( '#171717' === ( $tokens['--os-bg'] ?? '' ), 'the desk base / dock-menu tint (--os-bg) is ASPHALT, not void — v13.7.2 tried void and the popup glass became optically invisible against the desk (a popover must sit one surface step above what it covers)' );
 
 // ── The widget token bridge (v13.7.2) ────────────────────────────────
 // Our widget views color their links/spark line through

@@ -31,6 +31,18 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.7.3] - 2026-08-27 — a popover must sit above the desk it covers
+
+v13.7.2's `--os-bg: #0a0a0a` was aimed at the dock popup's purple tint and
+overshot: at the 76% `color-mix` the popup's glass is built from, void over
+a near-black desk is optically indistinguishable from the desk itself. The
+menu and its icon read as floating text with no plate — owner-reported
+minutes after deploying. `--os-bg` is now **asphalt** (`#171717`): one
+surface step above the desk, the same separation idiom the widget cards'
+own glass uses, and still nothing purple about it. One value, one pin
+updated with the optics lesson recorded in both the manifest comment and
+the assertion text.
+
 ## [13.7.2] - 2026-08-27 — the theme wins its argument: the desk finally reads as Signal & Noise
 
 v13.7.1 fixed the theme's bug without changing what the desk *says*: the

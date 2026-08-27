@@ -130,9 +130,15 @@ function snt_desktop_theme_manifest() {
 				'--os-backstop'               => '#0a0a0a',
 				// The desk base AND the tint the dock menus mix from —
 				// dock-peek.css: color-mix( in srgb, var( --os-bg, … ) 76%, transparent ).
-				// The brand's value is a purple-tinted gradient, which is why
-				// the dock popup read purple under v13.7.1. Flat void.
-				'--os-bg'                     => '#0a0a0a',
+				// The brand's value is a purple-tinted gradient (why the popup
+				// read purple under v13.7.1). v13.7.2 set VOID here and the
+				// popup vanished: at 76% over a near-black desk, void glass is
+				// optically indistinguishable from the desk behind it — the
+				// menu and its icon read as floating text with no plate
+				// (owner-reported, same night). A popover must sit ABOVE the
+				// desk it covers, so this is asphalt, one surface step up —
+				// the same answer the widget cards' own glass gives.
+				'--os-bg'                     => '#171717',
 				'--wp-admin-theme-color'      => '#ff4c47',
 			),
 		),
