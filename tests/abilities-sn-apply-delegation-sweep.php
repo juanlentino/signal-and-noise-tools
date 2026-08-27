@@ -212,7 +212,7 @@ if ( ! function_exists( 'wp_restore_post_revision' ) ) {
 // (verified against the real source, wp-includes/revision.php — see
 // inc/sn-apply-restore-revision.php's docblock).
 if ( ! function_exists( 'wp_get_post_revision' ) ) {
-	function wp_get_post_revision( $id ) {
+	function wp_get_post_revision( &$id ) {
 		$row = $GLOBALS['__posts'][ (int) $id ] ?? null;
 		if ( ! $row || 'revision' !== ( $row['post_type'] ?? '' ) ) { return null; }
 		return (object) $row;

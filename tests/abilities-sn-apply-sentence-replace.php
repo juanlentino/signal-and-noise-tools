@@ -160,7 +160,7 @@ if ( ! function_exists( 'wp_restore_post_revision' ) ) {
 // snt_sn_apply_restore_revision_precheck() is what proves it still turns
 // both into the same honest 404.
 if ( ! function_exists( 'wp_get_post_revision' ) ) {
-	function wp_get_post_revision( $id ) {
+	function wp_get_post_revision( &$id ) {
 		$row = $GLOBALS['__posts'][ (int) $id ] ?? null;
 		if ( ! $row || 'revision' !== ( $row['post_type'] ?? '' ) ) { return null; }
 		return (object) $row;
