@@ -23,13 +23,12 @@ release order, priorities, and gates actually live. Rules:
 
 | P | Item | Repo | Size | Notes / first step |
 |---|------|------|------|--------------------|
-| 1 | Print stylesheet | theme | S | One `@media print` fragment exists in `inc/block-styles.php`; extend to a full typeset page — provenance footer, URLs shown after links, no nav chrome |
-| 2 | Reply-by-email on notes | theme | S | Reuse the `inc/contact-email.php` DOM-assembled mailto (no scrapeable address); subject prefilled with the note title |
-| 3 | Hover previews for internal note links | theme | S–M | Reuse the `assets/js/footnotes-popover.js` pattern; progressive enhancement, honors reduced-motion |
-| 4 | Stub-parity sweep | both (CI) | M | Diff test-stub function signatures against the pinned WP source; the stub-drift trap is 13× bitten — turns the ambush into a red CI line |
-| 5 | Next-PHP lane in CI | both (CI) | S | Repos pin PHP 8.3 only. One matrix lane on the next PHP RC; `continue-on-error` at STEP level, `timeout-minutes` set. Public repos — free minutes; the argument is runner-hold, not money |
-| 6 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
-| 7 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
+| 1 | Reply-by-email on notes | theme | S | Reuse the `inc/contact-email.php` DOM-assembled mailto (no scrapeable address); subject prefilled with the note title |
+| 2 | Hover previews for internal note links | theme | S–M | Reuse the `assets/js/footnotes-popover.js` pattern; progressive enhancement, honors reduced-motion |
+| 3 | Stub-parity sweep | both (CI) | M | Diff test-stub function signatures against the pinned WP source; the stub-drift trap is 13× bitten — turns the ambush into a red CI line |
+| 4 | Next-PHP lane in CI | both (CI) | S | Repos pin PHP 8.3 only. One matrix lane on the next PHP RC; `continue-on-error` at STEP level, `timeout-minutes` set. Public repos — free minutes; the argument is runner-hold, not money |
+| 5 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
+| 6 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
 
 ## Planned on the board — each waiting on its named gate
 
@@ -64,5 +63,9 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-08-27 — print stylesheet STRUCK: already shipped in v9.10.0 as the theme's
+  118-line `assets/css/print.css` (media="print" on singles + pages, external URLs
+  revealed, resume fold forced open). The backlog entry came from reading one of the
+  three files a grep listed. Residue: eyeball that the provenance panel prints legibly.
 - 2026-08-27 — file created from the roadmap brainstorm; rewritten same day as the full
   release-planning queue (priorities, gates, chores, watches) at owner direction.
