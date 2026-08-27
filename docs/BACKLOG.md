@@ -23,10 +23,9 @@ release order, priorities, and gates actually live. Rules:
 
 | P | Item | Repo | Size | Notes / first step |
 |---|------|------|------|--------------------|
-| 1 | Stub-parity sweep | both (CI) | M | Diff test-stub function signatures against the pinned WP source; the stub-drift trap is 13× bitten — turns the ambush into a red CI line |
-| 2 | Next-PHP lane in CI | both (CI) | S | Repos pin PHP 8.3 only. One matrix lane on the next PHP RC; `continue-on-error` at STEP level, `timeout-minutes` set. Public repos — free minutes; the argument is runner-hold, not money |
-| 3 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
-| 4 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
+| 1 | Next-PHP lane in CI | both (CI) | S | Repos pin PHP 8.3 only. One matrix lane on the next PHP RC; `continue-on-error` at STEP level, `timeout-minutes` set. Public repos — free minutes; the argument is runner-hold, not money |
+| 2 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
+| 3 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
 
 ## Planned on the board — each waiting on its named gate
 
@@ -61,6 +60,11 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-08-27 — stub-parity sweep SHIPPED in BOTH repos (plugin v13.11.1 #831, theme
+  v12.10.1 #242; byte-identical tools/stub-parity.php, wired into the existing PHPCS job).
+  Findings: three suites stubbed wp_get_post_revision() by value where core declares
+  &$post — fixed. An earlier draft's 381 arity "failures" were all artifacts; the file
+  records why those checks were dropped so they are not rebuilt.
 - 2026-08-27 — hover previews SHIPPED as theme v12.10.0 (PR #241, tagged, draft cut;
   owner updates via wp-admin). Server-stamped data attributes, zero reader-side fetch;
   16 assertions on the real filter, two mutations proven red.
