@@ -31,6 +31,35 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.9.0] - 2026-08-27 — the Search Console sync keeps its own promise
+
+R6b closes. The arc shipped whole in v11.18.0–v11.19.3 — credential leaf,
+hand-rolled JWT client, store, the Search view, the ledger cross-exam — and
+its view has promised "fetched on a schedule" ever since, while the only
+refresh path was the leaf's Sync-now button. Measured today: the stored
+window was NINE DAYS stale. The system worked; nobody pressed the button.
+
+`inc/search-console-sync.php` makes the promise true, in the arc's own
+grammar:
+
+- **One producer.** The cron spends `snt_gsc_sync()` — the exact function
+  the button spends — and the test pins the spend count at source level
+  (comments stripped first: the docblock's mention is not a spend).
+- **Self-healing schedule, both directions.** The daily event exists exactly
+  while the integration is configured (credential AND property); clearing
+  the credential removes it on next load. No orphan on the cron dashboard,
+  no nightly failure loop on an unconfigured install.
+- **Failure is a recorded fact, never a clobber.** The producer already
+  refuses to touch the stored window on error; the cron records each
+  attempt — ok, or Google's own words (the 403 class taught that a
+  paraphrase sends the reader to the wrong fix) — and the leaf prints it
+  beside the window line. Never-ran, ran-ok, and ran-failed stay three
+  distinct states.
+
+Also verified live today before building: the stored Aug-18 credential still
+mints tokens (a manual sync refreshed the window to 2026-07-28 → 2026-08-24,
+35 pages, 9 queries), so the schedule starts from a known-good state.
+
 ## [13.8.2] - 2026-08-27 — the tenth principle: a shipped row graduates off the board
 
 Closing the accessibility arc moved both planned rows to done and tripped the

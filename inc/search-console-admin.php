@@ -200,6 +200,30 @@ function snt_gsc_render_property_form() {
 			);
 			echo '</p>';
 		}
+		// The scheduled sync's account of itself (v13.9.0). Three honest
+		// states: scheduled-and-ran (ok or Google's own error), scheduled-
+		// but-never-fired, and not scheduled (integration incomplete).
+		$next   = wp_next_scheduled( SNT_GSC_SYNC_HOOK );
+		$status = snt_gsc_sync_last_status();
+		echo '<p class="description">';
+		if ( $next ) {
+			printf( esc_html__( 'Scheduled: daily, next in %s.', 'signal-and-noise-tools' ), esc_html( human_time_diff( time(), (int) $next ) ) );
+			if ( null === $status ) {
+				echo ' ' . esc_html__( 'The scheduled sync has not fired yet.', 'signal-and-noise-tools' );
+			} elseif ( ! empty( $status['ok'] ) ) {
+				echo ' ' . sprintf( esc_html__( 'Last scheduled run %s ago: ok.', 'signal-and-noise-tools' ), esc_html( human_time_diff( (int) $status['ran_at'], time() ) ) );
+			} else {
+				echo ' ' . sprintf(
+					/* translators: 1: age, 2: error message. */
+					esc_html__( 'Last scheduled run %1$s ago FAILED: %2$s', 'signal-and-noise-tools' ),
+					esc_html( human_time_diff( (int) $status['ran_at'], time() ) ),
+					esc_html( isset( $status['message'] ) ? (string) $status['message'] : (string) ( $status['code'] ?? 'unknown' ) )
+				);
+			}
+		} else {
+			echo esc_html__( 'No scheduled sync: it schedules itself once a credential is stored and a property chosen.', 'signal-and-noise-tools' );
+		}
+		echo '</p>';
 		echo '<p><button type="submit" name="sn_action" value="gsc_sync" class="button">' . esc_html__( 'Sync now', 'signal-and-noise-tools' ) . '</button></p>';
 		echo '<p class="description">' . esc_html__( 'Data appears in Analytics → Search, and as impressions/position columns beside Top pages.', 'signal-and-noise-tools' ) . '</p>';
 	}
