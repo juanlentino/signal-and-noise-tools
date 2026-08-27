@@ -31,6 +31,37 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.7.4] - 2026-08-27 — the purple sweep: measured on the live shell, not guessed
+
+The owner reported surfaces still invisible and still off-color after
+v13.7.2. This release replaces the one-token-per-report loop with one
+instrument pass, run against the live shell with the theme active (owner's
+session; the theme activated locally via the settings store, reverted
+after): walk every `--os-*` token any stylesheet consumes, compute it on
+`body`, flag purple hues. **Eleven brand-purple stragglers** surfaced —
+`--os-accent`, `--os-link`, `--os-ui-color-accent`, `--os-ui-notice-link`,
+the focused titlebar-button outline, both notification-badge gradients, the
+dock-item hover wash, both drag-drop preview tints, the tile-selection
+tint — plus the Obsidian context menu (`--os-ui-context-menu-bg`,
+`#1a1721`, desaturated enough to slip the hue filter; caught by eye). All
+twelve are now estate values. The four ambient holo/mesh gradients the same
+sweep found stay deliberately unset: they are the accent-derived family
+this theme's tests forbid pinning.
+
+Two runtime facts recorded in the manifest for whoever edits it next:
+inside `.os-shell`, an inline style overrides `--os-bg` with the wallpaper
+shorthand, so that token only ever matters on the `body` scope — which is
+where the dock peek and menus mount. And upstream's own `--os-bg` is a
+gradient, which makes the peek plate's `color-mix()` invalid at
+computed-value time — **the popup never had a tint on the brand palette;
+its glass was blur only.** v13.7.3's flat asphalt made that `color-mix`
+valid for the first time, confirmed live: the plate now computes to
+`color(srgb 0.09 0.09 0.09 / 0.76)`.
+
+Ceiling 35 → 50 with the move recorded. Gradient values are admitted to the
+manifest's value grammar only when every hex inside them is a palette
+literal — negative-controlled: an off-palette gradient stop reds the pin.
+
 ## [13.7.3] - 2026-08-27 — a popover must sit above the desk it covers
 
 v13.7.2's `--os-bg: #0a0a0a` was aimed at the dock popup's purple tint and
