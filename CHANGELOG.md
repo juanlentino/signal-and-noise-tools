@@ -31,6 +31,31 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.10.0] - 2026-08-27 — the streams cross: seen-but-never-clicked joins the recommendations
+
+Owner direction ("the data streams should cross") lands on the wiring plan
+the R6b close recorded: GSC was deliberately "a leaf, not an input", with
+three crossings listed in value order for when the owner wanted them. This
+ships item one.
+
+A fourth recommendation rule, `search_unclicked`: pages Google served in
+results without a single click, read from the stored Search Console window —
+the durable option the daily sync (v13.9.0) now keeps fresh, never a live
+fetch, same contract as every other rule. The list is invisible to every
+first-party table **by construction**: a zero-click page has no visit row to
+join because nobody ever arrived. The card counts the offenders, names the
+most-shown one with its impressions and average position, and deep-links the
+Search view.
+
+Discipline carried over: the impression floor (10 per window) is written
+down before the query, not tuned to the data — negative-controlled, a
+drifted floor reds. `clicks === 0` is exact, and the boundary is pinned with
+a one-click fixture after the first mutation run proved the fixtures could
+not distinguish `0 ===` from `1 >=` — the control found the gap in its own
+test before it found any in the code. No stored window means silence, never
+a zero card. Remaining unwired, in the recorded order: position drift as an
+early decay signal, then topic modelling.
+
 ## [13.9.0] - 2026-08-27 — the Search Console sync keeps its own promise
 
 R6b closes. The arc shipped whole in v11.18.0–v11.19.3 — credential leaf,

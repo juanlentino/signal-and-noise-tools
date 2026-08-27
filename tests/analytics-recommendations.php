@@ -43,6 +43,8 @@ $GLOBALS['__lifecycle'] = null;
 function sn_analytics_posts_lifecycle( $limit = 0 ) { return $GLOBALS['__lifecycle']; }
 $GLOBALS['__scan'] = null;
 function sn_health_last_scan() { return $GLOBALS['__scan']; }
+$GLOBALS['__gsc'] = null;
+function snt_gsc_data() { return $GLOBALS['__gsc']; }
 // D2: recommend() must NEVER self-fetch signals any more — this spy proves it.
 $GLOBALS['__sig_calls'] = 0;
 function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) { $GLOBALS['__sig_calls']++; return array(); }
@@ -244,6 +246,28 @@ sn_analytics_recommendations( true ); // re-prime again → memo recomputes but 
 r_true( 0 === (int) $GLOBALS['__rule_reads'], 'seo-meta: warm path reads the transient, zero get_posts calls' );
 r_true( isset( $GLOBALS['__transients']['sn_an_rec_seo_meta'] ), 'seo-meta: transient key present' );
 r_true( null === sn_analytics_rec_seo_meta(), 'seo-meta: warm path round-trips the cached null sentinel back to null (no phantom card)' );
+
+echo "\nGroup: search_unclicked — the GSC cross, wiring item one of the R6b close\n";
+$GLOBALS['__gsc'] = null;
+r_true( null === r_card( sn_analytics_recommendations( true ), 'search_unclicked' ), 'no stored window -> SILENCE, never a zero card (unconfigured leaf is not a finding)' );
+$GLOBALS['__gsc'] = array( 'pages' => array(
+	'/quiet/'   => array( 'impressions' => 9,  'clicks' => 0, 'position' => 4.0 ),  // below the pre-committed floor
+	'/clicked/' => array( 'impressions' => 80, 'clicks' => 3, 'position' => 2.1 ),  // clicked: excluded exactly
+), 'synced_at' => 1 );
+r_true( null === r_card( sn_analytics_recommendations( true ), 'search_unclicked' ), 'below-floor and clicked pages produce no card — the floor is written down before the query' );
+$GLOBALS['__gsc'] = array( 'pages' => array(
+	'/services/' => array( 'impressions' => 400, 'clicks' => 0, 'position' => 8.2 ),
+	'/music/'    => array( 'impressions' => 25,  'clicks' => 0, 'position' => 31.0 ),
+	'/notes/x/'  => array( 'impressions' => 300, 'clicks' => 5, 'position' => 3.3 ),
+	'/one-click/' => array( 'impressions' => 50, 'clicks' => 1, 'position' => 6.0 ), // ONE click is a different fact — must not count
+), 'synced_at' => 1 );
+$card = r_card( sn_analytics_recommendations( true ), 'search_unclicked' );
+r_true( is_array( $card ), 'two qualifying pages -> the card exists' );
+r_eq( 2, $card['count'], 'count is the qualifying pages only (the clicked page is not in it)' );
+r_true( false !== strpos( $card['detail'], '/services/' ) && false !== strpos( $card['detail'], '400' ), 'the detail NAMES the most-shown offender with its impressions — worst-first, like seo-meta names Pages' );
+r_true( false !== strpos( $card['detail'], '8.2' ), "the offender's average position rides along (lower-is-better lives in the Search view's own header)" );
+r_true( false !== strpos( $card['action_url'], 'sn_view=search' ), 'the action deep-links the Search view' );
+r_true( 0 === (int) $GLOBALS['__sig_calls'], 'the rule reads the stored option only — no signals fetch, same contract as its peers' );
 
 echo "\nResult: {$__pass} passed, {$__fail} failed.\n";
 exit( $__fail > 0 ? 1 : 0 );
