@@ -23,11 +23,10 @@ release order, priorities, and gates actually live. Rules:
 
 | P | Item | Repo | Size | Notes / first step |
 |---|------|------|------|--------------------|
-| 1 | Hover previews for internal note links | theme | S–M | Reuse the `assets/js/footnotes-popover.js` pattern; progressive enhancement, honors reduced-motion |
-| 2 | Stub-parity sweep | both (CI) | M | Diff test-stub function signatures against the pinned WP source; the stub-drift trap is 13× bitten — turns the ambush into a red CI line |
-| 3 | Next-PHP lane in CI | both (CI) | S | Repos pin PHP 8.3 only. One matrix lane on the next PHP RC; `continue-on-error` at STEP level, `timeout-minutes` set. Public repos — free minutes; the argument is runner-hold, not money |
-| 4 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
-| 5 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
+| 1 | Stub-parity sweep | both (CI) | M | Diff test-stub function signatures against the pinned WP source; the stub-drift trap is 13× bitten — turns the ambush into a red CI line |
+| 2 | Next-PHP lane in CI | both (CI) | S | Repos pin PHP 8.3 only. One matrix lane on the next PHP RC; `continue-on-error` at STEP level, `timeout-minutes` set. Public repos — free minutes; the argument is runner-hold, not money |
+| 3 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
+| 4 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
 
 ## Planned on the board — each waiting on its named gate
 
@@ -62,6 +61,9 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-08-27 — hover previews SHIPPED as theme v12.10.0 (PR #241, tagged, draft cut;
+  owner updates via wp-admin). Server-stamped data attributes, zero reader-side fetch;
+  16 assertions on the real filter, two mutations proven red.
 - 2026-08-27 — reply-by-email SHIPPED as theme v12.9.0 (PR #240, tagged, draft release
   cut; owner updates via wp-admin). CodeQL raised a real high on the new mailto line —
   fixed by validating + percent-encoding the decoded parts, not by dismissal.
