@@ -4,6 +4,8 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.15.0] - 2026-08-27 — the Health scan watches the IPv6 denylist too
+
 ### Added
 
 - **The Health scan now watches the login guard's IPv6 denylist separately.** Worker
