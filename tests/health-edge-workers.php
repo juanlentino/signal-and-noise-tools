@@ -361,5 +361,61 @@ ok( 1 === $r['count'] && false !== strpos( $r['findings'][0]['note'], 'unreachab
 
 $GLOBALS['__ew']['remote_mcp_resp'] = array( 'code' => 200, 'body' => json_encode( $healthyRemote ) );
 
+
+// ── the v6 denylist (worker v1.11.0) ────────────────────────────────────────
+// The login guard grew a SECOND feed (Spamhaus DROPv6) that refreshes
+// independently and keeps last-known on every failure branch. Without its own
+// finding a dead v6 cron is invisible here — but the field's ABSENCE is not a
+// failure: production runs the older worker until PR #24 deploys, and
+// "not reported" must never be read as "empty".
+
+$f = sn_health_edge_worker_findings( true, 'u', array( 'denylistCount' => 4586, 'compiledAt' => $fresh ), $NOW, $STALE );
+ok( 0 === count( $f ),
+	'a worker that reports NO v6 fields raises no v6 finding — absence is not a failure' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array(
+	'denylistCount' => 4586, 'compiledAt' => $fresh,
+	'denylist6Count' => 82, 'compiled6At' => $fresh,
+), $NOW, $STALE );
+ok( 0 === count( $f ), 'a healthy v6 feed raises no finding' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array(
+	'denylistCount' => 4586, 'compiledAt' => $fresh,
+	'denylist6Count' => 0, 'compiled6At' => $fresh,
+), $NOW, $STALE );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'IPv6' ) && false !== strpos( $f[0]['note'], 'EMPTY' ),
+	'a v6 feed reporting zero ranges is flagged EMPTY, and the note says IPv6' );
+ok( 1 === count( $f ) && false === strpos( $f[0]['note'], '4,586' ),
+	'…and the v6 finding does not mis-state the healthy v4 count' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array(
+	'denylistCount' => 4586, 'compiledAt' => $fresh,
+	'denylist6Count' => 82, 'compiled6At' => $old,
+), $NOW, $STALE );
+ok( 1 === count( $f ) && false !== strpos( $f[0]['note'], 'IPv6' ) && false !== strpos( $f[0]['note'], 'STALE' ),
+	'a v6 feed that stopped refreshing is flagged STALE independently of v4' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array(
+	'denylistCount' => 0, 'compiledAt' => $fresh,
+	'denylist6Count' => 0, 'compiled6At' => $fresh,
+), $NOW, $STALE );
+ok( 2 === count( $f ), 'both feeds empty → TWO findings; one feed never masks the other' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array(
+	'denylistCount' => 4586, 'compiledAt' => $fresh,
+	'denylist6Count' => 0, 'compiled6At' => $fresh,
+	'last6RefreshOk' => false, 'last6RefreshReason' => 'canary-overmatch',
+), $NOW, $STALE );
+ok( false !== strpos( $f[0]['note'], 'canary-overmatch' ),
+	'the v6 failure branch is named in the note, not just ok:false' );
+
+$f = sn_health_edge_worker_findings( true, 'u', array(
+	'denylistCount' => 4586, 'compiledAt' => $fresh,
+	'denylist6Count' => 0, 'compiled6At' => $fresh,
+	'last6RefreshOk' => false, 'last6RefreshReason' => '<script>alert(1)</script>',
+), $NOW, $STALE );
+ok( false === strpos( $f[0]['note'], '<script' ),
+	'edge JSON never reaches a Health note unsanitized — the v6 reason gets the same charset allowlist' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

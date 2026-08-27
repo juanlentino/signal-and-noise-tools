@@ -4,6 +4,60 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Added
+
+- **The Health scan now watches the login guard's IPv6 denylist separately.** Worker
+  v1.11.0 adds a second feed (Spamhaus DROPv6) that refreshes independently of FireHOL
+  and keeps last-known on every failure branch — so without its own finding a dead v6
+  cron stays invisible while the IPv4 half reads green. EMPTY and STALE are reported for
+  v6 the way they already are for v4, carrying the persisted failure reason through the
+  same charset allowlist (edge JSON never reaches a Health note unsanitized).
+- The v6 finding is gated on the field being **reported**, not on its value. A worker
+  predating the v6 feed says nothing about it, and silence is not an empty list —
+  absence is UNKNOWN, never 0. This is load-bearing rather than defensive: dropping the
+  gate turns 40 tests red, because every existing scan that expects a clean login guard
+  would otherwise collect a permanent false finding until the new worker deploys.
+
+### Added
+
+- **The Health scan now watches the login guard's IPv6 denylist separately.** Worker
+  v1.11.0 adds a second feed (Spamhaus DROPv6) that refreshes independently of FireHOL
+  and keeps last-known on every failure branch — so without its own finding a dead v6
+  cron stays invisible while the IPv4 half reads green. EMPTY and STALE are reported for
+  v6 the way they already are for v4, carrying the persisted failure reason through the
+  same charset allowlist (edge JSON never reaches a Health note unsanitized).
+- The v6 finding is gated on the field being **reported**, not on its value. A worker
+  predating the v6 feed says nothing about it, and silence is not an empty list —
+  absence is UNKNOWN, never 0. This is load-bearing rather than defensive: dropping the
+  gate turns 40 tests red, because every existing scan that expects a clean login guard
+  would otherwise collect a permanent false finding until the new worker deploys.
+
+### Changed
+
+- **The IPv6 criterion's coverage half is re-specced** (owner decision,
+  2026-08-27, taken on the measured number rather than ahead of it). The rule
+  asked for 30 days of coverage, got a 30-day SPAN, and could not be satisfied
+  either way: measured live, ~14% of days carry no block-eligible traffic at
+  all, so coverage plateaus near 26/30 and 30/30 is unreachable at this volume.
+  A criterion nobody can satisfy does not set a high bar — it withholds a
+  decision forever while looking rigorous. "Sustained" is now specified as what
+  it always meant, at thresholds this traffic can reach: **the share must exceed
+  5% over a window holding at least 20 covered days AND at least 100
+  block-eligible observations** (`SN_LG_IPV6_MIN_DAYS_COVERED`,
+  `SN_LG_IPV6_MIN_OBSERVATIONS`). Both halves are load-bearing and each catches
+  what the other misses — the days floor refuses a burst (1,000 hits over 8 days
+  is not sustained), the observations floor refuses a trickle (25 days holding
+  45 hits is not evidence). Both are pinned by tests that go red when the `&&`
+  is loosened to `||`.
+- `window_complete` no longer reads `measured_days`. Two rows thirty days apart
+  used to complete the window and would have authorised the build off two days
+  of data; they now correctly authorise nothing. `measured_days` is still
+  reported as context. `criterion_days` (30) is unchanged and still means the
+  LOOKBACK window — only the coverage requirement moved.
+- The ability payload gains `criterion_min_days_covered` and
+  `criterion_min_observations`, so no caller reconstructs the rule from memory,
+  and the Defense panel names coverage and observations instead of the span.
+
 ### Documentation
 
 - `docs/openstation-compat.md` records **v1.1.3** — the release actually running
@@ -78,14 +132,6 @@ against `/tag/provenance/page/2/` serving DIFFERENT notes under an IDENTICAL
   rather than fabricated when the rows carry no day dimension, and null — never
   0 — when coverage is unknown, the same three-state honesty `share_pct` already
   gets.
-
-### Changed
-
-- **The decision logic is deliberately unchanged.** `window_complete` and
-  `decision` still gate on the span, and a sparse-but-complete window still
-  reads `build_ranges`. The owner's call (2026-08-27) was to measure coverage
-  before re-speccing the criterion, so this adds the number and changes no
-  verdict.
 
 ### Fixed
 
