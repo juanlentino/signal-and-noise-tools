@@ -171,28 +171,6 @@ function snt_os_register_station_home_card( $slug, $args = array() ) {
 }
 
 /**
- * Register an OpenStation DESKTOP THEME under the post-rename name.
- *
- * Desktop themes (the whole-shell reskin, not window themes) first shipped
- * in upstream v1.0.0 — the first post-rename release — so like Station Home
- * this wrapper checks ONE name: a `desktop_mode_register_desktop_theme()`
- * twin never existed. Returns null when OpenStation is absent or predates
- * the feature; the theme is an opt-in cosmetic and this plugin must not
- * care whether the shell is installed.
- *
- * @since 13.7.0
- * @param string $id   Theme id (`vendor/name`).
- * @param array  $args See openstation_register_desktop_theme().
- * @return mixed Upstream's own return value, or null when unavailable.
- */
-function snt_os_register_desktop_theme( $id, $args = array() ) {
-	if ( function_exists( 'openstation_register_desktop_theme' ) ) {
-		return openstation_register_desktop_theme( $id, $args );
-	}
-	return null;
-}
-
-/**
  * True when a widget-registration function exists under either name —
  * mirrors the pre-compat `function_exists( 'desktop_mode_register_widget' )`
  * gate at the call site.

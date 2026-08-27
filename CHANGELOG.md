@@ -31,6 +31,39 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.8.0] - 2026-08-27 — the desktop theme is dropped whole; the token bridge stays
+
+Owner decision, after six field iterations in one night (v13.7.0–v13.7.5):
+*"we're gonna drop the theme entirely."* The registration, the manifest, its
+compat wrapper (`snt_os_register_desktop_theme()`), the preview art, and the
+theme test file are all removed. The shell returns to OpenStation's brand,
+which the owner was living with happily before the arc began.
+
+**Why it lost, recorded so it is not re-fought:** the shell's brand base
+block declares **276 tokens, 219 of them color-bearing, across 143 distinct
+color literals** (measured from `variables.css` at v1.1.3 the morning after).
+A ~60-token reskin loses by coverage — every fix exposed the next brand
+surface, one owner screenshot at a time. The only winning shape is a
+full-coverage derivation, and for a single-user cosmetic surface the owner
+judged it not worth the arc. A future attempt must start from complete
+coverage of the brand's color-bearing inventory or not start.
+
+**What survives — the widget token bridge (v13.7.2),** because it fixed a
+real defect independent of any theme: four of our widget anchors hardcoded
+`#4a9eff` while five inherited core wp-admin's link blue *by accident* — two
+blues, nobody chose two. All eleven sites still color through
+`var(--os-window-link-accent|-color, #4a9eff)`: one deliberate fallback
+today, and any future shell theme recolors our widgets for free. Its pins
+move to `tests/desktop-widget-token-bridge.php`.
+
+The transferable findings from the arc live where future work will look:
+the `--os-ui-fg-on-accent` widget-card-ink trap, the wallpaper's inline
+`--os-bg` override, and the gradient-invalidated `color-mix()` popover
+plate are recorded in `docs/openstation-compat.md`'s history and the
+v13.7.x CHANGELOG entries. MINOR bump: a user-visible capability is
+removed; nothing else changes and no action is required — an activated
+theme slug simply falls back to the brand look.
+
 ## [13.7.5] - 2026-08-27 — derived from the theme, as it should have been from the start
 
 The owner's correction, verbatim: *"I don't know why you didn't use the
