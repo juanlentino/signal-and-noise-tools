@@ -150,15 +150,15 @@ $short = sn_login_defense_ipv6_share( array(
 ), 30, $now );
 ok( 20 === $short['measured_days'],
 	'measured window = now - EARLIEST first_seen across families (20d), not the 30d asked for' );
-ok( false === $short['window_complete'] && true === $short['crossed'],
-	'a crossed share on a 20-of-30 day window is crossed but NOT sustained' );
+ok( null === $short['window_complete'] && true === $short['crossed'],
+	'a crossed share on rows carrying NO day dimension: crossed, but coverage unknowable -> null, never a decision' );
 
 $full = sn_login_defense_ipv6_share( array(
 	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => '2026-06-01 00:00:00' ),
 	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => '2026-06-01 00:00:00' ),
 ), 30, $now );
-ok( true === $full['window_complete'] && $full['measured_days'] >= 30,
-	'a sensor older than the criterion window gives a COMPLETE window (clamped at the 30d query bound)' );
+ok( null === $full['window_complete'] && $full['measured_days'] >= 30,
+	'RE-SPEC: a sensor older than the window no longer COMPLETES it — age is not coverage, and these rows carry no days' );
 
 ok( null === sn_login_defense_ipv6_share( array(
 	array( 'family' => 'v4', 'hits' => 80 ),
@@ -184,8 +184,8 @@ ok( $base['share_pct'] === $empty['share_pct'] && 20.0 === $empty['share_pct'],
 	'empty-family is excluded from the denominator: same v4/v6 hits keep the same share' );
 ok( $base['first_seen'] === $empty['first_seen'] && $base['measured_days'] === $empty['measured_days'],
 	'empty-family does NOT lower first_seen or inflate measured_days' );
-ok( false === $empty['window_complete'] && 20 === $empty['measured_days'],
-	'empty-family must not complete the window: 20d of sensor stays incomplete even when pre-sensor rows span 30d' );
+ok( null === $empty['window_complete'] && 20 === $empty['measured_days'],
+	'empty-family must not complete the window: pre-sensor rows cannot manufacture coverage the sensor never had' );
 ok( 50 === $empty['pre_sensor_hits'] && 0 === $base['pre_sensor_hits'],
 	'pre_sensor_hits reports the excluded count exactly (50), and is 0 when nothing was dropped' );
 ok( 100 === $empty['total'] && 100 === $base['total'],
@@ -231,8 +231,8 @@ $sparse = sn_login_defense_ipv6_share( array(
 ), 30, $now );
 ok( 2 === $sparse['days_covered'],
 	'days_covered counts DAYS THAT WROTE ROWS (2), not the span between them' );
-ok( 30 === $sparse['measured_days'] && true === $sparse['window_complete'],
-	'NEGATIVE CONTROL: those same two rows read as a COMPLETE 30d window by span — the defect, pinned' );
+ok( 30 === $sparse['measured_days'] && false === $sparse['window_complete'],
+	'THE FIX, PINNED: those two rows still SPAN a full 30d, and no longer complete the window — span and decision are decoupled' );
 
 // The opposite population: every day in the window wrote. 30 calendar days
 // straddle a 29-day span, so days_covered is capped at the window asked for
@@ -273,6 +273,54 @@ ok( null === $base['days_covered'],
 
 ok( strpos( $f, 'toStartOfDay' ) !== false && strpos( $f, 'GROUP BY family, day' ) !== false,
 	'family SQL carries a day dimension: per-day coverage is unknowable without it' );
+
+// ── THE RE-SPEC (owner decision, 2026-08-27) ────────────────────────────────
+// The old coverage half asked for 30 days of SPAN and could not be satisfied:
+// measured live, ~14% of days carry no block-eligible traffic at all, so
+// coverage plateaus near 26/30 and 30/30 is unreachable. A criterion that
+// cannot be satisfied is not a high bar, it is a broken instrument. The rule
+// now asks for what "sustained" actually means at this volume: enough COVERED
+// DAYS and enough OBSERVATIONS.
+ok( 20 === SN_LG_IPV6_MIN_DAYS_COVERED && 100 === SN_LG_IPV6_MIN_OBSERVATIONS,
+	'the re-specced halves are named constants, not literals buried in a branch' );
+ok( 30 === SN_LG_IPV6_CRITERION_DAYS,
+	'the 30d LOOKBACK survives the re-spec — only the coverage requirement changed' );
+
+$mkdays = function ( $n_days, $v4_each, $v6_map, $now ) {
+	$rows = array();
+	for ( $i = 0; $i < $n_days; $i++ ) {
+		$d = gmdate( 'Y-m-d', $now - ( $i * 86400 ) );
+		$rows[] = array( 'family' => 'v4', 'hits' => $v4_each, 'first_seen' => $d . ' 00:00:00', 'day' => $d );
+		if ( isset( $v6_map[ $i ] ) ) {
+			$rows[] = array( 'family' => 'v6', 'hits' => $v6_map[ $i ], 'first_seen' => $d . ' 01:00:00', 'day' => $d );
+		}
+	}
+	return $rows;
+};
+
+// Enough days AND enough observations: both halves hold.
+$ok_rows = $mkdays( 25, 4, array( 0 => 40 ), $now );   // 25 days, 100 v4 + 40 v6 = 140
+$respec  = sn_login_defense_ipv6_share( $ok_rows, 30, $now );
+ok( 25 === $respec['days_covered'] && 140 === $respec['total'] && true === $respec['window_complete'],
+	'RE-SPEC: 25 covered days and 140 observations SATISFIES the criterion (the old rule refused this forever)' );
+ok( $respec['measured_days'] < 30,
+	'and it satisfies it on a span SHORTER than 30d — measured_days no longer gates the decision' );
+
+// Enough observations, too few days: a burst is not "sustained".
+$burst = sn_login_defense_ipv6_share( $mkdays( 8, 30, array( 0 => 60 ), $now ), 30, $now );
+ok( 8 === $burst['days_covered'] && $burst['total'] >= 100 && false === $burst['window_complete'],
+	'RE-SPEC: 300 observations over only 8 days is NOT sustained — the days half still bites' );
+
+// Enough days, too few observations: a trickle is not a measurement.
+$thin = sn_login_defense_ipv6_share( $mkdays( 25, 1, array( 0 => 20 ), $now ), 30, $now );
+ok( 25 === $thin['days_covered'] && $thin['total'] < 100 && false === $thin['window_complete'],
+	'RE-SPEC: 25 days holding only 45 observations is NOT enough evidence — the observations half still bites' );
+
+// Unknown coverage stays unknown. Never-measured is not a satisfied criterion.
+ok( null === sn_login_defense_ipv6_share( array(
+	array( 'family' => 'v4', 'hits' => 500 ),
+), 30, $now )['window_complete'],
+	'RE-SPEC: no day dimension -> window_complete NULL, never true off an unmeasurable window' );
 
 // --- render: the proven-to-move gate ----------------------------------------
 function render_gauges_html() { ob_start(); sn_login_defense_render_gauges( 7 ); return ob_get_clean(); }
@@ -337,19 +385,25 @@ ok( strpos( $one, 'The other 1 hold' ) === false,
 // rather than pinning a calendar day that would rot.
 $ago = function ( $d ) { return gmdate( 'Y-m-d H:i:s', time() - ( $d * 86400 ) ); };
 
-// PROVEN TO MOVE 2: a v6-heavy month, over a COMPLETE window, flips below ->
-// crossed and names the decision.
-$GLOBALS['__q_family'] = array(
-	array( 'family' => 'v4', 'hits' => 80, 'first_seen' => $ago( 45 ) ),
-	array( 'family' => 'v6', 'hits' => 20, 'first_seen' => $ago( 45 ) ),
-);
+// PROVEN TO MOVE 2: a v6-heavy month, over a window that SATISFIES the
+// re-specced coverage halves, flips below -> crossed and names the decision.
+// The fixture now models what AE actually returns: one row per (family, day).
+$GLOBALS['__q_family'] = array();
+for ( $i = 0; $i < 25; $i++ ) {
+	$d = gmdate( 'Y-m-d', time() - ( $i * 86400 ) );
+	$GLOBALS['__q_family'][] = array( 'family' => 'v4', 'hits' => 4, 'first_seen' => $d . ' 00:00:00', 'day' => $d );
+	if ( $i < 5 ) {
+		$GLOBALS['__q_family'][] = array( 'family' => 'v6', 'hits' => 5, 'first_seen' => $d . ' 01:00:00', 'day' => $d );
+	}
+}
+// 25 covered days, 100 v4 + 25 v6 = 125 observations -> both halves hold.
 $c = render_gauges_html();
 ok( strpos( $c, '20%' ) !== false && strpos( $c, 'crossed' ) !== false,
 	'PROVEN TO MOVE: IPv6 gauge crosses at 20%' );
 ok( stripos( $c, '128-bit' ) !== false,
 	'crossing names the decision it triggers (build 128-bit ranges), not just the number' );
-ok( strpos( $c, '30d measured' ) !== false,
-	'a complete window is NAMED as measured, not left implied by the query bound' );
+ok( strpos( $c, '25 of 30 days covered' ) !== false,
+	'RE-SPEC: a satisfied window is named by its COVERAGE, not by the span the query asked for' );
 
 // The criterion is "5% sustained over 30 days". On a short window the share is
 // real but the criterion is not yet satisfiable — the gauge must not announce a

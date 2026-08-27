@@ -59,6 +59,10 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 		// reconstructs it from memory.
 		'threshold_pct'   => SN_LG_IPV6_THRESHOLD_PCT,
 		'criterion_days'  => SN_LG_IPV6_CRITERION_DAYS,
+		// The re-specced coverage halves (2026-08-27). criterion_days is still
+		// the LOOKBACK window; these two are what "sustained" now requires.
+		'criterion_min_days_covered' => SN_LG_IPV6_MIN_DAYS_COVERED,
+		'criterion_min_observations' => SN_LG_IPV6_MIN_OBSERVATIONS,
 		'decision'        => 'unknown',
 		'reason'          => '',
 	);
@@ -99,12 +103,14 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 		// The load-bearing branch. A crossed line on an unfinished window is a
 		// real share and a decision nobody is authorised to make.
 		$out['decision'] = 'withhold_unfinished_window';
-		$out['reason']   = null === $s['measured_days']
-			? sprintf( 'coverage unknown: the rows carry no first_seen, so the %dd window cannot be confirmed', SN_LG_IPV6_CRITERION_DAYS )
+		$out['reason']   = null === $s['days_covered']
+			? sprintf( 'coverage unknown: the rows carry no day dimension, so the %dd window cannot be assessed', SN_LG_IPV6_CRITERION_DAYS )
 			: sprintf(
-				'real share, unfinished window: the criterion asks for %dd of sensor coverage and this window holds %dd (family sensor since %s)',
-				SN_LG_IPV6_CRITERION_DAYS,
-				$s['measured_days'],
+				'real share, unfinished window: the criterion asks for %d covered days and %d observations; this window holds %d and %d (family sensor since %s)',
+				SN_LG_IPV6_MIN_DAYS_COVERED,
+				SN_LG_IPV6_MIN_OBSERVATIONS,
+				$s['days_covered'],
+				$s['total'],
 				$s['first_seen']
 			);
 		return $out;
@@ -112,9 +118,10 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 
 	$out['decision'] = $s['crossed'] ? 'build_ranges' : 'below_threshold';
 	$out['reason']   = sprintf(
-		'%s%% over %dd of measured coverage, against a %d%% criterion',
+		'%s%% over %d covered days and %d observations, against a %d%% criterion',
 		$s['share_pct'],
-		$s['measured_days'],
+		$s['days_covered'],
+		$s['total'],
 		SN_LG_IPV6_THRESHOLD_PCT
 	);
 	return $out;
