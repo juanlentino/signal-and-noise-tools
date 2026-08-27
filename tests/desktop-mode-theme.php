@@ -47,10 +47,10 @@ ok( ! isset( $m['args']['recommendedOsSettings'] ), 'no recommendedOsSettings �
 ok( ! isset( $m['args']['icons'] ) && ! isset( $m['args']['textures'] ), 'no icons, no textures — tokens only' );
 
 // ── Restraint: the owner steer as a ratchet ──────────────────────────
-// Ceiling moved 30 -> 35 in v13.7.1, deliberately: the field pass added
-// the four window-link spline tokens + --os-backstop and removed one. A
+// Ceiling moved 30 -> 35 in v13.7.1 (window-link family), 35 -> 50 in
+// v13.7.4 (the purple sweep: 12 measured brand-purple stragglers). A
 // ratchet may move when the reason is recorded; it may not drift.
-ok( count( $tokens ) <= 35, 'token count ' . count( $tokens ) . ' is at or under the 35-token restraint ceiling' );
+ok( count( $tokens ) <= 50, 'token count ' . count( $tokens ) . ' is at or under the 50-token restraint ceiling' );
 $radius_like = array();
 foreach ( $tokens as $name => $v ) {
 	if ( false !== strpos( $name, 'radius' ) || false !== strpos( $name, 'corner' ) ) { $radius_like[] = $name; }
@@ -94,9 +94,15 @@ ok( array() === $off, 'every hex literal is a recorded estate palette value' . (
 $loose = array();
 foreach ( $tokens as $name => $v ) {
 	if ( 1 === preg_match( '/^#[0-9a-f]{6}$/i', $v ) ) { continue; }
-	$is_rgba = 1 === preg_match( '/^rgba\( (10, 10, 10|255, 255, 255|255, 76, 71), 0\.\d+ \)$/', $v ); // 255,76,71 = blood #ff4c47, the spline glow
+	$is_rgba = 1 === preg_match( '/^rgba\( (10, 10, 10|255, 255, 255|255, 76, 71), 0\.\d+ \)$/', $v ); // 255,76,71 = blood #ff4c47
 	$is_font = false !== strpos( $v, 'monospace' );
-	if ( ! $is_rgba && ! $is_font ) { $loose[] = "$name=$v"; }
+	// Gradients allowed ONLY when every hex inside them is palette.
+	$is_grad = false;
+	if ( 0 === strpos( $v, 'linear-gradient(' ) ) {
+		preg_match_all( '/#[0-9a-f]{6}/i', $v, $gm );
+		$is_grad = array() !== $gm[0] && array() === array_diff( array_map( 'strtolower', $gm[0] ), $palette );
+	}
+	if ( ! $is_rgba && ! $is_font && ! $is_grad ) { $loose[] = "$name=$v"; }
 }
 ok( array() === $loose, 'every non-hex value is an rgba() of bone/void or the mono stack' . ( $loose ? ' — LOOSE: ' . implode( ', ', $loose ) : '' ) );
 
@@ -118,6 +124,27 @@ foreach ( array( '--os-window-link-color' => '#ff6b66', '--os-window-link-accent
 }
 ok( 'rgba( 255, 76, 71, 0.45 )' === ( $tokens['--os-window-link-glow'] ?? '' ), 'the spline glow is an rgba() of blood, mirroring Legacy\'s glow-as-rgba idiom' );
 ok( '#0a0a0a' === ( $tokens['--os-backstop'] ?? '' ), 'the boot backstop is void' );
+
+// ── The purple sweep (v13.7.4): every value from the measured list ───
+$sweep = array(
+	'--os-accent' => '#ff6b66', '--os-link' => '#ff6b66',
+	'--os-ui-color-accent' => '#ff6b66', '--os-ui-notice-link' => '#ff6b66',
+	'--os-titlebar-btn-focused-outline' => '#ff4c47',
+	'--os-ui-context-menu-bg' => '#171717',
+	'--os-dock-item-bg-hover' => 'rgba( 255, 76, 71, 0.18 )',
+	'--os-drop-preview-bg' => 'rgba( 255, 76, 71, 0.1 )',
+	'--os-drop-preview-border' => 'rgba( 255, 76, 71, 0.55 )',
+	'--os-tile-selected-bg' => 'rgba( 255, 76, 71, 0.24 )',
+);
+foreach ( $sweep as $n => $want ) {
+	ok( ( $tokens[ $n ] ?? '' ) === $want, "purple sweep: $n" );
+}
+$badge = 'linear-gradient( 180deg, #ff6b66 0%, #e00404 100% )';
+ok( ( $tokens['--os-dock-badge-bg'] ?? '' ) === $badge && ( $tokens['--os-icon-badge-bg'] ?? '' ) === $badge, 'both notification badge gradients are the blood ramp' );
+// The ambient holo/mesh family stays unset — accent-derived, forbidden above.
+foreach ( array( '--os-mesh-holo', '--os-ui-hero-mesh', '--os-tabs-active-crown' ) as $n ) {
+	ok( ! isset( $tokens[ $n ] ), "ambient mesh stays upstream's: $n" );
+}
 ok( '#171717' === ( $tokens['--os-bg'] ?? '' ), 'the desk base / dock-menu tint (--os-bg) is ASPHALT, not void — v13.7.2 tried void and the popup glass became optically invisible against the desk (a popover must sit one surface step above what it covers)' );
 
 // ── The widget token bridge (v13.7.2) ────────────────────────────────

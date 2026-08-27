@@ -139,6 +139,36 @@ function snt_desktop_theme_manifest() {
 				// desk it covers, so this is asphalt, one surface step up —
 				// the same answer the widget cards' own glass gives.
 				'--os-bg'                     => '#171717',
+				// Two runtime facts about --os-bg, measured live 2026-08-27:
+				// (1) inside .os-shell an INLINE style overrides it with the
+				// wallpaper shorthand (url(...) cover), so this token only
+				// ever matters on the BODY scope — which is exactly where the
+				// dock peek and menus mount; (2) the brand's own value is a
+				// GRADIENT, and color-mix() over a gradient is invalid at
+				// computed-value time — upstream's peek plate has therefore
+				// NEVER had a tint (blur-only glass). Our flat asphalt makes
+				// that color-mix valid for the first time.
+
+				// ── The purple sweep (v13.7.4). Field instrument: activate
+				// the theme, walk every stylesheet-consumed --os-* token,
+				// compute it on body, flag purple hues. Eleven brand-purple
+				// stragglers surfaced plus the Obsidian context menu; every
+				// value below was on that measured list — none is
+				// speculative. The four ambient holo/mesh gradients the same
+				// sweep found stay UNSET on purpose: they are the
+				// accent-derived family this theme's tests forbid pinning. ──
+				'--os-accent'                 => '#ff6b66',
+				'--os-link'                   => '#ff6b66',
+				'--os-ui-color-accent'        => '#ff6b66',
+				'--os-ui-notice-link'         => '#ff6b66',
+				'--os-titlebar-btn-focused-outline' => '#ff4c47',
+				'--os-dock-badge-bg'          => 'linear-gradient( 180deg, #ff6b66 0%, #e00404 100% )',
+				'--os-icon-badge-bg'          => 'linear-gradient( 180deg, #ff6b66 0%, #e00404 100% )',
+				'--os-dock-item-bg-hover'     => 'rgba( 255, 76, 71, 0.18 )',
+				'--os-drop-preview-bg'        => 'rgba( 255, 76, 71, 0.1 )',
+				'--os-drop-preview-border'    => 'rgba( 255, 76, 71, 0.55 )',
+				'--os-tile-selected-bg'       => 'rgba( 255, 76, 71, 0.24 )',
+				'--os-ui-context-menu-bg'     => '#171717', // was Obsidian #1a1721
 				'--wp-admin-theme-color'      => '#ff4c47',
 			),
 		),
