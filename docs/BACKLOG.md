@@ -23,12 +23,11 @@ release order, priorities, and gates actually live. Rules:
 
 | P | Item | Repo | Size | Notes / first step |
 |---|------|------|------|--------------------|
-| 1 | Reply-by-email on notes | theme | S | Reuse the `inc/contact-email.php` DOM-assembled mailto (no scrapeable address); subject prefilled with the note title |
-| 2 | Hover previews for internal note links | theme | S–M | Reuse the `assets/js/footnotes-popover.js` pattern; progressive enhancement, honors reduced-motion |
-| 3 | Stub-parity sweep | both (CI) | M | Diff test-stub function signatures against the pinned WP source; the stub-drift trap is 13× bitten — turns the ambush into a red CI line |
-| 4 | Next-PHP lane in CI | both (CI) | S | Repos pin PHP 8.3 only. One matrix lane on the next PHP RC; `continue-on-error` at STEP level, `timeout-minutes` set. Public repos — free minutes; the argument is runner-hold, not money |
-| 5 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
-| 6 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
+| 1 | Hover previews for internal note links | theme | S–M | Reuse the `assets/js/footnotes-popover.js` pattern; progressive enhancement, honors reduced-motion |
+| 2 | Stub-parity sweep | both (CI) | M | Diff test-stub function signatures against the pinned WP source; the stub-drift trap is 13× bitten — turns the ambush into a red CI line |
+| 3 | Next-PHP lane in CI | both (CI) | S | Repos pin PHP 8.3 only. One matrix lane on the next PHP RC; `continue-on-error` at STEP level, `timeout-minutes` set. Public repos — free minutes; the argument is runner-hold, not money |
+| 4 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
+| 5 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
 
 ## Planned on the board — each waiting on its named gate
 
@@ -63,6 +62,9 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-08-27 — reply-by-email SHIPPED as theme v12.9.0 (PR #240, tagged, draft release
+  cut; owner updates via wp-admin). CodeQL raised a real high on the new mailto line —
+  fixed by validating + percent-encoding the decoded parts, not by dismissal.
 - 2026-08-27 — print stylesheet STRUCK: already shipped in v9.10.0 as the theme's
   118-line `assets/css/print.css` (media="print" on singles + pages, external URLs
   revealed, resume fold forced open). The backlog entry came from reading one of the
