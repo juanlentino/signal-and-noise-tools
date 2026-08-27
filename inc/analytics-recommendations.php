@@ -17,6 +17,62 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Seen but never clicked: pages Google served in results without a single
+ * click, read from the stored Search Console window (snt_gsc_data() — an
+ * option, never a live fetch; the daily sync owns freshness). This is the
+ * cross the R6b close recorded as wiring item ONE: the list is invisible to
+ * every first-party table by construction — a zero-click page has no visit
+ * row to join, because nobody ever arrived. A title/description problem,
+ * not a traffic problem, and the only view of it the estate can have.
+ *
+ * The impression floor is written down BEFORE the query (the Defense-numbers
+ * idiom): below it, Google barely tested the page and silence is honest.
+ * Null when no window is stored — an unconfigured leaf is silence, never a
+ * zero (realtime-zero-vs-null). clicks === 0 is exact: one click is a
+ * different fact belonging to CTR analysis, not to this card.
+ *
+ * @return array|null
+ */
+function sn_analytics_rec_search_unclicked() {
+	if ( ! function_exists( 'snt_gsc_data' ) ) {
+		return null;
+	}
+	$data = snt_gsc_data();
+	if ( null === $data || empty( $data['pages'] ) || ! is_array( $data['pages'] ) ) {
+		return null;
+	}
+	$floor = 10; // impressions per window; pre-committed, not tuned to the data.
+	$hits  = array();
+	foreach ( $data['pages'] as $path => $m ) {
+		if ( (int) ( $m['impressions'] ?? 0 ) >= $floor && 0 === (int) ( $m['clicks'] ?? 1 ) ) {
+			$hits[ $path ] = array( 'impressions' => (int) $m['impressions'], 'position' => (float) ( $m['position'] ?? 0 ) );
+		}
+	}
+	if ( array() === $hits ) {
+		return null;
+	}
+	uasort( $hits, static function ( $a, $b ) { return $b['impressions'] <=> $a['impressions']; } );
+	$n     = count( $hits );
+	$top   = array_key_first( $hits );
+	$worst = $hits[ $top ];
+	return array(
+		'id'           => 'search_unclicked',
+		// translators: %d is the number of pages with search impressions and zero clicks.
+		'title'        => sprintf( _n( '%d page Google showed that nobody clicked', '%d pages Google showed that nobody clicked', $n, 'signal-and-noise-tools' ), $n ),
+		'detail'       => sprintf(
+			/* translators: 1: path of the most-shown unclicked page, 2: its impression count, 3: its average position. */
+			__( 'Served in results all window, zero clicks — a title or description problem, not a traffic problem. Most shown: %1$s (%2$d impressions, position %3$.1f).', 'signal-and-noise-tools' ),
+			$top,
+			$worst['impressions'],
+			$worst['position']
+		),
+		'count'        => $n,
+		'action_url'   => snt_analytics_page_url( array( 'sn_view' => 'search' ) ),
+		'action_label' => 'Open the Search view',
+	);
+}
+
+/**
  * Build the ordered recommendation card list. Each rule returns one card or null;
  * nulls are filtered. Empty result is first-class ("nothing needs attention").
  *
@@ -35,6 +91,7 @@ function sn_analytics_recommendations( $refresh = false ) {
 			sn_analytics_rec_refresh(),
 			sn_analytics_rec_unlinked(),
 			sn_analytics_rec_seo_meta(),
+			sn_analytics_rec_search_unclicked(),
 		);
 		$memo = array_values( array_filter( $cards ) );
 	}
