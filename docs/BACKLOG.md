@@ -23,8 +23,7 @@ release order, priorities, and gates actually live. Rules:
 
 | P | Item | Repo | Size | Notes / first step |
 |---|------|------|------|--------------------|
-| 1 | Editor smoke vs WordPress nightly | plugin (CI) | M | Pre-publish gate + draft echoes ride `@wordpress` packages; a scheduled job makes a core release break a cron, not a writing session |
-| 2 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
+| 1 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
 
 ## Planned on the board — each waiting on its named gate
 
@@ -59,6 +58,13 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-08-27 — editor smoke SHIPPED (plugin v13.12.0 #833 + v13.12.1 #834). Daily cron
+  against WordPress NIGHTLY (7.2-alpha, two majors ahead of prod's 7.0); requirements
+  DERIVED from our own source, four negative controls run first. Two false readings were
+  caught before trusting it — an over-broad derivation (8 noise failures) and, worse, a
+  hook-name filter that returned a clean 0 while never looking at the pre-publish gate.
+  Registration in cron-liveness had to be a SEPARATE release: the guard correctly refuses
+  to judge a workflow not yet on the default branch.
 - 2026-08-27 — PHP lanes SHIPPED in both repos (plugin v13.11.2 #832, theme v12.10.2
   #243). The item assumed "next PHP"; the real gap was the PRESENT — production runs
   **8.4** and CI pinned 8.3, so CI had never tested the live version. Lanes: 8.4
