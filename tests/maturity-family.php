@@ -102,7 +102,7 @@ ok( 8 === count( sn_machine_maturity_principles() ) && 8 === count( sn_ops_matur
 // the hub roadmap board, not by authoring. The done column's ceiling forces a
 // shipped row off the board once the column fills, and the family page is where
 // it lands -- so an asymmetric count here is the mechanism working, not drift.
-ok( 9 === count( sn_a11y_maturity_principles() ), 'a11y carries NINE - the ninth graduated in off the roadmap board when the done column filled' );
+ok( 10 === count( sn_a11y_maturity_principles() ), 'a11y carries TEN - the ninth graduated off the roadmap board when the done column first filled (v12.6.3), the tenth when it filled again (v13.8.2)' );
 // THE GRADUATION PIN, mirroring the AI page's. Pinned on the RENDERED html, not
 // on the array: a claim sitting in an array no format emits is the
 // mechanism-without-surface shape this project keeps re-learning. Substance in

@@ -58,6 +58,12 @@ function sn_a11y_maturity_principles() {
 		// carries a mechanism, not an aphorism -- the same asymmetry the AI
 		// page took on for the same reason.
 		__( 'Structural scans repair heading order, and every repair is fingerprint-bound - a fix that cannot prove the block is still where it was does not land.', 'signal-and-noise-tools' ),
+		// THE TENTH. Graduated off the hub roadmap board (v13.8.2) when the
+		// Accessibility done column filled again — the same ceiling, the same
+		// landing. Mechanism-bearing like the ninth: it is the per-palette
+		// contrast discipline that shipped as the source half of the audit
+		// whose computed half (theme v12.8.0) filled the column.
+		__( 'Contrast is enforced per palette, never per token - every ink/surface pair re-checked against each palette the site serves, and non-text edges held to 3:1 with alpha composited against the real surface beneath, not assumed opaque.', 'signal-and-noise-tools' ),
 	);
 }
 
