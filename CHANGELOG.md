@@ -31,6 +31,37 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.7.5] - 2026-08-27 — derived from the theme, as it should have been from the start
+
+The owner's correction, verbatim: *"I don't know why you didn't use the
+theme to do this since it has all the design."* Right — earlier passes
+treated `signal-and-noise` as seven hexes when it is a design system. The
+manifest is now a line-by-line derivation, each value naming its source
+token from the theme's dark block:
+
+- **The panel idiom, transplanted whole.** Surfaces `#171717`→`#161616`
+  (`--sn-panel`), borders `#383838`→`#3a3a3a` (`--sn-panel-edge`), muted
+  ink `#9e9e9e`→`#a3a3a3` (`--sn-panel-ink-dim`) — three near-misses that
+  existed only because the values were hand-picked instead of derived.
+  `--os-bg` and the context menu follow the panel too.
+- **The Station Home rail stops being a purple aurora.** Live measurement
+  killed the v13.7.4 excuse: the four holo/mesh gradients are brand
+  CONSTANTS, not accent derivations (user accent `#ff0000`, meshes stayed
+  purple) — and `--os-ui-hero-mesh` is the most visible surface in the
+  window. All four are rebuilt on upstream's exact geometry in estate hues,
+  alphas lowered: aurora, not neon. The absent-pins from v13.7.4 flipped,
+  with the measurement recorded in the assertion text.
+- **Semantics at estate temperature**: success `#3fb950`, warning `#dba617`
+  family, info as neutral gray (the estate has no info hue — the brutalist
+  answer), text selection blood instead of brand periwinkle, danger badge
+  on the blood ramp.
+
+Test grammar now proves every color in every gradient is estate (hexes ∈
+palette, rgba triples ∈ the allowed set) — negative-controlled with a
+purple rgba smuggled into a mesh. Ceiling 50 → 65, recorded. Known
+leftover, named not hidden: the Station Home row-pin glyphs render brand
+artwork, not tokens.
+
 ## [13.7.4] - 2026-08-27 — the purple sweep: measured on the live shell, not guessed
 
 The owner reported surfaces still invisible and still off-color after
