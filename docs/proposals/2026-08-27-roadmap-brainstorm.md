@@ -87,6 +87,9 @@ The owner remembered a cut list mid-session, and it was real, spread across thre
 
 ### Just-build backlog (deliberately NOT board rows — small, self-evident once shipped)
 
+> Now tracked as the living queue in [docs/BACKLOG.md](../BACKLOG.md); the list below is
+> this session's record.
+
 1. Hover previews for internal note links (reuse the `footnotes-popover.js` pattern).
 2. A real print stylesheet (one `@media print` fragment exists in `block-styles.php`).
 3. Topic hubs for the 23-tag vocabulary — no taxonomy template exists; each tag needs a
