@@ -207,10 +207,12 @@ function snt_gsc_render_property_form() {
 		$status = snt_gsc_sync_last_status();
 		echo '<p class="description">';
 		if ( $next ) {
+			/* translators: %s: human-readable time until the next scheduled run. */
 			printf( esc_html__( 'Scheduled: daily, next in %s.', 'signal-and-noise-tools' ), esc_html( human_time_diff( time(), (int) $next ) ) );
 			if ( null === $status ) {
 				echo ' ' . esc_html__( 'The scheduled sync has not fired yet.', 'signal-and-noise-tools' );
 			} elseif ( ! empty( $status['ok'] ) ) {
+				/* translators: %s: human-readable age of the last scheduled run. */
 				echo ' ' . sprintf( esc_html__( 'Last scheduled run %s ago: ok.', 'signal-and-noise-tools' ), esc_html( human_time_diff( (int) $status['ran_at'], time() ) ) );
 			} else {
 				echo ' ' . sprintf(
