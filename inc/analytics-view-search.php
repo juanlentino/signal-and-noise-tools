@@ -188,6 +188,87 @@ function snt_analytics_render_view_search() {
 		__( 'Every page with meaningful impressions has earned at least one click in this window.', 'signal-and-noise-tools' )
 	);
 
+	// ── Position drift (item 2 of the R6b wiring plan, v13.11.0). Three
+	// honest states: null = the history cannot answer yet (fewer than two
+	// snapshots 7+ days apart — the daily sync is still accruing them);
+	// [] = it CAN answer and nothing drifts, a good zero worth saying;
+	// rows = pages sliding down the rankings before any view decay shows.
+	if ( function_exists( 'snt_gsc_position_drift' ) ) {
+		$drift = snt_gsc_position_drift();
+		if ( null === $drift ) {
+			snt_an_note_empty(
+				__( 'Position drift', 'signal-and-noise-tools' ),
+				__( 'Accruing history: drift needs two snapshots at least a week apart, and the daily sync is still collecting them.', 'signal-and-noise-tools' )
+			);
+		} elseif ( array() === $drift ) {
+			snt_an_note_empty(
+				__( 'Position drift', 'signal-and-noise-tools' ),
+				__( 'No page worsened by 5+ positions across the tracked span. Ranking is holding.', 'signal-and-noise-tools' )
+			);
+		} else {
+			snt_an_panel_open( __( 'Position drift — the early decay signal', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
+			echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
+			echo '<th scope="col">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Was', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Now', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Drift', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Impressions', 'signal-and-noise-tools' ) . '</th>';
+			echo '</tr></thead><tbody>';
+			foreach ( array_slice( $drift, 0, 15, true ) as $path => $d ) {
+				echo '<tr><td>' . esc_html( $path ) . '</td>';
+				echo '<td>' . esc_html( snt_gsc_fmt_position( $d['from'] ) ) . '</td>';
+				echo '<td>' . esc_html( snt_gsc_fmt_position( $d['to'] ) ) . '</td>';
+				echo '<td>+' . esc_html( snt_gsc_fmt_position( $d['drift'] ) ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( $d['impressions'] ) ) . '</td></tr>';
+			}
+			echo '</tbody></table></div>';
+			echo '<p class="description">' . esc_html__( 'Positive drift is DOWN the rankings. Google moves a page before readers stop arriving — this is the earlier of the two signals, and the only one for pages that never had traffic.', 'signal-and-noise-tools' ) . '</p>';
+			snt_an_panel_close();
+		}
+	}
+
+	// ── Search interest by topic (item 3, v13.11.0). The join is by PAGE
+	// onto the corpus's own topic partition — no query text enters any
+	// model (the recorded caution: queries are Google's language, not the
+	// author's). The residual is stated, not dropped.
+	if ( function_exists( 'snt_gsc_topic_interest' ) ) {
+		$interest = snt_gsc_topic_interest();
+		if ( null === $interest ) {
+			snt_an_note_empty(
+				__( 'Search interest by topic', 'signal-and-noise-tools' ),
+				__( 'Needs both instruments: a synced Search Console window and a built topics artifact.', 'signal-and-noise-tools' )
+			);
+		} else {
+			snt_an_panel_open( __( 'Search interest by topic', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
+			echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
+			echo '<th scope="col">' . esc_html__( 'Topic', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Notes', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Impressions', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Clicks', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Position', 'signal-and-noise-tools' ) . '</th>';
+			echo '</tr></thead><tbody>';
+			foreach ( $interest['clusters'] as $row ) {
+				echo '<tr><td>' . esc_html( $row['label'] ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( $row['members'] ) ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( $row['impressions'] ) ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( $row['clicks'] ) ) . '</td>';
+				echo '<td>' . ( $row['impressions'] > 0 ? esc_html( snt_gsc_fmt_position( $row['position'] ) ) : '&mdash;' ) . '</td></tr>';
+			}
+			echo '</tbody></table></div>';
+			$o = $interest['outside'];
+			echo '<p class="description">';
+			printf(
+				/* translators: 1: impression count, 2: click count, 3: page count outside every topic cluster. */
+				esc_html__( 'Outside the topic partition: %1$s impressions and %2$s clicks across %3$d pages (site pages and unclustered notes) — stated, not dropped.', 'signal-and-noise-tools' ),
+				esc_html( number_format_i18n( $o['impressions'] ) ),
+				esc_html( number_format_i18n( $o['clicks'] ) ),
+				(int) $o['paths']
+			);
+			echo '</p>';
+			snt_an_panel_close();
+		}
+	}
+
 	// The per-view contract: snt_an_note_empty() only COLLECTS, and every view
 	// flushes its own fold. Omitting this renders nothing AND leaks these notes
 	// into whichever view flushes next.

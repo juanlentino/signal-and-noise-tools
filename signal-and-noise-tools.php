@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.10.0
+ * Version:     13.11.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -312,6 +312,7 @@ require_once SNT_PATH . 'inc/search-console-credential.php'; // R6b: the GSC ser
 require_once SNT_PATH . 'inc/search-console-client.php';     // R6b: JWT grant + Search Console API reads.
 require_once SNT_PATH . 'inc/search-console-store.php';
 require_once SNT_PATH . 'inc/search-console-sync.php';      // R6b close: the scheduled daily sync (one producer with the button).
+require_once SNT_PATH . 'inc/search-console-derive.php';    // Items 2+3: position drift + search interest by topic (derived, read-only).
 require_once SNT_PATH . 'inc/search-console-crossexam.php';  // R6b: GSC x crawler-ledger agreement check.
 require_once SNT_PATH . 'inc/analytics-view-search.php';     // R6b: the Search analytics view (its own tab).      // R6b: the path-keyed rolling window the analytics views join against.
 require_once SNT_PATH . 'inc/search-console-admin.php';      // R6b: Measurement -> Search Console leaf.

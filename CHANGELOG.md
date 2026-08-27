@@ -31,6 +31,45 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.11.0] - 2026-08-27 — the wiring plan completes: drift and topics, each shaped by its recorded caution
+
+Items 2 and 3 of the R6b crossing plan, closing it. Both designs were
+dictated by cautions recorded WITH the plan, and both cautions held:
+
+- **Position drift, the early decay signal** (`snt_gsc_position_drift()`).
+  Google's ranking moves before views do, and it is the only signal at all
+  for pages that never had traffic. The store now keeps a bounded history —
+  one compact snapshot per window end, same-day re-syncs replacing rather
+  than duplicating, capped at ten — appended by the SAME producer the button
+  and the cron already share. Drift compares the newest snapshot against the
+  longest qualifying span (≥7 days), flags only worsening of ≥5 positions on
+  pages still shown ≥10 times, and keeps three states honest: *accruing*
+  (null — the history cannot answer yet), *a real zero* (nothing drifts,
+  said out loud in the Search view), and *rows* (worst first, plus a
+  recommendation card naming the worst slide was → now). **Deliberately NOT
+  fed into the lifecycle producer**: the recorded time-skew caution — this
+  window is lagged and aggregate where lifecycle inputs are current and
+  per-post — is the reason drift stands beside view-decay as its own
+  instrument rather than inside it.
+- **Search interest by topic** (`snt_gsc_topic_interest()`). The recorded
+  caution: queries are Google's language about a page, not the author's —
+  so NO query text enters any model. The join is by PAGE, up to the topic
+  partition the corpus already owns: cluster members → their paths → summed
+  impressions and clicks, position impression-weighted (the store's own
+  merging rule, never a mean of means). A cluster Google never showed
+  reports a real zero with its position rendered as a dash; pages outside
+  every cluster are summed and STATED as a residual, not dropped. The ML
+  kernel is read, never written.
+
+Housekeeping the build surfaced: the seen-but-never-clicked card's floor
+aligns to the Search view's own list (50 impressions — two floors for one
+idea was drift of our own), and the history tests drive the REAL sync
+through the store harness, where the join-key rule promptly corrected a
+fixture (`/a/` is stored as `/a`; the slash normalises away).
+
+Four negative controls: drift floor, span minimum, weighted-position
+arithmetic, and the history cap all red on mutation.
+
 ## [13.10.0] - 2026-08-27 — the streams cross: seen-but-never-clicked joins the recommendations
 
 Owner direction ("the data streams should cross") lands on the wiring plan
