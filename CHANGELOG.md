@@ -31,6 +31,25 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.12.1] - 2026-08-27 — the editor smoke's silence now reds
+
+The follow-up v13.12.0 named: `editor-api-smoke.yml` joins `ci.yml`'s
+cron-liveness list, so if the daily smoke stops firing, that check fails
+instead of the repo looking healthy. An absent run reads exactly like a
+passing one — the whole reason that list exists.
+
+Split from v13.12.0 deliberately. Registering it in the same release failed,
+and failed CORRECTLY: cron-liveness refuses to conclude anything about a
+workflow that is not yet on the default branch ("indeterminate … nothing can
+be concluded, so this does not pass"). The guard was right and the sequencing
+was wrong. A workflow has to exist before its silence can be measured, so the
+registration waits for the release after the one that creates it — worth
+remembering the next time a scheduled workflow is added here.
+
+The workflow's first real run (workflow_dispatch, immediately after v13.12.0
+merged) fetched nightly 7.2-alpha, passed all four negative controls, and
+verified 19 requirements with zero failures.
+
 ## [13.12.0] - 2026-08-27 — the editor's core dependencies, checked against the WordPress that ships next
 
 The block-editor surfaces here — the pre-publish gate, the ability-run client —
