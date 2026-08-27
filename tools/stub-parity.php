@@ -276,11 +276,18 @@ if ( isset( $opts['json'] ) ) {
 		JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES
 	), "\n";
 } else {
+	// phpcs:disable WordPress.Security.EscapeOutput.OutputNotEscaped -- CLI
+	// output. This script is guarded to PHP_SAPI 'cli' at the top, the
+	// destination is a terminal or an Actions log, and esc_html() does not
+	// exist here: nothing loads WordPress. Escaping for HTML would corrupt the
+	// findings without protecting anything. Scoped to the reporting block only.
+	// Mirrors tools/version-tag-parity.php, which states the same rationale.
 	foreach ( $res['fails'] as $f ) { echo "FAIL: $f\n"; }
 	foreach ( $res['notes'] as $nte ) { echo "note: $nte\n"; }
 	printf(
 		"\nstub-parity: %d known-WordPress stubs verified across %d files, against %d reference functions — %d failing, %d forward-compat notes.\n",
 		$res['checked'], $res['files'], count( $reference ), count( $res['fails'] ), count( $res['notes'] )
 	);
+	// phpcs:enable WordPress.Security.EscapeOutput.OutputNotEscaped
 }
 exit( $res['fails'] ? 1 : 0 );
