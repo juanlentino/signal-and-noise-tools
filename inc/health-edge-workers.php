@@ -316,6 +316,49 @@ function sn_health_edge_worker_findings( $analytics_ok, $analytics_url, $lg, $no
 		);
 	}
 
+	// The IPv6 denylist (worker v1.11.0) is a SECOND feed on a different
+	// upstream, refreshing independently and keeping last-known on every failure
+	// branch — so without its own finding a dead Spamhaus cron is invisible
+	// here while the v4 half stays green.
+	//
+	// Gated on the field being REPORTED, not on its value. A worker predating
+	// the v6 feed says nothing about it, and silence is not an empty list:
+	// treating absence as zero would raise a permanent false finding against
+	// every deployment until the new worker ships. Absence is UNKNOWN, never 0.
+	if ( array_key_exists( 'denylist6Count', $lg ) ) {
+		$lg6_reason = '';
+		if ( isset( $lg['last6RefreshOk'] ) && false === $lg['last6RefreshOk']
+			&& is_string( $lg['last6RefreshReason'] ?? null )
+			&& 1 === preg_match( '/^[A-Za-z0-9_.:-]{1,64}$/', $lg['last6RefreshReason'] ) ) {
+			$lg6_reason = ' Last refresh attempt failed: ' . $lg['last6RefreshReason'] . '.';
+		}
+
+		$count6    = (int) ( $lg['denylist6Count'] ?? 0 );
+		$compiled6 = (string) ( $lg['compiled6At'] ?? '' );
+		$ts6       = '' !== $compiled6 ? strtotime( $compiled6 ) : false;
+
+		if ( $count6 <= 0 ) {
+			$findings[] = $mk(
+				'sn-login-guard',
+				'',
+				'Login-guard IPv6 denylist is EMPTY: the edge is checking no IPv6 addresses at all, so every IPv6 client reaches the login form unchecked.' . $lg6_reason
+			);
+		} elseif ( false !== $ts6 && ( $now - $ts6 ) > $stale_secs ) {
+			$days6      = (int) floor( ( $now - $ts6 ) / DAY_IN_SECONDS );
+			$findings[] = $mk(
+				'sn-login-guard',
+				'',
+				sprintf(
+					/* translators: 1: IPv6 range count, 2: ISO timestamp, 3: age in days */
+					'Login-guard IPv6 denylist is STALE: %1$s ranges, last refreshed %2$s (%3$d days ago). The Spamhaus DROPv6 refresh has stalled; the IPv4 feed refreshes separately and may still be healthy.',
+					number_format_i18n( $count6 ),
+					$compiled6,
+					$days6
+				) . $lg6_reason
+			);
+		}
+	}
+
 	return $findings;
 }
 
