@@ -4,6 +4,49 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.16.0] - 2026-08-27 — the criterion's sustained half now measures IPv6, not the traffic around it
+
+The coverage half is re-specced so it can be satisfied, and — the owner's fix
+— so that what it measures is the thing being claimed.
+
+**The re-spec.** 30/30 span was unreachable: ~14% of days carry no
+block-eligible traffic at all, so coverage plateaus near 26/30. A criterion
+nobody can satisfy does not set a high bar, it withholds a decision forever
+while looking rigorous. "Sustained" is now stated as enough DAYS and enough
+OBSERVATIONS, at thresholds this traffic can reach: share > 5%, with >= 20
+qualifying days and >= 100 observations, fixed in advance of reading the number.
+
+**The fix.** The first cut floored on `days_covered` — the days ANY family
+wrote. That cannot see an IPv6 burst: a single-day v6 spike inside a month of
+steady IPv4 clears an all-family floor untouched, and the docblock's own
+"refuses a burst" claim was false as shipped. At the live reading that prompted
+all of this — 46 of 72 IPv6 hits on 2026-08-09, none in the six days before it
+— the all-family floor would have authorised `build_ranges` on exactly the
+burst it claimed to refuse.
+
+- New `v6_days_covered`: the days IPv6 ITSELF appeared on. A v6 row reporting
+  **0 hits is the sensor saying "nothing today"**, not a day of presence, so
+  silence cannot clear the floor.
+- The DAYS floor reads `v6_days_covered`. The OBSERVATIONS floor stays
+  all-family on purpose: it is denominator adequacy for a share, not a presence
+  test — 44.7% means nothing over nine requests, whoever sent them.
+- `days_covered` and `measured_days` are still reported as context. Three
+  numbers, three questions, and the ability description now says which answers
+  "sustained".
+- Panel copy and the ability's `reason` name the IPv6 day count, so the sentence
+  a reader sees is the number the decision used.
+
+**Honest limit:** the floor is stricter and may prove unsatisfiable at this
+volume. That would be a finding about the traffic — IPv6 arriving in bursts
+rather than sustained — not a fault in the rule, and the number to re-tune from
+is reported rather than argued. Widening the floor back to a set that cannot see
+the thing being measured is not the fix.
+
+Tests: the burst case is pinned as a REGRESSION (the same shape as the live
+reading), including that the all-family count still reads 25 there — which is
+why it could not be the floor. Reverting the scoping turns exactly that
+assertion red and nothing else.
+
 ## [13.15.0] - 2026-08-27 — the Health scan watches the IPv6 denylist too
 
 ### Added

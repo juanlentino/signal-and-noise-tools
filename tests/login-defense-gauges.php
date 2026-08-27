@@ -298,13 +298,30 @@ $mkdays = function ( $n_days, $v4_each, $v6_map, $now ) {
 	return $rows;
 };
 
-// Enough days AND enough observations: both halves hold.
-$ok_rows = $mkdays( 25, 4, array( 0 => 40 ), $now );   // 25 days, 100 v4 + 40 v6 = 140
+// v6 spread across enough days, AND enough observations: both halves hold.
+// v6 on days 0..21 (22 days), 3 hits each = 66 v6; 25 days of v4 at 4 = 100.
+$spread_map = array();
+for ( $i = 0; $i < 22; $i++ ) { $spread_map[ $i ] = 3; }
+$ok_rows = $mkdays( 25, 4, $spread_map, $now );
 $respec  = sn_login_defense_ipv6_share( $ok_rows, 30, $now );
-ok( 25 === $respec['days_covered'] && 140 === $respec['total'] && true === $respec['window_complete'],
-	'RE-SPEC: 25 covered days and 140 observations SATISFIES the criterion (the old rule refused this forever)' );
+ok( 25 === $respec['days_covered'] && 22 === $respec['v6_days_covered'] && 166 === $respec['total']
+	&& true === $respec['window_complete'],
+	'RE-SPEC: IPv6 present on 22 days with 166 observations SATISFIES the criterion (the old span rule refused this forever)' );
 ok( $respec['measured_days'] < 30,
 	'and it satisfies it on a span SHORTER than 30d — measured_days no longer gates the decision' );
+
+// THE REGRESSION THIS FIX EXISTS FOR. Identical shape to the live reading that
+// prompted the re-spec: steady IPv4 across 25 days, and every IPv6 hit landing
+// on ONE of them. days_covered says 25 and the all-family floor waved it
+// through — authorising build_ranges on exactly the burst the rule claims to
+// refuse. The v6-scoped floor sees 1 day and refuses.
+$v6_burst = sn_login_defense_ipv6_share( $mkdays( 25, 4, array( 0 => 40 ), $now ), 30, $now );
+ok( 25 === $v6_burst['days_covered'], 'BURST: the all-family day count still reads 25 — which is why it could not be the floor' );
+ok( 1 === $v6_burst['v6_days_covered'], 'BURST: IPv6 itself appeared on exactly 1 day' );
+ok( $v6_burst['total'] >= SN_LG_IPV6_MIN_OBSERVATIONS, 'BURST: the observations floor is satisfied, so it is the DAYS half under test' );
+ok( true === $v6_burst['crossed'], 'BURST: the share is genuinely over the line — this is not a below-threshold refusal' );
+ok( false === $v6_burst['window_complete'],
+	'BURST REFUSED: a single-day IPv6 spike inside 25 days of IPv4 is NOT sustained (the all-family floor authorised it)' );
 
 // Enough observations, too few days: a burst is not "sustained".
 $burst = sn_login_defense_ipv6_share( $mkdays( 8, 30, array( 0 => 60 ), $now ), 30, $now );
@@ -312,9 +329,21 @@ ok( 8 === $burst['days_covered'] && $burst['total'] >= 100 && false === $burst['
 	'RE-SPEC: 300 observations over only 8 days is NOT sustained — the days half still bites' );
 
 // Enough days, too few observations: a trickle is not a measurement.
-$thin = sn_login_defense_ipv6_share( $mkdays( 25, 1, array( 0 => 20 ), $now ), 30, $now );
-ok( 25 === $thin['days_covered'] && $thin['total'] < 100 && false === $thin['window_complete'],
-	'RE-SPEC: 25 days holding only 45 observations is NOT enough evidence — the observations half still bites' );
+$thin_map = array();
+for ( $i = 0; $i < 22; $i++ ) { $thin_map[ $i ] = 1; }
+$thin = sn_login_defense_ipv6_share( $mkdays( 25, 1, $thin_map, $now ), 30, $now );
+ok( 22 === $thin['v6_days_covered'] && $thin['total'] < 100 && false === $thin['window_complete'],
+	'RE-SPEC: IPv6 on 22 days but only 47 observations is NOT enough evidence — the observations half still bites' );
+
+// A v6 row reporting ZERO hits is the sensor saying "nothing today", not a day
+// of IPv6 presence. Without this the floor could be cleared by silence.
+$zero_rows = $mkdays( 25, 4, array(), $now );
+for ( $i = 0; $i < 22; $i++ ) {
+	$d           = gmdate( 'Y-m-d', $now - ( $i * 86400 ) );
+	$zero_rows[] = array( 'family' => 'v6', 'hits' => 0, 'first_seen' => $d . ' 01:00:00', 'day' => $d );
+}
+ok( 0 === sn_login_defense_ipv6_share( $zero_rows, 30, $now )['v6_days_covered'],
+	'a v6 row with 0 hits does not count as a day carrying IPv6' );
 
 // Unknown coverage stays unknown. Never-measured is not a satisfied criterion.
 ok( null === sn_login_defense_ipv6_share( array(
@@ -392,11 +421,15 @@ $GLOBALS['__q_family'] = array();
 for ( $i = 0; $i < 25; $i++ ) {
 	$d = gmdate( 'Y-m-d', time() - ( $i * 86400 ) );
 	$GLOBALS['__q_family'][] = array( 'family' => 'v4', 'hits' => 4, 'first_seen' => $d . ' 00:00:00', 'day' => $d );
-	if ( $i < 5 ) {
-		$GLOBALS['__q_family'][] = array( 'family' => 'v6', 'hits' => 5, 'first_seen' => $d . ' 01:00:00', 'day' => $d );
+	// IPv6 SPREAD across 22 days, not concentrated: 3 days at 2 hits + 19 at 1
+	// = 25 v6, holding the share at exactly 20% while clearing the v6-scoped
+	// days floor. Concentrating the same 25 hits on 5 days would render the
+	// unfinished-window copy instead — which is the point of the floor.
+	if ( $i < 22 ) {
+		$GLOBALS['__q_family'][] = array( 'family' => 'v6', 'hits' => ( $i < 3 ? 2 : 1 ), 'first_seen' => $d . ' 01:00:00', 'day' => $d );
 	}
 }
-// 25 covered days, 100 v4 + 25 v6 = 125 observations -> both halves hold.
+// 25 covered days, IPv6 on 22 of them, 100 v4 + 25 v6 = 125 observations -> both halves hold.
 $c = render_gauges_html();
 ok( strpos( $c, '20%' ) !== false && strpos( $c, 'crossed' ) !== false,
 	'PROVEN TO MOVE: IPv6 gauge crosses at 20%' );

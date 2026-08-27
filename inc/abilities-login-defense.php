@@ -53,6 +53,7 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 		'first_seen'      => null,
 		'measured_days'   => null,
 		'days_covered'    => null,
+		'v6_days_covered' => null,
 		'window_complete' => null,
 		'pre_sensor_hits' => 0,
 		// Both halves of the rule travel with the answer so no caller
@@ -87,6 +88,7 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 			'first_seen'      => $s['first_seen'],
 			'measured_days'   => $s['measured_days'],
 			'days_covered'    => $s['days_covered'],
+			'v6_days_covered' => $s['v6_days_covered'],
 			'window_complete' => $s['window_complete'],
 			'pre_sensor_hits' => $s['pre_sensor_hits'],
 		)
@@ -118,9 +120,9 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 
 	$out['decision'] = $s['crossed'] ? 'build_ranges' : 'below_threshold';
 	$out['reason']   = sprintf(
-		'%s%% over %d covered days and %d observations, against a %d%% criterion',
+		'%s%% over %d days carrying IPv6 and %d observations, against a %d%% criterion',
 		$s['share_pct'],
-		$s['days_covered'],
+		$s['v6_days_covered'],
 		$s['total'],
 		SN_LG_IPV6_THRESHOLD_PCT
 	);
@@ -140,7 +142,7 @@ function sn_abilities_login_defense_register() {
 			. 'decision is one of build_ranges | withhold_unfinished_window | below_threshold | unknown. '
 			. 'The rule (worker v1.5.2): build 128-bit denylist ranges when the IPv6 share of block-eligible traffic exceeds 5% sustained over 30 days. '
 			. 'Read `decision`, never `crossed` alone — a crossed line on an unfinished window authorises nothing. '
-			. 'measured_days is a SPAN (now - first_seen); days_covered is how many days actually wrote rows. On sparse traffic they disagree, and only days_covered answers "sustained". '
+			. 'THREE window numbers, and they answer different questions: measured_days is a SPAN (now - first_seen); days_covered is how many days ANY family wrote; v6_days_covered is how many days IPv6 ITSELF appeared on. Only v6_days_covered answers "sustained" — an all-family count cannot see an IPv6 burst, and the observations floor stays all-family on purpose, because it is denominator adequacy for the share, not a presence test. '
 			. 'share_pct is null when unmeasured; never-measured is not 0%. Read-only.',
 		'category'            => 'analytics',
 		'permission_callback' => 'snt_ability_perm_manage_options',

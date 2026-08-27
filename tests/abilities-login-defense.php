@@ -127,7 +127,10 @@ ok( false === $out['window_complete'] && 'withhold_unfinished_window' === $out['
 	'DECISION WITHHELD: 25 days is plenty of days and 45 hits is not enough evidence' );
 
 // ── satisfied window, share under the line ─────────────────────────────────
-$GLOBALS['__family'] = ld_rows( 10, 990, 25 );
+// v6 must be >= the day count to actually spread (ld_rows uses intdiv, so 10
+// hits over 25 days all land on day 0 and the v6-scoped floor refuses the
+// window rather than judging the share). 25 v6 + 975 v4 = 2.5%, still under.
+$GLOBALS['__family'] = ld_rows( 25, 975, 25 );
 $out = sn_ability_login_defense_ipv6_criterion();
 ok( false === $out['crossed'] && 'below_threshold' === $out['decision'], 'a satisfied window under 5% is a real answer, not a withholding' );
 
