@@ -126,6 +126,24 @@ ok( 25 === $out['days_covered'] && 45 === $out['total'], '25 covered days holdin
 ok( false === $out['window_complete'] && 'withhold_unfinished_window' === $out['decision'],
 	'DECISION WITHHELD: 25 days is plenty of days and 45 hits is not enough evidence' );
 
+// ── the withheld REASON must quote the number the decision used ────────────
+// Shipped wrong in v13.16.0 and caught on the live gauge: the sentence read
+// "asks for 20 covered days ... holds 25" beside a WITHHELD verdict, because
+// it printed the all-family count while the floor read the v6 one. A reason
+// that reads as satisfied next to a refusal is worse than no reason.
+// v6 must be < the day count for ld_rows' intdiv to leave it all on day 0 —
+// 40 over 25 days spreads as 1/day and covers all 25, which is the opposite
+// fixture. 20 v6 + 142 v4 = 162 observations, share 12.3%, v6 on ONE day.
+$GLOBALS['__family'] = ld_rows( 20, 142, 25 );
+$out = sn_ability_login_defense_ipv6_criterion();
+ok( 'withhold_unfinished_window' === $out['decision'], 'REASON: a v6 burst is withheld' );
+ok( 1 === $out['v6_days_covered'] && 25 === $out['days_covered'],
+	'REASON: the two day counts genuinely differ here, so the sentence can be wrong' );
+ok( false !== strpos( $out['reason'], 'holds 1 and' ),
+	'REASON: the withheld sentence quotes v6_days_covered (1), not days_covered (25)' );
+ok( false !== strpos( $out['reason'], 'days carrying IPv6' ),
+	'REASON: and names WHICH days it counted, so the number is not ambiguous' );
+
 // ── satisfied window, share under the line ─────────────────────────────────
 // v6 must be >= the day count to actually spread (ld_rows uses intdiv, so 10
 // hits over 25 days all land on day 0 and the v6-scoped floor refuses the

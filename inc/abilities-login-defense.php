@@ -105,13 +105,19 @@ function sn_ability_login_defense_ipv6_criterion( $input = null ) {
 		// The load-bearing branch. A crossed line on an unfinished window is a
 		// real share and a decision nobody is authorised to make.
 		$out['decision'] = 'withhold_unfinished_window';
-		$out['reason']   = null === $s['days_covered']
+		// v13.16.1: this sentence reported days_covered — the ALL-FAMILY count —
+		// while the floor above it reads v6_days_covered. Live, that printed
+		// "asks for 20 covered days ... holds 25" beside a WITHHELD decision:
+		// a reason that reads as satisfied next to a verdict that is not, which
+		// is the same class of defect the v6 scoping fixed one layer down. The
+		// narration has to quote the number the decision used.
+		$out['reason']   = null === $s['v6_days_covered']
 			? sprintf( 'coverage unknown: the rows carry no day dimension, so the %dd window cannot be assessed', SN_LG_IPV6_CRITERION_DAYS )
 			: sprintf(
-				'real share, unfinished window: the criterion asks for %d covered days and %d observations; this window holds %d and %d (family sensor since %s)',
+				'real share, unfinished window: the criterion asks for %d days carrying IPv6 and %d observations; this window holds %d and %d (family sensor since %s)',
 				SN_LG_IPV6_MIN_DAYS_COVERED,
 				SN_LG_IPV6_MIN_OBSERVATIONS,
-				$s['days_covered'],
+				$s['v6_days_covered'],
 				$s['total'],
 				$s['first_seen']
 			);
