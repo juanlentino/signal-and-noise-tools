@@ -31,6 +31,46 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.11.1] - 2026-08-27 — the stub-drift ambush becomes a red line
+
+The standalone suites stub WordPress functions, and the recurring trap is a
+stub whose SHAPE is a guess — an invented name (the class of incident where a
+plausible-looking function WordPress does not have was stubbed, so the suite
+passed while production fatalled) or an imagined signature. `tools/stub-parity.php`
+compares every test-defined function against the same pinned
+`php-stubs/wordpress-stubs` PHPStan already trusts, and runs in CI inside the
+existing PHPCS job — which already did `composer install`, so no new job rounds
+up an extra billed minute.
+
+**Two checks, both narrow on purpose.** A WP-shaped stub core does not have,
+where production calls that name UNGUARDED, fails: it fatals live while the
+suite stays green. By-reference drift fails: writes through the reference
+diverge silently. Guarded forward-compat calls are reported as NOTES, not
+failures — they are correct code, and the note says to hand-verify the spelling,
+because an inert misspelled branch never runs and never errors.
+
+**What an earlier draft got wrong, recorded so it is not rebuilt.** Checking
+stub arity produced 381 "failures" that were all instrument artifacts: 279 were
+`function add_action() {}`, the house's no-op registration-sink idiom, which is
+harmless because a zero-parameter PHP function accepts any arguments at call
+time; the rest were the reference's variadics (`current_user_can($cap, ...$args)`).
+Both arity checks were dropped and the file says why.
+
+- `--self-test` seeds a phantom API and a by-reference drift and requires the
+  tool to report both, plus a clean fixture that must stay silent. It runs in CI
+  BEFORE the sweep, so a green sweep is never a broken sweep — and it earned its
+  place immediately: the by-reference check shipped INERT, because PHP 8
+  tokenizes a parameter's `&` as a token array rather than the string `'&'`.
+- A missing or implausible reference exits 2 rather than reporting green.
+- First real findings: three suites stubbed `wp_get_post_revision()` by value
+  where core declares `&$post`. Benign today (the call site passes a variable and
+  core does not write through it) but unfaithful, and it would have masked a real
+  `Cannot pass parameter 1 by reference` fatal the day a call site passed a
+  literal. Fixed; both repos now sweep clean.
+- The one standing note — `wp_prepare_json_schema_for_client()`, guarded — was
+  hand-verified against core: it exists, introduced in WordPress 7.1.0, with the
+  signature the call site pins.
+
 ## [13.11.0] - 2026-08-27 — the wiring plan completes: drift and topics, each shaped by its recorded caution
 
 Items 2 and 3 of the R6b crossing plan, closing it. Both designs were

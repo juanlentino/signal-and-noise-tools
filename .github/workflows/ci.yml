@@ -123,6 +123,21 @@ jobs:
       - name: Run PHPCS (curated WP-handbook ruleset)
         run: composer run lint
 
+      - name: Stub-parity self-test (negative control)
+        # Prove the instrument can FAIL before trusting a green sweep: it seeds
+        # a phantom API and a by-reference drift and must report both. The
+        # by-ref check shipped INERT in the first draft (PHP 8 tokenizes a
+        # parameter's & as a token array, not the string '&') and this control
+        # is what caught it.
+        run: php tools/stub-parity.php --self-test
+      - name: Stub-parity sweep (test stubs vs the pinned WordPress stubs)
+        # Same php-stubs/wordpress-stubs PHPStan already trusts. Fails on a
+        # WP-shaped stub core does not have that production calls UNGUARDED
+        # (the get_the_queried_object_id incident class), and on by-reference
+        # drift. Guarded forward-compat calls are reported as notes, not
+        # failures. Runs here because this job already did composer install —
+        # a separate job would round up a whole extra billed minute.
+        run: php tools/stub-parity.php
   tests:
     name: Test suite
     runs-on: ubuntu-latest
