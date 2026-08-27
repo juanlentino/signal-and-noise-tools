@@ -47,7 +47,10 @@ ok( ! isset( $m['args']['recommendedOsSettings'] ), 'no recommendedOsSettings �
 ok( ! isset( $m['args']['icons'] ) && ! isset( $m['args']['textures'] ), 'no icons, no textures — tokens only' );
 
 // ── Restraint: the owner steer as a ratchet ──────────────────────────
-ok( count( $tokens ) <= 30, 'token count ' . count( $tokens ) . ' is at or under the 30-token restraint ceiling' );
+// Ceiling moved 30 -> 35 in v13.7.1, deliberately: the field pass added
+// the four window-link spline tokens + --os-backstop and removed one. A
+// ratchet may move when the reason is recorded; it may not drift.
+ok( count( $tokens ) <= 35, 'token count ' . count( $tokens ) . ' is at or under the 35-token restraint ceiling' );
 $radius_like = array();
 foreach ( $tokens as $name => $v ) {
 	if ( false !== strpos( $name, 'radius' ) || false !== strpos( $name, 'corner' ) ) { $radius_like[] = $name; }
@@ -68,8 +71,13 @@ foreach ( array_keys( $tokens ) as $name ) {
 	if ( 0 !== strpos( $name, '--os-' ) && '--wp-admin-theme-color' !== $name ) { $bad_ns[] = $name; }
 }
 ok( array() === $bad_ns, 'every token is in an upstream-accepted namespace' );
-ok( ! isset( $tokens['--os-ui-accent-text'] ), 'the --os-ui-accent-text trap is absent (that name does not exist upstream; the real one is --os-ui-fg-on-accent)' );
-ok( isset( $tokens['--os-ui-fg-on-accent'] ), '--os-ui-fg-on-accent is declared (dark ink on the bright red)' );
+ok( ! isset( $tokens['--os-ui-accent-text'] ), 'the --os-ui-accent-text trap is absent (that name does not exist upstream)' );
+// FLIPPED in v13.7.1 — the v13.7.0 release PINNED this token present, and
+// that was the bug: upstream reuses --os-ui-fg-on-accent as the desktop
+// widget card's body ink (.os-widgets__card { color: var(--os-ui-fg-on-accent, #fff) }),
+// so our dark ink painted every widget readout near-black on dark glass.
+// Field-found on first activation. Absence IS the fix.
+ok( ! isset( $tokens['--os-ui-fg-on-accent'] ), '--os-ui-fg-on-accent is ABSENT — upstream overloads it as the widget-card body ink; setting it dark dims every widget (v13.7.0 field bug)' );
 
 // ── Palette parity: recorded FSE dark literals ───────────────────────
 // signal-and-noise assets/css/critical.css `:root[data-theme="dark"]`,
@@ -86,7 +94,7 @@ ok( array() === $off, 'every hex literal is a recorded estate palette value' . (
 $loose = array();
 foreach ( $tokens as $name => $v ) {
 	if ( 1 === preg_match( '/^#[0-9a-f]{6}$/i', $v ) ) { continue; }
-	$is_rgba = 1 === preg_match( '/^rgba\( (10, 10, 10|255, 255, 255), 0\.\d+ \)$/', $v );
+	$is_rgba = 1 === preg_match( '/^rgba\( (10, 10, 10|255, 255, 255|255, 76, 71), 0\.\d+ \)$/', $v ); // 255,76,71 = blood #ff4c47, the spline glow
 	$is_font = false !== strpos( $v, 'monospace' );
 	if ( ! $is_rgba && ! $is_font ) { $loose[] = "$name=$v"; }
 }
@@ -100,6 +108,22 @@ ok( $tokens['--os-titlebar-font'] === $stack, '--os-titlebar-font matches it (on
 // ── The doc's fill/ink pair rule ─────────────────────────────────────
 ok( isset( $tokens['--os-ui-holo-fill'] ) === isset( $tokens['--os-ui-holo-ink'] ), 'holo fill and ink are set as a pair or not at all' );
 ok( '#ff4c47' === $tokens['--os-ui-holo-fill'] && '#0a0a0a' === $tokens['--os-ui-holo-ink'], 'the "on" state is blood with dark ink (bright fill => dark ink, per the upstream rule)' );
+
+// ── Window links + backstop (v13.7.1 field pass) ─────────────────────
+// All four color tokens verified consumed by upstream window-links.css at
+// v1.1.3; the owner runs the svg-splines renderer, so these are the most
+// visible red on the desk.
+foreach ( array( '--os-window-link-color' => '#ff6b66', '--os-window-link-accent' => '#ff4c47', '--os-window-link-color-active' => '#ff4c47' ) as $n => $want ) {
+	ok( isset( $tokens[ $n ] ) && $want === $tokens[ $n ], "$n is $want" );
+}
+ok( 'rgba( 255, 76, 71, 0.45 )' === ( $tokens['--os-window-link-glow'] ?? '' ), 'the spline glow is an rgba() of blood, mirroring Legacy\'s glow-as-rgba idiom' );
+ok( '#0a0a0a' === ( $tokens['--os-backstop'] ?? '' ), 'the boot backstop is void' );
+
+// ── Preview (v13.7.1) ────────────────────────────────────────────────
+// Guarded on plugins_url/SNT_PATH so this harness needs no WP: here the
+// guard is exercised in its ABSENT branch and must yield empty-string.
+ok( '' === $m['args']['preview'], 'preview resolves to empty string outside WP (the guard\'s absent branch, exercised)' );
+ok( is_file( __DIR__ . '/../assets/desktop-theme-preview.svg' ), 'the preview asset exists at the path the manifest serves' );
 
 // ── Registration wiring ──────────────────────────────────────────────
 ok( isset( $GLOBALS['__actions']['init'] ) && 1 === count( $GLOBALS['__actions']['init'] ), 'the module adds exactly one init callback' );
