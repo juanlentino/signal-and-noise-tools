@@ -23,7 +23,14 @@ release order, priorities, and gates actually live. Rules:
 
 | P | Item | Repo | Size | Notes / first step |
 |---|------|------|------|--------------------|
-| 1 | Topic hubs for the 23-tag vocabulary | theme | M | No taxonomy template exists. HARD PRECONDITION: one written sentence per tag (owner writing task), or the pages trip the contentless-page SEO trap on record |
+| — | *(empty — every queued build has shipped)* | | | New entries come from the board's Considering/Later columns or a measured defect |
+
+## Blocked on the owner (not buildable by me)
+
+| Item | What is needed | Payoff when done |
+|------|----------------|------------------|
+| **23 tag descriptions** | One written sentence per tag — editorial voice, deliberately not mine to write. Terms are edited in wp-admin → Posts → Tags (the `description` field) | Each sentence lights up BOTH surfaces at once: the tag archive's hero dek (theme v12.11.0) and the tag's meta description (plugin v13.14.0). Until then both correctly fall back rather than fabricate |
+| **Thin-tag decision** | 9 of 23 tags carry ≤3 notes and 2 carry exactly 1 (`legacy-catalog`, `writing`). A "hub" for one note is a page with one link | Either merge them into their neighbours (the 83→23 consolidation already has the machinery) or accept them as thin. Worth deciding BEFORE writing 23 sentences, so effort is not spent on tags that should not survive |
 
 ## Planned on the board — each waiting on its named gate
 
@@ -58,6 +65,14 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-08-27 — topic-hub GROUNDWORK shipped both sides (plugin v13.14.0 #836, theme
+  v12.11.0 #244), and the item turned out to sit on a LIVE DEFECT. Tag archives had no
+  branch in `sn_seo_meta_for_current_view()` at all: 23 indexable archives with no
+  canonical and no meta description, and /tag/provenance/ vs its /page/2/ serving
+  different notes under an identical <title>. Fixed (pretty paged self-canonical); the
+  hero dek now renders the term's own description when written. The hubs themselves stay
+  blocked on 23 sentences — moved to the owner-blocked table above, with the thin-tag
+  question raised alongside so effort is not spent on tags that should be merged.
 - 2026-08-27 — editor smoke SHIPPED (plugin v13.12.0 #833 + v13.12.1 #834). Daily cron
   against WordPress NIGHTLY (7.2-alpha, two majors ahead of prod's 7.0); requirements
   DERIVED from our own source, four negative controls run first. Two false readings were
