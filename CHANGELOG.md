@@ -31,6 +31,24 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.8.1] - 2026-08-27 — the roadmap legend clears AA, and the fade stops lying
+
+The theme's new computed-styles contrast instrument (v12.8.0, the board's
+own planned row) measured the maturity roadmap page and caught this file's
+legend cells: whole-cell `opacity: .44` / `.3` pushed the 11.5px
+Considering/Later badge text to 3.23:1 and 2.10:1 on white, 4.36:1 and
+2.61:1 on void — all below AA's 4.5:1, in both palettes, invisible to every
+source-level sweep because the failure lives in the opacity CHAIN, not in
+any declared color pair.
+
+The fades compress to the measured AA floor (`.58` / `.55` — worst
+resulting ratio 4.74:1, verified live against both grounds before this
+shipped) instead of vanishing, because the status hierarchy never lived in
+the fade: the border treatments already encode it. The board cells' deeper
+fades (`.88/.72/.58`) were measured too and pass — black ink at `.58` on
+white lands at 5.3:1; the legend failed only because its badges are small
+and its fades were deeper.
+
 ## [13.8.0] - 2026-08-27 — the desktop theme is dropped whole; the token bridge stays
 
 Owner decision, after six field iterations in one night (v13.7.0–v13.7.5):

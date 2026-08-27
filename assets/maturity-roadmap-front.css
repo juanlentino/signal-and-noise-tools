@@ -64,8 +64,16 @@
 .sn-maturity-roadmap-legend__stat{display:block;font-family:var(--wp--preset--font-family--heading,'Bebas Neue',Impact,sans-serif);font-size:clamp(2.4rem,5vw,4.2rem);line-height:1;font-variant-numeric:tabular-nums}
 .sn-maturity-roadmap-legend__sub{display:block;font-size:.68rem;opacity:.55;margin-top:.4rem;letter-spacing:.02em}
 .sn-maturity-roadmap-legend__cell--planned{opacity:.62}
-.sn-maturity-roadmap-legend__cell--considering{opacity:.44}
-.sn-maturity-roadmap-legend__cell--later{opacity:.3}
+/* v13.8.1: the fade floor is AA, measured. The computed-styles contrast
+   instrument (theme tools/contrast-computed.js, board row "Contrast
+   verified from COMPUTED styles") caught these two: whole-cell opacity
+   .44/.3 pushed the 11.5px badge text to 3.23:1 and 2.10:1 on white
+   (4.36/2.61 on void). Ink at these sizes needs 4.5:1, which on both
+   grounds means alpha >= ~.54. The status HIERARCHY does not live in the
+   fade — the border treatments (solid / dotted / thin-dotted) already
+   encode it — so the fades compress to the floor instead of vanishing. */
+.sn-maturity-roadmap-legend__cell--considering{opacity:.58}
+.sn-maturity-roadmap-legend__cell--later{opacity:.55}
 .sn-maturity-roadmap-legend__cell .sn-maturity-roadmap-badge{margin-top:.5rem}
 .sn-maturity-roadmap-legend__cell::after{content:"";position:absolute;left:0;right:0;bottom:0;height:0;background:var(--sn-signal,#ff4c47);transition:height .14s linear}
 .sn-maturity-roadmap-legend__cell:hover{opacity:1}
