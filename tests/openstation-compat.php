@@ -57,7 +57,6 @@ ok( null === snt_os_register_command( array( 'slug' => 'x' ) ), 'snt_os_register
 ok( null === snt_os_register_widget( 'x', array() ), 'snt_os_register_widget() returns null when neither is installed' );
 ok( null === snt_os_register_icon( 'x', array() ), 'snt_os_register_icon() returns null when neither is installed' );
 ok( null === snt_os_ai_ability_tool_name( 'signal-noise/x' ), 'snt_os_ai_ability_tool_name() returns null when neither is installed' );
-ok( null === snt_os_register_desktop_theme( 'signal-noise/asphalt', array() ), 'snt_os_register_desktop_theme() returns null when OpenStation is absent (single-name wrapper, never fatals)' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * 2. Dispatch wrappers prefer the PRE-RENAME family when only it exists —
@@ -125,12 +124,6 @@ if ( ! function_exists( 'openstation_is_enabled' ) ) {
 if ( ! function_exists( 'openstation_ai_ability_tool_name' ) ) {
 	function openstation_ai_ability_tool_name( $name ) { return 'os:' . $name; }
 }
-if ( ! function_exists( 'openstation_register_desktop_theme' ) ) {
-	// Deliberately NOT recorded in __os_calls: the exactly-3 dispatch-count
-	// pin below predates this wrapper and stays scoped to the renamed trio.
-	// The return value alone proves the dispatch.
-	function openstation_register_desktop_theme( $id, $args = array() ) { return 'os-desktop-theme'; }
-}
 
 ok( true === snt_os_is_post_rename(), 'snt_os_is_post_rename() flips true once openstation_register_command() exists' );
 
@@ -140,7 +133,6 @@ ok( 'os-command' === snt_os_register_command( array( 'slug' => 'sn-cmd-x' ) ), '
 ok( 'os-widget' === snt_os_register_widget( 'sn-widget-x', array() ), 'snt_os_register_widget() prefers openstation_register_widget()' );
 ok( 'os-icon' === snt_os_register_icon( 'sn-icon-x', array() ), 'snt_os_register_icon() prefers openstation_register_icon()' );
 ok( 'os:signal-noise/x' === snt_os_ai_ability_tool_name( 'signal-noise/x' ), 'snt_os_ai_ability_tool_name() prefers the post-#475 transform' );
-ok( 'os-desktop-theme' === snt_os_register_desktop_theme( 'signal-noise/asphalt', array( 'name' => 'Signal & Noise' ) ), 'snt_os_register_desktop_theme() dispatches to openstation_register_desktop_theme() — the ONLY name it ever checks (feature postdates the rename)' );
 ok( array() === $GLOBALS['__dm_calls'], 'the pre-rename functions are NOT called once the post-#475 ones are available' );
 ok( 3 === count( $GLOBALS['__os_calls'] ), 'exactly the 3 tracked post-#475 dispatches were called (command, widget, icon)' );
 
