@@ -31,6 +31,36 @@ All notable changes to Signal & Noise Tools are documented here.
   names the three hypotheses that were wrong on 2026-08-26 so the next
   occurrence skips them.
 
+## [13.14.0] - 2026-08-27 — tag archives get the canonical they never had
+
+Groundwork for topic hubs that turned out to be a live defect first. Tag
+archives had **no branch at all** in `sn_seo_meta_for_current_view()`, so they
+fell through every conditional and the canonical emitter — which reads only
+`$url` — printed nothing. Measured on the live site: **23 indexable tag
+archives with no canonical and no meta description**, and `/tag/provenance/`
+against `/tag/provenance/page/2/` serving DIFFERENT notes under an IDENTICAL
+`<title>` with no canonical on either. That is the duplicate-content shape the
+`/notes/` branch fixed for itself in v5.1.0; tags never got it.
+
+- Paged tag archives now **self-canonical to the pretty URL that actually
+  serves** — `/tag/<slug>/page/N/`, not a `?paged=N` variant of it. The
+  `/notes/` branch keeps its own query form, because it is a Page rather than a
+  pretty archive; a test pins both so the two cannot be conflated.
+- The description is the **term's own**, stripped, and an unwritten tag
+  description stays empty: this view keeps emitting no `og:description`,
+  exactly as today. When a description is written it lights up on its own.
+- **The title is deliberately left empty.** `document_title_parts` returns
+  WP's own parts untouched when it is `''`, and WP already renders the correct
+  "Notes — <Tag> — Juan Lentino". Setting a title here would REPLACE that
+  string, so the branch supplies only what is genuinely missing — verified
+  against the live pages before writing a line.
+- Failure degrades to today's behavior rather than to a wrong canonical: no
+  queried term, or a `WP_Error` from `get_term_link()`, yields no canonical
+  instead of a guessed one.
+- `tests/seo-tag-archive-canonical.php` — 11 assertions driving the REAL
+  resolver. Two seeded mutations (a wrong paged path, a fabricated description
+  for an unwritten tag) both turned it red.
+
 ## [13.13.0] - 2026-08-27 — the IPv6 criterion's window, measured instead of assumed
 
 ### Added
