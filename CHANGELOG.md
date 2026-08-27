@@ -42,10 +42,15 @@ matrix fixes both ends:
 - **8.4 — production parity.** Blocking. The gap that mattered most, and the
   one the backlog item did not know was there: this lane is not forward-looking
   at all, it is the present.
-- **8.5 — current stable**, and the next Cloudways upgrade target. Blocking,
-  made so only after both suites were measured clean on a local 8.5.9 — with a
-  negative control confirming the harness surfaces deprecation notices rather
-  than swallowing them, so "zero deprecations" is a reading and not an artifact.
+- **8.5 — current stable upstream. READINESS, not parity:** the host does not
+  offer 8.5 yet (owner-confirmed 2026-08-27), so nothing here can deploy to it.
+  It is blocking anyway, and only because it was measured first — both suites
+  run clean on a local 8.5.9, with a negative control confirming the harness
+  surfaces deprecation notices rather than swallowing them, so "zero
+  deprecations" is a reading and not an artifact. The bet is that an
+  incompatibility is cheapest to fix the day it is written; if this lane ever
+  reds for a version the site cannot run, demote it to the nightly lane's
+  step-level `continue-on-error` rather than arguing with it.
 - **8.6 — nightly `8.6.0-dev`.** Non-blocking, and non-blocking at STEP level
   including the setup step: job-level `continue-on-error` still reports the
   check-run as failed and reds the PR, which trips the never-merge-a-red-PR
