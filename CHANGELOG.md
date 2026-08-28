@@ -4,6 +4,33 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.20.2] - 2026-08-27 — the Analytics pipeline strip gets the same treatment as the Machine Readers hero
+
+The second instance of the defect v13.20.1 fixed, found by censusing the admin surface
+rather than by waiting for it to be noticed. `snt_analytics_render_pipeline_status()`
+renders OUTSIDE the leaf's `.sn-2up` — `inc/analytics-admin.php` calls it at line 593 and
+opens the grid at 596 — so on a leaf already flagged `'wide' => true` it was the only card
+still at `.sn-fieldset`'s 820px cap, while the two columns beneath ran full width through
+`.sn-2up .sn-fieldset { max-width: none }`. `.sn-an-pipeline` never capped anything; it
+carries background, border, radius and padding only.
+
+**One pin moved, one deliberately did not.** The exact-string pin
+(`class="sn-fieldset sn-an-pipeline"`) had to be retargeted. The `3 === $fieldset_cards`
+count pin directly above it was written with a class-token-boundary regex explicitly so it
+would "survive modifier classes on any card" — and it did, unchanged. That is the
+difference between a pin that guards a property and a pin that guards a spelling, visible
+side by side in the same file.
+
+Mutation-proven, gated on the summary line rather than on absence of a FAIL string:
+reverting the modifier gives `246 passed, 2 failed`. `tests/run.sh`: 512 suites, 20,531
+assertions, 0 failed.
+
+**Scope, stated honestly:** this is the second of what a census suggests may be up to four
+capped cards holding wide content. The other candidates are NOT fixed here — a first-pass
+marker of `<table` over-reported badly (one flagged card already carried `--wide`, and a
+narrow 2–4 column table reads better capped), so the remainder are being read case by case
+before any of them move.
+
 ## [13.20.1] - 2026-08-27 — the Machine Readers hero stops being the only capped card on its leaf
 
 The Sensor status hero sat at the shared `.sn-fieldset` cap of 820px while everything

@@ -663,7 +663,13 @@ ok( strpos( $html, '<div class="sn-2up">' ) !== false, 'settings: lays out as a 
 // sn-fieldset-h headings don't match (the lookahead rejects the trailing hyphen).
 $fieldset_cards = preg_match_all( '~class="[^"]*(?<![\w-])sn-fieldset(?![\w-])~', $html );
 ok( 3 === $fieldset_cards, 'settings: exactly three .sn-fieldset surfaces: pipeline strip + the two columns (wide leaf owns its own chrome)' );
-ok( strpos( $html, 'class="sn-fieldset sn-an-pipeline"' ) !== false, 'settings: the strip is the modifier-carrying fieldset (the columns stay bare)' );
+// v13.20.2: the strip also carries --wide. It renders OUTSIDE the .sn-2up, so it
+// was the only card on this 'wide' leaf still at the 820px cap while the two
+// columns beneath ran full width by descendant selector. The count pin above is
+// deliberately token-boundary based and survives the extra modifier — that is why
+// only this exact-string pin had to move.
+ok( strpos( $html, 'class="sn-fieldset sn-fieldset--wide sn-an-pipeline"' ) !== false, 'settings: the strip carries --wide and runs FULL width, matching the Machine Readers hero (v13.20.1)' );
+ok( 1 === substr_count( $html, 'sn-fieldset--wide' ), 'settings: exactly ONE width modifier on the leaf — the two columns stay uncapped by descendant selector, never by a modifier of their own' );
 // S2 §6: the whole settings section is wrapped in the D4-leaf marker so the
 // leaf-scoped token-card CSS (analytics-admin.css) has something to hang off.
 ok( strpos( $html, 'class="sn-an-settings-leaf"' ) !== false, 'settings: wrapped in the sn-an-settings-leaf marker (S2 §6)' );
