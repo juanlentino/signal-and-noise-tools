@@ -32,7 +32,7 @@ was understated: three families were at the wall, not one.
 
 | Item | What is needed | Payoff when done |
 |------|----------------|------------------|
-| **Tag descriptions — partial is fine** | One written sentence per tag, in wp-admin → Posts → Tags (`description`). Editorial voice, deliberately not mine to write. **NOT all-or-nothing**: both consuming surfaces fall back cleanly per tag, so writing the top few first is a valid first pass | Each sentence lights up BOTH surfaces at once — the archive's hero dek (theme v12.11.0) and the tag's meta description (plugin v13.14.0). An undescribed tag keeps the corpus dek and emits no meta description, exactly as today |
+| ~~Tag descriptions~~ **DONE 2026-08-28: all 23 live-verified** | Nothing to do. Drafted in the house register, owner approved all 23 as-is, seeded by v13.23.0 (never-clobber, own flag), verified on the public archives (both surfaces). The arc grew a full loop the same day: v13.24.0 `tag_hygiene` watches for new undescribed/unused tags (negative-controlled red→clean on a planted tag), v13.25.0 `describe-tags` + `apply-tag-description` on the rw door draft and write the sentence for any future tag, few-shot from the approved 23 | Both surfaces lit on every tag; new tags are a one-approval workflow from a session |
 | ~~Thin-tag decision~~ **RESOLVED 2026-08-27: keep all 23** | Nothing to do — see the log entry below | The vocabulary stays as the 83→23 pass left it |
 
 ## Planned on the board — each waiting on its named gate
