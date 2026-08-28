@@ -274,6 +274,34 @@ function sn_admin_flash_to_notice( $flash ) {
 			if ( ! empty( $err['raw'] ) ) {
 				$notice .= ' The model returned: <code>' . esc_html( substr( (string) $err['raw'], 0, 400 ) ) . '</code>';
 			}
+			// v13.20.4: show the call's TOKEN ACCOUNTING beside its text. A short
+			// reply next to an exhausted output budget is a budget failure wearing
+			// a parse failure's error code, and that is unreadable from the text
+			// alone — which is exactly how the live `[ {` case looked like a JSON
+			// bug for as long as nobody opened the request logs.
+			if ( isset( $err['budget'] ) && is_array( $err['budget'] ) ) {
+				$b    = $err['budget'];
+				$max  = isset( $b['max_tokens'] ) ? (int) $b['max_tokens'] : 0;
+				$done = ( isset( $b['completion'] ) && null !== $b['completion'] ) ? (int) $b['completion'] : null;
+				$ch   = isset( $b['chars'] ) ? (int) $b['chars'] : 0;
+
+				if ( null === $done ) {
+					$notice .= ' No token record was found for this call, so the output budget cannot be checked here — see Settings &rarr; AI &rarr; AI Request Logs.';
+				} elseif ( $max > 0 && $done >= (int) floor( $max * 0.95 ) ) {
+					$notice .= sprintf(
+						' <strong>This is a budget failure, not a JSON one:</strong> the call generated its entire %1$s-token output budget and returned only %2$s characters of text. Output tokens that never reach the text are billed all the same — extended thinking counts against this budget. Raise <code>SN_INSIGHTS_MAX_TOKENS</code> (currently %1$s, hard-clamped at 4096), or turn thinking off for this call.',
+						esc_html( number_format_i18n( $max ) ),
+						esc_html( number_format_i18n( $ch ) )
+					);
+				} else {
+					$notice .= sprintf(
+						' For context: the call generated %1$s of its %2$s budgeted output tokens and returned %3$s characters — the budget was not the limit here.',
+						esc_html( number_format_i18n( $done ) ),
+						esc_html( number_format_i18n( $max ) ),
+						esc_html( number_format_i18n( $ch ) )
+					);
+				}
+			}
 			return array( 'error', $notice );
 		}
 		return array( 'error', 'Insights scan failed, but no diagnostic was recorded. Re-run the scan; if it recurs, check the PHP error log.' );

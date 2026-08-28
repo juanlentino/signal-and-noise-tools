@@ -4,7 +4,12 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
-## [13.20.4] - 2026-08-28 — the Insights save posted to a page that stopped existing, and nothing was watching the routes
+## [13.20.4] - 2026-08-28 — the Insights leaf: a save that posted nowhere, and an error that blamed the wrong layer
+
+Two defects on the same leaf, both found from one screenshot, both of the same
+shape: **the message named a layer that was not at fault.**
+
+### The save posted to a page that stopped existing
 
 Enabling the weekly Insights scan died on WordPress core's `wp_die()`:
 *"Sorry, you are not allowed to access this page."* It is not a permissions
@@ -42,6 +47,56 @@ trusted green.
 The sweep found no siblings: the six remaining hardcoded actions
 (`schedule-admin.php` → `sn-connections`, `tag-consolidation-admin.php` →
 `sn-content`) both point at registered tabs.
+
+### The parse error blamed JSON for a budget failure
+
+A scan failed with `snt_insights_invalid_json`, and the notice printed the
+model's entire reply: `[ {`. The parser was **correct** — three characters hold
+no recoverable array, and it already handles fences, prose-wrapping, trailing
+commas and truncated arrays. The message was the problem: it named JSON when the
+call had generated and BILLED its whole output budget.
+
+Solving the usage readout (`18,313 tokens, est. $0.08`) against the pricing table
+(`claude-sonnet-5` at $3/$15 per M) puts output at **~2,048 — the `max_tokens`
+cap exactly** — and input at ~16,265. So roughly 2,046 output tokens were
+generated, billed, and never reached the text the parser was handed. Output that
+never lands in the text still bills, and extended thinking counts against the
+same budget.
+
+That evidence was in the usage log the whole time. Nothing put it next to the
+error, so the admin page could not say it, and the failure read as a JSON bug
+for as long as nobody opened the request logs.
+
+Now it says so on the page:
+
+- **`snt_ai_usage_last( $feature )`** (`inc/ai-bootstrap/usage-log.php`) — the
+  newest usage entry for a feature. Returns **null**, never a zero-filled array,
+  when the log holds nothing: "no record" and "recorded zero tokens" are
+  different answers.
+- **`snt_insights_annotate_budget()`** attaches `max_tokens` / `completion` /
+  `prompt` / `chars` to a parse failure, and the flatten into the failure
+  transient carries the block through.
+- The notice renders **three distinct readings**: budget exhausted (names it a
+  budget failure and points at `SN_INSIGHTS_MAX_TOKENS`), budget not the limit
+  (says so explicitly), and no token record (says that, rather than printing a 0).
+
+**What it deliberately does NOT claim.** The notice never asserts that thinking
+was enabled. That is the likeliest explanation and it was not observed here — the
+plugin never configures thinking, it inherits the provider's default, and naming
+an unobserved cause is the same overreach that made the original message useless.
+It reports the numbers and lets the shape speak.
+
+`SN_INSIGHTS_MAX_TOKENS` is deliberately **unchanged**. v7.1.1 already bumped it
+once (1500 → 2048) for what looks like this same failure misread as verbosity;
+raising it again before the next run reports its own accounting would be a third
+guess against a live billed path.
+
+Guarded by `tests/insights-budget-diagnosis.php` (22 assertions), which pins each
+branch AND that the branches **differ** — a diagnosis that reads the same on every
+input is a constant, not a measurement. Mutation-verified both ways: removing the
+feature reds 11 assertions, and forcing the threshold always-true reds exactly the
+"budget was not the limit" and boundary cases. `tests/ai-bootstrap-surface-coverage.php`
+bumps its layer pin 21 → 22, deliberately.
 
 ## [13.20.3] - 2026-08-27 — the width sweep closes: two more cards, and the census that found them states its own error rate
 

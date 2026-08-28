@@ -67,7 +67,10 @@ foreach ( $layer as $f ) {
 	preg_match_all( '/^function\s+&?\s*([A-Za-z0-9_]+)\s*\(/m', (string) file_get_contents( $f ), $m );
 	foreach ( $m[1] as $fn ) { $declared[ $fn ][] = basename( $f ); }
 }
-ok( 21 === count( $declared ), 'the layer declares 21 functions (found ' . count( $declared ) . ')' );
+// 21 -> 22 in v13.20.4: snt_ai_usage_last() joined usage-log.php so a failing
+// AI call can report its own token accounting. Bumped deliberately — the count
+// is pinned precisely so a new function in this layer cannot arrive unnoticed.
+ok( 22 === count( $declared ), 'the layer declares 22 functions (found ' . count( $declared ) . ')' );
 
 // The by-reference declaration specifically — the one a naive regex misses.
 ok( isset( $declared['snt_ai_availability_cache'] ),
