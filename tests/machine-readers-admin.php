@@ -81,8 +81,16 @@ $tab = ob_get_clean();
 // The Analytics leaf skeleton: one capped hero card, then ONE .sn-2up of two
 // flat cards, everything inside a card. Exactly three fieldsets, no more.
 ok( false !== strpos( $tab, 'sn-an-settings-leaf' ), 'whole tab wrapped in the Analytics leaf class' );
-ok( false !== strpos( $tab, 'sn-fieldset sn-an-pipeline sn-mr-hero' ), 'sensor status is the capped Pipeline-status hero (no --wide divergence)' );
-ok( false === strpos( $tab, 'sn-fieldset--wide' ), 'no width modifiers — the Analytics leaf has exactly one width system' );
+// SUPERSEDED v13.20.1. These two asserted the hero was CAPPED and that the leaf
+// carried no width modifier, on the rationale "the Analytics leaf has exactly one
+// width system". That rationale did not survive reading the CSS: admin.css already
+// uncaps every fieldset inside .sn-2up by DESCENDANT SELECTOR, so this leaf has had
+// two rendered widths all along and the hero was the only thing still at the 820px
+// cap. What those pins really protected was "no modifier CLASSES", which is a
+// weaker and less useful invariant than the one below. Owner call on the screenshot:
+// a six-tile KPI grid wrapping 4-then-2 with dead space beside it.
+ok( false !== strpos( $tab, 'sn-fieldset sn-fieldset--wide sn-an-pipeline sn-mr-hero' ), 'sensor status hero runs FULL width — it holds the KPI grid, and its siblings in the 2up below were never capped either' );
+ok( 1 === substr_count( $tab, 'sn-fieldset--wide' ), 'exactly ONE width modifier on this leaf: the hero. The 2up cards stay uncapped by descendant selector, never by a modifier of their own — two ways to reach full width would be the real divergence' );
 ok( 1 === substr_count( $tab, 'sn-2up' ), 'exactly ONE two-column row, like Analytics' );
 ok( 3 === preg_match_all( '/<div class="sn-fieldset[" ]/', $tab ), 'exactly three cards: hero + data column + sensor column (sn-fieldset-actions is not a card)' );
 // Order: status first (like Pipeline status), then the data.

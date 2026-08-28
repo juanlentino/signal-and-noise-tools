@@ -4,6 +4,34 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.20.1] - 2026-08-27 — the Machine Readers hero stops being the only capped card on its leaf
+
+The Sensor status hero sat at the shared `.sn-fieldset` cap of 820px while everything
+below it ran the full content width, so a six-tile KPI grid wrapped 4-then-2 with dead
+space beside it. It now carries `.sn-fieldset--wide`.
+
+**The interesting part is why the old pins said not to.** Two assertions guarded the cap —
+*"sensor status is the capped Pipeline-status hero (no --wide divergence)"* and *"no width
+modifiers — the Analytics leaf has exactly one width system"*. That second rationale does
+not survive reading the stylesheet: `admin.css` already contains
+`.sn-2up .sn-fieldset { max-width: none }`, so every card in the two-column row below has
+been uncapped by descendant selector since long before this change. The leaf has always had
+two rendered widths. What those pins actually protected was "no modifier CLASSES" — a
+weaker invariant than the one they appeared to state, and one that left the hero as the
+single capped element on a leaf where nothing else was capped.
+
+`.sn-an-pipeline` was never the cause: it sets background, border, radius and padding, and
+no `max-width` at all. The cap was inherited entirely from `.sn-fieldset`.
+
+The replacement pin asserts what is now true and keeps the part worth keeping: exactly ONE
+width modifier on the leaf. Two different ways of reaching full width — a modifier here and
+a descendant selector there — would be the real divergence.
+
+Verified structurally, not visually: this is a wp-admin surface behind a login, so the
+change is pinned by the rendered class string rather than a screenshot. Mutation-proven —
+reverting the modifier reds both pins (34 passed, 2 failed). `tests/run.sh`: 512 suites,
+20,530 assertions, 0 failed.
+
 ## [13.20.0] - 2026-08-27 — the AI-attention digest row graduates: it was built, the board had never moved it
 
 Asked to build the AI-attention section of the weekly digest, I found it already
