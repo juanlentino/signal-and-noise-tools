@@ -538,5 +538,31 @@ $r = snt_deploy_worker_live_probe( 'sn-analytics', snt_deploy_workers_registry()
 dw_assert( ! array_key_exists( 'contract_match', $r ) && ! array_key_exists( 'contract_live', $r ),
 	'a worker without contract_path gets NO contract keys — absence, not null-zeros' );
 
+// ── v13.26.0: the status STRUCT carries the comparison through ─────────────
+// The probe writing the fields is not enough — snt_deploy_worker_status_for()
+// used to rebuild its row from a fixed key list, silently dropping them, so
+// every consumer (fleet zone, get-deploy-status, sn-status{deploy}) read a
+// probe that measured skew and a row that never mentioned it.
+echo "\nGroup: status struct carries the contract comparison (v13.26.0)\n";
+dw_reset();
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array(
+	'worker'           => 'sn-remote-mcp',
+	'version'          => '1.1.0',
+	'contract_version' => '999',
+) );
+$row = snt_deploy_worker_status_for( 'sn-remote-mcp', array( 'allow_probe' => true, 'force' => true ) );
+dw_assert( false === ( $row['contract_match'] ?? null ), 'status_for: skewed probe → contract_match false on the row' );
+dw_assert( '999' === ( $row['contract_live'] ?? '' ), 'status_for: the skewed live value rides the row' );
+dw_assert( SN_REMOTE_CONTRACT_VERSION === ( $row['contract_expected'] ?? '' ), 'status_for: the plugin mirror rides the row' );
+
+dw_reset();
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array(
+	'worker'  => 'sn-analytics',
+	'version' => '1.21.0',
+) );
+$row = snt_deploy_worker_status_for( 'sn-analytics', array( 'allow_probe' => true, 'force' => true ) );
+dw_assert( ! array_key_exists( 'contract_match', $row ) && ! array_key_exists( 'contract_expected', $row ),
+	'status_for: no contract_path → the row carries NO contract keys either' );
+
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -128,5 +128,62 @@ ok( 'ok' === $z['state'], 'and two warming workers still leave the fleet ok' );
 $z = sn_dash_zone_fleet( array( 'Theme' => '11.12.0' ), '' );
 ok( 0 === $z['pending'], 'nothing warming is a pending count of zero' );
 
+// ── v13.26.0: the contract comparison finally renders (fleet zone) ─────────
+// A SKEW earns the card attention and an explanatory value; a MATCH is the
+// quiet normal (no marker); a worker with no contract keys at all is quiet
+// too — absence is not a match, and neither may raise the alarm.
+$z = sn_dash_zone_fleet( array(
+	'Remote MCP' => array(
+		'version'           => '1.1.0',
+		'reason'            => '',
+		'contract_skew'     => true,
+		'contract_live'     => '2',
+		'contract_expected' => '1',
+	),
+), '' );
+ok( true === $z['cards'][0]['attention'], 'contract skew flips the card to attention' );
+ok( false !== strpos( $z['cards'][0]['value'], 'contract skew' ), 'skewed value names the condition' );
+ok( false !== strpos( $z['cards'][0]['value'], '2' ) && false !== strpos( $z['cards'][0]['value'], '1' ), 'both live and expected versions render' );
+ok( true === $z['cards'][0]['measured'], 'a skewed worker is still MEASURED (the version answered)' );
+
+$z = sn_dash_zone_fleet( array( 'Remote MCP' => '1.1.0' ), '' );
+ok( false === $z['cards'][0]['attention'] && '1.1.0' === $z['cards'][0]['value'], 'a plain version card stays quiet (no contract keys is not a skew)' );
+
+// The SEAM, same discipline as the warming fix above: production components
+// come from snt_dashboard_fleet_components(), and if THAT drops the probe's
+// contract fields the render assertions above pass while the feature is inert.
+$components = snt_dashboard_fleet_components(
+	array( 'current' => '11.12.0' ),
+	array( 'current' => '11.28.0' ),
+	array(
+		array(
+			'label'             => 'Remote MCP',
+			'live'              => '1.1.0',
+			'reason'            => '',
+			'contract_match'    => false,
+			'contract_live'     => '2',
+			'contract_expected' => '1',
+		),
+		array(
+			'label'          => 'Analytics',
+			'live'           => '1.21.0',
+			'reason'         => '',
+			// No contract keys at all — the four workers without contract_path.
+		),
+		array(
+			'label'             => 'Rights',
+			'live'              => '1.21.0',
+			'reason'            => '',
+			'contract_match'    => true,
+			'contract_live'     => '1',
+			'contract_expected' => '1',
+		),
+	)
+);
+ok( is_array( $components['Remote MCP'] ) && ! empty( $components['Remote MCP']['contract_skew'] ), 'components: mismatch survives the seam as contract_skew' );
+ok( '1.1.0' === ( $components['Remote MCP']['version'] ?? '' ), 'components: the skewed worker keeps its version' );
+ok( '1.21.0' === $components['Analytics'], 'components: no contract keys → plain version string, quiet' );
+ok( '1.21.0' === $components['Rights'], 'components: a MATCHING contract is also the quiet plain form' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -506,7 +506,7 @@ function snt_deploy_worker_status_for( $id, $opts = array() ) {
 		}
 	}
 
-	return array(
+	$row = array(
 		'id'            => $id,
 		'label'         => $label,
 		'live'          => $live,
@@ -516,6 +516,16 @@ function snt_deploy_worker_status_for( $id, $opts = array() ) {
 		'source_commit' => (string) ( $live_result['commit'] ?? '' ),
 		'reason'        => $reason,
 	);
+	// v13.26.0: carry the versioned-contract comparison through to consumers
+	// (fleet zone, get-deploy-status, sn-status{deploy}). The probe only sets
+	// these for workers whose registry entry names a contract_path, and
+	// absence stays absence — a worker with no contract is not "matching".
+	if ( array_key_exists( 'contract_match', $live_result ) ) {
+		$row['contract_live']     = (string) ( $live_result['contract_live'] ?? '' );
+		$row['contract_expected'] = (string) ( $live_result['contract_expected'] ?? '' );
+		$row['contract_match']    = (bool) $live_result['contract_match'];
+	}
+	return $row;
 }
 
 /**

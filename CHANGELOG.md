@@ -4,6 +4,31 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.26.0] - 2026-08-28 — contract skew finally renders (fleet console)
+
+### Added — the deploy probe's contract comparison reaches the eye
+
+v13.22.0's probe compares the remote MCP door's live `/status.contract_version`
+against the plugin mirror — and until now the comparison lived only in the
+probe's transient. Two seams carried it nowhere: `snt_deploy_worker_status_for()`
+rebuilt its row from a fixed key list (silently dropping the fields), and the
+fleet components never looked. Now:
+
+- The **status struct** carries `contract_live`/`contract_expected`/
+  `contract_match` through to every consumer — the fleet zone,
+  `get-deploy-status`, and `sn-status{deploy}` — absence preserved for the
+  four workers without a `contract_path`.
+- The **fleet console** renders a skew as
+  `1.1.0 — contract skew (live 2 ≠ expected 1)` with the card flipped to
+  attention. A MATCH is the quiet normal; absence is quiet too — absence is
+  not a match, and neither may raise the alarm. A version alone still never
+  alarms (drift is reported elsewhere); the skew is the one thing with no
+  other reporter, so it is the one thing that earns this card attention.
+- [tests/dash-zone-builders.php](tests/dash-zone-builders.php) covers the
+  seam the same way the warming fix did: hand-built cards AND the real
+  `snt_dashboard_fleet_components()` path, so a dropped field cannot leave
+  the render assertions green while the feature is inert.
+
 ## [13.25.0] - 2026-08-28 — the sentence writes itself (tag-description generator pair)
 
 ### Added — describe-tags + apply-tag-description, on the rw door
