@@ -4,6 +4,31 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.23.0] - 2026-08-28 — the 23 tag descriptions, seeded
+
+### Added — one-shot seed of the owner-approved tag descriptions
+
+Both consuming surfaces have waited on these sentences since they shipped — the
+tag archive's hero dek (theme v12.11.0) and the tag page's meta description
+(plugin v13.14.0) — each falling back cleanly per undescribed tag. The 23
+sentences were drafted in the house register and owner-approved 2026-08-28;
+[inc/tag-descriptions-seed.php](inc/tag-descriptions-seed.php) walks the
+vocabulary once on `admin_init` and writes them.
+
+- **NOT in the content-migrations registry** — its master sentinel is stamped
+  on live and returns early, so a new entry there would look registered and
+  never run (the lesson `inc/provenance-freshness-backfill.php` recorded).
+  Own flag (`sn_tag_descriptions_seeded_v1`), own hook.
+- **Never clobbers**: writes only where the term's description is empty, so a
+  sentence edited in wp-admin — before or after this lands — survives. Missing
+  terms (renamed, pruned) are skipped; the vocabulary stays wp-admin's to
+  govern. The flag burns after one full pass.
+- [tests/tag-descriptions-seed.php](tests/tag-descriptions-seed.php): full
+  write pass (21 of 23 with one owner-edited + one missing), the never-clobber
+  guard mutation-proven red, idempotence, and map hygiene (23 entries,
+  distinct, period-terminated).
+
+
 ## [13.22.0] - 2026-08-28 — the remote MCP payload contract (phase 2), and the door's ad matches its inventory
 
 ### Added — versioned-contract phase 2: payload shapes are pinned where they are authored
