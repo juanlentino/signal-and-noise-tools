@@ -143,7 +143,19 @@ ok( false !== strpos( $html, 'once that runner is stable' ), 'the agents migrati
 // its gate; the CLAIM this pin protects (the profiling never stated inline)
 // survives in the new phrasing, so the pin follows the claim, not the old words.
 ok( false !== strpos( $html, 'never profiling a reader' ), 'the traffic-rhythm row restates the profiling never inline' );
-ok( false !== strpos( $html, 'sentence-scale change' ), 'the staged-edit done item is present in prose' );
+// 2026-08-28: the staged-edit row RETIRED from the hub (done ceiling; the
+// spend row took its slot). Its claim already stands as the AI maturity
+// page's first principle, so the pin follows the claim to that page — and
+// the board pin INVERTS: the retired row must be in NO column, the
+// threat-model precedent's floor discipline.
+ok( false === strpos( $html, 'sentence-scale change' ), 'the retired staged-edit row is in NO board column (its claim lives on the AI maturity page)' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/ai-maturity-page.php' ), 'staged revision a person accepts' ), 'the staged-edit CLAIM survives as the AI maturity page\'s principle (source pin; that file\'s own suite drives the render)' );
+ok( false !== strpos( $html, 'itemized by feature' ), 'the spend row stands in done, itemized-by-feature phrasing' );
+ok( false !== strpos( $html, 'never inside, the platform-reported' ), 'the spend row keeps the estimated-vs-platform honesty clause inline' );
+ok( false !== strpos( $html, 'minimum-age cooldown' ), 'the dependency-provenance row stands in done with the cooldown clause' );
+ok( false !== strpos( $html, 'reviewed, per-version exception' ), 'and carries the reviewed-exception discipline as fact' );
+ok( false !== strpos( $html, 'whose renewal no platform manages' ), 'the promoted calendar row names its gate inline' );
+ok( false === strpos( $html, 'mailed daily' ), 'the retired morning-brief row is in NO board column (its halves live on the ops page: Narrate layer + tenth principle)' );
 
 // SECURITY CONTRACT: no option names, endpoint paths, tool/change-type
 // slugs, or meta keys on the public page — the family's leak-proof sweep.

@@ -96,7 +96,8 @@ foreach ( array( 'sn_machine_maturity', 'sn_ops_maturity', 'sn_a11y_maturity', '
 }
 ok( array() === $GLOBALS['__enq'], 'loading the files enqueues nothing — stylesheets ride the render' );
 ok( 6 === count( sn_machine_maturity_layers() ) && 5 === count( sn_ops_maturity_layers() ) && 5 === count( sn_a11y_maturity_layers() ), 'ops and a11y walk five layers; machine readability walks six (v10.71.0 added the rights layer)' );
-ok( 8 === count( sn_machine_maturity_principles() ) && 9 === count( sn_ops_maturity_principles() ), 'machine keeps the family eight; ops carries NINE - the ninth graduated off the roadmap board when its done column hit the ceiling (v13.18.0)' );
+ok( 8 === count( sn_machine_maturity_principles() ) && 10 === count( sn_ops_maturity_principles() ), 'machine keeps the family eight; ops carries TEN - the ninth graduated off the roadmap board at the v13.18.0 ceiling, the tenth at the v13.28.0 one (the morning brief\'s injection half)' );
+ok( false !== strpos( implode( ' | ', sn_ops_maturity_principles() ), 'wearing the site\'s own voice' ), 'the tenth principle carries the mail-path injection posture (the half the board row stated nowhere else)' );
 // a11y is the SECOND page to break the family's eight, and for the same reason
 // the AI page broke it at nine: the extra principle arrived by GRADUATION off
 // the hub roadmap board, not by authoring. The done column's ceiling forces a
