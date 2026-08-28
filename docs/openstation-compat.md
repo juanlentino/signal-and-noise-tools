@@ -20,20 +20,49 @@ citation reappears here.
 [Re-verifying after an upstream release](#re-verifying-after-an-upstream-release)
 for the instrument.
 
-**The site runs `v1.1.3`, which is NOT verified here** (2026-08-26). It carries a
-known Cmd+K break — every command that needs a JS callback silently no-ops —
-diagnosed to upstream's deferred palette runtime. `WordPress/openstation` PR #683
-confirms the diagnosis in upstream's own words and carries the fix, so there is
-nothing to change here and no issue to file — **but #683 is MERGED TO TRUNK AND
-UNRELEASED.** Measured 2026-08-26: v1.1.3 is the latest tag, and #683's commit
-(`199a0851`) is **15 commits ahead of it, 0 behind** — no tagged release contains
-it. So the break is live on this site and stays live until upstream tags a
-release carrying #683 and we upgrade to it. Merged is not shipped; do not read
-"fixed upstream" as "working in production".
+**The site runs `v1.1.4`, which is NOT verified here** (2026-08-28).
 
-The name-membership sweep below passes clean against v1.1.3: every upstream name
-this plugin references still exists. The break is behavioural, which is exactly
-the gap the runtime probe in that section now covers.
+**The Cmd+K break is FIXED.** `WordPress/openstation` PR #683 — merged to trunk
+and unreleased when this file last said so — finally shipped. Verified by
+ancestry rather than by release notes: `compare/199a0851...v1.1.4` returns
+`behind=0`, so the fix commit is an ancestor of the tag. The ⌘K seam had broken
+on every upgrade for three consecutive releases; this is the first that repairs
+one. **Re-verify ⌘K on this site before treating it as working** — shipped is
+not the same as working here, the mirror of the lesson this paragraph used to
+carry in the other direction.
+
+**A NEW regression arrived with it: form buttons do not render inside a
+chromeless window.** Observed 2026-08-28 08:45, eighteen minutes after v1.1.4
+published (`2026-08-28T08:27:28Z`). On Measurement → Insights, both `Run
+Analysis` and `Save settings` are absent; the `.sn-fieldset-actions` container
+still draws its top border, so the space is there and the control is not. **The
+same page in plain `/wp-admin/` renders both buttons correctly**, which places
+the fault in the host shell, not in this plugin — do not "fix" the leaf's
+markup to chase it.
+
+Root cause NOT yet found. v1.1.4 is 26 commits and 300 files. Two candidates
+were examined and CLEARED, recorded here so nobody re-walks them:
+
+- `includes/render/chromeless-trim.php` (new, +1023) dequeues only the
+  admin-bar family — `admin-bar`, `os-admin-bar`, `wpcom-admin-bar`,
+  `wpcom-notes-common`, `wpcom-notes-admin-bar`, `a8c-faux-inline-help`.
+  Nothing that styles or emits a `.button`.
+- `src/chromeless-bridge.js` (new, +3622) intercepts every same-origin
+  `<form>` action to append `openstation_chromeless=1`. It rewrites actions,
+  never markup, and falls back to `window.location.href` when a form has no
+  `action` — so the actionless forms this plugin ships since v13.20.4 are
+  compatible with it.
+
+The remaining suspect is `assets/css/my-wordpress.css` (+628/-119 in this
+release), the stylesheet for wp-admin inside the shell. **The next measurement
+is one bit: is the button ABSENT from the DOM, or present and hidden?** That
+splits "the shell rewrites our markup" from "the shell's CSS hides it", and the
+two would be filed differently.
+
+The name-membership sweep below passes clean: every upstream name this plugin
+references still exists. Both known breaks — v1.1.3's ⌘K and v1.1.4's missing
+buttons — are BEHAVIOURAL, which is exactly the gap a name sweep cannot see and
+the runtime probe in that section exists to cover.
 
 **No back-compat shim exists upstream.** A code search of post-#475
 `WordPress/openstation` for any `desktop_mode_*` name returns zero hits.
@@ -53,6 +82,7 @@ Compat layer: [inc/openstation-compat.php](../inc/openstation-compat.php).
 | v1.1.1 | 2026-08-19 | Post-rename |
 | **v1.1.2** | **2026-08-21** | Post-rename — **the release this file is verified against** (19 names) |
 | **v1.1.3** | **2026-08-24** | Post-rename — **running in production, NOT verified here.** Deferred the palette's Gutenberg runtime to first ⌘K; broke plugin-contributed commands. Fix merged to trunk in #683 but **in no tagged release** as of 2026-08-26 — still broken here |
+| **v1.1.4** | **2026-08-28** | Post-rename — **running in production, NOT verified here.** **Carries #683**, so the v1.1.3 ⌘K break is fixed (ancestry-verified: `199a0851` is an ancestor of the tag). Introduces a NEW break: form buttons absent inside chromeless windows, plain wp-admin unaffected. Root cause not yet found; `chromeless-trim.php` and `chromeless-bridge.js` examined and cleared |
 
 An earlier revision of this file said the rename was "in trunk, **not yet in
 any tagged release**", and that end-to-end verification was "structurally
