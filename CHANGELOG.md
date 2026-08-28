@@ -4,6 +4,37 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.17.0] - 2026-08-27 — the note-reply alias becomes a setting (a choice, not a text field)
+
+Which /contact alias the note Reply row writes to is now
+**Site → Front-End → "Note reply goes to"**, supplied to the theme through the
+existing `sn_note_reply_alias` filter seam (theme v12.11.1). Default `research`,
+matching the theme's own constant, so an unset value leaves the row exactly as
+it shipped.
+
+**A SELECT, never free text — and validated three times.** The reason the alias
+was hardcoded is that an arbitrary local part mints an address the mailbox does
+not filter, which is the layer that actually stops spam once a JS-executing
+scraper has assembled the address. So the form offers only the five real
+aliases, the save handler refuses an off-list POST (storing the default rather
+than the input, because a stored bad value outlives the request that posted it),
+and the theme validates once more against its own copy of the list.
+
+**The allowlist is a FUNCTION, and that is the interesting part.** As a constant
+it fatalled: three files need it — the settings form, the save handler, the
+theme filter — and they load in three different orders
+(`inc/theme-filters.php` comes AFTER `inc/admin-post-actions.php`), while the
+standalone suites each load a different subset. A constant in any one of them is
+simply absent for the others, and absence is a FATAL rather than a wrong answer.
+`sn_note_reply_aliases()` lives in `inc/settings.php` and every caller guards
+with `function_exists`, falling back to research-only: **fail CLOSED**, because
+the failure being guarded is minting an unfiltered address. The suites caught
+this twice — first the fatal, then two more suites that load neither file.
+
+Nine assertions in `tests/settings-theme.php`, including five filter refusals
+and two save-path refusals. Removing the save validation reds 1; removing the
+filter validation reds 5.
+
 ## [13.16.3] - 2026-08-27 — the panel names the day count the decision uses
 
 The prose sweep, run because two defects in one evening came from the same gap:

@@ -31,6 +31,7 @@ function sn_admin_render_front_end_form() {
 	$uthr    = (int) sn_setting( 'theme.updated_threshold_days', 14 );
 	$wpm     = (int) sn_setting( 'theme.reading_wpm', 225 );
 	$nperp   = (int) sn_setting( 'theme.notes_per_page', 20 );
+	$ralias  = (string) sn_setting( 'theme.note_reply_alias', 'research' );
 
 	echo '<form method="post" class="sn-front-end-form">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
@@ -48,6 +49,20 @@ function sn_admin_render_front_end_form() {
 	echo '<label class="sn-field-label" for="sn_theme_related_count">Related notes shown</label>';
 	echo '<input type="number" min="1" max="12" id="sn_theme_related_count" name="theme_related_count" value="' . esc_attr( $related ) . '">';
 	echo '<p class="sn-field-helper">How many related notes appear under a single note (1&ndash;12).</p>';
+	echo '</div>';
+
+	// A SELECT, deliberately not a text field: an arbitrary local part mints an
+	// address the mailbox does not filter. The list mirrors the five /contact
+	// aliases, and both the plugin filter and the theme validate against it.
+	echo '<div class="sn-field sn-field-w-xs">';
+	echo '<label class="sn-field-label" for="sn_theme_note_reply_alias">Note reply goes to</label>';
+	echo '<select id="sn_theme_note_reply_alias" name="theme_note_reply_alias">';
+	$alias_choices = function_exists( 'sn_note_reply_aliases' ) ? sn_note_reply_aliases() : array( 'research' );
+	foreach ( $alias_choices as $a ) {
+		echo '<option value="' . esc_attr( $a ) . '"' . selected( $ralias, $a, false ) . '>' . esc_html( $a . '@' ) . '</option>';
+	}
+	echo '</select>';
+	echo '<p class="sn-field-helper">Which existing alias the Reply row on a note writes to. Only aliases the mailbox already filters are offered &mdash; a new local part would arrive unfiltered.</p>';
 	echo '</div>';
 
 	echo '<div class="sn-field sn-field-w-xs">';

@@ -33,6 +33,16 @@ function sn_tf_related_count( $d ) {
 }
 
 /**
+ * @param string $d Theme-supplied default alias.
+ * @return string One of SN_TF_NOTE_REPLY_ALIASES.
+ */
+function sn_tf_note_reply_alias( $d ) {
+	$alias = strtolower( trim( (string) sn_setting( 'theme.note_reply_alias', $d ) ) );
+	$allowed = function_exists( 'sn_note_reply_aliases' ) ? sn_note_reply_aliases() : array( 'research' );
+	return in_array( $alias, $allowed, true ) ? $alias : (string) $d;
+}
+
+/**
  * @param int $d Theme-supplied default.
  * @return int Command-palette recent-notes count (0–20).
  */
@@ -113,6 +123,7 @@ function sn_tf_ai_model( $d, $prompt = '', $system = '', $feature = '' ) {
 // (which exercises the callbacks directly and does not stub add_filter).
 if ( ! defined( 'SN_THEME_FILTERS_TEST' ) || ! SN_THEME_FILTERS_TEST ) {
 	add_filter( 'sn_related_count', 'sn_tf_related_count' );
+	add_filter( 'sn_note_reply_alias', 'sn_tf_note_reply_alias' );
 	add_filter( 'sn_palette_recent_count', 'sn_tf_palette_recent_count' );
 	add_filter( 'sn_palette_enabled', 'sn_tf_palette_enabled' );
 	add_filter( 'sn_json_feed_items', 'sn_tf_json_feed_items' );
