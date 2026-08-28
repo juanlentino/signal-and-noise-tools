@@ -357,13 +357,20 @@ ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array
 // that retirement bought: at MAX_DONE - 2, the digest row can graduate to 4 and
 // still clear the canary. A future row quietly re-filling the slot reds HERE,
 // with the reason attached, rather than surfacing later as a refused write.
-// v13.18.0 spent this headroom (the folded Search Console row put Analytics
-// done at 4); v13.19.0 BOUGHT IT BACK by graduating the AI-referral row onto
-// /maturity/analytics/. Back at MAX_DONE - 2, so the planned digest row can
-// graduate to 4 and still clear the canary. A future row quietly re-filling
-// the slot reds HERE, with the reason attached, rather than surfacing later
-// as a refused write.
-ok( count( $floor['Analytics']['done'] ) <= SN_MATURITY_ROADMAP_MAX_DONE - 2, 'DR floor: Analytics done has room for the digest row to graduate WITHOUT tripping the wall canary' );
+// The three-release arc of this one slot, kept as one comment because the
+// number alone reads like churn: v13.18.0 SPENT the headroom (the folded
+// Search Console row put Analytics done at 4); v13.19.0 BOUGHT IT BACK by
+// graduating the AI-referral row onto /maturity/analytics/; v13.20.0 spent it
+// again — deliberately, on the digest row it was bought for. So the column is
+// back AT the canary limit, and the next Analytics graduation needs another
+// retirement first. That is the ceiling working, not drift: the slot was
+// created for a named row and went to that row.
+ok( SN_MATURITY_ROADMAP_MAX_DONE - 1 === count( $floor['Analytics']['done'] ), 'DR floor: Analytics done is back AT the wall-canary limit — the headroom v13.19.0 bought went to the digest row, as intended' );
+$digest_done = implode( ' | ', $floor['Analytics']['done'] );
+ok( false !== strpos( $digest_done, 'AI attention in the weekly digest' ), 'DR floor: the digest row is DONE, stating what acts (v13.20.0) — the section was built against this row and the board had simply never moved it' );
+ok( false === strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'AI attention' ) && false === strpos( implode( ' | ', $floor['Analytics']['planned'] ), 'AI-attention' ), 'DR floor: and it is GONE from planned — a row moves, it is never copied' );
+ok( false !== strpos( $digest_done, 'thirty-day window is cited' ), 'DR floor: the graduated row keeps its window discipline — the ledger window is cited, never blended into the digest week, which is the rule the narration instruction actually enforces' );
+ok( false !== strpos( $digest_done, 'measured nothing stays silent' ), 'DR floor: and the three-valued half — a window that measured nothing narrates no zero, the property Test 8b pins on the signal itself' );
 $analytics_all = implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) );
 ok( false === strpos( $analytics_all, 'AI-referred humans as a channel' ), 'DR floor: the AI-referral row is in NO Analytics column — graduation is removal from the hub, not demotion within it' );
 ok( false === strpos( $analytics_all, 'lumping them hides the shift' ), 'DR floor: and no fragment of its sentence survives anywhere in the family' );

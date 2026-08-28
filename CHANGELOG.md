@@ -4,6 +4,39 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.20.0] - 2026-08-27 — the AI-attention digest row graduates: it was built, the board had never moved it
+
+Asked to build the AI-attention section of the weekly digest, I found it already
+shipped. `snt_narration_collect_signals()` has assembled an `ai_attention` block —
+`window_days`, `total_reads`, `families`, `rights_reads` — for some time, the system
+instruction carries a dedicated paragraph for it, and `tests/insights-narration.php`
+Test 8b pins the whole thing while **quoting this board row's contract back at itself**:
+*"assembled from the ledger already kept, no new collection."* The section was built
+against the row's own words and the row was never moved.
+
+So this release moves it: **Analytics `planned` → `done`**, into the slot v13.19.0's
+retirement bought — which is exactly what that headroom was for.
+
+**The done sentence carries the two disciplines, because they are what make the claim
+honest rather than implementation detail.** The ledger's thirty-day window is *cited*, never
+blended into the digest's seven-day week; and a window that measured nothing stays silent
+rather than narrating a zero it never saw. Both are properties the shipped code actually
+enforces — the instruction requires stating the window in plain words, and the signal is
+omitted entirely when the sensor never measured *or* when a measured window saw zero.
+
+The row would populate today: `/maturity/machine-readability/` publishes "Machines read
+this site's published terms 5,245 times in the last 30 days", read from the same snapshot.
+
+Two guards fired during the change and both were right. The 400-character item ceiling
+refused a first draft of the sentence, and the Analytics headroom pin went red because the
+slot it protects had been filled — by the row it was bought for. That pin now records the
+three-release arc of one slot in a single comment (v13.18.0 spent it, v13.19.0 bought it
+back, v13.20.0 spent it as intended), because the number alone reads like churn.
+
+Four new DR-floor pins: the row is in `done`, gone from `planned`, and keeps both
+disciplines. Mutation-proven — planting a stale copy in `planned` reds the never-copied
+pin. `tests/run.sh`: 512 suites, 20,530 assertions, 0 failed.
+
 ## [13.19.0] - 2026-08-27 — the AI-referral row graduates, and the digest row gets its slot back
 
 `v13.18.0`'s fold put Analytics `done` at 4 — the wall-canary limit — because the Search

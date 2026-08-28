@@ -42,7 +42,6 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 | Family | Item | Gate |
 |--------|------|------|
-| Analytics | AI-attention section in the weekly digest | **Gate OPENED v13.19.0.** The AI-referral row graduated onto `/maturity/analytics/`, putting Analytics done back at 3, so this row has a slot to graduate into. No gate remains — first candidate to promote into the build queue |
 | Proof of origin | Extend signing/anchoring to pages, then media | Sequenced after current notes-chain stability; owner call on timing |
 | AI | Move the operative AI channel to the desktop platform's native agents | The native runner proving stable enough to trust with the same fences (agents arc currently DISABLED) |
 | AI | Retire legacy single-purpose tools the consolidated set absorbed | Usage evidence, not a date |
@@ -67,6 +66,16 @@ the gate opens. When one opens, it moves into the prioritized table above.
   admin-bar nodes, brutalist wp-admin. Sources in the brainstorm doc.
 
 ## Log
+
+- 2026-08-27 — the AI-attention digest row GRADUATED to done as v13.20.0, and it was a
+  **phantom queue item**: the section was already built. `snt_narration_collect_signals()`
+  assembles the `ai_attention` block, the system instruction has a paragraph for it, and
+  Test 8b quotes this row's own contract back at itself. Nothing was built; the board was
+  moved to match the code. This is the third time this estate has been bitten by a shipped
+  feature whose row never graduated — **grep the implementation before building any queued
+  row**, not just before proposing one. Owner settled the one genuine ambiguity: the row's
+  clauses are about CONTENT, so an on-demand digest satisfies "weekly digest" (the digest's
+  dashboard surface and weekly cron were retired in v9.4.1 and stay retired).
 
 - 2026-08-27 — the Analytics gate opened again as v13.19.0. The AI-referral row
   GRADUATED onto `/maturity/analytics/` as its thirteenth honesty principle, restoring the

@@ -102,6 +102,16 @@ function sn_maturity_roadmap_static_board() {
 	$board = array(
 		__( 'Analytics', 'signal-and-noise-tools' )           => array(
 			'done'        => array(
+				// v13.20.0: GRADUATED planned -> done. The section was built against this
+				// row's own words and the row was never moved -- tests/insights-narration.php
+				// Test 8b quotes the contract ("assembled from the ledger already kept, no
+				// new collection") back at itself. It took the slot the AI-referral row
+				// vacated one release earlier, which is exactly what that headroom was for.
+				// The two disciplines ride INSIDE the sentence because they are what makes
+				// the claim honest, not implementation detail: the ledger's own window is
+				// cited rather than blended into the digest's week, and a window that
+				// measured nothing stays silent instead of narrating a zero.
+				__( 'AI attention in the weekly digest: which crawler families read the site, and how many of those reads landed on the published terms rather than the prose — from the ledger snapshot the site already holds, no new collection. The ledger\'s own thirty-day window is cited, never blended into the digest\'s week, and a window that measured nothing stays silent — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				// 2026-08-12: the founding measurement row RETIRED to the
 				// Analytics family maturity page (the done-column ceiling at
 				// work — graduation off the hub is not deletion; that page
@@ -133,7 +143,6 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Search-side metrics from Search Console: the queries, impressions, and positions before the click, in their own Search view and beside Top pages — one hand-rolled service-account client, a rolling window that ends three days back because Google is still counting, and since v13.9.0 a daily sync that keeps its own schedule instead of waiting for a button', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				__( 'The questions search asked that the corpus doesn\'t answer: queries with impressions and no clicks, derived from the Search Console rows already synced — read by the owner\'s eyes, never by a model — landing once the daily sync has accrued a full month to speak from', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
