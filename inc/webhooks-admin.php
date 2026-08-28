@@ -52,7 +52,10 @@ function sn_webhooks_render_admin_tab() {
 		wp_nonce_field( 'sn_theme_options_nonce' );
 		echo '<input type="hidden" name="webhook_id" value="' . esc_attr( $wh['id'] ) . '">';
 
-		echo '<div class="sn-fieldset' . ( $is_new ? ' sn-fieldset--new' : '' ) . '">';
+		// v13.20.3: --wide. Each webhook card carries a FIVE-column delivery log
+		// (Fired at / Attempt / HTTP / Status / Response, lines ~116-121). Response
+		// is free text, so 820px squeezed the column that most needed room.
+		echo '<div class="sn-fieldset sn-fieldset--wide' . ( $is_new ? ' sn-fieldset--new' : '' ) . '">';
 		echo '<h2 class="sn-fieldset-h">' . esc_html( $wh['name'] ) . '</h2>';
 		echo '<p class="sn-fieldset-intro"><code>' . esc_html( $wh['id'] ) . '</code>: created ' . esc_html( wp_date( 'Y-m-d', (int) ( $wh['created_at'] ?? 0 ) ) ) . '</p>';
 

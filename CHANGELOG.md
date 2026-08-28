@@ -4,6 +4,48 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.20.3] - 2026-08-27 — the width sweep closes: two more cards, and the census that found them states its own error rate
+
+The end of the sweep v13.20.1 started. Two cards earn `--wide`, both verified by reading
+the markup rather than by trusting a grep:
+
+- **`insights-admin.php` — the prompt-cache probe**, whose table is six columns wide
+  (Model / Calls / Repeated / Largest prefix / Minimum to cache / Verdict).
+- **`webhooks-admin.php` — the per-webhook card**, holding a five-column delivery log
+  (Fired at / Attempt / HTTP / Status / Response). Response is free text, so the 820px cap
+  squeezed the column that most needed room.
+
+**The census had to be rebuilt three times, and each rebuild is the interesting part.**
+Version 1 attributed a table to the *function* it shared rather than the *card* it sat in.
+Version 2 added call resolution — necessary, because the Machine Readers hero composes its
+KPI tiles through a helper and was therefore invisible to any scan reading only inline
+markup — but it then counted every `<th>` reachable from a card, so three two-column tables
+summed to "six columns". Version 3 measures the widest SINGLE table. Each version was
+validated the same way: run it against the pre-fix tree and require it to flag both heroes
+already known to be defects. Version 1 failed that control, which is how the blind spot was
+found at all.
+
+**Nine candidates became two, and the seven deaths are recorded rather than quietly
+dropped:** "Retention" is a settings form with one number input (its chip/KPI flag came from
+`sn_admin_page_hooks` merely being *mentioned* in the slice); "Run Analysis" contains no
+table at all; "AI usage & spend" is status-box paragraphs; the remaining four were
+column-sum artifacts.
+
+**Two guards, and their difference is stated in the code.** The probe card is pinned by
+RENDER — which required stubbing `snt_ai_cache_probe_verdict()`, `wp_kses_post()` and
+`SN_AI_CACHE_PROBE_CAP` (the constant's value read from source, never invented). The
+webhook card is pinned by SOURCE, because this suite has no harness for the admin tab, and
+that pin says so out loud: it proves the markup is written, not that it renders. Both pin
+the COLUMN COUNT beside the class, so a future edit that narrows a table can honestly drop
+the modifier instead of leaving one nobody can justify.
+
+Both mutation-proven, gated on the summary line. `tests/run.sh`: 512 suites, 20,536
+assertions, 0 failed.
+
+**Not shipped: the census as a CI gate.** On a clean tree it yields five candidates of which
+two are real — a 60% false-positive rate is a gate that trains people to ignore it. It stays
+a scratch instrument.
+
 ## [13.20.2] - 2026-08-27 — the Analytics pipeline strip gets the same treatment as the Machine Readers hero
 
 The second instance of the defect v13.20.1 fixed, found by censusing the admin surface
