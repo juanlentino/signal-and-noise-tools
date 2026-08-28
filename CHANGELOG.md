@@ -4,6 +4,45 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.20.4] - 2026-08-28 — the Insights save posted to a page that stopped existing, and nothing was watching the routes
+
+Enabling the weekly Insights scan died on WordPress core's `wp_die()`:
+*"Sorry, you are not allowed to access this page."* It is not a permissions
+failure. It is routing, wearing a permissions failure's words.
+
+**What broke.** `snt_insights_render_settings_section()` posted its form to
+`admin.php?page=sn-insights`. That slug stopped being a registered page in
+**v3.8.1**, when `inc/admin-menu.php` moved to registering only the top tabs from
+`sn_admin_top_tabs()` instead of the twelve legacy slugs in `sn_admin_pages()`.
+Core's `admin.php` rejects an unregistered `page` before any plugin code runs.
+
+**Why it hid for so long.** A GET to a legacy slug is rescued by
+`sn_admin_maybe_redirect_legacy()`, so the leaf rendered perfectly and only the
+SAVE broke — the one path nobody exercises while reading a page.
+`inc/admin-legacy-redirect.php` had documented the hazard in its own docblock all
+along ("POST bodies submitted to a legacy URL are lost in the redirect. New code
+MUST use `sn_admin_top_tabs()`"), but a docblock is not enforcement.
+
+**The fix is a deletion.** The `action` attribute is gone; the form posts to the
+current url, exactly as the two other forms on that same leaf already did — which
+is why Run Analysis, Snooze, Mark done and Dismiss were never affected. An
+absolute url was the obvious repair and the wrong one: the Measurement tab's slug
+is `sn-monitoring`, not `sn-measurement`, so a hand-written url would have been
+wrong on the first try and stale on the next IA change.
+
+**The class is now guarded** — `tests/admin-form-action-routing.php`. It scans
+every `inc/*.php` (the layer, not a list of files that happen to hold forms today)
+and asserts each hardcoded form-action slug is in the set `sn_admin_top_tabs()`
+actually returns — the real producer, never a re-declared copy that could drift.
+It prints its derived set so a filter that matches nothing cannot pass as green,
+and it carries a negative control proving the scanner detects the exact legacy
+string this release removes. Verified red against the pre-fix line before being
+trusted green.
+
+The sweep found no siblings: the six remaining hardcoded actions
+(`schedule-admin.php` → `sn-connections`, `tag-consolidation-admin.php` →
+`sn-content`) both point at registered tabs.
+
 ## [13.20.3] - 2026-08-27 — the width sweep closes: two more cards, and the census that found them states its own error rate
 
 The end of the sweep v13.20.1 started. Two cards earn `--wide`, both verified by reading

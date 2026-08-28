@@ -427,7 +427,17 @@ function snt_insights_render_recommendations_section( $last ) {
 function snt_insights_render_settings_section() {
 	$enabled = function_exists( 'snt_insights_weekly_cron_enabled' ) ? snt_insights_weekly_cron_enabled() : false;
 
-	echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-insights' ) ) . '">';
+	// NO action attribute — post to the CURRENT url, exactly as the two other
+	// forms on this leaf do. This form used to hardcode
+	// admin.php?page=sn-insights, and that slug stopped being a registered page
+	// in v3.8.1 when inc/admin-menu.php moved to registering only the top tabs
+	// from sn_admin_top_tabs(). WP core's admin.php then wp_die()s "Sorry, you
+	// are not allowed to access this page" on the POST — a routing failure that
+	// reads exactly like a permissions one. GET survived because
+	// sn_admin_maybe_redirect_legacy() 302s it, which is why only SAVING broke.
+	// Do not re-add an action: the current url is already canonical, and a
+	// hardcoded one goes stale the next time the admin IA moves.
+	echo '<form method="post">';
 	wp_nonce_field( 'sn_theme_options_nonce' );
 	echo '<div class="sn-fieldset">';
 	echo '<h2 class="sn-fieldset-h">Settings</h2>';
