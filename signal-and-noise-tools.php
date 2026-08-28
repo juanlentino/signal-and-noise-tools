@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.24.0
+ * Version:     13.25.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -421,6 +421,7 @@ require_once __DIR__ . '/inc/ai-pair-suggest.php'; // v8.1.0: semantic-pair Sugg
 require_once __DIR__ . '/inc/ai-orphan-suggest.php';
 require_once __DIR__ . '/inc/ai-excerpt.php';
 require_once __DIR__ . '/inc/ai-tag-suggest.php';
+require_once __DIR__ . '/inc/ai-tag-describe.php'; // v13.25.0: draft the one-sentence tag description in the house voice (few-shot from the v13.23.0 seed map); apply is separate + never clobbers
 require_once __DIR__ . '/inc/ai-meta-description.php';
 require_once __DIR__ . '/inc/ai-og-card-title.php';
 require_once __DIR__ . '/inc/ai-ai-dedupe.php';
