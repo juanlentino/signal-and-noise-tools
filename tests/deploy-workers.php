@@ -199,6 +199,7 @@ if ( ! class_exists( 'WP_Error' ) ) {
 
 // Fixed endpoints for the default registry (no analytics/provenance helpers loaded).
 require_once __DIR__ . '/../inc/deploy-workers.php';
+require_once __DIR__ . '/../inc/mcp/mcp-remote-contract.php'; // phase 2: SN_REMOTE_CONTRACT_VERSION for the probe comparison
 
 function dw_assert( $cond, $msg ) {
 	global $pass, $fail;
@@ -495,6 +496,47 @@ dw_assert(
 	! empty( $GLOBALS['__dw_schedules']['snt_deploy_workers_warm'] ),
 	'A LEFTOVER ONE-OFF IS REPLACED by the recurrence — an existing install must not stay on the old event'
 );
+
+// ─── versioned-contract phase 2: the probe carries the contract comparison ───
+echo "\nGroup: remote-MCP contract comparison (phase 2)\n";
+dw_reset();
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array(
+	'worker'           => 'sn-remote-mcp',
+	'version'          => '0.5.0',
+	'contract_version' => SN_REMOTE_CONTRACT_VERSION,
+) );
+$r = snt_deploy_worker_live_probe( 'sn-remote-mcp', snt_deploy_workers_registry()['sn-remote-mcp'], true );
+dw_assert( true === ( $r['contract_match'] ?? null ), 'live contract == declared mirror → contract_match true' );
+dw_assert( SN_REMOTE_CONTRACT_VERSION === ( $r['contract_live'] ?? '' ), 'contract_live carries the probed value' );
+dw_assert( SN_REMOTE_CONTRACT_VERSION === ( $r['contract_expected'] ?? '' ), 'contract_expected carries the plugin mirror' );
+
+dw_reset();
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array(
+	'worker'           => 'sn-remote-mcp',
+	'version'          => '9.9.9',
+	'contract_version' => '999',
+) );
+$r = snt_deploy_worker_live_probe( 'sn-remote-mcp', snt_deploy_workers_registry()['sn-remote-mcp'], true );
+dw_assert( false === ( $r['contract_match'] ?? null ), 'skewed live contract → contract_match false (observable, never refused)' );
+dw_assert( '999' === ( $r['contract_live'] ?? '' ), 'the skewed value itself is carried, not collapsed' );
+
+dw_reset();
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array(
+	'worker'  => 'sn-remote-mcp',
+	'version' => '0.4.0',
+) );
+$r = snt_deploy_worker_live_probe( 'sn-remote-mcp', snt_deploy_workers_registry()['sn-remote-mcp'], true );
+dw_assert( false === ( $r['contract_match'] ?? null ), 'a /status without contract_version (pre-0.5.0 worker) → match false' );
+dw_assert( '' === ( $r['contract_live'] ?? 'MISSING' ), "absent field probes as '' — \"never saw\" is not a value" );
+
+dw_reset();
+$GLOBALS['__dw_http'][] = dw_http_json( 200, array(
+	'worker'  => 'sn-analytics',
+	'version' => '1.4.0',
+) );
+$r = snt_deploy_worker_live_probe( 'sn-analytics', snt_deploy_workers_registry()['sn-analytics'], true );
+dw_assert( ! array_key_exists( 'contract_match', $r ) && ! array_key_exists( 'contract_live', $r ),
+	'a worker without contract_path gets NO contract keys — absence, not null-zeros' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

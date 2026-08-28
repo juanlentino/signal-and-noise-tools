@@ -4,6 +4,44 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.22.0] - 2026-08-28 — the remote MCP payload contract (phase 2), and the door's ad matches its inventory
+
+### Added — versioned-contract phase 2: payload shapes are pinned where they are authored
+
+Phase 1 (sn-remote-mcp-worker v0.5.0) pinned the door's response ENVELOPE and
+exposed `contract_version` on `initialize` and `/status`, saying plainly that
+origin payload shapes were the missing half. This is that half, built on a
+fact already in the repo: the 8 remote twins' `output_schema`s are parity-pinned
+byte-identical to their admin registrations — so those schemas ARE the payload
+contract, and what was missing was only the coupling that makes changing one
+a *declared* act.
+
+- [inc/mcp/mcp-remote-contract.php](inc/mcp/mcp-remote-contract.php):
+  `SN_REMOTE_CONTRACT_VERSION` (mirrors the worker's `CONTRACT_VERSION`) and a
+  (version → sha256-over-canonical-schemas) map. Keys and TYPES only, never
+  values — pinning values trains fixture-updating reflexes.
+- [tests/remote-contract-shapes.php](tests/remote-contract-shapes.php): the
+  move-together pin, proven in BOTH directions (a re-typed field without a
+  version move reds; a version bump without a shape change reds), plus
+  null-capability pins for the three abilities that answer null by design —
+  the August incident class.
+- **The cross-repo coupling runs at INSTALL time, not CI** (the design's open
+  question 2): the deploy probe now reads `/status.contract_version` for any
+  registry entry declaring a `contract_path` and carries
+  `contract_live`/`contract_expected`/`contract_match` in its result. Skew is
+  observable exactly where it lands; nothing refuses on a mismatch, mirroring
+  the worker's always-advertise decision. Workers without a `contract_path`
+  get NO contract keys — absence, not null-zeros.
+
+### Fixed — the weekly-report prompt descriptor stopped advertising retired tools
+
+`prompts/list` still described the digest as synthesized "from analytics, RSS,
+uptime, narration, and insights tool calls" — the narration/insights quartet
+left the doors in wave 2 (v13.0.0) and the prompt BODY was rewritten then; the
+descriptor was the one surface that kept the old claim. Prose is the
+least-tested surface; the ad now matches the inventory.
+
+
 ## [13.21.0] - 2026-08-28 — the monthly AI spend, itemized by feature
 
 ### Added — the monthly AI spend, itemized by feature ("AI spend itemized by door")
