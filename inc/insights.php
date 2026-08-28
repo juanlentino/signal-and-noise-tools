@@ -761,7 +761,10 @@ function snt_insights_run_scan( $force = false ) {
 
 	$parsed = snt_insights_parse_response( $raw );
 	if ( is_wp_error( $parsed ) ) {
-		return $parsed;
+		// v13.20.4: a parse failure is frequently NOT a parse problem — the
+		// parser can only report what it was handed. Attach the call's token
+		// accounting so the admin page can say why the text was unusable.
+		return snt_insights_annotate_budget( $parsed, $raw );
 	}
 
 	$result = array(
@@ -791,6 +794,51 @@ function snt_insights_run_scan( $force = false ) {
  * @return void
  * @since 7.0.1
  */
+/**
+ * Attach the just-made call's TOKEN ACCOUNTING to a parse failure.
+ *
+ * Why this exists (live, 2026-08-28). An Insights scan failed with
+ * `snt_insights_invalid_json` and the notice showed the model's whole reply:
+ * `[ {`. The parser was right and the message was misleading — it named JSON,
+ * when the call had generated and BILLED its entire output budget and returned
+ * three characters. The tokens were in the usage log the whole time; nothing
+ * put them next to the error, so the page could not say so.
+ *
+ * Extended thinking is the usual explanation (thinking tokens bill as output
+ * and count against max_tokens, but never appear in the returned text), but
+ * this function deliberately does NOT assert that — it reports the numbers and
+ * lets the reader see the shape. A near-exhausted budget beside a near-empty
+ * answer is the finding; naming a cause we did not observe would be exactly the
+ * overreach that made the original message useless.
+ *
+ * Honest absence: `completion` stays null when the log holds no entry for this
+ * feature. "No record" and "recorded zero tokens" are different answers.
+ *
+ * @since 13.20.4
+ * @param WP_Error $err The parse error.
+ * @param string   $raw The raw model text the parser was handed.
+ * @return WP_Error The same error, with a `budget` block added to its data.
+ */
+function snt_insights_annotate_budget( $err, $raw ) {
+	if ( ! is_wp_error( $err ) ) {
+		return $err;
+	}
+	$last = function_exists( 'snt_ai_usage_last' ) ? snt_ai_usage_last( 'insights' ) : null;
+
+	$data = $err->get_error_data();
+	if ( ! is_array( $data ) ) {
+		$data = array();
+	}
+	$data['budget'] = array(
+		'max_tokens' => (int) SN_INSIGHTS_MAX_TOKENS,
+		'completion' => ( is_array( $last ) && isset( $last['completion'] ) ) ? (int) $last['completion'] : null,
+		'prompt'     => ( is_array( $last ) && isset( $last['prompt'] ) ) ? (int) $last['prompt'] : null,
+		'chars'      => strlen( trim( (string) $raw ) ),
+	);
+
+	return new WP_Error( $err->get_error_code(), $err->get_error_message(), $data );
+}
+
 function snt_insights_store_last_error( $err ) {
 	if ( ! is_wp_error( $err ) ) {
 		return;
@@ -807,6 +855,10 @@ function snt_insights_store_last_error( $err ) {
 			'code'    => (string) $err->get_error_code(),
 			'message' => (string) $err->get_error_message(),
 			'raw'     => '' !== $raw ? substr( $raw, 0, 500 ) : '',
+			// v13.20.4: carry the token accounting through the flatten, so the
+			// admin notice can explain a near-empty answer instead of only
+			// showing it. Absent for every error that is not a parse failure.
+			'budget'  => ( is_array( $data ) && isset( $data['budget'] ) && is_array( $data['budget'] ) ) ? $data['budget'] : null,
 			'at'      => time(),
 		),
 		15 * MINUTE_IN_SECONDS

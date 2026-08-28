@@ -113,3 +113,33 @@ function snt_ai_record_usage( $feature, $model, $result ) {
 		snt_ai_estimate_cost( '' !== $served_model ? $served_model : (string) $model, $prompt_t, $completion_t, $split )
 	);
 }
+
+/**
+ * The most recent usage-log entry for one feature, or null when none exists.
+ *
+ * Added v13.20.4 so a failure can report the call's TOKEN ACCOUNTING instead of
+ * only its text. The motivating case: an Insights scan returned three
+ * characters, the parser correctly said "not valid JSON", and the real cause —
+ * the call had generated and billed its entire output budget — was invisible on
+ * the admin page. Reading the log is what turns that into a diagnosis.
+ *
+ * Returns null (never a zero-filled array) when the log holds nothing for the
+ * feature: "no record" and "recorded zero tokens" are different answers and the
+ * caller must be able to tell them apart.
+ *
+ * @param string $feature Feature slug as passed to snt_ai_record_usage().
+ * @return array|null The newest matching entry, or null.
+ */
+function snt_ai_usage_last( $feature ) {
+	$log = get_option( SN_AI_USAGE_LOG_OPT, array() );
+	if ( ! is_array( $log ) || ! $log ) {
+		return null;
+	}
+	for ( $i = count( $log ) - 1; $i >= 0; $i-- ) {
+		$entry = $log[ $i ];
+		if ( is_array( $entry ) && isset( $entry['feature'] ) && (string) $feature === (string) $entry['feature'] ) {
+			return $entry;
+		}
+	}
+	return null;
+}
