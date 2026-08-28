@@ -31,26 +31,44 @@ function sn_dash_zone_fleet( array $components, $last_deploy_ago = '' ) {
 		// would call it measured and render the literal string "Array".
 		$version = is_array( $component ) ? (string) ( $component['version'] ?? '' ) : $component;
 		$reason  = is_array( $component ) ? (string) ( $component['reason'] ?? '' ) : '';
+		$skew    = is_array( $component ) && ! empty( $component['contract_skew'] );
 
 		$measured = null !== $version && '' !== $version;
 		$warming  = ! $measured && 'warming' === $reason;
 
 		if ( $warming ) {
 			++$pending;
-		} elseif ( ! $measured ) {
+		}
+		if ( ! $measured && ! $warming ) {
 			++$unknown;
+		}
+
+		$value = $measured ? (string) $version : ( $warming ? __( 'warming…', 'signal-and-noise-tools' ) : '—' );
+		if ( $skew ) {
+			// The contract comparison the probe carries (v13.22.0) finally
+			// renders somewhere: cross-repo skew lands at INSTALL time, and
+			// this console is where the install is looked at.
+			$value .= sprintf(
+				/* translators: 1: live contract version, 2: expected contract version */
+				__( ' — contract skew (live %1$s ≠ expected %2$s)', 'signal-and-noise-tools' ),
+				'' !== (string) $component['contract_live'] ? (string) $component['contract_live'] : '?',
+				(string) $component['contract_expected']
+			);
 		}
 
 		$cards[] = array(
 			'label' => (string) $name,
-			'value' => $measured ? (string) $version : ( $warming ? __( 'warming…', 'signal-and-noise-tools' ) : '—' ),
+			'value' => $value,
 			// A warming probe is PENDING, not unknown. Marking it unmeasured would
 			// force the whole zone to `unknown`, which outranks everything — so one
 			// cold cache would report the entire fleet as unmeasurable while the
 			// Deploy Status widget beside it listed every version. v11.16.0 settled
 			// the same question for the glance sort: cold is not broken.
 			'measured'  => $measured || $warming,
-			'attention' => false, // a version is never an alarm; drift is reported elsewhere.
+			// A VERSION is never an alarm (drift is reported elsewhere) — but a
+			// contract skew has no other reporter, so it is the one thing that
+			// earns this card attention.
+			'attention' => $skew,
 		);
 	}
 	$state = sn_dash_zone_state( $cards );
@@ -135,6 +153,21 @@ function snt_dashboard_fleet_components( $theme, $plugin, $workers = array() ) {
 		// reporting our own probe budget as a fact about the fleet.
 		$live   = (string) ( $worker['live'] ?? '' );
 		$reason = (string) ( $worker['reason'] ?? '' );
+
+		// v13.26.0: a contract SKEW rides along. Only workers with a
+		// contract_path carry the keys at all, and only match === false is
+		// worth a component's attention — a matching contract is the quiet
+		// normal, and absence means "this worker has no contract to check".
+		if ( '' !== $live && false === ( $worker['contract_match'] ?? null ) ) {
+			$out[ $label ] = array(
+				'version'           => $live,
+				'reason'            => '',
+				'contract_skew'     => true,
+				'contract_live'     => (string) ( $worker['contract_live'] ?? '' ),
+				'contract_expected' => (string) ( $worker['contract_expected'] ?? '' ),
+			);
+			continue;
+		}
 
 		$out[ $label ] = '' !== $live
 			? $live
