@@ -36,8 +36,8 @@ function sn_analytics_maturity_tiers() {
 }
 
 /**
- * The honesty principles: the six that held since v9.35.0 plus the six the
- * 2026-07 integrity arc earned. Raw strings; escaped at the point of build.
+ * The honesty principles: the six that held since v9.35.0, the six the 2026-07
+ * integrity arc earned, and a thirteenth graduated off the roadmap board (v13.19.0). Raw strings; escaped at the point of build.
  * @return string[]
  */
 function sn_analytics_maturity_principles() {
@@ -54,6 +54,13 @@ function sn_analytics_maturity_principles() {
 		__( 'Every unit is named: sessions, visitor-days, and views are different units and never share a label.', 'signal-and-noise-tools' ),
 		__( 'Visitor identity is forward-secret: each day\'s salt is deleted at rotation, so yesterday\'s visitors are unrecoverable, even by the operator.', 'signal-and-noise-tools' ),
 		__( 'Even chart colors carry meaning honestly: a worsening metric is never painted green.', 'signal-and-noise-tools' ),
+		// THE THIRTEENTH. Graduated off the hub roadmap board (v13.19.0) when the
+		// Analytics done column hit the ceiling -- the first graduation onto THIS
+		// page, the two earlier Analytics exits having been bare retirements onto
+		// surfaces that already stated them. Phrased as an honesty claim, like its
+		// siblings, rather than as a feature announcement: the board says what
+		// shipped, this list says how the numbers behave.
+		__( 'An AI-sent reader is a different signal from a search-sent reader, and the rollups keep them apart - counted as its own aggregate segment, because lumping them together hides the shift.', 'signal-and-noise-tools' ),
 	);
 }
 

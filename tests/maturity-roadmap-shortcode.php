@@ -357,16 +357,16 @@ ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array
 // that retirement bought: at MAX_DONE - 2, the digest row can graduate to 4 and
 // still clear the canary. A future row quietly re-filling the slot reds HERE,
 // with the reason attached, rather than surfacing later as a refused write.
-// SUPERSEDED v13.18.0 — and this one is a FINDING, not bookkeeping. The pin
-// below asserted Analytics done sat at MAX_DONE - 2, i.e. that the planned
-// digest row could still graduate and clear the canary. Folding the override
-// raised Analytics done to 4: the Search Console row had graduated on the
-// LIVE board and the floor never caught up. That headroom is SPENT. The
-// digest row can no longer graduate without an Analytics retirement first.
-// Re-asserting the old number would have hidden that; this states the new
-// truth and names the consequence, which is what the retirement pins above
-// exist to do.
-ok( SN_MATURITY_ROADMAP_MAX_DONE - 1 === count( $floor['Analytics']['done'] ), 'DR floor: Analytics done is AT the wall-canary limit — the digest row now needs a retirement before it can graduate' );
+// v13.18.0 spent this headroom (the folded Search Console row put Analytics
+// done at 4); v13.19.0 BOUGHT IT BACK by graduating the AI-referral row onto
+// /maturity/analytics/. Back at MAX_DONE - 2, so the planned digest row can
+// graduate to 4 and still clear the canary. A future row quietly re-filling
+// the slot reds HERE, with the reason attached, rather than surfacing later
+// as a refused write.
+ok( count( $floor['Analytics']['done'] ) <= SN_MATURITY_ROADMAP_MAX_DONE - 2, 'DR floor: Analytics done has room for the digest row to graduate WITHOUT tripping the wall canary' );
+$analytics_all = implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Analytics'] ) ) );
+ok( false === strpos( $analytics_all, 'AI-referred humans as a channel' ), 'DR floor: the AI-referral row is in NO Analytics column — graduation is removal from the hub, not demotion within it' );
+ok( false === strpos( $analytics_all, 'lumping them hides the shift' ), 'DR floor: and no fragment of its sentence survives anywhere in the family' );
 
 // Charts that speak graduated the same night (v10.93.1 verified live:
 // 5 calendar rows x 7 columns, 30 day cells on the bare URL).
