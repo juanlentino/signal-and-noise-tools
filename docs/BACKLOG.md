@@ -47,7 +47,7 @@ the gate opens. When one opens, it moves into the prioritized table above.
 | AI | Retire legacy single-purpose tools the consolidated set absorbed | Usage evidence, not a date |
 | Machine learning | Extend the deterministic layer, pipeline by pipeline | A real editorial question demanding it |
 | Machine readability | Usage-preference header + robots rule, with rights-dialect parity sweep | The internet standards body finalizing the spec |
-| Operations | Dependency provenance gate for worker deploys — **HALF BUILT, re-scope before picking up** | The attestation half SHIPPED: `scripts/attestation-gate.mjs` exists **and is wired into CI in all five workers** (verified 2026-08-27), with the by-name allowlist the 2026-08-14 audit produced. The gate this row names is therefore ALREADY OPEN. What exists nowhere is the row's second leg, the **minimum-age cooldown** — grepped `cooldown`, `min_age`, `minAge`, `minimum-age` across `scripts/`, `src/` and `.github/`: nothing. Scope this as the cooldown alone, not as a whole row |
+| Operations | ~~Dependency provenance gate for worker deploys~~ **DONE 2026-08-28 — both legs shipped in all five workers** | The attestation leg shipped earlier (CI-wired everywhere, verified 2026-08-27). The cooldown leg landed 2026-08-28 as `scripts/dependency-cooldown.mjs` + `.cooldown-accept.json` (min_age_days 7, per-version reviewed accepts, fail-closed on unmeasured ages), byte-identical across all five workers, a CI STEP beside the attestation gate. Negative-control proof in sn-remote-mcp-worker v1.1.0 (RED at 11d against the real registry; per-version accept excused exactly one). Releases: remote-mcp v1.1.0, analytics v1.21.0, login-guard v1.12.0, provenance v1.13.0, rights-signals v1.21.0 |
 
 ## Watches (not releases — time passes, then a number is read)
 
@@ -68,6 +68,14 @@ the gate opens. When one opens, it moves into the prioritized table above.
   admin-bar nodes, brutalist wp-admin. Sources in the brainstorm doc.
 
 ## Log
+
+- 2026-08-28 (later) — the dependency-provenance row CLOSED: the cooldown leg shipped to
+  all five workers in one pass (the gate script was already byte-identical across repos,
+  so one reference implementation + four copies). Proven able to fail before being
+  trusted: policy raised past the youngest real package went RED; a per-version accept
+  excused exactly that version while its siblings stayed blocked. Each worker's own CI
+  ran the new gate green before merge.
+
 
 - 2026-08-28 — the Operations dependency-provenance row is **half built**, found while
   answering an unrelated question about the remote MCP worker's maturity. The attestation
