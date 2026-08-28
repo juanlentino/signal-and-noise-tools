@@ -86,7 +86,14 @@ function snt_mr_compose_tab( $ctx ) {
 	// leaf, so it belongs beside the status line rather than at the top of one
 	// of two columns (owner: "the box with all the numbers should be placed
 	// somewhere else").
-	$out .= '<div class="sn-fieldset sn-an-pipeline sn-mr-hero">';
+	// v13.20.1: --wide. The 820px cap came from .sn-fieldset alone (.sn-an-pipeline
+	// sets no max-width), and it left this hero the ONLY capped thing on the leaf --
+	// admin.css already uncaps every fieldset inside .sn-2up by descendant selector,
+	// so the cards below always ran full width. On screen that read as a six-tile KPI
+	// grid wrapping 4-then-2 with dead space beside it. --wide is the documented
+	// modifier for exactly this ("a .sn-fieldset that holds a wide data table earns
+	// the full content width"), reused rather than a new scoped uncap.
+	$out .= '<div class="sn-fieldset sn-fieldset--wide sn-an-pipeline sn-mr-hero">';
 	$out .= '<h3 class="sn-fieldset-h">' . esc_html__( 'Sensor status', 'signal-and-noise-tools' ) . '</h3>';
 	$out .= '<p class="sn-an-settings-help">' . esc_html__( 'Edge sensor → Analytics Engine → this tab. Presence checks only, secret values are never shown.', 'signal-and-noise-tools' ) . '</p>';
 	$out .= (string) ( $ctx['sensor_status_html'] ?? '' );
