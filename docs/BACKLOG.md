@@ -47,7 +47,7 @@ the gate opens. When one opens, it moves into the prioritized table above.
 | AI | Retire legacy single-purpose tools the consolidated set absorbed | Usage evidence, not a date |
 | Machine learning | Extend the deterministic layer, pipeline by pipeline | A real editorial question demanding it |
 | Machine readability | Usage-preference header + robots rule, with rights-dialect parity sweep | The internet standards body finalizing the spec |
-| Operations | Dependency provenance gate for worker deploys | One-time audit showing enough of the tree publishes attestations |
+| Operations | Dependency provenance gate for worker deploys — **HALF BUILT, re-scope before picking up** | The attestation half SHIPPED: `scripts/attestation-gate.mjs` exists **and is wired into CI in all five workers** (verified 2026-08-27), with the by-name allowlist the 2026-08-14 audit produced. The gate this row names is therefore ALREADY OPEN. What exists nowhere is the row's second leg, the **minimum-age cooldown** — grepped `cooldown`, `min_age`, `minAge`, `minimum-age` across `scripts/`, `src/` and `.github/`: nothing. Scope this as the cooldown alone, not as a whole row |
 
 ## Watches (not releases — time passes, then a number is read)
 
@@ -66,6 +66,14 @@ the gate opens. When one opens, it moves into the prioritized table above.
   admin-bar nodes, brutalist wp-admin. Sources in the brainstorm doc.
 
 ## Log
+
+- 2026-08-28 — the Operations dependency-provenance row is **half built**, found while
+  answering an unrelated question about the remote MCP worker's maturity. The attestation
+  leg ships and is CI-wired in all five workers; the minimum-age cooldown leg exists
+  nowhere. Half-done is the state most likely to be mis-scoped when picked up — the row's
+  stated gate ("a one-time audit showing enough of the tree publishes attestations") has
+  ALREADY been satisfied, so a reader would reasonably conclude the whole row is ready to
+  build. Row rewritten to say which half remains.
 
 - 2026-08-27 — the AI-attention digest row GRADUATED to done as v13.20.0, and it was a
   **phantom queue item**: the section was already built. `snt_narration_collect_signals()`
