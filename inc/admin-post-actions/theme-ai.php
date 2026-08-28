@@ -80,6 +80,15 @@ function sn_handle_save_theme( $post ) {
 	$ok &= sn_setting_update( 'theme.updated_threshold_days', max( 1, min( 90, (int) ( $post['theme_updated_threshold_days'] ?? 14 ) ) ) );
 	$ok &= sn_setting_update( 'theme.reading_wpm', max( 100, min( 400, (int) ( $post['theme_reading_wpm'] ?? 225 ) ) ) );
 	$ok &= sn_setting_update( 'theme.notes_per_page', max( 1, min( 100, (int) ( $post['theme_notes_per_page'] ?? 20 ) ) ) );
+	// Allowlisted, like the AI model ids below: an off-list POST resolves to the
+	// default rather than being stored. A stored bad value would mint an address
+	// the mailbox does not filter, so this must not round-trip whatever arrives.
+	$alias = strtolower( trim( (string) ( $post['theme_note_reply_alias'] ?? 'research' ) ) );
+	$allowed = function_exists( 'sn_note_reply_aliases' ) ? sn_note_reply_aliases() : array( 'research' );
+	if ( ! in_array( $alias, $allowed, true ) ) {
+		$alias = 'research';
+	}
+	$ok &= sn_setting_update( 'theme.note_reply_alias', $alias );
 
 	// v10.46.0: theme.ai_model / theme.ai_alt_model / theme.ai_monthly_budget
 	// moved to sn_handle_ai_settings_save() below. They MUST NOT be read here any

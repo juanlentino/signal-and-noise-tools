@@ -199,5 +199,30 @@ ok( sn_tf_ai_model( 'gemini-2.5-flash-lite', '', '', 'alt-text' ) === 'gemini-2.
 ok( sn_tf_ai_model( 'claude-sonnet-5', '', '', 'generic' ) === 'claude-opus-4-8', 'filter: non-alt-text feature still applies the configured model' );
 ok( sn_tf_ai_model( 'claude-sonnet-5' ) === 'claude-opus-4-8', 'filter: legacy 1-arg call still applies the configured model (backward compatible)' );
 
+// ── v13.17.0: the note-reply alias — a CHOICE, never free text ─────────────
+// An arbitrary local part mints an address the mailbox does not filter, which
+// is the layer that stops spam once a JS-executing scraper has assembled the
+// address. Both the save handler and the filter must refuse off-list values;
+// the theme validates a third time on its own copy of the list.
+ok( 'research' === sn_tf_note_reply_alias( 'research' ), 'alias: unset setting falls through to the theme default' );
+
+sn_setting_update( 'theme.note_reply_alias', 'press' );
+ok( 'press' === sn_tf_note_reply_alias( 'research' ), 'alias: an allowlisted setting is applied' );
+
+foreach ( array( 'notes', 'billing', 'research@juanlentino.com', '', 'a;b' ) as $bad ) {
+	sn_setting_update( 'theme.note_reply_alias', $bad );
+	ok( 'research' === sn_tf_note_reply_alias( 'research' ),
+		'alias REFUSED by the filter: "' . $bad . '" falls back rather than minting an unfiltered address' );
+}
+
+// The SAVE path must refuse too — a bad value must never be stored, because a
+// stored one would outlive the request that posted it.
+$saved = sn_handle_save_theme( array( 'theme_note_reply_alias' => 'notes' ) );
+ok( 'research' === sn_setting( 'theme.note_reply_alias', 'research' ),
+	'alias REFUSED by the save handler: an off-list POST stores the default, not the input' );
+$saved = sn_handle_save_theme( array( 'theme_note_reply_alias' => '  SPEAKING  ' ) );
+ok( 'speaking' === sn_setting( 'theme.note_reply_alias', 'research' ),
+	'alias: case and whitespace normalise on save, so " SPEAKING " stores as speaking' );
+
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

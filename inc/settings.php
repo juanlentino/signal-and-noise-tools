@@ -23,6 +23,27 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+/**
+ * The aliases the note Reply row may use — the five /contact aliases the
+ * mailbox actually filters.
+ *
+ * A FUNCTION, not a constant, and deliberately: three files need this list
+ * (the settings form, the save handler, the theme filter) and they load in
+ * three different orders — inc/theme-filters.php comes AFTER
+ * inc/admin-post-actions.php, and the standalone suites each load a different
+ * subset. A constant in any one of them is absent for the others, which is a
+ * FATAL rather than a wrong answer. Every caller guards with function_exists
+ * and falls back to research-only: fail CLOSED, because the failure being
+ * guarded is minting an address the mailbox does not filter.
+ *
+ * @since 13.17.0
+ * @return string[] Allowed local parts.
+ */
+function sn_note_reply_aliases() {
+	return array( 'research', 'press', 'speaking', 'role', 'music' );
+}
+
+
 const SN_SETTINGS_OPTION       = 'sn_settings';
 const SN_SETTINGS_MIGRATED_FLAG = 'sn_settings_migrated_v1';
 const SN_LEGACY_HOST            = 'juanlentino.com';
@@ -94,6 +115,11 @@ function sn_settings_defaults() {
 			'updated_threshold_days' => 14,
 			'reading_wpm'            => 225,
 			'notes_per_page'         => 20,
+			// v13.17.0: which /contact alias the note Reply row writes to. The
+			// default matches the theme's own constant, so an unset value leaves
+			// the row exactly as it shipped. Constrained to
+			// SN_TF_NOTE_REPLY_ALIASES above — never free text.
+			'note_reply_alias'       => 'research',
 			'ai_model'               => 'claude-sonnet-5',
 			'ai_monthly_budget'      => 0,
 		),
