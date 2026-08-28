@@ -281,6 +281,12 @@ function sn_mcp_rw_allowlist() {
 		'signal-noise/ai-link-apply',
 		'signal-noise/ai-pair-suggest',
 		'signal-noise/prune-unused-tags',
+		// v13.25.0 — the tag-vocabulary pair beside prune-unused-tags: AI-billed
+		// returns-only drafting + an only-if-empty write (never clobbers an
+		// owner edit; replays answer skipped_nonempty). Owner-directed the day
+		// the seed (v13.23.0) and tag_hygiene (v13.24.0) shipped.
+		'signal-noise/describe-tags',
+		'signal-noise/apply-tag-description',
 		'signal-noise/unschedule-cron-event',
 		'signal-noise/purge-all-caches',
 		// v9.82.0 — not readonly, but idempotent: one bounded wp_remote_post

@@ -120,11 +120,13 @@ ok( sn_mcp_negotiate_version( '1999-01-01' ) === SN_MCP_PROTOCOL_VERSION, 'negot
 echo "\nMCP rw-door allowlist (v9.50.0)\n\n";
 
 $rw = sn_mcp_rw_allowlist();
-ok( is_array( $rw ) && count( $rw ) === 6, 'rw allowlist is exactly 6 slugs (v13.0.0 wave 2 retired 4 more: block-migrations-suggest and update-post-surfaces to sn-scan/sn-apply, run-insights-scan + run-narration outright with their read siblings; wave 1 (v12.0.0) had retired 26)' );
+ok( is_array( $rw ) && count( $rw ) === 8, 'rw allowlist is exactly 8 slugs (v13.25.0 WIDENED by 2, owner-directed: the tag-vocabulary pair describe-tags + apply-tag-description beside prune-unused-tags; v13.0.0 wave 2 had retired 4, wave 1 (v12.0.0) 26)' );
 
-// --- exact membership: the 6 surviving plugin slugs, pinned individually ---
+// --- exact membership: the 8 plugin slugs, pinned individually ---
 // v13.0.0: down to sn-apply, the deliberately-kept AI link pair (see the KEPT
 // pin below), and the three no-absorber operations tools.
+// v13.25.0: + the tag-vocabulary pair (AI-billed returns-only drafting, and
+// an only-if-empty write that never clobbers an owner edit).
 $rw_plugin = array(
 	'signal-noise/sn-apply',
 	'signal-noise/purge-all-caches',
@@ -132,8 +134,10 @@ $rw_plugin = array(
 	'signal-noise/unschedule-cron-event',
 	'signal-noise/ai-link-apply',
 	'signal-noise/ai-pair-suggest',
+	'signal-noise/describe-tags',
+	'signal-noise/apply-tag-description',
 );
-ok( count( $rw_plugin ) === 6, 'sanity: the pinned plugin rw list itself is 6 (v13.0.0)' );
+ok( count( $rw_plugin ) === 8, 'sanity: the pinned plugin rw list itself is 8 (v13.25.0)' );
 foreach ( $rw_plugin as $slug ) {
 	ok( in_array( $slug, $rw, true ), "rw-door plugin slug present: $slug" );
 }

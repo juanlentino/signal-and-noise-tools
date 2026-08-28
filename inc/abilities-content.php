@@ -214,6 +214,70 @@ add_action( 'wp_abilities_api_init', function() {
 			'annotations'  => array( 'destructive' => true, 'idempotent' => false ),
 		),
 	) );
+
+	wp_register_ability( 'signal-noise/describe-tags', array(
+		'label'               => 'Draft tag descriptions (AI)',
+		'description'         => 'Drafts the one-sentence description for undescribed, in-use tags, in the house voice — the few-shot examples are the owner-approved seed sentences (v13.23.0), so the register is pinned to signed-off prose. Named tags only, or every undescribed in-use tag when tags is omitted; zero-post tags are refused with reason unused_prune_instead (their fix is pruning, the tag_hygiene rule). AI-billed (feature tag_describe in the monthly itemization), capped at 10 drafts per call (over-cap targets return over_per_run_cap). Read-only: returns drafts; apply-tag-description writes one.',
+		'category'            => 'content',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_describe_tags',
+		'input_schema'        => array(
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(
+				'tags' => array(
+					'type'        => 'array',
+					'items'       => array( 'type' => 'string' ),
+					'description' => 'Tag NAMES to draft for. Omit to target every undescribed in-use tag.',
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'        => array( 'type' => 'boolean' ),
+				'suggested' => array( 'type' => 'array' ),
+				'skipped'   => array( 'type' => 'array' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			// Generative → not idempotent (two runs draft different prose),
+			// but returns-only, so readonly stays true (the excerpt precedent).
+			'annotations'  => array( 'readonly' => true, 'idempotent' => false ),
+		),
+	) );
+
+	wp_register_ability( 'signal-noise/apply-tag-description', array(
+		'label'               => 'Write one tag description',
+		'description'         => 'Writes ONE tag description, only where the term\'s description is still empty — the seed\'s never-clobber rule, so an owner edit in wp-admin always wins the race (a non-empty description returns status skipped_nonempty, not an error). No AI call: pair with describe-tags, or pass a hand-written sentence.',
+		'category'            => 'content',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_apply_tag_description',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'name', 'description' ),
+			'properties'           => array(
+				'name'        => array( 'type' => 'string', 'description' => 'The tag NAME (as wp-admin displays it).' ),
+				'description' => array( 'type' => 'string', 'description' => 'The one-sentence description to write.' ),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'     => array( 'type' => 'boolean' ),
+				'name'   => array( 'type' => 'string' ),
+				'status' => array( 'type' => 'string' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			// Writes taxonomy data, but only-if-empty makes replays safe:
+			// the second identical call is skipped_nonempty.
+			'annotations'  => array( 'destructive' => true, 'idempotent' => true ),
+		),
+	) );
 } );
 
 /**
@@ -320,4 +384,34 @@ function snt_ability_prune_unused_tags() {
 		return $res;
 	}
 	return array( 'ok' => true, 'deleted' => $res['deleted'], 'count' => $res['count'] );
+}
+
+/**
+ * Execute callback for signal-noise/describe-tags.
+ * Thin wrapper around snt_ai_tag_describe_impl().
+ *
+ * @since 13.25.0
+ */
+function snt_ability_describe_tags( $input ) {
+	if ( ! function_exists( 'snt_ai_tag_describe_impl' ) ) {
+		return new WP_Error( 'snt_tag_describe_unavailable', 'Tag-description drafting is unavailable.', array( 'status' => 500 ) );
+	}
+	$tags = ( is_array( $input ) && isset( $input['tags'] ) && is_array( $input['tags'] ) ) ? $input['tags'] : array();
+	return snt_ai_tag_describe_impl( $tags );
+}
+
+/**
+ * Execute callback for signal-noise/apply-tag-description.
+ * Thin wrapper around snt_ai_tag_describe_apply_impl().
+ *
+ * @since 13.25.0
+ */
+function snt_ability_apply_tag_description( $input ) {
+	if ( ! function_exists( 'snt_ai_tag_describe_apply_impl' ) ) {
+		return new WP_Error( 'snt_tag_describe_unavailable', 'Tag-description writing is unavailable.', array( 'status' => 500 ) );
+	}
+	return snt_ai_tag_describe_apply_impl(
+		isset( $input['name'] ) ? (string) $input['name'] : '',
+		isset( $input['description'] ) ? (string) $input['description'] : ''
+	);
 }

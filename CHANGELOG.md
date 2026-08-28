@@ -4,6 +4,36 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.25.0] - 2026-08-28 — the sentence writes itself (tag-description generator pair)
+
+### Added — describe-tags + apply-tag-description, on the rw door
+
+The third leg of today's tag arc: the seed (v13.23.0) described the 23 tags
+that existed, tag_hygiene (v13.24.0) keeps new undescribed tags visible, and
+this drafts the missing sentence when one appears —
+[inc/ai-tag-describe.php](inc/ai-tag-describe.php).
+
+- **`signal-noise/describe-tags`** (AI-billed, returns-only): drafts the
+  one-sentence description for undescribed in-use tags. **The voice reference
+  is the seed map itself** — the owner-approved sentences are the few-shot
+  examples, so the register is pinned to signed-off prose, not an adjective
+  list. Zero-post tags are refused (`unused_prune_instead`: prune beats
+  describe, the tag_hygiene rule). Capped at 10 drafts/call; one failed
+  generation skips that tag with reason, never voids the batch. Billed as
+  feature `tag_describe` — its own row in the v13.21.0 itemization.
+- **`signal-noise/apply-tag-description`** (write, only-if-empty): the seed's
+  never-clobber rule as an ability — an owner edit always wins; replays
+  answer `skipped_nonempty`. No AI call.
+- **The rw door widens 6 → 8** (owner-directed), the pair landing beside
+  `prune-unused-tags` as the tag-vocabulary trio. The door's verbatim pin in
+  tests/mcp-capabilities.php tripped on the widening exactly as designed and
+  is extended with it.
+
+[tests/ai-tag-describe.php](tests/ai-tag-describe.php): target selection and
+all four skip reasons, few-shot + title context + feature billing in the
+captured prompt, the per-run cap, batch survival of a failed generation, and
+the never-clobber apply.
+
 ## [13.24.0] - 2026-08-28 — tag hygiene joins the advisory tier (22nd check)
 
 ### Added — the vocabulary's two drift modes, kept visible
