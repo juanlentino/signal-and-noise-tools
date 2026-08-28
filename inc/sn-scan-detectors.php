@@ -104,6 +104,16 @@ function snt_sn_scan_detector_registry() {
 				'triggers_on' => 'U+2014 or its HTML entity forms in post_content',
 			),
 		),
+		'tag_hygiene'       => array(
+			array(
+				'id'          => 'undescribed_tag',
+				'triggers_on' => 'an in-use post_tag term whose description is empty (both consuming surfaces fall back)',
+			),
+			array(
+				'id'          => 'unused_tag',
+				'triggers_on' => 'a zero-post post_tag term (usually typo-minted; reports ONCE even when also undescribed)',
+			),
+		),
 		'anchor_violations' => array(
 			array(
 				'id'          => 'anchor_equals_sentence',

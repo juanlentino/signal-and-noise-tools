@@ -4,6 +4,35 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.27.0] - 2026-08-28 — sn-scan names the tags (scan_type tag_hygiene)
+
+### Added — the vocabulary source closes the tag arc's last surface gap
+
+v13.24.0's tag_hygiene advisory renders a COUNT with no names (worklist checks
+have no findings table by IA design), and the Health page's "shown elsewhere:
+the scan door" claim was drifted prose — sn-scan had no tag scan_type. Now it
+does, and the claim is true.
+
+- **`scan_type: "tag_hygiene"`** wraps the SAME real producer the advisory
+  tier reads (`sn_health_check_tag_hygiene()`), itemizing both detectors:
+  `undescribed_tag` (apply_hint → `describe-tags`, whose output feeds
+  `apply-tag-description`) and `unused_tag` (apply_hint → `prune-unused-tags`)
+  — both targets rw-doored, pinned reachable by the existing suite. The full
+  loop now lives in one tool: **scan names the tag → describe drafts →
+  apply writes** (or prune deletes).
+- **Term-level discipline:** only `scope.kind "all"` applies — post_ids /
+  modified_since are REJECTED, not silently ignored. The candidate
+  fingerprint is the STATE (`type|name`), so a tag moving between drift
+  modes changes identity rather than resurrecting a stale candidate. A
+  skipped health check is a 503, never an empty-clean. `posts_examined`
+  counts terms (the envelope key is shared; renaming per source would break
+  the pinned shape).
+- Confidence 1.0 (a fact check, not an inference — the duplicate_body tier).
+- [tests/sn-scan-tag-hygiene.php](tests/sn-scan-tag-hygiene.php): both
+  detectors + hints, report-once through the reshape, state-fingerprint
+  identity change, byte-identical determinism, skip-vs-clean, scope
+  rejection, and all three registries.
+
 ## [13.26.0] - 2026-08-28 — contract skew finally renders (fleet console)
 
 ### Added — the deploy probe's contract comparison reaches the eye

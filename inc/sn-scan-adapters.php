@@ -40,6 +40,9 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SNT_SN_SCAN_CONF_DUPLICATE_BODY     = 1.0;
 const SNT_SN_SCAN_CONF_BLOCK_MIGRATIONS   = 0.9;
 const SNT_SN_SCAN_CONF_ORPHAN_MEDIA       = 0.85;
+// A tag either has an empty description / zero posts or it does not — the
+// detector is a fact check, not an inference, so it sits with duplicate_body.
+const SNT_SN_SCAN_CONF_TAG_HYGIENE        = 1.0;
 // Prose classification by snt_emdash_scan_content() is a strong structural
 // call, not a byte-exact match — same tier as orphan_media (v10.58.0, part
 // of the emdash envelope fix below).
@@ -64,6 +67,9 @@ function snt_sn_scan_adapters() {
 		// v10.58.0 — detector + adapter live in inc/sn-scan-anchor-violations.php
 		// (own file, the emdash-scanner precedent).
 		'anchor_violations' => 'snt_sn_scan_adapter_anchor_violations',
+		// v13.27.0: the vocabulary source — wraps the tag_hygiene health
+		// check (the same real producer the advisory tier reads).
+		'tag_hygiene'       => 'snt_sn_scan_adapter_tag_hygiene',
 	);
 	return apply_filters( 'sn_scan_adapters', $adapters );
 }
@@ -667,6 +673,93 @@ function snt_sn_scan_adapter_emdash( $allowed_ids ) {
 		'candidates'     => $candidates,
 		'posts_examined' => $examined,
 		'posts_skipped'  => $skipped,
+		'truncated'      => false,
+	);
+}
+
+/**
+ * sn-scan source: tag hygiene — the vocabulary's two drift modes, itemized.
+ *
+ * Wraps sn_health_check_tag_hygiene() (v13.24.0), the SAME real producer the
+ * advisory health tier reads — this adapter exists because that tier renders a
+ * COUNT with no names (worklist checks have no findings table by IA design),
+ * so "Tag hygiene (3)" was a number nobody could act on without wp-admin
+ * spelunking. Candidates here carry the names.
+ *
+ * Term-level: $allowed_ids is always null by the time this runs — the
+ * dispatcher rejects any non-"all" scope for this scan_type before dispatch
+ * (snt_sn_scan_resolve_scope), because a post-id scope silently ignored would
+ * report "scoped" results that were never scoped.
+ *
+ * apply_hint per detector, both targets on the rw door (pinned reachable by
+ * tests/sn-scan-apply-hint-reachable.php): undescribed -> describe-tags (the
+ * AI suggest whose output feeds apply-tag-description, the only-if-empty
+ * writer); unused -> prune-unused-tags. `posts_examined` counts TERMS — the
+ * envelope key is shared across sources and renaming it per source would
+ * break the pinned output shape for one label's sake.
+ *
+ * @param int[]|null $allowed_ids Always null (scope "all"); kept for the
+ *                                shared adapter signature.
+ * @return array|WP_Error
+ */
+function snt_sn_scan_adapter_tag_hygiene( $allowed_ids ) {
+	if ( ! function_exists( 'sn_health_check_tag_hygiene' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'Tag-hygiene health check not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+	}
+	$result = sn_health_check_tag_hygiene();
+	if ( is_string( $result['skipped'] ?? null ) && '' !== $result['skipped'] ) {
+		// The check could not measure (taxonomy unreadable). A skip must not
+		// become an empty candidate list — empty means "measured, clean".
+		return new WP_Error( 'snt_tag_hygiene_skipped', (string) $result['skipped'], array( 'status' => 503 ) );
+	}
+	$findings = is_array( $result['findings'] ?? null ) ? $result['findings'] : array();
+
+	$terms_examined = 0;
+	if ( function_exists( 'get_terms' ) ) {
+		$all = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => false ) );
+		$terms_examined = is_array( $all ) ? count( $all ) : 0;
+	}
+
+	$candidates = array();
+	foreach ( $findings as $f ) {
+		$type = (string) ( $f['type'] ?? '' );
+		$name = (string) ( $f['name'] ?? '' );
+		if ( '' === $name || ! in_array( $type, array( 'undescribed', 'unused' ), true ) ) {
+			continue;
+		}
+		$candidates[] = array(
+			'target_identity'     => $name,
+			// The fingerprint is the STATE, not just the name: a tag that
+			// gains posts (unused -> undescribed) or a description (gone)
+			// must produce a different candidate_id, not resurrect the old.
+			'content_fingerprint' => md5( $type . '|' . $name ),
+			'targets'             => array( array(
+				'name'  => $name,
+				'posts' => (int) ( $f['posts'] ?? 0 ),
+			) ),
+			'confidence'          => SNT_SN_SCAN_CONF_TAG_HYGIENE,
+			'evidence'            => array(
+				'detector' => 'undescribed' === $type ? 'undescribed_tag' : 'unused_tag',
+				'note'     => 'undescribed' === $type
+					? 'In-use tag with no description: the archive hero dek and meta description both fall back.'
+					: 'Zero-post tag, usually typo-minted (wp_set_post_tags creates on any miss).',
+			),
+			'apply_hint'          => 'undescribed' === $type
+				? array(
+					'tool'          => 'signal-noise/describe-tags',
+					'required_args' => array( 'tags:[' . $name . ']' ),
+				)
+				: array(
+					'tool'          => 'signal-noise/prune-unused-tags',
+					'required_args' => array(),
+				),
+		);
+	}
+
+	return array(
+		'candidates'     => $candidates,
+		'posts_examined' => $terms_examined, // TERMS — see the docblock.
+		'posts_skipped'  => 0,
 		'truncated'      => false,
 	);
 }
