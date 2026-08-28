@@ -16,11 +16,11 @@ release order, priorities, and gates actually live. Rules:
 
 | Chore | Notes |
 |-------|-------|
-| **Reset the board override — AFTER installing v13.18.0** | The fold shipped in v13.18.0, so the floor now matches the board minus four graduated rows. `sn_apply` `roadmap_board` with `payload.reset: true` drops the option and returns the page to code-canonical. **Order is load-bearing:** resetting before the update lands falls back to the DEPLOYED version's floor, which is the stale one. Verify first that `gates.fingerprint.observed` matches the new floor's fingerprint |
+| *(empty — the board is code-canonical again)* | |
 
-~~Fold the board override~~ and ~~Operations Done-ceiling graduation~~ — both SHIPPED
-in v13.18.0; see the log entry below. The ceiling chore was understated: three families
-were at the wall, not one.
+~~Fold the board override~~, ~~Operations Done-ceiling graduation~~ and ~~reset the
+override~~ — all THREE closed on 2026-08-27; see the log entry below. The ceiling chore
+was understated: three families were at the wall, not one.
 
 ## Ready to build — prioritized
 
@@ -67,6 +67,19 @@ the gate opens. When one opens, it moves into the prioritized table above.
   admin-bar nodes, brutalist wp-admin. Sources in the brainstorm doc.
 
 ## Log
+
+- 2026-08-27 — the override is RESET and the board is code-canonical again, closing the
+  arc. Order was load-bearing and held: install v13.18.0 first (deploy read `13.18.0`
+  live), observe, then reset. Two things worth keeping. **The merge report changed shape
+  after the install** — `override_held` fell 19 -> 16 and three CONFLICTS appeared
+  (Machine readability/done, Accessibility/done, Operations/done), which is exactly the
+  three cells where code had dropped a graduated row while the override still held it:
+  the graduations' own signature, benign for a reset. **And the verification was
+  independent of the door**: the post-reset fingerprint came back
+  `c0f00721f6136c424a48b1c3f66edc65`, the value computed from the floor locally BEFORE
+  the write, and a fetch of the public page matched the local static board **28 / 28
+  cells**, 80 rows, with all four graduated rows absent. A door reporting its own success
+  is not evidence a reader sees it.
 
 - 2026-08-27 — the board-override FOLD shipped as v13.18.0, and it was not the
   mechanical copy this file promised. The override held **19 of 28 cells**; two
