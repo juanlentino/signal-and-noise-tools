@@ -4,6 +4,41 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.28.0] - 2026-08-28 — the board catches up with the day (two graduations, a promotion, a tenth principle)
+
+### Changed — the public roadmap board moves to match seven shipped releases
+
+The owner caught what the queue-audit missed: the board is part of the ledger,
+and it hadn't moved. Both target done-columns sat at the canary's wall, so each
+graduation paid its ceiling toll first.
+
+- **AI: "Spend with an address" graduates considering → done** (v13.21.0),
+  **rewritten honestly** — the considering sentence promised "read from what
+  the platforms report, never estimated," a clause that describes the Health
+  spend WATCH, not the shipped per-feature ledger. The done claim now says
+  which is which: the itemization is the site's own priced ledger, read
+  beside, never inside, the platform-reported number. **"Staged body edits"
+  retired** to make room — the cheapest graduation on record: its claim
+  already stands as the AI maturity page's first principle, so nothing moved
+  and nothing was lost.
+- **Operations: dependency provenance graduates planned → done** (the worker
+  fleet's cooldown releases), rewritten as facts — the audit gate became
+  history 2026-08-14, and the reviewed-per-version-exception discipline joins
+  the claim because it is what ships. **"A morning brief at seven" retired**;
+  its narration half already stands as the ops page's Narrate layer, and its
+  uncovered half — no AI and no content prose on the mail path — lands as
+  [that page's TENTH principle](inc/ops-maturity-page.php).
+- **The emptied Operations planned cell refilled by owner choice**: "The
+  calendar of quiet failures" promoted considering → planned, its gate named
+  inline (landing when the first credential whose renewal no platform manages
+  enters the estate).
+- Every board tripwire fired and was answered: the no-empty-cell pin forced
+  the refill conversation, the prose pins inverted for both retired rows
+  (pinned in NO column, claims pinned on their family pages), and the ops
+  principle-count pin moved 9 → 10 with the tenth's substance pinned.
+- Also: the BACKLOG's ⌘K watch row was stale — v1.1.4 is tagged and carries
+  #683, so the retest is DUE (one owner keystroke on the live site).
+
 ## [13.27.0] - 2026-08-28 — sn-scan names the tags (scan_type tag_hygiene)
 
 ### Added — the vocabulary source closes the tag arc's last surface gap

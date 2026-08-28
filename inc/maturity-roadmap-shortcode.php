@@ -193,7 +193,15 @@ function sn_maturity_roadmap_static_board() {
 		__( 'AI', 'signal-and-noise-tools' )                  => array(
 			'done'        => array(
 				__( 'Two isolated agent doors — read-only and write — behind curated allowlists, kill switches, an audit trail, and rate limits', 'signal-and-noise-tools' ),
-				__( 'Staged body edits: an AI may propose a sentence-scale change, server-side gates stage it as a revision, and only a person\'s acceptance makes it live', 'signal-and-noise-tools' ),
+				// 2026-08-28 GRADUATION: the staged-body-edits row retired to
+				// make room for the spend row below — the done ceiling's canary
+				// reds at MAX_DONE, and this was the one neighbour whose claim
+				// ALREADY stands on the family page: the AI maturity page's
+				// FIRST principle states the same boundary in the same terms
+				// ("nothing reaches a published body except through a staged
+				// revision a person accepts"), so retirement moves nothing and
+				// loses nothing. The threat-model precedent (2026-08-14), at
+				// its cheapest: no page addition was even needed.
 				__( 'The roadmap board as data: an agent proposes the whole board at once behind a fingerprint and a leak sweep, so planning copy ships like content instead of code', 'signal-and-noise-tools' ),
 				// 2026-08-14 GRADUATION: the phone door shipped, and the done
 				// ceiling reds at 5, so a row had to retire to make room. The
@@ -212,6 +220,16 @@ function sn_maturity_roadmap_static_board() {
 				// the claim as facts about the shipped door rather than as
 				// preconditions it has yet to meet.
 				__( 'Read the site\'s numbers from a phone: an analytics-only door, reached through a scoped token that expires rather than the site\'s own password, with the rate ceiling that guards it failing closed instead of open, a stop switch reachable from the phone it protects, and a record of what it served — writing stays on the desktop, and nothing that can name an unpublished draft goes through it', 'signal-and-noise-tools' ),
+				// 2026-08-28 (v13.21.0): the spend row graduates considering →
+				// done, skipping planned (the R4-ML precedent: shipped the
+				// same arc the commitment was made). REWRITTEN HONESTLY, not
+				// moved: the considering sentence promised "read from what the
+				// platforms report, never estimated" — that clause describes
+				// the Health spend WATCH (which stays platform-true), not what
+				// shipped here. The itemization is the plugin's own priced
+				// ledger, and the done claim says so rather than inheriting a
+				// promise the shipped thing deliberately does not make.
+				__( 'Spend with an address: the AI bill itemized by feature beside the monthly total — each call priced into a named bucket as it lands, so a rising bill names its cause before any statement arrives — the itemization is the site\'s own priced ledger, read beside, never inside, the platform-reported spend watch — a thread shared with Operations', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Move the operative AI channel to the desktop platform\'s native agents, once that runner is stable enough to trust with the same fences', 'signal-and-noise-tools' ),
@@ -220,7 +238,9 @@ function sn_maturity_roadmap_static_board() {
 			'considering' => array(
 				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),
 				__( 'Richer edit primitives beyond sentence scale — the drafting boundary stands regardless of what is explored here', 'signal-and-noise-tools' ),
-				__( 'Spend with an address: AI cost itemized by door and ability family, so a rising bill names its cause — read from what the platforms report, never estimated — a thread shared with Operations', 'signal-and-noise-tools' ),
+				// 2026-08-28: "Spend with an address" left this cell for done
+				// (v13.21.0) — see the graduation note there for the honest
+				// rewrite of its "never estimated" clause.
 			),
 			'later'       => array(
 				__( 'Injection self-sweep: every machine surface the site publishes — the crawler manifest, structured data, the board itself, the doors\' own descriptions — linted for instruction-shaped text before it ships, so a site that treats prose as data can prove its own prose is clean — a thread shared with Machine readability', 'signal-and-noise-tools' ),
@@ -338,15 +358,31 @@ function sn_maturity_roadmap_static_board() {
 				// nowhere: that these signals answer from ONE surface, not several.
 				__( 'Defense numbers: the login door\'s own gauges, owner-only — fail-opens and degraded reads counted with zeros stated out loud, and the unchecked address share measured against a threshold written down before the query, so the number triggers the decision instead of reopening the argument', 'signal-and-noise-tools' ),
 				__( 'Spend watched like uptime: build minutes and AI spend on the health widget, owner-only — every number read from what the platforms actually report, "unknown" when a read fails, and never an estimated or invented figure', 'signal-and-noise-tools' ),
-				__( 'A morning brief at seven: one deterministic paragraph across health, cron, uptime, and deploys, mailed daily — no AI and no content prose on the path, so nothing injected can become instructions in the owner\'s inbox', 'signal-and-noise-tools' ),
+				// 2026-08-28 GRADUATION: the morning-brief row retired to make
+				// room for the dependency-provenance row below (the done
+				// canary reds at MAX_DONE). Its narration half already stands
+				// as the ops page's Narrate layer; its OTHER half — the mail
+				// path carries no AI and no content prose, so nothing injected
+				// can become instructions — was stated nowhere, and now stands
+				// as that page's TENTH principle (sn_ops_maturity_principles).
+				// The v13.18.0 pattern: graduate the half stated nowhere.
 				__( 'Configuration drift watched: the effective settings snapshotted against an acknowledged baseline that moves only on acknowledgment or a version change — a changed switch is a visible event, not a mystery', 'signal-and-noise-tools' ),
+				// 2026-08-28: planned → done, both legs shipped. Rewritten as
+				// facts: the audit gate clause ("landing after a one-time
+				// audit…") became true 2026-08-14 and is now history, not a
+				// precondition; the cooldown's reviewed-exception discipline
+				// joins the claim because it is what ships.
+				__( 'Dependency provenance gate: a worker ships only after its locked dependency tree verifies against the registry\'s provenance attestations and every version has waited out a minimum-age cooldown — a freshly poisoned upstream release sits in its detection window instead of going straight to the edge, and a deliberate young bump is a reviewed, per-version exception rather than a silent pass', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'Dependency provenance gate: a worker ships only after its locked dependency tree verifies against the registry\'s provenance attestations and a minimum-age cooldown — so a freshly poisoned upstream release waits out its detection window instead of going straight to the edge — landing after a one-time audit shows enough of the tree publishes attestations for the check to mean anything', 'signal-and-noise-tools' ),
+				// 2026-08-28: promoted considering → planned by the owner when
+				// the dependency-provenance graduation emptied this cell — the
+				// no-empty-cell rule forces the conversation, and this was the
+				// commitment chosen. The gate is in the sentence, per the rule.
+				__( 'The calendar of quiet failures: service keys, scoped tokens, domains, and certificates watched with their dates stated before they lapse — expiry as a scheduled event instead of an outage — landing when the first credential whose renewal no platform manages for us enters the estate', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Restore proof, not backup existence: a periodic check that a backup actually restores, closing the gap between having backups and having recovery', 'signal-and-noise-tools' ),
-				__( 'The calendar of quiet failures: service keys, scoped tokens, domains, and certificates watched with their dates stated before they lapse — expiry as a scheduled event instead of an outage', 'signal-and-noise-tools' ),
 				__( 'The corpus in a pocket: a service worker caching the notes for offline reading — fifty-odd notes is nothing, and the site that can leave its platform should also survive a tunnel', 'signal-and-noise-tools' ),
 				__( 'A passkey at the owner\'s door: sign-in by passkey with the password demoted to fallback — the most-attacked surface on the site should not be the last to walk away from passwords', 'signal-and-noise-tools' ),
 				__( 'Journey checks, not pings: a scheduled pass that walks the flows that matter — the stats page rendering its numbers, the rights surfaces serving their terms — because a healthy status code is not a working site', 'signal-and-noise-tools' ),

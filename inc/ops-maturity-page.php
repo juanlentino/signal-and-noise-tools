@@ -61,6 +61,13 @@ function sn_ops_maturity_principles() {
 		// consolidation, that the signals answer from ONE surface. Model level
 		// throughout, per this file's security contract: no check is named.
 		__( 'Operational state answers from one surface, not several - what the site checks of itself, what runs on a schedule, whether readers can reach it, and what is deployed are read in the same place, and any of them may answer unknown.', 'signal-and-noise-tools' ),
+		// THE TENTH. Graduated off the hub roadmap board (2026-08-28) when the
+		// Operations done column reached the ceiling again. The morning brief's
+		// narration half already stands as this page's Narrate layer; this
+		// sentence carries the half stated nowhere -- the injection posture of
+		// operational mail. Model level per this file's security contract: the
+		// PRACTICE, not the pipeline.
+		__( 'What the site mails its owner is built from operational facts alone - no generated prose and no reader-facing content rides the path, so nothing written into a page can arrive in the inbox wearing the site\'s own voice.', 'signal-and-noise-tools' ),
 	);
 }
 
