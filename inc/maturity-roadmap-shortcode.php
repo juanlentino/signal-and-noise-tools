@@ -117,7 +117,17 @@ function sn_maturity_roadmap_static_board() {
 				// the usual justification does not apply here — the Analytics
 				// maturity page describes the measurement pipeline, not the
 				// reader-facing surface. The page is its own record.)
-				__( 'AI-referred humans as a channel: visits that arrive from an assistant\'s answer counted as their own aggregate segment in the rollups — a reader an AI sent is a different signal than a reader search sent, and lumping them hides the shift', 'signal-and-noise-tools' ),
+				// v13.19.0: the AI-referral row GRADUATED onto /maturity/analytics/ as the
+				// thirteenth principle. It was the oldest row in this column (entered done
+				// 2026-08-11 17:58, three hours ahead of the give-back row), and the column
+				// had reached the canary limit when v13.18.0's fold landed the Search
+				// Console row -- so the planned digest row had nowhere to graduate to.
+				// This is a GRADUATION, not the bare retirement the two earlier Analytics
+				// exits were: that page states tiers and honesty principles and had NOTHING
+				// on what is counted (zero hits for referr/assistant/crawl/cadence), and
+				// unlike the stats-page row this one is not self-evidencing -- /stats/
+				// publishes only Reading rhythm and Most read. The FEATURE is untouched:
+				// inc/insights-narration.php still assembles the ai_referrals signal.
 				__( 'Which machines send a reader back: per operator, the ledger\'s crawl counts published beside that operator\'s referred human visits — stated as a sentence each, not a ratio, because crawls are requests and visits are visitor-days. An operator that read the site hundreds of times and sent nobody back is the finding, and a bare 0 would bury it — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				__( 'Traffic rhythm flags: the cadence watch now reads views — a quiet week flags against the site\'s own trailing weeks, robust to a viral spike and one-sided by design — read from the rollups already kept, never profiling a reader', 'signal-and-noise-tools' ),
 				__( 'Search-side metrics from Search Console: the queries, impressions, and positions before the click, in their own Search view and beside Top pages — one hand-rolled service-account client, a rolling window that ends three days back because Google is still counting, and since v13.9.0 a daily sync that keeps its own schedule instead of waiting for a button', 'signal-and-noise-tools' ),

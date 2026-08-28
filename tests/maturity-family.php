@@ -125,6 +125,11 @@ ok( false !== strpos( $ops_principles, 'may answer unknown' ), 'GRADUATION: and 
 // destination already stated all three clauses of the retired row. Pinned so a
 // later reader does not "repair" the missing ninth principle into existence and
 // restate what the second already says.
+// The v13.19.0 Analytics graduation is pinned in tests/analytics-maturity-page.php,
+// not here: this suite covers the newer sibling pages and never loads the analytics
+// module. Widening its requires just to keep the graduations symmetrical would drag
+// that page under this file's security-contract sweep, which was written for a
+// different set of surfaces.
 $machine_principles = sn_machine_maturity_principles_html();
 ok( false !== strpos( $machine_principles, 'own words' ), 'GRADUATION (no-op BY DESIGN): the manifest-in-its-own-words claim was ALREADY this page\'s second principle, so the retired board row needed no new sentence' );
 ok( false !== strpos( $machine_principles, 'Structured data describes what the page already says' ), 'GRADUATION (no-op BY DESIGN): and the structured-data clause likewise - the row moved because the destination already held it' );

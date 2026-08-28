@@ -4,6 +4,44 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.19.0] - 2026-08-27 — the AI-referral row graduates, and the digest row gets its slot back
+
+`v13.18.0`'s fold put Analytics `done` at 4 — the wall-canary limit — because the Search
+Console row had graduated on the live board while the static floor never caught up. That
+left the planned weekly-digest row with nowhere to land. The oldest row in the column
+graduates to make the slot.
+
+**"AI-referred humans as a channel" is now the thirteenth honesty principle on
+`/maturity/analytics/`**, phrased the way that list is phrased — a claim about how the
+numbers behave, not a feature announcement: *an AI-sent reader is a different signal from a
+search-sent reader, and the rollups keep them apart.*
+
+**This is a GRADUATION, and the distinction is not cosmetic.** The two earlier Analytics
+exits — the founding measurement row and the public stats-page row — were bare
+*retirements*: the row left the hub because its destination already told the story. Neither
+condition holds here. That page is built from four tiers and twelve honesty principles and
+said **nothing** about what is counted (zero hits for referr/assistant/crawl/cadence/Search
+Console). And the row is not self-evidencing the way `/stats/` made the stats-page row:
+`/stats/` publishes only *Reading rhythm* and *Most read*, so the AI-referral channel, the
+per-operator crawl counts, and the Search Console view are all owner-only surfaces. A bare
+removal here would have deleted the claim from the public record.
+
+**The feature is untouched.** `inc/insights-narration.php` still assembles the
+`ai_referrals` signal for the weekly digest, and the rollup segment still counts. What
+changed is where the claim is *advertised*: the board is a planning surface, and the
+done-column ceiling exists precisely to stop it becoming a ledger of everything ever
+shipped.
+
+Chosen on measurement, not on feel: the column was reconstructed from all 36 historical
+versions of the board file, which dates a row's entry into a COLUMN rather than a
+sentence's first appearance in a FILE. The AI-referral row entered `done` on 2026-08-11 at
+17:58, three and a half hours ahead of the give-back row — the oldest of the four.
+
+The graduated principle is pinned twice for substance and twice for count in
+`tests/analytics-maturity-page.php`, and mutation-proven: deleting it reds four
+assertions. The Analytics headroom pin returns to `MAX_DONE - 2` with the reason attached.
+`tests/run.sh`: 512 suites, 20,526 assertions, 0 failed.
+
 ## [13.18.0] - 2026-08-27 — the roadmap floor catches up with the board, and three rows graduate
 
 The static board in `inc/maturity-roadmap-shortcode.php` is the disaster-recovery

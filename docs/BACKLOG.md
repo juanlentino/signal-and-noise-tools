@@ -42,7 +42,7 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 | Family | Item | Gate |
 |--------|------|------|
-| Analytics | AI-attention section in the weekly digest | **Now gated (v13.18.0): an Analytics retirement.** Folding the override put Analytics done at 4, the canary limit, so this row cannot graduate to done until an older Analytics row retires onto the family maturity page. It was "none hard" only because the floor was stale |
+| Analytics | AI-attention section in the weekly digest | **Gate OPENED v13.19.0.** The AI-referral row graduated onto `/maturity/analytics/`, putting Analytics done back at 3, so this row has a slot to graduate into. No gate remains — first candidate to promote into the build queue |
 | Proof of origin | Extend signing/anchoring to pages, then media | Sequenced after current notes-chain stability; owner call on timing |
 | AI | Move the operative AI channel to the desktop platform's native agents | The native runner proving stable enough to trust with the same fences (agents arc currently DISABLED) |
 | AI | Retire legacy single-purpose tools the consolidated set absorbed | Usage evidence, not a date |
@@ -67,6 +67,17 @@ the gate opens. When one opens, it moves into the prioritized table above.
   admin-bar nodes, brutalist wp-admin. Sources in the brainstorm doc.
 
 ## Log
+
+- 2026-08-27 — the Analytics gate opened again as v13.19.0. The AI-referral row
+  GRADUATED onto `/maturity/analytics/` as its thirteenth honesty principle, restoring the
+  `MAX_DONE - 2` headroom v13.18.0 spent. Two things the measurement changed. It is a
+  **graduation, not a retirement**: unlike the two earlier Analytics exits, that page said
+  nothing about what is counted, and `/stats/` publishes only Reading rhythm and Most read,
+  so the row is not self-evidencing — a bare removal would have deleted the claim from the
+  public record. And a mid-prep finding of mine was **wrong**: I reported the analytics
+  principles as unpinned, having grepped `tests/` for the function name; the pins count
+  rendered `<li>` elements instead and were there all along. The feature is untouched —
+  `inc/insights-narration.php` still assembles the `ai_referrals` signal.
 
 - 2026-08-27 — the override is RESET and the board is code-canonical again, closing the
   arc. Order was load-bearing and held: install v13.18.0 first (deploy read `13.18.0`
