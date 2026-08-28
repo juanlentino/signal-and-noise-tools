@@ -4,6 +4,8 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.21.0] - 2026-08-28 — the monthly AI spend, itemized by feature
+
 ### Added — the monthly AI spend, itemized by feature ("AI spend itemized by door")
 
 The AI settings card's "Spent this month" total now carries a breakdown: which
