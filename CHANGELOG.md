@@ -4,6 +4,76 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.20.6] - 2026-08-28 — thinking is bounded by DEMAND now, not by whatever ceiling it is offered
+
+The third attempt at the Insights scan, and the first that addresses the cause
+rather than the symptom. v13.20.4 made the failure describe itself; v13.20.5
+believed the description and raised the ceiling; this release does what the
+repo already knew was necessary.
+
+**The lesson, now established twice in this codebase.** On `claude-sonnet-5`
+with no explicit effort config, thinking is **CEILING-BOUNDED** — it consumes
+whatever `max_tokens` allows and leaves the answer nothing. v10.53.0 tried
+raising the ceiling on the agent path and was falsified live the same night;
+`inc/openstation-agent-output-budget.php` has said so in its docblock ever
+since. v13.20.5 tried it here, 2048 → 4096, and the larger thinking block
+simply outran the 30-second HTTP timeout: `cURL error 28`, 0 bytes received.
+A faster failure became a slower one.
+
+**The working configuration**, live-verified on the agent path 2026-08-07:
+`thinking: {"type": "adaptive"}` plus `output_config: {"effort": "low"}` makes
+thinking **demand-bounded** (~3.7k tokens regardless of ceiling), and a ceiling
+above demand leaves the answer somewhere to land.
+
+`inc/insights-generation-budget.php` is that seam, scoped to this one call. It
+needed its own because the agent seam is armed from the agent runner and
+explicitly never fires for SN's own AI helpers — which is exactly why Insights
+was burning its whole budget on thinking.
+
+**Why a request filter and not a parameter.** `snt_ai_generate_with_constraints()`
+can only pass what the WP AI Client builder exposes; `thinking` and
+`output_config` are Anthropic-specific and sit below that ceiling. But every
+Anthropic request still leaves through core's `wp_remote_request()`, so
+`http_request_args` can rewrite the JSON body after the builder produced it —
+which also lets the wire ceiling exceed the helper's own `min(4096, …)` clamp,
+since that clamp applies to the argument, not the wire.
+
+**The safety properties, each pinned:**
+
+- **Armed around one call, disarmed in a `finally`** — a thrown or errored
+  generation cannot leave the filter hooked for the rest of the request.
+- **Non-matching requests return BYTE-IDENTICAL.** This filter runs at
+  `PHP_INT_MAX` on `http_request_args`, so while armed it sees every outbound
+  request WordPress makes, other plugins' Anthropic traffic included. A decode +
+  re-encode of an untouched body would still perturb the transport, so
+  "unchanged" is asserted as identical, not equivalent.
+- **Deferential** — a request already carrying `thinking` or `output_config` is
+  left alone, so the seam self-neutralizes the moment anything upstream decides.
+- **Model-gated** to Claude 5 (`/^claude-[a-z]+-5([.\-]|$)/`): `thinking.type:
+  "enabled"` is REJECTED by Claude 5 with a 400 directing callers to adaptive,
+  and adaptive would 400 on older families.
+- **The ceiling raise is conditional on thinking being BOUNDED.** Raising the
+  ceiling of an unbounded request is the v13.20.5 failure with a bigger number,
+  so disabling the effort filter leaves the request byte-identical rather than
+  handing thinking more room. Found while re-reading the branch structure, and
+  pinned.
+- **Timeout raised to 180s, and only on a request actually shaped** — the longer
+  generation is the direct consequence of the shaping.
+
+Every knob is filterable (`snt_insights_anthropic_effort` — return `''` to
+disable entirely — plus `_max_tokens` and `_timeout`).
+
+Guarded by `tests/insights-generation-budget.php`, 34 assertions, weighted
+toward the pass-through cases: a seam that mutates the wrong request is worse
+than one that does nothing. Mutation-verified four ways — dropping the model
+gate, dropping the deference check, using the Claude 4 thinking shape, and
+ungating the ceiling each red exactly the assertions that name them.
+
+**Residual uncertainty, stated rather than hidden:** whether `low` effort leaves
+enough room in 8192 for three verbose questions, and whether the shaped call
+fits inside 180s, are both unmeasured here. The v13.20.4 notice reports its own
+token accounting, so the next run answers both without log-diving.
+
 ## [13.20.5] - 2026-08-28 — the token budget, raised on a measurement instead of a guess
 
 v13.20.4 gave the Insights failure the ability to report its own token

@@ -363,6 +363,19 @@ function snt_insights_call_ai( $signals ) {
 	// still receives the content, but is framed to analyze rather than obey it.
 	$prompt = "<<<SN_UNTRUSTED_DATA\n" . $json . "\nSN_UNTRUSTED_DATA>>>";
 
+	// v13.20.6: shape the wire request so thinking is DEMAND-bounded instead of
+	// ceiling-bounded — see inc/insights-generation-budget.php. Armed around
+	// this one call and disarmed in a finally, so a thrown or errored generation
+	// cannot leave the filter hooked for the rest of the request.
+	if ( function_exists( 'snt_insights_budget_arm' ) ) {
+		snt_insights_budget_arm();
+		try {
+			return snt_ai_generate_with_constraints( $prompt, $system, SN_INSIGHTS_MAX_TOKENS, 'insights' );
+		} finally {
+			snt_insights_budget_disarm();
+		}
+	}
+
 	return snt_ai_generate_with_constraints( $prompt, $system, SN_INSIGHTS_MAX_TOKENS, 'insights' );
 }
 
