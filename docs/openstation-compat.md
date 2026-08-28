@@ -40,24 +40,51 @@ same page in plain `/wp-admin/` renders both buttons correctly**, which places
 the fault in the host shell, not in this plugin — do not "fix" the leaf's
 markup to chase it.
 
-Root cause NOT yet found. v1.1.4 is 26 commits and 300 files. Two candidates
-were examined and CLEARED, recorded here so nobody re-walks them:
+**ROOT CAUSE — measured in the live DOM 2026-08-28.** The buttons are present,
+sized (128x40, 115x40), `visibility: visible`, `opacity: 1`. They are invisible
+because `.button-primary` loses its BACKGROUND and renders white-on-white.
 
-- `includes/render/chromeless-trim.php` (new, +1023) dequeues only the
-  admin-bar family — `admin-bar`, `os-admin-bar`, `wpcom-admin-bar`,
-  `wpcom-notes-common`, `wpcom-notes-admin-bar`, `a8c-faux-inline-help`.
-  Nothing that styles or emits a `.button`.
-- `src/chromeless-bridge.js` (new, +3622) intercepts every same-origin
-  `<form>` action to append `openstation_chromeless=1`. It rewrites actions,
-  never markup, and falls back to `window.location.href` when a form has no
-  `action` — so the actionless forms this plugin ships since v13.20.4 are
-  compatible with it.
+The chromeless window is a same-origin iframe whose body carries
+**`os-chromeless`**. OpenStation's `assets/css/variables.css` declares the admin
+theme colour scoped to a DIFFERENT class:
 
-The remaining suspect is `assets/css/my-wordpress.css` (+628/-119 in this
-release), the stylesheet for wp-admin inside the shell. **The next measurement
-is one bit: is the button ABSENT from the DOM, or present and hidden?** That
-splits "the shell rewrites our markup" from "the shell's CSS hides it", and the
-two would be filed differently.
+```css
+body.os-active { --wp-admin-theme-color: #f252fc; }   /* does NOT match os-chromeless */
+```
+
+So inside a chromeless iframe that property is **undefined**, and the winning
+background rule has no fallback:
+
+```css
+buttons.css  .wp-core-ui .button-primary { background: var(--wp-admin-theme-color, #3858e9) }  /* fallback */
+colors.css   .wp-core-ui .button-primary { background: var(--wp-admin-theme-color) }           /* NO fallback — wins */
+```
+
+An unresolved `var()` with no fallback is **invalid at computed-value time**, so
+the property computes to its INITIAL value — `transparent` — rather than falling
+back to the earlier declaration. White label, no background, white page.
+
+Core cannot rescue it: `admin-schemes.css` declares the variable for eight
+schemes (light, modern, blue, coffee, ectoplasm, midnight, ocean, sunrise) and
+this site runs `admin-color-classic-dark`, which is not among them.
+
+**Fix is upstream and one selector**: `body.os-active, body.os-chromeless`.
+
+**A SECOND, INDEPENDENT defect of the same family** — OpenStation's own
+`Post Stats` widget (`.dm-poststats__*`, not ours; we register only `SN `-prefixed
+widgets) references `--os-ui-color-text-subtle`, which is **declared nowhere**
+while 158 other `--os-ui-*` properties are. All four of its colour rules fall
+back to hardcoded light-theme greys, giving **3.81:1** on OpenStation's own dark
+card against **18.40:1** for the sibling `.os-widgets__title`. The declared
+family uses `--os-ui-fg-muted` / `--os-ui-text-muted`, so this reads as a
+rename with one consumer left behind.
+
+CLEARED, recorded so nobody re-walks them: `includes/render/chromeless-trim.php`
+(+1023) dequeues only the admin-bar family; `src/chromeless-bridge.js` (+3622)
+rewrites form ACTIONS, never markup, and falls back to `window.location.href`
+for actionless forms — so this plugin's v13.20.4 forms are compatible with it.
+`assets/css/my-wordpress.css` was suspected and is NOT implicated; it
+contributes zero `.button` rules to the iframe.
 
 The name-membership sweep below passes clean: every upstream name this plugin
 references still exists. Both known breaks — v1.1.3's ⌘K and v1.1.4's missing
@@ -82,7 +109,7 @@ Compat layer: [inc/openstation-compat.php](../inc/openstation-compat.php).
 | v1.1.1 | 2026-08-19 | Post-rename |
 | **v1.1.2** | **2026-08-21** | Post-rename — **the release this file is verified against** (19 names) |
 | **v1.1.3** | **2026-08-24** | Post-rename — **running in production, NOT verified here.** Deferred the palette's Gutenberg runtime to first ⌘K; broke plugin-contributed commands. Fix merged to trunk in #683 but **in no tagged release** as of 2026-08-26 — still broken here |
-| **v1.1.4** | **2026-08-28** | Post-rename — **running in production, NOT verified here.** **Carries #683**, so the v1.1.3 ⌘K break is fixed (ancestry-verified: `199a0851` is an ancestor of the tag). Introduces a NEW break: form buttons absent inside chromeless windows, plain wp-admin unaffected. Root cause not yet found; `chromeless-trim.php` and `chromeless-bridge.js` examined and cleared |
+| **v1.1.4** | **2026-08-28** | Post-rename — **running in production, NOT verified here.** **Carries #683**, so the v1.1.3 ⌘K break is fixed (ancestry-verified: `199a0851` is an ancestor of the tag). Introduces TWO custom-property regressions, both measured in the live DOM: `.button-primary` renders white-on-white in chromeless iframes because `variables.css` scopes `--wp-admin-theme-color` to `body.os-active` while the iframe body is `os-chromeless`; and the `Post Stats` widget references `--os-ui-color-text-subtle`, declared nowhere, landing at 3.81:1. Neither is this plugin's markup |
 
 An earlier revision of this file said the rename was "in trunk, **not yet in
 any tagged release**", and that end-to-end verification was "structurally
