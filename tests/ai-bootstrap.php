@@ -1112,5 +1112,59 @@ hc_eq( 'sdk_overloaded', $wrapped->get_error_code(), 'empty-message wrap keeps t
 hc_true( '' !== trim( (string) $wrapped->get_error_message() ), 'empty-message wrap guarantees a message' );
 hc_true( false !== strpos( (string) $wrapped->get_error_message(), 'sdk_overloaded' ), 'message names the code for diagnosability' );
 
+// ─── v13.21.0: per-feature monthly spend rollup ("AI spend itemized by door") ───
+echo "\nGroup: v13.21.0 per-feature spend rollup\n";
+
+// (a) fold arithmetic: features accumulate independently, sorted highest first.
+update_option( SN_AI_SPEND_FEATURE_OPT, array() );
+snt_ai_add_month_feature_spend( 'insights', 0.02 );
+snt_ai_add_month_feature_spend( 'drift_detect', 0.01 );
+snt_ai_add_month_feature_spend( 'insights', 0.03 );
+$by = snt_ai_spend_this_month_by_feature();
+hc_true( abs( ( $by['insights'] ?? 0 ) - 0.05 ) < 1e-9, 'insights bucket accumulates to $0.05' );
+hc_true( abs( ( $by['drift_detect'] ?? 0 ) - 0.01 ) < 1e-9, 'drift_detect bucket holds $0.01' );
+hc_eq( 'insights', array_key_first( $by ), 'itemization sorts highest spend first' );
+
+// (b) same guards as the total fold: zero/negative are no-ops; '' folds under
+// the generate.php default label rather than creating an unlabeled bucket.
+snt_ai_add_month_feature_spend( 'insights', 0 );
+snt_ai_add_month_feature_spend( 'insights', -2 );
+$by = snt_ai_spend_this_month_by_feature();
+hc_true( abs( ( $by['insights'] ?? 0 ) - 0.05 ) < 1e-9, 'zero/negative cost is a no-op' );
+snt_ai_add_month_feature_spend( '', 0.02 );
+$by = snt_ai_spend_this_month_by_feature();
+hc_true( abs( ( $by['generic'] ?? 0 ) - 0.02 ) < 1e-9, "'' folds under 'generic' (the generate default)" );
+
+// (c) an empty month is ABSENCE (empty array), never a zero-filled shape — the
+// renderer skips the whole section on it.
+update_option( SN_AI_SPEND_FEATURE_OPT, array() );
+hc_eq( array(), snt_ai_spend_this_month_by_feature(), 'empty month -> empty array, not zeros' );
+
+// (d) prunes to the same SN_AI_SPEND_MONTHS window as the total rollup.
+update_option( SN_AI_SPEND_FEATURE_OPT, array() );
+for ( $m = 1; $m <= SN_AI_SPEND_MONTHS + 3; $m++ ) {
+	$roll = get_option( SN_AI_SPEND_FEATURE_OPT, array() );
+	$roll[ sprintf( '2020-%02d', $m ) ] = array( 'insights' => 0.01 ); // synthetic historical buckets
+	update_option( SN_AI_SPEND_FEATURE_OPT, $roll, false );
+}
+snt_ai_add_month_feature_spend( 'insights', 0.01 ); // current-month bucket -> triggers the prune
+$roll = get_option( SN_AI_SPEND_FEATURE_OPT, array() );
+hc_true( count( $roll ) <= SN_AI_SPEND_MONTHS, 'feature rollup prunes to SN_AI_SPEND_MONTHS buckets' );
+
+// (e) LOCKSTEP with the total, driven through the REAL producer: one generate
+// call must land the identical figure in both rollups — that identity is the
+// itemization's whole claim. fixture_reset() clears the option store and seeds
+// usage 120/40 on the default (priced) model, so the cost is provably nonzero.
+fixture_reset();
+$g = snt_ai_generate_with_constraints( 'p', 's', 100, 'itemize_probe' );
+hc_true( ! is_wp_error( $g ), 'probe generation succeeds' );
+$total = snt_ai_spend_this_month();
+$by    = snt_ai_spend_this_month_by_feature();
+hc_true( $total > 0, 'the probe call recorded a nonzero total (non-vacuous)' );
+hc_true( isset( $by['itemize_probe'] ) && abs( $by['itemize_probe'] - $total ) < 1e-9,
+	'the feature bucket equals the total: itemization cannot drift from what it breaks down' );
+update_option( SN_AI_SPEND_FEATURE_OPT, array() );
+update_option( SN_AI_SPEND_ROLLUP_OPT, array() );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

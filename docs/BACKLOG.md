@@ -57,6 +57,7 @@ the gate opens. When one opens, it moves into the prioritized table above.
 | IPv6 criterion | Poll `sn-status{ipv6_criterion}`; act ONLY on `decision = build_ranges` |
 | GSC drift section | ~Sep 3: flips from "accruing" to the good zero or its first rows — last unverified surface of the v13.11.0 work |
 | Upstream ⌘K release (#683) | Still untagged; the Cmd+K seam breaks every upgrade — retest on tag |
+| Second timestamp anchor (parked 2026-08-28) | Two triggers, either fires → this becomes a build row: an observed window where pending OTS proofs cannot upgrade, or a credible non-Bitcoin public anchoring authority. Until then: single-anchor Bitcoin OTS is the accepted posture |
 
 ## Deliberately not queued
 

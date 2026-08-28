@@ -56,6 +56,13 @@ define( 'SN_AI_USAGE_LOG_CAP', 200 );
 define( 'SN_AI_SPEND_ROLLUP_OPT', 'sn_ai_spend_month' );
 define( 'SN_AI_SPEND_MONTHS', 13 );
 
+// v13.21.0: the month rollup above, itemized by the feature label every call
+// already carries (the board's "AI spend itemized by door" row). A SIBLING
+// option keyed YYYY-MM => feature => USD — the total's shape is untouched so
+// the budget gate keeps reading exactly the number it always read. Fed the
+// same cost at the same call site, so the feature lines sum to the total.
+define( 'SN_AI_SPEND_FEATURE_OPT', 'sn_ai_spend_month_feature' );
+
 // v6.52.0: the preferred + safety-net text model for ALL SN AI generation.
 // SN_AI_DEFAULT_MODEL is the model SN pins by default; SN_AI_FALLBACK_MODEL is
 // appended as a SECOND preference so the variadic using_model_preference() has

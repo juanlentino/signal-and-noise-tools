@@ -70,7 +70,9 @@ foreach ( $layer as $f ) {
 // 21 -> 22 in v13.20.4: snt_ai_usage_last() joined usage-log.php so a failing
 // AI call can report its own token accounting. Bumped deliberately — the count
 // is pinned precisely so a new function in this layer cannot arrive unnoticed.
-ok( 22 === count( $declared ), 'the layer declares 22 functions (found ' . count( $declared ) . ')' );
+// 22 -> 24 in v13.21.0: snt_ai_add_month_feature_spend() +
+// snt_ai_spend_this_month_by_feature() joined spend.php (per-feature rollup).
+ok( 24 === count( $declared ), 'the layer declares 24 functions (found ' . count( $declared ) . ')' );
 
 // The by-reference declaration specifically — the one a naive regex misses.
 ok( isset( $declared['snt_ai_availability_cache'] ),
@@ -90,6 +92,7 @@ $api = array(
 	'snt_ai_error_with_message', 'snt_ai_register_alt_text_model_route', 'snt_ai_economy_features',
 	'snt_ai_register_economy_model_route', 'snt_ai_record_usage', 'snt_ai_spend_month_key',
 	'snt_ai_add_month_spend', 'snt_ai_spend_this_month', 'snt_ai_model_pricing',
+	'snt_ai_add_month_feature_spend', 'snt_ai_spend_this_month_by_feature',
 	'snt_ai_estimate_cost', 'snt_ai_usage_summary', 'snt_ai_extract_post_text',
 	'snt_ai_post_signal', 'snt_register_status_script', 'snt_ai_enqueue_editor_script',
 );
@@ -103,10 +106,11 @@ foreach ( $declared as $fn => $files ) {
 	ok( 1 === count( $files ), "$fn() declared exactly once (in " . implode( ', ', $files ) . ')' );
 }
 
-// 3. The eight constants, each defined exactly once across inc/.
+// 3. The nine constants, each defined exactly once across inc/.
 $consts = array(
 	'SN_AI_USAGE_LOG_OPT', 'SN_AI_USAGE_LOG_CAP', 'SN_AI_SPEND_ROLLUP_OPT', 'SN_AI_SPEND_MONTHS',
 	'SN_AI_DEFAULT_MODEL', 'SN_AI_FALLBACK_MODEL', 'SN_AI_CACHE_WRITE_MULT', 'SN_AI_CACHE_READ_MULT',
+	'SN_AI_SPEND_FEATURE_OPT',
 );
 $inc_src = '';
 $dir = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( "$root/inc" ) );
