@@ -4,6 +4,40 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.16.3] - 2026-08-27 — the panel names the day count the decision uses
+
+The prose sweep, run because two defects in one evening came from the same gap:
+a sentence explaining a verdict interpolating a count that is not the quantity
+the verdict used.
+
+**Method.** A purely lexical check cannot decide this — the v13.16.0 miss put
+`days_covered` into a sentence saying "covered days", so the noun MATCHED. What
+is decidable is the RISK: a call site picks one variable while a near-miss
+sibling holding a different quantity is in scope. Validated against the known
+defect first: run at ee4673e it flags
+`abilities-login-defense.php:109 interpolates days_covered while
+v6_days_covered is also in scope` — the exact line.
+
+**Result: 123 flagged call sites, ONE real finding.** The IPv6 panel's window
+line carried only `days_covered` — the all-family count, against the 30-day
+window the re-spec retired — directly above a decision sentence reading "asks
+for 20 days carrying IPv6 ... holds 10". Nothing false, but the salient number
+was the one the decision ignores. It now names both: "25 of 30 days covered, 10
+carrying IPv6".
+
+Every other flagged site was checked by hand and is correct, several with
+comments already explaining the choice ("the uncovered count here is the TRUE
+total"). Sites reviewed and cleared: the fail-open reducer's own
+`days_covered`, `tag-consolidation-admin` (posts vs posts_affected),
+`site-health-widget` (finding total vs check total), `health-render-reports`,
+`health-render-motion`, `machine-readers-render`, `spend-watch`,
+`health-edge-workers`.
+
+**The detector is NOT committed, deliberately.** ~1% precision is fine for a
+one-time audit and useless as a gate; a reporter with 122 false positives
+teaches everyone to ignore it. The technique is recorded instead — validate
+against a known defect, then read the candidates.
+
 ## [13.16.2] - 2026-08-27 — the reason-string guard gets its negative and its invariant
 
 Test-only; no runtime change and nothing to deploy (`tests/` is export-ignore).

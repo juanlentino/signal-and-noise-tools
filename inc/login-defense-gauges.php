@@ -483,6 +483,21 @@ function sn_login_defense_render_gauges( $days = 7 ) {
 					number_format_i18n( $share['days_covered'] ),
 					SN_LG_IPV6_CRITERION_DAYS
 				);
+				// v13.16.3, from the prose sweep: the clause above is the
+				// ALL-FAMILY count against the 30d window, and it sat alone
+				// directly over a decision sentence reading "asks for 20 days
+				// carrying IPv6 ... holds 10". Both true, and the salient
+				// number was the one the decision does not use — the reason
+				// string's defect in a milder form, since nothing here is
+				// false. Naming the deciding count beside it removes the
+				// reading where 25-of-30 looks like the sustained measure.
+				if ( null !== $share['v6_days_covered'] ) {
+					$window .= ', ' . sprintf(
+						/* translators: %s: days on which IPv6 itself appeared */
+						__( '%s carrying IPv6', 'signal-and-noise-tools' ),
+						number_format_i18n( $share['v6_days_covered'] )
+					);
+				}
 			}
 
 			// Same fact as the measured window: what the sensor did and did

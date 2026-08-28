@@ -433,6 +433,14 @@ for ( $i = 0; $i < 25; $i++ ) {
 $c = render_gauges_html();
 ok( strpos( $c, '20%' ) !== false && strpos( $c, 'crossed' ) !== false,
 	'PROVEN TO MOVE: IPv6 gauge crosses at 20%' );
+
+// v13.16.3 (prose sweep): the window line carried ONLY the all-family day
+// count, directly above a decision sentence quoting the v6 one. Both numbers
+// must appear, so the salient figure is not the one the decision ignores.
+ok( strpos( $c, 'days covered' ) !== false && strpos( $c, 'carrying IPv6' ) !== false,
+	'PROSE: the window line names BOTH day counts, not just the all-family one' );
+ok( preg_match( '/25 of 30 days covered, 22 carrying IPv6/', $c ) === 1,
+	'PROSE: and reports them distinctly — 25 all-family, 22 carrying IPv6' );
 ok( stripos( $c, '128-bit' ) !== false,
 	'crossing names the decision it triggers (build 128-bit ranges), not just the number' );
 ok( strpos( $c, '25 of 30 days covered' ) !== false,
