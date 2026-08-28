@@ -656,5 +656,21 @@ wh_eq( $prev_ssrf_url, $upd_ssrf['url'], 'update ignores an encoded-metadata can
 $upd_ssrf = sn_webhook_update( $ssrf_ok['id'], array( 'url' => 'https://hooks2.public.example/y' ) );
 wh_eq( 'https://hooks2.public.example/y', $upd_ssrf['url'], 'update applies a legitimate public https candidate' );
 
+// ── v13.20.3: the per-webhook card runs FULL width ───────────────────────
+// Each card holds a five-column delivery log (Fired at / Attempt / HTTP /
+// Status / Response), and Response is free text, so the 820px .sn-fieldset cap
+// squeezed the column that most needed room.
+//
+// This is a SOURCE guard, not a render guard, and the difference is stated
+// rather than hidden: this suite has no harness for sn_webhooks_render_admin_tab()
+// (it would need the WP admin surface the insights suite had to stub three times
+// over), so it reads the file instead. It therefore proves the markup is WRITTEN,
+// not that it RENDERS. The column count is pinned beside the class so that
+// shrinking the log lets --wide honestly go too, rather than leaving a modifier
+// nobody can justify.
+$wh_admin = (string) file_get_contents( __DIR__ . '/../inc/webhooks-admin.php' );
+wh_true( false !== strpos( $wh_admin, "sn-fieldset sn-fieldset--wide' . ( \$is_new" ), 'the per-webhook card carries --wide (source guard: this suite does not render the admin tab)' );
+wh_true( 5 === substr_count( $wh_admin, '<th scope="col">' ), 'and the delivery log still has the FIVE columns that justify it — the reason is pinned beside the class' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

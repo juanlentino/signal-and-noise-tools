@@ -97,6 +97,40 @@ snt_insights_render_usage_section();
 $html = ob_get_clean();
 hc_contains( $html, 'No AI calls recorded', 'graceful empty state' );
 
+// ─── v13.20.3: the prompt-cache probe card runs FULL width ───────────
+// It carries a six-column table (Model / Calls / Repeated / Largest prefix /
+// Minimum to cache / Verdict) and was the last card on this surface still at
+// the 820px .sn-fieldset cap. Pinned by the modifier AND by the column count,
+// so a future edit that drops columns to four can honestly drop --wide too.
+echo "\nv13.20.3: prompt-cache probe card width\n";
+// The card is gated on snt_ai_cache_probe_verdict(), which this harness does not
+// load, so without a stub the whole section returns nothing and every assertion
+// below would read "missing" for the wrong reason. Minimal shape: one model row,
+// which is what the six-column table iterates.
+// Real value read from the source, never invented (a harness constant that
+// disagrees with production is how a test passes against behaviour that does
+// not exist). defined() guard: a colliding const keeps the FIRST definition.
+if ( ! defined( 'SN_AI_CACHE_PROBE_CAP' ) ) { define( 'SN_AI_CACHE_PROBE_CAP', 200 ); }
+if ( ! function_exists( 'wp_kses_post' ) ) {
+	function wp_kses_post( $data ) { return $data; }
+}
+if ( ! function_exists( 'snt_ai_cache_probe_verdict' ) ) {
+	function snt_ai_cache_probe_verdict() {
+		return array(
+			'state'   => 'candidate',
+			'summary' => array( 'calls' => 3, 'prefixes' => 2, 'repeatable' => 1, 'max_prefix_bytes' => 9000 ),
+			'best'    => null,
+			'models'  => array( array( 'model' => 'claude-sonnet-5', 'calls' => 3, 'repeated' => 1, 'max_prefix_bytes' => 9000, 'floor' => 1024, 'may_clear_floor' => true ) ),
+		);
+	}
+}
+ob_start();
+snt_insights_render_cache_probe_section();
+$probe = ob_get_clean();
+hc_contains( $probe, 'class="sn-fieldset sn-fieldset--wide"', 'the probe card carries --wide (six columns do not fit the 820px cap)' );
+hc_contains( $probe, 'Largest prefix', 'and the columns that justify the modifier are still there (Largest prefix)' );
+hc_contains( $probe, 'Minimum to cache', 'and Minimum to cache — the reason is pinned beside the class, not just the class, so shrinking the table lets --wide honestly go too' );
+
 // ─── Test D (v9.5.0/R2): weekly-digest surface fully retired off Insights ───
 echo "\nTest D: digest retired; advisor stays; no stale Intelligence deep-link\n";
 if ( ! function_exists( 'sn_admin_shell_open' ) ) { function sn_admin_shell_open() {} }

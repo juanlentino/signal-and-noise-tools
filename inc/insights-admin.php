@@ -236,7 +236,10 @@ function snt_insights_render_cache_probe_section() {
 	);
 	list( $pill, $title, $body ) = $states[ $v['state'] ] ?? $states['no_data'];
 
-	echo '<div class="sn-fieldset">';
+	// v13.20.3: --wide. This card holds the prompt-cache probe's SIX-column
+	// table (Model / Calls / Repeated / Largest prefix / Minimum to cache /
+	// Verdict), which does not fit the 820px .sn-fieldset cap.
+	echo '<div class="sn-fieldset sn-fieldset--wide">';
 	echo '<h2 class="sn-fieldset-h">Prompt-cache probe <span class="sn-pill sn-pill--' . esc_attr( $pill ) . '">' . esc_html( $title ) . '</span></h2>';
 	echo '<p class="sn-fieldset-intro">' . wp_kses_post( $body ) . '</p>';
 
