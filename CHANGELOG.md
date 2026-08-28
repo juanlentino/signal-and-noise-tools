@@ -4,6 +4,30 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.24.0] - 2026-08-28 — tag hygiene joins the advisory tier (22nd check)
+
+### Added — the vocabulary's two drift modes, kept visible
+
+v13.23.0 described all 23 tags; this keeps the vocabulary honest as it grows.
+[inc/health-check-tag-hygiene.php](inc/health-check-tag-hygiene.php) reports:
+
+- **undescribed** — an in-use tag with no description (a sentence not yet
+  written; each one lights the archive hero dek + the tag's meta description).
+- **unused** — a zero-post tag, usually typo-minted (`wp_set_post_tags()`
+  creates a term on any miss); the fix is pruning, so a zero-post undescribed
+  tag reports ONCE as unused, never doubled.
+
+Advisory TIER, worklist SURFACE, content FAMILY — new tags keep arriving, so a
+nudge that can re-open is what the advisory tier is for; the fault tally never
+moves. All four registrations (scan assembly, family map, advisory allowlist,
+surface map) plus the widget suite's verbatim advisory pin, which caught the
+extension exactly as designed. A failed taxonomy read reports `skipped` with a
+reason, never a clean zero.
+
+[tests/health-check-tag-hygiene.php](tests/health-check-tag-hygiene.php):
+the three tag states, whitespace-only descriptions, the report-once rule, and
+the skip-vs-zero distinction.
+
 ## [13.23.0] - 2026-08-28 — the 23 tag descriptions, seeded
 
 ### Added — one-shot seed of the owner-approved tag descriptions

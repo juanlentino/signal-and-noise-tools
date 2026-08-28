@@ -86,6 +86,10 @@ function sn_health_check_surface_map() {
 		// the worklist already exists in three other places (sn_scan's
 		// link_candidates, analytics-recommendations, ai-link/pair-suggest).
 		'link_opportunities'    => 'worklist',
+		// Tag vocabulary drift (v13.24.0): undescribed tags are sentences not
+		// yet written, zero-post tags are prune candidates — opportunities
+		// that re-open as tags arrive, never defects.
+		'tag_hygiene'           => 'worklist',
 		// Same shape: a mention that could be a link. Zero-AI at scan time,
 		// applied through ai-link-suggest — the same door as the pairs above.
 		'unlinked_mentions'     => 'worklist',

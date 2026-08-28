@@ -87,7 +87,7 @@ echo "\n-- accessor: advisory tier --\n";
 // it) and became a DECLARATION. The flagged posts are now reported in their own
 // check and must not flip the site off "all clear", because the author already
 // ruled on them.
-ok( function_exists( 'sn_health_advisory_checks' ) && sn_health_advisory_checks() === array( 'external_links', 'link_opportunities', 'stale_posts_evergreen' ), 'advisory_checks: external_links + link_opportunities + stale_posts_evergreen are the advisory-tier checks' );
+ok( function_exists( 'sn_health_advisory_checks' ) && sn_health_advisory_checks() === array( 'external_links', 'link_opportunities', 'stale_posts_evergreen', 'tag_hygiene' ), 'advisory_checks: external_links + link_opportunities + stale_posts_evergreen + tag_hygiene are the advisory-tier checks' );
 ok( sn_health_advisory_total( null ) === 0, 'advisory_total: null scan -> 0' );
 ok( sn_health_advisory_total( $only_ext ) === 4, 'advisory_total: sums advisory-check counts' );
 ok( sn_health_advisory_total( $scan3 ) === 2, 'advisory_total: mixed scan counts only the advisory checks' );

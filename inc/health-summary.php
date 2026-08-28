@@ -43,7 +43,9 @@ function sn_health_advisory_checks() {
 	// external web rots continuously and outside our control. An advisory that
 	// can never resolve is precisely what this tier is for. What changed is
 	// only WHERE it renders (the worklist surface), not what it is.
-	return array( 'external_links', 'link_opportunities', 'stale_posts_evergreen' );
+	// tag_hygiene (v13.24.0): same reasoning — new tags keep arriving and a
+	// nudge that can re-open belongs in the advisory tier, not the fault tally.
+	return array( 'external_links', 'link_opportunities', 'stale_posts_evergreen', 'tag_hygiene' );
 }
 
 /**

@@ -124,6 +124,10 @@ function sn_health_run_scan() {
 			'roadmap_drift'       => sn_health_check_roadmap_drift(),
 			'unlinked_mentions'   => sn_health_check_unlinked_mentions(),
 			'link_opportunities'  => sn_health_check_link_opportunities(),
+			// 22nd check (v13.24.0): tag hygiene — undescribed + zero-post tags.
+			// Advisory tier, worklist surface; born the day the 23 descriptions
+			// seeded, to keep the vocabulary's two drift modes visible.
+			'tag_hygiene'         => sn_health_check_tag_hygiene(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
 			'edge_workers'        => sn_health_check_edge_workers(),
 			// 12th check (v9.65.0): the reader of sn_analytics_integrity_alert —
