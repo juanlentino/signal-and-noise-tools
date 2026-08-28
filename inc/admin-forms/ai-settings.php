@@ -127,6 +127,30 @@ function sn_admin_render_ai_settings_form() {
 	}
 	echo '</div>';
 
+	// v13.21.0: the same estimated month, itemized by the feature label every
+	// call carries (the "AI spend itemized by door" row). Same source as the
+	// total above — the durable rollup, not the capped FIFO log — so the lines
+	// sum to it. Absent entirely when the month holds nothing (the spend-watch
+	// unconfigured-is-absent precedent). NOT in the Health spend section: that
+	// surface's contract is platform-reported-never-estimated, and this figure
+	// is estimated from tokens x list pricing like the total it breaks down.
+	$by_feature = function_exists( 'snt_ai_spend_this_month_by_feature' )
+		? snt_ai_spend_this_month_by_feature()
+		: array();
+	if ( array() !== $by_feature ) {
+		echo '<div class="sn-field">';
+		echo '<p class="sn-field-label">' . esc_html__( 'This month, by feature', 'signal-and-noise-tools' ) . '</p>';
+		echo '<ul class="sn-ai-spend-by-feature">';
+		foreach ( $by_feature as $feature_slug => $feature_cost ) {
+			// Sub-cent features get four decimals: a real $0.004 rendered as
+			// "$0.00" would print a measured spend as a zero.
+			$decimals = $feature_cost < 0.01 ? 4 : 2;
+			echo '<li><span>' . esc_html( $feature_slug ) . '</span><span>$' . esc_html( number_format_i18n( $feature_cost, $decimals ) ) . '</span></li>';
+		}
+		echo '</ul>';
+		echo '</div>';
+	}
+
 	// item 8: the Workers AI token for SHADOW semantic embeddings. Shipped in
 	// v11.22.0 with NO control to set it — the same failure v10.84.0 made with
 	// the page-signing gate, which then sat unreachable for thirty releases.

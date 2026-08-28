@@ -4,6 +4,43 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Added — the monthly AI spend, itemized by feature ("AI spend itemized by door")
+
+The AI settings card's "Spent this month" total now carries a breakdown: which
+feature spent it. Every `snt_ai_generate_with_constraints()` call has carried a
+feature label since v6.29.0 (`insights`, `drift_detect`, `link_suggest`,
+`insights_narration`, meta descriptions, alt text…) — the label was recorded per
+call but never rolled up, so the month's one number could not answer "on what?".
+
+- `inc/ai-bootstrap/spend.php`: `snt_ai_add_month_feature_spend()` +
+  `snt_ai_spend_this_month_by_feature()` over a new sibling option
+  (`SN_AI_SPEND_FEATURE_OPT`, month → feature → USD, pruned to the same
+  13-bucket window). Deliberately NOT a shape change to the flat total rollup —
+  the budget gate keeps reading exactly the option it always read.
+- The fold rides `snt_ai_record_usage()` on the SAME `$cost` variable as the
+  total, so the itemization cannot drift from the number it breaks down; the
+  lockstep is pinned by a test that drives the real generate path and asserts
+  bucket == total.
+- Rendered in the AI settings card under the budget meter, highest spend first,
+  sub-cent features at four decimals (a measured $0.004 must not print as
+  $0.00). Absent entirely when the month holds nothing. NOT added to the
+  Health spend-watch section: that surface's contract is
+  platform-reported-never-estimated, and this figure is estimated from
+  tokens × list pricing like the total it itemizes.
+- Sourcing note: the capped FIFO usage log was rejected as the source — a
+  capped log silently under-reports whichever feature aged out.
+
+### Investigated and closed — Batch API for the weekly Insights cron
+
+The open question from the 2026-08-28 session handoff. The weekly cron
+(`inc/insights.php`) makes exactly ONE API call per run; the Batch API's 50%
+discount on one small call a week is fractions of a cent, against a submit →
+poll → retrieve state machine that the WordPress AI Client abstraction cannot
+express (the same ceiling that blocks `cache_control`). Wrong shape and wrong
+economics everywhere it could apply — the daily drift verdict is also a single
+call. Closed; do not re-propose without a new multi-call batch workload.
+
+
 ## [13.20.6] - 2026-08-28 — thinking is bounded by DEMAND now, not by whatever ceiling it is offered
 
 The third attempt at the Insights scan, and the first that addresses the cause

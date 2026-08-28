@@ -7,8 +7,8 @@
  *
  * This layer has no registry and no dispatch map — other modules call these
  * functions DIRECTLY, so the public surface is the contract.
- * tests/ai-bootstrap-surface-coverage.php pins all 21 declarations, the eight
- * SN_AI_* constants, the two load-time route registrations, and the single
+ * tests/ai-bootstrap-surface-coverage.php pins the layer's declaration count,
+ * the SN_AI_* constants, the two load-time route registrations, and the single
  * admin_enqueue_scripts hook, so a symbol lost in a move is a build failure
  * rather than a silent behaviour change.
  *
@@ -109,9 +109,12 @@ function snt_ai_record_usage( $feature, $model, $result ) {
 	// (unlike the capped FIFO log above) never evicts — so the budget cap and the
 	// spend readout see a full month even under heavy use. Served model wins for
 	// attribution when the provider substituted a different one.
-	snt_ai_add_month_spend(
-		snt_ai_estimate_cost( '' !== $served_model ? $served_model : (string) $model, $prompt_t, $completion_t, $split )
-	);
+	$cost = snt_ai_estimate_cost( '' !== $served_model ? $served_model : (string) $model, $prompt_t, $completion_t, $split );
+	snt_ai_add_month_spend( $cost );
+	// v13.21.0: the SAME figure, itemized under the feature label this call
+	// already carries. One $cost variable feeds both folds so the itemization
+	// can never drift from the total it claims to break down.
+	snt_ai_add_month_feature_spend( $feature, $cost );
 }
 
 /**
