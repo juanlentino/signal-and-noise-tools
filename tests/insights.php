@@ -456,7 +456,17 @@ ins_true( false !== stripos( $system, 'provenance' ), 'system reserves the prove
 ins_true( false !== stripos( $system, 'em dash' ), 'system forbids em dashes' );
 ins_true( false !== stripos( $system, 'not a content strategist' ), 'reframed away from content-strategist/calendar' );
 ins_true( false === strpos( $system, 'exactly 5' ), 'no fixed count of 5 (recommend-nothing is valid)' );
-ins_true( defined( 'SN_INSIGHTS_MAX_TOKENS' ) && SN_INSIGHTS_MAX_TOKENS >= 2048, 'SN_INSIGHTS_MAX_TOKENS defined + roomy (>=2048, headroom so 3 verbose questions do not truncate)' );
+// v13.20.5: floor raised 2048 → 4096 on a MEASUREMENT. Two live failures
+// reported their own accounting: the whole 2048-token budget consumed, 310
+// characters of text returned. ~1,970 output tokens billed without reaching the
+// text — extended thinking, which counts against this budget. So the floor must
+// cover thinking PLUS the ~2048 the text was already shown to need. Anything
+// below 4096 is a value we have watched fail live.
+ins_true( defined( 'SN_INSIGHTS_MAX_TOKENS' ) && SN_INSIGHTS_MAX_TOKENS >= 4096, 'SN_INSIGHTS_MAX_TOKENS >= 4096 (must cover ~1,970 thinking tokens + the text; 2048 measured insufficient live)' );
+// And it must not EXCEED the wrapper's clamp: snt_ai_generate_with_constraints()
+// does min(4096, …), so a larger value would be silently reduced and the
+// constant would misreport the real budget to anyone reading it.
+ins_true( SN_INSIGHTS_MAX_TOKENS <= 4096, 'SN_INSIGHTS_MAX_TOKENS <= 4096, the wrapper clamp — a larger value is silently reduced' );
 ins_eq( SN_INSIGHTS_MAX_TOKENS, $GLOBALS['__test_ai_last_max'], 'insights AI call uses SN_INSIGHTS_MAX_TOKENS' );
 
 // ─── Test 8b: untrusted-data delimiter + injection warning (v6.39.2) ─

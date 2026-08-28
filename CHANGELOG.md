@@ -4,6 +4,49 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.20.5] - 2026-08-28 — the token budget, raised on a measurement instead of a guess
+
+v13.20.4 gave the Insights failure the ability to report its own token
+accounting. It immediately did, and the answer was not the one the previous bump
+assumed.
+
+**What the instrument said.** Two live scans consumed their ENTIRE 2048-token
+output budget and returned **310 characters** of well-formed JSON, cut mid-string
+(`"why_uncovered": "The note reports the empir`). 310 characters is roughly 80
+tokens, so about **1,970 output tokens were generated and billed without ever
+reaching the text**. Ordinary truncation would have produced ~8,000 characters,
+not 310. That is extended thinking: it bills as output and counts against
+`max_tokens`, but never appears in the returned string.
+
+It also explains why salvage could not help. `snt_insights_recover_json_array()`
+rebuilds a truncated array from the last COMPLETE `}` — and here the first object
+never closed. The parser was right both times; it was handed a starved response.
+
+**The fix.** `SN_INSIGHTS_MAX_TOKENS` 2048 → **4096**, which must now cover
+~1,970 for thinking PLUS the ~2,048 v7.1.1 established the text needs. 4096 is
+the wrapper's hard clamp (`snt_ai_generate_with_constraints()` does
+`min( 4096, … )`) and lands just above that sum.
+
+**What this is not.** It is not the real fix. The real fix is turning thinking
+off for this call, and that is **not reachable from this plugin** — the AI client
+is a separate plugin, `vendor/` holds only dev tooling, and we set no thinking
+configuration anywhere. If thinking scales with the budget rather than staying
+flat, this fails again — and now says so itself, reporting 4,096 beside a short
+answer instead of blaming JSON.
+
+The floor is pinned both ways in `tests/insights.php`: `>= 4096`, because
+anything lower is a value we have watched fail live, and `<= 4096`, because a
+larger constant would be silently reduced by the clamp and misreport the real
+budget to anyone reading it. Verified: reverting to 2048 reds the floor by name.
+
+**Cost, for the record.** Output bills only when generated; worst case ~$0.06
+per scan at Sonnet rates on a rare manual/weekly call. Measured context from the
+same screen: $0.80 across 30 days and 200 calls, where `drift_detect` (115 calls)
+is the real cost centre. And prompt caching is **not** active — the probe reports
+0 read / 0 written and cannot change until the provider can emit a cache
+breakpoint (upstream `ai-provider-for-anthropic#33`), so every scan still pays
+full input price on its ~16,265 prompt tokens.
+
 ## [13.20.4] - 2026-08-28 — the Insights leaf: a save that posted nowhere, and an error that blamed the wrong layer
 
 Two defects on the same leaf, both found from one screenshot, both of the same
