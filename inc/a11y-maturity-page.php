@@ -64,6 +64,14 @@ function sn_a11y_maturity_principles() {
 		// contrast discipline that shipped as the source half of the audit
 		// whose computed half (theme v12.8.0) filled the column.
 		__( 'Contrast is enforced per palette, never per token - every ink/surface pair re-checked against each palette the site serves, and non-text edges held to 3:1 with alpha composited against the real surface beneath, not assumed opaque.', 'signal-and-noise-tools' ),
+		// THE ELEVENTH and TWELFTH. Graduated off the hub roadmap board
+		// (v13.18.0) when the Accessibility done column reached the ceiling a
+		// third time. They arrive as a PAIR by owner direction: coverage and
+		// quality are one story in two halves, and landing only the older would
+		// have left this page explaining whether a description exists while the
+		// board still carried whether it is any good.
+		__( 'A description is checked as the name a screen reader would announce, never as an attribute - artwork drawn inline carries no alt attribute to find, so a sweep that looks for one calls every drawing broken.', 'signal-and-noise-tools' ),
+		__( 'Coverage is not quality: a filename echoed, a caption repeated, or a description naming a category rather than the picture is raised for a person to accept or reject - never silently rewritten.', 'signal-and-noise-tools' ),
 	);
 }
 

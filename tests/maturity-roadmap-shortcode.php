@@ -87,7 +87,7 @@ ok( 28 === substr_count( $html, 'sn-maturity-roadmap-board__cell ' ), 'exactly 7
 // (drift, reading paths) graduated to done in the v11.2.0/v11.3.0 pair. An
 // honestly empty cell beats a padded one; this pin moves whenever a cell
 // honestly empties or fills.
-ok( 1 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'exactly one empty cell (ML considering — both R4 rows graduated)' );
+ok( 0 === substr_count( $html, 'sn-maturity-roadmap-board__empty' ), 'NO empty cell on this board — v13.18.0 refilled ML considering, the last one, when the override folded into the floor' );
 
 // v10.63.0 "fold the future": the legend trio + counts + folds.
 $counts = sn_maturity_roadmap_counts( sn_maturity_roadmap_effective_board() );
@@ -102,7 +102,7 @@ ok( false !== strpos( $html, 'sn-maturity-roadmap-badge__n' ), 'header badges ca
 // fold per cell, summaries carrying their counts. 7 families × up to 2
 // future cells, minus the 2 empties = 12 folds on the static board.
 ok( false === strpos( $html, 'cell--done" data-label="Done"><details' ), 'a done cell never folds' );
-ok( 20 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (20 on this board, 2026-08-14: 7 planned + 6 considering + 7 later — ML considering emptied)' );
+ok( 21 === substr_count( $html, '<details class="sn-maturity-roadmap-fold">' ), 'every populated future cell folds (21 on this board, v13.18.0: 7 planned + 7 considering + 7 later — no future cell is empty any more)' );
 
 // v10.71.1: no sentence may appear in two columns of the same family.
 // The static floor had the agent threat model in BOTH 'done' and
@@ -357,7 +357,16 @@ ok( false === strpos( implode( ' | ', call_user_func_array( 'array_merge', array
 // that retirement bought: at MAX_DONE - 2, the digest row can graduate to 4 and
 // still clear the canary. A future row quietly re-filling the slot reds HERE,
 // with the reason attached, rather than surfacing later as a refused write.
-ok( count( $floor['Analytics']['done'] ) <= SN_MATURITY_ROADMAP_MAX_DONE - 2, 'DR floor: Analytics done has room for the digest row to graduate WITHOUT tripping the wall canary' );
+// SUPERSEDED v13.18.0 — and this one is a FINDING, not bookkeeping. The pin
+// below asserted Analytics done sat at MAX_DONE - 2, i.e. that the planned
+// digest row could still graduate and clear the canary. Folding the override
+// raised Analytics done to 4: the Search Console row had graduated on the
+// LIVE board and the floor never caught up. That headroom is SPENT. The
+// digest row can no longer graduate without an Analytics retirement first.
+// Re-asserting the old number would have hidden that; this states the new
+// truth and names the consequence, which is what the retirement pins above
+// exist to do.
+ok( SN_MATURITY_ROADMAP_MAX_DONE - 1 === count( $floor['Analytics']['done'] ), 'DR floor: Analytics done is AT the wall-canary limit — the digest row now needs a retirement before it can graduate' );
 
 // Charts that speak graduated the same night (v10.93.1 verified live:
 // 5 calendar rows x 7 columns, 30 day cells on the bare URL).
@@ -373,18 +382,29 @@ ok( false === strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'Cha
 ok( false === strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'third-party embeds' ), 'DR floor: the embeds row is NO LONGER promised as planned' );
 ok( false !== strpos( implode( ' | ', $floor['Accessibility']['considering'] ), 'DECLINED in practice' ), 'DR floor: the decline sits in considering and NAMES the decision' );
 ok( false !== strpos( implode( ' | ', $floor['Accessibility']['considering'] ), 'Reopens only if an embed ever lands in a note body' ), 'DR floor: and its reopening condition rides inside the sentence' );
-ok( false !== strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'Motion that asks first' ), 'DR floor: motion-that-asks-first took the freed planned slot' );
+// v13.18.0: motion SHIPPED, so the pin follows it from planned into done
+// rather than being deleted — the floor still has to say where the row IS.
+ok( false === strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'Motion that asks first' ), 'DR floor: motion-that-asks-first is GONE from planned — it shipped and graduated' );
+ok( false !== strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'Motion that asks first' ), 'DR floor: and it sits in Accessibility DONE, stating what acts' );
 ok( false === strpos( implode( ' | ', $floor['Accessibility']['later'] ), 'Motion that asks first' ), 'DR floor: and no stale later copy of it survives — a row moves, it is never copied' );
 
-// v12.6.3: the delivered half of the contrast audit took the slot the
-// structural-scan row vacated by graduating onto /maturity/a11y-maturity/.
-// A one-for-one swap, so the wall canary never moves: Accessibility done
-// stays at four. The planned row still owns the undelivered half (computed
-// styles), which is why both can sit on the board without contradicting.
-ok( false !== strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'three palettes the site actually serves' ), 'DR floor: the delivered contrast half sits in Accessibility DONE' );
-ok( false !== strpos( implode( ' | ', $floor['Accessibility']['done'] ), '3:1' ), 'DR floor: and it keeps the non-text 3:1 half, which is the part a token-level sweep alone never covered' );
+// SUPERSEDED v13.18.0. These pins used to assert that the DELIVERED
+// (per-palette) half of the contrast audit sat in done while the planned row
+// owned the undelivered computed-styles half. BOTH halves have since moved,
+// and the pins move with them rather than being deleted: the per-palette row
+// graduated onto /maturity/a11y-maturity/ as the tenth principle back in
+// v13.8.2 — through the board door, so the static floor only caught up when
+// the override folded — and the computed-styles half SHIPPED into done. A pin
+// that guards a sentence must follow it, or it stops guarding while still
+// reading green.
+$a11y_all = implode( ' | ', call_user_func_array( 'array_merge', array_values( $floor['Accessibility'] ) ) );
+ok( false === strpos( $a11y_all, 'three palettes the site actually serves' ), 'DR floor: the per-palette contrast row is in NO Accessibility column — it graduated onto the a11y page (v13.8.2), and graduation is removal from the hub' );
+ok( false !== strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'COMPUTED styles' ), 'DR floor: the computed-styles half SHIPPED and sits in done — the half a stylesheet read could never answer' );
+ok( false === strpos( implode( ' | ', $floor['Accessibility']['planned'] ), 'COMPUTED styles' ), 'DR floor: and no stale planned copy of it survives — a row moves, it is never copied' );
+ok( false === strpos( $a11y_all, 'Alt-text coverage extended' ), 'DR floor: the alt-COVERAGE row is in NO column — it lives on the a11y page as the eleventh principle' );
+ok( false === strpos( $a11y_all, 'Alt-text quality' ), 'DR floor: and the alt-QUALITY row likewise, as the twelfth — the pair moved together by owner call' );
 ok( false === strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'fingerprint-safe' ), 'DR floor: the structural-scan row is GONE from done - it graduated onto the a11y page, and a row moves, it is never copied' );
-ok( 4 === count( $floor['Accessibility']['done'] ), 'DR floor: Accessibility done is back to four - the graduation bought exactly the slot the contrast row spent' );
+ok( 3 === count( $floor['Accessibility']['done'] ), 'DR floor: Accessibility done is at THREE — the alt-text pair graduated together (owner call: coverage and quality are one story), buying two slots where the ceiling demanded one' );
 
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );

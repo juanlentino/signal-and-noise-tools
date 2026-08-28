@@ -16,8 +16,11 @@ release order, priorities, and gates actually live. Rules:
 
 | Chore | Notes |
 |-------|-------|
-| Fold the board override into `sn_maturity_roadmap_static_board()` | Mechanical copy; the option is canonical until it lands. Two board writes on 2026-08-27 widened the divergence |
-| Operations Done-ceiling graduation | Ops Done sits at the 5-row ceiling; the NEXT Operations ship requires graduating the oldest row to the Ops maturity page first |
+| **Reset the board override — AFTER installing v13.18.0** | The fold shipped in v13.18.0, so the floor now matches the board minus four graduated rows. `sn_apply` `roadmap_board` with `payload.reset: true` drops the option and returns the page to code-canonical. **Order is load-bearing:** resetting before the update lands falls back to the DEPLOYED version's floor, which is the stale one. Verify first that `gates.fingerprint.observed` matches the new floor's fingerprint |
+
+~~Fold the board override~~ and ~~Operations Done-ceiling graduation~~ — both SHIPPED
+in v13.18.0; see the log entry below. The ceiling chore was understated: three families
+were at the wall, not one.
 
 ## Ready to build — prioritized
 
@@ -39,7 +42,7 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 | Family | Item | Gate |
 |--------|------|------|
-| Analytics | AI-attention section in the weekly digest | None hard — first candidate to promote into the build queue when digest work next opens |
+| Analytics | AI-attention section in the weekly digest | **Now gated (v13.18.0): an Analytics retirement.** Folding the override put Analytics done at 4, the canary limit, so this row cannot graduate to done until an older Analytics row retires onto the family maturity page. It was "none hard" only because the floor was stale |
 | Proof of origin | Extend signing/anchoring to pages, then media | Sequenced after current notes-chain stability; owner call on timing |
 | AI | Move the operative AI channel to the desktop platform's native agents | The native runner proving stable enough to trust with the same fences (agents arc currently DISABLED) |
 | AI | Retire legacy single-purpose tools the consolidated set absorbed | Usage evidence, not a date |
@@ -65,6 +68,19 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-08-27 — the board-override FOLD shipped as v13.18.0, and it was not the
+  mechanical copy this file promised. The override held **19 of 28 cells**; two
+  independent instruments agreed on which (the door's own merge report, and a parse of
+  the rendered page — negative-controlled first: 9 of 28 cells returned byte-identical
+  through `esc_html`, which is what makes the other 19 drift rather than a lossy read).
+  Folding as-is RED the CI canary: `MAX_DONE` is 5 and the door accepts it, but the
+  shipped floor must stay at 4, and **three** families sat at the wall — Machine
+  readability and Accessibility alongside the Operations one this file named. Four rows
+  graduated first (Accessibility's alt-text PAIR by owner call, Operations' one-dashboard
+  row, and Machine readability's crawler-manifest row — the last adding NO principle,
+  because its destination already stated all three of its clauses). Nine pins went red
+  and were retargeted rather than relaxed. The fold also SPENT Analytics' headroom,
+  which is why the digest row above now carries a gate it did not have this morning.
 - 2026-08-27 — thin-tag decision RESOLVED: **keep all 23, merge nothing.** I proposed
   merging 7 on count + co-occurrence evidence, then READ the affected notes and withdrew
   it: every one of those tags is the most SPECIFIC descriptor its notes have
