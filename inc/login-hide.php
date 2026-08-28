@@ -335,6 +335,42 @@ function sn_login_handle_request() {
 				header( $sn_login_header, true );
 			}
 		}
+
+		// v13.28.1 — WHY THESE GLOBALS ARE DECLARED, and why it is not cosmetic.
+		//
+		// `require` executes the required file in the CALLER'S scope. Because
+		// this require lives inside a function, every file-scope assignment in
+		// wp-login.php — `$action`, `$error`, `$interim_login` — became a LOCAL
+		// of this function instead of a global. Core's own login_header() then
+		// does `global $error, $interim_login, $action;` (wp-login.php's
+		// documented @global contract for the login screen) and sees NOTHING.
+		//
+		// MEASURED on the live site before this fix: the login page rendered
+		// `<body class="login no-js login-action- wp-core-ui …">` — the action
+		// suffix EMPTY, where stock WordPress renders `login-action-login`. The
+		// `login_body_class` filter was likewise handed a null action, and
+		// `$interim_login` was invisible to core, which is the flag that drives
+		// the expired-session re-auth modal. That last one is behaviour, not
+		// styling, which is why this is fixed rather than tolerated.
+		//
+		// Declaring them here makes wp-login.php's assignments write THROUGH to
+		// the real globals (verified: with the declaration core sees
+		// action=[login]; without it, UNSET). It also happens to silence core's
+		// own `Undefined variable $error` notice, since a `global` declaration
+		// defines the name in scope — but that is a side effect, NOT the reason.
+		// Core's sibling `Undefined variable $user_login` notice at the same
+		// spot is untouched and unfixable from here: it is core's own wart on a
+		// plain GET (assigned only behind a reset-password cookie or a POSTed
+		// `log` field), and it warns identically on stock WordPress. The real
+		// remedy for notices reaching a browser is display_errors OFF in
+		// production — a server setting, not this file's business.
+		//
+		// The list is exactly wp-login.php's documented @global set. Do not
+		// widen it: `$user_login` and `$errors` are genuinely file-scope in
+		// core, and promoting them would silence a real signal by lying about
+		// their scope.
+		global $error, $interim_login, $action; // phpcs:ignore WordPress.WP.GlobalVariablesOverride.Prohibited -- restoring core's own documented globals, which the in-function require would otherwise strand as locals.
+
 		require_once ABSPATH . 'wp-login.php';
 		die;
 	}

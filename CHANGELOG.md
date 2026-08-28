@@ -4,6 +4,52 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.28.1] - 2026-08-28 — the custom login page gets its scope back
+
+### Fixed — core's login globals were stranded as function locals
+
+Found while investigating two PHP notices on the custom login URL. The notices
+turned out to be core's own; **a real defect underneath them was ours.**
+
+`require` executes the required file in the **caller's** scope, and
+`sn_login_handle_request()` requires `wp-login.php` from inside a function. So
+every file-scope assignment in core's login file — `$action`, `$error`,
+`$interim_login` — landed in that function's locals, and core's own
+`login_header()`, which declares exactly those three `global`, saw nothing.
+
+Measured on the live site before the fix: the login page rendered
+`<body class="login no-js login-action- …">` with an **empty** action suffix
+where stock WordPress renders `login-action-login`; the `login_body_class`
+filter received a null action; and `$interim_login` — the flag driving the
+expired-session re-auth modal — was invisible to core. That last one is
+behaviour, not styling, which is why this was fixed rather than tolerated.
+
+[inc/login-hide.php](inc/login-hide.php) now declares exactly core's documented
+`@global` trio before the require, so the assignments write through to the real
+globals (verified: with the declaration core sees `action=[login]`; without it,
+`UNSET`). The list is deliberately **not** widened — `$user_login` and `$errors`
+are genuinely file-scope in core, and promoting them would silence real signal
+by lying about their scope.
+
+### Not fixed here, and deliberately so
+
+- The sibling `Undefined variable $user_login` notice is **core's own wart** on
+  a plain GET (core assigns it only behind a reset-password cookie or a POSTed
+  `log` field) and warns identically on stock WordPress.
+- Notices reaching a browser at all is `display_errors` / `WP_DEBUG_DISPLAY`
+  being on in production — a **server setting**, not this file's business. It
+  is what exposes the absolute server path to any unauthenticated visitor who
+  knows the login slug, so it remains worth turning off independently.
+
+### Testing
+
+[tests/login-serve-form-globals.php](tests/login-serve-form-globals.php) pins
+the declaration, its **order** relative to the require (a declaration placed
+after it would be inert), and the no-wider rule. It **tokenizes** the source
+rather than grepping it: the first draft grepped, and passed against both
+mutations, because the explanatory comment beside the fix quotes the statement
+— the comment satisfied the grep. Both mutations now red, clean source green.
+
 ## [13.28.0] - 2026-08-28 — the board catches up with the day (two graduations, a promotion, a tenth principle)
 
 ### Changed — the public roadmap board moves to match seven shipped releases
