@@ -47,12 +47,32 @@ define( 'SN_INSIGHTS_SNOOZE_DAYS',       30 );
 // Upper bound on how many open questions a single scan surfaces. There is NO
 // lower bound: zero questions ("recommend nothing") is a valid, expected result.
 define( 'SN_INSIGHTS_REC_MAX',           3 );
-// v7.1.1: max OUTPUT tokens for the scan's AI call. Bumped from 1500 → 2048 after
-// a live run truncated mid-object (the model writes elaborate, multi-clause
-// questions and 1500 was too tight to finish 3 of them, so the JSON array never
-// closed → snt_insights_invalid_json). Well under the client's 4096 clamp;
-// output tokens bill only when generated, and a scan is a rare (manual/weekly) call.
-define( 'SN_INSIGHTS_MAX_TOKENS',        2048 );
+// Max OUTPUT tokens for the scan's AI call.
+//
+// v7.1.1 bumped 1500 → 2048 after a live run truncated mid-object: the model
+// writes elaborate, multi-clause questions and 1500 could not finish 3 of them.
+// That reading was right about the symptom and wrong about the cause.
+//
+// v13.20.5 raises it to the clamp, on a MEASUREMENT rather than a guess. Two
+// live failures (2026-08-28) reported their own token accounting once
+// snt_insights_annotate_budget() existed: the call consumed its ENTIRE 2048-token
+// budget and returned 310 characters of well-formed JSON, cut mid-string. 310
+// chars is ~80 tokens, so ~1,970 output tokens were generated and BILLED without
+// ever reaching the text. That is extended thinking — it bills as output and
+// counts against max_tokens, but never appears in the returned string. Ordinary
+// truncation would have produced ~8,000 characters, not 310.
+//
+// So the budget must cover BOTH: ~1,970 for thinking plus the ~2,048 v7.1.1
+// established the text needs. 4096 is the wrapper's hard clamp
+// (snt_ai_generate_with_constraints does min(4096, …)) and lands just above that
+// sum. If thinking scales with the budget rather than staying flat, this fails
+// again — and says so itself now, reporting 4,096 beside a short answer. The
+// real fix is turning thinking off for this call, which is not reachable from
+// this plugin: the AI client is a separate plugin and we set no thinking config.
+//
+// Cost: output bills only when generated. Worst case ~$0.06/scan at Sonnet
+// rates, on a rare manual/weekly call.
+define( 'SN_INSIGHTS_MAX_TOKENS',        4096 );
 
 // ── Body-grounding (v4.11.0): attach bounded content excerpts to the
 // top posts so the advisor reasons about substance, not just metadata.
