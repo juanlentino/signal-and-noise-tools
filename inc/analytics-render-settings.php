@@ -414,7 +414,12 @@ function snt_analytics_render_pipeline_status() {
 		'warn'    => '!',
 		'unknown' => '?',
 	);
-	echo '<div class="sn-fieldset sn-an-pipeline">';
+	// v13.20.2: --wide, matching the Machine Readers hero (v13.20.1). This strip
+	// renders OUTSIDE the .sn-2up below it (analytics-admin.php calls it at 593,
+	// the grid opens at 596), so it was the only card on a 'wide' leaf still at
+	// .sn-fieldset's 820px cap while the two columns beneath ran full width via
+	// `.sn-2up .sn-fieldset { max-width: none }`. .sn-an-pipeline never capped it.
+	echo '<div class="sn-fieldset sn-fieldset--wide sn-an-pipeline">';
 	echo '<h3 class="sn-fieldset-h">' . esc_html__( 'Pipeline status', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-an-settings-help">' . esc_html__( 'Beacon → worker → Analytics Engine → cron → edge. Presence checks only: secret values are never shown.', 'signal-and-noise-tools' ) . '</p>';
 	echo '<div class="sn-an-pipeline-pills">';
