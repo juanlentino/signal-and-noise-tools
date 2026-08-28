@@ -30,7 +30,7 @@ function sn_mcp_prompts_list() {
 		'prompts' => array(
 			array(
 				'name'        => 'weekly-report',
-				'description' => 'Owner-voiced weekly digest, synthesized from analytics, RSS, uptime, narration, and insights tool calls.',
+				'description' => 'Owner-voiced weekly digest, synthesized from analytics, RSS, and uptime tool calls.',
 			),
 			array(
 				'name'        => 'content-audit',

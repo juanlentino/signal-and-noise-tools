@@ -106,6 +106,9 @@ function snt_deploy_workers_registry() {
 			'label'        => 'Remote MCP',
 			'repo'         => 'juanlentino/sn-remote-mcp-worker',
 			'probe_url'    => 'https://juanlentino.com/_sn/remote-mcp/status',
+			// versioned-contract phase 2: /status.contract_version is compared
+			// against SN_REMOTE_CONTRACT_VERSION by the live probe.
+			'contract_path' => 'contract_version',
 			'version_path' => 'version',
 			'commit_path'  => 'source_commit',
 			'worker_id'    => 'sn-remote-mcp',
@@ -385,6 +388,20 @@ function snt_deploy_worker_live_probe( $id, array $cfg, $force = false ) {
 		'commit' => $commit,
 		'error'  => '' !== $live ? '' : 'no-version',
 	);
+	// versioned-contract phase 2 (inc/mcp/mcp-remote-contract.php): for a
+	// worker whose registry entry names a contract_path, carry the live
+	// contract version and its comparison against the plugin's declared
+	// mirror. The fields are ABSENT for every other worker — absence, not
+	// null-zeros — and this is a DECLARATION, never a gate: cross-repo skew
+	// lands at INSTALL time, so it is made observable here rather than
+	// refused anywhere.
+	if ( isset( $cfg['contract_path'] ) && '' !== (string) $cfg['contract_path'] && defined( 'SN_REMOTE_CONTRACT_VERSION' ) ) {
+		$raw_contract  = snt_deploy_json_path( $json, (string) $cfg['contract_path'] );
+		$contract_live = is_scalar( $raw_contract ) && null !== $raw_contract ? (string) $raw_contract : '';
+		$result['contract_live']     = $contract_live;
+		$result['contract_expected'] = (string) SN_REMOTE_CONTRACT_VERSION;
+		$result['contract_match']    = '' !== $contract_live && $contract_live === (string) SN_REMOTE_CONTRACT_VERSION;
+	}
 	set_transient(
 		$key,
 		$result,

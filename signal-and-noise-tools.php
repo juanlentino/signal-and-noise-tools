@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.21.0
+ * Version:     13.22.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -239,6 +239,7 @@ require_once SNT_PATH . 'inc/mcp/mcp-rw-guard.php'; // v9.51.0: rw-door credenti
 require_once SNT_PATH . 'inc/mcp/mcp-read-guard.php'; // v10.9.0: read-door kill switch (isolated from the rw guard by design) — before mcp-endpoint.php, which calls it.
 require_once SNT_PATH . 'inc/mcp/mcp-remote-guard.php'; // R3 §3D Increment 1: remote analytics kill switch (fail-CLOSED on absence) — isolated from the read/rw guards by design.
 require_once SNT_PATH . 'inc/mcp/mcp-bridge-route.php'; // R3 §3D Increment 1 bridge half: Worker→origin channel, registered only when the switch is on AND SN_BRIDGE_TOKEN is defined.
+require_once SNT_PATH . 'inc/mcp/mcp-remote-contract.php'; // versioned-contract phase 2: the payload-shape contract mirror (version constant + hash pin; worker holds phase 1).
 require_once SNT_PATH . 'inc/mcp/mcp-remote-observability.php'; // R3 §3D Increment 4: remote-door observability — the bridge feeds this behind function_exists(), so the door works byte-identically without it.
 require_once SNT_PATH . 'inc/mcp/mcp-endpoint.php';
 require_once SNT_PATH . 'inc/agent-discovery.php'; // v12.14.0: MCP Server Card (SEP-1649) + RFC 9727 API catalog at their STANDARD .well-known paths. Needs sn_mcp_namespace()/sn_mcp_server_info()/sn_mcp_capabilities_map() from the MCP block above. Restates what agents.json already says, at addresses the ecosystem reads; adds no capability and no door.
