@@ -449,6 +449,15 @@
    thirds of the leaf empty — the fix for a short form is to make its FIELDS the
    columns, not to stretch one column across the width. */
 .sn-front-end-form .sn-fieldset,
+.sn-ai-settings-form .sn-fieldset,
+.sn-identity-form .sn-fieldset {
+	max-width: none;
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+	gap: var(--sn-space-3) var(--sn-space-5);
+	align-items: start;
+}
+
 /* v13.21.0: the AI settings card's per-feature spend itemization. Helper-text
    register (same muted scale as .sn-field-helper); each row is a
    label ... amount pair with a tabular figure so amounts align. */
@@ -467,15 +476,6 @@
 }
 .sn-ai-spend-by-feature li span:last-child {
 	font-variant-numeric: tabular-nums;
-}
-
-.sn-ai-settings-form .sn-fieldset,
-.sn-identity-form .sn-fieldset {
-	max-width: none;
-	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
-	gap: var(--sn-space-3) var(--sn-space-5);
-	align-items: start;
 }
 .sn-front-end-form .sn-fieldset > .sn-fieldset-h,
 .sn-front-end-form .sn-fieldset > .sn-fieldset-intro,
