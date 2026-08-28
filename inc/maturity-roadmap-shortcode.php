@@ -120,12 +120,16 @@ function sn_maturity_roadmap_static_board() {
 				__( 'AI-referred humans as a channel: visits that arrive from an assistant\'s answer counted as their own aggregate segment in the rollups — a reader an AI sent is a different signal than a reader search sent, and lumping them hides the shift', 'signal-and-noise-tools' ),
 				__( 'Which machines send a reader back: per operator, the ledger\'s crawl counts published beside that operator\'s referred human visits — stated as a sentence each, not a ratio, because crawls are requests and visits are visitor-days. An operator that read the site hundreds of times and sent nobody back is the finding, and a bare 0 would bury it — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				__( 'Traffic rhythm flags: the cadence watch now reads views — a quiet week flags against the site\'s own trailing weeks, robust to a viral spike and one-sided by design — read from the rollups already kept, never profiling a reader', 'signal-and-noise-tools' ),
+				__( 'Search-side metrics from Search Console: the queries, impressions, and positions before the click, in their own Search view and beside Top pages — one hand-rolled service-account client, a rolling window that ends three days back because Google is still counting, and since v13.9.0 a daily sync that keeps its own schedule instead of waiting for a button', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'An AI-attention section in the weekly digest: which crawler families read the site, and whether they touched the rights surfaces — assembled from the ledger already kept, no new collection — a thread shared with Machine readability', 'signal-and-noise-tools' ),
+				__( 'The questions search asked that the corpus doesn\'t answer: queries with impressions and no clicks, derived from the Search Console rows already synced — read by the owner\'s eyes, never by a model — landing once the daily sync has accrued a full month to speak from', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
-				__( 'Search-side metrics from Search Console: the queries, impressions, and positions that happen before the click — a trailing complement to the first-party view, never a second opinion on it', 'signal-and-noise-tools' ),
+				__( 'Where readers leave to: outbound clicks on citations counted as their own aggregate event — the first idea in this family to require new collection, named as such, and it ships only if the counting stays as blunt as the rest of the ledger', 'signal-and-noise-tools' ),
+				__( 'A year told as a page: the deterministic narrator pointed at twelve months instead of a week — what rose, what faded, what the corpus became — computed from the rollups already kept, no new collection', 'signal-and-noise-tools' ),
+				__( 'A reading ledger that never phones home: which notes you have read, kept in your browser\'s own storage, shown on the index, sent nowhere — the site\'s privacy posture expressed as a feature only the reader can see', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'Verified versus claimed: crawler request signatures checked at the edge and recorded in the ledger — so the attention story can separate cryptographic fact from a user-agent costume — a thread shared with Machine readability', 'signal-and-noise-tools' ),
@@ -155,10 +159,16 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'considering' => array(
 				__( 'A second, independent anchor: a standards-based timestamp authority alongside Bitcoin, so the chain\'s integrity never rests on a single mechanism\'s longevity', 'signal-and-noise-tools' ),
+				__( 'A witness that is a peer, not an institution: two independent sites countersign each other\'s chain heads — mutual custody with no authority between them, the thesis said out loud on live infrastructure', 'signal-and-noise-tools' ),
+				__( 'A quote that carries its receipt: select a passage and get the quote with its attribution, its link, and — on a signed note — its anchor attached, with academic citation formats beside it and the landing highlight styled — citation made honest at the moment of copying', 'signal-and-noise-tools' ),
+				__( 'What changed, shown to readers: every accepted edit already re-anchors a note as a new version — a rendered difference between anchored versions turns that chain into legible editorial history, corrections owned in public', 'signal-and-noise-tools' ),
+				__( 'The manuscript beside the proof: each signed note\'s canonical text mirrored into the public ledger repository beside its hash — so the proof is self-contained and a verifier needs no live site to check what was said', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'A second witness that names the author: each note\'s chain head countersigned into a public transparency log — an independent record binding the proof to an identity, not just a moment', 'signal-and-noise-tools' ),
 				__( 'Authorship as a credential: each note carrying a standard verifiable credential of authorship in its structured data — the claim stated in a shared vocabulary instead of a house dialect — a thread shared with Machine readability', 'signal-and-noise-tools' ),
+				__( 'The chain outlives its curve: the anchors sign with Ed25519 today, and the key history already commits each next key by hash — so when post-quantum signature practice settles, the successor key can be post-quantum and the rotation is a planned crossing, not an emergency', 'signal-and-noise-tools' ),
+				__( 'Continuity stated: a signed succession plan for keys and corpus — what a reader can still verify if the site ever goes silent, because a signed record outlives its subject', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'AI', 'signal-and-noise-tools' )                  => array(
@@ -191,11 +201,13 @@ function sn_maturity_roadmap_static_board() {
 			'considering' => array(
 				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),
 				__( 'Richer edit primitives beyond sentence scale — the drafting boundary stands regardless of what is explored here', 'signal-and-noise-tools' ),
+				__( 'Spend with an address: AI cost itemized by door and ability family, so a rising bill names its cause — read from what the platforms report, never estimated — a thread shared with Operations', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'Injection self-sweep: every machine surface the site publishes — the crawler manifest, structured data, the board itself, the doors\' own descriptions — linted for instruction-shaped text before it ships, so a site that treats prose as data can prove its own prose is clean — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				__( 'A registry-listed read door: the read-only door published in the standard agent registry under a name this domain verifiably owns — so agents discover it by lookup instead of by reading a page written for humans', 'signal-and-noise-tools' ),
 				__( 'Cross-family threads made visible: rows that span families carry their partners as chips, so the board shows the weave, not just the columns', 'signal-and-noise-tools' ),
+				__( 'Doors with versioned contracts: an agent pins the contract it integrated against, so a door upgrade never breaks a client silently — API discipline applied before the consumers arrive rather than after', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Machine learning', 'signal-and-noise-tools' )    => array(
@@ -212,16 +224,28 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'Extend the deterministic layer pipeline by pipeline, as real editorial questions demand it', 'signal-and-noise-tools' ),
+				__( 'Search served by the kernel: the notes search box ranked by the same tf-idf mathematics that picks related notes — deterministic corpus arithmetic instead of database substring order, and still no model in the reader\'s browser — landing after the lexical-spine decision, so search ships on the spine the corpus will keep', 'signal-and-noise-tools' ),
 			),
-			'considering' => array(),
-			'later'       => array(
+			'considering' => array(
+				__( 'The words a note owns: each note\'s distinctive vocabulary against the whole corpus, surfaced to the writer from the tf-idf arithmetic the related layer already computes — a new question asked of existing mathematics, not a new pipeline', 'signal-and-noise-tools' ),
+				__( 'The calendar of themes: which subjects belong to which season, read from the corpus\'s month-of-year rhythm — distinct from drift, which watches years, and cadence, which watches output — and a month too thin to speak says so', 'signal-and-noise-tools' ),
+				__( 'The corpus index, published: the distinctive-vocabulary arithmetic rendered as a browsable index where each term links to the note that owns it — the site becoming its own reference work', 'signal-and-noise-tools' ),
 				__( 'A better lexical spine: the similarity core under related notes upgraded to the ranking statistics that stop long notes from hogging every match — the same deterministic corpus mathematics, corrected for length', 'signal-and-noise-tools' ),
+			),
+			'later'       => array(
 				__( 'The shape of a sentence, watched: a deterministic readability fingerprint per note, trended across the corpus and surfaced at draft time — so prose complexity drift becomes visible the way topic drift already is', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Machine readability', 'signal-and-noise-tools' ) => array(
 			'done'        => array(
-				__( 'A crawler manifest in the site\'s own words, structured data on every surface, and machine-readable rights declarations', 'signal-and-noise-tools' ),
+				// v13.18.0: the crawler-manifest row GRADUATED off this board.
+				// Unlike the a11y pair below it needed no new sentence at its
+				// destination: /maturity/machine-readability/ already states all
+				// three of its clauses -- the manifest "in the site's own words"
+				// IS that page's second principle, and its Structured and Reserved
+				// layers carry structured data and the rights terms. A row moves and
+				// is never copied; here the destination already held it, so the move
+				// was a removal plus a test pin, not a restatement.
 				__( 'The rights-read count published on the machine-readability page itself, served from an hourly snapshot the site already holds — no sensor call on a reader\'s path, and a count never measured renders as unmeasured, never as zero — a thread shared with Analytics', 'signal-and-noise-tools' ),
 				// 2026-08-14 (v11.7.0, R5): both quartet MR rows graduated
 				// considering -> done in one release — they publish the same
@@ -232,6 +256,7 @@ function sn_maturity_roadmap_static_board() {
 				// /verify page itself consumes.
 				__( 'Provenance pointers in the machine surfaces: a signed note\'s structured data carries its ledger identifier, joined to the record an agent can fetch — so a machine that reads the site can also verify it — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
 				__( 'An in-page tool surface for verification: every signed page ships a data-shaped manifest of the exact calls — credential, record, proof, key history, block header — so verifying travels with the content; the page lists inputs and asserts nothing, because the verdict belongs to the caller — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
+				__( 'Google\'s account cross-examined by the edge\'s: what Search Console says it showed set against what the crawler ledger says actually fetched — deliberately at the family level the ledger really keeps, not a per-page join it cannot support, so a disagreement between the two instruments is the finding and which way it falls names the problem — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Speak the coming standard: publish the usage-preference header and robots rule the day the internet standards body finalizes them, with a parity sweep proving every rights dialect the site speaks states the same reservation — one policy, never a family of drifting translations', 'signal-and-noise-tools' ),
@@ -240,28 +265,35 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Provenance pointers in the machine surfaces, so an agent that reads the site can also verify it — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
 				__( 'An in-page tool surface for verification: the page offers an agent the calls to check a signature and its anchor, so verifying travels with the content instead of waiting for anyone to adopt an API — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
 				__( 'The corpus schema published as a machine surface: tier, number, and relation stated by the author rather than inferred by whatever reads the page', 'signal-and-noise-tools' ),
-				__( 'Google\'s own crawl and robots reports set against the site\'s crawler ledger — the declarer\'s account cross-examined by the edge\'s, and the edge\'s by the declarer\'s — a thread shared with Analytics', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'Markdown at the agent door: agent-negotiated markdown served with the site\'s rights headers attached to every converted response — the declaration travels with the token-cheap copy, not just the page', 'signal-and-noise-tools' ),
 				__( 'Homework shown: when the European list of machine-readable opt-out protocols is published, a page mapping this site\'s declarations to every protocol on it — conformance demonstrated, not claimed', 'signal-and-noise-tools' ),
+				__( 'The corpus as a dataset, under its own terms: a versioned bulk export with the rights declarations stamped inside the artifact — an agent fetches once instead of crawling five hundred times, and the terms travel with the copy', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Accessibility', 'signal-and-noise-tools' )       => array(
 			'done'        => array(
-				// v12.6.3: the DELIVERED half of the contrast audit. The planned
-				// row below still owns the undelivered half (computed styles), so
-				// the two sit adjacent without contradicting. It took the slot the
-				// structural-scan row vacated by graduating onto the a11y page --
-				// one for one, so the wall canary never moved.
-				__( 'Contrast enforced per palette rather than per token: every text pair re-checked against each of the three palettes the site actually serves, and non-text edges - borders, focus rings, chart strokes - held to 3:1 with alpha composited against the surface beneath rather than assumed opaque', 'signal-and-noise-tools' ),
-				__( 'Alt-text coverage extended to inline vector artwork, checked as an accessible name rather than an attribute — the title or label a screen reader would actually announce, or an explicit decorative marking — because that kind of image carries no alt attribute to find, and a sweep looking for one would call every drawing broken', 'signal-and-noise-tools' ),
-				__( 'Alt-text quality, not just coverage: filename echoes, caption duplicates, alt that repeats the heading beside it, and alt that names a category rather than the picture raised as findings a person accepts or rejects — the same human acceptance the coverage sweep already passes through, never a silent rewrite', 'signal-and-noise-tools' ),
+				// v13.18.0: the two ALT-TEXT rows graduated onto
+				// /maturity/a11y-maturity/ as the eleventh and twelfth principles.
+				// They moved as a PAIR at owner direction -- coverage and quality are
+				// one story in two halves, and graduating only the older would have
+				// left the page explaining whether a description exists while the
+				// board still carried whether it is any good.
+				//
+				// Also gone: the per-palette contrast row, whose v12.6.3 comment
+				// lived here. It had ALREADY graduated to that page as the tenth
+				// principle (v13.8.2) through the board door; only the static floor
+				// had not caught up. That note pointed at "the planned row below"
+				// for the undelivered computed-styles half -- which is now done and
+				// sits in this very cell, so the note could not be kept as written.
 				__( 'Charts that speak: the stats page\'s chart ships with its voice built in — a deterministic one-paragraph summary and a calendar-shaped table twin a screen reader navigates with week and weekday context, the picture itself only decoration — a thread shared with Analytics', 'signal-and-noise-tools' ),
+				__( 'Contrast verified from COMPUTED styles: a browser-run instrument walks every rendered text node on the live pages in both palettes — real nesting, inline overrides, the opacity chain composited over the true ground — the half a file cannot answer; its first real catch was this board\'s own legend fades, lifted to the measured AA floor, and the closing run reads zero pairs below AA', 'signal-and-noise-tools' ),
+				__( 'Motion that asks first: every animation and vestibular transition inventoried with its guard by a report-first scan — opt-in media gates, reduce resets, and soften counterparts all recognized, JS motion classified with each claim verified by grep — and the lazy transition-of-everything declarations it surfaced narrowed to the properties their hovers actually change', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
-				__( 'Contrast verified from COMPUTED styles rather than source: the CI sweeps read stylesheets, so an inline override, or text nested inside a surface nobody declared, can still hide from them. The remaining half of the token-level audit, and the half a file cannot answer.', 'signal-and-noise-tools' ),
-				__( 'Motion that asks first: every animation paired with its reduced-motion counterpart, verified by a report-first scan — respecting a visitor\'s motion setting checked, not assumed', 'signal-and-noise-tools' ),
+				__( 'The keyboard walked, not assumed: a browser-run instrument tabs through the live pages recording focus order and focus visibility — the computed-contrast discipline applied to keyboard access — landing as the next instrument arc, on the runner the contrast walk already proved', 'signal-and-noise-tools' ),
+				__( 'Targets measured, not eyeballed: the 24-pixel floor of WCAG 2.2 checked from rendered geometry — reading the page the finger actually meets — riding the keyboard walk\'s instrument arc, since both read the same rendered page', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				// 2026-08-12: the facade was BUILT (theme v11.8.0), tried live,
@@ -270,6 +302,9 @@ function sn_maturity_roadmap_static_board() {
 				// the read-door pattern: the board records the shape the answer
 				// took, not merely that one exists.
 				__( 'An accessible facade for third-party embeds: built, shipped, and DECLINED in practice — the music page\'s hero returned to an eager player by owner choice after a day live, trading no-fetch-before-consent for immediacy; the discography grid keeps click-to-play. Reopens only if an embed ever lands in a note body, where the consent argument outweighs a catalog page\'s.', 'signal-and-noise-tools' ),
+				__( 'Headings and link text as findings: skipped heading levels, click-here anchors, and bare-URL link text raised for a person to accept or reject — the alt-quality discipline extended to structure and wording', 'signal-and-noise-tools' ),
+				__( 'Contrast on both scales: every instrument run records APCA beside AA — so when the standard turns, the site arrives with a history of the new number instead of a scramble', 'signal-and-noise-tools' ),
+				__( 'Accessibility at the moment of publishing: the pre-publish panel\'s advisory warnings extended to missing alt text and skipped heading levels — so the site-wide sweeps stop being the first line of defense', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'Conformance said out loud: a public accessibility self-assessment on the hub, fed by the scans and honest about what fails — the site\'s accessibility posture stated the way its rights posture already is', 'signal-and-noise-tools' ),
@@ -277,20 +312,28 @@ function sn_maturity_roadmap_static_board() {
 		),
 		__( 'Operations', 'signal-and-noise-tools' )          => array(
 			'done'        => array(
-				__( 'Cron, uptime, cache freshness, and deploy state watched from one dashboard that says "unknown" when it does not know', 'signal-and-noise-tools' ),
+				// v13.18.0: the one-dashboard row graduated onto
+				// /maturity/ops-maturity/ as the ninth principle. Only half of it was
+				// new there -- the "unknown" discipline was already that page's third
+				// principle -- so the graduated sentence carries the half stated
+				// nowhere: that these signals answer from ONE surface, not several.
 				__( 'Defense numbers: the login door\'s own gauges, owner-only — fail-opens and degraded reads counted with zeros stated out loud, and the unchecked address share measured against a threshold written down before the query, so the number triggers the decision instead of reopening the argument', 'signal-and-noise-tools' ),
 				__( 'Spend watched like uptime: build minutes and AI spend on the health widget, owner-only — every number read from what the platforms actually report, "unknown" when a read fails, and never an estimated or invented figure', 'signal-and-noise-tools' ),
+				__( 'A morning brief at seven: one deterministic paragraph across health, cron, uptime, and deploys, mailed daily — no AI and no content prose on the path, so nothing injected can become instructions in the owner\'s inbox', 'signal-and-noise-tools' ),
+				__( 'Configuration drift watched: the effective settings snapshotted against an acknowledged baseline that moves only on acknowledgment or a version change — a changed switch is a visible event, not a mystery', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'Dependency provenance gate: a worker ships only after its locked dependency tree verifies against the registry\'s provenance attestations and a minimum-age cooldown — so a freshly poisoned upstream release waits out its detection window instead of going straight to the edge — landing after a one-time audit shows enough of the tree publishes attestations for the check to mean anything', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
-				__( 'A morning brief: one narrated paragraph across health, cron, uptime, and deploys — the digest pattern pointed at operations', 'signal-and-noise-tools' ),
 				__( 'Restore proof, not backup existence: a periodic check that a backup actually restores, closing the gap between having backups and having recovery', 'signal-and-noise-tools' ),
-				__( 'Configuration drift: the settings surface snapshotted and diffed over time, so a changed switch or threshold is a logged event instead of a mystery', 'signal-and-noise-tools' ),
+				__( 'The calendar of quiet failures: service keys, scoped tokens, domains, and certificates watched with their dates stated before they lapse — expiry as a scheduled event instead of an outage', 'signal-and-noise-tools' ),
+				__( 'The corpus in a pocket: a service worker caching the notes for offline reading — fifty-odd notes is nothing, and the site that can leave its platform should also survive a tunnel', 'signal-and-noise-tools' ),
+				__( 'A passkey at the owner\'s door: sign-in by passkey with the password demoted to fallback — the most-attacked surface on the site should not be the last to walk away from passwords', 'signal-and-noise-tools' ),
+				__( 'Journey checks, not pings: a scheduled pass that walks the flows that matter — the stats page rendering its numbers, the rights surfaces serving their terms — because a healthy status code is not a working site', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
-				__( 'Journey checks, not pings: a scheduled pass that walks the flows that matter — the stats page rendering its numbers, the rights surfaces serving their terms — because a healthy status code is not a working site', 'signal-and-noise-tools' ),
+				__( 'The site that can leave: a periodic static export of the whole corpus with provenance intact — proof the content survives the platform it was written on — the standalone-verifier argument applied to the site itself — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
 			),
 		),
 	);

@@ -54,6 +54,13 @@ function sn_ops_maturity_principles() {
 		__( 'Nothing is deleted silently: housekeeping names its work.', 'signal-and-noise-tools' ),
 		__( 'Machines review every change before a person ships it, and every release is tagged and reversible.', 'signal-and-noise-tools' ),
 		__( 'Operational history is kept: what ran, when, and what it touched.', 'signal-and-noise-tools' ),
+		// THE NINTH. Graduated off the hub roadmap board (v13.18.0) when the
+		// Operations done column reached the ceiling. Only half of that row was
+		// new here: its "unknown" discipline is already the third principle
+		// above, so this sentence carries the half stated nowhere on this page --
+		// consolidation, that the signals answer from ONE surface. Model level
+		// throughout, per this file's security contract: no check is named.
+		__( 'Operational state answers from one surface, not several - what the site checks of itself, what runs on a schedule, whether readers can reach it, and what is deployed are read in the same place, and any of them may answer unknown.', 'signal-and-noise-tools' ),
 	);
 }
 

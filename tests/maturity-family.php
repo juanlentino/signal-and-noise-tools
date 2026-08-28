@@ -96,13 +96,13 @@ foreach ( array( 'sn_machine_maturity', 'sn_ops_maturity', 'sn_a11y_maturity', '
 }
 ok( array() === $GLOBALS['__enq'], 'loading the files enqueues nothing — stylesheets ride the render' );
 ok( 6 === count( sn_machine_maturity_layers() ) && 5 === count( sn_ops_maturity_layers() ) && 5 === count( sn_a11y_maturity_layers() ), 'ops and a11y walk five layers; machine readability walks six (v10.71.0 added the rights layer)' );
-ok( 8 === count( sn_machine_maturity_principles() ) && 8 === count( sn_ops_maturity_principles() ), 'eight principles per page, matching the family' );
+ok( 8 === count( sn_machine_maturity_principles() ) && 9 === count( sn_ops_maturity_principles() ), 'machine keeps the family eight; ops carries NINE - the ninth graduated off the roadmap board when its done column hit the ceiling (v13.18.0)' );
 // a11y is the SECOND page to break the family's eight, and for the same reason
 // the AI page broke it at nine: the extra principle arrived by GRADUATION off
 // the hub roadmap board, not by authoring. The done column's ceiling forces a
 // shipped row off the board once the column fills, and the family page is where
 // it lands -- so an asymmetric count here is the mechanism working, not drift.
-ok( 10 === count( sn_a11y_maturity_principles() ), 'a11y carries TEN - the ninth graduated off the roadmap board when the done column first filled (v12.6.3), the tenth when it filled again (v13.8.2)' );
+ok( 12 === count( sn_a11y_maturity_principles() ), 'a11y carries TWELVE - the ninth graduated when the done column first filled (v12.6.3), the tenth when it filled again (v13.8.2), and the eleventh and twelfth as a PAIR (v13.18.0)' );
 // THE GRADUATION PIN, mirroring the AI page's. Pinned on the RENDERED html, not
 // on the array: a claim sitting in an array no format emits is the
 // mechanism-without-surface shape this project keeps re-learning. Substance in
@@ -112,6 +112,22 @@ ok( 10 === count( sn_a11y_maturity_principles() ), 'a11y carries TEN - the ninth
 $a11y_principles = sn_a11y_maturity_principles_html();
 ok( false !== strpos( $a11y_principles, 'heading order' ), 'GRADUATION: the structural-scan claim renders on the a11y page - it retired off the board, it did not vanish' );
 ok( false !== strpos( $a11y_principles, 'fingerprint' ), 'GRADUATION: and it keeps the fingerprint-bound half - a repair that cannot prove where it is landing is the failure this row was written against' );
+ok( false !== strpos( $a11y_principles, 'screen reader would announce' ), 'GRADUATION: the alt-COVERAGE claim renders on the a11y page - it retired off the board, it did not vanish' );
+ok( false !== strpos( $a11y_principles, 'no alt attribute to find' ), 'GRADUATION: and it keeps the mechanism half - inline artwork carries no attribute, which is why a coverage sweep alone calls every drawing broken' );
+ok( false !== strpos( $a11y_principles, 'Coverage is not quality' ), 'GRADUATION: the alt-QUALITY claim renders too - the pair moved together by owner direction' );
+ok( false !== strpos( $a11y_principles, 'never silently rewritten' ), 'GRADUATION: and it keeps the human-acceptance half, the part that makes it a finding rather than an edit' );
+
+$ops_principles = sn_ops_maturity_principles_html();
+ok( false !== strpos( $ops_principles, 'one surface, not several' ), 'GRADUATION: the one-dashboard claim renders on the ops page as CONSOLIDATION' );
+ok( false !== strpos( $ops_principles, 'may answer unknown' ), 'GRADUATION: and it keeps the unknown half, the discipline the original row was written around' );
+
+// The MACHINE READABILITY graduation added NO principle, deliberately: its
+// destination already stated all three clauses of the retired row. Pinned so a
+// later reader does not "repair" the missing ninth principle into existence and
+// restate what the second already says.
+$machine_principles = sn_machine_maturity_principles_html();
+ok( false !== strpos( $machine_principles, 'own words' ), 'GRADUATION (no-op BY DESIGN): the manifest-in-its-own-words claim was ALREADY this page\'s second principle, so the retired board row needed no new sentence' );
+ok( false !== strpos( $machine_principles, 'Structured data describes what the page already says' ), 'GRADUATION (no-op BY DESIGN): and the structured-data clause likewise - the row moved because the destination already held it' );
 ok( 8 === count( sn_maturity_index_items() ), 'the index lists all eight cards (v10.55.1: + the hub-wide roadmap)' );
 
 echo "\nGroup: format contract (spot: each page's format whitelist behaves)\n";

@@ -4,6 +4,62 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.18.0] - 2026-08-27 — the roadmap floor catches up with the board, and three rows graduate
+
+The static board in `inc/maturity-roadmap-shortcode.php` is the disaster-recovery
+floor under the public roadmap: it is what `/maturity/roadmap/` renders when the
+door-written override is absent or invalid. It had fallen **19 cells** behind that
+override — 34 rows it did not have, 13 it still carried after they had moved — so a
+recovery would have recovered to something wrong.
+
+**The fold was NOT the mechanical copy the backlog promised.** Three families had
+reached the done-column ceiling on the live board, and the CI canary deliberately
+reds one row BEFORE the wall: `SN_MATURITY_ROADMAP_MAX_DONE` is 5, which the door
+accepts, but the shipped floor must stay at 4. Folding as-is went red on Machine
+readability at 5. The backlog named Operations alone; the measurement found three.
+
+So three rows graduated first, and a graduated row MOVES — it is never copied:
+
+- **Accessibility** loses both alt-text rows, together, at owner direction: coverage
+  and quality are one story in two halves, and landing only the older would have left
+  the a11y page explaining whether a description exists while the board still carried
+  whether it is any good. They arrive there as the eleventh and twelfth principles.
+- **Operations** loses the one-dashboard row as a ninth principle. Only HALF of it was
+  new at the destination — the "unknown" discipline was already that page's third
+  principle — so the graduated sentence carries the half stated nowhere: consolidation,
+  that the signals answer from one surface rather than several.
+- **Machine readability** loses the crawler-manifest row and gains NO principle,
+  deliberately. Its destination already stated all three of its clauses; the manifest
+  "in the site's own words" IS that page's second principle. The move was a removal
+  plus a test pin, not a restatement of what was already there — pinned as a no-op by
+  design so a later reader does not "repair" the missing ninth principle into being.
+
+**The fold also spent Analytics' headroom, and that is a finding, not bookkeeping.** A
+pin asserted Analytics done sat at `MAX_DONE - 2`, so the planned weekly-digest row
+could still graduate and clear the canary. The Search Console row had graduated on the
+LIVE board and the floor never caught up; folding puts Analytics done at 4. The digest
+row — the backlog's first promotion candidate — can no longer graduate without an
+Analytics retirement first. The pin now asserts that new truth instead of the
+comfortable old number.
+
+Row text was taken byte-exact from the rendered board, never retyped, and the parse was
+negative-controlled before it was trusted: 9 of 28 cells came back byte-identical
+through `esc_html` and entity decoding, which is what makes the other 19 real drift
+rather than a lossy read. Two independent instruments agreed on the same 19 cells — the
+door's own merge report and the HTML parse.
+
+Nine pins went red on the change and were retargeted, never relaxed; the superseded ones
+are kept as comments carrying their reason, because a reversal that leaves no trace is
+exactly what those pins exist to prevent. `tests/run.sh`: 512 suites, 20,522 assertions,
+0 failed. The new graduation pins are mutation-proven — dropping the ops principle reds
+three, and dropping only the alt-QUALITY principle reds its own three while the coverage
+pins stay green.
+
+**The override is still set.** Dropping it now would fall back to the floor of the
+DEPLOYED version, which becomes this one only after the update lands — so the
+`reset:true` that returns the board to code-canonical is the step AFTER installing, not
+part of this release.
+
 ## [13.17.0] - 2026-08-27 — the note-reply alias becomes a setting (a choice, not a text field)
 
 Which /contact alias the note Reply row writes to is now
