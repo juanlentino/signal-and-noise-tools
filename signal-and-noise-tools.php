@@ -96,6 +96,7 @@ require_once SNT_PATH . 'inc/provenance-chain-backfill.php'; // v10.3.0: one-sho
 require_once SNT_PATH . 'inc/provenance-freshness-backfill.php'; // v11.11.8: one-shot stamp of _sn_prov_last_commit_gmt onto existing chains (Check 4's clock)
 require_once SNT_PATH . 'inc/tag-descriptions-seed.php'; // v13.23.0 one-shot: the 23 owner-approved tag descriptions (own flag + hook — the registry's master sentinel would skip it; see the file header).
 require_once SNT_PATH . 'inc/provenance-did.php';        // v9.23.0: did:web DID document (verifiable provenance D1)
+require_once SNT_PATH . 'inc/provenance-rotation.php';   // v13.39.0: the key-rotation PRODUCER (needs provenance-did.php above)
 require_once SNT_PATH . 'inc/provenance-webfinger.php'; // v11.27.0: WebFinger (RFC 7033) resolving to the SAME did:web identity — coherence, not federation (needs provenance-did.php above)
 require_once SNT_PATH . 'inc/provenance-credential.php'; // v9.23.0: per-Note Verifiable Credential + REST route (D1)
 require_once SNT_PATH . 'inc/provenance-verify.php';     // v9.73.0: human-facing /verify client-side verifier
