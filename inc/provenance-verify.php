@@ -233,6 +233,22 @@ function sn_prov_verify_send() {
 		<p class="sn-verify-verdict-meta" data-role="verdict-meta"></p>
 	</section>
 
+	<?php // The withdrawal's REASONS. Hidden until a VERIFIED retraction is in
+	// force; the verdict band alone says a record was withdrawn, which is the
+	// alarm, not the explanation. A reader who is told "Retracted" and nothing
+	// else has been given a worse position than before they asked.
+	//
+	// Rendered entirely by assets/js/prov-verify.js via textContent — the prose
+	// arrives from the public ledger, and this page never assigns fetched text
+	// into the DOM as markup. ?>
+	<section class="sn-verify-retraction" data-role="retraction" hidden aria-labelledby="sn-verify-retraction-word">
+		<p class="sn-verify-retraction-kicker">Withdrawn by the publisher</p>
+		<p class="sn-verify-retraction-word" id="sn-verify-retraction-word">This record's publisher says it was wrong.</p>
+		<p class="sn-verify-retraction-kept">The record has <strong>not</strong> been deleted. It stays exactly where it was published &#8212; anyone who fetched, cited or compared against it can still find what was actually said. This withdrawal is published beside it, signed by the same key and anchored in the same chain.</p>
+		<dl class="sn-verify-retraction-rows" data-role="retraction-rows"></dl>
+		<p class="sn-verify-retraction-source" data-role="retraction-source"></p>
+	</section>
+
 	<form class="sn-verify-form" data-role="paste-form">
 		<label for="sn-verify-input">Paste a Note URL, or a note id</label>
 		<input id="sn-verify-input" name="note" type="text" autocomplete="off" spellcheck="false" placeholder="https://&hellip;/a-note-slug or a note id">

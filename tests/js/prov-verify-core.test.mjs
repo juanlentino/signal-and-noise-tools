@@ -355,6 +355,46 @@ console.log( '\nGroup 5e: retractionOutcome — a retraction we cannot verify is
 	ok( core.retractionOutcome( { retraction: null, mismatched: true }, null ).unknown, 'a mismatched retraction leaves the status UNKNOWN' );
 }
 
+console.log( '\nGroup 5f: retractionRows — the reasons a reader is owed' );
+{
+	const full = {
+		kind: 'retraction', retracted_at: '2026-08-15',
+		claimed: 'the content hash of the published Note',
+		what_was_wrong: 'the hash was computed over pre-normalization bytes',
+		root_cause: 'the signer read the raw content before the normalizer ran',
+		what_changed: 'the signer now hashes normalized bytes, pinned by a test',
+		correct_value_at_retraction: { content_hash: 'abc123', caveat: 'Do not treat this as current.' }
+	};
+	const rows = core.retractionRows( full );
+	const labels = rows.map( function ( r ) { return r[ 0 ]; } );
+
+	// What was wrong leads. A retraction whose reason is buried under metadata
+	// answers the question nobody asked first.
+	ok( /wrong/i.test( labels[ 0 ] ), 'the reason leads the panel' );
+	ok( labels.some( function ( l ) { return /root cause/i.test( l ); } ), 'root cause is shown' );
+	ok( labels.some( function ( l ) { return /changed/i.test( l ); } ), 'what changed is shown' );
+
+	// A stated correct value must never appear without its staleness caveat —
+	// published bare it becomes the next wrong number someone compares against.
+	const correct = rows.filter( function ( r ) { return /correct/i.test( r[ 0 ] ); } );
+	eq( 1, correct.length, 'the corrected value is shown once' );
+	ok( /Do not treat this as current/.test( correct[ 0 ][ 1 ] ), 'and always carries its caveat' );
+
+	// Absent fields produce NO row. An empty "Root cause:" reads as though we
+	// looked and found nothing, when in fact nothing was said.
+	const sparse = core.retractionRows( { what_was_wrong: 'x', retracted_at: '2026-08-15' } );
+	ok( ! sparse.some( function ( r ) { return '' === String( r[ 1 ] ).trim(); } ), 'no empty rows' );
+	ok( ! sparse.some( function ( r ) { return /root cause/i.test( r[ 0 ] ); } ), 'an unstated root cause is omitted, not blanked' );
+
+	// A correct value with no caveat from the producer still gets one here: the
+	// panel is the last place that can stop a bare number going out.
+	const nocaveat = core.retractionRows( { what_was_wrong: 'x', correct_value_at_retraction: { pcr0: 'aef4' } } );
+	const cv = nocaveat.filter( function ( r ) { return /correct/i.test( r[ 0 ] ); } );
+	ok( cv.length === 1 && /not.*current|will change/i.test( cv[ 0 ][ 1 ] ), 'a caveat-less correct value is never rendered bare' );
+
+	ok( core.retractionRows( null ).length === 0, 'no retraction, no rows' );
+}
+
 // ─── Group 6: anchor plan (BOTH anchor shapes + the block-only norm) ────
 console.log( '\nGroup 6: deriveAnchorPlan (pending attestation; confirmed with txid; block-only — 9.73.2)' );
 {

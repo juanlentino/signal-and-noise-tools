@@ -98,6 +98,9 @@
 	var announceEl = root.querySelector( '[data-role="announce"]' );
 	var statusLine = root.querySelector( '[data-role="status-line"]' );
 	var factsEl    = root.querySelector( '[data-role="facts"]' );
+	var retractionEl     = root.querySelector( '[data-role="retraction"]' );
+	var retractionRowsEl = root.querySelector( '[data-role="retraction-rows"]' );
+	var retractionSrcEl  = root.querySelector( '[data-role="retraction-source"]' );
 	var form       = root.querySelector( '[data-role="paste-form"]' );
 	var input      = document.getElementById( 'sn-verify-input' );
 	var verdictEl  = root.querySelector( '[data-role="verdict"]' );
@@ -546,6 +549,55 @@
 	}
 
 	/** Unsupported-crypto fallback: the credential's own facts + links, no fake verdicts. */
+	/**
+	 * The withdrawal's REASONS.
+	 *
+	 * The verdict band says a record was withdrawn; that is the alarm, not the
+	 * explanation. A reader told "Retracted" and nothing else has been left in a
+	 * worse position than before they asked — they now know something is wrong
+	 * and not what. The reason is the part they are owed.
+	 *
+	 * Every value is written with textContent. The prose arrives from the public
+	 * ledger, and this page never assigns fetched text into the DOM as markup.
+	 */
+	function renderRetraction( retraction, uid, version ) {
+		if ( ! retractionEl || ! retractionRowsEl ) {
+			return;
+		}
+		retractionRowsEl.textContent = '';
+		if ( retractionSrcEl ) {
+			retractionSrcEl.textContent = '';
+		}
+		if ( ! retraction ) {
+			retractionEl.hidden = true;
+			return;
+		}
+		Core.retractionRows( retraction ).forEach( function ( row ) {
+			var dt = document.createElement( 'dt' );
+			dt.textContent = row[ 0 ];
+			var dd = document.createElement( 'dd' );
+			dd.textContent = row[ 1 ];
+			retractionRowsEl.appendChild( dt );
+			retractionRowsEl.appendChild( dd );
+		} );
+		// The retraction is itself a signed, anchored record. Linking it is not
+		// decoration: a reader must be able to check this withdrawal the same
+		// way they checked the record it withdraws, rather than taking this
+		// panel's word for it.
+		if ( retractionSrcEl && 'function' === typeof Core.retractionUrl ) {
+			var url = Core.retractionUrl( config.ledgerBase, uid, version );
+			if ( Core.isSafeExplorerUrl( url ) ) {
+				var a = document.createElement( 'a' );
+				a.href = url;
+				a.rel = 'nofollow noopener';
+				a.target = '_blank';
+				a.textContent = 'Read the signed retraction record yourself';
+				retractionSrcEl.appendChild( a );
+			}
+		}
+		retractionEl.hidden = false;
+	}
+
 	function renderFallbackFacts( cred ) {
 		if ( ! factsEl ) {
 			return;
@@ -605,6 +657,7 @@
 		// A retraction from a previous lookup must never carry over onto the
 		// next record; stale here would withdraw an innocent Note.
 		activeRetraction = null;
+		renderRetraction( null );
 		openVerdict( uid, version );
 		setStatusLine( 'Fetching the credential…' );
 
@@ -648,8 +701,9 @@
 				// result outranks the docket rather than joining it, so it lands
 				// in activeRetraction and repaints the band.
 				var retractionDone = checkRetraction( uid, effectiveVersion, didRes.json, siteKeysRes.json, ledgerKeysRes.json )
-					.then( function ( retraction ) {
-						activeRetraction = retraction;
+					.then( function ( state ) {
+						activeRetraction = state;
+						renderRetraction( state && state.retraction, uid, effectiveVersion );
 						paintVerdict();
 					} );
 

@@ -515,6 +515,63 @@
 		return String( ledgerBase || '' ).replace( /\/?$/, '' ) + '/' + root + '/' + encodeURIComponent( uid ) + '/v' + encodeURIComponent( version || ( evidence && evidence.version ) || 0 ) + '.json';
 	}
 
+	/** The staleness caveat a stated correct value must always carry. */
+	var CORRECT_VALUE_CAVEAT = 'Do not treat this as current: it was correct on the retraction date and will change. Read the record and check it against a live verification yourself.';
+
+	/**
+	 * The retraction, as reader-facing [label, value] rows.
+	 *
+	 * Ordered by what a reader actually wants: what was wrong FIRST. A panel
+	 * that opens with dates and identifiers answers a question nobody asked and
+	 * buries the one they did.
+	 *
+	 * Absent fields produce NO row rather than an empty one — a blank "Root
+	 * cause:" reads as though we looked and found nothing, when the truth is
+	 * that nothing was said.
+	 *
+	 * A stated correct value never renders without a staleness caveat. Published
+	 * bare, a correct-at-the-time value becomes the next wrong number someone
+	 * compares against months later, which is the failure this whole surface
+	 * exists to stop repeating. The producer already attaches one; this is the
+	 * last place that can catch a record minted before that rule, so it attaches
+	 * one too rather than trusting upstream.
+	 *
+	 * @param {object|null} retraction
+	 * @returns {Array<[string, string]>}
+	 */
+	function retractionRows( retraction ) {
+		var r = retraction || {};
+		var rows = [];
+		var push = function ( label, value ) {
+			var v = String( value == null ? '' : value ).trim();
+			if ( v ) {
+				rows.push( [ label, v ] );
+			}
+		};
+
+		push( 'What was wrong', r.what_was_wrong );
+		push( 'What the record claimed', r.claimed );
+		push( 'Root cause', r.root_cause );
+		push( 'What changed since', r.what_changed );
+
+		var correct = r.correct_value_at_retraction;
+		if ( correct && 'object' === typeof correct ) {
+			var parts = [];
+			Object.keys( correct ).forEach( function ( k ) {
+				if ( 'caveat' !== k ) {
+					parts.push( k + ': ' + String( correct[ k ] ) );
+				}
+			} );
+			if ( parts.length ) {
+				var caveat = String( correct.caveat || '' ).trim() || CORRECT_VALUE_CAVEAT;
+				push( 'Correct value at the time of retraction', parts.join( '; ' ) + ' — ' + caveat );
+			}
+		}
+
+		push( 'Retracted on', r.retracted_at );
+		return rows;
+	}
+
 	/**
 	 * Turn a lookup (deriveRetraction) plus a verification result into the state
 	 * the verdict consumes: { retraction, unknown }.
@@ -981,6 +1038,7 @@
 		deriveRetraction:         deriveRetraction,
 		retractionUrl:            retractionUrl,
 		retractionOutcome:        retractionOutcome,
+		retractionRows:           retractionRows,
 		deriveKeyAgreement:       deriveKeyAgreement,
 		decodeProofBytes:         decodeProofBytes,
 		decodeSignedPayloadBytes: decodeSignedPayloadBytes,

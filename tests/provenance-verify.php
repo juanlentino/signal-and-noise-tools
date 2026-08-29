@@ -312,6 +312,30 @@ if ( vv_require_fn( 'sn_prov_verify_send' ) ) {
 	$page_tag_pos = strpos( $html_empty, 'assets/js/prov-verify.js?ver=' );
 	vv_true( false !== $core_tag_pos, 'shell emits the prov-verify-core.js script tag with the ?ver= cache-buster' );
 	vv_true( false !== $page_tag_pos, 'shell emits the prov-verify.js script tag with the ?ver= cache-buster' );
+	// The retraction panel ships HIDDEN and empty. Two properties, because the
+	// alarm without the explanation leaves a reader worse off than before they
+	// asked, and a panel that renders by default would accuse every Note.
+	vv_true( false !== strpos( $html_empty, 'data-role="retraction"' ), 'shell emits the retraction panel container' );
+	vv_true(
+		preg_match( '/<section class="sn-verify-retraction"[^>]*\shidden/', $html_empty ) === 1,
+		'the retraction panel is HIDDEN by default (it must never accuse a Note the JS has not judged)'
+	);
+	vv_true( false !== strpos( $html_empty, 'data-role="retraction-rows"' ), 'shell emits the rows container the JS fills' );
+	// Without its own rule, data-level="retracted" inherits the PASS band and a
+	// withdrawn record looks exactly like a verified one — the failure being
+	// styled against is visual, so it has to be pinned here rather than noticed.
+	$vv_css = file_exists( SNT_PATH . 'assets/css/prov-verify.css' ) ? (string) file_get_contents( SNT_PATH . 'assets/css/prov-verify.css' ) : '';
+	vv_true(
+		'' !== $vv_css && false !== strpos( $vv_css, '[data-level="retracted"]' ),
+		'the retracted verdict band has its OWN styling (it must not inherit the pass band)'
+	);
+	vv_true( '' !== $vv_css && false !== strpos( $vv_css, '.sn-verify-retraction{' ), 'the retraction panel is styled' );
+	// The record is not deleted, and the panel has to SAY so — that is the whole
+	// difference between a retraction and an erasure.
+	vv_true(
+		false !== strpos( $html_empty, 'has <strong>not</strong> been deleted' ),
+		'the panel states that the retracted record was kept, not removed'
+	);
 	vv_true(
 		false !== $core_tag_pos && false !== $page_tag_pos && $core_tag_pos < $page_tag_pos,
 		'the core script tag precedes the page script tag (dependency order)'
