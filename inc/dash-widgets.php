@@ -110,6 +110,15 @@ function snt_dwx_boxes() {
 			),
 			'lists'    => array(
 				array(
+					'label'   => __( 'Top pages 7d', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/get-analytics-top-content',
+					'input'   => array( 'days' => 7, 'limit' => 5 ),
+					'path'    => 'pages',
+					'limit'   => 5,
+					'empty'   => __( 'No page views in the last 7 days.', 'signal-and-noise-tools' ),
+					'item'    => array( 'label' => 'path', 'value' => 'views' ),
+				),
+				array(
 					// Owns the feed numbers outright — no sibling cell restates them.
 					'label'   => __( 'Feed windows', 'signal-and-noise-tools' ),
 					'ability' => 'signal-noise/get-rss-stats',

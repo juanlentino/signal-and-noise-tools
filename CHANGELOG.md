@@ -51,12 +51,33 @@ purpose axis existed — the axis this surface's own docs call the defensible on
 Now declared, additive, in the payload's own order. Found by the widget suite's
 field-path guard, which refused a `purposes` path that no schema mentioned.
 
-### Not delivered
+### Added — top pages, and the ability behind them
 
-**Top pages.** No ability returns them; `sn_aw_top_content()` is a DB query and
-`sn_dashboard`'s contract is cached-options-only on a screen that renders on
-every admin login. Doing it properly needs a new read-only ability, which is a
-decision about the agent surface rather than a widget change.
+`signal-noise/get-analytics-top-content` (read-only) wraps
+`sn_analytics_top_paths()`, the same reader the Analytics screen's Top content
+panel uses, so the two cannot diverge. Audience gains a **Top pages 7d** list,
+hydrated async like every other list, so `index.php` pays nothing.
+
+Read-only means OpenStation's AI Copilot **auto-enrols it as a tool with no
+opt-out**, so the input schema mirrors its siblings exactly
+(`array( 'object', 'null' )`) — one malformed tool 400s the whole assistant, and
+the `desktop_mode_ai_tools` normalizer at `PHP_INT_MAX` is what keeps that union
+safe. README's ability count moves 66 → 67 (incremented, not re-derived: a raw
+grep counts 83 registration calls, so the rule behind 66 is not a bare count).
+
+### Changed — list headings drop the uppercase
+
+The short signal labels keep their caps: they are the verdict box's established
+idiom and read as tokens. A list heading is a phrase, and
+`AI-TRAINING READS BY SURFACE` shouts beside core's own "Publishing Soon".
+
+### Fixed — two CI failures from one suppression
+
+`phpcs:ignore` covers only the NEXT line, and the pre-built `$action_input`
+attribute landed on a continuation line the ignore could not reach — failing both
+WordPress Coding Standards and Plugin Check. Both attributes are now escaped
+inline and always emitted (an absent input serialises to `{}`, which the hydrator
+already defaults to), so the suppressions are gone rather than relocated.
 
 
 ## [13.32.0] - 2026-08-29 — one owner per fact, and real deltas

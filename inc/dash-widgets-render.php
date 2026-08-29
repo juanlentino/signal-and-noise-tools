@@ -115,11 +115,8 @@ function snt_dwx_render( array $box ) {
 		if ( ! empty( $list['empty'] ) ) {
 			$spec['empty'] = (string) $list['empty'];
 		}
-		$list_input = ! empty( $list['input'] )
-			? ' data-sn-dwx-input="' . esc_attr( (string) wp_json_encode( (array) $list['input'] ) ) . '"'
-			: '';
-		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $list_input is esc_attr'd above.
-		echo '<div class="sn-dwx__list" data-sn-dwx-ability="' . esc_attr( (string) $list['ability'] ) . '"' . $list_input
+		echo '<div class="sn-dwx__list" data-sn-dwx-ability="' . esc_attr( (string) $list['ability'] ) . '"'
+			. ' data-sn-dwx-input="' . esc_attr( (string) wp_json_encode( (array) ( $list['input'] ?? array() ) ) ) . '"'
 			. ' data-sn-dwx-list="' . esc_attr( (string) wp_json_encode( $spec ) ) . '">';
 		echo '<h4 class="sn-dwx__h">' . esc_html( (string) $list['label'] ) . '</h4>';
 		// No skeleton rows: an invented row count would be a claim about data
@@ -131,12 +128,13 @@ function snt_dwx_render( array $box ) {
 	if ( ! empty( $box['actions'] ) ) {
 		echo '<p class="sn-dwx__actions">';
 		foreach ( (array) $box['actions'] as $action ) {
-			$action_input = ! empty( $action['input'] )
-				? ' data-sn-dwx-action-input="' . esc_attr( (string) wp_json_encode( (array) $action['input'] ) ) . '"'
-				: '';
-			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $action_input is esc_attr'd above.
+			// Always emitted, escaped inline. An absent input serialises to {} and
+			// the hydrator already defaults to {}, so this needs no suppression:
+			// a phpcs:ignore only covers the NEXT line, and a pre-built attribute
+			// string lands on a continuation line where the ignore does not reach.
 			echo '<button type="button" class="button button-small sn-dwx__btn"'
-				. ' data-sn-dwx-action="' . esc_attr( (string) $action['ability'] ) . '"' . $action_input
+				. ' data-sn-dwx-action="' . esc_attr( (string) $action['ability'] ) . '"'
+				. ' data-sn-dwx-action-input="' . esc_attr( (string) wp_json_encode( (array) ( $action['input'] ?? array() ) ) ) . '"'
 				. ' data-sn-dwx-busy="' . esc_attr( (string) $action['busy'] ) . '">'
 				. esc_html( (string) $action['label'] ) . '</button> ';
 		}

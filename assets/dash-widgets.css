@@ -35,13 +35,15 @@
 /* ── Lists ──────────────────────────────────────────────────────────────────
    The desktop widgets' breakdowns (families, workers, pending anchors, feed
    windows), in the dashboard column's proportions. */
+/* Sentence case, deliberately. The short signal labels above (.sn-dw__k) keep
+   their caps — they are the verdict box's established idiom and read as tokens
+   — but a list heading is a PHRASE, and "AI-training reads by surface" in caps
+   shouts beside core's own "Publishing Soon" and "Recently Published". */
 .sn-dwx__h {
 	margin: 12px 0 4px;
-	font-size: 11px;
+	font-size: 12px;
 	font-weight: 600;
-	letter-spacing: .06em;
-	text-transform: uppercase;
-	color: var(--sn-text-muted, #646970);
+	color: var(--sn-text, #1d2327);
 }
 
 .sn-dwx__li {
