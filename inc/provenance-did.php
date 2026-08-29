@@ -75,14 +75,40 @@ function sn_prov_did_document() {
 	);
 }
 
-/** @return string Stable public identifier for the active signing key. */
+/**
+ * Stable public identifier for the active signing key.
+ *
+ * Resolves the same way the public key beside it already does — constant, else
+ * option, else the shipped default. Before v13.37.0 this was a filter default
+ * hardcoded here, which put a PLUGIN RELEASE on the critical path of a key
+ * rotation: changing the id meant editing PHP and shipping. The key bytes were
+ * already config (`SN_PROV_PUBKEY_B64`), so the id being code was an asymmetry,
+ * not a decision.
+ *
+ * A BLANK config value falls through to the default rather than winning. An
+ * active key entry published with `id: ""` is worse than one published with a
+ * stale id: the id is what every record names in `pubkey_id`, and a verifier
+ * resolving by name would find nothing at all.
+ *
+ * The filter is kept and still wins, so existing extension points are unchanged.
+ *
+ * @return string
+ */
 function sn_prov_key_id() {
-	return (string) apply_filters( 'sn_prov_pubkey_id', 'sn-ed25519-2026-07' );
+	$configured = trim( (string) sn_prov_config( 'SN_PROV_PUBKEY_ID', 'sn_prov_pubkey_id' ) );
+	return (string) apply_filters( 'sn_prov_pubkey_id', '' !== $configured ? $configured : 'sn-ed25519-2026-07' );
 }
 
-/** @return string The date the active key came into use. */
+/**
+ * The date the active key came into use. Config-resolved for the same reason as
+ * the id above: it changes at a rotation, and a rotation should not need a
+ * release. Blank falls through to the default.
+ *
+ * @return string
+ */
 function sn_prov_key_introduced_at() {
-	return (string) apply_filters( 'sn_prov_key_introduced_at', '2026-07-09' );
+	$configured = trim( (string) sn_prov_config( 'SN_PROV_KEY_INTRODUCED_AT', 'sn_prov_key_introduced_at' ) );
+	return (string) apply_filters( 'sn_prov_key_introduced_at', '' !== $configured ? $configured : '2026-07-09' );
 }
 
 /**

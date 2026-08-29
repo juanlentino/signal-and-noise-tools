@@ -43,6 +43,14 @@ if ( ! function_exists( 'get_option' ) ) {
 }
 if ( ! function_exists( 'sn_prov_pubkey_b64' ) ) { function sn_prov_pubkey_b64() { return $GLOBALS['__pub']; } }
 
+if ( ! function_exists( 'sn_prov_config' ) ) {
+	// Mirrors inc/provenance-webhook.php: constant first, then option.
+	function sn_prov_config( $const, $option ) {
+		if ( defined( $const ) ) { return (string) constant( $const ); }
+		return (string) get_option( $option, '' );
+	}
+}
+
 require __DIR__ . '/../inc/provenance-did.php';
 
 $pass = 0; $fail = 0;
@@ -198,6 +206,28 @@ ok( ! isset( $bare['next_key_commitment'] ),
 $GLOBALS['__pub'] = '';
 ok( null === sn_prov_key_document(), 'no public key at all → null document (endpoint 404s), unchanged' );
 $GLOBALS['__pub'] = base64_encode( $active_raw );
+
+// ── Rotation is a CONFIG change, not a code release (2026-08-29) ───────────
+// The key id and its introduction date were filter defaults hardcoded in PHP,
+// so rotating meant editing this file and shipping a plugin release — a release
+// cycle on the critical path of a key rotation. They now resolve the same way
+// the public key beside them already does: constant, else option, else the
+// shipped default.
+echo "\nGroup: key id + introduced_at resolve through config\n";
+
+$GLOBALS['__options'] = array();
+ok( 'sn-ed25519-2026-07' === sn_prov_key_id(), 'with nothing configured the id is unchanged (the live value must not move)' );
+ok( '2026-07-09' === sn_prov_key_introduced_at(), 'with nothing configured introduced_at is unchanged' );
+
+$GLOBALS['__options'] = array( 'sn_prov_pubkey_id' => 'sn-ed25519-2027-03', 'sn_prov_key_introduced_at' => '2027-03-01' );
+ok( 'sn-ed25519-2027-03' === sn_prov_key_id(), 'the option rotates the key id without touching code' );
+ok( '2027-03-01' === sn_prov_key_introduced_at(), 'and the introduction date with it' );
+
+// An EMPTY option must fall back to the shipped default, never publish an empty
+// id: a key document whose active entry has id "" is worse than an old id.
+$GLOBALS['__options'] = array( 'sn_prov_pubkey_id' => '   ' );
+ok( 'sn-ed25519-2026-07' === sn_prov_key_id(), 'a blank option falls back to the default rather than publishing an empty id' );
+$GLOBALS['__options'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
