@@ -4,6 +4,47 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.30.0] - 2026-08-29 — the Classic Admin home becomes a real fallback
+
+### Added — four subject boxes on the Classic Admin home
+
+The Classic Admin dashboard becomes a real fallback while OpenStation's command
+palette is severed upstream ([WordPress/openstation#705](https://github.com/WordPress/openstation/issues/705)).
+"dashboard-widget sprawl" is Declined, standing (`docs/superpowers/specs/2026-07-01-stack-audit-abilities-consolidation-design.md:85`)
+and v8.3.0 + v11.30.0 both folded boxes away; the owner reopened it on 2026-08-29
+with the constraint that kept those folds honest — group the ten desktop widgets by
+WHAT THEY SHOW rather than mirror them one for one. Four subjects, not ten boxes:
+
+| Box | Groups | Deep links |
+| --- | --- | --- |
+| S&N Audience | `sn-site-views` + `sn-rss-subscribers` | Analytics, RSS |
+| S&N Machine Readers | `sn-machine-readers` | Machine Readers |
+| S&N Operations | `sn-deploy-status` + `sn-cache` + `sn-cron` | Dashboard, Cache, Cron |
+| S&N Provenance | `sn-anchors` | Provenance |
+
+- [inc/dash-widgets.php](inc/dash-widgets.php): the box definitions as DATA, filterable
+  via `snt_dwx_boxes`. [inc/dash-widgets-render.php](inc/dash-widgets-render.php):
+  per-box capability gating (Audience is `view_stats`, the rest `manage_options`),
+  the shell render and the index.php-only assets.
+- **Machine Readers stays out of Audience deliberately** — human and machine readership
+  are never summed, and two boxes encode that where one would invite the addition.
+- **The zero-cost invariant holds.** Every render is an instant shell of labelled em
+  dashes plus its deep links; [assets/dash-widgets.js](assets/dash-widgets.js) fills the
+  numbers afterwards through readonly abilities, one call per distinct ability, the same
+  discipline `assets/uptime-status.js` has followed since v8.2.0. A box degrades to em
+  dashes with working links if the hydrator never runs, and a failed call never prints
+  a 0 where nothing was measured.
+- `inc/dash-widget.php` and its `sn_dashboard` box are **untouched** — it still owns the
+  verdict glance, and its "only one THIS MODULE adds" pin still passes because these
+  four register from their own module.
+- [inc/health-contrast-usage.php](inc/health-contrast-usage.php): `dash-widgets.css`
+  declared admin-only, so the contrast scan's derived and excluded sets match again.
+- Tests: [tests/dash-widgets.php](tests/dash-widgets.php), 69 assertions. Beyond the
+  grouping, gating and asset pins it checks every declared ability name against the real
+  `wp_register_ability()` calls **and** roots every field path in that ability's own
+  schema — the second guard caught a `totals.pageviews` path that
+  `get-analytics-summary` has never had, which would have hydrated to em dashes forever.
+
 ### Documented — a reader the Machine Readers surface cannot attribute
 
 - [docs/MACHINE-READERS.md](docs/MACHINE-READERS.md): a new rule under "Rules that
