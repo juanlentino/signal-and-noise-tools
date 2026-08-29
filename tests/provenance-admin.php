@@ -323,6 +323,12 @@ require_once SNT_PATH . 'inc/provenance-core.php';
 // Loads the REAL sn_prov_pubkey_b64() (unguarded — never stub it: redeclare
 // fatal) so the renderer test drives it via the sn_prov_pubkey_b64 option.
 require_once SNT_PATH . 'inc/provenance-webhook.php';
+// v13.38.0: the System fieldset now reports the SIGNING KEY IDENTITY, whose
+// resolvers live in provenance-did.php. Loaded here for the same reason the
+// plugin loads it unconditionally — sn_prov_admin_system_status() calls them
+// UNGUARDED, so a load-order regression must fatal rather than quietly drop
+// the block from the page.
+require_once SNT_PATH . 'inc/provenance-did.php';
 // The redesigned section renders the shared first-glance grid (Task 1). Load the
 // REAL helper (unguarded — never stub it: redeclare fatal) so the smoke test can
 // assert the .sn-glance markup it emits.
@@ -448,6 +454,21 @@ ad_eq( 'pending', $sys['genesis']['status'], 'genesis option passed through' );
 ad_eq( 'PUBKEY123', $sys['pubkey'], 'public key surfaced (public value, OK to include)' );
 ad_true( false !== strpos( (string) $sys['ledger_url'], 'signal-and-noise-provenance' ), 'ledger_url points at the ledger repo' );
 ad_true( ! in_array( 'hmac_secret', array_keys( $sys['config'] ), true ), 'config never carries a secret key' );
+
+// SIGNING KEY IDENTITY (v13.38.0) — read-only, and the SOURCE is the point.
+// "Which key am I on, and did my wp-config edit actually take effect?" was
+// unanswerable from wp-admin: the served value looks identical whether it came
+// from a constant, an option, or the shipped default.
+ad_eq( 'sn-ed25519-2026-07', $sys['signing_key']['id'], 'the ACTIVE key id is surfaced (public — it is in did.json and every record)' );
+ad_eq( 'default', $sys['signing_key']['id_source'], 'with nothing configured the source reads as the shipped default' );
+ad_eq( 'default', $sys['signing_key']['introduced_at_source'], 'same for the introduction date' );
+ad_true( ! in_array( 'secret', array_keys( $sys['signing_key'] ), true ), 'the signing-key block carries NO secret-shaped key' );
+
+$GLOBALS['__pv_options']['sn_prov_pubkey_id'] = 'sn-ed25519-2027-03';
+$sys_rot = sn_prov_admin_system_status();
+ad_eq( 'sn-ed25519-2027-03', $sys_rot['signing_key']['id'], 'an option rotates the displayed id without a release' );
+ad_eq( 'option', $sys_rot['signing_key']['id_source'], 'and the page says WHERE it came from — the whole point of the block' );
+unset( $GLOBALS['__pv_options']['sn_prov_pubkey_id'] );
 
 // Inferred contact is false when EVERY commit is still unanchored.
 $GLOBALS['__pv_meta']    = array();
