@@ -4,6 +4,8 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.30.0] - 2026-08-29 — the Classic Admin home becomes a real fallback
+
 ### Added — four subject boxes on the Classic Admin home
 
 The Classic Admin dashboard becomes a real fallback while OpenStation's command
