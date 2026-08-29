@@ -4,6 +4,61 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Fixed — /verify resolved the ACTIVE key, not the key the record names
+
+A credential is signed by exactly one key. The docket resolved the key by
+ROLE instead — `activeKeyB64()` picked whichever entry carried
+`status: "active"`, with a positional `keys[0]` fallback, and
+`deriveKeyAgreement()` read `didDoc.verificationMethod[0]`. The credential's
+`verificationMethod` is `did:web:…#prov-key-1`, a fixed DID slot: it names a
+role, not a key, so it looks like a pin and resolves to whatever is current.
+
+Latent, not live: one key exists (`sn-ed25519-2026-07`, `valid_until: null`),
+so nothing is failing today. It fires at the FIRST ROTATION, when every
+historical Note would be checked against the new key and reported unverifiable
+— the exact failure the v2 key schema's retired entries and validity windows
+were added to prevent in v10.77.0. Nothing consumed them.
+`tests/provenance-key-history.php` states the property ("anchors signed under a
+retired key still verify after rotation") and pins it only on the PUBLICATION
+side: the key stays in the document. Nothing pinned the CONSUMPTION side.
+
+The identity was already published and simply unread — the Worker writes
+`pubkey_id` onto every ledger record (all 55 records across 37 Notes carry it),
+so no Worker change and no ledger schema change was needed.
+
+- `inc/provenance-credential.php` — the credential now carries
+  `proof.pubkey_id`, the key that signed THAT commit. Emitted only when known:
+  an empty id names nothing, and a reader cannot tell "signed before we
+  published key ids" from "we lost it". `verificationMethod` is unchanged, so
+  the addition is backwards-compatible.
+- `assets/js/prov-verify-core.js` — `deriveKeyAgreement()` takes the named key
+  id and resolves it by ID out of the published set (`keyEntryById`), never by
+  position and never by status. A named key nobody publishes is a FAIL, not a
+  fall back to the active key; the two mirrors publishing different bytes for
+  one id is a FAIL. Records with no named key keep the previous behaviour, so
+  credentials cached before this release still verify.
+- `assets/js/prov-verify.js` — passes `cred.proof.pubkey_id` through.
+
+Pinned in `tests/js/prov-verify-core.test.mjs` Group 5c (executable), plus a
+call-site pin in `tests/provenance-verify.php` — a correct core reached with
+three arguments is the same bug. Each guard was verified by neutering it and
+watching the assertion go red.
+
+Also fixed a fixture that had been wrong since v10.77.0:
+`tests/js/fixtures/keys-v2-history-first.json` published a 45-character
+"retired key" — not a valid base64 length, decoding to 33 bytes. Group 5b
+passed for four months because it only ever compared strings; the first code
+path to DECODE those bytes found it immediately.
+
+Known follow-ups, deliberately not in this change: the DID document publishes
+one verification method under a fixed `#prov-key-1` fragment, so it cannot name
+a retired key — the named-key path therefore cross-checks the two key mirrors
+(site + ledger, two independent origins) and does not consult the DID. And the
+`provenance_integrity` sweep still checks only that the CURRENT key id is
+served, so a retired key dropped from the document after a rotation would
+strand every historical Note without the sweep noticing.
+
+
 ### Fixed — palette runner guarded loudly against a chain-less shell replay
 
 OpenStation v1.1.5 (PR #712) stopped eating command-callback throws, which

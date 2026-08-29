@@ -441,6 +441,19 @@ vv_true( '' !== $core && false !== strpos( $core, 'content_text' ), 'core live-m
 // data predates, the triangle completes: mempool must confirm the LEDGER's tx
 // at the credential's claimed block before the anchor may PASS.
 vv_true( '' !== $core && false !== strpos( $core, 'The ledger record supplies the aggregation transaction' ), 'core completes the anchor triangle via a ledger-supplied txid when hash-attested' );
+// The orchestrator must hand the CREDENTIAL'S OWN key id to the agreement
+// gate. Without it the gate resolves the ACTIVE key, so the first rotation
+// checks every historical Note against today's key and reports correctly
+// signed work as unverifiable. The core's behaviour is pinned executably in
+// tests/js/prov-verify-core.test.mjs Group 5c; this pins that the page file
+// actually CALLS it that way — a correct core reached with three arguments
+// is the same bug.
+vv_true(
+	'' !== $js
+		&& preg_match( '/deriveKeyAgreement\(\s*didDoc,\s*siteKeys,\s*ledgerKeys\s*,\s*\S/', $js ) === 1
+		&& false !== strpos( $js, 'cred.proof.pubkey_id' ),
+	'JS passes the credential proof.pubkey_id into deriveKeyAgreement (not the active-key default)'
+);
 vv_true( '' !== $js && false !== strpos( $js, 'location.origin' ), 'JS guards paste mode against a foreign origin' );
 vv_true(
 	'' !== $js && false === strpos( $js, 'https://' ),

@@ -91,7 +91,7 @@ function sn_prov_credential( $post_id, $version = null ) {
 		$anchor['explorer'] = 'https://mempool.space/tx/' . $txid;
 	}
 
-	return array(
+	$vc = array(
 		'@context'          => array( 'https://www.w3.org/ns/credentials/v2', 'https://schema.org/' ),
 		'type'              => array( 'VerifiableCredential', 'AuthorshipCredential' ),
 		'issuer'            => sn_prov_did_id(),
@@ -135,6 +135,24 @@ function sn_prov_credential( $post_id, $version = null ) {
 			'verificationProcedure' => home_url( '/verify' ),
 		),
 	);
+
+	// The key that actually signed THIS commit. verificationMethod above is a
+	// fixed DID slot ('#prov-key-1'), so it names a ROLE and resolves to
+	// whichever key is current — a verifier trusting it would check every
+	// historical Note against today's key and call correctly signed work
+	// unverifiable at the first rotation. The identity is not new: the Worker
+	// writes pubkey_id onto every ledger record; this carries it into the
+	// credential the reader actually verifies.
+	//
+	// Set only when known. An empty id is worse than an absent one: it names
+	// nothing, and a reader cannot tell "signed before we published key ids"
+	// from "we lost it".
+	$pubkey_id = (string) ( $commit['pubkey_id'] ?? '' );
+	if ( '' !== $pubkey_id ) {
+		$vc['proof']['pubkey_id'] = $pubkey_id;
+	}
+
+	return $vc;
 }
 
 /**

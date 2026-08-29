@@ -66,9 +66,26 @@ ok( strpos( (string) ( $vc['evidence'][0]['contentHash'] ?? '' ), 'sha256:' ) ==
 ok( ( $vc['proof']['cryptosuite'] ?? '' ) === 'sn-ed25519-canonical-2026', 'proof names the site cryptosuite' );
 ok( ( $vc['proof']['verificationMethod'] ?? '' ) === 'did:web:juanlentino.com#prov-key-1', 'proof points at the DID key' );
 ok( ( $vc['proof']['proofValue'] ?? '' ) === base64_encode( str_repeat( "\x09", 64 ) ), 'proofValue is the stored signature' );
+// The proof must NAME the key that signed it. verificationMethod is a fixed
+// DID slot ('#prov-key-1'), so it identifies a ROLE, not a key — it resolves to
+// whatever key is current, which is the whole bug: after a rotation the docket
+// would check every historical Note against today's key and call correctly
+// signed work unverifiable. The commit already knows its key id (the Worker
+// writes pubkey_id onto every ledger record); this carries it to the reader.
+ok( ( $vc['proof']['pubkey_id'] ?? '' ) === 'sn-2026', 'proof.pubkey_id names the key the commit was signed with' );
 // signedPayloadB64 decodes to the exact canonical whose sha256 is the content_hash
 $decoded = base64_decode( (string) ( $vc['proof']['signedPayloadB64'] ?? '' ), true );
 ok( $decoded !== false && sn_prov_content_hash( $decoded ) === $GLOBALS['__chain'][1]['content_hash'], 'signedPayloadB64 is the canonical bytes whose sha256 == content_hash' );
+
+// An EMPTY pubkey_id is worse than none: it is a name that names nothing, and a
+// reader cannot tell "signed before we published key ids" from "we lost it".
+// Absent means absent. Saves and restores the chain — the assertions above index
+// __chain[1], so a swap left in place silently breaks them.
+$sn_chain_orig      = $GLOBALS['__chain'];
+$GLOBALS['__chain'] = array( sn_test_commit( 1, 'confirmed', array( 'pubkey_id' => '' ) ) );
+$vc_nokey           = sn_prov_credential( 7, null );
+ok( is_array( $vc_nokey ) && ! array_key_exists( 'pubkey_id', $vc_nokey['proof'] ?? array() ), 'a commit with no key id omits proof.pubkey_id rather than publishing an empty one' );
+$GLOBALS['__chain'] = $sn_chain_orig;
 
 // confirmed version
 $vc1 = sn_prov_credential( 7, 1 );
