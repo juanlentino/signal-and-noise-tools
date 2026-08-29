@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [13.36.0] - 2026-08-29 — a key is pinned by name, not by role
 
 ### Fixed — the integrity sweep never checked the keys HISTORICAL Notes depend on
 
