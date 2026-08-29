@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [13.37.0] - 2026-08-29 — a record can be withdrawn, and the withdrawal is findable
 
 ### Added — retractions: saying, permanently, that a published record was false
 

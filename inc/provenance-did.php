@@ -69,7 +69,7 @@ function sn_prov_did_document() {
 		),
 	);
 
-	// RETIRED KEYS ARE NAMED HERE, AND ONLY HERE (v13.38.0).
+	// RETIRED KEYS ARE NAMED HERE, AND ONLY HERE (v13.37.0).
 	//
 	// The two lists below are not redundant, and the split is the entire
 	// mechanism: `verificationMethod` is the key MATERIAL this DID vouches
