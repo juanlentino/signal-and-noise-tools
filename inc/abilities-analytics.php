@@ -33,6 +33,60 @@ add_action( 'wp_abilities_api_init', function () {
 		return;
 	}
 
+	// v13.33.0: top pages, the one thing the desktop sn-site-views widget shows
+	// that no ability exposed. Wraps sn_analytics_top_paths(), the same reader the
+	// Analytics screen's Top content panel uses, so the numbers cannot diverge.
+	//
+	// Read-only, which means OpenStation's AI Copilot AUTO-ENROLS it as a tool with
+	// no opt-out. The input_schema therefore mirrors its siblings exactly
+	// (array('object','null')): one malformed tool 400s the entire assistant, and
+	// the plugin's desktop_mode_ai_tools normalizer at PHP_INT_MAX is what makes
+	// the union type safe.
+	wp_register_ability( 'signal-noise/get-analytics-top-content', array(
+		'label'               => 'Get top content',
+		'description'         => 'Top pages by first-party pageviews over a window, highest first. `days` is the window (1-90, default 7) and `class` is the traffic class (human|suspect|bot, default human). Paths are site-relative. Read-only.',
+		'category'            => 'analytics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_get_analytics_top_content',
+		'input_schema'        => array(
+			// Accept null: readonly abilities (GET) receive null when the caller
+			// omits ?input= — the pattern its siblings above use.
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(
+				'days'  => array( 'type' => 'integer', 'default' => 7, 'minimum' => 1, 'maximum' => 90 ),
+				'limit' => array( 'type' => 'integer', 'default' => 5, 'minimum' => 1, 'maximum' => 25 ),
+				'class' => array( 'type' => 'string', 'default' => 'human' ),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'days'  => array( 'type' => 'integer' ),
+				'class' => array( 'type' => 'string' ),
+				'pages' => array(
+					'type'        => 'array',
+					'description' => 'Highest first. Empty array when the window has no measured pageviews — that IS a measurement, unlike null.',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'path'  => array( 'type' => 'string' ),
+							'views' => array( 'type' => 'integer' ),
+						),
+					),
+				),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'    => true,
+				'destructive' => false,
+				'idempotent'  => true,
+			),
+		),
+	) );
+
 	wp_register_ability( 'signal-noise/get-analytics-events', array(
 		'label'               => 'Get custom events',
 		'description'         => 'Returns top custom events (name → events/visitors) for a window. Read-only; historical Plausible-imported data.',
@@ -165,4 +219,44 @@ function sn_ability_get_analytics_events( $input ) {
 	$range = snt_analytics_resolve_range( $input['range'] ?? 30 );
 	list( $from, $to ) = snt_analytics_range_dates( $range );
 	return function_exists( 'sn_analytics_top_events' ) ? sn_analytics_top_events( $from, $to, 100 ) : array();
+}
+
+/**
+ * Ability execute callback: signal-noise/get-analytics-top-content.
+ *
+ * Clamps on this side as well as inside sn_analytics_top_paths(), so a hostile
+ * or careless `days` cannot widen the query beyond the sensor's own range.
+ *
+ * @since 13.33.0
+ * @param array<string,mixed>|null $input Ability input.
+ * @return array<string,mixed>
+ */
+function snt_ability_get_analytics_top_content( $input ) {
+	$input = is_array( $input ) ? $input : array();
+	$days  = max( 1, min( 90, (int) ( $input['days'] ?? 7 ) ) );
+	$limit = max( 1, min( 25, (int) ( $input['limit'] ?? 5 ) ) );
+	$class = (string) ( $input['class'] ?? 'human' );
+	if ( ! defined( 'SN_ANALYTICS_CLASSES' ) || ! in_array( $class, (array) SN_ANALYTICS_CLASSES, true ) ) {
+		$class = 'human';
+	}
+
+	$now  = time();
+	$from = gmdate( 'Y-m-d', $now - ( $days - 1 ) * DAY_IN_SECONDS );
+	$to   = gmdate( 'Y-m-d', $now );
+
+	$pages = array();
+	if ( function_exists( 'sn_analytics_top_paths' ) ) {
+		foreach ( (array) sn_analytics_top_paths( $from, $to, $class, $limit ) as $row ) {
+			$pages[] = array(
+				'path'  => (string) ( $row['path'] ?? '' ),
+				'views' => (int) ( $row['views'] ?? 0 ),
+			);
+		}
+	}
+
+	return array(
+		'days'  => $days,
+		'class' => $class,
+		'pages' => $pages,
+	);
 }

@@ -4,6 +4,82 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.33.0] - 2026-08-29 — the boxes finally carry what their names promised
+
+13.32.0 fixed the presentation. This fixes the COVERAGE: the four boxes were
+named after ten desktop widgets and carried about half their content.
+
+### Fixed — Uptime had quietly left the dashboard
+
+v8.3.0 folded S&N Uptime INTO the health widget. v11.30.0 then folded the health
+widget into `sn_dashboard` but carried only its glance, leaving
+`sn_uptime_status_health_section()` with **no production caller at all** — while
+`sn_uptime_status_widget_enqueue()` kept shipping its JS and CSS to `index.php`
+for a mount that no longer existed.
+
+`tests/site-health-widget.php` asserted the render function "survives the
+consolidation", and it did survive — as unreachable code. Existence is not
+reachability. The verdict box now calls it, and a new pin fails if the call is
+ever dropped again.
+
+### Added — Operations carries the half of its own title it was missing
+
+The box says *"What is shipped, and whether the edge took it"* and 13.31.0
+implemented only the first half: `Purge caches` fired into the dark, which is
+precisely the blindness the desktop `sn-cache` widget exists to end.
+
+- **Cron events** and **Last purge**, both server-rendered and **free** —
+  `snt_cron_summary_for_localize()` reads an option and
+  `snt_cf_freshness_summary()` reads the verification trail, so these two cells
+  carry real values on first paint instead of arriving as em dashes.
+- **Clear overrides** and **Check for updates** beside the purge button. The
+  force-check ability was REMOVED in v11.29.0; the same job is
+  `get-deploy-status` with `force_refresh`, so the old slug would have 404'd.
+
+### Added — Audience and Machine Readers
+
+- **Bot views 7d** with its own delta: the same analytics ability with
+  `class: bot`, which the `(ability, input)` call keying already supported.
+- **Reads by purpose**, the third breakdown the desktop widget carries.
+
+### Fixed — an ability schema that understated its own payload
+
+`get-machine-readers-summary` has returned `purposes`,
+`ai_training_by_purpose`, `first_party` and `taxonomy` since v10.79.0 and
+declared **none of them**, so an agent reading the schema could not know the
+purpose axis existed — the axis this surface's own docs call the defensible one.
+Now declared, additive, in the payload's own order. Found by the widget suite's
+field-path guard, which refused a `purposes` path that no schema mentioned.
+
+### Added — top pages, and the ability behind them
+
+`signal-noise/get-analytics-top-content` (read-only) wraps
+`sn_analytics_top_paths()`, the same reader the Analytics screen's Top content
+panel uses, so the two cannot diverge. Audience gains a **Top pages 7d** list,
+hydrated async like every other list, so `index.php` pays nothing.
+
+Read-only means OpenStation's AI Copilot **auto-enrols it as a tool with no
+opt-out**, so the input schema mirrors its siblings exactly
+(`array( 'object', 'null' )`) — one malformed tool 400s the whole assistant, and
+the `desktop_mode_ai_tools` normalizer at `PHP_INT_MAX` is what keeps that union
+safe. README's ability count moves 66 → 67 (incremented, not re-derived: a raw
+grep counts 83 registration calls, so the rule behind 66 is not a bare count).
+
+### Changed — list headings drop the uppercase
+
+The short signal labels keep their caps: they are the verdict box's established
+idiom and read as tokens. A list heading is a phrase, and
+`AI-TRAINING READS BY SURFACE` shouts beside core's own "Publishing Soon".
+
+### Fixed — two CI failures from one suppression
+
+`phpcs:ignore` covers only the NEXT line, and the pre-built `$action_input`
+attribute landed on a continuation line the ignore could not reach — failing both
+WordPress Coding Standards and Plugin Check. Both attributes are now escaped
+inline and always emitted (an absent input serialises to `{}`, which the hydrator
+already defaults to), so the suppressions are gone rather than relocated.
+
+
 ## [13.32.0] - 2026-08-29 — one owner per fact, and real deltas
 
 13.31.0 made the boxes rich by adding breakdown lists next to the cells that

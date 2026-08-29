@@ -112,6 +112,34 @@ add_action( 'wp_abilities_api_init', function() {
 						),
 					),
 				),
+				// ADDITIVE (v13.33.0). These four have been in the payload since
+				// v10.79.0 (snt_mr_summary_payload()) but were never declared, so an
+				// agent reading this schema could not know the purpose axis exists —
+				// the axis the surface's own docs call the defensible one. Declaring
+				// them changes no value; it stops the contract understating the payload.
+				'purposes'               => array(
+					'type'        => array( 'array', 'null' ),
+					'description' => 'Reads per declared purpose, highest first. null when the taxonomy is unavailable — never an empty array, which would read as "measured zero".',
+					'items'       => array(
+						'type'       => 'object',
+						'properties' => array(
+							'purpose' => array( 'type' => 'string' ),
+							'hits'    => array( 'type' => 'integer' ),
+						),
+					),
+				),
+				'ai_training_by_purpose' => array(
+					'type'        => array( 'integer', 'null' ),
+					'description' => 'AI-training reads counted on the PURPOSE axis. Reported beside ai_training rather than replacing it: the frozen families over-count, and the gap between the two is the over-count made visible.',
+				),
+				'first_party'            => array(
+					'type'        => array( 'integer', 'null' ),
+					'description' => 'Reads from this site\'s own tooling. Not readership; excluded from headline totals.',
+				),
+				'taxonomy'               => array(
+					'type'        => array( 'string', 'null' ),
+					'description' => 'Version of the published cohort definition the counts were derived under.',
+				),
 				'sensor_version' => array( 'type' => array( 'string', 'null' ) ),
 				'crawler_list'   => array( 'type' => array( 'string', 'null' ) ),
 				'error'          => array( 'type' => array( 'string', 'null' ) ),

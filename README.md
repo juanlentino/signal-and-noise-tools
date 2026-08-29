@@ -18,7 +18,7 @@ Built on WordPress 7.0's Abilities API and AI Client: it both registers the site
 - **Music / discography** — a daily sync mirrors Muso.AI verified producer credits + Spotify album media into a cached store, exposed to the theme's `/music` page (role-filtered discography grid + featured player) via filters
 - **Admin UI** — eight intent-coherent tabs (Dashboard, Site, Content, Connections, Measurement, AI, Security, Tools) plus the analytics dashboard, command palette, cron dashboard, audit log, and deploy/health views (native wp-admin styling)
 - **AI-assisted editorial** — alt text, meta description, excerpt, OG title, brand-voice alignment, and content-opportunity suggestions, each an opt-in suggest-and-apply surface
-- **Agent surface** — 66 plugin-registered Abilities (alongside the theme's 15) reachable via `wp ability run` and the Abilities REST route, plus a native MCP JSON-RPC server with two curated doors: a read-only door at `signal-noise/v1/mcp` (37 slugs) and a read-write door at `signal-noise/v1/mcp-rw` (36 slugs) gated by a kill switch, a bound application password, a per-minute rate limit, and its own audit log
+- **Agent surface** — 67 plugin-registered Abilities (alongside the theme's 15) reachable via `wp ability run` and the Abilities REST route, plus a native MCP JSON-RPC server with two curated doors: a read-only door at `signal-noise/v1/mcp` (37 slugs) and a read-write door at `signal-noise/v1/mcp-rw` (36 slugs) gated by a kill switch, a bound application password, a per-minute rate limit, and its own audit log
 - **Self-updater** — GitHub-poll updater wired into WordPress's native update system
 
 ## Cross-package contracts

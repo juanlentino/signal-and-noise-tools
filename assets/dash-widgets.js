@@ -205,7 +205,11 @@
 				if ( out ) {
 					out.textContent = '';
 				}
-				window.sntAbilityRun( btn.getAttribute( 'data-sn-dwx-action' ), {} ).then( function ( res ) {
+				var actionInput = {};
+				try {
+					actionInput = JSON.parse( btn.getAttribute( 'data-sn-dwx-action-input' ) || '{}' );
+				} catch ( e ) {}
+				window.sntAbilityRun( btn.getAttribute( 'data-sn-dwx-action' ), actionInput ).then( function ( res ) {
 					if ( out ) {
 						// Report what came back rather than a blanket "Done":
 						// an action that reports success it did not verify is
@@ -214,6 +218,8 @@
 							out.textContent = res.upgraded + ' upgraded, ' + res.still_pending + ' still pending.';
 						} else if ( res && undefined !== res.purged ) {
 							out.textContent = res.purged + ' cache(s) purged.';
+						} else if ( res && res.plugin && res.plugin.latest ) {
+							out.textContent = 'Latest plugin ' + res.plugin.latest + ' (' + res.plugin.state + ').';
 						} else {
 							out.textContent = 'Done.';
 						}

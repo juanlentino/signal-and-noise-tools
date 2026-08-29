@@ -92,8 +92,32 @@ function snt_dwx_boxes() {
 						),
 					),
 				),
+				array(
+					// The bot half. Same ability, different `class`, so it is just
+					// another (ability, input) pair rather than a special case.
+					'label'    => '',
+					'ability'  => 'signal-noise/get-analytics-summary',
+					'input'    => array( 'range' => 7, 'class' => 'bot' ),
+					'baseline' => array( 'range' => 14, 'class' => 'bot' ),
+					'fields'   => array(
+						array(
+							'path'  => 'views',
+							'label' => __( 'Bot views 7d', 'signal-and-noise-tools' ),
+							'delta' => array( 'label' => __( 'prior 7d', 'signal-and-noise-tools' ) ),
+						),
+					),
+				),
 			),
 			'lists'    => array(
+				array(
+					'label'   => __( 'Top pages 7d', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/get-analytics-top-content',
+					'input'   => array( 'days' => 7, 'limit' => 5 ),
+					'path'    => 'pages',
+					'limit'   => 5,
+					'empty'   => __( 'No page views in the last 7 days.', 'signal-and-noise-tools' ),
+					'item'    => array( 'label' => 'path', 'value' => 'views' ),
+				),
 				array(
 					// Owns the feed numbers outright — no sibling cell restates them.
 					'label'   => __( 'Feed windows', 'signal-and-noise-tools' ),
@@ -153,6 +177,17 @@ function snt_dwx_boxes() {
 					'item'    => array( 'label' => 'family', 'value' => 'hits' ),
 				),
 				array(
+					// `purposes` is null when the taxonomy is unavailable; the list
+					// then renders its empty line rather than an invented zero.
+					'label'   => __( 'Reads by purpose', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/get-machine-readers-summary',
+					'input'   => array( 'days' => 30 ),
+					'path'    => 'purposes',
+					'limit'   => 4,
+					'empty'   => __( 'Taxonomy unavailable.', 'signal-and-noise-tools' ),
+					'item'    => array( 'label' => 'purpose', 'value' => 'hits' ),
+				),
+				array(
 					'label'   => __( 'AI-training reads by surface', 'signal-and-noise-tools' ),
 					'ability' => 'signal-noise/get-machine-readers-summary',
 					'input'   => array( 'days' => 30 ),
@@ -171,6 +206,14 @@ function snt_dwx_boxes() {
 			'caps'     => array( 'manage_options' ),
 			'blurb'    => __( 'What is shipped, and whether the edge took it.', 'signal-and-noise-tools' ),
 			'sections' => array(
+				array(
+					// Zero-cost and INSTANT: both accessors are local reads
+					// (_get_cron_array() is an option; the freshness log is a
+					// stored verification trail), so these two cells carry real
+					// values on first paint instead of arriving as em dashes.
+					'label'   => '',
+					'signals' => 'snt_dwx_ops_signals',
+				),
 				array(
 					'label'   => '',
 					'ability' => 'signal-noise/get-deploy-status',
@@ -214,6 +257,21 @@ function snt_dwx_boxes() {
 					'label'   => __( 'Purge caches', 'signal-and-noise-tools' ),
 					'busy'    => __( 'Purging&hellip;', 'signal-and-noise-tools' ),
 					'ability' => 'signal-noise/purge-all-caches',
+				),
+				array(
+					'label'   => __( 'Clear overrides', 'signal-and-noise-tools' ),
+					'busy'    => __( 'Clearing&hellip;', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/clear-template-overrides',
+				),
+				array(
+					// v11.29.0 REMOVED the force-check-updates ability; the same
+					// job is get-deploy-status with force_refresh, which clears the
+					// GitHub-tag, update_* and worker-probe transients then
+					// re-fetches. The old slug would 404.
+					'label'   => __( 'Check for updates', 'signal-and-noise-tools' ),
+					'busy'    => __( 'Checking&hellip;', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/get-deploy-status',
+					'input'   => array( 'force_refresh' => true ),
 				),
 			),
 			'links'    => array(
