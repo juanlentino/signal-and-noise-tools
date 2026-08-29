@@ -59,18 +59,61 @@ function sn_prov_did_document() {
 	if ( false === $raw || 32 !== strlen( $raw ) ) {
 		return null; // an Ed25519 public key is exactly 32 bytes.
 	}
-	$did = sn_prov_did_id();
+	$did     = sn_prov_did_id();
+	$methods = array(
+		array(
+			'id'           => $did . '#prov-key-1',
+			'type'         => 'JsonWebKey2020',
+			'controller'   => $did,
+			'publicKeyJwk' => array( 'kty' => 'OKP', 'crv' => 'Ed25519', 'x' => sn_prov_base64url( $raw ) ),
+		),
+	);
+
+	// RETIRED KEYS ARE NAMED HERE, AND ONLY HERE (v13.38.0).
+	//
+	// The two lists below are not redundant, and the split is the entire
+	// mechanism: `verificationMethod` is the key MATERIAL this DID vouches
+	// for; `assertionMethod` is the subset authorised to assert RIGHT NOW.
+	// A retired key belongs in the first and must never enter the second —
+	// listing it as an assertion method would publish, as fact, that a key
+	// we deliberately rotated away from may still sign for us today.
+	//
+	// Why it has to exist at all: every credential names its signer in
+	// proof.pubkey_id, but did.json carried ONE method under a fixed
+	// '#prov-key-1' fragment. A third party doing ordinary did:web
+	// resolution could resolve only the active key, so at the first
+	// rotation every correctly-signed historical Note would read as
+	// unverifiable to anyone trusting the DID rather than our keys mirror.
+	// did:web has no versionTime, so there is no "resolve the document as
+	// of 2025" to fall back on — the current document is the only document.
+	//
+	// STRICTLY ADDITIVE: '#prov-key-1' keeps its position and its meaning,
+	// and assertionMethod is untouched, so no credential already issued
+	// changes meaning. With no history configured this emits precisely the
+	// document it always did (pinned).
+	//
+	// Fed by sn_prov_key_history(), the SAME validated producer the keys
+	// mirror consumes — a malformed row is dropped in one place, not two.
+	// Note this path is exercised by fixtures only: nothing yet WRITES
+	// sn_prov_key_history (see docs/ops/key-rotation-runbook.md), so its
+	// first live use will be the first real rotation.
+	foreach ( sn_prov_key_history() as $retired ) {
+		$bytes = base64_decode( (string) $retired['public_key_base64'], true );
+		if ( false === $bytes || 32 !== strlen( $bytes ) ) {
+			continue; // belt and braces; sn_prov_key_history() already dropped these.
+		}
+		$methods[] = array(
+			'id'           => $did . '#' . $retired['id'],
+			'type'         => 'JsonWebKey2020',
+			'controller'   => $did,
+			'publicKeyJwk' => array( 'kty' => 'OKP', 'crv' => 'Ed25519', 'x' => sn_prov_base64url( $bytes ) ),
+		);
+	}
+
 	return array(
 		'@context'           => array( 'https://www.w3.org/ns/did/v1', 'https://w3id.org/security/suites/jws-2020/v1' ),
 		'id'                 => $did,
-		'verificationMethod' => array(
-			array(
-				'id'           => $did . '#prov-key-1',
-				'type'         => 'JsonWebKey2020',
-				'controller'   => $did,
-				'publicKeyJwk' => array( 'kty' => 'OKP', 'crv' => 'Ed25519', 'x' => sn_prov_base64url( $raw ) ),
-			),
-		),
+		'verificationMethod' => $methods,
 		'assertionMethod'    => array( $did . '#prov-key-1' ),
 	);
 }

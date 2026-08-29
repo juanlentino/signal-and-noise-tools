@@ -154,8 +154,6 @@ split into `retraction-checks.mjs` precisely so they are exercised by tests rath
 than only by a corpus that is empty — a verifier nobody has watched fail is not
 evidence.
 
-## [Unreleased]
-
 ### Changed — rotating the signing key no longer needs a plugin release
 
 `sn_prov_key_id()` and `sn_prov_key_introduced_at()` were filter defaults hardcoded
@@ -204,6 +202,67 @@ which turns a typo into the precise failure the runbook exists to prevent; a
 `wp-config.php` constant beats the option, so a stale constant makes a correct
 option look ignored; and verification must use an OLD Note, since a new one would
 pass even if every retired key had been deleted.
+
+### Added — the manifest points at retractions, and the DID can name a retired key
+
+Two gaps that ended the same way: a machine reader verifying, in good faith,
+something we had already told the world not to trust.
+
+**Where retractions live.** The in-page verification manifest
+([inc/provenance-machine-pointers.php](inc/provenance-machine-pointers.php))
+listed credential, record, proof, key history, DID and block header — and
+nothing pointed at `retractions/`. A reader could fetch the record, the OTS
+proof and the key, verify all three, and still be reading a claim we had
+publicly withdrawn, because nothing told it the lookup exists. The retraction
+surface shipped above was only reachable by a reader who already knew of it.
+
+The URL is built from the ledger base, NOT from the kind-mapped base that
+`record` and `proof` use: `retractions/` is one flat root for every subject
+kind, mirroring `retractionUrl()` in the verifier. Threading the kind map
+through it would aim a page's lookup at `pages/`, where no retraction is ever
+written — and the record would read as permanently un-retracted no matter what
+we published. Pinned, and neuter-verified by swapping the kind-mapped base in.
+
+Listing the call asserts nothing (P-51): the file is ABSENT in the normal case,
+and that 404 is precisely the answer "not retracted".
+
+**A DID that can name a retired key.** `did.json` carried exactly one
+`verificationMethod` under a fixed `#prov-key-1` fragment, so ordinary
+`did:web` resolution could only ever find the ACTIVE key. Every credential
+names its signer in `proof.pubkey_id`; after a rotation that name resolved to
+nothing in the DID, and correctly-signed historical work would read as
+unverifiable to anyone trusting the DID rather than our keys mirror. `did:web`
+publishes no version history and supports no `versionTime`, so there is no
+earlier document to resolve instead — the current document is the only one.
+
+The split between the two lists is the entire mechanism, and it is why this is
+not cosmetic: `verificationMethod` is the key MATERIAL this DID vouches for;
+`assertionMethod` is the subset authorised to assert RIGHT NOW. A retired key
+belongs in the first and must never enter the second — publishing a
+rotated-away key as an assertion method would state, as fact, that it may still
+sign for us. Neuter-verified: mapping `assertionMethod` over every method
+reddens that pin and only that pin.
+
+STRICTLY ADDITIVE, and no published contract moves. `#prov-key-1` keeps its
+position and its meaning, `assertionMethod` is untouched, and with no history
+configured the document is byte-for-byte what it has always been (pinned). No
+credential already issued changes meaning.
+
+Fed by `sn_prov_key_history()` — the same validated producer the keys mirror
+consumes — so a malformed row is dropped in one place rather than two.
+
+**What is NOT tested:** nothing yet WRITES `sn_prov_key_history`, so the
+retired-key branch is exercised by fixtures only, and its first live use will
+be the first real rotation
+([docs/ops/key-rotation-runbook.md](docs/ops/key-rotation-runbook.md)). That is
+recorded in the code itself rather than left for someone to discover.
+
+### Fixed — one `[Unreleased]` section, not two
+
+The rotation-config entry above opened a SECOND `## [Unreleased]` heading
+instead of appending to the existing one, so this file carried two. A release
+cut from it would have taken the first and silently dropped the other's work
+from the released entry. Folded into one.
 
 ## [13.36.0] - 2026-08-29 — a key is pinned by name, not by role
 

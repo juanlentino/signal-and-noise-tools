@@ -91,6 +91,19 @@ ok( false !== strpos( $m['calls']['block_header']['url_template'], '{height}' ),
 $p = sn_prov_machine_pointers_manifest( 20 );
 ok( false !== strpos( $p['calls']['record']['url'], '/pages/page-uid-9/' ), 'a signed PAGE resolves kind→pages/ (the v10.86.0 directory rule)' );
 
+// The retraction lookup. Without it a machine reader has NO WAY to discover
+// that a record was withdrawn: it can fetch the record, the proof and the key,
+// verify all three, and still be reading a claim we have publicly retracted.
+// The call is listed even though the file is ABSENT in the normal case — a 404
+// is the answer "not retracted", which is exactly what the JS reader does with
+// it. Listing a call is not a verdict (P-51); it is where to look.
+ok( 'https://raw.githubusercontent.com/juanlentino/signal-and-noise-provenance/main/retractions/0abc-def1/v3.json' === $m['calls']['retraction']['url'], 'the retraction call points at retractions/<uid>/v<version>.json for the CURRENT version' );
+// KIND-INDEPENDENT, unlike record/proof: retractions/ is one flat directory for
+// every subject kind. A page whose retraction URL resolved to pages/ would look
+// permanently un-retracted no matter what we published.
+ok( false !== strpos( $p['calls']['retraction']['url'], '/retractions/page-uid-9/v' )
+	&& false === strpos( $p['calls']['retraction']['url'], '/pages/' ), 'a signed PAGE uses the SAME flat retractions/ root — the kind map must not reach this URL' );
+
 echo "\nGroup: P-51 — the manifest asserts nothing (absence pins)\n";
 $flat = strtolower( (string) wp_json_encode( $m ) );
 foreach ( array( 'verified', 'verdict', '"valid"', 'status', 'result' ) as $w ) {
