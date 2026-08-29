@@ -159,5 +159,17 @@ $dm_src = (string) file_get_contents( __DIR__ . '/../assets/desktop-mode.js' );
 t( false !== strpos( $dm_src, 'Number( s.last_7d_vs_prior.pct_delta ) || 0' ), 'D.5 audit-summary toast derives pct with a numeric fallback' );
 t( false === strpos( $dm_src, "s.last_7d_vs_prior.pct_delta + '%" ), 'D.6 no bare pct_delta concatenation remains (the undefined% path)' );
 
+// v13.36.0: OpenStation's shell ⌘K replays palette contributors into the
+// shell document; upstream's all_deps() bails wholesale when ANY site
+// contributor has an unregistered dep, replaying us without our chain. The
+// palette script must therefore guard the runner global LOUDLY (a named
+// throw reaches openstation#712's "Command /x failed:" surface) — and the
+// guard must sit BEFORE the call, not after it.
+$cp_src   = (string) file_get_contents( __DIR__ . '/../assets/command-palette.js' );
+$guard_at = strpos( $cp_src, "typeof window.sntAbilityRun !== 'function'" );
+$call_at  = strpos( $cp_src, 'window.sntAbilityRun( name, input )' );
+t( false !== $guard_at && false !== $call_at && $guard_at < $call_at, 'D.7 command-palette.js guards the runner global before calling it' );
+t( false !== strpos( $cp_src, 'snt-ability-run.js did not load' ), 'D.8 the guard names the missing sibling script in its error' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

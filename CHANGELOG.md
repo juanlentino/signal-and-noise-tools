@@ -4,6 +4,35 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Fixed — palette runner guarded loudly against a chain-less shell replay
+
+OpenStation v1.1.5 (PR #712) stopped eating command-callback throws, which
+surfaced the failure mode #705 had hidden: our palette callbacks call
+`window.sntAbilityRun` on their first line, and if the sibling script
+(`assets/snt-ability-run.js`) is absent in the document that runs them, they
+die on a bare `TypeError`.
+
+Verified against v1.1.5 source before changing anything:
+
+- The dependency was **already explicit** — `snt-ability-run` has been in the
+  `snt-command-palette` dep array all along ([inc/command-palette.php:50](inc/command-palette.php)).
+- Upstream's shell hoist (`openstation_shell_hoist_command_palette_contributors`,
+  `includes/render/chromeless-trim.php`, unchanged v1.1.4→v1.1.5 except the
+  request guard) resolves each contributor's **full dependency chain** via
+  `all_deps()` and replays it in order — so by code reading the sibling IS
+  replayed, contradicting PR #712's "not in the palette family" framing.
+- The real fragility their own comment documents: `all_deps()` **bails
+  wholesale** if ANY contributor on the site has an unregistered dependency,
+  and the fallback replays bare contributor handles with no chain. Our
+  script's health in the shell depends on every other plugin's dep hygiene.
+
+So `executeAbility()` in `assets/command-palette.js` now guards the global:
+a missing runner throws a named error stating what didn't load and why,
+which lands in the palette's `Command /x failed: …` surface instead of a
+context-free `TypeError`. Pinned by `tests/ability-run-client.php` D.7/D.8
+(position-checked — guard before call — and negative-controlled red against
+the unfixed source).
+
 ### Documented — both open machine-readers questions, answered
 
 Neither was a defect, and nothing is removed. Recorded in
