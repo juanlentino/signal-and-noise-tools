@@ -256,12 +256,53 @@ ok( array() === $pi_ledger_fetches, 'no ledger fetch is even attempted for an un
 pi_note( 105, $UID1, array( array( 'version' => 0, 'status' => 'genesis', 'content_hash' => 'x' ) ) );
 ok( null === sn_prov_integrity_check_note( 105, $fetch ), 'genesis-only chain → null (nothing verifiable yet)' );
 
+// ── Group: check_note — leg (d) the key the RECORD names is still published ──
+echo "\nGroup: check_note — leg (d) the signing key a Note depends on is still published\n";
+// The fleet-level keys probe asks only whether the CURRENT key id is served.
+// After a rotation every historical Note depends on a RETIRED key, and dropping
+// that entry strands all of them — silently, because no check looked. The key
+// each commit names is already published on its ledger record (pubkey_id); this
+// leg holds the key document to it.
+$pi_d_chain = array( pi_commit( $UID1, 1, $PARAS, 'confirmed' ) );
+$pi_d_chain[0]['pubkey_id'] = 'sn-ed25519-2025-01'; // retired: signed before the rotation
+pi_note( 106, $UID1, $pi_d_chain );
+$pi_d_fetch = pi_fetcher( array(
+	'/notes/note-106.json'                                     => pi_json( array( 'content_text' => $FLAT ) ),
+	'/notes/' . $UID1 . '/v1.json'                             => pi_json( array( 'content_hash' => $pi_d_chain[0]['content_hash'] ) ),
+) );
+
+$r = sn_prov_integrity_check_note( 106, $pi_d_fetch, array( 'sn-ed25519-2026-07' ) );
+ok( in_array( 'signing_key_unpublished', $r['failures'], true ),
+	'a Note signed by a key the document no longer publishes is a finding, not silence' );
+
+$r = sn_prov_integrity_check_note( 106, $pi_d_fetch, array( 'sn-ed25519-2026-07', 'sn-ed25519-2025-01' ) );
+ok( ! in_array( 'signing_key_unpublished', $r['failures'], true ),
+	'a retired key still listed alongside the active one keeps its Notes verifiable' );
+
+// An unreadable key document is an OUTAGE — already reported fleet-level. It
+// must never become a per-Note drift claim: absence is only a finding when the
+// document was actually read.
+$r = sn_prov_integrity_check_note( 106, $pi_d_fetch, null );
+ok( ! in_array( 'signing_key_unpublished', $r['failures'], true ),
+	'an unreachable key document produces no per-Note key finding (outage never fabricates drift)' );
+
+// A commit predating pubkey_id names no key, so there is nothing to hold the
+// document to. No claim either way.
+$pi_d_legacy = array( pi_commit( $UID1, 1, $PARAS, 'confirmed' ) );
+pi_note( 107, $UID1, $pi_d_legacy );
+$r = sn_prov_integrity_check_note( 107, pi_fetcher( array(
+	'/notes/note-107.json'         => pi_json( array( 'content_text' => $FLAT ) ),
+	'/notes/' . $UID1 . '/v1.json' => pi_json( array( 'content_hash' => $pi_d_legacy[0]['content_hash'] ) ),
+) ), array( 'sn-ed25519-2026-07' ) );
+ok( ! in_array( 'signing_key_unpublished', $r['failures'], true ),
+	'a commit that names no key makes no claim about the key document' );
+
 // ── Group: outage classification helper ─────────────────────────────────────
 echo "\nGroup: outage vs drift classification\n";
 foreach ( array( 'twin_unreachable', 'ledger_unreachable', 'keys_unreachable' ) as $leg ) {
 	ok( sn_prov_integrity_is_outage( $leg ), "$leg classifies as an outage" );
 }
-foreach ( array( 'hash_mismatch', 'twin_drift', 'ledger_missing', 'ledger_hash_mismatch', 'key_mismatch' ) as $leg ) {
+foreach ( array( 'hash_mismatch', 'twin_drift', 'ledger_missing', 'ledger_hash_mismatch', 'key_mismatch', 'signing_key_unpublished' ) as $leg ) {
 	ok( ! sn_prov_integrity_is_outage( $leg ), "$leg classifies as real drift/contradiction" );
 }
 
@@ -313,6 +354,28 @@ sn_prov_integrity_run_sweep( $sweep_fetch );
 $state3 = get_option( SN_PROV_INTEGRITY_OPT );
 ok( 2 === count( $state3['notes'] ), 'notes gone from the fleet are pruned from state' );
 
+// ── Group: run_sweep — the key document reaches the per-Note leg ────────────
+echo "\nGroup: run_sweep — leg (d) is reached with the published ids, not skipped\n";
+// The keys document is fleet-level and fetched ONCE per sweep, so leg (d) can
+// only work if the sweep hands its ids down. A correct leg reached without them
+// is the same bug as no leg at all — pinned end to end rather than by unit.
+$pi_s_chain = array( pi_commit( $UID1, 1, $PARAS, 'confirmed' ) );
+$pi_s_chain[0]['pubkey_id'] = 'sn-ed25519-2025-01'; // retired and dropped from the document
+pi_note( 108, $UID1, $pi_s_chain );
+$GLOBALS['__pi_options'] = array();
+$GLOBALS['__pi_fleet']   = array( 108 );
+$s_d = sn_prov_integrity_run_sweep( pi_fetcher( array(
+	'keys/provenance-keys.json'    => $KEYS_OK, // publishes sn-ed25519-2026-07 only
+	'/notes/note-108.json'         => pi_json( array( 'content_text' => $FLAT ) ),
+	'/notes/' . $UID1 . '/v1.json' => pi_json( array( 'content_hash' => $pi_s_chain[0]['content_hash'] ) ),
+) ) );
+$pi_s_state = get_option( SN_PROV_INTEGRITY_OPT );
+$pi_s_fail  = (array) ( $pi_s_state['notes'][108]['failures'] ?? array() );
+ok( in_array( 'signing_key_unpublished', $pi_s_fail, true ),
+	'the sweep passes the published key ids into check_note (leg (d) fires end to end)' );
+ok( 1 === (int) $s_d['failed'],
+	'and it counts as drift, not as an outage' );
+
 // ── Group: run_sweep — honest summary counts ────────────────────────────────
 echo "\nGroup: run_sweep — clean vs failed vs unreachable are distinct counts\n";
 $GLOBALS['__pi_options'] = array();
@@ -344,6 +407,30 @@ ok( 3 === $s['checked'] && 1 === $s['clean'] && 1 === $s['failed'] && 1 === $s['
 echo "\nGroup: findings + sn_health_check_provenance_integrity\n";
 $state = sn_prov_integrity_state();
 $findings = sn_prov_integrity_findings( $state );
+// PARITY: every failure code check_note can emit must have a reader-facing
+// sentence. A finding nobody can read is not a finding — and the next leg added
+// is exactly the one that will be missed, because the code path works and only
+// the prose is absent. Derived from the source, so a new code fails this
+// without anyone remembering to update a list.
+$pi_src   = (string) file_get_contents( SNT_PATH . 'inc/provenance-integrity.php' );
+// Single-quoted pattern on purpose: in a DOUBLE-quoted PHP string the
+// literal $failures interpolates and the pattern silently matches nothing.
+preg_match_all( '/\\$failures\\[\\] = \\x27([a-z_]+)\\x27/', $pi_src, $pi_m );
+$pi_emitted = array_values( array_unique( $pi_m[1] ?? array() ) );
+ok( count( $pi_emitted ) >= 8, 'the code scan really found the emitted failure codes (' . count( $pi_emitted ) . ')' );
+// The discriminator is NOT "is a row produced" — $legs[ $code ] ?? $code falls
+// back to the RAW code, so a row always is, and that assertion could never
+// fail. What the fallback cannot fake is prose: an unmapped code leaks its own
+// snake_case identifier into the reader-facing sentence.
+$pi_unreadable = array();
+foreach ( $pi_emitted as $pi_code ) {
+	$pi_rows = sn_prov_integrity_findings( array( 'notes' => array( 999 => array( 'failures' => array( $pi_code ), 'uid' => 'u', 'title' => 't', 'url' => '' ) ) ) );
+	$pi_note = (string) ( $pi_rows[0]['note'] ?? '' );
+	if ( '' === $pi_note || false !== strpos( $pi_note, $pi_code ) ) {
+		$pi_unreadable[] = $pi_code;
+	}
+}
+ok( array() === $pi_unreadable, 'every emitted failure code renders a reader-facing finding (unreadable: ' . implode( ', ', $pi_unreadable ) . ')' );
 ok( 2 === count( $findings ), 'two findings: the drifted note and the unreachable note (clean note absent)' );
 $by_id = array();
 foreach ( $findings as $f ) { $by_id[ (int) $f['subject_id'] ] = $f; }

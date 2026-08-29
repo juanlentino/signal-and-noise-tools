@@ -4,6 +4,45 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Fixed — the integrity sweep never checked the keys HISTORICAL Notes depend on
+
+Companion to the key-pinning fix below, and the same blind spot one layer down.
+The `provenance_integrity` sweep's key leg asked one question: does the ledger's
+`keys/provenance-keys.json` still serve the CURRENT key id with the current
+bytes? That says nothing about the RETIRED keys every historical Note depends on
+after a rotation. Drop a retired entry and every Note it signed becomes
+unverifiable at once — while the sweep keeps reporting the key file healthy,
+because it was still confirming today's key.
+
+New leg (d) in `sn_prov_integrity_check_note()`: the key a commit NAMES
+(`pubkey_id`) must still appear in the published key document.
+
+- `sn_prov_integrity_keys_probe()` now also returns `published_ids` — every id
+  the document lists, active and retired alike. `null`, never an empty list,
+  when the document could not be read: an empty list would read as "publishes no
+  keys" and strand the whole fleet.
+- The sweep hands those ids down to each per-Note check. The document is
+  fleet-level and already fetched once per sweep, so leg (d) costs no extra
+  network.
+- An unreadable key document keeps leg (d) SILENT. That is an outage, already
+  reported once fleet-level, and it must never become a per-Note drift claim —
+  the same rule legs (b) and (c) already follow. A commit predating `pubkey_id`
+  names no key and makes no claim either way.
+
+Pinned in `tests/provenance-integrity.php` at both altitudes: the leg in
+isolation, and end to end through `sn_prov_integrity_run_sweep()` — a correct
+leg reached without the ids is the same bug as no leg. Each of the four
+conditions was verified by neutering it and watching exactly its own assertion
+go red.
+
+Also adds a parity guard: every failure code `check_note()` can emit must render
+reader-facing prose. The first version of that guard was **vacuous** — findings
+build their sentence with `$legs[ $code ] ?? (string) $code`, so an unmapped
+code still produces a row and "is a row produced?" could never fail. It now
+asserts what the fallback cannot fake: that the raw snake_case code does not
+leak into the sentence. Sharpened, it immediately caught
+`signing_key_unpublished` having no prose.
+
 ### Fixed — /verify resolved the ACTIVE key, not the key the record names
 
 A credential is signed by exactly one key. The docket resolved the key by
