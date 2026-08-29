@@ -36,6 +36,8 @@ function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
 	);
 }
 
+if ( ! function_exists( 'home_url' ) ) { function home_url( $p = '' ) { return 'https://example.test' . $p; } }
+
 require_once __DIR__ . '/../inc/health-check-rights-anchored.php';
 
 $NOW  = 1785900000;
@@ -118,6 +120,27 @@ $partial = $live;
 unset( $partial['tdm-policy'] );
 $r8 = snt_rights_anchor_evaluate( $partial, $anchors, array(), $NOW + ( 9 * $HOUR ) );
 ok( array() === $r8['findings'], 'an unfetched surface is skipped rather than reported as unanchored' );
+
+// ---- v5 surface: webmcp-bridge rides the same evaluator unchanged --------
+$bridgeBody = 'function snWebmcpMain(){api.registerTool({name:"verify-page"})}';
+$anchors5   = array(
+	array( 'slug' => 'tdm-policy', 'content_hash' => h( 'policy-bytes' ) ),
+	array( 'slug' => 'webmcp-bridge', 'content_hash' => h( $bridgeBody ) ),
+);
+$r = snt_rights_anchor_evaluate( array( 'webmcp-bridge' => $bridgeBody ), $anchors5, array(), $NOW );
+ok( array() === $r['findings'], 'webmcp-bridge: anchored match raises nothing' );
+
+$r = snt_rights_anchor_evaluate( array( 'webmcp-bridge' => $bridgeBody . '/*drift*/' ), $anchors5, array(), $NOW );
+$r = snt_rights_anchor_evaluate( array( 'webmcp-bridge' => $bridgeBody . '/*drift*/' ), $anchors5, $r['state'], $NOW + 3 * $HOUR );
+ok( 1 === count( $r['findings'] ) && 'webmcp-bridge' === $r['findings'][0]['subject'], 'webmcp-bridge: drift past grace accuses the right slug' );
+
+$r = snt_rights_anchor_evaluate( array( 'webmcp-bridge' => $bridgeBody ), array( $anchors5[0] ), array(), $NOW );
+$r = snt_rights_anchor_evaluate( array( 'webmcp-bridge' => $bridgeBody ), array( $anchors5[0] ), $r['state'], $NOW + 3 * $HOUR );
+ok( 1 === count( $r['findings'] ) && false !== strpos( $r['findings'][0]['note'], 'no record' ), 'webmcp-bridge: missing ledger row is the no-record finding' );
+
+$targets = snt_rights_anchor_targets();
+ok( isset( $targets['webmcp-bridge'] ) && false !== strpos( $targets['webmcp-bridge'], '/webmcp/bridge.js' ), 'the fetch-target table names webmcp-bridge' );
+ok( 5 === count( $targets ), 'the target table has exactly five surfaces' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );
