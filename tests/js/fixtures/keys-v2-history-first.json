@@ -5,7 +5,7 @@
 		{
 			"id": "sn-ed25519-2025-01",
 			"algorithm": "Ed25519",
-			"public_key_base64": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgIC=",
+			"public_key_base64": "AgICAgICAgICAgICAgICAgICAgICAgICAgICAgICAgI=",
 			"sha256_fingerprint": "0000000000000000000000000000000000000000000000000000000000000000",
 			"status": "retired",
 			"valid_from": "2025-01-04",

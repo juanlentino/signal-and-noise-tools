@@ -307,7 +307,12 @@
 				setCheck( 'signature', STATE.NOTE, 'This browser does not support Ed25519 verification, so it shows the credential\'s facts and links below instead of a pass/fail verdict.' );
 				return null; // caller renders the fallback facts panel.
 			}
-			var agreement = Core.deriveKeyAgreement( didDoc, siteKeys, ledgerKeys );
+			// The key this credential NAMES — never whichever key is currently
+			// active. Passing three arguments here would resolve today's key for
+			// a Note signed years ago, which is how a rotation turns correctly
+			// signed work into a failed docket.
+			var namedKeyId = ( cred && cred.proof && cred.proof.pubkey_id ) || '';
+			var agreement = Core.deriveKeyAgreement( didDoc, siteKeys, ledgerKeys, namedKeyId );
 			if ( agreement.verdict ) {
 				setVerdict( 'signature', agreement.verdict );
 				return false;

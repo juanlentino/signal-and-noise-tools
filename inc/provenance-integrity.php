@@ -19,7 +19,12 @@
  *       second divergent normalizer);
  *   (c) the public ledger record notes/<uid>/v<n>.json exists on
  *       raw.githubusercontent.com and attests the same hash, and
- *       keys/provenance-keys.json still serves the published key id.
+ *       keys/provenance-keys.json still serves the published key id;
+ *   (d) the key THAT COMMIT names (pubkey_id) is still published in
+ *       keys/provenance-keys.json. Leg (c) asks only about the CURRENT key,
+ *       which says nothing about the retired keys every historical Note
+ *       depends on after a rotation — dropping one strands them all, and
+ *       before v13.36.0 nothing looked.
  *
  * Failure UX names WHICH leg failed, and an outage is never drift: the
  * *_unreachable codes are classified separately from mismatch/missing so a
@@ -227,20 +232,35 @@ function sn_prov_integrity_keys_verdict( $fetcher ) {
  *
  * @since 9.81.0
  * @param callable $fetcher
- * @return array{verdict:string,code:int}
+ * @return array{verdict:string,code:int,published_ids:string[]|null}
  */
 function sn_prov_integrity_keys_probe( $fetcher ) {
 	$key_id  = function_exists( 'sn_prov_key_id' ) ? (string) sn_prov_key_id() : '';
 	$pub_b64 = function_exists( 'sn_prov_pubkey_b64' ) ? trim( (string) sn_prov_pubkey_b64() ) : '';
 	if ( '' === $key_id && '' === $pub_b64 ) {
-		return array( 'verdict' => 'skipped', 'code' => 0 ); // no published key to hold the ledger to.
+		// Nothing fetched, so nothing is known about what the document
+		// publishes: null, never an empty list. An empty list would read as
+		// "the document publishes no keys" and strand every Note in leg (d).
+		return array( 'verdict' => 'skipped', 'code' => 0, 'published_ids' => null );
 	}
 	$res = sn_prov_integrity_fetch_json( sn_prov_integrity_ledger_base() . 'keys/provenance-keys.json', $fetcher );
 	if ( ! is_array( $res['json'] ) || ! isset( $res['json']['keys'] ) || ! is_array( $res['json']['keys'] ) ) {
 		// network-dead, 404, or un-decodable — an outage/unknown THIS sweep,
 		// never a rotation claim; the sweep escalates a persistent 404.
-		return array( 'verdict' => 'keys_unreachable', 'code' => (int) $res['code'] );
+		return array( 'verdict' => 'keys_unreachable', 'code' => (int) $res['code'], 'published_ids' => null );
 	}
+
+	// Every id the document publishes, active and retired alike. Leg (d) holds
+	// each Note's OWN signing key to this list: the verdict below only asks
+	// about the CURRENT key, which says nothing about the retired keys that
+	// historical Notes still depend on after a rotation.
+	$published_ids = array();
+	foreach ( $res['json']['keys'] as $entry ) {
+		if ( is_array( $entry ) && '' !== (string) ( $entry['id'] ?? '' ) ) {
+			$published_ids[] = (string) $entry['id'];
+		}
+	}
+
 	foreach ( $res['json']['keys'] as $entry ) {
 		if ( ! is_array( $entry ) ) {
 			continue;
@@ -253,9 +273,9 @@ function sn_prov_integrity_keys_probe( $fetcher ) {
 		if ( '' !== $pub_b64 && isset( $entry['public_key_base64'] ) && trim( (string) $entry['public_key_base64'] ) !== $pub_b64 ) {
 			continue;
 		}
-		return array( 'verdict' => 'ok', 'code' => (int) $res['code'] );
+		return array( 'verdict' => 'ok', 'code' => (int) $res['code'], 'published_ids' => $published_ids );
 	}
-	return array( 'verdict' => 'key_mismatch', 'code' => (int) $res['code'] );
+	return array( 'verdict' => 'key_mismatch', 'code' => (int) $res['code'], 'published_ids' => $published_ids );
 }
 
 /**
@@ -263,7 +283,7 @@ function sn_prov_integrity_keys_probe( $fetcher ) {
  * never touches the chain); all networking goes through the injected fetcher.
  *
  * Failure codes (mismatch class): hash_mismatch, twin_drift, ledger_missing,
- * ledger_hash_mismatch. Outage class: twin_unreachable, ledger_unreachable.
+ * ledger_hash_mismatch, signing_key_unpublished. Outage class: twin_unreachable, ledger_unreachable.
  * The ledger leg only runs for a CONFIRMED commit — a pending anchor has no
  * ledger record yet, and flagging that would fabricate drift.
  *
@@ -273,7 +293,7 @@ function sn_prov_integrity_keys_probe( $fetcher ) {
  * @return array{post_id:int,uid:string,version:int,anchored_version:int,failures:string[]}|null
  *         null when the Note has no real (v1+) commit to verify yet.
  */
-function sn_prov_integrity_check_note( $post_id, $fetcher ) {
+function sn_prov_integrity_check_note( $post_id, $fetcher, $published_key_ids = null ) {
 	$post_id = (int) $post_id;
 	$chain   = sn_prov_get_chain( $post_id );
 
@@ -356,6 +376,24 @@ function sn_prov_integrity_check_note( $post_id, $fetcher ) {
 		}
 	}
 
+	// ── Leg (d): the key this Note's commit NAMES is still published. ───────
+	// The fleet-level keys probe asks only whether the CURRENT key id is
+	// served. After a rotation every historical Note depends on a RETIRED key,
+	// so dropping that entry strands all of them at once — and nothing looked,
+	// because the probe was still happily confirming today's key. The identity
+	// is not new: the Worker writes pubkey_id onto every ledger record.
+	//
+	// $published_key_ids is NULL when the key document could not be read. That
+	// is an outage, reported once fleet-level, and it must never become a
+	// per-Note drift claim: absence is a finding only when the document was
+	// actually read. A commit that names no key (pre-pubkey_id) makes no claim
+	// either way.
+	$named_key = (string) ( $latest['pubkey_id'] ?? '' );
+	if ( is_array( $published_key_ids ) && '' !== $named_key
+		&& ! in_array( $named_key, array_map( 'strval', $published_key_ids ), true ) ) {
+		$failures[] = 'signing_key_unpublished';
+	}
+
 	return array(
 		'post_id'          => $post_id,
 		'uid'              => $uid,
@@ -425,7 +463,10 @@ function sn_prov_integrity_run_sweep( $fetcher = null ) {
 	$failed      = 0;
 	$unreachable = 0;
 	foreach ( $batch as $pid ) {
-		$result   = sn_prov_integrity_check_note( $pid, $fetcher );
+		// The key document is fleet-level and fetched ONCE above; leg (d)
+		// cannot ask its question without it. null (unreadable) keeps leg (d)
+		// silent rather than turning an outage into per-Note drift.
+		$result   = sn_prov_integrity_check_note( $pid, $fetcher, $keys_probe['published_ids'] ?? null );
 		$failures = null !== $result ? $result['failures'] : array();
 
 		// Twin 404 escalation (same consecutive-sweep rule as the keys file).
@@ -514,6 +555,7 @@ function sn_prov_integrity_findings( $state ) {
 		'ledger_unreachable'   => 'the public ledger could not be reached (unreachable: an outage, not drift)',
 		'ledger_hash_mismatch' => 'the public ledger record attests a different content hash (ledger contradiction)',
 		'ledger_record_malformed' => 'the public ledger record exists but carries no content_hash (malformed record: it attests nothing)',
+		'signing_key_unpublished' => 'the key this commit was signed with is no longer published in keys/provenance-keys.json, so readers can no longer verify its signature (retired key dropped)',
 	);
 
 	$out   = array();

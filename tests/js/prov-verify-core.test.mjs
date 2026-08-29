@@ -244,6 +244,42 @@ console.log( '\nGroup 5b: v2 key documents — the ACTIVE key is chosen by statu
 		'a wrong ACTIVE key still FAILs — selection by status did not become "find any key that agrees"' );
 }
 
+console.log( '\nGroup 5c: the key is the one the RECORD names, not the one that happens to be active' );
+{
+	// A credential is signed by exactly ONE key and says which: proof.pubkey_id
+	// (the same identity the Worker already writes onto every ledger record).
+	// Resolving "the ACTIVE key" instead verifies every historical Note against
+	// TODAY's key, so the first rotation reports correctly-signed Notes as
+	// unverifiable — the failure the v2 schema's retired keys and validity
+	// windows exist to prevent, and which nothing consumed until now.
+	const did     = fx( 'did.json' );
+	const v2      = fx( 'keys-v2-history-first.json' );
+	const retired = v2.keys[ 0 ];
+	const b64url  = ( b64 ) => Buffer.from( b64, 'base64' ).toString( 'base64url' );
+
+	eq( 'retired', retired.status, 'fixture check: index 0 really is the RETIRED key' );
+
+	const a1 = core.deriveKeyAgreement( did, v2, v2, retired.id );
+	ok( ! a1.verdict, 'a credential naming the retired key still AGREES after rotation' );
+	eq( b64url( retired.public_key_base64 ), a1.jwk && a1.jwk.x,
+		'and resolves to the RETIRED key bytes — not the active key the did document publishes' );
+
+	// A named key nobody publishes is a FAIL. The tempting fallback — "no entry,
+	// use the active key" — is the original bug wearing a different hat: it
+	// verifies the record against a key that did not sign it and reports PASS.
+	const a2 = core.deriveKeyAgreement( did, v2, v2, 'sn-ed25519-2099-12' );
+	ok( a2.verdict, 'a record naming an UNPUBLISHED key does not quietly fall back to the active key' );
+	eq( core.STATE.FAIL, a2.verdict && a2.verdict.state, 'and it is a FAIL' );
+
+	// The two mirrors are independent origins; disagreeing about the SAME key id
+	// is a contradiction, not a gap, so it must not resolve to either one.
+	const forked = JSON.parse( JSON.stringify( v2 ) );
+	forked.keys[ 0 ].public_key_base64 = fx( 'keys-mismatch.json' ).keys[ 0 ].public_key_base64;
+	const a3 = core.deriveKeyAgreement( did, forked, v2, retired.id );
+	eq( core.STATE.FAIL, a3.verdict && a3.verdict.state,
+		'the site mirror and the ledger publishing DIFFERENT bytes for one key id is a FAIL' );
+}
+
 // ─── Group 6: anchor plan (BOTH anchor shapes + the block-only norm) ────
 console.log( '\nGroup 6: deriveAnchorPlan (pending attestation; confirmed with txid; block-only — 9.73.2)' );
 {

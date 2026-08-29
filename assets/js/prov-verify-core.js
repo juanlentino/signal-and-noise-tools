@@ -278,7 +278,19 @@
 	 * Returns { jwk } when every published copy agrees (the caller verifies
 	 * with it), or { verdict } with the FAIL naming which pair disagrees.
 	 */
-	function deriveKeyAgreement( didDoc, siteKeys, ledgerKeys ) {
+	function deriveKeyAgreement( didDoc, siteKeys, ledgerKeys, keyId ) {
+		// A credential is signed by exactly ONE key and names it (proof.pubkey_id
+		// — the identity the Worker already writes onto every ledger record). When
+		// the record names its key, THAT key is the one to verify against: resolve
+		// it by id, out of the published set. Selecting "the active key" instead
+		// checks every historical Note against today's key, so the first rotation
+		// reports correctly-signed Notes as unverifiable. Selection is by ID, never
+		// by position and never by status — and never "any key that agrees", which
+		// would turn the published history into an allowlist that always finds
+		// something.
+		if ( keyId ) {
+			return resolveNamedKey( siteKeys, ledgerKeys, keyId );
+		}
 		var vm = didDoc && didDoc.verificationMethod && didDoc.verificationMethod[ 0 ];
 		var jwk = vm && vm.publicKeyJwk;
 		if ( ! jwk || ! jwk.x ) {
@@ -462,6 +474,58 @@
 	function ledgerRecordUrl( ledgerBase, uid, version, evidence, kind ) {
 		var root = SUBJECT_ROOTS[ kind ] || SUBJECT_ROOTS.note;
 		return String( ledgerBase || '' ).replace( /\/?$/, '' ) + '/' + root + '/' + encodeURIComponent( uid ) + '/v' + encodeURIComponent( version || ( evidence && evidence.version ) || 0 ) + '.json';
+	}
+
+	/**
+	 * The entry a provenance-keys document publishes under exactly this key id,
+	 * or null. Set membership by id — the successor to activeKeyB64() for any
+	 * record that names its signing key.
+	 */
+	function keyEntryById( doc, keyId ) {
+		var keys = doc && doc.keys;
+		if ( ! keys || ! keys.length ) {
+			return null;
+		}
+		for ( var i = 0; i < keys.length; i++ ) {
+			if ( keys[ i ] && keys[ i ].id === keyId && keys[ i ].public_key_base64 ) {
+				return keys[ i ];
+			}
+		}
+		return null;
+	}
+
+	/**
+	 * Standard base64 (both key mirrors) to the base64url a JWK x carries. The
+	 * did document publishes the same live bytes in the other encoding, so this
+	 * is a re-encoding, never a second source of truth.
+	 */
+	function b64ToB64url( b64 ) {
+		return String( b64 ).replace( /\+/g, '-' ).replace( /\//g, '_' ).replace( /=+$/, '' );
+	}
+
+	/**
+	 * Resolve the key a record NAMES out of the published key documents, and
+	 * return { jwk } for the caller to verify with — or { verdict } when the
+	 * named key is unpublished, corrupt, or published differently by the two
+	 * mirrors. A key the record names and nobody publishes is a FAIL, never a
+	 * quiet fall back to whichever key is active.
+	 */
+	function resolveNamedKey( siteKeys, ledgerKeys, keyId ) {
+		var siteEntry   = keyEntryById( siteKeys, keyId );
+		var ledgerEntry = keyEntryById( ledgerKeys, keyId );
+		var named       = siteEntry || ledgerEntry;
+		if ( ! named ) {
+			return { verdict: { state: STATE.FAIL, detail: 'This record is signed by key "' + keyId + '", which no published key document lists. There is nothing to verify it against.' } };
+		}
+		if ( siteEntry && ledgerEntry && siteEntry.public_key_base64 !== ledgerEntry.public_key_base64 ) {
+			return { verdict: { state: STATE.FAIL, detail: 'Key mismatch: this site\'s own key mirror and the independent ledger copy publish different bytes for key "' + keyId + '".' } };
+		}
+		try {
+			base64ToBytes( named.public_key_base64 );
+		} catch ( e ) {
+			return { verdict: { state: STATE.FAIL, detail: 'Key corrupt: the published bytes for key "' + keyId + '" cannot be decoded.' } };
+		}
+		return { jwk: { kty: 'OKP', crv: 'Ed25519', x: b64ToB64url( named.public_key_base64 ) } };
 	}
 
 	/**

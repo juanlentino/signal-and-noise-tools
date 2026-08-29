@@ -2,7 +2,101 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [Unreleased]
+## [13.36.0] - 2026-08-29 — a key is pinned by name, not by role
+
+### Fixed — the integrity sweep never checked the keys HISTORICAL Notes depend on
+
+Companion to the key-pinning fix below, and the same blind spot one layer down.
+The `provenance_integrity` sweep's key leg asked one question: does the ledger's
+`keys/provenance-keys.json` still serve the CURRENT key id with the current
+bytes? That says nothing about the RETIRED keys every historical Note depends on
+after a rotation. Drop a retired entry and every Note it signed becomes
+unverifiable at once — while the sweep keeps reporting the key file healthy,
+because it was still confirming today's key.
+
+New leg (d) in `sn_prov_integrity_check_note()`: the key a commit NAMES
+(`pubkey_id`) must still appear in the published key document.
+
+- `sn_prov_integrity_keys_probe()` now also returns `published_ids` — every id
+  the document lists, active and retired alike. `null`, never an empty list,
+  when the document could not be read: an empty list would read as "publishes no
+  keys" and strand the whole fleet.
+- The sweep hands those ids down to each per-Note check. The document is
+  fleet-level and already fetched once per sweep, so leg (d) costs no extra
+  network.
+- An unreadable key document keeps leg (d) SILENT. That is an outage, already
+  reported once fleet-level, and it must never become a per-Note drift claim —
+  the same rule legs (b) and (c) already follow. A commit predating `pubkey_id`
+  names no key and makes no claim either way.
+
+Pinned in `tests/provenance-integrity.php` at both altitudes: the leg in
+isolation, and end to end through `sn_prov_integrity_run_sweep()` — a correct
+leg reached without the ids is the same bug as no leg. Each of the four
+conditions was verified by neutering it and watching exactly its own assertion
+go red.
+
+Also adds a parity guard: every failure code `check_note()` can emit must render
+reader-facing prose. The first version of that guard was **vacuous** — findings
+build their sentence with `$legs[ $code ] ?? (string) $code`, so an unmapped
+code still produces a row and "is a row produced?" could never fail. It now
+asserts what the fallback cannot fake: that the raw snake_case code does not
+leak into the sentence. Sharpened, it immediately caught
+`signing_key_unpublished` having no prose.
+
+### Fixed — /verify resolved the ACTIVE key, not the key the record names
+
+A credential is signed by exactly one key. The docket resolved the key by
+ROLE instead — `activeKeyB64()` picked whichever entry carried
+`status: "active"`, with a positional `keys[0]` fallback, and
+`deriveKeyAgreement()` read `didDoc.verificationMethod[0]`. The credential's
+`verificationMethod` is `did:web:…#prov-key-1`, a fixed DID slot: it names a
+role, not a key, so it looks like a pin and resolves to whatever is current.
+
+Latent, not live: one key exists (`sn-ed25519-2026-07`, `valid_until: null`),
+so nothing is failing today. It fires at the FIRST ROTATION, when every
+historical Note would be checked against the new key and reported unverifiable
+— the exact failure the v2 key schema's retired entries and validity windows
+were added to prevent in v10.77.0. Nothing consumed them.
+`tests/provenance-key-history.php` states the property ("anchors signed under a
+retired key still verify after rotation") and pins it only on the PUBLICATION
+side: the key stays in the document. Nothing pinned the CONSUMPTION side.
+
+The identity was already published and simply unread — the Worker writes
+`pubkey_id` onto every ledger record (all 55 records across 37 Notes carry it),
+so no Worker change and no ledger schema change was needed.
+
+- `inc/provenance-credential.php` — the credential now carries
+  `proof.pubkey_id`, the key that signed THAT commit. Emitted only when known:
+  an empty id names nothing, and a reader cannot tell "signed before we
+  published key ids" from "we lost it". `verificationMethod` is unchanged, so
+  the addition is backwards-compatible.
+- `assets/js/prov-verify-core.js` — `deriveKeyAgreement()` takes the named key
+  id and resolves it by ID out of the published set (`keyEntryById`), never by
+  position and never by status. A named key nobody publishes is a FAIL, not a
+  fall back to the active key; the two mirrors publishing different bytes for
+  one id is a FAIL. Records with no named key keep the previous behaviour, so
+  credentials cached before this release still verify.
+- `assets/js/prov-verify.js` — passes `cred.proof.pubkey_id` through.
+
+Pinned in `tests/js/prov-verify-core.test.mjs` Group 5c (executable), plus a
+call-site pin in `tests/provenance-verify.php` — a correct core reached with
+three arguments is the same bug. Each guard was verified by neutering it and
+watching the assertion go red.
+
+Also fixed a fixture that had been wrong since v10.77.0:
+`tests/js/fixtures/keys-v2-history-first.json` published a 45-character
+"retired key" — not a valid base64 length, decoding to 33 bytes. Group 5b
+passed for four months because it only ever compared strings; the first code
+path to DECODE those bytes found it immediately.
+
+Known follow-ups, deliberately not in this change: the DID document publishes
+one verification method under a fixed `#prov-key-1` fragment, so it cannot name
+a retired key — the named-key path therefore cross-checks the two key mirrors
+(site + ledger, two independent origins) and does not consult the DID. And the
+`provenance_integrity` sweep still checks only that the CURRENT key id is
+served, so a retired key dropped from the document after a rotation would
+strand every historical Note without the sweep noticing.
+
 
 ### Fixed — palette runner guarded loudly against a chain-less shell replay
 
