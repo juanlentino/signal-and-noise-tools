@@ -69,6 +69,50 @@ Notes that matter when reading the responses:
   gets. `snt_mr_summary_payload()` reads it for `total` and falls back to the
   aggregate sum against an older edge, reporting which it used in `total_exact`.
   Every response also carries `rows` and `truncated`.
+### Why the numbers are the size they are (2026-08-29)
+
+Two figures on this surface look alarming and are not. Both were investigated to a
+definite answer, and both are recorded here so the investigation is not repeated.
+
+**Coverage is 33 days because the sensor is 32 days old.** A 60-day read returns
+about 33 day-rows, so a derived prior period over days 31 to 60 sees roughly two
+days of traffic and reports it as a collapse or a surge depending on direction.
+The cause is neither retention nor truncation nor sampling: the machine-readership
+sensor shipped in Worker **v1.4.0 on 2026-07-28**, and the dataset holds exactly
+what has been written since. Analytics Engine's own retention is far longer, so
+coverage grows by one day per day with no action required.
+
+- `days_covered` reports it, counted from the totals view's day-rows.
+- The dashboard widget refuses to derive a delta while the requested baseline
+  window exceeds it, showing "33d of data" in place of a comparison.
+- **REVISIT CONDITION: the 30-day-over-30-day delta becomes honest on 2026-09-26**,
+  when the sensor reaches 60 days. Nothing needs changing then; the guard stops
+  firing on its own. If a delta is still suppressed after that date, the cause is
+  new and worth investigating.
+
+The separate `LIMIT` work in Worker v1.23.0 stands on its own terms. The aggregate
+view really did inherit the SQL API's row cap while reporting `limit: null`, which
+is a defect whether or not it had fired yet. It was not, however, the cause of the
+delta, and the `totals` view added alongside it is what made the real cause
+measurable.
+
+**The `unknown` purpose share is a maturity curve, not a gap in the code.** About
+a third of third-party reads carry `purpose = unknown`, which means the taxonomy's
+substring tokens matched nothing rather than that an entry declares that purpose
+(only four entries do). The purpose axis landed 2026-08-10 and the taxonomy has
+been effective since 2026-08-11, so the classification is younger than three
+weeks. The mechanism that closes the gap is already running: RULE 2 stores a
+sanitised user-agent sample for every unmatched row, and the review list on this
+tab ranks them by volume. Coverage is extended from that evidence, on the vendor
+and purpose axes, never by editing the frozen family enum.
+
+Note that `unknown` folds two populations into one bucket: rows the Worker marked
+unknown, and rows carrying a purpose this plugin does not recognise
+(`snt_mr_normalize_taxonomy_fields()` maps both). Today those are the same
+population, because the Worker's `purpose_vocabulary` and
+`snt_mr_valid_purposes()` are identical, 13 values each. Extend both halves in
+lockstep or that distinction goes quiet.
+
 - **`days` is clamped on both sides**, 1 to 90, default 30. The plugin clamps
   before it asks ([`snt_mr_fetch()`](../inc/machine-readers-api.php)) and the
   Worker clamps again before it queries. The value is never string-interpolated
