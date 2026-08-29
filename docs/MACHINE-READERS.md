@@ -173,6 +173,22 @@ survives can carry markup even before escaping.
   Apple train/search split therefore **cannot be measured from request logs**,
   and the `apple-ai` family reports a phantom: any non-zero count is spoofed or
   synthetic. `Google-Extended` is the same shape.
+- **A crawler that advertises no User-Agent of its own cannot be attributed at
+  all.** Brave Search states that its crawler "does not advertise a
+  differentiated user agent", deliberately, so that sites allowing only
+  Googlebot cannot single it out
+  ([Brave Search Crawler](https://search.brave.com/help/brave-search-crawler)).
+  That leaves nothing to put in `match`, so no taxonomy entry is possible, and
+  `observable: false` would be the wrong shape: Brave does fetch, it simply
+  does not say so. Inventing a token would manufacture a cohort on a surface
+  that is published precisely so its numbers can be checked, so the entry stays
+  unwritten and Brave's reads land wherever its borrowed User-Agent lands. The
+  beacon pipeline cannot see it either, since a crawler runs no JavaScript, so
+  this reader sits outside both instruments by construction. Read the absence
+  as **unmeasurable, never as zero**. Brave also gates on Googlebot: a page
+  Googlebot cannot crawl is one Brave will not crawl, so the `robots.txt`
+  posture is inherited rather than separately expressible. Checked against
+  Brave's published crawler page on 2026-08-29.
 - **`agent` names the exact crawler** (v10.80.0). vendor plus purpose already
   separates GPTBot from ChatGPT-User, but the agent id says so outright, and it
   is stored for Analytics Engine's 90 days rather than Workers Logs' 7.

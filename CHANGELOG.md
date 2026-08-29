@@ -4,6 +4,18 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Documented — a reader the Machine Readers surface cannot attribute
+
+- [docs/MACHINE-READERS.md](docs/MACHINE-READERS.md): a new rule under "Rules that
+  hold across the whole file" records why Brave Search gets no taxonomy entry. Brave
+  publishes that its crawler "does not advertise a differentiated user agent", so
+  there is no token for `match` and no honest entry to write; `observable: false` is
+  the wrong shape too, since Brave does fetch. A crawler that runs no JavaScript is
+  also invisible to the beacon, so this reader sits outside both instruments and its
+  absence reads as unmeasurable rather than zero. Notes that Brave gates on Googlebot
+  crawlability, which makes the `robots.txt` posture inherited. No code changes, so no
+  version bump.
+
 ## [13.29.0] - 2026-08-29 — the WebMCP bridge joins the rights-anchoring watch
 
 ### Added — webmcp-bridge, the fifth anchored surface
