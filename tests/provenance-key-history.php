@@ -229,5 +229,48 @@ $GLOBALS['__options'] = array( 'sn_prov_pubkey_id' => '   ' );
 ok( 'sn-ed25519-2026-07' === sn_prov_key_id(), 'a blank option falls back to the default rather than publishing an empty id' );
 $GLOBALS['__options'] = array();
 
+// ── The DID document can NAME a retired key (2026-08-29) ───────────────────
+// Until now did.json carried exactly one verificationMethod under a fixed
+// '#prov-key-1' fragment, so a third party doing ordinary did:web resolution
+// could only ever find the ACTIVE key. Every credential we have issued names
+// its signer in proof.pubkey_id; after a rotation that name resolved to
+// nothing in the DID, and correctly-signed historical work read as
+// unverifiable to anyone who trusted the DID rather than our keys mirror.
+//
+// The fix is ADDITIVE, and the split between the two lists is the whole point:
+//   verificationMethod = key MATERIAL we vouch for
+//   assertionMethod    = which of it may assert RIGHT NOW
+// A retired key belongs in the first and must never appear in the second.
+echo "\nGroup: the DID document names retired keys, without authorising them\n";
+
+$GLOBALS['__options'] = array(
+	'sn_prov_key_history' => array(
+		array( 'id' => 'sn-ed25519-2025-01', 'public_key_base64' => $old_b64, 'valid_from' => '2025-01-04', 'valid_until' => '2026-07-09' ),
+		array( 'id' => 'bad-key', 'public_key_base64' => base64_encode( 'too-short' ) ),
+	),
+);
+$did_doc = sn_prov_did_document();
+$vm_ids  = array_map( static function ( $m ) { return $m['id']; }, $did_doc['verificationMethod'] );
+
+ok( 'did:web:juanlentino.com#prov-key-1' === $did_doc['verificationMethod'][0]['id'],
+	'CONTRACT UNCHANGED: #prov-key-1 is still FIRST and still the active key — every credential already issued names it' );
+ok( array( 'did:web:juanlentino.com#prov-key-1' ) === $did_doc['assertionMethod'],
+	'assertionMethod is EXACTLY the active key: a retired key is named, never authorised to assert today' );
+ok( in_array( 'did:web:juanlentino.com#sn-ed25519-2025-01', $vm_ids, true ),
+	'the retired key is resolvable by its OWN id fragment — the name credentials carry in proof.pubkey_id' );
+$retired_vm = null;
+foreach ( $did_doc['verificationMethod'] as $m ) {
+	if ( 'did:web:juanlentino.com#sn-ed25519-2025-01' === $m['id'] ) { $retired_vm = $m; }
+}
+ok( is_array( $retired_vm ) && sn_prov_base64url( base64_decode( $old_b64, true ) ) === $retired_vm['publicKeyJwk']['x'],
+	'and it publishes the RETIRED bytes, not a second copy of the active key' );
+ok( ! in_array( 'did:web:juanlentino.com#bad-key', $vm_ids, true ),
+	'a malformed history row is dropped here exactly as it is in the keys mirror — one validator, not two' );
+
+$GLOBALS['__options'] = array();
+$solo = sn_prov_did_document();
+ok( 1 === count( $solo['verificationMethod'] ) && array( 'did:web:juanlentino.com#prov-key-1' ) === $solo['assertionMethod'],
+	'with no history the document is byte-for-byte what it always was — the live document does not move today' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

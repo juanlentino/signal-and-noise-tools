@@ -121,8 +121,9 @@ function sn_prov_machine_pointers_manifest( $post_id ) {
 		return null;
 	}
 	$root = $roots[ $kind ];
-	$ep   = sn_prov_verify_endpoints();
-	$base = rtrim( $ep['ledger_base'], '/' ) . '/' . $root . '/' . rawurlencode( $uid );
+	$ep     = sn_prov_verify_endpoints();
+	$ledger = rtrim( $ep['ledger_base'], '/' );
+	$base   = $ledger . '/' . $root . '/' . rawurlencode( $uid );
 
 	return array(
 		'spec'    => home_url( '/verify' ),
@@ -136,6 +137,18 @@ function sn_prov_machine_pointers_manifest( $post_id ) {
 			'credential'   => array( 'method' => 'GET', 'url' => $ep['credential_base'] . rawurlencode( $uid ), 'type' => 'application/vc+ld+json' ),
 			'record'       => array( 'method' => 'GET', 'url' => $base . '/v' . $version . '.json', 'type' => 'application/json' ),
 			'proof'        => array( 'method' => 'GET', 'url' => $base . '/v' . $version . '.ots', 'type' => 'application/octet-stream' ),
+			// Built from $ledger, NOT $base: retractions/ is ONE FLAT ROOT for
+			// every subject kind, mirroring retractionUrl() in prov-verify-core.js
+			// (pinned against it below). Threading the kind map through here
+			// would point a page's lookup at pages/, where no retraction is ever
+			// written — it would read as permanently un-retracted whatever we
+			// publish.
+			//
+			// Listed even though the file is ABSENT in the normal case: the 404
+			// IS the answer "not retracted", and without this call a machine
+			// reader can verify record, proof and key and still be reading a
+			// claim we have publicly withdrawn. A call is not a verdict (P-51).
+			'retraction'   => array( 'method' => 'GET', 'url' => $ledger . '/retractions/' . rawurlencode( $uid ) . '/v' . $version . '.json', 'type' => 'application/json' ),
 			'key_history'  => array( 'method' => 'GET', 'url' => $ep['keys_url'], 'type' => 'application/json' ),
 			'did'          => array( 'method' => 'GET', 'url' => $ep['did_url'], 'type' => 'application/json' ),
 			'block_header' => array( 'method' => 'GET', 'url_template' => rtrim( $ep['mempool_base'], '/' ) . '/block-height/{height}', 'type' => 'text/plain' ),
