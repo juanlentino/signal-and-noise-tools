@@ -101,6 +101,10 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => 'boolean',
 					'description' => 'True when `total` came from the edge\'s day-only totals view, which cannot truncate. False means it was summed from the aggregate and is a floor, not a count.',
 				),
+				'days_covered'           => array(
+					'type'        => array( 'integer', 'null' ),
+					'description' => 'Days the sensor actually holds data for in this window, counted from the day-rows the totals view returned. LESS than `days` means the window reaches past the start of the data, and any period-over-period comparison across it is an artifact of when the sensor started rather than a change in traffic. null when the edge cannot answer.',
+				),
 				'families'       => array(
 					'type'  => 'array',
 					'items' => array(

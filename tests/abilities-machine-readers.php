@@ -122,7 +122,7 @@ ok(
 	// in snt_mr_summary_payload()'s return since v10.79.0 but undeclared here,
 	// so an agent reading the schema could not know the purpose axis existed.
 	// ADDITIVE and in the payload's own order — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
 	'schema pins the DM tile payload fields in response order, with error appended'
 );
 ok( 'boolean' === ( $props['ok']['type'] ?? null ), 'ok is a boolean' );
@@ -205,7 +205,7 @@ ok(
 	// they qualify: `total` is now exact whenever the edge can serve the totals
 	// view, and a consumer drawing the family breakdown still needs to know that
 	// breakdown may be partial. ADDITIVE — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
 	'success shape matches the DM route exactly'
 );
 ok( $rows_before === $GLOBALS['__mr']['rows'], 'the fetched rows are never mutated' );
@@ -235,7 +235,11 @@ foreach ( array( 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy'
 ok( false === ( $out['truncated'] ?? null ), 'a worker that reports no truncation yields truncated=false' );
 ok( false === ( $out['total_exact'] ?? null ), 'and total_exact=false, because this total came from summing the aggregate' );
 ok( 46 === ( $out['total'] ?? null ), 'the fallback total is UNCHANGED from before the totals view existed' );
-unset( $out_minus_new['truncated'], $out_minus_new['total_exact'] );
+// array_key_exists, NOT ?? — the distinction this file already insists on three
+// assertions above, and which I just wrote a bug into: ?? reports a
+// present-and-null key as absent.
+ok( array_key_exists( 'days_covered', $out ) && null === $out['days_covered'], 'and days_covered is present-and-null when no totals read answered' );
+unset( $out_minus_new['truncated'], $out_minus_new['total_exact'], $out_minus_new['days_covered'] );
 
 // The upgraded-edge path: totals is served, so the headline stops being a sum of
 // the truncatable aggregate. 46 (aggregate sum) vs 900 (exact) is the gap the
@@ -251,6 +255,7 @@ $sn_exact = snt_mr_summary_payload( 7 );
 ok( 900 === ( $sn_exact['total'] ?? null ), 'with the totals view served, total is the EXACT sum, not the aggregate sum (46)' );
 ok( true === ( $sn_exact['total_exact'] ?? null ), 'and total_exact says so' );
 ok( in_array( 'totals', (array) $GLOBALS['__mr_views'], true ), 'the summary actually ASKED for the totals view' );
+ok( 2 === ( $sn_exact['days_covered'] ?? null ), 'days_covered counts the DAY-ROWS the totals view returned (2), which is how an uncovered window becomes visible' );
 ok(
 	array( array( 'family' => 'search', 'hits' => 20 ), array( 'family' => 'openai', 'hits' => 15 ), array( 'family' => 'anthropic', 'hits' => 7 ) ) === ( $sn_exact['families'] ?? null ),
 	'the BREAKDOWN still comes from the aggregate — only the headline changed'

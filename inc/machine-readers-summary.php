@@ -60,12 +60,15 @@ function snt_mr_summary_payload( $days ) {
 	// rows and the sum is exact at any width. Falls back to the aggregate sum
 	// when the worker predates 1.23.0, so an un-upgraded edge degrades to the
 	// old number rather than to nothing.
-	$totals_read  = snt_mr_fetch( $days, 'totals' );
-	$exact_total  = null;
+	$totals_read   = snt_mr_fetch( $days, 'totals' );
+	$exact_total   = null;
+	$days_covered  = null;
 	if ( ! empty( $totals_read['ok'] ) && ! empty( $totals_read['rows'] ) ) {
-		$exact_total = 0;
+		$exact_total  = 0;
+		$days_covered = 0;
 		foreach ( (array) $totals_read['rows'] as $trow ) {
 			$exact_total += (int) ( $trow['hits'] ?? 0 );
+			++$days_covered;
 		}
 	}
 	$truncated = ! empty( $result['truncated'] );
@@ -180,6 +183,16 @@ function snt_mr_summary_payload( $days ) {
 		// even when `total` is exact.
 		'truncated'      => $truncated,
 		'total_exact'    => null !== $exact_total,
+		// v13.35.0. The totals view returns ONE ROW PER DAY, so its row count is
+		// the number of days the sensor actually holds data for. That is the
+		// only honest way to know whether a requested window is covered: asking
+		// for 60 days and being handed 32 is not an error, and nothing else in
+		// the response says so. A 60-day read reported 4,437 hits for days
+		// 31-60 against 65,205 for days 1-30 — two days' traffic at the current
+		// rate, because the data does not reach back that far. A derived prior
+		// period over an uncovered window is not a comparison, it is an artifact
+		// of when the sensor started. null when the edge cannot answer.
+		'days_covered'   => $days_covered,
 		'families'       => $families,
 		'ai_training'    => $ai_hits,
 		'ai_rights'      => $ai_rght,
