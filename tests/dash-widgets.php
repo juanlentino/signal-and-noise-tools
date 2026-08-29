@@ -253,19 +253,40 @@ echo "\nEvery box carries comparison lines, not bare counts\n";
 foreach ( $expect as $id => $subject ) {
 	ok( false !== strpos( $html[ $id ], 'sn-dw__c' ), "$id renders comparison slots" );
 }
-$with_compare = 0; $cells = 0;
+$with_sub = 0; $cells = 0; $deltas = 0;
 foreach ( snt_dwx_boxes() as $box ) {
 	foreach ( $box['sections'] as $sec ) {
 		foreach ( (array) ( $sec['fields'] ?? array() ) as $f ) {
 			$cells++;
-			if ( ! empty( $f['compare']['template'] ) ) { $with_compare++; }
+			if ( ! empty( $f['compare']['template'] ) || ! empty( $f['delta'] ) ) { $with_sub++; }
+			if ( ! empty( $f['delta'] ) ) { $deltas++; }
 		}
 	}
 }
-ok( $cells > 0 && $with_compare === $cells,
-	"EVERY ability-backed cell declares a comparison ($with_compare/$cells) — a number with no denominator is not a reading" );
-ok( false !== strpos( $html['sn_dash_audience'], 'sn-dw__c--' ),
-	'Audience carries a DIRECTIONAL delta — the measurement source is the only one here with a prior period' );
+ok( $cells > 0 && $with_sub === $cells,
+	"EVERY ability-backed cell carries a comparison OR a delta ($with_sub/$cells) — a number with no denominator is not a reading" );
+ok( $deltas >= 2, "and at least two cells carry a REAL period-over-period delta ($deltas)" );
+
+// A delta is derived by subtracting the wider window from the narrower one, so
+// the section MUST declare a baseline and the field MUST be an additive count.
+// Subtracting two ratios yields a confident, meaningless number.
+echo "\nDeltas are derived honestly\n";
+$ratio_paths = array( 'view_visit_ratio', 'pageviews_per_visitor_day', 'scroll_avg_per_view', 'time_avg_per_view', 'scroll_avg_per_visit', 'time_avg_per_visit' );
+foreach ( snt_dwx_boxes() as $box ) {
+	foreach ( $box['sections'] as $sec ) {
+		foreach ( (array) ( $sec['fields'] ?? array() ) as $f ) {
+			if ( empty( $f['delta'] ) ) { continue; }
+			ok( ! empty( $sec['baseline'] ),
+				$box['id'] . ": '" . $f['path'] . "' declares a delta AND its section declares the wider baseline window" );
+			ok( ! in_array( (string) $f['path'], $ratio_paths, true ),
+				$box['id'] . ": '" . $f['path'] . "' is an additive count, not a ratio — a ratio delta by subtraction is meaningless" );
+		}
+	}
+}
+ok( false !== strpos( $html['sn_dash_audience'], 'data-sn-dwx-baseline' ),
+	'Audience ships the baseline contract, so the delta has a prior period to subtract' );
+ok( false !== strpos( $html['sn_dash_machines'], 'data-sn-dwx-baseline' ),
+	'and so does Machine Readers' );
 
 // ── RICHNESS: a fallback is still a widget ─────────────────────────────────
 // Owner, 2026-08-29: "The widgets should be rich, even if they're a fallback."
@@ -296,6 +317,31 @@ foreach ( array( 'sn_dash_ops' => 'signal-noise/purge-all-caches', 'sn_dash_prov
 foreach ( array( 'sn_dash_audience', 'sn_dash_machines' ) as $id ) {
 	ok( false === strpos( $html[ $id ], 'sn-dwx__actions' ), "$id is a readout and carries NO write button" );
 }
+
+// ── ONE OWNER PER FACT ─────────────────────────────────────────────────────
+// Owner, 2026-08-29, on the shipped 13.31.0: the grid and the list said the same
+// thing twice. "TOP FAMILY 23,888 / unclassified-machine" WAS row 1 of TOP
+// FAMILIES directly beneath it; the feed cells restated the feed windows.
+echo "\nNo cell restates a fact its own box's list already owns\n";
+foreach ( snt_dwx_boxes() as $box ) {
+	$list_roots = array();
+	foreach ( (array) ( $box['lists'] ?? array() ) as $l ) {
+		$list_roots[] = explode( '.', (string) $l['path'] )[0];
+	}
+	if ( ! $list_roots ) { continue; }
+	foreach ( $box['sections'] as $sec ) {
+		foreach ( (array) ( $sec['fields'] ?? array() ) as $f ) {
+			$root = explode( '.', (string) $f['path'] )[0];
+			ok( ! in_array( $root, $list_roots, true ) || 'pending' === $root,
+				$box['id'] . ": cell '" . $f['path'] . "' does not restate the list that owns '" . $root . "'" );
+		}
+	}
+}
+// Provenance is the one allowed overlap and it is NOT a restatement: the cell
+// owns the COUNT, the list owns per-note detail no cell can carry, and the two
+// carry different headings for that reason.
+ok( false !== strpos( $html['sn_dash_provenance'], 'In flight' ),
+	'Provenance list is headed "In flight", not a second "Pending"' );
 
 // ── ASSETS REACH index.php, AND NOWHERE ELSE ────────────────────────────────
 // v11.30.2 shipped this widget's CSS into a stylesheet that only loaded on S&N

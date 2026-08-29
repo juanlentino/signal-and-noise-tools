@@ -50,9 +50,23 @@
 	 * another field, which is the only way a raw count like "3,168 AI-training"
 	 * says anything on its own.
 	 */
-	function compareText( payload, spec ) {
+	function compareText( payload, spec, ownValue ) {
 		if ( ! spec || ! spec.template ) {
 			return null;
+		}
+		// A static sentence that stops being true at zero is worse than no
+		// sentence: "awaiting Bitcoin" under a 0 was exactly that.
+		if ( spec.when_positive && ! ( 'number' === typeof ownValue && ownValue > 0 ) ) {
+			return null;
+		}
+		// Silent when there is nothing to report. "ok" under every version
+		// trains the eye to skip the row that actually matters.
+		if ( spec.when_differs ) {
+			var mine  = pick( payload, spec.when_differs );
+			var other = pick( payload, spec.path );
+			if ( undefined === other || null === other || String( mine ) === String( other ) ) {
+				return null;
+			}
 		}
 		if ( spec.template.indexOf( '%s' ) === -1 ) {
 			return spec.template;
@@ -161,9 +175,14 @@
 					value = '\u2014';
 				}
 			}
-			var sub = item.sub && item.sub_template && entry[ item.sub ]
-				? item.sub_template.replace( '%s', String( entry[ item.sub ] ) )
-				: '';
+			var sub = '';
+			if ( item.sub && item.sub_template && entry[ item.sub ] ) {
+				var quiet = item.sub_when_differs
+					&& String( entry[ item.sub_when_differs ] ) === String( entry[ item.sub ] );
+				if ( ! quiet ) {
+					sub = item.sub_template.replace( '%s', String( entry[ item.sub ] ) );
+				}
+			}
 			body.appendChild( row( label || '\u2014', value, sub ) );
 		} );
 	}
@@ -212,7 +231,8 @@
 	}
 
 	function fill( cell, payload ) {
-		var out = format( pick( payload, cell.getAttribute( 'data-sn-dwx-path' ) ) );
+		var value = pick( payload, cell.getAttribute( 'data-sn-dwx-path' ) );
+		var out   = format( value );
 		if ( null !== out ) {
 			var slot = cell.querySelector( '.sn-dw__n' );
 			if ( slot ) {
@@ -229,10 +249,46 @@
 		} catch ( e ) {
 			return;
 		}
-		var sub = compareText( payload, spec );
+		var sub = compareText( payload, spec, value );
 		var box = cell.querySelector( '.sn-dw__c' );
 		if ( null !== sub && box ) {
 			box.textContent = sub;
+		}
+	}
+
+	/**
+	 * Render a real period-over-period delta, in the sibling box's own idiom
+	 * ("-57 · 149 prior 7d").
+	 *
+	 * The prior period is DERIVED by subtraction: the same ability is asked for
+	 * the wider window, and prior = baseline - current. That arithmetic is only
+	 * valid for ADDITIVE COUNTS, which is why no ratio field declares a delta —
+	 * subtracting two ratios would produce a confident, meaningless number.
+	 */
+	function fillDelta( cell, current, baseline, spec ) {
+		var path = cell.getAttribute( 'data-sn-dwx-path' );
+		var now  = pick( current, path );
+		var wide = pick( baseline, path );
+		if ( 'number' !== typeof now || 'number' !== typeof wide ) {
+			return;
+		}
+		var prior = wide - now;
+		if ( prior < 0 ) {
+			// The windows disagree; report nothing rather than a negative
+			// population.
+			return;
+		}
+		var diff = now - prior;
+		var box  = cell.querySelector( '.sn-dw__c' );
+		if ( ! box ) {
+			return;
+		}
+		var sign = diff > 0 ? '+' : ( diff < 0 ? '\u2212' : '\u00b1' );
+		box.textContent = sign + Math.abs( diff ).toLocaleString()
+			+ ' \u00b7 ' + prior.toLocaleString() + ' ' + ( spec.label || 'prior' );
+		box.classList.remove( 'sn-dw__c--up', 'sn-dw__c--down' );
+		if ( 0 !== diff ) {
+			box.classList.add( diff > 0 ? 'sn-dw__c--up' : 'sn-dw__c--down' );
 		}
 	}
 
@@ -242,37 +298,79 @@
 		}
 		wireActions();
 
-		// Cells and lists share the ability grouping, so a box whose grid and
-		// list read the same ability costs ONE call, not two.
 		var nodes = document.querySelectorAll( '[data-sn-dwx-ability]' );
 		if ( ! nodes.length ) {
 			return;
 		}
 
-		var byAbility = {};
+		// One call per DISTINCT (ability, input) pair. Two boxes reading the
+		// same ability with the same window cost one request, and a delta's
+		// wider window is just another pair rather than a special case.
+		var calls = {};
+		function need( ability, inputJson ) {
+			var key = ability + '|' + ( inputJson || '{}' );
+			if ( ! calls[ key ] ) {
+				calls[ key ] = { ability: ability, input: JSON.parse( inputJson || '{}' ) };
+			}
+			return key;
+		}
+
+		var plan = [];
 		Array.prototype.forEach.call( nodes, function ( node ) {
-			var name = node.getAttribute( 'data-sn-dwx-ability' );
-			( byAbility[ name ] = byAbility[ name ] || [] ).push( node );
+			var ability  = node.getAttribute( 'data-sn-dwx-ability' );
+			var input    = node.getAttribute( 'data-sn-dwx-input' );
+			var baseline = node.getAttribute( 'data-sn-dwx-baseline' );
+			var entry    = { node: node, key: need( ability, input ) };
+			if ( baseline ) {
+				entry.baselineKey = need( ability, baseline );
+				try {
+					entry.delta = JSON.parse( node.getAttribute( 'data-sn-dwx-delta' ) || '{}' );
+				} catch ( e ) {
+					entry.delta = {};
+				}
+			}
+			plan.push( entry );
 		} );
 
-		Object.keys( byAbility ).forEach( function ( name ) {
-			window.sntAbilityRun( name, {} ).then( function ( result ) {
-				byAbility[ name ].forEach( function ( node ) {
-					var listSpec = node.getAttribute( 'data-sn-dwx-list' );
-					if ( listSpec ) {
-						try {
-							renderList( node, result, JSON.parse( listSpec ) );
-						} catch ( e ) {}
-						return;
-					}
-					fill( node, result );
-				} );
-			} ).catch( function () {
-				byAbility[ name ].forEach( function ( node ) {
-					node.classList.add( 'sn-dwx--failed' );
-					node.setAttribute( 'title', 'Could not read this ability. The linked screen still works.' );
-				} );
+		var results = {};
+		var keys    = Object.keys( calls );
+		var done    = 0;
+
+		function settle() {
+			done++;
+			if ( done < keys.length ) {
+				return;
+			}
+			plan.forEach( function ( entry ) {
+				var payload = results[ entry.key ];
+				if ( undefined === payload ) {
+					entry.node.classList.add( 'sn-dwx--failed' );
+					entry.node.setAttribute( 'title', 'Could not read this ability. The linked screen still works.' );
+					return;
+				}
+				var listSpec = entry.node.getAttribute( 'data-sn-dwx-list' );
+				if ( listSpec ) {
+					try {
+						renderList( entry.node, payload, JSON.parse( listSpec ) );
+					} catch ( e ) {}
+					return;
+				}
+				fill( entry.node, payload );
+				// The delta overwrites the comparison slot on purpose: a cell
+				// that has a real prior period should show it, not a context line.
+				if ( entry.baselineKey && undefined !== results[ entry.baselineKey ] ) {
+					fillDelta( entry.node, payload, results[ entry.baselineKey ], entry.delta || {} );
+				}
 			} );
+		}
+
+		keys.forEach( function ( key ) {
+			window.sntAbilityRun( calls[ key ].ability, calls[ key ].input ).then( function ( res ) {
+				results[ key ] = res;
+			} ).catch( function () {
+				// Left undefined: settle() marks the dependent cells failed
+				// rather than rendering a zero nobody measured.
+			} ).then( settle );
 		} );
 	}
 
