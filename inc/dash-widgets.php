@@ -74,11 +74,13 @@ function snt_dwx_boxes() {
 						array(
 							'path'    => 'pageview_visits',
 							'label'   => __( 'Visits', 'signal-and-noise-tools' ),
+							/* translators: %s: views-per-visit ratio */
 							'compare' => array( 'template' => __( '%s views per visit', 'signal-and-noise-tools' ), 'path' => 'view_visit_ratio' ),
 						),
 						array(
 							'path'    => 'unique_visitor_days',
 							'label'   => __( 'Visitor-days', 'signal-and-noise-tools' ),
+							/* translators: %s: count of visitor-days with zero pageviews */
 							'compare' => array( 'template' => __( '%s with no pageview', 'signal-and-noise-tools' ), 'path' => 'viewless_visits' ),
 						),
 					),
@@ -90,11 +92,13 @@ function snt_dwx_boxes() {
 						array(
 							'path'    => 'data.windows.7.uniques',
 							'label'   => __( 'Subscribers 7d', 'signal-and-noise-tools' ),
+							/* translators: %s: unique feed subscribers over 30 days */
 							'compare' => array( 'template' => __( '%s over 30d', 'signal-and-noise-tools' ), 'path' => 'data.windows.30.uniques' ),
 						),
 						array(
 							'path'    => 'data.windows.7.total',
 							'label'   => __( 'Feed fetches 7d', 'signal-and-noise-tools' ),
+							/* translators: %s: human-readable relative time of the last feed request */
 							'compare' => array( 'template' => __( 'last %s', 'signal-and-noise-tools' ), 'path' => 'data.last_request_relative' ),
 						),
 					),
@@ -106,6 +110,7 @@ function snt_dwx_boxes() {
 					'ability' => 'signal-noise/get-rss-stats',
 					'path'    => 'data.windows',
 					'keys'    => array( '1' => '24h', '7' => '7d', '30' => '30d' ),
+					/* translators: %s: total feed fetches in the window */
 					'item'    => array( 'value' => 'uniques', 'sub' => 'total', 'sub_template' => __( '%s fetches', 'signal-and-noise-tools' ) ),
 				),
 			),
@@ -127,11 +132,13 @@ function snt_dwx_boxes() {
 						array(
 							'path'    => 'total',
 							'label'   => __( 'Reads', 'signal-and-noise-tools' ),
+							/* translators: %s: the sensor window in days */
 							'compare' => array( 'template' => __( 'over %s days', 'signal-and-noise-tools' ), 'path' => 'days' ),
 						),
 						array(
 							'path'    => 'ai_training',
 							'label'   => __( 'AI-training', 'signal-and-noise-tools' ),
+							/* translators: %s: AI-training reads as a percentage of all reads */
 							'compare' => array( 'template' => __( '%s of reads', 'signal-and-noise-tools' ), 'percent_of' => 'total', 'path' => 'ai_training' ),
 						),
 						array(
@@ -142,6 +149,7 @@ function snt_dwx_boxes() {
 						array(
 							'path'    => 'ai_rights',
 							'label'   => __( 'Rights-file reads', 'signal-and-noise-tools' ),
+							/* translators: %s: total machine reads in the window */
 							'compare' => array( 'template' => __( 'of %s total', 'signal-and-noise-tools' ), 'path' => 'total' ),
 						),
 					),
@@ -201,6 +209,7 @@ function snt_dwx_boxes() {
 					'ability' => 'signal-noise/get-deploy-status',
 					'path'    => 'workers',
 					'limit'   => 5,
+					/* translators: %s: the latest released worker version */
 					'item'    => array( 'label' => 'label', 'value' => 'live', 'sub' => 'latest', 'sub_template' => __( 'latest %s', 'signal-and-noise-tools' ) ),
 				),
 			),
@@ -230,6 +239,7 @@ function snt_dwx_boxes() {
 						array(
 							'path'    => 'confirmed',
 							'label'   => __( 'Anchored', 'signal-and-noise-tools' ),
+							/* translators: %s: total number of Notes */
 							'compare' => array( 'template' => __( 'of %s notes', 'signal-and-noise-tools' ), 'path' => 'total' ),
 						),
 						array(
