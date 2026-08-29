@@ -4,6 +4,61 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.33.0] - 2026-08-29 — the boxes finally carry what their names promised
+
+13.32.0 fixed the presentation. This fixes the COVERAGE: the four boxes were
+named after ten desktop widgets and carried about half their content.
+
+### Fixed — Uptime had quietly left the dashboard
+
+v8.3.0 folded S&N Uptime INTO the health widget. v11.30.0 then folded the health
+widget into `sn_dashboard` but carried only its glance, leaving
+`sn_uptime_status_health_section()` with **no production caller at all** — while
+`sn_uptime_status_widget_enqueue()` kept shipping its JS and CSS to `index.php`
+for a mount that no longer existed.
+
+`tests/site-health-widget.php` asserted the render function "survives the
+consolidation", and it did survive — as unreachable code. Existence is not
+reachability. The verdict box now calls it, and a new pin fails if the call is
+ever dropped again.
+
+### Added — Operations carries the half of its own title it was missing
+
+The box says *"What is shipped, and whether the edge took it"* and 13.31.0
+implemented only the first half: `Purge caches` fired into the dark, which is
+precisely the blindness the desktop `sn-cache` widget exists to end.
+
+- **Cron events** and **Last purge**, both server-rendered and **free** —
+  `snt_cron_summary_for_localize()` reads an option and
+  `snt_cf_freshness_summary()` reads the verification trail, so these two cells
+  carry real values on first paint instead of arriving as em dashes.
+- **Clear overrides** and **Check for updates** beside the purge button. The
+  force-check ability was REMOVED in v11.29.0; the same job is
+  `get-deploy-status` with `force_refresh`, so the old slug would have 404'd.
+
+### Added — Audience and Machine Readers
+
+- **Bot views 7d** with its own delta: the same analytics ability with
+  `class: bot`, which the `(ability, input)` call keying already supported.
+- **Reads by purpose**, the third breakdown the desktop widget carries.
+
+### Fixed — an ability schema that understated its own payload
+
+`get-machine-readers-summary` has returned `purposes`,
+`ai_training_by_purpose`, `first_party` and `taxonomy` since v10.79.0 and
+declared **none of them**, so an agent reading the schema could not know the
+purpose axis existed — the axis this surface's own docs call the defensible one.
+Now declared, additive, in the payload's own order. Found by the widget suite's
+field-path guard, which refused a `purposes` path that no schema mentioned.
+
+### Not delivered
+
+**Top pages.** No ability returns them; `sn_aw_top_content()` is a DB query and
+`sn_dashboard`'s contract is cached-options-only on a screen that renders on
+every admin login. Doing it properly needs a new read-only ability, which is a
+decision about the agent surface rather than a widget change.
+
+
 ## [13.32.0] - 2026-08-29 — one owner per fact, and real deltas
 
 13.31.0 made the boxes rich by adding breakdown lists next to the cells that

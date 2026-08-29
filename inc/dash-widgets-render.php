@@ -73,6 +73,17 @@ function snt_dwx_render( array $box ) {
 	// A flat label-value list read as a settings table, not as a widget.
 	echo '<div class="sn-dw__signals">';
 	foreach ( (array) $box['sections'] as $sec ) {
+		if ( ! empty( $sec['signals'] ) && is_callable( $sec['signals'] ) ) {
+			foreach ( (array) call_user_func( $sec['signals'] ) as $sig ) {
+				snt_dwx_cell(
+					(string) ( $sig['label'] ?? '' ),
+					(string) ( $sig['value'] ?? '' ),
+					(string) ( $sig['compare'] ?? '' ),
+					(string) ( $sig['dir'] ?? '' )
+				);
+			}
+			continue;
+		}
 		foreach ( (array) $sec['fields'] as $field ) {
 			snt_dwx_cell(
 				(string) $field['label'],
@@ -120,8 +131,12 @@ function snt_dwx_render( array $box ) {
 	if ( ! empty( $box['actions'] ) ) {
 		echo '<p class="sn-dwx__actions">';
 		foreach ( (array) $box['actions'] as $action ) {
+			$action_input = ! empty( $action['input'] )
+				? ' data-sn-dwx-action-input="' . esc_attr( (string) wp_json_encode( (array) $action['input'] ) ) . '"'
+				: '';
+			// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $action_input is esc_attr'd above.
 			echo '<button type="button" class="button button-small sn-dwx__btn"'
-				. ' data-sn-dwx-action="' . esc_attr( (string) $action['ability'] ) . '"'
+				. ' data-sn-dwx-action="' . esc_attr( (string) $action['ability'] ) . '"' . $action_input
 				. ' data-sn-dwx-busy="' . esc_attr( (string) $action['busy'] ) . '">'
 				. esc_html( (string) $action['label'] ) . '</button> ';
 		}
@@ -186,6 +201,62 @@ function snt_dwx_cell( $label, $value, $compare = '', $dir = '', array $hydrate 
 	$cls = 'sn-dw__c' . ( ( 'up' === $dir || 'down' === $dir ) ? ' sn-dw__c--' . $dir : '' );
 	echo '<span class="' . esc_attr( $cls ) . '">' . esc_html( $compare ) . '</span>';
 	echo '</div>';
+}
+
+/**
+ * Cron and cache-freshness cells, server-side and free.
+ *
+ * Both sources are LOCAL reads — _get_cron_array() is an option, and the
+ * freshness summary reads the verification trail the purge path has written
+ * since v11.10.0 — so these two cells carry real values on first paint instead
+ * of arriving as em dashes after a round trip. They are also the two facts the
+ * box's own title promises ("whether the edge took it") and 13.31.0 shipped
+ * without: Purge caches fired into the dark, which is exactly the blindness the
+ * desktop sn-cache widget was built to end.
+ *
+ * @since 13.33.0
+ * @return array<int,array<string,mixed>>
+ */
+function snt_dwx_ops_signals() {
+	$out = array();
+
+	if ( function_exists( 'snt_cron_summary_for_localize' ) ) {
+		$cron  = (array) snt_cron_summary_for_localize();
+		$total = (int) ( $cron['total'] ?? 0 );
+		$orph  = (int) ( $cron['orphans'] ?? 0 );
+		$out[] = array(
+			'label'   => __( 'Cron events', 'signal-and-noise-tools' ),
+			'value'   => number_format_i18n( $total ),
+			'compare' => $orph > 0
+				/* translators: %d: number of orphaned cron events */
+				? sprintf( _n( '%d orphaned', '%d orphaned', $orph, 'signal-and-noise-tools' ), $orph )
+				/* translators: %d: number of events owned by this plugin */
+				: sprintf( __( '%d ours', 'signal-and-noise-tools' ), (int) ( $cron['sn_count'] ?? 0 ) ),
+			'dir'     => $orph > 0 ? 'down' : '',
+		);
+	}
+
+	if ( function_exists( 'snt_cf_freshness_summary' ) ) {
+		$fresh = snt_cf_freshness_summary();
+		if ( is_array( $fresh ) ) {
+			$last  = (string) ( $fresh['last'] ?? 'unknown' );
+			$stale = (int) ( $fresh['stale'] ?? 0 );
+			$out[] = array(
+				'label'   => __( 'Last purge', 'signal-and-noise-tools' ),
+				// The WORD, not a count: "did the edge actually clear" is the
+				// question, and a number cannot answer it.
+				'value'   => $last,
+				'compare' => $stale > 0
+					/* translators: %d: number of URLs still stale after a purge */
+					? sprintf( _n( '%d still stale', '%d still stale', $stale, 'signal-and-noise-tools' ), $stale )
+					/* translators: %d: number of URLs verified after the purge */
+					: sprintf( __( '%d verified', 'signal-and-noise-tools' ), (int) ( $fresh['total'] ?? 0 ) ),
+				'dir'     => 'stale' === $last ? 'down' : ( 'fresh' === $last ? 'up' : '' ),
+			);
+		}
+	}
+
+	return $out;
 }
 
 /**

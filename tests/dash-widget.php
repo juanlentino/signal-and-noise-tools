@@ -128,6 +128,25 @@ ob_start(); call_user_func( $GLOBALS['__widgets']['sn_dashboard'][1] ); ob_end_c
 ok( 0 === $GLOBALS['__http_calls'], 'STILL ZERO HTTP — index.php renders on every admin login' );
 ok( 0 === $GLOBALS['__scans'], 'STILL NO SCAN' );
 
+// ── UPTIME MUST HAVE A CALLER ──────────────────────────────────────────────
+// v8.3.0 folded S&N Uptime INTO the health widget. v11.30.0 then folded the
+// health widget into THIS box but carried only its glance, so
+// sn_uptime_status_health_section() was left with no production caller at all
+// while its assets were still enqueued on index.php. Uptime had quietly left
+// the dashboard, and tests/site-health-widget.php asserted the render function
+// still EXISTED — which stayed true the whole time it was unreachable.
+echo "\nUptime is reachable from the box that absorbed it\n";
+$GLOBALS['__uptime_calls'] = 0;
+function sn_uptime_status_health_section() {
+	$GLOBALS['__uptime_calls']++;
+	return '<div class="sn-uw-section"><p class="sn-uw-head">Uptime</p></div>';
+}
+$GLOBALS['__caps'] = null; // unused here; the box gates on current_user_can()
+fire();
+ob_start(); call_user_func( $GLOBALS['__widgets']['sn_dashboard'][1] ); $up = ob_get_clean();
+ok( $GLOBALS['__uptime_calls'] > 0, 'THE BOX CALLS THE UPTIME SECTION — existence is not reachability' );
+ok( false !== strpos( $up, 'sn-uw-section' ), 'and its markup lands in the rendered box' );
+
 // ── THE WIDGET'S CSS MUST ACTUALLY REACH index.php ──────────────────────────
 // v11.30.2. The .sn-dw-* rules were written into assets/admin.css, which is
 // enqueued ONLY on S&N page hooks. On the WordPress home dashboard the widget

@@ -217,6 +217,17 @@ function sn_dash_widget_render() {
 		echo '</div>';
 	}
 
+	// v13.33.0: the Uptime section, restored. v8.3.0 folded S&N Uptime INTO the
+	// health widget; v11.30.0 then folded the health widget into this box but
+	// carried only its glance, leaving sn_uptime_status_health_section() with no
+	// production caller at all — while its assets were still enqueued on
+	// index.php. Uptime had quietly left the dashboard. The helper renders its
+	// own instant shell and hydrates through the uptime-status ability, so the
+	// zero-cost contract holds.
+	if ( $admin && function_exists( 'sn_uptime_status_health_section' ) ) {
+		echo sn_uptime_status_health_section(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- the helper escapes at build.
+	}
+
 	echo '<p class="sn-dw__foot"><a href="' . esc_url( $url ) . '">'
 		. esc_html__( 'Open the dashboard', 'signal-and-noise-tools' ) . ' &rarr;</a></p>';
 	echo '</div>';

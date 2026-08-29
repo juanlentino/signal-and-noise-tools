@@ -111,7 +111,11 @@ echo "\nGroup E: output schema keys\n";
 $props = $a['output_schema']['properties'] ?? array();
 ok( 'object' === ( $a['output_schema']['type'] ?? null ), 'output type is object' );
 ok(
-	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
+	// v13.33.0: purposes, ai_training_by_purpose, first_party and taxonomy were
+	// in snt_mr_summary_payload()'s return since v10.79.0 but undeclared here,
+	// so an agent reading the schema could not know the purpose axis existed.
+	// ADDITIVE and in the payload's own order — nothing renamed, nothing moved.
+	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
 	'schema pins the DM tile payload fields in response order, with error appended'
 );
 ok( 'boolean' === ( $props['ok']['type'] ?? null ), 'ok is a boolean' );
