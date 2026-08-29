@@ -57,25 +57,56 @@ function snt_dwx_boxes() {
 		array(
 			'id'       => 'sn_dash_audience',
 			'title'    => __( 'S&N Audience', 'signal-and-noise-tools' ),
-			'cap'      => 'view_stats',
+			'caps'     => array( 'view_stats', 'manage_options' ),
 			'blurb'    => __( 'Who is reading, on-site and by feed.', 'signal-and-noise-tools' ),
 			'sections' => array(
 				array(
-					'label'   => __( 'Traffic', 'signal-and-noise-tools' ),
+					// Server-side and free: snt_dashboard_measurement_data() is a
+					// DB-local read and the ONLY source here that carries a prior
+					// period, so this is where the delta can be honest.
+					'label'   => '',
+					'signals' => 'snt_dwx_traffic_signals',
+				),
+				array(
+					'label'   => '',
 					'ability' => 'signal-noise/get-analytics-summary',
 					'fields'  => array(
-						array( 'path' => 'views', 'label' => __( 'Views', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'pageview_visits', 'label' => __( 'Visits', 'signal-and-noise-tools' ) ),
+						array(
+							'path'    => 'pageview_visits',
+							'label'   => __( 'Visits', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => __( '%s views per visit', 'signal-and-noise-tools' ), 'path' => 'view_visit_ratio' ),
+						),
+						array(
+							'path'    => 'unique_visitor_days',
+							'label'   => __( 'Visitor-days', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => __( '%s with no pageview', 'signal-and-noise-tools' ), 'path' => 'viewless_visits' ),
+						),
 					),
 				),
 				array(
 					'label'   => __( 'Feed', 'signal-and-noise-tools' ),
 					'ability' => 'signal-noise/get-rss-stats',
 					'fields'  => array(
-						array( 'path' => 'data.windows.7.uniques', 'label' => __( 'Subscribers, 7d', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'data.windows.30.uniques', 'label' => __( 'Subscribers, 30d', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'data.last_request_relative', 'label' => __( 'Last request', 'signal-and-noise-tools' ) ),
+						array(
+							'path'    => 'data.windows.7.uniques',
+							'label'   => __( 'Subscribers 7d', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => __( '%s over 30d', 'signal-and-noise-tools' ), 'path' => 'data.windows.30.uniques' ),
+						),
+						array(
+							'path'    => 'data.windows.7.total',
+							'label'   => __( 'Feed fetches 7d', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => __( 'last %s', 'signal-and-noise-tools' ), 'path' => 'data.last_request_relative' ),
+						),
 					),
+				),
+			),
+			'lists'    => array(
+				array(
+					'label'   => __( 'Feed windows', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/get-rss-stats',
+					'path'    => 'data.windows',
+					'keys'    => array( '1' => '24h', '7' => '7d', '30' => '30d' ),
+					'item'    => array( 'value' => 'uniques', 'sub' => 'total', 'sub_template' => __( '%s fetches', 'signal-and-noise-tools' ) ),
 				),
 			),
 			'links'    => array(
@@ -86,18 +117,50 @@ function snt_dwx_boxes() {
 		array(
 			'id'       => 'sn_dash_machines',
 			'title'    => __( 'S&N Machine Readers', 'signal-and-noise-tools' ),
-			'cap'      => 'manage_options',
+			'caps'     => array( 'manage_options' ),
 			'blurb'    => __( 'Crawler readership. Never summed with the human half.', 'signal-and-noise-tools' ),
 			'sections' => array(
 				array(
 					'label'   => '',
 					'ability' => 'signal-noise/get-machine-readers-summary',
 					'fields'  => array(
-						array( 'path' => 'total', 'label' => __( 'Reads', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'ai_training', 'label' => __( 'Declared AI-training', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'ai_rights', 'label' => __( 'Rights-file reads', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'families.0.family', 'label' => __( 'Top family', 'signal-and-noise-tools' ) ),
+						array(
+							'path'    => 'total',
+							'label'   => __( 'Reads', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => __( 'over %s days', 'signal-and-noise-tools' ), 'path' => 'days' ),
+						),
+						array(
+							'path'    => 'ai_training',
+							'label'   => __( 'AI-training', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => __( '%s of reads', 'signal-and-noise-tools' ), 'percent_of' => 'total', 'path' => 'ai_training' ),
+						),
+						array(
+							'path'    => 'families.0.hits',
+							'label'   => __( 'Top family', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => '%s', 'path' => 'families.0.family' ),
+						),
+						array(
+							'path'    => 'ai_rights',
+							'label'   => __( 'Rights-file reads', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => __( 'of %s total', 'signal-and-noise-tools' ), 'path' => 'total' ),
+						),
 					),
+				),
+			),
+			'lists'    => array(
+				array(
+					'label'   => __( 'Top families', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/get-machine-readers-summary',
+					'path'    => 'families',
+					'limit'   => 5,
+					'item'    => array( 'label' => 'family', 'value' => 'hits' ),
+				),
+				array(
+					'label'   => __( 'AI-training reads by surface', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/get-machine-readers-summary',
+					'path'    => 'ai_surfaces',
+					'limit'   => 4,
+					'item'    => array( 'label' => 'surface', 'value' => 'hits' ),
 				),
 			),
 			'links'    => array(
@@ -107,17 +170,45 @@ function snt_dwx_boxes() {
 		array(
 			'id'       => 'sn_dash_ops',
 			'title'    => __( 'S&N Operations', 'signal-and-noise-tools' ),
-			'cap'      => 'manage_options',
+			'caps'     => array( 'manage_options' ),
 			'blurb'    => __( 'What is shipped, and whether the edge took it.', 'signal-and-noise-tools' ),
 			'sections' => array(
 				array(
 					'label'   => '',
 					'ability' => 'signal-noise/get-deploy-status',
 					'fields'  => array(
-						array( 'path' => 'theme.current', 'label' => __( 'Theme', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'plugin.current', 'label' => __( 'Plugin', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'last_deploy', 'label' => __( 'Last deploy', 'signal-and-noise-tools' ) ),
+						array(
+							'path'    => 'theme.current',
+							'label'   => __( 'Theme', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => '%s', 'path' => 'theme.state' ),
+						),
+						array(
+							'path'    => 'plugin.current',
+							'label'   => __( 'Plugin', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => '%s', 'path' => 'plugin.state' ),
+						),
+						array(
+							'path'    => 'last_deploy',
+							'label'   => __( 'Last deploy', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => '%s', 'path' => 'last_deploy_component' ),
+						),
 					),
+				),
+			),
+			'lists'    => array(
+				array(
+					'label'   => __( 'Workers', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/get-deploy-status',
+					'path'    => 'workers',
+					'limit'   => 5,
+					'item'    => array( 'label' => 'label', 'value' => 'live', 'sub' => 'latest', 'sub_template' => __( 'latest %s', 'signal-and-noise-tools' ) ),
+				),
+			),
+			'actions'  => array(
+				array(
+					'label'   => __( 'Purge caches', 'signal-and-noise-tools' ),
+					'busy'    => __( 'Purging&hellip;', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/purge-all-caches',
 				),
 			),
 			'links'    => array(
@@ -129,17 +220,43 @@ function snt_dwx_boxes() {
 		array(
 			'id'       => 'sn_dash_provenance',
 			'title'    => __( 'S&N Provenance', 'signal-and-noise-tools' ),
-			'cap'      => 'manage_options',
+			'caps'     => array( 'manage_options' ),
 			'blurb'    => __( 'Anchor status for the signed Notes.', 'signal-and-noise-tools' ),
 			'sections' => array(
 				array(
 					'label'   => '',
 					'ability' => 'signal-noise/anchor-status',
 					'fields'  => array(
-						array( 'path' => 'confirmed', 'label' => __( 'Anchored', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'total', 'label' => __( 'Notes', 'signal-and-noise-tools' ) ),
-						array( 'path' => 'pending.length', 'label' => __( 'Pending', 'signal-and-noise-tools' ) ),
+						array(
+							'path'    => 'confirmed',
+							'label'   => __( 'Anchored', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => __( 'of %s notes', 'signal-and-noise-tools' ), 'path' => 'total' ),
+						),
+						array(
+							'path'    => 'pending.length',
+							'label'   => __( 'Pending', 'signal-and-noise-tools' ),
+							'compare' => array( 'template' => __( 'awaiting Bitcoin', 'signal-and-noise-tools' ) ),
+						),
 					),
+				),
+			),
+			'lists'    => array(
+				array(
+					'label'   => __( 'Pending', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/anchor-status',
+					'path'    => 'pending',
+					'limit'   => 5,
+					'empty'   => __( 'No anchors pending.', 'signal-and-noise-tools' ),
+					// `confirmations: null` is "not recorded" and must never render
+					// as 0/6 — the desktop widget's rule, carried over.
+					'item'    => array( 'label' => 'title', 'format' => 'confirmations' ),
+				),
+			),
+			'actions'  => array(
+				array(
+					'label'   => __( 'Sweep now', 'signal-and-noise-tools' ),
+					'busy'    => __( 'Sweeping&hellip;', 'signal-and-noise-tools' ),
+					'ability' => 'signal-noise/anchor-sweep',
 				),
 			),
 			'links'    => array(

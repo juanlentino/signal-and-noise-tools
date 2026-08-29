@@ -26,14 +26,20 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 
 $GLOBALS['__actions'] = array(); $GLOBALS['__widgets'] = array();
-$GLOBALS['__http_calls'] = 0; $GLOBALS['__scans'] = 0; $GLOBALS['__cap'] = 'manage_options';
+$GLOBALS['__http_calls'] = 0; $GLOBALS['__scans'] = 0; $GLOBALS['__caps'] = array( 'manage_options' );
 $GLOBALS['__styles'] = array(); $GLOBALS['__scripts'] = array();
 
 function add_action( $h, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $h ][] = $cb; }
 function wp_enqueue_style( $h, $src = '', $deps = array(), $ver = null ) { $GLOBALS['__styles'][ $h ] = $src; }
 function wp_enqueue_script( $h, $src = '', $deps = array(), $ver = null, $f = false ) { $GLOBALS['__scripts'][ $h ] = $deps; }
 function wp_add_dashboard_widget( $id, $title, $cb ) { $GLOBALS['__widgets'][ $id ] = array( $title, $cb ); }
-function current_user_can( $c ) { return 'manage_options' === $GLOBALS['__cap'] ? true : ( 'view_stats' === $c ); }
+// $GLOBALS['__caps'] is the set the current user ACTUALLY holds. view_stats is
+// NOT a core WordPress capability, so a plain administrator holds only
+// manage_options — which is why every other consumer here gates on
+// `view_stats || manage_options`. The previous stub granted view_stats to all
+// callers and made the Audience assertion vacuous: it passed while the box was
+// invisible on the real dashboard.
+function current_user_can( $c ) { return in_array( $c, (array) $GLOBALS['__caps'], true ); }
 function wp_remote_get( $u, $a = array() ) { $GLOBALS['__http_calls']++; return array(); }
 function wp_remote_post( $u, $a = array() ) { $GLOBALS['__http_calls']++; return array(); }
 function sn_health_run_scan() { $GLOBALS['__scans']++; return array(); }
@@ -52,6 +58,18 @@ $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 function fire() { $GLOBALS['__widgets'] = array(); foreach ( $GLOBALS['__actions']['wp_dashboard_setup'] ?? array() as $cb ) { $cb(); } }
 
+function number_format_i18n( $n, $d = 0 ) { return number_format( (float) $n, (int) $d ); }
+function _n( $sg, $pl, $n, $d = '' ) { return 1 === (int) $n ? $sg : $pl; }
+// The SAME measurement fixture tests/dash-widget.php drives its signal strip
+// with, so the two suites cannot disagree about the shape of this payload. The
+// real sn_dash_signals_from_measurement() runs against it — stubbing the unit
+// under test would assert nothing about it.
+function snt_dashboard_measurement_data() { return array(
+	'views_7d' => 128, 'views_delta' => 39, 'views_prior' => 89,
+	'search_clicks' => 5, 'search_clicks_days' => 28, 'search_impressions' => 1240,
+	'anchored' => 33, 'anchored_total' => 33, 'citations' => 0,
+); }
+require __DIR__ . '/../inc/dash-signals.php';
 require __DIR__ . '/../inc/dash-widgets.php';
 
 echo "the fallback dashboard boxes\n\n";
@@ -103,6 +121,12 @@ foreach ( snt_dwx_boxes() as $box ) {
 	foreach ( $box['sections'] as $sec ) {
 		if ( ! empty( $sec['ability'] ) ) { $declared[ $sec['ability'] ] = $box['id']; }
 	}
+	foreach ( (array) ( $box['lists'] ?? array() ) as $l ) {
+		if ( ! empty( $l['ability'] ) ) { $declared[ $l['ability'] ] = $box['id'] . ' (list)'; }
+	}
+	foreach ( (array) ( $box['actions'] ?? array() ) as $a ) {
+		if ( ! empty( $a['ability'] ) ) { $declared[ $a['ability'] ] = $box['id'] . ' (action)'; }
+	}
 }
 ok( count( $declared ) >= 3, 'at least three boxes are ability-backed (' . count( $declared ) . ')' );
 foreach ( $declared as $name => $box_id ) {
@@ -132,6 +156,12 @@ foreach ( snt_dwx_boxes() as $box ) {
 			ok( false !== strpos( $blob, "'" . $root . "'" ),
 				$box['id'] . ": '" . $field['path'] . "' roots at a real property of " . $sec['ability'] );
 		}
+	}
+	foreach ( (array) ( $box['lists'] ?? array() ) as $l ) {
+		if ( ! isset( $src_by_ability[ $l['ability'] ] ) ) { continue; }
+		$root = explode( '.', (string) $l['path'] )[0];
+		ok( false !== strpos( $src_by_ability[ $l['ability'] ], "'" . $root . "'" ),
+			$box['id'] . " list: '" . $l['path'] . "' roots at a real property of " . $l['ability'] );
 	}
 }
 
@@ -170,15 +200,102 @@ foreach ( snt_dwx_boxes() as $box ) {
 
 // ── CAPABILITY TIERS ────────────────────────────────────────────────────────
 echo "\nCapability tiers\n";
-$GLOBALS['__cap'] = 'view_stats';
+$GLOBALS['__caps'] = array( 'view_stats' );
 fire();
 ok( isset( $GLOBALS['__widgets']['sn_dash_audience'] ),
 	'a view_stats user gets Audience — readership is what that capability is for' );
 foreach ( array( 'sn_dash_machines', 'sn_dash_ops', 'sn_dash_provenance' ) as $id ) {
 	ok( ! isset( $GLOBALS['__widgets'][ $id ] ), "$id is manage_options business and does not register for view_stats" );
 }
-$GLOBALS['__cap'] = 'manage_options';
+$GLOBALS['__caps'] = array( 'manage_options' );
 fire();
+
+// ── THE BUG THE OWNER SAW: an administrator must get Audience ───────────────
+// Shipped in 13.30.0 gated on 'view_stats' ALONE. view_stats is not a core
+// WordPress capability, so a plain administrator does not hold it and the box
+// registered for nobody — it was simply absent from the dashboard while this
+// suite was green, because the old stub granted view_stats to every caller.
+echo "\nAn administrator gets every box\n";
+$GLOBALS['__caps'] = array( 'manage_options' );
+fire();
+foreach ( array_keys( $expect ) as $id ) {
+	ok( isset( $GLOBALS['__widgets'][ $id ] ), "$id registers for a manage_options-only user (the real administrator shape)" );
+}
+$GLOBALS['__caps'] = array( 'view_stats' );
+fire();
+ok( isset( $GLOBALS['__widgets']['sn_dash_audience'] ), 'and a view_stats-only user still gets Audience' );
+$GLOBALS['__caps'] = array( 'manage_options' );
+fire();
+
+// ── IT MUST LOOK LIKE A WIDGET, NOT A SETTINGS TABLE ───────────────────────
+// Owner, 2026-08-29, looking at the shipped boxes: "No format as a widget
+// should have and definitely not the same information or deltas where they're
+// needed." A flat label-value list is a settings table. The sibling box's grid
+// is the house idiom and its CSS is already on this screen.
+echo "\nWidget format: the sibling box's signal grid, not a label-value list\n";
+$html = array();
+foreach ( array_keys( $expect ) as $id ) {
+	ob_start(); call_user_func( $GLOBALS['__widgets'][ $id ][1] ); $html[ $id ] = ob_get_clean();
+}
+foreach ( $expect as $id => $subject ) {
+	ok( false !== strpos( $html[ $id ], 'sn-dw__signals' ), "$id renders the signal GRID" );
+	ok( false !== strpos( $html[ $id ], 'sn-dw__k' ) && false !== strpos( $html[ $id ], 'sn-dw__n' ),
+		"$id uses the sibling's label/number vocabulary, so dash-widget.css styles it" );
+	// The exact old markup, quote included: 'sn-dwx__row' alone also matches
+	// 'sn-dwx__rows', the LIST container, and would fail on correct code.
+	ok( false === strpos( $html[ $id ], 'class="sn-dwx__row"' ), "$id no longer renders the flat label-value row list" );
+}
+
+// ── DELTAS AND CONTEXT WHERE THEY ARE NEEDED ───────────────────────────────
+// A bare count says nothing: "3,168" is meaningless without "of 64,503", and
+// "Reads 64,503" is meaningless without its window.
+echo "\nEvery box carries comparison lines, not bare counts\n";
+foreach ( $expect as $id => $subject ) {
+	ok( false !== strpos( $html[ $id ], 'sn-dw__c' ), "$id renders comparison slots" );
+}
+$with_compare = 0; $cells = 0;
+foreach ( snt_dwx_boxes() as $box ) {
+	foreach ( $box['sections'] as $sec ) {
+		foreach ( (array) ( $sec['fields'] ?? array() ) as $f ) {
+			$cells++;
+			if ( ! empty( $f['compare']['template'] ) ) { $with_compare++; }
+		}
+	}
+}
+ok( $cells > 0 && $with_compare === $cells,
+	"EVERY ability-backed cell declares a comparison ($with_compare/$cells) — a number with no denominator is not a reading" );
+ok( false !== strpos( $html['sn_dash_audience'], 'sn-dw__c--' ),
+	'Audience carries a DIRECTIONAL delta — the measurement source is the only one here with a prior period' );
+
+// ── RICHNESS: a fallback is still a widget ─────────────────────────────────
+// Owner, 2026-08-29: "The widgets should be rich, even if they're a fallback."
+// Four signal cells is a summary, not the desktop widget's content. Each box
+// carries the breakdown its desktop counterpart carries.
+echo "\nRichness: breakdown lists, and actions where the desktop widget has one\n";
+foreach ( $expect as $id => $subject ) {
+	$box = null;
+	foreach ( snt_dwx_boxes() as $b ) { if ( $b['id'] === $id ) { $box = $b; } }
+	ok( ! empty( $box['lists'] ), "$id carries at least one breakdown list" );
+	ok( false !== strpos( $html[ $id ], 'sn-dwx__list' ), "$id renders its list container" );
+	ok( false !== strpos( $html[ $id ], 'data-sn-dwx-list' ), "$id ships the list hydration contract" );
+}
+// A list heading with invented skeleton rows would be a claim about data nobody
+// has read. The heading holds the space; the rows arrive or they do not.
+// Quote-anchored: 'sn-dwx__li' is a substring of 'sn-dwx__list', the CONTAINER,
+// so the bare form fails on correct code. Second time this bit in this suite.
+ok( false === strpos( $html['sn_dash_machines'], 'class="sn-dwx__li"' ),
+	'and renders NO skeleton rows server-side — an invented row count is a claim about unread data' );
+
+echo "\nActions on the two boxes whose desktop counterparts have one\n";
+foreach ( array( 'sn_dash_ops' => 'signal-noise/purge-all-caches', 'sn_dash_provenance' => 'signal-noise/anchor-sweep' ) as $id => $ability ) {
+	ok( false !== strpos( $html[ $id ], 'data-sn-dwx-action="' . $ability . '"' ), "$id wires the $ability button" );
+	ok( false !== strpos( $html[ $id ], 'class="button button-small sn-dwx__btn"' ),
+		"$id uses core's own .button class, so it looks like wp-admin rather than a bespoke control" );
+	ok( false !== strpos( $html[ $id ], 'sn-dwx__result' ), "$id has somewhere to report the outcome" );
+}
+foreach ( array( 'sn_dash_audience', 'sn_dash_machines' ) as $id ) {
+	ok( false === strpos( $html[ $id ], 'sn-dwx__actions' ), "$id is a readout and carries NO write button" );
+}
 
 // ── ASSETS REACH index.php, AND NOWHERE ELSE ────────────────────────────────
 // v11.30.2 shipped this widget's CSS into a stylesheet that only loaded on S&N

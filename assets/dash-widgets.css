@@ -1,9 +1,9 @@
 /**
- * S&N fallback dashboard boxes (v13.30.0).
+ * S&N fallback dashboard boxes (v13.30.1).
  *
- * Shares the sn-dw vocabulary's proportions so the five S&N boxes read as one
- * family in the ~400px dashboard column. Core admin colours only — no literals
- * that would drift from wp-admin's own light/dark handling.
+ * The signal GRID itself is assets/dash-widget.css's (sn-dw__signals / __sig /
+ * __k / __n / __c), enqueued on this same screen — reused on purpose so the five
+ * S&N boxes read as one family. Only what is specific to these four lives here.
  */
 .sn-dwx__blurb {
 	margin: 0 0 10px;
@@ -12,56 +12,90 @@
 	line-height: 1.4;
 }
 
-.sn-dwx__h {
-	margin: 12px 0 4px;
-	font-size: 11px;
-	font-weight: 600;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var(--sn-text-muted, #646970);
+/* The grid's own margin-bottom already separates it from the links row. */
+.sn-dwx .sn-dw__signals {
+	margin-bottom: 10px;
 }
 
-.sn-dwx__sec:first-of-type .sn-dwx__h {
-	margin-top: 0;
-}
-
-.sn-dwx__row {
-	display: flex;
-	align-items: baseline;
-	justify-content: space-between;
-	gap: 12px;
-	padding: 5px 0;
-	border-bottom: 1px solid var(--sn-border, #f0f0f1);
-}
-
-.sn-dwx__sec:last-of-type .sn-dwx__row:last-child {
-	border-bottom: 0;
-}
-
-.sn-dwx__k {
-	color: var(--sn-text, #50575e);
-	font-size: 13px;
-}
-
-.sn-dwx__n {
-	font-variant-numeric: tabular-nums;
-	font-weight: 600;
-	font-size: 13px;
-	color: var(--sn-text, #1d2327);
-	white-space: nowrap;
-}
-
-/* A section whose ability call failed keeps its em dashes and says so quietly;
-   the deep links below it are the way through either way. */
-.sn-dwx__sec--failed {
+/* A cell whose ability call failed keeps its em dash and dims; the deep links
+   below are the way through either way. */
+.sn-dwx--failed {
 	opacity: 0.55;
 }
 
 .sn-dwx__links {
-	margin: 12px 0 0;
+	margin: 0;
 	font-size: 12px;
 }
 
 .sn-dwx__dot {
 	color: var(--sn-border, #c3c4c7);
+}
+
+/* ── Lists ──────────────────────────────────────────────────────────────────
+   The desktop widgets' breakdowns (families, workers, pending anchors, feed
+   windows), in the dashboard column's proportions. */
+.sn-dwx__h {
+	margin: 12px 0 4px;
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: .06em;
+	text-transform: uppercase;
+	color: var(--sn-text-muted, #646970);
+}
+
+.sn-dwx__li {
+	display: flex;
+	align-items: baseline;
+	gap: 8px;
+	padding: 3px 0;
+	font-size: 12px;
+	border-bottom: 1px solid var(--sn-border, #f0f0f1);
+}
+
+.sn-dwx__list .sn-dwx__rows .sn-dwx__li:last-child {
+	border-bottom: 0;
+}
+
+/* The label truncates, never the number: a clipped count is a wrong count. */
+.sn-dwx__li-k {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: var(--sn-text, #50575e);
+}
+
+.sn-dwx__li-s {
+	flex: 0 0 auto;
+	font-size: 11px;
+	color: var(--sn-text-muted, #646970);
+}
+
+.sn-dwx__li-v {
+	flex: 0 0 auto;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: var(--sn-text, #1d2327);
+}
+
+.sn-dwx__muted {
+	margin: 2px 0 0;
+	font-size: 12px;
+	color: var(--sn-text-muted, #646970);
+}
+
+/* ── Actions ────────────────────────────────────────────────────────────── */
+.sn-dwx__actions {
+	margin: 12px 0 10px;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+
+.sn-dwx__result {
+	font-size: 12px;
+	color: var(--sn-text-muted, #646970);
 }

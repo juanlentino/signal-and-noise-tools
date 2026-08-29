@@ -4,6 +4,61 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.31.0] - 2026-08-29 — the fallback boxes become widgets
+
+13.30.0 shipped four boxes that were half a feature. The owner saw them on the
+real dashboard and named three faults; all three are fixed here.
+
+### Fixed — S&N Audience registered for nobody
+
+Gated on `view_stats` **alone**. That is not a core WordPress capability, so a
+plain administrator does not hold it and the box never appeared — which is why
+every other consumer in this plugin gates `view_stats || manage_options`. Boxes
+now match ANY of a capability SET.
+
+**The suite was green while the box was invisible.** Its `current_user_can()`
+stub granted `view_stats` to every caller, inventing a user shape WordPress does
+not have, so the assertion "a view_stats user gets Audience" asserted nothing.
+The stub now models the real thing and the suite pins the administrator case
+directly; reverting the gate turns it red.
+
+### Changed — the widget format, not a settings table
+
+The boxes rendered a flat label-value list. They now use the sibling box's signal
+grid (`sn-dw__signals` / `__sig` / `__k` / `__n` / `__c`) — the same vocabulary
+`assets/dash-widget.css` already styles on this screen, so the five S&N boxes read
+as one family: uppercase label, 20px number, comparison line beneath.
+
+### Added — deltas, context, breakdowns and actions
+
+- **Every ability-backed cell now declares a comparison**, pinned by test. A bare
+  count is not a reading: `3,168` becomes `5% of reads`, `64,503` becomes
+  `over 30 days`, `Anchored 35` becomes `of 35 notes`.
+- **A directional delta on Audience**, from `snt_dashboard_measurement_data()` —
+  the only source on this screen carrying a prior period, so the only place a
+  delta here can be honest. `get-analytics-summary` reports one window with no
+  comparison, so its cells carry context lines instead of fake deltas.
+- **Breakdown lists**, matching each desktop counterpart: top crawler families and
+  AI-training reads by surface, the five owned workers with live vs latest, the
+  three feed windows, and pending anchors. `confirmations: null` renders
+  `awaiting tx`, never `0/6` — null is the absence of a measurement, not a zero.
+- **Actions where the desktop widget has one**: Sweep now (Provenance) and Purge
+  caches (Operations), using core's own `.button` class. They report what came
+  back — `N upgraded, M still pending` — rather than a blanket "Done". Audience
+  and Machine Readers are readouts and carry no write button, pinned by test.
+- Lists render **no server-side skeleton rows**: an invented row count is a claim
+  about data nobody has read yet.
+
+### Guards
+
+`tests/dash-widgets.php` is 118 assertions. The ability-name and field-path guards
+now also cover list and action declarations, so a new section kind cannot be added
+later and stay unchecked. Every new guard was negative-controlled — including two
+substring collisions in my own assertions (`sn-dwx__row` matching `sn-dwx__rows`,
+`sn-dwx__li` matching `sn-dwx__list`) that passed against broken code until the
+match was quote-anchored.
+
+
 ## [13.30.0] - 2026-08-29 — the Classic Admin home becomes a real fallback
 
 ### Added — four subject boxes on the Classic Admin home
