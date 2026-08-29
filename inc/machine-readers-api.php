@@ -153,7 +153,7 @@ function snt_mr_normalize_rows( $data ) {
  */
 function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 	$days = max( 1, min( 90, (int) $days ) );
-	$view = in_array( $view, array( 'aggregate', 'unknown', 'rights' ), true ) ? $view : 'aggregate';
+	$view = in_array( $view, array( 'aggregate', 'unknown', 'rights', 'totals' ), true ) ? $view : 'aggregate';
 
 	$cfg = snt_mr_config();
 	if ( null === $cfg ) {
@@ -207,17 +207,53 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 	}
 
 	$result = array(
-		'ok'    => true,
+		'ok'        => true,
 		// The rights view returns a different row shape (full UA, path, Accept,
 		// timestamp) and needs its own normalizer; the aggregate normalizer
-		// would silently discard exactly the fields that view exists for.
-		'rows'  => 'rights' === $view
+		// would silently discard exactly the fields that view exists for. The
+		// totals view is {day, hits} only and needs neither.
+		'rows'      => 'rights' === $view
 			? snt_mr_normalize_rights_rows( $decoded['data'] )
-			: snt_mr_normalize_rows( $decoded['data'] ),
-		'error' => null,
+			: ( 'totals' === $view
+				? snt_mr_normalize_totals_rows( $decoded['data'] )
+				: snt_mr_normalize_rows( $decoded['data'] ) ),
+		// Worker v1.23.0. UNTRUSTED like every other field: cast, never trusted
+		// as shape. A read that says it is truncated must not be summed into a
+		// headline, which is the whole reason the worker now reports it.
+		'truncated' => ! empty( $decoded['truncated'] ),
+		'row_count' => isset( $decoded['rows'] ) ? max( 0, (int) $decoded['rows'] ) : count( (array) $decoded['data'] ),
+		'error'     => null,
 	);
 	set_transient( $cache_key, $result, 15 * MINUTE_IN_SECONDS );
 	return $result;
+}
+
+/**
+ * Normalize the totals view: {day, hits} and nothing else.
+ *
+ * Deliberately narrow. The totals view exists because the aggregate's row count
+ * scales with the window and therefore truncates; a normalizer that accepted
+ * extra dimensions here would invite the same failure back in.
+ *
+ * @since 13.34.0
+ * @param array<int,mixed> $rows Raw rows from the worker.
+ * @return array<int,array{day:string,hits:int}>
+ */
+function snt_mr_normalize_totals_rows( $rows ) {
+	$out = array();
+	foreach ( (array) $rows as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$day = (string) ( $row['day'] ?? '' );
+		$out[] = array(
+			// Same shape discipline as snt_mr_normalize_rows(): a malformed day
+			// becomes '', never a guess.
+			'day'  => preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ? $day : '',
+			'hits' => max( 0, (int) ( $row['hits'] ?? 0 ) ),
+		);
+	}
+	return $out;
 }
 
 /**

@@ -4,6 +4,47 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.34.0] - 2026-08-29 — the machine-reads headline stops being a floor
+
+Consumes `sn-rights-signals` **v1.23.0** (merged, deployed and verified live at
+`source_commit db22b434` before this was written).
+
+### Fixed — `total` was a sum of a silently truncated read
+
+The sensor's aggregate view groups by **eleven dimensions crossed with day**, so
+its row count scales with the window, and until Worker v1.23.0 it declared no
+`LIMIT` — inheriting the SQL API's own cap while reporting `limit: null`.
+
+`snt_mr_summary_payload()` derived `total` by summing those rows. A truncated
+read therefore did not look degraded, **it looked like less traffic**: a 60-day
+read summed to barely more than a 30-day read (69,216 vs 64,825), so the
+dashboard widget's derived prior period reported a **15x surge that never
+happened**, contradicting this site's own published ~17,463.
+
+`total` now comes from the edge's `view=totals` read, which groups by **day
+alone** — at most 90 rows for a 90-day window, exact at any width.
+
+- Falls back to the aggregate sum against a pre-1.23.0 edge, so an un-upgraded
+  worker degrades to the old number rather than to nothing, and says which it
+  used in **`total_exact`**.
+- **`truncated`** rides the payload too: the family and surface breakdowns still
+  come from the aggregate, so a consumer drawing them needs to know they may be
+  partial even when `total` is exact.
+- Both declared in the ability's `output_schema` at the same time the payload
+  gained them — the lesson from v13.33.0, where four fields had been returned but
+  undeclared since v10.79.0.
+
+### Fixed — a test double that ignored a parameter
+
+`tests/abilities-machine-readers.php` stubbed `snt_mr_fetch()` without its
+`$view` argument, so a totals read returned the aggregate fixture and the summary
+concluded its total was exact when nothing had served one. Same class of drift as
+the `current_user_can()` stub that let a broken capability gate pass in 13.30.0:
+a double that does not model the real signature will confirm whatever you build
+against it. The stub now dispatches on view, and both paths are tested — 46
+(aggregate sum) versus 900 (exact) is the gap the change exists to close.
+
+
 ## [13.33.0] - 2026-08-29 — the boxes finally carry what their names promised
 
 13.32.0 fixed the presentation. This fixes the COVERAGE: the four boxes were

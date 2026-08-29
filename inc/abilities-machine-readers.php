@@ -90,6 +90,17 @@ add_action( 'wp_abilities_api_init', function() {
 				'ok'             => array( 'type' => 'boolean' ),
 				'days'           => array( 'type' => 'integer' ),
 				'total'          => array( 'type' => 'integer' ),
+				// v13.34.0. Declared at the same time as the payload gains them —
+				// the purposes lesson: a field the schema does not mention is a field
+				// no agent can know exists.
+				'truncated'              => array(
+					'type'        => 'boolean',
+					'description' => 'True when the edge reports the aggregate read hit its row cap. The BREAKDOWNS below may then be partial even when `total` is exact.',
+				),
+				'total_exact'            => array(
+					'type'        => 'boolean',
+					'description' => 'True when `total` came from the edge\'s day-only totals view, which cannot truncate. False means it was summed from the aggregate and is a floor, not a count.',
+				),
 				'families'       => array(
 					'type'  => 'array',
 					'items' => array(

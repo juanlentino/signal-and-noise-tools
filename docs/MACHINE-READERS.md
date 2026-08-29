@@ -51,11 +51,24 @@ surface).
 | Endpoint | Method | Auth | Answers |
 | --- | --- | --- | --- |
 | `/_sn/rights-signals/machine-readers?days=N` | GET | `Authorization: Bearer <SN_MR_READ_TOKEN>` | `200 { worker, days, data: [ { family, surface, day, hits } ] }` |
+| `/_sn/rights-signals/machine-readers?days=N&view=totals` | GET | same | `200 { worker, days, view, data: [ { day, hits } ] }` |
 | `/_sn/rights-signals/version` | GET | none | `200 { worker, version, cf_version_id, cf_version_tag, deployed_at }` |
 | `/_sn/rights-signals/crawler-list-status` | GET | none | `200 { worker, last_check }` |
 
 Notes that matter when reading the responses:
 
+- **The aggregate read is CAPPED, and the cap is now declared.** The aggregate
+  groups by eleven dimensions crossed with day, so its row count scales with the
+  window. Until Worker v1.23.0 it declared no `LIMIT` and inherited the SQL API's
+  own silently while reporting `limit: null`. Because a consumer derives a total
+  by summing the returned rows, a truncated read did not look degraded, it looked
+  like less traffic: a 60-day read once summed to barely more than a 30-day read,
+  and a derived prior period reported a 15x surge that never happened.
+- **`view=totals` is the figure to trust.** It groups by day alone, so a 90-day
+  window returns at most 90 rows and the sum is exact however wide the window
+  gets. `snt_mr_summary_payload()` reads it for `total` and falls back to the
+  aggregate sum against an older edge, reporting which it used in `total_exact`.
+  Every response also carries `rows` and `truncated`.
 - **`days` is clamped on both sides**, 1 to 90, default 30. The plugin clamps
   before it asks ([`snt_mr_fetch()`](../inc/machine-readers-api.php)) and the
   Worker clamps again before it queries. The value is never string-interpolated
