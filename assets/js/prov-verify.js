@@ -584,11 +584,15 @@
 		// decoration: a reader must be able to check this withdrawal the same
 		// way they checked the record it withdraws, rather than taking this
 		// panel's word for it.
-		if ( retractionSrcEl && 'function' === typeof Core.retractionUrl ) {
-			var url = Core.retractionUrl( config.ledgerBase, uid, version );
-			if ( Core.isSafeExplorerUrl( url ) ) {
+		if ( retractionSrcEl && 'function' === typeof Core.ledgerLinkHref ) {
+			// PARSED and origin-pinned, not prefix-matched: this URL is built
+			// from config.ledgerBase, which the page reads out of its own DOM,
+			// and a scheme regex says nothing about where the link would go.
+			// '' means render no link rather than a link we cannot vouch for.
+			var href = Core.ledgerLinkHref( Core.retractionUrl( config.ledgerBase, uid, version ), config.ledgerBase );
+			if ( href ) {
 				var a = document.createElement( 'a' );
-				a.href = url;
+				a.setAttribute( 'href', href );
 				a.rel = 'nofollow noopener';
 				a.target = '_blank';
 				a.textContent = 'Read the signed retraction record yourself';

@@ -1019,6 +1019,44 @@
 
 	/** The one raw URL sink in an otherwise textContent-only renderer:
 	 *  http(s) only, so a poisoned credential can't plant a javascript: link. */
+	/**
+	 * The href for a link this page offers into the ledger — or '' for anything
+	 * it will not vouch for.
+	 *
+	 * isSafeExplorerUrl() tests a PREFIX with a regex. That is enough for the
+	 * anchor-explorer link, whose URL arrives inside fetched JSON, but not here:
+	 * this URL is built from `ledgerBase`, which the page reads out of its own
+	 * DOM (a data attribute). A scheme check says nothing about WHERE the link
+	 * goes, and a regex is not something a static analyser — or a reader — can
+	 * verify at a glance.
+	 *
+	 * So this PARSES, requires https, and pins the ORIGIN to the configured
+	 * ledger. A link the page hands a reader now cannot leave the ledger it
+	 * claims to be quoting, whatever the attribute said. Fails closed on
+	 * anything unparseable, including the base.
+	 *
+	 * @param {string} url
+	 * @param {string} ledgerBase
+	 * @returns {string} the href, or '' to render no link at all.
+	 */
+	function ledgerLinkHref( url, ledgerBase ) {
+		var target;
+		var base;
+		try {
+			target = new URL( String( url ) );
+			base   = new URL( String( ledgerBase ) );
+		} catch ( e ) {
+			return '';
+		}
+		if ( 'https:' !== target.protocol || 'https:' !== base.protocol ) {
+			return '';
+		}
+		if ( target.origin !== base.origin ) {
+			return '';
+		}
+		return target.href;
+	}
+
 	function isSafeExplorerUrl( url ) {
 		return /^https?:\/\//i.test( String( url ) );
 	}
@@ -1060,6 +1098,7 @@
 		diffWords:                diffWords,
 		pastedTwinUrl:            pastedTwinUrl,
 		resolveTwinRef:           resolveTwinRef,
+		ledgerLinkHref:           ledgerLinkHref,
 		isSafeExplorerUrl:        isSafeExplorerUrl
 	};
 } );

@@ -395,6 +395,31 @@ console.log( '\nGroup 5f: retractionRows — the reasons a reader is owed' );
 	ok( core.retractionRows( null ).length === 0, 'no retraction, no rows' );
 }
 
+console.log( '\nGroup 5g: ledgerLinkHref — a link the page offers is PINNED, not merely https' );
+{
+	const base = 'https://raw.githubusercontent.com/juanlentino/signal-and-noise-provenance/main/';
+
+	// The happy path: a deep link under the configured ledger.
+	eq( base + 'retractions/x/v1.json', core.ledgerLinkHref( base + 'retractions/x/v1.json', base ),
+		'a URL under the ledger origin is returned unchanged' );
+
+	// Scheme. isSafeExplorerUrl checks a PREFIX with a regex; this parses.
+	eq( '', core.ledgerLinkHref( 'javascript:alert(1)', base ), 'a javascript: URL is refused' );
+	eq( '', core.ledgerLinkHref( 'data:text/html,<script>', base ), 'a data: URL is refused' );
+	eq( '', core.ledgerLinkHref( 'http://raw.githubusercontent.com/x', base ), 'plain http is refused (the ledger is https)' );
+
+	// ORIGIN. This is what the prefix regex could never do: a scheme check alone
+	// says nothing about WHERE the link goes, and the href is built from a value
+	// the page reads out of its own DOM.
+	eq( '', core.ledgerLinkHref( 'https://evil.example/retractions/x/v1.json', base ),
+		'an https URL on another origin is refused — the destination is pinned, not just the scheme' );
+
+	// Garbage in never becomes a live href.
+	eq( '', core.ledgerLinkHref( 'not a url', base ), 'an unparseable URL yields no href' );
+	eq( '', core.ledgerLinkHref( base + 'x', 'not a url' ), 'an unparseable BASE yields no href (fail closed)' );
+	eq( '', core.ledgerLinkHref( '', base ), 'an empty URL yields no href' );
+}
+
 // ─── Group 6: anchor plan (BOTH anchor shapes + the block-only norm) ────
 console.log( '\nGroup 6: deriveAnchorPlan (pending attestation; confirmed with txid; block-only — 9.73.2)' );
 {

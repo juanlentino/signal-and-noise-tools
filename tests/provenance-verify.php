@@ -509,6 +509,15 @@ vv_true(
 // the count checkRetraction reaches today; losing one means a branch stopped
 // classifying. Set AT the real count, not below it — a threshold with slack is
 // a threshold that tolerates exactly the regression it was written for.
+// The retraction link's href is built from config.ledgerBase, which the page
+// reads out of its OWN DOM. A prefix regex on the scheme says nothing about
+// where the link would GO, so this one is parsed and origin-pinned. CodeQL
+// flagged the regex form as js/xss-through-dom (high) and was right to.
+vv_true(
+	'' !== $js && false !== strpos( $js, 'Core.ledgerLinkHref(' )
+		&& preg_match( '/a\.href\s*=\s*url/', $js ) !== 1,
+	'the retraction link href is origin-pinned via ledgerLinkHref, never assigned from a prefix-checked string'
+);
 vv_true(
 	'' !== $js && substr_count( $js, 'Core.retractionOutcome(' ) >= 6,
 	'every retraction branch classifies through retractionOutcome (no silent discard in any one of them)'

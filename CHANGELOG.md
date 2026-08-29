@@ -60,6 +60,30 @@ its route exists. Replaced with a valid-HMAC probe that only a live route can
 answer. And the first ledger test file sat outside vitest's `include` globs and
 was never collected at all.
 
+### Fixed — the retraction link is origin-pinned, not prefix-matched (CodeQL, high)
+
+CodeQL flagged `js/xss-through-dom` (high) on the panel's "read the signed
+retraction record yourself" link, and it was right to. The href is built from
+`config.ledgerBase`, which the page reads out of its **own DOM** — a data
+attribute — and the guard was `isSafeExplorerUrl()`, a prefix regex
+(`/^https?:\/\//i`).
+
+That regex does stop `javascript:`. What it cannot do is say anything about
+where the link GOES, and it is not something a static analyser — or a reader —
+can verify at a glance. The existing anchor-explorer link uses the same guard
+and is not flagged, because its URL arrives inside fetched JSON rather than from
+the DOM; that difference is the whole finding.
+
+`ledgerLinkHref()` replaces it for this link: it PARSES the URL, requires
+`https:`, and pins the **origin** to the configured ledger, returning `''` — no
+link at all — for anything it will not vouch for, including an unparseable base.
+A link this page hands a reader can no longer leave the ledger it claims to be
+quoting, whatever the attribute said. `isSafeExplorerUrl()` is untouched, since
+its own caller's threat model is different.
+
+Fixed rather than dismissed: the alert named a real weakening of a guarantee
+this page exists to provide.
+
 ### Added — the retraction panel: the reasons, not just the alarm
 
 The verdict band said a record was withdrawn. That is the alarm, not the
