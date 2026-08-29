@@ -162,6 +162,21 @@
 	// params (?input[k]=v), which the run controller's raw query read parses
 	// to a real array — a JSON `?input=` string fails object schemas.
 	function executeAbility( name, input ) {
+		// In vanilla wp-admin the dep array guarantees the runner loaded
+		// before us. In a REPLAYED document (OpenStation's shell ⌘K hoist)
+		// that guarantee is soft: upstream's all_deps() bails wholesale if
+		// ANY contributor on the site has an unregistered dependency, and
+		// the fallback replays contributors without their chains. Throw a
+		// named error so the palette's failure surface (openstation#712,
+		// "Command /x failed: …") says what is missing and why, instead of
+		// a bare TypeError.
+		if ( typeof window.sntAbilityRun !== 'function' ) {
+			throw new Error(
+				'window.sntAbilityRun is missing: assets/snt-ability-run.js did not load in this document. ' +
+				'It is a declared dependency of snt-command-palette — if this is the OpenStation shell palette, ' +
+				'the contributor hoist replayed this script without its dependency chain (all_deps() bail; see WordPress/openstation#712).'
+			);
+		}
 		return window.sntAbilityRun( name, input );
 	}
 
