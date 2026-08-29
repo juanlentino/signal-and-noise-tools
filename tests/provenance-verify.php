@@ -476,6 +476,23 @@ vv_true(
 	'' !== $js && preg_match( '/resetChecks\(\);.*?activeRetraction = null;/s', $js ) === 1,
 	'JS clears the retraction between lookups (no carry-over onto the next record)'
 );
+// A retraction that does not verify must become UNKNOWN, never silence. Waving
+// it through converts an attacker-supplied file into a clean bill of health;
+// honouring it lets anyone silence any record. Both directions are wrong, so
+// the orchestrator routes every branch through the pure classifier.
+// COUNTED, not merely present: a presence check passes while one branch quietly
+// returns null again, which is the exact regression this pins against. Six is
+// the count checkRetraction reaches today; losing one means a branch stopped
+// classifying. Set AT the real count, not below it — a threshold with slack is
+// a threshold that tolerates exactly the regression it was written for.
+vv_true(
+	'' !== $js && substr_count( $js, 'Core.retractionOutcome(' ) >= 6,
+	'every retraction branch classifies through retractionOutcome (no silent discard in any one of them)'
+);
+vv_true(
+	'' !== $js && preg_match( '/catch\(\s*function\s*\(\)\s*\{\s*return UNKNOWN;/', $js ) === 1,
+	'a failed retraction lookup returns UNKNOWN, never a clean result'
+);
 vv_true( '' !== $js && false !== strpos( $js, 'location.origin' ), 'JS guards paste mode against a foreign origin' );
 vv_true(
 	'' !== $js && false === strpos( $js, 'https://' ),

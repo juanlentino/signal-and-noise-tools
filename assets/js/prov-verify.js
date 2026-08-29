@@ -357,34 +357,36 @@
 	 * signature must verify under the key the retraction NAMES (resolved by id,
 	 * never by whichever key is active).
 	 *
-	 * A retraction that fails any of those is DISCARDED, not honoured and not
-	 * reported as a retraction — an attacker must not be able to degrade a
-	 * docket by serving garbage. Absence (404) is the normal case and leaves the
-	 * verdict untouched.
+	 * A retraction that fails any of those is NOT honoured — anyone able to serve
+	 * a file could otherwise silence any record — and is NOT waved through
+	 * either: silently ignoring it would convert an attacker-supplied file into
+	 * a clean bill of health. It becomes UNKNOWN, which qualifies the verdict
+	 * without failing it. Only a confirmed 404 is clean.
 	 */
 	function checkRetraction( uid, version, didDoc, siteKeys, ledgerKeys ) {
+		var UNKNOWN = { retraction: null, unknown: true };
 		if ( 'function' !== typeof Core.retractionUrl || ! window.crypto || ! window.crypto.subtle ) {
-			return Promise.resolve( null );
+			return Promise.resolve( UNKNOWN ); // could not look: say so.
 		}
 		return fetchJSON( Core.retractionUrl( config.ledgerBase, uid, version ) ).then( function ( res ) {
 			var found = Core.deriveRetraction( res, uid, version );
 			if ( ! found.retraction ) {
-				return null;
+				return Core.retractionOutcome( found, null );
 			}
 			var rec = res.json || {};
 			var bytes;
 			try {
 				bytes = Core.base64ToBytes( rec.signed_payload_b64 );
 			} catch ( e ) {
-				return null; // malformed: discard rather than honour or alarm.
+				return Core.retractionOutcome( found, null ); // present, unverifiable.
 			}
 			var agreement = Core.deriveKeyAgreement( didDoc, siteKeys, ledgerKeys, String( rec.pubkey_id || '' ) );
 			if ( agreement.verdict || ! agreement.jwk ) {
-				return null;
+				return Core.retractionOutcome( found, null );
 			}
 			return window.crypto.subtle.digest( 'SHA-256', bytes ).then( function ( digest ) {
 				if ( Core.bytesToHex( new Uint8Array( digest ) ) !== String( rec.content_hash || '' ).toLowerCase() ) {
-					return null;
+					return Core.retractionOutcome( found, false );
 				}
 				return window.crypto.subtle
 					.importKey( 'jwk', agreement.jwk, { name: 'Ed25519' }, false, [ 'verify' ] )
@@ -392,11 +394,13 @@
 						return window.crypto.subtle.verify( 'Ed25519', key, Core.base64ToBytes( rec.signature ), bytes );
 					} )
 					.then( function ( valid ) {
-						return valid ? found.retraction : null;
+						return Core.retractionOutcome( found, !! valid );
 					} )
-					.catch( function () { return null; } );
+					.catch( function () { return Core.retractionOutcome( found, null ); } );
 			} );
-		} ).catch( function () { return null; } );
+		} ).catch( function () {
+			return UNKNOWN; // a failed lookup is never a clean bill of health.
+		} );
 	}
 
 	/** Content-hash check: SHA-256 of the signed payload bytes vs the credential's claim. */

@@ -60,6 +60,32 @@ its route exists. Replaced with a valid-HMAC probe that only a live route can
 answer. And the first ledger test file sat outside vitest's `include` globs and
 was never collected at all.
 
+### Fixed — an unconfirmable withdrawal status is no longer silence
+
+The retraction lookup classified an unreachable fetch as `unknown`, and then the
+orchestrator collapsed it to "no retraction" without telling anyone. So anyone
+able to block one fetch could hide a retraction behind a clean "Authentic" — the
+distinction existed in the core and was decorative in practice.
+
+Two changes, both in the same direction: **fail toward uncertainty, never toward
+confidence.**
+
+- `deriveOverallVerdict()` now takes `{ retraction, unknown }` — the shape
+  `deriveRetraction()` already returns. An unknown withdrawal status cannot reach
+  `pass`; it qualifies the verdict and says in words what could not be confirmed.
+  Only a confirmed 404 is clean.
+- A retraction that is PRESENT but does not verify is no longer discarded
+  silently. That was wrong in the same direction: it converts a file an attacker
+  supplied into a clean bill of health. It cannot be honoured either — an
+  unverified retraction would let anyone silence any record — so it becomes
+  `unknown`. `retractionOutcome()` is pure and holds that rule, so the
+  orchestrator cannot quietly reintroduce a discard in one branch.
+
+The call-site pin counts branches rather than checking presence: a `strpos` pin
+passes while a single branch returns null again, which is precisely the
+regression it exists to catch. It is set AT the current count, not below it — a
+threshold with slack tolerates exactly the failure it was written for.
+
 Nothing is retracted today, and `verify:retractions` reports zero. The checks are
 split into `retraction-checks.mjs` precisely so they are exercised by tests rather
 than only by a corpus that is empty — a verifier nobody has watched fail is not

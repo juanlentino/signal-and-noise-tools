@@ -324,6 +324,37 @@ console.log( '\nGroup 5d: deriveRetraction — absence is an ANSWER, an outage i
 	ok( ! hit.unknown && ! hit.mismatched, 'and carries no gap or mismatch flag' );
 }
 
+console.log( '\nGroup 5e: retractionOutcome — a retraction we cannot verify is UNKNOWN, never clean' );
+{
+	const R = { retracted_at: '2026-08-15', what_was_wrong: 'x' };
+
+	// Verified: it withdraws the record.
+	eq( R, core.retractionOutcome( { retraction: R }, true ).retraction, 'a verified retraction is honoured' );
+	ok( ! core.retractionOutcome( { retraction: R }, true ).unknown, 'and carries no uncertainty' );
+
+	// Present but NOT verified. Discarding this silently was the first design and
+	// it is wrong in the same direction as everything else here: it converts an
+	// attacker-supplied file into a clean bill of health. It cannot be honoured
+	// either — an unverified retraction would let anyone silence any record — so
+	// the honest state is "could not determine".
+	const bad = core.retractionOutcome( { retraction: R }, false );
+	ok( null === bad.retraction, 'an unverified retraction is never honoured' );
+	ok( bad.unknown, 'and never silently ignored either — it is UNKNOWN' );
+
+	// Could not even attempt verification (no WebCrypto, malformed bytes, key
+	// unresolvable): same answer.
+	ok( core.retractionOutcome( { retraction: R }, null ).unknown, 'an unattemptable check is UNKNOWN' );
+
+	// 404: a real answer. This is the common case and must stay clean.
+	const none = core.retractionOutcome( { retraction: null, unknown: false }, null );
+	ok( null === none.retraction && ! none.unknown, 'a confirmed absence stays clean' );
+
+	// An unreachable lookup or a retraction naming another record: both leave us
+	// unable to say whether THIS record was withdrawn.
+	ok( core.retractionOutcome( { retraction: null, unknown: true }, null ).unknown, 'an unreachable lookup is UNKNOWN' );
+	ok( core.retractionOutcome( { retraction: null, mismatched: true }, null ).unknown, 'a mismatched retraction leaves the status UNKNOWN' );
+}
+
 // ─── Group 6: anchor plan (BOTH anchor shapes + the block-only norm) ────
 console.log( '\nGroup 6: deriveAnchorPlan (pending attestation; confirmed with txid; block-only — 9.73.2)' );
 {
@@ -665,7 +696,7 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 	// retraction is not a fifth check to be averaged in with the others. It
 	// dominates, or the docket would tell a reader "Authentic" about a record
 	// its own publisher has disavowed.
-	const retracted = core.deriveOverallVerdict( all( S.PASS ), { retracted_at: '2026-08-15', what_was_wrong: 'the anchored hash was computed over the wrong bytes' } );
+	const retracted = core.deriveOverallVerdict( all( S.PASS ), { retraction: { retracted_at: '2026-08-15', what_was_wrong: 'the anchored hash was computed over the wrong bytes' } } );
 	eq( 'retracted', retracted.level, 'a retraction overrides an otherwise fully passing docket' );
 	ok( ! /Authentic/.test( retracted.word + ' ' + retracted.line ),
 		'and the reader is never told "Authentic" about a withdrawn record' );
@@ -673,12 +704,33 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 
 	// It dominates a FAILING docket too: "retracted" is the more informative
 	// answer, and it is the publisher's own statement rather than an inference.
-	eq( 'retracted', core.deriveOverallVerdict( { ...all( S.PASS ), 'signature': S.FAIL }, { retracted_at: '2026-08-15' } ).level,
+	eq( 'retracted', core.deriveOverallVerdict( { ...all( S.PASS ), 'signature': S.FAIL }, { retraction: { retracted_at: '2026-08-15' } } ).level,
 		'a retraction also dominates a failing check' );
 
 	// Absent is the NORMAL case and must change nothing.
 	eq( 'pass', core.deriveOverallVerdict( all( S.PASS ), null ).level,
 		'no retraction leaves the verdict exactly as it was' );
+
+	// ── Unknown withdrawal status ───────────────────────────────────────────
+	// If we could not find out whether this record was withdrawn, saying nothing
+	// is the one thing we must not do: an attacker who can block ONE fetch would
+	// then hide a retraction behind a clean "Authentic". Fail toward uncertainty,
+	// never toward confidence.
+	const unsure = core.deriveOverallVerdict( all( S.PASS ), { retraction: null, unknown: true } );
+	ok( 'pass' !== unsure.level, 'an unconfirmable withdrawal status is never a clean pass' );
+	eq( 'qualified', unsure.level, 'it qualifies the verdict rather than failing it — a missing answer, not a failed one' );
+	ok( /withdraw/i.test( unsure.line ), 'and the line tells the reader WHAT could not be confirmed' );
+
+	// It must not masquerade as a retraction either: "we could not check" is not
+	// "this was withdrawn".
+	ok( 'retracted' !== unsure.level, 'not knowing is never reported as retracted' );
+
+	// A verified retraction still dominates even when the status is also murky.
+	eq( 'retracted', core.deriveOverallVerdict( all( S.PASS ), { retraction: { retracted_at: '2026-08-15' }, unknown: true } ).level,
+		'a verified retraction outranks the uncertainty' );
+
+	eq( 'pass', core.deriveOverallVerdict( all( S.PASS ), { retraction: null, unknown: false } ).level,
+		'a confirmed NOT-retracted (404) leaves the verdict clean' );
 
 	const unproven = core.deriveOverallVerdict( { ...all( S.PASS ), 'signature': S.UNREACHABLE } );
 	eq( 'unproven', unproven.level, 'an unrunnable core check is unproven, never a fail' );

@@ -225,9 +225,23 @@
 	 * @param {Object} states Map of check key to STATE.*.
 	 * @return {Object} { level, word, line, caveats }.
 	 */
-	function deriveOverallVerdict( states, retraction ) {
+	function deriveOverallVerdict( states, retractionState ) {
 		var s = states || {};
 		var get = function ( k ) { return s[ k ] || STATE.PENDING; };
+
+		// Takes deriveRetraction()'s own shape: { retraction, unknown }. A
+		// VERIFIED retraction is the only thing that withdraws a record; not
+		// being able to find out is a separate, weaker fact that must still be
+		// said out loud.
+		var rs        = retractionState || {};
+		var retraction = rs.retraction || null;
+		// Saying nothing when the withdrawal status is unknown is the one
+		// option that is not available: anyone who can block a single fetch
+		// would then hide a retraction behind a clean "Authentic". Fail toward
+		// uncertainty, never toward confidence.
+		var withdrawalNote = rs.unknown
+			? ' Whether it has since been withdrawn could not be confirmed — the retraction record could not be read, so this is a missing answer rather than a clean bill.'
+			: '';
 
 		// A retraction DOMINATES, before any check is consulted. It says the
 		// publisher withdrew this record: it asserted something false. Every
@@ -265,7 +279,7 @@
 			return {
 				level:   'fail',
 				word:    'Not authentic',
-				line:    'A check contradicted this credential: ' + caveatNames + ' did not hold. Treat this copy as unverified.',
+				line:    'A check contradicted this credential: ' + caveatNames + ' did not hold. Treat this copy as unverified.' + withdrawalNote,
 				caveats: caveats
 			};
 		}
@@ -273,22 +287,26 @@
 			return {
 				level:   'unproven',
 				word:    'Not proven',
-				line:    'The checks that would settle this could not be run: ' + caveatNames + ' came back unavailable. This is a missing answer, not a failed one.',
+				line:    'The checks that would settle this could not be run: ' + caveatNames + ' came back unavailable. This is a missing answer, not a failed one.' + withdrawalNote,
 				caveats: caveats
 			};
 		}
 		if ( ! caveats.length ) {
+			var cleanLine = 'Signed by the published key, byte-for-byte intact, matching what is published now, and anchored in the Bitcoin chain.';
+			// An unconfirmable withdrawal status cannot reach 'pass'. It is a
+			// gap, so it qualifies rather than fails — the same rule the four
+			// checks already follow for an unreachable leg.
 			return {
-				level:   'pass',
+				level:   rs.unknown ? 'qualified' : 'pass',
 				word:    'Authentic',
-				line:    'Signed by the published key, byte-for-byte intact, matching what is published now, and anchored in the Bitcoin chain.',
+				line:    cleanLine + withdrawalNote,
 				caveats: caveats
 			};
 		}
 		return {
 			level:   'qualified',
 			word:    'Authentic',
-			line:    'Signed by the published key and byte-for-byte intact. Corroboration is incomplete: ' + caveatNames + ' could not be fully confirmed.',
+			line:    'Signed by the published key and byte-for-byte intact. Corroboration is incomplete: ' + caveatNames + ' could not be fully confirmed.' + withdrawalNote,
 			caveats: caveats
 		};
 	}
@@ -495,6 +513,37 @@
 	function ledgerRecordUrl( ledgerBase, uid, version, evidence, kind ) {
 		var root = SUBJECT_ROOTS[ kind ] || SUBJECT_ROOTS.note;
 		return String( ledgerBase || '' ).replace( /\/?$/, '' ) + '/' + root + '/' + encodeURIComponent( uid ) + '/v' + encodeURIComponent( version || ( evidence && evidence.version ) || 0 ) + '.json';
+	}
+
+	/**
+	 * Turn a lookup (deriveRetraction) plus a verification result into the state
+	 * the verdict consumes: { retraction, unknown }.
+	 *
+	 * Three inputs collapse to "unknown", and it is worth naming why each one is
+	 * not simply ignored:
+	 *
+	 *   verified === false  a retraction is PRESENT and does not verify. It must
+	 *                       not be honoured (anyone able to serve a file could
+	 *                       otherwise silence any record) and must not be waved
+	 *                       through either, because that converts a file an
+	 *                       attacker supplied into a clean bill of health.
+	 *   verified === null   verification could not be attempted at all.
+	 *   unknown/mismatched  the lookup itself could not answer for THIS record.
+	 *
+	 * Only a confirmed 404 is clean. Everything else fails toward uncertainty.
+	 *
+	 * @param {{retraction: object|null, unknown?: boolean, mismatched?: boolean}} found
+	 * @param {boolean|null} verified
+	 * @returns {{retraction: object|null, unknown: boolean}}
+	 */
+	function retractionOutcome( found, verified ) {
+		var f = found || {};
+		if ( f.retraction ) {
+			return true === verified
+				? { retraction: f.retraction, unknown: false }
+				: { retraction: null, unknown: true };
+		}
+		return { retraction: null, unknown: !! ( f.unknown || f.mismatched ) };
 	}
 
 	/**
@@ -931,6 +980,7 @@
 		deriveOverallVerdict:     deriveOverallVerdict,
 		deriveRetraction:         deriveRetraction,
 		retractionUrl:            retractionUrl,
+		retractionOutcome:        retractionOutcome,
 		deriveKeyAgreement:       deriveKeyAgreement,
 		decodeProofBytes:         decodeProofBytes,
 		decodeSignedPayloadBytes: decodeSignedPayloadBytes,
