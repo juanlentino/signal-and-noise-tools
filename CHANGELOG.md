@@ -4,6 +4,43 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.35.0] - 2026-08-29 — the machine-reads delta was never truncation
+
+### Fixed — my own diagnosis, corrected by the measurement
+
+v13.34.0 moved `total` onto the edge's day-only totals view on the theory that
+the aggregate was truncating. **It was not.** With a total that provably cannot
+truncate, the numbers barely moved: 30-day 65,205, 60-day 69,642. Days 31-60 hold
+**4,437 hits against a 2,174/day rate — about two days' traffic.** The sensor
+simply does not hold data reaching back 60 days.
+
+The `LIMIT` and `totals` work in Worker v1.23.0 and plugin v13.34.0 remains right
+on its own terms — an undeclared cap on the one view every consumer sums is a
+defect whether or not it had fired yet — but it addressed a cause that was not
+the cause.
+
+### Added — `days_covered`, and a delta that refuses an uncovered window
+
+The totals view returns **one row per day**, so its row count is exactly how many
+days the sensor holds data for. Asking for 60 days and being handed 32 is not an
+error, and nothing else in the response says so.
+
+- `days_covered` rides the payload and is declared in the ability's
+  `output_schema` in the same change that adds it.
+- The dashboard widget **refuses to derive a delta** when the baseline window is
+  wider than the data, showing `32d of data` instead of a comparison. A period
+  the data does not span is not a comparison; it is an artifact of when the
+  sensor started.
+
+### Changed — the uptime heading joins the box idiom
+
+`.sn-uw-head` was uppercase from when it lived in a standalone widget. It now
+sits beside "Top families" and "In flight", so it follows the same rule: headings
+are sentence case, short stat labels keep their caps. Its bare `#646970` became a
+governed token on the way past, so `assets/uptime-status.css`'s ungoverned
+baseline ratchets 13 → 12.
+
+
 ## [13.34.0] - 2026-08-29 — the machine-reads headline stops being a floor
 
 Consumes `sn-rights-signals` **v1.23.0** (merged, deployed and verified live at

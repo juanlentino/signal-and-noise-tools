@@ -278,6 +278,24 @@
 		if ( 'number' !== typeof now || 'number' !== typeof wide ) {
 			return;
 		}
+		// A window the data does not reach across is not a comparison. The totals
+		// view returns one row per day, so days_covered says outright how far
+		// back the sensor holds anything; asking for 60 days and being handed 32
+		// is not an error and nothing else in the payload reveals it. Measured:
+		// days 31-60 held 4,437 hits against 65,205 for days 1-30 — two days'
+		// traffic at the current rate — and the delta read it as a 15x surge.
+		if (
+			'number' === typeof baseline.days_covered &&
+			'number' === typeof baseline.days &&
+			baseline.days_covered < baseline.days
+		) {
+			var short = cell.querySelector( '.sn-dw__c' );
+			if ( short ) {
+				short.textContent = baseline.days_covered + 'd of data';
+				short.classList.remove( 'sn-dw__c--up', 'sn-dw__c--down' );
+			}
+			return;
+		}
 		var prior = wide - now;
 		if ( prior < 0 ) {
 			// The windows disagree; report nothing rather than a negative

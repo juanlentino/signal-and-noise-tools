@@ -159,7 +159,10 @@ $BASELINE = array(
 	// findings and took ten files to zero. The number a governance scan reports
 	// is mostly a statement about its exclusions.
 	'assets/admin.css'            => 43,
-	'assets/uptime-status.css'    => 13,
+	// 13 -> 12 (v13.35.0): .sn-uw-head's bare #646970 became
+	// var(--sn-text, #1d2327) when the heading moved to sentence case. The
+	// ratchet only turns one way, so lowering it is the point.
+	'assets/uptime-status.css'    => 12,
 	'assets/css/prov-verify.css'  => 4,
 	'assets/machine-readers.css'  => 3,
 	'assets/provenance-admin.css' => 1,

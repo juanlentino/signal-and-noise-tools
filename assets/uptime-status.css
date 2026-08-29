@@ -52,13 +52,15 @@
 	border-top: 1px solid rgba(0, 0, 0, 0.08);
 }
 
+/* Sentence case (v13.35.0). This is a section HEADING, and it now sits in the
+   dashboard box beside "Top families", "Feed windows" and "In flight". The short
+   stat labels next to it keep their caps because they read as tokens; a heading
+   does not. Same rule the box's own .sn-dwx__h follows. */
 .sn-uw-head {
 	margin: 0 0 4px;
-	color: #646970;
-	font-size: 11px;
+	color: var(--sn-text, #1d2327);
+	font-size: 12px;
 	font-weight: 600;
-	text-transform: uppercase;
-	letter-spacing: 0.04em;
 }
 
 .sn-uw-pill {
