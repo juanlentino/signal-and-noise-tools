@@ -39,6 +39,39 @@ jobs:
     #
     # Note the prose above this line already argued for a 10-minute ceiling
     # while the value read 8; that drift is resolved here too.
+    #
+    # 2026-08-29, PR #875 -- THE MARKER DOES NOT NEED A TIMEOUT TO POISON THIS.
+    # The paragraph above blames cancellation, and that framing is too narrow:
+    # here NOTHING was cancelled and nothing timed out. An ordinary SUCCESSFUL
+    # scan (597s, on the PR's first commit) wrote the marker, and then every
+    # LATER commit on that PR skipped in 23-26s and reported the job green --
+    # same log signature, no timeout anywhere in the story. The trigger is
+    # "this PR has been scanned once", not "a run was cancelled", which is
+    # consistent with `run-every-commit: false` below being the designed half
+    # of the same behaviour.
+    #
+    # That ordering is the worst available one: the LAST commits of a PR are
+    # the review fixes -- written fastest, under the most pressure, looked at
+    # least -- and they are exactly the ones that never get scanned. On #875
+    # the unscanned commits were a new UI panel and the fix for a HIGH-severity
+    # CodeQL XSS finding.
+    #
+    # DO NOT identify this by asking whether a timeout happened. Use DURATION:
+    # on this repo a real scan is 579-597s and a skip is 23-26s. And note that
+    # `gh run rerun` alone does NOT clear it (tried twice on #875, skipped
+    # both times) -- the marker has to be deleted:
+    #
+    #   gh cache list --limit 100 --json key --jq '.[].key' | grep "pr-<N>-"
+    #   gh cache delete <each key>
+    #   gh run rerun <run-id>
+    #
+    # Then confirm from the log that the scan actually ran, rather than from
+    # the colour of the check:
+    #
+    #   gh run view <run-id> --log | grep -E "claudecode-scan;outcome=|findings.json"
+    #
+    # `outcome=skipped; duration_ms=0` plus "No files were found with the
+    # provided path: findings.json" is a check that passed without scanning.
     timeout-minutes: 15
     permissions:
       pull-requests: write
