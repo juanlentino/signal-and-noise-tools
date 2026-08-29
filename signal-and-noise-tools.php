@@ -193,6 +193,7 @@ require_once SNT_PATH . 'inc/dash-systems.php';          // v11.30.0: the system
 require_once SNT_PATH . 'inc/dash-freshness.php';        // v11.32.0: how old is the screen — the oldest reading behind the verdict
 require_once SNT_PATH . 'inc/dash-verdict.php';          // v11.30.0: one verdict, shared by the widget and the screen
 require_once SNT_PATH . 'inc/dash-widget.php';           // v11.30.0: the consolidated index.php widget (folds four boxes)
+require_once SNT_PATH . 'inc/dash-widgets.php';          // v13.30.0: four subject boxes beside it, the Classic Admin fallback while OpenStation is severed
 require_once SNT_PATH . 'inc/dash-ops-panels.php';       // v11.29.2: the ops wall's panels — a projection of existing accessors
 require_once SNT_PATH . 'inc/dash-deploy-rows.php';      // v11.28.1: one deploy run's glyph, repo, duration, relative time
 require_once SNT_PATH . 'inc/dash-api-summary.php';      // v11.28.1: the rate-limit line + whether it earns its space
