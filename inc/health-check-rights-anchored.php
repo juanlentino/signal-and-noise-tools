@@ -112,7 +112,28 @@ function snt_rights_anchor_evaluate( $live, $anchors, $state, $now, $grace = SN_
 }
 
 /**
- * The check: fetch the four surfaces + the ledger index, evaluate, persist the
+ * The fixed own-domain fetch targets, one per anchored surface. Extracted
+ * pure so the suite can assert the table itself; still HARDCODED paths on
+ * home_url, never configurable input — mirroring the sibling probe's
+ * allowlist.
+ *
+ * @return array<string,string>
+ */
+function snt_rights_anchor_targets() {
+	return array(
+		'robots-txt'    => home_url( '/robots.txt' ),
+		'tdmrep-json'   => home_url( '/.well-known/tdmrep.json' ),
+		'license-xml'   => home_url( '/license.xml' ),
+		'tdm-policy'    => home_url( '/tdm-policy/' ),
+		// v5 (2026-08): the WebMCP bridge — the one script agents execute,
+		// anchored like the terms it acts under. Design:
+		// docs/webmcp-native-design.md.
+		'webmcp-bridge' => home_url( '/webmcp/bridge.js' ),
+	);
+}
+
+/**
+ * The check: fetch the five surfaces + the ledger index, evaluate, persist the
  * grace state, pack.
  *
  * @return array sn_health_pack_check envelope.
@@ -125,14 +146,7 @@ function snt_health_check_rights_anchored() {
 		return sn_health_pack_check( $label, array(), $fix_hint );
 	}
 
-	// HARDCODED own-domain allowlist, mirroring the sibling probe: fixed paths
-	// on the site's own home_url, never configurable input.
-	$targets = array(
-		'robots-txt'  => home_url( '/robots.txt' ),
-		'tdmrep-json' => home_url( '/.well-known/tdmrep.json' ),
-		'license-xml' => home_url( '/license.xml' ),
-		'tdm-policy'  => home_url( '/tdm-policy/' ),
-	);
+	$targets = snt_rights_anchor_targets();
 
 	if ( function_exists( 'sn_ssrf_host_blocked' ) && sn_ssrf_host_blocked( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) ) ) {
 		return sn_health_pack_check( $label, array(), 'Probe skipped: the site host failed the SSRF guard. The check will retry on the next scan.' );

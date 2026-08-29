@@ -4,6 +4,28 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.29.0] - 2026-08-29 — the WebMCP bridge joins the rights-anchoring watch
+
+### Added — webmcp-bridge, the fifth anchored surface
+
+Phase C of the native WebMCP arc ([docs/webmcp-native-design.md](docs/webmcp-native-design.md),
+[docs/webmcp-native-plan.md](docs/webmcp-native-plan.md)), born from the 2026-08-23
+Rights-anchoring incident: Cloudflare's WebMCP preview injected a script tag at the zone
+layer, above the anchoring vantage. The replacement is worker-owned and anchored — and
+this release closes the loop by watching it.
+
+- [inc/health-check-rights-anchored.php](inc/health-check-rights-anchored.php): the
+  fetch-target table is now a pure `snt_rights_anchor_targets()` (assertable by the
+  suite) and gains `webmcp-bridge => /webmcp/bridge.js` — the one script agents
+  execute, anchored like the terms it acts under. The evaluator is untouched; the
+  fifth slug rides the same grace-window machinery.
+- Tests: five new assertions (anchored match, drift-past-grace, no-record, table
+  membership, exactly-five tripwire) plus a `home_url` stub in the sibling idiom.
+- Upstream, already live before this release: sn-rights-signals v1.22.0 serves the
+  SRI-pinned bridge on every HTML page (`tdm-policy/v4` anchored the new bytes), and
+  sn-provenance v1.14.0 sweeps it hourly (`webmcp-bridge/v1` minted, hash verified
+  byte-identical to the served asset).
+
 ## [13.28.1] - 2026-08-28 — the custom login page gets its scope back
 
 ### Fixed — core's login globals were stranded as function locals
