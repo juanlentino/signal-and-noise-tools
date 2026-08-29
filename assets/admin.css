@@ -142,6 +142,13 @@
 .sn-pill--err  { background: rgba(214,54,56,0.10); color: #8b1a1a; }
 .sn-pill--err::before  { background: var(--sn-err); }
 
+/* v13.38.0: a NEUTRAL pill, for facts that are neither good news nor a warning
+ * — e.g. the signing-key row reporting that a value came from the shipped
+ * default. The base .sn-pill is already neutral (rgba(0,0,0,0.04)) and its dot
+ * already uses --sn-text-muted, so this only softens the label; without the
+ * class the markup would carry an empty modifier and read as a styling bug. */
+.sn-pill--muted { color: var(--sn-text-muted); }
+
 /* ─── v4.1.1 (U-02): Badges — smaller chip variant of .sn-pill ───────────
  * The Cron tab renders "SN" (owned-event marker) and "orphan" (dangling-hook
  * marker) badges using .sn-badge / .sn-badge-warn. Pre-v4.1.1 these classes

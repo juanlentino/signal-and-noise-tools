@@ -229,6 +229,33 @@ $GLOBALS['__options'] = array( 'sn_prov_pubkey_id' => '   ' );
 ok( 'sn-ed25519-2026-07' === sn_prov_key_id(), 'a blank option falls back to the default rather than publishing an empty id' );
 $GLOBALS['__options'] = array();
 
+// ── WHERE a config value came from (2026-08-29) ────────────────────────────
+// During a rotation the question that actually bites is "did my constant take
+// effect?", because sn_prov_config() returns the CONSTANT the moment it is
+// DEFINED — even when blank — and never consults the option. So a typo'd or
+// emptied wp-config constant makes a correct option look silently ignored, and
+// the served value falls all the way back to the shipped default. The runbook
+// warns about it in prose; this makes it answerable.
+echo "\nGroup: config source resolution (the constant-shadows-option trap)\n";
+
+define( 'SN_T_SRC_SET', 'sn-ed25519-2027-03' );
+define( 'SN_T_SRC_BLANK', '   ' );
+
+$GLOBALS['__options'] = array( 'sn_t_src_opt' => 'from-option' );
+ok( 'constant' === sn_prov_key_config_source( 'SN_T_SRC_SET', 'sn_t_src_opt' ),
+	'a set constant WINS and is reported as the source, even with an option present' );
+ok( 'blank-constant' === sn_prov_key_config_source( 'SN_T_SRC_BLANK', 'sn_t_src_opt' ),
+	'a BLANK constant is its own verdict — not "option", because the option is never read, and not "default", because the reason is recoverable' );
+ok( 'option' === sn_prov_key_config_source( 'SN_T_SRC_UNDEFINED', 'sn_t_src_opt' ),
+	'no constant + a set option reports the option' );
+$GLOBALS['__options'] = array();
+ok( 'default' === sn_prov_key_config_source( 'SN_T_SRC_UNDEFINED', 'sn_t_src_opt' ),
+	'nothing configured reports the shipped default' );
+$GLOBALS['__options'] = array( 'sn_t_src_opt' => '   ' );
+ok( 'default' === sn_prov_key_config_source( 'SN_T_SRC_UNDEFINED', 'sn_t_src_opt' ),
+	'a BLANK option is the default too — it matches sn_prov_key_id(), which also falls through rather than publishing an empty id' );
+$GLOBALS['__options'] = array();
+
 // ── The DID document can NAME a retired key (2026-08-29) ───────────────────
 // Until now did.json carried exactly one verificationMethod under a fixed
 // '#prov-key-1' fragment, so a third party doing ordinary did:web resolution

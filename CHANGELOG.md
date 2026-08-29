@@ -2,6 +2,54 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.38.0] - 2026-08-29 — which key am I on, and did my wp-config edit take effect?
+
+### Added — the signing key's identity, read-only, in the provenance System panel
+
+wp-admin could show that a public key was PRESENT (a ✓ pill) but never which key
+it was. After v13.37.0 made the key id and its introduction date config-resolved
+so a rotation needs no plugin release, that gap became the operational question:
+"did my `wp-config.php` edit actually take effect?" — unanswerable from the page.
+
+It is unanswerable from the VALUE alone, and that is the real defect.
+`sn_prov_config()` returns a constant the moment it is DEFINED — blank included —
+and never falls through to the option. So a constant that is present but empty (a
+typo, a half-finished edit) silently shadows a perfectly correct option AND lands
+on the shipped default. Three different situations, one identical rendered value.
+
+The System panel now reports, for both the key id and its in-use-since date, the
+resolved value and WHERE it came from: `wp-config.php constant`, `site option`,
+`shipped default`, or — its own warning pill — `shipped default — a BLANK
+wp-config constant is shadowing the option`. That last state is deliberately not
+folded into "default": the served value is the same, but the cause and the fix
+are not, and the difference is which file you open.
+
+Both values are public — the id is in `did.json` and named by every record's
+`pubkey_id`, the date is in the keys mirror — so nothing new is disclosed. The
+resolver `sn_prov_key_config_source()` mirrors `sn_prov_key_id()`'s precedence
+exactly, whitespace handling included, so the reported source cannot disagree
+with the value being served.
+
+### Deliberately NOT added — a settings form for any of this
+
+Audited all seven provenance config values: ZERO have `update_option`, zero have
+`register_setting`. That stays true. The HMAC secret must never be rendered into
+admin HTML; the public key is the root of the whole trust chain, and a UI that
+can change it can silently re-point every verification on the site.
+
+The key id is the interesting one, because v13.37.0 made it config-resolved
+precisely so rotation needs no release — which sounds like an argument FOR a
+field. It is the opposite. Rotation is a multi-repo ceremony with a mandatory
+order (publish the retired key to the ledger, then the plugin, then the Worker);
+a form field presents it as one independent value you can just change, and
+changing the id BEFORE publishing the retired key is the exact sequence that
+makes `/verify` FAIL every historical Note. A control whose easiest use is the
+wrong one is worse than no control. See
+[docs/ops/key-rotation-runbook.md](docs/ops/key-rotation-runbook.md).
+
+So: writes stay in `wp-config.php`, reads get a surface. The half a UI genuinely
+helps with is the half that cannot break anything.
+
 ## [13.37.0] - 2026-08-29 — a record can be withdrawn, and the withdrawal is findable
 
 ### Added — retractions: saying, permanently, that a published record was false

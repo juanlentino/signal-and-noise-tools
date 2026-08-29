@@ -137,6 +137,36 @@ function sn_prov_did_document() {
  *
  * @return string
  */
+/**
+ * WHERE a provenance config value is coming from — 'constant', 'option',
+ * 'blank-constant' or 'default'. Read-only diagnosis; changes nothing.
+ *
+ * This exists because sn_prov_config() returns the CONSTANT the moment it is
+ * DEFINED, blank included, and never falls through to the option. So a
+ * wp-config.php constant that is present but empty (a typo, a half-finished
+ * edit) shadows a perfectly correct option AND lands on the shipped default —
+ * three states that look identical from the served value alone.
+ *
+ * 'blank-constant' is deliberately NOT folded into 'default'. The served value
+ * is the same, but the cause and the fix are not: one means "nothing is
+ * configured", the other means "something IS configured and is being ignored,
+ * and the file to edit is wp-config.php". During a rotation that is the
+ * difference between a two-minute fix and hunting the wrong layer.
+ *
+ * Mirrors sn_prov_key_id()'s own precedence, including treating a whitespace
+ * value as unset, so the reported source cannot disagree with the value served.
+ *
+ * @param string $const  Constant name.
+ * @param string $option Option name.
+ * @return string one of: constant|blank-constant|option|default
+ */
+function sn_prov_key_config_source( $const, $option ) {
+	if ( defined( $const ) ) {
+		return '' !== trim( (string) constant( $const ) ) ? 'constant' : 'blank-constant';
+	}
+	return '' !== trim( (string) get_option( $option, '' ) ) ? 'option' : 'default';
+}
+
 function sn_prov_key_id() {
 	$configured = trim( (string) sn_prov_config( 'SN_PROV_PUBKEY_ID', 'sn_prov_pubkey_id' ) );
 	return (string) apply_filters( 'sn_prov_pubkey_id', '' !== $configured ? $configured : 'sn-ed25519-2026-07' );

@@ -131,6 +131,21 @@ function sn_prov_admin_system_status() {
 		'counts'     => $counts,
 		'genesis'    => $genesis,
 		'pubkey'     => sn_prov_pubkey_b64(),
+		// WHICH key, and WHERE the answer came from. Both values are public —
+		// the id is in did.json and named by every record's pubkey_id, and the
+		// date is in the keys mirror — so this discloses nothing new. The
+		// SOURCE is the part that could not be answered before: sn_prov_config()
+		// returns a DEFINED constant even when blank and never reads the option,
+		// so "constant", "option" and "default" all serve values that look
+		// identical on the page. During a rotation that ambiguity is the whole
+		// problem. Read-only by design: see docs/ops/key-rotation-runbook.md for
+		// why rotation is a ceremony with a mandatory order and not a form field.
+		'signing_key' => array(
+			'id'                   => sn_prov_key_id(),
+			'introduced_at'        => sn_prov_key_introduced_at(),
+			'id_source'            => sn_prov_key_config_source( 'SN_PROV_PUBKEY_ID', 'sn_prov_pubkey_id' ),
+			'introduced_at_source' => sn_prov_key_config_source( 'SN_PROV_KEY_INTRODUCED_AT', 'sn_prov_key_introduced_at' ),
+		),
 		'ledger_url' => sn_prov_admin_ledger_url(),
 	);
 }
@@ -504,6 +519,23 @@ function sn_prov_admin_render_system_fieldset( array $sys ) {
 		echo '<p class="sn-prov-key"><code>' . esc_html( $pubkey ) . '</code></p>';
 	}
 
+	// Signing key identity. Read-only: no form, no nonce, no write path.
+	$sk = isset( $sys['signing_key'] ) && is_array( $sys['signing_key'] ) ? $sys['signing_key'] : array();
+	if ( '' !== (string) ( $sk['id'] ?? '' ) ) {
+		echo '<table class="widefat striped sn-prov-config"><tbody>';
+		sn_prov_admin_key_row(
+			__( 'Signing key id', 'signal-and-noise-tools' ),
+			(string) $sk['id'],
+			(string) ( $sk['id_source'] ?? '' )
+		);
+		sn_prov_admin_key_row(
+			__( 'In use since', 'signal-and-noise-tools' ),
+			(string) ( $sk['introduced_at'] ?? '' ),
+			(string) ( $sk['introduced_at_source'] ?? '' )
+		);
+		echo '</tbody></table>';
+	}
+
 	$ledger_url = (string) $sys['ledger_url'];
 	if ( '' !== $ledger_url ) {
 		echo '<p><a href="' . esc_url( $ledger_url ) . '" target="_blank" rel="noopener">'
@@ -520,6 +552,35 @@ function sn_prov_admin_render_system_fieldset( array $sys ) {
  * @param string $label   Human setting label.
  * @param bool   $present Whether the constant/option is configured.
  */
+/**
+ * One signing-key row: label, the resolved VALUE, and where it came from.
+ *
+ * Unlike sn_prov_admin_config_row() this prints the value, which is correct
+ * here and only here: the key id and its introduction date are already
+ * published in did.json and the keys mirror. Nothing secret is ever passed in.
+ *
+ * 'blank-constant' gets its own warning phrasing rather than being shown as
+ * 'default'. The served value is the same, but the fix is not — it means a
+ * wp-config.php constant IS set, is empty, and is silently shadowing an option
+ * that may well be correct.
+ *
+ * @param string $label  Human label.
+ * @param string $value  Resolved value (public).
+ * @param string $source constant|blank-constant|option|default
+ */
+function sn_prov_admin_key_row( $label, $value, $source ) {
+	$sources = array(
+		'constant'       => array( __( 'wp-config.php constant', 'signal-and-noise-tools' ), 'sn-pill--ok' ),
+		'option'         => array( __( 'site option', 'signal-and-noise-tools' ), 'sn-pill--ok' ),
+		'default'        => array( __( 'shipped default', 'signal-and-noise-tools' ), 'sn-pill--muted' ),
+		'blank-constant' => array( __( 'shipped default — a BLANK wp-config constant is shadowing the option', 'signal-and-noise-tools' ), 'sn-pill--warn' ),
+	);
+	$known = $sources[ $source ] ?? array( $source, 'sn-pill--muted' );
+	echo '<tr><td>' . esc_html( $label ) . '</td>'
+		. '<td><code>' . esc_html( $value ) . '</code> '
+		. '<span class="sn-pill ' . esc_attr( $known[1] ) . '">' . esc_html( $known[0] ) . '</span></td></tr>';
+}
+
 function sn_prov_admin_config_row( $label, $present ) {
 	$class = $present ? 'sn-pill sn-pill--ok' : 'sn-pill sn-pill--warn';
 	$mark  = $present ? '✓' : '✗';
