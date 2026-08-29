@@ -4,6 +4,30 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+### Documented — both open machine-readers questions, answered
+
+Neither was a defect, and nothing is removed. Recorded in
+[docs/MACHINE-READERS.md](docs/MACHINE-READERS.md) so the investigation is not
+repeated.
+
+- **Coverage is 33 days because the sensor is 32 days old.** Not retention, not
+  truncation, not sampling: the sensor shipped in Worker v1.4.0 on 2026-07-28 and
+  the dataset holds exactly what has been written since. Coverage grows one day
+  per day with no action required, and the doc carries a **revisit condition** —
+  the 30-day-over-30-day delta becomes honest on **2026-09-26**, when the guard
+  stops firing by itself. A delta still suppressed after that date is a new
+  problem.
+- **The `unknown` purpose share is a maturity curve.** The purpose axis is 19 days
+  old and the taxonomy 18; only four entries declare that purpose, so the bucket
+  is overwhelmingly "matched nothing". The closing mechanism already runs (RULE 2
+  samples plus the review list), and coverage is extended from that evidence on
+  the vendor/purpose axes, never the frozen family enum.
+- Also recorded: `unknown` folds two populations into one bucket, and they are
+  only indistinguishable today because the Worker's `purpose_vocabulary` and
+  `snt_mr_valid_purposes()` are identical 13-value sets. Extend both in lockstep.
+
+No code changes, so no version bump.
+
 ## [13.35.0] - 2026-08-29 — the machine-reads delta was never truncation
 
 ### Fixed — my own diagnosis, corrected by the measurement
