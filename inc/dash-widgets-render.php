@@ -73,17 +73,6 @@ function snt_dwx_render( array $box ) {
 	// A flat label-value list read as a settings table, not as a widget.
 	echo '<div class="sn-dw__signals">';
 	foreach ( (array) $box['sections'] as $sec ) {
-		if ( ! empty( $sec['signals'] ) && is_callable( $sec['signals'] ) ) {
-			foreach ( (array) call_user_func( $sec['signals'] ) as $sig ) {
-				snt_dwx_cell(
-					(string) ( $sig['label'] ?? '' ),
-					(string) ( $sig['value'] ?? '' ),
-					(string) ( $sig['compare'] ?? '' ),
-					(string) ( $sig['dir'] ?? '' )
-				);
-			}
-			continue;
-		}
 		foreach ( (array) $sec['fields'] as $field ) {
 			snt_dwx_cell(
 				(string) $field['label'],
@@ -91,9 +80,12 @@ function snt_dwx_render( array $box ) {
 				'',
 				'',
 				array(
-					'ability' => (string) $sec['ability'],
-					'path'    => (string) $field['path'],
-					'compare' => isset( $field['compare'] ) ? (array) $field['compare'] : array(),
+					'ability'  => (string) $sec['ability'],
+					'input'    => (array) ( $sec['input'] ?? array() ),
+					'baseline' => (array) ( $sec['baseline'] ?? array() ),
+					'path'     => (string) $field['path'],
+					'compare'  => isset( $field['compare'] ) ? (array) $field['compare'] : array(),
+					'delta'    => isset( $field['delta'] ) ? (array) $field['delta'] : array(),
 				)
 			);
 		}
@@ -112,7 +104,11 @@ function snt_dwx_render( array $box ) {
 		if ( ! empty( $list['empty'] ) ) {
 			$spec['empty'] = (string) $list['empty'];
 		}
-		echo '<div class="sn-dwx__list" data-sn-dwx-ability="' . esc_attr( (string) $list['ability'] ) . '"'
+		$list_input = ! empty( $list['input'] )
+			? ' data-sn-dwx-input="' . esc_attr( (string) wp_json_encode( (array) $list['input'] ) ) . '"'
+			: '';
+		// phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- $list_input is esc_attr'd above.
+		echo '<div class="sn-dwx__list" data-sn-dwx-ability="' . esc_attr( (string) $list['ability'] ) . '"' . $list_input
 			. ' data-sn-dwx-list="' . esc_attr( (string) wp_json_encode( $spec ) ) . '">';
 		echo '<h4 class="sn-dwx__h">' . esc_html( (string) $list['label'] ) . '</h4>';
 		// No skeleton rows: an invented row count would be a claim about data
@@ -171,6 +167,14 @@ function snt_dwx_cell( $label, $value, $compare = '', $dir = '', array $hydrate 
 	if ( $hydrate ) {
 		$attrs = ' data-sn-dwx-ability="' . esc_attr( (string) $hydrate['ability'] ) . '"'
 			. ' data-sn-dwx-path="' . esc_attr( (string) $hydrate['path'] ) . '"';
+		if ( ! empty( $hydrate['input'] ) ) {
+			$attrs .= ' data-sn-dwx-input="' . esc_attr( (string) wp_json_encode( $hydrate['input'] ) ) . '"';
+		}
+		// A delta needs the WIDER window as well: prior = baseline - current.
+		if ( ! empty( $hydrate['delta'] ) && ! empty( $hydrate['baseline'] ) ) {
+			$attrs .= ' data-sn-dwx-baseline="' . esc_attr( (string) wp_json_encode( $hydrate['baseline'] ) ) . '"'
+				. ' data-sn-dwx-delta="' . esc_attr( (string) wp_json_encode( $hydrate['delta'] ) ) . '"';
+		}
 		if ( ! empty( $hydrate['compare'] ) ) {
 			$attrs .= ' data-sn-dwx-compare="' . esc_attr( (string) wp_json_encode( $hydrate['compare'] ) ) . '"';
 		}
@@ -182,31 +186,6 @@ function snt_dwx_cell( $label, $value, $compare = '', $dir = '', array $hydrate 
 	$cls = 'sn-dw__c' . ( ( 'up' === $dir || 'down' === $dir ) ? ' sn-dw__c--' . $dir : '' );
 	echo '<span class="' . esc_attr( $cls ) . '">' . esc_html( $compare ) . '</span>';
 	echo '</div>';
-}
-
-/**
- * Audience traffic, server-side and free.
- *
- * snt_dashboard_measurement_data() is a DB-local read and the only source on
- * this screen that carries a PRIOR period, so it is the only place a delta here
- * can be honest. get-analytics-summary reports a single window with no
- * comparison, which is why the visits half of the box carries context lines
- * rather than deltas.
- *
- * @since 13.30.1
- * @return array<int,array<string,mixed>>
- */
-function snt_dwx_traffic_signals() {
-	if ( ! function_exists( 'snt_dashboard_measurement_data' ) || ! function_exists( 'sn_dash_signals_from_measurement' ) ) {
-		return array();
-	}
-	$out = array();
-	foreach ( sn_dash_signals_from_measurement( snt_dashboard_measurement_data() ) as $sig ) {
-		if ( 0 === stripos( (string) ( $sig['label'] ?? '' ), 'Views' ) ) {
-			$out[] = $sig;
-		}
-	}
-	return $out;
 }
 
 /**

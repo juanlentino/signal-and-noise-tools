@@ -4,6 +4,65 @@ All notable changes to Signal & Noise Tools are documented here.
 
 ## [Unreleased]
 
+## [13.32.0] - 2026-08-29 — one owner per fact, and real deltas
+
+13.31.0 made the boxes rich by adding breakdown lists next to the cells that
+already carried the same numbers. The owner, on the live dashboard: *"still looks
+off."* It was: the grid and the list said the same thing twice, and several
+comparison lines were static strings that stopped being true at the edges.
+
+### Fixed — the grid no longer restates its own list
+
+`TOP FAMILY 23,888 / unclassified-machine` was row 1 of `TOP FAMILIES` directly
+beneath it. The feed cells restated `FEED WINDOWS`. `PENDING 0` sat above a list
+headed `PENDING` that said "No anchors pending" while the cell said "awaiting
+Bitcoin". Each fact now has exactly ONE owner, pinned by a test that fails if a
+cell's path roots at the same payload key as its own box's list.
+
+- Dropped: the Top family, Feed fetches and Subscribers cells.
+- Provenance keeps a Pending COUNT cell because the list owns per-note detail a
+  cell cannot carry; the list is headed **In flight** so the two never read as
+  the same heading twice.
+- **Views left Audience entirely.** The `sn_dashboard` verdict box already owns
+  it, and the same number in two boxes is two places for it to disagree.
+
+### Fixed — comparison lines that stopped being true
+
+- `when_positive`: "awaiting Bitcoin" renders only when something is pending.
+- `when_differs`: a version's comparison is silent when it is current. `ok` under
+  every row trains the eye to skip the row that matters.
+- Worker rows show `live`, and surface `latest` only when it differs, so
+  `Analytics — latest 1.21.0 1.21.0` becomes a quiet row and a lagging worker
+  stands out.
+
+### Added — real period-over-period deltas
+
+Both backing abilities accept a window (`range`, `days`), so the prior period is
+**derived by subtraction**: ask the same ability for the wider window, then
+`prior = baseline - current`. Visits, visitor-days and 30-day machine reads now
+carry `+N · P prior 7d` in the sibling box's own idiom, coloured up/down.
+
+**That arithmetic is only valid for additive counts.** Subtracting two ratios
+produces a confident, meaningless number, so no ratio field may declare a delta
+and a test enforces it against the analytics ability's known ratio fields. A
+negative derived prior renders nothing rather than a negative population.
+
+Calls are keyed by `(ability, input)`, so a delta's wider window is just another
+pair and two boxes reading the same ability with the same window still cost one
+request.
+
+### Removed
+
+The server-side signals path and `snt_dwx_traffic_signals()`, dead once Views
+left Audience.
+
+### Guards
+
+`tests/dash-widgets.php` is 136 assertions. Both new guards were
+negative-controlled: reintroducing the duplicated Top family cell and delta-ing a
+ratio each turn the suite red.
+
+
 ## [13.31.0] - 2026-08-29 — the fallback boxes become widgets
 
 13.30.0 shipped four boxes that were half a feature. The owner saw them on the

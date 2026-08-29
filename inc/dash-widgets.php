@@ -61,51 +61,41 @@ function snt_dwx_boxes() {
 			'blurb'    => __( 'Who is reading, on-site and by feed.', 'signal-and-noise-tools' ),
 			'sections' => array(
 				array(
-					// Server-side and free: snt_dashboard_measurement_data() is a
-					// DB-local read and the ONLY source here that carries a prior
-					// period, so this is where the delta can be honest.
-					'label'   => '',
-					'signals' => 'snt_dwx_traffic_signals',
-				),
-				array(
-					'label'   => '',
-					'ability' => 'signal-noise/get-analytics-summary',
-					'fields'  => array(
+					// Views is DELIBERATELY absent: the sn_dashboard verdict box
+					// already owns it, and the same number twice on one screen is
+					// two places for it to disagree with itself. This box carries
+					// what that box does not.
+					'label'    => '',
+					'ability'  => 'signal-noise/get-analytics-summary',
+					'input'    => array( 'range' => 7 ),
+					// The wider window, so the prior period can be DERIVED:
+					// prior = baseline - current. Valid only for additive counts,
+					// never for a ratio.
+					'baseline' => array( 'range' => 14 ),
+					'fields'   => array(
 						array(
-							'path'    => 'pageview_visits',
-							'label'   => __( 'Visits', 'signal-and-noise-tools' ),
-							/* translators: %s: views-per-visit ratio */
-							'compare' => array( 'template' => __( '%s views per visit', 'signal-and-noise-tools' ), 'path' => 'view_visit_ratio' ),
+							'path'  => 'pageview_visits',
+							'label' => __( 'Visits 7d', 'signal-and-noise-tools' ),
+							'delta' => array( 'label' => __( 'prior 7d', 'signal-and-noise-tools' ) ),
 						),
 						array(
-							'path'    => 'unique_visitor_days',
-							'label'   => __( 'Visitor-days', 'signal-and-noise-tools' ),
+							'path'  => 'unique_visitor_days',
+							'label' => __( 'Visitor-days', 'signal-and-noise-tools' ),
+							'delta' => array( 'label' => __( 'prior 7d', 'signal-and-noise-tools' ) ),
+						),
+						array(
+							// A RATIO: never delta'd by subtraction.
+							'path'    => 'view_visit_ratio',
+							'label'   => __( 'Views / visit', 'signal-and-noise-tools' ),
 							/* translators: %s: count of visitor-days with zero pageviews */
-							'compare' => array( 'template' => __( '%s with no pageview', 'signal-and-noise-tools' ), 'path' => 'viewless_visits' ),
-						),
-					),
-				),
-				array(
-					'label'   => __( 'Feed', 'signal-and-noise-tools' ),
-					'ability' => 'signal-noise/get-rss-stats',
-					'fields'  => array(
-						array(
-							'path'    => 'data.windows.7.uniques',
-							'label'   => __( 'Subscribers 7d', 'signal-and-noise-tools' ),
-							/* translators: %s: unique feed subscribers over 30 days */
-							'compare' => array( 'template' => __( '%s over 30d', 'signal-and-noise-tools' ), 'path' => 'data.windows.30.uniques' ),
-						),
-						array(
-							'path'    => 'data.windows.7.total',
-							'label'   => __( 'Feed fetches 7d', 'signal-and-noise-tools' ),
-							/* translators: %s: human-readable relative time of the last feed request */
-							'compare' => array( 'template' => __( 'last %s', 'signal-and-noise-tools' ), 'path' => 'data.last_request_relative' ),
+							'compare' => array( 'template' => __( '%s saw no page', 'signal-and-noise-tools' ), 'path' => 'viewless_visits' ),
 						),
 					),
 				),
 			),
 			'lists'    => array(
 				array(
+					// Owns the feed numbers outright — no sibling cell restates them.
 					'label'   => __( 'Feed windows', 'signal-and-noise-tools' ),
 					'ability' => 'signal-noise/get-rss-stats',
 					'path'    => 'data.windows',
@@ -126,14 +116,15 @@ function snt_dwx_boxes() {
 			'blurb'    => __( 'Crawler readership. Never summed with the human half.', 'signal-and-noise-tools' ),
 			'sections' => array(
 				array(
-					'label'   => '',
-					'ability' => 'signal-noise/get-machine-readers-summary',
-					'fields'  => array(
+					'label'    => '',
+					'ability'  => 'signal-noise/get-machine-readers-summary',
+					'input'    => array( 'days' => 30 ),
+					'baseline' => array( 'days' => 60 ),
+					'fields'   => array(
 						array(
-							'path'    => 'total',
-							'label'   => __( 'Reads', 'signal-and-noise-tools' ),
-							/* translators: %s: the sensor window in days */
-							'compare' => array( 'template' => __( 'over %s days', 'signal-and-noise-tools' ), 'path' => 'days' ),
+							'path'  => 'total',
+							'label' => __( 'Reads 30d', 'signal-and-noise-tools' ),
+							'delta' => array( 'label' => __( 'prior 30d', 'signal-and-noise-tools' ) ),
 						),
 						array(
 							'path'    => 'ai_training',
@@ -142,11 +133,8 @@ function snt_dwx_boxes() {
 							'compare' => array( 'template' => __( '%s of reads', 'signal-and-noise-tools' ), 'percent_of' => 'total', 'path' => 'ai_training' ),
 						),
 						array(
-							'path'    => 'families.0.hits',
-							'label'   => __( 'Top family', 'signal-and-noise-tools' ),
-							'compare' => array( 'template' => '%s', 'path' => 'families.0.family' ),
-						),
-						array(
+							// Top family is the LIST's fact. This cell carries the
+							// number the list cannot: rights-file reads.
 							'path'    => 'ai_rights',
 							'label'   => __( 'Rights-file reads', 'signal-and-noise-tools' ),
 							/* translators: %s: total machine reads in the window */
@@ -159,6 +147,7 @@ function snt_dwx_boxes() {
 				array(
 					'label'   => __( 'Top families', 'signal-and-noise-tools' ),
 					'ability' => 'signal-noise/get-machine-readers-summary',
+					'input'   => array( 'days' => 30 ),
 					'path'    => 'families',
 					'limit'   => 5,
 					'item'    => array( 'label' => 'family', 'value' => 'hits' ),
@@ -166,6 +155,7 @@ function snt_dwx_boxes() {
 				array(
 					'label'   => __( 'AI-training reads by surface', 'signal-and-noise-tools' ),
 					'ability' => 'signal-noise/get-machine-readers-summary',
+					'input'   => array( 'days' => 30 ),
 					'path'    => 'ai_surfaces',
 					'limit'   => 4,
 					'item'    => array( 'label' => 'surface', 'value' => 'hits' ),
@@ -188,12 +178,16 @@ function snt_dwx_boxes() {
 						array(
 							'path'    => 'theme.current',
 							'label'   => __( 'Theme', 'signal-and-noise-tools' ),
-							'compare' => array( 'template' => '%s', 'path' => 'theme.state' ),
+							// Silent when current. "ok" under every version is noise
+							// that trains the eye to skip the row that matters.
+							/* translators: %s: the latest available version */
+							'compare' => array( 'template' => __( '%s available', 'signal-and-noise-tools' ), 'path' => 'theme.latest', 'when_differs' => 'theme.current' ),
 						),
 						array(
 							'path'    => 'plugin.current',
 							'label'   => __( 'Plugin', 'signal-and-noise-tools' ),
-							'compare' => array( 'template' => '%s', 'path' => 'plugin.state' ),
+							/* translators: %s: the latest available version */
+							'compare' => array( 'template' => __( '%s available', 'signal-and-noise-tools' ), 'path' => 'plugin.latest', 'when_differs' => 'plugin.current' ),
 						),
 						array(
 							'path'    => 'last_deploy',
@@ -209,8 +203,10 @@ function snt_dwx_boxes() {
 					'ability' => 'signal-noise/get-deploy-status',
 					'path'    => 'workers',
 					'limit'   => 5,
+					// `sub` appears ONLY when latest differs from live, so a row
+					// with nothing to say stays quiet and a lagging worker stands out.
 					/* translators: %s: the latest released worker version */
-					'item'    => array( 'label' => 'label', 'value' => 'live', 'sub' => 'latest', 'sub_template' => __( 'latest %s', 'signal-and-noise-tools' ) ),
+					'item'    => array( 'label' => 'label', 'value' => 'live', 'sub' => 'latest', 'sub_template' => __( '%s available', 'signal-and-noise-tools' ), 'sub_when_differs' => 'live' ),
 				),
 			),
 			'actions'  => array(
@@ -245,18 +241,22 @@ function snt_dwx_boxes() {
 						array(
 							'path'    => 'pending.length',
 							'label'   => __( 'Pending', 'signal-and-noise-tools' ),
-							'compare' => array( 'template' => __( 'awaiting Bitcoin', 'signal-and-noise-tools' ) ),
+							// Only when something IS pending. "awaiting Bitcoin"
+							// under a zero was a sentence that stopped being true.
+							'compare' => array( 'template' => __( 'awaiting Bitcoin', 'signal-and-noise-tools' ), 'when_positive' => true ),
 						),
 					),
 				),
 			),
 			'lists'    => array(
 				array(
-					'label'   => __( 'Pending', 'signal-and-noise-tools' ),
+					// "In flight" rather than "Pending": the cell owns the COUNT,
+					// this owns the per-note detail no cell can carry.
+					'label'   => __( 'In flight', 'signal-and-noise-tools' ),
 					'ability' => 'signal-noise/anchor-status',
 					'path'    => 'pending',
 					'limit'   => 5,
-					'empty'   => __( 'No anchors pending.', 'signal-and-noise-tools' ),
+					'empty'   => __( 'Nothing awaiting confirmation.', 'signal-and-noise-tools' ),
 					// `confirmations: null` is "not recorded" and must never render
 					// as 0/6 — the desktop widget's rule, carried over.
 					'item'    => array( 'label' => 'title', 'format' => 'confirmations' ),
