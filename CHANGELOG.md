@@ -154,6 +154,57 @@ split into `retraction-checks.mjs` precisely so they are exercised by tests rath
 than only by a corpus that is empty — a verifier nobody has watched fail is not
 evidence.
 
+## [Unreleased]
+
+### Changed — rotating the signing key no longer needs a plugin release
+
+`sn_prov_key_id()` and `sn_prov_key_introduced_at()` were filter defaults hardcoded
+in [inc/provenance-did.php](inc/provenance-did.php), so changing the active key id
+meant editing PHP and shipping — a release cycle on the critical path of a key
+rotation. The key BYTES beside them were already config (`SN_PROV_PUBKEY_B64`), so
+the id being code was an asymmetry rather than a decision.
+
+Both now resolve through `sn_prov_config()` exactly as the public key does:
+constant, else option, else the shipped default. `SN_PROV_PUBKEY_ID` /
+`sn_prov_pubkey_id` and `SN_PROV_KEY_INTRODUCED_AT` /
+`sn_prov_key_introduced_at`. The filters are kept and still win, so existing
+extension points are unchanged, and with nothing configured the served values are
+byte-identical to before (pinned).
+
+A BLANK config value falls through to the default rather than winning: an active
+key entry published with `id: ""` is worse than one published with a stale id,
+because the id is what every record names in `pubkey_id` and a verifier resolving
+by name would find nothing at all.
+
+`sn_prov_config()` is called UNGUARDED here. A `function_exists()` guard would
+degrade to the hardcoded default in silence if the load order ever changed —
+config would quietly stop being honoured with nothing to notice. Unguarded, it
+fatals, which is how the two standalone test harnesses caught it immediately.
+Those harnesses now stub the resolver, and because the WordPress stub-parity sweep
+only covers WP functions, `tests/provenance-did.php` pins the real resolver's
+precedence at the source so a stub that stops matching fails loudly.
+
+### Added — a key-rotation runbook
+
+[docs/ops/key-rotation-runbook.md](docs/ops/key-rotation-runbook.md). No rotation
+has ever been performed, so it is written as a procedure derived from the code and
+says so plainly rather than pretending to be tested.
+
+Deliberately a runbook and not a tool. Building rotation machinery before the first
+rotation means building a producer for a procedure nobody has performed, against an
+imagined sequence — and today's work made a botched rotation fail LOUD and
+recoverable (`/verify` FAILs, the sweep reports `signing_key_unpublished`, re-adding
+the retired key clears it). The instruction at the end is to write the script from
+what actually happens the first time, and replace the table with it.
+
+It records the parts that are easy to get wrong: publish before signing (ledger,
+then plugin, then Worker — never the reverse); a retired-key row whose bytes do not
+decode to exactly 32 bytes is silently DROPPED rather than published half-formed,
+which turns a typo into the precise failure the runbook exists to prevent; a
+`wp-config.php` constant beats the option, so a stale constant makes a correct
+option look ignored; and verification must use an OLD Note, since a new one would
+pass even if every retired key had been deleted.
+
 ## [13.36.0] - 2026-08-29 — a key is pinned by name, not by role
 
 ### Fixed — the integrity sweep never checked the keys HISTORICAL Notes depend on

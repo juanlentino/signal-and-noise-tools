@@ -20,6 +20,15 @@ if ( ! function_exists( 'apply_filters' ) ) { function apply_filters( $tag, $val
 // suite that dies before asserting is not a passing suite, which is why CI
 // treats a missing summary line as an error rather than a skip.
 if ( ! function_exists( 'get_option' ) ) { function get_option( $n, $d = false ) { return $d; } }
+// Mirrors inc/provenance-webhook.php's resolver: constant first, then option.
+// Called UNGUARDED from inc/provenance-did.php on purpose — a missing resolver
+// must fatal here rather than degrade to the hardcoded default in silence.
+if ( ! function_exists( 'sn_prov_config' ) ) {
+	function sn_prov_config( $const, $option ) {
+		if ( defined( $const ) ) { return (string) constant( $const ); }
+		return (string) get_option( $option, '' );
+	}
+}
 // stub the plugin's pubkey accessor: a deterministic 32-byte Ed25519 public key
 $GLOBALS['__pub'] = base64_encode( str_repeat( "\x01", 32 ) );
 if ( ! function_exists( 'sn_prov_pubkey_b64' ) ) { function sn_prov_pubkey_b64() { return $GLOBALS['__pub']; } }
@@ -81,5 +90,19 @@ ok( $GLOBALS['__status'] === 200, 'key mirror send() with a key → 200' );
 ok( is_array( json_decode( $keys_out, true ) ), 'key mirror send() emits valid JSON' );
 
 $report = ob_get_clean(); echo $report;
+// The sn_prov_config stub above mirrors a function this suite does not load.
+// Nothing else would notice if the real resolver changed precedence, so pin the
+// SOURCE: constant first, then option. A stub that silently stops matching the
+// thing it stands in for is worse than no stub.
+$did_src = (string) file_get_contents( __DIR__ . '/../inc/provenance-webhook.php' );
+ok(
+	preg_match( '/function sn_prov_config\([^)]*\)\s*\{\s*if \( defined\( \$const \) \) \{\s*return \(string\) constant\( \$const \);/', $did_src ) === 1,
+	'the real sn_prov_config still resolves CONSTANT first (the stub here mirrors it)'
+);
+ok(
+	preg_match( '/return \(string\) get_option\( \$option, .. \);\s*\}/', $did_src ) === 1,
+	'and falls back to the OPTION (stub parity for a project function the WP stub sweep does not cover)'
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
