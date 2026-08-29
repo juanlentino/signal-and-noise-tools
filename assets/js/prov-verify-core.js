@@ -225,9 +225,44 @@
 	 * @param {Object} states Map of check key to STATE.*.
 	 * @return {Object} { level, word, line, caveats }.
 	 */
-	function deriveOverallVerdict( states ) {
+	function deriveOverallVerdict( states, retractionState ) {
 		var s = states || {};
 		var get = function ( k ) { return s[ k ] || STATE.PENDING; };
+
+		// Takes deriveRetraction()'s own shape: { retraction, unknown }. A
+		// VERIFIED retraction is the only thing that withdraws a record; not
+		// being able to find out is a separate, weaker fact that must still be
+		// said out loud.
+		var rs        = retractionState || {};
+		var retraction = rs.retraction || null;
+		// Saying nothing when the withdrawal status is unknown is the one
+		// option that is not available: anyone who can block a single fetch
+		// would then hide a retraction behind a clean "Authentic". Fail toward
+		// uncertainty, never toward confidence.
+		var withdrawalNote = rs.unknown
+			? ' Whether it has since been withdrawn could not be confirmed — the retraction record could not be read, so this is a missing answer rather than a clean bill.'
+			: '';
+
+		// A retraction DOMINATES, before any check is consulted. It says the
+		// publisher withdrew this record: it asserted something false. Every
+		// cryptographic check can still pass — the bytes are intact and the
+		// signature genuine; what is wrong is what they SAY. Averaging it in
+		// with the four checks would let a withdrawn record read "Authentic",
+		// which is the one sentence this page must never produce about a record
+		// its own publisher has disavowed.
+		if ( retraction ) {
+			var when   = String( retraction.retracted_at || '' );
+			var reason = String( retraction.what_was_wrong || '' );
+			return {
+				level:   'retracted',
+				word:    'Retracted',
+				line:    'The publisher has withdrawn this record'
+					+ ( when ? ' (' + when + ')' : '' ) + '. '
+					+ ( reason ? reason.charAt( 0 ).toUpperCase() + reason.slice( 1 ) + '. ' : '' )
+					+ 'The signature and bytes may well be intact — what is withdrawn is the claim they carry, so do not rely on it.',
+				caveats: []
+			};
+		}
 
 		var caveats = CHECK_ORDER.filter( function ( k ) {
 			var v = get( k );
@@ -244,7 +279,7 @@
 			return {
 				level:   'fail',
 				word:    'Not authentic',
-				line:    'A check contradicted this credential: ' + caveatNames + ' did not hold. Treat this copy as unverified.',
+				line:    'A check contradicted this credential: ' + caveatNames + ' did not hold. Treat this copy as unverified.' + withdrawalNote,
 				caveats: caveats
 			};
 		}
@@ -252,22 +287,26 @@
 			return {
 				level:   'unproven',
 				word:    'Not proven',
-				line:    'The checks that would settle this could not be run: ' + caveatNames + ' came back unavailable. This is a missing answer, not a failed one.',
+				line:    'The checks that would settle this could not be run: ' + caveatNames + ' came back unavailable. This is a missing answer, not a failed one.' + withdrawalNote,
 				caveats: caveats
 			};
 		}
 		if ( ! caveats.length ) {
+			var cleanLine = 'Signed by the published key, byte-for-byte intact, matching what is published now, and anchored in the Bitcoin chain.';
+			// An unconfirmable withdrawal status cannot reach 'pass'. It is a
+			// gap, so it qualifies rather than fails — the same rule the four
+			// checks already follow for an unreachable leg.
 			return {
-				level:   'pass',
+				level:   rs.unknown ? 'qualified' : 'pass',
 				word:    'Authentic',
-				line:    'Signed by the published key, byte-for-byte intact, matching what is published now, and anchored in the Bitcoin chain.',
+				line:    cleanLine + withdrawalNote,
 				caveats: caveats
 			};
 		}
 		return {
 			level:   'qualified',
 			word:    'Authentic',
-			line:    'Signed by the published key and byte-for-byte intact. Corroboration is incomplete: ' + caveatNames + ' could not be fully confirmed.',
+			line:    'Signed by the published key and byte-for-byte intact. Corroboration is incomplete: ' + caveatNames + ' could not be fully confirmed.' + withdrawalNote,
 			caveats: caveats
 		};
 	}
@@ -474,6 +513,161 @@
 	function ledgerRecordUrl( ledgerBase, uid, version, evidence, kind ) {
 		var root = SUBJECT_ROOTS[ kind ] || SUBJECT_ROOTS.note;
 		return String( ledgerBase || '' ).replace( /\/?$/, '' ) + '/' + root + '/' + encodeURIComponent( uid ) + '/v' + encodeURIComponent( version || ( evidence && evidence.version ) || 0 ) + '.json';
+	}
+
+	/** The staleness caveat a stated correct value must always carry. */
+	var CORRECT_VALUE_CAVEAT = 'Do not treat this as current: it was correct on the retraction date and will change. Read the record and check it against a live verification yourself.';
+
+	/**
+	 * The retraction, as reader-facing [label, value] rows.
+	 *
+	 * Ordered by what a reader actually wants: what was wrong FIRST. A panel
+	 * that opens with dates and identifiers answers a question nobody asked and
+	 * buries the one they did.
+	 *
+	 * Absent fields produce NO row rather than an empty one — a blank "Root
+	 * cause:" reads as though we looked and found nothing, when the truth is
+	 * that nothing was said.
+	 *
+	 * A stated correct value never renders without a staleness caveat. Published
+	 * bare, a correct-at-the-time value becomes the next wrong number someone
+	 * compares against months later, which is the failure this whole surface
+	 * exists to stop repeating. The producer already attaches one; this is the
+	 * last place that can catch a record minted before that rule, so it attaches
+	 * one too rather than trusting upstream.
+	 *
+	 * @param {object|null} retraction
+	 * @returns {Array<[string, string]>}
+	 */
+	function retractionRows( retraction ) {
+		var r = retraction || {};
+		var rows = [];
+		var push = function ( label, value ) {
+			var v = String( value == null ? '' : value ).trim();
+			if ( v ) {
+				rows.push( [ label, v ] );
+			}
+		};
+
+		push( 'What was wrong', r.what_was_wrong );
+		push( 'What the record claimed', r.claimed );
+		push( 'Root cause', r.root_cause );
+		push( 'What changed since', r.what_changed );
+
+		var correct = r.correct_value_at_retraction;
+		if ( correct && 'object' === typeof correct ) {
+			var parts = [];
+			Object.keys( correct ).forEach( function ( k ) {
+				if ( 'caveat' !== k ) {
+					parts.push( k + ': ' + String( correct[ k ] ) );
+				}
+			} );
+			if ( parts.length ) {
+				var caveat = String( correct.caveat || '' ).trim() || CORRECT_VALUE_CAVEAT;
+				push( 'Correct value at the time of retraction', parts.join( '; ' ) + ' — ' + caveat );
+			}
+		}
+
+		push( 'Retracted on', r.retracted_at );
+		return rows;
+	}
+
+	/**
+	 * Turn a lookup (deriveRetraction) plus a verification result into the state
+	 * the verdict consumes: { retraction, unknown }.
+	 *
+	 * Three inputs collapse to "unknown", and it is worth naming why each one is
+	 * not simply ignored:
+	 *
+	 *   verified === false  a retraction is PRESENT and does not verify. It must
+	 *                       not be honoured (anyone able to serve a file could
+	 *                       otherwise silence any record) and must not be waved
+	 *                       through either, because that converts a file an
+	 *                       attacker supplied into a clean bill of health.
+	 *   verified === null   verification could not be attempted at all.
+	 *   unknown/mismatched  the lookup itself could not answer for THIS record.
+	 *
+	 * Only a confirmed 404 is clean. Everything else fails toward uncertainty.
+	 *
+	 * @param {{retraction: object|null, unknown?: boolean, mismatched?: boolean}} found
+	 * @param {boolean|null} verified
+	 * @returns {{retraction: object|null, unknown: boolean}}
+	 */
+	function retractionOutcome( found, verified ) {
+		var f = found || {};
+		if ( f.retraction ) {
+			return true === verified
+				? { retraction: f.retraction, unknown: false }
+				: { retraction: null, unknown: true };
+		}
+		return { retraction: null, unknown: !! ( f.unknown || f.mismatched ) };
+	}
+
+	/**
+	 * Where a retraction for this record would live.
+	 *
+	 * Kind-INDEPENDENT on purpose: notes/ and pages/ split records by subject
+	 * kind, but a retraction names the record it withdraws inside its own
+	 * payload, so it needs no directory to carry that meaning. One deterministic
+	 * URL per record keeps the reader's lookup a single fetch, and keeps the
+	 * lookup from depending on a kind resolution that has been wrong before
+	 * (the v12.6.6 misfiling).
+	 */
+	function retractionUrl( ledgerBase, uid, version ) {
+		return String( ledgerBase || '' ).replace( /\/?$/, '' )
+			+ '/retractions/' + encodeURIComponent( String( uid || '' ) )
+			+ '/v' + Number( version ) + '.json';
+	}
+
+	/**
+	 * What the retraction path means for THIS record.
+	 *
+	 * The classification is the whole point, and it follows the rule the rest of
+	 * this file already keeps: a PRESENT answer may contradict, an ABSENT one is
+	 * a gap. Here the normal case is absence, so the two must not collapse —
+	 *
+	 *   404          nothing has been retracted. A REAL answer, and the common
+	 *                one; the docket proceeds untouched.
+	 *   unreachable  we could not find out. NEVER "not retracted": reading a
+	 *                failed fetch as absence is exactly how a withdrawn record
+	 *                would render as authentic to any reader whose network
+	 *                blipped — or to anyone able to cause that blip.
+	 *   mismatched   a retraction served here that names a DIFFERENT record
+	 *                suppresses nothing. One stray file must not silence an
+	 *                unrelated Note.
+	 *
+	 * Returns the payload for the CALLER to verify cryptographically. This
+	 * function decides relevance, never authenticity: an unsigned retraction
+	 * that withdrew a record would be a denial-of-service on our own corpus.
+	 *
+	 * @param {object} res     Fetch result { ok, status, json }.
+	 * @param {string} uid     The subject uid being verified.
+	 * @param {number} version The record version being verified.
+	 * @returns {{retraction: object|null, unknown: boolean, mismatched: boolean}}
+	 */
+	function deriveRetraction( res, uid, version ) {
+		var out  = { retraction: null, unknown: false, mismatched: false };
+		var code = ( res && 'number' === typeof res.status ) ? res.status : 0;
+		if ( 404 === code ) {
+			return out; // a real answer: this record has not been retracted.
+		}
+		var rec = res && res.json;
+		if ( ! rec || 'object' !== typeof rec ) {
+			out.unknown = true;
+			return out;
+		}
+		var payload = rec.payload || {};
+		if ( 'retraction' !== String( payload.kind || '' ) ) {
+			out.unknown = true; // present but not a retraction: malformed, never "clean".
+			return out;
+		}
+		if ( String( payload.note_uid || '' ) !== String( uid || '' )
+			|| Number( payload.version ) !== Number( version ) ) {
+			out.mismatched = true;
+			return out;
+		}
+		out.retraction = payload;
+		return out;
 	}
 
 	/**
@@ -825,6 +1019,44 @@
 
 	/** The one raw URL sink in an otherwise textContent-only renderer:
 	 *  http(s) only, so a poisoned credential can't plant a javascript: link. */
+	/**
+	 * The href for a link this page offers into the ledger — or '' for anything
+	 * it will not vouch for.
+	 *
+	 * isSafeExplorerUrl() tests a PREFIX with a regex. That is enough for the
+	 * anchor-explorer link, whose URL arrives inside fetched JSON, but not here:
+	 * this URL is built from `ledgerBase`, which the page reads out of its own
+	 * DOM (a data attribute). A scheme check says nothing about WHERE the link
+	 * goes, and a regex is not something a static analyser — or a reader — can
+	 * verify at a glance.
+	 *
+	 * So this PARSES, requires https, and pins the ORIGIN to the configured
+	 * ledger. A link the page hands a reader now cannot leave the ledger it
+	 * claims to be quoting, whatever the attribute said. Fails closed on
+	 * anything unparseable, including the base.
+	 *
+	 * @param {string} url
+	 * @param {string} ledgerBase
+	 * @returns {string} the href, or '' to render no link at all.
+	 */
+	function ledgerLinkHref( url, ledgerBase ) {
+		var target;
+		var base;
+		try {
+			target = new URL( String( url ) );
+			base   = new URL( String( ledgerBase ) );
+		} catch ( e ) {
+			return '';
+		}
+		if ( 'https:' !== target.protocol || 'https:' !== base.protocol ) {
+			return '';
+		}
+		if ( target.origin !== base.origin ) {
+			return '';
+		}
+		return target.href;
+	}
+
 	function isSafeExplorerUrl( url ) {
 		return /^https?:\/\//i.test( String( url ) );
 	}
@@ -841,6 +1073,10 @@
 		credentialFailureStatus:  credentialFailureStatus,
 		shouldWriteDone:          shouldWriteDone,
 		deriveOverallVerdict:     deriveOverallVerdict,
+		deriveRetraction:         deriveRetraction,
+		retractionUrl:            retractionUrl,
+		retractionOutcome:        retractionOutcome,
+		retractionRows:           retractionRows,
 		deriveKeyAgreement:       deriveKeyAgreement,
 		decodeProofBytes:         decodeProofBytes,
 		decodeSignedPayloadBytes: decodeSignedPayloadBytes,
@@ -862,6 +1098,7 @@
 		diffWords:                diffWords,
 		pastedTwinUrl:            pastedTwinUrl,
 		resolveTwinRef:           resolveTwinRef,
+		ledgerLinkHref:           ledgerLinkHref,
 		isSafeExplorerUrl:        isSafeExplorerUrl
 	};
 } );

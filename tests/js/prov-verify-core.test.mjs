@@ -280,6 +280,146 @@ console.log( '\nGroup 5c: the key is the one the RECORD names, not the one that 
 		'the site mirror and the ledger publishing DIFFERENT bytes for one key id is a FAIL' );
 }
 
+console.log( '\nGroup 5d: deriveRetraction — absence is an ANSWER, an outage is not' );
+{
+	const UID = '3f7c2a10-9d4e-4b6f-8a21-5e0c9b7d1f42';
+	const body = ( over ) => ( { ok: true, status: 200, json: Object.assign( {
+		payload: { kind: 'retraction', note_uid: UID, version: 1, retracted_at: '2026-08-15', what_was_wrong: 'x' },
+		content_hash: 'abc', signature: 'sig', pubkey_id: 'sn-ed25519-2026-07'
+	}, over || {} ) } );
+
+	// 404 is the NORMAL case and a REAL answer: nothing has been retracted. It
+	// must be distinguishable from "we could not find out".
+	const none = core.deriveRetraction( { ok: false, status: 404, json: null }, UID, 1 );
+	ok( null === none.retraction && ! none.unknown, 'a 404 means NOT retracted — a real answer, not a gap' );
+
+	// A network failure is NOT evidence of absence. Reading it as "no retraction"
+	// is how a withdrawn record renders as authentic to anyone whose fetch fails.
+	const blip = core.deriveRetraction( { ok: false, status: 0, json: null }, UID, 1 );
+	ok( blip.unknown, 'an unreachable retraction path is UNKNOWN, never "not retracted"' );
+	ok( null === blip.retraction, 'and it never yields a retraction to act on' );
+
+	// A retraction served at our path but naming a DIFFERENT record must not
+	// suppress this one — otherwise one stray file silences an unrelated Note.
+	const alien = core.deriveRetraction( body( { payload: { kind: 'retraction', note_uid: 'ffffffff-0000-4000-8000-000000000000', version: 1 } } ), UID, 1 );
+	ok( null === alien.retraction, 'a retraction naming another record is not honoured' );
+	ok( alien.mismatched, 'and the mismatch is reported rather than swallowed' );
+
+	// Version matters: a retraction of v1 says nothing about v2.
+	ok( null === core.deriveRetraction( body(), UID, 2 ).retraction, 'a retraction of v1 does not retract v2' );
+
+	// The happy path: names this exact record.
+	// The path is kind-INDEPENDENT: a retraction lives in one directory whatever
+	// the subject was, because the record it withdraws is named inside its own
+	// payload. That keeps the reader's lookup a single deterministic URL.
+	eq( 'https://raw.example/main/retractions/' + UID + '/v2.json',
+		core.retractionUrl( 'https://raw.example/main/', UID, 2 ),
+		'retraction URL mirrors the record path under one retractions/ root' );
+	eq( 'https://raw.example/main/retractions/' + UID + '/v2.json',
+		core.retractionUrl( 'https://raw.example/main', UID, 2 ),
+		'and a base without a trailing slash resolves identically' );
+
+	const hit = core.deriveRetraction( body(), UID, 1 );
+	ok( hit.retraction && '2026-08-15' === hit.retraction.retracted_at, 'a retraction naming THIS record is returned for signature verification' );
+	ok( ! hit.unknown && ! hit.mismatched, 'and carries no gap or mismatch flag' );
+}
+
+console.log( '\nGroup 5e: retractionOutcome — a retraction we cannot verify is UNKNOWN, never clean' );
+{
+	const R = { retracted_at: '2026-08-15', what_was_wrong: 'x' };
+
+	// Verified: it withdraws the record.
+	eq( R, core.retractionOutcome( { retraction: R }, true ).retraction, 'a verified retraction is honoured' );
+	ok( ! core.retractionOutcome( { retraction: R }, true ).unknown, 'and carries no uncertainty' );
+
+	// Present but NOT verified. Discarding this silently was the first design and
+	// it is wrong in the same direction as everything else here: it converts an
+	// attacker-supplied file into a clean bill of health. It cannot be honoured
+	// either — an unverified retraction would let anyone silence any record — so
+	// the honest state is "could not determine".
+	const bad = core.retractionOutcome( { retraction: R }, false );
+	ok( null === bad.retraction, 'an unverified retraction is never honoured' );
+	ok( bad.unknown, 'and never silently ignored either — it is UNKNOWN' );
+
+	// Could not even attempt verification (no WebCrypto, malformed bytes, key
+	// unresolvable): same answer.
+	ok( core.retractionOutcome( { retraction: R }, null ).unknown, 'an unattemptable check is UNKNOWN' );
+
+	// 404: a real answer. This is the common case and must stay clean.
+	const none = core.retractionOutcome( { retraction: null, unknown: false }, null );
+	ok( null === none.retraction && ! none.unknown, 'a confirmed absence stays clean' );
+
+	// An unreachable lookup or a retraction naming another record: both leave us
+	// unable to say whether THIS record was withdrawn.
+	ok( core.retractionOutcome( { retraction: null, unknown: true }, null ).unknown, 'an unreachable lookup is UNKNOWN' );
+	ok( core.retractionOutcome( { retraction: null, mismatched: true }, null ).unknown, 'a mismatched retraction leaves the status UNKNOWN' );
+}
+
+console.log( '\nGroup 5f: retractionRows — the reasons a reader is owed' );
+{
+	const full = {
+		kind: 'retraction', retracted_at: '2026-08-15',
+		claimed: 'the content hash of the published Note',
+		what_was_wrong: 'the hash was computed over pre-normalization bytes',
+		root_cause: 'the signer read the raw content before the normalizer ran',
+		what_changed: 'the signer now hashes normalized bytes, pinned by a test',
+		correct_value_at_retraction: { content_hash: 'abc123', caveat: 'Do not treat this as current.' }
+	};
+	const rows = core.retractionRows( full );
+	const labels = rows.map( function ( r ) { return r[ 0 ]; } );
+
+	// What was wrong leads. A retraction whose reason is buried under metadata
+	// answers the question nobody asked first.
+	ok( /wrong/i.test( labels[ 0 ] ), 'the reason leads the panel' );
+	ok( labels.some( function ( l ) { return /root cause/i.test( l ); } ), 'root cause is shown' );
+	ok( labels.some( function ( l ) { return /changed/i.test( l ); } ), 'what changed is shown' );
+
+	// A stated correct value must never appear without its staleness caveat —
+	// published bare it becomes the next wrong number someone compares against.
+	const correct = rows.filter( function ( r ) { return /correct/i.test( r[ 0 ] ); } );
+	eq( 1, correct.length, 'the corrected value is shown once' );
+	ok( /Do not treat this as current/.test( correct[ 0 ][ 1 ] ), 'and always carries its caveat' );
+
+	// Absent fields produce NO row. An empty "Root cause:" reads as though we
+	// looked and found nothing, when in fact nothing was said.
+	const sparse = core.retractionRows( { what_was_wrong: 'x', retracted_at: '2026-08-15' } );
+	ok( ! sparse.some( function ( r ) { return '' === String( r[ 1 ] ).trim(); } ), 'no empty rows' );
+	ok( ! sparse.some( function ( r ) { return /root cause/i.test( r[ 0 ] ); } ), 'an unstated root cause is omitted, not blanked' );
+
+	// A correct value with no caveat from the producer still gets one here: the
+	// panel is the last place that can stop a bare number going out.
+	const nocaveat = core.retractionRows( { what_was_wrong: 'x', correct_value_at_retraction: { pcr0: 'aef4' } } );
+	const cv = nocaveat.filter( function ( r ) { return /correct/i.test( r[ 0 ] ); } );
+	ok( cv.length === 1 && /not.*current|will change/i.test( cv[ 0 ][ 1 ] ), 'a caveat-less correct value is never rendered bare' );
+
+	ok( core.retractionRows( null ).length === 0, 'no retraction, no rows' );
+}
+
+console.log( '\nGroup 5g: ledgerLinkHref — a link the page offers is PINNED, not merely https' );
+{
+	const base = 'https://raw.githubusercontent.com/juanlentino/signal-and-noise-provenance/main/';
+
+	// The happy path: a deep link under the configured ledger.
+	eq( base + 'retractions/x/v1.json', core.ledgerLinkHref( base + 'retractions/x/v1.json', base ),
+		'a URL under the ledger origin is returned unchanged' );
+
+	// Scheme. isSafeExplorerUrl checks a PREFIX with a regex; this parses.
+	eq( '', core.ledgerLinkHref( 'javascript:alert(1)', base ), 'a javascript: URL is refused' );
+	eq( '', core.ledgerLinkHref( 'data:text/html,<script>', base ), 'a data: URL is refused' );
+	eq( '', core.ledgerLinkHref( 'http://raw.githubusercontent.com/x', base ), 'plain http is refused (the ledger is https)' );
+
+	// ORIGIN. This is what the prefix regex could never do: a scheme check alone
+	// says nothing about WHERE the link goes, and the href is built from a value
+	// the page reads out of its own DOM.
+	eq( '', core.ledgerLinkHref( 'https://evil.example/retractions/x/v1.json', base ),
+		'an https URL on another origin is refused — the destination is pinned, not just the scheme' );
+
+	// Garbage in never becomes a live href.
+	eq( '', core.ledgerLinkHref( 'not a url', base ), 'an unparseable URL yields no href' );
+	eq( '', core.ledgerLinkHref( base + 'x', 'not a url' ), 'an unparseable BASE yields no href (fail closed)' );
+	eq( '', core.ledgerLinkHref( '', base ), 'an empty URL yields no href' );
+}
+
 // ─── Group 6: anchor plan (BOTH anchor shapes + the block-only norm) ────
 console.log( '\nGroup 6: deriveAnchorPlan (pending attestation; confirmed with txid; block-only — 9.73.2)' );
 {
@@ -613,6 +753,49 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 	eq( 'fail', failed.level, 'a FAIL signature fails the whole verdict' );
 	eq( 'Not authentic', failed.word, 'a core FAIL reads "Not authentic"' );
 	eq( 'fail', core.deriveOverallVerdict( { ...all( S.PASS ), 'content-hash': S.FAIL } ).level, 'a FAIL content hash fails the whole verdict too' );
+
+	// ── Retraction dominates ────────────────────────────────────────────────
+	// A retraction says the PUBLISHER withdrew this record: it asserted
+	// something false. Every cryptographic check can still pass — the bytes are
+	// intact and the signature is genuine; what is wrong is what they SAY. So a
+	// retraction is not a fifth check to be averaged in with the others. It
+	// dominates, or the docket would tell a reader "Authentic" about a record
+	// its own publisher has disavowed.
+	const retracted = core.deriveOverallVerdict( all( S.PASS ), { retraction: { retracted_at: '2026-08-15', what_was_wrong: 'the anchored hash was computed over the wrong bytes' } } );
+	eq( 'retracted', retracted.level, 'a retraction overrides an otherwise fully passing docket' );
+	ok( ! /Authentic/.test( retracted.word + ' ' + retracted.line ),
+		'and the reader is never told "Authentic" about a withdrawn record' );
+	ok( /withdrawn|retracted/i.test( retracted.line ), 'the line says the record was withdrawn, in words' );
+
+	// It dominates a FAILING docket too: "retracted" is the more informative
+	// answer, and it is the publisher's own statement rather than an inference.
+	eq( 'retracted', core.deriveOverallVerdict( { ...all( S.PASS ), 'signature': S.FAIL }, { retraction: { retracted_at: '2026-08-15' } } ).level,
+		'a retraction also dominates a failing check' );
+
+	// Absent is the NORMAL case and must change nothing.
+	eq( 'pass', core.deriveOverallVerdict( all( S.PASS ), null ).level,
+		'no retraction leaves the verdict exactly as it was' );
+
+	// ── Unknown withdrawal status ───────────────────────────────────────────
+	// If we could not find out whether this record was withdrawn, saying nothing
+	// is the one thing we must not do: an attacker who can block ONE fetch would
+	// then hide a retraction behind a clean "Authentic". Fail toward uncertainty,
+	// never toward confidence.
+	const unsure = core.deriveOverallVerdict( all( S.PASS ), { retraction: null, unknown: true } );
+	ok( 'pass' !== unsure.level, 'an unconfirmable withdrawal status is never a clean pass' );
+	eq( 'qualified', unsure.level, 'it qualifies the verdict rather than failing it — a missing answer, not a failed one' );
+	ok( /withdraw/i.test( unsure.line ), 'and the line tells the reader WHAT could not be confirmed' );
+
+	// It must not masquerade as a retraction either: "we could not check" is not
+	// "this was withdrawn".
+	ok( 'retracted' !== unsure.level, 'not knowing is never reported as retracted' );
+
+	// A verified retraction still dominates even when the status is also murky.
+	eq( 'retracted', core.deriveOverallVerdict( all( S.PASS ), { retraction: { retracted_at: '2026-08-15' }, unknown: true } ).level,
+		'a verified retraction outranks the uncertainty' );
+
+	eq( 'pass', core.deriveOverallVerdict( all( S.PASS ), { retraction: null, unknown: false } ).level,
+		'a confirmed NOT-retracted (404) leaves the verdict clean' );
 
 	const unproven = core.deriveOverallVerdict( { ...all( S.PASS ), 'signature': S.UNREACHABLE } );
 	eq( 'unproven', unproven.level, 'an unrunnable core check is unproven, never a fail' );

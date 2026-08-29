@@ -122,6 +122,47 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
    so "we could not tell" never wears the colour of "we checked and it held". */
 .sn-verify-verdict[data-level="unproven"],
 .sn-verify-verdict[data-level="running"]{background:var(--void);color:var(--bone);border:3px solid var(--bone)}
+/* Retracted is NOT a failed check — every check may have passed, and usually
+   will have: the bytes are intact and the signature genuine. What is withdrawn
+   is the claim they carry.
+
+   FILLED, not outlined. The outlined treatment above belongs to unproven and
+   running, where it means "we could not tell"; a withdrawal is the opposite of
+   unresolved — the publisher has stated it plainly — so wearing that band would
+   read as an incomplete run. It keeps the bone ground of a settled verdict and
+   takes a blood rule to mark it, which is neither the clean band nor the
+   contradiction alarm. (Measured: blood on bone-as-ground is 4.19:1, over the
+   3:1 a non-text border needs; the supporting lines go to full opacity for the
+   same reason the fail band does — nothing on an alarm is de-emphasized.)
+
+   Without this rule the band inherits the PASS styling and a withdrawn record
+   looks exactly like a verified one. */
+.sn-verify-verdict[data-level="retracted"]{border:3px solid var(--blood)}
+.sn-verify-verdict[data-level="retracted"] .sn-verify-verdict-kicker,
+.sn-verify-verdict[data-level="retracted"] .sn-verify-verdict-line,
+.sn-verify-verdict[data-level="retracted"] .sn-verify-verdict-meta{opacity:1}
+
+/* ── The withdrawal's reasons ──────────────────────────────────────────────
+   The band is the alarm; this is the explanation. It sits directly beneath so
+   a reader never has to hunt for why. */
+.sn-verify-retraction{border:3px solid var(--blood);padding:1.5rem 1.4rem 1.3rem;margin:0 0 1.5rem}
+.sn-verify-retraction[hidden]{display:none}
+/* Red as TEXT routes through --signal-ink (7.34:1), never --blood (5.01:1):
+   this file created that token precisely because an accent red that is fine as
+   a rule fails the moment it becomes something a reader has to read. */
+.sn-verify-retraction-kicker{font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.28em;color:var(--signal-ink);margin:0 0 .5rem}
+.sn-verify-retraction-word{font-size:1.05rem;line-height:1.45;font-weight:600;margin:0 0 .9rem;max-width:56ch}
+/* The single most important sentence in the panel: this is a retraction, not
+   an erasure. Given its own weight so it is not skimmed past. */
+.sn-verify-retraction-kept{font-size:.8rem;line-height:1.7;color:var(--rust);margin:0 0 1.2rem;max-width:64ch;padding:0 0 1.1rem;border-bottom:1px solid var(--asphalt)}
+.sn-verify-retraction-rows{margin:0;display:grid;grid-template-columns:minmax(9rem,auto) 1fr;gap:.5rem 1.4rem}
+.sn-verify-retraction-rows dt{font-size:.68rem;font-weight:600;text-transform:uppercase;letter-spacing:.16em;color:var(--rust);padding-top:.15rem}
+.sn-verify-retraction-rows dd{margin:0;font-size:.85rem;line-height:1.65;max-width:60ch}
+.sn-verify-retraction-source{margin:1.3rem 0 0;font-size:.78rem}
+@media (max-width:34rem){
+	.sn-verify-retraction-rows{grid-template-columns:1fr;gap:.15rem}
+	.sn-verify-retraction-rows dd{margin:0 0 .8rem}
+}
 
 .sn-verify-verdict-kicker{
 	font-size:.7rem;font-weight:500;text-transform:uppercase;letter-spacing:.28em;

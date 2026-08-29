@@ -98,6 +98,9 @@
 	var announceEl = root.querySelector( '[data-role="announce"]' );
 	var statusLine = root.querySelector( '[data-role="status-line"]' );
 	var factsEl    = root.querySelector( '[data-role="facts"]' );
+	var retractionEl     = root.querySelector( '[data-role="retraction"]' );
+	var retractionRowsEl = root.querySelector( '[data-role="retraction-rows"]' );
+	var retractionSrcEl  = root.querySelector( '[data-role="retraction-source"]' );
 	var form       = root.querySelector( '[data-role="paste-form"]' );
 	var input      = document.getElementById( 'sn-verify-input' );
 	var verdictEl  = root.querySelector( '[data-role="verdict"]' );
@@ -114,6 +117,12 @@
 	 * and the level come from the pure core (Core.deriveOverallVerdict); this
 	 * function only writes DOM.
 	 */
+	// The retraction in force for the record being verified, or null. Module
+	// scope because paintVerdict() repaints from DOM state on every setCheck()
+	// and a retraction is NOT one of the four checks — it is a fact about the
+	// record that outranks all of them.
+	var activeRetraction = null;
+
 	function paintVerdict() {
 		if ( ! verdictEl || 'function' !== typeof Core.deriveOverallVerdict ) {
 			return;
@@ -127,7 +136,7 @@
 				seg.setAttribute( 'data-state', states[ key ] );
 			}
 		} );
-		var verdict = Core.deriveOverallVerdict( states );
+		var verdict = Core.deriveOverallVerdict( states, activeRetraction );
 		verdictEl.setAttribute( 'data-level', verdict.level );
 		if ( verdictWordEl ) {
 			verdictWordEl.textContent = verdict.word;
@@ -340,6 +349,63 @@
 		} );
 	}
 
+	/**
+	 * Has the publisher WITHDRAWN this record?
+	 *
+	 * Fetched from the ledger like everything else, and — critically — VERIFIED
+	 * before it is honoured. An unverified retraction would be a denial-of-
+	 * service on our own corpus: anyone able to serve a file at the retraction
+	 * path could silence any record. So the same three steps the credential
+	 * gets: the signed bytes must hash to the claimed content_hash, and the
+	 * signature must verify under the key the retraction NAMES (resolved by id,
+	 * never by whichever key is active).
+	 *
+	 * A retraction that fails any of those is NOT honoured — anyone able to serve
+	 * a file could otherwise silence any record — and is NOT waved through
+	 * either: silently ignoring it would convert an attacker-supplied file into
+	 * a clean bill of health. It becomes UNKNOWN, which qualifies the verdict
+	 * without failing it. Only a confirmed 404 is clean.
+	 */
+	function checkRetraction( uid, version, didDoc, siteKeys, ledgerKeys ) {
+		var UNKNOWN = { retraction: null, unknown: true };
+		if ( 'function' !== typeof Core.retractionUrl || ! window.crypto || ! window.crypto.subtle ) {
+			return Promise.resolve( UNKNOWN ); // could not look: say so.
+		}
+		return fetchJSON( Core.retractionUrl( config.ledgerBase, uid, version ) ).then( function ( res ) {
+			var found = Core.deriveRetraction( res, uid, version );
+			if ( ! found.retraction ) {
+				return Core.retractionOutcome( found, null );
+			}
+			var rec = res.json || {};
+			var bytes;
+			try {
+				bytes = Core.base64ToBytes( rec.signed_payload_b64 );
+			} catch ( e ) {
+				return Core.retractionOutcome( found, null ); // present, unverifiable.
+			}
+			var agreement = Core.deriveKeyAgreement( didDoc, siteKeys, ledgerKeys, String( rec.pubkey_id || '' ) );
+			if ( agreement.verdict || ! agreement.jwk ) {
+				return Core.retractionOutcome( found, null );
+			}
+			return window.crypto.subtle.digest( 'SHA-256', bytes ).then( function ( digest ) {
+				if ( Core.bytesToHex( new Uint8Array( digest ) ) !== String( rec.content_hash || '' ).toLowerCase() ) {
+					return Core.retractionOutcome( found, false );
+				}
+				return window.crypto.subtle
+					.importKey( 'jwk', agreement.jwk, { name: 'Ed25519' }, false, [ 'verify' ] )
+					.then( function ( key ) {
+						return window.crypto.subtle.verify( 'Ed25519', key, Core.base64ToBytes( rec.signature ), bytes );
+					} )
+					.then( function ( valid ) {
+						return Core.retractionOutcome( found, !! valid );
+					} )
+					.catch( function () { return Core.retractionOutcome( found, null ); } );
+			} );
+		} ).catch( function () {
+			return UNKNOWN; // a failed lookup is never a clean bill of health.
+		} );
+	}
+
 	/** Content-hash check: SHA-256 of the signed payload bytes vs the credential's claim. */
 	function checkContentHash( cred ) {
 		if ( ! window.crypto || ! window.crypto.subtle || ! window.crypto.subtle.digest ) {
@@ -483,6 +549,59 @@
 	}
 
 	/** Unsupported-crypto fallback: the credential's own facts + links, no fake verdicts. */
+	/**
+	 * The withdrawal's REASONS.
+	 *
+	 * The verdict band says a record was withdrawn; that is the alarm, not the
+	 * explanation. A reader told "Retracted" and nothing else has been left in a
+	 * worse position than before they asked — they now know something is wrong
+	 * and not what. The reason is the part they are owed.
+	 *
+	 * Every value is written with textContent. The prose arrives from the public
+	 * ledger, and this page never assigns fetched text into the DOM as markup.
+	 */
+	function renderRetraction( retraction, uid, version ) {
+		if ( ! retractionEl || ! retractionRowsEl ) {
+			return;
+		}
+		retractionRowsEl.textContent = '';
+		if ( retractionSrcEl ) {
+			retractionSrcEl.textContent = '';
+		}
+		if ( ! retraction ) {
+			retractionEl.hidden = true;
+			return;
+		}
+		Core.retractionRows( retraction ).forEach( function ( row ) {
+			var dt = document.createElement( 'dt' );
+			dt.textContent = row[ 0 ];
+			var dd = document.createElement( 'dd' );
+			dd.textContent = row[ 1 ];
+			retractionRowsEl.appendChild( dt );
+			retractionRowsEl.appendChild( dd );
+		} );
+		// The retraction is itself a signed, anchored record. Linking it is not
+		// decoration: a reader must be able to check this withdrawal the same
+		// way they checked the record it withdraws, rather than taking this
+		// panel's word for it.
+		if ( retractionSrcEl && 'function' === typeof Core.ledgerLinkHref ) {
+			// PARSED and origin-pinned, not prefix-matched: this URL is built
+			// from config.ledgerBase, which the page reads out of its own DOM,
+			// and a scheme regex says nothing about where the link would go.
+			// '' means render no link rather than a link we cannot vouch for.
+			var href = Core.ledgerLinkHref( Core.retractionUrl( config.ledgerBase, uid, version ), config.ledgerBase );
+			if ( href ) {
+				var a = document.createElement( 'a' );
+				a.setAttribute( 'href', href );
+				a.rel = 'nofollow noopener';
+				a.target = '_blank';
+				a.textContent = 'Read the signed retraction record yourself';
+				retractionSrcEl.appendChild( a );
+			}
+		}
+		retractionEl.hidden = false;
+	}
+
 	function renderFallbackFacts( cred ) {
 		if ( ! factsEl ) {
 			return;
@@ -539,6 +658,10 @@
 	/** Orchestrate the whole run for a resolved { uid, version }. */
 	function runVerification( uid, version ) {
 		resetChecks();
+		// A retraction from a previous lookup must never carry over onto the
+		// next record; stale here would withdraw an innocent Note.
+		activeRetraction = null;
+		renderRetraction( null );
 		openVerdict( uid, version );
 		setStatusLine( 'Fetching the credential…' );
 
@@ -578,7 +701,17 @@
 
 				var effectiveVersion = version || ( ( cred.evidence && cred.evidence[ 0 ] && cred.evidence[ 0 ].version ) || 0 );
 
-				return Promise.all( [ signatureDone, checkContentHash( cred ), checkLiveMatch( cred ), checkAnchor( cred, uid, effectiveVersion ) ] );
+				// Runs alongside the four checks, but it is not one of them: its
+				// result outranks the docket rather than joining it, so it lands
+				// in activeRetraction and repaints the band.
+				var retractionDone = checkRetraction( uid, effectiveVersion, didRes.json, siteKeysRes.json, ledgerKeysRes.json )
+					.then( function ( state ) {
+						activeRetraction = state;
+						renderRetraction( state && state.retraction, uid, effectiveVersion );
+						paintVerdict();
+					} );
+
+				return Promise.all( [ signatureDone, checkContentHash( cred ), checkLiveMatch( cred ), checkAnchor( cred, uid, effectiveVersion ), retractionDone ] );
 			} );
 		} ).then( function ( outcome ) {
 			if ( Core.shouldWriteDone( outcome ) ) {

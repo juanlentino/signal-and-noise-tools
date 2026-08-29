@@ -312,6 +312,30 @@ if ( vv_require_fn( 'sn_prov_verify_send' ) ) {
 	$page_tag_pos = strpos( $html_empty, 'assets/js/prov-verify.js?ver=' );
 	vv_true( false !== $core_tag_pos, 'shell emits the prov-verify-core.js script tag with the ?ver= cache-buster' );
 	vv_true( false !== $page_tag_pos, 'shell emits the prov-verify.js script tag with the ?ver= cache-buster' );
+	// The retraction panel ships HIDDEN and empty. Two properties, because the
+	// alarm without the explanation leaves a reader worse off than before they
+	// asked, and a panel that renders by default would accuse every Note.
+	vv_true( false !== strpos( $html_empty, 'data-role="retraction"' ), 'shell emits the retraction panel container' );
+	vv_true(
+		preg_match( '/<section class="sn-verify-retraction"[^>]*\shidden/', $html_empty ) === 1,
+		'the retraction panel is HIDDEN by default (it must never accuse a Note the JS has not judged)'
+	);
+	vv_true( false !== strpos( $html_empty, 'data-role="retraction-rows"' ), 'shell emits the rows container the JS fills' );
+	// Without its own rule, data-level="retracted" inherits the PASS band and a
+	// withdrawn record looks exactly like a verified one — the failure being
+	// styled against is visual, so it has to be pinned here rather than noticed.
+	$vv_css = file_exists( SNT_PATH . 'assets/css/prov-verify.css' ) ? (string) file_get_contents( SNT_PATH . 'assets/css/prov-verify.css' ) : '';
+	vv_true(
+		'' !== $vv_css && false !== strpos( $vv_css, '[data-level="retracted"]' ),
+		'the retracted verdict band has its OWN styling (it must not inherit the pass band)'
+	);
+	vv_true( '' !== $vv_css && false !== strpos( $vv_css, '.sn-verify-retraction{' ), 'the retraction panel is styled' );
+	// The record is not deleted, and the panel has to SAY so — that is the whole
+	// difference between a retraction and an erasure.
+	vv_true(
+		false !== strpos( $html_empty, 'has <strong>not</strong> been deleted' ),
+		'the panel states that the retracted record was kept, not removed'
+	);
 	vv_true(
 		false !== $core_tag_pos && false !== $page_tag_pos && $core_tag_pos < $page_tag_pos,
 		'the core script tag precedes the page script tag (dependency order)'
@@ -453,6 +477,54 @@ vv_true(
 		&& preg_match( '/deriveKeyAgreement\(\s*didDoc,\s*siteKeys,\s*ledgerKeys\s*,\s*\S/', $js ) === 1
 		&& false !== strpos( $js, 'cred.proof.pubkey_id' ),
 	'JS passes the credential proof.pubkey_id into deriveKeyAgreement (not the active-key default)'
+);
+// RETRACTION WIRING. Three properties, each of which the core cannot enforce
+// on its own:
+//   1. the verdict band must be told about the retraction, or a withdrawn
+//      record still paints "Authentic";
+//   2. a retraction must be VERIFIED before it is honoured — an unverified one
+//      is a denial-of-service on our own corpus, since anyone able to serve a
+//      file at the retraction path could silence any record;
+//   3. it must be cleared between lookups, or a stale retraction withdraws an
+//      innocent Note.
+vv_true(
+	'' !== $js && preg_match( '/deriveOverallVerdict\(\s*states\s*,\s*activeRetraction\s*\)/', $js ) === 1,
+	'JS passes the active retraction into the verdict (a withdrawn record cannot paint Authentic)'
+);
+vv_true(
+	'' !== $js && false !== strpos( $js, 'signed_payload_b64' )
+		&& preg_match( '/deriveKeyAgreement\([^)]*pubkey_id/', $js ) === 1,
+	'JS verifies the retraction signature under the key it NAMES before honouring it'
+);
+vv_true(
+	'' !== $js && preg_match( '/resetChecks\(\);.*?activeRetraction = null;/s', $js ) === 1,
+	'JS clears the retraction between lookups (no carry-over onto the next record)'
+);
+// A retraction that does not verify must become UNKNOWN, never silence. Waving
+// it through converts an attacker-supplied file into a clean bill of health;
+// honouring it lets anyone silence any record. Both directions are wrong, so
+// the orchestrator routes every branch through the pure classifier.
+// COUNTED, not merely present: a presence check passes while one branch quietly
+// returns null again, which is the exact regression this pins against. Six is
+// the count checkRetraction reaches today; losing one means a branch stopped
+// classifying. Set AT the real count, not below it — a threshold with slack is
+// a threshold that tolerates exactly the regression it was written for.
+// The retraction link's href is built from config.ledgerBase, which the page
+// reads out of its OWN DOM. A prefix regex on the scheme says nothing about
+// where the link would GO, so this one is parsed and origin-pinned. CodeQL
+// flagged the regex form as js/xss-through-dom (high) and was right to.
+vv_true(
+	'' !== $js && false !== strpos( $js, 'Core.ledgerLinkHref(' )
+		&& preg_match( '/a\.href\s*=\s*url/', $js ) !== 1,
+	'the retraction link href is origin-pinned via ledgerLinkHref, never assigned from a prefix-checked string'
+);
+vv_true(
+	'' !== $js && substr_count( $js, 'Core.retractionOutcome(' ) >= 6,
+	'every retraction branch classifies through retractionOutcome (no silent discard in any one of them)'
+);
+vv_true(
+	'' !== $js && preg_match( '/catch\(\s*function\s*\(\)\s*\{\s*return UNKNOWN;/', $js ) === 1,
+	'a failed retraction lookup returns UNKNOWN, never a clean result'
 );
 vv_true( '' !== $js && false !== strpos( $js, 'location.origin' ), 'JS guards paste mode against a foreign origin' );
 vv_true(
