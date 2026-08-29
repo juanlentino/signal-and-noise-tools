@@ -43,9 +43,16 @@ function wp_register_ability( $slug, $args ) { $GLOBALS['__ab'][ $slug ] = $args
 // shows up here instead of passing silently against a fixture's idea of it.
 $GLOBALS['__mr']      = array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' );
 $GLOBALS['__mr_days'] = null;
-function snt_mr_fetch( $days = 30 ) {
-	$GLOBALS['__mr_days'] = (int) $days;
-	return $GLOBALS['__mr'];
+// The double must model the REAL signature. It ignored $view entirely, so a
+// totals read returned the aggregate fixture and the summary concluded its total
+// was exact when nothing had served one — the same class of drift that let a
+// view_stats-only capability gate pass while the box was invisible.
+$GLOBALS['__mr_totals'] = array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' );
+$GLOBALS['__mr_views']  = array();
+function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
+	$GLOBALS['__mr_days']    = (int) $days;
+	$GLOBALS['__mr_views'][] = $view;
+	return 'totals' === $view ? $GLOBALS['__mr_totals'] : $GLOBALS['__mr'];
 }
 $GLOBALS['__sensor'] = null;
 function snt_mr_sensor_info() { return $GLOBALS['__sensor']; }
@@ -115,7 +122,7 @@ ok(
 	// in snt_mr_summary_payload()'s return since v10.79.0 but undeclared here,
 	// so an agent reading the schema could not know the purpose axis existed.
 	// ADDITIVE and in the payload's own order — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
 	'schema pins the DM tile payload fields in response order, with error appended'
 );
 ok( 'boolean' === ( $props['ok']['type'] ?? null ), 'ok is a boolean' );
@@ -194,7 +201,11 @@ ok(
 ok( '1.4.0' === ( $out['sensor_version'] ?? null ), 'sensor_version passes through' );
 ok( 'in sync' === ( $out['crawler_list'] ?? null ), 'crawler_list verdict: ok + no drift => in sync' );
 ok(
-	array( 'ok', 'days', 'total', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
+	// v13.34.0 adds `truncated` + `total_exact` after `total`, beside the figure
+	// they qualify: `total` is now exact whenever the edge can serve the totals
+	// view, and a consumer drawing the family breakdown still needs to know that
+	// breakdown may be partial. ADDITIVE — nothing renamed, nothing moved.
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
 	'success shape matches the DM route exactly'
 );
 ok( $rows_before === $GLOBALS['__mr']['rows'], 'the fetched rows are never mutated' );
@@ -217,6 +228,35 @@ foreach ( array( 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy'
 	);
 	unset( $out_minus_new[ $sn_new_key ] );
 }
+// v13.34.0 / worker v1.23.0: same additive principle. This fixture's edge does
+// not serve the totals view, so the summary must FALL BACK to the aggregate sum
+// and say so — an un-upgraded worker degrades to the old number, never to
+// nothing, and never silently claims the number is exact.
+ok( false === ( $out['truncated'] ?? null ), 'a worker that reports no truncation yields truncated=false' );
+ok( false === ( $out['total_exact'] ?? null ), 'and total_exact=false, because this total came from summing the aggregate' );
+ok( 46 === ( $out['total'] ?? null ), 'the fallback total is UNCHANGED from before the totals view existed' );
+unset( $out_minus_new['truncated'], $out_minus_new['total_exact'] );
+
+// The upgraded-edge path: totals is served, so the headline stops being a sum of
+// the truncatable aggregate. 46 (aggregate sum) vs 900 (exact) is the gap the
+// whole change exists to close.
+$GLOBALS['__mr_totals'] = array(
+	'ok'   => true,
+	'rows' => array(
+		array( 'day' => '2026-08-01', 'hits' => 400 ),
+		array( 'day' => '2026-08-02', 'hits' => 500 ),
+	),
+);
+$sn_exact = snt_mr_summary_payload( 7 );
+ok( 900 === ( $sn_exact['total'] ?? null ), 'with the totals view served, total is the EXACT sum, not the aggregate sum (46)' );
+ok( true === ( $sn_exact['total_exact'] ?? null ), 'and total_exact says so' );
+ok( in_array( 'totals', (array) $GLOBALS['__mr_views'], true ), 'the summary actually ASKED for the totals view' );
+ok(
+	array( array( 'family' => 'search', 'hits' => 20 ), array( 'family' => 'openai', 'hits' => 15 ), array( 'family' => 'anthropic', 'hits' => 7 ) ) === ( $sn_exact['families'] ?? null ),
+	'the BREAKDOWN still comes from the aggregate — only the headline changed'
+);
+$GLOBALS['__mr_totals'] = array( 'ok' => false, 'rows' => array(), 'error' => 'not_configured' );
+
 ok(
 	array(
 		'ok'             => true,

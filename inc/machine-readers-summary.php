@@ -47,6 +47,28 @@ function snt_mr_summary_payload( $days ) {
 	}
 
 	$rows    = is_array( $result['rows'] ?? null ) ? $result['rows'] : array();
+
+	// v13.34.0 / worker v1.23.0. The headline count no longer comes from summing
+	// the aggregate. That view groups by ELEVEN dimensions x day, so its row
+	// count scales with the window and a wide window truncates — and because the
+	// total was a sum OF THOSE ROWS, a truncated read did not look degraded, it
+	// looked like less traffic. Measured: a 60-day read summed to barely more
+	// than a 30-day read, so a derived prior period reported a 15x surge that
+	// never happened.
+	//
+	// The totals view groups by DAY ALONE, so a 90-day window returns at most 90
+	// rows and the sum is exact at any width. Falls back to the aggregate sum
+	// when the worker predates 1.23.0, so an un-upgraded edge degrades to the
+	// old number rather than to nothing.
+	$totals_read  = snt_mr_fetch( $days, 'totals' );
+	$exact_total  = null;
+	if ( ! empty( $totals_read['ok'] ) && ! empty( $totals_read['rows'] ) ) {
+		$exact_total = 0;
+		foreach ( (array) $totals_read['rows'] as $trow ) {
+			$exact_total += (int) ( $trow['hits'] ?? 0 );
+		}
+	}
+	$truncated = ! empty( $result['truncated'] );
 	$totals  = function_exists( 'snt_mr_sum_hits_by' ) ? snt_mr_sum_hits_by( $rows, 'family' ) : array();
 	$ai_set  = function_exists( 'snt_mr_ai_training_families' ) ? snt_mr_ai_training_families() : array();
 	$total   = 0;
@@ -150,7 +172,14 @@ function snt_mr_summary_payload( $days ) {
 	return array(
 		'ok'             => true,
 		'days'           => $days,
-		'total'          => $total,
+		// The exact figure when the edge can give one; the aggregate sum only as
+		// a fallback. They differ EXACTLY when the aggregate truncated.
+		'total'          => null === $exact_total ? $total : $exact_total,
+		// Additive: the breakdowns below still come from the aggregate, so a
+		// consumer that draws a families chart needs to know it may be partial
+		// even when `total` is exact.
+		'truncated'      => $truncated,
+		'total_exact'    => null !== $exact_total,
 		'families'       => $families,
 		'ai_training'    => $ai_hits,
 		'ai_rights'      => $ai_rght,
