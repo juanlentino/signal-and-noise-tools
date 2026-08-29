@@ -280,6 +280,50 @@ console.log( '\nGroup 5c: the key is the one the RECORD names, not the one that 
 		'the site mirror and the ledger publishing DIFFERENT bytes for one key id is a FAIL' );
 }
 
+console.log( '\nGroup 5d: deriveRetraction — absence is an ANSWER, an outage is not' );
+{
+	const UID = '3f7c2a10-9d4e-4b6f-8a21-5e0c9b7d1f42';
+	const body = ( over ) => ( { ok: true, status: 200, json: Object.assign( {
+		payload: { kind: 'retraction', note_uid: UID, version: 1, retracted_at: '2026-08-15', what_was_wrong: 'x' },
+		content_hash: 'abc', signature: 'sig', pubkey_id: 'sn-ed25519-2026-07'
+	}, over || {} ) } );
+
+	// 404 is the NORMAL case and a REAL answer: nothing has been retracted. It
+	// must be distinguishable from "we could not find out".
+	const none = core.deriveRetraction( { ok: false, status: 404, json: null }, UID, 1 );
+	ok( null === none.retraction && ! none.unknown, 'a 404 means NOT retracted — a real answer, not a gap' );
+
+	// A network failure is NOT evidence of absence. Reading it as "no retraction"
+	// is how a withdrawn record renders as authentic to anyone whose fetch fails.
+	const blip = core.deriveRetraction( { ok: false, status: 0, json: null }, UID, 1 );
+	ok( blip.unknown, 'an unreachable retraction path is UNKNOWN, never "not retracted"' );
+	ok( null === blip.retraction, 'and it never yields a retraction to act on' );
+
+	// A retraction served at our path but naming a DIFFERENT record must not
+	// suppress this one — otherwise one stray file silences an unrelated Note.
+	const alien = core.deriveRetraction( body( { payload: { kind: 'retraction', note_uid: 'ffffffff-0000-4000-8000-000000000000', version: 1 } } ), UID, 1 );
+	ok( null === alien.retraction, 'a retraction naming another record is not honoured' );
+	ok( alien.mismatched, 'and the mismatch is reported rather than swallowed' );
+
+	// Version matters: a retraction of v1 says nothing about v2.
+	ok( null === core.deriveRetraction( body(), UID, 2 ).retraction, 'a retraction of v1 does not retract v2' );
+
+	// The happy path: names this exact record.
+	// The path is kind-INDEPENDENT: a retraction lives in one directory whatever
+	// the subject was, because the record it withdraws is named inside its own
+	// payload. That keeps the reader's lookup a single deterministic URL.
+	eq( 'https://raw.example/main/retractions/' + UID + '/v2.json',
+		core.retractionUrl( 'https://raw.example/main/', UID, 2 ),
+		'retraction URL mirrors the record path under one retractions/ root' );
+	eq( 'https://raw.example/main/retractions/' + UID + '/v2.json',
+		core.retractionUrl( 'https://raw.example/main', UID, 2 ),
+		'and a base without a trailing slash resolves identically' );
+
+	const hit = core.deriveRetraction( body(), UID, 1 );
+	ok( hit.retraction && '2026-08-15' === hit.retraction.retracted_at, 'a retraction naming THIS record is returned for signature verification' );
+	ok( ! hit.unknown && ! hit.mismatched, 'and carries no gap or mismatch flag' );
+}
+
 // ─── Group 6: anchor plan (BOTH anchor shapes + the block-only norm) ────
 console.log( '\nGroup 6: deriveAnchorPlan (pending attestation; confirmed with txid; block-only — 9.73.2)' );
 {
@@ -613,6 +657,28 @@ console.log( '\nGroup 14: diffWords (9.81.0 — the /verify version-compare dock
 	eq( 'fail', failed.level, 'a FAIL signature fails the whole verdict' );
 	eq( 'Not authentic', failed.word, 'a core FAIL reads "Not authentic"' );
 	eq( 'fail', core.deriveOverallVerdict( { ...all( S.PASS ), 'content-hash': S.FAIL } ).level, 'a FAIL content hash fails the whole verdict too' );
+
+	// ── Retraction dominates ────────────────────────────────────────────────
+	// A retraction says the PUBLISHER withdrew this record: it asserted
+	// something false. Every cryptographic check can still pass — the bytes are
+	// intact and the signature is genuine; what is wrong is what they SAY. So a
+	// retraction is not a fifth check to be averaged in with the others. It
+	// dominates, or the docket would tell a reader "Authentic" about a record
+	// its own publisher has disavowed.
+	const retracted = core.deriveOverallVerdict( all( S.PASS ), { retracted_at: '2026-08-15', what_was_wrong: 'the anchored hash was computed over the wrong bytes' } );
+	eq( 'retracted', retracted.level, 'a retraction overrides an otherwise fully passing docket' );
+	ok( ! /Authentic/.test( retracted.word + ' ' + retracted.line ),
+		'and the reader is never told "Authentic" about a withdrawn record' );
+	ok( /withdrawn|retracted/i.test( retracted.line ), 'the line says the record was withdrawn, in words' );
+
+	// It dominates a FAILING docket too: "retracted" is the more informative
+	// answer, and it is the publisher's own statement rather than an inference.
+	eq( 'retracted', core.deriveOverallVerdict( { ...all( S.PASS ), 'signature': S.FAIL }, { retracted_at: '2026-08-15' } ).level,
+		'a retraction also dominates a failing check' );
+
+	// Absent is the NORMAL case and must change nothing.
+	eq( 'pass', core.deriveOverallVerdict( all( S.PASS ), null ).level,
+		'no retraction leaves the verdict exactly as it was' );
 
 	const unproven = core.deriveOverallVerdict( { ...all( S.PASS ), 'signature': S.UNREACHABLE } );
 	eq( 'unproven', unproven.level, 'an unrunnable core check is unproven, never a fail' );

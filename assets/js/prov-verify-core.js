@@ -225,9 +225,30 @@
 	 * @param {Object} states Map of check key to STATE.*.
 	 * @return {Object} { level, word, line, caveats }.
 	 */
-	function deriveOverallVerdict( states ) {
+	function deriveOverallVerdict( states, retraction ) {
 		var s = states || {};
 		var get = function ( k ) { return s[ k ] || STATE.PENDING; };
+
+		// A retraction DOMINATES, before any check is consulted. It says the
+		// publisher withdrew this record: it asserted something false. Every
+		// cryptographic check can still pass — the bytes are intact and the
+		// signature genuine; what is wrong is what they SAY. Averaging it in
+		// with the four checks would let a withdrawn record read "Authentic",
+		// which is the one sentence this page must never produce about a record
+		// its own publisher has disavowed.
+		if ( retraction ) {
+			var when   = String( retraction.retracted_at || '' );
+			var reason = String( retraction.what_was_wrong || '' );
+			return {
+				level:   'retracted',
+				word:    'Retracted',
+				line:    'The publisher has withdrawn this record'
+					+ ( when ? ' (' + when + ')' : '' ) + '. '
+					+ ( reason ? reason.charAt( 0 ).toUpperCase() + reason.slice( 1 ) + '. ' : '' )
+					+ 'The signature and bytes may well be intact — what is withdrawn is the claim they carry, so do not rely on it.',
+				caveats: []
+			};
+		}
 
 		var caveats = CHECK_ORDER.filter( function ( k ) {
 			var v = get( k );
@@ -474,6 +495,73 @@
 	function ledgerRecordUrl( ledgerBase, uid, version, evidence, kind ) {
 		var root = SUBJECT_ROOTS[ kind ] || SUBJECT_ROOTS.note;
 		return String( ledgerBase || '' ).replace( /\/?$/, '' ) + '/' + root + '/' + encodeURIComponent( uid ) + '/v' + encodeURIComponent( version || ( evidence && evidence.version ) || 0 ) + '.json';
+	}
+
+	/**
+	 * Where a retraction for this record would live.
+	 *
+	 * Kind-INDEPENDENT on purpose: notes/ and pages/ split records by subject
+	 * kind, but a retraction names the record it withdraws inside its own
+	 * payload, so it needs no directory to carry that meaning. One deterministic
+	 * URL per record keeps the reader's lookup a single fetch, and keeps the
+	 * lookup from depending on a kind resolution that has been wrong before
+	 * (the v12.6.6 misfiling).
+	 */
+	function retractionUrl( ledgerBase, uid, version ) {
+		return String( ledgerBase || '' ).replace( /\/?$/, '' )
+			+ '/retractions/' + encodeURIComponent( String( uid || '' ) )
+			+ '/v' + Number( version ) + '.json';
+	}
+
+	/**
+	 * What the retraction path means for THIS record.
+	 *
+	 * The classification is the whole point, and it follows the rule the rest of
+	 * this file already keeps: a PRESENT answer may contradict, an ABSENT one is
+	 * a gap. Here the normal case is absence, so the two must not collapse —
+	 *
+	 *   404          nothing has been retracted. A REAL answer, and the common
+	 *                one; the docket proceeds untouched.
+	 *   unreachable  we could not find out. NEVER "not retracted": reading a
+	 *                failed fetch as absence is exactly how a withdrawn record
+	 *                would render as authentic to any reader whose network
+	 *                blipped — or to anyone able to cause that blip.
+	 *   mismatched   a retraction served here that names a DIFFERENT record
+	 *                suppresses nothing. One stray file must not silence an
+	 *                unrelated Note.
+	 *
+	 * Returns the payload for the CALLER to verify cryptographically. This
+	 * function decides relevance, never authenticity: an unsigned retraction
+	 * that withdrew a record would be a denial-of-service on our own corpus.
+	 *
+	 * @param {object} res     Fetch result { ok, status, json }.
+	 * @param {string} uid     The subject uid being verified.
+	 * @param {number} version The record version being verified.
+	 * @returns {{retraction: object|null, unknown: boolean, mismatched: boolean}}
+	 */
+	function deriveRetraction( res, uid, version ) {
+		var out  = { retraction: null, unknown: false, mismatched: false };
+		var code = ( res && 'number' === typeof res.status ) ? res.status : 0;
+		if ( 404 === code ) {
+			return out; // a real answer: this record has not been retracted.
+		}
+		var rec = res && res.json;
+		if ( ! rec || 'object' !== typeof rec ) {
+			out.unknown = true;
+			return out;
+		}
+		var payload = rec.payload || {};
+		if ( 'retraction' !== String( payload.kind || '' ) ) {
+			out.unknown = true; // present but not a retraction: malformed, never "clean".
+			return out;
+		}
+		if ( String( payload.note_uid || '' ) !== String( uid || '' )
+			|| Number( payload.version ) !== Number( version ) ) {
+			out.mismatched = true;
+			return out;
+		}
+		out.retraction = payload;
+		return out;
 	}
 
 	/**
@@ -841,6 +929,8 @@
 		credentialFailureStatus:  credentialFailureStatus,
 		shouldWriteDone:          shouldWriteDone,
 		deriveOverallVerdict:     deriveOverallVerdict,
+		deriveRetraction:         deriveRetraction,
+		retractionUrl:            retractionUrl,
 		deriveKeyAgreement:       deriveKeyAgreement,
 		decodeProofBytes:         decodeProofBytes,
 		decodeSignedPayloadBytes: decodeSignedPayloadBytes,

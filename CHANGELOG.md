@@ -2,6 +2,69 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [Unreleased]
+
+### Added — retractions: saying, permanently, that a published record was false
+
+The ledger could already state two kinds of exemption — `retired-subjects.json`
+(the subject moved) and `misfiled-records.json` (the record was in the wrong
+place). Both keep the record and declare why. Neither covers the third case: the
+record itself asserted something FALSE.
+
+That case is different because the false record is signed and timestamped into
+Bitcoin. It cannot be unpublished, and deleting it would fix what we serve today
+while leaving a permanent, independently verifiable statement of ours that is
+false, with nothing beside it. So a retraction is published the same way — signed
+by the same key, anchored in the same chain — beside the record it corrects.
+
+Deliberately NOT the shape of its siblings: `retired-subjects.json` and
+`misfiled-records.json` are plain git files. A mutable correction beside a
+permanent falsehood lets the lie outlive its retraction, which is the asymmetry
+the arrangement exists to remove.
+
+**Reader-facing (this repo).** A verified retraction DOMINATES the docket, before
+any check is consulted. Every cryptographic check can still pass — the bytes are
+intact and the signature genuine; what is wrong is what they SAY. Averaging it in
+with the four checks would let a withdrawn record paint "Authentic", the one
+sentence this page must never produce about a record its own publisher has
+disavowed.
+
+- `assets/js/prov-verify-core.js` — `deriveOverallVerdict()` takes the retraction
+  and returns a `retracted` level; `deriveRetraction()` classifies the lookup,
+  keeping three outcomes apart: **404 is a real answer** (not retracted, the
+  normal case), **unreachable is a gap** (never "not retracted" — reading a
+  failed fetch as absence is how a withdrawn record would render authentic to
+  anyone whose network blipped, or to anyone able to cause that blip), and a
+  retraction naming a **different** record suppresses nothing.
+- `assets/js/prov-verify.js` — fetches the retraction and VERIFIES it before
+  honouring it: signed bytes must hash to the claimed `content_hash`, and the
+  signature must verify under the key the retraction NAMES. An unverified
+  retraction would be a denial-of-service on our own corpus. Anything that fails
+  is discarded, never honoured and never alarmed with.
+
+**Producer (sn-provenance-worker).** `POST /retract`, behind the same HMAC gate as
+every hardening route. It refuses to retract a record that was never published
+(you cannot withdraw what was never said), refuses to overwrite an existing
+retraction (that record is anchored too), and only ever ADDS files — the
+retracted record is not in the commit list and must never be.
+
+**Verifier (signal-and-noise-provenance).** `verify:retractions` in CI asserts the
+property that would be tempting to break: **the retracted record is still there.**
+Retracting is not deleting.
+
+Notes on how this was built, since both traps bit during it: the route pin
+`POST /retract → 401` was **vacuous** — an unknown path returns 401 too, because
+unknown paths fall through to the webhook handler's signature check, so the
+pre-existing `/anchor-key-fingerprint` pin has the same flaw and does not prove
+its route exists. Replaced with a valid-HMAC probe that only a live route can
+answer. And the first ledger test file sat outside vitest's `include` globs and
+was never collected at all.
+
+Nothing is retracted today, and `verify:retractions` reports zero. The checks are
+split into `retraction-checks.mjs` precisely so they are exercised by tests rather
+than only by a corpus that is empty — a verifier nobody has watched fail is not
+evidence.
+
 ## [13.36.0] - 2026-08-29 — a key is pinned by name, not by role
 
 ### Fixed — the integrity sweep never checked the keys HISTORICAL Notes depend on

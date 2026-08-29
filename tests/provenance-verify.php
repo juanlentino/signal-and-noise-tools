@@ -454,6 +454,28 @@ vv_true(
 		&& false !== strpos( $js, 'cred.proof.pubkey_id' ),
 	'JS passes the credential proof.pubkey_id into deriveKeyAgreement (not the active-key default)'
 );
+// RETRACTION WIRING. Three properties, each of which the core cannot enforce
+// on its own:
+//   1. the verdict band must be told about the retraction, or a withdrawn
+//      record still paints "Authentic";
+//   2. a retraction must be VERIFIED before it is honoured — an unverified one
+//      is a denial-of-service on our own corpus, since anyone able to serve a
+//      file at the retraction path could silence any record;
+//   3. it must be cleared between lookups, or a stale retraction withdraws an
+//      innocent Note.
+vv_true(
+	'' !== $js && preg_match( '/deriveOverallVerdict\(\s*states\s*,\s*activeRetraction\s*\)/', $js ) === 1,
+	'JS passes the active retraction into the verdict (a withdrawn record cannot paint Authentic)'
+);
+vv_true(
+	'' !== $js && false !== strpos( $js, 'signed_payload_b64' )
+		&& preg_match( '/deriveKeyAgreement\([^)]*pubkey_id/', $js ) === 1,
+	'JS verifies the retraction signature under the key it NAMES before honouring it'
+);
+vv_true(
+	'' !== $js && preg_match( '/resetChecks\(\);.*?activeRetraction = null;/s', $js ) === 1,
+	'JS clears the retraction between lookups (no carry-over onto the next record)'
+);
 vv_true( '' !== $js && false !== strpos( $js, 'location.origin' ), 'JS guards paste mode against a foreign origin' );
 vv_true(
 	'' !== $js && false === strpos( $js, 'https://' ),
