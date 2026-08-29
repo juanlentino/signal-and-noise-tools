@@ -86,7 +86,32 @@ jobs:
           claude-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           claude-model: claude-sonnet-5
           comment-pr: 'true'
-          run-every-commit: 'false'
+          # 'true' since 2026-08-29. The default is 'false', and upstream's
+          # stated reason is NOISE, not cost: "may lead to more false positives
+          # on PRs with many commits as the AI analyzes the same code multiple
+          # times", and the skip logs "forcing disable to avoid false positives".
+          #
+          # That trade is wrong for this repo, because of WHICH commit the
+          # default scans. The marker is written by the first scan, so 'false'
+          # reviews a PR's FIRST commit and never the state that actually
+          # merges. A PR's last commits are its review fixes -- written fastest,
+          # under the most pressure, looked at least. On #875 the unscanned
+          # commits were a new UI panel and the fix for a HIGH-severity CodeQL
+          # XSS finding.
+          #
+          # The two failure modes are not symmetric. A false positive fails
+          # LOUD: it appears as a comment, a person reads it and dismisses it.
+          # A skipped scan fails SILENT: the check goes green in 23s and nobody
+          # learns anything. This repo has now been bitten by the silent one
+          # three times (#799 twice, #875) and by the loud one never. Prefer the
+          # failure that announces itself.
+          #
+          # Costs, stated plainly: one Anthropic API call per commit rather than
+          # per PR (Actions minutes are free on a public repo, but the API spend
+          # is real), ~10 minutes of wall clock per push, and duplicate findings
+          # on long PRs. The mitigation for all three is the batch cadence this
+          # project already follows: fewer, larger pushes.
+          run-every-commit: 'true'
           exclude-directories: 'vendor,node_modules,tests'
           # Project-specific findings this codebase has actually shipped,
           # appended to the audit prompt. Currently the sn_settings subtree
