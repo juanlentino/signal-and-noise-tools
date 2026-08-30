@@ -409,7 +409,7 @@ ad_eq( 0, count( $GLOBALS['__pv_enq'] ), 'assets NOT enqueued on foreign screens
 echo "\nTask 5b: section renderer (house pattern — glance + fieldsets + list table)\n";
 // The real sn_prov_pubkey_b64() falls back to get_option( 'sn_prov_pubkey_b64' )
 // (no wp-config constant in the harness), so seed the published key there.
-$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'PUBKEYSMOKE';
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=';
 ob_start();
 sn_admin_render_provenance_section();
 $html = ob_get_clean();
@@ -422,7 +422,7 @@ ad_true( false !== strpos( $html, 'wp-list-table' ), 'renders the commits wp-lis
 ad_true( false !== strpos( $html, 'sn-prov-live' ), 'renders the aria-live commits tbody' );
 ad_true( false !== strpos( $html, 'data-endpoint' ), 'live tbody carries the status data-endpoint' );
 ad_true( false !== strpos( $html, 'data-nonce' ), 'live tbody carries the wp_rest data-nonce' );
-ad_true( false !== strpos( $html, 'PUBKEYSMOKE' ), 'publishes the Ed25519 public key from the option' );
+ad_true( false !== strpos( $html, 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=' ), 'publishes the Ed25519 public key from the option' );
 ad_true( false === strpos( $html, 'sn-card-grid' ), 'no foreign card-grid markup remains' );
 
 echo "\nTask 6: system status view-model\n";
@@ -430,7 +430,7 @@ $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
 // config: worker_url + pubkey present, hmac deliberately absent.
 $GLOBALS['__pv_options']['sn_prov_worker_url'] = 'https://worker.example/anchor';
-$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'PUBKEY123';
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=';
 // chains: one pending, one confirmed, one unanchored (the confirmed one is the
 // latest successful dispatch; the unanchored one must NOT count as contact).
 update_post_meta( 201, SN_PROV_UID_META, 'u201' );
@@ -451,7 +451,7 @@ ad_eq( 1, $sys['counts']['unanchored'], 'counts.unanchored across all chains' );
 ad_eq( true, $sys['worker']['reachable'], 'worker inferred reachable when a pending/confirmed commit exists' );
 ad_eq( '2026-07-05T00:00:00Z', $sys['worker']['last_contact'], 'worker last_contact is the latest pending/confirmed timestamp' );
 ad_eq( 'pending', $sys['genesis']['status'], 'genesis option passed through' );
-ad_eq( 'PUBKEY123', $sys['pubkey'], 'public key surfaced (public value, OK to include)' );
+ad_eq( 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=', $sys['pubkey'], 'public key surfaced (public value, OK to include)' );
 ad_true( false !== strpos( (string) $sys['ledger_url'], 'signal-and-noise-provenance' ), 'ledger_url points at the ledger repo' );
 ad_true( ! in_array( 'hmac_secret', array_keys( $sys['config'] ), true ), 'config never carries a secret key' );
 
@@ -530,7 +530,7 @@ $GLOBALS['__pv_can'] = true;
 echo "\nTask 8: redesigned section renderer (house pattern + button + secret safety)\n";
 $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
-$GLOBALS['__pv_options']['sn_prov_pubkey_b64']  = 'PUBKEYSMOKE';
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64']  = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=';
 $GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/anchor';
 $GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'SUPERSECRETHMAC';
 $GLOBALS['__pv_options'][ SN_PROV_GENESIS_OPT ] = array( 'root' => str_repeat( 'a', 64 ), 'status' => 'pending', 'date' => '2026-06-30' );
@@ -545,7 +545,7 @@ ad_true( false !== strpos( $html2, 'data-nonce' ), 'live tbody keeps the wp_rest
 ad_true( false !== strpos( $html2, 'sn-prov-live' ), 'keeps the aria-live commits region' );
 ad_true( false !== strpos( $html2, 'sn-fieldset' ), 'renders the .sn-fieldset block layout' );
 ad_true( false !== strpos( $html2, 'wp-list-table' ), 'renders the commits list table' );
-ad_true( false !== strpos( $html2, 'PUBKEYSMOKE' ), 'surfaces the public key' );
+ad_true( false !== strpos( $html2, 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=' ), 'surfaces the public key' );
 ad_true( false !== strpos( $html2, 'sn_prov_reanchor' ), 'renders the re-anchor form action' );
 ad_true( false !== strpos( $html2, 'sn-status-box' ), 'shows the re-anchor result notice' );
 ad_true( false === strpos( $html2, 'SUPERSECRETHMAC' ), 'NEVER echoes the HMAC secret' );
@@ -585,7 +585,7 @@ $GLOBALS['__pv_meta']    = array();
 $GLOBALS['__pv_options'] = array();
 $GLOBALS['__pv_options']['sn_prov_worker_url']  = 'https://worker.example/anchor';
 $GLOBALS['__pv_options']['sn_prov_hmac_secret'] = 'SUPERSECRETHMAC';
-$GLOBALS['__pv_options']['sn_prov_pubkey_b64']  = 'PUBKEYSMOKE';
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64']  = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=';
 $_GET['sn_prov_reanchor'] = 'fail';
 ob_start();
 sn_admin_render_provenance_section();
@@ -597,7 +597,7 @@ ad_true( false === strpos( $html_fail_cfg, 'SUPERSECRETHMAC' ), 'configured fail
 // Missing a constant -> the honest cause is unset SN_PROV_* config.
 $GLOBALS['__pv_options'] = array();
 $GLOBALS['__pv_options']['sn_prov_worker_url'] = 'https://worker.example/anchor';
-$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'PUBKEYSMOKE';
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=';
 // hmac deliberately absent.
 ob_start();
 sn_admin_render_provenance_section();

@@ -38,6 +38,19 @@ if ( ! function_exists( 'sn_prov_config' ) ) {
 		return (string) get_option( $option, '' );
 	}
 }
+// Mirrors inc/provenance-webhook.php's PUBLIC-value resolver: a USABLE option
+// first, the wp-config constant as the floor. Called UNGUARDED from
+// inc/provenance-did.php on purpose — a missing resolver must fatal here rather
+// than silently degrade to the old constant-first order.
+if ( ! function_exists( 'sn_prov_public_config' ) ) {
+	function sn_prov_public_config( $const, $option, $is_usable = null ) {
+		$value = trim( (string) get_option( $option, '' ) );
+		if ( '' !== $value && ( null === $is_usable || call_user_func( $is_usable, $value ) ) ) {
+			return $value;
+		}
+		return defined( $const ) ? (string) constant( $const ) : '';
+	}
+}
 $GLOBALS['__pub'] = base64_encode( str_repeat( "\x01", 32 ) );
 if ( ! function_exists( 'sn_prov_pubkey_b64' ) ) { function sn_prov_pubkey_b64() { return $GLOBALS['__pub']; } }
 
@@ -202,45 +215,6 @@ $r = sn_prov_perform_rotation_with( '2026-09-15', static function () use ( &$tou
 ok( false === $r['ok'] && 'reveal-mismatch' === $r['code'], 'a mismatched reveal is refused' );
 ok( false === $touched, 'and the LEDGER WAS NEVER CALLED — a rotation the site would refuse is never published' );
 
-/* ── 6. ADOPTING A CONSTANT-HELD KEY INTO THE DATABASE ──────────────
- * The panel used to say "remove the constant first", which would have taken
- * the site's public key to '' — sn_prov_config() falls through to an option
- * NOTHING had ever written, and an empty key makes sn_prov_did_document() and
- * sn_prov_key_document() both return null, so did.json and
- * provenance-keys.json 404 and every credential stops verifying.
- *
- * The safe order is the reverse: copy the resolved key INTO the option while
- * the constant still wins — a no-op for what is served — and only then remove
- * the line, by which time the option already holds the identical bytes.
- */
-echo "\nGroup: adopting a wp-config key into the database (safely)\n";
-
-$GLOBALS['__options'] = array();
-$r = sn_prov_adopt_key_into_option();
-ok( true === $r['ok'], 'adopting the currently-resolved key succeeds' );
-ok( $GLOBALS['__pub'] === get_option( 'sn_prov_pubkey_b64', '' ),
-	'the option now holds EXACTLY the key that was being served' );
-ok( $GLOBALS['__pub'] === sn_prov_pubkey_b64(),
-	'and what the site serves is UNCHANGED — this is a no-op for every reader' );
-
-// Idempotent: pressing it twice must not be a second, different answer.
-$r2 = sn_prov_adopt_key_into_option();
-ok( true === $r2['ok'] && $GLOBALS['__pub'] === get_option( 'sn_prov_pubkey_b64', '' ), 'running it twice is idempotent' );
-
-// Never adopt something that is not a key: writing '' would arm the exact
-// outage this function exists to prevent.
-$saved = $GLOBALS['__pub'];
-$GLOBALS['__pub'] = '';
-$GLOBALS['__options'] = array();
-$r = sn_prov_adopt_key_into_option();
-ok( false === $r['ok'] && 'no-active-key' === $r['code'], 'refuses when there is no key to adopt' );
-ok( '' === get_option( 'sn_prov_pubkey_b64', '' ), 'and writes NOTHING rather than an empty key' );
-$GLOBALS['__pub'] = 'not-base64!!';
-$r = sn_prov_adopt_key_into_option();
-ok( false === $r['ok'] && 'not-a-public-key' === $r['code'], 'refuses a value that is not 32 Ed25519 bytes' );
-$GLOBALS['__pub'] = $saved;
-$GLOBALS['__options'] = array();
-
 /* ── LAST, AND IT MUST BE: define() IS IRREVERSIBLE ─────────────────
  * This group defines SN_PROV_PUBKEY_B64 to prove the constant-shadow guard.
  * A PHP constant cannot be un-defined, so every test after it would run with
@@ -255,13 +229,21 @@ $p = sn_prov_rotation_preflight();
 ok( false === $p['ready'] && in_array( 'no-commitment', $p['blockers'], true ),
 	'with no commitment published there is nothing to rotate to' );
 
+// v13.42.0: a constant no longer blocks anything. Public values resolve
+// option-first, so the options a rotation writes WIN — there is nothing left to
+// make the write inert, and nothing left to make an operator edit wp-config.php
+// (the instruction that would have 404'd the site's identity, fixed in 13.41.0).
 define( 'SN_PROV_PUBKEY_B64', 'constant-shadow' );
 $p = sn_prov_rotation_preflight();
-ok( in_array( 'active-key-is-a-constant', $p['blockers'], true ),
-	'a wp-config CONSTANT holding the active key BLOCKS rotation: the option this writes would be shadowed, so the rotation would look applied and change nothing' );
-$r = sn_prov_rotate_to( $NEXT_B64, 'sn-x', '2026-09-15' );
-ok( false === $r['ok'] && 'active-key-is-a-constant' === $r['code'],
-	'and rotate_to REFUSES rather than half-applying — writing history for a key change that never happens is worse than not rotating' );
+ok( ! in_array( 'active-key-is-a-constant', $p['blockers'], true ),
+	'a wp-config CONSTANT no longer blocks rotation — the option supersedes it' );
+ok( array( 'no-commitment' ) === $p['blockers'],
+	'and the ONLY thing that can block a rotation now is having nothing to rotate to' );
+$GLOBALS['__options'] = array();
+sn_prov_commit_next_key( $NEXT_B64, '2026-09-01' );
+$r = sn_prov_rotate_to( $NEXT_B64, 'sn-x2', '2026-09-15' );
+ok( true === $r['ok'], 'and a rotation SUCCEEDS with the constant still sitting in wp-config.php' );
+ok( $NEXT_B64 === get_option( 'sn_prov_pubkey_b64', '' ), 'writing the option, which now wins' );
 
 
 echo "\nResult: $pass passed, $fail failed.\n";

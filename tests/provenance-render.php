@@ -183,9 +183,9 @@ $panel6 = sn_prov_render_panel( 6 ); // genesis-only
 rp_true( false !== strpos( $panel6, 'not independently proven' ), 'genesis caveat rendered' );
 
 echo "\nTask 3: verify shortcode\n";
-$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'PUBLICKEYBASE64';
+$GLOBALS['__pv_options']['sn_prov_pubkey_b64'] = 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=';
 $html = sn_prov_verify_shortcode( array() );
-rp_true( false !== strpos( $html, 'PUBLICKEYBASE64' ), 'verify content shows the public key' );
+rp_true( false !== strpos( $html, 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=' ), 'verify content shows the public key' );
 rp_true( false !== strpos( $html, 'ots verify' ), 'verify content documents ots verify' );
 rp_true( false !== strpos( $html, 'sn-normalize-v1' ), 'verify content names the normalization algo' );
 

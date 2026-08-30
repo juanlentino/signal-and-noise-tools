@@ -15,12 +15,69 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SN_PROV_CONFIRM_HOOK = 'sn_prov_reconcile';
 
-/** Prefer a wp-config constant; fall back to an option. */
+/**
+ * Prefer a wp-config constant; fall back to an option. FOR SECRETS.
+ *
+ * wp-config.php is harder to tamper with than the database, so a secret should
+ * take the constant first. That argument does NOT hold for values we publish —
+ * see sn_prov_public_config() below.
+ */
 function sn_prov_config( $const, $option ) {
 	if ( defined( $const ) ) {
 		return (string) constant( $const );
 	}
 	return (string) get_option( $option, '' );
+}
+
+/**
+ * Prefer a USABLE option; fall back to the wp-config constant. FOR PUBLIC
+ * VALUES — the signing key's public half, its id, its introduction date.
+ *
+ * WHY THE PRECEDENCE IS INVERTED HERE. Constant-first made these unwritable by
+ * the plugin, so a rotation could not take effect until a human edited
+ * wp-config.php — and the obvious instruction, "delete the line", resolves the
+ * key to '' and 404s the site's published identity (fixed in v13.41.0, after
+ * the panel had been giving exactly that advice). Inverting removes the edit,
+ * and with it the footgun.
+ *
+ * The security trade is deliberate and narrow. Constants beat options because
+ * the database is easier to tamper with; that protects SECRETS. These are not
+ * secrets — they are served at /.well-known/ for anyone to read — and a
+ * substituted public key fails LOUDLY rather than silently: every existing
+ * signature stops verifying and the ledger's key-pin check reds because the two
+ * independent sources disagree. Compare a secret, where tampering is silent.
+ *
+ * THE CONSTANT REMAINS THE FLOOR. An option only supersedes it when the option
+ * is itself usable, which the optional $is_usable callback decides. A blank or
+ * corrupt row must never take a published value to nothing — that is the very
+ * outage this inversion exists to make impossible.
+ *
+ * @param string        $const     Constant name.
+ * @param string        $option    Option name.
+ * @param callable|null $is_usable Optional predicate the option must satisfy to win.
+ * @return string
+ */
+function sn_prov_public_config( $const, $option, $is_usable = null ) {
+	$value = trim( (string) get_option( $option, '' ) );
+	if ( '' !== $value && ( null === $is_usable || call_user_func( $is_usable, $value ) ) ) {
+		return $value;
+	}
+	return defined( $const ) ? (string) constant( $const ) : '';
+}
+
+/**
+ * Is this base64 a real 32-byte Ed25519 public key?
+ *
+ * The gate on whether a stored key may supersede the configured one. Length is
+ * checked, not merely decodability: a 31-byte value decodes cleanly and would
+ * be published as a key that can never verify anything.
+ *
+ * @param string $b64
+ * @return bool
+ */
+function sn_prov_is_ed25519_public_key( $b64 ) {
+	$raw = base64_decode( trim( (string) $b64 ), true );
+	return false !== $raw && 32 === strlen( $raw );
 }
 
 function sn_prov_worker_url() {
@@ -30,7 +87,7 @@ function sn_prov_hmac_secret() {
 	return sn_prov_config( 'SN_PROV_HMAC_SECRET', 'sn_prov_hmac_secret' );
 }
 function sn_prov_pubkey_b64() {
-	return sn_prov_config( 'SN_PROV_PUBKEY_B64', 'sn_prov_pubkey_b64' );
+	return sn_prov_public_config( 'SN_PROV_PUBKEY_B64', 'sn_prov_pubkey_b64', 'sn_prov_is_ed25519_public_key' );
 }
 
 /**

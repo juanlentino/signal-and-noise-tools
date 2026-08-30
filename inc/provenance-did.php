@@ -161,14 +161,20 @@ function sn_prov_did_document() {
  * @return string one of: constant|blank-constant|option|default
  */
 function sn_prov_key_config_source( $const, $option ) {
+	// Mirrors sn_prov_public_config()'s order exactly. A readout that describes
+	// a precedence the resolver no longer uses is worse than none: it would
+	// report 'constant' for a value the site is not actually serving.
+	if ( '' !== trim( (string) get_option( $option, '' ) ) ) {
+		return 'option';
+	}
 	if ( defined( $const ) ) {
 		return '' !== trim( (string) constant( $const ) ) ? 'constant' : 'blank-constant';
 	}
-	return '' !== trim( (string) get_option( $option, '' ) ) ? 'option' : 'default';
+	return 'default';
 }
 
 function sn_prov_key_id() {
-	$configured = trim( (string) sn_prov_config( 'SN_PROV_PUBKEY_ID', 'sn_prov_pubkey_id' ) );
+	$configured = trim( (string) sn_prov_public_config( 'SN_PROV_PUBKEY_ID', 'sn_prov_pubkey_id' ) );
 	return (string) apply_filters( 'sn_prov_pubkey_id', '' !== $configured ? $configured : 'sn-ed25519-2026-07' );
 }
 
@@ -180,7 +186,7 @@ function sn_prov_key_id() {
  * @return string
  */
 function sn_prov_key_introduced_at() {
-	$configured = trim( (string) sn_prov_config( 'SN_PROV_KEY_INTRODUCED_AT', 'sn_prov_key_introduced_at' ) );
+	$configured = trim( (string) sn_prov_public_config( 'SN_PROV_KEY_INTRODUCED_AT', 'sn_prov_key_introduced_at' ) );
 	return (string) apply_filters( 'sn_prov_key_introduced_at', '' !== $configured ? $configured : '2026-07-09' );
 }
 
