@@ -104,21 +104,6 @@ ok( '2026-09-15' === $hist[0]['valid_until'], 'the retired key gets a CLOSED win
 ok( 'sn-ed25519-2026-07' === $hist[0]['id'], 'under the id it was published as' );
 ok( null === sn_prov_next_key_commitment(), 'the commitment is CONSUMED — it described this rotation and cannot describe another' );
 
-/* ── 3. PREFLIGHT: refuse what cannot take effect ───────────────────── */
-echo "\nGroup: preflight refuses a rotation that could not take effect\n";
-$GLOBALS['__options'] = array();
-$p = sn_prov_rotation_preflight();
-ok( false === $p['ready'] && in_array( 'no-commitment', $p['blockers'], true ),
-	'with no commitment published there is nothing to rotate to' );
-
-define( 'SN_PROV_PUBKEY_B64', 'constant-shadow' );
-$p = sn_prov_rotation_preflight();
-ok( in_array( 'active-key-is-a-constant', $p['blockers'], true ),
-	'a wp-config CONSTANT holding the active key BLOCKS rotation: the option this writes would be shadowed, so the rotation would look applied and change nothing' );
-$r = sn_prov_rotate_to( $NEXT_B64, 'sn-x', '2026-09-15' );
-ok( false === $r['ok'] && 'active-key-is-a-constant' === $r['code'],
-	'and rotate_to REFUSES rather than half-applying — writing history for a key change that never happens is worse than not rotating' );
-
 /* ── 4. THE AUTOMATIC PATH: nothing is typed by hand ────────────────── */
 echo "\nGroup: fetching the successor from the Worker and applying it\n";
 
@@ -169,6 +154,76 @@ $GLOBALS['__resp'] = array( 'code' => 500, 'body' => 'nope' );
 $r = sn_prov_stage_commitment( '2026-09-01' );
 ok( false === $r['ok'] && 'worker-unreachable' === $r['code'], 'a Worker failure never half-applies' );
 ok( null === sn_prov_next_key_commitment(), 'and publishes no commitment' );
+
+/* ── 5. ORDER: the ledger is written BEFORE WordPress promotes ──────── */
+echo "\nGroup: the ledger goes first, and a ledger failure changes nothing locally\n";
+
+// publish-before-signing, across two systems. If WordPress promoted first and
+// the ledger write then failed, the site would be signing under a key the
+// public verifier cannot find — the exact breakage the detectors shout about.
+// The reverse failure is harmless: a ledger carrying a key the site has not yet
+// adopted is simply early.
+$GLOBALS['__options'] = array();
+sn_prov_commit_next_key( $NEXT_B64, '2026-09-01' );
+$before_id = sn_prov_key_id();
+
+$GLOBALS['__http'] = array();
+$GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array(
+	'ok' => true, 'configured' => true, 'public_key_base64' => $NEXT_B64, 'sha256_commitment' => $NEXT_HASH,
+) ) );
+// Second call (the ledger publish) fails.
+$r = sn_prov_perform_rotation_with( '2026-09-15', static function () {
+	return array( 'ok' => false, 'code' => 'ledger-write-failed' );
+} );
+ok( false === $r['ok'] && 'ledger-write-failed' === $r['code'], 'a failed ledger write fails the rotation' );
+ok( $before_id === sn_prov_key_id(), 'and WordPress still names the OLD key — nothing was promoted' );
+ok( array() === sn_prov_key_history(), 'no retired-key row was written either' );
+ok( is_array( sn_prov_next_key_commitment() ), 'and the commitment survives, so the rotation can be retried' );
+
+$r = sn_prov_perform_rotation_with( '2026-09-15', static function () {
+	return array( 'ok' => true, 'code' => '' );
+} );
+ok( true === $r['ok'], 'with the ledger written, the local promotion follows' );
+ok( 'sn-ed25519-2026-09' === sn_prov_key_id(), 'and the site now names the new key' );
+
+// A reveal that does not match must be refused BEFORE the ledger is touched:
+// publishing a rotation the site will then refuse is the worst of both.
+$GLOBALS['__options'] = array();
+sn_prov_commit_next_key( $NEXT_B64, '2026-09-01' );
+$GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array(
+	'ok' => true, 'configured' => true,
+	'public_key_base64' => base64_encode( str_repeat( "\x07", 32 ) ), 'sha256_commitment' => 'x',
+) ) );
+$touched = false;
+$r = sn_prov_perform_rotation_with( '2026-09-15', static function () use ( &$touched ) {
+	$touched = true;
+	return array( 'ok' => true, 'code' => '' );
+} );
+ok( false === $r['ok'] && 'reveal-mismatch' === $r['code'], 'a mismatched reveal is refused' );
+ok( false === $touched, 'and the LEDGER WAS NEVER CALLED — a rotation the site would refuse is never published' );
+
+/* ── LAST, AND IT MUST BE: define() IS IRREVERSIBLE ─────────────────
+ * This group defines SN_PROV_PUBKEY_B64 to prove the constant-shadow guard.
+ * A PHP constant cannot be un-defined, so every test after it would run with
+ * rotation permanently blocked — which is exactly what happened when this group
+ * sat in the middle: four later assertions failed for a reason that had nothing
+ * to do with what they were testing.
+ */
+/* ── 3. PREFLIGHT: refuse what cannot take effect ───────────────────── */
+echo "\nGroup: preflight refuses a rotation that could not take effect\n";
+$GLOBALS['__options'] = array();
+$p = sn_prov_rotation_preflight();
+ok( false === $p['ready'] && in_array( 'no-commitment', $p['blockers'], true ),
+	'with no commitment published there is nothing to rotate to' );
+
+define( 'SN_PROV_PUBKEY_B64', 'constant-shadow' );
+$p = sn_prov_rotation_preflight();
+ok( in_array( 'active-key-is-a-constant', $p['blockers'], true ),
+	'a wp-config CONSTANT holding the active key BLOCKS rotation: the option this writes would be shadowed, so the rotation would look applied and change nothing' );
+$r = sn_prov_rotate_to( $NEXT_B64, 'sn-x', '2026-09-15' );
+ok( false === $r['ok'] && 'active-key-is-a-constant' === $r['code'],
+	'and rotate_to REFUSES rather than half-applying — writing history for a key change that never happens is worse than not rotating' );
+
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

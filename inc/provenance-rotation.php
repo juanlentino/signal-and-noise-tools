@@ -302,16 +302,103 @@ function sn_prov_stage_commitment( $when ) {
  * @param string $when ISO date of the handover.
  * @return array{ok:bool,code:string}
  */
-function sn_prov_perform_rotation( $when ) {
+/**
+ * Ask the Worker to write the LEDGER half of the rotation.
+ *
+ * @param string $key_id
+ * @param string $when
+ * @return array{ok:bool,code:string}
+ */
+function sn_prov_publish_rotation_to_ledger( $key_id, $when ) {
+	$base   = trim( (string) sn_prov_worker_url() );
+	$secret = (string) sn_prov_hmac_secret();
+	if ( '' === $base || '' === $secret ) {
+		return array( 'ok' => false, 'code' => 'worker-not-configured' );
+	}
+	$body     = wp_json_encode( array( 'key_id' => $key_id, 'rotated_at' => $when ) );
+	$response = wp_remote_post( rtrim( $base, '/' ) . '/publish-rotation', array(
+		'timeout'     => 30,
+		'redirection' => 0,
+		'headers'     => array(
+			'Content-Type'   => 'application/json',
+			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
+		),
+		'body'        => $body,
+	) );
+	if ( is_wp_error( $response ) ) {
+		return array( 'ok' => false, 'code' => 'ledger-write-failed' );
+	}
+	$code = (int) wp_remote_retrieve_response_code( $response );
+	$out  = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+	if ( $code < 200 || $code >= 300 || ! is_array( $out ) || empty( $out['ok'] ) ) {
+		return array( 'ok' => false, 'code' => 'ledger-write-failed' );
+	}
+	return array( 'ok' => true, 'code' => '' );
+}
+
+/**
+ * The rotation, with the ledger publisher injected — the seam the tests drive.
+ *
+ * ORDER ACROSS TWO SYSTEMS, and it is the same rule as everywhere else here:
+ * publish before signing. The ledger is written FIRST, because if WordPress
+ * promoted first and the ledger write then failed, the site would be naming a
+ * key the public verifier cannot find — precisely the breakage the detector
+ * layer exists to shout about. The reverse failure is benign: a ledger carrying
+ * a key the site has not yet adopted is merely early, and a retry completes it.
+ *
+ * Everything that can refuse, refuses BEFORE either system is touched.
+ * Publishing a rotation that WordPress would then reject is the worst outcome
+ * available — a permanent public record of a handover that did not happen.
+ *
+ * @param string   $when
+ * @param callable $publisher fn(string $key_id, string $when): array{ok:bool,code:string}
+ * @return array{ok:bool,code:string}
+ */
+function sn_prov_perform_rotation_with( $when, $publisher ) {
+	$fail = static function ( $code ) {
+		return array( 'ok' => false, 'code' => $code );
+	};
+
 	$fetched = sn_prov_fetch_next_key();
 	if ( ! $fetched['ok'] ) {
-		return array( 'ok' => false, 'code' => $fetched['code'] );
+		return $fail( $fetched['code'] );
 	}
 	$key_id = sn_prov_next_key_id_for( $when );
 	if ( '' === $key_id ) {
-		return array( 'ok' => false, 'code' => 'bad-date' );
+		return $fail( 'bad-date' );
 	}
+
+	$pre = sn_prov_rotation_preflight();
+	foreach ( $pre['blockers'] as $blocker ) {
+		if ( 'no-commitment' !== $blocker ) {
+			return $fail( $blocker );
+		}
+	}
+	$commitment = sn_prov_next_key_commitment();
+	if ( null === $commitment ) {
+		return $fail( 'no-commitment' );
+	}
+	// Checked HERE, before the ledger call, not only inside sn_prov_rotate_to().
+	if ( ! sn_prov_rotation_reveal_matches( $fetched['public_key_base64'], $commitment['value'] ) ) {
+		return $fail( 'reveal-mismatch' );
+	}
+
+	$published = call_user_func( $publisher, $key_id, $when );
+	if ( empty( $published['ok'] ) ) {
+		return $fail( (string) ( $published['code'] ?? 'ledger-write-failed' ) );
+	}
+
 	return sn_prov_rotate_to( $fetched['public_key_base64'], $key_id, $when );
+}
+
+/**
+ * Rotate to the staged successor: ledger first, then WordPress.
+ *
+ * @param string $when
+ * @return array{ok:bool,code:string}
+ */
+function sn_prov_perform_rotation( $when ) {
+	return sn_prov_perform_rotation_with( $when, 'sn_prov_publish_rotation_to_ledger' );
 }
 
 /**
