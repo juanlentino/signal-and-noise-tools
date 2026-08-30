@@ -122,7 +122,7 @@ ok(
 	// in snt_mr_summary_payload()'s return since v10.79.0 but undeclared here,
 	// so an agent reading the schema could not know the purpose axis existed.
 	// ADDITIVE and in the payload's own order — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list', 'error' ) === array_keys( $props ),
 	'schema pins the DM tile payload fields in response order, with error appended'
 );
 ok( 'boolean' === ( $props['ok']['type'] ?? null ), 'ok is a boolean' );
@@ -205,7 +205,7 @@ ok(
 	// they qualify: `total` is now exact whenever the edge can serve the totals
 	// view, and a consumer drawing the family breakdown still needs to know that
 	// breakdown may be partial. ADDITIVE — nothing renamed, nothing moved.
-	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
+	array( 'ok', 'days', 'total', 'truncated', 'total_exact', 'days_covered', 'identity', 'families', 'ai_training', 'ai_rights', 'ai_surfaces', 'purposes', 'ai_training_by_purpose', 'first_party', 'taxonomy', 'sensor_version', 'crawler_list' ) === array_keys( $out ),
 	'success shape matches the DM route exactly'
 );
 ok( $rows_before === $GLOBALS['__mr']['rows'], 'the fetched rows are never mutated' );
@@ -240,6 +240,12 @@ ok( 46 === ( $out['total'] ?? null ), 'the fallback total is UNCHANGED from befo
 // present-and-null key as absent.
 ok( array_key_exists( 'days_covered', $out ) && null === $out['days_covered'], 'and days_covered is present-and-null when no totals read answered' );
 unset( $out_minus_new['truncated'], $out_minus_new['total_exact'], $out_minus_new['days_covered'] );
+// v13.43.0: same additive principle again. This fixture's rows carry no
+// signed_agent at all, which normalizes to 'unmeasured' — so identity must be
+// present-and-NULL. A zeroed block here would tell an agent "measured, none
+// verified", which is the false zero the admin KPI has refused since v12.26.0.
+ok( array_key_exists( 'identity', $out ) && null === $out['identity'], 'a pre-signature sensor reports identity as present-and-null, not a zeroed block' );
+unset( $out_minus_new['identity'] );
 
 // The upgraded-edge path: totals is served, so the headline stops being a sum of
 // the truncatable aggregate. 46 (aggregate sum) vs 900 (exact) is the gap the
@@ -422,6 +428,90 @@ ok( 1 === preg_match( '/^\s*require_once\s+__DIR__\s*\.\s*.\/abilities-machine-r
 $mr_desc = (string) ( $GLOBALS['__ab']['signal-noise/get-machine-readers-summary']['description'] ?? '' );
 ok( false === strpos( $mr_desc, 'robots.txt, TDMRep' ), 'the description does not claim robots.txt is inside ai_rights' );
 ok( false !== strpos( $mr_desc, 'are NOT counted here' ), 'and it says explicitly which surfaces are excluded' );
+
+echo "\nGroup L: the identity breakdown reaches the ability (v13.43.0)\n";
+
+// WHY THIS GROUP EXISTS. On 2026-08-30 the admin KPI read 311 / 13,238 verified
+// and NO read surface could split it: no MCP tool covers machine readers, no
+// admin table crosses agent with signature state, and this ability carried no
+// `signed_agent` field at all. The concentration question — one agent or many —
+// decides whether a licence handshake is an ecosystem surface or a bilateral
+// arrangement, and it was unanswerable without shell access to the origin.
+$GLOBALS['__mr'] = array(
+	'ok'   => true,
+	'error' => null,
+	'rows' => array(
+		array(
+			'family' => 'anthropic', 'surface' => 'html', 'day' => '2026-08-30', 'hits' => 40,
+			'vendor' => 'anthropic', 'agent' => 'anthropic-claudebot', 'purpose' => 'retrieval',
+			'taxonomy_version' => '1.0.0', 'training_corpus_source' => false,
+			'first_party' => false, 'ua_sample' => 'ClaudeBot/1.0', 'signed_agent' => 'valid',
+		),
+		array(
+			'family' => 'anthropic', 'surface' => 'agent-discovery', 'day' => '2026-08-30', 'hits' => 25,
+			'vendor' => 'anthropic', 'agent' => 'anthropic-claudebot', 'purpose' => 'retrieval',
+			'taxonomy_version' => '1.0.0', 'training_corpus_source' => false,
+			'first_party' => false, 'ua_sample' => 'ClaudeBot/1.0', 'signed_agent' => 'valid',
+		),
+		array(
+			'family' => 'other-bot', 'surface' => 'html', 'day' => '2026-08-30', 'hits' => 99,
+			'vendor' => 'unknown', 'agent' => 'spoofer', 'purpose' => 'unknown',
+			'taxonomy_version' => '1.0.0', 'training_corpus_source' => false,
+			'first_party' => false, 'ua_sample' => 'NotClaude/1.0', 'signed_agent' => 'invalid',
+		),
+	),
+);
+$out = snt_ability_get_machine_readers_summary( array( 'days' => 7 ) );
+
+ok( is_array( $out['identity'] ?? null ), 'the payload carries an identity block when signatures were measured' );
+ok( 164 === ( $out['identity']['measured'] ?? null ), 'measured counts every row with a real state (65 + 99)' );
+ok( 65 === ( $out['identity']['valid'] ?? null ), 'valid counts only the verified rows' );
+ok( 99 === ( $out['identity']['invalid'] ?? null ), 'invalid rides beside it rather than being folded away' );
+ok(
+	array( array( 'agent' => 'anthropic-claudebot', 'hits' => 65 ) ) === ( $out['identity']['by_agent'] ?? null ),
+	'by_agent answers concentration — verified hits per agent, and the failed signer is absent'
+);
+ok(
+	array(
+		array( 'surface' => 'html',            'hits' => 40 ),
+		array( 'surface' => 'agent-discovery', 'hits' => 25 ),
+	) === ( $out['identity']['by_surface'] ?? null ),
+	'by_surface separates a new endpoint from genuine adoption'
+);
+
+// The same false-zero rule the admin KPI has enforced since v12.26.0. An hour
+// after a sensor ships, every historical row reads 'unmeasured'; a zeroed block
+// would assert a measurement nobody took.
+$GLOBALS['__mr'] = array(
+	'ok'   => true,
+	'error' => null,
+	'rows' => array(
+		array(
+			'family' => 'openai', 'surface' => 'html', 'day' => '2026-08-30', 'hits' => 900,
+			'vendor' => 'openai', 'agent' => 'openai-gptbot', 'purpose' => 'train',
+			'taxonomy_version' => '1.0.0', 'training_corpus_source' => true,
+			'first_party' => false, 'ua_sample' => 'GPTBot/1.0', 'signed_agent' => 'unmeasured',
+		),
+	),
+);
+$out_un = snt_ability_get_machine_readers_summary( array( 'days' => 7 ) );
+// array_key_exists, NOT ?? — `null ?? 'absent'` yields 'absent', so the
+// coalescing form cannot tell present-and-null from missing. This file says so
+// twice already; I wrote the bug anyway and the assertion caught it.
+ok( array_key_exists( 'identity', $out_un ) && null === $out_un['identity'], 'an all-unmeasured window reports identity as present-and-null, never zeros' );
+
+// v13.33.0's lesson, applied in the same change rather than three releases
+// later: a field the schema does not mention is a field no agent can know
+// exists. Declared at the moment the payload gains it.
+$mr_schema = (array) ( $GLOBALS['__ab']['signal-noise/get-machine-readers-summary']['output_schema']['properties'] ?? array() );
+ok( isset( $mr_schema['identity'] ), 'output_schema declares `identity` in the same change that adds it' );
+ok(
+	is_array( $mr_schema['identity']['type'] ?? null )
+		&& in_array( 'null', (array) $mr_schema['identity']['type'], true ),
+	'and declares it nullable, so never-measured is expressible in the contract'
+);
+$id_desc = (string) ( $mr_schema['identity']['description'] ?? '' );
+ok( false !== stripos( $id_desc, 'null' ), 'the description states what null means rather than leaving it to be guessed' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

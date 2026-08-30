@@ -98,6 +98,10 @@ function snt_mr_compose_tab( $ctx ) {
 	$out .= '<p class="sn-an-settings-help">' . esc_html__( 'Edge sensor → Analytics Engine → this tab. Presence checks only, secret values are never shown.', 'signal-and-noise-tools' ) . '</p>';
 	$out .= (string) ( $ctx['sensor_status_html'] ?? '' );
 	if ( $ok ) {
+		// v13.43.0: BEFORE the figures, not after. This qualifies every number
+		// in the hero — the headline chip sums the same capped aggregate — and a
+		// caveat printed under the numbers is read second or not at all.
+		$out .= snt_mr_render_truncation_notice( $ctx['truncated'] ?? false );
 		$out .= snt_mr_render_summary_chips( $rows, $days, $ctx['feed_total'] ?? null );
 		// v12.26.0: the identity row sits directly under the volume chips — the
 		// same KPI vocabulary, one question further in: not just how many machines

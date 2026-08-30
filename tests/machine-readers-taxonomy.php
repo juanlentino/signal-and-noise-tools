@@ -343,5 +343,80 @@ $fetched = snt_mr_normalize_taxonomy_fields( array( 'signed_agent' => '' ) );
 $again   = snt_mr_normalize_taxonomy_fields( $fetched );
 ok( 'unmeasured' === ( $again['signed_agent'] ?? null ), 'an already-normalized unmeasured row stays unmeasured' );
 
+// ── v13.43.0: snt_mr_identity_breakdown() ───────────────────────────────────
+//
+// WHY THIS EXISTS. `signed_agent` rides the aggregate row beside `agent`,
+// `surface`, `family` and `day`, so the data to answer "WHICH agents proved
+// identity" has existed since Worker v1.20.0. Nothing folded it: the admin KPI
+// collapses it to a scalar and the summary ability did not carry it at all, so
+// concentration was unanswerable from every read surface at once (measured
+// 2026-08-30, when the full-week reading was 311/13,238 and could not be split).
+echo "\nGroup: identity breakdown (v13.43.0)\n";
+
+$id_rows = array(
+	array( 'agent' => 'anthropic-claudebot', 'surface' => 'html',            'hits' => 40, 'signed_agent' => 'valid' ),
+	array( 'agent' => 'anthropic-claudebot', 'surface' => 'agent-discovery', 'hits' => 25, 'signed_agent' => 'valid' ),
+	array( 'agent' => 'openai-gptbot',       'surface' => 'html',            'hits' => 10, 'signed_agent' => 'valid' ),
+	// Non-valid states must never reach the by-agent leaderboard: an agent that
+	// FAILED verification appearing beside one that passed would read as proof.
+	array( 'agent' => 'spoofer',             'surface' => 'html',            'hits' => 99, 'signed_agent' => 'invalid' ),
+	array( 'agent' => 'plain-crawler',       'surface' => 'html',            'hits' => 30, 'signed_agent' => 'unsigned' ),
+	array( 'agent' => 'rotated-key',         'surface' => 'html',            'hits' => 5,  'signed_agent' => 'unknown-key' ),
+	// Counted in nothing: silence is not a measurement.
+	array( 'agent' => 'historical',          'surface' => 'html',            'hits' => 500, 'signed_agent' => 'unmeasured' ),
+);
+$b = snt_mr_identity_breakdown( $id_rows );
+
+ok( is_array( $b ), 'a window with real signature states returns a breakdown' );
+ok( 209 === ( $b['measured'] ?? null ), 'measured sums every row carrying a real state (75+99+30+5), excluding unmeasured' );
+ok( 75 === ( $b['valid'] ?? null ), 'valid sums only the verified rows' );
+ok( 99 === ( $b['invalid'] ?? null ), 'invalid is its own bucket' );
+ok( 30 === ( $b['unsigned'] ?? null ), 'unsigned is its own bucket' );
+ok( 5 === ( $b['unknown_key'] ?? null ), 'unknown-key is its own bucket, keyed without the hyphen' );
+
+// THE CONCENTRATION ANSWER. One agent or many is the question that decides
+// whether a licence handshake is an ecosystem surface or a bilateral deal.
+ok(
+	array(
+		array( 'agent' => 'anthropic-claudebot', 'hits' => 65 ),
+		array( 'agent' => 'openai-gptbot',       'hits' => 10 ),
+	) === ( $b['by_agent'] ?? null ),
+	'by_agent aggregates across surfaces, sorts desc, and lists VERIFIED hits only'
+);
+ok(
+	! in_array( 'spoofer', array_column( (array) ( $b['by_agent'] ?? array() ), 'agent' ), true ),
+	'an agent whose signature FAILED never appears in the verified leaderboard'
+);
+
+// THE BRIDGE CONFOUND. /webmcp/bridge.js began being served on every HTML page
+// in Worker v1.22.0 (2026-08-28), mid-window. Verified hits landing on the
+// agent-discovery surface are the same agents fetching a NEW endpoint, which is
+// not the same finding as more agents adopting signatures.
+ok(
+	array(
+		array( 'surface' => 'html',            'hits' => 50 ),
+		array( 'surface' => 'agent-discovery', 'hits' => 25 ),
+	) === ( $b['by_surface'] ?? null ),
+	'by_surface splits verified hits so a new endpoint cannot masquerade as adoption'
+);
+
+// THE LOAD-BEARING CASE, same rule the renderer already enforces: an
+// all-unmeasured window must not return a block of zeros. Zeros assert a
+// measurement that was never taken, and a consumer cannot tell them from
+// measured-zero. null is the only honest answer.
+$b_un = snt_mr_identity_breakdown( array(
+	array( 'agent' => 'openai-gptbot', 'surface' => 'html', 'hits' => 900, 'signed_agent' => 'unmeasured' ),
+) );
+ok( null === $b_un, 'an all-unmeasured window returns null, never a zeroed block' );
+ok( null === snt_mr_identity_breakdown( array() ), 'and so does an empty window' );
+
+// Measured-zero is a DIFFERENT answer and must survive as one: states were
+// observed, none verified. The block exists; the leaderboards are empty arrays.
+$b_zero = snt_mr_identity_breakdown( array(
+	array( 'agent' => 'plain-crawler', 'surface' => 'html', 'hits' => 30, 'signed_agent' => 'unsigned' ),
+) );
+ok( is_array( $b_zero ) && 0 === $b_zero['valid'], 'measured-with-none-verified reports valid 0, not null' );
+ok( array() === ( $b_zero['by_agent'] ?? null ), 'and an empty leaderboard, which is a measured zero' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

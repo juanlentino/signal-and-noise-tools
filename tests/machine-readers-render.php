@@ -170,5 +170,40 @@ ok( false === strpos( $html_m, 'not yet measured' ), 'and the unmeasured wording
 $evil = array( array( 'family' => '<script>', 'hits' => 5, 'signed_agent' => '<img>', 'markdown_requested' => false ) );
 ok( false === strpos( snt_mr_render_identity_row( $evil, 30 ), '<script>' ), 'raw markup never reaches the output' );
 
+// ── v13.43.0: the truncation notice ─────────────────────────────────────────
+//
+// Worker v1.23.0 declared AGGREGATE_LIMIT = 10000 and began reporting
+// `truncated` on every read. snt_mr_fetch() captures it and the summary payload
+// carries it — but NO render path consulted it, so every figure on this tab
+// rendered identically whether or not the read was capped. That is the one
+// failure mode the worker change exists to make visible.
+//
+// It matters MORE here than in the payload: v13.34.0 moved the ability's
+// `total` onto the day-only totals view, which cannot truncate, but the tab's
+// own headline is still snt_mr_render_summary_chips() summing the AGGREGATE.
+// Under truncation a sum of capped rows does not look degraded — it looks like
+// less traffic. So the notice must qualify the headline, not only the tables.
+echo "\nGroup: truncation notice (v13.43.0)\n";
+
+ok( '' === snt_mr_render_truncation_notice( false ), 'an untruncated read renders nothing at all' );
+ok( '' === snt_mr_render_truncation_notice( null ), 'and so does an edge that never reported the flag' );
+
+$trunc = snt_mr_render_truncation_notice( true );
+ok( '' !== $trunc, 'a truncated read renders a notice' );
+ok( false !== stripos( $trunc, 'floor' ), 'the notice says the figures are a FLOOR, not a count' );
+// The specific lie this guards against: a capped read looks like less traffic,
+// so a reader who is not told will read the drop as a finding about crawlers.
+ok( false !== stripos( $trunc, 'fewer' ) || false !== stripos( $trunc, 'less' ), 'and warns it reads as less traffic rather than as degradation' );
+ok( false === strpos( $trunc, '<script' ), 'no raw markup reaches the output' );
+
+// WIRING. A renderer nothing calls is dead code that tests green — and this one
+// exists precisely because a flag reached no renderer for two releases. Pin
+// both ends: the composer must call it, and the tab must pass the edge's flag
+// into the composer, or the notice can never fire in production.
+$sn_compose = (string) file_get_contents( __DIR__ . '/../inc/machine-readers-compose.php' );
+ok( false !== strpos( $sn_compose, 'snt_mr_render_truncation_notice(' ), 'the tab composer calls the truncation notice' );
+$sn_admin = (string) file_get_contents( __DIR__ . '/../inc/machine-readers-admin.php' );
+ok( 1 === preg_match( "/'truncated'\s*=>\s*!\s*empty\(\s*\\\$result\['truncated'\]\s*\)/", $sn_admin ), 'and the tab passes the edge\'s truncated flag into it' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

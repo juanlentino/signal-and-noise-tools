@@ -197,6 +197,9 @@ function snt_mr_render_tab() {
 	echo snt_mr_compose_tab( array( // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- pure composer; every fragment escapes its own values (fixture-pinned).
 		'days'               => $days,
 		'ok'                 => ! empty( $result['ok'] ),
+		// v13.43.0. The flag has ridden the fetch result since worker v1.23.0
+		// and reached no renderer, so a capped read was invisible on the page.
+		'truncated'          => ! empty( $result['truncated'] ),
 		'rows'               => $rows,
 		'feed'               => $feed,
 		'feed_total'         => $feed_total,

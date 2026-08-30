@@ -2,6 +2,98 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.43.0] - 2026-08-30 — the signature axis stops being a scalar, and a capped read says so
+
+Consumes `sn-rights-signals` **v1.23.0** for the read, and lands beside
+**v1.24.0**, which turns the same signature state into a licence offer at the
+edge (survey item A2).
+
+### Added — `identity`, so "which agents proved it" is answerable at all
+
+The sensor has carried `signed_agent` on the aggregate row **beside** `agent`,
+`surface`, `family` and `day` since Worker v1.20.0 — verified against the real
+query (`src/machine-readers.mjs`: eleven dimensions, grouped together), not just
+against a fixture. Every read surface projected it away. The admin KPI folds it
+to `valid / measured`; the summary ability did not carry it in any form.
+
+Measured on **2026-08-30**: the full-week reading was **311 / 13,238** verified,
+and nothing in the estate could say whether that was **one agent or fifteen** —
+no MCP tool covers machine readers, no admin table crosses agent with signature
+state, and `signal-noise/get-machine-readers-summary` had no such field. The
+question decides whether a licence handshake is an ecosystem surface or a
+bilateral arrangement, and answering it needed shell access to the origin. The
+data was never missing. The fold was.
+
+- [inc/machine-readers-taxonomy.php](inc/machine-readers-taxonomy.php):
+  `snt_mr_identity_breakdown()` returns `measured` plus the four state buckets,
+  and `by_agent` / `by_surface` leaderboards built from **verified hits only** —
+  an agent whose signature FAILED never appears beside one that passed, because
+  listing them together reads as proof of the opposite.
+- `snt_mr_measured_signed_states()` names the four measuring states **once**,
+  beside the normalizer that produces them, so the two folds cannot drift.
+- **null, never a zeroed block**, when no read carried a signature state. Zeros
+  would assert a measurement nobody took — the same false zero the identity KPI
+  has refused since v12.26.0. Measured-with-none-verified is a *different*
+  answer and returns a real block with empty leaderboards.
+- Declared in the ability's `output_schema` in the same change that adds it to
+  the payload — the v13.33.0 lesson, where four fields were returned but
+  undeclared since v10.79.0.
+
+`by_surface` earns its place separately. Worker v1.22.0 began serving
+`/webmcp/bridge.js` on every HTML page on **2026-08-28**, mid-measurement, and
+classes it `agent-discovery`. Verified hits landing there are the same agents
+fetching a **new endpoint** — which is not the finding "more agents adopted
+signatures". A scalar cannot tell those apart; this split can.
+
+### Added — the tab says when the edge capped its read
+
+Worker v1.23.0 declared `AGGREGATE_LIMIT = 10000` and reports `truncated` on
+every response. `snt_mr_fetch()` captured it ([inc/machine-readers-api.php](inc/machine-readers-api.php))
+and the summary payload carried it — and **no render path consulted it**, so
+every figure on Machine Readers rendered identically whether the read was
+complete or capped, on the one surface a human actually reads.
+
+It matters more here than in the payload. v13.34.0 moved the ability's `total`
+onto the day-only totals view, which cannot truncate; the tab's own headline is
+still `snt_mr_render_summary_chips()` summing the **aggregate**. So on this tab
+every number is downstream of the cap, and the notice says so in those words.
+
+- [inc/machine-readers-render.php](inc/machine-readers-render.php):
+  `snt_mr_render_truncation_notice()`, empty string in the common case.
+- Rendered **before** the figures it qualifies, not under them.
+- Wording is blunt on purpose: a capped read does not look degraded, **it looks
+  like fewer machine reads**. That mistake has been made here once already — a
+  60-day read summing below a 30-day read produced a "15x surge" that never
+  happened.
+
+**Not fixed, deliberately:** the tab's headline still sums the aggregate rather
+than the totals view. Closing that costs a second outbound read per page load,
+which is a cost decision rather than a bug fix. The notice tells the truth about
+it in the meantime.
+
+### Tests — 25 new, every guard negative-controlled
+
+Every guard was broken and watched go red before being trusted:
+
+- Returning the zeroed block instead of `null` fails 2; letting non-valid states
+  into the leaderboards fails 4.
+- Un-wiring either end of the notice (the composer's call, the tab's flag) fails
+  exactly its own pin — a renderer nothing calls is dead code that tests green,
+  which is the failure this change exists to fix.
+- The three additive shape pins gained `identity` in its payload position;
+  nothing renamed, nothing moved. The Desktop Mode tile delegates to the same
+  builder ([inc/desktop-mode-payloads.php](inc/desktop-mode-payloads.php)), so
+  the field reaches both surfaces and cannot drift between them.
+- One test bug caught by its own assertion and fixed: `$out['identity'] ?? 'x'`
+  cannot distinguish present-and-null from missing. This file documents that
+  trap twice already; I wrote it a third time.
+
+Sweep: 522 suites, 20,946 assertions, 0 failed. PHPCS clean — and
+negative-controlled, because a first probe came back clean on bad code and the
+reason mattered: cosmetic sniffs are deliberately excluded, and a probe with an
+unescaped `$_GET` tripped 4 errors, so the pass is real. PHPStan clean. Stub
+parity 0 failing.
+
 ## [13.42.0] - 2026-08-30 — public values resolve option-first, so nobody edits wp-config.php
 
 ### Changed — the precedence, for PUBLIC values only
