@@ -482,6 +482,39 @@ function snt_mr_identity_totals( $rows ) {
 }
 
 /**
+ * Say so when the sensor read was capped.
+ *
+ * WHY. Worker v1.23.0 declared AGGREGATE_LIMIT = 10000 on the view this tab
+ * reads, and reports `truncated` on every response. snt_mr_fetch() captured it
+ * and the summary payload carried it, but no render path consulted it — so
+ * every figure here rendered identically whether the read was complete or
+ * capped, on the one surface a human actually reads.
+ *
+ * The failure mode is why the wording is blunt. A truncated aggregate does not
+ * look broken; a sum of capped rows looks like LESS TRAFFIC. A reader who is
+ * not told reads the drop as a finding about crawlers rather than as an
+ * artifact of the read. That mistake has already been made once here: a 60-day
+ * read summing below a 30-day read produced a "15x surge" that never happened.
+ *
+ * It qualifies the HEADLINE too, not just the tables. v13.34.0 moved the
+ * ability's `total` onto the day-only totals view, which cannot truncate, but
+ * snt_mr_render_summary_chips() still sums the aggregate — so on this tab every
+ * number is downstream of the cap.
+ *
+ * @since 13.43.0
+ * @param bool|null $truncated The edge's own flag, as snt_mr_fetch() captured it.
+ * @return string Empty when the read was complete — the common case renders nothing.
+ */
+function snt_mr_render_truncation_notice( $truncated ) {
+	if ( empty( $truncated ) ) {
+		return '';
+	}
+	return '<p class="sn-mr-truncated notice notice-warning inline">'
+		. esc_html__( 'The edge capped this read at its row limit, so every figure on this tab — the headline included — is a floor, not a count. A capped read does not look degraded; it looks like fewer machine reads. Narrow the window to get a complete one.', 'signal-and-noise-tools' )
+		. '</p>';
+}
+
+/**
  * The identity KPI row: markdown adoption and signature verification.
  *
  * Both numbers existed and were rendered nowhere — markdown since v12.16.0,

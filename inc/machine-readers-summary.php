@@ -193,6 +193,15 @@ function snt_mr_summary_payload( $days ) {
 		// period over an uncovered window is not a comparison, it is an artifact
 		// of when the sensor started. null when the edge cannot answer.
 		'days_covered'   => $days_covered,
+		// v13.43.0. `signed_agent` has ridden the aggregate row beside `agent`
+		// and `surface` since worker v1.20.0, and every read surface projected
+		// it away — the admin KPI to a scalar, this payload to nothing at all.
+		// On 2026-08-30 the reading was 311/13,238 verified and no consumer
+		// could say whether that was one agent or fifteen. null (never a zeroed
+		// block) when no read in the window carried a real signature state.
+		'identity'       => function_exists( 'snt_mr_identity_breakdown' )
+			? snt_mr_identity_breakdown( $rows )
+			: null,
 		'families'       => $families,
 		'ai_training'    => $ai_hits,
 		'ai_rights'      => $ai_rght,

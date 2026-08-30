@@ -230,3 +230,113 @@ function snt_mr_taxonomy_absent( $rows ) {
 	}
 	return true;
 }
+
+/**
+ * The four `signed_agent` states that constitute a MEASUREMENT.
+ *
+ * Named once, here, beside the normalizer that produces them. 'unmeasured' and
+ * 'other' are deliberately absent: the first is silence and the second is a
+ * state this plugin does not know, and neither is evidence about an agent.
+ * A second copy of this list elsewhere is how the two folds drift apart.
+ *
+ * @since 13.43.0
+ * @return array<int,string>
+ */
+function snt_mr_measured_signed_states() {
+	return array( 'valid', 'invalid', 'unknown-key', 'unsigned' );
+}
+
+/**
+ * Fold `signed_agent` against the dimensions it shares a row with.
+ *
+ * WHY. The sensor has carried `signed_agent` beside `agent`, `surface`,
+ * `family` and `day` since Worker v1.20.0, but every read surface projected it
+ * away: the admin KPI collapses it to `valid / measured`, and the summary
+ * ability did not carry it at all. On 2026-08-30 the full-week reading was
+ * 311 / 13,238 and NOTHING could say whether that was one agent or fifteen —
+ * the question that decides whether a licence handshake is an ecosystem surface
+ * or a bilateral arrangement. The data was never missing; the fold was.
+ *
+ * `by_surface` exists for a second reason. Worker v1.22.0 began serving
+ * /webmcp/bridge.js on every HTML page on 2026-08-28, mid-measurement. Verified
+ * hits landing on `agent-discovery` are the same agents fetching a NEW endpoint,
+ * which is not the finding "more agents adopted signatures" — and a scalar
+ * cannot tell those apart.
+ *
+ * NULL, NOT ZEROS. An all-unmeasured window returns null. Returning a zeroed
+ * block would assert a measurement that was never taken, and no consumer could
+ * separate it from a measured zero — the same false-zero the identity KPI has
+ * guarded since v12.26.0. Measured-with-none-verified is the DIFFERENT answer,
+ * and it returns a real block whose leaderboards are empty arrays.
+ *
+ * Reads `signed_agent` as it stands on the row. snt_mr_fetch() has already
+ * normalized it; re-normalizing here would be the v12.24.1 double-normalize bug.
+ *
+ * @since 13.43.0
+ * @param array $rows Normalized aggregate rows.
+ * @return array{measured:int,valid:int,invalid:int,unknown_key:int,unsigned:int,by_agent:array,by_surface:array}|null
+ */
+function snt_mr_identity_breakdown( $rows ) {
+	$states = snt_mr_measured_signed_states();
+	$out    = array(
+		'measured'    => 0,
+		'valid'       => 0,
+		'invalid'     => 0,
+		'unknown_key' => 0,
+		'unsigned'    => 0,
+		'by_agent'    => array(),
+		'by_surface'  => array(),
+	);
+	$agents   = array();
+	$surfaces = array();
+
+	foreach ( (array) $rows as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$state = (string) ( $row['signed_agent'] ?? '' );
+		if ( ! in_array( $state, $states, true ) ) {
+			continue;
+		}
+		$hits              = max( 0, (int) ( $row['hits'] ?? 0 ) );
+		$out['measured']  += $hits;
+		// The payload key drops the hyphen the wire format uses; every other
+		// state is already a legal identifier.
+		$key         = 'unknown-key' === $state ? 'unknown_key' : $state;
+		$out[ $key ] += $hits;
+
+		// ONLY verified hits reach the leaderboards. An agent that FAILED
+		// verification listed beside one that passed would read as proof of the
+		// opposite of what it is.
+		if ( 'valid' !== $state ) {
+			continue;
+		}
+		$agent   = (string) ( $row['agent'] ?? '' );
+		$surface = (string) ( $row['surface'] ?? '' );
+		$agent   = '' === $agent ? '(unnamed)' : $agent;
+		$surface = '' === $surface ? '(unnamed)' : $surface;
+
+		$agents[ $agent ]     = ( $agents[ $agent ] ?? 0 ) + $hits;
+		$surfaces[ $surface ] = ( $surfaces[ $surface ] ?? 0 ) + $hits;
+	}
+
+	if ( 0 === $out['measured'] ) {
+		return null;
+	}
+
+	arsort( $agents );
+	arsort( $surfaces );
+	foreach ( $agents as $name => $hits ) {
+		$out['by_agent'][] = array(
+			'agent' => (string) $name,
+			'hits'  => (int) $hits,
+		);
+	}
+	foreach ( $surfaces as $name => $hits ) {
+		$out['by_surface'][] = array(
+			'surface' => (string) $name,
+			'hits'    => (int) $hits,
+		);
+	}
+	return $out;
+}

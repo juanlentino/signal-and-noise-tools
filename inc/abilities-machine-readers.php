@@ -105,6 +105,18 @@ add_action( 'wp_abilities_api_init', function() {
 					'type'        => array( 'integer', 'null' ),
 					'description' => 'Days the sensor actually holds data for in this window, counted from the day-rows the totals view returned. LESS than `days` means the window reaches past the start of the data, and any period-over-period comparison across it is an artifact of when the sensor started rather than a change in traffic. null when the edge cannot answer.',
 				),
+				// v13.43.0. Declared in the same change that adds it to the
+				// payload — the v13.33.0 lesson, where four fields were returned
+				// but undeclared since v10.79.0 and no agent could know the axis
+				// existed. This is the axis that answers CONCENTRATION.
+				'identity'               => array(
+					'type'        => array( 'object', 'null' ),
+					'description' => 'Signature verification folded against the dimensions it shares a row with. '
+						. '`measured` is reads carrying a real state; `valid` / `invalid` / `unknown_key` / `unsigned` split it. '
+						. '`by_agent` and `by_surface` list VERIFIED reads only, `{agent|surface, hits}` descending — an agent whose signature failed never appears there, because listing it beside one that passed would read as proof of the opposite. '
+						. 'null, NOT a block of zeros, when no read in the window carried a signature state at all: that is "never measured", which is a different claim from "measured, none verified" (which reports valid 0 with empty leaderboards). '
+						. 'Use by_agent to tell an ecosystem from a single signer, and by_surface to tell genuine adoption from traffic to a newly-served endpoint.',
+				),
 				'families'       => array(
 					'type'  => 'array',
 					'items' => array(
