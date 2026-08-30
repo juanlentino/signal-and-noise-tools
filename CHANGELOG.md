@@ -2,6 +2,45 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.40.0] - 2026-08-30 — a rotation writes the ledger too, and writes it first
+
+### Fixed — the rotation shipped in v13.39.0 was only half of one
+
+v13.39.0 moved WordPress's own options and stopped there. But the ledger is
+where a stranger checks our work, and its `verify-key-history.mjs` requires, for
+EVERY key it declares, a `keys/<id>.pub` matching the declared bytes, a matching
+sha256, and a key-fingerprint anchor that verifies against that key. A rotation
+that touched only WordPress would have left all of that failing — and failing
+for exactly the people the independent verifier exists for, while our own CI
+stayed green. It would also have broken `verify:keys` on the next ledger run.
+
+`sn_prov_perform_rotation()` now calls the Worker's `POST /publish-rotation`
+(worker v1.17.0), which writes `keys/<id>.pub`, the new key's self-signed
+OTS-stamped fingerprint anchor, and the updated `key-history.json` in one
+commit — including a transition signed by the OUTGOING key, the only key whose
+authority predates the successor.
+
+**The ledger goes FIRST**, and that ordering is the same publish-before-signing
+rule this codebase keeps everywhere else. If WordPress promoted first and the
+ledger write then failed, the site would be naming a key the public verifier
+cannot find — the exact breakage the detector layer exists to shout about. The
+reverse failure is benign: a ledger carrying a key the site has not yet adopted
+is merely early, and a retry completes it. Neuter-verified by swapping the two:
+four assertions redden, including "nothing was promoted".
+
+Everything that can refuse now refuses BEFORE either system is touched — the
+commitment check moved ahead of the ledger call, because publishing a rotation
+WordPress would then reject is the worst outcome available: a permanent public
+record of a handover that did not happen.
+
+### Fixed — a test-isolation bug this work exposed
+
+`tests/provenance-rotation.php` proves the constant-shadow guard by `define()`-ing
+`SN_PROV_PUBKEY_B64`, and a PHP constant cannot be un-defined. Sitting mid-file,
+it left every later test running with rotation permanently blocked — four
+assertions failed for a reason unrelated to what they tested. Moved last, with
+the reason recorded above it.
+
 ## [13.39.0] - 2026-08-29 — the rotation the detectors were built for
 
 ### Added — key rotation, performed rather than described
