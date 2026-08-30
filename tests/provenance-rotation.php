@@ -202,6 +202,45 @@ $r = sn_prov_perform_rotation_with( '2026-09-15', static function () use ( &$tou
 ok( false === $r['ok'] && 'reveal-mismatch' === $r['code'], 'a mismatched reveal is refused' );
 ok( false === $touched, 'and the LEDGER WAS NEVER CALLED — a rotation the site would refuse is never published' );
 
+/* ── 6. ADOPTING A CONSTANT-HELD KEY INTO THE DATABASE ──────────────
+ * The panel used to say "remove the constant first", which would have taken
+ * the site's public key to '' — sn_prov_config() falls through to an option
+ * NOTHING had ever written, and an empty key makes sn_prov_did_document() and
+ * sn_prov_key_document() both return null, so did.json and
+ * provenance-keys.json 404 and every credential stops verifying.
+ *
+ * The safe order is the reverse: copy the resolved key INTO the option while
+ * the constant still wins — a no-op for what is served — and only then remove
+ * the line, by which time the option already holds the identical bytes.
+ */
+echo "\nGroup: adopting a wp-config key into the database (safely)\n";
+
+$GLOBALS['__options'] = array();
+$r = sn_prov_adopt_key_into_option();
+ok( true === $r['ok'], 'adopting the currently-resolved key succeeds' );
+ok( $GLOBALS['__pub'] === get_option( 'sn_prov_pubkey_b64', '' ),
+	'the option now holds EXACTLY the key that was being served' );
+ok( $GLOBALS['__pub'] === sn_prov_pubkey_b64(),
+	'and what the site serves is UNCHANGED — this is a no-op for every reader' );
+
+// Idempotent: pressing it twice must not be a second, different answer.
+$r2 = sn_prov_adopt_key_into_option();
+ok( true === $r2['ok'] && $GLOBALS['__pub'] === get_option( 'sn_prov_pubkey_b64', '' ), 'running it twice is idempotent' );
+
+// Never adopt something that is not a key: writing '' would arm the exact
+// outage this function exists to prevent.
+$saved = $GLOBALS['__pub'];
+$GLOBALS['__pub'] = '';
+$GLOBALS['__options'] = array();
+$r = sn_prov_adopt_key_into_option();
+ok( false === $r['ok'] && 'no-active-key' === $r['code'], 'refuses when there is no key to adopt' );
+ok( '' === get_option( 'sn_prov_pubkey_b64', '' ), 'and writes NOTHING rather than an empty key' );
+$GLOBALS['__pub'] = 'not-base64!!';
+$r = sn_prov_adopt_key_into_option();
+ok( false === $r['ok'] && 'not-a-public-key' === $r['code'], 'refuses a value that is not 32 Ed25519 bytes' );
+$GLOBALS['__pub'] = $saved;
+$GLOBALS['__options'] = array();
+
 /* ── LAST, AND IT MUST BE: define() IS IRREVERSIBLE ─────────────────
  * This group defines SN_PROV_PUBKEY_B64 to prove the constant-shadow guard.
  * A PHP constant cannot be un-defined, so every test after it would run with
