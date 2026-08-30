@@ -2,6 +2,84 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.39.0] - 2026-08-29 — the rotation the detectors were built for
+
+### Added — key rotation, performed rather than described
+
+Every piece shipped this week was a DETECTOR: `/verify` resolving a record
+against the key it NAMES, the sweep's `signing_key_unpublished` leg, the DID
+naming retired keys. All three describe a rotation that nothing could perform —
+`sn_prov_key_history` and `sn_prov_next_key_commitment` were read and never
+written. [inc/provenance-rotation.php](inc/provenance-rotation.php) is the
+writer, and it comes last on purpose: the detectors are what make a botched
+rotation fail LOUD, which is what makes automating one safe to offer at all.
+
+**The boundary, enforced by construction.** Nothing in the plugin ever touches a
+PRIVATE key. The signing key is a Cloudflare Worker secret, unreadable from
+WordPress. Every value handled here is public — key bytes, hashes, dates. One
+step therefore cannot be automated and must not be: generating and taking
+custody of the next private key. Automating that would mean writing a private
+key somewhere a runtime can write, and every such place is a worse home for it
+than a deploy-time secret. "Automatic" must not mean "moved somewhere weaker".
+
+**Commit, then rotate.** `sn_prov_commit_next_key()` takes the successor's
+PUBLIC key and hashes it here. It refuses a ready-made digest — a mistyped hash
+commits the site publicly and permanently to a key nobody holds, unfulfillable
+and indistinguishable from a correct commitment until the rotation that can
+never happen. A key can be validated when offered; a digest cannot. Committing
+to the active or any retired key is refused, because the promise only means
+something about a key not yet in play.
+
+`sn_prov_rotate_to()` enforces the promise — a reveal that does not hash to the
+published commitment is not the key we said it would be — then retires the
+outgoing key BEFORE promoting the successor. That order is the runbook's
+publish-before-signing rule applied in-process: failing between the two steps
+leaves "a retired key published that is still active", which is harmless and
+self-corrects on retry, rather than "the key that signed every historical Note
+is published nowhere", which is precisely what the detector layer exists to
+shout about. The commitment is then consumed: one promise cannot authorise a
+second rotation.
+
+**Refusing what would change nothing.** `sn_prov_rotation_preflight()` blocks a
+rotation when the key, id or date is pinned by a `wp-config.php` CONSTANT. A
+constant beats the option, so those writes would be inert — and a rotation that
+appears to succeed while changing nothing is worse than one that refuses,
+because it publishes a retired-key row for a handover that never happened.
+Reuses `sn_prov_key_config_source()` from v13.38.0, so the admin readout and
+this guard cannot drift apart.
+
+**Nothing is typed by hand.** The successor comes from the Worker's new
+`POST /next-key` (worker v1.16.0), which derives the PUBLIC half of the staged
+key and never emits private material. The id is derived from the rotation month,
+because a hand-typed id is one more thing that can disagree with what every
+record carries in `pubkey_id`. The date is today. The Worker also returns its
+own sha256 and we do NOT use it: the commitment is recomputed here from the key
+bytes, because it is a promise this site makes, and taking a digest on trust
+would mean publishing a promise about bytes we never checked. Their hash is
+corroboration, reported as such.
+
+**Buttons, not settings — the same argument as v13.38.0, now load-bearing.**
+Tools → Provenance gains a Key rotation panel with two nonce-gated actions and
+no input fields at all. A rotation is a ceremony with a mandatory order, and a
+button that performs the whole ordered ceremony is the only control that cannot
+be used in the wrong order. It is two buttons rather than one with a
+confirmation dialog because the ceremony is genuinely two acts — commit, then
+later rotate — and the gap between them is the property the commitment exists
+to create. Constant-shadowing blockers render even when nothing is staged, so an
+operator learns the buttons are inert BEFORE staging a commitment they could not
+then act on.
+
+Neuter-verified: removing the reveal check reddens 4 assertions; leaving the
+commitment unconsumed reddens 1; trusting the Worker's digest instead of
+recomputing reddens exactly the assertion that names it.
+
+### Note on the roadmap's "next key committed by hash" claim
+
+That row sits in `done` and describes a commitment the live key document does
+not carry — the machinery existed only as fixtures. It is now real, but the
+claim stays inaccurate until a commitment is actually published, which is one
+button press once `ED25519_NEXT_PRIVATE_KEY` is staged on the Worker.
+
 ## [13.38.0] - 2026-08-29 — which key am I on, and did my wp-config edit take effect?
 
 ### Added — the signing key's identity, read-only, in the provenance System panel
