@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.41.0] - 2026-08-30 — the panel told you to delete the line that holds the key
+
+### Fixed — "Remove the constant first" would have taken the site's identity offline
+
+The Key rotation panel, shipped in v13.39.0, blocks when `SN_PROV_PUBKEY_B64` is
+set in `wp-config.php` — correctly, because a rotation writes options and a
+constant beats an option. Its remediation text said *"Remove the constant
+first."* Following it would have been an outage.
+
+`sn_prov_config()` falls through to `get_option( 'sn_prov_pubkey_b64', '' )`,
+and NOTHING had ever written that option — the only writer is the rotation
+itself, which is exactly what the blocker prevents. So deleting the line
+resolves the public key to `''`, and both `sn_prov_did_document()` and
+`sn_prov_key_document()` return null on an empty key: `/.well-known/did.json`
+and `/.well-known/provenance-keys.json` 404, and every credential stops
+verifying. One deleted line, published identity gone.
+
+Found because the owner sent a screenshot of the panel rather than acting on it.
+
+**The fix is an ordering, and the safe order is a no-op when you take it.**
+`sn_prov_adopt_key_into_option()` copies the key currently being SERVED into the
+option while the constant is still defined. The constant still wins, so nothing
+any reader can observe changes — it matters only later, at the instant the line
+is deleted, when the option already holds byte-identical bytes and the served
+key never changes at all. Same rule as the ledger write: do the thing that can
+be EARLY before the thing that can be MISSING.
+
+It refuses to adopt anything that is not a valid 32-byte Ed25519 public key,
+because writing `''` would arm precisely the outage it exists to prevent, and it
+also pins the key id and introduction date as options so a later rotation is not
+comparing against a moving shipped default.
+
+The panel now offers **Copy the key into the database** in the blocked state,
+and once the option holds the key it stops offering the button and says the
+remaining step — deleting the line — is now safe.
+
 ## [13.40.0] - 2026-08-30 — a rotation writes the ledger too, and writes it first
 
 ### Fixed — the rotation shipped in v13.39.0 was only half of one
