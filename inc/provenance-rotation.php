@@ -202,3 +202,248 @@ function sn_prov_rotate_to( $revealed_public_key_b64, $new_key_id, $rotated_at )
 
 	return array( 'ok' => true, 'code' => '' );
 }
+
+/**
+ * The id a key rotated on this date should be published under.
+ *
+ * DERIVED, never typed. The id is what every record carries in `pubkey_id` and
+ * what a verifier resolves by name, so a hand-typed one is an extra thing that
+ * can disagree with the key it names. An unparseable date yields '' — no id
+ * beats a wrong one, and sn_prov_rotate_to() refuses '' on its own.
+ *
+ * @param string $date ISO date.
+ * @return string
+ */
+function sn_prov_next_key_id_for( $date ) {
+	if ( ! preg_match( '/^(\d{4})-(\d{2})(?:-\d{2})?$/', trim( (string) $date ), $m ) ) {
+		return '';
+	}
+	return 'sn-ed25519-' . $m[1] . '-' . $m[2];
+}
+
+/**
+ * Ask the Worker for the STAGED successor key's public half.
+ *
+ * The Worker holds the private key; this asks it to derive and return the
+ * public one, so no human copies key material between systems. Signed with the
+ * same HMAC as every other Worker call.
+ *
+ * @return array{ok:bool,code:string,configured:bool,public_key_base64:string,sha256_commitment:string}
+ */
+function sn_prov_fetch_next_key() {
+	$fail = static function ( $code ) {
+		return array( 'ok' => false, 'code' => $code, 'configured' => false, 'public_key_base64' => '', 'sha256_commitment' => '' );
+	};
+	$base   = trim( (string) sn_prov_worker_url() );
+	$secret = (string) sn_prov_hmac_secret();
+	if ( '' === $base || '' === $secret ) {
+		return $fail( 'worker-not-configured' );
+	}
+	$body     = wp_json_encode( array() );
+	$response = wp_remote_post( rtrim( $base, '/' ) . '/next-key', array(
+		'timeout'     => 15,
+		'redirection' => 0,
+		'headers'     => array(
+			'Content-Type'   => 'application/json',
+			'X-SN-Signature' => 'sha256=' . hash_hmac( 'sha256', $body, $secret ),
+		),
+		'body'        => $body,
+	) );
+	if ( is_wp_error( $response ) ) {
+		return $fail( 'worker-unreachable' );
+	}
+	$code = (int) wp_remote_retrieve_response_code( $response );
+	if ( $code < 200 || $code >= 300 ) {
+		return $fail( 'worker-unreachable' );
+	}
+	$out = json_decode( (string) wp_remote_retrieve_body( $response ), true );
+	if ( ! is_array( $out ) ) {
+		return $fail( 'worker-unreadable' );
+	}
+	if ( empty( $out['configured'] ) ) {
+		return $fail( 'no-successor-staged' );
+	}
+	return array(
+		'ok'                => true,
+		'code'              => '',
+		'configured'        => true,
+		'public_key_base64' => trim( (string) ( $out['public_key_base64'] ?? '' ) ),
+		'sha256_commitment' => trim( (string) ( $out['sha256_commitment'] ?? '' ) ),
+	);
+}
+
+/**
+ * Publish a commitment to whatever successor the Worker has staged.
+ *
+ * The Worker also returns its own sha256, and we do NOT use it. The commitment
+ * is recomputed here from the KEY BYTES, because a commitment is a promise this
+ * site makes: taking the digest on trust would mean publishing, permanently, a
+ * promise about bytes we never checked — and a corrupted or dishonest response
+ * would commit us to something nothing can fulfil. Their hash is corroboration,
+ * reported as such, never the source.
+ *
+ * @param string $when ISO date.
+ * @return array{ok:bool,code:string,commitment:string,corroborated:bool}
+ */
+function sn_prov_stage_commitment( $when ) {
+	$fetched = sn_prov_fetch_next_key();
+	if ( ! $fetched['ok'] ) {
+		return array( 'ok' => false, 'code' => $fetched['code'], 'commitment' => '', 'corroborated' => false );
+	}
+	$result = sn_prov_commit_next_key( $fetched['public_key_base64'], $when );
+	$result['corroborated'] = ( '' !== $fetched['sha256_commitment'] && hash_equals( $result['commitment'], $fetched['sha256_commitment'] ) );
+	return $result;
+}
+
+/**
+ * Rotate to the staged successor: fetch it, prove it against the commitment,
+ * retire the outgoing key, promote it. Nothing is typed by hand.
+ *
+ * @param string $when ISO date of the handover.
+ * @return array{ok:bool,code:string}
+ */
+function sn_prov_perform_rotation( $when ) {
+	$fetched = sn_prov_fetch_next_key();
+	if ( ! $fetched['ok'] ) {
+		return array( 'ok' => false, 'code' => $fetched['code'] );
+	}
+	$key_id = sn_prov_next_key_id_for( $when );
+	if ( '' === $key_id ) {
+		return array( 'ok' => false, 'code' => 'bad-date' );
+	}
+	return sn_prov_rotate_to( $fetched['public_key_base64'], $key_id, $when );
+}
+
+/**
+ * admin_post_sn_prov_stage_key handler: nonce + manage_options gated.
+ * Publishes a commitment to whatever successor the Worker has staged.
+ */
+function sn_prov_admin_stage_key_handler() {
+	check_admin_referer( 'sn_prov_stage_key' );
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'Insufficient permissions.', 'signal-and-noise-tools' ), '', array( 'response' => 403 ) );
+	}
+	$r = sn_prov_stage_commitment( gmdate( 'Y-m-d' ) );
+	wp_safe_redirect( sn_prov_admin_rotation_url( $r['ok'] ? 'staged' : ( 'e-' . $r['code'] ) ) );
+	exit;
+}
+
+/**
+ * admin_post_sn_prov_rotate_key handler: nonce + manage_options gated.
+ *
+ * Deliberately a SECOND button rather than a confirmation dialog. A rotation is
+ * only possible once a commitment has been published by the button above, so
+ * the ceremony is already two separate, deliberate acts — and the gap between
+ * them is exactly the property the commitment exists to create.
+ */
+function sn_prov_admin_rotate_key_handler() {
+	check_admin_referer( 'sn_prov_rotate_key' );
+	if ( ! current_user_can( 'manage_options' ) ) {
+		wp_die( esc_html__( 'Insufficient permissions.', 'signal-and-noise-tools' ), '', array( 'response' => 403 ) );
+	}
+	$r = sn_prov_perform_rotation( gmdate( 'Y-m-d' ) );
+	wp_safe_redirect( sn_prov_admin_rotation_url( $r['ok'] ? 'rotated' : ( 'e-' . $r['code'] ) ) );
+	exit;
+}
+
+/**
+ * Redirect target back to Tools → Provenance carrying a rotation result flag.
+ *
+ * @param string $result
+ * @return string
+ */
+function sn_prov_admin_rotation_url( $result ) {
+	return add_query_arg(
+		array(
+			'page'           => 'sn-theme-options',
+			'tab'            => 'tools',
+			'sub'            => 'provenance',
+			'sn_prov_rotate' => $result,
+		),
+		admin_url( 'admin.php' )
+	);
+}
+
+if ( ! defined( 'SN_PROV_DID_TEST' ) || ! SN_PROV_DID_TEST ) {
+	add_action( 'admin_post_sn_prov_stage_key', 'sn_prov_admin_stage_key_handler' );
+	add_action( 'admin_post_sn_prov_rotate_key', 'sn_prov_admin_rotate_key_handler' );
+}
+
+/**
+ * The "Key rotation" fieldset: what is staged, what blocks, and the two buttons.
+ *
+ * READ-ONLY except for the two nonce-gated actions. There is no field here for
+ * the key, the id or the date: the key comes from the Worker, the id is derived
+ * from the rotation month, and the date is today. A rotation is a ceremony with
+ * a mandatory order, and a button that performs the whole ordered ceremony is
+ * the only shape of control that cannot be used in the wrong order — which is
+ * exactly why this is buttons and not settings.
+ */
+function sn_prov_admin_render_rotation_fieldset() {
+	$pre        = sn_prov_rotation_preflight();
+	$commitment = sn_prov_next_key_commitment();
+
+	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Key rotation', 'signal-and-noise-tools' ) . '</h2>';
+
+	echo '<table class="widefat striped sn-prov-config"><tbody><tr><td>'
+		. esc_html__( 'Commitment to the next key', 'signal-and-noise-tools' ) . '</td><td>';
+	if ( null === $commitment ) {
+		echo '<span class="sn-pill sn-pill--muted">' . esc_html__( 'none published', 'signal-and-noise-tools' ) . '</span>';
+	} else {
+		echo '<code>' . esc_html( substr( $commitment['value'], 0, 16 ) ) . '…</code> '
+			. '<span class="sn-pill sn-pill--ok">' . esc_html( sprintf(
+				/* translators: %s: ISO date. */
+				__( 'committed %s', 'signal-and-noise-tools' ),
+				$commitment['committed_at']
+			) ) . '</span>';
+	}
+	echo '</td></tr></tbody></table>';
+
+	// Blockers are shown even when no rotation is staged: a constant-pinned key
+	// makes every button here inert, and the operator should learn that BEFORE
+	// staging a commitment they cannot then act on.
+	$explain = array(
+		'active-key-is-a-constant'    => __( 'SN_PROV_PUBKEY_B64 is set in wp-config.php, so a rotation could not change the active key. Remove the constant first.', 'signal-and-noise-tools' ),
+		'key-id-is-a-constant'        => __( 'SN_PROV_PUBKEY_ID is set in wp-config.php, so the new key id could not take effect. Remove the constant first.', 'signal-and-noise-tools' ),
+		'introduced-at-is-a-constant' => __( 'SN_PROV_KEY_INTRODUCED_AT is set in wp-config.php, so the new date could not take effect. Remove the constant first.', 'signal-and-noise-tools' ),
+	);
+	foreach ( $pre['blockers'] as $blocker ) {
+		if ( isset( $explain[ $blocker ] ) ) {
+			echo '<p><span class="sn-pill sn-pill--warn">' . esc_html__( 'blocked', 'signal-and-noise-tools' ) . '</span> '
+				. esc_html( $explain[ $blocker ] ) . '</p>';
+		}
+	}
+
+	$inert = (bool) array_intersect( $pre['blockers'], array_keys( $explain ) );
+
+	if ( null === $commitment && ! $inert ) {
+		sn_prov_admin_rotation_button(
+			'sn_prov_stage_key',
+			__( 'Publish a commitment to the staged key', 'signal-and-noise-tools' ),
+			__( 'Asks the Worker for the successor key it holds, hashes it here, and publishes that hash — so the key that later appears can be checked against the one promised.', 'signal-and-noise-tools' )
+		);
+	} elseif ( null !== $commitment && ! $inert ) {
+		sn_prov_admin_rotation_button(
+			'sn_prov_rotate_key',
+			__( 'Rotate to the committed key', 'signal-and-noise-tools' ),
+			__( 'Retires the current key into the published history with a closed validity window, then promotes the committed successor. Refused unless the key the Worker returns hashes to the commitment above.', 'signal-and-noise-tools' )
+		);
+	}
+	echo '</div>';
+}
+
+/**
+ * One nonce-gated rotation button with its consequence stated beside it.
+ *
+ * @param string $action admin_post action name (also the nonce name).
+ * @param string $label  Button label.
+ * @param string $what   What pressing it does.
+ */
+function sn_prov_admin_rotation_button( $action, $label, $what ) {
+	echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+	wp_nonce_field( $action );
+	echo '<input type="hidden" name="action" value="' . esc_attr( $action ) . '">';
+	echo '<p class="sn-prov-muted">' . esc_html( $what ) . '</p>';
+	echo '<p><button type="submit" class="button">' . esc_html( $label ) . '</button></p>';
+	echo '</form>';
+}

@@ -287,6 +287,9 @@ function sn_admin_render_provenance_section() {
 	}
 	sn_admin_shell_rail( __( 'Provenance status', 'signal-and-noise-tools' ) );
 	sn_prov_admin_render_system_fieldset( $sys );
+	if ( function_exists( 'sn_prov_admin_render_rotation_fieldset' ) ) {
+		sn_prov_admin_render_rotation_fieldset();
+	}
 	sn_prov_admin_render_genesis_fieldset( $sys );
 	sn_admin_shell_close();
 }

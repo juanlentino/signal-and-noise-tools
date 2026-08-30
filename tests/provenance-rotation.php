@@ -119,5 +119,56 @@ $r = sn_prov_rotate_to( $NEXT_B64, 'sn-x', '2026-09-15' );
 ok( false === $r['ok'] && 'active-key-is-a-constant' === $r['code'],
 	'and rotate_to REFUSES rather than half-applying — writing history for a key change that never happens is worse than not rotating' );
 
+/* ── 4. THE AUTOMATIC PATH: nothing is typed by hand ────────────────── */
+echo "\nGroup: fetching the successor from the Worker and applying it\n";
+
+$GLOBALS['__http'] = array();
+if ( ! function_exists( 'wp_remote_post' ) ) {
+	function wp_remote_post( $url, $args ) { $GLOBALS['__http'][] = array( $url, $args ); return $GLOBALS['__resp']; }
+}
+if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $t ) { return $t instanceof WP_Error_Stub; } }
+if ( ! function_exists( 'wp_remote_retrieve_response_code' ) ) { function wp_remote_retrieve_response_code( $r ) { return $r['code'] ?? 0; } }
+if ( ! function_exists( 'wp_remote_retrieve_body' ) ) { function wp_remote_retrieve_body( $r ) { return $r['body'] ?? ''; } }
+if ( ! function_exists( 'sn_prov_worker_url' ) ) { function sn_prov_worker_url() { return 'https://w.example'; } }
+if ( ! function_exists( 'sn_prov_hmac_secret' ) ) { function sn_prov_hmac_secret() { return 'shh'; } }
+
+// The id is DERIVED from the rotation date, not typed: a hand-typed id is one
+// more thing that can disagree with what every record will carry in pubkey_id.
+ok( 'sn-ed25519-2027-03' === sn_prov_next_key_id_for( '2027-03-14' ), 'the new key id is derived from the rotation month' );
+ok( '' === sn_prov_next_key_id_for( 'nonsense' ), 'an unparseable date derives NO id rather than a wrong one' );
+
+$GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array(
+	'ok' => true, 'configured' => true,
+	'public_key_base64' => $NEXT_B64, 'sha256_commitment' => $NEXT_HASH,
+) ) );
+$GLOBALS['__options'] = array();
+$f = sn_prov_fetch_next_key();
+ok( true === $f['ok'] && $NEXT_B64 === $f['public_key_base64'], 'the successor is fetched from the Worker' );
+ok( 'sha256=' . hash_hmac( 'sha256', $GLOBALS['__http'][0][1]['body'], 'shh' ) === $GLOBALS['__http'][0][1]['headers']['X-SN-Signature'],
+	'the request is HMAC-signed like every other Worker call' );
+ok( false !== strpos( $GLOBALS['__http'][0][0], '/next-key' ), 'and goes to the /next-key route' );
+
+// The Worker's hash is NEVER trusted as the commitment — we recompute it from
+// the key bytes. A Worker that lied, or a corrupted response, would otherwise
+// publish a commitment nothing can fulfil.
+$GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array(
+	'ok' => true, 'configured' => true,
+	'public_key_base64' => $NEXT_B64, 'sha256_commitment' => str_repeat( 'f', 64 ),
+) ) );
+$GLOBALS['__options'] = array();
+$r = sn_prov_stage_commitment( '2026-09-01' );
+ok( true === $r['ok'] && $NEXT_HASH === $r['commitment'],
+	'the commitment is recomputed from the KEY BYTES — the Worker\'s own hash is corroboration, never the source' );
+
+$GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array( 'ok' => true, 'configured' => false ) ) );
+$GLOBALS['__options'] = array();
+$r = sn_prov_stage_commitment( '2026-09-01' );
+ok( false === $r['ok'] && 'no-successor-staged' === $r['code'], 'nothing staged on the Worker is a clear refusal, not a crash' );
+
+$GLOBALS['__resp'] = array( 'code' => 500, 'body' => 'nope' );
+$r = sn_prov_stage_commitment( '2026-09-01' );
+ok( false === $r['ok'] && 'worker-unreachable' === $r['code'], 'a Worker failure never half-applies' );
+ok( null === sn_prov_next_key_commitment(), 'and publishes no commitment' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
