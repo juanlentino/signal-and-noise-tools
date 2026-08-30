@@ -2,6 +2,65 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.42.0] - 2026-08-30 — public values resolve option-first, so nobody edits wp-config.php
+
+### Changed — the precedence, for PUBLIC values only
+
+`sn_prov_config()` puts the wp-config constant first, and for SECRETS that is
+right: `wp-config.php` is harder to tamper with than the database. That argument
+does not transfer to values we PUBLISH. The signing key's public half, its id
+and its introduction date are served at `/.well-known/` for anyone to read.
+
+Constant-first made them unwritable by the plugin, so a rotation could not take
+effect until a human edited `wp-config.php` — and the obvious instruction,
+which this panel gave until v13.41.0, was to delete the line, which resolves the
+key to `''` and 404s the site's published identity.
+
+`sn_prov_public_config()` inverts it for those three: a USABLE stored option
+wins, and the constant remains the floor that serves whenever no usable option
+exists. A rotation therefore takes effect immediately, with the constant left
+exactly where it is, forever, as disaster recovery.
+
+**The security trade, stated plainly.** A database-write attacker could now
+change the published public key without touching `wp-config.php`; before, they
+could not. That is acceptable here and would not be for a secret, because the
+failure is LOUD rather than silent: a substituted public key makes every
+existing signature stop verifying, and the ledger's `verify:key-pins` reds
+because the two independent sources disagree. A tampered secret produces no
+such signal.
+
+**"Usable" is the whole safety of it.** An option supersedes only when it passes
+its check — `sn_prov_is_ed25519_public_key()` for the key, non-blank for the id
+and date. A blank or corrupt row can never take a published value to nothing,
+which is precisely the outage the inversion exists to make impossible. Length is
+checked, not merely decodability: a 31-byte value decodes cleanly and would be
+published as a key that can never verify anything.
+
+### Considered and rejected — letting WordPress read its key from the ledger
+
+The tidier-looking design: one source of truth, the site follows the ledger
+exactly as the Worker does since worker v1.18.0. It is wrong.
+`verify-key-pins.mjs` fetches the LIVE site's `provenance-keys.json` and
+compares it against the ledger's copy, and that check has teeth only because the
+two are INDEPENDENT. Deriving one from the other would leave the verifier
+comparing the ledger with itself — a structurally satisfied check, which is the
+vacuous-guard pattern at architecture scale. The local config is not
+bureaucracy; it is the second source that makes an existing verification real.
+
+### Removed — the adopt-key button and the rotation blockers it existed for
+
+v13.41.0 added **Copy the key into the database** so the constant could be
+deleted safely. The inversion removes the reason to delete it at all, so both
+the button and the three `*-is-a-constant` preflight blockers are gone. The only
+thing that can block a rotation now is having nothing to rotate to.
+
+### Fixed — two test fixtures were feeding keys that could never be keys
+
+`'PUBKEY123'`, `'PUBKEYSMOKE'` and `'PUBLICKEYBASE64'` stood in for public keys
+in the admin and render suites. The new validator refuses them, correctly, and
+six assertions failed — not a regression but a fixture that had never been
+realistic. Replaced with a real 32-byte value.
+
 ## [13.41.0] - 2026-08-30 — the panel told you to delete the line that holds the key
 
 ### Fixed — "Remove the constant first" would have taken the site's identity offline

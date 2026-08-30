@@ -46,66 +46,18 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_prov_rotation_preflight() {
 	$blockers = array();
 
-	// A wp-config CONSTANT beats the option (sn_prov_config() returns a defined
-	// constant even when blank and never reads the option). So if the active key
-	// — or the id, or the date — is pinned by a constant, the options this file
-	// writes are inert and the rotation is theatre. Reuses the same resolver the
-	// admin System panel reports with, so the page and this check cannot drift.
-	foreach ( array(
-		'active-key-is-a-constant'    => array( 'SN_PROV_PUBKEY_B64', 'sn_prov_pubkey_b64' ),
-		'key-id-is-a-constant'        => array( 'SN_PROV_PUBKEY_ID', 'sn_prov_pubkey_id' ),
-		'introduced-at-is-a-constant' => array( 'SN_PROV_KEY_INTRODUCED_AT', 'sn_prov_key_introduced_at' ),
-	) as $code => $pair ) {
-		$source = sn_prov_key_config_source( $pair[0], $pair[1] );
-		if ( 'constant' === $source || 'blank-constant' === $source ) {
-			$blockers[] = $code;
-		}
-	}
+	// v13.42.0: the three constant blockers are GONE, because the values they
+	// guarded now resolve option-first (sn_prov_public_config). A rotation
+	// writes options and options win, so there is nothing left that would make
+	// the write inert — and nothing left to make an operator edit wp-config.php.
+	// The constant stays as the floor that serves whenever no usable option is
+	// stored, so the key can never vanish.
 
 	if ( null === sn_prov_next_key_commitment() ) {
 		$blockers[] = 'no-commitment';
 	}
 
 	return array( 'ready' => empty( $blockers ), 'blockers' => $blockers );
-}
-
-/**
- * Copy the currently-resolved public key INTO the option, so the wp-config
- * constant can then be removed without the key disappearing.
- *
- * THIS EXISTS BECAUSE THE OBVIOUS INSTRUCTION IS DANGEROUS. "Remove the
- * constant first" — which this panel said until v13.41.0 — would take the
- * served key to '': sn_prov_config() falls through to an option that nothing
- * had ever written, and sn_prov_did_document() / sn_prov_key_document() both
- * return null on an empty key, so did.json and provenance-keys.json 404 and
- * every credential stops verifying. The site would lose its published identity
- * on a single line deletion.
- *
- * Doing it in this order is SAFE BY CONSTRUCTION: while the constant is still
- * defined it wins, so writing the option changes nothing anyone can observe.
- * It is a no-op until the moment the line is deleted, at which point the option
- * already holds identical bytes and the served key never changes at all.
- *
- * Refuses to adopt anything that is not a valid 32-byte Ed25519 public key —
- * writing '' would arm the very outage this exists to prevent.
- *
- * @return array{ok:bool,code:string}
- */
-function sn_prov_adopt_key_into_option() {
-	$b64 = trim( (string) sn_prov_pubkey_b64() );
-	if ( '' === $b64 ) {
-		return array( 'ok' => false, 'code' => 'no-active-key' );
-	}
-	$raw = base64_decode( $b64, true );
-	if ( false === $raw || 32 !== strlen( $raw ) ) {
-		return array( 'ok' => false, 'code' => 'not-a-public-key' );
-	}
-	update_option( 'sn_prov_pubkey_b64', $b64 );
-	// The id and date resolve to shipped defaults when unset; pin them too so a
-	// later rotation is not silently comparing against a moving default.
-	update_option( 'sn_prov_pubkey_id', trim( (string) sn_prov_key_id() ) );
-	update_option( 'sn_prov_key_introduced_at', trim( (string) sn_prov_key_introduced_at() ) );
-	return array( 'ok' => true, 'code' => '' );
 }
 
 /**
@@ -490,22 +442,7 @@ function sn_prov_admin_rotation_url( $result ) {
 	);
 }
 
-/**
- * admin_post_sn_prov_adopt_key handler: nonce + manage_options gated.
- * Copies the served key into the option so the constant can safely be deleted.
- */
-function sn_prov_admin_adopt_key_handler() {
-	check_admin_referer( 'sn_prov_adopt_key' );
-	if ( ! current_user_can( 'manage_options' ) ) {
-		wp_die( esc_html__( 'Insufficient permissions.', 'signal-and-noise-tools' ), '', array( 'response' => 403 ) );
-	}
-	$r = sn_prov_adopt_key_into_option();
-	wp_safe_redirect( sn_prov_admin_rotation_url( $r['ok'] ? 'adopted' : ( 'e-' . $r['code'] ) ) );
-	exit;
-}
-
 if ( ! defined( 'SN_PROV_DID_TEST' ) || ! SN_PROV_DID_TEST ) {
-	add_action( 'admin_post_sn_prov_adopt_key', 'sn_prov_admin_adopt_key_handler' );
 	add_action( 'admin_post_sn_prov_stage_key', 'sn_prov_admin_stage_key_handler' );
 	add_action( 'admin_post_sn_prov_rotate_key', 'sn_prov_admin_rotate_key_handler' );
 }
@@ -543,48 +480,16 @@ function sn_prov_admin_render_rotation_fieldset() {
 	// Blockers are shown even when no rotation is staged: a constant-pinned key
 	// makes every button here inert, and the operator should learn that BEFORE
 	// staging a commitment they cannot then act on.
-	// NEVER say "remove the constant first" on its own. Deleting the line while
-	// no option holds the key takes the served key to '' — did.json and
-	// provenance-keys.json both 404 and every credential stops verifying. The
-	// copy below states the ORDER, and the button beside it does the safe half.
-	$explain = array(
-		'active-key-is-a-constant'    => __( 'SN_PROV_PUBKEY_B64 is set in wp-config.php, so a rotation cannot change the active key. Copy it into the database first, then delete the line.', 'signal-and-noise-tools' ),
-		'key-id-is-a-constant'        => __( 'SN_PROV_PUBKEY_ID is set in wp-config.php, so a new key id could not take effect. Copy it into the database first, then delete the line.', 'signal-and-noise-tools' ),
-		'introduced-at-is-a-constant' => __( 'SN_PROV_KEY_INTRODUCED_AT is set in wp-config.php, so a new date could not take effect. Copy it into the database first, then delete the line.', 'signal-and-noise-tools' ),
-	);
-	foreach ( $pre['blockers'] as $blocker ) {
-		if ( isset( $explain[ $blocker ] ) ) {
-			echo '<p><span class="sn-pill sn-pill--warn">' . esc_html__( 'blocked', 'signal-and-noise-tools' ) . '</span> '
-				. esc_html( $explain[ $blocker ] ) . '</p>';
-		}
-	}
-
-	$inert = (bool) array_intersect( $pre['blockers'], array_keys( $explain ) );
-
-	if ( $inert ) {
-		// Has the key already been copied? If so the remaining step is theirs,
-		// and repeating the button would only look like nothing is happening.
-		$adopted = '' !== trim( (string) get_option( 'sn_prov_pubkey_b64', '' ) );
-		if ( $adopted ) {
-			echo '<p><span class="sn-pill sn-pill--ok">' . esc_html__( 'copied', 'signal-and-noise-tools' ) . '</span> '
-				. esc_html__( 'The key is now in the database with identical bytes. Deleting the constant from wp-config.php changes nothing that is served — and unblocks rotation.', 'signal-and-noise-tools' )
-				. '</p>';
-		} else {
-			sn_prov_admin_rotation_button(
-				'sn_prov_adopt_key',
-				__( 'Copy the key into the database', 'signal-and-noise-tools' ),
-				__( 'Writes the key currently being served into the database. Safe to press now: while the constant is still there it wins, so nothing served changes — it only means the key survives when you delete the line.', 'signal-and-noise-tools' )
-			);
-		}
-	}
-
-	if ( null === $commitment && ! $inert ) {
+	// v13.42.0: there is no blocked state left to render. The three constant
+	// blockers are gone (public values resolve option-first), so the only reason
+	// a button is absent is that the other one belongs there instead.
+	if ( null === $commitment ) {
 		sn_prov_admin_rotation_button(
 			'sn_prov_stage_key',
 			__( 'Publish a commitment to the staged key', 'signal-and-noise-tools' ),
 			__( 'Asks the Worker for the successor key it holds, hashes it here, and publishes that hash — so the key that later appears can be checked against the one promised.', 'signal-and-noise-tools' )
 		);
-	} elseif ( null !== $commitment && ! $inert ) {
+	} else {
 		sn_prov_admin_rotation_button(
 			'sn_prov_rotate_key',
 			__( 'Rotate to the committed key', 'signal-and-noise-tools' ),

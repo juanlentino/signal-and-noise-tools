@@ -50,6 +50,19 @@ if ( ! function_exists( 'sn_prov_config' ) ) {
 		return (string) get_option( $option, '' );
 	}
 }
+// Mirrors inc/provenance-webhook.php's PUBLIC-value resolver: a USABLE option
+// first, the wp-config constant as the floor. Called UNGUARDED from
+// inc/provenance-did.php on purpose — a missing resolver must fatal here rather
+// than silently degrade to the old constant-first order.
+if ( ! function_exists( 'sn_prov_public_config' ) ) {
+	function sn_prov_public_config( $const, $option, $is_usable = null ) {
+		$value = trim( (string) get_option( $option, '' ) );
+		if ( '' !== $value && ( null === $is_usable || call_user_func( $is_usable, $value ) ) ) {
+			return $value;
+		}
+		return defined( $const ) ? (string) constant( $const ) : '';
+	}
+}
 
 require __DIR__ . '/../inc/provenance-did.php';
 
@@ -242,10 +255,19 @@ define( 'SN_T_SRC_SET', 'sn-ed25519-2027-03' );
 define( 'SN_T_SRC_BLANK', '   ' );
 
 $GLOBALS['__options'] = array( 'sn_t_src_opt' => 'from-option' );
+// v13.42.0 INVERTED this for public values. A stored option now supersedes the
+// constant, which is what lets a rotation take effect with no wp-config edit —
+// and what removed the "delete the line" outage entirely.
+ok( 'option' === sn_prov_key_config_source( 'SN_T_SRC_SET', 'sn_t_src_opt' ),
+	'a stored option now WINS over the constant, and is reported as the source' );
+ok( 'option' === sn_prov_key_config_source( 'SN_T_SRC_BLANK', 'sn_t_src_opt' ),
+	'and it wins over a blank constant too — a blank constant can no longer shadow anything' );
+$GLOBALS['__options'] = array();
 ok( 'constant' === sn_prov_key_config_source( 'SN_T_SRC_SET', 'sn_t_src_opt' ),
-	'a set constant WINS and is reported as the source, even with an option present' );
+	'with NO option the constant still serves — it is the floor, so a value can never vanish' );
 ok( 'blank-constant' === sn_prov_key_config_source( 'SN_T_SRC_BLANK', 'sn_t_src_opt' ),
-	'a BLANK constant is its own verdict — not "option", because the option is never read, and not "default", because the reason is recoverable' );
+	'a blank constant with nothing stored keeps its own verdict: the value falls to the default, and the reason is a line in wp-config.php' );
+$GLOBALS['__options'] = array( 'sn_t_src_opt' => 'from-option' );
 ok( 'option' === sn_prov_key_config_source( 'SN_T_SRC_UNDEFINED', 'sn_t_src_opt' ),
 	'no constant + a set option reports the option' );
 $GLOBALS['__options'] = array();

@@ -29,6 +29,19 @@ if ( ! function_exists( 'sn_prov_config' ) ) {
 		return (string) get_option( $option, '' );
 	}
 }
+// Mirrors inc/provenance-webhook.php's PUBLIC-value resolver: a USABLE option
+// first, the wp-config constant as the floor. Called UNGUARDED from
+// inc/provenance-did.php on purpose — a missing resolver must fatal here rather
+// than silently degrade to the old constant-first order.
+if ( ! function_exists( 'sn_prov_public_config' ) ) {
+	function sn_prov_public_config( $const, $option, $is_usable = null ) {
+		$value = trim( (string) get_option( $option, '' ) );
+		if ( '' !== $value && ( null === $is_usable || call_user_func( $is_usable, $value ) ) ) {
+			return $value;
+		}
+		return defined( $const ) ? (string) constant( $const ) : '';
+	}
+}
 // stub the plugin's pubkey accessor: a deterministic 32-byte Ed25519 public key
 $GLOBALS['__pub'] = base64_encode( str_repeat( "\x01", 32 ) );
 if ( ! function_exists( 'sn_prov_pubkey_b64' ) ) { function sn_prov_pubkey_b64() { return $GLOBALS['__pub']; } }
