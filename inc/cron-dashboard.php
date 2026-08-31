@@ -76,6 +76,34 @@ function snt_cron_sn_owned_hooks() {
 		// prevent, and it is also why the list carries "ADD any new recurring SN
 		// hook here" above.
 		array( 'SN_HEALTH_CRON_HOOK', 'sn_health_scan_daily' ),
+		// v13.49.0 — NINE more, found by DERIVING the list instead of reading it.
+		// Every one of these is scheduled recurring by this plugin and was absent
+		// here, so the rw-doored unschedule-cron-event could stop any of them
+		// silently: the output just stops arriving, with no error anywhere. The
+		// drift was 10 entries deep against a list whose own docblock says "ADD
+		// any new recurring SN hook here", which is the argument for the parity
+		// test in tests/cron-dashboard.php rather than more remembering.
+		//
+		// Two of these outrank the health scan by harm:
+		//   sn_prov_reconcile — hourly provenance reconciliation. Stopping it
+		//     halts pending OpenTimestamps upgrades, and there is a live watch
+		//     whose trigger is "an observed window where pending OTS proofs
+		//     cannot upgrade". A silent unschedule would MANUFACTURE that
+		//     trigger, and the watch would read our own outage as evidence
+		//     about Bitcoin anchoring.
+		//   sn_schedule_reconcile — every five minutes, and post scheduling
+		//     depends on it. Overdue `future` posts are already a sharp edge
+		//     (sn-apply refuses on them because core early-publishes on any
+		//     write); stopping the reconciler makes that state common.
+		array( 'SN_PROV_CONFIRM_HOOK',          'sn_prov_reconcile' ),
+		array( 'SN_SCHEDULE_RECONCILE_HOOK',    'sn_schedule_reconcile' ),
+		array( 'SN_CIT_CRON_HOOK',              'sn_citations_verify_batch' ),
+		array( 'SN_SECURITY_DIGEST_CRON_HOOK',  'sn_security_digest_weekly' ),
+		array( 'SN_SESSION_ROLLUP_HOOK',        'sn_session_rollup_daily' ),
+		array( 'SNT_ML_REBUILD_HOOK',           'snt_ml_rebuild' ),
+		array( 'SNT_MORNING_BRIEF_CRON_HOOK',   'snt_morning_brief_daily' ),
+		array( 'SNT_SCHEDULED_READS_CRON_HOOK', 'snt_scheduled_reads_daily' ),
+		array( 'SNT_GSC_SYNC_HOOK',             'sn_gsc_sync_daily' ),
 	);
 	$hooks = array();
 	foreach ( $owned as $pair ) {

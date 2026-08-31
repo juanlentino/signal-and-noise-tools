@@ -565,5 +565,72 @@ $GLOBALS['__test_current_user_can'] = true;
 $r_unsched_health = snt_cron_unschedule_event_impl( 'sn_health_scan_daily', array() );
 assert_true( $r_unsched_health instanceof WP_Error, 'REGRESSION: unschedule now REFUSES the health hook — before v13.49.0 it would have silently stopped the daily scan' );
 
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.49.0 — THE OWNED LIST IS DERIVABLE, SO DERIVE IT.
+ *
+ * snt_cron_sn_owned_hooks() is the guard that stops the rw-doored
+ * unschedule-cron-event from silently killing this plugin's own recurring
+ * work. It was hand-maintained against a fact that is fully derivable from
+ * source, and it had drifted by TEN entries — every one of them a hook that
+ * could be stopped with no error and no visible cause.
+ *
+ * This pin walks every wp_schedule_event() call site under inc/, resolves the
+ * hook constant, and asserts the resulting name is in the list. It would have
+ * caught all ten on the commit that introduced each.
+ *
+ * VACUITY GUARDS FIRST, and they are the point: a scanner that silently stops
+ * matching reports a clean sweep. Both the call-site count and the resolution
+ * count are asserted non-zero BEFORE any coverage claim, so a regex that rots
+ * fails loudly instead of passing.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+$sn_inc_dir   = __DIR__ . '/../inc';
+$sn_sched_re  = '/wp_schedule_event\(\s*[^,]+,\s*[^,]+,\s*([A-Za-z_][A-Za-z0-9_]*|\'[^\']+\')\s*\)/';
+$sn_call_toks = array();
+foreach ( (array) glob( $sn_inc_dir . '/*.php' ) as $sn_f ) {
+	$sn_src = (string) file_get_contents( $sn_f );
+	if ( preg_match_all( $sn_sched_re, $sn_src, $sn_m ) ) {
+		foreach ( $sn_m[1] as $sn_tok ) {
+			$sn_call_toks[ $sn_tok ] = basename( $sn_f );
+		}
+	}
+}
+assert_true( count( $sn_call_toks ) > 0, 'VACUITY GUARD: the wp_schedule_event() scan found call sites at all — a rotted regex must fail here, never report a clean sweep' );
+assert_true( count( $sn_call_toks ) >= 15, 'VACUITY GUARD: the scan found the expected ORDER of magnitude of call sites (>=15), so a regex matching only a couple cannot pass' );
+
+// Resolve each token to its hook string: a quoted literal is itself, a constant
+// is looked up in inc/'s own const/define declarations.
+$sn_const_vals = array();
+foreach ( (array) glob( $sn_inc_dir . '/*.php' ) as $sn_f ) {
+	$sn_src = (string) file_get_contents( $sn_f );
+	if ( preg_match_all( '/const\s+([A-Z_][A-Z0-9_]*)\s*=\s*\'([^\']+)\'/', $sn_src, $sn_c ) ) {
+		foreach ( $sn_c[1] as $sn_i => $sn_n ) { $sn_const_vals[ $sn_n ] = $sn_c[2][ $sn_i ]; }
+	}
+	if ( preg_match_all( '/define\(\s*\'([A-Z_][A-Z0-9_]*)\'\s*,\s*\'([^\']+)\'/', $sn_src, $sn_d ) ) {
+		foreach ( $sn_d[1] as $sn_i => $sn_n ) { $sn_const_vals[ $sn_n ] = $sn_d[2][ $sn_i ]; }
+	}
+}
+assert_true( count( $sn_const_vals ) > 0, 'VACUITY GUARD: the constant resolver found declarations at all' );
+
+$sn_owned_now  = snt_cron_sn_owned_hooks();
+$sn_unresolved = array();
+$sn_uncovered  = array();
+$sn_checked    = 0;
+foreach ( $sn_call_toks as $sn_tok => $sn_file ) {
+	$sn_hook = ( 0 === strpos( $sn_tok, "'" ) ) ? trim( $sn_tok, "'" ) : ( $sn_const_vals[ $sn_tok ] ?? null );
+	if ( null === $sn_hook ) {
+		$sn_unresolved[] = $sn_tok . ' (' . $sn_file . ')';
+		continue;
+	}
+	$sn_checked++;
+	if ( ! in_array( $sn_hook, $sn_owned_now, true ) ) {
+		$sn_uncovered[] = $sn_hook . ' (' . $sn_file . ')';
+	}
+}
+assert_true( $sn_checked > 0, 'VACUITY GUARD: at least one call site actually RESOLVED to a hook name — an all-unresolved run must not read as full coverage' );
+assert_eq( array(), $sn_unresolved, 'every scheduled hook token resolves to a name (an unresolvable one is a HOLE in this pin, not a pass)' );
+assert_eq( array(), $sn_uncovered, 'PARITY: every recurring hook this plugin schedules is in snt_cron_sn_owned_hooks(), so the rw-doored unschedule refuses it' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

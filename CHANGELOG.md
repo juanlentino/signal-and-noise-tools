@@ -2,7 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-## [13.49.0] - 2026-08-31 — three write-door exclusions come back as options, and a silent unschedule gets closed
+## [13.49.0] - 2026-08-31 — three write-door exclusions come back as options, and ten silent unschedules get closed
 
 Phase 3 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md).
 
@@ -64,16 +64,53 @@ returns; it never dispatches. `run-cron-event` stays off every door, because
   **refuses** an out-of-range delay rather than silently clamping it, so the
   dry run shows the caller what it asked for.
 
-### Fixed — the daily health scan could be silently unscheduled
+### Fixed — TEN recurring jobs could be silently unscheduled, not one
 
-Found while building the above, and older than it. `snt_cron_sn_owned_hooks()`
-is the allow-list that stops Signal & Noise's own recurring hooks from being
-unscheduled, and **`sn_health_scan_daily` was missing from it** even though the
-list's own docblock says to add every recurring SN hook. `unschedule-cron-event`
-**is on the rw door**, so a single call could stop the daily health scan, after
-which the dashboard's verdict would simply age with no cause visible anywhere.
-Now listed, and pinned by a test that exercises the refusal rather than reading
-the list.
+Found while building the above, and much older than it.
+`snt_cron_sn_owned_hooks()` is the allow-list that stops Signal & Noise's own
+recurring hooks from being unscheduled, and `unschedule-cron-event` **is on the
+rw door** — so any hook missing from the list could be stopped by a single
+doored call, with no error and no visible cause. The output simply stops
+arriving.
+
+`sn_health_scan_daily` was the first one found. Deriving the list from source
+rather than reading it turned up **nine more**:
+
+| hook | cadence |
+|---|---|
+| `sn_prov_reconcile` | hourly |
+| `sn_schedule_reconcile` | every 5 minutes |
+| `sn_citations_verify_batch` | hourly |
+| `sn_security_digest_weekly` | weekly |
+| `sn_session_rollup_daily` | daily |
+| `snt_ml_rebuild` | daily |
+| `snt_morning_brief_daily` | daily |
+| `snt_scheduled_reads_daily` | daily |
+| `sn_gsc_sync_daily` | daily |
+
+Two outrank the health scan by harm. **`sn_prov_reconcile`** halts pending
+OpenTimestamps upgrades, and a live watch has *"an observed window where pending
+OTS proofs cannot upgrade"* as its trigger — so a silent unschedule would
+**manufacture** that trigger, and the watch would read our own outage as
+evidence about Bitcoin anchoring. **`sn_schedule_reconcile`** is what post
+scheduling depends on, and overdue `future` posts are already a sharp edge that
+`sn-apply` refuses on; stopping the reconciler makes that state common instead
+of rare.
+
+### Fixed — and the list no longer depends on remembering
+
+The drift was ten deep against a docblock that says "ADD any new recurring SN
+hook here", which is an argument against hand-maintaining a fact that is fully
+derivable. `tests/cron-dashboard.php` now walks every `wp_schedule_event()` call
+site under `inc/`, resolves the hook constant, and asserts the name appears in
+the list. It would have caught all ten on the commit that introduced each.
+
+Its **vacuity guards come first and are the point**: a scanner that silently
+stops matching reports a clean sweep. The call-site count, the order of
+magnitude, the resolver's own output, and the resolved-site count are all
+asserted before any coverage claim, and an unresolvable token fails rather than
+being skipped. Mutating the regex to match nothing reds three assertions;
+removing one hook reds the parity check.
 
 
 ### Fixed — two comments that Phase 3 made inaccurate
@@ -94,7 +131,7 @@ now says two things it did not.
 
 ### Testing
 
-47 new assertions. Two guards were found protecting nothing and are now pinned:
+53 new assertions. Two guards were found protecting nothing and are now pinned:
 a scope guard whose only test exercised the *other* change type, and the
 self-merge guard, which shipped with no test at all. Both mutated clean before
 the fix and now red their own mutation.
