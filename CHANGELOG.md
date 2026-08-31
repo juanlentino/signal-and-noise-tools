@@ -2,6 +2,67 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.46.0] - 2026-08-30 — batched calls stop being invisible to their own telemetry
+
+Phase 0.2 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md).
+
+### Added — a `dimensions` column, beside `change_type` rather than instead of it
+
+`sn_mcp_telemetry_change_type()` records a section only when a call requested
+**exactly one** — deliberately, because *"a fabricated first-of-three dimension
+is not"* honest. That rule is right and it has a consequence: **the more the
+consolidated tools are used AS DESIGNED — batched — the blinder the per-section
+record gets.** v13.44.0 then added six sections, so the blindness scales with
+the feature.
+
+Rather than weaken an honest rule, this answers the **other** question. Two
+columns, two questions, neither fabricated:
+
+- `change_type` — *"was the SOLE dimension of N calls"* (unchanged)
+- `dimensions` — *"APPEARED IN N calls"*
+
+- Sorted, always: unsorted, one pair arrives under two spellings and a rollup
+  silently disagrees with itself.
+- Allowlisted against the tool's own live map, exactly as `change_type` is — an
+  invented name is dropped, never echoed into the column.
+- Wired on **all three** recorder call sites, the agent door's failure path
+  included.
+- `SN_MCP_TELEMETRY_DB_VERSION` 3 → 4 so dbDelta runs for existing installs.
+
+### Added — `by_dimension` in the `tool_telemetry` rollup
+
+The `by_change_type` half exists because v11.8.0 shipped a dimension into a
+table with **no read path** — *"collected and unreachable from the place the
+decisions get made."* Shipping this column without a rollup would repeat that
+exactly.
+
+`dimensions` stores a sorted joined list, so SQL can only group by the exact
+**combination**; the per-section split happens in PHP over a bounded set of
+combinations. A section batched with others is invisible to `by_change_type`
+and visible here. Declared in the ability's description in the same change.
+
+### Tests — 22 new, and two of them were worthless until a mutation said so
+
+- Negative-controlled: dropping the `sort` reds 2; removing the column from the
+  INSERT reds 2 — including the pre-existing **column-count-vs-format-count**
+  pin, which is the guard that catches a new column added without its `%s`
+  misbinding every column after it.
+- **The overflow test was VACUOUS and the mutation caught it.** It fed invented
+  40-char names, which the ALLOWLIST drops before the width guard is ever
+  consulted — so it returned null down the empty-set path and passed while the
+  guard was deleted. An invented name cannot reach that guard by construction.
+  Replaced with the property that makes the guard dead code today: **the widest
+  real request measures 205 chars against a 512 column**, and the test fails the
+  day sections grow past it — the only way the guard could ever fire.
+- **Two earlier negative-control rounds in this change were also invalid**, for
+  two different reasons, and both are worth naming: one measured an *unmutated*
+  file (a `perl` pattern that did not match), and one measured a *fataled* suite
+  (an unrelated parse error meant no `FAIL:` line existed to count, which reads
+  identically to a pass). `tests/run.sh` gates on the summary LINE for exactly
+  this reason; a grep for `FAIL` does not.
+
+Sweep: 524 suites, 21,138 assertions, 0 failed. PHPCS clean. PHPStan clean.
+
 ## [13.45.0] - 2026-08-30 — draft-echoes reaches the read door, as a single and not as a scan
 
 ### Added — `signal-noise/draft-echoes` on the read door

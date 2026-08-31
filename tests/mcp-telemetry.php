@@ -571,7 +571,12 @@ ok( false !== strpos( $ins_body, 'change_type' ), 'insert_row: change_type is ac
 ok( false !== strpos( $ins_body, 'error_code' ), 'insert_row: error_code is actually inserted' );
 ok( false !== strpos( (string) $sn_tel_src, 'change_type VARCHAR' ), 'schema: change_type column is in the CREATE TABLE' );
 ok( false !== strpos( (string) $sn_tel_src, 'error_code VARCHAR(64) NULL' ), 'schema: nullable VARCHAR error_code column is in the CREATE TABLE' );
-ok( '3' === SN_MCP_TELEMETRY_DB_VERSION, 'schema: DB version is exactly 3, so dbDelta runs for the 2-to-3 column addition' );
+ok( '4' === SN_MCP_TELEMETRY_DB_VERSION, 'schema: DB version is exactly 4, so dbDelta runs for the 3-to-4 column addition (dimensions)' );
+ok( false !== strpos( (string) $sn_tel_src, 'dimensions VARCHAR(512) NULL' ), 'schema: the dimensions column is in the CREATE TABLE' );
+// THE COLUMN MUST REACH THE INSERT, not merely the row array. insert_row
+// enumerates its columns explicitly, so a field present in build_row's return
+// and absent here is written nowhere and reads as a permanent null.
+ok( false !== strpos( $ins_body, 'dimensions' ), 'insert_row: dimensions is actually inserted' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * v11.9.0 — sn_mcp_telemetry_summary(), the read path for the table.
@@ -587,6 +592,7 @@ class SN_Test_Summary_Wpdb {
 	public $rows1      = array();
 	public $rows2      = array();
 	public $rows3      = array();
+	public $rows4      = array();
 	public $fail_on    = 0; // 1 = first select fails, 2 = second, 3 = third.
 	private $n         = 0;
 	public function prepare( $sql, ...$a ) {
@@ -604,7 +610,8 @@ class SN_Test_Summary_Wpdb {
 		if ( 1 === $this->n ) {
 			return $this->rows1;
 		}
-		return 2 === $this->n ? $this->rows2 : $this->rows3;
+		if ( 2 === $this->n ) { return $this->rows2; }
+		return 3 === $this->n ? $this->rows3 : $this->rows4;
 	}
 	public function reset() {
 		$this->n          = 0;
@@ -639,7 +646,7 @@ ok( 'snt_sn_apply_fingerprint_stale' === $sum['by_error_code'][0]['error_code'],
 ok( 'signal-noise__sn-apply' === $sum['by_error_code'][0]['tool_name'] && 'conflict' === $sum['by_error_code'][0]['outcome'], 'summary: error_code remains attributable per tool and outcome' );
 
 // Honest zero.
-$sw->reset(); $sw->rows1 = array(); $sw->rows2 = array(); $sw->rows3 = array();
+$sw->reset(); $sw->rows1 = array(); $sw->rows2 = array(); $sw->rows3 = array(); $sw->rows4 = array();
 $sum = sn_mcp_telemetry_summary();
 ok( true === $sum['table_present'] && 0 === $sum['total_calls'], 'summary: empty window with a clean query is table_present:true — a measurement, not an unknown' );
 
@@ -662,6 +669,91 @@ ok( null === $sum['by_tool'][0]['avg_latency_ms'], 'summary: a NULL avg stays nu
 $sw->reset(); $sw->fail_on = 0; $sw->rows1 = array(); $sw->rows2 = array(); $sw->rows3 = array();
 ok( 30 === sn_mcp_telemetry_summary()['window_days'], 'summary: default window is 30 days' );
 ok( 1 === sn_mcp_telemetry_summary( 0 )['window_days'], 'summary: a zero/negative window clamps to 1, never a division or an unbounded scan' );
+
+echo "\nGroup: dimensions — multi-entry calls stop being invisible (v13.46.0)\n";
+//
+// WHY. sn_mcp_telemetry_change_type() returns null unless EXACTLY ONE entry was
+// requested — deliberate and honest ("a fabricated first-of-three is not"), but
+// it means the more the consolidated tools are used AS DESIGNED (batched), the
+// blinder per-section telemetry gets. v13.44.0 then added six sections, so the
+// blindness scales with the feature. Two questions, two columns, neither
+// fabricated: change_type = "was the SOLE dimension of N calls", dimensions =
+// "APPEARED IN N calls".
+
+ok( 'rss_stats' === sn_mcp_telemetry_dimensions( array( 'sections' => array( 'rss_stats' ) ), 'signal-noise/sn-metrics' ),
+	'a single-entry call records that one entry' );
+ok( 'analytics_events,rss_stats' === sn_mcp_telemetry_dimensions( array( 'sections' => array( 'rss_stats', 'analytics_events' ) ), 'signal-noise/sn-metrics' ),
+	'a multi-entry call records EVERY entry, sorted' );
+
+// SORT STABILITY IS LOAD-BEARING. Unsorted, the same pair arrives under two
+// spellings and a by_dimension rollup silently disagrees with itself.
+ok( sn_mcp_telemetry_dimensions( array( 'sections' => array( 'rss_stats', 'analytics_events' ) ), 'signal-noise/sn-metrics' )
+	=== sn_mcp_telemetry_dimensions( array( 'sections' => array( 'analytics_events', 'rss_stats' ) ), 'signal-noise/sn-metrics' ),
+	'the same pair in either order produces ONE stable value' );
+
+// Same allowlist discipline as change_type: an invented name is never echoed.
+ok( 'rss_stats' === sn_mcp_telemetry_dimensions( array( 'sections' => array( 'rss_stats', 'not_a_section' ) ), 'signal-noise/sn-metrics' ),
+	'an unregistered entry is dropped, never echoed into the column' );
+ok( null === sn_mcp_telemetry_dimensions( array( 'sections' => array( 'not_a_section' ) ), 'signal-noise/sn-metrics' ),
+	'and a call with NO recognised entry records null, not an empty string' );
+ok( null === sn_mcp_telemetry_dimensions( array(), 'signal-noise/sn-apply' ),
+	'a tool with no dimension concept records null' );
+
+// OVERFLOW IS NULL, NEVER A TRUNCATED LIST — change_type already refuses a
+// value wider than its column rather than cutting it, and a half-list is a lie
+// about what was requested.
+//
+// THE FIRST VERSION OF THIS TEST WAS VACUOUS and the mutation caught it: it fed
+// 40 invented 40-char names, which the ALLOWLIST drops before the width guard
+// is ever consulted, so it returned null down the empty-set path and passed
+// while the guard was removed. An invented name can never reach the guard by
+// construction, so the guard cannot be exercised from outside.
+//
+// What IS worth pinning is the property that makes the guard dead code today:
+// the widest possible REAL request must fit, with room to grow. This fails the
+// day sections are added faster than the column allows — which is the only way
+// the guard could ever start firing.
+$sn_widest = 0;
+foreach ( array( 'snt_sn_status_map', 'snt_sn_metrics_map', 'snt_sn_site_facts_map' ) as $sn_m ) {
+	if ( function_exists( $sn_m ) ) {
+		$sn_widest = max( $sn_widest, strlen( implode( ',', array_keys( call_user_func( $sn_m ) ) ) ) );
+	}
+}
+ok( $sn_widest > 0, 'the widest-request measurement actually ran (guards the loop, not the bound)' );
+ok( $sn_widest < SN_MCP_TELEMETRY_DIMENSIONS_MAX,
+	"every section of the widest tool fits the column ($sn_widest < " . SN_MCP_TELEMETRY_DIMENSIONS_MAX . ')' );
+
+echo "\nGroup: dimensions rides the row\n";
+$sn_dim_row = sn_mcp_telemetry_build_row( '2026-08-30 12:00:00.000', 'read', 'human', 'signal-noise__sn-metrics', 'sections', 'abc', 'ok', null, 5, 1, null, null, 'analytics_events,rss_stats' );
+ok( 'analytics_events,rss_stats' === ( $sn_dim_row['dimensions'] ?? null ), 'build_row carries dimensions' );
+ok( array_key_exists( 'change_type', $sn_dim_row ) && null === $sn_dim_row['change_type'],
+	'and change_type is untouched by it — the two columns answer different questions' );
+
+echo "\nGroup: by_dimension — the column reaches a read path (v13.46.0)\n";
+// The by_change_type half exists because v11.8.0 shipped a dimension into a
+// table with NO read path: "collected and unreachable from the place the
+// decisions get made". Shipping `dimensions` without this rollup would repeat
+// that exactly.
+$sw->reset();
+$sw->rows1 = array(); $sw->rows2 = array(); $sw->rows3 = array();
+$sw->rows4 = array(
+	array( 'tool_name' => 'signal-noise__sn-metrics', 'dimensions' => 'analytics_events,rss_stats', 'calls' => 3 ),
+	array( 'tool_name' => 'signal-noise__sn-metrics', 'dimensions' => 'rss_stats',                  'calls' => 5 ),
+	array( 'tool_name' => 'signal-noise__sn-status',  'dimensions' => 'uptime',                     'calls' => 2 ),
+);
+$sn_bd = sn_mcp_telemetry_summary( 30 );
+$sn_by = array();
+foreach ( $sn_bd['by_dimension'] as $r ) { $sn_by[ $r['tool_name'] . '|' . $r['dimension'] ] = $r['calls']; }
+
+// THE WHOLE POINT: a section's count spans every combination it appeared in.
+// rss_stats was in a 3-call pair AND 5 solo calls, so it appeared in 8.
+ok( 8 === ( $sn_by['signal-noise__sn-metrics|rss_stats'] ?? null ),
+	'a section is counted across EVERY combination it appeared in (3 + 5 = 8)' );
+ok( 3 === ( $sn_by['signal-noise__sn-metrics|analytics_events'] ?? null ),
+	'and its batch partner is counted for the calls it was actually in' );
+ok( 2 === ( $sn_by['signal-noise__sn-status|uptime'] ?? null ),
+	'rows stay attributed per TOOL — two tools can share a section name' );
+ok( 3 === count( $sn_bd['by_dimension'] ), 'one row per (tool, dimension) pair, never per combination' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
