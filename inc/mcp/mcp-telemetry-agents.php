@@ -272,7 +272,10 @@ function sn_mcp_telemetry_agent_record( $output, $slug, $args, $agent_user_id ) 
 		function_exists( 'sn_mcp_telemetry_change_type' )
 			? sn_mcp_telemetry_change_type( $args_arr, (string) $slug )
 			: null,
-		$classified['error_code'] ?? null
+		$classified['error_code'] ?? null,
+		function_exists( 'sn_mcp_telemetry_dimensions' )
+			? sn_mcp_telemetry_dimensions( $args_arr, (string) $slug )
+			: null
 	);
 
 	sn_mcp_telemetry_insert_row( $row );
@@ -357,6 +360,10 @@ function sn_mcp_telemetry_agent_record_completed_failure( $agent_user_id, array 
 		// is exactly the question a retirement read asks when a number looks bad.
 		function_exists( 'sn_mcp_telemetry_change_type' )
 			? sn_mcp_telemetry_change_type( $args_arr, (string) $slug )
+			: null,
+		null, // error_code — coarse-by-design on this path, see above.
+		function_exists( 'sn_mcp_telemetry_dimensions' )
+			? sn_mcp_telemetry_dimensions( $args_arr, (string) $slug )
 			: null,
 	);
 

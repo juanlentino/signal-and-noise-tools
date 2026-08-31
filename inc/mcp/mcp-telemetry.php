@@ -54,7 +54,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_MCP_TELEMETRY_TABLE          = 'sn_tool_call';
 // Bump on every schema change so dbDelta runs for existing installs. Without
 // the delta, inserts silently drop columns that are present only in code.
-const SN_MCP_TELEMETRY_DB_VERSION     = '3';
+const SN_MCP_TELEMETRY_DB_VERSION     = '4';
 const SN_MCP_TELEMETRY_DB_VERSION_OPT = 'sn_mcp_telemetry_db_version';
 const SN_MCP_TELEMETRY_RETENTION_DAYS = 90;
 const SN_MCP_TELEMETRY_PRUNE_LIMIT    = 500;
@@ -106,6 +106,7 @@ function sn_mcp_telemetry_schema_sql() {
 		result_count INT NULL,
 		candidate_id VARCHAR(64) NULL,
 		change_type VARCHAR(32) NULL,
+		dimensions VARCHAR(512) NULL,
 		error_code VARCHAR(64) NULL,
 		PRIMARY KEY  (id),
 		KEY ts_idx (ts)
@@ -214,15 +215,7 @@ function sn_mcp_telemetry_change_type( $args, $tool_name = '' ) {
 	// NULL, indistinguishable from a multi-entry call. The agent door builds
 	// its rows without this extractor and stays dimension-less (pre-existing,
 	// sn-apply included).
-	$sources = array(
-		'signal-noise__sn-status'     => array( 'key' => 'sections', 'map' => 'snt_sn_status_map' ),
-		'signal-noise/sn-status'      => array( 'key' => 'sections', 'map' => 'snt_sn_status_map' ),
-		'signal-noise__sn-metrics'    => array( 'key' => 'sections', 'map' => 'snt_sn_metrics_map' ),
-		'signal-noise/sn-metrics'     => array( 'key' => 'sections', 'map' => 'snt_sn_metrics_map' ),
-		'signal-noise__sn-site-facts' => array( 'key' => 'facts', 'map' => 'snt_sn_site_facts_map' ),
-		'signal-noise/sn-site-facts'  => array( 'key' => 'facts', 'map' => 'snt_sn_site_facts_map' ),
-	);
-	$source = $sources[ (string) $tool_name ] ?? null;
+	$source = sn_mcp_telemetry_dimension_source( (string) $tool_name );
 	if ( null === $source || ! is_array( $args ) || ! function_exists( $source['map'] ) ) {
 		return null;
 	}
@@ -238,6 +231,78 @@ function sn_mcp_telemetry_change_type( $args, $tool_name = '' ) {
 	}
 	$allowed = array_keys( (array) call_user_func( $source['map'] ) );
 	return in_array( $requested[0], $allowed, true ) ? $requested[0] : null;
+}
+
+/**
+ * The batch-read tools' dimension source, keyed by BOTH name formats a recorder
+ * passes: the MCP door records the projected name (slug with '/'->'__'), the
+ * lifecycle guard's 'direct' door and the agent door record the raw slug.
+ *
+ * ONE map, shared by change_type and dimensions. A second copy is precisely the
+ * drift this file already warns about elsewhere — two extractors disagreeing
+ * about which sections exist would be invisible in the data.
+ *
+ * @since 13.46.0
+ * @param string $tool_name
+ * @return array{key:string,map:string}|null
+ */
+function sn_mcp_telemetry_dimension_source( $tool_name ) {
+	$sources = array(
+		'signal-noise__sn-status'     => array( 'key' => 'sections', 'map' => 'snt_sn_status_map' ),
+		'signal-noise/sn-status'      => array( 'key' => 'sections', 'map' => 'snt_sn_status_map' ),
+		'signal-noise__sn-metrics'    => array( 'key' => 'sections', 'map' => 'snt_sn_metrics_map' ),
+		'signal-noise/sn-metrics'     => array( 'key' => 'sections', 'map' => 'snt_sn_metrics_map' ),
+		'signal-noise__sn-site-facts' => array( 'key' => 'facts', 'map' => 'snt_sn_site_facts_map' ),
+		'signal-noise/sn-site-facts'  => array( 'key' => 'facts', 'map' => 'snt_sn_site_facts_map' ),
+	);
+	return $sources[ (string) $tool_name ] ?? null;
+}
+
+/** Column width for `dimensions`. Overflow records NULL, never a cut list. */
+const SN_MCP_TELEMETRY_DIMENSIONS_MAX = 512;
+
+/**
+ * EVERY requested section/fact, sorted, comma-joined — the companion to
+ * sn_mcp_telemetry_change_type()'s single-entry answer.
+ *
+ * WHY BOTH EXIST. change_type deliberately returns null for a multi-entry call:
+ * a fabricated "first of three" dimension is not honest. That is right, and it
+ * means the more the consolidated tools are used AS DESIGNED — batched — the
+ * blinder the per-section record gets. v13.44.0 added six sections, so the
+ * blindness scales with the feature. Rather than weaken an honest rule, this
+ * answers the OTHER question. change_type: "was the SOLE dimension of N calls".
+ * dimensions: "APPEARED IN N calls". Neither fabricates; neither replaces.
+ *
+ * SORTED, always — unsorted, one pair arrives under two spellings and a
+ * by_dimension rollup silently disagrees with itself.
+ *
+ * OVERFLOW IS NULL. change_type already refuses a value wider than its column
+ * rather than cutting it; a half-list misrepresents what was requested, which is
+ * worse than recording nothing.
+ *
+ * @since 13.46.0
+ * @param array  $args
+ * @param string $tool_name
+ * @return string|null
+ */
+function sn_mcp_telemetry_dimensions( $args, $tool_name = '' ) {
+	$source = sn_mcp_telemetry_dimension_source( (string) $tool_name );
+	if ( null === $source || ! is_array( $args ) || ! function_exists( $source['map'] ) ) {
+		return null;
+	}
+	$requested = $args[ $source['key'] ] ?? null;
+	if ( ! is_array( $requested ) ) {
+		return null;
+	}
+	$allowed   = array_keys( (array) call_user_func( $source['map'] ) );
+	$requested = array_values( array_unique( array_filter( $requested, 'is_string' ) ) );
+	$kept      = array_values( array_intersect( $requested, $allowed ) );
+	if ( empty( $kept ) ) {
+		return null;
+	}
+	sort( $kept );
+	$joined = implode( ',', $kept );
+	return strlen( $joined ) > SN_MCP_TELEMETRY_DIMENSIONS_MAX ? null : $joined;
 }
 
 /**
@@ -466,7 +531,7 @@ function sn_mcp_telemetry_classify_wp_error( $error ) {
  *                                  classifier, or null.
  * @return array<string,mixed>
  */
-function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape, $args_hash, $outcome, $refusal_gate, $latency_ms, $result_count, $change_type = null, $error_code = null ) {
+function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape, $args_hash, $outcome, $refusal_gate, $latency_ms, $result_count, $change_type = null, $error_code = null, $dimensions = null ) {
 	return array(
 		'ts'           => (string) $ts,
 		'layer'        => 'server',
@@ -484,6 +549,8 @@ function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape
 		// longer identifier must resolve to NULL here, never silent SQL
 		// truncation — the same belt the error_code grammar re-applies.
 		'change_type'  => ( null === $change_type || strlen( (string) $change_type ) > 32 ) ? null : (string) $change_type,
+		// v13.46.0. Same refuse-rather-than-cut rule as change_type above.
+		'dimensions'   => ( null === $dimensions || strlen( (string) $dimensions ) > SN_MCP_TELEMETRY_DIMENSIONS_MAX ) ? null : (string) $dimensions,
 		'error_code'   => 'ok' === $outcome ? null : sn_mcp_telemetry_error_code_allowed( $error_code ),
 	);
 }
@@ -564,9 +631,12 @@ function sn_mcp_telemetry_insert_row( $row ) {
 			'result_count' => $row['result_count'],
 			'candidate_id' => $row['candidate_id'],
 			'change_type'  => $row['change_type'] ?? null,
+			'dimensions'   => $row['dimensions'] ?? null,
 			'error_code'   => $row['error_code'] ?? null,
 		),
-		array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s' )
+		// v13.46.0: 15 columns, 15 formats. The count pin exists because a new
+		// column without its %s misbinds every column after it.
+		array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s' )
 	);
 }
 
@@ -593,7 +663,7 @@ function sn_mcp_telemetry_insert_row( $row ) {
  * to its tool and outcome instead of collapsing distinct causes into a bucket.
  *
  * @param int $days Window, in days.
- * @return array{window_days:int,generated_at:string,table_present:bool,total_calls:int,by_tool:array,by_change_type:array,by_error_code:array}
+ * @return array{window_days:int,generated_at:string,table_present:bool,total_calls:int,by_tool:array,by_change_type:array,by_dimension:array,by_error_code:array}
  */
 function sn_mcp_telemetry_summary( $days = 30 ) {
 	global $wpdb;
@@ -606,6 +676,7 @@ function sn_mcp_telemetry_summary( $days = 30 ) {
 		'total_calls'    => 0,
 		'by_tool'        => array(),
 		'by_change_type' => array(),
+		'by_dimension'   => array(),
 		'by_error_code'  => array(),
 	);
 
@@ -697,6 +768,47 @@ function sn_mcp_telemetry_summary( $days = 30 ) {
 	}
 
 	$out['table_present'] = true;
+	$wpdb->last_error = '';
+	// v13.46.0. by_dimension answers the question by_change_type CANNOT: not
+	// "was the sole dimension of N calls" but "APPEARED IN N calls". The column
+	// stores a sorted comma-joined list, so SQL can only group by the exact
+	// COMBINATION — the per-section split has to happen here, in PHP, over a
+	// bounded set of distinct combinations. Without this the column would be
+	// collected and unreachable from the place the decisions get made, which is
+	// the precise defect the by_change_type half exists to have fixed.
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- $table is $wpdb->prefix + a plugin constant, never user input; $cutoff is bound via prepare() below.
+	$sql4  = $wpdb->prepare( "SELECT tool_name, dimensions, COUNT(*) AS calls FROM {$table} WHERE ts >= %s AND dimensions IS NOT NULL GROUP BY tool_name, dimensions", $cutoff );
+	// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared -- $sql4 is the STRING RETURNED BY $wpdb->prepare() one line above, already safely bound.
+	$rows4 = $wpdb->get_results( $sql4, ARRAY_A );
+
+	if ( '' === (string) $wpdb->last_error && null !== $rows4 ) {
+		$tally = array();
+		foreach ( (array) $rows4 as $r ) {
+			$tool  = (string) ( $r['tool_name'] ?? '' );
+			$calls = (int) ( $r['calls'] ?? 0 );
+			foreach ( explode( ',', (string) ( $r['dimensions'] ?? '' ) ) as $dim ) {
+				$dim = trim( $dim );
+				if ( '' === $dim ) {
+					continue;
+				}
+				$key = $tool . '|' . $dim;
+				$tally[ $key ] = ( $tally[ $key ] ?? 0 ) + $calls;
+			}
+		}
+		// Deterministic order: calls DESC, then tool|dimension ASC — the same
+		// shape the sibling rollups use, so two runs never disagree.
+		ksort( $tally );
+		arsort( $tally );
+		foreach ( $tally as $key => $calls ) {
+			$parts = explode( '|', $key, 2 );
+			$out['by_dimension'][] = array(
+				'tool_name' => $parts[0],
+				'dimension' => $parts[1] ?? '',
+				'calls'     => (int) $calls,
+			);
+		}
+	}
+
 	return $out;
 }
 
@@ -764,7 +876,8 @@ function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refu
 			(int) $latency_ms,
 			$result_count,
 			sn_mcp_telemetry_change_type( $args, (string) $tool_name ),
-			$error_code
+			$error_code,
+			sn_mcp_telemetry_dimensions( $args, (string) $tool_name )
 		);
 		sn_mcp_telemetry_insert_row( $row );
 		sn_mcp_telemetry_maybe_prune();

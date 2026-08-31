@@ -624,5 +624,26 @@ ok( array_key_exists( 'result_count', $wpdb->insert_calls[0]['data'] )
 	&& null === $wpdb->insert_calls[0]['data']['result_count'],
 	'and result_count stays null — the dimension never lands in the count slot' );
 
+echo "\nGroup: the agent door records EVERY dimension too (v13.46.0)\n";
+// change_type answers "was the sole dimension"; dimensions answers "appeared
+// in". A batched agent-door call now contributes to the second even though it
+// honestly contributes nothing to the first.
+sn_test_agents_reset();
+sn_mcp_telemetry_agent_tool_result( array( 'sections' => array() ), 'signal-noise/sn-metrics', array( 'sections' => array( 'rss_stats', 'analytics_events' ) ), 1 );
+$sn_d = $wpdb->insert_calls[0]['data'];
+ok( 'analytics_events,rss_stats' === ( $sn_d['dimensions'] ?? null ),
+	'a batched agent-door call records both sections, sorted' );
+ok( array_key_exists( 'change_type', $sn_d ) && null === $sn_d['change_type'],
+	'while change_type stays null for the same call — the two answer different questions' );
+
+// The FAILURE path carries it as well, and its error_code slot must not be
+// displaced: this file already shipped one positional misbinding today.
+sn_test_agents_reset();
+sn_mcp_telemetry_agent_record_completed_failure( 1, array( 'name' => 'signal-noise/sn-status', 'args' => array( 'sections' => array( 'uptime', 'deploy' ) ) ) );
+$sn_f = $wpdb->insert_calls[0]['data'];
+ok( 'deploy,uptime' === ( $sn_f['dimensions'] ?? null ), 'a failed agent-door call records its dimensions, sorted' );
+ok( array_key_exists( 'result_count', $sn_f ) && null === $sn_f['result_count'],
+	'and result_count is still null — nothing shifted into the count slot' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
