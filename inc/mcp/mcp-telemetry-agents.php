@@ -263,7 +263,15 @@ function sn_mcp_telemetry_agent_record( $output, $slug, $args, $agent_user_id ) 
 		$classified['refusal_gate'],
 		0, // No timing seam at this call site — see file docblock.
 		$result_count,
-		null,
+		// v13.44.0. Was a literal null since this door shipped. The agent door
+		// is the DOMINANT caller of the consolidated tools, so a dimension-less
+		// row here withheld most of the evidence the wave-4 retirement read
+		// needs — a per-section zero meant "we never looked", not "nobody
+		// called". The extractor keys BOTH name formats, and this door passes
+		// the RAW slug, so no projection is needed here.
+		function_exists( 'sn_mcp_telemetry_change_type' )
+			? sn_mcp_telemetry_change_type( $args_arr, (string) $slug )
+			: null,
 		$classified['error_code'] ?? null
 	);
 
@@ -343,7 +351,13 @@ function sn_mcp_telemetry_agent_record_completed_failure( $agent_user_id, array 
 		'server_error', // Coarse-by-design — the WP_Error status/code doesn't survive into toolCalls. See file docblock.
 		null,
 		0, // No timing seam here either — see file docblock.
-		null
+		null, // result_count — unknowable on this path; NOT the dimension slot.
+		// v13.44.0. The FAILURE path labels its dimension too: a door that only
+		// labels its successes cannot answer "which section is failing?", which
+		// is exactly the question a retirement read asks when a number looks bad.
+		function_exists( 'sn_mcp_telemetry_change_type' )
+			? sn_mcp_telemetry_change_type( $args_arr, (string) $slug )
+			: null,
 	);
 
 	sn_mcp_telemetry_insert_row( $row );

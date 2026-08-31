@@ -61,7 +61,7 @@ echo "sn_status (consolidated) — plugin v13.1.0\n\n";
 
 // ─── Section map: ten sections, all plugin-namespace sources ───
 $map = snt_sn_status_map();
-ok( 10 === count( $map ), 'the section map has exactly 10 entries' );
+ok( 12 === count( $map ), 'the section map has exactly 12 entries' );
 $expected_map = array(
 	'uptime'               => 'signal-noise/uptime-status',
 	'deploy'               => 'signal-noise/get-deploy-status',
@@ -73,8 +73,13 @@ $expected_map = array(
 	'cadence'              => 'signal-noise/cadence-flags',
 	'cron_scheduled'       => 'signal-noise/list-cron-events',
 	'cron_history'         => 'signal-noise/get-cron-history',
+	// v13.44.0 — ADDITIVE. corpus_integrity sits here and NOT on sn-validate:
+	// it is manage_options, sn-validate is read_corpus, and that placement
+	// would cross permission tiers.
+	'collector'            => 'signal-noise/get-collector-status',
+	'corpus_integrity'     => 'signal-noise/corpus-integrity-scan',
 );
-ok( $expected_map === $map, 'the map matches the ten sources exactly, in a pinned order' );
+ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 ok( array() === array_filter( $map, static fn( $s ) => strpos( $s, 'signal-noise/' ) !== 0 ), 'every source is a PLUGIN slug — no section crosses into the theme' );
 
 // ─── Registration: schema enum derives from the map; readonly annotations ───
@@ -139,6 +144,16 @@ ok( array( 'up' => true, 'monitors' => array( array( 'id' => 1 ) ) ) === $r['sec
 // ─── Dedup: repeated section names collapse to one entry ───
 $r = snt_ability_sn_status( array( 'sections' => array( 'uptime', 'uptime', 'uptime' ) ) );
 ok( ! is_wp_error( $r ) && 1 === count( $r['sections'] ), 'duplicate section names dedupe to one entry' );
+
+echo "\nGroup: v13.44.0 sections\n";
+$smap = snt_sn_status_map();
+ok( 'signal-noise/get-collector-status' === ( $smap['collector'] ?? null ),
+	'collector routes to the collector-status ability' );
+// corpus-integrity-scan is manage_options, so it belongs HERE and not on
+// sn-validate, which is read_corpus — that placement would cross permission
+// tiers, which is a scope change wearing a refactor's clothes.
+ok( 'signal-noise/corpus-integrity-scan' === ( $smap['corpus_integrity'] ?? null ),
+	'corpus_integrity routes to the corpus-integrity scan' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

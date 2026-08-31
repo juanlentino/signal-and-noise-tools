@@ -130,6 +130,14 @@ require __DIR__ . '/../inc/mcp/mcp-tools.php';
 // seams' side effects via snt_os_compat_seen_once() (inc/openstation-compat.php).
 require __DIR__ . '/../inc/openstation-compat.php';
 require __DIR__ . '/../inc/mcp/mcp-telemetry-agents.php';
+// v13.44.0. The dimension extractor resolves section names against the REAL
+// registration maps (function_exists guarded, sourced live). Requiring the
+// actual ability files rather than stubbing the maps is deliberate: a stubbed
+// map would confirm whatever section name this test invented, and the whole
+// point of the extractor's live sourcing is that the two cannot drift.
+require __DIR__ . '/../inc/abilities-sn-metrics.php';
+require __DIR__ . '/../inc/abilities-sn-status.php';
+require __DIR__ . '/../inc/abilities-sn-site-facts.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -558,6 +566,63 @@ $wpdb->fail_insert = false;
 sn_test_agents_reset();
 do_action( 'desktop_mode_agent_completed', 5, 'msg', $result_one_failure, array() );
 ok( 1 === count( $wpdb->insert_calls ), 'wiring: do_action( desktop_mode_agent_completed, ... ) reaches our callback end-to-end' );
+
+echo "\nGroup: the agent door records its telemetry dimension (v13.44.0)\n";
+//
+// WHY THIS MATTERS MORE THAN IT LOOKS. This door passed a LITERAL null where
+// build_row takes change_type, since it shipped — its own docblock called that
+// pre-existing. But the standing habit note records that the DOMINANT CALLER of
+// the consolidated tools is agent sessions, so the door whose traffic decides
+// the wave-4 retirement read was contributing none of the evidence that read
+// needs. A per-section zero there meant "we never looked", not "nobody called".
+
+sn_test_agents_reset();
+sn_mcp_telemetry_agent_tool_result( array( 'sections' => array() ), 'signal-noise/sn-metrics', array( 'sections' => array( 'rss_stats' ) ), 1 );
+ok( 'rss_stats' === ( $wpdb->insert_calls[0]['data']['change_type'] ?? null ),
+	'a single-section agent-door call records the section, not null' );
+
+// The extractor keys BOTH name formats — the MCP door records the projected
+// name (slug with '/'->'__'), this door records the RAW slug. Missing the
+// second format would silently drop every agent-door read into NULL, which is
+// indistinguishable from a legitimate multi-entry call.
+sn_test_agents_reset();
+sn_mcp_telemetry_agent_tool_result( array( 'facts' => array() ), 'signal-noise/sn-site-facts', array( 'facts' => array( 'theme_version' ) ), 1 );
+ok( 'theme_version' === ( $wpdb->insert_calls[0]['data']['change_type'] ?? null ),
+	'and the raw slug resolves against the extractor, not just the projected form' );
+
+// THE HONEST-NULL RULE IS UNCHANGED. This fixes WHO extracts, not WHAT counts:
+// a multi-entry call still records null rather than a fabricated first-of-N.
+sn_test_agents_reset();
+sn_mcp_telemetry_agent_tool_result( array( 'sections' => array() ), 'signal-noise/sn-metrics', array( 'sections' => array( 'rss_stats', 'analytics_events' ) ), 1 );
+// array_key_exists, NOT ?? — `null ?? 'x'` yields 'x', so the coalescing form
+// cannot express "present and null". This file's siblings say so twice; I wrote
+// the bug a third time and this assertion is what caught it.
+ok( array_key_exists( 'change_type', $wpdb->insert_calls[0]['data'] )
+	&& null === $wpdb->insert_calls[0]['data']['change_type'],
+	'a multi-section call still records null, never a fabricated first-of-N' );
+
+// A tool with no dimension concept must not acquire one by accident.
+sn_test_agents_reset();
+sn_mcp_telemetry_agent_tool_result( array( 'candidates' => array() ), 'signal-noise/sn-scan', array( 'scan_type' => 'emdash' ), 1 );
+ok( array_key_exists( 'change_type', $wpdb->insert_calls[0]['data'] )
+	&& null === $wpdb->insert_calls[0]['data']['change_type'],
+	'sn-scan records null here — its per-type telemetry is the sn_scan_run table, not this column' );
+
+// The FAILURE path records the dimension too. A door that only labels its
+// successes cannot answer "which section is failing?", which is the question a
+// retirement read most needs when a number looks bad.
+sn_test_agents_reset();
+sn_mcp_telemetry_agent_record_completed_failure( 1, array( 'name' => 'signal-noise/sn-status', 'args' => array( 'sections' => array( 'uptime' ) ) ) );
+ok( 'uptime' === ( $wpdb->insert_calls[0]['data']['change_type'] ?? null ),
+	'a failed agent-door call records its section as well' );
+// POSITIONAL PIN. build_row takes result_count at 10 and change_type at 11, and
+// the first attempt at this change put the extractor in slot 10 — so the section
+// STRING was cast into an int field, silently writing result_count 0 on every
+// failed agent call while change_type stayed null. The dimension assertion above
+// caught the symptom; nothing caught the collateral. This does.
+ok( array_key_exists( 'result_count', $wpdb->insert_calls[0]['data'] )
+	&& null === $wpdb->insert_calls[0]['data']['result_count'],
+	'and result_count stays null — the dimension never lands in the count slot' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

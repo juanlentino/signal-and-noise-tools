@@ -54,7 +54,7 @@ add_action( 'wp_abilities_api_init', function() {
 				'range'    => array(
 					'type'        => array( 'string', 'integer' ),
 					'default'     => 30,
-					'description' => 'Window for analytics_summary and analytics_events (source-validated: 7|14|30|90|365|all). Ignored by rss_stats.',
+					'description' => 'Window for analytics_summary and analytics_events (source-validated: 7|14|30|90|365|all). Ignored by rss_stats. For machine_readers the sensor clamps to 1-90, so 365 and all are refused there, and the payload\'s own days_covered reports how many days it actually holds — asking for 90 and being handed 32 is not an error, it is when the sensor started.',
 				),
 				'class'    => array(
 					'type'        => 'string',
@@ -93,6 +93,16 @@ function snt_sn_metrics_map() {
 		'analytics_summary' => 'signal-noise/get-analytics-summary',
 		'analytics_events'  => 'signal-noise/get-analytics-events',
 		'rss_stats'         => 'signal-noise/get-rss-stats',
+		// v13.44.0. "How the site is read" is exactly what the machine-readers
+		// sensor measures, and until now NO MCP tool exposed it — the identity
+		// fold (v13.43.0) included, which is why answering "one agent or
+		// fifteen?" required shell access to the origin.
+		'machine_readers'   => 'signal-noise/get-machine-readers-summary',
+		// The third analytics sibling. summary and events were already
+		// sections; this one was simply omitted from the family.
+		'analytics_top_content' => 'signal-noise/get-analytics-top-content',
+		// How the site is read, and fails to be read.
+		'404_log'           => 'signal-noise/get-404-log',
 	);
 }
 
