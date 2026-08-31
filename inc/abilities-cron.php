@@ -177,6 +177,60 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
+	wp_register_ability( 'signal-noise/schedule-cron-event', array(
+		'label'               => 'Schedule a cron event to run soon',
+		'description'         => "Books ONE future run of a Signal & Noise cron hook and returns immediately, without running it. The inverse of unschedule-cron-event, and bounded by the same allow-list with the polarity flipped: unscheduling REFUSES SN-owned hooks, scheduling accepts ONLY them, because booking a third-party hook is deferred dispatch of code this plugin does not own. Exists for work too slow to survive an HTTP request — the health scan runs roughly 35s, up to ~105s when something is down, against a ~100s edge cap — so this books it and lets WP-Cron run it out of band; read the result later through get-health-scan. A hook with no registered handler is refused rather than booked, and an identical pending event is reported rather than duplicated. NOT a dispatcher: it never reports what the hook did, only that a run was booked.",
+		'category'            => 'maintenance',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_schedule_cron_event',
+		'input_schema'        => array(
+			'type'                 => 'object',
+			'required'             => array( 'hook' ),
+			'properties'           => array(
+				'hook'  => array(
+					'type'        => 'string',
+					'description' => "Signal & Noise cron hook to book. Only this plugin's own hooks are schedulable; anything else refuses by name and lists what is.",
+					'minLength'   => 1,
+					'examples'    => array( 'sn_health_scan_daily', 'sn_analytics_rollup' ),
+				),
+				'args'  => array(
+					'type'        => 'array',
+					'description' => 'Optional args array — must match the hook signature. Pass [] for hooks scheduled without args.',
+					'default'     => array(),
+				),
+				'delay' => array(
+					'type'        => 'integer',
+					'description' => 'Seconds from now. 0 means as soon as WP-Cron next runs. Clamped to one hour.',
+					'default'     => 0,
+					'minimum'     => 0,
+					'maximum'     => 3600,
+				),
+			),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'success'           => array( 'type' => 'boolean' ),
+				'hook'              => array( 'type' => 'string' ),
+				'args'              => array( 'type' => 'array' ),
+				'scheduled_for'     => array( 'type' => 'integer', 'description' => 'Unix timestamp the run is booked for.' ),
+				'already_scheduled' => array( 'type' => 'boolean', 'description' => 'True when an identical event was already pending; nothing was duplicated.' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				// Not readonly: it writes a cron row. Not destructive: it removes
+				// nothing and dispatches nothing. Idempotent because an identical
+				// pending event is reported, never duplicated.
+				'destructive'     => false,
+				'idempotent'      => true,
+				'open_world_hint' => false,
+			),
+		),
+	) );
+
 	wp_register_ability( 'signal-noise/run-cron-event', array(
 		'label'               => 'Run a scheduled cron event now',
 		'description'         => 'Synchronously dispatches the named cron event by calling do_action() on its hook. DESTRUCTIVE — runs the hook callbacks immediately. Refuses SN-internal hooks (sn_*) for safety; use the dedicated abilities for those.',
@@ -291,6 +345,27 @@ function snt_ability_unschedule_cron_event( $input ) {
 	$hook = isset( $input['hook'] ) ? (string) $input['hook'] : '';
 	$args = isset( $input['args'] ) && is_array( $input['args'] ) ? $input['args'] : array();
 	return snt_cron_unschedule_event_impl( $hook, $args );
+}
+
+/**
+ * Ability execute_callback for signal-noise/schedule-cron-event.
+ *
+ * Delegates to snt_cron_schedule_event_impl() (inc/cron-dashboard.php), which
+ * carries the bound and every refusal. Same thin shape as its unschedule
+ * sibling above: this function resolves input and routes, never re-implements.
+ *
+ * @since 13.49.0
+ * @param array $input
+ * @return array|WP_Error
+ */
+function snt_ability_schedule_cron_event( $input ) {
+	if ( ! function_exists( 'snt_cron_schedule_event_impl' ) ) {
+		return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
+	}
+	$hook  = isset( $input['hook'] ) ? (string) $input['hook'] : '';
+	$args  = isset( $input['args'] ) && is_array( $input['args'] ) ? $input['args'] : array();
+	$delay = isset( $input['delay'] ) ? (int) $input['delay'] : 0;
+	return snt_cron_schedule_event_impl( $hook, $args, $delay );
 }
 
 /**

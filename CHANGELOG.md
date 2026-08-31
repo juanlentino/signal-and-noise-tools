@@ -2,6 +2,210 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.49.0] - 2026-08-31 — three write-door exclusions come back as options, and ten silent unschedules get closed
+
+Phase 3 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md).
+
+### Added — `sn-apply` change types `merge_tags` and `clear_template_overrides`
+
+Both abilities sit on **neither door**, and both should stay that way. Their
+exclusion reasons were written against a **doored tool**: a bare slug with no
+dry run, no gates, no audit row. As an `sn-apply` change type each one inherits
+`dry_run:true`, the four gates, idempotency and the rw audit trail. Same
+capability, different risk object. Both are `manage_options`, the tier
+`sn-apply` already carries, so no permission boundary moved.
+
+- **Publish-only**, the `og_card` / `anchor_sweep` / `roadmap_board` posture. A
+  taxonomy write and an override wipe have no post field to stage, and there is
+  no WordPress revision of a deleted override. `mode:"revision"` refuses **by
+  name** rather than fabricating a staged side effect.
+- **Scope targets, named exactly**: `target.scope` must be `"tags"` or
+  `"template_overrides"`. Any other object refuses.
+- `clear_template_overrides` takes **no payload**, because its ability's
+  `input_schema` properties map is genuinely empty. Requiring one would invent a
+  contract.
+- `merge_tags` mirrors its ability's own required input (`from_slugs`,
+  `into_slug`), **read from the ability** rather than inferred from the change
+  type's name. That inference produced two wrong `dismiss` designs before
+  v13.47.0 shipped.
+- A **self-merge refusal** that the underlying ability does not have:
+  `into_slug` appearing inside `from_slugs` would reassign a term's posts to
+  itself and then delete it. Silent vocabulary loss, which is precisely the risk
+  the original exclusion named.
+
+### Added — `sn-apply` change type `schedule_cron_event`, which the plan got wrong
+
+The plan named two cron types: `run_cron_event` allowlisted to scheduled hooks,
+plus a fire-and-forget `schedule_health_scan`. **They cancel each other out.**
+`SN_HEALTH_CRON_HOOK` (`sn_health_scan_daily`) *is* a daily scheduled hook
+(`inc/health-scan-cron.php:86`), so an allowlisted `run_cron_event` would admit
+the health scan and dispatch it **synchronously** — reintroducing the
+35–105s-against-a-~100s-edge-cap problem the fire-and-forget half exists to
+avoid.
+
+One type ships instead. `schedule_cron_event` books a single future run and
+returns; it never dispatches. `run-cron-event` stays off every door, because
+**dispatch is the hazard and booking is not**.
+
+- New ability `signal-noise/schedule-cron-event`, routed to like every other
+  change type — the executor never calls `wp_schedule_single_event()` itself.
+  It is on **neither MCP door**, exactly like its Phase 3 siblings.
+- **The bound is derived, not invented.** `snt_cron_sn_owned_hooks()` already
+  exists, and the new impl reads it with the polarity **inverted**:
+  unscheduling *refuses* an SN-owned hook, because stopping our own maintenance
+  is the harm there; scheduling accepts **only** SN-owned hooks, because
+  deferred dispatch of third-party code is the harm here. One predicate, two
+  directions.
+- A hook with **no registered handler refuses** rather than booking a run that
+  fires into nothing — the honest-null rule applied to cron.
+- An identical pending event is **reported, never duplicated**, so the same
+  maintenance cannot be booked twice.
+- Publish-only, `target.scope === "cron"`, delay clamped to one hour. Gate 2
+  **refuses** an out-of-range delay rather than silently clamping it, so the
+  dry run shows the caller what it asked for.
+
+### Fixed — TEN recurring jobs could be silently unscheduled, not one
+
+Found while building the above, and much older than it.
+`snt_cron_sn_owned_hooks()` is the allow-list that stops Signal & Noise's own
+recurring hooks from being unscheduled, and `unschedule-cron-event` **is on the
+rw door** — so any hook missing from the list could be stopped by a single
+doored call, with no error and no visible cause. The output simply stops
+arriving.
+
+`sn_health_scan_daily` was the first one found. Deriving the list from source
+rather than reading it turned up **nine more**:
+
+| hook | cadence |
+|---|---|
+| `sn_prov_reconcile` | hourly |
+| `sn_schedule_reconcile` | every 5 minutes |
+| `sn_citations_verify_batch` | hourly |
+| `sn_security_digest_weekly` | weekly |
+| `sn_session_rollup_daily` | daily |
+| `snt_ml_rebuild` | daily |
+| `snt_morning_brief_daily` | daily |
+| `snt_scheduled_reads_daily` | daily |
+| `sn_gsc_sync_daily` | daily |
+
+Two outrank the health scan by harm. **`sn_prov_reconcile`** halts pending
+OpenTimestamps upgrades, and a live watch has *"an observed window where pending
+OTS proofs cannot upgrade"* as its trigger — so a silent unschedule would
+**manufacture** that trigger, and the watch would read our own outage as
+evidence about Bitcoin anchoring. **`sn_schedule_reconcile`** is what post
+scheduling depends on, and overdue `future` posts are already a sharp edge that
+`sn-apply` refuses on; stopping the reconciler makes that state common instead
+of rare.
+
+### Fixed — and the list no longer depends on remembering
+
+The drift was ten deep against a docblock that says "ADD any new recurring SN
+hook here", which is an argument against hand-maintaining a fact that is fully
+derivable. `tests/cron-dashboard.php` now walks every `wp_schedule_event()` call
+site under `inc/`, resolves the hook constant, and asserts the name appears in
+the list. It would have caught all ten on the commit that introduced each.
+
+Its **vacuity guards come first and are the point**: a scanner that silently
+stops matching reports a clean sweep. The call-site count, the order of
+magnitude, the resolver's own output, and the resolved-site count are all
+asserted before any coverage claim, and an unresolvable token fails rather than
+being skipped. Mutating the regex to match nothing reds three assertions;
+removing one hook reds the parity check.
+
+
+### Fixed — two comments that Phase 3 made inaccurate
+
+`sn_mcp_rw_allowlist()`'s held-out list is load-bearing documentation, and it
+now says two things it did not.
+
+- `merge-tags` and `clear-template-overrides` remain undoored, and the list
+  still reads correctly as "never a doored tool" — but both are now **reachable
+  as change types**, so the entry says so explicitly. "Held out" describes the
+  tool, never the reach.
+- `run-cron-event`'s "unbounded `do_action()` dispatch" is narrower than it
+  reads: the impl already refuses a hook with no `has_action()` registration
+  (`inc/cron-dashboard.php:265`) and the ability already refuses every `sn_*`
+  internal. What stays genuinely unbounded is that `has_action()` admits any
+  registered action, not only a scheduled cron event. The exclusion stands with
+  the accurate reason.
+
+### Testing
+
+53 new assertions. Two guards were found protecting nothing and are now pinned:
+a scope guard whose only test exercised the *other* change type, and the
+self-merge guard, which shipped with no test at all. Both mutated clean before
+the fix and now red their own mutation.
+
+## [13.48.0] - 2026-08-31 — a failed tool call stops being just an identifier
+
+### Added — `error_detail` and `error_status` on `sn_tool_call`
+
+Telemetry recorded that a call failed and which code it failed under, then threw
+away the sentence explaining why. WordPress 7.1 core's
+`WP_AI_Client_Prompt_Builder::exception_to_wp_error()` returns a fully populated
+`WP_Error` — the provider's own message, and the HTTP status, alongside the code
+— and this layer read `get_error_code()` and discarded the rest. A
+`prompt_client_error` row therefore said "a 4xx happened" and nothing about
+which parameter the provider rejected. That is the difference between a
+countable event and a debuggable one.
+
+- `error_detail VARCHAR(255) NULL` — the `WP_Error` message, bounded to the
+  column in **bytes**. Truncation cuts on a character boundary first, so a
+  multibyte message never lands as a broken UTF-8 tail.
+- `error_status SMALLINT UNSIGNED NULL` — the precise status. The outcome
+  grammar is lossy on purpose (400 and 422 both read as `schema_error`), so the
+  number keeps what the classification spends.
+- Both are captured in `sn_mcp_telemetry_classify_wp_error()`, the one place
+  still holding the real `WP_Error` before the result is flattened to
+  message-only — the same reason `error_code` is captured there.
+- All three doors carry them: the MCP tools path, the `direct` door used by the
+  wp-admin buttons, and the agent door.
+- DB version 4 → 5, so dbDelta adds the columns on existing installs. Existing
+  rows stay null; there is no backfill.
+
+### Unchanged, deliberately — the aggregation grammar
+
+`error_code` keeps its allowlist and its bounded identifier grammar. The new
+columns are **diagnostic only**: never grouped, never filtered on, and absent
+from the `tool_telemetry` rollup. Two assertions pin that separation by reading
+`sn_mcp_telemetry_summary()`'s own body, because a test that merely proved the
+values are stored would pass just as happily on an implementation that also
+aggregated them. A success outcome forces both to null, matching `error_code`.
+
+### Known blind spot — a null `error_detail` is not "no detail available"
+
+`-32602` proxy refusals never reach this layer at all: the client rejects
+against a cached schema before the request arrives at WordPress, so
+`sn_mcp_telemetry_record()` never runs and no row exists to carry a detail.
+`inc/mcp/mcp-telemetry-read.php` states the same limit for refusals that never
+reach the recorder. For a change whose whole point is that a failed call stops
+being just an identifier, the most common failed call in practice never arrives
+to be described. Not fixable at this layer; recorded so a null is read as
+"never reached us", not as "the failure had nothing to say".
+
+### Adapted for the consolidation programme — the envelope, not its scaffolding
+
+`sn-apply` does not return prose. On a single target it returns
+`wp_json_encode( $response )` **as** the `WP_Error` message, and the
+human-readable reason sits at `error.message` — last in the shape, after four
+nested `gates` sub-arrays. A realistic `dismiss` refusal measures 486 bytes with
+the reason starting at byte 348, so a flat 255-byte cut kept
+`{"target":{…},"change_type":"dismiss",…` and discarded the sentence naming what
+was refused. That lands on the exact surface the consolidation programme uses to
+decide which change types to retire.
+
+`sn_mcp_telemetry_error_detail()` now prefers a recognised envelope's inner
+message. Bounded deliberately: the message must start with `{`, decode within a
+shallow depth, and expose a non-empty string at `error.message`. Provider prose
+and every ordinary `WP_Error` pass through untouched, an empty inner message
+falls back rather than nulling the row, and malformed JSON never throws.
+
+Seven mutations were run against the new guards — dropping the column from the
+`INSERT`, omitting a format specifier, leaking `error_detail` into the rollup
+SQL, replacing the multibyte-safe cut with a naive one, skipping the DB version
+bump, removing the envelope unwrap, and letting an empty inner message null the
+row. Each goes red, and the tree restores to green.
+
 ## [13.47.0] - 2026-08-31 — a scan's candidates can finally be dismissed, not only applied
 
 Phase 2 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md).

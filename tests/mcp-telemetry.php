@@ -571,12 +571,119 @@ ok( false !== strpos( $ins_body, 'change_type' ), 'insert_row: change_type is ac
 ok( false !== strpos( $ins_body, 'error_code' ), 'insert_row: error_code is actually inserted' );
 ok( false !== strpos( (string) $sn_tel_src, 'change_type VARCHAR' ), 'schema: change_type column is in the CREATE TABLE' );
 ok( false !== strpos( (string) $sn_tel_src, 'error_code VARCHAR(64) NULL' ), 'schema: nullable VARCHAR error_code column is in the CREATE TABLE' );
-ok( '4' === SN_MCP_TELEMETRY_DB_VERSION, 'schema: DB version is exactly 4, so dbDelta runs for the 3-to-4 column addition (dimensions)' );
+ok( '5' === SN_MCP_TELEMETRY_DB_VERSION, 'schema: DB version is exactly 5, so dbDelta runs for the 4-to-5 column addition (error_detail, error_status)' );
 ok( false !== strpos( (string) $sn_tel_src, 'dimensions VARCHAR(512) NULL' ), 'schema: the dimensions column is in the CREATE TABLE' );
 // THE COLUMN MUST REACH THE INSERT, not merely the row array. insert_row
 // enumerates its columns explicitly, so a field present in build_row's return
 // and absent here is written nowhere and reads as a permanent null.
 ok( false !== strpos( $ins_body, 'dimensions' ), 'insert_row: dimensions is actually inserted' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.48.0 — error_detail / error_status: DIAGNOSTIC ONLY.
+ *
+ * The contract these pins defend is a SEPARATION, not just a pair of columns:
+ * error_code stays the bounded aggregation dimension, and these two are
+ * per-row detail that must never reach a GROUP BY, a WHERE, or the rollup.
+ * A test that only proved "the value is stored" would pass just as happily on
+ * an implementation that also grouped by it.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+ok( false !== strpos( (string) $sn_tel_src, 'error_detail VARCHAR(255) NULL' ), 'schema: nullable VARCHAR(255) error_detail column is in the CREATE TABLE' );
+ok( false !== strpos( (string) $sn_tel_src, 'error_status SMALLINT UNSIGNED NULL' ), 'schema: nullable SMALLINT UNSIGNED error_status column is in the CREATE TABLE' );
+ok( false !== strpos( $ins_body, 'error_detail' ), 'insert_row: error_detail is actually inserted' );
+ok( false !== strpos( $ins_body, 'error_status' ), 'insert_row: error_status is actually inserted' );
+
+// Extraction from a REAL WP_Error shape, exactly as WP 7.1 core's
+// WP_AI_Client_Prompt_Builder::exception_to_wp_error() constructs it.
+$ai_err = new WP_Error( 'prompt_client_error', 'Invalid value for parameter max_output_tokens.', array( 'status' => 400, 'exception_class' => 'ClientException' ) );
+ok( 'Invalid value for parameter max_output_tokens.' === sn_mcp_telemetry_error_detail( $ai_err ), 'error_detail: the provider message survives, where before only the code did' );
+ok( 400 === sn_mcp_telemetry_error_status( $ai_err ), 'error_status: the precise status survives the lossy outcome grammar' );
+$ai_class = sn_mcp_telemetry_classify_wp_error( $ai_err );
+ok( 'schema_error' === $ai_class['outcome'] && 'prompt_client_error' === $ai_class['error_code'], 'classify: the diagnostic pair does not disturb the existing verdict' );
+ok( 'Invalid value for parameter max_output_tokens.' === $ai_class['error_detail'] && 400 === $ai_class['error_status'], 'classify: carries the diagnostic pair from the one place still holding the real WP_Error' );
+
+// Absence is null, never a coerced empty string or zero — a 0 status would
+// read as a measurement.
+$bare = new WP_Error( 'snt_no_status', '' );
+ok( null === sn_mcp_telemetry_error_detail( $bare ), 'error_detail: an empty message is NULL, not an empty string' );
+ok( null === sn_mcp_telemetry_error_status( $bare ), 'error_status: a missing status is NULL, not 0' );
+ok( null === sn_mcp_telemetry_error_status( new WP_Error( 'snt_odd', 'x', array( 'status' => 0 ) ) ), 'error_status: an out-of-band status is NULL rather than stored' );
+ok( null === sn_mcp_telemetry_error_detail( 'a bare string' ), 'error_detail: a non-object cannot supply a detail' );
+
+// Truncation, and specifically NOT a broken multibyte tail.
+$long_ascii = str_repeat( 'e', 400 );
+ok( 255 === strlen( (string) sn_mcp_telemetry_error_detail( new WP_Error( 'snt_long', $long_ascii, array( 'status' => 500 ) ) ) ), 'error_detail: over-long prose is truncated to the 255-byte column bound' );
+$long_mb = str_repeat( 'é', 300 ); // 600 bytes.
+$cut_mb  = (string) sn_mcp_telemetry_error_detail( new WP_Error( 'snt_long_mb', $long_mb, array( 'status' => 500 ) ) );
+ok( strlen( $cut_mb ) <= 255, 'error_detail: a multibyte message respects the BYTE bound, not the character count' );
+ok( ! function_exists( 'mb_substr' ) || $cut_mb === mb_convert_encoding( $cut_mb, 'UTF-8', 'UTF-8' ), 'error_detail: the truncated multibyte tail is still valid UTF-8 (no cut mid-sequence)' );
+
+// build_row: the persist choke point re-applies both bounds, and success
+// forces both to NULL the same way it does error_code.
+$row_diag = sn_mcp_telemetry_build_row( '2026-08-30 20:41:28.000', 'direct', 'human', 'signal-noise__ai-generate-og-card-title', 'post_id', 'abc', 'schema_error', null, 120, null, null, 'prompt_client_error', null, 'Invalid value for parameter max_output_tokens.', 400 );
+ok( 'Invalid value for parameter max_output_tokens.' === $row_diag['error_detail'], 'build_row: carries error_detail on an error outcome' );
+ok( 400 === $row_diag['error_status'], 'build_row: carries error_status on an error outcome' );
+$row_diag_ok = sn_mcp_telemetry_build_row( '2026-08-30 20:41:28.000', 'read', 'human', 'signal-noise__sn-posts', '', 'abc', 'ok', null, 5, 2, null, null, null, 'must not survive', 400 );
+ok( null === $row_diag_ok['error_detail'] && null === $row_diag_ok['error_status'], 'build_row: success forces the diagnostic pair NULL even if an internal caller supplies it' );
+$row_diag_long = sn_mcp_telemetry_build_row( '2026-08-30 20:41:28.000', 'direct', 'human', 'x', '', 'abc', 'server_error', null, 5, null, null, null, null, str_repeat( 'z', 900 ), 700 );
+ok( 255 === strlen( (string) $row_diag_long['error_detail'] ), 'build_row: re-applies the 255 bound at the persist choke point, not only in the extractor' );
+ok( null === $row_diag_long['error_status'], 'build_row: re-applies the status bound at the persist choke point' );
+
+// THE SEPARATION ITSELF. The rollup is the aggregation surface; neither
+// diagnostic column may appear in any of its SQL.
+$sn_summary_body = preg_match( '/function sn_mcp_telemetry_summary\s*\(.*?\n\}/s', (string) $sn_tel_src, $sum_m ) ? $sum_m[0] : '';
+ok( '' !== $sn_summary_body, 'fixture: isolated the summary() body' );
+ok( false === strpos( $sn_summary_body, 'error_detail' ), 'SEPARATION: error_detail never appears in the rollup — diagnostic only, never an aggregation dimension' );
+ok( false === strpos( $sn_summary_body, 'error_status' ), 'SEPARATION: error_status never appears in the rollup — diagnostic only, never an aggregation dimension' );
+
+/* ── The sn-apply envelope: the reason must survive, not the scaffolding ──
+ * sn-apply returns wp_json_encode( $response ) AS the WP_Error message
+ * (inc/abilities-sn-apply.php:312), with the human reason at error.message —
+ * last in the shape, after four nested gates sub-arrays. A flat 255-byte cut
+ * keeps the envelope head and discards the reason, on the exact surface the
+ * consolidation programme measures. Fixture mirrors the real key order.
+ * ──────────────────────────────────────────────────────────────────────── */
+$sn_apply_envelope = wp_json_encode( array(
+	'applied'      => false,
+	'mode'         => 'publish',
+	'target'       => array( 'post_id' => 2584 ),
+	'change_type'  => 'dismiss',
+	'candidate_id' => null,
+	'gates'        => array(
+		'fingerprint' => array( 'passed' => false, 'expected' => null, 'observed' => null, 'skipped' => null, 'detail' => null ),
+		'validation'  => array( 'passed' => false, 'findings' => array(), 'checks' => array(), 'skipped' => null ),
+		'capability'  => array( 'passed' => false, 'granted_modes' => array(), 'mode_supported' => false, 'reason' => null ),
+		'idempotency' => array( 'passed' => true, 'first_seen' => null ),
+	),
+	'diff'         => null,
+	'revision_id'  => null,
+	'rollback'     => null,
+	'error'        => array(
+		'code'    => 'snt_sn_apply_gate2_refused',
+		'status'  => 422,
+		'message' => 'No dismissal store exists for surface "draft-echoes". Dismissible surfaces are: block-migrations, pattern-adoption, corpus-integrity.',
+	),
+) );
+// The measurement that makes this test meaningful: prove the fixture actually
+// buries the reason past the bound. Without this, a shrinking envelope could
+// make the assertion below pass for the wrong reason.
+ok( strpos( $sn_apply_envelope, 'No dismissal store' ) > SN_MCP_TELEMETRY_ERROR_DETAIL_MAX, 'fixture: the reason really does sit beyond the 255-byte bound (the trap is real, not assumed)' );
+$sn_apply_err    = new WP_Error( 'snt_sn_apply_gate2_refused', $sn_apply_envelope, array( 'status' => 422 ) );
+$sn_apply_detail = sn_mcp_telemetry_error_detail( $sn_apply_err );
+ok( 0 === strpos( (string) $sn_apply_detail, 'No dismissal store exists for surface "draft-echoes"' ), 'error_detail: an sn-apply refusal records the REASON, not the JSON scaffolding' );
+ok( false === strpos( (string) $sn_apply_detail, '"gates"' ), 'error_detail: the envelope structure does not reach the column' );
+ok( 422 === sn_mcp_telemetry_classify_wp_error( $sn_apply_err )['error_status'], 'classify: the envelope refusal still carries its precise status' );
+
+// The unwrap is BOUNDED — ordinary prose and non-envelope JSON pass through.
+ok( 'Invalid value for parameter max_output_tokens.' === sn_mcp_telemetry_unwrap_envelope_message( 'Invalid value for parameter max_output_tokens.' ), 'unwrap: provider prose is returned untouched' );
+ok( '{"ok":true}' === sn_mcp_telemetry_unwrap_envelope_message( '{"ok":true}' ), 'unwrap: JSON without an error.message is returned untouched, never emptied' );
+ok( '{"error":{"code":"x"}}' === sn_mcp_telemetry_unwrap_envelope_message( '{"error":{"code":"x"}}' ), 'unwrap: an envelope with no inner message falls back to the raw message' );
+ok( '{"error":{"message":""}}' === sn_mcp_telemetry_unwrap_envelope_message( '{"error":{"message":""}}' ), 'unwrap: an EMPTY inner message falls back rather than nulling the row' );
+ok( '{ not json' === sn_mcp_telemetry_unwrap_envelope_message( '{ not json' ), 'unwrap: malformed JSON is returned untouched, never an exception' );
+$huge = '{"error":{"message":"buried"}}' . str_repeat( ' ', SN_MCP_TELEMETRY_ENVELOPE_DECODE_MAX );
+ok( $huge === sn_mcp_telemetry_unwrap_envelope_message( $huge ), 'unwrap: a pathologically long message skips the decode and stays bounded' );
+
+
 
 /* ════════════════════════════════════════════════════════════════════════
  * v11.9.0 — sn_mcp_telemetry_summary(), the read path for the table.

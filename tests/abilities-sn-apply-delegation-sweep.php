@@ -781,6 +781,15 @@ $sweep_calls = array(
 	// property under dry_run; the store contract lives in
 	// tests/abilities-sn-apply.php against the real ability.
 	'dismiss'          => array( 'target' => array( 'post_id' => 730 ), 'mode' => 'publish', 'change' => array( 'type' => 'dismiss', 'payload' => array( 'surface' => 'block-migrations', 'block_fingerprint' => 'sweepfp', 'candidate_type' => 'heading_level' ) ) ),
+	// Phase 3: both publish-only, both scope-targeted, both routed to their real
+	// ability. The sweep's pin is the family ZERO-WRITES property under dry_run.
+	'merge_tags'       => array( 'target' => array( 'scope' => 'tags' ), 'mode' => 'publish', 'change' => array( 'type' => 'merge_tags', 'payload' => array( 'from_slugs' => array( 'sweep-old' ), 'into_slug' => 'sweep-new' ) ) ),
+	'clear_template_overrides' => array( 'target' => array( 'scope' => 'template_overrides' ), 'mode' => 'publish', 'change' => array( 'type' => 'clear_template_overrides', 'payload' => array() ) ),
+	// v13.49.0. Publish-only, scope-targeted, routed to signal-noise/schedule-cron-event.
+	// The hook here is SN-owned on purpose: the sweep pins the family's ZERO-WRITES
+	// property under dry_run, so a case that refused at the bound would prove nothing
+	// about whether dry_run writes.
+	'schedule_cron_event' => array( 'target' => array( 'scope' => 'cron' ), 'mode' => 'publish', 'change' => array( 'type' => 'schedule_cron_event', 'payload' => array( 'hook' => 'sn_health_scan_daily', 'args' => array(), 'delay' => 0 ) ) ),
 	'anchor_sweep'     => array( 'target' => array( 'scope' => 'provenance_anchors' ), 'mode' => 'publish', 'change' => array( 'type' => 'anchor_sweep', 'payload' => array() ) ),
 	// create_draft (session 6c) is REVISION-only (mode:publish refuses
 	// structurally — see snt_sn_apply_mode_support()), the mirror image of

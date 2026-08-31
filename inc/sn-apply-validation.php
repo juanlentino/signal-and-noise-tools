@@ -17,6 +17,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// v13.49.0. schedule_cron_event's delay ceiling, in seconds. Declared HERE
+// rather than reused from WP because this module is deliberately free of
+// WordPress constants — every gate in it loads under the standalone test
+// harness, where HOUR_IN_SECONDS does not exist. snt_cron_schedule_event_impl()
+// clamps to the same ceiling via HOUR_IN_SECONDS, and a test pins the two equal
+// so they cannot drift apart silently.
+const SNT_SN_APPLY_CRON_DELAY_MAX = 3600;
+
 /**
  * Gate 1: fingerprint. Reuses each absorbed impl's OWN fingerprint scheme —
  * never a parallel one. Types with no fingerprint scheme in the absorbed
@@ -498,6 +506,128 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 }
 
 /**
+ * Gate 2 for `merge_tags`.
+ *
+ * Mirrors the ability's OWN required input (`from_slugs`, `into_slug`, read from
+ * inc/abilities-content.php) rather than anything inferred from the change
+ * type's name — the mistake that produced two wrong `dismiss` designs before
+ * this one.
+ *
+ * @param array $change
+ * @return array
+ */
+function snt_sn_apply_gate2_merge_tags( $change ) {
+	$payload  = isset( $change['payload'] ) && is_array( $change['payload'] ) ? $change['payload'] : array();
+	$findings = array();
+	$identity = 'merge_tags|' . (string) ( $payload['into_slug'] ?? '' );
+
+	$from = $payload['from_slugs'] ?? null;
+	if ( ! is_array( $from ) || empty( $from ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'merge_tags',
+			'payload_complete',
+			'error',
+			__( 'merge_tags requires payload.from_slugs (a non-empty array of term slugs).', 'signal-and-noise-tools' ),
+			null,
+			'from_slugs',
+			array(),
+			$identity
+		);
+	}
+	if ( '' === (string) ( $payload['into_slug'] ?? '' ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'merge_tags',
+			'payload_complete',
+			'error',
+			__( 'merge_tags requires payload.into_slug.', 'signal-and-noise-tools' ),
+			null,
+			'into_slug',
+			array(),
+			$identity
+		);
+	}
+	// Merging a term into ITSELF is a no-op that would still delete the source:
+	// refuse rather than reassign-then-delete the same term.
+	if ( is_array( $from ) && in_array( (string) ( $payload['into_slug'] ?? '' ), array_map( 'strval', $from ), true ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'merge_tags',
+			'no_self_merge',
+			'error',
+			__( 'into_slug appears in from_slugs: merging a term into itself would delete it.', 'signal-and-noise-tools' ),
+			(string) ( $payload['into_slug'] ?? '' ),
+			'a slug not present in from_slugs',
+			array(),
+			$identity
+		);
+	}
+
+	return array( 'passed' => empty( $findings ), 'findings' => $findings );
+}
+
+/**
+ * Gate 2 for `schedule_cron_event`.
+ *
+ * Mirrors the ability's OWN input (`hook`, optional `args`, optional `delay`,
+ * read from inc/abilities-cron.php) rather than anything inferred from the
+ * change type's name. The SN-owned bound itself is NOT re-checked here — that
+ * lives in snt_cron_schedule_event_impl() and would drift if copied. Gate 2
+ * fences the payload's SHAPE; the impl owns which hooks are schedulable.
+ *
+ * @since 13.49.0
+ * @param array $change
+ * @return array
+ */
+function snt_sn_apply_gate2_schedule_cron_event( $change ) {
+	$payload  = isset( $change['payload'] ) && is_array( $change['payload'] ) ? $change['payload'] : array();
+	$findings = array();
+	$identity = 'schedule_cron_event|' . (string) ( $payload['hook'] ?? '' );
+
+	if ( '' === (string) ( $payload['hook'] ?? '' ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'schedule_cron_event',
+			'payload_complete',
+			'error',
+			__( 'schedule_cron_event requires payload.hook.', 'signal-and-noise-tools' ),
+			null,
+			'hook',
+			array(),
+			$identity
+		);
+	}
+	if ( isset( $payload['args'] ) && ! is_array( $payload['args'] ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'schedule_cron_event',
+			'payload_shape',
+			'error',
+			__( 'payload.args must be an array when supplied — cron matches events by exact args signature.', 'signal-and-noise-tools' ),
+			null,
+			'args',
+			array(),
+			$identity
+		);
+	}
+	// Bound the delay HERE as well as in the impl, because a caller reading the
+	// dry run must see the refusal rather than a silently clamped booking.
+	if ( isset( $payload['delay'] ) ) {
+		$delay = $payload['delay'];
+		if ( ! is_numeric( $delay ) || (int) $delay < 0 || (int) $delay > SNT_SN_APPLY_CRON_DELAY_MAX ) {
+			$findings[] = snt_sn_validate_finding(
+				'schedule_cron_event',
+				'delay_in_range',
+				'error',
+				__( 'payload.delay must be between 0 and 3600 seconds.', 'signal-and-noise-tools' ),
+				is_scalar( $delay ) ? (string) $delay : null,
+				'0-3600',
+				array(),
+				$identity
+			);
+		}
+	}
+
+	return array( 'passed' => empty( $findings ), 'findings' => $findings );
+}
+
+/**
  * Gate 2 for `dismiss`.
  *
  * THE CONTRACT IS THE ABILITY'S, NOT THE TOOL'S. dismiss-candidate
@@ -681,6 +811,18 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 
 		case 'dismiss':
 			return snt_sn_apply_gate2_dismiss( $change );
+
+		case 'merge_tags':
+			return snt_sn_apply_gate2_merge_tags( $change );
+
+		case 'schedule_cron_event':
+			return snt_sn_apply_gate2_schedule_cron_event( $change );
+
+		case 'clear_template_overrides':
+			// The ability's input_schema has an EMPTY properties map, so there
+			// is nothing to validate. Returning a passing gate here is honest;
+			// inventing a required key would invent a contract.
+			return array( 'passed' => true, 'findings' => array() );
 
 		case 'delete_draft':
 			// Draft-status + post_type fence (inc/sn-apply-delete-draft.php);

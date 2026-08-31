@@ -193,7 +193,7 @@ foreach ( $removed as $i => $slug ) {
 // count below is UNCHANGED on purpose: this fixture loads the 7 files named
 // above one by one, not the orchestrator, and the new file is not among them.
 // Bump this number only when one of THOSE 7 gains or loses an ability.
-t_eq( 17, count( $GLOBALS['__ab'] ), 'A.10 loaded files register exactly 17 abilities (v10.0.0 retired draft-release-notes; no stray additions, no over-removal)' );
+t_eq( 18, count( $GLOBALS['__ab'] ), 'A.10 loaded files register exactly 18 abilities (v13.49.0 ADDED schedule-cron-event, the booking half of the cron pair — run-cron-event stays off every door because dispatch is the hazard and booking is not; v10.0.0 retired draft-release-notes; no stray additions, no over-removal)' );
 
 // ════ Group B: the `updates` category is retired ═════════════════════
 echo "\nGroup B: category retirement\n";

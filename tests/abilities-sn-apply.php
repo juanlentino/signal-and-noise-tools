@@ -565,5 +565,155 @@ foreach ( array( 'surface', 'block_fingerprint', 'candidate_type' ) as $sn_k ) {
 	ok( is_wp_error( $sn_r ), "a dismissal missing $sn_k refuses" );
 }
 
+echo "\nGroup: two exclusions the options framing reverses (Phase 3)\n";
+//
+// WHY THESE REVERSE. inc/mcp/mcp-capabilities.php holds both OFF the rw door
+// "on purpose" — merge-tags as "sitewide term reassign + delete",
+// clear-template-overrides as "wipes Site Editor template rows". Both reasons
+// were written against a DOORED TOOL. As an sn-apply change type each inherits
+// dry_run:true by default, four gates reported even when an earlier one failed,
+// idempotency, and the rw audit trail. Different risk object, same capability.
+//
+// Both abilities are snt_ability_perm_manage_options — the same gate sn-apply
+// carries — so nothing crosses a permission tier.
+
+ok( in_array( 'merge_tags', SNT_SN_APPLY_CHANGE_TYPES, true ), 'merge_tags is a declared change type' );
+ok( in_array( 'clear_template_overrides', SNT_SN_APPLY_CHANGE_TYPES, true ), 'clear_template_overrides is a declared change type' );
+
+// Both are PUBLISH-ONLY: a term reassign and an option/row wipe have no
+// WordPress revision to stage. Refuse by name, never fabricate a staged
+// version of a side effect that cannot be staged.
+foreach ( array(
+	'merge_tags'               => array( 'scope' => 'tags' ),
+	'clear_template_overrides' => array( 'scope' => 'template_overrides' ),
+) as $sn_t => $sn_target ) {
+	$sn_r = snt_ability_sn_apply( array(
+		'target'  => $sn_target,
+		'change'  => array( 'type' => $sn_t, 'payload' => array( 'from_slugs' => array( 'a' ), 'into_slug' => 'b' ) ),
+		'mode'    => 'revision',
+		'dry_run' => true,
+	) );
+	ok( is_wp_error( $sn_r ), "$sn_t refuses mode:revision" );
+}
+
+// merge_tags mirrors the ability's OWN required input (from_slugs, into_slug),
+// read from inc/abilities-content.php rather than assumed from the tool's
+// vocabulary — the mistake that produced two wrong dismiss designs.
+foreach ( array( 'from_slugs', 'into_slug' ) as $sn_k ) {
+	$sn_pl = array( 'from_slugs' => array( 'old-tag' ), 'into_slug' => 'new-tag' );
+	unset( $sn_pl[ $sn_k ] );
+	$sn_r = snt_ability_sn_apply( array(
+		'target'  => array( 'scope' => 'tags' ),
+		'change'  => array( 'type' => 'merge_tags', 'payload' => $sn_pl ),
+		'mode'    => 'publish',
+		'dry_run' => true,
+	) );
+	ok( is_wp_error( $sn_r ), "merge_tags missing $sn_k refuses" );
+}
+
+// clear_template_overrides takes NO payload — its ability's input_schema has an
+// empty properties map. Requiring one would invent a contract.
+$sn_cto = snt_ability_sn_apply( array(
+	'target'  => array( 'scope' => 'template_overrides' ),
+	'change'  => array( 'type' => 'clear_template_overrides', 'payload' => array() ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( ! is_wp_error( $sn_cto ), 'clear_template_overrides dry-runs with an empty payload' );
+
+// Explicit scope targets, the anchor_sweep/roadmap_board posture: name the
+// surface exactly rather than accepting any object at all.
+$sn_bad_scope = snt_ability_sn_apply( array(
+	'target'  => array( 'scope' => 'not_a_surface' ),
+	'change'  => array( 'type' => 'clear_template_overrides', 'payload' => array() ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_bad_scope ), 'a wrong target.scope refuses rather than being accepted loosely' );
+
+// merge_tags needs its OWN scope pin — the assertion above only exercises
+// clear_template_overrides, and a mutation proved merge_tags' guard was
+// untested. Two types, two guards, two pins.
+$sn_mt_scope = snt_ability_sn_apply( array(
+	'target'  => array( 'scope' => 'not_tags' ),
+	'change'  => array( 'type' => 'merge_tags', 'payload' => array( 'from_slugs' => array( 'a' ), 'into_slug' => 'b' ) ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_mt_scope ), 'merge_tags refuses a target.scope that is not "tags"' );
+
+// THE SELF-MERGE GUARD WAS WRITTEN WITH NO TEST, and a mutation caught that:
+// deleting it changed nothing. Merging a term into itself would reassign its
+// posts to itself and then DELETE it — a silent vocabulary loss, and exactly
+// the "sitewide term reassign + delete" risk the original exclusion named.
+$sn_self = snt_ability_sn_apply( array(
+	'target'  => array( 'scope' => 'tags' ),
+	'change'  => array( 'type' => 'merge_tags', 'payload' => array( 'from_slugs' => array( 'keep-me', 'other' ), 'into_slug' => 'keep-me' ) ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_self ), 'merging a term into itself refuses' );
+
+echo "\nGroup: schedule_cron_event — booking is not dispatching (v13.49.0)\n";
+//
+// WHY THIS IS ONE TYPE AND NOT THE PLAN'S TWO. The plan named an allowlisted
+// run_cron_event PLUS a fire-and-forget schedule_health_scan. Those collapse:
+// SN_HEALTH_CRON_HOOK ('sn_health_scan_daily') IS a daily scheduled hook
+// (inc/health-scan-cron.php:86), so an allowlisted run_cron_event would admit
+// the health scan and run it synchronously — reintroducing the 35-105s against
+// a ~100s edge cap that the fire-and-forget half exists to avoid. run-cron-event
+// stays off every door: dispatch is the hazard, booking is not.
+
+ok( in_array( 'schedule_cron_event', SNT_SN_APPLY_CHANGE_TYPES, true ), 'schedule_cron_event is a declared change type' );
+
+// PUBLISH-ONLY: a cron row has no WordPress revision to stage.
+$sn_cron_rev = snt_ability_sn_apply( array(
+	'target'  => array( 'scope' => 'cron' ),
+	'change'  => array( 'type' => 'schedule_cron_event', 'payload' => array( 'hook' => 'sn_health_scan_daily' ) ),
+	'mode'    => 'revision',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_cron_rev ), 'schedule_cron_event refuses mode:revision' );
+
+// SCOPE IS NAMED EXACTLY, the anchor_sweep/roadmap_board posture.
+$sn_cron_bad_target = snt_ability_sn_apply( array(
+	'target'  => array( 'post_id' => 730 ),
+	'change'  => array( 'type' => 'schedule_cron_event', 'payload' => array( 'hook' => 'sn_health_scan_daily' ) ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_cron_bad_target ), 'schedule_cron_event refuses a post_id target: the target is the cron surface, not a post' );
+
+// GATE 2 fences the payload SHAPE. The SN-owned bound is deliberately NOT
+// duplicated here — it lives in snt_cron_schedule_event_impl(), and a copy
+// would drift.
+$sn_cron_g2 = snt_sn_apply_gate2_schedule_cron_event( array( 'payload' => array() ) );
+ok( false === $sn_cron_g2['passed'], 'gate 2: a missing hook refuses' );
+$sn_cron_g2_ok = snt_sn_apply_gate2_schedule_cron_event( array( 'payload' => array( 'hook' => 'sn_health_scan_daily' ) ) );
+ok( true === $sn_cron_g2_ok['passed'], 'gate 2: hook alone is a complete payload — args and delay are optional' );
+$sn_cron_g2_args = snt_sn_apply_gate2_schedule_cron_event( array( 'payload' => array( 'hook' => 'h', 'args' => 'not-an-array' ) ) );
+ok( false === $sn_cron_g2_args['passed'], 'gate 2: a non-array args refuses — cron matches events by exact args signature' );
+$sn_cron_g2_delay = snt_sn_apply_gate2_schedule_cron_event( array( 'payload' => array( 'hook' => 'h', 'delay' => 99999 ) ) );
+ok( false === $sn_cron_g2_delay['passed'], 'gate 2: an out-of-range delay REFUSES rather than being silently clamped, so the dry run shows it' );
+$sn_cron_g2_neg = snt_sn_apply_gate2_schedule_cron_event( array( 'payload' => array( 'hook' => 'h', 'delay' => -1 ) ) );
+ok( false === $sn_cron_g2_neg['passed'], 'gate 2: a negative delay refuses' );
+$sn_cron_g2_zero = snt_sn_apply_gate2_schedule_cron_event( array( 'payload' => array( 'hook' => 'h', 'delay' => 0 ) ) );
+ok( true === $sn_cron_g2_zero['passed'], 'gate 2: delay 0 is valid — it means "as soon as WP-Cron next runs"' );
+
+// THE TWO CEILINGS MUST AGREE. Validation owns a WP-free constant; the impl
+// clamps with HOUR_IN_SECONDS. Different expressions of one bound, so pin them
+// equal — otherwise a caller passes gate 2 and is silently clamped later.
+ok( 3600 === SNT_SN_APPLY_CRON_DELAY_MAX, 'the validation ceiling is 3600 seconds' );
+$sn_cron_src = (string) @file_get_contents( __DIR__ . '/../inc/cron-dashboard.php' );
+ok( false !== strpos( $sn_cron_src, 'min( (int) $delay, HOUR_IN_SECONDS )' ), 'the impl clamps to HOUR_IN_SECONDS, which is the same 3600 — the two ceilings agree' );
+
+// THE BOUND ITSELF, and its polarity. snt_cron_sn_owned_hooks() is the SAME
+// predicate the unschedule guard uses, read in the opposite direction:
+// unscheduling REFUSES SN-owned hooks, scheduling accepts ONLY them.
+// This harness does not load cron-dashboard.php, so the bound is pinned here by
+// SOURCE and exercised for real in tests/cron-dashboard.php.
+ok( false !== strpos( $sn_cron_src, 'if ( ! snt_cron_is_sn_owned( $hook ) ) {' ), 'the schedule bound reuses the existing SN-owned predicate rather than a new list' );
+ok( false !== strpos( $sn_cron_src, "array( 'SN_HEALTH_CRON_HOOK', 'sn_health_scan_daily' )" ), 'REGRESSION PIN: the health hook is in the SN-owned list — it was MISSING until v13.49.0, which left the rw-doored unschedule-cron-event able to silently stop the daily health scan' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

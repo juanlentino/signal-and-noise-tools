@@ -54,11 +54,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 const SN_MCP_TELEMETRY_TABLE          = 'sn_tool_call';
 // Bump on every schema change so dbDelta runs for existing installs. Without
 // the delta, inserts silently drop columns that are present only in code.
-const SN_MCP_TELEMETRY_DB_VERSION     = '4';
+const SN_MCP_TELEMETRY_DB_VERSION     = '5';
 const SN_MCP_TELEMETRY_DB_VERSION_OPT = 'sn_mcp_telemetry_db_version';
 const SN_MCP_TELEMETRY_RETENTION_DAYS = 90;
 const SN_MCP_TELEMETRY_PRUNE_LIMIT    = 500;
 const SN_MCP_TELEMETRY_PRUNE_CHANCE   = 50; // ~1-in-50 inserts also prunes.
+// v13.48.0. Mirrors the error_detail column's VARCHAR(255) bound, in BYTES.
+const SN_MCP_TELEMETRY_ERROR_DETAIL_MAX = 255;
+// Above this, an envelope message is not worth decoding — see
+// sn_mcp_telemetry_unwrap_envelope_message(). Generous next to sn-apply's
+// ~500-byte refusal envelope, small enough to stay bounded work.
+const SN_MCP_TELEMETRY_ENVELOPE_DECODE_MAX = 20000;
 
 /**
  * Kill switch. Default true (telemetry on); a site/owner can disable it with
@@ -84,6 +90,14 @@ function sn_mcp_telemetry_enabled() {
  * throughout, and ENUM columns are absent from every other custom table in
  * inc/, so VARCHAR matches house style over the spec's literal ENUM.
  *
+ * TWO CLASSES OF ERROR COLUMN, and the distinction is load-bearing:
+ * `error_code` is the AGGREGATION DIMENSION — bounded grammar, allowlisted,
+ * safe to GROUP BY. `error_detail`/`error_status` (v13.48.0) are DIAGNOSTIC
+ * ONLY: they carry the WP_Error's own message and HTTP status so a failure is
+ * readable after the fact instead of being reduced to an identifier. They are
+ * never grouped, filtered, or surfaced in the tool_telemetry rollup — see
+ * sn_mcp_telemetry_error_detail() for why that separation is not optional.
+ *
  * @return string CREATE TABLE statement.
  */
 function sn_mcp_telemetry_schema_sql() {
@@ -108,6 +122,8 @@ function sn_mcp_telemetry_schema_sql() {
 		change_type VARCHAR(32) NULL,
 		dimensions VARCHAR(512) NULL,
 		error_code VARCHAR(64) NULL,
+		error_detail VARCHAR(255) NULL,
+		error_status SMALLINT UNSIGNED NULL,
 		PRIMARY KEY  (id),
 		KEY ts_idx (ts)
 	) {$charset};";
@@ -342,6 +358,160 @@ function sn_mcp_telemetry_error_code_allowed( $code ) {
 }
 
 /**
+ * The WP_Error's own message, truncated to the column bound — DIAGNOSTIC ONLY.
+ *
+ * WHY THIS IS NOT A SECOND error_code: error_code is the aggregation
+ * dimension, and it stays a bounded identifier grammar precisely so a GROUP BY
+ * over it can never fan out into free text. This column is the opposite kind of
+ * thing. It is unbounded provider/plugin prose, it has no grammar, and it must
+ * never appear in a GROUP BY, a WHERE, or the tool_telemetry rollup. Read it
+ * per-row when investigating one failure; aggregate on error_code, always.
+ *
+ * WHAT IT BUYS: WP 7.1 core's WP_AI_Client_Prompt_Builder::exception_to_wp_error()
+ * returns the provider's actual message alongside the code, and until v13.48.0
+ * this layer discarded it — a `prompt_client_error` row recorded that a 4xx
+ * happened and threw away the sentence saying which parameter the provider
+ * rejected. That is the difference between a countable event and a debuggable
+ * one.
+ *
+ * TRUNCATION, not refusal: change_type and dimensions refuse rather than cut,
+ * because a half-list misrepresents a bounded set. A message is prose, and its
+ * first 255 bytes are still true — the leading clause of a provider error is
+ * where the cause lives. mb_substr() (when available) keeps the cut off a
+ * multibyte boundary so the column never receives a broken UTF-8 tail; the
+ * bound is applied in BYTES afterwards because the column is VARCHAR(255) and
+ * the storage limit is what has to hold.
+ *
+ * @since 13.48.0
+ * @param mixed $error A WP_Error (or test stand-in) exposing get_error_message().
+ * @return string|null The message, bounded to 255 bytes, or null when absent.
+ */
+function sn_mcp_telemetry_error_detail( $error ) {
+	if ( ! is_object( $error ) || ! method_exists( $error, 'get_error_message' ) ) {
+		return null;
+	}
+	$message = $error->get_error_message();
+	if ( ! is_string( $message ) ) {
+		return null;
+	}
+	$message = sn_mcp_telemetry_unwrap_envelope_message( trim( $message ) );
+	if ( '' === $message ) {
+		return null;
+	}
+	if ( strlen( $message ) <= SN_MCP_TELEMETRY_ERROR_DETAIL_MAX ) {
+		return $message;
+	}
+	if ( function_exists( 'mb_substr' ) ) {
+		// Cut on a CHARACTER boundary first, then re-check the BYTE bound: a
+		// 255-character cut can still exceed 255 bytes in multibyte prose, and
+		// the column bound is bytes.
+		$cut = mb_substr( $message, 0, SN_MCP_TELEMETRY_ERROR_DETAIL_MAX );
+		while ( '' !== $cut && strlen( $cut ) > SN_MCP_TELEMETRY_ERROR_DETAIL_MAX ) {
+			$cut = mb_substr( $cut, 0, mb_strlen( $cut ) - 1 );
+		}
+		return '' === $cut ? null : $cut;
+	}
+	return substr( $message, 0, SN_MCP_TELEMETRY_ERROR_DETAIL_MAX );
+}
+
+/**
+ * Prefer an envelope's INNER message over its JSON scaffolding.
+ *
+ * WHY THIS EXISTS, measured: `sn-apply` does not return prose. On a single
+ * target it returns `new WP_Error( $code, wp_json_encode( $response ), … )`
+ * (inc/abilities-sn-apply.php:312) — the message IS the whole response object,
+ * and the human-readable reason lives at `error.message`, which the shape puts
+ * LAST, after four nested `gates` sub-arrays. A realistic refusal envelope
+ * measures 486+ bytes with the reason starting at byte 348, so a flat 255-byte
+ * cut keeps `{"target":{...},"change_type":"dismiss","mode":"publish",…` and
+ * discards the sentence naming what was refused.
+ *
+ * That is not a hypothetical loss. The consolidation programme decides which
+ * `sn-apply` change types to retire from telemetry, `sn-apply` is its most
+ * measured surface, and v13.47.0's `dismiss` refuses BY NAME for six of nine
+ * scan types precisely so a caller learns why. Storing the envelope head would
+ * have recorded that a refusal happened and thrown away which surface it named.
+ *
+ * BOUNDED, never a general JSON walk: the message must start with `{`, decode
+ * within a shallow depth, and expose a non-empty string at `error.message`.
+ * Anything else returns the input untouched, so provider prose and every
+ * ordinary WP_Error message are unaffected.
+ *
+ * @since 13.48.0
+ * @param string $message Raw WP_Error message.
+ * @return string The inner message when the input is a recognised envelope,
+ *                else the input unchanged.
+ */
+function sn_mcp_telemetry_unwrap_envelope_message( $message ) {
+	if ( ! is_string( $message ) || '' === $message || '{' !== $message[0] ) {
+		return (string) $message;
+	}
+	// A pathological length is not worth decoding; the head is as good as
+	// anything at that size, and this keeps the work bounded on the hot path.
+	if ( strlen( $message ) > SN_MCP_TELEMETRY_ENVELOPE_DECODE_MAX ) {
+		return $message;
+	}
+	$decoded = json_decode( $message, true, 8 );
+	if ( ! is_array( $decoded ) || ! isset( $decoded['error']['message'] ) ) {
+		return $message;
+	}
+	$inner = $decoded['error']['message'];
+	if ( ! is_string( $inner ) ) {
+		return $message;
+	}
+	$inner = trim( $inner );
+	return '' === $inner ? $message : $inner;
+}
+
+/**
+ * The HTTP-ish status the WP_Error carries in its data array — DIAGNOSTIC ONLY,
+ * same non-aggregation rule as sn_mcp_telemetry_error_detail().
+ *
+ * The classifier already reads this value to choose an outcome, and that
+ * reading is lossy on purpose: 400 and 422 both become schema_error, every 5xx
+ * becomes server_error. Storing the number keeps the precise status recoverable
+ * on the row without widening the outcome grammar that the metrics depend on.
+ *
+ * Bounded to the SMALLINT UNSIGNED column's range and to plausible status
+ * values; anything else is null rather than a coerced 0, because a 0 would read
+ * as a real measurement.
+ *
+ * @since 13.48.0
+ * @param mixed $error A WP_Error (or test stand-in) exposing get_error_data().
+ * @return int|null
+ */
+function sn_mcp_telemetry_error_status( $error ) {
+	if ( ! is_object( $error ) || ! method_exists( $error, 'get_error_data' ) ) {
+		return null;
+	}
+	$data = $error->get_error_data();
+	if ( ! is_array( $data ) || ! isset( $data['status'] ) || ! is_numeric( $data['status'] ) ) {
+		return null;
+	}
+	return sn_mcp_telemetry_error_status_allowed( $data['status'] );
+}
+
+/**
+ * The status bound itself, callable on a bare value so build_row() can
+ * re-apply it at the persist choke point — the same belt-and-braces the
+ * error_code grammar already gets.
+ *
+ * @since 13.48.0
+ * @param mixed $status Candidate status value.
+ * @return int|null
+ */
+function sn_mcp_telemetry_error_status_allowed( $status ) {
+	if ( ! is_numeric( $status ) ) {
+		return null;
+	}
+	$status = (int) $status;
+	if ( $status < 100 || $status > 599 ) {
+		return null;
+	}
+	return $status;
+}
+
+/**
  * sha256 of the JSON-encoded arguments. Never reversible into the source
  * values by design (session 1's corrected deviation from the spec's original
  * base64 prefix — see docs/mcp-consolidation/FINDINGS.md #0).
@@ -459,23 +629,50 @@ function sn_mcp_telemetry_throttle_codes() {
  *                                          unexplained failure is not proven
  *                                          to be the caller's fault).
  *
+ * v13.48.0: the return also carries `error_detail` and `error_status`, the two
+ * diagnostic-only fields. They ride along here rather than being fetched again
+ * at each call site because this function is the one place that still holds the
+ * real WP_Error object — downstream, the result has already been flattened to
+ * message-only, which is the same reason error_code was captured here.
+ * Neither field influences the classification.
+ *
  * @param mixed $error A WP_Error (or test stand-in) exposing get_error_code()
  *                      and get_error_data().
- * @return array{outcome:string,refusal_gate:string|null,error_code:string|null}
+ * @return array{outcome:string,refusal_gate:string|null,error_code:string|null,error_detail:string|null,error_status:int|null}
  */
 function sn_mcp_telemetry_classify_wp_error( $error ) {
-	$code = sn_mcp_telemetry_error_code( $error );
-	$data = ( is_object( $error ) && method_exists( $error, 'get_error_data' ) )
+	$code   = sn_mcp_telemetry_error_code( $error );
+	$detail = sn_mcp_telemetry_error_detail( $error );
+	$data   = ( is_object( $error ) && method_exists( $error, 'get_error_data' ) )
 		? $error->get_error_data()
 		: null;
 	$status = ( is_array( $data ) && isset( $data['status'] ) && is_numeric( $data['status'] ) )
 		? (int) $data['status']
 		: null;
+	$error_status = sn_mcp_telemetry_error_status_allowed( $status );
+
+	/**
+	 * Every return below carries the same diagnostic pair, so a new outcome
+	 * branch cannot silently drop them.
+	 *
+	 * @param string      $outcome
+	 * @param string|null $gate
+	 * @return array<string,mixed>
+	 */
+	$verdict = static function ( $outcome, $gate ) use ( $code, $detail, $error_status ) {
+		return array(
+			'outcome'      => $outcome,
+			'refusal_gate' => $gate,
+			'error_code'   => $code,
+			'error_detail' => $detail,
+			'error_status' => $error_status,
+		);
+	};
 
 	if ( null !== $status ) {
 		if ( 429 === $status ) {
 			$gate = in_array( $code, sn_mcp_telemetry_throttle_codes(), true ) ? 'write_throttle' : 'rate_limit';
-			return array( 'outcome' => 'refused', 'refusal_gate' => $gate, 'error_code' => $code );
+			return $verdict( 'refused', $gate );
 		}
 		// v11.8.0: 409 is OPTIMISTIC-CONCURRENCY contention, not malformed
 		// input, and must be split out BEFORE the 4xx band that used to
@@ -490,21 +687,21 @@ function sn_mcp_telemetry_classify_wp_error( $error ) {
 		// right — unreadable. No refusal_gate: a conflict is not a gate
 		// refusal, it is a lost race.
 		if ( 409 === $status ) {
-			return array( 'outcome' => 'conflict', 'refusal_gate' => null, 'error_code' => $code );
+			return $verdict( 'conflict', null );
 		}
 		if ( ( $status >= 400 && $status <= 428 ) || ( $status >= 431 && $status <= 499 ) ) {
-			return array( 'outcome' => 'schema_error', 'refusal_gate' => null, 'error_code' => $code );
+			return $verdict( 'schema_error', null );
 		}
 		if ( $status >= 500 ) {
-			return array( 'outcome' => 'server_error', 'refusal_gate' => null, 'error_code' => $code );
+			return $verdict( 'server_error', null );
 		}
 	}
 
 	if ( in_array( $code, sn_mcp_telemetry_status_less_schema_codes(), true ) ) {
-		return array( 'outcome' => 'schema_error', 'refusal_gate' => null, 'error_code' => $code );
+		return $verdict( 'schema_error', null );
 	}
 
-	return array( 'outcome' => 'server_error', 'refusal_gate' => null, 'error_code' => $code );
+	return $verdict( 'server_error', null );
 }
 
 /**
@@ -529,9 +726,16 @@ function sn_mcp_telemetry_classify_wp_error( $error ) {
  *                                  keep working. @since v11.8.0.
  * @param string|null $error_code   Allowlisted WP_Error code captured by the
  *                                  classifier, or null.
+ * @param string|null $dimensions   Sorted comma-joined section list, or null.
+ * @param string|null $error_detail DIAGNOSTIC ONLY — the WP_Error's message,
+ *                                  bounded to 255 bytes. Never aggregated.
+ *                                  Appended last, so existing positional
+ *                                  callers keep working. @since v13.48.0.
+ * @param int|null    $error_status DIAGNOSTIC ONLY — the WP_Error's status.
+ *                                  Never aggregated. @since v13.48.0.
  * @return array<string,mixed>
  */
-function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape, $args_hash, $outcome, $refusal_gate, $latency_ms, $result_count, $change_type = null, $error_code = null, $dimensions = null ) {
+function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape, $args_hash, $outcome, $refusal_gate, $latency_ms, $result_count, $change_type = null, $error_code = null, $dimensions = null, $error_detail = null, $error_status = null ) {
 	return array(
 		'ts'           => (string) $ts,
 		'layer'        => 'server',
@@ -552,6 +756,16 @@ function sn_mcp_telemetry_build_row( $ts, $door, $actor, $tool_name, $args_shape
 		// v13.46.0. Same refuse-rather-than-cut rule as change_type above.
 		'dimensions'   => ( null === $dimensions || strlen( (string) $dimensions ) > SN_MCP_TELEMETRY_DIMENSIONS_MAX ) ? null : (string) $dimensions,
 		'error_code'   => 'ok' === $outcome ? null : sn_mcp_telemetry_error_code_allowed( $error_code ),
+		// v13.48.0, diagnostic-only pair. Same success-forces-NULL rule as
+		// error_code: a row that did not fail has nothing to explain, so an
+		// internal caller cannot attach prose to a successful call. The 255
+		// bound is re-applied here rather than trusted from the extractor,
+		// because build_row() is the persist choke point and a future caller
+		// may pass a raw string positionally.
+		'error_detail' => ( 'ok' === $outcome || ! is_string( $error_detail ) || '' === $error_detail )
+			? null
+			: substr( $error_detail, 0, SN_MCP_TELEMETRY_ERROR_DETAIL_MAX ),
+		'error_status' => 'ok' === $outcome ? null : sn_mcp_telemetry_error_status_allowed( $error_status ),
 	);
 }
 
@@ -633,10 +847,12 @@ function sn_mcp_telemetry_insert_row( $row ) {
 			'change_type'  => $row['change_type'] ?? null,
 			'dimensions'   => $row['dimensions'] ?? null,
 			'error_code'   => $row['error_code'] ?? null,
+			'error_detail' => $row['error_detail'] ?? null,
+			'error_status' => $row['error_status'] ?? null,
 		),
-		// v13.46.0: 15 columns, 15 formats. The count pin exists because a new
+		// v13.48.0: 17 columns, 17 formats. The count pin exists because a new
 		// column without its %s misbinds every column after it.
-		array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s' )
+		array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s', '%s', '%s', '%d' )
 	);
 }
 
@@ -856,9 +1072,13 @@ function sn_mcp_telemetry_maybe_prune() {
  * @param int|null    $result_count
  * @param string|null $error_code   Captured by the WP_Error classifier before
  *                                  the result is flattened to message-only.
+ * @param string|null $error_detail DIAGNOSTIC ONLY — the WP_Error's message.
+ *                                  Never aggregated. @since v13.48.0.
+ * @param int|null    $error_status DIAGNOSTIC ONLY — the WP_Error's status.
+ *                                  Never aggregated. @since v13.48.0.
  * @return void
  */
-function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refusal_gate, $latency_ms, $result_count = null, $error_code = null ) {
+function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refusal_gate, $latency_ms, $result_count = null, $error_code = null, $error_detail = null, $error_status = null ) {
 	if ( ! sn_mcp_telemetry_enabled() ) {
 		return;
 	}
@@ -877,7 +1097,9 @@ function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refu
 			$result_count,
 			sn_mcp_telemetry_change_type( $args, (string) $tool_name ),
 			$error_code,
-			sn_mcp_telemetry_dimensions( $args, (string) $tool_name )
+			sn_mcp_telemetry_dimensions( $args, (string) $tool_name ),
+			$error_detail,
+			$error_status
 		);
 		sn_mcp_telemetry_insert_row( $row );
 		sn_mcp_telemetry_maybe_prune();

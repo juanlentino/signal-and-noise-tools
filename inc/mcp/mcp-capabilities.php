@@ -207,9 +207,32 @@ function sn_mcp_allowlist() {
  * Held OUT on purpose (present on neither door — verify with
  * sn_mcp_is_allowed before ever touching this list):
  *   - signal-noise/run-cron-event        — unbounded do_action() dispatch.
+ *     PRECISION, v13.49.0: "unbounded" is now narrower than it reads.
+ *     snt_cron_run_event_impl() already refuses a hook with no
+ *     `has_action()` registration, and the ability already refuses every
+ *     `sn_*` internal. What stays genuinely unbounded is that `has_action()`
+ *     admits ANY registered action, not only a scheduled cron event — so the
+ *     hazard is dispatch of arbitrary registered hooks, not of arbitrary
+ *     strings. The exclusion stands; the reason is the accurate one.
+ *     AND IT IS NOW LOAD-BEARING IN A SECOND WAY (v13.49.0): the `sn-apply`
+ *     change type `schedule_cron_event` BOOKS a run of an SN-owned hook and
+ *     returns, without dispatching anything. Dispatch is the hazard here and
+ *     booking is not, which is exactly why one is reachable and this stays
+ *     held. Do not "unify" them.
  *   - signal-noise/ai-orphan-apply       — permanent delete, skips trash, no undo.
  *   - signal-noise/merge-tags            — sitewide term reassign + delete.
  *   - signal-noise/clear-template-overrides — wipes Site Editor template rows.
+ *
+ *     STILL TRUE OF THE DOOR, NO LONGER TRUE OF THE CAPABILITY (v13.49.0):
+ *     neither slug is doored, and neither should be. But both are now reachable
+ *     as `sn-apply` change types (`merge_tags`, `clear_template_overrides`), so
+ *     "held out" describes the TOOL and not the reach. Both exclusion reasons
+ *     above were written against a doored tool — a bare slug with no dry run, no
+ *     gates and no audit row. As a change type each inherits `dry_run:true`,
+ *     the four gates, idempotency and the rw audit trail, and both abilities are
+ *     `manage_options`, the same tier `sn-apply` already carries, so no
+ *     permission boundary moved. Same capability, different risk object. Read
+ *     this list as "never a doored tool", never as "unreachable".
  *   - signal-noise/run-health-scan       — too slow to survive the wire. The MCP
  *     layer dispatches synchronously with no timeout and no execution budget;
  *     the scan takes roughly 35s today and up to ~105s when something is
