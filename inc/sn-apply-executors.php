@@ -66,6 +66,17 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	// APPLY but cannot DISMISS, so a candidate list never converges.
 	// See inc/abilities-dismiss.php for the contract this mirrors.
 	'dismiss',
+	// PHASE 3 (un-versioned handoff): two exclusions the OPTIONS framing reverses.
+	// mcp-capabilities.php holds both OFF the rw door "on purpose" — merge-tags
+	// as "sitewide term reassign + delete", clear-template-overrides as "wipes
+	// Site Editor template rows". BOTH REASONS WERE WRITTEN AGAINST A DOORED
+	// TOOL. As a change type each inherits dry_run:true by default, four gates,
+	// idempotency and the rw audit trail: same capability, different risk
+	// object. Both abilities are manage_options, so no permission tier is
+	// crossed. ai-orphan-apply is NOT reversed — it is a permanent delete that
+	// skips trash, and irreversibility is the one thing the gates cannot fix.
+	'merge_tags',
+	'clear_template_overrides',
 	// v10.58.0 (audit item 6): makes create_draft's advertised
 	// rollback:{method:"delete_draft"} REAL — trash-only, draft-only,
 	// fingerprint-gated. See inc/sn-apply-delete-draft.php.
@@ -135,6 +146,16 @@ function snt_sn_apply_mode_support( $type ) {
 				'modes'  => array( 'publish' ),
 				'reason' => 'roadmap_board writes the maturity roadmap\'s site-level board override: an option, not a post field. An option has no WordPress revision to stage — publish-only, the og_card/anchor_sweep posture; dry_run:true is the review step.',
 			);
+		case 'merge_tags':
+			return array(
+				'modes'  => array( 'publish' ),
+				'reason' => 'merge_tags reassigns posts between terms and deletes the emptied ones: a taxonomy write with no post-field revision to stage. Publish-only, the og_card/anchor_sweep/roadmap_board posture; dry_run:true is the review step.',
+			);
+		case 'clear_template_overrides':
+			return array(
+				'modes'  => array( 'publish' ),
+				'reason' => 'clear_template_overrides removes Site Editor template rows: not a post field, and there is no WordPress revision of a deleted override. Publish-only; dry_run:true is the review step.',
+			);
 		case 'dismiss':
 			return array(
 				'modes'  => array( 'publish' ),
@@ -177,6 +198,23 @@ function snt_sn_apply_resolve_target( $type, $target ) {
 			return new WP_Error( 'snt_sn_apply_bad_target', __( 'anchor_sweep requires target.scope === "provenance_anchors".', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 		}
 		return array( 'scope' => 'provenance_anchors' );
+	}
+
+	if ( 'merge_tags' === $type ) {
+		// Explicit scope, the anchor_sweep/roadmap_board posture: the target is
+		// the tag vocabulary, not a post — name it rather than accepting any
+		// object at all.
+		if ( 'tags' !== ( $target['scope'] ?? '' ) ) {
+			return new WP_Error( 'snt_sn_apply_bad_target', __( 'merge_tags requires target.scope === "tags".', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		return array( 'scope' => 'tags' );
+	}
+
+	if ( 'clear_template_overrides' === $type ) {
+		if ( 'template_overrides' !== ( $target['scope'] ?? '' ) ) {
+			return new WP_Error( 'snt_sn_apply_bad_target', __( 'clear_template_overrides requires target.scope === "template_overrides".', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		return array( 'scope' => 'template_overrides' );
 	}
 
 	if ( 'roadmap_board' === $type ) {
@@ -494,6 +532,28 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 			// impl (inc/sn-apply-roadmap-board.php) shapes its own diff
 			// (before = the pre-write effective board).
 			return snt_sn_apply_write_roadmap_board( $payload );
+
+		case 'merge_tags':
+			// mode:publish only. Routes to the REAL ability, never a
+			// re-implementation; gate 2 has already fenced the payload.
+			$result = snt_ability_merge_tags( array(
+				'from_slugs' => (array) ( $payload['from_slugs'] ?? array() ),
+				'into_slug'  => (string) ( $payload['into_slug'] ?? '' ),
+			) );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			return array( 'ok' => true, 'diff' => array( 'before' => null, 'after' => $result, 'blocks_touched' => 0 ), 'revision_id' => null, 'write_result' => $result );
+
+		case 'clear_template_overrides':
+			// mode:publish only. The ability takes NO input — its input_schema's
+			// properties map is empty, so inventing a payload here would invent
+			// a contract.
+			$result = snt_ability_clear_template_overrides();
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			return array( 'ok' => true, 'diff' => array( 'before' => null, 'after' => $result, 'blocks_touched' => 0 ), 'revision_id' => null, 'write_result' => $result );
 
 		case 'dismiss':
 			// mode:publish only — see snt_sn_apply_mode_support(). Routes to the

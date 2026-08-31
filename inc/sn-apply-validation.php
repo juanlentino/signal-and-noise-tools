@@ -498,6 +498,65 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 }
 
 /**
+ * Gate 2 for `merge_tags`.
+ *
+ * Mirrors the ability's OWN required input (`from_slugs`, `into_slug`, read from
+ * inc/abilities-content.php) rather than anything inferred from the change
+ * type's name — the mistake that produced two wrong `dismiss` designs before
+ * this one.
+ *
+ * @param array $change
+ * @return array
+ */
+function snt_sn_apply_gate2_merge_tags( $change ) {
+	$payload  = isset( $change['payload'] ) && is_array( $change['payload'] ) ? $change['payload'] : array();
+	$findings = array();
+	$identity = 'merge_tags|' . (string) ( $payload['into_slug'] ?? '' );
+
+	$from = $payload['from_slugs'] ?? null;
+	if ( ! is_array( $from ) || empty( $from ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'merge_tags',
+			'payload_complete',
+			'error',
+			__( 'merge_tags requires payload.from_slugs (a non-empty array of term slugs).', 'signal-and-noise-tools' ),
+			null,
+			'from_slugs',
+			array(),
+			$identity
+		);
+	}
+	if ( '' === (string) ( $payload['into_slug'] ?? '' ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'merge_tags',
+			'payload_complete',
+			'error',
+			__( 'merge_tags requires payload.into_slug.', 'signal-and-noise-tools' ),
+			null,
+			'into_slug',
+			array(),
+			$identity
+		);
+	}
+	// Merging a term into ITSELF is a no-op that would still delete the source:
+	// refuse rather than reassign-then-delete the same term.
+	if ( is_array( $from ) && in_array( (string) ( $payload['into_slug'] ?? '' ), array_map( 'strval', $from ), true ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'merge_tags',
+			'no_self_merge',
+			'error',
+			__( 'into_slug appears in from_slugs: merging a term into itself would delete it.', 'signal-and-noise-tools' ),
+			(string) ( $payload['into_slug'] ?? '' ),
+			'a slug not present in from_slugs',
+			array(),
+			$identity
+		);
+	}
+
+	return array( 'passed' => empty( $findings ), 'findings' => $findings );
+}
+
+/**
  * Gate 2 for `dismiss`.
  *
  * THE CONTRACT IS THE ABILITY'S, NOT THE TOOL'S. dismiss-candidate
@@ -681,6 +740,15 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 
 		case 'dismiss':
 			return snt_sn_apply_gate2_dismiss( $change );
+
+		case 'merge_tags':
+			return snt_sn_apply_gate2_merge_tags( $change );
+
+		case 'clear_template_overrides':
+			// The ability's input_schema has an EMPTY properties map, so there
+			// is nothing to validate. Returning a passing gate here is honest;
+			// inventing a required key would invent a contract.
+			return array( 'passed' => true, 'findings' => array() );
 
 		case 'delete_draft':
 			// Draft-status + post_type fence (inc/sn-apply-delete-draft.php);

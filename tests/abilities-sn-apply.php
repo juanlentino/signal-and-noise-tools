@@ -565,5 +565,94 @@ foreach ( array( 'surface', 'block_fingerprint', 'candidate_type' ) as $sn_k ) {
 	ok( is_wp_error( $sn_r ), "a dismissal missing $sn_k refuses" );
 }
 
+echo "\nGroup: two exclusions the options framing reverses (Phase 3)\n";
+//
+// WHY THESE REVERSE. inc/mcp/mcp-capabilities.php holds both OFF the rw door
+// "on purpose" — merge-tags as "sitewide term reassign + delete",
+// clear-template-overrides as "wipes Site Editor template rows". Both reasons
+// were written against a DOORED TOOL. As an sn-apply change type each inherits
+// dry_run:true by default, four gates reported even when an earlier one failed,
+// idempotency, and the rw audit trail. Different risk object, same capability.
+//
+// Both abilities are snt_ability_perm_manage_options — the same gate sn-apply
+// carries — so nothing crosses a permission tier.
+
+ok( in_array( 'merge_tags', SNT_SN_APPLY_CHANGE_TYPES, true ), 'merge_tags is a declared change type' );
+ok( in_array( 'clear_template_overrides', SNT_SN_APPLY_CHANGE_TYPES, true ), 'clear_template_overrides is a declared change type' );
+
+// Both are PUBLISH-ONLY: a term reassign and an option/row wipe have no
+// WordPress revision to stage. Refuse by name, never fabricate a staged
+// version of a side effect that cannot be staged.
+foreach ( array(
+	'merge_tags'               => array( 'scope' => 'tags' ),
+	'clear_template_overrides' => array( 'scope' => 'template_overrides' ),
+) as $sn_t => $sn_target ) {
+	$sn_r = snt_ability_sn_apply( array(
+		'target'  => $sn_target,
+		'change'  => array( 'type' => $sn_t, 'payload' => array( 'from_slugs' => array( 'a' ), 'into_slug' => 'b' ) ),
+		'mode'    => 'revision',
+		'dry_run' => true,
+	) );
+	ok( is_wp_error( $sn_r ), "$sn_t refuses mode:revision" );
+}
+
+// merge_tags mirrors the ability's OWN required input (from_slugs, into_slug),
+// read from inc/abilities-content.php rather than assumed from the tool's
+// vocabulary — the mistake that produced two wrong dismiss designs.
+foreach ( array( 'from_slugs', 'into_slug' ) as $sn_k ) {
+	$sn_pl = array( 'from_slugs' => array( 'old-tag' ), 'into_slug' => 'new-tag' );
+	unset( $sn_pl[ $sn_k ] );
+	$sn_r = snt_ability_sn_apply( array(
+		'target'  => array( 'scope' => 'tags' ),
+		'change'  => array( 'type' => 'merge_tags', 'payload' => $sn_pl ),
+		'mode'    => 'publish',
+		'dry_run' => true,
+	) );
+	ok( is_wp_error( $sn_r ), "merge_tags missing $sn_k refuses" );
+}
+
+// clear_template_overrides takes NO payload — its ability's input_schema has an
+// empty properties map. Requiring one would invent a contract.
+$sn_cto = snt_ability_sn_apply( array(
+	'target'  => array( 'scope' => 'template_overrides' ),
+	'change'  => array( 'type' => 'clear_template_overrides', 'payload' => array() ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( ! is_wp_error( $sn_cto ), 'clear_template_overrides dry-runs with an empty payload' );
+
+// Explicit scope targets, the anchor_sweep/roadmap_board posture: name the
+// surface exactly rather than accepting any object at all.
+$sn_bad_scope = snt_ability_sn_apply( array(
+	'target'  => array( 'scope' => 'not_a_surface' ),
+	'change'  => array( 'type' => 'clear_template_overrides', 'payload' => array() ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_bad_scope ), 'a wrong target.scope refuses rather than being accepted loosely' );
+
+// merge_tags needs its OWN scope pin — the assertion above only exercises
+// clear_template_overrides, and a mutation proved merge_tags' guard was
+// untested. Two types, two guards, two pins.
+$sn_mt_scope = snt_ability_sn_apply( array(
+	'target'  => array( 'scope' => 'not_tags' ),
+	'change'  => array( 'type' => 'merge_tags', 'payload' => array( 'from_slugs' => array( 'a' ), 'into_slug' => 'b' ) ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_mt_scope ), 'merge_tags refuses a target.scope that is not "tags"' );
+
+// THE SELF-MERGE GUARD WAS WRITTEN WITH NO TEST, and a mutation caught that:
+// deleting it changed nothing. Merging a term into itself would reassign its
+// posts to itself and then DELETE it — a silent vocabulary loss, and exactly
+// the "sitewide term reassign + delete" risk the original exclusion named.
+$sn_self = snt_ability_sn_apply( array(
+	'target'  => array( 'scope' => 'tags' ),
+	'change'  => array( 'type' => 'merge_tags', 'payload' => array( 'from_slugs' => array( 'keep-me', 'other' ), 'into_slug' => 'keep-me' ) ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_self ), 'merging a term into itself refuses' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
