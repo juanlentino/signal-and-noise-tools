@@ -63,13 +63,109 @@ if ( ! function_exists( 'sn_ssrf_resolve_host' ) ) {
 }
 
 /**
+ * Resolve a host to EVERY address it publishes.
+ *
+ * v13.51.0 — WHY THIS EXISTS ALONGSIDE sn_ssrf_resolve_host().
+ *
+ * gethostbyname() returns ONE address from a multi-address rrset, and which one
+ * is not stable. Measured 2026-08-31: gethostbyname('dns.google') = 8.8.4.4
+ * while gethostbynamel('dns.google') = 8.8.4.4, 8.8.8.8. The guard therefore
+ * validated a single address out of a set it never enumerated, while cURL
+ * resolved independently when the request went out — so a host publishing
+ * [public, 169.254.169.254] could be validated against the public record and
+ * fetched from the internal one. No attacker timing required; ordinary rrset
+ * rotation suffices.
+ *
+ * THE SINGLE-ADDRESS SEAM IS DELIBERATELY PRESERVED, AND A FALLBACK IS NOT
+ * ENOUGH. Eight test suites (webhooks, provenance-webhook, ssrf-url-validation,
+ * health-external-links, analytics-salt-window, worker-version,
+ * provenance-admin, provenance-genesis) define sn_ssrf_resolve_host() before
+ * requiring this file and rely on its function_exists guard.
+ *
+ * The first cut of this function fell back to that seam only when the plural
+ * lookup returned nothing — which fails for any stub whose host is REALLY
+ * resolvable. provenance-genesis.php stubs raw.githubusercontent.com to
+ * 10.0.0.9; gethostbynamel() resolves that host for real, so the stub was never
+ * consulted, the suite went red, and it silently hit the network. Caught by the
+ * sweep, 2026-08-31. sn_ssrf_host_blocked() therefore takes the UNION of both
+ * lookups rather than preferring either — see there.
+ *
+ * STILL IPv4-ONLY. gethostbynamel() reads A records, not AAAA, so an IPv6-only
+ * host resolves to nothing and fails closed. That is the safe direction but it
+ * is a false negative, not a policy: add dns_get_record($host, DNS_AAAA) here if
+ * a caller ever needs one.
+ *
+ * @since 13.51.0
+ * @param string $host Host component of a URL.
+ * @return string[] Every resolved address; empty array when unresolvable.
+ */
+if ( ! function_exists( 'sn_ssrf_resolve_host_all' ) ) {
+	function sn_ssrf_resolve_host_all( $host ) {
+		if ( filter_var( $host, FILTER_VALIDATE_IP ) ) {
+			return array( $host ); // a literal address has no rrset to enumerate
+		}
+		$ips = gethostbynamel( (string) $host );
+		if ( is_array( $ips ) && array() !== $ips ) {
+			return array_values( $ips );
+		}
+		// Plural lookup found nothing — fall back to the single-address seam so
+		// an overriding stub still governs. Real failure yields '' either way.
+		$one = sn_ssrf_resolve_host( $host );
+		return '' === $one ? array() : array( $one );
+	}
+}
+
+/**
+ * Is this single resolved IP in a range we must never reach?
+ *
+ * Extracted from sn_ssrf_host_blocked() in v13.51.0 so the range check can be
+ * applied to every address in an rrset, and pinned directly by tests.
+ *
+ * @since 13.51.0
+ * @param string $ip A resolved IP address.
+ * @return bool True if the address must be blocked. Fails CLOSED on ''.
+ */
+if ( ! function_exists( 'sn_ssrf_ip_blocked' ) ) {
+	function sn_ssrf_ip_blocked( $ip ) {
+		if ( '' === (string) $ip ) {
+			return true;
+		}
+		// filter_var returns the IP when it is PUBLIC, false otherwise. Blocks
+		// 169.254/16 + 127/8 + 0/8 + 240/4 (reserved) and 10/8 + 172.16/12 +
+		// 192.168/16 + fc00::/7 + fe80::/10 + ::1 (private).
+		if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
+			return true;
+		}
+		// CGNAT 100.64.0.0/10 — NOT covered by PHP's reserved-range filter, so
+		// this line is load-bearing rather than belt-and-braces. Verified
+		// 2026-08-31: filter_var() passes 100.64.0.1 as public.
+		if ( 1 === preg_match( '#^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.#', $ip ) ) {
+			return true;
+		}
+		return false;
+	}
+}
+
+/**
  * Is this host in a range we must never reach (SSRF)?
  *
- * Resolves the host first (catching the encoded-IP bypasses above), then
- * rejects link-local (169.254/16), loopback, RFC-1918, reserved (0/8, 240/4,
- * …), IPv6 private/reserved (via PHP's filter flags), and CGNAT (100.64/10,
- * which the filter flags omit). FAILS CLOSED: an empty or unresolvable host is
+ * Resolves the host to EVERY address it publishes (catching both the encoded-IP
+ * bypasses above and the multi-address rrset gap), then blocks if ANY of them is
+ * internal. FAILS CLOSED: an empty, unresolvable, or partially-internal host is
  * blocked.
+ *
+ * RESIDUAL RISK — DNS REBINDING. This is a check-then-fetch design: the guard
+ * resolves here, and cURL resolves again when the request is issued. A
+ * short-TTL record answering public-then-internal defeats any such design.
+ * Enumerating the whole rrset closes the multi-address case completely; it does
+ * NOT close rebinding. The complete answer is pinning host->IP at connect time
+ * (CURLOPT_RESOLVE via the http_api_curl action), which is not done here.
+ * Accepted for now because every caller takes its host from owner-controlled
+ * config or options, not anonymous input.
+ *
+ * This also does NOT replace `redirection => 0` on the actual request, which is
+ * what stops a validated host redirecting to an internal one — the host filter
+ * only ever sees the first hop.
  *
  * @since 6.13.1
  * @param string $host Host component of a URL.
@@ -79,19 +175,23 @@ function sn_ssrf_host_blocked( $host ) {
 	if ( '' === (string) $host ) {
 		return true;
 	}
-	$ip = sn_ssrf_resolve_host( $host );
-	if ( '' === $ip ) {
-		return true; // unresolvable → fail closed
+	// UNION of both lookups, never one or the other. The plural lookup is the
+	// production answer (every A record); the singular seam is what eight test
+	// suites override, and some of their hosts resolve for real — so preferring
+	// the plural silently bypasses those stubs. Union is also the strictly safer
+	// composition: more addresses checked can only ever block more, never less.
+	$ips = sn_ssrf_resolve_host_all( $host );
+	$one = sn_ssrf_resolve_host( $host );
+	if ( '' !== $one && ! in_array( $one, $ips, true ) ) {
+		$ips[] = $one;
 	}
-	// filter_var returns the IP when it is PUBLIC, false otherwise. Blocks
-	// 169.254/16 + 127/8 + 0/8 + 240/4 (reserved) and 10/8 + 172.16/12 +
-	// 192.168/16 + fc00::/7 + fe80::/10 + ::1 (private).
-	if ( ! filter_var( $ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE ) ) {
-		return true;
+	if ( array() === $ips ) {
+		return true; // unresolvable -> fail closed
 	}
-	// CGNAT 100.64.0.0/10 — not covered by PHP's reserved-range filter.
-	if ( 1 === preg_match( '#^100\.(6[4-9]|[7-9][0-9]|1[01][0-9]|12[0-7])\.#', $ip ) ) {
-		return true;
+	foreach ( $ips as $ip ) {
+		if ( sn_ssrf_ip_blocked( $ip ) ) {
+			return true; // ANY internal address in the rrset blocks the host
+		}
 	}
 	return false;
 }

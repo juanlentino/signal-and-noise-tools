@@ -2,6 +2,38 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.50.1] - 2026-08-31 — the SSRF guard stops trusting one address out of many
+
+`sn_ssrf_host_blocked()` is the single audited guard behind webhooks, WebSub, provenance webhooks, the link-rot and rights-signals health checks, worker version/deploy probes, citations, machine-readers and the analytics salt window — sixteen call sites. Every documented bypass class it was built for still holds. **The resolver was the gap.**
+
+### Fixed — the whole record set is checked, not one address from it
+
+`gethostbyname()` returns ONE address from a multi-address rrset, and which one is not stable. Measured 2026-08-31: `gethostbyname('dns.google')` → `8.8.4.4`, while `gethostbynamel('dns.google')` → `8.8.4.4, 8.8.8.8`.
+
+So the guard validated a single address out of a set it never enumerated, while cURL resolved **independently** when the request went out. A host publishing `[203.0.113.10, 169.254.169.254]` could be validated against the public record and fetched from the internal one — no attacker timing needed, ordinary rrset rotation suffices.
+
+`sn_ssrf_resolve_host_all()` (new) enumerates every A record; `sn_ssrf_ip_blocked()` (new, extracted) applies the range check to each; `sn_ssrf_host_blocked()` blocks if **any** address is internal and still fails closed on none.
+
+Severity is moderate with low exploitability — every caller takes its host from owner-controlled config or options, not anonymous input. This is defence-in-depth on a component whose whole job is defence-in-depth.
+
+### What did NOT change
+
+The range check itself, because it was already right. Verified directly against `filter_var()`: decimal, dotted-hex, flat-hex, dotted-octal and flat-octal encodings of `169.254.169.254` all blocked, and so are `::ffff:169.254.169.254`, `::ffff:a9fe:a9fe`, `0:0:0:0:0:ffff:169.254.169.254`, NAT64 `64:ff9b::169.254.169.254`, `fe80::1` and `::1`. The CGNAT row is the one PHP does **not** cover — `filter_var()` passes `100.64.0.1` as public — so the explicit `100.64.0.0/10` regex is load-bearing rather than belt-and-braces, and now has a test saying so.
+
+### The correction this forced, recorded
+
+`sn_ssrf_resolve_host()` is a **test seam**: eight suites define it before requiring the guard and rely on its `function_exists()` wrapper. The first cut called the plural lookup and fell back to that seam only when it returned nothing — which fails for any stub whose host really resolves. `tests/provenance-genesis.php` stubs `raw.githubusercontent.com` to `10.0.0.9`; `gethostbynamel()` resolves that host for real, so the stub was never consulted, the suite went red, **and it silently hit the network**.
+
+The sweep caught it. The guard now takes the **union** of both lookups rather than preferring either — which is also the strictly safer composition, since more addresses checked can only ever block more, never less.
+
+### Still open — DNS rebinding
+
+Enumerating the rrset closes the multi-address case completely. It does **not** close rebinding: this is still check-then-fetch, and the request re-resolves. The complete answer is pinning host→IP at connect time (`CURLOPT_RESOLVE` via `http_api_curl`), which is **not** done here and whose hook reachability is unverified. Documented as accepted residual risk in the guard's own docblock rather than implied away. Plan: [docs/proposals/ssrf-guard-multi-address-2026-08-31.md](docs/proposals/ssrf-guard-multi-address-2026-08-31.md).
+
+### Verification
+
+New suite `tests/ssrf-guard-rrset.php` (16 assertions), separate from `tests/ssrf-guard.php` because that one exercises the real resolver on purpose and a stub there would be a false green. **Negative-controlled twice**: it stubs the singular seam to return the first record — exactly `gethostbyname()` semantics — so the pre-fix guard sees the public address and two assertions go red; and mutating the fix to check only `array_slice($ips, 0, 1)` reds the same two. Sweep: 526 suites, 21,337 assertions, 0 failed.
+
 ## [13.50.0] - 2026-08-31 — a local section can no longer ship without a remote decision
 
 Phase 4 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md), as far as it can go. **Nothing is exposed here.** The remote door reaches exactly the same eight twins it reached before.
