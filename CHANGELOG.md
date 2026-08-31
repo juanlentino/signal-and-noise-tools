@@ -2,6 +2,103 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.49.0] - 2026-08-31 — three write-door exclusions come back as options, and a silent unschedule gets closed
+
+Phase 3 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md).
+
+### Added — `sn-apply` change types `merge_tags` and `clear_template_overrides`
+
+Both abilities sit on **neither door**, and both should stay that way. Their
+exclusion reasons were written against a **doored tool**: a bare slug with no
+dry run, no gates, no audit row. As an `sn-apply` change type each one inherits
+`dry_run:true`, the four gates, idempotency and the rw audit trail. Same
+capability, different risk object. Both are `manage_options`, the tier
+`sn-apply` already carries, so no permission boundary moved.
+
+- **Publish-only**, the `og_card` / `anchor_sweep` / `roadmap_board` posture. A
+  taxonomy write and an override wipe have no post field to stage, and there is
+  no WordPress revision of a deleted override. `mode:"revision"` refuses **by
+  name** rather than fabricating a staged side effect.
+- **Scope targets, named exactly**: `target.scope` must be `"tags"` or
+  `"template_overrides"`. Any other object refuses.
+- `clear_template_overrides` takes **no payload**, because its ability's
+  `input_schema` properties map is genuinely empty. Requiring one would invent a
+  contract.
+- `merge_tags` mirrors its ability's own required input (`from_slugs`,
+  `into_slug`), **read from the ability** rather than inferred from the change
+  type's name. That inference produced two wrong `dismiss` designs before
+  v13.47.0 shipped.
+- A **self-merge refusal** that the underlying ability does not have:
+  `into_slug` appearing inside `from_slugs` would reassign a term's posts to
+  itself and then delete it. Silent vocabulary loss, which is precisely the risk
+  the original exclusion named.
+
+### Added — `sn-apply` change type `schedule_cron_event`, which the plan got wrong
+
+The plan named two cron types: `run_cron_event` allowlisted to scheduled hooks,
+plus a fire-and-forget `schedule_health_scan`. **They cancel each other out.**
+`SN_HEALTH_CRON_HOOK` (`sn_health_scan_daily`) *is* a daily scheduled hook
+(`inc/health-scan-cron.php:86`), so an allowlisted `run_cron_event` would admit
+the health scan and dispatch it **synchronously** — reintroducing the
+35–105s-against-a-~100s-edge-cap problem the fire-and-forget half exists to
+avoid.
+
+One type ships instead. `schedule_cron_event` books a single future run and
+returns; it never dispatches. `run-cron-event` stays off every door, because
+**dispatch is the hazard and booking is not**.
+
+- New ability `signal-noise/schedule-cron-event`, routed to like every other
+  change type — the executor never calls `wp_schedule_single_event()` itself.
+  It is on **neither MCP door**, exactly like its Phase 3 siblings.
+- **The bound is derived, not invented.** `snt_cron_sn_owned_hooks()` already
+  exists, and the new impl reads it with the polarity **inverted**:
+  unscheduling *refuses* an SN-owned hook, because stopping our own maintenance
+  is the harm there; scheduling accepts **only** SN-owned hooks, because
+  deferred dispatch of third-party code is the harm here. One predicate, two
+  directions.
+- A hook with **no registered handler refuses** rather than booking a run that
+  fires into nothing — the honest-null rule applied to cron.
+- An identical pending event is **reported, never duplicated**, so the same
+  maintenance cannot be booked twice.
+- Publish-only, `target.scope === "cron"`, delay clamped to one hour. Gate 2
+  **refuses** an out-of-range delay rather than silently clamping it, so the
+  dry run shows the caller what it asked for.
+
+### Fixed — the daily health scan could be silently unscheduled
+
+Found while building the above, and older than it. `snt_cron_sn_owned_hooks()`
+is the allow-list that stops Signal & Noise's own recurring hooks from being
+unscheduled, and **`sn_health_scan_daily` was missing from it** even though the
+list's own docblock says to add every recurring SN hook. `unschedule-cron-event`
+**is on the rw door**, so a single call could stop the daily health scan, after
+which the dashboard's verdict would simply age with no cause visible anywhere.
+Now listed, and pinned by a test that exercises the refusal rather than reading
+the list.
+
+
+### Fixed — two comments that Phase 3 made inaccurate
+
+`sn_mcp_rw_allowlist()`'s held-out list is load-bearing documentation, and it
+now says two things it did not.
+
+- `merge-tags` and `clear-template-overrides` remain undoored, and the list
+  still reads correctly as "never a doored tool" — but both are now **reachable
+  as change types**, so the entry says so explicitly. "Held out" describes the
+  tool, never the reach.
+- `run-cron-event`'s "unbounded `do_action()` dispatch" is narrower than it
+  reads: the impl already refuses a hook with no `has_action()` registration
+  (`inc/cron-dashboard.php:265`) and the ability already refuses every `sn_*`
+  internal. What stays genuinely unbounded is that `has_action()` admits any
+  registered action, not only a scheduled cron event. The exclusion stands with
+  the accurate reason.
+
+### Testing
+
+47 new assertions. Two guards were found protecting nothing and are now pinned:
+a scope guard whose only test exercised the *other* change type, and the
+self-merge guard, which shipped with no test at all. Both mutated clean before
+the fix and now red their own mutation.
+
 ## [13.48.0] - 2026-08-31 — a failed tool call stops being just an identifier
 
 ### Added — `error_detail` and `error_status` on `sn_tool_call`

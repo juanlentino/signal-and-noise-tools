@@ -138,6 +138,20 @@ class WP_Error {
 		$this->data    = $data;
 	}
 	public function get_error_message() { return $this->message; }
+	// v13.49.0: the stub carried only get_error_message(), so a test asserting
+	// WHICH refusal fired could not be written against it — and "returns some
+	// WP_Error" is a much weaker claim than "returns snt_cron_not_sn_owned".
+	// Modelling the real class's accessors, per the stub-parity rule.
+	public function get_error_code() { return $this->code; }
+	public function get_error_data() { return $this->data; }
+}
+
+// v13.49.0: snt_cron_schedule_event_impl() checks wp_schedule_single_event()'s
+// WP_Error return (WP 5.7+ returns one when a pre-filter blocks the booking),
+// so the harness needs the real predicate rather than leaving the module to
+// fatal on it.
+if ( ! function_exists( 'is_wp_error' ) ) {
+	function is_wp_error( $thing ) { return $thing instanceof WP_Error; }
 }
 
 require_once __DIR__ . '/../inc/cron-dashboard.php';
@@ -467,6 +481,89 @@ $GLOBALS['__test_next_scheduled'][ $healthy25 ] = time() + 300;
 $GLOBALS['__test_options'][ 'snt_cron_last_fired_' . md5( $healthy25 ) ] = time() - 60; // fired 60s ago — hard evidence cron IS running
 $r25 = snt_cron_site_health_result();
 assert_eq( 'recommended', $r25['status'], 'evidence cron IS firing escapes critical even with a separately overdue hook' );
+
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.49.0 — snt_cron_schedule_event_impl(): booking, not dispatching.
+ *
+ * The bound's POLARITY is the property under test. snt_cron_sn_owned_hooks()
+ * is one predicate read in two directions: unscheduling REFUSES an SN-owned
+ * hook (stopping our own maintenance is the harm there), scheduling accepts
+ * ONLY them (deferred dispatch of third-party code is the harm here). A test
+ * that only proved "an SN hook schedules" would pass on an implementation with
+ * no bound at all, so the refusal is pinned first.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+$GLOBALS['__test_scheduled_single'] = array();
+if ( ! function_exists( 'wp_schedule_single_event' ) ) {
+	function wp_schedule_single_event( $ts, $hook, $args = array(), $wp_error = false ) {
+		$GLOBALS['__test_scheduled_single'][] = array( 'ts' => $ts, 'hook' => $hook, 'args' => $args );
+		return true;
+	}
+}
+
+$GLOBALS['__test_current_user_can'] = true;
+$sn_owned_hook = 'sn_health_scan_daily';
+$GLOBALS['__test_actions'][ $sn_owned_hook ] = true;
+
+// THE BOUND, refusing direction first.
+$GLOBALS['__test_actions']['some_other_plugin_hook'] = true;
+$r_foreign = snt_cron_schedule_event_impl( 'some_other_plugin_hook', array(), 0 );
+assert_true( $r_foreign instanceof WP_Error, 'schedule: a NON-SN hook refuses, even with a registered handler' );
+assert_eq( 'snt_cron_not_sn_owned', ( $r_foreign instanceof WP_Error ) ? $r_foreign->get_error_code() : '(not a WP_Error)', 'schedule: the refusal names the bound rather than failing vaguely' );
+assert_true( ( $r_foreign instanceof WP_Error ) && false !== strpos( $r_foreign->get_error_message(), 'sn_health_scan_daily' ), 'schedule: the refusal LISTS what is schedulable, so a caller can correct it' );
+
+// A hook with no handler is refused rather than booked into nothing.
+$GLOBALS['__test_actions']['sn_analytics_rollup'] = false;
+$r_nohandler = snt_cron_schedule_event_impl( 'sn_analytics_rollup', array(), 0 );
+assert_true( $r_nohandler instanceof WP_Error, 'schedule: an SN hook with NO registered handler refuses' );
+assert_eq( 'snt_cron_no_handler', ( $r_nohandler instanceof WP_Error ) ? $r_nohandler->get_error_code() : '(not a WP_Error)', 'schedule: the no-handler refusal is its own code — a booked run that fires into nothing is the honest-null rule applied to cron' );
+
+// Permission, ahead of everything else.
+$GLOBALS['__test_current_user_can'] = false;
+$r_perm = snt_cron_schedule_event_impl( $sn_owned_hook, array(), 0 );
+assert_eq( 'snt_cron_forbidden', ( $r_perm instanceof WP_Error ) ? $r_perm->get_error_code() : '(not a WP_Error)', 'schedule: refuses without manage_options' );
+$GLOBALS['__test_current_user_can'] = true;
+
+// Empty hook.
+$r_empty = snt_cron_schedule_event_impl( '', array(), 0 );
+assert_eq( 'snt_cron_invalid_hook', ( $r_empty instanceof WP_Error ) ? $r_empty->get_error_code() : '(not a WP_Error)', 'schedule: an empty hook refuses' );
+
+// THE HAPPY PATH: books one event and returns immediately.
+unset( $GLOBALS['__test_next_scheduled'][ $sn_owned_hook ] );
+$GLOBALS['__test_scheduled_single'] = array();
+$r_ok = snt_cron_schedule_event_impl( $sn_owned_hook, array(), 0 );
+assert_true( ! ( $r_ok instanceof WP_Error ), 'schedule: an SN-owned hook with a handler books' );
+assert_true( is_array( $r_ok ) && ! empty( $r_ok['success'] ), 'schedule: reports success' );
+assert_true( is_array( $r_ok ) && false === ( $r_ok['already_scheduled'] ?? null ), 'schedule: a fresh booking is not reported as pre-existing' );
+assert_eq( 1, count( $GLOBALS['__test_scheduled_single'] ), 'schedule: exactly ONE event was booked' );
+assert_eq( $sn_owned_hook, $GLOBALS['__test_scheduled_single'][0]['hook'], 'schedule: booked the requested hook' );
+
+// IDEMPOTENCE: an identical pending event is reported, never duplicated —
+// otherwise the same maintenance runs twice.
+$GLOBALS['__test_next_scheduled'][ $sn_owned_hook ] = 1893456000;
+$GLOBALS['__test_scheduled_single'] = array();
+$r_dupe = snt_cron_schedule_event_impl( $sn_owned_hook, array(), 0 );
+assert_true( is_array( $r_dupe ) && true === ( $r_dupe['already_scheduled'] ?? null ), 'schedule: an identical pending event is REPORTED as already scheduled' );
+assert_eq( 1893456000, is_array( $r_dupe ) ? ( $r_dupe['scheduled_for'] ?? null ) : null, 'schedule: and reports the EXISTING run time, not a new one' );
+assert_eq( 0, count( $GLOBALS['__test_scheduled_single'] ), 'schedule: nothing was booked a second time' );
+unset( $GLOBALS['__test_next_scheduled'][ $sn_owned_hook ] );
+
+// The delay clamp, matching the validation gate's ceiling.
+$GLOBALS['__test_scheduled_single'] = array();
+$r_clamp = snt_cron_schedule_event_impl( $sn_owned_hook, array(), 99999 );
+assert_true( is_array( $r_clamp ) && ( $r_clamp['scheduled_for'] - time() ) <= HOUR_IN_SECONDS, 'schedule: an over-long delay clamps to the one-hour ceiling' );
+$GLOBALS['__test_scheduled_single'] = array();
+$r_neg = snt_cron_schedule_event_impl( $sn_owned_hook, array(), -500 );
+assert_true( is_array( $r_neg ) && $r_neg['scheduled_for'] >= time() - 1, 'schedule: a negative delay clamps to now, never into the past' );
+
+// THE REGRESSION THIS RELEASE FIXES, exercised rather than grepped: the health
+// hook must be SN-owned, so the rw-doored unschedule-cron-event refuses it.
+assert_true( snt_cron_is_sn_owned( 'sn_health_scan_daily' ), 'the daily health hook is SN-owned (MISSING until v13.49.0)' );
+$GLOBALS['__test_current_user_can'] = true;
+$r_unsched_health = snt_cron_unschedule_event_impl( 'sn_health_scan_daily', array() );
+assert_true( $r_unsched_health instanceof WP_Error, 'REGRESSION: unschedule now REFUSES the health hook — before v13.49.0 it would have silently stopped the daily scan' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

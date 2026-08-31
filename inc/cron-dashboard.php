@@ -66,6 +66,16 @@ function snt_cron_sn_owned_hooks() {
 		// v11.32.0 made this recurring (5-minute fleet warm). Unscheduling it
 		// would return the worker cells to "warming…" with no visible cause.
 		array( 'SNT_DEPLOY_WORKERS_WARM_HOOK', 'snt_deploy_workers_warm' ),
+		// v13.49.0 — MISSING SINCE THE HOOK SHIPPED, found while building
+		// schedule_cron_event. sn_health_scan_daily is scheduled recurring
+		// ('daily', inc/health-scan-cron.php:86) and was absent from this list,
+		// so the "SN-owned refused" guard did not cover it: unschedule-cron-event
+		// — which IS on the rw door — would have silently stopped the daily
+		// health scan, with the dashboard's verdict simply ageing and no cause
+		// visible anywhere. That is precisely the harm this allow-list exists to
+		// prevent, and it is also why the list carries "ADD any new recurring SN
+		// hook here" above.
+		array( 'SN_HEALTH_CRON_HOOK', 'sn_health_scan_daily' ),
 	);
 	$hooks = array();
 	foreach ( $owned as $pair ) {
@@ -392,6 +402,107 @@ function snt_cron_unschedule_event_impl( $hook, $args = array() ) {
 		'hook'    => $hook,
 		'args'    => $args,
 		'cleared' => $cleared,
+	);
+}
+
+/**
+ * Schedule ONE future run of an SN-owned cron hook, then return immediately.
+ *
+ * THE POLARITY IS INVERTED FROM snt_cron_unschedule_event_impl(), deliberately,
+ * and the same predicate bounds both. Unscheduling REFUSES an SN-owned hook,
+ * because stopping our own maintenance is the harm there. Scheduling ACCEPTS
+ * ONLY an SN-owned hook, because the harm here is the opposite one: deferred
+ * dispatch of somebody else's registered code. `snt_cron_sn_owned_hooks()` is a
+ * live, constant-referenced allow-list rather than an `sn_`/`snt_` prefix match,
+ * so the bound is DERIVED from what this plugin actually schedules — never a
+ * list invented for this function.
+ *
+ * WHY THIS EXISTS RATHER THAN A DOORED run-cron-event: `run-cron-event`
+ * dispatches synchronously via do_action(), which is why it sits on no door and
+ * stays there. The health scan is the case that motivated this — roughly 35s
+ * normally and up to ~105s when something is actually down, against
+ * Cloudflare's ~100s edge cap, so running it on the wire hands a caller a tool
+ * that hangs and then dies at the edge. Scheduling costs a single row write and
+ * returns at once; WP-Cron runs the work out of band, and the verdict stays
+ * readable through get-health-scan. Fire-and-forget is the whole point: this
+ * function never reports what the hook DID, only that a run was booked.
+ *
+ * A hook with no registered handler is refused rather than booked. Scheduling
+ * one would write a row that fires into nothing, and the caller would wait for
+ * a result that can never arrive — the honest-null rule applied to cron.
+ *
+ * @since 13.49.0
+ * @param string $hook  SN-owned cron hook name.
+ * @param array  $args  Args array; must match the scheduled signature.
+ * @param int    $delay Seconds from now. Clamped to 0..HOUR_IN_SECONDS.
+ * @return array{success:bool,hook:string,args:array,scheduled_for:int,already_scheduled:bool}|WP_Error
+ */
+function snt_cron_schedule_event_impl( $hook, $args = array(), $delay = 0 ) {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return new WP_Error( 'snt_cron_forbidden', 'Insufficient permissions.', array( 'status' => 403 ) );
+	}
+	if ( ! is_string( $hook ) || '' === $hook ) {
+		return new WP_Error( 'snt_cron_invalid_hook', 'Hook name must be a non-empty string.', array( 'status' => 400 ) );
+	}
+	// REFUSE BY NAME, and name the alternative — a silent no-op would report a
+	// run that was never booked, and the caller would wait forever for it.
+	if ( ! snt_cron_is_sn_owned( $hook ) ) {
+		return new WP_Error(
+			'snt_cron_not_sn_owned',
+			sprintf(
+				/* translators: 1: requested hook, 2: the schedulable hooks. */
+				__( 'Refusing to schedule "%1$s": only Signal & Noise\'s own cron hooks may be scheduled here, because booking a third-party hook is deferred dispatch of code this plugin does not own. Schedulable hooks are: %2$s.', 'signal-and-noise-tools' ),
+				$hook,
+				implode( ', ', snt_cron_sn_owned_hooks() )
+			),
+			array( 'status' => 400 )
+		);
+	}
+	if ( false === has_action( $hook ) ) {
+		return new WP_Error(
+			'snt_cron_no_handler',
+			sprintf(
+				/* translators: %s: the requested hook. */
+				__( 'Refusing to schedule "%s": no handler is registered for it, so the booked run would fire into nothing.', 'signal-and-noise-tools' ),
+				$hook
+			),
+			array( 'status' => 400 )
+		);
+	}
+
+	$args  = is_array( $args ) ? $args : array();
+	$delay = max( 0, min( (int) $delay, HOUR_IN_SECONDS ) );
+
+	// An identical pending event means the work is ALREADY booked. Reported, not
+	// duplicated: a second row would run the same maintenance twice.
+	$existing = wp_next_scheduled( $hook, $args );
+	if ( false !== $existing ) {
+		return array(
+			'success'           => true,
+			'hook'              => $hook,
+			'args'              => $args,
+			'scheduled_for'     => (int) $existing,
+			'already_scheduled' => true,
+		);
+	}
+
+	$when = time() + $delay;
+	// Returns true on success, false or WP_Error on failure (WP 5.7+ can return
+	// WP_Error when a pre-filter blocks it). Both non-true branches are failures.
+	$booked = wp_schedule_single_event( $when, $hook, $args, true );
+	if ( is_wp_error( $booked ) ) {
+		return new WP_Error( 'snt_cron_schedule_failed', $booked->get_error_message(), array( 'status' => 500 ) );
+	}
+	if ( true !== $booked ) {
+		return new WP_Error( 'snt_cron_schedule_failed', sprintf( 'Could not schedule "%s".', $hook ), array( 'status' => 500 ) );
+	}
+
+	return array(
+		'success'           => true,
+		'hook'              => $hook,
+		'args'              => $args,
+		'scheduled_for'     => $when,
+		'already_scheduled' => false,
 	);
 }
 

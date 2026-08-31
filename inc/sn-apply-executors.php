@@ -77,6 +77,16 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	// skips trash, and irreversibility is the one thing the gates cannot fix.
 	'merge_tags',
 	'clear_template_overrides',
+	// v13.49.0 — the cron half of Phase 3, which the plan got WRONG in a way
+	// worth recording. It named two types: run_cron_event allowlisted to
+	// scheduled hooks, plus a fire-and-forget schedule_health_scan. Those
+	// COLLAPSE: SN_HEALTH_CRON_HOOK ('sn_health_scan_daily') is itself a daily
+	// scheduled hook, so an allowlisted run_cron_event would admit the health
+	// scan and run it SYNCHRONOUSLY — reintroducing the 35-105s-against-a-~100s
+	// edge cap that the fire-and-forget half exists to avoid. One type, not two:
+	// schedule_cron_event books a run and returns. run-cron-event stays off
+	// every door, because dispatch is the hazard and booking is not.
+	'schedule_cron_event',
 	// v10.58.0 (audit item 6): makes create_draft's advertised
 	// rollback:{method:"delete_draft"} REAL — trash-only, draft-only,
 	// fingerprint-gated. See inc/sn-apply-delete-draft.php.
@@ -156,6 +166,11 @@ function snt_sn_apply_mode_support( $type ) {
 				'modes'  => array( 'publish' ),
 				'reason' => 'clear_template_overrides removes Site Editor template rows: not a post field, and there is no WordPress revision of a deleted override. Publish-only; dry_run:true is the review step.',
 			);
+		case 'schedule_cron_event':
+			return array(
+				'modes'  => array( 'publish' ),
+				'reason' => 'schedule_cron_event writes a WP-Cron row: not a post field, and a cron booking has no WordPress revision to stage. Publish-only; dry_run:true is the review step, and it is a genuine one here — the dry run reports what WOULD be booked without booking it.',
+			);
 		case 'dismiss':
 			return array(
 				'modes'  => array( 'publish' ),
@@ -215,6 +230,13 @@ function snt_sn_apply_resolve_target( $type, $target ) {
 			return new WP_Error( 'snt_sn_apply_bad_target', __( 'clear_template_overrides requires target.scope === "template_overrides".', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
 		}
 		return array( 'scope' => 'template_overrides' );
+	}
+
+	if ( 'schedule_cron_event' === $type ) {
+		if ( 'cron' !== ( $target['scope'] ?? '' ) ) {
+			return new WP_Error( 'snt_sn_apply_bad_target', __( 'schedule_cron_event requires target.scope === "cron".', 'signal-and-noise-tools' ), array( 'status' => 422 ) );
+		}
+		return array( 'scope' => 'cron' );
 	}
 
 	if ( 'roadmap_board' === $type ) {
@@ -550,6 +572,20 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 			// properties map is empty, so inventing a payload here would invent
 			// a contract.
 			$result = snt_ability_clear_template_overrides();
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			return array( 'ok' => true, 'diff' => array( 'before' => null, 'after' => $result, 'blocks_touched' => 0 ), 'revision_id' => null, 'write_result' => $result );
+
+		case 'schedule_cron_event':
+			// mode:publish only. Routes to the REAL ability, which carries the
+			// SN-owned bound and every refusal — this never calls
+			// wp_schedule_single_event() itself.
+			$result = snt_ability_schedule_cron_event( array(
+				'hook'  => (string) ( $payload['hook'] ?? '' ),
+				'args'  => (array) ( $payload['args'] ?? array() ),
+				'delay' => (int) ( $payload['delay'] ?? 0 ),
+			) );
 			if ( is_wp_error( $result ) ) {
 				return $result;
 			}

@@ -17,6 +17,14 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
+// v13.49.0. schedule_cron_event's delay ceiling, in seconds. Declared HERE
+// rather than reused from WP because this module is deliberately free of
+// WordPress constants — every gate in it loads under the standalone test
+// harness, where HOUR_IN_SECONDS does not exist. snt_cron_schedule_event_impl()
+// clamps to the same ceiling via HOUR_IN_SECONDS, and a test pins the two equal
+// so they cannot drift apart silently.
+const SNT_SN_APPLY_CRON_DELAY_MAX = 3600;
+
 /**
  * Gate 1: fingerprint. Reuses each absorbed impl's OWN fingerprint scheme —
  * never a parallel one. Types with no fingerprint scheme in the absorbed
@@ -557,6 +565,69 @@ function snt_sn_apply_gate2_merge_tags( $change ) {
 }
 
 /**
+ * Gate 2 for `schedule_cron_event`.
+ *
+ * Mirrors the ability's OWN input (`hook`, optional `args`, optional `delay`,
+ * read from inc/abilities-cron.php) rather than anything inferred from the
+ * change type's name. The SN-owned bound itself is NOT re-checked here — that
+ * lives in snt_cron_schedule_event_impl() and would drift if copied. Gate 2
+ * fences the payload's SHAPE; the impl owns which hooks are schedulable.
+ *
+ * @since 13.49.0
+ * @param array $change
+ * @return array
+ */
+function snt_sn_apply_gate2_schedule_cron_event( $change ) {
+	$payload  = isset( $change['payload'] ) && is_array( $change['payload'] ) ? $change['payload'] : array();
+	$findings = array();
+	$identity = 'schedule_cron_event|' . (string) ( $payload['hook'] ?? '' );
+
+	if ( '' === (string) ( $payload['hook'] ?? '' ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'schedule_cron_event',
+			'payload_complete',
+			'error',
+			__( 'schedule_cron_event requires payload.hook.', 'signal-and-noise-tools' ),
+			null,
+			'hook',
+			array(),
+			$identity
+		);
+	}
+	if ( isset( $payload['args'] ) && ! is_array( $payload['args'] ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'schedule_cron_event',
+			'payload_shape',
+			'error',
+			__( 'payload.args must be an array when supplied — cron matches events by exact args signature.', 'signal-and-noise-tools' ),
+			null,
+			'args',
+			array(),
+			$identity
+		);
+	}
+	// Bound the delay HERE as well as in the impl, because a caller reading the
+	// dry run must see the refusal rather than a silently clamped booking.
+	if ( isset( $payload['delay'] ) ) {
+		$delay = $payload['delay'];
+		if ( ! is_numeric( $delay ) || (int) $delay < 0 || (int) $delay > SNT_SN_APPLY_CRON_DELAY_MAX ) {
+			$findings[] = snt_sn_validate_finding(
+				'schedule_cron_event',
+				'delay_in_range',
+				'error',
+				__( 'payload.delay must be between 0 and 3600 seconds.', 'signal-and-noise-tools' ),
+				is_scalar( $delay ) ? (string) $delay : null,
+				'0-3600',
+				array(),
+				$identity
+			);
+		}
+	}
+
+	return array( 'passed' => empty( $findings ), 'findings' => $findings );
+}
+
+/**
  * Gate 2 for `dismiss`.
  *
  * THE CONTRACT IS THE ABILITY'S, NOT THE TOOL'S. dismiss-candidate
@@ -743,6 +814,9 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 
 		case 'merge_tags':
 			return snt_sn_apply_gate2_merge_tags( $change );
+
+		case 'schedule_cron_event':
+			return snt_sn_apply_gate2_schedule_cron_event( $change );
 
 		case 'clear_template_overrides':
 			// The ability's input_schema has an EMPTY properties map, so there
