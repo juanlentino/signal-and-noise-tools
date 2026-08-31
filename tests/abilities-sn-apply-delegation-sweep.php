@@ -775,6 +775,12 @@ $sweep_calls = array(
 	// The two publish-only types run the sweep in publish mode: dry_run must
 	// still preview (all four gates + diff) with zero side effects.
 	'og_card'          => array( 'target' => array( 'post_id' => 730 ), 'mode' => 'publish', 'change' => array( 'type' => 'og_card', 'payload' => array() ) ),
+	// dismiss (v13.47.0): publish-only like its og_card/anchor_sweep/roadmap_board
+	// siblings — a dismissal writes the per-surface store, not a post field, so
+	// there is no revision to stage. The sweep's pin is the family ZERO-WRITES
+	// property under dry_run; the store contract lives in
+	// tests/abilities-sn-apply.php against the real ability.
+	'dismiss'          => array( 'target' => array( 'post_id' => 730 ), 'mode' => 'publish', 'change' => array( 'type' => 'dismiss', 'payload' => array( 'surface' => 'block-migrations', 'block_fingerprint' => 'sweepfp', 'candidate_type' => 'heading_level' ) ) ),
 	'anchor_sweep'     => array( 'target' => array( 'scope' => 'provenance_anchors' ), 'mode' => 'publish', 'change' => array( 'type' => 'anchor_sweep', 'payload' => array() ) ),
 	// create_draft (session 6c) is REVISION-only (mode:publish refuses
 	// structurally — see snt_sn_apply_mode_support()), the mirror image of

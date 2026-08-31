@@ -59,6 +59,13 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	'drift_replace', 'surfaces', 'og_card', 'anchor_sweep', 'create_draft',
 	'restore_revision', 'emdash_replace', 'sentence_replace',
 	'roadmap_board',
+	// v13.47.0: the wave-1 dismissal gap. dismiss-candidate has been reachable
+	// from NEITHER door since v12.0.0 — sn_mcp_allowlist()'s own comment carries
+	// the WATCH ("dismiss-candidate backed sn-scan's `dismissed` flow") and it
+	// GATES phase 10. Without it every scan surfaces candidates a caller can
+	// APPLY but cannot DISMISS, so a candidate list never converges.
+	// See inc/abilities-dismiss.php for the contract this mirrors.
+	'dismiss',
 	// v10.58.0 (audit item 6): makes create_draft's advertised
 	// rollback:{method:"delete_draft"} REAL — trash-only, draft-only,
 	// fingerprint-gated. See inc/sn-apply-delete-draft.php.
@@ -127,6 +134,11 @@ function snt_sn_apply_mode_support( $type ) {
 			return array(
 				'modes'  => array( 'publish' ),
 				'reason' => 'roadmap_board writes the maturity roadmap\'s site-level board override: an option, not a post field. An option has no WordPress revision to stage — publish-only, the og_card/anchor_sweep posture; dry_run:true is the review step.',
+			);
+		case 'dismiss':
+			return array(
+				'modes'  => array( 'publish' ),
+				'reason' => 'dismiss writes the per-surface dismissal store, not a post field. A store row has no WordPress revision to stage — publish-only, the og_card/anchor_sweep/roadmap_board posture; dry_run:true is the review step.',
 			);
 		case 'create_draft':
 			return array(
@@ -482,6 +494,22 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 			// impl (inc/sn-apply-roadmap-board.php) shapes its own diff
 			// (before = the pre-write effective board).
 			return snt_sn_apply_write_roadmap_board( $payload );
+
+		case 'dismiss':
+			// mode:publish only — see snt_sn_apply_mode_support(). Routes to the
+			// REAL ability (never a re-implementation), whose own per-surface
+			// impls own the store. Gate 2 has already fenced the surface enum
+			// and the required payload keys.
+			$result = snt_ability_dismiss_candidate( array(
+				'surface'           => (string) ( $payload['surface'] ?? '' ),
+				'post_id'           => (int) ( $resolved['post_id'] ?? 0 ),
+				'block_fingerprint' => (string) ( $payload['block_fingerprint'] ?? '' ),
+				'candidate_type'    => (string) ( $payload['candidate_type'] ?? '' ),
+			) );
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			return array( 'ok' => true, 'diff' => array( 'before' => null, 'after' => $result, 'blocks_touched' => 0 ), 'revision_id' => null, 'write_result' => $result );
 
 		case 'anchor_sweep':
 			// mode:publish only — see snt_sn_apply_mode_support().
