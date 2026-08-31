@@ -26,9 +26,15 @@ The range check itself, because it was already right. Verified directly against 
 
 The sweep caught it. The guard now takes the **union** of both lookups rather than preferring either — which is also the strictly safer composition, since more addresses checked can only ever block more, never less.
 
-### Still open — DNS rebinding
+### Still open — DNS rebinding, now with the hook question settled
 
-Enumerating the rrset closes the multi-address case completely. It does **not** close rebinding: this is still check-then-fetch, and the request re-resolves. The complete answer is pinning host→IP at connect time (`CURLOPT_RESOLVE` via `http_api_curl`), which is **not** done here and whose hook reachability is unverified. Documented as accepted residual risk in the guard's own docblock rather than implied away. Plan: [docs/proposals/ssrf-guard-multi-address-2026-08-31.md](docs/proposals/ssrf-guard-multi-address-2026-08-31.md).
+Enumerating the rrset closes the multi-address case completely. It does **not** close rebinding: this is still check-then-fetch, and the request re-resolves.
+
+The reachability of `http_api_curl` was verified rather than assumed, and **the obvious reading is wrong twice.** `developer.wordpress.org` names `WP_Http_Curl::request()` as its source — that class was deprecated in 6.4.0 and is no longer on the request path, so the docs alone say the hook is dead. It is nonetheless live: `WP_HTTP_Requests_Hooks::dispatch()` bridges Requests' own `curl.before_send`, handle passed by reference, straight to `do_action_ref_array('http_api_curl', …)`.
+
+**Pinning is still not built, and the caveat is why.** That bridge fires only when Requests picks the cURL transport; without the extension it falls back to fsockopen, the hook never fires, and the request goes out unpinned **with nothing saying so** — the exact silent fail-open this guard exists to prevent. Pinning needs a transport-detection decision first and changes every outbound request in the plugin, so it earns its own review round, the way v13.50.0's phases 2 and 3 were split on purpose.
+
+Rebinding stays accepted residual risk, recorded in the guard's docblock and justified by owner-controlled inputs. Plan: [docs/proposals/ssrf-guard-multi-address-2026-08-31.md](docs/proposals/ssrf-guard-multi-address-2026-08-31.md).
 
 ### Verification
 

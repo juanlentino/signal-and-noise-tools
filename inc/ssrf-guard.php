@@ -159,7 +159,25 @@ if ( ! function_exists( 'sn_ssrf_ip_blocked' ) ) {
  * short-TTL record answering public-then-internal defeats any such design.
  * Enumerating the whole rrset closes the multi-address case completely; it does
  * NOT close rebinding. The complete answer is pinning host->IP at connect time
- * (CURLOPT_RESOLVE via the http_api_curl action), which is not done here.
+ * via CURLOPT_RESOLVE, which is NOT done here.
+ *
+ * VERIFIED 2026-08-31, because the obvious reading is wrong twice. The
+ * `http_api_curl` action IS reachable on the live path — but NOT from
+ * WP_Http_Curl, which developer.wordpress.org names as its source and which was
+ * DEPRECATED in 6.4.0 and is no longer on the request path (WP_Http::request()
+ * calls WpOrg\Requests\Requests::request() and fires only http_api_debug).
+ * What keeps it alive is WP_HTTP_Requests_Hooks::dispatch(), which bridges
+ * Requests' own `curl.before_send` — passing the live handle by reference —
+ * straight to do_action_ref_array('http_api_curl', ...). Reasoning from the
+ * documented source gives the wrong answer in BOTH directions.
+ *
+ * The caveat that makes pinning its own arc rather than a follow-up line: that
+ * bridge fires only when Requests selects the cURL transport. On a host without
+ * the cURL extension it falls back to fsockopen, the hook never fires, and the
+ * request goes out UNPINNED with nothing saying so — a silent fail-open, which
+ * is the shape this guard exists to avoid. Pinning therefore needs a
+ * transport-detection decision (refuse, or accept and record) before it ships.
+ *
  * Accepted for now because every caller takes its host from owner-controlled
  * config or options, not anonymous input.
  *

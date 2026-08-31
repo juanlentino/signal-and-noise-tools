@@ -76,15 +76,31 @@ For AAAA, `dns_get_record($host, DNS_AAAA)` is the counterpart; adding it conver
 IPv6-only case from a silent false negative into a real check. Optional, and only worth it
 if a caller ever needs one.
 
-### Step 2 — pin the address at connect time (larger, needs verification)
+### Step 2 — pin the address at connect time (VERIFIED 2026-08-31; still its own arc)
 
-The only complete answer to rebinding is to make the connection use the address that was
-validated. WordPress exposes the cURL handle through the `http_api_curl` action, which
-should allow `CURLOPT_RESOLVE` to pin host→IP for that request.
+**Status: Step 1 shipped in v13.50.1. Step 2 is verified reachable and deliberately not built.**
 
-**Verify that hook is reachable in our WP version and that Requests does not override the
-option before relying on it.** If it is not, the honest position is to document rebinding as
-an accepted residual risk given owner-controlled inputs — not to imply Step 1 closed it.
+The hook question is settled, and the obvious reading is wrong twice:
+
+- `developer.wordpress.org` names `WP_Http_Curl::request()` as the source of `http_api_curl`.
+  That class was **deprecated in 6.4.0** and is no longer on the request path — `WP_Http::request()`
+  calls `WpOrg\Requests\Requests::request()` and fires only `http_api_debug`. Reading the docs
+  alone concludes, wrongly, that the hook is dead.
+- It is nonetheless **live**: `WP_HTTP_Requests_Hooks::dispatch()` bridges Requests' own
+  `curl.before_send` — which passes the cURL handle by reference — directly to
+  `do_action_ref_array( 'http_api_curl', ... )`. Reading only the deprecation concludes, also
+  wrongly, that pinning is impossible.
+
+**Why it still is not built.** That bridge fires only when Requests selects the **cURL
+transport**. On a host without the cURL extension, Requests falls back to fsockopen, the hook
+never fires, and the request goes out unpinned **with nothing saying so** — a silent fail-open,
+precisely the shape this guard exists to prevent. Pinning therefore needs a transport-detection
+decision first (refuse the request, or proceed and record the gap), and it changes every
+outbound request in the plugin rather than one guard function. That earns its own review round,
+the same way v13.50.0's phases 2 and 3 were split on purpose.
+
+Until then, rebinding is **accepted residual risk**, recorded in the guard's own docblock and
+justified by owner-controlled inputs — not implied away by Step 1.
 
 ---
 

@@ -80,8 +80,16 @@ different half-lives:
   survey — `ua-parser-js` (10,185) and `nginx-ultimate-bad-bot-blocker` (4,783) — were both
   unusable, on licence and on layer respectively.
 
-## Unresolved, not clear
+## Re-run and closed (2026-08-31, same day)
 
-Recorded so nobody reads them as settled negatives: Core Web Vitals / CrUX field data,
-WordPress session and concurrent-login management, application-password auditing. All three
-returned empty against the artifact above and were not re-run to exhaustion.
+The three axes first recorded as unresolved were re-run with fresh phrasing. All three now
+have verdicts, and none changes the recommendation.
+
+| Axis | Verdict |
+|---|---|
+| Core Web Vitals / CrUX field data | **No.** Tooling exists — `treosh/crux-api` (MIT, 68 stars) is the clean one, but it is JavaScript. The binding constraint is upstream of any library: CrUX only carries origins with enough traffic to clear its threshold, and a single-author site plausibly has no page-level data at all. **Query the CrUX API for the origin before ever building against it** — that is the cheap check that decides the axis |
+| WordPress session / concurrent-login management | **No ecosystem.** Three phrasings returned one 2022 object-cache session-token store and nothing about concurrency limits or forced logout. Unlike the earlier empties this one survives re-phrasing, so it is a genuine thinness rather than the `gh search` artifact |
+| Application-password auditing | **Relevant, nothing adoptable.** The estate does use application passwords (`agent-auth-md`, `agent-a2a`, `agent-discovery`, the MCP-connect admin forms). `FernleafSystems/Mandate-for-WordPress` scopes them and is GPL-2.0 — but sits at **0 stars**, and our doors already gate by ability allowlists rather than by credential scope. Worth re-checking if that project gains traction |
+
+**Nothing is left recorded as unmeasured.** Every axis opened by this survey now carries a
+verdict or a named next check.
