@@ -313,7 +313,13 @@ grep -m1 "Version:" signal-and-noise-tools.php
 - **A change type, not a tool.** `sn_dismiss` was deferred *as a tool*. Options-not-tools puts it on `sn-apply`.
 - **`sn-apply` already hosts non-post side effects** — `og_card` writes a PNG, `anchor_sweep` makes a live HTTP call, `roadmap_board` writes an option. A candidate-scoped type is consistent with what the tool is.
 - **PUBLISH-ONLY.** There is no revision to stage, exactly as `roadmap_board` and `og_card`. `mode:"revision"` refuses by name rather than fabricating a staged version of a side effect that cannot be staged.
-- **`change.fingerprint` is NOT required, and this is the interesting part.** `sn-scan` mints `candidate_id = sha256(scan_type + target identity + content fingerprint)` — **stable across runs on unchanged content**, per its own description. If the content moves, the id moves. The candidate_id *is* the binding, and a second fingerprint gate could never fail independently of it. **A gate that cannot fail is not a gate**; it would mislead a caller into thinking staleness is checked twice.
+- **CORRECTED 2026-08-31 — SHIPPED IN v13.47.0. This bullet was wrong TWICE, and the cause is the lesson.**
+  - v1 said `candidate_id` is the staleness binding. **`dismiss-candidate` takes no `candidate_id`** — `inc/abilities-dismiss.php` requires `surface` + `post_id` + `block_fingerprint` + `candidate_type`.
+  - v2 said `block_fingerprint` should therefore be a *real* gate-1 check. Also wrong: `snt_ability_dismiss_candidate()` passes it straight to the per-surface impl as an **opaque identity key** and never validates it against live content.
+  - **Shipped:** target `{post_id}`, payload `{surface, block_fingerprint, candidate_type}`, gate 1 reporting the honest `no_fingerprint_scheme` skip its `alt_text`/`og_card`/`anchor_sweep` siblings use.
+  - **Both errors came from planning in the CONSOLIDATED TOOL's vocabulary (`scan_type`, `candidate_id`) instead of reading the ability's `input_schema`** — the same cause as the `draft_echoes` error in v13.45.0. Read the ability first.
+- **The `surface` enum is exactly THREE** (`block-migrations`, `pattern-adoption`, `corpus-integrity`) while `sn-scan` has NINE scan types, so six have no dismissal store and must refuse **by name**. A silent no-op would report a dismissal that was never recorded.
+- **It narrows permissions:** `dismiss-candidate` is `edit_post`, `sn-apply` is `manage_options`. No regression (it was on neither door), but state it rather than discover it.
 - **Idempotency: the standard auto-key applies.** A repeated dismissal is not a legitimate force-repeat (unlike `og_card`), so it replays rather than executing twice.
 
 ### Task 2.1: The dismiss change type

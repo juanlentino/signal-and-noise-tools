@@ -2,6 +2,60 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.47.0] - 2026-08-31 — a scan's candidates can finally be dismissed, not only applied
+
+Phase 2 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md).
+
+### Added — `sn-apply` change type `dismiss`
+
+`dismiss-candidate` has been reachable from **neither door since wave 1**, and
+`sn_mcp_allowlist()`'s own comment carries the WATCH: *"dismiss-candidate backed
+sn-scan's `dismissed` flow."* It also **gates phase 10** of the consolidation
+programme. The practical effect: every scan surfaced candidates a caller could
+**apply** but not **dismiss**, so a candidate list could never converge from a
+session.
+
+- **Publish-only**, the `og_card` / `anchor_sweep` / `roadmap_board` posture — a
+  dismissal writes the per-surface store, not a post field, so there is no
+  revision to stage. `mode:"revision"` refuses **by name**.
+- Target `{post_id}`; payload `{surface, block_fingerprint, candidate_type}` —
+  mirroring `dismiss-candidate`'s real `input_schema`.
+- **Six of nine scan types have no dismissal store.** The `surface` enum is
+  exactly three, so the rest refuse **by name**: a silent no-op would report a
+  dismissal that was never recorded, and the caller would keep re-seeing the
+  candidate with no way to tell why.
+- Routes to the real ability, never a re-implementation.
+
+### Fixed — the plan's design was wrong twice, for the same reason
+
+Worth recording because the cause recurred. The plan said the `candidate_id` was
+the staleness binding; **`dismiss-candidate` takes no `candidate_id`.** The
+correction then said `block_fingerprint` should be a *real* gate-1 check; it
+should not — the ability passes it through to the per-surface impl as an
+**opaque identity key** and never validates it against live content. Gate 1
+therefore reports the honest `no_fingerprint_scheme` skip its siblings use,
+never a fabricated pass.
+
+**Both errors came from planning in the consolidated tool's vocabulary
+(`scan_type`, `candidate_id`) instead of reading the ability's `input_schema`.**
+The same cause produced the `draft_echoes` error in v13.45.0. The plan now
+carries the correction and the reason.
+
+### Tests — 10 new, every guard negative-controlled
+
+- Removing `dismiss` from the enum reds 4; allowing `revision` mode reds the
+  publish-only pin; accepting any surface reds both surface pins.
+- **The delegation sweep caught the addition by itself** — it asserts the sweep
+  table covers the FULL enum, so a new change type fails there until it joins.
+  That guard did exactly its job.
+- One assertion hardened: an unguarded `get_error_message()` on a non-error
+  **fatals** under mutation and takes every later assertion with it, and a
+  suite that dies prints no summary line — which the CI gate reads as "did not
+  assert", not as a pass. Confirmed by re-running the mutation: it now reds two
+  pins and still prints its summary.
+
+Sweep: 524 suites, 21,154 assertions, 0 failed. PHPCS clean. PHPStan clean.
+
 ## [13.46.0] - 2026-08-30 — batched calls stop being invisible to their own telemetry
 
 Phase 0.2 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md).

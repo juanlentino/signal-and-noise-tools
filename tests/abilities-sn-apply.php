@@ -486,5 +486,84 @@ $last_audit = end( $GLOBALS['__audit_calls'] );
 eq( 'error', $last_audit['outcome'], 'Test 5.8: logged with outcome=error' );
 eq( false, $last_audit['args']['gate_capability_passed'], 'Test 5.9: the audit row carries gate_capability_passed:false' );
 
+echo "\nGroup: dismiss — the wave-1 gap the allowlist itself flags (v13.47.0)\n";
+//
+// WHY. dismiss-candidate has been reachable from NEITHER door since wave 1, and
+// sn_mcp_allowlist()'s own comment carries the WATCH: "dismiss-candidate backed
+// sn-scan's `dismissed` flow". It also GATES phase 10. Practically: every scan
+// surfaces candidates a caller can APPLY but cannot DISMISS, so a candidate list
+// can never converge from a session.
+//
+// THE CONTRACT IS THE ABILITY'S, NOT THE TOOL'S. dismiss-candidate does NOT take
+// sn-scan's candidate_id. It requires surface + post_id + block_fingerprint +
+// candidate_type (inc/abilities-dismiss.php), so the payload mirrors that.
+
+ok( in_array( 'dismiss', SNT_SN_APPLY_CHANGE_TYPES, true ), 'dismiss is a declared change type' );
+
+// PUBLISH-ONLY, the og_card / anchor_sweep / roadmap_board posture: a dismissal
+// writes a store, not a post field, so there is no WordPress revision to stage.
+// Refuse BY NAME rather than fabricate a staged version of a side effect.
+$sn_dis_rev = snt_ability_sn_apply( array(
+	'target'  => array( 'post_id' => 100 ),
+	'change'  => array( 'type' => 'dismiss', 'payload' => array( 'surface' => 'block-migrations', 'block_fingerprint' => 'abc', 'candidate_type' => 'x' ) ),
+	'mode'    => 'revision',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_dis_rev ), 'mode:revision refuses' );
+ok( in_array( $sn_dis_rev->get_error_code(), array( 'snt_sn_apply_mode_not_granted', 'snt_sn_apply_bad_mode' ), true ),
+	'and refuses BY NAME, never by fabricating a staged dismissal' );
+
+// SIX OF NINE SCAN TYPES HAVE NO DISMISSAL STORE. dismiss-candidate's surface
+// enum is exactly three; sn-scan has nine scan_types. A surface with no store
+// must refuse by name — a silent no-op would report success for a dismissal
+// that was never recorded, and the caller would never re-see the candidate as
+// undismissed either.
+$sn_dis_bad = snt_ability_sn_apply( array(
+	'target'  => array( 'post_id' => 100 ),
+	'change'  => array( 'type' => 'dismiss', 'payload' => array( 'surface' => 'near-duplicate', 'block_fingerprint' => 'abc', 'candidate_type' => 'x' ) ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( is_wp_error( $sn_dis_bad ), 'a surface with no dismissal store refuses' );
+// Guarded: under a mutation that stops the refusal, an unguarded
+// get_error_message() on a non-error FATALS and takes every later assertion in
+// this file with it — a suite that dies prints no summary line, which the CI
+// gate reads as "did not assert", not as a pass. Today already produced one
+// negative control invalidated exactly that way.
+ok( is_wp_error( $sn_dis_bad ) && false !== strpos( (string) $sn_dis_bad->get_error_message(), 'near-duplicate' ),
+	'and names the offending surface rather than failing generically' );
+
+// GATE 1 SKIPS, and the REASON matters. The first design said "the candidate_id
+// IS the binding"; that was wrong — the ability takes no candidate_id. The
+// second said block_fingerprint should be a REAL check; that was also wrong —
+// snt_ability_dismiss_candidate() passes it straight through to the per-surface
+// impl as an OPAQUE IDENTITY KEY and never validates it against live content.
+// No absorbed impl has a fingerprint scheme, so the honest report is the same
+// skip alt_text/surfaces/og_card/anchor_sweep already use — never a fabricated
+// pass, which would tell a caller staleness was checked when it was not.
+$sn_dis_dry = snt_ability_sn_apply( array(
+	'target'  => array( 'post_id' => 100 ),
+	'change'  => array( 'type' => 'dismiss', 'payload' => array( 'surface' => 'block-migrations', 'block_fingerprint' => 'abc', 'candidate_type' => 'heading_level' ) ),
+	'mode'    => 'publish',
+	'dry_run' => true,
+) );
+ok( ! is_wp_error( $sn_dis_dry ), 'a well-formed dismissal dry-runs' );
+ok( 'no_fingerprint_scheme' === ( $sn_dis_dry['gates']['fingerprint']['skipped'] ?? null ),
+	'gate 1 reports no_fingerprint_scheme — the store keeps the fingerprint as an identity key, not a staleness token' );
+
+// The payload must be complete: a missing key is a caller error, not a write
+// with an empty string quietly standing in for it.
+foreach ( array( 'surface', 'block_fingerprint', 'candidate_type' ) as $sn_k ) {
+	$sn_pl = array( 'surface' => 'block-migrations', 'block_fingerprint' => 'abc', 'candidate_type' => 'x' );
+	unset( $sn_pl[ $sn_k ] );
+	$sn_r = snt_ability_sn_apply( array(
+		'target'  => array( 'post_id' => 100 ),
+		'change'  => array( 'type' => 'dismiss', 'payload' => $sn_pl ),
+		'mode'    => 'publish',
+		'dry_run' => true,
+	) );
+	ok( is_wp_error( $sn_r ), "a dismissal missing $sn_k refuses" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

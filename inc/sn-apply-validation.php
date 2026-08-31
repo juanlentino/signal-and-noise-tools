@@ -498,6 +498,77 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 }
 
 /**
+ * Gate 2 for `dismiss`.
+ *
+ * THE CONTRACT IS THE ABILITY'S, NOT THE TOOL'S. dismiss-candidate
+ * (inc/abilities-dismiss.php) requires surface + post_id + block_fingerprint +
+ * candidate_type. It does NOT take sn-scan's candidate_id — an earlier design
+ * assumed it did, and assumed the candidate_id was therefore the staleness
+ * binding. Both were wrong; the payload mirrors the real input_schema.
+ *
+ * THE SURFACE ENUM IS EXACTLY THREE. sn-scan has NINE scan_types, so six of
+ * them have no dismissal store at all (sn-scan's own description says so). A
+ * surface with no store must refuse BY NAME: a silent no-op would report a
+ * dismissal that was never recorded, and the caller would keep re-seeing the
+ * candidate with no way to tell why.
+ *
+ * @since 13.47.0
+ * @param array $change
+ * @return array|WP_Error
+ */
+function snt_sn_apply_gate2_dismiss( $change ) {
+	$payload  = isset( $change['payload'] ) && is_array( $change['payload'] ) ? $change['payload'] : array();
+	$findings = array();
+	$identity = 'dismiss|' . (string) ( $payload['block_fingerprint'] ?? '' );
+
+	foreach ( array( 'surface', 'block_fingerprint', 'candidate_type' ) as $key ) {
+		if ( '' === (string) ( $payload[ $key ] ?? '' ) ) {
+			$findings[] = snt_sn_validate_finding(
+				'dismiss',
+				'payload_complete',
+				'error',
+				sprintf(
+					/* translators: %s: the missing payload key. */
+					__( 'dismiss requires payload.%s.', 'signal-and-noise-tools' ),
+					$key
+				),
+				null,
+				$key,
+				array(),
+				$identity
+			);
+		}
+	}
+
+	// THE SURFACE ENUM IS EXACTLY THREE, while sn-scan has NINE scan_types — so
+	// six of them have no dismissal store at all (sn-scan's own description says
+	// so). Refuse BY NAME: a silent no-op would report a dismissal that was
+	// never recorded, and the caller would keep re-seeing the candidate with no
+	// way to tell why.
+	$surfaces = array( 'block-migrations', 'pattern-adoption', 'corpus-integrity' );
+	$surface  = (string) ( $payload['surface'] ?? '' );
+	if ( '' !== $surface && ! in_array( $surface, $surfaces, true ) ) {
+		$findings[] = snt_sn_validate_finding(
+			'dismiss',
+			'surface_has_store',
+			'error',
+			sprintf(
+				/* translators: 1: the requested surface, 2: the surfaces that have a store. */
+				__( 'No dismissal store exists for surface "%1$s". Dismissible surfaces are: %2$s.', 'signal-and-noise-tools' ),
+				$surface,
+				implode( ', ', $surfaces )
+			),
+			$surface,
+			implode( ', ', $surfaces ),
+			array(),
+			$identity
+		);
+	}
+
+	return array( 'passed' => empty( $findings ), 'findings' => $findings );
+}
+
+/**
  * Gate 2 input: which sn_validate check family (if any) applies to this
  * change type, and what `proposed` shape to hand its INTERNAL check
  * functions directly — never the full signal-noise/sn-validate ABILITY
@@ -607,6 +678,9 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 			// structure bounds + plain-prose + the banned-token sweep that
 			// mirrors the public page's leak-sweep test.
 			return snt_sn_apply_gate2_roadmap_board( $change );
+
+		case 'dismiss':
+			return snt_sn_apply_gate2_dismiss( $change );
 
 		case 'delete_draft':
 			// Draft-status + post_type fence (inc/sn-apply-delete-draft.php);
