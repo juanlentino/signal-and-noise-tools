@@ -33,10 +33,22 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 echo "MCP capabilities — plugin v9.22.0\n\n";
 
 $list = sn_mcp_allowlist();
-ok( is_array( $list ) && count( $list ) === 21, 'read-door allowlist has exactly 21 slugs (v13.1.0 ADDED sn-status + sn-metrics, the sectioned-batch coherence readouts, new-alongside-old; v13.0.0 wave 2 retired 5: pattern-adoption-scan to sn-scan, list-posts + get-post-content to sn-posts, and the get-insights/get-narration pair; v12.11.0 had ADDED login-defense-ipv6-criterion; wave 1 (v12.0.0) retired 15)' );
+ok( is_array( $list ) && count( $list ) === 22, 'read-door allowlist has exactly 22 slugs (v13.45.0 ADDED draft-echoes, a single with no consolidated home and no prior verdict; v13.1.0 ADDED sn-status + sn-metrics, the sectioned-batch coherence readouts, new-alongside-old; v13.0.0 wave 2 retired 5: pattern-adoption-scan to sn-scan, list-posts + get-post-content to sn-posts, and the get-insights/get-narration pair; v12.11.0 had ADDED login-defense-ipv6-criterion; wave 1 (v12.0.0) retired 15)' );
 ok( in_array( 'signal-noise/sn-validate', $list, true ), 'v10.30.0: sn-validate is allowlisted on the read door' );
 ok( in_array( 'signal-noise/ai-cache-probe-status', $list, true ), 'v10.69.0: ai-cache-probe-status is allowlisted on the read door — registering the ability alone would leave it invisible to MCP' );
 ok( in_array( 'signal-noise/topic-clusters', $list, true ), 'v10.21.0: topic-clusters is allowlisted on the read door' );
+// v13.45.0. draft-echoes had NO recorded verdict anywhere — not retired, not
+// absorbed, never accounted for. It joins the door as a SINGLE, beside its two
+// read_corpus siblings above.
+//
+// AND NOT AS AN sn-scan TYPE, which is where the plan first put it. sn-scan
+// takes a SCOPE and walks the corpus; draft-echoes REQUIRES post_id and scores
+// ONE draft against everything else — its own description calls it "the same
+// kernel as near-duplicate-scan, asked from the other direction: one document
+// against many, rather than all pairs". near_duplicate already IS the
+// corpus-walk direction. Forcing a single-target query into a scope-based tool
+// would misreport what it does and give it a scope it cannot honour.
+ok( in_array( 'signal-noise/draft-echoes', $list, true ), 'v13.45.0: draft-echoes is allowlisted on the read door' );
 ok( in_array( 'signal-noise/cadence-flags', $list, true ), 'v10.22.0: cadence-flags is allowlisted on the read door' );
 ok( in_array( 'signal-noise/sn-posts', $list, true ), 'v10.26.0: sn-posts is allowlisted on the read door' );
 ok( in_array( 'signal-noise/sn-site-facts', $list, true ), 'v10.26.0: sn-site-facts is allowlisted on the read door' );
@@ -100,7 +112,7 @@ foreach ( array( 'signal-noise/keyword-candidates' ) as $slug ) {
 // still-correct count.
 $read_plugin = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-noise/' ) === 0; } );
 $read_theme  = array_filter( $list, function ( $s ) { return strpos( $s, 'signal-and-noise/' ) === 0; } );
-ok( count( $read_plugin ) === 21, 'read door carries exactly 21 plugin slugs (-> 21 in v13.1.0: sn-status + sn-metrics added; -> 19 in v13.0.0 wave 2; -> 24 in v12.11.0; 23 in v11.34.0; was 28 before wave 1, plugin-namespace)' );
+ok( count( $read_plugin ) === 22, 'read door carries exactly 22 plugin slugs (-> 22 in v13.45.0: draft-echoes added; -> 21 in v13.1.0: sn-status + sn-metrics added; -> 19 in v13.0.0 wave 2; -> 24 in v12.11.0; 23 in v11.34.0; was 28 before wave 1, plugin-namespace)' );
 ok( count( $read_theme ) === 0, 'read door carries ZERO theme slugs (v11.34.0 — sn-site-facts DISPATCHES to them and is itself a plugin-namespace slug)' );
 ok( count( array_unique( $list ) ) === count( $list ), 'read allowlist has no duplicate slugs' );
 

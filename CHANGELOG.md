@@ -2,6 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.45.0] - 2026-08-30 — draft-echoes reaches the read door, as a single and not as a scan
+
+### Added — `signal-noise/draft-echoes` on the read door
+
+The completeness sweep of 2026-08-30 found it reachable from **neither** door,
+and with **no recorded verdict anywhere** — not retired, not absorbed, never
+accounted for. Unreachable by omission rather than by decision. It is
+`read_corpus` and `readonly`, so it joins its two siblings (`topic-clusters`,
+`keyword-candidates`) as a door single.
+
+**And NOT as an `sn-scan` type, which is where the plan first put it.** Reading
+the ability reversed that: `sn-scan` takes a **scope** and walks the corpus,
+while `draft-echoes` **requires `post_id`** and scores ONE draft against
+everything else — its own description calls it *"the same kernel as
+near-duplicate-scan, asked from the other direction: one document against many,
+rather than all pairs."* `near_duplicate` already **is** that walk. Handing a
+single-target query a scope it cannot honour would misreport what it does, so
+the consolidation stops here and the single stands.
+
+### Fixed — a displaced comment, introduced and caught in this change
+
+The insertion matched only the slug portion of `topic-clusters`' line, which
+carried a trailing comment, and pushed that comment onto the new
+`draft-echoes` line — leaving it labelled *"the stored topic partition (ML
+pipeline #4)"*, a description of a different ability. Both lines now carry
+their own.
+
+### Tests — the count pins did their job
+
+- Both read-door count pins (total slugs, plugin-namespace slugs) reded on the
+  addition and were updated additively, carrying the history note forward.
+- Negative-controlled: removing the slug reds 3 assertions.
+- **The first negative control was worthless and that is worth recording.** Its
+  `perl` substitution never matched, so it measured an UNMUTATED file and
+  reported a clean pass — the mutation looked like a no-op that proved the pins
+  were fine. Only the restore step failing exposed it. The redone control
+  asserts the pattern exists BEFORE mutating, so a no-op mutation now fails
+  loudly instead of reporting a false green.
+
+Sweep: 524 suites, 21,118 assertions, 0 failed. PHPCS clean.
+
 ## [13.44.0] - 2026-08-30 — the door that decides retirements starts recording what it did
 
 Phase 0 + part of Phase 1 of
