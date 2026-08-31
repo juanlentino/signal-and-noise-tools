@@ -63,8 +63,14 @@ $expected_map = array(
 	'analytics_summary' => 'signal-noise/get-analytics-summary',
 	'analytics_events'  => 'signal-noise/get-analytics-events',
 	'rss_stats'         => 'signal-noise/get-rss-stats',
+	// v13.44.0 — ADDITIVE. Nothing renamed, nothing moved; the three original
+	// sources keep their positions and this pin still asserts the WHOLE map,
+	// so a silent reshuffle is as loud as a silent addition.
+	'machine_readers'   => 'signal-noise/get-machine-readers-summary',
+	'analytics_top_content' => 'signal-noise/get-analytics-top-content',
+	'404_log'           => 'signal-noise/get-404-log',
 );
-ok( $expected_map === $map, 'the map matches the three sources exactly' );
+ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 
 // ─── Registration ───
 foreach ( $GLOBALS['__test_actions']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
@@ -106,6 +112,24 @@ $r = snt_ability_sn_metrics( array( 'sections' => array( 'analytics_summary', 'a
 ok( $summary_payload === $r['sections']['analytics_summary'], 'parity: the summary payload rides through unreshaped (ms stay ms — presentation is the caller\'s job)' );
 ok( array( 'error' => 'unavailable' ) === $r['sections']['analytics_events'], 'refused source degrades to {error:unavailable}' );
 ok( array( 'error' => 'unavailable' ) === $r['sections']['rss_stats'], 'unregistered source degrades the same way' );
+
+echo "\nGroup: v13.44.0 sections\n";
+$map = snt_sn_metrics_map();
+// The gap that forced a wp eval dead-end on 2026-08-30: NO MCP tool exposed
+// machine reads at all, the identity fold (v13.43.0) included.
+ok( 'signal-noise/get-machine-readers-summary' === ( $map['machine_readers'] ?? null ),
+	'machine_readers routes to the machine-readers summary ability' );
+ok( 'signal-noise/get-analytics-top-content' === ( $map['analytics_top_content'] ?? null ),
+	'analytics_top_content routes to the top-content ability — its two siblings were already sections' );
+ok( 'signal-noise/get-404-log' === ( $map['404_log'] ?? null ),
+	'404_log routes to the 404 log ability' );
+
+// The sensor clamps 1..90 and holds ~32 days, while range accepts
+// 7|14|30|90|365|all — so 365 and all are UNREACHABLE for machine_readers. A
+// caller must learn that from the schema, never from a surprising number.
+$sn_rd = (string) ( $reg['input_schema']['properties']['range']['description'] ?? '' );
+ok( false !== strpos( $sn_rd, 'machine_readers' ), 'the range description names machine_readers and its clamp' );
+ok( false !== strpos( $sn_rd, '1-90' ), 'and states the range the sensor actually enforces' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

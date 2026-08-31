@@ -2,6 +2,97 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.44.0] - 2026-08-30 — the door that decides retirements starts recording what it did
+
+Phase 0 + part of Phase 1 of
+[docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md),
+which lands in the same release: **options, not tools**.
+
+### Fixed — the agent door recorded no telemetry dimension at all
+
+`inc/mcp/mcp-telemetry-agents.php` passed a **literal `null`** where
+`sn_mcp_telemetry_build_row()` takes `change_type`, on both its success and
+failure paths, since the door shipped. Its own docblock called that
+pre-existing and moved on.
+
+It is not a small omission. The standing habit note records that **the dominant
+caller of the consolidated tools is agent sessions** — so the door whose traffic
+decides the wave-4 retirement read was contributing none of the evidence that
+read needs. A per-section zero there meant *"we never looked"*, not *"nobody
+called it"*.
+
+- Both call sites now call `sn_mcp_telemetry_change_type()`. The extractor
+  already keyed **both** name formats — the MCP door records the projected name
+  (`slug` with `/`→`__`), this door records the raw slug — so no projection was
+  needed, only the call.
+- **The failure path records it too.** A door that labels only its successes
+  cannot answer "which section is failing?", which is exactly what a retirement
+  read asks when a number looks bad.
+- **The honest-null rule is unchanged.** A multi-entry call still records `null`
+  rather than a fabricated first-of-N. This fixed *who extracts*, not *what
+  counts* — the remaining multi-entry blind spot is Phase 0.2 in the plan.
+
+**A bug made and caught inside this change, pinned so it cannot recur.** The
+first attempt put the extractor in `build_row`'s **slot 10** (`result_count`)
+rather than slot 11 (`change_type`), so the section STRING was cast into an int
+field — silently writing `result_count` 0 on every failed agent call while
+`change_type` stayed null. The dimension assertion caught the symptom; nothing
+caught the collateral. There is now a positional pin asserting `result_count`
+stays null on that path, and the mutation that reproduces the bug reds it.
+
+### Added — five read-door sections
+
+Each is one map line. No new tools, no permission change.
+
+- `sn-metrics{machine_readers}` → `get-machine-readers-summary`. **The gap that
+  forced a `wp eval` dead-end on 2026-08-30**: no MCP tool exposed machine reads
+  at all, the `identity` fold (v13.43.0) included, so answering "one agent or
+  fifteen?" needed shell access to the origin.
+- `sn-metrics{analytics_top_content}` → its two siblings were already sections;
+  this one was omitted from the family.
+- `sn-metrics{404_log}` → how the site is read, and fails to be read.
+- `sn-status{collector}` → operational state, beside deploy and health_scan.
+- `sn-status{corpus_integrity}` → **had no recorded verdict anywhere**: not
+  retired, not absorbed, never accounted for. It sits on `sn-status` and NOT on
+  `sn-validate` because it is `manage_options` while `sn-validate` is
+  `read_corpus` — that placement would cross permission tiers, which is a scope
+  change wearing a refactor's clothes.
+
+`range`'s description now states that `machine_readers` clamps to 1-90, so
+`365` and `all` are refused there — a caller learns the ceiling from the schema
+rather than from a surprising number.
+
+**No telemetry work was needed for any of these**, and that is the consolidation
+paying off: `sn_mcp_telemetry_change_type()` sources the section maps **live,
+never a local copy**, so a new map line is counted the moment it exists.
+
+### Tests — 13 new, every guard negative-controlled
+
+- Reverting the success path to `null` reds 2; putting the extractor back in the
+  `result_count` slot reds 2 — including the positional pin written for exactly
+  that mistake.
+- The agents suite now requires the **real** registration maps rather than
+  stubbing them. A stubbed map would confirm whatever section name the test
+  invented, and live sourcing is the property under test.
+- The three additive shape pins gained their new entries; nothing renamed,
+  nothing moved, and each still asserts the WHOLE map so a silent reshuffle is
+  as loud as a silent addition.
+- One test bug caught by its own assertion: `$row['change_type'] ?? 'x'` cannot
+  express "present and null". Third time today — the codebase documents this
+  trap twice and it is now documented a third time, at the assertion.
+
+Sweep: 524 suites, 21,116 assertions, 0 failed. PHPCS clean. PHPStan clean.
+
+### Added — the plan itself
+
+`docs/proposals/mcp-options-not-tools-2026-08-30-plan.md` is tracked here as the
+source of truth for the remaining phases: the write-door dismissal blocker
+(which gates phase 10), four exclusions the options framing reverses, and the
+remote door's verdict map. Its scaffolds are local-only under
+`docs/superpowers/scaffolds/` and are deliberately **not linked** from any
+tracked doc — that path is gitignored and this repo is public, so a link there
+is a promise the repo cannot keep.
+
 ## [13.43.0] - 2026-08-30 — the signature axis stops being a scalar, and a capped read says so
 
 Consumes `sn-rights-signals` **v1.23.0** for the read, and lands beside

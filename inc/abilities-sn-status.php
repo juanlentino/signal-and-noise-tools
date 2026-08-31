@@ -105,6 +105,11 @@ function snt_sn_status_map() {
 		'cadence'              => 'signal-noise/cadence-flags',
 		'cron_scheduled'       => 'signal-noise/list-cron-events',
 		'cron_history'         => 'signal-noise/get-cron-history',
+		// v13.44.0. Operational state, beside deploy and health_scan.
+		'collector'            => 'signal-noise/get-collector-status',
+		// manage_options, so it belongs here and NOT on sn-validate, which is
+		// read_corpus — that placement would cross permission tiers.
+		'corpus_integrity'     => 'signal-noise/corpus-integrity-scan',
 	);
 }
 
