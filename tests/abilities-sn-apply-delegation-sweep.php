@@ -781,6 +781,10 @@ $sweep_calls = array(
 	// property under dry_run; the store contract lives in
 	// tests/abilities-sn-apply.php against the real ability.
 	'dismiss'          => array( 'target' => array( 'post_id' => 730 ), 'mode' => 'publish', 'change' => array( 'type' => 'dismiss', 'payload' => array( 'surface' => 'block-migrations', 'block_fingerprint' => 'sweepfp', 'candidate_type' => 'heading_level' ) ) ),
+	// Phase 3: both publish-only, both scope-targeted, both routed to their real
+	// ability. The sweep's pin is the family ZERO-WRITES property under dry_run.
+	'merge_tags'       => array( 'target' => array( 'scope' => 'tags' ), 'mode' => 'publish', 'change' => array( 'type' => 'merge_tags', 'payload' => array( 'from_slugs' => array( 'sweep-old' ), 'into_slug' => 'sweep-new' ) ) ),
+	'clear_template_overrides' => array( 'target' => array( 'scope' => 'template_overrides' ), 'mode' => 'publish', 'change' => array( 'type' => 'clear_template_overrides', 'payload' => array() ) ),
 	'anchor_sweep'     => array( 'target' => array( 'scope' => 'provenance_anchors' ), 'mode' => 'publish', 'change' => array( 'type' => 'anchor_sweep', 'payload' => array() ) ),
 	// create_draft (session 6c) is REVISION-only (mode:publish refuses
 	// structurally — see snt_sn_apply_mode_support()), the mirror image of
