@@ -136,5 +136,94 @@ ok( false !== stripos( $src, 'fail-open' ), 'and the file says so in words, rath
 echo "\nGroup: the read guard still never calls the write guard\n";
 ok( false === strpos( $src, 'sn_mcp_rw_rate_limit' ), 'the isolation invariant in the read guard header still holds' );
 
+
+echo "\nGroup: Task 4.A — the SAME ceiling, two failure directions (v13.50.0)\n";
+//
+// PRECONDITION A of the remote phase. The ceiling covers remote slugs on
+// purpose ("load is load whoever is asking"), but a credentialed, phone-
+// reachable caller is a different risk object from the owner's laptop. §8 of
+// the threat model records F1 failing OPEN as the thing that must clear before
+// that path widens.
+//
+// BOTH directions are pinned here, and both are negative-controlled in the
+// release notes: a change that made the LOCAL path fail closed too would be a
+// silent site-wide availability regression, which is exactly as bad as leaving
+// the remote path open — just louder.
+
+if ( ! function_exists( 'sn_mcp_remote_slugs' ) ) {
+	require_once __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
+}
+$rl_remote_slug  = 'signal-noise/remote-get-rss-stats';
+$rl_remote_route = '/wp-abilities/v1/abilities/' . $rl_remote_slug . '/run';
+
+// The route predicate itself, both ways.
+ok( true === sn_mcp_read_guard_route_is_remote( $rl_remote_route ), 'the predicate identifies a REMOTE slug run route' );
+ok( false === sn_mcp_read_guard_route_is_remote( $run_route ), 'and does NOT flag a local read slug as remote' );
+ok( false === sn_mcp_read_guard_route_is_remote( '/signal-noise/v1/mcp' ), 'nor the read door itself' );
+// The ceiling must still APPLY to remote slugs — failing closed is worthless
+// if the route was never on the ceiling in the first place.
+ok( true === sn_mcp_read_guard_is_read_path( $rl_remote_route ), 'a remote slug is still ON the ceiling (off the exposure list never meant off the ceiling)' );
+
+// THE DISTINCTION THAT MAKES THIS SAFE, pinned first. A null count means
+// EITHER "store gone" OR "no counter yet" — and the second is the normal first
+// call of every window. The first cut of this change conflated them and would
+// have refused the FIRST remote call in every window: an outage wearing a
+// security costume. These four pin the pure decision in all four combinations.
+ok( false === sn_mcp_read_rate_limit_miss_allows( true, false ), 'MISS: remote + unusable store => refuse (the only refusing combination)' );
+ok( true  === sn_mcp_read_rate_limit_miss_allows( true, true ),  'MISS: remote + usable store => proceed, because this is just a cold key' );
+ok( true  === sn_mcp_read_rate_limit_miss_allows( false, false ), 'MISS: local + unusable store => proceed (fail-open preserved)' );
+ok( true  === sn_mcp_read_rate_limit_miss_allows( false, true ),  'MISS: local + usable store => proceed' );
+
+// DIRECTION 1 — REMOTE with a usable store but a COLD key: must proceed.
+$GLOBALS['__t'] = array();
+$rl_cold = sn_mcp_read_rate_limit_check( 'uuid:remote-cold', true );
+ok( ! empty( $rl_cold['allow'] ), 'remote + cold key => ALLOWED, and the counter is seeded rather than refused' );
+
+// DIRECTION 2 — LOCAL fail-open is untouched.
+$GLOBALS['__t'] = array();
+$rl_d_local = sn_mcp_read_rate_limit_check( 'uuid:local-nostore' );
+ok( ! empty( $rl_d_local['allow'] ), 'local path => still ALLOWED (fail-closed here would be an availability regression)' );
+$GLOBALS['__t'] = array();
+ok( ! empty( sn_mcp_read_rate_limit_check( 'uuid:local-explicit', false )['allow'] ), 'and an explicit false is the same as omitting it' );
+ok( true === sn_mcp_read_rate_limit_store_available(), 'the harness DOES have a usable store, so the cold-key tests above are not passing by accident' );
+
+// WITH a store, the remote path behaves normally — fail-closed must not mean
+// "always closed", which would be an outage wearing a security costume.
+$GLOBALS['__t'] = array();
+sn_mcp_read_rate_limit_check( 'uuid:remote-warm', true ); // seeds the counter
+$rl_warm = sn_mcp_read_rate_limit_check( 'uuid:remote-warm', true );
+ok( ! empty( $rl_warm['allow'] ), 'remote + a live store => allowed normally (fail-closed applies to the MISS, not to every call)' );
+
+// And the cap still bites on the remote path.
+$GLOBALS['__t'] = array();
+$rl_cap = SN_MCP_READ_RATE_LIMIT_PER_MINUTE;
+for ( $i = 0; $i < $rl_cap; $i++ ) { sn_mcp_read_rate_limit_check( 'uuid:remote-burst', true ); }
+ok( empty( sn_mcp_read_rate_limit_check( 'uuid:remote-burst', true )['allow'] ), 'and the cap still refuses the call after it on the remote path' );
+
+// END TO END through the dispatch filter. This harness cannot simulate an
+// UNUSABLE store (get_transient/set_transient are defined at file scope and
+// cannot be undefined), so the refusing combination is pinned on the pure
+// decision above, and what is checked here is that dispatch reaches the
+// limiter at all for a remote route, plus that the flag is genuinely threaded.
+$GLOBALS['__t'] = array();
+$rl_disp_cold = sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $rl_remote_route ) );
+ok( null === $rl_disp_cold, 'DISPATCH: a remote request with a cold key passes (the door is not bricked)' );
+$GLOBALS['__t'] = array();
+for ( $i = 0; $i < $rl_cap + 1; $i++ ) { sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $rl_remote_route ) ); }
+$rl_disp_over = sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $rl_remote_route ) );
+ok( is_wp_error( $rl_disp_over ) && 'sn_mcp_read_rate_limited' === $rl_disp_over->get_error_code(), 'DISPATCH: dispatch really does reach the limiter for a REMOTE route (the cap refuses through it)' );
+$GLOBALS['__t'] = array();
+$rl_disp_local = sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $run_route ) );
+ok( null === $rl_disp_local, 'DISPATCH: a LOCAL request still passes through untouched' );
+
+// THE WIRING ITSELF. Everything above would pass if dispatch hardcoded `false`,
+// so the argument is pinned against source — the one claim this harness cannot
+// make behaviourally.
+$rl_src = (string) file_get_contents( __DIR__ . '/../inc/mcp/mcp-read-guard.php' );
+ok(
+	1 === preg_match( '/sn_mcp_read_rate_limit_check\(\s*\n?\s*sn_mcp_read_rate_limit_current_identity\(\),\s*\n?\s*sn_mcp_read_guard_route_is_remote\(\s*\$route\s*\)/', $rl_src ),
+	'WIRING: dispatch passes the route predicate as the fail-closed flag, not a hardcoded false'
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -72,6 +72,81 @@ function sn_mcp_remote_slugs() {
 }
 
 /**
+ * EVERY local section's remote verdict — the totality record (Task 4.1).
+ *
+ * THE PROBLEM THIS SOLVES. `sn_mcp_remote_slugs()` above is hand-curated by
+ * name, and that is correct: the alternative ("the read door minus some") is an
+ * exclusion list, and an exclusion list FAILS OPEN — the next person to add a
+ * local section silently widens what a phone-reachable credentialed path can
+ * read, and nothing goes red. An allowlist fails closed.
+ *
+ * But hand-curation does not lag safely, it lags SILENTLY. Before this map, a
+ * new section on `sn-status` / `sn-metrics` / `sn-site-facts` simply never got
+ * a remote decision, and nothing anywhere said so. `tests/mcp-remote-verdicts.php`
+ * now reds until every section has one.
+ *
+ * THIS MAP GRANTS NOTHING. It is a record of decisions, never their
+ * enforcement. Reach still requires a registered twin AND its slug in
+ * `sn_mcp_remote_slugs()` — two steps, and that second step is the boundary.
+ * A verdict flipped to `true` here without an allowlisted twin reds the test
+ * rather than exposing anything.
+ *
+ * `remote => true` is used ONLY for sections already reachable through a twin
+ * that shipped before this map existed. Every candidate the 2026-08-11
+ * partition discussed is recorded `false` with `awaiting ratification` —
+ * Precondition B is an owner decision, and a map that quietly promoted
+ * candidates would be making it.
+ *
+ * @since 13.50.0
+ * @return array<string,array{remote:bool,reason:string,twin:string|null}>
+ */
+function sn_mcp_remote_verdicts() {
+	$out = function ( $remote, $reason, $twin = null ) {
+		return array( 'remote' => (bool) $remote, 'reason' => (string) $reason, 'twin' => $twin );
+	};
+
+	return array(
+		/* ── sn-status ────────────────────────────────────────────────── */
+		'uptime'               => $out( true, 'Availability of the public site. No post bodies, no request-derived detail.', 'signal-noise/remote-uptime-status' ),
+		'deploy'               => $out( true, 'Deploy state of public infrastructure. Shipped before this map.', 'signal-noise/remote-get-deploy-status' ),
+		'health_scan'          => $out( true, 'Verdicts over public URLs. The scan itself stays un-triggerable remotely — reading a verdict is not causing one.', 'signal-noise/remote-get-health-scan' ),
+		'anchor'               => $out( false, 'Candidate: the 2026-08-11 partition says IN ("the ledger is public anyway"), and it was never ratified. Awaiting Precondition B.' ),
+		'provenance_integrity' => $out( false, 'Candidate on the same "ledger is public anyway" reasoning, and unratified for the same reason. Awaiting Precondition B.' ),
+		'ipv6_criterion'       => $out( false, 'Login-defense tuning criterion. Defence posture, not analytics: it describes what the door would block, which is recon rather than a metric.' ),
+		'ai_cache_probe'       => $out( false, 'Internal cache-warm diagnostics. No decision is taken from a phone on it, so exposure buys nothing against a credentialed path.' ),
+		'cadence'              => $out( false, 'Publishing cadence flags read editorial state, including scheduled and unpublished work.' ),
+		'cron_scheduled'       => $out( false, 'Candidate IN "with a pass": the payload names cron HOOKS, which is recon. It needs a model-never-levers output review before ratification, and v13.49.0 made the hook list load-bearing for the schedule bound. Awaiting Precondition B.' ),
+		'cron_history'         => $out( false, 'Same family and the same unfinished output review as cron_scheduled. Awaiting Precondition B.' ),
+		'collector'            => $out( false, 'Analytics collector plumbing state. Operational internals, not a number anyone reads on a phone.' ),
+		'corpus_integrity'     => $out( false, 'OUT BY CONSTRUCTION: the corpus spans SNT_CORPUS_STATUSES, so its findings can name draft, pending and private posts. Not proposable.' ),
+
+		/* ── sn-metrics ───────────────────────────────────────────────── */
+		'analytics_summary'    => $out( true, 'The analytics scope the remote door exists for. Aggregate counts only.', 'signal-noise/remote-get-analytics-summary' ),
+		'analytics_events'     => $out( true, 'Event counts within the same analytics scope. Shipped before this map.', 'signal-noise/remote-get-analytics-events' ),
+		'rss_stats'            => $out( true, 'Feed-delivery counts over a public feed.', 'signal-noise/remote-get-rss-stats' ),
+		'machine_readers'      => $out( false, 'New candidate: aggregate crawler counts, with no post bodies and no UA samples in the summary payload. Unratified. Awaiting Precondition B.' ),
+		'analytics_top_content'=> $out( false, 'New candidate, and the one carrying an OPEN QUESTION the plan flags rather than answers: it is request-derived, so it must be established that a draft or preview slug can never surface in it before ratification. Awaiting Precondition B.' ),
+		'404_log'              => $out( false, 'New candidate, request-derived and arguably recon — a map of what does not exist is a map of what someone probed for. The partition leans OUT. Awaiting Precondition B.' ),
+
+		/* ── sn-site-facts ────────────────────────────────────────────── */
+		'theme_version'        => $out( false, 'Build identity. Reading it remotely aids fingerprinting and answers no question a phone asks.' ),
+		'latest_theme_tag'     => $out( false, 'Same fingerprinting surface as theme_version, one repo hop further out.' ),
+		'design_tokens'        => $out( false, 'Design-system internals. Not analytics scope.' ),
+		'block_patterns'       => $out( false, 'Authoring inventory, not a metric.' ),
+		'template_overrides'   => $out( false, 'Site Editor internals — and the surface v13.49.0 gave a WRITE change type. Read and write stay on the desktop together.' ),
+		'active_template'      => $out( false, 'Rendering internals for a given route. Not analytics scope.' ),
+		'llms_txt'             => $out( false, 'Already public at its own URL; a credentialed path adds nothing but a second way to fetch it.' ),
+		'seo_route_meta'       => $out( false, 'Per-route metadata that can describe unpublished routes.' ),
+		'pillars'              => $out( false, 'Editorial structure, derived from the corpus.' ),
+		'reading_time'         => $out( false, 'Per-post derived value; the corpus it derives from spans unpublished statuses.' ),
+		'scan_telemetry'       => $out( false, 'Operational telemetry about scans. Owner-desktop reading.' ),
+		'tool_telemetry'       => $out( false, 'The MCP layer describing its own traffic — including, since v13.48.0, error_detail prose from failed calls. Diagnostics stay on the desktop.' ),
+		'configuration_drift'  => $out( false, 'Names configuration expected versus observed, which is a map of the site\'s own soft spots.' ),
+		'pattern_content'      => $out( false, 'OUT BY CONSTRUCTION: returns pattern BODIES, which is content on a credentialed path. Not proposable.' ),
+	);
+}
+
+/**
  * Remote kill-switch PURE predicate.
  *
  * @param bool $constant_disabled defined('SN_MCP_REMOTE_DISABLED') && SN_MCP_REMOTE_DISABLED.

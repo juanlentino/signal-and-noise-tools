@@ -2,6 +2,41 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.50.0] - 2026-08-31 — a local section can no longer ship without a remote decision
+
+Phase 4 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md), as far as it can go. **Nothing is exposed here.** The remote door reaches exactly the same eight twins it reached before.
+
+### Added — `sn_mcp_remote_verdicts()`, the totality record
+
+`sn_mcp_remote_slugs()` is hand-curated by name, and deliberately so: the alternative, "the read door minus some", is an exclusion list, and an exclusion list **fails open** — the next person to add a local section silently widens what a phone-reachable credentialed path can read, and nothing goes red.
+
+But hand-curation does not lag safely, it lags **silently**. A new section on `sn-status` / `sn-metrics` / `sn-site-facts` simply never got a remote decision, and no surface anywhere said so.
+
+All 32 local sections now carry an explicit verdict. `tests/mcp-remote-verdicts.php` reads the three section maps from source and reds until every one has a decision — the same derive-don't-remember shape as v13.49.0's cron parity pin, with the same vacuity guards asserted before any coverage claim.
+
+- **Six are `true`** — `uptime`, `deploy`, `health_scan`, `analytics_summary`, `analytics_events`, `rss_stats` — every one already reachable through a twin that predates this map. The map records reach; it never grants it.
+- **Every 2026-08-11 partition candidate is `false, awaiting ratification`**: `anchor`, `provenance_integrity`, `cron_scheduled`, `cron_history`, `machine_readers`, `analytics_top_content`, `404_log`. A map that quietly promoted them would be making Precondition B's decision instead of surfacing it.
+- **Two are OUT by construction** and say so: `corpus_integrity` and `pattern_content` reach `SNT_CORPUS_STATUSES` or return bodies.
+- A verdict cannot grant reach. Widening still takes registering a twin **and** adding its slug to `sn_mcp_remote_slugs()` — two steps, and the second is the boundary.
+
+### Fixed — Precondition A: the ceiling fails CLOSED on the remote path
+
+`sn_mcp_read_guard_is_read_path()` already covers remote slugs on purpose — *load is load whoever is asking* — but the ceiling failed **open** on a store miss, which §8 of the threat model records as a precondition that must clear before the credentialed path widens.
+
+It now fails closed on the remote path only. **Local fail-open is untouched**, and that asymmetry is the point: making the laptop path fail closed too would turn a missing transient store into a silent site-wide availability regression.
+
+**The correction this forced is worth recording.** "An absent backing store" reads naturally as "a null count" — but a null *also* means "this identity has no counter yet", which is the normal first call of **every** window. The first cut conflated them and would have refused the first remote call in every window: an outage wearing a security costume rather than a boundary. Split into `sn_mcp_read_rate_limit_store_available()` (is a store usable at all) and the pure `sn_mcp_read_rate_limit_miss_allows()` (all four combinations pinned). A test caught it before it shipped.
+
+Four negative controls: remote failing open again reds; local made to fail closed reds; dispatch hardcoding `false` reds against a source pin; and the cold-key regression above reds three.
+
+### Fixed — a lifted blocker that only lived in a CHANGELOG
+
+Phase 2's own Task 2.2 required recording that phase 10's dismissal blocker was lifted, and that step was never done. `docs/mcp-consolidation/retirement-verdicts-2026-08-25.md` still said `sn_dismiss` was deferred and to *"Build it when phase 10 starts, not before"* — false since v13.47.0 shipped that morning. Now recorded, with the surviving limit noted: the `surface` enum is three while `sn-scan` has nine scan types, so six refuse **by name**.
+
+### Still gated — Precondition B is an owner decision
+
+Phase 4's remaining tasks (4.2 register twins, 4.3 consolidate over a twin map, 4.4 retire superseded singles) stay blocked. The candidate scope discussed 2026-08-11 was **never ratified**, and one candidate carries an open question the plan flags rather than answers: `analytics_top_content` is request-derived, so whether a draft or preview slug can surface in it must be established before it is proposable at all.
+
 ## [13.49.0] - 2026-08-31 — three write-door exclusions come back as options, and ten silent unschedules get closed
 
 Phase 3 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md).

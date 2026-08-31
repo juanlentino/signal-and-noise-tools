@@ -374,7 +374,7 @@ Each mutation must red **exactly its own pin**. A guard never watched failing is
 
 ### Task 2.2: Re-open the phase-10 gate
 
-- [ ] **Step 1:** Record in `docs/mcp-consolidation/` that the dismissal path now exists, so phase 10's blocker is lifted. The blocker was written down; the unblocking must be too.
+- [x] **Step 1: DONE v13.50.0** — recorded in `retirement-verdicts-2026-08-25.md`, with the surviving three-of-nine surface limit noted alongside, since a lifted blocker that lives only in a CHANGELOG is still a blocker to this file's next reader.
 - [ ] **Step 2:** After install, **restart the MCP client** before testing (orientation note 6).
 
 ---
@@ -437,7 +437,10 @@ Hand-curation doesn't lag safely; it lags **silently**. Today a new local sectio
 
 **Fix: a totality test, not inheritance.**
 
-### Task 4.1: The verdict map
+### Task 4.1: The verdict map — DONE v13.50.0
+
+**Shipped:** `sn_mcp_remote_verdicts()` in `inc/mcp/mcp-remote-guard.php` (all 32 local sections) and `tests/mcp-remote-verdicts.php` (52 assertions). Negative-controlled in four directions: an unverdicted section reds **and names it**; a `remote => true` naming a twin absent from `sn_mcp_remote_slugs()` reds; a corpus-reaching slug added to the allowlist reds; a rotted key parser reds five vacuity guards. Six sections are `true` — all of them already reachable through twins that predate the map — and every candidate from the 2026-08-11 partition is recorded `false, awaiting ratification`, because a map that quietly promoted candidates would be making Precondition B's decision instead of surfacing it.
+
 
 - [ ] **Step 1: Write the failing test** — `tests/mcp-remote-verdicts.php`:
 
@@ -497,7 +500,9 @@ foreach ( array( 'signal-noise/sn-posts', 'signal-noise/sn-scan', 'signal-noise/
 
 Deliberate locally — a ceiling, not a boundary — and **not acceptable on a credentialed path**.
 
-- [ ] **Task 4.A:** Make the ceiling fail closed **on the remote path only**, leaving local fail-open intact. Pin both behaviours in one suite and negative-control both — a change that made the local path fail closed too would be a silent availability regression.
+- [x] **Task 4.A: DONE v13.50.0 — PRECONDITION A IS CLEARED.** Fail-closed on the remote path, local fail-open intact, both pinned and both negative-controlled in `tests/mcp-read-rate-limit.php`.
+
+  **One correction the build forced.** "An absent backing store" reads naturally as "a null count" — but null ALSO means "no counter yet", which is the normal first call of every window. Failing closed on that refuses the first remote call in every window: an outage, not a boundary. Split into `sn_mcp_read_rate_limit_store_available()` and the pure `sn_mcp_read_rate_limit_miss_allows()`, whose four combinations are each pinned. A test caught it before it shipped.
 
 ## Precondition B — the scope must be ratified
 
