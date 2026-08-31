@@ -136,12 +136,28 @@ Taken the same day wave 2 shipped as v13.0.0, on this sheet's evidence:
   five disjoint return shapes strain the spec's own merge-by-return-shape
   rule. The spec's 11-tool figure was a target, not a contract.
 - **`sn_terms`: descoped** (would wrap exactly one tool).
-- **`sn_dismiss`: deferred, NOT descoped** — it gates phase 10: no MCP
-  dismissal path has existed since wave 1, and an unattended routine
-  without dismissal is a spam generator. Build it when phase 10 starts.
+- **`sn_dismiss`: ~~deferred, NOT descoped~~ — BLOCKER LIFTED 2026-08-31, v13.47.0.**
+  The original reasoning: it gates phase 10, because no MCP dismissal path had
+  existed since wave 1, and an unattended routine without dismissal is a spam
+  generator. **That is no longer true.** `sn-apply` now carries a `dismiss`
+  change type (publish-only, target `{post_id}`, payload
+  `{surface, block_fingerprint, candidate_type}`), routed to the real
+  `dismiss-candidate` ability rather than re-implemented. **Phase 10 is no
+  longer blocked on a missing dismissal path.**
+  Two limits survive the unblocking and belong in any phase-10 scoping:
+  the `surface` enum is exactly three (`block-migrations`, `pattern-adoption`,
+  `corpus-integrity`) while `sn-scan` has NINE scan types, so six refuse **by
+  name** rather than silently no-op; and a caller that cannot dismiss for those
+  six will keep re-seeing their candidates. Recorded here because the blocker
+  was written down, so the unblocking must be too — a lifted blocker that only
+  exists in a CHANGELOG is a blocker as far as this file's next reader is
+  concerned.
 - **Revisit condition:** an agent workflow measurably degraded by tool-list
-  width, or phase 10 starting (which forces `sn_dismiss` and reopens the
-  question with fresh telemetry). Do not reopen on taste.
+  width, or phase 10 starting. ~~which forces `sn_dismiss`~~ — phase 10 no
+  longer forces it, since v13.47.0 built it; what phase 10 still reopens is the
+  question with fresh telemetry, which v13.46.0's `dimensions` column and
+  v13.48.0's `error_detail`/`error_status` now make readable per section and per
+  failure reason. Do not reopen on taste.
 
 The consolidation SURFACE work (build-order phases 2–7) is complete.
 Phases 8–12 (server-side gate enforcement, credential scopes, the

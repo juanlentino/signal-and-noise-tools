@@ -146,26 +146,109 @@ function sn_mcp_read_rate_limit_decision( $count_in_window, $cap ) {
 }
 
 /**
+ * Is a counter store actually usable right now?
+ *
+ * THE DISTINCTION THIS EXISTS FOR, and it is not academic: a null from
+ * sn_mcp_read_rate_limit_store_get() means EITHER "the store is gone" OR "this
+ * identity has no counter yet" — and the second is the normal first call of
+ * every window. Fail-open never had to tell them apart, because both answers
+ * led to `allow`. Fail-closed does: refusing on a plain key miss would refuse
+ * the FIRST remote call in every window, which is an outage wearing a security
+ * costume rather than a boundary. A test written for Task 4.A caught exactly
+ * that in the first cut of this change.
+ *
+ * @since 13.50.0
+ * @return bool
+ */
+function sn_mcp_read_rate_limit_store_available() {
+	if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_get' ) ) {
+		return true;
+	}
+	return function_exists( 'get_transient' ) && function_exists( 'set_transient' );
+}
+
+/**
+ * On a store MISS, may the call proceed? Pure, so both directions of Task 4.A
+ * are testable without simulating a dead cache.
+ *
+ * Refusal requires BOTH halves: the remote path, and a store that is genuinely
+ * unusable. Either alone proceeds.
+ *
+ * @since 13.50.0
+ * @param bool $fail_closed     True on the remote path.
+ * @param bool $store_available Whether a counter store is usable.
+ * @return bool
+ */
+function sn_mcp_read_rate_limit_miss_allows( $fail_closed, $store_available ) {
+	if ( ! $fail_closed ) {
+		return true;
+	}
+	return (bool) $store_available;
+}
+
+/**
  * Count this call and say whether it may proceed.
  *
- * FAIL-OPEN, deliberately and identically to the write door: an absent backing
- * store yields a null count, which reads as zero and allows. A throttle must not
- * harden into an outage when its store is unavailable. That is also precisely
- * why this is a runaway-loop CEILING today and not a security boundary — §8
- * records that a brokered caller would require it to fail CLOSED first.
+ * FAIL-OPEN ON THE LOCAL PATH, deliberately and identically to the write door:
+ * an absent backing store yields a null count, which reads as zero and allows.
+ * A throttle must not harden into an outage when its store is unavailable. On
+ * the laptop this is a runaway-loop CEILING, not a security boundary.
+ *
+ * FAIL-CLOSED ON THE REMOTE PATH (v13.50.0, Task 4.A — Precondition A of the
+ * remote phase). The same ceiling covers remote slugs on purpose: `load is load
+ * whoever is asking`, per sn_mcp_read_guard_is_read_path(). But a credentialed,
+ * phone-reachable path is a different risk object from a laptop one, and §8 of
+ * the threat model records F1 failing open as a precondition that must clear
+ * before that path widens. With no store, a remote caller is now refused rather
+ * than waved through — an unmeasurable throttle on a credentialed path is not a
+ * throttle.
+ *
+ * The asymmetry is the point, and it is why $fail_closed is a PARAMETER rather
+ * than a change of default: making the local path fail closed too would turn a
+ * missing transient store into a silent site-wide availability regression.
  *
  * @param string $identity
+ * @param bool   $fail_closed True on the remote path only. @since 13.50.0.
  * @return array{allow:bool,retry_after:int}
  */
-function sn_mcp_read_rate_limit_check( $identity ) {
+function sn_mcp_read_rate_limit_check( $identity, $fail_closed = false ) {
 	$key   = sn_mcp_read_rate_limit_key( $identity );
 	$count = sn_mcp_read_rate_limit_store_get( $key );
-	$count = null === $count ? 0 : $count;
+	if ( null === $count ) {
+		if ( ! sn_mcp_read_rate_limit_miss_allows( $fail_closed, sn_mcp_read_rate_limit_store_available() ) ) {
+			return array( 'allow' => false, 'retry_after' => SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS );
+		}
+		$count = 0;
+	}
 	if ( sn_mcp_read_rate_limit_decision( $count, SN_MCP_READ_RATE_LIMIT_PER_MINUTE ) ) {
 		sn_mcp_read_rate_limit_store_set( $key, $count + 1, SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS );
 		return array( 'allow' => true, 'retry_after' => 0 );
 	}
 	return array( 'allow' => false, 'retry_after' => SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS );
+}
+
+/**
+ * Is this route a REMOTE slug's run route? The pure half of Task 4.A.
+ *
+ * Split from sn_mcp_read_guard_is_read_path() rather than folded into it,
+ * because the two answer different questions: that one asks "does the ceiling
+ * apply at all" (yes for both doors), this one asks "which side of the
+ * fail-open/fail-closed split is this". Collapsing them would make the
+ * asymmetry invisible at the call site.
+ *
+ * @since 13.50.0
+ * @param string $route
+ * @return bool
+ */
+function sn_mcp_read_guard_route_is_remote( $route ) {
+	if ( ! function_exists( 'sn_mcp_remote_slugs' ) ) {
+		return false;
+	}
+	$slug = sn_mcp_read_guard_route_slug( (string) $route );
+	if ( '' === $slug ) {
+		return false;
+	}
+	return in_array( $slug, sn_mcp_remote_slugs(), true );
 }
 
 /**
@@ -294,7 +377,10 @@ function sn_mcp_read_guard_rate_limit_dispatch( $result, $server = null, $reques
 	if ( '' === $route || ! sn_mcp_read_guard_is_read_path( $route ) ) {
 		return $result;
 	}
-	$decision = sn_mcp_read_rate_limit_check( sn_mcp_read_rate_limit_current_identity() );
+	$decision = sn_mcp_read_rate_limit_check(
+		sn_mcp_read_rate_limit_current_identity(),
+		sn_mcp_read_guard_route_is_remote( $route )
+	);
 	if ( ! empty( $decision['allow'] ) ) {
 		return $result;
 	}
