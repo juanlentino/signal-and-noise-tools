@@ -24,8 +24,9 @@
  *   sn_mcp_is_allowed( $slug, $door )                    -> bool
  *   sn_mcp_rw_kill_switch_engaged()                      -> bool
  *   sn_mcp_rw_audit_record( $slug, $args, $outcome, $error_source = null )
- *   sn_mcp_telemetry_record( $tool, $args, $door, $outcome, $refusal_gate, $latency_ms, $result_count = null )
- *   sn_mcp_telemetry_classify_wp_error( $err )           -> array{outcome,refusal_gate}
+ *   sn_mcp_telemetry_record( $tool, $args, $door, $outcome, $refusal_gate, $latency_ms, $result_count = null,
+ *                            $error_code = null, $error_detail = null, $error_status = null )
+ *   sn_mcp_telemetry_classify_wp_error( $err )           -> array{outcome,refusal_gate,error_code,error_detail,error_status}
  *
  * @since plugin v10.38.0
  */
@@ -68,14 +69,16 @@ function sn_mcp_rw_kill_switch_engaged() { return $GLOBALS['__rw_kill_engaged'];
 function sn_mcp_rw_audit_record( $slug, $args, $outcome, $error_source = null ) {
 	$GLOBALS['__audit_rows'][] = array( 'slug' => $slug, 'args' => $args, 'outcome' => $outcome, 'error_source' => $error_source );
 }
-function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refusal_gate, $latency_ms, $result_count = null, $error_code = null ) {
+function sn_mcp_telemetry_record( $tool_name, $arguments, $door, $outcome, $refusal_gate, $latency_ms, $result_count = null, $error_code = null, $error_detail = null, $error_status = null ) {
 	$GLOBALS['__telemetry_rows'][] = array(
 		'tool_name' => $tool_name, 'door' => $door, 'outcome' => $outcome,
 		'refusal_gate' => $refusal_gate, 'latency_ms' => $latency_ms, 'result_count' => $result_count,
-		'error_code' => $error_code,
+		'error_code' => $error_code, 'error_detail' => $error_detail, 'error_status' => $error_status,
 	);
 }
-function sn_mcp_telemetry_classify_wp_error( $err ) { return array( 'outcome' => 'server_error', 'refusal_gate' => null, 'error_code' => 'snt_stub_failure' ); }
+// v13.48.0: models the REAL five-key classifier shape. A stub that kept the
+// three-key shape would let the guard drop the diagnostic pair and stay green.
+function sn_mcp_telemetry_classify_wp_error( $err ) { return array( 'outcome' => 'server_error', 'refusal_gate' => null, 'error_code' => 'snt_stub_failure', 'error_detail' => 'stub failure detail', 'error_status' => 500 ); }
 function sn_mcp_telemetry_result_count( $out ) { return is_array( $out ) ? count( $out ) : null; }
 
 require dirname( __DIR__ ) . '/inc/abilities-lifecycle-guard.php';
@@ -253,6 +256,11 @@ ok( 2 === count( $GLOBALS['__audit_rows'] ) && 'error' === $GLOBALS['__audit_row
 $last = end( $GLOBALS['__telemetry_rows'] );
 ok( 'server_error' === $last['outcome'], 'observer: WP_Error outcome classified via telemetry classifier' );
 ok( 'snt_stub_failure' === $last['error_code'], 'observer: the classifier\'s error_code travels to the record call (direct door names the cause too)' );
+// v13.48.0. The direct door is the one the wp-admin buttons use, so it is the
+// door whose failures most need a readable cause. Dropping either field here
+// would leave an admin-path failure recorded as a bare identifier again.
+ok( 'stub failure detail' === ( $last['error_detail'] ?? null ), 'observer: error_detail travels to the record call on the direct door' );
+ok( 500 === ( $last['error_status'] ?? null ), 'observer: error_status travels to the record call on the direct door' );
 
 // ---------------------------------------------------------------------------
 // 7. Re-entrancy: nested same-name execution must not zero the OUTER latency

@@ -499,7 +499,7 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 		}
 		if ( function_exists( 'sn_mcp_telemetry_record' ) && function_exists( 'sn_mcp_telemetry_classify_wp_error' ) ) {
 			$sn_mcp_telemetry_class = sn_mcp_telemetry_classify_wp_error( $out );
-			sn_mcp_telemetry_record( $tool_name, $args, $door, $sn_mcp_telemetry_class['outcome'], $sn_mcp_telemetry_class['refusal_gate'], sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ), null, $sn_mcp_telemetry_class['error_code'] );
+			sn_mcp_telemetry_record( $tool_name, $args, $door, $sn_mcp_telemetry_class['outcome'], $sn_mcp_telemetry_class['refusal_gate'], sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ), null, $sn_mcp_telemetry_class['error_code'], $sn_mcp_telemetry_class['error_detail'] ?? null, $sn_mcp_telemetry_class['error_status'] ?? null );
 		}
 		return array( 'result' => sn_mcp_error_result( $out->get_error_message() ) );
 	}

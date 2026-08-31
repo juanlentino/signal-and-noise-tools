@@ -200,6 +200,8 @@ function sn_mcp_telemetry_agent_classify_output( $output ) {
 		'outcome'      => 'ok',
 		'refusal_gate' => null,
 		'error_code'   => null,
+		'error_detail' => null,
+		'error_status' => null,
 	);
 }
 
@@ -275,7 +277,9 @@ function sn_mcp_telemetry_agent_record( $output, $slug, $args, $agent_user_id ) 
 		$classified['error_code'] ?? null,
 		function_exists( 'sn_mcp_telemetry_dimensions' )
 			? sn_mcp_telemetry_dimensions( $args_arr, (string) $slug )
-			: null
+			: null,
+		$classified['error_detail'] ?? null,
+		$classified['error_status'] ?? null
 	);
 
 	sn_mcp_telemetry_insert_row( $row );

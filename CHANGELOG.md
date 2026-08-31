@@ -2,6 +2,76 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.48.0] - 2026-08-31 — a failed tool call stops being just an identifier
+
+### Added — `error_detail` and `error_status` on `sn_tool_call`
+
+Telemetry recorded that a call failed and which code it failed under, then threw
+away the sentence explaining why. WordPress 7.1 core's
+`WP_AI_Client_Prompt_Builder::exception_to_wp_error()` returns a fully populated
+`WP_Error` — the provider's own message, and the HTTP status, alongside the code
+— and this layer read `get_error_code()` and discarded the rest. A
+`prompt_client_error` row therefore said "a 4xx happened" and nothing about
+which parameter the provider rejected. That is the difference between a
+countable event and a debuggable one.
+
+- `error_detail VARCHAR(255) NULL` — the `WP_Error` message, bounded to the
+  column in **bytes**. Truncation cuts on a character boundary first, so a
+  multibyte message never lands as a broken UTF-8 tail.
+- `error_status SMALLINT UNSIGNED NULL` — the precise status. The outcome
+  grammar is lossy on purpose (400 and 422 both read as `schema_error`), so the
+  number keeps what the classification spends.
+- Both are captured in `sn_mcp_telemetry_classify_wp_error()`, the one place
+  still holding the real `WP_Error` before the result is flattened to
+  message-only — the same reason `error_code` is captured there.
+- All three doors carry them: the MCP tools path, the `direct` door used by the
+  wp-admin buttons, and the agent door.
+- DB version 4 → 5, so dbDelta adds the columns on existing installs. Existing
+  rows stay null; there is no backfill.
+
+### Unchanged, deliberately — the aggregation grammar
+
+`error_code` keeps its allowlist and its bounded identifier grammar. The new
+columns are **diagnostic only**: never grouped, never filtered on, and absent
+from the `tool_telemetry` rollup. Two assertions pin that separation by reading
+`sn_mcp_telemetry_summary()`'s own body, because a test that merely proved the
+values are stored would pass just as happily on an implementation that also
+aggregated them. A success outcome forces both to null, matching `error_code`.
+
+### Known blind spot — a null `error_detail` is not "no detail available"
+
+`-32602` proxy refusals never reach this layer at all: the client rejects
+against a cached schema before the request arrives at WordPress, so
+`sn_mcp_telemetry_record()` never runs and no row exists to carry a detail.
+`inc/mcp/mcp-telemetry-read.php` states the same limit for refusals that never
+reach the recorder. For a change whose whole point is that a failed call stops
+being just an identifier, the most common failed call in practice never arrives
+to be described. Not fixable at this layer; recorded so a null is read as
+"never reached us", not as "the failure had nothing to say".
+
+### Adapted for the consolidation programme — the envelope, not its scaffolding
+
+`sn-apply` does not return prose. On a single target it returns
+`wp_json_encode( $response )` **as** the `WP_Error` message, and the
+human-readable reason sits at `error.message` — last in the shape, after four
+nested `gates` sub-arrays. A realistic `dismiss` refusal measures 486 bytes with
+the reason starting at byte 348, so a flat 255-byte cut kept
+`{"target":{…},"change_type":"dismiss",…` and discarded the sentence naming what
+was refused. That lands on the exact surface the consolidation programme uses to
+decide which change types to retire.
+
+`sn_mcp_telemetry_error_detail()` now prefers a recognised envelope's inner
+message. Bounded deliberately: the message must start with `{`, decode within a
+shallow depth, and expose a non-empty string at `error.message`. Provider prose
+and every ordinary `WP_Error` pass through untouched, an empty inner message
+falls back rather than nulling the row, and malformed JSON never throws.
+
+Seven mutations were run against the new guards — dropping the column from the
+`INSERT`, omitting a format specifier, leaking `error_detail` into the rollup
+SQL, replacing the multibyte-safe cut with a naive one, skipping the DB version
+bump, removing the envelope unwrap, and letting an empty inner message null the
+row. Each goes red, and the tree restores to green.
+
 ## [13.47.0] - 2026-08-31 — a scan's candidates can finally be dismissed, not only applied
 
 Phase 2 of [docs/proposals/mcp-options-not-tools-2026-08-30-plan.md](docs/proposals/mcp-options-not-tools-2026-08-30-plan.md).
