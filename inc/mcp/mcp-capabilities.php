@@ -123,6 +123,18 @@ function sn_mcp_allowlist() {
 		// Read door 29 → 31.
 		'signal-noise/keyword-candidates',
 		'signal-noise/topic-clusters', // v10.21.0: the stored topic partition (ML pipeline #4).
+		// v13.45.0. Had NO recorded verdict anywhere — not retired, not
+		// absorbed, never accounted for; the completeness sweep of 2026-08-30
+		// found it unreachable from either door by omission rather than by
+		// decision. read_corpus and readonly, so it joins its two siblings here.
+		//
+		// A SINGLE, deliberately, and NOT an sn-scan type: sn-scan takes a SCOPE
+		// and walks the corpus, while this REQUIRES post_id and scores ONE draft
+		// against everything else — "the same kernel as near-duplicate-scan,
+		// asked from the other direction", and near_duplicate already is that
+		// walk. A single-target query given a scope it cannot honour would
+		// misreport what it does.
+		'signal-noise/draft-echoes', // v10.17.0: one draft scored against the corpus.
 		'signal-noise/cadence-flags',  // v10.22.0: publish + cron rhythm deviations (ML pipeline #5).
 		// Theme (signal-and-noise/) — identity + design system.
 		// v10.26.0 — MCP consolidation, phase 2: the first two CONSOLIDATED
