@@ -528,6 +528,10 @@ function snt_ability_perm_remote_search_performance() {
 function snt_ability_perm_remote_search_drift() {
 	return sn_remote_analytics_allows( 'signal-noise/remote-search-drift' );
 }
+// v13.67.0 — owner ruling 2026-09-01: the cross-exam joins the door.
+function snt_ability_perm_remote_search_crossexam() {
+	return sn_remote_analytics_allows( 'signal-noise/remote-search-crossexam' );
+}
 
 add_action( 'wp_abilities_api_init', function () {
 	if ( ! function_exists( 'wp_register_ability' ) || ! function_exists( 'snt_search_console_abilities' ) ) {
@@ -537,8 +541,9 @@ add_action( 'wp_abilities_api_init', function () {
 	 * The output_schema is READ FROM THE SAME TABLE the admin registration
 	 * reads (snt_search_console_abilities()), so byte-identity is by
 	 * construction, not by copy; tests/abilities-remote-set.php still pins
-	 * the pair with ===. search_crossexam is deliberately ABSENT: it names
-	 * paths AND reads the crawler ledger — an owner call, still open.
+	 * the pair with ===. search_crossexam joined at v13.67.0 by owner ruling
+	 * (2026-09-01): a WINDOW verdict over two public-facing instruments, no
+	 * paths in its payload, and the ledger side is counts only.
 	 * ───────────────────────────────────────────────────────────────── */
 	$table = snt_search_console_abilities();
 	$twins = array(
@@ -553,6 +558,12 @@ add_action( 'wp_abilities_api_init', function () {
 			'label' => 'Search Console: position drift (remote)',
 			'perm'  => 'snt_ability_perm_remote_search_drift',
 			'exec'  => 'snt_ability_search_drift',
+		),
+		'signal-noise/remote-search-crossexam'   => array(
+			'admin' => 'signal-noise/search-crossexam',
+			'label' => 'Search Console x crawler ledger: do the instruments agree? (remote)',
+			'perm'  => 'snt_ability_perm_remote_search_crossexam',
+			'exec'  => 'snt_ability_search_crossexam',
 		),
 	);
 	foreach ( $twins as $slug => $t ) {

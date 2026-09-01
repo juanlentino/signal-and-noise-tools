@@ -76,6 +76,7 @@ $FULL_SET = array(
 	'signal-noise/remote-cron-health-summary',
 	'signal-noise/remote-search-performance', // v13.61.0
 	'signal-noise/remote-search-drift',       // v13.61.0
+	'signal-noise/remote-search-crossexam',   // v13.67.0
 );
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
@@ -143,6 +144,7 @@ $REMOTE_CRON = 'signal-noise/remote-cron-health-summary';
 // v13.61.0 pairs.
 $REMOTE_SP = 'signal-noise/remote-search-performance'; $ADMIN_SP = 'signal-noise/search-performance';
 $REMOTE_SD = 'signal-noise/remote-search-drift';       $ADMIN_SD = 'signal-noise/search-drift';
+$REMOTE_SX = 'signal-noise/remote-search-crossexam';   $ADMIN_SX = 'signal-noise/search-crossexam'; // v13.67.0
 $ADMIN_PROV  = 'signal-noise/provenance-integrity-status';
 $ADMIN_MR    = 'signal-noise/get-machine-readers-summary';
 $ADMIN_CRON  = 'signal-noise/cron-health-summary';
@@ -193,6 +195,7 @@ $pairs_output = array(
 	array( $REMOTE_CRON, $ADMIN_CRON ),
 	array( $REMOTE_SP, $ADMIN_SP ),
 	array( $REMOTE_SD, $ADMIN_SD ),
+	array( $REMOTE_SX, $ADMIN_SX ),
 );
 foreach ( $pairs_output as $pair ) {
 	list( $remote, $admin ) = $pair;

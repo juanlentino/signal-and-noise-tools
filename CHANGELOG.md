@@ -2,6 +2,25 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.67.0] - 2026-09-01 — the cross-exam reaches the remote door; contract 3 → 4
+
+### Added — `remote-search-crossexam`, by owner ruling
+
+The one Search Console read left local after weave Phase 4 was the cross-exam,
+because it reads the crawler ledger beside Google. Ruled remote on 2026-09-01:
+its payload is a window-grain verdict (impressions versus search-family fetch
+counts) with no paths and no ledger rows — counts only — and both instruments
+describe public-facing behaviour. Byte-identical twin from the same table the
+admin registration reads; remote slug list 13 → 14; `search_crossexam` now
+`remote:true` in the verdict map, naming its twin.
+
+### Changed — remote contract version 3 → 4
+
+Distinct sha256 pinned for the 14-twin map, computed RED-then-pin (the twin
+count was checked first this time). Worker v1.4.0 carries the other half
+(`CONTRACT_VERSION "4"`, bridge tool count 14); the deploy probe reads
+`contract_match` once both are live.
+
 ## [13.66.0] - 2026-09-01 — the sitemap says when each post last changed
 
 ### Added — per-URL `<lastmod>` on core's sitemap
