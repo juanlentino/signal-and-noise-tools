@@ -78,6 +78,8 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_HEALTH_CRON_HOOK', 'sn_health_scan_daily' ),
 		// v13.62.0 — weekly enum-drift check (weave Phase 5). Always-on.
 		array( 'SN_FAMILY_DRIFT_HOOK', 'sn_family_drift_weekly' ),
+		// v13.68.0 — daily inbound-link pass for freshly published notes. Always-on.
+		array( 'SN_INBOUND_PASS_HOOK', 'sn_inbound_pass_daily' ),
 		// v13.63.0 — weekly URL Inspection coverage sync (readiness-gated, see the opt-in map).
 		array( 'SNT_GSC_COVERAGE_HOOK', 'sn_gsc_coverage_weekly' ),
 		// v13.49.0 — NINE more, found by DERIVING the list instead of reading it.
