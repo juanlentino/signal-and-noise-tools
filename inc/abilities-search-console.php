@@ -193,7 +193,10 @@ function snt_ability_search_coverage( $input ) {
 	}
 	$d = snt_gsc_coverage_data();
 	$s = snt_gsc_coverage_summary( $d );
-	return array_merge( array( 'ok' => true ), $s, array( 'entries' => is_array( $d ) ? (array) $d['entries'] : array() ) );
+	return array_merge( array( 'ok' => true ), $s, array(
+		'entries' => is_array( $d ) ? (array) $d['entries'] : array(),
+		'status'  => function_exists( 'snt_gsc_coverage_last_status' ) ? snt_gsc_coverage_last_status() : null, // v13.64.0: the last run's timing.
+	) );
 }
 
 /**
@@ -277,6 +280,7 @@ function snt_search_console_abilities() {
 				'properties' => array(
 					'ok'                 => array( 'type' => 'boolean' ),
 					'synced'             => array( 'type' => 'boolean' ),
+					'complete'           => array( 'type' => 'boolean', 'description' => 'false = a run is in progress or was interrupted; the map is partial.' ),
 					'synced_at'          => array( 'type' => 'integer' ),
 					'capped'             => array( 'type' => 'boolean' ),
 					'inspected'          => array( 'type' => 'integer' ),
@@ -290,6 +294,7 @@ function snt_search_console_abilities() {
 					'not_indexed_paths'  => array( 'type' => 'array' ),
 					'canonical_mismatch' => array( 'type' => 'array' ),
 					'entries'            => array( 'type' => array( 'object', 'array' ) ),
+					'status'             => array( 'type' => array( 'object', 'null' ) ),
 				),
 			),
 		),

@@ -282,7 +282,7 @@ function snt_gsc_list_sites( $force = false ) {
  * @param array  $body Request body, JSON-encoded.
  * @return array|WP_Error Decoded body.
  */
-function snt_gsc_api_post( $path, $body ) {
+function snt_gsc_api_post( $path, $body, $timeout = 30 ) {
 	$token = snt_gsc_access_token();
 	if ( is_wp_error( $token ) ) {
 		return $token;
@@ -292,7 +292,7 @@ function snt_gsc_api_post( $path, $body ) {
 	$res = wp_remote_post(
 		0 === strpos( (string) $path, 'https://' ) ? (string) $path : SNT_GSC_API_BASE . $path,
 		array(
-			'timeout' => 30,
+			'timeout' => max( 1, (int) $timeout ),
 			'headers' => array(
 				'Authorization' => 'Bearer ' . $token,
 				'Content-Type'  => 'application/json',
