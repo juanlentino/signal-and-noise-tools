@@ -68,6 +68,9 @@ rule means a twin cannot narrow it. Three ways out, none free:
 
 Recommendation: (3) unless reading anchor state from a phone turns out to matter.
 
+**RULED 2026-09-01: option (3). `anchor` stays local** — owner accepted the
+recommendation ("Your recs. All yours."). Recorded in docs/BACKLOG.md as D1.
+
 ## DEFERRED — `cron_scheduled` / `cron_history`
 
 Not safety, **output quality**. The payload is a list of raw hook names, which
