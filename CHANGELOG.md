@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.60.0] - 2026-09-01 — the breached-password check reports on itself: a Site Health row and a digest section
+
+Phase 3 of `docs/proposals/breached-credential-check-2026-08-31.md`. The arc is
+complete: client (v13.54.0), Mode A (v13.58.0), Mode B (v13.59.0), surface.
+
+### Added — `inc/breached-credentials-surface.php`
+
+One derivation, two readers. `sn_hibp_health()` is pure over Mode A's counts
+and Mode B's memos and answers in this order of concern: a mode switched OFF
+(names the constant; nothing below it is being measured) > accounts whose
+current password is memoized as breached > a fail-closed rejection within the
+last 7 days (the API is degrading and the site is quietly refusing legitimate
+password changes — the number the plan said had to be visible somewhere) >
+good. Every summary is derived from the counts it reports.
+
+- **Site Health row** `sn_hibp_breach_check`, a direct test beside the SSRF
+  pinning row. Never `critical`: Mode B is advisory and the row would shout a
+  fact the user already saw a notice about.
+- **Security digest section**: accounts flagged of accounts checked, breached
+  passwords refused at set-time, fail-closed rejections with a RECENT tag, and
+  the verdict's summary when it is not good. A missing module prints one
+  truthful "unavailable" line, never zeros.
+
+The flagged count is **derived by walking every user and reading the memo**,
+never cached: the memo self-invalidates when a password changes, so the count
+must be re-read, not remembered. A user with no memo has not logged in since
+Mode B shipped and is reported as unknown, not clean — the good summary says
+"2 of 3 checked", not "all clean".
+
+### Testing
+
+14 new assertions + 7 on the digest. Five mutations red: memo-less users counted
+as checked; the 7-day boundary off by one; a mode switched off ignored; flagged
+accounts read as good; the digest's RECENT tag dropped. Sweep: 535 suites,
+21736 assertions.
+
 ## [13.59.0] - 2026-09-01 — a password set before the check existed is caught at login: Mode B, advisory, memoized
 
 Phase 2 of `docs/proposals/breached-credential-check-2026-08-31.md`.

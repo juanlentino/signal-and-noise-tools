@@ -49,6 +49,7 @@ function snt_security_digest_collect() {
 		'audit'  => null,
 		'guard'  => null,
 		'status' => null,
+		'breach' => null, // v13.60.0: the breached-password check's own numbers.
 	);
 
 	// Audit side: 7d-vs-prior totals + per-type 7d sums (lockout_triggered is the
@@ -109,6 +110,22 @@ function snt_security_digest_collect() {
 		}
 	}
 
+	// Breached-password check (v13.60.0): Mode A's counts + Mode B's memos, the
+	// same derivation the Site Health row reads. null when the module is absent.
+	if ( function_exists( 'sn_hibp_surface_data' ) && function_exists( 'sn_hibp_health' ) ) {
+		$sd = sn_hibp_surface_data();
+		$hv = sn_hibp_health( $sd, time() );
+		$data['breach'] = array(
+			'status'            => (string) $hv['status'],
+			'summary'           => (string) $hv['summary'],
+			'flagged'           => (int) $hv['flagged'],
+			'checked'           => (int) $hv['checked'],
+			'set_breached'      => (int) ( $sd['set']['breached_count'] ?? 0 ),
+			'set_unavailable'   => (int) ( $sd['set']['unavailable_count'] ?? 0 ),
+			'unavailable_recent' => (bool) $hv['unavailable_recent'],
+		);
+	}
+
 	return $data;
 }
 
@@ -125,6 +142,7 @@ function snt_security_digest_compose( $data ) {
 	$audit  = isset( $data['audit'] ) && is_array( $data['audit'] ) ? $data['audit'] : null;
 	$guard  = isset( $data['guard'] ) && is_array( $data['guard'] ) ? $data['guard'] : null;
 	$status = isset( $data['status'] ) && is_array( $data['status'] ) ? $data['status'] : null;
+	$breach = isset( $data['breach'] ) && is_array( $data['breach'] ) ? $data['breach'] : null;
 
 	$quiet = ( null === $audit || ( 0 === $audit['events_7d'] && 0 === $audit['failed_7d'] && 0 === $audit['recon_7d'] ) )
 		&& ( null === $guard || 0 === $guard['blocked'] );
@@ -177,6 +195,21 @@ function snt_security_digest_compose( $data ) {
 		$lines[] = 'Guard denylist: ' . number_format_i18n( $status['denylist_count'] ) . ' ranges, ' . $age
 			. ( $status['stale'] ? '. STALE (older than 48h or empty; check the worker cron)' : '' )
 			. ( '' !== $status['version'] ? ' (worker v' . $status['version'] . ')' : '' );
+	}
+	$lines[] = '';
+
+	// Breached-password section (v13.60.0). Counts are lifetime, not 7d: the
+	// set-time stats have no window and the memo is a standing state.
+	if ( null === $breach ) {
+		$lines[] = 'Breached-password check: unavailable (module not loaded).';
+	} else {
+		$lines[] = 'Breached-password check (' . ( 'good' === $breach['status'] ? 'ok' : 'ATTENTION' ) . ')';
+		$lines[] = '  Accounts flagged at login: ' . number_format_i18n( $breach['flagged'] ) . ' of ' . number_format_i18n( $breach['checked'] ) . ' checked';
+		$lines[] = '  Breached passwords refused at set-time: ' . number_format_i18n( $breach['set_breached'] );
+		$lines[] = '  Fail-closed rejections (API unreachable): ' . number_format_i18n( $breach['set_unavailable'] ) . ( $breach['unavailable_recent'] ? ' — RECENT: the API may be degrading' : '' );
+		if ( 'good' !== $breach['status'] ) {
+			$lines[] = '  ' . $breach['summary'];
+		}
 	}
 	$lines[] = '';
 	$lines[] = 'Enforcement happens at the edge in real time; this digest is observability.';
