@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.54.0
+ * Version:     13.55.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -259,6 +259,11 @@ require_once SNT_PATH . 'inc/admin-forms/mcp-usage-block.php'; // the READOUT ha
 // rss-feed-tracker (just below), webhooks, uptime-heartbeat, and
 // health-external-links all call sn_ssrf_host_blocked(). (v6.13.2: moved up from
 // the webhooks group so the earliest consumer, rss-feed-tracker, is covered.)
+// v13.55.0 — Phase 0 of the measurement weave: ONE join key for cross-instrument
+// joins (AE paths <-> GSC pages <-> permalinks). It does not replace the four
+// local path normalizers, whose jobs differ; it exists so a join across them
+// stops dropping rows silently.
+require_once SNT_PATH . 'inc/path-join-key.php';
 require_once SNT_PATH . 'inc/ssrf-guard.php';
 // v13.54.0 — Phase 0 of the breached-credential arc: the HIBP k-anonymity
 // client only. It registers NO hooks and cannot reject or warn about anything;

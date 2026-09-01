@@ -2,6 +2,65 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.55.0] - 2026-09-01 — one join key, so a cross-instrument join stops dropping rows silently
+
+Wave 4, step three. **Phase 0 of the measurement weave only**: the shared join
+key and its adversarial suite. Nothing is joined yet — GSC on the read door
+(Phase 1), GSC into the synthesis payload (Phase 2) and the disagreement scan
+(Phase 3) follow.
+
+### The defect, measured
+
+Four path spellings live in this codebase, and on 2026-09-01 they disagreed on
+**5 of 10** realistic inputs:
+
+| input | analytics | agent | redirects |
+|---|---|---|---|
+| `""` | `""` | `"/"` | `"/"` |
+| `notes/foo` | `notes/foo` | `/notes/foo` | `/notes/foo` |
+| `https://host/notes/foo/` | `https://host/notes/foo` | `/https://host/notes/foo` | `/notes/foo` |
+| `/notes/foo?utm=x` | `/notes/foo?utm=x` | `/notes/foo` | `/notes/foo` |
+| `/notes/foo#top` | `/notes/foo#top` | `/notes/foo#top` | `/notes/foo` |
+
+Each is **correct for its own job** — redirects must see a query string, agent
+discovery must not. The defect is only in *joining across* them: a mismatched
+key does not error, it drops the row. A join that loses half its rows reports a
+smaller, cleaner-looking world.
+
+### Added — `sn_path_join_key()` and `sn_path_join()`
+
+One key for join sites only. It does not replace the four local normalizers,
+and nothing they return changes.
+
+**The rule that matters: an empty input yields an empty key, never `/`.**
+Folding unusable input onto the homepage would credit the busiest path with
+rows that named no page — a wrong number that looks plausible, which is worse
+than a missing one. `''` means *not joinable*; `/` means *the homepage*.
+
+`sn_path_join()` returns the matched pairs **and** what did not match on each
+side, plus a count of unjoinable rows. A silent join is the failure this phase
+exists to prevent, so "we joined 12 of 40" can never read as "there are 12".
+
+Case is preserved deliberately — lowercasing would merge two real pages into one
+key.
+
+### Testing
+
+31 assertions. **The negative control the proposal demanded**: mis-spelling one
+path drops the join count from 3 to 2 and names the orphan on both sides,
+because a join test that passes against an unfixed normalizer is worse than
+none.
+
+Five mutations red: empty collapsing to the homepage, the query string kept, the
+trailing slash kept, unjoinable rows folded into the join, and the key
+lowercased.
+
+**One case the suite caught during the build.** `//` alone was being read as a
+protocol-relative URL with an empty host and returning unjoinable, while all
+three existing normalizers agree it is the homepage. The protocol-relative
+branch now requires an actual host — the join key must not disagree with the
+existing spellings where they already agree.
+
 ## [13.54.0] - 2026-09-01 — the site can tell whether a password is already in a breach corpus
 
 Wave 4, step two. **Phase 0 only: the client and its fixture suite.** It
