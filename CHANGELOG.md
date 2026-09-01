@@ -2,6 +2,32 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.56.2] - 2026-09-01 — the Door-2 card says what the adapter does now, not what it did at 0.5.0
+
+### Fixed — the MCP Adapter card and connect step describe the 0.6.0 opt-in rule
+
+WordPress/mcp-adapter 0.6.0 (2026-08-12) inverted its default server: it now
+carries **only** abilities that opt in through `meta.mcp.public` (falling back
+to `meta.public`; a malformed `meta.mcp` fails closed). Our card still said the
+adapter "answers for the entire Abilities registry (44+ abilities…)", and the
+connect step offered "Door 2 for the full Abilities registry" — both true at
+0.5.0, both false now. None of the 106 plugin and 15 theme registrations sets
+either key, so an installed adapter would expose **zero** of ours. The copy now
+states the rule and that fact.
+
+Still true and unchanged: the adapter is a separate plugin, pre-1.0, not on
+wordpress.org (probe 404 on 2026-09-01; its tracking issue #178 has "Submit to
+W.ORG" unchecked), the live REST index has no `mcp` namespace, and bundling it
+as a Composer library is now deprecated upstream (#288) in favour of the
+`Requires Plugins` header — we never bundled it.
+
+### Testing
+
+Render pins updated; a regression pin against the "entire registry" sentence;
+and the "none of ours opt in" claim is **derived** from every `inc/abilities*.php`
+registration, vacuity-guarded, so the day one opts in this test reddens rather
+than the card lying.
+
 ## [13.56.1] - 2026-09-01 — an opt-in feature that is switched off no longer reads as a missing cron job
 
 ### Fixed — `snt_cron_hook_is_expected()` consults the module's own gate

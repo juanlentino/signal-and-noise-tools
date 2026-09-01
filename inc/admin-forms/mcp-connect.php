@@ -356,10 +356,10 @@ function sn_admin_render_mcp_door_adapter() {
 	// plugin (WordPress/mcp-adapter, pre-1.0, not on wordpress.org). The old
 	// copy here taught the owner the wrong fact — never re-attribute it.
 	if ( $active ) {
-		echo '<p>' . esc_html__( 'The WordPress MCP Adapter plugin is active on this site and answers for the entire Abilities registry (44+ abilities across the theme and this plugin), each still gated by its own capability check. The adapter is its own plugin: the wp.org “AI” plugin does not bundle it.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'The WordPress MCP Adapter plugin is active on this site. Since adapter 0.6.0 its default server carries only abilities that opt in through meta.mcp.public (falling back to meta.public); none of the abilities registered by this plugin or the theme opt in, so this door exposes none of them. Each exposed ability is still gated by its own capability check. The adapter is its own plugin: the wp.org “AI” plugin does not bundle it.', 'signal-and-noise-tools' ) . '</p>';
 		echo '<p><code>' . esc_url( $url ) . '</code></p>';
 	} else {
-		echo '<p>' . esc_html__( 'No MCP Adapter is installed on this site (Door 1 above is the only live MCP endpoint here. The adapter is a separate WordPress plugin (github.com/WordPress/mcp-adapter) pre-1.0, not on wordpress.org), and the wp.org “AI” plugin does not bundle it: that plugin lists MCP as coming soon. If the adapter is ever installed, its default server would answer at the address below.', 'signal-and-noise-tools' ) . '</p>';
+		echo '<p>' . esc_html__( 'No MCP Adapter is installed on this site (Door 1 above is the only live MCP endpoint here. The adapter is a separate WordPress plugin (github.com/WordPress/mcp-adapter) pre-1.0, not on wordpress.org), and the wp.org “AI” plugin does not bundle it: that plugin lists MCP as coming soon. If the adapter is ever installed, its default server would answer at the address below, and since adapter 0.6.0 it would carry only abilities that opt in through meta.mcp.public; none of ours do.', 'signal-and-noise-tools' ) . '</p>';
 		echo '<p><code>' . esc_url( $url ) . '</code></p>';
 	}
 	echo '</div>';
@@ -388,7 +388,7 @@ function sn_admin_render_mcp_owner_steps() {
 		esc_html__( 'Create an %s under your own WordPress user. MCP clients authenticate as you, over Basic auth, never with your normal password.', 'signal-and-noise-tools' ),
 		'<a href="' . esc_url( $profile_url ) . '">' . esc_html__( 'Application Password', 'signal-and-noise-tools' ) . '</a>'
 	) . '</li>';
-	echo '<li>' . esc_html__( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for the full Abilities registry.', 'signal-and-noise-tools' ) . '</li>';
+	echo '<li>' . esc_html__( 'Copy the endpoint URL for whichever door you’re using. Door 1 above for the read-only tool allowlist, Door 2 for abilities that opt in to the adapter (none of ours do).', 'signal-and-noise-tools' ) . '</li>';
 	echo '<li>' . esc_html__( 'Paste the client config below, swapping in your WordPress username and the Application Password you just created.', 'signal-and-noise-tools' ) . '</li>';
 	echo '</ol>';
 
