@@ -287,8 +287,10 @@ function snt_gsc_api_post( $path, $body ) {
 	if ( is_wp_error( $token ) ) {
 		return $token;
 	}
+	// v13.63.0: an absolute https URL passes through unchanged — the URL
+	// Inspection API lives on searchconsole.googleapis.com, not the v3 base.
 	$res = wp_remote_post(
-		SNT_GSC_API_BASE . $path,
+		0 === strpos( (string) $path, 'https://' ) ? (string) $path : SNT_GSC_API_BASE . $path,
 		array(
 			'timeout' => 30,
 			'headers' => array(

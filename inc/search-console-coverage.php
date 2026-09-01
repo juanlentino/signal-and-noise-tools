@@ -1,0 +1,231 @@
+<?php
+/**
+ * Signal & Noise Tools — Search Console URL Inspection: index coverage per post.
+ *
+ * The disagreement scan (v13.57.0) found 26 of 37 notes with zero Google
+ * impressions in a month, and could not say which of two different problems
+ * that was: NOT INDEXED (a crawl or quality question) or INDEXED WITH NO QUERY
+ * DEMAND (a topic question). Search Analytics cannot tell them apart — a page
+ * Google never shows and a page Google never indexed both read as no rows.
+ * The URL Inspection API can, per URL, with the service account already on
+ * file: verdict, coverage state, indexing state, last crawl, canonical
+ * agreement. Quota is 2,000 inspections a day per property; this needs one
+ * per published post, weekly.
+ *
+ * Stored, never live: the weekly cron inspects and writes one option; every
+ * reader (the sn-status section, the disagreement scan's evidence, the Search
+ * view) reads the stored map. A reader can never make the origin spend quota.
+ *
+ * Keyed by the weave join key (sn_path_join_key), so it joins the GSC page
+ * rows and the scan's post paths without a third spelling.
+ *
+ * @package SignalNoiseTools
+ * @since 13.63.0
+ */
+
+defined( 'ABSPATH' ) || exit;
+
+const SNT_GSC_COVERAGE_HOOK     = 'sn_gsc_coverage_weekly';
+const SNT_GSC_COVERAGE_OPTION   = 'snt_gsc_coverage';
+const SNT_GSC_INSPECT_URL       = 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect';
+const SNT_GSC_COVERAGE_MAX_URLS = 200; // per run; the API allows 2,000/day and the corpus is ~40.
+
+/** Verdicts Google can return; anything else is stored verbatim but counted as 'other'. */
+const SNT_GSC_COVERAGE_VERDICTS = array( 'PASS', 'NEUTRAL', 'FAIL', 'PARTIAL', 'VERDICT_UNSPECIFIED' );
+
+/**
+ * Normalize one inspection response. PURE.
+ *
+ * `indexed` is derived from Google's own coverageState wording ("Submitted and
+ * indexed", "Indexed, not submitted in sitemap") — null when the state is
+ * missing, never a guessed false. A missing result is `{error}`.
+ *
+ * @param array|WP_Error $resp The API response (or transport error).
+ * @param int            $now
+ * @return array
+ */
+function snt_gsc_coverage_normalize( $resp, $now ) {
+	if ( is_wp_error( $resp ) ) {
+		return array( 'error' => (string) $resp->get_error_code(), 'message' => (string) $resp->get_error_message(), 'inspected_at' => (int) $now );
+	}
+	$r = is_array( $resp ) && is_array( $resp['inspectionResult']['indexStatusResult'] ?? null ) ? $resp['inspectionResult']['indexStatusResult'] : null;
+	if ( null === $r ) {
+		return array( 'error' => 'no_index_status', 'message' => 'The response carried no indexStatusResult.', 'inspected_at' => (int) $now );
+	}
+	$coverage = (string) ( $r['coverageState'] ?? '' );
+	$gc       = (string) ( $r['googleCanonical'] ?? '' );
+	$uc       = (string) ( $r['userCanonical'] ?? '' );
+	$indexed  = '' === $coverage ? null : ( 0 === stripos( $coverage, 'submitted and indexed' ) || 0 === stripos( $coverage, 'indexed' ) );
+	return array(
+		'verdict'          => (string) ( $r['verdict'] ?? '' ),
+		'coverage_state'   => $coverage,
+		'indexing_state'   => (string) ( $r['indexingState'] ?? '' ),
+		'robots_txt_state' => (string) ( $r['robotsTxtState'] ?? '' ),
+		'page_fetch_state' => (string) ( $r['pageFetchState'] ?? '' ),
+		'crawled_as'       => (string) ( $r['crawledAs'] ?? '' ),
+		'last_crawl_time'  => (string) ( $r['lastCrawlTime'] ?? '' ),
+		'google_canonical' => $gc,
+		'user_canonical'   => $uc,
+		'canonical_match'  => ( '' === $gc || '' === $uc ) ? null : ( $gc === $uc ),
+		'indexed'          => $indexed,
+		'inspected_at'     => (int) $now,
+	);
+}
+
+/**
+ * One inspection. Network seam: snt_gsc_api_post() with the absolute URL.
+ *
+ * @param string $url      The page URL (the permalink, exactly as served).
+ * @param string $property The Search Console property (siteUrl).
+ * @return array|WP_Error
+ */
+function snt_gsc_inspect_url( $url, $property ) {
+	if ( ! function_exists( 'snt_gsc_api_post' ) ) {
+		return new WP_Error( 'snt_gsc_no_client', 'Search Console client not loaded.' );
+	}
+	return snt_gsc_api_post( SNT_GSC_INSPECT_URL, array(
+		'inspectionUrl' => (string) $url,
+		'siteUrl'       => (string) $property,
+		'languageCode'  => 'en-US',
+	) );
+}
+
+/**
+ * The published posts to inspect: id => permalink. Bounded by the per-run cap.
+ *
+ * @return array<int,string>
+ */
+function snt_gsc_coverage_targets() {
+	if ( ! function_exists( 'get_posts' ) ) {
+		return array();
+	}
+	$ids = (array) get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => SNT_GSC_COVERAGE_MAX_URLS, 'orderby' => 'ID', 'order' => 'ASC', 'fields' => 'ids' ) );
+	$out = array();
+	foreach ( $ids as $id ) {
+		$url = (string) get_permalink( (int) $id );
+		if ( '' !== $url ) {
+			$out[ (int) $id ] = $url;
+		}
+	}
+	return $out;
+}
+
+/**
+ * Inspect every target and store the map. WP_Error when not ready.
+ *
+ * @return array|WP_Error The stored payload.
+ */
+function snt_gsc_coverage_sync() {
+	if ( ! function_exists( 'snt_gsc_sync_is_ready' ) || ! snt_gsc_sync_is_ready() ) {
+		return new WP_Error( 'snt_gsc_not_ready', 'Search Console is not configured.' );
+	}
+	$property = (string) sn_setting( 'search_console.property', '' );
+	$targets  = snt_gsc_coverage_targets();
+	$now      = time();
+	$entries  = array();
+	$errors   = 0;
+	foreach ( $targets as $id => $url ) {
+		$key = function_exists( 'sn_path_join_key' ) ? sn_path_join_key( $url ) : $url;
+		if ( '' === $key ) {
+			continue;
+		}
+		$entry = snt_gsc_coverage_normalize( snt_gsc_inspect_url( $url, $property ), $now );
+		$entry['post_id'] = (int) $id;
+		$entry['url']     = $url;
+		if ( isset( $entry['error'] ) ) {
+			$errors++;
+		}
+		$entries[ $key ] = $entry;
+	}
+	$payload = array(
+		'property'  => $property,
+		'synced_at' => $now,
+		'inspected' => count( $entries ),
+		'errors'    => $errors,
+		'capped'    => count( $targets ) >= SNT_GSC_COVERAGE_MAX_URLS,
+		'entries'   => $entries,
+	);
+	update_option( SNT_GSC_COVERAGE_OPTION, $payload, false );
+	return $payload;
+}
+
+/** The stored map, or null when never synced. */
+function snt_gsc_coverage_data() {
+	$d = function_exists( 'get_option' ) ? get_option( SNT_GSC_COVERAGE_OPTION, null ) : null;
+	return is_array( $d ) && isset( $d['synced_at'], $d['entries'] ) ? $d : null;
+}
+
+/** One path's entry, or null (never inspected, or never synced). */
+function snt_gsc_coverage_for_path( $path ) {
+	$d = snt_gsc_coverage_data();
+	if ( null === $d ) {
+		return null;
+	}
+	$key = function_exists( 'sn_path_join_key' ) ? sn_path_join_key( (string) $path ) : (string) $path;
+	return isset( $d['entries'][ $key ] ) && is_array( $d['entries'][ $key ] ) ? $d['entries'][ $key ] : null;
+}
+
+/**
+ * Counts and the lists a reader acts on. PURE.
+ *
+ * @param array|null $d snt_gsc_coverage_data().
+ * @return array
+ */
+function snt_gsc_coverage_summary( $d ) {
+	if ( ! is_array( $d ) ) {
+		return array( 'synced' => false, 'inspected' => 0, 'indexed' => 0, 'not_indexed' => 0, 'unknown' => 0, 'errors' => 0, 'by_coverage_state' => array(), 'not_indexed_paths' => array(), 'canonical_mismatch' => array() );
+	}
+	$idx = 0; $not = 0; $unk = 0; $err = 0; $states = array(); $not_paths = array(); $mismatch = array();
+	foreach ( (array) $d['entries'] as $path => $e ) {
+		if ( ! is_array( $e ) ) {
+			continue;
+		}
+		if ( isset( $e['error'] ) ) {
+			$err++;
+			continue;
+		}
+		$cs = (string) ( $e['coverage_state'] ?? '' );
+		$states[ '' === $cs ? '(none)' : $cs ] = (int) ( $states[ '' === $cs ? '(none)' : $cs ] ?? 0 ) + 1;
+		if ( true === ( $e['indexed'] ?? null ) ) {
+			$idx++;
+		} elseif ( false === ( $e['indexed'] ?? null ) ) {
+			$not++;
+			$not_paths[] = array( 'path' => (string) $path, 'coverage_state' => $cs, 'last_crawl_time' => (string) ( $e['last_crawl_time'] ?? '' ), 'verdict' => (string) ( $e['verdict'] ?? '' ) );
+		} else {
+			$unk++;
+		}
+		if ( false === ( $e['canonical_match'] ?? null ) ) {
+			$mismatch[] = array( 'path' => (string) $path, 'google_canonical' => (string) $e['google_canonical'], 'user_canonical' => (string) $e['user_canonical'] );
+		}
+	}
+	arsort( $states );
+	return array(
+		'synced'             => true,
+		'synced_at'          => (int) ( $d['synced_at'] ?? 0 ),
+		'capped'             => ! empty( $d['capped'] ),
+		'inspected'          => (int) ( $d['inspected'] ?? 0 ),
+		'indexed'            => $idx,
+		'not_indexed'        => $not,
+		'unknown'            => $unk,
+		'errors'             => $err,
+		'by_coverage_state'  => $states,
+		'not_indexed_paths'  => $not_paths,
+		'canonical_mismatch' => $mismatch,
+	);
+}
+
+/** Schedule equals readiness — the same contract as the daily sync. */
+function snt_gsc_coverage_schedule() {
+	$next = wp_next_scheduled( SNT_GSC_COVERAGE_HOOK );
+	if ( function_exists( 'snt_gsc_sync_is_ready' ) && snt_gsc_sync_is_ready() ) {
+		if ( ! $next ) {
+			wp_schedule_event( time() + 2 * HOUR_IN_SECONDS, 'weekly', SNT_GSC_COVERAGE_HOOK );
+		}
+		return;
+	}
+	if ( $next ) {
+		wp_unschedule_event( $next, SNT_GSC_COVERAGE_HOOK );
+	}
+}
+add_action( 'init', 'snt_gsc_coverage_schedule' );
+add_action( SNT_GSC_COVERAGE_HOOK, 'snt_gsc_coverage_sync' );

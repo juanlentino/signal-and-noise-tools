@@ -178,6 +178,44 @@ function snt_analytics_render_view_search() {
 	// The one list with no first-party counterpart AND a clear action: Google
 	// shows the page often and nobody clicks. Ranked by impressions, because a
 	// page with 3 impressions and no clicks is noise, not an opportunity.
+	// v13.63.0: index coverage from the weekly URL Inspection sync — the
+	// discriminator for "zero impressions": not indexed, or indexed and unasked-for.
+	if ( function_exists( 'snt_gsc_coverage_summary' ) && function_exists( 'snt_gsc_coverage_data' ) ) {
+		$cov = snt_gsc_coverage_summary( snt_gsc_coverage_data() );
+		if ( empty( $cov['synced'] ) ) {
+			snt_an_note_empty(
+				__( 'Index coverage', 'signal-and-noise-tools' ),
+				__( 'The weekly URL Inspection sync has not run yet. Once it has, this says which posts Google has indexed and which it has crawled but declined.', 'signal-and-noise-tools' )
+			);
+		} else {
+			snt_an_panel_open( __( 'Index coverage (URL Inspection, weekly)', 'signal-and-noise-tools' ) );
+			echo '<p>';
+			printf(
+				/* translators: 1: inspected, 2: indexed, 3: not indexed, 4: unknown, 5: errors, 6: human time since sync. */
+				esc_html__( '%1$s posts inspected: %2$s indexed, %3$s not indexed, %4$s unknown, %5$s errors — synced %6$s ago.', 'signal-and-noise-tools' ),
+				esc_html( number_format_i18n( (int) $cov['inspected'] ) ),
+				esc_html( number_format_i18n( (int) $cov['indexed'] ) ),
+				esc_html( number_format_i18n( (int) $cov['not_indexed'] ) ),
+				esc_html( number_format_i18n( (int) $cov['unknown'] ) ),
+				esc_html( number_format_i18n( (int) $cov['errors'] ) ),
+				esc_html( human_time_diff( (int) $cov['synced_at'], time() ) )
+			);
+			echo '</p>';
+			if ( ! empty( $cov['not_indexed_paths'] ) ) {
+				echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
+				echo '<th scope="col">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>';
+				echo '<th scope="col">' . esc_html__( 'Google says', 'signal-and-noise-tools' ) . '</th>';
+				echo '<th scope="col">' . esc_html__( 'Last crawl', 'signal-and-noise-tools' ) . '</th>';
+				echo '</tr></thead><tbody>';
+				foreach ( array_slice( $cov['not_indexed_paths'], 0, 40 ) as $row ) {
+					echo '<tr><td><code>' . esc_html( $row['path'] ) . '</code></td><td>' . esc_html( $row['coverage_state'] ) . '</td><td>' . esc_html( '' === $row['last_crawl_time'] ? '—' : substr( $row['last_crawl_time'], 0, 10 ) ) . '</td></tr>';
+				}
+				echo '</tbody></table></div>';
+			}
+			snt_an_panel_close();
+		}
+	}
+
 	$missed = array_values( array_filter( $pages, static function ( $r ) {
 		return $r['impressions'] >= 50 && $r['clicks'] === 0;
 	} ) );

@@ -122,6 +122,8 @@ function snt_sn_status_map() {
 		'search_crossexam'     => 'signal-noise/search-crossexam',
 		// v13.62.0 — weave Phase 5: the stored enum-drift report (never fetches).
 		'family_drift'         => 'signal-noise/family-drift',
+		// v13.63.0 — the stored URL Inspection map (weekly); never inspects on read.
+		'search_coverage'      => 'signal-noise/search-coverage',
 	);
 }
 

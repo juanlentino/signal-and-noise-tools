@@ -137,7 +137,7 @@ function snt_sn_scan_detector_registry() {
 		'search_disagreement' => array(
 			array(
 				'id'          => 'no_impressions',
-				'triggers_on' => 'a published post of ' . SNT_SEARCH_THIN_WORDS . '+ words with ZERO Google impressions in the synced window ("about X, found for nothing")',
+				'triggers_on' => 'a published post of ' . SNT_SEARCH_THIN_WORDS . '+ words with ZERO Google impressions in the synced window ("about X, found for nothing"); evidence.coverage carries the stored URL Inspection state (v13.63.0) so indexed-no-demand and not-indexed are told apart',
 			),
 			array(
 				'id'          => 'thin_but_found',

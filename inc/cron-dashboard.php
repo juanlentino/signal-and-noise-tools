@@ -78,6 +78,8 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_HEALTH_CRON_HOOK', 'sn_health_scan_daily' ),
 		// v13.62.0 — weekly enum-drift check (weave Phase 5). Always-on.
 		array( 'SN_FAMILY_DRIFT_HOOK', 'sn_family_drift_weekly' ),
+		// v13.63.0 — weekly URL Inspection coverage sync (readiness-gated, see the opt-in map).
+		array( 'SNT_GSC_COVERAGE_HOOK', 'sn_gsc_coverage_weekly' ),
 		// v13.49.0 — NINE more, found by DERIVING the list instead of reading it.
 		// Every one of these is scheduled recurring by this plugin and was absent
 		// here, so the rw-doored unschedule-cron-event could stop any of them
@@ -683,6 +685,8 @@ function snt_cron_opt_in_gates() {
 		// keeps its schedule equal to the predicate, so absence-when-false is
 		// correct, not missing.
 		array( 'SNT_GSC_SYNC_HOOK',             'sn_gsc_sync_daily',         'snt_gsc_sync_is_ready' ),
+		// v13.63.0 — same readiness predicate, weekly.
+		array( 'SNT_GSC_COVERAGE_HOOK',         'sn_gsc_coverage_weekly',    'snt_gsc_sync_is_ready' ),
 	);
 	$out = array();
 	foreach ( $pairs as $p ) {

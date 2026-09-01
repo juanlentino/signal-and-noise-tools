@@ -61,7 +61,7 @@ echo "sn_status (consolidated) — plugin v13.1.0\n\n";
 
 // ─── Section map: ten sections, all plugin-namespace sources ───
 $map = snt_sn_status_map();
-ok( 17 === count( $map ), 'the section map has exactly 17 entries (v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
+ok( 18 === count( $map ), 'the section map has exactly 18 entries (v13.63.0 ADDED search_coverage; v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
 $expected_map = array(
 	'uptime'               => 'signal-noise/uptime-status',
 	'deploy'               => 'signal-noise/get-deploy-status',
@@ -84,6 +84,7 @@ $expected_map = array(
 	'search_drift'         => 'signal-noise/search-drift',
 	'search_crossexam'     => 'signal-noise/search-crossexam',
 	'family_drift'         => 'signal-noise/family-drift', // v13.62.0
+	'search_coverage'      => 'signal-noise/search-coverage', // v13.63.0
 );
 ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 ok( array() === array_filter( $map, static fn( $s ) => strpos( $s, 'signal-noise/' ) !== 0 ), 'every source is a PLUGIN slug — no section crosses into the theme' );

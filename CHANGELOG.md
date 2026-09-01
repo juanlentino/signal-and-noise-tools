@@ -2,6 +2,43 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.63.0] - 2026-09-01 — Google's own index verdict per post, so "zero impressions" splits into its two different problems
+
+### Added — `inc/search-console-coverage.php`, the `search_coverage` section, the scan's `coverage` evidence
+
+The disagreement scan (v13.57.0) found 26 of 37 notes with zero impressions in
+a month and could not say which of two problems that was: **not indexed** (a
+crawl or quality question) or **indexed with no query demand** (a topic
+question). Search Analytics cannot separate them — a page Google never shows
+and a page it never indexed both read as no rows. The URL Inspection API can,
+per URL, with the read-only service account already on file.
+
+A weekly cron (`sn_gsc_coverage_weekly`, readiness-gated like the daily sync
+and on the opt-in map so `cron_health` never calls its absence "missing")
+inspects every published post and stores one map keyed by the weave join key:
+verdict, Google's `coverage_state` verbatim, indexing/robots/fetch states,
+last crawl time, canonical agreement, and `indexed` — true or false from
+Google's own wording, `null` when Google gave no coverage state, never a guess.
+An inspection that errors is stored as an error, never as not-indexed.
+
+Readers never inspect: the `search_coverage` section on `sn-status` (read
+door, 26 → 27), the Search view's "Index coverage" panel with the not-indexed
+list, and the disagreement scan's `no_impressions` candidates, whose evidence
+now carries `coverage` — the discriminator that reading's own text promised
+via the cross-exam. Local door only; the remote verdict says why.
+
+The GSC client's POST accepts an absolute URL (the inspection endpoint lives on
+`searchconsole.googleapis.com`, not the v3 base). Quota is 2,000 inspections a
+day; this spends ~40 a week.
+
+### Testing
+
+24 new assertions plus 3 on the scan. Five mutations red: "Crawled - currently
+not indexed" read as indexed by a substring match; error entries counted as
+unknown; entries keyed by raw URL instead of the join key; the readiness gate
+ignored; an inspection error reported as not-indexed. Section pin 17 → 18,
+read-door pin 26 → 27. Sweep: 537 suites, 21825 assertions.
+
 ## [13.62.1] - 2026-09-01 — the cross-exam read a key its ledger never had; its verdict was wrong for 20 days
 
 ### Fixed — `snt_gsc_crossexam()` reads the aggregate rows, not the summary

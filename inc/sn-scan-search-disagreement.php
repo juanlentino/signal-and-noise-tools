@@ -53,9 +53,10 @@ const SNT_SEARCH_QUERY_TOKEN_MIN = 4;
  * @param array<string,array>                                 $pages    GSC rows keyed by sn_path_join_key().
  * @param array<int,array>                                    $queries  GSC query rows {key, impressions, clicks, position}.
  * @param array<int,string[]>|null                            $keywords post id => keyword terms; null = pipeline unavailable.
+ * @param array<string,array>                                 $coverage v13.63.0: join key => stored URL Inspection entry (may be empty).
  * @return array{candidates:array,keyword_pipeline:bool}
  */
-function snt_search_disagreement_impl( $posts, $pages, $queries, $keywords ) {
+function snt_search_disagreement_impl( $posts, $pages, $queries, $keywords, $coverage = array() ) {
 	$candidates = array();
 	$claimed    = array(); // lowercase keyword terms across the whole scope.
 
@@ -70,8 +71,17 @@ function snt_search_disagreement_impl( $posts, $pages, $queries, $keywords ) {
 		$imp = null === $row ? 0 : (int) ( $row['impressions'] ?? 0 );
 
 		if ( 0 === $imp && $words >= SNT_SEARCH_THIN_WORDS ) {
-			$candidates[] = snt_search_disagreement_candidate( 'no_impressions', $path, $id, $imp, $words,
-				'A post of real length with zero impressions in the synced window. Not a ranking problem: Google is not showing it at all. Read search_crossexam to tell indexation from a contentless-page choke point.' );
+			$c   = snt_search_disagreement_candidate( 'no_impressions', $path, $id, $imp, $words,
+				'A post of real length with zero impressions in the synced window. Not a ranking problem: Google is not showing it at all. evidence.coverage says whether it is INDEXED (then this is a topic-demand question) or NOT (a crawl/quality question); null means the weekly inspection has not covered it yet.' );
+			// v13.63.0: the discriminator. Stored URL Inspection state, joined by the same key.
+			$cov = isset( $coverage[ $path ] ) && is_array( $coverage[ $path ] ) ? $coverage[ $path ] : null;
+			$c['evidence']['coverage'] = null === $cov ? null : ( isset( $cov['error'] ) ? array( 'error' => (string) $cov['error'] ) : array(
+				'indexed'         => $cov['indexed'] ?? null,
+				'coverage_state'  => (string) ( $cov['coverage_state'] ?? '' ),
+				'last_crawl_time' => (string) ( $cov['last_crawl_time'] ?? '' ),
+				'verdict'         => (string) ( $cov['verdict'] ?? '' ),
+			) );
+			$candidates[] = $c;
 		} elseif ( $imp >= SNT_GSC_DRIFT_MIN_IMPRESSIONS && $words < SNT_SEARCH_THIN_WORDS ) {
 			$candidates[] = snt_search_disagreement_candidate( 'thin_but_found', $path, $id, $imp, $words,
 				'Thin content earning real impressions: Google already surfaces it. The best refresh candidate on the site — expand what it is found for.' );
@@ -198,7 +208,19 @@ function snt_sn_scan_adapter_search_disagreement( $allowed_ids ) {
 		}
 	}
 
-	$r = snt_search_disagreement_impl( $posts, $pages, (array) ( $data['queries'] ?? array() ), $keywords );
+	$coverage = array();
+	if ( function_exists( 'snt_gsc_coverage_data' ) ) {
+		$cd = snt_gsc_coverage_data();
+		if ( is_array( $cd ) ) {
+			foreach ( (array) $cd['entries'] as $k => $e ) {
+				$kk = sn_path_join_key( (string) $k );
+				if ( '' !== $kk && is_array( $e ) ) {
+					$coverage[ $kk ] = $e;
+				}
+			}
+		}
+	}
+	$r = snt_search_disagreement_impl( $posts, $pages, (array) ( $data['queries'] ?? array() ), $keywords, $coverage );
 	return array(
 		'candidates'     => $r['candidates'],
 		'posts_examined' => count( $posts ),

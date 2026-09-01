@@ -61,6 +61,16 @@ $c = $r['candidates'][0];
 ok( 1 === $c['targets'][0]['post_id'] && null === $c['apply_hint'] && SNT_SN_SCAN_CONF_SEARCH_DISAGREEMENT === $c['confidence'], 'candidate shape: post target, no apply path, the heuristic confidence' );
 ok( $c['content_fingerprint'] !== snt_search_disagreement_candidate( 'no_impressions', '/notes/long-unseen', 1, 3, $THIN, '' )['content_fingerprint'], 'fingerprint changes when impressions change — a page Google starts showing is a NEW candidate, not the old one resurrected' );
 
+// ─── (1b) v13.63.0: coverage evidence rides the no_impressions candidate ───
+$rc = snt_search_disagreement_impl( $posts, $pages, array(), array(), array(
+	'/notes/long-unseen' => array( 'indexed' => false, 'coverage_state' => 'Crawled - currently not indexed', 'last_crawl_time' => '2026-08-01T00:00:00Z', 'verdict' => 'NEUTRAL' ),
+) );
+$ne = array_values( array_filter( $rc['candidates'], static fn( $c ) => 'no_impressions' === $c['evidence']['detector'] ) )[0]['evidence'];
+ok( false === $ne['coverage']['indexed'] && 'Crawled - currently not indexed' === $ne['coverage']['coverage_state'], 'no_impressions carries the stored coverage state when the path was inspected' );
+ok( null === $r['candidates'][0]['evidence']['coverage'], 'and null — not a guess — when it was not' );
+$rce = snt_search_disagreement_impl( $posts, $pages, array(), array(), array( '/notes/long-unseen' => array( 'error' => 'snt_gsc_api_error' ) ) );
+ok( array( 'error' => 'snt_gsc_api_error' ) === array_values( array_filter( $rce['candidates'], static fn( $c ) => 'no_impressions' === $c['evidence']['detector'] ) )[0]['evidence']['coverage'], 'an inspection error is reported as an error, never as not-indexed' );
+
 // ─── (2) the site-level query reading ───
 $queries = array(
 	array( 'key' => 'provenance ledger',  'impressions' => 50, 'clicks' => 2, 'position' => 9.4 ), // claimed by post 5's keyword "ledger"
