@@ -2,6 +2,123 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.55.0] - 2026-09-01 — one join key, so a cross-instrument join stops dropping rows silently
+
+Wave 4, step three. **Phase 0 of the measurement weave only**: the shared join
+key and its adversarial suite. Nothing is joined yet — GSC on the read door
+(Phase 1), GSC into the synthesis payload (Phase 2) and the disagreement scan
+(Phase 3) follow.
+
+### The defect, measured
+
+Four path spellings live in this codebase, and on 2026-09-01 they disagreed on
+**5 of 10** realistic inputs:
+
+| input | analytics | agent | redirects |
+|---|---|---|---|
+| `""` | `""` | `"/"` | `"/"` |
+| `notes/foo` | `notes/foo` | `/notes/foo` | `/notes/foo` |
+| `https://host/notes/foo/` | `https://host/notes/foo` | `/https://host/notes/foo` | `/notes/foo` |
+| `/notes/foo?utm=x` | `/notes/foo?utm=x` | `/notes/foo` | `/notes/foo` |
+| `/notes/foo#top` | `/notes/foo#top` | `/notes/foo#top` | `/notes/foo` |
+
+Each is **correct for its own job** — redirects must see a query string, agent
+discovery must not. The defect is only in *joining across* them: a mismatched
+key does not error, it drops the row. A join that loses half its rows reports a
+smaller, cleaner-looking world.
+
+### Added — `sn_path_join_key()` and `sn_path_join()`
+
+One key for join sites only. It does not replace the four local normalizers,
+and nothing they return changes.
+
+**The rule that matters: an empty input yields an empty key, never `/`.**
+Folding unusable input onto the homepage would credit the busiest path with
+rows that named no page — a wrong number that looks plausible, which is worse
+than a missing one. `''` means *not joinable*; `/` means *the homepage*.
+
+`sn_path_join()` returns the matched pairs **and** what did not match on each
+side, plus a count of unjoinable rows. A silent join is the failure this phase
+exists to prevent, so "we joined 12 of 40" can never read as "there are 12".
+
+Case is preserved deliberately — lowercasing would merge two real pages into one
+key.
+
+### Testing
+
+31 assertions. **The negative control the proposal demanded**: mis-spelling one
+path drops the join count from 3 to 2 and names the orphan on both sides,
+because a join test that passes against an unfixed normalizer is worse than
+none.
+
+Five mutations red: empty collapsing to the homepage, the query string kept, the
+trailing slash kept, unjoinable rows folded into the join, and the key
+lowercased.
+
+**One case the suite caught during the build.** `//` alone was being read as a
+protocol-relative URL with an empty host and returning unjoinable, while all
+three existing normalizers agree it is the homepage. The protocol-relative
+branch now requires an actual host — the join key must not disagree with the
+existing spellings where they already agree.
+
+## [13.54.0] - 2026-09-01 — the site can tell whether a password is already in a breach corpus
+
+Wave 4, step two. **Phase 0 only: the client and its fixture suite.** It
+registers no hooks and cannot reject or warn about anything — Mode A (set-time,
+fail-closed) and Mode B (login-time, advisory) are later phases, and a test
+asserts this file stays hookless until then.
+
+### Added — an HIBP k-anonymity client
+
+`sha1` → uppercase → split 5/35 → range request → parse `SUFFIX:COUNT`. Only the
+**5-character prefix** ever leaves the origin; the 35-character suffix is
+compared in memory and discarded. The plaintext and its full SHA-1 are never
+logged, cached, persisted or transmitted — asserted, not assumed: the suite
+parses the outgoing request and checks the path is exactly `/range/<prefix>`
+with no query string.
+
+`Add-Padding` is requested so response size cannot leak how populated a prefix
+is. Padding rows carry count 0, and **a count of 0 is padding, not a breach of
+size zero.**
+
+### The tri-state, which is the whole design
+
+An empty 200 and "your suffix is not in the list" are **byte-identical on the
+wire and mean opposite things**. A client that collapses them into a boolean
+reports the safest-looking answer at the exact moment it stopped working. So the
+verdict is `breached` / `not_breached` / **`unavailable`**, and callers must
+handle the third — Mode A will fail closed on it, Mode B will drop it silently.
+
+Unavailable covers: an empty or whitespace-only body, a body with no parseable
+row at all (an HTML error page is not a clean answer), any non-200 including 404,
+and a transport error.
+
+### Why live k-anonymity rather than a downloaded corpus
+
+The plan's first draft preferred an offline corpus to avoid a runtime dependency
+in the auth path, and **a measurement reversed it**: eight ranges sampled across
+the keyspace averaged 80,274 bytes, putting the full SHA-1 corpus at **~84.2 GB
+across 1,048,576 files**. That does not go on managed hosting, and no
+incremental refresh changes the floor.
+
+### Testing
+
+43 assertions, all offline — `tests/fixtures/hibp-range-5BAA6.txt` is a real
+capture (2026-09-01), trimmed for repo size, carrying the real response for the
+password `password` at 52,372,427 hits. **The negative control the proposal
+demanded**: the client goes red against a password known to be in the corpus,
+because a breach check that passes on a breached password is worse than none.
+
+Five mutations red: garbage parsing as clean, padding counted as a breach, the
+uppercase normalization dropped (a silent never-match, which is a false clean),
+any HTTP status accepted, and — only when **both** guards are removed — the
+empty-200 case, which is covered twice on purpose.
+
+**A false positive caught in the suite itself.** The privacy assertion first
+scanned the whole request URL for the plaintext `password` and matched
+`pwnedpasswords.com`, the API's own domain. It now asserts on the URL path and
+adds a distinctive-plaintext case that cannot collide.
+
 ## [13.53.0] - 2026-09-01 — outbound requests pin to the address the guard validated
 
 Wave 4, step one. **The decision came before the code**, as the backlog required.
