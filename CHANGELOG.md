@@ -2,6 +2,32 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.66.0] - 2026-09-01 — the sitemap says when each post last changed
+
+### Added — per-URL `<lastmod>` on core's sitemap
+
+WordPress core's sitemap lists URLs with no dates: 1 `lastmod` in 37 post
+entries on the live site. Google uses `lastmod` to decide what to recrawl when
+it is accurate and consistent, and the first URL Inspection reading (v13.63.0)
+showed 13 of 37 notes not indexed while the sitemap was fetched 185 times in a
+month — Google could find them and declined. Without dates every note looks
+equally stale.
+
+`wp_sitemaps_posts_entry` now carries the post's modified time in GMT, W3C
+format (`2026-08-29T20:36:28+00:00`). A post without a real modified time gets
+**no** `lastmod` key at all: the zero date, an impossible date and garbage all
+emit nothing, because a fabricated date is exactly the inconsistency Google
+documents as the reason to ignore the field. Sits beside the existing
+noindex/canonical exclusions in `inc/sitemap.php`.
+
+### Testing
+
+8 assertions: the format, the four null cases, the filter's effect on an
+entry, the no-key rule, registration. One mutation red (MySQL format emitted
+instead of W3C); the zero-date mutation was inert because the round-trip
+check already refuses it, which is the pin that matters. Sweep: 537 suites,
+21857 assertions.
+
 ## [13.65.0] - 2026-09-01 — every not-indexed note says how many other notes link to it
 
 ### Added — inbound internal-link counts, from the graph that already existed

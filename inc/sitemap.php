@@ -111,3 +111,43 @@ add_filter(
 		return $taxonomies;
 	}
 );
+
+/**
+ * v13.66.0: per-URL <lastmod>.
+ *
+ * WP core's sitemap lists URLs with no dates. Google uses <lastmod> to decide
+ * what to recrawl — when it is accurate and consistent — and the first URL
+ * Inspection reading (v13.63.0) showed 13 of 37 notes not indexed with the
+ * sitemap fetched 185 times in a month: Google could find them and declined.
+ * Without lastmod every note looks equally stale. This emits the post's
+ * modified time, GMT, W3C format, and emits NOTHING for a post without a real
+ * modified time — a fabricated date would be the inconsistency Google
+ * documents as the reason to ignore the field.
+ *
+ * @param string $modified_gmt post_modified_gmt ('Y-m-d H:i:s', GMT).
+ * @return string|null ISO 8601 with a +00:00 offset, or null.
+ */
+function sn_sitemap_lastmod( $modified_gmt ) {
+	$modified_gmt = trim( (string) $modified_gmt );
+	if ( '' === $modified_gmt || 0 === strpos( $modified_gmt, '0000-00-00' ) ) {
+		return null;
+	}
+	$dt = DateTimeImmutable::createFromFormat( '!Y-m-d H:i:s', $modified_gmt, new DateTimeZone( 'UTC' ) );
+	if ( false === $dt || $dt->format( 'Y-m-d H:i:s' ) !== $modified_gmt ) {
+		return null; // Not a real timestamp: emit nothing rather than a guess.
+	}
+	return $dt->format( 'Y-m-d\TH:i:s+00:00' );
+}
+
+add_filter(
+	'wp_sitemaps_posts_entry',
+	function ( $entry, $post ) {
+		$lastmod = sn_sitemap_lastmod( is_object( $post ) ? (string) ( $post->post_modified_gmt ?? '' ) : '' );
+		if ( null !== $lastmod && is_array( $entry ) ) {
+			$entry['lastmod'] = $lastmod;
+		}
+		return $entry;
+	},
+	10,
+	2
+);
