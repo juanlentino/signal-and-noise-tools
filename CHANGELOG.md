@@ -2,6 +2,64 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.54.0] - 2026-09-01 — the site can tell whether a password is already in a breach corpus
+
+Wave 4, step two. **Phase 0 only: the client and its fixture suite.** It
+registers no hooks and cannot reject or warn about anything — Mode A (set-time,
+fail-closed) and Mode B (login-time, advisory) are later phases, and a test
+asserts this file stays hookless until then.
+
+### Added — an HIBP k-anonymity client
+
+`sha1` → uppercase → split 5/35 → range request → parse `SUFFIX:COUNT`. Only the
+**5-character prefix** ever leaves the origin; the 35-character suffix is
+compared in memory and discarded. The plaintext and its full SHA-1 are never
+logged, cached, persisted or transmitted — asserted, not assumed: the suite
+parses the outgoing request and checks the path is exactly `/range/<prefix>`
+with no query string.
+
+`Add-Padding` is requested so response size cannot leak how populated a prefix
+is. Padding rows carry count 0, and **a count of 0 is padding, not a breach of
+size zero.**
+
+### The tri-state, which is the whole design
+
+An empty 200 and "your suffix is not in the list" are **byte-identical on the
+wire and mean opposite things**. A client that collapses them into a boolean
+reports the safest-looking answer at the exact moment it stopped working. So the
+verdict is `breached` / `not_breached` / **`unavailable`**, and callers must
+handle the third — Mode A will fail closed on it, Mode B will drop it silently.
+
+Unavailable covers: an empty or whitespace-only body, a body with no parseable
+row at all (an HTML error page is not a clean answer), any non-200 including 404,
+and a transport error.
+
+### Why live k-anonymity rather than a downloaded corpus
+
+The plan's first draft preferred an offline corpus to avoid a runtime dependency
+in the auth path, and **a measurement reversed it**: eight ranges sampled across
+the keyspace averaged 80,274 bytes, putting the full SHA-1 corpus at **~84.2 GB
+across 1,048,576 files**. That does not go on managed hosting, and no
+incremental refresh changes the floor.
+
+### Testing
+
+43 assertions, all offline — `tests/fixtures/hibp-range-5BAA6.txt` is a real
+capture (2026-09-01), trimmed for repo size, carrying the real response for the
+password `password` at 52,372,427 hits. **The negative control the proposal
+demanded**: the client goes red against a password known to be in the corpus,
+because a breach check that passes on a breached password is worse than none.
+
+Five mutations red: garbage parsing as clean, padding counted as a breach, the
+uppercase normalization dropped (a silent never-match, which is a false clean),
+any HTTP status accepted, and — only when **both** guards are removed — the
+empty-200 case, which is covered twice on purpose.
+
+**A false positive caught in the suite itself.** The privacy assertion first
+scanned the whole request URL for the plaintext `password` and matched
+`pwnedpasswords.com`, the API's own domain. It now asserts on the URL path and
+adds a distinctive-plaintext case that cannot collide.
+
 ## [13.53.0] - 2026-09-01 — outbound requests pin to the address the guard validated
 
 Wave 4, step one. **The decision came before the code**, as the backlog required.
