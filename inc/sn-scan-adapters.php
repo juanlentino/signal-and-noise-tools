@@ -70,6 +70,8 @@ function snt_sn_scan_adapters() {
 		// v13.27.0: the vocabulary source — wraps the tag_hygiene health
 		// check (the same real producer the advisory tier reads).
 		'tag_hygiene'       => 'snt_sn_scan_adapter_tag_hygiene',
+		// v13.57.0 — inc/sn-scan-search-disagreement.php (own file).
+		'search_disagreement' => 'snt_sn_scan_adapter_search_disagreement',
 	);
 	return apply_filters( 'sn_scan_adapters', $adapters );
 }

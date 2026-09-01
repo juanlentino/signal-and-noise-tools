@@ -114,6 +114,12 @@ function snt_sn_status_map() {
 		// manage_options, so it belongs here and NOT on sn-validate, which is
 		// read_corpus — that placement would cross permission tiers.
 		'corpus_integrity'     => 'signal-noise/corpus-integrity-scan',
+		// v13.57.0 — measurement weave Phase 1: Search Console on the read door
+		// as SECTIONS (default-to-consolidated-reads), over data the daily sync
+		// already stores. Before this, GSC sat on ZERO doors.
+		'search_performance'   => 'signal-noise/search-performance',
+		'search_drift'         => 'signal-noise/search-drift',
+		'search_crossexam'     => 'signal-noise/search-crossexam',
 	);
 }
 

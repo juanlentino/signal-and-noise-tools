@@ -57,6 +57,15 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @return array<string,array<int,array{id:string,triggers_on:string}>>
  */
 function snt_sn_scan_detector_registry() {
+	// v13.57.0: the search_disagreement rows print thresholds that live beside
+	// their detectors. Resolve them from their homes (never restate a literal),
+	// and load those homes when a harness has not — both files are pure at load.
+	if ( ! defined( 'SNT_GSC_DRIFT_MIN_IMPRESSIONS' ) ) {
+		require_once __DIR__ . '/search-console-derive.php';
+	}
+	if ( ! defined( 'SNT_SEARCH_THIN_WORDS' ) ) {
+		require_once __DIR__ . '/sn-scan-search-disagreement.php';
+	}
 	$registry = array(
 		'block_migrations'  => array(
 			array(
@@ -122,6 +131,21 @@ function snt_sn_scan_detector_registry() {
 			array(
 				'id'          => 'heading_contains_link',
 				'triggers_on' => 'any <a> inside an h1-h6 block',
+			),
+		),
+		// v13.57.0: three readings of one disagreement, three different problems.
+		'search_disagreement' => array(
+			array(
+				'id'          => 'no_impressions',
+				'triggers_on' => 'a published post of ' . SNT_SEARCH_THIN_WORDS . '+ words with ZERO Google impressions in the synced window ("about X, found for nothing")',
+			),
+			array(
+				'id'          => 'thin_but_found',
+				'triggers_on' => 'a post under ' . SNT_SEARCH_THIN_WORDS . ' words earning ' . SNT_GSC_DRIFT_MIN_IMPRESSIONS . '+ impressions ("found for X, about nothing" — the best refresh candidate)',
+			),
+			array(
+				'id'          => 'query_unclaimed',
+				'triggers_on' => 'a SITE-LEVEL query with ' . SNT_GSC_DRIFT_MIN_IMPRESSIONS . '+ impressions none of whose words (4+ chars) appear in any post\'s TF-IDF keyword candidates; page-level "about X, found for Y" is NOT derivable — the sync stores page and query dimensions separately',
 			),
 		),
 	);

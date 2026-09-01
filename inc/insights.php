@@ -86,6 +86,59 @@ define( 'SN_INSIGHTS_EXCERPT_TOTAL_CHARS', 60000 ); // hard backstop on the comb
  *
  * @return array Structured signals — see spec §5.1.
  */
+/**
+ * The weave join key: sn_path_join_key() when loaded, else the old inline
+ * spelling (leading slash guaranteed so the two agree on the common case).
+ *
+ * @since 13.57.0
+ */
+function snt_insights_join_key( $uri ) {
+	if ( function_exists( 'sn_path_join_key' ) ) {
+		return sn_path_join_key( $uri );
+	}
+	$p = trim( (string) $uri );
+	if ( 0 === strpos( $p, 'http' ) ) {
+		$p = (string) wp_parse_url( $p, PHP_URL_PATH );
+	}
+	$p = '/' . trim( $p, '/' );
+	return '/' === $p ? '' : $p;
+}
+
+/**
+ * The 'search' section, PURE over the stored window. Fills $map with
+ * join-key => {clicks, impressions, ctr, position} for the post-list join.
+ *
+ * @since 13.57.0
+ * @param array|null $data   snt_gsc_data().
+ * @param array|null $totals snt_gsc_window_totals().
+ * @param array      $map    OUT.
+ * @return array
+ */
+function snt_insights_search_section( $data, $totals, &$map ) {
+	$map = array();
+	if ( ! is_array( $data ) ) {
+		return array( 'synced' => false );
+	}
+	foreach ( (array) ( $data['pages'] ?? array() ) as $path => $m ) {
+		$key = snt_insights_join_key( (string) $path );
+		if ( '' === $key || ! is_array( $m ) ) {
+			continue;
+		}
+		$map[ $key ] = array(
+			'clicks'      => (int) ( $m['clicks'] ?? 0 ),
+			'impressions' => (int) ( $m['impressions'] ?? 0 ),
+			'ctr'         => round( (float) ( $m['ctr'] ?? 0 ), 4 ),
+			'position'    => round( (float) ( $m['position'] ?? 0 ), 1 ),
+		);
+	}
+	return array(
+		'synced'      => true,
+		'window'      => is_array( $data['window'] ?? null ) ? $data['window'] : null,
+		'totals'      => is_array( $totals ) ? $totals : null, // carries `capped`: a floor when true.
+		'top_queries' => array_slice( array_values( (array) ( $data['queries'] ?? array() ) ), 0, 10 ),
+	);
+}
+
 function snt_insights_collect_signals() {
 	$out = array(
 		'site'           => array(),
@@ -93,6 +146,7 @@ function snt_insights_collect_signals() {
 		'posts'          => array(),
 		'webhooks'       => array(),
 		'cron_freshness' => array(),
+		'search'         => array(),
 		'collected_at'   => time(),
 	);
 
@@ -132,11 +186,22 @@ function snt_insights_collect_signals() {
 		if ( ! is_array( $row ) ) {
 			continue;
 		}
-		$path = isset( $row['path'] ) ? trim( (string) $row['path'], '/' ) : '';
+		// v13.57.0: the WEAVE join key (Rule 1). Both sides of every per-path
+		// join go through sn_path_join_key() — three spellings agreed on the
+		// common case and diverged on bare/empty inputs, dropping rows silently.
+		$path = isset( $row['path'] ) ? snt_insights_join_key( (string) $row['path'] ) : '';
 		if ( '' !== $path ) {
 			$views_map[ $path ] = (int) ( $row['views'] ?? 0 );
 		}
 	}
+
+	// ── 2b. Search — the stored Search Console window (weave Phase 2) ──
+	// Per-path metrics joined onto the post list below through the same key;
+	// a never-synced property degrades to synced:false (never a zero row),
+	// and the section-2 precedent holds: the prompt sees a safe shape, the
+	// dashboard carries the honest read-failure fold.
+	$search_map    = array();
+	$out['search'] = snt_insights_search_section( function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null, function_exists( 'snt_gsc_window_totals' ) ? snt_gsc_window_totals() : null, $search_map );
 
 	// ── 3. Post list (published, post/page, < 2yo) ──
 	global $wpdb;
@@ -175,9 +240,7 @@ function snt_insights_collect_signals() {
 			}
 
 			$permalink = get_permalink( (int) $r['ID'] );
-			$permalink_path = function_exists( 'wp_make_link_relative' )
-				? trim( wp_make_link_relative( $permalink ), '/' )
-				: trim( (string) $permalink, '/' );
+			$permalink_path = snt_insights_join_key( (string) $permalink ); // v13.57.0: the weave key, same as views_map/search_map.
 
 			$posts[] = array(
 				'id'                   => (int) $r['ID'],
@@ -192,6 +255,8 @@ function snt_insights_collect_signals() {
 				'tags'                 => $tags,
 				'categories'           => $cats,
 				'views_7d'             => isset( $views_map[ $permalink_path ] ) ? (int) $views_map[ $permalink_path ] : 0,
+				// null, not a zero row: a page Google never showed is not a page shown with no clicks.
+				'search_28d'           => isset( $search_map[ $permalink_path ] ) ? $search_map[ $permalink_path ] : null,
 			);
 		}
 	}

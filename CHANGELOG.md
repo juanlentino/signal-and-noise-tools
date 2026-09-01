@@ -2,6 +2,75 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.57.0] - 2026-09-01 — Search Console reaches the agent doors, joins the synthesis payload, and one scan says where the corpus and Google disagree
+
+Measurement weave, Phases 1–3 (`docs/proposals/measurement-weave-2026-08-31.md`).
+Phase 0 shipped as v13.55.0. All over data the daily sync already stores: no new
+fetch, no new quota.
+
+### Added — Phase 1: three sections on `sn-status`
+
+Before this release Search Console appeared in **zero** `abilities-*.php` and
+**zero** `inc/mcp/*` files: six derives, readable only by the admin screen.
+`search_performance`, `search_drift` and `search_crossexam` now wrap them,
+sourced by three read-only, `manage_options` abilities
+(`signal-noise/search-performance` / `search-drift` / `search-crossexam`) on the
+read-door allowlist (22 → 25). Per the consolidated-reads policy they are
+sections, not tools. Three things the payloads say out loud:
+
+- **The floor.** The sync requests the page dimension with a 250-row limit.
+  `totals.capped` carries `snt_gsc_window_totals()`'s flag onto the wire and is
+  declared in the output schema — a truncated sum must never read as complete.
+- **Null is not zero.** A never-synced property is `synced:false` with null
+  totals; drift is `state:"accruing"` when the history cannot answer yet, and
+  `state:"measured"` with an empty list is the real good zero.
+- **The grain.** The cross-exam carries `grain:"window"` and its "not a per-page
+  join" caveat *in the payload*, not only in a comment.
+
+Near-ranking opportunities (position 8–20 with 10+ impressions) are a filter
+over stored rows. Remote twins are **deferred** (Phase 4): the verdict map names
+the three sections as `remote:false` with the reason, so the totality pin holds.
+
+### Added — Phase 2: a sixth section in `snt_insights_collect_signals()`
+
+`search` ({synced, window, totals with `capped`, top 10 queries}) beside the
+five existing sections, and per post `search_28d` ({clicks, impressions, ctr,
+position}) beside `views_7d` — `null`, never a zero row, for a page Google never
+showed. The AI prompt now sees what a path earns in search alongside what it
+earns in traffic.
+
+**Rule 1 of the weave, applied:** `views_map`, the search map and the permalink
+path all key through `snt_insights_join_key()`, which is `sn_path_join_key()`.
+The old inline `trim($x, '/')` spellings — which agreed on the common case and
+diverged on bare, empty and homepage inputs, dropping rows silently — are gone
+from the join and pinned out by a source-text regression test.
+
+### Added — Phase 3: `sn-scan` scan_type `search_disagreement`
+
+TF-IDF keyword candidates say what a post **is about**; Google says what it
+**is found for**. Three detectors, three different problems: `no_impressions`
+(300+ words, zero impressions in the window — indexation or a contentless
+choke point; the cross-exam says which), `thin_but_found` (under 300 words
+earning 10+ impressions — the best refresh candidate on the site), and
+`query_unclaimed` (a site-level query with 10+ impressions none of whose words
+appear in any post's keyword candidates).
+
+**A finding from building it:** the plan's page-level "about X, found for Y"
+reading is **not derivable from stored data**. The sync pulls the `page` and
+`query` dimensions separately — never page×query — so a query cannot be
+attributed to a page without a new fetch. `query_unclaimed` is the honest
+site-level substitute and its `triggers_on` says so. Never synced → the adapter
+refuses with 503 rather than returning an empty list (a skip is not "measured,
+clean"). Both join sides go through the shared key. No apply path.
+
+### Testing
+
+Three new suites (34 + 17 + 16). Five mutations red: `capped` dropped from the
+wire; the word floor off by one; the adapter joining on the raw stored path; the
+permalink back to the old `trim` spelling; the search section parking an
+unjoinable row on `/`. Section-map pin 13 → 16, read-door pin 22 → 25. Sweep:
+532 suites, 21661 assertions.
+
 ## [13.56.2] - 2026-09-01 — the Door-2 card says what the adapter does now, not what it did at 0.5.0
 
 ### Fixed — the MCP Adapter card and connect step describe the 0.6.0 opt-in rule
