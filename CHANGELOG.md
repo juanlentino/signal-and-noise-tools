@@ -2,6 +2,48 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.59.0] - 2026-09-01 — a password set before the check existed is caught at login: Mode B, advisory, memoized
+
+Phase 2 of `docs/proposals/breached-credential-check-2026-08-31.md`.
+
+### Added — `inc/breached-credentials-login.php`
+
+Mode A cannot see a password set before it shipped, which on day one is every
+password on the site. The stored value is a hash and can never be checked at
+rest; the only other moment the plaintext exists is the login submit. So an
+`authenticate` filter at priority 30 (after core has verified the password at
+20) runs the k-anonymity check there — and its constraints are the **inverse**
+of Mode A's: frequent, latency-sensitive, and it must never lock anyone out.
+
+- **Warns, never blocks.** The filter result is returned untouched on every
+  path; a breached password logs in and that user — only that user — sees an
+  admin notice with the breach count and a link to their profile. A source pin
+  asserts the module constructs no `WP_Error` and calls no `wp_die`.
+- **Fail-OPEN, silently.** An unavailable lookup stores nothing and arms a
+  15-minute site-wide backoff, so an outage costs one round-trip per window
+  rather than one per login. The lookup timeout is 2s, half of Mode A's.
+- **Memoized against the stored hash.** A user-meta record keyed to a 16-char
+  digest of `user_pass` means the check runs at most once per password, not
+  once per login, and self-invalidates when the password changes because the
+  digest changes with it. Keying on the stored hash stores nothing that is not
+  already in the database; nothing is keyed on, derived from, or persisted from
+  the plaintext, and the memo carries neither it nor its SHA-1.
+- **Only the account password is ever checked.** The plaintext must verify
+  against the account's own hash first (`wp_check_password`). An application
+  password reaching the filter verifies against nothing here, so it is skipped
+  by construction — generated, never in a corpus, and memoizing its verdict
+  under the account hash would be a wrong answer under the wrong key.
+
+Kill switch: the `SN_HIBP_LOGIN_DISABLED` constant.
+
+### Testing
+
+31 assertions, with the negative control in both halves: "password" over the
+captured 5BAA6 fixture still logs in **and** is flagged in the memo. Five
+mutations red: breached blocks the login; the memo ignored; unavailable
+memoized; the account-hash gate removed; the backoff never armed. Sweep: 534
+suites, 21716 assertions.
+
 ## [13.58.0] - 2026-09-01 — a breached password can no longer be set: Mode A, fail-closed
 
 Phase 1 of `docs/proposals/breached-credential-check-2026-08-31.md` (Phase 0,
