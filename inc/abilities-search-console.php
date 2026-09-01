@@ -284,10 +284,12 @@ function snt_search_console_abilities() {
 					'not_indexed'        => array( 'type' => 'integer' ),
 					'unknown'            => array( 'type' => 'integer' ),
 					'errors'             => array( 'type' => 'integer' ),
-					'by_coverage_state'  => array( 'type' => 'object' ),
+					// v13.63.1: a PHP map with no keys serializes as [] — the schema must
+					// admit both, or the door refuses the never-synced answer itself.
+					'by_coverage_state'  => array( 'type' => array( 'object', 'array' ) ),
 					'not_indexed_paths'  => array( 'type' => 'array' ),
 					'canonical_mismatch' => array( 'type' => 'array' ),
-					'entries'            => array( 'type' => 'object' ),
+					'entries'            => array( 'type' => array( 'object', 'array' ) ),
 				),
 			),
 		),

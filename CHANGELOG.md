@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.63.1] - 2026-09-01 — the never-synced coverage answer was refused by the door's own validator
+
+### Fixed — `search-coverage` output schema admits the empty map
+
+First live read of `signal-noise/search-coverage` before the weekly inspection
+had run: the door's output validator (v13.51.0) refused the payload —
+`by_coverage_state` and `entries` were declared `object`, and a PHP map with
+no keys serializes as JSON `[]`. So the one answer the ability must give
+before it has data, "not synced yet", was the one it could not give. Both
+properties now admit `object` or `array`; the test pins the encoding fact and
+the declaration, and a mutation restoring `object` alone goes red. The
+`sn-status` section was unaffected (its `sections` is loosely typed), which is
+how the reading was confirmed as `synced:false` rather than a fetch failure.
+
 ## [13.63.0] - 2026-09-01 — Google's own index verdict per post, so "zero impressions" splits into its two different problems
 
 ### Added — `inc/search-console-coverage.php`, the `search_coverage` section, the scan's `coverage` evidence

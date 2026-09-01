@@ -105,5 +105,22 @@ ok( false === snt_ability_search_performance( null )['synced'], 'search-performa
 ok( 'accruing' === snt_ability_search_drift( null )['state'], 'search-drift over an empty history answers state:accruing' );
 ok( is_wp_error( snt_ability_search_crossexam( null ) ), 'search-crossexam without the cross-exam module loaded is a WP_Error, never a verdict' );
 
+
+// ─── v13.63.1: empty maps serialize as [] and the schema must admit it ───
+// The never-synced answer was refused by the door's own output validator on
+// first live read: by_coverage_state and entries were declared 'object', and a
+// keyless PHP array is JSON []. Pin the encoding fact AND the declaration.
+function snt_gsc_coverage_data() { return null; }
+function snt_gsc_coverage_summary( $d ) { return array( 'synced' => false, 'inspected' => 0, 'indexed' => 0, 'not_indexed' => 0, 'unknown' => 0, 'errors' => 0, 'by_coverage_state' => array(), 'not_indexed_paths' => array(), 'canonical_mismatch' => array() ); }
+$never_cov = snt_ability_search_coverage( null );
+$enc = json_decode( json_encode( $never_cov ), true );
+ok( '[]' === json_encode( $never_cov['entries'] ) && '[]' === json_encode( $never_cov['by_coverage_state'] ), 'FACT: the never-synced maps encode as JSON [] (not {})' );
+$cov_schema = $GLOBALS['__registered']['signal-noise/search-coverage']['output_schema']['properties'];
+foreach ( array( 'by_coverage_state', 'entries' ) as $k ) {
+	$t = (array) ( $cov_schema[ $k ]['type'] ?? array() );
+	ok( in_array( 'object', $t, true ) && in_array( 'array', $t, true ), "schema: $k admits BOTH object and array — the empty map cannot be refused" );
+}
+ok( isset( $GLOBALS['__registered']['signal-noise/search-coverage'] ) && 'snt_ability_search_coverage' === $GLOBALS['__registered']['signal-noise/search-coverage']['execute_callback'], 'search-coverage registers from the same table' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
