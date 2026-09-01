@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.61.0] - 2026-09-01 — two Search Console twins reach the remote door; contract 2 → 3
+
+Measurement weave, Phase 4 (`docs/proposals/measurement-weave-2026-08-31.md`).
+
+### Added — `remote-search-performance` and `remote-search-drift`
+
+Byte-identical twins of the two Phase 1 reads, on the remote slug list
+(11 → 13) and the verdict map (`search_performance` and `search_drift` now
+`remote:true`, each naming its twin). Their output schemas are **read from
+the same table the admin registration reads** (`snt_search_console_abilities()`),
+so identity is by construction; the parity test still pins each pair with `===`.
+The floor flag rides the wire remotely exactly as it does locally.
+
+**`search_crossexam` stays local**, deliberately: it reads the crawler ledger
+alongside Google, and the ledger is defence-adjacent telemetry. Its verdict
+entry says so; it is not re-proposed without an owner ruling.
+
+### Changed — remote contract version 2 → 3
+
+`SN_REMOTE_CONTRACT_VERSION` is `'3'` with a distinct sha256 pinned for the
+13-twin map, computed RED-then-pin. The first RED run computed **v2's hash**
+because the shapes test had not loaded the Search Console module, so both new
+twins silently skipped registration — the "is registered" pins caught it. The
+worker ships the matching half as v1.3.0 (`CONTRACT_VERSION "3"`, bridge tool
+count 13); the deploy probe reads `contract_match` once both are live.
+
+### Testing
+
+Slug pin 11 → 13, two new parity pairs, shapes suite 33 green over 13 twins;
+verdict totality holds. Sweep: 535 suites, 21748 assertions.
+
 ## [13.60.0] - 2026-09-01 — the breached-password check reports on itself: a Site Health row and a digest section
 
 Phase 3 of `docs/proposals/breached-credential-check-2026-08-31.md`. The arc is

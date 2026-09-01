@@ -73,6 +73,10 @@ function sn_mcp_remote_slugs() {
 		'signal-noise/remote-provenance-integrity-status',
 		'signal-noise/remote-machine-readers-summary',
 		'signal-noise/remote-cron-health-summary',
+		// v13.61.0 — weave Phase 4: two Search Console twins (read-only over
+		// Google-visible data). search-crossexam stays local: owner call open.
+		'signal-noise/remote-search-performance',
+		'signal-noise/remote-search-drift',
 	);
 }
 
@@ -125,9 +129,9 @@ function sn_mcp_remote_verdicts() {
 		// v13.57.0 — weave Phase 4 (remote twins) is DEFERRED by the plan: the
 		// payloads name paths and the remote read scope is the owner\'s call.
 		// Read-only over public search data, so a twin is proposable later.
-		'search_performance'   => $out( false, 'DEFERRED (weave Phase 4): names paths; owner rules the remote read scope. Read-only over Google-visible data, so proposable as a twin once Phase 1 has telemetry.' ),
-		'search_drift'         => $out( false, 'DEFERRED (weave Phase 4): same as search_performance.' ),
-		'search_crossexam'     => $out( false, 'DEFERRED (weave Phase 4): the one to think hard about — it names paths AND reads the crawler ledger. Owner call.' ),
+		'search_performance'   => $out( true, 'Ratified 2026-09-01 (weave Phase 4): the paths it names are the ones Google already shows in public results, and the floor flag rides the wire. Byte-identical twin.', 'signal-noise/remote-search-performance' ),
+		'search_drift'         => $out( true, 'Ratified 2026-09-01 (weave Phase 4): same population as search_performance, positions only. Byte-identical twin.', 'signal-noise/remote-search-drift' ),
+		'search_crossexam'     => $out( false, 'STILL LOCAL after Phase 4 (2026-09-01): it reads the crawler ledger alongside Google, and the ledger is defence-adjacent telemetry. Owner call; not re-proposed without one.' ),
 		'cron_health'          => $out( true, 'The model the partition asked for (v13.52.0): status + derived summary + overdue evidence, sharing the Site Health overdue rule. Byte-identical twin of a section designed for the phone.', 'signal-noise/remote-cron-health-summary' ),
 		'collector'            => $out( false, 'Analytics collector plumbing state. Operational internals, not a number anyone reads on a phone.' ),
 		'corpus_integrity'     => $out( false, 'OUT BY CONSTRUCTION: the corpus spans SNT_CORPUS_STATUSES, so its findings can name draft, pending and private posts. Not proposable.' ),

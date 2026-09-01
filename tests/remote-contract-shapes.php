@@ -62,6 +62,10 @@ function sn_remote_analytics_allows( $slug ) { return true; }
 // registration is ever eagerly resolved.
 require_once __DIR__ . '/../inc/mcp/mcp-remote-contract.php';
 require_once __DIR__ . '/../inc/abilities-remote-analytics.php';
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = null ) { return $d; } }
+require_once __DIR__ . '/../inc/search-console-store.php';
+require_once __DIR__ . '/../inc/search-console-derive.php';
+require_once __DIR__ . '/../inc/abilities-search-console.php'; // v13.61.0: the two Search Console twins read their schema from this table.
 require_once __DIR__ . '/../inc/abilities-remote-set.php';
 foreach ( $GLOBALS['__actions']['wp_abilities_api_init'] ?? array() as $cb ) { $cb(); }
 
