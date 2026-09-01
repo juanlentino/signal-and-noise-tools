@@ -100,7 +100,7 @@ never an equality test.
 | 2 ✅ v13.57.0 | GSC into `collect_signals()` (Grain A) | Low — one section | Phase 0 |
 | 3 ✅ v13.57.0 | The disagreement scan (TF-IDF ↔ GSC queries) — page-level "about X, found for Y" NOT derivable (no page×query dimension stored); shipped as a site-level query reading | Medium — new instrument | Phases 0–2 |
 | 4 ✅ v13.61.0 + worker v1.3.0 | Remote twins for the new reads — performance + drift; crossexam stays local (owner call) | High — credentialed, contract bump | Phase 1 merged |
-| 5 | Enum drift check against two upstream corpora | Low — read-only diff, no classifier change | nothing (independent of 0–4) |
+| 5 ✅ v13.62.0 | Enum drift check against two upstream corpora — `upstream_unmapped` carries entry COUNTS, not ledger hits (no UA dimension in the ledger) | Low — read-only diff, no classifier change | nothing (independent of 0–4) |
 
 ### Phase 0 — the join key
 

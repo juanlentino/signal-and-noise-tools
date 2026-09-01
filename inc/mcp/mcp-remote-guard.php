@@ -131,6 +131,7 @@ function sn_mcp_remote_verdicts() {
 		// Read-only over public search data, so a twin is proposable later.
 		'search_performance'   => $out( true, 'Ratified 2026-09-01 (weave Phase 4): the paths it names are the ones Google already shows in public results, and the floor flag rides the wire. Byte-identical twin.', 'signal-noise/remote-search-performance' ),
 		'search_drift'         => $out( true, 'Ratified 2026-09-01 (weave Phase 4): same population as search_performance, positions only. Byte-identical twin.', 'signal-noise/remote-search-drift' ),
+		'family_drift'         => $out( false, 'Names the classifier\'s blind spots (families that match nothing, operators we do not recognise) — a map of what the sensor cannot see. Defence-adjacent; local only.' ),
 		'search_crossexam'     => $out( false, 'STILL LOCAL after Phase 4 (2026-09-01): it reads the crawler ledger alongside Google, and the ledger is defence-adjacent telemetry. Owner call; not re-proposed without one.' ),
 		'cron_health'          => $out( true, 'The model the partition asked for (v13.52.0): status + derived summary + overdue evidence, sharing the Site Health overdue rule. Byte-identical twin of a section designed for the phone.', 'signal-noise/remote-cron-health-summary' ),
 		'collector'            => $out( false, 'Analytics collector plumbing state. Operational internals, not a number anyone reads on a phone.' ),
