@@ -3,7 +3,8 @@
  * Signal & Noise Tools — breached-credential client (HIBP k-anonymity).
  *
  * Phase 0 of docs/proposals/breached-credential-check-2026-08-31.md: the client
- * and its parser, with NO hook wiring. Mode A (set-time, fail-closed) and Mode B
+ * and its parser, with NO hook wiring — and it stays hookless: Mode A (set-time,
+ * fail-closed, v13.58.0) lives in inc/breached-credentials-set.php, and Mode B
  * (login-time, advisory) are later phases and are deliberately absent — this
  * file cannot reject or warn about anything yet.
  *

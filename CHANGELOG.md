@@ -2,6 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.58.0] - 2026-09-01 — a breached password can no longer be set: Mode A, fail-closed
+
+Phase 1 of `docs/proposals/breached-credential-check-2026-08-31.md` (Phase 0,
+the client, shipped as v13.54.0).
+
+### Added — `inc/breached-credentials-set.php`
+
+`user_profile_update_errors` and `validate_password_reset` now run the
+submitted password through the HIBP k-anonymity client before WordPress hashes
+it. Only the first five hex characters of its SHA-1 leave the origin; the
+plaintext is read unslashed from the request (the bytes core will hash),
+consumed in memory, and never stored, logged or echoed — the refusal carries a
+**count**, never the password. Not `registration_errors`: core registration
+takes no password (the user sets one through the reset link, which lands on
+`validate_password_reset`).
+
+**Fail-CLOSED, by decision.** Only an explicit `not_breached` lets a password
+through. `breached` refuses with the corpus count; `unavailable` — a transport
+error, a non-200, an empty or unparseable body — refuses with "the breach check
+could not be reached, so this password was not set; try again in a minute"; an
+unrecognised verdict string refuses too, because the safe default for a value
+this code does not know is "not set". Affordable because of the event rate: a
+single-author site sets a password a few times a year, and that is the safe
+direction.
+
+**Kill switch is a constant**, `SN_HIBP_SET_DISABLED` in wp-config.php — never
+an option, so an attacker holding an admin session cannot switch the check off
+from the screen it protects. A small option counts breached and fail-closed
+rejections with timestamps (`sn_hibp_set_stats()`), so a degrading API shows
+as a climbing unavailable count instead of a site quietly refusing legitimate
+password changes — Phase 3's surface reads it.
+
+### Testing
+
+24 assertions, including the **negative control** the plan demanded: the
+password "password" fed through the real client over the captured 5BAA6
+fixture (52,372,427 breaches) is refused, and the refusal quotes the count.
+Four mutations red: unavailable treated as allow (4 reds); rejections not
+recorded; the kill switch ignored; a stray `registration_errors` hook. The
+client file's own hookless pin still holds — Mode A lives beside it, not in it.
+
 ## [13.57.0] - 2026-09-01 — Search Console reaches the agent doors, joins the synthesis payload, and one scan says where the corpus and Google disagree
 
 Measurement weave, Phases 1–3 (`docs/proposals/measurement-weave-2026-08-31.md`).
