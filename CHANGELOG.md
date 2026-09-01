@@ -2,6 +2,32 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.65.0] - 2026-09-01 — every not-indexed note says how many other notes link to it
+
+### Added — inbound internal-link counts, from the graph that already existed
+
+The first coverage reading split the 26 zero-impression notes into 13 Google
+declined to index and 13 it indexed but never shows. For the first half the
+one lever the corpus controls is internal linking, and the link graph already
+existed (`inc/ml-link-isolation.php`, v10.83.0) — it just only ever reported
+who had ZERO inbound links. The walk is now a pure `snt_ml_link_graph()`
+(slug → inbound, outbound, linked_from; one edge per source, self-links and
+non-note targets excluded) that the isolation report consumes unchanged, plus
+`snt_ml_inbound_by_path()` keyed by the weave join key, so it joins the
+coverage map and the disagreement scan without a third spelling.
+
+Where it lands: `search_coverage`'s `not_indexed_paths[].inbound_links` (with
+`inbound_available` saying whether it was computed — `null` is "not computed",
+`0` is "nothing links here"), the disagreement scan's `no_impressions`
+evidence, and an "Inbound links" column on the Search view's not-indexed
+table. No new parser, no fetch, no cache: ~40 posts walked on read.
+
+### Testing
+
+Graph pinned pure (duplicate links from one source count once; self-links are
+not edges; non-note targets are not edges), counts keyed by path, null vs zero
+on both readers. Four mutations red. Sweep: 537 suites, 21849 assertions.
+
 ## [13.64.0] - 2026-09-01 — a slow or interrupted inspection run keeps what it got
 
 ### Changed — `snt_gsc_coverage_sync()` is incremental, resumable and timed

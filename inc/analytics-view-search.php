@@ -181,7 +181,7 @@ function snt_analytics_render_view_search() {
 	// v13.63.0: index coverage from the weekly URL Inspection sync — the
 	// discriminator for "zero impressions": not indexed, or indexed and unasked-for.
 	if ( function_exists( 'snt_gsc_coverage_summary' ) && function_exists( 'snt_gsc_coverage_data' ) ) {
-		$cov = snt_gsc_coverage_summary( snt_gsc_coverage_data() );
+		$cov = snt_gsc_coverage_summary( snt_gsc_coverage_data(), function_exists( 'snt_ml_inbound_by_path' ) ? snt_ml_inbound_by_path() : null );
 		if ( empty( $cov['synced'] ) ) {
 			snt_an_note_empty(
 				__( 'Index coverage', 'signal-and-noise-tools' ),
@@ -206,9 +206,10 @@ function snt_analytics_render_view_search() {
 				echo '<th scope="col">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>';
 				echo '<th scope="col">' . esc_html__( 'Google says', 'signal-and-noise-tools' ) . '</th>';
 				echo '<th scope="col">' . esc_html__( 'Last crawl', 'signal-and-noise-tools' ) . '</th>';
+				echo '<th scope="col">' . esc_html__( 'Inbound links', 'signal-and-noise-tools' ) . '</th>';
 				echo '</tr></thead><tbody>';
 				foreach ( array_slice( $cov['not_indexed_paths'], 0, 40 ) as $row ) {
-					echo '<tr><td><code>' . esc_html( $row['path'] ) . '</code></td><td>' . esc_html( $row['coverage_state'] ) . '</td><td>' . esc_html( '' === $row['last_crawl_time'] ? '—' : substr( $row['last_crawl_time'], 0, 10 ) ) . '</td></tr>';
+					echo '<tr><td><code>' . esc_html( $row['path'] ) . '</code></td><td>' . esc_html( $row['coverage_state'] ) . '</td><td>' . esc_html( '' === $row['last_crawl_time'] ? '—' : substr( $row['last_crawl_time'], 0, 10 ) ) . '</td><td>' . esc_html( null === $row['inbound_links'] ? '—' : number_format_i18n( (int) $row['inbound_links'] ) ) . '</td></tr>';
 				}
 				echo '</tbody></table></div>';
 			}

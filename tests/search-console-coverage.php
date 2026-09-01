@@ -123,5 +123,17 @@ ok( 3 === count( $GLOBALS['__posted'] ), 'force: everything re-inspected' );
 $partial = get_option( SNT_GSC_COVERAGE_OPTION ); $partial['complete'] = false; update_option( SNT_GSC_COVERAGE_OPTION, $partial );
 ok( false === snt_gsc_coverage_summary( snt_gsc_coverage_data() )['complete'] && true === snt_gsc_coverage_summary( snt_gsc_coverage_data() )['synced'], 'summary: complete:false while synced:true — a partial map is a partial map, not an absent one' );
 
+
+// ─── v13.65.0: inbound links ride the not-indexed rows ───
+echo "\nGroup: v13.65.0 inbound links\n";
+$GLOBALS['__ready'] = true; $GLOBALS['__opt'] = array(); $GLOBALS['__api'] = array( 'https://example.test/notes/alpha/' => $indexed(), 'https://example.test/notes/beta/' => $crawled_not );
+snt_gsc_coverage_sync( true );
+$s0 = snt_gsc_coverage_summary( snt_gsc_coverage_data() );
+ok( false === $s0['inbound_available'] && null === $s0['not_indexed_paths'][0]['inbound_links'], 'no counts passed → inbound_available:false and inbound_links:null (not computed, not zero)' );
+$s1 = snt_gsc_coverage_summary( snt_gsc_coverage_data(), array( '/notes/beta' => array( 'inbound' => 3, 'linked_from' => array( 11, 12, 13 ) ) ) );
+ok( true === $s1['inbound_available'] && 3 === $s1['not_indexed_paths'][0]['inbound_links'], 'counts passed → the not-indexed row carries its inbound count' );
+$s2 = snt_gsc_coverage_summary( snt_gsc_coverage_data(), array() );
+ok( 0 === $s2['not_indexed_paths'][0]['inbound_links'], 'counts computed but the path absent → a real zero (nothing links here)' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
