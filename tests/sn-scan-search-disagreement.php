@@ -71,6 +71,12 @@ ok( null === $r['candidates'][0]['evidence']['coverage'], 'and null — not a gu
 $rce = snt_search_disagreement_impl( $posts, $pages, array(), array(), array( '/notes/long-unseen' => array( 'error' => 'snt_gsc_api_error' ) ) );
 ok( array( 'error' => 'snt_gsc_api_error' ) === array_values( array_filter( $rce['candidates'], static fn( $c ) => 'no_impressions' === $c['evidence']['detector'] ) )[0]['evidence']['coverage'], 'an inspection error is reported as an error, never as not-indexed' );
 
+// ─── (1c) v13.65.0: inbound_links rides no_impressions ───
+$ri = snt_search_disagreement_impl( $posts, $pages, array(), array(), array(), array( '/notes/long-unseen' => array( 'inbound' => 2 ) ) );
+ok( 2 === array_values( array_filter( $ri['candidates'], static fn( $c ) => 'no_impressions' === $c['evidence']['detector'] ) )[0]['evidence']['inbound_links'], 'no_impressions carries inbound_links when counts are passed' );
+ok( null === $r['candidates'][0]['evidence']['inbound_links'], 'and null when they were not computed' );
+ok( 0 === snt_search_disagreement_impl( $posts, $pages, array(), array(), array(), array() )['candidates'][0]['evidence']['inbound_links'], 'computed but absent → a real zero' );
+
 // ─── (2) the site-level query reading ───
 $queries = array(
 	array( 'key' => 'provenance ledger',  'impressions' => 50, 'clicks' => 2, 'position' => 9.4 ), // claimed by post 5's keyword "ledger"

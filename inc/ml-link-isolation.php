@@ -130,51 +130,91 @@ function snt_ml_outbound_slugs( $content, $our_host = null ) {
  * @param int $limit Maximum rows returned; clamped to SNT_ML_ISOLATION_MAX.
  * @return array{ok:bool,isolated:array,isolated_count:int,isolated_total:int,posts_scanned:int,truncated:bool,scanned_at:int}
  */
-function snt_ml_link_isolation( $limit = 50 ) {
-	$limit = max( 1, min( SNT_ML_ISOLATION_MAX, (int) $limit ) );
-	$host  = (string) wp_parse_url( home_url(), PHP_URL_HOST );
-
-	$posts = snt_corpus_fetch_posts( 'publish', 'post' );
-
-	$rows      = array(); // slug => subject row
-	$outbound  = array(); // slug => internal outbound count (self-links excluded)
-	$inbound   = array(); // slug => inbound count from OTHER published notes
-	$bodies    = array();
-
-	foreach ( $posts as $post ) {
+/**
+ * The link graph over published notes. PURE over post objects (v13.65.0):
+ * slug => {post_id, title, slug, status, inbound, outbound, linked_from}.
+ *
+ * A target is counted ONCE per source (two links from one note are one
+ * edge), self-links are not reachability, and a link to anything that is
+ * not a published note is not an edge. Extracted from the isolation walk so
+ * the same graph can answer "how many notes link to THIS one" for the
+ * coverage and disagreement readers without a second parser.
+ *
+ * @param array  $posts WP_Post-like objects (ID, post_name, post_title, post_status, post_content).
+ * @param string $host  The site host.
+ * @return array<string,array>
+ */
+function snt_ml_link_graph( $posts, $host ) {
+	$rows   = array();
+	$bodies = array();
+	foreach ( (array) $posts as $post ) {
 		$slug = strtolower( (string) ( $post->post_name ?? '' ) );
 		if ( '' === $slug ) {
 			continue; // No slug, no address: it cannot be a link target.
 		}
 		$rows[ $slug ] = array(
-			'post_id'        => (int) $post->ID,
-			'title'          => (string) ( $post->post_title ?? '' ),
-			'slug'           => $slug,
-			'status'         => (string) ( $post->post_status ?? '' ),
-			'outbound_count' => 0,
+			'post_id'     => (int) $post->ID,
+			'title'       => (string) ( $post->post_title ?? '' ),
+			'slug'        => $slug,
+			'status'      => (string) ( $post->post_status ?? '' ),
+			'inbound'     => 0,
+			'outbound'    => 0,
+			'linked_from' => array(),
 		);
-		$bodies[ $slug ]   = (string) ( $post->post_content ?? '' );
-		$inbound[ $slug ]  = 0;
-		$outbound[ $slug ] = 0;
+		$bodies[ $slug ] = (string) ( $post->post_content ?? '' );
 	}
-
 	foreach ( $bodies as $source_slug => $content ) {
-		$seen = array(); // Count a target ONCE per source: two links from the
-		                 // same note are one editorial connection, not two.
+		$seen = array();
 		foreach ( snt_ml_outbound_slugs( $content, $host ) as $target ) {
-			if ( $target === $source_slug ) {
-				continue; // A self-link is not reachability, in either direction.
-			}
-			if ( ! isset( $rows[ $target ] ) ) {
-				continue; // Points somewhere real, but not at a published note.
-			}
-			if ( isset( $seen[ $target ] ) ) {
+			if ( $target === $source_slug || ! isset( $rows[ $target ] ) || isset( $seen[ $target ] ) ) {
 				continue;
 			}
 			$seen[ $target ] = true;
-			++$inbound[ $target ];
-			++$outbound[ $source_slug ];
+			++$rows[ $target ]['inbound'];
+			++$rows[ $source_slug ]['outbound'];
+			$rows[ $target ]['linked_from'][] = $rows[ $source_slug ]['post_id'];
 		}
+	}
+	return $rows;
+}
+
+/**
+ * Inbound counts keyed by the WEAVE join key (v13.65.0), so the coverage map
+ * and the disagreement scan join without a third spelling. {inbound, linked_from}.
+ *
+ * @return array<string,array{inbound:int,linked_from:int[]}>
+ */
+function snt_ml_inbound_by_path() {
+	if ( ! function_exists( 'snt_corpus_fetch_posts' ) ) {
+		return array();
+	}
+	$host  = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	$graph = snt_ml_link_graph( snt_corpus_fetch_posts( 'publish', 'post' ), $host );
+	$out   = array();
+	foreach ( $graph as $slug => $row ) {
+		$url = function_exists( 'get_permalink' ) ? (string) get_permalink( (int) $row['post_id'] ) : '';
+		$key = '' !== $url && function_exists( 'sn_path_join_key' ) ? sn_path_join_key( $url ) : '/' . $slug;
+		if ( '' === $key ) {
+			continue;
+		}
+		$out[ $key ] = array( 'inbound' => (int) $row['inbound'], 'linked_from' => $row['linked_from'] );
+	}
+	return $out;
+}
+
+function snt_ml_link_isolation( $limit = 50 ) {
+	$limit = max( 1, min( SNT_ML_ISOLATION_MAX, (int) $limit ) );
+	$host  = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+
+	$posts = snt_corpus_fetch_posts( 'publish', 'post' );
+	$graph = snt_ml_link_graph( $posts, $host );
+	$rows  = array();
+	$inbound = array();
+	$outbound = array();
+	foreach ( $graph as $slug => $g ) {
+		$rows[ $slug ]     = array( 'post_id' => $g['post_id'], 'title' => $g['title'], 'slug' => $slug, 'status' => $g['status'], 'outbound_count' => 0 );
+		$inbound[ $slug ]  = $g['inbound'];
+		$outbound[ $slug ] = $g['outbound'];
 	}
 
 	$isolated = array();

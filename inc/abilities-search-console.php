@@ -192,7 +192,7 @@ function snt_ability_search_coverage( $input ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'Search Console coverage not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
 	$d = snt_gsc_coverage_data();
-	$s = snt_gsc_coverage_summary( $d );
+	$s = snt_gsc_coverage_summary( $d, function_exists( 'snt_ml_inbound_by_path' ) ? snt_ml_inbound_by_path() : null ); // v13.65.0: inbound_links per not-indexed row.
 	return array_merge( array( 'ok' => true ), $s, array(
 		'entries' => is_array( $d ) ? (array) $d['entries'] : array(),
 		'status'  => function_exists( 'snt_gsc_coverage_last_status' ) ? snt_gsc_coverage_last_status() : null, // v13.64.0: the last run's timing.
@@ -291,6 +291,7 @@ function snt_search_console_abilities() {
 					// v13.63.1: a PHP map with no keys serializes as [] — the schema must
 					// admit both, or the door refuses the never-synced answer itself.
 					'by_coverage_state'  => array( 'type' => array( 'object', 'array' ) ),
+					'inbound_available'  => array( 'type' => 'boolean', 'description' => 'v13.65.0: not_indexed_paths[].inbound_links is computed (else null).' ),
 					'not_indexed_paths'  => array( 'type' => 'array' ),
 					'canonical_mismatch' => array( 'type' => 'array' ),
 					'entries'            => array( 'type' => array( 'object', 'array' ) ),

@@ -218,10 +218,11 @@ function snt_gsc_coverage_for_path( $path ) {
 /**
  * Counts and the lists a reader acts on. PURE.
  *
- * @param array|null $d snt_gsc_coverage_data().
+ * @param array|null $d       snt_gsc_coverage_data().
+ * @param array|null $inbound v13.65.0: snt_ml_inbound_by_path(); null = not computed (rows carry inbound_links:null).
  * @return array
  */
-function snt_gsc_coverage_summary( $d ) {
+function snt_gsc_coverage_summary( $d, $inbound = null ) {
 	if ( ! is_array( $d ) ) {
 		return array( 'synced' => false, 'complete' => false, 'inspected' => 0, 'indexed' => 0, 'not_indexed' => 0, 'unknown' => 0, 'errors' => 0, 'by_coverage_state' => array(), 'not_indexed_paths' => array(), 'canonical_mismatch' => array() );
 	}
@@ -240,7 +241,14 @@ function snt_gsc_coverage_summary( $d ) {
 			$idx++;
 		} elseif ( false === ( $e['indexed'] ?? null ) ) {
 			$not++;
-			$not_paths[] = array( 'path' => (string) $path, 'coverage_state' => $cs, 'last_crawl_time' => (string) ( $e['last_crawl_time'] ?? '' ), 'verdict' => (string) ( $e['verdict'] ?? '' ) );
+			$not_paths[] = array(
+				'path'            => (string) $path,
+				'coverage_state'  => $cs,
+				'last_crawl_time' => (string) ( $e['last_crawl_time'] ?? '' ),
+				'verdict'         => (string) ( $e['verdict'] ?? '' ),
+				// v13.65.0: how many OTHER published notes link here. null = not computed.
+				'inbound_links'   => is_array( $inbound ) ? (int) ( $inbound[ (string) $path ]['inbound'] ?? 0 ) : null,
+			);
 		} else {
 			$unk++;
 		}
@@ -251,6 +259,7 @@ function snt_gsc_coverage_summary( $d ) {
 	arsort( $states );
 	return array(
 		'synced'             => true,
+		'inbound_available'  => is_array( $inbound ),
 		'complete'           => ! array_key_exists( 'complete', $d ) || ! empty( $d['complete'] ), // v13.64.0: false = a run is in progress or was interrupted.
 		'synced_at'          => (int) ( $d['synced_at'] ?? 0 ),
 		'capped'             => ! empty( $d['capped'] ),

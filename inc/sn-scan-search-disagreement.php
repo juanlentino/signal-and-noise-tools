@@ -54,9 +54,10 @@ const SNT_SEARCH_QUERY_TOKEN_MIN = 4;
  * @param array<int,array>                                    $queries  GSC query rows {key, impressions, clicks, position}.
  * @param array<int,string[]>|null                            $keywords post id => keyword terms; null = pipeline unavailable.
  * @param array<string,array>                                 $coverage v13.63.0: join key => stored URL Inspection entry (may be empty).
+ * @param array<string,array>|null                            $inbound  v13.65.0: join key => {inbound}; null = not computed.
  * @return array{candidates:array,keyword_pipeline:bool}
  */
-function snt_search_disagreement_impl( $posts, $pages, $queries, $keywords, $coverage = array() ) {
+function snt_search_disagreement_impl( $posts, $pages, $queries, $keywords, $coverage = array(), $inbound = null ) {
 	$candidates = array();
 	$claimed    = array(); // lowercase keyword terms across the whole scope.
 
@@ -81,6 +82,8 @@ function snt_search_disagreement_impl( $posts, $pages, $queries, $keywords, $cov
 				'last_crawl_time' => (string) ( $cov['last_crawl_time'] ?? '' ),
 				'verdict'         => (string) ( $cov['verdict'] ?? '' ),
 			) );
+			// v13.65.0: the lever for the not-indexed half. null = not computed.
+			$c['evidence']['inbound_links'] = is_array( $inbound ) ? (int) ( $inbound[ $path ]['inbound'] ?? 0 ) : null;
 			$candidates[] = $c;
 		} elseif ( $imp >= SNT_GSC_DRIFT_MIN_IMPRESSIONS && $words < SNT_SEARCH_THIN_WORDS ) {
 			$candidates[] = snt_search_disagreement_candidate( 'thin_but_found', $path, $id, $imp, $words,
@@ -220,7 +223,7 @@ function snt_sn_scan_adapter_search_disagreement( $allowed_ids ) {
 			}
 		}
 	}
-	$r = snt_search_disagreement_impl( $posts, $pages, (array) ( $data['queries'] ?? array() ), $keywords, $coverage );
+	$r = snt_search_disagreement_impl( $posts, $pages, (array) ( $data['queries'] ?? array() ), $keywords, $coverage, function_exists( 'snt_ml_inbound_by_path' ) ? snt_ml_inbound_by_path() : null );
 	return array(
 		'candidates'     => $r['candidates'],
 		'posts_examined' => count( $posts ),

@@ -243,5 +243,22 @@ ok( false === stripos( $module, 'wp_remote' ) && false === stripos( $module, 'op
 ok( array() === $GLOBALS['__php_errors'],
 	'no PHP notices, warnings or deprecations: ' . implode( ' | ', $GLOBALS['__php_errors'] ) );
 
+
+// ─── v13.65.0: the graph is pure and inbound counts join by path ───
+echo "\nGroup: v13.65.0 link graph + inbound_by_path\n";
+$g = snt_ml_link_graph( array(
+	tf_post( 1, 'publish', 'alpha', '<a href="/notes/beta/">b</a> <a href="https://juanlentino.com/notes/beta/">b again</a> <a href="/notes/alpha/">self</a>' ),
+	tf_post( 2, 'publish', 'beta',  '<a href="/notes/alpha/">a</a> <a href="/notes/nope/">gone</a>' ),
+	tf_post( 3, 'publish', 'gamma', '' ),
+), 'juanlentino.com' );
+ok( 1 === $g['beta']['inbound'] && array( 1 ) === $g['beta']['linked_from'], 'two links from one source count ONCE; linked_from names the source post' );
+ok( 1 === $g['alpha']['inbound'] && 1 === $g['alpha']['outbound'], 'a self-link is not an edge in either direction' );
+ok( 0 === $g['gamma']['inbound'] && 0 === $g['gamma']['outbound'] && 1 === $g['beta']['outbound'], 'a link to a non-note is not an edge; gamma is isolated' );
+if ( ! function_exists( 'get_permalink' ) ) { function get_permalink( $id ) { return 'https://juanlentino.com/notes/' . array( 1 => 'alpha', 2 => 'beta', 3 => 'gamma' )[ $id ] . '/'; } }
+if ( ! function_exists( 'sn_path_join_key' ) ) { require_once __DIR__ . '/../inc/path-join-key.php'; }
+$GLOBALS['__posts'] = array( tf_post( 1, 'publish', 'alpha', '<a href="/notes/beta/">b</a>' ), tf_post( 2, 'publish', 'beta', '' ), tf_post( 3, 'publish', 'gamma', '' ) );
+$by = snt_ml_inbound_by_path();
+ok( array( '/notes/alpha', '/notes/beta', '/notes/gamma' ) === array_keys( $by ) && 1 === $by['/notes/beta']['inbound'] && 0 === $by['/notes/alpha']['inbound'], 'inbound_by_path: keyed by the weave join key (trailing slash stripped), counts from the same graph' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
