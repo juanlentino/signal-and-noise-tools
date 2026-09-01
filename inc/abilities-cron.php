@@ -177,6 +177,51 @@ add_action( 'wp_abilities_api_init', function() {
 		),
 	) );
 
+	wp_register_ability( 'signal-noise/cron-health-summary', array(
+		'label'               => 'Cron health, summarized',
+		'description'         => "Is cron healthy? One answer: status (good|recommended|critical), a derived summary sentence, and the evidence — overdue jobs (with cadence and how far behind), expected-but-unscheduled jobs, and whether DISABLE_WP_CRON is starving the trigger. The MODEL the 2026-08-11 remote partition asked for: it says whether anything is WRONG, where list-cron-events says only what exists. Shares its overdue rule (last firing older than 2x cadence) with the Site Health check — one derivation, two consumers. Detail (args, next-run times, full rows) stays on list-cron-events. Read-only.",
+		'category'            => 'diagnostics',
+		'permission_callback' => 'snt_ability_perm_manage_options',
+		'execute_callback'    => 'snt_ability_cron_health_summary',
+		'input_schema'        => array(
+			'type'                 => array( 'object', 'null' ),
+			'properties'           => array(),
+			'additionalProperties' => false,
+		),
+		'output_schema'       => array(
+			'type'       => 'object',
+			'properties' => array(
+				'ok'                     => array( 'type' => 'boolean' ),
+				'status'                 => array( 'type' => 'string', 'enum' => array( 'good', 'recommended', 'critical' ) ),
+				'checked_at'             => array( 'type' => 'integer' ),
+				'recurring'              => array( 'type' => 'integer', 'description' => 'Recurring jobs the dashboard expects to fire.' ),
+				'on_schedule'            => array( 'type' => 'integer' ),
+				'overdue'                => array(
+					'type'  => 'array',
+					'items' => array(
+						'type'       => 'object',
+						'properties' => array(
+							'job'        => array( 'type' => 'string' ),
+							'cadence'    => array( 'type' => 'integer', 'description' => 'Seconds between expected firings.' ),
+							'overdue_by' => array( 'type' => 'integer', 'description' => 'Seconds past the expected firing.' ),
+						),
+					),
+				),
+				'missing'                => array( 'type' => 'array', 'items' => array( 'type' => 'string' ), 'description' => 'Expected recurring jobs with no schedule at all.' ),
+				'cron_disabled_constant' => array( 'type' => 'boolean' ),
+				'summary'                => array( 'type' => 'string', 'description' => 'Derived from the counts above in the same function; cannot drift from them.' ),
+			),
+		),
+		'meta'                => array(
+			'show_in_rest' => true,
+			'annotations'  => array(
+				'readonly'        => true,
+				'idempotent'      => true,
+				'open_world_hint' => false,
+			),
+		),
+	) );
+
 	wp_register_ability( 'signal-noise/schedule-cron-event', array(
 		'label'               => 'Schedule a cron event to run soon',
 		'description'         => "Books ONE future run of a Signal & Noise cron hook and returns immediately, without running it. The inverse of unschedule-cron-event, and bounded by the same allow-list with the polarity flipped: unscheduling REFUSES SN-owned hooks, scheduling accepts ONLY them, because booking a third-party hook is deferred dispatch of code this plugin does not own. Exists for work too slow to survive an HTTP request — the health scan runs roughly 35s, up to ~105s when something is down, against a ~100s edge cap — so this books it and lets WP-Cron run it out of band; read the result later through get-health-scan. A hook with no registered handler is refused rather than booked, and an identical pending event is reported rather than duplicated. NOT a dispatcher: it never reports what the hook did, only that a run was booked.",
@@ -345,6 +390,20 @@ function snt_ability_unschedule_cron_event( $input ) {
 	$hook = isset( $input['hook'] ) ? (string) $input['hook'] : '';
 	$args = isset( $input['args'] ) && is_array( $input['args'] ) ? $input['args'] : array();
 	return snt_cron_unschedule_event_impl( $hook, $args );
+}
+
+/**
+ * Ability execute_callback for signal-noise/cron-health-summary.
+ *
+ * @since 13.52.0
+ * @param mixed $input Unused; the summary takes no arguments.
+ * @return array|WP_Error
+ */
+function snt_ability_cron_health_summary( $input = null ) {
+	if ( ! function_exists( 'snt_cron_health_summary_impl' ) ) {
+		return new WP_Error( 'snt_cron_unavailable', 'Cron dashboard module not loaded.', array( 'status' => 500 ) );
+	}
+	return snt_cron_health_summary_impl();
 }
 
 /**

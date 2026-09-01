@@ -2,6 +2,77 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.52.0] - 2026-09-01 — the phone can ask whether cron is healthy, and three sections cross the remote door
+
+Waves 1 and 3 of the ratified plan, shipped as one contract bump. **Requires the
+worker at v1.2.0** — `sn-remote-mcp-worker` moves `CONTRACT_VERSION` 1 → 2 in
+the same arc. The deploy probe OBSERVES a mismatch rather than refusing, so the
+two halves may land minutes apart.
+
+### Added — `cron_health`, the model the partition asked for
+
+The 2026-08-11 partition deferred the cron sections from the remote door "with a
+pass": a model-never-levers output review, because a list of raw hook rows tells
+a phone that machinery exists without saying whether anything is **wrong**.
+
+`signal-noise/cron-health-summary` is that review's product. It answers the
+question directly — `status` (good | recommended | critical), a `summary`
+sentence, and the evidence: overdue jobs with their cadence and how far behind,
+plus expected-but-unscheduled jobs.
+
+- The `summary` sentence is **derived from the same counts in the same
+  function**, never hand-written, so prose cannot drift from the numbers it
+  describes. That is v13.51.0's schema-layer discipline applied at the prose
+  layer.
+- `snt_cron_health_model()` is extracted from `snt_cron_site_health_result()`, so
+  the Site Health check and the new ability share ONE overdue rule (scheduled,
+  fired before, last firing older than 2× cadence). The dashboard and the phone
+  cannot disagree about whether the same job is late.
+- `cron_scheduled` / `cron_history` stay **local**: detail rows are desktop work.
+  The verdict travels; the rows do not.
+
+### Added — three remote twins
+
+`provenance_integrity`, `machine_readers` and `cron_health`, ratified under the
+post-Access threat model (the door sits behind Cloudflare Access, whose JWT the
+worker verifies against the team JWKS — the realistic reader is the owner).
+
+- Each twin's `output_schema` is copied **byte-identically** from its admin
+  registration; `tests/abilities-remote-set.php` enforces `===` on all eleven
+  pairs.
+- `provenance_integrity` is parity-safe because its sweep is `post_status =>
+  'publish'` — `failing[]` can only name public titles. `machine_readers` is
+  aggregate-only: no post bodies, no UA samples.
+- Contract `SN_REMOTE_CONTRACT_VERSION` 1 → 2 with a new **distinct** hash,
+  obtained RED-then-pin from the failing test rather than hand-derived.
+
+### Ruled — `anchor` stays local (D1)
+
+Its payload joins ledger entries to post titles across `post_status => 'any'`,
+so it can name **unpublished** titles, and the byte-identical twin rule forbids
+narrowing it. The ledger is separately public. Recorded in the verdict map and
+the worker's own table comment; do not re-propose without a new parity design.
+
+### Fixed — a pin that fired on a word rather than a thing
+
+`tests/ml-drift.php` asserted the remote set carries no drift twin by scanning
+the bare substring `drift` — and matched **prose**: a schema description reading
+"cannot drift from them", with zero references to the drift pipeline in the
+file. It now scans for `corpus-drift` / `snt_ml_drift_report`, the pipeline's own
+identifiers, with a negative control proving the tightened scan still catches a
+genuine leak. A pin that fires on the word trains people to reword comments,
+which is worse than no pin.
+
+### Testing
+
+The totality pin earned itself on first use: adding `cron_health` reded
+`tests/mcp-remote-verdicts.php` with `missing: cron_health` before any decision
+was recorded. Four mutations red — anchor slipped onto the allowlist, a twin
+schema drifted from its admin, a contract version bumped without a shape change,
+and a verdict set `true` without an allowlisted twin. Three count pins updated
+deliberately (ability count 18 → 19, sn-status sections 12 → 13, remote slugs
+8 → 11). Sweep: 526 suites, 21,448 assertions.
+
 ## [13.51.0] - 2026-09-01 — schema drift stops shipping as a silent success
 
 Wave 2 of the ratified 2026-09-01 plan (docs/BACKLOG.md).

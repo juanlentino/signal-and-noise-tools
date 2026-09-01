@@ -105,6 +105,10 @@ function snt_sn_status_map() {
 		'cadence'              => 'signal-noise/cadence-flags',
 		'cron_scheduled'       => 'signal-noise/list-cron-events',
 		'cron_history'         => 'signal-noise/get-cron-history',
+		// v13.52.0 — the MODEL over the two rows above: status + derived summary
+		// + overdue/missing evidence, sharing the Site Health overdue rule. This
+		// is the section the remote door twins; the detail rows stay local.
+		'cron_health'          => 'signal-noise/cron-health-summary',
 		// v13.44.0. Operational state, beside deploy and health_scan.
 		'collector'            => 'signal-noise/get-collector-status',
 		// manage_options, so it belongs here and NOT on sn-validate, which is

@@ -40,13 +40,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 // Mirrors CONTRACT_VERSION in sn-remote-mcp-worker src/mcp.mjs. Bump BOTH
 // (worker constant + this mirror + the hash map below) when any remote
 // payload shape or the door's envelope changes.
-const SN_REMOTE_CONTRACT_VERSION = '1';
+// v13.52.0: '1' -> '2' — three ratified twins joined the map
+// (provenance-integrity, machine-readers, cron-health). The worker's
+// CONTRACT_VERSION bumps in the same arc; until its deploy lands, the deploy
+// probe reads contract_match:false, which is the observed-not-refused design.
+const SN_REMOTE_CONTRACT_VERSION = '2';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the 8 remote twins' output_schemas. Every version maps to a DISTINCT hash:
 // a version bump without a shape change is a lie the test refuses.
 const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'1' => '90f2ce6597120d1dc2dd46f28b38916fac08783a3da5937fb032417ba3a32c20',
+	// RED-then-pin, 2026-09-01: the failing test computed this over the
+	// 11-twin map. Never hand-derived.
+	'2' => '5232aaa9c622fcbefcb93e3599521ab30007549fb30e3881d889f093ceb7743e',
 );
 
 /**

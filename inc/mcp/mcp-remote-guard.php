@@ -68,6 +68,11 @@ function sn_mcp_remote_slugs() {
 		'signal-noise/remote-get-health-scan',
 		'signal-noise/remote-get-rss-stats',
 		'signal-noise/remote-get-deploy-status',
+		// v13.52.0 — the three ratified twins (rulings in docs/BACKLOG.md's
+		// plan section). anchor is deliberately absent: RULED LOCAL (D1).
+		'signal-noise/remote-provenance-integrity-status',
+		'signal-noise/remote-machine-readers-summary',
+		'signal-noise/remote-cron-health-summary',
 	);
 }
 
@@ -110,13 +115,14 @@ function sn_mcp_remote_verdicts() {
 		'uptime'               => $out( true, 'Availability of the public site. No post bodies, no request-derived detail.', 'signal-noise/remote-uptime-status' ),
 		'deploy'               => $out( true, 'Deploy state of public infrastructure. Shipped before this map.', 'signal-noise/remote-get-deploy-status' ),
 		'health_scan'          => $out( true, 'Verdicts over public URLs. The scan itself stays un-triggerable remotely — reading a verdict is not causing one.', 'signal-noise/remote-get-health-scan' ),
-		'anchor'               => $out( false, 'Candidate: the 2026-08-11 partition says IN ("the ledger is public anyway"), and it was never ratified. Awaiting Precondition B.' ),
-		'provenance_integrity' => $out( false, 'Candidate on the same "ledger is public anyway" reasoning, and unratified for the same reason. Awaiting Precondition B.' ),
+		'anchor'               => $out( false, 'RULED LOCAL (D1, 2026-09-01): the payload joins ledger entries to post titles across post_status=any, so it can name UNPUBLISHED titles, and the byte-identical twin rule forbids narrowing it. The ledger itself is separately public. Do not re-propose without a new parity-rule design.' ),
+		'provenance_integrity' => $out( true, 'Ratified 2026-09-01 (post-Access model: the reader is the owner, authenticated). The sweep is post_status=publish, so failing[] can only name public titles — parity-safe as a byte-identical twin.', 'signal-noise/remote-provenance-integrity-status' ),
 		'ipv6_criterion'       => $out( false, 'Login-defense tuning criterion. Defence posture, not analytics: it describes what the door would block, which is recon rather than a metric.' ),
 		'ai_cache_probe'       => $out( false, 'Internal cache-warm diagnostics. No decision is taken from a phone on it, so exposure buys nothing against a credentialed path.' ),
 		'cadence'              => $out( false, 'Publishing cadence flags read editorial state, including scheduled and unpublished work.' ),
-		'cron_scheduled'       => $out( false, 'Candidate IN "with a pass": the payload names cron HOOKS, which is recon. It needs a model-never-levers output review before ratification, and v13.49.0 made the hook list load-bearing for the schedule bound. Awaiting Precondition B.' ),
-		'cron_history'         => $out( false, 'Same family and the same unfinished output review as cron_scheduled. Awaiting Precondition B.' ),
+		'cron_scheduled'       => $out( false, 'Detail rows stay on the desktop. The model-never-levers review the partition asked for produced cron_health (v13.52.0), which IS remote — this section answers "what exists", the phone question is "is anything wrong".' ),
+		'cron_history'         => $out( false, 'Same split as cron_scheduled: per-firing history is desktop detail; cron_health carries the verdict remotely.' ),
+		'cron_health'          => $out( true, 'The model the partition asked for (v13.52.0): status + derived summary + overdue evidence, sharing the Site Health overdue rule. Byte-identical twin of a section designed for the phone.', 'signal-noise/remote-cron-health-summary' ),
 		'collector'            => $out( false, 'Analytics collector plumbing state. Operational internals, not a number anyone reads on a phone.' ),
 		'corpus_integrity'     => $out( false, 'OUT BY CONSTRUCTION: the corpus spans SNT_CORPUS_STATUSES, so its findings can name draft, pending and private posts. Not proposable.' ),
 
@@ -124,9 +130,9 @@ function sn_mcp_remote_verdicts() {
 		'analytics_summary'    => $out( true, 'The analytics scope the remote door exists for. Aggregate counts only.', 'signal-noise/remote-get-analytics-summary' ),
 		'analytics_events'     => $out( true, 'Event counts within the same analytics scope. Shipped before this map.', 'signal-noise/remote-get-analytics-events' ),
 		'rss_stats'            => $out( true, 'Feed-delivery counts over a public feed.', 'signal-noise/remote-get-rss-stats' ),
-		'machine_readers'      => $out( false, 'New candidate: aggregate crawler counts, with no post bodies and no UA samples in the summary payload. Unratified. Awaiting Precondition B.' ),
-		'analytics_top_content'=> $out( false, 'New candidate, and the one carrying an OPEN QUESTION the plan flags rather than answers: it is request-derived, so it must be established that a draft or preview slug can never surface in it before ratification. Awaiting Precondition B.' ),
-		'404_log'              => $out( false, 'New candidate, request-derived and arguably recon — a map of what does not exist is a map of what someone probed for. The partition leans OUT. Awaiting Precondition B.' ),
+		'machine_readers'      => $out( true, 'Ratified 2026-09-01. Aggregate family/surface/purpose counts only — no post bodies, no UA samples. The closest of the candidates to the analytics scope the door was built for.', 'signal-noise/remote-machine-readers-summary' ),
+		'analytics_top_content'=> $out( false, 'Deferred on UTILITY, not safety (post-Access, the reader is the owner). The dashboard covers it. One residual stays recorded: the rollup stores REQUESTED paths, so a logged-out visitor requesting an unpublished slug lands that path string via a 404; owner previews are already dropped at the worker (login-cookie beacons rejected).' ),
+		'404_log'              => $out( false, 'DROPPED 2026-09-01 — weakest candidate on every axis; deferred on utility under the post-Access model. Revisit only if the owner would actually read it.' ),
 
 		/* ── sn-site-facts ────────────────────────────────────────────── */
 		'theme_version'        => $out( false, 'Build identity. Reading it remotely aids fingerprinting and answers no question a phone asks.' ),
