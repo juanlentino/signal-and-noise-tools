@@ -94,5 +94,20 @@ sm_true( ! isset( $result['category'] ), 'category removed from taxonomies' );
 sm_true( isset( $result['custom'] ) && 'CUSTOM' === $result['custom'], 'custom taxonomy preserved' );
 sm_eq( 1, count( $result ), 'exactly one taxonomy left (the custom one)' );
 
+
+// ─── v13.66.0: per-URL lastmod ───
+echo "\nGroup: v13.66.0 lastmod\n";
+sm_eq( '2026-08-29T20:36:28+00:00', sn_sitemap_lastmod( '2026-08-29 20:36:28' ), 'a real GMT modified time → ISO 8601 with +00:00' );
+sm_eq( null, sn_sitemap_lastmod( '0000-00-00 00:00:00' ), 'the zero date → null (nothing emitted)' );
+sm_eq( null, sn_sitemap_lastmod( '' ), 'empty → null' );
+sm_eq( null, sn_sitemap_lastmod( '2026-02-30 12:00:00' ), 'an impossible date → null, never a normalised guess' );
+sm_eq( null, sn_sitemap_lastmod( 'yesterday' ), 'garbage → null' );
+$sm_post = (object) array( 'ID' => 7, 'post_modified_gmt' => '2026-08-29 20:36:28' );
+$sm_entry = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/notes/x/' ), $sm_post, 'post' );
+sm_eq( array( 'loc' => 'https://juanlentino.com/notes/x/', 'lastmod' => '2026-08-29T20:36:28+00:00' ), $sm_entry, 'the entry filter adds lastmod beside loc' );
+$sm_bad = apply_filters( 'wp_sitemaps_posts_entry', array( 'loc' => 'https://juanlentino.com/notes/y/' ), (object) array( 'ID' => 8, 'post_modified_gmt' => '0000-00-00 00:00:00' ), 'post' );
+sm_true( ! array_key_exists( 'lastmod', $sm_bad ), 'a post with no real modified time gets NO lastmod key — a fabricated date is the inconsistency Google ignores the field for' );
+sm_true( isset( $GLOBALS['__filters']['wp_sitemaps_posts_entry'] ), 'the wp_sitemaps_posts_entry filter is registered' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
