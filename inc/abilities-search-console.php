@@ -185,6 +185,17 @@ function snt_ability_search_crossexam( $input ) {
 	return snt_search_crossexam_impl( $x, snt_gsc_crossexam_reading( $x ) );
 }
 
+/** Execute callback: signal-noise/search-coverage (v13.63.0). Stored map only; never inspects. */
+function snt_ability_search_coverage( $input ) {
+	unset( $input );
+	if ( ! function_exists( 'snt_gsc_coverage_data' ) || ! function_exists( 'snt_gsc_coverage_summary' ) ) {
+		return new WP_Error( 'snt_helper_unavailable', __( 'Search Console coverage not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
+	}
+	$d = snt_gsc_coverage_data();
+	$s = snt_gsc_coverage_summary( $d );
+	return array_merge( array( 'ok' => true ), $s, array( 'entries' => is_array( $d ) ? (array) $d['entries'] : array() ) );
+}
+
 /**
  * slug => [label, description, execute callback, output_schema]. One table so
  * the registration loop, the read allowlist and the tests derive from it.
@@ -254,6 +265,29 @@ function snt_search_console_abilities() {
 						),
 					),
 					'note'     => array( 'type' => 'string' ),
+				),
+			),
+		),
+		'signal-noise/search-coverage'    => array(
+			'label'       => 'Search Console: index coverage per post (stored)',
+			'description' => 'Which published posts Google has actually indexed, from the URL Inspection API, inspected weekly and STORED — reading this never spends inspection quota. Per post: verdict, Google\'s coverage_state verbatim, indexing/robots/fetch states, last crawl time, canonical agreement, and indexed (true/false; null when Google gave no coverage state — never a guess). Summary counts indexed / not_indexed / unknown / errors, lists not_indexed_paths and canonical_mismatch. This is the discriminator the disagreement scan\'s no_impressions reading needs: a page with zero impressions is either NOT INDEXED (crawl or quality) or indexed with no query demand (topic), and Search Analytics cannot tell those apart. synced:false means the weekly inspection has never run. Read-only.',
+			'execute'     => 'snt_ability_search_coverage',
+			'output'      => array(
+				'type'       => 'object',
+				'properties' => array(
+					'ok'                 => array( 'type' => 'boolean' ),
+					'synced'             => array( 'type' => 'boolean' ),
+					'synced_at'          => array( 'type' => 'integer' ),
+					'capped'             => array( 'type' => 'boolean' ),
+					'inspected'          => array( 'type' => 'integer' ),
+					'indexed'            => array( 'type' => 'integer' ),
+					'not_indexed'        => array( 'type' => 'integer' ),
+					'unknown'            => array( 'type' => 'integer' ),
+					'errors'             => array( 'type' => 'integer' ),
+					'by_coverage_state'  => array( 'type' => 'object' ),
+					'not_indexed_paths'  => array( 'type' => 'array' ),
+					'canonical_mismatch' => array( 'type' => 'array' ),
+					'entries'            => array( 'type' => 'object' ),
 				),
 			),
 		),
