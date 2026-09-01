@@ -2,6 +2,72 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.53.0] - 2026-09-01 — outbound requests pin to the address the guard validated
+
+Wave 4, step one. **The decision came before the code**, as the backlog required.
+
+### The decision — pin where we can, record where we cannot, never refuse
+
+The gap Step 1 (v13.50.1) left open is DNS rebinding: the guard validates every
+address in the rrset, then cURL resolves again at connect time and may get a
+different answer. The fix is `CURLOPT_RESOLVE`. The question was what to do when
+the request **cannot** be pinned — refuse it, or proceed and record the gap?
+
+**Proceed and record.** The asymmetry against v13.50.0's fail-closed read
+ceiling is deliberate, not an inconsistency:
+
+- That ceiling guards an **inbound credentialed** path. Refusing costs one
+  caller a retry.
+- This guards **outbound integrations**. Sixteen files call the guard and
+  thirty-four make requests; refusing when unpinnable would darken deploy
+  probes, uptime, health checks, webhooks and citation verification on any host
+  without the cURL extension — a self-inflicted outage, to prevent an attack
+  that needs an attacker-controlled hostname against inputs that are largely
+  owner-configured.
+
+So this release is **strictly additive**: it can never refuse a request that
+works today.
+
+### Added — the pin
+
+`sn_ssrf_pin_curl_handle()` on `http_api_curl`, binding host → the addresses
+`sn_ssrf_ip_blocked()` already cleared. That hook is reachable via
+`WP_HTTP_Requests_Hooks::dispatch()` bridging Requests' `curl.before_send` —
+**not** via the deprecated `WP_Http_Curl` the docs name, which is off the
+request path since 6.4.0. Reading either source alone concludes wrongly.
+
+`sn_ssrf_resolve_entries()` is pure, and **re-checks every address at the pin
+site**. The caller validated them, but a pin is the last gate: binding a blocked
+address there would hand cURL the exact destination the guard exists to refuse.
+An all-internal rrset yields nothing to pin, and nothing-to-pin means *do not
+pin*, never *pin to nothing*.
+
+### Added — the gap is visible, not assumed away
+
+When Requests picks fsockopen the hook never fires and the request goes out
+unpinned. Previously that would have been silent, which is the failure shape
+this guard exists to prevent. `sn_ssrf_record_unpinned()` records it and a
+**core Site Health test** says so in words, naming the transport fallback rather
+than reporting a vague "unavailable".
+
+Deliberately NOT on the plugin's own `health` surface: that tab answers "what is
+broken that I should fix" and admits a check only if it is a defect that can
+reach zero. On a host with cURL this reads `good` permanently — a row that never
+fires is noise on a curated tab. Core Site Health is where an environment
+posture belongs, beside the cron pipeline check.
+
+### Testing
+
+16 new assertions, three mutations red: the pin trusting its caller instead of
+re-checking, a wrong scheme→port derivation, and the no-cURL verdict reading
+`good`.
+
+**And a process catch worth recording.** The new block was appended *after* the
+suite's summary line, so it printed 32 PASS lines while the runner counted 16 —
+a failure in any of them would have been invisible to the sweep. Same trap as
+v13.49.0's. The summary now sits at the true tail, negative-controlled with a
+planted failure to prove it reaches the count.
+
 ## [13.52.0] - 2026-09-01 — the phone can ask whether cron is healthy, and three sections cross the remote door
 
 Waves 1 and 3 of the ratified plan, shipped as one contract bump. **Requires the

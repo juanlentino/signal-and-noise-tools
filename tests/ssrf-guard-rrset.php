@@ -48,6 +48,20 @@ function ok( $c, $m ) {
 	}
 }
 
+// v13.53.0: Step 2's port derivation is the guard's first use of a WordPress
+// function. Stubbed to core's own semantics (wp_parse_url delegates to
+// parse_url for a full URL) so the module still loads standalone.
+if ( ! function_exists( 'wp_parse_url' ) ) {
+	function wp_parse_url( $url, $component = -1 ) { return parse_url( $url, $component ); }
+}
+if ( ! function_exists( 'add_action' ) ) {
+	function add_action( $h, $cb, $p = 10, $a = 1 ) { return true; }
+}
+if ( ! function_exists( 'update_option' ) ) {
+	$GLOBALS['__ssrf_opts'] = array();
+	function update_option( $k, $v, $a = null ) { $GLOBALS['__ssrf_opts'][ $k ] = $v; return true; }
+}
+
 // ── The rrset seam, defined BEFORE the require so function_exists keeps it ──
 // Models what gethostbynamel() returns: EVERY A record, in DNS order.
 $GLOBALS['__rrset'] = array(
@@ -108,6 +122,51 @@ ok( sn_ssrf_ip_blocked( '100.127.255.255' ), 'CGNAT upper bound blocked' );
 ok( ! sn_ssrf_ip_blocked( '100.63.255.255' ), 'just below CGNAT NOT blocked' );
 ok( ! sn_ssrf_ip_blocked( '100.128.0.1' ), 'just above CGNAT NOT blocked' );
 ok( sn_ssrf_ip_blocked( '' ), 'empty IP blocked (fail closed)' );
+
+
+echo "\nGroup: STEP 2 — connect-time pinning (v13.53.0)\n";
+//
+// THE DECISION UNDER TEST is "pin where we can, record where we cannot, never
+// refuse". These pin BOTH halves: that a pinnable request really binds, and
+// that an unpinnable one is made VISIBLE instead of passing silently.
+
+// ── sn_ssrf_resolve_entries: the pure mapping ───────────────────────────
+$e = sn_ssrf_resolve_entries( 'example.com', 443, array( '93.184.216.34', '93.184.216.35' ) );
+ok( array( 'example.com:443:93.184.216.34', 'example.com:443:93.184.216.35' ) === $e, 'entries: one CURLOPT_RESOLVE line per validated address' );
+
+// THE LAST GATE. A blocked address must never reach the pin, even if a caller
+// hands it over — binding it would give cURL the exact destination the guard
+// exists to refuse.
+$e = sn_ssrf_resolve_entries( 'evil.test', 443, array( '93.184.216.34', '169.254.169.254' ) );
+ok( array( 'evil.test:443:93.184.216.34' ) === $e, 'entries: a link-local address is DROPPED at the pin site, not trusted from the caller' );
+ok( array() === sn_ssrf_resolve_entries( 'evil.test', 443, array( '169.254.169.254', '127.0.0.1' ) ), 'entries: an all-internal rrset yields NOTHING to pin' );
+ok( array() === sn_ssrf_resolve_entries( '', 443, array( '8.8.8.8' ) ), 'entries: an empty host pins nothing' );
+ok( array() === sn_ssrf_resolve_entries( 'example.com', 0, array( '8.8.8.8' ) ), 'entries: an unknown port pins nothing' );
+ok( array() === sn_ssrf_resolve_entries( 'example.com', 443, array( 'not-an-ip' ) ), 'entries: a non-address is dropped' );
+
+// ── port derivation ─────────────────────────────────────────────────────
+ok( 443 === sn_ssrf_url_port( 'https://example.com/x' ), 'port: https implies 443' );
+ok( 80 === sn_ssrf_url_port( 'http://example.com/x' ), 'port: http implies 80' );
+ok( 8443 === sn_ssrf_url_port( 'https://example.com:8443/x' ), 'port: an explicit port wins' );
+ok( 0 === sn_ssrf_url_port( 'ftp://example.com/x' ), 'port: an unknown scheme yields 0, which pins nothing' );
+ok( 0 === sn_ssrf_url_port( 'not a url' ), 'port: garbage yields 0' );
+
+// ── the health verdict, both branches ───────────────────────────────────
+$h = sn_ssrf_pinning_health( false, null );
+ok( 'recommended' === $h['status'], 'health: no cURL transport => recommended, never critical (this is the status quo, not a regression)' );
+ok( false !== strpos( $h['summary'], 'fsockopen' ), 'health: and it NAMES the transport fallback rather than saying "unavailable"' );
+$h = sn_ssrf_pinning_health( true, null );
+ok( 'good' === $h['status'], 'health: pinning available and nothing recorded => good' );
+$h = sn_ssrf_pinning_health( true, array( 'host' => 'drifty.test', 'at' => 123 ) );
+ok( 'recommended' === $h['status'] && false !== strpos( $h['summary'], 'drifty.test' ), 'health: a recorded unpinned request is surfaced BY HOST — the gap is visible, which is the whole decision' );
+
+// ── the decision itself: pinning NEVER refuses ──────────────────────────
+// sn_ssrf_pin_curl_handle() takes the handle by reference and returns void; a
+// null handle must simply do nothing rather than error, because a refusal here
+// would be a NEW failure mode on a path that has none today.
+$null_handle = null;
+sn_ssrf_pin_curl_handle( $null_handle, array(), 'https://example.com/x' );
+ok( true, 'pin: a missing handle is a no-op, never a refusal' );
 
 echo "\n-- $pass passed, $fail failed --\n";
 exit( $fail > 0 ? 1 : 0 );
