@@ -481,5 +481,103 @@ for ( $i = 0; $i < SN_MCP_RW_RATE_LIMIT_PER_MINUTE + 10; $i++ ) {
 }
 ok( true, 'READ-DOOR-FROZEN: ' . ( SN_MCP_RW_RATE_LIMIT_PER_MINUTE + 10 ) . ' read-door calls (well past the rw cap) all succeeded — the read door is never rate-limited' );
 
+
+echo "\nGroup: output-schema re-validation — drift stops shipping as silent success (v13.51.0)\n";
+//
+// WHY. tools/list advertises sn_mcp_project_output_schema(...), and the MCP
+// client SDK validates every structuredContent against that advertisement ON
+// THE CLIENT — after our server returned success and our telemetry said ok.
+// The wrapper now validates the same value against the same projection first.
+//
+// The engine is core's rest_validate_value_from_schema, absent from this
+// harness — so a MINI validator stands in: root type, required keys, declared
+// property scalar types, one level deep plus the {result:...} wrap. Enough to
+// fail in BOTH directions; the real engine is core's problem, the WIRING is ours.
+
+function rest_validate_value_from_schema( $value, $schema, $param = '' ) {
+	$type = $schema['type'] ?? null;
+	if ( 'object' === $type && ! is_array( $value ) ) {
+		return new WP_Error( 'rest_invalid_type', "$param is not of type object." );
+	}
+	// LIST discipline: an advertised array root must actually be a list — this
+	// is what catches a mutation that validates the RAW schema against the
+	// WRAPPED value ({result:[…]} is not a list).
+	if ( 'array' === $type && ( ! is_array( $value ) || array_keys( $value ) !== range( 0, max( 0, count( $value ) - 1 ) ) && array() !== $value ) ) {
+		return new WP_Error( 'rest_invalid_type', "$param is not of type array." );
+	}
+	foreach ( (array) ( $schema['required'] ?? array() ) as $req ) {
+		if ( ! is_array( $value ) || ! array_key_exists( $req, $value ) ) {
+			return new WP_Error( 'rest_property_required', "$req is a required property of $param." );
+		}
+	}
+	foreach ( (array) ( $schema['properties'] ?? array() ) as $k => $sub ) {
+		if ( ! is_array( $value ) || ! array_key_exists( $k, $value ) ) { continue; }
+		$st = is_array( $sub ) ? ( $sub['type'] ?? null ) : null;
+		$v  = $value[ $k ];
+		if ( 'string' === $st && ! is_string( $v ) ) { return new WP_Error( 'rest_invalid_type', "$param\\[$k] is not of type string." ); }
+		if ( 'integer' === $st && ! is_int( $v ) ) { return new WP_Error( 'rest_invalid_type', "$param\\[$k] is not of type integer." ); }
+		if ( is_array( $sub ) && isset( $sub['properties'] ) && is_array( $v ) ) {
+			$inner = rest_validate_value_from_schema( $v, $sub, "$param\\[$k]" );
+			if ( is_wp_error( $inner ) ) { return $inner; }
+		}
+	}
+	return true;
+}
+
+// Telemetry capture — the wrapper's calls are function_exists-guarded, so
+// defining these NOW arms recording for the calls below only.
+$GLOBALS['__tel'] = array();
+function sn_mcp_telemetry_record( $tool, $args, $door, $outcome, $gate = null, $ms = 0, $count = null, $code = null, $detail = null, $status = null ) {
+	$GLOBALS['__tel'][] = compact( 'tool', 'outcome', 'code', 'detail', 'status' );
+}
+function sn_mcp_telemetry_elapsed_ms( $t0 ) { return 1; }
+
+// A fixture whose output MATCHES its advertised schema…
+$GLOBALS['__abilities']['signal-noise/uptime-status'] = new SN_Test_Ability( 'signal-noise/uptime-status', array(
+	'output_schema' => array( 'type' => 'object', 'required' => array( 'configured' ), 'properties' => array( 'configured' => array( 'type' => 'string' ) ) ),
+	'result'        => array( 'configured' => 'yes' ),
+) );
+$GLOBALS['__tel'] = array();
+$ok_call = sn_mcp_call_tool( 'signal-noise__uptime-status', array() );
+ok( isset( $ok_call['result'] ) && false === $ok_call['result']['isError'], 'a conforming payload still returns success' );
+ok( 'ok' === ( $GLOBALS['__tel'][0]['outcome'] ?? '' ), 'and telemetry records ok' );
+
+// …and the SAME fixture with a DRIFTED payload (declared string, returns int).
+$GLOBALS['__abilities']['signal-noise/uptime-status'] = new SN_Test_Ability( 'signal-noise/uptime-status', array(
+	'output_schema' => array( 'type' => 'object', 'required' => array( 'configured' ), 'properties' => array( 'configured' => array( 'type' => 'string' ) ) ),
+	'result'        => array( 'configured' => 7 ),
+) );
+$GLOBALS['__tel'] = array();
+$bad_call = sn_mcp_call_tool( 'signal-noise__uptime-status', array() );
+ok( isset( $bad_call['result'] ) && true === $bad_call['result']['isError'], 'a drifted payload is REFUSED server-side, not left for the client SDK to discover' );
+ok( false !== strpos( (string) $bad_call['result']['content'][0]['text'], 'Output schema mismatch' ), 'the refusal names itself' );
+ok( 'server_error' === ( $GLOBALS['__tel'][0]['outcome'] ?? '' ), 'telemetry records server_error — the drift is VISIBLE, the whole point' );
+ok( 'sn_mcp_output_schema_mismatch' === ( $GLOBALS['__tel'][0]['code'] ?? '' ), 'with its own error_code' );
+ok( '' !== (string) ( $GLOBALS['__tel'][0]['detail'] ?? '' ), 'and a detail naming the violation' );
+ok( 500 === ( $GLOBALS['__tel'][0]['status'] ?? 0 ), 'status 500: drift is the SERVER breaking its advertisement, never the caller\'s fault' );
+
+// A missing REQUIRED key refuses too (the second failure family).
+$GLOBALS['__abilities']['signal-noise/uptime-status'] = new SN_Test_Ability( 'signal-noise/uptime-status', array(
+	'output_schema' => array( 'type' => 'object', 'required' => array( 'configured' ), 'properties' => array( 'configured' => array( 'type' => 'string' ) ) ),
+	'result'        => array( 'other' => 'x' ),
+) );
+ok( true === ( sn_mcp_call_tool( 'signal-noise__uptime-status', array() )['result']['isError'] ?? false ), 'a payload missing a required property refuses' );
+
+// The WRAP case: a list-shaped root is validated AS ADVERTISED — wrapped.
+$GLOBALS['__abilities']['signal-noise/list-cron-events'] = new SN_Test_Ability( 'signal-noise/list-cron-events', array(
+	'output_schema' => array( 'type' => 'array' ),
+	'result'        => array( array( 'hook' => 'sn_daily' ) ),
+) );
+ok( false === ( sn_mcp_call_tool( 'signal-noise__list-cron-events', array() )['result']['isError'] ?? true ), 'a wrapped list validates against the wrapped projection, not the raw schema' );
+
+// The kill switch, and the pure checker\'s fail-open contract.
+$GLOBALS['__abilities']['signal-noise/uptime-status'] = new SN_Test_Ability( 'signal-noise/uptime-status', array(
+	'output_schema' => array( 'type' => 'object', 'required' => array( 'configured' ), 'properties' => array( 'configured' => array( 'type' => 'string' ) ) ),
+	'result'        => array( 'configured' => 7 ),
+) );
+ok( null === sn_mcp_output_schema_violation( array( 'configured' => 7 ), array() ), 'pure checker: an EMPTY schema yields null (nothing was advertised, nothing can drift)' );
+ok( is_string( sn_mcp_output_schema_violation( array( 'configured' => 7 ), array( 'type' => 'object', 'properties' => array( 'configured' => array( 'type' => 'string' ) ) ) ) ), 'pure checker: a violation yields the message' );
+ok( null === sn_mcp_output_schema_violation( array( 'configured' => 'y' ), array( 'type' => 'object', 'properties' => array( 'configured' => array( 'type' => 'string' ) ) ) ), 'pure checker: a conforming value yields null' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
