@@ -1,0 +1,1 @@
+{"GPTBot": {"operator": "OpenAI", "function": "AI Data Scrapers", "respect": "Yes"}, "NovaCrawler": {"operator": "Nova Labs", "function": "AI Data Scrapers", "respect": "Unclear at this time."}, "ClaudeBot": {"operator": "Anthropic", "function": "AI Data Scrapers", "respect": "Yes"}}

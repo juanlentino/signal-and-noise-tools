@@ -76,6 +76,8 @@ function snt_cron_sn_owned_hooks() {
 		// prevent, and it is also why the list carries "ADD any new recurring SN
 		// hook here" above.
 		array( 'SN_HEALTH_CRON_HOOK', 'sn_health_scan_daily' ),
+		// v13.62.0 — weekly enum-drift check (weave Phase 5). Always-on.
+		array( 'SN_FAMILY_DRIFT_HOOK', 'sn_family_drift_weekly' ),
 		// v13.49.0 — NINE more, found by DERIVING the list instead of reading it.
 		// Every one of these is scheduled recurring by this plugin and was absent
 		// here, so the rw-doored unschedule-cron-event could stop any of them

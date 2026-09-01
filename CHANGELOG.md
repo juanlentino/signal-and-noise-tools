@@ -2,6 +2,55 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.62.0] - 2026-09-01 — the crawler-family enum is checked against the deployed worker and the world, weekly
+
+Measurement weave, Phase 5 — the last phase (`docs/proposals/measurement-weave-2026-08-31.md`).
+
+### Added — `inc/family-drift.php` + `signal-noise/family-drift` + the `family_drift` section
+
+`snt_mr_valid_families()` is 18 hand-maintained values mirrored by hand in the
+rights-signals worker's `MACHINE_FAMILIES`, and nothing checked that the two
+copies agreed or that the enum still matched the world. Standing rule: derive
+lists, never remember them; this one was remembered twice. A weekly always-on
+cron (`sn_family_drift_weekly`, on the SN-owned list) now diffs:
+
+- **`mirror_parity`** — the plugin enum against the **deployed** worker's, read
+  from `src/machine-readers.mjs` at the `source_commit` its `/version` route
+  names, not from `main`. Sets AND order (order is the classifier's precedence).
+  Unequal is **CRITICAL** in Site Health: a RED, not a note. `unclassified-machine`
+  is the one documented exemption (named on another axis, v10.79.0).
+- **`ours_unmatched`** — families whose regex classifies nothing in
+  monperrus/crawler-user-agents (1,500 tagged patterns, MIT), run through the
+  worker's own rules in PHP.
+- **`upstream_unmapped`** — upstream tags no family of ours claims, with entry
+  counts. The plan said "with live ledger hits"; that is **not derivable** (the
+  ledger has no UA dimension), so counts it is, and the payload says so.
+- **`vendor_gap`** — ai-robots-txt/ai.robots.txt operators (166 agents, MIT)
+  whose agents no AI family of ours matches, grouped by operator.
+- **`respect_flips`** and **`vocabulary`** — changes against the PINNED copy in
+  `data/family-drift/pinned.json` (vocabulary + respect only, ~70 KB, upstream
+  commits recorded; `tools/family-drift-pin.php` regenerates it deliberately).
+  Pin and diff, never fetch-and-trust: an upstream vocabulary change surfaces
+  as drift instead of being absorbed.
+
+**Fail-closed on an unmeasured fetch.** Any of the four fetches failing makes
+the run `unavailable`, naming the source, with the last good report kept beside
+it and its age in the verdict — never an empty diff, which is byte-identical to
+"no drift" and would report the healthiest result at the moment the instrument
+broke. The ability reads the stored report only; an agent cannot make the
+origin call three third parties.
+
+### Testing
+
+37 assertions over the **real deployed worker source** (captured at `efc6463`,
+18 rows including the multi-line one) and small synthetic corpora, with the
+plan's negative control in both directions: a planted plugin-only family and a
+planted worker-only family each red `mirror_parity` and are named. Six mutations
+red: the parser dropping the multi-line row; order ignored; a failed run
+overwriting the good report; the mirror failure downgraded from critical; the
+exemption removed; a failed fetch read as an empty corpus. Section pin 16 → 17,
+read-door pin 25 → 26. Sweep: 536 suites, 21789 assertions.
+
 ## [13.61.0] - 2026-09-01 — two Search Console twins reach the remote door; contract 2 → 3
 
 Measurement weave, Phase 4 (`docs/proposals/measurement-weave-2026-08-31.md`).
