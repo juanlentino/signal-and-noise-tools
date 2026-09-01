@@ -2,6 +2,70 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.56.0] - 2026-09-01 — scheduled posts can be moved in bulk without publishing them by accident
+
+Wave 5. **Surface decision D2**: this is a wp-admin bulk action, never an
+`sn-apply` change type.
+
+### Why the surface choice is the design
+
+`sn-apply`'s posture on `post_date` is purely protective — dates are captured
+before a write, re-asserted after, and a violation triggers a restore whose
+effect is verified by re-reading the row. Its invariant is **flat**: *post_date
+never moves*. A change type that moved dates would weaken that to *never moves
+except for this type*, and the flat version is what currently guarantees an MCP
+edit cannot publish a scheduled post early. A human-gated admin path is a
+different risk object and leaves the MCP invariant whole.
+
+### The trap this is built against
+
+`wp_insert_post()` silently coerces an explicitly-passed `future` status to
+`publish` whenever the target `post_date_gmt` lands **within a minute of now** —
+core's own status resolution, the path `check_and_publish_future_post()` calls
+"jumping the gun". So a batch that moves a scheduled post's date into that
+window does not reschedule it: it publishes it, immediately.
+
+`snt_batch_date_would_early_publish()` refuses that boundary, mirroring
+`inc/sn-apply-block-edit.php`'s comparison rather than re-deriving it — **one
+rule, two surfaces**, pinned by a test that reds if the MCP side changes its
+unit.
+
+- An **unparseable date refuses**. Guessing at unreadable input is precisely how
+  a post publishes early.
+- Only `future` is at risk; a draft or published post carries no scheduled
+  transition for core to resolve.
+- Exactly 60 seconds out is safe — strictly-less-than, matching core.
+
+### Both halves are always reported
+
+A batch that silently skips its unsafe rows reports a smaller, cleaner-looking
+success. `snt_batch_schedule_plan()` returns `apply` **and** `refused` with a
+reason per post, the handler carries both counts through the redirect, and the
+notice says *"12 rescheduled, 3 left untouched, and why"*. One unsafe row never
+cancels the batch: in a mixed selection the draft still moves while the
+scheduled post is held back.
+
+### The shell decides nothing
+
+The planner is pure and testable; the bulk action collects input, asks the
+planner what may move, writes only that, and reports. Capability is checked in
+**all three** places — the dropdown that offers the action, the field that
+renders, and the handler — because a filter controls what is *shown*, never what
+is *submitted*.
+
+### Testing
+
+32 assertions. Six mutations red: the boundary never tripping, an unreadable
+date reading safe, an off-by-one at exactly 60 seconds, refusals going
+unreported by the planner, the handler bypassing the planner, and the handler
+trusting the dropdown filter for its capability check.
+
+**A false positive the mutations caught.** The refusal-reporting assertion
+scanned the whole file and passed even with the count removed from the redirect,
+because the notice function also names it. Scoped to the handler's own body —
+the fifth such substring false positive in this codebase's tests, and the first
+found by a mutation rather than by reading.
+
 ## [13.55.0] - 2026-09-01 — one join key, so a cross-instrument join stops dropping rows silently
 
 Wave 4, step three. **Phase 0 of the measurement weave only**: the shared join
