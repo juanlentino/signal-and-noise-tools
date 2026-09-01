@@ -2,6 +2,39 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.62.1] - 2026-09-01 — the cross-exam read a key its ledger never had; its verdict was wrong for 20 days
+
+### Fixed — `snt_gsc_crossexam()` reads the aggregate rows, not the summary
+
+Since R6b (v13.11.0) the cross-exam summed `$ledger['rows']` on
+`snt_mr_summary_payload()`, which returns families/purposes/totals and has
+**never carried a `rows` key**. So `search_hits` was 0 by construction, and the
+verdict read `gsc_without_crawler` whenever Google reported any impressions —
+including on the day the weave put it on the read door (v13.57.0), where it
+blamed an edge cache. Measured the same day: **8,290 search-purpose fetches**
+in the window the verdict called "NO search-engine fetches"; every Googlebot
+variant classifies to the `search` family correctly.
+
+The cross-exam now reads `snt_mr_fetch()` directly, the aggregate rows the
+summary itself is built from, and carries `ledger.truncated` so a wide-window
+read that dropped days is flagged as a floor. The `gsc_without_crawler` reading
+no longer asserts the edge-cache story; it names both possibilities (a blind
+ledger, or an index Google did not recrawl in the window) and says which count
+to check first.
+
+### Why the suite was green
+
+The unit test stubbed the *summary* with an invented `rows` key — the
+stub-drift trap. The seam is now the network fetch, and three source pins hold
+the shape honest: the real `snt_mr_fetch()` returns `ok` + `rows` + `truncated`;
+the cross-exam calls it and not the summary (scanned comment-stripped, since
+the fix's own comment names the old call); and the summary still carries no
+`rows`, so the old read would still be zero.
+
+Two mutations red: the old read restored; the truncation flag dropped. The
+"26 of 37 notes with zero impressions" finding from v13.57.0 stands on its own
+data and is unaffected; its diagnosis waits on v13.63.0's coverage instrument.
+
 ## [13.62.0] - 2026-09-01 — the crawler-family enum is checked against the deployed worker and the world, weekly
 
 Measurement weave, Phase 5 — the last phase (`docs/proposals/measurement-weave-2026-08-31.md`).

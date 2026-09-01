@@ -19,7 +19,7 @@ function __( $s, $d = null ) { return $s; }
 $GLOBALS['__gsc'] = null;
 $GLOBALS['__mr']  = array( 'ok' => false, 'error' => 'unavailable' );
 function snt_gsc_data() { return $GLOBALS['__gsc']; }
-function snt_mr_summary_payload( $days ) { return $GLOBALS['__mr']; }
+function snt_mr_fetch( $days = 30, $view = 'aggregate' ) { return $GLOBALS['__mr']; } // the NETWORK seam, the shape snt_mr_fetch() really returns (pinned below).
 
 require __DIR__ . '/../inc/search-console-crossexam.php';
 
@@ -50,7 +50,7 @@ $GLOBALS['__gsc'] = gsc( 500 );
 $GLOBALS['__mr']  = ledger( array( array( 'family' => 'openai', 'surface' => 'html', 'hits' => 900 ) ) );
 $x = snt_gsc_crossexam();
 ok( 'gsc_without_crawler' === $x['verdict'], 'impressions but no SEARCH-family fetches -> gsc_without_crawler (AI crawlers do not count)' );
-ok( false !== strpos( snt_gsc_crossexam_reading( $x ), 'edge' ), 'and the reading offers the edge-cache explanation, i.e. the LEDGER is blind' );
+ok( false !== strpos( snt_gsc_crossexam_reading( $x ), 'ledger is blind' ) && false !== strpos( snt_gsc_crossexam_reading( $x ), 'did not recrawl' ), 'and the reading names BOTH readings — a blind ledger or an index not recrawled — instead of asserting one' );
 
 $GLOBALS['__mr'] = ledger( array( array( 'family' => 'seo', 'surface' => 'html', 'hits' => 400 ) ) );
 ok( 'gsc_without_crawler' === snt_gsc_crossexam()['verdict'], "and 'seo' does not count either — Ahrefs fetching says nothing about Google" );
@@ -84,6 +84,29 @@ $x = snt_gsc_crossexam();
 ok( 48 === $x['ledger']['search_hits'], 'search-family hits total 5+3+40, excluding the AI crawler' );
 ok( 5 === $x['ledger']['robots_hits'], "robots.txt hits count only the search family's 5, not openai's 99" );
 ok( 3 === $x['ledger']['sitemap_hits'], 'sitemap hits likewise' );
+ok( false === $x['ledger']['truncated'], 'an untruncated read says so' );
+$GLOBALS['__mr'] = ledger( array( array( 'family' => 'search', 'surface' => 'html', 'hits' => 40 ) ) ) + array( 'truncated' => true );
+ok( true === snt_gsc_crossexam()['ledger']['truncated'], 'a truncated aggregate read is flagged: the counts are a floor' );
+
+echo "\nGroup: v13.62.1 — the cross-exam reads a shape its producer ACTUALLY returns\n";
+// From v13.11.0 to v13.62.0 this iterated $ledger['rows'] on snt_mr_summary_payload(),
+// which never carried 'rows'. The stub invented the key, so the suite was green
+// for 20 days while the live verdict was wrong. Pin the seam to the REAL
+// producer's return shape, from its source, not from a remembered stub.
+$api = (string) file_get_contents( __DIR__ . '/../inc/machine-readers-api.php' );
+$fn  = substr( $api, strpos( $api, 'function snt_mr_fetch(' ) );
+$fn  = substr( $fn, 0, strpos( $fn, "\n}\n" ) );
+ok( strlen( $fn ) > 500, 'vacuity: snt_mr_fetch() located in the api source' );
+ok( 1 === preg_match( "/'rows'\s*=>/", $fn ) && 1 === preg_match( "/'ok'\s*=>/", $fn ) && 1 === preg_match( "/'truncated'\s*=>/", $fn ), 'the real snt_mr_fetch() returns ok + rows + truncated — the keys the cross-exam consumes' );
+// Comment-stripped before scanning: the fix's own comment NAMES the old call,
+// and a substring pin over prose is the false positive this repo has hit five times.
+$cx = (string) preg_replace( array( '~/\*.*?\*/~s', '~^\s*//.*$~m' ), '', (string) file_get_contents( __DIR__ . '/../inc/search-console-crossexam.php' ) );
+ok( 0 === preg_match( '/snt_mr_summary_payload\s*\(/', $cx ), 'REGRESSION: the cross-exam no longer calls the summary (which has no rows)' );
+ok( 1 === preg_match( '/\$ledger = snt_mr_fetch\(/', $cx ), 'the cross-exam reads the aggregate fetch directly' );
+$sum = (string) file_get_contents( __DIR__ . '/../inc/machine-readers-summary.php' );
+$sf  = substr( $sum, strpos( $sum, 'function snt_mr_summary_payload(' ) );
+$sf  = substr( $sf, 0, strpos( $sf, "\n}\n" ) );
+ok( 0 === preg_match( "/^\t\t'rows'\s*=>/m", $sf ), 'sanity: the summary payload STILL carries no rows key — the old read would still be zero' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );
