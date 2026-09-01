@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.59.0
+ * Version:     13.60.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -277,6 +277,7 @@ require_once SNT_PATH . 'inc/ssrf-guard.php';
 require_once SNT_PATH . 'inc/breached-credentials.php';
 require_once SNT_PATH . 'inc/breached-credentials-set.php'; // v13.58.0: Mode A — set-time, blocking, FAIL-CLOSED (user_profile_update_errors + validate_password_reset).
 require_once SNT_PATH . 'inc/breached-credentials-login.php'; // v13.59.0: Mode B — login-time, advisory, fail-OPEN, memoized against the stored hash (authenticate @30).
+require_once SNT_PATH . 'inc/breached-credentials-surface.php'; // v13.60.0: Phase 3 — Site Health row + security-digest section over Mode A's counts and Mode B's memos.
 // v11.27.0: the verified citation graph. Loads AFTER ssrf-guard — the verifier
 // re-validates every redirect hop through it, because wp_http_validate_url()
 // does not cover the link-local range that guard exists to close.

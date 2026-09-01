@@ -227,5 +227,25 @@ ok( false !== strpos( $out, 'button-primary', (int) $actions ), 'render: Save in
 ok( false !== strpos( $out, 'sn_digest_test', (int) $actions ), 'render: test-send inside actions row' );
 ok( false !== strpos( $out, 'name="sn_digest_enabled"' ), 'render: opt-in checkbox present' );
 
+
+// ── v13.60.0: the breached-password section ──
+echo "\nTest: breached-password section\n";
+$d0 = snt_security_digest_collect();
+ok( array_key_exists( 'breach', $d0 ) && null === $d0['breach'], 'collect: module absent → breach is null' );
+ok( false !== strpos( snt_security_digest_compose( $d0 ), 'Breached-password check: unavailable (module not loaded).' ), 'compose: null → one truthful unavailable line, never zeros' );
+if ( ! function_exists( 'sn_hibp_surface_data' ) ) { function sn_hibp_surface_data() { return $GLOBALS['__hibp_data']; } }
+if ( ! function_exists( 'sn_hibp_health' ) ) { function sn_hibp_health( $d, $now ) { return $GLOBALS['__hibp_health']; } }
+$GLOBALS['__hibp_data']   = array( 'set' => array( 'breached_count' => 3, 'unavailable_count' => 2 ), 'login' => array() );
+$GLOBALS['__hibp_health'] = array( 'status' => 'recommended', 'summary' => 'THE SUMMARY', 'flagged' => 1, 'checked' => 2, 'unavailable_recent' => true );
+$d1 = snt_security_digest_collect();
+ok( 1 === ( $d1['breach']['flagged'] ?? -1 ) && 3 === ( $d1['breach']['set_breached'] ?? -1 ) && true === ( $d1['breach']['unavailable_recent'] ?? false ), 'collect: breach carries flagged/checked/set counts and the recent flag' );
+$b1 = snt_security_digest_compose( $d1 );
+ok( false !== strpos( $b1, 'Breached-password check (ATTENTION)' ) && false !== strpos( $b1, 'Accounts flagged at login: 1 of 2 checked' ) && false !== strpos( $b1, 'refused at set-time: 3' ), 'compose: ATTENTION header + the three count lines' );
+ok( false !== strpos( $b1, 'Fail-closed rejections (API unreachable): 2 — RECENT: the API may be degrading' ) && false !== strpos( $b1, '  THE SUMMARY' ), 'compose: recent fail-closed is called out, and a non-good verdict prints its summary' );
+$GLOBALS['__hibp_health'] = array( 'status' => 'good', 'summary' => 'FINE', 'flagged' => 0, 'checked' => 2, 'unavailable_recent' => false );
+$b2 = snt_security_digest_compose( snt_security_digest_collect() );
+ok( false !== strpos( $b2, 'Breached-password check (ok)' ) && false === strpos( $b2, 'RECENT' ) && false === strpos( $b2, 'FINE' ), 'compose: good → ok header, no RECENT tag, no summary line' );
+ok( false === strpos( $b2, 'unavailable (module not loaded)' ), 'compose: the loaded module never prints the unavailable line' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
