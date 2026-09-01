@@ -63,7 +63,10 @@ ok( array(
 	'signal-noise/remote-provenance-integrity-status',
 	'signal-noise/remote-machine-readers-summary',
 	'signal-noise/remote-cron-health-summary',
-) === sn_mcp_remote_slugs(), 'the remote list holds exactly the eleven slugs: eight from Increments 1+2, three ratified 2026-09-01' );
+	// v13.61.0 — weave Phase 4: two Search Console twins; crossexam stays local.
+	'signal-noise/remote-search-performance',
+	'signal-noise/remote-search-drift',
+) === sn_mcp_remote_slugs(), 'the remote list holds exactly the thirteen slugs: eight from Increments 1+2, three ratified 2026-09-01, two Search Console twins (weave Phase 4)' );
 
 echo "Group: all three gates must pass, and each alone is insufficient\n";
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );

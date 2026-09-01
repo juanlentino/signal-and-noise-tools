@@ -74,6 +74,8 @@ $FULL_SET = array(
 	'signal-noise/remote-provenance-integrity-status',
 	'signal-noise/remote-machine-readers-summary',
 	'signal-noise/remote-cron-health-summary',
+	'signal-noise/remote-search-performance', // v13.61.0
+	'signal-noise/remote-search-drift',       // v13.61.0
 );
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
@@ -107,6 +109,11 @@ require __DIR__ . '/../inc/provenance-integrity.php';
 require __DIR__ . '/../inc/abilities-machine-readers.php';
 require __DIR__ . '/../inc/cron-dashboard.php';
 require __DIR__ . '/../inc/abilities-cron.php';
+// v13.61.0 — the two Search Console twins read their schema from the admin table.
+if ( ! function_exists( 'get_option' ) ) { function get_option( $k, $d = null ) { return $d; } }
+require __DIR__ . '/../inc/search-console-store.php';
+require __DIR__ . '/../inc/search-console-derive.php';
+require __DIR__ . '/../inc/abilities-search-console.php';
 // The read/write allowlists, for the negative-space group.
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 
@@ -133,6 +140,9 @@ $ADMIN_DEPLOY   = 'signal-noise/get-deploy-status';
 $REMOTE_PROV = 'signal-noise/remote-provenance-integrity-status';
 $REMOTE_MR   = 'signal-noise/remote-machine-readers-summary';
 $REMOTE_CRON = 'signal-noise/remote-cron-health-summary';
+// v13.61.0 pairs.
+$REMOTE_SP = 'signal-noise/remote-search-performance'; $ADMIN_SP = 'signal-noise/search-performance';
+$REMOTE_SD = 'signal-noise/remote-search-drift';       $ADMIN_SD = 'signal-noise/search-drift';
 $ADMIN_PROV  = 'signal-noise/provenance-integrity-status';
 $ADMIN_MR    = 'signal-noise/get-machine-readers-summary';
 $ADMIN_CRON  = 'signal-noise/cron-health-summary';
@@ -181,6 +191,8 @@ $pairs_output = array(
 	array( $REMOTE_PROV, $ADMIN_PROV ),
 	array( $REMOTE_MR, $ADMIN_MR ),
 	array( $REMOTE_CRON, $ADMIN_CRON ),
+	array( $REMOTE_SP, $ADMIN_SP ),
+	array( $REMOTE_SD, $ADMIN_SD ),
 );
 foreach ( $pairs_output as $pair ) {
 	list( $remote, $admin ) = $pair;
