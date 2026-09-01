@@ -188,6 +188,51 @@ function sn_mcp_project_output_schema( $out ) {
 }
 
 /**
+ * Does this (already-wrapped) success payload violate the ADVERTISED schema?
+ *
+ * WHY THIS EXISTS (v13.51.0). tools/list advertises
+ * sn_mcp_project_output_schema( $ability->get_output_schema() ), and the MCP
+ * client SDK validates every structuredContent against that advertisement ON
+ * THE CLIENT. On a mismatch the SDK raises its own error after our server has
+ * already returned success — so our telemetry records `ok` for a call whose
+ * caller saw a failure. Schema drift ships as a silent success in the one
+ * instrument that exists to catch it, which is the exact wrong-call-readout
+ * shape the telemetry programme keeps closing.
+ *
+ * The fix is symmetry: validate the SAME value against the SAME projection,
+ * server-side, before returning success. Core's REST validator is the engine —
+ * it speaks the schema dialect these abilities are written in (it is what
+ * validates their inputs already).
+ *
+ * FAIL-OPEN when the validator is unavailable (standalone harness, early
+ * bootstrap): no validator means no verdict, and inventing a hand-rolled
+ * validator here would drift from the client's. A skipped check returns null
+ * exactly like a passing one — callers must not read null as "validated".
+ *
+ * @since 13.51.0
+ * @param mixed $out    The success payload AFTER the {result:...} wrap — the
+ *                      same value structuredContent is built from.
+ * @param array $schema The ADVERTISED projection (already wrapped), never the
+ *                      raw ability schema — validating against anything other
+ *                      than what tools/list said would re-open the gap.
+ * @return string|null First violation message, or null (valid OR unverifiable).
+ */
+function sn_mcp_output_schema_violation( $out, $schema ) {
+	if ( ! function_exists( 'rest_validate_value_from_schema' ) || ! is_array( $schema ) || array() === $schema ) {
+		return null;
+	}
+	// structuredContent casts a top-level empty array to (object); the
+	// validator wants the pre-cast value. Objects that ARE present (the inner
+	// empty-object belt in the wrap) are flattened back to arrays for it.
+	$value = json_decode( (string) wp_json_encode( $out ), true );
+	$check = rest_validate_value_from_schema( $value, $schema, 'result' );
+	if ( is_wp_error( $check ) ) {
+		return (string) $check->get_error_message();
+	}
+	return null;
+}
+
+/**
  * R6 (lane SEC-C) known-wrong override map: destructiveHint values for
  * rw-door abilities whose OWN meta.annotations declares no 'destructive' key
  * at all. Without an entry here, sn_mcp_ability_annotations() would inherit
@@ -521,6 +566,25 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 		// level: an object|null-union ability returning an EMPTY object would
 		// otherwise wrap as {"result":[]} and fail its own advertised schema.
 		$out = array( 'result' => ( is_array( $out ) && array() === $out ) ? (object) array() : $out );
+	}
+
+	// v13.51.0: the advertised-schema re-check. Runs on the WRAPPED value
+	// against the WRAPPED projection — the exact pair the client validates —
+	// and refuses on mismatch rather than letting the client SDK discover it
+	// after our telemetry has already said ok. This is not a new failure mode:
+	// a payload that fails here was ALREADY failing on the client; it failed
+	// invisibly. Kill switch: `sn_mcp_validate_output` filter, default true.
+	if ( apply_filters( 'sn_mcp_validate_output', true ) ) {
+		$sn_mcp_violation = sn_mcp_output_schema_violation( $out, sn_mcp_project_output_schema( $ability->get_output_schema() ) );
+		if ( null !== $sn_mcp_violation ) {
+			if ( SN_MCP_DOOR_RW === $door && function_exists( 'sn_mcp_rw_audit_record' ) ) {
+				sn_mcp_rw_audit_record( $slug, $args, 'error', new WP_Error( 'sn_mcp_output_schema_mismatch', $sn_mcp_violation ) );
+			}
+			if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
+				sn_mcp_telemetry_record( $tool_name, $args, $door, 'server_error', null, sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ), null, 'sn_mcp_output_schema_mismatch', $sn_mcp_violation, 500 );
+			}
+			return array( 'result' => sn_mcp_error_result( 'Output schema mismatch for ' . $tool_name . ': ' . $sn_mcp_violation ) );
+		}
 	}
 
 	// v9.51.0 (lane SEC-B, R4): the success-path rw audit write, at the true

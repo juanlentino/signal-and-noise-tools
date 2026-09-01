@@ -2,6 +2,55 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.51.0] - 2026-09-01 — schema drift stops shipping as a silent success
+
+Wave 2 of the ratified 2026-09-01 plan (docs/BACKLOG.md).
+
+### Fixed — the wrapper now validates its own advertisement
+
+`tools/list` advertises `sn_mcp_project_output_schema( … )` for every tool, and
+the MCP client SDK validates each `structuredContent` against that
+advertisement **on the client** — after our server has returned success and our
+telemetry has recorded `ok`. A tool whose payload drifted from its declared
+schema therefore failed for every real caller while reading as healthy in the
+one instrument built to catch failures.
+
+`sn_mcp_call_tool()` now validates the same value against the same projection
+**server-side**, before returning success:
+
+- The engine is core's `rest_validate_value_from_schema()` — the dialect these
+  abilities' schemas are already written in. No hand-rolled validator to drift
+  from the client's.
+- On mismatch: the call refuses with an `isError` result naming the violation,
+  telemetry records `server_error` / `sn_mcp_output_schema_mismatch` with the
+  validator's message in `error_detail` and **status 500** — drift is the
+  server breaking its own advertisement, never the caller's fault. The rw door
+  also writes its audit row.
+- **This is not a new failure mode.** A payload that refuses here was already
+  failing on every client; it failed invisibly. The refusal is the same
+  failure made visible and attributable.
+- Validation runs on the **wrapped** value against the **wrapped** projection —
+  the exact pair the client sees; validating the raw schema instead is a pinned
+  mutation.
+- Fail-open when the validator is unavailable (standalone harness, early
+  bootstrap), and a kill switch: `sn_mcp_validate_output` filter, default true.
+
+### Testing
+
+14 new assertions in `tests/mcp-tools.php`, driven end-to-end through
+`sn_mcp_call_tool()` with a mini validator standing in for core's (root type,
+list discipline, required keys, property types — enough to fail in both
+directions). Four mutations red: validation removed (7), raw-schema-instead-of-
+projection (4), checker-always-null (8), drift-telemetered-as-ok (1).
+
+### Unblocks
+
+The `cron_*` remote twins deferred on output quality: their redesigned sections
+can now declare honest schemas knowing drift refuses loudly instead of
+shipping. The backlog row "MCP output parity + output-schema re-validation" is
+CLOSED by this release — the "shared table renderer" half ships with its first
+consumer (the cron redesign), never as an unused helper.
+
 ## [13.50.1] - 2026-08-31 — the SSRF guard stops trusting one address out of many
 
 `sn_ssrf_host_blocked()` is the single audited guard behind webhooks, WebSub, provenance webhooks, the link-rot and rights-signals health checks, worker version/deploy probes, citations, machine-readers and the analytics salt window — sixteen call sites. Every documented bypass class it was built for still holds. **The resolver was the gap.**
