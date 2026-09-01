@@ -122,6 +122,12 @@ function sn_mcp_remote_verdicts() {
 		'cadence'              => $out( false, 'Publishing cadence flags read editorial state, including scheduled and unpublished work.' ),
 		'cron_scheduled'       => $out( false, 'Detail rows stay on the desktop. The model-never-levers review the partition asked for produced cron_health (v13.52.0), which IS remote — this section answers "what exists", the phone question is "is anything wrong".' ),
 		'cron_history'         => $out( false, 'Same split as cron_scheduled: per-firing history is desktop detail; cron_health carries the verdict remotely.' ),
+		// v13.57.0 — weave Phase 4 (remote twins) is DEFERRED by the plan: the
+		// payloads name paths and the remote read scope is the owner\'s call.
+		// Read-only over public search data, so a twin is proposable later.
+		'search_performance'   => $out( false, 'DEFERRED (weave Phase 4): names paths; owner rules the remote read scope. Read-only over Google-visible data, so proposable as a twin once Phase 1 has telemetry.' ),
+		'search_drift'         => $out( false, 'DEFERRED (weave Phase 4): same as search_performance.' ),
+		'search_crossexam'     => $out( false, 'DEFERRED (weave Phase 4): the one to think hard about — it names paths AND reads the crawler ledger. Owner call.' ),
 		'cron_health'          => $out( true, 'The model the partition asked for (v13.52.0): status + derived summary + overdue evidence, sharing the Site Health overdue rule. Byte-identical twin of a section designed for the phone.', 'signal-noise/remote-cron-health-summary' ),
 		'collector'            => $out( false, 'Analytics collector plumbing state. Operational internals, not a number anyone reads on a phone.' ),
 		'corpus_integrity'     => $out( false, 'OUT BY CONSTRUCTION: the corpus spans SNT_CORPUS_STATUSES, so its findings can name draft, pending and private posts. Not proposable.' ),

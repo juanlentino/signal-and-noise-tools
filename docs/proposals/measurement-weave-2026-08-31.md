@@ -95,10 +95,10 @@ never an equality test.
 
 | Phase | Ships | Risk | Gated on |
 |---|---|---|---|
-| 0 | The shared path normalizer + its adversarial fixture suite | Low | nothing |
-| 1 | GSC on the read door | Low — read-only over synced data | Phase 0 |
-| 2 | GSC into `collect_signals()` (Grain A) | Low — one section | Phase 0 |
-| 3 | The disagreement scan (TF-IDF ↔ GSC queries) | Medium — new instrument | Phases 0–2 |
+| 0 ✅ v13.55.0 | The shared path normalizer + its adversarial fixture suite | Low | nothing |
+| 1 ✅ v13.57.0 | GSC on the read door | Low — read-only over synced data | Phase 0 |
+| 2 ✅ v13.57.0 | GSC into `collect_signals()` (Grain A) | Low — one section | Phase 0 |
+| 3 ✅ v13.57.0 | The disagreement scan (TF-IDF ↔ GSC queries) — page-level "about X, found for Y" NOT derivable (no page×query dimension stored); shipped as a site-level query reading | Medium — new instrument | Phases 0–2 |
 | 4 | Remote twins for the new reads | High — credentialed, contract bump | Phase 1 merged |
 | 5 | Enum drift check against two upstream corpora | Low — read-only diff, no classifier change | nothing (independent of 0–4) |
 

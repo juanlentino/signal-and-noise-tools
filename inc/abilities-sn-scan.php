@@ -66,6 +66,9 @@ const SNT_SN_SCAN_TYPES = array(
 	// v10.58.0: two binary anchor rules (anchor text == its full sentence;
 	// any <a> inside an h1–h6) — see inc/sn-scan-anchor-violations.php.
 	'anchor_violations',
+	// v13.57.0: TF-IDF <-> Search Console disagreement (measurement weave,
+	// Phase 3) — see inc/sn-scan-search-disagreement.php.
+	'search_disagreement',
 );
 
 const SNT_SN_SCAN_DEFAULT_MAX = 50;
