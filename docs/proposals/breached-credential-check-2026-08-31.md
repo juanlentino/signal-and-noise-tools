@@ -108,7 +108,7 @@ leaves the origin; the 35-character suffix is compared in memory and discarded.
 |---|---|---|---|
 | 0 ✅ v13.54.0 | The client + its offline fixture suite | Low | nothing |
 | 1 ✅ v13.58.0 | Mode A (set-time, fail-closed) | Low — rare hook, safe direction | Phase 0 |
-| 2 | Mode B (login-time, advisory, memoized) | Medium — touches the login path | Phase 1 merged |
+| 2 ✅ v13.59.0 | Mode B (login-time, advisory, memoized) | Medium — touches the login path | Phase 1 merged |
 | 3 | Admin surface + security-digest row | Low | Phase 2 |
 
 ### Phase 0 — the client
