@@ -18,6 +18,10 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 if ( ! defined( 'HOUR_IN_SECONDS' ) ) { define( 'HOUR_IN_SECONDS', 3600 ); }
+if ( ! defined( 'MINUTE_IN_SECONDS' ) ) { define( 'MINUTE_IN_SECONDS', 60 ); }
+$GLOBALS['__single'] = array(); $GLOBALS['__next'] = array();
+function wp_next_scheduled( $h ) { return $GLOBALS['__next'][ $h ] ?? false; }
+function wp_schedule_single_event( $ts, $h ) { $GLOBALS['__single'][] = array( $ts, $h ); $GLOBALS['__next'][ $h ] = $ts; return true; }
 function __( $s, $d = null ) { return $s; }
 function apply_filters( $h, $v ) { return $v; }
 function add_filter( $t, $c, $p = 10, $a = 1 ) { return true; }
@@ -42,7 +46,7 @@ require_once __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 require_once __DIR__ . '/../inc/mcp/mcp-remote-guard.php';
 require_once __DIR__ . '/../inc/cron-dashboard.php';
 
-echo "inbound pass — v13.68.0\n\n";
+echo "inbound pass — v13.69.0 (past, present, future)\n\n";
 
 // ─── (1) the selector ───
 $recent  = array(
@@ -57,11 +61,13 @@ $related = array(
 	11 => array( array( 'post_id' => 1, 'score' => 0.9 ) ),
 	12 => null,
 );
-$sel = sn_inbound_pass_select( $recent, $inbound, $related );
-ok( array( 10, 12 ) === array_column( $sel, 'target_id' ), 'selects the zero-inbound notes only: the linked one is out, the malformed row is out' );
+$sel = sn_inbound_pass_select( $recent, $inbound, $related )['notes'];
+ok( array( 10, 12 ) === array_column( $sel, 'target_id' ), 'PAST: selects every zero-inbound published note (no date window): the linked one is out, the malformed row is out' );
 ok( array( 1, 2, 3 ) === $sel[0]['sources'] && 'built' === $sel[0]['artifact'], 'sources: self skipped, duplicate collapsed, capped at ' . SN_INBOUND_PASS_MAX_PER_NOTE . ' in artifact order' );
 ok( array() === $sel[1]['sources'] && 'unbuilt' === $sel[1]['artifact'] && 0 === $sel[1]['inbound'], 'an unbuilt artifact is reported as unbuilt — not as "no related notes"' );
-ok( array() === sn_inbound_pass_select( array(), $inbound, $related ), 'nothing published in the window → nothing selected' );
+ok( array( 'notes' => array(), 'deferred' => 0 ) === sn_inbound_pass_select( array(), $inbound, $related ), 'nothing published → nothing selected, nothing deferred' );
+$b = sn_inbound_pass_select( $recent, $inbound, $related, 2 );
+ok( array( 1, 2 ) === $b['notes'][0]['sources'] && 1 === $b['deferred'], 'the per-run budget stops judging at N pairs and COUNTS what it deferred — never silently drops it' );
 
 // ─── (2) the judge loop ───
 $calls = array();
@@ -89,8 +95,27 @@ $h = sn_inbound_pass_health( array( 'state' => 'unavailable', 'reason' => 'snt_a
 ok( 'recommended' === $h['status'] && false !== strpos( $h['summary'], 'snt_ai_unavailable' ), 'unavailable → recommended, naming the reason (not "nothing to apply")' );
 $h = sn_inbound_pass_health( array( 'state' => 'ok', 'published' => 2, 'counts' => array( 'notes' => 1, 'ready' => 2 ) ) );
 ok( 'recommended' === $h['status'] && false !== strpos( $h['summary'], '2 anchor(s)' ), 'ready anchors → recommended with the count' );
-$h = sn_inbound_pass_health( array( 'state' => 'ok', 'published' => 2, 'counts' => array( 'notes' => 0, 'ready' => 0 ) ) );
-ok( 'good' === $h['status'] && false !== strpos( $h['summary'], '2 note(s) published' ), 'nothing to apply → good, still reporting what was walked' );
+$h = sn_inbound_pass_health( array( 'state' => 'ok', 'published' => 2, 'counts' => array( 'notes' => 0, 'ready' => 0 ), 'scheduled' => array( array( 'outbound' => 2 ) ) ) );
+ok( 'good' === $h['status'] && false !== strpos( $h['summary'], '2 published, 0 with no inbound links, 1 scheduled' ), 'nothing to apply → good, still reporting what was walked' );
+$h = sn_inbound_pass_health( array( 'state' => 'ok', 'published' => 2, 'counts' => array( 'notes' => 0, 'ready' => 0 ), 'scheduled' => array( array( 'outbound' => 0 ), array( 'outbound' => 3 ) ) ) );
+ok( 'recommended' === $h['status'] && false !== strpos( $h['summary'], '1 scheduled note(s) carry no outbound' ), 'FUTURE: a scheduled note with zero outbound links → recommended (fixable before it publishes)' );
+
+// ─── (3b) the future half ───
+$sch = sn_inbound_pass_scheduled( array(
+	array( 'id' => 7, 'slug' => 'a', 'date' => '2026-09-04 10:23:46', 'content' => '<p>x <a href="https://juanlentino.com/notes/one/">1</a> and <a href=\'/notes/two\'>2</a> and <a href="https://example.com/notes-not/">no</a></p>' ),
+	array( 'id' => 8, 'slug' => 'b', 'date' => '2026-09-06 16:39:52', 'content' => '<p>no links</p>' ),
+) );
+ok( 2 === $sch[0]['outbound'] && 0 === $sch[1]['outbound'] && 'b' === $sch[1]['slug'] && '2026-09-06 16:39:52' === $sch[1]['date_gmt'], 'scheduled rows count /notes/ hrefs only (absolute or relative), zero when none' );
+
+// ─── (3c) the present half ───
+$post = (object) array( 'ID' => 5, 'post_type' => 'post' );
+sn_inbound_pass_on_transition( 'publish', 'publish', $post );
+sn_inbound_pass_on_transition( 'draft', 'publish', $post );
+sn_inbound_pass_on_transition( 'publish', 'future', (object) array( 'ID' => 6, 'post_type' => 'page' ) );
+ok( array() === $GLOBALS['__single'], 'PRESENT: update-in-place, unpublish, and a page schedule nothing' );
+sn_inbound_pass_on_transition( 'publish', 'future', $post );
+sn_inbound_pass_on_transition( 'publish', 'draft', $post );
+ok( 1 === count( $GLOBALS['__single'] ) && SN_INBOUND_PASS_PUBLISH_HOOK === $GLOBALS['__single'][0][1] && $GLOBALS['__single'][0][0] >= time() + SN_INBOUND_PASS_PUBLISH_DELAY - 1, 'a transition INTO publish schedules ONE single run after the delay; a second publish coalesces' );
 $src = (string) file_get_contents( __DIR__ . '/../inc/inbound-pass.php' );
 ok( false === strpos( str_replace( 'Never `critical`', '', $src ), "'critical'" ), 'REGRESSION: never critical — an advisory' );
 
@@ -103,8 +128,10 @@ ok( in_array( 'signal-noise/inbound-pass', sn_mcp_allowlist(), true ), 'on the r
 ok( 'signal-noise/inbound-pass' === ( snt_sn_status_map()['inbound_pass'] ?? null ), 'sn-status routes inbound_pass to it' );
 ok( false === ( sn_mcp_remote_verdicts()['inbound_pass']['remote'] ?? null ), 'remote verdict recorded: LOCAL' );
 ok( snt_cron_is_sn_owned( SN_INBOUND_PASS_HOOK ), 'the daily hook is SN-owned (the unschedule guard refuses it)' );
-ok( array_key_exists( SN_INBOUND_PASS_HOOK, $GLOBALS['__test_actions'] ), 'the hook runs sn_inbound_pass_run' );
-$GLOBALS['__opts'][ SN_INBOUND_PASS_STATUS ] = array( 'state' => 'ok', 'published' => 1, 'counts' => array( 'notes' => 1, 'ready' => 1 ), 'notes' => array() );
+ok( array_key_exists( SN_INBOUND_PASS_HOOK, $GLOBALS['__test_actions'] ) && array_key_exists( SN_INBOUND_PASS_PUBLISH_HOOK, $GLOBALS['__test_actions'] ), 'both hooks run sn_inbound_pass_run' );
+ok( snt_cron_is_sn_owned( SN_INBOUND_PASS_PUBLISH_HOOK ) && snt_cron_hook_is_on_demand( SN_INBOUND_PASS_PUBLISH_HOOK ) && ! snt_cron_hook_is_on_demand( SN_INBOUND_PASS_HOOK ), 'the after-publish hook is SN-owned AND on-demand (unscheduled is its resting state); the daily one is not on-demand' );
+ok( in_array( 'sn_inbound_pass_on_transition', array_map( static fn( $c ) => is_string( $c ) ? $c : '', $GLOBALS['__test_actions']['transition_post_status'] ?? array() ), true ), 'listens on transition_post_status' );
+$GLOBALS['__opts'][ SN_INBOUND_PASS_STATUS ] = array( 'state' => 'ok', 'published' => 1, 'counts' => array( 'notes' => 1, 'ready' => 1 ), 'notes' => array(), 'scheduled' => array() );
 $out = snt_ability_inbound_pass( null );
 ok( 'recommended' === $out['status'] && 'ok' === $out['last']['state'], 'the execute callback reads the stored report and its verdict' );
 

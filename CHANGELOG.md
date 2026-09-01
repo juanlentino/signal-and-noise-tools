@@ -2,6 +2,33 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.69.0] - 2026-09-01 — the inbound pass covers past, present and future
+
+### Changed — `inc/inbound-pass.php` widens from "the last two days" to every tense (owner rule)
+
+13.68.0 only looked at notes published inside a two-day window. Owner rule the same
+evening: "this should work in all ways: past, present and future."
+
+- **Past** — every published post with zero inbound links in the link graph,
+  however old, is a target; no date window. A per-run pair budget
+  (`SN_INBOUND_PASS_MAX_PAIRS`, 30) bounds model calls, and what it defers is
+  COUNTED in the report (`deferred`) and picked up next run — never silently
+  dropped. The count is of pairs the per-note cap would have judged, not of every
+  related row (the suite caught the over-count before it shipped).
+- **Present** — a transition INTO `publish` (scheduled or manual) schedules one
+  single-event run five minutes later, after the ML rebuild the same transition
+  coalesces, so the morning-after gap is minutes. `sn_inbound_pass_after_publish`
+  is SN-owned and on-demand (unscheduled is its resting state, like the analytics
+  warmer); an update-in-place, an unpublish, or a page schedules nothing, and a
+  second publish inside the window coalesces.
+- **Future** — scheduled posts cannot be judged (the suggest gate needs a published
+  target), so the report lists them oldest-first with their OUTBOUND note-link
+  count. A scheduled note with `outbound: 0` — today's case, fixed by hand — turns
+  the verdict `recommended` while it is still fixable.
+
+Read ability and sn-status section unchanged in name; the description and the
+verdict now name all three tenses.
+
 ## [13.68.0] - 2026-09-01 — a new note is born unlinked; the inbound pass says so the next morning
 
 ### Added — the daily inbound pass (`inc/inbound-pass.php`, `signal-noise/inbound-pass`, sn-status `inbound_pass`)
