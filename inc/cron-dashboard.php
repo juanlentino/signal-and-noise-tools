@@ -637,16 +637,56 @@ function snt_cron_interval_seconds( $hook ) {
  * @return bool True when the hook should be scheduled.
  */
 function snt_cron_hook_is_expected( $hook ) {
-	$insights = defined( 'SN_INSIGHTS_CRON_HOOK' ) ? SN_INSIGHTS_CRON_HOOK : 'sn_insights_weekly_scan';
-
-	if ( $hook === $insights && function_exists( 'snt_insights_weekly_cron_enabled' ) ) {
-		return (bool) snt_insights_weekly_cron_enabled();
+	$hook = (string) $hook;
+	foreach ( snt_cron_opt_in_gates() as $gated_hook => $gate ) {
+		if ( $hook !== $gated_hook ) {
+			continue;
+		}
+		// A module that is not loaded cannot say OFF, so its hook stays
+		// expected — the pre-v13.56.1 behaviour, and the safe direction: this
+		// branch can only REMOVE a false alarm, never hide a real gap, because
+		// a loaded module answering ON still yields expected.
+		return function_exists( $gate ) ? (bool) call_user_func( $gate ) : true;
 	}
-	// v12.19.0: the uptime-heartbeat gate is gone with the feature. Its hook is
-	// unscheduled by the one-shot janitor in inc/uptime-heartbeat-removal.php,
-	// so it should never appear here again — and if it does, "unexpected" is the
-	// correct reading rather than a config-off exemption.
 	return true;
+}
+
+/**
+ * The opt-in modules: hook => the module's OWN enable predicate.
+ *
+ * WHY THIS EXISTS (v13.56.1). snt_cron_hook_is_expected() used to say "yes"
+ * for every hook but one, so an opt-in feature that was OFF — and had
+ * therefore unscheduled its own hook, deliberately — read as "expected but
+ * not scheduled". Site Health carried that false alarm quietly; the
+ * cron-health summary (v13.52.0) put it somewhere read, and on its first live
+ * reading it flagged snt_morning_brief_daily and snt_scheduled_reads_daily,
+ * both simply switched off.
+ *
+ * DERIVED, not remembered: every entry is a module that unschedules its own
+ * hook when its gate says off — the grep is `wp_unschedule_event(` beside an
+ * enable predicate. If you add such a module, add its gate here, and the
+ * parity test in tests/cron-dashboard.php will tell you if you forget: it
+ * walks the same grep.
+ *
+ * @since 13.56.1
+ * @return array<string,string> hook => predicate function name.
+ */
+function snt_cron_opt_in_gates() {
+	$pairs = array(
+		array( 'SN_INSIGHTS_CRON_HOOK',         'sn_insights_weekly_scan',   'snt_insights_weekly_cron_enabled' ),
+		array( 'SNT_MORNING_BRIEF_CRON_HOOK',   'snt_morning_brief_daily',   'snt_morning_brief_enabled' ),
+		array( 'SNT_SCHEDULED_READS_CRON_HOOK', 'snt_scheduled_reads_daily', 'snt_scheduled_reads_enabled' ),
+		array( 'SN_SECURITY_DIGEST_CRON_HOOK',  'sn_security_digest_weekly', 'snt_security_digest_enabled' ),
+		// Readiness rather than a toggle, but the same contract: the module
+		// keeps its schedule equal to the predicate, so absence-when-false is
+		// correct, not missing.
+		array( 'SNT_GSC_SYNC_HOOK',             'sn_gsc_sync_daily',         'snt_gsc_sync_is_ready' ),
+	);
+	$out = array();
+	foreach ( $pairs as $p ) {
+		$out[ defined( $p[0] ) ? constant( $p[0] ) : $p[1] ] = $p[2];
+	}
+	return $out;
 }
 
 /**

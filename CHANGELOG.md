@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.56.1] - 2026-09-01 — an opt-in feature that is switched off no longer reads as a missing cron job
+
+### Fixed — `snt_cron_hook_is_expected()` consults the module's own gate
+
+The predicate said "expected" for every hook but one. Five opt-in modules
+deliberately **unschedule their own hook when their gate is off** — insights,
+morning brief, scheduled reads, the security digest, and GSC sync (readiness
+rather than a toggle) — so when switched off they were correctly absent *and*
+reported as "expected but not scheduled". Site Health has carried that false
+alarm quietly; v13.52.0's cron-health summary put it somewhere read, and on its
+**first live reading** it flagged `snt_morning_brief_daily` and
+`snt_scheduled_reads_daily`, both simply off.
+
+`snt_cron_opt_in_gates()` now maps each of the five hooks to its module's
+predicate, and the expectation consults it. **The safe direction, by
+construction:** a module that is not loaded cannot say off, so its hook stays
+expected — this change can only remove a false alarm, never hide a real gap,
+because a loaded module answering ON still yields expected. Pinned in both
+directions, including the summary: OFF is not `missing`; the same module ON with
+no schedule IS.
+
+The map is **derived, not remembered** — a parity pin walks every module that
+unschedules beside an enable predicate and asserts each has its gate declared
+with the *right* predicate name, vacuity-guarded first.
+
+### Testing
+
+10 new assertions; five mutations red (gate ignored, absent module read as OFF,
+a module dropped from the map, a wrong predicate name, the scanner rotted).
+
+**The pin reddened twice before it went green, both times correctly.** Once on
+the scanner's real finding, and once on my own resolver, which matched only
+`const NAME = …` and reported three `define()`'d hooks unresolved — the same
+form-blindness the v13.49.0 cron pin hit. Unresolved *failed* rather than
+skipped, which is the only reason it was noticed.
+
 ## [13.56.0] - 2026-09-01 — scheduled posts can be moved in bulk without publishing them by accident
 
 Wave 5. **Surface decision D2**: this is a wp-admin bulk action, never an
