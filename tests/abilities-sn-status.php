@@ -61,7 +61,7 @@ echo "sn_status (consolidated) — plugin v13.1.0\n\n";
 
 // ─── Section map: ten sections, all plugin-namespace sources ───
 $map = snt_sn_status_map();
-ok( 12 === count( $map ), 'the section map has exactly 12 entries' );
+ok( 13 === count( $map ), 'the section map has exactly 13 entries (v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
 $expected_map = array(
 	'uptime'               => 'signal-noise/uptime-status',
 	'deploy'               => 'signal-noise/get-deploy-status',
@@ -76,6 +76,7 @@ $expected_map = array(
 	// v13.44.0 — ADDITIVE. corpus_integrity sits here and NOT on sn-validate:
 	// it is manage_options, sn-validate is read_corpus, and that placement
 	// would cross permission tiers.
+	'cron_health'          => 'signal-noise/cron-health-summary',
 	'collector'            => 'signal-noise/get-collector-status',
 	'corpus_integrity'     => 'signal-noise/corpus-integrity-scan',
 );

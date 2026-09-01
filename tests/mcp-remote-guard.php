@@ -58,7 +58,12 @@ ok( array(
 	'signal-noise/remote-get-health-scan',
 	'signal-noise/remote-get-rss-stats',
 	'signal-noise/remote-get-deploy-status',
-) === sn_mcp_remote_slugs(), 'the remote list holds exactly the eight Increment 1 + Increment 2 slugs' );
+	// v13.52.0 — the three ratified twins (D-rulings, docs/BACKLOG.md).
+	// anchor is deliberately absent: RULED LOCAL (D1).
+	'signal-noise/remote-provenance-integrity-status',
+	'signal-noise/remote-machine-readers-summary',
+	'signal-noise/remote-cron-health-summary',
+) === sn_mcp_remote_slugs(), 'the remote list holds exactly the eleven slugs: eight from Increments 1+2, three ratified 2026-09-01' );
 
 echo "Group: all three gates must pass, and each alone is insufficient\n";
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );

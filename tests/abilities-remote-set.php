@@ -70,6 +70,10 @@ $FULL_SET = array(
 	'signal-noise/remote-get-health-scan',
 	'signal-noise/remote-get-rss-stats',
 	'signal-noise/remote-get-deploy-status',
+	// v13.52.0 — the three ratified twins.
+	'signal-noise/remote-provenance-integrity-status',
+	'signal-noise/remote-machine-readers-summary',
+	'signal-noise/remote-cron-health-summary',
 );
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
@@ -97,6 +101,12 @@ require __DIR__ . '/../inc/uptime-status.php';
 require __DIR__ . '/../inc/abilities-health.php';
 require __DIR__ . '/../inc/abilities-content.php';
 require __DIR__ . '/../inc/abilities-system.php';
+// v13.52.0 admin registrations for the three new twins' parity pairs. The
+// cron pair needs the dashboard module for the impl the callback names.
+require __DIR__ . '/../inc/provenance-integrity.php';
+require __DIR__ . '/../inc/abilities-machine-readers.php';
+require __DIR__ . '/../inc/cron-dashboard.php';
+require __DIR__ . '/../inc/abilities-cron.php';
 // The read/write allowlists, for the negative-space group.
 require __DIR__ . '/../inc/mcp/mcp-capabilities.php';
 
@@ -119,6 +129,14 @@ $ADMIN_HEALTH   = 'signal-noise/get-health-scan';
 $ADMIN_RSS      = 'signal-noise/get-rss-stats';
 $ADMIN_DEPLOY   = 'signal-noise/get-deploy-status';
 
+// v13.52.0 pairs.
+$REMOTE_PROV = 'signal-noise/remote-provenance-integrity-status';
+$REMOTE_MR   = 'signal-noise/remote-machine-readers-summary';
+$REMOTE_CRON = 'signal-noise/remote-cron-health-summary';
+$ADMIN_PROV  = 'signal-noise/provenance-integrity-status';
+$ADMIN_MR    = 'signal-noise/get-machine-readers-summary';
+$ADMIN_CRON  = 'signal-noise/cron-health-summary';
+
 // slug => permission callback name, ALL EIGHT — the matrix's map.
 $MAP = array(
 	$REMOTE_SUMMARY   => 'snt_ability_perm_remote_analytics_summary',
@@ -129,6 +147,9 @@ $MAP = array(
 	$REMOTE_HEALTH    => 'snt_ability_perm_remote_health_scan',
 	$REMOTE_RSS       => 'snt_ability_perm_remote_rss_stats',
 	$REMOTE_DEPLOY    => 'snt_ability_perm_remote_deploy_status',
+	$REMOTE_PROV      => 'snt_ability_perm_remote_provenance_integrity',
+	$REMOTE_MR        => 'snt_ability_perm_remote_machine_readers',
+	$REMOTE_CRON      => 'snt_ability_perm_remote_cron_health',
 );
 
 $GLOBALS['__options'] = array( 'sn_mcp_remote_enabled' => true );
@@ -148,7 +169,7 @@ foreach ( $MAP as $solo_slug => $ignored_cb ) {
 }
 $GLOBALS['__remote_slugs'] = $FULL_SET;
 
-echo "Group: PARITY, output — the seven twins' output_schema copies the admin's byte-identically\n";
+echo "Group: PARITY, output — every twin's output_schema copies the admin's byte-identically\n";
 $pairs_output = array(
 	array( $REMOTE_EVENTS, $ADMIN_EVENTS ),
 	array( $REMOTE_INSIGHTS, $ADMIN_INSIGHTS ),
@@ -157,6 +178,9 @@ $pairs_output = array(
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
 	array( $REMOTE_RSS, $ADMIN_RSS ),
 	array( $REMOTE_DEPLOY, $ADMIN_DEPLOY ),
+	array( $REMOTE_PROV, $ADMIN_PROV ),
+	array( $REMOTE_MR, $ADMIN_MR ),
+	array( $REMOTE_CRON, $ADMIN_CRON ),
 );
 foreach ( $pairs_output as $pair ) {
 	list( $remote, $admin ) = $pair;
@@ -244,6 +268,9 @@ $execute_pairs = array(
 	array( $REMOTE_HEALTH, $ADMIN_HEALTH ),
 	array( $REMOTE_RSS, $ADMIN_RSS ),
 	array( $REMOTE_DEPLOY, $ADMIN_DEPLOY ),
+	array( $REMOTE_PROV, $ADMIN_PROV ),
+	array( $REMOTE_MR, $ADMIN_MR ),
+	array( $REMOTE_CRON, $ADMIN_CRON ),
 );
 foreach ( $execute_pairs as $pair ) {
 	list( $remote, $admin ) = $pair;

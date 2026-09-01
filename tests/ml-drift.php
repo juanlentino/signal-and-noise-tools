@@ -169,7 +169,21 @@ foreach ( $ability_files as $f ) {
 }
 ok( array() === $leaks, 'NO ability wraps the drift pipeline — the mirror faces the writer, never a model (leaked in: ' . implode( ', ', $leaks ) . ')' );
 $remote = (string) file_get_contents( $inc . 'abilities-remote-set.php' );
-ok( false === strpos( $remote, 'drift' ), 'and the REMOTE set carries no drift twin — the phone door reads analytics, not the corpus mirror' );
+// v13.52.0: this scanned the bare substring 'drift' and matched PROSE — a
+// schema description reading "cannot drift from them" tripped it, with zero
+// references to the drift pipeline in the file. The invariant is "no drift
+// ABILITY is twinned", so scan for the pipeline's own identifiers, the same
+// pair the leak check above uses. A pin that fires on the word rather than the
+// thing trains people to reword comments, which is worse than no pin.
+ok(
+	false === strpos( $remote, 'corpus-drift' ) && false === strpos( $remote, 'snt_ml_drift_report' ),
+	'and the REMOTE set carries no drift twin — the phone door reads analytics, not the corpus mirror'
+);
+// Negative control: the scan must still catch a real leak.
+ok(
+	false !== strpos( "wp_register_ability( 'signal-noise/remote-corpus-drift'", 'corpus-drift' ),
+	'and that scan still detects a genuine drift twin (control against the loosening above)'
+);
 // The absence pin must itself be non-vacuous: prove the grep would catch a
 // real registration by scanning a string shaped like one (the
 // negative-control-your-own-instruments rule).

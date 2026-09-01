@@ -35,22 +35,25 @@ function wp_register_ability( $slug, $args ) { $GLOBALS['__abilities'][ $slug ] 
 $GLOBALS['__actions'] = array();
 function add_action( $hook, $cb, $p = 10, $a = 1 ) { $GLOBALS['__actions'][ $hook ][] = $cb; return true; }
 
-// The guard DOUBLE (the real inc/mcp/mcp-remote-guard.php fatals on
-// redeclare in this harness — see tests/abilities-remote-set.php's header;
-// its verbatim slug pin is tested there and in tests/mcp-remote-guard.php).
-// This list is the SAME 8 the guard returns; if the guard widens, the parity
-// suites red first and bring you here.
+// The guard DOUBLE — DERIVED, not remembered (v13.52.0). The real
+// inc/mcp/mcp-remote-guard.php fatals on redeclare in this harness, so a
+// double is unavoidable; the old hand-copied list meant a widened guard left
+// this suite hashing the STALE map and its contract pin passing vacuously —
+// exactly the under-reporting class the 2026-08-31 cron audit closed. The
+// slugs are now parsed out of the guard's own source, with the vacuity guard
+// asserted before anything trusts the list.
+$GLOBALS['__parsed_remote_slugs'] = array();
+$sn_guard_src = (string) file_get_contents( __DIR__ . '/../inc/mcp/mcp-remote-guard.php' );
+if ( preg_match( '/function sn_mcp_remote_slugs\(\) \{.*?return array\((.*?)\);/s', $sn_guard_src, $sn_m )
+	&& preg_match_all( "/'(signal-noise\/[a-z0-9-]+)'/", $sn_m[1], $sn_sl ) ) {
+	$GLOBALS['__parsed_remote_slugs'] = $sn_sl[1];
+}
+if ( count( $GLOBALS['__parsed_remote_slugs'] ) < 8 ) {
+	echo "FATAL: parsed fewer than 8 remote slugs from the guard source — the parser rotted; refusing to run against a partial list.\n";
+	exit( 1 );
+}
 function sn_mcp_remote_slugs() {
-	return array(
-		'signal-noise/remote-get-analytics-summary',
-		'signal-noise/remote-get-analytics-events',
-		'signal-noise/remote-get-insights',
-		'signal-noise/remote-get-narration',
-		'signal-noise/remote-uptime-status',
-		'signal-noise/remote-get-health-scan',
-		'signal-noise/remote-get-rss-stats',
-		'signal-noise/remote-get-deploy-status',
-	);
+	return $GLOBALS['__parsed_remote_slugs'];
 }
 function sn_remote_analytics_allows( $slug ) { return true; }
 
@@ -64,7 +67,7 @@ foreach ( $GLOBALS['__actions']['wp_abilities_api_init'] ?? array() as $cb ) { $
 
 echo "remote MCP payload-shape contract (phase 2)\n\n";
 
-echo "Group: the 8 twins register with an output_schema\n";
+echo "Group: every twin on the (derived) allowlist registers with an output_schema\n";
 $slugs   = sn_mcp_remote_slugs();
 $schemas = array();
 foreach ( $slugs as $slug ) {
