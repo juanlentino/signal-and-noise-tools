@@ -632,5 +632,62 @@ assert_true( $sn_checked > 0, 'VACUITY GUARD: at least one call site actually RE
 assert_eq( array(), $sn_unresolved, 'every scheduled hook token resolves to a name (an unresolvable one is a HOLE in this pin, not a pass)' );
 assert_eq( array(), $sn_uncovered, 'PARITY: every recurring hook this plugin schedules is in snt_cron_sn_owned_hooks(), so the rw-doored unschedule refuses it' );
 
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.56.1 — opt-in modules are not "missing" when they are OFF.
+ * ════════════════════════════════════════════════════════════════════════ */
+$GLOBALS['__gate_morning'] = false;
+function snt_morning_brief_enabled() { return $GLOBALS['__gate_morning']; }
+$GLOBALS['__test_actions']['snt_morning_brief_daily'] = true;
+
+assert_true( false === snt_cron_hook_is_expected( 'snt_morning_brief_daily' ), 'opt-in OFF: the hook is NOT expected, so its absence is not a gap' );
+$GLOBALS['__gate_morning'] = true;
+assert_true( true === snt_cron_hook_is_expected( 'snt_morning_brief_daily' ), 'opt-in ON: the hook IS expected — the gate cannot hide a real gap' );
+assert_true( true === snt_cron_hook_is_expected( 'sn_health_scan_daily' ), 'a hook with no gate stays expected (unchanged behaviour)' );
+assert_true( true === snt_cron_hook_is_expected( 'snt_scheduled_reads_daily' ), 'a gated hook whose module is NOT LOADED stays expected — absence of the predicate never reads as OFF' );
+
+// Through the summary: OFF must not appear in missing; ON + unscheduled MUST.
+$GLOBALS['__gate_morning'] = false;
+unset( $GLOBALS['__test_next_scheduled']['snt_morning_brief_daily'] );
+$sum = snt_cron_health_summary_impl( time() );
+assert_true( ! in_array( 'snt_morning_brief_daily', $sum['missing'], true ), 'summary: an OFF opt-in module is not reported missing (the false alarm this fixes)' );
+$GLOBALS['__gate_morning'] = true;
+$sum = snt_cron_health_summary_impl( time() );
+assert_true( in_array( 'snt_morning_brief_daily', $sum['missing'], true ), 'summary: the SAME module switched ON with no schedule IS reported missing — the negative control' );
+
+// PARITY, derived: every module that unschedules its own hook beside an
+// enable predicate must have a gate entry. Vacuity guards first.
+$sn_src_files = glob( __DIR__ . '/../inc/*.php' );
+$sn_gated_modules = array();
+foreach ( $sn_src_files as $f ) {
+	$src = (string) file_get_contents( $f );
+	if ( false === strpos( $src, 'wp_unschedule_event(' ) ) { continue; }
+	if ( preg_match( '/function (snt?_[a-z_]+_(?:enabled|is_ready))\(\)/', $src, $m ) && preg_match( '/wp_schedule_event\([^;]*,\s*([A-Z_]+)\s*\)/', $src, $h ) ) {
+		$sn_gated_modules[ $h[1] ] = $m[1];
+	}
+}
+assert_true( count( $sn_gated_modules ) >= 4, 'vacuity: the opt-in scan found the expected order of magnitude of gated modules (>=4)' );
+$sn_gate_consts = array();
+foreach ( (array) glob( __DIR__ . '/../inc/*.php' ) as $f ) {
+	// BOTH declaration forms, resolved to VALUES. A resolver that knows only
+	// `const` leaves every define()'d hook unresolved — and unresolved must
+	// FAIL, never skip, or the pin reports parity over a partial set.
+	$src_c = (string) file_get_contents( $f );
+	if ( preg_match_all( "/const\s+([A-Z_]+)\s*=\s*'([a-z_]+)'/", $src_c, $c ) ) {
+		foreach ( $c[1] as $i => $n ) { $sn_gate_consts[ $n ] = $c[2][ $i ]; }
+	}
+	if ( preg_match_all( "/define\(\s*'([A-Z_]+)'\s*,\s*'([a-z_]+)'/", $src_c, $d ) ) {
+		foreach ( $d[1] as $i => $n ) { $sn_gate_consts[ $n ] = $d[2][ $i ]; }
+	}
+}
+$sn_gates_declared = snt_cron_opt_in_gates();
+$sn_uncovered = array();
+foreach ( $sn_gated_modules as $const => $pred ) {
+	$hook = $sn_gate_consts[ $const ] ?? null;
+	if ( null === $hook ) { $sn_uncovered[] = "$const (unresolved)"; continue; }
+	if ( ( $sn_gates_declared[ $hook ] ?? '' ) !== $pred ) { $sn_uncovered[] = "$hook -> $pred"; }
+}
+assert_eq( array(), $sn_uncovered, 'PARITY: every self-unscheduling opt-in module has its gate declared, with the RIGHT predicate' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
