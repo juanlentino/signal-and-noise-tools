@@ -44,7 +44,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 // (provenance-integrity, machine-readers, cron-health). The worker's
 // CONTRACT_VERSION bumps in the same arc; until its deploy lands, the deploy
 // probe reads contract_match:false, which is the observed-not-refused design.
-const SN_REMOTE_CONTRACT_VERSION = '3';
+const SN_REMOTE_CONTRACT_VERSION = '4';
 
 // version → sha256 over sn_remote_contract_shape_hash()'s canonical JSON of
 // the 8 remote twins' output_schemas. Every version maps to a DISTINCT hash:
@@ -56,6 +56,8 @@ const SN_REMOTE_CONTRACT_VERSION_HASHES = array(
 	'2' => '5232aaa9c622fcbefcb93e3599521ab30007549fb30e3881d889f093ceb7743e',
 	// RED-then-pin, 2026-09-01 (v13.61.0): 13-twin map, two Search Console twins.
 	'3' => '6c5a0bc62def0f21de9ffa6ff0e099909077329fd0ecbcffea531612dd1f89be',
+	// RED-then-pin, 2026-09-01 (v13.67.0): 14-twin map, the cross-exam joined.
+	'4' => 'e5469f17e28b1e046ce1a66489edd39e4ec7fde8d3c5440cc74d8a15e13fd880',
 );
 
 /**
