@@ -124,6 +124,7 @@ function snt_sn_status_map() {
 		'family_drift'         => 'signal-noise/family-drift',
 		// v13.63.0 — the stored URL Inspection map (weekly); never inspects on read.
 		'search_coverage'      => 'signal-noise/search-coverage',
+		'inbound_pass'         => 'signal-noise/inbound-pass', // v13.68.0
 	);
 }
 

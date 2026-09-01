@@ -2,6 +2,37 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.68.0] - 2026-09-01 — a new note is born unlinked; the inbound pass says so the next morning
+
+### Added — the daily inbound pass (`inc/inbound-pass.php`, `signal-noise/inbound-pass`, sn-status `inbound_pass`)
+
+Measured today across the first coverage reading: every one of the 13 not-indexed
+notes had zero inbound links from an indexed page, and every scheduled note will be
+born the same way — the link_candidates artifact and the pair-suggest gate both
+require a PUBLISHED target, so nothing can pre-link a future post. Fixing the 13
+by hand took five `ai-link-apply` writes and two sentences; the morning after the
+next publish, nothing would have said the new note needed the same.
+
+Now, daily (`sn_inbound_pass_daily`, always-on, on the owned-hook list): for each
+post published inside a two-day window with zero inbound links in the link graph,
+take its top related PUBLISHED notes (the ML kernel's stored artifact) as candidate
+sources — at most three per note — and run the pair-suggest judgment older → new.
+The verdict lands in the durable verdict store, so a `link` with a valid anchor
+surfaces on the link_opportunities worklist with the anchor already nominated, and
+the stored report lists the same anchors per pair (`outcome: ready`, `anchor`) so
+the reader does not need the worklist. Memoized on both modified stamps: a second
+run over the same pair re-bills nothing.
+
+Fail-closed: an unavailable provider is `state: unavailable`, never a report with
+zero pairs (zero pairs means "every new note is linked"). An unbuilt artifact is
+reported per note as `artifact: unbuilt`, not read as "no related notes". Never
+`critical` — an advisory. Local only (remote verdict recorded: it lists AI anchor
+nominations into hours-old notes, an editorial worklist, not a public metric).
+
+Pins: sn-status sections 18 → 19; read-door allowlist 27 → 28. Guards proved
+breakable before shipping: loosening the zero-inbound filter, removing the
+unavailable abort, and flipping the judged direction each turned the suite red.
+
 ## [13.67.0] - 2026-09-01 — the cross-exam reaches the remote door; contract 3 → 4
 
 ### Added — `remote-search-crossexam`, by owner ruling

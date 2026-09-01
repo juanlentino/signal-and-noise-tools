@@ -174,6 +174,8 @@ function sn_mcp_allowlist() {
 		'signal-noise/family-drift',
 		// v13.63.0 — stored index coverage per post; never inspects on read.
 		'signal-noise/search-coverage',
+		// v13.68.0 — stored inbound-pass report; never calls the model on read.
+		'signal-noise/inbound-pass',
 		// v13.1.0 — read-door coherence (owner-reopened consolidation, see the
 		// wave-3 decision amendment in retirement-verdicts-2026-08-25.md). Two
 		// SECTIONED-BATCH readouts on the sn-site-facts pattern — each answers
