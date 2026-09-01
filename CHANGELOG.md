@@ -2,6 +2,36 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.64.0] - 2026-09-01 — a slow or interrupted inspection run keeps what it got
+
+### Changed — `snt_gsc_coverage_sync()` is incremental, resumable and timed
+
+The first run on the live site never produced a map: the v13.63.0 sync wrote
+its option once, at the end, and Google answers each URL inspection in three
+to fifteen seconds, so 37 posts is minutes — long enough for a WP-CLI run to be
+abandoned, and a run abandoned at inspection 36 left nothing at all.
+
+- **Incremental.** The option is written after every inspection with
+  `complete:false` until the walk finishes. A partial run is a partial map,
+  reported as such (`complete` rides the summary and the ability), not an
+  absent one.
+- **Status record** (`snt_gsc_coverage_status`, exposed as `status` on the
+  ability): written first with `ok:null` so "is it running?" is answerable,
+  then with timing, targets, inspected, errors and skipped.
+- **Resume.** Entries younger than six days are carried forward and skipped;
+  errored entries are always retried. A re-run after an interruption spends
+  quota only on what is missing. `snt_gsc_coverage_sync( true )` forces a full
+  pass.
+- **Per-call timeout 15s** (the GSC client's POST now takes an optional
+  timeout), so a stalled inspection costs a quarter minute, not half.
+
+### Testing
+
+10 new assertions, driven by a seam that snapshots the option before every
+inspection. Four mutations red: writing only at the end; carrying error
+entries forward on resume; force ignored; the timeout not passed. Sweep: 537
+suites, 21839 assertions.
+
 ## [13.63.1] - 2026-09-01 — the never-synced coverage answer was refused by the door's own validator
 
 ### Fixed — `search-coverage` output schema admits the empty map

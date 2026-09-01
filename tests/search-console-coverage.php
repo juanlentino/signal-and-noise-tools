@@ -26,7 +26,8 @@ class WP_Error { public $c; public $m; public function __construct( $c = '', $m 
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 $GLOBALS['__opt'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opt'] ) ? $GLOBALS['__opt'][ $k ] : $d; }
-function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; return true; }
+function update_option( $k, $v, $a = null ) { $GLOBALS['__opt'][ $k ] = $v; $GLOBALS['__writes'][] = $k; return true; }
+$GLOBALS['__writes'] = array(); $GLOBALS['__seen_mid_run'] = array();
 $GLOBALS['__sched'] = array();
 function wp_next_scheduled( $h ) { return $GLOBALS['__sched'][ $h ] ?? false; }
 function wp_schedule_event( $ts, $rec, $h ) { $GLOBALS['__sched'][ $h ] = array( $ts, $rec ); return true; }
@@ -39,7 +40,7 @@ function get_posts( $a ) { $GLOBALS['__get_posts_args'] = $a; return array_keys(
 function get_permalink( $id ) { return $GLOBALS['__posts'][ $id ] ?? ''; }
 // The network seam: url => response.
 $GLOBALS['__api'] = array(); $GLOBALS['__posted'] = array();
-function snt_gsc_api_post( $url, $body ) { $GLOBALS['__posted'][] = array( $url, $body ); $k = $body['inspectionUrl']; return $GLOBALS['__api'][ $k ] ?? new WP_Error( 'snt_gsc_api_error', 'HTTP 500' ); }
+function snt_gsc_api_post( $url, $body, $timeout = 30 ) { $GLOBALS['__posted'][] = array( $url, $body, $timeout ); $GLOBALS['__seen_mid_run'][] = get_option( SNT_GSC_COVERAGE_OPTION, null ); $k = $body['inspectionUrl']; return $GLOBALS['__api'][ $k ] ?? new WP_Error( 'snt_gsc_api_error', 'HTTP 500' ); }
 
 require_once __DIR__ . '/../inc/path-join-key.php';
 require_once __DIR__ . '/../inc/search-console-coverage.php';
@@ -95,6 +96,32 @@ ok( ! isset( $GLOBALS['__sched'][ SNT_GSC_COVERAGE_HOOK ] ), 'not ready → unsc
 $cd = (string) file_get_contents( __DIR__ . '/../inc/cron-dashboard.php' );
 ok( 1 === preg_match( "/'SNT_GSC_COVERAGE_HOOK',\s*'sn_gsc_coverage_weekly',\s*'snt_gsc_sync_is_ready'/", $cd ), 'the opt-in gate map pairs the hook with snt_gsc_sync_is_ready (cron_health must not call readiness-absence "missing")' );
 ok( 1 === preg_match( "/'SNT_GSC_COVERAGE_HOOK',\s*'sn_gsc_coverage_weekly'\s*\)/", $cd ), 'and it is on the SN-owned hooks list' );
+
+
+// ─── v13.64.0: incremental, resumable, timed ───
+echo "\nGroup: v13.64.0 — a slow or interrupted run keeps what it got\n";
+$GLOBALS['__ready'] = true; $GLOBALS['__opt'] = array(); $GLOBALS['__writes'] = array(); $GLOBALS['__posted'] = array(); $GLOBALS['__seen_mid_run'] = array();
+$GLOBALS['__api'] = array( 'https://example.test/notes/alpha/' => $indexed(), 'https://example.test/notes/beta/' => $crawled_not );
+$p2 = snt_gsc_coverage_sync();
+ok( 15 === ( $GLOBALS['__posted'][0][2] ?? 0 ), 'each inspection carries the 15s per-call timeout, not the client\'s 30s default' );
+$mid = $GLOBALS['__seen_mid_run'];
+ok( is_array( $mid[1] ) && 1 === count( $mid[1]['entries'] ) && false === $mid[1]['complete'], 'INCREMENTAL: before the 2nd inspection the option already holds the 1st entry, complete:false' );
+ok( is_array( $mid[2] ) && 2 === count( $mid[2]['entries'] ) && false === $mid[2]['complete'], 'and before the 3rd it holds two' );
+ok( true === $p2['complete'] && 3 === $p2['inspected'] && 0 === $p2['skipped'], 'the finished payload is complete with every target inspected' );
+$st = snt_gsc_coverage_last_status();
+ok( is_array( $st ) && true === $st['ok'] && $st['finished_at'] >= $st['started_at'] && 3 === $st['targets'] && 1 === $st['errors'], 'status record: ok, timing, targets, errors' );
+ok( SNT_GSC_COVERAGE_STATUS === $GLOBALS['__writes'][0] && null === get_option( 'x', null ), 'the status record is written FIRST (started, ok:null) — "is it running" is answerable' );
+// resume: fresh entries are kept and not re-inspected; ERROR entries are re-tried
+$GLOBALS['__posted'] = array();
+$p3 = snt_gsc_coverage_sync();
+ok( 1 === count( $GLOBALS['__posted'] ) && 'https://example.test/notes/gamma/' === $GLOBALS['__posted'][0][1]['inspectionUrl'], 'RESUME: only the errored gamma is re-inspected; alpha and beta are fresh and skipped' );
+ok( 2 === $p3['skipped'] && 3 === $p3['inspected'] && true === $p3['complete'], 'skipped counted, map still complete' );
+$GLOBALS['__posted'] = array();
+snt_gsc_coverage_sync( true );
+ok( 3 === count( $GLOBALS['__posted'] ), 'force: everything re-inspected' );
+// an interrupted run reads as incomplete
+$partial = get_option( SNT_GSC_COVERAGE_OPTION ); $partial['complete'] = false; update_option( SNT_GSC_COVERAGE_OPTION, $partial );
+ok( false === snt_gsc_coverage_summary( snt_gsc_coverage_data() )['complete'] && true === snt_gsc_coverage_summary( snt_gsc_coverage_data() )['synced'], 'summary: complete:false while synced:true — a partial map is a partial map, not an absent one' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

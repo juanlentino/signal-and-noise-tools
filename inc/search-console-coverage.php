@@ -29,6 +29,9 @@ const SNT_GSC_COVERAGE_HOOK     = 'sn_gsc_coverage_weekly';
 const SNT_GSC_COVERAGE_OPTION   = 'snt_gsc_coverage';
 const SNT_GSC_INSPECT_URL       = 'https://searchconsole.googleapis.com/v1/urlInspection/index:inspect';
 const SNT_GSC_COVERAGE_MAX_URLS = 200; // per run; the API allows 2,000/day and the corpus is ~40.
+const SNT_GSC_COVERAGE_STATUS   = 'snt_gsc_coverage_status';
+const SNT_GSC_COVERAGE_TIMEOUT  = 15;                 // seconds per inspection; Google usually answers in 3-15s.
+const SNT_GSC_COVERAGE_FRESH    = 6 * DAY_IN_SECONDS; // an entry younger than this is not re-inspected (resume).
 
 /** Verdicts Google can return; anything else is stored verbatim but counted as 'other'. */
 const SNT_GSC_COVERAGE_VERDICTS = array( 'PASS', 'NEUTRAL', 'FAIL', 'PARTIAL', 'VERDICT_UNSPECIFIED' );
@@ -87,7 +90,7 @@ function snt_gsc_inspect_url( $url, $property ) {
 		'inspectionUrl' => (string) $url,
 		'siteUrl'       => (string) $property,
 		'languageCode'  => 'en-US',
-	) );
+	), SNT_GSC_COVERAGE_TIMEOUT );
 }
 
 /**
@@ -111,42 +114,89 @@ function snt_gsc_coverage_targets() {
 }
 
 /**
- * Inspect every target and store the map. WP_Error when not ready.
+ * Inspect every target and store the map — INCREMENTALLY.
  *
+ * v13.64.0: the first version wrote one option at the end, so a run that was
+ * slow (Google answers each inspection in 3-15s; 37 posts is minutes) or
+ * interrupted (a killed WP-CLI, a PHP time limit) left NOTHING. Now:
+ *  - the option is written after EVERY inspection, with complete:false until
+ *    the walk finishes, so a partial run is a partial map, not an absent one;
+ *  - a status record (started/finished/elapsed/inspected/errors) is written at
+ *    start and end, so "is it running / did it finish" is answerable;
+ *  - RESUME: entries younger than SNT_GSC_COVERAGE_FRESH are kept and skipped
+ *    unless $force, so a re-run after an interruption only spends quota on
+ *    what is missing.
+ *
+ * @param bool $force Re-inspect everything, ignoring fresh entries.
  * @return array|WP_Error The stored payload.
  */
-function snt_gsc_coverage_sync() {
+function snt_gsc_coverage_sync( $force = false ) {
 	if ( ! function_exists( 'snt_gsc_sync_is_ready' ) || ! snt_gsc_sync_is_ready() ) {
 		return new WP_Error( 'snt_gsc_not_ready', 'Search Console is not configured.' );
 	}
 	$property = (string) sn_setting( 'search_console.property', '' );
 	$targets  = snt_gsc_coverage_targets();
-	$now      = time();
+	$started  = time();
+	$prev     = snt_gsc_coverage_data();
 	$entries  = array();
 	$errors   = 0;
+	$skipped  = 0;
+
+	// Resume: carry fresh entries forward instead of re-spending quota on them.
+	if ( ! $force && is_array( $prev ) ) {
+		foreach ( (array) $prev['entries'] as $k => $e ) {
+			if ( is_array( $e ) && ! isset( $e['error'] ) && ( $started - (int) ( $e['inspected_at'] ?? 0 ) ) < SNT_GSC_COVERAGE_FRESH ) {
+				$entries[ (string) $k ] = $e;
+			}
+		}
+	}
+
+	$write = static function ( $complete ) use ( &$entries, &$errors, &$skipped, $property, $started, $targets ) {
+		$payload = array(
+			'property'  => $property,
+			'synced_at' => time(),
+			'started_at' => $started,
+			'complete'  => (bool) $complete,
+			'inspected' => count( $entries ),
+			'errors'    => $errors,
+			'skipped'   => $skipped,
+			'capped'    => count( $targets ) >= SNT_GSC_COVERAGE_MAX_URLS,
+			'entries'   => $entries,
+		);
+		update_option( SNT_GSC_COVERAGE_OPTION, $payload, false );
+		return $payload;
+	};
+	update_option( SNT_GSC_COVERAGE_STATUS, array( 'started_at' => $started, 'finished_at' => 0, 'ok' => null, 'targets' => count( $targets ), 'resumed' => count( $entries ) ), false );
+
+	$payload = $write( false );
 	foreach ( $targets as $id => $url ) {
 		$key = function_exists( 'sn_path_join_key' ) ? sn_path_join_key( $url ) : $url;
 		if ( '' === $key ) {
 			continue;
 		}
-		$entry = snt_gsc_coverage_normalize( snt_gsc_inspect_url( $url, $property ), $now );
+		if ( isset( $entries[ $key ] ) ) {
+			$skipped++;
+			continue; // fresh from the previous run.
+		}
+		$entry = snt_gsc_coverage_normalize( snt_gsc_inspect_url( $url, $property ), time() );
 		$entry['post_id'] = (int) $id;
 		$entry['url']     = $url;
 		if ( isset( $entry['error'] ) ) {
 			$errors++;
 		}
 		$entries[ $key ] = $entry;
+		$payload = $write( false ); // after EVERY inspection: an interrupted run keeps what it got.
 	}
-	$payload = array(
-		'property'  => $property,
-		'synced_at' => $now,
-		'inspected' => count( $entries ),
-		'errors'    => $errors,
-		'capped'    => count( $targets ) >= SNT_GSC_COVERAGE_MAX_URLS,
-		'entries'   => $entries,
-	);
-	update_option( SNT_GSC_COVERAGE_OPTION, $payload, false );
+	$payload  = $write( true );
+	$finished = time();
+	update_option( SNT_GSC_COVERAGE_STATUS, array( 'started_at' => $started, 'finished_at' => $finished, 'elapsed' => $finished - $started, 'ok' => true, 'targets' => count( $targets ), 'inspected' => count( $entries ), 'errors' => $errors, 'skipped' => $skipped ), false );
 	return $payload;
+}
+
+/** The last run's status record, or null. */
+function snt_gsc_coverage_last_status() {
+	$s = function_exists( 'get_option' ) ? get_option( SNT_GSC_COVERAGE_STATUS, null ) : null;
+	return is_array( $s ) && isset( $s['started_at'] ) ? $s : null;
 }
 
 /** The stored map, or null when never synced. */
@@ -173,7 +223,7 @@ function snt_gsc_coverage_for_path( $path ) {
  */
 function snt_gsc_coverage_summary( $d ) {
 	if ( ! is_array( $d ) ) {
-		return array( 'synced' => false, 'inspected' => 0, 'indexed' => 0, 'not_indexed' => 0, 'unknown' => 0, 'errors' => 0, 'by_coverage_state' => array(), 'not_indexed_paths' => array(), 'canonical_mismatch' => array() );
+		return array( 'synced' => false, 'complete' => false, 'inspected' => 0, 'indexed' => 0, 'not_indexed' => 0, 'unknown' => 0, 'errors' => 0, 'by_coverage_state' => array(), 'not_indexed_paths' => array(), 'canonical_mismatch' => array() );
 	}
 	$idx = 0; $not = 0; $unk = 0; $err = 0; $states = array(); $not_paths = array(); $mismatch = array();
 	foreach ( (array) $d['entries'] as $path => $e ) {
@@ -201,6 +251,7 @@ function snt_gsc_coverage_summary( $d ) {
 	arsort( $states );
 	return array(
 		'synced'             => true,
+		'complete'           => ! array_key_exists( 'complete', $d ) || ! empty( $d['complete'] ), // v13.64.0: false = a run is in progress or was interrupted.
 		'synced_at'          => (int) ( $d['synced_at'] ?? 0 ),
 		'capped'             => ! empty( $d['capped'] ),
 		'inspected'          => (int) ( $d['inspected'] ?? 0 ),
