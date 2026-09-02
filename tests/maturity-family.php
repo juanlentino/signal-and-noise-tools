@@ -164,7 +164,7 @@ $m_scope = sn_machine_maturity_scope();
 foreach ( array( 'reservation', 'signal', 'licence', 'policy', 'vocabulary', 'identity' ) as $row ) {
 	ok( isset( $m_scope[ $row ] ) && 'live' === $m_scope[ $row ][1], "coverage carries the $row row, live" );
 }
-ok( 11 === count( $m_scope ), 'eleven coverage rows (five original + the four rights surfaces + the terms vocabulary + identity discovery, v11.27.0)' );
+ok( 12 === count( $m_scope ), 'twelve coverage rows (five original + the four rights surfaces + the terms vocabulary + identity discovery, v11.27.0 + behavioural deviation detection, v13.76.0)' );
 // The layer list is ALSO stated as prose in two other places; both drift
 // silently, so both are pinned to mention the terms.
 ok( false !== strpos( sn_machine_maturity_shortcode( array( 'format' => 'compact' ) ), 'the terms on every response' ), 'the compact blurb names the terms too' );

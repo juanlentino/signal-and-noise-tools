@@ -57,6 +57,7 @@ function sn_ml_maturity_layers() {
 function sn_ml_maturity_scope() {
 	$scope = array(
 		'related'   => array( __( 'Related notes', 'signal-and-noise-tools' ), 'live' ),
+		'crawlers'  => array( __( 'Machine-reader deviations', 'signal-and-noise-tools' ), 'live' ),
 		'cousins'   => array( __( 'Near-duplicate pairs', 'signal-and-noise-tools' ), 'live' ),
 		'keywords'  => array( __( 'Keyword candidates', 'signal-and-noise-tools' ), 'live' ),
 		'links'     => array( __( 'Link candidates', 'signal-and-noise-tools' ), 'live' ),

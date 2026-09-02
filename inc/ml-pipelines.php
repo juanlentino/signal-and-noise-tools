@@ -34,6 +34,7 @@ if ( ! function_exists( 'snt_ml_pipelines' ) ) {
 			'link-isolation'   => 'snt_ml_pipeline_link_isolation',   // v10.83.0: published notes nothing links to (inc/ml-link-isolation.php).
 			'corpus-drift'     => 'snt_ml_pipeline_corpus_drift',     // v11.2.0: per-term vocabulary movement across years (inc/ml-drift.php).
 			'reading-path'     => 'snt_ml_pipeline_reading_path',     // v11.3.0: the chain one post sits on (inc/ml-paths.php).
+			'reader-anomalies' => 'snt_ml_pipeline_reader_anomalies', // v13.76.0: machine-reader volume/shape deviations (inc/ml-reader-anomalies.php).
 		);
 		return apply_filters( 'snt_ml_pipelines', $pipelines );
 	}
