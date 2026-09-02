@@ -80,6 +80,7 @@ function snt_cron_sn_owned_hooks() {
 		array( 'SN_FAMILY_DRIFT_HOOK', 'sn_family_drift_weekly' ),
 		// v13.68.0 — daily inbound-link pass for freshly published notes. Always-on.
 		array( 'SN_INBOUND_PASS_HOOK', 'sn_inbound_pass_daily' ),
+		array( 'SN_INBOUND_PASS_PUBLISH_HOOK', 'sn_inbound_pass_after_publish' ), // v13.69.0 — single event after a publish; on-demand.
 		// v13.63.0 — weekly URL Inspection coverage sync (readiness-gated, see the opt-in map).
 		array( 'SNT_GSC_COVERAGE_HOOK', 'sn_gsc_coverage_weekly' ),
 		// v13.49.0 — NINE more, found by DERIVING the list instead of reading it.
@@ -712,8 +713,10 @@ function snt_cron_opt_in_gates() {
  * @return bool True when the hook fires on demand (no standing schedule).
  */
 function snt_cron_hook_is_on_demand( $hook ) {
-	$warmer = defined( 'SN_ANALYTICS_ROLLUP_HOOK' ) ? SN_ANALYTICS_ROLLUP_HOOK : 'sn_analytics_rollup';
-	return $hook === $warmer;
+	$warmer  = defined( 'SN_ANALYTICS_ROLLUP_HOOK' ) ? SN_ANALYTICS_ROLLUP_HOOK : 'sn_analytics_rollup';
+	// v13.69.0 — the inbound pass's after-publish run: a single event that clears after firing.
+	$inbound = defined( 'SN_INBOUND_PASS_PUBLISH_HOOK' ) ? SN_INBOUND_PASS_PUBLISH_HOOK : 'sn_inbound_pass_after_publish';
+	return $hook === $warmer || $hook === $inbound;
 }
 
 /**
