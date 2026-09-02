@@ -161,6 +161,38 @@ ok( false !== strpos( $sn_w['plain_label'], 'skill' ), 'and names the skill scor
 $sn_f = sn_analytics_forecast_of( 'x', 'Flat', $sn_series( $sn_flat ), '2026-08-01', '2026-08-30', array() );
 ok( null === $sn_f || 'forecast' === $sn_f['kind'], 'a rigid series is not withheld on undefined skill' );
 
+// ── v13.78.0: the skill DENOMINATOR needs a relative floor ──────────────────
+// v13.75.0 guarded mae_naive > 0, which catches a PERFECTLY rigid series and
+// misses a NEARLY rigid one. Live crawler data 2026-09-02: the `uptime` family
+// (median 480, MAD 0) produced skill -6.89 and had its forecast withheld — a
+// series that is trivially forecastable. "Is the denominator exactly zero" is
+// not the question; "is it large enough for the ratio to mean anything" is.
+$sn_hi = array(); $sn_lo = array();
+for ( $i = 0; $i < 30; $i++ ) { $sn_hi[] = 480 + ( $i % 3 ); $sn_lo[] = 10 + ( $i % 3 ); }
+$sn_bh = sn_analytics_forecast_backtest( $sn_hi, 7, 15 );
+$sn_bl = sn_analytics_forecast_backtest( $sn_lo, 7, 15 );
+
+ok( null === $sn_bh['skill'], 'a NEARLY rigid series yields undefined skill, not a huge negative' );
+
+// RELATIVITY is the property, and it is what an absolute floor would fail.
+// Identical absolute jitter at two levels: noise at 480, real signal at 10.
+ok( abs( $sn_bh['mae_naive'] - $sn_bl['mae_naive'] ) < 1e-9, 'both series carry the SAME absolute naive error (' . round( $sn_bh['mae_naive'], 3 ) . ')' );
+ok( null !== $sn_bl['skill'], 'yet at level 10 the same jitter IS a real comparison — the floor scales with the series' );
+ok( null === $sn_bh['skill'] && null !== $sn_bl['skill'], 'so an ABSOLUTE floor could not have separated these two' );
+
+// Still undefined when persistence is exactly perfect.
+ok( null === sn_analytics_forecast_backtest( array_fill( 0, 30, 480 ), 7, 15 )['skill'], 'a perfectly rigid series stays undefined' );
+
+// And a series with real spread still gets a real verdict — the floor must not
+// swallow the gate it was added to protect.
+$sn_spread = array(); for ( $i = 0; $i < 30; $i++ ) { $sn_spread[] = 480 + ( $i % 7 ) * 5; }
+ok( null !== sn_analytics_forecast_backtest( $sn_spread, 7, 15 )['skill'], 'a series with real spread still produces a skill score' );
+
+// Undefined must NOT withhold: a rigid series is trivially forecastable.
+$sn_sr = array_map( static function ( $v ) { return array( 'views' => $v ); }, $sn_hi );
+$sn_fc = sn_analytics_forecast_of( 'x', 'Rigid', $sn_sr, '2026-08-01', '2026-08-30', array() );
+ok( null === $sn_fc || 'forecast' === $sn_fc['kind'], 'undefined skill does not withhold the forecast' );
+
 $btn = sn_analytics_forecast_backtest( $noisy, 7, 14 );
 ok( is_array( $btn ) && $btn['coverage'] >= 0.8 && 91 === $btn['checks'], 'backtest: noisy line → high measured coverage over 91 checks' );
 ok( $btn['mae'] < 4.0, 'backtest: noisy line → MAE bounded by the noise scale' );

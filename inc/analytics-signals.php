@@ -14,6 +14,22 @@ const SN_ANALYTICS_FORECAST_HORIZON      = 7;    // days ahead (point at horizon
 const SN_ANALYTICS_FORECAST_MIN_POINTS   = 21;   // min history; below → suppressed (never fake precision)
 const SN_ANALYTICS_FORECAST_HISTORY_DAYS = 30;   // trailing fit window ending $to (decoupled from display)
 const SN_ANALYTICS_FORECAST_Z            = 1.96; // ~95% nominal interval; the backtest MEASURES real coverage
+/**
+ * Persistence-baseline floor, RELATIVE to the series level, below which skill is
+ * undefined rather than negative.
+ *
+ * v13.75.0 guarded `mae_naive > 0`, which catches a PERFECTLY rigid series and
+ * misses a NEARLY rigid one. Measured on live crawler data 2026-09-02: the
+ * `uptime` family sits at median 480 with MAD 0 — a handful of days differ just
+ * enough that mae_naive is small-but-nonzero, so skill blew up to -6.89 and the
+ * forecast was withheld for a series that is trivially forecastable.
+ *
+ * "Is the denominator exactly zero" is not the question. "Is the denominator
+ * large enough for the ratio to mean anything" is. When persistence already
+ * tracks a series to within 1% of its own level there is nothing left to beat,
+ * and the comparison says nothing about the model.
+ */
+const SN_ANALYTICS_FORECAST_SKILL_MIN_REL = 0.01;
 
 /**
  * Owner-tunable engine options (settings hub, v9.36.0): builds the $opts array
@@ -351,7 +367,13 @@ function sn_analytics_forecast_backtest( array $ys, $horizon = SN_ANALYTICS_FORE
 	// worse than an empty panel. NULL when the baseline is perfect (mae_naive 0,
 	// a rigid series): the comparison is then undefined, NOT a failure — the same
 	// position snt_ml_cadence_deviation_robust takes on a zero-spread history.
-	$skill = ( $mae_naive > 0.0 ) ? (float) ( 1.0 - ( $mae / $mae_naive ) ) : null;
+	// Undefined, not failure, when persistence is already essentially perfect —
+	// either exactly (mae_naive 0) or relative to the series' own level.
+	$level = (float) abs( (float) sn_analytics_stat_median( array_map( 'abs', $ys ) ) );
+	$floor = SN_ANALYTICS_FORECAST_SKILL_MIN_REL * $level;
+	$skill = ( $mae_naive > 0.0 && $mae_naive >= $floor )
+		? (float) ( 1.0 - ( $mae / $mae_naive ) )
+		: null;
 	return array(
 		'mae'       => $mae,
 		'mae_naive' => $mae_naive,
