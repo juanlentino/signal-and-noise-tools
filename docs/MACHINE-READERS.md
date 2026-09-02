@@ -232,8 +232,8 @@ survives can carry markup even before escaping.
   synthetic. `Google-Extended` is the same shape. Since v13.74.0 this is
   ENFORCED, not merely described: `SN_FAMILY_DRIFT_UNOBSERVABLE` in
   `inc/family-drift.php` exempts such families from the weekly `ours_unmatched`
-  row — whose sentence, "either the vendor is gone or its user agents changed",
-  was wrong about `apple-ai` every week — and reports them in a separate
+  row, whose sentence ("either the vendor is gone or its user agents changed")
+  was wrong about `apple-ai` every week, and reports them in a separate
   `unobservable` row, so the exemption is visible rather than silent. (Earlier
   revisions of this file described an `observable: false` FIELD. No such field
   ever existed in the code; the prose had outrun the implementation.)
