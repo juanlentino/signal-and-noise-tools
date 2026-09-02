@@ -2,6 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.78.0] - 2026-09-02 — the skill denominator gets a relative floor
+
+### Fixed — a near-rigid series had its forecast withheld
+
+First live run of `reader-anomalies` (2026-09-02) withheld **every** forecast
+across all seven eligible families. Most were honest: daily crawler volume is
+close to a random walk, where persistence is a strong baseline and Holt genuinely
+does not beat it. One was not.
+
+`uptime` — median 480, MAD 0, a near-constant series — reported **skill -6.89**.
+v13.75.0 guarded `mae_naive > 0`, which catches a PERFECTLY rigid series and
+misses a NEARLY rigid one: a few days differ just enough that `mae_naive` is
+small-but-nonzero, the ratio explodes, and a trivially forecastable series is
+refused.
+
+"Is the denominator exactly zero" was the wrong question. "Is the denominator
+large enough for the ratio to mean anything" is the right one, and only the
+second keeps a ratio honest. `SN_ANALYTICS_FORECAST_SKILL_MIN_REL` (0.01) makes
+skill undefined when persistence already tracks the series to within 1% of its
+own level — the same position the code already takes on `mae_naive` exactly 0,
+and on MAD 0 in the cadence detector.
+
+**Relative, not absolute, and that is the whole design.** Measured: two series
+with IDENTICAL absolute naive error (0.976) — jitter of 0-2 at level 480 and the
+same jitter at level 10. At 480 that is noise and skill is undefined; at 10 it is
+a tenth of the level and a real comparison (skill 0.05). An absolute floor cannot
+separate those two, and a mutation replacing the relative floor with a fixed 2.0
+reds.
+
+Three mutations proved red, bracketing the constant from both sides: reverting to
+the v13.75.0 guard (too permissive), replacing it with an absolute floor (wrong
+kind), and raising it 10x (swallows real comparisons).
+
+### Not yet verified
+
+Whether this specifically un-withholds the LIVE `uptime` forecast is unconfirmed:
+the payload does not carry the raw series, and a reconstruction from median/MAD
+did not reproduce `mae_naive` small enough to trigger the floor. The guard is
+pinned on the property; the live effect will be read back from
+`signal-noise/reader-anomalies` after this ships.
+
 ## [13.77.0] - 2026-09-02 — the unobservable exemption applies at READ time too
 
 ### Fixed — a fix applied at write time left every already-written record wrong
