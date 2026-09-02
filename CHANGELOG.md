@@ -2,6 +2,47 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.77.0] - 2026-09-02 — the unobservable exemption applies at READ time too
+
+### Fixed — a fix applied at write time left every already-written record wrong
+
+v13.74.0 exempted `apple-ai` from `ours_unmatched` inside
+`sn_family_drift_run()` — at COMPUTE time. But `sn_family_drift_health()` reads
+a STORED report, and every record written before that release still carried
+apple-ai in `ours_unmatched`.
+
+So on an installed and correct plugin, Site Health kept rendering
+
+> Enums agree, but 1 family classifies nothing in the upstream corpus: apple-ai.
+> Either the vendor is gone or its user agents changed.
+
+— the exact sentence the exemption exists to stop, and one that has never been
+true about apple-ai. Owner-observed on the live site 2026-09-02, up to a week
+after the fix shipped, and it would have cleared only at the next weekly cron.
+
+The verdict now applies the exemption to whatever record it is handed: exempt
+families move out of `ours_unmatched` and into `unobservable`, so a report stored
+before the fix and one computed after produce the **same sentence**. The verdict
+no longer depends on WHEN its input was computed.
+
+**Why this was invisible in testing:** every test I wrote ran the pipeline, which
+recomputes. Nothing exercised the path that actually renders on the site, which
+reads yesterday's bytes. Same family as the dashboard cell that read a log only
+one producer wrote — the surface's correctness depended on data written by a
+different code path than the one under test.
+
+Two mutations proved red, and the second matters as much as the first:
+
+- Reverting to compute-time only reds the pre-fix record — the bug reproduces.
+- "Fixing" it by ignoring `ours_unmatched` entirely reds the NEGATIVE CONTROL: a
+  genuinely drifting family must still be reported. That shortcut satisfies the
+  first assertion and silences the whole check, which is the one thing this
+  weekly job exists to prevent.
+
+The assertions use the PRE-13.74.0 record SHAPE (apple-ai in `ours_unmatched`, no
+`unobservable` key at all) rather than a synthetic one — those are the exact
+bytes that were on the site.
+
 ## [13.76.0] - 2026-09-02 — reader-anomalies: the machine-reader subsystem gets its first ML consumer
 
 Machine readers had **zero** ML consumers and by far the most data. Measured

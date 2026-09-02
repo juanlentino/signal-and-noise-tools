@@ -177,5 +177,43 @@ $GLOBALS['__fetched'] = array();
 $out = snt_ability_family_drift( null );
 ok( true === $out['ok'] && is_array( $out['last'] ) && array() === $GLOBALS['__fetched'], 'the ability reads the stored report and performs NO fetch' );
 
+// ── v13.77.0: the exemption also applies at READ time ───────────────────────
+// v13.74.0 exempted at COMPUTE time only. The Site Health verdict reads a
+// STORED report, so every record written before that release still carried
+// apple-ai in ours_unmatched and still rendered "either the vendor is gone or
+// its user agents changed" — on an installed, correct plugin, for up to a week.
+// Observed live 2026-09-02. A fix applied at write time leaves every
+// already-written record wrong.
+
+// A record with the PRE-13.74.0 SHAPE: apple-ai in ours_unmatched, no
+// unobservable key at all. These are the exact bytes that were on the site.
+$sn_old = $good_ok;
+$sn_old['ours_unmatched'] = array( 'apple-ai' );
+unset( $sn_old['unobservable'] );
+$sn_v = sn_family_drift_health( array( 'last' => $sn_old, 'last_ok' => $sn_old ), $NOW );
+ok( 'good' === $sn_v['status'], 'a PRE-FIX stored record no longer reds on apple-ai alone' );
+ok( false === strpos( $sn_v['summary'], 'vendor is gone' ), 'and the sentence the exemption exists to stop is gone' );
+ok( false !== strpos( $sn_v['summary'], 'apple-ai' ), 'apple-ai is still NAMED — exempt, never silently dropped' );
+ok( false !== strpos( $sn_v['summary'], 'unobservable' ), 'and named as unobservable by construction' );
+
+// NEGATIVE CONTROL: the filter must remove ONLY the exempt list. A record
+// carrying a genuinely drifting family still reds — otherwise "fix" the verdict
+// by ignoring ours_unmatched entirely and silence the whole check.
+$sn_real = $good_ok;
+$sn_real['ours_unmatched'] = array( 'apple-ai', 'quantum-toaster' );
+unset( $sn_real['unobservable'] );
+$sn_v2 = sn_family_drift_health( array( 'last' => $sn_real, 'last_ok' => $sn_real ), $NOW );
+ok( 'recommended' === $sn_v2['status'], 'NEGATIVE CONTROL: a real drifting family still reds through the filter' );
+ok( false !== strpos( $sn_v2['summary'], 'quantum-toaster' ), 'and is named' );
+ok( false === strpos( $sn_v2['summary'], 'apple-ai' ), 'while the exempt one is not counted as drift' );
+
+// A record computed AFTER the fix (already exempt, unobservable present) reads
+// identically — the verdict must not depend on WHEN its input was computed.
+$sn_new = $good_ok;
+$sn_new['ours_unmatched'] = array();
+$sn_new['unobservable']   = array( 'apple-ai' );
+$sn_v3 = sn_family_drift_health( array( 'last' => $sn_new, 'last_ok' => $sn_new ), $NOW );
+ok( $sn_v3['summary'] === $sn_v['summary'], 'a stored and a recomputed record produce the SAME sentence' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

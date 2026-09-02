@@ -427,6 +427,23 @@ function sn_family_drift_health( $r, $now ) {
 			'summary' => sprintf( 'The last completed family-drift run is %d days old (last attempt: %s). The enums may have drifted since.', (int) floor( $age / DAY_IN_SECONDS ), null !== $last && 'ok' !== ( $last['status'] ?? '' ) ? 'failed on "' . (string) ( $last['error'] ?? '' ) . '"' : 'ok' ),
 		);
 	}
+	// READ-TIME exemption (v13.77.0). v13.74.0 exempted unobservable families at
+	// COMPUTE time only, inside sn_family_drift_run(). This function reads a
+	// STORED report, so every record written before that release still carries
+	// apple-ai in ours_unmatched and still rendered "either the vendor is gone or
+	// its user agents changed" — the sentence the exemption exists to stop, for up
+	// to a week after the fix shipped, on an installed and correct plugin.
+	//
+	// A fix applied at write time leaves every already-written record wrong. The
+	// verdict must not depend on WHEN its input was computed, so the filter is
+	// applied to whatever it is handed and the exempted families are named either
+	// way.
+	$ok['unobservable']   = array_values( array_unique( array_merge(
+		(array) ( $ok['unobservable'] ?? array() ),
+		array_intersect( (array) ( $ok['ours_unmatched'] ?? array() ), SN_FAMILY_DRIFT_UNOBSERVABLE )
+	) ) );
+	$ok['ours_unmatched'] = array_values( array_diff( (array) ( $ok['ours_unmatched'] ?? array() ), SN_FAMILY_DRIFT_UNOBSERVABLE ) );
+
 	if ( ! empty( $ok['ours_unmatched'] ) ) {
 		return array(
 			'status'  => 'recommended',
