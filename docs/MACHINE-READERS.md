@@ -224,12 +224,19 @@ survives can carry markup even before escaping.
   inference.** Bytespider, cohere-ai and Diffbot are `declared: false`: no
   first-party crawler page exists for them. A surface whose claim is "observed
   versus declared" must not blur the two.
-- **`observable: false` marks control tokens that never fetch.** Apple documents
+- **Control tokens that never fetch are exempt from drift, not deleted.** Apple documents
   that **Applebot-Extended does not crawl**: it is a robots.txt token used only
   to govern how data already collected by Applebot may be used. The requested
   Apple train/search split therefore **cannot be measured from request logs**,
   and the `apple-ai` family reports a phantom: any non-zero count is spoofed or
-  synthetic. `Google-Extended` is the same shape.
+  synthetic. `Google-Extended` is the same shape. Since v13.74.0 this is
+  ENFORCED, not merely described: `SN_FAMILY_DRIFT_UNOBSERVABLE` in
+  `inc/family-drift.php` exempts such families from the weekly `ours_unmatched`
+  row, whose sentence ("either the vendor is gone or its user agents changed")
+  was wrong about `apple-ai` every week, and reports them in a separate
+  `unobservable` row, so the exemption is visible rather than silent. (Earlier
+  revisions of this file described an `observable: false` FIELD. No such field
+  ever existed in the code; the prose had outrun the implementation.)
 - **A crawler that advertises no User-Agent of its own cannot be attributed at
   all.** Brave Search states that its crawler "does not advertise a
   differentiated user agent", deliberately, so that sites allowing only

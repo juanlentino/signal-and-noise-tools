@@ -2,6 +2,54 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.74.0] - 2026-09-02 — apple-ai is unobservable, not drifting
+
+### Fixed — a weekly alarm whose explanation was never true
+
+`family_drift` has been reporting `ours_unmatched: ["apple-ai"]` with the
+sentence *"Either the vendor is gone or its user agents changed."* Neither is
+true, and neither ever will be. Apple ships no AI-training crawler with a user
+agent of its own: `Applebot` is the SEARCH crawler, and `Applebot-Extended` is
+a robots.txt token governing how already-collected data may be used, which
+**never fetches**. The family can only ever report 0 — or a non-zero count that
+is spoofed or synthetic, which is the worse reading because it looks measured.
+
+That matters beyond tidiness: the same weekly check carries the CRITICAL
+mirror-parity row. A check that cries wolf on a known constant is a check
+nobody reads by the time parity actually breaks.
+
+`SN_FAMILY_DRIFT_UNOBSERVABLE` exempts such families from `ours_unmatched` and
+reports them in a new `unobservable` row. **Exempt, not deleted, and not
+silent:**
+
+- **Not deleted.** Removing the family would mean a coordinated two-repo change
+  against the CRITICAL parity row to erase something TRUE — Apple publishes a
+  training-use control — trading a weekly false alarm for a permanent silence.
+- **Not silent.** An exemption you cannot see is indistinguishable from a family
+  that quietly started matching, so it gets its own reported row.
+- **Costs nothing elsewhere.** `ours_unmatched` is computed plugin-side, so the
+  enums are untouched: mirror parity stays byte-identical, no worker release,
+  and `family-drift` has no remote twin so no contract bump.
+
+The `good` verdict previously asserted *"every family still classifies something
+upstream"*, which an exemption makes false. It now names the exempted family
+instead — a verdict that overstates its own coverage is worse than the alarm it
+replaced.
+
+Three mutations proved red: widening the exemption to a family that should red,
+dropping the `unobservable` row from the payload, and letting the good summary
+keep its now-false coverage claim. Note that `$expected_unmatched` is DERIVED
+from the constant, so widening it moves both sides of that comparison — the
+"exactly one family" pin is what actually catches over-exemption.
+
+### Fixed — documentation that had outrun the code
+
+`docs/MACHINE-READERS.md` described an `observable: false` FIELD marking control
+tokens that never fetch. **No such field ever existed.** The reasoning was
+sound and shipped only as prose. The passage now points at the mechanism that
+actually enforces it, and says plainly that the earlier description was of
+something unimplemented.
+
 ## [13.73.0] - 2026-09-02 — the write door validates its input
 
 ### Added — undeclared arguments are rejected on the rw door
