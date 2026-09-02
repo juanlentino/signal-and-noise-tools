@@ -2,6 +2,72 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.79.0] - 2026-09-02 — the anomaly detector could not fire on either edge
+
+The first live run reported `anomalies: 0` across all seven families. A zero from
+a detector that has never fired is indistinguishable from a detector that CANNOT
+fire, so both edges were exercised against live-shaped data. Both were broken.
+
+### Fixed — a MAD-0 family could never fire at all
+
+`uptime` sits at median 480 with **MAD 0**: a strict majority of days repeat the
+same count, which is ordinary for machine traffic. `sn_analytics_anomaly_of()`
+returned empty on `mad <= 0`, so **the most rigid reader — the one whose
+deviation matters most — was the one structurally excluded.**
+
+Now falls back to the mean absolute deviation, `sqrt(pi/2)`-scaled, exactly as
+`snt_ml_cadence_deviation_robust()` already does and for the same stated reason.
+A PERFECTLY rigid series still yields 0 and stays an honest unknown. Both
+branches now produce a σ-equivalent, so `z` is `(v - median) / sigma` throughout
+(1.4826 is 1/0.6745 — the same constant, written as the kernel writes it).
+
+The sibling `sn_analytics_signal_anomalies()` is untouched: it is a locked
+contract on a shipped surface.
+
+### Fixed — the DOWN side was structurally unreachable, and I had claimed it worked
+
+v13.76.0 shipped describing this pipeline as *"two-sided — a reader going QUIET
+is the more interesting reading here"*, in the ability description, the CHANGELOG
+and the health sentence. **On real data that half could never fire.**
+
+Measured live 2026-09-02, a day of TOTAL silence for every eligible family:
+
+| family | z at zero hits | vs threshold 3.5 |
+|---|---|---|
+| other-bot | -2.30 | never fires |
+| seo | -2.18 | never fires |
+| search | -2.06 | never fires |
+| anthropic | -0.86 | never fires |
+| openai | -0.80 | never fires |
+| unclassified-machine | -0.74 | never fires |
+
+The cause is the data's shape, not the threshold. **These are counts bounded
+below by zero**, so the furthest a value can fall from the median is the median
+itself and the most negative z obtainable is `0.6745 * median / MAD` — a ceiling.
+With MADs at 0.29x to 0.92x of their medians, that ceiling is ~2.3 at best.
+Lowering the threshold cannot fix it: openai's ceiling is 0.80, and anything
+under that fires constantly on the UP side.
+
+So silence gets its own rule. An eligible family — present on at least 20 of 30
+days, i.e. two-thirds of the window — recording ZERO hits on a day emits a
+`reader_silent` signal. Binary, at severity 3, counted separately from
+`anomalies` and reported separately in the health sentence, so a rule never
+masquerades as a statistic.
+
+### The negative control is now part of the suite
+
+Both edges are asserted to FIRE on live-shaped fixtures: a spike on an
+openai-shaped series, a dip on a MAD-0 uptime-shaped series, and silence on an
+other-bot-shaped one. Plus the inverse: a perfectly rigid series still reports
+nothing.
+
+Two fixture bugs surfaced while writing it, both mine. The helper indexes day 0
+as YESTERDAY, so spikes placed at index 27-29 landed outside the 7-day reporting
+window. And the silence fixture initially used MAD/median 0.09, where robust z
+CAN reach zero — proving nothing. It now reproduces the live 0.29 dispersion, so
+the assertion that "the z path produced nothing for that same zero day" is a real
+claim about real geometry.
+
 ## [13.78.0] - 2026-09-02 — the skill denominator gets a relative floor
 
 ### Fixed — a near-rigid series had its forecast withheld

@@ -182,16 +182,32 @@ function sn_analytics_anomaly_of( $subject, $label, $series, $from, $to, $opts =
 	$vals   = array_map( static function ( $r ) { return (float) ( $r['views'] ?? 0 ); }, $rows );
 	$median = sn_analytics_stat_median( $vals );
 	$mad    = sn_analytics_stat_mad( $vals, $median );
-	// A flat baseline is UNQUANTIFIABLE, not quiet: MAD 0 means every robust
-	// z is infinite or undefined. Same position the cadence detector takes.
-	if ( null === $mad || $mad <= 0.0 ) { return array(); }
-	$band = $z_thresh * $mad / 0.6745;
+	if ( null === $mad ) { return array(); }
+	// MAD hits exactly 0 as soon as a strict MAJORITY of days repeat a value —
+	// far easier than "every value identical", and real crawler traffic produces
+	// bit-identical daily counts by the dozen. Measured live 2026-09-02: the
+	// `uptime` family sits at median 480 with MAD 0, so it could NEVER fire. The
+	// most rigid reader is the one whose deviation matters most, and it was the
+	// one structurally excluded — a worse blind spot than the math it replaces.
+	//
+	// Fall back to the mean absolute deviation, sqrt(pi/2)-scaled: the same move
+	// snt_ml_cadence_deviation_robust() makes, for the same reason. A PERFECTLY
+	// rigid series still yields 0 and stays an honest unknown.
+	//
+	// Both branches produce a σ-EQUIVALENT, so z is (v - median) / sigma
+	// throughout. 1.4826 is 1/0.6745 — the same constant the old form divided by,
+	// written the way the kernel writes it.
+	$sigma = ( $mad > 0.0 )
+		? 1.4826 * $mad
+		: sqrt( M_PI / 2.0 ) * ( array_sum( array_map( static function ( $v ) use ( $median ) { return abs( $v - $median ); }, $vals ) ) / max( 1, count( $vals ) ) );
+	if ( $sigma <= 0.0 ) { return array(); }
+	$band = $z_thresh * $sigma;
 	$out  = array();
 	foreach ( $rows as $r ) {
 		$day = (string) ( $r['day'] ?? '' );
 		if ( '' === $day || $day < (string) $from ) { continue; }
 		$v = (float) ( $r['views'] ?? 0 );
-		$z = 0.6745 * ( $v - $median ) / $mad;
+		$z = ( $v - $median ) / $sigma;
 		if ( abs( $z ) < $z_thresh ) { continue; }
 		$conf  = ( abs( $z ) >= $z_thresh + 1.5 ) ? 'high' : 'medium';
 		$out[] = array(

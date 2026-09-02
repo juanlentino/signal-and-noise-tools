@@ -60,6 +60,7 @@ function snt_ml_reader_anomalies( $now = null ) {
 
 	$families = array();
 	$flagged  = 0;
+	$silent   = 0;
 	foreach ( $eligible as $family ) {
 		$series  = snt_mr_daily_series( $rows, $family, $from, $to );
 		$signals = snt_ml_reader_signals_for( $family, $series, $from, $to );
@@ -68,6 +69,14 @@ function snt_ml_reader_anomalies( $now = null ) {
 				$signals,
 				static function ( $s ) {
 					return 'anomaly' === ( $s['kind'] ?? '' );
+				}
+			)
+		);
+		$silent += count(
+			array_filter(
+				$signals,
+				static function ( $s ) {
+					return 'reader_silent' === ( $s['kind'] ?? '' );
 				}
 			)
 		);
@@ -107,6 +116,7 @@ function snt_ml_reader_anomalies( $now = null ) {
 			'families_seen'     => count( $days_by_family ),
 			'families_eligible' => count( $eligible ),
 			'anomalies'         => $flagged,
+			'silences'          => $silent,
 		),
 	);
 }
@@ -132,6 +142,44 @@ function snt_ml_reader_signals_for( $family, array $series, $from, $to ) {
 			$out[] = $sig;
 		}
 	}
+	// SILENCE gets its own rule, because robust z structurally cannot express it
+	// on this data. Measured live 2026-09-02: for EVERY eligible family a day of
+	// zero hits scores |z| between 0.74 and 2.30 against a 3.5 threshold. The
+	// reason is the data's shape, not the threshold — these are counts bounded
+	// below by ZERO, so the furthest a value can fall from the median is the
+	// median itself, and the most negative z obtainable is 0.6745 * median / MAD.
+	// With MADs running 0.29x to 0.92x of their medians here, that ceiling is
+	// ~2.3 at best. Lowering the threshold cannot fix it: openai's ceiling is
+	// 0.80, and a threshold under that would fire constantly on the UP side.
+	//
+	// So this pipeline shipped describing itself as two-sided while the quiet
+	// half could never fire. Eligibility already means the family appears on at
+	// least 20 of 30 days, so a zero day for one of them is unusual BY
+	// CONSTRUCTION. Binary, stated as a rule, not dressed as a statistic.
+	foreach ( $series as $row ) {
+		$day = (string) ( $row['day'] ?? '' );
+		if ( '' === $day || $day < $recent_from || 0 !== (int) ( $row['views'] ?? 0 ) ) {
+			continue;
+		}
+		$out[] = array(
+			'id'            => 'reader-silent:' . $family . ':' . $day,
+			'tier'          => 'predictive',
+			'kind'          => 'reader_silent',
+			'subject'       => (string) $family,
+			'subject_label' => $label,
+			'stat'          => 'presence_rule',
+			'value'         => 0,
+			'direction'     => 'down',
+			'confidence'    => 'high',
+			'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $series ) ),
+			'plain_label'   => sprintf(
+				'%s went silent on %s — no reads at all, from a reader present on most days',
+				$label, $day
+			),
+			'severity'      => 3,
+		);
+	}
+
 	if ( function_exists( 'sn_analytics_trajectory_of' ) ) {
 		$traj = sn_analytics_trajectory_of( $family, $label, $series, $from, $to, 10 );
 		if ( is_array( $traj ) ) {

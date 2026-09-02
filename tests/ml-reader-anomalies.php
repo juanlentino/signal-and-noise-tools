@@ -119,6 +119,51 @@ $row = snt_ml_reader_anomalies( $NOW )['families'][0];
 ok( $row['baseline']['mad'] > 0.0, 'a varying series reports a non-zero MAD (' . $row['baseline']['mad'] . ')' );
 ok( null !== $row['baseline']['median'], 'and a median' );
 
+// ── NEGATIVE CONTROL: the detector must be able to FIRE ─────────────────────
+// The first live run reported anomalies: 0 across all seven families. A zero
+// from a detector that has never fired is indistinguishable from a detector
+// that CANNOT fire, so both sides are exercised here against live-shaped data.
+
+// UP side, openai-shaped: median 13, MAD 11 -> fires above ~62 (measured).
+$oa = array(); for ( $i = 0; $i < 30; $i++ ) { $oa[] = 8 + ( $i % 5 ) * 2; }
+$oa[1] = 900; // index 0 is YESTERDAY: rows() counts backward, so recent = low index
+$GLOBALS['__fetch'] = array( 'ok' => true, 'error' => null, 'rows' => rows( 'openai', 30, $oa, $NOW ) );
+$r = snt_ml_reader_anomalies( $NOW );
+ok( $r['counts']['anomalies'] > 0, 'NEGATIVE CONTROL: a spike on a live-shaped series DOES fire' );
+
+// MAD-0 family: the live `uptime` shape. Before the fallback this could never
+// fire at all — the most rigid reader was the one structurally excluded.
+$up = array_fill( 0, 30, 480 );
+$up[1] = 40; // recent day (index 0 = yesterday)
+$GLOBALS['__fetch'] = array( 'ok' => true, 'error' => null, 'rows' => rows( 'uptime', 30, $up, $NOW ) );
+$r = snt_ml_reader_anomalies( $NOW );
+ok( 0.0 === (float) $r['families'][0]['baseline']['mad'], 'fixture reproduces the live MAD-0 shape' );
+ok( $r['counts']['anomalies'] > 0, 'a MAD-0 family CAN now fire — the sqrt(pi/2) fallback' );
+
+// A PERFECTLY rigid series stays an honest unknown: no fallback rescues it.
+$GLOBALS['__fetch'] = array( 'ok' => true, 'error' => null, 'rows' => rows( 'uptime', 30, array_fill( 0, 30, 480 ), $NOW ) );
+$r = snt_ml_reader_anomalies( $NOW );
+ok( 0 === $r['counts']['anomalies'], 'a perfectly rigid series reports nothing — unquantifiable, not calm' );
+
+// DOWN side: silence. Robust z cannot reach it on bounded-below counts, so the
+// binary rule must. Measured live: zero hits scores |z| 0.74-2.30 vs 3.5.
+// Reproduces the LIVE other-bot dispersion: median 376, MAD ~110 (ratio 0.29).
+// A tighter fixture would let robust z reach zero and prove nothing — measured:
+// at MAD/median 0.09 the z path fires on silence, at 0.29 it cannot.
+$si = array(); for ( $i = 0; $i < 30; $i++ ) { $si[] = 376 + ( ( $i % 5 ) - 2 ) * 110; }
+$si[0] = 0; // yesterday
+$GLOBALS['__fetch'] = array( 'ok' => true, 'error' => null, 'rows' => rows( 'other-bot', 30, $si, $NOW ) );
+$r  = snt_ml_reader_anomalies( $NOW );
+$sg = array_filter( $r['families'][0]['signals'], static function ( $s ) { return 'reader_silent' === $s['kind']; } );
+ok( 1 === count( $sg ), 'a family present on most days going to ZERO fires the silence rule' );
+ok( 1 === $r['counts']['silences'], 'and is counted separately from anomalies' );
+$one = array_values( $sg )[0];
+ok( 'down' === $one['direction'] && 3 === $one['severity'], 'silence is a down finding at severity 3' );
+ok( false !== strpos( $one['plain_label'], 'went silent' ), 'and says so plainly' );
+
+// The z path must NOT have produced it — that is the whole point.
+ok( 0 === $r['counts']['anomalies'], 'robust z produced NOTHING for that same zero day — the rule is why it is reported' );
+
 // ── the health verdict ───────────────────────────────────────────────────────
 require __DIR__ . '/../inc/ml-reader-anomalies-health.php';
 
@@ -137,7 +182,21 @@ ok( false !== strpos( $h['summary'], '7 of 12' ), 'and states how much of the po
 
 $h = snt_ml_reader_anomalies_health( $base + array( 'counts' => array( 'anomalies' => 3, 'families_eligible' => 7, 'families_seen' => 12 ) ) );
 ok( 'recommended' === $h['status'], 'deviations are recommended, never CRITICAL — an instrument, not a gate' );
-ok( false !== strpos( $h['summary'], 'BELOW' ), 'the sentence keeps the two-sided reading visible' );
+ok( false !== strpos( $h['summary'], 'deviation' ), 'the sentence names the deviations' );
+
+// v13.79.0: silence is reported SEPARATELY, because it is a binary presence
+// rule and not a z-score. The earlier assertion here pinned the word "BELOW",
+// asserting a two-sided reading that live data showed could never fire.
+$h = snt_ml_reader_anomalies_health( $base + array( 'counts' => array( 'anomalies' => 0, 'silences' => 2, 'families_eligible' => 7, 'families_seen' => 12 ) ) );
+ok( 'recommended' === $h['status'], 'silence alone is enough to lower the verdict' );
+ok( false !== strpos( $h['summary'], 'silence' ), 'and the sentence names it' );
+ok( false === strpos( $h['summary'], 'deviation' ), 'without claiming a deviation that did not happen' );
+
+$h = snt_ml_reader_anomalies_health( $base + array( 'counts' => array( 'anomalies' => 3, 'silences' => 2, 'families_eligible' => 7, 'families_seen' => 12 ) ) );
+ok( false !== strpos( $h['summary'], 'deviation' ) && false !== strpos( $h['summary'], 'silence' ), 'both kinds are reported, and kept distinct' );
+
+$h = snt_ml_reader_anomalies_health( $base + array( 'counts' => array( 'anomalies' => 0, 'silences' => 0, 'families_eligible' => 7, 'families_seen' => 12 ) ) );
+ok( 'good' === $h['status'] && false !== strpos( $h['summary'], 'none went silent' ), 'a clean window says BOTH things explicitly' );
 
 $h = snt_ml_reader_anomalies_health( $base + array( 'counts' => array( 'anomalies' => 0, 'families_eligible' => 0, 'families_seen' => 4 ) ) );
 ok( 'recommended' === $h['status'], 'nothing eligible is NOT good — zero measured families cannot vouch for calm' );
