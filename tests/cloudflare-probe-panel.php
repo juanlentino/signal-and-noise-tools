@@ -67,5 +67,14 @@ ok( false !== strpos( $src, "wp_parse_url( \$r_url, PHP_URL_PATH )" ), 'rows sho
 ok( false !== strpos( $src, 'retired detector' ), 'a pre-v11.29.1 row says so: that detector compared whole documents and could only ever return stale (11 of 11), so counting it silently would re-tell that lie' );
 ok( false !== strpos( $src, 'SN_CF_PROBE_ALGO' ), 'and the label is driven by the stamped algorithm, never by a date guess' );
 
+// ─── FOLDED, and open only when it is the task (v13.72.1) ──────────────────
+ok( 1 === preg_match( '/<details class="sn-fieldset sn-disclosure"/', $src ), 'the panel is a <details> using the SHARED .sn-disclosure caret — not a new component, and not the browser triangle' );
+ok( 1 === preg_match( "/'stale' === \\\$probe_newest \\? ' open' : ''/", $src ), 'it opens only when the NEWEST probe is stale: that is a live condition, while a stale count under a fresh newest is history' );
+ok( false !== strpos( $src, 'retained, %2$d stale' ), 'the summary carries the counts, so a COLLAPSED fold still says what it is hiding' );
+ok( 1 === preg_match( '/<\/details>/', $src ) && 0 === preg_match( '/<h2 class="sn-fieldset-h">Post-purge probes<\/h2>/', $src ), 'the old always-expanded heading is gone' );
+$open_at  = strpos( $src, "' open' : ''" );
+$table_at = strpos( $src, 'wp-list-table widefat striped' );
+ok( false !== $open_at && false !== $table_at && $open_at < $table_at, 'the open decision is made before the table renders, from the log itself' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
