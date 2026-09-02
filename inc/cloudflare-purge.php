@@ -430,8 +430,36 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 	$probe_log = defined( 'SN_CF_PROBE_LOG_OPT' ) ? get_option( SN_CF_PROBE_LOG_OPT, array() ) : array();
 	$probe_log = is_array( $probe_log ) ? $probe_log : array();
 	if ( $is_configured && $probe_log ) {
-		echo '<div class="sn-fieldset">';
-		echo '<h2 class="sn-fieldset-h">Post-purge probes</h2>';
+		// v13.72.1: FOLDED, and open only when it is the task. Twenty rows sat
+		// expanded under a two-field credentials form nobody comes here to read
+		// them from — the panel answers "did purges work", and the answer is one
+		// line until it isn't. Uses the shared .sn-disclosure caret rather than
+		// the browser triangle; the summary carries the counts so a collapsed
+		// fold still says what it is hiding.
+		$probe_stale  = 0;
+		$probe_newest = '';
+		foreach ( $probe_log as $r_i => $r_row ) {
+			if ( ! is_array( $r_row ) ) {
+				continue;
+			}
+			if ( '' === $probe_newest ) {
+				$probe_newest = (string) ( $r_row['result'] ?? '' );
+			}
+			if ( 'stale' === (string) ( $r_row['result'] ?? '' ) ) {
+				++$probe_stale;
+			}
+		}
+		// Open when the NEWEST probe is stale: that is a live condition. A stale
+		// count with a fresh newest is history, and history stays folded.
+		echo '<details class="sn-fieldset sn-disclosure"' . ( 'stale' === $probe_newest ? ' open' : '' ) . '>';
+		echo '<summary><span class="sn-fieldset-h">Post-purge probes</span> '
+			. '<span class="sn-pill ' . ( 'stale' === $probe_newest ? 'sn-pill--warn' : 'sn-pill--muted' ) . '">'
+			. esc_html( sprintf(
+				/* translators: 1: probes retained, 2: how many of them were stale */
+				_n( '%1$d retained, %2$d stale', '%1$d retained, %2$d stale', count( $probe_log ), 'signal-and-noise-tools' ),
+				count( $probe_log ),
+				$probe_stale
+			) ) . '</span></summary>';
 		echo '<p class="sn-fieldset-intro">Each row is one check of the page a reader would actually get, '
 			. (int) SN_CF_PROBE_DELAY . ' seconds after its purge. A stale row escalated to a full zone purge at the time,'
 			. ' so it records a purge that needed a second attempt — not a page still stale now.</p>';
@@ -467,7 +495,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 			echo '</tr>';
 		}
 		echo '</tbody></table>';
-		echo '</div>';
+		echo '</details>';
 	}
 
 	// ── RAIL: module status + manual purge action ──

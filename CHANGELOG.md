@@ -2,6 +2,20 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.72.1] - 2026-09-02 — the probe log folds, and opens only when it is the task
+
+### Changed — post-purge probes are a disclosure, not a wall
+
+Twenty rows sat permanently expanded under a two-field credentials form nobody
+opens to read them from. The panel answers one question — did purges work — and
+that answer is one line until it isn't.
+
+It is now a `<details>` on the shared `.sn-disclosure` caret (no new component,
+and not the browser triangle), and it opens **only when the newest probe is
+stale**, which is a live condition. A stale count sitting under a fresh newest
+is history, and history stays folded. The summary carries both numbers, so a
+collapsed fold still says what it is hiding.
+
 ## [13.72.0] - 2026-09-02 — the Vocabulary leaf gets its four columns, and a class name becomes a checkable claim
 
 ### Fixed — the drift grid stacked (`assets/admin.css`)
