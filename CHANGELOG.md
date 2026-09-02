@@ -2,6 +2,66 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.75.0] - 2026-09-02 — a forecast that cannot beat persistence is withheld
+
+### Added — forecast SKILL, and suppression that states its reason
+
+`sn_analytics_forecast_backtest()` measured MAE and compared it to **nothing**.
+The predictive tier could report "average error 1.8/day" while being worse than
+assuming tomorrow equals today, and no surface could tell the difference. That
+is the gap between measured accuracy and demonstrated skill, and only the second
+one licenses drawing a line.
+
+The backtest now scores a **persistence baseline over the same folds and the
+same held-out actuals** and returns `mae_naive` and
+`skill = 1 - mae/mae_naive`. `sn_analytics_forecast_of()` withholds the forecast
+when `skill <= 0`.
+
+**Suppressed WITH THE REASON, not as null.** The composer already returned bare
+null for its other gates, which renders as absence — indistinguishable from "no
+data yet". The withheld signal keeps `tier: predictive` so the tier still
+reports itself, and carries no direction (nothing is rising or falling), `value`
+null, `confidence: none`, `severity` 0, and a label naming the score:
+
+> Reversal: no forecast — the model does not beat a same-value baseline on this
+> history (skill -0.19 over 33 checks)
+
+**NULL skill is not failure.** When persistence is perfect (`mae_naive` 0, a
+rigid series) the comparison is undefined and the forecast stands — the position
+`snt_ml_cadence_deviation_robust()` already takes on a zero-spread history.
+
+### What the gate actually catches — measured, not assumed
+
+I built this expecting it to fire on thin traffic. **It does not.** On a
+realistic noisy low-count series Holt scored **+0.06** and was not suppressed,
+which is correct: persistence chases noise, so a smoothed level legitimately
+wins on a stationary series. Naive is only a strong baseline for random-walk
+shapes.
+
+What it catches is **structural model misfit** — a linear-trend forecaster
+extrapolating a trend that has already ended, or a cycle it cannot represent:
+
+| series | skill | outcome |
+|---|---|---|
+| thin noisy traffic | +0.06 | forecast |
+| clean linear trend | +1.00 | forecast |
+| random walk | +0.24 | forecast |
+| trend then reversal | **-0.19** | withheld |
+| sawtooth cycle | **-0.13** | withheld |
+| rigid flat | null | forecast |
+
+### The baseline is pinned, because every other assertion survived swapping it
+
+A mutation that changed the naive anchor from *last observed* to the *series
+mean* left the whole suite green: `skill = 1 - mae/mae_naive` holds for any
+baseline, and the sign assertions did not discriminate. Skill is meaningless
+unless the baseline is persistence, so `mae_naive` is now pinned to exactly
+**7.0** on a slope-2 line (persistence error at step h is exactly 2h; the
+truncated tail folds pull the mean to 7.0). A mean anchor gives 20.75.
+
+Three mutations proved red: removing the gate, treating null skill as
+unskillful, and swapping the baseline anchor.
+
 ## [13.74.0] - 2026-09-02 — apple-ai is unobservable, not drifting
 
 ### Fixed — a weekly alarm whose explanation was never true

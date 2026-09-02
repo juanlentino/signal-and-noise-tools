@@ -111,6 +111,56 @@ ok( 56 === $bt['checks'], 'backtest: 11 rolling folds × capped horizon = 56 che
 ok( null === sn_analytics_forecast_backtest( array( 1, 2, 3 ), 7, 14 ), 'backtest: too short for one fold → null (insufficient)' );
 // Deterministic noise ±2 around a slope-2 line: intervals must absorb the noise.
 $noisy = array(); for ( $i = 0; $i < 30; $i++ ) { $noisy[] = 10 + 2 * $i + ( ( $i % 2 ) ? 2 : -2 ); }
+// ── v13.75.0: forecast SKILL, and suppression that states its reason ────────
+// The backtest measured MAE and compared it to nothing, so the panel could
+// report an average error while being worse than assuming tomorrow equals
+// today. skill = 1 - mae/mae_naive over the SAME folds and the same held-out
+// actuals; <= 0 withholds the forecast.
+//
+// Measured, not assumed: the gate does NOT fire on thin noisy traffic (Holt's
+// smoothed level legitimately beats persistence on a stationary series). It
+// fires on STRUCTURAL MISFIT — a trend that reverses, or a cycle Holt cannot
+// represent. Naive is only a strong baseline for random-walk-shaped data.
+$sn_lin  = array(); for ( $i = 0; $i < 22; $i++ ) { $sn_lin[] = 10 + 2 * $i; }
+$sn_rev  = array( 10,14,18,22,26,30,34,38,42,46,50,46,42,38,34,30,26,22,18,14,10,6 );
+$sn_flat = array_fill( 0, 22, 7 );
+$sn_series = static function ( $ys ) { return array_map( static function ( $v ) { return array( 'views' => $v ); }, $ys ); };
+
+$sn_b = sn_analytics_forecast_backtest( $sn_lin, 7, 11 );
+ok( isset( $sn_b['mae_naive'], $sn_b['skill'] ), 'the backtest reports a naive baseline and a skill score' );
+ok( abs( $sn_b['skill'] - ( 1.0 - $sn_b['mae'] / $sn_b['mae_naive'] ) ) < 1e-9, 'skill is exactly 1 - mae/mae_naive' );
+ok( $sn_b['skill'] > 0.9, 'a clean linear trend scores near-perfect skill (' . round( $sn_b['skill'], 3 ) . ')' );
+// The baseline must be PERSISTENCE (last observed), not any other anchor. Skill
+// is meaningless otherwise, and every assertion above survives a swapped anchor
+// — measured: changing it to the series mean left them all green. On this
+// slope-2 line the persistence error at step h is exactly 2h, and the truncated
+// tail folds pull the mean to exactly 7.0; a mean anchor gives 20.75.
+ok( abs( $sn_b['mae_naive'] - 7.0 ) < 1e-9, 'the naive baseline is persistence: mae_naive is exactly 7.0 on a slope-2 line' );
+
+$sn_br = sn_analytics_forecast_backtest( $sn_rev, 7, 11 );
+ok( $sn_br['skill'] < 0.0, 'a trend that REVERSES scores negative skill — Holt extrapolates a dead trend (' . round( $sn_br['skill'], 3 ) . ')' );
+
+$sn_bf = sn_analytics_forecast_backtest( $sn_flat, 7, 11 );
+ok( null === $sn_bf['skill'], 'a rigid series yields NULL skill: persistence is perfect, so the comparison is undefined' );
+
+// The gate, end to end.
+$sn_ok = sn_analytics_forecast_of( 'x', 'Linear', $sn_series( $sn_lin ), '2026-08-01', '2026-08-30', array() );
+ok( is_array( $sn_ok ) && 'forecast' === $sn_ok['kind'], 'a skillful series still forecasts' );
+
+$sn_w = sn_analytics_forecast_of( 'x', 'Reversal', $sn_series( $sn_rev ), '2026-08-01', '2026-08-30', array() );
+ok( is_array( $sn_w ), 'an unskillful series is SUPPRESSED WITH A REASON, not returned as null' );
+ok( 'forecast_withheld' === $sn_w['kind'], 'the withheld signal has its own kind' );
+ok( 'predictive' === $sn_w['tier'], 'it stays in the predictive tier — the tier reports itself either way' );
+ok( null === $sn_w['value'] && 'none' === $sn_w['confidence'], 'no value, no confidence' );
+ok( ! isset( $sn_w['direction'] ), 'and NO direction: nothing is rising or falling' );
+ok( 0 === $sn_w['severity'], 'severity 0 so it never outranks a real finding' );
+ok( false !== strpos( $sn_w['plain_label'], 'does not beat' ), 'the label states WHY' );
+ok( false !== strpos( $sn_w['plain_label'], 'skill' ), 'and names the skill score, so the refusal is checkable' );
+
+// NULL skill must NOT suppress — undefined is not failure.
+$sn_f = sn_analytics_forecast_of( 'x', 'Flat', $sn_series( $sn_flat ), '2026-08-01', '2026-08-30', array() );
+ok( null === $sn_f || 'forecast' === $sn_f['kind'], 'a rigid series is not withheld on undefined skill' );
+
 $btn = sn_analytics_forecast_backtest( $noisy, 7, 14 );
 ok( is_array( $btn ) && $btn['coverage'] >= 0.8 && 91 === $btn['checks'], 'backtest: noisy line → high measured coverage over 91 checks' );
 ok( $btn['mae'] < 4.0, 'backtest: noisy line → MAE bounded by the noise scale' );
