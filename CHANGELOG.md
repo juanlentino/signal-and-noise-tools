@@ -2,6 +2,42 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.71.2] - 2026-09-02 — the probe panel gets a component that exists, and the right column back
+
+### Fixed — the post-purge probe table rendered unstyled, in the wrong column
+
+Shipped one release earlier with three class names — `.sn-table`, `.sn-rail-h`,
+`.sn-rail-note` — that exist in no stylesheet in this plugin. A class name is a
+CLAIM that a component exists; nothing checked the claim, the markup was valid,
+the page rendered, and only a human looking at it could tell. Owner-reported:
+"no format at all", and the rail "a bit crammed".
+
+Both halves were the same mistake. It now uses core's `wp-list-table widefat
+striped` — the same classes the analytics tables in this plugin already use, so
+it gets real formatting with no new CSS and looks like wp-admin because it is
+wp-admin — with `sn-pill` for the verdict, a component that has existed since
+v1. And it moved from the rail to the MAIN column: the shell sizes the rail at
+`1fr` against the main column's `1.7fr`, which is a summary column, not somewhere
+a twenty-row data grid belongs. Each row now shows the PATH; twenty identical
+origins was twenty times the width and none of the information.
+
+### Added — `tests/cloudflare-probe-panel.php`
+
+Asserts every literal `sn-` class this tab claims is declared in a stylesheet,
+with a vacuity guard on the scan first and the three invented names pinned by
+name. Dynamic, concatenated class attributes are skipped deliberately — scoring
+the fragments they leave in the source manufactures failures for classes that are
+fine, and every one of the three that shipped broken was a literal.
+
+Also pins what could not be seen from PHP: the table renders before the rail
+opens, the host is stripped from each row, and a pre-v11.29.1 row still says
+"retired detector" rather than being counted beside current readings.
+
+**Known, not fixed here:** 119 of the 656 `sn-` classes used across `inc/` are
+declared in no stylesheet. Most are almost certainly dead markup rather than
+broken surfaces, but the sweep that proves which is a separate pass — this
+release only closes the door on the tab it broke.
+
 ## [13.71.1] - 2026-09-02 — the purge cell answers one question about one event
 
 ### Fixed — "Last purge" stops reporting a tally it cannot justify
