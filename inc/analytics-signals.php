@@ -254,29 +254,45 @@ function sn_analytics_forecast_backtest( array $ys, $horizon = SN_ANALYTICS_FORE
 	$ys = array_values( array_map( 'floatval', $ys ) );
 	$n  = count( $ys );
 	if ( $n < $min_train + 1 ) { return null; }
-	$abs_err = array();
-	$inside  = 0;
-	$checks  = 0;
+	$abs_err   = array();
+	$abs_naive = array();
+	$inside    = 0;
+	$checks    = 0;
 	for ( $cut = $min_train; $cut < $n; $cut++ ) {
 		$fit = sn_analytics_stat_holt( array_slice( $ys, 0, $cut ) );
 		if ( null === $fit ) { continue; }
 		$sigma = sn_analytics_forecast_sigma( $fit['residuals'] );
 		$steps = min( $horizon, $n - $cut );
+		// The naive (persistence) baseline scored on the SAME folds and the same
+		// held-out actuals: predict the last observed value for every step. Any
+		// other baseline, or any other fold set, makes the comparison meaningless.
+		$last = $ys[ $cut - 1 ];
 		for ( $h = 1; $h <= $steps; $h++ ) {
-			$point     = sn_analytics_stat_holt_point( $fit, $h );
-			$half      = SN_ANALYTICS_FORECAST_Z * $sigma * sqrt( $h );
-			$actual    = $ys[ $cut + $h - 1 ];
-			$abs_err[] = abs( $actual - $point );
+			$point       = sn_analytics_stat_holt_point( $fit, $h );
+			$half        = SN_ANALYTICS_FORECAST_Z * $sigma * sqrt( $h );
+			$actual      = $ys[ $cut + $h - 1 ];
+			$abs_err[]   = abs( $actual - $point );
+			$abs_naive[] = abs( $actual - $last );
 			if ( $actual >= $point - $half && $actual <= $point + $half ) { $inside++; }
 			$checks++;
 		}
 	}
 	if ( 0 === $checks ) { return null; }
 	// Explicit float casts: evenly-divisible int/int division returns int in PHP.
+	$mae       = (float) ( array_sum( $abs_err ) / $checks );
+	$mae_naive = (float) ( array_sum( $abs_naive ) / $checks );
+	// SKILL (v13.75.0): 1 - mae/mae_naive. Positive means the model beat
+	// persistence; <= 0 means it did not, and a forecast nobody should act on is
+	// worse than an empty panel. NULL when the baseline is perfect (mae_naive 0,
+	// a rigid series): the comparison is then undefined, NOT a failure — the same
+	// position snt_ml_cadence_deviation_robust takes on a zero-spread history.
+	$skill = ( $mae_naive > 0.0 ) ? (float) ( 1.0 - ( $mae / $mae_naive ) ) : null;
 	return array(
-		'mae'      => (float) ( array_sum( $abs_err ) / $checks ),
-		'coverage' => (float) ( $inside / $checks ),
-		'checks'   => $checks,
+		'mae'       => $mae,
+		'mae_naive' => $mae_naive,
+		'skill'     => $skill,
+		'coverage'  => (float) ( $inside / $checks ),
+		'checks'    => $checks,
 	);
 }
 
@@ -299,6 +315,38 @@ function sn_analytics_forecast_of( $subject, $label, $series, $from, $to, $opts 
 	if ( null === $fit ) { return null; }
 	$backtest = sn_analytics_forecast_backtest( $ys, $horizon, max( 3, (int) floor( count( $ys ) / 2 ) ) );
 	if ( null === $backtest ) { return null; }
+	// SKILL GATE (v13.75.0). Until now the backtest measured MAE and compared it
+	// to nothing, so the panel could report "average error 1.8/day" while being
+	// worse than assuming tomorrow equals today. On a series of a few visits a
+	// day that is the normal outcome, and a confident line drawn over it is the
+	// least honest thing this engine does.
+	//
+	// Suppress WITH THE REASON rather than returning null: a bare null renders as
+	// absence, and absence is indistinguishable from "no data yet". The withheld
+	// signal keeps tier predictive so the tier still reports itself, carries no
+	// direction (nothing is rising or falling) and confidence 'none'.
+	//
+	// null skill is NOT a failure — it means persistence was perfect, so the
+	// comparison is undefined. A rigid series stays forecastable.
+	$skill = $backtest['skill'] ?? null;
+	if ( null !== $skill && $skill <= 0.0 ) {
+		return array(
+			'id'            => 'forecast-withheld:' . $subject . ':' . (string) $to . '+' . $horizon . 'd',
+			'tier'          => 'predictive',
+			'kind'          => 'forecast_withheld',
+			'subject'       => $subject,
+			'subject_label' => (string) $label,
+			'stat'          => 'holt_linear',
+			'value'         => null,
+			'confidence'    => 'none',
+			'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $ys ) ),
+			'plain_label'   => sprintf(
+				'%s: no forecast — the model does not beat a same-value baseline on this history (skill %.2f over %d checks)',
+				(string) $label, $skill, (int) $backtest['checks']
+			),
+			'severity'      => 0,
+		);
+	}
 	$sigma = sn_analytics_forecast_sigma( $fit['residuals'] );
 	$point = sn_analytics_stat_holt_point( $fit, $horizon );
 	$half  = SN_ANALYTICS_FORECAST_Z * $sigma * sqrt( $horizon );
