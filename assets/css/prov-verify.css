@@ -31,10 +31,15 @@
    Everything scoped to .sn-verify except html/body. */
 
 *,*::before,*::after{box-sizing:border-box}
-html{background:#fff;color:#000}
-body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font-size:15px;line-height:1.6;color:#000;background:#fff}
 
-.sn-verify{
+/* THE PALETTE LIVES AT :root, not on .sn-verify (v13.71.0). It was scoped to
+   the panel, which meant html/body carried hardcoded #fff/#000 that no token
+   could reach — so a dark palette would have left the page ground light behind
+   a dark panel. Everything else stays scoped to .sn-verify exactly as before. */
+:root{
+	/* Honour the platform's own light/dark for form controls, scrollbars and
+	   the canvas, so nothing renders a light widget on the dark page. */
+	color-scheme:light dark;
 	--void:#fff; --bone:#000; --asphalt:#e0e0e0; --concrete:#9e9e9e;
 	/* --concrete is a SURFACE grey (borders, rules, fills). Used as a TEXT
 	   colour it is 2.68:1 on --void — the same defect class the theme fixed in
@@ -74,8 +79,90 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	--paper:#f4f3f1;
 	/* Named so the proof walk's rules stop reaching for an undefined var. */
 	--rule:#d4d4d4;
-	max-width:780px;margin:0 auto;padding:4rem 1.5rem 5rem;
+	/* The fail band's ink. NOT --void: --void inverts with the mode and --blood
+	   does not, so on the dark page `color:var(--void)` would have put near-black
+	   text on the alarm red (3.1:1). White on #e00404 is 5.01:1 in BOTH modes,
+	   which is what the band's own comment below already assumed. */
+	--on-blood:#fff;
+	/* Red as TEXT on the ledger ground. Light: --blood clears AA there by 0.02
+	   (4.52:1). Dark: it does not (3.34:1 on the dark paper), so this token —
+	   never --blood — is what the tab hover reads, and it inverts with the mode
+	   while the band's ground stays put. */
+	--accent-on-paper:#e00404;
 }
+
+/* ---- dark ------------------------------------------------------------
+   /verify is a STANDALONE document: it prints its own <html>, loads only this
+   stylesheet, and cannot resolve the theme's tokens (see --signal-ink above).
+   It therefore has TWO signals and honours both, in the order a reader expects:
+
+     1. the site's own toggle, replayed onto <html data-theme> before paint by
+        the inline script in inc/provenance-verify.php (same origin, same
+        localStorage key the theme writes), so a reader who chose dark on the
+        site does not get flashed white here;
+     2. the OS preference, for a reader who arrives cold.
+
+   THE TWO BLOCKS BELOW MUST DECLARE THE SAME TOKENS AND VALUES. They cannot be
+   merged — one lives inside a media query and the other does not — so the
+   duplication is structural, and tests/prov-verify-contrast.php asserts the two
+   maps are identical rather than trusting anyone to keep them in step. That is
+   the same reasoning that retired the hand-synced --signal copy above.
+   ---------------------------------------------------------------------- */
+@media (prefers-color-scheme: dark){
+	:root:not([data-theme="light"]){
+		/* Ground and ink swap roles wholesale: --void is the page ground in both
+		   modes and --bone the text, so every `background:var(--bone);color:var(--void)`
+		   inversion in this file keeps working untouched. Measured against the LIGHT
+		   palette's own bar rather than an invented one (light figures in brackets):
+		   bone/void 15.70 [21.00], rust/void 11.07 [12.63], concrete-ink/void 6.05
+		   [4.54], signal-ink/void 8.06 both ways [7.34], rule/paper 1.32 [1.34],
+		   paper/void 1.10 [1.11]. Body text lands SOFTER than light on purpose:
+		   21:1 white-on-black haloes, and the light side is a floor, not a target. */
+		--void:#171412; --bone:#f0ede8; --asphalt:#2e2924; --concrete:#6f6862;
+		--concrete-ink:#9a938c;
+		--rust:#cfc8c0;
+		/* The accent inverts to a LIGHT red and keeps its dual role exactly: 8.06:1
+		   as link text on the ground, and 8.06:1 for --void text sitting ON it as a
+		   button surface — the same one-number-satisfies-both property #b00303 has
+		   on white, because the pair is the same pair either way round. */
+		--signal-ink:#ff8a85;
+		/* --blood does NOT invert. It is the fail band's GROUND with --on-blood text
+		   on it, and white-on-#e00404 is 5.01:1 in both modes. Lightening it for the
+		   dark page would break the one place red is the message. */
+		--accent-on-paper:#ff8a85;
+		--paper:#211d1a;
+		--rule:#38322d;
+	}
+}
+:root[data-theme="dark"]{
+	/* Ground and ink swap roles wholesale: --void is the page ground in both
+	   modes and --bone the text, so every `background:var(--bone);color:var(--void)`
+	   inversion in this file keeps working untouched. Measured against the LIGHT
+	   palette's own bar rather than an invented one (light figures in brackets):
+	   bone/void 15.70 [21.00], rust/void 11.07 [12.63], concrete-ink/void 6.05
+	   [4.54], signal-ink/void 8.06 both ways [7.34], rule/paper 1.32 [1.34],
+	   paper/void 1.10 [1.11]. Body text lands SOFTER than light on purpose:
+	   21:1 white-on-black haloes, and the light side is a floor, not a target. */
+	--void:#171412; --bone:#f0ede8; --asphalt:#2e2924; --concrete:#6f6862;
+	--concrete-ink:#9a938c;
+	--rust:#cfc8c0;
+	/* The accent inverts to a LIGHT red and keeps its dual role exactly: 8.06:1
+	   as link text on the ground, and 8.06:1 for --void text sitting ON it as a
+	   button surface — the same one-number-satisfies-both property #b00303 has
+	   on white, because the pair is the same pair either way round. */
+	--signal-ink:#ff8a85;
+	/* --blood does NOT invert. It is the fail band's GROUND with --on-blood text
+	   on it, and white-on-#e00404 is 5.01:1 in both modes. Lightening it for the
+	   dark page would break the one place red is the message. */
+	--accent-on-paper:#ff8a85;
+	--paper:#211d1a;
+	--rule:#38322d;
+}
+
+html{background:var(--void);color:var(--bone)}
+body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font-size:15px;line-height:1.6;color:var(--bone);background:var(--void)}
+
+.sn-verify{max-width:780px;margin:0 auto;padding:4rem 1.5rem 5rem}
 
 /* ---- masthead ------------------------------------------------------- */
 .sn-verify-head{margin:0 0 3rem}
@@ -108,7 +195,7 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 .sn-verify-verdict[hidden]{display:none}
 /* Failure inverts to blood — the one place on the page where red is the
    ground and not an accent, because it is the one place it IS the message. */
-.sn-verify-verdict[data-level="fail"]{background:var(--blood)}
+.sn-verify-verdict[data-level="fail"]{background:var(--blood);color:var(--on-blood)}
 /* On blood, EVERY line goes to full white. Pure white on #e00404 is only
    ~4.9:1, so the alpha ramp that reads fine on the black band (18:1 with
    room to spare) drops the supporting lines to ~4.3:1 and ~2.6:1 here.
@@ -322,7 +409,7 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	cursor:pointer;transition:color .14s ease,background .14s ease;
 }
 .sn-verify-tab:last-child{border-right:0}
-.sn-verify-tab:hover{color:var(--blood);background:var(--paper)}
+.sn-verify-tab:hover{color:var(--accent-on-paper);background:var(--paper)}
 .sn-verify-tab:focus-visible{outline:3px solid var(--blood);outline-offset:-3px}
 .sn-verify-tab[aria-selected="true"]{background:var(--bone);color:var(--void)}
 .sn-verify-tab[aria-selected="true"]:hover{background:var(--bone);color:var(--void)}

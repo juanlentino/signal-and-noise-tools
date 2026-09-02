@@ -202,6 +202,46 @@ function snt_dwx_cell( $label, $value, $compare = '', $dir = '', array $hydrate 
 }
 
 /**
+ * The "Last purge" compare line: a tally over the retained probe log, phrased
+ * in the SAME TENSE as the headline verdict beside it.
+ *
+ * v13.70.0 fixed "9 still stale" (a history phrased as a present state) and
+ * introduced a second reading of the same kind: the cell rendered
+ * "fresh · 9 of 20 probes stale", which a reader parses as one sentence
+ * contradicting itself. Owner-reported 2026-09-02, on the release that shipped
+ * it. The two numbers were never in conflict — `last` is the NEWEST probe's
+ * verdict and `stale` counts every stale entry still retained (<= 20, many of
+ * them escalated to a zone purge and cleared at the time) — but a glance cell
+ * carries no room to say so, so the words have to.
+ *
+ * A verdict and a tally may share a cell only when the tally says WHEN it is
+ * about. That is the whole job of the word "earlier" below.
+ *
+ * @since 13.70.1
+ * @param string $last  Newest verdict: 'fresh' | 'stale' | 'unknown'.
+ * @param int    $stale Stale entries in the retained log.
+ * @param int    $total Entries in the retained log.
+ * @return string
+ */
+function snt_dash_freshness_compare( $last, $stale, $total ) {
+	$stale = (int) $stale;
+	$total = (int) $total;
+	if ( $stale < 1 ) {
+		/* translators: %d: probes recorded, every one of them fresh */
+		return sprintf( __( '%d verified', 'signal-and-noise-tools' ), $total );
+	}
+	if ( 'stale' === (string) $last ) {
+		// Headline and tally agree: no tense marker needed, and adding one
+		// would read as though the current stale probe were in the past.
+		/* translators: 1: stale probes, 2: probes retained in the log */
+		return sprintf( __( '%1$d of %2$d probes stale', 'signal-and-noise-tools' ), $stale, $total );
+	}
+	// Headline is fresh (or unknown) and the tally is not: say so.
+	/* translators: 1: stale probes, 2: probes retained in the log */
+	return sprintf( __( '%1$d of %2$d earlier probes stale', 'signal-and-noise-tools' ), $stale, $total );
+}
+
+/**
  * Cron and cache-freshness cells, server-side and free.
  *
  * Both sources are LOCAL reads — _get_cron_array() is an option, and the
@@ -244,16 +284,7 @@ function snt_dwx_ops_signals() {
 				// The WORD, not a count: "did the edge actually clear" is the
 				// question, and a number cannot answer it.
 				'value'   => $last,
-				// v13.70.0: NAME THE WINDOW. This said "9 still stale", which reads
-				// as nine URLs stale right now. The number is a tally over the
-				// RETAINED LOG (up to 20 probes), most of which were escalated to
-				// a zone purge and cleared at the time. A count over a history
-				// must not be phrased as a present state.
-				'compare' => $stale > 0
-					/* translators: 1: stale probes, 2: probes retained in the log */
-					? sprintf( __( '%1$d of %2$d probes stale', 'signal-and-noise-tools' ), $stale, (int) ( $fresh['total'] ?? 0 ) )
-					/* translators: %d: number of probes recorded, all fresh */
-					: sprintf( __( '%d verified', 'signal-and-noise-tools' ), (int) ( $fresh['total'] ?? 0 ) ),
+				'compare' => snt_dash_freshness_compare( $last, $stale, (int) ( $fresh['total'] ?? 0 ) ),
 				'dir'     => 'stale' === $last ? 'down' : ( 'fresh' === $last ? 'up' : '' ),
 			);
 		}

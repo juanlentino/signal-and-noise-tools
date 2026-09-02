@@ -176,6 +176,22 @@ function sn_prov_verify_send() {
 // Changing it would make this one route's tab title disagree with every
 // other page on the site. ?>
 <title>Verify a Note &mdash; <?php echo esc_html( function_exists( 'get_bloginfo' ) ? get_bloginfo( 'name' ) : 'Signal & Noise' ); ?></title>
+<?php // Replay the SITE'S dark-mode choice before first paint. /verify prints its
+// own document and loads no theme CSS, so without this a reader who toggled dark
+// on juanlentino.com gets flashed a white page here whenever their OS is light.
+// Same origin, so the theme's own localStorage key is readable; the stylesheet
+// falls back to prefers-color-scheme when nothing is stored. Inline and BEFORE
+// the stylesheet on purpose: a deferred script would stamp the attribute after
+// the first paint, which is the flash it exists to prevent. try/catch because
+// localStorage throws outright in some privacy modes. ?>
+<?php
+// SAFE BY CONSTRUCTION, not by escaper: the key is a slug, so it is filtered to
+// slug characters and can carry nothing that closes a JS string or a <script>.
+// (esc_js() would also work in WordPress and does NOT exist in the standalone
+// test harness, which turned this line into a fatal the first time it shipped.)
+$sn_theme_key = preg_replace( '/[^A-Za-z0-9_-]/', '', defined( 'SN_THEME_STORAGE_KEY' ) ? (string) SN_THEME_STORAGE_KEY : 'sn-theme' );
+?>
+<script>try{var t=localStorage.getItem('<?php echo $sn_theme_key; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- slug-filtered on the line above. ?>');if(t==='dark'||t==='light'){document.documentElement.setAttribute('data-theme',t)}}catch(e){}</script>
 <link rel="stylesheet" href="<?php echo esc_url( $css_url ); ?>">
 <?php if ( '' !== $fonts_base ) : ?>
 <link rel="preload" href="<?php echo esc_url( $fonts_base . '/bebas-neue-latin.woff2' ); ?>" as="font" type="font/woff2" crossorigin>

@@ -163,7 +163,12 @@ $BASELINE = array(
 	// var(--sn-text, #1d2327) when the heading moved to sentence case. The
 	// ratchet only turns one way, so lowering it is the point.
 	'assets/uptime-status.css'    => 12,
-	'assets/css/prov-verify.css'  => 4,
+	// 4 -> 0 (v13.71.0): the four were html/body's hardcoded #fff/#000, which
+	// existed only because the palette was scoped to .sn-verify and could not
+	// reach the document ground. Dark mode moved the palette to :root, so those
+	// two rules now paint from var(--void)/var(--bone) and the file has no
+	// ungoverned literal left. The ratchet turns one way; this is that way.
+	'assets/css/prov-verify.css'  => 0,
 	'assets/machine-readers.css'  => 3,
 	'assets/provenance-admin.css' => 1,
 );
