@@ -2,6 +2,40 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.71.1] - 2026-09-02 — the purge cell answers one question about one event
+
+### Fixed — "Last purge" stops reporting a tally it cannot justify
+
+Third phrasing of the same mistake, and the first fix of the actual defect.
+v13.70.0 shipped "9 still stale" (a tally over the retained probe log, phrased as
+a live count), replaced it with "9 of 20 probes stale" beside a headline reading
+"fresh", and v13.70.1 taped a tense marker onto the seam. Owner ruling: *"If it's
+fresh, it is fresh. If it isn't, it shouldn't say."*
+
+That is not a wording preference. The cell is labelled **Last purge** — it
+answers one question about one event, and a running count over up to 20 earlier
+probes answers a different one. Pasting them together cannot be phrased into
+coherence; a reader sees "fresh" next to a stale count and distrusts both.
+
+It now reads `verified 4 mins ago`, `still stale after 4 mins`, or `unread 4 mins
+ago` — and `no timing recorded` when the stamp is missing or in the future, which
+is a broken clock rather than a very fresh purge. `last_time` was in the summary
+the whole time and went unused while the cell reported a tally instead. The clock
+is injected so the future-stamp branch is testable at all.
+
+### Added — the probe rows, on the Cloudflare tab
+
+The history is real evidence and NOTHING rendered the individual rows, so "why
+were 9 of 20 stale?" had no surface that could answer it. That is what makes a
+tally decoration rather than a finding. The tab now lists the retained probes
+with their age, verdict, whether the row escalated to a zone purge, and the URL.
+
+Rows from before v11.29.1 are labelled **(retired detector)**. That version
+compared whole documents, and Breeze injects a script on the cache-busted fetch
+only — so every probe read stale and the log showed 11 of 11. Not a stale edge: a
+detector that could not return anything else. Mixing those rows in unlabelled
+would re-tell that lie in a new surface.
+
 ## [13.71.0] - 2026-09-02 — /verify gets dark mode, and the purge cell stops contradicting itself
 
 ### Added — dark mode on /verify (`assets/css/prov-verify.css`, `inc/provenance-verify.php`)

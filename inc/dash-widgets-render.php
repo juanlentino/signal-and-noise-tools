@@ -202,43 +202,53 @@ function snt_dwx_cell( $label, $value, $compare = '', $dir = '', array $hydrate 
 }
 
 /**
- * The "Last purge" compare line: a tally over the retained probe log, phrased
- * in the SAME TENSE as the headline verdict beside it.
+ * The "Last purge" compare line.
  *
- * v13.70.0 fixed "9 still stale" (a history phrased as a present state) and
- * introduced a second reading of the same kind: the cell rendered
- * "fresh · 9 of 20 probes stale", which a reader parses as one sentence
- * contradicting itself. Owner-reported 2026-09-02, on the release that shipped
- * it. The two numbers were never in conflict — `last` is the NEWEST probe's
- * verdict and `stale` counts every stale entry still retained (<= 20, many of
- * them escalated to a zone purge and cleared at the time) — but a glance cell
- * carries no room to say so, so the words have to.
+ * TWO WRONG ANSWERS SHIPPED HERE FIRST, both the same mistake in different
+ * words. v13.70.0 replaced "9 still stale" (a tally over the RETAINED LOG,
+ * phrased as a live count) with "9 of 20 probes stale" beside a headline reading
+ * "fresh" — one sentence contradicting itself. v13.70.1 added the word "earlier"
+ * so the two halves stopped arguing. Owner ruling on that, 2026-09-02: "If it's
+ * fresh, it is fresh. If it isn't, it shouldn't say."
  *
- * A verdict and a tally may share a cell only when the tally says WHEN it is
- * about. That is the whole job of the word "earlier" below.
+ * That is the right call and it is not a wording preference. This cell is
+ * labelled "Last purge" — it answers ONE question, about ONE event: did the most
+ * recent purge clear the edge, and how long ago. A running tally over up to 20
+ * earlier probes answers a different question ("is the edge chronically
+ * flaky?"), and pasting it beside a point verdict cannot be phrased into
+ * coherence — a reader sees "fresh" and a stale count and distrusts both.
  *
- * @since 13.70.1
- * @param string $last  Newest verdict: 'fresh' | 'stale' | 'unknown'.
- * @param int    $stale Stale entries in the retained log.
- * @param int    $total Entries in the retained log.
+ * The history is not discarded, it is MOVED: the Cloudflare tab renders the
+ * individual rows (url, time, escalated), where "why were 9 stale?" is a
+ * question a reader can actually pursue. A number nobody can drill into is
+ * decoration.
+ *
+ * @since 13.71.1
+ * @param string $last      Newest verdict: 'fresh' | 'stale' | 'unknown'.
+ * @param int    $last_time Unix time of that verdict (0 when unknown).
+ * @param int    $now       Clock, injected so the fixture does not race one.
  * @return string
  */
-function snt_dash_freshness_compare( $last, $stale, $total ) {
-	$stale = (int) $stale;
-	$total = (int) $total;
-	if ( $stale < 1 ) {
-		/* translators: %d: probes recorded, every one of them fresh */
-		return sprintf( __( '%d verified', 'signal-and-noise-tools' ), $total );
+function snt_dash_freshness_compare( $last, $last_time, $now ) {
+	$last_time = (int) $last_time;
+	$now       = (int) $now;
+	if ( $last_time <= 0 || $last_time > $now ) {
+		// No usable timestamp: say that, rather than inventing an age. A future
+		// stamp is a broken clock, not a fresh purge.
+		return __( 'no timing recorded', 'signal-and-noise-tools' );
 	}
+	$ago = function_exists( 'human_time_diff' ) ? human_time_diff( $last_time, $now ) : ( $now - $last_time ) . 's';
 	if ( 'stale' === (string) $last ) {
-		// Headline and tally agree: no tense marker needed, and adding one
-		// would read as though the current stale probe were in the past.
-		/* translators: 1: stale probes, 2: probes retained in the log */
-		return sprintf( __( '%1$d of %2$d probes stale', 'signal-and-noise-tools' ), $stale, $total );
+		/* translators: %s: human-readable age of the probe, e.g. "4 mins" */
+		return sprintf( __( 'still stale after %s', 'signal-and-noise-tools' ), $ago );
 	}
-	// Headline is fresh (or unknown) and the tally is not: say so.
-	/* translators: 1: stale probes, 2: probes retained in the log */
-	return sprintf( __( '%1$d of %2$d earlier probes stale', 'signal-and-noise-tools' ), $stale, $total );
+	if ( 'fresh' === (string) $last ) {
+		/* translators: %s: human-readable age of the probe, e.g. "4 mins" */
+		return sprintf( __( 'verified %s ago', 'signal-and-noise-tools' ), $ago );
+	}
+	// 'unknown' is not 'fresh'. The probe ran and could not read an answer.
+	/* translators: %s: human-readable age of the probe, e.g. "4 mins" */
+	return sprintf( __( 'unread %s ago', 'signal-and-noise-tools' ), $ago );
 }
 
 /**
@@ -277,14 +287,13 @@ function snt_dwx_ops_signals() {
 	if ( function_exists( 'snt_cf_freshness_summary' ) ) {
 		$fresh = snt_cf_freshness_summary();
 		if ( is_array( $fresh ) ) {
-			$last  = (string) ( $fresh['last'] ?? 'unknown' );
-			$stale = (int) ( $fresh['stale'] ?? 0 );
+			$last = (string) ( $fresh['last'] ?? 'unknown' );
 			$out[] = array(
 				'label'   => __( 'Last purge', 'signal-and-noise-tools' ),
 				// The WORD, not a count: "did the edge actually clear" is the
 				// question, and a number cannot answer it.
 				'value'   => $last,
-				'compare' => snt_dash_freshness_compare( $last, $stale, (int) ( $fresh['total'] ?? 0 ) ),
+				'compare' => snt_dash_freshness_compare( $last, (int) ( $fresh['last_time'] ?? 0 ), time() ),
 				'dir'     => 'stale' === $last ? 'down' : ( 'fresh' === $last ? 'up' : '' ),
 			);
 		}

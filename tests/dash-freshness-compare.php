@@ -1,16 +1,20 @@
 <?php
 /**
- * The "Last purge" compare line — v13.70.1.
+ * The "Last purge" compare line — v13.71.1.
  *
- * v13.70.0 fixed "9 still stale" (a tally over the retained probe log, phrased
- * as a present state) and shipped a second reading of the same kind in its
- * place: the cell rendered "fresh · 9 of 20 probes stale", which a reader parses
- * as one sentence contradicting itself. Owner-reported on the release that
- * shipped it.
+ * THREE PHRASINGS SHIPPED BEFORE THIS ONE, all the same mistake:
+ *   v13.70.0  "9 still stale"          — a retained-log tally as a live count
+ *   v13.70.0  "9 of 20 probes stale"   — the same tally, beside a "fresh" headline
+ *   v13.70.1  "9 of 20 earlier probes" — a tense marker taped onto the seam
  *
- * The two numbers were never in conflict — `last` is the NEWEST probe's verdict,
- * `stale` counts every stale entry still retained — but a glance cell has no
- * room to explain that, so the WORDS have to carry the tense.
+ * Owner ruling 2026-09-02: "If it's fresh, it is fresh. If it isn't, it
+ * shouldn't say." The cell is labelled "Last purge" and answers ONE question
+ * about ONE event. The history moved to the Cloudflare tab, which renders the
+ * rows, so the count is drillable instead of decorative.
+ *
+ * The clock is INJECTED. A helper reading time() internally cannot be tested
+ * for the "future timestamp" branch at all, and would race the second boundary
+ * on the others.
  */
 
 $pass = 0; $fail = 0;
@@ -23,37 +27,43 @@ function esc_html( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function esc_attr( $s ) { return htmlspecialchars( (string) $s, ENT_QUOTES ); }
 function add_action( ...$a ) { return true; }
 function apply_filters( $t, $v ) { return $v; }
+function human_time_diff( $a, $b = 0 ) { $d = abs( (int) $b - (int) $a ); return $d < 3600 ? intdiv( $d, 60 ) . ' mins' : intdiv( $d, 3600 ) . ' hours'; }
 
 require_once __DIR__ . '/../inc/dash-widgets-render.php';
 
-echo "Last-purge compare line — v13.70.1\n\n";
+echo "Last-purge compare line — v13.71.1\n\n";
 
-// ─── the clean case ────────────────────────────────────────────────────────
-ok( '20 verified' === snt_dash_freshness_compare( 'fresh', 0, 20 ), 'no stale entries: the line counts what was verified' );
-ok( '0 verified' === snt_dash_freshness_compare( 'unknown', 0, 0 ), 'an empty log says 0 verified — never a fabricated all-clear' );
+$NOW = 1_800_000_000;
 
-// ─── THE DEFECT: headline and tally in different tenses ─────────────────────
-$mixed = snt_dash_freshness_compare( 'fresh', 9, 20 );
-ok( false !== strpos( $mixed, 'earlier' ), 'fresh headline + stale history: the line says EARLIER, so "fresh · 9 of 20 probes stale" stops reading as a contradiction' );
-ok( false !== strpos( $mixed, '9 of 20' ), 'and still names both numbers — the history is information, not noise' );
+// ─── one event, one question ────────────────────────────────────────────────
+ok( 'verified 4 mins ago' === snt_dash_freshness_compare( 'fresh', $NOW - 240, $NOW ), 'fresh: says WHEN it was verified — a true statement about the event the cell is labelled for' );
+ok( 'still stale after 4 mins' === snt_dash_freshness_compare( 'stale', $NOW - 240, $NOW ), 'stale: says so plainly, with how long it has been that way' );
+ok( 'unread 4 mins ago' === snt_dash_freshness_compare( 'unknown', $NOW - 240, $NOW ), 'unknown is NOT fresh: the probe ran and could not read an answer' );
 
-// ─── same tense: no marker, because it would be wrong ───────────────────────
-$now = snt_dash_freshness_compare( 'stale', 9, 20 );
-ok( false === strpos( $now, 'earlier' ), 'a STALE headline drops the marker: the newest probe is stale right now, and calling it earlier would be false' );
-ok( '9 of 20 probes stale' === $now, 'and reads as a plain present-tense tally' );
+// ─── THE OWNER RULING: no history in this cell ──────────────────────────────
+foreach ( array( 'fresh', 'stale', 'unknown' ) as $verdict ) {
+	$line = snt_dash_freshness_compare( $verdict, $NOW - 240, $NOW );
+	ok( 0 === preg_match( '/\bof\s+\d+\b|probes|earlier|still stale after \d+ probes/', str_replace( 'still stale after 4 mins', '', $line ) ),
+		"[$verdict] carries no tally over other probes — \"if it's fresh, it is fresh\"" );
+}
 
-// ─── an unknown verdict is not a fresh one ─────────────────────────────────
-ok( false !== strpos( snt_dash_freshness_compare( 'unknown', 3, 5 ), 'earlier' ), 'an UNKNOWN headline takes the marker too — only a currently-stale probe earns the present tense' );
+// ─── a missing or impossible timestamp is not an age ────────────────────────
+ok( 'no timing recorded' === snt_dash_freshness_compare( 'fresh', 0, $NOW ), 'no timestamp: says so rather than inventing an age' );
+ok( 'no timing recorded' === snt_dash_freshness_compare( 'fresh', $NOW + 60, $NOW ), 'a FUTURE stamp is a broken clock, never a very fresh purge' );
 
-// ─── REGRESSION: the two phrasings this cell has already shipped ───────────
-$src = (string) file_get_contents( __DIR__ . '/../inc/dash-widgets-render.php' );
-// COMMENT-STRIPPED, like every sibling source scan here: the helper's own
-// docblock quotes the retired phrasing to explain it, and a scan that cannot
-// tell an explanation from a declaration reports the fix as the defect.
+// ─── REGRESSION: the three retired phrasings ────────────────────────────────
+$src    = (string) file_get_contents( __DIR__ . '/../inc/dash-widgets-render.php' );
 $src_nc = (string) preg_replace( '#/\*.*?\*/#s', '', $src );
-ok( false !== strpos( $src, 'still stale' ), 'VACUITY: the retired phrasing IS quoted in the file (in a comment) — so a scan that ignores comments is doing real work here' );
-ok( false === strpos( $src_nc, 'still stale' ), 'REGRESSION (v13.70.0): "still stale" survives only as an explanation, never as a string the widget can print' );
-ok( 1 === preg_match( '/\'compare\' => snt_dash_freshness_compare\(/', $src ), 'the widget calls the pure helper, so this line is testable without rendering a widget' );
+ok( false !== strpos( $src, 'still stale' ) && false !== strpos( $src, 'earlier' ), 'VACUITY: the retired phrasings ARE quoted in the file (in comments), so a comment-stripped scan is doing real work' );
+foreach ( array( '%d still stale', 'earlier probes stale', 'of %2$d probes stale' ) as $retired ) {
+	ok( false === strpos( $src_nc, $retired ), 'REGRESSION: "' . $retired . '" survives only as an explanation, never as a string the widget can print' );
+}
+ok( 1 === preg_match( '/\$fresh\[.last_time.\]/', $src ), 'the cell reads last_time — the field that was in the summary all along and went unused while the cell reported a tally instead' );
+
+// ─── the history has somewhere to live ──────────────────────────────────────
+$cf = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
+ok( false !== strpos( $cf, 'Post-purge probes' ), 'the Cloudflare tab renders the individual rows, so "why were 9 stale?" is answerable' );
+ok( false !== strpos( $cf, 'retired detector' ), 'and a row from the pre-v11.29.1 detector is LABELLED as such — it could only ever say stale, so mixing it in silently would re-tell that lie' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

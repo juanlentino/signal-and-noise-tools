@@ -423,6 +423,51 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		echo '</div>';
 		echo '<span class="sn-pill sn-pill--ok">Active</span>';
 		echo '</div>';
+
+		// -- THE PROBE ROWS ------------------------------------------------
+		// v13.71.1. The dashboard cell reports the NEWEST verdict and nothing
+		// else, by owner ruling: a running stale-count beside a "fresh" headline
+		// is two questions in one cell and reads as a contradiction. The history
+		// is real evidence though, and until now NOTHING rendered the individual
+		// rows -- so "why were 9 of 20 stale?" had no surface that could answer
+		// it, which is what makes a tally decoration rather than a finding.
+		//
+		// Worth knowing while reading these: this detector HAS been wrong
+		// wholesale before. Until v11.29.1 it compared whole documents, and
+		// Breeze injects a script on the cache-busted fetch only, so every probe
+		// read stale and the log showed 11 of 11 -- not a stale edge, a detector
+		// that could not return anything else. Rows carry the algorithm that
+		// produced them for exactly this reason; only algo >= 2 rows are
+		// summarised, and a stale row there means the <main> region genuinely
+		// differed SN_CF_PROBE_DELAY seconds after its purge.
+		$probe_log = defined( 'SN_CF_PROBE_LOG_OPT' ) ? get_option( SN_CF_PROBE_LOG_OPT, array() ) : array();
+		$probe_log = is_array( $probe_log ) ? $probe_log : array();
+		if ( $probe_log ) {
+			echo '<h3 class="sn-rail-h">Post-purge probes</h3>';
+			echo '<p class="sn-rail-note">Each row is one check of the URL a reader would actually get, ' . (int) SN_CF_PROBE_DELAY . 's after its purge. A stale row escalated to a full zone purge at the time, so it records a purge that needed a second attempt, not a page still stale now.</p>';
+			echo '<table class="sn-table"><thead><tr><th>When</th><th>Result</th><th>URL</th></tr></thead><tbody>';
+			foreach ( array_slice( $probe_log, 0, 20 ) as $row ) {
+				if ( ! is_array( $row ) ) {
+					continue;
+				}
+				$r_time = (int) ( $row['time'] ?? 0 );
+				$r_res  = (string) ( $row['result'] ?? '' );
+				$r_algo = (int) ( $row['algo'] ?? 1 );
+				$label  = '' !== $r_res ? $r_res : 'unknown';
+				if ( 'stale' === $r_res && ! empty( $row['escalated'] ) ) {
+					$label .= ' -> zone purge';
+				}
+				if ( defined( 'SN_CF_PROBE_ALGO' ) && $r_algo < SN_CF_PROBE_ALGO ) {
+					// Never silently mixed with current readings: a pre-v11.29.1
+					// row came from the detector that could only say stale.
+					$label .= ' (retired detector)';
+				}
+				echo '<tr><td>' . esc_html( $r_time ? human_time_diff( $r_time, time() ) . ' ago' : '-' ) . '</td>';
+				echo '<td>' . esc_html( $label ) . '</td>';
+				echo '<td><code>' . esc_html( (string) ( $row['url'] ?? ( $row['source'] ?? '' ) ) ) . '</code></td></tr>';
+			}
+			echo '</tbody></table>';
+		}
 	} else {
 		echo '<div class="sn-status-box sn-status-box--warn">';
 		echo '<div>';
