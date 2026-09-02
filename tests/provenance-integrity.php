@@ -672,5 +672,45 @@ ok( 'notes' === sn_prov_ledger_dir( 'note' ) && 'pages' === sn_prov_ledger_dir( 
 ok( '' === sn_prov_ledger_dir( '' ) && '' === sn_prov_ledger_dir( 'revision' ) && '' === sn_prov_ledger_dir( 'wibble' ),
 	'and returns EMPTY for anything else — no notes/ default, because a guessed directory in an append-only ledger is not recoverable' );
 
+// ── Group: unverifiable is neither clean nor drift (v13.70.0) ───────────────
+// PLACED LAST, and it resets the fixtures: the groups above read accrued state
+// from sn_prov_integrity_state(), so a reset in the middle of the file silently
+// empties their inputs (10 assertions went red exactly that way while writing
+// this).
+echo "\nGroup: run_sweep — a subject with NO signed commit is its own count\n";
+$GLOBALS['__pi_options'] = array();
+$GLOBALS['__pi_meta']    = array();
+$GLOBALS['__pi_post_types'] = array();
+$UIDG = 'dddddddd-1111-4222-8333-444444444444';
+$UIDH = 'eeeeeeee-1111-4222-8333-444444444444';
+pi_note( 401, $UIDG, array( pi_commit( $UIDG, 1, $PARAS, 'confirmed' ) ) );      // a real, signed chain
+pi_note( 402, $UIDH, array( array( 'version' => 0, 'status' => 'genesis', 'content_hash' => 'x' ) ) ); // genesis only: nothing to verify
+$hashG = sn_prov_get_chain( 401 )[0]['content_hash'];
+$GLOBALS['__pi_fleet'] = array( 401, 402 );
+$uv_fetch = pi_fetcher( array(
+	'keys/provenance-keys.json'    => $KEYS_OK,
+	'/notes/note-401.json'         => pi_json( array( 'content_text' => $FLAT ) ),
+	'/notes/' . $UIDG . '/v1.json' => pi_json( array( 'content_hash' => 'sha256:' . $hashG ) ),
+) );
+$s = sn_prov_integrity_run_sweep( $uv_fetch );
+ok( 1 === $s['clean'] && 0 === $s['unreachable'] && 1 === $s['failed'],
+	'THE FALSE GREEN: a chainless subject no longer counts as CLEAN (it used to take the clean branch and report the healthiest possible verdict over the one row nothing was verified about)' );
+ok( 2 === $s['checked'] && ( $s['clean'] + $s['failed'] + $s['unreachable'] ) === $s['checked'],
+	'and the buckets still sum to checked — no silent fourth state' );
+ok( ! array_key_exists( 'unverifiable', $s ),
+	'THE SHAPE IS FROZEN: no new summary key, because this payload has a byte-identical remote twin and the contract hash covers its output_schema (a counter here is a contract bump + a worker release)' );
+$uv_findings = sn_prov_integrity_findings( sn_prov_integrity_state() );
+$uv_row = array_values( array_filter( $uv_findings, static function ( $f ) { return 402 === (int) $f['subject_id']; } ) );
+ok( 1 === count( $uv_row ) && false !== strpos( $uv_row[0]['note'], 'No provenance triangle to check' ) && false !== strpos( $uv_row[0]['note'], 'no proof exists' ),
+	'and it is FLAGGED, with a note that says nothing was checked rather than naming a failed leg' );
+ok( false === strpos( $uv_row[0]['note'], 'failed for v0' ), 'never "check failed for v0" — there was no v-anything to check' );
+
+// THE FLEET GATE: a UID is not a subject (the v13.69.1 lesson, second site).
+$GLOBALS['__pi_post_types'][402] = 'page'; // a page with no opt-in meta: not a subject
+$s = sn_prov_integrity_run_sweep( $uv_fetch );
+ok( 1 === $s['fleet'] && 1 === $s['checked'] && 1 === $s['clean'] && 0 === $s['failed'],
+	'a UID-bearing page nobody opted in leaves the fleet entirely — not walked, not counted, not "clean"' );
+$GLOBALS['__pi_post_types'] = array();
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

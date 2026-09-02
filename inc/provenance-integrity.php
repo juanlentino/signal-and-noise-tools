@@ -434,6 +434,17 @@ function sn_prov_integrity_run_sweep( $fetcher = null ) {
 		)
 	);
 	$ids = is_array( $ids ) ? array_map( 'intval', $ids ) : array();
+	// v13.70.0: A UID IS NOT A SUBJECT (the v13.69.1 lesson, second site).
+	// sn_prov_note_uid() mints on read, so pages that merely rendered a schema
+	// identifier carry the meta without ever being opted in. Selecting the fleet
+	// by that meta walked ~25 of them, each returning null below and — until the
+	// count fix in this release — landing in `clean`. Measured live 2026-09-02:
+	// fleet 64 against 38 published Notes.
+	if ( function_exists( 'sn_prov_subject_kind' ) ) {
+		$ids = array_values( array_filter( $ids, static function ( $id ) {
+			return '' !== (string) sn_prov_subject_kind( get_post( (int) $id ) );
+		} ) );
+	}
 
 	$state = get_option( SN_PROV_INTEGRITY_OPT );
 	$state = is_array( $state ) ? $state : array();
@@ -467,7 +478,21 @@ function sn_prov_integrity_run_sweep( $fetcher = null ) {
 		// cannot ask its question without it. null (unreadable) keeps leg (d)
 		// silent rather than turning an outage into per-Note drift.
 		$result   = sn_prov_integrity_check_note( $pid, $fetcher, $keys_probe['published_ids'] ?? null );
-		$failures = null !== $result ? $result['failures'] : array();
+		// v13.70.0: NULL means "no signed v1+ commit", i.e. /verify tells a reader
+		// no proof exists. It used to become array() here, which took the
+		// `array() === $failures` branch below and was counted CLEAN — the
+		// instrument reporting its healthiest verdict over the one population it
+		// had verified nothing about.
+		//
+		// It is a FAILURE CODE and not a fourth counter on purpose. This summary
+		// is the payload of signal-noise/provenance-integrity-status, which has a
+		// byte-identical remote twin, and the remote CONTRACT HASH covers the
+		// twins' output_schemas — a new integer key here is a contract 4 -> 5 bump
+		// plus a worker release. The count is already derivable from failing[],
+		// which the schema declares and whose `failures` array is free-form, so
+		// the honest reading survives with the shape frozen. Revisit only if a
+		// dedicated counter earns a contract bump on its own merits.
+		$failures = null !== $result ? $result['failures'] : array( 'no_signed_commit' );
 
 		// Twin 404 escalation (same consecutive-sweep rule as the keys file).
 		$twin_streak = ( null !== $result && 404 === (int) ( $result['twin_code'] ?? 0 ) )
@@ -555,6 +580,7 @@ function sn_prov_integrity_findings( $state ) {
 		'ledger_unreachable'   => 'the public ledger could not be reached (unreachable: an outage, not drift)',
 		'ledger_hash_mismatch' => 'the public ledger record attests a different content hash (ledger contradiction)',
 		'ledger_record_malformed' => 'the public ledger record exists but carries no content_hash (malformed record: it attests nothing)',
+		'no_signed_commit'     => 'the subject carries no signed v1+ commit at all, so /verify tells a reader no proof exists (unverifiable: absence, never drift)',
 		'signing_key_unpublished' => 'the key this commit was signed with is no longer published in keys/provenance-keys.json, so readers can no longer verify its signature (retired key dropped)',
 	);
 
@@ -575,11 +601,13 @@ function sn_prov_integrity_findings( $state ) {
 			'subject_url'   => (string) ( $row['url'] ?? '' ),
 			'subject_label' => (string) ( '' !== (string) ( $row['title'] ?? '' ) ? $row['title'] : ( $row['uid'] ?? '' ) ),
 			'edit_url'      => '',
-			'note'          => sprintf(
-				'Provenance triangle check failed for v%d: %s.',
-				(int) ( $row['version'] ?? 0 ),
-				implode( '; ', $named )
-			),
+			'note'          => in_array( 'no_signed_commit', $failures, true )
+				? sprintf( 'No provenance triangle to check: %s.', implode( '; ', $named ) )
+				: sprintf(
+					'Provenance triangle check failed for v%d: %s.',
+					(int) ( $row['version'] ?? 0 ),
+					implode( '; ', $named )
+				),
 		);
 	}
 

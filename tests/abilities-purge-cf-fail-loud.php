@@ -65,6 +65,12 @@ function get_option( $key, $default = false ) { return $GLOBALS['__opts'][ $key 
 $GLOBALS['__cf_configured'] = false;
 function sn_cf_is_configured() { return $GLOBALS['__cf_configured']; }
 
+// v13.70.0: the probe log the DASHBOARD reads. Capture every write so the
+// suite can pin which purges produce a verdict and which produce silence.
+$GLOBALS['__probe_log'] = array();
+function snt_cf_probe_record( array $entry ) { $GLOBALS['__probe_log'][] = $entry; }
+function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; }
+
 require __DIR__ . '/../inc/abilities-system.php';
 
 /** Fresh verified report as theme inc/purge-verify.php writes it. */
@@ -149,6 +155,44 @@ $GLOBALS['__has_purge_filter'] = false;
 $out = snt_ability_purge_all_caches( null );
 ok( is_wp_error( $out ) && 'snt_helper_unavailable' === $out->get_error_code(), 'S8.1 no theme listener: WP_Error snt_helper_unavailable' );
 $GLOBALS['__has_purge_filter'] = true;
+
+// ─── S9: the manual purge RECORDS ITS VERDICT where the widget reads it ──
+// Owner-reported 2026-09-02: "I purged them, but that didn't change." The
+// dashboard's "Last purge" cell reads SN_CF_PROBE_LOG_OPT, and only the
+// post-save probe ever wrote to it — so a manual zone purge computed a perfectly
+// good edge reading here, discarded it, and left the cell showing a verdict from
+// whenever a Note was last published.
+$GLOBALS['__cf_configured'] = true;
+$GLOBALS['__probe_log'] = array();
+seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ), true );
+$out = snt_ability_purge_all_caches( null );
+ok( 1 === count( $GLOBALS['__probe_log'] ), 'S9.1 a confirmed purge writes exactly one probe-log entry' );
+ok( 'fresh' === ( $GLOBALS['__probe_log'][0]['result'] ?? '' ), 'S9.2 a resolved edge records fresh' );
+ok( 'manual_zone_purge' === ( $GLOBALS['__probe_log'][0]['source'] ?? '' ) && 0 === ( $GLOBALS['__probe_log'][0]['post_id'] ?? -1 ),
+	'S9.3 the entry says WHICH purge produced it, and carries no post id — a zone purge is not about one post' );
+
+$GLOBALS['__probe_log'] = array();
+seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ), false );
+$out = snt_ability_purge_all_caches( null );
+ok( 1 === count( $GLOBALS['__probe_log'] ) && 'stale' === ( $GLOBALS['__probe_log'][0]['result'] ?? '' ),
+	'S9.4 a confirmed purge whose edge is STILL stale records stale — the bad news reaches the surface too' );
+
+// AN UNMEASURED PURGE RECORDS NOTHING. Same rule the post-save probe keeps:
+// an outage is a gap in evidence, never a verdict.
+$GLOBALS['__probe_log'] = array();
+seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ) ); // no `resolved` key at all
+$out = snt_ability_purge_all_caches( null );
+ok( array() === $GLOBALS['__probe_log'], 'S9.5 a confirmed purge with NO edge reading records nothing — never a fabricated fresh' );
+
+$GLOBALS['__probe_log'] = array();
+seed_report( array( 'accepted' => false, 'http' => 403, 'cf_success' => false ), true );
+$out = snt_ability_purge_all_caches( null );
+ok( array() === $GLOBALS['__probe_log'], 'S9.6 a REJECTED purge records nothing — the edge verdict of a purge that never ran is not evidence' );
+
+$GLOBALS['__probe_log'] = array();
+$GLOBALS['__opts'] = array(); // no report at all -> unconfirmed
+$out = snt_ability_purge_all_caches( null );
+ok( array() === $GLOBALS['__probe_log'], 'S9.7 an unconfirmed purge records nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
