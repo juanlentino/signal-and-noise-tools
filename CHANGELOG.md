@@ -2,6 +2,106 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.76.0] - 2026-09-02 — reader-anomalies: the machine-reader subsystem gets its first ML consumer
+
+Machine readers had **zero** ML consumers and by far the most data. Measured
+2026-09-02 over 30 days: **69,833 machine requests** against roughly **130 human
+visits** — about **500:1**. The analytics maturity ladder (I1-I6) is complete and
+sophisticated, and starved: Theil-Sen and Holt were running over a few visits a
+day.
+
+This adds **no statistics**. It supplies a denser input to the engine that
+already exists.
+
+### Two premises corrected while scoping, both of which shrank the build
+
+**The day grain already existed.** The sensor contract is already
+`{family, surface, day, hits}` with `days` clamped 1..90, and `snt_mr_fetch()`
+already pulled it — the dashboard just aggregated it away. So: no worker change,
+no new storage, no contract bump, and **no new queries**, which is the analytics
+engine's standing rule.
+
+**The v13.75.0 skill gate does not catch what I built it for.** It does not fire
+on thin data (measured **+0.06** on realistic noisy traffic — a smoothed level
+legitimately beats persistence on a stationary series). It fires on **structural
+misfit**: a reversed trend (-0.19), a sawtooth cycle (-0.13). Crawler series are
+where those live, so it now decides which families earn a forecast, per family.
+
+### The eligibility floor is DERIVED, not chosen
+
+A family needs hits on **>= 20 of the 30 days**. Days present across the twelve
+families with traffic, sorted: **2, 9, 10, 11, 14 ... 23, 24, 31, 31, 31, 31,
+31**. The distribution is **bimodal with a nine-day gap** — near-permanent
+residents or sporadic visitors, nothing between 14 and 23 — so the threshold only
+has to land in the empty region. Any floor from 15 to 22 selects the same seven
+families, and that robustness is asserted.
+
+It admits 7 families carrying **97.4%** of traffic and drops 5 sporadic ones
+worth 2.6%.
+
+**A volume floor would have been wrong.** `amazon-ai` shows a median of 160
+across 9 present days — on a volume test it outranks `openai`, which is present
+every single day at a median of 8. There is no series there, only bursts.
+Presence is the axis; size is what the statistics already handle.
+
+**One rule, not two:** with zero-fill, >= 20 present days out of 30 leaves at most
+10 zeros, so the median is guaranteed to fall among real values. A days-present
+floor implies a non-zero median.
+
+### Zero-fill is load-bearing
+
+A day with no rows is a **real zero**. Without the fill, a crawler that stops
+simply yields a shorter series and "went quiet" — the most interesting reading on
+this data, and the corpus's own argument — becomes structurally invisible. The
+fill is bounded by the window, so it can never invent history.
+
+### What shipped
+
+- **[`inc/mr-series.php`](inc/mr-series.php)** — pure reshape (no WP calls, no
+  clock): `snt_mr_day_range()`, `snt_mr_daily_series()`, `snt_mr_family_days()`
+  (counts DAYS, never rows — a family touching six surfaces is not six days of
+  presence), `snt_mr_eligible_families()`. UTC is explicit; a naive `strtotime()`
+  shifts every bucket by a day for half the world.
+- **[`inc/ml-reader-anomalies.php`](inc/ml-reader-anomalies.php)** — pipeline #11.
+  Anomalies over the last 7 days against the 30-day baseline, a trajectory, and a
+  forecast only where skill earns it. **Fail-closed**: a sensor that did not
+  answer is `state: unavailable` with the reason, never an empty findings list.
+  The window ends **yesterday** — today is partial and would read as a crash.
+- **[`inc/analytics-signals.php`](inc/analytics-signals.php)** —
+  `sn_analytics_anomaly_of()`, the series-injectable sibling of
+  `sn_analytics_signal_anomalies()` (which queries the local tables and is coupled
+  to `$class`). All three tiers are now uniformly injectable. The existing
+  composer is deliberately untouched: it is a locked contract, and refactoring it
+  to share code would risk a shipped surface to save a dozen lines.
+- **[`inc/ml-reader-anomalies-health.php`](inc/ml-reader-anomalies-health.php)** —
+  Site Health. Deviations are `recommended`, **never critical**: this is an
+  instrument, not a gate. Zero eligible families is also not `good` — nothing
+  measured cannot vouch for calm.
+- **MCP read door** — `signal-noise/reader-anomalies`, allowlist 28 -> 29.
+- **Both maturity pages** — the ML page gains its 11th consumer, the machine page
+  its 12th coverage row.
+
+### Deliberately out of scope
+
+The frozen family enum is untouched (a published figure depends on those values).
+`unclassified-machine` is **measured, never investigated** — it is already named
+on the vendor/purpose axis and carries no UA sample by construction. No
+agent-level grain yet. No auto-action. The **remote twin is deferred**: it costs
+contract 4 -> 5 plus a worker release and freezes the payload shape on the day it
+ships.
+
+### Expected noise
+
+`openai` (median 8, max 731) and `anthropic` (median 9, max 60) will be the
+liveliest families — MAD over single-digit counts is small. That is left standing
+deliberately: a training crawler going from 8 to 731 in a day is the finding this
+exists for. Watch them before the health check earns an attention badge.
+
+Eight mutations proved red across three suites: dropping zero-fill, counting rows
+instead of days, admitting zero-hit rows as presence, failing open on a dead
+sensor, ending the window today, hiding the floor from the payload, and reporting
+`good` for both an unreadable sensor and zero eligible families.
+
 ## [13.75.0] - 2026-09-02 — a forecast that cannot beat persistence is withheld
 
 ### Added — forecast SKILL, and suppression that states its reason

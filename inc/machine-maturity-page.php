@@ -46,6 +46,7 @@ function sn_machine_maturity_layers() {
 function sn_machine_maturity_scope() {
 	$scope = array(
 		'manifest'    => array( __( 'AI-crawler manifest', 'signal-and-noise-tools' ), 'live' ),
+		'behaviour'   => array( __( 'Behavioural deviation detection', 'signal-and-noise-tools' ), 'live' ),
 		'reservation' => array( __( 'TDM reservation', 'signal-and-noise-tools' ), 'live' ),
 		'signal'      => array( __( 'Content signal', 'signal-and-noise-tools' ), 'live' ),
 		'licence'     => array( __( 'Licence file', 'signal-and-noise-tools' ), 'live' ),

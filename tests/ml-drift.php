@@ -147,7 +147,7 @@ ok( true === $none['ok'] && array() === $none['years'] && array() === $none['pai
 
 echo "\nGroup: the pipeline gate\n";
 ok( isset( snt_ml_pipelines()['corpus-drift'] ), "the registry carries 'corpus-drift' (pipeline #9)" );
-ok( 10 === count( snt_ml_pipelines() ), 'ten pipelines registered — drift is #9, reading-path #10 (v11.3.0)' );
+ok( 11 === count( snt_ml_pipelines() ), 'eleven pipelines registered — drift is #9, reading-path #10 (v11.3.0), reader-anomalies #11 (v13.76.0)' );
 $via = snt_ml_run( 'corpus-drift', array() );
 ok( is_array( $via ) && true === $via['ok'], 'the dispatcher reaches the module' );
 

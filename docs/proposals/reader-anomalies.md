@@ -1,6 +1,7 @@
 # reader-anomalies — scope
 
-**Status:** proposed, not built. Owner is the gate (ML kernel standing direction).
+**Status:** BUILT and shipped in v13.76.0. This document is the scope it was
+built to; the CHANGELOG entry records what changed against it.
 **Premise corrected twice while scoping; both corrections are load-bearing.**
 
 ## Why this subsystem

@@ -111,7 +111,7 @@ ok( null === $head['prev'] && 10 === $head['next'], 'the chain head has no prev 
 ok( array() === snt_ml_path_for_post( 99 ), 'a post on no path → [] — a REAL answer, distinct from null' );
 
 echo "\nGroup: the pipeline envelope\n";
-ok( isset( snt_ml_pipelines()['reading-path'] ) && 10 === count( snt_ml_pipelines() ), "the registry carries 'reading-path' as pipeline #10" );
+ok( isset( snt_ml_pipelines()['reading-path'] ) && 11 === count( snt_ml_pipelines() ), "the registry carries 'reading-path' as pipeline #10 of eleven (reader-anomalies is #11)" );
 $e = snt_ml_run( 'reading-path', array() );
 ok( is_wp_error( $e ) && 'snt_ml_invalid_args' === $e->get_error_code(), 'missing post_id refuses 400' );
 $r = snt_ml_run( 'reading-path', array( 'post_id' => 10 ) );
