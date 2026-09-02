@@ -2,6 +2,54 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.73.0] - 2026-09-02 — the write door validates its input
+
+### Added — undeclared arguments are rejected on the rw door
+
+Every write ability's `input_schema` declares `additionalProperties: false`.
+Nothing enforced it. An undeclared key was neither honoured nor rejected — it
+was dropped in silence.
+
+Measured 2026-09-02: a `dry_run` key, invented by the caller and passed to
+`signal-noise/apply-tag-description`, was accepted, ignored, and the write
+happened anyway. The caller believed the call was constrained and it was not.
+That is the harm, and it is specific to a door that MUTATES — on the read door
+a dropped key yields a visibly wrong read, which the caller can see.
+
+`sn_mcp_input_schema_violation()` mirrors the output checker exactly:
+
+- **Write door only** (`SN_MCP_DOOR_RW`). Scoped to where a silent drop can
+  cause an unintended mutation.
+- **Against the ADVERTISED projection**, never the raw ability schema. Same
+  rule as the output side and for the same reason: `tools/list` strips
+  top-level `anyOf`/`oneOf`/`allOf`, so the raw schema would reject calls the
+  published contract permits.
+- **Before `execute()`**, and ahead of the lifecycle depth bracket — a rejected
+  call mutates nothing and does not consume the bracket. Pinned by a test that
+  compares source offsets, not by convention.
+- **Fail-open** when `rest_validate_value_from_schema()` is unavailable. No
+  validator means no verdict, never a rejection.
+
+This adds NO rules. It makes each ability's own published declaration true; a
+schema that does not declare the constraint stays permissive, and that is
+asserted.
+
+Rejections return `-32602` with the offending key named, and record telemetry
+outcome `invalid_input`.
+
+### Fixed — a harness stub that would have made the new tests vacuous
+
+`tests/mcp-tools.php`'s mini validator checked root type, required keys and
+scalar types, and **ignored `additionalProperties` entirely** — the same blind
+spot production had. Written against it, every new assertion would have passed
+while proving nothing. The stub now mirrors core's
+`rest_validate_object_value_from_schema` (`rest_additional_properties_forbidden`),
+and a vacuity guard asserts the stub itself rejects an undeclared key, so the
+blind spot cannot return silently.
+
+Both properties proved red by mutation: removing the gate, and neutering the
+stub.
+
 ## [13.72.1] - 2026-09-02 — the probe log folds, and opens only when it is the task
 
 ### Changed — post-purge probes are a disclosure, not a wall

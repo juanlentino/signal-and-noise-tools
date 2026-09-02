@@ -188,6 +188,49 @@ function sn_mcp_project_output_schema( $out ) {
 }
 
 /**
+ * First input-schema violation for a WRITE-door call, or null.
+ *
+ * The schemas already DECLARE `additionalProperties: false`; nothing enforced
+ * it. An undeclared key was neither honoured nor rejected — it was dropped in
+ * silence. Measured 2026-09-02: a `dry_run` key invented by the caller and
+ * passed to signal-noise/apply-tag-description was accepted, ignored, and the
+ * write happened anyway. The caller believed the call was constrained. That is
+ * the harm, and it is specific to a door that MUTATES: on the read door a
+ * dropped key yields a visibly wrong read, which the caller can see.
+ *
+ * This adds NO rules. It makes each ability's own published declaration true;
+ * a schema without `additionalProperties: false` stays permissive.
+ *
+ * Validated against the ADVERTISED projection, never the raw ability schema —
+ * the same rule as the output side, and for the same reason: tools/list strips
+ * top-level anyOf/oneOf/allOf, so the raw schema would reject calls the
+ * published contract allows.
+ *
+ * FAIL-OPEN when the validator is unavailable (standalone harness, early
+ * bootstrap), exactly like the output check: no validator means no verdict,
+ * never a rejection.
+ *
+ * @since 13.73.0
+ * @param mixed $args   The arguments object from tools/call.
+ * @param array $schema The ADVERTISED input schema (post sn_mcp_normalize_schema).
+ * @return string|null First violation message, or null (valid OR unverifiable).
+ */
+function sn_mcp_input_schema_violation( $args, $schema ) {
+	if ( ! function_exists( 'rest_validate_value_from_schema' ) || ! is_array( $schema ) || array() === $schema ) {
+		return null;
+	}
+	$value = json_decode( (string) wp_json_encode( $args ), true );
+	if ( null === $value ) {
+		$value = array();
+	}
+	$check = rest_validate_value_from_schema( $value, $schema, 'arguments' );
+	if ( is_wp_error( $check ) ) {
+		return (string) $check->get_error_message();
+	}
+	return null;
+}
+
+/**
  * Does this (already-wrapped) success payload violate the ADVERTISED schema?
  *
  * WHY THIS EXISTS (v13.51.0). tools/list advertises
@@ -528,6 +571,24 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 	// inc/abilities-lifecycle-guard.php stand down — this wrapper already
 	// records telemetry + rw audit for the call; without the flag every MCP
 	// call would be double-logged once core starts firing those hooks.
+	// SEC: reject undeclared arguments on the WRITE door BEFORE execute(), so a
+	// caller who believes they constrained a mutation is told they did not.
+	// Ordered ahead of the depth flag and the try/finally deliberately: nothing
+	// has been mutated or logged as an attempt yet, and a rejected call must not
+	// consume the lifecycle bracket.
+	if ( SN_MCP_DOOR_RW === $door && function_exists( 'sn_mcp_input_schema_violation' ) ) {
+		$sn_in_bad = sn_mcp_input_schema_violation(
+			$args,
+			sn_mcp_normalize_schema( $ability->get_input_schema() )
+		);
+		if ( null !== $sn_in_bad ) {
+			if ( function_exists( 'sn_mcp_telemetry_record' ) ) {
+				sn_mcp_telemetry_record( $tool_name, $arguments, $door, 'invalid_input', null, sn_mcp_telemetry_elapsed_ms( $sn_mcp_telemetry_t0 ) );
+			}
+			return array( 'error' => array( 'code' => -32602, 'message' => 'Invalid arguments: ' . $sn_in_bad ) );
+		}
+	}
+
 	if ( function_exists( 'sn_ability_guard_mcp_depth' ) ) {
 		sn_ability_guard_mcp_depth( 1 );
 	}
