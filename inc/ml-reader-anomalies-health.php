@@ -37,6 +37,7 @@ function snt_ml_reader_anomalies_health( $report ) {
 		);
 	}
 	$anoms    = (int) ( $report['counts']['anomalies'] ?? 0 );
+	$silences = (int) ( $report['counts']['silences'] ?? 0 );
 	$eligible = (int) ( $report['counts']['families_eligible'] ?? 0 );
 	$seen     = (int) ( $report['counts']['families_seen'] ?? 0 );
 	if ( 0 === $eligible ) {
@@ -50,22 +51,33 @@ function snt_ml_reader_anomalies_health( $report ) {
 			),
 		);
 	}
-	if ( 0 === $anoms ) {
+	if ( 0 === $anoms && 0 === $silences ) {
 		return array(
 			'status'  => 'good',
 			'summary' => sprintf(
-				'%d of %d crawler families carry enough presence to measure, and none deviated from its 30-day norm in the last 7 days.',
+				'%d of %d crawler families carry enough presence to measure. None deviated from its 30-day norm in the last 7 days, and none went silent.',
 				$eligible,
 				$seen
 			),
 		);
 	}
+	// Silence is reported SEPARATELY because it is a different kind of claim: a
+	// binary presence rule, not a z-score. Robust z cannot reach zero on counts
+	// bounded below by it, so folding the two would let a rule masquerade as a
+	// statistic.
+	$parts = array();
+	if ( $anoms > 0 ) {
+		$parts[] = sprintf( '%d deviation(s) from the 30-day norm', $anoms );
+	}
+	if ( $silences > 0 ) {
+		$parts[] = sprintf( '%d family-day(s) of total silence from a reader present on most days', $silences );
+	}
 	return array(
 		'status'  => 'recommended',
 		'summary' => sprintf(
-			'%d reader deviation(s) in the last 7 days across %d measured famil(y/ies) — read the rows; a family running BELOW its norm is as real a finding as one running above.',
-			$anoms,
-			$eligible
+			'Last 7 days across %d measured famil(y/ies): %s. Read the rows.',
+			$eligible,
+			implode( ' and ', $parts )
 		),
 	);
 }
