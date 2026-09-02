@@ -510,6 +510,20 @@ function rest_validate_value_from_schema( $value, $schema, $param = '' ) {
 			return new WP_Error( 'rest_property_required', "$req is a required property of $param." );
 		}
 	}
+	// additionalProperties:false — mirrors core's rest_validate_object_value_from_schema,
+	// which returns rest_additional_properties_forbidden ("%s is not a valid property of
+	// Object.") for any key not in `properties`. Added when the rw door started
+	// validating INPUT: the schemas have always declared this and nothing enforced it,
+	// so without it here the new assertions would pass vacuously against a stub that
+	// simply ignores undeclared keys — which is exactly how they were silently dropped
+	// in production.
+	if ( isset( $schema['additionalProperties'] ) && false === $schema['additionalProperties'] && is_array( $value ) ) {
+		foreach ( array_keys( $value ) as $k ) {
+			if ( ! array_key_exists( $k, (array) ( $schema['properties'] ?? array() ) ) ) {
+				return new WP_Error( 'rest_additional_properties_forbidden', "$k is not a valid property of Object." );
+			}
+		}
+	}
 	foreach ( (array) ( $schema['properties'] ?? array() ) as $k => $sub ) {
 		if ( ! is_array( $value ) || ! array_key_exists( $k, $value ) ) { continue; }
 		$st = is_array( $sub ) ? ( $sub['type'] ?? null ) : null;
@@ -578,6 +592,49 @@ $GLOBALS['__abilities']['signal-noise/uptime-status'] = new SN_Test_Ability( 'si
 ok( null === sn_mcp_output_schema_violation( array( 'configured' => 7 ), array() ), 'pure checker: an EMPTY schema yields null (nothing was advertised, nothing can drift)' );
 ok( is_string( sn_mcp_output_schema_violation( array( 'configured' => 7 ), array( 'type' => 'object', 'properties' => array( 'configured' => array( 'type' => 'string' ) ) ) ) ), 'pure checker: a violation yields the message' );
 ok( null === sn_mcp_output_schema_violation( array( 'configured' => 'y' ), array( 'type' => 'object', 'properties' => array( 'configured' => array( 'type' => 'string' ) ) ) ), 'pure checker: a conforming value yields null' );
+
+// ── v13.73.0: the WRITE door validates its INPUT ───────────────────────────
+// The schemas always declared additionalProperties:false; nothing enforced it.
+// Measured 2026-09-02: an invented `dry_run` key passed to
+// signal-noise/apply-tag-description was accepted, ignored, and the write
+// happened anyway — the caller believed the call was constrained.
+$sn_in_schema = array(
+	'type'                 => 'object',
+	'required'             => array( 'name', 'description' ),
+	'properties'           => array(
+		'name'        => array( 'type' => 'string' ),
+		'description' => array( 'type' => 'string' ),
+	),
+	'additionalProperties' => false,
+);
+
+ok( null === sn_mcp_input_schema_violation( array( 'name' => 'A', 'description' => 'B' ), $sn_in_schema ), 'input checker: a conforming call yields null' );
+
+$sn_v = sn_mcp_input_schema_violation( array( 'name' => 'A', 'description' => 'B', 'dry_run' => true ), $sn_in_schema );
+ok( is_string( $sn_v ) && '' !== $sn_v, 'input checker: THE dry_run CASE — an undeclared key is a violation, not a silent drop' );
+ok( is_string( $sn_v ) && false !== strpos( $sn_v, 'dry_run' ), 'the violation NAMES the offending key, so the caller can fix it' );
+
+ok( is_string( sn_mcp_input_schema_violation( array( 'name' => 'A' ), $sn_in_schema ) ), 'a missing required property is a violation' );
+ok( is_string( sn_mcp_input_schema_violation( array( 'name' => 1, 'description' => 'B' ), $sn_in_schema ) ), 'a wrong scalar type is a violation' );
+
+// It adds NO rules: a schema that does not declare the constraint stays permissive.
+$sn_open = array( 'type' => 'object', 'properties' => array( 'name' => array( 'type' => 'string' ) ) );
+ok( null === sn_mcp_input_schema_violation( array( 'name' => 'A', 'extra' => 1 ), $sn_open ), 'a schema without additionalProperties:false still accepts extra keys' );
+
+// FAIL-OPEN, exactly like the output side: an empty/absent schema yields no verdict.
+ok( null === sn_mcp_input_schema_violation( array( 'anything' => 1 ), array() ), 'an empty schema yields no verdict, never a rejection' );
+
+// VACUITY GUARD: if the harness stub ignored additionalProperties, every
+// assertion above would pass while proving nothing. Prove the stub bites.
+$sn_probe = rest_validate_value_from_schema( array( 'name' => 'A', 'description' => 'B', 'nope' => 1 ), $sn_in_schema, 'arguments' );
+ok( is_wp_error( $sn_probe ), 'the harness validator itself rejects undeclared keys (assertions above are not vacuous)' );
+
+// WIRING: the gate is on the WRITE door only, and runs BEFORE execute().
+$sn_src = file_get_contents( __DIR__ . '/../inc/mcp/mcp-tools.php' );
+$sn_gate = strpos( $sn_src, 'sn_mcp_input_schema_violation(' . "\n" );
+$sn_exec = strpos( $sn_src, '$ability->execute( $args )' );
+ok( false !== strpos( $sn_src, 'SN_MCP_DOOR_RW === $door && function_exists( \'sn_mcp_input_schema_violation\' )' ), 'the input gate is scoped to the WRITE door' );
+ok( false !== $sn_gate && false !== $sn_exec && $sn_gate < $sn_exec, 'the gate runs BEFORE execute(), so a rejected call mutates nothing' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
