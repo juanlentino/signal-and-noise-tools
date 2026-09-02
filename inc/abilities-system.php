@@ -313,6 +313,28 @@ function snt_ability_purge_all_caches( $input ) {
 	) );
 
 	$cf = snt_purge_cf_verdict( $dispatched_at );
+
+	// v13.70.0: RECORD THE VERDICT WHERE THE SURFACE READS IT. The dashboard's
+	// "Last purge" cell reads the probe log (SN_CF_PROBE_LOG_OPT), and until now
+	// ONLY the post-save probe ever wrote to it. So pressing "Purge caches"
+	// cleared the edge, computed a perfectly good edge_fresh reading right here,
+	// threw it away, and left the cell showing a verdict from whenever a Note was
+	// last published — for weeks. Owner-reported 2026-09-02: "I purged them, but
+	// that didn't change."
+	//
+	// Only a CONFIRMED purge that produced a definite edge reading is recorded:
+	// an unconfirmed or rejected purge measured nothing, and the log's standing
+	// rule is that an outage is a gap in evidence, never a verdict.
+	if ( 'confirmed' === $cf['status'] && array_key_exists( 'edge_fresh', $cf ) && function_exists( 'snt_cf_probe_record' ) ) {
+		snt_cf_probe_record( array(
+			'time'    => time(),
+			'post_id' => 0, // A zone purge is not about one post.
+			'url'     => function_exists( 'home_url' ) ? home_url( '/' ) : '',
+			'result'  => ! empty( $cf['edge_fresh'] ) ? 'fresh' : 'stale',
+			'source'  => 'manual_zone_purge',
+		) );
+	}
+
 	$ok = true;
 
 	switch ( $cf['status'] ) {

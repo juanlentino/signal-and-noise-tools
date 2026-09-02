@@ -2,6 +2,51 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.70.0] - 2026-09-02 — two instruments reporting verdicts they never measured
+
+### Fixed — the integrity sweep counted UNVERIFIED subjects as clean (`inc/provenance-integrity.php`)
+
+`sn_prov_integrity_check_note()` returns null for a subject with no signed v1+
+commit — the exact population whose `/verify` tells a reader no proof exists. The
+sweep turned that null into an empty failure list, which took the
+`array() === $failures` branch and incremented **clean**. An instrument reporting
+its healthiest possible verdict over the one group it had verified nothing about.
+
+Two changes, both mirroring v13.69.1:
+
+- Fleet discovery is gated on `sn_prov_subject_kind()`. It selected by
+  `SN_PROV_UID_META`, so the ~25 phantom-UID pages the census stopped counting
+  yesterday were still being walked here, each returning null and landing in
+  clean. Measured live 2026-09-02: `fleet` read 64 against 38 published Notes.
+- A chainless subject now carries the failure code `no_signed_commit`, so it is
+  counted apart from clean AND flagged by name, with a note that says nothing was
+  checked rather than naming a leg that failed ("No provenance triangle to check",
+  never "check failed for v0").
+
+**The payload shape is deliberately frozen.** A dedicated `unverifiable` counter
+was written, tested, and backed out: this summary is the payload of
+`signal-noise/provenance-integrity-status`, whose byte-identical remote twin is
+covered by the remote contract hash — a new integer key is a contract 4 → 5 bump
+plus a worker release. The count stays derivable from `failing[]`, whose
+`failures` array the schema already declares as free-form. The parity test caught
+the drift on the first sweep, which is what it is for.
+
+### Fixed — "Last purge" never moved after a manual purge (`inc/abilities-system.php`)
+
+Owner-reported: "I purged them, but that didn't change." The dashboard cell reads
+the probe log, and only the post-save probe ever wrote to it — so pressing **Purge
+caches** cleared the edge, computed a perfectly good `edge_fresh` reading inside
+the ability, threw it away, and left the cell showing a verdict from whenever a
+Note was last published. A confirmed zone purge now records that reading
+(`source: manual_zone_purge`). An unconfirmed or rejected purge still records
+nothing: an outage is a gap in evidence, never a verdict.
+
+### Fixed — "9 still stale" described history as a present state (`inc/dash-widgets-render.php`)
+
+That number is a tally over the retained probe log (up to 20 entries), most of
+which escalated to a zone purge and cleared at the time. It read as nine URLs
+stale right now. It now names its window: "9 of 20 probes stale".
+
 ## [13.69.1] - 2026-09-01 — a UID is not a subject: the backfill census stops counting pages nobody opted in
 
 ### Fixed — `inc/provenance-chain-backfill.php`, `inc/provenance-machine-pointers.php`

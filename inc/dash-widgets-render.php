@@ -244,10 +244,15 @@ function snt_dwx_ops_signals() {
 				// The WORD, not a count: "did the edge actually clear" is the
 				// question, and a number cannot answer it.
 				'value'   => $last,
+				// v13.70.0: NAME THE WINDOW. This said "9 still stale", which reads
+				// as nine URLs stale right now. The number is a tally over the
+				// RETAINED LOG (up to 20 probes), most of which were escalated to
+				// a zone purge and cleared at the time. A count over a history
+				// must not be phrased as a present state.
 				'compare' => $stale > 0
-					/* translators: %d: number of URLs still stale after a purge */
-					? sprintf( _n( '%d still stale', '%d still stale', $stale, 'signal-and-noise-tools' ), $stale )
-					/* translators: %d: number of URLs verified after the purge */
+					/* translators: 1: stale probes, 2: probes retained in the log */
+					? sprintf( __( '%1$d of %2$d probes stale', 'signal-and-noise-tools' ), $stale, (int) ( $fresh['total'] ?? 0 ) )
+					/* translators: %d: number of probes recorded, all fresh */
 					: sprintf( __( '%d verified', 'signal-and-noise-tools' ), (int) ( $fresh['total'] ?? 0 ) ),
 				'dir'     => 'stale' === $last ? 'down' : ( 'fresh' === $last ? 'up' : '' ),
 			);
