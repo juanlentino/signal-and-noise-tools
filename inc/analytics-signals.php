@@ -232,6 +232,32 @@ function sn_analytics_anomaly_of( $subject, $label, $series, $from, $to, $opts =
 	return $out;
 }
 
+/**
+ * Render a trajectory magnitude in a unit that is TRUE of it.
+ *
+ * $rel is `slope * n / median` — total modelled change as a MULTIPLE of the
+ * typical level, not a share of it. As a percentage that reads correctly below
+ * 100% and becomes nonsense above: the live `openai` reader printed "decaying
+ * (-231%)" on 2026-09-02, and a positive quantity cannot fall by more than 100%
+ * of itself.
+ *
+ * Nothing about the NUMBER is wrong — only the unit implied a floor the
+ * statistic does not have. Above +-100% it is stated as a multiple instead. The
+ * classification (flat / rising / decaying), direction, confidence and severity
+ * are all computed from $rel upstream and are deliberately untouched.
+ *
+ * @since 13.80.0
+ * @param float $rel Total change over the window, divided by the median level.
+ * @return string
+ */
+function sn_analytics_trajectory_magnitude( $rel ) {
+	$rel = (float) $rel;
+	if ( abs( $rel ) < 1.0 ) {
+		return sprintf( '%+.0f%%', $rel * 100 );
+	}
+	return sprintf( '%+.1f\u{d7} the typical level', $rel );
+}
+
 /** Classify one subject's daily-views series into a trajectory signal, or null if too short. */
 function sn_analytics_trajectory_of( $subject, $label, $series, $from, $to, $min_points ) {
 	$ys = array_map( static function ( $r ) { return (float) ( $r['views'] ?? 0 ); }, (array) $series );
@@ -259,8 +285,11 @@ function sn_analytics_trajectory_of( $subject, $label, $series, $from, $to, $min
 		'direction'     => $dir,
 		'interval'      => null,
 		'confidence'    => $conf,
-		'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => 0 ),
-		'plain_label'   => sprintf( '%s is %s (%+.0f%% over the window)', (string) $label, $kind_t, $rel * 100 ),
+		// baseline_days was hardcoded 0 (v13.80.0 fix): every trajectory signal
+		// reported an empty baseline where the sibling forecast reports the real
+		// count. Pre-existing on the human dashboard, surfaced by reader-anomalies.
+		'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $ys ) ),
+		'plain_label'   => sprintf( '%s is %s (%s over the window)', (string) $label, $kind_t, sn_analytics_trajectory_magnitude( $rel ) ),
 		'severity'      => $sev,
 	);
 }

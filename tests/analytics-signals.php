@@ -82,6 +82,33 @@ $GLOBALS['__pathseries'] = array( '/notes/x' => $rising );
 $GLOBALS['__camps'] = array();
 $traj = sn_analytics_signal_trajectories( '2026-06-01', '2026-06-14', 'human' );
 ok( count( $traj ) === 1 && 'up' === $traj[0]['direction'] && false !== strpos( $traj[0]['plain_label'], 'rising' ), 'trajectory: rising path classified up' );
+
+// ── v13.80.0: the trajectory envelope and its unit ──────────────────────────
+// Both PRE-EXISTING on the human dashboard; reader-anomalies surfaced them by
+// pointing the composer at a series with a small median.
+
+// 1. baseline_days was hardcoded 0.
+$sn_rise = array(); for ( $i = 0; $i < 30; $i++ ) { $sn_rise[] = array( 'views' => 10 + 2 * $i ); }
+$sn_t = sn_analytics_trajectory_of( 'x', 'X', $sn_rise, '2026-08-03', '2026-09-01', 10 );
+ok( 30 === $sn_t['window']['baseline_days'], 'the trajectory envelope reports the REAL baseline day count, not 0' );
+
+// 2. The magnitude unit. rel = slope*n/median is a MULTIPLE of the level, so a
+// percentage is only true below 100%. Live openai printed "decaying (-231%)".
+ok( '+45%' === sn_analytics_trajectory_magnitude( 0.45 ), 'below 100% stays a percentage' );
+ok( '-45%' === sn_analytics_trajectory_magnitude( -0.45 ), 'in both directions' );
+ok( false !== strpos( sn_analytics_trajectory_magnitude( -2.31 ), 'typical level' ), 'above 100% becomes a MULTIPLE of the typical level' );
+ok( false === strpos( sn_analytics_trajectory_magnitude( -2.31 ), '%' ), 'and drops the percent sign that implied a floor it does not have' );
+ok( false !== strpos( sn_analytics_trajectory_magnitude( -2.31 ), '-2.3' ), 'the NUMBER is unchanged — only the unit was wrong' );
+
+// The boundary is exactly 1.0, and both sides are pinned.
+ok( false !== strpos( sn_analytics_trajectory_magnitude( 0.999 ), '%' ), 'just under the boundary is a percentage' );
+ok( false === strpos( sn_analytics_trajectory_magnitude( 1.0 ), '%' ), 'exactly at it is a multiple' );
+
+// CLASSIFICATION IS UNTOUCHED — the locked behaviour this change must not move.
+$sn_fall = array(); for ( $i = 0; $i < 30; $i++ ) { $sn_fall[] = array( 'views' => max( 1, 60 - 2 * $i ) ); }
+$sn_d = sn_analytics_trajectory_of( 'x', 'X', $sn_fall, '2026-08-03', '2026-09-01', 10 );
+ok( 'down' === $sn_d['direction'] && false !== strpos( $sn_d['plain_label'], 'decaying' ), 'a falling series still classifies down/decaying' );
+ok( 2 === $sn_d['severity'], 'and keeps its severity' );
 ok( 'trajectory' === $traj[0]['kind'] && 'theil_sen' === $traj[0]['stat'], 'trajectory: kind/stat set' );
 // Short series → skipped.
 $GLOBALS['__pathseries'] = array( '/notes/x' => array_slice( $rising, 0, 5 ) );
