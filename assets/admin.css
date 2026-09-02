@@ -1161,6 +1161,67 @@
 	width: 100%;
 }
 
+/* ─── Vocabulary drift (Content → Vocabulary) ─────────────────────────────
+   sn_admin_drift_render_list() documents each list as "a compact table
+   column" and .sn-drift-grid wraps four of them. NEITHER CLASS HAD A RULE:
+   the four columns stacked into four full-width tables, which is a different
+   panel from the one the renderer describes. Found by the orphan-class sweep
+   on 2026-09-02 — the same defect as the post-purge probe table one release
+   earlier, and the reason tests/admin-class-orphans.php now ratchets the
+   count. Every value here is a token; this file has them and the last two
+   panels I touched reached for literals instead. */
+.sn-drift-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+	gap: var(--sn-space-3);
+	align-items: start;
+}
+
+/* Each pair is one reading (2024 → 2025). Separated rather than boxed: the
+   grid inside already carries the structure, and a second border would fight
+   the .widefat tables. */
+.sn-drift-pair {
+	margin: 0 0 var(--sn-space-5);
+	padding: 0 0 var(--sn-space-4);
+	border-bottom: 1px solid var(--sn-border-light);
+}
+
+.sn-drift-pair:last-child {
+	margin-bottom: 0;
+	padding-bottom: 0;
+	border-bottom: 0;
+}
+
+.sn-drift-col h4 {
+	margin: 0 0 var(--sn-space-2);
+	font-size: 0.85em;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--sn-text-muted);
+}
+
+.sn-drift-table td {
+	padding: var(--sn-space-1) var(--sn-space-2);
+}
+
+/* Shares are read down the column, so they align on the digit, not the edge. */
+.sn-drift-share {
+	text-align: right;
+	font-variant-numeric: tabular-nums;
+	white-space: nowrap;
+}
+
+/* Two DIFFERENT absences, both quiet, neither a fabricated zero: an em-dash
+   for "this direction had nothing to say", a sentence for "the pair was too
+   thin to be measured at all". */
+.sn-drift-none,
+.sn-drift-thin,
+.sn-drift-years {
+	color: var(--sn-text-muted);
+	font-size: 0.9em;
+	margin: 0 0 var(--sn-space-2);
+}
+
 /* ─── Deploy list ────────────────────────────────────────────────────────
    Replaces the 6-column table from v1.13.0. Compact rows, positional
    readability, no header row needed at this density. */

@@ -2,6 +2,52 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.72.0] - 2026-09-02 — the Vocabulary leaf gets its four columns, and a class name becomes a checkable claim
+
+### Fixed — the drift grid stacked (`assets/admin.css`)
+
+`sn_admin_drift_render_list()` documents each list as "a compact table column"
+and `.sn-drift-grid` wraps four of them. Neither class had a rule, so Content →
+Vocabulary rendered four full-width tables stacked vertically — a different
+panel from the one the renderer describes. Same defect as the post-purge probe
+table one release earlier, found by sweeping for it rather than by noticing.
+
+Eight rules, every value a token: this file has `--sn-space-*`,
+`--sn-text-muted` and `--sn-border-light`, and the last two panels I touched
+reached for literals instead. Shares are right-aligned with tabular numerals
+because they are read down the column, and the two different absences — an
+em-dash for "this direction had nothing to say", a sentence for "the pair was
+too thin to measure" — stay quiet without becoming a fabricated zero.
+
+### Added — `tests/admin-class-orphans.php`: the orphan-class declaration
+
+A class name is a CLAIM that a component exists. Nothing checked the claim, and
+the failure is invisible to every other guard here — the markup is valid, PHP is
+clean, the page renders, and only a human looking at it can tell. Twice in one
+evening a panel shipped unstyled.
+
+The baseline is a LIST, not a count: 93 names, so a new orphan is reported by
+name and a fixed one shows up as "remove it from the baseline". 34 of them are
+styled in the theme repo, which CI does not check out — they stay on the list
+because a guard that skips when a sibling directory is missing passes vacuously
+on every run. It is a ceiling, not a bug count, and it may only shrink.
+
+Three findings from writing it, each one a green that was not green:
+
+- **Tests were a reference surface.** The first draft scanned `tests/`,
+  including itself, which names the eight `.sn-drift-*` classes in its own
+  regression block. Deleting the drift CSS changed nothing: the guard read its
+  own assertions as evidence. A test mentioning a class proves nothing about
+  whether anything renders it.
+- **Comments were declarations.** The drift block's comment names
+  `.sn-drift-grid` to explain what it fixes, so a scanner reading raw CSS
+  counted the explanation as the styling — and deleting the rule again changed
+  nothing. Third time this repo has been bitten by that exact shape, after the
+  retired `--signal` token and the "still stale" wording scan.
+- **The first sweep reported 44 unreferenced classes; the honest figure is 59**
+  (93 plugin-side, 34 of those styled by the theme). Both earlier numbers were
+  inflated in the healthy direction by counting tests as a use.
+
 ## [13.71.2] - 2026-09-02 — the probe panel gets a component that exists, and the right column back
 
 ### Fixed — the post-purge probe table rendered unstyled, in the wrong column
