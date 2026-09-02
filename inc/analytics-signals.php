@@ -135,6 +135,71 @@ function sn_analytics_signal_anomalies( $from, $to, $class = 'human', $opts = ar
 	return $out;
 }
 
+/**
+ * Anomaly signals from an INJECTED series — the series-taking sibling of
+ * sn_analytics_signal_anomalies(), which queries the local analytics tables and
+ * is coupled to $class and so cannot serve a caller that already holds a series.
+ *
+ * Added (v13.76.0) so all three tiers are uniformly injectable: trajectory_of
+ * and forecast_of already took a series; this closes the set. The existing
+ * composer is deliberately left ALONE — it is a locked contract with its own
+ * two-metric loop, and refactoring it to share this code would put a shipped
+ * surface at risk to save a dozen lines.
+ *
+ * Two-sided, like its sibling: a subject running BELOW its norm is as real a
+ * finding as one running above. For crawler series it is the more interesting
+ * one.
+ *
+ * @param string $subject Stable id fragment.
+ * @param string $label   Human label.
+ * @param array  $series  Rows carrying 'views' and 'day'.
+ * @param string $from    Report anomalies on days >= this.
+ * @param string $to      Window end (for the signal envelope).
+ * @param array  $opts    z (threshold), floor (min points).
+ * @return array Signal[] — empty when the baseline is flat (MAD 0) or too short.
+ */
+function sn_analytics_anomaly_of( $subject, $label, $series, $from, $to, $opts = array() ) {
+	$floor    = max( 2, (int) ( $opts['floor'] ?? SN_ANALYTICS_SIGNAL_FLOOR_DAYS ) );
+	$z_thresh = (float) ( $opts['z'] ?? SN_ANALYTICS_SIGNAL_ANOMALY_Z );
+	$rows     = (array) $series;
+	if ( count( $rows ) < $floor ) { return array(); }
+	$vals   = array_map( static function ( $r ) { return (float) ( $r['views'] ?? 0 ); }, $rows );
+	$median = sn_analytics_stat_median( $vals );
+	$mad    = sn_analytics_stat_mad( $vals, $median );
+	// A flat baseline is UNQUANTIFIABLE, not quiet: MAD 0 means every robust
+	// z is infinite or undefined. Same position the cadence detector takes.
+	if ( null === $mad || $mad <= 0.0 ) { return array(); }
+	$band = $z_thresh * $mad / 0.6745;
+	$out  = array();
+	foreach ( $rows as $r ) {
+		$day = (string) ( $r['day'] ?? '' );
+		if ( '' === $day || $day < (string) $from ) { continue; }
+		$v = (float) ( $r['views'] ?? 0 );
+		$z = 0.6745 * ( $v - $median ) / $mad;
+		if ( abs( $z ) < $z_thresh ) { continue; }
+		$conf  = ( abs( $z ) >= $z_thresh + 1.5 ) ? 'high' : 'medium';
+		$out[] = array(
+			'id'            => 'anomaly:' . $subject . ':' . $day,
+			'tier'          => 'predictive',
+			'kind'          => 'anomaly',
+			'subject'       => (string) $subject,
+			'subject_label' => (string) $label,
+			'stat'          => 'median_mad_z',
+			'value'         => round( $z, 2 ),
+			'direction'     => $z > 0 ? 'up' : 'down',
+			'interval'      => array( 'low' => round( $median - $band, 1 ), 'high' => round( $median + $band, 1 ) ),
+			'confidence'    => $conf,
+			'window'        => array( 'from' => (string) $from, 'to' => (string) $to, 'baseline_days' => count( $rows ) ),
+			'plain_label'   => sprintf(
+				'%s ran %s its %d-day norm on %s (%.1f\u{3c3}-robust, median %.0f)',
+				(string) $label, $z > 0 ? 'above' : 'below', count( $rows ), $day, abs( $z ), $median
+			),
+			'severity'      => ( 'high' === $conf ) ? 3 : 2,
+		);
+	}
+	return $out;
+}
+
 /** Classify one subject's daily-views series into a trajectory signal, or null if too short. */
 function sn_analytics_trajectory_of( $subject, $label, $series, $from, $to, $min_points ) {
 	$ys = array_map( static function ( $r ) { return (float) ( $r['views'] ?? 0 ); }, (array) $series );

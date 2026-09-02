@@ -140,11 +140,51 @@ first, add the twin only once the payload has settled.
   the family signal proves useful.
 - **No auto-action.** Flags only. The owner decides.
 
-## Open questions
+## Settled: window and eligibility floor
 
-1. Minimum daily volume for a family to be eligible — proposed 20/day median,
-   unmeasured. Should be derived from the live distribution before pinning.
-2. Window: 30d (matches the dashboard) or 90d (the endpoint's clamp, better
-   statistics, one larger fetch)?
-3. Does the narrator seam need a budget guard here, or do the deterministic
-   floors suffice given signals are already capped?
+**Window: 30 days**, matching the dashboard.
+
+**Eligibility: a family needs hits on >= 20 of the 30 days.** Derived from live
+data (2026-09-02, `snt_mr_fetch(30)` over the full grain), not chosen.
+
+Days present, sorted: **2, 9, 10, 11, 14 ... 23, 24, 31, 31, 31, 31, 31**.
+
+The distribution is **bimodal with a nine-day gap** — nothing sits between 14 and
+23. Families are near-permanent residents or sporadic visitors, with no middle,
+so the threshold only has to land in the empty region. 20 does.
+
+| eligible (7) | days | median/day | | excluded (5) | days |
+|---|---|---|---|---|---|
+| uptime | 31 | 480 | | perplexity | 14 |
+| other-bot | 31 | 374 | | feed | 11 |
+| search | 31 | 124 | | google-ai | 10 |
+| seo | 31 | 84 | | amazon-ai | 9 |
+| openai | 31 | 8 | | commoncrawl | 2 |
+| unclassified-machine | 23 | 1059 | | | |
+| anthropic | 24 | 9 | | | |
+
+Drops 5 of 12 families and only **2.6%** of traffic (68,016 of 69,836 stay in
+scope).
+
+**One rule, not two.** With zero-fill, >= 20 present days out of 30 leaves at
+most 10 zeros, so the median is guaranteed to fall among real values — a
+days-present floor implies a non-zero median. A separate volume floor would be a
+second knob measuring the same thing.
+
+**A volume floor would have been wrong**, and `amazon-ai` shows why: 9 days
+present, median 160 when present, max 235. On a volume test it outranks
+`openai` — which is present every single day at a median of 8. But there is no
+series there, only bursts. The right axis is presence; size is what the
+statistics already handle.
+
+**Expected noise:** `openai` (median 8, max 731) and `anthropic` (median 9, max
+60) will be the liveliest families — MAD over single-digit counts is small, so
+their z-scores move easily. That is left standing deliberately: a training
+crawler going from 8 to 731 in a day is the finding this exists for. Watch them
+before the health check earns an attention badge.
+
+## Settled: the narrator needs no separate budget guard
+
+Signals are capped before they reach it, and `snt_ai_generate_with_constraints`
+already routes a budget `WP_Error` to the deterministic floors. A second guard
+would be a second thing to keep in step for no new protection.
