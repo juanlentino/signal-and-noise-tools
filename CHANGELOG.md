@@ -90,6 +90,24 @@ agent-level grain yet. No auto-action. The **remote twin is deferred**: it costs
 contract 4 -> 5 plus a worker release and freezes the payload shape on the day it
 ships.
 
+### The baseline is on every row, including quiet ones
+
+Each family carries `baseline: {median, mad}` whether or not it deviated. Without
+it the median existed only INSIDE an anomaly signal's `interval` and label, so a
+family that deviated from nothing reported no norm at all — and "is 400/day
+normal for uptime?" is the first question anyone asks of this payload.
+
+`null` and `0` are different and both are preserved: `sn_analytics_stat_mad()`
+returns `null` when it cannot compute a spread, while a genuinely rigid series
+returns `0`, which is a real measurement. Collapsing them would report "no
+variation observed" for a series nothing could read — the same failure as an
+empty findings list standing in for a dead sensor.
+
+The assertion for this was initially written as `(float) $mad === 0.0` and did
+NOT catch a mutation collapsing 0 to null, because `(float) null` is also `0.0`.
+The cast erased the distinction the field exists for. It now checks
+`null !== $mad` explicitly.
+
 ### Expected noise
 
 `openai` (median 8, max 731) and `anthropic` (median 9, max 60) will be the
@@ -97,10 +115,21 @@ liveliest families — MAD over single-digit counts is small. That is left stand
 deliberately: a training crawler going from 8 to 731 in a day is the finding this
 exists for. Watch them before the health check earns an attention badge.
 
-Eight mutations proved red across three suites: dropping zero-fill, counting rows
+### A duplicate array key that PHPStan caught and the suite could not
+
+The ML maturity scope map already had a `readers` key — "Reader profiling", one
+of the program's three NEVERS. Adding a second `readers` row silently DROPPED
+MINE (PHP keeps the last), so the new consumer never rendered while every test
+stayed green: the suite pins the three nevers by name, and all three were intact.
+PHPStan's duplicate-key check was the only thing that saw it. Renamed to
+`crawlers`; the "ten live consumers" ratchet then fired, which is the evidence
+the row is now actually on the page.
+
+Ten mutations proved red across four suites: dropping zero-fill, counting rows
 instead of days, admitting zero-hit rows as presence, failing open on a dead
-sensor, ending the window today, hiding the floor from the payload, and reporting
-`good` for both an unreadable sensor and zero eligible families.
+sensor, ending the window today, hiding the floor from the payload, reporting
+`good` for both an unreadable sensor and zero eligible families, dropping the
+baseline, and collapsing a real MAD 0 to null.
 
 ## [13.75.0] - 2026-09-02 — a forecast that cannot beat persistence is withheld
 

@@ -19,6 +19,12 @@ function snt_mr_fetch( $days = 30, $view = 'aggregate' ) {
 	return $GLOBALS['__fetch'];
 }
 
+// The REAL analytics stat functions, not stubs: the baseline assertions below
+// pin median/MAD values, and a stub would only prove the stub. Loaded in
+// production order (derived before signals), as tests/analytics-signals.php does.
+if ( ! defined( 'SN_ANALYTICS_CLASSES' ) ) { define( 'SN_ANALYTICS_CLASSES', array( 'human', 'suspect', 'bot' ) ); }
+require __DIR__ . '/../inc/analytics-derived.php';
+require __DIR__ . '/../inc/analytics-signals.php';
 require __DIR__ . '/../inc/mr-series.php';
 require __DIR__ . '/../inc/ml-reader-anomalies.php';
 
@@ -87,6 +93,31 @@ $r = snt_ml_reader_anomalies( $NOW );
 ok( in_array( 'seo', $r['eligible'], true ), 'a family that went quiet ten days ago is still eligible on presence' );
 $row = $r['families'][0];
 ok( 20 * 50 === $row['total'], 'its total counts only real hits — the fill adds nothing' );
+
+// ── the BASELINE is on every row, including quiet ones ───────────────────────
+// The case that matters: a family with NO anomalies. Before this the median
+// lived only inside an anomaly signal's interval, so a family that deviated
+// from nothing reported no norm at all.
+$flat = array();
+for ( $i = 0; $i < 30; $i++ ) { $flat[] = 100; }   // rigid: MAD is a real 0.
+$GLOBALS['__fetch'] = array( 'ok' => true, 'error' => null, 'rows' => rows( 'uptime', 30, $flat, $NOW ) );
+$r   = snt_ml_reader_anomalies( $NOW );
+$row = $r['families'][0];
+ok( isset( $row['baseline'] ), 'every family row carries a baseline' );
+ok( 100.0 === (float) $row['baseline']['median'], 'the median is the series median (100)' );
+$anoms = array_filter( $row['signals'], static function ( $s ) { return 'anomaly' === ( $s['kind'] ?? '' ); } );
+ok( array() === $anoms, 'and this family produced NO anomalies — the case the baseline exists for' );
+// NOT (float)$mad === 0.0 — (float) null is also 0.0, so the cast would make the
+// two states identical, which is the exact distinction this field exists for.
+ok( null !== $row['baseline']['mad'] && 0.0 === (float) $row['baseline']['mad'], 'a rigid series reports MAD 0 (a real measurement) and NOT null (an absence)' );
+
+// A varying series reports a real spread.
+$vary = array();
+for ( $i = 0; $i < 30; $i++ ) { $vary[] = 100 + ( $i % 2 ? 20 : -20 ); }
+$GLOBALS['__fetch'] = array( 'ok' => true, 'error' => null, 'rows' => rows( 'search', 30, $vary, $NOW ) );
+$row = snt_ml_reader_anomalies( $NOW )['families'][0];
+ok( $row['baseline']['mad'] > 0.0, 'a varying series reports a non-zero MAD (' . $row['baseline']['mad'] . ')' );
+ok( null !== $row['baseline']['median'], 'and a median' );
 
 // ── the health verdict ───────────────────────────────────────────────────────
 require __DIR__ . '/../inc/ml-reader-anomalies-health.php';

@@ -71,11 +71,26 @@ function snt_ml_reader_anomalies( $now = null ) {
 				}
 			)
 		);
-		$values     = array_map( static function ( $r ) { return (int) $r['views']; }, $series );
+		$values = array_map( static function ( $r ) { return (int) $r['views']; }, $series );
+		// BASELINE on every row, including quiet ones. Without it the median
+		// exists only INSIDE an anomaly signal's interval and label, so a family
+		// that deviated from nothing reports no norm at all — and "is 400/day
+		// normal for uptime?" is the first question anyone asks of this payload.
+		//
+		// null and 0 are DIFFERENT and both are preserved. sn_analytics_stat_mad()
+		// returns null when it cannot compute a spread; a genuinely rigid series
+		// returns 0, which is a real measurement. Collapsing them would report
+		// "no variation observed" for a series nothing could read — the same
+		// failure as an empty findings list standing in for a dead sensor.
+		$median = function_exists( 'sn_analytics_stat_median' ) ? sn_analytics_stat_median( $values ) : null;
+		$mad    = ( function_exists( 'sn_analytics_stat_mad' ) && null !== $median )
+			? sn_analytics_stat_mad( $values, $median )
+			: null;
 		$families[] = array(
 			'family'       => $family,
 			'days_present' => (int) ( $days_by_family[ $family ] ?? 0 ),
 			'total'        => array_sum( $values ),
+			'baseline'     => array( 'median' => $median, 'mad' => $mad ),
 			'signals'      => $signals,
 		);
 	}
