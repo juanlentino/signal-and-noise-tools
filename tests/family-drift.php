@@ -73,8 +73,22 @@ ok( true === $r['mirror_parity']['ok'] && array() === $r['mirror_parity']['plugi
 ok( array( 'unclassified-machine' ) === $r['mirror_parity']['exempt'], 'the exemption is stated in the payload' );
 $expected_unmatched = array_values( array_diff( array_keys( $enum ), array( 'openai', 'search', 'meta-ai', 'seo', 'other-bot' ) ) );
 // upstream-ua.json carries GPTBot (openai), Googlebot (search), facebookexternalhit (→ meta-ai? no: meta-ai matches meta-external|facebookbot; facebookexternalhit hits neither → other-bot? 'facebookexternalhit' has no 'bot' token... → null), Nmap (null), AhrefsBot (seo).
-$expected_unmatched = array_values( array_diff( array_keys( $enum ), array( 'openai', 'search', 'seo', 'other-bot' ) ) );
-ok( $expected_unmatched === $r['ours_unmatched'], 'ours_unmatched: every family the tiny corpus does not exercise, other-bot excluded (' . count( $r['ours_unmatched'] ) . ')' );
+// v13.74.0: families that CANNOT match upstream by construction leave
+// ours_unmatched and appear in `unobservable` instead. apple-ai is the only
+// one: Applebot-Extended is a robots.txt token that never fetches, so the
+// family can report 0 forever, and ours_unmatched's sentence ("either the
+// vendor is gone or its user agents changed") is wrong about it every week.
+$expected_unmatched = array_values( array_diff( array_keys( $enum ), array( 'openai', 'search', 'seo', 'other-bot' ), SN_FAMILY_DRIFT_UNOBSERVABLE ) );
+ok( $expected_unmatched === $r['ours_unmatched'], 'ours_unmatched: every family the tiny corpus does not exercise, minus other-bot and the unobservable (' . count( $r['ours_unmatched'] ) . ')' );
+ok( ! in_array( 'apple-ai', $r['ours_unmatched'], true ), 'apple-ai is NOT reported as drift' );
+ok( in_array( 'apple-ai', (array) $r['unobservable'], true ), 'apple-ai is reported as unobservable — the exemption is visible, never silent' );
+ok( array( 'apple-ai' ) === SN_FAMILY_DRIFT_UNOBSERVABLE, 'the exemption list is exactly one family; a second needs its own argument' );
+
+// NEGATIVE CONTROL for the exemption itself: a zero-matching family that is
+// NOT on the list must still red. Without this the exemption could widen to
+// everything and every assertion above would still pass.
+$sn_others = array_values( array_diff( array_keys( $enum ), array( 'openai', 'search', 'seo', 'other-bot' ), SN_FAMILY_DRIFT_UNOBSERVABLE ) );
+ok( array() !== $sn_others, 'NEGATIVE CONTROL: zero-matching families that are not exempt still populate ours_unmatched (' . count( $sn_others ) . ')' );
 ok( array() === $r['upstream_unmapped'], 'upstream_unmapped: tags with fewer than ' . SN_FAMILY_DRIFT_UNMAPPED_MIN . ' entries are not evidence' );
 $ua5 = $ua; for ( $i = 0; $i < 6; $i++ ) { $ua5[] = array( 'pattern' => "scan$i", 'tags' => array( 'scanner' ), 'instances' => array( "Scanner$i/1.0" ) ); }
 $r5 = sn_family_drift_compute( $PLUGIN, $enum, $ua5, $ai, $pin );
@@ -128,6 +142,17 @@ $h = sn_family_drift_health( array( 'last' => $bad, 'last_ok' => null ), $NOW );
 ok( 'recommended' === $h['status'] && false !== strpos( $h['summary'], 'upstream_ua' ), 'never completed → recommended, naming the failed source' );
 $h = sn_family_drift_health( array( 'last' => $good_ok, 'last_ok' => $good_ok ), $NOW );
 ok( 'recommended' === $h['status'] && false !== strpos( $h['summary'], 'classif' ), 'fresh, parity ok, but families classify nothing in the tiny corpus → recommended (ours_unmatched)' );
+// The good verdict must NAME the exemption: "every family still classifies
+// something upstream" is false once one is exempt, and a verdict that
+// overstates its coverage is worse than the alarm it replaced.
+$sn_named = $good_ok;
+$sn_named['ours_unmatched'] = array();
+$sn_named['unobservable']   = array( 'apple-ai' );
+$sn_h2 = sn_family_drift_health( array( 'last' => $sn_named, 'last_ok' => $sn_named ), $NOW );
+ok( 'good' === $sn_h2['status'], 'an exempted family alone does not lower the verdict' );
+ok( false !== strpos( $sn_h2['summary'], 'apple-ai' ), 'the good summary NAMES the exempted family' );
+ok( false === strpos( $sn_h2['summary'], 'every family still classifies something upstream' ), 'and drops the claim that would now be false' );
+
 $clean = $good_ok; $clean['ours_unmatched'] = array();
 $h = sn_family_drift_health( array( 'last' => $clean, 'last_ok' => $clean ), $NOW );
 ok( 'good' === $h['status'] && false !== strpos( $h['summary'], '18 families' ) && false !== strpos( $h['summary'], 'efc6463' ), 'good: names the family count and the deployed commit' );

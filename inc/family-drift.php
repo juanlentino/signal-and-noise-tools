@@ -66,6 +66,32 @@ const SN_FAMILY_DRIFT_UNMAPPED_MIN = 5; // an upstream tag with fewer entries th
  */
 const SN_FAMILY_DRIFT_PLUGIN_ONLY = array( 'unclassified-machine' );
 
+/**
+ * Families that CANNOT classify an upstream entry, by construction.
+ *
+ * `apple-ai` (v13.74.0). Apple ships no AI-training crawler with a user agent
+ * of its own: `Applebot` is the SEARCH crawler, and `Applebot-Extended` is a
+ * robots.txt token that governs how already-collected data may be used and
+ * NEVER FETCHES. So this family can only ever report 0 — or a non-zero count
+ * that is spoofed or synthetic, which is the worse reading because it looks
+ * measured. `Google-Extended` has the same shape and no family of its own.
+ *
+ * Exempt from ours_unmatched, not deleted. Deleting it would mean a
+ * coordinated change against the CRITICAL mirror-parity row to remove a family
+ * that states something TRUE — Apple publishes a training-use control — and
+ * would trade a weekly false alarm for a permanent silence.
+ *
+ * The alarm is what earns the exemption: ours_unmatched reads "either the
+ * vendor is gone or its user agents changed", and for this family neither is
+ * ever true. A weekly CRITICAL-carrying check that cries wolf on a known
+ * constant is a check nobody reads by the time mirror_parity actually breaks.
+ *
+ * The exemption is REPORTED (see the `unobservable` row), never silent: an
+ * exemption you cannot see is indistinguishable from a family that quietly
+ * started matching.
+ */
+const SN_FAMILY_DRIFT_UNOBSERVABLE = array( 'apple-ai' );
+
 /** Worker families that are not AI vendors (for the vendor_gap row). */
 const SN_FAMILY_DRIFT_NON_AI = array( 'search', 'seo', 'feed', 'uptime', 'other-bot' );
 
@@ -181,10 +207,16 @@ function sn_family_drift_compute( $plugin_enum, $worker_enum, $ua_live, $ai_live
 		}
 	}
 	$ours_unmatched = array();
+	$unobservable   = array();
 	foreach ( $claimed_per_family as $family => $n ) {
-		if ( 0 === $n && 'other-bot' !== $family ) {
-			$ours_unmatched[] = $family;
+		if ( 0 !== $n || 'other-bot' === $family ) {
+			continue;
 		}
+		if ( in_array( $family, SN_FAMILY_DRIFT_UNOBSERVABLE, true ) ) {
+			$unobservable[] = $family;
+			continue;
+		}
+		$ours_unmatched[] = $family;
 	}
 	$upstream_unmapped = array();
 	foreach ( $per_tag as $tag => $c ) {
@@ -235,6 +267,7 @@ function sn_family_drift_compute( $plugin_enum, $worker_enum, $ua_live, $ai_live
 	return array(
 		'mirror_parity'     => $mirror,
 		'ours_unmatched'    => $ours_unmatched,
+		'unobservable'      => $unobservable,
 		'upstream_unmapped' => $upstream_unmapped,
 		'vendor_gap'        => $vendor_gap,
 		'respect_flips'     => $respect_flips,
@@ -400,9 +433,17 @@ function sn_family_drift_health( $r, $now ) {
 			'summary' => sprintf( 'Enums agree, but %d famil%s classif%s nothing in the upstream corpus: %s. Either the vendor is gone or its user agents changed.', count( $ok['ours_unmatched'] ), 1 === count( $ok['ours_unmatched'] ) ? 'y' : 'ies', 1 === count( $ok['ours_unmatched'] ) ? 'ies' : 'y', implode( ', ', (array) $ok['ours_unmatched'] ) ),
 		);
 	}
+	// The unobservable exemption is NAMED here, not swallowed. "Every family
+	// still classifies something upstream" would be false the moment a family is
+	// exempt, and a verdict that overstates its own coverage is worse than the
+	// alarm it replaced.
+	$sn_unobs = (array) ( $ok['unobservable'] ?? array() );
+	$sn_cover = $sn_unobs
+		? sprintf( 'every family classifies something upstream except %d unobservable by construction (%s)', count( $sn_unobs ), implode( ', ', $sn_unobs ) )
+		: 'every family still classifies something upstream';
 	return array(
 		'status'  => 'good',
-		'summary' => sprintf( 'Plugin and deployed worker agree on %d families (commit %s); every family still classifies something upstream. %d upstream tag(s) no family claims, %d operator(s) absent from the AI families, %d respect flip(s) since the pin — read the family_drift section for the rows.', (int) ( $ok['counts']['worker_families'] ?? 0 ), substr( (string) ( $ok['sources']['worker_commit'] ?? '' ), 0, 7 ), count( (array) ( $ok['upstream_unmapped'] ?? array() ) ), count( (array) ( $ok['vendor_gap'] ?? array() ) ), count( (array) ( $ok['respect_flips'] ?? array() ) ) ),
+		'summary' => sprintf( 'Plugin and deployed worker agree on %d families (commit %s); %s. %d upstream tag(s) no family claims, %d operator(s) absent from the AI families, %d respect flip(s) since the pin — read the family_drift section for the rows.', (int) ( $ok['counts']['worker_families'] ?? 0 ), substr( (string) ( $ok['sources']['worker_commit'] ?? '' ), 0, 7 ), $sn_cover, count( (array) ( $ok['upstream_unmapped'] ?? array() ) ), count( (array) ( $ok['vendor_gap'] ?? array() ) ), count( (array) ( $ok['respect_flips'] ?? array() ) ) ),
 	);
 }
 
