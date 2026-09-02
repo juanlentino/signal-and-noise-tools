@@ -56,7 +56,7 @@ ok( '' !== $css, 'the shipped stylesheet is readable (the file, never a copy of 
 // Resolve the palette from the file itself — a test carrying its own hex copies
 // would keep passing after someone edited the real token.
 $tok = array();
-foreach ( array( 'void', 'bone', 'asphalt', 'concrete', 'concrete-ink', 'rust', 'blood', 'signal', 'signal-ink' ) as $name ) {
+foreach ( array( 'void', 'bone', 'asphalt', 'concrete', 'concrete-ink', 'rust', 'blood', 'signal', 'signal-ink', 'on-blood', 'accent-on-paper', 'paper' ) as $name ) {
 	if ( preg_match( '/--' . preg_quote( $name, '/' ) . '\s*:\s*(#[0-9a-fA-F]{3,6})/', $css, $m ) ) {
 		$tok[ $name ] = $m[1];
 	}
@@ -168,6 +168,78 @@ ok( 1 !== preg_match( '/class="sn-verify-check-no"(?![^>]*aria-hidden="true")/',
 ok( 1 === preg_match( '/<span aria-hidden="true">&middot;<\/span>/', $php ), 'the footer separator is still aria-hidden decoration, not read text' );
 $decorative = pvc_ratio( $tok['asphalt'], $tok['void'] );
 ok( $decorative < 3.0, sprintf( 'documented: the numeral IS %.2f:1 — exempt as decoration, never because it passes', $decorative ) );
+
+// ─── DARK MODE (v13.71.0) ───────────────────────────────────────────────────
+// The dark palette is measured against the LIGHT palette's own bar, not an
+// invented one: this file already establishes what "quiet" and "accent" mean
+// here in numbers, and a second mode that clears AA while inverting those
+// relationships would pass a checker and read wrong.
+echo "\n-- dark mode --\n";
+
+// The two dark blocks cannot be merged (one is inside a media query), so the
+// duplication is structural. Assert they AGREE rather than trusting anyone to
+// keep them in step — the same reasoning that retired the hand-synced --signal.
+$dark_media = ( 1 === preg_match( '/@media \(prefers-color-scheme: dark\)\{\s*:root:not\(\[data-theme="light"\]\)\{(.*?)\n\t\}\n\}/s', $css, $dm ) ) ? $dm[1] : '';
+$dark_attr  = ( 1 === preg_match( '/\n:root\[data-theme="dark"\]\{(.*?)\n\}\n/s', $css, $da ) ) ? $da[1] : '';
+ok( '' !== $dark_media, 'a prefers-color-scheme dark block exists (the reader who arrives cold)' );
+ok( '' !== $dark_attr, 'a [data-theme="dark"] block exists (the reader who chose dark on the site)' );
+$pvc_toks = static function ( $block ) {
+	$out = array();
+	if ( preg_match_all( '/--([a-z-]+)\s*:\s*(#[0-9a-fA-F]{3,6})\s*;/', $block, $mm, PREG_SET_ORDER ) ) {
+		foreach ( $mm as $one ) { $out[ $one[1] ] = strtolower( $one[2] ); }
+	}
+	ksort( $out );
+	return $out;
+};
+$dm_t = $pvc_toks( $dark_media );
+$da_t = $pvc_toks( $dark_attr );
+ok( count( $dm_t ) >= 8, 'VACUITY: the dark-block parser actually found tokens (' . count( $dm_t ) . ') — a rotted regex must fail here, never report agreement over two empty maps' );
+ok( $dm_t === $da_t, 'THE TWO DARK BLOCKS DECLARE IDENTICAL TOKENS — drift between them would give the OS reader and the toggle reader different pages' );
+
+// Guarded exactly so an explicit light choice survives an OS set to dark.
+ok( false !== strpos( $css, ':root:not([data-theme="light"])' ), 'the media block yields to an explicit data-theme="light" — the site toggle outranks the OS' );
+ok( 1 === preg_match( '/:root\{[^}]*color-scheme:\s*light dark/s', $css ), 'color-scheme is declared, so form controls and the canvas follow the mode instead of rendering light widgets on a dark page' );
+
+// Ratios. Roles are unchanged from light: --void is the ground in BOTH modes and
+// --bone the ink, which is what lets every background/color inversion in this
+// file keep working without a dark-only copy of the rule.
+$d = $dm_t;
+foreach ( array( 'void', 'bone', 'rust', 'concrete-ink', 'signal-ink', 'paper', 'accent-on-paper' ) as $need ) {
+	ok( isset( $d[ $need ] ), "the dark palette defines --$need" );
+}
+$dr = pvc_ratio( $d['bone'], $d['void'] );
+ok( $dr >= 4.5, sprintf( 'dark body text --bone %s on --void %s = %.2f:1 — clears AA', $d['bone'], $d['void'], $dr ) );
+ok( $dr <= 18.0, sprintf( 'and stays under 18:1 (%.2f) — 21:1 white-on-black haloes; the light side is a floor, not a target', $dr ) );
+$dq = pvc_ratio( $d['rust'], $d['void'] );
+ok( $dq >= 4.5, sprintf( 'dark quiet text --rust = %.2f:1', $dq ) );
+$dci = pvc_ratio( $d['concrete-ink'], $d['void'] );
+ok( $dci >= 4.5, sprintf( 'dark --concrete-ink = %.2f:1 — the stamp text clears AA on the dark ground too', $dci ) );
+ok( $dci < $dq, 'and is still visibly QUIETER than --rust, the relationship the light palette sets' );
+$dsi = pvc_ratio( $d['signal-ink'], $d['void'] );
+ok( $dsi >= 4.5, sprintf( 'dark --signal-ink %s = %.2f:1 as text on the ground', $d['signal-ink'], $dsi ) );
+ok( pvc_ratio( $d['void'], $d['signal-ink'] ) >= 4.5, 'AND as a button surface with --void text on it — the same pair either way round, which is the property #b00303 has on white' );
+$dap = pvc_ratio( $d['accent-on-paper'], $d['paper'] );
+ok( $dap >= 4.5, sprintf( 'dark --accent-on-paper %s on --paper %s = %.2f:1 (the tab hover)', $d['accent-on-paper'], $d['paper'], $dap ) );
+
+// --blood does NOT invert, and that is the point: it is the one place red is the
+// ground rather than an accent. What has to hold is the ink ON it, in both modes.
+ok( ! isset( $d['blood'] ), '--blood is NOT redeclared in dark — the alarm band keeps one ground in both modes' );
+ok( isset( $tok['on-blood'] ), '--on-blood is defined (the fail band\'s ink, never --void: --void inverts and --blood does not)' );
+ok( pvc_ratio( $tok['on-blood'], $tok['blood'] ) >= 4.5, sprintf( '--on-blood on --blood = %.2f:1, and it is the SAME pair in both modes', pvc_ratio( $tok['on-blood'], $tok['blood'] ) ) );
+ok( 1 === preg_match( '/\[data-level="fail"\]\{background:var\(--blood\);color:var\(--on-blood\)\}/', $css ), 'the fail band reads --on-blood explicitly — inheriting color:var(--void) would have put near-black text on the alarm red in dark' );
+ok( 1 === preg_match( '/\.sn-verify-tab:hover\{color:var\(--accent-on-paper\)/', $css ), 'the tab hover reads --accent-on-paper, not --blood (3.34:1 on the dark ledger ground)' );
+
+// The page ground itself. The palette moved to :root precisely so html/body could
+// reach it; hardcoded #fff/#000 here would leave a light page behind a dark panel.
+ok( 1 === preg_match( '/\bhtml\{background:var\(--void\);color:var\(--bone\)\}/', $css ), 'html paints from the tokens' );
+ok( 1 === preg_match( '/\bbody\{[^}]*background:var\(--void\)/', $css ), 'and so does body — no hardcoded #fff survives on the document ground' );
+ok( 0 === preg_match( '/\bhtml\{background:#fff/', $css ), 'REGRESSION: the old hardcoded html ground is gone' );
+
+// The pre-paint replay of the site's own toggle.
+$pv_php = (string) file_get_contents( __DIR__ . '/../inc/provenance-verify.php' );
+ok( false !== strpos( $pv_php, 'SN_THEME_STORAGE_KEY' ), '/verify replays the THEME\'s storage key, resolved from the constant rather than a second copy of the string' );
+ok( strpos( $pv_php, "localStorage.getItem" ) < strpos( $pv_php, 'echo esc_url( $css_url )' ), 'the replay runs BEFORE the stylesheet link — a deferred stamp would land after first paint, which is the flash it exists to prevent' );
+ok( false !== strpos( $pv_php, 'catch(e){}' ), 'and it is wrapped: localStorage throws outright in some privacy modes' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

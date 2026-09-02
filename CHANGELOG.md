@@ -2,6 +2,51 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.71.0] - 2026-09-02 — /verify gets dark mode, and the purge cell stops contradicting itself
+
+### Added — dark mode on /verify (`assets/css/prov-verify.css`, `inc/provenance-verify.php`)
+
+/verify prints its own document and loads no theme CSS, so it stayed white while
+the rest of the site could go dark. It now honours two signals, in the order a
+reader expects: the site's own toggle, replayed onto `<html data-theme>` before
+first paint from the theme's own localStorage key (same origin, so no flash for a
+reader who already chose dark), and `prefers-color-scheme` for a reader arriving
+cold. An explicit light choice outranks a dark OS.
+
+The palette moved from `.sn-verify` to `:root`, which is what lets `html`/`body`
+paint from tokens at all — they carried hardcoded `#fff`/`#000` that no palette
+could reach, so a dark panel would have sat on a white page. That also took the
+file's ungoverned-literal ratchet from 4 to 0.
+
+Every dark value is measured against the LIGHT palette's own bar rather than an
+invented one (light in brackets): bone/void 15.70 [21.00], rust/void 11.07
+[12.63], concrete-ink/void 6.05 [4.54], signal-ink/void 8.06 both ways [7.34],
+rule/paper 1.32 [1.34]. Body text lands deliberately softer than light: 21:1
+white-on-black haloes, and the light side is a floor, not a target.
+
+Two colours cannot simply invert, and both got named tokens rather than dark-only
+rules: `--on-blood` (the fail band's ink — `--void` inverts and `--blood` does
+not, so inheriting it would have put near-black text on the alarm red) and
+`--accent-on-paper` (red as text on the ledger ground: 4.52:1 in light, 3.34:1 in
+dark, so the tab hover reads this and never `--blood`).
+
+The two dark blocks cannot be merged — one is inside a media query — so
+`tests/prov-verify-contrast.php` asserts they declare identical tokens, with a
+vacuity guard on the parser first. Same reasoning that retired the hand-synced
+`--signal` copy years of comments ago.
+
+### Fixed — "fresh · 9 of 20 probes stale" read as one sentence contradicting itself
+
+v13.70.0 replaced "9 still stale" (a retained-log tally phrased as a present
+state) and shipped the same class of defect in its place: the headline is the
+NEWEST probe's verdict and the compare line is a tally over up to 20 retained
+probes, and nothing said so. Owner-reported on the release that shipped it.
+
+The line now carries the tense: "9 of 20 **earlier** probes stale" when the newest
+probe is fresh, and a plain "9 of 20 probes stale" when it is stale, because there
+the marker would be false. Extracted to `snt_dash_freshness_compare()` so the
+wording is testable without rendering a widget.
+
 ## [13.70.0] - 2026-09-02 — two instruments reporting verdicts they never measured
 
 ### Fixed — the integrity sweep counted UNVERIFIED subjects as clean (`inc/provenance-integrity.php`)
