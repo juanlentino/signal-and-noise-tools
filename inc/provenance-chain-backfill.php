@@ -99,6 +99,16 @@ function sn_prov_backfill_candidates() {
 	) );
 	$out = array();
 	foreach ( (array) $ids as $id ) {
+		// v13.69.1: A UID IS NOT A SUBJECT. sn_prov_note_uid() mints on read, so
+		// a page that merely rendered a schema identifier carries the meta
+		// without ever being opted in — and no chain is owed to it. Counting
+		// those made the panel say "25 published Notes cannot be verified" and
+		// the run skip all 25 as kind_unresolved with "run this again": advice
+		// that could never work (measured live 2026-09-01: 25 of 25). Only a
+		// resolved subject kind is a candidate; the skip below stays as defence.
+		if ( function_exists( 'sn_prov_subject_kind' ) && '' === (string) sn_prov_subject_kind( get_post( (int) $id ) ) ) {
+			continue;
+		}
 		$chain = sn_prov_get_chain( (int) $id );
 		// Two shapes qualify: never imported (no real commit), and imported
 		// UNSIGNED by the v10.3.x builder (v10.67.0). The second only became
@@ -387,8 +397,8 @@ function sn_prov_backfill_render_fieldset() {
 	}
 	if ( $candidates ) {
 		echo '<p class="sn-fieldset-intro">' . esc_html( sprintf(
-			/* translators: %s: number of candidate Notes. */
-			__( '%s published Notes cannot currently be verified: either they carry a provenance UID with no local commit chain (the July ledger backfill anchored them worker-side only), or their imported commit is missing its signature, which makes /verify tell a reader no proof exists. Import or repair them from the public ledger; every record is re-verified against its own hash first, and a repair only ever fills in the missing signature.', 'signal-and-noise-tools' ),
+			/* translators: %s: number of candidate subjects (Notes and opted-in pages). */
+			__( '%s published subjects cannot currently be verified: either they carry a provenance UID with no local commit chain (the July ledger backfill anchored them worker-side only), or their imported commit is missing its signature, which makes /verify tell a reader no proof exists. Import or repair them from the public ledger; every record is re-verified against its own hash first, and a repair only ever fills in the missing signature.', 'signal-and-noise-tools' ),
 			number_format_i18n( count( $candidates ) )
 		) ) . '</p>';
 		echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';

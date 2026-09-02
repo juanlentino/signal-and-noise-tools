@@ -67,6 +67,9 @@ function sn_prov_machine_pointers_identifier( $post_id ) {
 	if ( ! function_exists( 'sn_prov_note_uid' ) ) {
 		return null;
 	}
+	if ( function_exists( 'sn_prov_subject_kind' ) && '' === (string) sn_prov_subject_kind( get_post( (int) $post_id ) ) ) {
+		return null; // v13.69.1: not a subject — never mint a UID for something nobody opted in.
+	}
 	$uid = (string) sn_prov_note_uid( (int) $post_id );
 	if ( '' === $uid ) {
 		return null;
@@ -90,6 +93,9 @@ function sn_prov_machine_pointers_manifest( $post_id ) {
 		return null;
 	}
 	$post_id = (int) $post_id;
+	if ( function_exists( 'sn_prov_subject_kind' ) && '' === (string) sn_prov_subject_kind( get_post( (int) $post_id ) ) ) {
+		return null; // v13.69.1: not a subject — never mint a UID for something nobody opted in.
+	}
 	$uid     = (string) sn_prov_note_uid( $post_id );
 	if ( '' === $uid ) {
 		return null;

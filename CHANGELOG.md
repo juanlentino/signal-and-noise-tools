@@ -2,6 +2,31 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.69.1] - 2026-09-01 — a UID is not a subject: the backfill census stops counting pages nobody opted in
+
+### Fixed — `inc/provenance-chain-backfill.php`, `inc/provenance-machine-pointers.php`
+
+The Provenance panel said "25 published Notes cannot currently be verified" and,
+when the Repair button was pressed, imported nothing, skipped all 25 as
+`kind_unresolved`, and said "run this again" — advice that could never work.
+Measured live 2026-09-01: the 25 were PAGES, none opted in as a provenance
+subject, every one carrying a `_sn_prov_uid` because `sn_prov_note_uid()` mints
+on first read and the schema identifier / verification-manifest producers
+called it for whatever singular they were rendering. No chain is owed to a
+non-subject, so nothing about them is "unverifiable".
+
+- The census (`sn_prov_backfill_candidates()`) now requires a resolved subject
+  kind. A UID-bearing page without the opt-in is not counted, not skipped, and
+  never fetched for. The run's `kind_unresolved` skip stays as defence.
+- `sn_prov_machine_pointers_identifier()` and `_manifest()` return null BEFORE
+  reaching the minter for a non-subject, so no further pages are handed a ledger
+  key they cannot use. The 25 existing metas are left in place: harmless once
+  nothing counts them, and deleting meta is not this fix's business.
+- Panel copy says "published subjects" — it always counted opted-in pages too.
+
+Both gates proved breakable: removing the census gate turns the backfill suite
+red (2), and forcing the pointers gate open turns that suite red.
+
 ## [13.69.0] - 2026-09-01 — the inbound pass covers past, present and future
 
 ### Changed — `inc/inbound-pass.php` widens from "the last two days" to every tense (owner rule)

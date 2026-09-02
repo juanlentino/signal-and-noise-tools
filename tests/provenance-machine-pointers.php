@@ -39,7 +39,8 @@ function add_action( ...$a ) { return true; }
 $GLOBALS['__uids']  = array();
 $GLOBALS['__vms']   = array();
 $GLOBALS['__types'] = array();
-function sn_prov_note_uid( $post_id ) { return $GLOBALS['__uids'][ (int) $post_id ] ?? ''; }
+$GLOBALS['__uid_calls'] = array();
+function sn_prov_note_uid( $post_id ) { $GLOBALS['__uid_calls'][] = (int) $post_id; return $GLOBALS['__uids'][ (int) $post_id ] ?? ''; }
 function sn_prov_view_data( $post_id ) { return $GLOBALS['__vms'][ (int) $post_id ] ?? array(); }
 // v12.11.1 — CONTRACT-FAITHFUL STUB. The previous one returned 'note' for
 // everything that was not a page, so it could never produce the EMPTY string
@@ -208,6 +209,18 @@ ok( 1 === preg_match( "/function sn_prov_subject_kind\\(.*?return '';/s", $core_
 // exactly what happened when these pins were first mutation-tested.
 $mp_src = file_get_contents( __DIR__ . '/../inc/provenance-machine-pointers.php' );
 ok( 1 === preg_match( "/\\?\s*\(string\) sn_prov_subject_kind\( get_post\( \\\$post_id \) \)\s*:\s*'';/", $mp_src ), "the resolver-absent fallback is '' — never a kind (source-level: this branch is unreachable from a fixture)" );
+
+// v13.69.1 — THE MINTER IS NEVER REACHED FOR A NON-SUBJECT. The real
+// sn_prov_note_uid() mints and persists a UID on first read, so calling it for a
+// page nobody opted in hands that page a ledger key it will never earn a chain
+// for. Measured live 2026-09-01: 25 such pages, every one reported by the
+// backfill panel as "cannot be verified" with advice that could not work.
+$GLOBALS['__types'][930] = 'page'; $GLOBALS['__opted_in'][930] = false; $GLOBALS['__uids'][930] = 'would-be-minted';
+$GLOBALS['__uid_calls'] = array();
+ok( null === sn_prov_machine_pointers_identifier( 930 ) && null === sn_prov_machine_pointers_manifest( 930 ), 'a page without the opt-in yields no identifier and no manifest' );
+ok( array() === $GLOBALS['__uid_calls'], 'and the UID minter is never called for it — no ledger key is handed to a non-subject' );
+$GLOBALS['__types'][931] = 'post'; $GLOBALS['__is_note'][931] = false; $GLOBALS['__uid_calls'] = array();
+ok( null === sn_prov_machine_pointers_identifier( 931 ) && array() === $GLOBALS['__uid_calls'], 'a post outside the Notes category: same — no identifier, no mint' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail > 0 ? 1 : 0 );

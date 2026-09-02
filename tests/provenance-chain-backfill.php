@@ -376,15 +376,19 @@ ok( 1 === $sum['imported'], 'a signed page imports from pages/ — its record wa
 ok( false !== strpos( implode( ' ', $GLOBALS['__asked'] ), '/pages/' . $PUID ), 'the fetch asks pages/ for a page' );
 ok( false === strpos( implode( ' ', $GLOBALS['__asked'] ), '/notes/' . $PUID ), 'and never asks notes/ — that lookup could only 404 and be counted as ledger_missing' );
 
-// AN UNRESOLVED KIND IS A SKIP WITH ITS OWN REASON, AND FETCHES NOTHING.
+// A PAGE THAT IS NOT OPTED IN IS NOT A CANDIDATE AT ALL (v13.69.1). It carries
+// a UID because sn_prov_note_uid() mints on read; no chain is owed to it, so it
+// is not "unverifiable" and the run must not count it, skip it, or fetch for it.
+// (Measured live 2026-09-01: 25 such pages, all skipped kind_unresolved, and the
+// panel told the owner to "run this again".)
 bf_reset( array( 32 => $PUID ) );
 $GLOBALS['__post']->post_type = 'page';
 $GLOBALS['__meta'][32][ SN_PROV_SIGN_META ] = ''; // opt-in gone: not a subject
 $GLOBALS['__asked'] = array();
+ok( array() === sn_prov_backfill_candidates(), 'a page without the opt-in is not a candidate — a UID alone is not a subject' );
 $sum = sn_prov_backfill_run( 'bf_fetcher' );
-ok( 1 === ( $sum['skipped']['kind_unresolved'] ?? 0 ), 'an unresolvable kind is its own skip reason' );
-ok( 0 === ( $sum['skipped']['ledger_missing'] ?? 0 ), 'and is NOT counted as a missing ledger record — that would blame the ledger for our own unanswered question' );
-ok( array() === $GLOBALS['__asked'], 'no URL is fetched at all when the directory is unknown — nothing is guessed' );
+ok( 0 === $sum['total'] && 0 === $sum['remaining'] && array() === $sum['skipped'], 'the run has nothing to do: not counted, not skipped, never "run this again"' );
+ok( array() === $GLOBALS['__asked'], 'and fetches nothing — nothing is guessed' );
 
 $GLOBALS['__post']->post_type = 'post'; // leave the shared stub as we found it
 
