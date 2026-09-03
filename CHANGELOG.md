@@ -2,6 +2,57 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.92.0] - 2026-09-04 — the cache verdict gets a machine reader
+
+Asked to check the cache after an update, I could not. `snt_cf_freshness_summary()`
+has had exactly two readers since v11.29.0 — the Classic Admin cell and the
+OpenStation tile — and no machine reader at all.
+
+**Six releases went into making that readout correct** (v13.86.0 through
+v13.91.1) and every one was verified by asking the owner to look at a widget and
+describe it back.
+
+### The third one this week
+
+The purge log, written for eighteen versions and read by nothing. The shape
+ledger, filling for four days with its verdict called only from tests. Now this.
+Each got a reader when somebody asked a question it could not answer — never at
+review. A surface with two renderers looks finished right up until that question.
+
+### The reader
+
+`signal-noise/cache-freshness`, read-only, on the read door and as the `cache`
+section of `sn-status`. It reads the SAME derive layer both widgets render and
+carries their `headline` and `phrase`, so a third surface cannot phrase one
+verdict differently.
+
+`pending` rides through as its own state with its time, because that is the
+whole point of v13.91.1: an auto purge writes no verdict until its deferred
+verify lands, and reading that as unknown blanked the readout on every update.
+
+It triggers no probe. A reader that measured would change what it reports by
+being asked — the operator-reactive failure this plugin spent 2026-09-03
+removing from this exact readout.
+
+### The twin verdict, corrected mid-build
+
+I first recorded `cache` as TWINNED: the question suits a phone, and the payload
+names no unpublished content. Both true, and both beside the point. A twin
+copies its origin `output_schema` byte-identically, so shipping one freezes the
+shape that day — and this payload was written today.
+
+The shape ledger exists to answer "has it held still?", and a watch was
+registered yesterday for precisely this decision on another payload. Twinning
+before `settled` would have been the mistake that machinery was built to
+prevent. Recorded NOT twinned, gated on the ledger, with the reason in the
+verdict map rather than in anybody's memory.
+
+### Guard notes
+
+Five mutations red, including `last` defaulting to `fresh` when absent — which
+is the 2026-08-15 failure exactly, a green readout over a 27-hour-old render —
+and the post-save figures zeroed, which would make a real purge failure vanish.
+
 ## [13.91.1] - 2026-09-04 — the cache readout stops blanking on every update
 
 Owner: *"Why do the cache goes unknown with each update?"* Because v13.87.2
