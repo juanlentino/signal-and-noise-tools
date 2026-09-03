@@ -113,13 +113,32 @@ function snt_search_performance_impl( $data, $totals ) {
  * @param array|null $drift null = history cannot answer yet; [] = measured, nothing drifts.
  * @return array
  */
-function snt_search_drift_impl( $drift ) {
+function snt_search_drift_impl( $drift, array $progress = array() ) {
 	if ( null === $drift ) {
+		// v13.88.2 — SAY HOW FAR OFF IT IS. This returned a bare `accruing`,
+		// which is true and useless: on the day the watch came due, "still
+		// accruing" was indistinguishable from "stuck and will never flip", and
+		// settling that meant reading inc/search-console-derive.php.
+		$snapshots = (int) ( $progress['snapshots'] ?? 0 );
+		$span      = (float) ( $progress['span_days'] ?? 0.0 );
+		$needed    = (int) ( $progress['needed_days'] ?? SNT_GSC_DRIFT_MIN_SPAN_DAYS );
+
 		return array(
 			'ok'       => true,
 			'state'    => 'accruing',
 			'drifting' => array(),
-			'note'     => sprintf( 'Fewer than two position snapshots at least %d days apart. "Accruing" is not "no drift".', SNT_GSC_DRIFT_MIN_SPAN_DAYS ),
+			'progress' => array(
+				'snapshots'   => $snapshots,
+				'span_days'   => $span,
+				'needed_days' => $needed,
+			),
+			/* translators: 1: span in days, 2: required days, 3: snapshot count */
+			'note'     => sprintf(
+				'%.1f of %d days across %d snapshots. "Accruing" is not "no drift".',
+				$span,
+				$needed,
+				$snapshots
+			),
 		);
 	}
 	$rows = array();
@@ -172,7 +191,13 @@ function snt_ability_search_drift( $input ) {
 	if ( ! function_exists( 'snt_gsc_position_drift' ) ) {
 		return new WP_Error( 'snt_helper_unavailable', __( 'Search Console derive not loaded.', 'signal-and-noise-tools' ), array( 'status' => 500 ) );
 	}
-	return snt_search_drift_impl( snt_gsc_position_drift() );
+	// Progress is computed even when drift CAN answer: the call is a couple of
+	// array reads over an option already in memory, and passing it
+	// unconditionally keeps the impl pure over its two inputs.
+	return snt_search_drift_impl(
+		snt_gsc_position_drift(),
+		function_exists( 'snt_gsc_drift_progress' ) ? snt_gsc_drift_progress() : array()
+	);
 }
 
 /** Execute callback: signal-noise/search-crossexam. */
@@ -247,7 +272,7 @@ function snt_search_console_abilities() {
 		),
 		'signal-noise/search-drift'       => array(
 			'label'       => 'Search Console: position drift',
-			'description' => 'Pages whose average Google position worsened materially across the stored history (positive drift = WORSE; worst first). state:"accruing" means the history cannot answer yet (fewer than two snapshots far enough apart) and is NOT "no drift"; state:"measured" with an empty list is the real, good zero. Read-only over stored snapshots.',
+			'description' => 'Pages whose average Google position worsened materially across the stored history (positive drift = WORSE; worst first). state:"accruing" means the history cannot answer yet and is NOT "no drift" — it carries `progress` {snapshots, span_days, needed_days} so you can see HOW FAR OFF it is rather than only that it is not ready; state:"measured" with an empty list is the real, good zero. Read-only over stored snapshots.',
 			'execute'     => 'snt_ability_search_drift',
 			'output'      => array(
 				'type'       => 'object',

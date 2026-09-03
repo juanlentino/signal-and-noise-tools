@@ -48,6 +48,49 @@ const SNT_GSC_DRIFT_MIN_IMPRESSIONS = 10;
  *
  * @return array<string,array{from:float,to:float,drift:float,impressions:int}>|null
  */
+/**
+ * How close the stored history is to being able to answer at all.
+ *
+ * WHY THIS EXISTS. snt_gsc_position_drift() returns null when it cannot answer,
+ * and the payload rendered that as a bare `accruing` — true, and useless. On
+ * 2026-09-03, the day the drift watch came due, "still accruing" was
+ * indistinguishable from "stuck and will never flip", and settling the
+ * difference meant reading this file.
+ *
+ * That is the third instrument in one day reporting a verdict without the
+ * evidence needed to interpret it: `algo` without `source`, `since` without
+ * `changes`, and now `accruing` without the span it has.
+ *
+ * Pure and separate so it can be asserted without a stored history, and so the
+ * drift derive above keeps its single return contract.
+ *
+ * @return array{snapshots:int,span_days:float,needed_days:int}
+ */
+function snt_gsc_drift_progress() {
+	$history = function_exists( 'snt_gsc_history' ) ? (array) snt_gsc_history() : array();
+	$entries = array_values( $history );
+	$count   = count( $entries );
+
+	$out = array(
+		'snapshots'   => $count,
+		'span_days'   => 0.0,
+		'needed_days' => SNT_GSC_DRIFT_MIN_SPAN_DAYS,
+	);
+	if ( $count < 2 ) {
+		return $out;
+	}
+
+	// The store ksorts on window-end dates (ISO, so lexical == chronological),
+	// making the WIDEST available span newest-minus-first. That is the span the
+	// drift read actually gets to use, so it is the one worth reporting.
+	$newest = end( $entries );
+	$oldest = $entries[0];
+	$span   = ( strtotime( (string) ( $newest['end'] ?? '' ) ) - strtotime( (string) ( $oldest['end'] ?? '' ) ) ) / DAY_IN_SECONDS;
+
+	$out['span_days'] = round( max( 0.0, (float) $span ), 1 );
+	return $out;
+}
+
 function snt_gsc_position_drift() {
 	$history = function_exists( 'snt_gsc_history' ) ? snt_gsc_history() : array();
 	if ( count( $history ) < 2 ) {

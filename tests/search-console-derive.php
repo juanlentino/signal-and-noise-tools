@@ -99,5 +99,37 @@ $quiet = null; foreach ( $ti['clusters'] as $c ) { if ( 'unshown-topic' === $c['
 ok( is_array( $quiet ) && 0 === $quiet['impressions'] && 0.0 === $quiet['position'], 'the never-shown cluster carries a real zero, position 0 (the view renders it as a dash)' );
 ok( 400 === $ti['outside']['impressions'] && 1 === $ti['outside']['paths'], 'the residual is STATED: /services/ is outside every cluster, not silently dropped' );
 
+
+// ─── snt_gsc_drift_progress (v13.88.2) ───
+// snt_gsc_position_drift() returns null when it cannot answer; this turns that
+// null into "how far off". On 2026-09-03, the day the drift watch came due, a
+// bare `accruing` was indistinguishable from "stuck and will never flip" and
+// settling it meant reading the source.
+$GLOBALS['__history'] = array();
+$pr = snt_gsc_drift_progress();
+ok( 0 === $pr['snapshots'] && 0.0 === $pr['span_days'], 'no history: zero snapshots, zero span' );
+ok( SNT_GSC_DRIFT_MIN_SPAN_DAYS === $pr['needed_days'], 'the threshold comes from the CONSTANT, so a caller need not know it' );
+
+$GLOBALS['__history'] = array( '2026-08-25' => array( 'end' => '2026-08-25', 'pages' => array() ) );
+$pr = snt_gsc_drift_progress();
+ok( 1 === $pr['snapshots'] && 0.0 === $pr['span_days'], 'ONE snapshot spans nothing — a span needs two points' );
+
+// The widest available span is newest minus FIRST: the store ksorts on ISO
+// window-end dates, and that is the span the drift read gets to use.
+$GLOBALS['__history'] = array(
+	'2026-08-25' => array( 'end' => '2026-08-25', 'pages' => array() ),
+	'2026-08-28' => array( 'end' => '2026-08-28', 'pages' => array() ),
+	'2026-08-31' => array( 'end' => '2026-08-31', 'pages' => array() ),
+);
+$pr = snt_gsc_drift_progress();
+ok( 3 === $pr['snapshots'] && 6.0 === $pr['span_days'], 'span is newest minus OLDEST (6.0), not the gap between adjacent snapshots' );
+ok( $pr['span_days'] < $pr['needed_days'], 'and 6.0 < 7 is exactly the state that reads as accruing' );
+
+// The span must track the data, or the row above could pass against a constant.
+$GLOBALS['__history']['2026-09-02'] = array( 'end' => '2026-09-02', 'pages' => array() );
+$pr2 = snt_gsc_drift_progress();
+ok( 8.0 === $pr2['span_days'] && $pr2['span_days'] >= $pr2['needed_days'],
+	'VACUITY GUARD: adding a newer snapshot widens the span to 8.0 and crosses the threshold' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

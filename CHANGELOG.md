@@ -2,6 +2,46 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.88.2] - 2026-09-03 — "accruing" says how far off it is
+
+The GSC drift watch came due today. It read `accruing`, which was true and
+useless.
+
+### The problem
+
+`snt_gsc_position_drift()` returns null when the stored history cannot answer,
+and the payload rendered that as a bare state plus a generic sentence. So on the
+day the watch was scheduled to flip, "still accruing" was indistinguishable from
+"stuck and will never flip" — and settling the difference meant reading
+`inc/search-console-derive.php` to confirm the mechanism could still work.
+
+**Third instrument in one day reporting a verdict without the evidence needed to
+interpret it**: v13.87.0 returned `algo` without `source`, v13.88.1 returned
+`since` without `changes`, and this returned `accruing` without the span it has.
+
+### The fix
+
+`snt_gsc_drift_progress()` — pure, beside the derive — reports `snapshots`,
+`span_days` and `needed_days`. The widest available span is newest minus OLDEST,
+because the store ksorts on ISO window-end dates and that is the span the drift
+read actually gets to use. The accruing payload now carries it, and the note
+reads `6.2 of 7 days across 9 snapshots` while keeping the sentence that stops
+`accruing` being read as a clean bill.
+
+The threshold comes from `SNT_GSC_DRIFT_MIN_SPAN_DAYS`, so a caller never has to
+know the constant.
+
+### Guard notes
+
+Four mutations red. Two matter beyond the obvious:
+
+- **The note built from a constant instead of the values** — a second call with
+  different progress must produce a different note, or the assertion could pass
+  against hardcoded text.
+- **The entrypoint dropping progress** — the payload would still carry a
+  `progress` key, full of zeros, and every other assertion would keep passing
+  while the readout said nothing. Pinned separately.
+
 ## [13.88.1] - 2026-09-03 — `since` said when, never whether it moved
 
 Used the reader an hour after shipping it, and it could not answer the first

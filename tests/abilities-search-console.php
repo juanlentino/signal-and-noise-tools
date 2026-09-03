@@ -72,6 +72,32 @@ ok( 'measured' === $zero['state'] && array() === $zero['drifting'], '[] from the
 $d = snt_search_drift_impl( array( '/notes/a' => array( 'from' => 4.0, 'to' => 11.5, 'drift' => 7.5, 'impressions' => 40 ) ) );
 ok( 'measured' === $d['state'] && '/notes/a' === $d['drifting'][0]['path'] && 7.5 === $d['drifting'][0]['drift'], 'drift rows carry path/from/to/drift/impressions' );
 
+// v13.88.2 — ACCRUING MUST SAY HOW FAR OFF IT IS.
+// On the day the drift watch came due, a bare `accruing` was indistinguishable
+// from "stuck and will never flip", and settling that meant reading the derive
+// source. Third instrument in one day reporting a verdict without the evidence
+// to interpret it.
+$acc2 = snt_search_drift_impl( null, array( 'snapshots' => 9, 'span_days' => 6.2, 'needed_days' => 7 ) );
+ok( 6.2 === $acc2['progress']['span_days'] && 9 === $acc2['progress']['snapshots'] && 7 === $acc2['progress']['needed_days'],
+	'accruing carries progress: span, snapshots and the threshold it needs' );
+ok( false !== strpos( $acc2['note'], '6.2 of 7 days' ) && false !== strpos( $acc2['note'], '9 snapshots' ),
+	'and the NOTE names them, so the readout answers "how close" without a second call' );
+ok( false !== strpos( $acc2['note'], 'not "no drift"' ),
+	'while keeping the sentence that stops accruing being read as a clean bill' );
+
+// A DIFFERENT progress must produce a different note, or the assertion above
+// could pass against a hardcoded string.
+$acc3 = snt_search_drift_impl( null, array( 'snapshots' => 2, 'span_days' => 1.0, 'needed_days' => 7 ) );
+ok( $acc3['note'] !== $acc2['note'] && false !== strpos( $acc3['note'], '1.0 of 7 days' ),
+	'VACUITY GUARD: the note is built from the values, not printed from a constant' );
+
+// The PRODUCTION path must actually pass progress. Without this the payload
+// still carries a `progress` key — full of zeros — and every assertion above
+// would keep passing while the readout said nothing.
+$src = (string) file_get_contents( __DIR__ . '/../inc/abilities-search-console.php' );
+ok( false !== strpos( $src, 'snt_gsc_drift_progress()' ),
+	'the ability entrypoint passes real progress, not the empty default' );
+
 // ─── search_crossexam ───
 $x = snt_search_crossexam_impl( array( 'ok' => true, 'verdict' => 'agree', 'gsc' => array(), 'ledger' => array() ), 'Both agree.' );
 ok( 'window' === $x['grain'] && false !== stripos( $x['caveat'], 'NOT a per-page join' ), 'THE GRAIN: window, and the caveat is IN THE PAYLOAD' );
