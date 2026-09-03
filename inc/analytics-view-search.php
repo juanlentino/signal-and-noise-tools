@@ -168,6 +168,59 @@ function snt_gsc_render_kpis() {
 	snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit' ) );
 }
 
+/**
+ * The topic-interest panel, lifted out of the view body (v13.82.0) so it can be
+ * rendered INSIDE a side-by-side row rather than only at the end of the page.
+ *
+ * Moving markup is not the point — pairing is. It sits beside Top search
+ * queries because both are small tables with SHORT cell content, which is what
+ * survives half width; the long-path tables on this page do not. And the
+ * juxtaposition earns itself: the queries people actually used, beside the
+ * topics the corpus covers.
+ *
+ * @since 13.82.0
+ * @return void
+ */
+function snt_gsc_render_topic_interest() {
+	if ( function_exists( 'snt_gsc_topic_interest' ) ) {
+		$interest = snt_gsc_topic_interest();
+		if ( null === $interest ) {
+			snt_an_note_empty(
+				__( 'Search interest by topic', 'signal-and-noise-tools' ),
+				__( 'Needs both instruments: a synced Search Console window and a built topics artifact.', 'signal-and-noise-tools' )
+			);
+		} else {
+			snt_an_panel_open( __( 'Search interest by topic', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
+			echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
+			echo '<th scope="col">' . esc_html__( 'Topic', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Notes', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Impressions', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Clicks', 'signal-and-noise-tools' ) . '</th>';
+			echo '<th scope="col">' . esc_html__( 'Position', 'signal-and-noise-tools' ) . '</th>';
+			echo '</tr></thead><tbody>';
+			foreach ( $interest['clusters'] as $row ) {
+				echo '<tr><td>' . esc_html( $row['label'] ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( $row['members'] ) ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( $row['impressions'] ) ) . '</td>';
+				echo '<td>' . esc_html( number_format_i18n( $row['clicks'] ) ) . '</td>';
+				echo '<td>' . ( $row['impressions'] > 0 ? esc_html( snt_gsc_fmt_position( $row['position'] ) ) : '&mdash;' ) . '</td></tr>';
+			}
+			echo '</tbody></table></div>';
+			$o = $interest['outside'];
+			echo '<p class="description">';
+			printf(
+				/* translators: 1: impression count, 2: click count, 3: page count outside every topic cluster. */
+				esc_html__( 'Outside the topic partition: %1$s impressions and %2$s clicks across %3$d pages (site pages and unclustered notes) — stated, not dropped.', 'signal-and-noise-tools' ),
+				esc_html( number_format_i18n( $o['impressions'] ) ),
+				esc_html( number_format_i18n( $o['clicks'] ) ),
+				(int) $o['paths']
+			);
+			echo '</p>';
+			snt_an_panel_close();
+		}
+	}
+}
+
 function snt_analytics_render_view_search() {
 	$data = function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null;
 
@@ -211,13 +264,21 @@ function snt_analytics_render_view_search() {
 	snt_gsc_render_kpis();
 	snt_an_panel_close();
 
+	// Two SMALL tables side by side. Paired by content size, not by topic: the
+	// defect is that each spent a full width on a third of a screen's content.
+	// The long-path tables below stay full width — halving those trades one
+	// problem for a worse one. If either panel is absent the grid's auto-fit
+	// leaves the other at full width, so the row degrades to a single panel.
 	$queries = (array) $data['queries'];
+	snt_an_cols_open();
 	snt_gsc_render_metrics_table(
 		__( 'Top search queries', 'signal-and-noise-tools' ),
 		__( 'Query', 'signal-and-noise-tools' ),
 		array_slice( $queries, 0, 25 ),
 		__( 'No queries in this window.', 'signal-and-noise-tools' )
 	);
+	snt_gsc_render_topic_interest();
+	snt_an_cols_close();
 
 	// Pages, as rows shaped like the query table so one renderer serves both.
 	$pages = array();
@@ -352,43 +413,6 @@ function snt_analytics_render_view_search() {
 	// onto the corpus's own topic partition — no query text enters any
 	// model (the recorded caution: queries are Google's language, not the
 	// author's). The residual is stated, not dropped.
-	if ( function_exists( 'snt_gsc_topic_interest' ) ) {
-		$interest = snt_gsc_topic_interest();
-		if ( null === $interest ) {
-			snt_an_note_empty(
-				__( 'Search interest by topic', 'signal-and-noise-tools' ),
-				__( 'Needs both instruments: a synced Search Console window and a built topics artifact.', 'signal-and-noise-tools' )
-			);
-		} else {
-			snt_an_panel_open( __( 'Search interest by topic', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
-			echo '<div class="snt-scroll-table"><table class="widefat striped"><thead><tr>';
-			echo '<th scope="col">' . esc_html__( 'Topic', 'signal-and-noise-tools' ) . '</th>';
-			echo '<th scope="col">' . esc_html__( 'Notes', 'signal-and-noise-tools' ) . '</th>';
-			echo '<th scope="col">' . esc_html__( 'Impressions', 'signal-and-noise-tools' ) . '</th>';
-			echo '<th scope="col">' . esc_html__( 'Clicks', 'signal-and-noise-tools' ) . '</th>';
-			echo '<th scope="col">' . esc_html__( 'Position', 'signal-and-noise-tools' ) . '</th>';
-			echo '</tr></thead><tbody>';
-			foreach ( $interest['clusters'] as $row ) {
-				echo '<tr><td>' . esc_html( $row['label'] ) . '</td>';
-				echo '<td>' . esc_html( number_format_i18n( $row['members'] ) ) . '</td>';
-				echo '<td>' . esc_html( number_format_i18n( $row['impressions'] ) ) . '</td>';
-				echo '<td>' . esc_html( number_format_i18n( $row['clicks'] ) ) . '</td>';
-				echo '<td>' . ( $row['impressions'] > 0 ? esc_html( snt_gsc_fmt_position( $row['position'] ) ) : '&mdash;' ) . '</td></tr>';
-			}
-			echo '</tbody></table></div>';
-			$o = $interest['outside'];
-			echo '<p class="description">';
-			printf(
-				/* translators: 1: impression count, 2: click count, 3: page count outside every topic cluster. */
-				esc_html__( 'Outside the topic partition: %1$s impressions and %2$s clicks across %3$d pages (site pages and unclustered notes) — stated, not dropped.', 'signal-and-noise-tools' ),
-				esc_html( number_format_i18n( $o['impressions'] ) ),
-				esc_html( number_format_i18n( $o['clicks'] ) ),
-				(int) $o['paths']
-			);
-			echo '</p>';
-			snt_an_panel_close();
-		}
-	}
 
 	// The per-view contract: snt_an_note_empty() only COLLECTS, and every view
 	// flushes its own fold. Omitting this renders nothing AND leaks these notes

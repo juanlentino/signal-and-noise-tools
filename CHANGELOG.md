@@ -2,6 +2,55 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.82.0] - 2026-09-02 — panels can sit side by side
+
+Owner-reported: the Search tab stacks panels that each spend a full width on
+about a third of a screen's worth of content.
+
+### Added — snt_an_cols_open() / snt_an_cols_close()
+
+Unlike the KPI strip, this one genuinely needed a new primitive: nothing existed
+to reuse. `snt_an_panel_open()` accepts a `panel_class` but emits no wrapper, and
+a CSS grid needs a parent — so panels could only ever stack.
+
+`.sn-an-cols` uses `repeat(auto-fit, minmax(min(100%, 360px), 1fr))`, the idiom
+already used by the settings fieldsets in the same stylesheet: it collapses to
+one column on a narrow admin screen with no media query, and `min(100%, …)`
+keeps it from overflowing a container narrower than the floor. Core `.postbox`
+carries its own `margin-bottom`, which the row zeroes — inside the grid the GAP
+does the spacing, and leaving both would double it the moment the row wraps.
+
+Gap and row margin are `--sn-space-5` (20px), matching core's postbox rhythm so
+a wrapped row sits consistently with the stacked panels around it. NOT
+`--sn-space-4`: the stylesheet states that token is a backward-compat alias and
+new rules should prefer another.
+
+### Search pairs its two SMALL tables
+
+Top search queries beside Search interest by topic, which required lifting the
+topic panel out of the view body into `snt_gsc_render_topic_interest()`.
+
+**Paired by content size, not by topic.** The defect is that each panel was
+mostly empty, not that they are related — and pairing two LARGE panels looks
+tidier in a wireframe and reads worse on screen. `Pages by impressions` and the
+index-coverage table keep full width: their long paths wrap badly at half width,
+so halving them trades one problem for a worse one. The juxtaposition still earns
+itself — the queries people actually used, beside the topics the corpus covers.
+
+If either member is absent the grid's auto-fit leaves the other at full width, so
+the row degrades to a single panel rather than breaking. Asserted.
+
+### The row assertion was vacuous until a mutation said so
+
+"Pages by impressions stays OUTSIDE the row" passed against a mutation that moved
+it INSIDE — because the fixture carried `'pages' => array()`, so that panel never
+rendered, `strpos` returned false, and the assertion passed through its own
+`false ===` branch. The fixture now carries a real page row, and the mutation
+reds.
+
+Two mutations proved red: pulling the topic panel back out of the row, and
+pulling the long-path table into it.
+
 ## [13.81.0] - 2026-09-02 — the Search tab gets the KPI strip it was the only view missing
 
 Owner-reported: the Search tab stacks uniform panels with no hierarchy, and the

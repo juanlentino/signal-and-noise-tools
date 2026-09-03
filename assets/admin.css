@@ -2996,3 +2996,25 @@ a.sn-ops__label:hover, .sn-sys__v[href]:hover { text-decoration: underline; }
 /* The index.php widget's rules live in assets/dash-widget.css — admin.css is
    enqueued ONLY on S&N page hooks, and the widget renders on the WordPress home
    dashboard, which never loads this file. */
+
+/* Side-by-side analytics panels (v13.82.0) — see snt_an_cols_open().
+   auto-fit + minmax(min(100%, 360px), 1fr) is the idiom already used by the
+   settings fieldsets above: it collapses to one column on a narrow admin screen
+   with no media query, and min(100%, …) keeps it from overflowing a container
+   narrower than the 360px floor.
+   Core .postbox carries its own margin-bottom. Inside the row the GAP does the
+   spacing, so leaving that margin would double it the moment the grid wraps. */
+.sn-an-cols {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+	/* --sn-space-5 (20px), matching core's .postbox margin-bottom so a wrapped
+	   row keeps the same vertical rhythm as the stacked panels around it.
+	   NOT --sn-space-4: the file states that token is a backward-compat alias
+	   and new rules should prefer --sn-space-3. */
+	gap: var(--sn-space-5);
+	align-items: start;
+	margin-bottom: var(--sn-space-5);
+}
+.sn-an-cols > .postbox {
+	margin-bottom: 0;
+}
