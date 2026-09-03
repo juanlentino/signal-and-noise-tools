@@ -2,6 +2,66 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.87.0] - 2026-09-03 — the log has two writers, and the reader dropped the field that says which
+
+v13.86.0 shipped a row reader an hour earlier and used it immediately. It gave
+the wrong shape of answer, because it returned `algo` and not `source`.
+
+### What the rows actually showed
+
+Eleven stale rows, six distinct URLs, two unrelated incidents:
+
+- **Sep 2, 00:20–00:25** — nine rows from the tag-vocabulary migration. Four
+  URLs were each probed TWICE within four seconds, so the dedup in
+  cloudflare-purge.php ("three saves in ten minutes should probe once") did not
+  hold across a bulk edit.
+- **Sep 3, 03:11** — two rows twenty-two seconds apart, then `fresh` at 03:13.
+
+### The second writer
+
+`inc/abilities-system.php` (v13.70.0) records a row of its own every time
+`purge-all-caches` runs: `post_id: 0`, the home URL, `source:
+'manual_zone_purge'`. It probes the edge IMMEDIATELY after dispatching the zone
+purge, which races per-colo propagation — so a press caught mid-propagation
+books a `stale` verdict.
+
+**So the stale count really does climb per purge**, exactly as the owner
+reported, and the two 03:11 rows are two presses racing propagation rather than
+a failing edge. The measurement creates what it measures, and the advice on that
+path ("give it a minute or purge again") invites another row.
+
+That row was added deliberately and stays: it fixed a real complaint — "I purged
+them, but that didn't change" — where the cell showed a verdict from whenever a
+Note was last published. The defect is not recording it; it is that nothing
+could tell the two kinds of row apart.
+
+### The fix
+
+`source` is now returned per row, defaulting to `post_save_probe` for the
+writer that has never set it, and `counts.by_source` splits the totals. Only the
+`post_save_probe` share means a purge failed. On the fixture mirroring the live
+log the headline reads 75% stale while the actionable population reads 50% —
+which is the gap that sent a human looking for a broken edge.
+
+`source` has been written since v13.70.0 and read by nothing.
+
+### How this was missed twice
+
+Both misses were the same scoped search. Asked what amplifies per purge, I
+grepped for SCHEDULERS of the probe hook, found one, and concluded nothing did —
+never grepping for WRITERS of the log. The v13.86.0 claim that "nothing could
+read the rows" came from grepping readers of the SUMMARY function, which by
+construction cannot find a reader that goes to the option directly.
+
+### Guard notes
+
+Two of four mutations initially failed to red. `by_source` carries its own copy
+of the retired-detector filter, and the fixture had no pre-fix row, so that copy
+could be deleted with everything green — fixed by putting one in. Two others
+fataled on a missing array key instead of failing, which the sweep would catch
+but reports badly; both now go through an accessor that reports a missing
+bucket. All four red cleanly.
+
 ## [13.86.0] - 2026-09-02 — the cache readout said more than it measured
 
 Opened by a screenshot and a good question: *the stale number is going up each

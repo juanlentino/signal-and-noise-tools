@@ -119,6 +119,46 @@ ok( 2 === $r['counts_excluded_rows'], 'excluded rows are reported, never silentl
 ok( 3 === count( $r['rows'] ), 'but every row is still returned, for forensics' );
 ok( 1 === $r['rows'][2]['algo'], 'a row with no algo stamp reads as the pre-fix detector, not as current' );
 
+// --- TWO WRITERS, TWO MEANINGS -------------------------------------------
+// The fixture mirrors the real log on 2026-09-03: a post-save probe that found
+// a genuinely stale edge, beside two rows the purge-all-caches ability wrote
+// while racing per-colo propagation after its own zone purge. Mixed into one
+// rate they are unreadable — which is exactly how a counter climbing per
+// button-press got read as a failing edge.
+$GLOBALS['__option'] = array(
+	array( 'time' => $NOW, 'post_id' => 0, 'url' => 'https://example.test/', 'result' => 'stale', 'source' => 'manual_zone_purge', 'algo' => SN_CF_PROBE_ALGO ),
+	array( 'time' => $NOW - 22, 'post_id' => 0, 'url' => 'https://example.test/', 'result' => 'stale', 'source' => 'manual_zone_purge', 'algo' => SN_CF_PROBE_ALGO ),
+	array( 'time' => $NOW - 300, 'post_id' => 7, 'url' => 'https://example.test/n/', 'result' => 'stale', 'escalated' => true, 'algo' => SN_CF_PROBE_ALGO ),
+	array( 'time' => $NOW - 600, 'post_id' => 8, 'url' => 'https://example.test/m/', 'result' => 'fresh', 'algo' => SN_CF_PROBE_ALGO ),
+	// A retired-detector row, which could ONLY ever say stale. by_source has
+	// its own copy of the algo filter, and without this row that copy could
+	// be deleted with every assertion still green.
+	array( 'time' => $NOW - 900, 'post_id' => 9, 'url' => 'https://example.test/old/', 'result' => 'stale', 'algo' => 1 ),
+);
+$r = snt_ability_purge_verification_log( null );
+
+ok( 'manual_zone_purge' === $r['rows'][0]['source'], 'a manual-purge row is labelled as one' );
+// The post-save writer has never set `source`; defaulting it is what makes the
+// split total rather than partial.
+ok( 'post_save_probe' === $r['rows'][2]['source'], 'a row with no source reads as the post-save probe, not as unknown' );
+
+/** Bucket accessor that reports a MISSING bucket instead of fataling on it. */
+function bucket( $r, $src, $key ) {
+	return $r['counts']['by_source'][ $src ][ $key ] ?? -1;
+}
+ok( isset( $r['counts']['by_source']['manual_zone_purge'] ), 'by_source names the manual-purge population' );
+ok( 2 === bucket( $r, 'manual_zone_purge', 'stale' ), 'both button-press rows land in the manual bucket' );
+ok( 1 === bucket( $r, 'post_save_probe', 'stale' ), 'and exactly one stale row is attributed to a real purge failure' );
+ok( 2 === bucket( $r, 'post_save_probe', 'total' ), 'the post-save denominator excludes manual rows' );
+ok( ! isset( $r['counts']['by_source']['__retired__'] ) && $r['counts']['total'] === array_sum( array_column( $r['counts']['by_source'], 'total' ) ),
+	'by_source totals EXCLUDE the retired-detector row — it has its own copy of that filter' );
+
+// THE POINT. The headline says 75% stale; the actionable population says 50%.
+// Reporting only the headline is what sent a human looking for a broken edge.
+ok( 75.0 === $r['counts']['stale_pct'], 'the headline rate still mixes both, as the widgets do' );
+ok( 50.0 === round( ( bucket( $r, 'post_save_probe', 'stale' ) / max( 1, bucket( $r, 'post_save_probe', 'total' ) ) ) * 100, 1 ),
+	'but the actionable rate is recoverable, and differs from the headline' );
+
 // --- shape hygiene --------------------------------------------------------
 $GLOBALS['__option'] = array( array( 'time' => $NOW, 'result' => 'weird', 'algo' => SN_CF_PROBE_ALGO ) );
 $r = snt_ability_purge_verification_log( null );
