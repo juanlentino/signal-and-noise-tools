@@ -2,6 +2,44 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.87.3] - 2026-09-03 — the cache tile answers one question
+
+Owner, asked about the two figures on the tile: the question "was about the
+existence of those two things as a whole", not their wording. Correct — and the
+ruling already existed.
+
+### The tally should never have been there
+
+`inc/dash-widgets-render.php` records it: the Classic Admin cell answers ONE
+question, about ONE event — did the most recent purge clear the edge, and how
+long ago. v13.70.1 removed its running count for exactly that reason, under the
+owner ruling *"If it's fresh, it is fresh. If it isn't, it shouldn't say."*
+
+The OpenStation tile kept one, and it is the direct cause of every misreading on
+2026-09-02/03. It climbed when you purged (racing probes booked as stale), then
+fell when you purged (each row evicting an older one), and a falling count read
+as progress when it was only a bounded buffer flushing history.
+
+v13.87.2 fixed WHAT it counted. It did not ask whether the count belonged on a
+glance surface. It does not: "3 checks performed" is not something anyone acts
+on, and relabelling it — which is what I offered first — would have polished a
+row that should not exist.
+
+### Bad news only
+
+The tile now renders the verdict and its age, and a figure ONLY when there is a
+problem to report: `Edits served stale` when any post-save probe found the edge
+serving an old copy, `Zone purges forced` when one had to escalate. With nothing
+to report the section hides entirely, because an empty hairline rule reads as a
+tile that failed to load.
+
+### The series is relocated, not destroyed
+
+Two homes, both pinned by the suite so this removal cannot quietly become a loss
+of evidence: the Cloudflare admin tab still renders the individual rows under
+"Post-purge probes", and `signal-noise/purge-verification-log` still returns the
+whole series with per-source counts.
+
 ## [13.87.2] - 2026-09-03 — the cache readout stops moving when you press Purge
 
 Owner, watching the stale count fall with every purge: *"THAT'S NOT HOW IT'S

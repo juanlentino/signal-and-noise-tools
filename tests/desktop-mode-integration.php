@@ -1711,6 +1711,30 @@ ok( false !== strpos( $cache_js, "'stale' === last" ),
 ok( false !== strpos( $cache_js, "'unknown' === last || escalated > 0" ),
 	'an escalation colours the dot even when the last verdict is fresh — needing a zone purge is not a clean bill' );
 
+// v13.87.3 — NO STANDING TALLY ON A GLANCE SURFACE.
+//
+// This tile rendered "Verdicts recorded N / Stale N" on every paint. That
+// construct was already ruled out on the sibling surface — the Classic Admin
+// cell answers ONE question about ONE event, and v13.70.1 removed its running
+// count ("If it's fresh, it is fresh. If it isn't, it shouldn't say."). It
+// survived here and produced every misreading of 2026-09-02/03: it climbed when
+// you purged, then fell when you purged, and a falling count read as progress
+// when it was only a bounded buffer flushing history.
+ok( false === strpos( $cache_js, 'Verdicts recorded' ),
+	'the tile carries NO standing count of verdicts — that number moved with the operator, not the edge' );
+ok( false === strpos( $cache_js, "detail( 'Post-save probes'" ),
+	'nor a relabelled version of it — "3 checks performed" is not something anyone acts on at a glance' );
+ok( false !== strpos( $cache_js, 'stale > 0' ) && false !== strpos( $cache_js, "'Edits served stale'" ),
+	'BAD NEWS ONLY: a stale edit surfaces the moment it exists' );
+ok( false !== strpos( $cache_js, "list.style.display = 'none'" ),
+	'and with nothing to report the section is hidden — an empty hairline rule reads as a tile that failed to load' );
+// The series is not lost, it is elsewhere. If both of these stop being true the
+// removal above has destroyed evidence rather than relocated it.
+ok( file_exists( __DIR__ . '/../inc/abilities-purge-verification-log.php' ),
+	'the full series is still readable by machine, via signal-noise/purge-verification-log' );
+ok( false !== strpos( (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' ), 'Post-purge probes' ),
+	'and still rendered for a human on the Cloudflare tab' );
+
 $cache_php = (string) file_get_contents( __DIR__ . '/../inc/desktop-mode-assets.php' );
 ok( false !== strpos( $cache_php, "function_exists( 'snt_cf_freshness_summary' ) ? snt_cf_freshness_summary() : null" ),
 	'and the PHP sends NULL when the accessor is absent, not an empty struct' );
