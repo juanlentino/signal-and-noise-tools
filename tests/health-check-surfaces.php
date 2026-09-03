@@ -140,5 +140,20 @@ $sum   = 0;
 foreach ( $known as $s ) { $sum += count( array_filter( $map, function ( $v ) use ( $s ) { return $v === $s; } ) ); }
 ok( $total === $sum, "every check lands on exactly one surface ({$sum} of {$total})" );
 
+
+// ─── v13.89.1: a pass/fail check belongs on HEALTH, not the report-only tier ───
+// v13.89.0 filed gsc_history_stalled as `integrity`. It ran, found nothing, and
+// never reached the tally — checks_total stayed at 8 through a fresh scan —
+// because sn_health_check_total() counts sn_health_scan_for_surface(), and the
+// health readout counts the `health` surface. Both values are legal members of
+// the vocabulary, so nothing failed: a wrong-but-valid enum member is silent.
+ok( 'health' === ( $map['gsc_history_stalled'] ?? '' ),
+	'the GSC stall check renders on HEALTH — it is a defect that can reach zero, not a report-only measurement' );
+
+// The two report-only tiers stay where they are, so the assertion above is
+// about THIS check rather than a blanket "everything is health".
+ok( 'integrity' === ( $map['contrast_tokens'] ?? '' ) && 'integrity' === ( $map['motion_scan'] ?? '' ),
+	'VACUITY GUARD: the report-only checks are still integrity — this is not asserting that every check is health' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
