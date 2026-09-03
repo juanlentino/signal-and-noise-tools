@@ -41,6 +41,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/get-narration` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/ai-cache-probe-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/purge-verification-log` | `manage_options` | diagnostics | ✓ | READ-DOOR |
+| `signal-noise/shape-stability` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-deploy-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/uptime-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/block-migrations-scan` | `manage_options` | diagnostics | — | READ-DOOR |
@@ -178,6 +179,17 @@ Cached synthesis scan: Plausible analytics + publish history + webhook delivery 
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
 
 Prompt-cache probe verdict: whether enabling Anthropic prompt caching would pay, and on which model. Thin read over `snt_ai_cache_probe_verdict()` (inc/ai-cache-probe.php, v10.50.0) — the same derive layer the Insights admin panel renders, so the two cannot disagree. `state` is one of `candidate`, `no_repeats`, `below_floor`, `unknown_floor`, `caching_active`, `no_data`. Read-only; makes no AI call and never enables caching. Added in v10.69.0 because the verdict was previously readable only in wp-admin.
+
+#### `signal-noise/shape-stability`
+**Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
+
+Has a payload's **structure** held still long enough to be frozen — types and keys, never values. Read this before shipping a remote MCP twin, or before any change that copies a payload shape somewhere it becomes expensive to alter: a twin copies its origin `output_schema` byte-identically, so shipping one freezes that shape, and changing it later costs a contract bump plus a worker release.
+
+Per subject, `state` is one of `settled` (unchanged across at least `SN_SHAPE_STABLE_READINGS` readings spanning at least `SN_SHAPE_STABLE_DAYS` days — safe to freeze), `settling` (`reason` names which threshold is short), or `unknown` (never recorded — an **absence of evidence**, never a pass). `thresholds` reports the gate so a caller can see *why* something is still settling without knowing the constants.
+
+**Read-only, and it records nothing.** A reader that fingerprinted the payload would add a reading, so polling would drive a subject toward `settled` on its own — a diagnostic reacting to the operator, which is the defect removed from the cache readout in v13.87.2/v13.87.3. Pinned by mutation.
+
+Subjects are recorded by their producers; `reader-anomalies` records one on the hourly machine-reader snapshot cron (v13.85.0). Added in v13.88.0 — the ledger shipped in v13.84.0 with a writer and no reader at all, `sn_shape_stability()` being called only from tests. Also available as the `shape_stability` section of `sn-status`.
 
 #### `signal-noise/purge-verification-log`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object

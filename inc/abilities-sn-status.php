@@ -125,6 +125,9 @@ function snt_sn_status_map() {
 		// v13.63.0 — the stored URL Inspection map (weekly); never inspects on read.
 		'search_coverage'      => 'signal-noise/search-coverage',
 		'inbound_pass'         => 'signal-noise/inbound-pass', // v13.68.0
+		// v13.88.0 — has a payload's STRUCTURE held still? The gate for freezing a
+		// shape into a remote twin. Stored ledger only; never fingerprints on read.
+		'shape_stability'      => 'signal-noise/shape-stability',
 	);
 }
 

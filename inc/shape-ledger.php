@@ -157,6 +157,31 @@ function sn_shape_ledger_get( $subject ) {
 }
 
 /**
+ * Every subject the ledger has recorded.
+ *
+ * Added in v13.88.0 with the first reader. The module had a writer, a
+ * per-subject getter and a per-subject verdict, but no way to ASK WHAT IT
+ * HOLDS — so a caller had to know a subject's name in advance, or reach past
+ * this module to SN_SHAPE_LEDGER_OPTION and re-derive the storage shape.
+ *
+ * @return string[] Subject names, sorted for a stable readout.
+ */
+function sn_shape_ledger_subjects() {
+	$all = get_option( SN_SHAPE_LEDGER_OPTION, array() );
+	if ( ! is_array( $all ) ) {
+		return array();
+	}
+	$subjects = array();
+	foreach ( $all as $subject => $entry ) {
+		if ( is_string( $subject ) && '' !== $subject && is_array( $entry ) ) {
+			$subjects[] = $subject;
+		}
+	}
+	sort( $subjects );
+	return $subjects;
+}
+
+/**
  * Has this subject's structure settled?
  *
  * Never recorded is UNKNOWN, not unstable — an absent instrument does not get to

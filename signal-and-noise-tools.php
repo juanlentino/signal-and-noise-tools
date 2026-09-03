@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.87.3
+ * Version:     13.88.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -467,6 +467,7 @@ require_once __DIR__ . '/inc/block-migrations-admin.php';
 require_once __DIR__ . '/inc/abilities-block-migrations.php';
 require_once __DIR__ . '/inc/corpus-integrity-scan.php';       // v11.4.0: three deterministic content-integrity checks (duplication / splice artifacts / date coherence) born from the 2026-08-14 hand audit.
 require_once __DIR__ . '/inc/settle-cron-cleanup.php';  // v13.87.2: clears the retired snt_cf_settle_manual_purge events left by v13.87.1, which would otherwise surface as orphaned cron.
+require_once __DIR__ . '/inc/abilities-shape-stability.php';  // v13.88.0: the shape ledger's FIRST reader. It had a writer since v13.85.0 and sn_shape_stability() was called only from tests.
 require_once __DIR__ . '/inc/abilities-purge-verification-log.php';  // v13.86.0: the purge-verification trail IN ROWS. The log had two render surfaces and no agent reader, so "the stale count is climbing — what do those probes share?" needed a screenshot and a guess.
 require_once __DIR__ . '/inc/abilities-corpus-integrity.php';  // v11.4.0: the readonly corpus-integrity-scan ability over the module above.
 require_once __DIR__ . '/inc/corpus-inspect.php';      // v10.6.0: read-only corpus inspection impls (duplicate scan, listing, bounded content fetch)
