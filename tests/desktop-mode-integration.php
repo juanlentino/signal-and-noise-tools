@@ -1708,8 +1708,12 @@ ok( false !== strpos( $cache_js, "'stale' === last" ),
 // Match the FULL dot expression, not the bare 'escalated > 0' substring — that
 // also appears in the list-row condition below, so the loose version stays green
 // when the dot logic is gutted.
-ok( false !== strpos( $cache_js, "'unknown' === last || escalated > 0" ),
-	'an escalation colours the dot even when the last verdict is fresh — needing a zone purge is not a clean bill' );
+// v13.91.1 widened this expression to carry `pending`. Still matched WHOLE, for
+// the reason above: a loose 'escalated > 0' also appears in the list-row
+// condition below, so the sloppy version stays green when the dot logic is
+// gutted.
+ok( false !== strpos( $cache_js, "'unknown' === last || 'pending' === last || escalated > 0" ),
+	'an escalation colours the dot even when the last verdict is fresh — and pending rides the same branch, so neither paints green' );
 
 // v13.87.3 — NO STANDING TALLY ON A GLANCE SURFACE.
 //
@@ -1720,6 +1724,11 @@ ok( false !== strpos( $cache_js, "'unknown' === last || escalated > 0" ),
 // survived here and produced every misreading of 2026-09-02/03: it climbed when
 // you purged, then fell when you purged, and a falling count read as progress
 // when it was only a bounded buffer flushing history.
+// v13.91.1: `pending` must not paint green. A purge fired and its verification
+// has not run — benign and transient, but NOT a verified-fresh edge.
+ok( false !== strpos( $cache_js, "'pending' === last" ),
+	'the tile handles pending explicitly rather than letting it fall through to the OK colour' );
+
 ok( false === strpos( $cache_js, 'Verdicts recorded' ),
 	'the tile carries NO standing count of verdicts — that number moved with the operator, not the edge' );
 ok( false === strpos( $cache_js, "detail( 'Post-save probes'" ),

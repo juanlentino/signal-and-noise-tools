@@ -241,6 +241,12 @@ function snt_cf_freshness_phrase( $last, $last_time, $now ) {
 		/* translators: %s: human-readable age of the verdict, e.g. "4 mins" */
 		return sprintf( __( 'verified %s ago', 'signal-and-noise-tools' ), $ago );
 	}
+	if ( 'pending' === (string) $last ) {
+		// Says what IS known — a purge happened, and when — rather than
+		// implying nobody looked.
+		/* translators: %s: human-readable age of the purge, e.g. "4 mins" */
+		return sprintf( __( 'purged %s ago, verifying', 'signal-and-noise-tools' ), $ago );
+	}
 	// 'unknown' is not 'fresh'. Something ran and could not read an answer.
 	/* translators: %s: human-readable age of the verdict, e.g. "4 mins" */
 	return sprintf( __( 'unread %s ago', 'signal-and-noise-tools' ), $ago );
@@ -258,6 +264,9 @@ function snt_cf_freshness_headline( $last ) {
 	}
 	if ( 'fresh' === (string) $last ) {
 		return __( 'Edge fresh', 'signal-and-noise-tools' );
+	}
+	if ( 'pending' === (string) $last ) {
+		return __( 'Purge dispatched, verifying', 'signal-and-noise-tools' );
 	}
 	return __( 'Last verdict unrecognised', 'signal-and-noise-tools' );
 }
@@ -291,6 +300,26 @@ function snt_cf_freshness_summary() {
 		$last = empty( $report['resolved'] ) ? 'stale' : 'fresh';
 		// verified_at when the deferred verify has run, else the purge time.
 		$last_time = (int) ( $report['verified_at'] ?? ( $report['time'] ?? 0 ) );
+	} elseif ( is_array( $report ) && ! empty( $report['time'] ) ) {
+		// v13.91.1 — PENDING, and v13.87.2 collapsed this into `unknown`.
+		//
+		// The theme writes `resolved` only on a VERIFIED purge. An AUTO purge —
+		// which is what a plugin or theme update fires, via
+		// inc/deploy-history.php passing no `verified` flag — writes a report
+		// with no `resolved` key at all, and its deferred cron verify fills it
+		// about 75 seconds later.
+		//
+		// Reading that gap as `unknown` made the cache readout blank on EVERY
+		// update and recover a minute later, which is a flicker that teaches a
+		// reader to ignore the field. And it is not true: a purge demonstrably
+		// happened, we know when, and verification is scheduled. That is a
+		// KNOWN state.
+		//
+		// `unknown` now means what it says — no report at all, or one with no
+		// usable time. Same distinction as checks_skipped against
+		// checks_passed: could-not-run-YET is not nothing-known.
+		$last      = 'pending';
+		$last_time = (int) $report['time'];
 	}
 
 	// ── THE TALLY IS POST-SAVE PROBES ONLY ───────────────────────────────
@@ -337,7 +366,7 @@ function snt_cf_freshness_summary() {
 
 	return array(
 		// Anything we do not recognise is `unknown`, never silently `fresh`.
-		'last'      => in_array( $last, array( 'fresh', 'stale' ), true ) ? $last : 'unknown',
+		'last'      => in_array( $last, array( 'fresh', 'stale', 'pending' ), true ) ? $last : 'unknown',
 		'last_time' => $last_time,
 		// Carried IN the summary so every renderer gets the same words without
 		// each computing them. See snt_cf_freshness_phrase().

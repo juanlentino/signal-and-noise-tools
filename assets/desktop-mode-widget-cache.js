@@ -95,9 +95,12 @@
 		// failed and the whole zone had to be dropped. It outranks the last
 		// verdict, because a green "fresh" after an escalation still means the
 		// edge needed a sledgehammer to get there.
+		// v13.91.1: `pending` is neither green nor an alarm. A purge fired and
+		// its verification has not run yet — benign, transient, and NOT a
+		// verified-fresh edge, so it must not paint green either.
 		var dot = OK_FG;
 		if ( 'stale' === last ) { dot = ERR_FG; }
-		else if ( 'unknown' === last || escalated > 0 ) { dot = WARN_FG; }
+		else if ( 'unknown' === last || 'pending' === last || escalated > 0 ) { dot = WARN_FG; }
 
 		// v13.87.2: the words come from PHP, one producer for both surfaces.
 		// This widget and the Classic Admin cell used to phrase the same verdict

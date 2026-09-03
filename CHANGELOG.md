@@ -2,6 +2,56 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.91.1] - 2026-09-04 — the cache readout stops blanking on every update
+
+Owner: *"Why do the cache goes unknown with each update?"* Because v13.87.2
+collapsed two different states into one, and this is my regression.
+
+### The chain
+
+1. The theme writes `resolved` ONLY on a verified purge:
+   `if ( $verified ) { $report['resolved'] = $verify['resolved']; }`
+2. The post-update purge does not pass it — `inc/deploy-history.php` calls
+   `apply_filters( 'sn_purge_all_caches_result', 0, array( 'template_overrides' => false ) )`,
+   with no `verified` flag. Compare the wp-admin Purge button, which passes it.
+3. v13.87.2's summary read a missing `resolved` as `unknown`.
+
+So every plugin or theme update fired an auto purge, wrote a report with no
+`resolved`, and blanked the cache readout — which then recovered about 75
+seconds later when the theme's deferred cron verify filled it in.
+
+Before v13.87.2 the verdict came from the probe log's newest row, which survived
+updates. Pointing it at the report was right; collapsing "no report at all" and
+"a report whose verification has not run yet" into one word was not.
+
+### `pending` is a known state
+
+A purge demonstrably happened, we know when, and verification is scheduled. That
+is not unknown. `unknown` now means what it says: no report, or one with no
+usable time.
+
+Same distinction as `checks_skipped` against `checks_passed` — could-not-run-YET
+is not nothing-known. The readout says `purged 4 mins ago, verifying` and the
+tile paints it on the warning branch: not an alarm, and NOT a verified-fresh
+edge either, so it cannot quietly read as green.
+
+### What the guards did
+
+Three assertions in `tests/cloudflare-purge-verify.php` failed on the change,
+correctly: their fixtures set a report with a time and no `resolved`, which used
+to be `unknown` and is now `pending`. The property each defended — never
+`fresh`, and a genuinely empty state summarising to null — is unchanged and
+still pinned; the fixtures now distinguish the two states rather than relying on
+them collapsing.
+
+The widget's dot assertion also failed, for the reason its own comment gives: it
+matches the FULL expression rather than a loose `escalated > 0` substring, so
+widening the condition had to be re-pinned deliberately. That is the guard
+working exactly as designed.
+
+Four mutations red, including pending phrased identically to unknown and pending
+falling through to the OK colour.
+
 ## [13.91.0] - 2026-09-04 — the IPv6 criterion becomes a watch, and pays for itself
 
 Owner: *"we'd do the same with more stuff if we have them."* One more qualified.
