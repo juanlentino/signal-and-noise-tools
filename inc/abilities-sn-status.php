@@ -130,6 +130,9 @@ function snt_sn_status_map() {
 		'shape_stability'      => 'signal-noise/shape-stability',
 		// v13.90.0 — what the site is waiting on, and what has come due.
 		'watches'              => 'signal-noise/watches',
+		// v13.92.0 — is the edge serving the current render? Same derive layer both
+		// widgets render, so three surfaces cannot disagree.
+		'cache'                => 'signal-noise/cache-freshness',
 	);
 }
 

@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.91.1
+ * Version:     13.92.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -470,6 +470,7 @@ require_once __DIR__ . '/inc/settle-cron-cleanup.php';  // v13.87.2: clears the 
 require_once __DIR__ . '/inc/ipv6-criterion-store.php';  // v13.91.0: the criterion stored daily, so the watch reading it costs an option read rather than an uncached analytics query.
 require_once __DIR__ . '/inc/watches.php';  // v13.90.0: the things that come due later. Silent until ripe; state-tested where a state exists, dated only where nothing can be measured.
 require_once __DIR__ . '/inc/health-check-gsc-history.php';  // v13.89.0: the GSC sync firing while its history stops growing — the half cron_health cannot see.
+require_once __DIR__ . '/inc/abilities-cache-freshness.php';  // v13.92.0: the cache verdict finally has a machine reader — six releases were verified by asking a human to read a widget.
 require_once __DIR__ . '/inc/abilities-watches.php';  // v13.90.0: the watch registry's agent reader — the brief mails it to a human, this answers "what is outstanding?".
 require_once __DIR__ . '/inc/abilities-shape-stability.php';  // v13.88.0: the shape ledger's FIRST reader. It had a writer since v13.85.0 and sn_shape_stability() was called only from tests.
 require_once __DIR__ . '/inc/abilities-purge-verification-log.php';  // v13.86.0: the purge-verification trail IN ROWS. The log had two render surfaces and no agent reader, so "the stale count is climbing — what do those probes share?" needed a screenshot and a guess.

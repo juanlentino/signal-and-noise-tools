@@ -148,6 +148,19 @@ function sn_mcp_remote_verdicts() {
 		// or making an editorial call, neither of which happens from a phone. The
 		// morning brief already carries the same list to the owner's inbox.
 		'watches'              => $out( false, 'What the site is waiting on. Acting on a due watch means a release or an editorial decision, not a phone-side action — and the morning brief already mails the same list. Local only.' ),
+		// v13.92.0. NOT twinned YET, and the reason is the discipline this plugin
+		// built for exactly this: a twin copies its origin output_schema
+		// BYTE-IDENTICALLY, so shipping one freezes the shape that day. This
+		// payload was written today and has never been read in anger. The shape
+		// ledger (v13.84.0) exists to answer "has it held still?", and twinning
+		// before it says `settled` would be the mistake that machinery was built
+		// to prevent — the more so having just registered a watch for precisely
+		// this decision on another payload.
+		//
+		// The question itself is a good remote candidate ("is the site serving
+		// current content?" is worth answering from a phone, and the payload
+		// names no unpublished content). Revisit when the shape settles.
+		'cache'                => $out( false, 'A good remote candidate on the merits, but the payload shipped today and a twin freezes its shape byte-identically. Gated on the shape ledger reporting settled, which is the discipline this plugin built for exactly this decision. Local only for now.' ),
 		'search_crossexam'     => $out( true, 'Ratified by the owner 2026-09-01 (v13.67.0): a window-grain agreement verdict — impressions vs search-family fetch counts — with no paths in the payload; the ledger side is counts, not rows. Byte-identical twin.', 'signal-noise/remote-search-crossexam' ),
 		'cron_health'          => $out( true, 'The model the partition asked for (v13.52.0): status + derived summary + overdue evidence, sharing the Site Health overdue rule. Byte-identical twin of a section designed for the phone.', 'signal-noise/remote-cron-health-summary' ),
 		'collector'            => $out( false, 'Analytics collector plumbing state. Operational internals, not a number anyone reads on a phone.' ),

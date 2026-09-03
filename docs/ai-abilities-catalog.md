@@ -43,6 +43,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/purge-verification-log` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/shape-stability` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/watches` | `manage_options` | diagnostics | ✓ | READ-DOOR |
+| `signal-noise/cache-freshness` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-deploy-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/uptime-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/block-migrations-scan` | `manage_options` | diagnostics | — | READ-DOOR |
@@ -180,6 +181,19 @@ Cached synthesis scan: Plausible analytics + publish history + webhook delivery 
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
 
 Prompt-cache probe verdict: whether enabling Anthropic prompt caching would pay, and on which model. Thin read over `snt_ai_cache_probe_verdict()` (inc/ai-cache-probe.php, v10.50.0) — the same derive layer the Insights admin panel renders, so the two cannot disagree. `state` is one of `candidate`, `no_repeats`, `below_floor`, `unknown_floor`, `caching_active`, `no_data`. Read-only; makes no AI call and never enables caching. Added in v10.69.0 because the verdict was previously readable only in wp-admin.
+
+#### `signal-noise/cache-freshness`
+**Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
+
+Is the edge serving the current render? Reads the same derive layer the Classic Admin cell and the OpenStation tile render, so all three surfaces cannot disagree — it also carries the `headline` and `phrase` those widgets show, from the shared producers.
+
+`last` is the most recent purge verdict: `fresh`, `stale`, `pending`, or `unknown`. **Read `pending` as a known state, not a failure** — an auto purge (what a plugin or theme update fires) writes no verdict until its deferred cron verify lands about 75 seconds later, and `last_time` says when the purge happened. `unknown` means no usable report at all.
+
+`post_save` counts **post-save probes only**. Manual purges do not write there, so those figures cannot be moved by pressing Purge, and a rising `stale` means a per-post purge genuinely failed to clear the edge.
+
+`state: never_probed` is an absence of evidence and never a clean edge — the 2026-08-15 failure was a green readout over a 27-hour-old render.
+
+Read-only, and triggers no probe: a reader that measured would change what it reports by being asked. Added in v13.92.0 — the summary had two renderers and no machine reader since v11.29.0, so six releases correcting it were each verified by asking a human to read a widget. Also available as the `cache` section of `sn-status`.
 
 #### `signal-noise/watches`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
