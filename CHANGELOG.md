@@ -2,6 +2,50 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.80.0] - 2026-09-02 — two pre-existing trajectory bugs, surfaced by reader-anomalies
+
+Both live on `sn_analytics_trajectory_of()`, which the HUMAN analytics dashboard
+has shared since v9.30.0. Neither was introduced by the reader pipeline — it
+pointed the composer at a series with a small median and made them visible.
+
+### Fixed — baseline_days was hardcoded 0
+
+Every trajectory signal reported an empty baseline where its sibling forecast
+reports the real count. Now `count( $ys )`.
+
+### Fixed — a percentage that could exceed -100%
+
+`$rel` is `slope * n / median`: total modelled change as a MULTIPLE of the
+typical level, not a share of it. Rendered as a percentage that reads correctly
+below 100% and becomes nonsense above — the live `openai` reader printed
+
+> Reader: openai is decaying (-231% over the window)
+
+and a positive quantity cannot fall by more than 100% of itself.
+
+**The number was never wrong.** Only the unit implied a floor the statistic does
+not have. Above +-100% the magnitude is now stated as a multiple
+(`-2.3x the typical level`); below it, the percentage is unchanged.
+
+This is deliberately a PRESENTATIONAL fix. Changing the statistic would move
+readings on a shipped surface that would then need re-validating; changing the
+unit makes the existing number's claim true. Classification (flat / rising /
+decaying), direction, confidence and severity are all computed from `$rel`
+upstream and are untouched — asserted explicitly, because that is the locked
+behaviour this change must not disturb.
+
+Three mutations proved red, bracketing the boundary from both sides: restoring
+the hardcoded 0, forcing the percentage form everywhere (the shipped bug), and
+forcing the multiple form everywhere (the over-correction). The 1.0 boundary is
+pinned on both sides.
+
+### Not fixed, deliberately
+
+When `median <= 0`, `$rel` is forced to `0.0`, so any such series classifies as
+`flat` regardless of its slope. That is a real edge case for a mostly-zero
+series, but it is a BEHAVIOURAL change on a locked composer rather than a display
+fix, and it deserves its own release and its own review.
+
 ## [13.79.0] - 2026-09-02 — the anomaly detector could not fire on either edge
 
 The first live run reported `anomalies: 0` across all seven families. A zero from
