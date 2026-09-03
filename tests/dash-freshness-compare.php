@@ -79,6 +79,19 @@ ok( false !== strpos( $cf, 'Post-purge probes' ), 'the Cloudflare tab renders th
 ok( false !== strpos( $cf, 'retired detector' ), 'and a row from the pre-v11.29.1 detector is LABELLED as such — it could only ever say stale, so mixing it in silently would re-tell that lie' );
 
 
+// ── v13.91.1: `pending` says what IS known ───────────────────────────────
+// An auto purge (what a plugin update fires) writes a report with no `resolved`
+// and its deferred verify fills it ~75s later. Reading that as "unknown"
+// blanked the readout on every update — a flicker that teaches a reader to
+// ignore the field, and untrue besides: a purge happened and we know when.
+ok( 'purged 4 mins ago, verifying' === snt_cf_freshness_phrase( 'pending', $NOW - 240, $NOW ),
+	'pending names the PURGE and its age, rather than implying nobody looked' );
+ok( snt_cf_freshness_phrase( 'pending', $NOW - 240, $NOW ) !== snt_cf_freshness_phrase( 'unknown', $NOW - 240, $NOW ),
+	'and reads differently from unknown — the two states collapsed before, which is the bug' );
+ok( snt_cf_freshness_headline( 'pending' ) !== snt_cf_freshness_headline( 'fresh' )
+	&& snt_cf_freshness_headline( 'pending' ) !== snt_cf_freshness_headline( 'stale' ),
+	'the headline distinguishes pending from BOTH verdicts — it is not a quiet pass' );
+
 // ── THE TWO SURFACES MUST SAY THE SAME THING (v13.87.2) ──────────────────
 // Owner ruling 2026-09-03. They used to phrase one verdict two ways — "still
 // stale after 4 mins" in Classic Admin beside "Edge served a stale render" in

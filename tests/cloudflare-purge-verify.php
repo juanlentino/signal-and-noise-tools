@@ -215,10 +215,20 @@ ok( 0 === $sum['escalated'], 'a stale entry that did not escalate is not counted
 // A report with NO edge reading is unknown, never silently fresh. (v13.87.2:
 // `last` is sourced from the report, so this is where "unrecognised" now lives
 // — a report that recorded no `resolved` key measured nothing.)
+// v13.91.1: a report WITH a time but no `resolved` is PENDING, not unknown —
+// an auto purge (what an update fires) writes exactly that, and its deferred
+// verify fills `resolved` ~75s later. Reading it as unknown blanked the readout
+// on every update. The property defended here is unchanged: never `fresh`.
 $GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 5, 'epoch' => 11 ); // no `resolved`
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array( array( 'time' => 5, 'result' => 'weird', 'algo' => SN_CF_PROBE_ALGO ) );
 $sum = snt_cf_freshness_summary();
-ok( 'unknown' === $sum['last'], 'a report with no edge reading is unknown, never fresh' );
+ok( 'pending' === $sum['last'], 'a report with a time but no edge reading is PENDING — a purge happened and its verify has not run' );
+ok( 'fresh' !== $sum['last'], 'and never fresh, which is the property that always mattered' );
+ok( 5 === $sum['last_time'], 'pending carries the PURGE time, so the readout can say how long ago' );
+
+// unknown now means what it says: no usable report at all.
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'epoch' => 11 ); // no time, no resolved
+ok( 'unknown' === snt_cf_freshness_summary()['last'], 'a report with no time and no verdict is UNKNOWN — nothing is known' );
 
 // ── A MEASUREMENT FROM A BROKEN INSTRUMENT IS NOT A MEASUREMENT ─────────────
 // v11.30.3. Until v11.29.1 this probe compared a CACHED render against a
@@ -239,7 +249,7 @@ echo "\nGroup: the summary ignores pre-fix verdicts\n";
 
 // Null needs BOTH sources empty now: no verdict in the report AND no current
 // probe rows. Either alone is still information.
-$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 1000, 'epoch' => 12 ); // no `resolved`
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'epoch' => 12 ); // no time, no resolved: nothing known
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
 	array( 'result' => 'stale', 'time' => 1000, 'escalated' => true ),
 	array( 'result' => 'stale', 'time' => 900,  'escalated' => true ),
@@ -305,7 +315,7 @@ $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
 $sum = snt_cf_freshness_summary();
 ok( 1 === $sum['total'] && 0 === $sum['stale'], 'LEGACY manual rows are excluded at READ time, not only at write' );
 // Absence of evidence is never a pass.
-$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 1788400000, 'epoch' => 7 ); // no `resolved`
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'epoch' => 7 ); // no time, no resolved
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ]  = array();
 ok( null === snt_cf_freshness_summary(), 'nothing known from either source is NULL, never a fabricated fresh' );
 
