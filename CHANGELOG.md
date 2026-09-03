@@ -2,6 +2,64 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.81.0] - 2026-09-02 — the Search tab gets the KPI strip it was the only view missing
+
+Owner-reported: the Search tab stacks uniform panels with no hierarchy, and the
+numbers that matter are buried in prose.
+
+### The design primitives already existed
+
+The first instinct was to design metric cards. They ship already:
+`snt_an_kpi_row()` renders the strip on Overview, Sessions and Login defense, and
+`snt_an_trend_svg()` draws the sparkline. Search was not missing a design system
+— it was the one view that owned its own panels and did not use the one that
+exists.
+
+An earlier count of "3 of 11 views adopt it" was an ARTIFACT: seven of the eleven
+are thin dispatchers (35-104 lines, zero panels, zero tables) that delegate to
+shared renderers, so the strip is not theirs to adopt. The real population is
+views that render their own panels — Overview, Sessions, Login defense and
+Search — and three of those four already used it. Search was the sole outlier,
+which is exactly the tab the owner picked out by eye.
+
+### What lands
+
+Three cards, from measured values, fused INTO the Window panel rather than
+floating above it — and deliberately BELOW the caveat, because these are
+Google's rolling window and not the range selected in the control above. A number
+read against the wrong window is worse than no number. Login defense fuses its
+strip into one postbox the same way.
+
+- **Impressions** — with the window length.
+- **Clicks** — with CTR as the DESCRIPTOR, not a fourth card: it is derived from
+  the two figures beside it, and a card would imply a third measurement.
+- **Indexed** — indexed of inspected, with the not-indexed count beneath.
+
+**`capped` is surfaced, not hidden.** `snt_gsc_window_totals()` sums a page
+dimension the API caps at 250 rows, so past that the total undercounts in a known
+direction while presenting as exact. The store went to the trouble of returning
+that flag; a strip that ignored it would undo the honesty the store was built
+for. When capped, the descriptor reads `floor — page dimension capped`.
+
+**Coverage is omitted, never blanked.** It syncs on its own weekly schedule and
+can legitimately be absent, so the card is dropped rather than rendered as a dash.
+
+No new CSS classes: the strip renders through the shared primitive, which owns
+its own markup.
+
+### The tests were vacuous twice before they were real
+
+Added to `tests/analytics-view-search.php`, and both failures are worth recording.
+The suite passed unchanged after the feature landed, because the harness defines
+neither `snt_an_kpi_row` nor `snt_gsc_window_totals` — the `function_exists`
+guards made the new code INERT under test. Then the new block was appended after
+the suite's `exit()`, so it existed and never ran; the count stayed at 20 while
+14 assertions sat below the exit line.
+
+It now runs 34, and three mutations prove it bites: moving the strip outside the
+Window panel, ignoring `capped`, and rendering a blank coverage card instead of
+omitting it.
+
 ## [13.80.0] - 2026-09-02 — two pre-existing trajectory bugs, surfaced by reader-anomalies
 
 Both live on `sn_analytics_trajectory_of()`, which the HUMAN analytics dashboard
