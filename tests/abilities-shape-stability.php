@@ -91,6 +91,51 @@ ok( 'settling' === row( $out, 'too-young' )['state'], 'enough READINGS but too f
 ok( 0 === $out['counts']['settled'] && 2 === $out['counts']['settling'], 'counts reflect both' );
 ok( '' !== row( $out, 'few-readings' )['reason'], 'and the reason says WHICH threshold is short' );
 
+// --- `since` is ambiguous WITHOUT the change history (v13.88.1) -----------
+// A recent `since` is either the clock starting or the countdown restarting,
+// and those have opposite meanings for "can I freeze this into a twin".
+// sn_shape_ledger_record() appends to `changes` only on a REAL change, so the
+// distinction is exact — and stating it beats making every caller know the rule.
+$GLOBALS['__opts'][ SN_SHAPE_LEDGER_OPTION ] = array(
+	'never-moved' => array( 'fp' => 'a', 'since' => $NOW - 3600, 'readings' => 3, 'changes' => array() ),
+	'just-moved'  => array(
+		'fp'       => '{mad:null}',
+		'since'    => $NOW - 3600,
+		'readings' => 3,
+		'changes'  => array(
+			array( 'at' => $NOW - 3600, 'from' => '{mad:int}', 'to' => '{mad:null}' ),
+		),
+	),
+);
+$out = snt_ability_shape_stability( null );
+
+$a = row( $out, 'never-moved' );
+ok( false === $a['ever_changed'] && array() === $a['changes'],
+	'a subject that has NEVER changed says so — `since` is when recording began' );
+
+$b = row( $out, 'just-moved' );
+ok( true === $b['ever_changed'],
+	'a subject that HAS changed says so — `since` is when the countdown restarted, and waiting is not the answer' );
+ok( 1 === count( $b['changes'] ), 'the change is returned' );
+ok( '{mad:int}' === $b['changes'][0]['from'] && '{mad:null}' === $b['changes'][0]['to'],
+	'with BOTH fingerprints, which is what turns "it moved" into "this key changed type"' );
+ok( null !== $b['changes'][0]['at_iso'],
+	'and an ISO timestamp, for correlating a shape change against a deploy' );
+
+// Identical `since` and `readings` on both rows above: without ever_changed
+// they are indistinguishable, which is exactly the ambiguity v13.88.0 shipped.
+ok( $a['since'] === $b['since'] && $a['readings'] === $b['readings'],
+	'VACUITY GUARD: the two subjects are identical except for their history, so this section cannot pass by accident' );
+
+// Malformed history must not fatal or fabricate.
+$GLOBALS['__opts'][ SN_SHAPE_LEDGER_OPTION ] = array(
+	'junk' => array( 'fp' => 'a', 'since' => $NOW, 'readings' => 1, 'changes' => array( 'not-an-array', array( 'from' => 'x' ) ) ),
+);
+$out = snt_ability_shape_stability( null );
+$j = row( $out, 'junk' );
+ok( 1 === count( $j['changes'] ) && null === $j['changes'][0]['at'],
+	'a malformed change entry is dropped, and one missing its timestamp reports null rather than epoch zero' );
+
 // --- reading must not RECORD ---------------------------------------------
 // A reader that fingerprinted the payload would add a reading, so polling would
 // push a subject toward settled on its own. That is a diagnostic reacting to
