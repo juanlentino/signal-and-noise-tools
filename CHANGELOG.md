@@ -2,6 +2,63 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.87.1] - 2026-09-03 — the purge verdict is recorded once it has SETTLED
+
+The plugin half of the fix in theme v12.18.2. Neither half works alone.
+
+### The defect
+
+Pressing "Purge caches" wrote a log row from the theme's INLINE probe — the one
+running in the same request that dispatched the Cloudflare zone purge, sampling
+one moment of propagation. Measured across 2026-09-02/03: **four of eleven
+manual purges recorded stale**, including
+
+    04:09:13  fresh
+    04:09:42  stale
+
+29 seconds apart on an unchanged edge, while every AUTO purge over the same
+window resolved fresh — because auto purges take the theme's deferred cron
+verify and manual ones were excluded from it.
+
+### The fix
+
+`inc/cloudflare-manual-purge-settle.php`. A non-fresh inline reading now records
+NOTHING and schedules a settle check bound to the purge epoch. That check records
+the verdict from the report once the deferred verify has produced one.
+
+A `fresh` inline reading is still recorded immediately and never deferred: it saw
+the new epoch AT THE EDGE, which cannot be a false positive, and it is what keeps
+pressing Purge visibly updating the cell (v13.70.0's whole purpose).
+
+### It waits on a MARKER, not a delay
+
+The theme's verify is a WP-cron event and WP-cron is traffic-driven, so "+75
+seconds" can be much later on a quiet site. A fixed plugin delay would be racing
+another cron — the same class of bug one layer up. The check tests for
+`verify === 'cron'` on a report whose epoch still matches, and re-looks a bounded
+number of times.
+
+Two of its three outcomes deliberately record nothing. Superseded: a newer purge
+owns the answer. Not settled: an absence of evidence, so it re-checks and
+eventually gives up silently rather than guessing. Only a settled report produces
+a row — and a genuinely stale edge still records `stale`, pinned so this can
+never degenerate into a fresh-only filter.
+
+### The advice that fed the loop
+
+"give it a minute or purge again" is gone. Purging again re-empties the cache and
+books another inline sample, so the message manufactured the symptom it was
+responding to.
+
+### A guard had to be rewritten, not just updated
+
+`S9.4` pinned "a confirmed purge whose edge is STILL stale records stale". That
+was the correct assertion for v13.70.0 and the wrong one now. It asserts the new
+property — no verdict from an inline sample, a settle check scheduled instead,
+bound to this epoch — and the bad news is pinned end to end in
+`tests/cloudflare-manual-purge-settle.php`, including that a real stale edge
+still reports stale.
+
 ## [13.87.0] - 2026-09-03 — the log has two writers, and the reader dropped the field that says which
 
 v13.86.0 shipped a row reader an hour earlier and used it immediately. It gave

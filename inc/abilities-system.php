@@ -326,13 +326,37 @@ function snt_ability_purge_all_caches( $input ) {
 	// an unconfirmed or rejected purge measured nothing, and the log's standing
 	// rule is that an outage is a gap in evidence, never a verdict.
 	if ( 'confirmed' === $cf['status'] && array_key_exists( 'edge_fresh', $cf ) && function_exists( 'snt_cf_probe_record' ) ) {
-		snt_cf_probe_record( array(
-			'time'    => time(),
-			'post_id' => 0, // A zone purge is not about one post.
-			'url'     => function_exists( 'home_url' ) ? home_url( '/' ) : '',
-			'result'  => ! empty( $cf['edge_fresh'] ) ? 'fresh' : 'stale',
-			'source'  => 'manual_zone_purge',
-		) );
+		// v13.88.0: A NON-FRESH INLINE READING IS NOT A VERDICT. edge_fresh comes
+		// from the theme's probe, which runs in the same request that dispatched
+		// the zone purge and therefore samples one moment of propagation.
+		// Measured: four of eleven manual purges recorded stale that way,
+		// including 04:09:13 fresh then 04:09:42 stale, while every AUTO purge
+		// over the same window resolved fresh — because auto purges take the
+		// theme's deferred cron verify and manual ones were excluded from it.
+		//
+		// Theme v12.18.2 lets a non-resolving manual purge defer too, so the
+		// report corrects itself. This waits for that and records the SETTLED
+		// answer. Recording nothing in the meantime is the log's standing rule:
+		// an absence of evidence is not a verdict.
+		//
+		// `fresh` is recorded at once and never deferred — it saw the new epoch
+		// AT THE EDGE, which cannot be a false positive, and it is what keeps
+		// pressing Purge visibly updating the cell (v13.70.0).
+		if ( ! empty( $cf['edge_fresh'] ) ) {
+			snt_cf_probe_record( array(
+				'time'    => time(),
+				'post_id' => 0, // A zone purge is not about one post.
+				'url'     => function_exists( 'home_url' ) ? home_url( '/' ) : '',
+				'result'  => 'fresh',
+				'source'  => 'manual_zone_purge',
+			) );
+		} elseif ( function_exists( 'snt_cf_schedule_settle' ) ) {
+			$report = get_option( 'sn_last_purge_report', array() );
+			$epoch  = is_array( $report ) ? (int) ( $report['epoch'] ?? 0 ) : 0;
+			if ( $epoch > 0 ) {
+				snt_cf_schedule_settle( $epoch );
+			}
+		}
 	}
 
 	$ok = true;
@@ -341,7 +365,11 @@ function snt_ability_purge_all_caches( $input ) {
 		case 'confirmed':
 			$message = 'All caches purged; Cloudflare zone purge confirmed.';
 			if ( false === ( $cf['edge_fresh'] ?? null ) ) {
-				$message .= ' Warning: the post-purge probe still saw a stale render at the edge; give it a minute or purge again.';
+				// v13.88.0: was "give it a minute or purge again". Purging again
+				// re-empties the cache and books another inline sample, so the
+				// advice manufactured the symptom it was responding to. The
+				// verdict is now confirmed automatically after propagation.
+				$message .= ' The edge had not caught up yet — a zone purge takes a moment to reach every location. A confirmation check is scheduled; no action needed.';
 			}
 			break;
 		case 'failed':
