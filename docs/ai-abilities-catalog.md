@@ -42,6 +42,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/ai-cache-probe-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/purge-verification-log` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/shape-stability` | `manage_options` | diagnostics | ✓ | READ-DOOR |
+| `signal-noise/watches` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-deploy-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/uptime-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/block-migrations-scan` | `manage_options` | diagnostics | — | READ-DOOR |
@@ -179,6 +180,17 @@ Cached synthesis scan: Plausible analytics + publish history + webhook delivery 
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
 
 Prompt-cache probe verdict: whether enabling Anthropic prompt caching would pay, and on which model. Thin read over `snt_ai_cache_probe_verdict()` (inc/ai-cache-probe.php, v10.50.0) — the same derive layer the Insights admin panel renders, so the two cannot disagree. `state` is one of `candidate`, `no_repeats`, `below_floor`, `unknown_floor`, `caching_active`, `no_data`. Read-only; makes no AI call and never enables caching. Added in v10.69.0 because the verdict was previously readable only in wp-admin.
+
+#### `signal-noise/watches`
+**Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
+
+The registered watches — decisions deferred to a later date or a later **state** — and which have come due. Read this when asked what is outstanding, before planning work, or when a session resumes and needs to know what the site has been waiting on.
+
+`ripe` lists only what has come due; **empty is the normal state, not an error.** `pending` is reported rather than left to inference, because an empty `ripe` list alone cannot be told apart from an empty registry.
+
+`date_only` distinguishes the two kinds and the distinction carries weight: a state-tested watch ripened because something **measurable changed**, a date-only one because a **clock passed and nothing was measured**. A watch that cannot be tested — its module absent, its reader unavailable — is never reported ripe, on the standing rule that absence of evidence is not a finding.
+
+Read-only; evaluates live state and stores nothing, so there is no cached verdict to go stale. The same registry is mailed to the owner each morning by the operations brief (`inc/morning-brief.php`), which stays silent when nothing is due. Added in v13.90.0.
 
 #### `signal-noise/shape-stability`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object

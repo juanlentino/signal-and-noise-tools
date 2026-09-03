@@ -167,6 +167,7 @@ function sn_mcp_allowlist() {
 		'signal-noise/ai-cache-probe-status',
 		'signal-noise/purge-verification-log',
 		'signal-noise/shape-stability',
+		'signal-noise/watches',
 		// v13.57.0 — measurement weave Phase 1. Read-only over the stored
 		// Search Console window; the sn-status sources for search_*.
 		'signal-noise/search-performance',

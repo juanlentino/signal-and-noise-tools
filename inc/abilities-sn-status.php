@@ -128,6 +128,8 @@ function snt_sn_status_map() {
 		// v13.88.0 — has a payload's STRUCTURE held still? The gate for freezing a
 		// shape into a remote twin. Stored ledger only; never fingerprints on read.
 		'shape_stability'      => 'signal-noise/shape-stability',
+		// v13.90.0 — what the site is waiting on, and what has come due.
+		'watches'              => 'signal-noise/watches',
 	);
 }
 

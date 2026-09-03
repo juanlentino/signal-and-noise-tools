@@ -2,6 +2,71 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.90.0] - 2026-09-04 — the things that come due later, made durable
+
+Owner: *"Can we make the future dated things durable like a routine or
+something?"*
+
+### Why not a routine
+
+A routine fires on a clock whether or not it has anything to say, and a daily
+message that usually says "nothing yet" trains its reader to stop opening it.
+That is the same failure as a diagnostic that moves when you press a button: the
+signal stops being about the subject. So a watch is SILENT until it is ripe.
+
+And it ripens on a STATE wherever a state exists — a date only where nothing can
+be measured. "Check the shape ledger on Sept 10" is a reminder someone has to
+honour; "the shape ledger reports settled" is a fact the site notices on its
+own. The same distinction replaced a scheduled reminder with the shape ledger
+(v13.84.0) and replaced "check the drift watch tomorrow" with a health check
+(v13.89.0).
+
+Four registered, two of each kind:
+
+| watch | ripens on |
+|---|---|
+| reader-anomalies twin | STATE — `settled`, no date at all |
+| `/notes` drift re-read | STATE + date — still drifting after Sept 11 |
+| zero-impression notes | date, Sept 14 |
+| wave-4 tool retirement | date, Sept 25 |
+
+The `/notes` watch needs BOTH halves deliberately: a date alone would surface it
+on the 11th even if the drift had reverted — which is the answer, and not one
+that needs anybody's attention.
+
+The OpenStation tag is NOT registered. It would need a network read of their
+releases and no local reader exists; inventing one to make the table look
+complete is how a watch starts lying.
+
+### Two surfaces, because one is the defect
+
+The morning brief gains a due-watch section that renders NOTHING when nothing is
+ripe — every other section speaks on every send, including to say "unavailable",
+because its subject always exists. A ripe watch also raises the subject line, or
+it would arrive under a heading saying nothing needs attention.
+
+`signal-noise/watches` is the agent reader, on the read door and as the
+`watches` section of `sn-status`. Shipping an instrument only one surface can
+see is the defect this codebase found twice in three days — the purge log
+written for eighteen versions and read by nothing, and the shape ledger filling
+for four days with its verdict function called only from tests.
+
+`pending` is reported rather than inferred: an empty `ripe` list alone cannot be
+told apart from an empty registry.
+
+### Guard notes
+
+A fixture caught a real bug: the ripeness callbacks read `time()` directly, so
+the injected `$now` never reached them and `snt_watches_ripe( $future )` was
+evaluated against the wall clock. `$now` is threaded now, and reverting reds.
+
+Two mutations initially failed to red and both were the tests. The silence
+assertion matched only the marker `'Watch due'`, so a mutation adding "No
+watches are due." slipped past — it now asserts no mention of watches at all.
+And the malformed-row guards were unreachable against a fixed registry, so
+`snt_watches_ripe()` takes an injectable `$rows`; the untestable-watch mutation
+now FATALS, which the sweep's summary-line gate catches.
+
 ## [13.89.1] - 2026-09-03 — the new check was filed on a surface the tally does not count
 
 v13.89.0 shipped an hour earlier. A fresh scan ran, took 31.8 seconds, and
