@@ -239,8 +239,20 @@ function snt_dash_freshness_compare( $last, $last_time, $now ) {
 	}
 	$ago = function_exists( 'human_time_diff' ) ? human_time_diff( $last_time, $now ) : ( $now - $last_time ) . 's';
 	if ( 'stale' === (string) $last ) {
+		// v13.86.0 — "still stale after 4 mins" ASSERTED A PRESENT STATE THIS
+		// NEVER MEASURED. There is no recheck: snt_cf_verify_post_purge()
+		// probes once, escalates once to a zone purge, records once, and
+		// stops. $ago is the AGE OF THAT ONE VERDICT, so the sentence claimed
+		// the page was stale right now on the strength of a probe taken
+		// immediately BEFORE the purge most likely to have fixed it — and it
+		// degraded with time, reading "still stale after 1 day" the next
+		// morning about an edge nothing had looked at since.
+		//
+		// The desktop widget already had this right ("Edge served a stale
+		// render" — past tense, an event), which is why the two surfaces
+		// disagreed in tone about the same row.
 		/* translators: %s: human-readable age of the probe, e.g. "4 mins" */
-		return sprintf( __( 'still stale after %s', 'signal-and-noise-tools' ), $ago );
+		return sprintf( __( 'last verdict %s ago', 'signal-and-noise-tools' ), $ago );
 	}
 	if ( 'fresh' === (string) $last ) {
 		/* translators: %s: human-readable age of the probe, e.g. "4 mins" */

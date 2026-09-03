@@ -2,6 +2,79 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.86.0] - 2026-09-02 — the cache readout said more than it measured
+
+Opened by a screenshot and a good question: *the stale number is going up each
+purge.* Three things were wrong, and one of them was my reading of it.
+
+### "Still stale after 1 minute" was never measured
+
+`snt_dash_freshness_compare()` built that from `human_time_diff( last_verdict,
+now )` — the AGE of one verdict. There is no recheck loop:
+`snt_cf_verify_post_purge()` probes once, escalates once to a zone purge,
+records once, and stops. So the sentence asserted a PRESENT state on the
+strength of a probe taken immediately *before* the purge most likely to have
+fixed it, and it degraded with age — the same row would read "still stale after
+1 day" the next morning about an edge nothing had looked at since.
+
+Now `last verdict 4 mins ago`. The OpenStation widget already had this right
+("Edge served a stale render" — past tense, an event), which is why the two
+surfaces disagreed in tone about a single row.
+
+### The count is a WINDOW, and I read it as a tally
+
+`snt_cf_probe_record()` ends in `array_slice( $log, 0, 20 )`. So `Verdicts
+recorded: 20` is not a lifetime total — it is a full buffer sitting at its cap,
+and "11 stale" means **11 of the last 20 probes**.
+
+I told the owner the opposite: that the counter was cumulative and could only go
+up. That inverts the conclusion. In a fixed-size window a rising stale count
+means fresh rows are being EVICTED by stale ones — the recent failure *rate* is
+climbing, which is what was actually being reported. The owner read it correctly
+and I talked them out of it.
+
+The cap is now `SN_CF_PROBE_LOG_CAP`, named rather than a bare 20 inside
+`array_slice()`, because nothing could report a magic number and so no reader
+could tell which of the two readings applied.
+
+### The rows had no machine reader
+
+`signal-noise/purge-verification-log` (read door, `manage_options`, read-only)
+returns the trail as data: `rows[]` with `time_iso`, `url`, `result`,
+`escalated` and `algo`, plus `window`, `cap`, and a `stale_pct` that states the
+rate the bare count invited getting wrong.
+
+Stated precisely, because the first draft of this overclaimed: the rows were
+ALREADY rendered for a human, under "Post-purge probes" in the Cloudflare admin
+tab. What did not exist was a machine reader — and the two glance widgets carry
+only the five aggregate numbers, which are the numbers an agent gets asked
+about. The overclaim came from grepping for readers of the *summary* function,
+which by construction cannot find a reader that goes to the option directly: a
+scoped search inventing a gap.
+
+### The edge itself was fine
+
+Measured independently of the plugin, reproducing the detector against a genuine
+`cf-cache-status: HIT`: cached copy and origin normalised to 15,009 identical
+characters. ALGO 2's `<main>` extraction correctly absorbed the Breeze prefetch
+asymmetry (2 vs 3 occurrences), and the probe's own `Cache-Control: no-cache`
+header was shown to change nothing — so it does measure what a reader gets.
+
+Most likely cause of the genuine stale verdicts: eighteen releases landed on
+2026-09-02. The probe fires 120s after a save, every deploy rewrites site-wide
+HTML, and a probe whose window straddles a deploy reports stale correctly and
+transiently. That hypothesis is now TESTABLE rather than asserted, which is the
+point of the ability.
+
+### Guard notes
+
+A positive control caught the new suite hardcoding: at `cap` 20 the expectations
+`11 / 9 / 55.0 / 3.2` all passed, and changing the constant to 15 reddened three
+assertions that had nothing to do with the cap. They were reading today's value
+of a constant back as a fact about the ability. Expectations are now tallied in
+the loop that builds the fixture; the suite passes at cap 15 and 37, and reds
+when `cap` is reported as a literal.
+
 ## [13.85.0] - 2026-09-02 — the shape ledger gets an input rate
 
 v13.84.0 shipped a gate that was correct and unreachable. This makes it reachable.
