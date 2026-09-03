@@ -2,6 +2,57 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.85.0] - 2026-09-02 — the shape ledger gets an input rate
+
+v13.84.0 shipped a gate that was correct and unreachable. This makes it reachable.
+
+### The defect
+
+`sn_shape_stability()` calls a subject settled after 7 days AND 24 readings.
+A reading happens on every real `snt_ml_reader_anomalies()` run, and I justified
+adding no cron for it on the grounds that "the payload is already being
+produced" — which is true, and which I never measured. Its callers are the MCP
+read door and the admin surface, both on demand, and WordPress's site-health
+check, which is the only GUARANTEED one and runs **weekly**. Twenty-four
+readings at one a week is roughly twenty-four weeks.
+
+The gate was not wrong. Its input was starved, and nothing said so: an empty
+ledger and a slow-filling ledger look identical from the outside.
+
+### The fix, and why it is free
+
+`snt_ml_reader_anomalies_record_shape()` now rides the machine-reader snapshot's
+existing hourly cron. It adds **zero outbound requests**. Both callers land on
+the same transient — the snapshot asks `snt_mr_fetch( SN_MR_SNAPSHOT_DAYS )` and
+the pipeline asks `snt_mr_fetch( SN_MR_SERIES_WINDOW, 'aggregate' )`, which is
+30 and 30 against that parameter's own default, so both build cache key
+`sn_mr_rows_30_aggregate` under a 15-minute TTL.
+
+That reduction to zero depends entirely on running SECOND. Hence priority 20
+against the snapshot refresher's default 10 — a bare integer carrying the whole
+cost argument, and the kind of thing that rots into a comment nobody re-checks.
+
+### What is pinned
+
+`tests/ml-reader-anomalies-cadence.php` asserts the ordering against the
+snapshot's **registered** priority rather than a hardcoded 10, so raising either
+side reds the test. Verified by mutation, all four red:
+
+| mutation | what it would have cost in production |
+|---|---|
+| priority 20 → 10 | a real HTTPS request every hour, forever, silently |
+| registration removed | the ledger never fills; no other symptom |
+| snapshot window 30 → 14 | cache keys diverge; the zero-cost claim breaks |
+| snapshot priority 10 → 30 | ordering inverts — **a hardcoded 10 stays green** |
+
+The last row is why the assertion is derived. It is also a reminder that the
+`function_exists( 'add_action' )` guard this registration needs — the CLI
+harnesses load the file with no WordPress — turns "broken" into "absent", so
+one assertion exists purely to prove the registration is not inert.
+
+A failed sensor still records nothing: the unavailable path returns before the
+ledger write, so a degenerate payload cannot be mistaken for a settled one.
+
 ## [13.84.0] - 2026-09-02 — the shape ledger: does a payload hold still?
 
 Replaces a scheduled reminder. The `reader-anomalies` remote twin was parked

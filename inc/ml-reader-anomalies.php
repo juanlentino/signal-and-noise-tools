@@ -121,10 +121,10 @@ function snt_ml_reader_anomalies( $now = null ) {
 	);
 
 	// Record this payload's STRUCTURE, so "has the shape held still?" is a
-	// measurement rather than someone's recollection. Recorded on every real run
-	// rather than from a new cron: the payload is already being produced here, and
-	// a scheduled fetch would add outbound sensor load purely to observe it.
-	// Irregular cadence is safe — sn_shape_stability() gates on span AND count.
+	// measurement rather than someone's recollection. Recorded on every real run,
+	// and snt_ml_reader_anomalies_record_shape() below guarantees one such run an
+	// hour. Irregular cadence on top of that is safe — sn_shape_stability() gates
+	// on span AND count, so extra readings can only shorten the wait.
 	//
 	// `excluded` is declared OPEN: its keys are family names, so a family crossing
 	// the eligibility floor removes one. That is data moving, not shape moving.
@@ -221,6 +221,47 @@ function snt_ml_reader_unavailable( $reason, $from, $to ) {
 		'reason' => (string) $reason,
 		'window' => array( 'from' => (string) $from, 'to' => (string) $to, 'days' => SN_MR_SERIES_WINDOW ),
 	);
+}
+
+/**
+ * Drive one pipeline run per hour, so the shape ledger fills at a usable rate.
+ *
+ * The ledger shipped in v13.84.0 recording on every real run, on the reasoning
+ * that the payload "is already being produced". True, but never measured: the
+ * only GUARANTEED caller is WordPress's weekly site-health check. The MCP door
+ * and the admin surface are on-demand and may go untouched for weeks. At one
+ * reading a week the SN_SHAPE_STABLE_READINGS gate of 24 needs ~24 weeks — a
+ * gate that is correct and unreachable.
+ *
+ * Riding the machine-reader snapshot's existing hourly cron costs ZERO extra
+ * outbound calls. Both callers land on the SAME transient: the snapshot asks
+ * snt_mr_fetch( SN_MR_SNAPSHOT_DAYS ) and this pipeline asks
+ * snt_mr_fetch( SN_MR_SERIES_WINDOW, 'aggregate' ) — 30 and 30, and 'aggregate'
+ * is that parameter's default — so both build cache key `sn_mr_rows_30_aggregate`
+ * against a 15-minute TTL. Running second, we read what the snapshot just warmed.
+ *
+ * A failed fetch is NOT cached, so a broken sensor costs one extra request an
+ * hour while already broken, and records no shape at all: the unavailable path
+ * returns before the ledger write, so a degenerate payload can never be
+ * mistaken for a settled one.
+ *
+ * @return void
+ */
+function snt_ml_reader_anomalies_record_shape() {
+	snt_ml_reader_anomalies();
+}
+
+// PRIORITY 20 IS LOAD-BEARING, not decoration. snt_mr_snapshot_refresh() is
+// registered on this same hook at the default 10 and is what warms the
+// transient. At 10 the ordering between two same-priority callbacks is
+// registration order across two files — and losing that race means this makes
+// its own outbound request every hour, forever, silently. Pinned in
+// tests/ml-reader-anomalies-cadence.php against the snapshot's REGISTERED
+// priority rather than a hardcoded 10, so moving either side reds the test.
+//
+// Guarded because the CLI test harnesses load this file bare, with no WordPress.
+if ( defined( 'SN_MR_SNAPSHOT_HOOK' ) && function_exists( 'add_action' ) ) {
+	add_action( SN_MR_SNAPSHOT_HOOK, 'snt_ml_reader_anomalies_record_shape', 20 );
 }
 
 /** Pipeline entry for snt_ml_pipelines(). */
