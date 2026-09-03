@@ -2,6 +2,58 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.88.0] - 2026-09-03 — the shape ledger gets a reader
+
+An instrument with no reader, in a module built two days ago.
+
+### The gap
+
+v13.84.0 shipped the shape ledger; v13.85.0 gave it an hourly writer, so it has
+been filling correctly ever since. `sn_shape_stability()` — the function that
+answers the question the whole module exists for — was called from **tests and
+nowhere else**. No ability, no door, no admin surface.
+
+Which meant the decision it was built to inform, freezing the `reader-anomalies`
+payload shape into a remote twin and due in about six days, was reachable only
+by `wp eval`. That is the position the ledger replaced: a judgement falling back
+to recollection.
+
+It is also the defect `purge-verification-log` was added for in v13.86.0 — a log
+written for eighteen versions and read by nothing. Two days later I built
+another one.
+
+### The reader
+
+`signal-noise/shape-stability`, read-only, `manage_options`, on the read door and
+as the `shape_stability` section of `sn-status`. Per subject: `state`
+(`settled` / `settling` / `unknown`), `readings`, `days`, `since` + `since_iso`,
+and a `reason` naming which threshold is short. `thresholds` reports the gate
+itself, so a caller can see WHY something is still settling without knowing the
+constants.
+
+`unknown` is never a pass. An empty ledger reports `no_subjects` and counts
+nothing as settled.
+
+### It records nothing, on purpose
+
+A reader that fingerprinted the payload would add a reading, so polling would
+drive a subject toward `settled` on its own — a diagnostic reacting to the
+operator, which is exactly what v13.87.2 and v13.87.3 removed from the cache
+readout. Three consecutive calls leave the ledger byte-identical, and the
+mutation that reintroduces a write reds four assertions.
+
+### Contracts touched
+
+Adding one ability moved more than the obvious files: two pinned read-door
+counts (30 → 31), the **exact-set** permission-policy contract, the test's own
+copy of the sn-status section map, and that map's pinned size (19 → 20) — which
+my plan missed and the suite caught.
+
+`sn_shape_ledger_subjects()` is new in `inc/shape-ledger.php`: the module had a
+writer, a per-subject getter and a per-subject verdict, but no way to ask what it
+holds, so a caller had to know a subject's name in advance or reach past the
+module to its option key.
+
 ## [13.87.3] - 2026-09-03 — the cache tile answers one question
 
 Owner, asked about the two figures on the tile: the question "was about the

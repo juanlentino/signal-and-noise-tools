@@ -136,6 +136,14 @@ function sn_mcp_remote_verdicts() {
 		'search_coverage'      => $out( false, 'Names every post\'s index state and canonical, including pages Google declined to index — editorial state, not a public metric. Local until the search twins earn telemetry.' ),
 		'family_drift'         => $out( false, 'Names the classifier\'s blind spots (families that match nothing, operators we do not recognise) — a map of what the sensor cannot see. Defence-adjacent; local only.' ),
 		'inbound_pass'         => $out( false, 'Lists AI anchor nominations into notes published hours ago and the older notes chosen to carry them — an editorial worklist, not a public metric. Local only.' ),
+		// v13.88.0. NOT twinned, and the reason is close to funny: this section
+		// exists to decide whether a payload's shape is stable enough to FREEZE
+		// INTO A REMOTE TWIN. That question is asked at a laptop, in the minutes
+		// before cutting a contract bump and a worker release — never from a
+		// phone, where there is nothing to do with the answer. Twinning the gate
+		// would widen the remote surface to serve a decision that can only be
+		// acted on locally.
+		'shape_stability'      => $out( false, 'The gate for freezing a payload shape into a remote twin — a pre-release check, acted on at a laptop. Nothing to do with the answer from a phone. Local only.' ),
 		'search_crossexam'     => $out( true, 'Ratified by the owner 2026-09-01 (v13.67.0): a window-grain agreement verdict — impressions vs search-family fetch counts — with no paths in the payload; the ledger side is counts, not rows. Byte-identical twin.', 'signal-noise/remote-search-crossexam' ),
 		'cron_health'          => $out( true, 'The model the partition asked for (v13.52.0): status + derived summary + overdue evidence, sharing the Site Health overdue rule. Byte-identical twin of a section designed for the phone.', 'signal-noise/remote-cron-health-summary' ),
 		'collector'            => $out( false, 'Analytics collector plumbing state. Operational internals, not a number anyone reads on a phone.' ),

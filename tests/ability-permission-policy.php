@@ -83,6 +83,7 @@ $must_stay = array(
 	'signal-noise/get-analytics-summary'=> 'visitor analytics',
 	'signal-noise/get-collector-status' => 'infrastructure config',
 	'signal-noise/ai-cache-probe-status'=> 'provider config',
+	'signal-noise/shape-stability'      => 'operational diagnostics',
 	'signal-noise/sn-site-facts'        => 'settings drift + telemetry',
 	'signal-noise/list-cron-events'     => 'scheduler internals',
 	'signal-noise/get-cron-history'     => 'scheduler internals',
