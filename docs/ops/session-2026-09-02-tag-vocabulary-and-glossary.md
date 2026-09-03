@@ -239,3 +239,180 @@ rendering in the Insights band.
 release, and the byte-identical rule freezes the payload shape on the day it
 ships. That shape changed five times in one afternoon. It waits until the payload
 survives a few days unchanged.
+
+---
+
+# Part three — the parked thing, and the rate nobody measured
+
+Part two ended with the remote twin parked behind "it waits until the payload
+survives a few days unchanged". I offered to set a reminder to come back and
+look. That got rejected, correctly:
+
+> *"Can't it be a live learning of the thing and then do the rest of the thing?"*
+
+A reminder to check is not an instrument. It is the remember-to-look pattern
+this codebase keeps replacing, and it fails in the one way that matters: it
+tells you nothing when it does not fire.
+
+## v13.84.0 — the shape ledger
+
+So the question became measured. `inc/shape-ledger.php` fingerprints a payload's
+STRUCTURE — types and keys, never values — and records when it last changed.
+`sn_shape_stability()` answers `unknown | settling | settled`.
+
+Generic by construction: nothing in it knows what `reader-anomalies` is. A
+subject is a string, its open paths are declared by the caller. The next twin
+candidate reuses it unchanged, which is the point, because the decision recurs
+for every twin.
+
+The hard part was STRUCTURE versus content. `reader-anomalies` carries an
+`excluded` map keyed by family name, so a family crossing the eligibility floor
+adds or removes a key. That is data moving, not shape moving, and an instrument
+that reported it as a change would cry wolf weekly. Hence declared-open paths.
+
+## Then one question took the whole thing apart
+
+> *"So... The payload is already generated, that means we have results?"*
+
+I had written the ledger to record on every real pipeline run and argued that
+no cron was needed, because the payload "is already being produced". That is
+true. I never measured **how often**.
+
+The callers are the MCP read door and the admin surface — both on demand, both
+capable of going untouched for weeks — plus WordPress's site-health check, which
+is the only GUARANTEED one and runs **weekly**. The gate wants 24 readings. At
+one a week that is roughly twenty-four weeks.
+
+**The gate was correct and unreachable.** And the failure is invisible by
+construction: an empty ledger and a slow-filling ledger look identical from
+outside. Nothing would have reported it. I would have come back in a week,
+found `settling`, and assumed the payload was still moving.
+
+The generalisable form: **a design that hangs on a RATE cannot be checked for
+existence.** I verified that a producer existed and stopped there. "Is there a
+caller?" and "how often does it call?" are different questions and I answered
+the first one twice.
+
+## v13.85.0 — and the priority is the whole argument
+
+`snt_ml_reader_anomalies_record_shape()` now rides the machine-reader snapshot's
+existing hourly cron. It adds **zero outbound requests**, because both callers
+land on the same transient: the snapshot asks `snt_mr_fetch( SN_MR_SNAPSHOT_DAYS )`
+and the pipeline asks `snt_mr_fetch( SN_MR_SERIES_WINDOW, 'aggregate' )` — 30 and
+30 against that parameter's own default — so both build `sn_mr_rows_30_aggregate`
+under a 15-minute TTL. Running second is a warm read.
+
+Which means the reduction to zero rests entirely on **priority 20** against the
+refresher's default 10. A bare integer carrying a cost argument, of the kind
+that normally rots into a comment nobody re-reads.
+
+So it is asserted — and asserted against the snapshot's **registered** priority
+rather than a hardcoded `10`. Mutation M4 is why:
+
+| mutation | production cost |
+|---|---|
+| priority 20 → 10 | a real HTTPS request every hour, forever, silently |
+| registration removed | ledger never fills; no other symptom |
+| snapshot window 30 → 14 | cache keys diverge; the zero-cost claim breaks |
+| **snapshot priority 10 → 30** | **ordering inverts — a hardcoded `10` stays green** |
+
+M4 is the one that justifies the design. A test that remembered today's value of
+something *another file owns* sails through exactly the failure it exists to
+catch.
+
+The registration needs a `function_exists( 'add_action' )` guard, because the CLI
+harnesses load the file with no WordPress. That guard converts *broken* into
+*absent*, so one assertion exists purely to prove the registration is not inert.
+
+## Theme v12.18.0 — "the tags page is a bit hidden, don't you think?"
+
+It was worse than hidden.
+
+`/notes/tags/` had exactly one site-wide link, at the tail of the corpus meta
+stamp — inside `if ( ! $sn_filtered )`. Since
+`$sn_filtered = $sn_searching || $sn_tag`, and real `/tag/<slug>/` archives route
+through that same renderer, **the only route to the tag index disappeared on
+every tag archive and every search view.**
+
+The reader who had just clicked a tag was the one reader who could not reach the
+tag index. That shipped in v12.16.0 and stood for two versions.
+
+The suppression is right for what it was written for: "59 entries" and "Last
+updated" describe the CORPUS and would mislabel a filtered result set. A
+corpus-wide navigation link carries no such claim.
+
+**The link inherited a visibility rule written for the numbers beside it, purely
+by sitting in their `<p>`.** A placement decision became a behavioural one — and
+the comment I wrote at the time defends the placement at length without noticing
+it had just acquired the stamp's conditions.
+
+The counter-argument was already in the same file, twenty lines up, where Start
+Here is rendered unconditionally *because* "wayfinding is most useful precisely
+when a newcomer landed on a tag or search view". I made the argument and then
+made the opposite call for the glossary.
+
+Fixed with `.sn-notes-wayfinding`, an unconditional row holding both links, side
+by side. Deliberately still NOT in the top nav — seven entries already, and a
+secondary index does not rank beside Home and About. That half of the original
+reasoning held; the half about the stamp did not.
+
+## The guard passed against the broken code
+
+The most useful thing in this part. `tests/notes-tags-reachability.php` had to
+prove a link was NOT inside a block. First draft:
+
+```php
+$sup_start = strpos( $code, 'if ( ! $sn_filtered ) :' );
+$sup_end   = strpos( $code, 'endif;', $sup_start );   // WRONG
+```
+
+The block contains a nested `if ( $latest_date ) : … endif;`. So `$sup_end` lands
+on the INNER close, the extracted region stops early, and the link — which sat
+after it — fell outside the search window entirely. **The assertion passed
+against the actual pre-fix code.**
+
+A second hole in the same file: `strpos( $css, '.sn-notes-wayfinding' )` matches
+inside `.sn-notes-wayfindingX`, so the renamed-class control could not go red.
+Substring where a token was needed.
+
+Neither is visible from a green run. Both were found the same way, and it is
+worth stating plainly because it is not what I did first:
+
+**Control against the real pre-fix COMMIT, not against a mutation you write
+yourself.** I ran four hand-made mutations and all four passed. A hand-made
+mutation encodes what I already believe the bug was; the historical commit is
+the only control that does not share my assumption. `git show origin/main:path`
+red-flagged both defects immediately.
+
+The theme's own keyboard-parity invariant also caught me: a guarded `:hover` must
+declare exactly what its `:focus-visible` sibling declares, and mine had drifted.
+My custom outline was overriding the global focus ring in `base.css` besides.
+
+## Verified live, both halves
+
+Not inferred from source. On `/tag/creation-time-capture/`:
+
+```html
+<div class="sn-notes-wayfinding">
+  <p class="sn-notes-start-here"><a href="…/notes/start-here/">First time? Start here…</a></p>
+  <p class="sn-notes-all-tags"><a href="…/notes/tags/">All tags</a></p>
+</div>
+```
+
+And the half that had to keep working — on that same filtered view,
+`Last updated` → 0, `sn-notes-meta` → 0. The link moved out of the stamp without
+weakening the suppression it had been wrongly sharing. A fix that made "All tags"
+appear by deleting the suppression would have passed a naive presence check and
+put the corpus figures onto every filtered view.
+
+## Where this leaves the twin
+
+Plugin 13.85.0 and theme 12.18.0 are both live and reporting `state: ok`; all 19
+recurring cron jobs are firing on schedule. The ledger now fills hourly.
+
+For contrast on what that bought: `wp_site_health_scheduled_check` — the entire
+input budget before today — next runs in **seven days**.
+
+So the twin decision is now a read, not a memory: check
+`sn_shape_stability( 'reader-anomalies', time() )` in about a week and ship only
+on `settled`. Which is what the rejected reminder was pretending to be.
