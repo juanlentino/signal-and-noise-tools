@@ -2,6 +2,54 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.83.0] - 2026-09-02 — a guard on the suites' own shape
+
+Not one of the day's defects was caught by the 543-suite sweep. Four were
+VACUOUS TESTS — assertions that ran green while testing nothing. One of those
+four is statically detectable, so it now is.
+
+### Added — tests/suite-shape.php
+
+`tests/run.sh` already catches two false greens: a suite emitting NO summary line
+(crash, fatal, silent skip) and one emitting `0 passed, 0 failed` (ran, asserted
+nothing). Both read output at runtime.
+
+Neither catches the third shape, which shipped twice today: **assertions placed
+below the summary line.** The suite runs, prints a perfectly healthy count, and
+never executes the block under the `exit()`. In
+`tests/analytics-view-search.php` that was FOURTEEN assertions past the exit —
+the count stayed at 20, and the only tell was that it had not MOVED. A count that
+does not move is not a signal anyone watches; this makes it a failure instead.
+
+Keyed on the last summary echo, NOT on `exit(`: every suite opens with a
+security guard whose `exit` is unconditional-looking and perfectly reachable
+past, so keying on that would flag all 537.
+
+**Self-proving.** The scanner is asserted against a planted violation, a
+well-formed suite, and a top-of-file security guard BEFORE it runs over the real
+files — a guard that has never fired is indistinguishable from one that cannot.
+Plus a vacuity guard on the scan itself (544 suites read), and an external
+mutation that recreates the original bug in a real suite and names its line.
+
+### Measured and REJECTED — the inert-code guard
+
+The most common vacuity today was a harness that stubs nothing, so
+`function_exists`-guarded code never executes under test — the Search KPI strip
+landed and the suite stayed at 20 passed because neither `snt_an_kpi_row` nor
+`snt_gsc_window_totals` existed in the harness.
+
+That looked statically detectable, so it was measured before being built:
+**1,911 of 3,472 guards are unsatisfied under test — 55%, across 291 suites.**
+That is the normal state, not a defect: a suite loading one module has no reason
+to stub every optional integration. A check firing on 291 suites would be
+switched off within a day, so it is not being written.
+
+The remaining three vacuity modes are semantic and only mutation finds them: a
+fixture too tight to exercise the branch (`MAD/median 0.09`, where robust z CAN
+reach zero), a fixture too empty to render the panel under test
+(`'pages' => array()`), and a cast that erased the distinction under test
+(`(float) null === 0.0`). Stated here so the new guard is not over-trusted.
+
 ## [13.82.0] - 2026-09-02 — panels can sit side by side
 
 Owner-reported: the Search tab stacks panels that each spend a full width on
