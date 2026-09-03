@@ -174,6 +174,13 @@ function sn_health_run_scan() {
 			// Health-tab IA redesign — the checks list carries the label and
 			// zero-count meanwhile, which is honest for a report-only tier.
 			'motion_scan'          => sn_health_check_motion_scan(),
+			// 21st check (v13.89.0): the Search Console history STALLED — the
+			// sync still firing while the snapshot series stops growing.
+			// cron_health covers "the hook stopped"; the append step returns
+			// silently on an empty window or empty pages, so the other half was
+			// invisible and search_drift would sit on `accruing` forever,
+			// reading exactly like "still accumulating".
+			'gsc_history_stalled'  => snt_health_check_gsc_history(),
 		),
 	);
 	$result['elapsed_ms'] = (int) round( ( microtime( true ) - $started ) * 1000 );

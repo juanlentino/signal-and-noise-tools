@@ -77,6 +77,10 @@ function sn_health_check_family_map() {
 		'missing_alt'          => 'a11y',
 		'contrast_tokens'      => 'a11y',
 		'motion_scan'          => 'a11y',
+		// v13.89.0: the GSC snapshot producer stalling is a MEASUREMENT failure —
+		// it sits with analytics, not content: nothing on the site is wrong, the
+		// instrument reading it stopped being fed.
+		'gsc_history_stalled'  => 'analytics',
 
 		// Machine learning: the kernel's own watches.
 		'ml_cousins'           => 'ml',

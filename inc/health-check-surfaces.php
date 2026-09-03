@@ -64,6 +64,9 @@ function sn_health_check_surface_map() {
 		// four separate sentences, that it is not counting defects.
 		'contrast_tokens'       => 'integrity',
 		'motion_scan'           => 'integrity',
+		// v13.89.0: INTEGRITY, not worklist — there is no item to action on the
+		// site; the finding is that a measurement stopped arriving.
+		'gsc_history_stalled'   => 'integrity',
 		// These four were ALREADY rendering on Integrity → Trust checks
 		// (v10.47.0 moved them there as "the four trust checks that had been
 		// marooned as rows inside an eighteen-row Health tab") — and were still
