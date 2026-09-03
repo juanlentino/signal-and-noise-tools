@@ -2,6 +2,61 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.91.0] - 2026-09-04 — the IPv6 criterion becomes a watch, and pays for itself
+
+Owner: *"we'd do the same with more stuff if we have them."* One more qualified.
+
+### Which ones qualified, and which did not
+
+The backlog's watch and gate tables were mostly prose for a human to re-read.
+Sorted by whether a LOCAL STATE exists:
+
+| candidate | verdict |
+|---|---|
+| IPv6 criterion | **registered** — a pre-committed gauge that names its own decision |
+| signed_agent "train" hit | derivable, but the hourly snapshot discards purpose/signed grain — a build, not a registration |
+| second timestamp anchor | one trigger external; the other needs a DURATION, not an instant |
+| proof-of-origin extension | owner judgement |
+| native agents, standards body | external state, no local reader |
+| retire legacy tools | already `wave4_telemetry` |
+
+Padding the registry with date-only rows would dilute the one thing that makes
+it worth reading. Four candidates were declined for four different reasons, and
+each reason is recorded rather than the row.
+
+### Why the criterion needed a store first
+
+`sn_ability_login_defense_ipv6_criterion()` computes from
+`sn_analytics_query()`, which does NOT cache — every call is a live
+analytics-engine query. A watch is read by the morning brief and by
+`sn-status{watches}`, which is meant to be a cheap "what is outstanding?"
+question. Wiring the live gauge in would have made that read fire an outbound
+query every time, changing a cheap call's cost profile silently.
+
+So it follows the pattern already used here for exactly this: `family_drift`
+and `search_coverage` are stored reports that never fetch on read. A daily cron
+computes the decision; the watch reads the record. The LIVE section is
+untouched — anyone calling `sn-status{ipv6_criterion}` wants the current answer
+and should pay for it.
+
+An `unknown` reading is NOT stored: a transient analytics outage must not make
+the watch forget what it knew, the same rule the purge report keeps.
+
+### Guard notes, and three of my own instruments were wrong
+
+The cron parity contract caught the registration: every recurring hook must be
+in `snt_cron_sn_owned_hooks()` or the rw-doored unschedule would refuse it. It
+fired, and then fired again — my first entry was a bare string in a list that
+holds `array( CONSTANT, hook )` PAIRS. I matched on the quoted text without
+reading the row shape.
+
+Two mutation results were meaningless before that. One mutation's replacement
+never applied, so its "0 failed" measured nothing. Another could not red because
+the watches suite had no IPv6 fixture at all — the guard was unreachable, which
+is the third unreachable guard this week. Both are now real: reverting the
+`build_ranges` check reds, and making the stored reader fall back to the live
+gauge reds four assertions including the one asserting reads are free.
+
 ## [13.90.0] - 2026-09-04 — the things that come due later, made durable
 
 Owner: *"Can we make the future dated things durable like a routine or

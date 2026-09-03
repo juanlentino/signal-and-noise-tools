@@ -62,6 +62,15 @@ function snt_watches() {
 			'ripe'      => 'snt_watch_ripe_notes_drift',
 		),
 		array(
+			'id'        => 'ipv6_build_ranges',
+			'label'     => 'login-guard IPv6 ranges',
+			'why'       => 'A pre-committed criterion decides this, not a judgement call: build the ranges only when the gauge says build_ranges. Acting earlier means writing ranges against a window that has not earned them.',
+			'read'      => 'sn-status{ipv6_criterion}',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_ipv6_criterion',
+		),
+		array(
 			'id'        => 'search_coverage_reread',
 			'label'     => 'zero-impression notes',
 			'why'       => 'Thirteen notes were not indexed and thirteen indexed-but-unasked-for. The editorial call needs a second reading, not a bigger sample.',
@@ -99,6 +108,41 @@ function snt_watch_ripe_shape_settled( $watch, $now ) {
 		return array( 'ripe' => false, 'note' => (string) ( $v['reason'] ?? $state ) );
 	}
 	return array( 'ripe' => true, 'note' => (string) ( $v['reason'] ?? 'settled' ) );
+}
+
+/**
+ * Ripe when the pre-committed IPv6 criterion says to build.
+ *
+ * The gauge already names its own decision, which is the whole reason this is a
+ * state watch and not a date: `build_ranges` is the only value that means act.
+ * Every `withhold_*` is a live, correct answer — an unfinished window is not a
+ * failure and must never surface as one.
+ *
+ * @param array $watch The watch row.
+ * @param int   $now   Unix time (unused; the gauge carries its own window).
+ * @return array{ripe:bool,note:string}
+ */
+function snt_watch_ripe_ipv6_criterion( $watch, $now ) {
+	unset( $watch, $now );
+	// The STORED reading, never the live gauge: that one runs an uncached
+	// analytics query, and a watch is read by the brief and by
+	// sn-status{watches}, which must stay cheap. inc/ipv6-criterion-store.php.
+	if ( ! function_exists( 'snt_ipv6_criterion_stored' ) ) {
+		return array( 'ripe' => false, 'note' => 'IPv6 criterion store unavailable' );
+	}
+	$v = snt_ipv6_criterion_stored();
+	if ( ! is_array( $v ) ) {
+		// Nothing stored is NOT "the criterion says no" — it means nothing has
+		// measured it yet, and this stays quiet rather than claiming either way.
+		return array( 'ripe' => false, 'note' => 'not measured yet' );
+	}
+	$decision = (string) ( $v['decision'] ?? '' );
+	if ( 'build_ranges' !== $decision ) {
+		return array( 'ripe' => false, 'note' => (string) ( $v['reason'] ?? $decision ) );
+	}
+	// Carry the gauge's OWN reason, not a restatement: it names the share, the
+	// window and the observations that crossed, which is what the build needs.
+	return array( 'ripe' => true, 'note' => (string) ( $v['reason'] ?? 'criterion met' ) );
 }
 
 /**

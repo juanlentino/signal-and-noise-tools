@@ -20,6 +20,8 @@ $GLOBALS['__shape'] = null;
 $GLOBALS['__drift'] = null;
 function sn_shape_stability( $subject, $now ) { return $GLOBALS['__shape']; }
 function snt_gsc_position_drift() { return $GLOBALS['__drift']; }
+$GLOBALS['__ipv6'] = null;
+function snt_ipv6_criterion_stored() { return $GLOBALS['__ipv6']; }
 
 require __DIR__ . '/../inc/watches.php';
 
@@ -87,6 +89,24 @@ $GLOBALS['__drift'] = array();
 ok( null === has_id( snt_watches_ripe( $BEFORE ), 'search_coverage_reread' ), 'a date-only watch is quiet before its date' );
 $w = has_id( snt_watches_ripe( $AFTER ), 'search_coverage_reread' );
 ok( null !== $w && ! empty( $w['date_only'] ), 'and ripens after it, FLAGGED as date-only so a reader knows nothing was measured' );
+
+// --- the IPv6 criterion: only ONE decision means act ----------------------
+// The gauge names its own decision, which is why this is a state watch and not
+// a date. Every withhold_* is a live, correct answer and must never surface.
+$GLOBALS['__ipv6'] = null;
+ok( null === has_id( snt_watches_ripe( $AFTER ), 'ipv6_build_ranges' ),
+	'nothing stored leaves it quiet — not measured is not "the criterion says no"' );
+
+$GLOBALS['__ipv6'] = array( 'decision' => 'withhold_unfinished_window', 'reason' => 'this window holds 10 and 196' );
+ok( null === has_id( snt_watches_ripe( $AFTER ), 'ipv6_build_ranges' ),
+	'a withhold decision is a live, correct answer — it does NOT surface as due' );
+
+$GLOBALS['__ipv6'] = array( 'decision' => 'build_ranges', 'reason' => '45.4% over 30 days, 22 days covered' );
+$w = has_id( snt_watches_ripe( $AFTER ), 'ipv6_build_ranges' );
+ok( null !== $w, 'build_ranges — the one decision that means act — ripens it' );
+ok( false !== strpos( (string) $w['note'], '22 days covered' ),
+	'and it carries the gauge\'s OWN reason, which is what the build needs' );
+$GLOBALS['__ipv6'] = null;
 
 // --- a watch nobody can TEST is never ripe --------------------------------
 // Unreachable against the real registry (every row is well-formed), which is
