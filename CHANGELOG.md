@@ -2,6 +2,48 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.88.1] - 2026-09-03 — `since` said when, never whether it moved
+
+Used the reader an hour after shipping it, and it could not answer the first
+question asked of it.
+
+### The ambiguity
+
+The live readout: `reader-anomalies`, `settling`, 16 of 24 readings, 0.6 of 7
+days, `since` 02:35 today. The cadence is confirmed by that alone — 16 readings
+across 0.6 days is 1.11/hour, the hourly cron v13.85.0 wired, where the old
+weekly-only caller would have produced zero.
+
+But `since` being recent has two opposite readings. Either the clock STARTED
+then (first recording of this subject), or the countdown RESTARTED (the shape
+actually moved). The first means wait; the second means the payload is still
+changing and waiting is not the answer — freezing it into a twin would be wrong
+however long you wait.
+
+v13.88.0 reported how long a shape has held and omitted what happened when it
+last did not. The same omission as v13.86.0 returning `algo` and not `source`.
+
+### The fix
+
+`sn_shape_ledger_record()` appends to `changes` ONLY on a real change; a first
+record leaves it empty. So the distinction is exact, and `ever_changed` states it
+rather than making every caller know the rule. `changes[]` returns the history as
+`{at, at_iso, from, to}` — the fingerprints are what turn "it moved" into "this
+key changed type", which matters here because `reader-anomalies` carries a
+`baseline.mad` that can be `null` or a number, and a family flipping between them
+is a STRUCTURAL change driven by data.
+
+The ledger caps the history at `SN_SHAPE_LEDGER_MAX_CHANGES`, so an unstable
+subject keeps its most recent changes rather than all of them. `ever_changed`
+stays true regardless: the list only empties on a subject that has never changed.
+
+### Guard note
+
+The two fixture subjects are identical in `since` and `readings` and differ only
+in history — so the section cannot pass by accident, and a mutation hardcoding
+`ever_changed` reds. Five mutations red in total, including one that returns "it
+moved" without saying what moved.
+
 ## [13.88.0] - 2026-09-03 — the shape ledger gets a reader
 
 An instrument with no reader, in a module built two days ago.

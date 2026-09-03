@@ -185,11 +185,13 @@ Prompt-cache probe verdict: whether enabling Anthropic prompt caching would pay,
 
 Has a payload's **structure** held still long enough to be frozen — types and keys, never values. Read this before shipping a remote MCP twin, or before any change that copies a payload shape somewhere it becomes expensive to alter: a twin copies its origin `output_schema` byte-identically, so shipping one freezes that shape, and changing it later costs a contract bump plus a worker release.
 
+**Read `ever_changed` before interpreting `since`.** `false` means `since` is when recording *began* for that subject; `true` means it is when the shape last *moved*. A recent `since` with `ever_changed: true` says the payload is still changing and waiting is not the answer. `changes[]` carries the history as `{at, at_iso, from, to}` — the fingerprints are what turn "it moved" into "this key changed type" — capped by the ledger at `SN_SHAPE_LEDGER_MAX_CHANGES`, so an unstable subject keeps its most recent changes rather than all of them.
+
 Per subject, `state` is one of `settled` (unchanged across at least `SN_SHAPE_STABLE_READINGS` readings spanning at least `SN_SHAPE_STABLE_DAYS` days — safe to freeze), `settling` (`reason` names which threshold is short), or `unknown` (never recorded — an **absence of evidence**, never a pass). `thresholds` reports the gate so a caller can see *why* something is still settling without knowing the constants.
 
 **Read-only, and it records nothing.** A reader that fingerprinted the payload would add a reading, so polling would drive a subject toward `settled` on its own — a diagnostic reacting to the operator, which is the defect removed from the cache readout in v13.87.2/v13.87.3. Pinned by mutation.
 
-Subjects are recorded by their producers; `reader-anomalies` records one on the hourly machine-reader snapshot cron (v13.85.0). Added in v13.88.0 — the ledger shipped in v13.84.0 with a writer and no reader at all, `sn_shape_stability()` being called only from tests. Also available as the `shape_stability` section of `sn-status`.
+Subjects are recorded by their producers; `reader-anomalies` records one on the hourly machine-reader snapshot cron (v13.85.0). Added in v13.88.0 — the ledger shipped in v13.84.0 with a writer and no reader at all, `sn_shape_stability()` being called only from tests. Also available as the `shape_stability` section of `sn-status`. `changes[]` and `ever_changed` added in v13.88.1: without them `since` was ambiguous between the clock starting and the countdown restarting, which are opposite answers to "can I freeze this".
 
 #### `signal-noise/purge-verification-log`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
