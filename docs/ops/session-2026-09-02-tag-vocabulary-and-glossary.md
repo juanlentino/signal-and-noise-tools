@@ -128,3 +128,114 @@ and deleted it afterward. `preview_start` was never using it — it resolved
 the theme repo never tracked a `launch.json`, so nothing versioned was lost,
 but I cannot rule out having overwritten an untracked one. Use the scratchpad
 for harnesses; do not write into a repo you are only reading from.
+
+---
+
+# Part two — the ML arc, and what the sweep could not see
+
+The session did not end at the tag vocabulary. Eleven more plugin releases
+(13.73.0 → 13.83.0) and four more theme releases (12.14.1 → 12.17.2) followed,
+almost all of them driven by one thing: **the reader-anomalies pipeline meeting
+real data.**
+
+## The ML question, answered by measurement
+
+The owner asked whether we could "do ML" in analytics and machine readers. Two
+corrections landed before any design did.
+
+**Analytics already ships the full ladder.** Descriptive → predictive →
+prescriptive, complete since July (I1–I6): median/MAD anomalies, Theil–Sen
+trajectories, Holt forecasts with a rolling-origin backtest, a narrator, and a
+recommendations layer. I was about to propose building what exists.
+
+**The subsystem with no ML consumer was machine readers**, and it has ~500× the
+data: 69,833 machine requests in 30 days against roughly 130 human visits. The
+analytics engine was not missing capability — it was STARVED. So the work became
+supplying a denser input, not writing new statistics.
+
+## The eligibility floor was derived, not chosen
+
+A family needs hits on **≥ 20 of 30 days**. Days present across the twelve
+families with traffic: **2, 9, 10, 11, 14 … 23, 24, 31, 31, 31, 31, 31** —
+bimodal with a nine-day gap, so the threshold only has to land in the empty
+region. Any floor from 15 to 22 selects the same seven families, and that
+robustness is asserted.
+
+A VOLUME floor would have been wrong: `amazon-ai` shows a median of 160 across 9
+present days and outranks `openai`, which is present every day at a median of 8.
+There is no series there, only bursts. Presence is the axis; size is what the
+statistics already handle.
+
+## Five defects, all from first contact with real data
+
+None was findable from fixtures:
+
+1. **The forecast gate rejected everything.** `uptime` (median 480, MAD 0) scored
+   skill −6.89 because the guard tested `mae_naive > 0` — which catches a
+   PERFECTLY rigid series and misses a NEARLY rigid one. Fixed with a floor
+   relative to the series level. "Is the denominator exactly zero" was the wrong
+   question; "is it large enough for the ratio to mean anything" was the right one.
+2. **A MAD-0 family could never fire an anomaly at all** — the most rigid reader,
+   the one whose deviation matters most, was the one structurally excluded.
+3. **The DOWN side was unreachable, and I had shipped a claim that it worked.**
+4. **Two pre-existing trajectory bugs** on the composer shared with the human
+   dashboard: `baseline_days` hardcoded 0, and a percentage that could read −231%.
+5. **A read-time gap**: the apple-ai exemption was applied at COMPUTE time only,
+   so every stored record still rendered the old sentence on an installed,
+   correct plugin.
+
+### The one worth generalising
+
+**On count data bounded below by zero, a symmetric robust-z detector is
+structurally one-sided.** The furthest a value can fall from the median is the
+median itself, so the most negative z obtainable is `0.6745 × median / MAD` — a
+ceiling set by the data's shape, not the threshold. With MADs at 0.29–0.92× their
+medians, that ceiling is ~2.3 against a 3.5 threshold. Measured: total silence
+scored |z| 0.74–2.30 for EVERY eligible family. No threshold fixes that; a
+different KIND of rule does, so silence became a binary presence rule.
+
+## The instruments were the weak link, not the code
+
+**Not one of the day's defects was caught by the 543-suite sweep.** What caught
+them: the owner looking at screens, `php -l`, PHPStan's duplicate-key check, and
+mutation testing.
+
+**Five separate scope errors in my own measurements**, each producing a
+confident wrong conclusion:
+
+- searching `.sn-an-*` for column primitives and concluding none existed — three
+  do, under other names, and one of them documented a `min-width: 0` guard my row
+  was missing;
+- `grep -c` counting LINES not occurrences ("1 group, 1 row" on a page with 4 and 25);
+- reading a top-3-truncated family list as the whole population;
+- a `baseline_days` grep matching a different function and reporting the fix absent;
+- a two-tab string matching inside a three-tab line.
+
+**Four vacuous tests**, each passing green while testing nothing: a harness that
+stubbed neither function so `function_exists` made new code inert; fourteen
+assertions placed below a suite's `exit()`; a fixture with `MAD/median 0.09`
+where robust z CAN reach zero; `(float) null === 0.0` erasing the very
+distinction under test.
+
+Only the third of those is statically detectable. `tests/suite-shape.php`
+(v13.83.0) now catches it, self-proving against a planted violation. An
+inert-code guard was **measured and rejected**: 1,911 of 3,472 `function_exists`
+guards are unsatisfied under test (55%, 291 suites) — that is the normal state,
+and a check firing on 291 suites gets switched off within a day.
+
+## Verified in production, not inferred
+
+The side-by-side row and the KPI strip were the two things I could not render
+locally. Both were checked in the live admin at the end: panels 959px each at
+identical top offset, `min-width: 0` applied, no table overflow. The same
+screenshot caught the skill gate working on human data —
+*"Views: no forecast — the model does not beat a same-value baseline on this
+history (skill −0.22 over 44 checks)"* — which is the whole v13.75.0 chain
+rendering in the Insights band.
+
+## Still parked
+
+**The remote twin for reader-anomalies.** It costs contract 4 → 5 plus a worker
+release, and the byte-identical rule freezes the payload shape on the day it
+ships. That shape changed five times in one afternoon. It waits until the payload
+survives a few days unchanged.
