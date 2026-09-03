@@ -186,6 +186,8 @@ The per-row edge-freshness trail as data. The rows are already rendered for a hu
 
 **Read `window` and `cap` before `counts`.** The log is a rolling buffer capped at `SN_CF_PROBE_LOG_CAP` (20), so `counts.total` pins at 20 once full and is **not** a lifetime figure — it is the size of the recent window. A rising `counts.stale` against that fixed denominator therefore means the recent failure *rate* is rising. Read as a cumulative tally it says the opposite ("this can only go up"), which is the misreading that motivated this ability on 2026-09-02.
 
+**Read `source` before drawing any conclusion.** Two writers share this log. `post_save_probe` means a per-post purge failed to clear the edge — a fault. `manual_zone_purge` is written by `purge-all-caches`, which probes *immediately* after dispatching the zone purge and so races per-colo propagation: pressing Purge twice in a minute can add two `stale` rows describing impatience rather than a stale edge, and the counter visibly climbs per press. `counts.by_source` splits the totals; only the `post_save_probe` share is actionable. (Observed exactly that way on 2026-09-03.)
+
 Correlate `rows[].time_iso` against deploy times before blaming the edge: every deploy rewrites site-wide HTML, so a probe whose window straddles a deploy reports `stale` correctly and transiently. `counts` cover current-detector rows only (`algo >= SN_CF_PROBE_ALGO`); older rows are returned but excluded, and `counts_excluded_rows` says how many.
 
 `state: never_probed` is an absence of evidence, never a clean edge. There is no recheck loop — each probe records one verdict and escalates at most once — so a `stale` row describes a past instant, not an ongoing condition. Read-only: probes nothing, purges nothing. Added in v13.86.0.

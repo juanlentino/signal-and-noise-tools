@@ -45,7 +45,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/purge-verification-log', array(
 		'label'               => 'Purge Verification Log',
-		'description'         => 'Returns the per-row trail of edge-freshness probes as DATA — the same rows the Cloudflare admin tab renders for a human under \'Post-purge probes\', which no machine reader could reach. After each post save the plugin waits SN_CF_PROBE_DELAY seconds, fetches the post URL a reader would get and the same URL cache-busted, and compares the normalized <main> region. Call this when the cache widget shows a rising stale count, when asked whether the edge is serving old renders, or before concluding a purge failed. READ THE WINDOW BEFORE THE COUNTS: the log is a rolling buffer capped at 20 entries, so `counts.total` pins at 20 once full and is NOT a lifetime figure — it is the size of the recent window. A rising `counts.stale` against that fixed denominator therefore means the recent failure RATE is rising, not that a lifetime tally is accumulating; reading it the other way inverts the conclusion. `rows` are newest-first, each carrying `time_iso`, `url`, `result` (fresh|stale), `escalated` (whether a zone purge was dispatched) and `algo` (which detector version produced it). Compare `time_iso` against deploy times before blaming the edge: every deploy rewrites site-wide HTML, so a probe whose window straddles a deploy reports stale CORRECTLY and transiently. `counts` are computed over current-detector rows only (algo >= SN_CF_PROBE_ALGO); rows from a retired detector are returned but excluded from the counts, and `counts_excluded_rows` says how many. A null `state` of `never_probed` is NOT a clean edge — it means no verdict has been recorded, which is a gap in evidence rather than a pass. There is no recheck loop: each probe records one verdict and escalates at most once, so a `stale` row describes an instant in the past, never an ongoing condition.',
+		'description'         => 'Returns the per-row trail of edge-freshness probes as DATA — the same rows the Cloudflare admin tab renders for a human under \'Post-purge probes\', which no machine reader could reach. After each post save the plugin waits SN_CF_PROBE_DELAY seconds, fetches the post URL a reader would get and the same URL cache-busted, and compares the normalized <main> region. Call this when the cache widget shows a rising stale count, when asked whether the edge is serving old renders, or before concluding a purge failed. READ THE WINDOW BEFORE THE COUNTS: the log is a rolling buffer capped at 20 entries, so `counts.total` pins at 20 once full and is NOT a lifetime figure — it is the size of the recent window. A rising `counts.stale` against that fixed denominator therefore means the recent failure RATE is rising, not that a lifetime tally is accumulating; reading it the other way inverts the conclusion. `rows` are newest-first, each carrying `time_iso`, `url`, `result` (fresh|stale), `escalated`, `algo`, and `source` — READ `source` BEFORE DRAWING ANY CONCLUSION. Two writers share this log. `post_save_probe` means a per-post purge failed to clear the edge, which is a fault. `manual_zone_purge` is written by the purge-all-caches ability, which probes IMMEDIATELY after dispatching the zone purge and therefore races per-colo propagation — so pressing Purge twice in a minute can add two `stale` rows that describe impatience rather than a stale edge, and the counter visibly climbs per purge. `counts.by_source` splits the totals; only the post_save_probe share is actionable. Compare `time_iso` against deploy times before blaming the edge: every deploy rewrites site-wide HTML, so a probe whose window straddles a deploy reports stale CORRECTLY and transiently. `counts` are computed over current-detector rows only (algo >= SN_CF_PROBE_ALGO); rows from a retired detector are returned but excluded from the counts, and `counts_excluded_rows` says how many. A null `state` of `never_probed` is NOT a clean edge — it means no verdict has been recorded, which is a gap in evidence rather than a pass. There is no recheck loop: each probe records one verdict and escalates at most once, so a `stale` row describes an instant in the past, never an ongoing condition.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_purge_verification_log',
@@ -72,7 +72,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'counts'               => array(
 					'type'        => 'object',
-					'description' => 'total, fresh, stale, escalated and stale_pct over CURRENT-detector rows only.',
+					'description' => 'total, fresh, stale, escalated and stale_pct over CURRENT-detector rows only, plus by_source splitting those totals per writer. Read by_source before acting: only post_save_probe stale rows mean a purge failed.',
 				),
 				'counts_excluded_rows' => array(
 					'type'        => 'integer',
@@ -80,7 +80,7 @@ add_action( 'wp_abilities_api_init', function() {
 				),
 				'rows'                 => array(
 					'type'        => 'array',
-					'description' => 'Newest-first probe outcomes: time, time_iso, post_id, url, result, escalated, algo.',
+					'description' => 'Newest-first probe outcomes: time, time_iso, post_id, url, result, escalated, source, algo.',
 				),
 			),
 		),
@@ -128,7 +128,7 @@ function snt_ability_purge_verification_log( $input ) {
 			'state'                => 'never_probed',
 			'cap'                  => $cap,
 			'window'               => array( 'oldest' => null, 'newest' => null, 'span_hours' => null ),
-			'counts'               => array( 'total' => 0, 'fresh' => 0, 'stale' => 0, 'escalated' => 0, 'stale_pct' => null ),
+			'counts'               => array( 'total' => 0, 'fresh' => 0, 'stale' => 0, 'escalated' => 0, 'stale_pct' => null, 'by_source' => array() ),
 			'counts_excluded_rows' => 0,
 			'rows'                 => array(),
 		);
@@ -157,6 +157,22 @@ function snt_ability_purge_verification_log( $input ) {
 			'url'       => (string) ( $entry['url'] ?? '' ),
 			'result'    => in_array( $result, array( 'fresh', 'stale' ), true ) ? $result : 'unknown',
 			'escalated' => ! empty( $entry['escalated'] ),
+			// WHICH KIND OF ROW THIS IS — the field that makes the log
+			// readable, and which v13.86.0 dropped.
+			//
+			// Two writers share this log and they mean different things.
+			// snt_cf_verify_post_purge() records "a per-post purge failed to
+			// clear the edge". The purge-all-caches ability
+			// (inc/abilities-system.php, v13.70.0) records "the edge right
+			// after a manual zone purge" — and it probes IMMEDIATELY after
+			// dispatch, so it races per-colo propagation and books the race as
+			// a verdict. Pressing Purge twice in a minute can therefore add two
+			// `stale` rows describing nothing but impatience.
+			//
+			// Mixed into one rate they are unreadable, and the owner correctly
+			// read the counter climbing per purge on 2026-09-02. `source` was
+			// being written since v13.70.0 and read by nothing.
+			'source'    => (string) ( $entry['source'] ?? 'post_save_probe' ),
 			'algo'      => $algo,
 		);
 
@@ -187,6 +203,25 @@ function snt_ability_purge_verification_log( $input ) {
 	$counts['stale_pct'] = $counts['total'] > 0
 		? round( ( $counts['stale'] / $counts['total'] ) * 100, 1 )
 		: null;
+
+	// The headline rate mixes two populations, so state them apart as well.
+	// A manual-purge stale row means "probed before propagation finished";
+	// a post-save stale row means "a purge did not clear the edge". Only the
+	// second is a fault, and only the second should drive anyone to act.
+	$counts['by_source'] = array();
+	foreach ( $rows as $row ) {
+		if ( (int) $row['algo'] < SN_CF_PROBE_ALGO ) {
+			continue;
+		}
+		$src = $row['source'];
+		if ( ! isset( $counts['by_source'][ $src ] ) ) {
+			$counts['by_source'][ $src ] = array( 'total' => 0, 'stale' => 0 );
+		}
+		++$counts['by_source'][ $src ]['total'];
+		if ( 'stale' === $row['result'] ) {
+			++$counts['by_source'][ $src ]['stale'];
+		}
+	}
 
 	$oldest = $times ? min( $times ) : 0;
 	$newest = $times ? max( $times ) : 0;
