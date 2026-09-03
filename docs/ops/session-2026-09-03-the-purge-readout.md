@@ -396,3 +396,48 @@ Plugin **13.89.1**, theme 12.18.2. Twelve releases across the two sessions, each
 verified on the six release checks. Dated: shape ledger **Sept 10**,
 `search_coverage` **Sept 14**, wave-4 telemetry **Sept 25**, and the drift watch
 flipping tomorrow — now with a health check that will say so if it does not.
+
+---
+
+# Coda — the watch resolved, and why the row is not a finding
+
+Part three ended on the drift watch flipping "tomorrow, now with a health check
+that will say so if it does not". It flipped, on the day, and the payoff is
+smaller and more interesting than a green tick.
+
+`search_drift` moved `accruing` → **`measured`** with one row:
+
+```
+/notes    6.3 → 11.5    drift 5.2    impressions 11
+```
+
+The last unverified surface of the v13.11.0 work, verified end to end.
+
+**The row is the instrument working, not a finding.** The rule is 5.0+ drift
+with 10+ impressions and this clears both by a hair. An average position
+computed over ELEVEN impressions swings several points on a couple of deep-page
+appearances — so it went into the backlog with a re-read date (~2026-09-11)
+rather than a conclusion: still drifting with more impressions behind it is a
+finding; reverting means it was sample noise.
+
+**What makes the row readable at all is the other half of the same readout.**
+`gsc_history_stalled` passed in the same scan — 9 checks, 9 passed, 0 skipped —
+so the history feeding the comparison is current rather than starved. Without
+that check, a drifting page and a stalled producer produce the same
+`search_drift` output, and yesterday there would have been no way to tell them
+apart. The build from Part three arrived one day later, on the first real
+reading, and its whole contribution was making a single row interpretable.
+
+The watch itself is now struck in `docs/BACKLOG.md`. A satisfied watch left
+sitting in the watches table is the same half-done shape as a stale date, and
+this session got told about that once already.
+
+## Standing state
+
+Plugin **13.89.1**, theme **12.18.2**. Both repos clean, no open PRs. Twelve
+releases across the two sessions, each verified on the six release checks.
+
+Everything remaining is future-dated: shape ledger settles **Sept 10**, the
+`/notes` drift re-read **~Sept 11**, `search_coverage` **Sept 14**, wave-4
+telemetry **Sept 25**, and the OpenStation tag whenever it is cut — with #717
+merged and unreleased, so v1.1.5 carries the `wp.hooks` bug until then.
