@@ -40,6 +40,7 @@ This is the canonical reference for the 81 Signal & Noise WordPress 7.0 Abilitie
 | `signal-noise/get-insights` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-narration` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/ai-cache-probe-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
+| `signal-noise/purge-verification-log` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/get-deploy-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/uptime-status` | `manage_options` | diagnostics | ✓ | READ-DOOR |
 | `signal-noise/block-migrations-scan` | `manage_options` | diagnostics | — | READ-DOOR |
@@ -177,6 +178,17 @@ Cached synthesis scan: Plausible analytics + publish history + webhook delivery 
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
 
 Prompt-cache probe verdict: whether enabling Anthropic prompt caching would pay, and on which model. Thin read over `snt_ai_cache_probe_verdict()` (inc/ai-cache-probe.php, v10.50.0) — the same derive layer the Insights admin panel renders, so the two cannot disagree. `state` is one of `candidate`, `no_repeats`, `below_floor`, `unknown_floor`, `caching_active`, `no_data`. Read-only; makes no AI call and never enables caching. Added in v10.69.0 because the verdict was previously readable only in wp-admin.
+
+#### `signal-noise/purge-verification-log`
+**Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object
+
+The per-row edge-freshness trail as data. The rows are already rendered for a human under **Post-purge probes** in the Cloudflare admin tab; what was missing is a machine reader, since the two glance widgets carry only the five aggregate numbers — and those are what an agent gets asked about. After each post save the plugin waits `SN_CF_PROBE_DELAY` seconds, fetches the post URL a reader would get plus the same URL cache-busted, and compares the normalized `<main>` region.
+
+**Read `window` and `cap` before `counts`.** The log is a rolling buffer capped at `SN_CF_PROBE_LOG_CAP` (20), so `counts.total` pins at 20 once full and is **not** a lifetime figure — it is the size of the recent window. A rising `counts.stale` against that fixed denominator therefore means the recent failure *rate* is rising. Read as a cumulative tally it says the opposite ("this can only go up"), which is the misreading that motivated this ability on 2026-09-02.
+
+Correlate `rows[].time_iso` against deploy times before blaming the edge: every deploy rewrites site-wide HTML, so a probe whose window straddles a deploy reports `stale` correctly and transiently. `counts` cover current-detector rows only (`algo >= SN_CF_PROBE_ALGO`); older rows are returned but excluded, and `counts_excluded_rows` says how many.
+
+`state: never_probed` is an absence of evidence, never a clean edge. There is no recheck loop — each probe records one verdict and escalates at most once — so a `stale` row describes a past instant, not an ongoing condition. Read-only: probes nothing, purges nothing. Added in v13.86.0.
 
 #### `signal-noise/get-narration`
 **Capability:** `manage_options` | **Category:** diagnostics | **Output root:** object|null

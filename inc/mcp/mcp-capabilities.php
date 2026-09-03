@@ -165,6 +165,7 @@ function sn_mcp_allowlist() {
 		// AI change should be able to settle for itself instead of asking a human
 		// to open wp-admin. Read door 37 → 38.
 		'signal-noise/ai-cache-probe-status',
+		'signal-noise/purge-verification-log',
 		// v13.57.0 — measurement weave Phase 1. Read-only over the stored
 		// Search Console window; the sn-status sources for search_*.
 		'signal-noise/search-performance',

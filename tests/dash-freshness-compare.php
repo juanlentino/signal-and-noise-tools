@@ -37,13 +37,22 @@ $NOW = 1_800_000_000;
 
 // ─── one event, one question ────────────────────────────────────────────────
 ok( 'verified 4 mins ago' === snt_dash_freshness_compare( 'fresh', $NOW - 240, $NOW ), 'fresh: says WHEN it was verified — a true statement about the event the cell is labelled for' );
-ok( 'still stale after 4 mins' === snt_dash_freshness_compare( 'stale', $NOW - 240, $NOW ), 'stale: says so plainly, with how long it has been that way' );
+// v13.86.0 — WAS 'still stale after 4 mins'. There is no recheck: the probe
+// records one verdict, escalates once to a zone purge, and stops. So "still"
+// asserted a PRESENT state nothing had measured, on the strength of a probe
+// taken immediately BEFORE the purge most likely to have fixed it — and it got
+// worse with age, reading "still stale after 1 day" the next morning about an
+// edge nobody had looked at since. The desktop widget already said "Edge
+// served a stale render", past tense, which is why the two surfaces disagreed
+// in tone about one row.
+ok( 'last verdict 4 mins ago' === snt_dash_freshness_compare( 'stale', $NOW - 240, $NOW ), 'stale: reports WHEN the verdict was taken, and claims nothing about now' );
+ok( false === strpos( snt_dash_freshness_compare( 'stale', $NOW - 86400, $NOW ), 'still' ), 'a day-old stale verdict does not claim the edge is STILL stale — nothing rechecked it' );
 ok( 'unread 4 mins ago' === snt_dash_freshness_compare( 'unknown', $NOW - 240, $NOW ), 'unknown is NOT fresh: the probe ran and could not read an answer' );
 
 // ─── THE OWNER RULING: no history in this cell ──────────────────────────────
 foreach ( array( 'fresh', 'stale', 'unknown' ) as $verdict ) {
 	$line = snt_dash_freshness_compare( $verdict, $NOW - 240, $NOW );
-	ok( 0 === preg_match( '/\bof\s+\d+\b|probes|earlier|still stale after \d+ probes/', str_replace( 'still stale after 4 mins', '', $line ) ),
+	ok( 0 === preg_match( '/\bof\s+\d+\b|probes|earlier|still stale after \d+ probes/', str_replace( 'last verdict 4 mins ago', '', $line ) ),
 		"[$verdict] carries no tally over other probes — \"if it's fresh, it is fresh\"" );
 }
 

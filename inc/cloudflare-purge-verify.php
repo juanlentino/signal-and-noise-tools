@@ -38,6 +38,19 @@ const SN_CF_PROBE_DELAY = 120;
 /** Hook name for the scheduled probe. */
 const SN_CF_PROBE_HOOK = 'sn_cf_verify_post_purge';
 
+/**
+ * How many probe outcomes the log retains.
+ *
+ * Named in v13.86.0 because this number is load-bearing for how the summary
+ * READS. `total` pins at this value once the buffer fills, so it is a WINDOW
+ * SIZE, not a lifetime count — and a rising `stale` against a fixed
+ * denominator means the recent failure RATE is rising, not that a tally is
+ * accumulating. Read the other way it says "this can only go up", which is the
+ * opposite conclusion drawn from the same five numbers. As a bare 20 inside
+ * array_slice() nothing could report it, so no reader could tell which it was.
+ */
+const SN_CF_PROBE_LOG_CAP = 20;
+
 /** Option holding the last few probe outcomes, for the Cloudflare tab. */
 const SN_CF_PROBE_LOG_OPT = 'sn_cf_purge_probe_log';
 
@@ -175,7 +188,7 @@ function snt_cf_probe_record( array $entry ) {
 		$log = array();
 	}
 	array_unshift( $log, $entry );
-	update_option( SN_CF_PROBE_LOG_OPT, array_slice( $log, 0, 20 ), false );
+	update_option( SN_CF_PROBE_LOG_OPT, array_slice( $log, 0, SN_CF_PROBE_LOG_CAP ), false );
 }
 
 /**
