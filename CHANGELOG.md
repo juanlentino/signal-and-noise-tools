@@ -2,6 +2,45 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.89.1] - 2026-09-03 — the new check was filed on a surface the tally does not count
+
+v13.89.0 shipped an hour earlier. A fresh scan ran, took 31.8 seconds, and
+reported `checks_total: 8` — exactly what it reported before the check existed.
+
+### The mistake
+
+`sn_health_check_total()` counts `$scan['checks']` AFTER
+`sn_health_scan_for_surface()`, so the health readout counts the `health`
+surface. I filed the check as `integrity`, reasoning that "nothing on the SITE
+is wrong — a measurement stopped arriving".
+
+That misreads the owner's recorded criterion. Health earns a check when its
+finding is a **DEFECT** — not when the defect sits in site content. All three
+tests hold here: a sync running while its history does not grow is broken rather
+than merely improvable; it clears the moment the producer resumes and stays
+clear; and no other surface owns it. `integrity` is the REPORT-ONLY tier
+(`contrast_tokens`, `motion_scan`).
+
+So the check ran, found nothing, and reported to a surface nobody was reading.
+**Both values are legal members of the vocabulary, so nothing failed** — a
+wrong-but-valid enum member is silent in exactly the way an invented one is not.
+
+### What now guards it
+
+`tests/health-check-surfaces.php` pins this check on `health`, with a vacuity
+guard asserting the two report-only checks are still `integrity` — so the
+assertion is about THIS check rather than a blanket "everything is health".
+Reverting to `integrity` reds it.
+
+### The false green underneath
+
+Worth recording: the first mutation run reported both controls passing, and that
+was MY instrument, not the code. This suite's `ok()` prints `"  FAIL $l"` with
+leading spaces; the mutation harness counted `grep -cE '^FAIL'` and matched
+nothing, so "0 failures" meant "I could not see the failures". Counting the
+summary line instead showed 1 and 5. A harness that reads the wrong pattern
+reports calm about a check that reports calm.
+
 ## [13.89.0] - 2026-09-03 — the drift watch stops needing someone to look
 
 Owner: *"Set up the routine or could we do what we did that it's more automatic

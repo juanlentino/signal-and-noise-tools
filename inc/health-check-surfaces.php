@@ -64,9 +64,25 @@ function sn_health_check_surface_map() {
 		// four separate sentences, that it is not counting defects.
 		'contrast_tokens'       => 'integrity',
 		'motion_scan'           => 'integrity',
-		// v13.89.0: INTEGRITY, not worklist — there is no item to action on the
-		// site; the finding is that a measurement stopped arriving.
-		'gsc_history_stalled'   => 'integrity',
+		// v13.89.1 — HEALTH, and v13.89.0 got this wrong. It was filed as
+		// `integrity` on the reasoning that "nothing on the SITE is wrong, a
+		// measurement stopped arriving". That misreads criterion 1 above: it
+		// asks whether the finding is a DEFECT, not whether the defect sits in
+		// site content. All three hold here:
+		//
+		//   1. DEFECT? Yes — the sync running while the history does not grow
+		//      is broken, not merely improvable.
+		//   2. REACHES ZERO AND STAYS? Yes — it clears when the producer
+		//      resumes, and stays clear while it keeps running.
+		//   3. ANOTHER SURFACE OWNS IT? No.
+		//
+		// `integrity` is the REPORT-ONLY tier (contrast_tokens, motion_scan),
+		// so filing here sent a pass/fail check to a surface the health tally
+		// does not count. It ran, found nothing, and never appeared:
+		// checks_total stayed at 8 through a fresh scan. That is how it was
+		// caught, and the assertion in tests/health-check-surfaces.php is what
+		// keeps it caught.
+		'gsc_history_stalled'   => 'health',
 		// These four were ALREADY rendering on Integrity → Trust checks
 		// (v10.47.0 moved them there as "the four trust checks that had been
 		// marooned as rows inside an eighteen-row Health tab") — and were still
