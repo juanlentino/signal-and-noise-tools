@@ -40,6 +40,25 @@ itself — the queries people actually used, beside the topics the corpus covers
 If either member is absent the grid's auto-fit leaves the other at full width, so
 the row degrades to a single panel rather than breaking. Asserted.
 
+### A fourth column primitive, and the guard it was missing
+
+The owner pointed out that Analytics already has the layout. It does: `.sn-2col`,
+`.sn-2up` and `.sn-dash-cols` all predate this. My earlier search found none of
+them because it was scoped to the `sn-an-` PREFIX — measuring the wrong
+population, the same error shape as the top-3 family truncation.
+
+None of the three wraps `.postbox` (they wrap content divs, settings blocks, and
+a main/side pair), so a panel row is still justified. But the comparison caught a
+real bug before it shipped: `.sn-2col__col` carries `min-width: 0` with the
+comment "lets internal tables shrink instead of overflowing", and this row
+contains two tables. A grid item defaults to `min-width: auto` and will not
+shrink below its content's min-content width, so a multi-column table would have
+pushed its track open and broken the row — and `.snt-scroll-table` carries
+`overflow-y` only, so nothing else absorbs it.
+
+Found by reading an existing primitive, not by testing: no local harness renders
+wp-admin, and the chain was stopped mid-flight to add the guard.
+
 ### The row assertion was vacuous until a mutation said so
 
 "Pages by impressions stays OUTSIDE the row" passed against a mutation that moved

@@ -2998,6 +2998,10 @@ a.sn-ops__label:hover, .sn-sys__v[href]:hover { text-decoration: underline; }
    dashboard, which never loads this file. */
 
 /* Side-by-side analytics panels (v13.82.0) — see snt_an_cols_open().
+   A FOURTH column primitive, deliberately: .sn-2col wraps content divs,
+   .sn-2up wraps settings blocks and .sn-dash-cols wraps a main/side pair —
+   none of them wraps .postbox, which needs the margin reset below. The
+   min-width guard is borrowed from .sn-2col__col.
    auto-fit + minmax(min(100%, 360px), 1fr) is the idiom already used by the
    settings fieldsets above: it collapses to one column on a narrow admin screen
    with no media query, and min(100%, …) keeps it from overflowing a container
@@ -3017,4 +3021,12 @@ a.sn-ops__label:hover, .sn-sys__v[href]:hover { text-decoration: underline; }
 }
 .sn-an-cols > .postbox {
 	margin-bottom: 0;
+	/* REQUIRED, not defensive. A grid item defaults to min-width:auto, so it will
+	   not shrink below its content's min-content width — a multi-column table
+	   inside would push its track open and break the row. .snt-scroll-table
+	   carries overflow-Y only, so nothing else absorbs it. This is the same guard
+	   .sn-2col__col states as "lets internal tables shrink instead of
+	   overflowing"; found by comparing against that primitive, not by testing,
+	   because no local harness renders wp-admin. */
+	min-width: 0;
 }
