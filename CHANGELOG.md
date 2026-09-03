@@ -2,6 +2,58 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.89.0] - 2026-09-03 — the drift watch stops needing someone to look
+
+Owner: *"Set up the routine or could we do what we did that it's more automatic
+in code?"* Code, and there was a real instrument to build rather than a timer to
+replace.
+
+### The half nothing watched
+
+`cron_health` reports when `sn_gsc_sync_daily` stops FIRING.
+`snt_gsc_history_append()` returns SILENTLY when the payload carries no window
+end or no page rows. So the sync can keep running while the history stops
+growing — `synced_at` stays fresh, the newest snapshot ages, and `search_drift`
+sits on `accruing`, which reads exactly like "still accumulating".
+
+That ambiguity is what cost a release earlier today: on the day the drift watch
+came due, "one day short" and "the producer stalled" were the same readout.
+v13.88.2 made the state report its span so a human could tell them apart. This
+makes the stall announce itself, so nobody has to look on the right day.
+
+### The check
+
+21st health check: the last sync compared against the newest snapshot. Google's
+data lags two to three days and the sync is daily, so the healthy gap sits
+around 2–3; `SNT_GSC_HISTORY_STALL_DAYS` is 6, generous slack for a slow week at
+Google while still catching a real stall inside one.
+
+Family `analytics`, surface `integrity` — nothing on the SITE is wrong; a
+measurement stopped arriving.
+
+### What it does NOT catch, said out loud
+
+A history that never grew at all. `synced_at` minus the newest snapshot is
+undefined with no snapshots, and flagging an empty history would fire on every
+fresh property Google has not crawled yet. That case is reported by
+`search_drift`'s own `progress.snapshots: 0`. Three distinct SKIPPED reasons —
+module absent, never synced, no snapshots — because a check that could not run
+is not a check that passed.
+
+### Guard notes
+
+The registration contracts caught what the plan missed. A check needs FOUR
+registrations, and I had done one: `health-check-families.php` and
+`health-check-surfaces.php` both run totality pins ("every check in the scan
+registry has an explicit family" / "declares a surface") and both went red.
+Render reports are optional — 3 of 32 checks have one.
+
+One mutation initially failed to red: deleting the empty-history branch falls
+through to the unreadable-window-end skip, which also returns skipped, so an
+assertion checking only "skipped is not null" passed with the branch gone. It
+now asserts the REASON. Five mutations red, including the threshold boundary
+tested one day either side.
+
 ## [13.88.2] - 2026-09-03 — "accruing" says how far off it is
 
 The GSC drift watch came due today. It read `accruing`, which was true and
