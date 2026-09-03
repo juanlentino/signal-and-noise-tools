@@ -104,7 +104,7 @@ function snt_ml_reader_anomalies( $now = null ) {
 		);
 	}
 
-	return array(
+	$out = array(
 		'ok'       => true,
 		'state'    => 'ok',
 		'window'   => array( 'from' => $from, 'to' => $to, 'days' => SN_MR_SERIES_WINDOW ),
@@ -119,6 +119,24 @@ function snt_ml_reader_anomalies( $now = null ) {
 			'silences'          => $silent,
 		),
 	);
+
+	// Record this payload's STRUCTURE, so "has the shape held still?" is a
+	// measurement rather than someone's recollection. Recorded on every real run
+	// rather than from a new cron: the payload is already being produced here, and
+	// a scheduled fetch would add outbound sensor load purely to observe it.
+	// Irregular cadence is safe — sn_shape_stability() gates on span AND count.
+	//
+	// `excluded` is declared OPEN: its keys are family names, so a family crossing
+	// the eligibility floor removes one. That is data moving, not shape moving.
+	if ( function_exists( 'sn_shape_fingerprint' ) && function_exists( 'sn_shape_ledger_record' ) ) {
+		sn_shape_ledger_record(
+			'reader-anomalies',
+			sn_shape_fingerprint( $out, array( 'excluded' ) ),
+			$now
+		);
+	}
+
+	return $out;
 }
 
 /**
