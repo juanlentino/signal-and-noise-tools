@@ -146,17 +146,37 @@
 			return r;
 		}
 
-		// The window is the last 20 recorded verdicts, not a time range — say so
-		// by labelling the total rather than implying "recently".
-		// LABELLED, because these are a different question from the headline.
-		// They count POST-SAVE probes only — pressing Purge no longer writes
-		// here at all, so the figures cannot move because you operated the
-		// thing they measure. Unlabelled, they read as "the state of the purge
-		// I just ran", which is what made a falling count look like progress.
-		list.appendChild( detail( 'Post-save probes', num( summary.total ) ) );
-		list.appendChild( detail( 'Stale (post-save)', stale, stale > 0 ? ERR_FG : '' ) );
+		// v13.87.3 — NO STANDING TALLY. This rendered "Verdicts recorded 20 /
+		// Stale N" on every paint, and that construct was already ruled out on
+		// the sibling surface: the Classic Admin cell answers ONE question about
+		// ONE event, and v13.70.1 removed its running count for the same reason
+		// ("If it's fresh, it is fresh. If it isn't, it shouldn't say.").
+		//
+		// The tally survived here and caused every misreading of 2026-09-02/03.
+		// It climbed when you purged, then fell when you purged, and a falling
+		// count read as progress when it was only a bounded buffer flushing
+		// history. Labelling it "post-save" made the source legible without
+		// making the NUMBER any more useful: "3 checks performed" is not
+		// something anyone acts on at a glance.
+		//
+		// So: bad news only. A stale edit is a real fact worth surfacing the
+		// moment it exists; zero of them is not a fact worth a row. The full
+		// series still has two homes for anyone who wants it — the Cloudflare
+		// tab renders the rows, and signal-noise/purge-verification-log returns
+		// them with counts and per-source splits.
+		var showed = false;
+		if ( stale > 0 ) {
+			list.appendChild( detail( 'Edits served stale', stale, ERR_FG ) );
+			showed = true;
+		}
 		if ( escalated > 0 ) {
 			list.appendChild( detail( 'Zone purges forced', escalated, WARN_FG ) );
+			showed = true;
+		}
+		// Nothing to report is itself the report; an empty hairline rule reads
+		// as a section that failed to load.
+		if ( ! showed ) {
+			list.style.display = 'none';
 		}
 		wrap.appendChild( list );
 
