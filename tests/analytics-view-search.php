@@ -41,6 +41,24 @@ function snt_an_flush_empty_fold() {
 function snt_an_panel_open( $title, $args = array() ) { echo '<div class="postbox"><h2>' . esc_html( $title ) . '</h2><div class="inside">'; }
 function snt_an_panel_close() { echo '</div></div>'; }
 
+// v13.81.0: the KPI strip. Stubbed to render a MARKER carrying the card labels
+// and descriptors, so assertions can read both the values and the ORDER the
+// strip appears in relative to the panel it lives inside.
+$GLOBALS['__kpi'] = null;
+function snt_an_kpi_row( $cards, $opts = array() ) {
+	$GLOBALS['__kpi'] = $cards;
+	echo '<div class="sn-kpi">';
+	foreach ( (array) $cards as $c ) {
+		echo '[' . esc_html( $c['l'] ) . '=' . esc_html( $c['n'] ) . '|' . esc_html( $c['sub'] ?? '' ) . ']';
+	}
+	echo '</div>';
+}
+$GLOBALS['__totals']   = null;
+$GLOBALS['__coverage'] = null;
+function snt_gsc_window_totals() { return $GLOBALS['__totals']; }
+function snt_gsc_coverage_data() { return $GLOBALS['__coverage']; }
+function snt_gsc_coverage_summary( $d, $inbound = null ) { return is_array( $d ) ? $d : null; }
+
 require __DIR__ . '/../inc/analytics-view-search.php';
 
 function render() {
@@ -106,6 +124,59 @@ $GLOBALS['__data']['pages']   = array();
 $out = render();
 ok( false !== strpos( $out, 'sn-an-empty-fold' ), 'empty tables collect notes AND the view flushes them — omitting the flush is what rendered blank' );
 ok( array() === $GLOBALS['__fold'], 'the collector is left empty, so notes cannot leak into the next view' );
+
+
+echo "\nGroup: the KPI strip\n";
+
+$GLOBALS['__configured'] = true; $GLOBALS['__property'] = 'https://x/';
+$GLOBALS['__data'] = array(
+	'property' => 'https://x/', 'synced_at' => 1, 'window' => array( 'start' => '2026-08-03', 'end' => '2026-08-30' ),
+	'queries' => array(), 'pages' => array(),
+);
+$GLOBALS['__totals']   = array( 'clicks' => 3, 'impressions' => 233, 'days' => 28, 'capped' => false );
+$GLOBALS['__coverage'] = array( 'inspected' => 37, 'indexed' => 24, 'not_indexed' => 13 );
+$out = render();
+
+ok( null !== $GLOBALS['__kpi'], 'the strip renders when totals are present' );
+ok( 3 === count( $GLOBALS['__kpi'] ), 'three cards: impressions, clicks, indexed' );
+ok( false !== strpos( $out, '[Impressions=233|over 28 days]' ), 'impressions carries its window length' );
+ok( false !== strpos( $out, '[Clicks=3|1.3% of impressions]' ), 'CTR is the DESCRIPTOR, not a fourth card — it is derived from the two beside it' );
+ok( false !== strpos( $out, '[Indexed=24 of 37|13 not indexed]' ), 'coverage states indexed of inspected' );
+
+// STRUCTURE: the strip sits INSIDE the Window panel, below the caveat. A number
+// read against the wrong window is worse than no number.
+$kpi_at   = strpos( $out, '<div class="sn-kpi">' );
+$caveat   = strpos( $out, 'does NOT follow the date range' );
+$close_at = strpos( $out, '</div></div>', (int) $caveat );
+ok( false !== $kpi_at && $caveat < $kpi_at, 'the strip renders BELOW the window caveat' );
+ok( $kpi_at < $close_at, 'and INSIDE the Window panel, not floating after it' );
+
+// CAPPED is surfaced, not hidden: the page dimension is API-capped at 250 rows,
+// so past that the sum undercounts in a known direction while looking exact.
+$GLOBALS['__totals'] = array( 'clicks' => 3, 'impressions' => 233, 'days' => 28, 'capped' => true );
+$out = render();
+ok( false !== strpos( $out, 'floor' ), 'a capped total says FLOOR rather than presenting as exact' );
+ok( false === strpos( $out, '[Impressions=233|over 28 days]' ), 'and drops the unqualified descriptor' );
+
+// Coverage is OMITTED, not blanked, when it has not synced — it runs weekly.
+$GLOBALS['__totals'] = array( 'clicks' => 3, 'impressions' => 233, 'days' => 28, 'capped' => false );
+$GLOBALS['__coverage'] = null;
+$out = render();
+ok( 2 === count( $GLOBALS['__kpi'] ), 'an unsynced coverage read omits its card rather than showing a blank' );
+ok( false === strpos( $out, 'Indexed' ), 'and nothing named Indexed appears' );
+
+// Zero impressions must not divide by zero.
+$GLOBALS['__totals'] = array( 'clicks' => 0, 'impressions' => 0, 'days' => 28, 'capped' => false );
+$out = render();
+ok( false !== strpos( $out, 'no impressions to divide by' ), 'zero impressions says so instead of computing a CTR' );
+
+// No totals at all: the strip is absent, and the rest of the view still renders.
+$GLOBALS['__totals'] = null;
+$GLOBALS['__kpi']    = null;
+$out = render();
+ok( null === $GLOBALS['__kpi'], 'no totals -> no strip' );
+ok( false !== strpos( $out, 'Window' ), 'and the view still renders its panels' );
+
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );

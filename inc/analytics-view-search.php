@@ -87,6 +87,87 @@ function snt_gsc_render_setup_notice( $message ) {
  *
  * @since 11.19.0
  */
+/**
+ * The window's headline figures, fused INTO the Window panel.
+ *
+ * Inside the panel, not floating above it, and deliberately BELOW the caveat:
+ * these are Google's rolling window, not the range selected above, and a number
+ * read against the wrong window is worse than no number. Login defense fuses its
+ * KPI strip into one postbox the same way.
+ *
+ * Uses the shared snt_an_kpi_row() primitive rather than hand-rolled markup —
+ * the same strip Overview, Sessions and Login defense already render. This view
+ * was the only one owning its own panels and not using it.
+ *
+ * CAPPED is surfaced, not hidden. snt_gsc_window_totals() sums the page
+ * dimension, which the API caps at 250 rows, so past that the total undercounts
+ * in a known direction while presenting as exact. When capped, the descriptor
+ * says floor.
+ *
+ * Cards are OMITTED rather than blanked when their source has not synced:
+ * coverage runs on its own weekly schedule and can legitimately be absent.
+ *
+ * @since 13.81.0
+ * @return void
+ */
+function snt_gsc_render_kpis() {
+	if ( ! function_exists( 'snt_an_kpi_row' ) || ! function_exists( 'snt_gsc_window_totals' ) ) {
+		return;
+	}
+	$t = snt_gsc_window_totals();
+	if ( null === $t ) {
+		return;
+	}
+
+	$impressions = (int) ( $t['impressions'] ?? 0 );
+	$clicks      = (int) ( $t['clicks'] ?? 0 );
+	$days        = (int) ( $t['days'] ?? 0 );
+	$capped      = ! empty( $t['capped'] );
+
+	$cards = array();
+
+	$cards[] = array(
+		'l'   => __( 'Impressions', 'signal-and-noise-tools' ),
+		'n'   => number_format_i18n( $impressions ),
+		'sub' => $capped
+			/* translators: %d: days in the window. */
+			? sprintf( __( 'floor — page dimension capped · %d days', 'signal-and-noise-tools' ), $days )
+			/* translators: %d: days in the window. */
+			: sprintf( __( 'over %d days', 'signal-and-noise-tools' ), $days ),
+	);
+
+	// CTR is stated as the descriptor rather than its own card: it is derived
+	// from the two figures beside it, and a card would imply a third measurement.
+	$ctr = ( $impressions > 0 ) ? ( $clicks / $impressions ) * 100 : null;
+	$cards[] = array(
+		'l'   => __( 'Clicks', 'signal-and-noise-tools' ),
+		'n'   => number_format_i18n( $clicks ),
+		'sub' => ( null === $ctr )
+			? __( 'no impressions to divide by', 'signal-and-noise-tools' )
+			/* translators: %s: click-through rate. */
+			: sprintf( __( '%s%% of impressions', 'signal-and-noise-tools' ), number_format_i18n( round( $ctr, 1 ), 1 ) ),
+	);
+
+	if ( function_exists( 'snt_gsc_coverage_summary' ) && function_exists( 'snt_gsc_coverage_data' ) ) {
+		$cov = snt_gsc_coverage_summary( snt_gsc_coverage_data(), null );
+		if ( is_array( $cov ) && isset( $cov['inspected'], $cov['indexed'] ) && (int) $cov['inspected'] > 0 ) {
+			$cards[] = array(
+				'l'   => __( 'Indexed', 'signal-and-noise-tools' ),
+				'n'   => sprintf(
+					/* translators: 1: indexed count, 2: inspected count. */
+					__( '%1$s of %2$s', 'signal-and-noise-tools' ),
+					number_format_i18n( (int) $cov['indexed'] ),
+					number_format_i18n( (int) $cov['inspected'] )
+				),
+				/* translators: %s: not-indexed count. */
+				'sub' => sprintf( __( '%s not indexed', 'signal-and-noise-tools' ), number_format_i18n( (int) ( $cov['not_indexed'] ?? 0 ) ) ),
+			);
+		}
+	}
+
+	snt_an_kpi_row( $cards, array( 'empty_slot' => 'omit' ) );
+}
+
 function snt_analytics_render_view_search() {
 	$data = function_exists( 'snt_gsc_data' ) ? snt_gsc_data() : null;
 
@@ -127,6 +208,7 @@ function snt_analytics_render_view_search() {
 	printf( esc_html__( 'synced %s ago', 'signal-and-noise-tools' ), esc_html( $age ) );
 	echo '</p>';
 	echo '<p class="description">' . esc_html__( 'This view reports Google\'s own rolling window and does NOT follow the date range selected above — Search Console data is fetched on a schedule, not queried per range. It also ends a few days back on purpose: the most recent days are still being counted, and a fresh zero there is not a measurement.', 'signal-and-noise-tools' ) . '</p>';
+	snt_gsc_render_kpis();
 	snt_an_panel_close();
 
 	$queries = (array) $data['queries'];
