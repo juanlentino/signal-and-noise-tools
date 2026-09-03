@@ -29,6 +29,10 @@ function add_action( ...$a ) { return true; }
 function apply_filters( $t, $v ) { return $v; }
 function human_time_diff( $a, $b = 0 ) { $d = abs( (int) $b - (int) $a ); return $d < 3600 ? intdiv( $d, 60 ) . ' mins' : intdiv( $d, 3600 ) . ' hours'; }
 
+// v13.87.2: load the shared producer too. Classic Admin delegates to it and
+// the OpenStation widget renders the same string out of the summary, so the
+// two surfaces cannot phrase one verdict differently.
+require_once __DIR__ . '/../inc/cloudflare-purge-verify.php';
 require_once __DIR__ . '/../inc/dash-widgets-render.php';
 
 echo "Last-purge compare line — v13.71.1\n\n";
@@ -73,6 +77,24 @@ ok( 1 === preg_match( '/\$fresh\[.last_time.\]/', $src ), 'the cell reads last_t
 $cf = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge.php' );
 ok( false !== strpos( $cf, 'Post-purge probes' ), 'the Cloudflare tab renders the individual rows, so "why were 9 stale?" is answerable' );
 ok( false !== strpos( $cf, 'retired detector' ), 'and a row from the pre-v11.29.1 detector is LABELLED as such — it could only ever say stale, so mixing it in silently would re-tell that lie' );
+
+
+// ── THE TWO SURFACES MUST SAY THE SAME THING (v13.87.2) ──────────────────
+// Owner ruling 2026-09-03. They used to phrase one verdict two ways — "still
+// stale after 4 mins" in Classic Admin beside "Edge served a stale render" in
+// OpenStation — because each built its own sentence. Two implementations
+// agreeing is a coincidence; one producer is the guarantee, so this asserts
+// the delegation rather than the wording.
+foreach ( array( 'fresh', 'stale', 'unknown' ) as $state ) {
+	ok(
+		snt_dash_freshness_compare( $state, $NOW - 240, $NOW ) === snt_cf_freshness_phrase( $state, $NOW - 240, $NOW ),
+		"PARITY: both surfaces render one phrase for '$state'"
+	);
+}
+ok( snt_dash_freshness_compare( 'fresh', 0, $NOW ) === snt_cf_freshness_phrase( 'fresh', 0, $NOW ),
+	'PARITY holds for the no-timestamp case too' );
+ok( '' !== snt_cf_freshness_headline( 'fresh' ) && snt_cf_freshness_headline( 'stale' ) !== snt_cf_freshness_headline( 'fresh' ),
+	'the shared headline distinguishes the states it is asked to distinguish' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

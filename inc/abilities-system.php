@@ -325,39 +325,22 @@ function snt_ability_purge_all_caches( $input ) {
 	// Only a CONFIRMED purge that produced a definite edge reading is recorded:
 	// an unconfirmed or rejected purge measured nothing, and the log's standing
 	// rule is that an outage is a gap in evidence, never a verdict.
-	if ( 'confirmed' === $cf['status'] && array_key_exists( 'edge_fresh', $cf ) && function_exists( 'snt_cf_probe_record' ) ) {
-		// v13.88.0: A NON-FRESH INLINE READING IS NOT A VERDICT. edge_fresh comes
-		// from the theme's probe, which runs in the same request that dispatched
-		// the zone purge and therefore samples one moment of propagation.
-		// Measured: four of eleven manual purges recorded stale that way,
-		// including 04:09:13 fresh then 04:09:42 stale, while every AUTO purge
-		// over the same window resolved fresh — because auto purges take the
-		// theme's deferred cron verify and manual ones were excluded from it.
-		//
-		// Theme v12.18.2 lets a non-resolving manual purge defer too, so the
-		// report corrects itself. This waits for that and records the SETTLED
-		// answer. Recording nothing in the meantime is the log's standing rule:
-		// an absence of evidence is not a verdict.
-		//
-		// `fresh` is recorded at once and never deferred — it saw the new epoch
-		// AT THE EDGE, which cannot be a false positive, and it is what keeps
-		// pressing Purge visibly updating the cell (v13.70.0).
-		if ( ! empty( $cf['edge_fresh'] ) ) {
-			snt_cf_probe_record( array(
-				'time'    => time(),
-				'post_id' => 0, // A zone purge is not about one post.
-				'url'     => function_exists( 'home_url' ) ? home_url( '/' ) : '',
-				'result'  => 'fresh',
-				'source'  => 'manual_zone_purge',
-			) );
-		} elseif ( function_exists( 'snt_cf_schedule_settle' ) ) {
-			$report = get_option( 'sn_last_purge_report', array() );
-			$epoch  = is_array( $report ) ? (int) ( $report['epoch'] ?? 0 ) : 0;
-			if ( $epoch > 0 ) {
-				snt_cf_schedule_settle( $epoch );
-			}
-		}
-	}
+	// v13.87.2: A MANUAL PURGE NO LONGER WRITES TO THE PROBE LOG.
+	//
+	// v13.70.0 added that write so the "Last purge" cell would update when
+	// someone pressed Purge. The need was real; the mechanism polluted a
+	// measurement store with an operator action, and every defect since has
+	// been a consequence — the count climbed when you purged (racing probes
+	// booked as stale), then fell when you purged (each row evicting an older
+	// one), while manual rows squeezed the post-save probes out of a twenty-row
+	// window (10/10 -> 13/7 -> 15/5 on 2026-09-03).
+	//
+	// sn_last_purge_report ALREADY carries this purge's time, epoch and
+	// resolved, and the theme's deferred verify corrects it in place once
+	// propagation finishes. snt_cf_freshness_summary() reads it directly, so
+	// the cell updates on every purge with no copy to keep in step — and the
+	// probe log goes back to being what it has been since v11.10.0: a record of
+	// whether per-post purges clear the edge.
 
 	$ok = true;
 

@@ -230,36 +230,29 @@ function snt_dwx_cell( $label, $value, $compare = '', $dir = '', array $hydrate 
  * @return string
  */
 function snt_dash_freshness_compare( $last, $last_time, $now ) {
+	// v13.87.2: delegates. The OpenStation widget renders the same string from
+	// the same producer, so the two surfaces cannot drift in tone about one
+	// verdict the way they did when each built its own sentence.
+	if ( function_exists( 'snt_cf_freshness_phrase' ) ) {
+		return snt_cf_freshness_phrase( $last, $last_time, $now );
+	}
+	// The module is required by the plugin bootstrap; this only guards the CLI
+	// harnesses that load this file bare.
 	$last_time = (int) $last_time;
 	$now       = (int) $now;
 	if ( $last_time <= 0 || $last_time > $now ) {
-		// No usable timestamp: say that, rather than inventing an age. A future
-		// stamp is a broken clock, not a fresh purge.
 		return __( 'no timing recorded', 'signal-and-noise-tools' );
 	}
 	$ago = function_exists( 'human_time_diff' ) ? human_time_diff( $last_time, $now ) : ( $now - $last_time ) . 's';
 	if ( 'stale' === (string) $last ) {
-		// v13.86.0 — "still stale after 4 mins" ASSERTED A PRESENT STATE THIS
-		// NEVER MEASURED. There is no recheck: snt_cf_verify_post_purge()
-		// probes once, escalates once to a zone purge, records once, and
-		// stops. $ago is the AGE OF THAT ONE VERDICT, so the sentence claimed
-		// the page was stale right now on the strength of a probe taken
-		// immediately BEFORE the purge most likely to have fixed it — and it
-		// degraded with time, reading "still stale after 1 day" the next
-		// morning about an edge nothing had looked at since.
-		//
-		// The desktop widget already had this right ("Edge served a stale
-		// render" — past tense, an event), which is why the two surfaces
-		// disagreed in tone about the same row.
-		/* translators: %s: human-readable age of the probe, e.g. "4 mins" */
+		/* translators: %s: age */
 		return sprintf( __( 'last verdict %s ago', 'signal-and-noise-tools' ), $ago );
 	}
 	if ( 'fresh' === (string) $last ) {
-		/* translators: %s: human-readable age of the probe, e.g. "4 mins" */
+		/* translators: %s: age */
 		return sprintf( __( 'verified %s ago', 'signal-and-noise-tools' ), $ago );
 	}
-	// 'unknown' is not 'fresh'. The probe ran and could not read an answer.
-	/* translators: %s: human-readable age of the probe, e.g. "4 mins" */
+	/* translators: %s: age */
 	return sprintf( __( 'unread %s ago', 'signal-and-noise-tools' ), $ago );
 }
 

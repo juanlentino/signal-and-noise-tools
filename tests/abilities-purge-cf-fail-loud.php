@@ -74,13 +74,6 @@ function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; }
 require __DIR__ . '/../inc/abilities-system.php';
 
 /** Fresh verified report as theme inc/purge-verify.php writes it. */
-/** Spy for the settle scheduler: S9.4b asserts the deferral actually happens. */
-$GLOBALS['__settle_scheduled'] = array();
-function snt_cf_schedule_settle( $epoch, $attempt = 1 ) {
-	$GLOBALS['__settle_scheduled'][] = (int) $epoch;
-	return true;
-}
-
 function seed_report( $cf, $resolved = null, $overrides = array() ) {
 	$report = array_merge( array(
 		'time'  => time(),
@@ -174,63 +167,46 @@ $out = snt_ability_purge_all_caches( null );
 ok( is_wp_error( $out ) && 'snt_helper_unavailable' === $out->get_error_code(), 'S8.1 no theme listener: WP_Error snt_helper_unavailable' );
 $GLOBALS['__has_purge_filter'] = true;
 
-// ─── S9: the manual purge RECORDS ITS VERDICT where the widget reads it ──
-// Owner-reported 2026-09-02: "I purged them, but that didn't change." The
-// dashboard's "Last purge" cell reads SN_CF_PROBE_LOG_OPT, and only the
-// post-save probe ever wrote to it — so a manual zone purge computed a perfectly
-// good edge reading here, discarded it, and left the cell showing a verdict from
-// whenever a Note was last published.
+// ─── S9: a manual purge NEVER writes to the probe log ────────────────────
+//
+// The whole premise of this section inverted in v13.87.2, so it is rewritten
+// rather than adjusted.
+//
+// v13.70.0 answered a real complaint — "I purged them, but that didn't change"
+// — by APPENDING A ROW HERE so the "Last purge" cell would update. The need was
+// real; the mechanism wrote an operator action into a measurement store, and
+// every defect since followed from it:
+//
+//   the count CLIMBED when you purged   (racing inline probes booked as stale)
+//   the count FELL when you purged      (each new row evicting an older one)
+//   manual rows displaced the diagnostic  (10/10 -> 13/7 -> 15/5 on 2026-09-03)
+//
+// Both directions, the number answered "how often did you press Purge?" rather
+// than "do our purges clear the edge?". THE INVARIANT: a diagnostic must not
+// move because you operated the thing it measures.
+//
+// sn_last_purge_report already carries time, epoch and resolved, and the
+// theme's deferred verify corrects it in place. snt_cf_freshness_summary()
+// reads it directly, so the cell still updates on every purge — with no copy to
+// keep in step, and nothing an operator can do to shift the tally.
 $GLOBALS['__cf_configured'] = true;
+
 $GLOBALS['__probe_log'] = array();
 seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ), true );
 $out = snt_ability_purge_all_caches( null );
-ok( 1 === count( $GLOBALS['__probe_log'] ), 'S9.1 a confirmed purge writes exactly one probe-log entry' );
-ok( 'fresh' === ( $GLOBALS['__probe_log'][0]['result'] ?? '' ), 'S9.2 a resolved edge records fresh' );
-ok( 'manual_zone_purge' === ( $GLOBALS['__probe_log'][0]['source'] ?? '' ) && 0 === ( $GLOBALS['__probe_log'][0]['post_id'] ?? -1 ),
-	'S9.3 the entry says WHICH purge produced it, and carries no post id — a zone purge is not about one post' );
+ok( array() === $GLOBALS['__probe_log'], 'S9.1 a RESOLVED manual purge writes nothing to the probe log' );
 
 $GLOBALS['__probe_log'] = array();
-$GLOBALS['__settle_scheduled'] = array();
 seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ), false );
 $out = snt_ability_purge_all_caches( null );
-// v13.88.0 — WAS "records stale". It no longer records anything HERE, and that
-// is the fix rather than a regression.
-//
-// edge_fresh comes from the theme's INLINE probe, which runs in the same
-// request that dispatched the zone purge and so samples one moment of
-// propagation. Measured 2026-09-02/03: four of eleven manual purges booked
-// stale that way — one at 04:09:42, twenty-nine seconds after a fresh at
-// 04:09:13 — while every AUTO purge over the same window resolved fresh,
-// because auto purges take the theme's deferred verify and manual ones were
-// excluded from it.
-//
-// The bad news still reaches the surface; it arrives from the SETTLED report
-// via snt_cf_settle_manual_purge(), which is pinned end to end (including that
-// a genuinely stale edge still records stale) in
-// tests/cloudflare-manual-purge-settle.php.
-ok( array() === $GLOBALS['__probe_log'],
-	'S9.4 a non-fresh INLINE reading records no verdict — it sampled propagation, not the edge' );
-ok( 1 === count( $GLOBALS['__settle_scheduled'] ),
-	'S9.4b instead it schedules the settle check, so the answer arrives once the deferred verify has run' );
-ok( 7 === ( $GLOBALS['__settle_scheduled'][0] ?? 0 ),
-	'S9.4c bound to THIS purge epoch, so a newer purge supersedes it rather than being overwritten' );
+ok( array() === $GLOBALS['__probe_log'], 'S9.2 an UNRESOLVED manual purge writes nothing either — no direction moves the tally' );
 
-// AN UNMEASURED PURGE RECORDS NOTHING. Same rule the post-save probe keeps:
-// an outage is a gap in evidence, never a verdict.
-$GLOBALS['__probe_log'] = array();
-seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ) ); // no `resolved` key at all
-$out = snt_ability_purge_all_caches( null );
-ok( array() === $GLOBALS['__probe_log'], 'S9.5 a confirmed purge with NO edge reading records nothing — never a fabricated fresh' );
-
-$GLOBALS['__probe_log'] = array();
-seed_report( array( 'accepted' => false, 'http' => 403, 'cf_success' => false ), true );
-$out = snt_ability_purge_all_caches( null );
-ok( array() === $GLOBALS['__probe_log'], 'S9.6 a REJECTED purge records nothing — the edge verdict of a purge that never ran is not evidence' );
-
-$GLOBALS['__probe_log'] = array();
-$GLOBALS['__opts'] = array(); // no report at all -> unconfirmed
-$out = snt_ability_purge_all_caches( null );
-ok( array() === $GLOBALS['__probe_log'], 'S9.7 an unconfirmed purge records nothing' );
+// The v13.70.0 need still has to be met, or this is a regression rather than a
+// fix: the surfaces must still learn the verdict of the purge just pressed.
+// They do — snt_cf_freshness_summary() reads sn_last_purge_report directly,
+// which is also why the two surfaces agree by construction. That behaviour is
+// pinned in tests/cloudflare-purge-verify.php, which loads the real summary;
+// this suite stubs snt_cf_probe_record() and so cannot load that file.
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
