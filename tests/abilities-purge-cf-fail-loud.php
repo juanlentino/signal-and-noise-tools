@@ -74,11 +74,22 @@ function home_url( $p = '' ) { return 'https://juanlentino.com' . $p; }
 require __DIR__ . '/../inc/abilities-system.php';
 
 /** Fresh verified report as theme inc/purge-verify.php writes it. */
+/** Spy for the settle scheduler: S9.4b asserts the deferral actually happens. */
+$GLOBALS['__settle_scheduled'] = array();
+function snt_cf_schedule_settle( $epoch, $attempt = 1 ) {
+	$GLOBALS['__settle_scheduled'][] = (int) $epoch;
+	return true;
+}
+
 function seed_report( $cf, $resolved = null, $overrides = array() ) {
 	$report = array_merge( array(
-		'time' => time(),
-		'mode' => 'verified',
-		'legs' => array( 'breeze_file' => true, 'varnish' => array( 'via' => 'cloudways', 'ok' => true ), 'cf' => $cf ),
+		'time'  => time(),
+		'mode'  => 'verified',
+		// v13.88.0: the settle check binds to the purge epoch, so the fixture
+		// has to carry one or the scheduling branch is silently unreachable and
+		// S9.4b would be vacuous.
+		'epoch' => 7,
+		'legs'  => array( 'breeze_file' => true, 'varnish' => array( 'via' => 'cloudways', 'ok' => true ), 'cf' => $cf ),
 	), $overrides );
 	if ( null !== $resolved ) {
 		$report['resolved'] = $resolved;
@@ -116,7 +127,14 @@ seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ), f
 $out = snt_ability_purge_all_caches( null );
 ok( true === ( $out['ok'] ?? null ), 'S4.1 edge-stale: purge itself confirmed, ok stays true' );
 ok( false === ( $out['cloudflare']['edge_fresh'] ?? null ), 'S4.2 edge-stale: edge_fresh=false surfaced' );
-ok( false !== stripos( (string) ( $out['message'] ?? '' ), 'stale' ), 'S4.3 edge-stale: message warns the edge still served a stale render' );
+// v13.88.0 — WAS matching the word "stale". The message no longer uses it,
+// because at that instant the edge was not stale: the purge had not finished
+// propagating. What must survive is that the caller is NOT handed a bare
+// success line, so the assertion now pins the PROPERTY rather than the word.
+$plain_ok = 'All caches purged; Cloudflare zone purge confirmed.';
+ok( (string) ( $out['message'] ?? '' ) !== $plain_ok
+	&& strlen( (string) ( $out['message'] ?? '' ) ) > strlen( $plain_ok ),
+	'S4.3 edge-not-fresh: the message says MORE than the plain success line — the caller is told the edge was not confirmed' );
 
 // ─── S5: configured + CF rejected the purge → ok=false with HTTP code ───
 seed_report( array( 'accepted' => false, 'http' => 403, 'cf_success' => false ), false );
@@ -172,10 +190,30 @@ ok( 'manual_zone_purge' === ( $GLOBALS['__probe_log'][0]['source'] ?? '' ) && 0 
 	'S9.3 the entry says WHICH purge produced it, and carries no post id — a zone purge is not about one post' );
 
 $GLOBALS['__probe_log'] = array();
+$GLOBALS['__settle_scheduled'] = array();
 seed_report( array( 'accepted' => true, 'http' => 200, 'cf_success' => true ), false );
 $out = snt_ability_purge_all_caches( null );
-ok( 1 === count( $GLOBALS['__probe_log'] ) && 'stale' === ( $GLOBALS['__probe_log'][0]['result'] ?? '' ),
-	'S9.4 a confirmed purge whose edge is STILL stale records stale — the bad news reaches the surface too' );
+// v13.88.0 — WAS "records stale". It no longer records anything HERE, and that
+// is the fix rather than a regression.
+//
+// edge_fresh comes from the theme's INLINE probe, which runs in the same
+// request that dispatched the zone purge and so samples one moment of
+// propagation. Measured 2026-09-02/03: four of eleven manual purges booked
+// stale that way — one at 04:09:42, twenty-nine seconds after a fresh at
+// 04:09:13 — while every AUTO purge over the same window resolved fresh,
+// because auto purges take the theme's deferred verify and manual ones were
+// excluded from it.
+//
+// The bad news still reaches the surface; it arrives from the SETTLED report
+// via snt_cf_settle_manual_purge(), which is pinned end to end (including that
+// a genuinely stale edge still records stale) in
+// tests/cloudflare-manual-purge-settle.php.
+ok( array() === $GLOBALS['__probe_log'],
+	'S9.4 a non-fresh INLINE reading records no verdict — it sampled propagation, not the edge' );
+ok( 1 === count( $GLOBALS['__settle_scheduled'] ),
+	'S9.4b instead it schedules the settle check, so the answer arrives once the deferred verify has run' );
+ok( 7 === ( $GLOBALS['__settle_scheduled'][0] ?? 0 ),
+	'S9.4c bound to THIS purge epoch, so a newer purge supersedes it rather than being overwritten' );
 
 // AN UNMEASURED PURGE RECORDS NOTHING. Same rule the post-save probe keeps:
 // an outage is a gap in evidence, never a verdict.
