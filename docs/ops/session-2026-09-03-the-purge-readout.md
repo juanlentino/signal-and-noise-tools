@@ -282,3 +282,117 @@ Plugin **13.88.2**, theme 12.18.2. Nine releases across the two sessions, every
 one verified on the six release checks. Dated items: shape ledger **Sept 10**,
 `search_coverage` **Sept 14**, wave-4 telemetry **Sept 25**, and the OpenStation
 tag whenever it is cut.
+
+---
+
+# Part three — a timer, or a thing that notices
+
+Asked whether to schedule a routine or make it automatic in code, and the answer
+was code — but only because there was something real to instrument. That
+distinction is the whole of this part.
+
+## The half nothing watched
+
+`cron_health` reports when `sn_gsc_sync_daily` stops FIRING.
+`snt_gsc_history_append()` returns SILENTLY on a payload with no window end or
+no page rows. So the sync can run while the history stops growing: `synced_at`
+stays fresh, the newest snapshot ages, and `search_drift` reads `accruing` —
+indistinguishable from "still accumulating".
+
+That is why "check it tomorrow" was the wrong shape of answer. v13.88.2 made the
+state report its span so a human could tell "one day short" from "stalled";
+v13.89.0 made the stall announce itself, so the right day stops mattering.
+
+21st health check: last sync against newest snapshot, threshold 6 days against a
+healthy gap of 2–3. It deliberately does NOT flag a history that never grew —
+undefined against `synced_at`, and it would fire on every fresh property — with
+three distinct SKIPPED reasons, because a check that could not run is not a
+check that passed.
+
+## A check needs four registrations, and then a judgement
+
+The mechanical four are enforced: the scan registry, the family map, the surface
+map, and an optional render report. Two of them I missed and the totality pins
+caught — *"every check in the scan registry has an explicit family"*, *"declares
+a surface"*. Same fail-closed design as the remote-verdict pin earlier in the
+day.
+
+**The fifth step is choosing the surface correctly, and nothing guards it.** I
+filed the check as `integrity`, reasoning "nothing on the SITE is wrong, a
+measurement stopped arriving". `sn_health_check_total()` counts
+`$scan['checks']` AFTER `sn_health_scan_for_surface()`, so the health readout
+counts the `health` surface only. The check ran, found nothing, and reported
+where nobody looks: a fresh 31.8-second scan still said `checks_total: 8`.
+
+The criterion is recorded in the file I was editing and I misread it. Health
+earns a check when its finding is a **DEFECT** — not when the defect sits in
+SITE CONTENT. `integrity` is the REPORT-ONLY tier.
+
+**A wrong-but-VALID enum member is silent** in a way an invented one is not. The
+class-parity guards catch made-up names; nothing catches picking the wrong real
+option. Fixed in v13.89.1, pinned, with a vacuity guard keeping the two
+report-only checks on `integrity` so the assertion is about this check rather
+than "everything is health".
+
+Verified live afterwards: `checks_total` 8 → **9**, `checks_skipped` **0** — it
+ran rather than bailing, which is the assertion worth having, since
+`checks_passed: 9` alone would also be satisfied by a check that quit early.
+
+## The false green underneath the false green
+
+The first mutation run on that fix reported BOTH controls passing. That was my
+instrument, not the code. The suite's `ok()` prints `"  FAIL $l"` with leading
+spaces; my harness counted `grep -cE '^FAIL'` and matched nothing, so "0
+failures" meant "I could not see the failures". Counting the summary line showed
+**1 and 5**.
+
+A mutation harness reading the wrong pattern reports calm about a check that was
+itself reporting calm. Fourth instrument-reading-the-wrong-thing in two days,
+and the only one that was mine rather than the codebase's.
+
+## Registered is not reporting
+
+Between shipping v13.89.0 and seeing it, the health scan is a CACHED artifact
+refreshed daily at 08:00 UTC. The check existed in code the moment the plugin
+updated and could not appear until a scan ran — and `run-health-scan` is not on
+a door I can reach, deliberately, because a scan walks every post and probes
+links.
+
+Same gap as the MCP schema cache earlier: shipping and reporting are separated
+by a cache, and neither the code nor the readout is wrong during the interval.
+
+## OpenStation is ramping
+
+Owner: *"they're ramping up for the next release."* The commit rate says so
+plainly — **1, 1, 1, 10, 6, 14 per day** since v1.1.5 (2026-08-29), 32 commits,
+still untagged.
+
+Three arcs: the App Framework (a window in one `.osx.php`), with Station Home,
+Trash, Preferences and WP Explorer each rebuilt and their *"legacy window
+deleted whole"*; a mobile layer (`wp.os.mode`, phone desks, list windows as
+cards); and multisite site-scoped desktops plus a PWA shell.
+
+**Our exposure is small, and the check that settles it is narrow.**
+`includes/registries/widgets.php` does not appear in the changed-file list at
+all, and `docs/migration-lazy-window-scripts.md` puts us out of scope
+explicitly: window, wallpaper and widget bundles now load on demand, and *"a
+widget registered with `openstation_register_widget()` needs no change at all"*.
+Verified on our side that we register **no native windows**, which is the case
+the migration actually targets, and our palette commands come from
+`assets/command-palette.js`, enqueued normally rather than from a window bundle.
+
+Still unreleased and still ours to watch: **#717**, the `wp.hooks` re-execution
+fix, merged and carried by no tag — so v1.1.5 has the bug today. #702, #703 and
+#705 all shipped in v1.1.5.
+
+One honest non-finding: I tried to scan our widget bundles for module-scope side
+effects with a brace-depth heuristic and it returned inconsistent readings on
+IIFE-wrapped files. Not reported as evidence. The real verification is the compat
+ritual when they tag.
+
+## Where it ended
+
+Plugin **13.89.1**, theme 12.18.2. Twelve releases across the two sessions, each
+verified on the six release checks. Dated: shape ledger **Sept 10**,
+`search_coverage` **Sept 14**, wave-4 telemetry **Sept 25**, and the drift watch
+flipping tomorrow — now with a health check that will say so if it does not.
