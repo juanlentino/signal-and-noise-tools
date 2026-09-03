@@ -71,6 +71,43 @@ function snt_an_panel_close() {
 }
 
 /**
+ * Open a row that lays its child panels side by side.
+ *
+ * Exists because `snt_an_panel_open()` emits no wrapper, and a CSS grid needs a
+ * parent — so panels could only ever stack. Added (v13.82.0) for the Search tab,
+ * where three panels each spent a full width on about a third of a screen's
+ * worth of content: a six-row query table, a two-row topic table, and a
+ * two-paragraph note.
+ *
+ * PAIR BY CONTENT SIZE, not by topic. The defect this fixes is "these panels are
+ * mostly empty", not "these panels are related" — pairing two LARGE panels looks
+ * tidier in a wireframe and reads worse on screen, because long paths and long
+ * tables wrap badly at half width.
+ *
+ * auto-fit + minmax(min(100%, 360px), 1fr) is the responsive idiom already in
+ * assets/admin.css: it collapses to one column on a narrow admin screen with no
+ * media query, and `min(100%, …)` keeps it from overflowing a container narrower
+ * than the floor.
+ *
+ * @since 13.82.0
+ * @return void
+ */
+function snt_an_cols_open() {
+	echo '<div class="sn-an-cols">';
+}
+
+/**
+ * Close a side-by-side row. Separate function rather than a callback so a view
+ * reads top to bottom, the way every panel in this file already does.
+ *
+ * @since 13.82.0
+ * @return void
+ */
+function snt_an_cols_close() {
+	echo '</div>';
+}
+
+/**
  * Render an interpretation callout inside a panel body: a short "read" of the
  * data, drawn ONLY when there is something to say. The inverse of the empty-fold
  * collector: draw-on-content, skip on null/empty. The sentence is plain text (the

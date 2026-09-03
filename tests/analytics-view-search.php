@@ -41,6 +41,13 @@ function snt_an_flush_empty_fold() {
 function snt_an_panel_open( $title, $args = array() ) { echo '<div class="postbox"><h2>' . esc_html( $title ) . '</h2><div class="inside">'; }
 function snt_an_panel_close() { echo '</div></div>'; }
 
+// v13.82.0: the side-by-side row. Stubbed as real markers so assertions can read
+// WHICH panels fell inside the row, not merely that a wrapper was emitted.
+function snt_an_cols_open() { echo '<div class="sn-an-cols">'; }
+function snt_an_cols_close() { echo '</div><!--/cols-->'; }
+$GLOBALS['__topic'] = null;
+function snt_gsc_topic_interest() { return $GLOBALS['__topic']; }
+
 // v13.81.0: the KPI strip. Stubbed to render a MARKER carrying the card labels
 // and descriptors, so assertions can read both the values and the ORDER the
 // strip appears in relative to the panel it lives inside.
@@ -177,6 +184,44 @@ $out = render();
 ok( null === $GLOBALS['__kpi'], 'no totals -> no strip' );
 ok( false !== strpos( $out, 'Window' ), 'and the view still renders its panels' );
 
+
+
+echo "\nGroup: the side-by-side row\n";
+
+$GLOBALS['__configured'] = true; $GLOBALS['__property'] = 'https://x/';
+$GLOBALS['__data'] = array(
+	'property' => 'https://x/', 'synced_at' => 1, 'window' => array( 'start' => '2026-08-03', 'end' => '2026-08-30' ),
+	'queries' => array( array( 'key' => 'provhub', 'clicks' => 0, 'impressions' => 15, 'ctr' => 0, 'position' => 6.2 ) ),
+	// Pages must be NON-EMPTY or the panel never renders and the assertion that
+	// it stays OUTSIDE the row passes through its own `false ===` branch,
+	// proving nothing. Caught by a mutation that moved it inside and stayed green.
+	'pages' => array( '/notes/where-ai-actually-saves-time-in-record-production' => array( 'clicks' => 0, 'impressions' => 3, 'ctr' => 0, 'position' => 6.3 ) ),
+);
+$GLOBALS['__totals'] = array( 'clicks' => 3, 'impressions' => 233, 'days' => 28, 'capped' => false );
+$GLOBALS['__topic']  = array( array( 'topic' => 'stamps', 'notes' => 2, 'impressions' => 0, 'clicks' => 0, 'position' => null ) );
+$out = render();
+
+$open  = strpos( $out, '<div class="sn-an-cols">' );
+$close = strpos( $out, '</div><!--/cols-->' );
+ok( false !== $open && false !== $close, 'the row opens and closes' );
+
+// The PAIRING is the point: both small panels must fall INSIDE the row.
+$q = strpos( $out, 'Top search queries' );
+$t = strpos( $out, 'Search interest by topic' );
+ok( $open < $q && $q < $close, 'Top search queries is inside the row' );
+ok( $open < $t && $t < $close, 'Search interest by topic is inside the row' );
+
+// And the LONG-PATH tables must stay outside it — halving those wraps badly.
+$pages = strpos( $out, 'Pages by impressions' );
+ok( false === $pages || $pages > $close, 'Pages by impressions stays OUTSIDE the row, at full width' );
+
+// The row degrades to one panel rather than breaking when a member is absent.
+$GLOBALS['__topic'] = null;
+$out = render();
+$open  = strpos( $out, '<div class="sn-an-cols">' );
+$close = strpos( $out, '</div><!--/cols-->' );
+ok( false !== $open && false !== $close, 'the row still renders with only one member' );
+ok( false === strpos( $out, 'Search interest by topic</h2>' ), 'and the absent panel emits no heading' );
 
 echo "\n$pass passed, $fail failed\n";
 exit( $fail === 0 ? 0 : 1 );
