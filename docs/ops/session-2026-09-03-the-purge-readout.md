@@ -170,3 +170,115 @@ operated, which is the only shape of evidence that supports "a diagnostic must
 not react to the operator".
 
 Final: plugin **13.87.3**, theme **12.18.2**.
+
+---
+
+# Part two — the instruments nobody could read
+
+The purge arc closed. What followed was the same defect wearing four different
+costumes, and I shipped three of them myself.
+
+## The ledger had a writer and no reader
+
+Asked what was outstanding, I checked rather than recited — and found that
+`sn_shape_stability()`, the function the whole shape-ledger module exists to
+expose, was **called from tests and nowhere else**. No ability, no door, no
+admin surface. v13.84.0 built it, v13.85.0 gave it an hourly writer, and for
+four days it filled correctly into a store nothing could read.
+
+The decision it was built to inform — freezing the `reader-anomalies` payload
+into a remote twin — was reachable only by `wp eval`. Which is the position the
+ledger replaced: a judgement made from recollection.
+
+**That is the same defect `purge-verification-log` was added for the day
+before.** An instrument with no reader reports to nobody. I fixed one and then
+built another.
+
+### The plan missed two contracts; the suite caught both
+
+Adding one ability moved five things beyond the obvious files:
+
+| contract | |
+|---|---|
+| two pinned read-door counts | 30 → 31 |
+| `ability-permission-policy.php` | **exact-set** sweep — reds until listed |
+| `abilities-sn-status.php` | its own copy of the section map |
+| same file | that map's **pinned size**, 19 → 20 ← *missed* |
+| `mcp-remote-verdicts.php` | **totality pin** ← *missed* |
+
+The remote-verdict pin is the good kind of contract, and its docblock says why
+it is a test rather than a document: the remote allowlist could have been "the
+read door minus some", but an exclusion list **fails open** — the next person
+adding a local section silently widens what a phone-reachable path can read.
+Demanding an explicit verdict per section fails closed instead.
+
+`shape_stability` is recorded as NOT twinned, for a reason that is nearly funny:
+this section decides whether a shape is stable enough to freeze *into a remote
+twin*. That question is asked at a laptop in the minutes before cutting a
+contract bump. From a phone there is nothing to do with the answer.
+
+## Then three omissions of the same shape
+
+Used the new reader an hour after shipping it. It said `settling`, 17 of 24
+readings, `since` 02:35. And `since` being recent has two opposite meanings —
+the clock STARTING, or the countdown RESTARTING because the shape moved. The
+first says wait; the second says the payload is still changing and waiting is
+not the answer.
+
+v13.88.1 added `changes[]` and `ever_changed`. Answer: `false` — the clock
+started. Settles **2026-09-10 02:35 UTC**.
+
+Then the GSC drift watch came due and read `accruing`, which was true and
+useless: indistinguishable from "stuck and will never flip" without reading the
+derive source. v13.88.2 made it say `6.0 of 7 days across 7 snapshots` — one day
+short, flipping tomorrow, producer healthy.
+
+Three in one day, and it is one habit:
+
+| version | reported | omitted |
+|---|---|---|
+| v13.87.0 | `algo` | `source` |
+| v13.88.1 | `since` | `changes` |
+| v13.88.2 | `accruing` | its span |
+
+Each time I shipped the *verdict* and left out the field that says how to read
+it. The rule that would have caught all three: **when a payload reports a state,
+ask what a reader needs in order to act on it — not just what the function
+knows.**
+
+## I read the backlog from the middle
+
+Asked twice more whether anything was outstanding, I said no twice. The second
+"wasn't there anything else?" was right: I had read `docs/BACKLOG.md` from
+"Ready to build" downward and skipped the two sections above it, where the
+OpenStation watch lives.
+
+## Headline and exposure pointed opposite ways
+
+OpenStation trunk is **32 commits past v1.1.5**, and the log reads like a compat
+emergency: the App Framework landed and four native windows were rebuilt on it,
+each *"legacy window deleted whole"*. Plus a mobile layer, multisite desktops, a
+PWA shell.
+
+One query settled it. `window.openStationWidgets[ id ]` is unchanged on trunk —
+the churn is in WINDOWS, not widgets, and our seven mount through the widget
+registry. **Reading the release notes would have produced the wrong alarm; the
+registry is the thing to check.**
+
+Live: #717 (the `wp.hooks` re-execution fix) is merged and UNRELEASED, so v1.1.5
+still carries that bug. #702/#703/#705 all shipped in v1.1.5 — the palette
+should now invoke our 19 commands rather than listing them and doing nothing.
+
+## Housekeeping worth naming
+
+A memory still filed the 2026-08-31 extraction survey as "four proposals, none
+yet in the backlog". All four had shipped and the branch was gone. A stale
+memory does not fail loudly — it sends the next session hunting for finished
+work — so it is now marked closed and kept as reference.
+
+## Where it ended
+
+Plugin **13.88.2**, theme 12.18.2. Nine releases across the two sessions, every
+one verified on the six release checks. Dated items: shape ledger **Sept 10**,
+`search_coverage` **Sept 14**, wave-4 telemetry **Sept 25**, and the OpenStation
+tag whenever it is cut.
