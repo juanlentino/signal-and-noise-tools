@@ -207,26 +207,120 @@ function snt_cf_probe_record( array $entry ) {
  * @since 11.29.0
  * @return array{last:string,last_time:int,total:int,stale:int,escalated:int}|null
  */
+/**
+ * The one human sentence describing the last purge verdict.
+ *
+ * SINGLE PRODUCER, both surfaces. The Classic Admin cell and the OpenStation
+ * cache widget used to build this separately — PHP on one side, JavaScript on
+ * the other — so they could and did drift in tone about the same row: one said
+ * "still stale after 4 mins" while the other said "Edge served a stale render".
+ * Owner ruling 2026-09-03: the two surfaces must say the same thing about the
+ * cache, from the authoritative record. Two implementations agreeing is a
+ * coincidence; one implementation is the guarantee.
+ *
+ * @param string $last      fresh|stale|unknown.
+ * @param int    $last_time Unix time of the verdict.
+ * @param int    $now       Unix time now.
+ * @return string
+ */
+function snt_cf_freshness_phrase( $last, $last_time, $now ) {
+	$last_time = (int) $last_time;
+	$now       = (int) $now;
+	if ( $last_time <= 0 || $last_time > $now ) {
+		// No usable timestamp: say that, rather than inventing an age. A future
+		// stamp is a broken clock, not a fresh purge.
+		return __( 'no timing recorded', 'signal-and-noise-tools' );
+	}
+	$ago = function_exists( 'human_time_diff' ) ? human_time_diff( $last_time, $now ) : ( $now - $last_time ) . 's';
+
+	if ( 'stale' === (string) $last ) {
+		/* translators: %s: human-readable age of the verdict, e.g. "4 mins" */
+		return sprintf( __( 'last verdict %s ago', 'signal-and-noise-tools' ), $ago );
+	}
+	if ( 'fresh' === (string) $last ) {
+		/* translators: %s: human-readable age of the verdict, e.g. "4 mins" */
+		return sprintf( __( 'verified %s ago', 'signal-and-noise-tools' ), $ago );
+	}
+	// 'unknown' is not 'fresh'. Something ran and could not read an answer.
+	/* translators: %s: human-readable age of the verdict, e.g. "4 mins" */
+	return sprintf( __( 'unread %s ago', 'signal-and-noise-tools' ), $ago );
+}
+
+/**
+ * The headline noun phrase, shared by both surfaces for the same reason.
+ *
+ * @param string $last fresh|stale|unknown.
+ * @return string
+ */
+function snt_cf_freshness_headline( $last ) {
+	if ( 'stale' === (string) $last ) {
+		return __( 'Edge served a stale render', 'signal-and-noise-tools' );
+	}
+	if ( 'fresh' === (string) $last ) {
+		return __( 'Edge fresh', 'signal-and-noise-tools' );
+	}
+	return __( 'Last verdict unrecognised', 'signal-and-noise-tools' );
+}
+
 function snt_cf_freshness_summary() {
-	$log = get_option( SN_CF_PROBE_LOG_OPT, array() );
-	if ( ! is_array( $log ) || empty( $log ) ) {
-		return null;
+	// ── "LAST PURGE" READS THE AUTHORITATIVE RECORD, NOT A COPY ──────────
+	//
+	// v13.87.2. v13.70.0 needed this cell to update when someone pressed
+	// Purge, and satisfied that by APPENDING A ROW TO THE PROBE LOG — a
+	// measurement store whose job is recording whether post-save purges clear
+	// the edge. Every defect since has been a consequence of that one
+	// duplication:
+	//
+	//   the count climbed when you purged   (racing probes booked as stale)
+	//   the count fell when you purged      (each row evicting an older one)
+	//
+	// Both directions, the number answered "how often did you press Purge?".
+	// Measured 2026-09-03 as presses displaced the diagnostic population:
+	// manual 10 / post-save 10  ->  13 / 7  ->  15 / 5.
+	//
+	// THE INVARIANT: a diagnostic must not move because you operated the thing
+	// it measures. So manual purges no longer write here at all, and this reads
+	// sn_last_purge_report — which already carries time, resolved and epoch,
+	// and which the theme's deferred verify CORRECTS in place once propagation
+	// has finished. Reading the source of truth means there is nothing to keep
+	// in step, and no settle-and-copy machinery to get wrong.
+	$report    = get_option( 'sn_last_purge_report', array() );
+	$last      = 'unknown';
+	$last_time = 0;
+	if ( is_array( $report ) && array_key_exists( 'resolved', $report ) ) {
+		$last = empty( $report['resolved'] ) ? 'stale' : 'fresh';
+		// verified_at when the deferred verify has run, else the purge time.
+		$last_time = (int) ( $report['verified_at'] ?? ( $report['time'] ?? 0 ) );
 	}
 
-	// Keep only verdicts the CURRENT detector produced. An entry with no `algo`
-	// predates the stamp and therefore predates the fix; counting it would put
-	// a broken instrument's readings in the numerator AND the denominator.
+	// ── THE TALLY IS POST-SAVE PROBES ONLY ───────────────────────────────
+	//
+	// Filtered at READ time, not just at write: the log on an upgraded site
+	// still holds manual rows written before this, and counting them would
+	// carry the old defect forward until they aged out.
+	$log     = get_option( SN_CF_PROBE_LOG_OPT, array() );
 	$current = array();
-	foreach ( $log as $entry ) {
-		if ( is_array( $entry ) && (int) ( $entry['algo'] ?? 1 ) >= SN_CF_PROBE_ALGO ) {
+	if ( is_array( $log ) ) {
+		foreach ( $log as $entry ) {
+			if ( ! is_array( $entry ) ) {
+				continue;
+			}
+			// An entry with no `algo` predates the detector fix; counting it
+			// would put a broken instrument in numerator AND denominator.
+			if ( (int) ( $entry['algo'] ?? 1 ) < SN_CF_PROBE_ALGO ) {
+				continue;
+			}
+			if ( 'manual_zone_purge' === ( $entry['source'] ?? '' ) ) {
+				continue;
+			}
 			$current[] = $entry;
 		}
 	}
 
-	// Nothing measured since the repair is NOT MEASURED — never fresh, never
-	// stale. The widget already renders null as "records a verdict after the
-	// next post purge", which is exactly the true statement here.
-	if ( empty( $current ) ) {
+	// Nothing known from either source is NOT a clean edge — it is an absence
+	// of evidence, and the widgets render null as "records a verdict after the
+	// next purge", which is the true statement.
+	if ( 'unknown' === $last && empty( $current ) ) {
 		return null;
 	}
 
@@ -241,14 +335,16 @@ function snt_cf_freshness_summary() {
 		}
 	}
 
-	// snt_cf_probe_record() array_unshifts, so index 0 is the newest.
-	$newest = is_array( $current[0] ) ? $current[0] : array();
-	$result = (string) ( $newest['result'] ?? '' );
-
 	return array(
 		// Anything we do not recognise is `unknown`, never silently `fresh`.
-		'last'      => in_array( $result, array( 'fresh', 'stale' ), true ) ? $result : 'unknown',
-		'last_time' => (int) ( $newest['time'] ?? 0 ),
+		'last'      => in_array( $last, array( 'fresh', 'stale' ), true ) ? $last : 'unknown',
+		'last_time' => $last_time,
+		// Carried IN the summary so every renderer gets the same words without
+		// each computing them. See snt_cf_freshness_phrase().
+		'headline'  => snt_cf_freshness_headline( $last ),
+		'phrase'    => snt_cf_freshness_phrase( $last, $last_time, time() ),
+		// These describe POST-SAVE probes. Pressing Purge cannot move them,
+		// which is the whole point of the split above.
 		'total'     => count( $current ),
 		'stale'     => $stale,
 		'escalated' => $escalated,

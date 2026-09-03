@@ -29,6 +29,15 @@ $GLOBALS['__opts'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__opts'] ) ? $GLOBALS['__opts'][ $k ] : $d; }
 function update_option( $k, $v, $autoload = null ) { $GLOBALS['__opts'][ $k ] = $v; return true; }
 
+// v13.87.2: the module now produces the shared human phrase both surfaces
+// render, so the harness needs the i18n + age helpers it leans on.
+if ( ! function_exists( '__' ) ) {
+	function __( $t, $d = null ) { return $t; }
+}
+if ( ! function_exists( 'human_time_diff' ) ) {
+	function human_time_diff( $from, $to = 0 ) { return ( (int) $to - (int) $from ) . 's'; }
+}
+
 require __DIR__ . '/../inc/cloudflare-purge-verify.php';
 
 echo "Group: staleness decision\n";
@@ -181,9 +190,13 @@ $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
 	array( 'time' =>  900, 'result' => 'stale', 'url' => 'https://x.test/b', 'escalated' => true, 'algo' => SN_CF_PROBE_ALGO ),
 	array( 'time' =>  800, 'result' => 'fresh', 'url' => 'https://x.test/c', 'algo' => SN_CF_PROBE_ALGO ),
 );
+// v13.87.2: `last` comes from the REPORT, not the newest log row — manual
+// purges no longer write here, and the report is what the deferred verify
+// corrects in place.
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 1000, 'epoch' => 7, 'resolved' => true );
 $sum = snt_cf_freshness_summary();
 ok( is_array( $sum ), 'a populated log yields a summary' );
-ok( 'fresh' === $sum['last'], 'the LAST verdict is the newest entry, not the first written' );
+ok( 'fresh' === $sum['last'], 'the LAST verdict comes from the purge report, the authoritative record' );
 ok( 1000 === $sum['last_time'], 'and carries its timestamp' );
 ok( 3 === $sum['total'], 'the window counts every recorded verdict' );
 ok( 1 === $sum['stale'], 'and how many were stale' );
@@ -194,14 +207,18 @@ $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
 	array( 'time' => 2000, 'result' => 'stale', 'url' => 'https://x.test/a', 'algo' => SN_CF_PROBE_ALGO ),
 	array( 'time' => 1000, 'result' => 'fresh', 'url' => 'https://x.test/b', 'algo' => SN_CF_PROBE_ALGO ),
 );
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 2000, 'epoch' => 8, 'resolved' => false );
 $sum = snt_cf_freshness_summary();
-ok( 'stale' === $sum['last'], 'A STALE NEWEST ENTRY IS THE VERDICT, however good the history' );
+ok( 'stale' === $sum['last'], 'AN UNRESOLVED REPORT IS THE VERDICT, however good the probe history' );
 ok( 0 === $sum['escalated'], 'a stale entry that did not escalate is not counted as one' );
 
-// An entry with an unrecognised result is not silently counted as fresh.
+// A report with NO edge reading is unknown, never silently fresh. (v13.87.2:
+// `last` is sourced from the report, so this is where "unrecognised" now lives
+// — a report that recorded no `resolved` key measured nothing.)
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 5, 'epoch' => 11 ); // no `resolved`
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array( array( 'time' => 5, 'result' => 'weird', 'algo' => SN_CF_PROBE_ALGO ) );
 $sum = snt_cf_freshness_summary();
-ok( 'unknown' === $sum['last'], 'an unrecognised result reads as unknown, never as fresh' );
+ok( 'unknown' === $sum['last'], 'a report with no edge reading is unknown, never fresh' );
 
 // ── A MEASUREMENT FROM A BROKEN INSTRUMENT IS NOT A MEASUREMENT ─────────────
 // v11.30.3. Until v11.29.1 this probe compared a CACHED render against a
@@ -220,21 +237,25 @@ ok( 'unknown' === $sum['last'], 'an unrecognised result reads as unknown, never 
 // verdict must read as NOT MEASURED — never as fresh, and never as stale.
 echo "\nGroup: the summary ignores pre-fix verdicts\n";
 
+// Null needs BOTH sources empty now: no verdict in the report AND no current
+// probe rows. Either alone is still information.
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 1000, 'epoch' => 12 ); // no `resolved`
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
 	array( 'result' => 'stale', 'time' => 1000, 'escalated' => true ),
 	array( 'result' => 'stale', 'time' => 900,  'escalated' => true ),
 );
 ok( null === snt_cf_freshness_summary(),
-	'A LOG OF ONLY PRE-FIX ENTRIES SUMMARISES TO NULL — not measured since the detector was repaired' );
+	'ONLY PRE-FIX ENTRIES AND NO REPORT VERDICT SUMMARISES TO NULL — not measured since the detector was repaired' );
 
 // A current-algorithm entry is real evidence and counts.
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
 	array( 'result' => 'fresh', 'time' => 2000, 'algo' => SN_CF_PROBE_ALGO ),
 	array( 'result' => 'stale', 'time' => 1000, 'escalated' => true ),
 );
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 2000, 'epoch' => 9, 'resolved' => true );
 $sum = snt_cf_freshness_summary();
 ok( is_array( $sum ), 'a log containing a current entry summarises' );
-ok( 'fresh' === $sum['last'], 'and the newest CURRENT verdict leads' );
+ok( 'fresh' === $sum['last'], 'and the report supplies the verdict' );
 ok( 1 === $sum['total'], 'THE TOTAL COUNTS ONLY CURRENT-ALGORITHM ENTRIES — 11 known-bad rows are not a denominator' );
 ok( 0 === $sum['stale'], 'and the pre-fix stale rows do not inflate the stale count' );
 ok( 0 === $sum['escalated'], 'nor the escalation count' );
@@ -243,9 +264,10 @@ ok( 0 === $sum['escalated'], 'nor the escalation count' );
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
 	array( 'result' => 'stale', 'time' => 3000, 'escalated' => true, 'algo' => SN_CF_PROBE_ALGO ),
 );
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 3000, 'epoch' => 10, 'resolved' => false );
 $sum2 = snt_cf_freshness_summary();
 ok( 'stale' === $sum2['last'] && 1 === $sum2['stale'] && 1 === $sum2['escalated'],
-	'A REAL STALE VERDICT STILL ALARMS — the filter drops old evidence, not bad news' );
+	'A REAL STALE VERDICT STILL ALARMS — the filters drop old evidence and operator actions, never bad news' );
 
 // And the recorder stamps what produced the entry, or the filter is worthless.
 $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array();
@@ -253,6 +275,39 @@ snt_cf_probe_record( array( 'result' => 'fresh', 'time' => 4000 ) );
 $rec = $GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ][0];
 ok( isset( $rec['algo'] ) && SN_CF_PROBE_ALGO === $rec['algo'],
 	'THE RECORDER STAMPS THE ALGORITHM — without it every new entry reads as pre-fix and the widget never recovers' );
+
+
+// ── v13.87.2: the summary reads the AUTHORITATIVE record ──────────────────
+// Manual purges no longer write here. "Last purge" comes from
+// sn_last_purge_report — which the theme's deferred verify corrects in place —
+// so pressing Purge updates the verdict without touching the diagnostic, and
+// BOTH surfaces render this one derive layer and therefore cannot disagree.
+echo "\nv13.87.2: last-purge from the report, tally from post-save probes\n";
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 1788400000, 'epoch' => 7, 'resolved' => true );
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ]  = array();
+$sum = snt_cf_freshness_summary();
+ok( is_array( $sum ) && 'fresh' === $sum['last'], 'a resolved report reports fresh with NO probe-log rows at all' );
+ok( is_array( $sum ) && 0 === $sum['total'], 'and the post-save tally stays at zero — pressing Purge cannot move it' );
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 1788400000, 'epoch' => 7, 'resolved' => false );
+$sum = snt_cf_freshness_summary();
+ok( is_array( $sum ) && 'stale' === $sum['last'], 'an unresolved report still reports stale — not a fresh-only filter' );
+// verified_at is stamped when the DEFERRED verify runs, and is the honest time
+// for a verdict taken after propagation rather than at the moment of purging.
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 1788400000, 'verified_at' => 1788400075, 'epoch' => 7, 'resolved' => true );
+$sum = snt_cf_freshness_summary();
+ok( 1788400075 === $sum['last_time'], 'last_time prefers verified_at — when the verdict was actually taken' );
+// An upgraded site still holds manual rows written before this. Filtering only
+// at WRITE time would carry the defect forward until they aged out.
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ] = array(
+	array( 'time' => 1788400000, 'result' => 'stale', 'source' => 'manual_zone_purge', 'algo' => SN_CF_PROBE_ALGO ),
+	array( 'time' => 1788399000, 'result' => 'fresh', 'algo' => SN_CF_PROBE_ALGO ),
+);
+$sum = snt_cf_freshness_summary();
+ok( 1 === $sum['total'] && 0 === $sum['stale'], 'LEGACY manual rows are excluded at READ time, not only at write' );
+// Absence of evidence is never a pass.
+$GLOBALS['__opts']['sn_last_purge_report'] = array( 'time' => 1788400000, 'epoch' => 7 ); // no `resolved`
+$GLOBALS['__opts'][ SN_CF_PROBE_LOG_OPT ]  = array();
+ok( null === snt_cf_freshness_summary(), 'nothing known from either source is NULL, never a fabricated fresh' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

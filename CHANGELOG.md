@@ -2,6 +2,69 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.87.2] - 2026-09-03 — the cache readout stops moving when you press Purge
+
+Owner, watching the stale count fall with every purge: *"THAT'S NOT HOW IT'S
+SUPPOSED TO WORK."* Correct, and the previous two releases treated symptoms.
+
+### The cause
+
+v13.70.0 answered a real complaint — "I purged them, but that didn't change" —
+by APPENDING A ROW TO THE PROBE LOG so the "Last purge" cell would update. The
+need was real; the mechanism wrote an operator action into a measurement store.
+Every defect since has been a consequence of that one duplication:
+
+| symptom | mechanism |
+|---|---|
+| the count CLIMBED when you purged | racing inline probes booked as `stale` |
+| the count FELL when you purged | each new row evicting an older one |
+| the diagnostic shrank | manual rows crowding out post-save probes: 10/10 → 13/7 → **15/5** |
+
+Both directions, the number was answering *"how often did you press Purge?"*
+rather than *"do our purges clear the edge?"*.
+
+**THE INVARIANT: a diagnostic must not move because you operated the thing it
+measures.**
+
+### The fix
+
+Manual purges no longer write to the probe log at all.
+`snt_cf_freshness_summary()` reads `sn_last_purge_report` — which already
+carries this purge's time, epoch and resolved, and which the theme's deferred
+verify corrects in place once propagation finishes. Reading the source of truth
+means there is no copy to keep in step.
+
+So the cell still updates on every purge (v13.70.0's actual requirement), and
+the tally — now post-save probes only, filtered at READ time so legacy rows do
+not carry the defect forward — cannot be moved by pressing a button.
+
+`inc/cloudflare-manual-purge-settle.php` is **removed**. It existed only to copy
+a settled verdict into a log that should never have held it. Shipped an hour
+earlier; deleting it is the fix, not a retreat from it.
+
+### Both surfaces now say the same thing
+
+Owner ruling: they must agree, from the authoritative record. They used to
+phrase one verdict two ways — "still stale after 4 mins" in Classic Admin beside
+"Edge served a stale render" in OpenStation — because each built its own
+sentence. `snt_cf_freshness_phrase()` and `snt_cf_freshness_headline()` are now
+the single producers; Classic Admin delegates and the widget renders them out of
+the summary. Two implementations agreeing is a coincidence; one is a guarantee,
+and `tests/dash-freshness-compare.php` pins the delegation rather than the words.
+
+The widget's figures are also labelled **Post-save probes** / **Stale
+(post-save)**. Unlabelled, they read as "the state of the purge I just ran",
+which is what made a falling count look like progress.
+
+### The removal that would have reported itself
+
+Deleting a cron HANDLER does not delete events already scheduled against it. Any
+site that ran v13.87.1 can hold a pending `snt_cf_settle_manual_purge` event
+firing into nothing forever — and this plugin surfaces exactly that as an
+ORPHANED cron, so the removal would have shown up on the dashboard as a defect
+of its own. `inc/settle-cron-cleanup.php` clears it once, with the hook name
+verified against the shipped v13.87.1 tree rather than recalled.
+
 ## [13.87.1] - 2026-09-03 — the purge verdict is recorded once it has SETTLED
 
 The plugin half of the fix in theme v12.18.2. Neither half works alone.

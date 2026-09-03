@@ -99,9 +99,17 @@
 		if ( 'stale' === last ) { dot = ERR_FG; }
 		else if ( 'unknown' === last || escalated > 0 ) { dot = WARN_FG; }
 
-		var headline = 'stale' === last
-			? 'Edge served a stale render'
-			: ( 'unknown' === last ? 'Last verdict unrecognised' : 'Edge fresh' );
+		// v13.87.2: the words come from PHP, one producer for both surfaces.
+		// This widget and the Classic Admin cell used to phrase the same verdict
+		// differently — "Edge served a stale render" beside "still stale after 4
+		// mins" — because each built its own sentence. Owner ruling: the two
+		// must say the same thing about the cache, from the authoritative
+		// record. The local fallbacks below only cover a payload from an older
+		// plugin build.
+		var headline = summary.headline
+			|| ( 'stale' === last
+				? 'Edge served a stale render'
+				: ( 'unknown' === last ? 'Last verdict unrecognised' : 'Edge fresh' ) );
 
 		var row = el( 'div', { style: 'display:flex;align-items:center;gap:8px;' } );
 		row.appendChild( el( 'span', {
@@ -113,7 +121,7 @@
 		} ) );
 		wrap.appendChild( row );
 
-		var when = ago( summary.last_time );
+		var when = summary.phrase || ago( summary.last_time );
 		if ( when ) {
 			wrap.appendChild( el( 'div', {
 				text:  when,
@@ -140,8 +148,13 @@
 
 		// The window is the last 20 recorded verdicts, not a time range — say so
 		// by labelling the total rather than implying "recently".
-		list.appendChild( detail( 'Verdicts recorded', num( summary.total ) ) );
-		list.appendChild( detail( 'Stale', stale, stale > 0 ? ERR_FG : '' ) );
+		// LABELLED, because these are a different question from the headline.
+		// They count POST-SAVE probes only — pressing Purge no longer writes
+		// here at all, so the figures cannot move because you operated the
+		// thing they measure. Unlabelled, they read as "the state of the purge
+		// I just ran", which is what made a falling count look like progress.
+		list.appendChild( detail( 'Post-save probes', num( summary.total ) ) );
+		list.appendChild( detail( 'Stale (post-save)', stale, stale > 0 ? ERR_FG : '' ) );
 		if ( escalated > 0 ) {
 			list.appendChild( detail( 'Zone purges forced', escalated, WARN_FG ) );
 		}
