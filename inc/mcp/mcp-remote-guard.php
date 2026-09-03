@@ -144,6 +144,10 @@ function sn_mcp_remote_verdicts() {
 		// would widen the remote surface to serve a decision that can only be
 		// acted on locally.
 		'shape_stability'      => $out( false, 'The gate for freezing a payload shape into a remote twin — a pre-release check, acted on at a laptop. Nothing to do with the answer from a phone. Local only.' ),
+		// v13.90.0. NOT twinned: acting on a ripe watch means shipping a release
+		// or making an editorial call, neither of which happens from a phone. The
+		// morning brief already carries the same list to the owner's inbox.
+		'watches'              => $out( false, 'What the site is waiting on. Acting on a due watch means a release or an editorial decision, not a phone-side action — and the morning brief already mails the same list. Local only.' ),
 		'search_crossexam'     => $out( true, 'Ratified by the owner 2026-09-01 (v13.67.0): a window-grain agreement verdict — impressions vs search-family fetch counts — with no paths in the payload; the ledger side is counts, not rows. Byte-identical twin.', 'signal-noise/remote-search-crossexam' ),
 		'cron_health'          => $out( true, 'The model the partition asked for (v13.52.0): status + derived summary + overdue evidence, sharing the Site Health overdue rule. Byte-identical twin of a section designed for the phone.', 'signal-noise/remote-cron-health-summary' ),
 		'collector'            => $out( false, 'Analytics collector plumbing state. Operational internals, not a number anyone reads on a phone.' ),

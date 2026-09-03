@@ -144,5 +144,40 @@ ok( false !== strpos( $rendered, 'name="snt_morning_brief_enabled"' ), 'settings
 ok( false !== strpos( $rendered, 'name="snt_morning_brief_test"' ), 'settings render includes a test-send action' );
 ok( false !== strpos( $rendered, 'name="snt_config_drift_acknowledge"' ), 'settings render exposes explicit drift acknowledgement only when needed' );
 
+
+// ─── v13.90.0: watches that have come due ─────────────────────────────────
+// Every other section speaks on every send, including to say "unavailable",
+// because its subject always exists. A watch that is not due has nothing to
+// report, and a daily line saying so would train the reader to skip the
+// paragraph it sits in.
+$base = array( 'health' => null, 'cron' => null, 'uptime' => null, 'deploy' => null, 'drift' => null, 'search' => null, 'watches' => array() );
+
+$quiet = snt_morning_brief_compose( $base );
+// Asserting the MARKER alone was too narrow: a mutation adding "No watches are
+// due." passed, because that string does not contain "Watch due". The property
+// is that the brief says nothing about watches at all.
+ok( false === stripos( $quiet, 'watch' ),
+	'NO ripe watches emits NOTHING about watches — silence is the signal, not a daily "nothing yet"' );
+
+$loud = snt_morning_brief_compose( array_merge( $base, array( 'watches' => array(
+	array( 'id' => 'x', 'label' => 'reader-anomalies remote twin', 'note' => 'unchanged across 26 readings over 7.4 days', 'read' => 'sn-status{shape_stability}' ),
+) ) ) );
+ok( false !== strpos( $loud, 'Watch due — reader-anomalies remote twin' ), 'a ripe watch is named' );
+ok( false !== strpos( $loud, '26 readings' ), 'with the evidence that ripened it, not a restatement of the label' );
+ok( false !== strpos( $loud, 'sn-status{shape_stability}' ), 'and WHERE to read it, so the mail is actionable without a lookup' );
+
+// One sentence per watch, so two ripe watches cannot collapse into one line.
+$two = snt_morning_brief_compose( array_merge( $base, array( 'watches' => array(
+	array( 'id' => 'a', 'label' => 'first', 'note' => 'n1', 'read' => 'r1' ),
+	array( 'id' => 'b', 'label' => 'second', 'note' => 'n2', 'read' => 'r2' ),
+) ) ) );
+ok( 2 === substr_count( $two, 'Watch due —' ), 'each ripe watch gets its own sentence' );
+
+// The subject line must reflect them, or a due watch arrives under a heading
+// that says nothing needs attention.
+$s_quiet = snt_morning_brief_subject( $base );
+$s_loud  = snt_morning_brief_subject( array_merge( $base, array( 'watches' => array( array( 'id' => 'a', 'label' => 'l', 'note' => 'n', 'read' => 'r' ) ) ) ) );
+ok( $s_quiet !== $s_loud, 'a ripe watch changes the SUBJECT — it must not arrive under "nothing needs attention"' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

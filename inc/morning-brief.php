@@ -24,7 +24,7 @@ function snt_morning_brief_enabled() {
 
 /** Collect cached/local readers behind the health, cron, uptime and deploy abilities. */
 function snt_morning_brief_collect() {
-	$data = array( 'health' => null, 'cron' => null, 'uptime' => null, 'deploy' => null, 'drift' => null, 'search' => null );
+	$data = array( 'health' => null, 'cron' => null, 'uptime' => null, 'deploy' => null, 'drift' => null, 'search' => null, 'watches' => array() );
 	if ( function_exists( 'sn_health_last_scan' ) ) {
 		$scan = sn_health_last_scan();
 		if ( is_array( $scan ) ) {
@@ -103,6 +103,9 @@ function snt_morning_brief_collect() {
 		}
 	}
 	if ( function_exists( 'snt_config_drift_status' ) ) { $data['drift'] = snt_config_drift_status(); }
+	// v13.90.0: watches that have COME DUE. Only ripe ones — see inc/watches.php
+	// for why silence is the default rather than a daily "nothing yet".
+	if ( function_exists( 'snt_watches_ripe' ) ) { $data['watches'] = snt_watches_ripe(); }
 	return $data;
 }
 
@@ -169,11 +172,29 @@ function snt_morning_brief_compose( $data ) {
 	if ( $drift && ! empty( $drift['has_drift'] ) ) {
 		$sentences[] = sprintf( 'Configuration drift is present in %d setting%s since the acknowledged snapshot: %d changed, %d added, and %d removed.', $drift['count'], 1 === (int) $drift['count'] ? '' : 's', count( $drift['changed'] ), count( $drift['added'] ), count( $drift['removed'] ) );
 	}
+	// v13.90.0 — WATCHES THAT HAVE COME DUE, and NOTHING when none have.
+	//
+	// Every other section above speaks on every send, including to say
+	// "unavailable", because its subject always exists. A watch is different:
+	// one that is not due has nothing to report, and a daily line saying so
+	// would train the reader to skip the paragraph it sits in. Silence is the
+	// signal — see inc/watches.php.
+	$watches = is_array( $data['watches'] ?? null ) ? $data['watches'] : array();
+	foreach ( $watches as $w ) {
+		$sentences[] = sprintf(
+			/* translators: 1: watch label, 2: its note, 3: where to read it */
+			'Watch due — %1$s: %2$s. Read it with %3$s.',
+			(string) ( $w['label'] ?? $w['id'] ?? 'unnamed watch' ),
+			(string) ( $w['note'] ?? '' ),
+			(string) ( $w['read'] ?? '' )
+		);
+	}
+
 	return "Signal & Noise morning operations brief\n\n" . implode( ' ', $sentences ) . "\n";
 }
 
 function snt_morning_brief_subject( $data, $test = false ) {
-	$attention = (int) ( $data['health']['findings'] ?? 0 ) + (int) ( $data['cron']['orphans'] ?? 0 ) + (int) ( $data['cron']['failed'] ?? 0 ) + (int) ( $data['uptime']['attention'] ?? 0 ) + ( ! empty( $data['drift']['has_drift'] ) ? 1 : 0 );
+	$attention = (int) ( $data['health']['findings'] ?? 0 ) + (int) ( $data['cron']['orphans'] ?? 0 ) + (int) ( $data['cron']['failed'] ?? 0 ) + (int) ( $data['uptime']['attention'] ?? 0 ) + ( ! empty( $data['drift']['has_drift'] ) ? 1 : 0 ) + count( (array) ( $data['watches'] ?? array() ) );
 	$unknown = ! is_array( $data['health'] ?? null ) || ! is_array( $data['cron'] ?? null ) || ! is_array( $data['uptime'] ?? null ) || ! empty( $data['uptime']['error'] ) || ! is_array( $data['deploy'] ?? null );
 	foreach ( array( 'theme', 'plugin' ) as $package ) { $attention += 'available' === ( $data['deploy'][ $package ]['state'] ?? '' ) ? 1 : 0; $unknown = $unknown || 'unknown' === ( $data['deploy'][ $package ]['state'] ?? '' ); }
 	$site = (string) wp_specialchars_decode( get_bloginfo( 'name' ), ENT_QUOTES );

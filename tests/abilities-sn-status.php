@@ -61,7 +61,7 @@ echo "sn_status (consolidated) — plugin v13.1.0\n\n";
 
 // ─── Section map: ten sections, all plugin-namespace sources ───
 $map = snt_sn_status_map();
-ok( 20 === count( $map ), 'the section map has exactly 20 entries (v13.88.0 ADDED shape_stability, the first reader the shape ledger has had; v13.68.0 ADDED inbound_pass; v13.63.0 ADDED search_coverage; v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
+ok( 21 === count( $map ), 'the section map has exactly 21 entries (v13.90.0 ADDED watches, the agent reader beside the morning brief; v13.88.0 ADDED shape_stability, the first reader the shape ledger has had; v13.68.0 ADDED inbound_pass; v13.63.0 ADDED search_coverage; v13.62.0 ADDED family_drift — weave Phase 5; v13.57.0 ADDED search_performance/search_drift/search_crossexam — weave Phase 1; v13.52.0 ADDED cron_health, the model over cron_scheduled/cron_history)' );
 $expected_map = array(
 	'uptime'               => 'signal-noise/uptime-status',
 	'deploy'               => 'signal-noise/get-deploy-status',
@@ -87,6 +87,7 @@ $expected_map = array(
 	'search_coverage'      => 'signal-noise/search-coverage', // v13.63.0
 	'inbound_pass'         => 'signal-noise/inbound-pass',
 	'shape_stability'      => 'signal-noise/shape-stability', // v13.68.0
+	'watches'              => 'signal-noise/watches',
 );
 ok( $expected_map === $map, 'the map matches its sources exactly, in a pinned order' );
 ok( array() === array_filter( $map, static fn( $s ) => strpos( $s, 'signal-noise/' ) !== 0 ), 'every source is a PLUGIN slug — no section crosses into the theme' );
