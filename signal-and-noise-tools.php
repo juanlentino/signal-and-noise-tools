@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.83.0
+ * Version:     13.84.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -301,6 +301,7 @@ require_once SNT_PATH . 'inc/citations-render.php';   // v11.28.0: the public "C
 // orchestrator like every other health check.
 require_once SNT_PATH . 'inc/machine-readers-taxonomy.php'; // v10.79.0: vendor/purpose enums + normalizers (api.php uses them).
 require_once SNT_PATH . 'inc/machine-readers-api.php';
+require_once SNT_PATH . 'inc/shape-ledger.php';       // v13.84.0: generic payload-structure ledger (no WP calls beyond options).
 require_once SNT_PATH . 'inc/mr-series.php';           // v13.76.0: pure daily-series reshape over the sensor's day grain (no WP calls).
 require_once SNT_PATH . 'inc/family-drift.php'; // v13.62.0: weave Phase 5 — weekly enum-drift check (plugin enum vs deployed worker vs two pinned corpora), fail-closed.
 require_once SNT_PATH . 'inc/inbound-pass.php'; // v13.68.0: daily inbound-link pass — judges older→new pairs for notes born with zero inbound links; fail-closed on an unavailable provider.

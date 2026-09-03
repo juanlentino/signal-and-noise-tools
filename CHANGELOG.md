@@ -2,6 +2,62 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.84.0] - 2026-09-02 — the shape ledger: does a payload hold still?
+
+Replaces a scheduled reminder. The `reader-anomalies` remote twin was parked
+behind "wait a week and look", which is the remember-to-check pattern this
+codebase keeps replacing with instruments. Now the question is measured.
+
+### Why it exists
+
+A remote MCP twin copies its origin's `output_schema` BYTE-IDENTICALLY, so
+shipping one FREEZES the local payload shape that day; changing it afterwards
+costs a contract bump plus a worker release. The honest precondition is "this
+structure has not moved in N readings over M days" — until now a memory, not a
+measurement. `reader-anomalies` changed shape five times in one afternoon, which
+is exactly why it waited.
+
+### Generic by construction
+
+Nothing in `inc/shape-ledger.php` knows what any payload is. A subject is a
+string; its open paths are declared by the caller. The next twin candidate reuses
+it unchanged — which is the point, because this decision recurs for every twin.
+
+### STRUCTURE, not content — the whole difficulty
+
+`reader-anomalies` carries an `excluded` map keyed by FAMILY NAME, so a family
+crossing the eligibility floor removes a key. That is data moving, not shape
+moving, and an instrument reporting it weekly is one nobody reads by the second
+month — the same failure the apple-ai exemption was built to stop.
+
+Declared open paths collapse their keys to a wildcard while keeping the union of
+value shapes, so a TYPE change under an open path still registers. The wildcard
+is earned by declaration, never assumed: an undeclared map still compares key by
+key, and a mutation making every map open reds.
+
+Fingerprints are order-independent — map keys sort, and a list folds to the
+sorted UNIQUE set of its elements — so neither key order nor row order can move
+the result, while an optional field appearing on ONE row still can.
+
+### BOTH gates, and a change resets the clock
+
+`settled` requires 7 days AND 24 readings. A span alone passes on two readings a
+week apart, which measures nothing; a count alone passes on thirty readings in an
+hour. The cadence detector learned this in v10.32.0 — a fixed-COUNT window needs
+a wall-clock gate, and the converse holds. Both mutations red.
+
+Never recorded is `unknown`, not unstable: an absent instrument does not get to
+vote either way.
+
+### Recorded on every real run, not from a new cron
+
+The payload is already produced by the pipeline, so a scheduled fetch would add
+outbound sensor load purely to observe it. Irregular cadence is safe precisely
+because the verdict gates on span AND count — gaps cannot fake stability.
+
+Four mutations proved red: assuming the wildcard, dropping either gate, and
+failing to reset the clock on a change.
+
 ## [13.83.0] - 2026-09-02 — a guard on the suites' own shape
 
 Not one of the day's defects was caught by the 543-suite sweep. Four were
