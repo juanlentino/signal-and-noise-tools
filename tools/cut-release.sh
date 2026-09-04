@@ -148,19 +148,33 @@ if [ -n "$PREVIOUS_CUT" ]; then
 fi
 
 # ── 3. root: fresh empty Unreleased, old Unreleased becomes the new cut ──
+# Consolidate duplicate "### X" headings before promoting (#1007). Rule 2 has
+# every PR prepend its own section in its own branch, and at PR time an author
+# cannot see what another open branch will add — so a release landing more than
+# one PR carried "### Fixed" twice into the changelog, the archive, and the
+# GitHub release notes, which are extracted from exactly this block.
+body_tmp="$(mktemp)"
+printf '%s\n' "$UNRELEASED_BODY" | awk -f "$ROOT/tools/lib/consolidate-changelog-sections.awk" > "$body_tmp"
+
 tmp="$(mktemp)"
-awk -v nextver="$NEXT" -v today="$TODAY" -v headline="$HEADLINE" '
+awk -v nextver="$NEXT" -v today="$TODAY" -v headline="$HEADLINE" -v bodyfile="$body_tmp" '
   /^## \[Unreleased\]/ {
     print "## [Unreleased]"
     print ""
-    print "## [" nextver "] - " today " — " headline
+    print "## [" nextver "] - " today " \xe2\x80\x94 " headline
+    print ""
+    while ( ( getline body_line < bodyfile ) > 0 ) { print body_line }
+    close( bodyfile )
+    print ""
     inside_unreleased = 1
     next
   }
   inside_unreleased && /^## \[/ { dropping_previous = 1; inside_unreleased = 0 }
+  inside_unreleased { next }   # the ORIGINAL body lines: replaced by the consolidated copy above
   dropping_previous { next }
   { print }
 ' "$CHANGELOG" > "$tmp" && mv "$tmp" "$CHANGELOG"
+rm -f "$body_tmp"
 
 echo "  edited:"
 echo "    ${PLUGIN_FILE}"
