@@ -71,6 +71,15 @@ function snt_watches() {
 			'ripe'      => 'snt_watch_ripe_ipv6_criterion',
 		),
 		array(
+			'id'        => 'integrity_resweep_after_silent_write',
+			'label'     => 'integrity re-sweep after the post_modified-silent write',
+			'why'       => 'Nine posts had post_content rewritten by a direct DB query on 2026-09-03 without touching post_modified — deliberate, since a closing-tag repair should not make a note look edited. The cost is that the content hash is the ONLY evidence they changed, and the sweep that would notice samples a slice of the fleet per run. Ripe when every subject has been re-checked SINCE that write, so a clean reading means the whole fleet cleared it, not that the nine were never sampled.',
+			'read'      => 'sn-status{provenance_integrity}',
+			'date_only' => false,
+			'due'       => '',
+			'ripe'      => 'snt_watch_ripe_integrity_resweep',
+		),
+		array(
 			'id'        => 'search_coverage_reread',
 			'label'     => 'zero-impression notes',
 			'why'       => 'Thirteen notes were not indexed and thirteen indexed-but-unasked-for. The editorial call needs a second reading, not a bigger sample.',
@@ -88,6 +97,87 @@ function snt_watches() {
 			'due'       => '2026-09-25',
 			'ripe'      => '',
 		),
+	);
+}
+
+/**
+ * The moment the post_modified-silent DB write landed.
+ *
+ * A constant, not an option: this is a fixed historical fact about one
+ * 2026-09-03 maintenance query, and a settable value would let the bar move
+ * under the watch it gates.
+ */
+const SNT_WATCH_SILENT_WRITE_AT = '2026-09-03T23:06:00Z';
+
+/**
+ * Ripe when the integrity sweep has re-checked the WHOLE fleet since the
+ * silent write, so its verdict actually covers the nine rewritten posts.
+ *
+ * WHY FLEET-WIDE AND NOT NINE IDS. The nine were never recorded as ids
+ * anywhere, and a watch that pinned a hand-copied list would answer a
+ * question about that list rather than about the corpus. Coverage is the
+ * honest bar: every subject re-checked after the cutoff. A partial sweep
+ * reporting zero mismatches is NOT evidence — it is the sampling artifact
+ * this watch exists to refuse.
+ *
+ * Reports hash_mismatch specifically. An outage leg (twin_unreachable,
+ * ledger_unreachable) is a gap in evidence, never drift, and is named as
+ * such rather than folded into a pass.
+ *
+ * @param array $watch The watch row.
+ * @param int   $now   Unix timestamp.
+ * @return array{ripe:bool,note:string}
+ */
+function snt_watch_ripe_integrity_resweep( $watch, $now ) {
+	if ( ! defined( 'SN_PROV_INTEGRITY_OPT' ) ) {
+		return array( 'ripe' => false, 'note' => 'integrity store unavailable' );
+	}
+	$state = get_option( SN_PROV_INTEGRITY_OPT );
+	if ( ! is_array( $state ) || empty( $state['notes'] ) || ! is_array( $state['notes'] ) ) {
+		return array( 'ripe' => false, 'note' => 'no sweep has been recorded yet' );
+	}
+
+	$cutoff = strtotime( SNT_WATCH_SILENT_WRITE_AT );
+	$rows   = $state['notes'];
+	$total  = count( $rows );
+	$fresh  = 0;
+	$drift  = array();
+	$outage = 0;
+
+	foreach ( $rows as $pid => $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$checked = strtotime( (string) ( $row['last_checked'] ?? '' ) );
+		if ( ! $checked || $checked < $cutoff ) {
+			continue;
+		}
+		$fresh++;
+		$failures = ( isset( $row['failures'] ) && is_array( $row['failures'] ) ) ? $row['failures'] : array();
+		if ( in_array( 'hash_mismatch', $failures, true ) ) {
+			$drift[] = (int) $pid;
+		} elseif ( array() !== $failures ) {
+			$outage++;
+		}
+	}
+
+	if ( $fresh < $total ) {
+		return array(
+			'ripe' => false,
+			'note' => sprintf( 're-swept %d of %d subjects since the write — a zero here would be a sampling artifact, not a clean bill', $fresh, $total ),
+		);
+	}
+
+	if ( array() !== $drift ) {
+		return array(
+			'ripe' => true,
+			'note' => sprintf( 'fleet re-swept, and %d subject(s) report hash_mismatch: %s', count( $drift ), implode( ', ', $drift ) ),
+		);
+	}
+
+	return array(
+		'ripe' => true,
+		'note' => sprintf( 'fleet re-swept since the write (%d subjects), no hash_mismatch%s', $total, $outage > 0 ? sprintf( ' — %d carry outage legs only, which is missing evidence rather than drift', $outage ) : '' ),
 	);
 }
 
