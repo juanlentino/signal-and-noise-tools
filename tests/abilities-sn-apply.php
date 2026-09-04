@@ -212,6 +212,7 @@ require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6
 require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
+require_once __DIR__ . '/lib/assert-envelope.php'; // shared envelope contract (v13.95.1)
 
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -256,6 +257,7 @@ $r1 = snt_ability_sn_apply( array(
 	// dry_run omitted — must default to true.
 ) );
 ok( ! is_wp_error( $r1 ), 'Test 1.1: dry_run call does not refuse' );
+snt_test_envelope_dry_run( $r1, 'ok', 'eq', 'Test 1.1b' );
 eq( false, $r1['applied'] ?? null, 'Test 1.2: applied:false' );
 ok( is_array( $r1['diff'] ) && ( $r1['diff']['after'] ?? '' ) !== '', 'Test 1.3: a diff was produced' );
 eq( 0, tf_total_writes(), 'Test 1.4: ZERO writes across every write primitive (wp_update_post/update_post_meta/_wp_put_post_revision/update_option/set_transient)' );
@@ -304,6 +306,11 @@ ok( is_array( $decoded2 ), 'Test 2.3: refusal content is JSON-decodable (actiona
 eq( false, $decoded2['gates']['fingerprint']['passed'], 'Test 2.4: gates.fingerprint.passed = false' );
 eq( $fp_200, $decoded2['gates']['fingerprint']['observed'], 'Test 2.5: gates.fingerprint.observed = the CURRENT fingerprint (re-derivable without a second lookup)' );
 ok( isset( $decoded2['gates']['validation'] ) && isset( $decoded2['gates']['capability'] ) && isset( $decoded2['gates']['idempotency'] ), 'Test 2.6: every gate reports even though fingerprint failed first' );
+// Shared envelope contract. Here the hashes genuinely DIFFER, so the
+// v13.95.1 fingerprint pin correctly does not fire - that pin only applies
+// when expected === observed, which is what made reporting it as failed a
+// contradiction.
+snt_test_envelope_refusal( $r2, 'snt_sn_apply_fingerprint_stale', 'ok', 'eq', 'Test 2.7' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * ACCEPTANCE TEST 3: a proposal carrying a validation error → refusal at
@@ -320,6 +327,7 @@ eq( 422, (int) ( $r3->get_error_data()['status'] ?? 0 ), 'Test 3.2: status 422' 
 $decoded3 = json_decode( $r3->get_error_message(), true );
 eq( true, $decoded3['gates']['fingerprint']['passed'], 'Test 3.3: gate 1 (fingerprint) PASSED — alt_text has no scheme, always trivially passes' );
 eq( false, $decoded3['gates']['validation']['passed'], 'Test 3.4: gate 2 (validation) FAILED' );
+snt_test_envelope_refusal( $r3, 'snt_sn_apply_validation_failed', 'ok', 'eq', 'Test 3.6' );
 ok( ! empty( $decoded3['gates']['validation']['findings'] ), 'Test 3.5: findings array is non-empty' );
 $has_error_sev = false;
 foreach ( $decoded3['gates']['validation']['findings'] as $f ) { if ( 'error' === ( $f['severity'] ?? '' ) ) { $has_error_sev = true; } }

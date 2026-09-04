@@ -164,6 +164,20 @@ jobs:
         # counted two fatally-crashed suites as green, because a dead suite emits
         # no summary line to fail on. The script's header tells that story.
         run: bash tests/run.sh
+      # tests/lib/ is NOT swept: tests/run.sh globs tests/*.php non-recursively,
+      # so a helper living there runs only through the suites that require it.
+      # Its own contract needs its own gate - the same shape
+      # tools/stub-parity.php --self-test already uses.
+      #
+      # What it proves: the helper REJECTS the v13.95.1 envelope (a refusal that
+      # read as a benign success) and ACCEPTS the corrected one. A helper that
+      # accepted both would be an assertion-shaped no-op wired into four suites.
+      #
+      # Only on this job, not php-matrix: the helper is pure PHP with no
+      # version-dependent behaviour, so running it per matrix lane would bill
+      # the same proof several times over.
+      - name: Envelope assertion helper self-test
+        run: php tests/lib/assert-envelope.php --self-test
 
   php-matrix:
     name: PHP ${{ matrix.php }} — ${{ matrix.label }}
