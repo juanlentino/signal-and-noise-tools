@@ -175,6 +175,50 @@ function sn_edge_status_bucket( $status ) {
 }
 
 /**
+ * Map 5xx rows onto the two dimensions worth storing (#1002).
+ *
+ * PURE, and separate from the rollup, because the rollup can only be exercised
+ * through a stubbed database — the first version of this lived inline and every
+ * assertion about it read zero rows, which looked like a broken feature and was
+ * a test reading the wrong side of a DB stub.
+ *
+ *   err_path    which URLs failed
+ *   err_source  WHO answered. `edge=503 origin=503` is the origin, or the cache
+ *               in front of it, failing. `edge=503 origin=-` is Cloudflare or a
+ *               Worker answering by itself. That distinction is the one datum
+ *               eight external reproduction attempts could not produce.
+ *
+ * An absent origin status renders as `-`, never 0: it means nothing upstream
+ * answered, and a 0 in a column of status codes reads as a status code.
+ *
+ * @since 13.96.3
+ * @param array $rows GraphQL `errors` groups.
+ * @return array<string,array<string,int>> dim => value => corrected requests.
+ */
+function sn_edge_errors_dims( array $rows ) {
+	$out = array();
+	foreach ( $rows as $g ) {
+		$d    = is_array( $g['dimensions'] ?? null ) ? $g['dimensions'] : array();
+		$path = (string) ( $d['clientRequestPath'] ?? '' );
+		if ( '' === $path ) {
+			continue;
+		}
+		$req   = function_exists( 'sn_edge_corrected' ) ? sn_edge_corrected( $g ) : (int) ( $g['count'] ?? 0 );
+		$edge  = (int) ( $d['edgeResponseStatus'] ?? 0 );
+		$orig  = isset( $d['originResponseStatus'] ) && (int) $d['originResponseStatus'] > 0
+			? (string) (int) $d['originResponseStatus']
+			: '-';
+		$cache = (string) ( $d['cacheStatus'] ?? '' );
+
+		$out['err_path'][ $path ] = ( $out['err_path'][ $path ] ?? 0 ) + $req;
+		$src = 'edge=' . $edge . ' origin=' . $orig . ( '' !== $cache ? ' cache=' . $cache : '' );
+		$out['err_source'][ $src ] = ( $out['err_source'][ $src ] ?? 0 ) + $req;
+	}
+
+	return $out;
+}
+
+/**
  * Daily rollup: pull the exact 1dGroups window + the trailing adaptive snapshot
  * (24h, clamped to the node's discovered retention), parse, and upsert. Dormant when
  * unconfigured; per-dataset failure (null) is skipped.
@@ -299,6 +343,26 @@ function sn_edge_run_rollup( $today = null ) {
 			$marg['atk_path'][ $path ] = ( $marg['atk_path'][ $path ] ?? 0 ) + sn_edge_corrected( $g );
 		}
 		foreach ( $marg as $dim => $vals ) {
+			foreach ( $vals as $val => $req ) {
+				$dim_rows[] = array( 'day' => $today, 'dim' => $dim, 'value' => (string) $val, 'requests' => (int) $req, 'bytes' => 0 );
+			}
+		}
+	}
+
+	// 5. Server-error pressure (#1002). Its OWN query, so an unknown field here
+	// cannot take the doors/probes collection down with it, and a failure leaves
+	// the rest of this rollup intact.
+	//
+	// Two dimensions, because the counts alone answer the wrong question:
+	//   err_path   which URLs failed
+	//   err_source WHO answered — `edge=503 origin=503` is the origin (or the
+	//              cache in front of it) failing; `edge=503 origin=-` is
+	//              Cloudflare or a Worker answering by itself.
+	// That second one is the datum eight external reproduction attempts could
+	// not produce, which is the whole reason this section exists.
+	$errz = sn_edge_query( sn_edge_errors_query(), array( 'from' => $since ) );
+	if ( is_array( $errz ) ) {
+		foreach ( sn_edge_errors_dims( (array) ( $errz['errors'] ?? array() ) ) as $dim => $vals ) {
 			foreach ( $vals as $val => $req ) {
 				$dim_rows[] = array( 'day' => $today, 'dim' => $dim, 'value' => (string) $val, 'requests' => (int) $req, 'bytes' => 0 );
 			}

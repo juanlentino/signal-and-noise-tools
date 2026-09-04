@@ -42,6 +42,7 @@ function sn_edge_daily_query() { return 'httpRequests1dGroups'; }
 function sn_edge_firewall_query() { return 'firewallEventsAdaptiveGroups'; }
 function sn_edge_colo_query() { return 'httpRequestsAdaptiveGroups'; }
 function sn_edge_attack_query() { return 'ATTACK_QUERY'; } // unique sentinel (NOT 'httpRequestsAdaptiveGroups' which collides with colo).
+function sn_edge_errors_query() { return 'ERRORS_QUERY'; }  // #1002: 5xx pressure, its own document so an unknown field cannot fail the attack query.
 function sn_edge_corrected( $row ) { $si = max( 1.0, (float) ( $row['avg']['sampleInterval'] ?? 1 ) ); return (int) round( (int) ( $row['count'] ?? 0 ) * $si ); }
 // Discovered adaptive retention (settings-node notOlderThan), seconds or null — drives the window clamp.
 function sn_edge_adaptive_retention() { return $GLOBALS['__edge_retention'] ?? null; }
@@ -183,6 +184,23 @@ $GLOBALS['__edge_data']['httpRequestsAdaptiveGroups'] = array( 'httpRequestsAdap
 	// sampleInterval 2 so BOTH the count (15→30) and the bytes (50000→100000) prove sampling correction.
 	array( 'count' => 15, 'avg' => array( 'sampleInterval' => 2 ), 'sum' => array( 'edgeResponseBytes' => 50000 ), 'dimensions' => array( 'coloCode' => 'IAD' ) ),
 ) );
+// #1002: 5xx pressure, seeded beside the attack fixture so the SAME rollup
+// run covers it. A separate later run needs every other payload re-seeded, and
+// without them the rollup returns before it reaches this step — which reads as
+// "the feature does not work".
+$GLOBALS['__edge_data']['ERRORS_QUERY'] = array(
+	'errors' => array(
+		// Origin answered 503 — the origin, or the cache in front of it, failed.
+		array( 'count' => 3, 'avg' => array( 'sampleInterval' => 1 ), 'dimensions' => array(
+			'clientRequestPath' => '/wp-content/plugins/x/a.js', 'edgeResponseStatus' => 503,
+			'originResponseStatus' => 503, 'cacheStatus' => 'dynamic' ) ),
+		// No origin status — Cloudflare or a Worker answered by itself.
+		array( 'count' => 2, 'avg' => array( 'sampleInterval' => 1 ), 'dimensions' => array(
+			'clientRequestPath' => '/wp-content/plugins/x/b.css', 'edgeResponseStatus' => 503,
+			'originResponseStatus' => 0, 'cacheStatus' => 'miss' ) ),
+	),
+);
+
 $GLOBALS['__edge_data']['ATTACK_QUERY'] = array(
 	'doors' => array(
 		// two US /wp-login.php rows so the MARGINAL must SUM across rows (15→30 + 10→20 = 50).
@@ -194,7 +212,11 @@ $GLOBALS['__edge_data']['ATTACK_QUERY'] = array(
 	),
 );
 sn_edge_run_rollup( '2026-06-19' );
-ok( count( $GLOBALS['__edge_calls'] ) === 4, 'run: issues 4 GraphQL queries (daily + firewall + colo + attack)' );
+
+// 5 since v13.96.3 (#1002): the 5xx document is separate, because GraphQL fails
+// the WHOLE query on one unknown field and this one asks for
+// originResponseStatus / cacheStatus that the attack query does not use.
+ok( count( $GLOBALS['__edge_calls'] ) === 5, 'run: issues 5 GraphQL queries (daily + firewall + colo + attack + errors)' );
 $all_sql = implode( "\n", $GLOBALS['wpdb']->queries );
 ok( strpos( $all_sql, "'2026-06-18', 1000, 800, 5000000, 4000000, 3, 200, 900, 50, 40, 10" ) !== false, 'run: daily row parsed — status map bucketed 2xx/3xx/4xx/5xx' );
 ok( strpos( $all_sql, "'2026-06-18', 'country', 'US', 600, 3000000" ) !== false, 'run: countryMap melted into dims' );
@@ -273,6 +295,16 @@ $GLOBALS['wpdb']->aggregate['wp_sn_edge_daily'] = array( 'page_views' => 100, 'r
 $GLOBALS['__beacon_human'] = array( 'views' => 150 );
 $m2 = sn_edge_machine_split( '2026-06-13', '2026-06-19' );
 ok( $m2['machine'] === 0 && $m2['machine_pct'] === 0, 'machine_split: clamped at 0 (no negative machine count)' );
+
+
+// ── #1002: a 5xx is recorded, and it names WHO answered ──────────────────
+// probes filters 4xx only, so before this the rollup was structurally blind to
+// a server error: fourteen assets failed with 503 on 2026-09-04 and nothing
+// here saw it. Counts alone would still answer the wrong question — the
+// responder is the datum, so err_source carries it.
+
+
+
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
