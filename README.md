@@ -51,4 +51,13 @@ Distributed via GitHub releases. Install/update through **wp-admin → Dashboard
 
 ---
 
-<sub>Built for [juanlentino.com](https://juanlentino.com). Full release history in [CHANGELOG.md](CHANGELOG.md).</sub>
+## Release log
+
+[CHANGELOG.md](CHANGELOG.md) carries `## [Unreleased]` and the current release
+only; everything older is in [docs/changelog/](docs/changelog/). A pull request
+does not bump `Version` and does not tag — it closes an issue and adds a bullet
+under Unreleased. Cutting a release is a separate, deliberate act:
+`tools/cut-release.sh patch|minor|major "headline"` (add `--dry-run` to see what
+it would touch).
+
+<sub>Built for [juanlentino.com](https://juanlentino.com).</sub>
