@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.96.4] - 2026-09-04 — a window is not a contract
+
 ### Fixed
 - The installed PWA's home-screen tile is no longer a black square. OpenStation
   builds the manifest from the WordPress Site Icon when one is set, and measured
@@ -32,6 +34,17 @@ adds a bullet below. A release is a separate, deliberate act:
   post-settings fields (1,2,1) outranked it, and `prov-verify.css` is a front-end
   sheet where core's admin CSS never loads and which had no 782px block at all.
   Desktop sizes are unchanged. (#1018)
+- Five admin surfaces now meet core's list-table responsive contract instead of
+  only claiming it. At `max-width: 782px` core turns every `.wp-list-table` row
+  into a flex container sized by `column-primary` and labels each cell from its
+  `data-colname` — which the bot-networks, cache-probe, anchor-status,
+  scheduled-content and tag-consolidation tables never emitted, so on a phone
+  the header painted over the first cell and "Path" over "/notes" read as
+  `Paothes`. They now emit both, so they stack and label like every other table
+  rather than losing the chrome. The anchor-status table's rows are built in
+  JavaScript, so `assets/provenance-admin.js` carries the same two attributes.
+  The one-cell "No scheduled content" notice has no columns to stack and drops
+  the class instead. (#1015)
 
 ### Internal
 - `tests/ios-form-zoom-guard.php` derives its control population from the MARKUP
@@ -53,21 +66,6 @@ adds a bullet below. A release is a separate, deliberate act:
   real dimensions and colour type against what the manifest declares. The defect
   was a manifest that DESCRIBED its icons wrongly, so a test asserting only that
   four entries exist would have passed against the broken one. (#1017)
-
-### Fixed
-- Five admin surfaces now meet core's list-table responsive contract instead of
-  only claiming it. At `max-width: 782px` core turns every `.wp-list-table` row
-  into a flex container sized by `column-primary` and labels each cell from its
-  `data-colname` — which the bot-networks, cache-probe, anchor-status,
-  scheduled-content and tag-consolidation tables never emitted, so on a phone
-  the header painted over the first cell and "Path" over "/notes" read as
-  `Paothes`. They now emit both, so they stack and label like every other table
-  rather than losing the chrome. The anchor-status table's rows are built in
-  JavaScript, so `assets/provenance-admin.js` carries the same two attributes.
-  The one-cell "No scheduled content" notice has no columns to stack and drops
-  the class instead. (#1015)
-
-### Internal
 - `tests/admin-table-mobile-contract.php` pins the contract, and its docblock
   records why it is scoped to the FILE. The first audit used a 60-line window
   *forward* from each `<table>` tag and reported eight violations; three were
@@ -85,16 +83,4 @@ adds a bullet below. A release is a separate, deliberate act:
   now pinned in `tests/schedule-admin.php` against the RENDERED markup instead.
   All new assertions were run against the pre-fix commit and go red there.
   (#1015)
-
-## [13.96.3] - 2026-09-04 — the instrument that could not see a server error
-
-### Fixed
-- Edge analytics can see a 5xx. The attack-surface probe filters
-  `edgeResponseStatus_geq:400 … _leq:499`, so our own reporting was
-  structurally blind to a server error — fourteen assets failed with HTTP 503
-  and nothing recorded it. A separate query now collects 5xx as `err_path` and
-  `err_source`, the latter carrying `originResponseStatus` so the responder is
-  named: `edge=503 origin=503` is the origin failing, `edge=503 origin=-` is
-  Cloudflare or a Worker answering alone. The 4xx probe is unchanged — a server
-  error is not scan pressure. (#1002)
 
