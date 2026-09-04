@@ -15,8 +15,8 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
     exit;
 }
 
-$inc_dir = __DIR__ . '/../inc';
-$files   = glob( $inc_dir . '/*.php' );
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
+$files = snt_test_inc_files();
 
 $pass = 0;
 $fail = 0;
@@ -40,7 +40,12 @@ foreach ( $files as $file ) {
 
 if ( 0 === $fail ) {
     $pass++;
-    echo "PASS: no banned inline styles in inc/*.php\n";
+    // Report the POPULATION, not just the verdict. This guard used to print
+    // "no banned inline styles in inc/*.php" over the top level alone, which
+    // read as a statement about inc/ and was a statement about 428 of its 514
+    // files (#987). A verdict whose scope is invisible cannot be audited.
+    echo 'PASS: no banned inline styles in ' . count( $files ) . ' PHP files under inc/ ('
+        . count( snt_test_inc_packages() ) . " packages walked)\n";
 }
 
 echo "\n--- $pass passed, $fail failed ---\n";

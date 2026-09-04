@@ -26,6 +26,7 @@
  * Run: php tests/abilities-categories.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 
 $pass = 0; $fail = 0;
@@ -121,7 +122,7 @@ ok_eq( 6, count( $GLOBALS['__acg_register_calls'] ), 'a second hook fire makes Z
 // unregistered category now fails this suite instead of the live site.
 echo "\nGroup D: every category cited by any abilities file is registered\n";
 $cited = array();
-foreach ( glob( __DIR__ . '/../inc/abilities-*.php' ) as $abilities_file ) {
+foreach ( snt_test_inc_files( 'abilities-*.php' ) as $abilities_file ) {
 	if ( preg_match_all( "/'category'\s*=>\s*'([a-z0-9-]+)'/", (string) file_get_contents( $abilities_file ), $m ) ) {
 		foreach ( $m[1] as $slug ) { $cited[ $slug ][] = basename( $abilities_file ); }
 	}
@@ -148,7 +149,7 @@ foreach ( $cited as $slug => $files ) {
 // write ability's schema shape now fails this suite instead of the live site.
 echo "\nGroup E: every no-required readonly ability declares the [object,null] input union\n";
 $acg_sites = array();
-foreach ( glob( __DIR__ . '/../inc/*.php' ) as $acg_file ) {
+foreach ( snt_test_inc_files() as $acg_file ) {
 	$acg_src    = (string) file_get_contents( $acg_file );
 	$acg_offset = 0;
 	while ( preg_match( "/wp_register_ability\(\s*'([^']+)'/", $acg_src, $acg_m, PREG_OFFSET_CAPTURE, $acg_offset ) ) {

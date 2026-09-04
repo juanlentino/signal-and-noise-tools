@@ -23,6 +23,7 @@
  *      against the real registration calls in inc/.
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 
 $GLOBALS['__actions'] = array(); $GLOBALS['__widgets'] = array();
@@ -110,7 +111,7 @@ foreach ( $expect as $id => $subject ) {
 // against the actual wp_register_ability() calls rather than a hand list.
 echo "\nEvery declared ability actually exists\n";
 $registered = array();
-foreach ( glob( __DIR__ . '/../inc/*.php' ) as $f ) {
+foreach ( snt_test_inc_files() as $f ) {
 	if ( preg_match_all( "#wp_register_ability\(\s*'([^']+)'#", (string) file_get_contents( $f ), $m ) ) {
 		foreach ( $m[1] as $n ) { $registered[ $n ] = true; }
 	}
@@ -140,7 +141,7 @@ foreach ( $declared as $name => $box_id ) {
 // path must appear as a property in that ability's own registration block.
 echo "\nEvery declared field path names a real top-level property\n";
 $src_by_ability = array();
-foreach ( glob( __DIR__ . '/../inc/*.php' ) as $f ) {
+foreach ( snt_test_inc_files() as $f ) {
 	$src = (string) file_get_contents( $f );
 	foreach ( array_keys( $declared ) as $name ) {
 		$i = strpos( $src, "wp_register_ability( '" . $name . "'" );

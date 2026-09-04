@@ -15,14 +15,18 @@
 
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
+
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 $root  = dirname( __DIR__ );
-$files = array_merge(
-	glob( $root . '/inc/*.php' ) ?: array(),
-	glob( $root . '/inc/admin-forms/*.php' ) ?: array()
-);
+// Was `inc/*.php` merged with a HAND-LISTED `inc/admin-forms/*.php`. That list
+// was correct when written and admin-forms was the only package; five more were
+// created since and 71 files silently left this guard's reach (#987). The size
+// check below never noticed - 443 files clears "> 100" as easily as 514 does,
+// which is why the population is now walked instead of listed.
+$files = snt_test_inc_files();
 
 echo "Group: the scan is not vacuous\n";
 ok( count( $files ) > 100, 'scanning ' . count( $files ) . ' PHP files' );

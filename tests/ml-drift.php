@@ -15,6 +15,7 @@
  * @since plugin v11.2.0
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 
 error_reporting( E_ALL );
@@ -158,7 +159,7 @@ echo "\nGroup: THE ABSENCES — shown to the writer, never to a model\n";
 // purity pin — they red the moment a future session wires the surface it
 // should not.
 $inc = dirname( __DIR__ ) . '/inc/';
-$ability_files = glob( $inc . 'abilities-*.php' );
+$ability_files = snt_test_inc_files( 'abilities-*.php' );
 ok( array() !== $ability_files, 'sanity: the ability files are where this suite expects them' );
 $leaks = array();
 foreach ( $ability_files as $f ) {

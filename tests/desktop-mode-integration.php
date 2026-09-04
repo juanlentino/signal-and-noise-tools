@@ -39,6 +39,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 define( 'ABSPATH', '/' );
 define( 'SNT_PATH', __DIR__ . '/../' );
 define( 'SNT_VERSION', '9.52.0-test' );
@@ -1413,7 +1414,7 @@ ok( sn_mcp_normalize_schema( sn_mcp_normalize_schema( $already ) ) === sn_mcp_no
 $handled = array( 'oneOf', 'allOf', 'anyOf' ); // + a union `type`, handled separately
 $risky   = array( '$ref', 'not', 'if', 'then', 'else' );
 $unhandled = array();
-foreach ( glob( __DIR__ . '/../inc/*.php' ) as $abil_file ) {
+foreach ( snt_test_inc_files() as $abil_file ) {
 	$src = (string) file_get_contents( $abil_file );
 	if ( strpos( $src, "'input_schema'" ) === false ) { continue; }
 	foreach ( $risky as $kw ) {

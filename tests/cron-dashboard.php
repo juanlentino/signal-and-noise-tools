@@ -25,6 +25,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
     exit;
 }
 
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 // ─── WP stubs ─────────────────────────────────────────────────────────
 define( 'ABSPATH', '/' );
 
@@ -588,7 +589,7 @@ assert_true( $r_unsched_health instanceof WP_Error, 'REGRESSION: unschedule now 
 $sn_inc_dir   = __DIR__ . '/../inc';
 $sn_sched_re  = '/wp_schedule_event\(\s*[^,]+,\s*[^,]+,\s*([A-Za-z_][A-Za-z0-9_]*|\'[^\']+\')\s*\)/';
 $sn_call_toks = array();
-foreach ( (array) glob( $sn_inc_dir . '/*.php' ) as $sn_f ) {
+foreach ( (array) snt_test_inc_files() as $sn_f ) {
 	$sn_src = (string) file_get_contents( $sn_f );
 	if ( preg_match_all( $sn_sched_re, $sn_src, $sn_m ) ) {
 		foreach ( $sn_m[1] as $sn_tok ) {
@@ -602,7 +603,7 @@ assert_true( count( $sn_call_toks ) >= 15, 'VACUITY GUARD: the scan found the ex
 // Resolve each token to its hook string: a quoted literal is itself, a constant
 // is looked up in inc/'s own const/define declarations.
 $sn_const_vals = array();
-foreach ( (array) glob( $sn_inc_dir . '/*.php' ) as $sn_f ) {
+foreach ( (array) snt_test_inc_files() as $sn_f ) {
 	$sn_src = (string) file_get_contents( $sn_f );
 	if ( preg_match_all( '/const\s+([A-Z_][A-Z0-9_]*)\s*=\s*\'([^\']+)\'/', $sn_src, $sn_c ) ) {
 		foreach ( $sn_c[1] as $sn_i => $sn_n ) { $sn_const_vals[ $sn_n ] = $sn_c[2][ $sn_i ]; }
@@ -657,7 +658,7 @@ assert_true( in_array( 'snt_morning_brief_daily', $sum['missing'], true ), 'summ
 
 // PARITY, derived: every module that unschedules its own hook beside an
 // enable predicate must have a gate entry. Vacuity guards first.
-$sn_src_files = glob( __DIR__ . '/../inc/*.php' );
+$sn_src_files = snt_test_inc_files();
 $sn_gated_modules = array();
 foreach ( $sn_src_files as $f ) {
 	$src = (string) file_get_contents( $f );
@@ -668,7 +669,7 @@ foreach ( $sn_src_files as $f ) {
 }
 assert_true( count( $sn_gated_modules ) >= 4, 'vacuity: the opt-in scan found the expected order of magnitude of gated modules (>=4)' );
 $sn_gate_consts = array();
-foreach ( (array) glob( __DIR__ . '/../inc/*.php' ) as $f ) {
+foreach ( (array) snt_test_inc_files() as $f ) {
 	// BOTH declaration forms, resolved to VALUES. A resolver that knows only
 	// `const` leaves every define()'d hook unresolved — and unresolved must
 	// FAIL, never skip, or the pin reports parity over a partial set.

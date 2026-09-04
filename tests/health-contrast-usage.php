@@ -18,6 +18,7 @@
  * Run: php tests/health-contrast-usage.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 define( 'ABSPATH', '/' );
 define( 'SNT_PATH', __DIR__ . '/../' );
 
@@ -157,7 +158,7 @@ ok( count( $sources ) >= 10, 'the source set did not collapse — ' . count( $so
 // admin-only when every file that references it hooks admin_enqueue_scripts and
 // none hooks wp_enqueue_scripts. A new admin sheet then REDS this line instead
 // of quietly seeding false positives into a report-only check nobody re-reads.
-$php = glob( __DIR__ . '/../inc/*.php' );
+$php = snt_test_inc_files();
 $derived_admin = array();
 foreach ( sn_hcu_all_plugin_css() as $css ) {
 	$base = basename( $css );
