@@ -598,3 +598,15 @@ body{margin:0;font-family:'DM Mono','Courier New',monospace;font-weight:300;font
 	font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
 	font-size:.78rem;line-height:1.8;white-space:pre;
 }
+
+/* iOS zooms a focused control under 16px and never zooms back out. This sheet
+ * is FRONT-END, so core's wp-admin guard never loads here at all and the rule
+ * below is the only thing standing between a phone visitor and a stuck-zoomed
+ * verify form. Fixes #1018. */
+@media screen and (max-width: 782px) {
+	.sn-verify-form input,
+	.sn-verify[data-mode="result"] .sn-verify-form input,
+	.sn-verify-cmp-field input {
+		font-size: 16px;
+	}
+}

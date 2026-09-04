@@ -45,6 +45,7 @@ a PWA shell. Every seam this plugin uses survives that:
 | `openstation_register_command` | present |
 | `openstation_register_station_home_card` | present — **survived the Station Home rebuild** |
 | `openstation_is_enabled` | present |
+| `openstation_pwa_manifest` | present — documented **Stable** in the upstream hook reference (`docs/hooks-reference.md`). We filter `icons` ONLY: the Site-Icon path declared `192x192` on a 300x300 RGBA file, and iOS composites that alpha to black behind a mark measuring luminance 23/255. See `inc/openstation-pwa-icons.php` (#1017). |
 | `openstation_ai_ability_tool_name`, `openstation_ai_tools` | present |
 
 Two seam files did change, and neither is behavioural for us:

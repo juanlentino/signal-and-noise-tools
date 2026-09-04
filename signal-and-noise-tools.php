@@ -70,6 +70,7 @@ require_once SNT_PATH . 'inc/word-count.php'; // v10.24.0: pure Unicode word cou
 // consumer below calls into it, so it loads FIRST among them.
 require_once SNT_PATH . 'inc/openstation-compat.php';
 require_once SNT_PATH . 'inc/openstation-station-home-card.php';
+require_once SNT_PATH . 'inc/openstation-pwa-icons.php';  // v13.96.4 (#1017): the Site-Icon-derived manifest declared 192x192 on a 300x300 RGBA file; iOS composited the alpha to black behind dark ink
 require_once SNT_PATH . 'inc/openstation-agent-output-budget.php'; // WordPress/openstation#517 seam: inject adaptive thinking + effort (Claude 5) and ceiling headroom on agent-run generations; inert while the agents feature is off; remove per the conditions in its docblock (openstation#530/#531)
 require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/config-drift.php'; // R6a: durable effective-settings baseline + unexplained-drift diff

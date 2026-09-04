@@ -3056,3 +3056,19 @@ a.sn-ops__label:hover, .sn-sys__v[href]:hover { text-decoration: underline; }
 		font-size: 16px;
 	}
 }
+
+/* ─── iOS zoom: the one control the block above does not reach ──────────────
+ * assets/admin.css already re-raises .snt-modal-textarea, .snt-suggest-textarea,
+ * .sn-rsm-items and .sn-gsc-settings textarea at 782px, and core's own
+ * `textarea, input { font-size: 16px }` covers the plain cases. Neither reaches
+ * these: an id + class + attribute selector (1,2,1) outranks core's 0,0,1, so
+ * the post-settings fields stayed at 0.88em and WebKit zoomed on focus without
+ * zooming back out. Fixes #1018.
+ */
+@media screen and (max-width: 782px) {
+	#sn_post_settings .sn-field input[type="text"],
+	#sn_post_settings .sn-field input[type="url"],
+	#sn_post_settings .sn-field textarea {
+		font-size: 16px;
+	}
+}
