@@ -2,6 +2,59 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.93.0] - 2026-09-03 — the re-sweep that has to cover the fleet before it counts
+
+Nine posts had `post_content` rewritten by a direct `wp db query` on 2026-09-03
+at 23:06 UTC without touching `post_modified`. That was deliberate — a
+closing-tag repair should not make a note look edited — but it means the
+**content hash is the only evidence those posts changed**, and the integrity
+sweep that would notice samples a slice of the fleet per run.
+
+The last sweep ran at 19:33 UTC, before the write, and covered 10 of 40.
+
+### Why this is a watch and not a checklist item
+
+The question cannot be answered now — only after enough sweeps have run. That
+is exactly what `inc/watches.php` is for: it ripens on **state**, not a date.
+
+### The bar is coverage, not a zero
+
+The obvious ripeness test — "the next sweep reports no `hash_mismatch`" — is
+wrong, and wrong in the direction that reads as good news. A sweep that never
+sampled the nine reports zero mismatches because it looked at other posts.
+
+So the watch requires that **every** subject carry a `last_checked` at or after
+the write instant before it will report anything at all. Below that it says how
+far coverage got:
+
+```
+re-swept 1 of 3 subjects since the write — a zero here would be
+a sampling artifact, not a clean bill
+```
+
+Negative-controlled: disabling the coverage gate makes the suite emit exactly
+the false clean bill this exists to prevent — `fleet re-swept since the write
+(3 subjects), no hash_mismatch` — while only one of the three was fresh. Two
+assertions go red.
+
+### Notes
+
+- **Fleet-wide, not nine pinned ids.** The nine were never recorded as ids
+  anywhere. A hand-copied list would answer a question about the list rather
+  than about the corpus.
+- **An outage leg is missing evidence, never drift.** `twin_unreachable` /
+  `ledger_unreachable` are reported as such rather than folded into a pass or a
+  failure — the distinction the integrity module already draws.
+- **The cutoff is a constant**, not an option: a settable value would let the
+  bar move under the watch it gates.
+- Joins the existing `watches` ability, so no read-door slug, section-map or
+  permission-policy count moves.
+
+### Files
+
+- `inc/watches.php` — registry entry + `snt_watch_ripe_integrity_resweep()`
+- `tests/watches.php` — 7 assertions incl. the partial-sweep negative control
+
 ## [13.92.0] - 2026-09-04 — the cache verdict gets a machine reader
 
 Asked to check the cache after an update, I could not. `snt_cf_freshness_summary()`

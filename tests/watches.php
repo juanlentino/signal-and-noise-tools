@@ -22,6 +22,9 @@ function sn_shape_stability( $subject, $now ) { return $GLOBALS['__shape']; }
 function snt_gsc_position_drift() { return $GLOBALS['__drift']; }
 $GLOBALS['__ipv6'] = null;
 function snt_ipv6_criterion_stored() { return $GLOBALS['__ipv6']; }
+if ( ! defined( 'SN_PROV_INTEGRITY_OPT' ) ) { define( 'SN_PROV_INTEGRITY_OPT', 'sn_prov_integrity' ); }
+$GLOBALS['__integrity'] = null;
+function get_option( $k, $d = false ) { return null === $GLOBALS['__integrity'] ? $d : $GLOBALS['__integrity']; }
 
 require __DIR__ . '/../inc/watches.php';
 
@@ -133,6 +136,62 @@ foreach ( snt_watches() as $watch ) {
 	ok( ! empty( $watch['date_only'] ) xor '' !== (string) ( $watch['ripe'] ?? '' ),
 		'watch "' . $watch['id'] . '" is either date-only or state-tested, never both and never neither' );
 }
+
+
+// ── integrity re-sweep watch (the post_modified-silent write) ──────────────
+echo "\nintegrity re-sweep watch\n";
+$T0 = strtotime( '2026-09-05T00:00:00Z' );
+$before = '2026-09-03T22:00:00Z'; // BEFORE the silent write
+$after  = '2026-09-04T06:00:00Z'; // after it
+
+$GLOBALS['__integrity'] = null;
+$v = snt_watch_ripe_integrity_resweep( array(), $T0 );
+ok( false === $v['ripe'] && false !== strpos( $v['note'], 'no sweep' ), 'no recorded sweep is not ripe (it reports absence, never a pass)' );
+
+// NEGATIVE CONTROL: a partial re-sweep must REFUSE, because a zero-mismatch
+// reading over a slice is the sampling artifact this watch exists to catch.
+$GLOBALS['__integrity'] = array( 'notes' => array(
+	11 => array( 'last_checked' => $after,  'failures' => array() ),
+	12 => array( 'last_checked' => $before, 'failures' => array() ),
+	13 => array( 'last_checked' => $before, 'failures' => array() ),
+) );
+$v = snt_watch_ripe_integrity_resweep( array(), $T0 );
+ok( false === $v['ripe'], 'NEGATIVE CONTROL: a PARTIAL re-sweep is not ripe even with zero mismatches' );
+ok( false !== strpos( $v['note'], '1 of 3' ), '...and it says how far the coverage got (' . $v['note'] . ')' );
+
+// Whole fleet re-checked after the write, all clean.
+$GLOBALS['__integrity'] = array( 'notes' => array(
+	11 => array( 'last_checked' => $after, 'failures' => array() ),
+	12 => array( 'last_checked' => $after, 'failures' => array() ),
+) );
+$v = snt_watch_ripe_integrity_resweep( array(), $T0 );
+ok( true === $v['ripe'] && false !== strpos( $v['note'], 'no hash_mismatch' ), 'a FULL re-sweep with no drift is ripe and says so' );
+
+// An outage leg is missing evidence, never drift — it must not read as failure.
+$GLOBALS['__integrity'] = array( 'notes' => array(
+	11 => array( 'last_checked' => $after, 'failures' => array() ),
+	12 => array( 'last_checked' => $after, 'failures' => array( 'twin_unreachable' ) ),
+) );
+$v = snt_watch_ripe_integrity_resweep( array(), $T0 );
+ok( true === $v['ripe'] && false !== strpos( $v['note'], 'outage' ) && false === strpos( $v['note'], 'report hash_mismatch' ),
+	'an outage leg is named as missing evidence, not folded into drift' );
+
+// Real drift names the subjects.
+$GLOBALS['__integrity'] = array( 'notes' => array(
+	11 => array( 'last_checked' => $after, 'failures' => array( 'hash_mismatch' ) ),
+	12 => array( 'last_checked' => $after, 'failures' => array() ),
+) );
+$v = snt_watch_ripe_integrity_resweep( array(), $T0 );
+ok( true === $v['ripe'] && false !== strpos( $v['note'], 'hash_mismatch' ) && false !== strpos( $v['note'], '11' ),
+	'a real hash_mismatch is ripe and NAMES the drifting subject' );
+
+// A sweep stamped exactly AT the cutoff counts as after it (boundary).
+$GLOBALS['__integrity'] = array( 'notes' => array(
+	11 => array( 'last_checked' => SNT_WATCH_SILENT_WRITE_AT, 'failures' => array() ),
+) );
+$v = snt_watch_ripe_integrity_resweep( array(), $T0 );
+ok( true === $v['ripe'], 'a check stamped exactly at the write instant counts as covering it' );
+$GLOBALS['__integrity'] = null;
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
