@@ -68,9 +68,20 @@ ok( ! in_array( 21, $r['apply'], true ), 'the scheduled post in a mixed batch is
 ok( in_array( 22, $r['apply'], true ), 'while the draft in the SAME batch still moves — one unsafe row does not cancel the batch' );
 
 echo "\nGroup: the rule is SHARED with the MCP path, not re-derived\n";
+// v13.94.0: the MCP path's boundary rule MOVED to inc/sn-apply-plan-changes.php
+// when the scheduled-post guard was extracted so the new batch write could not
+// drift from the single write. The intent of this group is unchanged — the MCP
+// path must enforce the SAME boundary in the SAME unit, never re-derive it —
+// but the previous form named a FILE for what is really a property of the
+// LAYER, so a pure move turned it red. It now pins the rule where it lives AND
+// that the block-edit path still reaches it, which the old form could not see:
+// a block_edit_impl that quietly stopped calling the guard would have kept this
+// green while publishing scheduled posts early.
+$guard = (string) file_get_contents( __DIR__ . '/../inc/sn-apply-plan-changes.php' );
+ok( false !== strpos( $guard, 'snt_sn_apply_schedule_overdue' ), 'the MCP path still refuses the same boundary (409)' );
+ok( false !== strpos( $guard, 'MINUTE_IN_SECONDS' ), 'and still measures it in the same unit' );
 $mcp = (string) file_get_contents( __DIR__ . '/../inc/sn-apply-block-edit.php' );
-ok( false !== strpos( $mcp, 'snt_sn_apply_schedule_overdue' ), 'the MCP path still refuses the same boundary (409)' );
-ok( false !== strpos( $mcp, 'MINUTE_IN_SECONDS' ), 'and still measures it in the same unit' );
+ok( false !== strpos( $mcp, 'snt_sn_apply_write_preserving_schedule(' ), 'THE CHAIN: the block-edit write path actually CALLS the shared guard' );
 $batch = (string) file_get_contents( __DIR__ . '/../inc/batch-schedule.php' );
 ok( false !== strpos( $batch, 'MINUTE_IN_SECONDS' ), 'the admin path uses the same unit rather than a hard-coded 60' );
 

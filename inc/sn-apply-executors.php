@@ -113,6 +113,14 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	// text lives in its delimiter attributes.
 	'block_delete',
 	'block_move',
+	// v13.94.0 — the heterogeneous batch. `payload.edits` (v10.66.0) already
+	// batched N edits of ONE type; this batches DIFFERENT types, because an
+	// editorial amendment is rarely homogeneous. On 2026-09-03 a single
+	// amendment (one sentence_replace + two block_inserts) minted THREE
+	// anchored ledger versions, two of them intermediate states nobody
+	// intended to publish and all three permanent. payload.changes is the
+	// ordered list; one fingerprint gates the whole batch; one write lands it.
+	'batch',
 );
 
 /**
@@ -134,6 +142,7 @@ function snt_sn_apply_mode_support( $type ) {
 		case 'sentence_replace':
 		case 'link_reshape':
 		case 'unlink':
+		case 'batch':
 		case 'block_insert':
 		case 'block_replace':
 		case 'block_delete':
@@ -459,6 +468,39 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 				'write_result' => $result,
 			);
 
+		case 'batch':
+			// v13.94.0: N heterogeneous changes, ONE wp_update_post(), ONE ledger
+			// version. The impl carries the same write-callback seam every body
+			// type uses (so mode:"revision" stages identically) and the SHARED
+			// scheduled-post guard, so a batch can no more publish a scheduled
+			// note early than a single block edit can.
+			$revision_id = null;
+			$cb          = 'revision' === $mode ? snt_sn_apply_revision_write_callback( $revision_id ) : null;
+			$result      = snt_sn_apply_batch_changes_impl(
+				$resolved['post_id'],
+				(array) ( $payload['changes'] ?? array() ),
+				(string) ( $change['fingerprint'] ?? '' ),
+				$cb
+			);
+			if ( is_wp_error( $result ) ) {
+				return $result;
+			}
+			$diff = array_merge(
+				array(
+					'before'          => $result['old_content'] ?? '',
+					'after'           => $result['new_content'] ?? '',
+					'blocks_touched'  => (int) ( $result['count'] ?? 0 ),
+					'changes_applied' => (int) ( $result['count'] ?? 0 ),
+				),
+				is_array( $result['prose_delta'] ?? null ) ? $result['prose_delta'] : array()
+			);
+			return array(
+				'ok'           => true,
+				'diff'         => $diff,
+				'revision_id'  => $revision_id,
+				'write_result' => $result,
+			);
+
 		case 'block_insert':
 		case 'block_replace':
 		case 'block_delete':
@@ -757,6 +799,26 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 				'before'         => $before,
 				'after'          => $gate1['new_content'] ?? $before,
 				'blocks_touched' => in_array( $type, array( 'block_migration', 'pattern_adoption' ), true ) ? 1 : 0,
+			);
+
+		case 'batch':
+			// The COMBINED diff and a SINGLE ledger_impact — the whole point of
+			// batching is that the caller sees one editorial act, so the preview
+			// must show the end state rather than N intermediate ones. gate 1
+			// already ran the shared planner; reuse its content rather than
+			// re-planning, so preview and write cannot disagree.
+			$post   = get_post( $resolved['post_id'] ?? 0 );
+			$before = $post ? (string) $post->post_content : '';
+			$after  = $gate1['new_content'] ?? $before;
+			$n      = is_array( $payload['changes'] ?? null ) ? count( $payload['changes'] ) : 0;
+			return array_merge(
+				array(
+					'before'          => $before,
+					'after'           => $after,
+					'blocks_touched'  => $n,
+					'changes_applied' => $n,
+				),
+				function_exists( 'snt_sn_apply_block_edit_prose_delta' ) ? snt_sn_apply_block_edit_prose_delta( $before, (string) $after ) : array()
 			);
 
 		case 'block_insert':

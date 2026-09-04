@@ -770,110 +770,14 @@ function snt_sn_apply_block_edit_impl( $post_id, $type, array $payload, $fingerp
 	}
 	$new_content = $computed['new_content'];
 
-	$before_status   = (string) $post->post_status;
-	$before_date     = (string) $post->post_date;
-	$before_date_gmt = (string) $post->post_date_gmt;
-
-	// OVERDUE scheduled post, refused UP FRONT (adversarial review, HIGH):
-	// wp_insert_post() silently coerces an explicitly-passed 'future' to
-	// 'publish' whenever post_date_gmt is within a minute of now — core's
-	// own status resolution (wp-includes/post.php), the same path
-	// check_and_publish_future_post() calls "jumping the gun". On a post
-	// whose scheduled time has passed but whose cron hasn't fired yet, the
-	// write below WOULD early-publish it, and a restore attempt would be
-	// coerced identically — so the only honest move is to not write at all.
-	// The comparison mirrors core's own expression byte-for-byte.
-	$minute = defined( 'MINUTE_IN_SECONDS' ) ? MINUTE_IN_SECONDS : 60;
-	if ( ! is_callable( $write_callback ) && 'future' === $before_status
-		&& ( strtotime( $before_date_gmt ) - strtotime( gmdate( 'Y-m-d H:i:s' ) ) < $minute ) ) {
-		return new WP_Error(
-			'snt_sn_apply_schedule_overdue',
-			sprintf(
-				/* translators: %s: the post's scheduled datetime (GMT) */
-				__( 'This scheduled post is overdue (post_date_gmt %s has passed or is under a minute away, and WP-Cron has not published it yet). Writing now would trip WordPress core\'s own status resolution and publish it early as a side effect — refused. Wait for cron to publish it (or publish it deliberately), then retry with a fresh fingerprint.', 'signal-and-noise-tools' ),
-				$before_date_gmt
-			),
-			array( 'status' => 409 )
-		);
-	}
-
-	if ( is_callable( $write_callback ) ) {
-		$result = call_user_func( $write_callback, $post_id, $new_content );
-	} else {
-		$result = wp_update_post(
-			array(
-				'ID'            => $post_id,
-				'post_content'  => $new_content,
-				'post_status'   => $before_status,
-				'post_date'     => $before_date,
-				'post_date_gmt' => $before_date_gmt,
-			),
-			true
-		);
-	}
-	if ( is_wp_error( $result ) ) {
-		/* translators: %s is the error message from the write step */
-		return new WP_Error( 'snt_sn_apply_write_failed', sprintf( __( 'Write failed: %s', 'signal-and-noise-tools' ), $result->get_error_message() ), array( 'status' => 500 ) );
-	}
-
-	// The guard's second half: ASSERT the schedule survived, never assume.
-	// (Revision mode never touches the live row — asserting it anyway is
-	// free and turns "never" from a belief into a checked fact.)
-	//
-	// v13.5.0 (found LIVE, 2026-08-26, writing to a scratch draft): the
-	// strict post_date binding applies to status 'future' ONLY. WordPress
-	// core FLOATS a draft's post_date on save (a draft's date is "when it
-	// was last touched", not a schedule) — binding it for every status made
-	// a routine draft edit 500 with a scary restore-manually message AFTER
-	// the content write had already landed, over a benign, expected core
-	// behavior that a restore cannot even stick against. post_status stays
-	// asserted for EVERY status: a draft silently becoming publish is a
-	// real disaster regardless of dates.
-	$strict_schedule = ( 'future' === $before_status );
-	$after           = get_post( $post_id );
-	if ( $after && ( (string) $after->post_status !== $before_status || ( $strict_schedule && (string) $after->post_date !== $before_date ) ) ) {
-		$restore = wp_update_post(
-			array(
-				'ID'            => $post_id,
-				'post_status'   => $before_status,
-				'post_date'     => $before_date,
-				'post_date_gmt' => $before_date_gmt,
-			),
-			true
-		);
-		// The restore is VERIFIED by re-reading the row, never inferred from
-		// the return code (adversarial review, HIGH): core's silent
-		// future→publish coercion returns a plain post ID, so is_wp_error()
-		// alone would report "succeeded" while the post stayed published —
-		// a false all-clear on exactly the disaster this guard exists for.
-		$restored_row = get_post( $post_id );
-		$restore_held = $restored_row
-			&& (string) $restored_row->post_status === $before_status
-			&& ( ! $strict_schedule || (string) $restored_row->post_date === $before_date );
-		if ( is_wp_error( $restore ) ) {
-			$restore_outcome = 'FAILED — ' . $restore->get_error_message();
-		} elseif ( ! $restore_held ) {
-			$restore_outcome = sprintf(
-				'FAILED — the post remains %s @ %s; restore it manually in wp-admin NOW',
-				$restored_row ? (string) $restored_row->post_status : 'unknown',
-				$restored_row ? (string) $restored_row->post_date : 'unknown'
-			);
-		} else {
-			$restore_outcome = 'verified restored';
-		}
-		return new WP_Error(
-			'snt_sn_apply_schedule_violation',
-			sprintf(
-				/* translators: 1: expected status, 2: observed status, 3: expected date, 4: observed date, 5: restore outcome */
-				__( 'The write changed post_status/post_date (expected %1$s @ %3$s, observed %2$s @ %4$s) — a scheduled post must never publish early as a side effect of a block edit. Restore attempt: %5$s. Verify the post\'s schedule in wp-admin before retrying.', 'signal-and-noise-tools' ),
-				$before_status,
-				(string) $after->post_status,
-				$before_date,
-				(string) $after->post_date,
-				$restore_outcome
-			),
-			array( 'status' => 500 )
-		);
+	// v13.94.0: the scheduled-post guarantee now lives in ONE place
+	// (snt_sn_apply_write_preserving_schedule, inc/sn-apply-plan-changes.php)
+	// so the batch path cannot drift from this one. Behaviour is unchanged —
+	// the overdue refusal, the explicit status/date write, and the
+	// re-read-and-verify assertion moved verbatim, error strings included.
+	$written = snt_sn_apply_write_preserving_schedule( $post, $new_content, $write_callback );
+	if ( is_wp_error( $written ) ) {
+		return $written;
 	}
 
 	return array(
