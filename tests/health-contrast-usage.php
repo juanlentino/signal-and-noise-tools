@@ -102,6 +102,30 @@ ok( $fbn && 'token' === $fbn['kind'] && 'void' === $fbn['value'], 'a NESTED var(
 // admin-only and not named "admin", so TWO of the three pairings the contrast
 // report flagged were wp-admin status colours (#00a32a at 3.35:1, #dba617 at
 // 2.22:1) scored against a public page they never appear on.
+
+/**
+ * Every plugin stylesheet, at any depth, derived HERE rather than borrowed from
+ * sn_health_contrast_usage_plugin_sheets(). A guard built from the producer's
+ * own population can only ever confirm the producer's assumption - which is
+ * exactly how assets/css/prov-verify.css went unscored while this suite was
+ * green (issue #988).
+ *
+ * @return string[] absolute paths, sorted.
+ */
+function sn_hcu_all_plugin_css() {
+	$base  = realpath( __DIR__ . '/../assets' );
+	$found = array();
+	if ( ! $base ) { return $found; }
+	$walk = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $base, FilesystemIterator::SKIP_DOTS )
+	);
+	foreach ( $walk as $f ) {
+		if ( $f->isFile() && 'css' === strtolower( $f->getExtension() ) ) { $found[] = (string) $f->getPathname(); }
+	}
+	sort( $found );
+	return $found;
+}
+
 echo "\nGroup 2b2: admin-only sheets are excluded by FACT, not by filename\n";
 
 $sources = sn_health_contrast_usage_sources();
@@ -114,6 +138,17 @@ foreach ( array( 'uptime-status.css', 'audit-log.css', 'machine-readers.css' ) a
 // Over-reach guard. Excluding a front-end sheet is the DANGEROUS direction: a
 // false positive is noisy, but silently shrinking coverage hides real defects.
 ok( isset( $scanned['provenance-front.css'] ), 'provenance-front.css is still SCANNED — it is a wp_enqueue_scripts sheet, and dropping it would hide the chip this module exists to catch' );
+// #988: the producer enumerated only the TOP of assets/, so a front-end sheet
+// in a subdirectory was never scored while every line above stayed green. These
+// three pin the DEPTH of the population, not just its size - a count alone
+// cannot tell a full set from a truncated one.
+$plugin_sheets = sn_health_contrast_usage_plugin_sheets();
+$nested        = array_filter( array_keys( $plugin_sheets ), function ( $rel ) { return false !== strpos( $rel, '/' ); } );
+ok( ! empty( $nested ), 'the producer reaches sheets in SUBDIRECTORIES of assets/ (' . count( $nested ) . ' found) - a top-level-only glob reds here' );
+ok( count( $plugin_sheets ) === count( sn_hcu_all_plugin_css() ),
+	'the producer enumerates every .css under assets/ - producer ' . count( $plugin_sheets ) . ' vs independently walked ' . count( sn_hcu_all_plugin_css() ) );
+ok( isset( $scanned['prov-verify.css'] ),
+	'prov-verify.css is SCANNED - it is served on the public template_redirect verify route, and it was silently omitted until v13.95.3' );
 ok( count( $sources ) >= 10, 'the source set did not collapse — ' . count( $sources ) . ' sheets still scanned' );
 
 // THE DRIFT TEST, and the load-bearing one. The exclusion is a hand-kept list,
@@ -124,7 +159,7 @@ ok( count( $sources ) >= 10, 'the source set did not collapse — ' . count( $so
 // of quietly seeding false positives into a report-only check nobody re-reads.
 $php = glob( __DIR__ . '/../inc/*.php' );
 $derived_admin = array();
-foreach ( glob( __DIR__ . '/../assets/*.css' ) as $css ) {
+foreach ( sn_hcu_all_plugin_css() as $css ) {
 	$base = basename( $css );
 	$hooks = array();
 	$seen  = false;
@@ -150,7 +185,7 @@ foreach ( glob( __DIR__ . '/../assets/*.css' ) as $css ) {
 }
 sort( $derived_admin );
 $excluded_now = array();
-foreach ( glob( __DIR__ . '/../assets/*.css' ) as $css ) {
+foreach ( sn_hcu_all_plugin_css() as $css ) {
 	if ( ! isset( $scanned[ basename( $css ) ] ) ) { $excluded_now[] = basename( $css ); }
 }
 sort( $excluded_now );
