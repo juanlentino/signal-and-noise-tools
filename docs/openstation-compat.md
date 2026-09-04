@@ -16,24 +16,90 @@ expression, both of which survive a release and are what you would grep for
 anyway. `tests/openstation-compat.php` fails the build if a `file.php:NNN`
 citation reappears here.
 
-**Last verified against `v1.1.2`** (2026-08-21). See
+<!-- openstation-verified: v1.1.6 2026-09-04 -->
+
+**Last verified against `v1.1.6`** (2026-09-04). The machine-readable stamp
+directly above is what `tests/openstation-compat.php` reads; the sentence you are
+reading must agree with it, and the test fails if they drift. Before the stamp
+existed this claim was prose only, and it sat at `v1.1.2` through three
+releases with nothing able to notice. See
 [Re-verifying after an upstream release](#re-verifying-after-an-upstream-release)
 for the instrument.
 
-**The site runs `v1.1.3`, which is NOT verified here** (2026-08-26). It carries a
-known Cmd+K break — every command that needs a JS callback silently no-ops —
-diagnosed to upstream's deferred palette runtime. `WordPress/openstation` PR #683
-confirms the diagnosis in upstream's own words and carries the fix, so there is
-nothing to change here and no issue to file — **but #683 is MERGED TO TRUNK AND
-UNRELEASED.** Measured 2026-08-26: v1.1.3 is the latest tag, and #683's commit
-(`199a0851`) is **15 commits ahead of it, 0 behind** — no tagged release contains
-it. So the break is live on this site and stays live until upstream tags a
-release carrying #683 and we upgrade to it. Merged is not shipped; do not read
-"fixed upstream" as "working in production".
+**Verify against the TAG, never the default branch.** GitHub code search reads
+`trunk`. Asking it whether a seam exists answers a question about unreleased
+code and will happily confirm a name that is not in the release the site runs.
+Fetch each file at `?ref=vX.Y.Z`.
 
-The name-membership sweep below passes clean against v1.1.3: every upstream name
-this plugin references still exists. The break is behavioural, which is exactly
-the gap the runtime probe in that section now covers.
+### What v1.1.6 changed for us: nothing, and here is the evidence
+
+38 commits and 300 files since v1.1.5, including the App Framework rebuilds of
+Station Home, Preferences and Trash — each described upstream as *"the legacy
+window deleted whole"* — plus a mobile layer, multisite site-scoped desktops and
+a PWA shell. Every seam this plugin uses survives that:
+
+| Seam | At `v1.1.6` |
+|---|---|
+| `window.openStationWidgets[ id ]` | unchanged — `includes/registries/widgets.php` is not in the v1.1.5..v1.1.6 diff |
+| `openstation_register_widget`, `openstation_register_icon` | present |
+| `openstation_register_command` | present |
+| `openstation_register_station_home_card` | present — **survived the Station Home rebuild** |
+| `openstation_is_enabled` | present |
+| `openstation_ai_ability_tool_name`, `openstation_ai_tools` | present |
+
+Two seam files did change, and neither is behavioural for us:
+
+- **`includes/core/payload.php`** — multisite only (`self_admin_url()` added to
+  the same-host set; two network menus given filenames). The TRAP 1 mechanism —
+  the payload reading the registries eagerly at `admin_enqueue_scripts:10` — is
+  untouched, so `init:5` / `init:6` registration remains required.
+- **`includes/commands.php`** — a documentation comment, nothing else (311 lines
+  before and after). The example gained
+  `}, 5 ); // Before the shell harvests the payload at priority 10.` Upstream now
+  documents the exact trap that left every widget and command silently absent
+  for years.
+
+**PR #717 is IN this release.** Verified by containment rather than by reading
+the notes: comparing #717's merge commit to the `v1.1.6` tag returns
+`status=ahead, behind_by=0`. The `scriptDeps` loader no longer re-executes
+`wp-hooks` under script concatenation, so boot-time subscribers are not deafened.
+
+**Still unverified, and only a human can close it:** the acceptance test is that
+windows reveal *without* the DevTools console paste. That needs the site updated
+from wp-admin and someone looking at it. Nothing here may be read as claiming it
+passed.
+
+### Upstream now normalizes AI tool schemas — keep ours anyway
+
+`openstation_ai_normalize_tool_schema()` (`includes/ai-copilot/search.php`) is
+live at v1.1.6 and applied to the **whole tool list after** the
+`openstation_ai_tools` filter, which is the design PR #366 proposed. It covers
+every class our own filter does: a union top-level `type`, top-level
+`oneOf`/`allOf`/`anyOf`, an empty `properties` needing `{}` rather than `[]`, and
+the WP-only `sanitize_callback` / `validate_callback` / `arg_options` keys
+stripped at every depth. Upstream's comment states it is idempotent, so ours
+running first is harmless.
+
+**Our normalizer stays.** It is redundant only against v1.1.6 and newer, and it
+is the single thing standing between a union-typed ability and a Copilot that is
+dead rather than degraded on any older install. The PRUNE half of our filter is
+ours regardless of upstream. Remove it only once no install we care about runs
+below v1.1.6, and never as a side effect of an upgrade.
+
+### New upstream abilities (v1.1.6)
+
+`includes/ai-copilot/abilities-debugging.php` registers four read-only
+abilities — `list_log_issues`, `get_log_issue`, `read_source_excerpt`,
+`get_site_context`. Being `readonly` they auto-enrol into the Copilot with no
+opt-out, which is the TRAP 3 mechanism working as designed.
+
+They are not ours, but they change what an assistant on this site can reach, so
+they are recorded here. Gating is layered: `openstation_ai_debug_can_use()`
+requires `manage_options` (`manage_network_options` on a network) **and** the
+`developerModeEnabled` preference, so they are inert on a site with developer
+mode off. `read_source_excerpt` adds four more guards — the file must be named
+in the current log, resolve through `realpath`, sit inside `ABSPATH` or
+`WP_CONTENT_DIR`, and match a source-extension allowlist.
 
 **No back-compat shim exists upstream.** A code search of post-#475
 `WordPress/openstation` for any `desktop_mode_*` name returns zero hits.
@@ -51,8 +117,11 @@ Compat layer: [inc/openstation-compat.php](../inc/openstation-compat.php).
 | v1.0.1 | 2026-08-11 | Post-rename |
 | v1.1.0 | 2026-08-14 | Post-rename — first post-rename release verified here (17 names) |
 | v1.1.1 | 2026-08-19 | Post-rename |
-| **v1.1.2** | **2026-08-21** | Post-rename — **the release this file is verified against** (19 names) |
-| **v1.1.3** | **2026-08-24** | Post-rename — **running in production, NOT verified here.** Deferred the palette's Gutenberg runtime to first ⌘K; broke plugin-contributed commands. Fix merged to trunk in #683 but **in no tagged release** as of 2026-08-26 — still broken here |
+| v1.1.2 | 2026-08-21 | Post-rename — verified here at the time (19 names) |
+| v1.1.3 | 2026-08-24 | Post-rename — deferred the palette's Gutenberg runtime to first ⌘K and broke plugin-contributed commands. Was in production while the fix (#683) sat merged-but-untagged |
+| v1.1.4 | 2026-08-28 | **The release that shipped #683**, so the ⌘K break ends here. Established by containment: #683's commit `199a0851` is an ancestor of `v1.1.4` (`behind_by=0`), not by reading the notes |
+| v1.1.5 | 2026-08-29 | Post-rename. Its `scriptDeps` loader re-executed `wp-hooks` under script concatenation, deafening boot-time subscribers (#715); the fix, #717, was merged and untagged for the whole life of this release |
+| **v1.1.6** | **2026-09-04** | Post-rename — **the release this file is verified against.** Carries #717 (containment-checked). 38 commits / 300 files, including App Framework rebuilds of Station Home, Preferences and Trash, a mobile layer, multisite site-scoped desktops and a PWA shell — and **not one of our seams moved** |
 
 An earlier revision of this file said the rename was "in trunk, **not yet in
 any tagged release**", and that end-to-end verification was "structurally
