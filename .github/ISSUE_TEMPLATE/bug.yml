@@ -1,0 +1,35 @@
+name: Bug
+description: Something is broken.
+labels: ["type:bug", "repo:plugin"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What was expected instead
+    validations:
+      required: true
+  - type: textarea
+    id: readout
+    attributes:
+      label: What the readout said
+      description: >
+        The recurring failure here is a report that cannot separate two states and
+        therefore shows the reassuring one. If a status, gate, diff or health check
+        looked fine while this was broken, paste it - that is usually the real bug.
+      placeholder: "e.g. fingerprint.passed:false with expected == observed"
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Plugin or theme version where this was seen.
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: The smallest sequence that shows it.

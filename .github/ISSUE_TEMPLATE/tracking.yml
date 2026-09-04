@@ -1,0 +1,41 @@
+name: Tracking issue
+description: An umbrella that stays open until a whole iteration is merged.
+title: "Tracking: "
+labels: ["type:tracking", "repo:plugin"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        A tracking issue is a checklist, not a changelog. The work happens in the
+        child issues; this one closes when they all do.
+  - type: textarea
+    id: problem
+    attributes:
+      label: The problem
+      description: What is actually wrong today, with the evidence behind it.
+      placeholder: Numbers, sizes, cadences - not impressions.
+    validations:
+      required: true
+  - type: textarea
+    id: children
+    attributes:
+      label: Children
+      description: One checkbox per child issue. Link them as you open them.
+      value: |
+        - [ ] #
+        - [ ] #
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Standing constraints
+      description: What no PR in this iteration may do.
+      placeholder: "No version bump. No tags. No deploys."
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: The condition for closing this issue.
+    validations:
+      required: true
