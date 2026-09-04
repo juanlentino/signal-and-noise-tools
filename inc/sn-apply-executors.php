@@ -809,16 +809,41 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 			// re-planning, so preview and write cannot disagree.
 			$post   = get_post( $resolved['post_id'] ?? 0 );
 			$before = $post ? (string) $post->post_content : '';
-			$after  = $gate1['new_content'] ?? $before;
 			$n      = is_array( $payload['changes'] ?? null ) ? count( $payload['changes'] ) : 0;
+
+			// v13.95.1 — A REFUSED BATCH HAS NO "AFTER", AND APPLIED NOTHING.
+			// gate 1 returns new_content only when the plan SUCCEEDED. The
+			// previous `?? $before` fallback diffed the post against itself,
+			// which produced prose_changed:false and — worse —
+			// ledger_impact:"coalesces", the reading that means "safe, no new
+			// version". Paired with changes_applied reporting the REQUESTED
+			// count, a refusal rendered as a benign no-op that touched N
+			// blocks. Nothing was written either way, but the readout could
+			// not be distinguished from a successful restructure.
+			if ( null === ( $gate1['new_content'] ?? null ) ) {
+				return array(
+					'before'            => $before,
+					'after'             => null,   // unknown: there is no plan
+					'blocks_touched'    => 0,
+					'changes_applied'   => 0,
+					'changes_requested' => $n,     // what was ASKED for, named as such
+					'prose_changed'     => null,
+					'prose_added'       => null,
+					'prose_removed'     => null,
+					'ledger_impact'     => null,   // no plan, so no ledger consequence to report
+				);
+			}
+
+			$after = (string) $gate1['new_content'];
 			return array_merge(
 				array(
-					'before'          => $before,
-					'after'           => $after,
-					'blocks_touched'  => $n,
-					'changes_applied' => $n,
+					'before'            => $before,
+					'after'             => $after,
+					'blocks_touched'    => $n,
+					'changes_applied'   => $n,
+					'changes_requested' => $n,
 				),
-				function_exists( 'snt_sn_apply_block_edit_prose_delta' ) ? snt_sn_apply_block_edit_prose_delta( $before, (string) $after ) : array()
+				function_exists( 'snt_sn_apply_block_edit_prose_delta' ) ? snt_sn_apply_block_edit_prose_delta( $before, $after ) : array()
 			);
 
 		case 'block_insert':

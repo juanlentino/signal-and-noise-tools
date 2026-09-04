@@ -155,6 +155,14 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 					'new_content'  => null,
 					'error_code'   => $plan->get_error_code(),
 					'error_status' => (int) ( $plan_data['status'] ?? 422 ),
+					// v13.95.1 — THE FINGERPRINT MATCHED. Only the plan failed.
+					// Without this the response reported fingerprint.passed:false
+					// with expected and observed IDENTICAL — a self-contradictory
+					// readout that sends the caller to re-fetch a hash that was
+					// never stale. The conflict is a VALIDATION failure and is
+					// surfaced as one; see snt_sn_apply_apply_one().
+					'fingerprint_ok' => true,
+					'plan_error'     => $plan->get_error_message(),
 				);
 			}
 			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => sprintf( '%d changes verified against the live content.', (int) $plan['count'] ), 'new_content' => $plan['new_content'] );
@@ -222,6 +230,11 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 						'new_content'  => null,
 						'error_code'   => $plan->get_error_code(),
 						'error_status' => (int) ( $plan_data['status'] ?? 422 ),
+						// v13.95.1 — same correction as the batch branch below: the
+						// whole-post hash was PROVEN above, so a planner refusal must
+						// not report the fingerprint as the thing that failed.
+						'fingerprint_ok' => true,
+						'plan_error'     => $plan->get_error_message(),
 					);
 				}
 				return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => sprintf( '%d edits verified against the live content.', (int) $plan['count'] ), 'new_content' => $plan['new_content'] );
