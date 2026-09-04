@@ -303,6 +303,33 @@ ok(
 	'every openstation_* name consumed by inc/ is documented' . ( $undocumented ? ' — MISSING: ' . implode( ', ', $undocumented ) : ' (' . count( $inc_names ) . ' names)' )
 );
 
+// 1b. The VERIFICATION STAMP. The doc's "last verified against vX" was prose
+//     only, and it sat at v1.1.2 while upstream shipped v1.1.3, v1.1.4, v1.1.5
+//     and v1.1.6 — a manual verification going stale is invisible unless the
+//     claim is somewhere a machine can read it. The stamp is that place, and
+//     the prose must agree with it, so the two cannot drift.
+//
+//     This pins SHAPE and AGREEMENT, not truth: nothing here can confirm the
+//     seams still exist upstream, because that needs the network and a tag.
+//     What it removes is the silent case — a stamp that is missing, malformed,
+//     or contradicted by the sentence beside it.
+if ( preg_match( '/<!--\s*openstation-verified:\s*(v[0-9]+\.[0-9]+\.[0-9]+)\s+([0-9]{4}-[0-9]{2}-[0-9]{2})\s*-->/', $doc, $stamp ) ) {
+	ok( true, 'the doc carries a machine-readable verification stamp (' . $stamp[1] . ', ' . $stamp[2] . ')' );
+
+	// The prose heading must name the SAME version. A stamp nobody updated
+	// beside a sentence somebody did is worse than neither.
+	$prose = array();
+	preg_match_all( '/\*\*Last verified against `(v[0-9]+\.[0-9]+\.[0-9]+)`\*\*/', $doc, $prose );
+	ok( array( $stamp[1] ) === array_unique( $prose[1] ),
+		'the prose "Last verified against" names exactly the stamped version — stamp ' . $stamp[1]
+		. ', prose [' . implode( ', ', array_unique( $prose[1] ) ) . ']' );
+
+	// A date that cannot be parsed is a stamp that cannot be aged.
+	ok( false !== strtotime( $stamp[2] ), 'the stamped date parses, so its age is readable' );
+} else {
+	ok( false, 'the doc carries a machine-readable verification stamp <!-- openstation-verified: vX.Y.Z YYYY-MM-DD --> — it is MISSING or malformed' );
+}
+
 // 2. No upstream file.php:LINE citations. They are wrong on the next release
 //    and there is no error state for a stale line number — it just quietly
 //    points at the wrong code. Cite the file and the call expression instead;
