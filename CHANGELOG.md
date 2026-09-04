@@ -26,6 +26,11 @@ adds a bullet below. A release is a separate, deliberate act:
   the tree - were invisible to them, and none announced the narrowing.
   `tests/lib/inc-population.php` is now the single source of that population and
   `tests/inc-population-guard.php` fails if a suite builds its own. (#987)
+- `tools/editor-api-smoke.php` derives its editor requirements from the whole
+  tree. It globbed `inc/*.php` and `assets/*.js`, so a `wp-*` handle or `wp.*`
+  symbol whose only declaration sat inside a package was not a requirement -
+  against the tool's own promise that nothing is hand-maintained. Measured: no
+  handle or symbol was actually lost, so this closes a latent gap. (#992)
 
 ## [13.95.2] - 2026-09-04 — the sn-apply family gets a directory
 

@@ -57,6 +57,44 @@ function sn_editor_pkg_file( $pkg ) {
 }
 
 /**
+ * Every file under $root/$sub matching $ext, at any depth.
+ *
+ * Walked rather than globbed. `inc/*.php` and `assets/*.js` enumerated only the
+ * TOP of each directory, so inc/ai-bootstrap/editor-assets.php - a file named
+ * for this tool's own subject - and five JS files under assets/js and
+ * assets/analytics were outside both requirement sets (#992). The docblock
+ * above promises "a new dependency is covered the moment it is written"; a
+ * top-level glob cannot keep that promise once packages exist.
+ *
+ * $root is a PARAMETER, deliberately: this tool runs against an arbitrary tree,
+ * which is also what lets tests/editor-api-smoke-population.php drive it with a
+ * fixture instead of asserting on this file's source text.
+ *
+ * @param string $root Tree root.
+ * @param string $sub  Subdirectory under it.
+ * @param string $ext  Lowercase extension without the dot.
+ * @return string[] Absolute paths, sorted.
+ */
+function sn_editor_walk( $root, $sub, $ext ) {
+	$base = rtrim( $root, '/' ) . '/' . trim( $sub, '/' );
+	if ( ! is_dir( $base ) ) {
+		return array();
+	}
+	$out  = array();
+	$walk = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $base, FilesystemIterator::SKIP_DOTS )
+	);
+	foreach ( $walk as $file ) {
+		if ( $file->isFile() && strtolower( $file->getExtension() ) === $ext ) {
+			$out[] = (string) $file->getPathname();
+		}
+	}
+	sort( $out );
+
+	return $out;
+}
+
+/**
  * Derive the editor requirements from this repo's own source.
  *
  * @param string $root Repo root.
@@ -86,7 +124,7 @@ function sn_editor_requirements( $root ) {
 	// So: any file that registers scripts, and within it only array literals
 	// whose members are ALL 'wp-*' strings — which is what a dependency array
 	// is and what a path list is not.
-	foreach ( (array) glob( $root . '/inc/*.php' ) as $file ) {
+	foreach ( sn_editor_walk( $root, 'inc', 'php' ) as $file ) {
 		$src = (string) file_get_contents( $file );
 		if ( false === strpos( $src, 'wp_register_script' ) && false === strpos( $src, 'wp_enqueue_script' ) ) {
 			continue;
@@ -108,7 +146,7 @@ function sn_editor_requirements( $root ) {
 	}
 
 	// JS side: wp.<package>.<Symbol> usages in the shipped scripts.
-	foreach ( (array) glob( $root . '/assets/*.js' ) as $file ) {
+	foreach ( sn_editor_walk( $root, 'assets', 'js' ) as $file ) {
 		$src = (string) file_get_contents( $file );
 		if ( ! preg_match_all( '/\bwp\.([a-zA-Z][a-zA-Z0-9]*)\.([A-Za-z_][A-Za-z0-9_]*)/', $src, $m, PREG_SET_ORDER ) ) {
 			continue;
