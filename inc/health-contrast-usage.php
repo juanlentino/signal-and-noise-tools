@@ -116,7 +116,45 @@ function sn_health_contrast_usage_admin_sheets() {
 		'machine-readers.css',
 		'provenance-admin.css',
 		'uptime-status.css',
+		// v13.95.3: assets/analytics/. These two were never in this list because
+		// the source glob never reached them - they sat in a subdirectory, so
+		// nothing had to decide about them. Walking the tree made them visible
+		// and the drift test immediately red: both are enqueued on
+		// admin_enqueue_scripts only (inc/analytics-widget.php), same case as
+		// dash-widget.css. analytics-admin.css is caught by the substring rule.
+		'analytics-tokens.css',
+		'analytics-widget.css',
 	);
+}
+
+/**
+ * Every .css file under the plugin's assets/, at any depth.
+ *
+ * Returns paths RELATIVE to assets/ as keys so callers can label a sheet
+ * unambiguously; a top-level sheet's relative path is just its basename.
+ *
+ * @return array<string,string> relative path => absolute path.
+ */
+function sn_health_contrast_usage_plugin_sheets() {
+	$base = rtrim( SNT_PATH, '/' ) . '/assets';
+	if ( ! is_dir( $base ) ) {
+		return array();
+	}
+
+	$found = array();
+	$walk  = new RecursiveIteratorIterator(
+		new RecursiveDirectoryIterator( $base, FilesystemIterator::SKIP_DOTS )
+	);
+	foreach ( $walk as $file ) {
+		if ( ! $file->isFile() || 'css' !== strtolower( $file->getExtension() ) ) {
+			continue;
+		}
+		$abs = (string) $file->getPathname();
+		$found[ ltrim( substr( $abs, strlen( $base ) ), '/' ) ] = $abs;
+	}
+	ksort( $found ); // stable order: the readout must not reshuffle between runs.
+
+	return $found;
 }
 
 /**
@@ -132,15 +170,27 @@ function sn_health_contrast_usage_sources() {
 	$sources = array();
 	$admin   = sn_health_contrast_usage_admin_sheets();
 
-	foreach ( (array) glob( SNT_PATH . 'assets/*.css' ) as $file ) {
-		$base = basename( (string) $file );
+	// Depth-agnostic on purpose. This was `glob( 'assets/*.css' )` until
+	// v13.95.3, which enumerated only the TOP of assets/ and silently omitted
+	// assets/css/prov-verify.css - a sheet served on the public verify route.
+	// The docblock above already said a missed front-end sheet is the expensive
+	// direction; the population just stopped matching the rule when someone made
+	// a subdirectory. A pattern that has to be re-widened by hand every time the
+	// tree grows is the bug, so the tree is walked instead of matched.
+	foreach ( sn_health_contrast_usage_plugin_sheets() as $rel => $file ) {
+		$base = basename( $rel );
 		// The substring rule is kept as a belt-and-braces catch for an
 		// obviously-named sheet added without updating the list above; the list
 		// is what makes the exclusion correct.
 		if ( in_array( $base, $admin, true ) || false !== strpos( $base, 'admin' ) ) {
 			continue;
 		}
-		$sources[ 'plugin/' . $base ] = (string) $file;
+		// Keyed by the path RELATIVE to assets/, not the basename: two packages
+		// may each hold a `style.css`, and a basename key would let the second
+		// silently replace the first - losing a sheet the same way the glob did.
+		// For a top-level sheet the relative path IS the basename, so every
+		// pre-existing label is unchanged.
+		$sources[ 'plugin/' . $rel ] = $file;
 	}
 
 	if ( function_exists( 'get_stylesheet_directory' ) ) {
