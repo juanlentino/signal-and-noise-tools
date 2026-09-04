@@ -291,8 +291,15 @@ jobs:
             exit 1
           fi
       # Rule 2. Shippable code changed but the version did not, so rule 1 above
-      # exited 0 without reading CHANGELOG.md. Require the PR to have ADDED
-      # something to it — normally under '## [Unreleased]'.
+      # exited 0 without reading CHANGELOG.md. Require the PR to have added a
+      # line to the '## [Unreleased]' SECTION of the root CHANGELOG.md.
+      #
+      # v13.96-era change: the root file is now '## [Unreleased]' plus the
+      # current cut only; everything older lives in docs/changelog/. The
+      # previous test counted added lines anywhere in the root file, which an
+      # edit to the current-cut section satisfied without documenting anything
+      # new. It also would have been satisfied by nothing at all once history
+      # moved, since archive edits do not touch this file.
       #
       # "Added lines", not merely "file changed": a deletion-only edit or a mode
       # change satisfies the weaker test while documenting nothing. It does NOT
@@ -329,16 +336,30 @@ jobs:
             exit 0
           fi
 
-          added=$(git diff --numstat "${base}...HEAD" -- CHANGELOG.md | awk '{print $1}')
-          added=${added:-0}
-          if [ "$added" -gt 0 ]; then
-            echo "CHANGELOG.md gained ${added} line(s) alongside shippable changes."
+          # Count non-blank lines inside the '## [Unreleased]' section only, on
+          # both sides. Anywhere else in the file does not count: the current
+          # cut is already released, and the archive is a different file.
+          unreleased_lines() {
+            awk '/^## \[Unreleased\]/ { inside = 1; next }
+                 inside && /^## \[/    { exit }
+                 inside                { print }' \
+              | grep -c '[^[:space:]]' || true
+          }
+
+          head_unreleased=$(unreleased_lines < CHANGELOG.md)
+          base_unreleased=$(git show "${base}:CHANGELOG.md" 2>/dev/null | unreleased_lines)
+          head_unreleased=${head_unreleased:-0}
+          base_unreleased=${base_unreleased:-0}
+          echo "Unreleased section: ${base_unreleased} line(s) on base -> ${head_unreleased} on head."
+
+          if [ "$head_unreleased" -gt "$base_unreleased" ]; then
+            echo "CHANGELOG.md gained an Unreleased entry alongside shippable changes."
             exit 0
           fi
 
           echo "Shippable files changed by this PR:"
           printf '  %s\n' $shipped
-          echo "::error file=CHANGELOG.md::This PR changes shippable code but adds nothing to CHANGELOG.md. Add an entry under '## [Unreleased]' (global rule: ALWAYS update CHANGELOG.md). If it genuinely needs none, apply the 'no-changelog' label."
+          echo "::error file=CHANGELOG.md::This PR changes shippable code but adds nothing under '## [Unreleased]' in CHANGELOG.md. A PR does not bump Version and does not add a '## [x.y.z]' heading - it adds a bullet under Unreleased. If it genuinely needs none, apply the 'no-changelog' label."
           exit 1
 
   cron-liveness:
