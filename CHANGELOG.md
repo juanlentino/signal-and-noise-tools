@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.96.2] - 2026-09-04 — the surfaces nothing was covering
+
 ### Fixed
 - A post save now purges the paginated archive pages and the sitemap. The set
   was five hardcoded URLs; `/notes/page/2..4/`, `/wp-sitemap.xml` and
@@ -27,6 +29,10 @@ adds a bullet below. A release is a separate, deliberate act:
   and broke the installed app every time the session lapsed. Every other
   unauthenticated `/wp-admin` path still 404s, and a PWA launch is not counted
   as reconnaissance. (#1004)
+- Admin form controls no longer fall below 16px on a phone. Five rules were
+  specific enough to beat core's `max-width: 782px` bump, so iOS zoomed into a
+  focused field and never zoomed back out. Desktop sizes are unchanged; the
+  bump is restated at core's own breakpoint. (#1000)
 
 ### Added
 - A tombstone service worker at `/tools/sw.js`. The removed `/tools/` PWA left a
@@ -35,29 +41,4 @@ adds a bullet below. A release is a separate, deliberate act:
   unregister itself, clear the caches its predecessor left, and reload the
   pages it controls. It does **not** address the separate 503s seen on
   `/wp-admin/`. (#1002)
-
-### Fixed
-- Admin form controls no longer fall below 16px on a phone. Five rules were
-  specific enough to beat core's `max-width: 782px` bump, so iOS zoomed into a
-  focused field and never zoomed back out. Desktop sizes are unchanged; the
-  bump is restated at core's own breakpoint. (#1000)
-
-## [13.96.1] - 2026-09-04 — one declaration, enforced the same way everywhere
-
-### Fixed
-- The MCP read door now validates arguments against the ability's declared
-  input schema, as the write door and the REST run-route already did. One
-  declaration was being enforced three different ways depending on the door,
-  and on the read door not at all — while every read ability's docblock said
-  "Validated against input_schema above". An undeclared argument is now a
-  -32602 naming the key, not a silent drop. (#986)
-
-### Changed
-- `family-drift` no longer returns its whole report twice. The same record is
-  written to both stored options on a successful run, so `last` and `last_ok`
-  were byte-identical — including a ~100-entry `vendor_gap` map — on every call
-  and every `sn-status{family_drift}`. `last_ok` now collapses to
-  `{same_as_last, status, computed_at}` in that case only. It is still the full
-  stale report when the last attempt failed, and still `null` when no run has
-  ever succeeded. (#991)
 
