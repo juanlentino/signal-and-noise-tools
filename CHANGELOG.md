@@ -12,6 +12,15 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Eight admin tables no longer claim core's list-table responsive contract
+  without meeting it. At `max-width: 782px` core turns every `.wp-list-table`
+  row into a flex container sized by `column-primary`, which these never
+  emitted — so on a phone the header painted over the first cell and "Path"
+  over "/notes" read as `Paothes`. They keep `widefat striped` and drop
+  `wp-list-table`; the eight tables that do meet the contract are untouched.
+  (#1015)
+
 ## [13.96.3] - 2026-09-04 — the instrument that could not see a server error
 
 ### Fixed

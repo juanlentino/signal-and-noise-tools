@@ -579,7 +579,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		echo '<p class="sn-fieldset-intro">Each row is one check of the page a reader would actually get, '
 			. (int) SN_CF_PROBE_DELAY . ' seconds after its purge. A stale row escalated to a full zone purge at the time,'
 			. ' so it records a purge that needed a second attempt — not a page still stale now.</p>';
-		echo '<table class="wp-list-table widefat striped"><thead><tr>';
+		echo '<table class="widefat striped"><thead><tr>';
 		echo '<th scope="col">When</th><th scope="col">Result</th><th scope="col">Page</th>';
 		echo '</tr></thead><tbody>';
 		foreach ( array_slice( $probe_log, 0, 20 ) as $row ) {
