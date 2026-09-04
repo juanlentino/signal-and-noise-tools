@@ -67,10 +67,35 @@ echo "\nGroup 2: no suite builds its own inc/ population\n";
  * Judging each expression's SHAPE cannot catch a stale list. Removing the
  * choice can: one helper, reviewed once, used everywhere.
  */
+/**
+ * Source with comments removed, so PROSE ABOUT the rule cannot violate it.
+ *
+ * tests/editor-api-smoke-population.php explains in a comment why it does not
+ * write `glob( $tmp . '/inc/*.php' )`, and this scanner flagged the sentence.
+ * That is the same confusion tests/health-contrast-usage.php already documents:
+ * a stylesheet NAMED in a comment is not an enqueue. Tokenised rather than
+ * regexed, because a `//` inside a quoted string is not a comment.
+ *
+ * @param string $src PHP source.
+ * @return string Source with comment tokens blanked.
+ */
+function sn_ipg_strip_comments( $src ) {
+	$out = '';
+	foreach ( token_get_all( $src ) as $tok ) {
+		if ( is_array( $tok ) && in_array( $tok[0], array( T_COMMENT, T_DOC_COMMENT ), true ) ) {
+			$out .= "\n";
+			continue;
+		}
+		$out .= is_array( $tok ) ? $tok[1] : $tok;
+	}
+
+	return $out;
+}
+
 $offenders = array();
 foreach ( (array) glob( __DIR__ . '/*.php' ) as $suite ) {
 	if ( basename( $suite ) === basename( __FILE__ ) ) { continue; }
-	$src = (string) file_get_contents( $suite );
+	$src = sn_ipg_strip_comments( (string) file_get_contents( $suite ) );
 	if ( ! preg_match_all( '#glob\(\s*([^;]+?)\s*\)#', $src, $m ) ) { continue; }
 	foreach ( $m[1] as $expr ) {
 		// Matched on the RAW expression: the pattern is usually built from a
@@ -101,6 +126,15 @@ ok( empty( $offenders ),
 	'inc/ is enumerated only via snt_test_inc_files()' . ( $offenders
 		? " - these build their own:\n    " . implode( "\n    ", $offenders )
 		: ' (' . count( glob( __DIR__ . '/*.php' ) ) . ' suites scanned)' ) );
+
+// Comments must not be scanned, and code must still be. Both directions, or
+// "stripped comments" could quietly mean "stripped everything".
+$commented = "<?php\n// glob( \$inc_dir . '/*.php' ) is exactly what NOT to write.\n\$y = 1;";
+$real      = "<?php \$x = glob( \$inc_dir . '/*.php' );";
+ok( false === strpos( sn_ipg_strip_comments( $commented ), 'glob(' ),
+	'a glob mentioned in a COMMENT is not a call' );
+ok( false !== strpos( sn_ipg_strip_comments( $real ), 'glob(' ),
+	'a glob in CODE survives stripping - the stripper is not just deleting everything' );
 
 // The scanner must be able to SEE an offender, or the line above is decoration.
 $probe = "<?php \$x = glob( \$inc_dir . '/*.php' );";
