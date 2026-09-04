@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- The MCP read door now validates arguments against the ability's declared
+  input schema, as the write door and the REST run-route already did. One
+  declaration was being enforced three different ways depending on the door,
+  and on the read door not at all — while every read ability's docblock said
+  "Validated against input_schema above". An undeclared argument is now a
+  -32602 naming the key, not a silent drop. (#986)
+
 ## [13.96.0] - 2026-09-04 — the populations that were never complete
 
 ### Added

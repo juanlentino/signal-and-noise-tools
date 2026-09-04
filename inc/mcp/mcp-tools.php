@@ -571,12 +571,29 @@ function sn_mcp_call_tool( $tool_name, $arguments, $door = SN_MCP_DOOR_READ ) {
 	// inc/abilities-lifecycle-guard.php stand down — this wrapper already
 	// records telemetry + rw audit for the call; without the flag every MCP
 	// call would be double-logged once core starts firing those hooks.
-	// SEC: reject undeclared arguments on the WRITE door BEFORE execute(), so a
-	// caller who believes they constrained a mutation is told they did not.
-	// Ordered ahead of the depth flag and the try/finally deliberately: nothing
-	// has been mutated or logged as an attempt yet, and a rejected call must not
-	// consume the lifecycle bracket.
-	if ( SN_MCP_DOOR_RW === $door && function_exists( 'sn_mcp_input_schema_violation' ) ) {
+	// SEC: reject arguments that violate the advertised input schema BEFORE
+	// execute(), so a caller who believes they constrained a call is told they
+	// did not. Ordered ahead of the depth flag and the try/finally deliberately:
+	// nothing has been mutated or logged as an attempt yet, and a rejected call
+	// must not consume the lifecycle bracket.
+	//
+	// v13.96.1 (#986): this ran on the WRITE door only, which left the estate
+	// enforcing one declaration three different ways:
+	//
+	//   REST /wp-abilities/v1/.../run  WP_Ability::validate_input()  -> enforced
+	//   MCP write door                 this check                    -> enforced
+	//   MCP read door                  nothing                       -> NOT enforced
+	//
+	// Upstream is explicit that execute() does not validate ("input is not
+	// automatically validated against the input schema" - class-wp-ability.php),
+	// so the read door's dispatch had no validation at any layer. Every read
+	// ability's docblock says "Validated against input_schema above"; on this
+	// door that was false.
+	//
+	// Enforcing it here is symmetry, not a new rule, and it uses the SAME engine
+	// as both other doors (rest_validate_value_from_schema), so the three cannot
+	// disagree about what a schema means.
+	if ( function_exists( 'sn_mcp_input_schema_violation' ) ) {
 		$sn_in_bad = sn_mcp_input_schema_violation(
 			$args,
 			sn_mcp_normalize_schema( $ability->get_input_schema() )

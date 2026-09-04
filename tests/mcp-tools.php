@@ -629,12 +629,70 @@ ok( null === sn_mcp_input_schema_violation( array( 'anything' => 1 ), array() ),
 $sn_probe = rest_validate_value_from_schema( array( 'name' => 'A', 'description' => 'B', 'nope' => 1 ), $sn_in_schema, 'arguments' );
 ok( is_wp_error( $sn_probe ), 'the harness validator itself rejects undeclared keys (assertions above are not vacuous)' );
 
-// WIRING: the gate is on the WRITE door only, and runs BEFORE execute().
+// WIRING. The ordering pin stays a source check - "before execute()" is a
+// property of the CODE's shape and there is no other way to see it. The DOOR
+// scoping does not: it used to be pinned by searching for the literal string
+// `SN_MCP_DOOR_RW === $door && function_exists( ... )`, which names a FILE for
+// what is a property of BEHAVIOUR, and would have gone red on a pure rename.
+// It is now driven through the dispatcher on both doors instead (#986).
 $sn_src = file_get_contents( __DIR__ . '/../inc/mcp/mcp-tools.php' );
 $sn_gate = strpos( $sn_src, 'sn_mcp_input_schema_violation(' . "\n" );
 $sn_exec = strpos( $sn_src, '$ability->execute( $args )' );
-ok( false !== strpos( $sn_src, 'SN_MCP_DOOR_RW === $door && function_exists( \'sn_mcp_input_schema_violation\' )' ), 'the input gate is scoped to the WRITE door' );
 ok( false !== $sn_gate && false !== $sn_exec && $sn_gate < $sn_exec, 'the gate runs BEFORE execute(), so a rejected call mutates nothing' );
+
+// BEHAVIOUR: an undeclared argument is refused on BOTH doors.
+//
+// Until v13.96.1 the gate ran on the write door only. The read door had no
+// input validation at ANY layer - upstream's execute() does not validate
+// (class-wp-ability.php: "input is not automatically validated against the
+// input schema"), and only the REST run-route calls validate_input(). So one
+// declaration was enforced three different ways depending on which door the
+// caller used, while every read ability's docblock said "Validated against
+// input_schema above".
+//
+// The stock fixtures declare `input_schema => array()`, which makes the gate
+// fail OPEN by design - an absent schema yields no verdict. Asserting against
+// them would have "passed" for the wrong reason on the read door and proved
+// nothing, so both doors are re-fixtured here with a schema that actually
+// constrains. The slugs are kept because each is already allowlisted for its
+// door and an un-allowlisted slug is refused before the gate is reached.
+$sn_strict = array(
+	'type'                 => array( 'object', 'null' ),
+	'properties'           => array( 'declared' => array( 'type' => 'string' ) ),
+	'additionalProperties' => false,
+);
+$GLOBALS['__abilities']['signal-noise/get-health-scan'] = new SN_Test_Ability( 'signal-noise/get-health-scan', array(
+	'input_schema' => $sn_strict, 'result' => array( 'status' => 'green' ),
+) );
+$GLOBALS['__abilities']['signal-noise/ai-pair-suggest'] = new SN_Test_Ability( 'signal-noise/ai-pair-suggest', array(
+	'input_schema' => $sn_strict, 'result' => array( 'ok' => true ),
+) );
+
+foreach ( array( 'READ' => SN_MCP_DOOR_READ, 'WRITE' => SN_MCP_DOOR_RW ) as $sn_dn => $sn_door ) {
+	// The write door is rate limited, and the rw calls earlier in this file have
+	// already spent the budget - without this reset the probe returns -32000
+	// ("Rate limit exceeded") and never reaches the gate, which would read as
+	// "the gate does not fire" when the call simply never got there. The
+	// limiter's state is these two harness globals.
+	$GLOBALS['__transients'] = array();
+	$GLOBALS['__wp_cache']   = array();
+
+	$sn_tool = 'READ' === $sn_dn ? 'signal-noise__get-health-scan' : 'signal-noise__ai-pair-suggest';
+	$sn_bad  = sn_mcp_call_tool( $sn_tool, array( 'totally_undeclared_knob' => 1 ), $sn_door );
+	$sn_code = $sn_bad['error']['code'] ?? null;
+	$sn_msg  = (string) ( $sn_bad['error']['message'] ?? '' );
+	ok( -32602 === $sn_code,
+		"$sn_dn door: an undeclared argument is refused (-32602), not silently dropped - got " . var_export( $sn_code, true ) );
+	ok( false !== strpos( $sn_msg, 'totally_undeclared_knob' ),
+		"$sn_dn door: the refusal NAMES the offending key" );
+}
+
+// ...and the common path is untouched: a no-argument read call still succeeds.
+// Read schemas declare type [object,null] precisely because a bodyless call
+// delivers null, so the gate must have no opinion about it. Without this line,
+// "both doors reject" could be satisfied by a gate that rejects everything.
+$sn_noarg = sn_mcp_call_tool( 'signal-noise__get-health-scan', array(), SN_MCP_DOOR_READ );
+ok( ! isset( $sn_noarg['error'] ), 'READ door: a no-argument call is NOT collateral damage of the gate' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
