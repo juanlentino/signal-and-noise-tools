@@ -13,6 +13,43 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Fixed
+- The installed PWA's home-screen tile is no longer a black square. OpenStation
+  builds the manifest from the WordPress Site Icon when one is set, and measured
+  against the live manifest that path shipped three faults at once: the 192 entry
+  pointed at core's `-300x300` crop while declaring `sizes: "192x192"`; both files
+  were RGBA with 61.6% fully transparent pixels, and iOS composites home-screen
+  transparency to **black** behind a mark measuring luminance 23/255; and neither
+  declared `maskable`, so Android had no full-bleed art to crop. The plugin now
+  supplies its own opaque set through the `openstation_pwa_manifest` filter —
+  `any` at 192/512 full-bleed, `maskable` at 192/512 inset to 80%. Flattened onto
+  white, not the manifest's `background_color`: the mark is dark ink, so a dark
+  ground would have erased it. The icons ship with the PLUGIN because the manifest
+  describes a wp-admin surface, which has to survive a theme switch. (#1017)
+- Four form controls no longer zoom the page on an iPhone and leave it magnified.
+  WebKit zooms a focused control under 16px and does not zoom back out; core
+  guards this with `textarea, input { font-size: 16px }` at 782px, but that is
+  specificity 0,0,1 and loses to any class, id or attribute selector. The
+  post-settings fields (1,2,1) outranked it, and `prov-verify.css` is a front-end
+  sheet where core's admin CSS never loads and which had no 782px block at all.
+  Desktop sizes are unchanged. (#1018)
+
+### Internal
+- `tests/ios-form-zoom-guard.php` derives its control population from the MARKUP
+  — the class names our PHP actually puts on an `<input|select|textarea>` — not
+  from words in a selector. `.sn-rsm-items` is a `<textarea>` in three admin forms
+  whose CSS rule names no element, so a word-match skipped it silently. The guard
+  also requires that a 782px block re-raise `font-size`, rather than merely
+  mentioning the selector; a block adjusting padding at phone width would
+  otherwise have satisfied it. Both corrections came from the guard disagreeing
+  with the scan that produced the finding: nine "violations" were really four,
+  because five were already guarded and the scan counted "under 16px" instead of
+  "under 16px AND unguarded". (#1018)
+- `tests/openstation-pwa-icons.php` reads each shipped PNG's IHDR and compares
+  real dimensions and colour type against what the manifest declares. The defect
+  was a manifest that DESCRIBED its icons wrongly, so a test asserting only that
+  four entries exist would have passed against the broken one. (#1017)
+
+### Fixed
 - Five admin surfaces now meet core's list-table responsive contract instead of
   only claiming it. At `max-width: 782px` core turns every `.wp-list-table` row
   into a flex container sized by `column-primary` and labels each cell from its
