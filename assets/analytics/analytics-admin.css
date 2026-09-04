@@ -702,3 +702,11 @@ details.sn-an-empty-fold li:last-child { margin-bottom: 0; }
 /* Review r1 F3: three promoted minis leave ONE quiet bento column — span it
    so the lone mini never sits beside an empty half. */
 .sn-an-overview-bento > .sn-an-bento-col:only-child { grid-column: 1 / -1; }
+
+/* Mobile: see the same block in assets/admin.css (#1000). A sub-16px control
+   makes iOS zoom in on focus and never back out; core's 782px bump is
+   outspecified by the rule above, so it is restated here at core's own
+   breakpoint. */
+@media screen and (max-width: 782px) {
+	.sn-an-custom-form input[type="date"] { font-size: 16px; }
+}
