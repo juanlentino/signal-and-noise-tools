@@ -20,6 +20,15 @@ adds a bullet below. A release is a separate, deliberate act:
   "Validated against input_schema above". An undeclared argument is now a
   -32602 naming the key, not a silent drop. (#986)
 
+### Changed
+- `family-drift` no longer returns its whole report twice. The same record is
+  written to both stored options on a successful run, so `last` and `last_ok`
+  were byte-identical — including a ~100-entry `vendor_gap` map — on every call
+  and every `sn-status{family_drift}`. `last_ok` now collapses to
+  `{same_as_last, status, computed_at}` in that case only. It is still the full
+  stale report when the last attempt failed, and still `null` when no run has
+  ever succeeded. (#991)
+
 ## [13.96.0] - 2026-09-04 — the populations that were never complete
 
 ### Added

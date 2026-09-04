@@ -46,6 +46,14 @@ const SN_MR_DEFAULT_ENDPOINT = 'https://example.test/_sn/rights-signals/machine-
 function snt_ability_perm_manage_options() { return true; }
 function wp_register_ability( $slug, $args ) { $GLOBALS['__registered'][ $slug ] = $args; return true; }
 
+// snt_family_drift_collapse_last_ok() compares two stored records by encoded
+// value (#991). WordPress is not loaded here, so the encoder is stubbed - the
+// suite fataled through the EXISTING snt_ability_family_drift() call below the
+// moment production started using it, which is the harness doing its job.
+if ( ! function_exists( 'wp_json_encode' ) ) {
+	function wp_json_encode( $data, $options = 0, $depth = 512 ) { return json_encode( $data, $options, $depth ); }
+}
+
 require_once __DIR__ . '/../inc/family-drift.php';
 require_once __DIR__ . '/../inc/abilities-family-drift.php';
 
@@ -214,6 +222,40 @@ $sn_new['ours_unmatched'] = array();
 $sn_new['unobservable']   = array( 'apple-ai' );
 $sn_v3 = sn_family_drift_health( array( 'last' => $sn_new, 'last_ok' => $sn_new ), $NOW );
 ok( $sn_v3['summary'] === $sn_v['summary'], 'a stored and a recomputed record produce the SAME sentence' );
+
+// ── #991: last_ok must not repeat the whole report ─────────────────────────
+// sn_family_drift_run() writes the SAME record to both options on success, so
+// the ability returned its entire report twice - including a ~100-entry
+// vendor_gap map - on every call and every sn-status{family_drift}.
+echo "\nGroup: last_ok collapses only when it DUPLICATES last\n";
+
+$fd_rec = array( 'status' => 'ok', 'error' => '', 'computed_at' => 1788389983, 'vendor_gap' => array( 'A' => array( 'x' ) ) );
+
+$fd_same = snt_family_drift_collapse_last_ok( $fd_rec, $fd_rec );
+ok( is_array( $fd_same ) && true === ( $fd_same['same_as_last'] ?? null ), 'identical records collapse to a marker' );
+ok( ! isset( $fd_same['vendor_gap'] ), 'the duplicated BODY is gone - that is the entire saving' );
+ok( 1788389983 === ( $fd_same['computed_at'] ?? null ), 'the marker keeps computed_at, so the age stays readable without reading `last`' );
+ok( 'ok' === ( $fd_same['status'] ?? null ), 'and keeps status' );
+
+// The fail-closed case is the REASON both fields exist. It must be untouched.
+$fd_failed = array( 'status' => 'error', 'error' => 'upstream_ai', 'computed_at' => 1788400000 );
+$fd_kept   = snt_family_drift_collapse_last_ok( $fd_failed, $fd_rec );
+ok( $fd_kept === $fd_rec, 'a FAILED last leaves last_ok whole - the stale-but-real report is why the field exists' );
+
+// THE distinction this fix exists to preserve. Returning null when the two are
+// identical would have been the cheap implementation and would leave a reader
+// unable to tell "never succeeded" from "same as last" - the house defect,
+// introduced deliberately.
+ok( null === snt_family_drift_collapse_last_ok( $fd_rec, null ),
+	'null last_ok stays NULL - it means "no run has ever succeeded" and must never be produced by de-duplication' );
+$fd_marker = snt_family_drift_collapse_last_ok( $fd_rec, $fd_rec );
+ok( null !== $fd_marker && isset( $fd_marker['same_as_last'] ),
+	'a collapsed marker is distinguishable from null by a caller doing isset()' );
+
+// A record that merely LOOKS similar must not collapse.
+$fd_near = $fd_rec;
+$fd_near['computed_at'] = 1788389984;
+ok( snt_family_drift_collapse_last_ok( $fd_rec, $fd_near ) === $fd_near, 'a one-second difference is NOT a duplicate' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
