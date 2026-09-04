@@ -62,19 +62,28 @@
     var tr = el('tr');
 
     var full = String(p.note_uid);
-    var tdUid = el('td');
+    // The four cells carry the core list-table responsive contract: the first
+    // is the row's primary column, and every cell names its header. Under 782px
+    // core stacks the row and reads data-colname as each cell's label, so a cell
+    // without one renders as an unlabelled value.
+    var tdUid = el('td', 'column-primary');
+    tdUid.setAttribute('data-colname', 'UID');
     var code = el('code', null, shortUid(full));
     code.title = full;
     tdUid.appendChild(code);
     tr.appendChild(tdUid);
 
-    tr.appendChild(el('td', null, 'v' + Number(p.version)));
+    var tdVersion = el('td', null, 'v' + Number(p.version));
+    tdVersion.setAttribute('data-colname', 'Version');
+    tr.appendChild(tdVersion);
 
     var tdStatus = el('td');
+    tdStatus.setAttribute('data-colname', 'Status');
     tdStatus.appendChild(statusPill(p.status));
     tr.appendChild(tdStatus);
 
     var tdLedger = el('td');
+    tdLedger.setAttribute('data-colname', 'Ledger');
     // v12.8.0: prefer the row's OWN ledger url. The shared base + uid only works
     // while every subject is a Note; a signed page lives under pages/ and would
     // get a 404 link from the base. The server resolves it so the kind ->

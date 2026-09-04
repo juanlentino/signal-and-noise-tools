@@ -132,7 +132,7 @@ function sn_admin_render_scheduled_content_section() {
 	echo '<p class="sn-field-helper">' . esc_html__( 'Hand-authored content scheduled to reveal or hide on a date (signal-noise/scheduled blocks), plus WordPress posts and pages waiting to auto-publish. Times shown in the site timezone.', 'signal-and-noise-tools' ) . '</p>';
 
 	if ( 0 === $total ) {
-		echo '<table class="wp-list-table widefat striped"><tbody><tr><td>'
+		echo '<table class="widefat striped"><tbody><tr><td>'
 			. esc_html__( 'No scheduled content. Add a signal-noise/scheduled block to a page, or schedule a post for the future, and it will appear here.', 'signal-and-noise-tools' )
 			. '</td></tr></tbody></table>';
 		return;
@@ -155,7 +155,7 @@ function sn_admin_render_scheduled_content_section() {
 
 	echo '<table class="wp-list-table widefat striped">';
 	echo '<thead><tr>';
-	echo '<th scope="col">' . esc_html__( 'Target', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Target', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col">' . esc_html__( 'Type', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col">' . esc_html__( 'Action', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col">' . esc_html__( 'Window', 'signal-and-noise-tools' ) . '</th>';
@@ -213,7 +213,7 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 
 	echo '<table class="wp-list-table widefat striped">';
 	echo '<thead><tr>';
-	echo '<th scope="col">' . esc_html__( 'Target', 'signal-and-noise-tools' ) . '</th>';
+	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Target', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col">' . esc_html__( 'Swap at', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col">' . esc_html__( 'Status', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col">' . esc_html__( 'Next transition', 'signal-and-noise-tools' ) . '</th>';
@@ -227,7 +227,7 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 
 		echo '<tr>';
 
-		echo '<th scope="row">';
+		echo '<th scope="row" class="column-primary" data-colname="Target">';
 		$edit_link = $target_id > 0 ? get_edit_post_link( $target_id ) : '';
 		if ( $target_id > 0 && is_string( $edit_link ) && '' !== $edit_link ) {
 			echo '<a href="' . esc_url( $edit_link ) . '">' . esc_html( get_the_title( $target_id ) ) . '</a>';
@@ -240,19 +240,19 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 		echo '</th>';
 
 		// The single swap instant, site-tz.
-		echo '<td>' . esc_html( sn_admin_schedule_fmt_gmt( $pair['swap_at'] ?? '' ) ) . '</td>';
+		echo '<td data-colname="Swap at">' . esc_html( sn_admin_schedule_fmt_gmt( $pair['swap_at'] ?? '' ) ) . '</td>';
 
 		// Pair status: old-side → new-side.
 		$hide_status = (string) ( $pair['hide']['status'] ?? 'queued' );
 		$show_status = (string) ( $pair['show']['status'] ?? 'queued' );
-		echo '<td>' . esc_html( $hide_status . ' → ' . $show_status ) . '</td>';
+		echo '<td data-colname="Status">' . esc_html( $hide_status . ' → ' . $show_status ) . '</td>';
 
 		// Relative time to the swap instant (blank once past).
 		$next = sn_admin_schedule_next_transition( $pair['swap_at'] ?? null, null );
-		echo '<td>' . ( '' !== $next ? esc_html( $next ) : '&mdash;' ) . '</td>';
+		echo '<td data-colname="Next transition">' . ( '' !== $next ? esc_html( $next ) : '&mdash;' ) . '</td>';
 
 		// One op: run the whole swap now.
-		echo '<td>';
+		echo '<td data-colname="Actions">';
 		if ( $hide_id > 0 && $show_id > 0 ) {
 			echo '<form method="post" action="' . esc_url( admin_url( 'admin.php?page=sn-connections' ) ) . '" class="sn-schedule-op">';
 			wp_nonce_field( 'sn_theme_options_nonce' );
@@ -288,7 +288,7 @@ function sn_admin_render_schedule_fragment_row( array $row ) {
 	echo '<tr>';
 
 	// Target: link to the host post's editor when we have one + an edit link.
-	echo '<th scope="row">';
+	echo '<th scope="row" class="column-primary" data-colname="Target">';
 	$edit_link = $target_id > 0 ? get_edit_post_link( $target_id ) : '';
 	if ( $target_id > 0 && is_string( $edit_link ) && '' !== $edit_link ) {
 		echo '<a href="' . esc_url( $edit_link ) . '">' . esc_html( get_the_title( $target_id ) ) . '</a>';
@@ -301,23 +301,23 @@ function sn_admin_render_schedule_fragment_row( array $row ) {
 	echo '</th>';
 
 	// Type.
-	echo '<td>' . esc_html__( 'Fragment', 'signal-and-noise-tools' ) . '</td>';
+	echo '<td data-colname="Type">' . esc_html__( 'Fragment', 'signal-and-noise-tools' ) . '</td>';
 
 	// Action: reveal / hide (the row's stored action verb).
-	echo '<td>' . esc_html( $action ) . '</td>';
+	echo '<td data-colname="Action">' . esc_html( $action ) . '</td>';
 
 	// Window: from -> until, converted UTC -> site timezone for display.
-	echo '<td>' . wp_kses_post( sn_admin_schedule_window_html( $row['starts_at'] ?? null, $row['ends_at'] ?? null ) ) . '</td>';
+	echo '<td data-colname="Window">' . wp_kses_post( sn_admin_schedule_window_html( $row['starts_at'] ?? null, $row['ends_at'] ?? null ) ) . '</td>';
 
 	// Status.
-	echo '<td>' . esc_html( $status ) . '</td>';
+	echo '<td data-colname="Status">' . esc_html( $status ) . '</td>';
 
 	// Next transition: relative time to the soonest FUTURE boundary, if any.
 	$next_frag = sn_admin_schedule_next_transition( $row['starts_at'] ?? null, $row['ends_at'] ?? null );
-	echo '<td>' . ( '' !== $next_frag ? esc_html( $next_frag ) : '&mdash;' ) . '</td>';
+	echo '<td data-colname="Next transition">' . ( '' !== $next_frag ? esc_html( $next_frag ) : '&mdash;' ) . '</td>';
 
 	// Actions: two tiny POST forms. Cap + nonce are enforced by the dispatcher.
-	echo '<td>';
+	echo '<td data-colname="Actions">';
 	if ( $row_id > 0 ) {
 		sn_admin_render_schedule_op_button( $row_id, 'schedule_run_now', __( 'Run now', 'signal-and-noise-tools' ) );
 		echo ' ';
@@ -347,7 +347,7 @@ function sn_admin_render_schedule_future_post_row( array $post ) {
 	echo '<tr>';
 
 	// Target: the post title, linked to its editor when core gave us a link.
-	echo '<th scope="row">';
+	echo '<th scope="row" class="column-primary" data-colname="Target">';
 	if ( '' !== $edit_link ) {
 		echo '<a href="' . esc_url( $edit_link ) . '">' . esc_html( $title ) . '</a>';
 	} else {
@@ -359,23 +359,23 @@ function sn_admin_render_schedule_future_post_row( array $post ) {
 	echo '</th>';
 
 	// Type.
-	echo '<td>' . esc_html__( 'Page', 'signal-and-noise-tools' ) . '</td>';
+	echo '<td data-colname="Type">' . esc_html__( 'Page', 'signal-and-noise-tools' ) . '</td>';
 
 	// Action: native posts always publish at their scheduled instant.
-	echo '<td>' . esc_html__( 'Publish', 'signal-and-noise-tools' ) . '</td>';
+	echo '<td data-colname="Action">' . esc_html__( 'Publish', 'signal-and-noise-tools' ) . '</td>';
 
 	// Window: a single instant (the publish time), site-tz.
-	echo '<td>' . esc_html( sn_admin_schedule_fmt_gmt( $gmt ) ) . '</td>';
+	echo '<td data-colname="Window">' . esc_html( sn_admin_schedule_fmt_gmt( $gmt ) ) . '</td>';
 
 	// Status: core-managed.
-	echo '<td>' . esc_html__( 'Scheduled', 'signal-and-noise-tools' ) . '</td>';
+	echo '<td data-colname="Status">' . esc_html__( 'Scheduled', 'signal-and-noise-tools' ) . '</td>';
 
 	// Next transition: relative to the publish instant.
 	$next_post = sn_admin_schedule_next_transition( $gmt, null );
-	echo '<td>' . ( '' !== $next_post ? esc_html( $next_post ) : '&mdash;' ) . '</td>';
+	echo '<td data-colname="Next transition">' . ( '' !== $next_post ? esc_html( $next_post ) : '&mdash;' ) . '</td>';
 
 	// Actions: none; native posts are core-managed.
-	echo '<td><small>' . esc_html__( 'native', 'signal-and-noise-tools' ) . '</small></td>';
+	echo '<td data-colname="Actions"><small>' . esc_html__( 'native', 'signal-and-noise-tools' ) . '</small></td>';
 
 	echo '</tr>';
 }

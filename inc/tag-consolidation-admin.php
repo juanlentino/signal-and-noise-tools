@@ -120,13 +120,13 @@ function sn_admin_tag_render_cluster( $c ) {
 	echo '<div class="sn-fieldset"><h2 class="sn-fieldset-h">' . esc_html__( 'Possible duplicates', 'signal-and-noise-tools' ) . '</h2>';
 	echo '<form method="get" action="' . esc_url( admin_url( 'admin.php' ) ) . '">';
 	echo '<input type="hidden" name="page" value="sn-content"><input type="hidden" name="tab" value="content"><input type="hidden" name="sub" value="tags"><input type="hidden" name="sn_tag_preview" value="1">';
-	echo '<table class="wp-list-table widefat striped"><thead><tr><th>' . esc_html__( 'Canonical', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Merge?', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Tag', 'signal-and-noise-tools' ) . '</th><th class="num">' . esc_html__( 'Posts', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
+	echo '<table class="wp-list-table widefat striped"><thead><tr><th>' . esc_html__( 'Canonical', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Merge?', 'signal-and-noise-tools' ) . '</th><th class="manage-column column-primary">' . esc_html__( 'Tag', 'signal-and-noise-tools' ) . '</th><th class="num">' . esc_html__( 'Posts', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 	foreach ( $c['terms'] as $t ) {
 		$is_sug = ( (int) $t['term_id'] === (int) $c['suggested'] );
 		echo '<tr><td><input type="radio" name="sn_tag_into" value="' . esc_attr( $t['term_id'] ) . '"' . ( $is_sug ? ' checked' : '' ) . '></td>';
 		echo '<td><input type="checkbox" name="sn_tag_from[]" value="' . esc_attr( $t['term_id'] ) . '"' . ( $is_sug ? '' : ' checked' ) . '></td>';
-		echo '<td><strong>' . esc_html( $t['name'] ) . '</strong> <code>' . esc_html( $t['slug'] ) . '</code></td>';
-		echo '<td class="num">' . esc_html( number_format_i18n( (int) $t['count'] ) ) . '</td></tr>';
+		echo '<td class="column-primary" data-colname="Tag"><strong>' . esc_html( $t['name'] ) . '</strong> <code>' . esc_html( $t['slug'] ) . '</code></td>';
+		echo '<td class="num" data-colname="Posts">' . esc_html( number_format_i18n( (int) $t['count'] ) ) . '</td></tr>';
 	}
 	echo '</tbody></table>';
 	echo '<p><button type="submit" class="button button-secondary">' . esc_html__( 'Preview merge', 'signal-and-noise-tools' ) . '</button> ';

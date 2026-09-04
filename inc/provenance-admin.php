@@ -662,7 +662,7 @@ function sn_prov_admin_render_commits_fieldset( $note_base ) {
 	echo '</form>';
 
 	echo '<table class="wp-list-table widefat striped sn-prov-table"><thead><tr>'
-		. '<th>' . esc_html__( 'UID', 'signal-and-noise-tools' ) . '</th>'
+		. '<th class="manage-column column-primary">' . esc_html__( 'UID', 'signal-and-noise-tools' ) . '</th>'
 		. '<th>' . esc_html__( 'Version', 'signal-and-noise-tools' ) . '</th>'
 		. '<th>' . esc_html__( 'Status', 'signal-and-noise-tools' ) . '</th>'
 		. '<th>' . esc_html__( 'Ledger', 'signal-and-noise-tools' ) . '</th>'
