@@ -35,7 +35,7 @@ function snt_analytics_render_paths_table( $paths ) {
 	// four metrics: Views/Visits already carry the post-click side, and "shown N
 	// times, ranked X" is the pair that adds something this row did not have.
 	$gsc = function_exists( 'snt_gsc_data' ) && null !== snt_gsc_data();
-	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+	echo '<table class="widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th>'
@@ -58,7 +58,7 @@ function snt_analytics_render_paths_table( $paths ) {
 			$pos  = null === $m ? '—' : number_format_i18n( (float) $m['position'], 1 );
 		}
 		echo '<tr>'
-			. '<td class="column-primary" data-colname="Path"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
+			. '<td class="column-primary"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
 			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
 			. '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) $r['visits'] ) ) . '</td>'
 			. '<td class="num" data-colname="Scroll">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
@@ -116,7 +116,7 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 	$has_spark = ! empty( $series );
 	$deltas    = ( isset( $opts['deltas'] ) && is_array( $opts['deltas'] ) ) ? $opts['deltas'] : null;
 	snt_an_clamp_open( count( $rows ), (int) $visible ); // v8.5.0 (content view passes 10 for sources — column balance)
-	echo '<table class="wp-list-table widefat striped"><thead><tr>';
+	echo '<table class="widefat striped"><thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html( $title ) . '</th>';
 	if ( $has_spark ) {
 		echo '<th scope="col" class="manage-column">' . esc_html__( 'Trend', 'signal-and-noise-tools' ) . '</th>';
@@ -124,7 +124,7 @@ function snt_analytics_render_dim_table( $title, $rows, $empty, $series = array(
 	echo '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th><th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		$v = (string) $r['value'];
-		echo '<tr><td class="column-primary" data-colname="' . esc_attr( $title ) . '">';
+		echo '<tr><td class="column-primary">';
 		if ( '' !== $drill_dim ) {
 			echo '<a href="' . esc_url( add_query_arg( array( 'sn_drill' => $drill_dim . ':' . $v ) ) ) . '"><strong>' . esc_html( $v ) . '</strong></a>';
 		} else {
@@ -213,7 +213,7 @@ function snt_analytics_render_lowengage( $rows ) {
 	}
 	snt_an_panel_open( __( 'Pages losing readers', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
 	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
-	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+	echo '<table class="widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Page', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Scroll', 'signal-and-noise-tools' ) . '</th>'
@@ -221,7 +221,7 @@ function snt_analytics_render_lowengage( $rows ) {
 		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		echo '<tr>'
-			. '<td class="column-primary" data-colname="Page"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
+			. '<td class="column-primary"><strong>' . esc_html( (string) $r['path'] ) . '</strong></td>'
 			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) ) . '</td>'
 			. '<td class="num" data-colname="Scroll">' . esc_html( (int) round( (float) $r['scroll_avg'] ) . '%' ) . '</td>'
 			. '<td class="num" data-colname="Time">' . esc_html( snt_analytics_fmt_time( (float) $r['time_avg'] ) ) . '</td>'
@@ -287,7 +287,7 @@ function snt_analytics_render_pageroles_table( $rows, $role, $header_meta = '', 
 	echo '<p class="sn-an-settings-help" style="padding:0 12px">' . esc_html( $caption ) . '</p>';
 	$deltas = ( isset( $opts['deltas'] ) && is_array( $opts['deltas'] ) ) ? $opts['deltas'] : null;
 	snt_an_clamp_open( count( $rows ), 5 ); // v8.5.0
-	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+	echo '<table class="widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Path', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th>'
@@ -295,7 +295,7 @@ function snt_analytics_render_pageroles_table( $rows, $role, $header_meta = '', 
 	foreach ( $rows as $r ) {
 		$path = (string) $r['path'];
 		echo '<tr>'
-			. '<td class="column-primary" data-colname="Path"><strong>' . esc_html( $path ) . '</strong></td>'
+			. '<td class="column-primary"><strong>' . esc_html( $path ) . '</strong></td>'
 			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) $r['views'] ) );
 		if ( null !== $deltas && isset( $deltas[ $path ] ) ) {
 			snt_an_delta_badge( $deltas[ $path ] ); // inline variant — leading space is the badge's own.

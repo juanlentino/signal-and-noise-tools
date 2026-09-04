@@ -58,7 +58,7 @@ function snt_mr_sum_hits_by( $rows, $field ) {
  * @return string Opening HTML through <tbody>.
  */
 function snt_mr_table_open( $caption, $heads ) {
-	$out   = '<table class="wp-list-table widefat striped sn-an-table">';
+	$out   = '<table class="widefat striped sn-an-table">';
 	$out  .= '<caption>' . esc_html( $caption ) . '</caption><thead><tr>';
 	$first = true;
 	foreach ( $heads as $label => $class ) {
@@ -103,7 +103,7 @@ function snt_mr_render_family_table( $rows, $days ) {
 		__( 'Last seen', 'signal-and-noise-tools' ) => '',
 	) );
 	foreach ( $totals as $family => $hits ) {
-		$out .= '<tr><td class="column-primary" data-colname="Family"><strong>' . esc_html( (string) $family ) . '</strong></td>'
+		$out .= '<tr><td class="column-primary"><strong>' . esc_html( (string) $family ) . '</strong></td>'
 			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) $hits ) ) . '</td>'
 			. '<td data-colname="Last seen">' . esc_html( (string) ( $last[ $family ] ?? '' ) ) . '</td></tr>';
 	}
@@ -126,7 +126,7 @@ function snt_mr_render_surface_table( $rows ) {
 		__( 'Reads', 'signal-and-noise-tools' )   => 'num',
 	) );
 	foreach ( $totals as $surface => $hits ) {
-		$out .= '<tr><td class="column-primary" data-colname="Surface"><strong>' . esc_html( (string) $surface ) . '</strong></td>'
+		$out .= '<tr><td class="column-primary"><strong>' . esc_html( (string) $surface ) . '</strong></td>'
 			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) $hits ) ) . '</td></tr>';
 	}
 	return $out . '</tbody></table>';
@@ -169,7 +169,7 @@ function snt_mr_render_compliance( $rows ) {
 		__( 'Rights reads', 'signal-and-noise-tools' )   => 'num',
 	) );
 	foreach ( $totals as $family => $hits ) {
-		$out .= '<tr><td class="column-primary" data-colname="Family"><strong>' . esc_html( (string) $family ) . '</strong></td>'
+		$out .= '<tr><td class="column-primary"><strong>' . esc_html( (string) $family ) . '</strong></td>'
 			. '<td class="num" data-colname="Observed reads">' . esc_html( number_format_i18n( (int) $hits ) ) . '</td>'
 			. '<td class="num" data-colname="Rights reads">' . esc_html( number_format_i18n( (int) ( $rights[ $family ] ?? 0 ) ) ) . '</td></tr>';
 	}
@@ -385,7 +385,7 @@ function snt_mr_render_feed_table( $stats ) {
 	ksort( $windows );
 	foreach ( $windows as $days => $row ) {
 		$row  = (array) $row;
-		$out .= '<tr><td class="column-primary" data-colname="Window"><strong>'
+		$out .= '<tr><td class="column-primary"><strong>'
 			/* translators: %s: window length in days. */
 			. esc_html( sprintf( __( 'last %s days', 'signal-and-noise-tools' ), number_format_i18n( (int) $days ) ) ) . '</strong></td>'
 			. '<td class="num" data-colname="Fetches">' . esc_html( number_format_i18n( (int) ( $row['total'] ?? 0 ) ) ) . '</td>'

@@ -418,7 +418,7 @@ ad_true( false !== strpos( $html, 'sn-fieldset-h' ), 'renders .sn-fieldset secti
 ad_true( false !== strpos( $html, '>System<' ), 'System fieldset heading present' );
 ad_true( false !== strpos( $html, 'Genesis anchor' ), 'Genesis anchor fieldset heading present' );
 ad_true( false !== strpos( $html, '>Commits<' ), 'Commits fieldset heading present' );
-ad_true( false !== strpos( $html, 'wp-list-table' ), 'renders the commits wp-list-table' );
+ad_true( false !== strpos( $html, 'widefat striped' ), 'renders the commits table' );
 ad_true( false !== strpos( $html, 'sn-prov-live' ), 'renders the aria-live commits tbody' );
 ad_true( false !== strpos( $html, 'data-endpoint' ), 'live tbody carries the status data-endpoint' );
 ad_true( false !== strpos( $html, 'data-nonce' ), 'live tbody carries the wp_rest data-nonce' );
@@ -544,7 +544,7 @@ ad_true( false !== strpos( $html2, 'data-endpoint' ), 'live tbody keeps the stat
 ad_true( false !== strpos( $html2, 'data-nonce' ), 'live tbody keeps the wp_rest data-nonce' );
 ad_true( false !== strpos( $html2, 'sn-prov-live' ), 'keeps the aria-live commits region' );
 ad_true( false !== strpos( $html2, 'sn-fieldset' ), 'renders the .sn-fieldset block layout' );
-ad_true( false !== strpos( $html2, 'wp-list-table' ), 'renders the commits list table' );
+ad_true( false !== strpos( $html2, 'widefat striped' ), 'renders the commits list table' );
 ad_true( false !== strpos( $html2, 'AQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQEBAQE=' ), 'surfaces the public key' );
 ad_true( false !== strpos( $html2, 'sn_prov_reanchor' ), 'renders the re-anchor form action' );
 ad_true( false !== strpos( $html2, 'sn-status-box' ), 'shows the re-anchor result notice' );
@@ -576,7 +576,7 @@ ad_true( false !== $main_pos && false !== $rail_pos && $main_pos < $rail_pos, 's
 ad_true( false !== $glance_pos && false !== $commits_pos && $glance_pos < $commits_pos, 'glance hero renders before the Commits table' );
 ad_true( false !== $commits_pos && false !== $sys_pos && $commits_pos < $sys_pos, 'Commits (main column) precedes System (rail)' );
 ad_true( false !== $sys_pos && false !== $gen_pos && $sys_pos < $gen_pos, 'System precedes Genesis within the rail' );
-ad_true( false !== strpos( $html3, 'wp-list-table' ), 'Commits renders a wp-list-table' );
+ad_true( false !== strpos( $html3, 'widefat striped' ), 'Commits renders a widefat table' );
 ad_true( false !== strpos( $html3, 'Pending' ), 'genesis surfaces the capitalized status label' );
 
 echo "\nTask 11: honest re-anchor fail copy (config-aware)\n";

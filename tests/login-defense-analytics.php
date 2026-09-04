@@ -89,8 +89,8 @@ sn_login_defense_render_top_table( 'Top networks', 'Network', array( array( 'k' 
 $tb = ob_get_clean();
 ok( strpos( $tb, 'BadNet' ) !== false && strpos( $tb, 'Top networks' ) !== false && strpos( $tb, '<table' ) !== false,
 	'top table renders rows + caption' );
-ok( strpos( $tb, 'postbox' ) !== false && strpos( $tb, 'wp-list-table' ) !== false && strpos( $tb, 'hndle' ) !== false,
-	'top table uses the shared postbox + wp-list-table chrome' );
+ok( strpos( $tb, 'postbox' ) !== false && strpos( $tb, 'widefat striped' ) !== false && strpos( $tb, 'hndle' ) !== false,
+	'top table uses the shared postbox + widefat chrome' );
 // D5 §4: routes through the shared snt_an_kv_table primitive, picking up the
 // standardized panel-primitive marker class it never had before.
 ok( strpos( $tb, 'class="postbox sn-an-postbox"' ) !== false,

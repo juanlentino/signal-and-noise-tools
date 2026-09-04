@@ -21,6 +21,11 @@ $GLOBALS['snt_filters'] = array();
 if ( ! function_exists( 'add_filter' ) ) {
 	function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['snt_filters'][ $hook ][] = $cb; }
 }
+// Drives the admin/non-admin branch of the apple-touch-icon seam.
+$GLOBALS['snt_is_admin'] = true;
+if ( ! function_exists( 'is_admin' ) ) {
+	function is_admin() { return (bool) $GLOBALS['snt_is_admin']; }
+}
 
 require_once __DIR__ . '/../inc/openstation-pwa-icons.php';
 
@@ -114,6 +119,35 @@ foreach ( $icons as $icon ) {
 	ok( $hdr['w'] === $hdr['h'], "$name is square" );
 }
 ok( 4 === $checked, "VACUITY: all four headers were actually read (read $checked) — a scan that opened nothing reports the same clean bill as one that found no faults" );
+
+echo "\nGroup 4: the iOS tile comes from apple-touch-icon, not the manifest\n";
+// #1017 replaced the MANIFEST icons, which is Android's path, and the iPhone
+// tile stayed black. iOS reads <link rel="apple-touch-icon">, which OpenStation
+// prints into admin_head from get_site_icon_url( 180 ). That function has no
+// filter of its own, so the seam is core's.
+ok( isset( $GLOBALS['snt_filters']['get_site_icon_url'] ), 'registers on core get_site_icon_url - openstation_pwa_apple_touch_icon_url() has no filter to hook' );
+
+$site_url = 'https://example.test/wp-content/uploads/cropped-logo-300x300.png';
+$GLOBALS['snt_is_admin'] = true;
+ok(
+	SNT_URL . 'assets/pwa/icon-180.png' === snt_openstation_apple_touch_icon_url( $site_url, 180 ),
+	'admin + size 180 -> our opaque tile'
+);
+foreach ( array( 32, 180.0, 192, 512 ) as $other ) {
+	if ( 180 === (int) $other ) {
+		continue;
+	}
+	ok( $site_url === snt_openstation_apple_touch_icon_url( $site_url, $other ), "size $other is left alone" );
+}
+$GLOBALS['snt_is_admin'] = false;
+ok( $site_url === snt_openstation_apple_touch_icon_url( $site_url, 180 ), 'front-end is left alone - the browser-tab favicon keeps its transparency' );
+$GLOBALS['snt_is_admin'] = true;
+
+$tile = dirname( __DIR__ ) . '/assets/pwa/icon-180.png';
+ok( is_file( $tile ), 'assets/pwa/icon-180.png is shipped' );
+$th = snt_pwa_png_header( $tile );
+ok( is_array( $th ) && 180 === $th['w'] && 180 === $th['h'], 'the tile really is 180x180' );
+ok( is_array( $th ) && 2 === $th['ctype'], 'the tile has NO alpha channel - the black square was iOS compositing transparency (colour type ' . ( is_array( $th ) ? $th['ctype'] : -1 ) . ')' );
 
 echo sprintf( "\nResult: %d passed, %d failed.\n", $pass, $fail );
 exit( $fail > 0 ? 1 : 0 );

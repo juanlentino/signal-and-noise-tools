@@ -1,46 +1,47 @@
 <?php
 /**
- * Tests: a table wearing core's list-table class must meet its responsive contract.
+ * Tests: our admin tables do not claim core's list-table contract (issue #1021).
  *
- * WordPress core, wp-admin/css/list-tables.css, at max-width 782px:
+ * ── What core does at max-width 782px, read from list-tables.css ──────────
  *
- *     .wp-list-table tr { display: flex; flex-wrap: wrap; }
- *     .wp-list-table td.column-primary,
- *     .wp-list-table th.column-primary { flex: 1 1 0; }
- *     .wp-list-table tr td:nth-child(n+3) { flex: 0 1 100%; }
- *     .wp-list-table td::before { content: attr(data-colname); }
+ *   .wp-list-table tr:not(.inline-edit-row):not(.no-items) td:not(.check-column)::before {
+ *       position: absolute; left: 10px; width: 32%; content: attr(data-colname); }
+ *   .wp-list-table tr:not(...) td.column-primary ~ td:not(.check-column) {
+ *       padding: 3px 8px 3px 35%; }
+ *   .wp-list-table td.column-primary ~ td:not(.check-column) { display: none; }
+ *   .wp-list-table .is-expanded td:not(.hidden)  { display: block !important; }
+ *   .wp-list-table .column-primary .toggle-row   { display: block; }
  *
- * Every row becomes a FLEX CONTAINER sized from `column-primary`, and every cell
- * is labelled from its own `data-colname`. A table that wears `wp-list-table`
- * without emitting those gets the flex layout and none of the sizing, and on a
- * phone the header paints on top of the first cell. Observed 2026-09-04 in the
- * OpenStation PWA, which made phone-width wp-admin routine rather than rare.
+ * Two consequences, and BOTH need core's `WP_List_Table` machinery to be safe:
  *
- * FIVE of ten producing files were in that state (analytics-render-quality,
- * cloudflare-purge, provenance-admin, schedule-admin, tag-consolidation-admin).
- * They were fixed by MEETING the contract, not by dropping the class - these are
- * real tabular readouts and they should stack on a phone like every other one.
+ *   1. The ::before label is absolutely positioned and applies to EVERY
+ *      non-check cell — the primary included. Only NON-primary cells get the
+ *      35% left padding that makes room for it. So a primary cell carrying
+ *      `data-colname` paints its own label over its own text.
+ *   2. Every column after the primary is `display: none` until the row gets
+ *      `.is-expanded`, which only core's `.toggle-row` disclosure button sets.
  *
- * ── Why this guard is scoped to the FILE ──────────────────────────────────
+ * We render no `.toggle-row`, no `.check-column`, and no `WP_List_Table`. On a
+ * phone that combination meant: one column visible, with its header printed on
+ * top of it. Observed 2026-09-04 in the OpenStation PWA — "Top sources" over
+ * "(direct)", and the Views/Visits columns simply gone.
  *
- * The first version of this audit used a 60-line window FORWARD from the
- * `<table>` tag and reported eight violations. Three were fabricated:
+ * ── Why the guard asserts ABSENCE ─────────────────────────────────────────
  *
- *   - inc/analytics-panels.php builds a column array (with the primary class in
- *     it) at line 714 and only opens the `<table>` at 734 - the class is ABOVE
- *     the tag, so a forward window cannot see it.
- *   - inc/machine-readers-render.php splits the header (snt_mr_table_open) from
- *     the body (four sibling snt_mr_render_*_table functions) - so a
- *     FUNCTION-scoped window cannot see it either.
+ * The first version of this file pinned "every table that wears wp-list-table
+ * also emits column-primary" and passed on all of the markup above, because
+ * emitting `column-primary` is exactly what turns the hiding rule on. It
+ * measured a property that is necessary for core's layout and sufficient for
+ * nothing, and #1015 then ADDED `data-colname` to five more primary cells —
+ * spreading the defect while reporting a fix.
  *
- * Neither window matched the contract, because the contract is not "near the
- * tag" or "in the same function" - it is "this table, wherever its cells are
- * written". The file is the smallest scope that always contains both halves.
- * A pattern that agrees with a rule when written diverges from it silently as
- * the tree grows; this docblock exists so the next widening is deliberate.
+ * The enforceable invariant is the one that matches what we actually build:
+ * these are readouts, not list tables, so none of them wears the class. If a
+ * real list table is ever added here, it needs a `.toggle-row` button, and this
+ * guard should be changed deliberately rather than deleted.
  *
  * Run: php tests/admin-table-mobile-contract.php
- * @since 13.96.4
+ * @since 13.96.5
  */
 
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
@@ -62,10 +63,10 @@ function snt_atmc_ok( $cond, $msg ) {
 }
 
 /**
- * Strip comments so a comment NAMING the class can never satisfy the check.
+ * Strip comments so prose NAMING the class is never mistaken for markup.
  *
- * Four assertions in this session's earlier passes went green on prose that
- * merely explained the rule they were meant to enforce.
+ * This file's own docblock quotes `wp-list-table` a dozen times; without this,
+ * a guard that greps its own subject would fail on its own explanation.
  */
 function snt_atmc_code( $src ) {
 	$out = '';
@@ -79,115 +80,92 @@ function snt_atmc_code( $src ) {
 	return $out;
 }
 
-// ── The population: every inc/ file, at ANY depth, that opens a list table ──
-// Derived, never listed. A hand-kept list is a pattern pretending to be a rule.
-$producers = array();
-foreach ( snt_test_inc_files() as $file ) {
+$files = snt_test_inc_files();
+
+echo "admin-table-mobile-contract — plugin v13.96.5\n\nGroup 1: the sweep reaches the whole tree\n";
+snt_atmc_ok( count( $files ) >= 400, sprintf( 'walked %d php files under inc/ at any depth', count( $files ) ) );
+snt_atmc_ok( count( snt_test_inc_packages() ) >= 4, 'reached the packages: ' . implode( ', ', snt_test_inc_packages() ) );
+
+// The sweep must actually find TABLES, or "no offending table" is the same
+// sentence as "no table was looked at".
+$table_files = 0;
+foreach ( $files as $file ) {
+	if ( false !== strpos( snt_atmc_code( (string) file_get_contents( $file ) ), '<table' ) ) {
+		++$table_files;
+	}
+}
+snt_atmc_ok( $table_files >= 10, sprintf( 'VACUITY: %d file(s) emit a <table> — the population is non-empty', $table_files ) );
+
+echo "\nGroup 2: no readout claims core's list-table contract\n";
+$offenders = array();
+foreach ( $files as $file ) {
 	$code = snt_atmc_code( (string) file_get_contents( $file ) );
-	if ( false !== strpos( $code, 'wp-list-table' ) ) {
-		$producers[ $file ] = $code;
-	}
-}
-
-// A scan that found nothing reports the same clean bill as a scan that found no
-// violations. Pin the floor so an empty population is a FAILURE, not a pass.
-snt_atmc_ok(
-	count( $producers ) >= 5,
-	sprintf( 'population collapsed: %d files open a wp-list-table (expected >= 5)', count( $producers ) )
-);
-
-// ── A. Every producing file emits the primary column class ──
-foreach ( $producers as $file => $code ) {
-	snt_atmc_ok(
-		false !== strpos( $code, 'column-primary' ),
-		sprintf( '%s wears wp-list-table but never emits column-primary', basename( $file ) )
-	);
-}
-
-// ── B. Every producing file that writes DATA cells labels them ──
-// A cell with colspan is a message row - "Loading...", "No rows" - spanning the
-// whole table. Core's ::before would label it with a column it does not occupy,
-// so those are exempt and only genuine data cells are required to carry a name.
-//
-// SCOPE LIMIT, stated rather than hidden: a file may hold a wp-list-table AND
-// plain `widefat` tables (inc/provenance-admin.php holds one of each kind), and
-// file-scoped text cannot tell which cells belong to which table. Part A is
-// still sound there - "does this file emit the class at all" needs no such
-// attribution - but B is only decidable where EVERY table in the file is a list
-// table. The count is printed so a future narrowing shows up as a number that
-// moved, instead of as silence.
-$b_checked = 0;
-$b_skipped = array();
-foreach ( $producers as $file => $code ) {
-	$tables = preg_match_all( '/<table\b[^>]*>/', $code, $tm ) ? $tm[0] : array();
-	$mixed  = false;
-	foreach ( $tables as $tag ) {
-		if ( false === strpos( $tag, 'wp-list-table' ) ) {
-			$mixed = true;
-		}
-	}
-	if ( $mixed ) {
-		$b_skipped[] = basename( $file );
+	if ( false === strpos( $code, 'wp-list-table' ) ) {
 		continue;
 	}
-	++$b_checked;
-	$data_cells = 0;
-	if ( preg_match_all( '/<td\b[^>]*>/', $code, $m ) ) {
-		foreach ( $m[0] as $tag ) {
-			if ( false === stripos( $tag, 'colspan' ) ) {
-				++$data_cells;
-			}
-		}
-	}
-	if ( 0 === $data_cells ) {
+	// A table MAY wear the class - if it also ships the disclosure button that
+	// makes core's mobile layout usable. None of ours does today.
+	if ( false !== strpos( $code, 'toggle-row' ) ) {
 		continue;
 	}
-	snt_atmc_ok(
-		false !== strpos( $code, 'data-colname' ),
-		sprintf( '%s emits %d data cell(s) in a list table with no data-colname label', basename( $file ), $data_cells )
-	);
+	$offenders[] = basename( $file );
 }
 snt_atmc_ok(
-	$b_checked >= 4,
-	sprintf( 'label check covered only %d file(s) (expected >= 4); skipped as mixed: %s', $b_checked, $b_skipped ? implode( ', ', $b_skipped ) : 'none' )
+	array() === $offenders,
+	'these wear wp-list-table without a .toggle-row, so on a phone core hides every column after the primary: ' . implode( ', ', $offenders )
 );
-echo sprintf( "note: label check covered %d file(s); %d skipped as mixed-table (%s)\n", $b_checked, count( $b_skipped ), $b_skipped ? implode( ', ', $b_skipped ) : 'none' );
 
-// ── C. The one cross-language producer ──
-// inc/provenance-admin.php prints the header; assets/provenance-admin.js builds
-// every body row. Part A passes on the PHP alone, so the JS half needs its own
-// pin or the body silently loses the contract the header claims.
-$js_path = dirname( __DIR__ ) . '/assets/provenance-admin.js';
-if ( snt_atmc_ok( is_file( $js_path ), 'assets/provenance-admin.js is missing' ) ) {
-	$js = (string) file_get_contents( $js_path );
-	snt_atmc_ok(
-		false !== strpos( $js, 'column-primary' ),
-		'provenance-admin.js builds rows for a wp-list-table without column-primary'
-	);
-	snt_atmc_ok(
-		false !== strpos( $js, 'data-colname' ),
-		'provenance-admin.js builds cells with no data-colname label'
-	);
+echo "\nGroup 3: no primary cell labels itself\n";
+// Even without the class this is worth pinning: it is the specific mistake
+// #1015 made, and it becomes live again the moment anything re-adds the class.
+$overprint = array();
+foreach ( $files as $file ) {
+	$code = snt_atmc_code( (string) file_get_contents( $file ) );
+	if ( ! preg_match_all( '/<td\b[^>]*>/', $code, $m ) ) {
+		continue;
+	}
+	foreach ( $m[0] as $tag ) {
+		if ( false !== strpos( $tag, 'column-primary' ) && false !== strpos( $tag, 'data-colname' ) ) {
+			$overprint[] = basename( $file );
+			break;
+		}
+	}
 }
+snt_atmc_ok(
+	array() === $overprint,
+	'a primary cell carries data-colname; under .wp-list-table core paints that label over the cell own text: ' . implode( ', ', $overprint )
+);
 
-// ── D. Negative control ──
-// A guard that has never been made to fail is not evidence. Drive the same
-// predicates over a synthetic violator and require them to go red.
-$violator = '<?php // column-primary data-colname are named only in THIS comment.
-echo \'<table class="wp-list-table widefat"><tr><td>x</td></tr></table>\';';
-$vcode = snt_atmc_code( $violator );
-snt_atmc_ok(
-	false !== strpos( $vcode, 'wp-list-table' ),
-	'negative control: synthetic violator was not even detected as a producer'
-);
-snt_atmc_ok(
-	false === strpos( $vcode, 'column-primary' ),
-	'negative control: comment-stripping failed - a commented class satisfied the check'
-);
-snt_atmc_ok(
-	false === strpos( $vcode, 'data-colname' ),
-	'negative control: comment-stripping failed - a commented label satisfied the check'
-);
+echo "\nGroup 4: negative control\n";
+// Every predicate above must be shown to fire. A guard asserting ABSENCE is
+// the easiest kind to leave vacuously green.
+$bad_class = '<?php echo \'<table class="wp-list-table widefat">\';';
+snt_atmc_ok( false !== strpos( snt_atmc_code( $bad_class ), 'wp-list-table' ), 'control: a table wearing the class IS detected' );
+
+$commented = '<?php // wp-list-table is named only in this comment.' . "\n" . 'echo "hi";';
+snt_atmc_ok( false === strpos( snt_atmc_code( $commented ), 'wp-list-table' ), 'control: a comment naming the class is NOT counted' );
+
+$bad_cell = '<?php echo \'<td class="column-primary" data-colname="Path">\';';
+$hit      = false;
+if ( preg_match_all( '/<td\b[^>]*>/', snt_atmc_code( $bad_cell ), $cm ) ) {
+	foreach ( $cm[0] as $tag ) {
+		if ( false !== strpos( $tag, 'column-primary' ) && false !== strpos( $tag, 'data-colname' ) ) {
+			$hit = true;
+		}
+	}
+}
+snt_atmc_ok( $hit, 'control: a self-labelling primary cell IS detected' );
+
+$ok_cell = '<?php echo \'<td class="column-primary">\'; echo \'<td data-colname="Views">\';';
+$false_hit = false;
+if ( preg_match_all( '/<td\b[^>]*>/', snt_atmc_code( $ok_cell ), $om ) ) {
+	foreach ( $om[0] as $tag ) {
+		if ( false !== strpos( $tag, 'column-primary' ) && false !== strpos( $tag, 'data-colname' ) ) {
+			$false_hit = true;
+		}
+	}
+}
+snt_atmc_ok( ! $false_hit, 'control: a primary cell and a labelled NON-primary cell are not confused for one another' );
 
 echo sprintf( "%s: %d passed, %d failed\n", $fail ? 'FAIL' : 'PASS', $pass, $fail );
 exit( $fail ? 1 : 0 );

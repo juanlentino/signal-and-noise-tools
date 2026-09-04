@@ -153,7 +153,7 @@ function sn_admin_render_scheduled_content_section() {
 	);
 	echo '</summary>';
 
-	echo '<table class="wp-list-table widefat striped">';
+	echo '<table class="widefat striped">';
 	echo '<thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Target', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col">' . esc_html__( 'Type', 'signal-and-noise-tools' ) . '</th>';
@@ -211,7 +211,7 @@ function sn_admin_render_schedule_swaps( array $pairs ) {
 	echo '<h3>' . esc_html__( 'Version swaps', 'signal-and-noise-tools' ) . '</h3>';
 	echo '<p class="sn-field-helper">' . esc_html__( 'Two scheduled containers on the same page whose windows meet at one instant: the current version hides and the new version reveals together, with a single edge purge.', 'signal-and-noise-tools' ) . '</p>';
 
-	echo '<table class="wp-list-table widefat striped">';
+	echo '<table class="widefat striped">';
 	echo '<thead><tr>';
 	echo '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Target', 'signal-and-noise-tools' ) . '</th>';
 	echo '<th scope="col">' . esc_html__( 'Swap at', 'signal-and-noise-tools' ) . '</th>';

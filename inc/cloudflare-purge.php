@@ -579,7 +579,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 		echo '<p class="sn-fieldset-intro">Each row is one check of the page a reader would actually get, '
 			. (int) SN_CF_PROBE_DELAY . ' seconds after its purge. A stale row escalated to a full zone purge at the time,'
 			. ' so it records a purge that needed a second attempt — not a page still stale now.</p>';
-		echo '<table class="wp-list-table widefat striped"><thead><tr>';
+		echo '<table class="widefat striped"><thead><tr>';
 		echo '<th scope="col" class="manage-column column-primary">When</th><th scope="col">Result</th><th scope="col">Page</th>';
 		echo '</tr></thead><tbody>';
 		foreach ( array_slice( $probe_log, 0, 20 ) as $row ) {
@@ -604,7 +604,7 @@ add_action( 'sn_admin_cloudflare_tab', function() {
 			}
 			$r_old = defined( 'SN_CF_PROBE_ALGO' ) && (int) ( $row['algo'] ?? 1 ) < SN_CF_PROBE_ALGO;
 			echo '<tr>';
-			echo '<td class="column-primary" data-colname="When">' . esc_html( $r_time ? human_time_diff( $r_time, time() ) . ' ago' : '—' ) . '</td>';
+			echo '<td class="column-primary">' . esc_html( $r_time ? human_time_diff( $r_time, time() ) . ' ago' : '—' ) . '</td>';
 			echo '<td data-colname="Result"><span class="' . esc_attr( $r_pill ) . '">' . esc_html( $r_label ) . '</span>'
 				. ( $r_old ? ' <span class="sn-pill sn-pill--muted">retired detector</span>' : '' ) . '</td>';
 			echo '<td data-colname="Page"><code>' . esc_html( $r_path ) . '</code></td>';

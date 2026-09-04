@@ -39,7 +39,10 @@ ok( 1 === preg_match(
 	$q
 ), 'bot networks: thead with scope=col before tbody' );
 ok( 1 === preg_match( '/<th scope="col"[^>]*class="[^"]*column-primary/', $q ), 'bot networks: the Network header is the primary column' );
-ok( false !== strpos( $q, 'data-colname="Network"' ), 'bot networks: body cells carry their column label' );
+// The PRIMARY cell must NOT label itself: core's ::before paints that label
+// over the cell's own text, with no left padding to clear it (#1021).
+ok( false === strpos( $q, 'data-colname="Network"' ), 'bot networks: the primary cell does NOT label itself' );
+ok( false !== strpos( $q, 'data-colname="Views"' ), 'bot networks: non-primary cells still carry their column label' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

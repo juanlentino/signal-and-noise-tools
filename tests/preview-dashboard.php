@@ -296,7 +296,7 @@ ok( strpos( $geo, 'class="postbox' ) !== false, 'native postbox cards present' )
 ok( strpos( $geo, 'sn-kpi-row' ) !== false, 'fused KPI strip present' );
 ok( strpos( $geo, 'sn-spark' ) !== false || strpos( $geo, '<polyline' ) !== false, 'SVG sparkline present' );
 ok( strpos( $geo, 'sn-geo-split' ) !== false, 'geography map↔countries split present' );
-ok( strpos( $geo, 'wp-list-table widefat' ) !== false, 'native widefat tables present' );
+ok( strpos( $geo, 'widefat striped' ) !== false, 'native widefat tables present (NOT .wp-list-table - see #1021)' );
 ok( strpos( $geo, 'button button-secondary' ) !== false, 'export buttons present (not text links)' );
 ok( strpos( $geo, 'handlediv' ) === false, 'no JS collapse toggles shipped' );
 

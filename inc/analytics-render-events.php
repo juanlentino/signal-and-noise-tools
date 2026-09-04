@@ -29,14 +29,14 @@ function snt_analytics_render_events_table( $rows ) {
 		return;
 	}
 	snt_an_panel_open( __( 'Custom events', 'signal-and-noise-tools' ), array( 'inside_class' => 'inside sn-an-table-inside' ) );
-	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+	echo '<table class="widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Event', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Events', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visitors', 'signal-and-noise-tools' ) . '</th>'
 		. '</tr></thead><tbody>';
 	foreach ( $rows as $r ) {
 		echo '<tr>'
-			. '<td class="column-primary" data-colname="Event"><strong>' . esc_html( (string) $r['name'] ) . '</strong></td>'
+			. '<td class="column-primary"><strong>' . esc_html( (string) $r['name'] ) . '</strong></td>'
 			. '<td class="num" data-colname="Events">' . esc_html( number_format_i18n( (int) $r['events'] ) ) . '</td>'
 			. '<td class="num" data-colname="Visitors">' . esc_html( number_format_i18n( (int) $r['visitors'] ) ) . '</td>'
 			. '</tr>';
@@ -78,7 +78,7 @@ function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 		snt_an_panel_close();
 		return;
 	}
-	echo '<table class="wp-list-table widefat striped"><thead><tr>';
+	echo '<table class="widefat striped"><thead><tr>';
 	if ( ! $filtered ) {
 		echo '<th scope="col" class="manage-column">' . esc_html__( 'Property', 'signal-and-noise-tools' ) . '</th>';
 	}
@@ -93,7 +93,7 @@ function snt_analytics_render_event_props_table( $rows, $active_prop = '' ) {
 			$url  = add_query_arg( array( 'sn_event_prop' => $prop ) );
 			echo '<td><a href="' . esc_url( $url ) . '">' . esc_html( $prop ) . '</a></td>';
 		}
-		echo '<td class="column-primary" data-colname="Value">' . esc_html( (string) $r['value'] ) . '</td>'
+		echo '<td class="column-primary">' . esc_html( (string) $r['value'] ) . '</td>'
 			. '<td class="num" data-colname="Events">' . esc_html( number_format_i18n( (int) $r['events'] ) ) . '</td>'
 			. '<td class="num" data-colname="Visitors">' . esc_html( number_format_i18n( (int) $r['visitors'] ) ) . '</td>'
 			. '</tr>';

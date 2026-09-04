@@ -52,11 +52,14 @@ foreach ( array( 'sn-table', 'sn-rail-h', 'sn-rail-note' ) as $invented ) {
 }
 
 // ─── it renders with wp-admin's own table, not a new one ───────────────────
-ok( 1 === preg_match( '/<table class="wp-list-table widefat striped">/', $src ), 'the probe table uses core widefat/striped — real formatting, no new CSS, and it matches the analytics tables already in this plugin' );
+ok( 1 === preg_match( '/<table class="widefat striped">/', $src ), 'the probe table uses core widefat/striped — real formatting, no new CSS, and it matches the analytics tables already in this plugin' );
 // Property, not literal: the header keeps scope="col" whatever else it wears.
 ok( 1 === preg_match( '/<th scope="col"[^>]*>When<\/th>/', $src ), 'headers carry scope="col"' );
 ok( 1 === preg_match( '/<th scope="col"[^>]*class="[^"]*column-primary[^"]*">When/', $src ), 'the When header is the primary column, so the row stacks under 782px (#1015)' );
-ok( false !== strpos( $src, 'data-colname="When"' ), 'probe body cells carry their column label' );
+// The PRIMARY cell must NOT label itself: core's ::before is absolutely
+// positioned over it, with no left padding to move out of the way (#1021).
+ok( false === strpos( $src, 'data-colname="When"' ), 'the primary cell does NOT label itself - that label would paint over its own text' );
+ok( false !== strpos( $src, 'data-colname="Result"' ), 'non-primary body cells still carry their column label' );
 
 // ─── main column, not the rail ─────────────────────────────────────────────
 $panel_at = strpos( $src, 'Post-purge probes' );
@@ -76,7 +79,7 @@ ok( 1 === preg_match( "/'stale' === \\\$probe_newest \\? ' open' : ''/", $src ),
 ok( false !== strpos( $src, 'retained, %2$d stale' ), 'the summary carries the counts, so a COLLAPSED fold still says what it is hiding' );
 ok( 1 === preg_match( '/<\/details>/', $src ) && 0 === preg_match( '/<h2 class="sn-fieldset-h">Post-purge probes<\/h2>/', $src ), 'the old always-expanded heading is gone' );
 $open_at  = strpos( $src, "' open' : ''" );
-$table_at = strpos( $src, 'wp-list-table widefat striped' );
+$table_at = strpos( $src, 'widefat striped' );
 ok( false !== $open_at && false !== $table_at && $open_at < $table_at, 'the open decision is made before the table renders, from the log itself' );
 
 echo "\nResult: $pass passed, $fail failed.\n";

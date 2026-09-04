@@ -255,7 +255,7 @@ $h = cap( function () {
 	);
 } );
 ok(
-	'<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Top attacker networks</span></h2></div><div class="inside sn-an-table-inside"><table class="wp-list-table widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">Network (ASN)</th><th scope="col" class="manage-column num">Blocked</th></tr></thead><tbody><tr><td class="column-primary"><strong>BadNet</strong></td><td class="num">9</td></tr></tbody></table></div></div>' === $h,
+	'<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Top attacker networks</span></h2></div><div class="inside sn-an-table-inside"><table class="widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">Network (ASN)</th><th scope="col" class="manage-column num">Blocked</th></tr></thead><tbody><tr><td class="column-primary"><strong>BadNet</strong></td><td class="num">9</td></tr></tbody></table></div></div>' === $h,
 	'back-compat: string-list mode (login-defense-style call) is byte-stable, full-string pin'
 );
 

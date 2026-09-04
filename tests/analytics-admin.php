@@ -464,7 +464,7 @@ ok( strpos( $html, 'Top pages' ) !== false && strpos( $html, 'Top sources' ) !==
 ok( strpos( $html, '>Countries<' ) === false, 'content: Countries panel relocated OUT of Content' );
 ok( strpos( $html, 'sn-an-refcats' ) !== false && strpos( $html, 'Search' ) !== false, 'content: referrer categories' );
 ok( strpos( $html, '>Browsers<' ) === false && strpos( $html, 'sn-an-heatmap' ) === false, 'content: technology/engagement panels NOT in this view (lazy per-tab render)' );
-ok( strpos( $html, 'wp-list-table widefat' ) !== false, 'content: dimension/path tables use native widefat class' );
+ok( strpos( $html, 'widefat' ) !== false, 'content: dimension/path tables use native widefat class' );
 ok( strpos( $html, 'postbox' ) !== false, 'content: panels wrapped in native postbox' );
 ok( strpos( $html, 'class="sn-an-panel"' ) === false, 'content: old bare sn-an-panel wrapper gone (migrated to postbox)' );
 
@@ -476,7 +476,7 @@ foreach ( array( 'Browsers', 'Operating systems', 'Devices', 'Protocols', 'TLS' 
 }
 ok( strpos( $html, 'Top pages' ) === false && strpos( $html, 'Cities' ) === false, 'technology: content/geography panels NOT in this view' );
 ok( substr_count( $html, 'sn-an-spark' ) >= 1, 'technology: sparkline column rendered on OS/devices tables' );
-ok( strpos( $html, 'wp-list-table widefat' ) !== false, 'technology: dimension tables use native widefat class' );
+ok( strpos( $html, 'widefat' ) !== false, 'technology: dimension tables use native widefat class' );
 
 echo "\nGroup: dashboard. Geography view\n";
 $_GET['sn_view'] = 'geography';
@@ -488,7 +488,7 @@ foreach ( array( 'Countries', 'Cities', 'Regions', 'Networks', 'Edge locations' 
 ok( strpos( $html, '>Countries<' ) < strpos( $html, '>Cities<' ), 'geography: Countries renders first (above Cities)' );
 ok( strpos( $html, 'sn-an-choropleth' ) !== false, 'geography: choropleth panel rendered' );
 ok( strpos( $html, 'sn-an-choropleth' ) < strpos( $html, '>Countries<' ), 'geography: choropleth renders before the Countries table' );
-ok( strpos( $html, 'wp-list-table widefat' ) !== false, 'geography: country/city tables use native widefat class' );
+ok( strpos( $html, 'widefat' ) !== false, 'geography: country/city tables use native widefat class' );
 ok( strpos( $html, 'sn-geo-split' ) !== false, 'geography: map+countries split layout wrapper present' );
 ok( strpos( $html, 'sn-geo-tiles' ) !== false, 'geography: tiles grid (cities/regions/networks/edge) present' );
 $GLOBALS['__aa']['dim'] = array( array( 'value' => 'news.ycombinator.com', 'views' => 312, 'visits' => 98 ) );

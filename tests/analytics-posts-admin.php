@@ -1,7 +1,7 @@
 <?php
 /**
  * Tests for the Posts (lifecycle) view RENDER layer — 1:1 native treatment
- * (cloned .sn-kpi hero, shared trend/smooth-path trajectory, shared .wp-list-table
+ * (cloned .sn-kpi hero, shared trend/smooth-path trajectory, shared .widefat
  * leaderboard, shared distribution bars) + graceful empty states.
  *
  * Run: php tests/analytics-posts-admin.php
@@ -78,9 +78,9 @@ ok( 1 === count( $noted ) && 'Latest Note: did it land?' === $noted[0]['title'],
 // "this Note has no recorded views…" — copy change, deliberate).
 ok( false !== strpos( $noted[0]['why'], '"Fresh" has no recorded views yet' ), 'no-data subject: fold why names the Note by title' );
 
-echo "\nGroup: leaderboard reuses the shared .wp-list-table chrome (bespoke columns)\n";
+echo "\nGroup: leaderboard reuses the shared .widefat chrome (bespoke columns)\n";
 $lb = cap( function () use ( $leaderboard ) { snt_analytics_render_posts_leaderboard( $leaderboard ); } );
-ok( strpos( $lb, 'wp-list-table widefat striped' ) !== false, 'leaderboard table uses the shared list-table chrome' );
+ok( strpos( $lb, 'widefat striped' ) !== false, 'leaderboard table uses the shared list-table chrome' );
 ok( strpos( $lb, 'My Note' ) !== false && strpos( $lb, 'Older Note' ) !== false, 'every recent post is listed' );
 ok( strpos( $lb, '>400<' ) !== false, 'lifetime views column rendered (400)' );
 ok( strpos( $lb, 'spike' ) !== false && strpos( $lb, 'sustained' ) !== false, 'decay verdict chip per post' );
@@ -100,7 +100,7 @@ $parity_rows = array(
 );
 $parity = cap( function () use ( $parity_rows ) { snt_analytics_render_posts_leaderboard( $parity_rows ); } );
 ok(
-	'<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Your catalog</span></h2></div><div class="inside sn-an-table-inside"><table class="wp-list-table widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">Post</th><th scope="col" class="manage-column num">Lifetime views</th><th scope="col" class="manage-column num">Per day</th><th scope="col" class="manage-column">Shape</th></tr></thead><tbody><tr><td class="column-primary" data-colname="Post"><a href="/notes/x/?a=1&b=2"><strong>My &quot;Great&quot; &lt;Note&gt; &amp; Co</strong></a> <span class="sn-an-muted">3d</span></td><td class="num" data-colname="Lifetime views">120</td><td class="num" data-colname="Per day">30</td><td data-colname="Shape">spike</td></tr><tr><td class="column-primary" data-colname="Post"><a href="/notes/y/"><strong>Older Note</strong></a> <span class="sn-an-muted">30d</span></td><td class="num" data-colname="Lifetime views">400</td><td class="num" data-colname="Per day">13</td><td data-colname="Shape"><span class="sn-an-muted">—</span></td></tr></tbody></table></div></div>' === $parity,
+	'<div class="postbox sn-an-postbox"><div class="postbox-header"><h2 class="hndle"><span>Your catalog</span></h2></div><div class="inside sn-an-table-inside"><table class="widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">Post</th><th scope="col" class="manage-column num">Lifetime views</th><th scope="col" class="manage-column num">Per day</th><th scope="col" class="manage-column">Shape</th></tr></thead><tbody><tr><td class="column-primary" data-colname="Post"><a href="/notes/x/?a=1&b=2"><strong>My &quot;Great&quot; &lt;Note&gt; &amp; Co</strong></a> <span class="sn-an-muted">3d</span></td><td class="num" data-colname="Lifetime views">120</td><td class="num" data-colname="Per day">30</td><td data-colname="Shape">spike</td></tr><tr><td class="column-primary" data-colname="Post"><a href="/notes/y/"><strong>Older Note</strong></a> <span class="sn-an-muted">30d</span></td><td class="num" data-colname="Lifetime views">400</td><td class="num" data-colname="Per day">13</td><td data-colname="Shape"><span class="sn-an-muted">—</span></td></tr></tbody></table></div></div>' === $parity,
 	'leaderboard: full-string byte-parity pin holds (hostile title escapes, permalink escapes, empty-decay falls back to the literal em-dash span)'
 );
 
@@ -122,7 +122,7 @@ ok( strpos( $traj, 'class="postbox sn-an-postbox"' ) !== false, 'trajectory pane
 echo "\nGroup: the view delegates velocity + decay to the shared distribution bars\n";
 $view = cap( function () use ( $bundle ) { snt_analytics_render_posts_view( $bundle ); } );
 ok( strpos( $view, '[DIST:' ) !== false, 'view delegates at least one panel to snt_analytics_render_distribution' );
-ok( strpos( $view, 'sn-kpi-row' ) !== false && strpos( $view, 'wp-list-table' ) !== false, 'view composes hero + leaderboard' );
+ok( strpos( $view, 'sn-kpi-row' ) !== false && strpos( $view, 'widefat striped' ) !== false, 'view composes hero + leaderboard' );
 
 echo "\nGroup: whole-view empty state\n";
 $none = cap( function () { snt_analytics_render_posts_view( null ); } );
