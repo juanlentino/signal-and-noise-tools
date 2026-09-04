@@ -3030,3 +3030,29 @@ a.sn-ops__label:hover, .sn-sys__v[href]:hover { text-decoration: underline; }
 	   because no local harness renders wp-admin. */
 	min-width: 0;
 }
+
+/* ── Mobile: form controls must not fall below 16px (#1000) ───────────────
+   Below 16px iOS Safari zooms the page into a focused control and does NOT
+   zoom back out, leaving the user magnified and scrolled with no obvious way
+   back. Core handles this for admin controls in wp-admin/css/forms.css:
+
+       @media screen and (max-width: 782px) { textarea, input { font-size: 16px; } }
+
+   ...but that selector is (0,0,1) and every rule below is (0,1,0) or higher,
+   so ours won and the bump never applied. The desktop sizes are deliberate
+   house style and are kept; only the phone is corrected, at CORE'S OWN
+   breakpoint rather than a new one, so the two can never disagree about where
+   a phone starts.
+
+   This is a plain mobile wp-admin bug, not an OpenStation one. It surfaced
+   while reading OpenStation v1.1.6's docs/mobile.md, which states the rule for
+   third parties and assumes admin forms in an iframe window "already are"
+   16px under 782px — true of core's, and untrue of ours until now. */
+@media screen and (max-width: 782px) {
+	.snt-modal-textarea,
+	.snt-suggest-textarea,
+	.sn-rsm-items,
+	.sn-gsc-settings textarea {
+		font-size: 16px;
+	}
+}

@@ -12,6 +12,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Admin form controls no longer fall below 16px on a phone. Five rules were
+  specific enough to beat core's `max-width: 782px` bump, so iOS zoomed into a
+  focused field and never zoomed back out. Desktop sizes are unchanged; the
+  bump is restated at core's own breakpoint. (#1000)
+
 ## [13.96.1] - 2026-09-04 — one declaration, enforced the same way everywhere
 
 ### Fixed
