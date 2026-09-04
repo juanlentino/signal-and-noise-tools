@@ -186,6 +186,26 @@ function snt_sn_apply_gate2_create_draft( array $payload ) {
 		$findings  = array_merge( $findings, snt_sn_validate_check_tags( (array) $payload['tags'], 0 ) );
 	}
 
+	// v13.95.0 — the two surface fields, validated HERE rather than in a
+	// follow-up call. Both notes drafted on 2026-09-03 needed a second
+	// `surfaces` call to attach them, and the first og_card_title failed its
+	// char-range check, costing a third.
+	//
+	// The validators are the SAME ones `surfaces` runs — never a parallel
+	// scheme, which is how two rules for one field drift apart. Only their
+	// subject differs: post_id is 0 because the post does not exist yet, and
+	// og_card_title is measured against the title from THIS payload rather
+	// than a stored one. That last part is the whole point — the range check
+	// now runs while the caller can still fix the title in the same call.
+	if ( array_key_exists( 'meta_description', $payload ) && function_exists( 'snt_sn_validate_check_meta_description' ) ) {
+		$checks[]  = 'meta_description';
+		$findings  = array_merge( $findings, snt_sn_validate_check_meta_description( (string) $payload['meta_description'], 0 ) );
+	}
+	if ( array_key_exists( 'og_card_title', $payload ) && function_exists( 'snt_sn_validate_check_og_card_title' ) ) {
+		$checks[]  = 'og_card_title';
+		$findings  = array_merge( $findings, snt_sn_validate_check_og_card_title( (string) $payload['og_card_title'], 0, $title ) );
+	}
+
 	return array( 'checks' => array_values( array_unique( $checks ) ), 'findings' => $findings );
 }
 
@@ -396,10 +416,25 @@ function snt_sn_apply_write_create_draft( array $payload ) {
 		wp_set_post_tags( (int) $post_id, $tag_ids, false );
 	}
 
+	// The surface meta, attached to the draft this call just created. The keys
+	// are the ones `surfaces` writes (_sn_meta_description / _sn_og_card_title)
+	// so a later surfaces call updates the same rows rather than shadowing
+	// them. Gate 2 already validated both against this payload's own title.
+	$surfaces_set = array();
+	foreach ( array( 'meta_description' => '_sn_meta_description', 'og_card_title' => '_sn_og_card_title' ) as $field => $meta_key ) {
+		if ( array_key_exists( $field, $payload ) ) {
+			update_post_meta( (int) $post_id, $meta_key, (string) $payload[ $field ] );
+			$surfaces_set[] = $field;
+		}
+	}
+
 	return array(
-		'post_id'   => (int) $post_id,
-		'edit_link' => (string) get_edit_post_link( $post_id, 'raw' ),
-		'status'    => 'draft',
+		'post_id'      => (int) $post_id,
+		'edit_link'    => (string) get_edit_post_link( $post_id, 'raw' ),
+		'status'       => 'draft',
+		// Which surface fields this call attached. Empty array, never absent:
+		// a caller must be able to tell "none supplied" from "field ignored".
+		'surfaces_set' => $surfaces_set,
 	);
 }
 
