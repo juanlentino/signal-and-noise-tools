@@ -667,8 +667,12 @@ function snt_an_range_pills( $param, $allowed, $active_value, $opts = array() ) 
  *                                 passthrough seam since the primitive already
  *                                 supports it.
  *     @type bool   $data_colname Emit data-colname="<label>" on every <td>
- *                                 (the wp-list-table mobile-responsive
- *                                 convention). Default false. Both string-list
+ *                                 EXCEPT the primary, which must never label
+ *                                 itself: under .wp-list-table core paints
+ *                                 that label over the cell's own text (#1021).
+ *                                 These tables no longer wear that class, so
+ *                                 the attribute is inert today and kept as
+ *                                 honest column metadata. Default false. Both string-list
  *                                 adopters keep their pre-adoption default
  *                                 (edge: true, login-defense: false); both
  *                                 spec-mode adopters (posts leaderboard,

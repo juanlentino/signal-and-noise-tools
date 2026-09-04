@@ -49,7 +49,7 @@ function snt_mr_sum_hits_by( $rows, $field ) {
 }
 
 /**
- * Open a house table (wp-list-table widefat striped) with a visible caption
+ * Open a house table (widefat striped) with a visible caption
  * and a header row. First header cell is the column-primary; the rest carry
  * the class passed per label ('num' for count columns, '' otherwise).
  *

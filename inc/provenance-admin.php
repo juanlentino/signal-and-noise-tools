@@ -642,7 +642,7 @@ function sn_prov_admin_render_genesis_fieldset( array $sys ) {
 }
 
 /**
- * Commits fieldset: a wp-list-table whose <tbody class="sn-prov-live"> is the
+ * Commits fieldset: a widefat table whose <tbody class="sn-prov-live"> is the
  * aria-live region assets/provenance-admin.js hydrates into commit rows. The
  * tbody carries the data-endpoint/data-nonce/data-ledger the poller reads.
  *

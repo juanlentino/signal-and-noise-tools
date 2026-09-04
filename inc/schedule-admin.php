@@ -4,7 +4,7 @@
  *
  * Task 8 of the scheduled-content subsystem. A READ-MOSTLY admin surface under
  * Connections -> Scheduled that folds two data sources into one native
- * .wp-list-table:
+ * .widefat table (NOT .wp-list-table - see #1021):
  *   - sn_schedule_all():          the fragment/queue rows (sn/scheduled blocks
  *                                 mirrored into wp_sn_schedules), with a window
  *                                 and a queued/active/done/error status.
@@ -66,7 +66,7 @@ const SN_SCHEDULE_DISPLAY_CAP = 25;
 
 /**
  * Render the scheduled-content status list: the union of the fragment/queue rows
- * and the native scheduled posts, one native .wp-list-table.
+ * and the native scheduled posts, one native .widefat table.
  *
  * Every dynamic value (post titles, URLs, datetimes, statuses) is escaped at its
  * output sink: esc_html for text, esc_url for hrefs, esc_attr for attributes. A

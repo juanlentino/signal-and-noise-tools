@@ -242,7 +242,7 @@ function snt_analytics_render_lowengage( $rows ) {
  * Plausible history.
  *
  * Clones snt_analytics_render_paths_table()'s WP-native markup (.postbox +
- * .inside.sn-an-table-inside + .wp-list-table.widefat.striped). Reuses existing
+ * .inside.sn-an-table-inside + .widefat.striped). Reuses existing
  * CSS — no new stylesheet rule needed.
  *
  * @param array  $rows        [{path,views,visits}]

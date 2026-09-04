@@ -8,7 +8,7 @@
  * Monitoring tab, whose Analytics leaf is settings-only: a KPI headline (incl. the beacon-reconciliation — what the JS beacon
  * never saw), the daily request trend (reusing the shared trend chart), an error/
  * status breakdown, and per-colo / per-country / threat tables. Reuses the existing
- * .sn-kpi-row / postbox / wp-list-table treatments — no new visual vocabulary.
+ * .sn-kpi-row / postbox / widefat treatments — no new visual vocabulary.
  *
  * @package SignalNoiseTools
  * @since 6.26.0
