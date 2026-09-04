@@ -376,13 +376,41 @@ function snt_sn_apply_apply_one( $type, $raw_target, array $change, $mode, $dry_
 	}
 	$gate2_passed = ! $has_error_finding;
 
+	// v13.95.1 — A PLAN FAILURE IS NOT A FINGERPRINT FAILURE.
+	// gate 1 does double duty for the batching types: it proves the
+	// whole-post hash AND runs the planner. When the hash matched and only
+	// the plan was refused it now returns fingerprint_ok, and the conflict
+	// is reported where it belongs — as a VALIDATION finding, which is what
+	// a payload conflict is, and which already carries the 422 this refusal
+	// returns. Before this, the response said fingerprint.passed:false with
+	// expected and observed IDENTICAL: a contradiction that sends the caller
+	// to re-fetch a hash nothing was wrong with.
+	$fingerprint_ok = (bool) ( $gate1['fingerprint_ok'] ?? $gate1['passed'] );
+	$plan_error     = isset( $gate1['plan_error'] ) ? (string) $gate1['plan_error'] : '';
+
+	if ( '' !== $plan_error && function_exists( 'snt_sn_validate_finding' ) ) {
+		$gate2['checks'][]   = 'plan';
+		$gate2['findings'][] = snt_sn_validate_finding(
+			'plan',
+			(string) ( $gate1['error_code'] ?? 'snt_sn_apply_plan_refused' ),
+			'error',
+			$plan_error,
+			null,
+			null,
+			array(),
+			(string) ( $resolved['post_id'] ?? 0 ) . '|plan'
+		);
+	}
+
 	$gates = array(
 		'fingerprint' => array(
-			'passed'   => $gate1['passed'],
+			'passed'   => $fingerprint_ok,
 			'expected' => $gate1['expected'],
 			'observed' => $gate1['observed'],
 			'skipped'  => $gate1['skipped'],
-			'detail'   => $gate1['detail'],
+			// The planner's message belongs to the validation gate now; the
+			// fingerprint gate reports only on the hash it actually checked.
+			'detail'   => '' !== $plan_error ? null : $gate1['detail'],
 		),
 		'validation'  => array(
 			'passed'   => $gate2_passed,
@@ -398,6 +426,15 @@ function snt_sn_apply_apply_one( $type, $raw_target, array $change, $mode, $dry_
 		),
 		'idempotency' => array( 'passed' => true, 'first_seen' => null ),
 	);
+
+	// Recompute after the plan finding above: a plan refusal is a gate-2
+	// error finding, so gate 2 must fail with it rather than reporting
+	// "passed" beside a refused call.
+	if ( '' !== $plan_error ) {
+		$gate2_passed             = false;
+		$gates['validation']['passed'] = false;
+		$gates['validation']['skipped'] = null;
+	}
 
 	$all_passed = $gate1['passed'] && $gate2_passed && $gate3['passed'];
 

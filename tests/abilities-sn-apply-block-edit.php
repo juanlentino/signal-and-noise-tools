@@ -849,5 +849,36 @@ eq( 'snt_sn_apply_changes_conflict', $r->get_error_code(), 'BATCH.9: a conflicti
 eq( 0, tf_total_writes(), 'BATCH.10: ...and writes NOTHING — all-or-nothing holds at the door, not after a partial splice' );
 eq( $body, $GLOBALS['__posts'][900]['post_content'], 'BATCH.11: the live row is byte-identical to before the refused batch' );
 
+/* ── v13.95.1: THE SHAPE OF THE REFUSAL, not just its code ──────────────
+   Found by driving the live door, not by the suite: the refusal envelope
+   said fingerprint.passed:false with expected and observed IDENTICAL, and
+   carried a diff reporting changes_applied:2 with ledger_impact
+   "coalesces" — the reading that means "applied, no new version". Nothing
+   was ever written; the READOUT could not be told apart from a benign
+   restructure. Both are pinned here. */
+$env = json_decode( $r->get_error_message(), true );
+
+eq( 'snt_sn_apply_changes_conflict', $r->get_error_code(), 'BATCH.12: the refusal still carries the conflict code' );
+eq( true, $env['gates']['fingerprint']['passed'] ?? null, 'BATCH.13: the FINGERPRINT gate passes — the hash matched; only the plan was refused' );
+eq(
+	$env['gates']['fingerprint']['expected'] ?? 'x',
+	$env['gates']['fingerprint']['observed'] ?? 'y',
+	'BATCH.14: ...and expected === observed, which is exactly why reporting it as failed was a contradiction'
+);
+eq( false, $env['gates']['validation']['passed'] ?? null, 'BATCH.15: the VALIDATION gate carries the refusal — a payload conflict is a validation failure' );
+ok( in_array( 'plan', (array) ( $env['gates']['validation']['checks'] ?? array() ), true ), 'BATCH.16: ...and names a "plan" check' );
+$named = false;
+foreach ( (array) ( $env['gates']['validation']['findings'] ?? array() ) as $f ) {
+	if ( 'plan' === ( $f['surface'] ?? '' ) && 'error' === ( $f['severity'] ?? '' ) && false !== strpos( (string) ( $f['message'] ?? '' ), 'undefined' ) ) { $named = true; }
+}
+ok( $named, 'BATCH.17: ...with a severity-error finding carrying the planner reason' );
+
+eq( 0, $env['diff']['changes_applied'] ?? -1, 'BATCH.18: diff.changes_applied is ZERO — a refused batch applied nothing' );
+eq( 2, $env['diff']['changes_requested'] ?? -1, 'BATCH.19: ...while changes_requested names what was ASKED for, kept distinct' );
+ok( array_key_exists( 'ledger_impact', (array) ( $env['diff'] ?? array() ) ) && null === $env['diff']['ledger_impact'], 'BATCH.20: ledger_impact is NULL, never "coalesces" — there is no plan, so no ledger consequence to report' );
+ok( array_key_exists( 'after', (array) ( $env['diff'] ?? array() ) ) && null === $env['diff']['after'], 'BATCH.21: diff.after is NULL — a refused plan has no resulting content to show' );
+ok( ! empty( $env['diff']['before'] ), 'BATCH.22: diff.before is still carried (roadmap_board reads it from a refusal to bootstrap its fingerprint)' );
+
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
