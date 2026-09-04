@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.96.0] - 2026-09-04 — the populations that were never complete
+
 ### Added
 - `sn-posts` accepts `status` and `fields`. Both were previously ignored in silence: a caller passing a filter got the whole corpus and a success, indistinguishable from a filter that matched everything. An unknown field name is now a 422 naming it and listing the valid ones, and the `post_ids` scope reports `filtered` separately from `missing` — a post that exists but does not match the status is not the same as one that does not exist.
 
@@ -31,9 +33,4 @@ adds a bullet below. A release is a separate, deliberate act:
   symbol whose only declaration sat inside a package was not a requirement -
   against the tool's own promise that nothing is hand-maintained. Measured: no
   handle or symbol was actually lost, so this closes a latent gap. (#992)
-
-## [13.95.2] - 2026-09-04 — the sn-apply family gets a directory
-
-### Changed
-- sn-apply-* implementation files live under inc/sn-apply/; inc/abilities-sn-apply.php is the loader. No behaviour change.
 
