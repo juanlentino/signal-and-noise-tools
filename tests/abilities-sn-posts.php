@@ -23,6 +23,11 @@ if ( ! class_exists( 'WP_Error' ) ) {
 		}
 		public function get_error_code() { return $this->code; }
 		public function get_error_data( $code = '' ) { return $this->data; }
+		// Added with #984: the refusals this suite now asserts on carry their
+		// substance in the MESSAGE (which key was unknown, which are valid).
+		// Without this the stub could only check the code, which is exactly the
+		// half that was already right.
+		public function get_error_message( $code = '' ) { return $this->message; }
 	}
 }
 if ( ! function_exists( 'is_wp_error' ) ) { function is_wp_error( $x ) { return $x instanceof WP_Error; } }
@@ -118,6 +123,7 @@ require __DIR__ . '/../inc/mcp/mcp-telemetry.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
+function eq( $e, $a, $m ) { ok( $e === $a, $m . ( $e === $a ? '' : ' (expected ' . var_export( $e, true ) . ', got ' . var_export( $a, true ) . ')' ) ); }
 
 echo "sn_posts (consolidated) — plugin v10.26.0\n\n";
 
@@ -232,6 +238,65 @@ ok( 'schema_error' === $classified['outcome'], 'the REAL classifier scores this 
 sn_mcp_telemetry_record( 'signal-noise__sn-posts', array( 'scope' => array( 'kind' => 'nonsense' ) ), 'read', $classified['outcome'], $classified['refusal_gate'], 3 );
 ok( 1 === count( $wpdb->insert_calls ), 'telemetry wiring: one row recorded for the sn-posts schema-violation scenario' );
 ok( 'schema_error' === $wpdb->insert_calls[0]['data']['outcome'], 'telemetry wiring: the inserted row carries outcome=schema_error end-to-end' );
+
+
+/* ════════════════════════════════════════════════════════════════════════
+ * status + fields filters (#984)
+ *
+ * Before these existed, sn-posts accepted `status` and `fields`, ignored both,
+ * and returned the whole corpus reporting success. A caller could not tell
+ * "my filter matched everything" from "my filter was never applied".
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nstatus + fields filters\n";
+
+// REGRESSION PIN, first: omitting both must be byte-identical to before.
+$base = snt_ability_sn_posts( array( 'max' => 5 ) );
+$again = snt_ability_sn_posts( array( 'max' => 5, 'status' => array(), 'fields' => array() ) );
+eq( json_encode( $base['posts'] ), json_encode( $again['posts'] ), 'FILT.1: empty status/fields are the same as omitting them - existing callers see no change' );
+ok( isset( $base['filtered'] ) && array() === $base['filtered'], 'FILT.2: the walk scope always reports filtered:[] so the shape is uniform' );
+
+// status narrows, and count follows the filtered set.
+$drafts = snt_ability_sn_posts( array( 'status' => array( 'draft' ), 'max' => 100 ) );
+$only_drafts = true;
+foreach ( $drafts['posts'] as $r ) { if ( 'draft' !== $r['status'] ) { $only_drafts = false; } }
+ok( $only_drafts, 'FILT.3: status:["draft"] returns only drafts' );
+ok( count( $drafts['posts'] ) > 0, 'FILT.4: ...and it is not vacuously empty (' . count( $drafts['posts'] ) . ' rows)' );
+eq( count( $drafts['posts'] ), $drafts['count'], 'FILT.5: count matches the rows actually returned' );
+$all = snt_ability_sn_posts( array( 'max' => 100 ) );
+ok( count( $drafts['posts'] ) < count( $all['posts'] ), 'FILT.6: NEGATIVE CONTROL - the filtered set is strictly smaller than the unfiltered one, so the filter did something' );
+
+// status filters BEFORE pagination.
+$page = snt_ability_sn_posts( array( 'status' => array( 'draft' ), 'max' => 1 ) );
+eq( 1, count( $page['posts'] ), 'FILT.7: a status filter with max:1 returns exactly one row' );
+ok( true === $page['has_more'] || 1 === count( $drafts['posts'] ), 'FILT.8: ...and has_more describes the FILTERED set, not the whole corpus' );
+
+// fields projects, and always keeps post_id.
+$narrow = snt_ability_sn_posts( array( 'fields' => array( 'post_date' ), 'max' => 3 ) );
+eq( array( 'post_id', 'post_date' ), array_keys( $narrow['posts'][0] ), 'FILT.9: fields:["post_date"] returns post_id + post_date only' );
+$anon = snt_ability_sn_posts( array( 'fields' => array( 'title' ), 'max' => 3 ) );
+ok( isset( $anon['posts'][0]['post_id'] ), 'FILT.10: post_id is forced in even when not asked for - an unidentifiable row is not a smaller answer' );
+
+// composed.
+$both = snt_ability_sn_posts( array( 'status' => array( 'draft' ), 'fields' => array( 'status' ), 'max' => 100 ) );
+eq( array( 'post_id', 'status' ), array_keys( $both['posts'][0] ), 'FILT.11: status and fields compose' );
+
+// an unknown field is a 422 that NAMES it - the whole point of the issue.
+$bad_f = snt_ability_sn_posts( array( 'fields' => array( 'not_a_key' ) ) );
+ok( is_wp_error( $bad_f ), 'FILT.12: an unknown field name REFUSES rather than silently returning a full row' );
+eq( 422, (int) ( $bad_f->get_error_data()['status'] ?? 0 ), 'FILT.13: ...as a 422' );
+ok( false !== strpos( $bad_f->get_error_message(), 'not_a_key' ), 'FILT.14: ...naming the offending key' );
+ok( false !== strpos( $bad_f->get_error_message(), 'post_date' ), 'FILT.15: ...and listing the valid ones' );
+
+$bad_s = snt_ability_sn_posts( array( 'status' => array( 'nonsense' ) ) );
+ok( is_wp_error( $bad_s ) && false !== strpos( $bad_s->get_error_message(), 'nonsense' ), 'FILT.16: an unknown status refuses and names it' );
+
+// content is gated on include_content.
+$gated = snt_ability_sn_posts( array( 'fields' => array( 'content' ) ) );
+ok( is_wp_error( $gated ) && false !== strpos( $gated->get_error_message(), 'include_content' ), 'FILT.17: fields:["content"] without include_content refuses and says which flag to set' );
+
+// the field list is DERIVED from the row builder, not hardcoded.
+$derived = snt_sn_posts_field_names();
+eq( array_keys( snt_corpus_post_row( (object) array( 'ID' => 0 ) ) ), $derived, 'FILT.18: the valid-field list is derived from the row builder, so the two cannot drift' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
