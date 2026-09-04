@@ -12,6 +12,7 @@
  */
 
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -21,7 +22,7 @@ $root = dirname( __DIR__ );
 /** Parse every wp_register_ability() call into slug => [callback, readonly]. */
 function app_registry( $root ) {
 	$out = array();
-	foreach ( glob( $root . '/inc/abilities-*.php' ) as $file ) {
+	foreach ( snt_test_inc_files( 'abilities-*.php' ) as $file ) {
 		$src   = (string) file_get_contents( $file );
 		$parts = preg_split( "/wp_register_ability\(\s*'([^']+)'/", $src, -1, PREG_SPLIT_DELIM_CAPTURE );
 		for ( $i = 1; $i < count( $parts ); $i += 2 ) {

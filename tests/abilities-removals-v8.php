@@ -33,6 +33,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) {
 	exit;
 }
 
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 if ( ! defined( 'ABSPATH' ) ) {
 	define( 'ABSPATH', '/' );
 }
@@ -212,7 +213,7 @@ t( ! file_exists( $inc . '/abilities-deprecations.php' ), 'C.1 inc/abilities-dep
 t( ! preg_match( '/^\s*require\w*\s.*abilities-deprecations/m', (string) file_get_contents( $inc . '/abilities-registration.php' ) ), 'C.2 orchestrator no longer requires abilities-deprecations (history mentions in comments are fine)' );
 t( ! function_exists( 'snt_ability_deprecated_notice' ), 'C.3 snt_ability_deprecated_notice() gone' );
 $orphan_hits = array();
-foreach ( glob( $inc . '/*.php' ) as $file ) {
+foreach ( snt_test_inc_files() as $file ) {
 	$src = (string) file_get_contents( $file );
 	foreach ( array( 'snt_cmd_impl_full_reset', 'snt_cron_get_event_impl' ) as $orphan ) {
 		if ( false !== strpos( $src, $orphan ) ) {

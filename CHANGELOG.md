@@ -21,6 +21,11 @@ adds a bullet below. A release is a separate, deliberate act:
   `assets/css/prov-verify.css` was never scored while the check reported clean.
   `analytics-tokens.css` / `analytics-widget.css` are declared admin-only, which
   the widened population made visible for the first time. (#988)
+- Guards that sweep the plugin's PHP now walk `inc/` at any depth. Fourteen
+  enumerated it with `inc/*.php` or a hand-listed package, so 86 files - 17% of
+  the tree - were invisible to them, and none announced the narrowing.
+  `tests/lib/inc-population.php` is now the single source of that population and
+  `tests/inc-population-guard.php` fails if a suite builds its own. (#987)
 
 ## [13.95.2] - 2026-09-04 — the sn-apply family gets a directory
 

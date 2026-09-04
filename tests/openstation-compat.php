@@ -17,6 +17,7 @@
  */
 
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 define( 'ABSPATH', '/' );
 
 $pass = 0; $fail = 0;
@@ -285,7 +286,7 @@ ok( '' !== $doc, 'the compat doc is readable' );
 //    Adding an integration point without documenting it now fails here,
 //    rather than being noticed two releases later.
 $inc_names = array();
-foreach ( glob( __DIR__ . '/../inc/*.php' ) as $f ) {
+foreach ( snt_test_inc_files() as $f ) {
 	if ( preg_match_all( '/openstation_[a-z0-9_]+/', (string) file_get_contents( $f ), $m ) ) {
 		foreach ( $m[0] as $name ) { $inc_names[ $name ] = true; }
 	}

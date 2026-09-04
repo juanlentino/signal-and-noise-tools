@@ -19,6 +19,7 @@
  * Run: php tests/analytics-filter-reference-parity.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+require_once __DIR__ . '/lib/inc-population.php';
 define( 'ABSPATH', '/' );
 
 // Minimal WP stubs for the render fn (static i18n-wrapped link-line content).
@@ -40,7 +41,7 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 // match multi-line safe (snt_ai_economy_features is applied across lines).
 $prefixes = 'sn_analytics_|snt_ai_|sn_beacon_';
 $found    = array();
-$files    = array_merge( glob( __DIR__ . '/../inc/*.php' ), glob( __DIR__ . '/../inc/*/*.php' ) );
+$files    = snt_test_inc_files(); // #987: depth-agnostic; was inc/*.php + inc/*/*.php, correct only to depth 2.
 foreach ( $files as $f ) {
 	if ( preg_match_all( "~apply_filters\\(\\s*['\"]((?:{$prefixes})[a-z0-9_]+)['\"]~s", (string) file_get_contents( $f ), $m ) ) {
 		foreach ( $m[1] as $tag ) { $found[ $tag ] = true; }

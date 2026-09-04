@@ -15,6 +15,7 @@
  * Run: php tests/mcp-connect-render.php
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 define( 'SN_MCP_TEST', true ); // mcp-endpoint.php: skip its rest_api_init/sn_agents_surfaces wiring.
 
@@ -187,7 +188,7 @@ ok( stripos( $html, 'If the wp.org “AI” plugin is active on this site, its M
 // claim "none of ours opt in" is DERIVED from the registrations, not remembered.
 ok( stripos( $html, 'meta.mcp.public' ) !== false, 'adapter block states the 0.6.0 opt-in exposure rule' );
 ok( stripos( $html, 'entire Abilities registry' ) === false, 'REGRESSION: the pre-0.6.0 "entire registry" claim is gone' );
-$sn_optin_files = glob( __DIR__ . '/../inc/abilities*.php' );
+$sn_optin_files = snt_test_inc_files( 'abilities*.php' );
 ok( count( $sn_optin_files ) >= 10, 'vacuity: ability registration files found (' . count( $sn_optin_files ) . ')' );
 $sn_optin_meta = 0; $sn_optin_hits = array();
 foreach ( $sn_optin_files as $sn_f ) {

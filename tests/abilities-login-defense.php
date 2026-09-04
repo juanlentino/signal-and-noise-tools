@@ -20,6 +20,7 @@
  * the WP seams and the AE query are stubbed.
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
+require_once __DIR__ . '/lib/inc-population.php'; // #987: inc/ is walked, not top-level-globbed.
 define( 'ABSPATH', '/' );
 
 $pass = 0; $fail = 0;
@@ -62,7 +63,7 @@ ok( isset( $GLOBALS['__abilities']['signal-noise/login-defense-ipv6-criterion'] 
 // v13.1.1 — repo-wide source pin: no ability file may hook the unprefixed
 // name again. Source-text guard, same class as the filters.md parity test.
 $offenders = array();
-foreach ( glob( __DIR__ . '/../inc/*.php' ) as $f ) {
+foreach ( snt_test_inc_files() as $f ) {
 	if ( false !== strpos( (string) file_get_contents( $f ), "add_action( 'abilities_api_init'" ) ) {
 		$offenders[] = basename( $f );
 	}
