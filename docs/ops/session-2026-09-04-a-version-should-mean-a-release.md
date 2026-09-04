@@ -184,3 +184,78 @@ That is the same pattern the earlier arc today wrote down as
 `a-readout-that-cannot-separate-two-states`. This session adds the tooling
 corollary: **the check that passes is the one to distrust when it never had a way
 to fail.**
+
+---
+
+## Coda — the merges, and the first release under the new rule
+
+Written after the six PRs landed. The arc above ends at "PRs open"; this is what
+happened when they merged.
+
+### Both predicted conflicts were real
+
+`#980` hit the `CHANGELOG.md` collision with `#978` exactly as flagged. Resolved
+by taking #978's archived file and moving the bullet under ITS `## [Unreleased]`
+heading, so the entry sits where the new rule 2 actually looks rather than under
+a heading #980 had invented for the old file.
+
+The second was subtler and is the one worth remembering. After `#979` merged,
+GitHub reported `#980` **MERGEABLE** — but #979 had inserted
+`require_once .../lib/assert-envelope.php` beside the exact SUT require lines
+#980 rewrote for the new paths. A clean TEXTUAL merge there can still produce a
+broken require. I trial-merged locally instead of trusting the label: 13 requires
+resolved, 3 envelope requires survived, and the sweep came out at
+**22,463 = 22,437 + 26**, which is the arithmetic that had to hold. A
+`MERGEABLE` label answers "do these patches apply", not "does the result work".
+
+### The first cut, and why it is a PATCH
+
+The owner asked for 13.96.0. I cut **13.95.2**.
+
+The only entry in `## [Unreleased]` was the sn-apply package move, which states
+"No behaviour change." The `VERSIONING.md` merged that same morning defines MINOR
+as a capability a visitor or editor can see, and PATCH as "the rest, batched",
+with the test that a change whose gained capability cannot be named is a PATCH.
+Cutting a MINOR would have made the first release under the new doctrine break
+it on day one. Everything else from the arc — envelope helper, templates,
+archives, the script itself — is changelog-exempt and correctly absent from
+Unreleased.
+
+I raised it rather than either silently downgrading or silently complying, and
+the owner chose PATCH.
+
+The cut exercised the whole design honestly: `--dry-run` first, writing nothing;
+then the real run stamping the version, promoting Unreleased, archiving 13.95.1
+exactly once, and creating **neither a commit nor a tag**. Both were done by
+hand after reading the diff, which is the entire point of a script that prints
+the tag command instead of running it.
+
+### A stray cut that was not mine
+
+Before cutting, the working tree already held an uncommitted `cut-release.sh`
+run: Version 13.96.0, headline the literal placeholder `"the headline"`. My own
+test runs used `"a throwaway headline"` and were reverted, and the previous state
+check had shown both repos clean — so it appeared afterwards, from outside this
+session.
+
+I did not commit it and did not silently discard it. Backed up the full diff and
+all three modified files to the session scratchpad, asked, and reverted to
+`origin/main` on instruction before cutting cleanly from a known state. If a
+concurrent session produced it, that session now holds a stale `main`.
+
+### One deferred item, closed
+
+Phase 1 deliberately did not add a `tools/cut-release.sh` pointer to the theme's
+`VERSIONING.md`, because the script did not exist on `main` yet and a doc linking
+a missing file is worse than one that stays quiet. Both paths are real now, so
+the See also section links the script and the changelog archive.
+
+### Final state
+
+Plugin **13.95.2** (tag + draft release bound, parity `code=tagged`), theme
+**12.18.4**. Zero `v13.96*` tags. Both repos clean, no open PRs, no open issues
+on the milestone. Verified live after the wp-admin update: a probe against a
+nonexistent post returned `snt_sn_apply_target_not_found` with
+`skipped: target_not_resolved` — which is target resolution running from
+`inc/sn-apply/executors.php`, one of the thirteen moved files. The loader
+resolves under the new path in production, not just in tests.
