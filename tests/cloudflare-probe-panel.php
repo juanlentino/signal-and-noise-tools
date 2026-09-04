@@ -53,7 +53,10 @@ foreach ( array( 'sn-table', 'sn-rail-h', 'sn-rail-note' ) as $invented ) {
 
 // ─── it renders with wp-admin's own table, not a new one ───────────────────
 ok( 1 === preg_match( '/<table class="wp-list-table widefat striped">/', $src ), 'the probe table uses core widefat/striped — real formatting, no new CSS, and it matches the analytics tables already in this plugin' );
-ok( 1 === preg_match( '/<th scope="col">When<\/th>/', $src ), 'headers carry scope="col"' );
+// Property, not literal: the header keeps scope="col" whatever else it wears.
+ok( 1 === preg_match( '/<th scope="col"[^>]*>When<\/th>/', $src ), 'headers carry scope="col"' );
+ok( 1 === preg_match( '/<th scope="col"[^>]*class="[^"]*column-primary[^"]*">When/', $src ), 'the When header is the primary column, so the row stacks under 782px (#1015)' );
+ok( false !== strpos( $src, 'data-colname="When"' ), 'probe body cells carry their column label' );
 
 // ─── main column, not the rail ─────────────────────────────────────────────
 $panel_at = strpos( $src, 'Post-purge probes' );

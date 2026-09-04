@@ -30,7 +30,16 @@ ok( strpos( $hm, 'role="img"' ) === false, 'visual grid no longer double-announc
 echo "\nGroup: bot-networks table headers\n";
 $bb = array( 'totals' => array( 'human' => 100, 'suspect' => 5, 'bot' => 20, 'total' => 125 ), 'top_bot_networks' => array( array( 'value' => 'AS13335', 'views' => 12 ) ) );
 ob_start(); snt_analytics_render_bot_breakdown( $bb ); $q = ob_get_clean();
-ok( strpos( $q, '<thead><tr><th scope="col">Network</th><th scope="col" class="num">Views</th></tr></thead>' ) !== false, 'bot networks: thead with scope=col before tbody' );
+// Pinned as a PROPERTY, not as literal tag text: both headers are scoped
+// columns inside a thead, in order, whatever classes they also carry. The
+// literal form broke the moment the table gained `column-primary` (#1015) —
+// which is a pin failing on a fix, not on a regression.
+ok( 1 === preg_match(
+	'/<thead><tr><th scope="col"[^>]*>Network<\/th><th scope="col"[^>]*>Views<\/th><\/tr><\/thead>/',
+	$q
+), 'bot networks: thead with scope=col before tbody' );
+ok( 1 === preg_match( '/<th scope="col"[^>]*class="[^"]*column-primary/', $q ), 'bot networks: the Network header is the primary column' );
+ok( false !== strpos( $q, 'data-colname="Network"' ), 'bot networks: body cells carry their column label' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

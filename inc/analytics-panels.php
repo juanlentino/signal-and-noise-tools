@@ -731,7 +731,7 @@ function snt_an_kv_table( $title, $rows, $cols, $opts = array() ) {
 	}
 	snt_an_panel_open( $title, $panel_args );
 
-	echo '<table class="widefat striped"><thead><tr>';
+	echo '<table class="wp-list-table widefat striped"><thead><tr>';
 	foreach ( $columns as $col ) {
 		$th_class = 'manage-column' . ( '' !== $col['class'] ? ' ' . $col['class'] : '' );
 		echo '<th scope="col" class="' . esc_attr( $th_class ) . '">' . esc_html( $col['label'] ) . '</th>';

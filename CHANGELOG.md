@@ -13,13 +13,31 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Fixed
-- Eight admin tables no longer claim core's list-table responsive contract
-  without meeting it. At `max-width: 782px` core turns every `.wp-list-table`
-  row into a flex container sized by `column-primary`, which these never
-  emitted — so on a phone the header painted over the first cell and "Path"
-  over "/notes" read as `Paothes`. They keep `widefat striped` and drop
-  `wp-list-table`; the eight tables that do meet the contract are untouched.
-  (#1015)
+- Five admin surfaces now meet core's list-table responsive contract instead of
+  only claiming it. At `max-width: 782px` core turns every `.wp-list-table` row
+  into a flex container sized by `column-primary` and labels each cell from its
+  `data-colname` — which the bot-networks, cache-probe, anchor-status,
+  scheduled-content and tag-consolidation tables never emitted, so on a phone
+  the header painted over the first cell and "Path" over "/notes" read as
+  `Paothes`. They now emit both, so they stack and label like every other table
+  rather than losing the chrome. The anchor-status table's rows are built in
+  JavaScript, so `assets/provenance-admin.js` carries the same two attributes.
+  The one-cell "No scheduled content" notice has no columns to stack and drops
+  the class instead. (#1015)
+
+### Internal
+- `tests/admin-table-mobile-contract.php` pins the contract, and its docblock
+  records why it is scoped to the FILE. The first audit used a 60-line window
+  *forward* from each `<table>` tag and reported eight violations; three were
+  fabricated. `inc/analytics-panels.php` sets the primary class at line 714 and
+  opens its table at 734 — above the tag, invisible to a forward window — and
+  `inc/machine-readers-render.php` splits the header and body across five
+  sibling functions, invisible to a function-scoped one. Neither window matched
+  the contract, because the contract is "this table, wherever its cells are
+  written". The guard states the one place file scope still cannot decide
+  (a file holding both a list table and a plain `widefat` one) and prints its
+  own coverage count, so a future narrowing shows as a number that moved rather
+  than as silence. (#1015)
 
 ## [13.96.3] - 2026-09-04 — the instrument that could not see a server error
 

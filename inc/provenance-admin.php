@@ -661,8 +661,8 @@ function sn_prov_admin_render_commits_fieldset( $note_base ) {
 	echo '<span class="sn-fieldset-intro">' . esc_html__( 'Ask the Worker to check pending proofs against Bitcoin now, rather than waiting for the hourly sweep.', 'signal-and-noise-tools' ) . '</span>';
 	echo '</form>';
 
-	echo '<table class="widefat striped sn-prov-table"><thead><tr>'
-		. '<th>' . esc_html__( 'UID', 'signal-and-noise-tools' ) . '</th>'
+	echo '<table class="wp-list-table widefat striped sn-prov-table"><thead><tr>'
+		. '<th class="manage-column column-primary">' . esc_html__( 'UID', 'signal-and-noise-tools' ) . '</th>'
 		. '<th>' . esc_html__( 'Version', 'signal-and-noise-tools' ) . '</th>'
 		. '<th>' . esc_html__( 'Status', 'signal-and-noise-tools' ) . '</th>'
 		. '<th>' . esc_html__( 'Ledger', 'signal-and-noise-tools' ) . '</th>'

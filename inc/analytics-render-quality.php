@@ -61,10 +61,10 @@ function snt_analytics_render_bot_breakdown( $bb ) {
 	if ( $nets_failed ) {
 		echo '<p class="sn-an-empty">' . esc_html( snt_an_read_failed_copy( __( 'The top-bot-networks list', 'signal-and-noise-tools' ) ) ) . '</p>';
 	} elseif ( ! empty( $nets ) ) {
-		echo '<h4 class="sn-an-subh">' . esc_html__( 'Top bot networks', 'signal-and-noise-tools' ) . '</h4><table class="sn-an-table widefat striped"><thead><tr><th scope="col">' . esc_html__( 'Network', 'signal-and-noise-tools' ) . '</th><th scope="col" class="num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
+		echo '<h4 class="sn-an-subh">' . esc_html__( 'Top bot networks', 'signal-and-noise-tools' ) . '</h4><table class="sn-an-table wp-list-table widefat striped"><thead><tr><th scope="col" class="manage-column column-primary">' . esc_html__( 'Network', 'signal-and-noise-tools' ) . '</th><th scope="col" class="num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 		foreach ( $nets as $n ) {
-			echo '<tr><td>' . esc_html( (string) ( $n['value'] ?? '' ) ) . '</td>'
-				. '<td class="num">' . esc_html( number_format_i18n( (int) ( $n['views'] ?? 0 ) ) ) . '</td></tr>';
+			echo '<tr><td class="column-primary" data-colname="Network">' . esc_html( (string) ( $n['value'] ?? '' ) ) . '</td>'
+				. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) ( $n['views'] ?? 0 ) ) ) . '</td></tr>';
 		}
 		echo '</tbody></table>';
 	}
