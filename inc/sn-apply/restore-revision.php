@@ -14,7 +14,7 @@
  * nothing about SN's own meta queue. This file is the FIRST application path
  * for that queue — but scoped to POST-targeted rows only (surfaces' fields,
  * staged under the post's own id). alt_text's own staged rows are queued
- * under the ATTACHMENT id it targets (inc/sn-apply-executors.php's alt_text
+ * under the ATTACHMENT id it targets (inc/sn-apply/executors.php's alt_text
  * target resolution), and restore_revision's target is always {post_id} —
  * it structurally never resolves an attachment, so those rows are NOT
  * reached by snt_sn_apply_apply_staged_meta_for_post() below and remain
@@ -55,7 +55,7 @@
  *
  * ── Gate 1: a REAL fingerprint scheme, not a skip ──
  *
- * inc/sn-apply-validation.php's snt_sn_apply_gate1_fingerprint() binds to
+ * inc/sn-apply/validation.php's snt_sn_apply_gate1_fingerprint() binds to
  * the LIVE row's current content_hash — snt_corpus_content_hash(),
  * inc/corpus-inspect.php, the SAME function signal-noise/sn-posts exposes to
  * callers as `content_hash` — REUSED, never a parallel hash. A restore
@@ -107,12 +107,12 @@
  *      live row's OWN current content as a fresh revision via session 6a's
  *      snt_sn_apply_stage_revision() (never touches the live row; inherits
  *      the v10.41.2 staging-date fix for free, since it IS that primitive).
- *   3. snt_sn_apply_restore_revision() (inc/sn-apply-revision.php,
+ *   3. snt_sn_apply_restore_revision() (inc/sn-apply/revision.php,
  *      session 6a) — the existing, verified wrap of wp_restore_post_revision().
  *   4. If apply_staged_meta (default TRUE — see the docblock on
  *      snt_sn_apply_write_restore_revision() below for why): apply and
  *      clear the staged-meta queue for THIS post_id via the new
- *      per-post index (inc/sn-apply-revision.php's
+ *      per-post index (inc/sn-apply/revision.php's
  *      snt_sn_apply_staged_meta_index_option_name(), maintained additively
  *      inside snt_sn_apply_stage_meta() itself — existing callers' return
  *      shape is byte-unchanged).
@@ -144,7 +144,7 @@
  * — snt_sn_apply_stage_meta() wrote one wp_options row per (post_id,
  * meta_key) with no index anywhere. Two options were weighed: (a) a
  * per-post index option, maintained additively inside stage_meta() itself
- * (chosen — see inc/sn-apply-revision.php), or (b) a direct $wpdb LIKE
+ * (chosen — see inc/sn-apply/revision.php), or (b) a direct $wpdb LIKE
  * query over wp_options (rejected — this codebase's WPCS ruleset and the
  * WordPress Plugin Check DirectDB sniff both flag unprepared/non-cached
  * direct option-table scans, and every other option-enumeration need in
@@ -365,7 +365,7 @@ function snt_sn_apply_pending_staged_meta_for_post( $post_id ) {
 
 /**
  * Apply and clear every staged-meta row for $post_id, via the per-post
- * index (inc/sn-apply-revision.php's snt_sn_apply_staged_meta_index_option_name(),
+ * index (inc/sn-apply/revision.php's snt_sn_apply_staged_meta_index_option_name(),
  * maintained additively inside snt_sn_apply_stage_meta()). Rows staged
  * before the index existed are NOT enumerated — see this file's docblock,
  * "The enumeration problem, honestly bounded".
@@ -411,7 +411,7 @@ function snt_sn_apply_apply_staged_meta_for_post( $post_id ) {
  *                                 snt_sn_apply_restore_revision_precheck()
  *                                 before any gate ran.
  * @param bool $apply_staged_meta Default true at the call site
- *                                (inc/sn-apply-executors.php) — see this
+ *                                (inc/sn-apply/executors.php) — see this
  *                                file's docblock for why.
  * @return array{ok:bool,diff:array,revision_id:null,write_result:array}|WP_Error
  */

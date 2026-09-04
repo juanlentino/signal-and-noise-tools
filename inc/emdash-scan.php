@@ -249,7 +249,7 @@ function snt_emdash_scan_content( $content ) {
 	// caller that ignores `edits` and reaches for `phrase` gets an empty string and
 	// a loud 422 rather than half a parenthetical: the wrong thing is
 	// unrepresentable, not merely discouraged. Feed `edits` straight to sn-apply's
-	// change.payload.edits (inc/sn-apply-batch-edits.php), which writes once.
+	// change.payload.edits (inc/sn-apply/batch-edits.php), which writes once.
 	if ( $coalesce ) {
 		$out   = array();
 		$eaten = array_flip( $coalesce );

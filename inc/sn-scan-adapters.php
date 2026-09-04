@@ -129,7 +129,7 @@ function snt_sn_scan_adapter_block_migrations( $allowed_ids ) {
 		// caller applying same-post candidates top-to-bottom invalidates later
 		// paths. Surface it on targets[] (apply identity) as well as evidence.
 		// Same-post apply MUST be DESCENDING by block_path — mirrors
-		// sn_apply payload.edits' descending-splice (inc/sn-apply-batch-edits.php).
+		// sn_apply payload.edits' descending-splice (inc/sn-apply/batch-edits.php).
 		$block_path = (string) ( $c['block_path'] ?? '' );
 		$candidates[] = array(
 			'target_identity'     => (string) $post_id,

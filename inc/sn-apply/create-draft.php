@@ -3,12 +3,12 @@
  * Signal & Noise Tools — sn_apply change.type "create_draft" (MCP
  * consolidation session 6c, the arc's final stage).
  *
- * Split into its own file for the same reason inc/sn-apply-validation.php
- * split off inc/sn-apply-executors.php: the ~450-line house budget. All
+ * Split into its own file for the same reason inc/sn-apply/validation.php
+ * split off inc/sn-apply/executors.php: the ~450-line house budget. All
  * create_draft-specific logic lives here — target resolution and the
- * mode-support matrix entry stay in inc/sn-apply-executors.php (generic
+ * mode-support matrix entry stay in inc/sn-apply/executors.php (generic
  * per-type dispatch, one line each), gate 1/2 dispatch stays in
- * inc/sn-apply-validation.php (one `case` each) — but the actual gate-2
+ * inc/sn-apply/validation.php (one `case` each) — but the actual gate-2
  * check assembly, the block-delimiter validator, the write primitive, and
  * the dry_run preview computation are all create_draft's OWN, never shared.
  *

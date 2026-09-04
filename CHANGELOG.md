@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- sn-apply-* implementation files live under inc/sn-apply/; inc/abilities-sn-apply.php is the loader. No behaviour change.
+
 ## [13.95.1] - 2026-09-04 — a refused batch stops reading like a successful one
 
 Found by driving the live door after the app restart, not by the suite. The

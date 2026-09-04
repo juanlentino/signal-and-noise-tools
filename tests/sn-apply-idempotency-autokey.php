@@ -39,8 +39,8 @@ function update_option( $k, $v, $a = true ) { $GLOBALS['__options'][ $k ] = $v; 
 function wp_json_encode( $d, $f = 0 ) { return json_encode( $d, $f ); }
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 
-require __DIR__ . '/../inc/sn-apply-executors.php'; // SNT_SN_APPLY_CHANGE_TYPES
-require __DIR__ . '/../inc/sn-apply-gates.php';
+require __DIR__ . '/../inc/sn-apply/executors.php'; // SNT_SN_APPLY_CHANGE_TYPES
+require __DIR__ . '/../inc/sn-apply/gates.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "PASS: $m\n"; } else { ++$fail; echo "FAIL: $m\n"; } }

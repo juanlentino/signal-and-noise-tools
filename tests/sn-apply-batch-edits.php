@@ -56,8 +56,8 @@ function wp_strip_all_tags( $t, $remove_breaks = false ) { return trim( strip_ta
 function strip_shortcodes( $t ) { return $t; }
 
 require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
-require_once __DIR__ . '/../inc/sn-apply-sentence-replace.php';
-require_once __DIR__ . '/../inc/sn-apply-batch-edits.php';
+require_once __DIR__ . '/../inc/sn-apply/sentence-replace.php';
+require_once __DIR__ . '/../inc/sn-apply/batch-edits.php';
 
 /** Build a drift/em-dash edit whose fingerprint is minted from the ORIGINAL content. */
 function edit_at( $content, $phrase, $replacement, $context = '' ) {

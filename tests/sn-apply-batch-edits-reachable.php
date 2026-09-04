@@ -61,10 +61,10 @@ function snt_sn_apply_stage_revision( $post_id, $new_content ) {
 }
 
 require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
-require_once __DIR__ . '/../inc/sn-apply-sentence-replace.php';
-require_once __DIR__ . '/../inc/sn-apply-batch-edits.php';
+require_once __DIR__ . '/../inc/sn-apply/sentence-replace.php';
+require_once __DIR__ . '/../inc/sn-apply/batch-edits.php';
 require_once __DIR__ . '/../inc/emdash-scan.php';
-require_once __DIR__ . '/../inc/sn-apply-executors.php';
+require_once __DIR__ . '/../inc/sn-apply/executors.php';
 
 function fp_edit( $content, $phrase, $replacement ) {
 	$pos = snt_ai_drift_locate_in_raw( $content, $phrase, '' );

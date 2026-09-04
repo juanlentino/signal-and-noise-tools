@@ -3,9 +3,9 @@
  * Signal & Noise Tools — sn_apply gates 1 (fingerprint) and 2 (server-side
  * validation). MCP consolidation session 6b.
  *
- * Split out of inc/sn-apply-executors.php purely for the 450-line file
+ * Split out of inc/sn-apply/executors.php purely for the 450-line file
  * budget — these three functions are still part of the same per-change-type
- * executor layer (inc/sn-apply-executors.php holds target resolution, the
+ * executor layer (inc/sn-apply/executors.php holds target resolution, the
  * mode-support matrix, and the write dispatch; inc/abilities-sn-apply.php
  * orchestrates all four gates in order).
  *
@@ -513,7 +513,7 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			);
 
 		case 'roadmap_board':
-			// The board-as-data type (inc/sn-apply-roadmap-board.php): a REAL
+			// The board-as-data type (inc/sn-apply/roadmap-board.php): a REAL
 			// fingerprint scheme binding to the CURRENT effective board's
 			// hash — required (422 when absent via array_key_exists, the
 			// restore_revision idiom), stale is the 409 merge conflict.
@@ -860,17 +860,17 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 		case 'create_draft':
 			// Its own gate-2 assembly (excerpt/body/block-pattern/tags plus
 			// two structural checks unique to a create) — see
-			// inc/sn-apply-create-draft.php's docblock.
+			// inc/sn-apply/create-draft.php's docblock.
 			return snt_sn_apply_gate2_create_draft( $payload );
 
 		case 'restore_revision':
 			// Its own gate-2 assembly, run against the REVISION's fields
 			// (the would-be live state), never the live post's current
-			// fields — see inc/sn-apply-restore-revision.php's docblock.
+			// fields — see inc/sn-apply/restore-revision.php's docblock.
 			return snt_sn_apply_gate2_restore_revision( $resolved, $change );
 
 		case 'roadmap_board':
-			// Its own gate-2 assembly (inc/sn-apply-roadmap-board.php):
+			// Its own gate-2 assembly (inc/sn-apply/roadmap-board.php):
 			// structure bounds + plain-prose + the banned-token sweep that
 			// mirrors the public page's leak-sweep test.
 			return snt_sn_apply_gate2_roadmap_board( $change );
@@ -891,7 +891,7 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 			return array( 'passed' => true, 'findings' => array() );
 
 		case 'delete_draft':
-			// Draft-status + post_type fence (inc/sn-apply-delete-draft.php);
+			// Draft-status + post_type fence (inc/sn-apply/delete-draft.php);
 			// the write primitive re-checks both immediately before trashing.
 			return snt_sn_apply_gate2_delete_draft( $resolved );
 

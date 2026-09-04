@@ -4,7 +4,7 @@
  * (idempotency). MCP consolidation session 6b.
  *
  * Gate 1 (fingerprint) and gate 2 (server-side validation) live in
- * inc/sn-apply-executors.php because they are per-change-type — this file
+ * inc/sn-apply/executors.php because they are per-change-type — this file
  * holds the two gates that are NOT per-type: capability is checked against
  * the calling IDENTITY, and idempotency is checked against a single store
  * keyed on the caller's idempotency_key, independent of what change.type
@@ -81,7 +81,7 @@ function snt_sn_apply_is_owner_credential() {
 /**
  * The set of write modes the CURRENT calling identity is granted, before any
  * per-change-type mode-support restriction is applied (see
- * snt_sn_apply_mode_support() in inc/sn-apply-executors.php for that second,
+ * snt_sn_apply_mode_support() in inc/sn-apply/executors.php for that second,
  * independent restriction). Default: the owner's bound credential gets both
  * modes; every other identity gets 'revision' only — a routine credential
  * does not exist yet (docs/mcp-consolidation/sn-apply-spec.md's migration

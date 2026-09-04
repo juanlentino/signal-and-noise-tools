@@ -306,7 +306,7 @@ function snt_ai_drift_suggest_impl( $post_id, $phrase, $position, $context_snipp
  * Normalize a replacement for the requested whitespace posture.
  *
  * Extracted (v10.66.0) so the single-splice impl below and the batch planner
- * in inc/sn-apply-batch-edits.php share ONE rule instead of two that can
+ * in inc/sn-apply/batch-edits.php share ONE rule instead of two that can
  * drift. Behaviour is byte-identical to the inline version it replaces.
  *
  * @param string $replacement

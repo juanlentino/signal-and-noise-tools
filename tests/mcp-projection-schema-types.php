@@ -94,7 +94,7 @@ require __DIR__ . '/../inc/abilities-sn-posts.php';
 require __DIR__ . '/../inc/abilities-sn-site-facts.php';
 require __DIR__ . '/../inc/abilities-sn-scan.php';
 require __DIR__ . '/../inc/abilities-sn-validate.php';
-require __DIR__ . '/../inc/sn-apply-executors.php'; // SNT_SN_APPLY_CHANGE_TYPES, referenced eagerly by the registration array below.
+require __DIR__ . '/../inc/sn-apply/executors.php'; // SNT_SN_APPLY_CHANGE_TYPES, referenced eagerly by the registration array below.
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
 foreach ( $GLOBALS['__acts']['wp_abilities_api_init'] ?? array() as $cb ) {

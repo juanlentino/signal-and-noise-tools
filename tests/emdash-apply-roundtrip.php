@@ -72,7 +72,7 @@ if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 
 require_once __DIR__ . '/../inc/emdash-scan.php';
 require_once __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
-require_once __DIR__ . '/../inc/sn-apply-batch-edits.php';
+require_once __DIR__ . '/../inc/sn-apply/batch-edits.php';
 
 /**
  * Scan → apply → return the resulting stored content.

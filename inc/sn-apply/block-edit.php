@@ -771,7 +771,7 @@ function snt_sn_apply_block_edit_impl( $post_id, $type, array $payload, $fingerp
 	$new_content = $computed['new_content'];
 
 	// v13.94.0: the scheduled-post guarantee now lives in ONE place
-	// (snt_sn_apply_write_preserving_schedule, inc/sn-apply-plan-changes.php)
+	// (snt_sn_apply_write_preserving_schedule, inc/sn-apply/plan-changes.php)
 	// so the batch path cannot drift from this one. Behaviour is unchanged —
 	// the overdue refusal, the explicit status/date write, and the
 	// re-read-and-verify assertion moved verbatim, error strings included.

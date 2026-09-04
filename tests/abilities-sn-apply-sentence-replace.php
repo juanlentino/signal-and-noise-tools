@@ -1,7 +1,7 @@
 <?php
 /**
  * Standalone tests for sn_apply change.type "sentence_replace" — the
- * agent-composed body edit. See inc/sn-apply-sentence-replace.php's
+ * agent-composed body edit. See inc/sn-apply/sentence-replace.php's
  * docblock for the design: the ONLY body type whose fingerprint a
  * composing caller can produce (the LIVE content_hash, restore_revision's
  * binding), plain-prose-only replacement, byte-exact sentence-scale
@@ -201,13 +201,13 @@ require __DIR__ . '/../inc/health-check-drift-time-phrases.php';
 require __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
 require __DIR__ . '/../inc/sn-validate-checks.php';
 require __DIR__ . '/../inc/sn-validate-checks-media.php';
-require __DIR__ . '/../inc/sn-apply-revision.php';
-require __DIR__ . '/../inc/sn-apply-gates.php';
-require __DIR__ . '/../inc/sn-apply-validation.php';
-require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
-require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
-require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
-require __DIR__ . '/../inc/sn-apply-executors.php';
+require __DIR__ . '/../inc/sn-apply/revision.php';
+require __DIR__ . '/../inc/sn-apply/gates.php';
+require __DIR__ . '/../inc/sn-apply/validation.php';
+require __DIR__ . '/../inc/sn-apply/delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
+require __DIR__ . '/../inc/sn-apply/link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
+require __DIR__ . '/../inc/sn-apply/sentence-replace.php';
+require __DIR__ . '/../inc/sn-apply/executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
 echo "sn_apply sentence_replace — the agent-composed body edit\n\n";
