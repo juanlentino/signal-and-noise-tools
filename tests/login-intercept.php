@@ -58,6 +58,9 @@ function is_admin() {
 function is_plugin_active( $slug ) {
 	return false;
 }
+if ( ! function_exists( 'wp_parse_str' ) ) {
+	function wp_parse_str( $string, &$array ) { parse_str( (string) $string, $array ); }
+}
 
 // Action/filter capture (unused by the intercept itself but required by
 // the file-level add_action/add_filter calls in login-hide.php).
@@ -270,6 +273,87 @@ resetIntercept();
 $_SERVER['REQUEST_URI'] = '//wp-login.php';
 sn_login_intercept_request();
 assertEq( true, ! empty( $GLOBALS['sn_login_block_wp_login'] ), '//wp-login.php (network-path form) still blocks (leading slashes normalized)' );
+
+// ── #1004: the OpenStation PWA's launch URL redirects instead of 404-ing ──
+//
+// The manifest is PUBLIC and names /wp-admin/admin.php?page=openstation as the
+// start_url, so the decoy 404 hides nothing there while breaking the installed
+// app every time the session lapses. Everything else under /wp-admin must keep
+// 404-ing, which is what most of these lines exist to hold.
+echo "\nOpenStation PWA handoff (#1004)\n";
+
+// Inert while OpenStation is absent — nothing declares openstation_is_enabled()
+// in this harness yet, so the shell URL must NOT be treated specially.
+assertEq( false, sn_login_request_is_openstation_shell( '/wp-admin/admin.php?page=openstation' ),
+	'without OpenStation installed the shell URL is NOT special-cased (no redirect to a login that lands nowhere)' );
+
+// Now declare it, exactly as the live site does. Wrapped in a conditional on
+// purpose: PHP hoists an UNCONDITIONAL top-level function declaration at
+// compile time, so declaring it plainly here would make it exist from the first
+// line of the file and the "inert without OpenStation" assertion above could
+// never have failed. It went red on exactly that, which is the assertion
+// earning its place.
+if ( true ) {
+	function openstation_is_enabled() { return true; }
+}
+
+assertEq( true, sn_login_request_is_openstation_shell( '/wp-admin/admin.php?page=openstation' ),
+	'the PWA start_url is recognised' );
+assertEq( true, sn_login_request_is_openstation_shell( '/wp-admin/admin.php?page=openstation&foo=1' ),
+	'extra query args do not defeat it — a PWA launch may carry them' );
+
+// The path alone is admin.php, which MUST keep 404-ing. This is why the
+// existing allowlist could not express the rule: it matches the PATH only.
+assertEq( false, sn_login_request_is_openstation_shell( '/wp-admin/admin.php' ),
+	'bare admin.php is NOT the shell — the query is what distinguishes it' );
+assertEq( false, sn_login_request_is_openstation_shell( '/wp-admin/admin.php?page=openstation-evil' ),
+	'a page slug that merely STARTS WITH openstation is not the shell' );
+assertEq( false, sn_login_request_is_openstation_shell( '/wp-admin/options-general.php?page=openstation' ),
+	'the query alone is not enough — the path must be admin.php' );
+assertEq( false, sn_login_request_is_openstation_shell( '/wp-admin/' ),
+	'the admin root is not the shell' );
+
+// A decoy path that merely CONTAINS the needle must not smuggle it past, the
+// same discipline sn_login_request_is_allowlisted() applies.
+assertEq( false, sn_login_request_is_openstation_shell( '/not-really/wp-admin/admin.phpx?page=openstation' ),
+	'a lookalike path does not match' );
+
+// WIRING. Every assertion above tests the HELPER. Deleting the branch that
+// calls it left all of them green — the mutation that proved it caused zero
+// failures — so the helper could be perfect and the redirect never happen.
+// Ordering has no observable here without booting WP (the handler redirects and
+// exits), so it is pinned on the source, comments stripped so prose about the
+// rule cannot satisfy the rule.
+$lh_src = (string) file_get_contents( __DIR__ . '/../inc/login-hide.php' );
+$lh_code = '';
+foreach ( token_get_all( $lh_src ) as $lh_t ) {
+	if ( is_array( $lh_t ) && in_array( $lh_t[0], array( T_COMMENT, T_DOC_COMMENT ), true ) ) { $lh_code .= "\n"; continue; }
+	$lh_code .= is_array( $lh_t ) ? $lh_t[1] : $lh_t;
+}
+// The CALL SITE, not the declaration. Searching for the bare function name
+// matched `function sn_login_request_is_openstation_shell( $request_uri )`
+// itself, so deleting the branch left this green — caught by re-running the
+// mutation after adding the assertion, not before.
+$lh_branch = strpos( $lh_code, 'is_user_logged_in() && sn_login_request_is_openstation_shell(' );
+// Its CALL SITE too, for the identical reason: the declaration
+// `function sn_login_request_targets_wp_admin( $request_uri )` sits earlier in
+// the file than the handler, so a bare-name search reported the branches in the
+// wrong ORDER and failed on correct code. I fixed this on one side and left the
+// twin; both are call sites now.
+$lh_404    = strpos( $lh_code, 'sn_login_request_targets_wp_admin( $request_uri ) && ! is_user_logged_in()' );
+assertEq( true, false !== $lh_branch, 'the handler actually CALLS the shell check — without this the helper is dead code' );
+assertEq( true, false !== $lh_branch && false !== $lh_404 && $lh_branch < $lh_404,
+	'the shell branch runs BEFORE the unauth-/wp-admin 404, or the 404 wins and the redirect never happens' );
+assertEq( true, false !== strpos( $lh_code, "wp_login_url( admin_url( 'admin.php?page=openstation' ) )" ),
+	'the redirect target is RECONSTRUCTED with admin_url(), never reflected from the request' );
+
+// A PWA launch must not be counted as reconnaissance: it would inflate the
+// number the security digest reads. The property is that the branch EXITS
+// before the counter, not that the two are far apart in the file — a proximity
+// regex measured the wrong thing and went red on correct code.
+$lh_between = ( false !== $lh_branch && false !== $lh_404 ) ? substr( $lh_code, $lh_branch, $lh_404 - $lh_branch ) : '';
+assertEq( true, false !== strpos( $lh_between, 'exit;' ),
+	'the shell branch EXITS, so a PWA launch never reaches the wp_admin_unauth_404 counter' );
 
 echo "\n--- $pass passed, $fail failed ---\n";
 exit( $fail > 0 ? 1 : 0 );

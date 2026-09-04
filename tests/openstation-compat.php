@@ -287,7 +287,12 @@ ok( '' !== $doc, 'the compat doc is readable' );
 //    rather than being noticed two releases later.
 $inc_names = array();
 foreach ( snt_test_inc_files() as $f ) {
-	if ( preg_match_all( '/openstation_[a-z0-9_]+/', (string) file_get_contents( $f ), $m ) ) {
+	// The lookbehind is load-bearing. Without it this matched `openstation_shell`
+	// inside OUR OWN `sn_login_request_is_openstation_shell()` and demanded we
+	// document a name upstream has never had. Same missing-boundary bug as
+	// `revision.php` matching inside `restore-revision.php` in
+	// tests/sn-apply-surface-coverage.php — a substring is not a symbol.
+	if ( preg_match_all( '/(?<![A-Za-z0-9_])openstation_[a-z0-9_]+/', (string) file_get_contents( $f ), $m ) ) {
 		foreach ( $m[0] as $name ) { $inc_names[ $name ] = true; }
 	}
 }
@@ -297,6 +302,14 @@ $undocumented = array();
 foreach ( $inc_names as $name ) {
 	if ( false === strpos( $doc, $name ) ) { $undocumented[] = $name; }
 }
+// CONTROL for the boundary above: a real seam name is found, and the same name
+// embedded in a longer identifier is NOT. Without this the lookbehind could be
+// tightened into matching nothing and the sweep would pass over an empty set.
+$os_probe = array();
+preg_match_all( '/(?<![A-Za-z0-9_])openstation_[a-z0-9_]+/', 'openstation_register_widget( $x ); sn_login_request_is_openstation_shell( $y );', $os_probe );
+ok( array( 'openstation_register_widget' ) === $os_probe[0],
+	'BOUNDARY: a bare seam name matches, the same text inside our own identifier does not — got [' . implode( ', ', $os_probe[0] ) . ']' );
+
 ok( array() !== $inc_names, 'the sweep found openstation_* names to check (guards against a regex that matches nothing)' );
 ok(
 	array() === $undocumented,
