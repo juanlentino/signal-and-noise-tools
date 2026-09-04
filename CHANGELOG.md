@@ -13,6 +13,14 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Fixed
+- A post save now purges the paginated archive pages and the sitemap. The set
+  was five hardcoded URLs; `/notes/page/2..4/`, `/wp-sitemap.xml` and
+  `/wp-sitemap-posts-post-1.xml` are all edge-cached and none was purged, so an
+  edit left the archive beyond page 1 and the sitemap stale until TTL. The page
+  count is derived from the corpus, not written down, and capped. (#1008)
+- `cache-freshness` now reports `probe_scope`. The probe fetches the permalink
+  and nothing else, so a `fresh` verdict was a statement about one URL while
+  reading as one about the edge. (#1008)
 - The OpenStation PWA's launch URL now redirects to the custom login instead of
   serving the decoy 404. Its manifest — public, unauthenticated — names
   `/wp-admin/admin.php?page=openstation` as `start_url`, so the 404 hid nothing
