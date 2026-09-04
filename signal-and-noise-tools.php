@@ -100,6 +100,7 @@ require_once SNT_PATH . 'inc/provenance-rotation.php';   // v13.39.0: the key-ro
 require_once SNT_PATH . 'inc/provenance-webfinger.php'; // v11.27.0: WebFinger (RFC 7033) resolving to the SAME did:web identity — coherence, not federation (needs provenance-did.php above)
 require_once SNT_PATH . 'inc/provenance-credential.php'; // v9.23.0: per-Note Verifiable Credential + REST route (D1)
 require_once SNT_PATH . 'inc/provenance-verify.php';     // v9.73.0: human-facing /verify client-side verifier
+require_once SNT_PATH . 'inc/tools-sw-tombstone.php';    // v13.96.2 (#1002): serves /tools/sw.js so the removed PWA's orphaned service worker unregisters itself
 require_once SNT_PATH . 'inc/provenance-machine-pointers.php'; // v11.7.0: R5 — the in-page verification manifest + schema identifier (needs provenance-verify's endpoint producer above)
 // Scheduled-content subsystem (v6.40.0, Phase 1): hand-authored fragments and
 // pages flipped on/off on a date, with a surgical Cloudflare purge at each

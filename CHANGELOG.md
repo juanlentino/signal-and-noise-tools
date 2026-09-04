@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- A tombstone service worker at `/tools/sw.js`. The removed `/tools/` PWA left a
+  registration behind in every browser that visited it, and a registration
+  outlives its server. The route serves a worker whose only job is to
+  unregister itself, clear the caches its predecessor left, and reload the
+  pages it controls. It does **not** address the separate 503s seen on
+  `/wp-admin/`. (#1002)
+
 ### Fixed
 - Admin form controls no longer fall below 16px on a phone. Five rules were
   specific enough to beat core's `max-width: 782px` bump, so iOS zoomed into a
