@@ -128,6 +128,52 @@ function snt_zoom_control_classes() {
 }
 
 /**
+ * The smallest px a `font-size` declaration can compute to, or null.
+ *
+ * A plain `/font-size:\s*([0-9.]+)(px|rem|em)/` misses `max(0.9rem, 12px)`
+ * outright — the value starts with `max(`, not a digit — and the theme's notes
+ * search field is exactly that, computing to 14.4px. So every length in the
+ * declaration is extracted and the SMALLEST is taken: for `clamp()` the low end
+ * is what a narrow viewport lands on, and being conservative is the right bias
+ * for a guard.
+ *
+ * @param string $body Declaration block.
+ * @return float|null Smallest px value, or null when there is no font-size.
+ */
+function snt_zoom_font_px( $body ) {
+	if ( ! preg_match( '/font-size\s*:([^;}]*)/i', $body, $m ) ) {
+		return null;
+	}
+	$value = trim( $m[1] );
+	if ( ! preg_match_all( '/([0-9]*\.?[0-9]+)\s*(px|rem|em)/i', $value, $vals, PREG_SET_ORDER ) ) {
+		return null;
+	}
+	$px = array();
+	foreach ( $vals as $v ) {
+		$px[] = 'px' === strtolower( $v[2] ) ? (float) $v[1] : (float) $v[1] * 16.0;
+	}
+	if ( ! $px ) {
+		return null;
+	}
+
+	// Which length actually wins depends on the function. Taking the smallest
+	// unconditionally would be "conservative" in the wrong direction:
+	// max(1.1rem, 12px) computes to 17.6px and is SAFE, but a min-rule would
+	// report 12px and demand a guard that is not needed - a false positive.
+	if ( preg_match( '/^max\s*\(/i', $value ) ) {
+		return max( $px );
+	}
+	if ( preg_match( '/^min\s*\(/i', $value ) ) {
+		return min( $px );
+	}
+	if ( preg_match( '/^clamp\s*\(/i', $value ) ) {
+		return $px[0]; // the low bound, which is where a narrow viewport lands
+	}
+
+	return $px[0];
+}
+
+/**
  * Sub-16px text-entry rules in a stylesheet, as [selector, offset] pairs.
  *
  * @param string $css
@@ -153,11 +199,15 @@ function snt_zoom_small_control_rules( $css ) {
 		if ( ! $is_control ) {
 			continue;
 		}
-		if ( ! preg_match( '/font-size\s*:\s*([0-9.]+)(px|rem|em)/i', $rule[2][0], $fm ) ) {
+		// iOS zooms on the CONTROL's computed size. A ::placeholder or
+		// ::-webkit-search-cancel-button rule is not the control, and treating
+		// one as a violation is a false positive - the theme scan's only hit
+		// was exactly that.
+		if ( preg_match( '/::[a-z-]+/i', $sel ) ) {
 			continue;
 		}
-		$px = 'px' === strtolower( $fm[2] ) ? (float) $fm[1] : (float) $fm[1] * 16.0;
-		if ( $px < 16.0 ) {
+		$px = snt_zoom_font_px( $rule[2][0] );
+		if ( null !== $px && $px < 16.0 ) {
 			$out[] = array( $sel, (int) $rule[0][1], $px );
 		}
 	}
@@ -206,10 +256,10 @@ foreach ( $sheets as $sheet ) {
 				if ( false === strpos( ' ' . preg_replace( '/\s+/', ' ', $brule[1] ) . ' ', $first ) ) {
 					continue;
 				}
-				if ( ! preg_match( '/font-size\s*:\s*([0-9.]+)(px|rem|em)/i', $brule[2], $bfs ) ) {
+				$bpx = snt_zoom_font_px( $brule[2] );
+				if ( null === $bpx ) {
 					continue;
 				}
-				$bpx = 'px' === strtolower( $bfs[2] ) ? (float) $bfs[1] : (float) $bfs[1] * 16.0;
 				if ( $bpx >= 16.0 ) {
 					$raised = true;
 				}
@@ -227,6 +277,15 @@ echo "\nGroup 2b: the control population is read from the markup\n";
 $ctrl_classes = snt_zoom_control_classes();
 ok( count( $ctrl_classes ) >= 5, sprintf( 'derived %d class name(s) from <input|select|textarea> tags in inc/', count( $ctrl_classes ) ) );
 ok( in_array( 'sn-rsm-items', $ctrl_classes, true ), 'sn-rsm-items is recognised as a control — it is a <textarea> whose CSS rule names no element, the exact case a word-match misses' );
+
+echo "\nGroup 2c: the value parser handles CSS functions\n";
+ok( 14.4 === round( (float) snt_zoom_font_px( 'font-size: max(0.9rem, 12px);' ), 1 ), 'max(0.9rem, 12px) resolves to 14.4px — a digit-anchored regex misses this shape entirely' );
+ok( 12.0 === round( (float) snt_zoom_font_px( 'font-size: clamp(0.75rem, 2vw, 1.2rem);' ), 1 ), 'clamp() takes its LOW end, which is what a narrow viewport lands on' );
+ok( 16.0 === round( (float) snt_zoom_font_px( 'font-size: 1rem;' ), 1 ), 'a plain rem still resolves' );
+ok( 17.6 === round( (float) snt_zoom_font_px( 'font-size: max(1.1rem, 12px);' ), 1 ), 'max(1.1rem, 12px) is 17.6px and therefore SAFE — taking the smallest length unconditionally would flag it, a false positive' );
+ok( array() === snt_zoom_small_control_rules( '.x input { font-size: max(1.1rem, 12px); }' ), 'and that safe control is not reported as a violation' );
+ok( null === snt_zoom_font_px( 'color: red;' ), 'a block with no font-size resolves to null, not to zero' );
+ok( array() === snt_zoom_small_control_rules( '.x input::placeholder { font-size: 10px; }' ), 'a ::placeholder rule is not a control — iOS zooms on the control size' );
 
 echo "\nGroup 3: negative control\n";
 $broken = '.sn-x input { font-size: 12px; }';

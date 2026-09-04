@@ -43,7 +43,12 @@ adds a bullet below. A release is a separate, deliberate act:
   otherwise have satisfied it. Both corrections came from the guard disagreeing
   with the scan that produced the finding: nine "violations" were really four,
   because five were already guarded and the scan counted "under 16px" instead of
-  "under 16px AND unguarded". (#1018)
+  "under 16px AND unguarded". Its value parser resolves `max()`, `min()` and
+  `clamp()` by function rather than by taking the smallest length — the theme's
+  notes search field is `max(0.9rem, 12px)`, which a digit-anchored regex misses
+  entirely, while `max(1.1rem, 12px)` computes to a perfectly safe 17.6px that a
+  smallest-wins rule would have flagged. Pseudo-element rules are excluded:
+  a `::placeholder` size does not zoom anything. (#1018)
 - `tests/openstation-pwa-icons.php` reads each shipped PNG's IHDR and compares
   real dimensions and colour type against what the manifest declares. The defect
   was a manifest that DESCRIBED its icons wrongly, so a test asserting only that
