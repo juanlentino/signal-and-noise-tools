@@ -98,6 +98,64 @@ if ( is_plugin_active( $rwl_basename ) && file_exists( $rwl_file ) ) {
 unset( $rwl_basename, $rwl_file );
 
 /**
+ * Is this the OpenStation shell — the URL its installed PWA launches into?
+ *
+ * WHY THIS EXISTS (#1004). OpenStation's web-app manifest, served publicly at
+ * `/openstation/manifest.webmanifest`, declares:
+ *
+ *     start_url : /wp-admin/admin.php?page=openstation
+ *     scope     : /wp-admin/
+ *
+ * Its own `includes/pwa.php` explains the choice: pointing the PWA straight at
+ * the landing URL is what lets `scope` stay narrow at `/wp-admin/` instead of
+ * `/`, which they tried and rejected because the wider scope made Chrome
+ * capture every front-end link into the app. That reasoning is sound, and it
+ * assumes a stock WordPress where an unauthenticated `admin.php` REDIRECTS to
+ * login via auth_redirect().
+ *
+ * This module does not redirect. It serves a decoy 404, deliberately. So on
+ * this site the installed app launches into a URL that, by our own design, does
+ * not exist — and a phone hits that routinely, because its address changes
+ * between cellular and wifi and the session lapses. "The PWA logs out after a
+ * while and lands on a 404" is that, seen from the outside.
+ *
+ * The 404 also hides nothing here: the manifest is served UNAUTHENTICATED — it
+ * has to be, the browser fetches it before login — and it names this exact URL
+ * in plain text. Anyone who reads it already knows the path. The decoy only
+ * withholds it from someone who did not look.
+ *
+ * Matched on path AND query together, because the path alone is `admin.php`,
+ * which must keep 404-ing. `sn_login_request_is_allowlisted()` cannot express
+ * this: it matches the PATH only, by design.
+ *
+ * @since 13.96.2
+ * @param string $request_uri Raw REQUEST_URI.
+ * @return bool
+ */
+function sn_login_request_is_openstation_shell( $request_uri ) {
+	// Inert unless OpenStation is actually installed. Without it there is no
+	// shell to reach, and redirecting to a login that lands on a 404 anyway
+	// would trade one dead end for a slower one.
+	if ( ! function_exists( 'openstation_is_enabled' ) && ! function_exists( 'desktop_mode_is_enabled' ) ) {
+		return false;
+	}
+
+	$path = sn_login_request_path( $request_uri );
+	if ( ! str_ends_with( $path, '/wp-admin/admin.php' ) ) {
+		return false;
+	}
+
+	$query = (string) wp_parse_url( (string) $request_uri, PHP_URL_QUERY );
+	if ( '' === $query ) {
+		return false;
+	}
+	$args = array();
+	wp_parse_str( $query, $args );
+
+	return isset( $args['page'] ) && 'openstation' === $args['page'];
+}
+
+/**
  * Get the configured custom login slug.
  *
  * Constant override (`SN_LOGIN_SLUG` in wp-config.php) takes priority over
@@ -401,6 +459,20 @@ function sn_login_handle_request() {
 	// (v4.14.2) matches the PATH only — see sn_login_request_is_allowlisted.
 	if ( sn_login_request_is_allowlisted( $request_uri ) ) {
 		return;
+	}
+
+	// The OpenStation PWA's launch URL redirects to login instead of 404-ing.
+	// It is NOT counted as reconnaissance: an installed app opening its own
+	// start_url is the opposite of a probe, and folding it into the recon
+	// counters would inflate exactly the number the security digest reads.
+	//
+	// The redirect target is RECONSTRUCTED with admin_url(), never reflected
+	// from the request, so nothing a caller sends can steer where this sends
+	// them. wp_login_url() resolves to the custom slug through this file's own
+	// site_url filter.
+	if ( ! is_user_logged_in() && sn_login_request_is_openstation_shell( $request_uri ) ) {
+		wp_safe_redirect( wp_login_url( admin_url( 'admin.php?page=openstation' ) ), 302 );
+		exit;
 	}
 
 	if ( sn_login_request_targets_wp_admin( $request_uri ) && ! is_user_logged_in() ) {

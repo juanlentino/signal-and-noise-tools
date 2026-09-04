@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- The OpenStation PWA's launch URL now redirects to the custom login instead of
+  serving the decoy 404. Its manifest — public, unauthenticated — names
+  `/wp-admin/admin.php?page=openstation` as `start_url`, so the 404 hid nothing
+  and broke the installed app every time the session lapsed. Every other
+  unauthenticated `/wp-admin` path still 404s, and a PWA launch is not counted
+  as reconnaissance. (#1004)
+
 ### Added
 - A tombstone service worker at `/tools/sw.js`. The removed `/tools/` PWA left a
   registration behind in every browser that visited it, and a registration
