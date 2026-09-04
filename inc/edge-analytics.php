@@ -188,6 +188,43 @@ function sn_edge_attack_query() {
 }
 
 /**
+ * Server-error pressure (5xx) over the trailing window.
+ *
+ * WHY THIS IS ITS OWN DOCUMENT (#1002). `sn_edge_attack_query()`'s `probes`
+ * selection filters `edgeResponseStatus_geq:400 … _leq:499` — 4xx only. That is
+ * correct for what it measures (the generic scan surface someone else is
+ * driving) and it means our own instrument is STRUCTURALLY BLIND to a 5xx. When
+ * fourteen assets failed with HTTP 503 on 2026-09-04, nothing here recorded it,
+ * and every attempt to reproduce it from outside the authenticated session
+ * returned 200.
+ *
+ * A 5xx is OUR failure, not an attacker's, so it does not belong in the
+ * attack-pressure aggregate — folding it in would corrupt the reading that
+ * selection exists to give.
+ *
+ * SEPARATE DOCUMENT, deliberately: GraphQL fails the WHOLE query on a single
+ * unknown field, and this one asks for `originResponseStatus` and `cacheStatus`,
+ * which the attack query does not use. Adding them there would put the doors and
+ * probes collection at risk of a schema change that has nothing to do with them.
+ * Same blast-radius reasoning as the settings-node probe below.
+ *
+ * THE POINT OF `originResponseStatus`: it names the responder. Edge 503 with
+ * origin 503 is the origin (or Varnish in front of it) failing; edge 503 with no
+ * origin status is Cloudflare or a Worker answering by itself. That distinction
+ * is the one datum eight external reproduction attempts could not produce.
+ *
+ * @since 13.96.3
+ * @return string GraphQL document.
+ */
+function sn_edge_errors_query() {
+	return 'query($zone:string!,$from:Time!){viewer{zones(filter:{zoneTag:$zone}){'
+		. 'errors:httpRequestsAdaptiveGroups(limit:50,filter:{datetime_geq:$from,edgeResponseStatus_geq:500},orderBy:[count_DESC]){'
+		. 'count avg{sampleInterval}'
+		. 'dimensions{clientRequestPath edgeResponseStatus originResponseStatus cacheStatus}}'
+		. '}}}';
+}
+
+/**
  * Settings-node probe: the zone's per-dataset query limits, including notOlderThan —
  * how far back (seconds) the adaptive dataset can actually be read. Cloudflare's
  * settings node carries every dataset as a sub-field; we probe ONLY
