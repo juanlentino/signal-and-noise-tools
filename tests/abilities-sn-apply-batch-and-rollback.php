@@ -198,6 +198,7 @@ require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6
 require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
+require_once __DIR__ . '/lib/assert-envelope.php'; // shared envelope contract (v13.95.1)
 
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -300,6 +301,17 @@ $failed_results = array_values( array_filter( $r7['results'], function( $r ) { r
 eq( 1, count( $failed_results ), 'Test 7.6: exactly one result carries an error' );
 eq( 605, $failed_results[0]['target']['attachment_id'] ?? null, 'Test 7.7: the failed result is target 605 (the engineered failure)' );
 eq( 404, $failed_results[0]['error']['status'] ?? null, 'Test 7.8: the failure status is 404 (target not resolved)' );
+
+// The SECOND refusal path. A single target's refusal becomes a WP_Error whose
+// message is the JSON envelope; a batch target's stays a PLAIN ARRAY inside
+// results[], so one target's failure cannot abort the loop. The shared helper
+// has to read both, and this is the only suite that exercises the array form -
+// without it the helper would be pinned against one shape and assumed correct
+// for the other.
+snt_test_envelope_refusal( $failed_results[0], 'snt_sn_apply_target_not_found', 'ok', 'eq', 'Test 7.8b' );
+
+// And the applied siblings are the other success kind: applied:true, no error.
+snt_test_envelope_applied( $applied_results_probe = array_values( array_filter( $r7['results'], function( $r ) { return ! empty( $r['applied'] ); } ) )[0], 'ok', 'eq', 'Test 7.8c' );
 
 ok( ! isset( $GLOBALS['__post_meta'][605] ) || ! isset( $GLOBALS['__post_meta'][605]['_wp_attachment_image_alt'] ), 'Test 7.9: NO partial write landed on the failed post (605 never got alt text written)' );
 

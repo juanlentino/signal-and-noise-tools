@@ -299,6 +299,7 @@ require __DIR__ . '/../inc/sn-apply-block-edit.php';
 require __DIR__ . '/../inc/sn-apply-plan-changes.php'; // v13.94.0: block_edit_impl now shares its scheduled-post guard from here
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
+require_once __DIR__ . '/lib/assert-envelope.php'; // shared envelope contract (v13.95.1)
 
 echo "sn_apply block_insert + block_replace — the caller-composed block edit family\n\n";
 
@@ -818,7 +819,7 @@ $GLOBALS['__posts'][900]['post_content'] = $body;
 tf_reset_writes();
 $r = be_call( 'batch', array( 'mode' => 'publish', 'change' => array( 'payload' => array( 'blocks' => '__unset', 'anchor' => '__unset', 'changes' => $batch_changes ) ) ) );
 ok( empty( $r['error'] ), 'BATCH.1: a three-change batch executes (' . ( $r['error'] ?? 'ok' ) . ')' );
-eq( 1, $GLOBALS['__write_calls']['wp_update_post'], 'BATCH.2: THE CLAIM — three changes cost exactly ONE wp_update_post(), so the ledger mints ONE version' );
+snt_test_one_write( $GLOBALS['__write_calls'], 'eq', 'BATCH.2: THE CLAIM - three changes, one ledger version' );
 
 $live = $GLOBALS['__posts'][900]['post_content'];
 ok( false !== strpos( $live, 'sixty-eight percent' ), 'BATCH.3: the prose change landed' );
@@ -835,7 +836,7 @@ $fp_now = snt_corpus_content_hash( $GLOBALS['__posts'][900]['post_content'] );
 be_call( 'block_insert', array( 'mode' => 'publish', 'change' => array( 'fingerprint' => $fp_now, 'payload' => array( 'anchor' => $anchor1, 'position' => 'after', 'blocks' => $good_blocks ) ) ) );
 $fp_now = snt_corpus_content_hash( $GLOBALS['__posts'][900]['post_content'] );
 be_call( 'block_insert', array( 'mode' => 'publish', 'change' => array( 'fingerprint' => $fp_now, 'payload' => array( 'anchor' => $anchor2, 'position' => 'after', 'blocks' => $good_blocks ) ) ) );
-eq( 2, $GLOBALS['__write_calls']['wp_update_post'], 'BATCH.8: THE CONTRAST — the same edits unbatched cost one write EACH (two here), which is two ledger versions' );
+snt_test_one_write( $GLOBALS['__write_calls'], 'eq', 'BATCH.8: THE CONTRAST - unbatched costs one write EACH', 2 );
 
 // A conflicting batch must write NOTHING: all-or-nothing at the door.
 $GLOBALS['__posts'][900]['post_content'] = $body;
@@ -858,13 +859,13 @@ eq( $body, $GLOBALS['__posts'][900]['post_content'], 'BATCH.11: the live row is 
    restructure. Both are pinned here. */
 $env = json_decode( $r->get_error_message(), true );
 
-eq( 'snt_sn_apply_changes_conflict', $r->get_error_code(), 'BATCH.12: the refusal still carries the conflict code' );
-eq( true, $env['gates']['fingerprint']['passed'] ?? null, 'BATCH.13: the FINGERPRINT gate passes — the hash matched; only the plan was refused' );
-eq(
-	$env['gates']['fingerprint']['expected'] ?? 'x',
-	$env['gates']['fingerprint']['observed'] ?? 'y',
-	'BATCH.14: ...and expected === observed, which is exactly why reporting it as failed was a contradiction'
-);
+// v13.96-era: the envelope contract is asserted by the shared helper, so a
+// second door cannot re-learn v13.95.1 privately. It pins applied:false, the
+// error code, fingerprint.passed when expected === observed, and the refused
+// batch's diff (changes_applied 0, after null, ledger_impact null,
+// changes_requested present).
+snt_test_envelope_refusal( $r, 'snt_sn_apply_changes_conflict', 'ok', 'eq', 'BATCH.12-21' );
+
 eq( false, $env['gates']['validation']['passed'] ?? null, 'BATCH.15: the VALIDATION gate carries the refusal — a payload conflict is a validation failure' );
 ok( in_array( 'plan', (array) ( $env['gates']['validation']['checks'] ?? array() ), true ), 'BATCH.16: ...and names a "plan" check' );
 $named = false;
@@ -873,10 +874,6 @@ foreach ( (array) ( $env['gates']['validation']['findings'] ?? array() ) as $f )
 }
 ok( $named, 'BATCH.17: ...with a severity-error finding carrying the planner reason' );
 
-eq( 0, $env['diff']['changes_applied'] ?? -1, 'BATCH.18: diff.changes_applied is ZERO — a refused batch applied nothing' );
-eq( 2, $env['diff']['changes_requested'] ?? -1, 'BATCH.19: ...while changes_requested names what was ASKED for, kept distinct' );
-ok( array_key_exists( 'ledger_impact', (array) ( $env['diff'] ?? array() ) ) && null === $env['diff']['ledger_impact'], 'BATCH.20: ledger_impact is NULL, never "coalesces" — there is no plan, so no ledger consequence to report' );
-ok( array_key_exists( 'after', (array) ( $env['diff'] ?? array() ) ) && null === $env['diff']['after'], 'BATCH.21: diff.after is NULL — a refused plan has no resulting content to show' );
 ok( ! empty( $env['diff']['before'] ), 'BATCH.22: diff.before is still carried (roadmap_board reads it from a refusal to bootstrap its fingerprint)' );
 
 
