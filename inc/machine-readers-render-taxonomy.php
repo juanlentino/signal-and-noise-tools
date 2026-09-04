@@ -76,7 +76,7 @@ function snt_mr_render_purpose_table( $rows, $days ) {
 		__( 'Reads', 'signal-and-noise-tools' )   => 'num',
 	) );
 	foreach ( $totals['purposes'] as $purpose => $hits ) {
-		$out .= '<tr><td class="column-primary" data-colname="Purpose"><strong>' . esc_html( (string) $purpose ) . '</strong></td>'
+		$out .= '<tr><td class="column-primary"><strong>' . esc_html( (string) $purpose ) . '</strong></td>'
 			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) $hits ) ) . '</td></tr>';
 	}
 	$out .= '</tbody></table>';
@@ -149,7 +149,7 @@ function snt_mr_render_vendor_purpose_table( $rows, $limit = 20 ) {
 	) );
 	foreach ( $shown as $key => $hits ) {
 		list( $vendor, $purpose, $agent ) = array_pad( explode( '|', (string) $key, 3 ), 3, '' );
-		$out                             .= '<tr><td class="column-primary" data-colname="Vendor"><strong>' . esc_html( $vendor ) . '</strong></td>'
+		$out                             .= '<tr><td class="column-primary"><strong>' . esc_html( $vendor ) . '</strong></td>'
 			. '<td data-colname="Agent"><code>' . esc_html( '' !== $agent ? $agent : '—' ) . '</code></td>'
 			. '<td data-colname="Purpose">' . esc_html( $purpose ) . '</td>'
 			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) $hits ) ) . '</td></tr>';
@@ -209,9 +209,9 @@ function snt_mr_render_ai_reconciliation( $rows ) {
 		__( 'Definition', 'signal-and-noise-tools' ) => '',
 		__( 'Reads', 'signal-and-noise-tools' )      => 'num',
 	) );
-	$out .= '<tr><td class="column-primary" data-colname="Definition"><strong>' . esc_html__( 'By crawler family (frozen)', 'signal-and-noise-tools' ) . '</strong></td>'
+	$out .= '<tr><td class="column-primary"><strong>' . esc_html__( 'By crawler family (frozen)', 'signal-and-noise-tools' ) . '</strong></td>'
 		. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( $by_family ) ) . '</td></tr>';
-	$out .= '<tr><td class="column-primary" data-colname="Definition"><strong>' . esc_html__( 'By declared purpose', 'signal-and-noise-tools' ) . '</strong></td>'
+	$out .= '<tr><td class="column-primary"><strong>' . esc_html__( 'By declared purpose', 'signal-and-noise-tools' ) . '</strong></td>'
 		. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( $by_purpose ) ) . '</td></tr>';
 	$out .= '</tbody></table>';
 
@@ -286,7 +286,7 @@ function snt_mr_rights_table( $visible ) {
 	foreach ( $visible as $r ) {
 		$when   = substr( preg_replace( '/[^0-9T:.\-Z]/', '', (string) ( $r['observed_at'] ?? '' ) ), 0, 20 );
 		$vendor = snt_mr_normalize_vendor( $r['vendor'] ?? '' );
-		$out   .= '<tr><td class="column-primary" data-colname="When"><code>' . esc_html( $when ) . '</code></td>'
+		$out   .= '<tr><td class="column-primary"><code>' . esc_html( $when ) . '</code></td>'
 			. '<td data-colname="Vendor">' . esc_html( '' !== $vendor ? $vendor : '—' ) . '</td>'
 			. '<td data-colname="Purpose">' . esc_html( (string) ( $r['purpose'] ?? 'unknown' ) ) . '</td>'
 			. '<td data-colname="Document"><code>' . esc_html( substr( (string) ( $r['path'] ?? '' ), 0, 120 ) ) . '</code></td>'
@@ -428,7 +428,7 @@ function snt_mr_render_unknown_agents( $rows, $limit = 50 ) {
 			continue;
 		}
 		++$count;
-		$body .= '<tr><td class="column-primary" data-colname="User agent"><code>' . esc_html( $ua ) . '</code></td>'
+		$body .= '<tr><td class="column-primary"><code>' . esc_html( $ua ) . '</code></td>'
 			. '<td class="num" data-colname="Reads">' . esc_html( number_format_i18n( (int) ( $r['hits'] ?? 0 ) ) ) . '</td></tr>';
 	}
 

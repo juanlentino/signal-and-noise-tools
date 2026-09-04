@@ -51,7 +51,7 @@ ok( strpos( $html, 'Entry pages' ) !== false, 'entry: panel heading "Entry pages
 ok( strpos( $html, 'arrivals from search' ) !== false, 'entry: caption mentions arrivals from search/links/direct' );
 ok( strpos( $html, '/about' ) !== false && strpos( $html, '44' ) !== false, 'entry: row path + views' );
 ok( strpos( $html, '>90<' ) !== false, 'entry: visits column' );
-ok( strpos( $html, 'class="wp-list-table widefat striped"' ) !== false, 'entry: WP-native widefat table' );
+ok( strpos( $html, 'class="widefat striped"' ) !== false, 'entry: WP-native widefat table' );
 ok( strpos( $html, 'sn-an-table-inside' ) !== false, 'entry: reuses .sn-an-table-inside' );
 unset( $GLOBALS['sn_an_empty_panels'] );
 $html = capture( function () { snt_analytics_render_pageroles_table( array(), 'entry' ); } );

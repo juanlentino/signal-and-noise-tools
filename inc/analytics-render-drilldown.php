@@ -63,12 +63,12 @@ function snt_analytics_render_drilldown_panel( $dim, $value, $rows, $note = '' )
 		return;
 	}
 
-	echo '<table class="wp-list-table widefat striped"><thead><tr>'
+	echo '<table class="widefat striped"><thead><tr>'
 		. '<th scope="col" class="manage-column column-primary">' . esc_html__( 'Page', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Views', 'signal-and-noise-tools' ) . '</th>'
 		. '<th scope="col" class="manage-column num">' . esc_html__( 'Visits', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
 	foreach ( $rows as $r ) {
-		echo '<tr><td class="column-primary" data-colname="Page">' . esc_html( (string) ( $r['path'] ?? '' ) ) . '</td>'
+		echo '<tr><td class="column-primary">' . esc_html( (string) ( $r['path'] ?? '' ) ) . '</td>'
 			. '<td class="num" data-colname="Views">' . esc_html( number_format_i18n( (int) ( $r['views'] ?? 0 ) ) ) . '</td>'
 			. '<td class="num" data-colname="Visits">' . esc_html( number_format_i18n( (int) ( $r['visits'] ?? 0 ) ) ) . '</td></tr>';
 	}

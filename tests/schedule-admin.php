@@ -4,7 +4,7 @@
  * scheduled-content admin status list + its two ops handlers.
  *
  * Task 8 of the scheduled-content subsystem. The render fn folds two data
- * sources into ONE native .wp-list-table: the fragment/queue rows from
+ * sources into ONE native .widefat table: the fragment/queue rows from
  * sn_schedule_all() and the native scheduled posts from sn_schedule_future_posts().
  * The two ops handlers (Run now / Re-purge) are dispatched by the shared
  * sn_handle_admin_post() pipeline, which enforces cap + nonce BEFORE the handler
@@ -225,7 +225,7 @@ sn_admin_render_scheduled_content_section();
 $html = ob_get_clean();
 
 ok( false !== strpos( $html, '<div class="sn-glance">' ), 'v6.45.0: leads with a first-glance hero when there is content' );
-ok( false !== strpos( $html, 'wp-list-table' ), 'render emits a .wp-list-table' );
+ok( false !== strpos( $html, 'widefat striped' ), 'render emits a .widefat table (NOT .wp-list-table - see #1021)' );
 ok( false !== strpos( $html, 'widefat' ) && false !== strpos( $html, 'striped' ), 'table is widefat striped (native wp-admin)' );
 // Fragment row: linked to its target_ref post id editor (42), labelled Fragment.
 ok( false !== strpos( $html, 'post=42' ), 'fragment row links to its target post editor (target_ref 42)' );

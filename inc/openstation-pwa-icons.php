@@ -98,3 +98,36 @@ function snt_openstation_pwa_manifest_icons( $manifest ) {
 	return $manifest;
 }
 add_filter( 'openstation_pwa_manifest', 'snt_openstation_pwa_manifest_icons' );
+
+/**
+ * The 180x180 tile iOS uses for a home-screen install.
+ *
+ * #1017 fixed the MANIFEST, which is Android's path. iOS reads
+ * `<link rel="apple-touch-icon">` instead, and OpenStation prints one into the
+ * admin head (`includes/pwa.php`, on `admin_head` priority 1) because core
+ * hooks `wp_site_icon()` to `wp_head` and `login_head` but not `admin_head` —
+ * without it an iPhone installing from wp-admin would have no tile at all.
+ *
+ * That href comes from `openstation_pwa_apple_touch_icon_url()`, which returns
+ * `get_site_icon_url( 180 )` whenever a Site Icon is set. Ours is PNG colour
+ * type 6 with 61.6% fully transparent pixels, and iOS composites home-screen
+ * transparency to BLACK behind a mark measuring luminance 23/255 — the black
+ * tile. That function has no `apply_filters()`, so it cannot be overridden
+ * directly; the seam is CORE's `get_site_icon_url`, which it calls.
+ *
+ * Scoped hard: admin only, and only the 180 request. Every other consumer of
+ * the Site Icon — the browser-tab favicon above all, where transparency is
+ * usually what you want — is untouched.
+ *
+ * @param string $url  Site Icon URL at this size.
+ * @param int    $size Requested size in px.
+ * @return string
+ */
+function snt_openstation_apple_touch_icon_url( $url, $size ) {
+	if ( ! is_admin() || 180 !== (int) $size ) {
+		return $url;
+	}
+
+	return SNT_URL . 'assets/pwa/icon-180.png';
+}
+add_filter( 'get_site_icon_url', 'snt_openstation_apple_touch_icon_url', 10, 2 );
