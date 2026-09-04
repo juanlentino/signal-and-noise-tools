@@ -62,6 +62,10 @@ add_action( 'wp_abilities_api_init', function() {
 				'last_iso'  => array( 'type' => array( 'string', 'null' ) ),
 				'headline'  => array( 'type' => 'string', 'description' => 'The sentence both widgets show, from the shared producer.' ),
 				'phrase'    => array( 'type' => 'string', 'description' => 'The age line both widgets show, from the shared producer.' ),
+				'probe_scope' => array(
+					'type'        => 'string',
+					'description' => 'WHICH URLs the verdict covers. `permalink` means the post\'s own URL only — the archive pages, the sitemap and the feed are purged but NOT probed, so a `fresh` verdict is a statement about one URL, not about the edge. Read it before reading `last`.',
+				),
 				'post_save' => array(
 					'type'        => 'object',
 					'description' => 'probes / stale / escalated over POST-SAVE probes only. Manual purges never write here, so pressing Purge cannot move them.',
@@ -110,6 +114,7 @@ function snt_ability_cache_freshness( $input ) {
 			'headline'  => function_exists( 'snt_cf_freshness_headline' ) ? snt_cf_freshness_headline( 'unknown' ) : '',
 			'phrase'    => '',
 			'post_save' => array( 'probes' => 0, 'stale' => 0, 'escalated' => 0 ),
+			'probe_scope' => 'permalink',
 		);
 	}
 
@@ -126,6 +131,11 @@ function snt_ability_cache_freshness( $input ) {
 		// phrase the same verdict differently.
 		'headline'  => (string) ( $sum['headline'] ?? '' ),
 		'phrase'    => (string) ( $sum['phrase'] ?? '' ),
+		// #1008: the probe fetches get_permalink() and nothing else, while the
+		// purge covers the archive, its paginated pages, /provenance/, the feed
+		// and the sitemap. Saying so in the payload is the difference between
+		// "the edge is fresh" and "the one URL we definitely purged is fresh".
+		'probe_scope' => 'permalink',
 		'post_save' => array(
 			'probes'    => (int) ( $sum['total'] ?? 0 ),
 			'stale'     => (int) ( $sum['stale'] ?? 0 ),

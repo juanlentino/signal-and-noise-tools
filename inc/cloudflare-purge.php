@@ -249,6 +249,137 @@ function sn_cf_purge_everything_verified() {
  * Filterable: `sn_cf_purge_urls_for_post` lets future code add or
  * remove URLs from the purge list (e.g., taxonomy archives).
  */
+/**
+ * Every URL a post save invalidates.
+ *
+ * Extracted from the wp_after_insert_post closure so a test can drive it; the
+ * closure could not be called without a WordPress boot, which is why the set it
+ * built was never checked against what the edge actually caches.
+ *
+ * WHAT WAS MISSING (#1008). The list was five hardcoded URLs. Measured against
+ * the live edge, three CACHED surfaces were absent from it:
+ *
+ *   /notes/page/2/ (also 3, 4)     cf-cache-status: HIT
+ *   /wp-sitemap.xml                cf-cache-status: HIT
+ *   /wp-sitemap-posts-post-1.xml   cf-cache-status: HIT
+ *
+ * Pagination matters more than it looks: publishing shifts every item across
+ * page boundaries, so the pages most likely to be wrong were exactly the ones
+ * never purged. And a stale sitemap delays crawler and AI-reader discovery of a
+ * new note, which on this site is the point rather than a detail.
+ *
+ * PAGE COUNT IS DERIVED, NOT LISTED. A hard-coded page count is correct the day
+ * it is written and wrong the first time the corpus grows past it - the same rot
+ * that put a hardcoded five-URL list here in the first place. Capped, because an
+ * unbounded set turns one save into an unbounded number of API calls.
+ *
+ * NOT ADDED, checked first: `/notes/tags/` is `cf-cache-status: BYPASS` with
+ * `no-store, private`, so it cannot go stale; `/feed/` revalidates on every
+ * request. Purging either would be motion without effect.
+ *
+ * @since 13.96.2
+ * @param int     $post_id Post ID.
+ * @param WP_Post $post    Post object.
+ * @return string[] Absolute URLs, filtered through `sn_cf_purge_urls_for_post`.
+ */
+function sn_cf_post_purge_urls( $post_id, $post ) {
+	$urls = array(
+		get_permalink( $post_id ),
+		home_url( '/' ),
+		home_url( '/notes/' ),
+		home_url( '/provenance/' ),
+		home_url( '/notes/feed/' ),
+	);
+
+	// If the saved post is a child page (e.g., /provenance/over-detection/),
+	// also purge the parent so its referring listings refresh.
+	$parent_id = (int) $post->post_parent;
+	if ( $parent_id ) {
+		$urls[] = get_permalink( $parent_id );
+	}
+
+	foreach ( sn_cf_archive_page_urls( home_url( '/notes/' ), $post->post_type ) as $paged ) {
+		$urls[] = $paged;
+	}
+	foreach ( sn_cf_sitemap_urls( $post->post_type ) as $sitemap ) {
+		$urls[] = $sitemap;
+	}
+
+	/** This filter's contract is unchanged: it still sees the final set. */
+	return (array) apply_filters( 'sn_cf_purge_urls_for_post', $urls, $post_id, $post );
+}
+
+/** Hard ceiling on paginated archive URLs added per save. */
+const SN_CF_MAX_ARCHIVE_PAGES = 20;
+
+/**
+ * Paginated pages of an archive, page 2 upward.
+ *
+ * Page 1 is the archive URL itself and is already in the set; adding
+ * `/page/1/` would purge a URL nothing links to.
+ *
+ * @param string $base      Archive URL, trailing-slashed.
+ * @param string $post_type Post type whose count drives the page count.
+ * @return string[]
+ */
+function sn_cf_archive_page_urls( $base, $post_type ) {
+	if ( ! function_exists( 'wp_count_posts' ) || ! function_exists( 'get_option' ) ) {
+		return array();
+	}
+	$counts = wp_count_posts( $post_type );
+	$published = is_object( $counts ) && isset( $counts->publish ) ? (int) $counts->publish : 0;
+	$per_page  = (int) get_option( 'posts_per_page', 10 );
+	if ( $published < 1 || $per_page < 1 ) {
+		return array();
+	}
+
+	$pages = (int) ceil( $published / $per_page );
+	if ( $pages > SN_CF_MAX_ARCHIVE_PAGES ) {
+		$pages = SN_CF_MAX_ARCHIVE_PAGES;
+	}
+
+	$out = array();
+	for ( $n = 2; $n <= $pages; $n++ ) {
+		$out[] = trailingslashit( $base ) . 'page/' . $n . '/';
+	}
+
+	return $out;
+}
+
+/** WordPress core lists at most this many URLs per sitemap page. */
+const SN_CF_SITEMAP_MAX_URLS = 2000;
+
+/**
+ * The sitemap index plus the sub-sitemap pages listing this post type.
+ *
+ * The index is where a crawler starts; the sub-sitemap is where the new note
+ * actually appears. Both are edge-cached and neither was purged.
+ *
+ * @param string $post_type Post type.
+ * @return string[]
+ */
+function sn_cf_sitemap_urls( $post_type ) {
+	if ( ! function_exists( 'home_url' ) ) {
+		return array();
+	}
+	$urls = array( home_url( '/wp-sitemap.xml' ) );
+
+	$published = 0;
+	if ( function_exists( 'wp_count_posts' ) ) {
+		$counts    = wp_count_posts( $post_type );
+		$published = is_object( $counts ) && isset( $counts->publish ) ? (int) $counts->publish : 0;
+	}
+	// At least one page always exists once anything is published; core paginates
+	// at SN_CF_SITEMAP_MAX_URLS, so the count is derived rather than assumed to
+	// be 1 - it is 1 today and silently would not be at 2001 notes.
+	$pages = $published > 0 ? (int) ceil( $published / SN_CF_SITEMAP_MAX_URLS ) : 0;
+	for ( $n = 1; $n <= $pages; $n++ ) {
+		$urls[] = home_url( '/wp-sitemap-posts-' . $post_type . '-' . $n . '.xml' );
+	}
+
+	return $urls;
+}
+
 add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_before ) {
 	if ( wp_is_post_revision( $post_id ) || wp_is_post_autosave( $post_id ) ) {
 		return;
@@ -297,22 +428,7 @@ add_action( 'wp_after_insert_post', function( $post_id, $post, $update, $post_be
 		}
 	}
 
-	$urls = array(
-		get_permalink( $post_id ),
-		home_url( '/' ),
-		home_url( '/notes/' ),
-		home_url( '/provenance/' ),
-		home_url( '/notes/feed/' ),
-	);
-
-	// If the saved post is a child page (e.g., /provenance/over-detection/),
-	// also purge the parent so its referring listings refresh.
-	$parent_id = (int) $post->post_parent;
-	if ( $parent_id ) {
-		$urls[] = get_permalink( $parent_id );
-	}
-
-	$urls = apply_filters( 'sn_cf_purge_urls_for_post', $urls, $post_id, $post );
+	$urls = sn_cf_post_purge_urls( $post_id, $post );
 	sn_cf_purge_urls( $urls );
 
 	// v11.10.0: the purge above is fire-and-forget and CANNOT report whether it
