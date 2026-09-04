@@ -25,7 +25,6 @@ cd "$ROOT"
 PLUGIN_FILE="signal-and-noise-tools.php"
 CHANGELOG="CHANGELOG.md"
 ARCHIVE="docs/changelog/v13.md"
-ARCHIVE_HEADER_LINES=11   # the frozen-history preamble; new cuts go in below it
 
 die() { printf 'cut-release: %s\n' "$1" >&2; exit 1; }
 
@@ -117,27 +116,44 @@ fi
 
 # ── 1. plugin header (SNT_VERSION is derived from it; never hardcode) ────
 tmp="$(mktemp)"
-awk -v cur="$CURRENT" -v next="$NEXT" '
-  !done && /^[[:space:]]*\*[[:space:]]*Version:/ { sub(cur, next); done = 1 }
+# `next` is an awk STATEMENT, not a usable variable name. Passing -v next=...
+# breaks this substitution AND the CHANGELOG rewrite below, and --dry-run does
+# not exercise either, so both looked fine until the real path ran.
+awk -v cur="$CURRENT" -v nextver="$NEXT" '
+  !done && /^[[:space:]]*\*[[:space:]]*Version:/ { sub(cur, nextver); done = 1 }
   { print }
 ' "$PLUGIN_FILE" > "$tmp" && mv "$tmp" "$PLUGIN_FILE"
 
 # ── 2. archive receives the previous cut, newest-first under the header ──
 if [ -n "$PREVIOUS_CUT" ]; then
+  # Never archive a section the archive already carries. Root holds the current
+  # cut, the archive holds everything older, so this should be impossible - but a
+  # duplicated release section is corruption nobody notices until they are
+  # reading history, so it is checked rather than assumed.
+  prev_heading="$(printf '%s' "$PREVIOUS_CUT" | grep -m1 -oE '^## \[[0-9.]+\]' || true)"
+  if [ -n "$prev_heading" ] && grep -qF "$prev_heading" "$ARCHIVE"; then
+    die "archive already contains ${prev_heading} - refusing to duplicate it. Root and archive have drifted; fix that before cutting."
+  fi
+  # Insert directly above the archive's newest entry so the file stays
+  # newest-first. The split point is FOUND, not a hardcoded line number: the
+  # preamble's length changes whenever someone edits it, and a stale constant
+  # would splice a release section into the middle of a sentence.
+  first_heading_line="$(grep -n -m1 -E '^## \[' "$ARCHIVE" | cut -d: -f1)"
+  [ -n "$first_heading_line" ] || die "no '## [' heading found in ${ARCHIVE}."
   tmp="$(mktemp)"
-  head -n "$ARCHIVE_HEADER_LINES" "$ARCHIVE" > "$tmp"
+  head -n $((first_heading_line - 1)) "$ARCHIVE" > "$tmp"
   printf '%s\n\n' "$PREVIOUS_CUT" >> "$tmp"
-  tail -n +$((ARCHIVE_HEADER_LINES + 1)) "$ARCHIVE" >> "$tmp"
+  tail -n +"$first_heading_line" "$ARCHIVE" >> "$tmp"
   mv "$tmp" "$ARCHIVE"
 fi
 
 # ── 3. root: fresh empty Unreleased, old Unreleased becomes the new cut ──
 tmp="$(mktemp)"
-awk -v next="$NEXT" -v today="$TODAY" -v headline="$HEADLINE" '
+awk -v nextver="$NEXT" -v today="$TODAY" -v headline="$HEADLINE" '
   /^## \[Unreleased\]/ {
     print "## [Unreleased]"
     print ""
-    print "## [" next "] - " today " — " headline
+    print "## [" nextver "] - " today " — " headline
     inside_unreleased = 1
     next
   }
