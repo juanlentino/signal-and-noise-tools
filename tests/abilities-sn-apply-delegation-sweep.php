@@ -310,7 +310,8 @@ require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5
 require __DIR__ . '/../inc/sn-apply-create-draft.php';
 require __DIR__ . '/../inc/sn-apply-restore-revision.php';
 require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
-require __DIR__ . '/../inc/sn-apply-block-edit.php'; // v13.2.0: span scanner + locator + markup gate + prose delta + guarded write impl for change.types block_insert/block_replace
+require __DIR__ . '/../inc/sn-apply-block-edit.php';
+require __DIR__ . '/../inc/sn-apply-plan-changes.php'; // v13.94.0: block_edit_impl now shares its scheduled-post guard from here // v13.2.0: span scanner + locator + markup gate + prose delta + guarded write impl for change.types block_insert/block_replace
 require __DIR__ . '/../inc/maturity-roadmap-merge.php'; // sn_maturity_roadmap_effective_board() now reads through the three-way merge
 require __DIR__ . '/../inc/maturity-roadmap-shortcode.php'; // roadmap_board's board/validator/fingerprint helpers — the REAL impl, never restubbed here.
 require __DIR__ . '/../inc/sn-apply-roadmap-board.php';
@@ -825,6 +826,15 @@ $sweep_calls = array(
 	// the sweep pins the ZERO-WRITES property, not the markup grammar (that
 	// lives in tests/abilities-sn-apply-block-edit.php against faithful stubs).
 	'block_insert'     => array( 'target' => array( 'post_id' => 780 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_insert', 'fingerprint' => $sr_fp, 'payload' => array( 'blocks' => $be_blocks, 'anchor' => 'deliberately long sentence that the sweep', 'position' => 'after' ) ) ),
+	// v13.94.0 — the heterogeneous batch, in the sweep because a new change
+	// type must prove the SAME family properties as every other: four gates,
+	// zero writes under dry_run, and revision-mode staging. Its payload is the
+	// 2026-09-03 shape (a prose fix plus an appended block) that previously
+	// cost two ledger versions where one was correct.
+	'batch'            => array( 'target' => array( 'post_id' => 780 ), 'mode' => 'revision', 'change' => array( 'type' => 'batch', 'fingerprint' => $sr_fp, 'payload' => array( 'changes' => array(
+		array( 'type' => 'sentence_replace', 'payload' => array( 'phrase' => $sr_phrase, 'replacement' => 'This is a shorter sentence. It has a sibling now.' ) ),
+		array( 'type' => 'block_insert', 'payload' => array( 'position' => 'end', 'blocks' => $be_blocks ) ),
+	) ) ) ),
 	'block_replace'    => array( 'target' => array( 'post_id' => 780 ), 'mode' => 'revision', 'change' => array( 'type' => 'block_replace', 'fingerprint' => $sr_fp, 'payload' => array( 'blocks' => $be_blocks, 'anchor' => 'deliberately long sentence that the sweep' ) ) ),
 	// block_delete / block_move (v13.5.0): both target the REAL-markup
 	// two-block fixture (post 796) via block_path — real parse indices, so

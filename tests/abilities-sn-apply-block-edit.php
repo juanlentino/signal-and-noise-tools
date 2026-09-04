@@ -296,6 +296,7 @@ require __DIR__ . '/../inc/sn-apply-delete-draft.php';
 require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // snt_sn_apply_link_prose_normalize() — the prose-delta normalizer
 require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
 require __DIR__ . '/../inc/sn-apply-block-edit.php';
+require __DIR__ . '/../inc/sn-apply-plan-changes.php'; // v13.94.0: block_edit_impl now shares its scheduled-post guard from here
 require __DIR__ . '/../inc/sn-apply-executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
@@ -793,6 +794,60 @@ $r = snt_ability_sn_apply( array(
 ok( ! is_wp_error( $r ) && true === ( $r['applied'] ?? null ), 'DRAFT.1 (guard fix): a draft edit SUCCEEDS while core floats its post_date — dates bind strictly for status future only' );
 eq( 'draft', $GLOBALS['__posts'][950]['post_status'], 'DRAFT.2: the status assertion still holds for every status — a draft stays a draft' );
 ok( false !== strpos( (string) $GLOBALS['__posts'][950]['post_content'], 'wp:signal-noise/sidenote' ), 'DRAFT.3: the edit landed' );
+
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.94.0 — change.type "batch": THE CLAIM IS THE WRITE COUNT
+ *
+ * The batch is worth building only if N changes cost ONE wp_update_post(),
+ * because the provenance ledger mints a version per write. Asserting that
+ * the content came out right would pass just as well on three writes, which
+ * is the bug. So this measures the WRITES, and pins the contrast against the
+ * unbatched path in the same breath.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nBATCH: one editorial act, one write\n";
+
+$sr_sentence = 'First paragraph with the opening thoughts of the piece, long enough to anchor on.';
+$batch_changes = array(
+	array( 'type' => 'sentence_replace', 'payload' => array( 'phrase' => $sr_sentence, 'replacement' => 'First paragraph, with its figure corrected to sixty-eight percent exactly.' ) ),
+	array( 'type' => 'block_insert', 'payload' => array( 'anchor' => $anchor1, 'position' => 'after', 'blocks' => $good_blocks ) ),
+	array( 'type' => 'block_insert', 'payload' => array( 'position' => 'end', 'blocks' => '<!-- wp:paragraph --><p>A correction notice appended at the very end of the note.</p><!-- /wp:paragraph -->' ) ),
+);
+
+$GLOBALS['__posts'][900]['post_content'] = $body;
+tf_reset_writes();
+$r = be_call( 'batch', array( 'mode' => 'publish', 'change' => array( 'payload' => array( 'blocks' => '__unset', 'anchor' => '__unset', 'changes' => $batch_changes ) ) ) );
+ok( empty( $r['error'] ), 'BATCH.1: a three-change batch executes (' . ( $r['error'] ?? 'ok' ) . ')' );
+eq( 1, $GLOBALS['__write_calls']['wp_update_post'], 'BATCH.2: THE CLAIM — three changes cost exactly ONE wp_update_post(), so the ledger mints ONE version' );
+
+$live = $GLOBALS['__posts'][900]['post_content'];
+ok( false !== strpos( $live, 'sixty-eight percent' ), 'BATCH.3: the prose change landed' );
+ok( false === strpos( $live, $sr_sentence ), 'BATCH.4: ...replacing the original sentence' );
+ok( false !== strpos( $live, 'freshly composed paragraph' ), 'BATCH.5: the mid-post insert landed' );
+ok( false !== strpos( $live, 'correction notice appended' ), 'BATCH.6: the end insert landed' );
+ok( 1 === substr_count( $live, 'correction notice appended' ), 'BATCH.7: ...exactly once (no double splice)' );
+
+// THE CONTRAST, measured rather than asserted: the same three edits as three
+// separate calls cost three writes. This is the number the batch removes.
+$GLOBALS['__posts'][900]['post_content'] = $body;
+tf_reset_writes();
+$fp_now = snt_corpus_content_hash( $GLOBALS['__posts'][900]['post_content'] );
+be_call( 'block_insert', array( 'mode' => 'publish', 'change' => array( 'fingerprint' => $fp_now, 'payload' => array( 'anchor' => $anchor1, 'position' => 'after', 'blocks' => $good_blocks ) ) ) );
+$fp_now = snt_corpus_content_hash( $GLOBALS['__posts'][900]['post_content'] );
+be_call( 'block_insert', array( 'mode' => 'publish', 'change' => array( 'fingerprint' => $fp_now, 'payload' => array( 'anchor' => $anchor2, 'position' => 'after', 'blocks' => $good_blocks ) ) ) );
+eq( 2, $GLOBALS['__write_calls']['wp_update_post'], 'BATCH.8: THE CONTRAST — the same edits unbatched cost one write EACH (two here), which is two ledger versions' );
+
+// A conflicting batch must write NOTHING: all-or-nothing at the door.
+$GLOBALS['__posts'][900]['post_content'] = $body;
+$fp_now = snt_corpus_content_hash( $body );
+tf_reset_writes();
+$r = be_call( 'batch', array( 'mode' => 'publish', 'change' => array( 'fingerprint' => $fp_now, 'payload' => array( 'blocks' => '__unset', 'anchor' => '__unset', 'changes' => array(
+	array( 'type' => 'block_insert', 'payload' => array( 'anchor' => $anchor1, 'position' => 'after', 'blocks' => $good_blocks ) ),
+	array( 'type' => 'block_insert', 'payload' => array( 'anchor' => $anchor1, 'position' => 'after', 'blocks' => $good_blocks ) ),
+) ) ) ) );
+eq( 'snt_sn_apply_changes_conflict', $r->get_error_code(), 'BATCH.9: a conflicting batch refuses as the named conflict, like every other refusal in this family' );
+eq( 0, tf_total_writes(), 'BATCH.10: ...and writes NOTHING — all-or-nothing holds at the door, not after a partial splice' );
+eq( $body, $GLOBALS['__posts'][900]['post_content'], 'BATCH.11: the live row is byte-identical to before the refused batch' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -116,6 +116,49 @@ function snt_sn_apply_gate1_fingerprint( $type, array $resolved, array $change )
 			}
 			return array( 'passed' => $passed, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => $passed ? null : 'Post changed since suggest/scan. Re-run scan to refresh.', 'new_content' => $new_content );
 
+		case 'batch':
+			// v13.94.0 — the heterogeneous batch. ONE whole-post content_hash
+			// covers every change in the list by construction: each claim is
+			// located against exactly the content that hash names. The planner
+			// that runs here is the SAME one the write path runs — a preview that
+			// models the write instead of sharing it is how `reach for:the studio`
+			// reached a live page.
+			$post = get_post( $resolved['post_id'] ?? 0 );
+			if ( ! $post ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => null, 'skipped' => null, 'detail' => 'post_not_found', 'new_content' => null );
+			}
+			$observed = function_exists( 'snt_corpus_content_hash' ) ? snt_corpus_content_hash( (string) $post->post_content ) : md5( trim( (string) $post->post_content ) );
+			if ( ! array_key_exists( 'fingerprint', $change ) ) {
+				return array(
+					'passed'       => false,
+					'expected'     => null,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => 'change.fingerprint is required for batch: pass the content_hash observed via sn_posts for this post before proposing the changes.',
+					'new_content'  => null,
+					'error_code'   => 'snt_sn_apply_missing_fingerprint',
+					'error_status' => 422,
+				);
+			}
+			if ( ! hash_equals( $observed, $fingerprint ) ) {
+				return array( 'passed' => false, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => 'Live post content has changed since this fingerprint was observed (re-fetch sn_posts\' content_hash and retry: the stale-branch merge conflict).', 'new_content' => null );
+			}
+			$plan = snt_sn_apply_plan_changes( (string) $post->post_content, $payload['changes'] ?? array() );
+			if ( is_wp_error( $plan ) ) {
+				$plan_data = (array) $plan->get_error_data();
+				return array(
+					'passed'       => false,
+					'expected'     => $fingerprint,
+					'observed'     => $observed,
+					'skipped'      => null,
+					'detail'       => $plan->get_error_message(),
+					'new_content'  => null,
+					'error_code'   => $plan->get_error_code(),
+					'error_status' => (int) ( $plan_data['status'] ?? 422 ),
+				);
+			}
+			return array( 'passed' => true, 'expected' => $fingerprint, 'observed' => $observed, 'skipped' => null, 'detail' => sprintf( '%d changes verified against the live content.', (int) $plan['count'] ), 'new_content' => $plan['new_content'] );
+
 		case 'sentence_replace':
 			// The agent-composed body edit: fingerprint is the LIVE row's
 			// content_hash — restore_revision's binding exactly (see that
@@ -761,6 +804,16 @@ function snt_sn_apply_gate2_validation( $type, array $resolved, array $change, $
 		case 'unlink':
 		case 'block_migration':
 		case 'pattern_adoption':
+			if ( null === $new_content || ! function_exists( 'snt_sn_validate_check_body' ) ) {
+				return array( 'checks' => array(), 'findings' => array() );
+			}
+			return array( 'checks' => array( 'body' ), 'findings' => snt_sn_validate_check_body( $new_content, $resolved['post_id'] ?? 0 ) );
+
+		case 'batch':
+			// The batch validates the RESULT, not each change: gate 1 already
+			// produced the exact body the write will land, and that body is what
+			// a reader will see. Validating changes individually would pass a
+			// batch whose combined result is invalid.
 			if ( null === $new_content || ! function_exists( 'snt_sn_validate_check_body' ) ) {
 				return array( 'checks' => array(), 'findings' => array() );
 			}

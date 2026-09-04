@@ -2,6 +2,101 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.94.0] - 2026-09-03 — one editorial act, one ledger version
+
+`sn_apply` gains `change.type "batch"`: N **different** changes to one post in
+one write, and therefore one anchored provenance version.
+
+### The cost this removes, measured
+
+On 2026-09-03 a single amendment to "Detection scales the wrong way" — one
+`sentence_replace` fixing a stale figure, one `block_insert` adding references,
+one `block_insert` adding a correction notice — minted **three** ledger
+versions. "Verifying the artist isn't enough" reached v3 the same way. Two of
+those three are intermediate states nobody intended to publish, and they are
+permanent.
+
+`payload.edits` (v10.66.0) already solved this **within one type**. The types
+here differ, which is the ordinary shape of an edit, and `block_insert` was
+refused from that path by name.
+
+### Every change is a byte claim
+
+| type | start | length |
+|---|---|---|
+| `sentence_replace` | phrase offset | `strlen(phrase)` |
+| `block_insert` | boundary offset | **0** |
+| `block_replace` | span start | span width |
+| `block_delete` | removal start | removal width |
+
+So v10.66.0's algorithm carries over intact: locate every claim against the
+ORIGINAL content, reconcile, splice in DESCENDING order so no offset is ever
+re-resolved.
+
+### What the old exclusion was actually pointing at
+
+The exclusion comment said block edits "interact through tag structure in ways
+the prose batch byte-range overlap check cannot see." True, and narrower than
+it sounds. Nesting is covered for free — a prose span inside a replaced block
+starts within that block's range. The real gap is **zero-width claims**:
+
+- two inserts at the SAME point never overlap, and their order is undefined;
+- an insert at the leading or trailing edge of a replaced/deleted span passes
+  the range test while its anchor is being destroyed.
+
+Four conflict rules, each **mutation-proven**: disabling any one turns a named
+assertion red. Two of them only became rules that way. Rule (b) initially
+survived its own mutation — rule (c) was catching the test's ordering — and is
+load-bearing only when the insert is listed BEFORE the replace, where
+`cur.start < prev.start + 0` is false. Without that case it could have been
+deleted on a green suite, silently permitting an undefined-order write.
+
+### The claim is the write count
+
+`BATCH.2` asserts three changes cost exactly **one** `wp_update_post()`.
+`BATCH.8` pins the contrast: the same edits unbatched cost one write each.
+Asserting the content came out right would have passed on three writes, which
+is the bug.
+
+### The scheduled-post guarantee is now shared, not copied
+
+A batch must be unable to publish a scheduled note early. Rather than duplicate
+that guard — the way safety code drifts — it was **extracted** into
+`snt_sn_apply_write_preserving_schedule()`, which both `block_edit_impl` and the
+batch now call. Behaviour is unchanged and the error strings are byte-identical.
+The existing suites (138 and 194 assertions) were the net, and one caught a
+missing dependency immediately.
+
+`tests/batch-schedule.php` guarded that rule by reading `sn-apply-block-edit.php`
+as TEXT, so a pure move turned it red — a guard naming a FILE for what is a
+property of the LAYER. It now pins the rule where it lives AND that block-edit
+still calls it, which the old form could not see: an impl that quietly stopped
+calling the guard would have kept it green while publishing scheduled posts
+early.
+
+### Refusals
+
+All-or-nothing, naming both 1-based indexes and the reason. A refused batch
+writes nothing (`BATCH.10`) and leaves the row byte-identical (`BATCH.11`).
+
+`block_move` is NOT a member: its destination resolves against post-delete
+content, which breaks the plan-against-original rule the algorithm rests on.
+`link_insert`/`link_reshape`/`unlink` stay out for the original reason.
+
+### Files
+
+- `inc/sn-apply-plan-changes.php` — new: planner, conflict rules, shared
+  schedule guard, batch impl
+- `inc/sn-apply-block-edit.php` — delegates its schedule guard
+- `inc/sn-apply-validation.php` — gate 1 (one fingerprint, whole batch) + gate 2
+- `inc/sn-apply-executors.php` — type enum, mode support, write + dry-run diff
+- `inc/abilities-sn-apply.php` — the `batch` contract
+- `signal-and-noise-tools.php` — require
+- `tests/sn-apply-plan-changes.php` (new, 26), `tests/abilities-sn-apply-block-edit.php`
+  (+11), `tests/abilities-sn-apply-delegation-sweep.php`, `tests/batch-schedule.php`
+
+Suite: 555 suites, 22402 assertions, 0 failed, 1 skipped.
+
 ## [13.93.0] - 2026-09-03 — the re-sweep that has to cover the fleet before it counts
 
 Nine posts had `post_content` rewritten by a direct `wp db query` on 2026-09-03
