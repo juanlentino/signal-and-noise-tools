@@ -2,6 +2,70 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
+## [13.95.0] - 2026-09-03 — a draft can be created complete
+
+`create_draft` now accepts `meta_description` and `og_card_title`, validated in
+the same gate-2 pass and attached in the same write.
+
+### The round trip this removes
+
+Both notes drafted on 2026-09-03 needed a follow-up `surfaces` call to attach
+those two fields, and the first `og_card_title` tripped its char-range check,
+costing a third call. Three round trips for one draft.
+
+### The validators are the ones `surfaces` already runs
+
+Never a parallel scheme — that is how two rules for one field drift apart. Only
+the subject differs: `post_id` is 0 because the post does not exist yet, and
+`og_card_title` is measured against the title in **this** payload rather than a
+stored one. That is the point of moving the check: it now runs while the caller
+can still fix the title in the same call.
+
+Both fields write the keys `surfaces` writes (`_sn_meta_description`,
+`_sn_og_card_title`), so a later `surfaces` call updates those rows rather than
+shadowing them.
+
+### What the reading corrected
+
+The 60-90 character range is a **warning**, not an error; only empty-or-over-cap
+refuses. So the failure that cost a third call was the hard cap, not the
+guideline. Both are covered: a short title surfaces its finding at draft time
+(Test 22), and an over-cap one refuses the whole `create_draft` and writes
+NOTHING (Test 23) — no create-then-patch.
+
+`meta_description` additionally carries a corpus-collision check at severity
+**error**: an identical description on another post refuses. That check queries
+`$wpdb`, which is why the suite needed a `$wpdb` stub it never had.
+
+### Two harness defects this surfaced
+
+- `get_post_meta`/`update_post_meta` in this suite were **count-only** — the
+  writer stored nothing and the reader always answered `''`. Adequate while
+  `create_draft` wrote no meta; now it would let "wrote the wrong key" pass,
+  because nothing can be read back. Replaced with storing versions.
+- The `$wpdb` stub was lifted BYTE-IDENTICALLY from the delegation sweep rather
+  than re-written, for the same reason as the block-grammar stubs: a second
+  stub models a different query, and the two suites then disagree about the
+  same SQL without either failing.
+
+### Notes
+
+- `surfaces_set` reports which fields were attached — an empty array, never
+  absent, so "none supplied" stays distinguishable from "field ignored".
+- Still exactly ONE `wp_insert_post` (Test 20.6): the fields ride the creation.
+- Both additions are mutation-proven: disabling the gate check turns three
+  assertions red, disabling the attach turns four.
+
+### Files
+
+- `inc/sn-apply-create-draft.php` — gate 2 validation + the meta attach
+- `inc/abilities-sn-apply.php` — the contract
+- `signal-and-noise-tools.php` — version
+- `tests/abilities-sn-apply-create-draft.php` — Tests 20-23, storing meta
+  stubs, `$wpdb`
+
+Suite: 555 suites, 22418 assertions, 0 failed, 1 skipped.
+
 ## [13.94.0] - 2026-09-03 — one editorial act, one ledger version
 
 `sn_apply` gains `change.type "batch"`: N **different** changes to one post in

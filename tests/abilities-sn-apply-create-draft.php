@@ -62,7 +62,7 @@ $GLOBALS['__posts']             = array();
 $GLOBALS['__post_meta']         = array();
 $GLOBALS['__options']           = array();
 $GLOBALS['__transients']        = array();
-$GLOBALS['__write_calls']       = array( 'wp_update_post' => 0, 'update_post_meta' => 0, '_wp_put_post_revision' => 0, 'update_option' => 0, 'set_transient' => 0, 'wp_insert_post' => 0, 'wp_set_post_tags' => 0 );
+$GLOBALS['__write_calls']       = array( 'wp_update_post' => 0, 'update_post_meta' => 0, '_wp_put_post_revision' => 0, 'update_option' => 0, 'set_transient' => 0, 'wp_insert_post' => 0, 'wp_set_post_tags' => 0 , 'wpdb_write' => 0);
 $GLOBALS['__audit_calls']       = array();
 $GLOBALS['__bound_uuid']        = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
 $GLOBALS['__auth_uuid']         = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'; // owner by default
@@ -107,8 +107,23 @@ if ( ! function_exists( 'serialize_blocks' ) ) { function serialize_blocks( $t )
 if ( ! function_exists( 'sanitize_text_field' ) ) { function sanitize_text_field( $s ) { return trim( strip_tags( (string) $s ) ); } }
 if ( ! function_exists( 'get_option' ) )    { function get_option( $k, $d = false ) { return $GLOBALS['__options'][ $k ] ?? $d; } }
 if ( ! function_exists( 'update_option' ) ) { function update_option( $k, $v, $a = null ) { $GLOBALS['__write_calls']['update_option']++; $GLOBALS['__options'][ $k ] = $v; return true; } }
-if ( ! function_exists( 'get_post_meta' ) ) { function get_post_meta( $id, $key, $single = false ) { return $single ? '' : array(); } }
-if ( ! function_exists( 'update_post_meta' ) ) { function update_post_meta( $id, $key, $value ) { $GLOBALS['__write_calls']['update_post_meta']++; return true; } }
+// v13.95.0: these were COUNT-ONLY stubs — get_post_meta always answered ''
+// and update_post_meta stored nothing. That was adequate while create_draft
+// wrote no meta; now that it attaches the surface fields, a count-only stub
+// would let "wrote the wrong key" pass, since nothing can be read back.
+// Storing versions, matching tests/abilities-sn-apply-block-edit.php.
+$GLOBALS['__post_meta'] = array();
+if ( ! function_exists( 'get_post_meta' ) ) {
+	function get_post_meta( $id, $key, $single = false ) {
+		if ( ! array_key_exists( $key, $GLOBALS['__post_meta'][ (int) $id ] ?? array() ) ) { return $single ? '' : array(); }
+		$v = $GLOBALS['__post_meta'][ (int) $id ][ $key ];
+		return $single ? $v : array( $v );
+	}
+}
+if ( ! function_exists( 'update_post_meta' ) ) {
+	function update_post_meta( $id, $key, $value ) { $GLOBALS['__write_calls']['update_post_meta']++; $GLOBALS['__post_meta'][ (int) $id ][ $key ] = $value; return true; }
+}
+
 if ( ! function_exists( 'wp_update_post' ) ) { function wp_update_post( $args, $wp_error = false ) { $GLOBALS['__write_calls']['wp_update_post']++; return (int) ( $args['ID'] ?? 0 ); } }
 if ( ! function_exists( 'post_type_supports' ) ) { function post_type_supports( $t, $f ) { return true; } }
 if ( ! function_exists( 'wp_revisions_to_keep' ) ) { function wp_revisions_to_keep( $post ) { return $GLOBALS['__revisions_to_keep']; } }
@@ -245,6 +260,53 @@ function cd_test_vulnerable_write_create_draft_raw_tags( array $payload ) {
 	}
 	return array( 'post_id' => (int) $post_id, 'edit_link' => '', 'status' => 'draft' );
 }
+
+
+/* ────────────────────────────────────────────────────────────────────────
+ * $wpdb, lifted BYTE-IDENTICALLY from tests/abilities-sn-apply-delegation-sweep.php.
+ *
+ * v13.95.0: gate 2 now runs the meta_description check during create_draft,
+ * and that check queries the corpus for an identical description (severity
+ * ERROR — a duplicate meta description is an SEO defect, so it refuses).
+ * Copied rather than re-written for the same reason as the block-grammar
+ * stubs: a second stub would model a different query and the two suites
+ * would disagree about the same SQL without either failing.
+ * ──────────────────────────────────────────────────────────────────────── */
+// $wpdb — meta-description collision query only. Faithful to the REAL query
+// shape (parses and applies the post_id exclusion clause) — same stub as
+// tests/abilities-sn-validate.php's SN_Test_Wpdb_Validate.
+class SN_Test_Wpdb_Apply {
+	public $posts = 'wp_posts';
+	public $postmeta = 'wp_postmeta';
+	public $prefix = 'wp_';
+	public $rows = array(); // list of {post_id, meta_value} for _sn_meta_description
+	public function esc_like( $s ) { return addcslashes( (string) $s, '_%\\' ); }
+	public function prepare( $sql, ...$args ) {
+		if ( 1 === count( $args ) && is_array( $args[0] ) ) { $args = $args[0]; }
+		foreach ( $args as $a ) {
+			$sql = preg_replace( '/%[sd]/', is_int( $a ) ? (string) $a : "'" . str_replace( "'", "''", (string) $a ) . "'", $sql, 1 );
+		}
+		return $sql;
+	}
+	public function get_col( $sql ) {
+		preg_match( "/meta_value = '((?:[^'\\\\]|\\\\.)*)'/", $sql, $mv );
+		preg_match( '/post_id != (\d+)/', $sql, $pid );
+		$value    = isset( $mv[1] ) ? stripcslashes( $mv[1] ) : '';
+		$exclude  = isset( $pid[1] ) ? (int) $pid[1] : 0;
+		return array_values( array_map( 'strval', array_column(
+			array_filter( $this->rows, static function ( $r ) use ( $value, $exclude ) {
+				return $r['meta_value'] === $value && $r['post_id'] !== $exclude;
+			} ), 'post_id'
+		) ) );
+	}
+	public function insert( $t, $d, $f = null ) { $GLOBALS['__write_calls']['wpdb_write']++; return 1; }
+	public function update( $t, $d, $w, $f = null, $wf = null ) { $GLOBALS['__write_calls']['wpdb_write']++; return 1; }
+	public function query( $sql ) {
+		if ( preg_match( '/^\s*(INSERT|UPDATE|DELETE|REPLACE)/i', $sql ) ) { $GLOBALS['__write_calls']['wpdb_write']++; }
+		return 0;
+	}
+}
+$GLOBALS['wpdb'] = new SN_Test_Wpdb_Apply();
 
 /* ════════════════════════════════════════════════════════════════════════
  * Test 1: dry_run (defaulted) previews {title, block_count, word_count},
@@ -691,6 +753,93 @@ eq( 1, $GLOBALS['__trash_calls'], 'Test 12.12: exactly one wp_trash_post call �
 eq( 'trash', $GLOBALS['__posts'][ $rt_id ]['post_status'], 'Test 12.13: the draft is in the Trash (recoverable), not gone' );
 eq( 'manual_untrash', $r12g['rollback']['method'] ?? null, 'Test 12.14: rollback.method is manual_untrash — a wp-admin action, NEVER an unreachable MCP method name (the defect that created this type)' );
 ok( false !== strpos( (string) ( $r12g['rollback']['note'] ?? '' ), 'Trash' ), 'Test 12.15: rollback carries the human restore path' );
+
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.95.0 — the surface fields land in the SAME call.
+ *
+ * Both notes drafted on 2026-09-03 needed a follow-up `surfaces` call to
+ * attach meta_description and og_card_title, and the first og_card_title
+ * tripped its char-range check, costing a third. The property under test is
+ * that ONE call now creates a COMPLETE draft, and that the validation runs
+ * early enough for the caller to still fix the title in that same call.
+ * ════════════════════════════════════════════════════════════════════════ */
+echo "\nTest 20: meta_description + og_card_title attach in one call\n";
+tf_reset_writes();
+$og_ok = 'A Deliberately Sized Card Title That Sits Inside The Sixty To Ninety Range';
+$md_ok = str_repeat( 'A meaningful meta description sentence. ', 4 );
+$r20 = snt_ability_sn_apply( array(
+	'target' => array( 'new_post' => true ),
+	'change' => array( 'type' => 'create_draft', 'payload' => array(
+		'title'            => 'Complete In One Call',
+		'content'          => tf_block_json( '<p>This draft arrives complete.</p>' ),
+		'meta_description' => $md_ok,
+		'og_card_title'    => $og_ok,
+	) ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( ! is_wp_error( $r20 ), 'Test 20.1: the call succeeds' );
+$id20 = $r20['diff']['after']['post_id'] ?? 0;
+ok( $id20 > 0, 'Test 20.2: a draft landed' );
+eq( $md_ok, get_post_meta( $id20, '_sn_meta_description', true ), 'Test 20.3: meta_description is attached under the key surfaces writes' );
+eq( $og_ok, get_post_meta( $id20, '_sn_og_card_title', true ), 'Test 20.4: og_card_title is attached under the key surfaces writes' );
+eq( array( 'meta_description', 'og_card_title' ), $r20['diff']['after']['surfaces_set'] ?? null, 'Test 20.5: the response reports WHICH surface fields it attached' );
+eq( 1, $GLOBALS['__write_calls']['wp_insert_post'], 'Test 20.6: still exactly ONE wp_insert_post — the fields ride the same creation' );
+eq( 2, $GLOBALS['__write_calls']['update_post_meta'], 'Test 20.7: two meta writes, not a second sn_apply round trip' );
+
+echo "\nTest 21: surfaces_set is PRESENT and empty when nothing is supplied\n";
+$r21 = snt_ability_sn_apply( array(
+	'target' => array( 'new_post' => true ),
+	'change' => array( 'type' => 'create_draft', 'payload' => array( 'title' => 'No Surfaces Here', 'content' => tf_block_json( '<p>Nothing extra.</p>' ) ) ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+ok( array_key_exists( 'surfaces_set', (array) ( $r21['diff']['after'] ?? array() ) ), 'Test 21.1: surfaces_set is present even when unused — "none supplied" must be distinguishable from "field ignored"' );
+eq( array(), $r21['diff']['after']['surfaces_set'] ?? null, 'Test 21.2: ...and it is an empty array' );
+
+echo "\nTest 22: the char-range check runs in THIS call, not the next one\n";
+$r22 = snt_ability_sn_apply( array(
+	'target' => array( 'new_post' => true ),
+	'change' => array( 'type' => 'create_draft', 'payload' => array(
+		'title'         => 'Short Card Title Test',
+		'content'       => tf_block_json( '<p>Body.</p>' ),
+		'og_card_title' => 'Too short',
+	) ),
+	'mode'   => 'revision', 'dry_run' => true,
+) );
+$checks22 = (array) ( $r22['gates']['validation']['checks'] ?? array() );
+ok( in_array( 'og_card_title', $checks22, true ), 'Test 22.1: gate 2 RAN the og_card_title check during create_draft (' . implode( ',', $checks22 ) . ')' );
+$found22 = false;
+foreach ( (array) ( $r22['gates']['validation']['findings'] ?? array() ) as $f ) {
+	// Keys are surface/check (snt_sn_validate_finding), NOT field/code — an
+	// invented key here matches nothing and the assertion fails silently.
+	if ( 'og_card_title' === ( $f['surface'] ?? '' ) && 'char_range' === ( $f['check'] ?? '' ) ) { $found22 = true; }
+}
+ok( $found22, 'Test 22.2: a short title surfaces its char_range finding at DRAFT time — the round trip that cost a third call' );
+
+echo "\nTest 23: NEGATIVE CONTROL — an over-cap title refuses and writes nothing\n";
+tf_reset_writes();
+$posts_b23 = $GLOBALS['__posts'];
+$r23 = snt_ability_sn_apply( array(
+	'target' => array( 'new_post' => true ),
+	'change' => array( 'type' => 'create_draft', 'payload' => array(
+		'title'         => 'Over Cap Test',
+		'content'       => tf_block_json( '<p>Body.</p>' ),
+		'og_card_title' => str_repeat( 'x', 200 ),
+	) ),
+	'mode'   => 'revision', 'dry_run' => false,
+) );
+// A gate-2 refusal is a WP_Error whose message is the JSON envelope — the
+// same shape Test 3's forbidden-field refusals take.
+ok( is_wp_error( $r23 ), 'Test 23.1: a severity-error surface field REFUSES the whole create_draft' );
+eq( 422, (int) ( $r23->get_error_data()['status'] ?? 0 ), 'Test 23.2: ...as a 422 caller error' );
+$dec23  = json_decode( $r23->get_error_message(), true );
+$named23 = false;
+foreach ( (array) ( $dec23['gates']['validation']['findings'] ?? array() ) as $f ) {
+	if ( 'og_card_title' === ( $f['surface'] ?? '' ) && 'error' === ( $f['severity'] ?? '' ) ) { $named23 = true; }
+}
+ok( $named23, 'Test 23.3: the refusal names og_card_title as the severity-error finding' );
+eq( 0, tf_total_writes(), 'Test 23.4: ...and writes NOTHING — the draft is not created and then patched' );
+eq( $posts_b23, $GLOBALS['__posts'], 'Test 23.5: the post store is byte-identical' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
