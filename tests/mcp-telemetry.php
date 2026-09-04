@@ -422,10 +422,10 @@ ok( 'app-pw:ffffffff' === $wpdb->insert_calls[0]['data']['actor'], 'wiring: acto
  * ════════════════════════════════════════════════════════════════════════ */
 
 // The change-type allowlist fixture is EXTRACTED from the real registration
-// (inc/sn-apply-executors.php's SNT_SN_APPLY_CHANGE_TYPES) rather than copied,
+// (inc/sn-apply/executors.php's SNT_SN_APPLY_CHANGE_TYPES) rather than copied,
 // so it cannot drift from it — this repo's #1 recurring trap. A hand-copied
 // list would still pass every assertion below on the day a type is added.
-$sn_exec_src = file_get_contents( __DIR__ . '/../inc/sn-apply-executors.php' );
+$sn_exec_src = file_get_contents( __DIR__ . '/../inc/sn-apply/executors.php' );
 $sn_types    = array();
 if ( is_string( $sn_exec_src ) && preg_match( '/const\s+SNT_SN_APPLY_CHANGE_TYPES\s*=\s*array\s*\((.*?)\);/s', $sn_exec_src, $sn_m ) ) {
 	preg_match_all( '/\'([a-z_]+)\'/', $sn_m[1], $sn_hits );
@@ -433,7 +433,7 @@ if ( is_string( $sn_exec_src ) && preg_match( '/const\s+SNT_SN_APPLY_CHANGE_TYPE
 }
 // Negative-control the extractor itself before trusting anything built on it:
 // a silently-empty match would make every allowlist assertion below vacuous.
-ok( count( $sn_types ) >= 16, 'fixture: extracted the REAL change-type list from inc/sn-apply-executors.php (' . count( $sn_types ) . ' types)' );
+ok( count( $sn_types ) >= 16, 'fixture: extracted the REAL change-type list from inc/sn-apply/executors.php (' . count( $sn_types ) . ' types)' );
 ok( in_array( 'link_reshape', $sn_types, true ) && in_array( 'unlink', $sn_types, true ), 'fixture: extraction found known members (link_reshape, unlink) — the regex really parsed the const' );
 if ( ! defined( 'SNT_SN_APPLY_CHANGE_TYPES' ) ) {
 	define( 'SNT_SN_APPLY_CHANGE_TYPES', $sn_types );
@@ -445,13 +445,13 @@ if ( ! defined( 'SNT_SN_APPLY_CHANGE_TYPES' ) ) {
 // A single-line grep would have missed the multi-line ones, per the standing
 // lesson recorded twice in docs/mcp-consolidation/FINDINGS.md.
 $cf1 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_sn_apply_anchor_not_found', 'No <a> element with exactly this inner text exists.', array( 'status' => 409 ) ) );
-ok( 'conflict' === $cf1['outcome'], 'classify: snt_sn_apply_anchor_not_found (409, inc/sn-apply-link-reshape.php:117) → conflict' );
+ok( 'conflict' === $cf1['outcome'], 'classify: snt_sn_apply_anchor_not_found (409, inc/sn-apply/link-reshape.php:117) → conflict' );
 $cf2 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_orphan_no_longer', 'Attachment is now referenced and was not deleted.', array( 'status' => 409 ) ) );
 ok( 'conflict' === $cf2['outcome'], 'classify: snt_orphan_no_longer (409, inc/ai-orphan-suggest.php:191, a TOCTOU re-check) → conflict' );
 $cf3 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_sn_apply_idempotency_target_mismatch', 'key was previously used against another target.', array( 'status' => 409 ) ) );
 ok( 'conflict' === $cf3['outcome'], 'classify: snt_sn_apply_idempotency_target_mismatch (409, inc/abilities-sn-apply.php:251) → conflict' );
 $cf4 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_sn_apply_batch_phrase_not_found', 'edit 2: phrase not present in post content.', array( 'status' => 409 ) ) );
-ok( 'conflict' === $cf4['outcome'], 'classify: snt_sn_apply_batch_phrase_not_found (409, inc/sn-apply-batch-edits.php:200) → conflict' );
+ok( 'conflict' === $cf4['outcome'], 'classify: snt_sn_apply_batch_phrase_not_found (409, inc/sn-apply/batch-edits.php:200) → conflict' );
 // v11.11.6 straggler: snt_block_migration_candidate_not_found restated 404→409
 // (optimistic-concurrency: re-run scan). Pin the classifier bucket explicitly.
 $cf5 = sn_mcp_telemetry_classify_wp_error( new WP_Error( 'snt_block_migration_candidate_not_found', 'Candidate block not found in current post content. Re-run scan.', array( 'status' => 409 ) ) );

@@ -2,7 +2,7 @@
 /**
  * Standalone tests for sn_apply change.types "block_insert" and
  * "block_replace" (v13.2.0) — the caller-composed block edit family. See
- * inc/sn-apply-block-edit.php's docblock for the design.
+ * inc/sn-apply/block-edit.php's docblock for the design.
  *
  * Same bootstrap/stub conventions as the sibling sn_apply test files —
  * EXCEPT parse_blocks/serialize_blocks: the sibling files' JSON-shaped
@@ -289,15 +289,15 @@ require __DIR__ . '/../inc/health-check-drift-time-phrases.php';
 require __DIR__ . '/../inc/ai-drift-phrase-suggest.php';
 require __DIR__ . '/../inc/sn-validate-checks.php';
 require __DIR__ . '/../inc/sn-validate-checks-media.php';
-require __DIR__ . '/../inc/sn-apply-revision.php';
-require __DIR__ . '/../inc/sn-apply-gates.php';
-require __DIR__ . '/../inc/sn-apply-validation.php';
-require __DIR__ . '/../inc/sn-apply-delete-draft.php';
-require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // snt_sn_apply_link_prose_normalize() — the prose-delta normalizer
-require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
-require __DIR__ . '/../inc/sn-apply-block-edit.php';
-require __DIR__ . '/../inc/sn-apply-plan-changes.php'; // v13.94.0: block_edit_impl now shares its scheduled-post guard from here
-require __DIR__ . '/../inc/sn-apply-executors.php';
+require __DIR__ . '/../inc/sn-apply/revision.php';
+require __DIR__ . '/../inc/sn-apply/gates.php';
+require __DIR__ . '/../inc/sn-apply/validation.php';
+require __DIR__ . '/../inc/sn-apply/delete-draft.php';
+require __DIR__ . '/../inc/sn-apply/link-reshape.php'; // snt_sn_apply_link_prose_normalize() — the prose-delta normalizer
+require __DIR__ . '/../inc/sn-apply/sentence-replace.php';
+require __DIR__ . '/../inc/sn-apply/block-edit.php';
+require __DIR__ . '/../inc/sn-apply/plan-changes.php'; // v13.94.0: block_edit_impl now shares its scheduled-post guard from here
+require __DIR__ . '/../inc/sn-apply/executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 require_once __DIR__ . '/lib/assert-envelope.php'; // shared envelope contract (v13.95.1)
 

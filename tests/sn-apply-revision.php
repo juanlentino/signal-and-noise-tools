@@ -1,7 +1,7 @@
 <?php
 /**
  * Standalone fixture tests for the sn_apply revision-mode write primitive
- * (MCP consolidation session 6a) — inc/sn-apply-revision.php.
+ * (MCP consolidation session 6a) — inc/sn-apply/revision.php.
  *
  * Core WP functions are stubbed to mirror their REAL documented contracts,
  * verified against the actual WP 7.0.2 source (wp-includes/revision.php,
@@ -295,7 +295,7 @@ if ( ! function_exists( 'get_post_meta' ) ) {
 	}
 }
 
-require_once __DIR__ . '/../inc/sn-apply-revision.php';
+require_once __DIR__ . '/../inc/sn-apply/revision.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
 $pass = 0; $fail = 0;

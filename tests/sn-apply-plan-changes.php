@@ -122,9 +122,9 @@ if ( ! class_exists( 'WP_Block_Type_Registry' ) ) {
 	}
 }
 
-require __DIR__ . '/../inc/sn-apply-block-edit.php';
-require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
-require __DIR__ . '/../inc/sn-apply-plan-changes.php';
+require __DIR__ . '/../inc/sn-apply/block-edit.php';
+require __DIR__ . '/../inc/sn-apply/sentence-replace.php';
+require __DIR__ . '/../inc/sn-apply/plan-changes.php';
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }

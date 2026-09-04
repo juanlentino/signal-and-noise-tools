@@ -180,7 +180,7 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 }
 if ( ! function_exists( 'post_type_supports' ) ) { function post_type_supports( $t, $f ) { return true; } }
 if ( ! function_exists( 'wp_revisions_to_keep' ) ) { function wp_revisions_to_keep( $post ) { return $GLOBALS['__revisions_to_keep']; } }
-// v10.41.2: snt_sn_apply_stage_revision() now overrides post_modified/post_modified_gmt via current_time() before staging (backdated-revision fix) — every fixture that loads inc/sn-apply-revision.php needs this stub.
+// v10.41.2: snt_sn_apply_stage_revision() now overrides post_modified/post_modified_gmt via current_time() before staging (backdated-revision fix) — every fixture that loads inc/sn-apply/revision.php needs this stub.
 if ( ! function_exists( 'current_time' ) ) { function current_time( $type, $gmt = 0 ) { return gmdate( 'Y-m-d H:i:s' ); } }
 if ( ! function_exists( '_wp_put_post_revision' ) ) {
 	function _wp_put_post_revision( $post ) {
@@ -210,7 +210,7 @@ if ( ! function_exists( 'wp_restore_post_revision' ) ) {
 // Session 7 (restore_revision) — real 6.9 contract: wp_get_post_revision()
 // returns null for BOTH "no such post" and "found, but not a revision"
 // (verified against the real source, wp-includes/revision.php — see
-// inc/sn-apply-restore-revision.php's docblock).
+// inc/sn-apply/restore-revision.php's docblock).
 if ( ! function_exists( 'wp_get_post_revision' ) ) {
 	function wp_get_post_revision( &$id ) {
 		$row = $GLOBALS['__posts'][ (int) $id ] ?? null;
@@ -302,20 +302,20 @@ require __DIR__ . '/../inc/abilities-content.php';
 require __DIR__ . '/../inc/abilities-provenance.php';
 require __DIR__ . '/../inc/sn-validate-checks.php';
 require __DIR__ . '/../inc/sn-validate-checks-media.php';
-require __DIR__ . '/../inc/sn-apply-revision.php';
-require __DIR__ . '/../inc/sn-apply-gates.php';
-require __DIR__ . '/../inc/sn-apply-validation.php';
-require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
-require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
-require __DIR__ . '/../inc/sn-apply-create-draft.php';
-require __DIR__ . '/../inc/sn-apply-restore-revision.php';
-require __DIR__ . '/../inc/sn-apply-sentence-replace.php';
-require __DIR__ . '/../inc/sn-apply-block-edit.php';
-require __DIR__ . '/../inc/sn-apply-plan-changes.php'; // v13.94.0: block_edit_impl now shares its scheduled-post guard from here // v13.2.0: span scanner + locator + markup gate + prose delta + guarded write impl for change.types block_insert/block_replace
+require __DIR__ . '/../inc/sn-apply/revision.php';
+require __DIR__ . '/../inc/sn-apply/gates.php';
+require __DIR__ . '/../inc/sn-apply/validation.php';
+require __DIR__ . '/../inc/sn-apply/delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
+require __DIR__ . '/../inc/sn-apply/link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
+require __DIR__ . '/../inc/sn-apply/create-draft.php';
+require __DIR__ . '/../inc/sn-apply/restore-revision.php';
+require __DIR__ . '/../inc/sn-apply/sentence-replace.php';
+require __DIR__ . '/../inc/sn-apply/block-edit.php';
+require __DIR__ . '/../inc/sn-apply/plan-changes.php'; // v13.94.0: block_edit_impl now shares its scheduled-post guard from here // v13.2.0: span scanner + locator + markup gate + prose delta + guarded write impl for change.types block_insert/block_replace
 require __DIR__ . '/../inc/maturity-roadmap-merge.php'; // sn_maturity_roadmap_effective_board() now reads through the three-way merge
 require __DIR__ . '/../inc/maturity-roadmap-shortcode.php'; // roadmap_board's board/validator/fingerprint helpers — the REAL impl, never restubbed here.
-require __DIR__ . '/../inc/sn-apply-roadmap-board.php';
-require __DIR__ . '/../inc/sn-apply-executors.php';
+require __DIR__ . '/../inc/sn-apply/roadmap-board.php';
+require __DIR__ . '/../inc/sn-apply/executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
 if ( ! function_exists( 'get_edit_post_link' ) ) { function get_edit_post_link( $id, $ctx = 'display' ) { return 'https://example.test/wp-admin/post.php?post=' . (int) $id . '&action=edit'; } }

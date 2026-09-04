@@ -2,7 +2,7 @@
 /**
  * Standalone tests for sn_apply change.type "link_reshape" (v10.58.0,
  * audit item 5, owner-confirmed after item 4). See
- * inc/sn-apply-link-reshape.php's docblock: move an <a>'s boundaries
+ * inc/sn-apply/link-reshape.php's docblock: move an <a>'s boundaries
  * within one text node — contiguous-unique-substring constraint, href
  * carried over, rendered prose byte-identity ASSERTED post-splice,
  * fingerprint = live content_hash.
@@ -57,7 +57,7 @@ function tf_post( $id, $content ) {
 }
 
 require __DIR__ . '/../inc/corpus-inspect.php';
-require __DIR__ . '/../inc/sn-apply-link-reshape.php';
+require __DIR__ . '/../inc/sn-apply/link-reshape.php';
 
 $V = 'snt_sn_apply_link_reshape_pair_error';
 $L = 'snt_sn_apply_link_reshape_locate';

@@ -2,7 +2,7 @@
 /**
  * Standalone tests for sn_apply change.type "restore_revision" (MCP
  * consolidation session 7, the acceptance path):
- * signal-noise/sn-apply. See inc/sn-apply-restore-revision.php's docblock
+ * signal-noise/sn-apply. See inc/sn-apply/restore-revision.php's docblock
  * for the full design: publish-only via the existing mode-support
  * mechanism, a structural pre-check BEFORE the four gates, a REAL
  * fingerprint scheme bound to the live post's content_hash, gate 2 run
@@ -200,13 +200,13 @@ require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/health-check-drift-time-phrases.php';
 require __DIR__ . '/../inc/sn-validate-checks.php';
 require __DIR__ . '/../inc/sn-validate-checks-media.php';
-require __DIR__ . '/../inc/sn-apply-revision.php';
-require __DIR__ . '/../inc/sn-apply-gates.php';
-require __DIR__ . '/../inc/sn-apply-validation.php';
-require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
-require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
-require __DIR__ . '/../inc/sn-apply-restore-revision.php';
-require __DIR__ . '/../inc/sn-apply-executors.php';
+require __DIR__ . '/../inc/sn-apply/revision.php';
+require __DIR__ . '/../inc/sn-apply/gates.php';
+require __DIR__ . '/../inc/sn-apply/validation.php';
+require __DIR__ . '/../inc/sn-apply/delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
+require __DIR__ . '/../inc/sn-apply/link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
+require __DIR__ . '/../inc/sn-apply/restore-revision.php';
+require __DIR__ . '/../inc/sn-apply/executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
 function tf_reset_writes() {

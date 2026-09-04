@@ -137,7 +137,7 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 }
 if ( ! function_exists( 'post_type_supports' ) ) { function post_type_supports( $t, $f ) { return true; } }
 if ( ! function_exists( 'wp_revisions_to_keep' ) ) { function wp_revisions_to_keep( $post ) { return $GLOBALS['__revisions_to_keep']; } }
-// v10.41.2: snt_sn_apply_stage_revision() now overrides post_modified/post_modified_gmt via current_time() before staging (backdated-revision fix) — every fixture that loads inc/sn-apply-revision.php needs this stub.
+// v10.41.2: snt_sn_apply_stage_revision() now overrides post_modified/post_modified_gmt via current_time() before staging (backdated-revision fix) — every fixture that loads inc/sn-apply/revision.php needs this stub.
 if ( ! function_exists( 'current_time' ) ) { function current_time( $type, $gmt = 0 ) { return gmdate( 'Y-m-d H:i:s' ); } }
 if ( ! function_exists( '_wp_put_post_revision' ) ) {
 	function _wp_put_post_revision( $post ) {
@@ -191,12 +191,12 @@ require __DIR__ . '/../inc/abilities-content.php';
 require __DIR__ . '/../inc/abilities-provenance.php';
 require __DIR__ . '/../inc/sn-validate-checks.php';
 require __DIR__ . '/../inc/sn-validate-checks-media.php';
-require __DIR__ . '/../inc/sn-apply-revision.php';
-require __DIR__ . '/../inc/sn-apply-gates.php';
-require __DIR__ . '/../inc/sn-apply-validation.php';
-require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
-require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
-require __DIR__ . '/../inc/sn-apply-executors.php';
+require __DIR__ . '/../inc/sn-apply/revision.php';
+require __DIR__ . '/../inc/sn-apply/gates.php';
+require __DIR__ . '/../inc/sn-apply/validation.php';
+require __DIR__ . '/../inc/sn-apply/delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
+require __DIR__ . '/../inc/sn-apply/link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
+require __DIR__ . '/../inc/sn-apply/executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 require_once __DIR__ . '/lib/assert-envelope.php'; // shared envelope contract (v13.95.1)
 
@@ -218,7 +218,7 @@ function tf_reset_writes() {
  * ACCEPTANCE TEST 6: mode:"revision" apply -> live post byte-identical
  * afterward, revision present and correct. Driven through the FULL
  * sn_apply tool path (snt_ability_sn_apply), not directly against
- * inc/sn-apply-revision.php — that primitive already has its own crown-
+ * inc/sn-apply/revision.php — that primitive already has its own crown-
  * jewel test (tests/sn-apply-revision.php); this proves the FULL gate
  * pipeline routes into it correctly.
  * ════════════════════════════════════════════════════════════════════════ */
@@ -250,7 +250,7 @@ eq( $rev_id, $r6['rollback']['revision_id'] ?? null, 'Test 6.12: rollback.revisi
 /* ════════════════════════════════════════════════════════════════════════
  * ACCEPTANCE TEST 8 (run right after 6, while the revision from test 6 is
  * still fresh): rollback.revision_id, invoked via
- * inc/sn-apply-revision.php's restore function, ACTUALLY restores the
+ * inc/sn-apply/revision.php's restore function, ACTUALLY restores the
  * staged state into the live post.
  * ════════════════════════════════════════════════════════════════════════ */
 echo "\nAcceptance test 8: invoking rollback.revision_id actually changes the live post\n";

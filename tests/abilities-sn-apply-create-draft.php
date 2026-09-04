@@ -2,7 +2,7 @@
 /**
  * Standalone tests for sn_apply change.type "create_draft" (MCP
  * consolidation session 6c, the arc's finale, v10.40.0):
- * signal-noise/sn-apply. See inc/sn-apply-create-draft.php's docblock for
+ * signal-noise/sn-apply. See inc/sn-apply/create-draft.php's docblock for
  * the full B5c origin and the mode-semantics decision this file exercises.
  *
  * Same bootstrap/stub conventions as tests/abilities-sn-apply.php and
@@ -130,7 +130,7 @@ if ( ! function_exists( 'wp_revisions_to_keep' ) ) { function wp_revisions_to_ke
 if ( ! function_exists( '_wp_put_post_revision' ) ) { function _wp_put_post_revision( $post ) { $GLOBALS['__write_calls']['_wp_put_post_revision']++; return 0; } }
 
 // wp_insert_post — session 6a's own lesson, faithfully modeled: $wp_error =
-// true is the REAL 7.0.2 contract (see inc/sn-apply-create-draft.php's
+// true is the REAL 7.0.2 contract (see inc/sn-apply/create-draft.php's
 // docblock). $GLOBALS['__insert_fail_mode'] switches between the two
 // documented failure shapes for the dedicated failure tests below.
 if ( ! function_exists( 'wp_insert_post' ) ) {
@@ -215,13 +215,13 @@ require __DIR__ . '/../inc/corpus-inspect.php';
 require __DIR__ . '/../inc/word-count.php';
 require __DIR__ . '/../inc/sn-validate-checks.php';
 require __DIR__ . '/../inc/sn-validate-checks-media.php';
-require __DIR__ . '/../inc/sn-apply-revision.php';
-require __DIR__ . '/../inc/sn-apply-gates.php';
-require __DIR__ . '/../inc/sn-apply-validation.php';
-require __DIR__ . '/../inc/sn-apply-delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
-require __DIR__ . '/../inc/sn-apply-link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
-require __DIR__ . '/../inc/sn-apply-create-draft.php';
-require __DIR__ . '/../inc/sn-apply-executors.php';
+require __DIR__ . '/../inc/sn-apply/revision.php';
+require __DIR__ . '/../inc/sn-apply/gates.php';
+require __DIR__ . '/../inc/sn-apply/validation.php';
+require __DIR__ . '/../inc/sn-apply/delete-draft.php'; // v10.58.0 (audit item 6): gate 2 + write + preview for change.type delete_draft
+require __DIR__ . '/../inc/sn-apply/link-reshape.php'; // v10.58.0 (audit item 5): pair validator + locator + identity-asserting splice for change.type link_reshape
+require __DIR__ . '/../inc/sn-apply/create-draft.php';
+require __DIR__ . '/../inc/sn-apply/executors.php';
 require __DIR__ . '/../inc/abilities-sn-apply.php';
 
 function tf_reset_writes() {
@@ -401,7 +401,7 @@ ok( false !== stripos( (string) ( $decoded4['gates']['capability']['reason'] ?? 
 // pins — it does NOT reuse the generic staged-revision mechanism: Test 2.9
 // and 2.13 above already proved revision_id stays null and
 // _wp_put_post_revision is never called even under mode:"revision". This is
-// create_draft's "own mode semantics" (see inc/sn-apply-create-draft.php's
+// create_draft's "own mode semantics" (see inc/sn-apply/create-draft.php's
 // docblock): the ONLY mode this type supports performs a real, direct
 // (but draft-only, reversible-via-trash) insert — never a staged core
 // revision of a parent post that does not exist.
@@ -651,7 +651,7 @@ eq( true, $r9['gates']['fingerprint']['passed'] ?? null, 'Test 9.3: gates.finger
  * falsy/zero return is type-level impossible on this path (verified: adding
  * an empty() check back reproduces a real `composer phpstan` dead-code
  * error). is_wp_error() alone is the complete, honest check — see
- * inc/sn-apply-create-draft.php's docblock at this exact call site.
+ * inc/sn-apply/create-draft.php's docblock at this exact call site.
  * ════════════════════════════════════════════════════════════════════════ */
 echo "\nTest 10: wp_insert_post failure shape (WP_Error — the only one this primitive checks)\n";
 $GLOBALS['__insert_fail_mode'] = 'wp_error';

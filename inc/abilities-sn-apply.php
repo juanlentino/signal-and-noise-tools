@@ -11,11 +11,11 @@
  *
  * Four gates run in this exact order, EVERY one reporting {passed,...} in
  * the response even when an earlier gate already failed:
- *   1. fingerprint  (inc/sn-apply-validation.php)
- *   2. validation   (inc/sn-apply-validation.php, calls sn_validate's
+ *   1. fingerprint  (inc/sn-apply/validation.php)
+ *   2. validation   (inc/sn-apply/validation.php, calls sn_validate's
  *                     internal check functions directly)
- *   3. capability   (inc/sn-apply-gates.php)
- *   4. idempotency  (inc/sn-apply-gates.php)
+ *   3. capability   (inc/sn-apply/gates.php)
+ *   4. idempotency  (inc/sn-apply/gates.php)
  *
  * dry_run defaults to TRUE per the spec's exact signature. A dry run still
  * runs all four gates and produces the diff, but performs ZERO writes — see
@@ -42,6 +42,34 @@
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
+
+/**
+ * The sn_apply package.
+ *
+ * These files were siblings at inc/sn-apply-*.php until v13.96-era; they moved
+ * under inc/sn-apply/ and this file became their loader. It keeps the OLD
+ * public path on purpose: the bootstrap, and every suite that requires the
+ * ability last, still name inc/abilities-sn-apply.php. Nothing outside this
+ * directory learned a new path.
+ *
+ * The order below is the bootstrap's previous require order, preserved
+ * verbatim. Nothing here resolves a sibling by __DIR__, so the order is about
+ * declaration sequence only - but it was working, and a refactor that also
+ * reorders is two changes wearing one diff.
+ */
+require_once __DIR__ . '/sn-apply/revision.php';
+require_once __DIR__ . '/sn-apply/gates.php';
+require_once __DIR__ . '/sn-apply/validation.php';
+require_once __DIR__ . '/sn-apply/create-draft.php';
+require_once __DIR__ . '/sn-apply/delete-draft.php';
+require_once __DIR__ . '/sn-apply/link-reshape.php';
+require_once __DIR__ . '/sn-apply/block-edit.php';
+require_once __DIR__ . '/sn-apply/restore-revision.php';
+require_once __DIR__ . '/sn-apply/sentence-replace.php';
+require_once __DIR__ . '/sn-apply/batch-edits.php';
+require_once __DIR__ . '/sn-apply/plan-changes.php';
+require_once __DIR__ . '/sn-apply/roadmap-board.php';
+require_once __DIR__ . '/sn-apply/executors.php';
 
 add_action( 'wp_abilities_api_init', function() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
@@ -120,7 +148,7 @@ add_action( 'wp_abilities_api_init', function() {
 				// Session 7 — restore_revision's own definitive fields (all
 				// other 9 types never populate these; the generic
 				// `revision_id` above stays null for restore_revision on
-				// purpose, see inc/sn-apply-restore-revision.php).
+				// purpose, see inc/sn-apply/restore-revision.php).
 				'post_id'              => array( 'type' => array( 'integer', 'null' ) ),
 				'restored_revision_id' => array( 'type' => array( 'integer', 'null' ) ),
 				'rollback_revision_id' => array( 'type' => array( 'integer', 'null' ) ),

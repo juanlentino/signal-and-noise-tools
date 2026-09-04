@@ -23,7 +23,7 @@
  * A batch spanning that boundary would publish posts the operator was merely
  * rescheduling.
  *
- * `inc/sn-apply-block-edit.php` already refuses that boundary for MCP writes
+ * `inc/sn-apply/block-edit.php` already refuses that boundary for MCP writes
  * (409 `snt_sn_apply_schedule_overdue`). This file mirrors the SAME comparison
  * for the admin path rather than re-deriving it — one rule, two surfaces.
  *

@@ -6,7 +6,7 @@
  * Everything TYPE-SPECIFIC lives here: target-shape resolution, the
  * mode-support matrix (gate 3's structural half), and the actual write
  * dispatch. Gates 1 (fingerprint) and 2 (server-side validation) live in the
- * sibling inc/sn-apply-validation.php (split out purely for the 450-line
+ * sibling inc/sn-apply/validation.php (split out purely for the 450-line
  * file budget — same executor layer). Every write DELEGATES to the real
  * absorbed impl's core logic — this file never re-implements a capability
  * check, a sanitizer, or a fingerprint scheme; see each case below for
@@ -25,7 +25,7 @@
  * | surfaces          |  partial |   yes   | excerpt is a content field (post_excerpt, revision-stageable); meta_description/og_card_title/seo_title/focus_keyword are postmeta (staged via snt_sn_apply_stage_meta()). Revision mode stages ALL of these but never regenerates the OG card PNG — that side effect is publish-only (see og_card below). |
  * | og_card           |    NO    |   yes   | sn_generate_og_card() writes a PNG FILE to disk (inc/og-card-generator.php) — not a post field at all. There is no WordPress revision of a file. Refuses structurally in revision mode, never fakes a staged version. |
  * | anchor_sweep      |    NO    |   yes   | dispatches a bounded wp_remote_post() to the provenance Worker (inc/provenance-webhook.php's sn_prov_run_sweep()) — an external side effect with no post entity involved at all (target is scope:"provenance_anchors", not a post_id). Nothing to stage. |
- * | create_draft      |   yes    |   NO    | insert-only (session 6c, the arc's finale — see inc/sn-apply-create-draft.php's docblock for the full B5c origin): post_status is hard-coded 'draft', post_type hard-coded 'post'. mode:"publish" refuses structurally — this tool never makes a draft live; the owner schedules by hand. mode:"revision" is the one accepted mode, but its OWN write mechanism (snt_sn_apply_write_create_draft(), not snt_sn_apply_stage_revision()) — there is no parent post yet to stage a core revision against; "revision" here just means the request goes through the same dry_run-by-default, human-review-first posture as everywhere else in this tool. |
+ * | create_draft      |   yes    |   NO    | insert-only (session 6c, the arc's finale — see inc/sn-apply/create-draft.php's docblock for the full B5c origin): post_status is hard-coded 'draft', post_type hard-coded 'post'. mode:"publish" refuses structurally — this tool never makes a draft live; the owner schedules by hand. mode:"revision" is the one accepted mode, but its OWN write mechanism (snt_sn_apply_write_create_draft(), not snt_sn_apply_stage_revision()) — there is no parent post yet to stage a core revision against; "revision" here just means the request goes through the same dry_run-by-default, human-review-first posture as everywhere else in this tool. |
  * | link_reshape      |   yes    |   yes   | audit item 5 (v10.58.0): move an <a>'s boundaries within one text node. new_anchor must be a contiguous, unique substring of current_anchor; href carried over, never a parameter; prose byte-identity ASSERTED post-splice; fingerprint = live content_hash (sentence_replace's binding). Provenance-invisible by item 4's answer (normalized prose is unchanged -> bearing-hash coalesce -> no new commit). |
  * | unlink            |   yes    |   yes   | v10.59.0, link_reshape's promised sibling: remove an <a>'s wrapper, keep the inner text — same locator, same fingerprint binding, same post-splice prose-identity assertion. |
  * | delete_draft      |   yes    |   NO    | create_draft's mirror (audit item 6, v10.58.0): trash-only (wp_trash_post, never a hard delete), draft-only (gate 2 + a last-instant re-check in the write), fingerprint-gated on the draft's content_hash. Revision-only for create_draft's reason; rollback is wp-admin untrash (reported as method "manual_untrash" — a human action, not an MCP method). |
@@ -33,7 +33,7 @@
  * | block_replace     |   yes    |   yes   | v13.2.0: same module — the whole top-level block containing the anchor is replaced; diff reports the replaced block's serialized form. Same write/guard contract as block_insert. |
  * | block_delete      |   yes    |   yes   | v13.5.0: removes one top-level block (located by anchor OR block_path, exactly one); refuses to empty the post; diff reports removed_block. Same write/guard contract. |
  * | block_move        |   yes    |   yes   | v13.5.0: relocates one top-level block in a SINGLE call (source by block_path; destination before/after a block or end); diff reports moved_block. Same write/guard contract. |
- * | restore_revision  |    NO    |   yes   | session 7 (the acceptance path — see inc/sn-apply-restore-revision.php's docblock): a restore IS the live write, so "staging a restore" would stage a revision of a revision. mode:"revision" refuses structurally, the exact mechanism og_card/anchor_sweep use. Publish-only means only the rw door's bound owner credential can ever execute it (gate 3's identity grant); a routine credential is refused there by construction, never by new identity code. Promotes a staged revision to live AND applies+clears any queued snt_sn_apply_stage_meta() rows for the same post — the queue's first application path. |
+ * | restore_revision  |    NO    |   yes   | session 7 (the acceptance path — see inc/sn-apply/restore-revision.php's docblock): a restore IS the live write, so "staging a restore" would stage a revision of a revision. mode:"revision" refuses structurally, the exact mechanism og_card/anchor_sweep use. Publish-only means only the rw door's bound owner credential can ever execute it (gate 3's identity grant); a routine credential is refused there by construction, never by new identity code. Promotes a staged revision to live AND applies+clears any queued snt_sn_apply_stage_meta() rows for the same post — the queue's first application path. |
  *
  * "partial" on surfaces is intentionally not a clean yes/no: the TYPE
  * supports revision mode (the gate lets the mode through), but the response
@@ -89,11 +89,11 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	'schedule_cron_event',
 	// v10.58.0 (audit item 6): makes create_draft's advertised
 	// rollback:{method:"delete_draft"} REAL — trash-only, draft-only,
-	// fingerprint-gated. See inc/sn-apply-delete-draft.php.
+	// fingerprint-gated. See inc/sn-apply/delete-draft.php.
 	'delete_draft',
 	// v10.58.0 (audit item 5, owner-confirmed after item 4): move an <a>'s
 	// boundaries within one text node — rendered prose byte-identical,
-	// asserted server-side. See inc/sn-apply-link-reshape.php.
+	// asserted server-side. See inc/sn-apply/link-reshape.php.
 	'link_reshape',
 	// v10.59.0: link_reshape's promised sibling — remove an <a>'s wrapper,
 	// keep the inner text. Same module file, same identity assertion.
@@ -102,13 +102,13 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 	// before/after an anchored top-level block (or at the end), or replace
 	// the whole top-level block containing the anchor. Live content_hash
 	// fingerprint, round-trip + registry markup gate, prose-delta reporting.
-	// See inc/sn-apply-block-edit.php.
+	// See inc/sn-apply/block-edit.php.
 	'block_insert',
 	'block_replace',
 	// v13.5.0: the block edit family's remaining verbs — delete (removal was
 	// otherwise impossible through MCP) and move as a SINGLE operation (two
 	// individually-legal replaces can strand a caller mid-swap; see
-	// inc/sn-apply-block-edit.php's compute_move docblock). Both accept the
+	// inc/sn-apply/block-edit.php's compute_move docblock). Both accept the
 	// new block_path locator, the only way to reach a dynamic block whose
 	// text lives in its delimiter attributes.
 	'block_delete',
@@ -125,7 +125,7 @@ const SNT_SN_APPLY_CHANGE_TYPES = array(
 
 /**
  * The mode-support matrix, structural (never identity-dependent — see
- * inc/sn-apply-gates.php's snt_sn_apply_gate_capability() for how this
+ * inc/sn-apply/gates.php's snt_sn_apply_gate_capability() for how this
  * combines with the IDENTITY grant). 'reason' is surfaced verbatim in a
  * gate-3 refusal when 'revision' is requested for a publish-only type.
  *
@@ -406,7 +406,7 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 
 		case 'sentence_replace':
 			// The agent-composed body edit — impl in
-			// inc/sn-apply-sentence-replace.php; whole-post content_hash
+			// inc/sn-apply/sentence-replace.php; whole-post content_hash
 			// fingerprint, plain-prose splice, same write-callback contract
 			// as the drift family above.
 			$revision_id = null;
@@ -446,7 +446,7 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 
 		case 'link_reshape':
 			// Audit item 5: tag-boundary movement inside one text node —
-			// impl in inc/sn-apply-link-reshape.php, sentence_replace's
+			// impl in inc/sn-apply/link-reshape.php, sentence_replace's
 			// write-callback contract, its own post-splice identity assert.
 			$revision_id = null;
 			$cb          = 'revision' === $mode ? snt_sn_apply_revision_write_callback( $revision_id ) : null;
@@ -506,7 +506,7 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 		case 'block_delete':
 		case 'block_move':
 			// v13.2.0 (+ delete/move v13.5.0): the caller-composed block edit family — impl in
-			// inc/sn-apply-block-edit.php, sentence_replace's write-callback
+			// inc/sn-apply/block-edit.php, sentence_replace's write-callback
 			// contract, plus the scheduled-post status/date guard and the
 			// prose-delta report (the ledger consequence, visible in the diff
 			// of the REAL write exactly as in the dry run's).
@@ -593,7 +593,7 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 
 		case 'roadmap_board':
 			// mode:publish only — see snt_sn_apply_mode_support(). The write
-			// impl (inc/sn-apply-roadmap-board.php) shapes its own diff
+			// impl (inc/sn-apply/roadmap-board.php) shapes its own diff
 			// (before = the pre-write effective board).
 			return snt_sn_apply_write_roadmap_board( $payload );
 
@@ -659,7 +659,7 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 
 		case 'create_draft':
 			// mode:revision only — see snt_sn_apply_mode_support(). This is
-			// create_draft's OWN write mechanism (inc/sn-apply-create-draft.php),
+			// create_draft's OWN write mechanism (inc/sn-apply/create-draft.php),
 			// never snt_sn_apply_stage_revision() — there is no parent post to
 			// stage against, the insert itself IS the (reversible-via-trash)
 			// artifact.
@@ -677,7 +677,7 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 		case 'delete_draft':
 			// mode:revision only — see snt_sn_apply_mode_support(). Trash-only
 			// write with its own last-instant draft-status re-check
-			// (inc/sn-apply-delete-draft.php).
+			// (inc/sn-apply/delete-draft.php).
 			$result = snt_sn_apply_write_delete_draft( (int) ( $resolved['post_id'] ?? 0 ) );
 			if ( is_wp_error( $result ) ) {
 				return $result;
@@ -691,7 +691,7 @@ function snt_sn_apply_execute_write( $type, array $resolved, array $change, $mod
 
 		case 'restore_revision':
 			// mode:publish only — see snt_sn_apply_mode_support(). This is
-			// session 7's acceptance path (inc/sn-apply-restore-revision.php):
+			// session 7's acceptance path (inc/sn-apply/restore-revision.php):
 			// ensure a rollback snapshot of the CURRENT live state, restore the
 			// requested revision, then apply+clear any staged-meta rows for
 			// this post. apply_staged_meta defaults TRUE — see that file's
@@ -904,7 +904,7 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 		case 'create_draft':
 			// {title, block_count, word_count} — not a before/after content
 			// diff (there is no "before": nothing exists yet). See
-			// inc/sn-apply-create-draft.php's snt_sn_apply_create_draft_preview().
+			// inc/sn-apply/create-draft.php's snt_sn_apply_create_draft_preview().
 			return array(
 				'before'         => null,
 				'after'          => snt_sn_apply_create_draft_preview( $payload ),
@@ -913,7 +913,7 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 
 		case 'restore_revision':
 			// {before, after, fields_changed} — session 7's revision_diff()
-			// shape (inc/sn-apply-revision.php), deliberately NOT the
+			// shape (inc/sn-apply/revision.php), deliberately NOT the
 			// {before,after,blocks_touched} shape every other type uses: a
 			// full-field restore isn't measured in "blocks touched", and
 			// fields_changed is the more honest, more useful preview here.
@@ -934,13 +934,13 @@ function snt_sn_apply_dry_run_diff( $type, array $resolved, array $change, array
 
 		case 'roadmap_board':
 			// before = the CURRENT effective board — deliberately doubling as
-			// the type's read surface (see inc/sn-apply-roadmap-board.php's
+			// the type's read surface (see inc/sn-apply/roadmap-board.php's
 			// docblock: the observe step is a dry_run call itself).
 			return snt_sn_apply_roadmap_board_diff( $change );
 
 		case 'delete_draft':
 			// Identity preview, not a content diff — "is this the draft I
-			// think it is" (inc/sn-apply-delete-draft.php).
+			// think it is" (inc/sn-apply/delete-draft.php).
 			return snt_sn_apply_delete_draft_diff( $resolved );
 
 		default:
