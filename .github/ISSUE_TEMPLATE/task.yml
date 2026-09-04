@@ -1,0 +1,26 @@
+name: Task
+description: Process, packaging or maintenance work.
+labels: ["type:task", "repo:plugin"]
+body:
+  - type: textarea
+    id: spec
+    attributes:
+      label: Spec
+      description: What to change. Ten to twenty lines - enough to act on, not a novella.
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance
+      description: How this is known to be done. Prefer a gate that can fail over a claim that it works.
+      placeholder: "Deleting X turns a named assertion red."
+    validations:
+      required: true
+  - type: textarea
+    id: out-of-scope
+    attributes:
+      label: Out of scope
+      description: What this issue deliberately does NOT cover, so the PR cannot grow into it.
+    validations:
+      required: true
