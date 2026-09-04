@@ -501,5 +501,30 @@ ok( false !== strpos( $both, 'Sooner Post' ) && false !== strpos( $both, 'post=3
 ok( strpos( $both, 'Sooner Post' ) < strpos( $both, 'post=3001' ),
 	'IA SCHED1: ordering is across BOTH sources, not fragments-then-posts' );
 
+// ─── core's list-table responsive contract, on the RENDERED markup ─────────
+// The sweep in tests/admin-table-mobile-contract.php skips this file: it holds
+// two list tables AND the plain one-cell "no scheduled content" notice, and
+// file-scoped text cannot say which cells belong to which. So the contract is
+// pinned here, where the real output is already in hand.
+ok( 1 === preg_match( '/<th scope="col" class="[^"]*column-primary[^"]*">Target/', $both ),
+	'the Target header is the primary column, so rows stack under 782px (#1015)' );
+ok( 1 === preg_match( '/<th scope="row" class="[^"]*column-primary[^"]*" data-colname="Target">/', $both ),
+	'each row header is the primary cell and names its column' );
+
+// Every DATA cell carries a label. A colspan cell spans the table and must not.
+preg_match_all( '/<td\b[^>]*>/', $both, $cells );
+$unlabelled = array();
+foreach ( $cells[0] as $tag ) {
+	if ( false !== stripos( $tag, 'colspan' ) ) {
+		continue;
+	}
+	if ( false === strpos( $tag, 'data-colname' ) ) {
+		$unlabelled[] = $tag;
+	}
+}
+ok( count( $cells[0] ) >= 6, 'VACUITY: the render produced data cells to check (' . count( $cells[0] ) . ')' );
+ok( array() === $unlabelled,
+	'every data cell names its column; unlabelled: ' . ( $unlabelled ? implode( ' ', $unlabelled ) : 'none' ) );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

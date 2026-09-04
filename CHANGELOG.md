@@ -37,7 +37,12 @@ adds a bullet below. A release is a separate, deliberate act:
   written". The guard states the one place file scope still cannot decide
   (a file holding both a list table and a plain `widefat` one) and prints its
   own coverage count, so a future narrowing shows as a number that moved rather
-  than as silence. (#1015)
+  than as silence. That counter immediately earned itself: dropping the class
+  from the one-cell notice made `inc/schedule-admin.php` a mixed-table file, so
+  the sweep's label check went from nine files to eight. Those two tables are
+  now pinned in `tests/schedule-admin.php` against the RENDERED markup instead.
+  All new assertions were run against the pre-fix commit and go red there.
+  (#1015)
 
 ## [13.96.3] - 2026-09-04 — the instrument that could not see a server error
 
