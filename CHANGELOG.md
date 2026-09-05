@@ -12,6 +12,25 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- A 25th health check: the machine-reader dataset went quiet. The rights-signals
+  worker's sensor readout (`sensor.last_write_ok`) is isolate memory -- null until
+  that isolate has attempted a write, and a fresh isolate on every colo -- so it
+  reads null both on a normal afternoon and for a sensor that quietly stopped
+  matching crawlers; the edge-workers check flags only `false`. The dataset is what
+  can tell: at ~450 machine reads a day, a day of zero is a signal. The durable
+  snapshot now carries a per-day series (`by_day`), and the check flags a zero
+  day (relative to the CAPTURE, whose days are complete) against a baseline mean of
+  at least 20/day, naming how many days the silence has lasted. It cannot say
+  whether the silence is the sensor or the crawlers, and its note says so.
+- A 26th health check: theme.json declares a preset the site does not serve. The
+  live half of the theme's v12.18.9 guard (theme #284): since WordPress 6.6 core
+  drops a theme preset whose slug collides with a core default unless the family's
+  `default*` flag is false, and the theme served core's whole spacing scale that way
+  for its entire life. The check compares the active theme.json's declared slugs
+  per family with the merged settings' `theme` origin; a remainder names the family,
+  the slugs and the flag. Flat (non-origin-keyed) settings are a skip, never a pass.
+
 ### Fixed
 - Fourteen more health-check bail-outs reported a pass when they had not run, and
   two checks had no way to say so at all. v13.97.4 fixed seven calls that put the

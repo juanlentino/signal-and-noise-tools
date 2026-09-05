@@ -103,6 +103,10 @@ function sn_health_check_family_map() {
 		// (sn_health_check_families()), not a gap - see tests/health-check-families.php.
 		'plugin_registry'      => 'other',
 		'wp_cron_request_path' => 'other',
+		// v13.98.0: the dataset behind the machine-readers sensor is an edge
+		// concern; theme.json presets are the site's own configuration.
+		'machine_reader_liveness' => 'edge',
+		'theme_presets'        => 'other',
 	);
 }
 

@@ -101,6 +101,10 @@ ok( 20 === snt_mr_snapshot_total( $snap ), 'total sums every row\'s hits (12+3+5
 ok( 15 === ( $snap['by_family']['openai'] ?? null ), 'by_family sums across surfaces for one family' );
 ok( 5 === ( $snap['by_surface']['rights'] ?? null ), 'by_surface carries the rights surface (3B\'s numerator source)' );
 ok( ! isset( $snap['by_family']['perplexity'] ), 'a family with no rows is ABSENT from the map, not present as 0' );
+// v13.98.0: the per-day series the liveness check reads. Same convention as
+// by_family: a day with no rows is absent, never 0; keys sorted ascending.
+ok( is_array( $snap['by_day'] ?? null ) && array_sum( $snap['by_day'] ) === $snap['total'], 'by_day sums to the same total as the window' );
+ok( array_keys( $snap['by_day'] ) === array_values( array_unique( array_keys( $snap['by_day'] ) ) ) && $snap['by_day'] === ( function ( $m ) { ksort( $m ); return $m; } )( $snap['by_day'] ), 'by_day is keyed by day, ascending' );
 ok( 0 === $GLOBALS['__http_calls'], 'THE GATE: reading a fresh snapshot made no outbound call' );
 
 echo "\nGroup: a stale snapshot states its own age and still never fetches\n";
