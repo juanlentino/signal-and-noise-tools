@@ -24,8 +24,8 @@ const ARRAY_A = 'ARRAY_A'; // wpdb output constant, defined by WP core at runtim
 
 function get_permalink( $id ) { return 'https://x.test/?p=' . (int) $id; }
 function admin_url( $p = '' ) { return 'https://x.test/wp-admin/' . $p; }
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
-	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint );
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
+	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
 }
 
 // A $wpdb stub that records the SQL and replays fixture rows.

@@ -23,8 +23,8 @@ function sn_health_normalize_hex( $color ) {
 	$h = $m[1];
 	return '#' . ( 3 === strlen( $h ) ? $h[0] . $h[0] . $h[1] . $h[1] . $h[2] . $h[2] : $h );
 }
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
-	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint );
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
+	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
 }
 
 if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', __DIR__ . '/../' ); }

@@ -21,12 +21,13 @@ define( 'ABSPATH', '/' );
 
 // The check module calls the shared envelope helper from inc/health-checks.php;
 // this stub is a verbatim copy of the real 5-line implementation.
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
 	return array(
 		'count'    => count( $findings ),
 		'findings' => $findings,
 		'label'    => $label,
 		'fix_hint' => $fix_hint,
+		'skipped'  => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null,
 	);
 }
 function __( $s, $d = null ) { return (string) $s; }

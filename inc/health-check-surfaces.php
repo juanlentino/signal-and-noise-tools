@@ -60,6 +60,10 @@ function sn_health_check_surface_map() {
 		// improvable), it reaches zero and stays there, and no other
 		// surface owns it - the three tests for the Health surface.
 		'plugin_registry'       => 'health',
+		// 24th check (v13.97.4): cron still spawned in-request. A defect (a
+		// pageview pays for a 10.6s job), reaches zero with one wp-config line,
+		// and unowned elsewhere - the three tests for this surface.
+		'wp_cron_request_path'  => 'health',
 
 		// ── MEASUREMENTS (Integrity) ───────────────────────────────────────
 		// Both disclaim their own authority in their own copy — "a red row here

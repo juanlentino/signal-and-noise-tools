@@ -133,6 +133,11 @@ function sn_health_run_scan() {
 			// answer "no plugins installed" with a 200, and nothing in the
 			// estate could tell that from a site that genuinely has none.
 			'plugin_registry'     => sn_health_check_plugin_registry(),
+			// 24th check (v13.97.4): WP-Cron still spawning from page requests.
+			// Lives here rather than as a field on cron-health because that
+			// payload is a versioned remote-MCP twin and a new field is a
+			// contract bump the worker has not been redeployed for.
+			'wp_cron_request_path' => sn_health_check_wp_cron_request_path(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
 			'edge_workers'        => sn_health_check_edge_workers(),
 			// 12th check (v9.65.0): the reader of sn_analytics_integrity_alert —

@@ -102,6 +102,7 @@ function sn_health_check_family_map() {
 		// about the site's own plugin registry. 'other' is a DECLARED family
 		// (sn_health_check_families()), not a gap - see tests/health-check-families.php.
 		'plugin_registry'      => 'other',
+		'wp_cron_request_path' => 'other',
 	);
 }
 

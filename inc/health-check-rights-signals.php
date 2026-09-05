@@ -159,7 +159,7 @@ function snt_health_check_rights_signals() {
 
 	// SSRF guard (resolve, never string-match): fail closed before any request.
 	if ( sn_ssrf_host_blocked( (string) wp_parse_url( $targets['html'], PHP_URL_HOST ) ) ) {
-		return sn_health_pack_check( $label, array(), 'Probe skipped: the site host failed the SSRF guard. The check will retry on the next scan.' );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'Probe skipped: the site host failed the SSRF guard. The check will retry on the next scan.' );
 	}
 
 	$responses = array();
@@ -175,7 +175,7 @@ function snt_health_check_rights_signals() {
 			),
 		) );
 		if ( is_wp_error( $resp ) ) {
-			return sn_health_pack_check( $label, array(), 'Probe failed (' . $resp->get_error_message() . ') fetching ' . $url . '. The check will retry on the next scan.' );
+			return sn_health_pack_check( $label, array(), $fix_hint, 'Probe failed (' . $resp->get_error_message() . ') fetching ' . $url . '. The check will retry on the next scan.' );
 		}
 		$responses[ $key ] = array(
 			'code'    => (int) wp_remote_retrieve_response_code( $resp ),

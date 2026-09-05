@@ -94,8 +94,8 @@ function wp_remote_retrieve_response_code( $resp ) { return is_array( $resp ) ? 
 function wp_remote_retrieve_headers( $resp ) { return is_array( $resp ) ? ( $resp['response']['headers'] ?? array() ) : array(); }
 function get_transient( $k ) { return $GLOBALS['__ext']['transient'][ $k ] ?? false; }
 function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__ext']['transient'][ $k ] = $v; return true; }
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
-	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint );
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
+	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
 }
 
 // $wpdb stub

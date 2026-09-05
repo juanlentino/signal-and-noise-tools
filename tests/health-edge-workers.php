@@ -30,8 +30,8 @@ function set_transient( $k, $v, $ttl = 0 ) { $GLOBALS['__ew']['transient'][ $k ]
 function sn_worker_version_endpoint_url() { return $GLOBALS['__ew']['endpoint']; }
 function sn_worker_version_get() { return $GLOBALS['__ew']['wv']; }
 function sn_login_defense_status() { return $GLOBALS['__ew']['lg']; }
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
-	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint );
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
+	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
 }
 
 // ── sn-remote-mcp probe stubs (v11.x, H1): the URL is fixed on our own zone
@@ -157,7 +157,8 @@ ok( function_exists( 'sn_health_check_edge_workers' ), 'sn_health_check_edge_wor
 // not configured (no derivable endpoint) → skip, advisory hint, never false-flags.
 $GLOBALS['__ew']['endpoint'] = '';
 $r = sn_health_check_edge_workers();
-ok( 0 === $r['count'] && false !== strpos( $r['fix_hint'], 'not configured' ), 'no endpoint → skip with advisory hint (no false positives)' );
+ok( 0 === $r['count'] && false !== strpos( (string) $r['skipped'], 'not configured' ), 'no endpoint → skip with advisory hint (no false positives)' );
+ok( is_string( $r['skipped'] ) && '' !== $r['skipped'], '   ...and it reports as SKIPPED rather than as a check that ran and found nothing' );
 $GLOBALS['__ew']['endpoint'] = 'https://x.test/_sn/version';
 
 // configured + analytics ok + login-guard stale → flagged, and the status is cached.

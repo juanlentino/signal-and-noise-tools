@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.97.3
+ * Version:     13.97.4
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -590,6 +590,7 @@ require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0):
 // (contrast_tokens' pair table, previously invisible in admin). Required
 // BEFORE the tab that calls them.
 require_once SNT_PATH . 'inc/plugin-registry-probe.php'; // v13.96.6 (#1026): records an empty /wp/v2/plugins served with a 200 - the poisoning is transient and a scheduled check alone would miss it
+require_once SNT_PATH . 'inc/health-check-wp-cron-request-path.php'; // 24th check (v13.97.4): cron still spawned in-request - invisible in cron_disabled_constant, which is a problem flag rather than the constant's value
 require_once SNT_PATH . 'inc/health-check-plugin-registry.php'; // 23rd check (v13.96.6): active_plugins vs get_plugins() - a stale object cache reports "no plugins installed" with a 200
 require_once SNT_PATH . 'inc/health-check-families.php';
 require_once SNT_PATH . 'inc/health-render-findings.php';

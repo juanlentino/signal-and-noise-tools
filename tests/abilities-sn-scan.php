@@ -244,8 +244,8 @@ $GLOBALS['__theme_mods']  = array();
 // inc/health-checks.php orchestrator, which owns this shared helper) —
 // mirrors its real shape: array{count,findings,label,fix_hint}.
 if ( ! function_exists( 'sn_health_pack_check' ) ) {
-	function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
-		return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint );
+	function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
+		return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
 	}
 }
 

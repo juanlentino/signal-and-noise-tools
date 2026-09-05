@@ -86,6 +86,65 @@ function snt_should_offload_wp_cron() {
 	return (bool) apply_filters( 'snt_offload_wp_cron', true );
 }
 
-if ( snt_should_offload_wp_cron() ) {
+/**
+ * Why the offload did or did not happen, recorded at load.
+ *
+ * WHY THIS EXISTS. v13.97.2 shipped the decision with no readout, and the only
+ * thing observing it was `cron_disabled_constant` - a BOOLEAN, which reads
+ * false for "never defined" and for "defined false" alike. So when the offload
+ * declined, the site reported exactly what it reports when the offload was
+ * never installed, and the feature could sit inert indefinitely while looking
+ * like it had simply not taken effect yet.
+ *
+ * The states are distinguished here instead:
+ *
+ *   offloaded            we defined it; cron is out of the request path.
+ *   already_true         wp-config beat us to it. Same outcome, not our doing.
+ *   already_false        wp-config defines it FALSE. We decline to override -
+ *                        and this is the one that matters, because cron is
+ *                        still in the request path and nothing else says so.
+ *   declined_filter      snt_offload_wp_cron returned false. Deliberate.
+ *   declined_cli         WP-CLI drives cron itself; the constant is moot.
+ *
+ * @var string
+ */
+/**
+ * The recorded state, for the cron-health readout.
+ *
+ * @return string One of the five values documented above.
+ */
+function snt_wp_cron_offload_state() {
+	return isset( $GLOBALS['snt_wp_cron_offload_state'] )
+		? (string) $GLOBALS['snt_wp_cron_offload_state']
+		: 'unknown';
+}
+
+/**
+ * Whether cron is still being spawned from ordinary page requests.
+ *
+ * True only for `already_false` and `declined_filter`: in both, WordPress will
+ * keep spawning cron in-request, and in the first the site did not choose that
+ * - it inherited it from a wp-config line nobody has looked at.
+ *
+ * @return bool
+ */
+function snt_wp_cron_still_in_request_path() {
+	return in_array( snt_wp_cron_offload_state(), array( 'already_false', 'declined_filter' ), true );
+}
+
+// ── The only place anything actually happens ──────────────────────────────
+// Kept last on purpose: everything above is a definition, so a reader (or a
+// test harness) can load this file for its accessors without triggering the
+// define(). tests/wp-cron-offload.php strips from the marker below.
+
+$GLOBALS['snt_wp_cron_offload_state'] = 'offloaded';
+
+if ( defined( 'DISABLE_WP_CRON' ) ) {
+	$GLOBALS['snt_wp_cron_offload_state'] = DISABLE_WP_CRON ? 'already_true' : 'already_false';
+} elseif ( defined( 'WP_CLI' ) && WP_CLI ) {
+	$GLOBALS['snt_wp_cron_offload_state'] = 'declined_cli';
+} elseif ( ! snt_should_offload_wp_cron() ) {
+	$GLOBALS['snt_wp_cron_offload_state'] = 'declined_filter';
+} else {
 	define( 'DISABLE_WP_CRON', true );
 }

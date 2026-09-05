@@ -30,7 +30,13 @@ function apply_filters( $hook, $value ) {
 // case below can be driven independently. The guard clause at the bottom of
 // the file is asserted separately from source.
 $src = (string) file_get_contents( __DIR__ . '/../inc/wp-cron-offload.php' );
-eval( '?>' . preg_replace( '/if \( snt_should_offload_wp_cron\(\) \) \{.*/s', '', $src ) );
+// The file keeps every definition above a single marker comment and does the
+// one executable thing below it. Strip from the marker so this harness gets
+// the accessors without the define() - which, once run, would make every
+// later case read as 'already defined'.
+$cut = strpos( $src, 'The only place anything actually happens' );
+if ( false === $cut ) { echo "FAIL: marker comment missing from inc/wp-cron-offload.php\n"; exit( 1 ); }
+eval( '?>' . substr( $src, 0, $cut ) );
 
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -70,7 +76,25 @@ echo "\nGroup 5: the safety net it leans on still exists\n";
 // that is true, so the dependency is pinned rather than assumed.
 $cron_dash = (string) file_get_contents( dirname( __DIR__ ) . '/inc/cron-dashboard.php' );
 ok( false !== strpos( $cron_dash, "'overdue'" ), 'cron health still models overdue hooks — the detector for "external cron went away"' );
-ok( false !== strpos( $cron_dash, 'cron_disabled_constant' ), 'and still reports whether the constant is set, so the two can be read together' );
+// This assertion used to say cron_disabled_constant "reports whether the
+// constant is set". It does not, and writing that down is how I came to read
+// it that way an hour later: it is a PROBLEM FLAG (constant set AND nothing
+// fired recently AND no system cron declared), so it reads false both when the
+// constant is absent and when it is set and everything works. The state now
+// has its own field; both are pinned, and the distinction is pinned with them.
+ok( false !== strpos( $cron_dash, 'cron_disabled_constant' ), 'the problem flag is still reported' );
+ok( false !== strpos( $cron_dash, 'wp_cron_offload' ), 'and the constant\'s ACTUAL fate is reported separately, so the two cannot be confused' );
+ok( false !== strpos( $cron_dash, 'PROBLEM FLAG' ), 'and the misleading field carries a comment saying what it really means' );
+
+echo "\nGroup 6: the five states are distinguishable\n";
+ok( function_exists( 'snt_wp_cron_offload_state' ), 'the state accessor exists' );
+ok( function_exists( 'snt_wp_cron_still_in_request_path' ), 'and a predicate answers the question that actually matters' );
+$src_off = (string) file_get_contents( dirname( __DIR__ ) . '/inc/wp-cron-offload.php' );
+foreach ( array( 'offloaded', 'already_true', 'already_false', 'declined_filter', 'declined_cli' ) as $state ) {
+	ok( false !== strpos( $src_off, "'" . $state . "'" ), "state '$state' is recorded" );
+}
+ok( 1 === preg_match( "/already_false.*declined_filter|declined_filter.*already_false/s", $src_off ),
+	'THE PIN: already_false and declined_filter are the two that still leave cron in the request path, and both are named together' );
 
 echo sprintf( "\nResult: %d passed, %d failed.\n", $pass, $fail );
 exit( $fail > 0 ? 1 : 0 );

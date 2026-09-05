@@ -961,6 +961,12 @@ function snt_cron_health_summary_impl( $now = null ) {
 		'on_schedule'            => max( 0, $on_schedule ),
 		'overdue'                => $overdue,
 		'missing'                => $missing,
+		// NOT "is DISABLE_WP_CRON set". It is a PROBLEM FLAG: the constant is
+		// set AND nothing fired recently AND no system cron is declared. It
+		// reads false both when the constant is absent and when the constant is
+		// set and everything is working - two opposite situations. The name has
+		// already misled one reader (v13.97.3, mine); `wp_cron_offload` below
+		// is the field that actually answers "what happened to the constant".
 		'cron_disabled_constant' => (bool) $cron_disabled,
 		'summary'                => $summary,
 	);
