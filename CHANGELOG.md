@@ -12,6 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- The desktop icon that opens the admin page is titled "S&N Dashboard", to
+  match "S&N Analytics" beside it. Same id, same URL, same spot on the desktop.
+  (#1060)
+
 ## [13.99.1] - 2026-09-05 — the Citations leaf at full width
 
 ### Fixed
