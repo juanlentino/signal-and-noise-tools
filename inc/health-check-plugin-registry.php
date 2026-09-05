@@ -127,5 +127,27 @@ function sn_health_check_plugin_registry() {
 		);
 	}
 
+	// A transient poisoning can be served, be seen, and be gone before the next
+	// scheduled scan. inc/plugin-registry-probe.php writes down what it served;
+	// report that for its window even when the registry reads correctly NOW,
+	// otherwise the scan reports a clean site for a fault someone watched.
+	if ( function_exists( 'snt_plugin_registry_anomaly' ) ) {
+		$seen = snt_plugin_registry_anomaly();
+		if ( is_array( $seen ) ) {
+			$findings[] = array(
+				'subject_type'  => 'plugin_registry',
+				'subject_id'    => 0,
+				'subject_url'   => '',
+				'subject_label' => 'empty response observed',
+				'edit_url'      => '',
+				'note'          => sprintf(
+					'GET /wp/v2/plugins served an EMPTY list with a success status %s ago, while %d plugin(s) were active. The registry may read correctly now - this is the observation, not the current state. It clears itself after 7 days. Run `wp cache flush` and check the object cache.',
+					human_time_diff( $seen['time'] ),
+					$seen['active']
+				),
+			);
+		}
+	}
+
 	return sn_health_pack_check( $label, $findings, $fix_hint );
 }

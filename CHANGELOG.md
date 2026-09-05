@@ -29,6 +29,17 @@ adds a bullet below. A release is a separate, deliberate act:
   the orphan). Surface `health`: it is a defect, it reaches zero and stays there,
   and no other surface owns it. (#1026)
 
+- A runtime probe beside it. The poisoning is TRANSIENT — it can be served, be
+  seen by a person, and be gone before the next scheduled scan, so a scheduled
+  check alone would report a clean site for a fault someone watched happen.
+  `rest_request_after_callbacks` now notices when `GET /wp/v2/plugins` answers
+  an EMPTY collection with a success status while plugins are active, and
+  writes down the time and the active count. The health check reports that
+  observation for seven days, stating plainly that it is the observation and
+  not the current state, then lets it expire so the check can reach zero again.
+  It records and never repairs: flushing a cache from inside a read request
+  would destroy the evidence. (#1026)
+
 ### Internal
 - The check reports `skipped` rather than a silent zero whenever it could not
   run — `get_plugins()` unavailable, `active_plugins` unreadable, no active
