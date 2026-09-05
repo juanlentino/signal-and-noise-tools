@@ -223,8 +223,10 @@ add_action( 'init', function() {
 		return;
 	}
 
+	// v13.99.2: "S&N Dashboard", to match the S&N Analytics icon beside it. The
+	// id and URL are unchanged, so the owner's placement keeps its spot.
 	snt_os_register_icon( 'sn-icon-dashboard', array(
-		'title' => 'SN Dashboard',
+		'title' => 'S&N Dashboard',
 		'icon'  => 'dashicons-shield-alt',
 		'url'   => admin_url( 'admin.php?page=sn-theme-options' ),
 	) );
