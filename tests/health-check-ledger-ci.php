@@ -21,12 +21,13 @@ function ok( $cond, $label ) {
 
 // Mirror the REAL envelope builder (inc/health-checks.php), as the sibling
 // rights-signals fixture does.
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
 	return array(
 		'count'    => count( $findings ),
 		'findings' => $findings,
 		'label'    => $label,
 		'fix_hint' => $fix_hint,
+		'skipped'  => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null,
 	);
 }
 $GLOBALS['__resp'] = array( 'code' => 200, 'body' => '' );
@@ -80,7 +81,11 @@ ok( 1 === $pack['count'] && 'ledger_ci' === $pack['findings'][0]['subject_type']
 ok( false !== strpos( $pack['findings'][0]['subject_url'], 'actions' ), 'the finding links to the run' );
 $GLOBALS['__resp'] = array( 'code' => 403, 'body' => '' );
 $pack = snt_health_check_ledger_ci();
-ok( 0 === $pack['count'] && false !== stripos( $pack['fix_hint'], 'gap in evidence' ), 'an unreachable API is an ADVISORY, never a red finding (outage is not drift)' );
+// v13.97.4: the reason moved from fix_hint to `skipped`. It is the same
+// sentence, but only in `skipped` does the tally SEE it — a check that could
+// not run was previously counted as one that passed.
+ok( 0 === $pack['count'] && false !== stripos( (string) $pack['skipped'], 'gap in evidence' ), 'an unreachable API is an ADVISORY, never a red finding (outage is not drift)' );
+ok( is_string( $pack['skipped'] ) && '' !== $pack['skipped'], '   ...and it reports as SKIPPED, so the tally cannot count it as a pass' );
 $GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array( 'workflow_runs' => array() ) ) );
 $pack = snt_health_check_ledger_ci();
 ok( 0 === $pack['count'] && '' !== $pack['fix_hint'], 'no-runs-yet packs zero findings with the honest note as hint' );

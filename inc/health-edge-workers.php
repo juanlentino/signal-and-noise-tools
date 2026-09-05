@@ -479,6 +479,7 @@ function sn_health_check_edge_workers() {
 		return sn_health_pack_check(
 			$label,
 			array(),
+			$fix_hint,
 			'Edge workers not configured (no collector endpoint derivable): skipping. Set the Collector endpoint (Measurement → Analytics) to the Worker origin to enable.'
 		);
 	}

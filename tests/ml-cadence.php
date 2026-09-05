@@ -31,8 +31,8 @@ class WP_Error {
 }
 function is_wp_error( $x ) { return $x instanceof WP_Error; }
 function number_format_i18n( $n ) { return number_format( (float) $n ); }
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
-	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint );
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
+	return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
 }
 // Kernel: load the REAL math (pure file, zero WP calls) — never stub the
 // formula under test.

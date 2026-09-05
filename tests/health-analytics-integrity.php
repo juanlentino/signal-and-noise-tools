@@ -32,12 +32,13 @@ function update_option( $key, $value, $autoload = null ) { $GLOBALS['__hai_optio
 // sn_health_pack_check lives in inc/health-checks.php (not loadable standalone —
 // it declares 11 sibling checks + WP-heavy code). Mirror the REAL envelope
 // builder exactly (inc/health-checks.php:1237-1244) — count/findings/label/fix_hint.
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
 	return array(
 		'count'    => count( $findings ),
 		'findings' => $findings,
 		'label'    => $label,
 		'fix_hint' => $fix_hint,
+		'skipped'  => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null,
 	);
 }
 

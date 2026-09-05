@@ -28,7 +28,28 @@ adds a bullet below. A release is a separate, deliberate act:
   while looking installed) and `declined_filter`. They get different notes:
   one is a wp-config line to change, the other a choice someone made. (#1037)
 
+### Fixed
+- Seven health checks reported a PASS when they had not run. `sn_health_pack_check()`
+  grew a `$skipped` parameter in v11.33.0 precisely because "zero findings"
+  covered both "nothing wrong" and "could not run" — and seven calls were still
+  passing their bail-out reason as `fix_hint`, which the tally never reads: the
+  Cloudflare header probe (×2), the ledger CI check, the two rights probes (×3
+  between them) and the edge-workers check. Each now reports as skipped.
+  `cf-security-headers.php` already did this correctly one branch away, so it
+  was drift rather than a considered choice. (#1039)
+
 ### Internal
+- Fourteen test-local `sn_health_pack_check` stubs still had the pre-v11.33.0
+  shape — three parameters, no `skipped` key — so they silently discarded the
+  fourth argument. **A suite whose stub cannot carry the field cannot fail when
+  a check forgets it**, which is why the seven above sat mis-reported for two
+  minor versions on a green board. Thirteen are updated; one is exempt because
+  it returns a positional pair and never claimed to be the envelope.
+  `tests/health-pack-check-stub-parity.php` now reads the real signature from
+  source and fails on drift, exempting by SHAPE rather than by filename so it
+  cannot rot when a file is renamed. On its first run it caught ITSELF — its
+  negative control is a literal stub definition — which is the clearest
+  evidence the matcher works; it is excluded by path, not by pattern. (#1039)
 - The field belonged next to `cron_disabled_constant`, and could not go there.
   That payload is one of eight remote-MCP twins whose output_schemas ARE the
   versioned contract, shape-hashed by `tests/remote-contract-shapes.php`. Adding

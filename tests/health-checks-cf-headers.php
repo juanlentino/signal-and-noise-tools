@@ -244,7 +244,8 @@ $GLOBALS['__test_head_response'] = array(
 );
 $check = sn_health_check_cf_security_headers();
 cf_eq( 0, $check['count'], 'edge bypass → 0 findings (no false positives)' );
-cf_true( false !== stripos( $check['fix_hint'], 'origin directly' ), 'advisory note mentions hitting the origin directly' );
+cf_true( false !== stripos( (string) $check['skipped'], 'origin directly' ), 'advisory note mentions hitting the origin directly' );
+cf_true( is_string( $check['skipped'] ) && '' !== $check['skipped'], 'and it reports as SKIPPED — a probe that could not confirm is not a pass' );
 cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_headers_probe'] ), 'degenerate result NOT cached (re-attempts next scan)' );
 
 // ─── Test 8: confirmed edge (cf-ray present, 4/5) → edge path still works

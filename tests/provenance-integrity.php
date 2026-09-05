@@ -93,12 +93,13 @@ function wp_register_ability( $slug, $args ) { $GLOBALS['__pi_abilities'][ $slug
 
 // sn_health_pack_check lives in inc/health-checks.php (not loadable standalone).
 // Mirror the REAL envelope builder exactly (inc/health-checks.php:1239-1246).
-function sn_health_pack_check( $label, $findings, $fix_hint = '' ) {
+function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
 	return array(
 		'count'    => count( $findings ),
 		'findings' => $findings,
 		'label'    => $label,
 		'fix_hint' => $fix_hint,
+		'skipped'  => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null,
 	);
 }
 

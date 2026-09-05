@@ -101,7 +101,7 @@ function snt_health_check_ledger_ci() {
 		),
 	) );
 	if ( is_wp_error( $resp ) || 200 !== (int) wp_remote_retrieve_response_code( $resp ) ) {
-		return sn_health_pack_check( $label, array(), 'Could not reach the GitHub API for the ledger repo (an outage is a gap in evidence, not a red ledger). The check retries on the next scan.' );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'Could not reach the GitHub API for the ledger repo (an outage is a gap in evidence, not a red ledger). The check retries on the next scan.' );
 	}
 
 	$verdict = snt_ledger_ci_evaluate( json_decode( (string) wp_remote_retrieve_body( $resp ), true ) );

@@ -149,7 +149,7 @@ function snt_health_check_rights_anchored() {
 	$targets = snt_rights_anchor_targets();
 
 	if ( function_exists( 'sn_ssrf_host_blocked' ) && sn_ssrf_host_blocked( (string) wp_parse_url( home_url( '/' ), PHP_URL_HOST ) ) ) {
-		return sn_health_pack_check( $label, array(), 'Probe skipped: the site host failed the SSRF guard. The check will retry on the next scan.' );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'Probe skipped: the site host failed the SSRF guard. The check will retry on the next scan.' );
 	}
 
 	$args = array(

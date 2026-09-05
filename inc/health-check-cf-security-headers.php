@@ -78,6 +78,7 @@ function sn_health_check_cf_security_headers() {
 			return sn_health_pack_check(
 				$label,
 				array(),
+				$fix_hint,
 				'Header probe failed (' . $resp->get_error_message() . '): the edge was unreachable. The check will retry on the next scan.'
 			);
 		}
@@ -129,6 +130,7 @@ function sn_health_check_cf_security_headers() {
 			return sn_health_pack_check(
 				$label,
 				array(),
+				$fix_hint,
 				'Could not confirm the Cloudflare edge headers from this host: the probe may have hit the origin directly; verify the edge config manually.'
 			);
 		}

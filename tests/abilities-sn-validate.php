@@ -111,7 +111,7 @@ $GLOBALS['__post_tags'] = array();
 require __DIR__ . '/../inc/health-check-drift-time-phrases.php';
 if ( ! defined( 'SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST' ) ) { define( 'SN_HEALTH_DRIFT_MAX_CANDIDATES_PER_POST', 25 ); }
 if ( ! function_exists( 'strip_shortcodes' ) ) { function strip_shortcodes( $s ) { return $s; } }
-if ( ! function_exists( 'sn_health_pack_check' ) ) { function sn_health_pack_check( $l, $f, $h = '' ) { return array( 'count' => count( $f ), 'findings' => $f, 'label' => $l, 'fix_hint' => $h ); } }
+if ( ! function_exists( 'sn_health_pack_check' ) ) { function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) { return array( 'count' => count( $f ), 'findings' => $f, 'label' => $l, 'fix_hint' => $h, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null ); } }
 if ( ! function_exists( 'snt_ai_is_available' ) ) { function snt_ai_is_available() { return false; } } // unused by the extract/pattern fns this file needs
 require __DIR__ . '/../inc/health-check-unlinked-mentions.php';
 
