@@ -139,7 +139,7 @@ function sn_health_check_analytics_integrity() {
 		return sn_health_pack_check(
 			$label,
 			array(),
-			'Analytics integrity: no violations recorded: the never-invert guard (views >= pageview_visits, rollup + read side) has not fired.'
+			'Analytics integrity: no violations recorded: the never-invert guard (views >= pageview_visits, rollup + read side) has not fired.', null
 		);
 	}
 

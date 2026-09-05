@@ -12,7 +12,7 @@
 /* The layer table: one hard frame, mono kicker headers, breathing-room cells. */
 .sn-machine-maturity-table{width:100%;border-collapse:collapse;border:2px solid currentColor;box-shadow:6px 6px 0 currentColor;background:var(--wp--preset--color--void,#fff);margin-bottom:6px;font-size:.85rem}
 .sn-machine-maturity-table th{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em;text-align:left;border-bottom:2px solid currentColor;padding:.65em .85em}
-.sn-machine-maturity-table td{border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.16));padding:.7em .85em;vertical-align:top}
+.sn-machine-maturity-table td{border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9);padding:.7em .85em;vertical-align:top}
 .sn-machine-maturity-table tbody tr:last-child td{border-bottom:0}
 /* Layer + question columns stay compact so the engine column carries the prose. */
 .sn-machine-maturity-table td:first-child{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.76rem;font-weight:600;white-space:nowrap}
@@ -21,7 +21,7 @@
 
 /* The principles: a spaced, ruled list with a mono dash in the gutter. */
 .sn-machine-maturity-principles{list-style:none;margin:0;padding:0;font-size:.9rem}
-.sn-machine-maturity-principles li{position:relative;padding:.6em 0 .6em 1.5em;border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.12))}
+.sn-machine-maturity-principles li{position:relative;padding:.6em 0 .6em 1.5em;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-machine-maturity-principles li:last-child{border-bottom:0}
 .sn-machine-maturity-principles li::before{content:"—";position:absolute;left:0;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);opacity:.5}
 

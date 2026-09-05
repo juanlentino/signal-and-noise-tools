@@ -280,7 +280,11 @@ $GLOBALS['wpdb']->fail  = true;
 $env = snt_ml_cadence_flags( 700 );
 ok( is_array( $env ) && 1 === count( $env['flags'] ) && 'publish' === $env['flags'][0]['kind'], 'publish verdict still returns when the cron read fails' );
 ok( true === $env['cron_skipped'], 'the envelope SAYS the cron section was skipped — a partial answer never poses as a full one' );
+$check = sn_health_check_ml_cadence();
+ok( is_string( $check['skipped'] ) && false !== strpos( $check['skipped'], 'cron history' ), 'v13.97.5 (#1042): the health adapter carries the skip through instead of reading only `flags`' );
 $GLOBALS['wpdb']->fail = false;
+$check = sn_health_check_ml_cadence();
+ok( ! is_string( $check['skipped'] ) || false === strpos( $check['skipped'], 'cron history' ), 'once the cron table reads again the reason no longer names it (the views section is its own question)' );
 
 echo "\nGroup: the health adapter (reads the REAL clock — pins structure, not the z)\n";
 $GLOBALS['wpdb']->hooks = array(); // Publish flag only: the epoch-era fixture dates are ancient vs time(), so the publish gap flags.

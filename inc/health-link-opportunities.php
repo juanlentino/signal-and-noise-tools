@@ -112,15 +112,18 @@ function sn_health_check_link_opportunities() {
 		 LIMIT 500",
 		ARRAY_A
 	);
-	if ( ! is_array( $rows ) || count( $rows ) < 2 ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+	if ( ! is_array( $rows ) ) {
+		return sn_health_pack_check( $label, array(), $fix_hint, 'The post query failed, so nothing was scanned. The check retries on the next scan.' );
+	}
+	if ( count( $rows ) < 2 ) {
+		return sn_health_pack_check( $label, array(), $fix_hint, null ); // Fewer than two posts: nothing to cross-link, and that IS an answer.
 	}
 
 	// One prep pass: stripped prose (the mention partition reads it) and an
 	// ID index into the fetched rows. The scoring brain is the kernel's
 	// stored artifact now — no tf/df/tags recomputation at scan time.
 	if ( ! function_exists( 'snt_ml_related_for_post' ) ) {
-		return sn_health_pack_check( $label, array(), $fix_hint ); // Defensive; the ML module loads with the plugin.
+		return sn_health_pack_check( $label, array(), $fix_hint, 'The ML kernel module is not loaded, so nothing was scanned.' ); // Defensive; the ML module loads with the plugin.
 	}
 	$prep     = array();
 	$by_id    = array();
@@ -144,7 +147,7 @@ function sn_health_check_link_opportunities() {
 		if ( null === $rel ) {
 			// Artifact never built: the advisory stays quiet rather than
 			// guessing — it builds on the next publish or overnight.
-			return sn_health_pack_check( $label, array(), $fix_hint );
+			return sn_health_pack_check( $label, array(), $fix_hint, 'The related-notes artifact has not been built yet (it builds on the next publish or overnight), so nothing was scanned.' );
 		}
 		if ( ! is_array( $rel ) ) {
 			continue; // Unindexed post (or error shape): nominates nothing.

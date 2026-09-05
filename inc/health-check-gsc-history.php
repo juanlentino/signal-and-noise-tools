@@ -76,7 +76,7 @@ function snt_health_check_gsc_history() {
 
 	$lag_days = ( (int) $data['synced_at'] - $end_ts ) / DAY_IN_SECONDS;
 	if ( $lag_days <= SNT_GSC_HISTORY_STALL_DAYS ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+		return sn_health_pack_check( $label, array(), $fix_hint, null );
 	}
 
 	return sn_health_pack_check(

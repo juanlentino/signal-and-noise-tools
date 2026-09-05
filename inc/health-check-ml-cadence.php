@@ -27,7 +27,7 @@ function sn_health_check_ml_cadence() {
 	$fix_hint = __( 'A rhythm broke: the current gap is a statistical outlier against its own history. For a cron hook, check it still schedules and its last runs succeeded; for publishing, this is just the site noticing a quiet spell.', 'signal-and-noise-tools' );
 
 	if ( ! function_exists( 'snt_ml_cadence_flags' ) ) {
-		return sn_health_pack_check( $label, array(), $fix_hint ); // Defensive; module loads with the plugin.
+		return sn_health_pack_check( $label, array(), $fix_hint, 'The cadence module is not loaded, so nothing was scanned.' ); // Defensive; module loads with the plugin.
 	}
 
 	$env      = snt_ml_cadence_flags();
@@ -63,5 +63,17 @@ function sn_health_check_ml_cadence() {
 		);
 	}
 
-	return sn_health_pack_check( $label, $findings, $fix_hint );
+	// The module computes cron_skipped / views_skipped for exactly this reason
+	// and the adapter used to read only `flags`. A section that could not be
+	// read is named; the tally only honours it when there are no findings.
+	$unread = array();
+	if ( ! empty( $env['cron_skipped'] ) ) {
+		$unread[] = 'cron history';
+	}
+	if ( ! empty( $env['views_skipped'] ) ) {
+		$unread[] = 'views rollup';
+	}
+	$skipped = array() === $unread ? null : sprintf( 'The %s could not be read, so this scan is partial. The check retries on the next scan.', implode( ' and the ', $unread ) );
+
+	return sn_health_pack_check( $label, $findings, $fix_hint, $skipped );
 }

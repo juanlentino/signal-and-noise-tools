@@ -140,9 +140,11 @@ function sn_health_check_drift_time_phrases() {
 		ARRAY_A
 	);
 	if ( ! is_array( $rows ) ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'The post query failed, so nothing was scanned. The check retries on the next scan.' );
 	}
 
+	$ai_calls  = 0;
+	$ai_failed = 0;
 	$findings = array();
 	foreach ( $rows as $r ) {
 		$candidates = sn_health_extract_time_phrase_candidates( (string) $r['post_content'] );
@@ -188,16 +190,19 @@ function sn_health_check_drift_time_phrases() {
 		// stale phrases are different answers, and confusing them would record
 		// "nothing stale" for a post nobody ever checked.
 		if ( null === $verdicts ) {
+			++$ai_calls;
 			$raw = snt_ai_generate_with_constraints( $prompt, SNT_AI_DRIFT_SYSTEM, 600, 'drift_detect' );
 			if ( is_wp_error( $raw ) || ! is_string( $raw ) ) {
-				continue;  // Soft fail — skip this post.
+				++$ai_failed;
+				continue;  // Soft fail — skip this post, but COUNT it (#1042).
 			}
 
 			// Strip optional markdown fences (opener and/or closer, independently).
 			$text = trim( preg_replace( '/^```(?:json)?\s*|\s*```$/i', '', trim( $raw ) ) );
 			$verdicts = json_decode( $text, true );
 			if ( ! is_array( $verdicts ) ) {
-				continue;  // Malformed — skip this post.
+				++$ai_failed;
+				continue;  // Malformed — skip this post, but COUNT it.
 			}
 
 			if ( function_exists( 'sn_drift_verdict_put' ) ) {
@@ -238,5 +243,14 @@ function sn_health_check_drift_time_phrases() {
 		}
 	}
 
-	return sn_health_pack_check( $label, $findings, $fix_hint );
+	// Every call failed is a provider outage, not 'no drift'. A partial failure
+	// keeps whatever verdicts came back and says how many did not.
+	$skipped = null;
+	if ( $ai_calls > 0 && $ai_failed === $ai_calls ) {
+		$skipped = sprintf( 'Every AI call failed (%d of %d), so no post was judged. The check retries on the next scan.', $ai_failed, $ai_calls );
+	} elseif ( $ai_failed > 0 ) {
+		$skipped = sprintf( '%d of %d AI calls failed; those posts were not judged this scan.', $ai_failed, $ai_calls );
+	}
+
+	return sn_health_pack_check( $label, $findings, $fix_hint, $skipped );
 }

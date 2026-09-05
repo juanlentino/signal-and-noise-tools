@@ -87,8 +87,11 @@ function sn_health_check_unlinked_mentions() {
 		 LIMIT 500",
 		ARRAY_A
 	);
-	if ( ! is_array( $rows ) || count( $rows ) < 2 ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+	if ( ! is_array( $rows ) ) {
+		return sn_health_pack_check( $label, array(), $fix_hint, 'The post query failed, so nothing was scanned. The check retries on the next scan.' );
+	}
+	if ( count( $rows ) < 2 ) {
+		return sn_health_pack_check( $label, array(), $fix_hint, null ); // Fewer than two posts: nothing to cross-link, and that IS an answer.
 	}
 
 	$findings = array();

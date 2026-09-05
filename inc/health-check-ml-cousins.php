@@ -35,7 +35,7 @@ function sn_health_check_ml_cousins() {
 	// so this branch is unreachable in practice — but a missing scanner must
 	// read as "no findings", never fatal the whole health scan.
 	if ( ! function_exists( 'snt_ml_cousin_pairs' ) ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'The ML kernel module is not loaded, so nothing was scanned.' );
 	}
 
 	$scan     = snt_ml_cousin_pairs( 0.6 );

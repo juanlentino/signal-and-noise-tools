@@ -470,7 +470,7 @@ function sn_health_check_edge_workers() {
 	$fix_hint = 'Reachability + freshness of the five owned Cloudflare Workers (analytics, login-guard, provenance, rights-signals, remote-mcp), read from their status/version endpoints. A DEGRADED provenance pipeline or a DEAD machine-reader sensor is a finding — silence from either falsifies a public promise. An unreachable worker may be undeployed or unreachable from this host (re-run to rule out a transient blip); a stale or empty login-guard denylist means the daily refresh cron has stalled, leaving the edge on an outdated blocklist. sn-remote-mcp flags an outage (unreachable, unconfigured, or a lost bridge_secret_bound readout) and a volume anomaly (counts only, never a caller identity) — but NOT a deliberately killed door, which is a state the owner chose, not a failure. Re-deploy with `npm run deploy` and check Workers Logs / `wrangler tail`.';
 
 	if ( ! apply_filters( 'sn_health_edge_workers_check_enabled', true ) ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'edge workers check disabled by filter' );
 	}
 
 	// Not configured (no derivable collector endpoint) → skip, don't false-flag.

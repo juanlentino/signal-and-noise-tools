@@ -74,7 +74,7 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-now-item-text', 'sn-now-meta', 'sn-posts-hero-h', 'sn-prov-paper-blurb',
 	'sn-prov-paper-card', 'sn-prov-paper-longform', 'sn-prov-paper-meta', 'sn-prov-paper-subtitle',
 	'sn-prov-paper-title', 'sn-prov-papers', 'sn-prov-series', 'sn-prov-series-footer',
-	'sn-prov-series-heading', 'sn-prov-series-intro', 'sn-prov-v', 'sn-prov-verify',
+	'sn-prov-series-heading', 'sn-prov-series-intro', 'sn-prov-verify',
 	'sn-prov-worker-ver', 'sn-provenance-byline-divider', 'sn-provenance-byline-reading-time', 'sn-provenance-toc',
 	'sn-resume-download', 'sn-resume-fold', 'sn-resume-hero-split', 'sn-resume-pub',
 	'sn-resume-pub-title', 'sn-resume-role', 'sn-resume-skills', 'sn-resume-stats',

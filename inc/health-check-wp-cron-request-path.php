@@ -63,7 +63,7 @@ function sn_health_check_wp_cron_request_path() {
 
 	$state = snt_wp_cron_offload_state();
 	if ( ! snt_wp_cron_still_in_request_path() ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+		return sn_health_pack_check( $label, array(), $fix_hint, null );
 	}
 
 	$note = 'already_false' === $state

@@ -88,7 +88,15 @@ ok( 0 === $pack['count'] && false !== stripos( (string) $pack['skipped'], 'gap i
 ok( is_string( $pack['skipped'] ) && '' !== $pack['skipped'], '   ...and it reports as SKIPPED, so the tally cannot count it as a pass' );
 $GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( array( 'workflow_runs' => array() ) ) );
 $pack = snt_health_check_ledger_ci();
-ok( 0 === $pack['count'] && '' !== $pack['fix_hint'], 'no-runs-yet packs zero findings with the honest note as hint' );
+// v13.97.5 (#1042): the note moved from fix_hint to `skipped` -- same sentence, the slot the tally reads.
+ok( 0 === $pack['count'] && is_string( $pack['skipped'] ) && '' !== $pack['skipped'], 'no-runs-yet packs zero findings and reports SKIPPED' );
+ok( '' === $pack['fix_hint'], '   ...and the hint is empty: nothing to fix, nothing was judged' );
+$GLOBALS['__resp'] = array( 'code' => 200, 'body' => 'not json' );
+$pack = snt_health_check_ledger_ci();
+ok( 0 === $pack['count'] && is_string( $pack['skipped'] ), 'a malformed API body is SKIPPED, never a pass' );
+$GLOBALS['__resp'] = array( 'code' => 200, 'body' => json_encode( run_body( 'success' ) ) );
+$pack = snt_health_check_ledger_ci();
+ok( 0 === $pack['count'] && null === $pack['skipped'], 'a green run is a real pass: skipped is null' );
 
 echo "\nGroup: wiring\n";
 $orch = (string) file_get_contents( __DIR__ . '/../inc/health-checks.php' );

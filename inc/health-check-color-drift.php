@@ -129,7 +129,7 @@ function sn_health_check_color_drift() {
 		ARRAY_A
 	);
 	if ( ! is_array( $rows ) ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'The post query failed, so nothing was scanned. The check retries on the next scan.' );
 	}
 
 	$findings = array();

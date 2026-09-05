@@ -10,7 +10,7 @@
    theme.json styles page-level h2 at xx-large with -0.01em tracking, so the
    size and tracking are pinned to what the h3 rendered at (the theme's
    x-large preset, no tracking) and nothing moves. */
-.sn-public-stats h2{font-size:var(--wp--preset--font-size--x-large);letter-spacing:normal;margin:2.25rem 0 .75rem}
+.sn-public-stats h2{font-size:var(--wp--preset--font-size--x-large,42px);letter-spacing:normal;margin:2.25rem 0 .75rem}
 .sn-public-stats__window{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;opacity:.6;margin:0 0 .6rem}
 
 /* The tile trio: the roadmap legend's idiom at page-content scale. */
@@ -25,10 +25,10 @@
 
 /* Most-read: the family's ruled list, rank numerals in the gutter. */
 .sn-public-stats__top{list-style:none;margin:0;padding:0;counter-reset:sn-top;font-size:.9rem}
-.sn-public-stats__top li{counter-increment:sn-top;display:flex;align-items:baseline;gap:.75em;padding:.55em 0;border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.12))}
+.sn-public-stats__top li{counter-increment:sn-top;display:flex;align-items:baseline;gap:.75em;padding:.55em 0;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-public-stats__top li:last-child{border-bottom:0}
 .sn-public-stats__top li::before{content:counter(sn-top,decimal-leading-zero);font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.7rem;font-weight:700;opacity:.45}
-.sn-public-stats__top a{flex:1;min-width:0;color:inherit;text-decoration:none;border-bottom:1px solid var(--wp--preset--color--rust,rgba(0,0,0,.25))}
+.sn-public-stats__top a{flex:1;min-width:0;color:inherit;text-decoration:none;border-bottom:1px solid var(--wp--preset--color--rust,#666666)}
 .sn-public-stats__top a:hover{border-bottom-color:currentColor}
 .sn-public-stats__views{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.76rem;font-variant-numeric:tabular-nums;opacity:.7}
 
@@ -42,7 +42,7 @@
 .sn-public-stats__twin summary{cursor:pointer;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;padding:.3em 0}
 .sn-public-stats__twin table{border-collapse:collapse;margin-top:.5rem;font-variant-numeric:tabular-nums}
 .sn-public-stats__twin caption{text-align:left;font-size:.72rem;opacity:.6;padding-bottom:.4em}
-.sn-public-stats__twin th,.sn-public-stats__twin td{text-align:left;padding:.2em 1.4em .2em 0;border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.12))}
+.sn-public-stats__twin th,.sn-public-stats__twin td{text-align:left;padding:.2em 1.4em .2em 0;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-public-stats__twin th{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.7rem;text-transform:uppercase;letter-spacing:.08em}
 .sn-public-stats__twin td{text-align:right;padding-right:.9em}
 .sn-public-stats__twin th[scope="row"]{white-space:nowrap;text-transform:none;letter-spacing:0}
