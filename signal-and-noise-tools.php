@@ -500,6 +500,11 @@ require_once __DIR__ . '/inc/abilities-update-post-surfaces.php'; // v10.7.0: re
 require_once __DIR__ . '/inc/ml-kernel.php';           // v10.15.0: pure ML primitives (tokenizer, tf-idf, cosine, bm25, graph signals) — zero WP calls
 require_once __DIR__ . '/inc/ml-pipelines.php';        // v10.15.0: filterable slug=>callable pipeline registry + dispatcher over the kernel
 require_once __DIR__ . '/inc/ml-artifacts.php';        // v10.15.0: corpus build (per-post related meta + cron/publish triggers) + the contract reader (needs corpus-inspect.php above)
+require_once __DIR__ . '/inc/note-dossier.php';            // v13.100.0: the note dossier vocabulary + composer (needs nothing at load)
+require_once __DIR__ . '/inc/note-dossier-trust.php';      // trust: ledger record, signer, citations, the re-check (readers guarded)
+require_once __DIR__ . '/inc/note-dossier-numbers.php';    // numbers: analytics window, Search Console, machine reads
+require_once __DIR__ . '/inc/note-dossier-state.php';      // state: edge verdict, coverage, sitemap, schedule
+require_once __DIR__ . '/inc/note-dossier-editorial.php';  // editorial: tags, reading time, words, excerpt, related
 require_once __DIR__ . '/inc/ml-related-render.php';   // v10.15.0: reader-facing "Related notes" aside (the_content @20, zero JS, render-time stylesheet)
 require_once __DIR__ . '/inc/ml-embeddings.php';        // item 8 slice 1: SHADOW semantic vectors — nothing the site serves changes
 require_once __DIR__ . '/inc/ml-embeddings-compare.php'; // item 8 slice 1: the TF-IDF vs embeddings instrument (measure before adopting)
