@@ -131,13 +131,26 @@ function sn_note_dossier_trust( $post_id, $fetcher = null ) {
 	} else {
 		$probe    = sn_prov_integrity_keys_probe( $fetcher );
 		$ids      = isset( $probe['published_ids'] ) && is_array( $probe['published_ids'] ) ? $probe['published_ids'] : null;
+		$verdict  = (string) ( $probe['verdict'] ?? '' );
 		$followed = (string) sn_prov_key_id();
-		if ( null === $ids ) {
+		// The probe's VERDICT is read, not only its id list: `key_mismatch` means
+		// the ledger publishes the followed id with DIFFERENT bytes, which the id
+		// list alone cannot show (the id is still in it). Discarding it painted
+		// a swapped key green -- the condition the probe exists to catch.
+		if ( 'skipped' === $verdict ) {
+			$blocks[] = sn_note_dossier_status( 'trust', __( 'Signer', 'signal-and-noise-tools' ), 'neutral', sprintf( /* translators: %s: key id. */ __( 'Signed by %s; key ids not checked.', 'signal-and-noise-tools' ), $named ), __( 'No signing key is configured here, so the ledger\'s key list was not compared. A gap, not a mismatch.', 'signal-and-noise-tools' ), __( 'ledger keys', 'signal-and-noise-tools' ) );
+		} elseif ( null === $ids ) {
 			$blocks[] = sn_note_dossier_status( 'trust', __( 'Signer', 'signal-and-noise-tools' ), 'warning', sprintf( /* translators: %s: key id. */ __( 'Signed by %s; the ledger\'s key list could not be checked.', 'signal-and-noise-tools' ), $named ), __( 'Could not be checked, not a mismatch.', 'signal-and-noise-tools' ), __( 'ledger keys', 'signal-and-noise-tools' ) );
+		} elseif ( 'key_mismatch' === $verdict && $named === $followed ) {
+			$blocks[] = sn_note_dossier_status( 'trust', __( 'Signer', 'signal-and-noise-tools' ), 'danger', sprintf( /* translators: %s: key id. */ __( 'Signed by %s, but the ledger publishes that id with different key bytes.', 'signal-and-noise-tools' ), $named ), __( 'Readers verifying against the ledger\'s key document will not reproduce this site\'s signatures. A fleet condition: it applies to every note signed with the followed key.', 'signal-and-noise-tools' ), __( 'ledger keys', 'signal-and-noise-tools' ) );
 		} elseif ( ! in_array( $named, $ids, true ) ) {
 			$blocks[] = sn_note_dossier_status( 'trust', __( 'Signer', 'signal-and-noise-tools' ), 'danger', sprintf( /* translators: %s: key id. */ __( 'Signed by %s, a key the ledger no longer publishes.', 'signal-and-noise-tools' ), $named ), __( 'Readers can no longer verify this signature from the published keys.', 'signal-and-noise-tools' ), __( 'ledger keys', 'signal-and-noise-tools' ) );
 		} elseif ( $named === $followed ) {
 			$blocks[] = sn_note_dossier_status( 'trust', __( 'Signer', 'signal-and-noise-tools' ), 'success', sprintf( /* translators: %s: key id. */ __( 'Signed by %s, the followed key.', 'signal-and-noise-tools' ), $named ), '', __( 'ledger keys', 'signal-and-noise-tools' ) );
+		} elseif ( 'key_mismatch' === $verdict ) {
+			// A retired key signed this note; the probe compares the CURRENT key's
+			// bytes only, so this note's own key was not compared. Said as such.
+			$blocks[] = sn_note_dossier_status( 'trust', __( 'Signer', 'signal-and-noise-tools' ), 'warning', sprintf( /* translators: 1: key id, 2: the followed key id. */ __( 'Signed by %1$s; the followed key is now %2$s, and the ledger publishes it with different key bytes.', 'signal-and-noise-tools' ), $named, $followed ), __( 'This note\'s own key was not compared: the probe checks the followed key\'s bytes only.', 'signal-and-noise-tools' ), __( 'ledger keys', 'signal-and-noise-tools' ) );
 		} else {
 			$blocks[] = sn_note_dossier_status( 'trust', __( 'Signer', 'signal-and-noise-tools' ), 'info', sprintf( /* translators: 1: key id, 2: the followed key id. */ __( 'Signed by %1$s; the followed key is now %2$s.', 'signal-and-noise-tools' ), $named, $followed ), __( 'A retired key the ledger still publishes verifies.', 'signal-and-noise-tools' ), __( 'ledger keys', 'signal-and-noise-tools' ) );
 		}
@@ -201,12 +214,27 @@ function sn_note_dossier_verify( $post_id, $fetcher = null ) {
 		return array( 'post_id' => (int) $post->ID, 'tone' => 'neutral', 'text' => __( 'Nothing to verify yet: no signed version.', 'signal-and-noise-tools' ), 'meta' => __( 'A note is signed when it is published.', 'signal-and-noise-tools' ), 'checked_at' => $checked_at );
 	}
 	$failures = array_values( array_map( 'strval', (array) ( $r['failures'] ?? array() ) ) );
-	if ( 'keys_unreachable' === (string) ( $probe['verdict'] ?? '' ) ) {
-		$failures[] = 'keys_unreachable';
-	}
 	// Outages AND named gaps are warnings: neither is a claim about the note.
 	// `subject_kind_unresolved` is the house's own "a gap, never a drift claim".
-	$gaps      = array( 'subject_kind_unresolved' );
+	$gaps    = array( 'subject_kind_unresolved', 'keys_not_configured' );
+	$verdict = (string) ( $probe['verdict'] ?? '' );
+	if ( 'keys_unreachable' === $verdict ) {
+		$failures[] = 'keys_unreachable';
+	} elseif ( 'skipped' === $verdict ) {
+		$failures[] = 'keys_not_configured';
+	} elseif ( 'key_mismatch' === $verdict ) {
+		// The probe compares the FOLLOWED key's bytes. For a note signed with
+		// that key this is a real mismatch; for a note signed with a retired key
+		// it is a fleet condition this note's own key was not compared under.
+		$chain    = function_exists( 'sn_prov_get_chain' ) ? (array) sn_prov_get_chain( (int) $post->ID ) : array();
+		$head     = $chain ? end( $chain ) : null;
+		$signer   = is_array( $head ) ? (string) ( $head['pubkey_id'] ?? '' ) : '';
+		$followed = function_exists( 'sn_prov_key_id' ) ? (string) sn_prov_key_id() : '';
+		$failures[] = 'key_mismatch';
+		if ( '' !== $signer && $signer !== $followed ) {
+			$gaps[] = 'key_mismatch';
+		}
+	}
 	$is_outage = function_exists( 'sn_prov_integrity_is_outage' ) ? 'sn_prov_integrity_is_outage' : static function ( $c ) { return false; };
 	$is_gap    = static function ( $c ) use ( $is_outage, $gaps ) { return (bool) call_user_func( $is_outage, $c ) || in_array( $c, $gaps, true ); };
 	$real      = array_values( array_filter( $failures, static function ( $c ) use ( $is_gap ) { return ! $is_gap( $c ); } ) );
@@ -215,16 +243,40 @@ function sn_note_dossier_verify( $post_id, $fetcher = null ) {
 	$anchored  = (int) ( $r['anchored_version'] ?? 0 );
 	$version   = (int) ( $r['version'] ?? 0 );
 	$uid       = (string) ( $r['uid'] ?? '' );
-	// The ledger leg runs only for a confirmed version WITH a uid (provenance-
-	// integrity.php:353). The sentence keys on the same precondition, so it never
-	// claims a check that did not run.
-	if ( $anchored > 0 && '' !== $uid ) {
-		$checked = sprintf( /* translators: %d: anchored version. */ __( 'Checked: the published twin, the ledger record for v%d, and the key ids the ledger publishes. The signature itself is verified by the public /verify page.', 'signal-and-noise-tools' ), $anchored );
-	} elseif ( '' === $uid ) {
-		$checked = __( 'Checked: the published twin and the key ids the ledger publishes; this note carries no ledger UID, so no ledger record was located. The signature itself is verified by the public /verify page.', 'signal-and-noise-tools' );
-	} else {
-		$checked = __( 'Checked: the published twin and the key ids the ledger publishes; no confirmed anchor yet, so there is no ledger record to read. The signature itself is verified by the public /verify page.', 'signal-and-noise-tools' );
+	// "Checked:" names the legs that RAN and answered, derived from the same
+	// facts the verifier acted on -- never a fixed sentence. The twin leg is
+	// always attempted; the ledger leg needs a confirmed version, a uid, a
+	// resolved subject kind (provenance-integrity.php:353-358) and a reachable
+	// ledger; the key-ids leg needs a readable key list.
+	$twin_ran   = ! in_array( 'twin_unreachable', $failures, true );
+	$ledger_ran = $anchored > 0 && '' !== $uid && ! in_array( 'subject_kind_unresolved', $failures, true ) && ! in_array( 'ledger_unreachable', $failures, true );
+	$keys_ran   = is_array( $ids );
+	$legs       = array();
+	if ( $twin_ran ) {
+		$legs[] = __( 'the published twin', 'signal-and-noise-tools' );
 	}
+	if ( $ledger_ran ) {
+		$legs[] = sprintf( /* translators: %d: anchored version. */ __( 'the ledger record for v%d', 'signal-and-noise-tools' ), $anchored );
+	}
+	if ( $keys_ran ) {
+		$legs[] = __( 'the key ids the ledger publishes', 'signal-and-noise-tools' );
+	}
+	$checked = $legs
+		? sprintf( /* translators: %s: comma-separated legs. */ __( 'Checked: %s.', 'signal-and-noise-tools' ), implode( ', ', $legs ) )
+		: __( 'Nothing could be checked.', 'signal-and-noise-tools' );
+	if ( ! ( $anchored > 0 ) ) {
+		$checked .= ' ' . __( 'No confirmed anchor yet, so there is no ledger record to read.', 'signal-and-noise-tools' );
+	} elseif ( '' === $uid ) {
+		$checked .= ' ' . __( 'This note carries no ledger UID, so no ledger record was located.', 'signal-and-noise-tools' );
+	} elseif ( in_array( 'subject_kind_unresolved', $failures, true ) ) {
+		$checked .= ' ' . __( 'The ledger record was not looked up: the subject kind could not be resolved.', 'signal-and-noise-tools' );
+	}
+	if ( ! $keys_ran ) {
+		$checked .= ' ' . ( 'skipped' === $verdict
+			? __( 'The key ids were not checked: no signing key is configured here.', 'signal-and-noise-tools' )
+			: __( 'The key ids could not be read.', 'signal-and-noise-tools' ) );
+	}
+	$checked .= ' ' . __( 'The signature itself is verified by the public /verify page.', 'signal-and-noise-tools' );
 	if ( $real ) {
 		return array( 'post_id' => (int) $post->ID, 'tone' => 'danger', 'text' => sprintf( /* translators: %d: version. */ __( 'v%d does not hold.', 'signal-and-noise-tools' ), $version ), 'meta' => implode( '; ', array_map( $sentence, $failures ) ) . '. ' . $checked, 'checked_at' => $checked_at );
 	}

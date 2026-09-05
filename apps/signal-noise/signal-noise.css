@@ -89,5 +89,9 @@ html[data-os-mode="mobile"] .snt-detail__close { display: none; }
 .snt-tile__window { font-size: 11px; color: var( --os-ui-fg-muted, #646970 ); }
 .snt-tile__note { font-size: 12px; color: var( --os-ui-fg-muted, #646970 ); overflow-wrap: anywhere; }
 .snt-status { margin: 0; }
+/* The kit's badge is nowrap for one-word states; the dossier puts a sentence in it. A document rule beats the shadow :host rule. */
+.snt-dossier os-badge { white-space: normal; text-align: start; max-width: 100%; border-radius: 8px; line-height: 1.4; }
+.snt-asof { font-size: 11px; }
+.snt-retry { margin-inline-start: 8px; }
 .snt-source { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 0; font-size: 11px; color: var( --os-ui-fg-muted, #646970 ); }
 .snt-loading { display: flex; align-items: center; gap: 8px; }

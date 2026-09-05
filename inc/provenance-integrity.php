@@ -582,6 +582,8 @@ function sn_prov_integrity_failure_sentence( $code ) {
 		'no_signed_commit'        => 'the subject carries no signed v1+ commit at all, so /verify tells a reader no proof exists (unverifiable: absence, never drift)',
 		'signing_key_unpublished' => 'the key this commit was signed with is no longer published in keys/provenance-keys.json, so readers can no longer verify its signature (retired key dropped)',
 		'keys_unreachable'        => 'the ledger\'s key list could not be read (unreachable: an outage, not a mismatch)',
+		'key_mismatch'            => 'the ledger publishes the followed key id with different key bytes than this site holds (key mismatch: readers verifying against the ledger will not reproduce this site\'s signatures)',
+		'keys_not_configured'     => 'the key ids were not checked: no signing key is configured here (gap, never a mismatch)',
 	);
 	$code = (string) $code;
 	return isset( $legs[ $code ] ) ? $legs[ $code ] : $code;

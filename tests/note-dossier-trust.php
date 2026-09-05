@@ -100,6 +100,34 @@ $b = sn_note_dossier_trust( 7, $fetch );
 ok( 'warning' === by_heading( $b, 'Anchor proof' )['tone'] && false !== strpos( by_heading( $b, 'Anchor proof' )['text'], 'no ledger UID' ), 'a confirmed commit without a UID is a gap in the lookup, never "no confirmed anchor"' );
 $GLOBALS['__meta']  = array( 7 => array( '_sn_prov_uid' => 'u-7' ) );
 
+echo "\nthe NEWEST confirmed version, and the key probe's verdict\n";
+$GLOBALS['__chain'] = array(
+	array( 'version' => 1, 'status' => 'confirmed', 'content_hash' => 'aaa', 'pubkey_id' => 'sn-ed25519-2026-07' ),
+	array( 'version' => 3, 'status' => 'confirmed', 'content_hash' => 'ccc', 'pubkey_id' => 'sn-ed25519-2026-07' ),
+	array( 'version' => 4, 'status' => 'pending', 'content_hash' => 'ddd' ),
+);
+$GLOBALS['__probe'] = array( 'verdict' => 'ok', 'code' => 200, 'published_ids' => array( 'sn-ed25519-2026-07' ) );
+$asked = array();
+$two = function ( $url ) use ( &$asked ) { $asked[] = $url; return false !== strpos( $url, '/notes/u-7/v3.json' ) ? jsonr( array( 'content_hash' => 'sha256:CCC', 'pubkey_id' => 'sn-ed25519-2026-07', 'ots' => array( 'bitcoin_block' => 910333, 'bitcoin_txid' => str_repeat( 'cd', 32 ), 'confirmations' => 2 ) ) ) : array( 'code' => 404, 'body' => '' ); };
+$b = sn_note_dossier_trust( 7, $two );
+ok( 'success' === by_heading( $b, 'Anchor proof' )['tone'] && false !== strpos( by_heading( $b, 'Anchor proof' )['text'], 'v3' ) && false !== strpos( by_heading( $b, 'Anchor proof' )['text'], '910,333' ), 'with two confirmed commits the NEWEST (v3) is read, not the oldest' );
+ok( 0 === count( array_filter( $asked, static function ( $u ) { return false !== strpos( $u, '/v1.json' ); } ) ), 'and the older record is never requested' );
+$GLOBALS['__probe'] = array( 'verdict' => 'key_mismatch', 'code' => 200, 'published_ids' => array( 'sn-ed25519-2026-07' ) );
+$b = sn_note_dossier_trust( 7, $two );
+ok( 'danger' === by_heading( $b, 'Signer' )['tone'] && false !== strpos( by_heading( $b, 'Signer' )['text'], 'different key bytes' ), 'the id is published but with other bytes: the probe\'s key_mismatch verdict is a red Signer line, never "the followed key"' );
+$GLOBALS['__chain'][1]['pubkey_id'] = 'sn-ed25519-2025-01';
+$GLOBALS['__probe'] = array( 'verdict' => 'key_mismatch', 'code' => 200, 'published_ids' => array( 'sn-ed25519-2026-07', 'sn-ed25519-2025-01' ) );
+// The ledger record names the signer first; for this case it names the retired key, as the chain does.
+$retired = function ( $url ) { return false !== strpos( $url, '/notes/u-7/v3.json' ) ? jsonr( array( 'content_hash' => 'sha256:CCC', 'pubkey_id' => 'sn-ed25519-2025-01', 'ots' => array( 'bitcoin_block' => 910333, 'bitcoin_txid' => str_repeat( 'cd', 32 ), 'confirmations' => 2 ) ) ) : array( 'code' => 404, 'body' => '' ); };
+$b = sn_note_dossier_trust( 7, $retired );
+ok( 'warning' === by_heading( $b, 'Signer' )['tone'] && false !== strpos( by_heading( $b, 'Signer' )['meta'], 'own key was not compared' ), 'a note signed with a retired key under a current-key mismatch: a warning that says which key was compared' );
+$GLOBALS['__chain'][1]['pubkey_id'] = 'sn-ed25519-2026-07';
+$GLOBALS['__probe'] = array( 'verdict' => 'skipped', 'code' => 0, 'published_ids' => null );
+$b = sn_note_dossier_trust( 7, $two );
+ok( 'neutral' === by_heading( $b, 'Signer' )['tone'] && false !== strpos( by_heading( $b, 'Signer' )['meta'], 'No signing key is configured' ), 'a skipped probe is a stated gap, not "could not be checked"' );
+$GLOBALS['__chain'] = array( array( 'version' => 1, 'status' => 'confirmed', 'content_hash' => 'aaa', 'pubkey_id' => 'sn-ed25519-2026-07' ), array( 'version' => 2, 'status' => 'pending', 'content_hash' => 'bbb' ) );
+$GLOBALS['__probe'] = array( 'verdict' => 'ok', 'code' => 200, 'published_ids' => array( 'sn-ed25519-2026-07' ) );
+
 echo "\nverify\n";
 $GLOBALS['__chain'] = array( array( 'version' => 1, 'status' => 'confirmed', 'content_hash' => 'aaa' ) );
 $GLOBALS['__probe'] = array( 'verdict' => 'ok', 'code' => 200, 'published_ids' => array( 'sn-ed25519-2026-07' ) );
@@ -110,6 +138,7 @@ ok( array( 'sn-ed25519-2026-07' ) === $GLOBALS['__check_ids'], 'the published ke
 $GLOBALS['__check']['failures'] = array( 'twin_unreachable' );
 $v = sn_note_dossier_verify( 7, $fetch );
 ok( 'warning' === $v['tone'] && false !== strpos( $v['meta'], 'S:twin_unreachable' ), 'an outage-only failure is a warning carrying the house sentence' );
+ok( false === strpos( $v['meta'], 'Checked: the published twin' ) && false !== strpos( $v['meta'], 'Checked: the ledger record for v1' ), 'and "Checked:" no longer names the twin: a leg that did not answer is not a leg that was checked' );
 $GLOBALS['__check']['failures'] = array( 'twin_unreachable', 'ledger_hash_mismatch' );
 $v = sn_note_dossier_verify( 7, $fetch );
 ok( 'danger' === $v['tone'] && false !== strpos( $v['meta'], 'S:ledger_hash_mismatch' ), 'a real mismatch is danger even beside an outage' );
@@ -117,6 +146,18 @@ $GLOBALS['__probe'] = array( 'verdict' => 'keys_unreachable', 'code' => 0, 'publ
 $GLOBALS['__check']['failures'] = array();
 $v = sn_note_dossier_verify( 7, $fetch );
 ok( 'warning' === $v['tone'] && false !== strpos( $v['meta'], 'S:keys_unreachable' ), 'keys unreachable joins the failures as an outage' );
+ok( false === strpos( $v['meta'], 'key ids the ledger publishes' ) && false !== strpos( $v['meta'], 'could not be read' ), 'and "Checked:" does not name the key ids it could not read' );
+$GLOBALS['__probe'] = array( 'verdict' => 'skipped', 'code' => 0, 'published_ids' => null );
+$v = sn_note_dossier_verify( 7, $fetch );
+ok( 'warning' === $v['tone'] && false !== strpos( $v['meta'], 'S:keys_not_configured' ) && false !== strpos( $v['meta'], 'no signing key is configured' ), 'a skipped probe is a gap in THIS check, never a green "holds"' );
+$GLOBALS['__chain'] = array( array( 'version' => 1, 'status' => 'confirmed', 'content_hash' => 'aaa', 'pubkey_id' => 'sn-ed25519-2026-07' ) );
+$GLOBALS['__probe'] = array( 'verdict' => 'key_mismatch', 'code' => 200, 'published_ids' => array( 'sn-ed25519-2026-07' ) );
+$v = sn_note_dossier_verify( 7, $fetch );
+ok( 'danger' === $v['tone'] && false !== strpos( $v['meta'], 'S:key_mismatch' ), 'a byte-swapped followed key is a real mismatch for a note signed with it: danger, with the sentence' );
+$GLOBALS['__chain'] = array( array( 'version' => 1, 'status' => 'confirmed', 'content_hash' => 'aaa', 'pubkey_id' => 'sn-ed25519-2025-01' ) );
+$v = sn_note_dossier_verify( 7, $fetch );
+ok( 'warning' === $v['tone'] && false !== strpos( $v['meta'], 'S:key_mismatch' ), 'for a note signed with a retired key the same verdict is a warning: its own key was not compared' );
+$GLOBALS['__chain'] = array( array( 'version' => 1, 'status' => 'confirmed', 'content_hash' => 'aaa' ) );
 $GLOBALS['__probe'] = array( 'verdict' => 'ok', 'code' => 200, 'published_ids' => array( 'sn-ed25519-2026-07' ) );
 $GLOBALS['__check'] = array( 'post_id' => 7, 'uid' => '', 'version' => 1, 'anchored_version' => 1, 'failures' => array(), 'twin_code' => 200 );
 $v = sn_note_dossier_verify( 7, $fetch );
@@ -124,6 +165,7 @@ ok( 'success' === $v['tone'] && false === strpos( $v['meta'], 'ledger record for
 $GLOBALS['__check'] = array( 'post_id' => 7, 'uid' => 'u-7', 'version' => 1, 'anchored_version' => 1, 'failures' => array( 'subject_kind_unresolved' ), 'twin_code' => 200 );
 $v = sn_note_dossier_verify( 7, $fetch );
 ok( 'warning' === $v['tone'] && false !== strpos( $v['meta'], 'S:subject_kind_unresolved' ), 'an unresolved subject kind is a gap, never "does not hold"' );
+ok( false === strpos( $v['meta'], 'ledger record for' ) && false !== strpos( $v['meta'], 'was not looked up' ), 'and the verdict does not claim the ledger record it never fetched (integrity.php:356 returns before the fetch)' );
 $GLOBALS['__check'] = null;
 $v = sn_note_dossier_verify( 7, $fetch );
 ok( 'neutral' === $v['tone'] && false !== strpos( $v['text'], 'Nothing to verify' ), 'no signed version: nothing to verify, said so' );

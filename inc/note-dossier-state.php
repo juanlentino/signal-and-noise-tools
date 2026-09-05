@@ -111,19 +111,24 @@ function sn_note_dossier_state( $post_id ) {
 	}
 
 	// ── Sitemap ──────────────────────────────────────────────────────────
+	// The live site runs WP core's sitemap with the three rules in
+	// inc/sitemap.php (The SEO Framework left at the v2.0.0 cutover; live
+	// /sitemap.xml 301s to /wp-sitemap.xml). The TSF branch is DORMANT here and
+	// kept for an install that runs it: its exclusions are not read, so it is a
+	// gap, stated as one. The live branch re-derives the rules; it never reads
+	// the sitemap, so it says what it applied, not "in the sitemap".
+	$rules = __( 'the sitemap rules', 'signal-and-noise-tools' );
 	if ( function_exists( 'the_seo_framework' ) ) {
-		// The LIVE configuration: TSF serves the sitemap and this app does not
-		// read its per-post exclusions. A gap, stated as one.
 		$blocks[] = sn_note_dossier_status( 'state', __( 'Sitemap', 'signal-and-noise-tools' ), 'neutral', __( 'Sitemap membership not checked.', 'signal-and-noise-tools' ), __( 'The SEO Framework serves the sitemap here, and this app does not read its per-post exclusions. A gap, not a verdict.', 'signal-and-noise-tools' ), __( 'the sitemap', 'signal-and-noise-tools' ) );
 	} else {
 		$noindex = function_exists( 'sn_post_settings_get_noindex' ) && sn_post_settings_get_noindex( $post->ID );
 		$canon   = function_exists( 'sn_post_settings_get_canonical_url' ) ? (string) sn_post_settings_get_canonical_url( $post->ID ) : '';
 		if ( $noindex ) {
-			$blocks[] = sn_note_dossier_status( 'state', __( 'Sitemap', 'signal-and-noise-tools' ), 'warning', __( 'Not in the sitemap', 'signal-and-noise-tools' ), __( 'The note is marked noindex.', 'signal-and-noise-tools' ) );
+			$blocks[] = sn_note_dossier_status( 'state', __( 'Sitemap', 'signal-and-noise-tools' ), 'warning', __( 'Excluded from the sitemap', 'signal-and-noise-tools' ), __( 'The note is marked noindex, which the sitemap rules exclude.', 'signal-and-noise-tools' ), $rules );
 		} elseif ( '' !== $canon ) {
-			$blocks[] = sn_note_dossier_status( 'state', __( 'Sitemap', 'signal-and-noise-tools' ), 'warning', __( 'Not in the sitemap', 'signal-and-noise-tools' ), sprintf( /* translators: %s: URL. */ __( 'The note declares a canonical URL elsewhere: %s', 'signal-and-noise-tools' ), $canon ) );
+			$blocks[] = sn_note_dossier_status( 'state', __( 'Sitemap', 'signal-and-noise-tools' ), 'warning', __( 'Excluded from the sitemap', 'signal-and-noise-tools' ), sprintf( /* translators: %s: URL. */ __( 'The note declares a canonical URL elsewhere, which the sitemap rules exclude: %s', 'signal-and-noise-tools' ), $canon ), $rules );
 		} else {
-			$blocks[] = sn_note_dossier_status( 'state', __( 'Sitemap', 'signal-and-noise-tools' ), 'success', __( 'In the sitemap', 'signal-and-noise-tools' ), __( 'Published, indexable, canonical here.', 'signal-and-noise-tools' ) );
+			$blocks[] = sn_note_dossier_status( 'state', __( 'Sitemap', 'signal-and-noise-tools' ), 'success', __( 'Nothing excludes it from the sitemap', 'signal-and-noise-tools' ), __( 'Published, not noindex, canonical here: the three rules the core sitemap applies. A derivation, not a read of the sitemap itself.', 'signal-and-noise-tools' ), $rules );
 		}
 	}
 

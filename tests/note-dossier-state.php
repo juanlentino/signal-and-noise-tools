@@ -44,6 +44,7 @@ $GLOBALS['__opt'] = array( 'sn_cf_purge_probe_log' => array(
 	array( 'time' => 1788598000, 'post_id' => 7, 'url' => 'https://example.test/notes/foo/', 'result' => 'fresh', 'algo' => 2 ),
 	array( 'time' => 1788500000, 'post_id' => 7, 'url' => 'https://example.test/notes/foo/', 'result' => 'stale', 'escalated' => true, 'algo' => 1 ),
 	array( 'time' => 1788400000, 'post_id' => 7, 'url' => 'https://example.test/notes/foo/', 'result' => 'stale', 'escalated' => true, 'algo' => 2 ),
+	array( 'time' => 1788300000, 'post_id' => 10, 'url' => 'https://example.test/notes/ten/', 'result' => 'stale', 'escalated' => true, 'algo' => 1 ),
 ) );
 $GLOBALS['__cov']     = array( 'complete' => true, 'entries' => array() );
 $GLOBALS['__cov_row'] = array( 'indexed' => true, 'coverage_state' => 'Submitted and indexed', 'last_crawl_time' => '2026-09-01T10:00:00Z' );
@@ -55,6 +56,7 @@ $GLOBALS['__rows']    = array(
 $p = sn_note_dossier_last_probe( 7 );
 ok( 'fresh' === $p['result'] && 1788598000 === $p['time'] && false === $p['escalated'], 'the newest current-detector row for THIS post wins; another post\'s newer row and a retired-detector row are skipped' );
 ok( null === sn_note_dossier_last_probe( 8 ), 'no row for a post is null' );
+ok( null === sn_note_dossier_last_probe( 10 ), 'a post whose ONLY row came from a retired detector (algo 1) reads as no verdict, never as that verdict' );
 
 $b = sn_note_dossier_state( 7 );
 $edge = by_heading( $b, 'Edge' );
@@ -62,7 +64,7 @@ ok( 'success' === $edge['tone'] && 'Edge fresh' === $edge['text'] && 'verified 2
 $cov = by_heading( $b, 'Search index' );
 ok( 'success' === $cov['tone'] && 'Indexed' === $cov['text'] && false !== strpos( $cov['meta'], 'Submitted and indexed' ) && false !== strpos( $cov['meta'], '2026-09-01' ) && false !== strpos( $cov['door']['url'], 'search-console' ), 'coverage: indexed, Google\'s own wording, the last crawl, a door to the Search Console leaf' );
 $map = by_heading( $b, 'Sitemap' );
-ok( 'success' === $map['tone'] && 'In the sitemap' === $map['text'], 'a published, indexable note with no canonical elsewhere is in the sitemap' );
+ok( 'success' === $map['tone'] && 'Nothing excludes it from the sitemap' === $map['text'] && false !== strpos( $map['meta'], 'derivation' ) && 'the sitemap rules' === $map['source'], 'a published, indexable note with no canonical elsewhere: the three rules, named as a derivation, sourced' );
 $sch = by_heading( $b, 'Scheduled fragments' );
 ok( 'table' === $sch['kind'] && 1 === count( $sch['rows'] ) && '2026-09-10 09:00 → never' === $sch['rows'][0]['window'] && 'queued' === $sch['rows'][0]['status']['text'] && 'visible' === $sch['rows'][0]['now'] && false !== strpos( $sch['door']['url'], 'scheduled-content' ), 'only the rows that target this post, with window, status and whether it is open now; the door opens Connections → Scheduled' );
 
@@ -106,7 +108,7 @@ ok( array() === sn_note_dossier_state( 8 ), 'a draft has no operating state' );
 // The LIVE site runs The SEO Framework. Declared inside a block so it binds only here, after the assertions above.
 if ( true ) { function the_seo_framework() { return true; } }
 $b = sn_note_dossier_state( 7 );
-ok( 'neutral' === by_heading( $b, 'Sitemap' )['tone'] && false !== strpos( by_heading( $b, 'Sitemap' )['meta'], 'does not read its per-post exclusions' ), 'with TSF active -- the LIVE configuration -- membership is a stated gap, never "In the sitemap"' );
+ok( 'neutral' === by_heading( $b, 'Sitemap' )['tone'] && false !== strpos( by_heading( $b, 'Sitemap' )['meta'], 'does not read its per-post exclusions' ), 'with TSF active (dormant on the live site since v2.0.0) membership is a stated gap' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

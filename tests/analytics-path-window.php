@@ -57,8 +57,18 @@ ok( is_array( $r ) && 0 === $r['views'] && 0 === $r['site_rows'], 'no rows anywh
 
 $wpdb->rows = null;
 ok( null === sn_analytics_path_window( '/notes/foo/', '2026-08-07', '2026-09-05' ), 'a failed read is null, never a zero' );
+// The stub answers rows again from here, so a null below can only come from the guard.
+$wpdb->rows = array( 'views' => '5', 'visits' => '5', 'days' => '1' );
+$wpdb->site = 3;
+ok( is_array( sn_analytics_path_window( '/notes/foo/', '2026-08-07', '2026-09-05' ) ), 'control: with rows back, a good input reads' );
 ok( null === sn_analytics_path_window( '', '2026-08-07', '2026-09-05' ), 'an empty path is refused' );
 ok( null === sn_analytics_path_window( '/notes/foo/', 'yesterday', '2026-09-05' ), 'a malformed day is refused' );
+$wpdb->queries = array();
+$r = sn_analytics_path_window( '/notes/foo/', '2026-08-07', '2026-09-05' );
+ok( false !== strpos( $wpdb->queries[1][0], "class = 'human'" ) && array( '2026-08-07', '2026-09-05' ) === $wpdb->queries[1][1], 'the site-wide count is human-class only and bound to the same window' );
+$wpdb->site = null;
+$r = sn_analytics_path_window( '/notes/foo/', '2026-08-07', '2026-09-05' );
+ok( is_array( $r ) && null === $r['site_rows'] && 5 === $r['views'], 'a site-wide count that could not be read is null, never a 0 that reads as "no analytics"' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -48,6 +48,11 @@ function sn_note_dossier_numbers( $post_id, $days ) {
 	if ( ! is_array( $win ) ) {
 		$tiles[] = array( 'label' => __( 'Views', 'signal-and-noise-tools' ), 'value' => $dash, 'window' => $wl, 'note' => __( 'the analytics table could not be read', 'signal-and-noise-tools' ) );
 		$tiles[] = array( 'label' => __( 'Visits', 'signal-and-noise-tools' ), 'value' => $dash, 'window' => $wl, 'note' => '' );
+	} elseif ( null === $win['site_rows'] ) {
+		// The per-path read answered but the site-wide count did not: a failed
+		// read, not "no analytics in this window".
+		$tiles[] = array( 'label' => __( 'Views', 'signal-and-noise-tools' ), 'value' => $dash, 'window' => $wl, 'note' => __( 'the analytics table could not be read', 'signal-and-noise-tools' ) );
+		$tiles[] = array( 'label' => __( 'Visits', 'signal-and-noise-tools' ), 'value' => $dash, 'window' => $wl, 'note' => '' );
 	} elseif ( 0 === (int) $win['site_rows'] ) {
 		$tiles[] = array( 'label' => __( 'Views', 'signal-and-noise-tools' ), 'value' => $dash, 'window' => $wl, 'note' => __( 'no analytics recorded in this window', 'signal-and-noise-tools' ) );
 		$tiles[] = array( 'label' => __( 'Visits', 'signal-and-noise-tools' ), 'value' => $dash, 'window' => $wl, 'note' => '' );
@@ -89,14 +94,26 @@ function sn_note_dossier_numbers( $post_id, $days ) {
 	// ── Machine reads: not counted per note, by design ───────────────────
 	$snap  = function_exists( 'snt_mr_snapshot' ) ? snt_mr_snapshot() : null;
 	$total = function_exists( 'snt_mr_snapshot_total' ) ? snt_mr_snapshot_total( $snap ) : null;
+	$age   = function_exists( 'snt_mr_snapshot_age' ) ? snt_mr_snapshot_age( $snap ) : null;
+	$stale = function_exists( 'snt_mr_snapshot_is_stale' ) ? snt_mr_snapshot_is_stale( $snap ) : null;
+	$mdays = is_array( $snap ) && ! empty( $snap['days'] ) ? (int) $snap['days'] : 30;
+	$tone  = 'neutral';
 	$meta  = __( 'The sensor keeps no document paths, by its privacy contract.', 'signal-and-noise-tools' );
-	$meta .= null === $total
-		? ' ' . __( 'No site-wide measurement yet.', 'signal-and-noise-tools' )
-		: ' ' . sprintf( /* translators: %s: reads. */ __( 'Site-wide over the last 30 days: %s.', 'signal-and-noise-tools' ), number_format_i18n( (int) $total ) );
+	if ( null === $total ) {
+		$meta .= ' ' . __( 'No site-wide measurement yet.', 'signal-and-noise-tools' );
+	} else {
+		// A snapshot states its own age: a stale capture is not "the last N days".
+		$ago   = null === $age ? __( 'an unknown time', 'signal-and-noise-tools' ) : human_time_diff( time() - $age, time() );
+		$meta .= ' ' . sprintf( /* translators: 1: days, 2: reads, 3: age. */ __( 'Site-wide over the last %1$d days: %2$s, captured %3$s ago.', 'signal-and-noise-tools' ), $mdays, number_format_i18n( (int) $total ), $ago );
+		if ( true === $stale ) {
+			$tone  = 'warning';
+			$meta .= ' ' . __( 'That snapshot is stale: the hourly refresh has not landed.', 'signal-and-noise-tools' );
+		}
+	}
 	$blocks[] = sn_note_dossier_status(
 		'numbers',
 		__( 'Machine reads', 'signal-and-noise-tools' ),
-		'neutral',
+		$tone,
 		__( 'Not counted per note.', 'signal-and-noise-tools' ),
 		$meta,
 		__( 'daily snapshot', 'signal-and-noise-tools' ),

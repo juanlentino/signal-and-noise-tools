@@ -26,6 +26,8 @@ function sn_path_join_key( $u ) { return '/notes/foo'; }
 function snt_gsc_metrics_for_path( $k ) { return $GLOBALS['__gsc_row']; }
 function snt_gsc_window_totals() { return $GLOBALS['__gsc_tot']; }
 function snt_mr_snapshot() { return $GLOBALS['__snap']; }
+function snt_mr_snapshot_age( $s ) { return is_array( $s ) && isset( $s['captured_at'] ) ? 7200 : null; }
+function snt_mr_snapshot_is_stale( $s ) { return is_array( $s ) ? (bool) ( $GLOBALS['__stale'] ?? false ) : null; }
 function snt_mr_snapshot_total( $s ) { return is_array( $s ) && isset( $s['captured_at'] ) ? (int) $s['total'] : null; }
 function snt_analytics_page_url( $args = array() ) { return 'https://example.test/wp-admin/admin.php?page=sn-analytics&' . http_build_query( $args ); }
 function snt_desktop_admin_url( $slug, $sub = '' ) { return 'https://example.test/wp-admin/admin.php?page=sn-theme-options&slug=' . $slug . '&sub=' . $sub; }
@@ -71,6 +73,19 @@ ok( false !== strpos( tile( $b[0], 'Impressions' )['note'], 'top 250' ), 'when t
 $GLOBALS['__gsc'] = null;
 $b = sn_note_dossier_numbers( 7, 30 );
 ok( false !== strpos( tile( $b[0], 'Impressions' )['note'], 'never synced' ), 'Search Console never synced is its own sentence' );
+$GLOBALS['__win'] = array( 'views' => 5, 'visits' => 5, 'days' => 1, 'site_rows' => null );
+$b = sn_note_dossier_numbers( 7, 30 );
+ok( '—' === tile( $b[0], 'Views' )['value'] && false !== strpos( tile( $b[0], 'Views' )['note'], 'could not be read' ), 'a site-wide count that failed is "could not be read", never "no analytics in this window"' );
+$GLOBALS['__snap'] = array( 'captured_at' => 1788600000, 'total' => 0, 'days' => 30 );
+$b = sn_note_dossier_numbers( 7, 30 );
+ok( false !== strpos( $b[1]['meta'], 'Site-wide over the last 30 days: 0,' ), 'a measured site-wide ZERO is a zero, never "no measurement"' );
+$GLOBALS['__snap'] = array( 'captured_at' => 1788600000, 'total' => 12, 'days' => 14 );
+$b = sn_note_dossier_numbers( 7, 30 );
+ok( false !== strpos( $b[1]['meta'], 'last 14 days' ) && false !== strpos( $b[1]['meta'], 'captured 2 hours ago' ), 'the window is the snapshot\'s own, and the line states its age' );
+$GLOBALS['__stale'] = true;
+$b = sn_note_dossier_numbers( 7, 30 );
+ok( 'warning' === $b[1]['tone'] && false !== strpos( $b[1]['meta'], 'stale' ), 'a stale snapshot flips the tone and says so' );
+$GLOBALS['__stale'] = false;
 $GLOBALS['__snap'] = null;
 $b = sn_note_dossier_numbers( 7, 30 );
 ok( false !== strpos( $b[1]['meta'], 'No site-wide measurement' ), 'no snapshot: no site-wide figure, said so' );

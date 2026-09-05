@@ -8,6 +8,7 @@ if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); 
 define( 'ABSPATH', '/' );
 define( 'SN_READING_TIME_META_KEY', '_sn_reading_time_minutes' );
 define( 'SN_READING_TIME_DEFAULT_WPM', 225 );
+define( 'SNT_ML_RELATED_META', '_snt_ml_related' );
 function __( $t, $d = null ) { return $t; }
 function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; }
 function apply_filters( $h, $v ) { return 'sn_reading_time_wpm' === $h ? ( $GLOBALS['__wpm'] ?? $v ) : $v; }
@@ -53,10 +54,15 @@ echo "\nthe absences\n";
 $GLOBALS['__meta'] = array();
 $GLOBALS['__tags'] = array();
 $GLOBALS['__related'] = array();
+$GLOBALS['__meta'][7]['_snt_ml_related'] = array();
 $b = sn_note_dossier_editorial( 7 );
 ok( '—' === tile( by_heading( $b, 'Editorial' ), 'Reading time' )['value'] && false !== strpos( tile( by_heading( $b, 'Editorial' ), 'Reading time' )['note'], 'not computed' ), 'no cached reading time: not computed yet, and the getter is NOT called (it writes meta)' );
 ok( false !== strpos( by_heading( $b, 'Tags' )['text'], 'Untagged' ), 'no tags says untagged' );
 ok( 'text' === by_heading( $b, 'Related notes' )['kind'] && false !== strpos( by_heading( $b, 'Related notes' )['text'], 'None' ), 'the kernel answered "none": said so' );
+unset( $GLOBALS['__meta'][7]['_snt_ml_related'] );
+$b = sn_note_dossier_editorial( 7 );
+ok( false !== strpos( by_heading( $b, 'Related notes' )['text'], 'Not in the kernel' ) && false === strpos( by_heading( $b, 'Related notes' )['text'], 'None' ), 'the same empty answer for a note the kernel never indexed is named as unindexed, never as "none related"' );
+ok( 'the post' === by_heading( $b, 'Tags' )['source'], 'the Tags block names its source' );
 $GLOBALS['__related'] = null;
 $b = sn_note_dossier_editorial( 7 );
 ok( null === by_heading( $b, 'Related notes' ), 'the kernel not built: the block is omitted, not faked' );

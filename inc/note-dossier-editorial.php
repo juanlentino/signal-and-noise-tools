@@ -51,7 +51,8 @@ function sn_note_dossier_editorial( $post_id ) {
 	$blocks[] = sn_note_dossier_text(
 		'editorial',
 		__( 'Tags', 'signal-and-noise-tools' ),
-		$terr ? __( 'The tags could not be read.', 'signal-and-noise-tools' ) : ( $tags ? implode( ', ', $tags ) : __( 'Untagged.', 'signal-and-noise-tools' ) )
+		$terr ? __( 'The tags could not be read.', 'signal-and-noise-tools' ) : ( $tags ? implode( ', ', $tags ) : __( 'Untagged.', 'signal-and-noise-tools' ) ),
+		__( 'the post', 'signal-and-noise-tools' )
 	);
 	if ( function_exists( 'snt_corpus_excerpt' ) ) {
 		$excerpt = (string) snt_corpus_excerpt( $post );
@@ -60,7 +61,12 @@ function sn_note_dossier_editorial( $post_id ) {
 	if ( function_exists( 'snt_ml_related_for_post' ) ) {
 		$related = snt_ml_related_for_post( $post->ID, 3 );
 		if ( is_array( $related ) ) {
-			if ( array() === $related ) {
+			// The kernel answers array() for two states: indexed with no
+			// neighbours, and not in its index at all (built before this note).
+			$indexed = ! defined( 'SNT_ML_RELATED_META' ) || is_array( get_post_meta( $post->ID, SNT_ML_RELATED_META, true ) );
+			if ( array() === $related && ! $indexed ) {
+				$blocks[] = sn_note_dossier_text( 'editorial', __( 'Related notes', 'signal-and-noise-tools' ), __( 'Not in the kernel\'s index yet: the kernel was built before this note.', 'signal-and-noise-tools' ), __( 'the ML kernel', 'signal-and-noise-tools' ) );
+			} elseif ( array() === $related ) {
 				$blocks[] = sn_note_dossier_text( 'editorial', __( 'Related notes', 'signal-and-noise-tools' ), __( 'None related in the kernel.', 'signal-and-noise-tools' ), __( 'the ML kernel', 'signal-and-noise-tools' ) );
 			} else {
 				$rows = array();

@@ -233,6 +233,8 @@ function sn_analytics_path_lifetime( $path ) {
  * the caller separates "no analytics were collected in this window" (0) from
  * "this note had no views" (views 0 with site_rows > 0). The table never
  * stores a zero row, so absence IS zero once the window has rows at all.
+ * A COUNT(*) that could not be read is NULL, never 0: a failed read must not
+ * become the positive statement "no analytics in this window".
  *
  * `visits` sums per-day distinct visitor-days -- visitor-days, not unique
  * visitors, the same unit sn_analytics_top_paths() reports.
@@ -240,8 +242,10 @@ function sn_analytics_path_lifetime( $path ) {
  * @param string $path Site-relative path (either spelling).
  * @param string $from 'YYYY-MM-DD' inclusive.
  * @param string $to   'YYYY-MM-DD' inclusive.
- * @return array{views:int,visits:int,days:int,site_rows:int}|null Null on a
- *                                                                 refused input or a failed read.
+ * @return array{views:int,visits:int,days:int,site_rows:int|null}|null Null on a
+ *                                                                      refused input or a failed
+ *                                                                      per-path read; site_rows null
+ *                                                                      when only the count failed.
  */
 function sn_analytics_path_window( $path, $from, $to ) {
 	global $wpdb;
@@ -277,7 +281,7 @@ function sn_analytics_path_window( $path, $from, $to ) {
 		'views'     => (int) ( $row['views'] ?? 0 ),
 		'visits'    => (int) ( $row['visits'] ?? 0 ),
 		'days'      => (int) ( $row['days'] ?? 0 ),
-		'site_rows' => (int) $site,
+		'site_rows' => null === $site ? null : (int) $site,
 	);
 }
 
