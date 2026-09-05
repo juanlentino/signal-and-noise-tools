@@ -128,6 +128,11 @@ function sn_health_run_scan() {
 			// Advisory tier, worklist surface; born the day the 23 descriptions
 			// seeded, to keep the vocabulary's two drift modes visible.
 			'tag_hygiene'         => sn_health_check_tag_hygiene(),
+			// 23rd check (v13.96.6): the plugin registry vs active_plugins.
+			// Born because a poisoned object cache made GET /wp/v2/plugins
+			// answer "no plugins installed" with a 200, and nothing in the
+			// estate could tell that from a site that genuinely has none.
+			'plugin_registry'     => sn_health_check_plugin_registry(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
 			'edge_workers'        => sn_health_check_edge_workers(),
 			// 12th check (v9.65.0): the reader of sn_analytics_integrity_alert —

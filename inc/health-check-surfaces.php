@@ -55,6 +55,11 @@ function sn_health_check_surface_map() {
 		'cf_security_headers'   => 'health',
 		'analytics_integrity'   => 'health',
 		'roadmap_drift'         => 'health',
+		// 23rd check (v13.96.6): the plugin registry disagreeing with
+		// active_plugins. A DEFECT (the registry is wrong, not merely
+		// improvable), it reaches zero and stays there, and no other
+		// surface owns it - the three tests for the Health surface.
+		'plugin_registry'       => 'health',
 
 		// ── MEASUREMENTS (Integrity) ───────────────────────────────────────
 		// Both disclaim their own authority in their own copy — "a red row here

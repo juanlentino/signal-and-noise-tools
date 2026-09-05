@@ -583,6 +583,8 @@ require_once SNT_PATH . 'inc/provenance-integrity.php'; // 13th check (v9.80.0):
 // grouping data, the collapsed passing disclosure, and report-only payloads
 // (contrast_tokens' pair table, previously invisible in admin). Required
 // BEFORE the tab that calls them.
+require_once SNT_PATH . 'inc/plugin-registry-probe.php'; // v13.96.6 (#1026): records an empty /wp/v2/plugins served with a 200 - the poisoning is transient and a scheduled check alone would miss it
+require_once SNT_PATH . 'inc/health-check-plugin-registry.php'; // 23rd check (v13.96.6): active_plugins vs get_plugins() - a stale object cache reports "no plugins installed" with a 200
 require_once SNT_PATH . 'inc/health-check-families.php';
 require_once SNT_PATH . 'inc/health-render-findings.php';
 require_once SNT_PATH . 'inc/health-render-passing.php';

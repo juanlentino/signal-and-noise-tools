@@ -98,6 +98,10 @@ function sn_health_check_family_map() {
 		// Edge & security: what Cloudflare and the Workers are doing.
 		'cf_security_headers'  => 'edge',
 		'edge_workers'         => 'edge',
+		// Not content, links, ml, provenance, analytics or edge: this one is
+		// about the site's own plugin registry. 'other' is a DECLARED family
+		// (sn_health_check_families()), not a gap - see tests/health-check-families.php.
+		'plugin_registry'      => 'other',
 	);
 }
 
