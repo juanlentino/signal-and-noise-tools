@@ -3,7 +3,7 @@
  * Plugin Name: Signal & Noise Tools
  * Plugin URI:  https://github.com/juanlentino/signal-and-noise-tools
  * Description: Companion plugin for the Signal & Noise theme. The site's operational layer: first-party edge analytics with insights and narration, content health scans, SEO + OG cards, Note provenance and anchoring, AI editor assists exposed as WP Abilities (no bespoke REST routes), cron/uptime monitoring, and GitHub-driven self-updates. Security headers are delegated to the Cloudflare edge (drift-probed here).
- * Version:     13.97.5
+ * Version:     13.98.0
  * Requires at least: 7.0
  * Tested up to: 7.1
  * Requires PHP: 8.3
@@ -71,6 +71,7 @@ require_once SNT_PATH . 'inc/word-count.php'; // v10.24.0: pure Unicode word cou
 require_once SNT_PATH . 'inc/openstation-compat.php';
 require_once SNT_PATH . 'inc/openstation-station-home-card.php';
 require_once SNT_PATH . 'inc/openstation-pwa-icons.php';  // v13.96.4 (#1017): the Site-Icon-derived manifest declared 192x192 on a 300x300 RGBA file; iOS composited the alpha to black behind dark ink
+require_once SNT_PATH . 'inc/openstation-app.php';       // v13.98.0: the Signal & Noise window on the App Framework (apps/signal-noise), successor to the WP Explorer folder that 1.1.6 retired.
 require_once SNT_PATH . 'inc/openstation-agent-output-budget.php'; // WordPress/openstation#517 seam: inject adaptive thinking + effort (Claude 5) and ceiling headroom on agent-run generations; inert while the agents feature is off; remove per the conditions in its docblock (openstation#530/#531)
 require_once SNT_PATH . 'inc/settings.php';
 require_once SNT_PATH . 'inc/config-drift.php'; // R6a: durable effective-settings baseline + unexplained-drift diff
