@@ -290,7 +290,7 @@ function sn_health_check_contrast_tokens() {
 	$packed = sn_health_pack_check(
 		'Contrast (token arithmetic, report only)',
 		array(), // report-only: findings land in R3, with the rendered-pair tier.
-		'Report only — no action from this check. Fixes are a later, separate step, taken against pairs a reader actually sees.'
+		'Report only — no action from this check. Fixes are a later, separate step, taken against pairs a reader actually sees.', null
 	);
 
 	$packed['report'] = array(

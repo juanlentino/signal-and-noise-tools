@@ -145,7 +145,7 @@ function snt_health_check_rights_signals() {
 
 	// Kill switch, mirroring sn_health_cf_header_check_enabled.
 	if ( ! apply_filters( 'sn_health_rights_signals_check_enabled', true ) ) {
-		return sn_health_pack_check( $label, array(), $fix_hint );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'rights-signals check disabled by filter' );
 	}
 
 	// HARDCODED own-domain allowlist (scope 2.5a): fixed paths, never input.
@@ -203,7 +203,7 @@ function snt_health_check_rights_signals() {
 	$server       = (string) ( $html_headers['server'] ?? '' );
 	$is_edge      = isset( $html_headers['cf-ray'] ) || false !== stripos( $server, 'cloudflare' );
 	if ( count( $verdicts ) === $failed && ! $is_edge ) {
-		return sn_health_pack_check( $label, array(), 'Could not confirm the rights surface from this host: every check failed and the probe saw no Cloudflare edge marker, so it may have hit the origin directly. Verify the edge config manually; the check will retry on the next scan.' );
+		return sn_health_pack_check( $label, array(), $fix_hint, 'Could not confirm the rights surface from this host: every check failed and the probe saw no Cloudflare edge marker, so it may have hit the origin directly. Verify the edge config manually; the check will retry on the next scan.' );
 	}
 
 	// One finding per failed check, anchored to the URL that carries it.

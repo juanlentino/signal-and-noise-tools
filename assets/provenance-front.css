@@ -83,9 +83,9 @@
    same frame reads correctly inside the post-closing furniture. */
 .sn-prov-panel{border:2px solid currentColor;border-radius:0;box-shadow:4px 4px 0 currentColor;background:var(--wp--preset--color--void,#fff);padding:1.15rem 1.35rem;margin:2.25rem 0 6px;font-size:.82rem;line-height:1.6}
 .sn-prov-chain{list-style:none;margin:0 0 .7rem;padding:0}
-.sn-prov-ver{display:flex;gap:.6em;align-items:baseline;padding:.4em 0;border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.1))}
+.sn-prov-ver{display:flex;gap:.6em;align-items:baseline;padding:.4em 0;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-prov-ver:last-child{border-bottom:0}
-.sn-prov-ver > code:first-child,.sn-prov-ver > .sn-prov-vlabel{font-weight:700}
+.sn-prov-ver > .sn-prov-v{font-weight:700}
 .sn-prov-meta{opacity:.6}
 /* The block number links to that block on a public explorer — underlined so it
    reads as clickable within the dimmed meta; inherits color to stay subtle. */
@@ -114,7 +114,7 @@
 /* The action row, in the established mono-action vocabulary (the same voice
    as .sn-prov-chip-verify): quiet uppercase red links with real hit areas,
    separated by a rule from the record above — actions, not chain rows. */
-.sn-prov-links{display:flex;flex-wrap:wrap;gap:.4em 1.4em;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:.9rem 0 0;padding-top:.8rem;border-top:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.1))}
+.sn-prov-links{display:flex;flex-wrap:wrap;gap:.4em 1.4em;font-size:.7rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;margin:.9rem 0 0;padding-top:.8rem;border-top:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-prov-links a{color:var(--wp--preset--color--blood,#e00404);text-decoration:underline;text-underline-offset:3px;padding:.45em 0;margin:-.45em 0}
 /* Hover/focus gains emphasis: DARKER on a light ground, LIGHTER on a dark one (--sn-signal-ink, defined at the top of this file). The site's signal red (var(--wp--preset--color--signal,#ff4c47)) is
    established — but everywhere else it is a border, an outline, or a tabular

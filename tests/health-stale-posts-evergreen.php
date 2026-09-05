@@ -96,5 +96,18 @@ sn_health_check_stale_posts( $scan );
 sn_health_check_stale_posts_evergreen( $scan );
 ok( '' === $GLOBALS['wpdb']->last_sql, 'passing the pre-computed scan runs NO further queries' );
 
+echo "\nGroup: a failed query blanks both checks -- and both say so (#1042)\n";
+$GLOBALS['wpdb']->rows = false;
+$scan = sn_health_stale_posts_scan();
+ok( false === $scan['ok'] && array() === $scan['findings'] && array() === $scan['evergreen'], 'the shared scan carries ok=false when the query fails' );
+$c = sn_health_check_stale_posts( $scan );
+ok( 0 === $c['count'] && is_string( $c['skipped'] ) && false !== strpos( $c['skipped'], 'query failed' ), 'fault-tier check reports SKIPPED, not passed' );
+$e = sn_health_check_stale_posts_evergreen( $scan );
+ok( 0 === $e['count'] && is_string( $e['skipped'] ), 'advisory-tier check reports SKIPPED too' );
+$GLOBALS['wpdb']->rows = array();
+$c = sn_health_check_stale_posts( sn_health_stale_posts_scan() );
+ok( null === $c['skipped'], 'an EMPTY result is a pass: skipped is null' );
+ok( null === sn_health_stale_posts_skipped( array( 'findings' => array(), 'evergreen' => array() ) ), 'a pre-13.97.5 scan array (no ok key) reads as ran' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

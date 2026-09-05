@@ -95,7 +95,8 @@ function sn_health_stale_posts_scan() {
 		$cutoff
 	), ARRAY_A );
 
-	if ( is_array( $rows ) ) {
+	$ok = is_array( $rows );
+	if ( $ok ) {
 		foreach ( $rows as $r ) {
 			// Name the clock that produced the verdict. A reader who sees
 			// "last modified" and knows they touched the post yesterday would
@@ -123,7 +124,13 @@ function sn_health_stale_posts_scan() {
 		}
 	}
 
-	return array( 'findings' => $findings, 'evergreen' => $evergreen );
+	return array(
+		'findings'  => $findings,
+		'evergreen' => $evergreen,
+		// v13.97.5 (#1042): one query feeds two checks; a failed read used to
+		// blank both and neither could say so.
+		'ok'        => $ok,
+	);
 }
 
 /**
@@ -134,7 +141,7 @@ function sn_health_stale_posts_scan() {
  */
 function sn_health_check_stale_posts( $scan = null ) {
 	$scan = is_array( $scan ) ? $scan : sn_health_stale_posts_scan();
-	return sn_health_pack_check( sprintf( 'Stale posts (>%d months)', SN_HEALTH_STALE_MONTHS ), $scan['findings'], 'Review and either update, archive, or mark "Evergreen" in the post\'s Signal & Noise box -- which moves it to the advisory list below rather than silencing it.' );
+	return sn_health_pack_check( sprintf( 'Stale posts (>%d months)', SN_HEALTH_STALE_MONTHS ), $scan['findings'], 'Review and either update, archive, or mark "Evergreen" in the post\'s Signal & Noise box -- which moves it to the advisory list below rather than silencing it.', sn_health_stale_posts_skipped( $scan ) );
 }
 
 /**
@@ -150,5 +157,22 @@ function sn_health_check_stale_posts( $scan = null ) {
  */
 function sn_health_check_stale_posts_evergreen( $scan = null ) {
 	$scan = is_array( $scan ) ? $scan : sn_health_stale_posts_scan();
-	return sn_health_pack_check( sprintf( 'Evergreen posts past %d months', SN_HEALTH_STALE_MONTHS ), $scan['evergreen'], 'Advisory only -- these are flagged Evergreen, so they are reported rather than counted. Untick Evergreen if one should be chased.' );
+	return sn_health_pack_check( sprintf( 'Evergreen posts past %d months', SN_HEALTH_STALE_MONTHS ), $scan['evergreen'], 'Advisory only -- these are flagged Evergreen, so they are reported rather than counted. Untick Evergreen if one should be chased.', sn_health_stale_posts_skipped( $scan ) );
+}
+
+/**
+ * The skip reason both consumers share: null when the query ran.
+ *
+ * A scan array without the `ok` key came from before v13.97.5 and is read as
+ * ran, for the same reason the envelope treats a missing `skipped` as ran.
+ *
+ * @since 13.97.5
+ * @param array $scan sn_health_stale_posts_scan() output.
+ * @return string|null
+ */
+function sn_health_stale_posts_skipped( $scan ) {
+	if ( array_key_exists( 'ok', $scan ) && ! $scan['ok'] ) {
+		return 'The post query failed, so nothing was scanned. The check retries on the next scan.';
+	}
+	return null;
 }

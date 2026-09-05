@@ -106,9 +106,11 @@ function snt_health_check_ledger_ci() {
 
 	$verdict = snt_ledger_ci_evaluate( json_decode( (string) wp_remote_retrieve_body( $resp ), true ) );
 	if ( 'red' !== $verdict['state'] ) {
-		// ok AND unknown both pack zero findings; unknown carries its note as
-		// the hint so the scan is honest about what it could not judge.
-		return sn_health_pack_check( $label, array(), 'ok' === $verdict['state'] ? '' : $verdict['detail'] );
+		// ok AND unknown both pack zero findings. unknown (malformed JSON, or
+		// no completed run yet) carries its note as `skipped`, the one slot the
+		// tally reads -- v13.97.4 fixed the unreachable branch above and left
+		// this one saying the same thing in the hint, which nothing reads.
+		return sn_health_pack_check( $label, array(), '', 'ok' === $verdict['state'] ? null : $verdict['detail'] );
 	}
 
 	return sn_health_pack_check( $label, array(

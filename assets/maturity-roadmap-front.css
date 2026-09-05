@@ -45,7 +45,7 @@
 .sn-maturity-roadmap{--sn-signal:var(--wp--preset--color--signal,#ff4c47);margin:2rem 0;line-height:1.6}
 /* v13.97.5: h2, not h3 -- the shortcode sits directly under the page H1;
    size and tracking pinned to what the h3 rendered at (see #1040). */
-.sn-maturity-roadmap h2{font-size:var(--wp--preset--font-size--x-large);letter-spacing:normal;margin:2.25rem 0 .75rem}
+.sn-maturity-roadmap h2{font-size:var(--wp--preset--font-size--x-large,42px);letter-spacing:normal;margin:2.25rem 0 .75rem}
 
 /* The wide breakout: `alignfull` exempts the wrapper from the constrained
    column's width clamp, but the theme supplies no full-bleed margins for
@@ -94,7 +94,7 @@
    summary wrapped under its glyph, measured live) — the future columns
    hold a floor wide enough for "NN considering" on one line. */
 .sn-maturity-roadmap-board__cell--planned,.sn-maturity-roadmap-board__cell--considering,.sn-maturity-roadmap-board__cell--later{min-width:185px}
-.sn-maturity-roadmap-board th:not(:last-child),.sn-maturity-roadmap-board td:not(:last-child){border-right:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.16))}
+.sn-maturity-roadmap-board th:not(:last-child),.sn-maturity-roadmap-board td:not(:last-child){border-right:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-maturity-roadmap-board__family-h{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
 .sn-maturity-roadmap-badge{display:inline-flex;align-items:baseline;gap:.5em;font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;line-height:1.4;padding:.35em .75em;border:2px solid currentColor}
 /* The maturity fade used to be `opacity` on the whole badge, which fades the
@@ -105,15 +105,15 @@
    the frame still softens left-to-right, the words and numbers never do. Each
    border still clears 3:1, and the status is named in the label anyway, so the
    frame is not the sole carrier of the state. */
-.sn-maturity-roadmap-badge--planned{border-style:dashed;border-color:var(--wp--preset--color--rust,rgba(0,0,0,.55))}
-.sn-maturity-roadmap-badge--considering{border-style:dotted;border-color:var(--wp--preset--color--rust,rgba(0,0,0,.45))}
-.sn-maturity-roadmap-badge--later{border-style:dotted;border-width:1px;border-color:var(--wp--preset--color--rust,rgba(0,0,0,.45))}
+.sn-maturity-roadmap-badge--planned{border-style:dashed;border-color:var(--wp--preset--color--rust,#666666)}
+.sn-maturity-roadmap-badge--considering{border-style:dotted;border-color:var(--wp--preset--color--rust,#666666)}
+.sn-maturity-roadmap-badge--later{border-style:dotted;border-width:1px;border-color:var(--wp--preset--color--rust,#666666)}
 /* var(--wp--preset--color--signal,#ff4c47) is 3.29:1 on white — fine as an outline (non-text, 3:1), a failure as
    an 11.5px tabular number. --sn-signal-ink is the emphasis sibling the
    provenance links established -- 7.34:1 on white, 7.82:1 on dark void. */
 .sn-maturity-roadmap-badge__n{font-weight:400;font-variant-numeric:tabular-nums;color:var(--sn-signal-ink,#b00303)}
 
-.sn-maturity-roadmap-board td{border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.16));padding:.7em .85em;vertical-align:top}
+.sn-maturity-roadmap-board td{border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9);padding:.7em .85em;vertical-align:top}
 .sn-maturity-roadmap-board tbody tr:last-child td{border-bottom:0}
 .sn-maturity-roadmap-board tbody tr{transition:background .12s linear}
 /* The row-hover fill is `asphalt`, the SURFACE token -- not `concrete`, which
@@ -128,13 +128,13 @@
    (1.09-1.32:1 against void rather than up to 2.7:1). Text legibility on the
    served palette outranks the strength of a supplementary hover cue, and the
    row keeps its transition and cursor. */
-.sn-maturity-roadmap-board tbody tr:hover{background:var(--wp--preset--color--asphalt,rgba(0,0,0,.022))}
+.sn-maturity-roadmap-board tbody tr:hover{background:var(--wp--preset--color--asphalt,#f5f5f5)}
 .sn-maturity-roadmap-board__family{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.76rem;font-weight:600;white-space:nowrap}
 
 /* Cell lists: ruled items, no bullets; the future-tense columns dim as
    commitment weakens, so the left-to-right maturation is visible. */
 .sn-maturity-roadmap-board__cell ul{list-style:none;margin:0;padding:0}
-.sn-maturity-roadmap-board__cell li{padding:.35em 0;border-bottom:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.1))}
+.sn-maturity-roadmap-board__cell li{padding:.35em 0;border-bottom:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 .sn-maturity-roadmap-board__cell li:last-child{border-bottom:0}
 .sn-maturity-roadmap-board__cell--planned{opacity:.88}
 .sn-maturity-roadmap-board__cell--considering{opacity:.72}
@@ -159,7 +159,7 @@
    is only as sound as the fact it cites. */
 .sn-maturity-roadmap-fold summary:hover .sn-maturity-roadmap-fold__glyph{background:var(--sn-signal-ink,#b00303);border-color:var(--sn-signal-ink,#b00303);color:var(--sn-signal-ink-on,#fff)}
 .sn-maturity-roadmap-fold summary:focus-visible{outline:3px solid var(--sn-signal,#ff4c47);outline-offset:3px}
-.sn-maturity-roadmap-fold ul{margin-top:.3em;border-top:1px solid var(--wp--preset--color--concrete,rgba(0,0,0,.16))}
+.sn-maturity-roadmap-fold ul{margin-top:.3em;border-top:1px solid var(--wp--preset--color--concrete,#d9d9d9)}
 @media (prefers-reduced-motion:no-preference){
 	@supports (interpolate-size:allow-keywords){
 		.sn-maturity-roadmap{interpolate-size:allow-keywords}

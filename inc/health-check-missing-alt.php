@@ -51,6 +51,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 function sn_health_check_missing_alt() {
 	global $wpdb;
 	$findings = array();
+	$failed   = array(); // the passes whose query did not return rows (#1042)
 
 	// a) attachments without alt meta.
 	$rows = $wpdb->get_results(
@@ -64,6 +65,9 @@ function sn_health_check_missing_alt() {
 		 LIMIT 500",
 		ARRAY_A
 	);
+	if ( ! is_array( $rows ) ) {
+		$failed[] = 'attachments without alt';
+	}
 	if ( is_array( $rows ) ) {
 		foreach ( $rows as $r ) {
 			$findings[] = array(
@@ -90,6 +94,9 @@ function sn_health_check_missing_alt() {
 		 LIMIT 500",
 		ARRAY_A
 	);
+	if ( ! is_array( $alt_rows ) ) {
+		$failed[] = 'attachments with alt';
+	}
 	if ( is_array( $alt_rows ) ) {
 		foreach ( $alt_rows as $r ) {
 			$problem = sn_health_alt_quality_problem(
@@ -123,6 +130,9 @@ function sn_health_check_missing_alt() {
 		 LIMIT 1000",
 		ARRAY_A
 	);
+	if ( ! is_array( $content_rows ) ) {
+		$failed[] = 'published bodies';
+	}
 	if ( is_array( $content_rows ) ) {
 		foreach ( $content_rows as $row ) {
 			$post_id   = (int) $row['ID'];
@@ -175,11 +185,15 @@ function sn_health_check_missing_alt() {
 		}
 	}
 
-	return array(
-		'count'    => count( $findings ),
-		'findings' => $findings,
-		'label'    => 'Missing alt text',
-		'fix_hint' => 'Open the editor and add a descriptive alt attribute to each image. Empty alt="" is valid only for purely decorative images. Inline <svg> takes a direct-child <title> or aria-label instead — it has no alt attribute. Alt that repeats the filename or the caption, or names a category ("image", "chart") rather than the picture, reads as noise to a screen reader.',
+	// v13.97.5 (#1042): through the shared envelope, like every other check.
+	// This one built its array by hand and so had no `skipped` field at all --
+	// three failed queries reported 'no missing alt'. A pass whose query
+	// failed is named; the tally honours it only when nothing was found.
+	return sn_health_pack_check(
+		'Missing alt text',
+		$findings,
+		'Open the editor and add a descriptive alt attribute to each image. Empty alt="" is valid only for purely decorative images. Inline <svg> takes a direct-child <title> or aria-label instead — it has no alt attribute. Alt that repeats the filename or the caption, or names a category ("image", "chart") rather than the picture, reads as noise to a screen reader.',
+		array() === $failed ? null : sprintf( 'The query for %s failed, so that pass was not scanned. The check retries on the next scan.', implode( ' and ', $failed ) )
 	);
 }
 

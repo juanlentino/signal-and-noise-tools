@@ -12,6 +12,45 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Fourteen more health-check bail-outs reported a pass when they had not run, and
+  two checks had no way to say so at all. v13.97.4 fixed seven calls that put the
+  reason in `fix_hint`; a silent-failure audit of all 70 call sites found the
+  class was wider. Now saying skipped: the ledger-CI `unknown` state (malformed
+  API body, or no completed run yet -- the branch beside the one fixed last
+  time), the rights probes when every fetch fails or the ledger index is
+  unreachable, the provenance sweep when ext-intl is absent, three kill switches,
+  two failed post queries, two modules-not-loaded guards and the related-notes
+  artifact not yet built. Two checks conflated a failed query with a corpus of
+  fewer than two posts; those are different answers and now say which.
+  `missing_alt`, check number one, never used the shared envelope -- it built
+  its array by hand with no `skipped` field, so three failed queries reported
+  "no missing alt"; it now routes through `sn_health_pack_check()` and names
+  the pass whose query failed. `stale_posts` and `stale_posts_evergreen` share
+  one query with no failure signal; the scan carries `ok` and both consumers
+  read it. The cadence adapter computed `cron_skipped`/`views_skipped` and then
+  read only `flags`; it carries the skip through. The drift check `continue`d
+  past every per-post AI failure with no count -- a provider outage on every
+  candidate read as "no drift"; it counts, and every-call-failed is a skip.
+  (#1042)
+- A bold rule on the provenance version list has never matched: the selector
+  named `.sn-prov-vlabel` and `code:first-child`; the markup emits `.sn-prov-v`
+  as the first child. Same shape as the theme's `.sn-compare__title`. (#1043)
+- 27 `var(--wp--preset--color--…)` fallbacks in the front-end stylesheets were
+  `rgba()` guesses that disagreed with the opaque tokens they stand in for --
+  `rust` as `rgba(0,0,0,.25)` is `#bfbfbf` where the token is `#666666`. None
+  fire on this site; they are what the block gets anywhere else. Each is now
+  the token's value. The two x-large reads from v13.97.5 gain a fallback. (#1043)
+
+### Internal
+- `tests/health-pack-check-empty-findings-say-why.php`: every
+  `sn_health_pack_check()` call whose findings argument is literally `array()`
+  must pass a fourth argument -- `null` for ran-and-found-nothing, a reason for
+  did-not-run. A three-argument call with an empty literal is syntactically
+  complete, which is why the pattern recurred; the decision now has to be made
+  at the call site. Token-parsed, self-controlled on an in-memory fixture, and
+  run against main before #1042 landed: 21 sites. (#1042)
+
 ## [13.97.5] - 2026-09-05 — two public pages that skipped a heading level
 
 ### Fixed

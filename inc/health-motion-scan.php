@@ -196,7 +196,7 @@ function sn_health_check_motion_scan() {
 	$packed = sn_health_pack_check(
 		__( 'Motion asks first (reduced-motion, report only)', 'signal-and-noise-tools' ),
 		array(), // Report-first: findings are the report's job, fixes a later step.
-		__( 'Report only — no action from this check. Each uncovered row is a declared animation or transition with no reduced-motion counterpart; fixes land as a later, separate step.', 'signal-and-noise-tools' )
+		__( 'Report only — no action from this check. Each uncovered row is a declared animation or transition with no reduced-motion counterpart; fixes land as a later, separate step.', 'signal-and-noise-tools' ), null
 	);
 
 	$packed['report'] = array_merge( $report, array(

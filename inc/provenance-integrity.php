@@ -660,7 +660,7 @@ function sn_prov_integrity_findings( $state ) {
 function sn_health_check_provenance_integrity( $fetcher = null ) {
 	$label = 'Provenance integrity';
 	if ( ! function_exists( 'sn_prov_get_chain' ) || ! function_exists( 'sn_prov_active' ) || ! sn_prov_active() ) {
-		return sn_health_pack_check( $label, array(), 'Provenance subsystem inactive (ext-intl absent): sweep skipped, nothing flagged.' );
+		return sn_health_pack_check( $label, array(), '', 'Provenance subsystem inactive (ext-intl absent): the sweep did not run.' );
 	}
 
 	$summary  = sn_prov_integrity_run_sweep( $fetcher );
@@ -675,7 +675,7 @@ function sn_health_check_provenance_integrity( $fetcher = null ) {
 				'Provenance integrity: all triangle legs held (payload hash, live .json twin, public ledger + key file). %1$d of %2$d Notes verified this run; coverage rotates oldest-checked-first, so the whole fleet accrues across scans.',
 				(int) $summary['checked'],
 				(int) $summary['fleet']
-			)
+			), null
 		);
 	}
 

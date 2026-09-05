@@ -114,6 +114,11 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 	function wp_update_post() { $GLOBALS['__wrote'] = true; return 1; }
 }
 
+if ( ! function_exists( 'sn_health_pack_check' ) ) {
+	function sn_health_pack_check( $label, $findings, $fix_hint = '', $skipped = null ) {
+		return array( 'count' => count( $findings ), 'findings' => $findings, 'label' => $label, 'fix_hint' => $fix_hint, 'skipped' => ( is_string( $skipped ) && '' !== $skipped ) ? $skipped : null );
+	}
+}
 require_once __DIR__ . '/../inc/health-alt-quality.php';
 require_once __DIR__ . '/../inc/health-check-missing-alt.php';
 
@@ -472,6 +477,17 @@ ok( false !== strpos( sn_health_alt_quality_note( 'heading_duplicate', 'Producti
 
 ok( false === $GLOBALS['__wrote'],
 	'the heading pass writes nothing either' );
+
+echo "\nGroup: a failed query is not 'no missing alt' (#1042)\n";
+$GLOBALS['__att_no_alt']   = false;
+$GLOBALS['__att_with_alt'] = array();
+$GLOBALS['__posts']        = array();
+$r = sn_health_check_missing_alt();
+ok( 0 === $r['count'] && is_string( $r['skipped'] ) && false !== strpos( $r['skipped'], 'attachments without alt' ), 'a failed attachments query names itself in `skipped` instead of counting as a pass' );
+ok( array_key_exists( 'skipped', $r ) && array_key_exists( 'fix_hint', $r ), 'the envelope is the shared one (skipped + fix_hint keys present)' );
+$GLOBALS['__att_no_alt'] = array();
+$r = sn_health_check_missing_alt();
+ok( null === $r['skipped'] && 0 === $r['count'], 'three empty result sets are a real pass: skipped is null' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
