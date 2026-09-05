@@ -165,6 +165,10 @@ $week_rows = substr_count( $html3, '<th scope="row">' );
 ok( $week_rows >= 5 && $week_rows <= 6, 'each week is a row with its own scoped header (a 30-day window spans 5 or 6 Monday-start weeks; got ' . $week_rows . ')' );
 ok( false !== strpos( $html3, '>Week of ' ), 'week row headers NAME their week' );
 ok( false !== strpos( $html3, 'sn-public-stats__rhythm-summary' ), 'the one-paragraph prose summary renders beside the chart' );
+// v13.97.5 (#1040): the shortcode sits directly under the page's H1 post
+// title, so its section headings are H2 -- an H3 skipped a level.
+ok( false !== strpos( $html3, '<h2>Reading rhythm</h2>' ), 'a11y: the rhythm heading is an H2 (H1 title -> H2 section, no skipped level)' );
+ok( false === strpos( $html3, '<h3' ), 'a11y: no H3 anywhere in the rhythm block' );
 // The chart never outranks the numbers: bars equal the window's day count,
 // and so do the twin's day cells — the twin is the chart, not an excerpt.
 $bar_count = substr_count( $html3, '<rect' );

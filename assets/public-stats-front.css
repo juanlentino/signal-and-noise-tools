@@ -6,7 +6,11 @@
    the family's ruled list. Scoped to .sn-public-stats; enqueued only when
    the shortcode renders. */
 .sn-public-stats{margin:2rem 0;line-height:1.6}
-.sn-public-stats h3{margin:2.25rem 0 .75rem}
+/* v13.97.5: h2, not h3 -- the shortcode sits directly under the page H1.
+   theme.json styles page-level h2 at xx-large with -0.01em tracking, so the
+   size and tracking are pinned to what the h3 rendered at (the theme's
+   x-large preset, no tracking) and nothing moves. */
+.sn-public-stats h2{font-size:var(--wp--preset--font-size--x-large);letter-spacing:normal;margin:2.25rem 0 .75rem}
 .sn-public-stats__window{font-family:var(--wp--preset--font-family--body,'DM Mono','Courier New',monospace);font-size:.72rem;font-weight:700;text-transform:uppercase;letter-spacing:.09em;opacity:.6;margin:0 0 .6rem}
 
 /* The tile trio: the roadmap legend's idiom at page-content scale. */

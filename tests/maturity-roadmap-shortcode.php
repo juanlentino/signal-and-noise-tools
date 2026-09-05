@@ -430,5 +430,11 @@ delete_option( SN_MATURITY_ROADMAP_OPTION );
 ok( $static_html === call_user_func( $GLOBALS['__shortcodes']['sn_maturity_roadmap'] ), 'deleting the override returns the render to code-canonical, byte-identical' );
 ok( sn_maturity_roadmap_board_fingerprint( sn_maturity_roadmap_effective_board() ) === $static_fp, 'and the fingerprint returns with it' );
 
+echo "\nGroup: heading level (#1040)\n";
+$rh = function_exists( 'sn_maturity_roadmap_html' ) ? sn_maturity_roadmap_html() : '';
+ok( '' !== $rh, 'the roadmap renders under the test stubs' );
+ok( false !== strpos( $rh, '<h2>Roadmap</h2>' ), 'a11y: the board heading is an H2 -- the shortcode sits directly under the page H1' );
+ok( false === strpos( $rh, '<h3' ), 'a11y: no H3 anywhere in the board' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

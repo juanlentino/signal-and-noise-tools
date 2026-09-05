@@ -220,7 +220,8 @@ function sn_public_stats_rhythm_html( $data ) {
 	$max = max( $daily );
 	$n   = count( $daily );
 
-	$out  = '<h3>' . esc_html__( 'Reading rhythm', 'signal-and-noise-tools' ) . '</h3>';
+		// H2: the shortcode sits directly under the page's H1 post title (#1040).
+	$out  = '<h2>' . esc_html__( 'Reading rhythm', 'signal-and-noise-tools' ) . '</h2>';
 	$out .= '<p class="sn-public-stats__rhythm-summary">' . esc_html( $sent ) . '</p>';
 
 	// One bar per day, integer geometry. A non-zero day never rounds to
@@ -378,7 +379,7 @@ function sn_public_stats_html() {
 	$out .= sn_public_stats_rhythm_html( $data );
 
 	if ( array() !== $data['top'] ) {
-		$out .= '<h3>' . esc_html__( 'Most read', 'signal-and-noise-tools' ) . '</h3><ol class="sn-public-stats__top">';
+		$out .= '<h2>' . esc_html__( 'Most read', 'signal-and-noise-tools' ) . '</h2><ol class="sn-public-stats__top">';
 		foreach ( $data['top'] as $path => $views ) {
 			$out .= '<li><a href="' . esc_url( home_url( (string) $path ) ) . '">' . esc_html( sn_public_stats_path_label( (string) $path ) ) . '</a>'
 				. '<span class="sn-public-stats__views">' . esc_html( number_format_i18n( (int) $views ) ) . '</span></li>';
