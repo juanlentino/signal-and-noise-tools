@@ -2,6 +2,16 @@
 /**
  * Signal & Noise Tools — WP Explorer (OpenStation "My WordPress") integration.
  *
+ * SUPERSEDED (v13.98.0). OpenStation 1.1.6 rebuilt WP Explorer on its App
+ * Framework and retired the two filters this module hangs on: the hooks
+ * reference marks `openstation_my_wordpress_entities` INERT (it runs, nothing
+ * reads it) and `_window_args` went with the legacy window. The folder this
+ * module built stopped rendering on that release with no error anywhere. The
+ * same two surfaces now live in the plugin's own app, apps/signal-noise/
+ * (see inc/openstation-app.php). This file stays for the `sn_provenance` REST
+ * field it registers and for a pre-1.1.6 shell; its filters are harmless
+ * where they are inert.
+ *
  * The shell's WP Explorer is a Finder-style native window over WordPress
  * content: folder tiles at the root, infinite-scroll lists, a preview pane.
  * This module gives it a "Signal & Noise" folder with two sections:

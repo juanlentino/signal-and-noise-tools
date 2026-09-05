@@ -13,6 +13,22 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Added
+- The Signal & Noise window: a Notes + Discography app on OpenStation's App
+  Framework (`apps/signal-noise/`, loaded through `openstation_apps_directories`).
+  It is the successor to the WP Explorer folder OpenStation's maintainer
+  contributed in v12.4.0 (#751): OpenStation 1.1.6 rebuilt WP Explorer on the
+  framework and retired the two filters that folder hung on -- the hooks
+  reference marks `openstation_my_wordpress_entities` inert and
+  `_window_args` gone -- so the folder stopped rendering with no error anywhere.
+  The rebuilt Explorer's seams carry whole post types only; Notes are posts in a
+  category and the Discography is an option store, so neither fits there. The
+  app carries both: Notes with the anchor-status chip, the signed commit chain,
+  the ledger UID and the editor as a window; the Discography with cover art,
+  roles, tracks and the Spotify / Muso links. Server views throughout -- no build,
+  no bundle -- so the phone layer paints it too. Sections are a registry
+  (`snt_os_app_sections`): a future surface is one descriptor with two callables
+  and the shared frame paints it. The v12.4.0 module stays for its REST field.
+  (#1047)
 - A 25th health check: the machine-reader dataset went quiet. The rights-signals
   worker's sensor readout (`sensor.last_write_ok`) is isolate memory -- null until
   that isolate has attempted a write, and a fresh isolate on every colo -- so it

@@ -627,3 +627,14 @@ confirmed to fail for the right reason) before the corresponding code change
 landed. Full account, including exact RED output, per-file assertion deltas,
 and final sweep/phpstan/phpcs numbers: see the `[10.43.0]` review-round entry
 in [CHANGELOG.md](../CHANGELOG.md).
+
+
+## v13.98.0 — the Explorer folder became an app
+
+OpenStation 1.1.6 rebuilt WP Explorer on its App Framework (`apps/my-wordpress/`). Two filters the v12.4.0 integration used are no longer read: `openstation_my_wordpress_entities` is documented as **inert** (it still runs; no window consumes its list) and `openstation_my_wordpress_window_args` went with the legacy window. The rebuilt Explorer offers `openstation_my_wordpress_app_sections`, but a section there is a whole post type (`kind` post | media | user | agent) with no query scoping, so a category-scoped Notes section and an option-backed Discography cannot be expressed.
+
+The plugin now ships its own app instead: `apps/signal-noise/signal-noise.os.php`, registered through `openstation_apps_directories` (the framework's documented path for third-party apps) and painted entirely by server views. `inc/openstation-app.php` holds the loader, the section registry (`snt_os_app_sections`, the extension point -- see the contract in that file's header) and the provenance summary. `inc/desktop-mode-explorer.php` stays for the `sn_provenance` REST field; its two filters are harmless where they are inert.
+
+Seams the app module consumes, all Experimental at 1.1.6: `openstation_apps_directories` (filter, where the framework loads `.os.php` files from), `openstation_app_window_args` (filter, the registration args of an app window just before `openstation_register_window()` runs -- our stylesheet fallback rides it), `openstation_apps_style_handle()` (the handle the framework registers an app stylesheet under; we test for its presence in `styles`), and `openstation_apps_path_to_url()` (the framework-side path-to-URL mapping whose `''` for a path outside wp-content is the reason the fallback exists).
+
+Verified against the 1.1.6 sources: `includes/framework/wordpress.php` (`openstation_apps_directories`, `openstation_app_window_args`, `openstation_apps_style_handle`, `openstation_apps_path_to_url`, `openstation_register_window`), `includes/framework/app/class-registry.php` (`load_dir()` picks up `*.os.php` one folder deep), `docs/app-framework.md` ("Where apps live", "Third-party client views"), `docs/hooks-reference.md` (the inert note).
