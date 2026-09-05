@@ -611,6 +611,23 @@ function sn_plugin_update_version_watchdog() {
 		}
 		if ( function_exists( 'wp_clean_plugins_cache' ) ) {
 			wp_clean_plugins_cache();
+			// v13.97.1 (#1029): and never leave an EMPTY plugin list behind.
+			// This watchdog is the one thing in the plugin that deliberately
+			// drops WP's plugin cache, it fires exactly once on the first
+			// request after a version change, and since v12.25.0 it runs on
+			// `init` - so under WP-CLI, cron, the front end and REST as well as
+			// wp-admin. Whichever call rebuilds the cache next does so while
+			// the plugin directory may still be settling, and `get_plugins()`
+			// caches whatever it scanned, including nothing. A persistent
+			// object cache then serves "no plugins installed" as a healthy 200
+			// until something evicts it - which is what the OpenStation
+			// Plugins window rendered as an empty list after an update.
+			//
+			// The repair is a no-op unless the registry is empty AND
+			// active_plugins is not, which cannot both be legitimately true.
+			if ( function_exists( 'snt_plugin_registry_repair' ) ) {
+				snt_plugin_registry_repair();
+			}
 		}
 		// v2.1.2: also clear the plugin_information_<slug> transient
 		// which caches the plugins_api response (used by the View

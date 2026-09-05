@@ -24,6 +24,10 @@ function update_option( $name, $value, $autoload = null ) {
 	return true;
 }
 function is_wp_error( $t ) { return $t instanceof SNT_Probe_Error; }
+$GLOBALS['snt_registry']   = array( 'a/a.php' => array( 'Name' => 'A' ) );
+$GLOBALS['snt_cache_dels'] = array();
+function get_plugins() { return $GLOBALS['snt_registry']; }
+function wp_cache_delete( $key, $group = '' ) { $GLOBALS['snt_cache_dels'][] = "$group/$key"; return true; }
 function add_filter( $h, $c, $p = 10, $a = 1 ) { $GLOBALS['snt_filters'][ $h ][] = $c; }
 function human_time_diff( $from, $to = 0 ) { return '5 mins'; }
 
@@ -103,6 +107,47 @@ ok( null === snt_plugin_registry_anomaly(), 'no record -> nothing reported' );
 echo "\nGroup 4: it is actually attached\n";
 ok( isset( $GLOBALS['snt_filters']['rest_request_after_callbacks'] ), 'registers on rest_request_after_callbacks' );
 ok( in_array( 'snt_plugin_registry_probe', (array) ( $GLOBALS['snt_filters']['rest_request_after_callbacks'] ?? array() ), true ), 'and the callback attached is ours' );
+
+echo "\nGroup 5: the repair refuses to leave an empty registry cached\n";
+function reset_repair( $registry, $active = array( 'a/a.php', 'b/b.php' ) ) {
+	$GLOBALS['snt_registry']   = $registry;
+	$GLOBALS['snt_cache_dels'] = array();
+	$GLOBALS['snt_options']    = array( 'active_plugins' => $active );
+}
+reset_repair( array( 'a/a.php' => array( 'Name' => 'A' ) ) );
+ok( false === snt_plugin_registry_repair(), 'a NON-empty registry is left alone' );
+ok( array() === $GLOBALS['snt_cache_dels'], '   ...and nothing is deleted' );
+
+reset_repair( array(), array() );
+ok( false === snt_plugin_registry_repair(), 'an empty registry with NO active plugins is legitimate - left alone' );
+ok( array() === $GLOBALS['snt_cache_dels'], '   ...and nothing is deleted' );
+
+reset_repair( array() );
+ok( true === snt_plugin_registry_repair(), 'empty registry + active plugins -> the cache is dropped' );
+ok( array( 'plugins/plugins' ) === $GLOBALS['snt_cache_dels'], '   ...and it drops exactly the plugins cache, nothing else' );
+
+reset_repair( 'not-an-array' );
+ok( false === snt_plugin_registry_repair(), 'a non-array registry is not treated as empty' );
+
+echo "\nGroup 6: the probe RECORDS before it repairs\n";
+// The order is the whole argument for repairing at all: the observation
+// outlives the request, so dropping the cache costs no evidence.
+reset_repair( array() );
+$GLOBALS['snt_options']['active_plugins'] = array( 'a/a.php', 'b/b.php' );
+probe( '/wp/v2/plugins', array() );
+ok( recorded(), 'the anomaly is still recorded' );
+ok( array( 'plugins/plugins' ) === $GLOBALS['snt_cache_dels'], 'and the poisoned cache is dropped in the same pass' );
+
+echo "\nGroup 7: the dependency cannot silently disappear\n";
+// snt_plugin_registry_repair() is called from inc/wp-update-integration.php
+// behind a function_exists guard. If the probe were ever dropped from the
+// loader that guard would degrade to a silent no-op - the exact failure this
+// whole issue is about - so pin that BOTH files are required.
+$boot = (string) file_get_contents( dirname( __DIR__ ) . '/signal-and-noise-tools.php' );
+ok( false !== strpos( $boot, "inc/plugin-registry-probe.php" ), 'the probe is required by the plugin bootstrap' );
+ok( false !== strpos( $boot, "inc/wp-update-integration.php" ), 'the update watchdog is required by the plugin bootstrap' );
+$watchdog = (string) file_get_contents( dirname( __DIR__ ) . '/inc/wp-update-integration.php' );
+ok( false !== strpos( $watchdog, 'snt_plugin_registry_repair' ), 'the watchdog calls the repair after clearing the plugin cache' );
 
 echo sprintf( "\nResult: %d passed, %d failed.\n", $pass, $fail );
 exit( $fail > 0 ? 1 : 0 );
