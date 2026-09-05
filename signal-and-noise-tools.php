@@ -428,6 +428,12 @@ require_once __DIR__ . '/inc/redirects-admin.php';
 require_once __DIR__ . '/inc/og-card-generator.php';
 require_once __DIR__ . '/inc/og-card-provenance.php'; // v9.25.0: embed provenance in OG cards (machine-readability D2)
 require_once __DIR__ . '/inc/reading-time.php';
+// v13.97.2 (#1032): DISABLE_WP_CRON, so a visitor's pageview stops paying for
+// cron. Required EARLY - `spawn_cron()` reads the constant during `init`, so
+// anything later than plugin load is too late to matter. Safe only because
+// Cloudways' Cron Optimizer already runs wp-cron.php every 5 minutes; see the
+// file's docblock for the safety net if that ever goes away.
+require_once __DIR__ . '/inc/wp-cron-offload.php';
 require_once __DIR__ . '/inc/wp-update-integration.php';
 require_once __DIR__ . '/inc/wp-update-git-preservation.php';
 require_once __DIR__ . '/inc/github-actions-api.php';
