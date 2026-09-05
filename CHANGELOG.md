@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.98.0] - 2026-09-05 — the Signal & Noise window, and two checks born the same day
+
 ### Added
 - The Signal & Noise window: a Notes + Discography app on OpenStation's App
   Framework (`apps/signal-noise/`, loaded through `openstation_apps_directories`).
