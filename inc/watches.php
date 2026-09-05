@@ -89,6 +89,19 @@ function snt_watches() {
 			'ripe'      => '',
 		),
 		array(
+			'id'        => 'origin_503_recheck',
+			'label'     => 'origin 503 count after cron left the request path',
+			'why'       => 'The baseline was 10 origin-side 503s per 24h, measured BEFORE v13.97.2 stopped a visitor pageview from paying for a 10.6s-average cron run. If the count has not fallen, the remaining cause is the FPM pool size rather than the work removed from it — and a server resize would then be buying a bigger pool, not more RAM. Resizing before that reading is spending against an untested guess.',
+			'read'      => 'Cloudways app traffic -> top_statuses, duration 1d, app 5349211 (async: poll operation_status). Compare against 10 per 24h.',
+			// A weak-form watch, deliberately. The 503s are counted by the HOST;
+			// WordPress cannot see them, so there is no state here for the site
+			// to notice on its own — exactly the case this file reserves
+			// `date_only` for. A week gives several full cron days after the fix.
+			'date_only' => true,
+			'due'       => '2026-09-12',
+			'ripe'      => '',
+		),
+		array(
 			'id'        => 'wave4_telemetry',
 			'label'     => 'wave-4 tool retirement read',
 			'why'       => 'Retire the absorbed single-purpose tools only on a collapsed read — usage evidence, never a date. The date is only when the window is wide enough to look.',
