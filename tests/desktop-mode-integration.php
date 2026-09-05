@@ -1603,8 +1603,8 @@ ok( 'hidden' === call_user_func( $dock_placement_cb, 'dock', 'sn-theme-options' 
 	'openstation_dock_placement hides the SN auto-imported menu item, same as the old name' );
 
 $dock_items_via_new = apply_filters( 'openstation_dock_items', array() );
-ok( is_array( $dock_items_via_new ) && 1 === count( $dock_items_via_new ) && 'signal-noise' === ( $dock_items_via_new[0]['id'] ?? '' ),
-	'openstation_dock_items builds the same single "signal-noise" dock entry as the old name' );
+ok( is_array( $dock_items_via_new ) && 1 === count( $dock_items_via_new ) && 'sn-dashboard' === ( $dock_items_via_new[0]['id'] ?? '' ) && 'S&N Dashboard' === ( $dock_items_via_new[0]['title'] ?? '' ) && 'dashicons-shield-alt' === ( $dock_items_via_new[0]['icon'] ?? '' ),
+	'openstation_dock_items builds the single "sn-dashboard" dock entry -- its own id since v13.100.0, so it no longer shares "signal-noise" with the App Framework app' );
 
 $icon_url_cb = first_filter_cb( 'openstation_plugins_window_icon_url' );
 ok( is_callable( $icon_url_cb ), 'openstation_plugins_window_icon_url carries a callable' );
