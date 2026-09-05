@@ -628,7 +628,8 @@ function sn_maturity_roadmap_html() {
 	$board  = sn_maturity_roadmap_board();
 	$counts = sn_maturity_roadmap_counts( $board );
 
-	$out = '<h3>' . esc_html__( 'Roadmap', 'signal-and-noise-tools' ) . '</h3>';
+	// H2: the shortcode sits directly under the page's H1 post title (#1040).
+	$out = '<h2>' . esc_html__( 'Roadmap', 'signal-and-noise-tools' ) . '</h2>';
 
 	// The legend: the commitment gradient as a count trio, each cell an
 	// anchor to the board so the legend is navigation, not decoration.

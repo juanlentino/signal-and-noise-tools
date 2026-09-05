@@ -265,6 +265,10 @@ if ( vv_require_fn( 'sn_prov_verify_send' ) ) {
 		'page carries a noindex robots meta tag'
 	);
 	vv_true( false !== strpos( $html, 'class="sn-verify"' ), 'page root element carries the .sn-verify class' );
+	// v13.97.5 (#1040): the panels live in a <main> landmark between the header and footer.
+	vv_true( 1 === substr_count( $html, '<main' ), 'exactly one <main> landmark' );
+	vv_true( strpos( $html, '<main' ) > strpos( $html, '</header>' ) && strpos( $html, '</main>' ) < strpos( $html, '<footer' ), '<main> opens after the header and closes before the footer' );
+	vv_true( strpos( $html, 'role="tabpanel"' ) > strpos( $html, '<main' ) && strpos( $html, 'role="tabpanel"' ) < strpos( $html, '</main>' ), 'the tab panels are inside <main>' );
 
 	$expected_credential_base = esc_attr( 'https://example.com/wp-json/signal-noise/v1/credential/' );
 	$expected_did_url         = esc_attr( 'https://example.com/.well-known/did.json' );

@@ -226,6 +226,7 @@ $sn_theme_key = preg_replace( '/[^A-Za-z0-9_-]/', '', defined( 'SN_THEME_STORAGE
 		// residual trust and the way out of it. ?>
 		<p class="sn-verify-lede">Four checks run right here, in your browser, against the public ledger and the Bitcoin chain. One honest caveat: the code running them was served by this site. If that is the trust you came to question, the section at the end of this page shows how to run the same checks without it.</p>
 	</header>
+	<main id="sn-verify-main">
 
 	<?php // The verdict band leads the page in the DOM, not only on screen: it is
 	// hidden until a run starts, so an idle page opens on the form (the whole
@@ -398,6 +399,7 @@ node verify.mjs<?php echo '' !== $uid ? ' ' . esc_html( $uid ) : ' &lt;note_uid&
 		<p>Releases of the verifier are built in the repository&#8217;s public CI and published with a build attestation, so a downloaded copy can prove which commit built it. The attestation&#8217;s anchor is the code host itself &#8212; reading the code in your clone remains the trust floor. VERIFY.md&#8217;s &#8220;Verify the verifier&#8221; section shows the check and states plainly what it does and does not prove.</p>
 	</section>
 
+	</main>
 	<footer class="sn-verify-foot">
 		<a href="<?php echo esc_url( home_url( '/' ) ); ?>">juanlentino.com</a>
 		<span aria-hidden="true">&middot;</span>

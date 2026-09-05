@@ -12,6 +12,21 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.97.5] - 2026-09-05 — two public pages that skipped a heading level
+
+### Fixed
+- `/stats/` and `/maturity/roadmap/` no longer skip a heading level. `[sn_public_stats]`
+  emitted `<h3>Reading rhythm</h3>` and `<h3>Most read</h3>`, and `[sn_maturity_roadmap]`
+  `<h3>Roadmap</h3>`, each directly under the page's H1 post title with nothing
+  between (WCAG 1.3.1). Both are H2 now. Both stylesheets qualified the heading by
+  element, so the selectors moved with the tag; and because theme.json styles a
+  page-level `h2` at xx-large with tracking, the size and tracking are pinned to
+  what the H3 rendered at (the theme's x-large preset), so nothing moves. Found by
+  auditing 40 live pages as rendered, not from source. (#1040)
+- `/verify/` has a `<main>` landmark. The standalone verifier had `<header>`,
+  a labelled `<nav>` and `<footer>`, and its panels sat in a bare `<div>` -- no
+  skip target on the one page whose entire purpose is reading the panels. (#1040)
+
 ## [13.97.4] - 2026-09-05 — two readouts that could not tell "didn't run" from "nothing wrong"
 
 ### Added
