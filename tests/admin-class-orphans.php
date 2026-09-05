@@ -62,7 +62,7 @@ const SN_ORPHAN_CLASS_BASELINE = array(
 	'sn-an-exclude', 'sn-an-funnels', 'sn-an-gate', 'sn-an-heatmap-panel',
 	'sn-an-mirrors', 'sn-an-prior-note', 'sn-an-refcats', 'sn-an-status',
 	'sn-an-tuning-radios', 'sn-audit-logins-log', 'sn-availability', 'sn-aw-spend',
-	'sn-catalog-number', 'sn-cit-legend', 'sn-colophon', 'sn-colophon-items',
+	'sn-catalog-number', 'sn-colophon', 'sn-colophon-items',
 	'sn-colophon-versions', 'sn-cron-dashboard', 'sn-dash-briefing', 'sn-dash-zone-label',
 	'sn-geo', 'sn-health-advisory', 'sn-health-contrast-arithmetic', 'sn-health-contrast-conditional',
 	'sn-health-contrast-usage', 'sn-health-elsewhere', 'sn-health-motion-uncovered', 'sn-health-skipped',
@@ -91,7 +91,11 @@ $glob = static function ( $pat ) use ( $root ) {
 	$it  = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root, FilesystemIterator::SKIP_DOTS ) );
 	foreach ( $it as $f ) {
 		$p = $f->getPathname();
-		if ( false !== strpos( $p, '/node_modules/' ) || false !== strpos( $p, '/vendor/' ) || false !== strpos( $p, '/.git/' ) ) {
+		// .claude/ holds other sessions' linked WORKTREES — whole stale copies of
+		// the plugin. Scanning them scored a class the current renderer no longer
+		// prints as a NEW orphan, from five worktrees' copies of the old file
+		// (2026-09-05, #1055). CI never has the directory; only a local run does.
+		if ( false !== strpos( $p, '/node_modules/' ) || false !== strpos( $p, '/vendor/' ) || false !== strpos( $p, '/.git/' ) || false !== strpos( $p, '/.claude/' ) ) {
 			continue;
 		}
 		if ( 1 === preg_match( $pat, $p ) ) { $out[] = $p; }
