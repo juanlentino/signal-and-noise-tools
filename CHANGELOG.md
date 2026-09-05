@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.97.4] - 2026-09-05 — two readouts that could not tell "didn't run" from "nothing wrong"
+
 ### Added
 - A 24th health check: WP-Cron still spawning from ordinary page requests.
   v13.97.2 defines `DISABLE_WP_CRON` at load, and whether that happened was not
