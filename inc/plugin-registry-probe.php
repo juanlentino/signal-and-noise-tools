@@ -20,8 +20,12 @@
  *     pays one string comparison;
  *   - error responses are ignored — a 401 already tells its own story, and the
  *     fault being caught here is specifically a HEALTHY-LOOKING empty answer;
- *   - it records, it does not repair. Flushing a cache from inside a read
- *     request would hide the very evidence the owner needs.
+ *   - it records FIRST, then repairs. v13.97.0 shipped this as record-only,
+ *     on the reasoning that repairing inside a read request would hide the
+ *     evidence. That holds only if repair REPLACES recording; it does not here.
+ *     The observation is already written to an option that outlives the
+ *     request, so dropping the poisoned cache afterwards costs no evidence and
+ *     spares the next reader the same wrong answer.
  *
  * @package Signal_And_Noise_Tools
  * @since 13.96.6
@@ -81,9 +85,53 @@ function snt_plugin_registry_probe( $response, $handler, $request ) {
 		false
 	);
 
+	snt_plugin_registry_repair();
+
 	return $response;
 }
 add_filter( 'rest_request_after_callbacks', 'snt_plugin_registry_probe', 10, 3 );
+
+/**
+ * Drop a plugin cache that says "nothing installed" while plugins are active.
+ *
+ * `get_plugins()` caches whatever it scanned, INCLUDING nothing. A read that
+ * lands while the plugin directory is mid-write - which is exactly what the
+ * first request after an update is - can therefore persist an empty list into
+ * a persistent object cache, where it is served as a healthy 200 until
+ * something evicts it.
+ *
+ * This refuses to leave that value in place. It does NOT rebuild: the next
+ * read does that, by which time the filesystem has settled. Rebuilding here
+ * would repeat the read that produced the bad value in the first place.
+ *
+ * Safe to call anywhere - it is a no-op unless the registry is empty AND
+ * WordPress believes it is running plugins, which cannot both be true.
+ *
+ * @return bool Whether a poisoned cache was dropped.
+ */
+function snt_plugin_registry_repair() {
+	if ( ! function_exists( 'get_plugins' ) && defined( 'ABSPATH' ) && is_readable( ABSPATH . 'wp-admin/includes/plugin.php' ) ) {
+		require_once ABSPATH . 'wp-admin/includes/plugin.php';
+	}
+	if ( ! function_exists( 'get_plugins' ) || ! function_exists( 'wp_cache_delete' ) ) {
+		return false;
+	}
+
+	$active = get_option( 'active_plugins' );
+	if ( ! is_array( $active ) || array() === $active ) {
+		return false;
+	}
+
+	$registry = get_plugins();
+	if ( ! is_array( $registry ) || array() !== $registry ) {
+		return false;
+	}
+
+	// Empty registry, non-empty active_plugins: the cache is lying.
+	wp_cache_delete( 'plugins', 'plugins' );
+
+	return true;
+}
 
 /**
  * The last recorded anomaly, if it is still inside the reporting window.
