@@ -1,59 +1,65 @@
 <?php
 /**
  * Signal & Noise Tools — the Signal & Noise app for OpenStation's App
- * Framework (v13.98.0).
+ * Framework (v13.98.0; rebuilt as a client view in #1049).
  *
  * WHY THIS EXISTS. v12.4.0 (#751, contributed by OpenStation's maintainer)
  * put a "Signal & Noise" folder inside the shell's WP Explorer through two
  * filters, `openstation_my_wordpress_entities` and `_window_args`. OpenStation
  * 1.1.6 rebuilt WP Explorer on its App Framework and retired both: the hooks
- * reference now marks the entities filter "inert" (it runs, nothing reads it)
+ * reference marks the entities filter "inert" (it runs, nothing reads it)
  * and the window-args filter "went with the legacy window". Nothing errored,
  * so nothing warned; the folder simply stopped rendering. The module that
- * built it (inc/desktop-mode-explorer.php) is left in place for the REST field
- * it registers and for any pre-1.1.6 shell, but it no longer paints anything.
+ * built it (inc/desktop-mode-explorer.php) stays for the REST field it
+ * registers, but it no longer paints anything.
  *
  * WHAT THIS IS. The same two surfaces -- Notes with their provenance chain,
  * and the Discography -- as a window of their own, declared in one PHP file
  * the framework loads from this plugin's `apps/` directory
- * (`openstation_apps_directories`). Server-rendered: no JavaScript build, no
- * bundle to ride another window, and the phone layer paints it for free.
+ * (`openstation_apps_directories`), and painted the way WP Explorer paints
+ * itself: the PHP half returns `data()`, a CLIENT VIEW (signal-noise-client.js,
+ * plain JS against the runtime's public API, no build) paints folder tiles at
+ * the root, `<os-tile>` canvases with the kit's status ribbons, the shared
+ * status pills and search, an `<os-table>` list view, and an item dossier in a
+ * side pane (a page on the phone). Selection, search and filtering never make
+ * a request; only opening the editor does.
  *
- * EXPANDABLE BY CONSTRUCTION. The app knows nothing about Notes or albums.
- * It reads sn_os_app_sections(): an ordered list of SECTION descriptors, each
- * a tab. A section supplies data through two callables and the shared frame
- * (apps/signal-noise/parts/frame.php) paints it -- toolbar, list, dossier,
- * pager, empty states. Adding a surface is one descriptor:
+ * EXPANDABLE BY CONSTRUCTION. The app knows nothing about Notes or albums; the
+ * client view renders any section from the fields its items carry. Adding a
+ * surface is one PHP descriptor through the `snt_os_app_sections` filter:
  *
- *   add_filter( 'snt_os_app_sections', function ( $sections ) {
- *       $sections[] = array(
- *           'id'         => 'ledger',                    // tab slug (not "main")
- *           'label'      => 'Ledger',
- *           'icon'       => 'dashicons-shield',
- *           'capability' => 'manage_options',           // hidden without it
- *           'position'   => 30,                         // tab order
- *           'rows'       => function ( $state ) { … },  // list page, see below
- *           'dossier'    => function ( $id ) { … },     // one item, or null
- *           'empty'      => array( 'heading' => …, 'description' => … ),
- *       );
- *       return $sections;
- *   } );
+ *   'id'             => 'ledger',            // slug
+ *   'label'          => 'Ledger',
+ *   'icon'           => 'dashicons-shield',  // Dashicons class or image URL
+ *   'kind'           => 'ledger',            // the tile `type`, a word of yours
+ *   'capability'     => 'manage_options',    // hidden without it
+ *   'position'       => 30,                  // folder order at the root
+ *   'statuses'       => array( array( 'value' => 'publish', 'label' => 'Published' ), … ), // optional pills; '' (All) is added
+ *   'default_status' => 'publish',           // optional; '' = All
+ *   'count'          => function () {},      // optional; count( items() ) otherwise
+ *   'items'          => function () {},      // every item, newest first (capped at SN_OS_APP_ITEM_CAP)
+ *   'edit_url'       => function ( $id ) {}, // optional; the `edit` action opens it as a window
  *
- * `rows( State $state, Os $os )` returns array( 'items' => array<array>, 'total' =>
- * int, 'page' => int, 'per_page' => int ); each item carries `id`, `title`,
- * and optionally `subtitle`, `meta` (short text), `thumbnail` (URL), `status`
- * (a post status, drives the tile ribbon), `chip` (array( 'label', 'tone' )).
- * `dossier( string $id )` returns null or array( 'title', 'subtitle',
- * 'thumbnail', 'chips' => array<array{label,tone}>, 'blocks' => array<array{
- * heading, html }> (html ALREADY ESCAPED), 'links' => array<array{label,url}>,
- * 'edit' => array( 'url', 'title' ) ). The state a section reads:
- * `query` (search), `page` (1-based), `item` (the selected id, '' for none).
+ * An ITEM: `id`, `title`, `subtitle`, `thumbnail` (URL or ''), `icon`, `status`
+ * (a post status; drives the tile ribbon and the pills), `statusLabel`, `date`
+ * (ISO), `dateLabel`, `badge` (array( 'text', 'tone' ) with a kit tone --
+ * success | warning | danger | info | neutral -- or null), `columns` (extra
+ * list-view cells keyed by `key`), and `detail`: `hero` (URL), `facts` (list of
+ * [ label, value ]), `blocks` (list of array( 'heading', 'kind' => 'table' |
+ * 'code' | 'text', … )), `actions` (list of array( 'label', 'variant',
+ * 'dispatch' => 'edit', 'args' ) or array( 'label', 'url' )). Everything is
+ * plain text; the client escapes.
  *
  * @package SignalNoiseTools
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
+}
+
+/** Items per section shipped to the browser; the client filters and pages locally. */
+if ( ! defined( 'SN_OS_APP_ITEM_CAP' ) ) {
+	define( 'SN_OS_APP_ITEM_CAP', 400 );
 }
 
 /**
@@ -77,7 +83,9 @@ add_filter( 'openstation_apps_directories', 'snt_os_app_directories' );
  *
  * Built-ins register through the same filter as anyone else (see the app's
  * parts), so the registry has one shape and one order rule: `position`, then
- * label. A descriptor without `id`, `label` and a callable `rows` is dropped.
+ * label. A descriptor without `id`, `label` and a callable `items` is dropped.
+ * Resolved on every call -- never frozen at registration time -- so the
+ * current user's capabilities gate what the window offers.
  *
  * @return array<int,array<string,mixed>>
  */
@@ -85,11 +93,11 @@ function snt_os_app_sections() {
 	$sections = apply_filters( 'snt_os_app_sections', array() );
 	$out      = array();
 	foreach ( (array) $sections as $section ) {
-		if ( ! is_array( $section ) || empty( $section['id'] ) || empty( $section['label'] ) || ! isset( $section['rows'] ) || ! is_callable( $section['rows'] ) ) {
+		if ( ! is_array( $section ) || empty( $section['id'] ) || empty( $section['label'] ) || ! isset( $section['items'] ) || ! is_callable( $section['items'] ) ) {
 			continue;
 		}
 		$id = strtolower( (string) preg_replace( '/[^a-zA-Z0-9_-]/', '', (string) $section['id'] ) );
-		if ( '' === $id || 'main' === $id ) {
+		if ( '' === $id ) {
 			continue;
 		}
 		$capability = (string) ( $section['capability'] ?? '' );
@@ -110,12 +118,28 @@ function snt_os_app_sections() {
 }
 
 /**
- * A Note's provenance, summarised for a tile and a dossier.
+ * A section descriptor by id, or null.
+ *
+ * @param string $id Section id.
+ * @return array<string,mixed>|null
+ */
+function snt_os_app_section( $id ) {
+	foreach ( snt_os_app_sections() as $section ) {
+		if ( (string) $section['id'] === (string) $id ) {
+			return $section;
+		}
+	}
+	return null;
+}
+
+/**
+ * A Note's provenance, summarised for a tile badge and a dossier.
  *
  * The chain is inc/provenance-core.php's: ordered commits with `version`,
  * `status` (confirmed | pending | unanchored | genesis), `committed_at`,
  * `content_hash`. Null when the post is not a Note or has no chain -- absent,
- * never an empty ledger.
+ * never an empty ledger. A Note is signed on publish, so a scheduled or draft
+ * Note has none yet; that is a fact about the post, not a failure.
  *
  * @param int $post_id Post id.
  * @return array<string,mixed>|null
@@ -153,38 +177,38 @@ function snt_os_app_note_provenance( $post_id ) {
 }
 
 /**
- * How an anchor status reads: a label and an <os-chip> tone.
+ * How an anchor status reads: a label and an <os-badge> tone.
  *
- * Same vocabulary the v12.4.0 tile badge used, on the kit's tone scale
- * (neutral | accent | positive | warning | danger).
+ * The vocabulary #751 painted on its tiles, on the kit's badge tones
+ * (success | warning | danger | info | neutral).
  *
  * @param string $status Chain status.
  * @return array{label:string,tone:string}
  */
-function snt_os_app_anchor_chip( $status ) {
+function snt_os_app_anchor_badge( $status ) {
 	switch ( (string) $status ) {
 		case 'confirmed':
-			return array( 'label' => __( 'Anchored', 'signal-and-noise-tools' ), 'tone' => 'positive' );
+			return array( 'label' => __( 'Anchored', 'signal-and-noise-tools' ), 'tone' => 'success' );
 		case 'pending':
 			return array( 'label' => __( 'Awaiting anchor', 'signal-and-noise-tools' ), 'tone' => 'warning' );
 		case 'genesis':
-			return array( 'label' => __( 'Genesis', 'signal-and-noise-tools' ), 'tone' => 'neutral' );
+			return array( 'label' => __( 'Genesis', 'signal-and-noise-tools' ), 'tone' => 'info' );
 		default:
 			return array( 'label' => __( 'Not yet anchored', 'signal-and-noise-tools' ), 'tone' => 'neutral' );
 	}
 }
 
 /**
- * Carry the app's stylesheet when the framework could not.
+ * Carry the app's stylesheet and client script when the framework could not.
  *
- * The framework registers `<app dir>/signal-noise.css` itself, but only when
- * it can map the file's REAL path to a URL: openstation_apps_path_to_url()
- * answers '' for anything outside wp-content and ABSPATH, and a symlinked
- * plugin directory (a dev checkout, some hosts) resolves through realpath()
- * to exactly that. The window then opens unstyled -- measured in the sandbox
- * on 2026-09-05: everything painted, no grid. This appends our own handle,
- * served from the plugin URL, ONLY when the framework's handle is absent; a
- * plain install sees no change and loads the sheet once.
+ * The framework registers `<app dir>/signal-noise.css` and the `client()`
+ * script itself, but only when it can map each file's REAL path to a URL:
+ * openstation_apps_path_to_url() answers '' for anything outside wp-content
+ * and ABSPATH, and a symlinked plugin directory (a dev checkout, some hosts)
+ * resolves through realpath() to exactly that. The window then opens
+ * unstyled, or -- for a client view -- never paints at all. This appends our
+ * own handles, served from the plugin URL, ONLY when the framework's are
+ * absent; a plain install sees no change and loads each file once.
  *
  * @param array<string,mixed> $window_args openstation_register_window() args.
  * @param string              $id          App id.
@@ -194,19 +218,31 @@ function snt_os_app_window_args( $window_args, $id ) {
 	if ( 'signal-noise' !== (string) $id || ! is_array( $window_args ) ) {
 		return $window_args;
 	}
+	$base_path = ( defined( 'SNT_PATH' ) ? SNT_PATH : dirname( __DIR__ ) . '/' ) . 'apps/signal-noise/';
+	$base_url  = ( defined( 'SNT_URL' ) ? SNT_URL : plugins_url( '/', __DIR__ ) ) . 'apps/signal-noise/';
+
 	$styles = isset( $window_args['styles'] ) ? (array) $window_args['styles'] : array();
 	$theirs = function_exists( 'openstation_apps_style_handle' ) ? openstation_apps_style_handle( $id ) : 'openstation-app-' . $id;
-	if ( in_array( $theirs, $styles, true ) ) {
-		return $window_args;
+	if ( ! in_array( $theirs, $styles, true ) ) {
+		$handle = 'snt-os-app-signal-noise';
+		if ( function_exists( 'wp_register_style' ) && ! wp_style_is( $handle, 'registered' ) ) {
+			$file = $base_path . 'signal-noise.css';
+			wp_register_style( $handle, $base_url . 'signal-noise.css', array( 'os-variables' ), is_file( $file ) ? (string) filemtime( $file ) : null );
+		}
+		$styles[]              = $handle;
+		$window_args['styles'] = $styles;
 	}
-	$handle = 'snt-os-app-signal-noise';
-	if ( function_exists( 'wp_register_style' ) && ! wp_style_is( $handle, 'registered' ) ) {
-		$file = ( defined( 'SNT_PATH' ) ? SNT_PATH : dirname( __DIR__ ) . '/' ) . 'apps/signal-noise/signal-noise.css';
-		$url  = ( defined( 'SNT_URL' ) ? SNT_URL : plugins_url( '/', __DIR__ ) ) . 'apps/signal-noise/signal-noise.css';
-		wp_register_style( $handle, $url, array( 'os-variables' ), is_file( $file ) ? (string) filemtime( $file ) : null );
+
+	$scripts = isset( $window_args['scripts'] ) ? (array) $window_args['scripts'] : array();
+	if ( ! in_array( 'openstation-app-' . $id . '-client', $scripts, true ) ) {
+		$handle = 'snt-os-app-signal-noise-client';
+		if ( function_exists( 'wp_register_script' ) && ! wp_script_is( $handle, 'registered' ) ) {
+			$file = $base_path . 'signal-noise-client.js';
+			wp_register_script( $handle, $base_url . 'signal-noise-client.js', array( 'wp-i18n' ), is_file( $file ) ? (string) filemtime( $file ) : null, true );
+		}
+		$scripts[]              = $handle;
+		$window_args['scripts'] = $scripts;
 	}
-	$styles[]              = $handle;
-	$window_args['styles'] = $styles;
 	return $window_args;
 }
 add_filter( 'openstation_app_window_args', 'snt_os_app_window_args', 10, 2 );

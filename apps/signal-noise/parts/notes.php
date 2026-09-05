@@ -3,160 +3,192 @@
  * Signal & Noise app — the Notes section.
  *
  * The provenance-signed editorial surface: every post in the Notes category
- * (the same `sn_prov_note_category` filter provenance-core.php reads), any
- * editable status, newest first. A row wears its anchor status as a chip;
- * the dossier lists the signed commit chain (version, status, date, short
- * hash) and the ledger UID, and offers the editor as a window.
+ * (the `sn_prov_note_category` filter provenance-core.php reads), every
+ * editable status, newest first. A tile carries the anchor status as a
+ * badge; the dossier carries the signed commit chain, the ledger UID, the
+ * editor as a window, the note on the site and the public verifier.
  *
  * @package SignalNoiseTools
  */
 
 namespace SignalNoise\OpenStationApp;
 
-use OpenStation\App\State;
-use function OpenStation\App\Html\esc;
-
 if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
-const NOTES_PER_PAGE = 30;
-
 /**
- * One list page of Notes.
+ * Every Note, newest first, each with its dossier inline.
  *
- * @param State $state Session state.
- * @return array{items:array<int,array<string,mixed>>,total:int,page:int,per_page:int}
+ * @return array<int,array<string,mixed>>
  */
-function notes_rows( State $state ) {
-	$page  = max( 1, (int) $state->get( 'page' ) );
+function notes_items() {
 	$query = new \WP_Query(
 		array(
 			'post_type'      => 'post',
-			'post_status'    => array( 'publish', 'draft', 'pending', 'future', 'private' ),
+			'post_status'    => array( 'publish', 'future', 'draft', 'pending', 'private' ),
 			'category_name'  => (string) apply_filters( 'sn_prov_note_category', 'notes' ),
-			's'              => (string) $state->get( 'query' ),
-			'posts_per_page' => NOTES_PER_PAGE,
-			'paged'          => $page,
-			'orderby'        => array( 'date' => 'DESC', 'ID' => 'DESC' ), // ID tiebreak: equal dates must not reshuffle between pages.
+			'posts_per_page' => (int) SN_OS_APP_ITEM_CAP,
+			'orderby'        => array( 'date' => 'DESC', 'ID' => 'DESC' ),
+			'no_found_rows'  => true,
 		)
 	);
 	$items = array();
 	foreach ( (array) $query->posts as $post ) {
-		$prov = \snt_os_app_note_provenance( (int) $post->ID );
-		$chip = null;
-		if ( $prov ) {
-			$chip          = \snt_os_app_anchor_chip( $prov['status'] );
-			$chip['label'] = 'v' . (int) $prov['versions'] . ' · ' . $chip['label'];
-		}
-		$items[] = array(
-			'id'        => (string) $post->ID,
-			'title'     => '' !== $post->post_title ? $post->post_title : __( '(no title)', 'signal-and-noise-tools' ),
-			'subtitle'  => notes_subtitle( $post ),
-			'thumbnail' => (string) get_the_post_thumbnail_url( $post, 'thumbnail' ),
-			'icon'      => 'dashicons-edit-page',
-			'status'    => (string) $post->post_status,
-			'chip'      => $chip,
-		);
+		$items[] = notes_item( $post );
 	}
-	return array(
-		'items'    => $items,
-		'total'    => (int) $query->found_posts,
-		'page'     => $page,
-		'per_page' => NOTES_PER_PAGE,
-	);
+	return $items;
 }
 
 /**
- * "Published · 14 Aug 2026" / "Draft · …".
+ * How many Notes there are, for the root folder tile.
+ *
+ * @return int
+ */
+function notes_count() {
+	$query = new \WP_Query(
+		array(
+			'post_type'      => 'post',
+			'post_status'    => array( 'publish', 'future', 'draft', 'pending', 'private' ),
+			'category_name'  => (string) apply_filters( 'sn_prov_note_category', 'notes' ),
+			'posts_per_page' => 1,
+			'fields'         => 'ids',
+		)
+	);
+	return (int) $query->found_posts;
+}
+
+/**
+ * One Note as the client sees it.
  *
  * @param \WP_Post $post Post.
- * @return string
+ * @return array<string,mixed>
  */
-function notes_subtitle( $post ) {
+function notes_item( $post ) {
+	$id     = (int) $post->ID;
+	$title  = '' !== $post->post_title ? (string) $post->post_title : __( '(no title)', 'signal-and-noise-tools' );
 	$status = get_post_status_object( (string) $post->post_status );
-	$label  = $status && ! empty( $status->label ) ? (string) $status->label : (string) $post->post_status;
-	return $label . ' · ' . get_the_date( '', $post );
-}
+	$slabel = $status && ! empty( $status->label ) ? (string) $status->label : (string) $post->post_status;
+	$prov   = \snt_os_app_note_provenance( $id );
+	$badge  = null;
+	$facts  = array(
+		array( __( 'Status', 'signal-and-noise-tools' ), $slabel ),
+		array( 'future' === $post->post_status ? __( 'Scheduled for', 'signal-and-noise-tools' ) : __( 'Date', 'signal-and-noise-tools' ), get_the_date( '', $post ) ),
+	);
+	$blocks  = array();
+	$actions = array();
 
-/**
- * A Note's dossier: the chain and the UID.
- *
- * @param string $id Post id.
- * @return array<string,mixed>|null
- */
-function notes_dossier( $id ) {
-	$post = get_post( (int) $id );
-	if ( ! $post || 'post' !== $post->post_type ) {
-		return null;
-	}
-	$prov   = \snt_os_app_note_provenance( (int) $post->ID );
-	$blocks = array();
 	if ( $prov ) {
-		$rows = '';
+		$anchor  = \snt_os_app_anchor_badge( $prov['status'] );
+		$badge   = array( 'text' => 'v' . (int) $prov['versions'], 'tone' => $anchor['tone'], 'title' => $anchor['label'] );
+		$facts[] = array( __( 'Signed versions', 'signal-and-noise-tools' ), (string) (int) $prov['versions'] );
+		$facts[] = array( __( 'Anchor', 'signal-and-noise-tools' ), $anchor['label'] );
+		$rows    = array();
 		foreach ( array_reverse( $prov['commits'] ) as $commit ) {
-			$c     = \snt_os_app_anchor_chip( $commit['status'] );
-			$rows .= '<li class="snt-os__commit">'
-				. '<span class="snt-os__commit-v">v' . (int) $commit['version'] . '</span>'
-				. chip( $c )
-				. '<span class="snt-os__commit-date">' . esc( substr( (string) $commit['committed_at'], 0, 10 ) ) . '</span>'
-				. ( '' !== $commit['content_hash'] ? '<os-code class="snt-os__commit-hash" title="' . esc( $commit['content_hash'] ) . '">' . esc( substr( $commit['content_hash'], 0, 12 ) ) . '</os-code>' : '' )
-				. '</li>';
+			$a      = \snt_os_app_anchor_badge( $commit['status'] );
+			$rows[] = array(
+				'version' => 'v' . (int) $commit['version'],
+				'anchor'  => array( 'text' => $a['label'], 'tone' => $a['tone'] ),
+				'date'    => substr( (string) $commit['committed_at'], 0, 10 ),
+				'hash'    => array( 'code' => substr( (string) $commit['content_hash'], 0, 12 ), 'title' => (string) $commit['content_hash'] ),
+			);
 		}
 		$blocks[] = array(
-			'heading' => sprintf( /* translators: %s: a count. */ _n( '%s signed version', '%s signed versions', (int) $prov['versions'], 'signal-and-noise-tools' ), number_format_i18n( (int) $prov['versions'] ) ),
-			'html'    => '<ol class="snt-os__chain">' . $rows . '</ol>',
+			'heading' => __( 'Signed chain', 'signal-and-noise-tools' ),
+			'kind'    => 'table',
+			'columns' => array(
+				array( 'key' => 'version', 'label' => __( 'Version', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'anchor', 'label' => __( 'Anchor', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'date', 'label' => __( 'Committed', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'hash', 'label' => __( 'Hash', 'signal-and-noise-tools' ) ),
+			),
+			'rows'    => $rows,
 		);
 		if ( ! empty( $prov['uid'] ) ) {
-			$blocks[] = array(
-				'heading' => __( 'Ledger UID', 'signal-and-noise-tools' ),
-				'html'    => '<os-code wrap>' . esc( (string) $prov['uid'] ) . '</os-code>',
+			$blocks[]  = array( 'heading' => __( 'Ledger UID', 'signal-and-noise-tools' ), 'kind' => 'code', 'text' => (string) $prov['uid'] );
+			$actions[] = array(
+				'label' => __( 'Verify', 'signal-and-noise-tools' ),
+				'url'   => add_query_arg( array( 'note' => (string) $prov['uid'], 'v' => (int) $prov['versions'] ), home_url( '/verify/' ) ),
 			);
 		}
 	} else {
 		$blocks[] = array(
 			'heading' => __( 'Provenance', 'signal-and-noise-tools' ),
-			'html'    => '<p class="snt-os__muted">' . esc( __( 'No signed chain yet. The first publish creates it.', 'signal-and-noise-tools' ) ) . '</p>',
+			'kind'    => 'text',
+			'text'    => 'publish' === $post->post_status
+				? __( 'No signed chain yet.', 'signal-and-noise-tools' )
+				: __( 'A note is signed when it is published.', 'signal-and-noise-tools' ),
 		);
 	}
-	$links = array();
+	if ( current_user_can( 'edit_post', $id ) ) {
+		array_unshift( $actions, array( 'label' => __( 'Open in editor', 'signal-and-noise-tools' ), 'variant' => 'primary', 'dispatch' => 'edit', 'args' => array( 'item' => (string) $id, 'title' => $title ) ) );
+	}
 	if ( 'publish' === $post->post_status ) {
-		$links[] = array( 'label' => __( 'View on site', 'signal-and-noise-tools' ), 'url' => get_permalink( $post ) );
-	}
-	$edit = array();
-	if ( current_user_can( 'edit_post', $post->ID ) ) {
-		$edit = array(
-			'url'   => (string) get_edit_post_link( $post->ID, 'raw' ),
-			'title' => (string) $post->post_title,
-			'label' => __( 'Edit note', 'signal-and-noise-tools' ),
-		);
+		$actions[] = array( 'label' => __( 'View on site', 'signal-and-noise-tools' ), 'url' => get_permalink( $post ) );
 	}
 	return array(
-		'title'     => '' !== $post->post_title ? $post->post_title : __( '(no title)', 'signal-and-noise-tools' ),
-		'subtitle'  => notes_subtitle( $post ),
-		'thumbnail' => '',
-		'chips'     => $prov ? array( \snt_os_app_anchor_chip( $prov['status'] ) ) : array(),
-		'blocks'    => $blocks,
-		'links'     => $links,
-		'edit'      => $edit,
+		'id'          => (string) $id,
+		'title'       => $title,
+		'subtitle'    => $slabel . ' · ' . get_the_date( '', $post ),
+		'thumbnail'   => (string) get_the_post_thumbnail_url( $post, 'medium' ),
+		'icon'        => 'dashicons-edit-page',
+		'status'      => (string) $post->post_status,
+		'statusLabel' => $slabel,
+		'date'        => (string) get_post_time( 'c', true, $post ),
+		'dateLabel'   => get_the_date( '', $post ),
+		'badge'       => $badge,
+		'columns'     => array(
+			'versions' => $prov ? (string) (int) $prov['versions'] : '',
+			'anchor'   => $prov ? \snt_os_app_anchor_badge( $prov['status'] )['label'] : '',
+		),
+		'detail'      => array(
+			'hero'    => (string) get_the_post_thumbnail_url( $post, 'large' ),
+			'facts'   => $facts,
+			'blocks'  => $blocks,
+			'actions' => $actions,
+		),
 	);
+}
+
+/**
+ * The editor URL for a Note, or '' when the user may not edit it.
+ *
+ * @param string $id Post id.
+ * @return string
+ */
+function notes_edit_url( $id ) {
+	$post = get_post( (int) $id );
+	if ( ! $post || 'post' !== $post->post_type || ! current_user_can( 'edit_post', $post->ID ) ) {
+		return '';
+	}
+	return (string) get_edit_post_link( $post->ID, 'raw' );
 }
 
 add_filter(
 	'snt_os_app_sections',
 	static function ( $sections ) {
 		$sections[] = array(
-			'id'         => 'notes',
-			'label'      => __( 'Notes', 'signal-and-noise-tools' ),
-			'icon'       => 'dashicons-edit-page',
-			'capability' => 'edit_posts',
-			'position'   => 10,
-			'rows'       => __NAMESPACE__ . '\notes_rows',
-			'dossier'    => __NAMESPACE__ . '\notes_dossier',
-			'empty'      => array(
-				'heading'     => __( 'No notes match', 'signal-and-noise-tools' ),
-				'description' => __( 'Notes are posts in the Notes category.', 'signal-and-noise-tools' ),
+			'id'             => 'notes',
+			'label'          => __( 'Notes', 'signal-and-noise-tools' ),
+			'icon'           => 'dashicons-edit-page',
+			'kind'           => 'post',
+			'capability'     => 'edit_posts',
+			'position'       => 10,
+			'statuses'       => array(
+				array( 'value' => 'publish', 'label' => __( 'Published', 'signal-and-noise-tools' ) ),
+				array( 'value' => 'future', 'label' => __( 'Scheduled', 'signal-and-noise-tools' ) ),
+				array( 'value' => 'draft', 'label' => __( 'Drafts', 'signal-and-noise-tools' ) ),
+				array( 'value' => 'pending', 'label' => __( 'Pending', 'signal-and-noise-tools' ) ),
+				array( 'value' => 'private', 'label' => __( 'Private', 'signal-and-noise-tools' ) ),
 			),
+			'default_status' => 'publish',
+			'columns'        => array(
+				array( 'key' => 'versions', 'label' => __( 'Versions', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'anchor', 'label' => __( 'Anchor', 'signal-and-noise-tools' ) ),
+			),
+			'count'          => __NAMESPACE__ . '\notes_count',
+			'items'          => __NAMESPACE__ . '\notes_items',
+			'edit_url'       => __NAMESPACE__ . '\notes_edit_url',
 		);
 		return $sections;
 	}
