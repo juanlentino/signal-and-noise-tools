@@ -46,6 +46,13 @@ adds a bullet below. A release is a separate, deliberate act:
   plugins to compare against, or a non-array registry. Its suite pins the split
   that matters: the two notes must never be the same sentence, since that is
   precisely what made the original incident unreadable. (#1026)
+- Nine docblocks still described the admin tables as `.wp-list-table` after
+  v13.96.5 removed the class from all fifteen of them. Prose drift from my own
+  change: the code was right and the comments explaining it were not, which is
+  the pairing most likely to send the next reader back down the wrong path.
+  The two surviving mentions are deliberate — each states the rule the class
+  would re-arm. `docs/changelog/` is untouched: it is history, and it correctly
+  records what was true when written. (#1021)
 
 ## [13.96.5] - 2026-09-04 — the property that was necessary and not sufficient
 

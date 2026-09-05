@@ -5,7 +5,7 @@
  * Strict 1:1 reuse of the dashboard's native vocabulary — the hero clones the
  * .sn-kpi cards (like sn_login_defense_render_kpi_cards, NOT snt_analytics_render_cards
  * whose contract is pageview-shaped), the trajectory reuses snt_analytics_smooth_path,
- * the leaderboard reuses the .wp-list-table chrome, and velocity/decay reuse
+ * the leaderboard reuses the .widefat chrome, and velocity/decay reuse
  * snt_analytics_render_distribution. NO new CSS vocabulary. Read-only.
  *
  * @package signal-and-noise-tools

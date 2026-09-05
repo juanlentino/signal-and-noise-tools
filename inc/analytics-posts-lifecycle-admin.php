@@ -6,7 +6,7 @@
  * (spike / cooling / sustained) over every published Note and a leaderboard that
  * floats REFRESH CANDIDATES — cooling posts NOT flagged evergreen (B5) — to the
  * top. Reuses the dashboard's native vocabulary only (.sn-kpi glance, the
- * .wp-list-table chrome, .sn-pill) — no new CSS. Read-only.
+ * .widefat chrome, .sn-pill) — no new CSS. Read-only.
  *
  * @package signal-and-noise-tools
  * @since 8.11.0
