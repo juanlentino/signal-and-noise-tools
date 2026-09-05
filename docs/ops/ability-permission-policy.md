@@ -79,6 +79,12 @@ positive** — `px_token_set` (a boolean presence flag), LLM "token figures",
 CSS `design_tokens`, and validation "check tokens". The PII in the audit log, by
 contrast, matched none of those patterns. Read the callback.
 
+## Tier B exception — one note, at `edit_post` (v13.100.0)
+
+| ability | why it sits below `manage_options` |
+|---|---|
+| `note-dossier` | `edit_post` on the note, deliberately below `manage_options`: the dossier is the editor's own view of one post they may edit. It exposes, for that post only, per-path views and visits, Search Console impressions and clicks, the edge-freshness verdict and the site-wide machine-read total: audience and operational data that stays at `manage_options` when asked site-wide (`get-analytics-summary`, `get-machine-readers-summary`). Scope, not sensitivity, is what changed. The callback is `snt_ability_perm_edit_post`, which checks the capability against the `post_id` in the input, so an Author reads their own notes and nobody else's. |
+
 ## Adding an ability
 
 Choose a tier deliberately. `tests/ability-permission-policy.php` enumerates every
