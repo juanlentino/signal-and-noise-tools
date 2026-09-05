@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.97.5] - 2026-09-05 — two public pages that skipped a heading level
+
 ### Fixed
 - `/stats/` and `/maturity/roadmap/` no longer skip a heading level. `[sn_public_stats]`
   emitted `<h3>Reading rhythm</h3>` and `<h3>Most read</h3>`, and `[sn_maturity_roadmap]`
