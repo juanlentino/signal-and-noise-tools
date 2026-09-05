@@ -110,6 +110,9 @@ function notes_item( $post ) {
 				'label' => __( 'Verify', 'signal-and-noise-tools' ),
 				'url'   => add_query_arg( array( 'note' => (string) $prov['uid'], 'v' => (int) $prov['versions'] ), home_url( '/verify/' ) ),
 			);
+			if ( current_user_can( 'edit_post', $id ) ) {
+				$actions[] = array( 'label' => __( 'Re-check now', 'signal-and-noise-tools' ), 'dispatch' => 'verify', 'args' => array( 'item' => (string) $id ) );
+			}
 		}
 	} else {
 		$blocks[] = array(

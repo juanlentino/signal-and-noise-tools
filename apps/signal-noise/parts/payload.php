@@ -35,6 +35,7 @@ function payload( State $state, Os $os ) {
 		'section'  => null,
 		'items'    => array(),
 		'cap'      => (int) SN_OS_APP_ITEM_CAP,
+		'verdict'  => (array) $state->get( 'verdict', array() ),
 	);
 	foreach ( $sections as $section ) {
 		$is_current = (string) $section['id'] === $wanted;
