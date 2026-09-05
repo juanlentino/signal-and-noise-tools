@@ -138,6 +138,14 @@ function sn_health_run_scan() {
 			// payload is a versioned remote-MCP twin and a new field is a
 			// contract bump the worker has not been redeployed for.
 			'wp_cron_request_path' => sn_health_check_wp_cron_request_path(),
+			// 25th check (v13.98.0): the machine-reader dataset went quiet. The
+			// worker's sensor readout is isolate memory and reads null for both a
+			// fresh isolate and a sensor that never fires; the dataset can tell.
+			'machine_reader_liveness' => sn_health_check_machine_reader_liveness(),
+			// 26th check (v13.98.0): theme.json declares a preset the site does
+			// not serve. Core drops colliding slugs silently (WP 6.6+); this theme
+			// served core's spacing scale for its whole life that way (theme #284).
+			'theme_presets'       => sn_health_check_theme_presets(),
 			'cf_security_headers' => sn_health_check_cf_security_headers(),
 			'edge_workers'        => sn_health_check_edge_workers(),
 			// 12th check (v9.65.0): the reader of sn_analytics_integrity_alert —
@@ -257,6 +265,11 @@ require_once __DIR__ . '/health-contrast-usage.php';
 // Motion that asks first (report only): rides the contrast-usage parser and
 // sheet population. Loaded after it for the same reason as above.
 require_once __DIR__ . '/health-motion-scan.php';
+// v13.98.0: two checks born from the 2026-09-05 audits -- the dataset that can
+// tell a dead sensor from a quiet day, and the live half of the theme's
+// declared-vs-served preset guard.
+require_once __DIR__ . '/health-check-machine-reader-liveness.php';
+require_once __DIR__ . '/health-check-theme-presets.php';
 
 /**
  * Common per-check result envelope used by 2-4.

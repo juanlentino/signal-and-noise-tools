@@ -64,6 +64,10 @@ function sn_health_check_surface_map() {
 		// pageview pays for a 10.6s job), reaches zero with one wp-config line,
 		// and unowned elsewhere - the three tests for this surface.
 		'wp_cron_request_path'  => 'health',
+		// 25th + 26th (v13.98.0). Both defects (a sensor that stopped writing;
+		// a theme.json that lies), both reach zero, both unowned elsewhere.
+		'machine_reader_liveness' => 'health',
+		'theme_presets'         => 'health',
 
 		// ── MEASUREMENTS (Integrity) ───────────────────────────────────────
 		// Both disclaim their own authority in their own copy — "a red row here

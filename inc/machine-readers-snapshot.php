@@ -83,6 +83,7 @@ function snt_mr_snapshot_aggregate( $rows ) {
 	$total      = 0;
 	$by_family  = array();
 	$by_surface = array();
+	$by_day     = array(); // v13.98.0: YYYY-MM-DD => hits, for the liveness check.
 	foreach ( (array) $rows as $row ) {
 		if ( ! is_array( $row ) ) {
 			continue;
@@ -97,11 +98,17 @@ function snt_mr_snapshot_aggregate( $rows ) {
 		if ( '' !== $surface ) {
 			$by_surface[ $surface ] = ( $by_surface[ $surface ] ?? 0 ) + $hits;
 		}
+		$day = isset( $row['day'] ) ? (string) $row['day'] : '';
+		if ( 1 === preg_match( '/^\d{4}-\d{2}-\d{2}$/', $day ) ) {
+			$by_day[ $day ] = ( $by_day[ $day ] ?? 0 ) + $hits;
+		}
 	}
+	ksort( $by_day );
 	return array(
 		'total'      => $total,
 		'by_family'  => $by_family,
 		'by_surface' => $by_surface,
+		'by_day'     => $by_day,
 	);
 }
 
