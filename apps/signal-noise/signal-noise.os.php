@@ -10,9 +10,11 @@
  *
  * Built the way WP Explorer is built: the PHP half is the window and the
  * truth, the body is a CLIENT VIEW (signal-noise-client.js) where selection,
- * search, filtering and the view switch are instant. Only actions `go` (a
- * different section, new data), `edit` (an editor window) and `verify` (a
- * live re-check) reach the server.
+ * search, filtering and the view switch are instant. Seven actions reach the
+ * server: `go` (a different section, new data), `edit` (an editor window),
+ * `verify` (a live re-check), and the control surface's four -- `trash`,
+ * `publish`, `purge` and `anchor`, all four in parts/actions.php, each
+ * re-checking the selection and the capability the client claimed.
  *
  * Successor to the WP Explorer folder of v12.4.0 (#751), whose seam
  * OpenStation 1.1.6 retired.
@@ -33,8 +35,11 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once __DIR__ . '/parts/payload.php';
 require_once __DIR__ . '/parts/notes.php';
 require_once __DIR__ . '/parts/discography.php';
+require_once __DIR__ . '/parts/actions.php';
 
 const APP_ID = 'signal-noise';
+
+/** Where the control surface's four handlers live (parts/actions.php). */
 
 // Sections are resolved at RENDER time (payload.php), never here: the
 // framework loads this file at `init`, and a list frozen then is gated on
@@ -51,12 +56,13 @@ return App::define( APP_ID )
 	->watch( 'post' )
 	->state(
 		array(
-			'section' => '', // '' = the root: one folder tile per section.
-			'item'    => '', // The open item's id; '' when the dossier is closed. Local.
-			'status'  => '', // The status pill; '' = All. Local.
-			'query'   => '', // The search field. Local.
-			'view'    => 'icons', // icons | list. Local.
-			'verdict' => array(), // The last re-check verdict { post_id, tone, text, meta, checked_at }; cleared by go. Server-only.
+			'section'  => '', // '' = the root: one folder tile per section.
+			'item'     => '', // The open item's id; '' when the dossier is closed. Local.
+			'status'   => '', // The status pill; '' = All. Local.
+			'query'    => '', // The search field. Local.
+			'view'     => 'icons', // icons | list. Local.
+			'verdict'  => array(), // The last re-check verdict { post_id, tone, text, meta, checked_at }; cleared by go. Server-only.
+			'selected' => array(), // Selected post ids as strings. Local, except that trash and go reset it.
 		)
 	)
 	->title_bar_button(
@@ -89,6 +95,7 @@ return App::define( APP_ID )
 				->reset( 'item' )
 				->reset( 'query' )
 				->reset( 'verdict' )
+				->reset( 'selected' )
 				->set( 'status', $section ? (string) ( $section['default_status'] ?? '' ) : '' );
 		}
 	)
@@ -120,4 +127,11 @@ return App::define( APP_ID )
 			}
 			$state->set( 'verdict', \sn_note_dossier_verify( $id ) );
 		}
-	);
+	)
+	// The control surface. Each handler re-derives its targets from the
+	// SERVER's selection and asks the capability again, per note: the client
+	// decides what to offer, never what is permitted. parts/actions.php.
+	->action( 'trash', __NAMESPACE__ . '\\trash_action' )
+	->action( 'publish', __NAMESPACE__ . '\\publish_action' )
+	->action( 'purge', __NAMESPACE__ . '\\purge_action' )
+	->action( 'anchor', __NAMESPACE__ . '\\anchor_action' );

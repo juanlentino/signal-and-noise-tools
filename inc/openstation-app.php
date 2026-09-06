@@ -31,11 +31,13 @@
  *   'id'             => 'ledger',            // slug
  *   'label'          => 'Ledger',
  *   'icon'           => 'dashicons-shield',  // Dashicons class or image URL
- *   'kind'           => 'ledger',            // the tile `type`, a word of yours
+ *   'kind'           => 'ledger',            // the tile `type` AND the drag payload's `kind`, a word of yours
  *   'capability'     => 'manage_options',    // hidden without it
  *   'position'       => 30,                  // folder order at the root
  *   'statuses'       => array( array( 'value' => 'publish', 'label' => 'Published' ), … ), // optional pills; '' (All) is added
  *   'default_status' => 'publish',           // optional; '' = All
+ *   'columns'        => array( array( 'key' => 'versions', 'label' => 'Versions' ), … ), // optional list-view columns; each `key` reads the item's `columns[key]`
+ *   'restPath'       => 'wp/v2/posts',       // optional; the REST path a row dragged to the desktop or the Trash resolves through. No drag without it.
  *   'count'          => function () {},      // optional; count( items() ) otherwise
  *   'items'          => function () {},      // every item, newest first (capped at SN_OS_APP_ITEM_CAP)
  *   'edit_url'       => function ( $id ) {}, // optional; the `edit` action opens it as a window

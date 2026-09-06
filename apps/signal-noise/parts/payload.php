@@ -36,6 +36,13 @@ function payload( State $state, Os $os ) {
 		'items'    => array(),
 		'cap'      => (int) SN_OS_APP_ITEM_CAP,
 		'verdict'  => (array) $state->get( 'verdict', array() ),
+		// App-wide rights, asked once per paint: the two operations that are
+		// not per-post. A missing half of the plugin is a refusal, never an
+		// assumption -- the menu greys the row and the action refuses again.
+		'can'      => array(
+			'purge'  => current_user_can( 'manage_options' ) && function_exists( 'sn_cf_is_configured' ) && \sn_cf_is_configured(),
+			'anchor' => current_user_can( 'manage_options' ) && function_exists( 'sn_prov_reconcile_post' ),
+		),
 	);
 	foreach ( $sections as $section ) {
 		$is_current = (string) $section['id'] === $wanted;
@@ -72,6 +79,7 @@ function payload( State $state, Os $os ) {
 			'statuses'      => $statuses,
 			'defaultStatus' => (string) ( $current['default_status'] ?? '' ),
 			'canEdit'       => ! empty( $current['edit_url'] ),
+			'restPath'      => (string) ( $current['restPath'] ?? '' ),
 			'columns'       => array_values( (array) ( $current['columns'] ?? array() ) ),
 		);
 	}

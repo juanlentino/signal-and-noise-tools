@@ -133,8 +133,8 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 
 	echo "\nGroup 2: the definition\n";
 	ok( array( 'edit_posts' ) === $app->caps && 'dock' === $app->placement && array( 'post' ) === $app->watch, 'gated on edit_posts; a dock tile; repaints on post changes' );
-	ok( array( 'section', 'item', 'status', 'query', 'view', 'verdict' ) === array_keys( $app->state ) && 'icons' === $app->state['view'] && array() === $app->state['verdict'], 'state schema: section, item, status, query, view, verdict (an array slot)' );
-	ok( array( 'go', 'edit', 'verify' ) === array_keys( $app->actions ), 'three server actions: go, edit, verify -- everything else is local in the browser' );
+	ok( array( 'section', 'item', 'status', 'query', 'view', 'verdict', 'selected' ) === array_keys( $app->state ) && 'icons' === $app->state['view'] && array() === $app->state['verdict'] && array() === $app->state['selected'], 'state schema: section, item, status, query, view, verdict, selected (two array slots)' );
+	ok( array( 'go', 'edit', 'verify', 'trash', 'publish', 'purge', 'anchor' ) === array_keys( $app->actions ), 'seven server actions: go, edit, verify and the control surface\'s four -- everything else is local in the browser' );
 	ok( 'https://example.test/wp-json/wp-abilities/v1/abilities/signal-noise/note-dossier/run' === ( $app->config['dossierUrl'] ?? '' ), 'the ability run URL rides the window config, so the client never spells the abilities path' );
 
 	echo "\nGroup 3: the registry is the extension point\n";
@@ -155,12 +155,20 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	echo "\nGroup 5: Notes\n";
 	$p = payload( $app, array( 'section' => 'notes' ) );
 	ok( 'notes' === $p['section']['id'] && 'publish' === $p['section']['defaultStatus'] && 'publish' === $p['section']['statuses'][0]['value'] && true === $p['section']['canEdit'], 'the Notes section declares its pills, its default (Published) and that it has an editor' );
+	ok( 'wp/v2/posts' === $p['section']['restPath'], 'the Notes section declares the REST path a dragged-out shortcut carries (the shell trashes and reads through it)' );
+	ok( array( 'purge', 'anchor' ) === array_keys( $p['can'] ) && is_bool( $p['can']['purge'] ) && is_bool( $p['can']['anchor'] ), 'the payload carries the app-wide rights the menu greys its rows on: purge and anchor' );
+	ok( false === $p['can']['purge'] && false === $p['can']['anchor'], '   ...both false when the Cloudflare and provenance halves are not loaded (a right is never assumed)' );
 	ok( array( '21', '11', '12' ) === array_column( $p['items'], 'id' ), 'items travel newest first, every status -- the client filters' );
 	$n11 = $p['items'][1];
 	ok( array( 'text' => 'v2', 'tone' => 'success', 'title' => 'Anchored' ) === $n11['badge'], 'an anchored note wears v2 in the success tone' );
 	ok( null === $p['items'][0]['badge'] && 'future' === $p['items'][0]['status'] && 'Scheduled' === $p['items'][0]['statusLabel'], 'a scheduled note has no badge (signed on publish) and carries its status for the ribbon and the pills' );
 	ok( 'https://img/11.jpg' === $n11['thumbnail'] && '' === $p['items'][2]['thumbnail'] && 'dashicons-edit-page' === $p['items'][2]['icon'], 'thumbnail when there is one; the note icon otherwise' );
 	ok( array( '2', 'Anchored' ) === array_values( $n11['columns'] ), 'list-view cells: versions and anchor' );
+	ok( array( 'canEdit', 'canDelete', 'canPublish', 'unanchored', 'link' ) === array_values( array_intersect( array( 'canEdit', 'canDelete', 'canPublish', 'unanchored', 'link' ), array_keys( $n11 ) ) ), 'an item carries its own rights and its public link, so the menu greys rows instead of hiding them' );
+	ok( true === $n11['canEdit'] && false === $n11['canDelete'] && false === $n11['canPublish'], 'the rights are per-post booleans: edit_post here, delete_post and publish_posts refused' );
+	ok( false === $n11['unanchored'] && 'https://example.test/?p=11' === $n11['link'], 'a fully anchored chain reports nothing to dispatch; link is the permalink' );
+	ok( in_array( array( 'delete_post', array( 11 ) ), $GLOBALS['__cap_calls'] ?? array(), true ), 'delete_post was asked for THAT note, not an app-wide capability' );
+	ok( false === $p['items'][0]['canPublish'], 'a scheduled note without publish_posts cannot be published' );
 	$d = $n11['detail'];
 	ok( 'table' === $d['blocks'][0]['kind'] && 'v2' === $d['blocks'][0]['rows'][0]['version'] && 'success' === $d['blocks'][0]['rows'][0]['anchor']['tone'] && 'bbbbbbbbbbbb' === $d['blocks'][0]['rows'][0]['hash']['code'] && 'v1' === $d['blocks'][0]['rows'][1]['version'], 'the chain is a table, newest first, with a coded hash and a toned anchor' );
 	ok( 'code' === $d['blocks'][1]['kind'] && 'sn:note:11' === $d['blocks'][1]['text'], 'the ledger UID is a code block' );

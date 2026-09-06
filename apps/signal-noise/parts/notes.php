@@ -71,6 +71,15 @@ function notes_item( $post ) {
 	$slabel = $status && ! empty( $status->label ) ? (string) $status->label : (string) $post->post_status;
 	$prov   = \snt_os_app_note_provenance( $id );
 	$badge  = null;
+	// Read off the chain phase one already loaded for the badge -- a second
+	// read per item would be one query per note for a boolean.
+	$unanchored = false;
+	foreach ( (array) ( $prov['commits'] ?? array() ) as $commit ) {
+		if ( 'unanchored' === (string) ( $commit['status'] ?? '' ) ) {
+			$unanchored = true;
+			break;
+		}
+	}
 	$facts  = array(
 		array( __( 'Status', 'signal-and-noise-tools' ), $slabel ),
 		array( 'future' === $post->post_status ? __( 'Scheduled for', 'signal-and-noise-tools' ) : __( 'Date', 'signal-and-noise-tools' ), get_the_date( '', $post ) ),
@@ -140,6 +149,15 @@ function notes_item( $post ) {
 		'date'        => (string) get_post_time( 'c', true, $post ),
 		'dateLabel'   => get_the_date( '', $post ),
 		'badge'       => $badge,
+		// The rights ride the ITEM, the way WP Explorer's do: the menu greys a
+		// row it may not run, and the server re-checks every one of them.
+		'canEdit'     => current_user_can( 'edit_post', $id ),
+		'canDelete'   => current_user_can( 'delete_post', $id ),
+		'canPublish'  => in_array( (string) $post->post_status, array( 'draft', 'pending', 'future' ), true )
+			&& current_user_can( 'publish_posts' )
+			&& current_user_can( 'edit_post', $id ),
+		'unanchored'  => $unanchored,
+		'link'        => (string) get_permalink( $post ),
 		'columns'     => array(
 			'versions' => $prov ? (string) (int) $prov['versions'] : '',
 			'anchor'   => $prov ? \snt_os_app_anchor_badge( $prov['status'] )['label'] : '',
@@ -176,6 +194,10 @@ add_filter(
 			'icon'           => 'dashicons-edit-page',
 			'kind'           => 'post',
 			'capability'     => 'edit_posts',
+			// A row dragged out of this section becomes a `shortcut` the shell
+			// resolves through the REST API -- the same path WP Explorer's
+			// Posts section lifts with, so the Trash target already knows it.
+			'restPath'       => 'wp/v2/posts',
 			'position'       => 10,
 			'statuses'       => array(
 				array( 'value' => 'publish', 'label' => __( 'Published', 'signal-and-noise-tools' ) ),
