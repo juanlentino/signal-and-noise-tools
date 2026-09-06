@@ -113,7 +113,48 @@ namespace {
 	function wp_unslash( $value ) { if ( is_array( $value ) ) { return array_map( 'wp_unslash', $value ); } return is_string( $value ) ? stripslashes( $value ) : $value; }
 	$GLOBALS['__caps'] = array( 'manage_options' => true );
 	function current_user_can( $cap, ...$a ) { return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
-	function wp_verify_nonce( $nonce, $action = -1 ) { return ( 'good-nonce' === $nonce && 'sn_theme_options_nonce' === $action ) ? 1 : false; }
+	// One nonce per ACTION: the estate mints four, and a global "valid" would
+	// hide the very confusion the pipelines exist to end.
+	function wp_verify_nonce( $nonce, $action = -1 ) {
+		$minted = array( 'good-nonce' => 'sn_theme_options_nonce', 'prov-nonce' => 'sn_prov_fixture', 'rss-nonce' => 'sn_rss_tracker_action' );
+		return ( isset( $minted[ $nonce ] ) && $minted[ $nonce ] === $action ) ? 1 : false;
+	}
+	// The interceptor needs real hook plumbing, a real wp_redirect (which filters
+	// its location before sending) and a real wp_die (which picks its handler
+	// through a filter). A registration sink here would let the whole seam pass
+	// without running.
+	$GLOBALS['__actions'] = array();
+	function remove_filter( $hook, $cb, $prio = 10 ) { foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $i => $one ) { if ( $one === $cb ) { unset( $GLOBALS['__filters'][ $hook ][ $i ] ); } } return true; }
+	function has_action( $hook, $cb = false ) { return ! empty( $GLOBALS['__actions'][ $hook ] ); }
+	function do_action( $hook, ...$args ) { foreach ( $GLOBALS['__actions'][ $hook ] ?? array() as $cb ) { call_user_func_array( $cb, $args ); } }
+	function wp_redirect( $location, $status = 302, $x_redirect_by = 'WordPress' ) { $location = apply_filters( 'wp_redirect', $location, $status ); return (bool) $location; }
+	function wp_safe_redirect( $location, $status = 302, $x_redirect_by = 'WordPress' ) { return wp_redirect( $location, $status ); }
+	function wp_die( $message = '', $title = '', $args = array() ) { $handler = apply_filters( 'wp_die_handler', '__snt_default_die' ); call_user_func( $handler, $message, $title, $args ); }
+	function __snt_default_die( $message = '', $title = '', $args = array() ) { throw new RuntimeException( 'wp_die was not intercepted' ); }
+
+	// Two admin-post handlers in the shape the five real ones have: a nonce
+	// check, then either a redirect + exit or a wp_die.
+	$GLOBALS['__admin_post_ran'] = '';
+	$GLOBALS['__actions']['admin_post_sn_fixture_redirects'][] = static function () {
+		// phpcs:ignore WordPress.Security.NonceVerification -- The fixture IS the nonce check.
+		if ( ! wp_verify_nonce( $_REQUEST['_wpnonce'] ?? '', 'sn_prov_fixture' ) ) { wp_die( 'The link you followed has expired.' ); }
+		$GLOBALS['__admin_post_ran'] = 'sn_fixture_redirects';
+		wp_safe_redirect( 'https://example.test/wp-admin/admin.php?page=sn-theme-options&tab=automation&sub=cron&sn_prov_swept=ok' );
+		exit; // Never reached: the interceptor throws from the wp_redirect filter.
+	};
+	$GLOBALS['__actions']['admin_post_sn_fixture_dies'][] = static function () {
+		wp_die( 'Insufficient permissions.', '', array( 'response' => 403 ) );
+	};
+	// The RSS leaf's admin_init handler, in its shape: its own field, its own
+	// nonce, its own redirect carrying ?sn_rss_ok.
+	$GLOBALS['__rss_ran'] = false;
+	function sn_rss_tracker_handle_form() {
+		// phpcs:ignore WordPress.Security.NonceVerification -- The fixture IS the nonce check.
+		if ( empty( $_POST['sn_rss_action'] ) || ! wp_verify_nonce( $_POST['_wpnonce'] ?? '', 'sn_rss_tracker_action' ) ) { return; }
+		$GLOBALS['__rss_ran'] = true;
+		wp_safe_redirect( 'https://example.test/wp-admin/themes.php?page=sn-theme-options&tab=rss&sn_rss_ok=reset' );
+		exit;
+	}
 	$GLOBALS['__styles']  = array();
 	$GLOBALS['__scripts'] = array();
 	function wp_register_style( $handle, $src, $deps = array(), $ver = false, $media = 'all' ) { $GLOBALS['__styles'][ $handle ] = $deps; return true; }
@@ -139,9 +180,13 @@ namespace {
 	// The dispatcher, as a fixture that reports the query it was painted with.
 	$GLOBALS['__painted'] = array();
 	function sn_admin_render_active_tab( $active_tab, $active_sub ) {
-		// phpcs:ignore WordPress.Security.NonceVerification -- Fixture; it exists to report what $_GET held.
-		$GLOBALS['__painted'][] = array( 'tab' => $active_tab, 'sub' => $active_sub, 'get' => $_GET );
-		echo '<nav class="sn-sub-tabs"><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ) ) . '">Health</a></nav>';
+		// phpcs:disable WordPress.Security.NonceVerification -- Fixture; it exists to report what the superglobals held.
+		$GLOBALS['__painted'][] = array( 'tab' => $active_tab, 'sub' => $active_sub, 'get' => $_GET, 'post' => $_POST, 'request' => $_REQUEST );
+		// phpcs:enable WordPress.Security.NonceVerification
+		echo '<nav class="sn-sub-tabs"><a href="' . esc_url( admin_url( 'admin.php?page=sn-theme-options&tab=monitoring&sub=health' ) ) . '">Health</a>';
+		// A leaf-to-leaf link written with a TOP-TAB slug, which is what
+		// sn_admin_tag_page_url() returns and what made Cancel open a second window.
+		echo '<a id="lnk-legacy-slug" href="' . esc_url( admin_url( 'admin.php?page=sn-content&tab=content&sub=tags' ) ) . '">Back to Tags</a></nav>';
 		echo '<div class="sn-section" id="sn-sec-' . esc_attr( (string) $active_sub ) . '"><form method="post"><input type="hidden" name="sn_action" value="save_identity"></form></div>';
 	}
 	function sn_handle_save_identity( $post ) {
@@ -178,9 +223,15 @@ namespace {
 	$skip = 0;
 	function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 	function skip( $m ) { global $skip; $skip++; echo "SKIP: $m\n"; }
-	/** Paint the window for a partial state. */
-	function paint( $app, array $state, $os = null ) {
-		$st = new \OpenStation\App\State( $app->state, $state );
+	/**
+	 * Paint the window for a partial state.
+	 *
+	 * `$carry` paints an EXISTING State rather than a fresh one, because the
+	 * view spends the one-paint post bag by writing to state, and the runtime
+	 * reads state back AFTER the render — so a fresh State would hide it.
+	 */
+	function paint( $app, array $state, $os = null, $carry = null ) {
+		$st = $carry instanceof \OpenStation\App\State ? $carry : new \OpenStation\App\State( $app->state, $state );
 		ob_start();
 		call_user_func( $app->view, $st, $os ?: new \OpenStation\App\Os() );
 		return (string) ob_get_clean();
@@ -195,9 +246,9 @@ namespace {
 		'the same title, the same shield and the same dock placement the manual item had' );
 	ok( array( 'manage_options' ) === $app->caps, 'gated on manage_options, the capability the classic page wp_die()s without' );
 	ok( array( 1180, 820 ) === $app->size && array( 760, 520 ) === $app->min, 'opens at 1180x820, never smaller than 760x520' );
-	ok( array( 'tab', 'sub', 'anchor', 'flash', 'notice', 'params' ) === array_keys( $app->state )
-		&& 'dashboard' === $app->state['tab'] && null === $app->state['notice'] && array() === $app->state['params'],
-		'state: tab, sub, anchor, flash, notice, params -- the URL the classic page kept, as a bag' );
+	ok( array( 'tab', 'sub', 'anchor', 'flash', 'notice', 'params', 'post' ) === array_keys( $app->state )
+		&& 'dashboard' === $app->state['tab'] && null === $app->state['notice'] && array() === $app->state['params'] && array() === $app->state['post'],
+		'state: tab, sub, anchor, flash, notice, params -- the URL the classic page kept, as a bag -- plus `post`, the ONE paint of $_POST an inline-handled form needs' );
 	ok( array( 'go', 'post', 'door', 'refresh', 'reopen' ) === array_keys( $app->actions ),
 		'five actions: go, post, door, refresh and the reopen lifecycle -- and NO framework tabs, which cannot be switched by a server action' );
 	ok( isset( $app->buttons['refresh'] ) && 'refresh' === $app->buttons['refresh']['action'], 'a Refresh button in the title bar' );
@@ -241,12 +292,26 @@ namespace {
 	ok( 'dashboard' === $st->get( 'tab' ) && '' === $st->get( 'sub' ), 'an unknown tab is the Dashboard, and a landing tab has no leaf' );
 	$app->actions['go']( $st, $os, array( 'tab' => 'monitoring' ) );
 	ok( 'analytics' === $st->get( 'sub' ), 'a tab with no leaf named lands on its FIRST leaf -- what sn_admin_resolve_active_sub() does with a bare ?tab=' );
-	$app->actions['go']( $st, $os, array( 'values' => array( 'tab' => 'content', 'sub' => 'tags', 'sn_tag_preview' => '1', 'sn_tag_from' => array( '4' ), 'junk' => 'x' ) ) );
+	// The WIRE shape, not the already-parsed one: the field is `name="sn_tag_from[]"`
+	// (inc/tag-consolidation-admin.php:127,148) and the runtime keys FormData by
+	// the literal name. Fed un-bracketed, this pin passed against a `go` that
+	// dropped the sources entirely and a merge preview that always said
+	// "Nothing to merge".
+	$app->actions['go']( $st, $os, array( 'values' => array( 'tab' => 'content', 'sub' => 'tags', 'sn_tag_preview' => '1', 'sn_tag_from[]' => '4', 'junk' => 'x' ) ) );
 	ok( 'content' === $st->get( 'tab' ) && 'tags' === $st->get( 'sub' ) && array( 'sn_tag_preview' => '1', 'sn_tag_from' => array( '4' ) ) === $st->get( 'params' ),
-		'a GET form dispatches through go with its FIELDS -- the Tags merge preview, whose three params are state on the classic page' );
+		'a GET form dispatches through go with its FIELDS, expanded the way PHP would have -- the Tags merge preview, whose params are state on the classic page' );
+	$app->actions['go']( $st, $os, array( 'values' => array( 'tab' => 'content', 'sub' => 'tags', 'sn_tag_preview' => '1', 'sn_tag_from[]' => array( '4', '9' ) ) ) );
+	ok( array( '4', '9' ) === $st->get( 'params' )['sn_tag_from'],
+		'   ...two ticked sources arrive as a JS array under the bracketed name and become one PHP list' );
+	$app->actions['go']( $st, $os, array( 'tab' => 'monitoring', 'sn_worker_recheck' => '1', '_wpnonce' => 'abc123' ) );
+	ok( array( 'sn_worker_recheck' => '1', '_wpnonce' => 'abc123' ) === $st->get( 'params' ),
+		'   ...and a nonce-gated GET link carries its _wpnonce into state, where the capture lends it back as $_GET -- sn_worker_version_recheck_requested() needs both' );
+	$app->actions['go']( $st, $os, array( 'tab' => 'monitoring' ) );
+	ok( array() === $st->get( 'params' ),
+		'   ...while the NEXT navigation clears it: params are set wholesale, so a later click cannot silently re-run the re-check' );
 	$GLOBALS['__caps']['manage_options'] = false;
 	$app->actions['go']( $st, $os, array( 'tab' => 'security' ) );
-	ok( 'content' === $st->get( 'tab' ), 'go re-checks manage_options -- the window gate is not the only gate' );
+	ok( 'monitoring' === $st->get( 'tab' ), 'go re-checks manage_options -- the window gate is not the only gate' );
 	$GLOBALS['__caps']['manage_options'] = true;
 
 	echo "\nGroup 5: post\n";
@@ -264,12 +329,59 @@ namespace {
 
 	$os = new \OpenStation\App\Os();
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'stale', 'sn_action' => 'save_identity' ) ) );
-	ok( array( 'Nothing was saved: the form expired. Reopen the tab and try again.' ) === $os->toasts && null === $st->get( 'notice' ),
-		'a stale nonce says so, and paints no notice: a refusal is a verdict, not silence' );
+	ok( array( 'Nothing was saved: the security token did not verify against sn_theme_options_nonce.' ) === $os->toasts && null === $st->get( 'notice' ),
+		'a stale nonce says WHAT WAS MEASURED -- a token that did not verify against the action it was checked against. "The form expired. Reopen the tab and try again." was a cause nobody measured, and it was said to eight forms whose nonce was never this one, where reopening could never help' );
 
 	$os = new \OpenStation\App\Os();
-	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'sn_action' => 'not_a_handler' ) ) );
-	ok( array( 'Nothing was saved.' ) === $os->toasts, 'an action outside the handler table is one toast and nothing else' );
+	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce' ) ) );
+	ok( array( 'Nothing was saved: the form carried no action.' ) === $os->toasts, 'a submission with no action at all belongs to no pipeline, and the toast says exactly that' );
+
+	$os = new \OpenStation\App\Os();
+	$app->actions['post']( $st, $os, array( 'pipeline' => 'admin-post', 'values' => array( '_wpnonce' => 'good-nonce', 'action' => 'sn_prov_nothing_hooked' ) ) );
+	ok( array( 'Nothing was saved: no pipeline in this window handles the action sn_prov_nothing_hooked.' ) === $os->toasts,
+		'an admin-post action nothing is hooked to is named in the refusal -- do_action() on an unhooked hook is silent, and silence must not paint as a save' );
+
+	echo "\nGroup 5b: the pipelines a form can belong to\n";
+	// The five Provenance forms and the three RSS ones are not on the shared
+	// pipeline: their own action, their own nonce, their own handler. The window
+	// used to answer all eight with "the form expired".
+	$os = new \OpenStation\App\Os();
+	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'tools', 'sub' => 'provenance' ) );
+	$GLOBALS['__admin_post_ran'] = '';
+	$app->actions['post']( $st, $os, array( 'pipeline' => 'admin-post', 'values' => array( '_wpnonce' => 'prov-nonce', 'action' => 'sn_fixture_redirects' ) ) );
+	ok( 'sn_fixture_redirects' === $GLOBALS['__admin_post_ran'],
+		'a form whose action attribute pointed at admin-post.php runs its admin_post_ hook -- the rewrite read that attribute before dropping it and shipped it back as os-arg-pipeline' );
+	ok( 'connections' === $st->get( 'tab' ) && 'cron' === $st->get( 'sub' ) && array( 'sn_prov_swept' => 'ok' ) === $st->get( 'params' ),
+		'   ...and the redirect it wanted becomes the window`s destination and the leaf`s next $_GET, which is exactly what the classic page reads out of that URL' );
+	ok( array() === $os->toasts, '   ...with no toast: the handler said nothing through a flash code, so neither does the window' );
+
+	$os = new \OpenStation\App\Os();
+	$app->actions['post']( $st, $os, array( 'pipeline' => 'admin-post', 'values' => array( '_wpnonce' => 'prov-nonce', 'action' => 'sn_fixture_dies' ) ) );
+	ok( array( 'error', 'Insufficient permissions.' ) === $st->get( 'notice' ) && array( 'Insufficient permissions.' ) === $os->toasts,
+		'a handler that wp_die()s is refused in ITS OWN WORDS, painted as the notice and toasted -- the five Provenance handlers all wp_die() on a failed capability check' );
+
+	$os = new \OpenStation\App\Os();
+	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'monitoring', 'sub' => 'rss' ) );
+	$GLOBALS['__rss_ran'] = false;
+	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'rss-nonce', 'sn_rss_action' => 'reset_defaults' ) ) );
+	ok( true === $GLOBALS['__rss_ran'] && array( 'sn_rss_ok' => 'reset' ) === $st->get( 'params' ),
+		'the RSS leaf`s own field routes to its own admin_init handler, and ?sn_rss_ok lands in state for the flash the leaf renders itself' );
+
+	echo "\nGroup 5c: the inline form the leaf handles itself\n";
+	$os = new \OpenStation\App\Os();
+	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'security', 'sub' => 'audit-log' ) );
+	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'sn_action' => 'audit_prune_now' ) ) );
+	ok( array() === $os->toasts && 'audit_prune_now' === $st->get( 'post' )['sn_action'],
+		'"Prune now" is kept, not refused: it is not in the handler table because its own leaf handles it, and the window used to toast "Nothing was saved." and prune nothing' );
+	$painted_before = count( $GLOBALS['__painted'] );
+	paint( $app, $st->all(), null, $st );
+	$seen = $GLOBALS['__painted'][ $painted_before ];
+	ok( 'audit_prune_now' === ( $seen['post']['sn_action'] ?? '' ) && 'good-nonce' === ( $seen['request']['_wpnonce'] ?? '' ),
+		'   ...and the next paint runs the leaf with $_POST populated AND $_REQUEST carrying the nonce -- snt_audit_log_render_tab() reads one and check_admin_referer() the other' );
+	ok( array() === $st->get( 'post' ), '   ...then the bag is SPENT: a paint that kept it would prune again on the next unrelated repaint' );
+	$painted_before = count( $GLOBALS['__painted'] );
+	paint( $app, $st->all(), null, $st );
+	ok( array() === $GLOBALS['__painted'][ $painted_before ]['post'], '   ...and the paint after it sees an empty $_POST, as every other paint does' );
 
 	$GLOBALS['__caps']['manage_options'] = false;
 	$os = new \OpenStation\App\Os();
@@ -334,6 +446,8 @@ namespace {
 			'the captured leaf came back rewritten: its form dispatches `post`' );
 		ok( false !== strpos( $html, '<a os-action="go"' ) && false !== strpos( $html, 'os-arg-sub="health"' ) && false !== strpos( $html, 'os-arg-tab="monitoring"' ),
 			'   ...and the sub-tab nav the dispatcher printed became `go` links -- the strip is the leaf\'s, captured, never rebuilt here' );
+		ok( preg_match( '#<a [^>]*id="lnk-legacy-slug"[^>]*>#', $html, $m ) && false !== strpos( $m[0], 'os-action="go"' ) && false === strpos( $m[0], 'os-action="door"' ) && false === strpos( $m[0], 'href' ),
+			'   ...and a link written with a TOP-TAB slug (page=sn-content) is a `go` too: the view passes snt_os_host_own_pages(), DERIVED from both registries, where one literal slug made every leaf-to-leaf link open a second admin window' );
 	}
 
 	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'notice' => array( 'error', 'It <a href="x">broke</a>.' ) ) );
@@ -341,10 +455,23 @@ namespace {
 		'the notice is the classic markup, and its deliberate inline <a> survives -- about fifteen flash codes ship one' );
 	ok( strpos( $html, 'notice notice-error' ) < strpos( $html, 'nav-tab-wrapper' ), '   ...above the tab strip, where the classic page puts it' );
 
-	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => 'identity' ) );
+	// State holds an ELEMENT ID, painted unchanged. `section_anchor()` converts
+	// the estate's bare slugs at the one place they enter state (a save's
+	// redirect target, a deep link's destination), so exactly one rule applies
+	// and a fragment that is not `sn-sec-*` survives -- the Dashboard's
+	// attention strip links #sn-dash-diagnostics, which prefixing here dropped.
+	$os = new \OpenStation\App\Os();
+	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'identity-and-seo' ) );
+	$app->actions['go']( $st, $os, array( 'tab' => 'identity' ) );
+	ok( 'sn-sec-identity' === $st->get( 'anchor' ),
+		'a legacy slug`s anchor enters state as the ELEMENT ID: sn_admin_post_redirect_target() returns the slug `identity` and sn_admin_render_section() emits id="sn-sec-identity"' );
+	$app->actions['go']( $st, $os, array( 'tab' => 'dashboard', 'anchor' => 'sn-dash-diagnostics' ) );
+	ok( 'sn-dash-diagnostics' === $st->get( 'anchor' ),
+		'   ...while a link`s own os-arg-anchor is already an id and is kept verbatim -- the attention strip`s #sn-dash-diagnostics is not a section wrapper and never was' );
+	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => 'sn-sec-identity' ) );
 	ok( false !== strpos( $html, '<div class="wrap" data-snt-anchor="sn-sec-identity">' ),
-		'a post-save anchor is painted as data-snt-anchor, carrying the ELEMENT ID and not the bare slug state keeps -- assets/os-host.js looks the value up as an id, and sn_admin_render_section() emits id="sn-sec-<slug>"' );
-	$anchored = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => 'front-end' ) );
+		'the view paints the id UNCHANGED -- assets/os-host.js looks the value up as an id, and a view that prefixed would double it' );
+	$anchored = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => 'sn-sec-front-end' ) );
 	ok( preg_match( '#data-snt-anchor="([^"]+)"#', $anchored, $m ) && false !== strpos( $anchored, 'id="' . $m[1] . '"' ),
 		'   ...and the id it names is one the SAME paint actually contains: the attribute and the section land together, so a miss is a wrong name' );
 	ok( false !== strpos( paint( $app, array( 'tab' => 'site' ) ), '<div class="wrap">' ), 'no anchor, no attribute' );

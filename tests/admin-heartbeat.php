@@ -72,6 +72,29 @@ if ( ! function_exists( 'sn_webhook_log_read' ) ) {
 	}
 }
 
+// The script registrar the S&N Dashboard host window calls. The enqueue below
+// is gated on the classic hook suffixes, which the desktop page does not carry,
+// so without a named registrar the window loaded no Heartbeat client at all and
+// Cron's "Last fired" cells sat frozen with nothing saying so.
+if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', dirname( __DIR__ ) . '/' ); }
+$GLOBALS['__hb_registered'] = array();
+$GLOBALS['__hb_enqueued']   = array();
+if ( ! function_exists( 'plugins_url' ) ) {
+	function plugins_url( $path = '', $plugin = '' ) { return 'https://example.test/wp-content/plugins/signal-and-noise-tools/' . ltrim( (string) $path, '/' ); }
+}
+if ( ! function_exists( 'wp_register_script' ) ) {
+	function wp_register_script( $handle, $src, $deps = array(), $ver = false, $args = array() ) { $GLOBALS['__hb_registered'][ $handle ] = array( $src, $deps, $ver ); return true; }
+}
+if ( ! function_exists( 'wp_script_is' ) ) {
+	function wp_script_is( $handle, $status = 'enqueued' ) { return isset( $GLOBALS['__hb_registered'][ $handle ] ); }
+}
+if ( ! function_exists( 'wp_enqueue_script' ) ) {
+	function wp_enqueue_script( $handle, $src = '', $deps = array(), $ver = false, $args = array() ) { $GLOBALS['__hb_enqueued'][] = $handle; return true; }
+}
+if ( ! function_exists( 'sn_admin_page_hooks' ) ) {
+	function sn_admin_page_hooks() { return array( 'toplevel_page_sn-theme-options' ); }
+}
+
 require_once __DIR__ . '/../inc/admin-heartbeat.php';
 
 // ─── Harness ──────────────────────────────────────────────────────────
@@ -144,6 +167,16 @@ echo "\nTest 5: ['cron','webhooks'] → both keys present\n";
 $resp = snt_admin_heartbeat_received( array(), array( 'sn_heartbeat' => array( 'cron', 'webhooks' ) ) );
 hb_true( isset( $resp['sn_cron_last_fired'] ), 'cron key present' );
 hb_true( isset( $resp['sn_webhook_logs'] ), 'webhooks key present' );
+
+echo "\nTest 6: the script registrar the host window calls\n";
+snt_admin_heartbeat_register_script();
+hb_true( isset( $GLOBALS['__hb_registered']['sn-admin-heartbeat'] ), 'snt_admin_heartbeat_register_script() registers the handle by name' );
+hb_eq( array( 'jquery', 'heartbeat' ), $GLOBALS['__hb_registered']['sn-admin-heartbeat'][1] ?? array(),
+	'with BOTH deps: without the core `heartbeat` handle WordPress silently drops the script, and the responder above would have nobody to answer' );
+hb_true( false !== strpos( (string) ( $GLOBALS['__hb_registered']['sn-admin-heartbeat'][0] ?? '' ), 'assets/admin-heartbeat.js' ), 'from the same source path the enqueue used' );
+$hb_count = count( $GLOBALS['__hb_registered'] );
+snt_admin_heartbeat_register_script();
+hb_eq( $hb_count, count( $GLOBALS['__hb_registered'] ), 'idempotent: a second call registers nothing twice' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -85,9 +85,36 @@ function snt_admin_heartbeat_received( $response, $data ) {
 add_filter( 'heartbeat_received', 'snt_admin_heartbeat_received', 10, 2 );
 
 /**
- * Enqueue the live-refresh client on SN admin pages. Depends on the core
- * 'heartbeat' handle. Loading on every SN admin page is fine — the JS is a
- * no-op when neither target table is present.
+ * Register the live-refresh client, once. Depends on the core 'heartbeat'
+ * handle — without that dependency WordPress silently drops the script and the
+ * responder above has nobody to answer.
+ *
+ * A named registrar, not an inline enqueue, because the S&N Dashboard host
+ * window (inc/openstation-host.php) needs the SAME handle with the SAME deps
+ * and cannot ride the hook-suffix gate below: the desktop page carries none of
+ * the suffixes sn_admin_page_hooks() names, so Connections -> Cron's "Last
+ * fired" cells and the Webhooks delivery logs sat frozen in the window while
+ * they live-refreshed on the classic page.
+ *
+ * @since 13.104.0
+ * @return void
+ */
+function snt_admin_heartbeat_register_script() {
+	if ( wp_script_is( 'sn-admin-heartbeat', 'registered' ) ) {
+		return;
+	}
+	wp_register_script(
+		'sn-admin-heartbeat',
+		plugins_url( 'assets/admin-heartbeat.js', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'jquery', 'heartbeat' ),
+		SNT_VERSION,
+		true
+	);
+}
+
+/**
+ * Enqueue the live-refresh client on SN admin pages. Loading on every SN admin
+ * page is fine — the JS is a no-op when neither target table is present.
  *
  * @since 4.9.0
  */
@@ -95,11 +122,6 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
 		return;
 	}
-	wp_enqueue_script(
-		'sn-admin-heartbeat',
-		plugins_url( 'assets/admin-heartbeat.js', SNT_PATH . 'signal-and-noise-tools.php' ),
-		array( 'jquery', 'heartbeat' ),
-		SNT_VERSION,
-		true
-	);
+	snt_admin_heartbeat_register_script();
+	wp_enqueue_script( 'sn-admin-heartbeat' );
 } );

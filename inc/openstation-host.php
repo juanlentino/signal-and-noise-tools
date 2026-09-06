@@ -22,16 +22,18 @@
  *      assets/js/app-runtime.min.js). A third would never run: an inline
  *      `<script>` painted by innerHTML. One pass over WP_HTML_Tag_Processor
  *      touches exactly those and nothing else.
- *   3. REPLAY. `sn_handle_admin_post()` ends in `header()` + `exit`, which a
- *      window cannot do, so it can never be called here. Everything BEFORE
- *      that exit is reproduced exactly: capability, nonce, page, the handler
- *      table, the flash code, the redirect target. The two pure resolvers
+ *   3. REPLAY. A handler ends in `header()`/`wp_safe_redirect()` + `exit`,
+ *      which a window cannot do, so none of them can be called normally.
+ *      Everything BEFORE that exit is reproduced exactly — capability, nonce,
+ *      page, the handler table, the flash code, the redirect target — and the
+ *      four pipelines that do it live in inc/openstation-host-pipelines.php,
+ *      required below. The two pure resolvers
  *      (`sn_admin_post_redirect_target()`, `sn_admin_flash_to_notice()`) are
  *      CALLED, never copied.
  *   4. ASSETS. Every leaf behaviour is a script that self-gates on a DOM
  *      marker, enqueued today on the classic hook suffixes. The window-args
  *      seam registers the same handles, with the same data, from the same
- *      builders.
+ *      builders; it lives in inc/openstation-host-assets.php.
  *
  * Shared by both hosts (S&N Dashboard, S&N Analytics); nothing here knows
  * which page it is painting. Spec: docs/proposals/2026-09-06-openstation-hosts.md.
@@ -49,6 +51,16 @@ if ( ! defined( 'ABSPATH' ) ) {
 if ( ! defined( 'SNT_OS_HOST_NONCE' ) ) {
 	define( 'SNT_OS_HOST_NONCE', 'sn_theme_options_nonce' );
 }
+
+// The WRITE half: the four pipelines a submitted form can belong to, the
+// FormData expansion they all start with, and the redirect/die interceptor two
+// of them need. Required HERE rather than from the plugin's manifest so every
+// entry point that has the paint also has the write — the app file, the suites
+// and a standalone host all require only this file.
+require_once __DIR__ . '/openstation-host-pipelines.php';
+// The ASSET seam: which handles a host window carries, and their
+// registration from the same builders their own pages use.
+require_once __DIR__ . '/openstation-host-assets.php';
 
 /** Ceiling on the `sn_*` query params a window carries in its state (they ride every dispatch). */
 if ( ! defined( 'SNT_OS_HOST_PARAM_CAP' ) ) {
@@ -68,6 +80,11 @@ if ( ! defined( 'SNT_OS_HOST_PARAM_CAP' ) ) {
  *
  * The restore is in `finally`: a leaf that throws would otherwise leave the
  * rest of the dispatch reading a query that belongs to a page it abandoned.
+ * The admin-library bootstrap runs BEFORE the swap for the same reason and it
+ * is not a formality — loading `wp-admin/includes/admin.php` fires the `locale`
+ * and `override_load_textdomain` filters, where third-party code runs and can
+ * throw, and there is no `finally` covering a throw from ABOVE the swap only
+ * because there is nothing yet to put back.
  *
  * @param callable            $paint Echoes the leaf. Called with no arguments.
  * @param array<string,mixed> $get   The `$_GET` the leaf should see (include `page`).
@@ -76,6 +93,8 @@ if ( ! defined( 'SNT_OS_HOST_PARAM_CAP' ) ) {
  * @throws \Throwable Whatever the callable threw, after the buffer is discarded.
  */
 function snt_os_host_capture( callable $paint, array $get = array(), array $post = array() ) {
+	snt_os_host_admin_bootstrap();
+
 	// phpcs:disable WordPress.Security.NonceVerification -- Reading the CURRENT superglobals only to restore them byte-for-byte; nothing here is input.
 	$prev_get     = $_GET;
 	$prev_post    = $_POST;
@@ -85,7 +104,6 @@ function snt_os_host_capture( callable $paint, array $get = array(), array $post
 	$_POST    = $post;
 	$_REQUEST = array_merge( $get, $post );
 
-	snt_os_host_admin_bootstrap();
 	ob_start();
 	try {
 		call_user_func( $paint );
@@ -220,13 +238,16 @@ function snt_os_host_absolute_url( $href ) {
  * The marker is inert on its own; assets/os-host.js is what reads it.
  *
  * @param string   $html The captured leaf HTML.
- * @param string[] $own  `page=` slugs this window paints itself.
+ * @param string[] $own  `page=` slugs this window paints itself; empty derives them.
  * @return string
  */
-function snt_os_host_rewrite( $html, array $own = array( 'sn-theme-options' ) ) {
+function snt_os_host_rewrite( $html, array $own = array() ) {
 	$html = (string) $html;
 	if ( '' === $html || ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
 		return $html;
+	}
+	if ( array() === $own ) {
+		$own = snt_os_host_own_pages();
 	}
 	$tags = new WP_HTML_Tag_Processor( $html );
 	while ( $tags->next_tag() ) {
@@ -250,11 +271,63 @@ function snt_os_host_rewrite( $html, array $own = array( 'sn-theme-options' ) ) 
 }
 
 /**
+ * The `page=` slugs that render THIS tabbed admin page.
+ *
+ * DERIVED, never listed. The estate registers the same page under eight
+ * top-tab slugs (`sn_admin_top_tabs()`) plus eleven legacy ones
+ * (`sn_admin_pages()`), and leaves link to each other through them —
+ * `sn_admin_tag_page_url()` returns `admin.php?page=sn-content&…`. A
+ * one-element literal made every such link a `door`: a second admin window
+ * opening on the classic page while the host window sat where it was.
+ *
+ * Filtered through `sn_admin_post_allowed_pages()`, the allowlist the POST
+ * dispatcher already keeps, so a slug this window would refuse to save on can
+ * never become a `go` that paints as if it could. That filter is also why
+ * `sn-analytics` is NOT here: the allowlist carries it (it has its own POST
+ * form), but it is a DIFFERENT window's surface and neither registry claims it,
+ * so it stays a door — measured, because `sn_admin_page_tab_for_slug()`
+ * answers 'dashboard' for it, and a `go` would land the reader on the
+ * Dashboard while the link said Analytics.
+ *
+ * @return string[]
+ */
+function snt_os_host_own_pages() {
+	$slugs = array();
+	if ( function_exists( 'sn_admin_top_tabs' ) ) {
+		$slugs = array_merge( $slugs, array_column( sn_admin_top_tabs(), 'slug' ) );
+	}
+	if ( function_exists( 'sn_admin_pages' ) ) {
+		$slugs = array_merge( $slugs, array_column( sn_admin_pages(), 'slug' ) );
+	}
+	$slugs = array_values(
+		array_unique(
+			array_filter(
+				array_map( 'strval', $slugs ),
+				static function ( $slug ) {
+					return '' !== $slug;
+				}
+			)
+		)
+	);
+	if ( function_exists( 'sn_admin_post_allowed_pages' ) ) {
+		$slugs = array_values( array_intersect( $slugs, sn_admin_post_allowed_pages() ) );
+	}
+	// A standalone host has neither registry; the canonical slug is the one
+	// thing that is true without them.
+	return array() !== $slugs ? $slugs : array( 'sn-theme-options' );
+}
+
+/**
  * A `<form>`: POST saves through `post`, GET forms navigate through `go`.
  *
  * `method` is KEPT on a POST form (the classic markup's own declaration, and
  * what the runtime keys its `submit` listener on); `action` is dropped, since
- * the destination is now an action name, not a URL.
+ * the destination is now an action name, not a URL — but it is READ first.
+ * Five forms in Integrity → Provenance post to `admin-post.php` with their own
+ * `action` field and their own nonce, and dropping that attribute unread is
+ * what routed them into a pipeline that could only refuse them. The reading
+ * rides back to the server as `os-arg-pipeline`, which the runtime hands the
+ * action alongside the form's values.
  *
  * @param WP_HTML_Tag_Processor $tags Positioned on the tag.
  * @return void
@@ -265,11 +338,36 @@ function snt_os_host_rewrite_form( $tags ) {
 	}
 	$method = strtolower( trim( (string) $tags->get_attribute( 'method' ) ) );
 	if ( 'post' === $method ) {
+		$action   = $tags->get_attribute( 'action' );
+		$pipeline = snt_os_host_form_pipeline( is_string( $action ) ? $action : '' );
 		$tags->set_attribute( 'os-action', 'post' );
+		if ( '' !== $pipeline ) {
+			$tags->set_attribute( 'os-arg-pipeline', $pipeline );
+		}
 		$tags->remove_attribute( 'action' );
 		return;
 	}
 	$tags->set_attribute( 'os-action', 'go' );
+}
+
+/**
+ * Which write pipeline a form's `action` attribute names, if any.
+ *
+ * Only one shape is nameable from the markup: a post to `admin-post.php`,
+ * which is a different dispatcher with a different nonce. Everything else —
+ * no action, the page's own URL — is the page's own pipeline, and the
+ * submitted fields say which.
+ *
+ * @param string $action The form's `action` attribute.
+ * @return string 'admin-post' or ''.
+ */
+function snt_os_host_form_pipeline( $action ) {
+	$absolute = snt_os_host_absolute_url( $action );
+	if ( '' === $absolute || ! snt_os_host_is_admin_url( $absolute ) ) {
+		return '';
+	}
+	$path = (string) wp_parse_url( $absolute, PHP_URL_PATH );
+	return 'admin-post.php' === basename( $path ) ? 'admin-post' : '';
 }
 
 /**
@@ -328,7 +426,7 @@ function snt_os_host_rewrite_link( $tags, array $own ) {
 	if ( '' === $absolute || ! snt_os_host_is_admin_url( $absolute ) ) {
 		if ( null === $tags->get_attribute( 'target' ) ) {
 			$tags->set_attribute( 'target', '_blank' );
-			$tags->set_attribute( 'rel', 'noopener noreferrer' );
+			$tags->set_attribute( 'rel', snt_os_host_rel( $tags->get_attribute( 'rel' ) ) );
 		}
 		return;
 	}
@@ -349,17 +447,35 @@ function snt_os_host_rewrite_link( $tags, array $own ) {
 		// derives the tab from the page slug, so the window does too.
 		$tab = (string) sn_admin_page_tab_for_slug( $page );
 	}
+	$sub = isset( $query['sub'] ) && is_string( $query['sub'] ) ? $query['sub'] : '';
+	// The element id, verbatim: the client looks the value up as an id, and the
+	// estate's fragments are not all `sn-sec-*` (the Dashboard's attention strip
+	// links `#sn-dash-diagnostics`). Stripping a prefix here is how one of them
+	// landed nowhere.
+	$anchor = (string) wp_parse_url( $absolute, PHP_URL_FRAGMENT );
+	// A legacy `page=`/`tab=` pair resolves through the SAME map the 301 uses,
+	// so a link into our own page lands where a bookmark of it would.
+	if ( function_exists( 'sn_admin_canonical_destination' ) ) {
+		$destination = sn_admin_canonical_destination( $tab, $sub );
+		if ( is_array( $destination ) ) {
+			$tab = (string) ( $destination['tab'] ?? $tab );
+			$sub = (string) ( $destination['sub'] ?? '' );
+			if ( '' === $anchor && ! empty( $destination['anchor'] ) ) {
+				$anchor = 'sn-sec-' . (string) $destination['anchor'];
+			}
+		}
+	}
+
 	$tags->remove_attribute( 'href' );
 	$tags->set_attribute( 'os-action', 'go' );
 	if ( '' !== $tab ) {
 		$tags->set_attribute( 'os-arg-tab', $tab );
 	}
-	if ( isset( $query['sub'] ) && is_string( $query['sub'] ) && '' !== $query['sub'] ) {
-		$tags->set_attribute( 'os-arg-sub', $query['sub'] );
+	if ( '' !== $sub ) {
+		$tags->set_attribute( 'os-arg-sub', $sub );
 	}
-	$fragment = (string) wp_parse_url( $absolute, PHP_URL_FRAGMENT );
-	if ( 0 === strpos( $fragment, 'sn-sec-' ) ) {
-		$tags->set_attribute( 'os-arg-anchor', substr( $fragment, 7 ) );
+	if ( '' !== $anchor ) {
+		$tags->set_attribute( 'os-arg-anchor', $anchor );
 	}
 	foreach ( snt_os_host_params( $query ) as $key => $value ) {
 		if ( is_scalar( $value ) ) {
@@ -369,11 +485,42 @@ function snt_os_host_rewrite_link( $tags, array $own ) {
 }
 
 /**
+ * `noopener noreferrer` MERGED into whatever rel the leaf already chose.
+ *
+ * Replacing it was a real loss, not a cosmetic one: Integrity → Citations
+ * prints each inbound row as `rel="noopener nofollow ugc"` around a URL a
+ * webmention SENDER supplied, and overwriting that attribute stripped the
+ * untrusted-link profile the leaf deliberately set.
+ *
+ * @param string|null|bool $existing The anchor's current rel.
+ * @return string
+ */
+function snt_os_host_rel( $existing ) {
+	$tokens = is_string( $existing ) ? preg_split( '/\s+/', trim( $existing ), -1, PREG_SPLIT_NO_EMPTY ) : array();
+	$tokens = is_array( $tokens ) ? $tokens : array();
+	$have   = array_map( 'strtolower', $tokens );
+	foreach ( array( 'noopener', 'noreferrer' ) as $needed ) {
+		if ( ! in_array( $needed, $have, true ) ) {
+			$tokens[] = $needed;
+		}
+	}
+	return implode( ' ', $tokens );
+}
+
+/**
  * The `sn_*` query params a window carries, filtered and bounded.
  *
  * These ARE state on the classic page — the Tags leaf's merge preview is
  * three of them — so they have to survive a paint. They also ride every
  * dispatch, hence the caps.
+ *
+ * `_wpnonce` rides too, and only because one own-page GET link is a nonce-gated
+ * ACTION rather than navigation: `sn_worker_version_recheck_url()` builds
+ * `?sn_worker_recheck=1` and appends the nonce, and
+ * `sn_worker_version_recheck_requested()` requires both. Dropping it made
+ * "Re-check now" a silent no-op that repainted the same stale version. It is
+ * safe to carry because it is only ever a value the window LENDS back as
+ * `$_GET`; every write still verifies its own.
  *
  * @param array<string,mixed> $source A `$_GET`-shaped array.
  * @return array<string,string|string[]>
@@ -381,7 +528,7 @@ function snt_os_host_rewrite_link( $tags, array $own ) {
 function snt_os_host_params( array $source ) {
 	$out = array();
 	foreach ( $source as $key => $value ) {
-		if ( ! is_string( $key ) || ! preg_match( '/^sn_[a-z0-9_]{1,40}$/', $key ) ) {
+		if ( ! is_string( $key ) || ( '_wpnonce' !== $key && ! preg_match( '/^sn_[a-z0-9_]{1,40}$/', $key ) ) ) {
 			continue;
 		}
 		if ( count( $out ) >= SNT_OS_HOST_PARAM_CAP ) {
@@ -402,84 +549,6 @@ function snt_os_host_params( array $source ) {
 		}
 	}
 	return $out;
-}
-
-/**
- * Replay one form submission through the classic pipeline, minus the exit.
- *
- * Every gate `sn_handle_admin_post()` applies, in its order and with its
- * meaning: capability, nonce, page allowlist, handler table. The values are
- * `wp_slash()`ed into `$_POST` because every handler `wp_unslash()`es what it
- * reads — an unslashed replay silently eats a quote in a saved title.
- *
- * `reason` is here because the plan's three refusals — no capability, bad
- * nonce, unknown action — are three different facts, and a caller that can
- * only see `ok:false` would have to guess which one to say.
- *
- * @param array<string,mixed> $values    The submitted fields (`$args['values']`).
- * @param string              $page_slug The `page=` slug the window stands for.
- * @param array<string,mixed> $get       The query the window would have had (tab, sub, `sn_*`).
- * @return array{ok:bool,flash:string,target:?array,reason:string}
- */
-function snt_os_host_replay( array $values, $page_slug, array $get = array() ) {
-	$refused = static function ( $reason ) {
-		return array(
-			'ok'     => false,
-			'flash'  => '',
-			'target' => null,
-			'reason' => $reason,
-		);
-	};
-
-	if ( ! function_exists( 'current_user_can' ) || ! current_user_can( 'manage_options' ) ) {
-		return $refused( 'capability' );
-	}
-	$nonce = isset( $values['_wpnonce'] ) && is_scalar( $values['_wpnonce'] ) ? (string) $values['_wpnonce'] : '';
-	if ( ! function_exists( 'wp_verify_nonce' ) || ! wp_verify_nonce( $nonce, SNT_OS_HOST_NONCE ) ) {
-		return $refused( 'nonce' );
-	}
-	$page_slug = (string) $page_slug;
-	if ( function_exists( 'sn_admin_post_allowed_pages' ) && ! in_array( $page_slug, sn_admin_post_allowed_pages(), true ) ) {
-		return $refused( 'page' );
-	}
-	$action   = isset( $values['sn_action'] ) && is_scalar( $values['sn_action'] ) ? sanitize_text_field( (string) $values['sn_action'] ) : '';
-	$handlers = function_exists( 'sn_admin_post_handlers' ) ? sn_admin_post_handlers() : array();
-	if ( '' === $action || ! isset( $handlers[ $action ] ) || ! is_callable( $handlers[ $action ] ) ) {
-		return $refused( 'unknown' );
-	}
-
-	// phpcs:disable WordPress.Security.NonceVerification -- Snapshotting the superglobals to restore them; the nonce was verified above.
-	$prev_get     = $_GET;
-	$prev_post    = $_POST;
-	$prev_request = $_REQUEST;
-	// phpcs:enable WordPress.Security.NonceVerification
-	try {
-		$_GET     = $get;
-		$_POST    = wp_slash( $values );
-		$_REQUEST = array_merge( $get, $_POST, array( 'page' => $page_slug ) );
-
-		$flash = (string) call_user_func( $handlers[ $action ], $_POST );
-
-		// The classic dispatcher only resolves a target when the request
-		// carried a tab; without one it redirects to the bare page. Mirrored,
-		// not re-decided.
-		$target = null;
-		if ( isset( $_REQUEST['tab'] ) && function_exists( 'sn_admin_post_redirect_target' ) ) {
-			$requested_tab = sanitize_text_field( wp_unslash( $_REQUEST['tab'] ) );
-			$requested_sub = isset( $_REQUEST['sub'] ) ? sanitize_text_field( wp_unslash( $_REQUEST['sub'] ) ) : '';
-			$target        = sn_admin_post_redirect_target( $requested_tab, $requested_sub );
-		}
-		return array(
-			'ok'     => true,
-			'flash'  => $flash,
-			'target' => $target,
-			'reason' => '',
-		);
-	} finally {
-		$_GET     = $prev_get;
-		$_POST    = $prev_post;
-		$_REQUEST = $prev_request;
-	}
 }
 
 /**
@@ -573,155 +642,4 @@ function snt_os_host_destination( $tab, $sub = '' ) {
 		'sub'    => snt_os_host_resolve_sub( $tab, (string) ( $target['sub'] ?? '' ) ),
 		'anchor' => (string) ( $target['anchor'] ?? '' ),
 	);
-}
-
-/**
- * The handles a host window needs, registered the way their own pages
- * register them.
- *
- * WHY A LIST AND NOT A HOOK. Every one of these is enqueued today by a guard
- * on `sn_admin_page_hooks()` — the classic hook suffixes — and the desktop
- * page is not one of them, so on the desktop NONE of them load. The window
- * cannot borrow that guard either: two of the eight are gated a second time
- * on the active tab/sub, which a window state answers and a hook suffix does
- * not. So the handles are named, and each is registered from the SAME source
- * and the SAME data builder its own page uses — never a copied URL, never a
- * copied localize literal.
- *
- * Registration, not enqueue: the shell enqueues a window's `scripts` and
- * `styles` when the window first opens, so a desktop page nobody opens this
- * window on pays nothing.
- *
- * @return array{styles:string[],scripts:string[]}
- */
-function snt_os_host_asset_handles() {
-	return array(
-		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log' ),
-		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'snt-os-host' ),
-	);
-}
-
-/**
- * Register every handle in `snt_os_host_asset_handles()` that is not
- * registered yet.
- *
- * Idempotent by `wp_style_is` / `wp_script_is`: on a classic admin page these
- * are already registered by their own enqueues and this adds nothing.
- *
- * @return void
- */
-function snt_os_host_register_assets() {
-	if ( ! function_exists( 'wp_register_style' ) || ! defined( 'SNT_URL' ) || ! defined( 'SNT_VERSION' ) ) {
-		return;
-	}
-	$plugin_file = defined( 'SNT_PATH' ) ? SNT_PATH . 'signal-and-noise-tools.php' : __FILE__;
-
-	if ( ! wp_style_is( 'sn-admin', 'registered' ) ) {
-		wp_register_style( 'sn-admin', SNT_URL . 'assets/admin.css', array(), SNT_VERSION );
-	}
-	if ( ! wp_style_is( 'snt-analytics-tokens', 'registered' ) ) {
-		wp_register_style( 'snt-analytics-tokens', SNT_URL . 'assets/analytics/analytics-tokens.css', array(), SNT_VERSION );
-	}
-	if ( ! wp_style_is( 'sn-analytics-admin', 'registered' ) ) {
-		wp_register_style( 'sn-analytics-admin', SNT_URL . 'assets/analytics/analytics-admin.css', array( 'sn-admin', 'snt-analytics-tokens' ), SNT_VERSION );
-	}
-	if ( ! wp_style_is( 'sn-uptime-status', 'registered' ) ) {
-		wp_register_style( 'sn-uptime-status', SNT_URL . 'assets/uptime-status.css', array(), SNT_VERSION );
-	}
-
-	// The two shared utilities below are registered by their OWN registrars on
-	// `admin_enqueue_scripts`; the window-args filter runs at `init`, earlier.
-	// Calling the registrar (never re-declaring the handle) keeps one source.
-	if ( function_exists( 'snt_register_status_script' ) && ! wp_script_is( 'snt-status', 'registered' ) ) {
-		snt_register_status_script();
-	}
-	if ( function_exists( 'snt_ability_run_client_register' ) ) {
-		snt_ability_run_client_register();
-	}
-
-	if ( ! wp_script_is( 'sn-admin', 'registered' ) ) {
-		wp_register_script( 'sn-admin', SNT_URL . 'assets/admin.js', array(), SNT_VERSION, true );
-	}
-	if ( ! wp_script_is( 'snt-confirm', 'registered' ) ) {
-		wp_register_script( 'snt-confirm', SNT_URL . 'assets/snt-confirm.js', array( 'wp-i18n' ), SNT_VERSION, true );
-	}
-	if ( ! wp_script_is( 'sn-analytics-brush', 'registered' ) ) {
-		wp_register_script( 'sn-analytics-brush', SNT_URL . 'assets/analytics/analytics-brush.js', array(), SNT_VERSION, true );
-	}
-	if ( ! wp_script_is( 'sn-resume-admin', 'registered' ) ) {
-		wp_register_script( 'sn-resume-admin', SNT_URL . 'assets/resume-admin.js', array(), SNT_VERSION, true );
-	}
-	if ( ! wp_script_is( 'sn-freshness-dot', 'registered' ) ) {
-		wp_register_script( 'sn-freshness-dot', plugins_url( 'assets/freshness-dot.js', $plugin_file ), array(), SNT_VERSION, true );
-		// The SAME payload snt_freshness_enqueue() attaches, from the SAME
-		// builder: a copied route list would go stale the first time the
-		// front-end routes moved.
-		if ( function_exists( 'snt_freshness_routes' ) && defined( 'SNT_FRESHNESS_CARD_ID' ) ) {
-			wp_localize_script(
-				'sn-freshness-dot',
-				'sntFreshness',
-				array(
-					'routes' => array_map( static function ( $path ) {
-						return home_url( $path );
-					}, snt_freshness_routes() ),
-					'cardId' => SNT_FRESHNESS_CARD_ID,
-				)
-			);
-		}
-	}
-	if ( ! wp_script_is( 'snt-health-suggest-actions', 'registered' ) ) {
-		wp_register_script( 'snt-health-suggest-actions', plugins_url( 'assets/health-suggest-actions.js', $plugin_file ), array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ), SNT_VERSION, true );
-		if ( function_exists( 'wp_set_script_translations' ) ) {
-			wp_set_script_translations( 'snt-health-suggest-actions', 'signal-and-noise-tools' );
-		}
-	}
-	if ( ! wp_script_is( 'sn-uptime-status', 'registered' ) ) {
-		wp_register_script( 'sn-uptime-status', SNT_URL . 'assets/uptime-status.js', array( 'snt-ability-run' ), SNT_VERSION, true );
-	}
-	if ( ! wp_script_is( 'snt-os-host', 'registered' ) ) {
-		wp_register_script( 'snt-os-host', SNT_URL . 'assets/os-host.js', array( 'sn-admin' ), SNT_VERSION, true );
-	}
-	// Three leaves register their own assets from their own enqueue callbacks
-	// (Connections -> Cron, Integrity -> Provenance, Security -> Audit log),
-	// gated on the classic hook suffixes the desktop page never carries. Each
-	// exposes its registrar; calling it keeps one source of strings and paths.
-	foreach ( array( 'snt_cron_dashboard_register_script', 'sn_prov_admin_register_assets', 'snt_audit_log_register_style' ) as $registrar ) {
-		if ( function_exists( $registrar ) ) {
-			$registrar();
-		}
-	}
-}
-
-/**
- * Ride the host windows with the admin assets their leaves expect.
- *
- * A sibling of `snt_os_app_window_args()` on the same filter rather than a
- * branch inside it: the Signal & Noise app's window has nothing to do with
- * this one, and one function answering for two windows is how a change to
- * either becomes a change to both.
- *
- * @param array<string,mixed> $window_args `openstation_register_window()` args.
- * @param string              $id          App id.
- * @return array<string,mixed>
- */
-function snt_os_host_window_args( $window_args, $id ) {
-	if ( ! is_array( $window_args ) || ! in_array( (string) $id, array( 'sn-dashboard' ), true ) ) {
-		return $window_args;
-	}
-	snt_os_host_register_assets();
-	$handles = snt_os_host_asset_handles();
-	foreach ( array( 'styles', 'scripts' ) as $bucket ) {
-		$existing = isset( $window_args[ $bucket ] ) ? (array) $window_args[ $bucket ] : array();
-		foreach ( $handles[ $bucket ] as $handle ) {
-			if ( ! in_array( $handle, $existing, true ) ) {
-				$existing[] = $handle;
-			}
-		}
-		$window_args[ $bucket ] = $existing;
-	}
-	return $window_args;
-}
-
-if ( function_exists( 'add_filter' ) ) {
-	add_filter( 'openstation_app_window_args', 'snt_os_host_window_args', 10, 2 );
 }

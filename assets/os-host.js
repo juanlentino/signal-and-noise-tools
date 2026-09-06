@@ -3,17 +3,35 @@
  *
  * WHY THIS EXISTS. The two hosts (`sn-dashboard`, `sn-analytics`) are server
  * views: the window paints the SAME admin HTML the classic page paints, and it
- * repaints it on every action. Two things the classic page gets for free do not
- * survive that:
+ * repaints it on every action.
  *
- *   1. Painted HTML lands by `innerHTML`, and `innerHTML` never executes a
- *      `<script>`. A leaf that ships an inline block (a chart's data, a
+ * HOW A PAINT ACTUALLY LANDS — and it is NOT `innerHTML` on the root. The
+ * runtime parses the server's HTML into a `<template>` and MORPHS the existing
+ * tree into it: `Ut()` (offset 25085 of desktop-mode's assets/js/app-runtime
+ * .min.js) hands the parsed children to `Se()` (25455), which matches a child
+ * carrying no `os-key`/`id` POSITIONALLY, by tag name, and morphs it in place
+ * through `Xt()` (25943) → `zt()` (26198). Every element the server repaints
+ * therefore KEEPS its node identity (and its listeners), and `zt`'s second
+ * loop — `for (const o of Array.from(e.attributes)) n.hasAttribute(o.name) ||
+ * … || e.removeAttribute(o.name)` (26430) — REMOVES every attribute the
+ * server's node does not carry. Three consequences this file exists for:
+ *
+ *   1. A `<script>` that arrives with a paint does not run: a node morphed in
+ *      place is never re-prepared, so a leaf's inline block (a chart's data, a
  *      bootstrap call) would silently do nothing. The rewrite pass marks every
  *      such block `data-snt-exec`; this file re-creates each marked node once,
  *      which is the only way to make a parsed-in script run.
  *   2. assets/admin.js binds on DOMContentLoaded, which fired long before the
  *      window opened and never fires again. It now publishes an idempotent
  *      `window.snAdmin.init( root )`; this file calls it after every paint.
+ *   3. The nine leaf-owned scripts the host appends (Cron's buttons, the
+ *      uptime panel, the provenance stepper, the freshness dot, the analytics
+ *      brush) each armed themselves ONCE, against the window's first paint —
+ *      which holds nothing but a spinner. This file therefore dispatches a
+ *      `snt:paint` CustomEvent on `document` at the end of every pass, with
+ *      the painted root in `detail.root`, and each of those scripts re-arms
+ *      from it. It is dispatched on `document`, not on the root, so a script
+ *      subscribes once for every window rather than per root.
  *
  * And one thing a window does differently: the classic page scrolls to a
  * `#sn-sec-*` fragment after a save. A window has no URL to carry a fragment,
@@ -25,10 +43,13 @@
  * step — the rest of the plugin's JS is written the same way.
  *
  * IDEMPOTENCE IS THE WHOLE DESIGN. The pass runs on a MutationObserver over the
- * app root, so its own three writes (replacing a script node, `data-snt-init`
- * on a bound element, removing `data-snt-anchor`) schedule one more pass. Each
- * of the three is marked, so that pass finds nothing and the observer settles —
- * one extra no-op pass per paint, never a loop.
+ * app root, so anything it writes — a replaced script node, a removed
+ * `data-snt-anchor`, whatever a leaf script paints on `snt:paint` — schedules
+ * one more pass. Every one of those writes is marked, so that pass finds
+ * nothing and the observer settles: one extra no-op pass per paint, never a
+ * loop. A marker that must survive the morph is a PROPERTY or a WeakSet, never
+ * an attribute (`zt` above); a marker that must be CLEARED by the morph — "the
+ * content I painted is still the content on screen" — is exactly an attribute.
  *
  * @package SignalNoiseTools
  */
@@ -73,9 +94,10 @@
 	/**
 	 * Re-create every marked-but-unrun `<script>` so the browser executes it.
 	 *
-	 * A script node that arrived through `innerHTML` is inert forever; only a
-	 * node created by `document.createElement` and inserted runs. `src`, `type`
-	 * and the inline text carry over — nothing else, because nothing else is
+	 * A script node the runtime morphed into place is never re-prepared, and
+	 * one parsed out of a `<template>` is inert where it lands; only a node
+	 * created by `document.createElement` and inserted runs. `src`, `type` and
+	 * the inline text carry over — nothing else, because nothing else is
 	 * behaviour. The marker moves to the fresh node BEFORE the swap so the
 	 * mutation this causes cannot find the same block again.
 	 *
@@ -143,6 +165,11 @@
 	 * the active one), then the anchor — scrolling to a section that a panel
 	 * switch is about to hide would land nowhere.
 	 *
+	 * The paint event is LAST, after all three: a leaf script that re-arms on
+	 * it must see the markup the scripts step created and the panel state the
+	 * seam applied, and an anchor scroll must not be undone by a leaf script
+	 * painting into the section underneath it.
+	 *
 	 * @param {Element} root App root.
 	 */
 	function pass( root ) {
@@ -151,6 +178,7 @@
 			window.snAdmin.init( root );
 		}
 		scrollToAnchor( root );
+		document.dispatchEvent( new CustomEvent( 'snt:paint', { detail: { root: root } } ) );
 	}
 
 	/**
@@ -224,13 +252,27 @@
 	// ---------------------------------------------------------------- submitter
 	// A classic POST carries the clicked submit button's name and value (the
 	// browser adds the submitter to the form data set); the runtime ships
-	// `new FormData( form )`, which never includes the submitter, so a form
-	// whose `sn_action` rides its button -- 45 of the estate's forms -- would
-	// arrive with no action and save nothing. The rewrite marks named submit
-	// buttons `data-snt-submit`; this appends the submitter as a hidden input
-	// LAST, before the runtime serialises, so PHP's later-value-wins rule
-	// applies exactly as it does to a classic POST (a Save and a Delete
-	// button sharing one name keep meaning what was clicked).
+	// `new FormData( form )` (`jt()`, offset 22876 of app-runtime.min.js),
+	// which never includes the submitter, so a form whose `sn_action` rides
+	// its button -- 45 of the estate's forms -- would arrive with no action
+	// and save nothing. The rewrite marks named submit buttons
+	// `data-snt-submit`; this appends the submitter as a hidden input LAST,
+	// before the runtime serialises.
+	//
+	// PHP'S LATER-VALUE-WINS RULE DOES NOT APPLY HERE, and appending beside a
+	// same-named field is not "the last value". The runtime never sends a
+	// urlencoded body: `jt()` folds a repeated name into an ARRAY
+	// (`o[i]=Array.isArray(r)?[...r,s]:[r,s]`, offset 23311) and the replay
+	// requires a SCALAR `sn_action` (inc/openstation-host.php, `is_scalar`),
+	// refusing anything else as unknown. inc/admin-forms/ai-settings.php
+	// carries both a hidden `sn_action=ai_settings_save` (line 53) and a
+	// `sn_action=ml_embed_compare` button (line 252), so a bare append ships
+	// [ 'ai_settings_save', 'ml_embed_compare' ] and "Run comparison" answers
+	// "Nothing was saved." What later-value-wins MEANS for one scalar is
+	// therefore reproduced directly: every other field of the submitter's name
+	// is DISABLED for this dispatch -- FormData skips disabled fields -- and
+	// re-enabled on the next tick, so a refused dispatch leaves the form
+	// usable and the reader can press the button again.
 	var lastSubmitter = null;
 
 	function rememberSubmitter( e ) {
@@ -240,6 +282,55 @@
 		}
 		var btn = t.closest( '[data-snt-submit]' );
 		lastSubmitter = btn && btn.form && btn.form.hasAttribute( 'os-action' ) ? btn : null;
+	}
+
+	/**
+	 * Disable every serialisable field in the form that already carries the
+	 * submitter's name, so the carrier appended after this is the ONLY value
+	 * FormData sees for it.
+	 *
+	 * Only `input`/`select`/`textarea` are touched, and not the button kinds:
+	 * a button is never in a `new FormData( form )` entry list, so disabling
+	 * one would grey the reader's own button for a tick and buy nothing. A
+	 * field the page had already disabled is left alone and unmarked — it must
+	 * still be disabled when the tick that re-enables ours runs.
+	 *
+	 * @param {HTMLFormElement} form Form being submitted.
+	 * @param {string}          name The submitter's name.
+	 */
+	function shadowSameName( form, name ) {
+		var fields = form.querySelectorAll( 'input, select, textarea' );
+		for ( var i = 0; i < fields.length; i++ ) {
+			var field = fields[ i ];
+			var type = ( field.type || '' ).toLowerCase();
+			if ( field.name !== name || field.disabled ) {
+				continue;
+			}
+			if ( 'submit' === type || 'button' === type || 'reset' === type || 'image' === type ) {
+				continue;
+			}
+			field.disabled = true;
+			field.setAttribute( 'data-snt-shadowed', '1' );
+		}
+	}
+
+	/**
+	 * Re-enable what `shadowSameName()` disabled, on the next tick.
+	 *
+	 * The runtime reads the form synchronously inside its own submit listener,
+	 * so a timer of 0 is after the values are taken and before the reader can
+	 * touch anything. Only fields this file marked are restored.
+	 *
+	 * @param {HTMLFormElement} form Form that was submitted.
+	 */
+	function unshadowSoon( form ) {
+		window.setTimeout( function () {
+			var shadowed = form.querySelectorAll( '[data-snt-shadowed]' );
+			for ( var i = 0; i < shadowed.length; i++ ) {
+				shadowed[ i ].disabled = false;
+				shadowed[ i ].removeAttribute( 'data-snt-shadowed' );
+			}
+		}, 0 );
 	}
 
 	function carrySubmitter( e ) {
@@ -259,6 +350,11 @@
 		for ( var i = 0; i < stale.length; i++ ) {
 			stale[ i ].parentNode.removeChild( stale[ i ] );
 		}
+		// Shadow BEFORE the carrier is appended, or the carrier disables
+		// itself; schedule the undo before it too, so appending the carrier
+		// stays the last thing this function does to the form data set.
+		shadowSameName( form, btn.name );
+		unshadowSoon( form );
 		var input = document.createElement( 'input' );
 		input.type = 'hidden';
 		input.name = btn.name;

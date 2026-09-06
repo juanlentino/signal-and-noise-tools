@@ -77,33 +77,81 @@ function may_manage() {
  * The form's own fields win, because on the classic page its hidden `tab`
  * beats whatever the address bar held.
  *
+ * EXPANDED on the way out, for the same reason the replay expands: a GET form's
+ * keys are literal `name` attributes, so the Tags merge picker arrives as
+ * `sn_tag_from[]` and `snt_os_host_params()`'s allowlist drops it unexpanded —
+ * which is how "Preview merge" landed on an empty confirm panel.
+ *
  * @param array<string,mixed> $args Dispatch args.
  * @return array<string,mixed>
  */
 function incoming( array $args ) {
 	$values = isset( $args['values'] ) && is_array( $args['values'] ) ? $args['values'] : array();
 	unset( $args['values'] );
-	return array_merge( $args, $values );
+	return \snt_os_host_expand( array_merge( $args, $values ) );
 }
 
 /**
  * What a refused save says. One line, because a toast has no tone and no
  * markup, and because a reader is owed the reason rather than silence.
  *
+ * EVERY LINE NAMES WHAT WAS MEASURED. The first cut said "the form expired.
+ * Reopen the tab and try again." to every refusal, including eight forms whose
+ * nonce was never the shared one and which reopening could never fix. An
+ * expiry was not measured; a token that did not verify against the action it
+ * was checked against was, and that is what this says.
+ *
  * @param string $reason From `snt_os_host_replay()`.
+ * @param string $detail The particular the gate closed on (an action, a nonce action, a die's own words).
  * @return string
  */
-function refusal_text( $reason ) {
+function refusal_text( $reason, $detail = '' ) {
+	$detail = (string) $detail;
 	switch ( (string) $reason ) {
 		case 'capability':
 			return __( 'Nothing was saved: this account cannot manage options.', 'signal-and-noise-tools' );
 		case 'nonce':
-			return __( 'Nothing was saved: the form expired. Reopen the tab and try again.', 'signal-and-noise-tools' );
+			return sprintf(
+				/* translators: %s: the nonce action the submitted token was verified against. */
+				__( 'Nothing was saved: the security token did not verify against %s.', 'signal-and-noise-tools' ),
+				'' !== $detail ? $detail : \SNT_OS_HOST_NONCE
+			);
 		case 'page':
 			return __( 'Nothing was saved: this window does not own that page.', 'signal-and-noise-tools' );
+		case 'died':
+			// The handler's own words. A window that paraphrased them would be
+			// reporting a cause it did not measure.
+			return '' !== $detail ? $detail : __( 'Nothing was saved: the action refused, without saying why.', 'signal-and-noise-tools' );
+		case 'unknown':
+			if ( '' === $detail ) {
+				return __( 'Nothing was saved: the form carried no action.', 'signal-and-noise-tools' );
+			}
+			return sprintf(
+				/* translators: %s: the action name the form submitted. */
+				__( 'Nothing was saved: no pipeline in this window handles the action %s.', 'signal-and-noise-tools' ),
+				$detail
+			);
 		default:
 			return __( 'Nothing was saved.', 'signal-and-noise-tools' );
 	}
+}
+
+/**
+ * A section slug as the element id the page actually carries.
+ *
+ * State holds an ELEMENT ID, because that is what assets/os-host.js looks up
+ * and what a leaf's own fragment link already is (`#sn-dash-diagnostics`).
+ * The estate's resolvers speak in bare slugs — `sn_admin_post_redirect_target()`
+ * returns 'identity' and `sn_admin_render_section()` emits
+ * `id="sn-sec-identity"` — so every slug that arrives from one of them is
+ * converted here, once, and nothing else prefixes anything.
+ *
+ * @param string $slug A `sn_admin_post_redirect_target()` anchor slug.
+ * @return string The element id, or ''.
+ */
+function section_anchor( $slug ) {
+	$slug = (string) $slug;
+	return '' !== $slug ? 'sn-sec-' . $slug : '';
 }
 
 $sn_dashboard = App::define( APP_ID )
@@ -119,10 +167,11 @@ $sn_dashboard = App::define( APP_ID )
 		array(
 			'tab'    => 'dashboard', // Top-tab slug. The URL's ?tab=, in state.
 			'sub'    => '',          // Sub-tab slug; '' on a landing tab.
-			'anchor' => '',          // A post-save `sn-sec-…` landing, painted as data-snt-anchor.
+			'anchor' => '',          // The ELEMENT ID to scroll to, painted as data-snt-anchor.
 			'flash'  => '',          // The last flash CODE (the Webhooks leaf reads an id out of it).
 			'notice' => null,        // [ severity, html ] — the classic notice, or null.
 			'params' => array(),     // The `sn_*` query params that ARE state on the classic page.
+			'post'   => array(),     // ONE paint's $_POST, for the form its own leaf handles.
 		)
 	)
 	->title_bar_button(
@@ -147,16 +196,23 @@ $sn_dashboard = App::define( APP_ID )
 			}
 			$in          = incoming( $args );
 			$destination = \snt_os_host_destination( (string) ( $in['tab'] ?? '' ), (string) ( $in['sub'] ?? '' ) );
-			$anchor      = '' !== $destination['anchor'] ? $destination['anchor'] : (string) ( $in['anchor'] ?? '' );
+			// The resolver speaks slugs; a link's `os-arg-anchor` is already the
+			// element id the rewrite read out of its fragment.
+			$anchor = '' !== $destination['anchor'] ? section_anchor( $destination['anchor'] ) : (string) ( $in['anchor'] ?? '' );
 			$state->set( 'tab', $destination['tab'] )
 				->set( 'sub', $destination['sub'] )
 				->set( 'anchor', $anchor )
+				// Set wholesale, never merged: a navigation the reader did not
+				// hand a `sn_worker_recheck` must not replay the last one.
 				->set( 'params', \snt_os_host_params( $in ) )
 				->set( 'flash', '' )
+				->set( 'post', array() )
 				->set( 'notice', null );
 		}
 	)
-	// One form. Everything `sn_handle_admin_post()` does before its exit.
+	// One form, through whichever of the estate's four write pipelines owns it
+	// (inc/openstation-host-pipelines.php). Everything the classic dispatcher
+	// does before its exit; the exit itself comes back as a value.
 	->action(
 		'post',
 		static function ( State $state, Os $os, array $args ) {
@@ -165,18 +221,40 @@ $sn_dashboard = App::define( APP_ID )
 				return;
 			}
 			$values = isset( $args['values'] ) && is_array( $args['values'] ) ? $args['values'] : array();
-			$params = $state->get( 'params' );
-			$query  = is_array( $params ) ? $params : array();
+			// The rewrite read the form's `action` attribute before dropping it;
+			// the runtime hands that reading back beside the values.
+			$pipeline = isset( $args['pipeline'] ) && is_scalar( $args['pipeline'] ) ? (string) $args['pipeline'] : '';
+			$params   = $state->get( 'params' );
+			$query    = is_array( $params ) ? $params : array();
 			$query['tab'] = (string) $state->get( 'tab' );
 			$query['sub'] = (string) $state->get( 'sub' );
 
-			$result = \snt_os_host_replay( $values, SNT_OS_DASHBOARD_PAGE, $query );
+			$result = \snt_os_host_replay( $values, SNT_OS_DASHBOARD_PAGE, $query, $pipeline );
 			if ( empty( $result['ok'] ) ) {
 				// The refusal replaces whatever the last save said. Leaving an
 				// earlier "Saved." on screen under a save that did not happen
 				// is a readout claiming more than was measured.
-				$state->set( 'notice', null )->set( 'flash', '' );
-				$os->toast( refusal_text( (string) $result['reason'] ) );
+				$reason = (string) $result['reason'];
+				$detail = (string) $result['detail'];
+				// A handler that called wp_die() already said what was wrong,
+				// in its own words; those words ARE the notice.
+				$died = 'died' === $reason && '' !== $detail;
+				$state->set( 'notice', $died ? array( 'error', $detail ) : null )
+					->set( 'flash', '' )
+					->set( 'post', array() );
+				$os->toast( refusal_text( $reason, $detail ) );
+				return;
+			}
+
+			// An inline form runs nowhere but in its own leaf: the values are
+			// kept for exactly the paint that follows, which is what the classic
+			// page does when the dispatcher finds no handler and does not
+			// redirect. The view clears the bag as it spends it.
+			if ( 'inline' === (string) $result['pipeline'] ) {
+				$state->set( 'post', (array) $result['post'] )
+					->set( 'notice', null )
+					->set( 'flash', '' );
+				$os->badge( badge_count() );
 				return;
 			}
 
@@ -187,11 +265,16 @@ $sn_dashboard = App::define( APP_ID )
 				$tab = (string) ( $target['tab'] ?? $state->get( 'tab' ) );
 				$state->set( 'tab', $tab )
 					->set( 'sub', \snt_os_host_resolve_sub( $tab, (string) ( $target['sub'] ?? '' ) ) )
-					->set( 'anchor', (string) ( $target['anchor'] ?? '' ) );
+					->set( 'anchor', section_anchor( (string) ( $target['anchor'] ?? '' ) ) );
 			}
 			// The classic redirect drops every query param but page/tab/sub/
-			// sn_flash, so a merge preview does not survive a save here either.
-			$state->set( 'params', array() )->set( 'flash', (string) $result['flash'] );
+			// sn_flash, so a merge preview does not survive a save here either
+			// — and where the handler redirected ITSELF, the params it put in
+			// that URL are what the classic page would now be reading
+			// (`sn_prov_swept`, `sn_prov_rotate`, `sn_rss_ok`).
+			$state->set( 'params', (array) $result['params'] )
+				->set( 'flash', (string) $result['flash'] )
+				->set( 'post', array() );
 
 			$notice = \snt_os_host_notice( (string) $result['flash'] );
 			$state->set( 'notice', $notice );

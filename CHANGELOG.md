@@ -98,8 +98,10 @@ adds a bullet below. A release is a separate, deliberate act:
 - `assets/admin.js` gains `window.snAdmin.init( root )`. All three behaviours
   it armed on `DOMContentLoaded` -- the `sub_sections` section tabs, the
   sticky save bar's dirty-tracking and the "+ Add another profile URL" row --
-  move into one idempotent, root-scoped `init`: it marks each element it binds
-  with `data-snt-init` and skips anything already marked, and it looks its
+  move into one idempotent, root-scoped `init`: it remembers each element it
+  binds in a WeakSet (the runtime's morph strips any attribute the server
+  did not paint, so an attribute marker re-armed every paint) and skips
+  anything already bound, and it looks its
   nav, panels and form up inside the root it was handed rather than in
   `document`, so one window never binds another's leaf. `DOMContentLoaded`
   now calls `init( document )`, which is exactly what the page did before the

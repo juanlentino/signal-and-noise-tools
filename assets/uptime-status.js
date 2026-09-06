@@ -170,12 +170,32 @@
 		mount.appendChild( el( 'p', 'sn-uw-meta', 'Availability over 30/90 days · response averaged over 24h · Better Stack' ) );
 	}
 
-	function boot() {
-		var mounts = document.querySelectorAll( '[data-sn-uptime-status]' );
+	// The paint guard. An ATTRIBUTE, deliberately: an OpenStation window's
+	// paint is a morph that both restores the server's "Checking Better
+	// Stack…" placeholder into the mount AND removes every attribute the
+	// server does not carry (zt, offset 26198 of app-runtime.min.js). The
+	// marker is therefore cleared by exactly the event that wiped this file's
+	// answer, while surviving the extra no-op pass our own writes schedule. A
+	// WeakSet would survive the repaint too and leave the placeholder up.
+	var PAINTED = 'data-sn-uptime-painted';
+
+	/**
+	 * Fill every unpainted [data-sn-uptime-status] mount inside `root` from
+	 * ONE ability call. Marked BEFORE the call, so a second pass arriving
+	 * while the first is in flight cannot start another round trip.
+	 *
+	 * @param {Element|Document} root Subtree to arm. Defaults to `document`.
+	 */
+	function boot( root ) {
+		var scope = root || document;
+		var mounts = scope.querySelectorAll( '[data-sn-uptime-status]:not([' + PAINTED + '])' );
 		if ( ! mounts.length || 'function' !== typeof window.sntAbilityRun ) {
 			return;
 		}
-		var wantsDetail = document.querySelector( '[data-sn-uptime-detail]' ) !== null;
+		mounts.forEach( function ( m ) {
+			m.setAttribute( PAINTED, '1' );
+		} );
+		var wantsDetail = scope.querySelector( '[data-sn-uptime-detail]' ) !== null;
 		var input = wantsDetail ? { detail: true } : undefined;
 		window.sntAbilityRun( 'signal-noise/uptime-status', input ).then( function ( data ) {
 			mounts.forEach( function ( m ) {
@@ -226,8 +246,19 @@
 	} );
 
 	if ( 'loading' === document.readyState ) {
-		document.addEventListener( 'DOMContentLoaded', boot );
+		document.addEventListener( 'DOMContentLoaded', function () {
+			boot( document );
+		} );
 	} else {
-		boot();
+		boot( document );
 	}
+
+	// An OpenStation window opens on a root holding only a spinner, then
+	// repaints this leaf on every action without re-running a line of this
+	// file. assets/os-host.js dispatches snt:paint on `document` after every
+	// pass with the painted root in detail.root; the classic page never fires
+	// it, so nothing there changes.
+	document.addEventListener( 'snt:paint', function ( e ) {
+		boot( ( e.detail && e.detail.root ) || document );
+	} );
 })();

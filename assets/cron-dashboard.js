@@ -14,6 +14,13 @@
  * Inline DOM updates use textContent + createElement (NOT innerHTML)
  * to keep the XSS surface zero even though the data is server-derived.
  *
+ * IN AN OPENSTATION WINDOW every control here is a `type="button"` whose ONLY
+ * behaviour is this file, and this file ran once — against the window's first
+ * paint, a spinner — so Run now, Unschedule and the history toggles were
+ * inert for the life of the window. Everything now arms through init( root ):
+ * once at load with `document` (the classic page, unchanged) and again on each
+ * `snt:paint` the host script dispatches after a repaint.
+ *
  * @since plugin v3.0.0
  */
 ( function() {
@@ -21,6 +28,31 @@
 
 	if ( typeof document === 'undefined' ) {
 		return;
+	}
+
+	// Which elements already carry their listener. A WeakSet and not an
+	// attribute: a window's paint is a MORPH that reuses the node and strips
+	// every attribute the server does not paint (zt, offset 26198 of
+	// desktop-mode's app-runtime.min.js), so an attribute marker would be gone
+	// by the next paint and each button would fire twice, then three times. A
+	// row the diff genuinely replaced is a new element and arms on its own.
+	var wired = new WeakSet();
+
+	/**
+	 * Bind `fn` to `event` on `el` at most once, ever.
+	 *
+	 * @param {Element}  el    Element to bind.
+	 * @param {string}   event Event name.
+	 * @param {Function} fn    Handler.
+	 * @return {boolean} Whether this call was the one that bound it.
+	 */
+	function bindOnce( el, event, fn ) {
+		if ( wired.has( el ) ) {
+			return false;
+		}
+		wired.add( el );
+		el.addEventListener( event, fn );
+		return true;
 	}
 
 	// v3.0.2: strings come from PHP via wp_localize_script (sntCronI18n).
@@ -96,13 +128,18 @@
 		cell.appendChild( sm );
 	}
 
-	function wireFilter() {
-		var input = document.getElementById( 'sn-cron-filter' );
-		var table = document.getElementById( 'sn-cron-table' );
-		if ( ! input || ! table ) {
+	function wireFilter( scope ) {
+		var input = scope.querySelector( '#sn-cron-filter' );
+		if ( ! input || ! scope.querySelector( '#sn-cron-table' ) ) {
 			return;
 		}
-		input.addEventListener( 'input', function() {
+		bindOnce( input, 'input', function() {
+			// The table is re-read per keystroke, not captured: a repaint can
+			// hand back a different <table> under the same reused input.
+			var table = scope.querySelector( '#sn-cron-table' );
+			if ( ! table ) {
+				return;
+			}
 			var needle = input.value.toLowerCase();
 			var rows = table.querySelectorAll( 'tbody tr.sn-cron-row' );
 			rows.forEach( function( tr ) {
@@ -112,10 +149,10 @@
 		} );
 	}
 
-	function wireRunNow() {
-		var buttons = document.querySelectorAll( '.sn-cron-run-now' );
+	function wireRunNow( scope ) {
+		var buttons = scope.querySelectorAll( '.sn-cron-run-now' );
 		buttons.forEach( function( btn ) {
-			btn.addEventListener( 'click', function( e ) {
+			bindOnce( btn, 'click', function( e ) {
 				e.preventDefault();
 				var tr = btn.closest( 'tr.sn-cron-row' );
 				if ( ! tr ) {
@@ -166,10 +203,10 @@
 		} );
 	}
 
-	function wireHistory() {
-		var toggles = document.querySelectorAll( '.sn-cron-history-toggle' );
+	function wireHistory( scope ) {
+		var toggles = scope.querySelectorAll( '.sn-cron-history-toggle' );
 		toggles.forEach( function( btn ) {
-			btn.addEventListener( 'click', function( e ) {
+			bindOnce( btn, 'click', function( e ) {
 				e.preventDefault();
 				var tr = btn.closest( 'tr.sn-cron-row' );
 				if ( ! tr ) { return; }
@@ -289,10 +326,10 @@
 		panel.appendChild( table );
 	}
 
-	function wireUnschedule() {
-		var buttons = document.querySelectorAll( '.sn-cron-unschedule' );
+	function wireUnschedule( scope ) {
+		var buttons = scope.querySelectorAll( '.sn-cron-unschedule' );
 		buttons.forEach( function( btn ) {
-			btn.addEventListener( 'click', function( e ) {
+			bindOnce( btn, 'click', function( e ) {
 				e.preventDefault();
 				var tr = btn.closest( 'tr.sn-cron-row' );
 				if ( ! tr ) {
@@ -378,17 +415,33 @@
 		} );
 	}
 
+	/**
+	 * Wire every cron control inside `root`. Idempotent: a control already
+	 * holding its listener is skipped, so the same root can be armed after
+	 * every repaint without a button firing twice.
+	 *
+	 * @param {Element|Document} root Subtree to arm. Defaults to `document`.
+	 */
+	function init( root ) {
+		var scope = root || document;
+		wireFilter( scope );
+		wireRunNow( scope );
+		wireUnschedule( scope );
+		wireHistory( scope );
+	}
+
 	if ( document.readyState === 'loading' ) {
 		document.addEventListener( 'DOMContentLoaded', function() {
-			wireFilter();
-			wireRunNow();
-			wireUnschedule();
-			wireHistory();
+			init( document );
 		} );
 	} else {
-		wireFilter();
-		wireRunNow();
-		wireUnschedule();
-		wireHistory();
+		init( document );
 	}
+
+	// assets/os-host.js dispatches this on `document` after every window paint,
+	// with the painted root in detail.root. The classic page never fires it, so
+	// nothing there changes.
+	document.addEventListener( 'snt:paint', function( e ) {
+		init( ( e.detail && e.detail.root ) || document );
+	} );
 } )();

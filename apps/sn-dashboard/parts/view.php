@@ -66,6 +66,14 @@ function capture_query( State $state ) {
 /**
  * The leaf, captured and rewritten.
  *
+ * THE POST BAG IS SPENT HERE. One form in the estate (`audit_prune_now`) is
+ * handled INSIDE its own render function, out of `$_POST`; the classic page
+ * serves it by not redirecting, so the page re-renders with the submission
+ * still standing. The `post` action puts those values in state and this paint
+ * lends them to the capture — then CLEARS them, in the same dispatch, before
+ * the state goes back to the client. A bag that survived would prune again on
+ * the next unrelated repaint.
+ *
  * @param State $state Window state.
  * @return string HTML, already escaped by the leaves that produced it.
  */
@@ -73,16 +81,27 @@ function leaf_html( State $state ) {
 	if ( ! function_exists( 'sn_admin_render_active_tab' ) || ! function_exists( 'snt_os_host_capture' ) ) {
 		return '';
 	}
-	$tab = (string) $state->get( 'tab' );
-	$sub = (string) $state->get( 'sub' );
+	$tab  = (string) $state->get( 'tab' );
+	$sub  = (string) $state->get( 'sub' );
+	$post = $state->get( 'post' );
+	$post = is_array( $post ) ? $post : array();
+	// SPENT BEFORE it is used, not after: a leaf that throws mid-capture would
+	// otherwise leave the bag standing, and the next paint would run its handler
+	// a second time -- a prune nobody asked for.
+	if ( array() !== $post ) {
+		$state->set( 'post', array() );
+	}
 
 	$html = \snt_os_host_capture(
 		static function () use ( $tab, $sub ) {
 			\sn_admin_render_active_tab( $tab, $sub );
 		},
-		capture_query( $state )
+		capture_query( $state ),
+		$post
 	);
-	return \snt_os_host_rewrite( $html, array( SNT_OS_DASHBOARD_PAGE ) );
+	// The own-page slugs are DERIVED (eight top tabs plus eleven legacy ones all
+	// render this page); a literal made every leaf-to-leaf link a second window.
+	return \snt_os_host_rewrite( $html, \snt_os_host_own_pages() );
 }
 
 /**
@@ -97,18 +116,17 @@ function render_view( State $state, Os $os ) {
 	$tab    = (string) $state->get( 'tab' );
 	$anchor = (string) $state->get( 'anchor' );
 
-	// `data-snt-anchor` carries the post-save landing. The classic page scrolls
-	// by URL fragment, which a window has none of; assets/os-host.js scrolls to
-	// it once after the paint and clears the attribute.
+	// `data-snt-anchor` carries the landing. The classic page scrolls by URL
+	// fragment, which a window has none of; assets/os-host.js looks the value up
+	// as an ELEMENT ID and scrolls to it once after the paint.
 	//
-	// The value is the ELEMENT ID, not the bare slug state keeps. State holds
-	// what `sn_admin_post_redirect_target()` returns ('identity'), and the
-	// classic dispatcher turns that into the fragment `#sn-sec-identity`;
-	// sn_admin_render_section() emits `id="sn-sec-identity"`. Painting the slug
-	// here would hand the client a name no element on the page carries — a
-	// scroll that silently lands nowhere.
+	// Painted UNCHANGED, because state already holds the id. Prefixing here
+	// meant the only ids reachable were `sn-sec-*` ones, and the Dashboard's
+	// attention strip links `#sn-dash-diagnostics` — which landed nowhere.
+	// `section_anchor()` converts the estate's bare slugs at the ONE place they
+	// enter state, so exactly one rule applies.
 	if ( '' !== $anchor ) {
-		echo '<div class="wrap" data-snt-anchor="' . esc_attr( 'sn-sec-' . $anchor ) . '">';
+		echo '<div class="wrap" data-snt-anchor="' . esc_attr( $anchor ) . '">';
 	} else {
 		echo '<div class="wrap">';
 	}

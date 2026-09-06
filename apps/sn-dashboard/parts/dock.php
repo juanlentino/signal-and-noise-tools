@@ -81,12 +81,16 @@ function menu_items() {
  */
 function read_params( State $state, Os $os ) {
 	$destination = \snt_os_host_destination( (string) $os->param( 'tab', '' ), (string) $os->param( 'sub', '' ) );
-	$anchor      = (string) $os->param( 'anchor', '' );
+	// State's anchor is an ELEMENT ID. A destination's is the estate's bare
+	// slug, so it is converted; an `anchor` param is already an id, the same
+	// value a leaf's own fragment link carries.
+	$anchor = '' !== $destination['anchor'] ? section_anchor( $destination['anchor'] ) : (string) $os->param( 'anchor', '' );
 	$state->set( 'tab', $destination['tab'] )
 		->set( 'sub', $destination['sub'] )
-		->set( 'anchor', '' !== $destination['anchor'] ? $destination['anchor'] : $anchor )
+		->set( 'anchor', $anchor )
 		->set( 'params', array() )
 		->set( 'flash', '' )
+		->set( 'post', array() )
 		->set( 'notice', null );
 }
 
