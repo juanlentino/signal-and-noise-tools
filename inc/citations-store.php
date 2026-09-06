@@ -161,6 +161,32 @@ function sn_cit_for_post( $post_id, $public_only = true ) {
 }
 
 /**
+ * Every citation, newest claim first, bounded by the caller.
+ *
+ * The Integrity leaf has listed the table since v11.27.0 through an inline
+ * query of its own with a hard LIMIT 100 (inc/citations-admin.php). A second
+ * reader — the app's Citations section, whose cap is SN_OS_APP_ITEM_CAP — is
+ * the point at which that query stops being the leaf's private business, so
+ * the store gets the read and the bound becomes an argument. The leaf's own
+ * query is left where it is; this is an addition, not a migration.
+ *
+ * Ordered by first_seen_gmt, NOT by last_checked_gmt: when a claim arrived is
+ * a fact about every row, when it was last checked is NULL for a row nobody
+ * has looked at yet, and ordering on it would sort "never measured" as if it
+ * were a date.
+ *
+ * @param int $limit Maximum rows. Values below 1 are floored to 1.
+ * @return array<int,object>
+ */
+function sn_cit_all( $limit = 100 ) {
+	global $wpdb;
+	$table = sn_cit_table();
+	$limit = max( 1, (int) $limit );
+	$rows  = $wpdb->get_results( $wpdb->prepare( "SELECT * FROM {$table} ORDER BY first_seen_gmt DESC LIMIT %d", $limit ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery
+	return is_array( $rows ) ? $rows : array();
+}
+
+/**
  * Rows due for a check: never checked, or checked longer ago than the window.
  * Ordered never-checked first so a new claim is adjudicated before an old one is
  * re-adjudicated.

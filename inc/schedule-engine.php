@@ -41,6 +41,19 @@ const SN_SCHEDULES_DB_VERSION      = '1';
 const SN_SCHEDULES_DB_VERSION_OPT  = 'sn_schedules_db_version';
 
 /**
+ * The four states a row can hold, in the order the fire handler walks them.
+ *
+ * The vocabulary was four literals in five places (the fire handler's two
+ * transition sets, the reconcile sweep's repeat of both, and the column
+ * default). A READER now needs the set too — the app's Scheduled section
+ * paints one status pill per state — and a sixth copy is the point at which a
+ * fifth state could ship and be shown by nobody. The engine's own literals are
+ * deliberately left alone here: replacing them is a behaviour-free refactor
+ * that belongs in its own change, where its tests can say so.
+ */
+const SN_SCHEDULE_STATUSES         = array( 'queued', 'active', 'done', 'error' );
+
+/**
  * The cron hook fired at each window boundary. The save_post sync (Task 5) arms
  * and clears events on this hook; the flip + Cloudflare purge handler (Task 6)
  * registers against it. It lives in this foundational file, required first in
@@ -305,6 +318,28 @@ function sn_schedule_all() {
 	$rows = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY id ASC", ARRAY_A );
 
 	return is_array( $rows ) ? $rows : array();
+}
+
+/**
+ * How many rows target one target_type.
+ *
+ * sn_schedule_all() is unbounded and returns every column of every row; a
+ * caller that only wants a figure for a folder tile would read the whole queue
+ * to count part of it, on every paint. Counting in SQL is the difference
+ * between a number and a table scan carried into PHP.
+ *
+ * @param string $target_type One of the target_type vocabulary ('fragment' is
+ *                            the only value anything writes today).
+ * @return int Rows with that target_type; 0 is a measured zero.
+ */
+function sn_schedule_count( $target_type ) {
+	global $wpdb;
+	$table = $wpdb->prefix . SN_SCHEDULES_TABLE;
+
+	// Bare interpolation of a constant-derived identifier; the VALUE is bound.
+	$n = $wpdb->get_var( $wpdb->prepare( "SELECT COUNT(*) FROM {$table} WHERE target_type = %s", (string) $target_type ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared,WordPress.DB.DirectDatabaseQuery.DirectQuery
+
+	return (int) $n;
 }
 
 /**
