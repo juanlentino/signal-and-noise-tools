@@ -33,26 +33,11 @@
  *   - A reader that ran and measured nothing yields no rows, and the empty
  *     queue says when its readers last looked.
  *
- * READ-ONLY BY CONSTRUCTION, like Citations and Scheduled: `kind: entry`, no
- * `restPath`, no `edit_url`, no `hasDossier` — the client's three opt-ins, all
- * declined, which is what keeps the selection actions, the drag lift and the
- * dossier fetch off this section without a single special case in the client.
- *
- * THE COMPOSITION IS CACHED FOR SIXTY SECONDS, with its own `read_at`. The
- * payload calls `count()` for every section on every root paint
- * (parts/payload.php), and this section's count is the number of rows — so
- * without a cache the nine readers would run on every paint of every section.
- * The cache is not a freshness claim: `read_at` is projected into the empty
- * state and into every row's "as of", so what the reader sees is the age of
- * the reading, not the age of the paint.
- *
- * AND BECAUSE IT IS ONE CACHE FOR EVERY ADMINISTRATOR, THE COMPOSITION IS
- * USER-NEUTRAL. A row whose visibility depends on who is looking states the
- * capability it needs (`requires`) and is filtered at READ time, in
- * attention_visible_rows(), which both attention_items() and attention_count()
- * go through. Deciding while composing would let whoever filled the cache
- * decide for whoever reads it — invisibly, because both get identical rows out
- * of one store.
+ * The composition is cached for sixty seconds and is user-neutral; the why
+ * sits on attention_rows() and attention_visible_rows() below. (The guard
+ * under the namespace must stay within the file's first fifty lines:
+ * Plugin Check's direct-access regex reads no further, and its AST path
+ * accepts only a bare exit, which the standalone-aware guard is not.)
  *
  * @package SignalNoiseTools
  * @since 13.103.0
@@ -482,6 +467,13 @@ function attention_compose() {
 /**
  * The composed queue, from the sixty-second cache when it stands.
  *
+ * WHY A CACHE: the payload calls `count()` for every section on every root
+ * paint (parts/payload.php), and this section's count is the number of rows,
+ * so without one the readers would run on every paint of every section. It
+ * is not a freshness claim: `read_at` is projected into the empty state and
+ * into every row's "as of", so what the reader sees is the age of the
+ * reading, not the age of the paint.
+ *
  * The age is checked here as well as by the transient's own expiry: the
  * transient answers "is it gone", this answers "how old is what I got", and
  * the second question is the one `read_at` is projected to answer for the
@@ -678,6 +670,10 @@ add_filter(
 			'id'             => 'attention',
 			'label'          => __( 'Attention', 'signal-and-noise-tools' ),
 			'icon'           => 'dashicons-flag',
+			// Read-only by construction, like Citations and Scheduled: `entry`,
+			// no `restPath`, no `edit_url`, no `hasDossier` -- the client's three
+			// opt-ins, all declined, which keeps the selection actions, the drag
+			// lift and the dossier fetch off this section with no special case.
 			'kind'           => 'entry',
 			// The rows are operational, and every signal behind them is a
 			// manage_options reading in its own leaf.
