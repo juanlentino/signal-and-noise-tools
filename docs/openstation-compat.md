@@ -710,9 +710,12 @@ anything already carrying `os-action`).
 
 **Painted HTML never runs an inline `<script>`.** The runtime parses the
 view's HTML by assigning it to a `<template>` element's `innerHTML` and then
-patching the resulting nodes into the window — and script nodes created by the
-parser that way are never executed, by the HTML spec, not by an OpenStation
-choice. The leaves' inline bootstraps therefore need re-creating after each
+patching the resulting nodes into the window — a morph that matches children
+positionally and syncs attributes, REMOVING any attribute the server's node
+does not carry (so a client-written marker attribute never survives a paint;
+admin.js marks bound elements with a property instead) — and script nodes
+created by the parser that way are never executed, by the HTML spec, not by an
+OpenStation choice. The leaves' inline bootstraps therefore need re-creating after each
 paint: the rewrite marks them `data-snt-exec` and `assets/os-host.js` clones
 each one once so it runs. The same paint boundary is why
 `assets/admin.js` grew `window.snAdmin.init( root )` — a `DOMContentLoaded`

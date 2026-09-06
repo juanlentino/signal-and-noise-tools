@@ -56,6 +56,35 @@ adds a bullet below. A release is a separate, deliberate act:
   classic page at `admin.php?page=sn-theme-options` is untouched and still
   reachable -- a port is not a removal. (#1074)
 
+- The host's form replay knows every write pipeline the classic page has,
+  not only the shared one. Four forms in Integrity -> Provenance post to
+  `admin-post.php` with their own action and nonce; Measurement -> RSS's
+  three carry `sn_rss_action` and their own nonce into an `admin_init`
+  handler; Security -> Audit log's Prune now is handled inside its own
+  render. Each ran nowhere in the window and refused with "the form
+  expired", a cause never measured. The replay now dispatches by pipeline:
+  the admin-post and RSS handlers run under a redirect interceptor (their
+  `wp_safe_redirect` + `exit` becomes the landing tab, the flash and the
+  `sn_*` params the classic page reads from its URL; their own
+  `check_admin_referer()` failure becomes the notice, in the handler's own
+  words), and an inline-handled form re-renders its leaf once with `$_POST`
+  populated. Bracketed field names (`social_same_as[]`, `sn_tag_from[]`,
+  `now[groups][0][items]`) are expanded into PHP arrays the way PHP's own
+  request parsing does, before `$_POST` or the window's params are built;
+  a repeated `sn_action` collapses to its last value. Own-page links are
+  recognised by every slug the page answers to (the eight tab slugs and the
+  legacy ones), any fragment is carried as the element id, `_wpnonce` rides
+  a nonce-gated GET link, an existing `rel` is merged rather than replaced,
+  and the Machine Readers sheet and the admin heartbeat script ride the
+  window too. The submitter seam disables a same-named field before it
+  carries the clicked button, since the runtime turns a repeated name into
+  an array; admin.js marks bound elements with a property the runtime's
+  morph cannot strip (it removes any attribute the server did not paint, so
+  an attribute marker re-armed every paint and the add-row button fired
+  twice); every leaf script that binds to leaf DOM at load exposes an
+  idempotent `init( root )` and re-arms on the `snt:paint` event the host
+  script dispatches after each paint. (#1074)
+
 ### Changed
 - The manual `sn-dashboard` dock item in `inc/desktop-mode-dock.php` is
   retired in favour of the app's own entry: same id, same title, same shield

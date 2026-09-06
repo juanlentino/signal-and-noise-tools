@@ -153,6 +153,23 @@ jobs:
           php-version: '8.3'
           coverage: none
           tools: none
+      # The host's rewrite pins run WordPress's own HTML API
+      # (WP_HTML_Tag_Processor), which a standalone sweep has no WordPress to
+      # load. Fetch the seven files from the core mirror at the version the
+      # sandbox runs and point the suites at them; tests/openstation-host.php
+      # FAILS under CI when the API is absent, so a broken fetch is loud rather
+      # than a green skip.
+      - name: Fetch WordPress's HTML API for the host rewrite pins
+        run: |
+          set -e
+          base="https://raw.githubusercontent.com/WordPress/wordpress-develop/7.1/src/wp-includes"
+          dest="$RUNNER_TEMP/wp-includes"
+          mkdir -p "$dest/html-api"
+          for f in class-wp-html-tag-processor.php class-wp-html-attribute-token.php class-wp-html-span.php class-wp-html-text-replacement.php class-wp-html-decoder.php html5-named-character-references.php; do
+            curl -sSfL "$base/html-api/$f" -o "$dest/html-api/$f"
+          done
+          curl -sSfL "$base/class-wp-token-map.php" -o "$dest/class-wp-token-map.php"
+          echo "SNT_WP_HTML_API=$dest/html-api" >> "$GITHUB_ENV"
       # Standalone fixture tests — each stubs its own WP functions, so no WP
       # install or DB is needed. contracts-smoke.php is EXCLUDED: it requires a
       # live WP env (wp-load.php) and is a manual `wp eval-file` run only — in CI
@@ -246,6 +263,24 @@ jobs:
             fi
           done < <(find . -name '*.php' -not -path './vendor/*' -not -path './node_modules/*')
           exit $fail
+      # The host's rewrite pins run WordPress's own HTML API
+      # (WP_HTML_Tag_Processor), which a standalone sweep has no WordPress to
+      # load. Fetch the seven files from the core mirror at the version the
+      # sandbox runs and point the suites at them; tests/openstation-host.php
+      # FAILS under CI when the API is absent, so a broken fetch is loud rather
+      # than a green skip.
+      - name: Fetch WordPress's HTML API for the host rewrite pins
+        continue-on-error: ${{ matrix.experimental }}
+        run: |
+          set -e
+          base="https://raw.githubusercontent.com/WordPress/wordpress-develop/7.1/src/wp-includes"
+          dest="$RUNNER_TEMP/wp-includes"
+          mkdir -p "$dest/html-api"
+          for f in class-wp-html-tag-processor.php class-wp-html-attribute-token.php class-wp-html-span.php class-wp-html-text-replacement.php class-wp-html-decoder.php html5-named-character-references.php; do
+            curl -sSfL "$base/html-api/$f" -o "$dest/html-api/$f"
+          done
+          curl -sSfL "$base/class-wp-token-map.php" -o "$dest/class-wp-token-map.php"
+          echo "SNT_WP_HTML_API=$dest/html-api" >> "$GITHUB_ENV"
       - name: Run standalone test sweep
         continue-on-error: ${{ matrix.experimental }}
         # The same committed tests/run.sh every other sweep uses, so a lane
