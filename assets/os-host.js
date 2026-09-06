@@ -221,12 +221,71 @@
 		}
 	}
 
+	// ---------------------------------------------------------------- submitter
+	// A classic POST carries the clicked submit button's name and value (the
+	// browser adds the submitter to the form data set); the runtime ships
+	// `new FormData( form )`, which never includes the submitter, so a form
+	// whose `sn_action` rides its button -- 45 of the estate's forms -- would
+	// arrive with no action and save nothing. The rewrite marks named submit
+	// buttons `data-snt-submit`; this appends the submitter as a hidden input
+	// LAST, before the runtime serialises, so PHP's later-value-wins rule
+	// applies exactly as it does to a classic POST (a Save and a Delete
+	// button sharing one name keep meaning what was clicked).
+	var lastSubmitter = null;
+
+	function rememberSubmitter( e ) {
+		var t = e.target;
+		if ( ! t || typeof t.closest !== 'function' ) {
+			return;
+		}
+		var btn = t.closest( '[data-snt-submit]' );
+		lastSubmitter = btn && btn.form && btn.form.hasAttribute( 'os-action' ) ? btn : null;
+	}
+
+	function carrySubmitter( e ) {
+		var form = e.target;
+		if ( ! form || 'FORM' !== form.nodeName || ! form.hasAttribute( 'os-action' ) ) {
+			return;
+		}
+		// The event's own submitter first (it also covers an Enter in a field);
+		// the remembered click second; the form's default button last, which
+		// is what implicit submission uses.
+		var btn = e.submitter || ( lastSubmitter && lastSubmitter.form === form ? lastSubmitter : form.querySelector( '[data-snt-submit]' ) );
+		lastSubmitter = null;
+		if ( ! btn || ! btn.name ) {
+			return;
+		}
+		var stale = form.querySelectorAll( 'input[data-snt-submitter]' );
+		for ( var i = 0; i < stale.length; i++ ) {
+			stale[ i ].parentNode.removeChild( stale[ i ] );
+		}
+		var input = document.createElement( 'input' );
+		input.type = 'hidden';
+		input.name = btn.name;
+		input.value = btn.value || '';
+		input.setAttribute( 'data-snt-submitter', '1' );
+		form.appendChild( input );
+	}
+
+	function armSubmitter() {
+		if ( armSubmitter.done ) {
+			return;
+		}
+		armSubmitter.done = true;
+		// Capture on the document: it runs before the runtime's own submit
+		// listener wherever that one sits, so the submitter is in the form
+		// when the values are read.
+		document.addEventListener( 'click', rememberSubmitter, true );
+		document.addEventListener( 'submit', carrySubmitter, true );
+	}
+
 	/**
 	 * Watch the document for windows that open later. A window is created when
 	 * the reader opens it, which is almost always after this file has loaded,
 	 * so the roots present at load are the exception rather than the rule.
 	 */
 	function start() {
+		armSubmitter();
 		if ( ! document.body ) {
 			return;
 		}

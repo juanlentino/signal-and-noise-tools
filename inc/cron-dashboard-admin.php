@@ -16,14 +16,17 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 add_action( 'sn_admin_cron_tab', 'snt_cron_render_admin_tab' );
 
-add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	// v4.1.6 (D-11): use the canonical guard from admin-page.php:532. Pre-v3.8.1
-	// the cron tab was its own submenu page with hook_suffix containing 'sn-cron';
-	// post-v3.8.1 the cron sub-tab lives inside the Automation top-tab page whose
-	// hook_suffix is 'signal-noise_page_sn-automation' — the old strpos check was
-	// silently never matching, so the cron JS was broken since v3.8.1. Loading on
-	// every SN admin page is fine: the JS is a no-op when its selectors don't match.
-	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
+/**
+ * Register the cron dashboard script with its strings, once.
+ *
+ * Shared by the classic admin page (below) and the S&N Dashboard host
+ * window (inc/openstation-host.php), which cannot ride the
+ * `admin_enqueue_scripts` gate: one registrar, one source of strings.
+ *
+ * @return void
+ */
+function snt_cron_dashboard_register_script() {
+	if ( wp_script_is( 'sn-cron-dashboard', 'registered' ) ) {
 		return;
 	}
 	wp_register_script(
@@ -80,11 +83,23 @@ add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
 		'historyFetchFailed' => __( 'Could not load history: %s', 'signal-and-noise-tools' ),
 	) );
 
-	wp_enqueue_script( 'sn-cron-dashboard' );
-
 	if ( function_exists( 'wp_set_script_translations' ) ) {
 		wp_set_script_translations( 'sn-cron-dashboard', 'signal-and-noise-tools' );
 	}
+}
+
+add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
+	// v4.1.6 (D-11): use the canonical guard from admin-page.php:532. Pre-v3.8.1
+	// the cron tab was its own submenu page with hook_suffix containing 'sn-cron';
+	// post-v3.8.1 the cron sub-tab lives inside the Automation top-tab page whose
+	// hook_suffix is 'signal-noise_page_sn-automation' — the old strpos check was
+	// silently never matching, so the cron JS was broken since v3.8.1. Loading on
+	// every SN admin page is fine: the JS is a no-op when its selectors don't match.
+	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
+		return;
+	}
+	snt_cron_dashboard_register_script();
+	wp_enqueue_script( 'sn-cron-dashboard' );
 } );
 
 /**

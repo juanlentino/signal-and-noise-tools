@@ -256,5 +256,15 @@ if ( '' === $node ) {
 	ok( 0 !== $code, 'NEGATIVE CONTROL: node --check rejects a deliberately broken file, so the two passes above are the parser working' );
 }
 
+echo "\nGroup S: the submitter rides the form -- FormData never includes the clicked button\n";
+$host_js = (string) file_get_contents( __DIR__ . '/../assets/os-host.js' );
+ok( false !== strpos( $host_js, "document.addEventListener( 'submit', carrySubmitter, true )" ), 'a CAPTURE-phase submit listener on the document: it runs before the runtime serialises the form wherever that listener sits' );
+ok( false !== strpos( $host_js, "document.addEventListener( 'click', rememberSubmitter, true )" ), '...and a capture-phase click remembers the last data-snt-submit button pressed, for browsers without SubmitEvent.submitter' );
+ok( false !== strpos( $host_js, 'var btn = e.submitter || (' ) && false !== strpos( $host_js, "form.querySelector( '[data-snt-submit]' )" ), 'the submitter is the event\'s own first, the remembered click second, the form\'s default button last -- what implicit submission uses' );
+ok( false !== strpos( $host_js, "input.setAttribute( 'data-snt-submitter', '1' )" ) && false !== strpos( $host_js, 'form.appendChild( input )' ), 'it is appended as a hidden input LAST, so PHP\'s later-value-wins rule reads what was clicked, as a classic POST would' );
+ok( false !== strpos( $host_js, "form.querySelectorAll( 'input[data-snt-submitter]' )" ), '...after removing the previous press\'s carrier, so a second submit never ships two' );
+ok( false !== strpos( $host_js, "! form.hasAttribute( 'os-action' )" ), 'only a rewritten form (os-action) is touched: a real form the host kept keeps its own submitter' );
+ok( 1 === substr_count( $host_js, 'armSubmitter();' ) && false !== strpos( $host_js, 'armSubmitter.done' ), 'armed once from start(), never per root' );
+
 echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : '' ) . ".\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -700,8 +700,25 @@ function sn_prov_admin_enqueue( $hook_suffix ) {
 	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
 		return;
 	}
+	sn_prov_admin_register_assets();
+	wp_enqueue_style( 'sn-provenance-admin' );
+	wp_enqueue_script( 'sn-provenance-admin' );
+}
+
+/**
+ * Register the live-stepper CSS/JS, once. Shared by the classic page and the
+ * S&N Dashboard host window (inc/openstation-host.php), which sits outside
+ * the `admin_enqueue_scripts` gate above.
+ *
+ * @return void
+ */
+function sn_prov_admin_register_assets() {
 	$base = plugins_url( 'assets/', SNT_PATH . 'signal-and-noise-tools.php' );
-	wp_enqueue_style( 'sn-provenance-admin', $base . 'provenance-admin.css', array(), SNT_VERSION );
-	wp_enqueue_script( 'sn-provenance-admin', $base . 'provenance-admin.js', array(), SNT_VERSION, true );
+	if ( ! wp_style_is( 'sn-provenance-admin', 'registered' ) ) {
+		wp_register_style( 'sn-provenance-admin', $base . 'provenance-admin.css', array(), SNT_VERSION );
+	}
+	if ( ! wp_script_is( 'sn-provenance-admin', 'registered' ) ) {
+		wp_register_script( 'sn-provenance-admin', $base . 'provenance-admin.js', array(), SNT_VERSION, true );
+	}
 }
 add_action( 'admin_enqueue_scripts', 'sn_prov_admin_enqueue' );

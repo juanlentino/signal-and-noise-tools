@@ -570,8 +570,8 @@ function snt_os_host_destination( $tab, $sub = '' ) {
  */
 function snt_os_host_asset_handles() {
 	return array(
-		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status' ),
-		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host' ),
+		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log' ),
+		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'snt-os-host' ),
 	);
 }
 
@@ -654,6 +654,15 @@ function snt_os_host_register_assets() {
 	}
 	if ( ! wp_script_is( 'snt-os-host', 'registered' ) ) {
 		wp_register_script( 'snt-os-host', SNT_URL . 'assets/os-host.js', array( 'sn-admin' ), SNT_VERSION, true );
+	}
+	// Three leaves register their own assets from their own enqueue callbacks
+	// (Connections -> Cron, Integrity -> Provenance, Security -> Audit log),
+	// gated on the classic hook suffixes the desktop page never carries. Each
+	// exposes its registrar; calling it keeps one source of strings and paths.
+	foreach ( array( 'snt_cron_dashboard_register_script', 'sn_prov_admin_register_assets', 'snt_audit_log_register_style' ) as $registrar ) {
+		if ( function_exists( $registrar ) ) {
+			$registrar();
+		}
 	}
 }
 

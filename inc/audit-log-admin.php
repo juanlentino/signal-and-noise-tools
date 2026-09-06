@@ -351,14 +351,28 @@ function snt_audit_log_render_retention_form() {
  * stylesheet is tiny and scoped to .sn-audit-* selectors, so loading it on
  * sibling SN tabs is harmless.
  */
-add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
-	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
+/**
+ * Register the audit-log stylesheet, once. Shared by the classic page and the
+ * S&N Dashboard host window (inc/openstation-host.php).
+ *
+ * @return void
+ */
+function snt_audit_log_register_style() {
+	if ( wp_style_is( 'snt-audit-log', 'registered' ) ) {
 		return;
 	}
-	wp_enqueue_style(
+	wp_register_style(
 		'snt-audit-log',
 		plugins_url( 'assets/audit-log.css', SNT_PATH . 'signal-and-noise-tools.php' ),
 		array(),
 		SNT_VERSION
 	);
+}
+
+add_action( 'admin_enqueue_scripts', function( $hook_suffix ) {
+	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
+		return;
+	}
+	snt_audit_log_register_style();
+	wp_enqueue_style( 'snt-audit-log' );
 } );

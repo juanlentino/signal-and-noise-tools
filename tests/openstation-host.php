@@ -84,6 +84,11 @@ require_once __DIR__ . '/../inc/admin-tabs.php';
 require_once __DIR__ . '/../inc/admin-legacy-redirect.php';
 require_once __DIR__ . '/../inc/admin-flash-messages.php';
 require_once __DIR__ . '/../inc/admin-post-handler.php';
+// The three leaves whose assets ride their own enqueue callbacks: the host
+// calls their registrars, so the suite loads the real files.
+require_once __DIR__ . '/../inc/cron-dashboard-admin.php';
+require_once __DIR__ . '/../inc/provenance-admin.php';
+require_once __DIR__ . '/../inc/audit-log-admin.php';
 
 // The dispatcher itself is NOT loaded: it needs 35 leaf renderers, and what
 // the capture has to prove is that a renderer sees the query it would have
@@ -386,9 +391,9 @@ $args    = apply_filters( 'openstation_app_window_args', array( 'styles' => arra
 // Named, not read back off the function under test: a loop over
 // snt_os_host_asset_handles() would stay green while a handle was DELETED
 // from it, which is exactly how a leaf's script goes missing in silence.
-ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status' ) === $handles['styles'],
+ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log' ) === $handles['styles'],
 	'the four stylesheets the leaves are laid out with: admin.css, the analytics token layer, the analytics sheet, the uptime panel' );
-ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'snt-os-host' ) === $handles['scripts'],
+ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'snt-os-host' ) === $handles['scripts'],
 	'the eight scripts: sub-tabs and dirty-tracking, the confirm modal, the trend brush, the repeatable rows, the freshness dot, Suggest+Apply, the uptime panel, and the host' );
 foreach ( $handles['styles'] as $handle ) {
 	ok( in_array( $handle, $args['styles'], true ) && wp_style_is( $handle, 'registered' ), "the window carries the style $handle, registered" );
@@ -403,6 +408,9 @@ ok( array( 'wp-api-fetch', 'wp-i18n', 'snt-status', 'snt-ability-run' ) === ( $G
 	'the Suggest script keeps its four deps, and both shared utilities were registered by their OWN registrars -- a missing dep makes WP silently DROP the dependent script' );
 ok( in_array( 'snt-health-suggest-actions', $GLOBALS['__i18n'], true ), '   ...with its script translations set, as its own enqueue sets them' );
 ok( array( 'sn-admin' ) === ( $GLOBALS['__scripts']['snt-os-host'][1] ?? array() ), 'the host script loads after admin.js, whose init() seam it calls' );
+ok( isset( $GLOBALS['__scripts']['sn-cron-dashboard'] ) && 'sntCronI18n' === ( $GLOBALS['__localized']['sn-cron-dashboard'][0] ?? '' ) && isset( $GLOBALS['__localized']['sn-cron-dashboard'][1]['confirmUnschedule'] ), 'the cron script rides with its strings, from its own registrar -- Run now, history and Unschedule all go through it' );
+ok( isset( $GLOBALS['__styles']['sn-provenance-admin'], $GLOBALS['__scripts']['sn-provenance-admin'] ), 'the provenance stepper sheet and script ride too: Integrity -> Provenance polls its own route through them' );
+ok( isset( $GLOBALS['__styles']['snt-audit-log'] ), 'and the audit-log sheet: Security -> Audit log is laid out by it' );
 
 $again = apply_filters( 'openstation_app_window_args', $args, 'sn-dashboard', null );
 ok( $again === $args, 'a second pass appends nothing -- every handle rides exactly once' );
