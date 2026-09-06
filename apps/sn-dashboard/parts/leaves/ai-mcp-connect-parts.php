@@ -160,7 +160,7 @@ function mcp_connect_door_native_html() {
 		. '<p>' . \snt_kit_code( 'POST ' . $url, false ) . ' ' . \snt_kit_badge( 'ok', __( 'read-only', 'signal-and-noise-tools' ) ) . '</p>'
 		. \snt_kit_tag(
 			'os-disclosure',
-			array( 'heading' => sprintf( /* translators: %d: live tool count. */ __( '%d read-only tools exposed', 'signal-and-noise-tools' ), count( $slugs ) ) ),
+			array( 'heading' => sprintf( /* translators: %d: live tool count. */ __( '%d read-only tools exposed — show the list', 'signal-and-noise-tools' ), count( $slugs ) ) ),
 			'<ul class="snt-plain">' . implode( '', array_map( static function ( $slug ) { return '<li>' . \snt_kit_code( (string) $slug, false ) . '</li>'; }, $slugs ) ) . '</ul>'
 		)
 		. '<p class="snt-hint">' . \snt_kit_esc( __( 'This door never mutates anything, by construction: see the write door below for actions.', 'signal-and-noise-tools' ) ) . '</p>';
@@ -205,7 +205,7 @@ function mcp_connect_door_native_write_html() {
 		. \snt_kit_tag(
 			'os-disclosure',
 			array(
-				'heading' => sprintf( /* translators: 1: live rw tool count, 2: withheld count. */ __( '%1$d read-write tools exposed · %2$d withheld', 'signal-and-noise-tools' ), count( $rw_slugs ), count( $withheld ) ),
+				'heading' => sprintf( /* translators: 1: live rw tool count, 2: withheld count. */ __( '%1$d read-write tools exposed · %2$d withheld — show the list', 'signal-and-noise-tools' ), count( $rw_slugs ), count( $withheld ) ),
 			),
 			'<ul class="snt-plain">' . implode( '', array_map( static function ( $slug ) { return '<li>' . \snt_kit_code( (string) $slug, false ) . '</li>'; }, $rw_slugs ) ) . '</ul>'
 			. '<p class="snt-hint">' . sprintf( /* translators: %d: live read-door tool count. */ \snt_kit_esc( __( 'This door’s tools/list does not repeat the %d read-only tools above: if you only want to look, connect to the read door instead.', 'signal-and-noise-tools' ) ), count( $read_slugs ) ) . '</p>'

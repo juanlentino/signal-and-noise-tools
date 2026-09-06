@@ -87,6 +87,10 @@ namespace {
 	file_put_contents( $tmp, '<?php ' . str_replace( '__DIR__', "'" . dirname( $app_file ) . "'", $src ) );
 	$app = require $tmp;
 	unlink( $tmp );
+	// Group 3 spies by adding a filter; Group 4 must restore the
+	// registrations the painter files made at load (require_once cannot
+	// re-run them, and wiping the hook made chrome/empty+error look missing).
+	$sn_analytics_painter_filters = $GLOBALS['__filters']['snt_os_analytics_painters'] ?? array();
 
 	$pass = 0; $fail = 0;
 	function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
@@ -130,6 +134,7 @@ namespace {
 	add_filter( 'snt_os_analytics_painters', function ( $p ) use ( $spy, &$painted ) {
 		foreach ( array( 'chrome/controls', 'chrome/insights', 'chrome/drilldown', 'chrome/empty', 'chrome/error', 'chrome/login-header', 'view/overview', 'view/edge', 'view/login-defense' ) as $k ) { $p[ $k ] = $spy( $k ); }
 		$p['chrome/header'] = function ( $ctx ) use ( &$painted ) { $painted[] = 'chrome/header'; return array( 'html' => '<i data-piece="chrome/header"></i>', 'totals' => array( 'views' => $GLOBALS['__views'] ?? 5 ) ); };
+		unset( $p['view/content'] );
 		return $p;
 	} );
 	$paint = function ( $view, array $in = array() ) use ( $app, &$painted ) { $painted = array(); $os = new \OpenStation\App\Os(); $os->view = 'overview' === $view ? 'main' : $view; $cb = 'overview' === $view ? $app->view : $app->tabs[ $view ]['view']; ob_start(); call_user_func( $cb, st( $app, $in ), $os ); return (string) ob_get_clean(); };
@@ -154,8 +159,7 @@ namespace {
 	ok( array() === $painted && false !== strpos( $html, 'class="snt-classic"' ) && false !== strpos( $html, 'classic body' ), 'a view without a painter paints the classic capture as scaffold' );
 
 	echo "\nGroup 4: PORT COMPLETE -- every view and chrome piece has a painter\n";
-	remove_all_test_filters();
-	foreach ( (array) glob( SNT_PATH . 'apps/sn-analytics/parts/painters/*.php' ) as $f ) { require_once $f; }
+	$GLOBALS['__filters']['snt_os_analytics_painters'] = $sn_analytics_painter_filters;
 	$painters = \SignalNoise\OpenStationHost\Analytics\painters();
 	$want = array( 'chrome/controls', 'chrome/header', 'chrome/insights', 'chrome/drilldown', 'chrome/empty', 'chrome/error', 'chrome/login-header' );
 	foreach ( array_keys( snt_analytics_views() ) as $slug ) { $want[] = 'view/' . $slug; }

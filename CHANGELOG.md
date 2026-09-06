@@ -38,7 +38,10 @@ adds a bullet below. A release is a separate, deliberate act:
   the classic tab link does; the frame paints the diagnostic, the insights
   band, the controls, the header region, the drill-down panel, the view and
   the empty note in the classic page's order, each through a kit painter.
-  (#1083)
+  Every chrome piece and every view now has a painter that speaks the kit
+  (`os-stat`, `os-table`, `os-histogram`, `os-button`, `os-section`) — the
+  same parts the shell's own Posts window uses — so the classic scaffold
+  cannot ship. (#1083)
 
 ### Fixed
 - The weekly security digest can now be turned OFF from the S&N Dashboard

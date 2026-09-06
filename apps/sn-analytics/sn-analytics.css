@@ -1,4 +1,57 @@
 /*
  * S&N Analytics — the pieces only this window paints. The layout shared with
- * S&N Dashboard is assets/os-app.css. Painters add their rules here.
+ * S&N Dashboard is assets/os-app.css. Tokens from the shell, same as Posts.
  */
+
+.snt-stats {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 168px, 1fr ) );
+	gap: 10px;
+}
+
+.snt-grid {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 280px, 1fr ) );
+	gap: 12px;
+}
+
+.snt-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 10px 14px;
+	padding-block: 4px 10px;
+}
+
+.snt-toolbar__group {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 6px;
+	min-width: 0;
+}
+
+.snt-toolbar__k {
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-custom-range,
+.snt-export {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+}
+
+.snt-export button {
+	font: inherit;
+	font-size: 12px;
+	padding: 4px 10px;
+	border-radius: 6px;
+	border: 1px solid var( --os-ui-border, #33303a );
+	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.03 ) );
+	color: var( --os-ui-fg, #f5f2f8 );
+}

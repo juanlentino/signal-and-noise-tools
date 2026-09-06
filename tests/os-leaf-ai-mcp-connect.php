@@ -162,8 +162,8 @@ function ai_mcp_connect_normalize_text( $html ) {
 	// a notice), so without this a run of un-punctuated block text (a checkbox
 	// label immediately followed by the next section's heading) would merge
 	// into one "sentence" that can never match across two different layouts.
-	$text = (string) preg_replace( '/<\s*(p|li|h[1-6]|label|button|div|section|td|th|br|span)\b[^>]*>/i', '. ', (string) $html );
-	$text = preg_replace( '/<\/\s*(p|li|h[1-6]|label|button|div|section|td|th|span)\s*>/i', '. ', $text );
+	$text = (string) preg_replace( '/<\s*(p|li|h[1-6]|label|button|div|section|td|th|br|span|code|os-code|pre)\b[^>]*>/i', '. ', (string) $html );
+	$text = preg_replace( '/<\/\s*(p|li|h[1-6]|label|button|div|section|td|th|span|code|os-code|pre)\s*>/i', '. ', $text );
 	$text = preg_replace( '/<[^>]*>/', ' ', (string) $text );
 	$text = html_entity_decode( $text, ENT_QUOTES, 'UTF-8' );
 	$text = preg_replace( '/[\x{2018}\x{2019}]/u', "'", $text );
@@ -190,7 +190,9 @@ foreach ( ai_mcp_connect_split_sentences( $classic ) as $sentence ) {
 	if ( strlen( $sentence ) <= 40 ) {
 		continue;
 	}
-	if ( false === strpos( $kit_norm, $sentence ) ) {
+	$haystack = strtolower( (string) preg_replace( '/[^a-z0-9]+/i', '', $kit_norm ) );
+	$needle   = strtolower( (string) preg_replace( '/[^a-z0-9]+/i', '', $sentence ) );
+	if ( '' !== $needle && false === strpos( $haystack, $needle ) ) {
 		$missing = $sentence;
 		break;
 	}

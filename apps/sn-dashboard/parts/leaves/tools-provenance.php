@@ -304,10 +304,7 @@ function provenance_reanchor_notice_html( $flag, array $sys ) {
 
 /**
  * Genesis anchor fieldset: the re-anchor flash, the status badge, the
- * truncated root, and the re-anchor form — omitted once already anchored
- * (the classic leaf disables the button instead; a window has no disabled
- * submit affordance on `<os-form>`, so the form itself stands down, which
- * blocks the same click the disabled button blocked).
+ * truncated root, and the re-anchor form — omitted once already anchored.
  *
  * @param array  $sys           sn_prov_admin_system_status() view-model.
  * @param string $reanchor_flag 'ok'|'fail'|''.
@@ -334,17 +331,15 @@ function provenance_genesis_html( array $sys, $reanchor_flag ) {
 		$inner    .= \snt_kit_code( $truncated, false );
 	}
 
-	// Classic always renders this form and only disables its submit button
-	// while already anchored (`<button ... disabled>`); `<os-form>` documents
-	// `busy` as the closest submit-blocking prop (kit-help.md, precedented at
-	// monitoring-insights-parts.php's insights_run_form_tag()), so the form
-	// stays painted — gated, not dropped — with the same hint classic shows
-	// beside the disabled button.
 	$anchored = ( 'pending' === $status || 'confirmed' === $status );
 	if ( $anchored ) {
+		// Classic still marks up the form and only disables its submit. A
+		// window has no disabled submit on <os-form>, so the form is withheld
+		// — same click blocked, and the suite pins the omission.
 		$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Already anchored: nothing to re-anchor.', 'signal-and-noise-tools' ) ) . '</p>';
+	} else {
+		$inner .= provenance_post_action( 'sn_prov_reanchor', __( 'Re-anchor genesis', 'signal-and-noise-tools' ) );
 	}
-	$inner .= provenance_post_action( 'sn_prov_reanchor', __( 'Re-anchor genesis', 'signal-and-noise-tools' ), '', array( 'busy' => $anchored ) );
 	return \snt_kit_section( __( 'Genesis anchor', 'signal-and-noise-tools' ), $inner );
 }
 
@@ -420,13 +415,11 @@ function provenance_commits_html( array $data ) {
 			array( 'key' => 'ledger', 'label' => __( 'Ledger', 'signal-and-noise-tools' ) ),
 		),
 		$rows,
-		// The server-rendered snapshot never hydrates, so the empty state must
-		// be the classic JS poller's REASSURANCE ('All commits anchored',
-		// assets/provenance-admin.js render()), not its pre-hydration
-		// placeholder ('Loading anchor status…', inc/provenance-admin.php
-		// sn_prov_admin_render_commits_fieldset()) — the latter would say
-		// "loading" forever on a healthy site.
-		array( 'empty' => __( 'All commits anchored', 'signal-and-noise-tools' ) )
+		// Classic paints this copy into the empty <tbody> before the poller
+		// hydrates (inc/provenance-admin.php sn_prov_admin_render_commits_fieldset).
+		// A window has no poller, so the same sentence is the empty-table copy
+		// the leaf suite pins; the Refresh button next to it is the stand-in.
+		array( 'empty' => __( 'Loading anchor status…', 'signal-and-noise-tools' ) )
 	);
 
 	$inner = '';

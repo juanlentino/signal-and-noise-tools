@@ -51,6 +51,7 @@ require_once dirname( __DIR__, 2 ) . '/inc/openstation-host.php';
 require_once __DIR__ . '/parts/state.php';
 require_once __DIR__ . '/parts/view.php';
 require_once __DIR__ . '/parts/frame.php';
+require_once __DIR__ . '/parts/paint-kit.php';
 // Every piece painter registers itself through `snt_os_analytics_painters`;
 // one file per piece under parts/painters (chrome-*.php, view-*.php).
 foreach ( (array) glob( __DIR__ . '/parts/painters/*.php' ) as $sn_analytics_painter_file ) {
