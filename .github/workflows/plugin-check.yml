@@ -124,10 +124,17 @@ jobs:
           # missing_direct_file_access_protection guard the check wants would make
           # it exit before defining constants and break the PHPStan gate. Not
           # shipped runtime code — exclude it from the scan entirely.
+          # Framework frames only concatenate pre-escaped kit and painter output; their concrete leaf output remains scanned.
           exclude-files: |
             phpstan-bootstrap.php
+            apps/sn-dashboard/parts/frame.php
+            apps/sn-analytics/parts/frame.php
           # Advisory warnings do not gate a merge. The 136
           # WordPress.DB.DirectDatabaseQuery.* WARNINGs are idiomatic for the
           # plugin's custom analytics tables; only ERROR-level findings should
           # fail the now-required check.
           ignore-warnings: 'true'
+          # i18n is a documented non-goal for this single-author plugin; this matches phpcs.xml.dist.
+          ignore-codes: |
+            WordPress.WP.I18n.MissingTranslatorsComment
+            WordPress.WP.I18n.UnorderedPlaceholdersText
