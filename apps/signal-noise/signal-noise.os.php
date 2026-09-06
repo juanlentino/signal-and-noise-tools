@@ -12,11 +12,13 @@
  *
  * Built the way WP Explorer is built: the PHP half is the window and the
  * truth, the body is a CLIENT VIEW (signal-noise-client.js) where selection,
- * search, filtering and the view switch are instant. Seven actions reach the
+ * search, filtering and the view switch are instant. Eight actions reach the
  * server: `go` (a different section, new data), `edit` (an editor window),
- * `verify` (a live re-check), and the control surface's four -- `trash`,
- * `publish`, `purge` and `anchor`, all four in parts/actions.php, each
- * re-checking the selection and the capability the client claimed.
+ * `verify` (a live re-check), `jump` (a section AND an item at once, which is
+ * how an Attention row opens the note it names), and the control surface's
+ * four -- `trash`, `publish`, `purge` and `anchor`, all four in
+ * parts/actions.php, each re-checking the selection and the capability the
+ * client claimed.
  *
  * Successor to the WP Explorer folder of v12.4.0 (#751), whose seam
  * OpenStation 1.1.6 retired.
@@ -40,6 +42,13 @@ require_once __DIR__ . '/parts/notes.php';
 require_once __DIR__ . '/parts/pages.php';
 require_once __DIR__ . '/parts/discography.php';
 require_once __DIR__ . '/parts/actions.php';
+// The queue, in two halves: the nine readers that call the estate, and the
+// composition that calls none of them. UNGUARDED, unlike the two below: they
+// ship with this file, and each reader gates itself on the subsystem it reads
+// -- an install missing the citations table or the schedule engine gets a
+// shorter queue, not a missing section.
+require_once __DIR__ . '/parts/attention-readers.php';
+require_once __DIR__ . '/parts/attention.php';
 // The two entry sections. Guarded because they are read-only glances over
 // optional stores: an install without the citations table or the schedule
 // engine still opens the window.
@@ -90,9 +99,15 @@ return App::define( APP_ID )
 	// client): the ability's run URL, so the client never spells the abilities
 	// path itself. rest_url() carries the pretty or ?rest_route= form the site
 	// uses, which is also what the runtime's nonce injection keys on.
+	// `version` is HALF a detector. It is frozen into the document at render,
+	// and payload() ships the same constant fresh on every dispatch; when the
+	// two disagree, the phone is painting with a client the installed plugin
+	// no longer ships. Two reads of one constant at two different moments --
+	// nothing here compares them, the client does.
 	->config(
 		array(
 			'dossierUrl' => rest_url( 'wp-abilities/v1/abilities/signal-noise/note-dossier/run' ),
+			'version'    => defined( 'SNT_VERSION' ) ? SNT_VERSION : '',
 		)
 	)
 	->client( __DIR__ . '/signal-noise-client.js' )
@@ -139,6 +154,27 @@ return App::define( APP_ID )
 				return;
 			}
 			$state->set( 'verdict', \sn_note_dossier_verify( $id ) );
+		}
+	)
+	// A section AND an item in one dispatch: what an Attention row does when it
+	// names a post. `go` cannot do this -- it resets `item` on purpose, so that
+	// opening a section never lands on whatever was open in the last one.
+	//
+	// The status is set to '' (All), never the section's default pill: an
+	// unanchored note is often a draft, and the Notes section defaults to
+	// Published, so a jump onto the default would open a section that filters
+	// the very row the reader tapped out of view.
+	->action(
+		'jump',
+		static function ( State $state, Os $os, array $args ) {
+			$id      = (string) ( $args['section'] ?? '' );
+			$section = '' !== $id ? \snt_os_app_section( $id ) : null;
+			$state->set( 'section', $section ? $id : '' )
+				->set( 'item', $section ? (string) ( $args['item'] ?? '' ) : '' )
+				->set( 'status', '' )
+				->reset( 'query' )
+				->reset( 'verdict' )
+				->reset( 'selected' );
 		}
 	)
 	// The control surface. Each handler re-derives its targets from the

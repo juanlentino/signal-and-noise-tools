@@ -20,13 +20,36 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * The store's entries, unordered and unbuilt.
+ *
+ * @return array<int,array<string,mixed>>
+ */
+function album_entries() {
+	$store = function_exists( 'sn_discography_get' ) ? \sn_discography_get() : array();
+	return isset( $store['entries'] ) && is_array( $store['entries'] ) ? array_values( array_filter( $store['entries'], 'is_array' ) ) : array();
+}
+
+/**
+ * How many releases there are, for the root folder tile.
+ *
+ * The section had no `count`, so payload() built every release -- cover art,
+ * tracks table, dossier and all -- on EVERY root paint, which on the phone is
+ * the first screen. Counting the entries reads the same option and builds
+ * nothing.
+ *
+ * @return int
+ */
+function albums_count() {
+	return count( album_entries() );
+}
+
+/**
  * Every release, newest year first, each with a stable id and its dossier.
  *
  * @return array<int,array<string,mixed>>
  */
 function albums_items() {
-	$store   = function_exists( 'sn_discography_get' ) ? \sn_discography_get() : array();
-	$entries = isset( $store['entries'] ) && is_array( $store['entries'] ) ? array_values( array_filter( $store['entries'], 'is_array' ) ) : array();
+	$entries = album_entries();
 	usort(
 		$entries,
 		static function ( $a, $b ) {
@@ -111,7 +134,11 @@ function album_item( array $e ) {
 add_filter(
 	'snt_os_app_sections',
 	static function ( $sections ) {
-		if ( array() === albums_items() ) {
+		// The registration gate counts; it does not build. This ran
+		// albums_items() -- every release, every dossier -- on every single
+		// resolution of the registry, which is once per dispatch plus once per
+		// section lookup, to answer whether the list was empty.
+		if ( 0 === albums_count() ) {
 			return $sections;
 		}
 		$sections[] = array(
@@ -126,6 +153,7 @@ add_filter(
 				array( 'key' => 'year', 'label' => __( 'Year', 'signal-and-noise-tools' ) ),
 				array( 'key' => 'roles', 'label' => __( 'Roles', 'signal-and-noise-tools' ) ),
 			),
+			'count'      => __NAMESPACE__ . '\albums_count',
 			'items'      => __NAMESPACE__ . '\albums_items',
 		);
 		return $sections;
