@@ -46,15 +46,39 @@
 .snt-canvas { display: grid; grid-template-columns: repeat( auto-fill, 104px ); justify-content: start; gap: 10px 4px; align-content: start; padding: 12px; flex: 1 1 auto; }
 .snt-cell { display: flex; justify-content: center; }
 .snt-cell.is-open .os-file-tile { outline: 1px solid var( --os-tile-focus-ring, var( --wp-admin-theme-color, #2271b1 ) ); outline-offset: -1px; border-radius: 8px; }
+/* Selection wears the canonical shell pair — the same tokens the Explorer's
+ * own sheet reads — never a raw brand accent. Selected and OPEN are two
+ * states: the fill says chosen, the outline above says previewed. */
+.snt-cell.is-selected .os-file-tile { background: var( --os-tile-selected-bg, rgba( 34, 113, 177, 0.14 ) ); border-radius: 8px; }
 .snt-badge { position: absolute; inset-block-start: 2px; inset-inline-end: 2px; pointer-events: none; }
+
+/* The drawn marquee. `createMarquee` appends its box to document.body, so this
+ * rule cannot hang off .snt-app; the class is what keeps it ours. */
+.snt-marquee { position: fixed; z-index: 100000; pointer-events: none; border: 1px solid var( --os-tile-focus-ring, var( --wp-admin-theme-color, #7c3aed ) ); background: var( --os-selection-marquee-bg, rgba( 124, 58, 237, 0.12 ) ); border-radius: 2px; }
 
 /* List view */
 .snt-table { display: block; flex: 1 1 auto; min-height: 0; }
 .snt-empty { flex: 1 1 auto; }
 
+/* The status footer. The framework has no footer slot; the Explorer authors
+ * its own and so does this — same pitch, same muted 11px, same top rule. */
+.snt-status-bar { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 4px 10px; font-size: 11px; color: var( --os-ui-fg-muted, #646970 ); border-block-start: 1px solid var( --os-ui-border, #dcdcde ); }
+
+/* The context menu. The backdrop is a full-window catcher that closes it on a
+ * click or a second right-click; the menu itself sits one layer above. */
+.snt-menu-backdrop { position: fixed; inset: 0; z-index: 99998; }
+.snt-menu { z-index: 99999; }
+/* "More actions". Always visible: the list view's copy is painted inside
+ * <os-table>'s shadow root, where a hover rule written here could never
+ * reach it, and a control that appears in one view and not the other is
+ * worse than one that is simply always there. */
+.snt-more { --os-button-size: 24px; flex: 0 0 auto; }
+.snt-more .dashicons { font-size: 18px; width: 18px; height: 18px; }
+
 /* Dossier: the Explorer's detail column. */
 .snt-detail { position: relative; padding: 16px; display: flex; flex-direction: column; gap: 12px; align-items: flex-start; }
 .snt-detail__close { position: absolute; inset-block-start: 8px; inset-inline-end: 8px; }
+.snt-detail__more { position: absolute; inset-block-start: 8px; inset-inline-end: 40px; }
 .snt-detail__hero { display: block; width: 100%; max-width: 280px; aspect-ratio: 1; object-fit: cover; border-radius: 8px; background: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.04 ) ); }
 .snt-detail__title { margin: 0; font-size: 17px; line-height: 1.3; padding-inline-end: 32px; }
 .snt-detail__meta { margin: 0; display: flex; align-items: center; gap: 8px; font-size: 13px; color: var( --os-ui-fg-muted, #646970 ); }
@@ -77,6 +101,10 @@ html[data-os-mode="mobile"] .snt-actions os-button { width: 100%; }
 html[data-os-mode="mobile"] .snt-folder, html[data-os-mode="mobile"] .snt-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 /* On the page form the crumb is the way back; the pane's ✕ would be a second one. */
 html[data-os-mode="mobile"] .snt-detail__close { display: none; }
+/* No hover on a finger: the More button is the phone's whole menu trigger
+ * besides the long press, so it sits where the ✕ used to. */
+html[data-os-mode="mobile"] .snt-more { opacity: 1; }
+html[data-os-mode="mobile"] .snt-detail__more { inset-inline-end: 8px; }
 
 /* The fetched dossier: the window switch, the verdict, one section per block. */
 .snt-dossier { display: flex; flex-direction: column; gap: 4px; align-self: stretch; }
