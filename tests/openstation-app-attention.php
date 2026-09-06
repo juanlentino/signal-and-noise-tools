@@ -124,13 +124,24 @@ function add_query_arg( ...$args ) {
 	return $url . ( false === strpos( $url, '?' ) ? '?' : '&' ) . http_build_query( $query );
 }
 
+// The fixtures carry a STATUS, an AUTHOR and their section membership, because
+// a jump is offered only when the section that would list the post actually
+// holds it: 11 is a note in the category, 31 is a page that opted into signing,
+// 23 is a post OUTSIDE the note category (it is in the probe log all the same),
+// 44 is a note, 51 a note scheduled by somebody else.
 $GLOBALS['__posts'] = array(
-	11 => (object) array( 'ID' => 11, 'post_type' => 'post', 'post_title' => 'The signer keeps moving' ),
-	23 => (object) array( 'ID' => 23, 'post_type' => 'post', 'post_title' => 'The ban failed' ),
-	31 => (object) array( 'ID' => 31, 'post_type' => 'page', 'post_title' => 'Start here' ),
-	44 => (object) array( 'ID' => 44, 'post_type' => 'post', 'post_title' => 'The fragment host' ),
-	51 => (object) array( 'ID' => 51, 'post_type' => 'post', 'post_title' => 'Publishing soon' ),
+	11 => (object) array( 'ID' => 11, 'post_type' => 'post', 'post_title' => 'The signer keeps moving', 'post_status' => 'publish', 'post_author' => 5 ),
+	23 => (object) array( 'ID' => 23, 'post_type' => 'post', 'post_title' => 'The ban failed', 'post_status' => 'publish', 'post_author' => 5 ),
+	31 => (object) array( 'ID' => 31, 'post_type' => 'page', 'post_title' => 'Start here', 'post_status' => 'publish', 'post_author' => 5 ),
+	44 => (object) array( 'ID' => 44, 'post_type' => 'post', 'post_title' => 'The fragment host', 'post_status' => 'publish', 'post_author' => 5 ),
+	51 => (object) array( 'ID' => 51, 'post_type' => 'post', 'post_title' => 'Publishing soon', 'post_status' => 'future', 'post_author' => 9 ),
 );
+
+// Which fixtures are in the note category, and which pages opted into signing.
+// Both are per-post facts the sections' own queries read, and both are what
+// makes "the type says notes" different from "Notes lists it".
+$GLOBALS['__categories'] = array( 11 => array( 'notes' ), 44 => array( 'notes' ), 51 => array( 'notes' ) );
+$GLOBALS['__meta']       = array( 31 => array( '_sn_prov_sign' => '1' ) );
 
 /**
  * @param int $id Post id.
@@ -138,6 +149,16 @@ $GLOBALS['__posts'] = array(
  */
 function get_post( $id ) {
 	return $GLOBALS['__posts'][ (int) $id ] ?? null;
+}
+
+/**
+ * @param int|string|array $category Category id, slug or name (or a list).
+ * @param int|object       $post     Post or id.
+ * @return bool
+ */
+function has_category( $category = '', $post = null ) {
+	$id = is_object( $post ) ? (int) $post->ID : (int) $post;
+	return in_array( (string) $category, (array) ( $GLOBALS['__categories'][ $id ] ?? array() ), true );
 }
 
 /**
@@ -165,7 +186,7 @@ function get_permalink( $post ) {
  * @return string
  */
 function get_post_meta( $id, $key, $single = false ) {
-	return '';
+	return (string) ( $GLOBALS['__meta'][ (int) $id ][ (string) $key ] ?? '' );
 }
 
 /**
@@ -268,10 +289,23 @@ function sn_prov_integrity_state() {
  */
 function sn_prov_integrity_failure_sentence( $code ) {
 	$legs = array(
-		'hash_mismatch' => 'stored payload no longer reproduces the anchored content hash (hash mismatch)',
-		'twin_drift'    => 'the published .json twin\'s words no longer match the signed payload (twin drift)',
+		'hash_mismatch'      => 'stored payload no longer reproduces the anchored content hash (hash mismatch)',
+		'twin_drift'         => 'the published .json twin\'s words no longer match the signed payload (twin drift)',
+		'twin_unreachable'   => 'the published .json twin could not be fetched (unreachable: an outage, not drift)',
+		'ledger_unreachable' => 'the public ledger could not be reached (unreachable: an outage, not drift)',
 	);
 	return $legs[ (string) $code ] ?? (string) $code;
+}
+
+/**
+ * The sweep's own partition, with its three real codes: an outage is a gap in
+ * today's evidence, never a claim about the note.
+ *
+ * @param string $code Failure code.
+ * @return bool
+ */
+function sn_prov_integrity_is_outage( $code ) {
+	return in_array( (string) $code, array( 'twin_unreachable', 'ledger_unreachable', 'keys_unreachable' ), true );
 }
 
 /** @return array */
@@ -311,11 +345,21 @@ function snt_cf_freshness_phrase( $last, $last_time, $now ) {
 	return 'last verdict ' . (int) ( ( (int) $now - (int) $last_time ) / 60 ) . ' mins ago';
 }
 
+// The citations store speaks through $wpdb, and its two readers NEVER throw:
+// a failed query returns the zero shapes with last_error set. The stub is the
+// real thing's shape, so the reader can be driven through that exact state.
+$GLOBALS['wpdb'] = (object) array( 'posts' => 'wp_posts', 'last_error' => '' );
+
 /** @return array */
 function sn_cit_counts() {
 	t_read( 'citations' );
 	if ( ! empty( $GLOBALS['__citations_throws'] ) ) {
 		throw new \RuntimeException( 'SQLite refuses UTC_TIMESTAMP()' );
+	}
+	if ( ! empty( $GLOBALS['__citations_db_error'] ) ) {
+		// What wpdb does on a failed read: the zero shape, and an error set.
+		$GLOBALS['wpdb']->last_error = (string) $GLOBALS['__citations_db_error'];
+		return array_fill_keys( array( 'verified', 'unattributed', 'asserted', 'unverified', 'never_checked' ), 0 );
 	}
 	return $GLOBALS['__cit_counts'];
 }
@@ -327,6 +371,9 @@ function sn_cit_counts() {
  */
 function sn_cit_due_for_check( $limit = 10, $stale_days = 7 ) {
 	$GLOBALS['__cit_due_args'] = array( (int) $limit, (int) $stale_days );
+	if ( ! empty( $GLOBALS['__citations_db_error'] ) ) {
+		return array(); // is_array( $rows ) ? $rows : array() -- an empty read.
+	}
 	return array_slice( (array) $GLOBALS['__cit_due'], 0, (int) $limit );
 }
 
@@ -480,6 +527,8 @@ function t_fixtures() {
 	$GLOBALS['__reads']        = array();
 	$GLOBALS['__integrity_throws'] = false;
 	$GLOBALS['__citations_throws'] = false;
+	$GLOBALS['__citations_db_error'] = '';
+	$GLOBALS['wpdb']->last_error   = '';
 	$GLOBALS['__count_posts_throws'] = false;
 	$GLOBALS['__caps']['edit_others_posts'] = true;
 	$GLOBALS['__caps']['edit_others_pages'] = false;
@@ -492,17 +541,12 @@ t_fixtures();
 require_once __DIR__ . '/../inc/openstation-app.php';
 require_once __DIR__ . '/../apps/signal-noise/parts/attention-readers.php';
 require_once __DIR__ . '/../apps/signal-noise/parts/attention.php';
-
-// Two post sections, so a jump has somewhere to go. The registry is the
-// extension point; a fake section registers exactly as a built-in does.
-add_filter(
-	'snt_os_app_sections',
-	static function ( $sections ) {
-		$sections[] = array( 'id' => 'notes', 'label' => 'Notes', 'kind' => 'post', 'capability' => 'edit_posts', 'position' => 10, 'items' => static function () { return array(); } );
-		$sections[] = array( 'id' => 'pages', 'label' => 'Pages', 'kind' => 'post', 'capability' => 'edit_pages', 'position' => 12, 'items' => static function () { return array(); } );
-		return $sections;
-	}
-);
+// The REAL post sections, so a jump has somewhere to go and the membership
+// question is answered by the sections' own `contains` -- a hand-written fake
+// section here would have pinned this suite's idea of Notes, not Notes.
+require_once __DIR__ . '/../apps/signal-noise/parts/post-items.php';
+require_once __DIR__ . '/../apps/signal-noise/parts/notes.php';
+require_once __DIR__ . '/../apps/signal-noise/parts/pages.php';
 
 $pass = 0;
 $fail = 0;
@@ -557,11 +601,27 @@ ok( 'The signer keeps moving' === $rows['rows'][0]['title'] && 'danger' === $row
 ok( 'stored payload no longer reproduces the anchored content hash (hash mismatch); the published .json twin\'s words no longer match the signed payload (twin drift)' === $rows['rows'][0]['subtitle'], '   ...subtitled with sn_prov_integrity_failure_sentence(), every failing leg named -- the ONE table the sweep, the health check and the app verdict all read' );
 ok( '2026-09-06 11:00:00' === $rows['rows'][0]['stamp'] && '2026-09-06 11:00:00' === $rows['stamp'], '   ...stamped with the NOTE\'s own last_checked (findings accrue across a ten-note rotation), and the reader stamped with the sweep' );
 
+// AN UNREACHABLE CHECK READS UNREACHABLE, NEVER FAILED. The sweep counts a
+// note whose codes are all outages in its own `unreachable` bucket, and
+// sn_note_dossier_verify() tones exactly this partition warning; the queue
+// must not be the one surface that calls a gap a failure.
+$GLOBALS['__integrity']['notes'][11]['failures'] = array( 'ledger_unreachable', 'twin_unreachable' );
+$rows = \SignalNoise\OpenStationApp\attention_integrity();
+ok( 'warning' === $rows['rows'][0]['tone'] && false !== strpos( $rows['rows'][0]['subtitle'], 'an outage, not drift' ), '   ...a note whose failures are ALL outages is a WARNING: a gap in today\'s evidence is not a claim about the note (the sweep\'s own `unreachable` bucket)' );
+$GLOBALS['__integrity']['notes'][11]['failures'] = array( 'ledger_unreachable', 'hash_mismatch' );
+$rows = \SignalNoise\OpenStationApp\attention_integrity();
+ok( 'danger' === $rows['rows'][0]['tone'], '   ...and ONE real code among the outages puts it back to danger: the partition is "all gaps", never "any gap"' );
+$GLOBALS['__integrity']['notes'][11]['failures'] = array( 'subject_kind_unresolved' );
+$rows = \SignalNoise\OpenStationApp\attention_integrity();
+ok( 'warning' === $rows['rows'][0]['tone'], '   ...a named GAP (subject_kind_unresolved) is a warning too, though sn_prov_integrity_is_outage() does not call it an outage: the house\'s own "a gap, never a drift claim"' );
+t_fixtures();
+
 $rows = \SignalNoise\OpenStationApp\attention_anchors();
 ok( 2 === count( $rows['rows'] ), 'anchors: the unanchored and the pending commits, and NOT the confirmed one' );
 ok( 'v4 unanchored since 2026-09-06 09:00:00 UTC' === $rows['rows'][0]['subtitle'] && 'warning' === $rows['rows'][0]['tone'], '   ...an unanchored commit says its version and how long, and warns: the Worker never answered' );
 ok( 'v2 pending since 2026-09-06 10:00:00 UTC' === $rows['rows'][1]['subtitle'] && 'neutral' === $rows['rows'][1]['tone'], '   ...a pending one is NEUTRAL: a proof in flight is the system working, and no threshold for "too long" exists in the estate to invent one from' );
 ok( '2026-09-06 10:00:00' === $rows['stamp'], '   ...the reader stamps with the NEWEST commit it saw' );
+ok( 'The signed commit chain (the newest hundred published subjects with a ledger UID)' === $rows['rows'][0]['source'], '   ...and the source DISCLOSES the window it read: sn_prov_admin_status() sees the newest hundred UID-carrying published subjects, so "the signed commit chain" alone would read as the whole chain' );
 
 $rows = \SignalNoise\OpenStationApp\attention_edge();
 ok( 1 === count( $rows['rows'] ) && 23 === $rows['rows'][0]['post_id'], 'edge: only the post whose NEWEST probe row is stale -- 51\'s older stale row is history, and a fresh row after a stale one is not a finding' );
@@ -576,7 +636,27 @@ ok( array( 50, 7 ) === $GLOBALS['__cit_due_args'], '   ...the due read is BOUNDE
 $GLOBALS['__cit_due'] = array_fill( 0, 60, (object) array( 'id' => 1 ) );
 $rows = \SignalNoise\OpenStationApp\attention_citations();
 ok( false !== strpos( $rows['rows'][1]['subtitle'], '50 or more citations are due' ), '   ...and at the bound it says "or more": reporting the cap as the total would be a number nobody measured' );
+$GLOBALS['__cit_due'] = array( (object) array( 'id' => 1 ) );
+$rows = \SignalNoise\OpenStationApp\attention_citations();
+ok( '1 citation is due for a check (unchecked, or checked over 7 days ago)' === $rows['rows'][1]['subtitle'], '   ...and ONE due citation reads as one: the count carries the verb' );
 $GLOBALS['__cit_due'] = array( (object) array( 'id' => 1 ), (object) array( 'id' => 2 ) );
+
+// NEITHER STORE FUNCTION THROWS. A failed wpdb query hands back the zero
+// shapes with last_error set, so a broken store is indistinguishable from a
+// clean one unless the reader looks -- and a zero nobody measured is exactly
+// the reading this queue must never produce.
+$GLOBALS['__citations_db_error'] = "Table 'wp_sn_citations' doesn't exist";
+$rows = \SignalNoise\OpenStationApp\attention_citations();
+ok( ! empty( $rows['unreadable'] ) && array() === $rows['rows'], 'citations: zeros with $wpdb->last_error set are UNREADABLE, never a clean empty read -- the store returns []/0 on a failed query and never throws' );
+$items = t_items();
+ok( is_array( t_item( $items, 'a-citations-unreadable' ) ) && null === t_item( $items, 'a-citations-never-checked' ), '   ...so the composition carries ONE warning row for the signal, and none of its zeros' );
+$GLOBALS['__citations_db_error'] = '';
+$GLOBALS['wpdb']->last_error     = '';
+// A stale error from an unrelated earlier query must not condemn this reading:
+// the reader clears last_error before it calls, the way the house pattern does.
+$GLOBALS['wpdb']->last_error = 'Deadlock found when trying to get lock';
+$rows = \SignalNoise\OpenStationApp\attention_citations();
+ok( empty( $rows['unreadable'] ) && 2 === count( $rows['rows'] ), '   ...and an error left behind by an EARLIER, unrelated query does not: last_error is cleared before the two reads, never merely consulted after' );
 
 $rows = \SignalNoise\OpenStationApp\attention_schedule();
 ok( 3 === count( $rows['rows'] ), 'schedule: only the transitions inside 24 hours -- the one three days out and the one with no boundary at all are not rows' );
@@ -585,17 +665,22 @@ ok( 'publishes at ' . gmdate( 'Y-m-d H:i:s', $now + 1800 ) . ' UTC' === $subs[0]
 ok( 'opens at ' . gmdate( 'Y-m-d H:i:s', $now + 3600 ) . ' UTC' === $subs[1] && 'closes at ' . gmdate( 'Y-m-d H:i:s', $now + 7200 ) . ' UTC' === $subs[2], '   ...a fragment says OPENS or CLOSES, read back off which boundary the ordered row resolved to' );
 ok( 'The fragment host' === $rows['rows'][1]['title'] && '(unlinked fragment)' === $rows['rows'][2]['title'], '   ...titled with the host post, or the leaf\'s own word for a fragment that has none' );
 
+// edit_others_pages is FALSE in the fixture, and the pages row is composed all
+// the same: the composition is one site-wide transient, so it must not depend
+// on who happened to fill it. The gate is the row's own `requires`, applied
+// when the queue is READ (Group 5c).
 $rows = \SignalNoise\OpenStationApp\attention_pending();
-ok( 1 === count( $rows['rows'] ) && 'post' === $rows['rows'][0]['key'], 'pending: posts only -- wp_count_posts() is site-wide, so the row is offered ONLY to a reader with the type\'s edit_others capability' );
-ok( '2 posts are pending review' === $rows['rows'][0]['subtitle'], '   ...and it says how many, of what' );
-$GLOBALS['__caps']['edit_others_pages'] = true;
-$rows = \SignalNoise\OpenStationApp\attention_pending();
-ok( 2 === count( $rows['rows'] ) && '1 page is pending review' === $rows['rows'][1]['subtitle'], '   ...pages join it with edit_others_pages, their OWN per-type capability, and one page reads as one' );
-$GLOBALS['__caps']['edit_others_pages'] = false;
+ok( 2 === count( $rows['rows'] ) && array( 'post', 'page' ) === array_column( $rows['rows'], 'key' ), 'pending: BOTH rows are composed, for everyone -- a capability decided inside a shared cache would let whoever filled it decide for whoever reads it' );
+ok( '2 posts are pending review' === $rows['rows'][0]['subtitle'] && '1 page is pending review' === $rows['rows'][1]['subtitle'], '   ...each says how many, of what, and one page reads as one' );
+ok( array( 'edit_others_posts', 'edit_others_pages' ) === array_column( $rows['rows'], 'requires' ), '   ...and each STATES the right its reader must hold: the type object\'s own edit_others cap, never the literal edit_others_posts' );
 
 $rows = \SignalNoise\OpenStationApp\attention_health();
 ok( 1 === count( $rows['rows'] ) && 'Broken links' === $rows['rows'][0]['title'] && 'danger' === $rows['rows'][0]['tone'], 'health: one row per FLAGGED check, titled with the check\'s own label' );
 ok( '3 findings. Fix them.' === $rows['rows'][0]['subtitle'] && '2026-09-06 10:00:00' === $rows['rows'][0]['stamp'], '   ...subtitled with the count and the check\'s fix hint, stamped with the SCAN -- the queue reads scanned_at and never runs a scan' );
+$GLOBALS['__scan']['flagged']['broken_links']['count'] = 1;
+$rows = \SignalNoise\OpenStationApp\attention_health();
+ok( '1 finding. Fix them.' === $rows['rows'][0]['subtitle'], '   ...and ONE finding reads as one, hint and all: the branch that carries a hint is pluralised too, not only the bare one' );
+t_fixtures();
 
 $rows = \SignalNoise\OpenStationApp\attention_watches();
 ok( 1 === count( $rows['rows'] ) && 'origin 503 recheck' === $rows['rows'][0]['title'] && '19 origin 503s in the last day' === $rows['rows'][0]['subtitle'], 'watches: a ripe watch is a row, carrying the evidence its own callback wrote' );
@@ -707,13 +792,77 @@ $labels = array_column( $one['detail']['actions'], 'label' );
 ok( array( 'Open Trust checks in S&N Dashboard', 'Open the note' ) === $labels, 'a row that names a post offers its leaf AND the note' );
 ok( 'jump' === $one['detail']['actions'][1]['dispatch'] && array( 'section' => 'notes', 'item' => '11' ) === $one['detail']['actions'][1]['args'], '   ...through the jump dispatch, carrying the section and the item together' );
 ok( false !== strpos( $one['detail']['actions'][0]['url'], 'page=sn-tools&sub=trust' ), '   ...and the door is resolved through the dock registry, never a literal query string' );
-ok( array( 'section' => 'pages', 'item' => '31' ) === t_item( $items, 'a-anchors-31-v2' )['detail']['actions'][1]['args'], 'a SIGNED PAGE jumps to Pages: the section comes from the post type, not from an assumption that every subject is a note' );
+$page_jump = t_item( $items, 'a-anchors-31-v2' )['detail']['actions'][1];
+ok( array( 'section' => 'pages', 'item' => '31' ) === $page_jump['args'] && 'Open the page' === $page_jump['label'], 'a SIGNED PAGE jumps to Pages and says "Open the page": both the section and the WORD come from what lists the post, not from the presence of a post id' );
 ok( false !== strpos( t_item( $items, 'a-health-broken_links' )['detail']['actions'][0]['url'], 'sub=health' ), 'the Health door names its leaf explicitly: sn-monitoring opens on Analytics, so the bare tab URL lands one leaf short' );
 ok( 1 === count( t_item( $items, 'a-citations-never-checked' )['detail']['actions'] ), 'a row that names no post offers the door alone' );
 ok( array( 'section' => 'notes', 'item' => '' ) === t_item( $items, 'a-pending-post' )['detail']['actions'][0]['args'], 'the pending-review row jumps to the SECTION with no item: it counts posts, it does not name one' );
 
 $GLOBALS['__caps']['edit_pages'] = false;
 ok( 1 === count( t_item( t_items(), 'a-anchors-31-v2' )['detail']['actions'] ), 'no jump is offered into a section this user is not offered: the registry re-checks the capability on every call' );
+t_fixtures();
+
+echo "\nGroup 5a: a jump is offered only into a section that LISTS the post\n";
+// The post TYPE names a candidate section; only the section's own query can
+// say whether it holds this post. 23 is a `post` in the probe log that is NOT
+// in the note category, so Notes lists it nowhere and "Open the note" would
+// land on nothing.
+$items = t_items();
+ok( array( 'Open Cloudflare in S&N Dashboard' ) === array_column( t_item( $items, 'a-edge-23' )['detail']['actions'], 'label' ), 'a post OUTSIDE the note category offers its leaf and NO jump: Notes lists the category, not the post type' );
+ok( 'Open the note' === t_item( $items, 'a-integrity-11' )['detail']['actions'][1]['label'], '   ...while a post that IS in the category still jumps, and says note' );
+$GLOBALS['__posts'][32] = (object) array( 'ID' => 32, 'post_type' => 'page', 'post_title' => 'Colophon', 'post_status' => 'pending', 'post_author' => 5 );
+$unsigned = \SignalNoise\OpenStationApp\attention_item( \SignalNoise\OpenStationApp\attention_row( array( 'kind' => 'anchors', 'key' => '32-v1', 'title' => 'Colophon', 'post_id' => 32 ) ) );
+ok( array() === $unsigned['detail']['actions'], '   ...and a page that never opted into signing is on no list either: Pages lists the opt-in meta, so no jump is offered for it' );
+// A row that PRE-SETS its section must pass the same two gates -- offered, and
+// containing the post. It is the only kind of row that never went through
+// attention_section_for_post(), so it was the one never checked.
+$preset = \SignalNoise\OpenStationApp\attention_item( \SignalNoise\OpenStationApp\attention_row( array( 'kind' => 'anchors', 'key' => 'preset', 'title' => 'The ban failed', 'post_id' => 23, 'section' => 'notes' ) ) );
+ok( array() === $preset['detail']['actions'], 'a row that names its OWN section is gated too: Notes is offered, but it does not list post 23, so there is no jump' );
+$GLOBALS['__caps']['edit_posts'] = false;
+ok( 0 === count( t_item( t_items(), 'a-pending-post' )['detail']['actions'] ), '   ...and a pre-set section this user is not offered at all yields no jump: the gate is the same one a resolved section passes' );
+$GLOBALS['__caps']['edit_posts'] = true;
+unset( $GLOBALS['__posts'][32] );
+t_fixtures();
+
+echo "\nGroup 5b: the registry is resolved ONCE per paint, not once per row\n";
+// Resolving a section is a full registry pass -- every descriptor, a
+// current_user_can() per section, a uasort. Asking per ROW made the cost of
+// the queue the number of rows that name a post. Counted here by the filter
+// the registry applies, which is exactly one application per resolution.
+$GLOBALS['__registry_passes'] = 0;
+add_filter(
+	'snt_os_app_sections',
+	static function ( $sections ) {
+		++$GLOBALS['__registry_passes'];
+		return $sections;
+	}
+);
+delete_transient( 'snt_os_attention' );
+$GLOBALS['__registry_passes'] = 0;
+\SignalNoise\OpenStationApp\attention_items();
+$with_post = 0;
+foreach ( \SignalNoise\OpenStationApp\attention_rows()['rows'] as $row ) {
+	if ( (int) ( $row['post_id'] ?? 0 ) > 0 ) {
+		++$with_post;
+	}
+}
+ok( $with_post >= 5 && $GLOBALS['__registry_passes'] <= 2, 'one attention_items() call over ' . $with_post . ' post-bearing rows resolves the registry at most twice (' . (int) $GLOBALS['__registry_passes'] . '): the offered sections are threaded down, not re-asked per row' );
+t_fixtures();
+
+echo "\nGroup 5c: the cache is site-wide; the CAPABILITY is per reader\n";
+delete_transient( 'snt_os_attention' );
+$GLOBALS['__caps']['edit_others_pages'] = false;
+$ids_without    = array_column( \SignalNoise\OpenStationApp\attention_items(), 'id' );
+$count_without  = \SignalNoise\OpenStationApp\attention_count();
+$cached_without = get_transient( 'snt_os_attention' );
+// The SAME transient, inside its window, read by a user who holds the right.
+$GLOBALS['__caps']['edit_others_pages'] = true;
+$ids_with    = array_column( \SignalNoise\OpenStationApp\attention_items(), 'id' );
+$count_with  = \SignalNoise\OpenStationApp\attention_count();
+$cached_with = get_transient( 'snt_os_attention' );
+ok( ! in_array( 'a-pending-page', $ids_without, true ) && count( $ids_without ) === $count_without, 'a reader without edit_others_pages sees no pending-pages row, and the tile\'s count agrees with the list' );
+ok( in_array( 'a-pending-page', $ids_with, true ) && count( $ids_with ) === $count_with && $count_with === $count_without + 1, '   ...a reader who holds it sees exactly that one row more, and its count agrees too' );
+ok( $cached_without === $cached_with && is_array( $cached_with ) && in_array( 'page', array_column( $cached_with['rows'], 'key' ), true ), '   ...out of ONE identical cached composition, which holds the row either way: whoever fills the cache decides nothing for whoever reads it' );
 t_fixtures();
 
 echo "\nGroup 6: the empty queue\n";
@@ -768,7 +917,22 @@ foreach ( array_keys( \SignalNoise\OpenStationApp\attention_kinds() ) as $kind )
 	}
 }
 ok( array_keys( \SignalNoise\OpenStationApp\attention_kinds() ) === $called, 'every kind has a reader, and every reader lives in parts/attention-readers.php: the registry and the file cannot drift apart' );
-ok( 0 === preg_match( '/\\\\(sn_|snt_)(?!os_app_section|desktop_admin_url)[a-z_]+\\(/', $composition ), 'the composition half calls NO estate reader -- only the section registry and the admin-dock resolver, which are the app\'s own furniture' );
+// THE BACKSLASH IS OPTIONAL. Requiring it meant an UNQUALIFIED call --
+// `snt_watches_ripe()` written inside the namespaced file, which PHP resolves
+// to the global function all the same -- passed green, so the pin measured
+// the leading backslash rather than the seam. Comments and docblocks are
+// stripped first (token_get_all is exact, where a regex over prose is not):
+// this file's own docblocks name estate readers, and a pin that a sentence
+// can turn red is a pin nobody keeps.
+$stripped = '';
+foreach ( token_get_all( $composition ) as $token ) {
+	if ( is_array( $token ) && in_array( $token[0], array( T_COMMENT, T_DOC_COMMENT ), true ) ) {
+		continue;
+	}
+	$stripped .= is_array( $token ) ? $token[1] : $token;
+}
+$seam = '/(?<![A-Za-z0-9_\\$>])\\\\?(sn_|snt_)(?!os_app_section\b|desktop_admin_url\b)[a-z0-9_]+\s*\(/';
+ok( 0 === preg_match( $seam, $stripped ), 'the composition half calls NO estate reader, qualified or not -- only the section registry and the admin-dock resolver, which are the app\'s own furniture' );
 ok( false === strpos( $composition, 'function attention_integrity' ) && false === strpos( $readers, 'function attention_compose' ), 'and neither half holds the other\'s functions' );
 
 echo "\nGroup 9: the fleet-level key verdict is a queue row, filed under the sweep\n";
@@ -786,10 +950,16 @@ ok( null === $keyrow, 'an ok verdict makes no row' );
 $src_findings = file_get_contents( __DIR__ . '/../inc/provenance-integrity.php' );
 $src_reader   = file_get_contents( __DIR__ . '/../apps/signal-noise/parts/attention-readers.php' );
 $parity = true;
-foreach ( array( 'no longer serves the published key id with the published key bytes (key mismatch)', 'has 404ed for three consecutive sweeps', 'could not be reached (unreachable: an outage, not drift, not a key rotation)' ) as $phrase ) {
-	if ( false === strpos( $src_findings, $phrase ) || false === strpos( $src_reader, $phrase ) ) { $parity = false; }
+// EACH PHRASE IS UNIQUE TO ITS FINDING, and counted rather than searched.
+// 'has 404ed for three consecutive sweeps' occurs TWICE in the source (the
+// twin_missing sentence says it too), so that leg could not fail: deleting the
+// keys_missing sentence would still have found the twin's copy. The keys
+// phrase below appears exactly once on each side, which is also what makes a
+// silent duplication of either sentence visible.
+foreach ( array( 'no longer serves the published key id with the published key bytes (key mismatch)', 'the key file is absent from the ledger, not blipping', 'could not be reached (unreachable: an outage, not drift, not a key rotation)' ) as $phrase ) {
+	if ( 1 !== substr_count( $src_findings, $phrase ) || 1 !== substr_count( $src_reader, $phrase ) ) { $parity = false; }
 }
-ok( $parity, 'the three fleet sentences are the findings\' own, word for word -- the queue says what sn_prov_integrity_findings() says' );
+ok( $parity, 'the three fleet sentences are the findings\' own, word for word, each phrase unique to its finding -- the queue says what sn_prov_integrity_findings() says' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

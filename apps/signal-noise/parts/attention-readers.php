@@ -72,21 +72,42 @@ function attention_integrity() {
 		$door  = attention_door( 'sn-tools', 'trust' );
 		$rows  = array();
 		$notes = isset( $state['notes'] ) && is_array( $state['notes'] ) ? $state['notes'] : array();
+		// A GAP IS NOT A FAILURE. An outage code (the sweep's own
+		// sn_prov_integrity_is_outage(); absent, nothing is an outage) and the
+		// two named gaps are a hole in today's evidence, not a claim about the
+		// note -- which is why the sweep counts a note whose codes are all
+		// outages in its own `unreachable` bucket rather than as failed
+		// (inc/provenance-integrity.php:506-513), and why
+		// sn_note_dossier_verify() tones exactly this partition warning
+		// (inc/note-dossier-trust.php:216-286). The estate's rule is that an
+		// unreachable check reads unreachable, never failed; one real code and
+		// the row is danger again.
+		$is_outage = function_exists( 'sn_prov_integrity_is_outage' )
+			? 'sn_prov_integrity_is_outage'
+			: static function ( $code ) {
+				return false;
+			};
+		$gaps      = array( 'subject_kind_unresolved', 'keys_not_configured' );
 		foreach ( $notes as $pid => $note ) {
 			$failures = ( isset( $note['failures'] ) && is_array( $note['failures'] ) ) ? array_values( $note['failures'] ) : array();
 			if ( array() === $failures ) {
 				continue;
 			}
 			$said = array();
+			$real = false;
 			foreach ( $failures as $code ) {
-				$said[] = (string) \sn_prov_integrity_failure_sentence( (string) $code );
+				$code   = (string) $code;
+				$said[] = (string) \sn_prov_integrity_failure_sentence( $code );
+				if ( ! (bool) call_user_func( $is_outage, $code ) && ! in_array( $code, $gaps, true ) ) {
+					$real = true;
+				}
 			}
 			$rows[] = attention_row( array(
 				'kind'       => 'integrity',
 				'key'        => (string) (int) $pid,
 				'title'      => attention_post_title( (int) $pid, (string) ( $note['title'] ?? '' ) ),
 				'subtitle'   => implode( '; ', $said ),
-				'tone'       => 'danger',
+				'tone'       => $real ? 'danger' : 'warning',
 				'stamp'      => attention_stamp( $note['last_checked'] ?? '' ),
 				'source'     => __( 'The provenance integrity sweep', 'signal-and-noise-tools' ),
 				'door'       => $door,
@@ -133,6 +154,13 @@ function attention_integrity() {
  * not report `unanchored` at all. This reader covers both statuses and both
  * subject kinds, which is what the reconcile and integrity sweeps cover.
  *
+ * IT IS A WINDOW, NOT THE CHAIN. sn_prov_admin_status() reads the newest 100
+ * PUBLISHED subjects carrying a ledger UID, in the default date-desc order,
+ * with no pagination (inc/provenance-admin.php:19-27) -- so an old pending
+ * commit on the 101st subject is not in this reading at all. The row's
+ * `source` says so, the way the edge reader discloses its twenty-save window:
+ * a bound nobody states is read as "the whole thing".
+ *
  * There is no "long-pending" threshold anywhere in the estate, so none is
  * invented here: the row says how long, and lets the reader judge.
  *
@@ -175,7 +203,7 @@ function attention_anchors() {
 				// in flight, which is the system working.
 				'tone'       => 'unanchored' === $state ? 'warning' : 'neutral',
 				'stamp'      => $stamp,
-				'source'     => __( 'The signed commit chain', 'signal-and-noise-tools' ),
+				'source'     => __( 'The signed commit chain (the newest hundred published subjects with a ledger UID)', 'signal-and-noise-tools' ),
 				'door'       => $door,
 				'door_label' => __( 'Open Provenance in S&N Dashboard', 'signal-and-noise-tools' ),
 				'post_id'    => $pid,
@@ -278,7 +306,13 @@ function attention_edge() {
  * when it hits its bound rather than reporting the bound as the total.
  *
  * The two SQL reads are exactly where the sandbox's SQLite refuses, which is
- * the unreadable row's first real case.
+ * the unreadable row's first real case -- and NEITHER STORE FUNCTION THROWS.
+ * A failed wpdb query returns []/null with `$wpdb->last_error` set, so
+ * sn_cit_counts() hands back a full set of zeros and sn_cit_due_for_check() an
+ * empty array: a broken store reads exactly like a clean one. The house
+ * pattern is to consult last_error around the call (inc/sn-scan-telemetry.php:
+ * 255-270, inc/ml-cadence.php:240-255), and to CLEAR it first -- an error left
+ * behind by an unrelated earlier query would otherwise condemn this reading.
  *
  * @return array{rows:array,stamp:string,unreadable:bool}
  */
@@ -287,9 +321,19 @@ function attention_citations() {
 		return attention_read();
 	}
 	try {
+		global $wpdb;
+		$watched = is_object( $wpdb ) && property_exists( $wpdb, 'last_error' );
+		if ( $watched ) {
+			$wpdb->last_error = '';
+		}
 		$counts = \sn_cit_counts();
 		$due    = \sn_cit_due_for_check( ATTENTION_CITATIONS_DUE_CAP, ATTENTION_CITATIONS_STALE_DAYS );
 		if ( ! is_array( $counts ) || ! is_array( $due ) ) {
+			return attention_unreadable();
+		}
+		// Zeros with an error behind them are not a reading. Zeros with an
+		// EMPTY last_error are an honest, measured nothing.
+		if ( $watched && '' !== (string) $wpdb->last_error ) {
 			return attention_unreadable();
 		}
 		// A live query: the stamp is when it was read, not when the rows were
@@ -324,7 +368,7 @@ function attention_citations() {
 					/* translators: 1: a bounded count. 2: the staleness window in days. */
 					? sprintf( __( '%1$d or more citations are due for a check (unchecked, or checked over %2$d days ago)', 'signal-and-noise-tools' ), $due_n, ATTENTION_CITATIONS_STALE_DAYS )
 					/* translators: 1: a count. 2: the staleness window in days. */
-					: sprintf( __( '%1$d citations are due for a check (unchecked, or checked over %2$d days ago)', 'signal-and-noise-tools' ), $due_n, ATTENTION_CITATIONS_STALE_DAYS ),
+					: sprintf( _n( '%1$d citation is due for a check (unchecked, or checked over %2$d days ago)', '%1$d citations are due for a check (unchecked, or checked over %2$d days ago)', $due_n, 'signal-and-noise-tools' ), $due_n, ATTENTION_CITATIONS_STALE_DAYS ),
 				// A due date, not a failure: the verifier drains ten an hour.
 				'tone'       => 'neutral',
 				'stamp'      => $stamp,
@@ -426,9 +470,17 @@ function attention_schedule() {
  * wp_count_posts() is a SITE-WIDE count: it does not carry the author scope
  * the post sections put on their own unpublished half, and WordPress offers
  * no `perm` that would (`readable` guards `private` and leaves draft, pending
- * and scheduled unrestricted). So the row is offered only to a reader who may
+ * and scheduled unrestricted). So the row belongs only to a reader who may
  * edit others' posts of that type — for anyone else the honest surface is the
  * section's own Pending pill, which IS scoped.
+ *
+ * THE GATE MOVED, THE REASON DID NOT. The row is composed for EVERYONE and
+ * carries `requires` (the type's own edit_others capability, read off the type
+ * object and never a literal — `edit_others_posts` is the POST cap). The
+ * capability is checked when the queue is READ, in attention_visible_rows().
+ * It has to be: the composition is one sixty-second transient shared by every
+ * administrator, so deciding here would let whoever filled the cache decide
+ * for whoever reads it.
  *
  * @return array{rows:array,stamp:string,unreadable:bool}
  */
@@ -442,7 +494,9 @@ function attention_pending() {
 		foreach ( array( 'post' => 'notes', 'page' => 'pages' ) as $type => $section ) {
 			$object = get_post_type_object( $type );
 			$others = is_object( $object ) && isset( $object->cap->edit_others_posts ) ? (string) $object->cap->edit_others_posts : '';
-			if ( '' === $others || ! function_exists( 'current_user_can' ) || ! current_user_can( $others ) ) {
+			if ( '' === $others ) {
+				// A type whose object names no capability is a right nobody
+				// can be shown to hold: no row, rather than an ungated one.
 				continue;
 			}
 			$counts = wp_count_posts( $type );
@@ -468,6 +522,7 @@ function attention_pending() {
 				'stamp'      => $stamp,
 				'source'     => __( 'The post counts, read just now', 'signal-and-noise-tools' ),
 				'section'    => $section,
+				'requires'   => $others,
 			) );
 		}
 		return attention_read( $rows, $stamp );
@@ -513,7 +568,7 @@ function attention_health() {
 				'title'      => '' !== (string) ( $check['label'] ?? '' ) ? (string) $check['label'] : (string) $key,
 				'subtitle'   => '' !== $hint
 					/* translators: 1: a count of findings. 2: the check's own fix hint. */
-					? sprintf( __( '%1$d findings. %2$s', 'signal-and-noise-tools' ), $n, $hint )
+					? sprintf( _n( '%1$d finding. %2$s', '%1$d findings. %2$s', $n, 'signal-and-noise-tools' ), $n, $hint )
 					/* translators: %d: a count of findings. */
 					: sprintf( _n( '%d finding', '%d findings', $n, 'signal-and-noise-tools' ), $n ),
 				'tone'       => 'danger',

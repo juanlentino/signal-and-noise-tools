@@ -82,6 +82,14 @@ namespace {
 	$GLOBALS['__caps'] = array( 'edit_posts' => true, 'edit_pages' => true, 'manage_options' => true, 'edit_post' => true );
 	function current_user_can( $cap, ...$a ) { $GLOBALS['__cap_calls'][] = array( $cap, $a ); return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
 	function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['__meta'][ $id ][ $key ] ?? ''; }
+	// The note category, per post. It is what `category_name` filters the Notes
+	// query by, and the only thing that can answer whether Notes LISTS a post:
+	// a post outside the category is not a Note, whatever its type says.
+	$GLOBALS['__categories'] = array( 11 => array( 'notes' ), 21 => array( 'notes' ) );
+	function has_category( $category = '', $post = null ) {
+		$id = is_object( $post ) ? (int) $post->ID : (int) $post;
+		return in_array( (string) $category, (array) ( $GLOBALS['__categories'][ $id ] ?? array() ), true );
+	}
 	function get_post( $id ) { foreach ( $GLOBALS['__posts'] as $p ) { if ( (int) $p->ID === (int) $id ) { return $p; } } return null; }
 	function get_post_status_object( $s ) { return (object) array( 'label' => array( 'publish' => 'Published', 'future' => 'Scheduled', 'draft' => 'Draft' )[ $s ] ?? ucfirst( $s ) ); }
 	function get_the_date( $f, $post ) { return substr( $post->post_date, 0, 10 ); }
@@ -269,6 +277,45 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	ok( array( 'Verify', 'View on site' ) === array_column( $p2['items'][1]['detail']['actions'], 'label' ), 'without edit_post the editor action is not offered' );
 	$GLOBALS['__caps']['edit_post'] = true;
 
+	echo "\nGroup 5a: what a section CONTAINS -- its query, asked of one id\n";
+	// A section is not its post type. Notes lists the note category, Pages the
+	// opt-in meta, both over their own statuses and under the same author
+	// scope -- so "the type is post" cannot answer whether Notes holds a post,
+	// and anything that sends a reader into a section must ask the section.
+	$notes_cfg = \SignalNoise\OpenStationApp\notes_cfg();
+	$pages_cfg = \SignalNoise\OpenStationApp\pages_cfg();
+	ok( true === \SignalNoise\OpenStationApp\post_contains( 11, $notes_cfg ), 'a published post IN the note category is one of the Notes' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 12, $notes_cfg ), '   ...and a post OUTSIDE it is not, though its post type says `post`: the category IS the section' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 31, $notes_cfg ) && true === \SignalNoise\OpenStationApp\post_contains( 31, $pages_cfg ), 'the type is checked first: a page is never in Notes, and the signed page is in Pages' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 33, $pages_cfg ), '   ...while a page that never opted into signing is in neither: Pages lists the opt-in, not the post type' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 0, $notes_cfg ) && false === \SignalNoise\OpenStationApp\post_contains( 999, $notes_cfg ), 'no id and an id that is no post are both refusals, never a jump into nothing' );
+	$GLOBALS['__posts'][] = (object) array( 'ID' => 41, 'post_title' => 'Trashed', 'post_status' => 'trash', 'post_date' => '2026-05-01 09:00:00', 'post_type' => 'post', 'thumb' => '', 'post_author' => 5 );
+	$GLOBALS['__categories'][41] = array( 'notes' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 41, $notes_cfg ), 'a status the section does not list (trash) is not in it, category or no category' );
+	array_pop( $GLOBALS['__posts'] );
+
+	// The author scope, mirrored not duplicated: post_scope_where() returns a
+	// clause exactly when this user may not read other authors' unpublished
+	// posts of the type, so the predicate reads that instead of re-deciding.
+	$theirs = (object) array( 'ID' => 42, 'post_title' => 'Someone else\'s draft', 'post_status' => 'draft', 'post_date' => '2026-05-02 09:00:00', 'post_type' => 'post', 'thumb' => '', 'post_author' => 9 );
+	$mine   = (object) array( 'ID' => 43, 'post_title' => 'My draft', 'post_status' => 'draft', 'post_date' => '2026-05-03 09:00:00', 'post_type' => 'post', 'thumb' => '', 'post_author' => 5 );
+	$GLOBALS['__posts'][]        = $theirs;
+	$GLOBALS['__posts'][]        = $mine;
+	$GLOBALS['__categories'][42] = array( 'notes' );
+	$GLOBALS['__categories'][43] = array( 'notes' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 42, $notes_cfg ) && true === \SignalNoise\OpenStationApp\post_contains( 43, $notes_cfg ), 'another author\'s DRAFT is not on this reader\'s list and his own is -- the same posts_where scope the query applies, read off post_scope_where() rather than repeated' );
+	$GLOBALS['__caps']['edit_others_posts'] = true;
+	ok( true === \SignalNoise\OpenStationApp\post_contains( 42, $notes_cfg ), '   ...and with edit_others_posts it is: the clause disappears, and so does the restriction' );
+	unset( $GLOBALS['__caps']['edit_others_posts'] );
+	$theirs->post_status = 'private';
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 42, $notes_cfg ), 'a PRIVATE post is asked of read_post -- which is what `perm => readable` asks, and the ONLY thing it asks' );
+	$GLOBALS['__caps']['read_post'] = true;
+	ok( true === \SignalNoise\OpenStationApp\post_contains( 42, $notes_cfg ), '   ...and a reader who may read it has it on the list' );
+	unset( $GLOBALS['__caps']['read_post'] );
+	array_pop( $GLOBALS['__posts'] );
+	array_pop( $GLOBALS['__posts'] );
+	ok( is_callable( \snt_os_app_section( 'notes' )['contains'] ?? null ) && is_callable( \snt_os_app_section( 'pages' )['contains'] ?? null ), 'both post sections DECLARE the predicate on their descriptor: the question is asked of the registry, not of a hardcoded list of section ids' );
+
 	echo "\nGroup 6: Discography\n";
 	$p = payload( $app, array( 'section' => 'discography' ) );
 	ok( array() === $p['section']['statuses'] && '' === $p['section']['defaultStatus'] && false === $p['section']['canEdit'], 'no pills, no editor' );
@@ -300,6 +347,14 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	ok( 'ledger' === $p['section']['id'] && 'ledger' === $p['section']['kind'] && 'L1' === $p['items'][0]['id'], 'the payload carries a third section exactly as it carries the built-ins' );
 	ok( '' === $p['section']['emptyHeading'] && '' === $p['section']['emptyNote'], 'a section that declared no empty wording says so with two empty strings -- the client falls back to its own text, and a FOREIGN section cannot inherit another\'s' );
 	ok( array_key_exists( 'hasDossier', $p['section'] ) && false === $p['section']['hasDossier'], 'a FOREIGN section that declared no hasDossier reads false, never true by omission: another module cannot get a dossier it did not ask for' );
+
+	// ...and the other half of that pin: a section that DOES declare wording
+	// gets it through payload(). Attention declares a literal heading and a
+	// CALLABLE note, and only the round trip can tell a resolved callable from
+	// a missing one -- both would otherwise read as a plausible string.
+	$p = payload( $app, array( 'section' => 'attention' ) );
+	ok( 'Nothing needs you' === $p['section']['emptyHeading'], 'a section that declares its empty heading gets that heading, not the client\'s generic "Nothing here yet."' );
+	ok( 1 === preg_match( '/^No reader carried a stamp\. Composed \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\.$/', (string) $p['section']['emptyNote'] ), '   ...and its empty NOTE is the callable\'s output, carrying the UTC instant the queue was composed: an empty queue that cannot say when it was read is the one reading this section must never produce' );
 
 	echo "\nGroup 8: server actions\n";
 	$os = new \OpenStation\App\Os();

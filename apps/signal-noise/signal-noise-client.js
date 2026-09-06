@@ -205,18 +205,42 @@
 	// can cancel -- the menu opening a moment after the finger had lifted.
 	const presses = new WeakMap();
 
+	/**
+	 * One press per POINTER, across elements.
+	 *
+	 * A press on a cell bubbles to the canvas, and both hang the four listeners:
+	 * both armed a timer and, when they fired, both armed a capture-phase click
+	 * swallow. The ancestor's swallow runs FIRST (capture descends), stops the
+	 * event and is consumed by `once` -- so the cell's never fires, `once` never
+	 * removes it, and it strands until the 700 ms sweep or eats the reader's
+	 * NEXT tap if one lands inside that window.
+	 *
+	 * The fix is upstream of the swallow: only one element may hold a pointer.
+	 * The event bubbles, so the target's own listener runs before every
+	 * ancestor's -- the first to claim is the innermost, which is the one whose
+	 * press it is. Cleared on cancel, on release, and when the timer fires, so
+	 * an entry can outlive its press by at most LONG_PRESS_MS.
+	 */
+	const pointerHeldBy = new Map();
+
 	const cancelPress = ( el ) => {
 		const held = presses.get( el );
 		if ( held ) {
 			clearTimeout( held.timer );
 			presses.delete( el );
+			if ( pointerHeldBy.get( held.pointerId ) === el ) {
+				pointerHeldBy.delete( held.pointerId );
+			}
 		}
 	};
 
 	/** A pointer with no right button. A pen counts: its barrel button is not what people reach for. */
 	const pressesForMenu = ( e ) => !! e.isPrimary && ( 'touch' === e.pointerType || 'pen' === e.pointerType );
 
-	/** The four listeners a template hangs on the pressed element; `fire( x, y, e )` gets the press. */
+	/**
+	 * The four listeners a template hangs on the pressed element;
+	 * `fire( x, y, e )` gets the press and returns false when it did nothing.
+	 */
 	const longPress = ( fire ) => ( {
 		pointerdown: ( e ) => {
 			const el = e.currentTarget;
@@ -224,11 +248,25 @@
 			if ( ! pressesForMenu( e ) ) {
 				return;
 			}
+			const pointerId = e.pointerId;
+			// A press already claimed by a descendant is that descendant's.
+			if ( pointerHeldBy.has( pointerId ) ) {
+				return;
+			}
 			const x = e.clientX;
 			const y = e.clientY;
 			const path = typeof e.composedPath === 'function' ? e.composedPath() : [];
 			const timer = setTimeout( () => {
 				presses.delete( el );
+				pointerHeldBy.delete( pointerId );
+				// A press can land on nothing this element may act on: a cell in
+				// a section that is not actionable, a table press off any row.
+				// `fire` says so by returning false, and the swallow below is
+				// armed only for a press that actually opened something --
+				// otherwise the release is an ordinary tap and must stay one.
+				if ( false === fire( x, y, { composedPath: () => path, target: e.target } ) ) {
+					return;
+				}
 				// The release that follows would be a click -- a select, an
 				// open. It is the end of the press, not a tap; swallow it.
 				const swallow = ( ev ) => {
@@ -237,9 +275,9 @@
 				};
 				el.addEventListener( 'click', swallow, { capture: true, once: true } );
 				setTimeout( () => el.removeEventListener( 'click', swallow, { capture: true } ), 700 );
-				fire( x, y, { composedPath: () => path, target: e.target } );
 			}, LONG_PRESS_MS );
-			presses.set( el, { pointerId: e.pointerId, x, y, timer } );
+			presses.set( el, { pointerId, x, y, timer } );
+			pointerHeldBy.set( pointerId, el );
 		},
 		pointermove: ( e ) => {
 			const held = presses.get( e.currentTarget );
@@ -548,18 +586,39 @@
 	 * toast is keyed to OpenStation's asset stamp and can never see a release of
 	 * ours, so this is the only signal there is.
 	 *
-	 * The reload is the reader's click and never ours: the shell's own reload
-	 * flushes the session first, that flush is not reachable from an app, and
-	 * an automatic reload would trade a stale client for lost windows.
+	 * The reload is the reader's DECISION and never ours, but it is not an
+	 * unflushed one. The shell's own post-update reload awaits
+	 * `saveSession.flush()` and reloads on the next line, and that flush IS
+	 * reachable from an app: `desktop.min.js` hands `saveSession` out on the
+	 * `wp.os` namespace it builds. So the handler below awaits it and the click
+	 * costs no windows. What stays the reader's is WHEN: an automatic reload
+	 * would throw away whatever they were in the middle of, to fix a condition
+	 * that is not transient and can wait for a deliberate click.
 	 */
+	const reloadWindow = async () => {
+		try {
+			await window.wp?.os?.saveSession?.flush?.();
+		} catch ( e ) {
+			// A shell that is not there, an older one without saveSession, or a
+			// flush that threw: the reload is the point and happens either way.
+			// Losing the layout is a worse outcome than a stale window, but not
+			// a worse one than a window that will not reload at all.
+		}
+		window.location.reload();
+	};
+
 	const renderStale = ( ctx ) => {
 		const built = ctx.extra && ctx.extra.version;
 		const live = ctx.data && ctx.data.version;
 		if ( built && live && built !== live ) {
+			// What was measured is that two reads of one constant DISAGREE.
+			// Which is newer is not in evidence -- a rollback disagrees exactly
+			// as an upgrade does -- so the line says the disagreement and lets
+			// the reader, who can read a version number, judge the direction.
 			return html`
 				<div class="snt-stale">
-					<span>${ sprintf( /* translators: 1: the installed plugin version. 2: the version this window was built from. */ __( 'A newer build is installed (%1$s); this window is running %2$s.' ), live, built ) }</span>
-					<os-button variant="secondary" @click=${ () => window.location.reload() }>${ __( 'Reload' ) }</os-button>
+					<span>${ sprintf( /* translators: 1: the version the server is running now. 2: the version this window's document was built from. */ __( 'The installed build (%1$s) is not the one this window was built from (%2$s).' ), live, built ) }</span>
+					<os-button variant="secondary" @click=${ reloadWindow }>${ __( 'Reload' ) }</os-button>
 				</div>
 			`;
 		}
@@ -620,9 +679,12 @@
 		const isSelected = selectedIds( state ).includes( String( item.id ) );
 		const actionable = isPostSection( data );
 		const press = longPress( ( x, y ) => {
-			if ( actionable ) {
-				openMenu( ctx, x, y, item );
+			// Nothing to open in a section that cannot be acted on; the release
+			// stays the tap it was, and no swallow is armed for it.
+			if ( ! actionable ) {
+				return false;
 			}
+			openMenu( ctx, x, y, item );
 		} );
 		const activate = () => {
 			if ( data.section && data.section.canEdit ) {
@@ -674,12 +736,21 @@
 			// A section may say for itself what an empty list means and what
 			// was measured to decide it -- an attention queue's "Nothing needs
 			// you" is not "Nothing here yet." A section that says neither keeps
-			// the words that were already here. The note is about the SECTION,
-			// so a search that matched nothing does not carry it.
+			// the words that were already here.
+			//
+			// Both facets withhold it. The status pill narrows the list exactly
+			// as the search box does (`visibleItems` applies them side by side),
+			// so an Attention queue filtered to a kind that has no rows is empty
+			// because the READER narrowed it -- painting "Nothing needs you"
+			// there, plus the note saying what was measured and when, would make
+			// a claim about the whole queue out of one slice of it.
+			const filtered = !! state.query || !! state.status;
 			const heading = state.query
 				? __( 'Nothing matches the search.' )
-				: String( ( data.section && data.section.emptyHeading ) || '' ) || __( 'Nothing here yet.' );
-			const note = state.query ? '' : String( ( data.section && data.section.emptyNote ) || '' );
+				: ( state.status
+					? __( 'Nothing under this filter.' )
+					: String( ( data.section && data.section.emptyHeading ) || '' ) || __( 'Nothing here yet.' ) );
+			const note = filtered ? '' : String( ( data.section && data.section.emptyNote ) || '' );
 			return html`
 				<os-empty-state class="snt-empty" icon=${ data.section.icon.startsWith( 'dashicons-' ) ? data.section.icon : 'dashicons-portfolio' } heading=${ heading }></os-empty-state>
 				${ note ? html`<p class="snt-muted snt-empty-note">${ note }</p>` : '' }
@@ -692,7 +763,7 @@
 		// or the tile's menu would be replaced by this one a moment later.
 		const press = longPress( ( x, y, source ) => {
 			if ( closestInPath( source, '.snt-cell' ) ) {
-				return;
+				return false;
 			}
 			openMenu( ctx, x, y, null );
 		} );
@@ -780,9 +851,11 @@
 		// set mean note ids instead of row indexes.
 		const press = longPress( ( x, y, source ) => {
 			const item = itemFromEvent( ctx, source );
-			if ( actionable && item ) {
-				openMenu( ctx, x, y, item );
+			// Off a row, or a section that cannot be acted on: nothing opened.
+			if ( ! actionable || ! item ) {
+				return false;
 			}
+			openMenu( ctx, x, y, item );
 		} );
 		return html`
 			<os-table

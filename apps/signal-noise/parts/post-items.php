@@ -102,6 +102,69 @@ function post_scope_where( $post_type ) {
 }
 
 /**
+ * Does this section's LIST hold this post? The query, asked of one id.
+ *
+ * A section is not its post type. Notes lists the note category, Pages the
+ * pages carrying the signing opt-in, both over the section's own statuses and
+ * both under the same author scope the query applies — so a post that matches
+ * the TYPE can still be on neither list (a non-note post in the edge probe
+ * log, a page that never opted in, a draft belonging to somebody else). A
+ * caller that resolves a section from the type alone offers a jump that lands
+ * on nothing; this answers the question the list itself would.
+ *
+ * Every leg mirrors post_query_args() + post_scope_where(), in the same order:
+ * type, status, the category or the meta, then the scope. The scope leg REUSES
+ * post_scope_where() rather than repeating its rule — a non-empty clause is
+ * precisely the state "this user may not read other authors' unpublished
+ * posts of this type", so the two can never drift.
+ *
+ * @param int                 $post_id Post id.
+ * @param array<string,mixed> $cfg     Section config (see the file docblock).
+ * @return bool
+ */
+function post_contains( $post_id, array $cfg ) {
+	$post_id = (int) $post_id;
+	if ( $post_id <= 0 || ! function_exists( 'get_post' ) ) {
+		return false;
+	}
+	$post = get_post( $post_id );
+	if ( ! is_object( $post ) ) {
+		return false;
+	}
+	$type = (string) ( $post->post_type ?? '' );
+	if ( (string) ( $cfg['post_type'] ?? 'post' ) !== $type ) {
+		return false;
+	}
+	$statuses = array_map( 'strval', (array) ( $cfg['statuses'] ?? POST_SECTION_STATUSES ) );
+	$status   = (string) ( $post->post_status ?? '' );
+	if ( ! in_array( $status, $statuses, true ) ) {
+		return false;
+	}
+	$kind_filter = (string) ( $cfg['kind_filter'] ?? '' );
+	if ( '' !== $kind_filter && ! ( function_exists( 'has_category' ) && has_category( $kind_filter, $post ) ) ) {
+		return false;
+	}
+	$meta_key = (string) ( $cfg['meta_key'] ?? '' );
+	if ( '' !== $meta_key ) {
+		$have = function_exists( 'get_post_meta' ) ? (string) get_post_meta( $post_id, $meta_key, true ) : '';
+		if ( (string) ( $cfg['meta_value'] ?? '' ) !== $have ) {
+			return false;
+		}
+	}
+	// `perm => readable` narrows PRIVATE posts to what this user may read.
+	if ( 'private' === $status ) {
+		return function_exists( 'current_user_can' ) && current_user_can( 'read_post', $post_id );
+	}
+	// ...and the posts_where clause narrows draft, pending and scheduled to
+	// their author. A clause is added only when the user lacks the type's
+	// edit_others capability, so an empty clause IS "may read everyone's".
+	if ( in_array( $status, array( 'draft', 'pending', 'future' ), true ) && '' !== post_scope_where( $type ) ) {
+		return function_exists( 'get_current_user_id' ) && (int) ( $post->post_author ?? 0 ) === (int) get_current_user_id();
+	}
+	return true;
+}
+
+/**
  * Run one WP_Query with the section's author scope attached for its duration.
  *
  * @param array<string,mixed> $args  WP_Query args.

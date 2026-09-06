@@ -46,6 +46,14 @@
  * state and into every row's "as of", so what the reader sees is the age of
  * the reading, not the age of the paint.
  *
+ * AND BECAUSE IT IS ONE CACHE FOR EVERY ADMINISTRATOR, THE COMPOSITION IS
+ * USER-NEUTRAL. A row whose visibility depends on who is looking states the
+ * capability it needs (`requires`) and is filtered at READ time, in
+ * attention_visible_rows(), which both attention_items() and attention_count()
+ * go through. Deciding while composing would let whoever filled the cache
+ * decide for whoever reads it — invisibly, because both get identical rows out
+ * of one store.
+ *
  * @package SignalNoiseTools
  * @since 13.103.0
  */
@@ -221,6 +229,12 @@ function attention_unreadable() {
 /**
  * One queue row, before it becomes an item.
  *
+ * `requires` is a capability the READER of the queue must hold for the row to
+ * be shown at all. It exists because the composition is CACHED SITE-WIDE: a
+ * reader that decided visibility while composing would let whoever filled the
+ * cache decide for whoever reads it. A row states the right instead, and
+ * attention_visible_rows() applies it per user, on every read.
+ *
  * @param array<string,mixed> $row Partial row.
  * @return array<string,mixed>
  */
@@ -238,6 +252,7 @@ function attention_row( array $row ) {
 			'door_label' => '',
 			'post_id'  => 0,
 			'section'  => '',
+			'requires' => '',
 		),
 		$row
 	);
@@ -274,16 +289,75 @@ function attention_health_door() {
 }
 
 /**
+ * The two post sections a jump can land in, resolved ONCE per paint.
+ *
+ * Resolving a section costs a full registry pass -- every descriptor, a
+ * current_user_can() per section, a uasort -- so asking per ROW made the cost
+ * of the queue the number of rows that name a post. The map is built once per
+ * attention_items() call and threaded down; it is never cached across calls,
+ * because what is offered is a per-user answer that must be re-asked.
+ *
+ * @return array<string,array<string,mixed>|null> id => descriptor, or null when not offered.
+ */
+function attention_post_sections() {
+	$out = array();
+	foreach ( array( 'notes', 'pages' ) as $id ) {
+		$out[ $id ] = \snt_os_app_section( $id );
+	}
+	return $out;
+}
+
+/**
+ * Does this section, offered to THIS user, actually LIST this post?
+ *
+ * Two questions, because a jump needs both. The registry answers the first
+ * (is the section offered at all). The section's own `contains` callable
+ * answers the second: Notes lists only the note category and Pages only the
+ * pages carrying the signing meta, both over their own statuses and their own
+ * author scope -- so a post no section lists would otherwise be offered an
+ * "Open the note" that lands on nothing. A section that declares no `contains`
+ * cannot answer, and an unanswerable question is a refusal.
+ *
+ * @param string                                      $section Section id.
+ * @param int                                         $post_id Post id, or 0 for a section-only jump.
+ * @param array<string,array<string,mixed>|null>|null $offered attention_post_sections() output, or null to resolve.
+ * @return bool
+ */
+function attention_section_lists( $section, $post_id, $offered = null ) {
+	$section = (string) $section;
+	if ( '' === $section ) {
+		return false;
+	}
+	if ( is_array( $offered ) && array_key_exists( $section, $offered ) ) {
+		$descriptor = $offered[ $section ];
+	} else {
+		$descriptor = \snt_os_app_section( $section );
+	}
+	if ( ! is_array( $descriptor ) ) {
+		return false;
+	}
+	$post_id = (int) $post_id;
+	if ( $post_id <= 0 ) {
+		return true;
+	}
+	$contains = isset( $descriptor['contains'] ) ? $descriptor['contains'] : null;
+	return is_callable( $contains ) && (bool) call_user_func( $contains, $post_id );
+}
+
+/**
  * The app section a post id belongs to, or '' when neither lists it.
  *
- * Notes lists posts, Pages lists the signed pages; the registry is asked
- * whether the section is offered to THIS user at all, so a jump is never
- * offered into a section the reader cannot open.
+ * Notes lists posts, Pages lists the signed pages -- but the POST TYPE only
+ * names the candidate. Whether that section is offered to this user, and
+ * whether it holds this particular post, is asked of the section itself, so a
+ * jump is never offered into a section the reader cannot open or a list the
+ * post is not on.
  *
- * @param int $post_id Post id.
+ * @param int                                         $post_id Post id.
+ * @param array<string,array<string,mixed>|null>|null $offered attention_post_sections() output, or null to resolve.
  * @return string 'notes' | 'pages' | ''.
  */
-function attention_section_for_post( $post_id ) {
+function attention_section_for_post( $post_id, $offered = null ) {
 	$post_id = (int) $post_id;
 	if ( $post_id <= 0 || ! function_exists( 'get_post' ) ) {
 		return '';
@@ -293,7 +367,7 @@ function attention_section_for_post( $post_id ) {
 		return '';
 	}
 	$section = 'page' === (string) ( $post->post_type ?? '' ) ? 'pages' : 'notes';
-	return \snt_os_app_section( $section ) ? $section : '';
+	return attention_section_lists( $section, $post_id, $offered ) ? $section : '';
 }
 
 /**
@@ -439,10 +513,11 @@ function attention_rows() {
 /**
  * One queue row as the client sees it.
  *
- * @param array<string,mixed> $row A composed row.
+ * @param array<string,mixed>                         $row     A composed row.
+ * @param array<string,array<string,mixed>|null>|null $offered attention_post_sections() output, or null to resolve.
  * @return array<string,mixed>
  */
-function attention_item( array $row ) {
+function attention_item( array $row, $offered = null ) {
 	$kind    = (string) ( $row['kind'] ?? '' );
 	$key     = (string) preg_replace( '/[^a-zA-Z0-9_-]/', '-', (string) ( $row['key'] ?? '' ) );
 	$stamp   = (string) ( $row['stamp'] ?? '' );
@@ -457,15 +532,27 @@ function attention_item( array $row ) {
 	}
 	// The jump: one dispatch that sets the section AND the item, so a row that
 	// names a post opens that post's dossier instead of leaving the reader to
-	// find it. Offered only when a section that lists it is offered to them.
+	// find it. Offered only when a section that LISTS it is offered to them --
+	// and a section a reader pre-set goes through exactly the same gate as one
+	// resolved from the post, or the rows that name their own section would be
+	// the only ones never checked.
 	$section = (string) ( $row['section'] ?? '' );
 	$post_id = (int) ( $row['post_id'] ?? 0 );
-	if ( '' === $section && $post_id > 0 ) {
-		$section = attention_section_for_post( $post_id );
+	if ( '' === $section ) {
+		$section = $post_id > 0 ? attention_section_for_post( $post_id, $offered ) : '';
+	} elseif ( ! attention_section_lists( $section, $post_id, $offered ) ) {
+		$section = '';
 	}
 	if ( '' !== $section ) {
+		// The word comes from the SECTION the jump resolved to, never from the
+		// presence of a post id: a signed page's row said "note" while landing
+		// in Pages.
+		$words     = array(
+			'notes' => __( 'Open the note', 'signal-and-noise-tools' ),
+			'pages' => __( 'Open the page', 'signal-and-noise-tools' ),
+		);
 		$actions[] = array(
-			'label'    => $post_id > 0 ? __( 'Open the note', 'signal-and-noise-tools' ) : __( 'Open the section', 'signal-and-noise-tools' ),
+			'label'    => ( $post_id > 0 && isset( $words[ $section ] ) ) ? $words[ $section ] : __( 'Open the section', 'signal-and-noise-tools' ),
 			'dispatch' => 'jump',
 			'args'     => array( 'section' => $section, 'item' => $post_id > 0 ? (string) $post_id : '' ),
 		);
@@ -508,28 +595,56 @@ function attention_item( array $row ) {
 }
 
 /**
+ * The composed rows THIS user may see.
+ *
+ * The composition is one transient for every administrator, so a row whose
+ * visibility depends on the reader states the capability it needs and the
+ * gate runs HERE, at read time. Composing the gate instead would let whoever
+ * filled the cache decide for whoever reads it -- for sixty seconds, and
+ * invisibly, because the two users get identical rows out of one store.
+ *
+ * @return array<int,array<string,mixed>>
+ */
+function attention_visible_rows() {
+	$rows = array();
+	foreach ( (array) attention_rows()['rows'] as $row ) {
+		if ( ! is_array( $row ) ) {
+			continue;
+		}
+		$requires = (string) ( $row['requires'] ?? '' );
+		if ( '' !== $requires && ! ( function_exists( 'current_user_can' ) && current_user_can( $requires ) ) ) {
+			continue;
+		}
+		$rows[] = $row;
+	}
+	return $rows;
+}
+
+/**
  * Every row the queue holds, as items.
  *
  * @return array<int,array<string,mixed>>
  */
 function attention_items() {
-	$items = array();
-	foreach ( (array) attention_rows()['rows'] as $row ) {
-		if ( is_array( $row ) ) {
-			$items[] = attention_item( $row );
-		}
+	// Once per paint, not once per row: resolving a section is a full registry
+	// pass with a capability check per section.
+	$offered = attention_post_sections();
+	$items   = array();
+	foreach ( attention_visible_rows() as $row ) {
+		$items[] = attention_item( $row, $offered );
 	}
 	return $items;
 }
 
 /**
  * How many rows the queue holds, for the root folder tile. Reads the SAME
- * cache items() reads, so the tile and the list can never disagree.
+ * cache items() reads THROUGH THE SAME GATE, so the tile and the list can
+ * never disagree.
  *
  * @return int
  */
 function attention_count() {
-	return count( (array) attention_rows()['rows'] );
+	return count( attention_visible_rows() );
 }
 
 /**

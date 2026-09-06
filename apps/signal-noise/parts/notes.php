@@ -62,6 +62,18 @@ function notes_edit_url( $id ) {
 	return post_edit_url( $id, 'post' );
 }
 
+/**
+ * Is this post one of the Notes this section lists? Asked by anything that
+ * would send a reader here — a post of type `post` outside the note category
+ * is not a Note, and a jump into this section would land on nothing.
+ *
+ * @param int $post_id Post id.
+ * @return bool
+ */
+function notes_contains( $post_id ) {
+	return post_contains( $post_id, notes_cfg() );
+}
+
 add_filter(
 	'snt_os_app_sections',
 	static function ( $sections ) {
@@ -86,6 +98,10 @@ add_filter(
 			'count'          => __NAMESPACE__ . '\notes_count',
 			'items'          => __NAMESPACE__ . '\notes_items',
 			'edit_url'       => __NAMESPACE__ . '\notes_edit_url',
+			// Whether this section LISTS a given post. The Attention queue asks
+			// before offering a jump: the post type names a candidate section,
+			// only the section's own query can confirm it.
+			'contains'       => __NAMESPACE__ . '\notes_contains',
 		);
 		return $sections;
 	}
