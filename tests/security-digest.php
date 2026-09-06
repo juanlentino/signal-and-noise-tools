@@ -204,6 +204,12 @@ ok( false !== wp_next_scheduled( SN_SECURITY_DIGEST_CRON_HOOK ), 'handler: enabl
 $slug = sn_handle_security_digest_save( array() );
 ok( 'digest_saved' === $slug && false === $GLOBALS['__settings']['audit.digest_email_enabled'], 'handler: absent checkbox disables' );
 ok( false === wp_next_scheduled( SN_SECURITY_DIGEST_CRON_HOOK ), 'handler: disabling syncs the cron off' );
+// The native window (os-form → snt_os_host_expand) stringifies an OFF toggle to
+// '' but LEAVES THE KEY in $_POST — so presence alone is not the signal; value is.
+$GLOBALS['__settings']['audit.digest_email_enabled'] = true;
+$slug = sn_handle_security_digest_save( array( 'sn_digest_enabled' => '' ) );
+ok( 'digest_saved' === $slug && false === $GLOBALS['__settings']['audit.digest_email_enabled'], 'handler: PRESENT-but-empty key (window pipeline OFF) disables' );
+ok( false === wp_next_scheduled( SN_SECURITY_DIGEST_CRON_HOOK ), 'handler: empty-key disable syncs the cron off' );
 $GLOBALS['__mail'] = array();
 $slug = sn_handle_security_digest_save( array( 'sn_digest_test' => '1' ) );
 ok( 'digest_test_sent' === $slug && 1 === count( $GLOBALS['__mail'] ), 'handler: test-send dispatches mail' );

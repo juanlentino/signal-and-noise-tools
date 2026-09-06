@@ -40,6 +40,16 @@ adds a bullet below. A release is a separate, deliberate act:
   the empty note in the classic page's order, each through a kit painter.
   (#1083)
 
+### Fixed
+- The weekly security digest can now be turned OFF from the S&N Dashboard
+  window. The native window's form pipeline (`os-form` →
+  `snt_os_host_expand()`) stringifies an unchecked toggle to `''` but keeps
+  the key in `$_POST`, so `sn_handle_security_digest_save()`'s `isset()`
+  read every submit as "on". The handler now reads presence the way its
+  siblings do (`! empty()`), which is identical on the classic page (an
+  unchecked checkbox is simply absent). `tests/security-digest.php` pins
+  the present-but-empty case.
+
 ## [13.105.1] - 2026-09-06 — the two hosts on live: canvas, tab strip, icon, placement
 
 ### Fixed

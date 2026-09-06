@@ -36,7 +36,7 @@ function sn_handle_security_digest_save( $post ) {
 	if ( isset( $post['sn_digest_test'] ) ) {
 		return snt_security_digest_send( true ) ? 'digest_test_sent' : 'digest_test_failed';
 	}
-	sn_setting_update( 'audit.digest_email_enabled', isset( $post['sn_digest_enabled'] ) );
+	sn_setting_update( 'audit.digest_email_enabled', ! empty( $post['sn_digest_enabled'] ) );
 	if ( function_exists( 'snt_security_digest_maybe_schedule_cron' ) ) {
 		snt_security_digest_maybe_schedule_cron();
 	}
