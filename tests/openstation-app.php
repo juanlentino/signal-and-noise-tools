@@ -41,7 +41,16 @@ namespace OpenStation\App {
 		private $d; private $defaults;
 		public function __construct( array $defaults = array(), array $in = array() ) { $this->defaults = $defaults; $this->d = array_merge( $defaults, $in ); }
 		public function get( $k, $f = null ) { return array_key_exists( $k, $this->d ) ? $this->d[ $k ] : $f; }
-		public function set( $k, $v ) { $this->d[ $k ] = $v; return $this; }
+		/** The framework's own rule (desktop-mode app/class-state.php accept()): coerce onto the default's type, fall back on disagreement. */
+		public static function accept( $default, $value ) {
+			if ( is_bool( $default ) ) { return is_bool( $value ) ? $value : ( ( is_string( $value ) || is_int( $value ) ) ? in_array( $value, array( '1', 1, 'true', 'on' ), true ) : $default ); }
+			if ( is_int( $default ) ) { return is_numeric( $value ) ? (int) $value : $default; }
+			if ( is_float( $default ) ) { return is_numeric( $value ) ? (float) $value : $default; }
+			if ( is_string( $default ) ) { return is_scalar( $value ) ? (string) $value : $default; }
+			if ( is_array( $default ) ) { return is_array( $value ) ? $value : $default; }
+			return ( is_scalar( $value ) || is_array( $value ) || null === $value ) ? $value : $default;
+		}
+		public function set( $k, $v ) { $this->d[ $k ] = ( isset( $this->defaults ) && array_key_exists( $k, $this->defaults ) ) ? self::accept( $this->defaults[ $k ], $v ) : $v; return $this; }
 		public function reset( $k ) { $this->d[ $k ] = $this->defaults[ $k ] ?? null; return $this; }
 		public function all() { return $this->d; }
 	}

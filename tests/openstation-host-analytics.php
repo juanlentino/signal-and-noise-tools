@@ -64,7 +64,16 @@ namespace OpenStation\App {
 		private $defaults;
 		public function __construct( array $defaults = array(), array $in = array() ) { $this->defaults = $defaults; $this->values = array_merge( $defaults, $in ); }
 		public function get( $k, $f = null ) { return array_key_exists( $k, $this->values ) ? $this->values[ $k ] : $f; }
-		public function set( $k, $v ) { $this->values[ $k ] = $v; return $this; }
+		/** The framework's own rule (desktop-mode app/class-state.php accept()): coerce onto the default's type, fall back on disagreement. */
+		public static function accept( $default, $value ) {
+			if ( is_bool( $default ) ) { return is_bool( $value ) ? $value : ( ( is_string( $value ) || is_int( $value ) ) ? in_array( $value, array( '1', 1, 'true', 'on' ), true ) : $default ); }
+			if ( is_int( $default ) ) { return is_numeric( $value ) ? (int) $value : $default; }
+			if ( is_float( $default ) ) { return is_numeric( $value ) ? (float) $value : $default; }
+			if ( is_string( $default ) ) { return is_scalar( $value ) ? (string) $value : $default; }
+			if ( is_array( $default ) ) { return is_array( $value ) ? $value : $default; }
+			return ( is_scalar( $value ) || is_array( $value ) || null === $value ) ? $value : $default;
+		}
+		public function set( $k, $v ) { $this->values[ $k ] = array_key_exists( $k, $this->defaults ) ? self::accept( $this->defaults[ $k ], $v ) : $v; return $this; }
 		public function reset( $k ) { $this->values[ $k ] = $this->defaults[ $k ] ?? null; return $this; }
 		public function all() { return $this->values; }
 	}
@@ -344,7 +353,7 @@ namespace {
 	ok( snt_analytics_resolve_view( '' ) === $app->state['view']
 		&& snt_analytics_resolve_class( '' ) === $app->state['class']
 		&& snt_analytics_resolve_compare( '' ) === $app->state['compare']
-		&& snt_analytics_resolve_window( '', '', '' )[0] === $app->state['range'],
+		&& (string) snt_analytics_resolve_window( '', '', '' )[0] === $app->state['range'] && is_string( $app->state['range'] ),
 		'   ...and every default is that resolver asked with nothing -- a literal table here would be a copy of four whitelists' );
 	ok( 7 === $app->state['lg_range'] && sn_login_defense_resolve_days() === $app->state['lg_range'],
 		'   ...including login defense`s own range, from sn_login_defense_resolve_days()' );
@@ -402,7 +411,7 @@ namespace {
 		)
 	);
 	$app->actions['go']( $state, $os, array( 'sn_view' => 'geography' ) );
-	ok( 'geography' === $state->get( 'view' ) && 7 === $state->get( 'range' ) && '' === $state->get( 'from' ) && '' === $state->get( 'to' )
+	ok( 'geography' === $state->get( 'view' ) && '7' === $state->get( 'range' ) && '' === $state->get( 'from' ) && '' === $state->get( 'to' )
 		&& 'human' === $state->get( 'class' ) && '' === $state->get( 'drill' ) && '' === $state->get( 'event_prop' ) && 7 === $state->get( 'lg_range' ),
 		'a bare view switch resets the window, the class and the three view-local filters -- what remove_query_arg( reset_params ) does to the URL' );
 	ok( 'yoy' === $state->get( 'compare' ),
@@ -410,16 +419,16 @@ namespace {
 
 	$state = st( $app, array( 'view' => 'technology', 'class' => 'bot', 'drill' => 'browser:Firefox' ) );
 	$app->actions['go']( $state, $os, array( 'sn_view' => 'geography', 'sn_range' => '30', 'sn_class' => 'bot' ) );
-	ok( 'geography' === $state->get( 'view' ) && 30 === $state->get( 'range' ) && 'bot' === $state->get( 'class' ) && '' === $state->get( 'drill' ),
+	ok( 'geography' === $state->get( 'view' ) && '30' === $state->get( 'range' ) && 'bot' === $state->get( 'class' ) && '' === $state->get( 'drill' ),
 		'a real tab link -- which carries snt_analytics_window_args() -- keeps the window and the class across the switch, and still drops the drill' );
 
 	echo "\nGroup 4: every value goes through the page`s own resolver\n";
 	$state = st( $app );
 	$app->actions['go']( $state, $os, array( 'sn_range' => '999' ) );
-	ok( snt_analytics_resolve_window( '999', '', '' )[0] === $state->get( 'range' ) && 7 === $state->get( 'range' ),
+	ok( (string) snt_analytics_resolve_window( '999', '', '' )[0] === $state->get( 'range' ) && '7' === $state->get( 'range' ),
 		'a range outside the whitelist falls back exactly as the page falls back' );
 	$app->actions['go']( $state, $os, array( 'sn_range' => '30' ) );
-	ok( 30 === $state->get( 'range' ), 'a supported range is kept as the token the URL carried' );
+	ok( '30' === $state->get( 'range' ), 'a supported range is kept as the token the URL carried' );
 	$app->actions['go']( $state, $os, array( 'sn_range' => 'this-month' ) );
 	ok( 'this-month' === $state->get( 'range' ) && '' === $state->get( 'from' ) && '' === $state->get( 'to' ),
 		'a calendar preset keeps its token and carries no dates -- snt_analytics_window_args() carries from/to for `custom` only, and the page re-derives a preset from the token' );
@@ -428,7 +437,7 @@ namespace {
 	ok( 'custom' === $state->get( 'range' ) && '2026-01-01' === $state->get( 'from' ) && '2026-01-31' === $state->get( 'to' ),
 		'a custom window is CLAMPED by snt_analytics_resolve_custom_window() -- a reversed pair comes back swapped, not refused' );
 	$app->actions['go']( $state, $os, array( 'sn_range' => 'custom', 'sn_from' => 'nonsense', 'sn_to' => 'nonsense' ) );
-	ok( 7 === $state->get( 'range' ) && '' === $state->get( 'from' ),
+	ok( '7' === $state->get( 'range' ) && '' === $state->get( 'from' ),
 		'   ...and malformed dates fall back to the default window, which is what the page does with them' );
 	$app->actions['go']( $state, $os, array( 'sn_class' => 'suspect' ) );
 	ok( 'suspect' === $state->get( 'class' ), 'a known class is kept' );
@@ -743,11 +752,11 @@ namespace {
 	$os->params = array( 'sn_view' => 'posts', 'sn_range' => '30', 'sn_class' => 'bot' );
 	$state      = st( $app );
 	call_user_func( $app->mount, $state, $os );
-	ok( 'posts' === $state->get( 'view' ) && 30 === $state->get( 'range' ) && 'bot' === $state->get( 'class' ),
+	ok( 'posts' === $state->get( 'view' ) && '30' === $state->get( 'range' ) && 'bot' === $state->get( 'class' ),
 		'a deep link opens on its view and its window, named exactly as the classic URL names them' );
 	$os->params = array( 'sn_view' => 'search' );
 	$app->actions['reopen']( $state, $os, array() );
-	ok( 'search' === $state->get( 'view' ) && 7 === $state->get( 'range' ) && 'human' === $state->get( 'class' ),
+	ok( 'search' === $state->get( 'view' ) && '7' === $state->get( 'range' ) && 'human' === $state->get( 'class' ),
 		'reopen retargets a live window and reads the new params wholesale -- a link that named no window must not inherit the last one`s' );
 	$state = st( $app, array( 'notice' => array( 'success', 'Saved.' ) ) );
 	$app->actions['refresh']( $state, new \OpenStation\App\Os(), array() );
@@ -809,6 +818,18 @@ namespace {
 		'ORDER: the window branch clicks the carrier and RETURNS before the navigation -- location.assign inside a window replaces the whole desktop, not the report' );
 	ok( 1 === substr_count( $brush, 'window.location.assign' ),
 		'and exactly one navigation remains, on the classic page`s path, which is unchanged' );
+
+echo "\nGroup T: the range survives the framework's State typing\n";
+// desktop-mode's State::accept() coerces every write onto the declared
+// default's TYPE and falls back to the default when the shapes disagree.
+// Declared as the integer 7, 'custom' and the seven calendar presets became 7
+// -- measured in the sandbox on the custom-date form. The State stub above
+// mirrors that rule, so the preset and custom pins in Group 4 now run the
+// framework's own coercion; this pin names the reason they can.
+ok( is_string( \snt_os_analytics_defaults()['range'] ), 'the declared default for range is a STRING: a string-valued param must be declared as one, or the framework\'s coercion eats every non-numeric value' );
+$state = st( $app, array() );
+$app->actions['go']( $state, $os, array( 'sn_range' => 'this-week' ) );
+ok( 'this-week' === \snt_os_analytics_get( $state )['sn_range'], 'a calendar preset reaches the $_GET the page reads, as the token' );
 
 	echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : '' ) . ".\n";
 

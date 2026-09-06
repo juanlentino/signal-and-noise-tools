@@ -64,7 +64,12 @@ function snt_os_analytics_defaults() {
 		// The landing view. `snt_analytics_resolve_view()` sends every unknown
 		// and every retired slug here too.
 		'view'       => function_exists( 'snt_analytics_resolve_view' ) ? snt_analytics_resolve_view( '' ) : 'overview',
-		'range'      => snt_os_analytics_window( '', '', '' )[0],
+		// A STRING, deliberately: the framework's State coerces every write onto
+		// the declared default's type and falls back to the default when the
+		// shapes disagree (desktop-mode app/class-state.php, accept()). Declared
+		// as the integer 7, 'custom' and the seven calendar presets silently
+		// became 7 -- measured in the sandbox on the custom-date form.
+		'range'      => (string) snt_os_analytics_window( '', '', '' )[0],
 		'from'       => '',
 		'to'         => '',
 		'class'      => function_exists( 'snt_analytics_resolve_class' ) ? snt_analytics_resolve_class( '' ) : 'human',
@@ -220,7 +225,7 @@ function snt_os_analytics_apply( $state, array $args ) {
 		$read( 'sn_from', $state->get( 'from' ) ),
 		$read( 'sn_to', $state->get( 'to' ) )
 	);
-	$state->set( 'range', $range )->set( 'from', $from )->set( 'to', $to );
+	$state->set( 'range', (string) $range )->set( 'from', (string) $from )->set( 'to', (string) $to );
 
 	if ( function_exists( 'snt_analytics_resolve_class' ) ) {
 		$state->set( 'class', snt_analytics_resolve_class( snt_os_host_last( $read( 'sn_class', $state->get( 'class' ) ) ) ) );
