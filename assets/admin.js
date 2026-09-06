@@ -22,24 +22,91 @@
  *      — clones the existing input template into a new row above the
  *        button. Submission still works as social_same_as[] array.
  *
- * Added in v1.9.6 (2026-05-16); section tabs replaced the TOC scroll-spy in v6.19.4.
+ * All three are armed through ONE seam, `window.snAdmin.init( root )`, which
+ * the classic page calls once on DOMContentLoaded with `document`. An
+ * OpenStation window paints its leaves by innerHTML long after that event has
+ * fired and repaints on every action, so the host script (assets/os-host.js)
+ * calls the same seam with the window's app root after every paint. The seam
+ * is therefore IDEMPOTENT and ROOT-SCOPED: it marks each element it binds with
+ * `data-snt-init` and skips anything already marked, and it looks its nav,
+ * panels and form up inside the root it was given rather than in `document`,
+ * so a window never binds a second desktop window's leaf. Calling it twice
+ * with the same root binds nothing twice; calling it with `document` is exactly
+ * what the page did before the seam existed.
+ *
+ * Added in v1.9.6 (2026-05-16); section tabs replaced the TOC scroll-spy in
+ * v6.19.4; the `snAdmin.init( root )` seam landed with the OpenStation hosts.
  */
 ( function () {
 	'use strict';
 
-	document.addEventListener( 'DOMContentLoaded', function () {
+	/**
+	 * Arm every admin behaviour inside `root` (an Element or `document`).
+	 *
+	 * Idempotent: each element it binds carries `data-snt-init` afterwards and
+	 * a second call over the same root finds the marker and returns. The body
+	 * is what DOMContentLoaded used to run inline, moved here unchanged apart
+	 * from the scoping.
+	 *
+	 * @param {Element|Document} root Subtree to arm. Defaults to `document`.
+	 */
+	function init( root ) {
+		var scope = root || document;
+
 		// Section tabs are independent of the Identity form — run first so the
 		// switcher works on any composite leaf that renders a .sn-section-tabs nav.
-		initSectionTabs();
+		initSectionTabs( scope );
 
-		var form = document.querySelector( '.sn-identity-form' );
+		var form = scope.querySelector( '.sn-identity-form' );
 		if ( ! form ) {
 			return;
 		}
+		if ( form.hasAttribute( 'data-snt-init' ) ) {
+			return;
+		}
+		form.setAttribute( 'data-snt-init', '1' );
 
 		initDirtyTracking( form );
 		initAddRowButton( form );
+	}
+
+	// The seam, published before DOMContentLoaded so a host script loaded
+	// after this file can call it against a root that paints later. Merged
+	// onto any existing object rather than replacing it: this file is
+	// enqueued once, but a window that appends the handle a second time must
+	// not drop a sibling's property.
+	window.snAdmin = window.snAdmin || {};
+	window.snAdmin.init = init;
+
+	document.addEventListener( 'DOMContentLoaded', function () {
+		init( document );
 	} );
+
+	/**
+	 * Find an element by id INSIDE a root, without a selector.
+	 *
+	 * `document.getElementById()` searches the whole document, which in an
+	 * OpenStation window is the desktop — every other open window included.
+	 * An element root has no `getElementById`, and building a `#id` selector
+	 * would need CSS escaping for ids the server never promised to keep
+	 * selector-safe, so the attribute is compared as a string instead.
+	 *
+	 * @param {Element|Document} root Subtree to search.
+	 * @param {string}           id   Element id.
+	 * @return {Element|null} The element, or null.
+	 */
+	function byId( root, id ) {
+		if ( typeof root.getElementById === 'function' ) {
+			return root.getElementById( id );
+		}
+		var candidates = root.querySelectorAll( '[id]' );
+		for ( var i = 0; i < candidates.length; i++ ) {
+			if ( candidates[ i ].id === id ) {
+				return candidates[ i ];
+			}
+		}
+		return null;
+	}
 
 	/**
 	 * Section tabs: turn the in-form `.sn-section-tabs` anchor nav into a
@@ -53,10 +120,18 @@
 	 *
 	 * No-op when there's no `.sn-section-tabs` nav or fewer than 2 resolvable
 	 * tab→panel pairs (nothing to switch between).
+	 *
+	 * @param {Element|Document} root Subtree holding the nav and its panels.
 	 */
-	function initSectionTabs() {
-		var nav = document.querySelector( '.sn-section-tabs' );
+	function initSectionTabs( root ) {
+		var scope = root || document;
+		var nav = scope.querySelector( '.sn-section-tabs' );
 		if ( ! nav ) {
+			return;
+		}
+		// Already armed: the panels are hidden, the listeners are bound, and a
+		// second `activate()` would fight whichever tab the reader is on.
+		if ( nav.hasAttribute( 'data-snt-init' ) ) {
 			return;
 		}
 
@@ -66,15 +141,16 @@
 		Array.prototype.slice.call(
 			nav.querySelectorAll( 'a[href^="#sn-sec-"]' )
 		).forEach( function ( tab ) {
-			var panel = document.getElementById( tab.getAttribute( 'href' ).slice( 1 ) );
+			var panel = byId( scope, tab.getAttribute( 'href' ).slice( 1 ) );
 			if ( panel ) {
 				tabs.push( tab );
 				panels.push( panel );
 			}
 		} );
 		if ( tabs.length < 2 ) {
-			return; // nothing to switch between
+			return; // nothing to switch between — and nothing bound, so no marker
 		}
+		nav.setAttribute( 'data-snt-init', '1' );
 
 		// Upgrade the nav + panels to the WAI-ARIA tabs pattern.
 		nav.setAttribute( 'role', 'tablist' );
