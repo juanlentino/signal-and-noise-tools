@@ -85,6 +85,7 @@ function snt_os_host_capture( callable $paint, array $get = array(), array $post
 	$_POST    = $post;
 	$_REQUEST = array_merge( $get, $post );
 
+	snt_os_host_admin_bootstrap();
 	ob_start();
 	try {
 		call_user_func( $paint );
@@ -96,6 +97,31 @@ function snt_os_host_capture( callable $paint, array $get = array(), array $post
 		$_GET     = $prev_get;
 		$_POST    = $prev_post;
 		$_REQUEST = $prev_request;
+	}
+}
+
+/**
+ * Load wp-admin's function library when a request arrived without it.
+ *
+ * The classic page runs inside wp-admin, where `wp-admin/includes/admin.php`
+ * has loaded submit_button(), get_plugins(), the screen API and the rest. A
+ * window's dispatch is a REST request, which loads none of it: measured
+ * 2026-09-06, Integrity -> MCP Clients answered 500 "Call to undefined
+ * function submit_button()" while the same leaf captured cleanly under
+ * WP-CLI. admin-ajax.php sets the precedent -- it requires this file for
+ * exactly this reason -- so the host does the same, once, and only when the
+ * library is absent. get_current_screen() still answers null here: a REST
+ * request has no screen, and the one leaf that reads it already guards.
+ *
+ * @return void
+ */
+function snt_os_host_admin_bootstrap() {
+	if ( function_exists( 'submit_button' ) || ! defined( 'ABSPATH' ) ) {
+		return;
+	}
+	$library = ABSPATH . 'wp-admin/includes/admin.php';
+	if ( is_readable( $library ) ) {
+		require_once $library;
 	}
 }
 

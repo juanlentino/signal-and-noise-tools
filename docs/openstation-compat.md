@@ -747,3 +747,5 @@ that item carried become the window's `menu` effect and `badge` effect, fed by
 the same `snt_desktop_dock_badge()`. `snt_desktop_admin_url()` is unchanged and
 the classic page stays registered, so every door elsewhere in the plugin that
 opens an admin URL still opens what it opened.
+
+- **A dispatch is a REST request and carries none of `wp-admin/includes/`.** The classic page runs inside wp-admin, where `wp-admin/includes/admin.php` has loaded `submit_button()`, `get_plugins()`, the screen API and the rest; `desktop-mode/v1/apps/<id>/dispatch` loads none of it. Measured 2026-09-06: Integrity → MCP Clients answered 500 "Call to undefined function submit_button()" in the window while capturing cleanly under WP-CLI. `snt_os_host_capture()` requires the library once when `submit_button()` is absent -- admin-ajax.php's own precedent. `get_current_screen()` still answers null on a dispatch: a REST request has no screen.

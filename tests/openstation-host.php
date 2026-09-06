@@ -417,5 +417,15 @@ ok( $again === $args, 'a second pass appends nothing -- every handle rides exact
 $other = apply_filters( 'openstation_app_window_args', array( 'styles' => array( 'os-runtime' ) ), 'my-wordpress', null );
 ok( array( 'os-runtime' ) === $other['styles'], 'another app\'s window is left alone' );
 
+echo "\nGroup B: the admin library rides a REST dispatch\n";
+$host_src = (string) file_get_contents( __DIR__ . '/../inc/openstation-host.php' );
+ok( false !== strpos( $host_src, "function snt_os_host_admin_bootstrap()" ) && false !== strpos( $host_src, "ABSPATH . 'wp-admin/includes/admin.php'" ), 'capture loads wp-admin/includes/admin.php when submit_button() is absent -- a REST dispatch has no wp-admin, and MCP Clients answered 500 without it' );
+ok( false !== strpos( $host_src, "if ( function_exists( 'submit_button' ) || ! defined( 'ABSPATH' ) ) {" ), '...and only when it is absent: the classic page already has it, a standalone host has no ABSPATH' );
+$cap_at  = strpos( $host_src, 'function snt_os_host_capture(' );
+$boot_at = strpos( $host_src, 'snt_os_host_admin_bootstrap();', $cap_at );
+$ob_at   = strpos( $host_src, 'ob_start();', $cap_at );
+ok( false !== $boot_at && false !== $ob_at && $boot_at < $ob_at, '...before the buffer opens, so a library that prints nothing on load cannot leak into the leaf' );
+ok( ! function_exists( 'submit_button' ), 'this suite has no wp-admin either, so the SANDBOX is where the leaf is measured (it is: MCP Clients paints after the fix)' );
+
 echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : '' ) . ".\n";
 exit( $fail > 0 ? 1 : 0 );

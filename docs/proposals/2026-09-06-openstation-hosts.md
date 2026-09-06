@@ -47,6 +47,12 @@ Redesign of any leaf; client-view rebuilds; merging the two windows or the S&N a
 
 ### Host one (2026-09-06)
 
+- **The admin library rides the dispatch.** A window's dispatch is a REST request and loads none of `wp-admin/includes/`; Integrity → MCP Clients answered 500 "Call to undefined function submit_button()" while the same leaf captured cleanly under WP-CLI (which loads it). `snt_os_host_capture()` now requires `wp-admin/includes/admin.php` once when `submit_button()` is absent, the precedent being admin-ajax.php, which does the same. `get_current_screen()` still answers null under REST; the one leaf that reads it guards.
+- **The submitter.** The runtime ships `new FormData( form )`, which never includes the clicked submit button; 45 of the 57 forms carry `sn_action` on the button. The rewrite marks named submit buttons `data-snt-submit`, and `assets/os-host.js` carries the submitter (`SubmitEvent.submitter`, the remembered click, or the form's default button) into the form as a hidden input appended last, in a capture-phase document listener that runs before the runtime serialises.
+- **Three leaf-owned assets** (Cron's script and strings, Provenance's sheet and stepper, the audit-log sheet) were registered by their own `admin_enqueue_scripts` callbacks behind the classic hook suffixes; each now exposes a registrar the host calls.
+- **The window menu.** `$os->menu()` is a context menu at the pointer and `refresh_menu()` rebuilds the shell's registries, so the eight tab shortcuts are `window_action()` declarations instead; `refresh_menu()` runs after a save only.
+- State carries `params` (the `sn_*` query params that are state on the classic page: the Tags merge preview) and `flash` (the code, from which the Webhooks leaf derives `?new_id=` once). The notice paints where the classic page paints it (after the subtitle, before the tab strip). `data-snt-anchor` carries the element id (`sn-sec-<slug>`).
+
 The S&N Dashboard host (#1074) was built by three parallel builders against
 this spec. Two deviations are already binding here and are recorded in the
 CHANGELOG's `[Unreleased]` block: an external link with no `target` gains
