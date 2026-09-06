@@ -809,18 +809,15 @@ ok( $n === count( $GLOBALS['__resets'] ), 'a refused write resets nothing: no wr
 $src_pipe = (string) file_get_contents( __DIR__ . '/../inc/openstation-host-pipelines.php' );
 ok( 3 === substr_count( $src_pipe, 'snt_os_host_after_write( snt_os_host_replay_' ), 'the shared, admin-post and rss pipelines all return through the reset; the inline pipeline writes during the paint, so its leaf reads after its own write' );
 
-echo "\nGroup C: the classic canvas, and the strip no chromeless rule hides\n";
-// Measured on live 2026-09-06: the Analytics window painted the classic page
-// on the shell's dark palette (white cards, inherited light text -- headings
-// gone), and every classic window opened by URL had no tab strip, because
-// admin.css hid `.sn-nav-tabs` under the chromeless body class for a shell
-// strip that no longer exists (the app owns the dock entry since v13.104.0).
-$host_css  = (string) file_get_contents( __DIR__ . '/../assets/os-host-admin.css' );
+echo "\nGroup C: native windows inherit the shell palette\n";
 $admin_css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
-ok( 1 === preg_match( '/\.os-app\[data-os-app="sn-dashboard"\],\s*\.os-app\[data-os-app="sn-analytics"\]\s*\{[^}]*--snt-host-canvas:\s*#f0f0f1;[^}]*--snt-host-fg:\s*#3c434a;[^}]*color-scheme:\s*light;[^}]*background:\s*var\(--snt-host-canvas\);[^}]*color:\s*var\(--snt-host-fg\);/s', $host_css ), 'both host roots declare wp-admin\'s own canvas as their tokens -- light, #f0f0f1 on #3c434a -- and paint with them: the shell\'s rule for an admin page in a window' );
-ok( false !== strpos( $host_css, '--os-ui-surface: var(--snt-host-canvas);' ) && false !== strpos( $host_css, '--os-ui-fg: var(--snt-host-fg);' ), '...and remap the shell theme tokens the app root sets onto that palette, so nothing of the desktop palette reaches the leaves' );
-ok( 0 === preg_match( '/os-chromeless[^{]*\.sn-nav-tabs[^{]*\{[^}]*display:\s*none/s', $admin_css ), 'admin.css no longer hides the page\'s tab strip under the chromeless body class: no shell strip exists to duplicate, and a hidden strip left 34 leaves unreachable' );
-ok( isset( $GLOBALS['__styles']['snt-os-host'] ) && array( 'sn-admin' ) === ( $GLOBALS['__styles']['snt-os-host'][1] ?? array() ), 'the canvas sheet is registered after sn-admin, so its root rule is the last word' );
+ok( ! file_exists( __DIR__ . '/../assets/os-host-admin.css' ), 'the obsolete forced-light canvas sheet is removed' );
+ok( ! isset( $GLOBALS['__styles']['snt-os-host'] ), 'the obsolete canvas style is no longer registered' );
+foreach ( array( 'sn-dashboard', 'sn-analytics' ) as $app_id ) {
+	$styles = snt_os_host_asset_handles( $app_id )['styles'];
+	ok( ! in_array( 'snt-os-host', $styles, true ) && in_array( 'snt-os-app', $styles, true ), $app_id . ' carries the kit sheet and no forced-light canvas' );
+}
+ok( 0 === preg_match( '/os-chromeless[^{]*\.sn-nav-tabs[^{]*\{[^}]*display:\s*none/s', $admin_css ), 'classic pages opened by URL retain their own navigation strip' );
 
 $snt_ci = (string) getenv( 'CI' );
 if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {

@@ -222,9 +222,6 @@ function audit_log_maintenance_html() {
  * @return string
  */
 function paint_security_audit_log( array $ctx ) {
-	if ( ! function_exists( 'snt_audit_get_summary_impl' ) ) {
-		return \snt_kit_empty( __( 'The audit log is not available.', 'signal-and-noise-tools' ) );
-	}
 	$state = $ctx['state'] ?? null;
 	$post  = is_object( $state ) && method_exists( $state, 'get' ) ? (array) $state->get( 'post' ) : array();
 	$out   = '';
@@ -236,6 +233,13 @@ function paint_security_audit_log( array $ctx ) {
 	// re-run the destructive prune every time.
 	if ( array() !== $post && is_object( $state ) && method_exists( $state, 'set' ) ) {
 		$state->set( 'post', array() );
+	}
+
+	// Spend the one-paint post bag even when the audit readers are unavailable.
+	// Otherwise a later repaint after they become available could execute a
+	// destructive inline prune without a new submission.
+	if ( ! function_exists( 'snt_audit_get_summary_impl' ) ) {
+		return \snt_kit_empty( __( 'The audit log is not available.', 'signal-and-noise-tools' ) );
 	}
 
 	// The "Prune now" action is handled INLINE by the leaf itself, mirroring

@@ -146,12 +146,6 @@ function snt_os_host_register_assets() {
 	if ( ! wp_script_is( 'sn-uptime-status', 'registered' ) ) {
 		wp_register_script( 'sn-uptime-status', SNT_URL . 'assets/uptime-status.js', array( 'snt-ability-run' ), SNT_VERSION, true );
 	}
-	// The classic canvas (assets/os-host-admin.css): wp-admin's body values, so the
-	// leaves render as they do outside a window whatever the desktop palette.
-	// Loads AFTER sn-admin so its root rule is the last word on the canvas.
-	if ( ! wp_style_is( 'snt-os-host', 'registered' ) ) {
-		wp_register_style( 'snt-os-host', SNT_URL . 'assets/os-host-admin.css', array( 'sn-admin' ), SNT_VERSION );
-	}
 	if ( ! wp_script_is( 'snt-os-host', 'registered' ) ) {
 		wp_register_script( 'snt-os-host', SNT_URL . 'assets/os-host.js', array( 'sn-admin' ), SNT_VERSION, true );
 	}

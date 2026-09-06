@@ -581,8 +581,8 @@ namespace {
 		'painting gives the request back untouched -- the query AND the REQUEST_URI the page`s link builders were lent' );
 	ok( 0 === strpos( $html, '<div class="snt-app" data-snt-view="campaigns" data-snt-query="' ) && false === strpos( $html, '<h1>Analytics</h1>' ),
 		'the root is the native window`s: the view it paints and the current navigation for the brush, and no wp-admin heading -- the window title and the tab strip are the shell`s' );
-	ok( false !== strpos( $html, 'class="snt-classic"' ),
-		'a view without a kit painter yet paints the classic capture as scaffold -- the port`s remaining work, counted by tests/openstation-app-analytics.php' );
+	ok( false === strpos( $html, 'class="snt-classic"' ) && false !== strpos( $html, 'os-empty-state' ),
+		'an unconfigured view paints the kit gate, not the classic capture -- the port is complete' );
 
 	if ( '' === $GLOBALS['__html_api'] ) {
 		foreach ( array(
@@ -801,7 +801,7 @@ namespace {
 	$html  = paint( $app, $state );
 	ok( false !== strpos( $html, '<os-notice tone="danger">It <a href="x">broke</a>.</os-notice>' ),
 		'a notice paints as the kit`s notice in the severity`s tone, with its deliberate inline <a> intact' );
-	ok( strpos( $html, '<os-notice' ) < strpos( $html, 'class="snt-classic"' ), '   ...above the body, where the classic page prints it under its heading' );
+	ok( false !== strpos( $html, '<os-notice' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'os-empty-state' ), '   ...above the body, where the classic page prints it under its heading' );
 
 	echo "\nGroup 11: the window carries the analytics page`s own assets\n";
 	$handles = snt_os_host_asset_handles( 'sn-analytics' );

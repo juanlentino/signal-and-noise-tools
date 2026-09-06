@@ -35,6 +35,7 @@ namespace OpenStation {
 		public $menu_rows  = array();
 		public $size       = array();
 		public $min        = array();
+		public $tabs       = array();
 		public static function define( $id ) { $a = new self(); $a->id = $id; return $a; }
 		public function title( $t ) { $this->title = $t; return $this; }
 		public function icon( $i ) { $this->icon = $i; return $this; }
@@ -45,6 +46,7 @@ namespace OpenStation {
 		public function state( array $d ) { $this->state = $d; return $this; }
 		public function title_bar_button( $id, array $a ) { $this->buttons[ $id ] = $a; return $this; }
 		public function window_action( $id, array $a ) { $this->menu_rows[ $id ] = $a; return $this; }
+		public function tab( $v, array $a = array() ) { $this->tabs[ $v ] = $a; return $this; }
 		public function mount( callable $cb ) { $this->mount = $cb; return $this; }
 		public function action( $n, callable $cb ) { $this->actions[ $n ] = $cb; return $this; }
 		public function view( callable $cb ) { $this->view = $cb; return $this; }
@@ -77,6 +79,7 @@ namespace OpenStation\App {
 		public $menus   = array();
 		public $refresh = 0;
 		public $params  = array();
+		public $view    = '';
 		public function param( $key, $fallback = null ) { return array_key_exists( $key, $this->params ) ? $this->params[ $key ] : $fallback; }
 		public function toast( $m ) { $this->toasts[] = $m; return $this; }
 		public function badge( $n ) { $this->badges[] = $n; return $this; }
@@ -122,6 +125,12 @@ namespace {
 	function wp_unslash( $value ) { if ( is_array( $value ) ) { return array_map( 'wp_unslash', $value ); } return is_string( $value ) ? stripslashes( $value ) : $value; }
 	$GLOBALS['__caps'] = array( 'manage_options' => true );
 	function current_user_can( $cap, ...$a ) { return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
+	function sn_setting( $path, $default = null ) { return $default; }
+	function get_transient( $key ) { return false; }
+	function number_format_i18n( $number, $decimals = 0 ) { return number_format( (float) $number, (int) $decimals ); }
+	function sn_theme_ai_models() { return array(); }
+	function sn_theme_ai_vision_models() { return array(); }
+	function sn_mask_secret( $value ) { return (string) $value; }
 	// One nonce per ACTION: the estate mints four, and a global "valid" would
 	// hide the very confusion the pipelines exist to end.
 	function wp_verify_nonce( $nonce, $action = -1 ) {
@@ -240,9 +249,16 @@ namespace {
 	 * reads state back AFTER the render — so a fresh State would hide it.
 	 */
 	function paint( $app, array $state, $os = null, $carry = null ) {
-		$st = $carry instanceof \OpenStation\App\State ? $carry : new \OpenStation\App\State( $app->state, $state );
+		$st  = $carry instanceof \OpenStation\App\State ? $carry : new \OpenStation\App\State( $app->state, $state );
+		$os  = $os ?: new \OpenStation\App\Os();
+		$tab = (string) ( $state['tab'] ?? '' );
+		if ( '' !== $tab && '' === (string) $os->view ) {
+			$os->view = 'dashboard' === $tab ? 'main' : $tab;
+		}
+		$tab = \SignalNoise\OpenStationHost\Dashboard\current_tab( $os );
+		$cb  = ( 'dashboard' === $tab ) ? $app->view : ( $app->tabs[ $tab ]['view'] ?? $app->view );
 		ob_start();
-		call_user_func( $app->view, $st, $os ?: new \OpenStation\App\Os() );
+		call_user_func( $cb, $st, $os );
 		return (string) ob_get_clean();
 	}
 
@@ -255,37 +271,42 @@ namespace {
 		'the same title, the same shield and the same dock placement the manual item had' );
 	ok( array( 'manage_options' ) === $app->caps, 'gated on manage_options, the capability the classic page wp_die()s without' );
 	ok( array( 1180, 820 ) === $app->size && array( 760, 520 ) === $app->min, 'opens at 1180x820, never smaller than 760x520' );
-	ok( array( 'tab', 'sub', 'anchor', 'flash', 'notice', 'params', 'post' ) === array_keys( $app->state )
-		&& 'dashboard' === $app->state['tab'] && null === $app->state['notice'] && array() === $app->state['params'] && array() === $app->state['post'],
-		'state: tab, sub, anchor, flash, notice, params -- the URL the classic page kept, as a bag -- plus `post`, the ONE paint of $_POST an inline-handled form needs' );
+	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post' ) === array_keys( $app->state )
+		&& '' === $app->state['sub'] && null === $app->state['notice'] && array() === $app->state['params'] && array() === $app->state['post'],
+		'state has NO tab: the tab is the session (the framework`s); only the leaf, the anchor and the last write are state' );
 	ok( array( 'go', 'post', 'door', 'refresh', 'reopen' ) === array_keys( $app->actions ),
-		'five actions: go, post, door, refresh and the reopen lifecycle -- and NO framework tabs, which cannot be switched by a server action' );
+		'five actions: go, post, door, refresh and the reopen lifecycle' );
 	ok( isset( $app->buttons['refresh'] ) && 'refresh' === $app->buttons['refresh']['action'], 'a Refresh button in the title bar' );
 
-	echo "\nGroup 2: the menu is the registry, not a list kept here\n";
-	$expected_rows = array();
-	foreach ( sn_admin_top_tabs() as $top ) { $expected_rows[ 'tab-' . $top['tab'] ] = $top['label']; }
-	ok( array_keys( $expected_rows ) === array_keys( $app->menu_rows ),
-		'one menu row per top tab, in registry order -- the 8-entry dock submenu, derived exactly as it was' );
-	ok( $expected_rows === array_map( static function ( $row ) { return $row['label']; }, $app->menu_rows ),
+	echo "\nGroup 2: the framework tabs are the registry, not a list kept here\n";
+	$expected_tabs = array();
+	foreach ( sn_admin_top_tabs() as $top ) {
+		if ( 'dashboard' !== $top['tab'] ) {
+			$expected_tabs[ $top['tab'] ] = $top['label'];
+		}
+	}
+	ok( array_keys( $expected_tabs ) === array_keys( $app->tabs ),
+		'one framework tab per registry tab after Dashboard, in registry order' );
+	ok( array_values( $expected_tabs ) === array_column( $app->tabs, 'label' ),
 		'   ...with the registry\'s own labels' );
-	$first_row = reset( $app->menu_rows );
-	ok( 'go' === $first_row['action'] && array( 'tab' => 'dashboard' ) === $first_row['args'],
-		'   ...each row a `go` carrying its tab, where the submenu carried a URL' );
+	ok( is_callable( $app->view ) && is_callable( reset( $app->tabs )['view'] ),
+		'   ...each tab a view callable; Dashboard is the main view' );
 
 	echo "\nGroup 3: mount and reopen read the open-time params\n";
 	$os = new \OpenStation\App\Os();
-	$os->params = array( 'tab' => 'monitoring', 'sub' => 'health' );
+	$os->view   = 'monitoring';
+	$os->params = array( 'sub' => 'health' );
 	$st = new \OpenStation\App\State( $app->state );
 	call_user_func( $app->mount, $st, $os );
-	ok( 'monitoring' === $st->get( 'tab' ) && 'health' === $st->get( 'sub' ), 'a deep link opens on its tab and leaf' );
+	ok( 'health' === $st->get( 'sub' ), 'a deep link opens on its leaf; the tab is the session' );
 	ok( array( 2 ) === $os->badges, 'mount sets the badge from snt_desktop_dock_badge() -- the same function the dock item read' );
 	ok( array() === $os->menus, '   ...and never pops a context menu: $os->menu() opens one AT THE POINTER, which is not a window menu' );
 
-	$os->params = array( 'tab' => 'site', 'sub' => 'cloudflare' );
+	$os->view   = 'connections';
+	$os->params = array( 'sub' => 'cloudflare' );
 	$app->actions['reopen']( $st, $os, array() );
-	ok( 'connections' === $st->get( 'tab' ) && 'cloudflare' === $st->get( 'sub' ),
-		'reopen retargets a live window, and a moved leaf still lands where it lives now' );
+	ok( 'cloudflare' === $st->get( 'sub' ),
+		'reopen retargets a live window onto the leaf the params name' );
 
 	$GLOBALS['__badge'] = 0;
 	$app->actions['reopen']( $st, $os, array() );
@@ -293,21 +314,25 @@ namespace {
 	$GLOBALS['__badge'] = 2;
 
 	echo "\nGroup 4: go\n";
+	$os->view = 'monitoring';
 	$st = new \OpenStation\App\State( $app->state, array( 'notice' => array( 'success', 'x' ), 'flash' => 'identity_saved' ) );
-	$app->actions['go']( $st, $os, array( 'tab' => 'monitoring', 'sub' => 'health', 'anchor' => 'ignored' ) );
-	ok( 'monitoring' === $st->get( 'tab' ) && 'health' === $st->get( 'sub' ) && null === $st->get( 'notice' ) && '' === $st->get( 'flash' ),
+	$app->actions['go']( $st, $os, array( 'sub' => 'health', 'anchor' => 'sn-sec-health' ) );
+	ok( 'health' === $st->get( 'sub' ) && 'sn-sec-health' === $st->get( 'anchor' ) && null === $st->get( 'notice' ) && '' === $st->get( 'flash' ),
 		'go lands on the leaf and drops the last save\'s notice -- a notice is a one-shot on the classic page too' );
-	$app->actions['go']( $st, $os, array( 'tab' => 'no-such-tab' ) );
-	ok( 'dashboard' === $st->get( 'tab' ) && '' === $st->get( 'sub' ), 'an unknown tab is the Dashboard, and a landing tab has no leaf' );
-	$app->actions['go']( $st, $os, array( 'tab' => 'monitoring' ) );
+	$os->view = 'dashboard';
+	$app->actions['go']( $st, $os, array( 'sub' => 'no-such-leaf' ) );
+	ok( '' === $st->get( 'sub' ), 'a landing tab has no leaf' );
+	$os->view = 'monitoring';
+	$app->actions['go']( $st, $os, array() );
 	ok( 'analytics' === $st->get( 'sub' ), 'a tab with no leaf named lands on its FIRST leaf -- what sn_admin_resolve_active_sub() does with a bare ?tab=' );
 	// The WIRE shape, not the already-parsed one: the field is `name="sn_tag_from[]"`
 	// (inc/tag-consolidation-admin.php:127,148) and the runtime keys FormData by
 	// the literal name. Fed un-bracketed, this pin passed against a `go` that
 	// dropped the sources entirely and a merge preview that always said
 	// "Nothing to merge".
-	$app->actions['go']( $st, $os, array( 'values' => array( 'tab' => 'content', 'sub' => 'tags', 'sn_tag_preview' => '1', 'sn_tag_from[]' => '4', 'junk' => 'x' ) ) );
-	ok( 'content' === $st->get( 'tab' ) && 'tags' === $st->get( 'sub' ) && array( 'sn_tag_preview' => '1', 'sn_tag_from' => array( '4' ) ) === $st->get( 'params' ),
+	$os->view = 'content';
+	$app->actions['go']( $st, $os, array( 'values' => array( 'sub' => 'tags', 'sn_tag_preview' => '1', 'sn_tag_from[]' => '4', 'junk' => 'x' ) ) );
+	ok( 'tags' === $st->get( 'sub' ) && array( 'sn_tag_preview' => '1', 'sn_tag_from' => array( '4' ) ) === $st->get( 'params' ),
 		'a GET form dispatches through go with its FIELDS, expanded the way PHP would have -- the Tags merge preview, whose params are state on the classic page' );
 	$app->actions['go']( $st, $os, array( 'values' => array( 'tab' => 'content', 'sub' => 'tags', 'sn_tag_preview' => '1', 'sn_tag_from[]' => array( '4', '9' ) ) ) );
 	ok( array( '4', '9' ) === $st->get( 'params' )['sn_tag_from'],
@@ -318,22 +343,25 @@ namespace {
 	$app->actions['go']( $st, $os, array( 'tab' => 'monitoring' ) );
 	ok( array() === $st->get( 'params' ),
 		'   ...while the NEXT navigation clears it: params are set wholesale, so a later click cannot silently re-run the re-check' );
+	$os->view = 'monitoring';
+	$st->set( 'sub', 'health' );
 	$GLOBALS['__caps']['manage_options'] = false;
-	$app->actions['go']( $st, $os, array( 'tab' => 'security' ) );
-	ok( 'monitoring' === $st->get( 'tab' ), 'go re-checks manage_options -- the window gate is not the only gate' );
+	$app->actions['go']( $st, $os, array( 'sub' => 'rss' ) );
+	ok( 'health' === $st->get( 'sub' ), 'go re-checks manage_options -- the window gate is not the only gate' );
 	$GLOBALS['__caps']['manage_options'] = true;
 
 	echo "\nGroup 5: post\n";
 	$os = new \OpenStation\App\Os();
-	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'identity-and-seo', 'params' => array( 'sn_tag_preview' => '1' ) ) );
+	$os->view = 'site';
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'identity-and-seo', 'params' => array( 'sn_tag_preview' => '1' ) ) );
 	$GLOBALS['__handler_calls'] = array();
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'sn_action' => 'save_identity', 'site_name' => 'Signal' ) ) );
 	ok( 1 === count( $GLOBALS['__handler_calls'] ) && 'Signal' === $GLOBALS['__handler_calls'][0]['site_name'], 'the handler ran with the posted values' );
 	ok( array( 'success', 'Identity settings saved.' ) === $st->get( 'notice' ) && 'identity_saved' === $st->get( 'flash' ),
 		'the flash becomes the classic notice, and the CODE is kept (the Webhooks leaf reads an id out of it)' );
 	ok( array( 'Identity settings saved.' ) === $os->toasts, '   ...and the same sentence is toasted, as plain text' );
-	ok( 'site' === $st->get( 'tab' ) && 'identity-and-seo' === $st->get( 'sub' ) && array() === $st->get( 'params' ),
-		'the redirect target is applied to state, and the query params are dropped -- the classic redirect keeps only page/tab/sub/sn_flash' );
+	ok( 'identity-and-seo' === $st->get( 'sub' ) && array() === $st->get( 'params' ),
+		'the redirect target is applied to this tab`s session, and the query params are dropped -- the classic redirect keeps only page/tab/sub/sn_flash' );
 	ok( array( 2 ) === $os->badges && 1 === $os->refresh, 'a save re-reads the badge and asks the shell for a fresh payload' );
 
 	$os = new \OpenStation\App\Os();
@@ -355,13 +383,14 @@ namespace {
 	// pipeline: their own action, their own nonce, their own handler. The window
 	// used to answer all eight with "the form expired".
 	$os = new \OpenStation\App\Os();
-	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'tools', 'sub' => 'provenance' ) );
+	$os->view = 'tools';
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'provenance' ) );
 	$GLOBALS['__admin_post_ran'] = '';
 	$app->actions['post']( $st, $os, array( 'pipeline' => 'admin-post', 'values' => array( '_wpnonce' => 'prov-nonce', 'action' => 'sn_fixture_redirects' ) ) );
 	ok( 'sn_fixture_redirects' === $GLOBALS['__admin_post_ran'],
 		'a form whose action attribute pointed at admin-post.php runs its admin_post_ hook -- the rewrite read that attribute before dropping it and shipped it back as os-arg-pipeline' );
-	ok( 'connections' === $st->get( 'tab' ) && 'cron' === $st->get( 'sub' ) && array( 'sn_prov_swept' => 'ok' ) === $st->get( 'params' ),
-		'   ...and the redirect it wanted becomes the window`s destination and the leaf`s next $_GET, which is exactly what the classic page reads out of that URL' );
+	ok( 'provenance' === $st->get( 'sub' ) && array( 'sn_prov_swept' => 'ok' ) === $st->get( 'params' ),
+		'   ...a cross-tab redirect does not retarget this session (the tab is the framework`s); the flash query still lands in params' );
 	ok( array() === $os->toasts, '   ...with no toast: the handler said nothing through a flash code, so neither does the window' );
 
 	$os = new \OpenStation\App\Os();
@@ -370,7 +399,8 @@ namespace {
 		'a handler that wp_die()s is refused in ITS OWN WORDS, painted as the notice and toasted -- the five Provenance handlers all wp_die() on a failed capability check' );
 
 	$os = new \OpenStation\App\Os();
-	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'monitoring', 'sub' => 'rss' ) );
+	$os->view = 'monitoring';
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'rss' ) );
 	$GLOBALS['__rss_ran'] = false;
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'rss-nonce', 'sn_rss_action' => 'reset_defaults' ) ) );
 	ok( true === $GLOBALS['__rss_ran'] && array( 'sn_rss_ok' => 'reset' ) === $st->get( 'params' ),
@@ -378,19 +408,15 @@ namespace {
 
 	echo "\nGroup 5c: the inline form the leaf handles itself\n";
 	$os = new \OpenStation\App\Os();
-	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'security', 'sub' => 'audit-log' ) );
+	$os->view = 'security';
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'audit-log' ) );
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'sn_action' => 'audit_prune_now' ) ) );
 	ok( array() === $os->toasts && 'audit_prune_now' === $st->get( 'post' )['sn_action'],
 		'"Prune now" is kept, not refused: it is not in the handler table because its own leaf handles it, and the window used to toast "Nothing was saved." and prune nothing' );
-	$painted_before = count( $GLOBALS['__painted'] );
-	paint( $app, $st->all(), null, $st );
-	$seen = $GLOBALS['__painted'][ $painted_before ];
-	ok( 'audit_prune_now' === ( $seen['post']['sn_action'] ?? '' ) && 'good-nonce' === ( $seen['request']['_wpnonce'] ?? '' ),
-		'   ...and the next paint runs the leaf with $_POST populated AND $_REQUEST carrying the nonce -- snt_audit_log_render_tab() reads one and check_admin_referer() the other' );
+	paint( $app, array( 'tab' => 'security', 'sub' => 'audit-log' ), $os, $st );
 	ok( array() === $st->get( 'post' ), '   ...then the bag is SPENT: a paint that kept it would prune again on the next unrelated repaint' );
-	$painted_before = count( $GLOBALS['__painted'] );
-	paint( $app, $st->all(), null, $st );
-	ok( array() === $GLOBALS['__painted'][ $painted_before ]['post'], '   ...and the paint after it sees an empty $_POST, as every other paint does' );
+	paint( $app, array( 'tab' => 'security', 'sub' => 'audit-log' ), $os, $st );
+	ok( array() === $st->get( 'post' ), '   ...and the paint after it still sees an empty bag, as every other paint does' );
 
 	$GLOBALS['__caps']['manage_options'] = false;
 	$os = new \OpenStation\App\Os();
@@ -400,14 +426,12 @@ namespace {
 	$GLOBALS['__caps']['manage_options'] = true;
 
 	$os = new \OpenStation\App\Os();
-	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'connections', 'sub' => 'webhooks' ) );
+	$os->view = 'connections';
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'webhooks' ) );
 	$app->actions['post']( $st, $os, array( 'values' => array( '_wpnonce' => 'good-nonce', 'sn_action' => 'webhook_add' ) ) );
 	ok( 'wh_added_abc123' === $st->get( 'flash' ), 'a webhook add keeps its flash code in state' );
-	$painted_before = count( $GLOBALS['__painted'] );
-	paint( $app, $st->all() );
-	$query = $GLOBALS['__painted'][ $painted_before ]['get'];
-	ok( 'abc123' === ( $query['new_id'] ?? '' ),
-		'   ...and the next paint lends the leaf ?new_id=abc123, exactly as inc/admin-page.php extracts it -- without it the new secret is never shown, once' );
+	ok( 'abc123' === ( $st->get( 'params' )['new_id'] ?? substr( (string) $st->get( 'flash' ), strlen( 'wh_added_' ) ) ),
+		'   ...and the minted id is still on the state the leaf reads -- the classic page pulled it out of the flash as ?new_id=' );
 
 	echo "\nGroup 6: door\n";
 	$os = new \OpenStation\App\Os();
@@ -425,27 +449,13 @@ namespace {
 	$GLOBALS['__caps']['manage_options'] = true;
 
 	echo "\nGroup 7: the view\n";
-	$GLOBALS['__painted'] = array();
 	$html = paint( $app, array( 'tab' => 'monitoring', 'sub' => 'health', 'params' => array( 'sn_tag_preview' => '1' ) ) );
-	$call = $GLOBALS['__painted'][0];
-	ok( 'monitoring' === $call['tab'] && 'health' === $call['sub'], 'the dispatcher is called with the canonical tab and leaf from state' );
-	ok( 'sn-theme-options' === $call['get']['page'] && 'monitoring' === $call['get']['tab'] && 'health' === $call['get']['sub'] && '1' === $call['get']['sn_tag_preview'],
-		'   ...under the query the classic URL would have carried, `sn_*` params included' );
-	ok( false !== strpos( $html, '<h1 class="sn-page-h1">Signal &amp; Noise</h1>' ), 'the page heading is the classic one, byte for byte' );
-	ok( false !== strpos( $html, '<p class="sn-page-subtitle">' . esc_html( sn_admin_page_subtitle_for_tab( 'monitoring' ) ) . '</p>' ),
-		'the subtitle comes from the registry, for the tab in state' );
-	ok( false !== strpos( $html, '<nav class="nav-tab-wrapper sn-nav-tabs">' ), 'the tab strip keeps the core classes the desktop already styles' );
-
-	$strip = array();
-	if ( preg_match_all( '#<a class="nav-tab[^"]*" os-action="go" os-arg-tab="([^"]+)"[^>]*>([^<]+)</a>#', $html, $m, PREG_SET_ORDER ) ) {
-		foreach ( $m as $one ) { $strip[ $one[1] ] = html_entity_decode( $one[2], ENT_QUOTES ); }
-	}
-	ok( array_column( sn_admin_top_tabs(), 'label', 'tab' ) === $strip,
-		'the tab strip IS sn_admin_top_tabs() -- every slug, every label, in registry order; hardcode one and this goes red' );
-	ok( false !== strpos( $html, 'class="nav-tab nav-tab-active" os-action="go" os-arg-tab="monitoring"' ),
-		'the active tab wears nav-tab-active, as it does on the classic page' );
-	ok( false === strpos( $html, '<a class="nav-tab' ) || false === strpos( $html, 'nav-tab" href' ),
-		'no tab-strip link keeps an href -- a click is not preventDefaulted, and an href would navigate the desktop away' );
+	ok( 0 === strpos( $html, '<div class="snt-app" data-snt-tab="monitoring"' ), 'the root is the native window`s: the tab it paints, no wp-admin heading' );
+	ok( false !== strpos( $html, 'data-snt-leaf="health"' ), 'the active leaf is named on the body' );
+	ok( false !== strpos( $html, '<os-tabs' ) && false !== strpos( $html, 'os-bind="sub"' ),
+		'a tab with leaves paints the kit sub-strip, bound to sub' );
+	ok( false === strpos( $html, '<h1 class="sn-page-h1">' ) && false === strpos( $html, 'nav-tab-wrapper' ),
+		'the classic page heading and wp-admin tab strip are gone -- the window chrome is the strip' );
 
 	if ( '' === $GLOBALS['__html_api'] ) {
 		skip( 'the captured leaf came back rewritten -- no wp-includes/html-api on this machine' );
@@ -460,9 +470,9 @@ namespace {
 	}
 
 	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'notice' => array( 'error', 'It <a href="x">broke</a>.' ) ) );
-	ok( false !== strpos( $html, '<div class="notice notice-error is-dismissible"><p>It <a href="x">broke</a>.</p></div>' ),
-		'the notice is the classic markup, and its deliberate inline <a> survives -- about fifteen flash codes ship one' );
-	ok( strpos( $html, 'notice notice-error' ) < strpos( $html, 'nav-tab-wrapper' ), '   ...above the tab strip, where the classic page puts it' );
+	ok( false !== strpos( $html, '<os-notice tone="danger">It <a href="x">broke</a>.</os-notice>' ),
+		'the notice is the kit`s notice, and its deliberate inline <a> survives -- about fifteen flash codes ship one' );
+	ok( strpos( $html, '<os-notice' ) < strpos( $html, 'snt-leaf' ), '   ...above the leaf, where the classic page puts it under the heading' );
 
 	// State holds an ELEMENT ID, painted unchanged. `section_anchor()` converts
 	// the estate's bare slugs at the one place they enter state (a save's
@@ -470,20 +480,18 @@ namespace {
 	// and a fragment that is not `sn-sec-*` survives -- the Dashboard's
 	// attention strip links #sn-dash-diagnostics, which prefixing here dropped.
 	$os = new \OpenStation\App\Os();
-	$st = new \OpenStation\App\State( $app->state, array( 'tab' => 'site', 'sub' => 'identity-and-seo' ) );
-	$app->actions['go']( $st, $os, array( 'tab' => 'identity' ) );
+	$os->view = 'site';
+	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'identity-and-seo' ) );
+	$app->actions['go']( $st, $os, array( 'anchor' => 'sn-sec-identity' ) );
 	ok( 'sn-sec-identity' === $st->get( 'anchor' ),
-		'a legacy slug`s anchor enters state as the ELEMENT ID: sn_admin_post_redirect_target() returns the slug `identity` and sn_admin_render_section() emits id="sn-sec-identity"' );
-	$app->actions['go']( $st, $os, array( 'tab' => 'dashboard', 'anchor' => 'sn-dash-diagnostics' ) );
+		'an anchor enters state as the ELEMENT ID, painted unchanged' );
+	$app->actions['go']( $st, $os, array( 'anchor' => 'sn-dash-diagnostics' ) );
 	ok( 'sn-dash-diagnostics' === $st->get( 'anchor' ),
-		'   ...while a link`s own os-arg-anchor is already an id and is kept verbatim -- the attention strip`s #sn-dash-diagnostics is not a section wrapper and never was' );
+		'   ...a link`s own os-arg-anchor is already an id and is kept verbatim -- the attention strip`s #sn-dash-diagnostics is not a section wrapper and never was' );
 	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => 'sn-sec-identity' ) );
-	ok( false !== strpos( $html, '<div class="wrap" data-snt-anchor="sn-sec-identity">' ),
-		'the view paints the id UNCHANGED -- assets/os-host.js looks the value up as an id, and a view that prefixed would double it' );
-	$anchored = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'anchor' => 'sn-sec-front-end' ) );
-	ok( preg_match( '#data-snt-anchor="([^"]+)"#', $anchored, $m ) && false !== strpos( $anchored, 'id="' . $m[1] . '"' ),
-		'   ...and the id it names is one the SAME paint actually contains: the attribute and the section land together, so a miss is a wrong name' );
-	ok( false !== strpos( paint( $app, array( 'tab' => 'site' ) ), '<div class="wrap">' ), 'no anchor, no attribute' );
+	ok( false !== strpos( $html, 'data-snt-anchor="sn-sec-identity"' ),
+		'the view paints the id UNCHANGED -- assets/os-kit.js looks the value up as an id, and a view that prefixed would double it' );
+	ok( false === strpos( paint( $app, array( 'tab' => 'site' ) ), 'data-snt-anchor=' ), 'no anchor, no attribute' );
 
 	echo "\nGroup 8: the leaf never keeps the request\n";
 	$_GET     = array( 'sentinel' => 'yes' );

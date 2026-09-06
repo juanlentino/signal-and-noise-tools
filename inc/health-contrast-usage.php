@@ -124,6 +124,10 @@ function sn_health_contrast_usage_admin_sheets() {
 		// dash-widget.css. analytics-admin.css is caught by the substring rule.
 		'analytics-tokens.css',
 		'analytics-widget.css',
+		// v13.106.0: the native-window kit sheet. Registered on
+		// admin_enqueue_scripts only (inc/openstation-host-assets.php), same
+		// case as uptime-status.css — it never paints a public page.
+		'os-app.css',
 	);
 }
 
