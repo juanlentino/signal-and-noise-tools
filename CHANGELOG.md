@@ -12,6 +12,75 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **The S&N Dashboard opens as a native OpenStation window.** `sn-dashboard`
+  is an App Framework app (`apps/sn-dashboard/`) instead of a dock shortcut
+  to the classic admin page, and what it paints IS the classic admin page:
+  the 8 top tabs and 34 leaves of `sn_admin_top_tabs()` plus the two spliced
+  ones (Machine Readers, Search Console), read from the registry on every
+  paint rather than baked at definition, each leaf produced by the SAME
+  render callable through `sn_admin_render_active_tab()` under an output
+  buffer -- wrapper classes, sub-tab strip, notices and all. Nothing is
+  redesigned, dropped or simplified. The desktop document IS wp-admin
+  (`body.wp-admin.wp-core-ui`, with core's `common`, `forms`, `dashboard`,
+  `list-tables`, `buttons`, `edit` and `media` stylesheets already loaded --
+  measured, not assumed), so the leaves' admin HTML styles natively inside
+  the window and **no iframe is used**. One pass with core's
+  `WP_HTML_Tag_Processor` rewrites only the seams that would navigate the top
+  document or never fire: a `<form method="post">` becomes `os-action="post"`,
+  a link into our own pages becomes `os-action="go"` carrying `tab`, `sub`,
+  the `#sn-sec-*` fragment and every `sn_*` query param as `os-arg-*`
+  attributes, a link to any other admin URL becomes `os-action="door"` and
+  opens as a shell admin window, and every rewritten link loses its `href`
+  (the runtime `preventDefault`s a submit but never a click, so a surviving
+  href would navigate the desktop out from under itself). A save runs the
+  classic pipeline minus the two things a window cannot do (`header()` and
+  `exit`): the form's fields arrive as `$args['values']`, the action
+  re-checks `manage_options`, verifies the same `sn_theme_options_nonce`,
+  looks `sn_action` up in the same `sn_admin_post_handlers()` table, calls
+  the same handler with `$_POST` slashed exactly as `admin-post.php` slashes
+  it, and maps the returned flash code through the same
+  `sn_admin_flash_to_notice()` into the same
+  `<div class="notice notice-{severity}">` above the tab strip -- and a toast
+  -- landing on the tab, sub-tab and `#sn-sec-*` anchor
+  `sn_admin_post_redirect_target()` names. An action that is not in the
+  handler table runs nothing and says "Nothing was saved." rather than
+  reporting a save. Two deviations are recorded rather than hidden: an
+  external link that carries no `target` gains
+  `target="_blank" rel="noopener noreferrer"`, because in the classic page
+  such a link replaces the admin tab and in a window it would replace the
+  whole desktop; and the `sn_force_update_check` door opens `update-core.php`
+  as an admin window through `open_url` instead of navigating to it, which
+  reaches the same screen by the only mechanism a window has. Faithful means
+  the destination still happens, not that the mechanism is identical. The
+  classic page at `admin.php?page=sn-theme-options` is untouched and still
+  reachable -- a port is not a removal. (#1074)
+
+### Changed
+- The manual `sn-dashboard` dock item in `inc/desktop-mode-dock.php` is
+  retired in favour of the app's own entry: same id, same title, same shield
+  icon, so one id still names one thing. Its 8-tab submenu is carried over as
+  the window's `menu` -- one `go` per top tab, in registry order, refreshed
+  after every action -- and its badge as `$os->badge()`, from the SAME
+  `snt_desktop_dock_badge()`; neither is recomputed a second way.
+  `snt_desktop_admin_url()` is unchanged, so every door the Signal & Noise
+  app, the note dossier and the Attention rows already open still opens what
+  it opened. (#1074)
+- `assets/admin.js` gains `window.snAdmin.init( root )`. All three behaviours
+  it armed on `DOMContentLoaded` -- the `sub_sections` section tabs, the
+  sticky save bar's dirty-tracking and the "+ Add another profile URL" row --
+  move into one idempotent, root-scoped `init`: it marks each element it binds
+  with `data-snt-init` and skips anything already marked, and it looks its
+  nav, panels and form up inside the root it was handed rather than in
+  `document`, so one window never binds another's leaf. `DOMContentLoaded`
+  now calls `init( document )`, which is exactly what the page did before the
+  seam existed. The host needs it because a
+  window's HTML is painted by the runtime long after that event has fired,
+  and the new host script (`assets/os-host.js`) re-arms it on every paint --
+  along with re-creating the leaves' inline `<script>` blocks, which a paint
+  cannot execute because painted HTML is parsed into a `<template>` before it
+  is patched into the DOM. (#1074)
+
 ## [13.103.0] - 2026-09-06 — the phone
 
 ### Added

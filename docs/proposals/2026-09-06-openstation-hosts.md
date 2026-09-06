@@ -44,3 +44,16 @@ Redesign of any leaf; client-view rebuilds; merging the two windows or the S&N a
 ## Amendments
 
 (Recorded by the builds.)
+
+### Host one (2026-09-06)
+
+The S&N Dashboard host (#1074) was built by three parallel builders against
+this spec. Two deviations are already binding here and are recorded in the
+CHANGELOG's `[Unreleased]` block: an external link with no `target` gains
+`target="_blank" rel="noopener noreferrer"` (in the classic page such a link
+replaces the admin tab; in a window it would replace the whole desktop), and
+the `sn_force_update_check` GET door opens `update-core.php` as an admin
+window through `open_url` rather than navigating to it. Any further deviation
+a builder had to take -- a place where the code turned out to be the contract
+and this document was wrong -- is appended below by the orchestrator after the
+build, in the builder's own words.
