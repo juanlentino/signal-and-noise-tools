@@ -2,7 +2,15 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-This file holds two things only: **`## [Unreleased]
+This file holds two things only: **`## [Unreleased]`**, the working log that
+accumulates across pull requests, and the **current release**. Everything older
+lives in [docs/changelog/](docs/changelog/).
+
+A pull request does not bump `Version` and does not tag — it closes an issue and
+adds a bullet below. A release is a separate, deliberate act:
+`tools/cut-release.sh`.
+
+## [Unreleased]
 
 ### Added
 - **S&N Analytics opens as a native OpenStation window too.** `sn-analytics`
@@ -82,9 +90,6 @@ This file holds two things only: **`## [Unreleased]
   `snt_desktop_admin_url()` keeps its `sn-analytics` special case
   unchanged, so every door that opens the classic Analytics URL today still
   opens it. (#1075)
-
-
-## [Unreleased]
 
 ## [13.104.0] - 2026-09-06 — the S&N Dashboard host
 
