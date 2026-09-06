@@ -84,7 +84,12 @@ namespace {
 	function number_format_i18n( $number, $decimals = 0 ) { return number_format( (float) $number, (int) $decimals ); }
 	function home_url( $p = '' ) { return 'https://example.test' . $p; }
 	function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . $p; }
-	$GLOBALS['__caps'] = array( 'edit_posts' => true, 'manage_options' => true );
+	// `edit_pages` is held from here on, and it is set BEFORE the app is
+	// required: the Pages section is gated on it, and a section the registry
+	// withholds answers `post` from section_post_type() -- which would make
+	// Group 7's page pins pass for the wrong reason (no section, not a section
+	// that refused).
+	$GLOBALS['__caps'] = array( 'edit_posts' => true, 'edit_pages' => true, 'manage_options' => true );
 	function current_user_can( $cap, ...$a ) { return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
 	function get_post( $id ) { foreach ( $GLOBALS['__posts'] as $p ) { if ( (int) $p->ID === (int) $id ) { return $p; } } return null; }
 	function get_permalink( $post ) { return 'https://example.test/?p=' . ( is_object( $post ) ? $post->ID : (int) $post ); }
@@ -96,6 +101,15 @@ namespace {
 	}
 	$GLOBALS['__updated'] = array(); $GLOBALS['__update_fails'] = false;
 	function get_post_status( $id ) { $p = get_post( $id ); return $p ? (string) $p->post_status : false; }
+	// v13.102.0: `publish` asks the post type object for its own capability --
+	// publish_posts is the POST cap and a page needs publish_pages -- so the
+	// type object has to exist here for the publish path to run at all.
+	function get_post_type_object( $post_type ) {
+		$caps = array( 'post' => 'publish_posts', 'page' => 'publish_pages' );
+		return isset( $caps[ (string) $post_type ] )
+			? (object) array( 'name' => (string) $post_type, 'cap' => (object) array( 'publish_posts' => $caps[ (string) $post_type ] ) )
+			: null;
+	}
 	function wp_update_post( $postarr = array(), $wp_error = false, $fire_after_hooks = true ) {
 		$GLOBALS['__updated'][] = (array) $postarr;
 		// The row is written; the status lands unless the fixture says the
@@ -136,10 +150,13 @@ namespace {
 		post( 12, 'A draft', 'draft' ),
 		post( 22, 'A pending note', 'pending' ),
 		(object) array( 'ID' => 44, 'post_title' => 'A page', 'post_status' => 'publish', 'post_date' => '2026-08-14 10:00:00', 'post_type' => 'page', 'thumb' => '' ),
+		// A DRAFT page, so the publish path has something of the other type to act on.
+		(object) array( 'ID' => 45, 'post_title' => 'A draft page', 'post_status' => 'draft', 'post_date' => '2026-08-14 10:00:00', 'post_type' => 'page', 'thumb' => '' ),
 	);
 	$GLOBALS['__purge_urls'] = array(
 		11 => array( 'https://example.test/notes/a/', 'https://example.test/', 'https://example.test/notes/' ),
 		12 => array( 'https://example.test/notes/b/', 'https://example.test/', 'https://example.test/notes/' ),
+		44 => array( 'https://example.test/pages/a/' ),
 	);
 	$GLOBALS['__chains'] = array();
 
@@ -341,6 +358,86 @@ namespace {
 	$state = st( $app, array( 'section' => 'notes', 'selected' => array( '11', '12' ) ) );
 	$app->actions['go']( $state, $os, array( 'section' => 'discography' ) );
 	ok( array() === $state->get( 'selected' ), 'leaving a section drops its selection -- ids from one section must never scope an action in another' );
+
+	echo "\nGroup 7: the section's post type gates every action\n";
+	// All four handlers read the type from the OPEN SECTION's descriptor
+	// (section_post_type()), never from the client and never from a literal.
+	// So the SAME id is actionable under one section and refused under the
+	// other, and every pin below has its mirror -- a one-sided pin would pass
+	// just as well against a handler that refuses everything.
+	ok( 'page' === \SignalNoise\OpenStationApp\section_post_type( st( $app, array( 'section' => 'pages' ) ) ), 'the Pages section really is registered here: its descriptor answers `page`, so the pins below measure a section that refused, not one that never loaded' );
+
+	$GLOBALS['__trashed'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['trash']( st( $app, array( 'section' => 'pages' ) ), $os, array( 'item' => '44' ) );
+	ok( array( 44 ) === $GLOBALS['__trashed'] && array( 'Moved to the Trash.' ) === $os->toasts && array( array( 'post', 'trashed', array( 44 ) ) ) === $os->announced, 'trash under Pages trashes the PAGE, says so, and announces it' );
+	$GLOBALS['__trashed'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['trash']( st( $app, array( 'section' => 'pages' ) ), $os, array( 'item' => '11' ) );
+	ok( array() === $GLOBALS['__trashed'] && array( 'You cannot trash this item.' ) === $os->toasts && array() === $os->announced, '   ...and refuses the NOTE id under Pages: an id outside the open section\'s type is not one of its items' );
+	$GLOBALS['__trashed'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['trash']( st( $app, array( 'section' => 'notes' ) ), $os, array( 'item' => '11' ) );
+	ok( array( 11 ) === $GLOBALS['__trashed'] && array( 'Moved to the Trash.' ) === $os->toasts, 'the mirror: the NOTE trashes under Notes' );
+	$GLOBALS['__trashed'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['trash']( st( $app, array( 'section' => 'notes' ) ), $os, array( 'item' => '44' ) );
+	ok( array() === $GLOBALS['__trashed'] && array( 'You cannot trash this item.' ) === $os->toasts, '   ...and the PAGE is refused under Notes' );
+
+	$GLOBALS['__updated'] = array();
+	$os = new \OpenStation\App\Os();
+	asked();
+	$app->actions['publish']( st( $app, array( 'section' => 'pages' ) ), $os, array( 'item' => '45' ) );
+	ok( array( array( 'ID' => 45, 'post_status' => 'publish' ) ) === $GLOBALS['__updated'] && array( 'Published.' ) === $os->toasts && array( array( 'post', 'updated', array( 45 ) ) ) === $os->announced, 'publish under Pages publishes the draft PAGE and reads the status back before saying so' );
+	ok( in_array( array( 'publish_pages', array() ), $GLOBALS['__can_calls'], true ) && ! in_array( array( 'publish_posts', array() ), $GLOBALS['__can_calls'], true ), '   ...asking publish_pages, the type object\'s OWN capability, and never publish_posts -- which would have over-granted' );
+	foreach ( $GLOBALS['__posts'] as $p ) { if ( 45 === (int) $p->ID ) { $p->post_status = 'draft'; } }
+	$GLOBALS['__updated'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['publish']( st( $app, array( 'section' => 'notes' ) ), $os, array( 'item' => '45' ) );
+	ok( array() === $GLOBALS['__updated'] && array( 'Nothing could be published.' ) === $os->toasts, '   ...and the same draft page is refused under Notes, with nothing written' );
+	$GLOBALS['__updated'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['publish']( st( $app, array( 'section' => 'pages' ) ), $os, array( 'item' => '12' ) );
+	ok( array() === $GLOBALS['__updated'] && array( 'Nothing could be published.' ) === $os->toasts, 'the mirror: the draft NOTE is refused under Pages' );
+	$GLOBALS['__updated'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['publish']( st( $app, array( 'section' => 'notes' ) ), $os, array( 'item' => '12' ) );
+	ok( array( array( 'ID' => 12, 'post_status' => 'publish' ) ) === $GLOBALS['__updated'] && array( 'Published.' ) === $os->toasts, '   ...and publishes under Notes' );
+
+	$GLOBALS['__purged'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app, array( 'section' => 'pages' ) ), $os, array( 'item' => '44' ) );
+	ok( array( array( 'https://example.test/pages/a/' ) ) === $GLOBALS['__purged'] && array( 'Purge dispatched for 1 URL; the probe checks it in two minutes.' ) === $os->toasts, 'purge under Pages purges the PAGE\'s URLs' );
+	$GLOBALS['__purged'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app, array( 'section' => 'pages' ) ), $os, array( 'item' => '11' ) );
+	ok( array() === $GLOBALS['__purged'] && array( 'Nothing to purge.' ) === $os->toasts, '   ...and refuses the NOTE id under Pages, even though manage_options is held' );
+	$GLOBALS['__purged'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app, array( 'section' => 'notes' ) ), $os, array( 'item' => '11' ) );
+	ok( array( array( 'https://example.test/notes/a/', 'https://example.test/', 'https://example.test/notes/' ) ) === $GLOBALS['__purged'], 'the mirror: the NOTE purges under Notes' );
+	$GLOBALS['__purged'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app, array( 'section' => 'notes' ) ), $os, array( 'item' => '44' ) );
+	ok( array() === $GLOBALS['__purged'] && array( 'Nothing to purge.' ) === $os->toasts, '   ...and the PAGE is refused under Notes' );
+
+	$GLOBALS['__chains'][44] = array( array( 'version' => 1, 'status' => 'unanchored' ) );
+	$GLOBALS['__reconciled'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['anchor']( st( $app, array( 'section' => 'pages' ) ), $os, array( 'item' => '44' ) );
+	ok( array( 44 ) === $GLOBALS['__reconciled'] && array( 'Re-dispatch requested for v1; the ledger answers when it lands.' ) === $os->toasts, 'anchor under Pages re-dispatches the PAGE\'s unanchored commit and names the version' );
+	$GLOBALS['__reconciled'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['anchor']( st( $app, array( 'section' => 'pages' ) ), $os, array( 'item' => '11' ) );
+	ok( array() === $GLOBALS['__reconciled'] && array( 'The dispatch could not be retried.' ) === $os->toasts, '   ...and refuses the NOTE id under Pages' );
+	$GLOBALS['__reconciled'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['anchor']( st( $app, array( 'section' => 'notes' ) ), $os, array( 'item' => '11' ) );
+	ok( array( 11 ) === $GLOBALS['__reconciled'] && array( 'Re-dispatch requested for v3; the ledger answers when it lands.' ) === $os->toasts, 'the mirror: the NOTE re-dispatches under Notes' );
+	$GLOBALS['__reconciled'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['anchor']( st( $app, array( 'section' => 'notes' ) ), $os, array( 'item' => '44' ) );
+	ok( array() === $GLOBALS['__reconciled'] && array( 'The dispatch could not be retried.' ) === $os->toasts, '   ...and the PAGE is refused under Notes' );
 
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );

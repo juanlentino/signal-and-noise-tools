@@ -54,7 +54,7 @@
 	 * by name: the shell's targets route on this string, so a section that has
 	 * not been thought about must not lift at all.
 	 */
-	const DRAG_ENTITY = { notes: 'signal-noise:notes' };
+	const DRAG_ENTITY = { notes: 'signal-noise:notes', pages: 'signal-noise:pages' };
 
 	/** The selection, always strings -- `state.item` is a string, and a mixed set never matches. */
 	const selectedIds = ( state ) => ( Array.isArray( state.selected ) ? state.selected.map( String ) : [] );
@@ -882,7 +882,7 @@
 					? html`<dl class="snt-facts">${ d.facts.map( ( f ) => html`<dt>${ f[ 0 ] }</dt><dd>${ f[ 1 ] }</dd>` ) }</dl>`
 					: '' }
 				${ ( d.blocks || [] ).map( ( b ) => renderBlock( ctx, b ) ) }
-				${ data.section && data.section.id === 'notes' ? renderDossier( ctx, item ) : '' }
+				${ data.section && data.section.hasDossier ? renderDossier( ctx, item ) : '' }
 				${ ( d.actions || [] ).length
 					? html`<div class="snt-actions">
 						${ d.actions.map( ( a ) => a.url
@@ -979,10 +979,14 @@
 		// After every paint: an open item whose dossier is not cached or in
 		// flight gets fetched. Idempotent -- the cache and the inflight set
 		// make a second call a no-op -- so painting often costs nothing.
-		// Notes only: a Discography id (or a third-party section's) is not a
-		// post id, and the ability would answer 400 for it.
+		// Only a section that DECLARES a dossier: a Discography id (or a
+		// third-party section's) is not a post id, and the ability would
+		// answer 400 for it. The DESCRIPTOR says so, never a section id --
+		// a second section with a dossier would otherwise need a second
+		// literal in two places, and the day one of them was missed the
+		// section would paint without its dossier and nothing would say why.
 		updated: ( ctx ) => {
-			if ( ctx.state.item && ctx.data && ctx.data.section && ctx.data.section.id === 'notes' ) {
+			if ( ctx.state.item && ctx.data && ctx.data.section && ctx.data.section.hasDossier ) {
 				loadDossier( ctx, ctx.state.item );
 			}
 			// The menu paints hidden and is placed HERE, a frame after the

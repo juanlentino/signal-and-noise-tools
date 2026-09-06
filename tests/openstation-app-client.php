@@ -54,7 +54,8 @@ echo "openstation-app-client -- the control surface (#1065)\n\nGroup 1: the file
 ok( '' !== $js && '' !== $css, 'the client view and its stylesheet are both readable' );
 ok( 1 === substr_count( $js, 'ctx.ui(' ), 'still exactly one ctx.ui() bag: the runtime keeps one per mounted view and silently discards every later factory' );
 ok( false !== strpos( $js, 'menu: null' ), 'the open menu lives in that same bag, never in declared state' );
-ok( 2 === substr_count( $js, "section.id === 'notes'" ), 'the dossier is still gated to Notes in exactly two places -- the control surface reads the section DESCRIPTOR, it does not add a third literal' );
+ok( 0 === substr_count( $js, "section.id === 'notes'" ), 'no section-id literal gates the dossier any more: a second section with a dossier would have needed a second literal in both places, and the third would have been missed' );
+ok( 2 === substr_count( $js, 'section.hasDossier' ), 'the dossier is gated in exactly two places -- the render and the fetch -- and both read the DESCRIPTOR field hasDossier, so a section says for itself whether it has one' );
 ok( false === strpos( $js, '/wp-abilities/' ), 'the client still never spells the abilities path' );
 
 echo "\nGroup 2: the runtime seams, as 1.1.6 declares them\n";
@@ -70,6 +71,11 @@ ok( false !== strpos( $js, 'dragManager.start(' ), 'the lift goes through the sh
 ok( false !== strpos( $js, "type: 'shortcut'" ), 'it lifts as a shortcut payload' );
 ok( false !== strpos( $js, 'restPath' ), 'the section\'s REST collection rides along so a drop target can route the object' );
 ok( false !== strpos( $js, "'signal-noise:notes'" ), 'the entity id names the app and the section' );
+// The KEY and the VALUE, together: `'signal-noise:pages'` sitting anywhere in
+// the file proves the string exists, not that the `pages` section maps to it.
+// A map keyed `page:` -- or one whose pages entry points at the notes entity --
+// would satisfy a bare substring search and lift the wrong object.
+ok( 1 === preg_match( "/pages:\\s*'signal-noise:pages'/", $js ), '...and Pages opts in BY NAME beside Notes -- the `pages` KEY mapped to the `signal-noise:pages` entity, not merely the string somewhere in the file' );
 ok( false !== strpos( $js, 'data-snt-drag' ), 'only elements carrying the drag flag lift' );
 ok( false !== strpos( $js, 'e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || isPhone()' ), 'the lift refuses a non-primary button, any modifier, and the phone -- one guard, the Explorer\'s' );
 

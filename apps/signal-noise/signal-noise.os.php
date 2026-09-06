@@ -3,10 +3,12 @@
  * Signal & Noise — the plugin's window, as an OpenStation app.
  *
  * Composition only: the declaration, the state schema, the server actions,
- * the data payload and the client view. What a section CONTAINS lives in
- * parts/notes.php and parts/discography.php, each a plain .php registering
- * itself through the `snt_os_app_sections` filter -- only `*.os.php` files
- * are app entries. The contract is documented in inc/openstation-app.php.
+ * the data payload and the client view. What a section CONTAINS lives in its
+ * own part -- notes, pages, discography, citations, schedules -- each a plain
+ * .php registering itself through the `snt_os_app_sections` filter, because
+ * only `*.os.php` files are app entries. Notes and Pages are one surface over
+ * two post types and share parts/post-items.php. The descriptor contract is
+ * documented in inc/openstation-app.php.
  *
  * Built the way WP Explorer is built: the PHP half is the window and the
  * truth, the body is a CLIENT VIEW (signal-noise-client.js) where selection,
@@ -33,9 +35,20 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 require_once __DIR__ . '/parts/payload.php';
+require_once __DIR__ . '/parts/post-items.php';
 require_once __DIR__ . '/parts/notes.php';
+require_once __DIR__ . '/parts/pages.php';
 require_once __DIR__ . '/parts/discography.php';
 require_once __DIR__ . '/parts/actions.php';
+// The two entry sections. Guarded because they are read-only glances over
+// optional stores: an install without the citations table or the schedule
+// engine still opens the window.
+if ( file_exists( __DIR__ . '/parts/citations.php' ) ) {
+	require_once __DIR__ . '/parts/citations.php';
+}
+if ( file_exists( __DIR__ . '/parts/schedules.php' ) ) {
+	require_once __DIR__ . '/parts/schedules.php';
+}
 
 const APP_ID = 'signal-noise';
 

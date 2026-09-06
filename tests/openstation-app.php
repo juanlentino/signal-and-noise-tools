@@ -61,14 +61,22 @@ namespace {
 	// ── WordPress, flat ──────────────────────────────────────────────
 	$GLOBALS['__filters'] = array();
 	function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__filters'][ $hook ][] = $cb; return true; }
+	// Real, because the author scope is a filter added around one query and
+	// removed after it: a forgetful stub would let a clause leak onto the next.
+	function remove_filter( $hook, $cb, $prio = 10 ) {
+		foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $i => $one ) { if ( $one === $cb ) { unset( $GLOBALS['__filters'][ $hook ][ $i ] ); } }
+		return true;
+	}
 	function apply_filters( $hook, $value, ...$rest ) { foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $cb ) { $value = call_user_func( $cb, $value, ...$rest ); } return $value; }
+	function get_current_user_id() { return (int) ( $GLOBALS['__uid'] ?? 5 ); }
+	$wpdb = (object) array( 'posts' => 'wp_posts' );
 	function __( $s, $d = null ) { return $s; }
 	function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; }
 	function get_bloginfo( $k ) { return 'Juan &amp; Co'; }
 	function home_url( $p = '' ) { return 'https://example.test' . $p; }
 	function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . $p; }
 	function add_query_arg( $args, $url ) { return $url . '?' . http_build_query( $args ); }
-	$GLOBALS['__caps'] = array( 'edit_posts' => true, 'manage_options' => true, 'edit_post' => true );
+	$GLOBALS['__caps'] = array( 'edit_posts' => true, 'edit_pages' => true, 'manage_options' => true, 'edit_post' => true );
 	function current_user_can( $cap, ...$a ) { $GLOBALS['__cap_calls'][] = array( $cap, $a ); return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
 	function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['__meta'][ $id ][ $key ] ?? ''; }
 	function get_post( $id ) { foreach ( $GLOBALS['__posts'] as $p ) { if ( (int) $p->ID === (int) $id ) { return $p; } } return null; }
@@ -78,7 +86,26 @@ namespace {
 	function get_the_post_thumbnail_url( $post, $size ) { return $post->thumb ?? ''; }
 	function get_permalink( $post ) { return 'https://example.test/?p=' . $post->ID; }
 	function get_edit_post_link( $id, $ctx = '' ) { return 'https://example.test/wp-admin/post.php?post=' . $id . '&action=edit'; }
-	function sn_prov_is_note( $id ) { return true; }
+	// The gate snt_os_app_note_provenance() asks is the SUBJECT KIND, not
+	// "is this a Note?": a page opts in through the sign meta, a post is a
+	// note, anything else is not a subject at all.
+	function sn_prov_subject_kind( $post ) {
+		$type = (string) ( $post->post_type ?? '' );
+		if ( 'post' === $type ) { return 'note'; }
+		if ( 'page' === $type ) { return '' !== (string) ( $GLOBALS['__meta'][ (int) $post->ID ]['_sn_prov_sign'] ?? '' ) ? 'page' : ''; }
+		return '';
+	}
+	// The publish capability comes from the type object: publish_posts is the
+	// POST cap and a page needs publish_pages.
+	function get_post_type_object( $post_type ) {
+		$caps = array(
+			'post' => array( 'publish_posts' => 'publish_posts', 'edit_others_posts' => 'edit_others_posts' ),
+			'page' => array( 'publish_posts' => 'publish_pages', 'edit_others_posts' => 'edit_others_pages' ),
+		);
+		return isset( $caps[ (string) $post_type ] )
+			? (object) array( 'name' => (string) $post_type, 'cap' => (object) $caps[ (string) $post_type ] )
+			: null;
+	}
 	function sn_prov_get_chain( $id ) { return $GLOBALS['__chains'][ $id ] ?? array(); }
 	function sn_note_dossier_verify( $id, $f = null ) { return array( 'post_id' => (int) $id, 'tone' => 'success', 'text' => 'v1 holds.', 'meta' => 'checked', 'checked_at' => '2026-09-05T20:00:00+00:00' ); }
 	function sn_discography_get() { return array( 'entries' => $GLOBALS['__albums'] ?? array() ); }
@@ -88,22 +115,61 @@ namespace {
 	function wp_register_script( $h, $src, $deps = array(), $ver = false, $footer = false ) { $GLOBALS['__scripts'][ $h ] = array( $src, $deps, $footer ); return true; }
 	function wp_script_is( $h, $list = 'enqueued' ) { return isset( $GLOBALS['__scripts'][ $h ] ); }
 	function openstation_apps_style_handle( $id ) { return 'openstation-app-' . $id; }
+	// ARG-AWARE ON PURPOSE. Until v13.102.0 this stub ignored its args and
+	// returned every fixture for every query, so a second post section could
+	// have painted the Notes fixtures and gone green while filtering nothing.
+	// It honours post_type and the meta predicate; the counts pinned below
+	// (3 notes, 2 signed pages out of 6 fixtures) are the negative control.
+	// It also ORDERS (date DESC, ID DESC), BOUNDS (posts_per_page) and runs the
+	// `posts_where` clauses somebody attached -- the three disciplines the real
+	// query has, and the three a section can silently stop asking for.
 	class WP_Query {
 		public $posts = array(); public $found_posts = 0;
-		public function __construct( array $args ) { $GLOBALS['__last_query'] = $args; $this->posts = 'ids' === ( $args['fields'] ?? '' ) ? array() : $GLOBALS['__posts']; $this->found_posts = count( $GLOBALS['__posts'] ); }
+		public function __construct( array $args ) {
+			$GLOBALS['__last_query'] = $args;
+			$types = array_map( 'strval', (array) ( $args['post_type'] ?? 'post' ) );
+			$where = (string) apply_filters( 'posts_where', '', $this );
+			$mine  = preg_match( '/post_author = (\d+)/', $where, $m ) ? (int) $m[1] : 0;
+			$found = array();
+			foreach ( $GLOBALS['__posts'] as $p ) {
+				if ( ! in_array( (string) $p->post_type, $types, true ) ) { continue; }
+				if ( ! empty( $args['meta_key'] ) ) {
+					$have = (string) ( $GLOBALS['__meta'][ (int) $p->ID ][ (string) $args['meta_key'] ] ?? '' );
+					if ( $have !== (string) ( $args['meta_value'] ?? '' ) ) { continue; }
+				}
+				if ( $mine > 0 && 'publish' !== (string) $p->post_status && (int) $p->post_author !== $mine ) { continue; }
+				$found[] = $p;
+			}
+			if ( ! empty( $args['orderby'] ) && is_array( $args['orderby'] ) ) {
+				usort( $found, static function ( $a, $b ) { return strcmp( (string) $b->post_date, (string) $a->post_date ) ?: ( (int) $b->ID <=> (int) $a->ID ); } );
+			}
+			$this->found_posts = count( $found );
+			$per               = (int) ( $args['posts_per_page'] ?? -1 );
+			if ( $per > 0 ) { $found = array_slice( $found, 0, $per ); }
+			$this->posts = 'ids' === ( $args['fields'] ?? '' ) ? array() : $found;
+		}
 	}
-	function post( $id, $title, $status = 'publish', $date = '2026-08-14 10:00:00', $thumb = '' ) { return (object) array( 'ID' => $id, 'post_title' => $title, 'post_status' => $status, 'post_date' => $date, 'post_type' => 'post', 'thumb' => $thumb ); }
+	function post( $id, $title, $status = 'publish', $date = '2026-08-14 10:00:00', $thumb = '' ) { return (object) array( 'ID' => $id, 'post_title' => $title, 'post_status' => $status, 'post_date' => $date, 'post_type' => 'post', 'thumb' => $thumb, 'post_author' => 5 ); }
 
+	function page( $id, $title, $status = 'publish', $date = '2026-07-01 09:00:00' ) { return (object) array( 'ID' => $id, 'post_title' => $title, 'post_status' => $status, 'post_date' => $date, 'post_type' => 'page', 'thumb' => '', 'post_author' => 5 ); }
+
+	// DELIBERATELY NOT IN DATE ORDER, so "newest first" below is a property of
+	// the query and not of this literal.
 	$GLOBALS['__posts']  = array(
-		post( 21, 'The ban failed', 'future', '2026-12-03 10:00:00' ),
-		post( 11, 'The signer keeps moving', 'publish', '2026-08-14 10:00:00', 'https://img/11.jpg' ),
 		post( 12, 'A draft <script>x</script>', 'draft', '2026-08-01 10:00:00' ),
+		// Two pages opted into signing, and one that never did: the Pages
+		// section lists the opt-in, not the post type.
+		page( 31, 'Start here' ),
+		post( 21, 'The ban failed', 'future', '2026-12-03 10:00:00' ),
+		page( 33, 'Stats' ),
+		post( 11, 'The signer keeps moving', 'publish', '2026-08-14 10:00:00', 'https://img/11.jpg' ),
+		page( 32, 'Colophon', 'draft', '2026-06-02 09:00:00' ),
 	);
 	$GLOBALS['__chains'] = array( 11 => array(
 		array( 'version' => 1, 'status' => 'genesis', 'committed_at' => '2026-08-01T10:00:00Z', 'content_hash' => 'aaaaaaaaaaaaaaaaaaaaaaaa' ),
 		array( 'version' => 2, 'status' => 'confirmed', 'committed_at' => '2026-08-14T10:00:00Z', 'content_hash' => 'bbbbbbbbbbbbbbbbbbbbbbbb' ),
 	) );
-	$GLOBALS['__meta']   = array( 11 => array( '_sn_prov_uid' => 'sn:note:11' ) );
+	$GLOBALS['__meta']   = array( 11 => array( '_sn_prov_uid' => 'sn:note:11' ), 31 => array( '_sn_prov_sign' => '1' ), 32 => array( '_sn_prov_sign' => '1' ) );
 	$GLOBALS['__albums'] = array(
 		array( 'id' => 'r1', 'title' => 'Older', 'artist' => 'Someone', 'year' => 2019, 'image' => 'https://img/1.jpg', 'roles' => array( 'Mixing' ), 'tracks' => array( array( 'title' => 'One', 'roles' => array( 'Mixing' ) ) ), 'spotify_url' => 'https://open.spotify.com/album/1', 'muso_url' => '' ),
 		array( 'id' => '', 'title' => 'Newer', 'artist' => 'Band', 'year' => 2024, 'image' => '', 'roles' => array( 'Producer', 'Mastering' ), 'tracks' => array(), 'spotify_url' => '', 'muso_url' => 'https://muso.ai/x' ),
@@ -125,9 +191,9 @@ namespace {
 	ok( false !== strpos( $js, "defineApp( 'signal-noise'" ) && false !== strpos( $js, 'openStationAppsPending' ), 'the client registers through the runtime\'s pending queue under the app id' );
 	foreach ( array( '<os-tile', 'statusControl(', '<os-table', '<os-badge', '<os-empty-state', '<os-text-field', '<os-segmented' ) as $part ) { ok( false !== strpos( $js, $part ), "the client paints with the kit: $part" ); }
 	ok( false !== strpos( $js, 'wp.os.mode.isMobile' ), 'the client reads the shell\'s mode stamp for the phone layout' );
-	foreach ( array( "kind === 'stats'", "kind === 'status'", 'ctx.extra', 'dossierUrl', 'ctx.fetch(', '@os-pick', 'ctx.host.openUrl(', 'data.verdict', 'updated:', "section.id === 'notes'" ) as $part ) { ok( false !== strpos( $js, $part ), "the client carries the dossier: $part" ); }
+	foreach ( array( "kind === 'stats'", "kind === 'status'", 'ctx.extra', 'dossierUrl', 'ctx.fetch(', '@os-pick', 'ctx.host.openUrl(', 'data.verdict', 'updated:', 'section.hasDossier' ) as $part ) { ok( false !== strpos( $js, $part ), "the client carries the dossier: $part" ); }
 	ok( false === strpos( $js, '/wp-abilities/' ), 'the client never spells the abilities path; it comes from the window config' );
-ok( 2 === substr_count( $js, "section.id === 'notes'" ), 'both the render and the updated() fetch are gated to the Notes section (a count, since one copy would keep a presence pin green)' );
+ok( 2 === substr_count( $js, 'section.hasDossier' ) && 0 === substr_count( $js, "section.id === 'notes'" ), 'both the render and the updated() fetch are gated on the DESCRIPTOR field, and neither on the section id: a count, since one copy would keep a presence pin green, and a second post section proved an id cannot answer what a section HAS' );
 ok( 1 === substr_count( $js, 'ctx.ui(' ), 'exactly one ctx.ui() bag: the runtime keeps one per mounted view and silently discards every later factory' );
 foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "'noopener,noreferrer'", 'fetched_at', 'Try again' ) as $part ) { ok( false !== strpos( $js, $part ), "the client keeps failures out of the cache, refetches after a re-check, opens external doors in a tab, dates the read: $part" ); }
 
@@ -138,17 +204,20 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	ok( 'https://example.test/wp-json/wp-abilities/v1/abilities/signal-noise/note-dossier/run' === ( $app->config['dossierUrl'] ?? '' ), 'the ability run URL rides the window config, so the client never spells the abilities path' );
 
 	echo "\nGroup 3: the registry is the extension point\n";
-	ok( array( 'notes', 'discography' ) === array_column( snt_os_app_sections(), 'id' ), 'two built-in sections, in position order' );
+	ok( array( 'notes', 'pages', 'discography', 'citations', 'schedules' ) === array_column( snt_os_app_sections(), 'id' ), 'the built-in sections, in position order (10, 12, 20, 30, 40)' );
 	add_filter( 'snt_os_app_sections', function ( $s ) { $s[] = array( 'id' => 'ledger', 'label' => 'Ledger', 'icon' => 'dashicons-shield', 'kind' => 'ledger', 'position' => 15, 'items' => function () { return array( array( 'id' => 'L1', 'title' => 'Entry one', 'status' => 'publish', 'detail' => array( 'facts' => array( array( 'Kind', 'ledger' ) ) ) ) ); } ); $s[] = array( 'id' => 'noitems', 'label' => 'Bad' ); return $s; } );
-	ok( array( 'notes', 'ledger', 'discography' ) === array_column( snt_os_app_sections(), 'id' ), 'a third section from another module slots in by position; a descriptor without items is dropped' );
+	ok( array( 'notes', 'pages', 'ledger', 'discography', 'citations', 'schedules' ) === array_column( snt_os_app_sections(), 'id' ), 'a section from another module slots in by position (15, between Pages and Discography); a descriptor without items is dropped' );
 	$GLOBALS['__caps']['manage_options'] = false;
-	ok( array( 'notes', 'ledger' ) === array_column( snt_os_app_sections(), 'id' ), 'a section whose capability the user lacks is not offered' );
+	ok( array( 'notes', 'pages', 'ledger' ) === array_column( snt_os_app_sections(), 'id' ), 'a section whose capability the user lacks is not offered' );
+	$GLOBALS['__caps']['edit_pages'] = false;
+	ok( ! in_array( 'pages', array_column( snt_os_app_sections(), 'id' ), true ), '   ...and Pages goes with edit_pages, its own capability, not the app\'s' );
+	$GLOBALS['__caps']['edit_pages'] = true;
 	$GLOBALS['__caps']['manage_options'] = true;
 
 	echo "\nGroup 4: the payload at the root\n";
 	$p = payload( $app, array() );
 	ok( 'Juan & Co' === $p['siteName'], 'siteName is decoded once (never an entity)' );
-	ok( array( 'notes', 'ledger', 'discography' ) === array_column( $p['sections'], 'id' ) && array( 3, 1, 2 ) === array_column( $p['sections'], 'count' ), 'the root lists every section with its count' );
+	ok( array( 'notes', 'pages', 'ledger', 'discography', 'citations', 'schedules' ) === array_column( $p['sections'], 'id' ) && array( 3, 2, 1, 2, 0, 0 ) === array_column( $p['sections'], 'count' ), 'the root lists every section with its count -- and the counts are the negative control on the query stub: six post fixtures, three notes and two SIGNED pages, never six of each' );
 	ok( null === $p['section'] && array() === $p['items'], 'no section open: no items travel' );
 	ok( 'post' === $p['sections'][0]['kind'] && 'dashicons-edit-page' === $p['sections'][0]['icon'], 'a section carries the tile type and icon the client paints with' );
 
@@ -158,9 +227,10 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	ok( 'wp/v2/posts' === $p['section']['restPath'], 'the Notes section declares the REST path a dragged-out shortcut carries (the shell trashes and reads through it)' );
 	ok( array( 'purge', 'anchor' ) === array_keys( $p['can'] ) && is_bool( $p['can']['purge'] ) && is_bool( $p['can']['anchor'] ), 'the payload carries the app-wide rights the menu greys its rows on: purge and anchor' );
 	ok( false === $p['can']['purge'] && false === $p['can']['anchor'], '   ...both false when the Cloudflare and provenance halves are not loaded (a right is never assumed)' );
-	ok( array( '21', '11', '12' ) === array_column( $p['items'], 'id' ), 'items travel newest first, every status -- the client filters' );
+	ok( array( '21', '11', '12' ) === array_column( $p['items'], 'id' ), 'items travel newest first, every status -- and the fixture array is NOT in date order, so this measures the query\'s orderby and not the literal' );
+	ok( true === $p['section']['hasDossier'], 'Notes says it HAS a dossier: the field the client\'s two gates read, carried by the descriptor' );
 	$n11 = $p['items'][1];
-	ok( array( 'text' => 'v2', 'tone' => 'success', 'title' => 'Anchored' ) === $n11['badge'], 'an anchored note wears v2 in the success tone' );
+	ok( array( 'text' => 'v2', 'tone' => 'success', 'title' => 'Anchored' ) === $n11['badge'], 'an anchored note wears v2 in the success tone -- the chain is read through the SUBJECT KIND gate, which still answers `note` for a note' );
 	ok( null === $p['items'][0]['badge'] && 'future' === $p['items'][0]['status'] && 'Scheduled' === $p['items'][0]['statusLabel'], 'a scheduled note has no badge (signed on publish) and carries its status for the ribbon and the pills' );
 	ok( 'https://img/11.jpg' === $n11['thumbnail'] && '' === $p['items'][2]['thumbnail'] && 'dashicons-edit-page' === $p['items'][2]['icon'], 'thumbnail when there is one; the note icon otherwise' );
 	ok( array( '2', 'Anchored' ) === array_values( $n11['columns'] ), 'list-view cells: versions and anchor' );
@@ -171,7 +241,7 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	ok( false === $p['items'][0]['canPublish'], 'a scheduled note without publish_posts cannot be published' );
 	$d = $n11['detail'];
 	ok( 'table' === $d['blocks'][0]['kind'] && 'v2' === $d['blocks'][0]['rows'][0]['version'] && 'success' === $d['blocks'][0]['rows'][0]['anchor']['tone'] && 'bbbbbbbbbbbb' === $d['blocks'][0]['rows'][0]['hash']['code'] && 'v1' === $d['blocks'][0]['rows'][1]['version'], 'the chain is a table, newest first, with a coded hash and a toned anchor' );
-	ok( 'code' === $d['blocks'][1]['kind'] && 'sn:note:11' === $d['blocks'][1]['text'], 'the ledger UID is a code block' );
+	ok( 'code' === $d['blocks'][1]['kind'] && 'sn:note:11' === $d['blocks'][1]['text'], 'the ledger UID is a code block, for every provenance subject kind and not only for a note' );
 	$labels = array_column( $d['actions'], 'label' );
 	ok( array( 'Open in editor', 'Verify', 'Re-check now', 'View on site' ) === $labels && 'edit' === $d['actions'][0]['dispatch'] && '11' === $d['actions'][0]['args']['item'], 'actions: the editor first (a dispatch), the verifier and the site (URLs), the re-check between them' );
 	ok( in_array( array( 'edit_post', array( 11 ) ), $GLOBALS['__cap_calls'] ?? array(), true ), 'the re-check action is offered on edit_post for THAT note (the capability and the id were asked, not an app-wide cap)' );
@@ -189,6 +259,11 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	echo "\nGroup 6: Discography\n";
 	$p = payload( $app, array( 'section' => 'discography' ) );
 	ok( array() === $p['section']['statuses'] && '' === $p['section']['defaultStatus'] && false === $p['section']['canEdit'], 'no pills, no editor' );
+	// hasDossier is a DESCRIPTOR field, and the payload projects it for every
+	// section -- so a section that declines it says false, never nothing. The
+	// client gates the dossier render and the dossier fetch on this one field;
+	// a missing key would be falsy by accident rather than by declaration.
+	ok( array_key_exists( 'hasDossier', $p['section'] ) && false === $p['section']['hasDossier'], 'Discography declines the dossier, and SAYS so: hasDossier is present and false, not absent' );
 	ok( array( 'Newer', 'Older' ) === array_column( $p['items'], 'title' ), 'newest year first' );
 	ok( 'https://img/1.jpg' === $p['items'][1]['thumbnail'] && '2019' === $p['items'][1]['badge']['text'], 'cover art as the tile thumbnail; the year as its badge' );
 	ok( 'Tracks' === $p['items'][1]['detail']['blocks'][0]['heading'] && 'One' === $p['items'][1]['detail']['blocks'][0]['rows'][0]['title'] && array( 'Open in Spotify' ) === array_column( $p['items'][1]['detail']['actions'], 'label' ), 'the dossier carries the tracks and only the links the entry has' );
@@ -197,6 +272,7 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	echo "\nGroup 7: a foreign section paints from its items alone\n";
 	$p = payload( $app, array( 'section' => 'ledger' ) );
 	ok( 'ledger' === $p['section']['id'] && 'ledger' === $p['section']['kind'] && 'L1' === $p['items'][0]['id'], 'the payload carries a third section exactly as it carries the built-ins' );
+	ok( array_key_exists( 'hasDossier', $p['section'] ) && false === $p['section']['hasDossier'], 'a FOREIGN section that declared no hasDossier reads false, never true by omission: another module cannot get a dossier it did not ask for' );
 
 	echo "\nGroup 8: server actions\n";
 	$os = new \OpenStation\App\Os();
