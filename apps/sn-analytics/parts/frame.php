@@ -150,13 +150,15 @@ function tab_view( $view ) {
 		echo paint_piece( 'chrome/error', $ctx )['html'];
 		$totals = array();
 		if ( ! $ctx['owns_chrome'] ) {
-			if ( 'edge' !== $view ) {
+			if ( 'overview' === $view ) {
 				echo paint_piece( 'chrome/insights', $ctx )['html'];
 			}
 			echo paint_piece( 'chrome/controls', $ctx )['html'];
-			$header = paint_piece( 'chrome/header', $ctx );
-			echo $header['html'];
-			$totals = (array) ( $header['facts']['totals'] ?? array() );
+			if ( 'overview' === $view ) {
+				$header = paint_piece( 'chrome/header', $ctx );
+				echo $header['html'];
+				$totals = (array) ( $header['facts']['totals'] ?? array() );
+			}
 		} elseif ( 'login-defense' === $view ) {
 			echo paint_piece( 'chrome/login-header', $ctx )['html'];
 		}
