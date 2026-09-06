@@ -20,11 +20,15 @@
  *   meta_value   string   the value that predicate must equal.
  *   verify_link  bool     whether the public verifier may be offered at all.
  *
- * BOTH QUERIES CARRY `'perm' => 'readable'`. These sections list draft,
- * pending and private, and `edit_posts` / `edit_pages` are Author-level
- * capabilities: without `perm` an Author would read other people's
- * unpublished work through this window. With it, WordPress restricts the
- * unpublished half of the result to what the CURRENT user may read.
+ * BOTH QUERIES SCOPE THE UNPUBLISHED HALF TO ITS AUTHOR for a user who lacks
+ * the type's `edit_others_*` capability. Two mechanisms, because WordPress
+ * has two: `'perm' => 'readable'` narrows PRIVATE posts to what the user may
+ * read (class-wp-query.php puts only `private` on that path), and a
+ * `posts_where` clause -- `post_status = 'publish' OR post_author = <me>` --
+ * narrows draft, pending and scheduled, which `readable` leaves unrestricted.
+ * `'perm' => 'editable'` would do both in one, but it also hides OTHER
+ * authors' PUBLISHED posts from such a user, which a list of the site's
+ * notes must not do. The clause is added around the query and removed after.
  *
  * THE PUBLISH CAP COMES FROM THE POST TYPE OBJECT, never the literal
  * `publish_posts`: that is the POST cap, and a page needs `publish_pages`.
@@ -79,6 +83,47 @@ function post_section_columns() {
 }
 
 /**
+ * The unpublished half of a post section belongs to its author for a user
+ * without the type's `edit_others_*` capability. Returns the SQL clause the
+ * `posts_where` filter appends, or '' when the user may read everyone's.
+ *
+ * @param string $post_type The section's post type.
+ * @return string
+ */
+function post_scope_where( $post_type ) {
+	$object = function_exists( 'get_post_type_object' ) ? get_post_type_object( (string) $post_type ) : null;
+	$others = is_object( $object ) && isset( $object->cap->edit_others_posts ) ? (string) $object->cap->edit_others_posts : '';
+	if ( '' === $others || current_user_can( $others ) ) {
+		return '';
+	}
+	global $wpdb;
+	$posts = is_object( $wpdb ) && isset( $wpdb->posts ) ? (string) $wpdb->posts : 'wp_posts';
+	return sprintf( " AND ( %s.post_status = 'publish' OR %s.post_author = %d )", $posts, $posts, (int) get_current_user_id() );
+}
+
+/**
+ * Run one WP_Query with the section's author scope attached for its duration.
+ *
+ * @param array<string,mixed> $args  WP_Query args.
+ * @param string              $post_type The section's post type.
+ * @return \WP_Query
+ */
+function post_scoped_query( array $args, $post_type ) {
+	$clause = post_scope_where( $post_type );
+	$filter = static function ( $where ) use ( $clause ) {
+		return $where . $clause;
+	};
+	if ( '' !== $clause ) {
+		add_filter( 'posts_where', $filter );
+	}
+	$query = new \WP_Query( $args );
+	if ( '' !== $clause ) {
+		remove_filter( 'posts_where', $filter );
+	}
+	return $query;
+}
+
+/**
  * The WP_Query arguments a post section reads with.
  *
  * @param array<string,mixed> $cfg      Section config (see the file docblock).
@@ -92,8 +137,8 @@ function post_query_args( array $cfg, $per_page, $ids_only ) {
 		'post_type'      => (string) ( $cfg['post_type'] ?? 'post' ),
 		'post_status'    => $statuses,
 		'posts_per_page' => (int) $per_page,
-		// An Author holds edit_posts/edit_pages. Without this, the draft,
-		// pending and private half of the list would be everyone's.
+		// Narrows PRIVATE posts to what the user may read -- and only those;
+		// draft, pending and scheduled are scoped by post_scope_where() below.
 		'perm'           => 'readable',
 	);
 	if ( $ids_only ) {
@@ -123,7 +168,7 @@ function post_query_args( array $cfg, $per_page, $ids_only ) {
  * @return array<int,array<string,mixed>>
  */
 function post_items( array $cfg ) {
-	$query = new \WP_Query( post_query_args( $cfg, (int) SN_OS_APP_ITEM_CAP, false ) );
+	$query = post_scoped_query( post_query_args( $cfg, (int) SN_OS_APP_ITEM_CAP, false ), (string) ( $cfg['post_type'] ?? 'post' ) );
 	$items = array();
 	foreach ( (array) $query->posts as $post ) {
 		$items[] = post_item( $post, $cfg );
@@ -138,7 +183,7 @@ function post_items( array $cfg ) {
  * @return int
  */
 function post_count( array $cfg ) {
-	$query = new \WP_Query( post_query_args( $cfg, 1, true ) );
+	$query = post_scoped_query( post_query_args( $cfg, 1, true ), (string) ( $cfg['post_type'] ?? 'post' ) );
 	return (int) $query->found_posts;
 }
 

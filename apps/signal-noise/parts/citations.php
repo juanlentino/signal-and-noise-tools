@@ -113,11 +113,29 @@ function citation_item( $row ) {
 	}
 	$target_id  = (int) ( $row->target_post_id ?? 0 );
 	$target_url = (string) ( $row->target_url ?? '' );
-	$target     = $target_id > 0 && function_exists( 'get_the_title' ) ? (string) get_the_title( $target_id ) : '';
-	$checked    = (string) ( $row->last_checked_gmt ?? '' );
-	$ago        = function_exists( 'sn_cit_ago_label' ) ? (string) \sn_cit_ago_label( '' !== $checked ? $checked : null ) : $checked;
-	// 0 means no response arrived at all, which is not the same answer as a 404.
-	$code = (int) ( $row->last_status ?? 0 ) > 0 ? (string) (int) $row->last_status : __( 'no response', 'signal-and-noise-tools' );
+	// Existence and titledness are two facts: a target that exists but has no
+	// title is "(no title)", and only a missing one is unresolved. The link
+	// is offered from the SAME resolution, so a row never denies and offers.
+	$target_post = $target_id > 0 && function_exists( 'get_post' ) ? get_post( $target_id ) : null;
+	$target_link = $target_post ? (string) get_permalink( $target_post ) : '';
+	$target      = '';
+	if ( $target_post ) {
+		$target = (string) get_the_title( $target_post );
+		if ( '' === $target ) {
+			$target = __( '(no title)', 'signal-and-noise-tools' );
+		}
+	}
+	$checked = (string) ( $row->last_checked_gmt ?? '' );
+	$ago     = function_exists( 'sn_cit_ago_label' ) ? (string) \sn_cit_ago_label( '' !== $checked ? $checked : null ) : $checked;
+	// Three states, said apart: never checked (a fetch that never happened),
+	// checked with no response (0), checked with a status code.
+	if ( '' === $checked ) {
+		$code = __( 'not checked', 'signal-and-noise-tools' );
+	} elseif ( (int) ( $row->last_status ?? 0 ) > 0 ) {
+		$code = (string) (int) $row->last_status;
+	} else {
+		$code = __( 'no response', 'signal-and-noise-tools' );
+	}
 	$kind = function_exists( 'sn_cit_tier_pill_kind' ) ? (string) \sn_cit_tier_pill_kind( $tier ) : '';
 	$tone = function_exists( 'sn_note_dossier_tone' ) ? (string) \sn_note_dossier_tone( $kind ) : 'neutral';
 
@@ -126,8 +144,8 @@ function citation_item( $row ) {
 	if ( '' !== $door ) {
 		$actions[] = array( 'label' => __( 'Open Citations in S&N Dashboard', 'signal-and-noise-tools' ), 'url' => $door );
 	}
-	if ( $target_id > 0 ) {
-		$actions[] = array( 'label' => __( 'View the note', 'signal-and-noise-tools' ), 'url' => (string) get_permalink( $target_id ) );
+	if ( '' !== $target_link ) {
+		$actions[] = array( 'label' => __( 'View the note', 'signal-and-noise-tools' ), 'url' => $target_link );
 	}
 
 	return array(
@@ -145,11 +163,11 @@ function citation_item( $row ) {
 			'tone'  => $tone,
 			'title' => function_exists( 'sn_cit_tier_gloss' ) ? (string) \sn_cit_tier_gloss( $tier ) : '',
 		),
+		// The list view already paints Status (the tier) and Date (last checked)
+		// from statusLabel and dateLabel; only what those do not carry is a column.
 		'columns'     => array(
-			'tier'    => $tier,
-			'target'  => '' !== $target ? $target : $target_url,
-			'checked' => $ago,
-			'status'  => $code,
+			'target' => '' !== $target ? $target : $target_url,
+			'code'   => $code,
 		),
 		'detail'      => array(
 			// No hero: a citation is a pair of URLs, and `hero` is an <img src>.
@@ -184,9 +202,8 @@ add_filter(
 			'statuses'       => $statuses,
 			'default_status' => '',
 			'columns'        => array(
-				array( 'key' => 'tier', 'label' => __( 'Tier', 'signal-and-noise-tools' ) ),
 				array( 'key' => 'target', 'label' => __( 'Target', 'signal-and-noise-tools' ) ),
-				array( 'key' => 'checked', 'label' => __( 'Last checked', 'signal-and-noise-tools' ) ),
+				array( 'key' => 'code', 'label' => __( 'Last status', 'signal-and-noise-tools' ) ),
 			),
 			'count'          => __NAMESPACE__ . '\citations_count',
 			'items'          => __NAMESPACE__ . '\citations_items',

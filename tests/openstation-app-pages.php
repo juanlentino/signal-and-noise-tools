@@ -8,8 +8,9 @@
  *
  *   - the query: `post_type page` plus the signing opt-in meta, never the
  *     `category_name` a page has no taxonomy for;
- *   - `'perm' => 'readable'` on BOTH queries, because these sections list
- *     draft, pending and private and `edit_pages` is an Author capability;
+ *   - the author scope on BOTH queries, in its TWO halves: `'perm' =>
+ *     'readable'` narrows PRIVATE posts, and a `posts_where` clause narrows
+ *     draft, pending and scheduled, which `readable` leaves alone;
  *   - the publish capability, read from the post type object: `publish_posts`
  *     is the POST cap and would have silently over-granted for a page;
  *   - the provenance gate, which is now the SUBJECT KIND -- so an opted-in
@@ -75,7 +76,17 @@ namespace {
 	// ── WordPress, flat ──────────────────────────────────────────────
 	$GLOBALS['__filters'] = array();
 	function add_filter( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__filters'][ $hook ][] = $cb; return true; }
+	// A REAL remove_filter, because the author scope is a filter added around
+	// one query and removed after it: a stub that forgets would let the clause
+	// leak onto the next section's query and the suite would never notice.
+	function remove_filter( $hook, $cb, $prio = 10 ) {
+		foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $i => $one ) { if ( $one === $cb ) { unset( $GLOBALS['__filters'][ $hook ][ $i ] ); } }
+		return true;
+	}
 	function apply_filters( $hook, $value, ...$rest ) { foreach ( $GLOBALS['__filters'][ $hook ] ?? array() as $cb ) { $value = call_user_func( $cb, $value, ...$rest ); } return $value; }
+	function get_current_user_id() { return (int) ( $GLOBALS['__uid'] ?? 5 ); }
+	// The clause names the posts table off $wpdb, so the branch that reads it runs.
+	$wpdb = (object) array( 'posts' => 'wp_posts' );
 	function __( $s, $d = null ) { return $s; }
 	function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; }
 	function get_bloginfo( $k ) { return 'Juan'; }
@@ -104,10 +115,17 @@ namespace {
 	function get_the_post_thumbnail_url( $post, $size ) { return $post->thumb ?? ''; }
 	function get_permalink( $post ) { return 'https://example.test/?p=' . $post->ID; }
 	function get_edit_post_link( $id, $ctx = '' ) { return 'https://example.test/wp-admin/post.php?post=' . $id . '&action=edit'; }
+	// Both per-type capabilities WordPress maps on the object: `publish_posts`
+	// and `edit_others_posts` are the KEYS, and their VALUES are the page's own
+	// names. Reading the key as the capability is the over-grant this suite
+	// exists to catch.
 	function get_post_type_object( $post_type ) {
-		$caps = array( 'post' => 'publish_posts', 'page' => 'publish_pages' );
+		$caps = array(
+			'post' => array( 'publish_posts' => 'publish_posts', 'edit_others_posts' => 'edit_others_posts' ),
+			'page' => array( 'publish_posts' => 'publish_pages', 'edit_others_posts' => 'edit_others_pages' ),
+		);
 		return isset( $caps[ (string) $post_type ] )
-			? (object) array( 'name' => (string) $post_type, 'cap' => (object) array( 'publish_posts' => $caps[ (string) $post_type ] ) )
+			? (object) array( 'name' => (string) $post_type, 'cap' => (object) $caps[ (string) $post_type ] )
 			: null;
 	}
 	// The one gate: a post in the Notes category is a note, a page that opted
@@ -121,11 +139,21 @@ namespace {
 	function sn_prov_get_chain( $id ) { return $GLOBALS['__chains'][ $id ] ?? array(); }
 	function sn_discography_get() { return array( 'entries' => array() ); }
 
+	// ARG-AWARE, AND FILTER-AWARE. The real WP_Query orders, bounds, and runs
+	// the `posts_where` clauses somebody attached; a stub that does none of
+	// those three cannot fail on a section that forgot any of them. So this one
+	// honours `orderby` (date DESC, then ID DESC), honours `posts_per_page`,
+	// and ASKS for a posts_where clause the way core does -- then obeys it: a
+	// clause naming `post_author = N` drops every NON-publish row belonging to
+	// somebody else, which is exactly the SQL the section appends.
 	class WP_Query {
 		public $posts = array(); public $found_posts = 0;
 		public function __construct( array $args ) {
 			$GLOBALS['__queries'][] = $args;
 			$types = array_map( 'strval', (array) ( $args['post_type'] ?? 'post' ) );
+			$where = (string) apply_filters( 'posts_where', '', $this );
+			$GLOBALS['__wheres'][] = $where;
+			$mine  = preg_match( '/post_author = (\d+)/', $where, $m ) ? (int) $m[1] : 0;
 			$found = array();
 			foreach ( $GLOBALS['__posts'] as $p ) {
 				if ( ! in_array( (string) $p->post_type, $types, true ) ) { continue; }
@@ -133,30 +161,50 @@ namespace {
 					$have = (string) ( $GLOBALS['__meta'][ (int) $p->ID ][ (string) $args['meta_key'] ] ?? '' );
 					if ( $have !== (string) ( $args['meta_value'] ?? '' ) ) { continue; }
 				}
+				if ( $mine > 0 && 'publish' !== (string) $p->post_status && (int) $p->post_author !== $mine ) { continue; }
 				$found[] = $p;
 			}
+			if ( ! empty( $args['orderby'] ) && is_array( $args['orderby'] ) ) {
+				usort( $found, static function ( $a, $b ) { return strcmp( (string) $b->post_date, (string) $a->post_date ) ?: ( (int) $b->ID <=> (int) $a->ID ); } );
+			}
+			// found_posts is the total BEFORE the bound, the way core reports it.
 			$this->found_posts = count( $found );
-			$this->posts       = 'ids' === ( $args['fields'] ?? '' ) ? array() : $found;
+			$per               = (int) ( $args['posts_per_page'] ?? -1 );
+			if ( $per > 0 ) { $found = array_slice( $found, 0, $per ); }
+			$this->posts = 'ids' === ( $args['fields'] ?? '' ) ? array() : $found;
 		}
 	}
 
-	function page_row( $id, $title, $status = 'publish', $date = '2026-07-01 09:00:00' ) { return (object) array( 'ID' => $id, 'post_title' => $title, 'post_status' => $status, 'post_date' => $date, 'post_type' => 'page', 'thumb' => '' ); }
+	function page_row( $id, $title, $status = 'publish', $date = '2026-07-01 09:00:00', $author = 5 ) { return (object) array( 'ID' => $id, 'post_title' => $title, 'post_status' => $status, 'post_date' => $date, 'post_type' => 'page', 'thumb' => '', 'post_author' => $author ); }
 
 	$GLOBALS['__queries'] = array();
+	$GLOBALS['__wheres']  = array();
+	// DELIBERATELY NOT IN DATE ORDER. Fixture order and date order disagree, so
+	// "newest first" is a property of the query and not of this array literal.
+	// Author 5 is the reader; author 9 is somebody else.
 	$GLOBALS['__posts']   = array(
-		// The note the Pages query must NOT return.
-		(object) array( 'ID' => 11, 'post_title' => 'The signer keeps moving', 'post_status' => 'publish', 'post_date' => '2026-08-14 10:00:00', 'post_type' => 'post', 'thumb' => '' ),
-		page_row( 31, 'Start here' ),
 		page_row( 32, 'Colophon', 'draft', '2026-06-02 09:00:00' ),
+		// Another author's PUBLISHED page: visible to everyone. The whole reason
+		// `'perm' => 'editable'` was not the fix -- it would have hidden this.
+		page_row( 34, 'Field notes', 'publish', '2026-05-01 09:00:00', 9 ),
+		// The note the Pages query must NOT return.
+		(object) array( 'ID' => 11, 'post_title' => 'The signer keeps moving', 'post_status' => 'publish', 'post_date' => '2026-08-14 10:00:00', 'post_type' => 'post', 'thumb' => '', 'post_author' => 5 ),
+		page_row( 31, 'Start here' ),
+		// Another author's DRAFT page: the unpublished half this scope narrows.
+		page_row( 35, 'A neighbour draft', 'draft', '2026-08-01 09:00:00', 9 ),
 		// Opted OUT, and it has a chain anyway: a page that once carried one
 		// must still be refused, or "signed" would mean "has a row somewhere".
 		page_row( 33, 'Stats' ),
+		// Another author's DRAFT note, for the same pair on the Notes query.
+		(object) array( 'ID' => 13, 'post_title' => 'A neighbour note', 'post_status' => 'draft', 'post_date' => '2026-08-02 10:00:00', 'post_type' => 'post', 'thumb' => '', 'post_author' => 9 ),
 	);
 	$GLOBALS['__meta']   = array(
 		11 => array( '_sn_prov_uid' => 'sn:note:11' ),
 		31 => array( '_sn_prov_sign' => '1', '_sn_prov_uid' => 'sn:page:31' ),
 		32 => array( '_sn_prov_sign' => '1' ),
 		33 => array( '_sn_prov_uid' => 'sn:page:33' ),
+		34 => array( '_sn_prov_sign' => '1' ),
+		35 => array( '_sn_prov_sign' => '1' ),
 	);
 	$GLOBALS['__chains'] = array(
 		11 => array( array( 'version' => 1, 'status' => 'confirmed', 'committed_at' => '2026-08-14T10:00:00Z', 'content_hash' => 'cccccccccccccccccccccccc' ) ),
@@ -198,17 +246,18 @@ namespace {
 	ok( array( 'publish', 'future', 'draft', 'pending', 'private' ) === $q['post_status'], 'every editable status, as Notes lists them' );
 	ok( '_sn_prov_sign' === $q['meta_key'] && '1' === $q['meta_value'], 'the predicate is the signing opt-in meta: a page is in this section because its author opted it in' );
 	ok( ! isset( $q['category_name'] ), 'no category_name: `category` is a POST-ONLY taxonomy, so asking for one would have returned nothing forever' );
-	ok( 'readable' === $q['perm'], 'perm readable -- edit_pages is an Author capability and this list includes draft, pending and private' );
+	ok( 'readable' === $q['perm'], 'perm readable narrows PRIVATE posts to what this user may read; the author clause narrows the rest -- two mechanisms, because WordPress has two' );
 	$qn = query_for( 'post' );
 	ok( is_array( $qn ) && 'readable' === $qn['perm'], 'the NOTES query carries perm readable too: the same reasoning, the same fix, both sections' );
 	ok( isset( $qn['category_name'] ) && ! isset( $qn['meta_key'] ), '   ...and it still filters by category, never by the sign meta' );
+	ok( array( 'date' => 'DESC', 'ID' => 'DESC' ) === $q['orderby'] && (int) $q['posts_per_page'] > 1, 'the items query orders newest first with ID as the tie-break, and carries the item bound' );
 
 	echo "\nGroup 3: the items -- the negative control first\n";
 	$ids = array_column( $p['items'], 'id' );
 	ok( ! in_array( '11', $ids, true ), 'NEGATIVE CONTROL: the note fixture does not come back for the pages query (the old stub ignored its args and would have shipped it)' );
-	ok( array( '31', '32' ) === $ids, 'both opted-in pages, and only those: the page that never opted in is not listed' );
+	ok( array( '31', '32', '34' ) === $ids, 'the opted-in pages this reader may see, newest first -- and the fixture array is NOT in date order, so this is the query ordering and not the literal' );
 	ok( ! in_array( '33', $ids, true ), '   ...even though page 33 has a chain in the ledger. Opting in is the predicate, not having a row.' );
-	ok( 2 === (int) $p['sections'][ array_search( 'pages', array_column( $p['sections'], 'id' ), true ) ]['count'], 'the root folder tile counts two, from a count query -- not from building every item' );
+	ok( 3 === (int) $p['sections'][ array_search( 'pages', array_column( $p['sections'], 'id' ), true ) ]['count'], 'the root folder tile counts three, from a count query -- not from building every item' );
 
 	$item = $p['items'][0];
 	ok(
@@ -217,6 +266,29 @@ namespace {
 	);
 	ok( 'dashicons-admin-page' === $item['icon'], 'the page icon, not the note\'s dashicons-edit-page' );
 	ok( 'Start here' === $item['title'] && 'Published' === $item['statusLabel'] && 'https://example.test/?p=31' === $item['link'], 'title, status label and the public link' );
+
+	echo "\nGroup 3b: the unpublished half belongs to its author\n";
+	// `perm => readable` narrows PRIVATE posts and nothing else -- core puts
+	// only `private` on that path -- so draft, pending and scheduled were
+	// EVERYONE'S through this window until v13.102.1. The fix is a posts_where
+	// clause, and these pins measure the clause's two edges: another author's
+	// draft is gone, another author's PUBLISHED page is not.
+	$clause = (string) end( $GLOBALS['__wheres'] );
+	ok( false !== strpos( $clause, "wp_posts.post_status = 'publish' OR wp_posts.post_author = 5" ), 'a reader without edit_others_pages queries with an author clause, naming the posts table and their OWN id' );
+	ok( ! in_array( '35', $ids, true ), 'another author\'s DRAFT page is not listed: the unpublished half is scoped to its author' );
+	ok( in_array( '34', $ids, true ), '   ...while another author\'s PUBLISHED page IS listed. This is the whole reason perm => editable was not the fix: it would have hidden this row too.' );
+	ok( 1 === (int) $p['sections'][ array_search( 'notes', array_column( $p['sections'], 'id' ), true ) ]['count'], 'the NOTES count is scoped the same way: another author\'s draft note is not counted into this reader\'s folder tile' );
+	ok( array() === array_values( (array) ( $GLOBALS['__filters']['posts_where'] ?? array() ) ), 'the clause is added AROUND the query and removed after it: nothing is left on posts_where for the next query in the request' );
+
+	$GLOBALS['__caps']['edit_others_pages'] = true;
+	$GLOBALS['__caps']['edit_others_posts'] = true;
+	$GLOBALS['__wheres'] = array();
+	$pe  = payload( $app, array( 'section' => 'pages' ) );
+	$eids = array_column( $pe['items'], 'id' );
+	ok( array( '35', '31', '32', '34' ) === $eids, 'an EDITOR -- edit_others_pages held -- sees the other author\'s draft too, newest first: the scope is the capability, never a hard-coded author' );
+	ok( '' === (string) end( $GLOBALS['__wheres'] ), '   ...and no clause is attached at all for such a reader: the filter is not added, not added-and-neutralised' );
+	ok( 2 === (int) $pe['sections'][ array_search( 'notes', array_column( $pe['sections'], 'id' ), true ) ]['count'], '   ...and the Notes count widens with edit_others_posts, its OWN per-type capability' );
+	unset( $GLOBALS['__caps']['edit_others_pages'], $GLOBALS['__caps']['edit_others_posts'] );
 
 	echo "\nGroup 4: provenance -- the gate is the SUBJECT KIND\n";
 	ok( array( 'text' => 'v2', 'tone' => 'success', 'title' => 'Anchored' ) === $item['badge'], 'a signed page wears its version badge: snt_os_app_note_provenance() answers for every subject kind, not only for a note' );

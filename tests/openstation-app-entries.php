@@ -127,20 +127,40 @@ function update_option( $k, $v, $a = false ) {
 	return true;
 }
 
+// ── The post table, able to say all THREE things about a target ───────
+// A citation's target is in one of three states, and a stub that cannot tell
+// them apart cannot fail on a reader that conflates them: a post that exists
+// and has a title, a post that EXISTS with an empty title, and an id no post
+// has. So `get_post()` is the resolver here (not a title map), and an unknown
+// id yields neither a title nor a URL -- exactly what WordPress does.
 /**
- * @param int $id Post id.
- * @return string
+ * @param int|object $post   Post id or object.
+ * @param string     $output Output shape.
+ * @param string     $filter Filter context.
+ * @return object|null
  */
-function get_the_title( $id = 0 ) {
-	return (string) ( $GLOBALS['__titles'][ (int) $id ] ?? '' );
+function get_post( $post = null, $output = OBJECT, $filter = 'raw' ) {
+	$id = is_object( $post ) ? (int) $post->ID : (int) $post;
+	return $GLOBALS['__posts'][ $id ] ?? null;
 }
 
 /**
- * @param int $post Post id.
+ * @param int|object $post Post id or object.
  * @return string
  */
-function get_permalink( $post = 0 ) {
-	return 'https://example.test/?p=' . (int) $post;
+function get_the_title( $post = 0 ) {
+	$row = get_post( $post );
+	return $row ? (string) $row->post_title : '';
+}
+
+/**
+ * @param int|object $post      Post id or object.
+ * @param bool       $leavename Leave the name placeholder.
+ * @return string
+ */
+function get_permalink( $post = 0, $leavename = false ) {
+	$row = get_post( $post );
+	return $row ? 'https://example.test/?p=' . (int) $row->ID : '';
 }
 
 /**
@@ -308,11 +328,22 @@ $GLOBALS['__sql'] = array();
 $wpdb             = new SNE_Stub_wpdb();
 
 // Deliberately NOT in first_seen order: the store's ORDER BY has to do the work.
+// Seven rows, chosen so every state the reader distinguishes is present ONCE:
+//   c7  resolved target, checked, 200
+//   c9  resolved target, checked, 404 (a response, and not a good one)
+//   c10 resolved target, checked, 200
+//   c8  target_post_id 0, NEVER checked  -> 'not checked'
+//   c11 resolved target, CHECKED with last_status 0 -> 'no response'
+//   c12 target that EXISTS with an empty title -> '(no title)', and a door to it
+//   c13 target id no post has -> 'unresolved target', and NO door
 $wpdb->rows['wp_sn_citations'] = array(
 	array( 'id' => 7, 'pair_hash' => 'h7', 'source_url' => 'https://Example.org/a', 'target_url' => 'https://example.test/notes/one/', 'target_post_id' => 11, 'source_title' => 'The Example Post', 'tier' => 'verified', 'first_seen_gmt' => '2026-08-01 09:00:00', 'last_checked_gmt' => '2026-09-01 09:00:00', 'last_status' => 200 ),
 	array( 'id' => 9, 'pair_hash' => 'h9', 'source_url' => 'https://third.example/c', 'target_url' => 'https://example.test/notes/three/', 'target_post_id' => 12, 'source_title' => '', 'tier' => 'unverified', 'first_seen_gmt' => '2026-08-10 09:00:00', 'last_checked_gmt' => '2026-08-30 12:00:00', 'last_status' => 404 ),
 	array( 'id' => 10, 'pair_hash' => 'hA', 'source_url' => 'https://fourth.example/d', 'target_url' => 'https://example.test/notes/four/', 'target_post_id' => 11, 'source_title' => '', 'tier' => 'unattributed', 'first_seen_gmt' => '2026-08-25 09:00:00', 'last_checked_gmt' => '2026-08-31 09:00:00', 'last_status' => 200 ),
 	array( 'id' => 8, 'pair_hash' => 'h8', 'source_url' => 'https://another.example/b', 'target_url' => 'https://example.test/notes/two/', 'target_post_id' => 0, 'source_title' => '', 'tier' => 'asserted', 'first_seen_gmt' => '2026-08-20 09:00:00', 'last_checked_gmt' => null, 'last_status' => 0 ),
+	array( 'id' => 11, 'pair_hash' => 'hB', 'source_url' => 'https://fifth.example/e', 'target_url' => 'https://example.test/notes/five/', 'target_post_id' => 11, 'source_title' => 'A fetch that timed out', 'tier' => 'verified', 'first_seen_gmt' => '2026-08-05 09:00:00', 'last_checked_gmt' => '2026-08-29 09:00:00', 'last_status' => 0 ),
+	array( 'id' => 12, 'pair_hash' => 'hC', 'source_url' => 'https://sixth.example/f', 'target_url' => 'https://example.test/notes/six/', 'target_post_id' => 13, 'source_title' => 'Cites the untitled one', 'tier' => 'unverified', 'first_seen_gmt' => '2026-08-15 09:00:00', 'last_checked_gmt' => '2026-08-28 09:00:00', 'last_status' => 200 ),
+	array( 'id' => 13, 'pair_hash' => 'hD', 'source_url' => 'https://seventh.example/g', 'target_url' => 'https://example.test/notes/seven/', 'target_post_id' => 99, 'source_title' => 'Cites a note that is gone', 'tier' => 'asserted', 'first_seen_gmt' => '2026-08-28 09:00:00', 'last_checked_gmt' => '2026-08-29 09:00:00', 'last_status' => 500 ),
 );
 
 $wpdb->rows['wp_sn_schedules'] = array(
@@ -323,7 +354,13 @@ $wpdb->rows['wp_sn_schedules'] = array(
 	array( 'id' => 5, 'schedule_id' => 'u5', 'target_type' => 'fragment', 'target_ref' => '11', 'action' => 'reveal', 'starts_at' => '2026-09-15 08:00:00', 'ends_at' => '2026-09-20 08:00:00', 'recurrence' => null, 'payload' => null, 'status' => 'done', 'last_run' => null, 'purge_urls' => null, 'updated' => null ),
 );
 
-$GLOBALS['__titles'] = array( 11 => 'The signer keeps moving', 12 => 'A draft' );
+// Post 13 EXISTS and has no title; there is no post 99. Those two rows are the
+// only way a suite can tell "untitled" apart from "gone".
+$GLOBALS['__posts'] = array(
+	11 => (object) array( 'ID' => 11, 'post_title' => 'The signer keeps moving' ),
+	12 => (object) array( 'ID' => 12, 'post_title' => 'A draft' ),
+	13 => (object) array( 'ID' => 13, 'post_title' => '' ),
+);
 
 require_once __DIR__ . '/../inc/openstation-app.php';
 require_once __DIR__ . '/../inc/citations-core.php';
@@ -367,10 +404,10 @@ function section( $id ) {
 
 echo "openstation-app-entries -- Citations and Scheduled fragments (#1068)\n\nGroup 1: the two store reads that did not exist\n";
 $all = sn_cit_all( 3 );
-ok( 3 === count( $all ), 'sn_cit_all() honours its bound (3 of 4 rows)' );
-ok( array( 10, 8, 9 ) === array_map( static function ( $r ) { return (int) $r->id; }, $all ), '   ...newest first_seen_gmt first -- the store orders, the caller does not' );
-ok( is_object( $all[0] ) && 'unattributed' === $all[0]->tier, '   ...rows come back as objects, the shape every other sn_cit_ reader returns' );
-ok( 4 === count( sn_cit_all( 400 ) ), 'a bound larger than the table returns the whole table' );
+ok( 3 === count( $all ), 'sn_cit_all() honours its bound (3 of 7 rows)' );
+ok( array( 13, 10, 8 ) === array_map( static function ( $r ) { return (int) $r->id; }, $all ), '   ...newest first_seen_gmt first -- the store orders, the caller does not' );
+ok( is_object( $all[0] ) && 'asserted' === $all[0]->tier, '   ...rows come back as objects, the shape every other sn_cit_ reader returns' );
+ok( 7 === count( sn_cit_all( 400 ) ), 'a bound larger than the table returns the whole table' );
 ok( array( 'queued', 'active', 'done', 'error' ) === SN_SCHEDULE_STATUSES, 'SN_SCHEDULE_STATUSES names the four states the engine writes, in the order it walks them' );
 ok( 4 === sn_schedule_count( 'fragment' ), 'sn_schedule_count() counts one target_type only: four fragments, not the five rows' );
 ok( 1 === sn_schedule_count( 'page' ), '   ...and answers for another target_type without a second query shape' );
@@ -391,22 +428,35 @@ ok( '' === (string) $cit['default_status'] && '' === (string) $sch['default_stat
 ok( array( 'verified', 'unattributed', 'asserted', 'unverified' ) === array_column( $cit['statuses'], 'value' ), 'the Citations pills are the tier ladder, in the ladder\'s order' );
 ok( array( 'Verified', 'Unattributed', 'Asserted', 'Unverified' ) === array_column( $cit['statuses'], 'label' ), '   ...each labelled with the tier\'s own word' );
 ok( SN_SCHEDULE_STATUSES === array_column( $sch['statuses'], 'value' ), 'the Scheduled pills are SN_SCHEDULE_STATUSES, not a sixth copy of the four literals' );
-ok( array( 'tier', 'target', 'checked' ) === array_column( $cit['columns'], 'key' ), 'Citations list columns: tier, target, checked' );
-ok( array( 'action', 'starts', 'ends', 'status' ) === array_column( $sch['columns'], 'key' ), 'Scheduled list columns: action, starts, ends, status' );
+// The list view already paints Status and Date from statusLabel and dateLabel.
+// A column that repeats one of those is a second copy of the same cell, so the
+// descriptors declare only what those two do not carry.
+ok( array( 'target', 'code' ) === array_column( $cit['columns'], 'key' ), 'Citations list columns are target and code -- NOT tier (that is the status pill\'s own word) and NOT checked (that is dateLabel)' );
+ok( array( 'Target', 'Last status' ) === array_column( $cit['columns'], 'label' ), '   ...and the code column is labelled Last status, the fact it actually holds' );
+ok( array( 'action', 'ends' ) === array_column( $sch['columns'], 'key' ), 'Scheduled list columns are action and ends -- not starts (dateLabel) and not status (statusLabel)' );
 
 echo "\nGroup 3: the counts, so items() never runs at the root\n";
 ok( is_callable( $cit['count'] ) && is_callable( $sch['count'] ), 'both descriptors supply a count callable -- without one the payload calls items() at the ROOT on every paint' );
-ok( 4 === (int) call_user_func( $cit['count'] ), 'the Citations count sums the four tiers (never_checked is a second reading of the same rows, not a fifth tier)' );
+ok( 7 === (int) call_user_func( $cit['count'] ), 'the Citations count sums the four tiers -- all seven rows, once each (never_checked is a second reading of the same rows, not a fifth tier)' );
 ok( 4 === (int) call_user_func( $sch['count'] ), 'the Scheduled count is the fragment count, so the page row is not counted into a fragment folder' );
 
 echo "\nGroup 4: Citations items\n";
 $items = array_values( (array) call_user_func( $cit['items'] ) );
-ok( array( 'c10', 'c8', 'c9', 'c7' ) === array_column( $items, 'id' ), 'ids are the row id behind a c, and the order is the store\'s: newest claim first' );
-$c7 = $items[3];
+ok( array( 'c13', 'c10', 'c8', 'c12', 'c9', 'c11', 'c7' ) === array_column( $items, 'id' ), 'ids are the row id behind a c, and the order is the store\'s: newest claim first' );
+// By id, not by offset: a fixture added in the middle of the ladder must not
+// silently re-point a pin at another row.
+$by = array();
+foreach ( $items as $one ) {
+	$by[ $one['id'] ] = $one;
+}
+$c7  = $by['c7'];
+$c8  = $by['c8'];
+$c9  = $by['c9'];
+$c11 = $by['c11'];
+$c12 = $by['c12'];
+$c13 = $by['c13'];
 ok( 'The Example Post' === $c7['title'] && 'The signer keeps moving' === $c7['subtitle'], 'a resolved row: the source title, and the cited note as the subtitle' );
-$c9 = $items[2];
 ok( 'third.example' === $c9['title'], 'with no source title the row reads as the source HOST, not a bare URL' );
-$c8 = $items[1];
 ok( 'unresolved target' === $c8['subtitle'], 'a row whose target_post_id is 0 says so; it does not print an empty subtitle' );
 ok( 'dashicons-admin-links' === $c7['icon'] && '' === $c7['thumbnail'], 'a citation has no image: the link icon, an empty thumbnail' );
 ok( 'verified' === $c7['status'] && 'Verified' === $c7['statusLabel'], 'the tier IS the status the pills filter on' );
@@ -418,20 +468,37 @@ foreach ( $items as $it ) {
 	$tones[ $it['status'] ] = $it['badge']['tone'];
 }
 ok( array( 'verified' => 'success', 'unattributed' => 'info', 'asserted' => 'warning', 'unverified' => 'neutral' ) === array( 'verified' => $tones['verified'], 'unattributed' => $tones['unattributed'], 'asserted' => $tones['asserted'], 'unverified' => $tones['unverified'] ), 'every tier bridges to its own tone: ok->success, \'\'->info, warn->warning, muted->neutral' );
-ok( array( 'tier', 'target', 'checked', 'status' ) === array_keys( $c7['columns'] ), 'the item carries a cell for each declared column, plus the status code' );
-ok( 'verified' === $c7['columns']['tier'] && 'The signer keeps moving' === $c7['columns']['target'] && '3 days ago' === $c7['columns']['checked'] && '200' === $c7['columns']['status'], 'the cells read the row, not the descriptor' );
-ok( 'no response' === $c8['columns']['status'], 'status 0 is no response at all -- distinct from a 404, which is a response' );
+ok( array( 'target', 'code' ) === array_keys( $c7['columns'] ), 'the item carries a cell for each declared column and NO cell the descriptor never declared -- a key with no header paints nowhere' );
+ok( array_column( $cit['columns'], 'key' ) === array_keys( $c7['columns'] ), '   ...and the two lists are the SAME list, in the same order: the descriptor and the item cannot drift apart' );
+ok( 'The signer keeps moving' === $c7['columns']['target'] && '200' === $c7['columns']['code'], 'the cells read the row, not the descriptor' );
+// The three states of the Last status cell, said apart. Two of them were one
+// sentence before v13.102.1: a row that was never fetched read "no response",
+// which is what a row that WAS fetched and got nothing says.
+ok( 'not checked' === $c8['columns']['code'] && 'not checked' === $c8['detail']['facts'][4][1], 'a row that was NEVER checked says not checked -- there was no fetch, so there is no response to report' );
+ok( 'no response' === $c11['columns']['code'] && 'no response' === $c11['detail']['facts'][4][1], 'a row that WAS checked and got status 0 says no response: the fetch happened and nothing came back' );
+ok( '404' === $c9['columns']['code'], '   ...and a real code is the code: a 404 is a response, and distinct from both of the above' );
 $d7 = $c7['detail'];
 ok( '' === $d7['hero'] && array() === $d7['blocks'], 'no hero image and no blocks: everything a citation knows fits in its facts' );
 ok( array( 'Source', 'Target', 'Tier', 'Last checked', 'Last status' ) === array_column( $d7['facts'], 0 ), 'the five facts, in the order the row is adjudicated' );
 ok( 'https://Example.org/a' === $d7['facts'][0][1] && 'The signer keeps moving' === $d7['facts'][1][1], 'Source is the URL as cited; Target is the note by name when the row resolved one' );
 ok( 'https://example.test/notes/two/' === $c8['detail']['facts'][1][1], '   ...and the target URL when it did not: the path is never lost' );
 ok( false !== strpos( $d7['facts'][2][1], 'the link is still there' ), 'Tier is the full sentence, not the one-word verdict twice' );
-ok( 'no response' === $c8['detail']['facts'][4][1] && '404' === $c9['detail']['facts'][4][1], 'Last status: the code when there was one' );
+ok( '404' === $c9['detail']['facts'][4][1], 'Last status: the code when there was one' );
 ok( array( 'Open Citations in S&N Dashboard', 'View the note' ) === array_column( $d7['actions'], 'label' ), 'a resolved row offers the leaf and the note' );
 ok( 'https://example.test/wp-admin/admin.php?page=sn-tools&sub=citations' === $d7['actions'][0]['url'], 'the door is Integrity -> Citations, built from the slug and its sub-tab' );
 ok( 'https://example.test/?p=11' === $d7['actions'][1]['url'], '   ...and the note is its permalink' );
 ok( array( 'Open Citations in S&N Dashboard' ) === array_column( $c8['detail']['actions'], 'label' ), 'an unresolved row offers the door alone -- there is no note to open' );
+
+// EXISTENCE and TITLEDNESS are two facts, and one resolution answers both.
+// Before v13.102.1 an untitled target read "unresolved target" AND was handed
+// a "View the note" link -- the row denied and offered in the same breath.
+ok( '(no title)' === $c12['subtitle'] && '(no title)' === $c12['columns']['target'], 'a target that EXISTS with an empty title is (no title): it resolved, it just has no name' );
+ok( '(no title)' === $c12['detail']['facts'][1][1], '   ...and the Target fact says the same thing the cell does' );
+ok( array( 'Open Citations in S&N Dashboard', 'View the note' ) === array_column( $c12['detail']['actions'], 'label' ), '   ...and the door to it IS offered: a post with no title is still a post you can open' );
+ok( 'https://example.test/?p=13' === $c12['detail']['actions'][1]['url'], '   ...at that post\'s own permalink' );
+ok( 'unresolved target' === $c13['subtitle'], 'a target_post_id no post has is unresolved -- the id is set, and there is nothing behind it' );
+ok( 'https://example.test/notes/seven/' === $c13['columns']['target'] && 'https://example.test/notes/seven/' === $c13['detail']['facts'][1][1], '   ...and the cell falls back to the stored URL, so the path is never lost' );
+ok( array( 'Open Citations in S&N Dashboard' ) === array_column( $c13['detail']['actions'], 'label' ), '   ...and NO note door is offered: the link and the sentence come from ONE resolution, so a row can never deny and offer at once' );
 
 echo "\nGroup 5: Scheduled fragments items\n";
 $sitems = array_values( (array) call_user_func( $sch['items'] ) );
@@ -443,7 +510,11 @@ ok( 'The signer keeps moving' === $s1['title'], 'a fragment is named by the post
 ok( '(unlinked fragment)' === $s2['title'], 'a fragment whose host is gone says so, rather than printing an empty title' );
 ok( 'dashicons-clock' === $s1['icon'] && '' === $s1['thumbnail'], 'the clock icon, no thumbnail' );
 ok( 'reveal · 2026-10-01 08:00 → 2026-10-05 08:00' === $s1['subtitle'], 'the subtitle is the action and the window, both boundaries in the site timezone' );
-ok( 'hide · never → never' === $s2['subtitle'], 'an open-ended window reads never on both ends, never as an empty string' );
+// An absent START and an absent END are opposite facts. A fragment with no
+// start is open from the beginning; only the end can be never. Both read
+// "never" before v13.102.1, which said the window had not begun and would not.
+ok( 'hide · always → never' === $s2['subtitle'], 'an open-START window reads always on the left and never on the right: a fragment with no start is showing already, not waiting forever' );
+ok( '2026-09-15 08:00 → never' === $sitems[0]['badge']['title'], '   ...while a row that HAS a start keeps it, so "always" is a reading of the absence and not a constant' );
 ok( 'active' === $s1['status'] && 'Active' === $s1['statusLabel'], 'the row status IS the status the pills filter on' );
 ok( '2026-10-01 08:00:00' === $s1['date'] && '2026-10-01 08:00' === $s1['dateLabel'], 'the date is the start; the label is the formatted start' );
 ok( '' === $s2['date'] && '' === $s2['dateLabel'], 'no start, no date: the tile carries nothing rather than today' );
@@ -453,8 +524,9 @@ foreach ( $sitems as $it ) {
 }
 ok( array( 'active' => 'success', 'error' => 'warning', 'queued' => 'neutral', 'done' => 'neutral' ) === array( 'active' => $stones['active'], 'error' => $stones['error'], 'queued' => $stones['queued'], 'done' => $stones['done'] ), 'every status has a tone: active reads success, error reads warning, the two resting states read neutral' );
 ok( 'active' === $s1['badge']['text'], 'the badge says the status in the row\'s own word' );
-ok( array( 'action', 'starts', 'ends', 'status' ) === array_keys( $s1['columns'] ), 'a cell for each declared column' );
-ok( 'reveal' === $s1['columns']['action'] && '2026-10-01 08:00' === $s1['columns']['starts'] && '2026-10-05 08:00' === $s1['columns']['ends'] && 'active' === $s1['columns']['status'], 'the cells read the row' );
+ok( array( 'action', 'ends' ) === array_keys( $s1['columns'] ), 'a cell for each declared column, and no cell the descriptor never declared' );
+ok( array_column( $sch['columns'], 'key' ) === array_keys( $s1['columns'] ), '   ...the descriptor\'s list and the item\'s list are the SAME list, in the same order' );
+ok( 'reveal' === $s1['columns']['action'] && '2026-10-05 08:00' === $s1['columns']['ends'], 'the cells read the row' );
 ok( 'never' === $sitems[0]['columns']['ends'], 'an open-ended end reads never in the list too' );
 $sd1 = $s1['detail'];
 ok( array( 'Target', 'Action', 'Starts', 'Ends', 'Status', 'Last run', 'Purge URLs' ) === array_column( $sd1['facts'], 0 ), 'the seven facts a schedule row knows about itself' );

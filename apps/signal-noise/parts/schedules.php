@@ -120,7 +120,10 @@ function schedules_count() {
  * @return array<string,mixed>
  */
 function schedule_item( array $row ) {
-	$never = __( 'never', 'signal-and-noise-tools' );
+	$never  = __( 'never', 'signal-and-noise-tools' );
+	// The engine's, the leaf's and the dossier's word for an absent start: a
+	// fragment with no start is open from the beginning, not never.
+	$always = __( 'always', 'signal-and-noise-tools' );
 	$ref   = (int) ( $row['target_ref'] ?? 0 );
 	$title = $ref > 0 && function_exists( 'get_the_title' ) ? (string) get_the_title( $ref ) : '';
 	if ( '' === $title ) {
@@ -132,7 +135,7 @@ function schedule_item( array $row ) {
 	$starts = schedule_fmt( $row['starts_at'] ?? '' );
 	$ends   = schedule_fmt( $row['ends_at'] ?? '' );
 	$run    = schedule_fmt( $row['last_run'] ?? '' );
-	$window = ( '' !== $starts ? $starts : $never ) . ' → ' . ( '' !== $ends ? $ends : $never );
+	$window = ( '' !== $starts ? $starts : $always ) . ' → ' . ( '' !== $ends ? $ends : $never );
 
 	$urls = array();
 	foreach ( (array) json_decode( (string) ( $row['purge_urls'] ?? '' ), true ) as $url ) {
@@ -181,11 +184,12 @@ function schedule_item( array $row ) {
 			'tone'  => 'active' === $status ? 'success' : ( 'error' === $status ? 'warning' : 'neutral' ),
 			'title' => $window,
 		),
+		// The same two the descriptor declares, and only those: a cell with no
+		// column header paints nowhere, and Starts/Status are already the tile's
+		// dateLabel and statusLabel.
 		'columns'     => array(
 			'action' => $action,
-			'starts' => '' !== $starts ? $starts : $never,
 			'ends'   => '' !== $ends ? $ends : $never,
-			'status' => $status,
 		),
 		'detail'      => array(
 			'hero'    => '',
@@ -220,11 +224,11 @@ add_filter(
 			'position'       => 40,
 			'statuses'       => $statuses,
 			'default_status' => '',
+			// The list view already paints Status and Date (the start) from
+			// statusLabel and dateLabel; only what those do not carry is a column.
 			'columns'        => array(
 				array( 'key' => 'action', 'label' => __( 'Action', 'signal-and-noise-tools' ) ),
-				array( 'key' => 'starts', 'label' => __( 'Starts', 'signal-and-noise-tools' ) ),
 				array( 'key' => 'ends', 'label' => __( 'Ends', 'signal-and-noise-tools' ) ),
-				array( 'key' => 'status', 'label' => __( 'Status', 'signal-and-noise-tools' ) ),
 			),
 			'count'          => __NAMESPACE__ . '\schedules_count',
 			'items'          => __NAMESPACE__ . '\schedules_items',

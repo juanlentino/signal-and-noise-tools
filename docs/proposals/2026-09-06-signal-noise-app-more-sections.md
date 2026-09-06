@@ -73,3 +73,16 @@ Four, all small and all deliberate.
 ### Task C
 
 None. The three changes are exactly the ones the contract names and nothing else moved. Two comment blocks adjacent to the changed lines were reworded (the `updated:` docblock said "Notes only", which was no longer true, and the DRAG_ENTITY docblock needed no change); no other line of the client differs. `git diff --stat` on the branch is exactly the two assigned files: the client (the two gates, the map, a reworded comment) and its suite (four lines).
+
+## Amendments (2026-09-06, from the review)
+
+Six reviewers (the Pages section, the entry sections, the client, security, tests, readout) and two refuters per finding: twelve findings survived and are applied.
+
+1. **`perm => readable` guards private posts only.** WordPress applies it to the `private` status and leaves draft, pending and scheduled unrestricted, so the guarantee the plan, the builder's docblock and the policy doc made was false. Both post queries now add a `posts_where` clause, `post_status = 'publish' OR post_author = <me>`, for a user without the type's `edit_others_*` capability; `editable` was not used because it would also hide other authors' published posts. The suite pins the property with another author's draft, not the parameter.
+2. **A citation never checked reads "not checked"**, and "no response" is reserved for a check that ran and got nothing; a status code is a status code. Three states, said apart.
+3. **A target is resolved before it is named.** A target that exists but is untitled reads "(no title)" and keeps its link; only a missing target is "unresolved", and it offers no link. The link and the wording come from one resolution.
+4. **A fragment with no start reads "always"**, the engine's, the leaf's and the dossier's word; "never" is for an absent end.
+5. **The entry sections declare only the columns the list view does not already paint** (target and last status; action and ends): the built-in Status and Date columns carry the tier and the last check, the status and the start.
+6. **The server actions are pinned through both sections**: under Pages a page id acts and a note id is refused, under Notes the mirror.
+7. **`hasDossier` has its false case pinned** for Discography and a foreign section; the post suites' query stub honours order and page size with fixtures whose date order differs from array order; the drag map's page key is pinned with its value.
+

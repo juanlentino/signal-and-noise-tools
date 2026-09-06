@@ -85,7 +85,7 @@ contrast, matched none of those patterns. Read the callback.
 |---|---|
 | `note-dossier` | `edit_post` on the note, deliberately below `manage_options`: the dossier is the editor's own view of one post they may edit. It exposes, for that post only, per-path views and visits, Search Console impressions and clicks, the edge-freshness verdict and the site-wide machine-read total: audience and operational data that stays at `manage_options` when asked site-wide (`get-analytics-summary`, `get-machine-readers-summary`). Scope, not sensitivity, is what changed. The callback is `snt_ability_perm_edit_post`, which checks the capability against the `post_id` in the input, so an Author reads their own notes and nobody else's. |
 
-The Signal & Noise app's Notes and Pages sections apply the same scoping principle one layer down, at the `WP_Query` itself: both queries carry `'perm' => 'readable'`, so an Author browsing either section's draft, pending or private items sees only their own unpublished posts, never another author's.
+The app's two post sections (Notes, Pages) scope their unpublished half to its author for a user without the type's `edit_others_*` capability, with two mechanisms because WordPress has two: `'perm' => 'readable'` narrows PRIVATE posts to what the user may read, and a `posts_where` clause (`post_status = 'publish' OR post_author = <me>`) narrows draft, pending and scheduled, which `readable` leaves unrestricted. So an Author browsing either section sees everyone's published posts and only their own unpublished ones.
 
 ## Adding an ability
 

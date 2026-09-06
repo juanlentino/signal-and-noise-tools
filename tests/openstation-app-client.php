@@ -71,7 +71,11 @@ ok( false !== strpos( $js, 'dragManager.start(' ), 'the lift goes through the sh
 ok( false !== strpos( $js, "type: 'shortcut'" ), 'it lifts as a shortcut payload' );
 ok( false !== strpos( $js, 'restPath' ), 'the section\'s REST collection rides along so a drop target can route the object' );
 ok( false !== strpos( $js, "'signal-noise:notes'" ), 'the entity id names the app and the section' );
-ok( false !== strpos( $js, "'signal-noise:pages'" ), '...and Pages opts in BY NAME beside Notes: a section the shell has not been told about still must not lift' );
+// The KEY and the VALUE, together: `'signal-noise:pages'` sitting anywhere in
+// the file proves the string exists, not that the `pages` section maps to it.
+// A map keyed `page:` -- or one whose pages entry points at the notes entity --
+// would satisfy a bare substring search and lift the wrong object.
+ok( 1 === preg_match( "/pages:\\s*'signal-noise:pages'/", $js ), '...and Pages opts in BY NAME beside Notes -- the `pages` KEY mapped to the `signal-noise:pages` entity, not merely the string somewhere in the file' );
 ok( false !== strpos( $js, 'data-snt-drag' ), 'only elements carrying the drag flag lift' );
 ok( false !== strpos( $js, 'e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || isPhone()' ), 'the lift refuses a non-primary button, any modifier, and the phone -- one guard, the Explorer\'s' );
 
