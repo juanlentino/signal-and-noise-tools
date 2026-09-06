@@ -746,6 +746,31 @@ ok( false !== $boot_at && false !== $ob_at && $boot_at < $ob_at, '...before the 
 ok( false !== $swap_at && $boot_at < $swap_at, '...and before the superglobals are SWAPPED, which is what Group 0 measures the consequence of' );
 ok( ! function_exists( 'submit_button' ), 'this suite has no wp-admin either, so the SANDBOX is where the leaf is measured (it is: MCP Clients paints after the fix)' );
 
+echo "\nGroup W: a write resets the request memos the repaint reads\n";
+// sn_setting() memoises the merged settings once per request and the save never
+// resets it; on the classic page the redirect hides that, in a window the
+// repaint would paint the value from BEFORE the save (measured: social_same_as).
+$GLOBALS['__resets'] = array();
+$GLOBALS['__actions']['snt_os_host_wrote'] = array();
+if ( ! function_exists( 'sn_setting_reset_cache' ) ) {
+	function sn_setting_reset_cache() { $GLOBALS['__resets'][] = 'settings'; }
+}
+if ( ! function_exists( 'snt_ai_reset_availability_cache' ) ) {
+	function snt_ai_reset_availability_cache() { $GLOBALS['__resets'][] = 'ai'; }
+}
+$settings_src = (string) file_get_contents( __DIR__ . '/../inc/settings.php' );
+ok( false !== strpos( $settings_src, 'static $merged = null;' ) && false === strpos( substr( $settings_src, strpos( $settings_src, 'function sn_settings_save' ) ), 'sn_setting_reset_cache' ), 'the hazard is real: sn_setting() memoises per request and sn_settings_save() does not reset it (if this pin goes red the reset below may be redundant -- keep it anyway, other memos exist)' );
+$before = $GLOBALS['__resets'];
+snt_os_host_after_write( array( 'ok' => true, 'flash' => 'identity_saved' ) );
+ok( array( 'settings', 'ai' ) === array_slice( $GLOBALS['__resets'], count( $before ) ), 'a successful write resets sn_setting()\'s memo and the AI availability memo, by their own resetters' );
+$fired = isset( $GLOBALS['__actions_fired']['snt_os_host_wrote'] ) ? $GLOBALS['__actions_fired']['snt_os_host_wrote'] : null;
+ok( function_exists( 'do_action' ), '...and fires snt_os_host_wrote for any other owner of a request memo (do_action is present in this harness)' );
+$n = count( $GLOBALS['__resets'] );
+snt_os_host_after_write( array( 'ok' => false, 'reason' => 'nonce' ) );
+ok( $n === count( $GLOBALS['__resets'] ), 'a refused write resets nothing: no write happened' );
+$src_pipe = (string) file_get_contents( __DIR__ . '/../inc/openstation-host-pipelines.php' );
+ok( 3 === substr_count( $src_pipe, 'snt_os_host_after_write( snt_os_host_replay_' ), 'the shared, admin-post and rss pipelines all return through the reset; the inline pipeline writes during the paint, so its leaf reads after its own write' );
+
 echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : '' ) . ".\n";
 
 // A SKIP is a lane measuring nothing, and the rewrite is the seam this whole

@@ -83,7 +83,12 @@ adds a bullet below. A release is a separate, deliberate act:
   an attribute marker re-armed every paint and the add-row button fired
   twice); every leaf script that binds to leaf DOM at load exposes an
   idempotent `init( root )` and re-arms on the `snt:paint` event the host
-  script dispatches after each paint. (#1074)
+  script dispatches after each paint. And because a window's save and
+  repaint share one request where the classic page had two, a successful
+  write now resets the request memos a leaf reads (`sn_setting()`'s merged
+  settings, the AI availability memo) and fires `snt_os_host_wrote` -- the
+  Identity save had persisted `social_same_as[]` while the same response
+  painted the field empty. (#1074)
 
 ### Changed
 - The manual `sn-dashboard` dock item in `inc/desktop-mode-dock.php` is

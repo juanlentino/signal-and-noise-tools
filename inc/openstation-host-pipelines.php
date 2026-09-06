@@ -247,11 +247,11 @@ function snt_os_host_replay( array $values, $page_slug, array $get = array(), $p
 
 	switch ( $chosen['pipeline'] ) {
 		case 'shared':
-			return snt_os_host_replay_shared( $values, $chosen['action'], $get, $page_slug );
+			return snt_os_host_after_write( snt_os_host_replay_shared( $values, $chosen['action'], $get, $page_slug ) );
 		case 'admin-post':
-			return snt_os_host_replay_admin_post( $values, $chosen['action'], $get, $page_slug );
+			return snt_os_host_after_write( snt_os_host_replay_admin_post( $values, $chosen['action'], $get, $page_slug ) );
 		case 'rss':
-			return snt_os_host_replay_rss( $values, $chosen['action'], $get, $page_slug );
+			return snt_os_host_after_write( snt_os_host_replay_rss( $values, $chosen['action'], $get, $page_slug ) );
 		case 'inline':
 			return snt_os_host_replay_inline( $values, $chosen['action'], $page_slug );
 	}
@@ -262,6 +262,37 @@ function snt_os_host_replay( array $values, $page_slug, array $get = array(), $p
 			'detail' => 'nonce' === $chosen['reason'] ? SNT_OS_HOST_NONCE : $chosen['action'],
 		)
 	);
+}
+
+/**
+ * After a write that succeeded: reset the per-request caches a leaf reads.
+ *
+ * On the classic page a save is followed by a redirect, so the leaf that
+ * paints next runs in a NEW request and every request-static memo starts
+ * empty. In a window the replay and the repaint share one request, and a
+ * memo filled before the write answers after it: measured 2026-09-06, the
+ * Identity & SEO save persisted `social_same_as[]` and the same response
+ * painted the field empty, because sn_setting() memoises the merged
+ * settings once per request and sn_settings_save() never resets it. The
+ * resetters the estate already exposes are called by name; any other owner
+ * of a request memo that a write can invalidate hooks `snt_os_host_wrote`.
+ *
+ * @param array<string,mixed> $result A pipeline's result.
+ * @return array<string,mixed> The same result.
+ */
+function snt_os_host_after_write( array $result ) {
+	if ( empty( $result['ok'] ) ) {
+		return $result;
+	}
+	foreach ( array( 'sn_setting_reset_cache', 'snt_ai_reset_availability_cache' ) as $reset ) {
+		if ( function_exists( $reset ) ) {
+			$reset();
+		}
+	}
+	if ( function_exists( 'do_action' ) ) {
+		do_action( 'snt_os_host_wrote', $result );
+	}
+	return $result;
 }
 
 /**
