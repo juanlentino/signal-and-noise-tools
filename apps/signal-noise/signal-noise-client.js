@@ -536,6 +536,36 @@
 		return html`<nav class="snt-crumbs" aria-label=${ __( 'Location' ) }>${ crumbs }</nav>`;
 	};
 
+	// ---------------------------------------------------------------- stale build
+	/**
+	 * The one line that says this window is running yesterday's code.
+	 *
+	 * `ctx.extra` is baked into the shell document at render and nothing but the
+	 * nonce refresher ever rewrites it; `ctx.data` is recomputed by PHP on every
+	 * dispatch, over a REST path the service worker provably does not cache. Two
+	 * reads of ONE constant at two freeze times: equal is silence, different
+	 * means the document predates the installed plugin. OpenStation's own update
+	 * toast is keyed to OpenStation's asset stamp and can never see a release of
+	 * ours, so this is the only signal there is.
+	 *
+	 * The reload is the reader's click and never ours: the shell's own reload
+	 * flushes the session first, that flush is not reachable from an app, and
+	 * an automatic reload would trade a stale client for lost windows.
+	 */
+	const renderStale = ( ctx ) => {
+		const built = ctx.extra && ctx.extra.version;
+		const live = ctx.data && ctx.data.version;
+		if ( built && live && built !== live ) {
+			return html`
+				<div class="snt-stale">
+					<span>${ sprintf( /* translators: 1: the installed plugin version. 2: the version this window was built from. */ __( 'A newer build is installed (%1$s); this window is running %2$s.' ), live, built ) }</span>
+					<os-button variant="secondary" @click=${ () => window.location.reload() }>${ __( 'Reload' ) }</os-button>
+				</div>
+			`;
+		}
+		return '';
+	};
+
 	// ---------------------------------------------------------------- toolbar
 	const renderToolbar = ( ctx, shown ) => {
 		const { state, data } = ctx;
@@ -641,8 +671,31 @@
 	const renderCanvas = ( ctx, shown ) => {
 		const { state, data } = ctx;
 		if ( shown.length === 0 ) {
-			return html`<os-empty-state class="snt-empty" icon=${ data.section.icon.startsWith( 'dashicons-' ) ? data.section.icon : 'dashicons-portfolio' } heading=${ state.query ? __( 'Nothing matches the search.' ) : __( 'Nothing here yet.' ) }></os-empty-state>`;
+			// A section may say for itself what an empty list means and what
+			// was measured to decide it -- an attention queue's "Nothing needs
+			// you" is not "Nothing here yet." A section that says neither keeps
+			// the words that were already here. The note is about the SECTION,
+			// so a search that matched nothing does not carry it.
+			const heading = state.query
+				? __( 'Nothing matches the search.' )
+				: String( ( data.section && data.section.emptyHeading ) || '' ) || __( 'Nothing here yet.' );
+			const note = state.query ? '' : String( ( data.section && data.section.emptyNote ) || '' );
+			return html`
+				<os-empty-state class="snt-empty" icon=${ data.section.icon.startsWith( 'dashicons-' ) ? data.section.icon : 'dashicons-portfolio' } heading=${ heading }></os-empty-state>
+				${ note ? html`<p class="snt-muted snt-empty-note">${ note }</p>` : '' }
+			`;
 		}
+		// The canvas menu by finger. iOS never synthesises `contextmenu` from a
+		// held finger, so the right-click below is a desk gesture only and
+		// Refresh was unreachable on a phone. The press bubbles up from a cell,
+		// which has its own handler: a press that BEGAN on a cell is the cell's,
+		// or the tile's menu would be replaced by this one a moment later.
+		const press = longPress( ( x, y, source ) => {
+			if ( closestInPath( source, '.snt-cell' ) ) {
+				return;
+			}
+			openMenu( ctx, x, y, null );
+		} );
 		// Shift extends across the VISUAL order, so the order the marquee and
 		// the range walk is the order on screen, not the server's.
 		const order = shown.map( ( item ) => item.id );
@@ -658,6 +711,10 @@
 				e.preventDefault();
 				openMenu( ctx, e.clientX, e.clientY, null );
 			} }
+			@pointerdown=${ press.pointerdown }
+			@pointermove=${ press.pointermove }
+			@pointerup=${ press.pointerup }
+			@pointercancel=${ press.pointercancel }
 		>${ shown.map( ( item ) => renderTile( ctx, item, order ) ) }</div>`;
 	};
 
@@ -712,6 +769,12 @@
 		}
 		const order = shown.map( ( item ) => String( item.id ) );
 		const actionable = isPostSection( ctx.data );
+		// On a phone the table becomes a card per row -- the shape the shell's
+		// own lists take there -- and pins nothing: a sideways table with a
+		// frozen first column is the one list shape docs/mobile.md says never
+		// to ship. `stacked` stands the sticky band down inside the component
+		// too; the attribute says so out loud rather than relying on that.
+		const phone = isPhone();
 		// Selection is handed to the component rather than painted here: the
 		// kit already styles a selected row, and `getRowId` is what makes the
 		// set mean note ids instead of row indexes.
@@ -724,7 +787,8 @@
 		return html`
 			<os-table
 				class="snt-table"
-				sticky-columns="1"
+				?stacked=${ phone }
+				sticky-columns=${ phone ? '0' : '1' }
 				.columns=${ listColumns( ctx ) }
 				.data=${ listRows( shown ) }
 				.getRowId=${ ( row ) => String( row.id ) }
@@ -871,10 +935,16 @@
 	const renderDetail = ( ctx, item ) => {
 		const { data } = ctx;
 		const d = item.detail || {};
+		// The phone's item page IS the window: the pane's ✕ is hidden there by
+		// CSS, the More button exists for post sections only, and the shell's
+		// own Back leaves the app rather than the item -- so Citations,
+		// Scheduled and Discography had the crumb and nothing else. The Back
+		// control below is painted for EVERY section, ahead of the title.
 		return html`
 			<article class="snt-detail" aria-label=${ item.title }>
 				${ isPostSection( data ) && isPhone() ? html`<span class="snt-detail__more">${ moreButton( ctx, item ) }</span>` : '' }
 				<os-button variant="ghost" class="snt-detail__close" aria-label=${ __( 'Close details' ) } @click=${ () => ctx.local( 'close' ) }>✕</os-button>
+				${ isPhone() ? html`<os-button variant="ghost" class="snt-back" @click=${ () => ctx.local( 'close' ) }>${ __( '‹ Back' ) }</os-button>` : '' }
 				${ d.hero ? html`<img class="snt-detail__hero" src=${ d.hero } alt="" />` : '' }
 				<h2 class="snt-detail__title">${ item.title }</h2>
 				${ item.badge ? html`<p class="snt-detail__meta"><os-badge tone=${ item.badge.tone } no-dot>${ item.badge.text }</os-badge> ${ item.badge.title || '' }</p>` : '' }
@@ -914,6 +984,94 @@
 				<span>${ sprintf( /* translators: 1: shown count. 2: total count. */ __( '%1$d of %2$d items' ), shown.length, total ) }${ selected.length ? sprintf( /* translators: %d: selected count. */ __( ' — %d selected' ), selected.length ) : '' }</span>
 			</footer>
 		`;
+	};
+
+	// ---------------------------------------------------------------- the desk
+	/**
+	 * The listeners that only mean anything on a desk: the drawn marquee (a
+	 * finger on the canvas scrolls it, it does not rubber-band) and the drag
+	 * lift (DragManager itself refuses while the mobile stamp is on the root).
+	 *
+	 * They live in a function because the band is not fixed for the life of a
+	 * window: `mounted()` ran once, so a window born on the desk carried these
+	 * into the phone band and one born on the phone never got them back when
+	 * the band changed under it. Returns its teardowns; the caller mounts and
+	 * unmounts per crossing.
+	 */
+	const mountDesk = ( ctx ) => {
+		const teardowns = [];
+		if ( typeof createMarquee === 'function' ) {
+			// The framework's drawn marquee, on the mount root -- which the
+			// runtime morphs but never replaces, so one attachment survives
+			// every repaint, exactly as the Explorer's does.
+			teardowns.push( createMarquee( {
+				root: ctx.root,
+				canvas: '.snt-canvas',
+				item: '[data-item-id]',
+				className: 'snt-marquee',
+				// The framework reports NUMBERS; this app's ids are strings and a
+				// section's may not be numeric at all, so only ids that name a real
+				// item survive -- the count never reports a selection nothing shows.
+				select: ( ids ) => ctx.local( 'select-set', { ids: ( ids || [] ).map( String ).filter( ( id ) => ( ( ctx.data && ctx.data.items ) || [] ).some( ( i ) => String( i.id ) === id ) ) } ),
+			} ) );
+		}
+
+		// The drag lift. Refused on a non-primary button, on any modifier
+		// (those are selection gestures), and on the phone.
+		const onPointerDown = ( e ) => {
+			if ( e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || isPhone() ) {
+				return;
+			}
+			// An EMPTY data-snt-drag is not a drag flag: a section that cannot
+			// be acted on paints the attribute blank rather than not at all,
+			// and `[data-snt-drag]` alone would match it.
+			const row = closestInPath( e, '[data-snt-drag]:not([data-snt-drag=""])[data-item-id]' );
+			if ( ! row ) {
+				return;
+			}
+			let dragManager = null;
+			try {
+				dragManager = window.wp && wp.os && wp.os.dragManager ? wp.os.dragManager : null;
+			} catch ( err ) {
+				dragManager = null;
+			}
+			if ( ! dragManager || typeof dragManager.start !== 'function' ) {
+				return;
+			}
+			const section = ctx.data && ctx.data.section;
+			const restPath = String( ( section && section.restPath ) || '' );
+			const entityId = String( DRAG_ENTITY[ String( section && section.id ) ] || '' );
+			// Both are how a drop target routes the object: the Trash deletes
+			// through the REST collection, other targets gate on the entity.
+			// Without either, nothing may be lifted.
+			if ( ! restPath || ! entityId ) {
+				return;
+			}
+			const kind = row.getAttribute( 'data-snt-drag' ) || '';
+			const id = String( row.getAttribute( 'data-item-id' ) );
+			const all = ( ctx.data && ctx.data.items ) || [];
+			const item = all.find( ( i ) => String( i.id ) === id );
+			if ( ! item ) {
+				return;
+			}
+			const shortcut = ( one ) => ( { kind, ref: String( one.id ), title: one.title, icon: one.thumbnail || '', entityId, restPath } );
+			const selected = selectedIds( ctx.state );
+			const dragged = selected.includes( id ) ? all.filter( ( i ) => selected.includes( String( i.id ) ) ) : [ item ];
+			dragManager.start( {
+				payload: {
+					type: 'shortcut',
+					source: row,
+					data: {
+						...shortcut( item ),
+						...( dragged.length > 1 ? { items: dragged.map( shortcut ) } : {} ),
+					},
+				},
+				origin: e,
+			} );
+		};
+		ctx.root.addEventListener( 'pointerdown', onPointerDown );
+		teardowns.push( () => ctx.root.removeEventListener( 'pointerdown', onPointerDown ) );
+		return teardowns;
 	};
 
 	// ---------------------------------------------------------------- view
@@ -956,16 +1114,20 @@
 		},
 		view: ( ctx ) => {
 			const { state, data } = ctx;
-			const phone = isPhone();
+			// The crumb region is the only one present in BOTH branches, and the
+			// only one the phone's item page does not elide -- so the staleness
+			// line rides beside it, in both.
 			if ( ! data.section ) {
-				return html`<div class="snt-app ${ phone ? 'is-phone' : '' }">${ renderCrumbs( ctx ) }${ ctx.loading ? html`<os-spinner></os-spinner>` : renderRoot( ctx ) }</div>`;
+				return html`<div class="snt-app">${ renderCrumbs( ctx ) }${ renderStale( ctx ) }${ ctx.loading ? html`<os-spinner></os-spinner>` : renderRoot( ctx ) }</div>`;
 			}
+			const phone = isPhone();
 			const shown = visibleItems( state, data );
 			const item = openItem( state, data );
 			const body = state.view === 'list' ? renderList( ctx, shown ) : renderCanvas( ctx, shown );
 			return html`
-				<div class="snt-app ${ phone ? 'is-phone' : '' } ${ item ? 'is-open' : '' }">
+				<div class="snt-app ${ item ? 'is-open' : '' }">
 					${ renderCrumbs( ctx ) }
+					${ renderStale( ctx ) }
 					${ phone && item ? '' : renderToolbar( ctx, shown ) }
 					<div class="snt-body ${ item ? 'is-open' : '' }">
 						${ phone && item ? '' : html`<div class="snt-main">${ body }</div>` }
@@ -1051,84 +1213,35 @@
 			document.addEventListener( 'keydown', onKey );
 			teardowns.push( () => document.removeEventListener( 'keydown', onKey ) );
 
-			// Everything below is desk-only: a phone has no rubber band (a
-			// finger on the canvas scrolls it) and no drag and drop.
-			if ( ! isPhone() ) {
-				if ( typeof createMarquee === 'function' ) {
-					// The framework's drawn marquee, on the mount root -- which
-					// the runtime morphs but never replaces, so one attachment
-					// survives every repaint, exactly as the Explorer's does.
-					teardowns.push( createMarquee( {
-						root: ctx.root,
-						canvas: '.snt-canvas',
-						item: '[data-item-id]',
-						className: 'snt-marquee',
-						// The framework reports NUMBERS; this app's ids are strings and a
-						// section's may not be numeric at all, so only ids that name a real
-						// item survive -- the count never reports a selection nothing shows.
-						select: ( ids ) => ctx.local( 'select-set', { ids: ( ids || [] ).map( String ).filter( ( id ) => ( ( ctx.data && ctx.data.items ) || [] ).some( ( i ) => String( i.id ) === id ) ) } ),
-					} ) );
+			// Desk-only listeners, mounted for the band this window is in
+			// RIGHT NOW rather than once for its whole life.
+			let desk = isPhone() ? null : mountDesk( ctx );
+
+			// The shell's band crossing, by the event WP Explorer subscribes to
+			// (`os-mode-changed` on the document, detail { mode, previous,
+			// preference }). Two things must happen: the view reads the band on
+			// every paint, so it must repaint; and the desk listeners are not
+			// paint, so they are mounted or torn down here.
+			const onModeChange = () => {
+				const phone = isPhone();
+				if ( phone && desk ) {
+					desk.forEach( ( off ) => off() );
+					desk = null;
+				} else if ( ! phone && ! desk ) {
+					desk = mountDesk( ctx );
 				}
+				ctx.repaint();
+			};
+			document.addEventListener( 'os-mode-changed', onModeChange );
+			teardowns.push( () => document.removeEventListener( 'os-mode-changed', onModeChange ) );
 
-				// The drag lift. Refused on a non-primary button, on any
-				// modifier (those are selection gestures), and on the phone.
-				const onPointerDown = ( e ) => {
-					if ( e.button !== 0 || e.shiftKey || e.ctrlKey || e.metaKey || isPhone() ) {
-						return;
-					}
-					// An EMPTY data-snt-drag is not a drag flag: a section that
-					// cannot be acted on paints the attribute blank rather
-					// than not at all, and `[data-snt-drag]` alone would match
-					// it.
-					const row = closestInPath( e, '[data-snt-drag]:not([data-snt-drag=""])[data-item-id]' );
-					if ( ! row ) {
-						return;
-					}
-					let dragManager = null;
-					try {
-						dragManager = window.wp && wp.os && wp.os.dragManager ? wp.os.dragManager : null;
-					} catch ( err ) {
-						dragManager = null;
-					}
-					if ( ! dragManager || typeof dragManager.start !== 'function' ) {
-						return;
-					}
-					const section = ctx.data && ctx.data.section;
-					const restPath = String( ( section && section.restPath ) || '' );
-					const entityId = String( DRAG_ENTITY[ String( section && section.id ) ] || '' );
-					// Both are how a drop target routes the object: the Trash
-					// deletes through the REST collection, other targets gate
-					// on the entity. Without either, nothing may be lifted.
-					if ( ! restPath || ! entityId ) {
-						return;
-					}
-					const kind = row.getAttribute( 'data-snt-drag' ) || '';
-					const id = String( row.getAttribute( 'data-item-id' ) );
-					const all = ( ctx.data && ctx.data.items ) || [];
-					const item = all.find( ( i ) => String( i.id ) === id );
-					if ( ! item ) {
-						return;
-					}
-					const shortcut = ( one ) => ( { kind, ref: String( one.id ), title: one.title, icon: one.thumbnail || '', entityId, restPath } );
-					const selected = selectedIds( ctx.state );
-					const dragged = selected.includes( id ) ? all.filter( ( i ) => selected.includes( String( i.id ) ) ) : [ item ];
-					dragManager.start( {
-						payload: {
-							type: 'shortcut',
-							source: row,
-							data: {
-								...shortcut( item ),
-								...( dragged.length > 1 ? { items: dragged.map( shortcut ) } : {} ),
-							},
-						},
-						origin: e,
-					} );
-				};
-				ctx.root.addEventListener( 'pointerdown', onPointerDown );
-				teardowns.push( () => ctx.root.removeEventListener( 'pointerdown', onPointerDown ) );
-			}
-
-			return () => teardowns.forEach( ( off ) => off() );
+			return () => {
+				if ( desk ) {
+					desk.forEach( ( off ) => off() );
+					desk = null;
+				}
+				teardowns.forEach( ( off ) => off() );
+			};
 		},
 	} );
 } );
