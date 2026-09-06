@@ -193,10 +193,14 @@ add_action( 'init', function() {
 
 	// v13.99.2: "S&N Dashboard", to match the S&N Analytics icon beside it. The
 	// id and URL are unchanged, so the owner's placement keeps its spot.
+	// v13.105.1: the icon opens the HOST window (`window` is the shell's own
+	// icon target -- the framework registers an app's desktop_icon with it),
+	// not the classic page in a chromeless frame: one surface per id, and the
+	// icon keeps its id so its position and the attention badge survive.
 	snt_os_register_icon( 'sn-icon-dashboard', array(
-		'title' => 'S&N Dashboard',
-		'icon'  => 'dashicons-shield-alt',
-		'url'   => admin_url( 'admin.php?page=sn-theme-options' ),
+		'title'  => 'S&N Dashboard',
+		'icon'   => 'dashicons-shield-alt',
+		'window' => 'sn-dashboard',
 	) );
 
 	snt_os_register_icon( 'sn-icon-identity', array(

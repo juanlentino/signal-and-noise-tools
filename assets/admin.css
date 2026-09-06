@@ -2121,26 +2121,16 @@
 	color: var(--sn-text);
 }
 
-/* ── v9.62.3 (Desktop Mode single nav): inside a DM chromeless window, DM builds
-   its own in-window tab strip from our dock submenu (the same top tabs), and
-   renders it as THE window nav — consistently with every other DM window. Our
-   page-level top-tab nav then duplicates it. Hide ours in that context only.
-   Self-scoping on three axes: `.desktop-mode-chromeless` (DM adds it via
-   admin_body_class only in a window, where the strip exists) means normal
-   wp-admin is untouched; this rule ships only in OUR screen-gated admin.css, so
-   no other plugin/core window is affected; and it targets `.sn-nav-tabs` alone,
-   so the subordinate `.sn-sub-tabs` pill nav (which DM does NOT duplicate) stays.
-   The dock submenu is intentionally KEPT — it is what feeds DM's strip.
-
-   v10.43.0: post-#475 OpenStation (WordPress/openstation PR #475, not yet in
-   any release) renames the class to `.os-chromeless` — verified real:
-   includes/render/body-classes.php, `openstation_admin_body_classes()`,
-   `ltrim( $classes . ' os-chromeless' )`. No shim exists upstream, so both
-   selectors are listed; exactly one will ever match on a given install. */
-body.desktop-mode-chromeless .sn-nav-tabs,
-body.os-chromeless .sn-nav-tabs {
-	display: none;
-}
+/* ── v13.105.1: the chromeless hide rule is GONE. From v9.62.3 to v13.104.0 a
+   rule here hid `.sn-nav-tabs` inside a chromeless window, because the shell
+   built its own in-window tab strip from our dock item's submenu and ours
+   duplicated it. v13.104.0 retired that dock item (the S&N Dashboard app owns
+   the dock entry now, and the auto-imported menu is hidden), so the shell has
+   no submenu to build a strip from and builds none -- and the hidden strip
+   left every classic window opened by URL (a door, the desktop icon) with no
+   way to reach its other leaves, measured on live 2026-09-06. The page's own
+   strip is the navigation in every context now, exactly as on the classic
+   page. */
 
 /* ─────────────────────────────────────────────────────────────────────
  * Copilot tool usage (v9.62.1) — the invocation-count view in Diagnostics.
