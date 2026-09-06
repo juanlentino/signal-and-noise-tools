@@ -70,13 +70,21 @@ $ct = array(
 	'suspect' => array( 'views' => 40, 'visits' => 40 ),
 	'bot'     => array( 'views' => 60, 'visits' => 60 ),
 );
+// Dated FROM THE LIVE WINDOW, never absolutely: the render group below feeds
+// these rows to the shortcode, whose window is the last 30 UTC days ending
+// yesterday. Absolute August dates sat inside that window until 2026-09-06
+// UTC and then left it, and the chart assertions went red on a release cut
+// that changed nothing they measure. A fixture inside a moving window must
+// move with it.
+$win_live = sn_public_stats_window();
+$win_day  = static function ( $n ) use ( $win_live ) { return gmdate( 'Y-m-d', strtotime( $win_live[0] . ' UTC' ) + $n * DAY_IN_SECONDS ); };
 $rows = array(
-	array( 'day' => '2026-08-06', 'path' => '/notes/alpha/', 'views' => 300 ),
-	array( 'day' => '2026-08-05', 'path' => '/notes/alpha/', 'views' => 200 ),
-	array( 'day' => '2026-08-06', 'path' => '/notes/beta/', 'views' => 350 ),
-	array( 'day' => '2026-08-06', 'path' => '/wp-admin/options.php', 'views' => 999 ),
-	array( 'day' => '2026-08-06', 'path' => '/', 'views' => 50 ),
-	array( 'day' => '2026-08-05', 'path' => '/notes/beta', 'views' => 100 ),
+	array( 'day' => $win_day( 2 ), 'path' => '/notes/alpha/', 'views' => 300 ),
+	array( 'day' => $win_day( 1 ), 'path' => '/notes/alpha/', 'views' => 200 ),
+	array( 'day' => $win_day( 2 ), 'path' => '/notes/beta/', 'views' => 350 ),
+	array( 'day' => $win_day( 2 ), 'path' => '/wp-admin/options.php', 'views' => 999 ),
+	array( 'day' => $win_day( 2 ), 'path' => '/', 'views' => 50 ),
+	array( 'day' => $win_day( 1 ), 'path' => '/notes/beta', 'views' => 100 ),
 );
 $a = sn_public_stats_assemble( $ct, $rows );
 ok( 900 === $a['views'] && 1100 === $a['visits'], 'human totals pass through — visits CAN exceed views (reader-days, the structural fact, never "corrected")' );
