@@ -54,12 +54,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_os_host_asset_handles( $id = 'sn-dashboard' ) {
 	if ( 'sn-analytics' === (string) $id ) {
 		return array(
-			'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status' ),
+			'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-host' ),
 			'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host' ),
 		);
 	}
 	return array(
-		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers' ),
+		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-host' ),
 		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat', 'snt-os-host' ),
 	);
 }
@@ -146,6 +146,12 @@ function snt_os_host_register_assets() {
 	if ( ! wp_script_is( 'sn-uptime-status', 'registered' ) ) {
 		wp_register_script( 'sn-uptime-status', SNT_URL . 'assets/uptime-status.js', array( 'snt-ability-run' ), SNT_VERSION, true );
 	}
+	// The classic canvas (assets/os-host-admin.css): wp-admin's body values, so the
+	// leaves render as they do outside a window whatever the desktop palette.
+	// Loads AFTER sn-admin so its root rule is the last word on the canvas.
+	if ( ! wp_style_is( 'snt-os-host', 'registered' ) ) {
+		wp_register_style( 'snt-os-host', SNT_URL . 'assets/os-host-admin.css', array( 'sn-admin' ), SNT_VERSION );
+	}
 	if ( ! wp_script_is( 'snt-os-host', 'registered' ) ) {
 		wp_register_script( 'snt-os-host', SNT_URL . 'assets/os-host.js', array( 'sn-admin' ), SNT_VERSION, true );
 	}
@@ -195,4 +201,13 @@ function snt_os_host_window_args( $window_args, $id ) {
 
 if ( function_exists( 'add_filter' ) ) {
 	add_filter( 'openstation_app_window_args', 'snt_os_host_window_args', 10, 2 );
+}
+
+// The host sheets and scripts are admin chrome, registered on the same hook
+// every other admin sheet of the plugin registers on: the desktop IS an admin
+// page. The registrar is idempotent, so the window-args seam above and this
+// hook can both call it. (tests/health-contrast-usage.php derives the set of
+// admin sheets from exactly this hook, and admin chrome must be in that set.)
+if ( function_exists( 'add_action' ) ) {
+	add_action( 'admin_enqueue_scripts', 'snt_os_host_register_assets', 5 );
 }

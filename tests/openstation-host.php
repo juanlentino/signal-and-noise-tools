@@ -742,7 +742,7 @@ $args    = apply_filters( 'openstation_app_window_args', array( 'styles' => arra
 // Named, not read back off the function under test: a loop over
 // snt_os_host_asset_handles() would stay green while a handle was DELETED
 // from it, which is exactly how a leaf's script goes missing in silence.
-ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers' ) === $handles['styles'],
+ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-host' ) === $handles['styles'],
 	'the seven stylesheets the leaves are laid out with: admin.css, the analytics token layer, the analytics sheet, the uptime panel, the provenance stepper, the audit log, and Machine Readers -- which painted with every .sn-mr-* rule missing until it got a registrar' );
 ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat', 'snt-os-host' ) === $handles['scripts'],
 	'the eleven scripts: sub-tabs and dirty-tracking, the confirm modal, the trend brush, the repeatable rows, the freshness dot, Suggest+Apply, the uptime panel, cron, provenance, the Heartbeat client Cron and Webhooks live-refresh through, and the host' );
@@ -808,6 +808,19 @@ snt_os_host_after_write( array( 'ok' => false, 'reason' => 'nonce' ) );
 ok( $n === count( $GLOBALS['__resets'] ), 'a refused write resets nothing: no write happened' );
 $src_pipe = (string) file_get_contents( __DIR__ . '/../inc/openstation-host-pipelines.php' );
 ok( 3 === substr_count( $src_pipe, 'snt_os_host_after_write( snt_os_host_replay_' ), 'the shared, admin-post and rss pipelines all return through the reset; the inline pipeline writes during the paint, so its leaf reads after its own write' );
+
+echo "\nGroup C: the classic canvas, and the strip no chromeless rule hides\n";
+// Measured on live 2026-09-06: the Analytics window painted the classic page
+// on the shell's dark palette (white cards, inherited light text -- headings
+// gone), and every classic window opened by URL had no tab strip, because
+// admin.css hid `.sn-nav-tabs` under the chromeless body class for a shell
+// strip that no longer exists (the app owns the dock entry since v13.104.0).
+$host_css  = (string) file_get_contents( __DIR__ . '/../assets/os-host-admin.css' );
+$admin_css = (string) file_get_contents( __DIR__ . '/../assets/admin.css' );
+ok( 1 === preg_match( '/\.os-app\[data-os-app="sn-dashboard"\],\s*\.os-app\[data-os-app="sn-analytics"\]\s*\{[^}]*--snt-host-canvas:\s*#f0f0f1;[^}]*--snt-host-fg:\s*#3c434a;[^}]*color-scheme:\s*light;[^}]*background:\s*var\(--snt-host-canvas\);[^}]*color:\s*var\(--snt-host-fg\);/s', $host_css ), 'both host roots declare wp-admin\'s own canvas as their tokens -- light, #f0f0f1 on #3c434a -- and paint with them: the shell\'s rule for an admin page in a window' );
+ok( false !== strpos( $host_css, '--os-ui-surface: var(--snt-host-canvas);' ) && false !== strpos( $host_css, '--os-ui-fg: var(--snt-host-fg);' ), '...and remap the shell theme tokens the app root sets onto that palette, so nothing of the desktop palette reaches the leaves' );
+ok( 0 === preg_match( '/os-chromeless[^{]*\.sn-nav-tabs[^{]*\{[^}]*display:\s*none/s', $admin_css ), 'admin.css no longer hides the page\'s tab strip under the chromeless body class: no shell strip exists to duplicate, and a hidden strip left 34 leaves unreachable' );
+ok( isset( $GLOBALS['__styles']['snt-os-host'] ) && array( 'sn-admin' ) === ( $GLOBALS['__styles']['snt-os-host'][1] ?? array() ), 'the canvas sheet is registered after sn-admin, so its root rule is the last word' );
 
 $snt_ci = (string) getenv( 'CI' );
 if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {

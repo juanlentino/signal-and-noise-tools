@@ -12,6 +12,31 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Both host windows now paint wp-admin's own canvas. The App Framework's
+  window root sets the SHELL's theme tokens and colour scheme, and the
+  classic pages are light-only, so under the dark palette on live the
+  Analytics window showed white cards with inherited light text -- headings
+  and row labels gone -- and the Dashboard host's heading went dim.
+  `assets/os-host-admin.css` declares wp-admin's `common.css` values as the
+  hosts' own tokens (canvas, text, link, borders, the font stack), remaps
+  the shell's `--os-ui-*` tokens onto them and sets `color-scheme: light`,
+  which is the shell's stated rule for an admin page in a window: it renders
+  exactly as it does outside one. (#1080)
+- The Dashboard's tab strip is visible again in every classic window opened
+  by URL. `assets/admin.css` had hidden `.sn-nav-tabs` under the chromeless
+  body class since v9.62.3, because the shell built its own in-window strip
+  from our dock item's submenu; v13.104.0 retired that dock item (the app
+  owns the dock entry and the auto-imported menu is hidden), so the shell
+  built no strip and ours stayed hidden -- a window opened from the desktop
+  icon or a door showed one leaf and no way to the other 34, measured on
+  live. The rule is gone; the page's own strip is the navigation in every
+  context, as on the classic page. (#1080)
+- The S&N Dashboard desktop icon opens the host window, not the classic
+  page in a chromeless frame: the icon keeps its id (its position and the
+  attention badge survive) and targets `window => sn-dashboard`, the shell's
+  own icon target for a native window. One surface per id. (#1080)
+
 ## [13.105.0] - 2026-09-06 — the S&N Analytics host
 
 ### Added

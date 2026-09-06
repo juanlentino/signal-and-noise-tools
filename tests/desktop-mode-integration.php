@@ -1235,6 +1235,13 @@ foreach ( ( $GLOBALS['__localized']['snDesktopData']['pages'] ?? array() ) as $k
 	$sn_targets[ "pages.$k" ] = $u;
 }
 foreach ( $GLOBALS['__dm_icons'] as $id => $args ) {
+	// v13.105.1: an icon may open a NATIVE window by id instead of a page --
+	// the shell's own icon target (the framework registers an app's
+	// desktop_icon with `window`). The S&N Dashboard icon opens the host app.
+	if ( isset( $args['window'] ) ) {
+		ok( in_array( (string) $args['window'], array( 'sn-dashboard', 'sn-analytics' ), true ), "icon.$id -> a host window of this plugin (got '" . (string) $args['window'] . "')" );
+		continue;
+	}
 	$sn_targets[ "icon.$id" ] = $args['url'] ?? '';
 }
 ok( count( $sn_targets ) >= 10, 'sanity: the nav map + icons were captured (' . count( $sn_targets ) . ' links)' );
