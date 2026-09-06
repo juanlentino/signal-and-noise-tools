@@ -992,10 +992,15 @@
 			// the viewport with an 8px margin, then revealed.
 			const menuEl = ctx.root.querySelector( 'os-context-menu.snt-menu' );
 			if ( menuEl && menuEl.style.visibility === 'hidden' ) {
-				requestAnimationFrame( () => {
-					if ( ! menuEl.isConnected ) {
+				// A frame, or a short timer for a document the browser is not
+				// painting (a background tab never fires a frame): whichever
+				// comes first places the menu; the other finds nothing to do.
+				let placed = false;
+				const place = () => {
+					if ( placed || ! menuEl.isConnected ) {
 						return;
 					}
+					placed = true;
 					const margin = 8;
 					const rect = menuEl.getBoundingClientRect();
 					let left = parseFloat( menuEl.style.left ) || 0;
@@ -1009,7 +1014,9 @@
 					menuEl.style.left = left + 'px';
 					menuEl.style.top = top + 'px';
 					menuEl.style.visibility = '';
-				} );
+				};
+				requestAnimationFrame( place );
+				setTimeout( place, 80 );
 			}
 		},
 		mounted: ( ctx ) => {
