@@ -19,7 +19,7 @@ adds a bullet below. A release is a separate, deliberate act:
   `createMarquee`; a context menu reached by right-click, a row and dossier
   "More actions" button, or a 500 ms / 10 px long press on touch, offering
   Open in editor, View on site, Copy link, Copy ID, Re-check now, Purge edge
-  cache, Retry anchor dispatch, Publish and Move to the Trash -- each row
+  cache, Retry anchor dispatch, Publish and Move to Trash -- each row
   disabled or hidden by the item's own `canEdit` / `canDelete` / `canPublish`
   / `unanchored` flags and the payload's `can.purge` / `can.anchor`. Four
   gated server actions (`trash`, `publish`, `purge`, `anchor`) re-derive the

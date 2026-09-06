@@ -54,7 +54,9 @@ namespace OpenStation\App {
 		public function open_url( $u, $t = '', $i = '' ) { $this->opened[] = array( $u, $t, $i ); return $this; }
 		public function toast( $m ) { $this->toasts[] = (string) $m; return $this; }
 		public function announce( $type, $action, $ids ) { $this->announced[] = array( (string) $type, (string) $action, array_values( array_map( 'intval', (array) $ids ) ) ); return $this; }
-		public function can( $c, ...$a ) { $GLOBALS['__can_calls'][] = array( $c, $a ); return (bool) ( $GLOBALS['__os_can'][ $c ] ?? true ); }
+		// Keyed on capability AND object first, then capability alone, so a
+		// per-note refusal (delete_post on 12, not on 11) can be expressed.
+		public function can( $c, ...$a ) { $GLOBALS['__can_calls'][] = array( $c, $a ); return (bool) ( $GLOBALS['__os_can'][ $c . ':' . (string) ( $a[0] ?? '' ) ] ?? $GLOBALS['__os_can'][ $c ] ?? true ); }
 	}
 }
 
@@ -65,9 +67,13 @@ namespace {
 	define( 'SNT_URL', 'https://example.test/wp-content/plugins/signal-and-noise-tools/' );
 	// The three the purge path reads. The log option exists here only so the
 	// test can prove nothing ever writes it.
-	define( 'SN_CF_PROBE_HOOK', 'snt_cf_verify_post_purge' );
-	define( 'SN_CF_PROBE_DELAY', 120 );
-	define( 'SN_CF_PROBE_LOG_OPT', 'sn_cf_probe_log' );
+	// The probe's names come from the SOURCE, so a rename there cannot leave
+	// these pins anchored to a name the plugin no longer has.
+	$probe_src = (string) file_get_contents( __DIR__ . '/../inc/cloudflare-purge-verify.php' );
+	foreach ( array( 'SN_CF_PROBE_HOOK' => "/const SN_CF_PROBE_HOOK\s*=\s*'([^']+)'/", 'SN_CF_PROBE_LOG_OPT' => "/const SN_CF_PROBE_LOG_OPT\s*=\s*'([^']+)'/", 'SN_CF_PROBE_DELAY' => '/const SN_CF_PROBE_DELAY\s*=\s*(\d+)/' ) as $name => $re ) {
+		if ( ! preg_match( $re, $probe_src, $pm ) ) { echo "FAIL: $name not found in inc/cloudflare-purge-verify.php\n"; exit( 1 ); }
+		define( $name, is_numeric( $pm[1] ) ? (int) $pm[1] : $pm[1] );
+	}
 
 	// ── WordPress, flat ──────────────────────────────────────────────
 	$GLOBALS['__filters'] = array();
@@ -89,8 +95,15 @@ namespace {
 		return in_array( (int) $post_id, $GLOBALS['__untrashable'], true ) ? false : (object) array( 'ID' => (int) $post_id );
 	}
 	$GLOBALS['__updated'] = array(); $GLOBALS['__update_fails'] = false;
+	function get_post_status( $id ) { $p = get_post( $id ); return $p ? (string) $p->post_status : false; }
 	function wp_update_post( $postarr = array(), $wp_error = false, $fire_after_hooks = true ) {
 		$GLOBALS['__updated'][] = (array) $postarr;
+		// The row is written; the status lands unless the fixture says the
+		// write left it where it was (what core does to a dated note).
+		if ( empty( $GLOBALS['__update_fails'] ) && empty( $GLOBALS['__status_stays'] ) && isset( $postarr['post_status'] ) ) {
+			$p = get_post( (int) $postarr['ID'] );
+			if ( $p ) { $p->post_status = (string) $postarr['post_status']; }
+		}
 		return $GLOBALS['__update_fails'] ? 0 : (int) ( ( (array) $postarr )['ID'] ?? 0 );
 	}
 	$GLOBALS['__scheduled'] = array(); $GLOBALS['__unscheduled'] = array(); $GLOBALS['__next'] = array();
@@ -106,10 +119,13 @@ namespace {
 	$GLOBALS['__cf_configured'] = true; $GLOBALS['__purged'] = array();
 	function sn_cf_is_configured() { return (bool) $GLOBALS['__cf_configured']; }
 	function sn_cf_post_purge_urls( $post_id, $post ) { return $GLOBALS['__purge_urls'][ (int) $post_id ] ?? array(); }
-	function sn_cf_purge_urls( $urls ) { $GLOBALS['__purged'][] = array_values( (array) $urls ); return true; }
+	function sn_cf_purge_urls( $urls ) { if ( ! empty( $GLOBALS['__purge_refuses'] ) ) { return false; } $GLOBALS['__purged'][] = array_values( (array) $urls ); return true; }
 	function sn_prov_get_chain( $id ) { return $GLOBALS['__chains'][ (int) $id ] ?? array(); }
 	$GLOBALS['__reconciled'] = array(); $GLOBALS['__reconcile_fails'] = false;
 	function sn_prov_reconcile_post( $post_id ) { $GLOBALS['__reconciled'][] = (int) $post_id; return $GLOBALS['__reconcile_fails'] ? false : null; }
+	$GLOBALS['__worker'] = 'https://example.com/anchor'; $GLOBALS['__secret'] = 's4ndb0x';
+	function sn_prov_worker_url() { return (string) $GLOBALS['__worker']; }
+	function sn_prov_hmac_secret() { return (string) $GLOBALS['__secret']; }
 	function sn_prov_is_note( $id ) { return true; }
 	function sn_discography_get() { return array( 'entries' => array() ); }
 
@@ -118,6 +134,7 @@ namespace {
 		post( 21, 'The ban failed', 'future' ),
 		post( 11, 'The signer keeps moving', 'publish' ),
 		post( 12, 'A draft', 'draft' ),
+		post( 22, 'A pending note', 'pending' ),
 		(object) array( 'ID' => 44, 'post_title' => 'A page', 'post_status' => 'publish', 'post_date' => '2026-08-14 10:00:00', 'post_type' => 'page', 'thumb' => '' ),
 	);
 	$GLOBALS['__purge_urls'] = array(
@@ -156,7 +173,7 @@ namespace {
 	$app->actions['trash']( $state, $os, array( 'item' => '11', 'selection' => true ) );
 	ok( array( 11, 12, 21 ) === $GLOBALS['__trashed'], 'every selected note is trashed, note by note' );
 	ok( 3 === count( array_filter( $GLOBALS['__can_calls'], static function ( $c ) { return 'delete_post' === $c[0]; } ) ) && in_array( array( 'delete_post', array( 12 ) ), $GLOBALS['__can_calls'], true ), 'delete_post was asked once per note, with THAT note\'s id' );
-	ok( array() === $state->get( 'selected' ), 'the selection is reset: those rows are gone' );
+	ok( array() === $state->get( 'selected' ), 'every trashed note left the selection: those rows are gone' );
 	ok( '' === $state->get( 'item' ) && array() === $state->get( 'verdict' ), 'the open dossier closes when its own note was trashed, and its verdict goes with it' );
 	ok( array( 'Moved 3 items to the Trash.' ) === $os->toasts, 'the plural toast counts what was actually trashed' );
 	ok( array( array( 'post', 'trashed', array( 11, 12, 21 ) ) ) === $os->announced, 'the desktop is told which post ids changed, so every other window repaints' );
@@ -173,20 +190,35 @@ namespace {
 	$os = new \OpenStation\App\Os();
 	$state = st( $app, array( 'section' => 'notes' ) );
 	$app->actions['trash']( $state, $os, array( 'item' => '11' ) );
-	ok( array() === $GLOBALS['__trashed'] && array( 'Nothing could be trashed.' ) === $os->toasts && array() === $os->announced, 'without delete_post nothing is trashed, nothing is announced, and the toast says so' );
+	ok( array() === $GLOBALS['__trashed'] && array( 'You cannot trash this item.' ) === $os->toasts && array() === $os->announced, 'without delete_post nothing is trashed, nothing is announced, and the toast says you may not (the Explorer\'s single-note refusal)' );
 	$GLOBALS['__os_can'] = array();
 
 	$GLOBALS['__trashed'] = array();
 	$GLOBALS['__untrashable'] = array( 11 );
 	$os = new \OpenStation\App\Os();
 	$app->actions['trash']( st( $app ), $os, array( 'item' => '11' ) );
-	ok( array( 11 ) === $GLOBALS['__trashed'] && array( 'Nothing could be trashed.' ) === $os->toasts, 'a trash WordPress refused is not counted as done' );
+	ok( array( 11 ) === $GLOBALS['__trashed'] && array( 'Trashing failed.' ) === $os->toasts, 'a trash WordPress refused is not counted as done, and the toast names the failure, not a refusal' );
 	$GLOBALS['__untrashable'] = array();
 
 	$GLOBALS['__trashed'] = array();
 	$os = new \OpenStation\App\Os();
 	$app->actions['trash']( st( $app ), $os, array( 'item' => '44' ) );
-	ok( array() === $GLOBALS['__trashed'], 'an id that is not a `post` is not a Note, whatever the client sent' );
+	ok( array() === $GLOBALS['__trashed'] && array( 'You cannot trash this item.' ) === $os->toasts, 'an id that is not a `post` is not a Note, whatever the client sent' );
+
+	// A mixed selection: delete_post on 11 and 21, refused on 12. The refused
+	// note stays selected; the trashed two leave; the toast counts two.
+	$GLOBALS['__trashed'] = array();
+	$GLOBALS['__os_can'] = array( 'delete_post:12' => false );
+	$os = new \OpenStation\App\Os();
+	$state = st( $app, array( 'section' => 'notes', 'selected' => array( '11', '12', '21' ) ) );
+	$app->actions['trash']( $state, $os, array( 'item' => '11', 'selection' => true ) );
+	ok( array( 11, 21 ) === $GLOBALS['__trashed'] && array( '12' ) === $state->get( 'selected' ) && array( 'Moved 2 items to the Trash.' ) === $os->toasts, 'a per-note refusal inside a selection: the two allowed are trashed and leave the selection, the refused one stays selected, the toast counts two' );
+	$GLOBALS['__os_can'] = array();
+	$GLOBALS['__trashed'] = array();
+	$os = new \OpenStation\App\Os();
+	$state = st( $app, array( 'section' => 'notes', 'selected' => array( '12', '21' ) ) );
+	$app->actions['trash']( $state, $os, array( 'item' => '11' ) );
+	ok( array( 11 ) === $GLOBALS['__trashed'] && array( '12', '21' ) === $state->get( 'selected' ), 'trashing a note OUTSIDE the selection leaves the selection alone -- never a reset of what the action did not touch' );
 
 	echo "\nGroup 3: publish -- one note, never the selection\n";
 	$os = new \OpenStation\App\Os();
@@ -207,6 +239,21 @@ namespace {
 	$os = new \OpenStation\App\Os();
 	$app->actions['publish']( st( $app ), $os, array( 'item' => '12' ) );
 	ok( array() === $GLOBALS['__updated'] && array( 'Nothing could be published.' ) === $os->toasts, 'a draft without publish_posts is refused' );
+	$GLOBALS['__os_can'] = array();
+	$GLOBALS['__updated'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['publish']( st( $app ), $os, array( 'item' => '22' ) );
+	ok( array( array( 'ID' => 22, 'post_status' => 'publish' ) ) === $GLOBALS['__updated'] && array( 'Published.' ) === $os->toasts, 'a pending note publishes like a draft' );
+	$GLOBALS['__updated'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['publish']( st( $app ), $os, array( 'item' => '21' ) );
+	ok( array() === $GLOBALS['__updated'] && array( 'Nothing could be published.' ) === $os->toasts, 'a SCHEDULED note is refused: core would re-assert future for its date, and "Published." would be false' );
+	$GLOBALS['__updated'] = array(); $GLOBALS['__status_stays'] = true;
+	foreach ( $GLOBALS['__posts'] as $p ) { if ( 12 === (int) $p->ID ) { $p->post_status = 'draft'; } }
+	$os = new \OpenStation\App\Os();
+	$app->actions['publish']( st( $app ), $os, array( 'item' => '12' ) );
+	ok( 1 === count( $GLOBALS['__updated'] ) && array( 'The note did not publish; its status is still draft.' ) === $os->toasts && array() === $os->announced, 'a write that left the status where it was is read back and said, never inferred from the return code' );
+	$GLOBALS['__status_stays'] = false;
 	$GLOBALS['__os_can'] = array();
 
 	echo "\nGroup 4: purge -- and the probe log it must never write\n";
@@ -229,7 +276,7 @@ namespace {
 	$app->actions['purge']( $state, $os, array( 'item' => '11', 'selection' => true ) );
 	ok( 1 === count( $GLOBALS['__purged'] ), 'one purge call for the whole selection, not one per note' );
 	ok( array( 'https://example.test/notes/a/', 'https://example.test/', 'https://example.test/notes/', 'https://example.test/notes/b/' ) === $GLOBALS['__purged'][0], '   ...the URL lists merged and de-duplicated: the front page is purged once, not twice' );
-	ok( array( 'Purged 4 URLs at the edge; the probe checks them in two minutes.' ) === $os->toasts, 'the toast counts URLs, and promises only what the probe will actually do' );
+	ok( array( 'Purge dispatched for 4 URLs; the probe checks them in two minutes.' ) === $os->toasts, 'the toast counts URLs, and promises only what the probe will actually do' );
 	ok( array( array( 1700000000, SN_CF_PROBE_HOOK, array( 11 ) ) ) === $GLOBALS['__unscheduled'], 'a probe already pending for a note is unscheduled first -- several purges in a minute probe once, after the last' );
 	ok( 2 === count( $GLOBALS['__scheduled'] ) && array( 11 ) === $GLOBALS['__scheduled'][0][2] && array( 12 ) === $GLOBALS['__scheduled'][1][2] && SN_CF_PROBE_HOOK === $GLOBALS['__scheduled'][0][1], '   ...and one probe is scheduled per note, with that note\'s id as the single argument' );
 	ok( abs( $GLOBALS['__scheduled'][0][0] - ( $now + SN_CF_PROBE_DELAY ) ) <= 1, '   ...at the same delay the save hook uses' );
@@ -240,6 +287,15 @@ namespace {
 	$os = new \OpenStation\App\Os();
 	$app->actions['purge']( st( $app ), $os, array( 'item' => '21' ) );
 	ok( array() === $GLOBALS['__purged'] && array( 'Nothing to purge.' ) === $os->toasts, 'a note with no URLs to purge dispatches nothing' );
+	$GLOBALS['__purged'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app ), $os, array( 'item' => '44' ) );
+	ok( array() === $GLOBALS['__purged'] && array( 'Nothing to purge.' ) === $os->toasts, 'a page id is not a Note: manage_options alone does not make it purgeable' );
+	$GLOBALS['__purged'] = array(); $GLOBALS['__purge_refuses'] = true;
+	$os = new \OpenStation\App\Os();
+	$app->actions['purge']( st( $app ), $os, array( 'item' => '11' ) );
+	ok( array( 'The purge was not dispatched.' ) === $os->toasts, 'a purge the callee refused is said as such, and no probe is promised' );
+	$GLOBALS['__purge_refuses'] = false;
 
 	echo "\nGroup 5: anchor retry\n";
 	$GLOBALS['__chains'][11] = array(
@@ -255,7 +311,7 @@ namespace {
 	$state = st( $app, array( 'section' => 'notes', 'verdict' => array( 'post_id' => 11 ) ) );
 	$app->actions['anchor']( $state, $os, array( 'item' => '11', 'selection' => true ) );
 	ok( array( 11 ) === $GLOBALS['__reconciled'], 'one unanchored commit: reconcile is called exactly once, for the one note (never the selection)' );
-	ok( array( 'Anchor dispatch retried; the ledger answers when it lands.' ) === $os->toasts && array() === $state->get( 'verdict' ), 'the toast promises an answer from the ledger, not a result now; the verdict is cleared' );
+	ok( array( 'Re-dispatch requested for v3; the ledger answers when it lands.' ) === $os->toasts && array() === $state->get( 'verdict' ), 'the toast names the version and calls it a REQUEST -- the ledger, not the toast, says whether it landed; the verdict is cleared' );
 
 	$GLOBALS['__reconciled'] = array(); $GLOBALS['__reconcile_fails'] = true;
 	$os = new \OpenStation\App\Os();
@@ -269,6 +325,16 @@ namespace {
 	$app->actions['anchor']( st( $app ), $os, array( 'item' => '11' ) );
 	ok( array() === $GLOBALS['__reconciled'] && array( 'The dispatch could not be retried.' ) === $os->toasts, 'without manage_options nothing is dispatched' );
 	$GLOBALS['__os_can'] = array();
+
+	$GLOBALS['__reconciled'] = array();
+	$os = new \OpenStation\App\Os();
+	$app->actions['anchor']( st( $app ), $os, array( 'item' => '44' ) );
+	ok( array() === $GLOBALS['__reconciled'] && array( 'The dispatch could not be retried.' ) === $os->toasts, 'a page id is not a Note: manage_options alone does not make it dispatchable' );
+	$GLOBALS['__reconciled'] = array(); $GLOBALS['__worker'] = '';
+	$os = new \OpenStation\App\Os();
+	$app->actions['anchor']( st( $app ), $os, array( 'item' => '11' ) );
+	ok( array() === $GLOBALS['__reconciled'] && array( 'The anchor worker is not configured here.' ) === $os->toasts, 'without a worker URL nothing is requested and the toast says why -- sn_prov_dispatch() would have bailed silently' );
+	$GLOBALS['__worker'] = 'https://example.com/anchor';
 
 	echo "\nGroup 6: go clears the selection with the rest of the facets\n";
 	$os = new \OpenStation\App\Os();

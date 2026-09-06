@@ -41,7 +41,7 @@ function payload( State $state, Os $os ) {
 		// assumption -- the menu greys the row and the action refuses again.
 		'can'      => array(
 			'purge'  => current_user_can( 'manage_options' ) && function_exists( 'sn_cf_is_configured' ) && \sn_cf_is_configured(),
-			'anchor' => current_user_can( 'manage_options' ) && function_exists( 'sn_prov_reconcile_post' ),
+			'anchor' => current_user_can( 'manage_options' ) && function_exists( 'sn_prov_reconcile_post' ) && anchor_worker_configured(),
 		),
 	);
 	foreach ( $sections as $section ) {

@@ -164,6 +164,8 @@ jobs:
         # counted two fatally-crashed suites as green, because a dead suite emits
         # no summary line to fail on. The script's header tells that story.
         run: bash tests/run.sh
+      - name: Parse the app client (a no-build script; a syntax error would otherwise ship green)
+        run: node --check apps/signal-noise/signal-noise-client.js
       # tests/lib/ is NOT swept: tests/run.sh globs tests/*.php non-recursively,
       # so a helper living there runs only through the suites that require it.
       # Its own contract needs its own gate - the same shape

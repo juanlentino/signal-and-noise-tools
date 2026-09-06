@@ -101,19 +101,28 @@ function note_allowed( Os $os, $id, $what ) {
  */
 function trash_action( State $state, Os $os, array $args ) {
 	$done = array();
-	foreach ( targets( $state, $args ) as $id ) {
+	$ids  = targets( $state, $args );
+	foreach ( $ids as $id ) {
 		if ( note_allowed( $os, $id, 'delete' ) && wp_trash_post( $id ) ) {
 			$done[] = $id;
 		}
 	}
-	$state->reset( 'selected' );
+	// The Explorer's pair: a trashed note leaves the selection; a note the
+	// action did not touch stays selected. Never a reset of what it did not act on.
+	$selected = array_values( array_map( 'strval', (array) $state->get( 'selected', array() ) ) );
+	$state->set( 'selected', array_values( array_diff( $selected, array_map( 'strval', $done ) ) ) );
 	if ( in_array( (int) $state->get( 'item' ), $done, true ) ) {
 		// The dossier is showing a note that no longer exists.
 		$state->reset( 'item' )->reset( 'verdict' );
 	}
 	$count = count( $done );
 	if ( 0 === $count ) {
-		$os->toast( __( 'Nothing could be trashed.', 'signal-and-noise-tools' ) );
+		// One note: the Explorer separates "you may not" from "WordPress refused".
+		if ( 1 === count( $ids ) ) {
+			$os->toast( note_allowed( $os, $ids[0], 'delete' ) ? __( 'Trashing failed.', 'signal-and-noise-tools' ) : __( 'You cannot trash this item.', 'signal-and-noise-tools' ) );
+		} else {
+			$os->toast( __( 'Nothing could be trashed.', 'signal-and-noise-tools' ) );
+		}
 		return;
 	}
 	$os->toast(
@@ -144,7 +153,10 @@ function publish_action( State $state, Os $os, array $args ) {
 	$id     = (int) ( $args['item'] ?? 0 );
 	$post   = $id > 0 ? get_post( $id ) : null;
 	$done   = false;
-	$staged = $post && in_array( (string) $post->post_status, array( 'draft', 'pending', 'future' ), true );
+	// Draft or pending only: a SCHEDULED note keeps its date (core re-asserts
+	// `future` for a dated post on write), so publishing it here would write
+	// nothing and a "Published." would be false.
+	$staged = $post && in_array( (string) $post->post_status, array( 'draft', 'pending' ), true );
 	if ( $staged && note_allowed( $os, $id, 'publish' ) ) {
 		$done = (bool) wp_update_post(
 			array(
@@ -155,6 +167,13 @@ function publish_action( State $state, Os $os, array $args ) {
 	}
 	if ( ! $done ) {
 		$os->toast( __( 'Nothing could be published.', 'signal-and-noise-tools' ) );
+		return;
+	}
+	// Verified, not inferred: the return code says the row was written, not
+	// that the note is published. Read it back before saying so.
+	$now = (string) get_post_status( $id );
+	if ( 'publish' !== $now ) {
+		$os->toast( sprintf( /* translators: %s: post status. */ __( 'The note did not publish; its status is still %s.', 'signal-and-noise-tools' ), $now ) );
 		return;
 	}
 	// The chain gained a version; the shown verdict is about the old one.
@@ -203,13 +222,18 @@ function purge_action( State $state, Os $os, array $args ) {
 		$os->toast( __( 'Nothing to purge.', 'signal-and-noise-tools' ) );
 		return;
 	}
-	if ( function_exists( 'sn_cf_purge_urls' ) ) {
-		\sn_cf_purge_urls( $urls );
+	// sn_cf_purge_urls() is fire-and-forget: true means the request was SENT,
+	// never that the edge is clean. The toast says "dispatched" for that reason.
+	$sent = function_exists( 'sn_cf_purge_urls' ) && (bool) \sn_cf_purge_urls( $urls );
+	if ( ! $sent ) {
+		$os->toast( __( 'The purge was not dispatched.', 'signal-and-noise-tools' ) );
+		return;
 	}
-	// The purge above is fire-and-forget and cannot report whether it worked.
 	// The probe reads what a reader would actually get, later, and writes the
 	// verdict. Rescheduling mirrors the save hook: several purges in a minute
-	// probe once, after the last.
+	// probe once, after the last. Counted, so the toast promises a probe only
+	// when one was booked.
+	$probed = 0;
 	if ( function_exists( 'wp_schedule_single_event' ) && defined( 'SN_CF_PROBE_HOOK' ) ) {
 		foreach ( $ids as $id ) {
 			$probe = array( $id );
@@ -217,21 +241,29 @@ function purge_action( State $state, Os $os, array $args ) {
 			if ( $next ) {
 				wp_unschedule_event( $next, SN_CF_PROBE_HOOK, $probe );
 			}
-			wp_schedule_single_event( time() + SN_CF_PROBE_DELAY, SN_CF_PROBE_HOOK, $probe );
+			if ( false !== wp_schedule_single_event( time() + SN_CF_PROBE_DELAY, SN_CF_PROBE_HOOK, $probe ) ) {
+				++$probed;
+			}
 		}
 	}
 	$count = count( $urls );
 	$os->toast(
-		sprintf(
-			/* translators: %s: purged URL count. */
-			_n(
-				'Purged %s URL at the edge; the probe checks it in two minutes.',
-				'Purged %s URLs at the edge; the probe checks them in two minutes.',
-				$count,
-				'signal-and-noise-tools'
-			),
-			number_format_i18n( $count )
-		)
+		$probed > 0
+			? sprintf(
+				/* translators: %s: URL count. */
+				_n(
+					'Purge dispatched for %s URL; the probe checks it in two minutes.',
+					'Purge dispatched for %s URLs; the probe checks them in two minutes.',
+					$count,
+					'signal-and-noise-tools'
+				),
+				number_format_i18n( $count )
+			)
+			: sprintf(
+				/* translators: %s: URL count. */
+				_n( 'Purge dispatched for %s URL.', 'Purge dispatched for %s URLs.', $count, 'signal-and-noise-tools' ),
+				number_format_i18n( $count )
+			)
 	);
 }
 
@@ -251,16 +283,23 @@ function anchor_action( State $state, Os $os, array $args ) {
 		$os->toast( __( 'The dispatch could not be retried.', 'signal-and-noise-tools' ) );
 		return;
 	}
-	$unanchored = false;
-	if ( function_exists( 'sn_prov_get_chain' ) ) {
-		foreach ( (array) \sn_prov_get_chain( $id ) as $commit ) {
-			if ( is_array( $commit ) && 'unanchored' === (string) ( $commit['status'] ?? '' ) ) {
-				$unanchored = true;
-				break;
-			}
+	// sn_prov_dispatch() bails SILENTLY on an unconfigured worker, so the gate
+	// is asked here, before any sentence about a retry can be written.
+	if ( ! anchor_worker_configured() ) {
+		$os->toast( __( 'The anchor worker is not configured here.', 'signal-and-noise-tools' ) );
+		return;
+	}
+	if ( ! function_exists( 'sn_prov_get_chain' ) ) {
+		$os->toast( __( 'The chain could not be read.', 'signal-and-noise-tools' ) );
+		return;
+	}
+	$versions = array();
+	foreach ( (array) \sn_prov_get_chain( $id ) as $commit ) {
+		if ( is_array( $commit ) && 'unanchored' === (string) ( $commit['status'] ?? '' ) ) {
+			$versions[] = 'v' . (int) ( $commit['version'] ?? 0 );
 		}
 	}
-	if ( ! $unanchored ) {
+	if ( array() === $versions ) {
 		$os->toast( __( 'Nothing to dispatch: every version is anchored or pending.', 'signal-and-noise-tools' ) );
 		return;
 	}
@@ -269,6 +308,18 @@ function anchor_action( State $state, Os $os, array $args ) {
 		return;
 	}
 	// The chain's statuses are in flight; the shown verdict is about before.
+	// A REQUEST was made; the ledger, not this toast, says whether it landed.
 	$state->reset( 'verdict' );
-	$os->toast( __( 'Anchor dispatch retried; the ledger answers when it lands.', 'signal-and-noise-tools' ) );
+	$os->toast( sprintf( /* translators: %s: versions, e.g. "v3, v4". */ __( 'Re-dispatch requested for %s; the ledger answers when it lands.', 'signal-and-noise-tools' ), implode( ', ', $versions ) ) );
+}
+
+/**
+ * Is the anchor worker reachable in principle: a URL and a secret configured?
+ * The dispatcher itself bails silently without them.
+ *
+ * @return bool
+ */
+function anchor_worker_configured() {
+	return function_exists( 'sn_prov_worker_url' ) && '' !== (string) \sn_prov_worker_url()
+		&& function_exists( 'sn_prov_hmac_secret' ) && '' !== (string) \sn_prov_hmac_secret();
 }

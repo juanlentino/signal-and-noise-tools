@@ -81,3 +81,21 @@ Recorded by each builder against the contract plan; none required re-planning.
 10. **The Escape handler now closes the menu first** and the dossier only when no menu is open (the plan's requirement), which meant restructuring phase one's `onKey` — same gating (`ctx.root.contains` or `.os-window--focused`), same teardown, now inside a teardown list alongside the marquee and the drag listener.
 11. **`node --check` is not run from the PHP suite.** `ci.yml` has no setup-node step, so a node-dependent pin would either fail-closed in an unrelated lane or fail-open when node is missing. It was run by hand (passes) and is reported here instead.
 12. **A small extra:** `.snt-detail__more` (a wrapper positioning the dossier header's More button beside the ✕) and `aria-multiselectable="true"` on the canvas — both required by the surface, both defined in the sheet.
+
+## Amendments (2026-09-06, from the review)
+
+Six reviewers (runtime contract, actions and capabilities, idiom, security, tests, readout) and two refuters per finding; twenty findings survived and are applied, with four refuted ones taken because they were cheap and right.
+
+1. **The menu is placed, not merely painted.** It paints `visibility:hidden` and the client clamps it into the viewport a frame after the paint, then reveals it, the Explorer's rig; on the phone the dossier's More button sits 32 px from the edge and an unclamped 180 px menu opened off-screen every time.
+2. **A facet change drops the selection.** Search, the status filter and the view switch reset `selected`, as the Explorer's navigations do; a confirmed "Move N items to the Trash?" never acts on notes the reader cannot see.
+3. **The marquee keeps only real items.** The framework reports numeric ids; this app's are strings and a section's may not be numeric, so the count never reports a selection nothing shows.
+4. **Publish is draft and pending only, and verified.** A scheduled note keeps its date (core re-asserts `future` for a dated post, so "Published." would have been false); the action re-reads the status after the write before it toasts.
+5. **More actions is the phone's trigger only.** The Explorer's preview pane has no per-item button; on the desk the row's button, the right-click and the long press are the three.
+6. **"Move to Trash"**, the shell's words on every surface.
+7. **A right-click on the empty canvas is ours.** The Explorer paints a canvas menu there; without a server sort this app's is Refresh alone.
+8. **Trash removes only the trashed ids from the selection**, the Explorer's pair, rather than resetting a selection it did not act on.
+9. **The purge toast says "dispatched"**, names the count it sent, and adds the probe clause only when a probe was scheduled; `sn_cf_purge_urls()` is fire-and-forget and cannot report the edge.
+10. **The anchor retry is gated on the worker's configuration** (URL and secret, in `can.anchor` and in the action) and worded as a request: `sn_prov_dispatch()` bails silently on an unconfigured worker, so "retried" was a claim the code could not make. A chain that could not be read says so, apart from "nothing to dispatch".
+11. **The Publish confirm stays although the Explorer has none**: a published version is signed and, once quiet, anchored, and is permanent. Booked here as a deliberate departure, not as idiom.
+12. **The client suite is parsed in CI.** `node --check` runs as its own step; a syntax error in a no-build script would otherwise ship green through 46 source-text pins.
+

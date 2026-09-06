@@ -153,7 +153,7 @@ function notes_item( $post ) {
 		// row it may not run, and the server re-checks every one of them.
 		'canEdit'     => current_user_can( 'edit_post', $id ),
 		'canDelete'   => current_user_can( 'delete_post', $id ),
-		'canPublish'  => in_array( (string) $post->post_status, array( 'draft', 'pending', 'future' ), true )
+		'canPublish'  => in_array( (string) $post->post_status, array( 'draft', 'pending' ), true )
 			&& current_user_can( 'publish_posts' )
 			&& current_user_can( 'edit_post', $id ),
 		'unanchored'  => $unanchored,

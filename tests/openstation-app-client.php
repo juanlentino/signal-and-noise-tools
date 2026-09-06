@@ -93,10 +93,17 @@ foreach ( $menu_order as $option_id ) {
 	$previous = (int) $at[ $option_id ];
 }
 ok( $ascending, 'the options are declared in the FIXED order the spec fixed -- a menu whose rows move under the hand is a different menu' );
+// The order pin above reads byte offsets; this one reads the CONSTRUCTION:
+// every conditional row is appended, never inserted ahead of an earlier one.
+$menu_fn = (string) substr( $js, (int) strpos( $js, 'const menuOptions' ), (int) strpos( $js, 'const runAction' ) - (int) strpos( $js, 'const menuOptions' ) );
+ok( 5 === substr_count( $menu_fn, 'options.push( { id:' ) && false === strpos( $menu_fn, 'unshift' ) && false === strpos( $menu_fn, 'splice' ), 'the five conditional rows are pushed onto the four fixed ones, never inserted or reordered' );
+ok( false !== strpos( $js, "id: 'refresh'" ) && false !== strpos( $js, 'canvasOptions' ), 'a right-click on the empty canvas paints the Explorer\'s canvas menu, here Refresh alone' );
 
 echo "\nGroup 5: what confirms, and in whose words\n";
 ok( false !== strpos( $js, 'confirm:' ), 'confirmation goes through ctx.dispatch\'s confirm option, the one primitive there is' );
-ok( false !== strpos( $js, 'danger: true' ), 'the Trash dialog is the danger one' );
+ok( 1 === preg_match( "/confirm:\\s*\\{[^}]*'Trash'[^}]*danger: true/s", $js ), 'the Trash CONFIRM is the danger one (the object, not any danger token elsewhere)' );
+ok( 0 === preg_match( "/confirm:\\s*\\{[^}]*'Publish'[^}]*danger: true/s", $js ), 'and the Publish confirm is not: Enter must not publish, but the button is not red' );
+ok( false !== strpos( $js, "'Move to Trash'" ) && false === strpos( $js, "'Move to the Trash'" ), 'the row reads "Move to Trash", every shell surface\'s words' );
 ok( false !== strpos( $js, "'Move this to the Trash?'" ), 'the single-item Trash question is the Explorer\'s, verbatim' );
 ok( false !== strpos( $js, "'Move %d items to the Trash?'" ), '...and the plural one pluralises in the MESSAGE, never in the label' );
 ok( false !== strpos( $js, "'Publish this note?'" ), 'publishing confirms too: a signature is permanent' );
@@ -111,6 +118,10 @@ ok( false !== strpos( $js, 'snt-status-bar' ), 'the count lives in a status foot
 ok( false !== strpos( $js, "'%1\$d of %2\$d items'" ), '...reading the Explorer\'s "N of M items"' );
 ok( false !== strpos( $js, 'selected' ) && false !== strpos( $js, '%d selected' ), '...and appending the selection only when there is one' );
 ok( false !== strpos( $js, 'aria-multiselectable' ), 'the canvas announces that more than one cell may be chosen' );
+ok( 3 === substr_count( $js, 'state.selected = [];' ), 'search, filter and the view switch each drop the selection -- a confirmed "Move N items" never acts on notes the reader cannot see' );
+ok( false !== strpos( $js, "some( ( i ) => String( i.id ) === id )" ), 'the marquee keeps only ids that name a real item: the framework reports numbers, this app\'s ids are strings' );
+ok( false !== strpos( $js, 'visibility:hidden' ) && false !== strpos( $js, 'requestAnimationFrame' ) && false !== strpos( $js, 'window.innerWidth' ) && false !== strpos( $js, 'window.innerHeight' ), 'the menu paints hidden and is clamped into the viewport a frame later, then revealed' );
+ok( false !== strpos( $js, "isPostSection( data ) && isPhone() ? html`<span class=\"snt-detail__more\">" ), 'the dossier header\'s More button is the phone\'s trigger only; the Explorer\'s pane has none on the desk' );
 
 echo "\nGroup 7: the stylesheet defines every class the client emits\n";
 // Every `snt-…` token the client writes, minus the `data-snt-…` attributes
@@ -120,13 +131,18 @@ echo "\nGroup 7: the stylesheet defines every class the client emits\n";
 preg_match_all( '/(?<!data-)(?<![a-z0-9_-])snt-[a-z0-9_-]+/', $js, $m );
 $emitted = array_values( array_unique( $m[0] ) );
 sort( $emitted );
+// The sheet's classes as a SET at selector boundaries: `.snt-menu` must not
+// vouch for `snt-men`, and `.snt-status-bar` must not vouch for `snt-status`.
+preg_match_all( '/\\.(snt-[a-z0-9_-]+)/', $css, $c );
+$defined = array_values( array_unique( $c[1] ) );
 $orphans = array();
 foreach ( $emitted as $token ) {
 	$base = rtrim( (string) strstr( $token . '--', '--', true ), '-' );
-	if ( '' === $base || false === strpos( $css, '.' . $base ) ) {
+	if ( '' === $base || ! in_array( $base, $defined, true ) ) {
 		$orphans[] = $token;
 	}
 }
+ok( in_array( 'snt-menu', $defined, true ) && ! in_array( 'snt-men', $defined, true ) && ! in_array( 'snt-nope', $defined, true ), 'negative control: the class set matches whole selectors, and a name the sheet lacks is reported as lacking' );
 ok( count( $emitted ) > 40, 'the extraction actually found the client\'s classes (' . count( $emitted ) . ' of them) -- a regex that matched nothing would pass the next pin vacuously' );
 ok( array() === $orphans, 'no orphan class: every snt- class the client emits is defined in signal-noise.css' . ( $orphans ? ' (orphans: ' . implode( ', ', $orphans ) . ')' : '' ) );
 foreach ( array( '.snt-status-bar', '.snt-marquee', '.snt-menu-backdrop', '.snt-menu', '.snt-more', '.snt-cell.is-selected' ) as $rule ) {

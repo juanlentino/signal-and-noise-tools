@@ -315,7 +315,7 @@
 		if ( item.canPublish ) {
 			options.push( { id: 'publish', label: __( 'Publish' ), icon: 'dashicons-megaphone' } );
 		}
-		options.push( { id: 'trash', label: __( 'Move to the Trash' ), icon: 'dashicons-trash', danger: true, disabled: ! item.canDelete } );
+		options.push( { id: 'trash', label: __( 'Move to Trash' ), icon: 'dashicons-trash', danger: true, disabled: ! item.canDelete } );
 		return options;
 	};
 
@@ -328,6 +328,17 @@
 	 */
 	const runAction = ( ctx, id, item ) => {
 		closeMenu( ctx );
+		if ( 'refresh' === id || ! item ) {
+			// The canvas menu's one row: the shell's own refresh of this app.
+			try {
+				if ( window.wp && wp.os && wp.os.apps && typeof wp.os.apps.refresh === 'function' ) {
+					wp.os.apps.refresh( 'signal-noise' );
+				}
+			} catch ( e ) {
+				// The shell is not there; nothing to refresh.
+			}
+			return;
+		}
 		const selected = selectedIds( ctx.state );
 		const many = selected.includes( String( item.id ) ) && selected.length > 1;
 		const n = many ? selected.length : 1;
@@ -395,13 +406,17 @@
 		}
 	};
 
+	/** The canvas menu: what the Explorer offers on empty canvas minus its server sort, so Refresh alone. */
+	const canvasOptions = () => [ { id: 'refresh', label: __( 'Refresh' ), icon: 'dashicons-update' } ];
+
 	const renderMenu = ( ctx ) => {
 		const ui = uiOf( ctx );
-		if ( ! ui.menu || ! ui.menu.item ) {
+		if ( ! ui.menu ) {
 			return '';
 		}
 		const { x, y, item } = ui.menu;
 		const close = () => closeMenu( ctx );
+		const options = item ? menuOptions( ctx, item ) : canvasOptions();
 		return html`
 			<div
 				class="snt-menu-backdrop"
@@ -414,10 +429,10 @@
 			<os-context-menu
 				open
 				class="snt-menu"
-				style="position:fixed;left:${ x }px;top:${ y }px"
+				style="position:fixed;left:${ x }px;top:${ y }px;visibility:hidden"
 				@os-context-menu-pick=${ ( e ) => runAction( ctx, String( ( e.detail && e.detail.id ) || '' ), item ) }
 			>
-				${ menuOptions( ctx, item ).map( ( o ) => html`
+				${ options.map( ( o ) => html`
 					<os-context-menu-option
 						id=${ o.id }
 						icon=${ o.icon || '' }
@@ -631,7 +646,19 @@
 		// Shift extends across the VISUAL order, so the order the marquee and
 		// the range walk is the order on screen, not the server's.
 		const order = shown.map( ( item ) => item.id );
-		return html`<div class="snt-canvas" role="listbox" aria-multiselectable="true" aria-label=${ data.section.label }>${ shown.map( ( item ) => renderTile( ctx, item, order ) ) }</div>`;
+		// A right-click on the empty canvas is ours too: the Explorer paints a
+		// canvas menu there (sort and refresh); this app has no server sort, so
+		// the menu is Refresh alone, and the browser's own menu never shows.
+		return html`<div
+			class="snt-canvas"
+			role="listbox"
+			aria-multiselectable="true"
+			aria-label=${ data.section.label }
+			@contextmenu=${ ( e ) => {
+				e.preventDefault();
+				openMenu( ctx, e.clientX, e.clientY, null );
+			} }
+		>${ shown.map( ( item ) => renderTile( ctx, item, order ) ) }</div>`;
 	};
 
 	// ---------------------------------------------------------------- list view
@@ -718,11 +745,13 @@
 				} }
 				@contextmenu=${ ( e ) => {
 					const item = itemFromEvent( ctx, e );
-					if ( ! actionable || ! item ) {
-						return;
-					}
 					e.preventDefault();
 					e.stopPropagation();
+					if ( ! actionable || ! item ) {
+						// Off a row, or a section that cannot be acted on: the canvas menu.
+						openMenu( ctx, e.clientX, e.clientY, null );
+						return;
+					}
 					openMenu( ctx, e.clientX, e.clientY, item );
 				} }
 				@pointerdown=${ press.pointerdown }
@@ -844,7 +873,7 @@
 		const d = item.detail || {};
 		return html`
 			<article class="snt-detail" aria-label=${ item.title }>
-				${ isPostSection( data ) ? html`<span class="snt-detail__more">${ moreButton( ctx, item ) }</span>` : '' }
+				${ isPostSection( data ) && isPhone() ? html`<span class="snt-detail__more">${ moreButton( ctx, item ) }</span>` : '' }
 				<os-button variant="ghost" class="snt-detail__close" aria-label=${ __( 'Close details' ) } @click=${ () => ctx.local( 'close' ) }>✕</os-button>
 				${ d.hero ? html`<img class="snt-detail__hero" src=${ d.hero } alt="" />` : '' }
 				<h2 class="snt-detail__title">${ item.title }</h2>
@@ -907,16 +936,22 @@
 			close: ( state ) => {
 				state.item = '';
 			},
+			// A facet change drops the selection, as the Explorer's navigations do:
+			// a selection the reader can no longer see must not be what a
+			// confirmed "Move N items to the Trash?" acts on.
 			search: ( state ) => {
 				state.item = '';
+				state.selected = [];
 			},
 			filter: ( state ) => {
 				state.item = '';
+				state.selected = [];
 			},
 			'set-view': ( state, args ) => {
 				// `os-bind="view"` already wrote the pick; this only keeps it to the two values.
 				const picked = args.value !== undefined ? args.value : state.view;
 				state.view = picked === 'list' ? 'list' : 'icons';
+				state.selected = [];
 			},
 		},
 		view: ( ctx ) => {
@@ -949,6 +984,32 @@
 		updated: ( ctx ) => {
 			if ( ctx.state.item && ctx.data && ctx.data.section && ctx.data.section.id === 'notes' ) {
 				loadDossier( ctx, ctx.state.item );
+			}
+			// The menu paints hidden and is placed HERE, a frame after the
+			// paint: the component's shadow root lands in a microtask, so a
+			// measure on the paint's own line reads nothing and a clamp built
+			// on it never fires (the Explorer's rig, wire.ts). Clamped inside
+			// the viewport with an 8px margin, then revealed.
+			const menuEl = ctx.root.querySelector( 'os-context-menu.snt-menu' );
+			if ( menuEl && menuEl.style.visibility === 'hidden' ) {
+				requestAnimationFrame( () => {
+					if ( ! menuEl.isConnected ) {
+						return;
+					}
+					const margin = 8;
+					const rect = menuEl.getBoundingClientRect();
+					let left = parseFloat( menuEl.style.left ) || 0;
+					let top = parseFloat( menuEl.style.top ) || 0;
+					if ( rect.right > window.innerWidth - margin ) {
+						left = Math.max( margin, left - ( rect.right - ( window.innerWidth - margin ) ) );
+					}
+					if ( rect.bottom > window.innerHeight - margin ) {
+						top = Math.max( margin, top - ( rect.bottom - ( window.innerHeight - margin ) ) );
+					}
+					menuEl.style.left = left + 'px';
+					menuEl.style.top = top + 'px';
+					menuEl.style.visibility = '';
+				} );
 			}
 		},
 		mounted: ( ctx ) => {
@@ -991,7 +1052,10 @@
 						canvas: '.snt-canvas',
 						item: '[data-item-id]',
 						className: 'snt-marquee',
-						select: ( ids ) => ctx.local( 'select-set', { ids } ),
+						// The framework reports NUMBERS; this app's ids are strings and a
+						// section's may not be numeric at all, so only ids that name a real
+						// item survive -- the count never reports a selection nothing shows.
+						select: ( ids ) => ctx.local( 'select-set', { ids: ( ids || [] ).map( String ).filter( ( id ) => ( ( ctx.data && ctx.data.items ) || [] ).some( ( i ) => String( i.id ) === id ) ) } ),
 					} ) );
 				}
 
