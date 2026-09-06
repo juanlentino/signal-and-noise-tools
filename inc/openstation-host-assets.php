@@ -36,13 +36,28 @@ if ( ! defined( 'ABSPATH' ) ) {
  * and the SAME data builder its own page uses — never a copied URL, never a
  * copied localize literal.
  *
+ * PER WINDOW, because the two hosts are two pages. `sn-analytics` carries what
+ * `toplevel_page_sn-analytics` carries and nothing else: admin.css, the
+ * analytics token layer and sheet, the trend brush, the confirm modal, the
+ * repeatable rows, the uptime panel. The five leaf-owned handles the Dashboard
+ * needs (cron, provenance, the audit sheet, Machine Readers, the Heartbeat
+ * client) belong to leaves that page does not have, and a window that carried
+ * them would be enqueueing scripts for markup it never paints.
+ *
  * Registration, not enqueue: the shell enqueues a window's `scripts` and
  * `styles` when the window first opens, so a desktop page nobody opens this
  * window on pays nothing.
  *
+ * @param string $id App id (`sn-dashboard` or `sn-analytics`).
  * @return array{styles:string[],scripts:string[]}
  */
-function snt_os_host_asset_handles() {
+function snt_os_host_asset_handles( $id = 'sn-dashboard' ) {
+	if ( 'sn-analytics' === (string) $id ) {
+		return array(
+			'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status' ),
+			'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host' ),
+		);
+	}
 	return array(
 		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers' ),
 		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat', 'snt-os-host' ),
@@ -50,8 +65,13 @@ function snt_os_host_asset_handles() {
 }
 
 /**
- * Register every handle in `snt_os_host_asset_handles()` that is not
- * registered yet.
+ * Register every handle EITHER host window can carry, that is not registered
+ * yet.
+ *
+ * The union, not the per-window list: registration mints no request (the shell
+ * enqueues only what the window declares), and one registrar per handle is the
+ * point — a second, window-scoped registration path would be a second place
+ * for a dependency or a localize payload to drift.
  *
  * Idempotent by `wp_style_is` / `wp_script_is`: on a classic admin page these
  * are already registered by their own enqueues and this adds nothing.
@@ -156,11 +176,11 @@ function snt_os_host_register_assets() {
  * @return array<string,mixed>
  */
 function snt_os_host_window_args( $window_args, $id ) {
-	if ( ! is_array( $window_args ) || ! in_array( (string) $id, array( 'sn-dashboard' ), true ) ) {
+	if ( ! is_array( $window_args ) || ! in_array( (string) $id, array( 'sn-dashboard', 'sn-analytics' ), true ) ) {
 		return $window_args;
 	}
 	snt_os_host_register_assets();
-	$handles = snt_os_host_asset_handles();
+	$handles = snt_os_host_asset_handles( (string) $id );
 	foreach ( array( 'styles', 'scripts' ) as $bucket ) {
 		$existing = isset( $window_args[ $bucket ] ) ? (array) $window_args[ $bucket ] : array();
 		foreach ( $handles[ $bucket ] as $handle ) {

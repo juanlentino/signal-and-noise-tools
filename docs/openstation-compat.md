@@ -751,5 +751,68 @@ the same `snt_desktop_dock_badge()`. `snt_desktop_admin_url()` is unchanged and
 the classic page stays registered, so every door elsewhere in the plugin that
 opens an admin URL still opens what it opened.
 
+- **`State::accept()` types every write.** A declared default fixes the slot's type; a write of another shape falls back to the default silently (`app/class-state.php`). A string-valued param (the analytics `range` carries `custom` and calendar tokens) must be declared with a string default, and a test stub of `State` must coerce the same way or the pins cannot see it.
 - **One request does what two requests did.** A classic save redirects, so the next paint is a new request with empty request-static memos; a window's replay and repaint share one request, and a memo filled before the write answers after it (`sn_setting()`'s merged settings, measured on the Identity save). After a successful write the host calls the estate's resetters and fires `snt_os_host_wrote`; a new request-static memo that a leaf writes and reads in one paint needs a resetter on that action.
 - **A dispatch is a REST request and carries none of `wp-admin/includes/`.** The classic page runs inside wp-admin, where `wp-admin/includes/admin.php` has loaded `submit_button()`, `get_plugins()`, the screen API and the rest; `desktop-mode/v1/apps/<id>/dispatch` loads none of it. Measured 2026-09-06: Integrity → MCP Clients answered 500 "Call to undefined function submit_button()" in the window while capturing cleanly under WP-CLI. `snt_os_host_capture()` requires the library once when `submit_button()` is absent -- admin-ajax.php's own precedent. `get_current_screen()` still answers null on a dispatch: a REST request has no screen.
+
+## Host two — S&N Analytics on the same seam (#1075)
+
+The second app (`apps/sn-analytics/`) consumes no framework seam host one
+did not already consume. It is recorded here because the two hosts standing
+side by side settle three things a single host could not.
+
+**One seam, two apps.** `inc/openstation-host.php` (capture, rewrite,
+replay, own pages, expand) and `assets/os-host.js` (the paint seam, the
+submitter, `snt:paint`) are shared, not copied: the Analytics app calls
+`snt_os_host_capture()` and `snt_os_host_rewrite()` with its own arguments.
+The one extension the second host needed is a keep-list on the rewrite (see
+the export, below); everything else is the first host's code reached by a
+second caller. Framework-wise both are `App::define()` + one `->view()`
+with the tab state in STATE, both `->capabilities( 'manage_options' )` with
+every action re-checking `current_user_can()`, and both paint wp-admin HTML
+directly into the window with no iframe, for the reason measured in the
+host-one section above.
+
+**Own pages are per host, and each host's pages are the other's doors.**
+`snt_os_host_rewrite()` takes the set of `page=` slugs THIS window answers
+to. For the Dashboard that is the eight top-tab slugs plus the legacy ones,
+filtered by the POST allowlist, with `sn-analytics` deliberately excluded —
+a different window's surface, so a link to it is a `door`. The Analytics
+host inverts exactly that: its own page is `sn-analytics`, and a link into
+`sn-theme-options` (the unconfigured gate's CTA into Measurement →
+Analytics) is a `door` that opens the classic Dashboard page as an admin
+window. Neither host tries to drive the other's window; a cross-host `go`
+waits for the doors program named in the proposal's Out of scope.
+
+**A view whose response is a file cannot be a view.** The export form posts
+`sn_action=analytics_export`, and `sn_handle_analytics_export()` sets
+`Content-Disposition`, echoes a raw CSV or JSON body and `exit()`s. Nothing
+about that fits a contract whose whole shape is "the callable echoes HTML
+and `View::capture()` collects it", and the framework has no effect that
+hands the browser a file. So the rewrite pass leaves that one form REAL: it
+keeps `method="post"`, keeps its `action` on the classic page URL, and
+gains `target="_blank"`, so the download is a navigation in a new tab. This
+is the export's counterpart to host one's `sn_force_update_check` door:
+faithful means the destination still happens, not that the mechanism is
+identical.
+
+**The state a host keeps is the page's own state, validated by the page's
+own validators.** The Analytics page put its state in the URL and
+whitelisted it on read; the window puts the same nine params in State and
+applies them through `snt_analytics_resolve_view()`,
+`snt_analytics_resolve_window()`, `snt_analytics_resolve_class()` and
+`snt_analytics_resolve_compare()`, resetting on a view switch exactly the
+keys `snt_analytics_view_reset_params()` returns. A host that re-derived
+those rules would be a second implementation of the page's URL contract,
+free to drift; calling them is why a classic URL and a window state stay
+the same fact.
+
+**One limitation, restated from the host-one fold.** `assets/admin.js`
+persists each analytics panel's collapse state in `localStorage` and
+restores it in a pass that runs once, over `document`, at parse time —
+outside `window.snAdmin.init( root )`, which is the only thing the host
+re-arms after a paint. Inside a window the panels still open and close (the
+toggle is a delegated document listener), but a panel does not come back
+the way the reader left it. Recorded rather than fixed: moving the restore
+into `init()` is a change to the classic page's behaviour as well, and no
+one asked for one.

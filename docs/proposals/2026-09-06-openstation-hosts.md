@@ -73,3 +73,42 @@ build, in the builder's own words.
 - **CI** fetches WordPress's HTML API (seven files from the core mirror at 7.1) into `$RUNNER_TEMP` for both sweep lanes, and tests/openstation-host.php fails under `CI` when the API is absent, so the rewrite pins can never skip green there.
 - Not applied: one finding (that the analytics clamp's parse-time restore is unrecorded) was refuted; it is recorded here: the collapsible analytics panels' saved state does not restore inside a window; the panels themselves work.
 - **One request does what two requests did.** On the classic page a save is followed by a redirect, so the leaf that paints next runs in a new request; in a window the replay and the repaint share one. `sn_setting()` memoises the merged settings per request and the save never resets it, so the Identity & SEO save persisted `social_same_as[]` while the same response painted the field empty (measured; a fresh paint showed the value). After any successful write the host now calls the resetters the estate exposes (`sn_setting_reset_cache()`, `snt_ai_reset_availability_cache()`) and fires `snt_os_host_wrote` for any other owner of a request memo.
+
+### Host two (2026-09-06)
+
+- **The export form is the deviation.** The spec already booked it ("Analytics'
+  export form → stays a real `<form method="post" target="_blank">` to the
+  classic page URL"), and the build confirmed it is the only shape that
+  works: `sn_handle_analytics_export()` sets `Content-Disposition`, echoes a
+  raw CSV or JSON body and `exit()`s, so it renders no HTML for
+  `View::capture()` to capture and the framework has no effect that hands the
+  browser a file. `snt_os_host_rewrite()` therefore grew a keep-list — a form
+  the host marks keeps `method`, keeps its `action` on the classic page URL,
+  and gains `target="_blank"`. The nonce, the handler and the file are the
+  page's own; only the tab is new.
+- **The dock.** Unlike the Dashboard's, the Analytics tile was never a manual
+  registration — the shell auto-imports `add_menu_page()` entries, and the
+  `dock_placement` filter in `inc/desktop-mode-dock.php` had only ever hidden
+  `sn-theme-options`. With the app registering `sn-analytics` itself, that
+  filter hides the menu too, or one id names two tiles.
+- **Two limitations carried forward, not re-litigated.** The analytics panels'
+  saved collapse state does not restore inside a window (host one's fold
+  measured it; the toggles work, the restore pass runs once over `document`
+  at parse time), and a cross-host `go` remains out of scope: `sn-analytics`
+  is a door from host one and `sn-theme-options` is a door from host two,
+  until the doors program.
+
+The builders' own deviations — the places where the code turned out to be the
+contract and this document was wrong — are appended below by the orchestrator
+after the build, in the builders' words, as they were for host one.
+
+Builders' deviations, in their own words:
+
+- **The request URI is lent too.** `snt_analytics_render_view_tabs()`, the controls and login defense's pill row build their hrefs with `add_query_arg( array() )` / `remove_query_arg()` on `$_SERVER['REQUEST_URI']`; a dispatch's is the REST route, so lending only `$_GET` left every tab pointing at `/wp-json/…` (which the rewrite rightly read as external). The view lends a REQUEST_URI built from `snt_analytics_page_url()` around the capture and restores it in a finally; pinned six ways.
+- **Own pages = `sn-analytics` only.** The plan contradicted itself; the view only ever paints the Analytics report, so a `go` for `sn-theme-options` would paint it under a link that said Settings. The gate's "Configure analytics" and the Measurement → Analytics links are doors, as host one treats a link to `sn-analytics`.
+- **The export stays a real form** (`sn_handle_analytics_export()` sends `Content-Disposition`, echoes the body and exits): `snt_os_host_keep_forms()` marks it `data-snt-keep-form="<url>"` and the rewrite leaves it real with `target="_blank"` and `action` = the classic page URL. `post` is a refusal seam that names the action if such a form ever reaches it; the page has no other write.
+- **The brush no longer navigates inside a window.** Its pointer-up called `window.location.assign` (which would replace the whole desktop); inside `.os-app[data-os-app]` it now dispatches the same `go` the range pills dispatch through a hidden carrier the runtime's delegated click reads. The classic page's path is unchanged.
+- `snt_os_host_asset_handles()` takes the host id and answers per host; the window-args seam answers for both ids; `sn-analytics` joins the dock's hidden list so one tile stands for the surface.
+- **The framework types the state.** `State::accept()` coerces every write onto the declared default's type and falls back to the default when the shapes disagree; `range` was declared as the integer 7, so `custom` and the seven calendar presets silently became 7 (measured in the sandbox on the custom-date form; the suites' State stubs did not coerce, so the pins were blind). The default is a string now, and the three host suites' State stubs mirror the framework's rule, so a typed default can never hide a string param again.
+- **Review fold (four Opus lenses, two refuters each: 10 findings, 8 survived, 3 distinct, all applied).** (1) A NAVIGATION IS THE WHOLE NEXT URL: the first build merged a `go`'s args over the current state ("absent keeps the value"), so the three controls that reset by OMITTING their param -- the Compare Off pill, Clear drill-down, the Events property Clear -- and the movers' bare deep link were dead in the window, and the already-active tab did not clear a drill. `snt_os_analytics_apply()` now applies every navigation wholesale: a param absent from the args takes the page's default, exactly as the classic dispatcher reads an absent `$_GET` key; the brush, which merges into `location.href` on the classic page, reads the current navigation the view paints on the wrap (`data-snt-query`) and ships the whole of it. (2) The lent REQUEST_URI's values are `rawurlencode()`d: `add_query_arg()` builds with encoding off, so a state value carrying `&` would have injected a parameter into every link the report prints; the suite's `add_query_arg` stub now mirrors that (it encoded, and hid the hole). (3) The CI skip guard counted into the summary line: tests/run.sh discards a suite's exit status and reads only "N passed, M failed", so under `CI` skipped rewrite pins are added to the failed count before the line is printed.
+- The docs for this host were written before its code landed (the two builders ran in parallel); the mechanism names above are the shipped ones.

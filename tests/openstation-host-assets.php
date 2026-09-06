@@ -464,5 +464,13 @@ foreach ( $delegated as $rel => $spec ) {
 	ok( false === strpos( (string) preg_replace( '/\s+/', '', $src ), "addEventListener('snt:paint'" ), "...so $rel subscribes to nothing: a seam it does not need is a second code path that can rot" );
 }
 
+echo "\nGroup B2: the brush ships the WHOLE navigation\n";
+$brush_js = (string) file_get_contents( __DIR__ . '/../assets/analytics/analytics-brush.js' );
+$z0 = strpos( $brush_js, 'function zoom(' ); $z1 = strpos( $brush_js, 'carrier.click()' );
+$zoom_fn = ( false !== $z0 && false !== $z1 ) ? substr( $brush_js, $z0, $z1 - $z0 ) : '';
+ok( '' !== $zoom_fn && false !== strpos( $zoom_fn, "wrap.closest('[data-snt-query]')" ), 'in a window the brush reads the current navigation the host painted on the wrap -- the classic path merges into location.href, which a window does not have' );
+ok( false !== strpos( $zoom_fn, "key === 'sn_range' || key === 'sn_from' || key === 'sn_to'" ), '...merging its own window over the three window keys and carrying every other param verbatim' );
+ok( false !== strpos( $zoom_fn, "carrier.setAttribute('os-arg-' + key," ) && strpos( $zoom_fn, "carrier.setAttribute('os-arg-' + key," ) < strpos( $zoom_fn, "carrier.setAttribute('os-arg-sn_range', 'custom')" ), '...as os-arg-* pairs set BEFORE the window keys, so a go applied wholesale keeps the view, the class and the comparison' );
+
 echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : '' ) . ".\n";
 exit( $fail > 0 ? 1 : 0 );

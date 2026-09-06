@@ -449,6 +449,44 @@ if ( '' === $api ) {
 		'a link and a form that ALREADY carry os-action keep their href and their action -- a leaf that wires itself is not ours to rewire' );
 	ok( $out === snt_os_host_rewrite( $out ), '   ...so a second pass changes nothing' );
 
+	echo "\nGroup 2c: the form a host must NOT turn into a dispatch\n";
+	// The Analytics export is the one shape a window cannot replay:
+	// sn_handle_analytics_export() sends Content-Disposition, echoes a CSV and
+	// exits. So the host NAMES the action, this marks its form, and the rewrite
+	// leaves it real. The fixture is the export form's own shape, plus a
+	// neighbouring save form and a STRAY input between them.
+	$keep_fixture = '<div>'
+		. '<form id="f-save" method="post"><input type="hidden" name="sn_action" value="save_identity"></form>'
+		. '<input type="hidden" name="sn_action" value="analytics_export">'
+		. '<form id="f-export" class="sn-an-export" method="post" action="https://example.test/wp-admin/admin.php">'
+		. '<input type="hidden" name="page" value="sn-theme-options"><input type="hidden" name="sn_action" value="analytics_export">'
+		. '<button type="submit" name="format" value="csv">CSV</button></form>'
+		. '</div>';
+	$kept       = snt_os_host_keep_forms( $keep_fixture, array( 'analytics_export' ), 'https://example.test/wp-admin/admin.php?page=sn-analytics' );
+	$kept_out   = snt_os_host_rewrite( $kept, array( 'sn-theme-options' ) );
+	$keep_forms = array();
+	$walk       = new WP_HTML_Tag_Processor( $kept_out );
+	while ( $walk->next_tag( 'FORM' ) ) {
+		$one = array();
+		foreach ( array( 'os-action', 'method', 'action', 'target', 'data-snt-keep-form' ) as $name ) {
+			$one[ $name ] = $walk->get_attribute( $name );
+		}
+		$keep_forms[ (string) $walk->get_attribute( 'id' ) ] = $one;
+	}
+	ok( 'https://example.test/wp-admin/admin.php?page=sn-analytics' === $keep_forms['f-export']['data-snt-keep-form'],
+		'a form carrying a named action is marked with WHERE it posts -- the marker names the destination, so the rewrite needs no second list' );
+	ok( null === $keep_forms['f-export']['os-action'] && 'post' === $keep_forms['f-export']['method']
+		&& 'https://example.test/wp-admin/admin.php?page=sn-analytics' === $keep_forms['f-export']['action']
+		&& '_blank' === $keep_forms['f-export']['target'],
+		'   ...and comes out of the rewrite STILL A FORM: same method, an explicit action, and a new tab -- a download must be a navigation, and a window that dispatched it would exit mid-response' );
+	ok( null === $keep_forms['f-save']['data-snt-keep-form'] && 'post' === $keep_forms['f-save']['os-action'],
+		'a form that carries an UNNAMED action is a dispatch as before -- and the stray input BETWEEN the two forms belongs to neither: without that guard the save form was marked by its neighbour`s field' );
+	ok( $kept_out === snt_os_host_rewrite( snt_os_host_keep_forms( $kept_out, array( 'analytics_export' ), 'https://example.test/wp-admin/admin.php?page=sn-analytics' ), array( 'sn-theme-options' ) ),
+		'   ...and both passes are idempotent: a second run changes nothing' );
+	ok( $keep_fixture === snt_os_host_keep_forms( $keep_fixture, array(), 'https://example.test/wp-admin/admin.php' )
+		&& $keep_fixture === snt_os_host_keep_forms( $keep_fixture, array( 'analytics_export' ), '' ),
+		'no actions or no destination marks nothing -- the Dashboard host passes neither, and its forms are all dispatches' );
+
 	echo "\nGroup 2b: the own-page slugs are DERIVED\n";
 	$own = snt_os_host_own_pages();
 	ok( in_array( 'sn-theme-options', $own, true ) && in_array( 'sn-content', $own, true ) && in_array( 'sn-login', $own, true ),
@@ -771,6 +809,16 @@ ok( $n === count( $GLOBALS['__resets'] ), 'a refused write resets nothing: no wr
 $src_pipe = (string) file_get_contents( __DIR__ . '/../inc/openstation-host-pipelines.php' );
 ok( 3 === substr_count( $src_pipe, 'snt_os_host_after_write( snt_os_host_replay_' ), 'the shared, admin-post and rss pipelines all return through the reset; the inline pipeline writes during the paint, so its leaf reads after its own write' );
 
+$snt_ci = (string) getenv( 'CI' );
+if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {
+	echo "\nFAILED (counted into the summary below, which is what tests/run.sh reads): $skip pins were SKIPPED because WordPress's wp-includes/html-api is not on this machine,\n";
+	echo "and the rewrite pass is the single most load-bearing seam of this port. A lane that skips it prints OK\n";
+	echo "while every form still posts to a URL and every link still navigates the desktop away.\n";
+	echo "Fix: fetch WordPress in the workflow and export SNT_WP_HTML_API=<checkout>/wp-includes/html-api.\n";
+	// tests/run.sh discards a suite's exit status and judges the summary line
+	// alone, so the skips must be counted where the runner looks.
+	$fail += $skip;
+}
 echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : '' ) . ".\n";
 
 // A SKIP is a lane measuring nothing, and the rewrite is the seam this whole
@@ -779,12 +827,4 @@ echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : 
 // "0 failed" and exit 0, which tests/run.sh reads as OK. Locally a skip stays a
 // skip (a laptop need not carry a WordPress checkout); in CI it is fatal, and
 // the workflow fetches wp-includes/html-api so it never has to be.
-$snt_ci = (string) getenv( 'CI' );
-if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {
-	echo "\nFAILED: $skip pins were SKIPPED because WordPress's wp-includes/html-api is not on this machine,\n";
-	echo "and the rewrite pass is the single most load-bearing seam of this port. A lane that skips it prints OK\n";
-	echo "while every form still posts to a URL and every link still navigates the desktop away.\n";
-	echo "Fix: fetch WordPress in the workflow and export SNT_WP_HTML_API=<checkout>/wp-includes/html-api.\n";
-	exit( 1 );
-}
 exit( $fail > 0 ? 1 : 0 );
