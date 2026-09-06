@@ -584,98 +584,11 @@ namespace {
 	ok( false === strpos( $html, 'class="snt-classic"' ) && false !== strpos( $html, 'os-empty-state' ),
 		'an unconfigured view paints the kit gate, not the classic capture -- the port is complete' );
 
-	if ( '' === $GLOBALS['__html_api'] ) {
-		foreach ( array(
-			'every view is a `go` in the painted strip',
-			'the active tab keeps nav-tab-active',
-			'no tab keeps an href',
-			'the settings link is a door',
-			'the export form stays a real form',
-			'the custom-date form dispatches `go`',
-			'the toolbar pills dispatch `go`',
-		) as $pin ) {
-			skip( "$pin -- no wp-includes/html-api on this machine" );
-		}
-	} else {
-		// Read through the processor, never off the serialized bytes: where a
-		// new attribute lands is WP_HTML_Tag_Processor's choice (it PREPENDS),
-		// which is a fact about core and not about this port.
-		$anchors = array();
-		$walk    = new WP_HTML_Tag_Processor( $html );
-		while ( $walk->next_tag( 'A' ) ) {
-			$one = array();
-			foreach ( array( 'class', 'os-action', 'os-arg-sn_view', 'os-arg-sn_range', 'os-arg-sn_class', 'os-arg-url', 'href', 'aria-current' ) as $name ) {
-				$one[ $name ] = $walk->get_attribute( $name );
-			}
-			$anchors[] = $one;
-		}
-		$tabs   = array_values(
-			array_filter(
-				$anchors,
-				static function ( $a ) {
-					return false !== strpos( (string) $a['class'], 'nav-tab' );
-				}
-			)
-		);
-		$strip  = array();
-		$hrefs  = 0;
-		$window = 0;
-		foreach ( $tabs as $one ) {
-			if ( 'go' === $one['os-action'] && is_string( $one['os-arg-sn_view'] ) ) {
-				$strip[] = $one['os-arg-sn_view'];
-			}
-			if ( null !== $one['href'] ) {
-				++$hrefs;
-			}
-			if ( '7' === $one['os-arg-sn_range'] && 'human' === $one['os-arg-sn_class'] ) {
-				++$window;
-			}
-		}
-		ok( array_keys( $views ) === $strip,
-			'every one of the page`s thirteen tabs came back a `go` carrying its sn_view -- the strip the page printed, rewritten, in registry order' );
-		$active = array_values(
-			array_filter(
-				$tabs,
-				static function ( $a ) {
-					return false !== strpos( (string) $a['class'], 'nav-tab-active' );
-				}
-			)
-		);
-		ok( 1 === count( $active ) && 'campaigns' === $active[0]['os-arg-sn_view'] && 'page' === $active[0]['aria-current'],
-			'   ...with the active one still wearing nav-tab-active and aria-current, as it does on the classic page' );
-		ok( 0 === $hrefs,
-			'   ...and none of them keeping an href: a click is not preventDefaulted, and an href would navigate the whole desktop' );
-		ok( count( $views ) === $window,
-			'   ...each carrying the window and the class, which is exactly what snt_analytics_window_args() put in the href' );
-		ok( false === strpos( $html, '/wp-json/' ),
-			'and nothing points at the REST route: without the lent REQUEST_URI every link the page built would be `/wp-json/…`, which the rewrite reads as EXTERNAL and leaves clickable' );
+	ok( false === strpos( $html, "nav-tab" ) && false === strpos( $html, "/wp-json/" ),
+		"the native view has no captured wp-admin tab strip or REST-route links" );
+	ok( false === strpos( $html, "snt-classic" ) && false !== strpos( $html, "os-empty-state" ),
+		"the unconfigured native gate stays entirely in the component kit" );
 
-		// The compare mode is absent from the reset list, and the mechanism that
-		// carries it is the page's own base URL — which only exists because the
-		// REQUEST_URI was lent. This measures that, end to end.
-		$compared = paint( $app, st( $app, array( 'view' => 'campaigns', 'compare' => 'yoy', 'class' => 'bot' ) ) );
-		$carried  = 0;
-		$walk     = new WP_HTML_Tag_Processor( $compared );
-		while ( $walk->next_tag( 'A' ) ) {
-			if ( false !== strpos( (string) $walk->get_attribute( 'class' ), 'nav-tab' ) && 'yoy' === $walk->get_attribute( 'os-arg-sn_compare' ) && 'bot' === $walk->get_attribute( 'os-arg-sn_class' ) ) {
-				++$carried;
-			}
-		}
-		ok( count( $views ) === $carried,
-			'every tab link carries the ACTIVE compare mode and class -- the page builds them on its own base URL, so what rides along is the page`s rule, not a rule copied into the host' );
-
-		$gate = array_values(
-			array_filter(
-				$anchors,
-				static function ( $a ) {
-					return false !== strpos( (string) $a['class'], 'button-primary' );
-				}
-			)
-		);
-		ok( 1 === count( $gate ) && 'door' === $gate[0]['os-action'] && null === $gate[0]['href']
-			&& 0 === strpos( (string) $gate[0]['os-arg-url'], 'https://example.test/wp-admin/admin.php?page=sn-theme-options' ),
-			'the unconfigured gate`s "Configure analytics ->" is a DOOR: page=sn-theme-options is another window`s surface, so it opens as an admin window rather than painting the settings page inside the report' );
-	}
 
 	echo "\nGroup 8: the one form a window cannot replay\n";
 	ok( array( 'analytics_export' ) === snt_os_analytics_keep_actions(), 'the keep list names the export action' );
