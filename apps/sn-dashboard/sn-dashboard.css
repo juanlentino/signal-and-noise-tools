@@ -1,0 +1,78 @@
+/*
+ * S&N Dashboard — the pieces only this window paints (the verdict, the
+ * systems wall). The layout shared with S&N Analytics is assets/os-app.css.
+ */
+
+/* ── The verdict ─────────────────────────────────────────────────────── */
+.snt-verdict {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-block: 4px 8px;
+}
+
+.snt-verdict__sub {
+	margin: 0;
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-verdict[data-state="warn"] os-display { color: var( --os-ui-warning, #f8f2b6 ); }
+.snt-verdict[data-state="err"] os-display { color: var( --os-ui-danger, #ff5a5a ); }
+
+/* ── Stats ───────────────────────────────────────────────────────────── */
+.snt-stats {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 168px, 1fr ) );
+	gap: 10px;
+}
+
+.snt-signal--unmeasured { opacity: 0.6; }
+.snt-signal[data-dir="up"]::part( caption ) { color: var( --os-ui-success, #7bd88f ); }
+.snt-signal[data-dir="down"]::part( caption ) { color: var( --os-ui-danger, #ff5a5a ); }
+
+/* ── Systems wall ────────────────────────────────────────────────────── */
+.snt-systems {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 176px, 1fr ) );
+	gap: 8px;
+}
+
+.snt-sys {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 10px 12px;
+	border: 1px solid var( --os-ui-border, #33303a );
+	border-radius: 8px;
+	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.03 ) );
+	min-width: 0;
+}
+
+.snt-sys--warn,
+.snt-sys--err {
+	border-color: var( --os-app-tone, var( --os-ui-border-strong, #4d4a52 ) );
+	box-shadow: inset 3px 0 0 var( --os-app-tone, transparent );
+}
+
+.snt-sys__k {
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-sys__v {
+	font-size: 15px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
+os-button.snt-sys__v { justify-self: start; }
+
+.snt-sys__meta {
+	font-size: 11px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+

@@ -831,3 +831,47 @@ toggle is a delegated document listener), but a panel does not come back
 the way the reader left it. Recorded rather than fixed: moving the restore
 into `init()` is a change to the classic page's behaviour as well, and no
 one asked for one.
+
+## The native windows — both hosts rebuilt in the shell's idiom (#1083)
+
+The two hosts above shipped and were rejected on live: the classic page's
+wp-admin markup inside a framework window, with the tab in state and the
+page's own strip in the body, is the old page in a box next to the shell's
+Posts window. The rebuild (v13.106.0) consumes these seams, all measured in
+OpenStation 1.1.6's sources (`docs/app-framework.md`, the components' `static
+help` blocks) and in the sandbox before a line was written:
+
+- **`App::tab( $slug, [ label, view, position ] )`** registers a window tab
+  through `openstation_register_window_tab()`; the shell paints the strip in
+  the window chrome (`.os-window__tab`) and fires `os-window-tab-change`.
+  *Tabs are server views, one session each*; a client bundle mounts on the
+  main view only. Both windows' top tabs are framework tabs; a server action
+  cannot switch them, so a cross-tab link is `.snt-go[data-snt-tab]`, which
+  `assets/os-kit.js` turns into `Window.activateTab()` plus
+  `wp.os.apps.dispatch( id, 'go', args, view )` on that tab's session.
+- **`main_tab_label`**, a registration arg reachable through
+  `openstation_app_window_args`, names the first tab (Dashboard, Overview)
+  instead of the window title.
+- **`os-prop-<name>='json'`** assigns a property after every paint: how a
+  server view feeds `<os-table>` (`os-prop-columns` / `os-prop-data`).
+  `<os-histogram>` reads `series` / `columns` as JSON attributes.
+- **`<os-form os-action>`** collects every `[name]` descendant, kit fields
+  included, and ships them as `$args['values']` — the classic `sn_action` and
+  nonce ride as hidden inputs into the host's replay pipeline unchanged. A
+  one-click write is an `<os-button os-action="post" os-arg-action os-arg-nonce>`.
+  Kit fields are not form-associated, so a native `<form>` sees none of them:
+  the kit form is the only form shape a painter uses (the streaming export
+  form is the one exception, kept real with `target="_blank"`).
+- **`os-bind`** on `<os-tabs>` (the sub-leaf strip) and on a segmented
+  control writes the pick and repaints; the Analytics controls dispatch `go`
+  with `{ key, value }` instead, because a pick must become the next query by
+  the classic link rules (`picked()` in `apps/sn-analytics/sn-analytics.os.php`).
+- **The runtime sheet's tone contract** (`data-tone` → `--os-app-tone`) and
+  the shell's `--os-ui-*` tokens are the only colours the windows use;
+  `assets/os-app.css` lays the shared pieces out on them.
+
+Design record: [docs/proposals/2026-09-06-native-windows.md](proposals/2026-09-06-native-windows.md).
+The port-complete guards live in `tests/openstation-app-dashboard.php` and
+`tests/openstation-app-analytics.php`: a leaf or piece without a kit painter
+fails the suite, so the classic scaffold the frames paint during a port can
+never ship.

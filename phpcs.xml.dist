@@ -83,6 +83,8 @@
 	<rule ref="WordPress.Security.EscapeOutput.OutputNotEscaped">
 		<exclude-pattern>*/inc/admin-tabs.php</exclude-pattern>
 		<exclude-pattern>*/inc/admin-tab-dashboard.php</exclude-pattern>
+		<exclude-pattern>*/apps/sn-dashboard/parts/frame.php</exclude-pattern>
+		<exclude-pattern>*/apps/sn-analytics/parts/frame.php</exclude-pattern>
 		<exclude-pattern>*/inc/cron-dashboard-admin.php</exclude-pattern>
 		<exclude-pattern>*/inc/health-checks-admin.php</exclude-pattern>
 		<exclude-pattern>*/inc/cloudflare-purge.php</exclude-pattern>

@@ -54,13 +54,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_os_host_asset_handles( $id = 'sn-dashboard' ) {
 	if ( 'sn-analytics' === (string) $id ) {
 		return array(
-			'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-host' ),
-			'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host' ),
+			'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-app', 'snt-sn-analytics-app' ),
+			'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit' ),
 		);
 	}
 	return array(
-		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-host' ),
-		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat', 'snt-os-host' ),
+		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-app', 'snt-sn-dashboard-app' ),
+		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat', 'snt-os-host', 'snt-os-kit' ),
 	);
 }
 
@@ -146,14 +146,22 @@ function snt_os_host_register_assets() {
 	if ( ! wp_script_is( 'sn-uptime-status', 'registered' ) ) {
 		wp_register_script( 'sn-uptime-status', SNT_URL . 'assets/uptime-status.js', array( 'snt-ability-run' ), SNT_VERSION, true );
 	}
-	// The classic canvas (assets/os-host-admin.css): wp-admin's body values, so the
-	// leaves render as they do outside a window whatever the desktop palette.
-	// Loads AFTER sn-admin so its root rule is the last word on the canvas.
-	if ( ! wp_style_is( 'snt-os-host', 'registered' ) ) {
-		wp_register_style( 'snt-os-host', SNT_URL . 'assets/os-host-admin.css', array( 'sn-admin' ), SNT_VERSION );
-	}
 	if ( ! wp_script_is( 'snt-os-host', 'registered' ) ) {
 		wp_register_script( 'snt-os-host', SNT_URL . 'assets/os-host.js', array( 'sn-admin' ), SNT_VERSION, true );
+	}
+	// v13.106.0: the native windows. The app sheets paint the kit bodies on the
+	// shell's tokens; the companion script carries the cross-tab links.
+	if ( ! wp_script_is( 'snt-os-kit', 'registered' ) ) {
+		wp_register_script( 'snt-os-kit', SNT_URL . 'assets/os-kit.js', array(), SNT_VERSION, true );
+	}
+	if ( ! wp_style_is( 'snt-os-app', 'registered' ) ) {
+		wp_register_style( 'snt-os-app', SNT_URL . 'assets/os-app.css', array(), SNT_VERSION );
+	}
+	if ( ! wp_style_is( 'snt-sn-dashboard-app', 'registered' ) ) {
+		wp_register_style( 'snt-sn-dashboard-app', SNT_URL . 'apps/sn-dashboard/sn-dashboard.css', array( 'snt-os-app' ), SNT_VERSION );
+	}
+	if ( ! wp_style_is( 'snt-sn-analytics-app', 'registered' ) ) {
+		wp_register_style( 'snt-sn-analytics-app', SNT_URL . 'apps/sn-analytics/sn-analytics.css', array( 'snt-os-app' ), SNT_VERSION );
 	}
 	// Five leaves register their own assets from their own enqueue callbacks
 	// (Connections -> Cron, Integrity -> Provenance, Security -> Audit log,
@@ -186,6 +194,11 @@ function snt_os_host_window_args( $window_args, $id ) {
 		return $window_args;
 	}
 	snt_os_host_register_assets();
+	// The first tab is labelled with the window title unless told otherwise;
+	// on these windows it is the landing tab's own name.
+	$window_args['main_tab_label'] = 'sn-analytics' === (string) $id
+		? __( 'Overview', 'signal-and-noise-tools' )
+		: __( 'Dashboard', 'signal-and-noise-tools' );
 	$handles = snt_os_host_asset_handles( (string) $id );
 	foreach ( array( 'styles', 'scripts' ) as $bucket ) {
 		$existing = isset( $window_args[ $bucket ] ) ? (array) $window_args[ $bucket ] : array();

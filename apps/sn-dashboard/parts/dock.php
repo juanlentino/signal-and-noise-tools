@@ -80,13 +80,12 @@ function menu_items() {
  * @return void
  */
 function read_params( State $state, Os $os ) {
-	$destination = \snt_os_host_destination( (string) $os->param( 'tab', '' ), (string) $os->param( 'sub', '' ) );
-	// State's anchor is an ELEMENT ID. A destination's is the estate's bare
-	// slug, so it is converted; an `anchor` param is already an id, the same
-	// value a leaf's own fragment link carries.
-	$anchor = '' !== $destination['anchor'] ? section_anchor( $destination['anchor'] ) : (string) $os->param( 'anchor', '' );
-	$state->set( 'tab', $destination['tab'] )
-		->set( 'sub', $destination['sub'] )
+	$tab    = current_tab( $os );
+	$sub    = \snt_os_host_resolve_sub( $tab, (string) $os->param( 'sub', '' ) );
+	// The anchor param IS the element id (a door names `sn-sec-<slug>` or any
+	// id); the section_anchor() prefixing is for handler targets, not params.
+	$anchor = (string) $os->param( 'anchor', '' );
+	$state->set( 'sub', $sub )
 		->set( 'anchor', $anchor )
 		->set( 'params', array() )
 		->set( 'flash', '' )
