@@ -61,6 +61,12 @@ require_once __DIR__ . '/openstation-host-pipelines.php';
 // The ASSET seam: which handles a host window carries, and their
 // registration from the same builders their own pages use.
 require_once __DIR__ . '/openstation-host-assets.php';
+// v13.106.0: the kit vocabulary the native windows paint their bodies from.
+require_once __DIR__ . '/openstation-kit.php';
+require_once __DIR__ . '/openstation-kit-display.php';
+require_once __DIR__ . '/openstation-kit-data.php';
+require_once __DIR__ . '/openstation-kit-forms.php';
+require_once __DIR__ . '/openstation-kit-triggers.php';
 
 /** Ceiling on the `sn_*` query params a window carries in its state (they ride every dispatch). */
 if ( ! defined( 'SNT_OS_HOST_PARAM_CAP' ) ) {

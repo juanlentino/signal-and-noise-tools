@@ -785,9 +785,9 @@ namespace {
 
 	echo "\nGroup 11: the window carries the analytics page`s own assets\n";
 	$handles = snt_os_host_asset_handles( 'sn-analytics' );
-	ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-host' ) === $handles['styles'],
+	ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-sn-analytics-app' ) === $handles['styles'],
 		'the four stylesheets toplevel_page_sn-analytics loads: admin.css, the token layer, the analytics sheet and the uptime panel' );
-	ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host' ) === $handles['scripts'],
+	ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit' ) === $handles['scripts'],
 		'and its six scripts: the panel collapse/clamp seam, the confirm modal, the trend brush, the repeatable rows, the uptime panel, and the host' );
 	$args = apply_filters( 'openstation_app_window_args', array( 'styles' => array( 'os-runtime' ), 'scripts' => array() ), 'sn-analytics', null );
 	foreach ( $handles['styles'] as $handle ) {

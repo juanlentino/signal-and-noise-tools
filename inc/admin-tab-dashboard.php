@@ -147,9 +147,9 @@ function snt_dashboard_override_count() {
  */
 add_action( 'sn_admin_dashboard_extras', 'snt_dashboard_tab_render' );
 
-function snt_dashboard_tab_render() {
+function snt_dashboard_tab_data() {
 	if ( ! current_user_can( 'manage_options' ) ) {
-		return;
+		return null;
 	}
 
 	$theme     = snt_deploy_status_for( 'theme' );
@@ -281,47 +281,53 @@ function snt_dashboard_tab_render() {
 		? array_merge( $attention_cards, sn_dash_freshness_cards( $freshness ) )
 		: $attention_cards;
 
+	return array(
+		'verdict'           => sn_dash_verdict( array_merge( array_values( $screen_checks ), array_values( $fleet_zone['cards'] ) ) ),
+		'checks'            => $screen_checks,
+		'components'        => $fleet_zone['cards'],
+		'signals'           => $signals,
+		'subline'           => $subline,
+		'series'            => is_array( $series ) ? $series : array(),
+		'panels'            => sn_dash_ops_panels( $ops_data ),
+		'check_updates_url' => wp_nonce_url(
+			admin_url( 'admin-post.php?action=sn_force_update_check' ),
+			'sn_force_update_check',
+			'sn_force_update_check_nonce'
+		),
+		'attention'         => snt_dashboard_attention_items( $runs, count( $overrides ) ),
+		'overrides'         => snt_dashboard_override_names( $overrides ),
+		'runs'              => $runs,
+		'override_count'    => count( $overrides ),
+	);
+}
+
+/**
+ * The classic tab: the same data, painted as wp-admin markup.
+ *
+ * @return void
+ */
+function snt_dashboard_tab_render() {
+	$data = snt_dashboard_tab_data();
+	if ( null === $data ) {
+		return;
+	}
 	sn_dash_render_screen(
-		$screen_checks,
-		$fleet_zone['cards'],
-		$signals,
+		$data['checks'],
+		$data['components'],
+		$data['signals'],
 		array(
-			'subline'           => $subline,
-			'series'            => is_array( $series ) ? $series : array(),
-			'panels'            => sn_dash_ops_panels( $ops_data ),
-			// Same construction as the maintenance card's link — one handler,
-			// one nonce action. Built here because the toolbar owns it.
-			'check_updates_url' => wp_nonce_url(
-				admin_url( 'admin-post.php?action=sn_force_update_check' ),
-				'sn_force_update_check',
-				'sn_force_update_check_nonce'
-			),
+			'subline'           => $data['subline'],
+			'series'            => $data['series'],
+			'panels'            => $data['panels'],
+			'check_updates_url' => $data['check_updates_url'],
 		)
 	);
 
 	// ── 2. ATTENTION STRIP ── one warning row, only when something is off.
-	snt_dashboard_render_attention_strip( $runs, count( $overrides ) );
+	snt_dashboard_render_attention_strip( $data['runs'], $data['override_count'] );
 
-	// ── 3. EXTERNAL APIs ── v11.29.2: GONE from here. Every host now holds a
-	// permanent row on the ops wall above, so this conditional block would be
-	// the same fact twice on exactly the days it mattered. The v11.28.0 note
-	// said a limit "earns space only when warn or crit" — that is the collapse
-	// rule, and the collapse rule is what made this page empty when healthy.
-	// snt_dashboard_render_api_summary() is kept for surfaces that want the
-	// long form.
-
-	// ── DIAGNOSTICS ──
-	// v11.29.1: the Maintenance CARD GRID is gone. Those four actions were a
-	// third of the viewport on the v11.28.0 page — the least-used thing on
-	// screen carrying the most weight — and they now render as a compact
-	// toolbar inside the stage (sn_dash_render_toolbar). Same form, same nonce,
-	// same action values. snt_dashboard_render_maintenance_actions() is kept
-	// for any surface that still wants the long form.
+	// ── DIAGNOSTICS ── the database overrides, when any exist.
 	snt_dashboard_render_diagnostics();
-
-	// v9.62.2: the Copilot tool-usage card moved to its own AI → Copilot Usage
-	// sub-tab (a diagnostic, off the main Dashboard). Rendered there via the
-	// registry leaf 'copilot-usage' (snt_ai_tool_invocations_render).
 }
 
 /* ════════════════════════════════════════════════════════════════════════
@@ -618,7 +624,7 @@ function snt_dashboard_delta_badge_html( $delta ) {
  * @param int   $override_count DB template/navigation override count.
  * @return void
  */
-function snt_dashboard_render_attention_strip( $runs, $override_count ) {
+function snt_dashboard_attention_items( $runs, $override_count ) {
 	$items = array();
 
 	// Health findings + staleness.
@@ -680,6 +686,18 @@ function snt_dashboard_render_attention_strip( $runs, $override_count ) {
 		}
 	}
 
+	return $items;
+}
+
+/**
+ * The classic strip: one warning row, only when something is off.
+ *
+ * @param array $runs           Merged deploy runs.
+ * @param int   $override_count Database overrides.
+ * @return void
+ */
+function snt_dashboard_render_attention_strip( $runs, $override_count ) {
+	$items = snt_dashboard_attention_items( $runs, $override_count );
 	if ( empty( $items ) ) {
 		return;
 	}
@@ -823,24 +841,38 @@ function snt_dashboard_render_maintenance_actions() {
  * @since 11.29.0
  * @return void
  */
+function snt_dashboard_override_names( array $overrides ) {
+	$names = array();
+	foreach ( $overrides as $tpl ) {
+		if ( is_object( $tpl ) && isset( $tpl->post_type, $tpl->post_name ) ) {
+			$names[] = (string) $tpl->post_type . '/' . (string) $tpl->post_name;
+		}
+	}
+	return $names;
+}
+
+/**
+ * The classic diagnostics block: the override list, when any exist.
+ *
+ * @return void
+ */
 function snt_dashboard_render_diagnostics() {
-	$overrides = get_posts(
-		array(
-			'post_type'      => snt_dashboard_override_post_types(),
-			'posts_per_page' => -1,
-			'post_status'    => 'any',
+	$names = snt_dashboard_override_names(
+		get_posts(
+			array(
+				'post_type'      => snt_dashboard_override_post_types(),
+				'posts_per_page' => -1,
+				'post_status'    => 'any',
+			)
 		)
 	);
-	// ── DIAGNOSTICS ── only when there's anything to show (full-width, below
-	// the two-column row). The override count surfaces in the attention strip
-	// above; this stays for deep inspection.
-	if ( ! empty( $overrides ) ) {
+	if ( ! empty( $names ) ) {
 		echo '<h2 class="sn-section-h" id="sn-dash-diagnostics">Diagnostics</h2>';
 		echo '<details class="sn-override-details" open>';
-		echo '<summary>' . esc_html( sprintf( '%d database override%s: click to expand', count( $overrides ), count( $overrides ) === 1 ? '' : 's' ) ) . '</summary>';
+		echo '<summary>' . esc_html( sprintf( '%d database override%s: click to expand', count( $names ), count( $names ) === 1 ? '' : 's' ) ) . '</summary>';
 		echo '<ul>';
-		foreach ( $overrides as $tpl ) {
-			echo '<li><code>' . esc_html( $tpl->post_type ) . '/' . esc_html( $tpl->post_name ) . '</code></li>';
+		foreach ( $names as $name ) {
+			echo '<li><code>' . esc_html( $name ) . '</code></li>';
 		}
 		echo '</ul>';
 		echo '</details>';

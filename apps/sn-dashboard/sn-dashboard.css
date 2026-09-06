@@ -1,0 +1,240 @@
+/*
+ * S&N Dashboard — the window's own layout, on the shell's tokens.
+ *
+ * Everything the kit paints (stats, sections, tables, notices, forms) styles
+ * itself; this sheet lays those parts out and paints the few semantic pieces
+ * the leaves keep as plain HTML (the verdict, the systems cells, the ops
+ * lists, the facts list). Every colour is a shell token, so a desktop theme
+ * re-skins the window for free. Never a literal.
+ */
+
+.os-app[data-os-app="sn-dashboard"] .snt-app {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	padding: 16px 20px 28px;
+	min-height: 100%;
+	overflow: auto;
+	font-family: var( --os-ui-font, system-ui, sans-serif );
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.os-app[data-os-app="sn-dashboard"] .snt-leaf {
+	display: flex;
+	flex-direction: column;
+	gap: 16px;
+	min-width: 0;
+}
+
+/* ── The verdict ─────────────────────────────────────────────────────── */
+.snt-verdict {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding-block: 4px 8px;
+}
+
+.snt-verdict__sub {
+	margin: 0;
+	font-size: 12px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-verdict[data-state="warn"] os-display { color: var( --os-ui-warning, #f8f2b6 ); }
+.snt-verdict[data-state="err"] os-display { color: var( --os-ui-danger, #ff5a5a ); }
+
+/* ── Stats ───────────────────────────────────────────────────────────── */
+.snt-stats {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 168px, 1fr ) );
+	gap: 10px;
+}
+
+.snt-signal--unmeasured { opacity: 0.6; }
+.snt-signal[data-dir="up"]::part( caption ) { color: var( --os-ui-success, #7bd88f ); }
+.snt-signal[data-dir="down"]::part( caption ) { color: var( --os-ui-danger, #ff5a5a ); }
+
+/* ── Systems wall ────────────────────────────────────────────────────── */
+.snt-systems {
+	display: grid;
+	grid-template-columns: repeat( auto-fill, minmax( 176px, 1fr ) );
+	gap: 8px;
+}
+
+.snt-sys {
+	display: flex;
+	flex-direction: column;
+	gap: 3px;
+	padding: 10px 12px;
+	border: 1px solid var( --os-ui-border, #33303a );
+	border-radius: 8px;
+	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.03 ) );
+	min-width: 0;
+}
+
+.snt-sys--warn,
+.snt-sys--err {
+	border-color: var( --os-app-tone, var( --os-ui-border-strong, #4d4a52 ) );
+	box-shadow: inset 3px 0 0 var( --os-app-tone, transparent );
+}
+
+.snt-sys__k {
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-sys__v {
+	font-size: 15px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	overflow-wrap: anywhere;
+}
+
+os-button.snt-sys__v { justify-self: start; }
+
+.snt-sys__meta {
+	font-size: 11px;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+/* ── Detail columns + lists ──────────────────────────────────────────── */
+.snt-cols {
+	display: grid;
+	grid-template-columns: repeat( auto-fit, minmax( 200px, 1fr ) );
+	gap: 16px;
+}
+
+.snt-col { min-width: 0; }
+
+.snt-col__h {
+	margin: 0 0 6px;
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+	display: flex;
+	flex-direction: column;
+}
+
+.snt-list__row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 5px 0;
+	border-bottom: 1px solid var( --os-ui-border, #33303a );
+	font-size: 12px;
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+}
+
+.snt-list__row:last-child { border-bottom: 0; }
+
+.snt-list__label {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+	color: inherit;
+	text-decoration: none;
+}
+
+a.snt-list__label:hover,
+a.snt-link:hover { text-decoration: underline; }
+
+.snt-list__value {
+	flex: 0 0 auto;
+	font-variant-numeric: tabular-nums;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-list__value[data-tone] { color: var( --os-app-tone, inherit ); }
+
+.snt-list__empty {
+	margin: 4px 0;
+	font-size: 12px;
+	color: var( --os-ui-fg-faint, #66636b );
+}
+
+.snt-dot {
+	flex: 0 0 auto;
+	width: 7px;
+	height: 7px;
+	border-radius: 50%;
+	background: var( --os-ui-success, #7bd88f );
+}
+
+.snt-dot--err { background: var( --os-ui-danger, #ff5a5a ); }
+.snt-dot--unknown { background: var( --os-ui-fg-faint, #66636b ); }
+
+/* ── Facts list ──────────────────────────────────────────────────────── */
+.snt-kv {
+	display: grid;
+	grid-template-columns: max-content 1fr;
+	gap: 6px 16px;
+	margin: 0;
+}
+
+.snt-kv__row { display: contents; }
+.snt-kv__k { color: var( --os-ui-fg-muted, #b3afb5 ); font-size: 12px; }
+.snt-kv__v { margin: 0; font-size: 13px; }
+.snt-kv__v[data-tone] { color: var( --os-app-tone, inherit ); }
+
+.snt-plain { margin: 0; padding-left: 18px; }
+
+/* ── The sub-leaf strip ──────────────────────────────────────────────── */
+.snt-subtabs { margin-bottom: 4px; }
+
+/* ── A leaf still on the classic markup (the port's scaffold) ────────── */
+.snt-classic {
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.snt-classic a { color: var( --os-ui-accent-strong, #ec9bff ); }
+
+/* ── Prose, hints, static fields inside a leaf ───────────────────────── */
+.snt-prose {
+	margin: 0;
+	max-width: 72ch;
+	font-size: 13px;
+	line-height: 1.5;
+	color: var( --os-ui-fg-muted, #b3afb5 );
+}
+
+.snt-hint {
+	margin: 0;
+	font-size: 12px;
+	color: var( --os-ui-fg-faint, #66636b );
+}
+
+.snt-field-static {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	padding: 6px 0;
+}
+
+.snt-field-static__k {
+	font-size: 12px;
+	font-weight: 600;
+	color: var( --os-ui-fg, #fffbff );
+}
+
+.snt-field-static__hint {
+	font-size: 12px;
+	color: var( --os-ui-fg-faint, #66636b );
+}
+
+.snt-link {
+	color: var( --os-ui-accent-strong, #ec9bff );
+	font-family: var( --os-ui-font-mono, ui-monospace, monospace );
+	font-size: 12px;
+	overflow-wrap: anywhere;
+}
