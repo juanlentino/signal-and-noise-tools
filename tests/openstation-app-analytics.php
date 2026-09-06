@@ -132,7 +132,7 @@ namespace {
 	$painted = array();
 	$spy = function ( $key ) use ( &$painted ) { return function ( $ctx ) use ( $key, &$painted ) { $painted[] = $key; return '<i data-piece="' . $key . '"></i>'; }; };
 	add_filter( 'snt_os_analytics_painters', function ( $p ) use ( $spy, &$painted ) {
-		foreach ( array( 'chrome/controls', 'chrome/insights', 'chrome/drilldown', 'chrome/empty', 'chrome/error', 'chrome/login-header', 'view/overview', 'view/edge', 'view/login-defense' ) as $k ) { $p[ $k ] = $spy( $k ); }
+		foreach ( array( 'chrome/controls', 'chrome/insights', 'chrome/drilldown', 'chrome/empty', 'chrome/error', 'chrome/login-header', 'view/overview', 'view/posts', 'view/edge', 'view/login-defense' ) as $k ) { $p[ $k ] = $spy( $k ); }
 		$p['chrome/header'] = function ( $ctx ) use ( &$painted ) { $painted[] = 'chrome/header'; return array( 'html' => '<i data-piece="chrome/header"></i>', 'totals' => array( 'views' => $GLOBALS['__views'] ?? 5 ) ); };
 		unset( $p['view/content'] );
 		return $p;
@@ -143,8 +143,10 @@ namespace {
 	ok( 0 === strpos( $html, '<div class="snt-app" data-snt-view="overview" data-snt-query="' ) && false !== strpos( $html, '<os-notice tone="danger">Broke.</os-notice>' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'data-piece="chrome/error"' ), 'the root names the view and the query; the notice paints first, as the kit`s notice' );
 	$paint( 'overview', array( 'drill' => 'browser:Firefox' ) );
 	ok( in_array( 'chrome/drilldown', $painted, true ) && array_search( 'chrome/drilldown', $painted, true ) < array_search( 'view/overview', $painted, true ), 'a parsed drill paints the drill-down panel before the view' );
+	$paint( 'posts' );
+	ok( array( 'chrome/error', 'chrome/controls', 'view/posts' ) === $painted, 'Posts paints its controls and catalog without the Overview insights, KPIs, or chart' );
 	$paint( 'edge' );
-	ok( ! in_array( 'chrome/insights', $painted, true ) && in_array( 'chrome/controls', $painted, true ) && in_array( 'view/edge', $painted, true ), 'edge skips the insights band and keeps the controls and header, as the composer does' );
+	ok( array( 'chrome/error', 'chrome/controls', 'view/edge' ) === $painted, 'other focused reports follow the same compact composition' );
 	$paint( 'login-defense' );
 	ok( array( 'chrome/error', 'chrome/login-header', 'view/login-defense' ) === $painted, 'login-defense owns its chrome: its own header, no insights, no controls, no header region' );
 	$GLOBALS['__views'] = 0;
@@ -165,6 +167,13 @@ namespace {
 	foreach ( array_keys( snt_analytics_views() ) as $slug ) { $want[] = 'view/' . $slug; }
 	$missing = array_values( array_diff( $want, array_keys( $painters ) ) );
 	ok( array() === $missing, 'every view and chrome piece has a painter -- the classic scaffold cannot ship' . ( $missing ? ' -- MISSING ' . count( $missing ) . ': ' . implode( ', ', $missing ) : '' ) );
+
+	echo "\nGroup 5: the native toolbar stays compact until Custom is chosen\n";
+	$rolling_controls = call_user_func( $painters['chrome/controls'], array( 'range' => '7', 'class' => 'human', 'compare' => 'off', 'get' => array() ) );
+	$custom_controls  = call_user_func( $painters['chrome/controls'], array( 'range' => 'custom', 'from' => '2026-09-01', 'to' => '2026-09-06', 'class' => 'human', 'compare' => 'off', 'get' => array() ) );
+	ok( false !== strpos( $rolling_controls, '>Custom</os-button>' ) && false === strpos( $rolling_controls, 'snt-custom-range' ), 'rolling ranges offer Custom without permanently reserving space for its date form' );
+	ok( false !== strpos( $custom_controls, 'snt-custom-range' ) && false !== strpos( $custom_controls, 'name="sn_from"' ) && false !== strpos( $custom_controls, 'name="sn_to"' ), 'choosing Custom reveals both date fields in the range row' );
+	ok( false !== strpos( $rolling_controls, 'snt-toolbar__row--range' ) && false !== strpos( $rolling_controls, 'snt-toolbar__row--secondary' ), 'range and secondary controls have explicit responsive rows' );
 
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );

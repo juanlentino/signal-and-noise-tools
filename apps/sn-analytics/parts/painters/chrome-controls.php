@@ -37,6 +37,7 @@ function paint_chrome_controls( array $ctx ) {
 			$range_row .= pick( $label, 'range', (string) $token, (string) $token === $range );
 		}
 	}
+	$range_row .= pick( __( 'Custom', 'signal-and-noise-tools' ), 'range', 'custom', 'custom' === $range );
 
 	$class_row = '<span class="snt-toolbar__k">' . \snt_kit_esc( __( 'Class', 'signal-and-noise-tools' ) ) . '</span>';
 	foreach ( array( 'human' => __( 'Human', 'signal-and-noise-tools' ), 'suspect' => __( 'Suspect', 'signal-and-noise-tools' ), 'bot' => __( 'Bot', 'signal-and-noise-tools' ) ) as $token => $label ) {
@@ -57,7 +58,7 @@ function paint_chrome_controls( array $ctx ) {
 	}
 	$hidden .= \snt_kit_tag( 'input', array( 'type' => 'hidden', 'name' => 'sn_range', 'value' => 'custom' ) );
 	$today   = gmdate( 'Y-m-d' );
-	$custom  = \snt_kit_tag(
+	$custom  = 'custom' === $range ? \snt_kit_tag(
 		'os-form',
 		array(
 			'class'        => 'snt-form snt-custom-range',
@@ -69,7 +70,7 @@ function paint_chrome_controls( array $ctx ) {
 		$hidden
 		. \snt_kit_tag( 'os-field-row', array( 'label' => __( 'From', 'signal-and-noise-tools' ) ), \snt_kit_tag( 'input', array( 'type' => 'date', 'name' => 'sn_from', 'value' => 'custom' === $range ? $from : '', 'max' => $today ) ) )
 		. \snt_kit_tag( 'os-field-row', array( 'label' => __( 'To', 'signal-and-noise-tools' ) ), \snt_kit_tag( 'input', array( 'type' => 'date', 'name' => 'sn_to', 'value' => 'custom' === $range ? $to : '', 'max' => $today ) ) )
-	);
+	) : '';
 
 	$admin = function_exists( 'admin_url' ) ? admin_url( 'admin.php' ) : '';
 	$nonce = function_exists( 'wp_create_nonce' ) ? wp_create_nonce( 'sn_theme_options_nonce' ) : '';
@@ -102,12 +103,12 @@ function paint_chrome_controls( array $ctx ) {
 	}
 
 	return '<div class="snt-toolbar">'
-		. '<div class="snt-toolbar__group">' . $range_row . '</div>'
-		. $custom
+		. '<div class="snt-toolbar__row snt-toolbar__row--range"><div class="snt-toolbar__group">' . $range_row . '</div>' . $custom . '</div>'
+		. '<div class="snt-toolbar__row snt-toolbar__row--secondary">'
 		. '<div class="snt-toolbar__group">' . $class_row . '</div>'
 		. '<div class="snt-toolbar__group">' . $compare_row . '</div>'
-		. '<div class="snt-toolbar__group"><span class="snt-toolbar__k">' . \snt_kit_esc( __( 'Export', 'signal-and-noise-tools' ) ) . '</span>' . $export . '</div>'
-		. $sep
+		. '<div class="snt-toolbar__group snt-toolbar__export"><span class="snt-toolbar__k">' . \snt_kit_esc( __( 'Export', 'signal-and-noise-tools' ) ) . '</span>' . $export . '</div>'
+		. $sep . '</div>'
 		. '</div>';
 }
 

@@ -23,8 +23,8 @@
 /* ── Stats ───────────────────────────────────────────────────────────── */
 .snt-stats {
 	display: grid;
-	grid-template-columns: repeat( auto-fit, minmax( 168px, 1fr ) );
-	gap: 10px;
+	grid-template-columns: repeat( auto-fit, minmax( 190px, 1fr ) );
+	gap: 12px;
 }
 
 .snt-signal--unmeasured { opacity: 0.6; }
@@ -34,15 +34,15 @@
 /* ── Systems wall ────────────────────────────────────────────────────── */
 .snt-systems {
 	display: grid;
-	grid-template-columns: repeat( auto-fill, minmax( 176px, 1fr ) );
-	gap: 8px;
+	grid-template-columns: repeat( auto-fill, minmax( 210px, 1fr ) );
+	gap: 10px;
 }
 
 .snt-sys {
 	display: flex;
 	flex-direction: column;
-	gap: 3px;
-	padding: 10px 12px;
+	gap: 4px;
+	padding: 12px 14px;
 	border: 1px solid var( --os-ui-border, #33303a );
 	border-radius: 8px;
 	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.03 ) );
