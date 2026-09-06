@@ -16,6 +16,7 @@ namespace OpenStation {
 	final class App {
 		public $id; public $title; public $icon; public $placement; public $caps = array(); public $state = array();
 		public $actions = array(); public $view; public $data; public $client; public $tabs = array(); public $buttons = array(); public $watch = array();
+		public $config = array();
 		public static function define( $id ) { $a = new self(); $a->id = $id; return $a; }
 		public function title( $t ) { $this->title = $t; return $this; }
 		public function icon( $i ) { $this->icon = $i; return $this; }
@@ -31,6 +32,7 @@ namespace OpenStation {
 		public function data( callable $cb ) { $this->data = $cb; return $this; }
 		public function client( $p ) { $this->client = $p; return $this; }
 		public function tab( $v, array $a ) { $this->tabs[ $v ] = $a; return $this; }
+		public function config( array $c ) { $this->config = $c; return $this; }
 	}
 }
 
@@ -46,7 +48,7 @@ namespace OpenStation\App {
 	class Os {
 		public $opened = array();
 		public function open_url( $u, $t = '', $i = '' ) { $this->opened[] = array( $u, $t, $i ); return $this; }
-		public function can( $c ) { return true; }
+		public function can( $c, ...$a ) { $GLOBALS['__can_calls'][] = array( $c, $a ); return $GLOBALS['__os_can'] ?? true; }
 	}
 }
 
@@ -64,9 +66,10 @@ namespace {
 	function _n( $a, $b, $n, $d = null ) { return 1 === (int) $n ? $a : $b; }
 	function get_bloginfo( $k ) { return 'Juan &amp; Co'; }
 	function home_url( $p = '' ) { return 'https://example.test' . $p; }
+	function rest_url( $p = '' ) { return 'https://example.test/wp-json/' . $p; }
 	function add_query_arg( $args, $url ) { return $url . '?' . http_build_query( $args ); }
 	$GLOBALS['__caps'] = array( 'edit_posts' => true, 'manage_options' => true, 'edit_post' => true );
-	function current_user_can( $cap, ...$a ) { return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
+	function current_user_can( $cap, ...$a ) { $GLOBALS['__cap_calls'][] = array( $cap, $a ); return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
 	function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['__meta'][ $id ][ $key ] ?? ''; }
 	function get_post( $id ) { foreach ( $GLOBALS['__posts'] as $p ) { if ( (int) $p->ID === (int) $id ) { return $p; } } return null; }
 	function get_post_status_object( $s ) { return (object) array( 'label' => array( 'publish' => 'Published', 'future' => 'Scheduled', 'draft' => 'Draft' )[ $s ] ?? ucfirst( $s ) ); }
@@ -77,6 +80,7 @@ namespace {
 	function get_edit_post_link( $id, $ctx = '' ) { return 'https://example.test/wp-admin/post.php?post=' . $id . '&action=edit'; }
 	function sn_prov_is_note( $id ) { return true; }
 	function sn_prov_get_chain( $id ) { return $GLOBALS['__chains'][ $id ] ?? array(); }
+	function sn_note_dossier_verify( $id, $f = null ) { return array( 'post_id' => (int) $id, 'tone' => 'success', 'text' => 'v1 holds.', 'meta' => 'checked', 'checked_at' => '2026-09-05T20:00:00+00:00' ); }
 	function sn_discography_get() { return array( 'entries' => $GLOBALS['__albums'] ?? array() ); }
 	$GLOBALS['__styles'] = array(); $GLOBALS['__scripts'] = array();
 	function wp_register_style( $h, $src, $deps = array(), $ver = false ) { $GLOBALS['__styles'][ $h ] = array( $src, $deps ); return true; }
@@ -121,11 +125,17 @@ namespace {
 	ok( false !== strpos( $js, "defineApp( 'signal-noise'" ) && false !== strpos( $js, 'openStationAppsPending' ), 'the client registers through the runtime\'s pending queue under the app id' );
 	foreach ( array( '<os-tile', 'statusControl(', '<os-table', '<os-badge', '<os-empty-state', '<os-text-field', '<os-segmented' ) as $part ) { ok( false !== strpos( $js, $part ), "the client paints with the kit: $part" ); }
 	ok( false !== strpos( $js, 'wp.os.mode.isMobile' ), 'the client reads the shell\'s mode stamp for the phone layout' );
+	foreach ( array( "kind === 'stats'", "kind === 'status'", 'ctx.extra', 'dossierUrl', 'ctx.fetch(', '@os-pick', 'ctx.host.openUrl(', 'data.verdict', 'updated:', "section.id === 'notes'" ) as $part ) { ok( false !== strpos( $js, $part ), "the client carries the dossier: $part" ); }
+	ok( false === strpos( $js, '/wp-abilities/' ), 'the client never spells the abilities path; it comes from the window config' );
+ok( 2 === substr_count( $js, "section.id === 'notes'" ), 'both the render and the updated() fetch are gated to the Notes section (a count, since one copy would keep a presence pin green)' );
+ok( 1 === substr_count( $js, 'ctx.ui(' ), 'exactly one ctx.ui() bag: the runtime keeps one per mounted view and silently discards every later factory' );
+foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "'noopener,noreferrer'", 'fetched_at', 'Try again' ) as $part ) { ok( false !== strpos( $js, $part ), "the client keeps failures out of the cache, refetches after a re-check, opens external doors in a tab, dates the read: $part" ); }
 
 	echo "\nGroup 2: the definition\n";
 	ok( array( 'edit_posts' ) === $app->caps && 'dock' === $app->placement && array( 'post' ) === $app->watch, 'gated on edit_posts; a dock tile; repaints on post changes' );
-	ok( array( 'section', 'item', 'status', 'query', 'view' ) === array_keys( $app->state ) && 'icons' === $app->state['view'], 'state schema: section, item, status, query, view' );
-	ok( array( 'go', 'edit' ) === array_keys( $app->actions ), 'exactly two server actions: go and edit -- everything else is local in the browser' );
+	ok( array( 'section', 'item', 'status', 'query', 'view', 'verdict' ) === array_keys( $app->state ) && 'icons' === $app->state['view'] && array() === $app->state['verdict'], 'state schema: section, item, status, query, view, verdict (an array slot)' );
+	ok( array( 'go', 'edit', 'verify' ) === array_keys( $app->actions ), 'three server actions: go, edit, verify -- everything else is local in the browser' );
+	ok( 'https://example.test/wp-json/wp-abilities/v1/abilities/signal-noise/note-dossier/run' === ( $app->config['dossierUrl'] ?? '' ), 'the ability run URL rides the window config, so the client never spells the abilities path' );
 
 	echo "\nGroup 3: the registry is the extension point\n";
 	ok( array( 'notes', 'discography' ) === array_column( snt_os_app_sections(), 'id' ), 'two built-in sections, in position order' );
@@ -155,10 +165,13 @@ namespace {
 	ok( 'table' === $d['blocks'][0]['kind'] && 'v2' === $d['blocks'][0]['rows'][0]['version'] && 'success' === $d['blocks'][0]['rows'][0]['anchor']['tone'] && 'bbbbbbbbbbbb' === $d['blocks'][0]['rows'][0]['hash']['code'] && 'v1' === $d['blocks'][0]['rows'][1]['version'], 'the chain is a table, newest first, with a coded hash and a toned anchor' );
 	ok( 'code' === $d['blocks'][1]['kind'] && 'sn:note:11' === $d['blocks'][1]['text'], 'the ledger UID is a code block' );
 	$labels = array_column( $d['actions'], 'label' );
-	ok( array( 'Open in editor', 'Verify', 'View on site' ) === $labels && 'edit' === $d['actions'][0]['dispatch'] && '11' === $d['actions'][0]['args']['item'], 'actions: the editor first (a dispatch), the verifier and the site (URLs)' );
+	ok( array( 'Open in editor', 'Verify', 'Re-check now', 'View on site' ) === $labels && 'edit' === $d['actions'][0]['dispatch'] && '11' === $d['actions'][0]['args']['item'], 'actions: the editor first (a dispatch), the verifier and the site (URLs), the re-check between them' );
+	ok( in_array( array( 'edit_post', array( 11 ) ), $GLOBALS['__cap_calls'] ?? array(), true ), 'the re-check action is offered on edit_post for THAT note (the capability and the id were asked, not an app-wide cap)' );
 	ok( false !== strpos( $d['actions'][1]['url'], '/verify/?note=sn%3Anote%3A11&v=2' ), 'Verify links the public verifier at this uid and version' );
 	$d12 = $p['items'][2]['detail'];
 	ok( 'text' === $d12['blocks'][0]['kind'] && false !== strpos( $d12['blocks'][0]['text'], 'signed when it is published' ) && array( 'Open in editor' ) === array_column( $d12['actions'], 'label' ), 'a draft says why it has no chain and has no site link' );
+	ok( in_array( 'Re-check now', array_column( $d['actions'], 'label' ), true ) && 'verify' === $d['actions'][ array_search( 'Re-check now', array_column( $d['actions'], 'label' ), true ) ]['dispatch'], 'a signed note offers Re-check now as a verify dispatch' );
+	ok( ! in_array( 'Re-check now', array_column( $d12['actions'], 'label' ), true ), 'a draft with no chain does not' );
 	ok( 'A draft <script>x</script>' === $p['items'][2]['title'], 'titles travel as plain text; the client escapes' );
 	$GLOBALS['__caps']['edit_post'] = false;
 	$p2 = payload( $app, array( 'section' => 'notes' ) );
@@ -196,6 +209,23 @@ namespace {
 	$st->set( 'section', 'discography' );
 	$app->actions['edit']( $st, $os, array( 'item' => 'r1' ) );
 	ok( 1 === count( $os->opened ), 'a section without an editor opens nothing' );
+
+	echo "\nGroup 8b: the verify action and the verdict in data\n";
+	$st = new \OpenStation\App\State( $app->state, array( 'section' => 'notes', 'item' => '11' ) );
+	$os = new \OpenStation\App\Os();
+	$GLOBALS['__can_calls'] = array();
+	$app->actions['verify']( $st, $os, array( 'item' => '11' ) );
+	ok( 11 === $st->get( 'verdict' )['post_id'] && 'success' === $st->get( 'verdict' )['tone'], 'verify stores the verdict in the declared state slot' );
+	ok( array( 'edit_post', array( 11 ) ) === end( $GLOBALS['__can_calls'] ), 'the server action asked the runtime for edit_post on THAT note, not an app-wide capability' );
+	$p = ( $app->data )( $st, $os );
+	ok( 11 === $p['verdict']['post_id'] && 'v1 holds.' === $p['verdict']['text'], 'the payload projects the verdict into data' );
+	$GLOBALS['__os_can'] = false;
+	$app->actions['verify']( $st, $os, array( 'item' => '11' ) );
+	ok( array() === $st->get( 'verdict' ), 'without edit_post on THAT note the verdict is cleared, and nothing is fetched' );
+	$GLOBALS['__os_can'] = true;
+	$app->actions['verify']( $st, $os, array( 'item' => '11' ) );
+	$app->actions['go']( $st, $os, array( 'section' => 'notes' ) );
+	ok( array() === $st->get( 'verdict' ), 'go clears the verdict' );
 
 	echo "\nGroup 9: the sheet and the script survive a symlinked plugin directory\n";
 	$args = apply_filters( 'openstation_app_window_args', array( 'styles' => array( 'rt', 'openstation-app-signal-noise' ), 'scripts' => array( 'openstation-app-signal-noise-client' ) ), 'signal-noise', null );

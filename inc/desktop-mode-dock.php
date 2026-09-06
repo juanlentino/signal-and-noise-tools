@@ -86,9 +86,9 @@ snt_os_compat_add_filter( 'desktop_mode_dock_items', 'openstation_dock_items', f
 	 *   - Submenu entries only honor 'title' + 'url' per src/dock.ts:89
 	 *     SubmenuItem type — 'icon' and 'slug' on submenu items are
 	 *     silently dropped. Removed the noise.
-	 *   - Icon is dashicons-megaphone (matches the icon passed to
-	 *     add_menu_page() in admin-page.php:121, which is what was
-	 *     rendering on the auto-imported entry before suppression).
+	 *   - Icon is dashicons-shield-alt (v13.100.0): the shield the desktop icon
+	 *     `sn-icon-dashboard` already wears (`snt_os_register_icon()` below).
+	 *     The megaphone now belongs to the App Framework app alone.
 	 *
 	 * Click behavior (verified via src/dock.ts:911-913 + 1703-1765):
 	 *   - Single click on parent tile → window opens to item.url
@@ -115,10 +115,17 @@ snt_os_compat_add_filter( 'desktop_mode_dock_items', 'openstation_dock_items', f
 		);
 	}
 
+	// v13.100.0: its OWN id. From v12.4.0 to v13.99.2 this entry was `signal-noise`,
+	// the id the App Framework app took in v13.98.0 (apps/signal-noise/
+	// signal-noise.os.php, ->placement('dock')), so one id named two things on
+	// the same dock. Re-keyed so each id names one thing; whether the shell's
+	// registry dropped one of them was never measured. The entry is the admin
+	// page -- S&N Dashboard -- and now says so, with the shield the desktop icon
+	// `sn-icon-dashboard` already wears. The app keeps `signal-noise` and the megaphone.
 	$items[] = array(
-		'id'      => 'signal-noise',
-		'title'   => 'Signal & Noise',
-		'icon'    => 'dashicons-megaphone',
+		'id'      => 'sn-dashboard',
+		'title'   => 'S&N Dashboard',
+		'icon'    => 'dashicons-shield-alt',
 		'url'     => admin_url( 'admin.php?page=sn-theme-options' ),
 		'badge'   => snt_desktop_dock_badge(),
 		'submenu' => $dock_submenu,

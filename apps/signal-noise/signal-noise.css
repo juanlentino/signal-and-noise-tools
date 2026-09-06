@@ -77,3 +77,21 @@ html[data-os-mode="mobile"] .snt-actions os-button { width: 100%; }
 html[data-os-mode="mobile"] .snt-folder, html[data-os-mode="mobile"] .snt-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 /* On the page form the crumb is the way back; the pane's ✕ would be a second one. */
 html[data-os-mode="mobile"] .snt-detail__close { display: none; }
+
+/* The fetched dossier: the window switch, the verdict, one section per block. */
+.snt-dossier { display: flex; flex-direction: column; gap: 4px; align-self: stretch; }
+.snt-window { align-self: flex-start; margin: 4px 0 2px; }
+.snt-block { display: flex; flex-direction: column; gap: 4px; align-self: stretch; }
+.snt-tiles { display: grid; grid-template-columns: repeat( auto-fill, minmax( 120px, 1fr ) ); gap: 8px; align-self: stretch; }
+.snt-tile { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border: 1px solid var( --os-ui-border, rgba( 127, 127, 127, 0.22 ) ); border-radius: 8px; min-width: 0; }
+.snt-tile__label { font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var( --os-ui-fg-muted, #646970 ); }
+.snt-tile__value { font-size: 20px; font-weight: 600; line-height: 1.1; }
+.snt-tile__window { font-size: 11px; color: var( --os-ui-fg-muted, #646970 ); }
+.snt-tile__note { font-size: 12px; color: var( --os-ui-fg-muted, #646970 ); overflow-wrap: anywhere; }
+.snt-status { margin: 0; }
+/* The kit's badge is nowrap for one-word states; the dossier puts a sentence in it. A document rule beats the shadow :host rule. */
+.snt-dossier os-badge { white-space: normal; text-align: start; max-width: 100%; border-radius: 8px; line-height: 1.4; }
+.snt-asof { font-size: 11px; }
+.snt-retry { margin-inline-start: 8px; }
+.snt-source { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; margin: 0; font-size: 11px; color: var( --os-ui-fg-muted, #646970 ); }
+.snt-loading { display: flex; align-items: center; gap: 8px; }

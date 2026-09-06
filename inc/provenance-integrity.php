@@ -559,6 +559,37 @@ function sn_prov_integrity_state() {
 }
 
 /**
+ * The house sentence for one integrity failure code -- ONE table, so the
+ * sweep's findings, the health check and the app's re-check verdict say the
+ * same thing about the same leg. An unknown code comes back as itself: the
+ * caller can see it was not translated, instead of a sentence that reads as
+ * a verdict nobody made.
+ *
+ * @param string $code A failure code from sn_prov_integrity_check_note() or the keys probe.
+ * @return string
+ */
+function sn_prov_integrity_failure_sentence( $code ) {
+	static $legs = array(
+		'hash_mismatch'           => 'stored payload no longer reproduces the anchored content hash (hash mismatch)',
+		'twin_drift'              => 'the published .json twin\'s words no longer match the signed payload (twin drift)',
+		'twin_unreachable'        => 'the published .json twin could not be fetched (unreachable: an outage, not drift)',
+		'twin_missing'            => 'the published .json twin has 404ed for three consecutive sweeps (twin missing: the public twin is gone, not blipping)',
+		'ledger_missing'          => 'the public ledger record <notes|pages>/<uid>/v<n>.json is absent (ledger missing)',
+		'subject_kind_unresolved' => 'the subject kind could not be resolved, so the ledger directory is unknown and was NOT guessed (gap, never a drift claim)',
+		'ledger_unreachable'      => 'the public ledger could not be reached (unreachable: an outage, not drift)',
+		'ledger_hash_mismatch'    => 'the public ledger record attests a different content hash (ledger contradiction)',
+		'ledger_record_malformed' => 'the public ledger record exists but carries no content_hash (malformed record: it attests nothing)',
+		'no_signed_commit'        => 'the subject carries no signed v1+ commit at all, so /verify tells a reader no proof exists (unverifiable: absence, never drift)',
+		'signing_key_unpublished' => 'the key this commit was signed with is no longer published in keys/provenance-keys.json, so readers can no longer verify its signature (retired key dropped)',
+		'keys_unreachable'        => 'the ledger\'s key list could not be read (unreachable: an outage, not a mismatch)',
+		'key_mismatch'            => 'the ledger publishes the followed key id with different key bytes than this site holds (key mismatch: readers verifying against the ledger will not reproduce this site\'s signatures)',
+		'keys_not_configured'     => 'the key ids were not checked: no signing key is configured here (gap, never a mismatch)',
+	);
+	$code = (string) $code;
+	return isset( $legs[ $code ] ) ? $legs[ $code ] : $code;
+}
+
+/**
  * Build Content-Health findings from stored sweep state. PURE (no I/O) so
  * the per-leg wording is exhaustively testable. Findings accrue across the
  * rotation: a Note that failed in an earlier batch stays flagged until its
@@ -570,20 +601,6 @@ function sn_prov_integrity_state() {
  * @return array[] Finding rows (sn_health_pack_check shape).
  */
 function sn_prov_integrity_findings( $state ) {
-	$legs = array(
-		'hash_mismatch'        => 'stored payload no longer reproduces the anchored content hash (hash mismatch)',
-		'twin_drift'           => 'the published .json twin\'s words no longer match the signed payload (twin drift)',
-		'twin_unreachable'     => 'the published .json twin could not be fetched (unreachable: an outage, not drift)',
-		'twin_missing'         => 'the published .json twin has 404ed for three consecutive sweeps (twin missing: the public twin is gone, not blipping)',
-		'ledger_missing'       => 'the public ledger record <notes|pages>/<uid>/v<n>.json is absent (ledger missing)',
-		'subject_kind_unresolved' => 'the subject kind could not be resolved, so the ledger directory is unknown and was NOT guessed (gap, never a drift claim)',
-		'ledger_unreachable'   => 'the public ledger could not be reached (unreachable: an outage, not drift)',
-		'ledger_hash_mismatch' => 'the public ledger record attests a different content hash (ledger contradiction)',
-		'ledger_record_malformed' => 'the public ledger record exists but carries no content_hash (malformed record: it attests nothing)',
-		'no_signed_commit'     => 'the subject carries no signed v1+ commit at all, so /verify tells a reader no proof exists (unverifiable: absence, never drift)',
-		'signing_key_unpublished' => 'the key this commit was signed with is no longer published in keys/provenance-keys.json, so readers can no longer verify its signature (retired key dropped)',
-	);
-
 	$out   = array();
 	$notes = ( isset( $state['notes'] ) && is_array( $state['notes'] ) ) ? $state['notes'] : array();
 	foreach ( $notes as $pid => $row ) {
@@ -593,7 +610,7 @@ function sn_prov_integrity_findings( $state ) {
 		}
 		$named = array();
 		foreach ( $failures as $code ) {
-			$named[] = $legs[ $code ] ?? (string) $code;
+			$named[] = sn_prov_integrity_failure_sentence( $code );
 		}
 		$out[] = array(
 			'subject_type'  => 'provenance_integrity',

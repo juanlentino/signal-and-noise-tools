@@ -222,6 +222,70 @@ function sn_analytics_path_lifetime( $path ) {
 }
 
 /**
+ * Views and visits for ONE path over an inclusive day window, from the
+ * durable daily table, human class.
+ *
+ * The rollup stores paths VERBATIM: '/notes/foo' and '/notes/foo/' are two
+ * rows (the 2026-08-19 finding). Both spellings are summed here, so a note
+ * never under-counts because its permalink carries a trailing slash.
+ *
+ * `site_rows` is the number of (day, path) rows of ANY path in the window:
+ * the caller separates "no analytics were collected in this window" (0) from
+ * "this note had no views" (views 0 with site_rows > 0). The table never
+ * stores a zero row, so absence IS zero once the window has rows at all.
+ * A COUNT(*) that could not be read is NULL, never 0: a failed read must not
+ * become the positive statement "no analytics in this window".
+ *
+ * `visits` sums per-day distinct visitor-days -- visitor-days, not unique
+ * visitors, the same unit sn_analytics_top_paths() reports.
+ *
+ * @param string $path Site-relative path (either spelling).
+ * @param string $from 'YYYY-MM-DD' inclusive.
+ * @param string $to   'YYYY-MM-DD' inclusive.
+ * @return array{views:int,visits:int,days:int,site_rows:int|null}|null Null on a
+ *                                                                      refused input or a failed
+ *                                                                      per-path read; site_rows null
+ *                                                                      when only the count failed.
+ */
+function sn_analytics_path_window( $path, $from, $to ) {
+	global $wpdb;
+	$path = (string) $path;
+	if ( '' === $path || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $from ) || ! preg_match( '/^\d{4}-\d{2}-\d{2}$/', (string) $to ) ) {
+		return null;
+	}
+	$canon = function_exists( 'sn_analytics_canonical_path' ) ? sn_analytics_canonical_path( $path ) : rtrim( $path, '/' );
+	if ( '' === $canon ) {
+		$canon = '/';
+	}
+	$slashed = '/' === $canon ? '/' : $canon . '/';
+	$table   = $wpdb->prefix . SN_ANALYTICS_DAILY_TABLE;
+
+	$row = $wpdb->get_row( $wpdb->prepare(
+		"SELECT SUM(views) AS views, SUM(visits) AS visits, COUNT(DISTINCT day) AS days
+		 FROM {$table}
+		 WHERE path IN ( %s, %s ) AND class = 'human' AND day >= %s AND day <= %s",
+		$canon,
+		$slashed,
+		(string) $from,
+		(string) $to
+	), ARRAY_A );
+	if ( ! is_array( $row ) ) {
+		return null;
+	}
+	$site = $wpdb->get_var( $wpdb->prepare(
+		"SELECT COUNT(*) FROM {$table} WHERE class = 'human' AND day >= %s AND day <= %s",
+		(string) $from,
+		(string) $to
+	) );
+	return array(
+		'views'     => (int) ( $row['views'] ?? 0 ),
+		'visits'    => (int) ( $row['visits'] ?? 0 ),
+		'days'      => (int) ( $row['days'] ?? 0 ),
+		'site_rows' => null === $site ? null : (int) $site,
+	);
+}
+
+/**
  * The most recent published posts (the cohort): id/title/permalink/path/publish_ts.
  *
  * @param int $limit

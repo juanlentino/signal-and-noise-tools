@@ -88,3 +88,4 @@ require_once __DIR__ . '/abilities-dismiss.php';           // v7.7.0: 1 ability 
 require_once __DIR__ . '/abilities-prepop-dismiss.php';    // v6.55.0: 1 ability (prepop notice dismiss)
 require_once __DIR__ . '/abilities-health.php';            // v7.0.0: 1 ability (read-only Content-Health scan summary)
 require_once __DIR__ . '/abilities-machine-readers.php';   // v10.1.0: 1 ability (read-only Machine Readers glance)
+require_once __DIR__ . '/abilities-note-dossier.php';      // v13.100.0: 1 ability (read-only note dossier for the Signal & Noise app)

@@ -30,8 +30,91 @@
 	/** Under a finger a tap navigates; there is no double tap to wait for. */
 	const opensOnTap = () => isPhone() || ( typeof window.matchMedia === 'function' && window.matchMedia( '(pointer: coarse)' ).matches );
 
-	/** Client-only state that never travels: the selected root folder. */
-	const uiOf = ( ctx ) => ctx.ui( () => ( { folderSel: null } ) );
+	/** Client-only state that never travels. ONE bag per mounted view (ctx.ui runs its factory once), so everything lives here. */
+	const uiOf = ( ctx ) => ctx.ui( () => ( { folderSel: null, dossiers: new Map(), errors: new Map(), inflight: new Set(), days: 30 } ) );
+	/** The fetched half of a dossier lives in the same bag; keys are `${id}:${days}`. */
+	const dossierOf = uiOf;
+
+	const WINDOWS = [ 7, 30, 90 ];
+	/** A failed fetch is remembered this long before a repaint retries it. */
+	const ERROR_TTL_MS = 15000;
+
+	/** Forget every fetched dossier of one note (all windows): after a re-check the trust blocks may differ. */
+	const forgetDossier = ( ctx, itemId ) => {
+		const ui = dossierOf( ctx );
+		for ( const k of [ ...ui.dossiers.keys(), ...ui.errors.keys() ] ) {
+			if ( k.startsWith( `${ itemId }:` ) ) {
+				ui.dossiers.delete( k );
+				ui.errors.delete( k );
+			}
+		}
+	};
+
+	/** Fetch a note's dossier once per (note, window); repaint when it lands. */
+	const loadDossier = ( ctx, itemId ) => {
+		const ui = dossierOf( ctx );
+		const key = `${ itemId }:${ ui.days }`;
+		if ( ui.dossiers.has( key ) || ui.inflight.has( key ) ) {
+			return;
+		}
+		// Failures live in their own map, never in the success cache: a
+		// transient error must not be pinned for the life of the window. It is
+		// held for ERROR_TTL_MS so a repaint does not become a retry storm.
+		const err = ui.errors.get( key );
+		if ( err && Date.now() - err.at < ERROR_TTL_MS ) {
+			return;
+		}
+		const base = ctx.extra && ctx.extra.dossierUrl ? String( ctx.extra.dossierUrl ) : '';
+		if ( ! base ) {
+			// Permanent for this window (at: Infinity never ages out).
+			ui.errors.set( key, { error: __( 'The dossier endpoint is not configured.' ), at: Infinity } );
+			// This runs from updated(), after the paint that showed the spinner:
+			// one repaint, in a microtask so it does not re-enter the render on
+			// the stack. It cannot loop: the next updated() finds the key held.
+			Promise.resolve().then( () => ctx.repaint() );
+			return;
+		}
+		ui.inflight.add( key );
+		const url = base + ( base.includes( '?' ) ? '&' : '?' ) + 'input[post_id]=' + encodeURIComponent( itemId ) + '&input[days]=' + ui.days;
+		ctx.fetch( url )
+			.then( ( res ) => ( res.ok ? res.json() : Promise.reject( new Error( String( res.status ) ) ) ) )
+			.then( ( body ) => {
+				if ( body && Array.isArray( body.blocks ) ) {
+					ui.dossiers.set( key, body );
+					ui.errors.delete( key );
+				} else {
+					ui.errors.set( key, { error: __( 'The dossier answered without blocks.' ), at: Date.now() } );
+				}
+			} )
+			.catch( ( e ) => {
+				ui.errors.set( key, { error: sprintf( /* translators: %s: HTTP status or message. */ __( 'The dossier could not be read (%s).' ), e && e.message ? e.message : '' ), at: Date.now() } );
+			} )
+			.then( () => {
+				ui.inflight.delete( key );
+				ctx.repaint();
+			} );
+	};
+
+	/** A time for a reader: local, short; the raw value when it cannot be parsed. */
+	const whenText = ( value ) => {
+		const d = typeof value === 'number' ? new Date( value * 1000 ) : new Date( value );
+		return Number.isNaN( d.getTime() ) ? String( value ) : d.toLocaleString();
+	};
+
+	/** A door: an admin URL opens as a window; any other origin opens a tab (the shell would iframe it, and most sites refuse to be framed). */
+	const openDoor = ( ctx, door ) => {
+		let external = false;
+		try {
+			external = new URL( door.url, window.location.href ).origin !== window.location.origin;
+		} catch ( e ) {
+			external = false;
+		}
+		if ( external ) {
+			window.open( door.url, '_blank', 'noopener,noreferrer' );
+		} else {
+			ctx.host.openUrl( door.url, door.label, 'dashicons-shield-alt' );
+		}
+	};
 
 	const norm = ( s ) => String( s || '' ).toLowerCase();
 
@@ -257,10 +340,10 @@
 		return String( value ?? '' );
 	};
 
-	const renderBlock = ( block ) => {
+	/** The body of a block, by kind. Unknown kinds paint their text, muted. */
+	const renderBlockBody = ( ctx, block ) => {
 		if ( block.kind === 'table' ) {
 			return html`
-				<h3 class="snt-h">${ block.heading }</h3>
 				<table class="snt-facts-table">
 					<thead><tr>${ ( block.columns || [] ).map( ( c ) => html`<th scope="col">${ c.label }</th>` ) }</tr></thead>
 					<tbody>${ ( block.rows || [] ).map( ( row ) => html`<tr>${ ( block.columns || [] ).map( ( c ) => html`<td>${ cell( row[ c.key ] ) }</td>` ) }</tr>` ) }</tbody>
@@ -268,9 +351,86 @@
 			`;
 		}
 		if ( block.kind === 'code' ) {
-			return html`<h3 class="snt-h">${ block.heading }</h3><os-code wrap>${ block.text }</os-code>`;
+			return html`<os-code wrap>${ block.text }</os-code>`;
 		}
-		return html`<h3 class="snt-h">${ block.heading }</h3><p class="snt-muted">${ block.text }</p>`;
+		if ( block.kind === 'stats' ) {
+			return html`<div class="snt-tiles">${ ( block.tiles || [] ).map( ( t ) => html`
+				<div class="snt-tile">
+					<span class="snt-tile__label">${ t.label }</span>
+					<span class="snt-tile__value">${ t.value }</span>
+					${ t.window ? html`<span class="snt-tile__window">${ t.window }</span>` : '' }
+					${ t.note ? html`<span class="snt-tile__note">${ t.note }</span>` : '' }
+				</div>` ) }</div>`;
+		}
+		if ( block.kind === 'status' ) {
+			return html`
+				<p class="snt-status"><os-badge tone=${ block.tone || 'neutral' } no-dot>${ block.text }</os-badge></p>
+				${ block.meta ? html`<p class="snt-muted">${ block.meta }</p>` : '' }
+			`;
+		}
+		return html`<p class="snt-muted">${ block.text }</p>`;
+	};
+
+	/** An inline block: heading + body (the local half of a dossier). */
+	const renderBlock = ( ctx, block ) => html`<h3 class="snt-h">${ block.heading }</h3>${ renderBlockBody( ctx, block ) }`;
+
+	/** A fetched block: heading, body, then its source and door (a window belongs to a tile, not a block). */
+	const renderFetchedBlock = ( ctx, block ) => html`
+		<section class="snt-block snt-block--${ block.group || 'fetched' }">
+			<h3 class="snt-h">${ block.heading }</h3>
+			${ renderBlockBody( ctx, block ) }
+			${ block.source || block.door ? html`<p class="snt-source">
+				${ block.source ? html`<span>${ block.source }</span>` : '' }
+				${ block.door ? html`<os-button variant="secondary" @click=${ () => openDoor( ctx, block.door ) }>${ block.door.label }</os-button>` : '' }
+			</p>` : '' }
+		</section>
+	`;
+
+	/** The last re-check verdict, when it is this note's. */
+	const renderVerdict = ( ctx, item ) => {
+		const v = ctx.data.verdict;
+		if ( ! v || String( v.post_id ) !== String( item.id ) ) {
+			return '';
+		}
+		return html`
+			<section class="snt-block snt-block--verdict">
+				<h3 class="snt-h">${ __( 'Re-check' ) }</h3>
+				<p class="snt-status"><os-badge tone=${ v.tone || 'neutral' } no-dot>${ v.text }</os-badge></p>
+				<p class="snt-muted">${ v.meta }${ v.checked_at ? ( v.meta ? ' · ' : '' ) + whenText( v.checked_at ) : '' }</p>
+			</section>
+		`;
+	};
+
+	/** The fetched dossier: the window switch, the verdict, then the blocks or their state. */
+	const renderDossier = ( ctx, item ) => {
+		const ui = dossierOf( ctx );
+		const key = `${ item.id }:${ ui.days }`;
+		const got = ui.dossiers.get( key );
+		const err = ui.errors.get( key );
+		const retry = () => {
+			ui.errors.delete( key );
+			loadDossier( ctx, item.id );
+			ctx.repaint();
+		};
+		const pick = ( e ) => {
+			const v = parseInt( e.detail && e.detail.value, 10 );
+			if ( WINDOWS.includes( v ) && v !== ui.days ) {
+				ui.days = v;
+				ctx.repaint();
+			}
+		};
+		const sw = html`<os-segmented class="snt-window" value=${ String( ui.days ) } label=${ __( 'Window' ) } @os-pick=${ pick }>
+			${ WINDOWS.map( ( d ) => html`<os-segment value=${ String( d ) }>${ sprintf( /* translators: %d: days. */ __( '%dd' ), d ) }</os-segment>` ) }
+		</os-segmented>`;
+		let body;
+		if ( got ) {
+			body = html`${ got.blocks.map( ( b ) => renderFetchedBlock( ctx, b ) ) }${ got.fetched_at ? html`<p class="snt-muted snt-asof">${ sprintf( /* translators: %s: a local date and time. */ __( 'Read %s' ), whenText( got.fetched_at ) ) }</p>` : '' }`;
+		} else if ( err ) {
+			body = html`<p class="snt-status"><os-badge tone="warning" no-dot>${ err.error }</os-badge>${ Number.isFinite( err.at ) ? html` <os-button variant="secondary" class="snt-retry" @click=${ retry }>${ __( 'Try again' ) }</os-button>` : '' }</p>`;
+		} else {
+			body = html`<p class="snt-muted snt-loading"><os-spinner></os-spinner> ${ __( 'Reading the estate…' ) }</p>`;
+		}
+		return html`<div class="snt-dossier">${ sw }${ renderVerdict( ctx, item ) }${ body }</div>`;
 	};
 
 	const renderDetail = ( ctx, item ) => {
@@ -285,12 +445,19 @@
 				${ ( d.facts || [] ).length
 					? html`<dl class="snt-facts">${ d.facts.map( ( f ) => html`<dt>${ f[ 0 ] }</dt><dd>${ f[ 1 ] }</dd>` ) }</dl>`
 					: '' }
-				${ ( d.blocks || [] ).map( renderBlock ) }
+				${ ( d.blocks || [] ).map( ( b ) => renderBlock( ctx, b ) ) }
+				${ data.section && data.section.id === 'notes' ? renderDossier( ctx, item ) : '' }
 				${ ( d.actions || [] ).length
 					? html`<div class="snt-actions">
 						${ d.actions.map( ( a ) => a.url
 							? html`<os-button variant=${ a.variant || 'secondary' } @click=${ () => window.open( a.url, '_blank', 'noopener' ) }>${ a.label }</os-button>`
-							: html`<os-button variant=${ a.variant || 'secondary' } @click=${ () => void ctx.dispatch( a.dispatch || 'edit', a.args || {} ) }>${ a.label }</os-button>` ) }
+							: html`<os-button variant=${ a.variant || 'secondary' } @click=${ () => {
+								if ( a.dispatch === 'verify' ) {
+									// The trust blocks may change with the verdict: refetch.
+									forgetDossier( ctx, item.id );
+								}
+								void ctx.dispatch( a.dispatch || 'edit', a.args || {} );
+							} }>${ a.label }</os-button>` ) }
 					</div>`
 					: '' }
 			</article>
@@ -337,6 +504,16 @@
 					</div>
 				</div>
 			`;
+		},
+		// After every paint: an open item whose dossier is not cached or in
+		// flight gets fetched. Idempotent -- the cache and the inflight set
+		// make a second call a no-op -- so painting often costs nothing.
+		// Notes only: a Discography id (or a third-party section's) is not a
+		// post id, and the ability would answer 400 for it.
+		updated: ( ctx ) => {
+			if ( ctx.state.item && ctx.data && ctx.data.section && ctx.data.section.id === 'notes' ) {
+				loadDossier( ctx, ctx.state.item );
+			}
 		},
 		mounted: ( ctx ) => {
 			// Escape closes the dossier. Listened for on the document, because

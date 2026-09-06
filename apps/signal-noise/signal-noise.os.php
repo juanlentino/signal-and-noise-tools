@@ -10,8 +10,9 @@
  *
  * Built the way WP Explorer is built: the PHP half is the window and the
  * truth, the body is a CLIENT VIEW (signal-noise-client.js) where selection,
- * search, filtering and the view switch are instant. Only `go` (a different
- * section, new data) and `edit` (an editor window) reach the server.
+ * search, filtering and the view switch are instant. Only actions `go` (a
+ * different section, new data), `edit` (an editor window) and `verify` (a
+ * live re-check) reach the server.
  *
  * Successor to the WP Explorer folder of v12.4.0 (#751), whose seam
  * OpenStation 1.1.6 retired.
@@ -55,6 +56,7 @@ return App::define( APP_ID )
 			'status'  => '', // The status pill; '' = All. Local.
 			'query'   => '', // The search field. Local.
 			'view'    => 'icons', // icons | list. Local.
+			'verdict' => array(), // The last re-check verdict { post_id, tone, text, meta, checked_at }; cleared by go. Server-only.
 		)
 	)
 	->title_bar_button(
@@ -63,6 +65,15 @@ return App::define( APP_ID )
 			'label'  => __( 'Refresh', 'signal-and-noise-tools' ),
 			'icon'   => 'reload',
 			'action' => 'refresh',
+		)
+	)
+	// Static values that ship once with the window config (`ctx.extra` in the
+	// client): the ability's run URL, so the client never spells the abilities
+	// path itself. rest_url() carries the pretty or ?rest_route= form the site
+	// uses, which is also what the runtime's nonce injection keys on.
+	->config(
+		array(
+			'dossierUrl' => rest_url( 'wp-abilities/v1/abilities/signal-noise/note-dossier/run' ),
 		)
 	)
 	->client( __DIR__ . '/signal-noise-client.js' )
@@ -77,6 +88,7 @@ return App::define( APP_ID )
 			$state->set( 'section', $section ? $id : '' )
 				->reset( 'item' )
 				->reset( 'query' )
+				->reset( 'verdict' )
 				->set( 'status', $section ? (string) ( $section['default_status'] ?? '' ) : '' );
 		}
 	)
@@ -93,5 +105,19 @@ return App::define( APP_ID )
 			if ( '' !== $url ) {
 				$os->open_url( $url, (string) ( $args['title'] ?? '' ), (string) ( $section['icon'] ?? '' ) );
 			}
+		}
+	)
+	// The re-check: the server walks what it can walk (the twin, the ledger
+	// record, the published key ids) and the verdict lands in state, which
+	// payload() projects into data. Gated on THIS note, not the app.
+	->action(
+		'verify',
+		static function ( State $state, Os $os, array $args ) {
+			$id = (int) ( $args['item'] ?? 0 );
+			if ( $id <= 0 || ! $os->can( 'edit_post', $id ) || ! function_exists( 'sn_note_dossier_verify' ) ) {
+				$state->reset( 'verdict' );
+				return;
+			}
+			$state->set( 'verdict', \sn_note_dossier_verify( $id ) );
 		}
 	);

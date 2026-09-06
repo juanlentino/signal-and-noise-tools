@@ -713,5 +713,12 @@ ok( 1 === $s['fleet'] && 1 === $s['checked'] && 1 === $s['clean'] && 0 === $s['f
 	'a UID-bearing page nobody opted in leaves the fleet entirely — not walked, not counted, not "clean"' );
 $GLOBALS['__pi_post_types'] = array();
 
+echo "\nfailure sentences are one table, reachable on their own\n";
+ok( false !== strpos( sn_prov_integrity_failure_sentence( 'ledger_unreachable' ), 'could not be reached' ), 'the unreachable sentence names an outage' );
+ok( false !== strpos( sn_prov_integrity_failure_sentence( 'twin_drift' ), 'twin drift' ), 'the drift sentence names drift' );
+ok( 'bogus_code' === sn_prov_integrity_failure_sentence( 'bogus_code' ), 'an unknown code comes back as itself, never as an invented sentence' );
+ok( false !== strpos( sn_prov_integrity_failure_sentence( 'key_mismatch' ), 'key mismatch' ) && false !== strpos( sn_prov_integrity_failure_sentence( 'key_mismatch' ), 'different key bytes' ), 'the keys probe\'s key_mismatch verdict has a sentence: the bytes disagree, not the id' );
+ok( false !== strpos( sn_prov_integrity_failure_sentence( 'keys_not_configured' ), 'not checked' ), 'a probe that was skipped for want of a key is a gap sentence, never a mismatch' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

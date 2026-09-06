@@ -149,3 +149,21 @@ new sections (phase three), the phone queue and gestures (phase four). Porting
 SN Dashboard and S&N Analytics to the App Framework is a separate program the
 owner has asked for; when it lands, the doors here become framework deep
 links instead of admin URLs, a small change confined to the door builders.
+
+## Amendments (2026-09-05, from the code map)
+
+Decided while writing the implementation plan (`docs/plans/2026-09-05-signal-noise-deeper-note.md`), each from a verified read of the code named; where an amendment contradicts a section above, the amendment rules.
+
+1. **Views and visits** come from a NEW read over the durable daily table (`sn_analytics_path_window()`), not `sn_analytics_drilldown()`: the drill-down has no `path` dimension and returns null for it unconditionally. The S&N Analytics door lands on `snt_analytics_page_url( [ 'sn_view' => 'content', 'sn_range' => $days ] )`: the page has no per-path landing.
+2. **Search Console** rows come from `snt_gsc_metrics_for_path()` after `snt_gsc_data()` (null = never synced; per-path null = not among the synced rows), in the sync's own 28-day window; `days` never re-windows it.
+3. **Machine reads are not counted per document** (the sensor keeps no paths, by its privacy contract). The block is a `status`: "Not counted per note", with the site-wide 30-day total from the snapshot and a door to the Machine Readers leaf.
+4. **Trust** reads the ledger record of the newest CONFIRMED version (`anchored_version`), never the head; the record carries `ots.bitcoin_block`, `ots.bitcoin_txid`, `ots.confirmations`, `pubkey_id`, `content_hash` and NO time; the only time is the local commit's optional `block_time`. The verify action composes `sn_prov_integrity_keys_probe()` + `sn_prov_integrity_check_note()` and states what it checked: the twin, the ledger record, the published key ids. No DID and no signature claim.
+5. **The schedule door** goes to Connections → Scheduled (`snt_desktop_admin_url( 'sn-connections', 'scheduled-content' )`); the Content tab does not hold it.
+6. **Related notes** come from the plugin's `snt_ml_related_for_post()` (null = kernel not built → block omitted; `[]` = none related, said so), not the theme's query, which backfills with recent posts.
+7. **Builders live in `inc/`**, not `apps/`: the ability must work without OpenStation, and every guard (`tests/ability-permission-policy.php`, the orphan ratchet, stub-parity) walks `inc/` only.
+8. **The dock entry** is not deleted: it is re-keyed to `sn-dashboard` with the title "S&N Dashboard" and the shield icon (the owner allowed icon changes), keeping its badge and submenu. The app keeps `signal-noise` and the megaphone.
+9. **The verdict travels through declared state** (`'verdict' => array()`), projected by `payload()` into `data.verdict`; server actions cannot return data.
+10. **The client calls the ability through `ctx.fetch`** on a URL the server hands it in `App::config()` (`ctx.extra.dossierUrl`), so no `/wp-abilities/` literal lives in JavaScript. Readonly ⇒ GET with bracket-encoded input.
+11. **The excerpt is `snt_corpus_excerpt()`**, the one `signal-noise/sn-posts` returns to agents, and the block says so; core's `get_the_excerpt()` runs the theme's filters and is not what an agent receives.
+12. **The loading state is one line for the dossier**, not a skeleton per block: the blocks are unknown until the response lands, and a per-block skeleton would have to invent the block list.
+13. **The client's block kinds are pinned by substring** in `tests/openstation-app.php`; the repo has no JavaScript harness (no package.json, no tests/*.mjs; CI enumerates `*.php`).
