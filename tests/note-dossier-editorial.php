@@ -17,11 +17,17 @@ function human_time_diff( $a, $b = 0 ) { return '2 hours'; }
 function get_post( $id ) { return $GLOBALS['__posts'][ (int) $id ] ?? null; }
 function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['__meta'][ (int) $id ][ $key ] ?? ''; }
 function get_the_title( $p = 0 ) { return 'Note ' . (int) $p; }
-function wp_get_post_terms( $id, $tax, $args = array() ) { return $GLOBALS['__tags']; }
+function wp_get_post_terms( $id, $tax, $args = array() ) { $GLOBALS['__terms_reads'][] = (int) $id; return $GLOBALS['__tags']; }
+function is_object_in_taxonomy( $object_type, $taxonomy ) { return 'post_tag' === $taxonomy && 'post' === $object_type; }
+function sn_prov_subject_kind( $post ) { return 'page' === (string) $post->post_type ? 'page' : 'note'; }
 function is_wp_error( $t ) { return $t instanceof WP_Error; }
 class WP_Error { public $code; public function __construct( $c = '' ) { $this->code = $c; } }
 class WP_Post { public $ID; public $post_type = 'post'; public $post_status = 'publish'; public $post_password = ''; public $post_content = ''; public $post_excerpt = ''; public function __construct( $a ) { foreach ( $a as $k => $v ) { $this->$k = $v; } } }
-$GLOBALS['__posts'] = array( 7 => new WP_Post( array( 'ID' => 7, 'post_content' => '<!-- wp:paragraph --><p>one two three four</p><!-- /wp:paragraph -->' ) ) );
+$GLOBALS['__posts'] = array(
+	7 => new WP_Post( array( 'ID' => 7, 'post_content' => '<!-- wp:paragraph --><p>one two three four</p><!-- /wp:paragraph -->' ) ),
+	9 => new WP_Post( array( 'ID' => 9, 'post_type' => 'page', 'post_content' => '<p>one two three four</p>' ) ),
+);
+$GLOBALS['__terms_reads'] = array();
 function snt_corpus_word_count( $c ) { return 4; }
 function snt_corpus_excerpt( $p ) { return 'one two three four'; }
 function snt_ml_related_for_post( $id, $limit ) { return $GLOBALS['__related']; }
@@ -70,6 +76,20 @@ $GLOBALS['__tags'] = new WP_Error( 'x' );
 $b = sn_note_dossier_editorial( 7 );
 ok( false !== strpos( by_heading( $b, 'Tags' )['text'], 'could not be read' ) && '—' === tile( by_heading( $b, 'Editorial' ), 'Tags' )['value'], 'a taxonomy error is named, never "untagged"' );
 ok( array() === sn_note_dossier_editorial( 999 ), 'no post, no blocks' );
+
+echo "\na signed page: the two blocks that cannot be measured are OMITTED, not answered\n";
+$GLOBALS['__tags']        = array( 'provenance' );
+$GLOBALS['__related']     = array( array( 'post_id' => 11, 'score' => 0.42 ) );
+$GLOBALS['__terms_reads'] = array();
+$b = sn_note_dossier_editorial( 9 );
+ok( null === by_heading( $b, 'Tags' ), 'a page has no Tags block: pages are not in post_tag, so "Untagged." would have read as a measurement' );
+ok( null === tile( by_heading( $b, 'Editorial' ), 'Tags' ) && 2 === count( by_heading( $b, 'Editorial' )['tiles'] ), '   ...and no Tags tile either: reading time and words only' );
+ok( array() === $GLOBALS['__terms_reads'], '   ...the taxonomy was never read for a page -- the type is asked BEFORE the query, so an empty answer can never be mistaken for none' );
+ok( null === by_heading( $b, 'Related notes' ), 'a page has no Related block: the kernel indexes notes, so its empty answer would have promised an index that is not coming' );
+ok( 'one two three four' === by_heading( $b, 'Excerpt served to agents' )['text'], 'what a page CAN be measured for is still measured' );
+$GLOBALS['__terms_reads'] = array();
+$b = sn_note_dossier_editorial( 7 );
+ok( array( 7 ) === $GLOBALS['__terms_reads'] && null !== by_heading( $b, 'Tags' ) && null !== by_heading( $b, 'Related notes' ), 'negative control: a NOTE still reads its tags and still gets both blocks' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

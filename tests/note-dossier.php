@@ -15,6 +15,7 @@ $GLOBALS['__posts'] = array(
 	8  => new WP_Post( array( 'ID' => 8, 'post_status' => 'draft' ) ),
 	9  => new WP_Post( array( 'ID' => 9, 'post_type' => 'page' ) ),
 	10 => new WP_Post( array( 'ID' => 10, 'post_password' => 'x' ) ),
+	13 => new WP_Post( array( 'ID' => 13, 'post_type' => 'attachment' ) ),
 );
 require __DIR__ . '/../inc/note-dossier.php';
 
@@ -26,7 +27,9 @@ ok( 30 === sn_note_dossier_days( '30' ) && 7 === sn_note_dossier_days( 7 ) && 90
 ok( 30 === sn_note_dossier_days( 14 ) && 30 === sn_note_dossier_days( null ), 'anything else is 30' );
 
 ok( 7 === sn_note_dossier_post( 7 )->ID, 'a note resolves' );
-ok( null === sn_note_dossier_post( 9 ) && null === sn_note_dossier_post( 999 ), 'a page or a missing post does not' );
+ok( 9 === sn_note_dossier_post( 9 )->ID, 'a PAGE resolves too: the two provenance subject types share one gate, so widening it widened all four builders at once' );
+ok( array( 'post', 'page' ) === SN_NOTE_DOSSIER_POST_TYPES, 'the admitted types are the provenance subject types, named once' );
+ok( null === sn_note_dossier_post( 13 ) && null === sn_note_dossier_post( 999 ), 'a foreign post type or a missing post still does not' );
 ok( sn_note_dossier_is_public( get_post( 7 ) ) && ! sn_note_dossier_is_public( get_post( 8 ) ) && ! sn_note_dossier_is_public( get_post( 10 ) ), 'public = published and not password-protected' );
 
 ok( 'success' === sn_note_dossier_tone( 'ok' ) && 'warning' === sn_note_dossier_tone( 'warn' ) && 'neutral' === sn_note_dossier_tone( 'muted' ) && 'danger' === sn_note_dossier_tone( 'err' ) && 'info' === sn_note_dossier_tone( '' ), 'the admin pill kinds map onto the kit tones' );

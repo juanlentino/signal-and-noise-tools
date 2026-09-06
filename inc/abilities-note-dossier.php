@@ -53,7 +53,7 @@ add_action( 'wp_abilities_api_init', function () {
 			'type'                 => 'object',
 			'required'             => array( 'post_id' ),
 			'properties'           => array(
-				'post_id' => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'The note (post_type post).' ),
+				'post_id' => array( 'type' => 'integer', 'minimum' => 1, 'description' => 'The subject: a note or a signed page (post_type post or page).' ),
 				'days'    => array( 'type' => 'integer', 'enum' => array( 7, 30, 90 ), 'default' => 30, 'description' => 'The window for the analytics tiles. Search Console keeps its own window.' ),
 			),
 			'additionalProperties' => false,

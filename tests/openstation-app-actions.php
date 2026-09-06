@@ -96,6 +96,15 @@ namespace {
 	}
 	$GLOBALS['__updated'] = array(); $GLOBALS['__update_fails'] = false;
 	function get_post_status( $id ) { $p = get_post( $id ); return $p ? (string) $p->post_status : false; }
+	// v13.102.0: `publish` asks the post type object for its own capability --
+	// publish_posts is the POST cap and a page needs publish_pages -- so the
+	// type object has to exist here for the publish path to run at all.
+	function get_post_type_object( $post_type ) {
+		$caps = array( 'post' => 'publish_posts', 'page' => 'publish_pages' );
+		return isset( $caps[ (string) $post_type ] )
+			? (object) array( 'name' => (string) $post_type, 'cap' => (object) array( 'publish_posts' => $caps[ (string) $post_type ] ) )
+			: null;
+	}
 	function wp_update_post( $postarr = array(), $wp_error = false, $fire_after_hooks = true ) {
 		$GLOBALS['__updated'][] = (array) $postarr;
 		// The row is written; the status lands unless the fixture says the

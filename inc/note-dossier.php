@@ -43,17 +43,26 @@ function sn_note_dossier_days( $raw ) {
 	return in_array( $d, SN_NOTE_DOSSIER_WINDOWS, true ) ? $d : SN_NOTE_DOSSIER_DEFAULT_DAYS;
 }
 
+/** The post types a dossier can be built for: the provenance subject types. */
+const SN_NOTE_DOSSIER_POST_TYPES = array( 'post', 'page' );
+
 /**
- * The note, or null. Only post_type 'post' is a dossier subject; every
- * builder resolves the post through here so a missing or foreign id is one
- * answer everywhere.
+ * The dossier's subject, or null. A `post` or a `page` -- the two post types
+ * that can hold a provenance subject (inc/provenance-core.php). Every builder
+ * resolves the post through here, so a missing or foreign id is one answer
+ * everywhere, and widening this one gate widened all four builders.
+ *
+ * A page is admitted whether or not it opted into signing: the trust builder
+ * already resolves the subject kind itself and says "not a provenance
+ * subject" for an unsigned one, which is a truer answer than no dossier at
+ * all. The gate here is about the SHAPE of the subject, not its signature.
  *
  * @param int $post_id
  * @return WP_Post|null
  */
 function sn_note_dossier_post( $post_id ) {
 	$post = get_post( (int) $post_id );
-	if ( ! $post instanceof WP_Post || 'post' !== $post->post_type ) {
+	if ( ! $post instanceof WP_Post || ! in_array( (string) $post->post_type, SN_NOTE_DOSSIER_POST_TYPES, true ) ) {
 		return null;
 	}
 	return $post;

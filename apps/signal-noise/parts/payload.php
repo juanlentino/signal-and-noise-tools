@@ -80,6 +80,10 @@ function payload( State $state, Os $os ) {
 			'defaultStatus' => (string) ( $current['default_status'] ?? '' ),
 			'canEdit'       => ! empty( $current['edit_url'] ),
 			'restPath'      => (string) ( $current['restPath'] ?? '' ),
+			// The dossier gate. The client asked `section.id === 'notes'` until
+			// v13.102.0; a second post section proved that a literal id cannot
+			// answer a question about what a section HAS.
+			'hasDossier'    => ! empty( $current['hasDossier'] ),
 			'columns'       => array_values( (array) ( $current['columns'] ?? array() ) ),
 		);
 	}

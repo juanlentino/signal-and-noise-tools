@@ -34,6 +34,8 @@
  *   'kind'           => 'ledger',            // the tile `type` AND the drag payload's `kind`, a word of yours
  *   'capability'     => 'manage_options',    // hidden without it
  *   'position'       => 30,                  // folder order at the root
+ *   'post_type'      => 'page',              // optional; a `post`-kind section's post type. The four server actions refuse an id outside it, and it answers the publish capability. Absent = 'post'.
+ *   'hasDossier'     => true,                // optional; the client paints the note dossier beside this section's items. A DESCRIPTOR field, because the client asked `section.id === 'notes'` until a second post section proved an id cannot answer what a section HAS.
  *   'statuses'       => array( array( 'value' => 'publish', 'label' => 'Published' ), … ), // optional pills; '' (All) is added
  *   'default_status' => 'publish',           // optional; '' = All
  *   'columns'        => array( array( 'key' => 'versions', 'label' => 'Versions' ), … ), // optional list-view columns; each `key` reads the item's `columns[key]`
@@ -135,20 +137,32 @@ function snt_os_app_section( $id ) {
 }
 
 /**
- * A Note's provenance, summarised for a tile badge and a dossier.
+ * A provenance subject's chain, summarised for a tile badge and a dossier.
  *
  * The chain is inc/provenance-core.php's: ordered commits with `version`,
  * `status` (confirmed | pending | unanchored | genesis), `committed_at`,
- * `content_hash`. Null when the post is not a Note or has no chain -- absent,
- * never an empty ledger. A Note is signed on publish, so a scheduled or draft
- * Note has none yet; that is a fact about the post, not a failure.
+ * `content_hash`. Null when the post is not a provenance SUBJECT or has no
+ * chain -- absent, never an empty ledger. A subject is signed on publish, so
+ * a scheduled or draft one has none yet; that is a fact about the post, not
+ * a failure.
+ *
+ * THE GATE IS THE SUBJECT KIND, not `sn_prov_is_note()`. Asking "is this a
+ * Note?" answered `false` for every signed page, so a Pages section would
+ * have painted a page that IS in the ledger as "no chain" -- a wrong answer
+ * that looks like a measurement. `sn_prov_subject_kind()` is the one place
+ * that decides what gets signed (note | page | ''), and a note still
+ * resolves to `note`, so the Notes path is unchanged.
  *
  * @param int $post_id Post id.
  * @return array<string,mixed>|null
  */
 function snt_os_app_note_provenance( $post_id ) {
 	$post_id = (int) $post_id;
-	if ( $post_id <= 0 || ! function_exists( 'sn_prov_get_chain' ) || ! function_exists( 'sn_prov_is_note' ) || ! sn_prov_is_note( $post_id ) ) {
+	if ( $post_id <= 0 || ! function_exists( 'sn_prov_get_chain' ) || ! function_exists( 'sn_prov_subject_kind' ) ) {
+		return null;
+	}
+	$post = function_exists( 'get_post' ) ? get_post( $post_id ) : null;
+	if ( ! is_object( $post ) || '' === (string) sn_prov_subject_kind( $post ) ) {
 		return null;
 	}
 	$commits = array();

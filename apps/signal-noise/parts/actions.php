@@ -6,7 +6,12 @@
  * `.php` on purpose -- only `*.os.php` files are app entries to the
  * framework loader. This part owns everything a menu pick DOES to a note:
  * trash (the Explorer's, selection-aware), publish, an edge purge, and the
- * anchor re-dispatch. What a note IS lives in parts/notes.php.
+ * anchor re-dispatch. What a note or a signed page IS lives in
+ * parts/post-items.php.
+ *
+ * THE POST TYPE COMES FROM THE OPEN SECTION'S DESCRIPTOR, never from the
+ * client and never from a literal: Notes holds `post`, Pages holds `page`,
+ * and an id outside the open section's type is refused by every action.
  *
  * THE SELECTION IS RE-CHECKED HERE. The client decides whether a pick scopes
  * to the selection by the Explorer's rule (the clicked row is in a selection
@@ -60,20 +65,42 @@ function targets( State $state, array $args ) {
 }
 
 /**
- * May the current user do `$what` to this note?
+ * The post type the OPEN SECTION holds, read from its descriptor.
  *
- * The post type is checked first: an id that is not a `post` is not a Note,
- * whatever the client sent.
+ * Read from the server's own state and the registry, never from the client:
+ * the section decides which post type its actions may touch, so a forged
+ * `section` cannot widen an action past what that section lists. A section
+ * with no `post_type` (an entry section, or none open) is `post`, the
+ * narrowest of the two -- a default that refuses, never one that grants.
  *
- * @param Os     $os   Host handle.
- * @param int    $id   Post id.
- * @param string $what edit | delete | publish | manage.
+ * @param State $state Session state.
+ * @return string
+ */
+function section_post_type( State $state ) {
+	$section = \snt_os_app_section( (string) $state->get( 'section' ) );
+	$type    = is_array( $section ) ? (string) ( $section['post_type'] ?? '' ) : '';
+	return '' !== $type ? $type : 'post';
+}
+
+/**
+ * May the current user do `$what` to this post?
+ *
+ * The post type is checked first: an id outside the OPEN SECTION's type is
+ * not one of its items, whatever the client sent. `publish` asks the type
+ * object's own capability -- `publish_posts` is the POST cap and a page needs
+ * `publish_pages`; a type that cannot answer is a refusal, never a guess.
+ * `edit_post` and `delete_post` are meta caps and already map per type.
+ *
+ * @param Os     $os        Host handle.
+ * @param int    $id        Post id.
+ * @param string $what      edit | delete | publish | manage.
+ * @param string $post_type The section's post type; `post` when not given.
  * @return bool
  */
-function note_allowed( Os $os, $id, $what ) {
+function note_allowed( Os $os, $id, $what, $post_type = 'post' ) {
 	$id   = (int) $id;
 	$post = $id > 0 ? get_post( $id ) : null;
-	if ( ! $post || 'post' !== $post->post_type ) {
+	if ( ! $post || (string) $post_type !== (string) $post->post_type ) {
 		return false;
 	}
 	if ( 'edit' === $what ) {
@@ -83,7 +110,8 @@ function note_allowed( Os $os, $id, $what ) {
 		return (bool) $os->can( 'delete_post', $id );
 	}
 	if ( 'publish' === $what ) {
-		return $os->can( 'publish_posts' ) && $os->can( 'edit_post', $id );
+		$cap = post_publish_cap( (string) $post->post_type );
+		return '' !== $cap && $os->can( $cap ) && $os->can( 'edit_post', $id );
 	}
 	if ( 'manage' === $what ) {
 		return (bool) $os->can( 'manage_options' );
@@ -101,9 +129,10 @@ function note_allowed( Os $os, $id, $what ) {
  */
 function trash_action( State $state, Os $os, array $args ) {
 	$done = array();
+	$type = section_post_type( $state );
 	$ids  = targets( $state, $args );
 	foreach ( $ids as $id ) {
-		if ( note_allowed( $os, $id, 'delete' ) && wp_trash_post( $id ) ) {
+		if ( note_allowed( $os, $id, 'delete', $type ) && wp_trash_post( $id ) ) {
 			$done[] = $id;
 		}
 	}
@@ -119,7 +148,7 @@ function trash_action( State $state, Os $os, array $args ) {
 	if ( 0 === $count ) {
 		// One note: the Explorer separates "you may not" from "WordPress refused".
 		if ( 1 === count( $ids ) ) {
-			$os->toast( note_allowed( $os, $ids[0], 'delete' ) ? __( 'Trashing failed.', 'signal-and-noise-tools' ) : __( 'You cannot trash this item.', 'signal-and-noise-tools' ) );
+			$os->toast( note_allowed( $os, $ids[0], 'delete', $type ) ? __( 'Trashing failed.', 'signal-and-noise-tools' ) : __( 'You cannot trash this item.', 'signal-and-noise-tools' ) );
 		} else {
 			$os->toast( __( 'Nothing could be trashed.', 'signal-and-noise-tools' ) );
 		}
@@ -157,7 +186,7 @@ function publish_action( State $state, Os $os, array $args ) {
 	// `future` for a dated post on write), so publishing it here would write
 	// nothing and a "Published." would be false.
 	$staged = $post && in_array( (string) $post->post_status, array( 'draft', 'pending' ), true );
-	if ( $staged && note_allowed( $os, $id, 'publish' ) ) {
+	if ( $staged && note_allowed( $os, $id, 'publish', section_post_type( $state ) ) ) {
 		$done = (bool) wp_update_post(
 			array(
 				'ID'          => $id,
@@ -199,8 +228,9 @@ function purge_action( State $state, Os $os, array $args ) {
 	}
 	$ids  = array();
 	$urls = array();
+	$type = section_post_type( $state );
 	foreach ( targets( $state, $args ) as $id ) {
-		if ( ! note_allowed( $os, $id, 'manage' ) ) {
+		if ( ! note_allowed( $os, $id, 'manage', $type ) ) {
 			continue;
 		}
 		$ids[] = $id;
@@ -279,7 +309,7 @@ function purge_action( State $state, Os $os, array $args ) {
  */
 function anchor_action( State $state, Os $os, array $args ) {
 	$id = (int) ( $args['item'] ?? 0 );
-	if ( ! note_allowed( $os, $id, 'manage' ) ) {
+	if ( ! note_allowed( $os, $id, 'manage', section_post_type( $state ) ) ) {
 		$os->toast( __( 'The dispatch could not be retried.', 'signal-and-noise-tools' ) );
 		return;
 	}
