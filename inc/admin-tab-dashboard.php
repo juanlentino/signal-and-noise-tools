@@ -622,7 +622,7 @@ function snt_dashboard_delta_badge_html( $delta ) {
  * @since 6.43.0
  * @param array $runs           Merged deploy runs (to detect a failed deploy).
  * @param int   $override_count DB template/navigation override count.
- * @return void
+ * @return array<int,array{text:string,href:string}>
  */
 function snt_dashboard_attention_items( $runs, $override_count ) {
 	$items = array();
@@ -839,7 +839,7 @@ function snt_dashboard_render_maintenance_actions() {
  * nothing else on the page.
  *
  * @since 11.29.0
- * @return void
+ * @return array<int,string>
  */
 function snt_dashboard_override_names( array $overrides ) {
 	$names = array();
