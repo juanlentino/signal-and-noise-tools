@@ -58,6 +58,17 @@
 		}
 		var tab = button.getAttribute( 'data-snt-tab' ) || '';
 		var args = {};
+		var raw = button.getAttribute( 'data-snt-args' ) || '';
+		if ( raw ) {
+			try {
+				var parsed = JSON.parse( raw );
+				if ( parsed && typeof parsed === 'object' ) {
+					args = parsed;
+				}
+			} catch ( e ) {
+				args = {};
+			}
+		}
 		var sub = button.getAttribute( 'data-snt-sub' ) || '';
 		var anchor = button.getAttribute( 'data-snt-anchor' ) || '';
 		if ( sub ) {
@@ -98,6 +109,40 @@
 			el.scrollIntoView( { block: 'start', behavior: 'smooth' } );
 		}
 	}
+
+	/*
+	 * S&N Analytics: a tab switch carries the window (range, custom dates)
+	 * and the class into the new view's session and resets the rest -- the
+	 * classic tab link's exact rule (snt_analytics_window_args over the reset
+	 * params). Each framework tab is its own session, so the runtime alone
+	 * would open every view on its defaults.
+	 */
+	var lastAnalyticsView = 'main';
+	document.addEventListener( 'os-window-tab-change', function ( event ) {
+		var win = event.target;
+		var id = win && win.getAttribute ? ( win.getAttribute( 'data-window-id' ) || win.id || '' ) : '';
+		if ( id.indexOf( 'sn-analytics' ) === -1 && ! ( win && win.querySelector && win.querySelector( '.os-app[data-os-app="sn-analytics"]' ) ) ) {
+			return;
+		}
+		var next = event.detail && event.detail.value ? String( event.detail.value ) : 'main';
+		var apps = window.wp && wp.os && wp.os.apps;
+		if ( ! apps || next === lastAnalyticsView ) {
+			lastAnalyticsView = next;
+			return;
+		}
+		var from = apps.session ? apps.session( 'sn-analytics', lastAnalyticsView ) : null;
+		lastAnalyticsView = next;
+		var state = from && from.state ? from.state : null;
+		if ( ! state ) {
+			return;
+		}
+		var args = { sn_range: String( state.range || '' ), sn_class: String( state[ 'class' ] || '' ) };
+		if ( args.sn_range === 'custom' ) {
+			args.sn_from = String( state.from || '' );
+			args.sn_to = String( state.to || '' );
+		}
+		apps.dispatch( 'sn-analytics', 'go', args, next );
+	} );
 
 	var observer = new MutationObserver( function ( records ) {
 		for ( var i = 0; i < records.length; i++ ) {

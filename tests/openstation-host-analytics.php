@@ -84,6 +84,7 @@ namespace OpenStation\App {
 		public $menus   = array();
 		public $refresh = 0;
 		public $params  = array();
+		public $view    = '';
 		public function param( $key, $fallback = null ) { return array_key_exists( $key, $this->params ) ? $this->params[ $key ] : $fallback; }
 		public function toast( $m ) { $this->toasts[] = $m; return $this; }
 		public function badge( $n ) { $this->badges[] = $n; return $this; }
@@ -266,9 +267,12 @@ namespace {
 	function st( $app, array $in = array() ) { return new \OpenStation\App\State( $app->state, $in ); }
 
 	/** Paint the window for a state. */
-	function paint( $app, $state, $os = null ) {
+	function paint( $app, $state, $os = null, $tab = '' ) {
+		$os       = $os ?: new \OpenStation\App\Os();
+		$os->view = '' === $tab ? 'main' : $tab;
+		$cb       = '' === $tab ? $app->view : $app->tabs[ $tab ]['view'];
 		ob_start();
-		call_user_func( $app->view, $state, $os ?: new \OpenStation\App\Os() );
+		call_user_func( $cb, $state, $os );
 		return (string) ob_get_clean();
 	}
 
@@ -367,8 +371,15 @@ namespace {
 		'   ...including login defense`s own range, from sn_login_defense_resolve_days()' );
 	ok( array( 'go', 'post', 'door', 'refresh', 'reopen' ) === array_keys( $app->actions ),
 		'five actions: go, post, door, refresh and the reopen lifecycle' );
-	ok( array() === $app->tabs,
-		'and NO framework tabs: they are baked at definition and cannot be switched by a server action, which every doorway link on the Overview does' );
+	$sn_views = snt_analytics_views();
+	unset( $sn_views['overview'] );
+	ok( array_keys( $sn_views ) === array_keys( $app->tabs ) && array_values( $sn_views ) === array_column( $app->tabs, 'label' ),
+		'the framework`s tabs are every view after Overview, in the registry`s order, labelled as the registry labels them -- Overview is the main view, labelled through the window args' );
+	$sn_positions = array_column( $app->tabs, 'position' );
+	$sn_sorted    = $sn_positions;
+	sort( $sn_sorted );
+	ok( $sn_positions === $sn_sorted && count( array_unique( $sn_positions ) ) === count( $sn_positions ) && ! in_array( false, array_map( 'is_callable', array_column( $app->tabs, 'view' ) ), true ),
+		'   ...each with its own view callable and an ascending, distinct position' );
 	ok( isset( $app->buttons['refresh'] ) && 'refresh' === $app->buttons['refresh']['action'], 'a Refresh button in the title bar' );
 
 	echo "\nGroup 2: every view is reachable through `go`\n";
@@ -377,18 +388,21 @@ namespace {
 	$os        = new \OpenStation\App\Os();
 	$reachable = array();
 	foreach ( array_keys( $views ) as $slug ) {
-		$state = st( $app );
-		$app->actions['go']( $state, $os, array( 'sn_view' => $slug ) );
+		$state    = st( $app );
+		$os->view = 'overview' === $slug ? 'main' : $slug;
+		$app->actions['go']( $state, $os, array() );
 		if ( $slug === $state->get( 'view' ) ) {
 			$reachable[] = $slug;
 		}
 	}
 	ok( array_keys( $views ) === $reachable,
-		'every slug in SN_ANALYTICS_VIEWS lands on itself -- derived from the registry, so a view added tomorrow is pinned the day it exists' );
-	$state = st( $app );
+		'every slug in SN_ANALYTICS_VIEWS is its own session: a go on a tab pins the view to that tab (main = overview) -- derived from the registry, so a view added tomorrow is pinned the day it exists' );
+	$state    = st( $app );
+	$os->view = 'main';
 	$app->actions['go']( $state, $os, array( 'sn_view' => 'intelligence' ) );
-	ok( snt_analytics_resolve_view( 'intelligence' ) === $state->get( 'view' ) && 'overview' === $state->get( 'view' ),
-		'a retired or unknown slug falls back to overview -- through snt_analytics_resolve_view(), which is where that rule lives' );
+	ok( 'overview' === $state->get( 'view' ),
+		'a link naming a retired or unknown view changes nothing: the tab, not the argument, says which view a session paints' );
+	$os->view = '';
 
 	echo "\nGroup 3: a view switch resets exactly what the tab strip strips\n";
 	$reset = snt_analytics_view_reset_params();
@@ -418,6 +432,7 @@ namespace {
 			'lg_range'   => 90,
 		)
 	);
+	$os->view = 'geography';
 	$app->actions['go']( $state, $os, array( 'sn_view' => 'geography' ) );
 	ok( 'geography' === $state->get( 'view' ) && '7' === $state->get( 'range' ) && '' === $state->get( 'from' ) && '' === $state->get( 'to' )
 		&& 'human' === $state->get( 'class' ) && '' === $state->get( 'drill' ) && '' === $state->get( 'event_prop' ) && 7 === $state->get( 'lg_range' ),
@@ -425,14 +440,17 @@ namespace {
 	ok( 'off' === $state->get( 'compare' ),
 		'   ...and a BARE switch -- a deep link that names only the view, like the movers\' "Posts view" -- lands with comparison OFF, because the link is the whole next URL and it carried none' );
 	$state = st( $app, array( 'view' => 'technology', 'compare' => 'yoy', 'range' => '30', 'class' => 'bot' ) );
+	$os->view = 'geography';
 	$app->actions['go']( $state, $os, array( 'sn_view' => 'geography', 'sn_range' => '30', 'sn_class' => 'bot', 'sn_compare' => 'yoy' ) );
 	ok( 'yoy' === $state->get( 'compare' ) && '30' === $state->get( 'range' ) && 'bot' === $state->get( 'class' ),
 		'   ...while the REAL tab link, which re-adds sn_compare beside the window args (the page\'s carry rule), keeps the comparison riding along' );
 
 	$state = st( $app, array( 'view' => 'technology', 'class' => 'bot', 'drill' => 'browser:Firefox' ) );
+	$os->view = 'geography';
 	$app->actions['go']( $state, $os, array( 'sn_view' => 'geography', 'sn_range' => '30', 'sn_class' => 'bot' ) );
 	ok( 'geography' === $state->get( 'view' ) && '30' === $state->get( 'range' ) && 'bot' === $state->get( 'class' ) && '' === $state->get( 'drill' ),
-		'a real tab link -- which carries snt_analytics_window_args() -- keeps the window and the class across the switch, and still drops the drill' );
+		'a tab switch that carries the window args (the companion script re-sends the previous session`s range and class, as the classic tab link does) keeps them and still drops the drill' );
+	$os->view = '';
 
 	echo "\nGroup 4: every value goes through the page`s own resolver\n";
 	$state = st( $app );
@@ -558,13 +576,13 @@ namespace {
 	$_POST                  = array();
 	$_REQUEST               = array();
 	$before                 = array( $_GET, $_POST, $_REQUEST, $_SERVER['REQUEST_URI'] );
-	$html                   = paint( $app, st( $app, array( 'view' => 'campaigns' ) ) );
+	$html                   = paint( $app, st( $app, array( 'view' => 'campaigns' ) ), null, 'campaigns' );
 	ok( $before === array( $_GET, $_POST, $_REQUEST, $_SERVER['REQUEST_URI'] ),
 		'painting gives the request back untouched -- the query AND the REQUEST_URI the page`s link builders were lent' );
-	ok( 0 === strpos( $html, '<div class="wrap" data-snt-query="' ) && false !== strpos( $html, '<h1>Analytics</h1>' ),
-		'the wrapper and the heading are the ones inc/analytics-dashboard-page.php prints -- the wrap carrying one attribute more, the current navigation for the brush' );
-	ok( false !== strpos( $html, 'nav-tab-wrapper sn-an-view-tabs' ),
-		'the tab strip is the PAGE`S OWN, captured -- never rebuilt here, so its classes and its order are whatever the page says' );
+	ok( 0 === strpos( $html, '<div class="snt-app" data-snt-view="campaigns" data-snt-query="' ) && false === strpos( $html, '<h1>Analytics</h1>' ),
+		'the root is the native window`s: the view it paints and the current navigation for the brush, and no wp-admin heading -- the window title and the tab strip are the shell`s' );
+	ok( false !== strpos( $html, 'class="snt-classic"' ),
+		'a view without a kit painter yet paints the classic capture as scaffold -- the port`s remaining work, counted by tests/openstation-app-analytics.php' );
 
 	if ( '' === $GLOBALS['__html_api'] ) {
 		foreach ( array(
@@ -762,11 +780,13 @@ namespace {
 	echo "\nGroup 10: mount, reopen and refresh\n";
 	$os         = new \OpenStation\App\Os();
 	$os->params = array( 'sn_view' => 'posts', 'sn_range' => '30', 'sn_class' => 'bot' );
+	$os->view   = 'posts';
 	$state      = st( $app );
 	call_user_func( $app->mount, $state, $os );
 	ok( 'posts' === $state->get( 'view' ) && '30' === $state->get( 'range' ) && 'bot' === $state->get( 'class' ),
 		'a deep link opens on its view and its window, named exactly as the classic URL names them' );
 	$os->params = array( 'sn_view' => 'search' );
+	$os->view   = 'search';
 	$app->actions['reopen']( $state, $os, array() );
 	ok( 'search' === $state->get( 'view' ) && '7' === $state->get( 'range' ) && 'human' === $state->get( 'class' ),
 		'reopen retargets a live window and reads the new params wholesale -- a link that named no window must not inherit the last one`s' );
@@ -779,13 +799,13 @@ namespace {
 		'   ...and so does a navigation: leaving a "Saved." over a report the reader has since re-filtered would say something nobody measured' );
 	$state = st( $app, array( 'notice' => array( 'error', 'It <a href="x">broke</a>.' ) ) );
 	$html  = paint( $app, $state );
-	ok( false !== strpos( $html, '<div class="notice notice-error is-dismissible"><p>It <a href="x">broke</a>.</p></div>' ),
-		'a notice paints in the classic markup, with its deliberate inline <a> intact, where inc/analytics-dashboard-page.php prints it' );
-	ok( strpos( $html, 'notice notice-error' ) > strpos( $html, '<h1>Analytics</h1>' ), '   ...under the heading, as that page prints it' );
+	ok( false !== strpos( $html, '<os-notice tone="danger">It <a href="x">broke</a>.</os-notice>' ),
+		'a notice paints as the kit`s notice in the severity`s tone, with its deliberate inline <a> intact' );
+	ok( strpos( $html, '<os-notice' ) < strpos( $html, 'class="snt-classic"' ), '   ...above the body, where the classic page prints it under its heading' );
 
 	echo "\nGroup 11: the window carries the analytics page`s own assets\n";
 	$handles = snt_os_host_asset_handles( 'sn-analytics' );
-	ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-sn-analytics-app' ) === $handles['styles'],
+	ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-app', 'snt-sn-analytics-app' ) === $handles['styles'],
 		'the four stylesheets toplevel_page_sn-analytics loads: admin.css, the token layer, the analytics sheet and the uptime panel' );
 	ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit' ) === $handles['scripts'],
 		'and its six scripts: the panel collapse/clamp seam, the confirm modal, the trend brush, the repeatable rows, the uptime panel, and the host' );
@@ -858,7 +878,9 @@ $state = st( $app, array( 'view' => 'events', 'event_prop' => 'p', 'drill' => 'c
 $app->actions['go']( $state, $os, array( 'sn_view' => 'events', 'sn_drill' => 'country:US' ) );
 ok( '' === $state->get( 'event_prop' ), 'the Events property Clear -- sn_event_prop omitted -- clears it' );
 $state = st( $app, array( 'view' => 'overview', 'compare' => 'prev', 'class' => 'bot', 'range' => '30' ) );
+$os->view = 'posts';
 $app->actions['go']( $state, $os, array( 'sn_view' => 'posts', 'sn_range' => '30', 'sn_class' => 'bot' ) );
+$os->view = '';
 ok( 'posts' === $state->get( 'view' ) && 'off' === $state->get( 'compare' ) && '30' === $state->get( 'range' ), 'the movers\' bare deep link (view + window + class, no compare) lands where its classic href lands: comparison off' );
 $state = st( $app, array( 'view' => 'geography', 'drill' => 'country:US', 'compare' => 'yoy' ) );
 $app->actions['go']( $state, $os, array( 'sn_view' => 'geography', 'sn_range' => '7', 'sn_class' => 'human', 'sn_compare' => 'yoy' ) );

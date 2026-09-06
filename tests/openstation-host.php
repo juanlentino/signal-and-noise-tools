@@ -742,7 +742,7 @@ $args    = apply_filters( 'openstation_app_window_args', array( 'styles' => arra
 // Named, not read back off the function under test: a loop over
 // snt_os_host_asset_handles() would stay green while a handle was DELETED
 // from it, which is exactly how a leaf's script goes missing in silence.
-ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-sn-dashboard-app' ) === $handles['styles'],
+ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-app', 'snt-sn-dashboard-app' ) === $handles['styles'],
 	'the seven stylesheets the leaves are laid out with: admin.css, the analytics token layer, the analytics sheet, the uptime panel, the provenance stepper, the audit log, and Machine Readers -- which painted with every .sn-mr-* rule missing until it got a registrar' );
 ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat', 'snt-os-host', 'snt-os-kit' ) === $handles['scripts'],
 	'the eleven scripts: sub-tabs and dirty-tracking, the confirm modal, the trend brush, the repeatable rows, the freshness dot, Suggest+Apply, the uptime panel, cron, provenance, the Heartbeat client Cron and Webhooks live-refresh through, and the host' );

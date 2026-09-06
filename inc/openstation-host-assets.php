@@ -54,12 +54,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 function snt_os_host_asset_handles( $id = 'sn-dashboard' ) {
 	if ( 'sn-analytics' === (string) $id ) {
 		return array(
-			'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-sn-analytics-app' ),
+			'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-app', 'snt-sn-analytics-app' ),
 			'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit' ),
 		);
 	}
 	return array(
-		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-sn-dashboard-app' ),
+		'styles'  => array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'sn-provenance-admin', 'snt-audit-log', 'sn-machine-readers', 'snt-os-app', 'snt-sn-dashboard-app' ),
 		'scripts' => array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-freshness-dot', 'snt-health-suggest-actions', 'sn-uptime-status', 'sn-cron-dashboard', 'sn-provenance-admin', 'sn-admin-heartbeat', 'snt-os-host', 'snt-os-kit' ),
 	);
 }
@@ -160,11 +160,14 @@ function snt_os_host_register_assets() {
 	if ( ! wp_script_is( 'snt-os-kit', 'registered' ) ) {
 		wp_register_script( 'snt-os-kit', SNT_URL . 'assets/os-kit.js', array(), SNT_VERSION, true );
 	}
+	if ( ! wp_style_is( 'snt-os-app', 'registered' ) ) {
+		wp_register_style( 'snt-os-app', SNT_URL . 'assets/os-app.css', array(), SNT_VERSION );
+	}
 	if ( ! wp_style_is( 'snt-sn-dashboard-app', 'registered' ) ) {
-		wp_register_style( 'snt-sn-dashboard-app', SNT_URL . 'apps/sn-dashboard/sn-dashboard.css', array(), SNT_VERSION );
+		wp_register_style( 'snt-sn-dashboard-app', SNT_URL . 'apps/sn-dashboard/sn-dashboard.css', array( 'snt-os-app' ), SNT_VERSION );
 	}
 	if ( ! wp_style_is( 'snt-sn-analytics-app', 'registered' ) ) {
-		wp_register_style( 'snt-sn-analytics-app', SNT_URL . 'apps/sn-analytics/sn-analytics.css', array(), SNT_VERSION );
+		wp_register_style( 'snt-sn-analytics-app', SNT_URL . 'apps/sn-analytics/sn-analytics.css', array( 'snt-os-app' ), SNT_VERSION );
 	}
 	// Five leaves register their own assets from their own enqueue callbacks
 	// (Connections -> Cron, Integrity -> Provenance, Security -> Audit log,

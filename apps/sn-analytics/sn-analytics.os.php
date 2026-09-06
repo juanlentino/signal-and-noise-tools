@@ -50,6 +50,12 @@ if ( ! defined( 'ABSPATH' ) ) {
 require_once dirname( __DIR__, 2 ) . '/inc/openstation-host.php';
 require_once __DIR__ . '/parts/state.php';
 require_once __DIR__ . '/parts/view.php';
+require_once __DIR__ . '/parts/frame.php';
+// Every piece painter registers itself through `snt_os_analytics_painters`;
+// one file per piece under parts/painters (chrome-*.php, view-*.php).
+foreach ( (array) glob( __DIR__ . '/parts/painters/*.php' ) as $sn_analytics_painter_file ) {
+	require_once $sn_analytics_painter_file;
+}
 
 const APP_ID = 'sn-analytics';
 
@@ -141,14 +147,48 @@ function read_params( State $state, Os $os ) {
  */
 function mount( State $state, Os $os ) {
 	read_params( $state, $os );
+	$state->set( 'view', view_slug( $os, $state ) );
+}
+
+
+/**
+ * A control's pick, as the classic link would have carried it: the current
+ * query with ONE parameter replaced by the classic rules -- a range or class
+ * pick rebuilds the window arguments (`snt_analytics_window_args()`), a
+ * compare pick drops the key for `off`, anything else sets `sn_<key>`.
+ *
+ * @param State  $state Session state.
+ * @param string $key   range|class|compare|drill|event_prop|lg_range.
+ * @param string $value The pick.
+ * @return array<string,string> The next query.
+ */
+function picked( State $state, $key, $value ) {
+	$get   = \snt_os_analytics_get( $state );
+	$key   = (string) $key;
+	$value = (string) $value;
+	unset( $get['page'] );
+	if ( 'range' === $key || 'class' === $key ) {
+		$range = 'range' === $key ? $value : (string) $get['sn_range'];
+		$class = 'class' === $key ? $value : (string) $get['sn_class'];
+		unset( $get['sn_range'], $get['sn_class'], $get['sn_from'], $get['sn_to'] );
+		$window = function_exists( 'snt_analytics_window_args' )
+			? snt_analytics_window_args( $range, $class, (string) $state->get( 'from' ), (string) $state->get( 'to' ) )
+			: array( 'sn_range' => $range, 'sn_class' => $class );
+		return array_merge( $get, $window );
+	}
+	if ( 'compare' === $key ) {
+		unset( $get['sn_compare'] );
+		return 'off' === $value ? $get : array_merge( $get, array( 'sn_compare' => $value ) );
+	}
+	$get[ 'sn_' . preg_replace( '/[^a-z_]/', '', $key ) ] = $value;
+	return $get;
 }
 
 $sn_analytics = App::define( APP_ID )
 	->title( __( 'S&N Analytics', 'signal-and-noise-tools' ) )
-	// The same chart glyph `add_menu_page()` gives the classic menu, so the
-	// dock tile the app registers looks like the tile it replaces.
 	->icon( 'dashicons-chart-area' )
 	->size( 1280, 860 )
+	->min_size( 800, 560 )
 	->placement( 'dock' )
 	->capabilities( 'manage_options' )
 	->state( \snt_os_analytics_defaults() )
@@ -161,27 +201,20 @@ $sn_analytics = App::define( APP_ID )
 		)
 	)
 	->mount( __NAMESPACE__ . '\\mount' )
-	->view( __NAMESPACE__ . '\\render_view' )
-	// A view, a window, a class, a compare mode, a drill — from a link's
-	// `os-arg-*` or the custom-date form's fields. Validated by the page's own
-	// resolvers, never against a list kept here.
+	->view( tab_view( 'overview' ) )
 	->action(
 		'go',
 		static function ( State $state, Os $os, array $args ) {
-			unset( $os );
 			if ( ! may_manage() ) {
 				return;
 			}
-			\snt_os_analytics_apply( $state, incoming( $args ) );
-			// A notice is a one-shot on the classic page too: it arrives on a
-			// `?sn_flash` URL and does not survive the next click.
-			$state->set( 'notice', null );
+			$in = isset( $args['key'] ) && is_scalar( $args['key'] ) && array_key_exists( 'value', $args ) && is_scalar( $args['value'] )
+				? picked( $state, (string) $args['key'], (string) $args['value'] )
+				: incoming( $args );
+			\snt_os_analytics_apply( $state, $in );
+			$state->set( 'view', view_slug( $os, $state ) )->set( 'notice', null );
 		}
 	)
-	// THE PAGE HAS NO WRITE. Its one POST form streams a file and stays a real
-	// form (see snt_os_analytics_keep_actions()), so this exists to answer
-	// rather than to save: a refusal that names what was measured beats a
-	// handler that would `exit` in the middle of a dispatch, and beats silence.
 	->action(
 		'post',
 		static function ( State $state, Os $os, array $args ) {
@@ -213,9 +246,6 @@ $sn_analytics = App::define( APP_ID )
 			);
 		}
 	)
-	// Any other admin screen, as its own shell window: the unconfigured gate's
-	// "Configure analytics →" and the Measurement → Analytics links. Same
-	// destination the classic link has; a window instead of a navigation.
 	->action(
 		'door',
 		static function ( State $state, Os $os, array $args ) {
@@ -229,9 +259,6 @@ $sn_analytics = App::define( APP_ID )
 			}
 		}
 	)
-	// The title-bar button. Four of the thirteen views read live data at render
-	// time (edge, Sessions, Engagement, Login defense), so a repaint is the
-	// window's "run it again"; the notice is a one-shot and goes with it.
 	->action(
 		'refresh',
 		static function ( State $state, Os $os, array $args ) {
@@ -242,8 +269,6 @@ $sn_analytics = App::define( APP_ID )
 			$state->set( 'notice', null );
 		}
 	)
-	// A deep link landing on a window that is already open: the shell writes
-	// the new params first, so this is mount's read, again.
 	->action(
 		'reopen',
 		static function ( State $state, Os $os, array $args ) {
@@ -252,7 +277,27 @@ $sn_analytics = App::define( APP_ID )
 				return;
 			}
 			read_params( $state, $os );
+			$state->set( 'view', view_slug( $os, $state ) );
 		}
 	);
 
+// The framework's tabs: one per view after Overview (the main view), in the
+// registry's order. Each is its own session painted by the same frame.
+$sn_analytics_position = 10;
+$sn_analytics_views    = function_exists( 'snt_analytics_views' ) ? (array) snt_analytics_views() : array();
+foreach ( $sn_analytics_views as $sn_analytics_slug => $sn_analytics_label ) {
+	$sn_analytics_slug = (string) $sn_analytics_slug;
+	if ( '' === $sn_analytics_slug || 'overview' === $sn_analytics_slug ) {
+		continue;
+	}
+	$sn_analytics->tab(
+		$sn_analytics_slug,
+		array(
+			'label'    => (string) $sn_analytics_label,
+			'position' => $sn_analytics_position,
+			'view'     => tab_view( $sn_analytics_slug ),
+		)
+	);
+	$sn_analytics_position += 10;
+}
 return $sn_analytics;
