@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.100.0] - 2026-09-06 — the deeper note
+
 ### Added
 - The Signal & Noise window's dossier is now everything the estate knows about
   one note, in the order trust, numbers, operating state, editorial. Trust reads
@@ -56,11 +58,4 @@ adds a bullet below. A release is a separate, deliberate act:
   than `manage_options`: the dossier is the editor's own view of one note they
   may edit, one note at a time. Scope, not sensitivity, is what changed; the
   tier is recorded in `docs/ops/ability-permission-policy.md`. (#1058)
-
-## [13.99.2] - 2026-09-05 — the S&N Dashboard icon
-
-### Changed
-- The desktop icon that opens the admin page is titled "S&N Dashboard", to
-  match "S&N Analytics" beside it. Same id, same URL, same spot on the desktop.
-  (#1060)
 
