@@ -22,24 +22,130 @@
  *      — clones the existing input template into a new row above the
  *        button. Submission still works as social_same_as[] array.
  *
- * Added in v1.9.6 (2026-05-16); section tabs replaced the TOC scroll-spy in v6.19.4.
+ * All three are armed through ONE seam, `window.snAdmin.init( root )`, which
+ * the classic page calls once on DOMContentLoaded with `document`. An
+ * OpenStation window paints its leaves long after that event has fired and
+ * repaints them on every action, so the host script (assets/os-host.js) calls
+ * the same seam with the window's app root after every paint. The seam is
+ * therefore IDEMPOTENT and ROOT-SCOPED: it looks its nav, panels and form up
+ * inside the root it was given rather than in `document`, so a window never
+ * binds a second desktop window's leaf.
+ *
+ * WHAT MAKES IT IDEMPOTENT IS A WeakSet, NOT AN ATTRIBUTE. A window's paint is
+ * a MORPH, not an `innerHTML`: desktop-mode's runtime parses the server's HTML
+ * into a template (`Ut()`, offset 25085 of its assets/js/app-runtime.min.js),
+ * matches an unkeyed child POSITIONALLY by tag name (`Se()`, 25455) and syncs
+ * it in place (`Xt()` 25943 → `zt()` 26198), whose second loop removes EVERY
+ * attribute the server's node does not carry (`for (const o of Array.from(
+ * e.attributes)) n.hasAttribute(o.name) || … || e.removeAttribute(o.name)`,
+ * 26430). The element and its listeners therefore survive a repaint while any
+ * attribute THIS file wrote does not: the old `data-snt-init` marker was
+ * deleted on every paint, so the seam re-bound, and "+ Add another profile
+ * URL" added one more empty row per repaint. The bound elements live in
+ * module-scope WeakSets instead — `zt` cannot reach a WeakSet.
+ *
+ * The same fact runs the other way for STATE this file writes as attributes:
+ * `role`, `aria-*`, `tabindex`, `hidden` and `is-active` on the section tabs,
+ * the dirty baseline and the save bar's clean copy. The morph strips or
+ * restores all of those, so they are RE-APPLIED on every call — with the
+ * reader's own open panel remembered and restored, never reset to the first.
+ * Binding happens once; state is re-applied every time. Calling the seam twice
+ * with the same root binds nothing twice and leaves the reader where they
+ * were; calling it with `document` is exactly what the page did before the
+ * seam existed.
+ *
+ * Added in v1.9.6 (2026-05-16); section tabs replaced the TOC scroll-spy in
+ * v6.19.4; the `snAdmin.init( root )` seam landed with the OpenStation hosts.
  */
 ( function () {
 	'use strict';
 
-	document.addEventListener( 'DOMContentLoaded', function () {
+	/**
+	 * Elements whose listeners are already attached.
+	 *
+	 * WeakSets and not attributes: see the file header. The window's runtime
+	 * removes any attribute the server does not paint while REUSING the node,
+	 * so an attribute marker is gone by the next repaint and the element is
+	 * bound a second time. Each set is keyed by the element the listeners
+	 * actually sit on, so a node the diff DID replace re-arms on its own.
+	 */
+	var boundNavs    = new WeakSet();
+	var boundForms   = new WeakSet();
+	var boundButtons = new WeakSet();
+
+	/** Per-nav: the panel index the reader is on, and the root its panels live in. */
+	var navIndex = new WeakMap();
+	var navScope = new WeakMap();
+
+	/** Per-form: the dirty baseline and the save bar's server-painted copy. */
+	var dirtyBaseline = new WeakMap();
+	var cleanCopy     = new WeakMap();
+
+	/**
+	 * Arm every admin behaviour inside `root` (an Element or `document`).
+	 *
+	 * Idempotent: every listener this reaches is attached once per element,
+	 * tracked in the WeakSets above, while the attribute state a repaint
+	 * strips is re-applied on each call. The body is what DOMContentLoaded
+	 * used to run inline, moved here unchanged apart from the scoping.
+	 *
+	 * @param {Element|Document} root Subtree to arm. Defaults to `document`.
+	 */
+	function init( root ) {
+		var scope = root || document;
+
 		// Section tabs are independent of the Identity form — run first so the
 		// switcher works on any composite leaf that renders a .sn-section-tabs nav.
-		initSectionTabs();
+		initSectionTabs( scope );
 
-		var form = document.querySelector( '.sn-identity-form' );
+		var form = scope.querySelector( '.sn-identity-form' );
 		if ( ! form ) {
 			return;
 		}
 
+		// Each initialiser guards ITSELF, on the element it binds: the form
+		// for the dirty-tracker's listeners, the button for the add-row click.
 		initDirtyTracking( form );
 		initAddRowButton( form );
+	}
+
+	// The seam, published before DOMContentLoaded so a host script loaded
+	// after this file can call it against a root that paints later. Merged
+	// onto any existing object rather than replacing it: this file is
+	// enqueued once, but a window that appends the handle a second time must
+	// not drop a sibling's property.
+	window.snAdmin = window.snAdmin || {};
+	window.snAdmin.init = init;
+
+	document.addEventListener( 'DOMContentLoaded', function () {
+		init( document );
 	} );
+
+	/**
+	 * Find an element by id INSIDE a root, without a selector.
+	 *
+	 * `document.getElementById()` searches the whole document, which in an
+	 * OpenStation window is the desktop — every other open window included.
+	 * An element root has no `getElementById`, and building a `#id` selector
+	 * would need CSS escaping for ids the server never promised to keep
+	 * selector-safe, so the attribute is compared as a string instead.
+	 *
+	 * @param {Element|Document} root Subtree to search.
+	 * @param {string}           id   Element id.
+	 * @return {Element|null} The element, or null.
+	 */
+	function byId( root, id ) {
+		if ( typeof root.getElementById === 'function' ) {
+			return root.getElementById( id );
+		}
+		var candidates = root.querySelectorAll( '[id]' );
+		for ( var i = 0; i < candidates.length; i++ ) {
+			if ( candidates[ i ].id === id ) {
+				return candidates[ i ];
+			}
+		}
+		return null;
+	}
 
 	/**
 	 * Section tabs: turn the in-form `.sn-section-tabs` anchor nav into a
@@ -53,33 +159,32 @@
 	 *
 	 * No-op when there's no `.sn-section-tabs` nav or fewer than 2 resolvable
 	 * tab→panel pairs (nothing to switch between).
+	 *
+	 * @param {Element|Document} root Subtree holding the nav and its panels.
 	 */
-	function initSectionTabs() {
-		var nav = document.querySelector( '.sn-section-tabs' );
+	function initSectionTabs( root ) {
+		var scope = root || document;
+		var nav = scope.querySelector( '.sn-section-tabs' );
 		if ( ! nav ) {
 			return;
 		}
 
 		// Pair each tab with its panel; skip any tab whose panel is missing.
-		var tabs = [];
-		var panels = [];
-		Array.prototype.slice.call(
-			nav.querySelectorAll( 'a[href^="#sn-sec-"]' )
-		).forEach( function ( tab ) {
-			var panel = document.getElementById( tab.getAttribute( 'href' ).slice( 1 ) );
-			if ( panel ) {
-				tabs.push( tab );
-				panels.push( panel );
-			}
-		} );
-		if ( tabs.length < 2 ) {
-			return; // nothing to switch between
+		// Derived on EVERY call, never cached: a repaint can add, drop or
+		// re-label a section while the nav element itself is reused.
+		var pairs = sectionPairs( nav, scope );
+		if ( pairs.tabs.length < 2 ) {
+			return; // nothing to switch between — and nothing bound, so no marker
 		}
+		navScope.set( nav, scope );
 
-		// Upgrade the nav + panels to the WAI-ARIA tabs pattern.
+		// Upgrade the nav + panels to the WAI-ARIA tabs pattern. RE-APPLIED on
+		// every call: `role`, `id`, `aria-controls`, `aria-labelledby` and
+		// `tabindex` are written here and appear nowhere in the server's
+		// markup, so a repaint's attribute sync deletes every one of them.
 		nav.setAttribute( 'role', 'tablist' );
-		tabs.forEach( function ( tab, i ) {
-			var panel = panels[ i ];
+		pairs.tabs.forEach( function ( tab, i ) {
+			var panel = pairs.panels[ i ];
 			var tabId = 'sn-tab-' + panel.id.replace( /^sn-sec-/, '' );
 			tab.setAttribute( 'role', 'tab' );
 			tab.setAttribute( 'id', tabId );
@@ -89,64 +194,160 @@
 			panel.setAttribute( 'tabindex', '0' );
 		} );
 
-		var activate = function ( index, focusTab ) {
-			tabs.forEach( function ( tab, i ) {
-				var isActive = ( i === index );
-				if ( isActive ) {
-					tab.classList.add( 'is-active' );
-				} else {
-					tab.classList.remove( 'is-active' );
-				}
-				tab.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
-				tab.setAttribute( 'tabindex', isActive ? '0' : '-1' );
-				panels[ i ].hidden = ! isActive;
-			} );
-			if ( focusTab ) {
-				tabs[ index ].focus();
+		if ( ! boundNavs.has( nav ) ) {
+			boundNavs.add( nav );
+			bindSectionTabs( nav );
+		}
+
+		// Open the panel named by location.hash when it matches a tab, else the
+		// first — but only the FIRST time this nav is armed. On a repaint the
+		// reader is already reading a panel, and re-activating the hash's would
+		// throw them back mid-read.
+		activateSection( nav, navIndex.has( nav ) ? navIndex.get( nav ) : hashIndex( pairs.tabs ), false );
+	}
+
+	/**
+	 * The tab→panel pairs a nav resolves to right now.
+	 *
+	 * @param {Element}          nav   The `.sn-section-tabs` nav.
+	 * @param {Element|Document} scope Subtree holding the panels.
+	 * @return {{tabs: Element[], panels: Element[]}} Paired tabs and panels.
+	 */
+	function sectionPairs( nav, scope ) {
+		var tabs = [];
+		var panels = [];
+		Array.prototype.slice.call(
+			nav.querySelectorAll( 'a[href^="#sn-sec-"]' )
+		).forEach( function ( tab ) {
+			var panel = byId( scope, tab.getAttribute( 'href' ).slice( 1 ) );
+			if ( panel ) {
+				tabs.push( tab );
+				panels.push( panel );
 			}
-		};
-
-		tabs.forEach( function ( tab, i ) {
-			tab.addEventListener( 'click', function ( e ) {
-				e.preventDefault();
-				activate( i, false );
-			} );
-			tab.addEventListener( 'keydown', function ( e ) {
-				var next;
-				switch ( e.key ) {
-					case 'ArrowRight':
-						next = ( i + 1 ) % tabs.length;
-						break;
-					case 'ArrowLeft':
-						next = ( i - 1 + tabs.length ) % tabs.length;
-						break;
-					case 'Home':
-						next = 0;
-						break;
-					case 'End':
-						next = tabs.length - 1;
-						break;
-					default:
-						return;
-				}
-				e.preventDefault();
-				activate( next, true );
-			} );
 		} );
+		return { tabs: tabs, panels: panels };
+	}
 
-		// Open the panel named by location.hash when it matches a tab, else first.
+	/**
+	 * Which tab `location.hash` names, or 0.
+	 *
+	 * @param {Element[]} tabs Resolved tabs.
+	 * @return {number} Index.
+	 */
+	function hashIndex( tabs ) {
 		var initial = 0;
 		tabs.forEach( function ( tab, i ) {
 			if ( tab.getAttribute( 'href' ) === window.location.hash ) {
 				initial = i;
 			}
 		} );
-		activate( initial, false );
+		return initial;
+	}
+
+	/**
+	 * Show one panel and mark its tab; hide the rest. Roving tabindex.
+	 *
+	 * Re-resolves the pairs rather than closing over them: the ARIA upgrade
+	 * gives each tab an `id`, which makes it KEYED for the window runtime's
+	 * diff while the server keeps painting the anchors unkeyed — so the tab
+	 * NODES are replaced on every repaint even though the nav is not.
+	 *
+	 * @param {Element} nav      The nav.
+	 * @param {number}  index    Panel to show.
+	 * @param {boolean} focusTab Move focus to the tab (keyboard navigation).
+	 */
+	function activateSection( nav, index, focusTab ) {
+		var pairs = sectionPairs( nav, navScope.get( nav ) || document );
+		if ( index < 0 || index >= pairs.tabs.length ) {
+			index = 0;
+		}
+		navIndex.set( nav, index );
+		pairs.tabs.forEach( function ( tab, i ) {
+			var isActive = ( i === index );
+			if ( isActive ) {
+				tab.classList.add( 'is-active' );
+			} else {
+				tab.classList.remove( 'is-active' );
+			}
+			tab.setAttribute( 'aria-selected', isActive ? 'true' : 'false' );
+			tab.setAttribute( 'tabindex', isActive ? '0' : '-1' );
+			pairs.panels[ i ].hidden = ! isActive;
+		} );
+		if ( focusTab && pairs.tabs[ index ] ) {
+			pairs.tabs[ index ].focus();
+		}
+	}
+
+	/**
+	 * Bind the nav ONCE, by delegation.
+	 *
+	 * The listeners cannot sit on the tabs: the ARIA upgrade above gives each
+	 * `<a>` an `id`, which is exactly what the runtime's `te()` reads as a
+	 * diff KEY, while the server paints the same anchors with no id — so
+	 * `Se()` finds no match for them and replaces every tab node on each
+	 * repaint, taking its listeners with it. The nav carries no id, is matched
+	 * positionally and morphed in place, so one listener on it survives every
+	 * paint and reads the pressed tab out of the event.
+	 *
+	 * @param {Element} nav The `.sn-section-tabs` nav.
+	 */
+	function bindSectionTabs( nav ) {
+		var indexOfTab = function ( target ) {
+			var tab = ( target && target.closest ) ? target.closest( 'a[href^="#sn-sec-"]' ) : null;
+			if ( ! tab || ! nav.contains( tab ) ) {
+				return -1;
+			}
+			return sectionPairs( nav, navScope.get( nav ) || document ).tabs.indexOf( tab );
+		};
+
+		nav.addEventListener( 'click', function ( e ) {
+			var i = indexOfTab( e.target );
+			if ( i < 0 ) {
+				return;
+			}
+			e.preventDefault();
+			activateSection( nav, i, false );
+		} );
+
+		nav.addEventListener( 'keydown', function ( e ) {
+			var i = indexOfTab( e.target );
+			if ( i < 0 ) {
+				return;
+			}
+			var count = sectionPairs( nav, navScope.get( nav ) || document ).tabs.length;
+			var next;
+			switch ( e.key ) {
+				case 'ArrowRight':
+					next = ( i + 1 ) % count;
+					break;
+				case 'ArrowLeft':
+					next = ( i - 1 + count ) % count;
+					break;
+				case 'Home':
+					next = 0;
+					break;
+				case 'End':
+					next = count - 1;
+					break;
+				default:
+					return;
+			}
+			e.preventDefault();
+			activateSection( nav, next, true );
+		} );
 	}
 
 	/**
 	 * Dirty-tracking: snapshot initial values, listen for input changes,
 	 * update the save bar hint with the count of changed fields.
+	 *
+	 * The baseline and the clean copy are STATE, not a binding, so they are
+	 * re-read on every call — a repaint has just restored the server's saved
+	 * values and the server's hint copy, and a baseline taken before the save
+	 * would report every saved change as still unsaved. `data-dirty` is the
+	 * one attribute that says otherwise: it is written only here, so a repaint
+	 * strips it, and a form still carrying it is mid-edit and left alone.
+	 * The two listeners are attached once, tracked by the element they sit on.
 	 */
 	function initDirtyTracking( form ) {
 		var hint = form.querySelector( '.sn-savebar-hint' );
@@ -154,18 +355,28 @@
 			return;
 		}
 
-		var initial = snapshotForm( form );
-		hint.dataset.cleanCopy = hint.textContent;
+		if ( ! form.hasAttribute( 'data-dirty' ) ) {
+			dirtyBaseline.set( form, snapshotForm( form ) );
+			cleanCopy.set( form, hint.textContent );
+		}
+
+		if ( boundForms.has( form ) ) {
+			return;
+		}
+		boundForms.add( form );
 
 		var update = function () {
+			// Re-read the hint: a repaint can replace the node the first call
+			// closed over, and writing into a detached one says nothing.
+			var mark = form.querySelector( '.sn-savebar-hint' ) || hint;
 			var current = snapshotForm( form );
-			var changed = countChanges( initial, current );
+			var changed = countChanges( dirtyBaseline.get( form ) || {}, current );
 			if ( changed === 0 ) {
 				form.removeAttribute( 'data-dirty' );
-				hint.textContent = hint.dataset.cleanCopy;
+				mark.textContent = cleanCopy.get( form ) || '';
 			} else {
 				form.setAttribute( 'data-dirty', 'true' );
-				hint.textContent = changed === 1
+				mark.textContent = changed === 1
 					? '1 unsaved change'
 					: changed + ' unsaved changes';
 			}
@@ -177,7 +388,7 @@
 		// to refresh the initial snapshot if a new row is added empty —
 		// otherwise adding a row appears "dirty" before any typing.
 		form.addEventListener( 'sn:row-added', function () {
-			initial = snapshotForm( form );
+			dirtyBaseline.set( form, snapshotForm( form ) );
 			update();
 		} );
 	}
@@ -238,6 +449,12 @@
 		if ( ! container ) {
 			return;
 		}
+		// Guarded on the BUTTON, which the diff reuses across repaints — the
+		// double-bind this replaced added one more empty row per paint.
+		if ( boundButtons.has( btn ) ) {
+			return;
+		}
+		boundButtons.add( btn );
 
 		btn.addEventListener( 'click', function ( e ) {
 			e.preventDefault();

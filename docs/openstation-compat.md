@@ -654,3 +654,102 @@ Phase four of the app program (#1071) is the phone phase -- an Attention section
 - `os-mode-changed`, a `CustomEvent` dispatched on `document` by the mode controller on every REAL band crossing (a call that would leave the mode unchanged returns early and fires nothing). The client subscribes exactly as WP Explorer's own app does (`apps/my-wordpress/my-wordpress.os.ts`): on the event it repaints, and it mounts or tears down the desk-only marquee and drag listeners for the band the window is in right now, rather than carrying whichever band's behaviour it was born with for the rest of its life -- a window opened on the desk and carried into the phone band used to keep its drag listeners; one opened on the phone never got them back.
 - `<os-table stacked>` and its `sticky-columns` observed attribute (`src/ui/components/os-table/os-table.ts`, `stack-on-phone.ts`): `stacked` is the kit's own decision to paint a card per row on the phone instead of a sideways scroll with a pinned column, and the component stands its sticky band down once `stacked` is set -- which is why the client writes `sticky-columns="0"` on the phone rather than omitting the attribute; the two are the same state, one said out loud, and there is no way to conditionally omit an attribute on this html tag without a second template. `stackOnPhone()` itself moves `sticky-columns` aside for you, but only inside `createListTableSync()` (the imperative `os-preserve` table rig), which is not how this app's table is built, so the app sets both attributes itself.
 - `wp.os.saveSession.flush()` (`assets/js/desktop.min.js`: the namespace object carries `saveSession`, whose `flush` is the session persister's own; the shell's post-update reload is `await ye.flush(), window.location.reload()`). The stale-build line's Reload awaits the same flush before it reloads, inside a try/catch so a shell without it still reloads. This is the seam the first build believed was unreachable from an app; the review measured that it is public, and the spec's booked cost ("an unflushed reload on the operator's click") was retired with it.
+
+## Host one — the classic admin page inside an app window (#1074)
+
+The S&N Dashboard is now an App Framework app (`apps/sn-dashboard/`) that
+paints the classic admin page's own HTML inside a window, produced by the same
+render callables, with every form saving through the same handler table. This
+section records the seams that port rests on, all Experimental at 1.1.6, and
+the two measurements that made an iframe unnecessary.
+
+**The desktop document IS wp-admin — measured, not assumed.** `/openstation/`
+resolves to `wp-admin/admin.php?page=openstation`; the document carries
+`body.wp-admin.wp-core-ui`, and core's `common`, `forms`, `dashboard`,
+`list-tables`, `buttons`, `edit` and `media` stylesheets are already loaded on
+it. A probe measured `.form-table th` at 257px/10px/left, `.postbox` with its
+1px border, `.button-primary` with its background and 2px radius and `.notice`
+with its 4px left border — inside a window, with no stylesheet of ours. That
+is the whole reason a leaf's admin HTML can be painted directly rather than
+sandboxed: **no iframe is used, and none is needed.** It is also the one fact
+most worth re-measuring after an upstream release, because a shell that stops
+booting on `admin.php` would take the styling of every leaf with it.
+
+**`View::capture()` collects echoed HTML.** A view callable
+(`function ( State $state, Os $os )`) may echo, may return a string, or both:
+`OpenStation\App\View::capture()` runs it inside `ob_start()` and returns the
+echoed buffer concatenated with a returned string, discarding the buffer and
+re-throwing if the view throws. Our leaves are echo-only renderers, so a view
+that runs `sn_admin_render_active_tab()` needs no rewriting of any leaf at
+all — the framework's capture and our own capture helper nest cleanly.
+
+**`os-action` names the action; `os-arg-*` carries the args.** The runtime
+walks up from the event target looking for the nearest ancestor carrying
+`os-action` (or `os-bind`) whose default event matches the one that fired, and
+then reads **every** attribute whose name begins with `os-arg-`, keying each
+arg by the remainder of the name. That is the whole arg vocabulary: attribute
+names, no encoding, no JSON. A `<form>`'s own contribution is different — the
+runtime builds a `FormData` from the form and hands it over as
+`$args['values']`, with a repeated field name collected into an array.
+
+**`values` drops anything that is not a string.** The FormData walk keeps an
+entry only when its value is a string, so a `File` never reaches the server
+through an `os-action` form. Every form in the port map carries `files: false`
+— not one admin form uploads — which is why the whole 35-leaf write surface
+can ride this seam. A future leaf with an upload cannot, and must stay a real
+`<form>` posting to the classic page.
+
+**A click is not `preventDefault`ed — a rewritten link must lose its `href`.**
+The runtime prevents the default only for `submit`, for `contextmenu`, and for
+a `keydown` that matches `os-keys`. A `<a href>` that gains `os-action` would
+therefore dispatch the action *and* follow the href, which on the desktop
+document means navigating the whole shell away. So the rewrite pass removes
+`href` from every anchor it converts to `go` or `door`, and leaves alone the
+anchors it does not convert (`#fragment`-only, `mailto:`, `javascript:`, and
+anything already carrying `os-action`).
+
+**Painted HTML never runs an inline `<script>`.** The runtime parses the
+view's HTML by assigning it to a `<template>` element's `innerHTML` and then
+patching the resulting nodes into the window — a morph that matches children
+positionally and syncs attributes, REMOVING any attribute the server's node
+does not carry (so a client-written marker attribute never survives a paint;
+admin.js marks bound elements with a property instead) — and script nodes
+created by the parser that way are never executed, by the HTML spec, not by an
+OpenStation choice. The leaves' inline bootstraps therefore need re-creating after each
+paint: the rewrite marks them `data-snt-exec` and `assets/os-host.js` clones
+each one once so it runs. The same paint boundary is why
+`assets/admin.js` grew `window.snAdmin.init( root )` — a `DOMContentLoaded`
+binding fires once, and a window's markup arrives long afterwards and again on
+every action.
+
+**`WP_HTML_Tag_Processor` is the rewrite tool, and it is core's, not
+upstream's.** The pass over captured HTML runs on WordPress core's HTML API
+(`wp-includes/html-api/`), which is a stable public class with a documented
+tag-by-tag cursor and attribute setters that re-serialize safely. It is the
+one dependency in this port that OpenStation cannot break: a regex over admin
+HTML would be the alternative, and admin HTML is exactly the corpus where a
+regex fails quietly.
+
+**The window-args seam carries the admin handles.** The classic page's assets
+are gated on the classic hook suffixes (`sn-admin`, `snt-analytics-tokens`,
+`sn-analytics-admin`, `snt-confirm`, `sn-analytics-brush`, `sn-resume-admin`,
+`sn-freshness-dot`, `snt-health-suggest-actions`, the uptime handles), so
+nothing of ours loads on the desktop page unless the host asks for it. It asks
+through `openstation_app_window_args` — the same filter the Signal & Noise app
+already uses for its symlink-lost stylesheet and client script — appending
+each style and script handle to the window's own companion lists, registering
+any that is not registered yet with the same localized data the classic
+enqueue functions attach (by calling the same data-building functions, never
+by copying their literals). One handle is new: `snt-os-host`, the host script,
+which depends on `sn-admin`.
+
+**The dock.** `inc/desktop-mode-dock.php` no longer injects a manual
+`sn-dashboard` item through `openstation_dock_items`; the app registers its own
+entry under the same id with `->placement( 'dock' )`, and the submenu and badge
+that item carried become the window's `menu` effect and `badge` effect, fed by
+the same `snt_desktop_dock_badge()`. `snt_desktop_admin_url()` is unchanged and
+the classic page stays registered, so every door elsewhere in the plugin that
+opens an admin URL still opens what it opened.
+
+- **One request does what two requests did.** A classic save redirects, so the next paint is a new request with empty request-static memos; a window's replay and repaint share one request, and a memo filled before the write answers after it (`sn_setting()`'s merged settings, measured on the Identity save). After a successful write the host calls the estate's resetters and fires `snt_os_host_wrote`; a new request-static memo that a leaf writes and reads in one paint needs a resetter on that action.
+- **A dispatch is a REST request and carries none of `wp-admin/includes/`.** The classic page runs inside wp-admin, where `wp-admin/includes/admin.php` has loaded `submit_button()`, `get_plugins()`, the screen API and the rest; `desktop-mode/v1/apps/<id>/dispatch` loads none of it. Measured 2026-09-06: Integrity → MCP Clients answered 500 "Call to undefined function submit_button()" in the window while capturing cleanly under WP-CLI. `snt_os_host_capture()` requires the library once when `submit_button()` is absent -- admin-ajax.php's own precedent. `get_current_screen()` still answers null on a dispatch: a REST request has no screen.

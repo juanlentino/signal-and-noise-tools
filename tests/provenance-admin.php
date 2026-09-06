@@ -136,6 +136,24 @@ if ( ! function_exists( 'plugins_url' ) ) {
 	function plugins_url( $path = '', $plugin = '' ) {
 		return 'https://example.com/wp-content/plugins/snt/' . ltrim( (string) $path, '/' ); }
 }
+if ( ! function_exists( 'wp_style_is' ) ) {
+	function wp_style_is( $handle, $status = 'enqueued' ) {
+		return isset( $GLOBALS['__pv_reg'][ 'style:' . $handle ] ); }
+}
+if ( ! function_exists( 'wp_script_is' ) ) {
+	function wp_script_is( $handle, $status = 'enqueued' ) {
+		return isset( $GLOBALS['__pv_reg'][ 'script:' . $handle ] ); }
+}
+if ( ! function_exists( 'wp_register_style' ) ) {
+	function wp_register_style( $handle, $src, $deps = array(), $ver = false, $media = 'all' ) {
+		$GLOBALS['__pv_reg'][ 'style:' . $handle ] = $src;
+		return true; }
+}
+if ( ! function_exists( 'wp_register_script' ) ) {
+	function wp_register_script( $handle, $src, $deps = array(), $ver = false, $args = array() ) {
+		$GLOBALS['__pv_reg'][ 'script:' . $handle ] = $src;
+		return true; }
+}
 if ( ! function_exists( 'wp_enqueue_style' ) ) {
 	function wp_enqueue_style( $handle, $src = '', $deps = array(), $ver = false, $media = 'all' ) {
 		$GLOBALS['__pv_enq'][] = $handle;
@@ -402,6 +420,9 @@ echo "\nTask 5: admin assets gate\n";
 $GLOBALS['__pv_enq'] = array();
 sn_prov_admin_enqueue( 'toplevel_page_sn-theme-options' );  // a plugin page hook
 ad_true( in_array( 'sn-provenance-admin', $GLOBALS['__pv_enq'], true ), 'assets enqueued on the plugin screen' );
+ad_true( isset( $GLOBALS['__pv_reg']['style:sn-provenance-admin'], $GLOBALS['__pv_reg']['script:sn-provenance-admin'] ) && false !== strpos( (string) $GLOBALS['__pv_reg']['script:sn-provenance-admin'], 'assets/provenance-admin.js' ), 'registered by sn_prov_admin_register_assets() first -- the one registrar the S&N Dashboard host window calls too' );
+sn_prov_admin_register_assets();
+ad_eq( 2, count( $GLOBALS['__pv_reg'] ), 'the registrar is idempotent: a second call registers nothing twice' );
 $GLOBALS['__pv_enq'] = array();
 sn_prov_admin_enqueue( 'edit.php' );
 ad_eq( 0, count( $GLOBALS['__pv_enq'] ), 'assets NOT enqueued on foreign screens' );

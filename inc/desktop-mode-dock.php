@@ -2,10 +2,12 @@
 /**
  * Signal & Noise Tools — the dock entry, its badge, and the desktop icons.
  *
- * The single "Signal & Noise" dock item (submenu derived from
- * sn_admin_top_tabs(), never a hardcoded count), suppression of the shell's
- * automatic dock import, the update-count badge, the two desktop icons, and
- * snt_desktop_admin_url() — the slug resolver every SN link goes through.
+ * Suppression of the shell's automatic dock import, the update-count badge,
+ * the two desktop icons, and snt_desktop_admin_url() — the slug resolver every
+ * SN link goes through.
+ *
+ * The dock ITEM left in #1074: apps/sn-dashboard/sn-dashboard.os.php registers
+ * the tile under the same id now. See the note above the placement filter.
  *
  * snt_desktop_admin_url() is called from the assets localize too; both files
  * load together from the loader, so the cross-module call is fine.
@@ -23,11 +25,23 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
- * Dock item — single entry "Signal & Noise" with submenu of all 8 tabs.
+ * THE DOCK ITEM IS GONE — the app registers it (#1074).
  *
- * Filter shape per desktop-mode docs/getting-started.md:
- *   slug, title, icon (dashicons-*), url, badge?, submenu? (array of items
- *   with the same shape, recursively)
+ * From v1.15.0 to v13.103.0 this file put "S&N Dashboard" on the dock through
+ * `desktop_mode_dock_items`: a URL tile pointing at the classic admin page,
+ * with an 8-tab submenu derived from `sn_admin_top_tabs()` and the update
+ * badge from `snt_desktop_dock_badge()`. All three now belong to
+ * apps/sn-dashboard/sn-dashboard.os.php, which declares the SAME id, the same
+ * shield and the same title, so the tile is unchanged to look at — it just
+ * opens the window instead of an admin URL. Two registrations under one id
+ * would be one id naming two things, which is the trap v13.100.0 fixed.
+ *
+ * What deliberately STAYS here: the `dock_placement` filter (the shell would
+ * otherwise auto-import our `add_menu_page()` entry as a SECOND tile),
+ * `snt_desktop_dock_badge()` — the app reads it, unchanged — the two desktop
+ * icons, and `snt_desktop_admin_url()`, the resolver every SN link goes
+ * through. The classic page keeps every door it has today; a removal would
+ * not be a port.
  */
 /**
  * Suppress desktop-mode's automatic dock import of our menu page.
@@ -41,13 +55,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  *      because desktop-mode falls back when the menu doesn't specify a
  *      dashicon explicitly — looks like a megaphone glyph on small
  *      screens, which is what surfaced the bug).
- *   2. Our explicit "Signal & Noise" with shield icon registered in the
- *      desktop_mode_dock_items filter below (richer: 8-tab submenu +
- *      update-available badge).
+ *   2. Our explicit "Signal & Noise" with shield icon — registered in the
+ *      desktop_mode_dock_items filter until #1074, and by the App Framework
+ *      app since (richer: 8-tab menu + update-available badge).
  *
  * Returning 'hidden' for the SN menu slug suppresses the auto-import.
- * Our explicit entry remains. Single dock item, shield icon, full
- * submenu.
+ * The app's own tile remains. Single dock item, shield icon, full
+ * menu.
  *
  * Verified against WordPress/desktop-mode includes/core/payload.php:
  *   apply_filters( 'desktop_mode_dock_placement', 'dock', $menu_slug );
@@ -64,75 +78,6 @@ snt_os_compat_add_filter( 'desktop_mode_dock_placement', 'openstation_dock_place
 	}
 	return $placement;
 }, 10, 2 );
-
-// Post-#475 OpenStation renames this to `openstation_dock_items`
-// (includes/core/payload.php:212) — dual-registered, idempotent (rebuilds
-// $items from sn_admin_top_tabs() every call), no double-fire guard needed.
-snt_os_compat_add_filter( 'desktop_mode_dock_items', 'openstation_dock_items', function( $items ) {
-	if ( ! is_array( $items ) ) {
-		$items = array();
-	}
-
-	/**
-	 * v2.1.0 dock fix:
-	 *   - Key is 'id' not 'slug' (the desktop-mode docs/hooks-reference.md
-	 *     says 'slug' but the actual code at includes/core/payload.php:163
-	 *     uses 'id'. Verified against test fixture at tests/phpunit/tests/
-	 *     desktopModeBuildDockItems.php:394 which uses 'id' => 'replaced').
-	 *     Wrong key meant item.id was undefined in JS, crashing dock.ts:1711
-	 *     with TypeError on every click of the SN tile — silent breakage
-	 *     since v1.15.0, only surfaced post-Phase-13 when our auto-import
-	 *     suppression removed the parallel working entry.
-	 *   - Submenu entries only honor 'title' + 'url' per src/dock.ts:89
-	 *     SubmenuItem type — 'icon' and 'slug' on submenu items are
-	 *     silently dropped. Removed the noise.
-	 *   - Icon is dashicons-shield-alt (v13.100.0): the shield the desktop icon
-	 *     `sn-icon-dashboard` already wears (`snt_os_register_icon()` below).
-	 *     The megaphone now belongs to the App Framework app alone.
-	 *
-	 * Click behavior (verified via src/dock.ts:911-913 + 1703-1765):
-	 *   - Single click on parent tile → window opens to item.url
-	 *   - Submenu rides into the opened window as an in-window tab strip
-	 *     (the "submenu chevron" on the dock tile is documented future work)
-	 */
-	// v3.8.4: derive submenu from sn_admin_top_tabs() instead of hardcoding
-	// the legacy 8-entry list. Was a single-source-of-truth violation: when
-	// v3.8.1 reduced the wp-admin sidebar submenu to 6 entries to match the
-	// new in-page tab IA, THIS filter was missed — so desktop-mode portal
-	// continued rendering the OLD 8 entries as a horizontal top-nav row.
-	// That re-created the "duplicate nav appearance" that v3.8.1 was meant
-	// to fix (see memory feedback_desktop_mode_horizontal_submenu_warning).
-	$dock_submenu = array();
-	foreach ( sn_admin_top_tabs() as $top_tab ) {
-		// Direct-to-canonical URLs (no redirect round-trip): page=sn-theme-options&tab=<top>.
-		// Dashboard tab omits the &tab= param since it's the default.
-		$url = 'dashboard' === $top_tab['tab']
-			? admin_url( 'admin.php?page=sn-theme-options' )
-			: admin_url( 'admin.php?page=sn-theme-options&tab=' . rawurlencode( $top_tab['tab'] ) );
-		$dock_submenu[] = array(
-			'title' => $top_tab['label'],
-			'url'   => $url,
-		);
-	}
-
-	// v13.100.0: its OWN id. From v12.4.0 to v13.99.2 this entry was `signal-noise`,
-	// the id the App Framework app took in v13.98.0 (apps/signal-noise/
-	// signal-noise.os.php, ->placement('dock')), so one id named two things on
-	// the same dock. Re-keyed so each id names one thing; whether the shell's
-	// registry dropped one of them was never measured. The entry is the admin
-	// page -- S&N Dashboard -- and now says so, with the shield the desktop icon
-	// `sn-icon-dashboard` already wears. The app keeps `signal-noise` and the megaphone.
-	$items[] = array(
-		'id'      => 'sn-dashboard',
-		'title'   => 'S&N Dashboard',
-		'icon'    => 'dashicons-shield-alt',
-		'url'     => admin_url( 'admin.php?page=sn-theme-options' ),
-		'badge'   => snt_desktop_dock_badge(),
-		'submenu' => $dock_submenu,
-	);
-
-	return $items;
-} );
 
 /**
  * Badge count for the dock — total "update available" count for theme +

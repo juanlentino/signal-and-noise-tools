@@ -1,12 +1,30 @@
+/**
+ * Signal & Noise Tools — the Provenance leaf's live commits stepper.
+ *
+ * The commits table's <tbody> is the live region AND the config carrier: it
+ * holds the poll endpoint/nonce/ledger base (the section renders no outer
+ * wrapper — the dispatcher's .sn-section is the only ancestor).
+ *
+ * IN AN OPENSTATION WINDOW this file ran once, against the window's first
+ * paint — a spinner — found no .sn-prov-live and never polled again. It now
+ * arms through init( root ): once at load with `document` (the classic page,
+ * unchanged) and again on every `snt:paint` the host script dispatches.
+ * Exactly one interval is started per live region, held on the element, and it
+ * stops itself when the window that owned it is closed.
+ */
 (function () {
-  // The commits table's <tbody> is the live region AND the config carrier: it
-  // holds the poll endpoint/nonce/ledger base (the section renders no outer
-  // wrapper — the dispatcher's .sn-section is the only ancestor).
-  var live = document.querySelector('.sn-prov-live');
-  if (!live) return;
-  var endpoint = live.getAttribute('data-endpoint');
-  var nonce = live.getAttribute('data-nonce');
-  var ledgerBase = live.getAttribute('data-ledger') || '';
+  // One interval per live region, and the poll that feeds it. Held OFF the
+  // DOM: a repaint removes every attribute the server does not paint (zt,
+  // offset 26198 of app-runtime.min.js) while REUSING the node, so an
+  // attribute marker would start a second interval on every paint.
+  var armed = new WeakSet();
+  var repoll = new WeakMap();
+
+  // The paint guard is an attribute for the opposite reason: the repaint that
+  // clears it is the same repaint that replaced our rows with the server's, so
+  // its absence means "the answer on screen is stale", and its presence stops
+  // the no-op pass our own render schedules from polling again.
+  var PAINTED = 'data-snt-prov-painted';
 
   function el(tag, cls, text) {
     var n = document.createElement(tag);
@@ -19,7 +37,8 @@
     while (node.firstChild) node.removeChild(node.firstChild);
   }
 
-  function ledgerUrl(uid) {
+  function ledgerUrl(live, uid) {
+    var ledgerBase = live.getAttribute('data-ledger') || '';
     if (!ledgerBase) return '';
     return ledgerBase + encodeURIComponent(String(uid));
   }
@@ -58,7 +77,7 @@
     return pill;
   }
 
-  function commitRow(p) {
+  function commitRow(live, p) {
     var tr = el('tr');
 
     var full = String(p.note_uid);
@@ -89,7 +108,7 @@
     // get a 404 link from the base. The server resolves it so the kind ->
     // directory map lives in exactly one place. Falls back to the base for any
     // payload that predates the field.
-    var href = p.ledger_url || ledgerUrl(full);
+    var href = p.ledger_url || ledgerUrl(live, full);
     if (href) {
       var a = el('a', null, 'Ledger');
       a.href = href;
@@ -114,7 +133,7 @@
     return tr;
   }
 
-  function render(d) {
+  function render(live, d) {
     // Genesis status lives in its own server-rendered fieldset — the Commits
     // table shows ONLY commit rows (or the empty state), no duplicated line.
     clear(live);
@@ -125,26 +144,69 @@
       return;
     }
     pending.forEach(function (p) {
-      live.appendChild(commitRow(p));
+      live.appendChild(commitRow(live, p));
     });
   }
 
-  function renderError(e) {
+  function renderError(live, e) {
     clear(live);
     var msg = 'Status check failed — reload the page to re-check.';
     if (e && e.message) msg += ' (' + e.message + ')';
     live.appendChild(messageRow(msg, 'sn-prov-error'));
   }
 
-  function poll() {
-    fetch(endpoint, { headers: { 'X-WP-Nonce': nonce } })
-      .then(function (r) {
-        if (!r.ok) { throw new Error('HTTP ' + r.status); }
-        return r.json();
-      })
-      .then(render)
-      .catch(renderError);
+  /**
+   * Give one live region its poll and its 30s interval, once. The endpoint and
+   * nonce are re-read from the element on every poll: a repaint can hand back
+   * a freshly nonced attribute on the same node.
+   */
+  function arm(live) {
+    function poll() {
+      fetch(live.getAttribute('data-endpoint'), { headers: { 'X-WP-Nonce': live.getAttribute('data-nonce') } })
+        .then(function (r) {
+          if (!r.ok) { throw new Error('HTTP ' + r.status); }
+          return r.json();
+        })
+        .then(function (d) { render(live, d); })
+        .catch(function (e) { renderError(live, e); });
+    }
+    var timer = setInterval(function () {
+      // A closed window leaves the tbody detached. Without this the interval
+      // outlives the window it was polling for, forever.
+      if (false === live.isConnected) {
+        clearInterval(timer);
+        return;
+      }
+      live.setAttribute(PAINTED, '1');
+      poll();
+    }, 30000);
+    return poll;
   }
-  poll();
-  setInterval(poll, 30000);
+
+  /**
+   * Arm the live region inside `root` and poll it if what is on screen is the
+   * server's markup rather than ours.
+   *
+   * @param {Element|Document} root Subtree to arm. Defaults to `document`.
+   */
+  function init(root) {
+    var scope = root || document;
+    var live = scope.querySelector('.sn-prov-live');
+    if (!live) return;
+    if (!armed.has(live)) {
+      armed.add(live);
+      repoll.set(live, arm(live));
+    }
+    if (live.hasAttribute(PAINTED)) return;
+    live.setAttribute(PAINTED, '1');
+    (repoll.get(live))();
+  }
+
+  init(document);
+
+  // assets/os-host.js dispatches this on `document` after every window paint,
+  // with the painted root in detail.root. The classic page never fires it.
+  document.addEventListener('snt:paint', function (e) {
+    init((e.detail && e.detail.root) || document);
+  });
 })();

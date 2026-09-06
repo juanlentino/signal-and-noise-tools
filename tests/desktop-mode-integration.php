@@ -1567,7 +1567,9 @@ echo "\n── v10.43.0: OpenStation dual registration — all 6 filter hooks �
 // registered under BOTH names to work on either release line.
 $os_filter_pairs = array(
 	'desktop_mode_dock_placement'             => 'openstation_dock_placement',
-	'desktop_mode_dock_items'                 => 'openstation_dock_items',
+	// `dock_items` LEFT this list in #1074: the S&N Dashboard tile is now
+	// registered by apps/sn-dashboard/sn-dashboard.os.php under the same id,
+	// so this plugin adds no dock item at all. Pinned as an absence below.
 	'desktop_mode_ai_tools'                   => 'openstation_ai_tools',
 	'desktop_mode_ai_system_prompt_appendix'  => 'openstation_ai_system_prompt_appendix',
 	'desktop_mode_plugins_window_icon_url'    => 'openstation_plugins_window_icon_url',
@@ -1602,9 +1604,16 @@ ok( is_callable( $dock_placement_cb ), 'openstation_dock_placement carries a cal
 ok( 'hidden' === call_user_func( $dock_placement_cb, 'dock', 'sn-theme-options' ),
 	'openstation_dock_placement hides the SN auto-imported menu item, same as the old name' );
 
-$dock_items_via_new = apply_filters( 'openstation_dock_items', array() );
-ok( is_array( $dock_items_via_new ) && 1 === count( $dock_items_via_new ) && 'sn-dashboard' === ( $dock_items_via_new[0]['id'] ?? '' ) && 'S&N Dashboard' === ( $dock_items_via_new[0]['title'] ?? '' ) && 'dashicons-shield-alt' === ( $dock_items_via_new[0]['icon'] ?? '' ),
-	'openstation_dock_items builds the single "sn-dashboard" dock entry -- its own id since v13.100.0, so it no longer shares "signal-noise" with the App Framework app' );
+// #1074: the dock ITEM moved to the App Framework. From v1.15.0 to v13.103.0
+// this plugin filtered a "sn-dashboard" URL tile onto the dock; the app now
+// registers the window under that same id, with the same title and shield, so
+// a filtered item would be a SECOND registration under one id -- the trap
+// v13.100.0 fixed by re-keying it. The tile itself is pinned in
+// tests/openstation-host-dashboard.php, where the app is driven.
+ok( array() === apply_filters( 'openstation_dock_items', array() ) && array() === apply_filters( 'desktop_mode_dock_items', array() ),
+	'neither dock_items name carries an item any more -- the S&N Dashboard tile is the app\'s, under the same id' );
+ok( function_exists( 'snt_desktop_dock_badge' ),
+	'   ...while snt_desktop_dock_badge() stays: the app reads the badge from the same function the item did' );
 
 $icon_url_cb = first_filter_cb( 'openstation_plugins_window_icon_url' );
 ok( is_callable( $icon_url_cb ), 'openstation_plugins_window_icon_url carries a callable' );

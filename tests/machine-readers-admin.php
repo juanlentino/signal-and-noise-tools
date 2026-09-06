@@ -43,6 +43,21 @@ require __DIR__ . '/../inc/machine-readers-taxonomy.php';
 require __DIR__ . '/../inc/machine-readers-render.php';
 require __DIR__ . '/../inc/machine-readers-render-taxonomy.php'; // v10.79.0: the tab renders purpose/vendor tables.
 require __DIR__ . '/../inc/machine-readers-compose.php'; // v12.22.0: snt_mr_render_tab() delegates the arrangement to the pure composer.
+// The stylesheet registrar the S&N Dashboard host window calls: the desktop
+// page carries none of the hook suffixes sn_admin_page_hooks() names, so the
+// enqueue below never fires there and the leaf painted unstyled until the
+// registration was split out of it.
+if ( ! defined( 'SNT_PATH' ) ) { define( 'SNT_PATH', dirname( __DIR__ ) . '/' ); }
+if ( ! defined( 'SNT_VERSION' ) ) { define( 'SNT_VERSION', '13.104.0' ); }
+$GLOBALS['__mr_registered'] = array();
+$GLOBALS['__mr_enqueued']   = array();
+function plugins_url( $path = '', $plugin = '' ) { return 'https://example.test/wp-content/plugins/signal-and-noise-tools/' . ltrim( (string) $path, '/' ); }
+function wp_register_style( $handle, $src, $deps = array(), $ver = false, $media = 'all' ) { $GLOBALS['__mr_registered'][ $handle ] = array( $src, $deps, $ver ); return true; }
+function wp_style_is( $handle, $status = 'enqueued' ) { return isset( $GLOBALS['__mr_registered'][ $handle ] ); }
+function wp_enqueue_style( $handle, $src = '', $deps = array(), $ver = false, $media = 'all' ) { $GLOBALS['__mr_enqueued'][] = $handle; return true; }
+function add_action( $hook, $cb, $prio = 10, $args = 1 ) { $GLOBALS['__mr_hooks'][ $hook ][] = $cb; return true; }
+function sn_admin_page_hooks() { return array( 'toplevel_page_sn-theme-options' ); }
+
 require __DIR__ . '/../inc/machine-readers-admin.php';
 
 echo "Group: registry callback (preview-flag gated, v9.67.0 Overview pattern)\n";
@@ -170,6 +185,24 @@ foreach ( array( 'sn-mr-rights-log', 'sn-mr-unknown-log', 'sn-mr-vendor-purpose'
 // Non-vacuity: the CSS file must actually parse as rules, not be truncated
 // mid-comment (the v10.83.0 comment-delimiter lesson).
 ok( substr_count( $sn_mr_css, '/*' ) === substr_count( $sn_mr_css, '*/' ), 'machine-readers.css comment delimiters balance (no orphaned block killing the rules below it)' );
+
+echo "\nGroup: the stylesheet registrar the host window calls\n";
+snt_mr_admin_register_style();
+ok( isset( $GLOBALS['__mr_registered']['sn-machine-readers'] ), 'snt_mr_admin_register_style() registers the handle by name -- the host window enqueues nothing it cannot register first' );
+ok( array( 'sn-admin' ) === ( $GLOBALS['__mr_registered']['sn-machine-readers'][1] ?? array() )
+	&& false !== strpos( (string) $GLOBALS['__mr_registered']['sn-machine-readers'][0], 'assets/machine-readers.css' ),
+	'   ...with the SAME source and the SAME dependency on admin.css the enqueue used: one path, one dep list, one place' );
+$mr_registrations = count( $GLOBALS['__mr_registered'] );
+snt_mr_admin_register_style();
+ok( $mr_registrations === count( $GLOBALS['__mr_registered'] ), '   ...and it is idempotent: a second call registers nothing twice' );
+$GLOBALS['__mr_registered'] = array();
+$GLOBALS['__mr_enqueued']   = array();
+snt_mr_admin_enqueue( 'toplevel_page_sn-theme-options' );
+ok( in_array( 'sn-machine-readers', $GLOBALS['__mr_enqueued'], true ) && isset( $GLOBALS['__mr_registered']['sn-machine-readers'] ),
+	'the classic page still ENQUEUES it, and does it THROUGH the registrar -- an inline wp_enqueue_style() with its own src would work here and leave the window with nothing to enqueue' );
+$GLOBALS['__mr_enqueued'] = array();
+snt_mr_admin_enqueue( 'edit.php' );
+ok( array() === $GLOBALS['__mr_enqueued'], '   ...and still not on a foreign screen' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

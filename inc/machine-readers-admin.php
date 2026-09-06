@@ -40,6 +40,28 @@ function snt_mr_preview_enabled() {
 }
 
 /**
+ * Register the tab's stylesheet, once. Shared by the classic page and the S&N
+ * Dashboard host window (inc/openstation-host.php), which sits outside the
+ * `admin_enqueue_scripts` gate below: the desktop page carries none of the
+ * hook suffixes sn_admin_page_hooks() names, so without a registrar the host
+ * can call, Measurement -> Machine Readers painted with every .sn-mr-* rule
+ * missing. Same precedent as sn_prov_admin_register_assets().
+ *
+ * @return void
+ */
+function snt_mr_admin_register_style() {
+	if ( wp_style_is( 'sn-machine-readers', 'registered' ) ) {
+		return;
+	}
+	wp_register_style(
+		'sn-machine-readers',
+		plugins_url( 'assets/machine-readers.css', SNT_PATH . 'signal-and-noise-tools.php' ),
+		array( 'sn-admin' ),
+		SNT_VERSION
+	);
+}
+
+/**
  * Enqueue the tab's stylesheet on SN admin pages (the provenance-admin.css
  * precedent: admin_enqueue_scripts gated by sn_admin_page_hooks()).
  *
@@ -49,7 +71,8 @@ function snt_mr_admin_enqueue( $hook_suffix ) {
 	if ( ! function_exists( 'sn_admin_page_hooks' ) || ! in_array( $hook_suffix, sn_admin_page_hooks(), true ) ) {
 		return;
 	}
-	wp_enqueue_style( 'sn-machine-readers', plugins_url( 'assets/machine-readers.css', SNT_PATH . 'signal-and-noise-tools.php' ), array( 'sn-admin' ), SNT_VERSION );
+	snt_mr_admin_register_style();
+	wp_enqueue_style( 'sn-machine-readers' );
 }
 if ( function_exists( 'add_action' ) ) {
 	add_action( 'admin_enqueue_scripts', 'snt_mr_admin_enqueue' );
