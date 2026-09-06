@@ -90,7 +90,74 @@ adds a bullet below. A release is a separate, deliberate act:
   Identity save had persisted `social_same_as[]` while the same response
   painted the field empty. (#1074)
 
+- **S&N Analytics opens as a native OpenStation window too.** `sn-analytics`
+  is the second App Framework app on the seam host one built
+  (`apps/sn-analytics/`, reusing `inc/openstation-host.php` and
+  `assets/os-host.js` rather than copying them), and what it paints IS the
+  classic Analytics page: the `<h1>Analytics</h1>` and the flash notice
+  `inc/analytics-dashboard-page.php` prints, then the whole body from the
+  SAME `snt_analytics_render_dashboard()` dispatcher under an output
+  buffer, with `$_GET` set from the window's state for the length of the
+  capture and restored after it. All thirteen views of
+  `SN_ANALYTICS_VIEWS` paint -- Overview, Content, Campaigns, Posts,
+  Technology, Geography, Engagement, Sessions, Quality, Search, Events,
+  Traffic & edge and Login defense -- each from its own render callable,
+  with the shared header region, the insights band, the Movers and Uptime
+  rail, the drill-down panel and Login defense's own chrome exactly as the
+  page renders them. Nothing is redesigned, dropped or simplified.
+- **The URL was the state, and the window keeps the same state with the
+  same validators.** `view`, `range`, `from`, `to`, `class`, `compare`,
+  `drill`, `event_prop` and `lg_range` live in window state and are applied
+  through the page's OWN resolvers -- `snt_analytics_resolve_view()`,
+  `snt_analytics_resolve_window()`, `snt_analytics_resolve_class()`,
+  `snt_analytics_resolve_compare()` -- so an unknown view falls back to
+  Overview where the page falls back, a malformed custom window falls back
+  to the range the page falls back to, and a bookmarkable classic URL and a
+  window state are the same fact. A view switch resets exactly the keys
+  `snt_analytics_view_reset_params()` names and never `compare`, which is
+  the one param that deliberately rides along; the list is read from that
+  function, never retyped. Every navigation on this page is a plain GET on
+  the classic page and none of them can navigate the top document inside a
+  window, so each becomes a `go` through the rewrite pass: the thirteen-tab
+  strip, the range dropdown's custom-date `<form method="get">`, the
+  human/suspect/bot class pills, the off/prev/yoy compare pills, the
+  cross-tab drill-down links and the Overview's doorway links into
+  Sessions, Content, Campaigns, Geography, Technology and Posts. Links out
+  to the settings page -- the unconfigured gate's CTA into Measurement ->
+  Analytics -- become `door` and open the classic Dashboard page as an
+  admin window: the mirror of host one, where `sn-analytics` is the door.
+  The classic page at `admin.php?page=sn-analytics` is untouched and still
+  reachable.
+- **One deviation, recorded rather than hidden: the export form stays a
+  real form.** The toolbar's CSV and JSON buttons post
+  `sn_action=analytics_export` to `admin.php`, and its handler
+  (`sn_handle_analytics_export`) renders no HTML at all -- it sets
+  `Content-Disposition`, echoes a raw CSV or JSON body and `exit()`s. A
+  download is a navigation, and a view whose contract is "echo HTML that
+  gets captured" cannot be one. So `snt_os_host_rewrite()` gains a
+  keep-list: a form the host marks stays a real `<form method="post">`,
+  keeps its `action` pointed at the classic page URL and gains
+  `target="_blank"`, so the export downloads in a new tab -- the least a
+  window can do, and the same file by the same handler with the same
+  `sn_theme_options_nonce`. A second limitation is restated rather than
+  discovered: the analytics panels' collapse state persists to
+  `localStorage` and is restored by a pass that runs once over `document`
+  at parse time, outside `window.snAdmin.init( root )`, so inside a window
+  the panels open and close but do not come back the way they were left.
+  (#1075)
+
 ### Changed
+- The Analytics menu is no longer auto-imported onto the dock as a URL
+  tile. `add_menu_page( 'S&N Analytics', …, 'sn-analytics',
+  'dashicons-chart-area' )` was picked up by the shell's automatic dock
+  import -- the `dock_placement` filter in `inc/desktop-mode-dock.php` had
+  only ever hidden `sn-theme-options` -- so with the app registering its own
+  entry under the same id there would have been two tiles naming one thing,
+  the trap v13.100.0 fixed. The filter now hides `sn-analytics` as well and
+  the app's own tile carries the same title and the same chart icon.
+  `snt_desktop_admin_url()` keeps its `sn-analytics` special case
+  unchanged, so every door that opens the classic Analytics URL today still
+  opens it. (#1075)
 - The manual `sn-dashboard` dock item in `inc/desktop-mode-dock.php` is
   retired in favour of the app's own entry: same id, same title, same shield
   icon, so one id still names one thing. Its 8-tab submenu is carried over as
