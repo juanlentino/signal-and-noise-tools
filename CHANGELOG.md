@@ -59,3 +59,9 @@ adds a bullet below. A release is a separate, deliberate act:
   may edit, one note at a time. Scope, not sensitivity, is what changed; the
   tier is recorded in `docs/ops/ability-permission-policy.md`. (#1058)
 
+### Fixed
+- `tests/public-stats.php` dated its render fixture in absolute August days,
+  which sat inside the shortcode's live 30-day window until 2026-09-06 UTC and
+  then left it: the chart assertions went red on this cut, which changed
+  nothing they measure. The fixture now dates its rows from the live window.
+  (#1064)
