@@ -58,9 +58,15 @@ $GLOBALS['__wps_active'] = false;
 define( 'SN_LOGIN_SLUG', 'pinned' );
 $classic = snt_leaf_classic_html( 'sn_admin_render_login_section' );
 $kit     = snt_leaf_paint( 'security', 'login' );
-ok( ! in_array( 'login_slug', snt_leaf_names( $kit ), true ) && ! in_array( 'login_slug', snt_leaf_names( $classic ), true ), 'locked: neither form carries an editable login_slug' );
-ok( array() === snt_leaf_actions( $kit ), 'locked: no save_login action is offered (the classic button is disabled)' );
+ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'locked: field names match the classic form: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
+ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && array( 'save_login' ) === snt_leaf_actions( $kit ), 'locked: save_login still offered, as on the classic leaf' );
 ok( false !== strpos( $kit, 'disabled' ) && false !== strpos( $kit, 'Slug locked' ), 'locked: the field is disabled and the lock is explained' );
+ok( false !== strpos( $kit, 'Option 2' ) && false !== strpos( $kit, 'Restores /wp-login.php' ) && false !== strpos( $kit, 'SN_LOGIN_SLUG' ), 'both emergency-unlock options survive, labelled' );
+
+// ── Bypassed state (SN_LOGIN_BYPASS constant set — one-way, so it must run last).
+define( 'SN_LOGIN_BYPASS', true );
+$kit = snt_leaf_paint( 'security', 'login' );
+ok( false !== strpos( $kit, 'Module bypassed' ) && false !== strpos( $kit, '>Bypassed<' ) && false !== strpos( $kit, 'tone="warning"' ), 'the bypassed state paints a warning notice with the Bypassed badge' );
 
 unlink( WP_PLUGIN_DIR . '/wps-hide-login/wps-hide-login.php' );
 rmdir( WP_PLUGIN_DIR . '/wps-hide-login' );

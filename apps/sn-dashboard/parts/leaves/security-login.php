@@ -80,17 +80,23 @@ function paint_security_login( array $ctx ) {
 	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Custom login URL module: replaces /wp-login.php with a configurable slug. Designed to mask the WordPress login surface from automated bots without changing real user flows (password-reset emails, logout redirects, etc. are rewritten automatically).', 'signal-and-noise-tools' ) ) . '</p>';
 	$out .= login_status_html( $s );
 
-	$fields = $s['locked']
-		? \snt_kit_field( 'text', 'login_slug_locked', __( 'Slug', 'signal-and-noise-tools' ), $s['slug'], array( 'disabled' => true, 'hint' => __( 'Locked. The SN_LOGIN_SLUG constant in wp-config.php is overriding this field. Remove the constant to edit here.', 'signal-and-noise-tools' ) ) )
+	$slug_row = $s['locked']
+		? '<div class="snt-field-static">'
+			. '<span class="snt-field-static__k">' . \snt_kit_esc( __( 'Slug', 'signal-and-noise-tools' ) ) . '</span>'
+			. \snt_kit_tag( 'os-text-field', array( 'type' => 'text', 'value' => $s['slug'], 'disabled' => true ) )
+			. '<span class="snt-field-static__hint">' . \snt_kit_esc( __( 'Locked. The SN_LOGIN_SLUG constant in wp-config.php is overriding this field. Remove the constant to edit here.', 'signal-and-noise-tools' ) ) . '</span>'
+			. '</div>'
 		: \snt_kit_field( 'text', 'login_slug', __( 'Slug', 'signal-and-noise-tools' ), $s['slug'], array( 'placeholder' => 'sn-login', 'hint' => __( 'Letters, numbers, dashes only. Avoid common guesses (admin, login, panel, etc.).', 'signal-and-noise-tools' ) ) );
-	$fields .= '<div class="snt-field-static">'
+	$url_row = '<div class="snt-field-static">'
 		. '<span class="snt-field-static__k">' . \snt_kit_esc( __( 'Current login URL', 'signal-and-noise-tools' ) ) . '</span>'
 		. \snt_kit_link( $s['login_url'], $s['login_url'] )
 		. '<span class="snt-field-static__hint">' . \snt_kit_esc( __( 'Bookmark this URL. The default /wp-login.php 404s for unauthenticated visitors.', 'signal-and-noise-tools' ) ) . '</span>'
 		. '</div>';
-	$form = $s['locked']
-		? $fields . '<p class="snt-hint">' . \snt_kit_esc( __( 'Slug locked by SN_LOGIN_SLUG constant.', 'signal-and-noise-tools' ) ) . '</p>'
-		: \snt_kit_form( 'save_login', $fields, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
+	$inner = $slug_row . $url_row . ( $s['locked'] ? '<p class="snt-hint">' . \snt_kit_esc( __( 'Slug locked by SN_LOGIN_SLUG constant.', 'signal-and-noise-tools' ) ) . '</p>' : '' );
+	// os-form has no `disabled` prop (kit-help: submit-label/reset-label/error/busy/columns/min-column/show-reset/align),
+	// so in the locked state the Save button stays live and the handler is the guard — as it already is on the
+	// classic page, where a crafted POST is likewise unblocked (leaves.json note).
+	$form = \snt_kit_form( 'save_login', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
 	$out .= \snt_kit_section(
 		__( 'Custom login slug', 'signal-and-noise-tools' ),
 		$form,
@@ -100,7 +106,7 @@ function paint_security_login( array $ctx ) {
 	$out .= \snt_kit_section(
 		__( 'Emergency unlock', 'signal-and-noise-tools' ),
 		'<p class="snt-prose">' . \snt_kit_esc( __( "If you ever lock yourself out (forgot the slug, can't reach the login form), add either of these constants to wp-config.php via SSH or your host's file manager:", 'signal-and-noise-tools' ) ) . '</p>'
-		. \snt_kit_code( "// Option 1: pin the slug. Reachable at /<slug-here>.\ndefine( 'SN_LOGIN_SLUG', 'your-fallback-slug' );\ndefine( 'SN_LOGIN_BYPASS', true );" )
+		. \snt_kit_code( "// Option 1: pin the slug. Reachable at /<slug-here>.\ndefine( 'SN_LOGIN_SLUG', 'your-fallback-slug' );\n\n// Option 2 — disable the module entirely. Restores /wp-login.php.\ndefine( 'SN_LOGIN_BYPASS', true );" )
 		. '<p class="snt-prose">' . \snt_kit_esc( __( "The constants take priority over the setting and persist across plugin updates. Remove them once you've regained access.", 'signal-and-noise-tools' ) ) . '</p>'
 	);
 	return $out;
