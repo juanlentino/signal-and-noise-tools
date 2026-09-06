@@ -3,7 +3,7 @@
  * Signal & Noise Tools — WordPress/desktop-mode (OpenStation) integration.
  *
  * THIS FILE IS THE LOADER. Since v10.87.2 the integration lives in modules
- * beside it (eight as of v12.4.0); this file requires them in the order the
+ * beside it (nine as of v13.105.1); this file requires them in the order the
  * hooks demand and carries the architectural notes that span them. Nothing else belongs
  * here — a new surface gets a new module, not another 200 lines in this file.
  *
@@ -130,3 +130,7 @@ require_once __DIR__ . '/desktop-mode-ai.php';
 // purpose: it shares no registration slot with the modules above, and
 // appending keeps the shell's payload order for them byte-identical.
 require_once __DIR__ . '/desktop-mode-explorer.php';
+// v13.105.1: the one-time carry of a user's shell placement from the two
+// auto-imported menu ids to the app ids (#1080). Registers only an admin_init
+// callback; last because it shares no registration slot with anything above.
+require_once __DIR__ . '/desktop-mode-nav-ids.php';

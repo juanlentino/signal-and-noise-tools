@@ -190,6 +190,8 @@ exist and falling back to the pre-rename name otherwise.
 | `desktop_mode_is_enabled()` | `openstation_is_enabled()` | `includes/helpers.php` |
 | `desktop_mode_ai_ability_tool_name()` | `openstation_ai_ability_tool_name()` | `includes/ai-copilot/abilities.php` |
 | *(none — postdates the rename)* | `openstation_register_station_home_card()` | `includes/station-home/cards.php` |
+| *(not consumed pre-rename)* | `openstation_get_os_settings()` | `includes/os-settings.php` |
+| *(not consumed pre-rename)* | `openstation_save_os_settings()` | `includes/os-settings.php` |
 
 All five renamed functions still accept exactly the argument shapes we pass at
 v1.1.0 (re-checked against each function's `$defaults` array, not just its
@@ -201,6 +203,18 @@ shipped in upstream v1.1.2 (PR #625), *after* the rename, so
 twin. `snt_os_register_station_home_card()` therefore checks ONE name where
 every other wrapper in the compat layer checks two — a deliberate
 asymmetry, not a missed case.
+
+**Rows seven and eight (v13.105.1) are called directly, not wrapped.**
+`inc/desktop-mode-nav-ids.php` carries a user's placement preference from the
+auto-imported menu ids (`toplevel_page_sn-theme-options`,
+`toplevel_page_sn-analytics`) to the app ids (`sn-dashboard`, `sn-analytics`)
+once per site, on `admin_init` at priority 20 behind the option
+`snt_os_nav_id_migration`. It reads through the getter (a fully shaped,
+sanitized array) and writes through the saver (sanitize-and-REPLACE, the
+same path a save from OS Settings takes), and does nothing while either
+function is absent. Both had `desktop_mode_*` twins before the rename, but
+the app entries the carry targets only exist on 1.1.6+, so there is nothing
+to fall back to; checking one name is correct here.
 
 (A seventh single-name wrapper, `snt_os_register_desktop_theme()`, existed
 v13.7.0–v13.7.5: the "Signal & Noise" desktop-theme arc, dropped whole by

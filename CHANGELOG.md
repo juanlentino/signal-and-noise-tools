@@ -36,6 +36,19 @@ adds a bullet below. A release is a separate, deliberate act:
   page in a chromeless frame: the icon keeps its id (its position and the
   attention badge survive) and targets `window => sn-dashboard`, the shell's
   own icon target for a native window. One surface per id. (#1080)
+- A user's placement preference for the two hosts survives the update. The
+  shell keys `navPlacement`, `navOrder`, `mobileTabs` and
+  `dockPromotedPositions` by nav id, and the auto-imported menu tiles the
+  hosts replaced were keyed by the menu's hook name
+  (`toplevel_page_sn-analytics`), not the app's (`sn-analytics`); a
+  preference set on the old id named nothing the shell paints, so Analytics,
+  moved to the desktop before the update, sat back in the dock after it. A
+  one-time sweep on `admin_init` (`inc/desktop-mode-nav-ids.php`, behind
+  the option `snt_os_nav_id_migration`) copies each preference onto the app
+  id for every user who has the shell's meta -- placement, order slot, phone
+  tab slot and the dragged desktop position -- never overwriting a value the
+  user has since set on the app id, and keeps the old key so the menu tile
+  is where it was if the apps ever go. (#1080)
 
 ## [13.105.0] - 2026-09-06 — the S&N Analytics host
 
