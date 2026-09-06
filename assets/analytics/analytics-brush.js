@@ -14,6 +14,11 @@
  * WeakSet the attribute sync cannot reach), and it REMOVES the selection
  * overlay, which is a child the server never paints — so the overlay is
  * re-attached whenever it has gone missing.
+ *
+ * And a THIRD thing (#1075): inside a window the zoom cannot navigate.
+ * `location.assign` would replace the whole desktop, not the report, so the
+ * brush dispatches the host's `go` with the same three params it used to put
+ * in the URL. See zoom() below.
  */
 (function () {
 	'use strict';
@@ -42,6 +47,62 @@
 		return !!days && days >= 2 && /^\d{4}-\d{2}-\d{2}$/.test(from);
 	}
 
+	/**
+	 * The app-window root this chart sits in, or null on the classic page.
+	 *
+	 * The framework's window template is
+	 * `<div class="os-app" data-os-app="<id>" …>` (desktop-mode
+	 * includes/framework/wordpress.php), and both hosts declare a `go` action.
+	 *
+	 * @param {Element} el Any element inside the chart.
+	 * @return {Element|null}
+	 */
+	function hostRoot(el) {
+		return typeof el.closest === 'function' ? el.closest('.os-app[data-os-app]') : null;
+	}
+
+	/**
+	 * Zoom to [from, to].
+	 *
+	 * ON THE CLASSIC PAGE this navigates, which is what it has always done: the
+	 * range lives in the URL and the server re-reads it. IN A WINDOW there is
+	 * no URL to change and `location.assign` would replace the WHOLE DESKTOP
+	 * with a wp-admin page — the brush is the one control on this screen that
+	 * moves the window by script instead of by a link the server rewrote. So it
+	 * dispatches the same `go` the range pills dispatch, through a hidden
+	 * carrier the runtime's delegated click listener reads: the runtime binds
+	 * one listener on the app root and walks up from the event target to find
+	 * `os-action` (app-runtime.min.js, `Bt`), so a synthetic click on a node
+	 * inside the root IS a dispatch. The carrier is removed on the next tick,
+	 * after the runtime has read its args.
+	 *
+	 * @param {Element} wrap The chart wrap.
+	 * @param {string}  from Y-m-d.
+	 * @param {string}  to   Y-m-d.
+	 */
+	function zoom(wrap, from, to) {
+		var root = hostRoot(wrap);
+		if (root) {
+			var carrier = document.createElement('a');
+			carrier.setAttribute('os-action', 'go');
+			carrier.setAttribute('os-arg-sn_range', 'custom');
+			carrier.setAttribute('os-arg-sn_from', from);
+			carrier.setAttribute('os-arg-sn_to', to);
+			carrier.hidden = true;
+			root.appendChild(carrier);
+			carrier.click();
+			window.setTimeout(function () {
+				if (carrier.parentNode) { carrier.parentNode.removeChild(carrier); }
+			}, 0);
+			return;
+		}
+		var url = new URL(window.location.href);
+		url.searchParams.set('sn_range', 'custom');
+		url.searchParams.set('sn_from', from);
+		url.searchParams.set('sn_to', to);
+		window.location.assign(url.toString());
+	}
+
 	function bind(wrap, sel) {
 		var start = null;
 		wrap.addEventListener('pointerdown', function (e) {
@@ -65,11 +126,7 @@
 			sel.style.display = 'none';
 			sel.style.width = '0';
 			if (hi - lo < 0.02) { return; } // a click, not a brush
-			var url = new URL(window.location.href);
-			url.searchParams.set('sn_range', 'custom');
-			url.searchParams.set('sn_from', dayAt(wrap, lo));
-			url.searchParams.set('sn_to', dayAt(wrap, hi));
-			window.location.assign(url.toString());
+			zoom(wrap, dayAt(wrap, lo), dayAt(wrap, hi));
 		});
 	}
 

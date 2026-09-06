@@ -318,6 +318,78 @@ function snt_os_host_own_pages() {
 }
 
 /**
+ * Mark the forms a host must NOT turn into a dispatch, with where they post.
+ *
+ * THE ONE SHAPE A WINDOW CANNOT REPLAY IS A DOWNLOAD. Analytics' export form
+ * posts `sn_action=analytics_export`, and `sn_handle_analytics_export()` sends
+ * `Content-Disposition`, echoes a raw CSV/JSON body and `exit`s — it never
+ * returns a flash code and never renders. Replayed inside a dispatch it would
+ * write a spreadsheet into the middle of a JSON response and kill the request.
+ * So the host names those actions and this marks their forms; the rewrite pass
+ * then leaves each a REAL form with an explicit action and `target="_blank"`.
+ * A download must be a navigation; a new tab is the least a window can do.
+ *
+ * TWO PASSES, because the `sn_action` that identifies a form is a hidden input
+ * INSIDE it — the marker cannot be decided at the moment the opening tag is
+ * read. The first pass counts forms and records which ordinals carry one of
+ * the named actions; the second sets the attribute on those ordinals. Closing
+ * tags are visited, so an input that sits between two forms belongs to
+ * neither.
+ *
+ * @param string   $html    Captured leaf HTML.
+ * @param string[] $actions `sn_action` values whose forms stay real forms.
+ * @param string   $url     Where such a form posts (an absolute admin URL).
+ * @return string
+ */
+function snt_os_host_keep_forms( $html, array $actions, $url ) {
+	$html = (string) $html;
+	$url  = (string) $url;
+	if ( '' === $html || '' === $url || array() === $actions || ! class_exists( 'WP_HTML_Tag_Processor' ) ) {
+		return $html;
+	}
+
+	$keep   = array();
+	$index  = -1;
+	$inside = false;
+	$scan   = new WP_HTML_Tag_Processor( $html );
+	while ( $scan->next_tag( array( 'tag_closers' => 'visit' ) ) ) {
+		$tag = (string) $scan->get_tag();
+		if ( 'FORM' === $tag ) {
+			if ( $scan->is_tag_closer() ) {
+				$inside = false;
+				continue;
+			}
+			++$index;
+			$inside = true;
+			continue;
+		}
+		if ( ! $inside || 'INPUT' !== $tag || $scan->is_tag_closer() ) {
+			continue;
+		}
+		if ( 'sn_action' !== (string) $scan->get_attribute( 'name' ) ) {
+			continue;
+		}
+		$value = $scan->get_attribute( 'value' );
+		if ( is_string( $value ) && in_array( $value, $actions, true ) ) {
+			$keep[ $index ] = true;
+		}
+	}
+	if ( array() === $keep ) {
+		return $html;
+	}
+
+	$index = -1;
+	$mark  = new WP_HTML_Tag_Processor( $html );
+	while ( $mark->next_tag( 'FORM' ) ) {
+		++$index;
+		if ( isset( $keep[ $index ] ) ) {
+			$mark->set_attribute( 'data-snt-keep-form', $url );
+		}
+	}
+	return (string) $mark->get_updated_html();
+}
+
+/**
  * A `<form>`: POST saves through `post`, GET forms navigate through `go`.
  *
  * `method` is KEPT on a POST form (the classic markup's own declaration, and
@@ -329,11 +401,27 @@ function snt_os_host_own_pages() {
  * rides back to the server as `os-arg-pipeline`, which the runtime hands the
  * action alongside the form's values.
  *
+ * A form the host marked `data-snt-keep-form` is the exception: it keeps its
+ * method, GAINS the marked URL as its action and opens in a new tab. See
+ * `snt_os_host_keep_forms()`.
+ *
  * @param WP_HTML_Tag_Processor $tags Positioned on the tag.
  * @return void
  */
 function snt_os_host_rewrite_form( $tags ) {
 	if ( null !== $tags->get_attribute( 'os-action' ) ) {
+		return;
+	}
+	$keep = $tags->get_attribute( 'data-snt-keep-form' );
+	if ( is_string( $keep ) && '' !== $keep ) {
+		// Set only when it differs, so a second pass over already-rewritten
+		// markup is byte-identical.
+		if ( $keep !== $tags->get_attribute( 'action' ) ) {
+			$tags->set_attribute( 'action', $keep );
+		}
+		if ( null === $tags->get_attribute( 'target' ) ) {
+			$tags->set_attribute( 'target', '_blank' );
+		}
 		return;
 	}
 	$method = strtolower( trim( (string) $tags->get_attribute( 'method' ) ) );

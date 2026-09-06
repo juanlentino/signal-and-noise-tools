@@ -72,8 +72,24 @@ if ( ! defined( 'ABSPATH' ) ) {
  *
  * Added in v2.0.1 (post-v1.15.0 desktop-mode bug fix).
  */
+/**
+ * v13.105.0 (#1075): `sn-analytics` joins it, for the same reason and with the
+ * same measurement. The Analytics screen is its OWN top-level menu
+ * (add_menu_page, v12.10.0), so the shell auto-imports it — as a URL tile whose
+ * id is `sanitize_key( $item[5] )`, i.e. `toplevel_page_sn-analytics`
+ * (OpenStation includes/core/payload.php:404). That is a DIFFERENT id from the
+ * app's, so nothing collides and nothing errors: the desktop simply grows a
+ * second S&N Analytics tile, one opening the app window and one opening the
+ * classic page in an admin window. One surface, one tile. The placement filter
+ * keys on the MENU SLUG (`$identity_slug`, payload.php:416), which is why the
+ * app id being identical to the slug is irrelevant here.
+ *
+ * The classic page keeps every door it has: `snt_desktop_admin_url()` still
+ * resolves `sn-analytics` to `snt_analytics_page_url()`, and hiding a dock tile
+ * hides nothing else.
+ */
 snt_os_compat_add_filter( 'desktop_mode_dock_placement', 'openstation_dock_placement', function( $placement, $menu_slug ) {
-	if ( 'sn-theme-options' === $menu_slug ) {
+	if ( in_array( $menu_slug, array( 'sn-theme-options', 'sn-analytics' ), true ) ) {
 		return 'hidden';
 	}
 	return $placement;
