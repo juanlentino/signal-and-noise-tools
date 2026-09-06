@@ -28,3 +28,33 @@ sprang once, a stale client, said out loud.
 ## Out of scope
 
 Swipe rows, pull-to-refresh, a notification centre, haptics, push; the tablet band; any new operation (phase two closed that list); a "long-pending" threshold for anchors (no such number exists in the code; the row says how long, and lets the reader judge).
+
+## Amendments (2026-09-06, from the build)
+
+### Task A
+
+SEVEN deviations, each deliberate:
+
+1. THE PLAN'S ONE FILE IS TWO. attention.php came out at 1145 lines — larger than any file in inc/ (the current maximum is insights.php at 1062) and past the house's 800 ceiling. Split along a real seam rather than by line count: apps/signal-noise/parts/attention-readers.php (597 lines) holds the nine readers and is THE ONLY HALF THAT CALLS THE ESTATE; apps/signal-noise/parts/attention.php (590) holds the vocabulary, ordering, cache, item shape and descriptor and calls no signal. Both are required from signal-noise.os.php (readers first). The seam is PINNED, not just stated: Group 8 of the new suite fails if the composition half calls any sn_/snt_ reader other than snt_os_app_section / snt_desktop_admin_url, and fails if a kind has no reader in the readers file. Verified it can fail (added a bogus snt_watches_ripe() call to the composition half → red, removed → green).
+
+2. `empty_note` is a CALLABLE on the descriptor, not a literal, and payload.php gained `section_text()` to resolve a literal-or-callable for the OPEN section only. A literal would have to be composed inside the registration filter, which runs BEFORE snt_os_app_sections()'s capability gate — so every visitor without manage_options would pay for a reading only an administrator may see. `empty_heading` goes through the same helper (it is a literal today).
+
+3. attention_integrity() emits ONE ROW PER FAILING NOTE with every failure sentence joined by '; ', not one row per failure code. The fleet-level key verdict (`last_sweep['keys']` = key_mismatch / keys_missing / keys_unreachable) is a SEPARATE row keyed `keys`, titled "The ledger's key file", stamped with `swept_at`, with no post to open and the same Trust door; its sentence is word for word the one `sn_prov_integrity_findings()` files for that verdict (`sn_prov_integrity_failure_sentence()` has no `keys_missing` leg, so it was never the right table). Tone: danger for key_mismatch and keys_missing, warning for keys_unreachable (an outage, said as one). `ok` and `skipped` make no row. Pinned in the attention suite, including a source-parity pin so the two sentences cannot drift apart silently.
+
+4. attention_pending() GATES the row on the type's edit_others_* capability rather than scoping the count. wp_count_posts() is site-wide and WordPress offers no `perm` that scopes pending (readable guards `private` only — the same trap post-items.php:22-31 works around with a posts_where clause, which a count cannot use). Without that capability the reader emits nothing and the honest surface is the post section's own scoped Pending pill. Pinned both ways.
+
+5. Discography's REGISTRATION GATE now calls albums_count(), not albums_items(). It was building every release — cover art, tracks, dossier — on every single resolution of the registry (once per dispatch plus once per section lookup) just to ask whether the list was empty. The plan asked only for the `count` callable; this is the same defect one layer up. Negative control in tests/openstation-app.php: an entry whose title is an object counts fine and makes albums_items() throw, so the count is measurably not going through the builder.
+
+6. TWO PINS ADDED beyond the plan's list, both in tests/openstation-app.php: (a) a foreign section's emptyHeading/emptyNote read as '' — a section cannot inherit another's wording by omission; (b) with NONE of the nine readers installed (which is exactly that fixture) Attention counts 0 and emits no warning rows — the negative control on "an absent subsystem makes no claim", which the attention suite cannot express because its stubs are always defined.
+
+7. `'version' => defined( 'SNT_VERSION' ) ? SNT_VERSION : ''` in both config() and payload(), not a bare constant: the app file also loads under OPENSTATION_STANDALONE, where the plugin constant may be absent, and a fatal there would take the window down to detect a stale build.
+
+### Task B
+
+Three, all narrow.
+
+1. `sticky-columns` is written as `sticky-columns=${ phone ? '0' : '1' }` rather than being omitted on the phone. The plan said "sticky-columns only when not phone"; the component reads the attribute with `parseInt( getAttribute( 'sticky-columns' ) || '0' )` and treats <= 0 as none (os-table.ts:1779-1782), and `stacked` stands the whole sticky band down first (os-table.ts:1811-1812), so "0" is the same state, said out loud. There is no way to conditionally omit an attribute with this html tag without a second full template.
+
+2. The coarse-pointer block and its mode-stamped twin cover FOUR selectors, not the two the mobile block had: `.snt-folder, .snt-cell, .snt-canvas, .snt-table`. `.snt-canvas` is load-bearing for this task — the long press I wired there opens a menu and iOS's callout would land on top of it — and `.snt-table` is the map's finding (rows live in os-table's shadow root, but `user-select` and `-webkit-touch-callout` inherit from the host). This matches the Explorer's own four-selector set (my-wordpress.css:1990-2006).
+
+3. The Back control's explanatory note is a JS comment above `return html`, not an HTML comment inside the template. The core html tag does parse `<!--` (src/ui/core/html.ts:131,340), so a comment node would have been safe, but no app in either tree writes one and it would ship a comment node into the DOM for no reader.
