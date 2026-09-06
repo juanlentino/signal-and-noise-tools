@@ -93,18 +93,55 @@
 .snt-detail os-code { align-self: stretch; }
 .snt-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 4px; }
 
+/* A held finger is this app's right-click, and what the browser would do with
+ * one -- iOS's callout, a selection creeping across a label -- is turned off on
+ * the surfaces that take the press. Written TWICE, exactly as the Explorer's
+ * sheet writes it: the tablet band is coarse without carrying the mobile stamp,
+ * and a stamped phone paired to a mouse is not coarse. The canvas is in the set
+ * because a long press there opens the canvas menu, and the table because its
+ * rows live in a shadow root this sheet cannot reach -- but `user-select` and
+ * `-webkit-touch-callout` inherit, so the host carries them in. */
+@media ( pointer: coarse ) {
+	.snt-folder,
+	.snt-cell,
+	.snt-canvas,
+	.snt-table {
+		-webkit-touch-callout: none;
+		-webkit-user-select: none;
+		user-select: none;
+	}
+}
+
 /* The phone: the shell stamps its mode on the root; the dossier is a page. */
 html[data-os-mode="mobile"] .snt-body.is-open { grid-template-columns: minmax( 0, 1fr ); }
 html[data-os-mode="mobile"] .snt-pane { border-inline-start: 0; }
 html[data-os-mode="mobile"] .snt-actions { flex-direction: column; align-items: stretch; align-self: stretch; }
 html[data-os-mode="mobile"] .snt-actions os-button { width: 100%; }
-html[data-os-mode="mobile"] .snt-folder, html[data-os-mode="mobile"] .snt-cell { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
+html[data-os-mode="mobile"] .snt-folder,
+html[data-os-mode="mobile"] .snt-cell,
+html[data-os-mode="mobile"] .snt-canvas,
+html[data-os-mode="mobile"] .snt-table { -webkit-touch-callout: none; -webkit-user-select: none; user-select: none; }
 /* On the page form the crumb is the way back; the pane's ✕ would be a second one. */
 html[data-os-mode="mobile"] .snt-detail__close { display: none; }
 /* No hover on a finger: the More button is the phone's whole menu trigger
  * besides the long press, so it sits where the ✕ used to. */
 html[data-os-mode="mobile"] .snt-more { opacity: 1; }
 html[data-os-mode="mobile"] .snt-detail__more { inset-inline-end: 8px; }
+
+/* The way back on the phone's item page. The crumb still works and the shell's
+ * own Back leaves the app rather than the item; this is the control a thumb
+ * finds without reading. It sits at the top of the detail column, ahead of the
+ * hero, and is painted on the phone only. */
+.snt-back { align-self: flex-start; margin-inline-start: -8px; }
+
+/* The empty state's second line: what was measured, and when. */
+.snt-empty-note { flex: 0 0 auto; padding: 0 16px 16px; text-align: center; }
+
+/* The document was built by an older release than the one now installed. One
+ * line beside the crumbs, in both view branches, with the reader's own Reload
+ * -- never a toast, because the condition is not transient, and never
+ * automatic. */
+.snt-stale { flex: 0 0 auto; display: flex; align-items: center; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; margin: 8px 14px 0; padding: 6px 10px; border: 1px solid var( --os-ui-border, #dcdcde ); border-radius: 8px; background: var( --os-ui-surface-raised, rgba( 0, 0, 0, 0.04 ) ); font-size: 12px; }
 
 /* The fetched dossier: the window switch, the verdict, one section per block. */
 .snt-dossier { display: flex; flex-direction: column; gap: 4px; align-self: stretch; }

@@ -68,6 +68,18 @@ function pages_edit_url( $id ) {
 	return post_edit_url( $id, 'page' );
 }
 
+/**
+ * Is this page one of the signed pages this section lists? A page that never
+ * opted into signing is not on this list, so nothing should send a reader
+ * here for it.
+ *
+ * @param int $post_id Post id.
+ * @return bool
+ */
+function pages_contains( $post_id ) {
+	return post_contains( $post_id, pages_cfg() );
+}
+
 add_filter(
 	'snt_os_app_sections',
 	static function ( $sections ) {
@@ -92,6 +104,10 @@ add_filter(
 			'count'          => __NAMESPACE__ . '\pages_count',
 			'items'          => __NAMESPACE__ . '\pages_items',
 			'edit_url'       => __NAMESPACE__ . '\pages_edit_url',
+			// Whether this section LISTS a given page. The Attention queue asks
+			// before offering a jump: the post type names a candidate section,
+			// only the section's own query can confirm it.
+			'contains'       => __NAMESPACE__ . '\pages_contains',
 		);
 		return $sections;
 	}

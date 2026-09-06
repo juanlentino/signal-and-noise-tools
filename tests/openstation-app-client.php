@@ -156,5 +156,142 @@ foreach ( array( '.snt-status-bar', '.snt-marquee', '.snt-menu-backdrop', '.snt-
 }
 ok( false !== strpos( $css, 'html[data-os-mode="mobile"] .snt-more' ), 'the phone gets its own rule for the More button -- there is no hover there to reveal it' );
 
+echo "\nGroup 8: the phone -- the stacked list, the band, the way back (#1071)\n";
+// The list on a phone. `docs/mobile.md` names the sideways table with a pinned
+// column as the shape never to ship; `stacked` -- a card per row -- is what the
+// shell's own lists (Trash, Users, Plugins) switch to there.
+ok( false !== strpos( $js, '?stacked=${ phone }' ), 'the list view stacks into a card per row on the phone: the kit\'s own `stacked`, not a hand-rolled card' );
+ok( false !== strpos( $js, 'sticky-columns=${ phone ? \'0\' : \'1\' }' ), '...and pins no column there -- a card has no columns to pin, and the pinned column beside a sideways scroll is the shape docs/mobile.md forbids' );
+
+// The band crossing. A window born on the desk kept its drag listeners into the
+// phone band; one born on the phone never got them back.
+ok( false !== strpos( $js, "document.addEventListener( 'os-mode-changed', onModeChange )" ), 'the client subscribes to the shell\'s band crossing by the event WP Explorer listens for: `os-mode-changed`, on the document' );
+ok( false !== strpos( $js, "document.removeEventListener( 'os-mode-changed', onModeChange )" ), '...and unsubscribes on teardown, so a closed window leaves no listener on the document' );
+$desk_start = strpos( $js, 'const mountDesk = ( ctx ) =>' );
+$desk_end   = strpos( $js, "defineApp( 'signal-noise'" );
+$desk_fn    = ( false !== $desk_start && false !== $desk_end && $desk_end > $desk_start ) ? (string) substr( $js, $desk_start, $desk_end - $desk_start ) : '';
+ok( '' !== $desk_fn, 'the desk-only listeners live in one named function, mountDesk( ctx ), ahead of the app definition' );
+ok( false !== strpos( $desk_fn, 'createMarquee(' ) && false !== strpos( $desk_fn, 'dragManager.start(' ), '...and BOTH are inside it -- the drawn marquee and the drag lift, with nothing left behind in mounted()' );
+ok( false !== strpos( $desk_fn, 'return teardowns;' ), '...and it hands back its teardowns, so a crossing into the phone band can take them off again' );
+ok( 2 === substr_count( $js, 'mountDesk( ctx )' ), 'it is mounted in exactly two places: once at mount for the band the window was born in, once on a crossing back to the desk' );
+ok( false !== strpos( $js, 'desk.forEach( ( off ) => off() )' ), 'a crossing INTO the phone band tears the desk listeners down rather than leaving them armed' );
+ok( false === strpos( $js, 'if ( ! isPhone() ) {' ), 'mounted() no longer decides the band once and for all' );
+// DIRECTION. Every pin above is a string presence: swap the two arms of
+// onModeChange and the crossing into the phone band MOUNTS the marquee and the
+// drag lift while the crossing back tears them off -- exactly inverted, and
+// every one of them still green. Read the handler's own body, both arms.
+$mode_start = strpos( $js, 'const onModeChange = () =>' );
+$mode_end   = strpos( $js, "document.addEventListener( 'os-mode-changed'" );
+$mode_fn    = ( false !== $mode_start && false !== $mode_end && $mode_end > $mode_start ) ? (string) substr( $js, $mode_start, $mode_end - $mode_start ) : '';
+ok( '' !== $mode_fn, 'the crossing has one named handler, onModeChange, declared ahead of its subscription' );
+ok( 1 === preg_match( '/if \( phone && desk \)/', $mode_fn ), '...whose FIRST arm is the crossing INTO the phone: on the phone with desk listeners still mounted, take them down' );
+ok( 1 === preg_match( '/else if \( ! phone && ! desk \)/', $mode_fn ), '...and whose second is the crossing BACK to the desk: off the phone with nothing mounted, mount them' );
+
+// The way back. The crumb was the only exit, and the More button is
+// post-sections-only, so Citations, Scheduled and Discography had none at all.
+ok( false !== strpos( $js, 'class="snt-back"' ), 'the phone\'s item page carries a Back control of its own' );
+ok( false !== strpos( $js, "'\xe2\x80\xb9 Back'" ), '...reading a left guillemet and the word Back' );
+$detail_start = strpos( $js, 'const renderDetail = ( ctx, item )' );
+$detail_end   = strpos( $js, '// ---------------------------------------------------------------- status bar' );
+$detail_fn    = ( false !== $detail_start && false !== $detail_end && $detail_end > $detail_start ) ? (string) substr( $js, $detail_start, $detail_end - $detail_start ) : '';
+ok( '' !== $detail_fn && false !== strpos( $detail_fn, 'class="snt-back"' ), 'it is painted in the detail header, where the phone\'s item page keeps its chrome' );
+$back_at  = (int) strpos( $detail_fn, 'class="snt-back"' );
+$title_at = (int) strpos( $detail_fn, 'class="snt-detail__title"' );
+ok( $back_at > 0 && $title_at > $back_at, '...before the title, not under the body' );
+$back_line = (string) substr( $detail_fn, (int) strrpos( (string) substr( $detail_fn, 0, $back_at ), "\n" ), (int) strpos( $detail_fn, "\n", $back_at ) - (int) strrpos( (string) substr( $detail_fn, 0, $back_at ), "\n" ) );
+ok( false !== strpos( $back_line, 'isPhone()' ) && false === strpos( $back_line, 'isPostSection' ), 'EVERY section gets it: the guard is the band alone, never the post-section pair that gates the More button' );
+ok( false !== strpos( $back_line, "ctx.local( 'close' )" ), '...and it closes locally, the crumb\'s own reducer -- no round trip to go back one screen' );
+
+// The canvas menu by finger. iOS never synthesises `contextmenu` from a held
+// finger, so Refresh was unreachable on a phone.
+$canvas_start = strpos( $js, 'const renderCanvas = ( ctx, shown )' );
+$canvas_end   = strpos( $js, '// ---------------------------------------------------------------- list view' );
+$canvas_fn    = ( false !== $canvas_start && false !== $canvas_end && $canvas_end > $canvas_start ) ? (string) substr( $js, $canvas_start, $canvas_end - $canvas_start ) : '';
+ok( '' !== $canvas_fn && false !== strpos( $canvas_fn, 'press.pointerdown' ), 'the canvas takes the long press, the gesture that is a right-click under a finger' );
+ok( false !== strpos( $canvas_fn, "closestInPath( source, '.snt-cell' )" ), '...and a press that BEGAN on a cell stays the cell\'s: the press bubbles, and two menus for one finger is the bug this guard exists for' );
+ok( false !== strpos( $canvas_fn, 'openMenu( ctx, x, y, null )' ), '...opening the canvas menu -- the same null-item menu the right-click opens, not a second vocabulary' );
+
+// The press's own two defects. The click swallow was armed BEFORE fire() ran,
+// so a press that opened nothing still ate the release; and a press on a cell
+// bubbles, so cell and canvas both armed one -- the ancestor's runs first
+// (capture), stops the event and is spent by `once`, leaving the cell's armed
+// until the sweep, or eating the reader's NEXT tap inside that window.
+$press_start = strpos( $js, 'const longPress = ( fire ) =>' );
+$press_end   = strpos( $js, '// ---------------------------------------------------------------- menu' );
+$press_fn    = ( false !== $press_start && false !== $press_end && $press_end > $press_start ) ? (string) substr( $js, $press_start, $press_end - $press_start ) : '';
+ok( '' !== $press_fn, 'the long press is one named factory, longPress( fire ), ahead of the menu' );
+ok( false !== strpos( $press_fn, 'if ( false === fire( x, y, { composedPath: () => path, target: e.target } ) ) {' ), 'fire() runs BEFORE the swallow is armed and its answer gates it: a press that opened nothing leaves the release the ordinary tap it was' );
+$fire_at    = (int) strpos( $press_fn, 'false === fire(' );
+$swallow_at = (int) strpos( $press_fn, "el.addEventListener( 'click', swallow" );
+ok( $fire_at > 0 && $swallow_at > $fire_at, '...and the order is that way round in the source, not merely the intent' );
+ok( false !== strpos( $js, 'const pointerHeldBy = new Map();' ), 'one press per POINTER: a module-level registry of pointerId => element, because the WeakMap is per element and a bubbling press reaches two' );
+ok( false !== strpos( $press_fn, 'if ( pointerHeldBy.has( pointerId ) ) {' ), '...consulted on pointerdown, so an ancestor finding the pointer already claimed leaves the press to the descendant that claimed it' );
+ok( false !== strpos( $press_fn, 'pointerHeldBy.set( pointerId, el );' ) && false !== strpos( $js, 'pointerHeldBy.delete( held.pointerId );' ) && false !== strpos( $press_fn, 'pointerHeldBy.delete( pointerId );' ), '...claimed on down, released on cancel/up (cancelPress) and when the timer fires, so an entry outlives its press by at most LONG_PRESS_MS' );
+// The three callbacks that must be able to say "nothing opened". A callback
+// that early-returns undefined reads as a fire that DID open something.
+ok( 1 === preg_match( '/if \( ! actionable \) \{\s*return false;/', $js ), 'the tile\'s press returns false in a section that cannot be acted on' );
+ok( 1 === preg_match( "/if \( closestInPath\( source, '\.snt-cell' \) \) \{\s*return false;/", $js ), 'the canvas\'s press returns false for a press that began on a cell' );
+ok( 1 === preg_match( '/if \( ! actionable \|\| ! item \) \{\s*return false;/', $js ), 'the table\'s press returns false off a row, or in a section that cannot be acted on' );
+
+// Callouts. The Explorer writes the same declarations twice; the tablet band is
+// coarse without carrying the mobile stamp.
+ok( 1 === preg_match( '/@media \( pointer: coarse \) \{\s*([^{]*)\{/s', $css, $coarse ), 'the stylesheet has a coarse-pointer block' );
+$coarse_sel = isset( $coarse[1] ) ? (string) $coarse[1] : '';
+ok( false !== strpos( $coarse_sel, '.snt-cell' ) && false !== strpos( $coarse_sel, '.snt-canvas' ), '...covering the pressable surfaces, the canvas among them: a long press there now opens a menu, and iOS\'s callout would land on top of it' );
+ok( false !== strpos( $css, 'html[data-os-mode="mobile"] .snt-canvas' ), '...and the mode-stamped twin covers the same surface, the way the Explorer\'s sheet writes it' );
+ok( 0 === substr_count( $js, 'is-phone' ), 'the dead is-phone class is gone: it styled nothing, no code read it, and the orphan pin\'s regex could never see it' );
+
+// The empty state says what the section wanted said.
+ok( false !== strpos( $js, 'section.emptyHeading' ), 'the empty state reads the section\'s own heading when it projects one' );
+ok( false !== strpos( $js, 'section.emptyNote' ), '...and paints its note under it -- what was measured, and when' );
+ok( false !== strpos( $js, "__( 'Nothing here yet.' )" ), '...falling back to the words that were already there for a section that projects neither' );
+// ...but only when NOTHING narrowed the list. The status pill is a facet
+// exactly as the search box is -- `visibleItems` applies them side by side --
+// so an Attention queue filtered to a kind with no rows would otherwise paint
+// "Nothing needs you" plus the measured note: a claim about the whole queue
+// built from one slice of it.
+ok( false !== strpos( $js, 'const filtered = !! state.query || !! state.status;' ), 'the empty branch consults BOTH facets, not the search alone: the status pill narrows the list the same way' );
+ok( false !== strpos( $js, "__( 'Nothing under this filter.' )" ), '...and a list emptied by the status pill says THAT, in the app\'s own words rather than the section\'s' );
+ok( false !== strpos( $js, "const note = filtered ? '' : String(" ), '...and the measured note is withheld under EITHER facet: it describes the section, and a filtered slice is not the section' );
+
+echo "\nGroup 9: the stale build (#1071)\n";
+// Two reads of ONE constant at two freeze times. `extra` is baked into the
+// shell document at render and nothing but the nonce rewrites it; `data` is
+// recomputed by PHP on every dispatch, over REST, which the service worker
+// provably does not cache.
+ok( false !== strpos( $js, 'const built = ctx.extra && ctx.extra.version;' ), 'the frozen half comes from ctx.extra: what the document was built with' );
+ok( false !== strpos( $js, 'const live = ctx.data && ctx.data.version;' ), 'the live half comes from ctx.data: what the server is running right now' );
+ok( false !== strpos( $js, 'built && live && built !== live' ), 'the line paints only when the two DIFFER -- a compare, not a presence check, and silent when they agree' );
+// The sentence may claim only what the compare measured. Two unequal strings
+// say the versions DIFFER; they cannot say which is newer, and a rollback
+// differs exactly as an upgrade does.
+ok( false !== strpos( $js, '\'The installed build (%1$s) is not the one this window was built from (%2$s).\'' ), 'the sentence names BOTH builds and asserts only the disagreement that was measured -- never a direction the compare never read' );
+ok( false === strpos( $js, 'A newer build is installed' ), '...and the old wording, which asserted that direction, is gone rather than left beside it' );
+ok( 2 === substr_count( $js, 'renderStale( ctx )' ), 'it is painted in BOTH view branches: the crumb region is the only one present in both, and the phone\'s item page elides everything else' );
+ok( false !== strpos( $css, '.snt-stale' ), 'the sheet carries its rule -- a class the client emits and the sheet lacks is the orphan the ratchet above catches' );
+ok( 1 === substr_count( $js, 'location.reload()' ), 'location.reload() appears exactly once in the whole client' );
+// ...and the shell's flushed reload IS reachable from an app: desktop.min.js
+// hands `saveSession` out on the `wp.os` namespace, and the shell's own
+// post-update reload awaits `flush()` and reloads on the next line. The earlier
+// comment here said it was not, and the button reloaded unflushed.
+$reload_start = strpos( $js, 'const reloadWindow = async () =>' );
+$reload_end   = strpos( $js, 'const renderStale = ( ctx ) =>' );
+$reload_fn    = ( false !== $reload_start && false !== $reload_end && $reload_end > $reload_start ) ? (string) substr( $js, $reload_start, $reload_end - $reload_start ) : '';
+ok( '' !== $reload_fn, 'the reload is a named handler ahead of renderStale, not an inline arrow buried in the template' );
+ok( false !== strpos( $reload_fn, 'await window.wp?.os?.saveSession?.flush?.()' ), '...that AWAITS the shell\'s session flush -- the same call the shell\'s own post-update reload awaits' );
+$flush_at  = (int) strpos( $reload_fn, 'saveSession?.flush?.()' );
+$reload_at = (int) strpos( $reload_fn, 'location.reload()' );
+ok( $flush_at > 0 && $reload_at > $flush_at, '...BEFORE the reload, not after it: a flush that runs second flushes nothing' );
+ok( false !== strpos( $reload_fn, 'try {' ) && false !== strpos( $reload_fn, '} catch ( e ) {' ), '...inside try/catch, so a shell that is not there or a flush that throws cannot be what stops the reload' );
+ok( 1 === substr_count( $js, '@click=${ reloadWindow }' ) && 0 === substr_count( $js, 'reloadWindow(' ), '...and its only call site is a click: the app hands it to the reader and never invokes it itself' );
+ok( 0 === preg_match( '/set(?:Timeout|Interval)\(.{0,120}?reload/s', $js ), 'and nothing reloads on a timer: the condition is not transient and the reader is the one who decides' );
+// No negative control belongs HERE. A mutant built with str_replace inside this
+// file and then searched for the needle it just removed is true whenever the
+// needle existed at all: it restates the pin above it and cannot fail
+// independently of it. A source-text pin is proven able to fail by mutating the
+// SOURCE -- on a scratch copy of the client, outside this suite -- and watching
+// the suite go red. Those runs are recorded in the PR, which is where a reader
+// can check them; a tautology in the file is not evidence and reads as if it is.
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

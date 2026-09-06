@@ -57,6 +57,9 @@ namespace {
 	define( 'ABSPATH', '/' );
 	define( 'SNT_PATH', dirname( __DIR__ ) . '/' );
 	define( 'SNT_URL', 'https://example.test/wp-content/plugins/signal-and-noise-tools/' );
+	// The plugin version, which now rides BOTH halves of the window: frozen
+	// into the document by config(), live on every dispatch through payload().
+	define( 'SNT_VERSION', '13.103.0' );
 
 	// ── WordPress, flat ──────────────────────────────────────────────
 	$GLOBALS['__filters'] = array();
@@ -79,6 +82,14 @@ namespace {
 	$GLOBALS['__caps'] = array( 'edit_posts' => true, 'edit_pages' => true, 'manage_options' => true, 'edit_post' => true );
 	function current_user_can( $cap, ...$a ) { $GLOBALS['__cap_calls'][] = array( $cap, $a ); return (bool) ( $GLOBALS['__caps'][ $cap ] ?? false ); }
 	function get_post_meta( $id, $key, $single = false ) { return $GLOBALS['__meta'][ $id ][ $key ] ?? ''; }
+	// The note category, per post. It is what `category_name` filters the Notes
+	// query by, and the only thing that can answer whether Notes LISTS a post:
+	// a post outside the category is not a Note, whatever its type says.
+	$GLOBALS['__categories'] = array( 11 => array( 'notes' ), 21 => array( 'notes' ) );
+	function has_category( $category = '', $post = null ) {
+		$id = is_object( $post ) ? (int) $post->ID : (int) $post;
+		return in_array( (string) $category, (array) ( $GLOBALS['__categories'][ $id ] ?? array() ), true );
+	}
 	function get_post( $id ) { foreach ( $GLOBALS['__posts'] as $p ) { if ( (int) $p->ID === (int) $id ) { return $p; } } return null; }
 	function get_post_status_object( $s ) { return (object) array( 'label' => array( 'publish' => 'Published', 'future' => 'Scheduled', 'draft' => 'Draft' )[ $s ] ?? ucfirst( $s ) ); }
 	function get_the_date( $f, $post ) { return substr( $post->post_date, 0, 10 ); }
@@ -200,13 +211,14 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	echo "\nGroup 2: the definition\n";
 	ok( array( 'edit_posts' ) === $app->caps && 'dock' === $app->placement && array( 'post' ) === $app->watch, 'gated on edit_posts; a dock tile; repaints on post changes' );
 	ok( array( 'section', 'item', 'status', 'query', 'view', 'verdict', 'selected' ) === array_keys( $app->state ) && 'icons' === $app->state['view'] && array() === $app->state['verdict'] && array() === $app->state['selected'], 'state schema: section, item, status, query, view, verdict, selected (two array slots)' );
-	ok( array( 'go', 'edit', 'verify', 'trash', 'publish', 'purge', 'anchor' ) === array_keys( $app->actions ), 'seven server actions: go, edit, verify and the control surface\'s four -- everything else is local in the browser' );
+	ok( array( 'go', 'edit', 'verify', 'jump', 'trash', 'publish', 'purge', 'anchor' ) === array_keys( $app->actions ), 'eight server actions: go, edit, verify, jump and the control surface\'s four -- everything else is local in the browser' );
 	ok( 'https://example.test/wp-json/wp-abilities/v1/abilities/signal-noise/note-dossier/run' === ( $app->config['dossierUrl'] ?? '' ), 'the ability run URL rides the window config, so the client never spells the abilities path' );
+	ok( SNT_VERSION === ( $app->config['version'] ?? '' ), 'the plugin version rides the window config: the half of the stale-build detector that FREEZES into the document at render' );
 
 	echo "\nGroup 3: the registry is the extension point\n";
-	ok( array( 'notes', 'pages', 'discography', 'citations', 'schedules' ) === array_column( snt_os_app_sections(), 'id' ), 'the built-in sections, in position order (10, 12, 20, 30, 40)' );
+	ok( array( 'attention', 'notes', 'pages', 'discography', 'citations', 'schedules' ) === array_column( snt_os_app_sections(), 'id' ), 'the built-in sections, in position order (5, 10, 12, 20, 30, 40) -- Attention FIRST, because it is what the phone opens on' );
 	add_filter( 'snt_os_app_sections', function ( $s ) { $s[] = array( 'id' => 'ledger', 'label' => 'Ledger', 'icon' => 'dashicons-shield', 'kind' => 'ledger', 'position' => 15, 'items' => function () { return array( array( 'id' => 'L1', 'title' => 'Entry one', 'status' => 'publish', 'detail' => array( 'facts' => array( array( 'Kind', 'ledger' ) ) ) ) ); } ); $s[] = array( 'id' => 'noitems', 'label' => 'Bad' ); return $s; } );
-	ok( array( 'notes', 'pages', 'ledger', 'discography', 'citations', 'schedules' ) === array_column( snt_os_app_sections(), 'id' ), 'a section from another module slots in by position (15, between Pages and Discography); a descriptor without items is dropped' );
+	ok( array( 'attention', 'notes', 'pages', 'ledger', 'discography', 'citations', 'schedules' ) === array_column( snt_os_app_sections(), 'id' ), 'a section from another module slots in by position (15, between Pages and Discography); a descriptor without items is dropped' );
 	$GLOBALS['__caps']['manage_options'] = false;
 	ok( array( 'notes', 'pages', 'ledger' ) === array_column( snt_os_app_sections(), 'id' ), 'a section whose capability the user lacks is not offered' );
 	$GLOBALS['__caps']['edit_pages'] = false;
@@ -217,9 +229,18 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	echo "\nGroup 4: the payload at the root\n";
 	$p = payload( $app, array() );
 	ok( 'Juan & Co' === $p['siteName'], 'siteName is decoded once (never an entity)' );
-	ok( array( 'notes', 'pages', 'ledger', 'discography', 'citations', 'schedules' ) === array_column( $p['sections'], 'id' ) && array( 3, 2, 1, 2, 0, 0 ) === array_column( $p['sections'], 'count' ), 'the root lists every section with its count -- and the counts are the negative control on the query stub: six post fixtures, three notes and two SIGNED pages, never six of each' );
+	ok( array( 'attention', 'notes', 'pages', 'ledger', 'discography', 'citations', 'schedules' ) === array_column( $p['sections'], 'id' ) && array( 0, 3, 2, 1, 2, 0, 0 ) === array_column( $p['sections'], 'count' ), 'the root lists every section with its count -- and the counts are the negative control on the query stub: six post fixtures, three notes and two SIGNED pages, never six of each' );
 	ok( null === $p['section'] && array() === $p['items'], 'no section open: no items travel' );
-	ok( 'post' === $p['sections'][0]['kind'] && 'dashicons-edit-page' === $p['sections'][0]['icon'], 'a section carries the tile type and icon the client paints with' );
+	$notes_tile = $p['sections'][ array_search( 'notes', array_column( $p['sections'], 'id' ), true ) ];
+	ok( 'post' === $notes_tile['kind'] && 'dashicons-edit-page' === $notes_tile['icon'], 'a section carries the tile type and icon the client paints with' );
+	ok( 'entry' === $p['sections'][0]['kind'] && 'dashicons-flag' === $p['sections'][0]['icon'], 'Attention is the first tile, an ENTRY: no drag, no editor, no dossier, by absence' );
+	// NONE of the nine readers exists in this fixture -- no integrity state, no
+	// probe log, no citations store, no health scan. That is an install without
+	// those halves, and it must produce SILENCE: a warning row per absent
+	// subsystem would be permanently present, which is the failure mode a queue
+	// exists to fix (inc/watches.php:4-23).
+	ok( 0 === $p['sections'][0]['count'], '   ...and it counts ZERO with every reader absent: an uninstalled signal makes no claim, and never a standing warning row' );
+	ok( SNT_VERSION === ( $p['version'] ?? '' ), 'the payload carries the plugin version: the LIVE half of the detector, recomputed on every dispatch over a path the service worker does not cache' );
 
 	echo "\nGroup 5: Notes\n";
 	$p = payload( $app, array( 'section' => 'notes' ) );
@@ -256,6 +277,45 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	ok( array( 'Verify', 'View on site' ) === array_column( $p2['items'][1]['detail']['actions'], 'label' ), 'without edit_post the editor action is not offered' );
 	$GLOBALS['__caps']['edit_post'] = true;
 
+	echo "\nGroup 5a: what a section CONTAINS -- its query, asked of one id\n";
+	// A section is not its post type. Notes lists the note category, Pages the
+	// opt-in meta, both over their own statuses and under the same author
+	// scope -- so "the type is post" cannot answer whether Notes holds a post,
+	// and anything that sends a reader into a section must ask the section.
+	$notes_cfg = \SignalNoise\OpenStationApp\notes_cfg();
+	$pages_cfg = \SignalNoise\OpenStationApp\pages_cfg();
+	ok( true === \SignalNoise\OpenStationApp\post_contains( 11, $notes_cfg ), 'a published post IN the note category is one of the Notes' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 12, $notes_cfg ), '   ...and a post OUTSIDE it is not, though its post type says `post`: the category IS the section' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 31, $notes_cfg ) && true === \SignalNoise\OpenStationApp\post_contains( 31, $pages_cfg ), 'the type is checked first: a page is never in Notes, and the signed page is in Pages' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 33, $pages_cfg ), '   ...while a page that never opted into signing is in neither: Pages lists the opt-in, not the post type' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 0, $notes_cfg ) && false === \SignalNoise\OpenStationApp\post_contains( 999, $notes_cfg ), 'no id and an id that is no post are both refusals, never a jump into nothing' );
+	$GLOBALS['__posts'][] = (object) array( 'ID' => 41, 'post_title' => 'Trashed', 'post_status' => 'trash', 'post_date' => '2026-05-01 09:00:00', 'post_type' => 'post', 'thumb' => '', 'post_author' => 5 );
+	$GLOBALS['__categories'][41] = array( 'notes' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 41, $notes_cfg ), 'a status the section does not list (trash) is not in it, category or no category' );
+	array_pop( $GLOBALS['__posts'] );
+
+	// The author scope, mirrored not duplicated: post_scope_where() returns a
+	// clause exactly when this user may not read other authors' unpublished
+	// posts of the type, so the predicate reads that instead of re-deciding.
+	$theirs = (object) array( 'ID' => 42, 'post_title' => 'Someone else\'s draft', 'post_status' => 'draft', 'post_date' => '2026-05-02 09:00:00', 'post_type' => 'post', 'thumb' => '', 'post_author' => 9 );
+	$mine   = (object) array( 'ID' => 43, 'post_title' => 'My draft', 'post_status' => 'draft', 'post_date' => '2026-05-03 09:00:00', 'post_type' => 'post', 'thumb' => '', 'post_author' => 5 );
+	$GLOBALS['__posts'][]        = $theirs;
+	$GLOBALS['__posts'][]        = $mine;
+	$GLOBALS['__categories'][42] = array( 'notes' );
+	$GLOBALS['__categories'][43] = array( 'notes' );
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 42, $notes_cfg ) && true === \SignalNoise\OpenStationApp\post_contains( 43, $notes_cfg ), 'another author\'s DRAFT is not on this reader\'s list and his own is -- the same posts_where scope the query applies, read off post_scope_where() rather than repeated' );
+	$GLOBALS['__caps']['edit_others_posts'] = true;
+	ok( true === \SignalNoise\OpenStationApp\post_contains( 42, $notes_cfg ), '   ...and with edit_others_posts it is: the clause disappears, and so does the restriction' );
+	unset( $GLOBALS['__caps']['edit_others_posts'] );
+	$theirs->post_status = 'private';
+	ok( false === \SignalNoise\OpenStationApp\post_contains( 42, $notes_cfg ), 'a PRIVATE post is asked of read_post -- which is what `perm => readable` asks, and the ONLY thing it asks' );
+	$GLOBALS['__caps']['read_post'] = true;
+	ok( true === \SignalNoise\OpenStationApp\post_contains( 42, $notes_cfg ), '   ...and a reader who may read it has it on the list' );
+	unset( $GLOBALS['__caps']['read_post'] );
+	array_pop( $GLOBALS['__posts'] );
+	array_pop( $GLOBALS['__posts'] );
+	ok( is_callable( \snt_os_app_section( 'notes' )['contains'] ?? null ) && is_callable( \snt_os_app_section( 'pages' )['contains'] ?? null ), 'both post sections DECLARE the predicate on their descriptor: the question is asked of the registry, not of a hardcoded list of section ids' );
+
 	echo "\nGroup 6: Discography\n";
 	$p = payload( $app, array( 'section' => 'discography' ) );
 	ok( array() === $p['section']['statuses'] && '' === $p['section']['defaultStatus'] && false === $p['section']['canEdit'], 'no pills, no editor' );
@@ -268,11 +328,33 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	ok( 'https://img/1.jpg' === $p['items'][1]['thumbnail'] && '2019' === $p['items'][1]['badge']['text'], 'cover art as the tile thumbnail; the year as its badge' );
 	ok( 'Tracks' === $p['items'][1]['detail']['blocks'][0]['heading'] && 'One' === $p['items'][1]['detail']['blocks'][0]['rows'][0]['title'] && array( 'Open in Spotify' ) === array_column( $p['items'][1]['detail']['actions'], 'label' ), 'the dossier carries the tracks and only the links the entry has' );
 	ok( array() === $p['items'][0]['detail']['blocks'] && array( 'Credits on Muso.AI' ) === array_column( $p['items'][0]['detail']['actions'], 'label' ), 'no tracks: no table' );
+	// The section had NO count callable, so payload() built every release --
+	// cover art, tracks, dossier -- on every root paint, which on the phone is
+	// the first screen. The negative control is an entry album_item() cannot
+	// render: counting it is fine, building it is not.
+	ok( 2 === \SignalNoise\OpenStationApp\albums_count(), 'Discography counts its entries' );
+	$GLOBALS['__albums'][] = array( 'id' => 'poison', 'title' => new \stdClass(), 'year' => 0 );
+	ok( 3 === \SignalNoise\OpenStationApp\albums_count(), '   ...WITHOUT building them: an entry no item builder could render is still one release in the count' );
+	$built = false;
+	try { \SignalNoise\OpenStationApp\albums_items(); } catch ( \Throwable $e ) { $built = true; }
+	ok( $built, '   ...and the same fixture makes albums_items() throw, so the count above is measurably not going through the builder' );
+	array_pop( $GLOBALS['__albums'] );
+	$pd = payload( $app, array() );
+	ok( 2 === (int) $pd['sections'][ array_search( 'discography', array_column( $pd['sections'], 'id' ), true ) ]['count'], '   ...and the root tile reads that count' );
 
 	echo "\nGroup 7: a foreign section paints from its items alone\n";
 	$p = payload( $app, array( 'section' => 'ledger' ) );
 	ok( 'ledger' === $p['section']['id'] && 'ledger' === $p['section']['kind'] && 'L1' === $p['items'][0]['id'], 'the payload carries a third section exactly as it carries the built-ins' );
+	ok( '' === $p['section']['emptyHeading'] && '' === $p['section']['emptyNote'], 'a section that declared no empty wording says so with two empty strings -- the client falls back to its own text, and a FOREIGN section cannot inherit another\'s' );
 	ok( array_key_exists( 'hasDossier', $p['section'] ) && false === $p['section']['hasDossier'], 'a FOREIGN section that declared no hasDossier reads false, never true by omission: another module cannot get a dossier it did not ask for' );
+
+	// ...and the other half of that pin: a section that DOES declare wording
+	// gets it through payload(). Attention declares a literal heading and a
+	// CALLABLE note, and only the round trip can tell a resolved callable from
+	// a missing one -- both would otherwise read as a plausible string.
+	$p = payload( $app, array( 'section' => 'attention' ) );
+	ok( 'Nothing needs you' === $p['section']['emptyHeading'], 'a section that declares its empty heading gets that heading, not the client\'s generic "Nothing here yet."' );
+	ok( 1 === preg_match( '/^No reader carried a stamp\. Composed \d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} UTC\.$/', (string) $p['section']['emptyNote'] ), '   ...and its empty NOTE is the callable\'s output, carrying the UTC instant the queue was composed: an empty queue that cannot say when it was read is the one reading this section must never produce' );
 
 	echo "\nGroup 8: server actions\n";
 	$os = new \OpenStation\App\Os();
@@ -293,6 +375,19 @@ foreach ( array( 'ui.errors', 'ERROR_TTL_MS', 'forgetDossier( ctx, item.id )', "
 	$st->set( 'section', 'discography' );
 	$app->actions['edit']( $st, $os, array( 'item' => 'r1' ) );
 	ok( 1 === count( $os->opened ), 'a section without an editor opens nothing' );
+
+	echo "\nGroup 8a: jump -- a section AND an item, which is what an Attention row dispatches\n";
+	$st = new \OpenStation\App\State( $app->state, array( 'section' => 'citations', 'item' => 'c7', 'query' => 'q', 'status' => 'verified', 'selected' => array( '11' ), 'verdict' => array( 'post_id' => 11 ) ) );
+	$app->actions['jump']( $st, $os, array( 'section' => 'notes', 'item' => '11' ) );
+	ok( 'notes' === $st->get( 'section' ) && '11' === $st->get( 'item' ), 'jump sets BOTH keys: go cannot, because it resets item on purpose' );
+	ok( '' === $st->get( 'status' ), '   ...and the status is All, NEVER the section\'s default pill: an unanchored note is often a draft, and Notes defaults to Published, which would filter away the very row the reader tapped' );
+	ok( '' === $st->get( 'query' ) && array() === $st->get( 'selected' ) && array() === $st->get( 'verdict' ), '   ...with the search, the selection and the last verdict cleared, as go clears them' );
+	$app->actions['jump']( $st, $os, array( 'section' => 'nope', 'item' => '11' ) );
+	ok( '' === $st->get( 'section' ) && '' === $st->get( 'item' ), 'an unknown section is the root with nothing open -- never a section id the registry does not know, carrying an item into it' );
+	$GLOBALS['__caps']['edit_pages'] = false;
+	$app->actions['jump']( $st, $os, array( 'section' => 'pages', 'item' => '31' ) );
+	ok( '' === $st->get( 'section' ), 'the capability is re-checked SERVER-side: the registry resolves per call, so a jump into a section this user is not offered lands at the root' );
+	$GLOBALS['__caps']['edit_pages'] = true;
 
 	echo "\nGroup 8b: the verify action and the verdict in data\n";
 	$st = new \OpenStation\App\State( $app->state, array( 'section' => 'notes', 'item' => '11' ) );

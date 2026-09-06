@@ -21,6 +21,29 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * A descriptor value that may be a literal or a callable resolved at PAINT
+ * time — the empty state's heading and its note.
+ *
+ * Callable, because the note carries WHEN the section last read anything, and
+ * a literal would have to be composed when the descriptor registers: that is
+ * before snt_os_app_sections() runs its capability gate, so every visitor
+ * would pay for a reading only an administrator may see. Resolved here, it
+ * runs for the OPEN section alone.
+ *
+ * A literal never collides with a function name: the descriptors' callables
+ * are namespaced (`__NAMESPACE__ . '\…'`) and their literals are sentences.
+ *
+ * @param mixed $value A string, or a callable returning one.
+ * @return string
+ */
+function section_text( $value ) {
+	if ( is_callable( $value ) ) {
+		return (string) call_user_func( $value );
+	}
+	return is_string( $value ) ? $value : '';
+}
+
+/**
  * @param State $state Session state.
  * @param Os    $os    Host.
  * @return array<string,mixed>
@@ -35,6 +58,11 @@ function payload( State $state, Os $os ) {
 		'section'  => null,
 		'items'    => array(),
 		'cap'      => (int) SN_OS_APP_ITEM_CAP,
+		// The LIVE half of the stale-build detector: recomputed on every
+		// dispatch, over REST, which the service worker does not cache. Its
+		// twin is frozen into the document at render (`version` in config()),
+		// so a window painting with an older client can be told it is.
+		'version'  => defined( 'SNT_VERSION' ) ? SNT_VERSION : '',
 		'verdict'  => (array) $state->get( 'verdict', array() ),
 		// App-wide rights, asked once per paint: the two operations that are
 		// not per-post. A missing half of the plugin is a refusal, never an
@@ -85,6 +113,13 @@ function payload( State $state, Os $os ) {
 			// answer a question about what a section HAS.
 			'hasDossier'    => ! empty( $current['hasDossier'] ),
 			'columns'       => array_values( (array) ( $current['columns'] ?? array() ) ),
+			// What an EMPTY section says. The client's generic "Nothing here
+			// yet." reads as a section that never filled, which is the wrong
+			// sentence for a queue whose empty state is the good news; a
+			// section that wants its own words declares them, and the note
+			// says when its readers last looked.
+			'emptyHeading'  => section_text( $current['empty_heading'] ?? '' ),
+			'emptyNote'     => section_text( $current['empty_note'] ?? '' ),
 		);
 	}
 	return $out;
