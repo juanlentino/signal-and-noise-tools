@@ -457,17 +457,11 @@ namespace {
 	ok( false === strpos( $html, '<h1 class="sn-page-h1">' ) && false === strpos( $html, 'nav-tab-wrapper' ),
 		'the classic page heading and wp-admin tab strip are gone -- the window chrome is the strip' );
 
-	if ( '' === $GLOBALS['__html_api'] ) {
-		skip( 'the captured leaf came back rewritten -- no wp-includes/html-api on this machine' );
-		skip( 'the leaf\'s own sub-tab nav became `go` links -- no wp-includes/html-api on this machine' );
-	} else {
-		ok( false !== strpos( $html, 'os-action="post"' ) && false === strpos( $html, '<form method="post">' ),
-			'the captured leaf came back rewritten: its form dispatches `post`' );
-		ok( false !== strpos( $html, '<a os-action="go"' ) && false !== strpos( $html, 'os-arg-sub="health"' ) && false !== strpos( $html, 'os-arg-tab="monitoring"' ),
-			'   ...and the sub-tab nav the dispatcher printed became `go` links -- the strip is the leaf\'s, captured, never rebuilt here' );
-		ok( preg_match( '#<a [^>]*id="lnk-legacy-slug"[^>]*>#', $html, $m ) && false !== strpos( $m[0], 'os-action="go"' ) && false === strpos( $m[0], 'os-action="door"' ) && false === strpos( $m[0], 'href' ),
-			'   ...and a link written with a TOP-TAB slug (page=sn-content) is a `go` too: the view passes snt_os_host_own_pages(), DERIVED from both registries, where one literal slug made every leaf-to-leaf link open a second admin window' );
-	}
+	ok( false === strpos( $html, "<form" ),
+		"the native health leaf is painted directly, without the classic dispatcher fixture" );
+	ok( false === strpos( $html, 'lnk-legacy-slug' ) && false === strpos( $html, 'sn-sub-tabs' ),
+		'the native leaf does not retain the classic dispatcher navigation; the framework strip owns navigation' );
+
 
 	$html = paint( $app, array( 'tab' => 'site', 'sub' => 'front-end', 'notice' => array( 'error', 'It <a href="x">broke</a>.' ) ) );
 	ok( false !== strpos( $html, '<os-notice tone="danger">It <a href="x">broke</a>.</os-notice>' ),
