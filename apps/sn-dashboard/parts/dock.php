@@ -82,9 +82,11 @@ function menu_items() {
 function read_params( State $state, Os $os ) {
 	$tab    = current_tab( $os );
 	$sub    = \snt_os_host_resolve_sub( $tab, (string) $os->param( 'sub', '' ) );
+	// The anchor param IS the element id (a door names `sn-sec-<slug>` or any
+	// id); the section_anchor() prefixing is for handler targets, not params.
 	$anchor = (string) $os->param( 'anchor', '' );
 	$state->set( 'sub', $sub )
-		->set( 'anchor', '' !== $anchor ? section_anchor( $anchor ) : '' )
+		->set( 'anchor', $anchor )
 		->set( 'params', array() )
 		->set( 'flash', '' )
 		->set( 'post', array() )
