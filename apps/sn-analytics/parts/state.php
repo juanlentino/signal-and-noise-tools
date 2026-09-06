@@ -193,11 +193,19 @@ function snt_os_analytics_lg_range( $raw ) {
  * fields named `sn_from` / `sn_to`. One vocabulary, so nothing has to guess
  * which spelling a dispatch used.
  *
- * A param the args do not carry keeps the value it had — which is what the
- * classic page does, since every link is built on the current URL. The one
- * exception is a VIEW SWITCH, where the page's tab strip strips exactly
- * `snt_analytics_view_reset_params()` from that base first and re-adds only
- * what the link itself carries; so the reset runs BEFORE the args are read.
+ * A NAVIGATION IS THE WHOLE NEXT URL. On the classic page every control is a
+ * link or a GET form whose query IS the next state: a link that carries a
+ * param sets it, and a link that omits one -- the Compare `Off` pill, `Clear
+ * drill-down`, the Events property `Clear`, the movers' bare deep link -- is
+ * the page saying "default". So a `go` (a rewritten own-page link, the
+ * custom-date form, the brush's carrier, an open-time param set) is applied
+ * WHOLESALE: every one of the nine params absent from the args takes the
+ * page's own default, exactly as the classic dispatcher reads an absent
+ * `$_GET` key. The first build merged instead ("absent keeps the value it
+ * had"), and every clear/off control on the page was dead in the window --
+ * the review measured all three. The view-switch reset list the tab strip
+ * applies (`snt_analytics_view_reset_params()`) is therefore already in the
+ * link the strip prints; nothing re-applies it here.
  *
  * @param \OpenStation\App\State $state Window state.
  * @param array<string,mixed>    $args  Dispatch args (`os-arg-*` plus a GET form's fields).
@@ -206,39 +214,28 @@ function snt_os_analytics_lg_range( $raw ) {
 function snt_os_analytics_apply( $state, array $args ) {
 	$defaults = snt_os_analytics_defaults();
 
-	$view = array_key_exists( 'sn_view', $args ) && function_exists( 'snt_analytics_resolve_view' )
-		? snt_analytics_resolve_view( snt_os_host_last( $args['sn_view'] ) )
-		: (string) $state->get( 'view' );
-	if ( $view !== (string) $state->get( 'view' ) ) {
-		foreach ( snt_os_analytics_reset_keys() as $key ) {
-			$state->set( $key, $defaults[ $key ] ?? '' );
-		}
-	}
-	$state->set( 'view', $view );
-
-	$read = static function ( $key, $fallback ) use ( $args ) {
-		return array_key_exists( $key, $args ) ? $args[ $key ] : $fallback;
+	// The page's own default for anything the navigation did not carry.
+	$read = static function ( $key ) use ( $args, $defaults ) {
+		return array_key_exists( $key, $args ) ? $args[ $key ] : ( $defaults[ substr( $key, 3 ) ] ?? '' );
 	};
 
-	list( $range, $from, $to ) = snt_os_analytics_window(
-		$read( 'sn_range', $state->get( 'range' ) ),
-		$read( 'sn_from', $state->get( 'from' ) ),
-		$read( 'sn_to', $state->get( 'to' ) )
-	);
+	$state->set( 'view', function_exists( 'snt_analytics_resolve_view' ) ? snt_analytics_resolve_view( snt_os_host_last( $read( 'sn_view' ) ) ) : (string) $read( 'sn_view' ) );
+
+	list( $range, $from, $to ) = snt_os_analytics_window( $read( 'sn_range' ), $read( 'sn_from' ), $read( 'sn_to' ) );
 	$state->set( 'range', (string) $range )->set( 'from', (string) $from )->set( 'to', (string) $to );
 
 	if ( function_exists( 'snt_analytics_resolve_class' ) ) {
-		$state->set( 'class', snt_analytics_resolve_class( snt_os_host_last( $read( 'sn_class', $state->get( 'class' ) ) ) ) );
+		$state->set( 'class', snt_analytics_resolve_class( snt_os_host_last( $read( 'sn_class' ) ) ) );
 	}
 	if ( function_exists( 'snt_analytics_resolve_compare' ) ) {
-		$state->set( 'compare', snt_analytics_resolve_compare( snt_os_host_last( $read( 'sn_compare', $state->get( 'compare' ) ) ) ) );
+		$state->set( 'compare', snt_analytics_resolve_compare( snt_os_host_last( $read( 'sn_compare' ) ) ) );
 	}
-	$state->set( 'drill', snt_os_analytics_drill( $read( 'sn_drill', $state->get( 'drill' ) ) ) );
-	$prop = snt_os_host_last( $read( 'sn_event_prop', $state->get( 'event_prop' ) ) );
+	$state->set( 'drill', snt_os_analytics_drill( $read( 'sn_drill' ) ) );
+	$prop = snt_os_host_last( $read( 'sn_event_prop' ) );
 	// The Events view reads its own filter with sanitize_text_field(); the same
 	// call, at the same boundary.
 	$state->set( 'event_prop', function_exists( 'sanitize_text_field' ) ? sanitize_text_field( $prop ) : $prop );
-	$state->set( 'lg_range', snt_os_analytics_lg_range( $read( 'sn_lg_range', $state->get( 'lg_range' ) ) ) );
+	$state->set( 'lg_range', snt_os_analytics_lg_range( $read( 'sn_lg_range' ) ) );
 }
 
 /**
@@ -296,7 +293,10 @@ function snt_os_analytics_request_uri( array $get ) {
 	$args = array();
 	foreach ( $get as $key => $value ) {
 		if ( 'page' !== $key && '' !== (string) $value ) {
-			$args[ $key ] = (string) $value;
+			// add_query_arg() does NOT encode the values it is handed (its
+			// build_query() runs with urlencode off), so a state value carrying
+			// `&` would inject a parameter into every link the report prints.
+			$args[ $key ] = rawurlencode( (string) $value );
 		}
 	}
 	$url  = (string) snt_analytics_page_url( $args );
@@ -306,4 +306,23 @@ function snt_os_analytics_request_uri( array $get ) {
 	}
 	$query = (string) wp_parse_url( $url, PHP_URL_QUERY );
 	return '' !== $query ? $path . '?' . $query : $path;
+}
+
+/**
+ * The current navigation as a query string, for a control that moves the
+ * window by script (the brush): on the classic page it merges its range into
+ * `location.href`; in a window there is no such URL, so the view paints this
+ * on the wrap and the brush merges into it, then dispatches the whole.
+ *
+ * @param \OpenStation\App\State $state Window state.
+ * @return string `sn_view=…&sn_range=…`, empty values dropped, values encoded.
+ */
+function snt_os_analytics_query( $state ) {
+	$pairs = array();
+	foreach ( snt_os_analytics_get( $state ) as $key => $value ) {
+		if ( 'page' !== $key && '' !== (string) $value ) {
+			$pairs[] = rawurlencode( $key ) . '=' . rawurlencode( (string) $value );
+		}
+	}
+	return implode( '&', $pairs );
 }

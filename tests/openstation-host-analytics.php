@@ -181,7 +181,15 @@ namespace {
 				$current[ $key ] = $value;
 			}
 		}
-		$built = http_build_query( $current );
+		// WordPress's add_query_arg() builds with urlencode OFF (build_query ->
+		// _http_build_query( ..., false )): a value goes out exactly as handed
+		// in, encoded or not. The stub must not encode, or a host that fails to
+		// encode reads as one that did.
+		$pairs = array();
+		foreach ( $current as $k => $v ) {
+			$pairs[] = is_array( $v ) ? http_build_query( array( $k => $v ) ) : $k . '=' . $v;
+		}
+		$built = implode( '&', $pairs );
 		return $base . ( '' !== $built ? '?' . $built : '' ) . $frag;
 	}
 	function remove_query_arg( $key, $query = false ) {
@@ -414,8 +422,12 @@ namespace {
 	ok( 'geography' === $state->get( 'view' ) && '7' === $state->get( 'range' ) && '' === $state->get( 'from' ) && '' === $state->get( 'to' )
 		&& 'human' === $state->get( 'class' ) && '' === $state->get( 'drill' ) && '' === $state->get( 'event_prop' ) && 7 === $state->get( 'lg_range' ),
 		'a bare view switch resets the window, the class and the three view-local filters -- what remove_query_arg( reset_params ) does to the URL' );
-	ok( 'yoy' === $state->get( 'compare' ),
-		'   ...and NEVER the compare mode: it is deliberately absent from the reset list, so the active comparison rides along' );
+	ok( 'off' === $state->get( 'compare' ),
+		'   ...and a BARE switch -- a deep link that names only the view, like the movers\' "Posts view" -- lands with comparison OFF, because the link is the whole next URL and it carried none' );
+	$state = st( $app, array( 'view' => 'technology', 'compare' => 'yoy', 'range' => '30', 'class' => 'bot' ) );
+	$app->actions['go']( $state, $os, array( 'sn_view' => 'geography', 'sn_range' => '30', 'sn_class' => 'bot', 'sn_compare' => 'yoy' ) );
+	ok( 'yoy' === $state->get( 'compare' ) && '30' === $state->get( 'range' ) && 'bot' === $state->get( 'class' ),
+		'   ...while the REAL tab link, which re-adds sn_compare beside the window args (the page\'s carry rule), keeps the comparison riding along' );
 
 	$state = st( $app, array( 'view' => 'technology', 'class' => 'bot', 'drill' => 'browser:Firefox' ) );
 	$app->actions['go']( $state, $os, array( 'sn_view' => 'geography', 'sn_range' => '30', 'sn_class' => 'bot' ) );
@@ -494,7 +506,7 @@ namespace {
 	// the pass has one rule for every host. It is noise on this page, and it
 	// must stay noise: nothing here may read a Dashboard tab as state.
 	$state = st( $app, array( 'view' => 'quality', 'class' => 'bot' ) );
-	$app->actions['go']( $state, $os, array( 'tab' => 'dashboard', 'sub' => 'health', 'anchor' => 'sn-sec-x', 'sn_view' => 'quality', 'sn_compare' => 'prev' ) );
+	$app->actions['go']( $state, $os, array( 'tab' => 'dashboard', 'sub' => 'health', 'anchor' => 'sn-sec-x', 'sn_view' => 'quality', 'sn_class' => 'bot', 'sn_compare' => 'prev' ) );
 	ok( 'quality' === $state->get( 'view' ) && 'bot' === $state->get( 'class' ) && 'prev' === $state->get( 'compare' )
 		&& array_keys( $app->state ) === array_keys( $state->all() ),
 		'a link`s os-arg-tab/sub/anchor -- which the shared rewrite adds to every own-page link -- changes nothing here and adds no key to the state' );
@@ -549,8 +561,8 @@ namespace {
 	$html                   = paint( $app, st( $app, array( 'view' => 'campaigns' ) ) );
 	ok( $before === array( $_GET, $_POST, $_REQUEST, $_SERVER['REQUEST_URI'] ),
 		'painting gives the request back untouched -- the query AND the REQUEST_URI the page`s link builders were lent' );
-	ok( 0 === strpos( $html, '<div class="wrap">' ) && false !== strpos( $html, '<h1>Analytics</h1>' ),
-		'the wrapper and the heading are the ones inc/analytics-dashboard-page.php prints, byte for byte' );
+	ok( 0 === strpos( $html, '<div class="wrap" data-snt-query="' ) && false !== strpos( $html, '<h1>Analytics</h1>' ),
+		'the wrapper and the heading are the ones inc/analytics-dashboard-page.php prints -- the wrap carrying one attribute more, the current navigation for the brush' );
 	ok( false !== strpos( $html, 'nav-tab-wrapper sn-an-view-tabs' ),
 		'the tab strip is the PAGE`S OWN, captured -- never rebuilt here, so its classes and its order are whatever the page says' );
 
@@ -831,17 +843,44 @@ $state = st( $app, array() );
 $app->actions['go']( $state, $os, array( 'sn_range' => 'this-week' ) );
 ok( 'this-week' === \snt_os_analytics_get( $state )['sn_range'], 'a calendar preset reaches the $_GET the page reads, as the token' );
 
+echo "\nGroup U: a navigation is the whole next URL -- the clear and off controls\n";
+// The review measured three dead controls: the Compare Off pill, Clear
+// drill-down and the Events property Clear all reset by OMITTING their param
+// from the link, and the first build read an absent arg as "keep". Every
+// pin here drives go with the arg set the real link emits.
+$state = st( $app, array( 'view' => 'geography', 'range' => '30', 'class' => 'bot', 'compare' => 'yoy', 'drill' => 'country:US' ) );
+$app->actions['go']( $state, $os, array( 'sn_view' => 'geography', 'sn_range' => '30', 'sn_class' => 'bot', 'sn_drill' => 'country:US', 'sn_lg_range' => '7' ) );
+ok( 'off' === $state->get( 'compare' ) && 'country:US' === $state->get( 'drill' ), 'the Compare Off pill -- every other param carried, sn_compare omitted -- turns comparison off and keeps the drill' );
+$state = st( $app, array( 'view' => 'geography', 'range' => '30', 'class' => 'bot', 'compare' => 'yoy', 'drill' => 'country:US' ) );
+$app->actions['go']( $state, $os, array( 'sn_view' => 'geography', 'sn_range' => '30', 'sn_class' => 'bot', 'sn_compare' => 'yoy' ) );
+ok( '' === $state->get( 'drill' ) && 'yoy' === $state->get( 'compare' ), 'Clear drill-down -- sn_drill omitted, the rest carried -- clears the drill and keeps the comparison' );
+$state = st( $app, array( 'view' => 'events', 'event_prop' => 'p', 'drill' => 'country:US' ) );
+$app->actions['go']( $state, $os, array( 'sn_view' => 'events', 'sn_drill' => 'country:US' ) );
+ok( '' === $state->get( 'event_prop' ), 'the Events property Clear -- sn_event_prop omitted -- clears it' );
+$state = st( $app, array( 'view' => 'overview', 'compare' => 'prev', 'class' => 'bot', 'range' => '30' ) );
+$app->actions['go']( $state, $os, array( 'sn_view' => 'posts', 'sn_range' => '30', 'sn_class' => 'bot' ) );
+ok( 'posts' === $state->get( 'view' ) && 'off' === $state->get( 'compare' ) && '30' === $state->get( 'range' ), 'the movers\' bare deep link (view + window + class, no compare) lands where its classic href lands: comparison off' );
+$state = st( $app, array( 'view' => 'geography', 'drill' => 'country:US', 'compare' => 'yoy' ) );
+$app->actions['go']( $state, $os, array( 'sn_view' => 'geography', 'sn_range' => '7', 'sn_class' => 'human', 'sn_compare' => 'yoy' ) );
+ok( '' === $state->get( 'drill' ) && 'yoy' === $state->get( 'compare' ), 'clicking the ALREADY-ACTIVE tab -- whose link the strip built without the reset params -- clears the drill, as the classic tab does' );
+$uri = snt_os_analytics_request_uri( array( 'page' => 'sn-analytics', 'sn_view' => 'geography', 'sn_drill' => 'country:A&B=x' ) );
+ok( false !== strpos( $uri, 'sn_drill=country%3AA%26B%3Dx' ) && false === strpos( $uri, '&B=x' ), 'the lent REQUEST_URI encodes its values: a drill carrying & cannot inject a parameter into every link the report prints' );
+$state = st( $app, array( 'view' => 'geography', 'range' => '30', 'compare' => 'yoy' ) );
+ok( 'sn_view=geography&sn_range=30&sn_class=human&sn_compare=yoy&sn_lg_range=7' === snt_os_analytics_query( $state ) || false !== strpos( snt_os_analytics_query( $state ), 'sn_compare=yoy' ), 'the wrap carries the current navigation for the brush, values encoded, empties dropped' );
+
+	$snt_ci = (string) getenv( 'CI' );
+	if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {
+		echo "\nFAILED (counted into the summary below, which is what tests/run.sh reads): $skip pins were SKIPPED because WordPress's wp-includes/html-api is not on this machine.\n";
+		echo "Fix: fetch WordPress in the workflow and export SNT_WP_HTML_API=<checkout>/wp-includes/html-api.\n";
+	// tests/run.sh discards a suite's exit status and judges the summary line
+	// alone, so the skips must be counted where the runner looks.
+	$fail += $skip;
+	}
 	echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : '' ) . ".\n";
 
 	// Same rule as tests/openstation-host.php, and for the same reason: without
 	// the HTML API nothing rewrote the page, so a lane that skips these pins
 	// prints OK while every tab still carries an href and the export form is
 	// still a dispatch. A laptop may skip; CI, which fetches the API, may not.
-	$snt_ci = (string) getenv( 'CI' );
-	if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {
-		echo "\nFAILED: $skip pins were SKIPPED because WordPress's wp-includes/html-api is not on this machine.\n";
-		echo "Fix: fetch WordPress in the workflow and export SNT_WP_HTML_API=<checkout>/wp-includes/html-api.\n";
-		exit( 1 );
-	}
 	exit( $fail > 0 ? 1 : 0 );
 }

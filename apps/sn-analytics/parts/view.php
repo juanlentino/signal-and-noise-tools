@@ -113,7 +113,9 @@ function render_notice( $notice ) {
  */
 function render_view( State $state, Os $os ) {
 	unset( $os );
-	echo '<div class="wrap">';
+	// data-snt-query: the current navigation, for the brush (see
+	// snt_os_analytics_query()); the classic page has location.href for that.
+	echo '<div class="wrap" data-snt-query="' . esc_attr( \snt_os_analytics_query( $state ) ) . '">';
 	echo '<h1>Analytics</h1>';
 	render_notice( $state->get( 'notice' ) );
 	// Every byte below was produced by the estate's own renderers, each of

@@ -77,6 +77,17 @@ adds a bullet below. A release is a separate, deliberate act:
   the seven calendar presets silently became the rolling week. The three
   host suites' `State` stubs now coerce exactly as the framework does, so a
   typed default can never hide a string param again. (#1075)
+- A navigation in the Analytics window is the whole next URL. The first
+  build merged a link's params over the current state, so the three
+  controls that reset by omitting their param -- the Compare Off pill,
+  Clear drill-down and the Events property Clear -- and the movers' bare
+  deep link were dead in the window (measured by the review). A `go` is
+  applied wholesale now: a param the link does not carry takes the page's
+  default, as the classic dispatcher reads an absent `$_GET` key; the brush
+  ships the whole current navigation with its window merged in. The lent
+  request URI encodes its values (`add_query_arg()` does not), and the two
+  host suites count CI-skipped rewrite pins into the summary line the
+  runner reads. (#1075)
 
 ### Changed
 - The Analytics menu is no longer auto-imported onto the dock as a URL

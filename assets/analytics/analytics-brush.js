@@ -83,8 +83,24 @@
 	function zoom(wrap, from, to) {
 		var root = hostRoot(wrap);
 		if (root) {
+			// The classic path below merges the window into the CURRENT URL
+			// (searchParams.set keeps every other param). A window has no URL;
+			// the host paints the current navigation on the wrap as
+			// data-snt-query, and a `go` is applied wholesale -- a param the
+			// dispatch omits is the page's default -- so the carrier must ship
+			// the whole navigation with the window merged in, never the three
+			// keys alone (that would reset the view, the class, the compare).
 			var carrier = document.createElement('a');
 			carrier.setAttribute('os-action', 'go');
+			var page = wrap.closest('[data-snt-query]');
+			var pairs = page && page.getAttribute('data-snt-query') ? page.getAttribute('data-snt-query').split('&') : [];
+			for (var p = 0; p < pairs.length; p++) {
+				var eq = pairs[p].indexOf('=');
+				if (eq < 1) { continue; }
+				var key = decodeURIComponent(pairs[p].slice(0, eq));
+				if (key === 'sn_range' || key === 'sn_from' || key === 'sn_to') { continue; }
+				carrier.setAttribute('os-arg-' + key, decodeURIComponent(pairs[p].slice(eq + 1)));
+			}
 			carrier.setAttribute('os-arg-sn_range', 'custom');
 			carrier.setAttribute('os-arg-sn_from', from);
 			carrier.setAttribute('os-arg-sn_to', to);

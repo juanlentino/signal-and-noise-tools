@@ -809,6 +809,16 @@ ok( $n === count( $GLOBALS['__resets'] ), 'a refused write resets nothing: no wr
 $src_pipe = (string) file_get_contents( __DIR__ . '/../inc/openstation-host-pipelines.php' );
 ok( 3 === substr_count( $src_pipe, 'snt_os_host_after_write( snt_os_host_replay_' ), 'the shared, admin-post and rss pipelines all return through the reset; the inline pipeline writes during the paint, so its leaf reads after its own write' );
 
+$snt_ci = (string) getenv( 'CI' );
+if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {
+	echo "\nFAILED (counted into the summary below, which is what tests/run.sh reads): $skip pins were SKIPPED because WordPress's wp-includes/html-api is not on this machine,\n";
+	echo "and the rewrite pass is the single most load-bearing seam of this port. A lane that skips it prints OK\n";
+	echo "while every form still posts to a URL and every link still navigates the desktop away.\n";
+	echo "Fix: fetch WordPress in the workflow and export SNT_WP_HTML_API=<checkout>/wp-includes/html-api.\n";
+	// tests/run.sh discards a suite's exit status and judges the summary line
+	// alone, so the skips must be counted where the runner looks.
+	$fail += $skip;
+}
 echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : '' ) . ".\n";
 
 // A SKIP is a lane measuring nothing, and the rewrite is the seam this whole
@@ -817,12 +827,4 @@ echo "\nResult: $pass passed, $fail failed" . ( $skip > 0 ? ", $skip skipped" : 
 // "0 failed" and exit 0, which tests/run.sh reads as OK. Locally a skip stays a
 // skip (a laptop need not carry a WordPress checkout); in CI it is fatal, and
 // the workflow fetches wp-includes/html-api so it never has to be.
-$snt_ci = (string) getenv( 'CI' );
-if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {
-	echo "\nFAILED: $skip pins were SKIPPED because WordPress's wp-includes/html-api is not on this machine,\n";
-	echo "and the rewrite pass is the single most load-bearing seam of this port. A lane that skips it prints OK\n";
-	echo "while every form still posts to a URL and every link still navigates the desktop away.\n";
-	echo "Fix: fetch WordPress in the workflow and export SNT_WP_HTML_API=<checkout>/wp-includes/html-api.\n";
-	exit( 1 );
-}
 exit( $fail > 0 ? 1 : 0 );
