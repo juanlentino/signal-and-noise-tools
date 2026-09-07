@@ -450,7 +450,7 @@ namespace {
 
 	echo "\nGroup 7: the view\n";
 	$html = paint( $app, array( 'tab' => 'monitoring', 'sub' => 'health', 'params' => array( 'sn_tag_preview' => '1' ) ) );
-	ok( 0 === strpos( $html, '<div class="snt-app" data-snt-tab="monitoring"' ), 'the root is the native window`s: the tab it paints, no wp-admin heading' );
+	ok( 0 === strpos( $html, '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="monitoring"' ), 'the root is the native window`s: the tab it paints, no wp-admin heading' );
 	ok( false !== strpos( $html, 'data-snt-leaf="health"' ), 'the active leaf is named on the body' );
 	ok( false !== strpos( $html, '<div class="snt-dashboard-body">' ) && strpos( $html, '<div class="snt-dashboard-body">' ) < strpos( $html, 'data-snt-leaf="health"' ),
 		'the active leaf sits in the single scrolling body, matching Station Home geometry' );

@@ -144,7 +144,7 @@ namespace {
 	$paint = function ( $view, array $in = array() ) use ( $app, &$painted ) { $painted = array(); $os = new \OpenStation\App\Os(); $os->view = 'overview' === $view ? 'main' : $view; $cb = 'overview' === $view ? $app->view : $app->tabs[ $view ]['view']; ob_start(); call_user_func( $cb, st( $app, $in ), $os ); return (string) ob_get_clean(); };
 	$html = $paint( 'overview', array( 'notice' => array( 'error', 'Broke.' ) ) );
 	ok( array( 'chrome/error', 'chrome/controls', 'chrome/insights', 'chrome/header', 'view/overview' ) === $painted, 'overview: diagnostic, fixed toolbar, then the scrolling report body -- no drill-down without a drill: ' . implode( ',', $painted ) );
-	ok( 0 === strpos( $html, '<div class="snt-app os-app-list" data-snt-view="overview" data-snt-query="' ) && false !== strpos( $html, '<os-notice tone="danger">Broke.</os-notice>' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'data-piece="chrome/error"' ), 'the root adopts the framework list scaffold, names the view and query, and paints the notice first' );
+	ok( 0 === strpos( $html, '<div class="snt-app os-app-list" data-os-app="sn-analytics" data-snt-view="overview" data-snt-query="' ) && false !== strpos( $html, '<os-notice tone="danger">Broke.</os-notice>' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'data-piece="chrome/error"' ), 'the root adopts the framework list scaffold, names the view and query, and paints the notice first' );
 	$paint( 'overview', array( 'drill' => 'browser:Firefox' ) );
 	ok( in_array( 'chrome/drilldown', $painted, true ) && array_search( 'chrome/drilldown', $painted, true ) < array_search( 'view/overview', $painted, true ), 'a parsed drill paints the drill-down panel before the view' );
 	$paint( 'posts' );

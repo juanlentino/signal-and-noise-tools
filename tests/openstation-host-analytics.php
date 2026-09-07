@@ -579,7 +579,7 @@ namespace {
 	$html                   = paint( $app, st( $app, array( 'view' => 'campaigns' ) ), null, 'campaigns' );
 	ok( $before === array( $_GET, $_POST, $_REQUEST, $_SERVER['REQUEST_URI'] ),
 		'painting gives the request back untouched -- the query AND the REQUEST_URI the page`s link builders were lent' );
-	ok( 0 === strpos( $html, '<div class="snt-app os-app-list" data-snt-view="campaigns" data-snt-query="' ) && false === strpos( $html, '<h1>Analytics</h1>' ),
+	ok( 0 === strpos( $html, '<div class="snt-app os-app-list" data-os-app="sn-analytics" data-snt-view="campaigns" data-snt-query="' ) && false === strpos( $html, '<h1>Analytics</h1>' ),
 		'the root is the native window`s: the view it paints and the current navigation for the brush, and no wp-admin heading -- the window title and the tab strip are the shell`s' );
 	ok( false === strpos( $html, 'class="snt-classic"' ) && false !== strpos( $html, 'os-empty-state' ),
 		'an unconfigured view paints the kit gate, not the classic capture -- the port is complete' );

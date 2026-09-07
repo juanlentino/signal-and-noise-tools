@@ -137,7 +137,7 @@ function tab_view( $view ) {
 		$state->set( 'view', $view );
 		$ctx      = context( $view, $state, $os );
 		$painters = painters();
-		echo '<div class="snt-app os-app-list" data-snt-view="' . \snt_kit_esc( $view ) . '" data-snt-query="' . \snt_kit_esc( $ctx['query'] ) . '">';
+		echo '<div class="snt-app os-app-list" data-os-app="sn-analytics" data-snt-view="' . \snt_kit_esc( $view ) . '" data-snt-query="' . \snt_kit_esc( $ctx['query'] ) . '">';
 		echo notice_html( $state->get( 'notice' ) );
 		if ( ! isset( $painters[ 'view/' . $view ] ) ) {
 			echo '<div class="snt-classic">' . dashboard_html( $state ) . '</div></div>';

@@ -117,7 +117,7 @@ namespace {
 	ob_start();
 	call_user_func( $view, $st, $os );
 	$html = (string) ob_get_clean();
-	ok( 0 === strpos( $html, '<div class="snt-app" data-snt-tab="dashboard" data-snt-layout="dashboard"' )
+	ok( 0 === strpos( $html, '<div class="snt-app" data-os-app="sn-dashboard" data-snt-tab="dashboard" data-snt-layout="dashboard"' )
 		&& false !== strpos( $html, '<div class="snt-dashboard-body"><div class="snt-leaf" data-snt-leaf="">' ),
 		'the frame follows Station Home: a full-height app shell around one bounded body and leaf' );
 	$css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
