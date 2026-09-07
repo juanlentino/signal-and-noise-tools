@@ -163,11 +163,11 @@
 		// them with counts and per-source splits.
 		var showed = false;
 		if ( stale > 0 ) {
-			list.appendChild( detail( 'Edits served stale', stale, ERR_FG ) );
+			list.appendChild( detail( 'Edits served stale', stale ) );
 			showed = true;
 		}
 		if ( escalated > 0 ) {
-			list.appendChild( detail( 'Zone purges forced', escalated, WARN_FG ) );
+			list.appendChild( detail( 'Zone purges forced', escalated ) );
 			showed = true;
 		}
 		// Nothing to report is itself the report; an empty hairline rule reads
@@ -176,9 +176,12 @@
 			list.style.display = 'none';
 		}
 		if ( showed ) {
-			wrap.appendChild( el( 'div', { text: 'Recent post-save checks', style: 'font-size:11px;opacity:.7;margin-top:10px;', title: 'Historical checks, not caches waiting to be cleared. Manual purges do not reset these counts.' } ) );
+			var history = el( 'details', { style: 'font-size:11px;margin-top:10px;' } );
+			history.appendChild( el( 'summary', { text: 'Past post-save checks', style: 'cursor:pointer;opacity:.7;' } ) );
+			history.appendChild( el( 'p', { text: 'Historical results, not the current cache state. Purging does not reset this history.', style: 'opacity:.7;line-height:1.4;' } ) );
+			history.appendChild( list );
+			wrap.appendChild( history );
 		}
-		wrap.appendChild( list );
 
 		container.appendChild( wrap );
 		return function teardown() {

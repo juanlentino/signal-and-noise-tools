@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Collapse past cache checks into a neutral disclosure so old failures and escalations do not look like active errors beside the current verdict.
+- Apply native badge surfaces and readable text to all four Analytics maturity tiers, lifecycle status pills (including Refresh and Evergreen), and signal labels. Preserve tier distinctions with colored dots instead of low-contrast classic text.
+
 ## [13.106.16] - 2026-09-07 — Polish native preferences and refresh cache purge status
 
 ### Fixed
