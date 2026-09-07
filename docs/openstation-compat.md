@@ -48,6 +48,9 @@ a PWA shell. Every seam this plugin uses survives that:
 | `openstation_pwa_apple_touch_icon_url()` | present — the 180x180 tile iOS uses for a home-screen install, printed into `admin_head` by `includes/pwa.php`. It has NO filter, so we reach it through core's `get_site_icon_url` instead, scoped to admin + size 180. See `inc/openstation-pwa-icons.php` (#1022). |
 | `openstation_pwa_manifest` | present — documented **Stable** in the upstream hook reference (`docs/hooks-reference.md`). We filter `icons` ONLY: the Site-Icon path declared `192x192` on a 300x300 RGBA file, and iOS composites that alpha to black behind a mark measuring luminance 23/255. See `inc/openstation-pwa-icons.php` (#1017). |
 | `openstation_ai_ability_tool_name`, `openstation_ai_tools` | present |
+| `openstation_is_shell_request` | present — checks whether current admin request is serving the OpenStation shell. Used in `inc/openstation-preferences.php`. |
+| `openstation_register_settings_tab` | present — documented **Stable** in upstream Preferences tab registration API. Used in `inc/openstation-preferences.php`. |
+| `wp.os.registerNativeUrlRemap()` | present — documented **Stable** in the upstream JavaScript reference. The settings-tab provider registers gated Dashboard and Analytics URL remaps without removing either app from the server registry. |
 
 Two seam files did change, and neither is behavioural for us:
 

@@ -41,6 +41,19 @@
  * Dashboard leaves already own their vertical rhythm. */
 .os-app[data-os-app="sn-dashboard"] .snt-leaf os-section {
 	margin-block-end: 0;
+	padding: 16px 20px;
+	border: 1px solid var( --os-ui-border, #33303a );
+	border-radius: 10px;
+	background: var( --os-ui-surface-elevated, #24212a );
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.15 );
+}
+
+.os-app[data-os-app="sn-dashboard"] os-table {
+	--os-ui-table-max-height: 440px;
+}
+
+.os-app[data-os-app="sn-dashboard"] os-table::part( scroll ) {
+	scrollbar-gutter: stable;
 }
 
 .snt-dashboard-home {
@@ -92,7 +105,7 @@
 	padding: 12px 14px;
 	border: 1px solid var( --os-ui-border, #33303a );
 	border-radius: 8px;
-	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.03 ) );
+	background: var( --os-ui-surface-elevated, #24212a );
 	min-width: 0;
 }
 
@@ -133,6 +146,19 @@ os-button.snt-sys__v { justify-self: start; }
 	}
 }
 
+@container snt-dashboard ( max-width: 768px ) {
+	.snt-dashboard-home .snt-cols,
+	.snt-stats,
+	.snt-systems {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+
+	.snt-toolbar__group {
+		flex-direction: column;
+		align-items: stretch;
+	}
+}
+
 @container snt-dashboard ( max-width: 620px ) {
 	.os-app[data-os-app="sn-dashboard"] .snt-dashboard-body {
 		padding: 16px 12px 26px;
@@ -148,6 +174,7 @@ os-button.snt-sys__v { justify-self: start; }
 	}
 }
 
-html[data-os-mode="mobile"] .os-app[data-os-app="sn-dashboard"] .snt-dashboard-body {
-	padding: 14px 10px 24px;
+html[data-os-mode="mobile"] .os-app[data-os-app="sn-dashboard"] .snt-dashboard-body,
+html[data-os-display="standalone"] .os-app[data-os-app="sn-dashboard"] .snt-dashboard-body {
+	padding: 14px 10px max( 24px, env( safe-area-inset-bottom, 16px ) );
 }

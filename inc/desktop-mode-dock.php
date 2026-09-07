@@ -59,9 +59,11 @@ if ( ! defined( 'ABSPATH' ) ) {
  *      desktop_mode_dock_items filter until #1074, and by the App Framework
  *      app since (richer: 8-tab menu + update-available badge).
  *
- * Returning 'hidden' for an enabled native window suppresses the auto-import.
- * Its app tile remains. A per-user opt-out keeps the original placement so the
- * classic page becomes visible again.
+ * Returning 'hidden' for an enabled native window suppresses the auto-imported
+ * classic menu item, while its app tile remains on the dock. When a native
+ * window is disabled by user preference, the auto-imported classic menu item
+ * is placed on the dock ('dock') and the native app tile ('app:<slug>' or
+ * '<slug>') is suppressed ('hidden').
  *
  * Verified against WordPress/desktop-mode includes/core/payload.php:
  *   apply_filters( 'desktop_mode_dock_placement', 'dock', $menu_slug );
@@ -87,10 +89,49 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The classic page keeps every door it has.
  */
 snt_os_compat_add_filter( 'desktop_mode_dock_placement', 'openstation_dock_placement', function( $placement, $menu_slug ) {
-	if ( in_array( $menu_slug, array( 'sn-theme-options', 'sn-analytics' ), true ) ) {
-		return 'hidden';
+	if ( 'signal-noise' === $menu_slug || 'app:signal-noise' === $menu_slug ) {
+		return function_exists( 'snt_os_native_window_enabled' ) && ! snt_os_native_window_enabled( 'signal-noise' )
+			? 'hidden'
+			: $placement;
+	}
+	if ( 'sn-dashboard' === $menu_slug || 'app:sn-dashboard' === $menu_slug ) {
+		return function_exists( 'snt_os_native_window_enabled' ) && ! snt_os_native_window_enabled( 'dashboard' )
+			? 'hidden'
+			: $placement;
+	}
+	if ( 'sn-theme-options' === $menu_slug ) {
+		return ( ! function_exists( 'snt_os_native_window_enabled' ) || snt_os_native_window_enabled( 'dashboard' ) )
+			? 'hidden'
+			: 'dock';
+	}
+	if ( 'app:sn-analytics' === $menu_slug ) {
+		return function_exists( 'snt_os_native_window_enabled' ) && ! snt_os_native_window_enabled( 'analytics' )
+			? 'hidden'
+			: $placement;
+	}
+	if ( 'sn-analytics' === $menu_slug ) {
+		return ( ! function_exists( 'snt_os_native_window_enabled' ) || snt_os_native_window_enabled( 'analytics' ) )
+			? 'hidden'
+			: 'dock';
 	}
 	return $placement;
+}, 10, 2 );
+
+/**
+ * Keep every App Framework definition registered, but remove a disabled app's
+ * launcher from the dock by changing only its per-request window placement.
+ */
+snt_os_compat_add_filter( 'desktop_mode_app_window_args', 'openstation_app_window_args', function( $window_args, $app_id ) {
+	$preference = array(
+		'signal-noise' => 'signal-noise',
+		'sn-dashboard' => 'dashboard',
+		'sn-analytics' => 'analytics',
+	);
+	$app_id     = (string) $app_id;
+	if ( isset( $preference[ $app_id ] ) && function_exists( 'snt_os_native_window_enabled' ) && ! snt_os_native_window_enabled( $preference[ $app_id ] ) ) {
+		$window_args['placement'] = 'none';
+	}
+	return $window_args;
 }, 10, 2 );
 
 /**
@@ -196,10 +237,14 @@ add_action( 'init', function() {
 	// not the classic page in a chromeless frame: one surface per id, and the
 	// icon keeps its id so its position and the attention badge survive.
 	$dashboard_icon = array(
-		'title'  => 'S&N Dashboard',
-		'icon'   => 'dashicons-shield-alt',
-		'window' => 'sn-dashboard',
+		'title' => 'S&N Dashboard',
+		'icon'  => 'dashicons-shield-alt',
 	);
+	if ( ! function_exists( 'snt_os_native_window_enabled' ) || snt_os_native_window_enabled( 'dashboard' ) ) {
+		$dashboard_icon['window'] = 'sn-dashboard';
+	} else {
+		$dashboard_icon['url'] = admin_url( 'admin.php?page=sn-theme-options' );
+	}
 	snt_os_register_icon( 'sn-icon-dashboard', $dashboard_icon );
 
 	snt_os_register_icon( 'sn-icon-identity', array(
