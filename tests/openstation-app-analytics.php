@@ -190,6 +190,13 @@ namespace {
 	ok( false !== strpos( $quality_src, 'snt-report-columns' ), 'Quality view arranges quality and bot confidence tables in snt-report-columns' );
 	$posts_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-posts.php' );
 	ok( false !== strpos( $posts_src, 'snt-report-columns' ), 'Posts view arranges catalog and decay tables in snt-report-columns' );
+	$camp_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-campaigns.php' );
+	ok( false !== strpos( $camp_src, 'snt-report-columns' ), 'Campaigns view arranges campaigns and sources in snt-report-columns' );
+	$login_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-login-defense.php' );
+	ok( false !== strpos( $login_src, 'snt-report-columns' ), 'Login defense view arranges attacker tables in snt-report-columns' );
+	$geo_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-geography.php' );
+	ok( false !== strpos( $geo_src, '<div class="snt-grid">' ) && false !== strpos( $geo_src, "dim_table( __( 'Countries'" ) && strpos( $geo_src, '<div class="snt-grid">' ) < strpos( $geo_src, "dim_table( __( 'Countries'" ), 'Geography view nests Countries inside snt-grid alongside regional tables' );
+	ok( false !== strpos( $css, '.snt-grid' ) && false !== strpos( $css, '@container ( max-width: 860px )' ), 'sn-analytics.css collapses snt-grid under 860px container query' );
 
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );

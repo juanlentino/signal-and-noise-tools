@@ -38,7 +38,7 @@ function paint_view_login_defense( array $ctx ) {
 			$ctry_rows[] = array( 'value' => (string) ( $row['country'] ?? '' ), 'views' => $row['hits'] ?? 0 );
 		}
 	}
-	return '<div class="snt-grid">'
+	return '<div class="snt-report-columns">'
 		. dim_table( __( 'Top attacker networks', 'signal-and-noise-tools' ), $asn_rows, __( 'No attacker-network rows in this range.', 'signal-and-noise-tools' ) )
 		. dim_table( __( 'Top attacker countries', 'signal-and-noise-tools' ), $ctry_rows, __( 'No attacker-country rows in this range.', 'signal-and-noise-tools' ) )
 		. '</div>';

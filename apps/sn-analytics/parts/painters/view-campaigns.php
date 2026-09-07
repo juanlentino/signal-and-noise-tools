@@ -33,7 +33,7 @@ function paint_view_campaigns( array $ctx ) {
 	}
 	$intro     = '<p class="snt-prose">' . \snt_kit_esc( __( 'Campaign attribution: visits whose landing URL carried utm_source / utm_medium / utm_campaign tags. Cookieless: only the five named utm_* params are read, never the raw query string.', 'signal-and-noise-tools' ) ) . '</p>';
 	return $intro
-		. '<div class="snt-grid">'
+		. '<div class="snt-report-columns">'
 		. dim_table( __( 'Campaigns', 'signal-and-noise-tools' ), $campaigns, __( 'No campaigns in this range. Tag a link with ?utm_source=…&utm_medium=…&utm_campaign=… and campaign visits will appear here.', 'signal-and-noise-tools' ) )
 		. dim_table( __( 'Source / Medium', 'signal-and-noise-tools' ), $sources, __( 'No campaign sources in this range.', 'signal-and-noise-tools' ) )
 		. '</div>';

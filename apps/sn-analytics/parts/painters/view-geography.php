@@ -28,8 +28,8 @@ function paint_view_geography( array $ctx ) {
 	};
 	$countries = $read( 'country', 250 );
 	$top       = is_array( $countries ) ? array_slice( $countries, 0, 10 ) : $countries;
-	$out       = dim_table( __( 'Countries', 'signal-and-noise-tools' ), $top, __( 'No country data in this range.', 'signal-and-noise-tools' ), 'country' );
-	$out      .= '<div class="snt-grid">';
+	$out       = '<div class="snt-grid">';
+	$out      .= dim_table( __( 'Countries', 'signal-and-noise-tools' ), $top, __( 'No country data in this range.', 'signal-and-noise-tools' ), 'country' );
 	$out      .= dim_table( __( 'Cities', 'signal-and-noise-tools' ), $read( 'city' ), __( 'No city data in this range yet.', 'signal-and-noise-tools' ), 'city' );
 	$out      .= dim_table( __( 'Regions', 'signal-and-noise-tools' ), $read( 'region' ), __( 'No region data in this range yet.', 'signal-and-noise-tools' ), 'region' );
 	$out      .= dim_table( __( 'Networks', 'signal-and-noise-tools' ), $read( 'network' ), __( 'No network data in this range yet.', 'signal-and-noise-tools' ), 'network' );

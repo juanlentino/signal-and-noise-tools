@@ -198,8 +198,8 @@ function search_console_sync_html( array $s ) {
  */
 function paint_monitoring_search_console( array $ctx ) {
 	unset( $ctx );
-	$s   = search_console_state();
-	$out = \snt_kit_section(
+	$s    = search_console_state();
+	$left = \snt_kit_section(
 		__( 'Search Console credential', 'signal-and-noise-tools' ),
 		search_console_credential_html( $s )
 	);
@@ -209,9 +209,13 @@ function paint_monitoring_search_console( array $ctx ) {
 		if ( '' !== $s['current'] ) {
 			$inner .= search_console_sync_html( $s );
 		}
-		$out .= \snt_kit_section( __( 'Property', 'signal-and-noise-tools' ), $inner );
+		$right = \snt_kit_section( __( 'Property', 'signal-and-noise-tools' ), $inner );
+		return '<div class="snt-2up">'
+			. '<div class="snt-2up-col">' . $left . '</div>'
+			. '<div class="snt-2up-col">' . $right . '</div>'
+			. '</div>';
 	}
-	return $out;
+	return $left;
 }
 
 add_filter(

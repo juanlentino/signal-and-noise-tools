@@ -37,14 +37,20 @@ function paint_monitoring_insights( array $ctx ) {
 	$last     = snt_insights_last_scan();
 	$ai_ready = function_exists( 'snt_ai_is_available' ) && snt_ai_is_available();
 
-	$out  = '<p class="snt-prose">' . \snt_kit_esc( __( 'Cross-system synthesis: reads your Plausible analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.', 'signal-and-noise-tools' ) ) . '</p>';
-	$out .= insights_run_form_html( $last, $ai_ready );
-	$out .= insights_recommendations_html( $last );
-	$out .= insights_usage_html();
-	$out .= insights_cache_probe_html();
-	$out .= \snt_kit_section( __( 'Scan status', 'signal-and-noise-tools' ), insights_status_html( $last ) );
-	$out .= insights_settings_html();
-	return $out;
+	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Cross-system synthesis: reads your Plausible analytics, publish history, webhook delivery patterns, and cron freshness, then surfaces unexplored open questions worth developing for your Notes (or nothing, when none clears the bar). One AI call per scan; results cached 7 days.', 'signal-and-noise-tools' ) ) . '</p>';
+	$left  = insights_run_form_html( $last, $ai_ready );
+	$left .= insights_recommendations_html( $last );
+
+	$right  = \snt_kit_section( __( 'Scan status', 'signal-and-noise-tools' ), insights_status_html( $last ) );
+	$right .= insights_usage_html();
+	$right .= insights_cache_probe_html();
+	$right .= insights_settings_html();
+
+	return $intro
+		. '<div class="snt-2up">'
+		. '<div class="snt-2up-col">' . $left . '</div>'
+		. '<div class="snt-2up-col">' . $right . '</div>'
+		. '</div>';
 }
 
 add_filter(
