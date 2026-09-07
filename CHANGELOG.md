@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Restore the native Analytics header to the classic two-thirds Overview column with Uptime above Movers in the right-hand rail. Align the Human/Suspect/Bot selector with the Range and Compare fields.
+
 ## [13.106.14] - 2026-09-07 — Polish native Analytics layout and contrast
 
 ### Fixed

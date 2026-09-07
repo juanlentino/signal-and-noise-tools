@@ -525,22 +525,23 @@ snt-analytics-table os-table { display: block; width: 100%; }
 	.snt-native-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* Keep the headline and chart across the window; the supporting rail follows
- * in source order instead of competing with the headline for half its width. */
-.snt-app[data-os-app="sn-analytics"] .sn-an-header-main,
-.snt-app[data-os-app="sn-analytics"] .sn-an-header-rail {
-	grid-column: 1 / -1;
+/* Match the classic header proportions: Overview on the left, with Uptime
+ * above Movers in a narrower right-hand rail. */
+.snt-app[data-os-app="sn-analytics"] .sn-an-header-grid {
+	grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
 }
 
 .snt-app[data-os-app="sn-analytics"] .sn-an-header-rail {
-	display: grid;
-	grid-template-columns: repeat(2, minmax(0, 1fr));
+	display: flex;
+	flex-direction: column;
 	gap: 18px;
-	align-items: start;
+	min-width: 0;
 }
 
-.snt-app[data-os-app="sn-analytics"] .sn-an-header-rail > :only-child {
-	grid-column: 1 / -1;
+/* Selects include visible labels; segmented controls do not. Align the
+ * control bottoms rather than centering the different-height hosts. */
+.snt-app[data-os-app="sn-analytics"] .snt-report-toolbar__filters {
+	align-items: flex-end;
 }
 
 /* Shared report helpers still carry classic light colors. Pair their native
@@ -560,8 +561,12 @@ snt-analytics-table os-table { display: block; width: 100%; }
 }
 
 @container (max-width: 640px) {
-	.snt-app[data-os-app="sn-analytics"] .sn-an-header-rail {
+	.snt-app[data-os-app="sn-analytics"] .sn-an-header-grid {
 		grid-template-columns: minmax(0, 1fr);
+	}
+
+	.snt-app[data-os-app="sn-analytics"] .snt-report-toolbar__filters {
+		align-items: stretch;
 	}
 }
 
