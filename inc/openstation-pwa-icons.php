@@ -20,9 +20,12 @@
  *      mask has no full-bleed art to crop and falls back to a shrunken tile on
  *      a system-drawn backdrop.
  *
- * The replacements are flattened onto WHITE, not onto the manifest's
- * `background_color` (#0c0b0f): the mark is dark ink, so a dark ground would
- * erase it. That is a measurement, not a preference — see the luminance above.
+ * The dark replacements invert the opaque original artwork: light ink on a
+ * dark ground, preserving every shape and the maskable inset. Installed app
+ * icons do not inherit page CSS or the active OpenStation palette. These are
+ * stable dark app icons, not a claim of automatic OS color-scheme switching.
+ * New filenames let browsers detect the artwork change instead of retaining
+ * the previous white icon at an unchanged URL.
  *
  * The icons ship with THIS PLUGIN rather than the theme. The manifest describes
  * a wp-admin surface (`scope=/wp-admin/`), and wp-admin has to keep working
@@ -53,25 +56,25 @@ function snt_openstation_pwa_icons() {
 
 	return array(
 		array(
-			'src'     => $base . 'icon-192.png',
+			'src'     => $base . 'icon-192-dark.png',
 			'sizes'   => '192x192',
 			'type'    => 'image/png',
 			'purpose' => 'any',
 		),
 		array(
-			'src'     => $base . 'icon-512.png',
+			'src'     => $base . 'icon-512-dark.png',
 			'sizes'   => '512x512',
 			'type'    => 'image/png',
 			'purpose' => 'any',
 		),
 		array(
-			'src'     => $base . 'maskable-192.png',
+			'src'     => $base . 'maskable-192-dark.png',
 			'sizes'   => '192x192',
 			'type'    => 'image/png',
 			'purpose' => 'maskable',
 		),
 		array(
-			'src'     => $base . 'maskable-512.png',
+			'src'     => $base . 'maskable-512-dark.png',
 			'sizes'   => '512x512',
 			'type'    => 'image/png',
 			'purpose' => 'maskable',
@@ -128,6 +131,6 @@ function snt_openstation_apple_touch_icon_url( $url, $size ) {
 		return $url;
 	}
 
-	return SNT_URL . 'assets/pwa/icon-180.png';
+	return SNT_URL . 'assets/pwa/icon-180-dark.png';
 }
 add_filter( 'get_site_icon_url', 'snt_openstation_apple_touch_icon_url', 10, 2 );
