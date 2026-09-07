@@ -367,6 +367,7 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] .snt-vie
 .snt-app[data-os-app="sn-analytics"] {
 	--sn-an-text: var(--os-ui-fg, #fffbff);
 	--sn-an-muted: var(--os-ui-fg-muted, #b3afb5);
+	--sn-text-muted: var(--os-ui-fg-muted, #b3afb5);
 	--sn-an-hairline: var(--os-ui-border, #454150);
 	--sn-an-surface: var(--os-ui-surface-elevated, #24212a);
 	--sn-an-surface-2: var(--os-ui-surface-subtle, #302c36);
@@ -522,4 +523,73 @@ snt-analytics-table os-table { display: block; width: 100%; }
 @container (max-width: 640px) {
 	.snt-native-panel-body { padding: 10px; }
 	.snt-native-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+/* Keep the headline and chart across the window; the supporting rail follows
+ * in source order instead of competing with the headline for half its width. */
+.snt-app[data-os-app="sn-analytics"] .sn-an-header-main,
+.snt-app[data-os-app="sn-analytics"] .sn-an-header-rail {
+	grid-column: 1 / -1;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-header-rail {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 18px;
+	align-items: start;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-header-rail > :only-child {
+	grid-column: 1 / -1;
+}
+
+/* Shared report helpers still carry classic light colors. Pair their native
+ * text and surfaces explicitly so labels remain readable in either theme. */
+.snt-app[data-os-app="sn-analytics"] .sn-an-refcats--chips .sn-an-refcat {
+	background: var(--os-ui-surface-subtle, var(--sn-an-surface-2));
+	border: 1px solid var(--os-ui-border);
+	color: var(--os-ui-fg);
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.sn-an-sep, .sn-an-subh, .sn-an-visitor-note, .sn-an-compare-note, .sn-trend-meta, .sn-an-dist-l, .sn-an-hm-day, .sn-an-delta--flat, .sn-delta-flat) {
+	color: var(--os-ui-fg-muted);
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-sep--full {
+	border-color: var(--os-ui-border);
+}
+
+@container (max-width: 640px) {
+	.snt-app[data-os-app="sn-analytics"] .sn-an-header-rail {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}
+
+.snt-app[data-os-app="sn-analytics"] .snt-scroll-table {
+	border: 0;
+	border-radius: 0;
+	margin: 0;
+	max-height: none;
+	overflow: visible;
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.snt-native-cell, .snt-native-matrix) code {
+	background: transparent;
+	color: inherit;
+	font: inherit;
+	padding: 0;
+	white-space: normal;
+	overflow-wrap: anywhere;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-breakdown {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-breakdown .sn-pill {
+	color: var(--os-ui-fg);
+	background: var(--os-ui-surface-subtle);
+	border: 1px solid var(--os-ui-border);
 }
