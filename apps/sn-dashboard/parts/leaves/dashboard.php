@@ -258,10 +258,34 @@ function pulse_item_html( $label, $icon, $value, $delta, $href, $tab = 'dashboar
 		. '<strong>' . esc_html( $value ) . '</strong>'
 		. $delta_html;
 
+	$attrs = array(
+		'class' => 'snt-home__metric',
+		'href'  => (string) $href,
+	);
+
 	if ( null !== $go ) {
-		return \snt_kit_go( $body, $go + array( 'current' => $tab ), array( 'class' => 'snt-home__metric' ) );
+		$target_tab = (string) ( $go['tab'] ?? '' );
+		if ( '' === $target_tab || $target_tab === $tab ) {
+			$attrs['os-action'] = 'go';
+			if ( ! empty( $go['sub'] ) ) {
+				$attrs['os-arg-sub'] = (string) $go['sub'];
+			}
+			if ( ! empty( $go['anchor'] ) ) {
+				$attrs['os-arg-anchor'] = (string) $go['anchor'];
+			}
+		} else {
+			$attrs['class']       .= ' snt-go';
+			$attrs['data-snt-tab'] = $target_tab;
+			if ( ! empty( $go['sub'] ) ) {
+				$attrs['data-snt-sub'] = (string) $go['sub'];
+			}
+			if ( ! empty( $go['anchor'] ) ) {
+				$attrs['data-snt-anchor'] = (string) $go['anchor'];
+			}
+		}
 	}
-	return '<a class="snt-home__metric" href="' . esc_url( $href ) . '">' . $body . '</a>';
+
+	return \snt_kit_tag( 'a', $attrs, $body );
 }
 
 /**
@@ -500,11 +524,34 @@ function home_attention_html( array $data, $tab ) {
 				. '<span class="dashicons dashicons-arrow-right-alt2" aria-hidden="true"></span>'
 				. '</span>';
 
+			$attrs = array(
+				'class' => 'snt-home__attention-row snt-home__attention-row--' . esc_attr( $row['severity'] ),
+				'href'  => (string) $row['href'],
+			);
+
 			if ( null !== $go ) {
-				$out .= \snt_kit_go( $row_body, $go + array( 'current' => $tab ), array( 'class' => 'snt-home__attention-row snt-home__attention-row--' . esc_attr( $row['severity'] ) ) );
-			} else {
-				$out .= '<a class="snt-home__attention-row snt-home__attention-row--' . esc_attr( $row['severity'] ) . '" href="' . esc_url( $row['href'] ) . '">' . $row_body . '</a>';
+				$target_tab = (string) ( $go['tab'] ?? '' );
+				if ( '' === $target_tab || $target_tab === $tab ) {
+					$attrs['os-action'] = 'go';
+					if ( ! empty( $go['sub'] ) ) {
+						$attrs['os-arg-sub'] = (string) $go['sub'];
+					}
+					if ( ! empty( $go['anchor'] ) ) {
+						$attrs['os-arg-anchor'] = (string) $go['anchor'];
+					}
+				} else {
+					$attrs['class']       .= ' snt-go';
+					$attrs['data-snt-tab'] = $target_tab;
+					if ( ! empty( $go['sub'] ) ) {
+						$attrs['data-snt-sub'] = (string) $go['sub'];
+					}
+					if ( ! empty( $go['anchor'] ) ) {
+						$attrs['data-snt-anchor'] = (string) $go['anchor'];
+					}
+				}
 			}
+
+			$out .= \snt_kit_tag( 'a', $attrs, $row_body );
 		}
 	}
 

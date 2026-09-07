@@ -38,7 +38,10 @@ function snt_kit_button( $label, $action, array $opts = array() ) {
 	foreach ( (array) ( $opts['args'] ?? array() ) as $name => $value ) {
 		$attrs[ 'os-arg-' . (string) $name ] = (string) $value;
 	}
-	return snt_kit_tag( 'os-button', $attrs, snt_kit_esc( $label ) );
+	$inner = ( ! empty( $opts['raw'] ) || ( isset( $opts['escape'] ) && false === $opts['escape'] ) )
+		? (string) $label
+		: snt_kit_esc( $label );
+	return snt_kit_tag( 'os-button', $attrs, $inner );
 }
 
 /**
@@ -97,7 +100,7 @@ function snt_kit_go( $label, array $target, array $opts = array() ) {
 			'data-snt-anchor' => (string) ( $target['anchor'] ?? '' ),
 			'title'           => $opts['title'] ?? null,
 		),
-		snt_kit_esc( $label )
+		( ! empty( $opts['raw'] ) || ( isset( $opts['escape'] ) && false === $opts['escape'] ) ) ? (string) $label : snt_kit_esc( $label )
 	);
 }
 

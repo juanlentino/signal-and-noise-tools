@@ -83,6 +83,37 @@
 		} );
 	}
 
+	function syncDockTiles( prefs ) {
+		if ( ! window.wp || ! window.wp.os ) {
+			return;
+		}
+		var os = window.wp.os;
+		if ( ! prefs.analytics ) {
+			if ( os.dock && typeof os.dock.removeSystemItem === 'function' ) {
+				os.dock.removeSystemItem( 'sn-analytics' );
+			}
+			if ( os.sideDock && typeof os.sideDock.removeSystemItem === 'function' ) {
+				os.sideDock.removeSystemItem( 'sn-analytics' );
+			}
+			var nativeTile = document.querySelector( '[data-tile-id="sn-analytics"], [data-id="sn-analytics"]' );
+			if ( nativeTile && nativeTile.parentNode ) {
+				nativeTile.parentNode.removeChild( nativeTile );
+			}
+		}
+		if ( ! prefs.dashboard ) {
+			if ( os.dock && typeof os.dock.removeSystemItem === 'function' ) {
+				os.dock.removeSystemItem( 'sn-dashboard' );
+			}
+			if ( os.sideDock && typeof os.sideDock.removeSystemItem === 'function' ) {
+				os.sideDock.removeSystemItem( 'sn-dashboard' );
+			}
+			var nativeDbTile = document.querySelector( '[data-tile-id="sn-dashboard"], [data-id="sn-dashboard"]' );
+			if ( nativeDbTile && nativeDbTile.parentNode ) {
+				nativeDbTile.parentNode.removeChild( nativeDbTile );
+			}
+		}
+	}
+
 	function render( body ) {
 		body.replaceChildren();
 
@@ -125,10 +156,16 @@
 				save( patch ).then( function( saved ) {
 					preferences = Object.assign( {}, preferences, saved );
 					wireUrlRemaps();
+					syncDockTiles( preferences );
 					status.textContent = __( 'Saved.', 'signal-and-noise-tools' );
 					status.style.color = 'var(--os-ui-success, #7bd88f)';
 					if ( window.wp && window.wp.os && typeof window.wp.os.refreshMenu === 'function' ) {
-						window.wp.os.refreshMenu();
+						var refreshed = window.wp.os.refreshMenu();
+						if ( refreshed && typeof refreshed.then === 'function' ) {
+							refreshed.then( function() {
+								syncDockTiles( preferences );
+							} );
+						}
 					}
 				} ).catch( function() {
 					preferences[ key ] = previous;
@@ -164,6 +201,10 @@
 
 	function init() {
 		wireUrlRemaps();
+		syncDockTiles( preferences );
+		document.addEventListener( 'os-registry-changed', function() {
+			syncDockTiles( preferences );
+		} );
 		if ( window.wp && window.wp.os && typeof window.wp.os.registerSettingsTab === 'function' ) {
 			window.wp.os.registerSettingsTab( {
 				id: 'signal-noise',
