@@ -93,6 +93,7 @@ ok( array( '192x192', '512x512' ) === ( $purposes['maskable'] ?? array() ), 'pur
 $checked = 0;
 foreach ( $icons as $icon ) {
 	$name = basename( (string) $icon['src'] );
+	ok( str_ends_with( $name, '-dark.png' ), "$name uses a new dark-art URL so installed apps can detect the icon update" );
 	$path = dirname( __DIR__ ) . '/assets/pwa/' . $name;
 	ok( is_file( $path ), "$name is shipped" );
 	$hdr = snt_pwa_png_header( $path );
@@ -130,7 +131,7 @@ ok( isset( $GLOBALS['snt_filters']['get_site_icon_url'] ), 'registers on core ge
 $site_url = 'https://example.test/wp-content/uploads/cropped-logo-300x300.png';
 $GLOBALS['snt_is_admin'] = true;
 ok(
-	SNT_URL . 'assets/pwa/icon-180.png' === snt_openstation_apple_touch_icon_url( $site_url, 180 ),
+	SNT_URL . 'assets/pwa/icon-180-dark.png' === snt_openstation_apple_touch_icon_url( $site_url, 180 ),
 	'admin + size 180 -> our opaque tile'
 );
 foreach ( array( 32, 180.0, 192, 512 ) as $other ) {
@@ -143,8 +144,8 @@ $GLOBALS['snt_is_admin'] = false;
 ok( $site_url === snt_openstation_apple_touch_icon_url( $site_url, 180 ), 'front-end is left alone - the browser-tab favicon keeps its transparency' );
 $GLOBALS['snt_is_admin'] = true;
 
-$tile = dirname( __DIR__ ) . '/assets/pwa/icon-180.png';
-ok( is_file( $tile ), 'assets/pwa/icon-180.png is shipped' );
+$tile = dirname( __DIR__ ) . '/assets/pwa/icon-180-dark.png';
+ok( is_file( $tile ), 'assets/pwa/icon-180-dark.png is shipped' );
 $th = snt_pwa_png_header( $tile );
 ok( is_array( $th ) && 180 === $th['w'] && 180 === $th['h'], 'the tile really is 180x180' );
 ok( is_array( $th ) && 2 === $th['ctype'], 'the tile has NO alpha channel - the black square was iOS compositing transparency (colour type ' . ( is_array( $th ) ? $th['ctype'] : -1 ) . ')' );
