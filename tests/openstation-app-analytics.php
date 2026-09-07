@@ -64,6 +64,7 @@ namespace {
 	function sn_analytics_granularity( $days ) { return $days > 60 ? 'week' : 'day'; }
 	function sn_analytics_config() { return ! empty( $GLOBALS['__configured'] ); }
 	function sn_login_defense_resolve_days() { return 7; }
+	function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) { return array(); }
 	function snt_analytics_page_url( $args = array() ) { return 'https://example.test/wp-admin/admin.php?page=sn-analytics' . ( $args ? '&' . http_build_query( $args ) : '' ); }
 	function snt_os_host_last( $v ) { return is_array( $v ) ? (string) end( $v ) : (string) $v; }
 	function snt_os_host_expand( array $a ) { return $a; }
@@ -197,6 +198,18 @@ namespace {
 	$geo_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-geography.php' );
 	ok( false !== strpos( $geo_src, '<div class="snt-grid">' ) && false !== strpos( $geo_src, "dim_table( __( 'Countries'" ) && strpos( $geo_src, '<div class="snt-grid">' ) < strpos( $geo_src, "dim_table( __( 'Countries'" ), 'Geography view nests Countries inside snt-grid alongside regional tables' );
 	ok( false !== strpos( $css, '.snt-grid' ) && false !== strpos( $css, '@container ( max-width: 860px )' ), 'sn-analytics.css collapses snt-grid under 860px container query' );
+
+	echo "\nGroup 7: visual polish -- card containment, executive insights, and view doors\n";
+	ok( false !== strpos( $css, 'os-section::part( body )' ) && false !== strpos( $css, '--os-ui-surface-elevated' ), 'reports enclose section bodies in elevated card surfaces' );
+	ok( false !== strpos( $css, '.snt-insights-card' ) && false !== strpos( $css, '.snt-insights-lead' ), 'Insights band styles as an executive briefing card' );
+	ok( false !== strpos( $css, '.snt-doors' ) && false !== strpos( $css, 'snt-door-btn' ), 'View doors render as a styled navigation bar with button pills' );
+	ok( false !== strpos( $css, '.snt-view > os-empty-state' ) && false !== strpos( $css, 'os-section os-empty-state' ), 'Both standalone views and inner sections define bounded empty state cards' );
+
+	$overview_html = call_user_func( $painters['view/overview'], array( 'from' => '2026-09-01', 'to' => '2026-09-07', 'class' => 'human' ) );
+	ok( false !== strpos( $overview_html, 'class="snt-doors snt-toolbar__group"' ) && false !== strpos( $overview_html, 'variant="secondary"' ) && false !== strpos( $overview_html, 'snt-door-btn' ), 'Overview view paints view doors as secondary button pills in an snt-doors group' );
+
+	$insights_html = call_user_func( $painters['chrome/insights'], array( 'from' => '2026-09-01', 'to' => '2026-09-07', 'class' => 'human' ) );
+	ok( false !== strpos( $insights_html, 'class="snt-insights-card"' ) && false !== strpos( $insights_html, 'class="snt-prose snt-insights-lead"' ), 'Insights painter renders structured snt-insights-card container' );
 
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );

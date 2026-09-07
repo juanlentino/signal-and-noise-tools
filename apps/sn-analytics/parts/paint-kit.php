@@ -50,8 +50,8 @@ function view_door( $label, $slug ) {
 	return \snt_kit_tag(
 		'os-button',
 		array(
-			'class'        => 'snt-go',
-			'variant'      => 'link',
+			'class'        => 'snt-go snt-door-btn',
+			'variant'      => 'secondary',
 			'data-snt-tab' => (string) $slug,
 		),
 		\snt_kit_esc( (string) $label )

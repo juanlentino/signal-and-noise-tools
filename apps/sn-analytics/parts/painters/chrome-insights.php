@@ -51,8 +51,12 @@ function paint_chrome_insights( array $ctx ) {
 		: '';
 	return \snt_kit_section(
 		__( 'Insights', 'signal-and-noise-tools' ),
-		'<p class="snt-prose">' . \snt_kit_esc( $lead ) . '</p>' . $chips . $more
-		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Transparent statistics over first-party rollups: robust median/MAD anomalies, Theil-Sen trends, backtested Holt forecasts with intervals. Signals need ~2 weeks of history - nothing is shown the data cannot support.', 'signal-and-noise-tools' ) ) . '</p>'
+		'<div class="snt-insights-card">'
+		. '<p class="snt-prose snt-insights-lead">' . \snt_kit_esc( $lead ) . '</p>'
+		. ( '' !== $chips ? '<div class="snt-chips-wrap">' . $chips . '</div>' : '' )
+		. $more
+		. '<p class="snt-hint snt-insights-hint">' . \snt_kit_esc( __( 'Transparent statistics over first-party rollups: robust median/MAD anomalies, Theil-Sen trends, backtested Holt forecasts with intervals. Signals need ~2 weeks of history - nothing is shown the data cannot support.', 'signal-and-noise-tools' ) ) . '</p>'
+		. '</div>'
 	);
 }
 

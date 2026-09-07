@@ -12,6 +12,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- S&N Analytics UI/UX Polish: restored elevated card surfaces (`--os-ui-surface-elevated`, `--os-ui-border`, 10px radius) to `os-section::part( body )` around tables, distributions, and empty states across all 13 views, eliminating naked wireframe text and infinite canvas gaps.
+- Executive Briefing Insights Card: formatted Overview insights into a structured `.snt-insights-card` with clear lead hierarchy, chips, and a hairline divider for methodology notes.
+- Pill Navigation View Doors: converted the Overview doorway links into interactive secondary button pills (`os-button[variant="secondary"]`) within a dedicated `.snt-doors` strip with an uppercase "Jump to view:" label.
+- Hero Empty States: centered and framed full-view empty states (`.snt-view > os-empty-state`) within elevated card containers with subtle drop shadow and comfortable padding.
+
 ## [13.106.8] - 2026-09-07 — Responsive two-column layouts and visual analytics polish
 
 ### Added

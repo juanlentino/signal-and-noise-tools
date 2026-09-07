@@ -16,25 +16,95 @@
 	gap: 16px;
 }
 
-.snt-grid os-section,
-.snt-report-flow os-section,
-.os-app[data-os-app="sn-analytics"] .snt-view > os-section {
-	padding: 0;
-	border-radius: 0;
-	background: transparent;
-	border: none;
-	box-shadow: none;
+/* Section & Report Card Containment:
+ * In OpenStation's idiom, the canvas is the main surface. Section headings sit
+ * on the canvas creating clear typographic hierarchy, while content bodies
+ * (tables, empty states, callouts) are contained within elevated card surfaces.
+ * Sections containing self-carded children (like .snt-stats) stay flat.
+ */
+.os-app[data-os-app="sn-analytics"] .snt-view os-section {
+	margin-block-end: 0;
 	min-width: 0;
 }
 
+.os-app[data-os-app="sn-analytics"] .snt-view os-section::part( heading ) {
+	font-size: 13px;
+	font-weight: 600;
+	letter-spacing: -0.01em;
+	color: var( --os-ui-fg, #fffbff );
+	margin-block-end: 6px;
+}
+
+.os-app[data-os-app="sn-analytics"] .snt-view os-section::part( body ) {
+	display: flex;
+	flex-direction: column;
+	border-radius: 10px;
+	background: var( --os-ui-surface-elevated, #24212a );
+	border: 1px solid var( --os-ui-border, #33303a );
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.12 );
+	overflow: hidden;
+	min-width: 0;
+}
+
+/* Sections containing self-carded children (stats or custom insight cards) stay flat */
+.os-app[data-os-app="sn-analytics"] .snt-view os-section:has( .snt-stats )::part( body ),
+.os-app[data-os-app="sn-analytics"] .snt-view os-section:has( .snt-insights-card )::part( body ) {
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	border-radius: 0;
+	overflow: visible;
+	padding: 0;
+	gap: 14px;
+}
+
 .snt-report-flow os-table,
-.snt-grid os-table {
+.snt-grid os-table,
+.os-app[data-os-app="sn-analytics"] os-table {
 	--os-ui-table-max-height: 440px;
+	width: 100%;
+	display: block;
 }
 
 .snt-report-flow os-table::part( scroll ),
-.snt-grid os-table::part( scroll ) {
+.snt-grid os-table::part( scroll ),
+.os-app[data-os-app="sn-analytics"] os-table::part( scroll ) {
 	scrollbar-gutter: stable;
+}
+
+/* Table drilldown links inside the card footer */
+.os-app[data-os-app="sn-analytics"] os-section .snt-toolbar__group {
+	padding: 8px 12px;
+	border-top: 1px solid var( --os-ui-border, #33303a );
+	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.02 ) );
+}
+
+/* Empty states inside card sections */
+.os-app[data-os-app="sn-analytics"] os-section os-empty-state {
+	padding: 24px 16px;
+	margin: 0;
+	color: var( --os-ui-fg-muted, #a39cae );
+	font-size: 13px;
+	text-align: center;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+}
+
+/* Standalone view empty states (e.g. Campaigns, Sessions, Search) */
+.os-app[data-os-app="sn-analytics"] .snt-view > os-empty-state {
+	max-width: 580px;
+	margin: 40px auto;
+	padding: 36px 32px;
+	border-radius: 12px;
+	background: var( --os-ui-surface-elevated, #24212a );
+	border: 1px solid var( --os-ui-border, #33303a );
+	box-shadow: 0 2px 8px rgba( 0, 0, 0, 0.18 );
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	text-align: center;
 }
 
 .os-app[data-os-app="sn-analytics"] .snt-app.os-app-list {
@@ -185,8 +255,77 @@ html[data-os-display="standalone"] .os-app[data-os-app="sn-analytics"] textarea 
 	min-width: 0;
 }
 
+/* Executive Briefing card for Insights */
+.snt-insights-card {
+	display: flex;
+	flex-direction: column;
+	gap: 10px;
+	padding: 16px 18px;
+	border-radius: 10px;
+	background: var( --os-ui-surface-elevated, #24212a );
+	border: 1px solid var( --os-ui-border, #33303a );
+	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.12 );
+}
+
+.snt-insights-lead {
+	font-size: 13px;
+	line-height: 1.5;
+	color: var( --os-ui-fg, #fffbff );
+	margin: 0;
+}
+
+.snt-insights-hint {
+	border-top: 1px solid var( --os-ui-border, #33303a );
+	padding-top: 8px;
+	font-size: 11px;
+	line-height: 1.45;
+	color: var( --os-ui-fg-muted, #a39cae );
+	margin: 0;
+}
+
+.snt-chips-wrap {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	align-items: center;
+}
+
+/* Quick-jump view doorways navigation strip */
+.snt-doors {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 14px;
+	margin-block: 2px 8px;
+	border-radius: 8px;
+	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.03 ) );
+	border: 1px solid var( --os-ui-border, #33303a );
+}
+
+.snt-doors__label {
+	font-size: 11px;
+	font-weight: 600;
+	letter-spacing: 0.04em;
+	text-transform: uppercase;
+	color: var( --os-ui-fg-muted, #a39cae );
+	margin-inline-end: 4px;
+}
+
+.snt-doors os-button.snt-door-btn {
+	--os-button-height: 28px;
+	font-size: 12px;
+}
+
+/* Report footnotes and journey notes */
 .snt-report-note {
-	padding-block: 2px;
+	padding: 6px 10px;
+	border-radius: 6px;
+	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.02 ) );
+	border: 1px solid var( --os-ui-border, rgba( 255, 251, 255, 0.06 ) );
+	font-size: 11px;
+	color: var( --os-ui-fg-muted, #a39cae );
+	margin: 0;
 }
 
 @container ( max-width: 860px ) {
