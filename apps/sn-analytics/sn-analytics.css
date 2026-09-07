@@ -361,3 +361,104 @@ html[data-os-mode="mobile"] .snt-app[data-os-app="sn-analytics"] .snt-view,
 html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] .snt-view {
 	padding: 12px 10px max( 24px, env( safe-area-inset-bottom, 16px ) );
 }
+
+/* Canonical reports share their data, semantics and charts with classic.
+ * Only their presentation belongs to this native window. */
+.snt-app[data-os-app="sn-analytics"] {
+	--sn-an-text: var(--os-ui-fg, #fffbff);
+	--sn-an-muted: var(--os-ui-fg-muted, #b3afb5);
+	--sn-an-hairline: var(--os-ui-border, #454150);
+	--sn-an-surface: var(--os-ui-surface-elevated, #24212a);
+	--sn-an-surface-2: var(--os-ui-surface-subtle, #302c36);
+	--sn-an-accent: var(--os-ui-accent, #ec9bff);
+	--sn-an-up: var(--os-ui-success, #7bd88f);
+	--sn-an-down: var(--os-ui-danger, #ff5a5a);
+	--sn-an-radius: 10px;
+	--sn-an-elev-radius: 10px;
+}
+
+.snt-app[data-os-app="sn-analytics"] .snt-view {
+	box-sizing: border-box;
+	min-width: 0;
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.postbox, .sn-an-headline, .sn-an-pulse) {
+	background: var(--sn-an-surface);
+	color: var(--sn-an-text);
+	border: 1px solid var(--sn-an-hairline);
+	border-radius: 10px;
+	box-shadow: none;
+	min-width: 0;
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.postbox-header, .hndle, .sn-kpi, .sn-kpi-promoted, .sn-an-table, .widefat, .sn-an-read) {
+	background: transparent;
+	color: var(--sn-an-text);
+	border-color: var(--sn-an-hairline);
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.widefat th, .widefat td, .sn-kpi-value, .sn-an-headline-lead) {
+	color: var(--sn-an-text);
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.description, .sn-an-muted, .sn-kpi-label, .sn-kpi-delta, .sn-an-empty, .sn-control-label) {
+	color: var(--sn-an-muted);
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(a, .button-link) {
+	color: var(--sn-an-accent);
+	cursor: pointer;
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.widefat thead, .striped > tbody > :nth-child(odd)) {
+	background: var(--sn-an-surface-2);
+}
+
+.snt-app[data-os-app="sn-analytics"] .widefat {
+	width: 100%;
+	border-collapse: collapse;
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.widefat th, .widefat td) {
+	padding: 9px 12px;
+	font-size: 13px;
+	overflow-wrap: anywhere;
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.sn-an-grid, .sn-an-cols, .sn-an-content-grid, .sn-an-journeys-grid, .sn-an-overview-bento, .sn-an-header-grid, .sn-an-cwv-grid) {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 18px;
+	align-items: start;
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.sn-an-grid, .sn-an-cols, .sn-an-content-grid, .sn-an-journeys-grid, .sn-an-overview-bento, .sn-an-header-grid, .sn-an-cwv-grid) > * {
+	min-width: 0;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-kpi-row {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-headline summary {
+	white-space: normal;
+	cursor: pointer;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-table-inside {
+	overflow-x: auto;
+}
+
+.snt-app[data-os-app="sn-analytics"] :is(.button, button:not(os-button)) {
+	background: var(--sn-an-surface-2);
+	color: var(--sn-an-text);
+	border: 1px solid var(--sn-an-hairline);
+	border-radius: 6px;
+}
+
+@container (max-width: 640px) {
+	.snt-app[data-os-app="sn-analytics"] :is(.sn-an-grid, .sn-an-cols, .sn-an-content-grid, .sn-an-journeys-grid, .sn-an-overview-bento, .sn-an-header-grid, .sn-an-cwv-grid) {
+		grid-template-columns: minmax(0, 1fr);
+	}
+}

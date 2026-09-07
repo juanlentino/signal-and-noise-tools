@@ -58,7 +58,7 @@
 	 * @return {Element|null}
 	 */
 	function hostRoot(el) {
-		return typeof el.closest === 'function' ? el.closest('.os-app[data-os-app]') : null;
+		return typeof el.closest === 'function' ? el.closest('.snt-app[data-os-app], .os-app[data-os-app]') : null;
 	}
 
 	/**

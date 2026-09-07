@@ -57,12 +57,10 @@
 	'use strict';
 
 	/**
-	 * The app roots this file hosts. The framework's window template is
-	 * `<div class="os-app" data-os-app="<id>" data-os-view="<view>">`
-	 * (desktop-mode `includes/framework/wordpress.php`), one per view, and the
-	 * runtime paints into it.
+	 * The PHP frame owns the app identity inside each native window. The host
+	 * observes that frame rather than the framework window wrapper.
 	 */
-	var ROOT_SELECTOR = '.os-app[data-os-app="sn-dashboard"], .os-app[data-os-app="sn-analytics"]';
+	var ROOT_SELECTOR = '.snt-app[data-os-app="sn-dashboard"], .snt-app[data-os-app="sn-analytics"]';
 
 	/** Roots already given an observer. */
 	var hosted = new WeakSet();

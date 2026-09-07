@@ -22,7 +22,7 @@
 	var APPS = { 'sn-dashboard': 'dashboard', 'sn-analytics': 'overview' };
 
 	function appRoot( node ) {
-		return node.closest ? node.closest( '.os-app[data-os-app]' ) : null;
+		return node.closest ? node.closest( '.snt-app[data-os-app]' ) : null;
 	}
 
 	function viewFor( appId, tab ) {
@@ -121,7 +121,7 @@
 	document.addEventListener( 'os-window-tab-change', function ( event ) {
 		var win = event.target;
 		var id = win && win.getAttribute ? ( win.getAttribute( 'data-window-id' ) || win.id || '' ) : '';
-		if ( id.indexOf( 'sn-analytics' ) === -1 && ! ( win && win.querySelector && win.querySelector( '.os-app[data-os-app="sn-analytics"]' ) ) ) {
+		if ( id.indexOf( 'sn-analytics' ) === -1 && ! ( win && win.querySelector && win.querySelector( '.snt-app[data-os-app="sn-analytics"]' ) ) ) {
 			return;
 		}
 		var next = event.detail && event.detail.value ? String( event.detail.value ) : 'main';

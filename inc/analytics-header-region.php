@@ -32,9 +32,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $to          Window end (Y-m-d).
  * @param string $granularity 'day' | 'week' | 'month'.
  * @param string $compare     Comparison mode: 'prev' | 'yoy' | 'off' (default).
+ * @param bool   $controls Whether this surface needs the classic toolbar.
  * @return array Range totals — the dashboard's tail empty-hint reads them.
  */
-function snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity, $compare = 'off' ) {
+function snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity, $compare = 'off', $controls = true ) {
 	$totals       = sn_analytics_range_totals( $from, $to, $class );
 	$class_totals = sn_analytics_class_totals( $from, $to );
 	$now          = sn_analytics_realtime( $class );
@@ -70,7 +71,9 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 		? array( 'current' => sn_analytics_engaged_rate( $from, $to, $class ) )
 		: sn_analytics_engaged_rate_delta( $from, $to, $class, $cwin_basis );
 
-	snt_analytics_render_controls( $range, $class, $from, $to, $compare, $class_totals );
+	if ( $controls ) {
+		snt_analytics_render_controls( $range, $class, $from, $to, $compare, $class_totals );
+	}
 
 	echo '<div class="sn-an-header-grid">';
 	echo '<div class="sn-an-header-main">';

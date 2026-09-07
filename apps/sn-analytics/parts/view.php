@@ -34,9 +34,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * Run the dashboard under the query AND the request URI it would have had.
  *
  * @param array<string,string> $get The `$_GET` from `snt_os_analytics_get()`.
+ * @param callable|null $paint Optional report renderer.
  * @return string The HTML the page echoed.
  */
-function capture( array $get ) {
+function capture( array $get, ?callable $paint = null ) {
 	$uri = \snt_os_analytics_request_uri( $get );
 	$had = array_key_exists( 'REQUEST_URI', $_SERVER );
 	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput -- Read ONLY to put back byte-for-byte; sanitizing it here would change what the dispatch is restored to, which is the bug this line prevents.
@@ -45,7 +46,7 @@ function capture( array $get ) {
 		$_SERVER['REQUEST_URI'] = $uri;
 	}
 	try {
-		return \snt_os_host_capture( 'snt_analytics_render_dashboard', $get );
+		return \snt_os_host_capture( $paint ?? 'snt_analytics_render_dashboard', $get );
 	} finally {
 		if ( '' !== $uri ) {
 			if ( $had ) {
