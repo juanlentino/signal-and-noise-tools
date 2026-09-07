@@ -136,6 +136,13 @@ function paint_chrome_controls( array $ctx ) {
 		) ) . '</span>';
 	}
 
+	if ( in_array( $ctx['view'] ?? '', array( 'events', 'edge' ), true ) ) {
+		$class_control = '';
+		$compare_control = '';
+		$sep = '';
+		$export = ''; // The export is pageview/class scoped, not an events or edge export.
+	}
+
 	return '<header class="os-app-list__toolbar snt-report-toolbar">'
 		. '<div class="os-app-list__toolbar-left snt-report-toolbar__filters">' . $range_control . $class_control . $compare_control . '</div>'
 		. '<div class="os-app-list__toolbar-trailing snt-report-toolbar__trailing">' . $sep . $export . '</div>'

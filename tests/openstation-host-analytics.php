@@ -745,7 +745,7 @@ namespace {
 
 	echo "\nGroup 13: the brush cannot navigate a window away\n";
 	$brush = (string) file_get_contents( __DIR__ . '/../assets/analytics/analytics-brush.js' );
-	ok( false !== strpos( $brush, "closest('.os-app[data-os-app]')" ),
+	ok( false !== strpos( $brush, "closest('.snt-app[data-os-app], .os-app[data-os-app]')" ),
 		'the brush asks whether it is inside an app window, by the framework`s own template attribute' );
 	ok( false !== strpos( $brush, "setAttribute('os-action', 'go')" ) && false !== strpos( $brush, "setAttribute('os-arg-sn_range', 'custom')" ),
 		'   ...and dispatches the same `go` the range pills dispatch, with the three params it used to put in the URL' );

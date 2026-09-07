@@ -100,6 +100,10 @@ function context( $view, State $state, Os $os ) {
  * @return array{html:string,facts:array}
  */
 function paint_piece( $key, array $ctx ) {
+	$canonical = canonical_piece( $key, $ctx );
+	if ( null !== $canonical ) {
+		return $canonical;
+	}
 	$painters = painters();
 	if ( ! isset( $painters[ $key ] ) || ! is_callable( $painters[ $key ] ) ) {
 		return array( 'html' => '', 'facts' => array() );
@@ -153,7 +157,7 @@ function tab_view( $view ) {
 			// Search Console is a scheduled Google window. The global range,
 			// traffic-class and comparison controls cannot affect it, so showing
 			// them above Search is a false affordance.
-			if ( 'search' !== $view ) {
+			if ( ! in_array( $view, array( 'search', 'posts' ), true ) ) {
 				echo paint_piece( 'chrome/controls', $ctx )['html'];
 			}
 		} elseif ( 'login-defense' === $view ) {

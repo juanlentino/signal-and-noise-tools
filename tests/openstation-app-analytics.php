@@ -148,7 +148,7 @@ namespace {
 	$paint( 'overview', array( 'drill' => 'browser:Firefox' ) );
 	ok( in_array( 'chrome/drilldown', $painted, true ) && array_search( 'chrome/drilldown', $painted, true ) < array_search( 'view/overview', $painted, true ), 'a parsed drill paints the drill-down panel before the view' );
 	$paint( 'posts' );
-	ok( array( 'chrome/error', 'chrome/controls', 'view/posts' ) === $painted, 'Posts paints its controls and catalog without the Overview insights, KPIs, or chart' );
+	ok( array( 'chrome/error', 'view/posts' ) === $painted, 'Posts paints its lifetime catalog without ineffective range controls or Overview chrome' );
 	$paint( 'edge' );
 	ok( array( 'chrome/error', 'chrome/controls', 'view/edge' ) === $painted, 'other focused reports follow the same compact composition' );
 	$paint( 'search' );

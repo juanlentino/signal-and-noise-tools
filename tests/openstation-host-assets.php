@@ -156,8 +156,8 @@ ok( strlen( $host ) > 1000, 'VACUITY: os-host.js has content (' . strlen( $host 
 ok( strlen( $admin ) > 1000, 'VACUITY: admin.js has content (' . strlen( $admin ) . ' bytes)' );
 
 echo "\nGroup 1: os-host.js hosts BOTH windows, now and later\n";
-ok( false !== strpos( $host, '.os-app[data-os-app="sn-dashboard"]' ), 'it selects the sn-dashboard app root by the framework\'s own template attributes' );
-ok( false !== strpos( $host, '.os-app[data-os-app="sn-analytics"]' ), 'it selects the sn-analytics app root too — one host script, two windows' );
+ok( false !== strpos( $host, '.snt-app[data-os-app="sn-dashboard"]' ), 'it selects the sn-dashboard app root by the framework\'s own template attributes' );
+ok( false !== strpos( $host, '.snt-app[data-os-app="sn-analytics"]' ), 'it selects the sn-analytics app root too — one host script, two windows' );
 $start = snt_region( $host, 'function start(' );
 ok( '' !== $start && false !== strpos( $start, 'scan( document.body )' ), 'VACUITY+PIN: start() is extracted and scans the body that is already there' );
 ok( snt_has_all( $start, array( 'MutationObserver', 'document.body', 'addedNodes', 'childList' ) ), 'start() observes document.body for ADDED nodes, so a window opened later is hosted (a window almost always opens after this file loads)' );
