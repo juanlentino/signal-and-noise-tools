@@ -107,6 +107,9 @@ $GLOBALS['__settings']['analytics.funnels'] = array( array( 'name' => 'Home flow
 $classic = snt_leaf_classic_html( '\snt_analytics_render_settings_section' );
 $kit     = snt_leaf_paint( 'monitoring', 'analytics' );
 ok( '' !== $kit, 'the kit leaf paints' );
+ok( false !== strpos( $kit, '<div class="snt-2up">' ), 'the kit leaf arranges content into .snt-2up two columns' );
+ok( false !== strpos( $kit, '<div class="snt-2up-col">' ), 'the kit leaf has .snt-2up-col columns' );
+
 
 // A shared `sn_exclude_roles[]` name per checkbox is silent-by-construction
 // at runtime (OsForm.getValues() collapses N same-named controls to ONE key,

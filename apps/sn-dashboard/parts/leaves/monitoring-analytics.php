@@ -44,19 +44,24 @@ function paint_monitoring_analytics( array $ctx ) {
 		. ( '' !== $dashboard_url ? \snt_kit_door( __( 'View dashboard →', 'signal-and-noise-tools' ), $dashboard_url ) : '' )
 		. '</p>';
 
-	$out  = analytics_pipeline_html();
-	$out .= $intro;
-	$out .= analytics_credentials_html();
-	$out .= analytics_collector_html();
-	$out .= analytics_exclusion_html();
-	$out .= analytics_tuning_html();
-	$out .= analytics_funnels_html();
-	$out .= analytics_worker_html();
-	$out .= analytics_salt_html();
-	$out .= analytics_mirrors_html( $tab );
-	$out .= analytics_filter_reference_html();
-	$out .= analytics_worker_setup_html();
-	return $out;
+	$left  = $intro;
+	$left .= analytics_credentials_html();
+	$left .= analytics_collector_html();
+	$left .= analytics_exclusion_html();
+	$left .= analytics_tuning_html();
+	$left .= analytics_funnels_html();
+
+	$right  = analytics_worker_html();
+	$right .= analytics_salt_html();
+	$right .= analytics_mirrors_html( $tab );
+	$right .= analytics_filter_reference_html();
+	$right .= analytics_worker_setup_html();
+
+	return analytics_pipeline_html()
+		. '<div class="snt-2up">'
+		. '<div class="snt-2up-col">' . $left . '</div>'
+		. '<div class="snt-2up-col">' . $right . '</div>'
+		. '</div>';
 }
 
 add_filter(

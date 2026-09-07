@@ -52,8 +52,10 @@ function paint_view_posts( array $ctx ) {
 		$decay[] = array( 'label' => ucfirst( $label ), 'views' => $count );
 	}
 	return stats( $cards )
+		. '<div class="snt-report-columns">'
 		. dim_table( __( 'Catalog', 'signal-and-noise-tools' ), $board, __( 'No post traffic yet.', 'signal-and-noise-tools' ) )
-		. distribution_table( __( 'Evergreen vs spike', 'signal-and-noise-tools' ), $decay, __( 'No shape data yet.', 'signal-and-noise-tools' ) );
+		. distribution_table( __( 'Evergreen vs spike', 'signal-and-noise-tools' ), $decay, __( 'No shape data yet.', 'signal-and-noise-tools' ) )
+		. '</div>';
 }
 
 add_filter(

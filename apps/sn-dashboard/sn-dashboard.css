@@ -43,12 +43,49 @@
 .os-app[data-os-app="sn-dashboard"] .snt-app[data-snt-tab="dashboard"] .snt-leaf,
 .os-app[data-os-app="sn-dashboard"] .snt-leaf:has( os-table ),
 .os-app[data-os-app="sn-dashboard"] .snt-leaf:has( .snt-table-wrap ),
+.os-app[data-os-app="sn-dashboard"] .snt-leaf:has( .snt-2up ),
+.os-app[data-os-app="sn-dashboard"] .snt-leaf:has( os-row ),
+.os-app[data-os-app="sn-dashboard"] .snt-leaf:has( .snt-cols ),
+.os-app[data-os-app="sn-dashboard"] .snt-leaf:has( .snt-report-columns ),
+.os-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="analytics"],
+.os-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="machine-readers"],
+.os-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="cloudflare"],
+.os-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="indexnow"],
 .os-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="reports"],
 .os-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="redirects"],
 .os-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="audit-log"],
 .os-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="tags"] {
 	max-width: 100%;
 }
+
+/* Two-column layout for composite settings leaves */
+.snt-2up {
+	display: grid;
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	gap: 24px;
+	align-items: start;
+	width: 100%;
+}
+
+.snt-2up > * {
+	min-width: 0;
+}
+
+.snt-2up-col {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	min-width: 0;
+}
+
+.snt-2up-col > os-section {
+	width: 100%;
+}
+
+.snt-2up-col > os-section + os-section {
+	margin-block-start: 18px;
+}
+
 
 /* S&N Home tab full-viewport layout */
 .os-app[data-os-app="sn-dashboard"] .snt-app[data-snt-tab="dashboard"] .snt-dashboard-body {
@@ -642,6 +679,13 @@ os-button.snt-sys__v { justify-self: start; }
 	}
 }
 
+@container snt-dashboard ( max-width: 860px ) {
+	.snt-2up {
+		grid-template-columns: minmax( 0, 1fr );
+		gap: 16px;
+	}
+}
+
 @container snt-dashboard ( max-width: 820px ) {
 	.snt-home__layout {
 		grid-template-columns: 1fr;
@@ -724,6 +768,13 @@ html[data-os-mode="mobile"] .snt-home__main,
 html[data-os-display="standalone"] .snt-home__main {
 	padding-bottom: max( 36px, env( safe-area-inset-bottom, 24px ) );
 }
+
+html[data-os-mode="mobile"] .snt-2up,
+html[data-os-display="standalone"] .snt-2up {
+	grid-template-columns: minmax( 0, 1fr );
+	gap: 16px;
+}
+
 
 /* Form inputs: 16px font-size to eliminate unwanted auto-zoom on iOS */
 html[data-os-mode="mobile"] .os-app[data-os-app="sn-dashboard"] input,

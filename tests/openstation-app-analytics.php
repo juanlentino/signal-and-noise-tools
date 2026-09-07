@@ -186,7 +186,12 @@ namespace {
 	ok( false !== strpos( $css, '.snt-view os-section' ) && false !== strpos( $css, 'margin-block-end: 0' ), 'the report cancels os-section`s Settings-page margin instead of double-spacing every panel' );
 	ok( false !== strpos( $css, '.snt-report-columns' ) && false !== strpos( $css, '@container ( max-width: 860px )' ), 'independent report columns fold at the window container, not the browser viewport' );
 	ok( false !== strpos( $css, 'data-os-mode="mobile"' ) && false !== strpos( $css, 'font-size: 16px' ) && false !== strpos( $css, 'safe-area-inset-bottom' ), 'Analytics carries the mobile PWA form and safe-area foundation' );
+	$quality_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-quality.php' );
+	ok( false !== strpos( $quality_src, 'snt-report-columns' ), 'Quality view arranges quality and bot confidence tables in snt-report-columns' );
+	$posts_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-posts.php' );
+	ok( false !== strpos( $posts_src, 'snt-report-columns' ), 'Posts view arranges catalog and decay tables in snt-report-columns' );
 
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );
+
 }
