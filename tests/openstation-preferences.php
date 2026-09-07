@@ -3,7 +3,7 @@
  * Standalone fixture test suite for OpenStation Preferences Toggles (Option B).
  *
  * Verifies:
- *  - Preference defaults: all 3 enabled (signal-noise, dashboard, analytics).
+ *  - Preference defaults: both optional native windows enabled (dashboard, analytics).
  *  - Persistence and getter/helper/saver functions in inc/openstation-preferences.php.
  *  - Partial updates, sanitization, and user isolation.
  *  - REST API endpoint registration, GET/POST handlers, and manage_options capability gating.
@@ -299,8 +299,8 @@ echo "openstation-preferences — Option B Unit Tests\n\n";
 echo "Group 1: Default preferences\n";
 $defaults = snt_os_native_window_defaults();
 ok( is_array( $defaults ), 'snt_os_native_window_defaults() returns an array' );
-ok( array( 'signal-noise', 'dashboard', 'analytics' ) === array_keys( $defaults ), 'defaults has exact keys: signal-noise, dashboard, analytics' );
-ok( true === $defaults['signal-noise'] && true === $defaults['dashboard'] && true === $defaults['analytics'], 'all default values are boolean true' );
+ok( array( 'dashboard', 'analytics' ) === array_keys( $defaults ), 'defaults has exact keys: dashboard and analytics' );
+ok( true === $defaults['dashboard'] && true === $defaults['analytics'], 'all default values are boolean true' );
 
 $user_prefs = snt_os_native_window_preferences( 99 );
 ok( $defaults === $user_prefs, 'fresh user without stored meta receives defaults' );
@@ -313,7 +313,6 @@ $zero_prefs = snt_os_native_window_preferences( 0 );
 ok( $defaults === $zero_prefs, 'user_id 0 and unauthenticated returns defaults' );
 $GLOBALS['__user_id'] = 1;
 
-ok( true === snt_os_native_window_enabled( 'signal-noise', 99 ), 'helper: signal-noise is enabled by default' );
 ok( true === snt_os_native_window_enabled( 'dashboard', 99 ), 'helper: dashboard is enabled by default' );
 ok( true === snt_os_native_window_enabled( 'analytics', 99 ), 'helper: analytics is enabled by default' );
 ok( false === snt_os_native_window_enabled( 'non-existent', 99 ), 'helper: non-existent key returns false' );
@@ -323,37 +322,37 @@ echo "\nGroup 2: Persistence and user meta storage\n";
 ok( defined( 'SNT_OS_PREFERENCES_META' ) && '_snt_os_native_windows' === SNT_OS_PREFERENCES_META, 'SNT_OS_PREFERENCES_META constant equals _snt_os_native_windows' );
 
 $saved = snt_os_save_native_window_preferences( array( 'dashboard' => false ), 10 );
-ok( false === $saved['dashboard'] && true === $saved['analytics'] && true === $saved['signal-noise'], 'snt_os_save_native_window_preferences() returns merged preferences' );
+ok( false === $saved['dashboard'] && true === $saved['analytics'], 'snt_os_save_native_window_preferences() returns merged preferences' );
 
 $meta_stored = get_user_meta( 10, SNT_OS_PREFERENCES_META, true );
 ok( is_array( $meta_stored ) && false === $meta_stored['dashboard'], 'update_user_meta stored updated array under _snt_os_native_windows' );
 
 $retrieved = snt_os_native_window_preferences( 10 );
-ok( false === $retrieved['dashboard'] && true === $retrieved['analytics'] && true === $retrieved['signal-noise'], 'subsequent snt_os_native_window_preferences(10) returns persisted changes' );
+ok( false === $retrieved['dashboard'] && true === $retrieved['analytics'], 'subsequent snt_os_native_window_preferences(10) returns persisted changes' );
 ok( false === snt_os_native_window_enabled( 'dashboard', 10 ), 'snt_os_native_window_enabled reflects saved false state' );
 
 // ── Group 3: Partial Updates and Key Sanitization ─────────────────────
 echo "\nGroup 3: Partial updates and key sanitization\n";
 $step2 = snt_os_save_native_window_preferences( array( 'analytics' => false ), 10 );
-ok( false === $step2['dashboard'] && false === $step2['analytics'] && true === $step2['signal-noise'], 'cumulative partial update preserves previously saved preferences' );
+ok( false === $step2['dashboard'] && false === $step2['analytics'], 'cumulative partial update preserves previously saved preferences' );
 
 $step_single = snt_os_save_native_window_preferences( array( 'signal-noise' => false ), 10 );
-ok( false === $step_single['signal-noise'] && false === $step_single['dashboard'] && false === $step_single['analytics'], 'single toggle update preserves other two preferences' );
+ok( false === $step_single['dashboard'] && false === $step_single['analytics'] && ! isset( $step_single['signal-noise'] ), 'native-only Signal & Noise is ignored as a preference key' );
 
 $step3 = snt_os_save_native_window_preferences( array( 'unknown_window' => true, 'invalid_flag' => false ), 10 );
-ok( array( 'signal-noise', 'dashboard', 'analytics' ) === array_keys( $step3 ), 'saving unknown keys does not pollute preferences array' );
+ok( array( 'dashboard', 'analytics' ) === array_keys( $step3 ), 'saving unknown keys does not pollute preferences array' );
 
 $step4 = snt_os_save_native_window_preferences( array( 'dashboard' => 1, 'analytics' => 0, 'signal-noise' => true ), 10 );
-ok( true === $step4['dashboard'] && false === $step4['analytics'] && true === $step4['signal-noise'], 'integer inputs 1 and 0 are strictly coerced to booleans' );
+ok( true === $step4['dashboard'] && false === $step4['analytics'] && ! isset( $step4['signal-noise'] ), 'integer inputs 1 and 0 are strictly coerced to booleans' );
 
 $empty_patch = snt_os_save_native_window_preferences( array(), 10 );
-ok( true === $empty_patch['dashboard'] && false === $empty_patch['analytics'] && true === $empty_patch['signal-noise'], 'empty patch preserves existing preferences without alteration' );
+ok( true === $empty_patch['dashboard'] && false === $empty_patch['analytics'], 'empty patch preserves existing preferences without alteration' );
 
 // User isolation
 $user1_prefs = snt_os_native_window_preferences( 10 );
 $user2_prefs = snt_os_native_window_preferences( 20 );
-ok( true === $user1_prefs['dashboard'] && false === $user1_prefs['analytics'] && true === $user1_prefs['signal-noise'], 'user 10 preferences intact' );
-ok( true === $user2_prefs['dashboard'] && true === $user2_prefs['analytics'] && true === $user2_prefs['signal-noise'], 'user 20 still has defaults, isolated from user 10' );
+ok( true === $user1_prefs['dashboard'] && false === $user1_prefs['analytics'], 'user 10 preferences intact' );
+ok( true === $user2_prefs['dashboard'] && true === $user2_prefs['analytics'], 'user 20 still has defaults, isolated from user 10' );
 
 // ── Group 4: REST API Endpoint Registration and Capability Check ──────
 echo "\nGroup 4: REST API registration and capabilities\n";
@@ -392,19 +391,19 @@ $GLOBALS['__caps'] = array( 'manage_options' => true );
 // ── Group 5: REST API Handlers ────────────────────────────────────────
 echo "\nGroup 5: REST API GET & POST handlers\n";
 $GLOBALS['__user_id'] = 1;
-snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true, 'signal-noise' => true ), 1 );
+snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true ), 1 );
 
 $get_response = snt_os_preferences_rest_get();
 ok( $get_response instanceof WP_REST_Response, 'GET handler returns WP_REST_Response' );
 ok( 200 === $get_response->get_status(), 'GET handler returns HTTP 200' );
-ok( array( 'signal-noise' => true, 'dashboard' => true, 'analytics' => true ) === $get_response->get_data(), 'GET handler returns current preferences' );
+ok( array( 'dashboard' => true, 'analytics' => true ) === $get_response->get_data(), 'GET handler returns current preferences' );
 
 $post_req = new WP_REST_Request( array( 'dashboard' => false ) );
 $post_response = snt_os_preferences_rest_update( $post_req );
 ok( $post_response instanceof WP_REST_Response, 'POST handler returns WP_REST_Response on valid update' );
 ok( 200 === $post_response->get_status(), 'POST handler returns HTTP 200' );
 $post_data = $post_response->get_data();
-ok( false === $post_data['dashboard'] && true === $post_data['analytics'] && true === $post_data['signal-noise'], 'POST handler updates and returns modified preferences' );
+ok( false === $post_data['dashboard'] && true === $post_data['analytics'], 'POST handler updates and returns modified preferences' );
 
 $invalid_req = new WP_REST_Request( 'invalid string payload' );
 $invalid_response = snt_os_preferences_rest_update( $invalid_req );
@@ -418,7 +417,7 @@ ok( has_filter( 'openstation_dock_placement' ) && has_filter( 'desktop_mode_dock
 ok( has_filter( 'openstation_app_window_args' ) && has_filter( 'desktop_mode_app_window_args' ), 'native app placement filter is dual-registered without altering the app registry' );
 
 // Enabled state
-snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true, 'signal-noise' => true ), 1 );
+snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true ), 1 );
 ok( 'hidden' === apply_filters( 'openstation_dock_placement', 'dock', 'sn-theme-options' ), 'dashboard enabled: sn-theme-options classic menu is hidden' );
 ok( 'hidden' === apply_filters( 'openstation_dock_placement', 'dock', 'sn-analytics' ), 'analytics enabled: sn-analytics classic menu is hidden' );
 ok( 'dock' === apply_filters( 'openstation_dock_placement', 'dock', 'signal-noise' ), 'signal-noise enabled: app tile remains dock' );
@@ -426,7 +425,7 @@ ok( 'dock' === apply_filters( 'openstation_dock_placement', 'dock', 'app:signal-
 ok( 'dock' === apply_filters( 'openstation_dock_placement', 'dock', 'other-page' ), 'unrelated slug is passed through unchanged' );
 ok( 'hidden' === apply_filters( 'desktop_mode_dock_placement', 'dock', 'sn-theme-options' ), 'dual-hook: desktop_mode_dock_placement hides sn-theme-options when enabled' );
 $native_args = array( 'placement' => 'dock' );
-ok( 'dock' === apply_filters( 'openstation_app_window_args', $native_args, 'signal-noise' )['placement'], 'signal-noise enabled: App Framework launcher stays on dock' );
+ok( 'dock' === apply_filters( 'openstation_app_window_args', $native_args, 'signal-noise' )['placement'], 'Signal & Noise is always native and remains on dock' );
 ok( 'dock' === apply_filters( 'openstation_app_window_args', $native_args, 'sn-dashboard' )['placement'], 'dashboard enabled: App Framework launcher stays on dock' );
 ok( 'dock' === apply_filters( 'openstation_app_window_args', $native_args, 'sn-analytics' )['placement'], 'analytics enabled: App Framework launcher stays on dock' );
 
@@ -434,9 +433,9 @@ ok( 'dock' === apply_filters( 'openstation_app_window_args', $native_args, 'sn-a
 snt_os_save_native_window_preferences( array( 'dashboard' => false, 'analytics' => false, 'signal-noise' => false ), 1 );
 ok( 'dock' === apply_filters( 'openstation_dock_placement', 'dock', 'sn-theme-options' ), 'dashboard disabled: sn-theme-options classic menu appears on dock' );
 ok( 'dock' === apply_filters( 'openstation_dock_placement', 'dock', 'sn-analytics' ), 'analytics disabled: sn-analytics classic menu appears on dock' );
-ok( 'hidden' === apply_filters( 'openstation_dock_placement', 'dock', 'signal-noise' ), 'signal-noise disabled: tile is hidden' );
-ok( 'hidden' === apply_filters( 'openstation_dock_placement', 'dock', 'app:signal-noise' ), 'app:signal-noise disabled: tile is hidden' );
-ok( 'none' === apply_filters( 'openstation_app_window_args', $native_args, 'signal-noise' )['placement'], 'signal-noise disabled: registered app launcher placement is none' );
+ok( 'dock' === apply_filters( 'openstation_dock_placement', 'dock', 'signal-noise' ), 'Signal & Noise remains visible when optional windows are disabled' );
+ok( 'dock' === apply_filters( 'openstation_dock_placement', 'dock', 'app:signal-noise' ), 'native Signal & Noise app launcher remains visible' );
+ok( 'dock' === apply_filters( 'openstation_app_window_args', $native_args, 'signal-noise' )['placement'], 'Signal & Noise has no disabled state' );
 ok( 'none' === apply_filters( 'openstation_app_window_args', $native_args, 'sn-dashboard' )['placement'], 'dashboard disabled: registered app launcher placement is none' );
 ok( 'none' === apply_filters( 'openstation_app_window_args', $native_args, 'sn-analytics' )['placement'], 'analytics disabled: registered app launcher placement is none' );
 ok( 'dock' === apply_filters( 'openstation_app_window_args', $native_args, 'unrelated-app' )['placement'], 'unrelated App Framework launcher placement is unchanged' );
@@ -448,7 +447,7 @@ $GLOBALS['__os_icons'] = array();
 do_action( 'init' );
 ok( isset( $GLOBALS['__os_icons']['sn-icon-dashboard'] ), 'sn-icon-dashboard registered on init' );
 $dash_icon_enabled = $GLOBALS['__os_icons']['sn-icon-dashboard'];
-ok( 'S&N Dashboard' === $dash_icon_enabled['title'], 'desktop icon title is S&N Dashboard' );
+ok( 'S&N Home' === $dash_icon_enabled['title'], 'desktop icon title is S&N Home' );
 ok( 'dashicons-shield-alt' === $dash_icon_enabled['icon'], 'desktop icon has shield-alt dashicon' );
 ok( 'sn-dashboard' === ( $dash_icon_enabled['window'] ?? '' ), 'dashboard enabled: desktop icon points to window sn-dashboard' );
 ok( ! isset( $dash_icon_enabled['url'] ), 'dashboard enabled: desktop icon sets no URL' );

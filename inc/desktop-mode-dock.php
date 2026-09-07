@@ -89,11 +89,8 @@ if ( ! defined( 'ABSPATH' ) ) {
  * The classic page keeps every door it has.
  */
 snt_os_compat_add_filter( 'desktop_mode_dock_placement', 'openstation_dock_placement', function( $placement, $menu_slug ) {
-	if ( 'signal-noise' === $menu_slug || 'app:signal-noise' === $menu_slug ) {
-		return function_exists( 'snt_os_native_window_enabled' ) && ! snt_os_native_window_enabled( 'signal-noise' )
-			? 'hidden'
-			: $placement;
-	}
+	// Signal & Noise is native-only. It never receives a classic fallback
+	// preference, but its registered app remains visible in the shell.
 	if ( 'sn-dashboard' === $menu_slug || 'app:sn-dashboard' === $menu_slug ) {
 		return function_exists( 'snt_os_native_window_enabled' ) && ! snt_os_native_window_enabled( 'dashboard' )
 			? 'hidden'
@@ -123,7 +120,6 @@ snt_os_compat_add_filter( 'desktop_mode_dock_placement', 'openstation_dock_place
  */
 snt_os_compat_add_filter( 'desktop_mode_app_window_args', 'openstation_app_window_args', function( $window_args, $app_id ) {
 	$preference = array(
-		'signal-noise' => 'signal-noise',
 		'sn-dashboard' => 'dashboard',
 		'sn-analytics' => 'analytics',
 	);
@@ -230,14 +226,14 @@ add_action( 'init', function() {
 		return;
 	}
 
-	// v13.99.2: "S&N Dashboard", to match the S&N Analytics icon beside it. The
+	// S&N Home is the native replacement for the classic S&N Dashboard. The
 	// id and URL are unchanged, so the owner's placement keeps its spot.
 	// v13.105.1: the icon opens the HOST window (`window` is the shell's own
 	// icon target -- the framework registers an app's desktop_icon with it),
 	// not the classic page in a chromeless frame: one surface per id, and the
 	// icon keeps its id so its position and the attention badge survive.
 	$dashboard_icon = array(
-		'title' => 'S&N Dashboard',
+		'title' => 'S&N Home',
 		'icon'  => 'dashicons-shield-alt',
 	);
 	if ( ! function_exists( 'snt_os_native_window_enabled' ) || snt_os_native_window_enabled( 'dashboard' ) ) {

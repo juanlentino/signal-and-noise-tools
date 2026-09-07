@@ -313,7 +313,7 @@ foreach ( $falsy_cases as $label => $val ) {
 echo "\nSection 2: snt_os_preferences_rest_update() payload stress testing\n";
 
 $GLOBALS['__user_id'] = 100;
-snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true, 'signal-noise' => true ), 100 );
+snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true ), 100 );
 
 // 2.1 Nested array value
 $nested_payload = array(
@@ -349,26 +349,26 @@ $malicious_payload = array(
 );
 $res_malicious = snt_os_preferences_rest_update( $malicious_payload );
 $malicious_data = $res_malicious->get_data();
-ok( array( 'signal-noise', 'dashboard', 'analytics' ) === array_keys( $malicious_data ), 'malicious keys stripped: response contains only signal-noise, dashboard, analytics' );
+ok( array( 'dashboard', 'analytics' ) === array_keys( $malicious_data ), 'malicious keys stripped: response contains only dashboard and analytics' );
 ok( ! isset( $malicious_data['user_id'] ), 'user_id key cannot be injected into preferences' );
 ok( ! isset( $malicious_data['__proto__'] ), '__proto__ key stripped' );
 
 // Verify user meta in storage was not polluted
 $stored_meta = get_user_meta( 100, SNT_OS_PREFERENCES_META, true );
-ok( array( 'signal-noise', 'dashboard', 'analytics' ) === array_keys( $stored_meta ), 'user meta in DB contains only allowed preference keys' );
+ok( array( 'dashboard', 'analytics' ) === array_keys( $stored_meta ), 'user meta in DB contains only allowed preference keys' );
 
 // 2.5 Empty payload `{}`
 $empty_req = new WP_REST_Request( array() );
 $res_empty = snt_os_preferences_rest_update( $empty_req );
 ok( $res_empty instanceof WP_REST_Response, 'empty JSON request returns WP_REST_Response' );
 ok( 200 === $res_empty->get_status(), 'empty JSON request returns 200' );
-ok( array( 'signal-noise' => true, 'dashboard' => true, 'analytics' => true ) === $res_empty->get_data(), 'empty JSON request returns current preferences unchanged' );
+ok( array( 'dashboard' => true, 'analytics' => true ) === $res_empty->get_data(), 'empty JSON request returns current preferences unchanged' );
 
 // 2.6 Sequential list payload (non-associative array)
-$list_payload = array( 'dashboard', 'analytics', 'signal-noise' );
+$list_payload = array( 'dashboard', 'analytics' );
 $res_list = snt_os_preferences_rest_update( $list_payload );
 ok( $res_list instanceof WP_REST_Response, 'sequential indexed array does not crash handler' );
-ok( array( 'signal-noise' => true, 'dashboard' => true, 'analytics' => true ) === $res_list->get_data(), 'sequential indexed array leaves preferences untouched' );
+ok( array( 'dashboard' => true, 'analytics' => true ) === $res_list->get_data(), 'sequential indexed array leaves preferences untouched' );
 
 // 2.7 Form-encoded fallback via get_params()
 $fallback_req = new WP_REST_Request( null, array( 'analytics' => '0' ) );
@@ -402,11 +402,11 @@ echo "\nSection 3: Multi-user isolation, state permutations, and meta corruption
 
 // 3.1 Distinct users with orthogonal preferences
 $user_configs = array(
-	201 => array( 'signal-noise' => true,  'dashboard' => false, 'analytics' => false ),
-	202 => array( 'signal-noise' => false, 'dashboard' => true,  'analytics' => false ),
-	203 => array( 'signal-noise' => false, 'dashboard' => false, 'analytics' => true  ),
-	204 => array( 'signal-noise' => false, 'dashboard' => false, 'analytics' => false ),
-	205 => array( 'signal-noise' => true,  'dashboard' => true,  'analytics' => true  ),
+	201 => array( 'dashboard' => false, 'analytics' => false ),
+	202 => array( 'dashboard' => true,  'analytics' => false ),
+	203 => array( 'dashboard' => false, 'analytics' => true  ),
+	204 => array( 'dashboard' => false, 'analytics' => false ),
+	205 => array( 'dashboard' => true,  'analytics' => true  ),
 );
 
 foreach ( $user_configs as $uid => $conf ) {
@@ -417,7 +417,6 @@ foreach ( $user_configs as $uid => $conf ) {
 foreach ( $user_configs as $uid => $expected ) {
 	$actual = snt_os_native_window_preferences( $uid );
 	ok( $expected === $actual, "user $uid preferences match configured permutation exactly" );
-	ok( $expected['signal-noise'] === snt_os_native_window_enabled( 'signal-noise', $uid ), "user $uid signal-noise helper matches" );
 	ok( $expected['dashboard'] === snt_os_native_window_enabled( 'dashboard', $uid ), "user $uid dashboard helper matches" );
 	ok( $expected['analytics'] === snt_os_native_window_enabled( 'analytics', $uid ), "user $uid analytics helper matches" );
 }
@@ -442,7 +441,7 @@ ok( false === $user_201_prefs['dashboard'], 'anti-tampering: User 201 only modif
 // 3.3 Unauthenticated user (user_id = 0)
 $GLOBALS['__user_id'] = 0;
 $unauth_prefs = snt_os_native_window_preferences( 0 );
-ok( array( 'signal-noise' => true, 'dashboard' => true, 'analytics' => true ) === $unauth_prefs, 'user_id 0 receives default preferences' );
+ok( array( 'dashboard' => true, 'analytics' => true ) === $unauth_prefs, 'user_id 0 receives default preferences' );
 
 // Save attempt for user_id 0 does not store meta
 snt_os_save_native_window_preferences( array( 'dashboard' => false ), 0 );
@@ -462,14 +461,14 @@ foreach ( $corrupted_users as $c_uid => $corrupted_data ) {
 	update_user_meta( $c_uid, SNT_OS_PREFERENCES_META, $corrupted_data );
 	$recovered = snt_os_native_window_preferences( $c_uid );
 	ok( is_array( $recovered ), "corrupted user $c_uid recovers to array" );
-	ok( array( 'signal-noise', 'dashboard', 'analytics' ) === array_keys( $recovered ), "corrupted user $c_uid recovers exact key schema" );
-	ok( is_bool( $recovered['signal-noise'] ) && is_bool( $recovered['dashboard'] ) && is_bool( $recovered['analytics'] ), "corrupted user $c_uid all values are strictly boolean" );
+	ok( array( 'dashboard', 'analytics' ) === array_keys( $recovered ), "corrupted user $c_uid recovers exact key schema" );
+	ok( is_bool( $recovered['dashboard'] ) && is_bool( $recovered['analytics'] ), "corrupted user $c_uid all values are strictly boolean" );
 }
 
 // For user 306 specifically, verify bogus string value coerced safely to false
 $user_306_recovered = snt_os_native_window_preferences( 306 );
 ok( false === $user_306_recovered['dashboard'], 'corrupted user 306 invalid string coerced to bool(false)' );
-ok( true === $user_306_recovered['signal-noise'], 'corrupted user 306 missing keys fall back to defaults' );
+ok( true === $user_306_recovered['analytics'], 'corrupted user 306 missing keys fall back to defaults' );
 ok( ! isset( $user_306_recovered['unexpected_key'] ), 'corrupted user 306 unexpected keys filtered out' );
 
 // ── Section 4: Shell Routing & Dock Placement Under Multi-User Context ─
@@ -477,11 +476,11 @@ echo "\nSection 4: Shell routing and dock placement isolation across users\n";
 
 // User A (401): native windows fully enabled
 $GLOBALS['__user_id'] = 401;
-snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true, 'signal-noise' => true ), 401 );
+snt_os_save_native_window_preferences( array( 'dashboard' => true, 'analytics' => true ), 401 );
 
 // User B (402): native windows fully disabled
 $GLOBALS['__user_id'] = 402;
-snt_os_save_native_window_preferences( array( 'dashboard' => false, 'analytics' => false, 'signal-noise' => false ), 402 );
+snt_os_save_native_window_preferences( array( 'dashboard' => false, 'analytics' => false ), 402 );
 
 // Switch session to User A
 $GLOBALS['__user_id'] = 401;
@@ -497,7 +496,7 @@ ok( 'dock'   === apply_filters( 'openstation_dock_placement', 'dock', 'sn-theme-
 ok( 'hidden' === apply_filters( 'openstation_dock_placement', 'dock', 'app:sn-dashboard' ), 'User 402: native dashboard tile hidden' );
 ok( 'dock'   === apply_filters( 'openstation_dock_placement', 'dock', 'sn-analytics' ), 'User 402: classic analytics appears on dock' );
 ok( 'hidden' === apply_filters( 'openstation_dock_placement', 'dock', 'app:sn-analytics' ), 'User 402: native analytics tile hidden' );
-ok( 'hidden' === apply_filters( 'openstation_dock_placement', 'dock', 'signal-noise' ), 'User 402: signal-noise tile hidden' );
+ok( 'dock' === apply_filters( 'openstation_dock_placement', 'dock', 'signal-noise' ), 'User 402: native-only Signal & Noise tile remains visible' );
 
 // Desktop Icon under User A vs User B
 $GLOBALS['__user_id'] = 401;

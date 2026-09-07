@@ -3,7 +3,8 @@
  * Signal & Noise Tools — OpenStation native window preferences (Option B).
  *
  * Provides per-user settings to choose between OpenStation native App Framework
- * windows and classic WordPress admin iframe windows for all three S&N apps.
+ * windows and classic WordPress admin iframe windows for the two S&N apps
+ * that have classic equivalents. Signal & Noise itself is native-only.
  *
  * Apps remain permanently registered in the App Framework registry so contracts
  * never break; toggles cleanly control dock placement, URL routing, and shell
@@ -26,7 +27,6 @@ const SNT_OS_PREFERENCES_META = '_snt_os_native_windows';
  */
 function snt_os_native_window_defaults() {
 	return array(
-		'signal-noise' => true,
 		'dashboard'    => true,
 		'analytics'    => true,
 	);
@@ -85,11 +85,14 @@ function snt_os_native_window_preferences( $user_id = 0 ) {
 /**
  * Whether one S&N replacement window is enabled for a user.
  *
- * @param string $window  'signal-noise', 'dashboard', or 'analytics'.
+ * @param string $window  'dashboard' or 'analytics'.
  * @param int    $user_id Optional user id.
  * @return bool
  */
 function snt_os_native_window_enabled( $window, $user_id = 0 ) {
+	if ( 'signal-noise' === (string) $window ) {
+		return true;
+	}
 	$preferences = snt_os_native_window_preferences( $user_id );
 	return isset( $preferences[ (string) $window ] ) && $preferences[ (string) $window ];
 }
@@ -197,10 +200,6 @@ function snt_os_register_preferences_rest() {
 				'callback'            => 'snt_os_preferences_rest_update',
 				'permission_callback' => 'snt_os_preferences_rest_permission',
 				'args'                => array(
-					'signal-noise' => array(
-						'type'        => 'boolean',
-						'required'    => false,
-					),
 					'dashboard'    => array(
 						'type'        => 'boolean',
 						'required'    => false,

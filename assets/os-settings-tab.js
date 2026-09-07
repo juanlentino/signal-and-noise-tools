@@ -8,7 +8,7 @@
 			return text;
 		};
 	var preferences = Object.assign(
-		{ 'signal-noise': true, dashboard: true, analytics: true },
+		{ dashboard: true, analytics: true },
 		config.preferences || {}
 	);
 
@@ -88,7 +88,7 @@
 
 		var section = document.createElement( 'os-section' );
 		section.setAttribute( 'heading', __( 'Native window replacements', 'signal-and-noise-tools' ) );
-		section.setAttribute( 'description', __( 'Choose whether to use OpenStation native windows or classic WordPress admin windows for Signal & Noise. Toggle either off to return to the classic screen.', 'signal-and-noise-tools' ) );
+		section.setAttribute( 'description', __( 'Choose whether to use OpenStation native windows or classic WordPress admin windows for the S&N Home and Analytics screens. Signal & Noise is native-only.', 'signal-and-noise-tools' ) );
 		section.setAttribute( 'stack', '' );
 
 		var status = document.createElement( 'p' );
@@ -147,15 +147,9 @@
 		}
 
 		section.appendChild( createToggle(
-			'signal-noise',
-			__( 'Use the native Signal & Noise app window', 'signal-and-noise-tools' ),
-			__( 'Opens the native Signal & Noise App Framework window for notes, pages, citations, schedules, and the attention queue. Toggle off to hide from the dock.', 'signal-and-noise-tools' )
-		) );
-
-		section.appendChild( createToggle(
 			'dashboard',
-			__( 'Use the native S&N Dashboard window', 'signal-and-noise-tools' ),
-			__( 'Replaces the classic S&N Dashboard admin page with the native App Framework window.', 'signal-and-noise-tools' )
+			__( 'Use S&N Home', 'signal-and-noise-tools' ),
+			__( 'Opens S&N Home instead of the classic S&N Dashboard. Toggle off to use the classic dashboard.', 'signal-and-noise-tools' )
 		) );
 
 		section.appendChild( createToggle(
