@@ -81,25 +81,26 @@ function machine_readers_evidence_html( array $d ) {
  * @return string
  */
 function machine_readers_reference_html( array $d ) {
-	$out = '';
+	$lookups = '';
 	if ( ! empty( $d['result']['ok'] ) ) {
-		$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'The same window, counted along every axis. Folded because these are lookups, not the headline.', 'signal-and-noise-tools' ) ) . '</p>';
-		$out .= machine_readers_fold( __( 'By purpose', 'signal-and-noise-tools' ), machine_readers_purpose_table_html( $d['rows'], $d['days'] ) );
-		$out .= machine_readers_fold( __( 'By vendor and purpose', 'signal-and-noise-tools' ), machine_readers_vendor_purpose_html( $d['rows'] ) );
-		$out .= machine_readers_fold( __( 'By crawler family', 'signal-and-noise-tools' ), machine_readers_family_table_html( $d['rows'], $d['days'] ) );
-		$out .= machine_readers_fold( __( 'By machine surface', 'signal-and-noise-tools' ), machine_readers_surface_table_html( $d['rows'] ) );
-		$out .= machine_readers_fold( __( 'Declared-crawler compliance', 'signal-and-noise-tools' ), machine_readers_compliance_html( $d['rows'] ) );
-		$out .= machine_readers_fold( __( 'AI-training reconciliation', 'signal-and-noise-tools' ), machine_readers_reconciliation_html( $d['rows'] ) );
+		$lookups .= '<p class="snt-hint">' . \snt_kit_esc( __( 'The same window, counted along every axis. Folded because these are lookups, not the headline.', 'signal-and-noise-tools' ) ) . '</p>';
+		$lookups .= machine_readers_fold( __( 'By purpose', 'signal-and-noise-tools' ), machine_readers_purpose_table_html( $d['rows'], $d['days'] ) );
+		$lookups .= machine_readers_fold( __( 'By vendor and purpose', 'signal-and-noise-tools' ), machine_readers_vendor_purpose_html( $d['rows'] ) );
+		$lookups .= machine_readers_fold( __( 'By crawler family', 'signal-and-noise-tools' ), machine_readers_family_table_html( $d['rows'], $d['days'] ) );
+		$lookups .= machine_readers_fold( __( 'By machine surface', 'signal-and-noise-tools' ), machine_readers_surface_table_html( $d['rows'] ) );
+		$lookups .= machine_readers_fold( __( 'Declared-crawler compliance', 'signal-and-noise-tools' ), machine_readers_compliance_html( $d['rows'] ) );
+		$lookups .= machine_readers_fold( __( 'AI-training reconciliation', 'signal-and-noise-tools' ), machine_readers_reconciliation_html( $d['rows'] ) );
 	}
-	$out .= machine_readers_fold( __( 'Feed fetches', 'signal-and-noise-tools' ), machine_readers_feed_table_html( $d['feed'] ) );
+	$lookups .= machine_readers_fold( __( 'Feed fetches', 'signal-and-noise-tools' ), machine_readers_feed_table_html( $d['feed'] ) );
 
+	$out  = \snt_kit_section( __( 'Reference', 'signal-and-noise-tools' ), $lookups );
 	$out .= \snt_kit_section(
 		__( 'Edge sensor', 'signal-and-noise-tools' ),
 		machine_readers_edge_readout_html( $d['info'] ),
 		__( 'The deployed rights-signals Worker, from its version endpoint. Cached for up to 15 minutes, so a fresh deploy can take that long to appear here — purge caches to read it now.', 'signal-and-noise-tools' )
 	);
 	$out .= machine_readers_settings_html( $d );
-	return \snt_kit_section( __( 'Reference', 'signal-and-noise-tools' ), $out );
+	return $out;
 }
 
 /**
@@ -113,8 +114,8 @@ function paint_monitoring_machine_readers( array $ctx ) {
 	$d = machine_readers_data();
 	return machine_readers_hero_html( $d )
 		. '<div class="snt-2up">'
-		. '<div class="snt-col">' . machine_readers_evidence_html( $d ) . '</div>'
-		. '<div class="snt-col">' . machine_readers_reference_html( $d ) . '</div>'
+		. '<div class="snt-2up-col">' . machine_readers_evidence_html( $d ) . '</div>'
+		. '<div class="snt-2up-col">' . machine_readers_reference_html( $d ) . '</div>'
 		. '</div>';
 }
 

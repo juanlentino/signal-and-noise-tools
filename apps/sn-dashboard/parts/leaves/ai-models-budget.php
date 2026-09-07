@@ -231,18 +231,22 @@ function paint_ai_models_budget( array $ctx ) {
 		'hint'        => __( 'Cloudflare dashboard → My Profile → API Tokens → Create Custom Token. The permission is under the ACCOUNT scope (not User or Zone), named "Workers AI", set to Read. The account ID is shared with Analytics.', 'signal-and-noise-tools' ),
 	) );
 
-	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget.', 'signal-and-noise-tools' ) ) . '</p>';
-	$out .= \snt_kit_section(
+	$intro = '<p class="snt-prose">' . \snt_kit_esc( __( 'Which models this plugin calls, and the ceiling on what they may cost. Every AI feature here (drafts, insights, meta descriptions, alt text) draws on the same monthly budget.', 'signal-and-noise-tools' ) ) . '</p>';
+	$left  = \snt_kit_section(
 		__( 'Models & budget', 'signal-and-noise-tools' ),
 		\snt_kit_form( 'ai_settings_save', $fields, array( 'submit' => __( 'Save AI settings', 'signal-and-noise-tools' ), 'columns' => 'auto' ) ),
 		__( 'Model changes apply to the next AI call. The budget is evaluated per calendar month.', 'signal-and-noise-tools' )
 	);
-	$out .= models_budget_spend_html( $d );
-	$out .= models_budget_embed_status_html( $d );
+	$right  = models_budget_spend_html( $d );
+	$right .= models_budget_embed_status_html( $d );
 	if ( $d['embed_configured'] ) {
-		$out .= models_budget_compare_html( $d );
+		$right .= models_budget_compare_html( $d );
 	}
-	return $out;
+	return $intro
+		. '<div class="snt-2up">'
+		. '<div class="snt-2up-col">' . $left . '</div>'
+		. '<div class="snt-2up-col">' . $right . '</div>'
+		. '</div>';
 }
 
 add_filter(

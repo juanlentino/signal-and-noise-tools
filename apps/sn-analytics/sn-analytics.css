@@ -195,7 +195,8 @@ html[data-os-display="standalone"] .os-app[data-os-app="sn-analytics"] textarea 
 		justify-content: space-between;
 	}
 
-	.snt-report-columns {
+	.snt-report-columns,
+	.snt-grid {
 		grid-template-columns: minmax( 0, 1fr );
 	}
 }
@@ -222,7 +223,9 @@ html[data-os-display="standalone"] .os-app[data-os-app="sn-analytics"] textarea 
 }
 
 html[data-os-mode="mobile"] .snt-report-columns,
-html[data-os-display="standalone"] .snt-report-columns {
+html[data-os-display="standalone"] .snt-report-columns,
+html[data-os-mode="mobile"] .snt-grid,
+html[data-os-display="standalone"] .snt-grid {
 	grid-template-columns: minmax( 0, 1fr );
 }
 

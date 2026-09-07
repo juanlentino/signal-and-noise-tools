@@ -213,6 +213,27 @@ namespace {
 
 
 
+	$shared_css = (string) file_get_contents( SNT_PATH . 'assets/os-app.css' );
+	ok( false !== strpos( $shared_css, '.snt-stats {' ) && false !== strpos( $shared_css, 'repeat( auto-fit, minmax( 160px, 1fr ) )' ), 'assets/os-app.css defines .snt-stats responsive grid' );
+
+	$mr_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers.php' );
+	ok( false !== strpos( $mr_src, '<div class="snt-2up">' ) && false !== strpos( $mr_src, '<div class="snt-2up-col">' ), 'monitoring/machine-readers paints .snt-2up with .snt-2up-col' );
+	ok( false === strpos( $mr_src, '<div class="snt-col">' ), 'monitoring/machine-readers removes redundant .snt-col card wrappers' );
+
+	$mr_parts_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-machine-readers-parts.php' );
+	ok( false !== strpos( $mr_parts_src, '<os-cluster gap="8">' ), 'machine-readers-parts wraps sensor pills in os-cluster' );
+
+	$models_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/ai-models-budget.php' );
+	ok( false !== strpos( $models_src, '<div class="snt-2up">' ), 'ai/models-budget renders in .snt-2up two columns' );
+
+	$insights_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-insights.php' );
+	ok( false !== strpos( $insights_src, '<div class="snt-2up">' ), 'monitoring/insights renders in .snt-2up two columns' );
+
+	$gsc_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-search-console.php' );
+	ok( false !== strpos( $gsc_src, '<div class="snt-2up">' ), 'monitoring/search-console renders in .snt-2up two columns' );
+
+	ok( false !== strpos( $css, '.snt-leaf os-row' ) && false !== strpos( $css, 'flex-direction: column' ), 'sn-dashboard.css collapses os-row under responsive containers' );
+
 	if ( isset( $painters['connections/cloudflare'] ) ) {
 		$cf_html = call_user_func( $painters['connections/cloudflare'], array( 'tab' => 'connections', 'sub' => 'cloudflare' ) );
 		ok( false !== strpos( $cf_html, '<div class="snt-2up">' ), 'connections/cloudflare renders in .snt-2up two columns' );

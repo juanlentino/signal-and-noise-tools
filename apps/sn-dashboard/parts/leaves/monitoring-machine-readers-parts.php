@@ -90,17 +90,18 @@ function machine_readers_pills_html( array $pills ) {
 		'warn'    => '!',
 		'unknown' => '?',
 	);
-	$out = '';
+	$badges = '';
 	foreach ( $pills as $p ) {
-		$state = isset( $marks[ $p[0] ] ) ? $p[0] : 'unknown';
-		$out  .= \snt_kit_badge( $state, $marks[ $state ] . ' ' . (string) $p[1] );
+		$state   = isset( $marks[ $p[0] ] ) ? $p[0] : 'unknown';
+		$badges .= \snt_kit_badge( $state, $marks[ $state ] . ' ' . (string) $p[1] );
 	}
+	$warns = '';
 	foreach ( $pills as $p ) {
 		if ( 'warn' === $p[0] && '' !== (string) ( $p[2] ?? '' ) ) {
-			$out .= \snt_kit_notice( 'warn', \snt_kit_esc( $p[1] . ' — ' . $p[2] ) );
+			$warns .= \snt_kit_notice( 'warn', \snt_kit_esc( $p[1] . ' — ' . $p[2] ) );
 		}
 	}
-	return $out;
+	return ( '' !== $badges ? '<os-cluster gap="8">' . $badges . '</os-cluster>' : '' ) . $warns;
 }
 
 /** @param array $rows @param int $days @param int|null $feed_total @return string */
