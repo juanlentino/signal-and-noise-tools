@@ -12,17 +12,18 @@
 .snt-grid {
 	display: grid;
 	grid-template-columns: repeat( auto-fit, minmax( 320px, 1fr ) );
+	align-items: start;
 	gap: 16px;
 }
 
 .snt-grid os-section,
 .snt-report-flow os-section,
 .os-app[data-os-app="sn-analytics"] .snt-view > os-section {
-	padding: 16px 20px;
-	border-radius: 10px;
-	background: var( --os-ui-surface-elevated, #24212a );
-	border: 1px solid var( --os-ui-border, #33303a );
-	box-shadow: 0 1px 3px rgba( 0, 0, 0, 0.15 );
+	padding: 0;
+	border-radius: 0;
+	background: transparent;
+	border: none;
+	box-shadow: none;
 	min-width: 0;
 }
 
@@ -56,6 +57,21 @@
 	min-height: 0;
 	padding: 16px 18px 28px;
 	overflow: auto;
+}
+
+/* PWA foundation: leave home-indicator room and prevent iOS form zoom. */
+html[data-os-mode="mobile"] .os-app[data-os-app="sn-analytics"] .snt-view,
+html[data-os-display="standalone"] .os-app[data-os-app="sn-analytics"] .snt-view {
+	padding-bottom: max( 24px, env( safe-area-inset-bottom, 16px ) );
+}
+
+html[data-os-mode="mobile"] .os-app[data-os-app="sn-analytics"] input,
+html[data-os-mode="mobile"] .os-app[data-os-app="sn-analytics"] select,
+html[data-os-mode="mobile"] .os-app[data-os-app="sn-analytics"] textarea,
+html[data-os-display="standalone"] .os-app[data-os-app="sn-analytics"] input,
+html[data-os-display="standalone"] .os-app[data-os-app="sn-analytics"] select,
+html[data-os-display="standalone"] .os-app[data-os-app="sn-analytics"] textarea {
+	font-size: 16px;
 }
 
 /* os-section is a Settings primitive and carries 36px of bottom margin in

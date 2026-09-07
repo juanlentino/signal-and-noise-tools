@@ -267,7 +267,7 @@ namespace {
 	echo "\nGroup 1: the definition\n";
 	ok( $app instanceof \OpenStation\App && 'sn-dashboard' === $app->id,
 		'the file returns an App under the id the dock item used to carry -- one id, one thing' );
-	ok( 'S&N Dashboard' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement,
+	ok( 'S&N Home' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement,
 		'the same title, the same shield and the same dock placement the manual item had' );
 	ok( array( 'manage_options' ) === $app->caps, 'gated on manage_options, the capability the classic page wp_die()s without' );
 	ok( array( 1180, 820 ) === $app->size && array( 760, 520 ) === $app->min, 'opens at 1180x820, never smaller than 760x520' );

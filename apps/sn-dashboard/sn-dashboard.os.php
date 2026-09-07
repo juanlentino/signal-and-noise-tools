@@ -193,7 +193,7 @@ function posted_values( array $args ) {
 }
 
 $sn_dashboard = App::define( APP_ID )
-	->title( __( 'S&N Dashboard', 'signal-and-noise-tools' ) )
+	->title( __( 'S&N Home', 'signal-and-noise-tools' ) )
 	->icon( 'dashicons-shield-alt' )
 	->size( 1180, 820 )
 	->min_size( 760, 520 )

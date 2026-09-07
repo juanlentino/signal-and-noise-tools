@@ -86,7 +86,7 @@ namespace {
 	function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 
 	echo "Group 1: the window\n";
-	ok( 'sn-dashboard' === $app->id && 'S&N Dashboard' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement, 'the same id, title, shield and dock tile as before -- the placement carry keys on the id' );
+	ok( 'sn-dashboard' === $app->id && 'S&N Home' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement, 'the stable id keeps placement while the native surface is named S&N Home' );
 	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post' ) === array_keys( $app->state ), 'state has NO tab: the tab is the session (the framework`s), only the leaf, the anchor and the last write are state' );
 	ok( array( 'go', 'post', 'door', 'refresh', 'reopen' ) === array_keys( $app->actions ), 'five actions: go, post, door, refresh, reopen' );
 	$tabs = array();
@@ -127,6 +127,9 @@ namespace {
 	ok( false !== strpos( $css, '.snt-leaf os-section' ) && false !== strpos( $css, 'margin-block-end: 0' )
 		&& false !== strpos( $css, '@container snt-dashboard' ),
 		'the Dashboard cancels the settings-section margin collision and reflows from its window container' );
+	ok( false !== strpos( $css, '.snt-home-heading' ) && false !== strpos( $css, 'data-os-mode="mobile"' )
+		&& false !== strpos( $css, 'font-size: 16px' ) && false !== strpos( $css, 'safe-area-inset-bottom' ),
+		'S&N Home has an orientation hook and its mobile PWA form and safe-area foundation' );
 	ok( array( 'sn_action' => 'full_reset', '_wpnonce' => 'n1' ) === \SignalNoise\OpenStationHost\Dashboard\posted_values( array( 'action' => 'full_reset', 'nonce' => 'n1' ) ), 'a one-click button`s action + nonce become the two fields the classic form carried' );
 	ok( array( 'sn_action' => 'x', 'login_slug' => 'y' ) === \SignalNoise\OpenStationHost\Dashboard\posted_values( array( 'values' => array( 'sn_action' => 'x', 'login_slug' => 'y' ) ) ), 'an os-form`s values pass through' );
 
