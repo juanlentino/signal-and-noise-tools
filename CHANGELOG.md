@@ -12,6 +12,14 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Added per-user OpenStation preferences for the Signal & Noise, S&N
+  Dashboard, and S&N Analytics native apps while keeping every app registered.
+- Polished native Dashboard and Analytics surfaces, bounded report tables, and
+  empty states using OpenStation design tokens without changing their flows.
+- Added mobile and standalone PWA safeguards for readable form controls,
+  single-column report layouts, and safe-area-aware scrolling.
+
 ## [13.106.3] - 2026-09-07 — pure native windows and App Framework polish
 
 ### Fixed
@@ -23,4 +31,3 @@ adds a bullet below. A release is a separate, deliberate act:
 - Added OpenStation design token and dark-scheme styling for Analytics custom
   date inputs and export buttons, and polished container sizing and
   focus-visible rings in the Signal & Noise app.
-

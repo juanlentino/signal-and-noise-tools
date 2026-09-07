@@ -85,9 +85,10 @@ function read_params( State $state, Os $os ) {
 	// The anchor param IS the element id (a door names `sn-sec-<slug>` or any
 	// id); the section_anchor() prefixing is for handler targets, not params.
 	$anchor = (string) $os->param( 'anchor', '' );
+	$params = is_array( $os->params ) ? \snt_os_host_params( $os->params ) : array();
 	$state->set( 'sub', $sub )
 		->set( 'anchor', $anchor )
-		->set( 'params', array() )
+		->set( 'params', $params )
 		->set( 'flash', '' )
 		->set( 'post', array() )
 		->set( 'notice', null );
