@@ -18,14 +18,12 @@
  *   door   Any other admin screen (`update-core.php`, `post.php`,
  *          `admin-post.php?action=…`) as its own shell window.
  *   refresh The title-bar button: drop the notice, re-read the badge.
+ * Framework tabs (`App::tab()`) declare the window chrome tabs (Dashboard,
+ * Site, Content, Connections, Measurement, AI, Security, Integrity). Each tab
+ * is its own server session painted by the frame, while `sub` and parameters
+ * live in tab session state.
  *
- * Framework tabs (`App::tab()`) are deliberately unused: they are baked at
- * definition and cannot be switched by a server action, and a Dashboard card
- * that links to Measurement → Health must switch the tab from the server.
- * So `tab` and `sub` live in STATE and the strip is painted by the view.
- *
- * Spec: docs/proposals/2026-09-06-openstation-hosts.md. The seams shared with
- * the Analytics host live in inc/openstation-host.php.
+ * Spec: docs/proposals/2026-09-06-native-windows.md.
  *
  * @package SignalNoiseTools
  */

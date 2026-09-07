@@ -71,41 +71,7 @@ function painters() {
 }
 
 /**
- * The classic leaf, captured — the scaffold for a leaf without a painter.
- *
- * @param string $tab   Top-tab slug.
- * @param string $sub   Leaf slug.
- * @param State  $state Session state.
- * @return string
- */
-function captured_leaf( $tab, $sub, State $state ) {
-	if ( ! function_exists( 'sn_admin_render_active_tab' ) || ! function_exists( 'snt_os_host_capture' ) ) {
-		return '';
-	}
-	$params = $state->get( 'params' );
-	$query  = is_array( $params ) ? $params : array();
-	$query['page'] = SNT_OS_DASHBOARD_PAGE;
-	$query['tab']  = $tab;
-	if ( '' !== $sub ) {
-		$query['sub'] = $sub;
-	}
-	$post = $state->get( 'post' );
-	$post = is_array( $post ) ? $post : array();
-	if ( array() !== $post ) {
-		$state->set( 'post', array() );
-	}
-	$html = \snt_os_host_capture(
-		static function () use ( $tab, $sub ) {
-			\sn_admin_render_active_tab( $tab, $sub );
-		},
-		$query,
-		$post
-	);
-	return '<div class="snt-classic">' . \snt_os_host_rewrite( $html, \snt_os_host_own_pages() ) . '</div>';
-}
-
-/**
- * Paint one leaf: its kit painter, else the capture.
+ * Paint one leaf: its kit painter, or an empty state when missing.
  *
  * @param string $tab   Top-tab slug.
  * @param string $sub   Leaf slug.
@@ -119,7 +85,7 @@ function paint_leaf( $tab, $sub, State $state, Os $os ) {
 	if ( isset( $painters[ $key ] ) && is_callable( $painters[ $key ] ) ) {
 		return (string) call_user_func( $painters[ $key ], array( 'tab' => $tab, 'sub' => $sub, 'state' => $state, 'os' => $os ) );
 	}
-	return captured_leaf( $tab, $sub, $state );
+	return \snt_kit_empty( __( 'Section not found', 'signal-and-noise-tools' ) );
 }
 
 /**
