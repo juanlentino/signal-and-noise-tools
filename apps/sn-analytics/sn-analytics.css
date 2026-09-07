@@ -612,3 +612,69 @@ snt-analytics-table os-table { display: block; width: 100%; }
 	outline-offset: 3px;
 	border-radius: 2px;
 }
+
+/* Shared report badges keep their meaning, but use the native surface palette.
+ * Tier labels carry readable foreground text; their dots carry the distinction. */
+.snt-app[data-os-app="sn-analytics"] .sn-an-tier {
+	--snt-tier-accent: var(--os-ui-fg-muted);
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 2px 8px;
+	font-size: 11px;
+	line-height: 1.4;
+	color: var(--os-ui-fg);
+	background: var(--os-ui-badge-neutral-bg, var(--os-ui-surface-subtle));
+	border: 1px solid var(--os-ui-border);
+	border-radius: 999px;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-tier::before {
+	content: "";
+	width: 6px;
+	height: 6px;
+	flex: 0 0 auto;
+	border-radius: 50%;
+	background: var(--snt-tier-accent);
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-tier--predictive {
+	--snt-tier-accent: var(--os-ui-info-fg, var(--os-ui-fg));
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-tier--prescriptive {
+	--snt-tier-accent: color-mix(in srgb, var(--sn-an-tier-prescriptive) 35%, var(--os-ui-fg));
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-tier--diagnostic {
+	--snt-tier-accent: var(--os-ui-warning-fg, var(--os-ui-fg));
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-pill {
+	color: var(--os-ui-fg);
+	background: var(--os-ui-badge-neutral-bg, var(--os-ui-surface-subtle));
+	border: 1px solid var(--os-ui-border);
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-pill.sn-pill--warn {
+	color: color-mix(in srgb, var(--os-ui-warning-fg, var(--os-ui-fg)) 80%, var(--os-ui-fg));
+	background: var(--os-ui-badge-warning-bg, var(--sn-an-warn-bg));
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-pill.sn-pill--ok {
+	color: var(--os-ui-success-fg, var(--os-ui-fg));
+	background: var(--os-ui-badge-success-bg, var(--os-ui-surface-subtle));
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-pill.sn-pill--err {
+	color: color-mix(in srgb, var(--os-ui-danger, var(--os-ui-fg)) 55%, var(--os-ui-fg));
+	background: var(--os-ui-badge-danger-bg, var(--os-ui-surface-subtle));
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-pill::before {
+	background: currentColor;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-signal-badge {
+	color: var(--os-ui-info-fg, var(--os-ui-fg));
+}
