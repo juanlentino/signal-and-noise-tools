@@ -41,10 +41,10 @@ function dim_table( $title, $rows, $empty, $drill_dim = '' ) {
 	}
 	$columns = array(
 		array( 'key' => 'value', 'label' => (string) $title ),
-		array( 'key' => 'views', 'label' => __( 'Views', 'signal-and-noise-tools' ), 'align' => 'end' ),
+		array( 'key' => 'views', 'label' => __( 'Views', 'signal-and-noise-tools' ), 'align' => 'end', 'width' => '76px' ),
 	);
 	if ( '' !== (string) $table_rows[0]['visits'] ) {
-		$columns[] = array( 'key' => 'visits', 'label' => __( 'Visits', 'signal-and-noise-tools' ), 'align' => 'end' );
+		$columns[] = array( 'key' => 'visits', 'label' => __( 'Visits', 'signal-and-noise-tools' ), 'align' => 'end', 'width' => '76px' );
 	}
 	$inner = \snt_kit_table( $columns, $table_rows, array( 'empty' => (string) $empty ) );
 	if ( '' !== (string) $drill_dim ) {

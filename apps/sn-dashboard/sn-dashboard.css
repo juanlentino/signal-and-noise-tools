@@ -683,7 +683,7 @@ os-button.snt-sys__v { justify-self: start; }
 	}
 }
 
-@container snt-dashboard ( max-width: 860px ) {
+@container snt-dashboard ( max-width: 640px ) {
 	.snt-2up {
 		grid-template-columns: minmax( 0, 1fr );
 		gap: 16px;

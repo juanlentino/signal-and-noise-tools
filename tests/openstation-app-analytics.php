@@ -185,7 +185,8 @@ namespace {
 	$css = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/sn-analytics.css' );
 	ok( false !== strpos( $css, '.snt-app.os-app-list' ) && false !== strpos( $css, '.snt-report-body' ), 'the app adopts the framework list root and a bounded scrolling body' );
 	ok( false !== strpos( $css, '.snt-view os-section' ) && false !== strpos( $css, 'margin-block-end: 0' ), 'the report cancels os-section`s Settings-page margin instead of double-spacing every panel' );
-	ok( false !== strpos( $css, '.snt-report-columns' ) && false !== strpos( $css, '@container ( max-width: 860px )' ), 'independent report columns fold at the window container, not the browser viewport' );
+	ok( false !== strpos( $css, 'container-type: inline-size' ), 'sn-analytics.css establishes container-type: inline-size on snt-view' );
+	ok( false !== strpos( $css, '.snt-report-columns' ) && false !== strpos( $css, '@container ( max-width: 640px )' ), 'independent report columns fold at the 640px window container, not the browser viewport' );
 	ok( false !== strpos( $css, 'data-os-mode="mobile"' ) && false !== strpos( $css, 'font-size: 16px' ) && false !== strpos( $css, 'safe-area-inset-bottom' ), 'Analytics carries the mobile PWA form and safe-area foundation' );
 	$quality_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-quality.php' );
 	ok( false !== strpos( $quality_src, 'snt-report-columns' ), 'Quality view arranges quality and bot confidence tables in snt-report-columns' );
@@ -197,7 +198,7 @@ namespace {
 	ok( false !== strpos( $login_src, 'snt-report-columns' ), 'Login defense view arranges attacker tables in snt-report-columns' );
 	$geo_src = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/parts/painters/view-geography.php' );
 	ok( false !== strpos( $geo_src, '<div class="snt-grid">' ) && false !== strpos( $geo_src, "dim_table( __( 'Countries'" ) && strpos( $geo_src, '<div class="snt-grid">' ) < strpos( $geo_src, "dim_table( __( 'Countries'" ), 'Geography view nests Countries inside snt-grid alongside regional tables' );
-	ok( false !== strpos( $css, '.snt-grid' ) && false !== strpos( $css, '@container ( max-width: 860px )' ), 'sn-analytics.css collapses snt-grid under 860px container query' );
+	ok( false !== strpos( $css, '.snt-grid' ) && false !== strpos( $css, '@container ( max-width: 640px )' ), 'sn-analytics.css collapses snt-grid under 640px container query' );
 
 	echo "\nGroup 7: visual polish -- card containment, executive insights, and view doors\n";
 	ok( false !== strpos( $css, 'os-section::part( body )' ) && false !== strpos( $css, '--os-ui-surface-elevated' ), 'reports enclose section bodies in elevated card surfaces' );
