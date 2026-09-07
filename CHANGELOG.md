@@ -12,6 +12,16 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Native Analytics now uses OpenStation's fixed list-toolbar and scrolling-body
+  layout, replaces the range button wall with native bound controls, removes
+  controls from Search that cannot affect Google's scheduled window, and
+  eliminates the component-spacing collision that produced large empty bands.
+- Search Console tables retain query/path labels and render clicks,
+  impressions, CTR, and average position instead of blank labels with fabricated
+  zero views. Content uses independent responsive columns so a tall table no
+  longer strands the next reports below an empty half-screen.
+
 ## [13.106.1] - 2026-09-06 — native window polish
 
 ### Fixed
@@ -21,4 +31,3 @@ adds a bullet below. A release is a separate, deliberate act:
 - Native Dashboard and Analytics windows use roomier cards and detail columns,
   readable supporting text, and proportional labels with monospace reserved for
   values, reducing the dense low-contrast wall visible in the first release.
-

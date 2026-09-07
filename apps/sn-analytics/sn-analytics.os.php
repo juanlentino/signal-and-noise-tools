@@ -216,6 +216,23 @@ $sn_analytics = App::define( APP_ID )
 			$state->set( 'view', view_slug( $os, $state ) )->set( 'notice', null );
 		}
 	)
+	// Native toolbar controls bind directly to the declared state before this
+	// action runs. Re-apply that complete state through the page's own
+	// resolvers so an invalid client value is refused and rolling ranges shed
+	// stale custom dates.
+	->action(
+		'filter',
+		static function ( State $state, Os $os, array $args ) {
+			unset( $args );
+			if ( ! may_manage() ) {
+				return;
+			}
+			$query = \snt_os_analytics_get( $state );
+			unset( $query['page'] );
+			\snt_os_analytics_apply( $state, $query );
+			$state->set( 'view', view_slug( $os, $state ) )->set( 'notice', null );
+		}
+	)
 	->action(
 		'post',
 		static function ( State $state, Os $os, array $args ) {

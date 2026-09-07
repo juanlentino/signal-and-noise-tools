@@ -127,26 +127,31 @@ namespace {
 	ok( '30' === $s->get( 'range' ) && '' === $s->get( 'from' ) && 'bot' === $s->get( 'class' ) && 'yoy' === $s->get( 'compare' ) && 'content' === $s->get( 'view' ), 'go with a pick applies the classic next query wholesale and pins the view to the tab' );
 	$app->actions['go']( $s, $os, array( 'sn_range' => '7' ) );
 	ok( '7' === $s->get( 'range' ) && 'human' === $s->get( 'class' ) && 'off' === $s->get( 'compare' ), 'go with a bare query is still wholesale: absent means the default' );
+	$s->set( 'range', '30' )->set( 'class', 'suspect' )->set( 'compare', 'prev' )->set( 'from', '2026-01-01' )->set( 'to', '2026-01-31' );
+	$app->actions['filter']( $s, $os, array() );
+	ok( '30' === $s->get( 'range' ) && '' === $s->get( 'from' ) && '' === $s->get( 'to' ) && 'suspect' === $s->get( 'class' ) && 'prev' === $s->get( 'compare' ), 'bound native filters are re-resolved server-side and a rolling range sheds stale custom dates' );
 
 	echo "\nGroup 3: the frame paints the classic order\n";
 	$painted = array();
 	$spy = function ( $key ) use ( &$painted ) { return function ( $ctx ) use ( $key, &$painted ) { $painted[] = $key; return '<i data-piece="' . $key . '"></i>'; }; };
 	add_filter( 'snt_os_analytics_painters', function ( $p ) use ( $spy, &$painted ) {
-		foreach ( array( 'chrome/controls', 'chrome/insights', 'chrome/drilldown', 'chrome/empty', 'chrome/error', 'chrome/login-header', 'view/overview', 'view/posts', 'view/edge', 'view/login-defense' ) as $k ) { $p[ $k ] = $spy( $k ); }
+		foreach ( array( 'chrome/controls', 'chrome/insights', 'chrome/drilldown', 'chrome/empty', 'chrome/error', 'chrome/login-header', 'view/overview', 'view/posts', 'view/search', 'view/edge', 'view/login-defense' ) as $k ) { $p[ $k ] = $spy( $k ); }
 		$p['chrome/header'] = function ( $ctx ) use ( &$painted ) { $painted[] = 'chrome/header'; return array( 'html' => '<i data-piece="chrome/header"></i>', 'totals' => array( 'views' => $GLOBALS['__views'] ?? 5 ) ); };
 		unset( $p['view/content'] );
 		return $p;
 	} );
 	$paint = function ( $view, array $in = array() ) use ( $app, &$painted ) { $painted = array(); $os = new \OpenStation\App\Os(); $os->view = 'overview' === $view ? 'main' : $view; $cb = 'overview' === $view ? $app->view : $app->tabs[ $view ]['view']; ob_start(); call_user_func( $cb, st( $app, $in ), $os ); return (string) ob_get_clean(); };
 	$html = $paint( 'overview', array( 'notice' => array( 'error', 'Broke.' ) ) );
-	ok( array( 'chrome/error', 'chrome/insights', 'chrome/controls', 'chrome/header', 'view/overview' ) === $painted, 'overview: diagnostic, insights, controls, header, view -- the composer`s order; no drill-down without a drill: ' . implode( ',', $painted ) );
-	ok( 0 === strpos( $html, '<div class="snt-app" data-snt-view="overview" data-snt-query="' ) && false !== strpos( $html, '<os-notice tone="danger">Broke.</os-notice>' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'data-piece="chrome/error"' ), 'the root names the view and the query; the notice paints first, as the kit`s notice' );
+	ok( array( 'chrome/error', 'chrome/controls', 'chrome/insights', 'chrome/header', 'view/overview' ) === $painted, 'overview: diagnostic, fixed toolbar, then the scrolling report body -- no drill-down without a drill: ' . implode( ',', $painted ) );
+	ok( 0 === strpos( $html, '<div class="snt-app os-app-list" data-snt-view="overview" data-snt-query="' ) && false !== strpos( $html, '<os-notice tone="danger">Broke.</os-notice>' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'data-piece="chrome/error"' ), 'the root adopts the framework list scaffold, names the view and query, and paints the notice first' );
 	$paint( 'overview', array( 'drill' => 'browser:Firefox' ) );
 	ok( in_array( 'chrome/drilldown', $painted, true ) && array_search( 'chrome/drilldown', $painted, true ) < array_search( 'view/overview', $painted, true ), 'a parsed drill paints the drill-down panel before the view' );
 	$paint( 'posts' );
 	ok( array( 'chrome/error', 'chrome/controls', 'view/posts' ) === $painted, 'Posts paints its controls and catalog without the Overview insights, KPIs, or chart' );
 	$paint( 'edge' );
 	ok( array( 'chrome/error', 'chrome/controls', 'view/edge' ) === $painted, 'other focused reports follow the same compact composition' );
+	$paint( 'search' );
+	ok( array( 'chrome/error', 'view/search' ) === $painted, 'Search omits global controls that its scheduled Google window cannot honor' );
 	$paint( 'login-defense' );
 	ok( array( 'chrome/error', 'chrome/login-header', 'view/login-defense' ) === $painted, 'login-defense owns its chrome: its own header, no insights, no controls, no header region' );
 	$GLOBALS['__views'] = 0;
@@ -171,9 +176,15 @@ namespace {
 	echo "\nGroup 5: the native toolbar stays compact until Custom is chosen\n";
 	$rolling_controls = call_user_func( $painters['chrome/controls'], array( 'range' => '7', 'class' => 'human', 'compare' => 'off', 'get' => array() ) );
 	$custom_controls  = call_user_func( $painters['chrome/controls'], array( 'range' => 'custom', 'from' => '2026-09-01', 'to' => '2026-09-06', 'class' => 'human', 'compare' => 'off', 'get' => array() ) );
-	ok( false !== strpos( $rolling_controls, '>Custom</os-button>' ) && false === strpos( $rolling_controls, 'snt-custom-range' ), 'rolling ranges offer Custom without permanently reserving space for its date form' );
+	ok( false !== strpos( $rolling_controls, '<os-select class="snt-filter snt-filter--range"' ) && false !== strpos( $rolling_controls, '<os-option value="custom">Custom range…</os-option>' ) && false === strpos( $rolling_controls, 'snt-custom-range' ), 'one native Range select replaces the button wall and does not reserve space for custom dates' );
 	ok( false !== strpos( $custom_controls, 'snt-custom-range' ) && false !== strpos( $custom_controls, 'name="sn_from"' ) && false !== strpos( $custom_controls, 'name="sn_to"' ), 'choosing Custom reveals both date fields in the range row' );
-	ok( false !== strpos( $rolling_controls, 'snt-toolbar__row--range' ) && false !== strpos( $rolling_controls, 'snt-toolbar__row--secondary' ), 'range and secondary controls have explicit responsive rows' );
+	ok( false !== strpos( $rolling_controls, 'os-app-list__toolbar' ) && false !== strpos( $rolling_controls, 'os-bind="range" os-action="filter"' ) && false !== strpos( $rolling_controls, 'os-bind="class" os-action="filter"' ) && false !== strpos( $rolling_controls, 'os-bind="compare" os-action="filter"' ), 'the framework toolbar owns three bound, server-validated controls' );
+
+	echo "\nGroup 6: the report surface follows the framework list geometry\n";
+	$css = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/sn-analytics.css' );
+	ok( false !== strpos( $css, '.snt-app.os-app-list' ) && false !== strpos( $css, '.snt-report-body' ), 'the app adopts the framework list root and a bounded scrolling body' );
+	ok( false !== strpos( $css, '.snt-view os-section' ) && false !== strpos( $css, 'margin-block-end: 0' ), 'the report cancels os-section`s Settings-page margin instead of double-spacing every panel' );
+	ok( false !== strpos( $css, '.snt-report-columns' ) && false !== strpos( $css, '@container ( max-width: 860px )' ), 'independent report columns fold at the window container, not the browser viewport' );
 
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );

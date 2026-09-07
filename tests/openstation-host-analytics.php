@@ -369,8 +369,8 @@ namespace {
 		'   ...and every default is that resolver asked with nothing -- a literal table here would be a copy of four whitelists' );
 	ok( 7 === $app->state['lg_range'] && sn_login_defense_resolve_days() === $app->state['lg_range'],
 		'   ...including login defense`s own range, from sn_login_defense_resolve_days()' );
-	ok( array( 'go', 'post', 'door', 'refresh', 'reopen' ) === array_keys( $app->actions ),
-		'five actions: go, post, door, refresh and the reopen lifecycle' );
+	ok( array( 'go', 'filter', 'post', 'door', 'refresh', 'reopen' ) === array_keys( $app->actions ),
+		'six actions: navigation, bound-filter validation, post refusal, door, refresh and reopen' );
 	$sn_views = snt_analytics_views();
 	unset( $sn_views['overview'] );
 	ok( array_keys( $sn_views ) === array_keys( $app->tabs ) && array_values( $sn_views ) === array_column( $app->tabs, 'label' ),
@@ -579,7 +579,7 @@ namespace {
 	$html                   = paint( $app, st( $app, array( 'view' => 'campaigns' ) ), null, 'campaigns' );
 	ok( $before === array( $_GET, $_POST, $_REQUEST, $_SERVER['REQUEST_URI'] ),
 		'painting gives the request back untouched -- the query AND the REQUEST_URI the page`s link builders were lent' );
-	ok( 0 === strpos( $html, '<div class="snt-app" data-snt-view="campaigns" data-snt-query="' ) && false === strpos( $html, '<h1>Analytics</h1>' ),
+	ok( 0 === strpos( $html, '<div class="snt-app os-app-list" data-snt-view="campaigns" data-snt-query="' ) && false === strpos( $html, '<h1>Analytics</h1>' ),
 		'the root is the native window`s: the view it paints and the current navigation for the brush, and no wp-admin heading -- the window title and the tab strip are the shell`s' );
 	ok( false === strpos( $html, 'class="snt-classic"' ) && false !== strpos( $html, 'os-empty-state' ),
 		'an unconfigured view paints the kit gate, not the classic capture -- the port is complete' );

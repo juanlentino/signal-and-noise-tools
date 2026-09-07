@@ -27,27 +27,61 @@ function paint_chrome_controls( array $ctx ) {
 	$from    = (string) ( $ctx['from'] ?? '' );
 	$to      = (string) ( $ctx['to'] ?? '' );
 
-	$rolling = array( '7' => '7d', '14' => '14d', '30' => '30d', '90' => '90d', '365' => '1y', 'all' => __( 'All', 'signal-and-noise-tools' ) );
-	$range_row = '<span class="snt-toolbar__k">' . \snt_kit_esc( __( 'Range', 'signal-and-noise-tools' ) ) . '</span>';
-	foreach ( $rolling as $token => $label ) {
-		$range_row .= pick( $label, 'range', $token, $token === $range );
-	}
+	$rolling = array( '7' => __( 'Last 7 days', 'signal-and-noise-tools' ), '14' => __( 'Last 14 days', 'signal-and-noise-tools' ), '30' => __( 'Last 30 days', 'signal-and-noise-tools' ), '90' => __( 'Last 90 days', 'signal-and-noise-tools' ), '365' => __( 'Last year', 'signal-and-noise-tools' ), 'all' => __( 'All time', 'signal-and-noise-tools' ) );
+	$ranges  = $rolling;
 	if ( function_exists( 'snt_analytics_preset_labels' ) ) {
 		foreach ( snt_analytics_preset_labels() as $token => $label ) {
-			$range_row .= pick( $label, 'range', (string) $token, (string) $token === $range );
+			$ranges[ (string) $token ] = (string) $label;
 		}
 	}
-	$range_row .= pick( __( 'Custom', 'signal-and-noise-tools' ), 'range', 'custom', 'custom' === $range );
+	$ranges['custom'] = __( 'Custom range…', 'signal-and-noise-tools' );
+	$range_options = '';
+	foreach ( $ranges as $token => $label ) {
+		$range_options .= \snt_kit_tag( 'os-option', array( 'value' => (string) $token ), \snt_kit_esc( $label ) );
+	}
+	$range_control = \snt_kit_tag(
+		'os-select',
+		array(
+			'class'     => 'snt-filter snt-filter--range',
+			'label'     => __( 'Range', 'signal-and-noise-tools' ),
+			'value'     => $range,
+			'os-bind'   => 'range',
+			'os-action' => 'filter',
+		),
+		$range_options
+	);
 
-	$class_row = '<span class="snt-toolbar__k">' . \snt_kit_esc( __( 'Class', 'signal-and-noise-tools' ) ) . '</span>';
+	$class_row = '';
 	foreach ( array( 'human' => __( 'Human', 'signal-and-noise-tools' ), 'suspect' => __( 'Suspect', 'signal-and-noise-tools' ), 'bot' => __( 'Bot', 'signal-and-noise-tools' ) ) as $token => $label ) {
-		$class_row .= pick( $label, 'class', $token, $token === $class );
+		$class_row .= \snt_kit_tag( 'os-segment', array( 'value' => $token ), \snt_kit_esc( $label ) );
 	}
+	$class_control = \snt_kit_tag(
+		'os-segmented',
+		array(
+			'class'     => 'snt-filter snt-filter--class',
+			'label'     => __( 'Traffic class', 'signal-and-noise-tools' ),
+			'value'     => $class,
+			'os-bind'   => 'class',
+			'os-action' => 'filter',
+		),
+		$class_row
+	);
 
-	$compare_row = '<span class="snt-toolbar__k">' . \snt_kit_esc( __( 'Compare', 'signal-and-noise-tools' ) ) . '</span>';
+	$compare_row = '';
 	foreach ( array( 'off' => __( 'Off', 'signal-and-noise-tools' ), 'prev' => __( 'Previous', 'signal-and-noise-tools' ), 'yoy' => __( 'Year over year', 'signal-and-noise-tools' ) ) as $token => $label ) {
-		$compare_row .= pick( $label, 'compare', $token, $token === $compare );
+		$compare_row .= \snt_kit_tag( 'os-option', array( 'value' => $token ), \snt_kit_esc( $label ) );
 	}
+	$compare_control = \snt_kit_tag(
+		'os-select',
+		array(
+			'class'     => 'snt-filter snt-filter--compare',
+			'label'     => __( 'Compare', 'signal-and-noise-tools' ),
+			'value'     => $compare,
+			'os-bind'   => 'compare',
+			'os-action' => 'filter',
+		),
+		$compare_row
+	);
 
 	$hidden = '';
 	foreach ( (array) ( $ctx['get'] ?? array() ) as $name => $value ) {
@@ -102,14 +136,11 @@ function paint_chrome_controls( array $ctx ) {
 		) ) . '</span>';
 	}
 
-	return '<div class="snt-toolbar">'
-		. '<div class="snt-toolbar__row snt-toolbar__row--range"><div class="snt-toolbar__group">' . $range_row . '</div>' . $custom . '</div>'
-		. '<div class="snt-toolbar__row snt-toolbar__row--secondary">'
-		. '<div class="snt-toolbar__group">' . $class_row . '</div>'
-		. '<div class="snt-toolbar__group">' . $compare_row . '</div>'
-		. '<div class="snt-toolbar__group snt-toolbar__export"><span class="snt-toolbar__k">' . \snt_kit_esc( __( 'Export', 'signal-and-noise-tools' ) ) . '</span>' . $export . '</div>'
-		. $sep . '</div>'
-		. '</div>';
+	return '<header class="os-app-list__toolbar snt-report-toolbar">'
+		. '<div class="os-app-list__toolbar-left snt-report-toolbar__filters">' . $range_control . $class_control . $compare_control . '</div>'
+		. '<div class="os-app-list__toolbar-trailing snt-report-toolbar__trailing">' . $sep . $export . '</div>'
+		. '</header>'
+		. ( '' !== $custom ? '<div class="snt-custom-panel">' . $custom . '</div>' : '' );
 }
 
 add_filter(
