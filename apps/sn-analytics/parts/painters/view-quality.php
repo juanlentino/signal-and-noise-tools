@@ -45,8 +45,10 @@ function paint_view_quality( array $ctx ) {
 		}
 	}
 	return daily_histogram( $trend_rows, __( 'Bot share', 'signal-and-noise-tools' ) )
+		. '<div class="snt-report-columns">'
 		. dim_table( __( 'Traffic quality', 'signal-and-noise-tools' ), $break_rows, __( 'No quality breakdown in this range yet.', 'signal-and-noise-tools' ) )
-		. distribution_table( __( 'Bot confidence', 'signal-and-noise-tools' ), $confidence, __( 'No bot-confidence scores in this range: needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).', 'signal-and-noise-tools' ) );
+		. distribution_table( __( 'Bot confidence', 'signal-and-noise-tools' ), $confidence, __( 'No bot-confidence scores in this range: needs traffic recorded with Cloudflare Bot Management enabled (scores arrive as 1–99).', 'signal-and-noise-tools' ) )
+		. '</div>';
 }
 
 add_filter(

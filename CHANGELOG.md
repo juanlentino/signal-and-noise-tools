@@ -12,7 +12,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- S&N Home Composite Settings: introduced responsive two-column `.snt-2up` layout for `Measurement > Analytics`, `Monitoring > Machine Readers`, and `Connections > Cloudflare`, separating writable configurations from read-only operational references.
+- S&N Analytics Multi-Column Reports: placed `Traffic quality` and `Bot confidence` tables in `Quality` view, and `Catalog` and `Evergreen vs spike` tables in `Posts` view, into balanced side-by-side `.snt-report-columns`.
+- Wide Leaf & Container Queries: uncapped `.snt-leaf` max-width to 100% for all two-column and multi-column settings leaves while preserving responsive `@container (max-width: 860px)` and mobile PWA 1-column collapse.
+
 ## [13.106.6] - 2026-09-07 — Fix duplicate dock app and refine S&N Home UI/UX
+
 
 ### Fixed
 - OpenStation Dock: resolved duplicate dock tile issue when disabling native windows in OpenStation Settings (`assets/os-settings-tab.js`) by dynamically invoking `removeSystemItem` and removing stale tiles on toggle and `os-registry-changed`.

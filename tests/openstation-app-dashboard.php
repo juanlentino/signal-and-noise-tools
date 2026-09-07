@@ -202,7 +202,24 @@ namespace {
 	$btn_esc = snt_kit_button( '<b>Click</b>', 'run' );
 	ok( false !== strpos( $btn_esc, '&lt;b&gt;Click&lt;/b&gt;' ), 'snt_kit_button without raw escapes HTML by default' );
 
+	echo "\nGroup 6: Two-column settings leaves\n";
+	ok( false !== strpos( $css, '.snt-2up' ) && false !== strpos( $css, 'repeat( 2, minmax( 0, 1fr ) )' ), 'sn-dashboard.css defines .snt-2up two-column grid' );
+	ok( false !== strpos( $css, '.snt-leaf:has( .snt-2up )' ), 'sn-dashboard.css uncaps .snt-leaf max-width for .snt-2up' );
+
+	$analytics_src = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/parts/leaves/monitoring-analytics.php' );
+	ok( false !== strpos( $analytics_src, '<div class="snt-2up">' ), 'monitoring/analytics source defines .snt-2up two columns' );
+	ok( false !== strpos( $analytics_src, '<div class="snt-2up-col">' ), 'monitoring/analytics source defines .snt-2up-col columns' );
+	ok( false !== strpos( $analytics_src, 'analytics_pipeline_html()' ), 'monitoring/analytics positions pipeline status above columns' );
+
+
+
+	if ( isset( $painters['connections/cloudflare'] ) ) {
+		$cf_html = call_user_func( $painters['connections/cloudflare'], array( 'tab' => 'connections', 'sub' => 'cloudflare' ) );
+		ok( false !== strpos( $cf_html, '<div class="snt-2up">' ), 'connections/cloudflare renders in .snt-2up two columns' );
+	}
+
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );
 }
+
 
