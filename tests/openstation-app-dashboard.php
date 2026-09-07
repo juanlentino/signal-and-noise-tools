@@ -169,6 +169,40 @@ namespace {
 	$spliced_missing = array_diff( $spliced, array_keys( $painters ) );
 	ok( array() === $spliced_missing, 'the two spliced leaves (Search Console, Machine Readers) have painters too' . ( $spliced_missing ? ' -- MISSING: ' . implode( ', ', $spliced_missing ) : '' ) );
 
+	echo "\nGroup 5: S&N Home UI & unescaped HTML\n";
+	require_once SNT_PATH . 'inc/openstation-kit-triggers.php';
+	$pulse = \SignalNoise\OpenStationHost\Dashboard\Leaves\pulse_item_html(
+		'Active Cache Engine',
+		'dashicons-performance',
+		'Cloudflare Edge',
+		'Operational',
+		'admin.php?page=sn-theme-options&tab=site&sub=performance',
+		'dashboard'
+	);
+	ok( false === strpos( $pulse, '&lt;span' ), 'pulse item does not escape HTML tags into entities' );
+	ok( false !== strpos( $pulse, '<div class="snt-home__metric-label">' ), 'pulse item contains proper metric label markup' );
+	ok( false !== strpos( $pulse, 'class="snt-home__metric snt-go"' ), 'cross-tab pulse item has snt-go class' );
+	ok( false !== strpos( $pulse, 'data-snt-tab="site"' ), 'cross-tab pulse item targets tab site' );
+	ok( false !== strpos( $pulse, 'data-snt-sub="performance"' ), 'cross-tab pulse item targets sub performance' );
+
+	$in_tab_pulse = \SignalNoise\OpenStationHost\Dashboard\Leaves\pulse_item_html(
+		'Tools',
+		'dashicons-admin-tools',
+		'Reports',
+		'',
+		'admin.php?page=sn-theme-options&tab=dashboard&sub=tools',
+		'dashboard'
+	);
+	ok( false !== strpos( $in_tab_pulse, 'os-action="go"' ), 'same-tab pulse item has os-action="go"' );
+	ok( false === strpos( $in_tab_pulse, '&lt;span' ), 'same-tab pulse item preserves unescaped span' );
+
+
+	$btn = snt_kit_button( '<b>Click</b>', 'run', array( 'raw' => true ) );
+	ok( false !== strpos( $btn, '<b>Click</b>' ), 'snt_kit_button with raw => true does not escape HTML' );
+	$btn_esc = snt_kit_button( '<b>Click</b>', 'run' );
+	ok( false !== strpos( $btn_esc, '&lt;b&gt;Click&lt;/b&gt;' ), 'snt_kit_button without raw escapes HTML by default' );
+
 	echo "\nResult: $pass passed, $fail failed.\n";
 	exit( $fail > 0 ? 1 : 0 );
 }
+

@@ -513,6 +513,11 @@ ok( false !== strpos( $settings_js, "parsed.pathname.endsWith( '/admin.php' )" )
 ok( 2 === substr_count( $settings_js, 'params: function' ), 'both remaps forward open-time parameters' );
 ok( false !== strpos( $settings_js, 'preferences.dashboard === true' ), 'Dashboard remap follows its saved preference' );
 ok( false !== strpos( $settings_js, 'preferences.analytics === true' ), 'Analytics remap follows its saved preference' );
+ok( false !== strpos( $settings_js, 'syncDockTiles' ), 'client defines syncDockTiles to prevent duplicate dock items' );
+ok( false !== strpos( $settings_js, "removeSystemItem( 'sn-analytics' )" ), 'client removes sn-analytics dock tile when disabled' );
+ok( false !== strpos( $settings_js, "removeSystemItem( 'sn-dashboard' )" ), 'client removes sn-dashboard dock tile when disabled' );
+ok( false !== strpos( $settings_js, 'os-registry-changed' ), 'client syncs dock tiles on os-registry-changed event' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
+
