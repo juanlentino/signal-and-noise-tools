@@ -209,6 +209,9 @@
 				toast( widget, ( err && err.message ) ? err.message : 'Action failed.', false );
 			} )
 			.finally( function() {
+				if ( action === 'purge-caches' || action === 'full-reset' ) {
+					document.dispatchEvent( new CustomEvent( 'snt-cache-purged' ) );
+				}
 				button.textContent    = originalText;
 				button.style.opacity  = '1';
 				delete button.dataset.snBusy;

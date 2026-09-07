@@ -228,8 +228,9 @@
 		// v2.5.5: aiCallable INTENTIONALLY OMITTED — destructive. Manual ⌘K only.
 		run: function() {
 			callRest( 'purge-caches' )
-				.then( function( res ) { toast( res.message || 'All caches purged.' ); } )
-				.catch( function( err ) { toast( 'Purge failed: ' + ( err.message || 'unknown error' ), 'error' ); } );
+				.then( function( res ) { toast( res.message || 'Purge completed.', res.ok === false ? 'error' : undefined ); } )
+				.catch( function( err ) { toast( 'Purge failed: ' + ( err.message || 'unknown error' ), 'error' ); } )
+				.finally( function() { document.dispatchEvent( new CustomEvent( 'snt-cache-purged' ) ); } );
 		},
 	} );
 

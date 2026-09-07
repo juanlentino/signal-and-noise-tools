@@ -67,9 +67,8 @@
 		return Math.floor( hrs / 24 ) + 'd ago';
 	}
 
-	window.openStationWidgets['sn-cache'] = function( container ) {
+	function paint( container, summary ) {
 		var wrap    = el( 'div', { style: 'padding:10px 12px;' } );
-		var summary = data.cacheFreshness;
 
 		if ( ! summary || ! summary.last ) {
 			// Honest empty state. NOT a green edge.
@@ -91,16 +90,11 @@
 		var escalated = num( summary.escalated );
 		var stale     = num( summary.stale );
 
-		// An escalation is the worst fact here: a per-URL purge demonstrably
-		// failed and the whole zone had to be dropped. It outranks the last
-		// verdict, because a green "fresh" after an escalation still means the
-		// edge needed a sledgehammer to get there.
-		// v13.91.1: `pending` is neither green nor an alarm. A purge fired and
-		// its verification has not run yet — benign, transient, and NOT a
-		// verified-fresh edge, so it must not paint green either.
+		// The headline reflects the current verdict; older post-save failures
+		// remain historical diagnostics below, never a failed current purge.
 		var dot = OK_FG;
 		if ( 'stale' === last ) { dot = ERR_FG; }
-		else if ( 'unknown' === last || 'pending' === last || escalated > 0 ) { dot = WARN_FG; }
+		else if ( 'unknown' === last || 'pending' === last ) { dot = WARN_FG; }
 
 		// v13.87.2: the words come from PHP, one producer for both surfaces.
 		// This widget and the Classic Admin cell used to phrase the same verdict
@@ -181,11 +175,70 @@
 		if ( ! showed ) {
 			list.style.display = 'none';
 		}
+		if ( showed ) {
+			wrap.appendChild( el( 'div', { text: 'Recent post-save checks', style: 'font-size:11px;opacity:.7;margin-top:10px;', title: 'Historical checks, not caches waiting to be cleared. Manual purges do not reset these counts.' } ) );
+		}
 		wrap.appendChild( list );
 
 		container.appendChild( wrap );
 		return function teardown() {
 			if ( wrap.parentNode ) { wrap.parentNode.removeChild( wrap ); }
+		};
+	};
+	window.openStationWidgets['sn-cache'] = function( container ) {
+		var stopped = false;
+		var busy = false;
+		var again = false;
+		var timer = 0;
+		var summary = data.cacheFreshness;
+		var unpaint = paint( container, summary );
+		var errorNote = null;
+
+		function refresh() {
+			window.clearTimeout( timer );
+			if ( stopped ) { return; }
+			if ( busy ) { again = true; return; }
+			if ( document.hidden || ! window.sntAbilityRun ) {
+				timer = window.setTimeout( refresh, 60000 );
+				return;
+			}
+			busy = true;
+			Promise.resolve().then( function() {
+				return window.sntAbilityRun( 'cache-freshness' );
+			} ).then( function( result ) {
+				if ( stopped ) { return; }
+				if ( ! result || ! result.post_save || ! result.last ) { throw new Error( 'Invalid cache status' ); }
+				summary = result.state === 'never_probed' ? null : Object.assign( {}, result, {
+					total: result.post_save.probes,
+					stale: result.post_save.stale,
+					escalated: result.post_save.escalated
+				} );
+				data.cacheFreshness = summary;
+				if ( errorNote ) { errorNote.remove(); errorNote = null; }
+				unpaint();
+				unpaint = paint( container, summary );
+			} ).catch( function() {
+				if ( stopped || errorNote ) { return; }
+				errorNote = el( 'p', { text: 'Could not refresh cache status. Showing the last known result.', style: 'font-size:11px;color:#ff9d94;padding:0 12px;' } );
+				errorNote.setAttribute( 'role', 'status' );
+				container.appendChild( errorNote );
+			} ).finally( function() {
+				busy = false;
+				if ( stopped ) { return; }
+				timer = window.setTimeout( refresh, again ? 0 : ( summary && summary.last === 'pending' ? 15000 : 60000 ) );
+				again = false;
+			} );
+		}
+		document.addEventListener( 'snt-cache-purged', refresh );
+		document.addEventListener( 'visibilitychange', refresh );
+		refresh();
+		return function teardown() {
+			stopped = true;
+			window.clearTimeout( timer );
+			document.removeEventListener( 'snt-cache-purged', refresh );
+			document.removeEventListener( 'visibilitychange', refresh );
+			unpaint();
+			if ( errorNote ) { errorNote.remove(); }
 		};
 	};
 	window.desktopModeWidgets['sn-cache'] = window.openStationWidgets['sn-cache'];

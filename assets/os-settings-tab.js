@@ -7,6 +7,10 @@
 		: function( text ) {
 			return text;
 		};
+	var saving = false;
+	var mountedControls = [];
+	var mountedStatus;
+	var mountedBody;
 	var preferences = Object.assign(
 		{ dashboard: true, analytics: true },
 		config.preferences || {}
@@ -115,7 +119,9 @@
 	}
 
 	function render( body ) {
+		mountedBody = body;
 		body.replaceChildren();
+		mountedControls = [];
 
 		var section = document.createElement( 'os-section' );
 		section.setAttribute( 'heading', __( 'Native window replacements', 'signal-and-noise-tools' ) );
@@ -128,25 +134,37 @@
 		status.style.margin = '4px 0 0';
 		status.style.fontSize = '12px';
 		status.style.color = 'var(--os-ui-fg-muted, #b3afb5)';
+		mountedStatus = status;
+		if ( saving ) { status.textContent = __( 'Saving…', 'signal-and-noise-tools' ); }
 
 		function createToggle( key, label, desc ) {
-			var sw = document.createElement( 'os-switch' );
-			sw.setAttribute( 'block', '' );
+			var item = document.createElement( 'div' );
+			item.className = 'os-features__item';
+			var sw = document.createElement( 'os-checkbox-label' );
+			var hint = document.createElement( 'p' );
+			hint.className = 'os-features__hint';
+			hint.textContent = desc;
+			item.append( sw, hint );
+			mountedControls.push( { key: key, control: sw } );
+			if ( saving ) { sw.setAttribute( 'disabled', '' ); }
 			sw.setAttribute( 'value', key );
 			sw.setAttribute( 'label', label );
-			sw.setAttribute( 'description', desc );
 			if ( preferences[ key ] ) {
 				sw.setAttribute( 'checked', '' );
 			}
-			sw.addEventListener( 'os-switch-change', function( event ) {
+			sw.addEventListener( 'os-checkbox-change', function( event ) {
+				if ( saving ) { return; }
+				saving = true;
 				var checked = Boolean(
 					event.detail && typeof event.detail.checked !== 'undefined'
 						? event.detail.checked
 						: ( event.target && event.target.checked )
 				);
 				var previous = !! preferences[ key ];
+				var failed = false;
 				preferences[ key ] = checked;
-				sw.setAttribute( 'disabled', '' );
+				mountedControls.forEach( function( entry ) { entry.control.setAttribute( 'disabled', '' ); } );
+				status = mountedStatus;
 				status.textContent = __( 'Saving…', 'signal-and-noise-tools' );
 				status.style.color = 'var(--os-ui-fg-muted, #b3afb5)';
 
@@ -155,32 +173,57 @@
 
 				save( patch ).then( function( saved ) {
 					preferences = Object.assign( {}, preferences, saved );
-					wireUrlRemaps();
-					syncDockTiles( preferences );
+					status = mountedStatus;
 					status.textContent = __( 'Saved.', 'signal-and-noise-tools' );
 					status.style.color = 'var(--os-ui-success, #7bd88f)';
-					if ( window.wp && window.wp.os && typeof window.wp.os.refreshMenu === 'function' ) {
-						var refreshed = window.wp.os.refreshMenu();
-						if ( refreshed && typeof refreshed.then === 'function' ) {
-							refreshed.then( function() {
-								syncDockTiles( preferences );
-							} );
+					// Shell refresh is secondary to persistence: its failure must not
+					// roll back a preference the server has already accepted.
+					Promise.resolve().then( function() {
+						wireUrlRemaps();
+						syncDockTiles( preferences );
+						if ( window.wp && window.wp.os && typeof window.wp.os.refreshMenu === 'function' ) {
+							return window.wp.os.refreshMenu();
 						}
-					}
+					} ).then( function() {
+						syncDockTiles( preferences );
+					} ).catch( function() {
+						// No write rollback: reopening the shell retries menu discovery.
+					} );
 				} ).catch( function() {
+					failed = true;
 					preferences[ key ] = previous;
 					if ( previous ) {
 						sw.setAttribute( 'checked', '' );
 					} else {
 						sw.removeAttribute( 'checked' );
 					}
+					status = mountedStatus;
 					status.textContent = __( 'Could not save preference.', 'signal-and-noise-tools' );
 					status.style.color = 'var(--os-ui-danger, #ff5a5a)';
 				} ).finally( function() {
-					sw.removeAttribute( 'disabled' );
+					saving = false;
+					mountedControls.forEach( function( entry ) {
+						entry.control.toggleAttribute( 'checked', !! preferences[ entry.key ] );
+						entry.control.removeAttribute( 'disabled' );
+					} );
+					if ( failed && mountedBody && mountedBody.isConnected ) {
+						// 1.1.7 binds a checked ATTRIBUTE, which cannot reset a dirty
+						// native input property. Recreate it from the restored state.
+						var restoreFocus = mountedControls.some( function( entry ) { return document.activeElement === entry.control; } );
+						render( mountedBody );
+						mountedStatus.textContent = __( 'Could not save preference.', 'signal-and-noise-tools' );
+						mountedStatus.style.color = 'var(--os-ui-danger, #ff5a5a)';
+						if ( restoreFocus ) {
+							window.requestAnimationFrame( function() {
+								var entry = mountedControls.find( function( item ) { return item.key === key; } );
+								var input = entry && entry.control.shadowRoot && entry.control.shadowRoot.querySelector( 'input' );
+								if ( input ) { input.focus(); }
+							} );
+						}
+					}
 				} );
 			} );
-			return sw;
+			return item;
 		}
 
 		section.appendChild( createToggle(
@@ -200,6 +243,13 @@
 	}
 
 	function init() {
+		// 1.1.7 reserves a blank glyph for third-party tabs; style only ours.
+		if ( ! document.getElementById( 'snt-preferences-icon' ) ) {
+			var iconStyle = document.createElement( 'style' );
+			iconStyle.id = 'snt-preferences-icon';
+			iconStyle.textContent = '.os-settings os-tab[value="signal-noise"] > .os-settings__nav-glyph-blank { background: currentColor; mask: url("data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 24 24%27%3E%3Cpath d=%27M3 12h4l3-8 4 16 3-8h4%27 fill=%27none%27 stroke=%27black%27 stroke-width=%272%27 stroke-linecap=%27round%27 stroke-linejoin=%27round%27/%3E%3C/svg%3E") center / contain no-repeat; }';
+			document.head.appendChild( iconStyle );
+		}
 		wireUrlRemaps();
 		syncDockTiles( preferences );
 		document.addEventListener( 'os-registry-changed', function() {
