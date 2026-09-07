@@ -1722,15 +1722,9 @@ ok( false !== strpos( $cache_js, 'No purge verified yet' ),
 	'A NEVER-VERIFIED EDGE SAYS SO — it does not render as fresh' );
 ok( false !== strpos( $cache_js, "'stale' === last" ),
 	'a stale verdict is read by identity, not by truthiness' );
-// Match the FULL dot expression, not the bare 'escalated > 0' substring — that
-// also appears in the list-row condition below, so the loose version stays green
-// when the dot logic is gutted.
-// v13.91.1 widened this expression to carry `pending`. Still matched WHOLE, for
-// the reason above: a loose 'escalated > 0' also appears in the list-row
-// condition below, so the sloppy version stays green when the dot logic is
-// gutted.
-ok( false !== strpos( $cache_js, "'unknown' === last || 'pending' === last || escalated > 0" ),
-	'an escalation colours the dot even when the last verdict is fresh — and pending rides the same branch, so neither paints green' );
+// Current freshness is independent of historical post-save escalations.
+ok( false !== strpos( $cache_js, "'unknown' === last || 'pending' === last" ) && false === strpos( $cache_js, "'pending' === last || escalated > 0" ),
+	'current freshness is not made yellow by historical escalations' );
 
 // v13.87.3 — NO STANDING TALLY ON A GLANCE SURFACE.
 //

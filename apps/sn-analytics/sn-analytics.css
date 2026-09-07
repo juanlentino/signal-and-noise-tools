@@ -377,9 +377,9 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] .snt-vie
 	--sn-an-radius: 10px;
 	--sn-an-elev-radius: 10px;
 	--sn-an-tier-text: var(--os-ui-fg-muted);
-	--sn-an-warn-text: var(--os-ui-warning, #d6a957);
-	--sn-an-warn-bg: color-mix(in srgb, var(--sn-an-warn-text) 10%, var(--os-ui-surface-elevated));
-	--sn-an-warn-border: color-mix(in srgb, var(--sn-an-warn-text) 35%, var(--os-ui-border));
+	--sn-an-warn-text: var(--os-ui-warning-fg, #d6a957);
+	--sn-an-warn-bg: var(--os-ui-notice-warning-bg, color-mix(in srgb, var(--sn-an-warn-text) 8%, var(--os-ui-surface-elevated)));
+	--sn-an-warn-border: var(--os-ui-notice-warning-border, color-mix(in srgb, var(--sn-an-warn-text) 25%, var(--os-ui-border)));
 	--sn-an-ok-bg: color-mix(in srgb, var(--os-ui-success, #7bd88f) 10%, var(--os-ui-surface-elevated));
 }
 
@@ -597,4 +597,18 @@ snt-analytics-table os-table { display: block; width: 100%; }
 	color: var(--os-ui-fg);
 	background: var(--os-ui-surface-subtle);
 	border: 1px solid var(--os-ui-border);
+}
+
+/* Attention is a warning, not an accent action. Keep its links readable in
+ * the same semantic palette and make keyboard focus visible. */
+.snt-app[data-os-app="sn-analytics"] .sn-an-attn-strip .sn-an-attn-link {
+	color: var(--sn-an-warn-text);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-attn-link:focus-visible {
+	outline: 2px solid currentColor;
+	outline-offset: 3px;
+	border-radius: 2px;
 }
