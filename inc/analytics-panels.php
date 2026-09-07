@@ -38,6 +38,9 @@ if ( ! function_exists( 'snt_analytics_smooth_path' ) ) {
  * }
  */
 function snt_an_panel_open( $title, $args = array() ) {
+	if ( snt_an_surface( 'panel-open', array( 'title' => $title, 'args' => $args ) ) ) {
+		return;
+	}
 	$title        = (string) $title;
 	$panel_class  = trim( 'postbox sn-an-postbox ' . (string) ( $args['panel_class'] ?? '' ) );
 	$inside_class = (string) ( $args['inside_class'] ?? 'inside' );
@@ -67,7 +70,27 @@ function snt_an_panel_open( $title, $args = array() ) {
  * Close the panel opened by snt_an_panel_open().
  */
 function snt_an_panel_close() {
+	if ( snt_an_surface( 'panel-close', array() ) ) {
+		return;
+	}
 	echo '</div></div>';
+}
+
+/**
+ * Let a host render shared report values through its own UI components.
+ * Null keeps the classic presentation; the callback must return escaped HTML.
+ *
+ * @param string $piece Primitive name.
+ * @param array  $data Primitive inputs, before classic markup is constructed.
+ * @return bool Whether the host rendered this primitive.
+ */
+function snt_an_surface( $piece, $data ) {
+	$html = function_exists( 'apply_filters' ) ? apply_filters( 'snt_analytics_surface', null, $piece, $data ) : null;
+	if ( ! is_string( $html ) ) {
+		return false;
+	}
+	echo $html; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- host presentation callback returns escaped component markup.
+	return true;
 }
 
 /**
@@ -155,6 +178,9 @@ function snt_an_deploys_annotation( $from, $to ) {
  * @param int $visible Rows visible while clamped. Default 5.
  */
 function snt_an_clamp_open( $total, $visible = 5 ) {
+	if ( snt_an_surface( 'clamp-open', compact( 'total', 'visible' ) ) ) {
+		return;
+	}
 	echo '<div class="sn-an-clamp sn-an-clamp--' . (int) $visible . '" data-sn-an-total="' . (int) $total . '">';
 }
 
@@ -165,6 +191,9 @@ function snt_an_clamp_open( $total, $visible = 5 ) {
  * @param int $visible Rows visible while clamped. Default 5.
  */
 function snt_an_clamp_close( $total, $visible = 5 ) {
+	if ( snt_an_surface( 'clamp-close', compact( 'total', 'visible' ) ) ) {
+		return;
+	}
 	if ( (int) $total > (int) $visible ) {
 		echo '<button type="button" class="sn-an-viewall">'
 			/* translators: %d is the total number of items */
@@ -370,6 +399,9 @@ function snt_an_delta_badge( $delta, $opts = array() ) {
  * @param array $opts {empty_slot?:'no-change'|'omit', row_class?:string, basis_label?:string}
  */
 function snt_an_kpi_row( $cards, $opts = array() ) {
+	if ( snt_an_surface( 'kpis', array( 'cards' => $cards, 'opts' => $opts ) ) ) {
+		return;
+	}
 	echo '<div class="sn-kpi-row' . ( '' !== (string) ( $opts['row_class'] ?? '' ) ? ' ' . esc_attr( (string) $opts['row_class'] ) : '' ) . '">';
 	foreach ( (array) $cards as $c ) {
 		if ( ! is_array( $c ) || ! isset( $c['l'], $c['n'] ) ) {
@@ -404,6 +436,9 @@ function snt_an_kpi_row( $cards, $opts = array() ) {
  * @param array  $opts      { @type bool $cta_primary First-run gates: CTA keeps button-primary weight. Default false. }
  */
 function snt_an_gate( $title, $message, $cta_label = '', $cta_url = '', $opts = array() ) {
+	if ( snt_an_surface( 'gate', compact( 'title', 'message', 'cta_label', 'cta_url', 'opts' ) ) ) {
+		return;
+	}
 	echo '<div class="postbox sn-an-gate"><div class="postbox-header"><h2 class="hndle"><span>' . esc_html( $title ) . '</span></h2></div><div class="inside">';
 	echo '<p class="sn-an-empty sn-an-empty--panel">' . esc_html( $message );
 	if ( '' !== $cta_label && '' !== $cta_url ) {

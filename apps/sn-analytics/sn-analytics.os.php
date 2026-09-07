@@ -1,13 +1,12 @@
 <?php
 /**
- * S&N Analytics — the classic Analytics screen as an OpenStation window (#1075).
+ * S&N Analytics — shared reports in the native OpenStation App Framework.
  *
- * PORT = FAITHFUL. This app paints the SAME HTML the S&N Analytics admin page
- * paints, produced by the SAME renderer — `snt_analytics_render_dashboard()` —
- * for all thirteen views, with the same tab strip, the same range control, the
- * same class and compare pills, the same drill-downs and the same export.
- * Nothing is redesigned, dropped or simplified, and the classic page stays
- * exactly where it is: a removal is not a port.
+ * The report dispatcher owns queries, calculations and content order. Native
+ * presentation hooks supply os-section and os-stat; rich report cells project
+ * into os-table. Specialized maps and comparison charts retain their shared
+ * geometry. The framework owns tabs, controls and scrolling; the classic page
+ * continues to render its own presentation outside this scoped capture.
  *
  * THE PAGE HAS NO WRITES. Every control on it is a GET link or a GET form, and
  * the nine `sn_*` params are its whole state — which is why this window has one

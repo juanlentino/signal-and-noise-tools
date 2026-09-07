@@ -160,10 +160,11 @@ function tab_view( $view ) {
 			if ( ! in_array( $view, array( 'search', 'posts' ), true ) ) {
 				echo paint_piece( 'chrome/controls', $ctx )['html'];
 			}
-		} elseif ( 'login-defense' === $view ) {
-			echo paint_piece( 'chrome/login-header', $ctx )['html'];
 		}
 		echo '<div class="os-app-list__body snt-report-body"><div class="snt-view">';
+		if ( 'login-defense' === $view ) {
+			echo paint_piece( 'chrome/login-header', $ctx )['html'];
+		}
 		if ( 'overview' === $view ) {
 			echo paint_piece( 'chrome/insights', $ctx )['html'];
 			$header = paint_piece( 'chrome/header', $ctx );
