@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Bind Analytics and Dashboard styles to their native frame roots so card surfaces and responsive two-column containers apply; keep existing content order and collapse report/settings grids only at container widths of 640px or less.
+
 ## [13.106.10] - 2026-09-07 — Clean responsive two-column UI/UX for S&N Analytics and Settings leaves
 
 ### Added

@@ -9,8 +9,8 @@
  * re-skins the window for free. Never a literal.
  */
 
-.os-app[data-os-app="sn-dashboard"] .snt-app,
-.os-app[data-os-app="sn-analytics"] .snt-app {
+.snt-app[data-os-app="sn-dashboard"],
+.snt-app[data-os-app="sn-analytics"] {
 	display: flex;
 	flex-direction: column;
 	width: 100%;
@@ -21,8 +21,8 @@
 	color: var( --os-ui-fg, #fffbff );
 }
 
-.os-app[data-os-app="sn-dashboard"] .snt-leaf,
-.os-app[data-os-app="sn-analytics"] .snt-view {
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf,
+.snt-app[data-os-app="sn-analytics"] .snt-view {
 	display: flex;
 	flex-direction: column;
 	gap: 18px;
@@ -32,7 +32,7 @@
 /* ── Detail columns + lists ──────────────────────────────────────────── */
 .snt-cols {
 	display: grid;
-	grid-template-columns: repeat( auto-fit, minmax( 240px, 1fr ) );
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
 	gap: 18px;
 }
 
@@ -250,7 +250,7 @@ a.snt-link:hover { text-decoration: underline; }
 	}
 }
 
-@media ( max-width: 768px ) {
+@container ( max-width: 640px ) {
 	.snt-cols {
 		grid-template-columns: 1fr;
 		gap: 12px;
