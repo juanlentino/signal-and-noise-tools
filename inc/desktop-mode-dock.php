@@ -84,13 +84,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  * keys on the MENU SLUG (`$identity_slug`, payload.php:416), which is why the
  * app id being identical to the slug is irrelevant here.
  *
- * The classic page keeps every door it has. The per-user preference also
- * restores this auto-imported tile when the native Analytics app is disabled.
+ * The classic page keeps every door it has.
  */
 snt_os_compat_add_filter( 'desktop_mode_dock_placement', 'openstation_dock_placement', function( $placement, $menu_slug ) {
-	if ( function_exists( 'snt_os_native_menu_placement' ) ) {
-		return snt_os_native_menu_placement( $placement, $menu_slug );
-	}
 	if ( in_array( $menu_slug, array( 'sn-theme-options', 'sn-analytics' ), true ) ) {
 		return 'hidden';
 	}
@@ -200,14 +196,10 @@ add_action( 'init', function() {
 	// not the classic page in a chromeless frame: one surface per id, and the
 	// icon keeps its id so its position and the attention badge survive.
 	$dashboard_icon = array(
-		'title' => 'S&N Dashboard',
-		'icon'  => 'dashicons-shield-alt',
+		'title'  => 'S&N Dashboard',
+		'icon'   => 'dashicons-shield-alt',
+		'window' => 'sn-dashboard',
 	);
-	if ( ! function_exists( 'snt_os_native_window_enabled' ) || snt_os_native_window_enabled( 'dashboard' ) ) {
-		$dashboard_icon['window'] = 'sn-dashboard';
-	} else {
-		$dashboard_icon['url'] = snt_desktop_admin_url( 'sn-theme-options' );
-	}
 	snt_os_register_icon( 'sn-icon-dashboard', $dashboard_icon );
 
 	snt_os_register_icon( 'sn-icon-identity', array(

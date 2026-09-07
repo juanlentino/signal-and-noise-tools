@@ -12,6 +12,16 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Restored pure OpenStation App Framework native windows for S&N Dashboard and
+  S&N Analytics, excising the opt-out preference mechanism and registry removal
+  filter.
+- Resolved nested double-scrollbars and CSS cascade conflicts across native
+  dashboard and analytics bodies.
+- Added OpenStation design token and dark-scheme styling for Analytics custom
+  date inputs and export buttons, and polished container sizing and
+  focus-visible rings in the Signal & Noise app.
+
 ## [13.106.2] - 2026-09-07 — native window polish
 
 ### Fixed
@@ -30,4 +40,5 @@ adds a bullet below. A release is a separate, deliberate act:
   impressions, CTR, and average position instead of blank labels with fabricated
   zero views. Content uses independent responsive columns so a tall table no
   longer strands the next reports below an empty half-screen.
+
 

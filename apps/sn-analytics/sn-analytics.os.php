@@ -22,14 +22,12 @@
  *   door    Any other admin screen — the "Configure analytics →" gate, the
  *           Measurement → Analytics settings — as its own shell window.
  *   refresh The title-bar button: drop the notice, repaint.
+ * Framework tabs (`App::tab()`) declare the thirteen report tabs (Overview is
+ * main, plus Content, Campaigns, Posts, Technology, Geography, Engagement,
+ * Sessions, Quality, Search, Events, Traffic & edge, Login defense). Each tab is
+ * its own server session painted by the frame.
  *
- * Framework tabs (`App::tab()`) are deliberately unused, for the same reason as
- * the Dashboard host: they are baked at definition and cannot be switched by a
- * server action, while the Overview's doorway links switch the view from the
- * server on every click.
- *
- * Spec: docs/proposals/2026-09-06-openstation-hosts.md. The seams shared with
- * the Dashboard host live in inc/openstation-host.php.
+ * Spec: docs/proposals/2026-09-06-native-windows.md.
  *
  * @package SignalNoiseTools
  */

@@ -92,14 +92,46 @@
 	background: var( --os-ui-surface-elevated, #24212a );
 }
 
+.snt-custom-panel input[type="date"] {
+	box-sizing: border-box;
+	padding: 5px 8px;
+	border-radius: 6px;
+	border: 1px solid var( --os-ui-field-border, var( --os-ui-border, #33303a ) );
+	background: var( --os-ui-field-bg, var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.04 ) ) );
+	color: var( --os-ui-field-fg, var( --os-ui-fg, #f5f2f8 ) );
+	font: inherit;
+	font-size: 13px;
+	color-scheme: dark;
+}
+
+.snt-custom-panel input[type="date"]:focus {
+	outline: none;
+	border-color: var( --os-ui-accent, #ec9bff );
+	box-shadow: 0 0 0 2px var( --os-ui-focus-ring, rgba( 236, 155, 255, 0.35 ) );
+}
+
 .snt-export button {
 	font: inherit;
 	font-size: 12px;
+	font-weight: 500;
 	padding: 4px 10px;
 	border-radius: 6px;
 	border: 1px solid var( --os-ui-border, #33303a );
 	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.03 ) );
 	color: var( --os-ui-fg, #f5f2f8 );
+	cursor: pointer;
+	transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+
+.snt-export button:hover {
+	background: var( --os-ui-surface-elevated, #2e2a36 );
+	border-color: var( --os-ui-border-focus, #4e4958 );
+}
+
+.snt-export button:focus-visible {
+	outline: none;
+	border-color: var( --os-ui-accent, #ec9bff );
+	box-shadow: 0 0 0 2px var( --os-ui-focus-ring, rgba( 236, 155, 255, 0.35 ) );
 }
 
 .snt-report-columns {
