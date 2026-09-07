@@ -265,3 +265,50 @@ html[data-os-display="standalone"] .snt-app select,
 html[data-os-display="standalone"] .snt-app textarea {
 	font-size: 16px;
 }
+
+/* Uptime paints asynchronously after the native leaf's first render. Its
+ * shared classic stylesheet must not supply white tables or dark-only ink. */
+.snt-app[data-os-app] .sn-uptime-status {
+	color: var(--os-ui-fg);
+	min-width: 0;
+}
+.snt-app[data-os-app] :is([data-sn-uptime-detail], [data-sn-uptime-lazy-detail]) {
+	overflow-x: auto;
+}
+.snt-app[data-os-app] .sn-uw-table {
+	background: var(--os-ui-surface-elevated);
+	color: var(--os-ui-fg);
+}
+.snt-app[data-os-app] .sn-uw-table :is(th, td) {
+	border-color: var(--os-ui-border);
+	padding: 8px;
+	font-size: 12px;
+}
+.snt-app[data-os-app] .sn-uw-table thead th {
+	background: var(--os-ui-surface-subtle);
+	color: var(--os-ui-fg);
+	border-color: var(--os-ui-border);
+}
+.snt-app[data-os-app] :is(.sn-uw-loading, .sn-uw-meta, .sn-uw-quiet, .sn-uw-avail, .sn-uw-inc-detail),
+.snt-app[data-os-app] .sn-an-uptime > summary::after {
+	color: var(--os-ui-fg-muted);
+}
+.snt-app[data-os-app] :is(.sn-uw-head, .sn-uw-pill, .sn-uw-error, .sn-uw-incident--ongoing .sn-uw-inc-detail) {
+	color: var(--os-ui-fg);
+}
+.snt-app[data-os-app] :is(.sn-uw-row, .sn-uw-section, .sn-uw-incident),
+.snt-app[data-os-app] .sn-an-uptime > [data-sn-uptime-lazy-detail] {
+	border-color: var(--os-ui-border);
+}
+.snt-app[data-os-app] .sn-uw-pill::before {
+	content: '';
+	display: inline-block;
+	width: 6px;
+	height: 6px;
+	margin-inline-end: 5px;
+	border-radius: 50%;
+	background: var(--os-ui-warning-fg, currentColor);
+}
+.snt-app[data-os-app] .sn-uw--ok::before { background: var(--os-ui-success-fg, currentColor); }
+.snt-app[data-os-app] .sn-uw--alert::before { background: var(--os-ui-danger, currentColor); }
+.snt-app[data-os-app] .sn-uw-incident--ongoing .sn-uw-inc-name { color: var(--os-ui-fg); }

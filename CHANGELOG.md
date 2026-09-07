@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Apply native OpenStation surfaces, borders, and readable foregrounds to asynchronously loaded Uptime tables, incident details, loading/error states, and status labels in Analytics and Home. Preserve status colors in dots and contain wide tables within the panel.
+
 ## [13.106.17] - 2026-09-07 — Fix native Analytics badges and quiet cache history
 
 ### Fixed
