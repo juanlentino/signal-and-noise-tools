@@ -239,7 +239,7 @@ function paint_dashboard( array $ctx ) {
 			'<ul class="snt-plain">' . implode( '', array_map( static function ( $name ) { return '<li><os-code>' . $name . '</os-code></li>'; }, $names ) ) . '</ul>'
 		);
 	}
-	return $out;
+	return '<div class="snt-dashboard-home">' . $out . '</div>';
 }
 
 add_filter(

@@ -13,6 +13,13 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Fixed
+- OpenStation Preferences now includes per-user switches for the native S&N
+  Dashboard and Analytics windows; disabling either restores its classic
+  WordPress admin window after an immediate menu refresh.
+- Native Dashboard now follows OpenStation's Station Home layout contract: its
+  window chrome stays fixed, one bounded main surface scrolls, settings-section
+  margins no longer double the page rhythm, and cards and detail panels reflow
+  from the window's own width.
 - Native Analytics now uses OpenStation's fixed list-toolbar and scrolling-body
   layout, replaces the range button wall with native bound controls, removes
   controls from Search that cannot affect Google's scheduled window, and

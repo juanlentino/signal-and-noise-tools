@@ -113,6 +113,20 @@ namespace {
 	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'health' ) );
 	ok( 'identity-and-seo' === \SignalNoise\OpenStationHost\Dashboard\active_sub( 'site', $st ), 'a sub from another tab falls back to the tab`s first leaf' );
 	ok( '' === \SignalNoise\OpenStationHost\Dashboard\active_sub( 'dashboard', $st ), 'a landing tab has no sub' );
+	$view = \SignalNoise\OpenStationHost\Dashboard\tab_view( 'dashboard' );
+	ob_start();
+	call_user_func( $view, $st, $os );
+	$html = (string) ob_get_clean();
+	ok( 0 === strpos( $html, '<div class="snt-app" data-snt-tab="dashboard" data-snt-layout="dashboard"' )
+		&& false !== strpos( $html, '<div class="snt-dashboard-body"><div class="snt-leaf" data-snt-leaf="">' ),
+		'the frame follows Station Home: a full-height app shell around one bounded body and leaf' );
+	$css = (string) file_get_contents( SNT_PATH . 'apps/sn-dashboard/sn-dashboard.css' );
+	ok( false !== strpos( $css, 'height: 100%' ) && false !== strpos( $css, '.snt-dashboard-body' )
+		&& false !== strpos( $css, 'overflow: auto' ) && false !== strpos( $css, 'scrollbar-gutter: stable' ),
+		'the body, not the whole document, owns the scroll' );
+	ok( false !== strpos( $css, '.snt-leaf os-section' ) && false !== strpos( $css, 'margin-block-end: 0' )
+		&& false !== strpos( $css, '@container snt-dashboard' ),
+		'the Dashboard cancels the settings-section margin collision and reflows from its window container' );
 	ok( array( 'sn_action' => 'full_reset', '_wpnonce' => 'n1' ) === \SignalNoise\OpenStationHost\Dashboard\posted_values( array( 'action' => 'full_reset', 'nonce' => 'n1' ) ), 'a one-click button`s action + nonce become the two fields the classic form carried' );
 	ok( array( 'sn_action' => 'x', 'login_slug' => 'y' ) === \SignalNoise\OpenStationHost\Dashboard\posted_values( array( 'values' => array( 'sn_action' => 'x', 'login_slug' => 'y' ) ) ), 'an os-form`s values pass through' );
 
