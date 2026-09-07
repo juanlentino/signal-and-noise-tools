@@ -218,8 +218,16 @@
 				} );
 				data.cacheFreshness = summary;
 				if ( errorNote ) { errorNote.remove(); errorNote = null; }
+				var oldHistory = container.querySelector( 'details' );
+				var historyOpen = oldHistory && oldHistory.open;
+				var historyFocused = oldHistory && oldHistory.contains( document.activeElement );
 				unpaint();
 				unpaint = paint( container, summary );
+				var newHistory = container.querySelector( 'details' );
+				if ( newHistory ) {
+					newHistory.open = !! historyOpen;
+					if ( historyFocused ) { newHistory.querySelector( 'summary' ).focus(); }
+				}
 			} ).catch( function() {
 				if ( stopped || errorNote ) { return; }
 				errorNote = el( 'p', { text: 'Could not refresh cache status. Showing the last known result.', style: 'font-size:11px;color:#ff9d94;padding:0 12px;' } );
