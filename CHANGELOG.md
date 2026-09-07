@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.106.2] - 2026-09-07 — native window polish
+
 ### Fixed
 - OpenStation Preferences now includes per-user switches for the native S&N
   Dashboard and Analytics windows; disabling either restores its classic
@@ -29,12 +31,3 @@ adds a bullet below. A release is a separate, deliberate act:
   zero views. Content uses independent responsive columns so a tall table no
   longer strands the next reports below an empty half-screen.
 
-## [13.106.1] - 2026-09-06 — native window polish
-
-### Fixed
-- Native Analytics focused tabs now open directly on their own reports instead
-  of repeating Overview's insights, KPIs, and chart. The filter bar uses stable
-  responsive rows, and custom date fields appear only when Custom is selected.
-- Native Dashboard and Analytics windows use roomier cards and detail columns,
-  readable supporting text, and proportional labels with monospace reserved for
-  values, reducing the dense low-contrast wall visible in the first release.
