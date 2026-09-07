@@ -12,11 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.106.16] - 2026-09-07 — Polish native preferences and refresh cache purge status
+
 ### Fixed
 - Refresh the Cache widget from the authoritative freshness ability after purge actions and while verification is pending. Keep historical post-save counts separate from the current verdict, show read failures, and preserve purge errors in command feedback.
 - Match Signal & Noise Preferences to native Features checkbox cards, add its sidebar glyph, and serialize preference saves so rapid edits or reopening the panel cannot leave stale controls. Use the native warning palette and visible focus styling for Analytics attention links.
-
-## [13.106.15] - 2026-09-07 — Restore Overview rail and align Analytics filters
-
-### Fixed
-- Restore the native Analytics header to the classic two-thirds Overview column with Uptime above Movers in the right-hand rail. Align the Human/Suspect/Bot selector with the Range and Compare fields.
