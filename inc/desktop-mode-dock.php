@@ -59,9 +59,9 @@ if ( ! defined( 'ABSPATH' ) ) {
  *      desktop_mode_dock_items filter until #1074, and by the App Framework
  *      app since (richer: 8-tab menu + update-available badge).
  *
- * Returning 'hidden' for the SN menu slug suppresses the auto-import.
- * The app's own tile remains. Single dock item, shield icon, full
- * menu.
+ * Returning 'hidden' for an enabled native window suppresses the auto-import.
+ * Its app tile remains. A per-user opt-out keeps the original placement so the
+ * classic page becomes visible again.
  *
  * Verified against WordPress/desktop-mode includes/core/payload.php:
  *   apply_filters( 'desktop_mode_dock_placement', 'dock', $menu_slug );
@@ -84,11 +84,13 @@ if ( ! defined( 'ABSPATH' ) ) {
  * keys on the MENU SLUG (`$identity_slug`, payload.php:416), which is why the
  * app id being identical to the slug is irrelevant here.
  *
- * The classic page keeps every door it has: `snt_desktop_admin_url()` still
- * resolves `sn-analytics` to `snt_analytics_page_url()`, and hiding a dock tile
- * hides nothing else.
+ * The classic page keeps every door it has. The per-user preference also
+ * restores this auto-imported tile when the native Analytics app is disabled.
  */
 snt_os_compat_add_filter( 'desktop_mode_dock_placement', 'openstation_dock_placement', function( $placement, $menu_slug ) {
+	if ( function_exists( 'snt_os_native_menu_placement' ) ) {
+		return snt_os_native_menu_placement( $placement, $menu_slug );
+	}
 	if ( in_array( $menu_slug, array( 'sn-theme-options', 'sn-analytics' ), true ) ) {
 		return 'hidden';
 	}
@@ -197,11 +199,16 @@ add_action( 'init', function() {
 	// icon target -- the framework registers an app's desktop_icon with it),
 	// not the classic page in a chromeless frame: one surface per id, and the
 	// icon keeps its id so its position and the attention badge survive.
-	snt_os_register_icon( 'sn-icon-dashboard', array(
-		'title'  => 'S&N Dashboard',
-		'icon'   => 'dashicons-shield-alt',
-		'window' => 'sn-dashboard',
-	) );
+	$dashboard_icon = array(
+		'title' => 'S&N Dashboard',
+		'icon'  => 'dashicons-shield-alt',
+	);
+	if ( ! function_exists( 'snt_os_native_window_enabled' ) || snt_os_native_window_enabled( 'dashboard' ) ) {
+		$dashboard_icon['window'] = 'sn-dashboard';
+	} else {
+		$dashboard_icon['url'] = snt_desktop_admin_url( 'sn-theme-options' );
+	}
+	snt_os_register_icon( 'sn-icon-dashboard', $dashboard_icon );
 
 	snt_os_register_icon( 'sn-icon-identity', array(
 		'title' => 'SN Identity',

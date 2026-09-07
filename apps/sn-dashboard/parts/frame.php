@@ -146,13 +146,14 @@ function tab_view( $tab ) {
 		$sub    = active_sub( $tab, $state );
 		$leaves = leaves_for( $tab );
 		$anchor = (string) $state->get( 'anchor' );
-		echo '<div class="snt-app" data-snt-tab="' . \snt_kit_esc( $tab ) . '"' . ( '' !== $anchor ? ' data-snt-anchor="' . \snt_kit_esc( $anchor ) . '"' : '' ) . '>';
-		echo notice_html( $state->get( 'notice' ) );
+		echo '<div class="snt-app" data-snt-tab="' . \snt_kit_esc( $tab ) . '" data-snt-layout="dashboard"' . ( '' !== $anchor ? ' data-snt-anchor="' . \snt_kit_esc( $anchor ) . '"' : '' ) . '>';
 		if ( count( $leaves ) > 1 ) {
 			echo \snt_kit_tabs( $sub, $leaves, 'sub', __( 'Sections', 'signal-and-noise-tools' ) );
 		}
+		echo '<div class="snt-dashboard-body">';
+		echo notice_html( $state->get( 'notice' ) );
 		echo '<div class="snt-leaf" data-snt-leaf="' . \snt_kit_esc( $sub ) . '">';
 		echo paint_leaf( $tab, $sub, $state, $os );
-		echo '</div></div>';
+		echo '</div></div></div>';
 	};
 }

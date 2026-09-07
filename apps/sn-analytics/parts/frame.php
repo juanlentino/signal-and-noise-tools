@@ -137,7 +137,7 @@ function tab_view( $view ) {
 		$state->set( 'view', $view );
 		$ctx      = context( $view, $state, $os );
 		$painters = painters();
-		echo '<div class="snt-app" data-snt-view="' . \snt_kit_esc( $view ) . '" data-snt-query="' . \snt_kit_esc( $ctx['query'] ) . '">';
+		echo '<div class="snt-app os-app-list" data-snt-view="' . \snt_kit_esc( $view ) . '" data-snt-query="' . \snt_kit_esc( $ctx['query'] ) . '">';
 		echo notice_html( $state->get( 'notice' ) );
 		if ( ! isset( $painters[ 'view/' . $view ] ) ) {
 			echo '<div class="snt-classic">' . dashboard_html( $state ) . '</div></div>';
@@ -150,24 +150,27 @@ function tab_view( $view ) {
 		echo paint_piece( 'chrome/error', $ctx )['html'];
 		$totals = array();
 		if ( ! $ctx['owns_chrome'] ) {
-			if ( 'overview' === $view ) {
-				echo paint_piece( 'chrome/insights', $ctx )['html'];
-			}
-			echo paint_piece( 'chrome/controls', $ctx )['html'];
-			if ( 'overview' === $view ) {
-				$header = paint_piece( 'chrome/header', $ctx );
-				echo $header['html'];
-				$totals = (array) ( $header['facts']['totals'] ?? array() );
+			// Search Console is a scheduled Google window. The global range,
+			// traffic-class and comparison controls cannot affect it, so showing
+			// them above Search is a false affordance.
+			if ( 'search' !== $view ) {
+				echo paint_piece( 'chrome/controls', $ctx )['html'];
 			}
 		} elseif ( 'login-defense' === $view ) {
 			echo paint_piece( 'chrome/login-header', $ctx )['html'];
 		}
-		echo '<div class="snt-view">';
+		echo '<div class="os-app-list__body snt-report-body"><div class="snt-view">';
+		if ( 'overview' === $view ) {
+			echo paint_piece( 'chrome/insights', $ctx )['html'];
+			$header = paint_piece( 'chrome/header', $ctx );
+			echo $header['html'];
+			$totals = (array) ( $header['facts']['totals'] ?? array() );
+		}
 		if ( is_array( $ctx['drill'] ) ) {
 			echo paint_piece( 'chrome/drilldown', $ctx )['html'];
 		}
 		echo paint_piece( 'view/' . $view, $ctx )['html'];
-		echo '</div>';
+		echo '</div></div>';
 		if ( ! $ctx['owns_chrome'] && array() !== $totals && 0 === (int) ( $totals['views'] ?? 0 ) ) {
 			echo '<p class="snt-hint snt-empty-note">' . \snt_kit_esc( __( 'No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.', 'signal-and-noise-tools' ) ) . '</p>';
 		}

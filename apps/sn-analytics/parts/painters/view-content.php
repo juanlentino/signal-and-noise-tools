@@ -38,15 +38,20 @@ function paint_view_content( array $ctx ) {
 			'visits' => $row['visits'] ?? 0,
 		);
 	}
-	$out  = '<div class="snt-grid">';
-	$out .= dim_table( __( 'Top pages', 'signal-and-noise-tools' ), $path_rows, __( 'No page views in this range.', 'signal-and-noise-tools' ) );
-	$out .= dim_table( __( 'Top sources', 'signal-and-noise-tools' ), $refs, __( 'No referrers in this range.', 'signal-and-noise-tools' ), 'referrer' );
-	$out .= '</div>';
-	$out .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Journeys & diagnostics: entry/exit are human only', 'signal-and-noise-tools' ) ) . '</p>';
-	$out .= '<div class="snt-grid">';
-	$out .= dim_table( __( 'Entry pages', 'signal-and-noise-tools' ), $entry, __( 'No entry pages in this range yet.', 'signal-and-noise-tools' ) );
-	$out .= dim_table( __( 'Exit pages', 'signal-and-noise-tools' ), $exit, __( 'No exit pages in this range yet.', 'signal-and-noise-tools' ) );
-	$out .= dim_table( __( 'Low engagement', 'signal-and-noise-tools' ), $low, __( 'No low-engagement paths in this range.', 'signal-and-noise-tools' ) );
+	// Independent columns, not equal-height grid rows: Top pages is normally
+	// much taller than Top sources. A shared grid row forced everything below
+	// the tall table and left half the window visibly empty.
+	$out  = '<div class="snt-report-columns">';
+	$out .= '<div class="snt-report-flow">'
+		. dim_table( __( 'Top pages', 'signal-and-noise-tools' ), $path_rows, __( 'No page views in this range.', 'signal-and-noise-tools' ) )
+		. dim_table( __( 'Low engagement', 'signal-and-noise-tools' ), $low, __( 'No low-engagement paths in this range.', 'signal-and-noise-tools' ) )
+		. '</div>';
+	$out .= '<div class="snt-report-flow">'
+		. dim_table( __( 'Top sources', 'signal-and-noise-tools' ), $refs, __( 'No referrers in this range.', 'signal-and-noise-tools' ), 'referrer' )
+		. '<p class="snt-hint snt-report-note">' . \snt_kit_esc( __( 'Journeys: entry and exit pages are human traffic only.', 'signal-and-noise-tools' ) ) . '</p>'
+		. dim_table( __( 'Entry pages', 'signal-and-noise-tools' ), $entry, __( 'No entry pages in this range yet.', 'signal-and-noise-tools' ) )
+		. dim_table( __( 'Exit pages', 'signal-and-noise-tools' ), $exit, __( 'No exit pages in this range yet.', 'signal-and-noise-tools' ) )
+		. '</div>';
 	return $out . '</div>';
 }
 

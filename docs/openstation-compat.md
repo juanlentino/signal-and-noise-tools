@@ -48,6 +48,8 @@ a PWA shell. Every seam this plugin uses survives that:
 | `openstation_pwa_apple_touch_icon_url()` | present — the 180x180 tile iOS uses for a home-screen install, printed into `admin_head` by `includes/pwa.php`. It has NO filter, so we reach it through core's `get_site_icon_url` instead, scoped to admin + size 180. See `inc/openstation-pwa-icons.php` (#1022). |
 | `openstation_pwa_manifest` | present — documented **Stable** in the upstream hook reference (`docs/hooks-reference.md`). We filter `icons` ONLY: the Site-Icon path declared `192x192` on a 300x300 RGBA file, and iOS composites that alpha to black behind a mark measuring luminance 23/255. See `inc/openstation-pwa-icons.php` (#1017). |
 | `openstation_ai_ability_tool_name`, `openstation_ai_tools` | present |
+| `openstation_apps_loaded` | present — fires after the App Framework registry is complete, allowing per-user removal of opted-out native windows |
+| `openstation_register_settings_tab` | present — declares the Signal & Noise tab in OpenStation Preferences and carries its script into the shell |
 
 Two seam files did change, and neither is behavioural for us:
 
@@ -140,7 +142,7 @@ rather than by filename, constant, or text domain — the register function is
 what every consumer already depends on, and it is the thing that actually
 renamed.
 
-## The 11 PHP hooks this plugin consumes
+## The 12 PHP hooks this plugin consumes
 
 Note on the two WP Explorer rows (v12.4.0): the pre-rename v0.9.8 shell
 predates the WP Explorer feature entirely, so their old-family names exist
@@ -161,6 +163,7 @@ construction (id/handle dedupe), so no seen-once guard applies.
 | `desktop_mode_agent_tool_result` | `openstation_agent_tool_result` | `includes/agents/runner.php` — `apply_filters( 'openstation_agent_tool_result', $output, $slug, $args, $agent_user_id )` | [inc/mcp/mcp-telemetry-agents.php](../inc/mcp/mcp-telemetry-agents.php) — seam 1, success-path telemetry |
 | `desktop_mode_living_tree_traffic` | `openstation_living_tree_traffic` | `includes/living-tree/helpers.php` — `apply_filters( 'openstation_living_tree_traffic', $views )`, inside `openstation_living_tree_traffic()` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — wallpaper wind driven by real 14-day traffic |
 | `desktop_mode_plugins_window_icon_url` | `openstation_plugins_window_icon_url` | `includes/plugins-window/rest-fields.php`, inside `openstation_plugins_window_field_icon_url()` | [inc/desktop-mode-integration.php](../inc/desktop-mode-integration.php) — our plugin's icon in the shell's Plugins window |
+| *(none — App Framework postdates the rename)* | `openstation_apps_loaded` | `includes/framework/wordpress.php` — `do_action( 'openstation_apps_loaded', $registry )` after every app file is loaded | [inc/openstation-native-windows.php](../inc/openstation-native-windows.php) — removes Dashboard or Analytics from the registry for a user who chose the classic window |
 
 All present at v1.1.2 — none removed, none renamed, none flagged. Re-verified
 by both-directions membership check on 2026-08-21: 19 of 19 names resolve to a
@@ -192,6 +195,7 @@ exist and falling back to the pre-rename name otherwise.
 | *(none — postdates the rename)* | `openstation_register_station_home_card()` | `includes/station-home/cards.php` |
 | *(not consumed pre-rename)* | `openstation_get_os_settings()` | `includes/os-settings.php` |
 | *(not consumed pre-rename)* | `openstation_save_os_settings()` | `includes/os-settings.php` |
+| *(none — Preferences tabs postdate the rename)* | `openstation_register_settings_tab()` | `includes/settings-tabs.php` |
 
 All five renamed functions still accept exactly the argument shapes we pass at
 v1.1.0 (re-checked against each function's `$defaults` array, not just its
@@ -204,7 +208,7 @@ twin. `snt_os_register_station_home_card()` therefore checks ONE name where
 every other wrapper in the compat layer checks two — a deliberate
 asymmetry, not a missed case.
 
-**Rows seven and eight (v13.105.1) are called directly, not wrapped.**
+**Rows seven through nine are called directly, not wrapped.**
 `inc/desktop-mode-nav-ids.php` carries a user's placement preference from the
 auto-imported menu ids (`toplevel_page_sn-theme-options`,
 `toplevel_page_sn-analytics`) to the app ids (`sn-dashboard`, `sn-analytics`)
@@ -215,6 +219,10 @@ same path a save from OS Settings takes), and does nothing while either
 function is absent. Both had `desktop_mode_*` twins before the rename, but
 the app entries the carry targets only exist on 1.1.6+, so there is nothing
 to fall back to; checking one name is correct here.
+
+The ninth row declares the per-user native-window switches introduced in
+v13.106.2. Preferences tabs and the App Framework arrived after the rename,
+so this surface also has no old-family equivalent.
 
 (A seventh single-name wrapper, `snt_os_register_desktop_theme()`, existed
 v13.7.0–v13.7.5: the "Signal & Noise" desktop-theme arc, dropped whole by

@@ -5,8 +5,8 @@
 
 .snt-stats {
 	display: grid;
-	grid-template-columns: repeat( auto-fit, minmax( 190px, 1fr ) );
-	gap: 12px;
+	grid-template-columns: repeat( auto-fit, minmax( 160px, 1fr ) );
+	gap: 10px;
 }
 
 .snt-grid {
@@ -15,26 +15,56 @@
 	gap: 16px;
 }
 
-.snt-toolbar {
+.os-app[data-os-app="sn-analytics"] .snt-app.os-app-list {
 	display: flex;
 	flex-direction: column;
-	align-items: stretch;
-	gap: 8px;
-	padding: 2px 0 12px;
-	border-bottom: 1px solid var( --os-ui-border, #33303a );
+	gap: 0;
+	height: 100%;
+	min-height: 0;
+	padding: 0;
+	overflow: hidden;
 }
 
-.snt-toolbar__row {
+.os-app[data-os-app="sn-analytics"] .snt-report-body {
+	min-height: 0;
+	padding: 0;
+}
+
+.os-app[data-os-app="sn-analytics"] .snt-view {
+	width: 100%;
+	min-height: 0;
+	padding: 16px 18px 28px;
+	overflow: auto;
+}
+
+/* os-section is a Settings primitive and carries 36px of bottom margin in
+ * its component stylesheet. Reports already own their rhythm; keeping that
+ * margin as well as the report gap produced the empty bands seen in the live
+ * window. */
+.os-app[data-os-app="sn-analytics"] .snt-view os-section {
+	margin-block-end: 0;
+}
+
+.snt-report-toolbar__filters,
+.snt-report-toolbar__trailing {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
-	gap: 8px 16px;
+	gap: 8px;
 	min-width: 0;
 }
 
-.snt-toolbar__row--range .snt-toolbar__group { flex: 1 1 720px; }
-.snt-toolbar__row--secondary { padding-top: 2px; }
-.snt-toolbar__export { margin-left: auto; }
+.snt-report-toolbar__filters {
+	flex: 1 1 620px;
+}
+
+.snt-report-toolbar__trailing {
+	justify-content: flex-end;
+}
+
+.snt-filter--range { flex: 0 1 190px; }
+.snt-filter--class { flex: 0 0 auto; }
+.snt-filter--compare { flex: 0 1 170px; }
 
 .snt-toolbar__group {
 	display: flex;
@@ -42,13 +72,6 @@
 	align-items: center;
 	gap: 6px;
 	min-width: 0;
-}
-
-.snt-toolbar__k {
-	font-size: 11px;
-	letter-spacing: 0.04em;
-	text-transform: uppercase;
-	color: var( --os-ui-fg-muted, #b3afb5 );
 }
 
 .snt-custom-range,
@@ -60,8 +83,13 @@
 }
 
 .snt-custom-range {
-	flex: 0 1 420px;
-	min-width: min( 100%, 340px );
+	width: min( 100%, 520px );
+}
+
+.snt-custom-panel {
+	padding: 10px 14px;
+	border-bottom: 1px solid var( --os-ui-border, #33303a );
+	background: var( --os-ui-surface-elevated, #24212a );
 }
 
 .snt-export button {
@@ -72,4 +100,41 @@
 	border: 1px solid var( --os-ui-border, #33303a );
 	background: var( --os-ui-surface-subtle, rgba( 255, 251, 255, 0.03 ) );
 	color: var( --os-ui-fg, #f5f2f8 );
+}
+
+.snt-report-columns {
+	display: grid;
+	grid-template-columns: repeat( 2, minmax( 0, 1fr ) );
+	align-items: start;
+	gap: 18px;
+}
+
+.snt-report-flow {
+	display: flex;
+	flex-direction: column;
+	gap: 18px;
+	min-width: 0;
+}
+
+.snt-report-note {
+	padding-block: 2px;
+}
+
+@container ( max-width: 860px ) {
+	.snt-report-toolbar__trailing {
+		flex: 1 1 100%;
+		justify-content: space-between;
+	}
+
+	.snt-report-columns {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+}
+
+html[data-os-mode="mobile"] .snt-report-columns {
+	grid-template-columns: minmax( 0, 1fr );
+}
+
+html[data-os-mode="mobile"] .os-app[data-os-app="sn-analytics"] .snt-view {
+	padding: 12px 10px 24px;
 }
