@@ -19,6 +19,7 @@
 			if ( this.sourceObserver ) {
 				this.sourceObserver.disconnect();
 			}
+			this.source = null;
 		}
 		schedule() {
 			if ( this.pending ) {
@@ -48,7 +49,7 @@
 			const clamp = this.closest( '.snt-native-clamp' );
 			const expanded = ! clamp || clamp.hasAttribute( 'data-expanded' );
 			const visible = clamp ? Number( clamp.getAttribute( 'data-visible' ) ) : Infinity;
-			const signature = source.innerHTML + ':' + expanded;
+			const signature = source.innerHTML + ':' + expanded + ':' + visible;
 			if ( this.signature === signature && this.output && this.output.parentNode === this ) {
 				return;
 			}
