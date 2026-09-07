@@ -32,7 +32,8 @@ function paint_view_overview( array $ctx ) {
 			array( 'l' => __( 'Views today', 'signal-and-noise-tools' ), 'n' => null === $today ? '—' : num( $today ), 'sub' => __( 'human', 'signal-and-noise-tools' ) ),
 		)
 	);
-	$doors = '<div class="snt-toolbar__group">'
+	$doors = '<div class="snt-doors snt-toolbar__group" role="navigation" aria-label="' . esc_attr__( 'Quick jump to analytics views', 'signal-and-noise-tools' ) . '">'
+		. '<span class="snt-doors__label">' . \snt_kit_esc( __( 'Jump to view:', 'signal-and-noise-tools' ) ) . '</span>'
 		. view_door( __( 'Content', 'signal-and-noise-tools' ), 'content' )
 		. view_door( __( 'Campaigns', 'signal-and-noise-tools' ), 'campaigns' )
 		. view_door( __( 'Geography', 'signal-and-noise-tools' ), 'geography' )
