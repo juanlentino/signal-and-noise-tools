@@ -12,11 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.106.12] - 2026-09-07 — Restore native Analytics report parity
+
 ### Fixed
 - Restore native Analytics report parity through the shared classic report dispatcher, including correct metric units, session paths, maps, distributions, lifecycle, search and defense diagnostics. Keep native tabs and effective controls, theme the shared reports with OpenStation tokens, and repair native-root navigation and chart brushing.
-
-## [13.106.11] - 2026-09-07 — Fix root container selectors for responsive two-column layouts
-
-### Fixed
-- Bind Analytics and Dashboard styles to their native frame roots so card surfaces and responsive two-column containers apply; keep existing content order and collapse report/settings grids only at container widths of 640px or less.
 
