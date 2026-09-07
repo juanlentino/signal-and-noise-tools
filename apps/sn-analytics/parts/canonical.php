@@ -10,6 +10,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/native-surface.php';
+
 /**
  * Reuse report renderers; the shell owns navigation, not metric definitions.
  *
@@ -38,7 +40,7 @@ function canonical_piece( $key, array $ctx ) {
 	if ( null === $paint ) {
 		return null;
 	}
-	$html = capture( $ctx['get'], $paint );
+	$html = native_capture( $ctx['get'], $paint );
 	$html = \snt_os_host_keep_forms( $html, \snt_os_analytics_keep_actions(), function_exists( 'snt_analytics_page_url' ) ? \snt_analytics_page_url() : '' );
 	$html = \snt_os_host_rewrite( $html, array( page_slug() ) );
 	// Report doorways cross native tab sessions; filters stay on this tab.
@@ -60,5 +62,5 @@ function canonical_piece( $key, array $ctx ) {
 		}
 		$html = $tags->get_updated_html();
 	}
-	return array( 'html' => $html, 'facts' => $facts );
+	return array( 'html' => native_tables( $html ), 'facts' => $facts );
 }

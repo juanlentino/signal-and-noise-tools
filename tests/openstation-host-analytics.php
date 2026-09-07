@@ -720,8 +720,8 @@ namespace {
 	$handles = snt_os_host_asset_handles( 'sn-analytics' );
 	ok( array( 'sn-admin', 'snt-analytics-tokens', 'sn-analytics-admin', 'sn-uptime-status', 'snt-os-app', 'snt-sn-analytics-app' ) === $handles['styles'],
 		'the four stylesheets toplevel_page_sn-analytics loads: admin.css, the token layer, the analytics sheet and the uptime panel' );
-	ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit' ) === $handles['scripts'],
-		'and its six scripts: the panel collapse/clamp seam, the confirm modal, the trend brush, the repeatable rows, the uptime panel, and the host' );
+	ok( array( 'sn-admin', 'snt-confirm', 'sn-analytics-brush', 'sn-resume-admin', 'sn-uptime-status', 'snt-os-host', 'snt-os-kit', 'snt-analytics-native-tables' ) === $handles['scripts'],
+		'Analytics carries its interaction scripts plus the native table presenter' );
 	$args = apply_filters( 'openstation_app_window_args', array( 'styles' => array( 'os-runtime' ), 'scripts' => array() ), 'sn-analytics', null );
 	foreach ( $handles['styles'] as $handle ) {
 		ok( in_array( $handle, $args['styles'], true ) && wp_style_is( $handle, 'registered' ), "the window carries the style $handle, registered" );

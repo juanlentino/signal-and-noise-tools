@@ -181,6 +181,9 @@ function snt_analytics_render_percentiles( $title, $rows, $format = 'pct', $empt
 		$label = strtoupper( (string) ( $r['label'] ?? '' ) );
 		$value = (float) ( $r['value'] ?? 0 );
 		$disp  = ( 'time' === $format ) ? snt_analytics_fmt_time( $value ) : ( (int) round( $value ) . '%' );
+		if ( snt_an_surface( 'stat', array( 'label' => $label, 'value' => $disp ) ) ) {
+			continue;
+		}
 		echo '<div class="sn-an-pctl-chip">';
 		echo '<span class="sn-an-pctl-k">' . esc_html( $label ) . '</span>';
 		echo '<span class="sn-an-pctl-v num">' . esc_html( $disp ) . '</span>';
