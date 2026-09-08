@@ -57,16 +57,26 @@ function snt_calls( $src ) {
 			elseif ( ')' === $src[ $j ] )  { $depth--; if ( 0 === $depth ) { $end = $j; break; } }
 		}
 		if ( null === $end ) { continue; } // unbalanced: reported below, never skipped silently
+		$line = substr_count( substr( $src, 0, $start ), "\n" ) + 1;
+		$lines = explode( "\n", $src );
+		// An opaque call's `redirection => 0` lives in the $args it was handed, a
+		// few lines up. Take the enclosing function body so the guard can be READ
+		// rather than asserted by a comment that may go stale.
+		$fn_at = strrpos( substr( $src, 0, $start ), "\nfunction " );
+		$scope = false === $fn_at ? '' : substr( $src, $fn_at, $end - $fn_at + 1 );
 		$out[] = array(
-			'line'   => substr_count( substr( $src, 0, $start ), "\n" ) + 1,
-			'region' => substr( $src, $start, $end - $start + 1 ),
+			'line'    => $line,
+			'region'  => substr( $src, $start, $end - $start + 1 ),
+			// The reason may sit on the call or in the 3 lines above it.
+			'context' => implode( "\n", array_slice( $lines, max( 0, $line - 4 ), 4 ) ),
+			'scope'   => $scope,
 		);
 	}
 	return $out;
 }
 
 $files = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( $root . '/inc' ) );
-$total = 0; $cred_total = 0; $unguarded = array(); $unbalanced = array();
+$total = 0; $cred_total = 0; $opaque_total = 0; $unguarded = array(); $unbalanced = array();
 
 foreach ( $files as $f ) {
 	if ( ! $f->isFile() || 'php' !== strtolower( $f->getExtension() ) ) { continue; }
@@ -80,10 +90,34 @@ foreach ( $files as $f ) {
 
 	foreach ( $got as $c ) {
 		$total++;
-		if ( ! preg_match( $GLOBALS['CRED'] ?? '/(?!)/', $c['region'] ) ) { continue; }
+
+		// OPAQUE: the scanner cannot READ this call's options, so it cannot prove
+		// the call carries no credential. Two shapes: the args are a bare
+		// variable (`wp_remote_get( $url, $args )`), or headers are ( from one
+		// (`'headers' => $headers`). Both hide an Authorization header built
+		// upstream. Measured 2026-09-08: a probe function whose Bearer was
+		// assembled into $args one line above the call passed this suite GREEN,
+		// exit 0, and was not even counted among the credentialed calls — the
+		// exact blind spot that let four real call sites drift. An opaque call is
+		// therefore treated as credentialed unless it says otherwise.
+		$opaque = preg_match( '/wp_remote_(?:get|post|request|head)\s*\(\s*[^,]+,\s*\$[A-Za-z_]\w*\s*\)/', $c['region'] )
+			|| preg_match( "/'headers'\s*=>\s*\$/", $c['region'] );
+
+		$credentialed = preg_match( $GLOBALS['CRED'] ?? '/(?!)/', $c['region'] ) || $opaque;
+		if ( ! $credentialed ) { continue; }
 		$cred_total++;
-		if ( ! preg_match( "/'redirection'\s*=>\s*0/", $c['region'] ) ) {
-			$unguarded[] = "$rel:{$c['line']}";
+		if ( $opaque ) { $opaque_total++; }
+
+		// An opaque call may also be settled by an explicit `redirect-ok:` note
+		// saying why it needs no guard — the annotate-or-guard contract the five
+		// worker repos use. A literal credential is NEVER settled that way.
+		$settled = preg_match( "/'redirection'\s*=>\s*0/", $c['region'] )
+			// Opaque: accept a guard VISIBLE in the enclosing function (the $args
+			// array it was handed), or, failing that, an explicit redirect-ok note.
+			|| ( $opaque && preg_match( "/'redirection'\s*=>\s*0/", $c['scope'] ) )
+			|| ( $opaque && preg_match( '/redirect-ok:/', $c['context'] ) );
+		if ( ! $settled ) {
+			$unguarded[] = "$rel:{$c['line']}" . ( $opaque ? ' (opaque args — cannot prove it carries no credential)' : '' );
 		}
 	}
 }
@@ -97,7 +131,7 @@ ok( empty( $unbalanced ), 'every wp_remote_* call parsed to a balanced region' .
 ok(
 	empty( $unguarded ),
 	empty( $unguarded )
-		? "all $cred_total credentialed outbound calls set redirection => 0"
+		? "all $cred_total credentialed outbound calls set redirection => 0 ($opaque_total opaque, treated as credentialed)"
 		: 'credentialed outbound calls MISSING redirection => 0: ' . implode( ', ', $unguarded )
 );
 
