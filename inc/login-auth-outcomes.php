@@ -51,5 +51,5 @@ function snt_login_auth_outcome_emit( $outcome = 'none' ) {
 		header( $name . ': ' . $value, true );
 	}
 }
-add_action( 'login_init', 'snt_login_auth_outcome_emit', 1 );
+add_action( 'login_init', 'snt_login_auth_outcome_emit', 1, 0 );
 add_action( 'snt_login_auth_outcome', 'snt_login_auth_outcome_emit' );

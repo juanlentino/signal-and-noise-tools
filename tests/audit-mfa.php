@@ -106,6 +106,7 @@ $row = snt_audit_get_counters_impl( 1 )[0];
 check( $row['login_failed'] === 10 && $row['mfa_failed'] === 1, 'new MFA failure safely extends a legacy bucket' );
 check( array_slice( $GLOBALS['outcomes'], 0, 5 ) === array( 'login_success', 'login_success', 'mfa_success', 'mfa_success', 'mfa_success' ), 'outcomes follow the verified login boundary' );
 check( array_slice( $GLOBALS['outcomes'], 5, 6 ) === array( 'auth_failed', 'mfa_failed', 'mfa_throttled', 'mfa_other', 'mfa_failed', 'auth_failed' ), 'failure observations preserve the audit classifications' );
+check( $GLOBALS['hooks']['login_init'][0][2] === 0, 'login_init accepts no args so WordPress empty-string compatibility argument cannot suppress the handshake' );
 $fixture = json_decode( file_get_contents( __DIR__ . '/login-auth-outcome-fixture.json' ), true );
 $headers = snt_login_auth_outcome_headers( $fixture['key'], $fixture['nonce'], $fixture['outcome'] );
 check( $headers['X-SN-Auth-Signature'] === $fixture['signature'], 'PHP HMAC matches the cross-language protocol fixture' );
