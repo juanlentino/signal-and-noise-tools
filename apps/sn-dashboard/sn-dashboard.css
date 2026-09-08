@@ -809,11 +809,11 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 .snt-provenance os-stat::part( value ) {
 	overflow-wrap: anywhere;
 }
-.snt-provenance .snt-2up-col > os-section {
+.snt-app[data-os-app="sn-dashboard"] .snt-provenance .snt-2up-col > os-section {
 	margin-block: 0;
 }
 .snt-provenance-action {
-	margin-block: 14px;
+	margin-block: 0;
 }
 .snt-provenance-action::part( header ),
 .snt-provenance-action::part( fields ) {
@@ -840,4 +840,8 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	font-family: inherit;
 	text-decoration: underline;
 	text-underline-offset: 3px;
+}
+
+.snt-provenance os-section > p {
+	margin-block: 0;
 }
