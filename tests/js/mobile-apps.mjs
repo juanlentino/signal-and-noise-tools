@@ -2,6 +2,24 @@
  * No network, WP database, dispatch server, service worker or installed PWA.
  * Prerequisites: installed playwright + esbuild (paths via environment).
  * node tests/js/mobile-apps.mjs; artifacts default to /tmp/snt-mobile.
+ *
+ * WHAT THIS FILE CANNOT SEE. The fixture below hand-builds the window as
+ * `.fixture-window{height:100%;display:flex;flex-direction:column}` +
+ * `.fixture-content{flex:1;min-height:0}` — a synthetic height chain that is
+ * correct BY CONSTRUCTION. The shipped chain is thirteen elements deep
+ * (.os-shell -> .os-shell__body -> .os-area -> .os-window -> __titlebar/__tabs/
+ * __body -> os-stack -> os-tabpanel -> .os-app -> .snt-app ->
+ * .snt-report-scroll -> .snt-view), and v13.107.2 was a break INSIDE it:
+ * native Analytics reports rendered blank because the window body height did
+ * not survive the tab stack and panel wrappers. This suite shipped green in
+ * v13.107.0 with 46 cases and 800+ assertions and could not have caught it —
+ * not for want of assertions, but because the fixture substitutes a healthy
+ * copy of the very thing that broke.
+ *
+ * So: this file measures the APP'S OWN CSS given a sound container. Anything
+ * about the shell integration belongs in tests/js/mobile-shell-geometry.mjs,
+ * which mounts the real wrappers and traces all thirteen selectors. Adding a
+ * case here does NOT extend shell coverage; it inherits this blind spot.
  */
 import { createRequire } from 'node:module';
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';

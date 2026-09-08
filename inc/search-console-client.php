@@ -102,8 +102,11 @@ function snt_gsc_access_token( $force = false ) {
 		array(
 			'timeout' => 15,
 			// The body carries the private-key-signed JWT assertion; token_uri comes
-			// from the uploaded service-account JSON. Forbid 3xx so the assertion is
-			// never replayed to a redirect target (outbound-hardening, v8.7.1).
+			// from the uploaded service-account JSON. Forbid 3xx (outbound-hardening,
+			// v8.7.1). Verified against WP_Http::handle_redirects(): a 302/303 would
+			// convert POST->GET and drop the body, but 307/308 preserve both, and the
+			// handler re-issues with $args WHOLESALE — so on 307/308 the assertion is
+			// replayed to whatever Location names.
 			'redirection' => 0,
 			'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ),
 			'body'    => array(
