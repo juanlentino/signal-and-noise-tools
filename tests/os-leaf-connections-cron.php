@@ -97,6 +97,7 @@ $rich_rows = array(
 $GLOBALS['__cron_rows'] = $rich_rows;
 $kit = snt_leaf_paint( 'connections', 'cron', array() );
 ok( '' !== $kit, 'painter registered under connections/cron produced output' );
+ok( 1 === substr_count( $kit, 'os-action="refresh"' ) && false !== strpos( $kit, '>Refresh</os-button>' ), 'live cron snapshot has one local read-only Refresh even when mobile hides the titlebar' );
 
 // Classic HTML for the same fixture.
 $classic = snt_leaf_classic_html( 'snt_cron_render_admin_tab' );
@@ -194,6 +195,7 @@ $GLOBALS['__cron_rows'] = array();
 $kit_empty     = snt_leaf_paint( 'connections', 'cron', array() );
 $classic_empty = snt_leaf_classic_html( 'snt_cron_render_admin_tab' );
 ok( false !== strpos( $kit_empty, 'No scheduled events.' ), 'kit empty state: heading' );
+ok( 1 === substr_count( $kit_empty, 'os-action="refresh"' ), 'empty cron snapshot can be refreshed after events are restored' );
 ok( false !== strpos( $classic_empty, 'No scheduled events.' ), 'classic empty state: heading (sanity check on the fixture)' );
 ok( false !== strpos( $kit_empty, 'wp_version_check' ), 'kit empty state: names the core hooks WP schedules at install' );
 ok( array() === snt_leaf_classic_markers( $kit_empty ), 'empty state carries no classic markup either' );

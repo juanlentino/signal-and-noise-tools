@@ -145,7 +145,8 @@ function paint_chrome_controls( array $ctx ) {
 
 	return '<header class="os-app-list__toolbar snt-report-toolbar">'
 		. '<div class="os-app-list__toolbar-left snt-report-toolbar__filters">' . $range_control . $class_control . $compare_control . '</div>'
-		. '<div class="os-app-list__toolbar-trailing snt-report-toolbar__trailing">' . $sep . $export . '</div>'
+		. '<div class="os-app-list__toolbar-trailing snt-report-toolbar__trailing">' . $sep . $export
+		. \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-report-refresh' ) ) . '</div>'
 		. '</header>'
 		. ( '' !== $custom ? '<div class="snt-custom-panel">' . $custom . '</div>' : '' );
 }

@@ -98,6 +98,7 @@ namespace {
 	function st( $app, array $in = array() ) { return new \OpenStation\App\State( $app->state, $in ); }
 
 	echo "Group 1: the views are the tabs\n";
+	ok( array( 1280, 860 ) === $app->size && array( 360, 360 ) === $app->min, 'Analytics retains its opening size but permits 360x360 desktop resizing' );
 	$views = snt_analytics_views(); unset( $views['overview'] );
 	ok( array_keys( $views ) === array_keys( $app->tabs ) && array_values( $views ) === array_column( $app->tabs, 'label' ), 'twelve tabs after Overview, in the registry`s order, with its labels' );
 	ok( 'Overview' === snt_os_host_window_args( array( 'styles' => array(), 'scripts' => array() ), 'sn-analytics' )['main_tab_label'], 'the first tab is labelled Overview through the window args' );
@@ -142,7 +143,14 @@ namespace {
 		return $p;
 	} );
 	$paint = function ( $view, array $in = array() ) use ( $app, &$painted ) { $painted = array(); $os = new \OpenStation\App\Os(); $os->view = 'overview' === $view ? 'main' : $view; $cb = 'overview' === $view ? $app->view : $app->tabs[ $view ]['view']; ob_start(); call_user_func( $cb, st( $app, $in ), $os ); return (string) ob_get_clean(); };
+	foreach ( array( 'posts', 'search' ) as $refresh_view ) {
+		ok( 1 === substr_count( $paint( $refresh_view ), 'os-action="refresh"' ), $refresh_view . ': refresh is available without adding unrelated range or class controls' );
+	}
 	$html = $paint( 'overview', array( 'notice' => array( 'error', 'Broke.' ) ) );
+	ok( 1 === substr_count( $html, 'class="snt-report-scroll"' )
+		&& strpos( $html, 'class="snt-report-scroll"' ) < strpos( $html, 'data-piece="chrome/controls"' )
+		&& substr_count( $html, '<div' ) === substr_count( $html, '</div>' ),
+		'configured reports wrap controls and body in one balanced responsive scroll region' );
 	ok( array( 'chrome/error', 'chrome/controls', 'chrome/insights', 'chrome/header', 'view/overview' ) === $painted, 'overview: diagnostic, fixed toolbar, then the scrolling report body -- no drill-down without a drill: ' . implode( ',', $painted ) );
 	ok( 0 === strpos( $html, '<div class="snt-app os-app-list" data-os-app="sn-analytics" data-snt-view="overview" data-snt-query="' ) && false !== strpos( $html, '<os-notice tone="danger">Broke.</os-notice>' ) && strpos( $html, '<os-notice' ) < strpos( $html, 'data-piece="chrome/error"' ), 'the root adopts the framework list scaffold, names the view and query, and paints the notice first' );
 	$paint( 'overview', array( 'drill' => 'browser:Firefox' ) );
@@ -181,6 +189,15 @@ namespace {
 	ok( false !== strpos( $custom_controls, 'snt-custom-range' ) && false !== strpos( $custom_controls, 'name="sn_from"' ) && false !== strpos( $custom_controls, 'name="sn_to"' ), 'choosing Custom reveals both date fields in the range row' );
 	ok( false !== strpos( $rolling_controls, 'os-app-list__toolbar' ) && false !== strpos( $rolling_controls, 'os-bind="range" os-action="filter"' ) && false !== strpos( $rolling_controls, 'os-bind="class" os-action="filter"' ) && false !== strpos( $rolling_controls, 'os-bind="compare" os-action="filter"' ), 'the framework toolbar owns three bound, server-validated controls' );
 
+	foreach ( array( 'overview', 'events', 'edge', 'login-defense' ) as $refresh_view ) {
+		$refresh_html = call_user_func( $painters[ 'login-defense' === $refresh_view ? 'chrome/login-header' : 'chrome/controls' ], array( 'view' => $refresh_view ) );
+		ok( 1 === substr_count( $refresh_html, 'os-action="refresh"' ) && false !== strpos( $refresh_html, '>Refresh</os-button>' ), $refresh_view . ': exactly one visible, native in-body Refresh survives hidden mobile titlebars' );
+	}
+	$refresh_state = st( $app, array( 'view' => 'content', 'range' => '30', 'class' => 'bot', 'compare' => 'prev', 'drill' => 'browser:Firefox', 'notice' => array( 'error', 'Old notice' ) ) );
+	$before_refresh = $refresh_state->all();
+	$app->actions['refresh']( $refresh_state, new \OpenStation\App\Os(), array() );
+	$before_refresh['notice'] = null;
+	ok( $before_refresh === $refresh_state->all(), 'Refresh clears the notice without resetting the current report or filters' );
 	echo "\nGroup 6: the report surface follows the framework list geometry\n";
 	$css = (string) file_get_contents( SNT_PATH . 'apps/sn-analytics/sn-analytics.css' );
 	ok( false !== strpos( $css, '.snt-app.os-app-list' ) && false !== strpos( $css, '.snt-report-body' ), 'the app adopts the framework list root and a bounded scrolling body' );

@@ -151,6 +151,7 @@ function tab_view( $view ) {
 			echo paint_piece( 'chrome/empty', $ctx )['html'] . '</div>';
 			return;
 		}
+		echo '<div class="snt-report-scroll">';
 		echo paint_piece( 'chrome/error', $ctx )['html'];
 		$totals = array();
 		if ( ! $ctx['owns_chrome'] ) {
@@ -159,6 +160,10 @@ function tab_view( $view ) {
 			// them above Search is a false affordance.
 			if ( ! in_array( $view, array( 'search', 'posts' ), true ) ) {
 				echo paint_piece( 'chrome/controls', $ctx )['html'];
+			} else {
+				// These reports do not honor global filters, but can still repaint.
+				echo '<header class="os-app-list__toolbar snt-report-toolbar">'
+					. \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-report-refresh' ) ) . '</header>';
 			}
 		}
 		echo '<div class="os-app-list__body snt-report-body"><div class="snt-view">';
@@ -179,6 +184,6 @@ function tab_view( $view ) {
 		if ( ! $ctx['owns_chrome'] && array() !== $totals && 0 === (int) ( $totals['views'] ?? 0 ) ) {
 			echo '<p class="snt-hint snt-empty-note">' . \snt_kit_esc( __( 'No analytics data in this range yet. New data appears within ~15 minutes of a visit once the worker is live.', 'signal-and-noise-tools' ) ) . '</p>';
 		}
-		echo '</div>';
+		echo '</div></div>';
 	};
 }

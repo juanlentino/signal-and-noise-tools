@@ -186,13 +186,15 @@ function paint_connections_cron( array $ctx ) {
 	}
 
 	$rows = function_exists( 'snt_cron_get_events_impl' ) ? snt_cron_get_events_impl() : array();
+	// Re-read this live snapshot without exposing the classic mutating actions.
+	$refresh = '<div class="snt-toolbar">' . \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-leaf-refresh' ) ) . '</div>';
 
 	if ( empty( $rows ) ) {
 		// Classic runs this sentence through wp_kses_post() so the four hook
 		// names render as <code>; os-empty-state's description prop is a
 		// plain-text attribute (escaped, no HTML), so the names are painted
 		// as a separate paragraph after it instead of folded into the prop.
-		$out  = \snt_kit_empty( __( 'No scheduled events.', 'signal-and-noise-tools' ) );
+		$out  = $refresh . \snt_kit_empty( __( 'No scheduled events.', 'signal-and-noise-tools' ) );
 		$out .= '<p class="snt-prose">' . sprintf(
 			/* translators: 1-4: the core cron hook names WordPress schedules at install */
 			\snt_kit_esc( "This is unusual. WordPress core typically schedules %1\$s, %2\$s, %3\$s, and %4\$s at install. If your cron is empty, something has cleared it. Check your hosting provider's cron configuration." ),
@@ -205,7 +207,7 @@ function paint_connections_cron( array $ctx ) {
 	}
 
 	$count = count( $rows );
-	$out   = cron_glance_html( $rows );
+	$out   = $refresh . cron_glance_html( $rows );
 	$out  .= '<p class="snt-hint">' . sprintf(
 		\snt_kit_esc( _n( '%s scheduled event. Signal & Noise–owned events pinned at top.', '%s scheduled events. Signal & Noise–owned events pinned at top.', $count, 'signal-and-noise-tools' ) ),
 		\snt_kit_esc( number_format_i18n( $count ) )

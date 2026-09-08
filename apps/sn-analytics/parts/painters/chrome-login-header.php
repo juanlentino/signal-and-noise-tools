@@ -28,7 +28,8 @@ function paint_chrome_login_header( array $ctx ) {
 	foreach ( $allowed as $token ) {
 		$row .= pick( (string) $token . 'd', 'lg_range', (string) $token, $token === $days );
 	}
-	$html = '<div class="snt-toolbar"><div class="snt-toolbar__group">' . $row . '</div></div>';
+	$html = '<div class="snt-toolbar"><div class="snt-toolbar__group">' . $row . '</div>'
+		. \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-report-refresh' ) ) . '</div>';
 
 	$kpis = array();
 	if ( function_exists( 'sn_login_defense_decisions_sql' ) && function_exists( 'sn_analytics_query' ) && function_exists( 'sn_login_defense_kpis_from_rows' ) ) {

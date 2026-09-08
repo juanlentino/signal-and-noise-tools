@@ -111,6 +111,7 @@
 }
 
 .snt-app.os-app-list[data-os-app="sn-analytics"] {
+	container: snt-analytics / inline-size;
 	display: flex;
 	flex-direction: column;
 	gap: 0;
@@ -118,6 +119,35 @@
 	min-height: 0;
 	padding: 0;
 	overflow: hidden;
+}
+
+/* Wide windows retain a fixed toolbar and an independently scrolling report.
+ * Constrained windows scroll controls with the report, so custom dates cannot
+ * consume the entire canvas (including phones held sideways). */
+.snt-report-scroll {
+	display: flex;
+	flex-direction: column;
+	flex: 1 1 auto;
+	min-height: 0;
+	min-width: 0;
+	overflow: hidden;
+}
+
+.snt-report-toolbar,
+.snt-custom-panel {
+	flex: 0 0 auto;
+}
+
+@container snt-analytics (max-width: 820px) {
+	.snt-report-scroll { overflow: auto; }
+	.snt-report-scroll > .snt-report-body { flex: 0 0 auto; }
+	.snt-app[data-os-app="sn-analytics"] .snt-report-body > .snt-view { overflow: visible; }
+}
+
+@media (max-height: 580px) {
+	.snt-report-scroll { overflow: auto; }
+	.snt-report-scroll > .snt-report-body { flex: 0 0 auto; }
+	.snt-app[data-os-app="sn-analytics"] .snt-report-body > .snt-view { overflow: visible; }
 }
 
 .snt-app[data-os-app="sn-analytics"] .snt-report-body {
@@ -193,9 +223,19 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] textarea
 	gap: 8px;
 }
 
+/* os-form owns its shadow header, fields and footer layout. Turning its
+ * host into a wrapping flex row collapses the date fields at wide sizes. */
 .snt-custom-range {
+	display: block;
 	width: min( 100%, 520px );
 }
+
+.snt-custom-range::part( header ) { display: none; }
+.snt-custom-range::part( fields ) { margin-bottom: 8px; }
+.snt-custom-range::part( footer ) { border-top: 0; padding-top: 0; }
+
+/* The exposed button part sizes the actual click target, not just its host. */
+.snt-report-refresh::part( button ) { min-height: 44px; min-width: 44px; }
 
 .snt-custom-panel {
 	padding: 10px 14px;
@@ -332,28 +372,50 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] textarea
 	margin: 0;
 }
 
+/* Report grids measure their own canvas; toolbar controls measure the app. */
 @container ( max-width: 640px ) {
+	.snt-report-columns,
+	.snt-grid,
+	.snt-stats {
+		grid-template-columns: minmax( 0, 1fr );
+	}
+}
+
+@container snt-analytics ( max-width: 640px ) {
+	.snt-custom-panel input[type="date"] {
+		min-height: 44px;
+		font-size: 16px;
+		min-width: 0;
+	}
+	.snt-custom-range { --os-ui-button-padding: 12px 18px; }
+
 	.snt-report-toolbar__trailing {
 		flex: 1 1 100%;
 		justify-content: flex-start;
 	}
 
-	.snt-report-columns,
-	.snt-grid {
-		grid-template-columns: minmax( 0, 1fr );
-	}
-
-	.snt-stats {
-		grid-template-columns: minmax( 0, 1fr );
-	}
-
 	.snt-report-toolbar__filters,
-	.snt-report-toolbar__trailing,
-	.snt-custom-range,
-	.snt-export {
+	.snt-report-toolbar__trailing {
 		flex: 1 1 100%;
-		flex-direction: column;
 		align-items: stretch;
+	}
+
+	/* Keep flex bases on the inline axis: a column turns 190px / 170px
+	 * select widths into heights and crowds the report out of the window. */
+	.snt-filter--range,
+	.snt-filter--compare {
+		flex: 1 1 140px;
+		min-width: 0;
+	}
+
+	.snt-filter--class {
+		flex: 1 1 100%;
+		order: 1;
+	}
+
+	.snt-export button {
+		min-height: 44px;
+		min-width: 64px;
 	}
 }
 

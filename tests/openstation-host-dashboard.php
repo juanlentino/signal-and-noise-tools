@@ -270,7 +270,7 @@ namespace {
 	ok( 'S&N Home' === $app->title && 'dashicons-shield-alt' === $app->icon && 'dock' === $app->placement,
 		'the same title, the same shield and the same dock placement the manual item had' );
 	ok( array( 'manage_options' ) === $app->caps, 'gated on manage_options, the capability the classic page wp_die()s without' );
-	ok( array( 1180, 820 ) === $app->size && array( 760, 520 ) === $app->min, 'opens at 1180x820, never smaller than 760x520' );
+	ok( array( 1180, 820 ) === $app->size && array( 360, 360 ) === $app->min, 'keeps the desktop opening size while allowing narrow and short 360x360 windows' );
 	ok( array( 'sub', 'anchor', 'flash', 'notice', 'params', 'post' ) === array_keys( $app->state )
 		&& '' === $app->state['sub'] && null === $app->state['notice'] && array() === $app->state['params'] && array() === $app->state['post'],
 		'state has NO tab: the tab is the session (the framework`s); only the leaf, the anchor and the last write are state' );

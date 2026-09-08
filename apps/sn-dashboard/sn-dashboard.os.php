@@ -196,7 +196,8 @@ $sn_dashboard = App::define( APP_ID )
 	->title( __( 'S&N Home', 'signal-and-noise-tools' ) )
 	->icon( 'dashicons-shield-alt' )
 	->size( 1180, 820 )
-	->min_size( 760, 520 )
+	// Keep narrow/short desktop windows reachable, not only maximized phones.
+	->min_size( 360, 360 )
 	->placement( 'dock' )
 	->capabilities( 'manage_options' )
 	// One session per tab (the framework's tabs), each with this shape. The

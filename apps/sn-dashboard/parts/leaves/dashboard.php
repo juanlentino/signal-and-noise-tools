@@ -798,6 +798,8 @@ function paint_dashboard( array $ctx ) {
 		. '</div>'
 		. '<os-button class="snt-home__refresh" variant="ghost" os-action="refresh" aria-label="' . esc_attr__( 'Refresh S&N Home', 'signal-and-noise-tools' ) . '" title="' . esc_attr__( 'Refresh', 'signal-and-noise-tools' ) . '">'
 		. '<span class="dashicons dashicons-update" aria-hidden="true"></span>'
+		// Slotted text names the inner button; host aria-label is not forwarded.
+		. '<span class="snt-home__refresh-label">' . \snt_kit_esc( __( 'Refresh S&N Home', 'signal-and-noise-tools' ) ) . '</span>'
 		. '</os-button>'
 		. '</header>';
 
