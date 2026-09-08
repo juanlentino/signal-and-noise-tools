@@ -122,8 +122,10 @@ async function run() {
     let stop = x.window.desktopModeWidgets[f.id](root); await flush();
     x.calls[0].reject({message: '<script>not HTML</script>', data: {status: 429, retry_after: '1'}}); await flush();
     assert.match(root.textContent, /Status unavailable/);
-    assert.doesNotMatch(root.textContent, /<script>|Retry after|No successful refresh/);
-    assert.match(details(root), /No successful refresh yet.*<script>not HTML<\/script>/);
+    assert.doesNotMatch(root.textContent, /Retry after|No successful refresh/);
+    assert.ok(!root.textContent.includes('<script>'), 'raw error detail is not visible card content');
+    assert.match(details(root), /No successful refresh yet/);
+    assert.ok(details(root).includes('<script>not HTML</script>'), 'error details stay literal text, not markup');
     assert.doesNotMatch(styles(root), /#3fb950/);
     assert.equal(nodes(root).filter(n => n.attrs.role === 'img').length, 1, 'first failure has one accessible cue');
     await x.tick(f.period); assert.equal(x.calls.length, 2);
