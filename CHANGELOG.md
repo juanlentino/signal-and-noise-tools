@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Restore the classic Provenance grouping in native S&N Home: a full-width status summary above Commits and conditional Ledger backfill on the left, with System, Key rotation, and Genesis anchor stacked on the right. Preserve all forms and collapse to one column at 640px.
+
 ## [13.106.18] - 2026-09-07 — Fix native Uptime contrast and dark PWA artwork
 
 ### Fixed
