@@ -12,11 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.106.20] - 2026-09-08 — Polish native Provenance status and actions
+
 ### Fixed
 - Polish native Provenance with compact action-only OpenStation forms, aligned confirmation/refresh buttons, neutral readable status values with contact timestamps in captions, labeled wrapping public keys, and consistent rail spacing. Preserve form nonces, submissions, and the classic panel grouping.
-
-## [13.106.19] - 2026-09-08 — Restore the native Provenance status rail
-
-### Fixed
-- Restore the classic Provenance grouping in native S&N Home: a full-width status summary above Commits and conditional Ledger backfill on the left, with System, Key rotation, and Genesis anchor stacked on the right. Preserve all forms and collapse to one column at 640px.
 
