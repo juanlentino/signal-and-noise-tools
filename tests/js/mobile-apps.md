@@ -103,6 +103,65 @@ A local macOS WKWebView probe can load saved HTML to compare the released and fi
 height chain. This is macOS WebKit geometry evidence, **not physical iOS Safari**,
 installed-PWA, safe-area, real shell navigation or live-data verification.
 
+## Information-rich Overview regression
+
+`node tests/js/analytics-responsive.mjs` uses the same installed dependency paths;
+`ANALYTICS_ARTIFACTS` selects output (default `/tmp/snt-analytics-responsive`).
+It runs the registered Overview callback, canonical header/cards/chart/body and
+insights renderer via `php tests/openstation-app-analytics.php --fixture-overview`.
+`--warning` selects an actionable falling-views signal instead of no-forecast;
+`--json` returns markup plus state. Readers/framework services are deterministic
+fixtures, not analytics observations. Optional Uptime/Movers readers are absent,
+so an empty right rail in these screenshots is not a production design change.
+
+Nine browser/window geometries, each with both signal states, cover phone
+390×844/430×932, phone landscape 844×390, tablet 768×1024, narrow/medium/wide
+windows in a 1440×900 browser, the 360×360 minimum window and an 821×360 short
+window. Actual native stack/panel/mount wrappers and mobile/desktop CSS are loaded.
+Every case saves HTML, initial/expanded screenshots and numerical evidence in
+`results.json`. The suite asserts:
+
+- A live height chain, hidden inactive panels, no horizontal report overflow,
+  bottom reachability and actual emulated touch or mouse-wheel scrolling.
+- All filter groups, filtered totals, full forecast/warning explanation and period
+  summary retained; rectangular prose layout, actual segment/export/Refresh targets.
+- Range keyboard selection, popup Escape without losing focus, and focused select
+  identity surviving the real toolkit DOM morph. `os-key` is essential: a live
+  select's auto-generated ID otherwise makes an unkeyed server node incompatible.
+- Every Compare value, traffic Enter/Space and tap/click, Custom opening from the
+  active rolling period, date Apply, and Refresh Enter/Space/tap or click. Bindings
+  use the toolkit's `findTrigger`, `readBinding`, `boundValue` and `morphChildren`;
+  requests call the actual PHP action and render the next state, not a fake result.
+- CSV/JSON FormData retain the nonce, export action, class and custom dates; the
+  form remains POST/target=_blank in production. The harness prevents submission:
+  it does **not** download or verify a live CSV/JSON response.
+- Existing Full insights opens/closes with Enter/Space and exposes the remaining
+  signal. No new sheet, actions menu or default-hidden information is introduced.
+
+`tests/openstation-analytics-responsive.php` covers escaped native signal status,
+confidence and complete explanation plus classic-output isolation after capture.
+The existing `snt_analytics_surface` hook receives a `signal` piece with the original
+signal under `data['signal']`; only the duration-scoped native capture changes its
+presentation. Without that capture the classic chip bytes remain unchanged.
+`tests/openstation-app-analytics.php` adds semantic grouping and Custom seed tests,
+including rejection of malformed arguments and protection of existing custom dates.
+
+For a before/after comparison, set `FIXTURE_ROOT` to an isolated baseline copy
+with these test fixtures copied into it and set `OPENSTATION_PATH` explicitly.
+The baseline should fail new geometry/focus/Custom expectations; this is not a
+passing baseline claim. The fixture transport is not a booted shell REST session:
+no WordPress authentication, real date-reader queries, shell resize/tab navigation,
+network export, installed PWA or physical iOS device is covered. The unit suite
+uses its existing simplified window resolver; the normal PHP sweep separately
+covers the production range/date resolvers. Insets and footer chrome are structural
+fixtures, not a pixel-identical capture of WordPress's font assets and bottom nav.
+
+The design prioritizes information grouping and legibility, not a guaranteed
+smaller pixel height. Labeled traffic and larger actual touch targets can increase
+phone toolbar height. All controls still scroll with reports in constrained windows;
+wide/tall windows retain fixed controls. No metrics, period totals or methods text
+were removed to win a height assertion.
+
 ## Scoped integration decisions
 
 - Analytics has local Refresh in its normal toolbar and Login Defense toolbar;
@@ -116,10 +175,12 @@ installed-PWA, safe-area, real shell navigation or live-data verification.
 - Complex matrices retain column relationships and horizontal keyboard scrolling;
   no blanket stacked-table conversion is made. Individual simple leaf tables are
   not all browser-covered by this fixture and need per-leaf review before redesign.
-- The shell's `os-segment` inner button has hardcoded padding/font size and exposes
-  neither a sizing token nor a button part. Its compact traffic-class touch target
-  cannot be safely enlarged with plugin CSS alone; no shadow-DOM injection or
-  speculative token is added. Refresh uses the real exposed `button` part.
+- Traffic segments expose neither a sizing token nor a button part, but the
+  button inherits its line-height. Analytics sets that inherited line-height to
+  32px; the toolkit's 12px vertical padding yields a measured 44px target, without
+  shadow injection. The select trigger still has a hardcoded 37.5px height and no
+  exposed sizing part/token; this harness documents that limit rather than claiming
+  every control is 44px. Refresh uses its supported `button` part.
 - Custom dates retain the supported form fields/footer composition and accessible
   submit behavior. The separate Apply row is intentional here rather than another
   unverified flex-host override.

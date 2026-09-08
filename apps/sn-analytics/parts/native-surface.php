@@ -74,6 +74,24 @@ function native_capture( array $get, callable $paint ) {
 		if ( 'panel-close' === $piece ) {
 			return ( array_pop( $panels ) ? '</details>' : '' ) . '</div></os-section>';
 		}
+		if ( 'signal' === $piece ) {
+			$signal = $data['signal'];
+			$kind = (string) ( $signal['kind'] ?? '' );
+			$tier = ucfirst( (string) ( $signal['tier'] ?? 'predictive' ) );
+			$status = 'forecast_withheld' === $kind ? __( 'Forecast unavailable', 'signal-and-noise-tools' ) : $tier;
+			$confidence = (string) ( $signal['confidence'] ?? '' );
+			$direction = (string) ( $signal['direction'] ?? '' );
+			$direction_label = 'up' === $direction ? __( 'rising', 'signal-and-noise-tools' ) : ( 'down' === $direction ? __( 'falling', 'signal-and-noise-tools' ) : '' );
+			return '<span class="sn-an-signal sn-an-signal--' . esc_attr( $kind ) . '">'
+				. '<span class="snt-signal-status">' . esc_html( $status ) . '</span>'
+				. '<span class="snt-signal-explanation">' . esc_html( (string) ( $signal['plain_label'] ?? '' ) ) . '</span>'
+				. '<span class="snt-signal-meta">' . esc_html( implode( ' · ', array_filter( array(
+					'forecast_withheld' === $kind ? $tier : '',
+					$direction_label,
+					/* translators: %s: statistical confidence level, including none. */
+					'' !== $confidence ? sprintf( __( 'Confidence: %s', 'signal-and-noise-tools' ), $confidence ) : '',
+				) ) ) ) . '</span></span>';
+		}
 		if ( 'kpis' === $piece ) {
 			return native_stats( (array) $data['cards'], (array) $data['opts'] );
 		}

@@ -40,7 +40,7 @@ function snt_analytics_render_signal_chip( $signal ) {
 	$dir  = (string) ( $signal['direction'] ?? '' );
 	$icon = ( 'up' === $dir ) ? '▲' : ( ( 'down' === $dir ) ? '▼' : '•' );
 	$sr   = ( 'up' === $dir ) ? __( 'rising', 'signal-and-noise-tools' ) : ( ( 'down' === $dir ) ? __( 'falling', 'signal-and-noise-tools' ) : '' );
-	return '<span class="sn-an-signal sn-an-signal--' . esc_attr( (string) ( $signal['kind'] ?? '' ) ) . '">'
+	$html = '<span class="sn-an-signal sn-an-signal--' . esc_attr( (string) ( $signal['kind'] ?? '' ) ) . '">'
 		. ( function_exists( 'snt_analytics_tier_badge' ) && '' !== snt_analytics_tier_badge( strtolower( $tier ) )
 			? snt_analytics_tier_badge( strtolower( $tier ) ) . ' '
 			: '<span class="sn-an-signal-badge">' . esc_html( $tier ) . '</span> ' )
@@ -49,6 +49,8 @@ function snt_analytics_render_signal_chip( $signal ) {
 		. esc_html( (string) ( $signal['plain_label'] ?? '' ) )
 		. ' <span class="sn-an-signal-conf">' . esc_html( (string) ( $signal['confidence'] ?? '' ) ) . '</span>'
 		. '</span>';
+	// Native capture may recompose the signal; classic keeps the same bytes.
+	return function_exists( 'apply_filters' ) ? apply_filters( 'snt_analytics_surface', $html, 'signal', array( 'signal' => $signal ) ) : $html;
 }
 
 /**
