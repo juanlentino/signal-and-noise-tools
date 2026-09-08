@@ -79,6 +79,10 @@ function snt_ml_embed( $texts ) {
 	$url = 'https://api.cloudflare.com/client/v4/accounts/' . rawurlencode( snt_ml_embed_account_id() ) . '/ai/run/' . SNT_ML_EMBED_MODEL;
 	$res = wp_remote_post( $url, array(
 		'timeout' => 30,
+		// A Workers AI Bearer on a fixed api.cloudflare.com host: never re-send it
+		// to a 3xx target (outbound-hardening convention, v8.7.1; the same guard
+		// inc/cloudflare-purge.php puts on the same host).
+		'redirection' => 0,
 		'headers' => array(
 			'Authorization' => 'Bearer ' . snt_ml_embed_token(),
 			'Content-Type'  => 'application/json',
