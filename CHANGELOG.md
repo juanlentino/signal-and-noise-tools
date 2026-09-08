@@ -12,11 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.106.21] - 2026-09-08 — Fix MFA-aware audit login reporting
+
 ### Fixed
 - Record MFA-protected logins only after Two-Factor completes verification, including WebAuthn and backup methods. Add MFA rejection, rate-limit, and other-error subsets to audit tables, exports, and the security digest without double-counting failures or storing credentials. Preserve historical records and leave authentication enforcement unchanged.
-
-## [13.106.20] - 2026-09-08 — Polish native Provenance status and actions
-
-### Fixed
-- Polish native Provenance with compact action-only OpenStation forms, aligned confirmation/refresh buttons, neutral readable status values with contact timestamps in captions, labeled wrapping public keys, and consistent rail spacing. Preserve form nonces, submissions, and the classic panel grouping.
 
