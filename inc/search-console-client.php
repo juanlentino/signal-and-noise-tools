@@ -101,6 +101,13 @@ function snt_gsc_access_token( $force = false ) {
 		(string) ( $cred['token_uri'] ?? SNT_GSC_TOKEN_URL ),
 		array(
 			'timeout' => 15,
+			// The body carries the private-key-signed JWT assertion; token_uri comes
+			// from the uploaded service-account JSON. Forbid 3xx (outbound-hardening,
+			// v8.7.1). Verified against WP_Http::handle_redirects(): a 302/303 would
+			// convert POST->GET and drop the body, but 307/308 preserve both, and the
+			// handler re-issues with $args WHOLESALE — so on 307/308 the assertion is
+			// replayed to whatever Location names.
+			'redirection' => 0,
 			'headers' => array( 'Content-Type' => 'application/x-www-form-urlencoded' ),
 			'body'    => array(
 				'grant_type' => 'urn:ietf:params:oauth:grant-type:jwt-bearer',
@@ -214,6 +221,8 @@ function snt_gsc_api_get( $path, $force_token = false ) {
 		SNT_GSC_API_BASE . $path,
 		array(
 			'timeout' => 20,
+			// v8.7.1 outbound-hardening: never re-send the access token on a 3xx.
+			'redirection' => 0,
 			'headers' => array(
 				'Authorization' => 'Bearer ' . $token,
 				'Accept'        => 'application/json',
@@ -293,6 +302,10 @@ function snt_gsc_api_post( $path, $body, $timeout = 30 ) {
 		0 === strpos( (string) $path, 'https://' ) ? (string) $path : SNT_GSC_API_BASE . $path,
 		array(
 			'timeout' => max( 1, (int) $timeout ),
+			// v8.7.1 outbound-hardening. This helper accepts an ABSOLUTE caller URL
+			// (URL Inspection lives on another Google host), so the redirect guard
+			// matters more here, not less.
+			'redirection' => 0,
 			'headers' => array(
 				'Authorization' => 'Bearer ' . $token,
 				'Content-Type'  => 'application/json',
