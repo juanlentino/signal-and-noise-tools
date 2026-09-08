@@ -57,6 +57,27 @@ tests separately invoke the real Analytics refresh callback and verify filter
 preservation. The bounding fixture omits desktop titlebar/borders: it does not
 simulate a pointer resize of the full shell.
 
+## Independent app-window geometry regression
+
+Run `node tests/js/window-geometry.mjs` with the same dependency environment above;
+`WINDOW_ARTIFACTS` selects its output directory. The suite varies browser width,
+browser height, app width and app height independently, using the shell's real
+window and app-runtime CSS and matching ancestors (including titlebar/tab space).
+It covers short desktop windows inside tall browsers and container boundaries.
+
+The complete registered Campaigns route runs with deterministic reader data;
+IndexNow and Performance use their actual leaf painters. Landing Home and the
+original synthetic Analytics composite provide additional coverage. Checks measure
+visibility through clipping ancestors, scroll reachability including final table
+rows, URL wrapping, selection and unchanged link targets. Wide/tall desktop controls
+must remain fixed. Set `RESPONSIVE_CSS_REF=a93dd9e` to run a negative control using
+the released CSS without changing the working tree: it must fail on the audited bugs.
+
+These are local Chromium geometry tests with static shell chrome, not a booted
+WordPress/OpenStation instance, real shell tab/resize interactions, all report
+routes, or physical Safari/PWA verification. The separate original harness retains
+its component interaction coverage; neither suite proves the omitted workflows.
+
 ## Scoped integration decisions
 
 - Analytics has local Refresh in its normal toolbar and Login Defense toolbar;

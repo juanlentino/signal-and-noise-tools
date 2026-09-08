@@ -93,6 +93,30 @@ namespace {
 	// re-run them, and wiping the hook made chrome/empty+error look missing).
 	$sn_analytics_painter_filters = $GLOBALS['__filters']['snt_os_analytics_painters'] ?? array();
 
+	// Browser fixture: the registered Campaigns callback, real frame, canonical
+	// dispatcher and complete report. Only readers/framework services are stubbed.
+	if ( PHP_SAPI === 'cli' && in_array( '--fixture-campaigns', $argv ?? array(), true ) ) {
+		function remove_filter( $hook, $cb, $priority = 10 ) {
+			$GLOBALS['__filters'][ $hook ][ $priority ] = array_filter( $GLOBALS['__filters'][ $hook ][ $priority ] ?? array(), fn( $f ) => $f !== $cb );
+			return true;
+		}
+		require SNT_PATH . 'inc/analytics-panels.php';
+		require SNT_PATH . 'inc/analytics-render-tables.php';
+		require SNT_PATH . 'inc/analytics-view-body.php';
+		require SNT_PATH . 'inc/analytics-view-campaigns.php';
+		function sn_analytics_top_utm_campaigns( $from, $to, $class, $limit ) {
+			return array_map( fn( $i ) => array( 'value' => 'Fixture campaign ' . $i, 'views' => 120 - $i, 'visits' => 70 - $i ), range( 1, 25 ) );
+		}
+		function sn_analytics_top_utm_sources( $from, $to, $class, $limit ) {
+			return array_map( fn( $i ) => array( 'value' => 'Fixture source / newsletter ' . $i, 'views' => 100 - $i, 'visits' => 60 - $i ), range( 1, 25 ) );
+		}
+		$state = new \OpenStation\App\State( $app->state, array( 'range' => 'custom', 'from' => '2026-09-01', 'to' => '2026-09-07' ) );
+		$os = new \OpenStation\App\Os();
+		$os->view = 'campaigns';
+		call_user_func( $app->tabs['campaigns']['view'], $state, $os );
+		exit;
+	}
+
 	$pass = 0; $fail = 0;
 	function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m\n"; } else { $fail++; echo "FAIL: $m\n"; } }
 	function st( $app, array $in = array() ) { return new \OpenStation\App\State( $app->state, $in ); }

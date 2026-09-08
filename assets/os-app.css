@@ -136,14 +136,17 @@ a.snt-link:hover { text-decoration: underline; }
 /* ── Facts list ──────────────────────────────────────────────────────── */
 .snt-kv {
 	display: grid;
-	grid-template-columns: max-content 1fr;
+	grid-template-columns: max-content minmax( 0, 1fr );
 	gap: 6px 16px;
 	margin: 0;
 }
 
 .snt-kv__row { display: contents; }
 .snt-kv__k { color: var( --os-ui-fg-muted, #b3afb5 ); font-size: 12px; }
-.snt-kv__v { margin: 0; font-size: 13px; }
+.snt-kv__v { margin: 0; min-width: 0; font-size: 13px; overflow-wrap: anywhere; }
+/* Inline facts (not code blocks) must wrap through the component's supported
+ * token. Keep the URL text/link intact for selection, copying and navigation. */
+.snt-kv__v os-code:not( [block] ) { --os-ui-code-white-space: normal; }
 .snt-kv__v[data-tone] { color: var( --os-app-tone, inherit ); }
 
 .snt-plain { margin: 0; padding-left: 18px; }
