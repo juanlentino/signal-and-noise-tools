@@ -45,8 +45,11 @@ function paint_chrome_controls( array $ctx ) {
 			'class'     => 'snt-filter snt-filter--range',
 			'label'     => __( 'Range', 'signal-and-noise-tools' ),
 			'value'     => $range,
-			'os-bind'   => 'range',
-			'os-action' => 'filter',
+			'os-key'    => 'analytics-range',
+			'os-bind'     => 'range',
+			'os-action'   => 'filter',
+			'os-arg-from' => $from,
+			'os-arg-to'   => $to,
 		),
 		$range_options
 	);
@@ -77,6 +80,7 @@ function paint_chrome_controls( array $ctx ) {
 			'class'     => 'snt-filter snt-filter--compare',
 			'label'     => __( 'Compare', 'signal-and-noise-tools' ),
 			'value'     => $compare,
+			'os-key'    => 'analytics-compare',
 			'os-bind'   => 'compare',
 			'os-action' => 'filter',
 		),
@@ -143,9 +147,12 @@ function paint_chrome_controls( array $ctx ) {
 		$export = ''; // The export is pageview/class scoped, not an events or edge export.
 	}
 
+	$traffic = '' !== $class_control
+		? '<div class="snt-filter-traffic"><span class="snt-filter-label">' . \snt_kit_esc( __( 'Traffic class', 'signal-and-noise-tools' ) ) . '</span>' . $class_control . $sep . '</div>'
+		: '';
 	return '<header class="os-app-list__toolbar snt-report-toolbar">'
-		. '<div class="os-app-list__toolbar-left snt-report-toolbar__filters">' . $range_control . $class_control . $compare_control . '</div>'
-		. '<div class="os-app-list__toolbar-trailing snt-report-toolbar__trailing">' . $sep . $export
+		. '<div class="os-app-list__toolbar-left snt-report-toolbar__filters"><div class="snt-filter-period">' . $range_control . $compare_control . '</div>' . $traffic . '</div>'
+		. '<div class="os-app-list__toolbar-trailing snt-report-toolbar__trailing">' . $export
 		. \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost', 'class' => 'snt-report-refresh' ) ) . '</div>'
 		. '</header>'
 		. ( '' !== $custom ? '<div class="snt-custom-panel">' . $custom . '</div>' : '' );

@@ -64,7 +64,7 @@ namespace {
 	function sn_analytics_granularity( $days ) { return $days > 60 ? 'week' : 'day'; }
 	function sn_analytics_config() { return ! empty( $GLOBALS['__configured'] ); }
 	function sn_login_defense_resolve_days() { return 7; }
-	function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) { return array(); }
+	function sn_analytics_signals( $from, $to, $class = 'human', $opts = array() ) { return $GLOBALS['__overview_signals'] ?? array(); }
 	function snt_analytics_page_url( $args = array() ) { return 'https://example.test/wp-admin/admin.php?page=sn-analytics' . ( $args ? '&' . http_build_query( $args ) : '' ); }
 	function snt_os_host_last( $v ) { return is_array( $v ) ? (string) end( $v ) : (string) $v; }
 	function snt_os_host_expand( array $a ) { return $a; }
@@ -92,6 +92,12 @@ namespace {
 	// registrations the painter files made at load (require_once cannot
 	// re-run them, and wiping the hook made chrome/empty+error look missing).
 	$sn_analytics_painter_filters = $GLOBALS['__filters']['snt_os_analytics_painters'] ?? array();
+
+	// Real Overview route with deterministic readers for responsive regression.
+	if ( PHP_SAPI === 'cli' && in_array( '--fixture-overview', $argv ?? array(), true ) ) {
+		require __DIR__ . '/fixtures/analytics-overview.php';
+		exit;
+	}
 
 	// Browser fixture: the registered Campaigns callback, real frame, canonical
 	// dispatcher and complete report. Only readers/framework services are stubbed.
@@ -157,6 +163,15 @@ namespace {
 	$app->actions['filter']( $s, $os, array() );
 	ok( '30' === $s->get( 'range' ) && '' === $s->get( 'from' ) && '' === $s->get( 'to' ) && 'suspect' === $s->get( 'class' ) && 'prev' === $s->get( 'compare' ), 'bound native filters are re-resolved server-side and a rolling range sheds stale custom dates' );
 
+	$s->set( 'range', 'custom' );
+	$app->actions['filter']( $s, $os, array( 'from' => '2026-09-01', 'to' => '2026-09-07' ) );
+	ok( 'custom' === $s->get( 'range' ) && '2026-09-01' === $s->get( 'from' ) && '2026-09-07' === $s->get( 'to' ), 'selecting Custom from a rolling window seeds its visible dates instead of resolving back to seven days' );
+	$app->actions['filter']( $s, $os, array( 'from' => '1999-01-01', 'to' => '1999-01-02' ) );
+	ok( '2026-09-01' === $s->get( 'from' ) && '2026-09-07' === $s->get( 'to' ), 'existing custom dates cannot be overwritten by stale picker seed arguments' );
+	$s->set( 'from', '' )->set( 'to', '' );
+	$app->actions['filter']( $s, $os, array( 'from' => array( 'invalid' ), 'to' => '<script>' ) );
+	ok( '7' === $s->get( 'range' ) && '' === $s->get( 'from' ) && '' === $s->get( 'to' ), 'malformed Custom seeds are refused through the existing resolver' );
+
 	echo "\nGroup 3: the frame paints the classic order\n";
 	$painted = array();
 	$spy = function ( $key ) use ( &$painted ) { return function ( $ctx ) use ( $key, &$painted ) { $painted[] = $key; return '<i data-piece="' . $key . '"></i>'; }; };
@@ -208,6 +223,9 @@ namespace {
 
 	echo "\nGroup 5: the native toolbar stays compact until Custom is chosen\n";
 	$rolling_controls = call_user_func( $painters['chrome/controls'], array( 'range' => '7', 'class' => 'human', 'compare' => 'off', 'get' => array() ) );
+	ok( false !== strpos( $rolling_controls, 'class="snt-filter-period"' ) && false !== strpos( $rolling_controls, 'class="snt-filter-traffic"' ), 'period filters and traffic explanation have independent responsive groups' );
+	ok( strpos( $rolling_controls, 'snt-filter--compare' ) < strpos( $rolling_controls, 'snt-filter--class' ), 'Range and Compare precede the labeled traffic group in reading and focus order' );
+	ok( false !== strpos( $rolling_controls, 'class="snt-filter-label"' ) && false !== strpos( $rolling_controls, '>Traffic class</span>' ), 'traffic selector has a visible heading, not just an inaccessible host label' );
 	$custom_controls  = call_user_func( $painters['chrome/controls'], array( 'range' => 'custom', 'from' => '2026-09-01', 'to' => '2026-09-06', 'class' => 'human', 'compare' => 'off', 'get' => array() ) );
 	ok( false !== strpos( $rolling_controls, '<os-select class="snt-filter snt-filter--range"' ) && false !== strpos( $rolling_controls, '<os-option value="custom">Custom range…</os-option>' ) && false === strpos( $rolling_controls, 'snt-custom-range' ), 'one native Range select replaces the button wall and does not reserve space for custom dates' );
 	ok( false !== strpos( $custom_controls, 'snt-custom-range' ) && false !== strpos( $custom_controls, 'name="sn_from"' ) && false !== strpos( $custom_controls, 'name="sn_to"' ), 'choosing Custom reveals both date fields in the range row' );

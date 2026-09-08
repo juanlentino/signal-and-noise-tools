@@ -222,9 +222,18 @@ $sn_analytics = App::define( APP_ID )
 	->action(
 		'filter',
 		static function ( State $state, Os $os, array $args ) {
-			unset( $args );
 			if ( ! may_manage() ) {
 				return;
+			}
+			// Rolling state deliberately drops dates. The Range picker carries
+			// its resolved window so Custom can open on those dates. They still
+			// pass through the same server-side resolver below, never trusted.
+			if ( 'custom' === $state->get( 'range' ) && '' === (string) $state->get( 'from' ) && '' === (string) $state->get( 'to' ) ) {
+				foreach ( array( 'from', 'to' ) as $key ) {
+					if ( isset( $args[ $key ] ) && is_scalar( $args[ $key ] ) ) {
+						$state->set( $key, (string) $args[ $key ] );
+					}
+				}
 			}
 			$query = \snt_os_analytics_get( $state );
 			unset( $query['page'] );

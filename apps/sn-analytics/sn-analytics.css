@@ -192,26 +192,73 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] textarea
 	margin-block-end: 0;
 }
 
-.snt-report-toolbar__filters,
+/* Three semantic groups: period, traffic + its explanation, report actions.
+ * Groups wrap at their intrinsic useful widths instead of stretching labels
+ * and counts across an unrelated action row. All remain visible. */
+.snt-app[data-os-app="sn-analytics"] .snt-report-toolbar {
+	align-items: start;
+	gap: 10px 16px;
+	padding: 10px 14px;
+}
+
+.snt-report-toolbar__filters {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 10px 16px;
+	flex: 1 1 620px;
+	min-width: 0;
+}
+
+.snt-filter-period {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+	flex: 1 1 280px;
+	min-width: 0;
+}
+
+.snt-filter-period:has( > :only-child ) { grid-template-columns: minmax(0, 1fr); }
+
+.snt-filter-traffic {
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+	flex: 1 1 280px;
+	min-width: 0;
+}
+
+.snt-filter-label {
+	font-size: 13px;
+	line-height: 1.5;
+	color: var(--os-ui-fg-muted);
+}
+
+.snt-filter-traffic .snt-hint {
+	margin: 0;
+	font-size: 12px;
+	line-height: 1.4;
+	overflow-wrap: anywhere;
+}
+
+.snt-filter--class { width: 100%; }
+/* The toolkit segment uses font:inherit, then fixes only font-size.
+ * An inherited line-height makes its real button 44px without shadow edits. */
+.snt-filter--class os-segment { line-height: 32px; }
+
 .snt-report-toolbar__trailing {
 	display: flex;
 	flex-wrap: wrap;
 	align-items: center;
 	gap: 8px;
 	min-width: 0;
+	padding-top: 27px;
 }
 
-.snt-report-toolbar__filters {
-	flex: 1 1 620px;
+.snt-app[data-os-app="sn-analytics"] .snt-export button {
+	min-height: 44px;
+	min-width: 64px;
+	font-size: 13px;
 }
-
-.snt-report-toolbar__trailing {
-	justify-content: flex-end;
-}
-
-.snt-filter--range { flex: 0 1 190px; }
-.snt-filter--class { flex: 0 0 auto; }
-.snt-filter--compare { flex: 0 1 170px; }
 
 .snt-toolbar__group {
 	display: flex;
@@ -398,31 +445,11 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] textarea
 	.snt-report-toolbar__trailing {
 		flex: 1 1 100%;
 		justify-content: flex-start;
+		padding-top: 0;
 	}
 
-	.snt-report-toolbar__filters,
-	.snt-report-toolbar__trailing {
-		flex: 1 1 100%;
-		align-items: stretch;
-	}
-
-	/* Keep flex bases on the inline axis: a column turns 190px / 170px
-	 * select widths into heights and crowds the report out of the window. */
-	.snt-filter--range,
-	.snt-filter--compare {
-		flex: 1 1 140px;
-		min-width: 0;
-	}
-
-	.snt-filter--class {
-		flex: 1 1 100%;
-		order: 1;
-	}
-
-	.snt-export button {
-		min-height: 44px;
-		min-width: 64px;
-	}
+	.snt-report-toolbar__filters { flex: 1 1 100%; }
+	.snt-app[data-os-app="sn-analytics"] .snt-report-toolbar { padding: 8px 10px; }
 }
 
 html[data-os-mode="mobile"] .snt-app[data-os-app="sn-analytics"] .snt-view,
@@ -606,10 +633,82 @@ snt-analytics-table os-table { display: block; width: 100%; }
 	min-width: 0;
 }
 
-/* Selects include visible labels; segmented controls do not. Align the
- * control bottoms rather than centering the different-height hosts. */
+/* Each group now has its own heading; align those headings across the row. */
 .snt-app[data-os-app="sn-analytics"] .snt-report-toolbar__filters {
-	align-items: flex-end;
+	align-items: flex-start;
+}
+
+@container snt-analytics (max-width: 900px) {
+	.snt-report-toolbar__trailing { padding-top: 0; }
+}
+
+/* Preserve the existing disclosure and every signal/period sentence. A long
+ * explanation is prose, not a pill squeezed between badge and confidence.
+ * Only this native surface changes; the classic headline remains untouched. */
+.snt-app[data-os-app="sn-analytics"] .sn-an-headline > summary {
+	display: grid;
+	grid-template-columns: 12px minmax(0, 1fr);
+	align-items: start;
+	gap: 8px;
+	padding: 12px;
+	line-height: 1.5;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-headline > summary::before {
+	grid-column: 1;
+	grid-row: 1;
+	color: var(--os-ui-fg-muted);
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-headline > summary > * {
+	grid-column: 2;
+	min-width: 0;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-headline .sn-an-signal {
+	display: block;
+	border: 0;
+	border-radius: 0;
+	background: transparent;
+	padding: 0;
+	font-size: 13px;
+	line-height: 1.5;
+	overflow-wrap: anywhere;
+}
+
+.snt-app[data-os-app="sn-analytics"] .snt-signal-status {
+	display: block;
+	font-size: 13px;
+	font-weight: 600;
+	margin-bottom: 4px;
+}
+
+.snt-app[data-os-app="sn-analytics"] .snt-signal-meta {
+	display: block;
+	font-size: 12px;
+	color: var(--os-ui-fg-muted);
+	margin-top: 4px;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-headline-more {
+	margin: 0;
+	white-space: normal;
+	text-transform: none;
+	letter-spacing: normal;
+	font-size: 12px;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-headline > summary:focus-visible {
+	outline: 2px solid var(--os-ui-accent);
+	outline-offset: 2px;
+	border-radius: 8px;
+}
+
+.snt-app[data-os-app="sn-analytics"] .sn-an-headline .sn-an-signal-chips {
+	display: grid;
+	gap: 12px;
 }
 
 /* Shared report helpers still carry classic light colors. Pair their native
