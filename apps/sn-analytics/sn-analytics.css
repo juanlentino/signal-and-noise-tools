@@ -110,9 +110,19 @@
 	text-align: center;
 }
 
+/* Native tabbed windows insert these two auto-height wrappers before .os-app
+ * (OpenStation's native-window renderer). Size containment removes the app's
+ * intrinsic height, so explicitly carry the window body's height through both.
+ * Scope to Analytics mount roots; do not change other apps or hidden panels. */
+.os-window__body--native > os-stack:has( > os-tabpanel > .os-app[data-os-app="sn-analytics"] ),
+.os-window__body--native > os-stack > os-tabpanel:has( > .os-app[data-os-app="sn-analytics"] ) {
+	height: 100%;
+	min-height: 0;
+}
+
 .snt-app.os-app-list[data-os-app="sn-analytics"] {
-	/* The shell supplies a definite height through .os-app. Query both axes:
-	 * a short desktop window can live inside a much taller browser viewport. */
+	/* The native wrappers above and .os-app carry the window body's height.
+	 * Query both axes: short windows can live inside tall browser viewports. */
 	container: snt-analytics / size;
 	display: flex;
 	flex-direction: column;
