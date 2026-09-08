@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Polish native Provenance with compact action-only OpenStation forms, aligned confirmation/refresh buttons, neutral readable status values with contact timestamps in captions, labeled wrapping public keys, and consistent rail spacing. Preserve form nonces, submissions, and the classic panel grouping.
+
 ## [13.106.19] - 2026-09-08 — Restore the native Provenance status rail
 
 ### Fixed

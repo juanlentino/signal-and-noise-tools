@@ -71,7 +71,8 @@ function provenance_post_action( $action, $label, $inner = '', array $opts = arr
 	return \snt_kit_tag(
 		'os-form',
 		array(
-			'class'             => 'snt-form',
+			'class'             => 'snt-form snt-provenance-action',
+			'align'             => 'start',
 			'os-action'         => 'post',
 			'os-arg-pipeline'   => 'admin-post',
 			'submit-label'      => (string) $label,
@@ -153,12 +154,18 @@ function provenance_glance_html( array $sys ) {
 		if ( ! is_array( $card ) ) {
 			continue;
 		}
-		$pill = isset( $card['pill'] ) && is_array( $card['pill'] ) ? $card['pill'] : array();
-		$kind = (string) ( $pill['kind'] ?? '' );
+		$pill    = isset( $card['pill'] ) && is_array( $card['pill'] ) ? $card['pill'] : array();
+		$kind    = (string) ( $pill['kind'] ?? '' );
+		$value   = (string) ( $card['value'] ?? '' );
+		$caption = '' !== $kind ? (string) ( $pill['text'] ?? '' ) : '';
+		if ( 'Worker' === ( $card['label'] ?? '' ) && false !== strpos( $value, ' · ' ) ) {
+			list( $value, $contact ) = explode( ' · ', $value, 2 );
+			$caption = trim( $caption . ' · ' . $contact, ' ·' );
+		}
 		$out .= \snt_kit_stat(
-			(string) ( $card['value'] ?? '' ),
+			$value,
 			(string) ( $card['label'] ?? '' ),
-			'' !== $kind ? (string) ( $pill['text'] ?? '' ) : '',
+			$caption,
 			$kind
 		);
 	}
@@ -224,7 +231,7 @@ function provenance_system_html( array $sys ) {
 
 	$pubkey = (string) ( $sys['pubkey'] ?? '' );
 	if ( '' !== $pubkey ) {
-		$inner .= \snt_kit_code( $pubkey, false );
+		$inner .= '<p class="snt-provenance-key"><span class="snt-hint">' . \snt_kit_esc( __( 'Public signing key', 'signal-and-noise-tools' ) ) . '</span><br>' . \snt_kit_code( $pubkey, false ) . '</p>';
 	}
 
 	$sk = isset( $sys['signing_key'] ) && is_array( $sys['signing_key'] ) ? $sys['signing_key'] : array();
@@ -427,10 +434,9 @@ function provenance_commits_html( array $data ) {
 		$inner .= provenance_sweep_notice_html( (string) $data['swept_flag'], $data['sweep_result'] );
 	}
 	$inner .= '<p class="snt-hint">' . \snt_kit_esc( __( 'Ask the Worker to check pending proofs against Bitcoin now, rather than waiting for the hourly sweep.', 'signal-and-noise-tools' ) ) . '</p>'
-		. '<os-cluster gap="8">'
-		. provenance_post_action( 'sn_prov_runsweep', __( 'Check for confirmations', 'signal-and-noise-tools' ) )
-		. \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost' ) )
-		. '</os-cluster>'
+		. provenance_post_action( 'sn_prov_runsweep', __( 'Check for confirmations', 'signal-and-noise-tools' ),
+			'<span slot="footer-trailing">' . \snt_kit_button( __( 'Refresh', 'signal-and-noise-tools' ), 'refresh', array( 'variant' => 'ghost' ) ) . '</span>'
+		)
 		. $table;
 	return \snt_kit_section( __( 'Commits', 'signal-and-noise-tools' ), $inner );
 }
@@ -455,7 +461,7 @@ function provenance_backfill_html( array $data ) {
 		foreach ( (array) ( $result['skipped'] ?? array() ) as $reason => $n ) {
 			$skips[] = $reason . ' ×' . (int) $n;
 		}
-		$kind = empty( $result['skipped'] ) ? 'ok' : 'warn';
+		$kind    = empty( $result['skipped'] ) ? 'ok' : 'warn';
 		$body = sprintf(
 			/* translators: 1: number of imported commits, 2: number of repaired commits. */
 			__( 'Imported %1$s confirmed anchors from the ledger, and repaired %2$s missing signatures.', 'signal-and-noise-tools' ),
@@ -506,7 +512,7 @@ function paint_tools_provenance( array $ctx ) {
 	$data = provenance_data( $ctx );
 	$sys  = $data['sys'];
 
-	$out  = '<section aria-label="Provenance at a glance">' . provenance_glance_html( $sys ) . '</section>';
+	$out  = '<div class="snt-provenance"><section aria-label="Provenance at a glance">' . provenance_glance_html( $sys ) . '</section>';
 	$out .= '<div class="snt-2up snt-provenance-columns"><div class="snt-2up-col">';
 	$out .= provenance_commits_html( $data );
 	$out .= provenance_backfill_html( $data );
@@ -514,7 +520,7 @@ function paint_tools_provenance( array $ctx ) {
 	$out .= provenance_system_html( $sys );
 	$out .= provenance_rotation_html( $data['commitment'] );
 	$out .= provenance_genesis_html( $sys, $data['reanchor_flag'] );
-	return $out . '</aside></div>';
+	return $out . '</aside></div></div>';
 }
 
 add_filter(
