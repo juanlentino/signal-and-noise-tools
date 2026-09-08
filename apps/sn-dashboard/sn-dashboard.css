@@ -796,3 +796,42 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] select,
 html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea {
 	font-size: 16px;
 }
+
+/* Provenance uses native forms, but these actions have no visible fields. */
+.snt-provenance {
+	display: grid;
+	gap: 18px;
+	min-width: 0;
+}
+.snt-provenance os-stat {
+	--os-ui-stat-value-color: var( --os-ui-fg );
+}
+.snt-provenance os-stat::part( value ) {
+	overflow-wrap: anywhere;
+}
+.snt-provenance .snt-2up-col > os-section {
+	margin-block: 0;
+}
+.snt-provenance-action {
+	margin-block: 14px;
+}
+.snt-provenance-action::part( header ),
+.snt-provenance-action::part( fields ) {
+	display: none;
+}
+.snt-provenance-action::part( footer ) {
+	border-top: 0;
+	padding-top: 0;
+}
+.snt-provenance .snt-kv__v,
+.snt-provenance-key code {
+	overflow-wrap: anywhere;
+}
+.snt-provenance-key {
+	line-height: 1.6;
+}
+.snt-provenance .snt-kv__v code {
+	display: inline-block;
+	max-width: 100%;
+	vertical-align: middle;
+}
