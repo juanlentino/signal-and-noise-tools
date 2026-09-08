@@ -12,6 +12,13 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Base Analytics scrolling on the app container's height as well as its width, so short desktop windows remain usable inside tall browser viewports while wide, tall windows retain fixed controls.
+- Allow long inline code values and URLs in native facts lists, including Home's IndexNow key URL, to wrap without changing link targets or copyable text.
+
+### Added
+- Shell-CSS geometry regression coverage with independently varied browser and app dimensions, a complete Campaigns route with fixture readers, and actual IndexNow/Performance painters. Assertions check clipping ancestors, report and final table-row reachability, horizontal overflow, and URL preservation; this is not installed-PWA or full-shell interaction verification.
+
 ## [13.107.0] - 2026-09-08 — Responsive mobile/desktop layout for S&N Home and Analytics, visible Refresh controls, regression harness
 
 ### Added

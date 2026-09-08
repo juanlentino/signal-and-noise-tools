@@ -111,7 +111,9 @@
 }
 
 .snt-app.os-app-list[data-os-app="sn-analytics"] {
-	container: snt-analytics / inline-size;
+	/* The shell supplies a definite height through .os-app. Query both axes:
+	 * a short desktop window can live inside a much taller browser viewport. */
+	container: snt-analytics / size;
 	display: flex;
 	flex-direction: column;
 	gap: 0;
@@ -138,13 +140,7 @@
 	flex: 0 0 auto;
 }
 
-@container snt-analytics (max-width: 820px) {
-	.snt-report-scroll { overflow: auto; }
-	.snt-report-scroll > .snt-report-body { flex: 0 0 auto; }
-	.snt-app[data-os-app="sn-analytics"] .snt-report-body > .snt-view { overflow: visible; }
-}
-
-@media (max-height: 580px) {
+@container snt-analytics (max-width: 820px) or (max-height: 580px) {
 	.snt-report-scroll { overflow: auto; }
 	.snt-report-scroll > .snt-report-body { flex: 0 0 auto; }
 	.snt-app[data-os-app="sn-analytics"] .snt-report-body > .snt-view { overflow: visible; }
