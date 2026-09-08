@@ -198,6 +198,9 @@ function sn_audit_export_build_csv( array $view ) {
 		'lockout_triggered',
 		'password_reset',
 		'unique_ips_count',
+		'mfa_failed',
+		'mfa_throttled',
+		'mfa_other',
 	);
 	sn_audit_export_fputcsv( $fh, $counter_cols );
 	foreach ( $counters as $row ) {

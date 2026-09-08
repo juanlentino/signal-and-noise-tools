@@ -60,7 +60,11 @@ function snt_security_digest_collect() {
 		$failed  = 0;
 		$recon   = 0;
 		$locked  = 0;
+		$mfa     = array( 'mfa_failed' => 0, 'mfa_throttled' => 0, 'mfa_other' => 0 );
 		foreach ( (array) $days as $row ) {
+			foreach ( $mfa as $key => $count ) {
+				$mfa[ $key ] += (int) ( $row[ $key ] ?? 0 );
+			}
 			$failed += (int) ( $row['login_failed'] ?? 0 );
 			$recon  += (int) ( $row['wp_login_404'] ?? 0 ) + (int) ( $row['wp_admin_unauth_404'] ?? 0 );
 			$locked += (int) ( $row['lockout_triggered'] ?? 0 );
@@ -73,6 +77,7 @@ function snt_security_digest_collect() {
 			'prior_7d'    => (int) ( $trend['prior'] ?? 0 ),
 			'pct_delta'   => (int) ( $trend['pct_delta'] ?? 0 ),
 			'failed_7d'   => $failed,
+			'mfa_7d'      => $mfa,
 			'recon_7d'    => $recon,
 			'lockouts_7d' => $locked,
 		);
@@ -164,6 +169,10 @@ function snt_security_digest_compose( $data ) {
 		$sign    = $audit['pct_delta'] >= 0 ? '+' : '';
 		$lines[] = 'Site audit (WordPress layer)';
 		$lines[] = '  Failed logins: ' . number_format_i18n( $audit['failed_7d'] );
+		if ( isset( $audit['mfa_7d'] ) ) {
+			$mfa = $audit['mfa_7d'];
+			$lines[] = '  Included MFA errors: ' . (int) $mfa['mfa_failed'] . ' rejected, ' . (int) $mfa['mfa_throttled'] . ' rate-limited, ' . (int) $mfa['mfa_other'] . ' other. Older failures are unclassified.';
+		}
 		$lines[] = '  Recon probes (login/admin 404s): ' . number_format_i18n( $audit['recon_7d'] );
 		$lines[] = '  Lockouts: ' . number_format_i18n( $audit['lockouts_7d'] );
 		$lines[] = '  All audit events: ' . number_format_i18n( $audit['events_7d'] )

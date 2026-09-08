@@ -55,7 +55,7 @@ function snt_audit_get_summary_impl() {
 	);
 }
 function snt_audit_get_counters_impl( $days ) {
-	return array( array( 'date' => '2026-07-01', 'login_failed' => 2, 'wp_login_404' => 1, 'wp_admin_unauth_404' => 0, 'lockout_triggered' => 0, 'password_reset' => 0, 'unique_ips_count' => 3 ) );
+	return array( array( 'date' => '2026-07-01', 'login_failed' => 2, 'mfa_failed' => 1, 'mfa_throttled' => 1, 'mfa_other' => 0, 'wp_login_404' => 1, 'wp_admin_unauth_404' => 0, 'lockout_triggered' => 0, 'password_reset' => 0, 'unique_ips_count' => 3 ) );
 }
 $GLOBALS['__logins'] = array( array( 'formatted' => '2026-07-01 10:00:00', 'user' => 'admin' ) );
 function snt_audit_get_login_successes_impl( $days ) {
@@ -80,6 +80,7 @@ ob_start();
 snt_audit_log_render_tab();
 $html = ob_get_clean();
 
+al_ok( false !== strpos( $html, '<td>1 / 1 / 0</td>' ), 'classic audit renders MFA subsets' );
 echo "\nGroup: audit-log renders through the two-column shell\n";
 al_ok( false !== strpos( $html, 'class="sn-shell"' ), 'opens the sn-shell wrapper' );
 al_ok( false !== strpos( $html, 'sn-shell__main' ), 'has a main column' );

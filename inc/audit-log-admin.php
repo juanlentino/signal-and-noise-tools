@@ -147,11 +147,13 @@ function snt_audit_log_render_counter_table( $counters ) {
 	// cross-surface reference; in-page consistency wins. The .snt-scroll-table
 	// wrapper stays nested so the 30-row timeline keeps its sticky-header scroll.
 	echo '<div class="sn-fieldset sn-fieldset--wide"><h2 class="sn-fieldset-h">Counter timeline (last 30 days)</h2>';
+	echo '<p class="sn-field-helper">MFA details are included in Failed, not additional events. Older failures are unclassified; a rejected factor does not by itself prove an attack.</p>';
 	echo '<div class="snt-scroll-table">';
 	echo '<table class="widefat sn-audit-timeline">';
 	echo '<thead><tr>';
 	echo '<th scope="col">Date</th>';
 	echo '<th scope="col">Failed</th>';
+	echo '<th scope="col">MFA: rejected / limited / other</th>';
 	echo '<th scope="col">Login 404</th>';
 	echo '<th scope="col">Admin 404</th>';
 	echo '<th scope="col">Lockouts</th>';
@@ -165,6 +167,7 @@ function snt_audit_log_render_counter_table( $counters ) {
 		echo '<tr class="' . esc_attr( trim( $row_class ) ) . '">';
 		echo '<td>' . esc_html( $row['date'] ) . '</td>';
 		echo '<td>' . (int) $row['login_failed'] . '</td>';
+		echo '<td>' . (int) ( $row['mfa_failed'] ?? 0 ) . ' / ' . (int) ( $row['mfa_throttled'] ?? 0 ) . ' / ' . (int) ( $row['mfa_other'] ?? 0 ) . '</td>';
 		echo '<td>' . (int) $row['wp_login_404'] . '</td>';
 		echo '<td>' . (int) $row['wp_admin_unauth_404'] . '</td>';
 		echo '<td>' . (int) $row['lockout_triggered'] . '</td>';

@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Record MFA-protected logins only after Two-Factor completes verification, including WebAuthn and backup methods. Add MFA rejection, rate-limit, and other-error subsets to audit tables, exports, and the security digest without double-counting failures or storing credentials. Preserve historical records and leave authentication enforcement unchanged.
+
 ## [13.106.20] - 2026-09-08 — Polish native Provenance status and actions
 
 ### Fixed

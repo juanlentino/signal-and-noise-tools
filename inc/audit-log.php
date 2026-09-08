@@ -11,6 +11,9 @@
  *   lockout_triggered     day-bucketed counter (polling fallback — LLA fires no hook)
  *   password_reset        day-bucketed counter
  *
+ * MFA errors are additive fields within login_failed: mfa_failed,
+ * mfa_throttled and mfa_other. Legacy buckets have no classification.
+ *
  * Plus a per-day `unique_ips_count` computed via an ephemeral hashed-IP
  * transient set with 25h TTL. The set rolls forward at day-flip into the
  * long-term counter; the hashes themselves never persist beyond 25h.
@@ -44,6 +47,9 @@ const SN_AUDIT_RETENTION_DAYS = 90;
 const SN_AUDIT_LOGIN_SUCCESS_CAP = 500;
 const SN_AUDIT_PRUNE_HOOK     = 'sn_audit_log_prune';
 const SN_AUDIT_LLA_LAST_COUNT_OPT = 'sn_audit_lla_last_lockout_count';
+
+// Subsets of login_failed, never additional events in summary totals.
+const SN_AUDIT_MFA_FAILURE_TYPES = array( 'mfa_failed', 'mfa_throttled', 'mfa_other' );
 
 const SN_AUDIT_COUNTER_TYPES = array(
 	'login_failed',
@@ -107,8 +113,9 @@ function snt_audit_today_key() {
  *
  * @param string      $event_type One of SN_AUDIT_COUNTER_TYPES.
  * @param string|null $ip         Raw IP (will be hashed). Optional.
+ * @param string      $mfa_type   Optional MFA subset of login_failed.
  */
-function snt_audit_increment_counter_impl( $event_type, $ip = null ) {
+function snt_audit_increment_counter_impl( $event_type, $ip = null, $mfa_type = '' ) {
 	if ( ! in_array( $event_type, SN_AUDIT_COUNTER_TYPES, true ) ) {
 		return;
 	}
@@ -122,6 +129,10 @@ function snt_audit_increment_counter_impl( $event_type, $ip = null ) {
 	}
 
 	$blob['counters'][ $today ][ $event_type ] = (int) ( $blob['counters'][ $today ][ $event_type ] ?? 0 ) + 1;
+
+	if ( 'login_failed' === $event_type && in_array( $mfa_type, SN_AUDIT_MFA_FAILURE_TYPES, true ) ) {
+		$blob['counters'][ $today ][ $mfa_type ] = (int) ( $blob['counters'][ $today ][ $mfa_type ] ?? 0 ) + 1;
+	}
 
 	// Update unique-IPs transient set if we have an IP.
 	if ( null !== $ip && '' !== $ip ) {
@@ -180,6 +191,9 @@ function snt_audit_get_counters_impl( $days = 30 ) {
 		$out[]  = array(
 			'date'                => $date,
 			'login_failed'        => (int) ( $bucket['login_failed']        ?? 0 ),
+			'mfa_failed'          => (int) ( $bucket['mfa_failed'] ?? 0 ),
+			'mfa_throttled'       => (int) ( $bucket['mfa_throttled'] ?? 0 ),
+			'mfa_other'           => (int) ( $bucket['mfa_other'] ?? 0 ),
 			'wp_login_404'        => (int) ( $bucket['wp_login_404']        ?? 0 ),
 			'wp_admin_unauth_404' => (int) ( $bucket['wp_admin_unauth_404'] ?? 0 ),
 			'lockout_triggered'   => (int) ( $bucket['lockout_triggered']   ?? 0 ),
@@ -371,21 +385,61 @@ function snt_audit_read_lla_summary_impl() {
  * @param WP_User $user       User object.
  */
 function snt_audit_capture_login_success_cb( $user_login, $user ) {
-	$user_id = $user instanceof WP_User ? (int) $user->ID : 0;
-	snt_audit_record_login_success_impl( $user_id, $user_login );
+	if ( ! $user instanceof WP_User ) {
+		return;
+	}
+	// Two-Factor runs later on wp_login and exits into the MFA challenge.
+	// Its public provider check includes WebAuthn and backup providers.
+	$check = array( 'Two_Factor_Core', 'is_user_using_two_factor' );
+	if ( is_callable( $check ) && call_user_func( $check, $user->ID ) ) {
+		return;
+	}
+	snt_audit_record_login_success_impl( (int) $user->ID, $user_login );
 }
 add_action( 'wp_login', 'snt_audit_capture_login_success_cb', 10, 2 );
 
 /**
- * wp_login_failed action callback. Increments the daily counter + updates unique-IPs.
+ * Record a completed MFA login. Revalidation is not a new login.
  *
- * @param string $username The username that failed auth (unused for now; future PII consideration).
+ * @param WP_User $user Authenticated user supplied by Two-Factor.
  */
-function snt_audit_capture_login_failed_cb( $username ) {
-	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '';
-	snt_audit_increment_counter_impl( 'login_failed', $ip );
+function snt_audit_capture_mfa_success_cb( $user ) {
+	if ( $user instanceof WP_User ) {
+		snt_audit_record_login_success_impl( (int) $user->ID, $user->user_login );
+	}
 }
-add_action( 'wp_login_failed', 'snt_audit_capture_login_failed_cb', 10, 1 );
+add_action( 'two_factor_user_authenticated', 'snt_audit_capture_mfa_success_cb', 10, 1 );
+
+/**
+ * Capture one failure, retaining MFA error categories without error text or credentials.
+ *
+ * Two-Factor forwards provider failures to wp_login_failed. Listening to the
+ * WebAuthn provider's own failure hook as well would count the same event twice.
+ *
+ * @param string        $username Login username (not stored).
+ * @param WP_Error|null $error    Authentication errors, absent on older callers.
+ */
+function snt_audit_capture_login_failed_cb( $username, $error = null ) {
+	$mfa_type = '';
+	if ( $error instanceof WP_Error ) {
+		$codes = $error->get_error_codes();
+		if ( in_array( 'two_factor_invalid', $codes, true ) ) {
+			$mfa_type = 'mfa_failed';
+		} elseif ( in_array( 'two_factor_too_fast', $codes, true ) ) {
+			$mfa_type = 'mfa_throttled';
+		} else {
+			foreach ( $codes as $code ) {
+				if ( is_string( $code ) && 0 === strpos( $code, 'two_factor_' ) ) {
+					$mfa_type = 'mfa_other';
+					break;
+				}
+			}
+		}
+	}
+	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '';
+	snt_audit_increment_counter_impl( 'login_failed', $ip, $mfa_type );
+}
+add_action( 'wp_login_failed', 'snt_audit_capture_login_failed_cb', 10, 2 );
 
 /**
  * after_password_reset action callback. Increments the daily counter.

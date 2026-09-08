@@ -61,6 +61,9 @@ $GLOBALS['__options']['sn_audit_log_v1'] = array(
 	'counters'       => array(
 		day_key( 0 ) => array(
 			'login_failed'        => 5,
+			'mfa_failed'          => 2,
+			'mfa_throttled'       => 1,
+			'mfa_other'           => 1,
 			'wp_login_404'        => 3,
 			'wp_admin_unauth_404' => 1,
 			'lockout_triggered'   => 0,
@@ -92,6 +95,8 @@ ok( false !== strpos( $kit, 'value="2"' ), 'unique attackers (24h) and active lo
 ok( false !== strpos( $kit, 'locked' ), 'two active lockouts paint the "locked" LLA pill' );
 
 // ── Counter timeline table: the same day-bucket, the same counts.
+ok( false !== strpos( $kit, '&quot;mfa_detail&quot;:&quot;2 / 1 / 1&quot;' ), 'native audit renders populated MFA subsets' );
+ok( false !== strpos( $kit, 'included in Failed' ) && false !== strpos( $classic, 'included in Failed' ), 'both surfaces explain subsets and legacy coverage' );
 ok( false !== strpos( $kit, '&quot;login_failed&quot;:5' ) && false !== strpos( $kit, '&quot;wp_login_404&quot;:3' ) && false !== strpos( $kit, '&quot;wp_admin_unauth_404&quot;:1' ), 'the counter timeline carries the populated day-bucket counts' );
 
 // ── Recent logins: all three users, newest-first count in the disclosure heading.

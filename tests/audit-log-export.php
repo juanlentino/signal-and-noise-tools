@@ -87,6 +87,9 @@ if ( ! function_exists( 'snt_audit_get_counters_impl' ) ) {
 			array(
 				'date'                => '2026-06-01',
 				'login_failed'        => 4,
+				'mfa_failed'          => 2,
+				'mfa_throttled'       => 1,
+				'mfa_other'           => 0,
 				'wp_login_404'        => 12,
 				'wp_admin_unauth_404' => 3,
 				'lockout_triggered'   => 1,
@@ -163,6 +166,7 @@ assertEq( 'https://juanlentino.com/', $decoded['site'], 'JSON site = home_url' )
 assertTrue( isset( $decoded['generated_at'] ) && is_int( $decoded['generated_at'] ), 'JSON generated_at is an int timestamp' );
 assertEq( 'juan', $decoded['login_successes'][0]['user'], 'JSON carries seeded username juan' );
 assertEq( 4, $decoded['counters'][0]['login_failed'], 'JSON carries seeded counter value' );
+assertEq( 2, $decoded['counters'][0]['mfa_failed'], 'JSON preserves MFA subset' );
 assertEq( '2026-06-01', $decoded['counters'][0]['date'], 'JSON carries seeded counter date' );
 
 // ════════════════════════════════════════════════════════════════════
@@ -171,6 +175,11 @@ assertEq( '2026-06-01', $decoded['counters'][0]['date'], 'JSON carries seeded co
 
 $csv = sn_audit_export_build_csv( $view );
 assertTrue( is_string( $csv ) && '' !== $csv, 'CSV builder returns a non-empty string' );
+$csv_lines = explode( "\n", trim( $csv ) );
+$csv_keys = str_getcsv( $csv_lines[1], ',', '"', '' );
+$csv_row = array_combine( $csv_keys, str_getcsv( $csv_lines[2], ',', '"', '' ) );
+assertEq( '2', $csv_row['mfa_failed'], 'CSV preserves MFA rejection count' );
+assertEq( '1', $csv_row['mfa_throttled'], 'CSV preserves MFA rate-limit count' );
 assertTrue( false !== strpos( $csv, '# counters' ), 'CSV has the # counters section marker' );
 assertTrue( false !== strpos( $csv, '# login_successes' ), 'CSV has the # login_successes section marker' );
 assertTrue( false !== strpos( $csv, '2026-06-01' ), 'CSV contains a seeded date' );
