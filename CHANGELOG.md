@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.107.3] - 2026-09-08 — Responsive Analytics without hiding information
+
 ### Changed
 - Recompose native Analytics into visible period, traffic/exclusion, and action groups that wrap with the app window. Keep Range, Compare, Human/Suspect/Bot, filtered counts, CSV, JSON and Refresh available without a sheet or overflow menu. Increase the actual traffic-segment and export targets rather than shrinking controls.
 - Present native insight signals as a readable status, full explanation and explicitly labeled confidence, replacing the oversized capsule. Keep the period summary, every signal and the existing Full insights disclosure behavior; classic admin presentation is unchanged.
@@ -22,12 +24,4 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Added
 - Real Overview route fixtures for no-forecast and actionable-warning states, with toolkit keyboard/touch, popover Escape/focus, filter/date/Refresh round trips through PHP and DOM morph, export payload, disclosure, and native-window sizing/scroll regressions. Document the local harness and its non-production limits.
-
-## [13.107.2] - 2026-09-08 — Restore native Analytics mobile height chain
-
-### Fixed
-- Restore blank native Analytics reports by carrying the window body height through the shell’s tab stack and panel wrappers. Keep hidden panels hidden and limit the height rule to Analytics mounts; retain container-aware scrolling.
-
-### Added
-- Mobile shell geometry regression with actual mobile CSS and native tab wrappers, browser/standalone markers and mobile–desktop–mobile transitions. Strengthen desktop coverage with native Analytics wrappers, hidden-panel assertions, and Analytics CSS loaded alongside Home/other leaves.
 
