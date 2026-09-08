@@ -57,9 +57,14 @@ function audit_log_glance_html( array $summary ) {
  * @return string
  */
 function audit_log_counter_table_html( array $counters ) {
+	foreach ( $counters as &$row ) {
+		$row['mfa_detail'] = (int) ( $row['mfa_failed'] ?? 0 ) . ' / ' . (int) ( $row['mfa_throttled'] ?? 0 ) . ' / ' . (int) ( $row['mfa_other'] ?? 0 );
+	}
+	unset( $row );
 	$columns = array(
 		array( 'key' => 'date', 'label' => __( 'Date', 'signal-and-noise-tools' ) ),
 		array( 'key' => 'login_failed', 'label' => __( 'Failed', 'signal-and-noise-tools' ), 'align' => 'end' ),
+		array( 'key' => 'mfa_detail', 'label' => __( 'MFA: rejected / limited / other', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'wp_login_404', 'label' => __( 'Login 404', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'wp_admin_unauth_404', 'label' => __( 'Admin 404', 'signal-and-noise-tools' ), 'align' => 'end' ),
 		array( 'key' => 'lockout_triggered', 'label' => __( 'Lockouts', 'signal-and-noise-tools' ), 'align' => 'end' ),
@@ -68,7 +73,8 @@ function audit_log_counter_table_html( array $counters ) {
 	);
 	return \snt_kit_section(
 		__( 'Counter timeline (last 30 days)', 'signal-and-noise-tools' ),
-		\snt_kit_table( $columns, $counters, array( 'empty' => __( 'No counter data yet.', 'signal-and-noise-tools' ) ) )
+		'<p class="snt-prose">' . \snt_kit_esc( __( 'MFA details are included in Failed, not additional events. Older failures are unclassified; a rejected factor does not by itself prove an attack.', 'signal-and-noise-tools' ) ) . '</p>'
+		. \snt_kit_table( $columns, $counters, array( 'empty' => __( 'No counter data yet.', 'signal-and-noise-tools' ) ) )
 	);
 }
 
