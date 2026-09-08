@@ -507,12 +507,14 @@ function paint_tools_provenance( array $ctx ) {
 	$sys  = $data['sys'];
 
 	$out  = '<section aria-label="Provenance at a glance">' . provenance_glance_html( $sys ) . '</section>';
+	$out .= '<div class="snt-2up snt-provenance-columns"><div class="snt-2up-col">';
 	$out .= provenance_commits_html( $data );
 	$out .= provenance_backfill_html( $data );
+	$out .= '</div><aside class="snt-2up-col" aria-label="' . esc_attr( __( 'Provenance status', 'signal-and-noise-tools' ) ) . '">';
 	$out .= provenance_system_html( $sys );
 	$out .= provenance_rotation_html( $data['commitment'] );
 	$out .= provenance_genesis_html( $sys, $data['reanchor_flag'] );
-	return $out;
+	return $out . '</aside></div>';
 }
 
 add_filter(

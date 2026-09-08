@@ -70,6 +70,10 @@
 	width: 100%;
 }
 
+.snt-provenance-columns {
+	grid-template-columns: minmax( 0, 1.7fr ) minmax( 0, 1fr );
+}
+
 .snt-2up > * {
 	min-width: 0;
 }
