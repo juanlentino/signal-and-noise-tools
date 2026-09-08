@@ -113,6 +113,50 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-09-08 (board re-rank, no bump) — the queue had drained: every row in "Ready to
+  build" was struck or shipped, so nothing was schedulable and nothing had been promoted
+  to refill it. Landed the corrections and demotions the owner asked for; **no
+  promotions** — priorities are the owner's to reorder, and the recommended set is
+  recorded below rather than queued.
+  **Struck (duplicate):** Proof of origin/considering "A second, independent anchor" —
+  the parked watch *Second timestamp anchor (2026-08-28)* already owns this item AND
+  carries two named triggers, so the considering row was the same idea in a weaker state.
+  One item, one home; the watch is the better one because a deferral's revisit condition
+  is the question.
+  **Demoted considering → later:** AI "Scheduled read-only agent runs" (downstream of a
+  gate that has not opened — this family's planned row moves the operative AI channel to
+  the native agents and that arc is DISABLED); Analytics "A reading ledger that never
+  phones home" (reader-facing browser-local state, no measurement payoff, nearest
+  neighbour of the denied perimeter); Proof of origin "A witness that is a peer" (needs a
+  SECOND SITE to agree and there is no candidate — blocked-on-a-partner, not considering).
+  Board tripwires answered: no column emptied (Analytics considering 3→2, Proof of origin
+  5→3, AI 2→1) and `done` was not touched, so `SN_MATURITY_ROADMAP_MAX_DONE` is untested
+  by this change. Suites green: maturity-roadmap-shortcode 134, health-check-roadmap-drift 16.
+
+  **FLAGGED, NOT DONE — needs the owner's pick.** Analytics/**later** "Verified versus
+  claimed: crawler request signatures checked at the edge and recorded in the ledger" is
+  **already shipped** — `sn-rights-signals-worker/src/web-bot-auth.mjs` verifies
+  signatures at the edge, and `signed_agent` is normalized
+  (`inc/machine-readers-taxonomy.php:112`) and rendered
+  (`inc/machine-readers-render.php:473`). It is sitting in the LOWEST commitment tier
+  describing live work. It cannot simply graduate: Analytics `done` is at 4 and the CI
+  canary reds one row BEFORE the wall of 5, so a graduation requires retiring an existing
+  Analytics done row — an editorial call, and the precedent (2026-08-28) is that the
+  retired row must be self-evidencing or graduate onto a maturity page. There is also a
+  claim caveat: the row's wording ("separate cryptographic fact from a user-agent
+  costume") is exactly the reading memory warns against citing without naming WHO signs —
+  the measured population is Ahrefs + headless Chrome, zero AI vendors. Two decisions,
+  both yours: which done row makes way, and whether the sentence is rewritten honestly
+  first.
+
+  **Recommended promotions, NOT queued** (owner reorders): 1) Operations "Journey checks,
+  not pings" — BetterStack asserts a 200 and an edge challenge returns 200, so the uptime
+  instrument is known-defeatable; fully buildable with no owner step. 2) Operations "A
+  passkey at the owner's door" — the week hardened everything around the password
+  (breached-credential rejection, MFA-aware audit, signed auth outcomes); WebAuthn already
+  exists as 2FA. 3) Operations "Restore proof, not backup existence". 4) Machine
+  readability "Provenance pointers in the machine surfaces".
+
 - 2026-08-28 (board graduations, v13.28.0) — the PUBLIC BOARD caught up with the day,
   found by the owner ("it's not dry") after I called the queue empty: the board is part
   of the ledger and seven releases had not moved it. AI: "Spend with an address"
