@@ -101,7 +101,7 @@
 		} ) );
 	}
 
-	function renderCard( container, status ) {
+	function renderCard( container, status, stale ) {
 		clearChildren( container );
 
 		var wrap = el( 'div', {
@@ -119,7 +119,7 @@
 
 		[ 'theme', 'plugin' ].forEach( function( pkg ) {
 			var info = status[ pkg ] || {};
-			var glyph = stateGlyph( info.state || 'unknown' );
+			var glyph = stateGlyph( stale ? 'unknown' : ( info.state || 'unknown' ) );
 
 			grid.appendChild( el( 'span', {
 				style: 'opacity:.6;',
@@ -148,7 +148,7 @@
 		// the glyph), state ok/behind/unknown.
 		( Array.isArray( status.workers ) ? status.workers : [] ).forEach( function( w ) {
 			if ( ! w || typeof w !== 'object' ) { return; }
-			var wGlyph = stateGlyph( w.state || 'unknown' );
+			var wGlyph = stateGlyph( stale ? 'unknown' : ( w.state || 'unknown' ) );
 			grid.appendChild( el( 'span', {
 				style: 'opacity:.6;',
 				text:  w.label || w.id || 'worker',
@@ -220,41 +220,78 @@
 		if ( ! container ) { return function() {}; }
 
 		var torn = false;
+		var timer = null;
+		var pending = false;
+		var controller = null;
+		var lastGood = null;
+		var lastSuccess = '';
+		var failures = 0;
 		renderLoading( container );
 
 		function refresh() {
-			if ( torn ) { return; }
-			if ( ! window.sntAbilityRun ) {
-				renderError( container, 'sntAbilityRun unavailable' );
-				return;
+			if ( torn || pending ) { return; }
+			pending = true;
+			if ( lastGood ) {
+				renderCard( container, lastGood, true );
+				container.insertBefore( el( 'p', {
+					text: 'Stale — refreshing. Last successful refresh: ' + lastSuccess,
+					style: 'padding:0 16px;font-size:12px;color:#d29922;'
+				} ), container.firstChild );
 			}
-			// v7.7.2: readonly ability → the runner GETs it (POST 405'd).
-			window.sntAbilityRun( 'get-deploy-status' )
-				.then( function( res ) {
-					if ( torn ) { return; }
-					// The ability returns { theme, plugin, last_deploy,
-					// last_deploy_component, last_gha_run }
-					// at the root (no legacy { ok, data } envelope). v9.63.3:
-					// last_deploy reads the MERGED feed (wp-admin installs + GHA
-					// runs), so wp-admin Updates installs finally move this line;
-					// last_gha_run is the old GHA-only reading, kept additively.
-					if ( res && res.theme ) {
-						renderCard( container, res );
-					}
-				} )
-				.catch( function( err ) {
-					if ( torn ) { return; }
-					renderError( container, err && err.message ? err.message : 'unknown' );
+			controller = window.AbortController ? new window.AbortController() : null;
+			var delay = REFRESH_MS;
+			// Promise boundary also handles a missing runner or a synchronous throw.
+			Promise.resolve().then( function() {
+				if ( torn ) { return; }
+				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( 'sntAbilityRun unavailable' ); }
+				return window.sntAbilityRun( 'get-deploy-status', undefined, { signal: controller ? controller.signal : undefined } );
+			} ).then( function( res ) {
+				if ( torn ) { return; }
+				var validPackages = res && typeof res === 'object' && ! Array.isArray( res ) && [ 'theme', 'plugin' ].every( function( name ) {
+					var info = res[ name ];
+					return info && typeof info === 'object' && ! Array.isArray( info ) &&
+						typeof info.current === 'string' && typeof info.state === 'string' && info.state.length > 0;
 				} );
+				if ( ! validPackages ) { throw new Error( 'Invalid deploy status response' ); }
+				lastGood = res;
+				lastSuccess = new Date().toISOString();
+				failures = 0;
+				renderCard( container, res );
+				container.appendChild( el( 'p', { text: 'Last successful refresh: ' + lastSuccess, style: 'padding:0 16px;font-size:11px;opacity:.6;' } ) );
+			} ).catch( function( err ) {
+				if ( torn ) { return; }
+				failures++;
+				delay = Math.min( 15 * 60 * 1000, REFRESH_MS * Math.pow( 2, Math.min( failures - 1, 4 ) ) );
+				// wp.apiFetch rejects with parsed WP_Error JSON, NOT a Response.
+				var retry = Number( err && err.data && err.data.retry_after );
+				// Reject malformed hints beyond the browser's signed 32-bit timer range.
+				if ( isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
+				var message = ( err && err.message ) || 'unknown error';
+				if ( lastGood ) {
+					renderCard( container, lastGood, true );
+				} else {
+					renderError( container, message );
+				}
+				var notice = el( 'p', {
+					text: ( lastGood ? 'Stale — last successful refresh: ' + lastSuccess + '. ' : 'No successful refresh yet. ' ) +
+						'Current status unavailable: ' + message + '. Retry after ' + new Date( Date.now() + delay ).toISOString(),
+					style: 'padding:0 16px;font-size:12px;color:#d29922;'
+				} );
+				notice.setAttribute( 'role', 'status' );
+				container.insertBefore( notice, container.firstChild );
+			} ).then( function() {
+				pending = false;
+				controller = null;
+				if ( ! torn ) { timer = window.setTimeout( refresh, delay ); }
+			} );
 		}
 
 		refresh();
 
-		var intervalId = window.setInterval( refresh, REFRESH_MS );
-
 		return function teardown() {
 			torn = true;
-			window.clearInterval( intervalId );
+			window.clearTimeout( timer );
+			if ( controller ) { controller.abort(); }
 			container.textContent = '';
 		};
 	}

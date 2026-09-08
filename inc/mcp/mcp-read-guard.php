@@ -122,16 +122,13 @@ function sn_mcp_read_rate_limit_store_get( $key ) {
  * @param string $key
  * @param int    $count
  * @param int    $ttl_seconds
- * @return void
+ * @return bool Whether the write succeeded.
  */
 function sn_mcp_read_rate_limit_store_set( $key, $count, $ttl_seconds ) {
 	if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() && function_exists( 'wp_cache_set' ) ) {
-		wp_cache_set( $key, (int) $count, SN_MCP_READ_RATE_LIMIT_CACHE_GROUP, (int) $ttl_seconds );
-		return;
+		return (bool) wp_cache_set( $key, (int) $count, SN_MCP_READ_RATE_LIMIT_CACHE_GROUP, (int) $ttl_seconds );
 	}
-	if ( function_exists( 'set_transient' ) ) {
-		set_transient( $key, (int) $count, (int) $ttl_seconds );
-	}
+	return function_exists( 'set_transient' ) && set_transient( $key, (int) $count, (int) $ttl_seconds );
 }
 
 /**
@@ -207,24 +204,55 @@ function sn_mcp_read_rate_limit_miss_allows( $fail_closed, $store_available ) {
  * than a change of default: making the local path fail closed too would turn a
  * missing transient store into a silent site-wide availability regression.
  *
- * @param string $identity
- * @param bool   $fail_closed True on the remote path only. @since 13.50.0.
+ * Fixed UTC minute buckets: TTL is housekeeping, never the window clock.
+ * Previously every accepted call renewed a 60s TTL, so modest sustained traffic
+ * accumulated forever until a full minute of silence. A bucket permits 120
+ * calls; like any fixed-window limiter it permits a boundary-straddling burst.
+ * Persistent caches use add/incr to avoid lost updates; the transient fallback
+ * remains best-effort under concurrency (the WP transient API has no CAS).
+ *
+ * @param string   $identity    Caller bucket, shared by all read routes.
+ * @param bool     $fail_closed True on the remote path only. @since 13.50.0.
+ * @param int|null $now         Internal clock seam for deterministic tests; never request input.
  * @return array{allow:bool,retry_after:int}
  */
-function sn_mcp_read_rate_limit_check( $identity, $fail_closed = false ) {
-	$key   = sn_mcp_read_rate_limit_key( $identity );
+function sn_mcp_read_rate_limit_check( $identity, $fail_closed = false, $now = null ) {
+	$now   = null === $now ? time() : (int) $now;
+	$ttl   = SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS - ( $now % SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS );
+	$key   = sn_mcp_read_rate_limit_key( $identity ) . '_' . (string) intdiv( $now, SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS );
+	$deny  = array( 'allow' => false, 'retry_after' => $ttl );
+	$allow = array( 'allow' => true, 'retry_after' => 0 );
+
+	if ( function_exists( 'wp_using_ext_object_cache' ) && wp_using_ext_object_cache() ) {
+		// add wins exactly once; incr preserves expiration and allocates a unique
+		// count to concurrent callers. Never fall back to a non-atomic set here.
+		if ( ! function_exists( 'wp_cache_add' ) || ! function_exists( 'wp_cache_incr' ) ) {
+			return $fail_closed ? $deny : $allow;
+		}
+		if ( wp_cache_add( $key, 1, SN_MCP_READ_RATE_LIMIT_CACHE_GROUP, $ttl ) ) {
+			return $allow;
+		}
+		$count = wp_cache_incr( $key, 1, SN_MCP_READ_RATE_LIMIT_CACHE_GROUP );
+		if ( false === $count ) {
+			return $fail_closed ? $deny : $allow;
+		}
+		return (int) $count <= SN_MCP_READ_RATE_LIMIT_PER_MINUTE ? $allow : $deny;
+	}
+
 	$count = sn_mcp_read_rate_limit_store_get( $key );
 	if ( null === $count ) {
 		if ( ! sn_mcp_read_rate_limit_miss_allows( $fail_closed, sn_mcp_read_rate_limit_store_available() ) ) {
-			return array( 'allow' => false, 'retry_after' => SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS );
+			return $deny;
 		}
 		$count = 0;
 	}
-	if ( sn_mcp_read_rate_limit_decision( $count, SN_MCP_READ_RATE_LIMIT_PER_MINUTE ) ) {
-		sn_mcp_read_rate_limit_store_set( $key, $count + 1, SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS );
-		return array( 'allow' => true, 'retry_after' => 0 );
+	if ( ! sn_mcp_read_rate_limit_decision( $count, SN_MCP_READ_RATE_LIMIT_PER_MINUTE ) ) {
+		return $deny;
 	}
-	return array( 'allow' => false, 'retry_after' => SN_MCP_READ_RATE_LIMIT_WINDOW_SECONDS );
+	if ( ! sn_mcp_read_rate_limit_store_set( $key, $count + 1, $ttl ) && $fail_closed ) {
+		return $deny;
+	}
+	return $allow;
 }
 
 /**
@@ -291,6 +319,10 @@ function sn_mcp_read_guard_is_read_path( $route ) {
 
 /**
  * The current caller's rate-limit identity, from what the request layer exposes.
+ * Authenticated calls deliberately share the WordPress USER bucket, not an
+ * application-password UUID: browser widgets and MCP credentials for that user
+ * consume the same ceiling. No dashboard exemption or credential-based split.
+ * Anonymous callers fall back to REMOTE_ADDR (never a forwarded header).
  *
  * @return string
  */

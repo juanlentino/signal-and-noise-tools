@@ -37,6 +37,9 @@ function apply_filters( $t, $v ) { return $v; }
 function add_filter( $t, $c, $p = 10, $a = 1 ) { return true; }
 $GLOBALS['__options'] = array();
 function get_option( $k, $d = false ) { return array_key_exists( $k, $GLOBALS['__options'] ) ? $GLOBALS['__options'][ $k ] : $d; }
+$GLOBALS['__user_id'] = 0;
+function wp_get_current_user() { return (object) array( 'ID' => $GLOBALS['__user_id'] ); }
+function get_current_user_id() { return $GLOBALS['__user_id']; }
 function current_user_can( $c ) { return true; }
 // A transient-backed store, so the counter is real rather than mocked away.
 $GLOBALS['__t'] = array();
@@ -224,6 +227,36 @@ ok(
 	1 === preg_match( '/sn_mcp_read_rate_limit_check\(\s*\n?\s*sn_mcp_read_rate_limit_current_identity\(\),\s*\n?\s*sn_mcp_read_guard_route_is_remote\(\s*\$route\s*\)/', $rl_src ),
 	'WIRING: dispatch passes the route predicate as the fail-closed flag, not a hardcoded false'
 );
+
+echo "\nGroup: dashboard, MCP and remote reads share one user ceiling\n";
+$GLOBALS['__t'] = array();
+$GLOBALS['__user_id'] = 7;
+$_SERVER['REMOTE_ADDR'] = '192.0.2.1';
+$id_before = sn_mcp_read_rate_limit_current_identity();
+$_SERVER['REMOTE_ADDR'] = '192.0.2.2';
+ok( 'uuid:user7' === $id_before && $id_before === sn_mcp_read_rate_limit_current_identity(), 'authenticated identity is the WP user, independent of client IP' );
+$routes = array(
+	'/wp-abilities/v1/abilities/signal-noise/get-deploy-status/run',
+	'/wp-abilities/v1/abilities/signal-noise/uptime-status/run',
+	$mcp_route,
+	$rl_remote_route,
+);
+$allowed = 0;
+for ( $i = 0; $i < 120; $i++ ) {
+	if ( null === sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $routes[ $i % count( $routes ) ] ) ) ) { $allowed++; }
+}
+ok( 120 === $allowed, 'mixed read routes consume exactly one dispatch count each, with no dashboard bypass' );
+foreach ( $routes as $route ) {
+	$r = sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $route ) );
+	ok( is_wp_error( $r ) && 429 === $r->data['status'] && $r->data['retry_after'] >= 1 && $r->data['retry_after'] <= 60, 'every route sees shared exhaustion and WP REST data.retry_after: ' . $route );
+}
+$GLOBALS['__user_id'] = 8;
+ok( null === sn_mcp_read_guard_rate_limit_dispatch( null, null, new RL_Req( $routes[0] ) ), 'a different WP user retains its own budget' );
+$GLOBALS['__user_id'] = 0;
+$_SERVER['HTTP_X_FORWARDED_FOR'] = '198.51.100.9';
+ok( 'ip:' . md5( '192.0.2.2' ) === sn_mcp_read_rate_limit_current_identity(), 'anonymous identity uses REMOTE_ADDR, not spoofable forwarded headers' );
+unset( $_SERVER['REMOTE_ADDR'], $_SERVER['HTTP_X_FORWARDED_FOR'] );
+ok( 'ip:unknown' === sn_mcp_read_rate_limit_current_identity(), 'missing address is an explicit unknown bucket' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

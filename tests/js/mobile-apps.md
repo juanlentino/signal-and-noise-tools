@@ -111,8 +111,9 @@ It runs the registered Overview callback, canonical header/cards/chart/body and
 insights renderer via `php tests/openstation-app-analytics.php --fixture-overview`.
 `--warning` selects an actionable falling-views signal instead of no-forecast;
 `--json` returns markup plus state. Readers/framework services are deterministic
-fixtures, not analytics observations. Optional Uptime/Movers readers are absent,
-so an empty right rail in these screenshots is not a production design change.
+fixtures, not analytics observations. The shared fixture now supplies deterministic
+Uptime/Movers/release readers and uses their production renderers; populated rail
+values are test data, not production observations.
 
 Nine browser/window geometries, each with both signal states, cover phone
 390×844/430×932, phone landscape 844×390, tablet 768×1024, narrow/medium/wide
@@ -161,6 +162,27 @@ smaller pixel height. Labeled traffic and larger actual touch targets can increa
 phone toolbar height. All controls still scroll with reports in constrained windows;
 wide/tall windows retain fixed controls. No metrics, period totals or methods text
 were removed to win a height assertion.
+
+## Populated Overview composition and widget resilience
+
+`node tests/js/analytics-composition.mjs` uses the same dependency variables above
+and `ANALYTICS_ARTIFACTS` (default `/tmp/snt-analytics-composition`). Its 18 cases
+check metrics/chart before routine forecast/release prose, anomalies before the
+header, 2/3/6-column KPI layouts, aligned period controls, retained explanations,
+sessions, populated Uptime/Movers and keyboard access to the last Uptime column.
+Uptime runs its real client painter with mocked transport. Shell chrome is inert;
+this is not live WordPress, installed-PWA or physical iOS verification. The original
+production screenshot's stacked desktop controls were not reproduced in the
+baseline fixture; this suite verifies the reinforced layout, not that root cause.
+
+`node tests/desktop-status-resilience.cjs` executes both real widgets and the shared
+ability runner with fake DOM, timers and transport. It checks 429/stale retention,
+backoff/recovery, malformed package/row rejection, legitimate unknown deploy state,
+nonoverlap, cancellation and remount. `bash tests/run.sh desktop-status-resilience.php`
+also runs it through the PHP sweep; Node must be installed. Fixed-minute limiter
+coverage runs with `bash tests/run.sh mcp-read-rate-window.php` and
+`bash tests/run.sh mcp-read-rate-limit.php`. Cache fixtures test boundary resets and
+atomic add/incr behavior, not a live cache drop-in's concurrency guarantees.
 
 ## Scoped integration decisions
 

@@ -51,7 +51,9 @@ namespace {
 	$posts = \SignalNoise\OpenStationHost\Analytics\canonical_piece( 'view/posts', $ctx );
 	ok( strpos( $posts['html'], 'lifetime' ) !== false && strpos( $posts['html'], 'queue' ) !== false, 'Posts includes both lifetime report and lifecycle queue' );
 	$header = \SignalNoise\OpenStationHost\Analytics\canonical_piece( 'chrome/header', $ctx );
-	ok( $header['facts']['totals']['views'] === 92 && substr( $header['html'], -6 ) === 'false]', 'header retains totals and suppresses duplicate classic controls' );
+	$header_args = json_decode( $header['html'], true );
+	ok( $header['facts']['totals']['views'] === 92 && $header_args[7] === false, 'header retains totals and suppresses duplicate classic controls' );
+	ok( count( $header_args ) === 9 && $header_args[8] === true, 'native header explicitly places descriptive annotations after metrics/chart' );
 	$insights = \SignalNoise\OpenStationHost\Analytics\canonical_piece( 'chrome/insights', $ctx );
 	ok( strpos( $insights['html'], '<details>' ) !== false, 'insights retain the expandable full digest' );
 	$login = \SignalNoise\OpenStationHost\Analytics\canonical_piece( 'chrome/login-header', $ctx );

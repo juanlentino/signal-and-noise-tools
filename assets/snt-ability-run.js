@@ -57,9 +57,10 @@
 	 * @param {string} slug  Ability slug — bare ('get-audit-log') or
 	 *                       namespaced ('signal-noise/get-audit-log').
 	 * @param {Object} [input] Ability input; omit/empty for input-less calls.
+	 * @param {Object} [options] Optional AbortSignal only; cannot override verb/path.
 	 * @return {Promise} wp.apiFetch promise resolving to the ability output.
 	 */
-	window.sntAbilityRun = function ( slug, input ) {
+	window.sntAbilityRun = function ( slug, input, options ) {
 		var name = -1 === slug.indexOf( '/' ) ? 'signal-noise/' + slug : slug;
 		// Unknown slug (e.g. an ability removed server-side) falls back to
 		// POST — the controller's own default expectation for un-annotated
@@ -67,6 +68,7 @@
 		var verb = VERBS[ name ] || 'POST';
 		var path = '/wp-abilities/v1/abilities/' + name + '/run';
 		var opts = { path: path, method: verb };
+		if ( options && options.signal ) { opts.signal = options.signal; }
 
 		var hasInput = input && 'object' === typeof input && Object.keys( input ).length > 0;
 		if ( hasInput ) {

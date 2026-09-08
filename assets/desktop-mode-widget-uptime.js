@@ -101,7 +101,7 @@
 		container.appendChild( wrap );
 	}
 
-	function renderCard( container, payload ) {
+	function renderCard( container, payload, stale ) {
 		clearChildren( container );
 
 		// configured:false is not a failure — say so plainly rather than
@@ -123,18 +123,18 @@
 		var wrap = el( 'div', { style: 'padding:14px 16px;color:inherit;' } );
 
 		rows.forEach( function( row ) {
-			var level = String( row.level || 'ok' );
+			var level = stale ? 'stale' : String( row.level || 'unknown' );
 			var line  = el( 'div', { style: 'display:flex;align-items:baseline;gap:8px;padding:5px 0;' } );
 
 			line.appendChild( el( 'span', {
-				style: 'width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:' + ( LEVEL_COLOR[ level ] || LEVEL_COLOR.ok ) + ';'
+				style: 'width:8px;height:8px;border-radius:50%;flex:0 0 auto;background:' + ( LEVEL_COLOR[ level ] || '#d29922' ) + ';'
 			} ) );
 			line.appendChild( el( 'span', {
 				text:  String( row.name || 'monitor' ),
 				style: 'font-size:12px;font-weight:500;flex:1 1 auto;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;'
 			} ) );
 			line.appendChild( el( 'span', {
-				text:  LEVEL_TEXT[ level ] || String( row.status || level ),
+				text:  stale ? 'Last: ' + ( LEVEL_TEXT[ row.level ] || String( row.status || 'Unknown' ) ) : ( LEVEL_TEXT[ level ] || 'Unknown' ),
 				style: 'font-size:11px;font-weight:600;color:' + ( LEVEL_COLOR[ level ] || 'inherit' ) + ';'
 			} ) );
 			wrap.appendChild( line );
@@ -170,31 +170,74 @@
 		if ( ! container ) { return function() {}; }
 
 		var torn = false;
+		var timer = null;
+		var pending = false;
+		var controller = null;
+		var lastGood = null;
+		var lastSuccess = '';
+		var failures = 0;
 		note( container, 'Loading uptime…' );
 
 		function refresh() {
-			if ( torn ) { return; }
-			if ( ! window.sntAbilityRun ) {
-				note( container, 'sntAbilityRun unavailable' );
-				return;
+			if ( torn || pending ) { return; }
+			pending = true;
+			if ( lastGood ) {
+				renderCard( container, lastGood, true );
+				container.insertBefore( el( 'p', {
+					text: 'Stale — refreshing. Last successful refresh: ' + lastSuccess,
+					style: 'padding:0 16px;font-size:12px;color:#d29922;'
+				} ), container.firstChild );
 			}
-			window.sntAbilityRun( 'uptime-status', { detail: true } )
-				.then( function( res ) {
-					if ( torn ) { return; }
-					renderCard( container, res || {} );
-				} )
-				.catch( function( err ) {
-					if ( torn ) { return; }
-					note( container, 'Uptime fetch failed: ' + ( ( err && err.message ) ? err.message : 'unknown' ) );
+			controller = window.AbortController ? new window.AbortController() : null;
+			var delay = REFRESH_MS;
+			// Promise boundary also handles a missing runner or a synchronous throw.
+			Promise.resolve().then( function() {
+				if ( torn ) { return; }
+				if ( typeof window.sntAbilityRun !== 'function' ) { throw new Error( 'sntAbilityRun unavailable' ); }
+				return window.sntAbilityRun( 'uptime-status', { detail: true }, { signal: controller ? controller.signal : undefined } );
+			} ).then( function( res ) {
+				if ( torn ) { return; }
+				if ( ! res || typeof res.configured !== 'boolean' || ( res.configured && ( ! Array.isArray( res.rows ) || ! res.rows.every( function( row ) { return row && typeof row === 'object' && ! Array.isArray( row ); } ) ) ) ) { throw new Error( 'Invalid uptime response' ); }
+				if ( res.error ) { throw new Error( res.error ); }
+				lastGood = res;
+				lastSuccess = new Date().toISOString();
+				failures = 0;
+				renderCard( container, res );
+				container.appendChild( el( 'p', { text: 'Last successful refresh: ' + lastSuccess, style: 'padding:0 16px;font-size:11px;opacity:.6;' } ) );
+			} ).catch( function( err ) {
+				if ( torn ) { return; }
+				failures++;
+				delay = Math.min( 15 * 60 * 1000, REFRESH_MS * Math.pow( 2, Math.min( failures - 1, 4 ) ) );
+				// wp.apiFetch rejects with parsed WP_Error JSON, NOT a Response.
+				var retry = Number( err && err.data && err.data.retry_after );
+				// Reject malformed hints beyond the browser's signed 32-bit timer range.
+				if ( isFinite( retry ) && retry > 0 && retry <= 2147483 ) { delay = Math.max( delay, retry * 1000 ); }
+				var message = ( err && err.message ) || 'unknown error';
+				if ( lastGood ) {
+					renderCard( container, lastGood, true );
+				} else {
+					note( container, 'Uptime unavailable: ' + message );
+				}
+				var notice = el( 'p', {
+					text: ( lastGood ? 'Stale — last successful refresh: ' + lastSuccess + '. ' : 'No successful refresh yet. ' ) +
+						'Current status unavailable: ' + message + '. Retry after ' + new Date( Date.now() + delay ).toISOString(),
+					style: 'padding:0 16px;font-size:12px;color:#d29922;'
 				} );
+				notice.setAttribute( 'role', 'status' );
+				container.insertBefore( notice, container.firstChild );
+			} ).then( function() {
+				pending = false;
+				controller = null;
+				if ( ! torn ) { timer = window.setTimeout( refresh, delay ); }
+			} );
 		}
 
 		refresh();
-		var intervalId = window.setInterval( refresh, REFRESH_MS );
 
 		return function teardown() {
 			torn = true;
-			window.clearInterval( intervalId );
+			window.clearTimeout( timer );
+			if ( controller ) { controller.abort(); }
 			container.textContent = '';
 		};
 	}
