@@ -40,6 +40,9 @@ class WP_Error {
 }
 require __DIR__ . '/../inc/audit-log.php';
 require __DIR__ . '/../inc/security-digest.php';
+require __DIR__ . '/../inc/login-auth-outcomes.php';
+$GLOBALS['outcomes'] = array();
+add_action( 'snt_login_auth_outcome', function ( $outcome ) { $GLOBALS['outcomes'][] = $outcome; } );
 $user = new WP_User( 7, 'owner' );
 do_action( 'wp_login', 'owner', $user );
 check( count( snt_audit_get_blob()['login_success'] ) === 1, 'normal login works without Two-Factor installed' );
@@ -64,11 +67,13 @@ foreach ( array( 'WebAuthn', 'TOTP', 'Backup codes' ) as $provider ) {
 	do_action( 'two_factor_user_authenticated', $user, (object) array( 'label' => $provider ) );
 	check( count( snt_audit_get_blob()['login_success'] ) === $before + 1, "$provider: verified completion creates exactly one record" );
 }
+$observed_before = count( $GLOBALS['outcomes'] );
 $before = count( snt_audit_get_blob()['login_success'] );
 do_action( 'wp_login', 'owner', $user );
 do_action( 'two_factor_user_revalidated', $user, new stdClass() );
 do_action( 'two_factor_webauthn_authentication_failed', $user, new Exception( 'private credential details' ) );
 check( count( snt_audit_get_blob()['login_success'] ) === $before, 'abandoned MFA, revalidation and rejected assertions do not create login records' );
+check( count( $GLOBALS['outcomes'] ) === $observed_before, 'abandoned MFA and revalidation do not emit a successful outcome' );
 check( empty( snt_audit_get_blob()['counters'] ), 'provider failure hook does not duplicate the subsequent core failure event' );
 do_action( 'wp_login', 'invalid', null );
 do_action( 'two_factor_user_authenticated', null );
@@ -99,5 +104,17 @@ check( $row['login_failed'] === 9 && $row['mfa_failed'] === 0, 'historical failu
 do_action( 'wp_login_failed', 'owner', new WP_Error( array( 'two_factor_invalid' ) ) );
 $row = snt_audit_get_counters_impl( 1 )[0];
 check( $row['login_failed'] === 10 && $row['mfa_failed'] === 1, 'new MFA failure safely extends a legacy bucket' );
+check( array_slice( $GLOBALS['outcomes'], 0, 5 ) === array( 'login_success', 'login_success', 'mfa_success', 'mfa_success', 'mfa_success' ), 'outcomes follow the verified login boundary' );
+check( array_slice( $GLOBALS['outcomes'], 5, 6 ) === array( 'auth_failed', 'mfa_failed', 'mfa_throttled', 'mfa_other', 'mfa_failed', 'auth_failed' ), 'failure observations preserve the audit classifications' );
+$fixture = json_decode( file_get_contents( __DIR__ . '/login-auth-outcome-fixture.json' ), true );
+$headers = snt_login_auth_outcome_headers( $fixture['key'], $fixture['nonce'], $fixture['outcome'] );
+check( $headers['X-SN-Auth-Signature'] === $fixture['signature'], 'PHP HMAC matches the cross-language protocol fixture' );
+check( $headers['X-SN-Auth-Outcome'] === 'mfa_success' && $headers['Cache-Control'] === 'private, no-store', 'signed response is private and non-cacheable' );
+foreach ( array( '', 'bad', strtoupper( $fixture['key'] ), $fixture['key'] . "\n" ) as $bad ) {
+ check( array() === snt_login_auth_outcome_headers( $bad, $fixture['nonce'], 'none' ), 'invalid secret cannot emit an observation' );
+}
+check( array() === snt_login_auth_outcome_headers( $fixture['key'], "spoof\r\nInjected: yes", 'none' ), 'invalid nonce cannot inject headers' );
+check( array() === snt_login_auth_outcome_headers( $fixture['key'], $fixture['nonce'], 'admin_success' ), 'unknown outcome cannot be signed' );
+check( snt_login_auth_outcome_headers( $fixture['key'], $fixture['nonce'], 'none' )['X-SN-Auth-Signature'] !== $fixture['signature'], 'handshake signature cannot be reused as a success' );
 echo "Result: $pass passed, $fail failed.\n";
 exit( $fail ? 1 : 0 );

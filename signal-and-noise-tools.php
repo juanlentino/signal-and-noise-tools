@@ -611,6 +611,7 @@ require_once SNT_PATH . 'inc/plugin-footprint.php'; // plugin-directory footprin
 require_once SNT_PATH . 'inc/http-diagnostics.php'; // admin-request HTTP-call diagnosis (Site Health) — names the outbound wp_remote_* calls behind slow wp-admin page loads
 require_once SNT_PATH . 'inc/scheduled-actions-health.php'; // Action Scheduler backlog diagnostic (Site Health) — observes the third-party queue table whose dispatch-gate COUNT taxes every page load
 require_once SNT_PATH . 'inc/audit-log.php';
+require_once SNT_PATH . 'inc/login-auth-outcomes.php';
 require_once SNT_PATH . 'inc/audit-log-admin.php';
 require_once SNT_PATH . 'inc/audit-log-export.php';  // v4.10.0: CSV/JSON export (download + ability impl)
 require_once SNT_PATH . 'inc/security-digest.php';   // v7.2.0: weekly security-digest email (LLAR A2) — deterministic, opt-in default OFF

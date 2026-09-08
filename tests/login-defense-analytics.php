@@ -221,5 +221,20 @@ ok( strpos( $dz, 'Connect Cloudflare Analytics' ) !== false,
 ok( substr_count( $dz, 'Connect Cloudflare Analytics' ) === 1,
 	'wrapper dormant: the Connect-CF notice text appears exactly once' );
 
+// Authentication observations remain separate from edge decisions and unknown coverage.
+$GLOBALS['__q'] = array( array( 'outcome' => 'mfa_success', 'verification' => 'invalid', 'hits' => 5 ), array( 'outcome' => '', 'verification' => '', 'hits' => 10 ) );
+ob_start(); sn_login_defense_render_outcomes( 7 ); $h = ob_get_clean();
+ok( str_contains( $h, 'Origin signature invalid' ) && ! str_contains( $h, 'Login completed with MFA' ), 'invalid signatures cannot render as successful MFA' );
+ok( str_contains( $h, 'counts are unavailable' ) && str_contains( $h, 'historical telemetry' ), 'historical and invalid data do not imply zero measured failures' );
+$GLOBALS['__q'] = array( array( 'outcome' => 'mfa_success', 'verification' => 'verified', 'hits' => 3 ), array( 'outcome' => 'none', 'verification' => 'verified', 'hits' => 8 ) );
+ob_start(); sn_login_defense_render_outcomes( 30 ); $h = ob_get_clean();
+ok( str_contains( $h, 'Login completed with MFA' ) && str_contains( $h, 'no authentication outcome' ), 'verified handshake and completed MFA have distinct rows' );
+ok( ! str_contains( $h, 'counts are unavailable' ) && str_contains( $h, 'not unique accounts or sessions' ), 'verified coverage retains sampled request semantics' );
+$GLOBALS['__q'] = null;
+ob_start(); sn_login_defense_render_outcomes( 7 ); $h = ob_get_clean();
+ok( str_contains( $h, 'No outcome telemetry available' ), 'query failure is unavailable rather than zero' );
+ok( str_contains( sn_login_defense_outcomes_sql( 90 ), "INTERVAL '90' DAY" ) && str_contains( sn_login_defense_outcomes_sql( -1 ), "INTERVAL '7' DAY" ), 'outcome query clamps the reporting window' );
+ok( str_contains( sn_login_defense_outcomes_sql(), 'sum(_sample_interval)' ) && str_contains( sn_login_defense_outcomes_sql(), 'GROUP BY blob9, blob10' ), 'outcome query reads appended fields and retains AE weighting' );
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );
