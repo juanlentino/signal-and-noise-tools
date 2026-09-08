@@ -101,6 +101,25 @@
 		container.appendChild( wrap );
 	}
 
+	// Recency is useful content; only actual failures get an inline detail cue.
+	function renderRefreshStatus( container, lastSuccess, message, delay ) {
+		var footer = el( 'p', {
+			text: lastSuccess ? 'Last successful refresh: ' + lastSuccess : 'Status unavailable.',
+			style: 'position:relative;padding:0 32px 0 16px;font-size:11px;opacity:.6;'
+		} );
+		if ( message ) {
+			var detail = ( lastSuccess ? 'Showing last-known data. ' : 'No successful refresh yet. ' ) +
+				'Current status unavailable: ' + message + '. Retry after ' + new Date( Date.now() + delay ).toISOString();
+			var cue = el( 'span', { text: '⚠', style: 'position:absolute;right:16px;top:0;color:#d29922;' } );
+			cue.title = detail;
+			cue.setAttribute( 'role', 'img' );
+			cue.setAttribute( 'aria-label', detail );
+			cue.setAttribute( 'tabindex', '0' );
+			footer.appendChild( cue );
+		}
+		container.appendChild( footer );
+	}
+
 	function renderCard( container, payload, stale ) {
 		clearChildren( container );
 
@@ -181,13 +200,7 @@
 		function refresh() {
 			if ( torn || pending ) { return; }
 			pending = true;
-			if ( lastGood ) {
-				renderCard( container, lastGood, true );
-				container.insertBefore( el( 'p', {
-					text: 'Stale — refreshing. Last successful refresh: ' + lastSuccess,
-					style: 'padding:0 16px;font-size:12px;color:#d29922;'
-				} ), container.firstChild );
-			}
+			// Background polls leave content, focus and recency untouched until success.
 			controller = window.AbortController ? new window.AbortController() : null;
 			var delay = REFRESH_MS;
 			// Promise boundary also handles a missing runner or a synchronous throw.
@@ -203,7 +216,7 @@
 				lastSuccess = new Date().toISOString();
 				failures = 0;
 				renderCard( container, res );
-				container.appendChild( el( 'p', { text: 'Last successful refresh: ' + lastSuccess, style: 'padding:0 16px;font-size:11px;opacity:.6;' } ) );
+				renderRefreshStatus( container, lastSuccess );
 			} ).catch( function( err ) {
 				if ( torn ) { return; }
 				failures++;
@@ -216,15 +229,9 @@
 				if ( lastGood ) {
 					renderCard( container, lastGood, true );
 				} else {
-					note( container, 'Uptime unavailable: ' + message );
+					clearChildren( container );
 				}
-				var notice = el( 'p', {
-					text: ( lastGood ? 'Stale — last successful refresh: ' + lastSuccess + '. ' : 'No successful refresh yet. ' ) +
-						'Current status unavailable: ' + message + '. Retry after ' + new Date( Date.now() + delay ).toISOString(),
-					style: 'padding:0 16px;font-size:12px;color:#d29922;'
-				} );
-				notice.setAttribute( 'role', 'status' );
-				container.insertBefore( notice, container.firstChild );
+				renderRefreshStatus( container, lastSuccess, message, delay );
 			} ).then( function() {
 				pending = false;
 				controller = null;

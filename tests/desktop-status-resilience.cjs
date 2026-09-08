@@ -14,6 +14,8 @@ class Element {
   set textContent(t) { this.text = t; this.children = []; }
   get textContent() { return this.text + this.children.map(n => n.textContent).join(' '); }
 }
+const nodes = n => [n, ...n.children.flatMap(nodes)];
+const details = n => nodes(n).map(e => e.attrs['aria-label'] || '').filter(Boolean).join(' ');
 const styles = n => String(n.attrs.style || '') + n.children.map(styles).join(' ');
 const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
 function harness() {
@@ -65,40 +67,76 @@ async function run() {
     await flush();
     x.calls[0].resolve(f.good); await flush();
     assert.match(root.textContent, new RegExp(f.marker));
+    const goodCard = root.firstChild, goodText = root.textContent, goodStyles = styles(root);
     await x.tick(f.period);
+    assert.equal(root.firstChild, goodCard, 'ordinary refresh must not replace the rendered card');
+    assert.equal(root.textContent, goodText, 'ordinary refresh is silent, including recency metadata');
+    assert.equal(styles(root), goodStyles, 'ordinary refresh must not recolor retained data');
     x.calls[1].reject({code: 'sn_mcp_read_rate_limited', message: 'Rate limited', data: {status: 429, retry_after: 180}}); await flush();
     assert.match(root.textContent, new RegExp(f.marker), 'last successful data survives 429');
-    assert.match(root.textContent, /stale/i);
+    assert.doesNotMatch(root.textContent, /stale|unavailable|retry after|Rate limited/i, 'failure details do not consume a row');
+    assert.match(details(root), /Current status unavailable: Rate limited/);
+    const cue = nodes(root).find(n => n.attrs['aria-label']);
+    assert.equal(cue.tag, 'span');
+    assert.equal(cue.attrs.role, 'img');
+    assert.equal(cue.attrs.tabindex, '0', 'failure details are keyboard discoverable');
+    assert.equal(cue.title, cue.attrs['aria-label']);
+    assert.equal(root.children.length, 2, 'failed refresh keeps card plus existing recency footer');
+    assert.ok(root.textContent.includes(goodText.match(/Last successful refresh: ([^\s]+)/)[1]), 'failure keeps last-good recency');
     assert.doesNotMatch(styles(root), /#3fb950/, 'stale data must not look currently green');
     assert.match(root.textContent, /2026-09-08/, 'stale message timestamps last success');
     await x.tick(179999); assert.equal(x.calls.length, 2, 'no retry before data.retry_after');
     await x.tick(1); assert.equal(x.calls.length, 3);
     x.calls[2].resolve(f.good); await flush();
     assert.doesNotMatch(root.textContent, /stale|unavailable/i, 'successful recovery clears failure state');
+    assert.equal(details(root), '', 'successful recovery removes the accessible failure cue');
+    assert.notEqual(root.textContent.match(/Last successful refresh: ([^\s]+)/)[1], goodText.match(/Last successful refresh: ([^\s]+)/)[1], 'success advances recency');
     await x.tick(f.period); assert.equal(x.calls.length, 4, 'success resets ordinary cadence');
     await x.tick(f.period * 3); assert.equal(x.calls.length, 4, 'slow request never overlaps another poll');
-    assert.match(root.textContent, /stale/i, 'pending refresh does not leave old data looking current');
+    assert.doesNotMatch(root.textContent, /stale|refreshing|updating/i, 'pending refresh has no progress narration');
     stop(); assert.equal(x.calls[3].opts.signal.aborted, true, 'teardown aborts pending fetch');
     x.calls[3].resolve(f.good); await flush(); await x.tick(1000000);
     assert.equal(root.textContent, ''); assert.equal(x.timers.size, 0); assert.equal(x.calls.length, 4);
+  }
+  // Good -> pending -> good changes values and recency only after success.
+  for (const f of fixtures) {
+    const x = harness(), root = new Element('div');
+    const stop = x.window.desktopModeWidgets[f.id](root); await flush();
+    x.calls[0].resolve(f.good); await flush();
+    const snapshot = JSON.stringify(root), card = root.firstChild;
+    await x.tick(f.period);
+    assert.equal(JSON.stringify(root), snapshot, 'no DOM attributes, children, styles or text change while pending');
+    assert.equal(root.firstChild, card);
+    const next = JSON.parse(JSON.stringify(f.good));
+    if (next.theme) { next.theme.current = '12.18.11'; next.last_deploy = '2 minutes ago'; }
+    else { next.rows[0].name = 'changed.test'; }
+    x.calls[1].resolve(next); await flush();
+    assert.match(root.textContent, /12\.18\.11|changed\.test/, 'successful poll updates content');
+    assert.equal(details(root), '');
+    if (next.theme) assert.match(root.textContent, /Last deploy: 2 minutes ago/, 'useful deploy recency stays');
+    stop();
   }
   // First-load failures, backoff, missing runner, abort rejection, remount.
   for (const f of fixtures) {
     const x = harness(), root = new Element('div');
     let stop = x.window.desktopModeWidgets[f.id](root); await flush();
     x.calls[0].reject({message: '<script>not HTML</script>', data: {status: 429, retry_after: '1'}}); await flush();
-    assert.match(root.textContent, /No successful refresh yet/);
+    assert.match(root.textContent, /Status unavailable/);
+    assert.doesNotMatch(root.textContent, /Retry after|No successful refresh/);
+    assert.ok(!root.textContent.includes('<script>'), 'raw error detail is not visible card content');
+    assert.match(details(root), /No successful refresh yet/);
+    assert.ok(details(root).includes('<script>not HTML</script>'), 'error details stay literal text, not markup');
     assert.doesNotMatch(styles(root), /#3fb950/);
-    assert.equal(root.firstChild.attrs.role, 'status', 'failure notice is first and announced');
+    assert.equal(nodes(root).filter(n => n.attrs.role === 'img').length, 1, 'first failure has one accessible cue');
     await x.tick(f.period); assert.equal(x.calls.length, 2);
     x.calls[1].reject(new Error('network')); await flush();
     await x.tick(f.period * 2 - 1); assert.equal(x.calls.length, 2);
     await x.tick(1); assert.equal(x.calls.length, 3, 'second failure doubles backoff');
     x.calls[2].resolve({}); await flush();
-    assert.match(root.textContent, /Invalid .* response/, 'malformed first load is not a successful empty card');
+    assert.match(details(root), /Invalid .* response/, 'malformed first load is not a successful empty card');
     await x.tick(f.period * 4); assert.equal(x.calls.length, 4);
     x.calls[3].reject({message: 'bad hint', data: {retry_after: 1e300}}); await flush();
-    assert.match(root.textContent, /bad hint/, 'unrepresentable retry hint cannot crash failure handling');
+    assert.match(details(root), /bad hint/, 'unrepresentable retry hint cannot crash failure handling');
     assert.equal(x.timers.size, 1, 'bad retry hint retains bounded backoff');
     stop(); await x.tick(1000000); assert.equal(x.calls.length, 4);
     stop = x.window.desktopModeWidgets[f.id](root); await flush();
@@ -128,7 +166,7 @@ async function run() {
     await x.tick(f.period); x.calls[1].resolve(bad); await flush();
     assert.match(root.textContent, /12\.18\.10/, 'malformed deploy retains theme version');
     assert.match(root.textContent, /13\.107\.3/, 'malformed deploy retains plugin version');
-    assert.match(root.textContent, /Invalid deploy status response/);
+    assert.match(details(root), /Invalid deploy status response/);
     assert.ok(root.textContent.includes(firstStamp), 'failure preserves successful timestamp');
     await x.tick(f.period);
     x.calls[2].resolve({theme: {current: '', state: 'unknown'}, plugin: {current: '13.107.3', state: 'unknown'}}); await flush();
@@ -143,7 +181,7 @@ async function run() {
     x.calls[0].resolve(f.good); await flush(); await x.tick(f.period);
     x.calls[1].resolve({configured: true, rows: [null]}); await flush();
     assert.match(root.textContent, /example.test/, 'invalid row preserves last good uptime data');
-    assert.match(root.textContent, /unavailable/); stop();
+    assert.match(details(root), /unavailable/); stop();
   }
   // Independent widgets share the actual runner without multiplying each
   // other's polls: over ten minutes deploy=11, uptime=6 including first load.

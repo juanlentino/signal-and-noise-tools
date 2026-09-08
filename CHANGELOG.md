@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Keep Deploy Status and Uptime background polls silent: retain the rendered content and colors while pending, preserve Last deploy and last-successful-refresh recency, and advance refresh timestamps only on success. Failed refreshes retain last-known data with a compact keyboard-accessible warning and tooltip details instead of a warning paragraph; retries, backoff and teardown cancellation remain unchanged.
+
 ## [13.107.4] - 2026-09-08 — Resilient status widgets and clearer Analytics composition
 
 ### Fixed
