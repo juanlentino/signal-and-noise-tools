@@ -171,9 +171,19 @@ function tab_view( $view ) {
 			echo paint_piece( 'chrome/login-header', $ctx )['html'];
 		}
 		if ( 'overview' === $view ) {
-			echo paint_piece( 'chrome/insights', $ctx )['html'];
+			$insights = paint_piece( 'chrome/insights', $ctx )['html'];
+			// A detected anomaly is urgent; routine model/period commentary is
+			// supporting context. Inspect the already-rendered signals, not a
+			// second reader call that could disagree with this report snapshot.
+			$attention = false !== strpos( $insights, 'sn-an-signal--anomaly' );
+			if ( $attention ) {
+				echo $insights;
+			}
 			$header = paint_piece( 'chrome/header', $ctx );
 			echo $header['html'];
+			if ( ! $attention ) {
+				echo $insights;
+			}
 			$totals = (array) ( $header['facts']['totals'] ?? array() );
 		}
 		if ( is_array( $ctx['drill'] ) ) {

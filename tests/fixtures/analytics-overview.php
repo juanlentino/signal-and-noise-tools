@@ -19,14 +19,30 @@ function sn_analytics_daily_series( $from, $to, $class, $granularity ) {
 function sn_analytics_period_deltas( $from, $to, $class, $window = null ) { return array(); }
 function sn_analytics_engaged_rate_delta( $from, $to, $class, $window = null ) { return array( 'current' => 46 ); }
 function sn_analytics_engaged_rate( $from, $to, $class ) { return 46; }
-function sn_annotation_overview( $deltas, $engaged ) { return 'Visits and reading depth for the selected window.'; }
-function snt_analytics_render_movers_tile( $from, $to, $class, $window, $basis, $range ) { /* Optional reader absent in this fixture. */ }
+// Populated deterministic readers, never replacement renderers or live data.
+function sn_uptime_status_configured() { return true; }
+function set_transient( $key, $value, $ttl ) { return true; }
+function snt_deploy_history_get() {
+	return array_map( fn( $i ) => array( 'repo' => 'fixture/signal-and-noise-tools', 'ref' => 'fixture-' . $i, 'created_at' => gmdate( 'Y-m-d' ) . 'T10:00:00Z' ), range( 1, 20 ) );
+}
+function sn_analytics_prior_window( $from, $to ) { $days = ( strtotime( $to ) - strtotime( $from ) ) / DAY_IN_SECONDS + 1; return array( gmdate( 'Y-m-d', strtotime( $from ) - $days * DAY_IN_SECONDS ), gmdate( 'Y-m-d', strtotime( $from ) - DAY_IN_SECONDS ) ); }
+function sn_analytics_top_paths( $from, $to, $class, $limit ) {
+	$current = $to >= gmdate( 'Y-m-d', time() - DAY_IN_SECONDS );
+	return array_map( fn( $i ) => array( 'path' => array( '/notes', '/notes/tags', '/tools', '/contact', '/provenance' )[$i], 'views' => ( $current ? array( 22, 12, 6, 0, 6 ) : array( 5, 0, 0, 6, 1 ) )[$i] ), range( 0, 4 ) );
+}
+require_once SNT_PATH . 'inc/analytics-annotations.php';
+require_once SNT_PATH . 'inc/analytics-movers.php';
+require_once SNT_PATH . 'inc/uptime-status-widget.php';
 function sn_analytics_digest( $summary, $signals, $action ) {
 	return array( 'digest' => '<p>This period: 93 views, 61 visits (178 visitor-days, 117 of them viewless).</p><p>Investigate changes alongside the selected traffic class.</p>', 'source' => 'fallback' );
 }
 function sn_session_rollup_read( $from, $to, $class ) {
-	return array_map( fn( $i ) => array( 'day' => '2026-09-0' . $i, 'visits' => 12, 'bounce_pct' => 35, 'ppv' => 1.8, 'median_dur' => 41 ), range( 1, 7 ) );
+	$days = (int) ( ( strtotime( $to ) - strtotime( $from ) ) / DAY_IN_SECONDS );
+	return array_map( fn( $i ) => array( 'day' => gmdate( 'Y-m-d', strtotime( $from ) + $i * DAY_IN_SECONDS ), 'visits' => 12, 'bounce_pct' => 35, 'ppv' => 1.8, 'median_dur' => 41 ), range( 0, $days ) );
 }
+function sn_analytics_views_today() { return 15; }
+function sn_analytics_top_entry_pages( $from, $to, $limit ) { return array( array( 'path' => '/notes', 'views' => 22, 'visits' => 16 ) ); }
+function sn_analytics_top_exit_pages( $from, $to, $limit ) { return array( array( 'path' => '/tools', 'views' => 5, 'visits' => 5 ) ); }
 function sn_analytics_top_sources( $from, $to, $class, $limit ) { return array( array( 'value' => 'Search', 'views' => 42, 'visits' => 30 ) ); }
 function sn_analytics_top_utm_campaigns( $from, $to, $class, $limit ) { return array( array( 'value' => 'Fixture newsletter', 'views' => 18, 'visits' => 12 ) ); }
 function sn_analytics_top_dimension( $dim, $from, $to, $class, $limit ) { return array( array( 'value' => 'country' === $dim ? 'US' : 'Mobile', 'views' => 55, 'visits' => 36 ) ); }

@@ -121,7 +121,15 @@ function native_capture( array $get, callable $paint ) {
 	};
 	add_filter( 'snt_analytics_surface', $surface, 10, 3 );
 	try {
-		return capture( $get, $paint );
+		$html = capture( $get, $paint );
+		// The lazy Uptime table is populated after capture. Give its existing
+		// mount a keyboard-scrollable region, without touching classic/widget
+		// renderers or replacing their asynchronous data/controls.
+		return str_replace(
+			'data-sn-uptime-lazy-detail>',
+			'data-sn-uptime-lazy-detail tabindex="0" role="region" aria-label="' . esc_attr__( 'Uptime monitor details', 'signal-and-noise-tools' ) . '">',
+			$html
+		);
 	} finally {
 		remove_filter( 'snt_analytics_surface', $surface, 10 );
 	}

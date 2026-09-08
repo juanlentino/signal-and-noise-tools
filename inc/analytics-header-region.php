@@ -33,9 +33,10 @@ if ( ! defined( 'ABSPATH' ) ) {
  * @param string $granularity 'day' | 'week' | 'month'.
  * @param string $compare     Comparison mode: 'prev' | 'yoy' | 'off' (default).
  * @param bool   $controls Whether this surface needs the classic toolbar.
+ * @param bool   $annotations_after Native reading order: metrics/chart before descriptive context. Classic defaults unchanged.
  * @return array Range totals — the dashboard's tail empty-hint reads them.
  */
-function snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity, $compare = 'off', $controls = true ) {
+function snt_analytics_render_header_region( $view, $range, $class, $from, $to, $granularity, $compare = 'off', $controls = true, $annotations_after = false ) {
 	$totals       = sn_analytics_range_totals( $from, $to, $class );
 	$class_totals = sn_analytics_class_totals( $from, $to );
 	$now          = sn_analytics_realtime( $class );
@@ -84,16 +85,22 @@ function snt_analytics_render_header_region( $view, $range, $class, $from, $to, 
 		'inside_class' => 'inside inside-flush sn-overview-inside',
 		'header_meta'  => function_exists( 'snt_analytics_tier_badge' ) ? snt_analytics_tier_badge( 'descriptive' ) : '',
 	) );
-	snt_an_annotation( sn_annotation_overview( $deltas, $engaged ) );
-	// v9.81.0: deploy markers — releases that landed inside this range, the
-	// context a traffic move often needs. Quiet when nothing shipped.
-	if ( function_exists( 'snt_an_deploys_annotation' ) ) {
-		snt_an_deploys_annotation( $from, $to );
+	$annotations = static function () use ( $deltas, $engaged, $from, $to ) {
+		snt_an_annotation( sn_annotation_overview( $deltas, $engaged ) );
+		if ( function_exists( 'snt_an_deploys_annotation' ) ) {
+			snt_an_deploys_annotation( $from, $to );
+		}
+	};
+	if ( ! $annotations_after ) {
+		$annotations();
 	}
 	snt_analytics_render_cards( $now, $totals, $deltas, $engaged, $basis_label );
 	snt_analytics_render_trend( $series, $granularity, $cseries );
 	if ( function_exists( 'snt_analytics_render_compare_note' ) ) {
 		snt_analytics_render_compare_note( $compare, $totals, $ctotals, $cwin[0], $cwin[1] );
+	}
+	if ( $annotations_after ) {
+		$annotations();
 	}
 	// v9.37.0 (D1): the pulse micro-stats fold into the Overview as a hairline
 	// footer — Content view only (the other views keep a leaner Overview).

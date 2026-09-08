@@ -32,7 +32,7 @@ function canonical_piece( $key, array $ctx ) {
 		};
 	} elseif ( 'chrome/header' === $key && function_exists( 'snt_analytics_render_header_region' ) ) {
 		$paint = static function () use ( $ctx, &$facts ) {
-			$facts['totals'] = \snt_analytics_render_header_region( $ctx['view'], $ctx['range'], $ctx['class'], $ctx['from'], $ctx['to'], $ctx['granularity'], $ctx['compare'], false );
+			$facts['totals'] = \snt_analytics_render_header_region( $ctx['view'], $ctx['range'], $ctx['class'], $ctx['from'], $ctx['to'], $ctx['granularity'], $ctx['compare'], false, true );
 		};
 	} elseif ( 'chrome/login-header' === $key && function_exists( 'sn_login_defense_render_header' ) ) {
 		$paint = 'sn_login_defense_render_header';
