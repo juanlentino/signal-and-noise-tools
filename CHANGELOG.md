@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- Send request-bound, HMAC-signed authentication outcomes to the existing Login Guard Worker, using a dedicated shared secret and the verified audit/MFA hooks. Show verified observations and missing/invalid coverage in classic and native Login defense analytics without changing enforcement or counting outcomes as extra edge requests.
+
 ## [13.106.21] - 2026-09-08 — Fix MFA-aware audit login reporting
 
 ### Fixed

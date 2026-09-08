@@ -248,3 +248,17 @@ function sn_login_defense_render() {
 		snt_security_digest_render_settings();
 	}
 }
+
+/**
+ * Signed origin observations and their coverage; edge decisions remain separate.
+ *
+ * @param int $days Reporting window.
+ * @return string Analytics Engine SQL.
+ */
+function sn_login_defense_outcomes_sql( $days = 7 ) {
+	$days = in_array( (int) $days, array( 7, 30, 90 ), true ) ? (int) $days : 7;
+	return 'SELECT blob9 AS outcome, blob10 AS verification, sum(_sample_interval) AS hits '
+		. 'FROM ' . SN_LG_DATASET . ' '
+		. "WHERE timestamp > now() - INTERVAL '" . $days . "' DAY "
+		. "AND blob1 = 'login' GROUP BY blob9, blob10 ORDER BY hits DESC";
+}

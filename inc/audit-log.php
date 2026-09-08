@@ -395,6 +395,7 @@ function snt_audit_capture_login_success_cb( $user_login, $user ) {
 		return;
 	}
 	snt_audit_record_login_success_impl( (int) $user->ID, $user_login );
+	do_action( 'snt_login_auth_outcome', 'login_success' );
 }
 add_action( 'wp_login', 'snt_audit_capture_login_success_cb', 10, 2 );
 
@@ -406,6 +407,7 @@ add_action( 'wp_login', 'snt_audit_capture_login_success_cb', 10, 2 );
 function snt_audit_capture_mfa_success_cb( $user ) {
 	if ( $user instanceof WP_User ) {
 		snt_audit_record_login_success_impl( (int) $user->ID, $user->user_login );
+		do_action( 'snt_login_auth_outcome', 'mfa_success' );
 	}
 }
 add_action( 'two_factor_user_authenticated', 'snt_audit_capture_mfa_success_cb', 10, 1 );
@@ -438,6 +440,7 @@ function snt_audit_capture_login_failed_cb( $username, $error = null ) {
 	}
 	$ip = isset( $_SERVER['REMOTE_ADDR'] ) ? (string) wp_unslash( $_SERVER['REMOTE_ADDR'] ) : '';
 	snt_audit_increment_counter_impl( 'login_failed', $ip, $mfa_type );
+	do_action( 'snt_login_auth_outcome', $mfa_type ? $mfa_type : 'auth_failed' );
 }
 add_action( 'wp_login_failed', 'snt_audit_capture_login_failed_cb', 10, 2 );
 

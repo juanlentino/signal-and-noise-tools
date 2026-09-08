@@ -215,6 +215,8 @@ function sn_login_defense_render_body() {
 		sn_login_defense_render_gauges( $days );
 	}
 
+	sn_login_defense_render_outcomes( $days );
+
 	$asn  = sn_analytics_query( sn_login_defense_top_asn_sql( $days, 10 ) ) ?: array();
 	$ctry = sn_analytics_query( sn_login_defense_top_country_sql( $days, 10 ) ) ?: array();
 	sn_login_defense_render_top_table(
@@ -275,4 +277,62 @@ function sn_login_defense_render_body() {
 function sn_login_defense_view_render() {
 	sn_login_defense_render_header();
 	sn_login_defense_render_body();
+}
+
+/**
+ * Show verified observations without presenting unmeasured authentication as zero.
+ * Shared by classic and native Analytics through the canonical report renderer.
+ *
+ * @param int $days Reporting window.
+ * @return void
+ */
+function sn_login_defense_render_outcomes( $days ) {
+	$rows = sn_analytics_query( sn_login_defense_outcomes_sql( $days ) );
+	snt_an_panel_open( __( 'Authentication outcomes', 'signal-and-noise-tools' ) );
+	echo '<p>' . esc_html__( 'Signed WordPress observations. Reporting only: these do not change Login Guard enforcement. Counts are sampled request estimates, not unique accounts or sessions.', 'signal-and-noise-tools' ) . '</p>';
+	if ( ! is_array( $rows ) || empty( $rows ) ) {
+		echo '<p>' . esc_html__( 'No outcome telemetry available in this range. Deploy both components and configure their shared outcome secret to enable reporting.', 'signal-and-noise-tools' ) . '</p>';
+		snt_an_panel_close();
+		return;
+	}
+	$labels = array(
+		'none'          => __( 'Verified response; no authentication outcome', 'signal-and-noise-tools' ),
+		'auth_failed'   => __( 'Authentication rejected (not classified as MFA)', 'signal-and-noise-tools' ),
+		'mfa_failed'    => __( 'MFA rejected', 'signal-and-noise-tools' ),
+		'mfa_throttled' => __( 'MFA rate-limited by WordPress', 'signal-and-noise-tools' ),
+		'mfa_other'     => __( 'Other MFA error', 'signal-and-noise-tools' ),
+		'login_success'=> __( 'Login completed without MFA', 'signal-and-noise-tools' ),
+		'mfa_success'  => __( 'Login completed with MFA', 'signal-and-noise-tools' ),
+	);
+	$states = array(
+		'disabled'      => __( 'Outcome channel not configured', 'signal-and-noise-tools' ),
+		'missing'       => __( 'Origin signature missing', 'signal-and-noise-tools' ),
+		'invalid'       => __( 'Origin signature invalid', 'signal-and-noise-tools' ),
+		'error'         => __( 'Outcome verification unavailable', 'signal-and-noise-tools' ),
+		'origin_error'  => __( 'Origin request failed', 'signal-and-noise-tools' ),
+		'not_forwarded' => __( 'Stopped at the edge; no origin observation', 'signal-and-noise-tools' ),
+	);
+	$totals = array();
+	$verified = 0;
+	foreach ( $rows as $row ) {
+		$state = (string) ( $row['verification'] ?? '' );
+		$outcome = (string) ( $row['outcome'] ?? '' );
+		$hits = max( 0, (int) ( $row['hits'] ?? 0 ) );
+		if ( 'verified' === $state && isset( $labels[ $outcome ] ) ) {
+			$label = $labels[ $outcome ];
+			$verified += $hits;
+		} else {
+			$label = $states[ $state ] ?? __( 'Unclassified or historical telemetry', 'signal-and-noise-tools' );
+		}
+		$totals[ $label ] = ( $totals[ $label ] ?? 0 ) + $hits;
+	}
+	if ( 0 === $verified ) {
+		echo '<p>' . esc_html__( 'No verified WordPress responses observed. Authentication success and failure counts are unavailable.', 'signal-and-noise-tools' ) . '</p>';
+	}
+	echo '<table class="widefat"><thead><tr><th>' . esc_html__( 'Observation / coverage', 'signal-and-noise-tools' ) . '</th><th>' . esc_html__( 'Requests', 'signal-and-noise-tools' ) . '</th></tr></thead><tbody>';
+	foreach ( $totals as $label => $hits ) {
+		echo '<tr><td>' . esc_html( $label ) . '</td><td>' . esc_html( number_format_i18n( $hits ) ) . '</td></tr>';
+	}
+	echo '</tbody></table>';
+	snt_an_panel_close();
 }
