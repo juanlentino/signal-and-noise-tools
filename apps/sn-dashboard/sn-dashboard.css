@@ -835,3 +835,9 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-dashboard"] textarea
 	max-width: 100%;
 	vertical-align: middle;
 }
+.snt-provenance .snt-link {
+	color: var( --os-ui-fg );
+	font-family: inherit;
+	text-decoration: underline;
+	text-underline-offset: 3px;
+}
