@@ -12,6 +12,12 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- Restore blank native Analytics reports by carrying the window body height through the shell’s tab stack and panel wrappers. Keep hidden panels hidden and limit the height rule to Analytics mounts; retain container-aware scrolling.
+
+### Added
+- Mobile shell geometry regression with actual mobile CSS and native tab wrappers, browser/standalone markers and mobile–desktop–mobile transitions. Strengthen desktop coverage with native Analytics wrappers, hidden-panel assertions, and Analytics CSS loaded alongside Home/other leaves.
+
 ## [13.107.1] - 2026-09-08 — App-window scrolling and native facts URL wrapping
 
 ### Fixed

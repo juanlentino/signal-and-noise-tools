@@ -52,9 +52,14 @@ try {
     : ['tests/fixtures/responsive-leaf.php', app];
    const markup = execFileSync('php', args.map((arg,i) => i ? arg : path.join(root,arg)), { encoding: 'utf8' });
    const sheets = [path.join(shell,'assets/css/variables.css'), path.join(shell,'assets/css/window-chrome.css'), path.join(shell,'assets/css/app-runtime.css'), path.join(root,'assets/analytics/analytics-admin.css'), path.join(root,'assets/os-app.css'), path.join(root,`apps/sn-${analytics?'analytics':'dashboard'}/sn-${analytics?'analytics':'dashboard'}.css`)];
-   // Matches the main native-window ancestor chain. Native tabs are static shell
-   // markup, NOT os-tabs, and no shell navigation/resize binding is simulated.
-   await page.setContent(`<!doctype html><html data-os-mode="desktop"><meta name="viewport" content="width=device-width,initial-scale=1"><body class="os-active"><style>html,body{margin:0;height:100%;overflow:hidden}*{box-sizing:border-box}${sheets.map(read).join('\n')}</style><div class="os-window os-window--native os-window--focused" style="width:${appWidth}px;height:${appHeight}px;left:0;top:0"><div class="os-window__titlebar">S&N ${analytics?'Analytics':'Home'} · local fixture</div><div class="os-window__tabs"><div class="os-window__tab os-window__tab--active">${analytics?'Campaigns':'Home'}</div><div class="os-window__tab">Other report</div></div><div class="os-window__body os-window__body--native"><div class="os-app">${markup}</div></div></div></body></html>`);
+   // Load Analytics CSS alongside Home/other apps to catch cross-app leakage.
+   if(!analytics) sheets.push(path.join(root,'apps/sn-analytics/sn-analytics.css'));
+   // Analytics is a multi-tab native window: the PHP renderer inserts a stack
+   // and panel around each mount root. Omitting them masks size-containment bugs.
+   const mounted=`<div class="os-app" data-os-app="sn-${analytics?'analytics':'dashboard'}">${markup}</div>`;
+   const nativeMarkup=analytics?`<os-stack gap="12" padding="0"><os-tabpanel for="main" hidden><div class="os-app" data-os-app="sn-analytics"></div></os-tabpanel><os-tabpanel for="campaigns">${mounted}</os-tabpanel></os-stack>`:mounted;
+   // Native tabs are static shell markup, NOT os-tabs; no shell navigation is booted.
+   await page.setContent(`<!doctype html><html data-os-mode="desktop"><meta name="viewport" content="width=device-width,initial-scale=1"><body class="os-active"><style>html,body{margin:0;height:100%;overflow:hidden}*{box-sizing:border-box}${sheets.map(read).join('\n')}</style><div class="os-window os-window--native os-window--focused" style="width:${appWidth}px;height:${appHeight}px;left:0;top:0"><div class="os-window__titlebar">S&N ${analytics?'Analytics':'Home'} · local fixture</div><div class="os-window__tabs"><div class="os-window__tab os-window__tab--active">${analytics?'Campaigns':'Home'}</div><div class="os-window__tab">Other report</div></div><div class="os-window__body os-window__body--native">${nativeMarkup}</div></div></body></html>`);
    await page.addScriptTag({ content: bundle });
    if (analytics) await page.addScriptTag({ content: read(path.join(root,'apps/sn-analytics/native-tables.js')) });
    await page.waitForTimeout(120);
@@ -104,6 +109,7 @@ try {
     noErrors: errors.length===0,
    };
    if (analytics) {
+    checks.hiddenPanelsStayHidden=await page.locator('os-tabpanel[hidden]').evaluateAll(es=>es.length>0 && es.every(e=>getComputedStyle(e).display==='none' && e.getBoundingClientRect().height===0));
     checks.scrolls= facts.scrollTop>0;
     // Preserve the wide/tall desktop's fixed controls, not a universal outer scroll.
     if(appWidth===1280 && appHeight===860) checks.fixedDesktopToolbar=facts.overflow==='hidden';
