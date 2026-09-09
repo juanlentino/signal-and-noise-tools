@@ -298,5 +298,58 @@ ok( is_wp_error( $gated ) && false !== strpos( $gated->get_error_message(), 'inc
 $derived = snt_sn_posts_field_names();
 eq( array_keys( snt_corpus_post_row( (object) array( 'ID' => 0 ) ) ), $derived, 'FILT.18: the valid-field list is derived from the row builder, so the two cannot drift' );
 
+
+/* ── v13.108.0 — note-dossier ABSORBED as an opt-in field ──────────────────
+ * The verdict was recorded in tests/mcp-capabilities.php as absorption-planned;
+ * this is the build. New alongside old: signal-noise/note-dossier stays
+ * registered and untouched, exactly as list-posts and get-post-content did.
+ * The stub below IS the absorbed reader, so these assertions prove the wiring,
+ * not the dossier's own content (that has its own suite). ── */
+echo "Group: note-dossier absorbed into sn-posts\n";
+if ( ! function_exists( 'snt_ability_note_dossier' ) ) {
+	function snt_ability_note_dossier( $input ) {
+		$GLOBALS['__dossier_calls'][] = $input;
+		if ( 999 === (int) ( $input['post_id'] ?? 0 ) ) {
+			return new WP_Error( 'snt_dossier_boom', 'ledger unreachable' );
+		}
+		return array( 'is_public' => true, 'blocks' => array(), 'fetched_at' => 123, 'days' => (int) ( $input['days'] ?? 0 ) );
+	}
+}
+$GLOBALS['__dossier_calls'] = array();
+
+$r = snt_ability_sn_posts( array( 'include_dossier' => true, 'scope' => array( 'kind' => 'all' ) ) );
+ok( is_wp_error( $r ) && 422 === ( $r->get_error_data()['status'] ?? 0 ), 'include_dossier on a corpus WALK is refused 422 — a per-note deep read is not a walk' );
+
+$many = range( 1, SNT_SN_POSTS_MAX_DOSSIER_IDS + 1 );
+$r = snt_ability_sn_posts( array( 'include_dossier' => true, 'scope' => array( 'kind' => 'post_ids', 'post_ids' => $many ) ) );
+ok( is_wp_error( $r ) && 'snt_posts_dossier_cap_exceeded' === $r->get_error_code(), 'over the dossier cap it REJECTS (422), never truncates — ' . SNT_SN_POSTS_MAX_DOSSIER_IDS . ' is the ceiling' );
+ok( SNT_SN_POSTS_MAX_DOSSIER_IDS < SNT_CORPUS_MAX_CONTENT_IDS, 'the dossier cap is TIGHTER than the content cap — a dossier is subsystem reads, a body is one column' );
+
+$first = array_key_first( $GLOBALS['__posts'] );
+$r = snt_ability_sn_posts( array( 'include_dossier' => true, 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( $first ) ) ) );
+ok( ! is_wp_error( $r ) && isset( $r['posts'][0]['dossier'] ), 'include_dossier attaches a dossier to the row' );
+ok( 30 === (int) ( $GLOBALS['__dossier_calls'][0]['days'] ?? 0 ), 'dossier_days defaults to 30' );
+
+$GLOBALS['__dossier_calls'] = array();
+$r = snt_ability_sn_posts( array( 'include_dossier' => true, 'dossier_days' => 90, 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( $first ) ) ) );
+ok( 90 === (int) ( $GLOBALS['__dossier_calls'][0]['days'] ?? 0 ), 'dossier_days passes through' );
+$r = snt_ability_sn_posts( array( 'include_dossier' => true, 'dossier_days' => 4, 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( $first ) ) ) );
+ok( 30 === (int) ( $GLOBALS['__dossier_calls'][1]['days'] ?? 0 ), 'an out-of-enum dossier_days falls back to 30 rather than reaching the reader' );
+
+$r = snt_ability_sn_posts( array( 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( $first ) ) ) );
+ok( ! is_wp_error( $r ) && ! isset( $r['posts'][0]['dossier'] ), 'without include_dossier the row carries NO dossier key — opt-in, not default' );
+
+$r = snt_ability_sn_posts( array( 'fields' => array( 'dossier' ), 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( $first ) ) ) );
+ok( is_wp_error( $r ), "'dossier' is not a selectable field without include_dossier:true" );
+$r = snt_ability_sn_posts( array( 'include_dossier' => true, 'fields' => array( 'dossier' ), 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( $first ) ) ) );
+ok( ! is_wp_error( $r ) && isset( $r['posts'][0]['dossier'] ) && isset( $r['posts'][0]['post_id'] ), "'dossier' IS selectable with include_dossier, and post_id rides along as always" );
+
+$GLOBALS['__posts'][999] = (object) array( 'ID' => 999, 'post_status' => 'publish', 'post_type' => 'post', 'post_title' => 'boom', 'post_content' => '', 'post_date' => '2026-01-01 00:00:00', 'post_modified' => '2026-01-01 00:00:00', 'post_name' => 'boom' );
+$r = snt_ability_sn_posts( array( 'include_dossier' => true, 'scope' => array( 'kind' => 'post_ids', 'post_ids' => array( 999 ) ) ) );
+ok( ! is_wp_error( $r ) && isset( $r['posts'][0]['dossier']['error'] ) && 'snt_dossier_boom' === $r['posts'][0]['dossier']['error'],
+	'a dossier that cannot be composed becomes an ERROR BLOCK on the row — never omitted, never a zero' );
+unset( $GLOBALS['__posts'][999] );
+
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
