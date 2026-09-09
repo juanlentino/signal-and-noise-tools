@@ -113,22 +113,53 @@ function snt_gsc_inspect_url( $url, $property ) {
  * entries younger than SNT_GSC_COVERAGE_FRESH are skipped, so the first run
  * after this spends quota on the pages alone.
  *
- * @return array<int,string>
+ * Keys are "post:<id>" / "term:<id>", NOT bare ids. A term_id and a post_id
+ * are independent sequences and WILL collide — tag 1495 and note 1495 both
+ * exist eventually — and an int-keyed array would silently drop one of the
+ * two. Nothing about the resulting map would look wrong; one URL would just
+ * never be inspected. The prefix is the whole reason this returns strings.
+ *
+ * @return array<string,string>
  */
 function snt_gsc_coverage_targets() {
-	if ( ! function_exists( 'get_posts' ) ) {
-		return array();
-	}
-	// has_password => false: a protected page's coverage is not public business,
-	// and the same gate guards the pillar descriptors two files over.
-	$ids = (array) get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => 'publish', 'has_password' => false, 'posts_per_page' => SNT_GSC_COVERAGE_MAX_URLS, 'orderby' => 'ID', 'order' => 'ASC', 'fields' => 'ids' ) );
 	$out = array();
-	foreach ( $ids as $id ) {
-		$url = (string) get_permalink( (int) $id );
-		if ( '' !== $url ) {
-			$out[ (int) $id ] = $url;
+
+	if ( function_exists( 'get_posts' ) ) {
+		// has_password => false: a protected page's coverage is not public
+		// business, and the same gate guards the pillar descriptors two files
+		// over.
+		$ids = (array) get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => 'publish', 'has_password' => false, 'posts_per_page' => SNT_GSC_COVERAGE_MAX_URLS, 'orderby' => 'ID', 'order' => 'ASC', 'fields' => 'ids' ) );
+		foreach ( $ids as $id ) {
+			$url = (string) get_permalink( (int) $id );
+			if ( '' !== $url ) {
+				$out[ 'post:' . (int) $id ] = $url;
+			}
 		}
 	}
+
+	// v13.109.0: tag archives. They are NOT in the sitemap — core emits only
+	// posts-post and posts-page here — and yet six of them earn impressions,
+	// so Google found them by following links. A URL that ranks and has never
+	// been inspected is exactly the blind spot this map exists to remove.
+	// hide_empty: an archive with no posts is a thin page nobody should spend
+	// quota on.
+	if ( function_exists( 'get_terms' ) && function_exists( 'get_term_link' ) ) {
+		$terms = get_terms( array( 'taxonomy' => 'post_tag', 'hide_empty' => true, 'number' => SNT_GSC_COVERAGE_MAX_URLS ) );
+		if ( is_array( $terms ) ) {
+			foreach ( $terms as $term ) {
+				$tid = (int) ( is_object( $term ) ? ( $term->term_id ?? 0 ) : 0 );
+				if ( $tid <= 0 ) {
+					continue;
+				}
+				$link = get_term_link( $tid, 'post_tag' );
+				if ( ! is_string( $link ) || '' === $link ) {
+					continue; // get_term_link returns WP_Error for a bad term.
+				}
+				$out[ 'term:' . $tid ] = $link;
+			}
+		}
+	}
+
 	return $out;
 }
 
@@ -198,7 +229,15 @@ function snt_gsc_coverage_sync( $force = false ) {
 			continue; // fresh from the previous run.
 		}
 		$entry = snt_gsc_coverage_normalize( snt_gsc_inspect_url( $url, $property ), time() );
-		$entry['post_id'] = (int) $id;
+		// $id is "post:<n>" / "term:<n>" (see snt_gsc_coverage_targets). Split it
+		// rather than casting: (int) "term:12" is 0, which would have reported
+		// every tag archive as post 0.
+		$parts            = explode( ':', (string) $id, 2 );
+		$kind             = 2 === count( $parts ) ? $parts[0] : 'post';
+		$oid              = (int) ( $parts[1] ?? $parts[0] );
+		$entry['kind']    = $kind;
+		$entry['post_id'] = 'post' === $kind ? $oid : 0;
+		$entry['term_id'] = 'term' === $kind ? $oid : 0;
 		$entry['url']     = $url;
 		if ( isset( $entry['error'] ) ) {
 			$errors++;

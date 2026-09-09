@@ -38,6 +38,13 @@ function sn_setting( $k, $d = null ) { return 'search_console.property' === $k ?
 $GLOBALS['__posts'] = array( 11 => 'https://example.test/notes/alpha/', 12 => 'https://example.test/notes/beta/', 13 => 'https://example.test/notes/gamma/' );
 function get_posts( $a ) { $GLOBALS['__get_posts_args'] = $a; return array_keys( $GLOBALS['__posts'] ); }
 function get_permalink( $id ) { return $GLOBALS['__posts'][ $id ] ?? ''; }
+// The TAXONOMY seam (v13.109.0). Declared here, before the module loads, so
+// function_exists('get_terms') is TRUE — without these the tag branch is
+// skipped silently and every assertion about it passes vacuously.
+$GLOBALS['__terms'] = array();
+function get_terms( $a ) { $GLOBALS['__get_terms_args'] = $a; $o = array(); foreach ( $GLOBALS['__terms'] as $tid => $url ) { $t = new stdClass(); $t->term_id = $tid; $o[] = $t; } return $o; }
+function get_term_link( $tid, $tax = '' ) { return $GLOBALS['__terms'][ $tid ] ?? new WP_Error( 'bad_term', 'no such term' ); }
+
 // The network seam: url => response.
 $GLOBALS['__api'] = array(); $GLOBALS['__posted'] = array();
 function snt_gsc_api_post( $url, $body, $timeout = 30 ) { $GLOBALS['__posted'][] = array( $url, $body, $timeout ); $GLOBALS['__seen_mid_run'][] = get_option( SNT_GSC_COVERAGE_OPTION, null ); $k = $body['inspectionUrl']; return $GLOBALS['__api'][ $k ] ?? new WP_Error( 'snt_gsc_api_error', 'HTTP 500' ); }
@@ -69,6 +76,7 @@ $p = snt_gsc_coverage_sync();
 ok( is_array( $p ) && 3 === $p['inspected'] && 1 === $p['errors'] && false === $p['capped'], 'sync: three posts inspected, one API error counted as an error' );
 ok( array( '/notes/alpha', '/notes/beta', '/notes/gamma' ) === array_keys( $p['entries'] ), 'entries keyed by the WEAVE join key (trailing slash stripped) — the same spelling the GSC rows and the scan use' );
 ok( 11 === $p['entries']['/notes/alpha']['post_id'] && 'https://example.test/notes/alpha/' === $p['entries']['/notes/alpha']['url'], 'each entry carries post_id + the exact URL inspected' );
+ok( 'post' === ( $p['entries']['/notes/alpha']['kind'] ?? '' ) && 0 === ( $p['entries']['/notes/alpha']['term_id'] ?? -1 ), 'and names its kind, so a consumer never has to infer it from the path' );
 ok( SNT_GSC_INSPECT_URL === $GLOBALS['__posted'][0][0] && 'https://example.test/' === $GLOBALS['__posted'][0][1]['siteUrl'] && 'https://example.test/notes/alpha/' === $GLOBALS['__posted'][0][1]['inspectionUrl'], 'POSTs the absolute inspection URL with the property as siteUrl and the permalink as inspectionUrl' );
 ok( SNT_GSC_COVERAGE_MAX_URLS === ( $GLOBALS['__get_posts_args']['posts_per_page'] ?? 0 ) && 'publish' === ( $GLOBALS['__get_posts_args']['post_status'] ?? '' ), 'walks published content, bounded by the per-run cap' );
 
@@ -153,6 +161,44 @@ $s1 = snt_gsc_coverage_summary( snt_gsc_coverage_data(), array( '/notes/beta' =>
 ok( true === $s1['inbound_available'] && 3 === $s1['not_indexed_paths'][0]['inbound_links'], 'counts passed → the not-indexed row carries its inbound count' );
 $s2 = snt_gsc_coverage_summary( snt_gsc_coverage_data(), array() );
 ok( 0 === $s2['not_indexed_paths'][0]['inbound_links'], 'counts computed but the path absent → a real zero (nothing links here)' );
+
+
+/* ── TAG ARCHIVES + THE ID COLLISION (v13.109.0) ───────────────────────────
+ * Tag archives are NOT in the sitemap (core emits posts-post and posts-page
+ * only) and yet six of them earn impressions — Google reached them by
+ * following links. A URL that ranks and has never been inspected is precisely
+ * the blind spot this map exists to close.
+ *
+ * The collision case below is the reason targets are keyed "post:<id>" /
+ * "term:<id>" instead of by bare id. term_ids and post_ids are independent
+ * sequences, so they WILL eventually coincide. Under int keys one silently
+ * overwrites the other: nothing errors, nothing looks wrong, one URL simply
+ * stops being inspected. Post 11 and TERM 11 are deliberately both present.
+ */
+$GLOBALS['__terms'] = array( 11 => 'https://example.test/tag/provenance/', 77 => 'https://example.test/tag/writing/' );
+$GLOBALS['__api'] = array(
+	'https://example.test/notes/alpha/'     => $indexed(),
+	'https://example.test/notes/beta/'      => $indexed( 'https://example.test/notes/beta/' ),
+	'https://example.test/notes/gamma/'     => $indexed( 'https://example.test/notes/gamma/' ),
+	'https://example.test/tag/provenance/'  => $indexed( 'https://example.test/tag/provenance/' ),
+	'https://example.test/tag/writing/'     => $indexed( 'https://example.test/tag/writing/' ),
+);
+// $force = true bypasses the resume carry-forward; no option reset needed.
+$pt = snt_gsc_coverage_sync( true );
+ok( 5 === (int) $pt['inspected'], 'three posts AND two tag archives inspected — the tag branch is reached, not skipped' );
+ok( isset( $pt['entries']['/tag/provenance'] ) && isset( $pt['entries']['/tag/writing'] ), 'tag archives land under their own join keys' );
+ok( 11 === (int) ( $pt['entries']['/notes/alpha']['post_id'] ?? 0 ), 'post 11 survives' );
+ok( 11 === (int) ( $pt['entries']['/tag/provenance']['term_id'] ?? 0 ), 'and TERM 11 survives alongside it — the id spaces do not collide' );
+ok( 'term' === ( $pt['entries']['/tag/provenance']['kind'] ?? '' ) && 0 === (int) ( $pt['entries']['/tag/provenance']['post_id'] ?? -1 ), 'a tag archive is kind:term with post_id 0, never post 0 from an (int) cast' );
+ok( true === ( $GLOBALS['__get_terms_args']['hide_empty'] ?? null ) && 'post_tag' === ( $GLOBALS['__get_terms_args']['taxonomy'] ?? '' ), 'empty tag archives are excluded — thin pages should not spend quota' );
+
+// A term whose link cannot be resolved (get_term_link returns WP_Error) must
+// be SKIPPED, not inspected as an empty URL. The stub returns WP_Error for any
+// term id not in __terms, so an id with no entry exercises exactly that.
+$GLOBALS['__terms'] = array( 4242 => '' );
+$pe = snt_gsc_coverage_sync( true );
+ok( false === isset( $pe['entries'][''] ), 'a term with no resolvable link is skipped rather than inspected as an empty URL' );
+$GLOBALS['__terms'] = array();
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
