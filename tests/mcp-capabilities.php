@@ -339,12 +339,16 @@ $verdict_iter = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( d
 foreach ( $verdict_iter as $verdict_file ) {
 	if ( ! $verdict_file->isFile() || 'php' !== strtolower( $verdict_file->getExtension() ) ) { continue; }
 	$verdict_src = (string) file_get_contents( $verdict_file->getPathname() );
-	if ( preg_match_all( "/wp_register_ability\s*\(\s*'(signal-noise\/[a-z0-9-]+)'/", $verdict_src, $vm ) ) {
+	// BOTH quote styles. WPCS prefers single quotes, but a guard that depends on a
+	// style rule is a guard with a hole: a double-quoted registration would be
+	// invisible to it and read as "no such ability" rather than "unclassified".
+	// Found by a control that happened to plant a double-quoted probe.
+	if ( preg_match_all( '/wp_register_ability\s*\(\s*[\'"](signal-noise\/[a-z0-9-]+)[\'"]/', $verdict_src, $vm ) ) {
 		foreach ( $vm[1] as $vs ) { $verdict_population[ $vs ] = true; }
 	}
 	// Loop-registered tables put the slug in an ARRAY KEY, not a call argument.
 	if ( preg_match( '/wp_register_ability\s*\(\s*\$/', $verdict_src )
-		&& preg_match_all( "/'(signal-noise\/[a-z0-9-]+)'\s*=>\s*array\(/", $verdict_src, $vk ) ) {
+		&& preg_match_all( '/[\'"](signal-noise\/[a-z0-9-]+)[\'"]\s*=>\s*array\(/', $verdict_src, $vk ) ) {
 		foreach ( $vk[1] as $vs ) { $verdict_population[ $vs ] = true; }
 	}
 }
@@ -369,15 +373,17 @@ $verdict_absorbed_by_section = array(
 	// Only SYNCHRONOUS dispatch is excluded, by the rule stated at
 	// inc/sn-apply/executors.php: "dispatch is the hazard and booking is not."
 	'signal-noise/run-health-scan'             => 'sn-apply{schedule_cron_event} (booking; sync dispatch excluded)',
+	// v13.108.0 — BUILT. Was absorption-planned below; sn-posts now carries it as
+	// include_dossier:true, bounded to scope.kind "post_ids" and capped at 5.
+	'signal-noise/note-dossier'                => 'sn-posts{include_dossier}',
 );
 
-// DECIDED, NOT YET BUILT. Verdict: it belongs inside sn-posts, per the standing
-// rule — a post-scoped read is a field of the posts tool, never its own slug.
-// Listed separately from the absorbed set because the absorber does not carry it
-// YET, and pretending otherwise is how a claim outruns the code.
-$verdict_absorption_planned = array(
-	'signal-noise/note-dossier' => 'sn-posts (planned — sn-posts does not carry the dossier today)',
-);
+// DECIDED, NOT YET BUILT. Empty as of v13.108.0: note-dossier's absorber was
+// built in the same release the verdict was recorded, so the row moved up into
+// the absorbed set rather than lingering. The list stays — it is the honest home
+// for a decision whose absorber does not exist yet, and pretending an absorber
+// carries something it does not is how a claim outruns the code.
+$verdict_absorption_planned = array();
 
 $verdict_covered = array_merge(
 	sn_mcp_allowlist(), sn_mcp_rw_allowlist(), $verdict_remote_door,
@@ -388,7 +394,7 @@ $verdict_covered = array_merge(
 $verdict_unclassified = array_values( array_diff( array_keys( $verdict_population ), $verdict_covered ) );
 sort( $verdict_unclassified );
 ok( array() === $verdict_unclassified, 'EVERY registered plugin ability carries a door verdict — doored, absorbed, retired, excluded, or absorption-planned' . ( $verdict_unclassified ? ' — NO VERDICT RECORDED: ' . implode( ', ', $verdict_unclassified ) . ' (decide it and add it to a list above; do not delete this assertion)' : '' ) );
-ok( 1 === count( $verdict_absorption_planned ), 'exactly ONE ability is decided-but-unbuilt (note-dossier -> sn-posts) — this falls by BUILDING the absorber, never by deleting the row' );
+ok( 0 === count( $verdict_absorption_planned ), 'NO ability is decided-but-unbuilt — note-dossier\'s absorber (sn-posts{include_dossier}) was built in v13.108.0. A row here falls by BUILDING the absorber, never by deleting it' );
 
 
 // ── v13.0.0 — THE KEPT PAIR, pinned as a pair ──────────────────────────────

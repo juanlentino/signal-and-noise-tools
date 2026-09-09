@@ -33,7 +33,15 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 const SNT_SN_POSTS_DEFAULT_MAX = 100;
-const SNT_SN_POSTS_MAX_CAP     = 100; // `max` clamps silently to this ceiling — not a reject (only include_content's cap rejects).
+const SNT_SN_POSTS_MAX_CAP     = 100;
+/**
+ * v13.108.0 — the dossier cap, deliberately FIVE where include_content's is 20.
+ * A body is one database column. A dossier is several subsystem reads PER POST
+ * (the ledger record, the durable analytics table, the Search Console sync, the
+ * edge-freshness verdict, the related-notes kernel), so the honest ceiling is
+ * much lower than the one for content and is not derived from it.
+ */
+const SNT_SN_POSTS_MAX_DOSSIER_IDS = 5; // `max` clamps silently to this ceiling — not a reject (only include_content's cap rejects).
 
 add_action( 'wp_abilities_api_init', function() {
 	if ( ! function_exists( 'wp_register_ability' ) ) {
@@ -42,7 +50,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/sn-posts', array(
 		'label'               => 'List or fetch corpus posts (consolidated)',
-		'description'         => 'Consolidated post query, absorbing list-posts (metadata) and get-post-content (bodies) into one record: content is an opt-in FIELD, not a different shape. scope selects the target set: {kind:"all"} (default) walks every non-trash post of scope.post_type (default "post"); {kind:"post_ids", post_ids:[...]} fetches a bounded ID set, unknown/trashed IDs reported in `missing` rather than silently dropped; {kind:"modified_since", modified_since:"<date>"} walks posts modified at/after that date, newest-modified first; {kind:"post_type", post_type:"<type>"} walks one specific registered+public type. include_content:true attaches full post_content per row but is REJECTED (422, never silently truncated) when the resolved scope exceeds 20 posts — narrow the scope instead. status:[\'future\',...] narrows to those post statuses (publish/future/draft/pending/private; default all five) and is applied BEFORE pagination, so count and cursor describe the set actually returned. fields:[\'post_date\',...] returns only those row keys - post_id is ALWAYS included whether asked for or not, because a row nobody can identify is not a smaller answer. An unknown field name is a 422 naming it and listing the valid ones, never a silently full row. \'content\' is selectable only with include_content:true. Paginated via an opaque cursor (max default/cap 100 per page); the post_ids scope always returns its whole bounded set in one page. Same visibility as list-posts/get-post-content: all five non-trash statuses (publish/future/draft/pending/private) across registered public types, gated by manage_options + the MCP door\'s own auth.',
+		'description'         => 'Consolidated post query, absorbing list-posts (metadata), get-post-content (bodies) and note-dossier (the per-note dossier) into one record: each is an opt-in FIELD, not a different shape. scope selects the target set: {kind:"all"} (default) walks every non-trash post of scope.post_type (default "post"); {kind:"post_ids", post_ids:[...]} fetches a bounded ID set, unknown/trashed IDs reported in `missing` rather than silently dropped; {kind:"modified_since", modified_since:"<date>"} walks posts modified at/after that date, newest-modified first; {kind:"post_type", post_type:"<type>"} walks one specific registered+public type. include_content:true attaches full post_content per row but is REJECTED (422, never silently truncated) when the resolved scope exceeds 20 posts — narrow the scope instead. status:[\'future\',...] narrows to those post statuses (publish/future/draft/pending/private; default all five) and is applied BEFORE pagination, so count and cursor describe the set actually returned. fields:[\'post_date\',...] returns only those row keys - post_id is ALWAYS included whether asked for or not, because a row nobody can identify is not a smaller answer. An unknown field name is a 422 naming it and listing the valid ones, never a silently full row. \'content\' is selectable only with include_content:true. include_dossier:true attaches the full note dossier per row and REQUIRES scope.kind \"post_ids\" (a dossier is several subsystem reads per post, so it is not available across a corpus walk); it is capped at 5 posts and REJECTS (422) above that rather than truncating, and \'dossier\' is selectable in fields only with include_dossier:true. dossier_days in {7,30,90} (default 30) sets the window for its analytics tiles; Search Console keeps its own. A dossier that cannot be composed arrives as an error block ON the row, never omitted. Paginated via an opaque cursor (max default/cap 100 per page); the post_ids scope always returns its whole bounded set in one page. Same visibility as list-posts/get-post-content: all five non-trash statuses (publish/future/draft/pending/private) across registered public types, gated by manage_options + the MCP door\'s own auth.',
 		'category'            => 'tools',
 		'permission_callback' => 'snt_ability_perm_read_corpus',
 		'execute_callback'    => 'snt_ability_sn_posts',
@@ -67,6 +75,8 @@ add_action( 'wp_abilities_api_init', function() {
 					'additionalProperties' => false,
 				),
 				'include_content' => array( 'type' => 'boolean', 'default' => false ),
+				'include_dossier' => array( 'type' => 'boolean', 'default' => false, 'description' => 'Attach the full note dossier per row. scope.kind must be "post_ids" and the set is capped at ' . SNT_SN_POSTS_MAX_DOSSIER_IDS . '.' ),
+				'dossier_days'    => array( 'type' => 'integer', 'enum' => array( 7, 30, 90 ), 'default' => 30, 'description' => 'Window for the dossier\'s analytics tiles. Search Console keeps its own window.' ),
 				// Both default to "everything", so a caller who omits them sees
 				// byte-identical output to before these existed.
 				'status'          => array(
@@ -171,7 +181,7 @@ function snt_sn_posts_scope_error( $message ) {
  * @param bool  $include_content
  * @return array|WP_Error
  */
-function snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields = null, $statuses = null ) {
+function snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields = null, $statuses = null, $include_dossier = false, $dossier_days = 30 ) {
 	$ids = isset( $scope['post_ids'] ) ? array_values( array_unique( array_map( 'intval', (array) $scope['post_ids'] ) ) ) : array();
 	if ( empty( $ids ) ) {
 		return snt_sn_posts_scope_error( __( 'scope.kind "post_ids" requires a non-empty scope.post_ids array.', 'signal-and-noise-tools' ) );
@@ -183,6 +193,18 @@ function snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields = null
 				/* translators: %d: maximum posts per include_content:true call. */
 				__( 'include_content:true is capped at %d posts; this scope resolves to more. Narrow scope.post_ids instead of relying on pagination.', 'signal-and-noise-tools' ),
 				SNT_CORPUS_MAX_CONTENT_IDS
+			),
+			array( 'status' => 422 )
+		);
+	}
+
+	if ( $include_dossier && count( $ids ) > SNT_SN_POSTS_MAX_DOSSIER_IDS ) {
+		return new WP_Error(
+			'snt_posts_dossier_cap_exceeded',
+			sprintf(
+				/* translators: %d: maximum posts per include_dossier:true call. */
+				__( 'include_dossier:true is capped at %d posts; this scope resolves to more. Narrow scope.post_ids — a dossier is several subsystem reads per post, so this cap rejects rather than truncating.', 'signal-and-noise-tools' ),
+				SNT_SN_POSTS_MAX_DOSSIER_IDS
 			),
 			array( 'status' => 422 )
 		);
@@ -211,6 +233,19 @@ function snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields = null
 		$row = snt_corpus_post_row( $post );
 		if ( $include_content ) {
 			$row['content'] = (string) ( $post->post_content ?? '' );
+		}
+		if ( $include_dossier ) {
+			// v13.108.0: note-dossier absorbed as an opt-in FIELD, new alongside
+			// old — signal-noise/note-dossier stays registered and untouched.
+			// A dossier that cannot be composed is reported as an error block on
+			// the row, never omitted and never a zero: a row silently missing its
+			// dossier reads as "nothing to say", which is the one thing it is not.
+			$dossier = function_exists( 'snt_ability_note_dossier' )
+				? snt_ability_note_dossier( array( 'post_id' => (int) $id, 'days' => (int) $dossier_days ) )
+				: new WP_Error( 'snt_dossier_unavailable', __( 'Note-dossier ability not loaded.', 'signal-and-noise-tools' ) );
+			$row['dossier'] = is_wp_error( $dossier )
+				? array( 'error' => $dossier->get_error_code(), 'message' => $dossier->get_error_message() )
+				: $dossier;
 		}
 		$rows[] = snt_sn_posts_project( $row, $fields );
 	}
@@ -362,7 +397,7 @@ function snt_sn_posts_field_names() {
  * @param bool  $include_content Whether content is available to select.
  * @return string[]|WP_Error|null Null when unset (return the full row).
  */
-function snt_sn_posts_resolve_fields( $raw, $include_content ) {
+function snt_sn_posts_resolve_fields( $raw, $include_content, $include_dossier = false ) {
 	if ( null === $raw || ( is_array( $raw ) && array() === $raw ) ) {
 		return null; // unset - full row, unchanged behaviour
 	}
@@ -373,6 +408,9 @@ function snt_sn_posts_resolve_fields( $raw, $include_content ) {
 	$valid = snt_sn_posts_field_names();
 	if ( $include_content ) {
 		$valid[] = 'content';
+	}
+	if ( $include_dossier ) {
+		$valid[] = 'dossier';
 	}
 
 	$out = array( 'post_id' );
@@ -473,8 +511,19 @@ function snt_ability_sn_posts( $input ) {
 	}
 
 	$include_content = ! empty( $input['include_content'] );
+	$include_dossier = ! empty( $input['include_dossier'] );
+	$dossier_days    = isset( $input['dossier_days'] ) && in_array( (int) $input['dossier_days'], array( 7, 30, 90 ), true )
+		? (int) $input['dossier_days']
+		: 30;
 
-	$fields = snt_sn_posts_resolve_fields( $input['fields'] ?? null, $include_content );
+	// The dossier is a per-note deep read, so it is bound to a BOUNDED scope.
+	// Refusing here names the fix; allowing it on a walk would invite a caller to
+	// ask for it across the corpus and discover the cost as a timeout.
+	if ( $include_dossier && 'post_ids' !== $kind ) {
+		return snt_sn_posts_scope_error( __( 'include_dossier:true requires scope.kind "post_ids" — a dossier is several subsystem reads per post and is not available across a corpus walk.', 'signal-and-noise-tools' ) );
+	}
+
+	$fields = snt_sn_posts_resolve_fields( $input['fields'] ?? null, $include_content, $include_dossier );
 	if ( is_wp_error( $fields ) ) {
 		return $fields;
 	}
@@ -492,7 +541,7 @@ function snt_ability_sn_posts( $input ) {
 	$max = max( 1, min( $max, SNT_SN_POSTS_MAX_CAP ) ); // Clamp, never reject — only include_content's cap rejects.
 
 	if ( 'post_ids' === $kind ) {
-		return snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields, $statuses );
+		return snt_sn_posts_resolve_post_ids( $scope, $include_content, $fields, $statuses, $include_dossier, $dossier_days );
 	}
 	return snt_sn_posts_resolve_walk( $kind, $scope, $include_content, $offset, $max, $fields, $statuses );
 }
