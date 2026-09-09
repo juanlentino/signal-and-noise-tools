@@ -244,6 +244,13 @@ function sn_maturity_roadmap_static_board() {
 				// 2026-08-28: "Spend with an address" left this cell for done
 				// (v13.21.0) — see the graduation note there for the honest
 				// rewrite of its "never estimated" clause.
+				// 2026-09-08: the considering cell fell to one row after the scheduled-agent
+				// demotion. These two refill it from machinery that ALREADY EXISTS — neither
+				// asks for new collection, and both clear the denied perimeter in
+				// proposals/2026-08-27-roadmap-brainstorm.md. The first is the deliberate
+				// companion to the shipped spend ledger in this family's done column.
+				__( 'The refusals, counted: every write a door declines, set against the rule that declined it — the gates already reach these verdicts in private, and a refusal nobody can audit is a decision nobody can check — read from decisions already made, never new collection, and the companion to the spend ledger: what it cost beside what it would not do', 'signal-and-noise-tools' ),
+				__( 'The hand on the edit, named: an accepted change carries whether a machine proposed it and a person accepted, inside the version the chain already re-anchors — custody is untouched, the author still signs — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'Injection self-sweep: every machine surface the site publishes — the crawler manifest, structured data, the board itself, the doors\' own descriptions — linted for instruction-shaped text before it ships, so a site that treats prose as data can prove its own prose is clean — a thread shared with Machine readability', 'signal-and-noise-tools' ),

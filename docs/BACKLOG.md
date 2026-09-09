@@ -149,6 +149,16 @@ the gate opens. When one opens, it moves into the prioritized table above.
   both yours: which done row makes way, and whether the sentence is rewritten honestly
   first.
 
+  **Refill (same day, separate PR):** AI/considering 1 → 3. The demotion left that cell
+  one row from the wall, so it was refilled from machinery that already exists — a
+  refusals count (companion to the shipped spend ledger) and provenance for the hand on
+  an accepted edit. Both cleared against the denied perimeter in
+  proposals/2026-08-27-roadmap-brainstorm.md; neither needs new collection. The OTHER thin
+  cells (Machine learning/later, Accessibility/later, Operations/later, each at 1) were
+  left alone deliberately: a sparse future column is information, not a gap — the board's
+  own test says as much — and padding it with manufactured ideas would be the dishonest
+  fix. Pins after: 21 folds, 78 rows, no empty cell, no cross-column duplicate.
+
   **Recommended promotions, NOT queued** (owner reorders): 1) Operations "Journey checks,
   not pings" — BetterStack asserts a 200 and an edge challenge returns 200, so the uptime
   instrument is known-defeatable; fully buildable with no owner step. 2) Operations "A

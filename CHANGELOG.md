@@ -13,6 +13,7 @@ adds a bullet below. A release is a separate, deliberate act:
 ## [Unreleased]
 
 ### Changed
+- Refilled AI/considering, which fell to a single row after the scheduled-agent demotion, with two ideas built on machinery that already exists: a count of every write the doors decline set against the rule that declined it (the deliberate companion to the shipped spend ledger — what it cost beside what it would not do), and an accepted change carrying whether a machine proposed it and a person accepted, inside the version the chain already re-anchors (custody untouched; a thread shared with Proof of origin). Both clear the denied-list perimeter; neither asks for new collection. Board pins hold: 21 folds, no empty cell, no cross-column duplicate, `done` unchanged.
 - Public roadmap board re-ranked: struck the duplicate "second, independent anchor" row from Proof of origin/considering (the parked *Second timestamp anchor* watch already owns it, with two named triggers), and demoted three considering rows to later — AI "Scheduled read-only agent runs" (downstream of the DISABLED native-agents gate), Analytics "A reading ledger that never phones home" (reader-facing, no measurement payoff), and Proof of origin "A witness that is a peer" (needs a second site to agree; none exists). No column emptied and the `done` column is untouched, so both board tripwires are unaffected. Rationale recorded per row in the source and in docs/BACKLOG.md.
 
 ## [13.107.7] - 2026-09-08 — Redirect guard fails closed on options it cannot read
