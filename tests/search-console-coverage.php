@@ -70,7 +70,26 @@ ok( is_array( $p ) && 3 === $p['inspected'] && 1 === $p['errors'] && false === $
 ok( array( '/notes/alpha', '/notes/beta', '/notes/gamma' ) === array_keys( $p['entries'] ), 'entries keyed by the WEAVE join key (trailing slash stripped) — the same spelling the GSC rows and the scan use' );
 ok( 11 === $p['entries']['/notes/alpha']['post_id'] && 'https://example.test/notes/alpha/' === $p['entries']['/notes/alpha']['url'], 'each entry carries post_id + the exact URL inspected' );
 ok( SNT_GSC_INSPECT_URL === $GLOBALS['__posted'][0][0] && 'https://example.test/' === $GLOBALS['__posted'][0][1]['siteUrl'] && 'https://example.test/notes/alpha/' === $GLOBALS['__posted'][0][1]['inspectionUrl'], 'POSTs the absolute inspection URL with the property as siteUrl and the permalink as inspectionUrl' );
-ok( SNT_GSC_COVERAGE_MAX_URLS === ( $GLOBALS['__get_posts_args']['posts_per_page'] ?? 0 ) && 'publish' === ( $GLOBALS['__get_posts_args']['post_status'] ?? '' ), 'walks published posts, bounded by the per-run cap' );
+ok( SNT_GSC_COVERAGE_MAX_URLS === ( $GLOBALS['__get_posts_args']['posts_per_page'] ?? 0 ) && 'publish' === ( $GLOBALS['__get_posts_args']['post_status'] ?? '' ), 'walks published content, bounded by the per-run cap' );
+
+/* ── THE POPULATION (v13.109.0) ────────────────────────────────────────────
+ * Nothing pinned WHICH post types were walked, and for a long time it was
+ * `post` alone. Every Page — the provenance hub and its three essays, the
+ * maturity pages, Start Here — was therefore absent from the coverage map,
+ * and its zero-impression reading looked like a negative finding when it was
+ * actually an unanswerable question. This map is the ONLY discriminator
+ * between "not indexed" and "indexed with no query demand"; a population that
+ * silently omits a third of the site cannot be that.
+ *
+ * Asserted as a SET, not as a literal: the bug was a scalar 'post' where an
+ * array belonged, so `=== 'post'` is exactly the shape that must never
+ * return true again.
+ */
+$sn_types = $GLOBALS['__get_posts_args']['post_type'] ?? null;
+ok( is_array( $sn_types ), 'the population is a SET of post types — a bare scalar is the shape that silently excluded pages' );
+ok( is_array( $sn_types ) && in_array( 'post', $sn_types, true ), 'posts are inspected (the notes corpus)' );
+ok( is_array( $sn_types ) && in_array( 'page', $sn_types, true ), 'and PAGES are inspected — /provenance, its essays, the maturity pages' );
+ok( false === ( $GLOBALS['__get_posts_args']['has_password'] ?? null ), 'password-protected content is excluded — its coverage is not public business' );
 ok( $p === get_option( SNT_GSC_COVERAGE_OPTION ), 'stored as one option' );
 $GLOBALS['__ready'] = false;
 ok( is_wp_error( snt_gsc_coverage_sync() ), 'not ready → WP_Error, nothing inspected' );

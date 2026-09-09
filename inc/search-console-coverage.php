@@ -94,7 +94,24 @@ function snt_gsc_inspect_url( $url, $property ) {
 }
 
 /**
- * The published posts to inspect: id => permalink. Bounded by the per-run cap.
+ * The published posts AND pages to inspect: id => permalink. Bounded by the
+ * per-run cap.
+ *
+ * v13.109.0: pages joined the population. Until now this was `post` only, so
+ * every Page on the site — /provenance and its three essays, the maturity
+ * pages, Start Here — had NEVER been inspected. That is not a small omission:
+ * this map is the discriminator the zero-impressions reading needs. A page
+ * with no impressions is either not indexed (crawl or quality) or indexed with
+ * no query demand, and Search Analytics cannot tell those apart — which is the
+ * reason this file exists. Excluding pages meant the question was unanswerable
+ * for a third of the site, and the absence read like a finding.
+ *
+ * The cap was never the constraint: 200/run against an API that allows
+ * 2,000/day, for a corpus of ~40 posts + ~28 pages. The post_type filter was.
+ *
+ * Cost of the widening is bounded by the resume rule, not by the new total:
+ * entries younger than SNT_GSC_COVERAGE_FRESH are skipped, so the first run
+ * after this spends quota on the pages alone.
  *
  * @return array<int,string>
  */
@@ -102,7 +119,9 @@ function snt_gsc_coverage_targets() {
 	if ( ! function_exists( 'get_posts' ) ) {
 		return array();
 	}
-	$ids = (array) get_posts( array( 'post_type' => 'post', 'post_status' => 'publish', 'posts_per_page' => SNT_GSC_COVERAGE_MAX_URLS, 'orderby' => 'ID', 'order' => 'ASC', 'fields' => 'ids' ) );
+	// has_password => false: a protected page's coverage is not public business,
+	// and the same gate guards the pillar descriptors two files over.
+	$ids = (array) get_posts( array( 'post_type' => array( 'post', 'page' ), 'post_status' => 'publish', 'has_password' => false, 'posts_per_page' => SNT_GSC_COVERAGE_MAX_URLS, 'orderby' => 'ID', 'order' => 'ASC', 'fields' => 'ids' ) );
 	$out = array();
 	foreach ( $ids as $id ) {
 		$url = (string) get_permalink( (int) $id );

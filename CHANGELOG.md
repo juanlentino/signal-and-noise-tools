@@ -2,7 +2,11 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-This file holds two things only: **`## [Unreleased]`**, the working log that
+This file holds two things only: **`## [Unreleased]
+
+### Fixed
+- The weekly search-coverage inspection now covers Pages as well as posts. It walked `post` only, so /provenance, its three essays, the maturity pages and Start Here had never been inspected — and this map is the only thing that can tell "not indexed" apart from "indexed with nobody searching for it". Their zero-impression readings looked like findings when they were unanswered questions. The per-run cap was never the limit (200 against an API allowing 2,000/day); the post-type filter was.
+`**, the working log that
 accumulates across pull requests, and the **current release**. Everything older
 lives in [docs/changelog/](docs/changelog/).
 
