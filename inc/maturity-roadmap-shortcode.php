@@ -159,16 +159,25 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'The questions search asked that the corpus doesn\'t answer: queries with impressions and no clicks, derived from the Search Console rows already synced — read by the owner\'s eyes, never by a model — landing once the daily sync has accrued a full month to speak from', 'signal-and-noise-tools' ),
+				// 2026-09-08: gate NAMED — two runs of the weekly check must accrue before there is
+				// anything to compare. The defect is real and was measured today: the coverage run
+				// stores one option and overwrites it, so the crawl-frequency question cannot be
+				// asked backwards. A baseline was captured by hand to make one comparison possible.
+				__( 'Coverage history kept rather than overwritten: the weekly index check retains its earlier readings, so a change in how often Google crawls can be seen at all — today each run replaces the last, and the question cannot be asked backwards; it lands once two runs have accrued to compare', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Where readers leave to: outbound clicks on citations counted as their own aggregate event — the first idea in this family to require new collection, named as such, and it ships only if the counting stays as blunt as the rest of the ledger', 'signal-and-noise-tools' ),
 				__( 'A year told as a page: the deterministic narrator pointed at twelve months instead of a week — what rose, what faded, what the corpus became — computed from the rollups already kept, no new collection', 'signal-and-noise-tools' ),
+				// 2026-09-08: the cadence watch already fires; this is the sentence after the flag.
+				__( 'A quiet week explained, not only flagged: when the cadence watch fires, the same rollups say which surfaces moved — so a flag arrives carrying its own arithmetic instead of sending the reader back to the charts', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				// 2026-09-08: considering -> later. Reader-facing browser-local state with no
 				// measurement payoff -- the nearest neighbour of the denied perimeter's
 				// reader-facing surfaces, and the only Analytics idea that buys no number.
 				__( 'A reading ledger that never phones home: which notes you have read, kept in your browser\'s own storage, shown on the index, sent nowhere — the site\'s privacy posture expressed as a feature only the reader can see', 'signal-and-noise-tools' ),
+				// 2026-09-08: the instrument held to its own standard.
+				__( 'What the measurement costs: the analytics stack\'s own footprint — rows written, storage held, queries run — reported beside what it reports, so the instrument is accountable on the same page as its findings', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Proof of origin', 'signal-and-noise-tools' )     => array(
@@ -192,6 +201,9 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'Extend signing and anchoring beyond notes, to pages and then media', 'signal-and-noise-tools' ),
+				// 2026-09-08: PROMOTED from the parked watch, which already carried both triggers.
+				// This makes it a public promise; the gate is the watch's own condition, unchanged.
+				__( 'A second timestamp anchor beside Bitcoin, the day either trigger fires: an observed window where pending proofs cannot upgrade, or a public anchoring authority whose liveness is not one chain\'s — until then single-anchor is the stated posture, not an oversight', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'A quote that carries its receipt: select a passage and get the quote with its attribution, its link, and — on a signed note — its anchor attached, with academic citation formats beside it and the landing highlight styled — citation made honest at the moment of copying', 'signal-and-noise-tools' ),
@@ -301,6 +313,8 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'later'       => array(
 				__( 'The shape of a sentence, watched: a deterministic readability fingerprint per note, trended across the corpus and surfaced at draft time — so prose complexity drift becomes visible the way topic drift already is', 'signal-and-noise-tools' ),
+				// 2026-09-08: the honest complement to the clustering rows in done.
+				__( 'What the arithmetic cannot place: notes that sit in no cluster and resemble nothing, listed rather than hidden — a similarity engine is most honest about what it fails to place, and the outliers are where the corpus is actually thin', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Machine readability', 'signal-and-noise-tools' ) => array(
@@ -327,14 +341,20 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'planned'     => array(
 				__( 'Speak the coming standard: publish the usage-preference header and robots rule the day the internet standards body finalizes them, with a parity sweep proving every rights dialect the site speaks states the same reservation — one policy, never a family of drifting translations', 'signal-and-noise-tools' ),
+				// 2026-09-08: gate NAMED — a second client. The negotiation already ships in the
+				// worker; what is unproven is that anything but this site consumes it. Moved up from
+				// later, where it read as further off than it is.
+				__( 'Markdown at the agent door served under the site\'s own rights headers, once a second client proves the negotiation against something other than the site that wrote it', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
-				__( 'Provenance pointers in the machine surfaces, so an agent that reads the site can also verify it — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
-				__( 'An in-page tool surface for verification: the page offers an agent the calls to check a signature and its anchor, so verifying travels with the content instead of waiting for anyone to adopt an API — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
 				__( 'The corpus schema published as a machine surface: tier, number, and relation stated by the author rather than inferred by whatever reads the page', 'signal-and-noise-tools' ),
+				// 2026-09-08: refills a cell left at one row after two stale duplicates were struck.
+				// The drift is real and recorded: the denied list lives in three separate specs.
+				__( 'The refusals stated once: the surfaces that publish this site\'s denials kept from drifting apart, so a policy is one fact with several renderings rather than three documents free to disagree', 'signal-and-noise-tools' ),
+				// 2026-09-08: the read side of the declarations already published.
+				__( 'What an agent actually took: the machine surfaces\' own read counts broken out per surface, so a declaration nobody fetches is visible as unread rather than assumed effective', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
-				__( 'Markdown at the agent door: agent-negotiated markdown served with the site\'s rights headers attached to every converted response — the declaration travels with the token-cheap copy, not just the page', 'signal-and-noise-tools' ),
 				__( 'Homework shown: when the European list of machine-readable opt-out protocols is published, a page mapping this site\'s declarations to every protocol on it — conformance demonstrated, not claimed', 'signal-and-noise-tools' ),
 				__( 'The corpus as a dataset, under its own terms: a versioned bulk export with the rights declarations stamped inside the artifact — an agent fetches once instead of crawling five hundred times, and the terms travel with the copy', 'signal-and-noise-tools' ),
 			),
@@ -375,6 +395,8 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'later'       => array(
 				__( 'Conformance said out loud: a public accessibility self-assessment on the hub, fed by the scans and honest about what fails — the site\'s accessibility posture stated the way its rights posture already is', 'signal-and-noise-tools' ),
+				// 2026-09-08: the gap every static check leaves open.
+				__( 'Heard, not inspected: the pages walked through a screen reader\'s own accessibility tree instead of through markup, so what a reader hears is measured rather than inferred', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Operations', 'signal-and-noise-tools' )          => array(
@@ -408,6 +430,9 @@ function sn_maturity_roadmap_static_board() {
 				// no-empty-cell rule forces the conversation, and this was the
 				// commitment chosen. The gate is in the sentence, per the rule.
 				__( 'The calendar of quiet failures: service keys, scoped tokens, domains, and certificates watched with their dates stated before they lapse — expiry as a scheduled event instead of an outage — landing when the first credential whose renewal no platform manages for us enters the estate', 'signal-and-noise-tools' ),
+				// 2026-09-08: gate NAMED and already INSTRUMENTED — the criterion publishes its own
+				// verdict, and the standing rule is to act only on decision = build_ranges.
+				__( 'Login-defense ranges built from the measured criterion, on the day that criterion says ranges beat individual addresses — the decision is already computed and watched, so the gate is a reading rather than a judgement call', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
 				__( 'Restore proof, not backup existence: a periodic check that a backup actually restores, closing the gap between having backups and having recovery', 'signal-and-noise-tools' ),
@@ -417,6 +442,8 @@ function sn_maturity_roadmap_static_board() {
 			),
 			'later'       => array(
 				__( 'The site that can leave: a periodic static export of the whole corpus with provenance intact — proof the content survives the platform it was written on — the standalone-verifier argument applied to the site itself — a thread shared with Proof of origin', 'signal-and-noise-tools' ),
+				// 2026-09-08: the inventory an incident wishes existed beforehand.
+				__( 'The estate described to itself: one machine-readable inventory of every service, binding and door this site depends on — so a forgotten dependency is a missing row rather than a discovery during an incident', 'signal-and-noise-tools' ),
 			),
 		),
 	);

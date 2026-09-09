@@ -113,6 +113,29 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-09-08 (full board pass, no bump) — the board was legal but brittle: eight future
+  cells sat at ONE row, each a single move from the no-empty-cell wall, which made every
+  future demotion expensive. Filled every future column to at least two.
+  **Added 11 rows.** Analytics: coverage history as `planned` (gate: two runs must accrue
+  — the coverage option overwrites itself, measured today), a quiet week explained
+  (`considering`), what the measurement costs (`later`). Proof of origin: the second
+  timestamp anchor PROMOTED from its parked watch to `planned`, keeping the watch's own
+  two triggers as the gate. Machine learning: what the arithmetic cannot place (`later`).
+  Machine readability: markdown at the agent door MOVED later → `planned` (gate: a second
+  client), plus the refusals stated once and what an agent actually took (`considering`).
+  Accessibility: heard, not inspected (`later`). Operations: login-defense ranges
+  (`planned`, gate already instrumented — act only on `decision = build_ranges`) and the
+  estate described to itself (`later`).
+  **Struck 2 stale rows.** Machine readability/considering carried "Provenance pointers in
+  the machine surfaces" and "An in-page tool surface for verification" — both restating
+  SHIPPED `done` rows in thinner words. This also corrects a recommendation made earlier
+  the same day: "provenance pointers" was proposed as buildable work; it had shipped.
+  **A guard was missing and is now added.** The dedupe assertion compares exact strings, so
+  all three copies passed it — the two stale rows and a promotion that left its old
+  wording behind in `later` (mine, caught the same session). The new assertion pins the
+  TITLE CLAUSE. Negative-controlled against the pre-fix board: it names both stale rows.
+  Final: 85 rows, 21 folds, no empty cell, no future cell at 1, `done` < 5 everywhere.
+
 - 2026-09-08 (board re-rank, no bump) — the queue had drained: every row in "Ready to
   build" was struck or shipped, so nothing was schedulable and nothing had been promoted
   to refill it. Landed the corrections and demotions the owner asked for; **no
