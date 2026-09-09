@@ -61,6 +61,12 @@ function sn_analytics_maturity_principles() {
 		// siblings, rather than as a feature announcement: the board says what
 		// shipped, this list says how the numbers behave.
 		__( 'An AI-sent reader is a different signal from a search-sent reader, and the rollups keep them apart - counted as its own aggregate segment, because lumping them together hides the shift.', 'signal-and-noise-tools' ),
+		// 2026-09-08: RECEIVED from the roadmap board's done column, which was at its
+		// canary ceiling. The board row was not self-evidencing (the Search view is
+		// wp-admin, not a page a reader can visit), so its claim lands here instead of
+		// being deleted -- graduation off the hub is not deletion. Count pin moved
+		// 13 -> 14 in tests/analytics-maturity-page.php in the same change.
+		__( 'Search-side numbers are reported before the click: the queries, impressions and positions Google records, synced daily on their own schedule and read over a window that ends three days back, because Google is still counting.', 'signal-and-noise-tools' ),
 	);
 }
 

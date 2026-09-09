@@ -140,7 +140,22 @@ function sn_maturity_roadmap_static_board() {
 				// inc/insights-narration.php still assembles the ai_referrals signal.
 				__( 'Which machines send a reader back: per operator, the ledger\'s crawl counts published beside that operator\'s referred human visits — stated as a sentence each, not a ratio, because crawls are requests and visits are visitor-days. An operator that read the site hundreds of times and sent nobody back is the finding, and a bare 0 would bury it — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				__( 'Traffic rhythm flags: the cadence watch now reads views — a quiet week flags against the site\'s own trailing weeks, robust to a viral spike and one-sided by design — read from the rollups already kept, never profiling a reader', 'signal-and-noise-tools' ),
-				__( 'Search-side metrics from Search Console: the queries, impressions, and positions before the click, in their own Search view and beside Top pages — one hand-rolled service-account client, a rolling window that ends three days back because Google is still counting, and since v13.9.0 a daily sync that keeps its own schedule instead of waiting for a button', 'signal-and-noise-tools' ),
+				// 2026-09-08: THIRD Analytics retirement, plus a graduation, in one move.
+				// RETIRED: 'Search-side metrics from Search Console'. Chosen because it is the
+				// only row in this column NO TEST PINS (0 references; the others carry 1, 2 and
+				// 4). 'Which machines send a reader back' was the first candidate and is the
+				// WRONG one: two DR-floor pins guard it, and the second exists so that a
+				// DECLINED design ('ratio') cannot quietly return as an unmet promise. Retiring
+				// it would have deleted that guard. Not self-evidencing either way, so the claim
+				// GRADUATES onto /maturity/analytics/ rather than being deleted.
+				// GRADUATED IN (later -> done): signature verification has been live since
+				// rights-signals worker v1.24.0 (src/web-bot-auth.mjs); signed_agent is
+				// normalized in machine-readers-taxonomy.php and rendered in
+				// machine-readers-render.php. The row sat in `later` describing live work.
+				// REWRITTEN for done: the old wording implied the separation is useful. The
+				// measured population says otherwise -- the signers are search and testing
+				// tools, the AI crawlers sign nothing. A done row carries its limit inside it.
+				__( 'Verified versus claimed: crawler request signatures checked at the edge and recorded in the ledger, so a cryptographic signature can be told from a user-agent costume — with the honest reading beside it, because the crawlers that actually sign are search and testing tools while the AI crawlers sign nothing at all — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 			),
 			'planned'     => array(
 				__( 'The questions search asked that the corpus doesn\'t answer: queries with impressions and no clicks, derived from the Search Console rows already synced — read by the owner\'s eyes, never by a model — landing once the daily sync has accrued a full month to speak from', 'signal-and-noise-tools' ),
@@ -150,7 +165,6 @@ function sn_maturity_roadmap_static_board() {
 				__( 'A year told as a page: the deterministic narrator pointed at twelve months instead of a week — what rose, what faded, what the corpus became — computed from the rollups already kept, no new collection', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
-				__( 'Verified versus claimed: crawler request signatures checked at the edge and recorded in the ledger — so the attention story can separate cryptographic fact from a user-agent costume — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				// 2026-09-08: considering -> later. Reader-facing browser-local state with no
 				// measurement payoff -- the nearest neighbour of the denied perimeter's
 				// reader-facing surfaces, and the only Analytics idea that buys no number.
