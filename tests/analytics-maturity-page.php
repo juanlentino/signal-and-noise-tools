@@ -92,7 +92,7 @@ ok( false !== strpos( $html, 'never painted green' ), 'earned: honest chart colo
 // Analytics done column hit the ceiling. These two count pins are rendered-<li>
 // counts, which is why a grep for sn_analytics_maturity_principles() in tests/
 // finds nothing and wrongly reads as unpinned -- they guard the OUTPUT.
-ok( 13 === substr_count( $html, '<li>' ), 'exactly 13 principles — twelve kept, one graduated (v13.19.0)' );
+ok( 14 === substr_count( $html, '<li>' ), 'exactly 14 principles — 13 kept, plus the search-side row received 2026-09-08 when the board\'s done column hit its canary ceiling (v13.19.0 moved it 12 -> 13 the same way)' );
 ok( false !== strpos( $html, 'AI-sent reader is a different signal' ), 'GRADUATION: the AI-referral claim renders here — it retired off the board, it did not vanish, and the feature it describes is untouched' );
 ok( false !== strpos( $html, 'keep them apart' ), 'GRADUATION: and it keeps the mechanism half — the rollups hold the segment separate, which is the whole claim' );
 
@@ -114,7 +114,7 @@ ok( false === strpos( $t, '<h2>' ) && false === strpos( $t, 'sn-maturity-princip
 echo "\nGroup: format=principles\n";
 $p = sn_analytics_maturity_shortcode( array( 'format' => 'principles' ) );
 ok( 0 === strpos( $p, '<div class="sn-maturity sn-maturity--principles">' ), 'root div carries sn-maturity--principles' );
-ok( false !== strpos( $p, 'sn-maturity-principles' ) && 13 === substr_count( $p, '<li>' ), 'principles variant renders the 13-item list' );
+ok( false !== strpos( $p, 'sn-maturity-principles' ) && 14 === substr_count( $p, '<li>' ), 'principles variant renders the 14-item list' );
 ok( false !== strpos( $p, '<h3>Honest by construction</h3>' ), 'principles variant keeps its heading' );
 ok( false === strpos( $p, 'sn-maturity-table' ) && false === strpos( $p, '<h2>' ), 'principles variant renders ONLY the principles section' );
 

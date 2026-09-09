@@ -133,7 +133,19 @@ the gate opens. When one opens, it moves into the prioritized table above.
   5→3, AI 2→1) and `done` was not touched, so `SN_MATURITY_ROADMAP_MAX_DONE` is untested
   by this change. Suites green: maturity-roadmap-shortcode 134, health-check-roadmap-drift 16.
 
-  **FLAGGED, NOT DONE — needs the owner's pick.** Analytics/**later** "Verified versus
+  **RESOLVED same day (owner picked the row).** The graduation landed: signature
+  verification moved later → done with an honest rewrite, and **"Search-side metrics from
+  Search Console"** retired to make ceiling room — its claim graduated onto
+  `/maturity/analytics/` as a 14th principle. It was chosen because it is the ONLY row in
+  that column no test pins (0 references; the others carry 1, 2 and 4). My first
+  recommendation was wrong and the suite caught it: *"Which machines send a reader back"*
+  carries **two DR-floor pins**, the second of which exists so a DECLINED design
+  ("ratio") cannot quietly return as an unmet promise — retiring it would have deleted
+  that guard. The original justification ("already graduated onto a maturity page") was a
+  misread tombstone comment describing a DIFFERENT row. Recorded here because the trap is
+  reusable: a comment above a row may be a tombstone for one already removed.
+
+  **Superseded — the original flag.** Analytics/**later** "Verified versus
   claimed: crawler request signatures checked at the edge and recorded in the ledger" is
   **already shipped** — `sn-rights-signals-worker/src/web-bot-auth.mjs` verifies
   signatures at the edge, and `signed_agent` is normalized
