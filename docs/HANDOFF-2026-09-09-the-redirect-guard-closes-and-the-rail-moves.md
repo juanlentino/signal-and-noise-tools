@@ -1,8 +1,8 @@
 # Handoff — 2026-09-08..09: the redirect guard closes, and the pillar rail moves into the notes hero
 
 Picks up where `HANDOFF-2026-09-08` stops (plugin **v13.107.5**). Two days,
-**plugin v13.107.6 → v13.108.0** (3 releases), **theme v12.18.10 → v12.19.1**
-(2 releases), five worker CI gates. All merged and tagged; both `origin/main`s
+**plugin v13.107.6 → v13.108.0** (3 releases), **theme v12.18.10 → v12.20.1**
+(4 releases), five worker CI gates. All merged and tagged; both `origin/main`s
 are clean.
 
 **Provenance of this document:** unlike the 09-08 handoff, I did this work. Every
@@ -136,6 +136,73 @@ that one Page to `signal-noise/pillar-essays`, resolved by ID through the same
 firewall and not a lockout, including **fails open** when the page cannot be
 resolved.
 
+### v12.20.0 — the three corrections that came from LOOKING at it
+
+Everything after v12.19.1 came from the owner opening the live page, and none
+of it from a test. Worth recording as a pattern: the suite was green through
+all three.
+
+**The rail had no room under it.** It ends on a hairline and sat 14px above the
+subscribe text — less than one line-height, so the two read as one block. Both
+that `0.85rem` and the meta's `0.7rem` were pixels I had borrowed to hold the
+notes at +0, which was the wrong thing to optimise. **28px** (~1.5x the 19.2px
+line-height) is where they separate; the notes moved 803 → 822 and the hero
+stopped looking cramped. Chosen by measuring five candidates on the live page,
+not by picking a number.
+
+**The row underlined itself on hover.** Compact rows are `<a>`, so WordPress's
+own theme.json rule — `:root :where(a:where(:not(.wp-element-button)):hover)` —
+drew one line across the number, the title AND the reading time. The full card
+never showed it because it is an `<article>` whose only link is the CTA.
+**Turning a container into a link inherits every global anchor rule the site
+has**, and that is worth checking deliberately the next time a block becomes
+clickable. The override is one class deep, so no `!important`; `:focus-visible`
+got a real outline, because removing a decoration must not strand the keyboard
+user relying on it.
+
+**Sub-pillars rendered as peers.** The designation already says otherwise —
+major is the pillar, minor an essay under it. Now derived from the number, so
+`X.00` is never demoted, an orphan `2.01` is still subordinated, and an
+undesignated essay stays top-level. Zero sub-pillars, one, or nine all render
+correctly without reopening the file. The owner's framing is the right one to
+keep: *"maybe there are no more subpillars and it was a one-off, but things
+must be ready for anything."*
+
+**Growth, measured on live by cloning rows.** The left column is FIXED at 282px
+at every width and every count (h1 112px, dek capped 48ch, one CTA row). At 41px
+a row plus 66px of chrome that is a hard budget of **five rows** before the rail
+drives the layout instead of filling it. Three today; four balances the
+masthead; **six is where the composition turns** — the rail runs 145px past the
+left column and `NOTES.` floats in a half-empty column. The fix then is not a
+tweak: the rail leaves the hero and becomes a full-width band above the index.
+Not worth building until it happens.
+
+### v12.20.1 — the header counts what the rows show
+
+v12.20.0 taught the rows to distinguish pillar from sub-pillar and left the
+header saying "3 essays", which undid the distinction one line above it. Now
+"2 pillars · 1 sub-pillar", second half omitted when there are none.
+
+**One classifier, shared by the header and the row class.** The first draft
+parsed the designation twice — a pre-pass for the count, again in the loop for
+the class. That is how a header ends up disagreeing with the rows it heads.
+
+### Verified live after the owner installed v12.20.1
+
+`/notes`: header `2 pillars · 1 sub-pillar`; 1.01 indents 803 → 827 with a grey
+number and hairline; 28px under the rail; privacy sentence is a SPAN inside the
+paragraph at 518px (72ch); hover gives no underline on row or reading time and
+a blood title; first note 822. Mobile 375: rows 45–46px (44px floor holds),
+indent 16px, no overflow. `/provenance`: 1.01 card steps in 40px, still article
+cards with 3 deks and 3 CTAs, 912px, not compact.
+
+**A stale browser cache nearly became a bug report.** My first load of
+`/provenance` after the install showed the OLD "3 essays" with no subordination.
+A `no-store` fetch of the same URL returned the new markup immediately, and
+`cf-cache-status: DYNAMIC` ruled out the edge — it was this browser's own copy
+from earlier in the session. **Before reporting a deploy as incomplete, refetch
+with cache disabled and read the cache headers.**
+
 ## Recurring failure modes from this session
 
 - **Widening a container does nothing when the content is capped by measure.**
@@ -158,13 +225,26 @@ resolved.
   rewritten to assert the intent, both negative-controlled.
 - **The hidden browser pane throttles timers** and returns stale frames on
   scroll. Short evals, tool-side waits.
+- **A scan that reads its own explanation.** My CSS check for "is this rule
+  still scoped to the hero?" matched the COMMENT explaining why the scope was
+  removed, and reported the bug as present in the fixed file. Comment-strip
+  every source scan, and add a vacuity check that the stripping does work — the
+  fifth instance of this shape in two days.
+- **A class MODIFIER breaks an exact-attribute assertion.** An existing test
+  pinned `<article class="sn-notes-pillar">` including the closing quote, so a
+  row carrying the new `--sub` modifier counted 2 of 3 and read as a missing
+  card. Match the prefix.
+- **Borrowed pixels are not a design decision.** Two spacings shipped at values
+  I chose only to keep a number at zero. Neither survived the owner looking at
+  the page. If a value exists to protect a metric rather than to look right,
+  say so in the comment or do not ship it.
 
 ## State at handoff
 
 | | version | where |
 |---|---|---|
 | plugin | v13.108.0 | tagged, merged |
-| theme | v12.19.1 | tagged, merged |
+| theme | v12.20.1 | tagged, merged, INSTALLED and verified live |
 | sn-provenance-worker | v1.18.3 | live |
 | four other workers | — | census gate merged |
 
@@ -185,8 +265,19 @@ resolved.
   return the page ID for `page_for_posts`), and a `get_page_by_path('notes')`
   fallback. **Belt-and-braces resolution is what saved it, not knowledge.** Any
   future change to that lookup needs a test pinning the posts-page case.
-- **The +224px mobile cost is an owner decision.** It is content, not code: keep
-  the block or remove it in Pages → Notes.
+- **The mobile cost is an owner decision.** Measured +199px on live (812 →
+  1011); it is content, not code — keep the block or remove it in Pages → Notes.
+- ~~installation unverified~~ **v12.20.1 installed and verified live**
+  (see above). Theme work for this arc is CLOSED.
+- **OPEN QUESTION raised at the end of the session and NOT answered:** `/notes`
+  and `/provenance` are now near-neighbours. `/provenance` is 46 words of intro
+  plus the same three essays the `/notes` hero rail now lists. **This session
+  created that overlap** — the rail left `/notes` in v10.47.0 specifically to
+  become `/provenance`'s content, and today it came back. Nothing was decided;
+  do not act on it without measuring both pages in GSC first, and note that
+  `/provenance/<slug>` children depend on the hub Page existing and published
+  (sn_theme_pillar_descriptor_from_page gates the hierarchical URI on exactly
+  that).
 - **GSC crawl-delta on 2026-09-14.** Baseline at
   `~/.claude/session-data/2026-09-08-gsc-coverage-baseline.tsv`. Needs a LOCAL
   session — the remote door has no coverage twin. The coverage run **overwrites
