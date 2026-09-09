@@ -1,6 +1,13 @@
 name: Gitleaks
 on:
+  # 2026-09-08: `push:` had no branch filter, so a same-repo branch fired BOTH
+  # triggers and every PR carried two identical gitleaks checks (measured 11s +
+  # 11s on #1128). Scoping the push trigger to main leaves full coverage of what
+  # can actually reach main: PRs are scanned by `pull_request`, and direct pushes
+  # to main are scanned here. The narrow gap left is a push to a feature branch
+  # that has no PR yet — which cannot reach main without opening one.
   push:
+    branches: [ main ]
   pull_request:
 
 permissions:
