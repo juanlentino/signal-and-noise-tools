@@ -313,6 +313,84 @@ foreach ( $wave2_retired_outright as $slug ) {
 	ok( ! in_array( $slug, $all_doors, true ), "v13.0.0 wave 2, retired outright: $slug" );
 }
 
+/* ══ 2026-09-09 — THE VERDICT IS TOTAL ════════════════════════════════════
+ * Every list above records a DECISION about some ability. Nothing, until now,
+ * asserted that those decisions COVER the abilities that exist. So an ability
+ * with no verdict looked exactly like one decided against — and the difference
+ * matters: on 2026-09-09 a session read get-insights' absence from the read
+ * door as accidental drift and re-added it. It was a wave-2 retirement, spec'd
+ * "retired, not absorbed" since day one. The pin above caught it, but only
+ * after the change was written, because nothing said where to look.
+ * Older precedent, same shape: v13.45.0 doored draft-echoes on finding it "had
+ * NO recorded verdict anywhere — not retired, not absorbed, never accounted
+ * for."
+ *
+ * THE STANDING RULE (owner, 2026-09-09): an ability that earns a door does not
+ * become an isolated tool — it becomes part of a big one, the way
+ * schedule_cron_event is a change type of sn-apply rather than its own slug.
+ *
+ * The population is DERIVED from source, so a NEW ability is unclassified the
+ * moment it registers and this suite names it. Theme abilities are out of scope
+ * (separate repo, not checked out in this lane); they are covered by the
+ * blanket assertions above — no signal-and-noise/* slug on either door.
+ * ════════════════════════════════════════════════════════════════════════ */
+$verdict_population = array();
+$verdict_iter = new RecursiveIteratorIterator( new RecursiveDirectoryIterator( dirname( __DIR__ ) . '/inc', FilesystemIterator::SKIP_DOTS ) );
+foreach ( $verdict_iter as $verdict_file ) {
+	if ( ! $verdict_file->isFile() || 'php' !== strtolower( $verdict_file->getExtension() ) ) { continue; }
+	$verdict_src = (string) file_get_contents( $verdict_file->getPathname() );
+	if ( preg_match_all( "/wp_register_ability\s*\(\s*'(signal-noise\/[a-z0-9-]+)'/", $verdict_src, $vm ) ) {
+		foreach ( $vm[1] as $vs ) { $verdict_population[ $vs ] = true; }
+	}
+	// Loop-registered tables put the slug in an ARRAY KEY, not a call argument.
+	if ( preg_match( '/wp_register_ability\s*\(\s*\$/', $verdict_src )
+		&& preg_match_all( "/'(signal-noise\/[a-z0-9-]+)'\s*=>\s*array\(/", $verdict_src, $vk ) ) {
+		foreach ( $vk[1] as $vs ) { $verdict_population[ $vs ] = true; }
+	}
+}
+ok( count( $verdict_population ) >= 90, 'verdict scan resolved the ability population from source (' . count( $verdict_population ) . ' found, floor 90) — a scan resolving nothing would report total coverage over an empty set' );
+
+// Remote twins carry their own slug on the REMOTE door, which is not $all_doors.
+$verdict_remote_door = array_values( array_filter( array_keys( $verdict_population ),
+	static fn( $s ) => str_starts_with( $s, 'signal-noise/remote-' ) ) );
+
+// Reachable through a BIG tool rather than a slug of their own. This is the rule,
+// not an exception: capability belongs in a consolidated tool.
+$verdict_absorbed_by_section = array(
+	'signal-noise/corpus-integrity-scan'       => 'sn-status{corpus_integrity}',
+	'signal-noise/cron-health-summary'         => 'sn-status{cron_health}',
+	'signal-noise/get-collector-status'        => 'sn-status{collector}',
+	'signal-noise/get-404-log'                 => 'sn-metrics{404_log}',
+	'signal-noise/get-analytics-top-content'   => 'sn-metrics{analytics_top_content}',
+	'signal-noise/get-machine-readers-summary' => 'sn-metrics{machine_readers}',
+	'signal-noise/schedule-cron-event'         => 'sn-apply{schedule_cron_event}',
+	// The CAPABILITY (cause a health scan to run) is reachable: sn_health_scan_daily
+	// is in snt_cron_sn_owned_hooks(), so sn-apply{schedule_cron_event} books it.
+	// Only SYNCHRONOUS dispatch is excluded, by the rule stated at
+	// inc/sn-apply/executors.php: "dispatch is the hazard and booking is not."
+	'signal-noise/run-health-scan'             => 'sn-apply{schedule_cron_event} (booking; sync dispatch excluded)',
+);
+
+// DECIDED, NOT YET BUILT. Verdict: it belongs inside sn-posts, per the standing
+// rule — a post-scoped read is a field of the posts tool, never its own slug.
+// Listed separately from the absorbed set because the absorber does not carry it
+// YET, and pretending otherwise is how a claim outruns the code.
+$verdict_absorption_planned = array(
+	'signal-noise/note-dossier' => 'sn-posts (planned — sn-posts does not carry the dossier today)',
+);
+
+$verdict_covered = array_merge(
+	sn_mcp_allowlist(), sn_mcp_rw_allowlist(), $verdict_remote_door,
+	array_keys( $verdict_absorbed_by_section ), array_keys( $verdict_absorption_planned ),
+	array_keys( $retired_to_absorber ), $retired_without_absorber,
+	$wave2_retired_outright, $excluded
+);
+$verdict_unclassified = array_values( array_diff( array_keys( $verdict_population ), $verdict_covered ) );
+sort( $verdict_unclassified );
+ok( array() === $verdict_unclassified, 'EVERY registered plugin ability carries a door verdict — doored, absorbed, retired, excluded, or absorption-planned' . ( $verdict_unclassified ? ' — NO VERDICT RECORDED: ' . implode( ', ', $verdict_unclassified ) . ' (decide it and add it to a list above; do not delete this assertion)' : '' ) );
+ok( 1 === count( $verdict_absorption_planned ), 'exactly ONE ability is decided-but-unbuilt (note-dossier -> sn-posts) — this falls by BUILDING the absorber, never by deleting the row' );
+
+
 // ── v13.0.0 — THE KEPT PAIR, pinned as a pair ──────────────────────────────
 // The spec's mapping calls ai-pair-suggest and ai-link-apply absorbed; the
 // shipped code disproves it — sn-scan deliberately emits apply_hint:null for

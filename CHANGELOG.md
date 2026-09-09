@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- Door verdicts are now TOTAL. `tests/mcp-capabilities.php` already recorded every decision — doored, absorbed, retired-with-absorber, retired outright, excluded — but nothing asserted those decisions covered the abilities that exist, so an ability with **no** verdict looked identical to one **decided against**. A session read `get-insights`' absence from the read door as drift and re-added it; it was a v13.0.0 wave-2 retirement, spec'd "retired, not absorbed" since day one. The new assertion derives the ability population from source and names, by slug, anything without a verdict. Floor included, and negative-controlled both ways: a planted unclassified ability is named; a starved scan reds the floor rather than reporting total coverage over an empty set.
+- Two long-unclassified abilities got their verdicts, per the standing rule that capability belongs in a big tool rather than an isolated slug: `run-health-scan` is reachable as `sn-apply{schedule_cron_event}` (the health hook is in `snt_cron_sn_owned_hooks()`, so it can be booked; only synchronous dispatch stays off, because dispatch is the hazard and booking is not), and `note-dossier` is decided-but-unbuilt — it belongs inside `sn-posts`, which does not carry the dossier today. That row falls by building the absorber, never by deleting it.
+
 ### Changed
 - Full roadmap-board pass: every future column now carries at least two rows (previously eight cells sat at one, each a single move from the no-empty-cell wall). Eleven rows added across Analytics, Proof of origin, Machine learning, Machine readability, Accessibility and Operations — each `planned` row states a real gate, and the two promoted from watches keep their existing trigger conditions unchanged. Two `considering` rows struck as stale: both restated shipped `done` rows in thinner words.
 

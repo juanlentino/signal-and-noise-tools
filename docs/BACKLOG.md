@@ -113,6 +113,22 @@ the gate opens. When one opens, it moves into the prioritized table above.
 
 ## Log
 
+- 2026-09-09 (door verdicts made total, no bump) — an audit of all 118 S&N abilities
+  against both door allowlists produced a wrong recommendation twice, and the cause was
+  structural: "not on a door" collapsed FOUR different facts (absorbed, retired outright,
+  wrong door, never proposed) into one absence. `get-insights` was re-added as drift; it
+  was a v13.0.0 wave-2 retirement spec'd "retired, not absorbed" since day one, and the
+  existing pin caught it only after the change was written. The suite now asserts the
+  verdict set COVERS the ability set, deriving the population from source, so a new
+  ability is named by slug the moment it registers without one.
+  **Standing rule recorded (owner):** an ability that earns a door does not become an
+  isolated tool — it becomes part of a big one, as `schedule_cron_event` is a change type
+  of `sn-apply` rather than its own slug.
+  **BUILD CANDIDATE, decided but not built:** `note-dossier` belongs inside `sn-posts`;
+  `sn-posts` does not carry the dossier today. Small, and the verdict is already made — it
+  is recorded in the suite as absorption-planned, and that row falls only by building the
+  absorber. Not queued: priorities remain the owner's to order.
+
 - 2026-09-08 (full board pass, no bump) — the board was legal but brittle: eight future
   cells sat at ONE row, each a single move from the no-empty-cell wall, which made every
   future demotion expensive. Filled every future column to at least two.
