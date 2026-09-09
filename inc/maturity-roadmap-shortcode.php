@@ -148,10 +148,13 @@ function sn_maturity_roadmap_static_board() {
 			'considering' => array(
 				__( 'Where readers leave to: outbound clicks on citations counted as their own aggregate event — the first idea in this family to require new collection, named as such, and it ships only if the counting stays as blunt as the rest of the ledger', 'signal-and-noise-tools' ),
 				__( 'A year told as a page: the deterministic narrator pointed at twelve months instead of a week — what rose, what faded, what the corpus became — computed from the rollups already kept, no new collection', 'signal-and-noise-tools' ),
-				__( 'A reading ledger that never phones home: which notes you have read, kept in your browser\'s own storage, shown on the index, sent nowhere — the site\'s privacy posture expressed as a feature only the reader can see', 'signal-and-noise-tools' ),
 			),
 			'later'       => array(
 				__( 'Verified versus claimed: crawler request signatures checked at the edge and recorded in the ledger — so the attention story can separate cryptographic fact from a user-agent costume — a thread shared with Machine readability', 'signal-and-noise-tools' ),
+				// 2026-09-08: considering -> later. Reader-facing browser-local state with no
+				// measurement payoff -- the nearest neighbour of the denied perimeter's
+				// reader-facing surfaces, and the only Analytics idea that buys no number.
+				__( 'A reading ledger that never phones home: which notes you have read, kept in your browser\'s own storage, shown on the index, sent nowhere — the site\'s privacy posture expressed as a feature only the reader can see', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Proof of origin', 'signal-and-noise-tools' )     => array(
@@ -177,8 +180,6 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Extend signing and anchoring beyond notes, to pages and then media', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
-				__( 'A second, independent anchor: a standards-based timestamp authority alongside Bitcoin, so the chain\'s integrity never rests on a single mechanism\'s longevity', 'signal-and-noise-tools' ),
-				__( 'A witness that is a peer, not an institution: two independent sites countersign each other\'s chain heads — mutual custody with no authority between them, the thesis said out loud on live infrastructure', 'signal-and-noise-tools' ),
 				__( 'A quote that carries its receipt: select a passage and get the quote with its attribution, its link, and — on a signed note — its anchor attached, with academic citation formats beside it and the landing highlight styled — citation made honest at the moment of copying', 'signal-and-noise-tools' ),
 				__( 'What changed, shown to readers: every accepted edit already re-anchors a note as a new version — a rendered difference between anchored versions turns that chain into legible editorial history, corrections owned in public', 'signal-and-noise-tools' ),
 				__( 'The manuscript beside the proof: each signed note\'s canonical text mirrored into the public ledger repository beside its hash — so the proof is self-contained and a verifier needs no live site to check what was said', 'signal-and-noise-tools' ),
@@ -188,6 +189,9 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Authorship as a credential: each note carrying a standard verifiable credential of authorship in its structured data — the claim stated in a shared vocabulary instead of a house dialect — a thread shared with Machine readability', 'signal-and-noise-tools' ),
 				__( 'The chain outlives its curve: the anchors sign with Ed25519 today, and the key history already commits each next key by hash — so when post-quantum signature practice settles, the successor key can be post-quantum and the rotation is a planned crossing, not an emergency', 'signal-and-noise-tools' ),
 				__( 'Continuity stated: a signed succession plan for keys and corpus — what a reader can still verify if the site ever goes silent, because a signed record outlives its subject', 'signal-and-noise-tools' ),
+				// 2026-09-08: considering -> later. It needs a SECOND SITE to agree, and there is no
+				// candidate -- that is blocked-on-a-partner, not considering.
+				__( 'A witness that is a peer, not an institution: two independent sites countersign each other\'s chain heads — mutual custody with no authority between them, the thesis said out loud on live infrastructure', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'AI', 'signal-and-noise-tools' )                  => array(
@@ -236,7 +240,6 @@ function sn_maturity_roadmap_static_board() {
 				__( 'Retire the legacy single-purpose tools the consolidated set absorbed, on usage evidence rather than on a date', 'signal-and-noise-tools' ),
 			),
 			'considering' => array(
-				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),
 				__( 'Richer edit primitives beyond sentence scale — the drafting boundary stands regardless of what is explored here', 'signal-and-noise-tools' ),
 				// 2026-08-28: "Spend with an address" left this cell for done
 				// (v13.21.0) — see the graduation note there for the honest
@@ -247,6 +250,10 @@ function sn_maturity_roadmap_static_board() {
 				__( 'A registry-listed read door: the read-only door published in the standard agent registry under a name this domain verifiably owns — so agents discover it by lookup instead of by reading a page written for humans', 'signal-and-noise-tools' ),
 				__( 'Cross-family threads made visible: rows that span families carry their partners as chips, so the board shows the weave, not just the columns', 'signal-and-noise-tools' ),
 				__( 'Doors with versioned contracts: an agent pins the contract it integrated against, so a door upgrade never breaks a client silently — API discipline applied before the consumers arrive rather than after', 'signal-and-noise-tools' ),
+				// 2026-09-08: considering -> later. Downstream of a gate that has not opened -- this
+				// family's planned row moves the operative AI channel to the native agents, and
+				// that arc is DISABLED. Considering read as more available than it is.
+				__( 'Scheduled read-only agent runs for recurring reports', 'signal-and-noise-tools' ),
 			),
 		),
 		__( 'Machine learning', 'signal-and-noise-tools' )    => array(
