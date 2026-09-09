@@ -125,6 +125,31 @@ foreach ( sn_maturity_roadmap_static_board() as $family => $columns ) {
 }
 ok( array() === $dupes, 'no item sits in two columns of one family — a row moves, it is never copied' . ( $dupes ? ' — FOUND: ' . implode( '; ', $dupes ) : '' ) );
 
+/* ── 2026-09-08: the exact-match dedupe above catches a COPY. It does not catch a
+ * REWORDED copy, and that is the failure that actually happens: two Machine
+ * readability rows sat in `considering` restating shipped `done` rows in thinner
+ * words, and a promotion in the same session left its old wording behind in
+ * `later`. All three passed the assertion above. This pins the TITLE CLAUSE —
+ * everything before the first colon or comma — because that is the part a
+ * reworded duplicate keeps. ── */
+$titles = array();
+foreach ( sn_maturity_roadmap_static_board() as $family => $cols ) {
+	$seen = array();
+	foreach ( $cols as $status => $items ) {
+		foreach ( $items as $item ) {
+			$clause = strtolower( trim( preg_split( '/[:,]/', $item, 2 )[0] ) );
+			if ( strlen( $clause ) < 20 ) { continue; }
+			foreach ( $seen as $prev_clause => $prev_status ) {
+				if ( $clause === $prev_clause || 0 === strpos( $clause, $prev_clause ) || 0 === strpos( $prev_clause, $clause ) ) {
+					$titles[] = "$family: $prev_status vs $status — \"$clause\"";
+				}
+			}
+			$seen[ $clause ] = $status;
+		}
+	}
+}
+ok( array() === $titles, 'no REWORDED duplicate either — a shared title clause across two columns of one family is a row that was copied instead of moved' . ( $titles ? ' — FOUND: ' . implode( '; ', $titles ) : '' ) );
+
 // v10.73.1: the legend's grid tracks the status count — a hardcoded track
 // count orphans the newest column onto its own row (shipped broken in
 // v10.73.0, owner-caught on the live page). Pin the CSS to the constant so
