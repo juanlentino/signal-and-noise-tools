@@ -56,7 +56,18 @@ define( 'SN_NARRATION_HTTP_TIMEOUT', 120 );
 
 /**
  * Record the most recent digest failure (code + message + bounded raw model
- * output when the error carries it) for the admin notice. Non-errors ignored.
+ * output when the error carries it). Non-errors ignored.
+ *
+ * THIS WAS NEVER CALLED. The store / read / clear trio was defined and unit-
+ * tested in isolation, and no production path invoked any of them: the cron
+ * handler discarded snt_narration_run()'s WP_Error on the floor, so a failed
+ * run left no trace and get-narration could not tell "nothing generated yet"
+ * from "the provider is down". Measured under a genuinely depleted API account
+ * on 2026-09-10. Wired at snt_narration_cron_run(); read by get-narration.
+ *
+ * Kept for as long as the digest it stands in for would have been cached, and
+ * cleared by the next SUCCESSFUL run — a 15-minute flash was right for an admin
+ * notice and wrong for a state an agent reads a day later.
  *
  * @param WP_Error|mixed $err The failure from snt_narration_run().
  * @return void
@@ -75,7 +86,7 @@ function snt_narration_store_last_error( $err ) {
 			'raw'     => substr( $raw, 0, 300 ),
 			'at'      => time(),
 		),
-		15 * 60
+		SN_NARRATION_CACHE_TTL
 	);
 }
 
@@ -390,8 +401,16 @@ function snt_narration_schedule( $force = false ) {
  * @return void
  */
 function snt_narration_cron_run( $force = false ) {
-	if ( function_exists( 'snt_narration_run' ) ) {
-		snt_narration_run( (bool) $force );
+	if ( ! function_exists( 'snt_narration_run' ) ) {
+		return;
+	}
+	// The single choke point for the background path. A WP_Error here used to
+	// be discarded, which is how a dead provider read as "not generated yet".
+	$result = snt_narration_run( (bool) $force );
+	if ( is_wp_error( $result ) ) {
+		snt_narration_store_last_error( $result );
+	} elseif ( is_array( $result ) ) {
+		snt_narration_clear_last_error();
 	}
 }
 
