@@ -402,7 +402,9 @@ function snt_sn_apply_write_create_draft( array $payload ) {
 	// reproduces `empty.variable: Variable $post_id in empty() always
 	// exists and is not falsy` under `composer phpstan`) — so is_wp_error()
 	// alone is the complete, honest failure check for this specific call.
-	$post_id = wp_insert_post( $postarr, true );
+	// v13.109.6: SLASHED, per WP's convention -- wp_insert_post() unslashes
+	// internally, so raw block markup loses every literal backslash.
+	$post_id = wp_insert_post( wp_slash( $postarr ), true );
 	if ( is_wp_error( $post_id ) ) {
 		return new WP_Error( 'snt_sn_apply_write_failed', $post_id->get_error_message(), array( 'status' => 500 ) );
 	}
@@ -423,7 +425,7 @@ function snt_sn_apply_write_create_draft( array $payload ) {
 	$surfaces_set = array();
 	foreach ( array( 'meta_description' => '_sn_meta_description', 'og_card_title' => '_sn_og_card_title' ) as $field => $meta_key ) {
 		if ( array_key_exists( $field, $payload ) ) {
-			update_post_meta( (int) $post_id, $meta_key, (string) $payload[ $field ] );
+			update_post_meta( (int) $post_id, $meta_key, wp_slash( (string) $payload[ $field ] ) );
 			$surfaces_set[] = $field;
 		}
 	}

@@ -174,8 +174,9 @@ function snt_ability_update_post_surfaces( $input ) {
 	$card_regenerated = false;
 
 	if ( null !== $excerpt ) {
+		// v13.109.6: wp_slash -- wp_update_post() unslashes what it is given.
 		$res = wp_update_post(
-			array( 'ID' => $post_id, 'post_excerpt' => $excerpt ),
+			wp_slash( array( 'ID' => $post_id, 'post_excerpt' => $excerpt ) ),
 			true
 		);
 		if ( is_wp_error( $res ) ) {
@@ -186,13 +187,13 @@ function snt_ability_update_post_surfaces( $input ) {
 	}
 
 	if ( null !== $meta_desc ) {
-		update_post_meta( $post_id, '_sn_meta_description', $meta_desc );
+		update_post_meta( $post_id, '_sn_meta_description', wp_slash( $meta_desc ) );
 		delete_post_meta( $post_id, '_sn_autogen_meta_description' );
 		$updated[] = 'meta_description';
 	}
 
 	if ( null !== $og_title ) {
-		update_post_meta( $post_id, '_sn_og_card_title', $og_title );
+		update_post_meta( $post_id, '_sn_og_card_title', wp_slash( $og_title ) );
 		delete_post_meta( $post_id, '_sn_autogen_og_card_title' );
 		// Same immediate-PNG-refresh behavior as the AI path in
 		// inc/ai-og-card-title.php — quiet on failure, reported honestly.
@@ -203,7 +204,7 @@ function snt_ability_update_post_surfaces( $input ) {
 	}
 
 	if ( null !== $seo_title ) {
-		update_post_meta( $post_id, '_sn_seo_title', $seo_title );
+		update_post_meta( $post_id, '_sn_seo_title', wp_slash( $seo_title ) );
 		$updated[] = 'seo_title';
 	}
 
@@ -211,7 +212,7 @@ function snt_ability_update_post_surfaces( $input ) {
 		// v10.7.0: new meta key. The meta-description generator reads it as
 		// its keyword fallback (inc/ai-meta-description.php) so the SEO
 		// grading loop closes without a per-call parameter.
-		update_post_meta( $post_id, '_sn_focus_keyword', $focus_kw );
+		update_post_meta( $post_id, '_sn_focus_keyword', wp_slash( $focus_kw ) );
 		$updated[] = 'focus_keyword';
 	}
 
