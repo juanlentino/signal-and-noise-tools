@@ -170,9 +170,164 @@ Typographic hierarchy as a deliberate scale rather than per-leaf. Data
 visualisation as part of the design system. 320px. Any of it under an actual
 screen reader.
 
-## Verify after installing
+## Verified after installing — both passed
 
-1. Tab to a Geography row link in S&N Analytics and press Enter. The mechanism is
-   tested; the browser path is not.
-2. Re-measure tap targets in the phone layer — expect zero of ours under 24px,
-   twenty upstream ones remaining.
+The owner installed and I measured on the running build (`?ver=13.109.19`
+confirmed, with the keydown listener present in the shipped `os-kit.js`, before
+anything else was read).
+
+1. **Keyboard path works end to end.** Geography: 30/30 actionable anchors carry
+   `tabindex="0"` and `role="link"`, **0 unreachable** — it was 30/30 unreachable.
+   A real Enter on "US" opened the drill-down ("Top pages · Country = US" with a
+   Clear control). My `contentChanged` flag was ambiguous because the toolbar
+   prefix is shared; the screenshot decided it.
+2. **Every tap target the release addressed clears the floor.** The seven doorway
+   links measure **24px** (were 17–18); `View all (6)` is 62x24 and the three
+   system rows 334x24 (were x18). Zero of ours remain under 24.
+
+**One thing the fix revealed rather than caused.** The Analytics drill-down row
+links ("US", "Smyrna", "Buenos Aires") are 15px tall, `display: inline`,
+`padding: 0` — about 30 on Geography alone. They were ALWAYS 15px and always
+mouse-clickable; before v13.109.18 they had no `tabindex`/`role`, so a
+tap-target probe's selector never matched them and they were not counted as
+controls at all. Making them keyboard-reachable brought them into the
+population. Whether they are a strict SC 2.5.8 failure is genuinely arguable —
+the inline exception has a second limb ("size otherwise constrained by the
+line-height of non-target text") and they sit in table rows beside numeric cells
+at the same line-height. **Owner's call, 2026-09-10: leave them.**
+
+**And one flag I withdrew.** I reported these links as missing a pointer-cursor
+affordance. Measured: `body.os-active, body.os-active * { cursor: default
+!important }` in OpenStation's `desktop.css` — 50/50 real `a[href]`, 50/50
+`<button>` and 7/7 of ours all compute `default`. Nothing in the shell shows a
+pointer, by design. Our links were never anomalous; I had compared them to web
+convention instead of to their neighbours. Owner's call: leave the behaviour.
+That rule also means our own `sn-analytics.css` `cursor: pointer` had never
+applied — removed in #1161 (v13.109.19+, unreleased at time of writing), with
+the `color` half kept because it IS live.
+
+---
+
+# Part 2 — the upstream arc, later the same day
+
+With the plugin side closed, the owner asked me to act on the OpenStation issues
+this session had opened. **Standing invitation:** `AllTerrainDeveloper` on #362,
+*"Please go ahead and open a PR if you're up for it."* That is a maintainer's
+invitation on an earlier thread, not on these — I verified #789 and #790 had
+**zero comments** before acting, and said so.
+
+No push access to `WordPress/openstation`; PRs come from the `juanlentino` fork,
+`fix/<slug>` onto `trunk`, matching how #366 landed.
+
+## Three PRs open, awaiting a maintainer
+
+- **[#791](https://github.com/WordPress/openstation/pull/791) → fixes #790.**
+  The widget frame's chrome buttons raised to the 24x24 floor (redock 20x20,
+  in-chrome close 20x20, corner close 22x22). Raised the box rather than adding
+  an invisible hit area **because `.os-widgets__chrome` is the drag handle**
+  (`cursor: grab`, `touch-action: none`) and a pseudo-element overlay would sit
+  between the pointer and the drag it is meant to start. The spacing limb
+  mattered too: adjacent flex siblings with `gap: 8px`, so at 24px each the
+  centres are 32px apart and the test pins that arithmetic.
+- **[#792](https://github.com/WordPress/openstation/pull/792) → fixes #789.**
+  Adds `hide-label` to `os-text-field`. The `<label>` still renders, still pairs
+  by `for=`, still supplies the accessible name; only the visual goes.
+  `display: none` or dropping the element for `aria-label` alone would both be
+  easier and worse. Declared as `hideLabel` so their `kebab()` yields
+  `hide-label` — verified against their own implementation, not assumed. Four
+  first-party search fields adopt it; no `<os-text-field>` under `apps/` is
+  unnamed after it.
+- **[#793](https://github.com/WordPress/openstation/pull/793) → fixes #762.**
+  Post Stats' canvas chrome reads `--os-ui-color-border` /
+  `--os-ui-color-text-subtle` instead of literal black. **The fallbacks are
+  deliberately not black** — a fallback ships precisely when the token fails to
+  resolve, so a black one restores the bug in the only case it exists to cover.
+
+**A verification limit that applies to all three.** I could not run their vitest:
+`devEngines` pins Node to `>=24 <25`, this machine is on v26, and `npm` refuses
+before install. I said so in every PR rather than implying otherwise, and instead
+extracted each test's assertion logic into plain node and ran it against the real
+files **in both directions** — passing on the patched file and **failing on the
+pre-patch file**, so the guards are failable rather than vacuous. The vitest
+harness itself is unexercised. If CI reds, suspect the harness before the fix.
+
+## Two issues root-caused, no PR — deliberately
+
+- **#764 — it is their template renderer, not the Plugins app.** They do not use
+  lit; `src/ui/core/html.ts` is their own ~400-line renderer, and its attribute
+  part (L532) **removes an attribute whose composed value is the empty string**
+  rather than setting it empty — including the placeholder it wrote itself at
+  L325, because `AttrPart.last` is `last?: string` and `'' !== undefined` on the
+  first pass. `os-select` is behaving correctly when it skips an option with no
+  `value`. I did **not** patch it: `formatText()` maps `null`/`undefined`/`false`
+  to `''` too, so "empty means remove" is also how every conditional attribute in
+  their tree omits itself, and which of the two candidate shapes they want is a
+  design call on their core renderer. Retitled to name the real cause and scope —
+  `alt=""` is unrenderable too, not just one dropdown.
+- **#765 — no timeout exists anywhere in the chain.** `AbortController` /
+  `AbortSignal` / `signal:` appear **zero** times under `apps/plugins/`. `fetch`
+  rejects on network failure but not when the server accepts and holds the
+  socket, so the promise stays pending and `runUpdate`'s (correct) `finally`
+  never runs. **What the original report missed: one stall wedges the whole
+  window.** `drain()` sets `inFlight = true` before awaiting and clears it in a
+  `finally` on that same promise, so every later update queues behind a `drain()`
+  that returns at its guard — no plugin in that window can update again until
+  reload. Retitled to say that. No PR: the timeout duration and abort semantics
+  are a judgement call, Core's own `wp.updates` has no client timeout to copy,
+  and aborting the fetch does not abort the upgrader.
+
+**#532 remains untouched on purpose.** It asks to move agent runs onto a jobs
+pattern — architectural. The #362 invitation was for a specific fix, not a blank
+cheque, and turning up unannounced with a subsystem rewrite is not a favour.
+
+**#789's own count was wrong and is corrected in place.** It said seven; on
+current `trunk` it is four. Trunk moved, and one of my seven was a false positive
+— my scanner matched the literal `<os-text-field>` inside `os-number-field`'s
+help *summary string*. Fixed by editing the title and adding an update block, not
+by posting a comment, so no subscriber ping. Comment-stripping is not enough when
+the corpus contains code samples inside strings.
+
+## Memory maintenance — two sweeps, 156 bytes, and why that is the story
+
+`plugin/MEMORY.md` sits under a measured ~24.4KB cap (the loader truncates and
+says so) and had grown 22.1KB -> 24.1KB since the last sweep.
+
+**The archive sweep found no junk.** 273 pointers, **zero duplicates, zero
+orphans**. Every `CLOSED`/`SHIPPED`/`RESOLVED` line a keyword scan flagged turned
+out to be carrying a live guard — *"NEVER re-enable Cloudflare's toggle"*, *"act
+ONLY on `decision = build_ranges`"*, *"the wp-cli `--by=name` trap"*. **Those
+markers ARE the guard**; archiving them causes the re-opening they prevent. Only
+a genuinely closed #1083 pointer and a six-day-old `ripe: []` snapshot came out.
+94 bytes.
+
+**The consolidation sweep corrected my own advice.** I had said consolidation was
+the remaining lever. Measured, the `Instruments` cluster is a **hub with
+spokes**, not near-duplicates: `negative-control-your-own-instruments` is cited
+**46** times, and the three biggest carry **85** citations between them. Merging
+those means rewriting 85 links and collapsing the most connected node in the
+corpus. **Inbound-link count, not topic similarity, decides what can merge.**
+Only the two lowest (1 and 0 inbound) were safe — folded into
+`cli-measurement-traps` for 62 bytes.
+
+**Two silent mangles in that merge, caught only by content diffing.** Splitting
+frontmatter with `split('\n', N)[N]` ate the first line of each body; one section
+shipped starting mid-sentence, having lost the line that named both the scenario
+and the tool. Every structural check passed while the text was amputated —
+headings present, claims greppable, pointers intact. What caught it was diffing
+every substantive line of the originals out of `git show HEAD:<path>` against the
+merged file. That is now the written rule for any future merge.
+
+Net: index at **23,944 bytes**, 456 of headroom. A reprieve, not a fix.
+
+## Where it stands
+
+| | |
+|---|---|
+| plugin `main` | `6e17782`, v13.109.19 released; #1161 merged, riding in Unreleased |
+| upstream PRs | #791, #792, #793 — open, unreviewed, CI unverified locally |
+| upstream issues | #789 corrected · #764, #765 root-caused and reframed · #533, #532 untouched |
+| memory | `1864a39`, synced, private |
+
+Nothing is running in the background. The two most likely things to need a reply:
+CI on those PRs (suspect the Node pin before the fix), and whichever shape they
+choose for #764, since that one changes their core renderer.
