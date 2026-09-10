@@ -12,14 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.109.1] - 2026-09-10 — the card title guidance says what was measured
+
 ### Fixed
 - The OG card title field's guidance was wrong. It advised 60–90 characters; measured against the actual font at the actual sizes, one line holds about 24 characters and an 83-character title truncated even at the smallest step. The card wraps to three lines across 1040px and steps 88→74→62px before ellipsizing, so the limit is rendered width and long words break early — character count is a poor proxy twice over. The helper now says what was measured.
 
 ### Changed
 - The `/notes` position-drift watch now records that its window is confounded. The page changed materially between the watch being set and its 2026-09-11 due date — the pillar rail arrived in the hero, the corpus stamp left it, the heading outline changed, and the first note moved twice — so a worse position on that date cannot be attributed to drift rather than to the changes. The watch says so rather than leaving the next reader to infer it.
-
-## [13.109.0] - 2026-09-09 — the coverage sweep sees the whole site
-
-### Fixed
-- The weekly search-coverage inspection now covers the whole public site — posts, Pages **and tag archives** — not just posts. It walked `post` only, so /provenance, its three essays, the maturity pages and Start Here had never been inspected — and this map is the only thing that can tell "not indexed" apart from "indexed with nobody searching for it". Their zero-impression readings looked like findings when they were unanswered questions. Tag archives are not even in the sitemap (core emits posts and pages only) yet six of them earn impressions, so Google reached them by following links — a URL that ranks and has never been inspected is the exact blind spot this map exists to close. The per-run cap was never the limit (200 against an API allowing 2,000/day, for ~40 posts + ~28 pages + ~23 tags); the post-type filter was. Targets are now keyed `post:<id>` / `term:<id>`, because term and post ids are independent sequences that would otherwise collide and silently drop one URL.
 
