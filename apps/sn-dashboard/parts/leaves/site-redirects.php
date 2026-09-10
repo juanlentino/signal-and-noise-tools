@@ -27,46 +27,6 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 require_once __DIR__ . '/site-redirects-parts.php';
 
-/**
- * The leaf's readings, the way the classic renderer reads them: the redirect
- * map newest first; the actionable 404 log split into broken paths (busiest
- * first, each with its slug suggestion) and automated probes (busiest first).
- *
- * @return array{redirects:array,broken:array,probes:array,probe_hits:int}
- */
-function redirects_data() {
-	$redirects  = \sn_redirects_all();
-	$log        = \sn_404_log_actionable();
-	$candidates = function_exists( 'sn_404_published_paths' ) ? \sn_404_published_paths() : array();
-	$host       = (string) wp_parse_url( home_url(), PHP_URL_HOST );
-	$part       = function_exists( 'sn_404_log_partition' )
-		? \sn_404_log_partition( $log, $candidates, $host )
-		: array( 'actionable' => $log, 'probes' => array() );
-	$busiest    = static function ( $a, $b ) {
-		return (int) ( $b['count'] ?? 0 ) <=> (int) ( $a['count'] ?? 0 );
-	};
-	$broken = (array) $part['actionable'];
-	$probes = (array) $part['probes'];
-	uasort( $broken, $busiest );
-	uasort( $probes, $busiest );
-	$rows = array();
-	foreach ( $broken as $path => $entry ) {
-		$rows[ $path ] = array(
-			'entry'     => (array) $entry,
-			'suggested' => function_exists( 'sn_404_suggest_target' ) ? (string) \sn_404_suggest_target( (string) $path, $candidates ) : '',
-		);
-	}
-	$hits = 0;
-	foreach ( $probes as $entry ) {
-		$hits += (int) ( $entry['count'] ?? 0 );
-	}
-	return array(
-		'redirects'  => array_reverse( $redirects, true ),
-		'broken'     => $rows,
-		'probes'     => $probes,
-		'probe_hits' => $hits,
-	);
-}
 
 /**
  * The intro the classic leaf opens with.
@@ -85,34 +45,6 @@ function redirects_intro_html() {
 		. '</p>';
 }
 
-/**
- * The rail: the broken-links status, the probe bucket, one section per broken
- * path, and the whole-log clear.
- *
- * @param array<string,mixed> $data From redirects_data().
- * @return string
- */
-function redirects_rail_html( array $data ) {
-	$total = count( $data['broken'] );
-	$out   = redirects_status_html( $total );
-	if ( ! empty( $data['probes'] ) ) {
-		$out .= redirects_probes_html( (array) $data['probes'], (int) $data['probe_hits'] );
-	}
-	if ( $total > 0 ) {
-		foreach ( $data['broken'] as $path => $row ) {
-			$out .= redirects_404_row_html( (string) $path, (array) $row['entry'], (string) $row['suggested'] );
-		}
-		$out .= \snt_kit_action_button(
-			__( 'Clear 404 log', 'signal-and-noise-tools' ),
-			'redirect_404_clear',
-			array(
-				'confirm'       => __( 'Clear the entire 404 log?', 'signal-and-noise-tools' ),
-				'confirm_label' => __( 'Clear', 'signal-and-noise-tools' ),
-			)
-		);
-	}
-	return $out;
-}
 
 /**
  * The leaf.
@@ -131,11 +63,12 @@ function paint_site_redirects( array $ctx ) {
 		$main .= redirects_row_html( (string) $source, (array) $r );
 	}
 	$main .= redirects_add_html();
+	// v13.109.8: full width, no rail. The 404 log moved to Site → Broken links —
+	// it was 192 rows in a ~1fr column beside this table, which is the
+	// dead-half-window defect the parity pass removes. Pattern B: a redirect map
+	// is tabular, so give it the width rather than half of it.
 	return redirects_intro_html()
-		. '<div class="snt-cols">'
-		. '<section class="snt-col">' . \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), $main ) . '</section>'
-		. \snt_kit_tag( 'aside', array( 'class' => 'snt-col', 'aria-label' => __( 'Broken links (404s)', 'signal-and-noise-tools' ) ), \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), redirects_rail_html( $data ) ) )
-		. '</div>';
+		. \snt_kit_tag( 'os-stack', array( 'gap' => '12' ), $main );
 }
 
 add_filter(

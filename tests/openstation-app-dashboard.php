@@ -106,7 +106,7 @@ namespace {
 	ok( 'dashboard' === \SignalNoise\OpenStationHost\Dashboard\current_tab( $os ), 'main IS the Dashboard tab' );
 	$os->view = 'monitoring';
 	ok( 'monitoring' === \SignalNoise\OpenStationHost\Dashboard\current_tab( $os ), 'a tab slug is itself' );
-	ok( array( 'identity-and-seo', 'front-end', 'performance', 'redirects' ) === array_keys( \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'site' ) ), 'a tab`s leaves come from the registry in its order' );
+	ok( array( 'identity-and-seo', 'front-end', 'performance', 'redirects', 'broken-links' ) === array_keys( \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'site' ) ), 'a tab`s leaves come from the registry in its order' );
 	ok( array() === \SignalNoise\OpenStationHost\Dashboard\leaves_for( 'dashboard' ), 'the Dashboard tab has no leaves' );
 	$st = new \OpenStation\App\State( $app->state, array( 'sub' => 'redirects' ) );
 	ok( 'redirects' === \SignalNoise\OpenStationHost\Dashboard\active_sub( 'site', $st ), 'the state`s sub is the active leaf when the tab has it' );

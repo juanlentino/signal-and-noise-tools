@@ -18,6 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 add_action( 'sn_admin_redirects_tab', 'sn_redirects_render_admin_tab' );
+add_action( 'sn_admin_broken_links_tab', 'sn_redirects_render_broken_links_tab' );
 
 /**
  * Render the Redirects tab: manager in the main column, 404 log in the rail.
@@ -31,7 +32,7 @@ function sn_redirects_render_admin_tab() {
 	// older, narrower filter) so the list stays broken-links-worth-fixing only.
 	$log       = sn_404_log_actionable();
 
-	echo '<p class="sn-prose">Send old or broken URLs to a new destination with a 301 (permanent) or 302 (temporary) redirect. Targets can be an on-site path (<code>/new-page</code>) or a full external URL (<code>https://…</code>). The <strong>404 log</strong> in the sidebar surfaces paths visitors actually hit that don&rsquo;t exist: one click turns any of them into a redirect.</p>';
+	echo '<p class="sn-prose">Send old or broken URLs to a new destination with a 301 (permanent) or 302 (temporary) redirect. Targets can be an on-site path (<code>/new-page</code>) or a full external URL (<code>https://…</code>). Paths visitors actually hit that don&rsquo;t exist are listed under <strong>Site &rarr; Broken links</strong>, where one click turns any of them into a redirect.</p>';
 
 	sn_admin_shell_open();
 
@@ -87,6 +88,29 @@ function sn_redirects_render_admin_tab() {
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 
+	// v13.109.8: the 404 log moved to its own leaf (Site -> Broken links). It was
+	// a rail here, and a rail cannot hold 192 rows -- it rendered as an unbounded
+	// stack beside a shorter column, which is the dead-half-window defect the
+	// parity pass exists to remove. A redirect map is a table; give it the width.
+	sn_admin_shell_close_no_rail();
+}
+
+/**
+ * Site -> Broken links: the 404 log and its suggestions, as its own leaf.
+ *
+ * Split out of sn_redirects_render_admin_tab() in v13.109.8. The content is
+ * unchanged; what changed is that it is now MAIN content with the full width
+ * rather than a rail beside a redirect table.
+ *
+ * @return void
+ */
+function sn_redirects_render_broken_links_tab() {
+	if ( ! current_user_can( 'manage_options' ) ) {
+		return;
+	}
+	$log = sn_404_log_actionable();
+
+	sn_admin_shell_open();
 	// ── RAIL: 404 log ──
 	//
 	// v10.47.0: the rail used to render EVERY logged path as its own decision
@@ -101,7 +125,6 @@ function sn_redirects_render_admin_tab() {
 	// Everything else collapses into one line with one bulk dismiss. Nothing is
 	// deleted on read — the probes are still counted and still dismissible; they
 	// just stop impersonating work.
-	sn_admin_shell_rail( 'Broken links (404s)' );
 	$sn_404_candidates = function_exists( 'sn_404_published_paths' ) ? sn_404_published_paths() : array();
 	$sn_404_host       = (string) wp_parse_url( home_url(), PHP_URL_HOST );
 	$sn_404_part       = function_exists( 'sn_404_log_partition' )
@@ -186,7 +209,7 @@ function sn_redirects_render_admin_tab() {
 		echo '</form>';
 	}
 
-	sn_admin_shell_close();
+	sn_admin_shell_close_no_rail();
 }
 
 /**
