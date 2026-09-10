@@ -212,6 +212,30 @@ function snt_os_host_window_args( $window_args, $id ) {
 		}
 		$window_args[ $bucket ] = $existing;
 	}
+
+	// OpenStation auto-loads `apps/<id>/<id>.css` under its OWN handle. Ours
+	// points at the SAME file, so carrying both double-links it. Measured live
+	// 2026-09-10 on the admin: two <link> tags for sn-dashboard.css, one at
+	// `?ver=<filemtime>` (theirs, position 34) and one at `?ver=SNT_VERSION`
+	// (ours, position 43) -- and because ours came LAST it won every tie at
+	// equal specificity. That is the hazard, not the extra request: theirs
+	// re-busts whenever the file changes, ours only when SNT_VERSION does, so
+	// a CSS edit without a version bump serves a FRESH copy that is overridden
+	// by a STALE cached one.
+	//
+	// Drop ours only when theirs is actually present: an OpenStation without
+	// the auto-loader still needs ours, and a plain install must be unchanged.
+	// This is the same guard snt_os_app_window_args() already applies to the
+	// `signal-noise` app; it was never extended to the two host windows.
+	$theirs = function_exists( 'openstation_apps_style_handle' )
+		? (string) openstation_apps_style_handle( (string) $id )
+		: 'openstation-app-' . (string) $id;
+	$ours   = 'snt-' . (string) $id . '-app';
+	$styles = (array) $window_args['styles'];
+	if ( in_array( $theirs, $styles, true ) && in_array( $ours, $styles, true ) ) {
+		$window_args['styles'] = array_values( array_diff( $styles, array( $ours ) ) );
+	}
+
 	return $window_args;
 }
 

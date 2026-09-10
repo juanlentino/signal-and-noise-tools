@@ -819,6 +819,56 @@ foreach ( array( 'sn-dashboard', 'sn-analytics' ) as $app_id ) {
 }
 ok( 0 === preg_match( '/os-chromeless[^{]*\.sn-nav-tabs[^{]*\{[^}]*display:\s*none/s', $admin_css ), 'classic pages opened by URL retain their own navigation strip' );
 
+echo "\nGroup C2: one file, one <link>\n";
+// Measured live 2026-09-10 on the admin: TWO <link> tags for sn-dashboard.css --
+// `?ver=<filemtime>` under OpenStation's own handle (position 34) and
+// `?ver=SNT_VERSION` under ours (position 43). Same file, twice, ours last.
+//
+// The extra request is the small half. The hazard is that the two cache-bust on
+// DIFFERENT inputs: theirs re-busts whenever the file changes, ours only when
+// SNT_VERSION does. Edit the CSS without bumping the version and the browser
+// holds a fresh copy AND a stale cached one -- with the stale one later in the
+// document, so it wins every tie at equal specificity.
+snt_os_host_register_assets();
+
+// General guard: no two registered handles may point at the same file. This is
+// the one that catches the NEXT double-load, not just this one.
+$by_src = array();
+foreach ( (array) $GLOBALS['__styles'] as $handle => $reg ) {
+	$src = is_array( $reg ) ? (string) $reg[0] : '';
+	if ( '' === $src ) { continue; }
+	$by_src[ $src ][] = $handle;
+}
+$doubled = array();
+foreach ( $by_src as $src => $handles ) {
+	if ( count( $handles ) > 1 ) { $doubled[] = basename( $src ) . ' <- ' . implode( ' + ', $handles ); }
+}
+ok( array() === $doubled, 'no stylesheet is registered under two handles' . ( $doubled ? ': ' . implode( '; ', $doubled ) : '' ) );
+
+// Behavioural guard: ours is dropped ONLY when theirs is actually present.
+foreach ( array( 'sn-dashboard', 'sn-analytics' ) as $app_id ) {
+	$ours   = 'snt-' . $app_id . '-app';
+	$theirs = 'openstation-app-' . $app_id;
+
+	$with = snt_os_host_window_args( array( 'styles' => array( $theirs ), 'scripts' => array() ), $app_id );
+	ok(
+		! in_array( $ours, (array) $with['styles'], true ),
+		$app_id . ': our app sheet is dropped when OpenStation already carries its own'
+	);
+	ok(
+		in_array( $theirs, (array) $with['styles'], true ),
+		'...and theirs is left alone, never replaced'
+	);
+
+	// An OpenStation without the auto-loader still needs ours: a plain install
+	// must be unchanged, or the window paints unstyled.
+	$without = snt_os_host_window_args( array( 'styles' => array(), 'scripts' => array() ), $app_id );
+	ok(
+		in_array( $ours, (array) $without['styles'], true ),
+		$app_id . ': our app sheet is KEPT when the framework carries none -- the fallback still works'
+	);
+}
+
 $snt_ci = (string) getenv( 'CI' );
 if ( $skip > 0 && '' !== $snt_ci && '0' !== $snt_ci && 'false' !== strtolower( $snt_ci ) ) {
 	echo "\nFAILED (counted into the summary below, which is what tests/run.sh reads): $skip pins were SKIPPED because WordPress's wp-includes/html-api is not on this machine,\n";
