@@ -1,8 +1,8 @@
 # Handoff — 2026-09-08..09: the redirect guard closes, and the pillar rail moves into the notes hero
 
 Picks up where `HANDOFF-2026-09-08` stops (plugin **v13.107.5**). Two days,
-**plugin v13.107.6 → v13.109.0** (4 releases), **theme v12.18.10 → v12.20.3**
-(6 releases), five worker CI gates. All merged and tagged; both `origin/main`s
+**plugin v13.107.6 → v13.109.0** (4 releases), **theme v12.18.10 → v12.20.4**
+(7 releases), five worker CI gates. All merged and tagged; both `origin/main`s
 are clean.
 
 **Provenance of this document:** unlike the 09-08 handoff, I did this work. Every
@@ -305,6 +305,47 @@ published**. Its `finding_total: 0` is a stale snapshot with a plausible
 `elapsed_ms: 33085`. Read `scanned_at` against the change you care about; the
 verdict alone is not an answer. (Recorded trap, hit again.)
 
+### v12.20.4 — a block that was invisible on Pages
+
+The owner: *"Shouldn't I use any of the WP blocks we created in /provenance? It's
+a wall of text until the end where the pillars are."* He was right — the page is
+eight sections, each exactly one paragraph of 82–125 words.
+
+`signal-noise/sidenote` had **two** CSS rules and **both** were
+`.single-post .sn-sidenote`. On a Page it rendered a bare `<p>` in body type:
+no float, no margin escape, no hairline, no mono. **Not a degraded sidenote, an
+invisible one** — nothing errors, and the editor shows it correctly because the
+editor loads its own styles.
+
+Counting rules ranked all three blocks immediately: sidenote 2 rules / 2 scoped;
+pull-quote 6 / 0; pillar-essays 42 / 0. Only one was stuck, so "extend all the
+blocks" turned out to be one block and two rules.
+
+Scoped now to `.wp-block-post-content` — what the device needs is a constrained
+prose column with room beside it, not a post type. **That was already the
+pull-quote's scope**, which is exactly why that block worked everywhere and this
+one did not: the correct answer was in the same stylesheet the whole time.
+
+Verified before widening: the wrapper exists on four templates checked and is
+the `.is-layout-constrained` element the `!important` escape was written to
+beat; clearance measured at the breakpoint where the float turns on (260px
+available against 200px needed at 1280 on `/provenance`, 340px at 1440);
+specificity held at two classes.
+
+Negative-controlled three ways, and the third is the point: **unscoping
+entirely** — a bare `.sn-sidenote` — passes a naive "is it still `.single-post`?"
+check while leaking the float into headers and widgets. The assertion is
+"reachable from a prose column", not "not template-scoped".
+
+**Also found:** the block's docblock pointed at `critical.css`. The rules are in
+`article.css` and always were. Caught only because the comment contradicted a
+grep I had just run.
+
+Delivered alongside: `/provenance` block markup with the owner's prose verbatim
+plus two sidenotes and one pull-quote — the §Two sidenote defining ISRC/ISWC is
+the structural answer to "for everyone", since a peer's eye skips the margin
+while a general reader gets the definition, without writing two registers.
+
 ## Recurring failure modes from this session
 
 - **Widening a container does nothing when the content is capped by measure.**
@@ -397,7 +438,7 @@ the world and assumes the world was left alone.
 | | version | where |
 |---|---|---|
 | plugin | v13.108.0 | tagged, merged |
-| theme | v12.20.3 | tagged, merged (owner installed through v12.20.1) |
+| theme | v12.20.4 | tagged, merged (owner installed through v12.20.3) |
 | plugin | v13.109.0 | tagged, merged, INSTALLED |
 | /provenance | 741 words | written, published, all 9 internal links 200 |
 | sn-provenance-worker | v1.18.3 | live |
