@@ -205,5 +205,45 @@ define( 'SN_MCP_REMOTE_DISABLED', true );
 $kit = snt_leaf_paint( 'ai', 'mcp-connect' );
 ok( false !== strpos( $kit, 'Killed in wp-config' ) && false !== strpos( $kit, 'disabled' ), 'remote-door state: the wp-config kill switch reads Killed in wp-config and disables the toggle' );
 
+
+// ── The reference half is a 2x2 grid, not a 1,000px vertical essay. ──
+// The tile row at the top of this leaf already says there are FOUR doors and
+// puts them side by side; the body used to explain the same four one under the
+// other, each in a full-width section whose prose used under half of it.
+// Measured live 2026-09-10: 2,852px -> 2,136px once paired, cards at 865px.
+$kit = snt_leaf_paint( 'ai', 'mcp-connect' );
+
+ok( 3 === substr_count( $kit, '<div class="snt-cols">' ), 'three paired rows are painted -- ' . substr_count( $kit, '<div class="snt-cols">' ) );
+
+// Each pair, by the two headings it must hold, in order.
+$pairs = array(
+	array( 'Door 1: the native MCP server', 'Door 1b: the native write door' ),
+	array( 'Door 2: the Abilities-registry adapter', 'Resources &amp; prompts' ),
+);
+foreach ( $pairs as $i => $pair ) {
+	if ( preg_match_all( '/<div class="snt-cols">(.*?)<\/div>/s', $kit, $m ) && isset( $m[1][ $i ] ) ) {
+		$row = $m[1][ $i ];
+		ok(
+			false !== strpos( $row, $pair[0] ) && false !== strpos( $row, $pair[1] ),
+			'row ' . ( $i + 1 ) . ' pairs ' . $pair[0] . ' with ' . $pair[1]
+		);
+	} else {
+		ok( false, 'row ' . ( $i + 1 ) . ' exists' );
+	}
+}
+
+// The task path keeps the width: it carries a JSON config block and a CLI
+// command, and wrapping either is worse than the space costs.
+ok(
+	false === strpos( preg_replace( '/<div class="snt-cols">.*?<\/div>/s', '', $kit ), 'snt-cols' )
+	&& false !== strpos( $kit, 'Connect a client' ),
+	'Connect a client is NOT paired -- the code block keeps the full width'
+);
+
+// Nothing was dropped in the rearrangement: every section still paints.
+foreach ( array( 'Status at a glance', 'Bind the write-door credential', 'Connect a client', 'Door 1: the native MCP server', 'Door 1b: the native write door', 'Resources &amp; prompts', 'Door 2: the Abilities-registry adapter', 'More' ) as $heading ) {
+	ok( false !== strpos( $kit, $heading ), "still painted after the regroup: $heading" );
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

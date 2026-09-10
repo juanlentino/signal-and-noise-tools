@@ -141,5 +141,33 @@ foreach ( array( 'os-table', 'os-row' ) as $type_hatch ) {
 	}
 }
 
+
+// ── The stack-rhythm margin must not reach a GRID CELL. ──
+// `.snt-leaf os-section + os-section { margin-block-start: 24px }` is vertical
+// rhythm, and it is still true of the SECOND CELL of a `.snt-cols` row -- which
+// took the margin on top of the grid gap and sat 24px below its neighbour.
+// Measured live 2026-09-10 on AI -> MCP Clients: 797 / 821 instead of 797 / 797.
+//
+// A tie is not enough here for the same reason it was not enough for the width
+// cap: equal specificity is decided by source order.
+$stack = null; $reset = null;
+foreach ( $rules as $r ) {
+	foreach ( explode( ',', $r[1] ) as $sel ) {
+		$sel = trim( $sel );
+		if ( false === strpos( $sel, 'os-section + os-section' ) ) { continue; }
+		if ( preg_match( '/margin-block-start:\s*24px/', $r[2] ) ) { $stack = $sel; }
+		if ( preg_match( '/margin-block-start:\s*0/', $r[2] ) )    { $reset = $sel; }
+	}
+}
+ok( null !== $stack, 'the os-section stack-rhythm rule is present' );
+ok( null !== $reset, 'a grid-cell reset for it exists' );
+if ( $stack && $reset ) {
+	ok( false !== strpos( $reset, '.snt-cols' ), 'the reset is scoped to .snt-cols, not global' );
+	ok(
+		spec( $reset ) > spec( $stack ),
+		'the reset STRICTLY outranks the stack rule ' . spec_str( spec( $reset ) ) . ' > ' . spec_str( spec( $stack ) )
+	);
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

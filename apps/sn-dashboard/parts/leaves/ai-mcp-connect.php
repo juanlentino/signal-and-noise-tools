@@ -98,21 +98,42 @@ function paint_ai_mcp_connect( array $ctx ) {
 		$out .= mcp_connect_remote_toggle_html();
 	}
 
+	// THE TASK PATH, full width and in order: bind the credential, then connect a
+	// client. "Connect a client" keeps the width because it carries a JSON config
+	// block and a CLI command, and wrapping either is worse than the space costs.
 	$out .= mcp_connect_rw_binding_html();
 	$out .= mcp_connect_owner_steps_html();
-	$out .= mcp_connect_door_native_html();
-	$out .= mcp_connect_door_native_write_html();
-	$out .= mcp_connect_resources_prompts_html();
-	$out .= mcp_connect_door_adapter_html();
+
+	// THE REFERENCE PATH, as a 2x2 grid rather than a 1,000px vertical essay.
+	//
+	// The tile row at the top of this leaf already says there are FOUR doors and
+	// puts them side by side. The body then explained the same four one under the
+	// other, each in a full-width section whose prose used under half of it --
+	// the header knew the shape of the content and the body ignored it. Measured
+	// live 2026-09-10: these four sections stacked to 1,008px inside a 1,748px
+	// leaf. Paired, they mirror the tiles above and read as what they are, four
+	// parallel things, at ~830px each: a better measure for the prose than 1,700.
+	$out .= \snt_kit_tag(
+		'div',
+		array( 'class' => 'snt-cols' ),
+		mcp_connect_door_native_html() . mcp_connect_door_native_write_html()
+	);
+	$out .= \snt_kit_tag(
+		'div',
+		array( 'class' => 'snt-cols' ),
+		mcp_connect_door_adapter_html() . mcp_connect_resources_prompts_html()
+	);
+
 	$out .= mcp_connect_usage_html();
 
-	$out .= \snt_kit_notice(
+	// The footer pairs the caveat with the deep links: two short blocks that each
+	// took a full-width band of their own for no reason.
+	$out .= \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), \snt_kit_notice(
 		'info',
 		'<b>' . \snt_kit_esc( __( 'Not the same as Connector Approvals', 'signal-and-noise-tools' ) ) . '</b><br>'
 		. \snt_kit_esc( __( 'Tools → Connector Approvals (if the AI plugin is active) gates OUTBOUND use of this site’s configured AI-provider connectors by server-side plugin and theme code: it decides which of your plugins may spend against your Anthropic, OpenAI, or Google key. It has nothing to do with an external MCP client connecting IN. That inbound grant is the Application Password below.', 'signal-and-noise-tools' ) )
-	);
+	) . mcp_connect_deep_links_html() );
 
-	$out .= mcp_connect_deep_links_html();
 	return $out;
 }
 
