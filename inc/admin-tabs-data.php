@@ -152,7 +152,7 @@ function sn_admin_top_tabs() {
 				// v10.46.0: Redirects moves here from Connections. A redirect map +
 				// 404 log is site routing, not an outbound integration.
 				'redirects'        => array( 'label' => 'Redirects', 'render' => 'sn_admin_render_redirects_section', 'wide' => true ),
-				// v13.109.8: the 404 log leaves Redirects and becomes its own leaf. It
+				// v13.109.7: the 404 log leaves Redirects and becomes its own leaf. It
 				// was a rail, and a rail cannot hold 192 rows — it rendered as an
 				// unbounded stack beside a shorter column. 'wide' is required: without
 				// it the two-column shell re-caps at 820px and the table is cramped

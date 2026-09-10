@@ -2,7 +2,7 @@
 /**
  * S&N Dashboard — Site → Broken links, painted from the kit.
  *
- * Split out of `site-redirects.php` in v13.109.8. The classic leaf is
+ * Split out of `site-redirects.php` in v13.109.7. The classic leaf is
  * `sn_redirects_render_broken_links_tab()` behind
  * `sn_admin_render_broken_links_section()`.
  *
@@ -54,7 +54,7 @@ function broken_links_intro_html() {
  * The broken-links sections: status, the probe bucket, one section per broken
  * path, and the whole-log clear.
  *
- * Was `redirects_rail_html()` in site-redirects.php until v13.109.8, when the
+ * Was `redirects_rail_html()` in site-redirects.php until v13.109.7, when the
  * 404 log became its own leaf. Renamed with it: nothing here is a rail any more,
  * and a name that says otherwise is the next reader's wrong turn.
  *
@@ -68,8 +68,31 @@ function broken_links_sections_html( array $data ) {
 		$out .= redirects_probes_html( (array) $data['probes'], (int) $data['probe_hits'] );
 	}
 	if ( $total > 0 ) {
-		foreach ( $data['broken'] as $path => $row ) {
+		// Busiest first, then capped. A 404 log grows without bound and the tail
+		// is the part nobody acts on; painting all of it cost nine screens of
+		// scrolling on the live site. The true total is stated by
+		// redirects_status_html() above regardless of what is listed here, so
+		// the cap can never make the log look smaller than it is.
+		$listed = $data['broken'];
+		uasort(
+			$listed,
+			static function ( $a, $b ) {
+				return (int) ( $b['entry']['count'] ?? 0 ) <=> (int) ( $a['entry']['count'] ?? 0 );
+			}
+		);
+		$shown = array_slice( $listed, 0, SN_404_LIST_CAP, true );
+		foreach ( $shown as $path => $row ) {
 			$out .= redirects_404_row_html( (string) $path, (array) $row['entry'], (string) $row['suggested'] );
+		}
+		if ( $total > SN_404_LIST_CAP ) {
+			$out .= '<p class="snt-hint">' . \snt_kit_esc(
+				sprintf(
+					/* translators: 1: paths listed, 2: paths in the log in total. */
+					__( 'Showing the %1$s busiest of %2$s broken paths. Clear the log or act on these to see the rest.', 'signal-and-noise-tools' ),
+					number_format_i18n( SN_404_LIST_CAP ),
+					number_format_i18n( $total )
+				)
+			) . '</p>';
 		}
 		$out .= \snt_kit_action_button(
 			__( 'Clear 404 log', 'signal-and-noise-tools' ),

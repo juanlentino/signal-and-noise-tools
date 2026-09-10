@@ -37,7 +37,8 @@ function sn_redirects_render_admin_tab() {
 	sn_admin_shell_open();
 
 	// ── MAIN: existing redirects, newest first ──
-	foreach ( array_reverse( $redirects, true ) as $source => $r ) {
+	$sn_rules_total = count( $redirects );
+	foreach ( array_slice( array_reverse( $redirects, true ), 0, SN_REDIRECT_LIST_CAP, true ) as $source => $r ) {
 		$status = (int) ( $r['status'] ?? 301 );
 		echo '<form method="post">';
 		wp_nonce_field( 'sn_theme_options_nonce' );
@@ -82,13 +83,27 @@ function sn_redirects_render_admin_tab() {
 	echo '<label class="sn-field-label">Type</label>';
 	echo sn_redirects_status_select_html( 301 ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- helper builds escaped markup (static strings + selected()).
 	echo '</div>';
+	if ( $sn_rules_total > SN_REDIRECT_LIST_CAP ) {
+		printf(
+			'<p class="sn-fieldset-intro">%s</p>',
+			esc_html(
+				sprintf(
+					/* translators: 1: rules listed, 2: rules in total. */
+					__( 'Showing the %1$s most recent of %2$s redirects.', 'signal-and-noise-tools' ),
+					number_format_i18n( SN_REDIRECT_LIST_CAP ),
+					number_format_i18n( $sn_rules_total )
+				)
+			)
+		);
+	}
+
 	echo '<div class="sn-fieldset-actions">';
 	echo '<button type="submit" name="sn_action" value="redirect_add" class="button button-primary">Add redirect</button>';
 	echo '</div>';
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 
-	// v13.109.8: the 404 log moved to its own leaf (Site -> Broken links). It was
+	// v13.109.7: the 404 log moved to its own leaf (Site -> Broken links). It was
 	// a rail here, and a rail cannot hold 192 rows -- it rendered as an unbounded
 	// stack beside a shorter column, which is the dead-half-window defect the
 	// parity pass exists to remove. A redirect map is a table; give it the width.
@@ -98,7 +113,7 @@ function sn_redirects_render_admin_tab() {
 /**
  * Site -> Broken links: the 404 log and its suggestions, as its own leaf.
  *
- * Split out of sn_redirects_render_admin_tab() in v13.109.8. The content is
+ * Split out of sn_redirects_render_admin_tab() in v13.109.7. The content is
  * unchanged; what changed is that it is now MAIN content with the full width
  * rather than a rail beside a redirect table.
  *
@@ -178,7 +193,8 @@ function sn_redirects_render_broken_links_tab() {
 		uasort( $log, function ( $a, $b ) { return (int) ( $b['count'] ?? 0 ) <=> (int) ( $a['count'] ?? 0 ); } );
 		// v9.81.0: deterministic slug suggestions (classical string distance
 		// against published slugs — suggest-only; the write path is unchanged).
-		foreach ( $log as $path => $e ) {
+		$sn_404_shown = array_slice( $log, 0, SN_404_LIST_CAP, true );
+		foreach ( $sn_404_shown as $path => $e ) {
 			$sn_404_suggested = function_exists( 'sn_404_suggest_target' ) ? sn_404_suggest_target( (string) $path, $sn_404_candidates ) : '';
 			echo '<form method="post"><div class="sn-fieldset">';
 			wp_nonce_field( 'sn_theme_options_nonce' );
@@ -201,6 +217,20 @@ function sn_redirects_render_broken_links_tab() {
 			echo ' <button type="submit" name="sn_action" value="redirect_404_delete" class="button button-link-delete">Dismiss</button>';
 			echo '</div>';
 			echo '</div></form>';
+		}
+
+		if ( $total > SN_404_LIST_CAP ) {
+			printf(
+				'<p class="sn-fieldset-intro">%s</p>',
+				esc_html(
+					sprintf(
+						/* translators: 1: paths listed, 2: paths in the log in total. */
+						__( 'Showing the %1$s busiest of %2$s broken paths. Clear the log or act on these to see the rest.', 'signal-and-noise-tools' ),
+						number_format_i18n( SN_404_LIST_CAP ),
+						number_format_i18n( $total )
+					)
+				)
+			);
 		}
 
 		echo '<form method="post">';

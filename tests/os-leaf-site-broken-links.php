@@ -116,5 +116,65 @@ ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '...and the class
 ok( false === strpos( $kit, 'os-arg-action="redirect_update"' ) && false === strpos( $kit, 'os-arg-action="redirect_delete"' ), 'the broken-links leaf paints NO redirect edit/delete action' );
 ok( false === strpos( $kit, '<aside' ), 'and no rail: Pattern B is full width' );
 
+
+// ── The list is FOLDED and CAPPED. ──
+// A section per broken path is the right shape for one and the wrong shape for
+// twenty. Measured live 2026-09-10: 20 paths x ~450px painted a 9,101px leaf --
+// nine screens of scrolling to reach the Clear button, because each path
+// carried a whole create-redirect form open by default. Now each path is one
+// line that opens on demand, and the list is capped busiest-first.
+fixture( array(), array( '/notes/desing-tokens' => entry( 7, $t0, 'https://ref.example/page' ) ) );
+$kit = snt_leaf_paint( 'site', 'broken-links' );
+ok(
+	false !== strpos( $kit, '<os-disclosure heading="/notes/desing-tokens" hint="7 hits · last ' . $d0 . '">' ),
+	'a broken path is ONE LINE: a disclosure headed by the path, hinted with its hits and last date'
+);
+ok(
+	before( $kit, '<os-disclosure heading="/notes/desing-tokens"', 'submit-label="Create redirect"' ),
+	'...and the create form lives INSIDE the fold, not open on the page'
+);
+
+// Thirty broken paths: each a near-miss of a published slug, so each is broken
+// rather than a probe. The cap must list 25 and count all 30.
+$GLOBALS['__published'] = array();
+$many = array();
+for ( $i = 1; $i <= 30; $i++ ) {
+	$slug = '/notes/alpha-' . str_pad( (string) $i, 4, '0', STR_PAD_LEFT );
+	$GLOBALS['__published'][ $i ] = 'https://example.test' . $slug;
+	// One transposed character: similar enough to suggest, different enough to 404.
+	$many[ $slug . 'x' ] = entry( 100 - $i, $t0 );
+}
+fixture( array(), $many );
+$kit     = snt_leaf_paint( 'site', 'broken-links' );
+$classic = snt_leaf_classic_html( 'sn_admin_render_broken_links_section' );
+
+// Sanity on the FIXTURE, not on the leaf: 30 paths, and every one classified
+// BROKEN rather than a probe -- a probe would be bucketed and never listed, so
+// a fixture that silently produced probes would make the cap test vacuous.
+ok( 30 === count( $many ), 'sanity: the fixture built 30 paths -- ' . count( $many ) );
+ok(
+	false === strpos( $kit, 'automated probes' ),
+	'...and the suggester classified every one as BROKEN, not as a probe'
+);
+ok(
+	SN_404_LIST_CAP === substr_count( $kit, '<os-disclosure heading="/notes/alpha-' ),
+	'exactly SN_404_LIST_CAP (' . SN_404_LIST_CAP . ') paths are listed, not all 30 -- listed ' . substr_count( $kit, '<os-disclosure heading="/notes/alpha-' )
+);
+ok(
+	false !== strpos( $kit, '<os-disclosure heading="/notes/alpha-0001x"' ) && false === strpos( $kit, '<os-disclosure heading="/notes/alpha-0030x"' ),
+	'...the BUSIEST are the ones kept, and the quietest are the ones dropped'
+);
+ok(
+	false !== strpos( $kit, 'Showing the 25 busiest of 30 broken paths' ),
+	'...and the overflow says how many were not shown'
+);
+// The cap must never make the log look smaller than it is.
+ok( false !== strpos( $kit, '<b>30 broken paths</b>' ), 'the status still states the TRUE total, not the listed count' );
+ok(
+	false !== strpos( $classic, 'Showing the 25 busiest of 30 broken paths' ),
+	'...and the classic leaf caps identically -- one constant, read by both'
+);
+ok( snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), '...with the same action set on both sides under the cap' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
