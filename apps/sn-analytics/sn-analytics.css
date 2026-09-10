@@ -519,9 +519,15 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] .snt-vie
 	color: var(--sn-an-muted);
 }
 
+/* No `cursor` here on purpose. OpenStation's desktop.css sets
+ * `body.os-active, body.os-active * { cursor: default !important }` over the
+ * whole shell, so a pointer declared here matches and loses — measured on the
+ * running product 2026-09-10: 50/50 real links, 50/50 buttons and every one of
+ * our own links compute `default`. Nothing in the shell shows a pointer, by
+ * design, and these links should look like their neighbours. The `color` below
+ * DOES apply, which is why the rule stays. */
 .snt-app[data-os-app="sn-analytics"] :is(a, .button-link) {
 	color: var(--sn-an-accent);
-	cursor: pointer;
 }
 
 .snt-app[data-os-app="sn-analytics"] :is(.sn-an-grid, .sn-an-cols, .sn-an-content-grid, .sn-an-journeys-grid, .sn-an-overview-bento, .sn-an-header-grid, .sn-an-cwv-grid) {
