@@ -644,9 +644,20 @@ os-button.snt-home__action:hover {
 	opacity: 0.94;
 }
 
+/* auto-FIT, never auto-fill. `auto-fill` keeps the empty tracks it creates, so a
+   row with fewer items than tracks leaves the remainder blank instead of letting
+   the items grow. Measured live 2026-09-10 on AI -> MCP Clients: a 1,702px row
+   held EIGHT 202px tracks for FOUR tiles, so the four sat at 202px each and the
+   right half of the section was empty -- the same dead-half-window defect the
+   width cap produced, one level further in. `auto-fit` collapses the empty
+   tracks and the same four tiles measure 417px, spanning the full row.
+
+   Shared by three leaves: AI -> MCP Clients, Connections -> Cloudways, and the
+   Dashboard's own Systems row. Every other repeat() in this app and in
+   os-app.css already uses auto-fit; this was the lone outlier. */
 .snt-systems {
 	display: grid;
-	grid-template-columns: repeat( auto-fill, minmax( 190px, 1fr ) );
+	grid-template-columns: repeat( auto-fit, minmax( 190px, 1fr ) );
 	gap: 12px;
 }
 
