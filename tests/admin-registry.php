@@ -112,8 +112,10 @@ ok( array_keys( $by_tab ) === array( 'dashboard', 'site', 'content', 'connection
 // Site: was the single-leaf Identity & SEO tab; now the whole "how the site
 // itself behaves" group, so its label loses the leaf's name.
 ok( ( $by_tab['site']['label'] ?? '' ) === 'Site', "site relabelled 'Site' (was 'Identity & SEO' — now more than that one leaf)" );
-ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo', 'front-end', 'performance', 'redirects' ),
-	'site leaves: identity-and-seo, front-end, performance, redirects' );
+ok( array_keys( $by_tab['site']['sub_tabs'] ) === array( 'identity-and-seo', 'front-end', 'performance', 'redirects', 'broken-links' ),
+	// v13.109.8: broken-links joins, LAST — the registry's order is the nav's order,
+	// so this pin is also an assertion about where the tab appears.
+	'site leaves: identity-and-seo, front-end, performance, redirects, broken-links' );
 
 // Content: page editors + the three sibling content scanners (finding 5 —
 // Tags / Pattern Adoption / Block Migrations were in three different tabs).

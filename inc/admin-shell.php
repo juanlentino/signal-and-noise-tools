@@ -70,3 +70,18 @@ function sn_admin_shell_rail( $aria_label = 'Summary' ) {
 function sn_admin_shell_close() {
 	echo '</aside></div>';
 }
+
+/**
+ * Close a shell that was opened WITHOUT a rail.
+ *
+ * v13.109.8: sn_admin_shell_close() emits `</aside></div>`, so it only balances a
+ * shell whose rail was opened. A leaf with no rail — the parity pass's Pattern B —
+ * needs `</div></div>` instead. Calling the wrong one yields an unclosed <div> and
+ * a stray </aside>, which browsers repair silently and differently, so the bug
+ * surfaces as unexplained layout rather than as an error.
+ *
+ * @return void
+ */
+function sn_admin_shell_close_no_rail() {
+	echo '</div></div>';
+}

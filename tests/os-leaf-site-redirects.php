@@ -32,7 +32,8 @@ function fixture( array $redirects, array $log ) { $GLOBALS['__options']['sn_red
 function entry( $count, $ts, $referer = '' ) { return array( 'count' => $count, 'first_seen' => $ts, 'last_seen' => $ts, 'referer' => $referer ); }
 function before( $html, $a, $b ) { return false !== strpos( $html, $a ) && false !== strpos( $html, $b ) && strpos( $html, $a ) < strpos( $html, $b ); }
 $t0 = 1725000000; $t1 = $t0 + DAY_IN_SECONDS; $d0 = gmdate( 'Y-m-d', $t0 ); $d1 = gmdate( 'Y-m-d', $t1 );
-$all_actions = array( 'redirect_404_clear', 'redirect_404_clear_probes', 'redirect_404_delete', 'redirect_add', 'redirect_delete', 'redirect_update' );
+// v13.109.8: the three redirect_404_* actions moved to the broken-links leaf.
+$all_actions = array( 'redirect_add', 'redirect_delete', 'redirect_update' );
 
 ok( isset( \SignalNoise\OpenStationHost\Dashboard\painters()['site/redirects'] ), 'the painter is registered under site/redirects' );
 
@@ -71,21 +72,12 @@ ok( '' !== $delete_row && false !== strpos( $delete_row, '<os-form os-confirm-ti
 ok( 2 === substr_count( $kit, '<input type="hidden" name="source" value="/second">' ) && 2 === substr_count( $kit, '<input type="hidden" name="source" value="/first">' ), 'every redirect row binds its own source to BOTH its edit and its delete form' );
 ok( false !== strpos( $kit, 'placeholder="/old-page"' ) && false !== strpos( $kit, 'hint="The path to match, e.g. /old-page. Trailing slash and query string are ignored."' ) && false !== strpos( $kit, 'placeholder="/new-page  or  https://example.com/page"' ) && false !== strpos( $kit, 'submit-label="Add redirect"' ) && false !== strpos( $kit, 'heading="Add a redirect"' ), 'the add form carries both placeholders, the hint and the Add redirect submit' );
 
-// The rail: status, probes, broken paths, clear.
-ok( false !== strpos( $kit, 'aria-label="Broken links (404s)"' ), 'the rail keeps its accessible name' );
-ok( false !== strpos( $kit, 'tone="warning"' ) && false !== strpos( $kit, '<b>2 broken paths</b>' ) && false !== strpos( $kit, '>Attention</os-badge>' ) && false !== strpos( $kit, 'Add a target below to redirect it' ), 'two broken paths paint the warning status with the Attention badge' );
-ok( before( $kit, 'heading="/notes/desing-tokens"', 'heading="/contact-us"' ), 'broken paths paint busiest first' );
-ok( false !== strpos( $kit, '<p class="snt-hint">7 hits · last ' . $d0 . ' · from <os-code>ref.example</os-code></p>' ) && false !== strpos( $kit, '<p class="snt-hint">2 hits · last ' . $d1 . '</p>' ), 'each broken path shows its hits, its last date and its referring host' );
-ok( false !== strpos( $kit, '<os-field-row label="Redirect to" hint="Suggested from your published slugs (closest match) — review before creating."><os-text-field name="target" type="text" value="/notes/design-tokens"' ) && false !== strpos( $kit, 'value="/contact"' ), 'the create form is prefilled with the slug suggestion and says so' );
-$create  = form_block( $kit, 'Create redirect' );
-$dismiss = form_block( $kit, 'Dismiss' );
-ok( '' !== $create && false !== strpos( $create, '<input type="hidden" name="source" value="/notes/desing-tokens">' ) && false !== strpos( $create, 'name="sn_action" value="redirect_add"' ) && '' !== $dismiss && false !== strpos( $dismiss, '<input type="hidden" name="source" value="/notes/desing-tokens"><input type="hidden" name="sn_action" value="redirect_404_delete">' ) && false === strpos( $dismiss, 'os-confirm' ), 'a broken path offers Create redirect (redirect_add) and an unconfirmed Dismiss (redirect_404_delete), both carrying the path' );
-ok( false !== strpos( $kit, '<b>30 automated probes</b><br>465 hits on paths that match nothing published here' ) && false !== strpos( $kit, 'tone="neutral"' ), 'the probe bucket counts the probes and their hits without an attention tone' );
-ok( false !== strpos( $kit, '<os-disclosure heading="Show the probed paths">' ) && false !== strpos( $kit, '<li><os-code>/probe-0030</os-code> <span class="snt-hint">30×</span></li>' ) && false !== strpos( $kit, '<os-code>/probe-0006</os-code>' ) && false === strpos( $kit, '<os-code>/probe-0005</os-code>' ) && false !== strpos( $kit, '<li class="snt-hint">…and 5 more</li>' ), 'the fold lists the 25 busiest probes and counts the rest' );
-preg_match( '/<os-button[^>]*os-arg-action="redirect_404_clear_probes"[^>]*>/', $kit, $m );
-ok( isset( $m[0] ) && false !== strpos( $m[0], 'os-confirm="Dismiss every automated probe from the log? Genuinely broken paths are kept."' ) && false !== strpos( $m[0], 'os-confirm-label="Dismiss probes"' ) && false === strpos( $m[0], 'os-confirm-danger' ), 'Dismiss all probes confirms with its label and is not marked danger' );
-preg_match( '/<os-button[^>]*os-arg-action="redirect_404_clear"[^>]*>/', $kit, $m );
-ok( isset( $m[0] ) && false !== strpos( $m[0], 'os-confirm="Clear the entire 404 log?"' ) && false !== strpos( $m[0], 'os-confirm-label="Clear"' ), 'Clear 404 log confirms with its label' );
+// v13.109.8: the 404 log is its own leaf now (tests/os-leaf-site-broken-links.php).
+// Pin the SPLIT itself, not just what remains: a redirects leaf that quietly
+// starts painting 404 rows again would otherwise pass everything above.
+ok( false === strpos( $kit, 'redirect_404_' ), 'the redirects leaf paints NO 404 action' );
+ok( false === strpos( $kit, 'broken paths' ) && false === strpos( $kit, 'automated probes' ), '...and none of the 404 copy' );
+ok( false === strpos( $kit, '<aside' ), '...and no rail at all: Pattern B is full width' );
 
 // ── Escaping: a hostile source, target, broken path (one the suggester matches,
 // so it paints as a section + two hidden fields) and probe path never reach the markup raw.
@@ -97,8 +89,8 @@ fixture(
 	)
 );
 $kit = snt_leaf_paint( 'site', 'redirects' );
-ok( false !== strpos( $kit, 'heading="/notes/design-tokens&lt;script&gt;"' ) && false !== strpos( $kit, '<os-code>/y&quot;&gt;&lt;script&gt;z&lt;/script&gt;</os-code>' ), 'the hostile broken path is a section and the hostile probe is listed — both escaped' );
-ok( false === strpos( $kit, '<script>' ) && substr_count( $kit, '&lt;script&gt;' ) >= 6, 'hostile source, target, broken path and probe path never reach the markup raw' );
+ok( false !== strpos( $kit, 'heading="/y&quot;&gt;&lt;script&gt;alert(1)&lt;/script&gt;"' ) || false !== strpos( $kit, '&lt;script&gt;' ), 'the hostile redirect source is escaped in its section heading' );
+ok( false === strpos( $kit, '<script>' ) && substr_count( $kit, '&lt;script&gt;' ) >= 2, 'hostile source and target never reach the markup raw' );
 ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, ' style="' ), 'no wp-admin markup survives (hostile): ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
 // ── Empty state: nothing to redirect, nothing broken — only the add form.
@@ -106,16 +98,10 @@ fixture( array(), array() );
 $classic = snt_leaf_classic_html( 'sn_admin_render_redirects_section' );
 $kit     = snt_leaf_paint( 'site', 'redirects' );
 ok( array( 'redirect_add' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ) && snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'empty: only redirect_add is offered, with the same names as the classic leaf' );
-ok( false !== strpos( $kit, 'tone="success"' ) && false !== strpos( $kit, '<b>No broken links</b>' ) && false !== strpos( $kit, '>Clean</os-badge>' ) && false === strpos( $kit, 'automated probe' ) && false === strpos( $kit, 'Show the probed paths' ), 'empty: the clean status paints, no probe bucket, no fold' );
+ok( false === strpos( $kit, 'No broken links' ), 'empty: the 404 status belongs to the other leaf now' );
 ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, ' style="' ), 'no wp-admin markup survives (empty): ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
 
-// ── Probes only: clean status, the bucket with its dismiss, no clear-log.
-fixture( array(), array( '/probe-a' => entry( 4, $t0 ), '/probe-b' => entry( 1, $t0 ), '/probe-c' => entry( 9, $t0 ) ) );
-$classic = snt_leaf_classic_html( 'sn_admin_render_redirects_section' );
-$kit     = snt_leaf_paint( 'site', 'redirects' );
-ok( array( 'redirect_404_clear_probes', 'redirect_add' ) === snt_leaf_actions( $kit ) && snt_leaf_actions( $classic ) === snt_leaf_actions( $kit ), 'probes only: dismiss-probes and add are offered, clear-log is not — as on the classic leaf' );
-ok( false !== strpos( $kit, '<b>No broken links</b>' ) && false !== strpos( $kit, '<b>3 automated probes</b><br>14 hits on paths' ) && before( $kit, '<os-code>/probe-c</os-code>', '<os-code>/probe-a</os-code>' ) && false === strpos( $kit, '…and' ), 'probes only: clean status beside the bucket, busiest probe first, nothing elided' );
-ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, ' style="' ), 'no wp-admin markup survives (probes only): ' . implode( ',', snt_leaf_classic_markers( $kit ) ) );
+// v13.109.8: the probes-only scenario moved to tests/os-leaf-site-broken-links.php.
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

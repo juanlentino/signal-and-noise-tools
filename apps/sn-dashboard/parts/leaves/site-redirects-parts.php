@@ -18,6 +18,52 @@ if ( ! defined( 'ABSPATH' ) ) {
 const REDIRECTS_PROBE_LIST_MAX = 25;
 
 /**
+ * v13.109.8: moved here from site-redirects.php. BOTH leaves read it now —
+ * Redirects paints the rules, Broken links paints the 404s — so it belongs in
+ * the shared parts file rather than inside one of its two consumers.
+ */
+/**
+ * The leaf's readings, the way the classic renderer reads them: the redirect
+ * map newest first; the actionable 404 log split into broken paths (busiest
+ * first, each with its slug suggestion) and automated probes (busiest first).
+ *
+ * @return array{redirects:array,broken:array,probes:array,probe_hits:int}
+ */
+function redirects_data() {
+	$redirects  = \sn_redirects_all();
+	$log        = \sn_404_log_actionable();
+	$candidates = function_exists( 'sn_404_published_paths' ) ? \sn_404_published_paths() : array();
+	$host       = (string) wp_parse_url( home_url(), PHP_URL_HOST );
+	$part       = function_exists( 'sn_404_log_partition' )
+		? \sn_404_log_partition( $log, $candidates, $host )
+		: array( 'actionable' => $log, 'probes' => array() );
+	$busiest    = static function ( $a, $b ) {
+		return (int) ( $b['count'] ?? 0 ) <=> (int) ( $a['count'] ?? 0 );
+	};
+	$broken = (array) $part['actionable'];
+	$probes = (array) $part['probes'];
+	uasort( $broken, $busiest );
+	uasort( $probes, $busiest );
+	$rows = array();
+	foreach ( $broken as $path => $entry ) {
+		$rows[ $path ] = array(
+			'entry'     => (array) $entry,
+			'suggested' => function_exists( 'sn_404_suggest_target' ) ? (string) \sn_404_suggest_target( (string) $path, $candidates ) : '',
+		);
+	}
+	$hits = 0;
+	foreach ( $probes as $entry ) {
+		$hits += (int) ( $entry['count'] ?? 0 );
+	}
+	return array(
+		'redirects'  => array_reverse( $redirects, true ),
+		'broken'     => $rows,
+		'probes'     => $probes,
+		'probe_hits' => $hits,
+	);
+}
+
+/**
  * `snt_kit_form()` plus the two confirm attributes the helper does not take —
  * `os-confirm-title` and `os-confirm-label`, both in the framework's trigger
  * vocabulary — which the classic Delete button carries.
