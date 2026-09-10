@@ -109,12 +109,19 @@ function paint_tools_links( array $ctx ) {
 			$out .= links_group_html( $group );
 		}
 	}
-	// Three sibling link groups of near-identical height (181/181/200px measured
-	// live 2026-09-10), stacked to 646px inside a 820px leaf. `.snt-systems` is
-	// auto-fit, so three items make ONE row of three rather than the ragged
-	// 2 + 1 that `.snt-cols` would give -- the same primitive the MCP door tiles
-	// use, and it also releases the leaf from the width cap.
-	return \snt_kit_tag( 'div', array( 'class' => 'snt-systems' ), $out );
+	// NOT paired, and the reason is mechanical rather than semantic. These three
+	// groups ARE siblings, and v13.109.12 wrapped them in `.snt-systems` on that
+	// reading. But each group already lays out its own cards HORIZONTALLY, so a
+	// horizontal wrapper divides an already-divided width: measured live
+	// 2026-09-10 the groups fell to 265px each (and, with the leaf released,
+	// 575px), which left every card at ~230px and truncated every URL --
+	// `dash.cloudfl...`, `platform.cloudways...`. Stacked, each group takes the
+	// full 820px, its two cards sit at ~390px, and the URLs read in full.
+	//
+	// The rule the rest of this pass follows -- siblings take a grid -- assumes
+	// the siblings are single-column. A container that already uses the width is
+	// not a candidate.
+	return $out;
 }
 
 add_filter(
