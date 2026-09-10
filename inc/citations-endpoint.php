@@ -59,43 +59,57 @@ function sn_cit_resolve_target( $target ) {
  * Handle an inbound claim.
  *
  * @param WP_REST_Request $request
- * @return WP_REST_Response
+ * @return WP_REST_Response|WP_Error 202 on accept; WP_Error (status 400) on every refusal.
  */
 function sn_cit_handle_webmention( $request ) {
 	$source = (string) $request->get_param( 'source' );
 	$target = (string) $request->get_param( 'target' );
 
-	$reject = static function ( $why ) {
-		return new WP_REST_Response( array( 'error' => $why ), 400 );
+	// v13.109.5: refusals speak the SAME vocabulary as the framework's own. A
+	// param-level rejection (core, from the `required` args below) already
+	// returned {code, message, data:{status}}, while every handler-level refusal
+	// returned a bare {error: "..."} with no machine-readable code — two shapes
+	// from one endpoint, both 400. A sender could not branch on the reason
+	// without string-matching English.
+	//
+	// Codes are `sn_cit_*`, mirroring the module's function prefix, which is the
+	// convention the sibling public endpoint already follows (`sn_prov_bad_sig`
+	// in inc/provenance-webhook.php). The human-readable strings are unchanged,
+	// verbatim: they were already good, and they now travel as `message`.
+	//
+	// Status is preserved at 400 on every path. W3C Webmention REC 3.2 asks only
+	// for the status; the code is additive and costs a sender nothing.
+	$reject = static function ( $code, $why ) {
+		return new WP_Error( $code, $why, array( 'status' => 400 ) );
 	};
 
 	if ( '' === $source || '' === $target ) {
-		return $reject( 'source and target are both required' );
+		return $reject( 'sn_cit_missing_params', 'source and target are both required' );
 	}
 	$ns = sn_cit_normalize_url( $source );
 	if ( '' === $ns ) {
-		return $reject( 'source must be an absolute http(s) URL' );
+		return $reject( 'sn_cit_invalid_source', 'source must be an absolute http(s) URL' );
 	}
 	if ( $ns === sn_cit_normalize_url( $target ) ) {
-		return $reject( 'source and target must differ' );
+		return $reject( 'sn_cit_source_equals_target', 'source and target must differ' );
 	}
 	if ( sn_cit_origin( $ns ) === sn_cit_origin( home_url( '/' ) ) ) {
-		return $reject( 'source must be off-site' );
+		return $reject( 'sn_cit_source_not_offsite', 'source must be off-site' );
 	}
 	// Fail closed on an internal or unresolvable source BEFORE storing it, so the
 	// verifier is never handed a row it must refuse.
 	$host = wp_parse_url( $ns, PHP_URL_HOST );
 	if ( ! $host || sn_ssrf_host_blocked( $host ) ) {
-		return $reject( 'source host is not reachable from this site' );
+		return $reject( 'sn_cit_source_unreachable', 'source host is not reachable from this site' );
 	}
 	$post_id = sn_cit_resolve_target( $target );
 	if ( ! $post_id ) {
-		return $reject( 'target is not a publicly viewable resource on this site' );
+		return $reject( 'sn_cit_target_not_found', 'target is not a publicly viewable resource on this site' );
 	}
 
 	$result = sn_cit_record( $ns, $target, $post_id );
 	if ( 'invalid' === $result ) {
-		return $reject( 'the claim could not be recorded' );
+		return $reject( 'sn_cit_not_recorded', 'the claim could not be recorded' );
 	}
 
 	// 202: the claim is accepted for adjudication. It is NOT a statement that the
