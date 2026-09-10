@@ -346,6 +346,53 @@ plus two sidenotes and one pull-quote — the §Two sidenote defining ISRC/ISWC 
 the structural answer to "for everyone", since a peer's eye skips the margin
 while a general reader gets the definition, without writing two registers.
 
+### Breaking the wall: the cheapest fix was the last one found
+
+The owner, after the blocks shipped: *"Still a great wall of text, IMHO."* He was
+right, and the measurement said why.
+
+**A sidenote floats BESIDE the column. It never touches the measure.** So
+v12.20.4 added texture to the right-hand gutter and left the wall exactly as it
+was — eight paragraphs, 60 lines, one unbroken run per section, two structural
+breaks in the whole page. I had reached for *the blocks that existed* instead of
+asking what a wall of text is. A wall is an unbroken MEASURE; the fix has to
+interrupt the column.
+
+Then the owner: *"There's a block that's a list, why don't we use that instead?"*
+There is — `patterns/steps-enumerated.php`, shipped v9.2.0, and the important
+part is not the 01/02/03 numerals but its wrapper: `.sn-pattern-steps-enumerated`
+carries a **bleed panel** (asphalt, `left:-1rem`, `width:calc(100% + 2rem)`,
+2rem padding) that breaks out of the column on both sides. That is the
+structural interruption. **Two of his sections were already lists** — three
+parallel `If…` conditionals each — rendering as prose.
+
+Measured on the live page, start to finish:
+
+| | first published | after |
+|---|---|---|
+| prose paragraphs | 8 | 12 |
+| longest unbroken run | **11 lines** | **7 lines** |
+| total prose lines | 60 | 50 |
+| paragraphs >= 9 lines | 3 | 0 |
+| structural breaks | 2 | 4 |
+
+**Ranked by what each contributed:** three paragraph splits did the heavy lifting
+(11 lines to 7) and cost three Enter keys; the two steps panels moved 176 words
+out of the column entirely; the sidenotes and pull-quote — the things a whole
+release was built for — contributed least.
+
+**Where to split a paragraph: at the TURN, not at a word count.** All three
+breaks landed on a discourse marker the owner had already written — "The paper
+*also* names…", "Provenance as Substrate *extends*…", and a hard four-word stop
+("Absence is not signable.") before the sentence that turns from what a chain
+cannot do to what it can. A split at a word count lands mid-argument and reads
+worse than the wall.
+
+**Semantic note left open:** "Three ways in" is an `<ol>` with 01/02/03 numerals
+over three ALTERNATIVES, not steps. The label reconciles it for a sighted
+reader; the `<ol>` still announces a sequence to a screen reader.
+`{"ordered":false}` drops the numerals if that matters.
+
 ## Recurring failure modes from this session
 
 - **Widening a container does nothing when the content is capped by measure.**
@@ -398,6 +445,12 @@ while a general reader gets the definition, without writing two registers.
   looking at today's file, or on a string that also appears in prose about the
   file. Both written up: [[strip-comments-before-scanning-source]] and the
   second instance appended to [[a-proximity-window-is-the-finding]].
+- **Estimating over a measurement I could have taken.** I predicted the longest
+  run would fall to 7 lines, then "corrected" myself to ~8 using a
+  words-per-line divisor. The rendered page says **7**: the original estimate
+  was right and the correction was wrong. Second-guessing a number with another
+  estimate, in a more confident voice, is worse than the first guess — the page
+  was live and one browser call away the whole time.
 
 ### Closed out at the end of the session
 
@@ -440,7 +493,7 @@ the world and assumes the world was left alone.
 | plugin | v13.108.0 | tagged, merged |
 | theme | v12.20.4 | tagged, merged (owner installed through v12.20.3) |
 | plugin | v13.109.0 | tagged, merged, INSTALLED |
-| /provenance | 741 words | written, published, all 9 internal links 200 |
+| /provenance | 746 words | written, restructured, verified; longest run 11 lines -> 7 |
 | sn-provenance-worker | v1.18.3 | live |
 | four other workers | — | census gate merged |
 
