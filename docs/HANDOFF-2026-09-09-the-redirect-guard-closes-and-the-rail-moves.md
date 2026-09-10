@@ -520,6 +520,84 @@ zero deletions, so they were never lost. They name project decisions
 (activitypub declined, betterstack migration, social syndication) I have no
 basis to author. The format sanctions those; they mark work, not rot.
 
+## The tail: /provenance verified, the pull quote, the webmention pin
+
+### The description landed (content, no release)
+
+The owner pasted the drafted `seo_copy.provenance_description`. All three
+surfaces serve it verbatim at **154 chars**, in the 140-160 window, and
+`sn_validate`'s `char_range` warning is **gone** — which is the end-to-end proof
+that v13.109.3 reads the shipped settings string rather than the 175-char post
+meta it used to grade. All 9 in-content links return 200.
+
+The owner also edited the body in the same window: **746 -> 766 words**, two
+sentences added to the incentive paragraph, a duplicate SSRN mention dropped
+(6402298 is still cited once), whitespace-before-punctuation cleaned, and the
+pull-quote attribution changed from "Provenance Over Detection" to "From the
+argument above". Link count unchanged at 32.
+
+### The pull quote ran off the screen (theme v12.20.6)
+
+`width: calc(100% + 2rem)` sizes the CONTENT box, so under `content-box` the
+`1.5rem` horizontal padding is added ON TOP of the intended 1rem bleed. At 375px
+the quote rendered **423px against a 343px column, 48px past the viewport**, and
+`document.scrollWidth` stayed 375 — clipped, not scrollable, slicing the last
+character off six lines.
+
+The three `.sn-pattern-*` siblings use the identical idiom and were fine: they
+are core `wp:group` blocks, which core gives `border-box`. Only `.sn-pull-quote`
+is a custom `<aside>`, so only it inherited nothing. `box-sizing` now sits on all
+four so the idiom stops depending on who renders the element.
+
+**The test gap underneath it.** `tests/prose-slab-idiom.php` exists because a
+slab shipped correctly COLOURED and wrongly SHAPED. One level down, the same
+gap: it pinned the shape and not the SIZE. Now pinned.
+
+**And that scan was reading its own comments.** It stripped comment blocks from a
+rule's selector but not its body, and a comment between `;` and a declaration
+blocks any predicate anchored on `;`. `.sn-correction` documents its padding
+inline, so its `padding: 1.5rem` was invisible and the element this file was
+written for would have skipped the new check in silence. Caught only because a
+guard-the-guard floor of 3 failed at 2 and I measured instead of lowering the
+floor to match.
+
+### The webmention route's registration (plugin v13.109.4)
+
+`tests/citations-endpoint.php` had 26 assertions on handler behaviour but had
+never called `sn_cit_register_route()` — `register_rest_route` was not even
+stubbed. Namespace, path, the POST-only method list and the deliberately public
+`permission_callback` were free to move while every assertion stayed green.
+
+The discovery assertions also matched a hardcoded path literal, which cannot
+catch drift. The `<link rel="webmention">` href is now compared against
+`rest_url()` computed from the emitter's own constants AND against the
+namespace + route as registered.
+
+**Handler deliberately unchanged.** Its 400 returns
+`WP_REST_Response( array( 'error' => '<free text>' ), 400 )` — no
+machine-readable code a sender could branch on. W3C Webmention REC 3.2 requires
+only the 400 status, so this is not a spec violation; it is pinned with a comment
+saying "recorded as current behaviour, not endorsed". Note that because `args`
+declares both params `required`, a real HTTP POST with no params never reaches
+the handler at all — core answers first with `rest_missing_callback_param`. Both
+are 400; only one carries a code.
+
+### OPEN: the card and the page disagree about reading time
+
+The page renders **5 min read**; the OG card renders **4 MIN READ**. Both call
+the same cache-backed `sn_get_reading_time()` (theme `inc/block-bindings.php:47`,
+plugin `inc/reading-time.php:89`), so they should not be able to disagree.
+
+At the plugin's 225 wpm, 766 words is `ceil(3.4)` = **4**, which is what the card
+shows — so the card is arithmetically right and its regeneration returning
+byte-identical output was CORRECT, not a failed rebuild. Where the page's 5 comes
+from is unresolved. Candidates not yet checked: the cached
+`SN_READING_TIME_META_KEY` value (never read directly), and whether
+`snt_word_count()` on raw block markup counts more than the 766 the corpus
+reports. **I was wrong about this card twice before landing here** — first
+claiming a stale `?v=` meant no rebuild, then claiming the card was stale — so
+the next reader should trust the arithmetic above and nothing else.
+
 ## Recurring failure modes from this session
 
 - **Widening a container does nothing when the content is capped by measure.**
@@ -669,6 +747,28 @@ the world and assumes the world was left alone.
   left one copy, and I restored the wrong file over the right one.
 
 
+### From the tail
+
+- **A guard-the-guard floor is only useful if you MEASURE it.** I asserted the
+  padded-bleed count was `>= 3` from memory; it came back 2. Lowering the floor to
+  match would have shipped the coverage gap green. Measuring instead found that
+  `.sn-correction`'s padding was invisible to the predicate — the one element the
+  test file exists for. A floor written from memory ratifies whatever the scan
+  currently sees.
+- **A test can inherit the very blind spot it was written to close.** The prose-slab
+  suite was created because token guards checked what a rule is PAINTED with and
+  nothing checked its SHAPE. It then pinned the shape and not the SIZE, and a
+  correctly-shaped slab shipped 48px off-screen. Ask what the new guard still
+  cannot see.
+- **Deterministic output means identical bytes are a PASS, not a failure.** I read
+  a byte-identical regenerated card as a failed rebuild and "fixed" it by
+  regenerating again. With unchanged inputs, identical output is exactly right.
+  Establish what the inputs are before reading the output as evidence.
+- **Two repos cannot share a pull request.** Asked to put a theme fix "in the same
+  PR" as a plugin test, the honest move was to say why not and open two, rather
+  than pick one repo and silently drop the other change.
+
+
 ## State at handoff
 
 | | version | where |
@@ -682,6 +782,9 @@ the world and assumes the world was left alone.
 | release drafts | v13.109.0–.3 | backfilled; last 25 tags all have one, all Drafts |
 | five workers | — | all `ok`, live = latest |
 | memory repo | — | 4 commits; plugin index 25.4KB -> 22.5KB, wikilinks 12 -> 0 (theme 84 -> 16) |
+| plugin | v13.109.4 | tagged, merged, draft release — webmention registration pinned |
+| theme | v12.20.6 | tagged, merged, draft release — pull quote box-sizing |
+| /provenance | description | 154 chars live; validator char_range warning cleared |
 | /provenance | 746 words | written, restructured, verified; longest run 11 lines -> 7 |
 | sn-provenance-worker | v1.18.3 | live |
 | four other workers | — | census gate merged |
