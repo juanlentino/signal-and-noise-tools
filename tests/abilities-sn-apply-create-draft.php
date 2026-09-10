@@ -13,6 +13,18 @@
 
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) )       { define( 'ABSPATH', '/' ); }
+
+// v13.109.6: the write door now hands core SLASHED data, per WP's own contract.
+// These fakes must therefore behave like core: wp_slash() on the way in,
+// wp_unslash() inside the writer. Stubbing wp_slash as identity would make this
+// suite blind to the exact bug the contract exists to prevent.
+if ( ! function_exists( 'wp_slash' ) ) {
+	function wp_slash( $v ) { return is_array( $v ) ? array_map( 'wp_slash', $v ) : ( is_string( $v ) ? addslashes( $v ) : $v ); }
+}
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
+}
+
 if ( ! defined( 'DAY_IN_SECONDS' ) ) { define( 'DAY_IN_SECONDS', 86400 ); }
 if ( ! defined( 'ARRAY_A' ) )       { define( 'ARRAY_A', 'ARRAY_A' ); }
 if ( ! defined( 'OBJECT' ) )        { define( 'OBJECT', 'OBJECT' ); }
@@ -121,10 +133,12 @@ if ( ! function_exists( 'get_post_meta' ) ) {
 	}
 }
 if ( ! function_exists( 'update_post_meta' ) ) {
-	function update_post_meta( $id, $key, $value ) { $GLOBALS['__write_calls']['update_post_meta']++; $GLOBALS['__post_meta'][ (int) $id ][ $key ] = $value; return true; }
+	function update_post_meta( $id, $key, $value ) {
+		$value = wp_unslash( $value ); $GLOBALS['__write_calls']['update_post_meta']++; $GLOBALS['__post_meta'][ (int) $id ][ $key ] = $value; return true; }
 }
 
-if ( ! function_exists( 'wp_update_post' ) ) { function wp_update_post( $args, $wp_error = false ) { $GLOBALS['__write_calls']['wp_update_post']++; return (int) ( $args['ID'] ?? 0 ); } }
+if ( ! function_exists( 'wp_update_post' ) ) { function wp_update_post( $args, $wp_error = false ) {
+		$args = wp_unslash( $args ); $GLOBALS['__write_calls']['wp_update_post']++; return (int) ( $args['ID'] ?? 0 ); } }
 if ( ! function_exists( 'post_type_supports' ) ) { function post_type_supports( $t, $f ) { return true; } }
 if ( ! function_exists( 'wp_revisions_to_keep' ) ) { function wp_revisions_to_keep( $post ) { return $GLOBALS['__revisions_to_keep']; } }
 if ( ! function_exists( '_wp_put_post_revision' ) ) { function _wp_put_post_revision( $post ) { $GLOBALS['__write_calls']['_wp_put_post_revision']++; return 0; } }
@@ -135,6 +149,7 @@ if ( ! function_exists( '_wp_put_post_revision' ) ) { function _wp_put_post_revi
 // documented failure shapes for the dedicated failure tests below.
 if ( ! function_exists( 'wp_insert_post' ) ) {
 	function wp_insert_post( $args, $wp_error = false ) {
+		$args = wp_unslash( $args );
 		$GLOBALS['__write_calls']['wp_insert_post']++;
 		if ( 'wp_error' === $GLOBALS['__insert_fail_mode'] ) {
 			return $wp_error ? new WP_Error( 'db_insert_error', 'Simulated DB failure.' ) : 0;

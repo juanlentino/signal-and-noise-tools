@@ -387,7 +387,7 @@ function snt_sn_apply_apply_staged_meta_for_post( $post_id ) {
 			// the row was cleared some other way) — skip, not fatal.
 			continue;
 		}
-		update_post_meta( $post_id, $meta_key, $staged['proposed_value'] );
+		update_post_meta( $post_id, $meta_key, wp_slash( $staged['proposed_value'] ) );
 		delete_option( snt_sn_apply_staged_meta_option_name( $post_id, $meta_key ) );
 		$applied[] = $meta_key;
 	}

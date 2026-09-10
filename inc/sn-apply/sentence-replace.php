@@ -141,9 +141,16 @@ function snt_sn_apply_sentence_replace_impl( $post_id, $phrase, $replacement, $f
 		$result = call_user_func( $write_callback, $post_id, $new_content );
 	} else {
 		$result = wp_update_post(
-			array(
-				'ID'           => $post_id,
-				'post_content' => $new_content,
+			// v13.109.6: core wp_unslash()es what it is handed, so an unslashed write
+			// eats literal backslashes -- \u003cem\u003e in a block delimiter attribute,
+			// a BEM --modifier in a className. wp_slash() restores WP's convention:
+			// callers hand core SLASHED data. NOT fixable in the caller;
+			// serialize_block() output is already correct.
+			wp_slash(
+				array(
+					'ID'           => $post_id,
+					'post_content' => $new_content,
+				)
 			),
 			true
 		);

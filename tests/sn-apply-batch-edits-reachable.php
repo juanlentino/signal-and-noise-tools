@@ -23,6 +23,18 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 
+// v13.109.6: the write door now hands core SLASHED data, per WP's own contract.
+// These fakes must therefore behave like core: wp_slash() on the way in,
+// wp_unslash() inside the writer. Stubbing wp_slash as identity would make this
+// suite blind to the exact bug the contract exists to prevent.
+if ( ! function_exists( 'wp_slash' ) ) {
+	function wp_slash( $v ) { return is_array( $v ) ? array_map( 'wp_slash', $v ) : ( is_string( $v ) ? addslashes( $v ) : $v ); }
+}
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
+}
+
+
 $pass = 0; $fail = 0;
 function ok( $c, $m ) { global $pass, $fail; if ( $c ) { ++$pass; echo "  ok  - $m\n"; } else { ++$fail; echo "  FAIL - $m\n"; } }
 
@@ -36,6 +48,7 @@ function get_post( $id ) {
 	return isset( $GLOBALS['__posts'][ $id ] ) ? (object) array( 'ID' => $id, 'post_content' => $GLOBALS['__posts'][ $id ] ) : null;
 }
 function wp_update_post( $arr, $wp_error = false ) {
+		$arr = wp_unslash( $arr );
 	++$GLOBALS['__write_count'];
 	$GLOBALS['__posts'][ (int) $arr['ID'] ] = $arr['post_content'];
 	return (int) $arr['ID'];

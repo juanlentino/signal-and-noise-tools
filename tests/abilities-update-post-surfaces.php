@@ -9,6 +9,18 @@
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
 
+// v13.109.6: the write door now hands core SLASHED data, per WP's own contract.
+// These fakes must therefore behave like core: wp_slash() on the way in,
+// wp_unslash() inside the writer. Stubbing wp_slash as identity would make this
+// suite blind to the exact bug the contract exists to prevent.
+if ( ! function_exists( 'wp_slash' ) ) {
+	function wp_slash( $v ) { return is_array( $v ) ? array_map( 'wp_slash', $v ) : ( is_string( $v ) ? addslashes( $v ) : $v ); }
+}
+if ( ! function_exists( 'wp_unslash' ) ) {
+	function wp_unslash( $v ) { return is_array( $v ) ? array_map( 'wp_unslash', $v ) : ( is_string( $v ) ? stripslashes( $v ) : $v ); }
+}
+
+
 if ( ! class_exists( 'WP_Error' ) ) {
 	class WP_Error {
 		public $code; public $message; public $data;
@@ -45,6 +57,7 @@ if ( ! function_exists( 'get_post' ) ) {
 }
 if ( ! function_exists( 'wp_update_post' ) ) {
 	function wp_update_post( $arr, $wp_error = false ) {
+		$arr = wp_unslash( $arr );
 		if ( $GLOBALS['__wp_update_post_fail'] ) {
 			// Real shape: WP_Error when $wp_error=true, 0 otherwise.
 			return $wp_error ? new WP_Error( 'db_update_error', 'Could not update post.' ) : 0;
@@ -54,7 +67,8 @@ if ( ! function_exists( 'wp_update_post' ) ) {
 	}
 }
 if ( ! function_exists( 'update_post_meta' ) ) {
-	function update_post_meta( $id, $k, $v ) { $GLOBALS['__meta'][ $id ][ $k ] = $v; return true; }
+	function update_post_meta( $id, $k, $v ) {
+		$v = wp_unslash( $v ); $GLOBALS['__meta'][ $id ][ $k ] = $v; return true; }
 }
 if ( ! function_exists( 'delete_post_meta' ) ) {
 	function delete_post_meta( $id, $k ) { $GLOBALS['__meta_deleted'][] = "$id:$k"; return true; }
