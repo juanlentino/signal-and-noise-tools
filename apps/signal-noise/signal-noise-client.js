@@ -521,6 +521,23 @@
 	};
 
 	/** The "More actions" button: the menu's second trigger, anchored under itself. */
+	/**
+	 * The row menu's glyph is an `<os-icon>`, not a `.dashicons` span.
+	 *
+	 * A raw span works when it is slotted into `os-segment` -- the view toggle
+	 * above does exactly that and paints at 16px. Inside `os-button` it does not:
+	 * measured live 2026-09-10 on the shipped build, the glyph computed to
+	 * `font-family: Geist` rather than `dashicons` and rendered 0x0, so all 40
+	 * rows carried a 26x14px ghost button with nothing in it. A control you
+	 * cannot see is worse than a decorative glitch.
+	 *
+	 * `os-icon` puts the glyph in its OWN shadow root, where the app's font
+	 * declaration cannot reach it. Verified in place before this change: the same
+	 * button, raw span 0px, os-icon 16x16px.
+	 *
+	 * The other twelve raw spans in this file are NOT affected -- they are not
+	 * slotted into `os-button`. This is one call site, not a sweep.
+	 */
 	const moreButton = ( ctx, item ) => html`
 		<os-button
 			variant="ghost"
@@ -533,7 +550,7 @@
 				openMenuAt( ctx, e.currentTarget, item );
 			} }
 			@dblclick=${ ( e ) => e.stopPropagation() }
-		><span class="dashicons dashicons-ellipsis" aria-hidden="true"></span></os-button>
+		><os-icon name="dashicons-ellipsis"></os-icon></os-button>
 	`;
 
 	// ---------------------------------------------------------------- root
