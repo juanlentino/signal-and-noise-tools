@@ -20,10 +20,56 @@ function ok( $c, $m ) { global $pass, $fail; if ( $c ) { $pass++; echo "PASS: $m
 $root = dirname( __DIR__ );
 
 /** Parse every wp_register_ability() call into slug => [callback, readonly]. */
-function app_registry( $root ) {
-	$out = array();
-	foreach ( snt_test_inc_files( 'abilities-*.php' ) as $file ) {
-		$src   = (string) file_get_contents( $file );
+/**
+ * Strip PHP comments so a registration discussed in a docblock is not counted
+ * as one. Newlines are preserved so any line arithmetic stays honest.
+ *
+ * @param string $src Source.
+ * @return string
+ */
+function snt_ap_strip_comments( $src ) {
+	$src = preg_replace_callback(
+		'#/\*.*?\*/#s',
+		static function ( $m ) {
+			return str_repeat( "\n", substr_count( $m[0], "\n" ) );
+		},
+		$src
+	);
+	return (string) preg_replace( '#^\s*//.*$#m', '', (string) $src );
+}
+
+/**
+ * Every ability registration under inc/, however it is spelled.
+ *
+ * THE GLOB WAS THE BUG. This walked `inc/abilities-*.php` only and reported 93
+ * of 103: three abilities are registered from feature files (`get-404-log` in
+ * redirects-404-log.php, `provenance-integrity-status`, `uptime-status`), and
+ * seven more through `wp_register_ability( $slug, … )` inside a foreach over a
+ * definition map — three remote search twins and four Search Console reads.
+ * Ten abilities sat outside the permission policy this file exists to enforce.
+ *
+ * A variable-slug site that CANNOT be resolved is reported, never skipped:
+ * `$unresolved` is asserted empty below, so a new loop shape fails here rather
+ * than quietly shrinking the population again.
+ *
+ * @param string $root Plugin root.
+ * @return array<string,array{perm:string,readonly:string,file:string}>
+ */
+function app_registry( $root, &$unresolved = array() ) {
+	$out        = array();
+	$unresolved = array();
+	// snt_test_inc_files() and nothing else: issue #987's meta-guard exists
+	// because twelve suites globbed `inc/*.php`, which is the TOP of inc/ and
+	// nothing below it — 86 files in packages were invisible to all of them.
+	// A hand-rolled two-level glob here would have re-made that mistake in the
+	// very file being widened to stop missing things.
+	$files = snt_test_inc_files( '*.php' );
+	sort( $files );
+
+	foreach ( $files as $file ) {
+		$src = snt_ap_strip_comments( (string) file_get_contents( $file ) );
+
+		// ── literal slugs ────────────────────────────────────────────────
 		$parts = preg_split( "/wp_register_ability\(\s*'([^']+)'/", $src, -1, PREG_SPLIT_DELIM_CAPTURE );
 		for ( $i = 1; $i < count( $parts ); $i += 2 ) {
 			$slug = $parts[ $i ];
@@ -36,14 +82,54 @@ function app_registry( $root ) {
 				'file'     => basename( $file ),
 			);
 		}
+
+		// ── variable slugs: `wp_register_ability( $slug, array( … ) )` ────
+		if ( ! preg_match_all( '/wp_register_ability\(\s*\$(\w+)\s*,\s*array\((.*?)\n\t*\)\s*\);/s', $src, $vm, PREG_SET_ORDER ) ) {
+			continue;
+		}
+		foreach ( $vm as $site ) {
+			$body = $site[2];
+			// The literal callback if the registration names one, else the
+			// per-entry `'perm'` the loop body reads.
+			preg_match( "/'permission_callback'\s*=>\s*'([^']+)'/", $body, $lit );
+
+			// Every `'signal-noise/…' => array(` in this file that is not
+			// already registered literally is a member of the looped map.
+			preg_match_all( "/'(signal-noise\/[a-z0-9-]+)'\s*=>\s*array\((.*?)\n\t*\),/s", $src, $entries, PREG_SET_ORDER );
+			$found = 0;
+			foreach ( $entries as $entry ) {
+				$slug = $entry[1];
+				if ( isset( $out[ $slug ] ) ) {
+					continue;
+				}
+				preg_match( "/'perm'\s*=>\s*'([^']+)'/", $entry[2], $ep );
+				$perm = $lit[1] ?? ( $ep[1] ?? '?' );
+				$out[ $slug ] = array(
+					'perm'     => $perm,
+					'readonly' => '-',
+					'file'     => basename( $file ) . ' (looped)',
+				);
+				$found++;
+			}
+			if ( 0 === $found ) {
+				$unresolved[] = basename( $file );
+			}
+		}
 	}
 	return $out;
 }
 
-$reg = app_registry( $root );
+$unresolved = array();
+$reg        = app_registry( $root, $unresolved );
 
 echo "Group: the parser is not vacuous\n";
-ok( count( $reg ) >= 70, 'found the ability registry (' . count( $reg ) . ' abilities)' );
+// The floor tracks the real population (103 on 2026-09-10). It was `>= 70`
+// against an actual 93 — 23 points of slack, enough to delete a fifth of the
+// registry unnoticed. A floor only earns its place when it would bite.
+ok( count( $reg ) >= 100, 'found the ability registry (' . count( $reg ) . ' abilities, floor 100)' );
+ok( array() === $unresolved,
+	'every variable-slug registration site resolved to its definition map'
+	. ( $unresolved ? ' — UNRESOLVED in: ' . implode( ', ', array_unique( $unresolved ) ) : '' ) );
 ok( isset( $reg['signal-noise/sn-scan'] ), 'and a known ability is in it' );
 ok( '?' !== ( $reg['signal-noise/sn-scan']['perm'] ?? '?' ), 'with its permission callback resolved' );
 
