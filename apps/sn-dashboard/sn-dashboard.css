@@ -40,24 +40,33 @@
 	min-width: 0;
 }
 
-.snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] .snt-leaf,
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf:has( os-table ),
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf:has( .snt-table-wrap ),
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf:has( .snt-2up ),
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf:has( os-row ),
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf:has( .snt-cols ),
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf:has( .snt-report-columns ),
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="analytics"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="machine-readers"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="cloudflare"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="indexnow"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="models-budget"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="insights"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="search-console"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="reports"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="redirects"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="audit-log"],
-.snt-app[data-os-app="sn-dashboard"] .snt-leaf[data-snt-leaf="tags"] {
+/* Every selector below mirrors the cap's own shape -- `.snt-dashboard-body >`.
+   Without it the two TYPE-selector hatches, :has( os-table ) and :has( os-row ),
+   score (0,3,1) against the cap's (0,4,0): they match the leaf and are overruled,
+   so they never released a single leaf. Measured live 2026-09-10 at an 1820px
+   window: connections/cron and connections/webhooks both computed to
+   max-width 820px with the hatch matching. The class-based hatches only worked
+   by a source-order tie at equal specificity; this makes all of them win
+   outright. Scoping to the direct child is not a narrowing -- the cap applies
+   to `.snt-dashboard-body > .snt-leaf`, so that is exactly the set needing release. */
+.snt-app[data-os-app="sn-dashboard"][data-snt-tab="dashboard"] .snt-dashboard-body > .snt-leaf,
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( os-table ),
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-table-wrap ),
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-2up ),
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( os-row ),
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-cols ),
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf:has( .snt-report-columns ),
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="analytics"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="machine-readers"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="cloudflare"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="indexnow"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="models-budget"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="insights"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="search-console"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="reports"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="redirects"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="audit-log"],
+.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="tags"] {
 	max-width: 100%;
 }
 
