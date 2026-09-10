@@ -331,5 +331,32 @@ ok(
 	'the state schema names its default a FALLBACK, not the value'
 );
 
+
+// ── An icon slotted into `os-button` must be an `<os-icon>`. ──
+// A raw `.dashicons` span works inside `os-segment` (the view toggle does it
+// and paints at 16px) and NOT inside `os-button`: measured live 2026-09-10 on
+// the shipped build, the glyph computed to `font-family: Geist` instead of
+// `dashicons` and rendered 0x0, so all 40 rows of the Notes list carried a
+// 26x14px ghost button with nothing in it. `os-icon` puts the glyph in its own
+// shadow root, where the app's font declaration cannot reach it -- verified in
+// place on the same button: raw span 0px, os-icon 16x16px.
+ok(
+	false !== strpos( $js, '><os-icon name="dashicons-ellipsis"></os-icon></os-button>' ),
+	'the row menu button carries an os-icon, not a raw dashicons span'
+);
+
+// The general rule, derived rather than listed: no `class="dashicons"` span may
+// sit directly inside an `<os-button>`. Written as a scan so a NEW one fails
+// here rather than shipping invisible.
+$slotted_spans = preg_match_all( '/<os-button(?:[^>]|\n)*?>\s*<span[^>]*class="[^"]*dashicons/s', $js );
+ok( 0 === $slotted_spans, 'no raw dashicons span is slotted into an os-button -- found ' . $slotted_spans );
+
+// A count guard, because the scan above is trivially true if the file stops
+// containing os-button at all.
+ok(
+	substr_count( $js, '<os-button' ) >= 1,
+	'...and there are os-buttons to check -- ' . substr_count( $js, '<os-button' )
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
