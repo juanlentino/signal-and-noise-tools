@@ -611,6 +611,34 @@ every one of them was a reading of an instrument rather than of the world. The
 `head -1` is the root: a grep over a whole page attributes whatever it finds
 first to the page itself.
 
+## One error vocabulary for the webmention inbox (plugin v13.109.5)
+
+The endpoint returned **two** error shapes, both 400: core's
+`{code, message, data:{status}}` when the `required` args rejected a param-less
+POST before the handler ran, and a bare `{"error": "..."}` from the handler with
+no machine-readable code. A sender could not tell `source must be off-site` from
+`target is not a publicly viewable resource on this site` without matching
+English.
+
+**Nothing consumed the string shape.** Checked the plugin's own code and tests,
+`citations-admin.php` and the dashboard leaf (both only DISPLAY the inbox
+address), all seven local worker repos (none mentions webmention at all), n8n
+references, and the two `rest_post_dispatch`-family filters (registry probe, TDM
+headers — neither parses this body). The only consumer was an assertion added
+hours earlier in v13.109.4, updated in the same change.
+
+All seven refusals are `WP_Error` now, each with its own code:
+`sn_cit_missing_params`, `sn_cit_invalid_source`, `sn_cit_source_equals_target`,
+`sn_cit_source_not_offsite`, `sn_cit_source_unreachable`,
+`sn_cit_target_not_found`, `sn_cit_not_recorded`.
+
+**The prefix is `sn_cit_`, not the requested `sn_webmention_`.** The plugin's
+convention is that an error code's prefix mirrors its module's FUNCTION prefix —
+`inc/provenance-webhook.php`, the sibling public endpoint, uses `sn_prov_bad_sig`
+against `sn_prov_*` functions. Human strings kept verbatim; they travel as
+`message`. Status 400 everywhere, 202 and the stored row untouched, no GET
+handler, and `rest_missing_callback_param` left alone as core's.
+
 ## Recurring failure modes from this session
 
 - **Widening a container does nothing when the content is capped by measure.**
@@ -787,6 +815,28 @@ the world and assumes the world was left alone.
   than pick one repo and silently drop the other change.
 
 
+### From the error-vocabulary change
+
+- **A negative control counted by FAIL lines cannot see a crash.** I measured a
+  mutation with `grep -c '^FAIL'` and read **1**, which looks like a guard barely
+  catching anything. The suite had fataled at the first case and exited **255**
+  with no summary line; every later assertion never ran. "1 red" and "the suite
+  exploded" are opposite verdicts about a guard's strength. Measure by exit code.
+  I had this written down already as `summary-line-not-absence-of-fail`.
+- **A test that CRASHES on the defect it guards says less than one that fails.**
+  The assertion loop now short-circuits on the shape check, so a reversion reports
+  19 clean failures instead of dying at the first and hiding the rest.
+- **A rewrite regex can match its own helper.** Rewriting every `$r->status` into
+  `sn_status_of( $r )` also rewrote the line inside `sn_status_of()`, giving it
+  infinite recursion — half a million stack frames before PHP gave up. Exclude the
+  definition when rewriting call sites.
+- **The shell is zsh and BSD, not bash and GNU.** Three silent traps in one
+  session: an unquoted `--include=*.php` aborts the whole grep; a GNU `sed`
+  one-liner wrote three zero-byte files the next step consumed; and backticks
+  inside `git commit -m` ran as a command substitution and ate a word out of the
+  message, caught only by reading `git log -1 --format=%B` afterwards.
+
+
 ## State at handoff
 
 | | version | where |
@@ -801,6 +851,7 @@ the world and assumes the world was left alone.
 | five workers | — | all `ok`, live = latest |
 | memory repo | — | 4 commits; plugin index 25.4KB -> 22.5KB, wikilinks 12 -> 0 (theme 84 -> 16) |
 | plugin | v13.109.4 | tagged, merged, draft release — webmention registration pinned |
+| plugin | v13.109.5 | tagged, merged, draft release — one error vocabulary |
 | theme | v12.20.6 | tagged, merged, draft release — pull quote box-sizing |
 | /provenance | description | 154 chars live; validator char_range warning cleared |
 | /provenance | 746 words | written, restructured, verified; longest run 11 lines -> 7 |
