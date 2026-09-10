@@ -103,12 +103,21 @@ ok(
 ok( array() === snt_leaf_classic_markers( $hostile ), 'hostile fixture: no wp-admin markup survives either' );
 
 
-// ── Siblings pair; a stack is for steps. ──
-// Measured live 2026-09-10; see the painter for the per-leaf numbers.
+// ── NOT paired, deliberately, and pinned so it stays that way. ──
+// These three groups ARE siblings, and v13.109.12 wrapped them in
+// `.snt-systems` on that reading. It was wrong for a mechanical reason: each
+// group already lays out its own cards horizontally, so a horizontal wrapper
+// divides an already-divided width. Measured live 2026-09-10: groups at 265px
+// (575px with the leaf released), cards at ~230px, every URL truncated --
+// `dash.cloudfl...`, `platform.cloudways...`. Stacked, each group takes the
+// full 820px and its two cards sit at ~390px with the URLs readable.
+//
+// The pass rule -- siblings take a grid -- assumes single-column siblings.
 $kitP = snt_leaf_paint( 'tools', 'links' );
 ok(
-	1 === substr_count( $kitP, '<div class="snt-systems">' ),
-	'the sibling sections are painted in 1 paired row(s) -- ' . substr_count( $kitP, '<div class="snt-systems">' )
+	false === strpos( $kitP, 'snt-systems' ) && false === strpos( $kitP, '<div class="snt-cols">' ),
+	'the link groups are NOT wrapped in a row: they already use the width themselves'
 );
+ok( substr_count( $kitP, '<os-section' ) >= 3, '...and all three groups still paint -- ' . substr_count( $kitP, '<os-section' ) );
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
