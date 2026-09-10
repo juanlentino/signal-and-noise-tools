@@ -12,14 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.109.2] - 2026-09-10 — the card dek stops repeating the title
+
 ### Fixed
 - A social card whose post has no excerpt no longer repeats the page title in its description. The dek falls back to the first 36 words of content, and on a Page whose template renders only `post-content` the title lives inside that content — so the card printed "ON PROVENANCE" in the title and then "On Provenance Two papers, three long-form essays…" underneath it, wasting the words that then fell into the ellipsis. A leading heading is now dropped before the words are counted. Only the leading one: a heading further down is a section title inside the prose.
-
-## [13.109.1] - 2026-09-10 — the card title guidance says what was measured
-
-### Fixed
-- The OG card title field's guidance was wrong. It advised 60–90 characters; measured against the actual font at the actual sizes, one line holds about 24 characters and an 83-character title truncated even at the smallest step. The card wraps to three lines across 1040px and steps 88→74→62px before ellipsizing, so the limit is rendered width and long words break early — character count is a poor proxy twice over. The helper now says what was measured.
-
-### Changed
-- The `/notes` position-drift watch now records that its window is confounded. The page changed materially between the watch being set and its 2026-09-11 due date — the pillar rail arrived in the hero, the corpus stamp left it, the heading outline changed, and the first note moved twice — so a worse position on that date cannot be attributed to drift rather than to the changes. The watch says so rather than leaving the next reader to infer it.
 
