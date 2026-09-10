@@ -55,7 +55,7 @@ function snt_watches() {
 		array(
 			'id'        => 'notes_drift_reread',
 			'label'     => '/notes position drift',
-			'why'       => 'Its first reading cleared the 5.0-drift and 10-impression floors by a hair; an average position over eleven impressions is noise-adjacent. Still drifting with more impressions behind it is a finding.',
+			'why'       => 'Its first reading cleared the 5.0-drift and 10-impression floors by a hair; an average position over eleven impressions is noise-adjacent. Still drifting with more impressions behind it is a finding. CONFOUNDED 2026-09-09: the page changed materially mid-window (theme v12.19.0-v12.20.3 added the pillar rail to the hero, moved the corpus stamp out, changed the heading outline, and moved the first note twice). A reading on 2026-09-11 CANNOT separate continued drift from the effect of those changes. Treat a worse position as unattributable rather than as a finding, and re-baseline from the first full week after 2026-09-10 before drawing any conclusion.',
 			'read'      => 'sn-status{search_drift}',
 			'date_only' => false,
 			'due'       => '2026-09-11',
