@@ -49,7 +49,7 @@ function sn_admin_render_redirects_section() {
 	do_action( 'sn_admin_redirects_tab' );
 }
 
-/** Site → Broken links (v13.109.8): the 404 log, split out of Redirects. */
+/** Site → Broken links (v13.109.7): the 404 log, split out of Redirects. */
 function sn_admin_render_broken_links_section() {
 	do_action( 'sn_admin_broken_links_tab' );
 }

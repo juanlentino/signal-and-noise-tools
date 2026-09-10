@@ -103,7 +103,7 @@ function sn_redirects_render_admin_tab() {
 	echo '</div>'; // .sn-fieldset
 	echo '</form>';
 
-	// v13.109.8: the 404 log moved to its own leaf (Site -> Broken links). It was
+	// v13.109.7: the 404 log moved to its own leaf (Site -> Broken links). It was
 	// a rail here, and a rail cannot hold 192 rows -- it rendered as an unbounded
 	// stack beside a shorter column, which is the dead-half-window defect the
 	// parity pass exists to remove. A redirect map is a table; give it the width.
@@ -113,7 +113,7 @@ function sn_redirects_render_admin_tab() {
 /**
  * Site -> Broken links: the 404 log and its suggestions, as its own leaf.
  *
- * Split out of sn_redirects_render_admin_tab() in v13.109.8. The content is
+ * Split out of sn_redirects_render_admin_tab() in v13.109.7. The content is
  * unchanged; what changed is that it is now MAIN content with the full width
  * rather than a rail beside a redirect table.
  *

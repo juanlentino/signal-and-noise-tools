@@ -2,7 +2,7 @@
 /**
  * S&N Dashboard — Site → Broken links, painted from the kit.
  *
- * Split out of `site-redirects.php` in v13.109.8. The classic leaf is
+ * Split out of `site-redirects.php` in v13.109.7. The classic leaf is
  * `sn_redirects_render_broken_links_tab()` behind
  * `sn_admin_render_broken_links_section()`.
  *
@@ -54,7 +54,7 @@ function broken_links_intro_html() {
  * The broken-links sections: status, the probe bucket, one section per broken
  * path, and the whole-log clear.
  *
- * Was `redirects_rail_html()` in site-redirects.php until v13.109.8, when the
+ * Was `redirects_rail_html()` in site-redirects.php until v13.109.7, when the
  * 404 log became its own leaf. Renamed with it: nothing here is a rail any more,
  * and a name that says otherwise is the next reader's wrong turn.
  *

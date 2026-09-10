@@ -77,7 +77,7 @@ function paint_site_redirects( array $ctx ) {
 		) . '</p>';
 	}
 	$main .= redirects_add_html();
-	// v13.109.8: full width, no rail. The 404 log moved to Site → Broken links —
+	// v13.109.7: full width, no rail. The 404 log moved to Site → Broken links —
 	// it was 192 rows in a ~1fr column beside this table, which is the
 	// dead-half-window defect the parity pass removes. Pattern B: a redirect map
 	// is tabular, so give it the width rather than half of it.

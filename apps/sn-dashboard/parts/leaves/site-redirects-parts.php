@@ -20,7 +20,7 @@ const REDIRECTS_PROBE_LIST_MAX = 25;
 
 
 /**
- * v13.109.8: moved here from site-redirects.php. BOTH leaves read it now —
+ * v13.109.7: moved here from site-redirects.php. BOTH leaves read it now —
  * Redirects paints the rules, Broken links paints the 404s — so it belongs in
  * the shared parts file rather than inside one of its two consumers.
  */
