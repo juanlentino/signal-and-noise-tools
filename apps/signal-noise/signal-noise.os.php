@@ -82,7 +82,7 @@ return App::define( APP_ID )
 			'item'     => '', // The open item's id; '' when the dossier is closed. Local.
 			'status'   => '', // The status pill; '' = All. Local.
 			'query'    => '', // The search field. Local.
-			'view'     => 'icons', // icons | list. Local.
+			'view'     => 'icons', // icons | list. Local, and the FALLBACK only: the client seeds this from the viewer's stored preference on mount (sn-signal-noise-view).
 			'verdict'  => array(), // The last re-check verdict { post_id, tone, text, meta, checked_at }; cleared by go. Server-only.
 			'selected' => array(), // Selected post ids as strings. Local, except that trash and go reset it.
 		)

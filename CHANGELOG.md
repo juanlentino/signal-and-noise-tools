@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **The Signal & Noise view switch survives a reload.** Icons or list is a preference, and it was being reset on every page load. `state.view` is declared Local in the app's schema beside `query`, `status`, `item` and `selected` — those are right to be ephemeral, but a view choice is different in kind. Measured live 2026-09-10: set to List it survived navigating to the root and back, then reset to icons on **every reload**, dropping the reader into a 104px tile grid that clipped **63% of Notes titles and 57% of Attention's** — those items are sentences, not names. The choice is now stored per viewer per browser, the way the plugin already keeps `sn-theme`; the schema's `icons` is the fallback and now says so. Both list and icons remain available — Discography reads well as tiles, where items are names and clipping is 20%.
+
+
 ## [13.109.14] - 2026-09-10 — the odd panel spans the row
 
 ### Fixed

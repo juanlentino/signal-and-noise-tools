@@ -293,5 +293,43 @@ ok( 0 === preg_match( '/set(?:Timeout|Interval)\(.{0,120}?reload/s', $js ), 'and
 // the suite go red. Those runs are recorded in the PR, which is where a reader
 // can check them; a tautology in the file is not evidence and reads as if it is.
 
+
+// ── The view switch is a PREFERENCE and survives a reload. ──
+// `state.view` is declared Local in the PHP schema beside `query`, `status`,
+// `item` and `selected`. Those are right to be ephemeral; a view choice is not.
+// Measured live 2026-09-10: set to List it survived navigating to the root and
+// back, and reset to icons on every RELOAD -- dropping the reader into a 104px
+// tile grid that clipped 63% of Notes titles and 57% of Attention's, because
+// those items are sentences rather than names.
+ok( false !== strpos( $js, "const VIEW_KEY = 'sn-signal-noise-view'" ), 'the view preference has a storage key' );
+ok(
+	preg_match( '/\'set-view\':[^}]*writeView\(/s', $js ),
+	'set-view writes the choice'
+);
+ok(
+	preg_match( '/mounted:[^}]*readView\(\)/s', $js ),
+	'...and mounted() seeds the view from it'
+);
+ok(
+	preg_match( '/stored\s*&&\s*stored\s*!==\s*ctx\.state\.view/', $js ),
+	'...only when it DIFFERS, so an unset preference does not repaint every mount'
+);
+
+// Every access is wrapped. A private window, cleared site data, or a browser
+// set to block storage THROWS on access rather than returning null, and a
+// thrown preference must not take the app down.
+ok(
+	2 === preg_match_all( '/try \{\s*(?:const v = )?window\.localStorage\.(?:get|set)Item/', $js ),
+	'both reads and writes are inside try/catch -- ' . preg_match_all( '/try \{\s*(?:const v = )?window\.localStorage\.(?:get|set)Item/', $js ) . ' of 2'
+);
+
+// The PHP default is now a fallback, and says so: a reader who finds `icons`
+// there must not conclude the app opens in icons.
+$os_php = (string) file_get_contents( SNT_PATH . 'apps/signal-noise/signal-noise.os.php' );
+ok(
+	preg_match( "/'view'\s*=>\s*'icons',\s*\/\/[^\n]*FALLBACK/", $os_php ),
+	'the state schema names its default a FALLBACK, not the value'
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

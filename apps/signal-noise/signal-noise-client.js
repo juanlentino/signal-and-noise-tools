@@ -43,6 +43,44 @@
 	/** The fetched half of a dossier lives in the same bag; keys are `${id}:${days}`. */
 	const dossierOf = uiOf;
 
+	/**
+	 * The view switch is a PREFERENCE, not a selection.
+	 *
+	 * `state.view` is declared Local in the PHP schema alongside `query`,
+	 * `status`, `item` and `selected` -- and those are right to be ephemeral:
+	 * nobody wants yesterday's search restored. A view choice is different in
+	 * kind. Measured live 2026-09-10: set to List, it survives navigating to the
+	 * root and back, and resets to icons on every RELOAD -- dropping the reader
+	 * back into a 104px tile grid that clipped 63% of Notes titles and 57% of
+	 * Attention's, because those items are sentences.
+	 *
+	 * Stored per viewer, per browser, which is what this preference is. The
+	 * plugin already keeps `sn-theme` and `sn-an-panel-uptime-detail` the same
+	 * way. Every access is wrapped: a private window, cleared site data or a
+	 * browser set to block storage all throw on access rather than returning
+	 * null, and a thrown preference must not take the app down with it.
+	 */
+	// `sn-`, not `snt-`: the orphan-class guard treats every `snt-*` string this
+	// client emits as a CSS class and flagged the key as an undefined one. The
+	// plugin's other stored preferences (`sn-theme`, `sn-an-panel-uptime-detail`)
+	// use the same prefix.
+	const VIEW_KEY = 'sn-signal-noise-view';
+	const readView = () => {
+		try {
+			const v = window.localStorage.getItem( VIEW_KEY );
+			return 'list' === v || 'icons' === v ? v : null;
+		} catch ( e ) {
+			return null;
+		}
+	};
+	const writeView = ( v ) => {
+		try {
+			window.localStorage.setItem( VIEW_KEY, 'list' === v ? 'list' : 'icons' );
+		} catch ( e ) {
+			/* Storage unavailable: the choice still holds for this session. */
+		}
+	};
+
 	const WINDOWS = [ 7, 30, 90 ];
 	/** A failed fetch is remembered this long before a repaint retries it. */
 	const ERROR_TTL_MS = 15000;
@@ -1182,6 +1220,7 @@
 				// `os-bind="view"` already wrote the pick; this only keeps it to the two values.
 				const picked = args.value !== undefined ? args.value : state.view;
 				state.view = picked === 'list' ? 'list' : 'icons';
+				writeView( state.view );
 				state.selected = [];
 			},
 		},
@@ -1260,6 +1299,14 @@
 		},
 		mounted: ( ctx ) => {
 			const teardowns = [];
+			// Seed the view from the stored preference. Only when it DIFFERS: the
+			// schema's default is `icons`, so an unset preference and a stored
+			// `icons` are the same picture, and dispatching either way would repaint
+			// every mount for nothing.
+			const stored = readView();
+			if ( stored && stored !== ctx.state.view ) {
+				void ctx.dispatch( 'set-view', { value: stored } );
+			}
 			// Escape closes the MENU first and the dossier only when no menu is
 			// open -- one keystroke, one thing closed, innermost first.
 			// Listened for on the document, because focus often sits on the
