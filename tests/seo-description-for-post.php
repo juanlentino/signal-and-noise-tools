@@ -105,5 +105,28 @@ ok( ! function_exists( 'sn_seo_route_meta' ), 'sn_seo_route_meta() no longer exi
 $sn_seo_src = (string) file_get_contents( __DIR__ . '/../inc/seo.php' );
 ok( false === strpos( $sn_seo_src, "apply_filters( 'sn_seo_route_meta'" ), 'and the filter is not applied anywhere in seo.php' );
 
+echo "\nGroup: v13.109.3 — the route table is READABLE, so callers stop re-deriving it\n";
+// sn_validate graded _sn_meta_description on every post, including the three
+// routes that never emit it (/provenance: meta row 175 chars, shipped 83).
+// The table is now askable rather than buried inside the value function.
+$GLOBALS['__opts']     = array( 'page_on_front' => 383 );
+$GLOBALS['__settings'] = array();
+ok( 'seo_copy.home_description'       === sn_seo_description_setting_key( $mk( 383, 'home', '' ) ),        'front page names seo_copy.home_description' );
+ok( 'seo_copy.notes_description'      === sn_seo_description_setting_key( $mk( 1489, 'notes', '' ) ),      '/notes names seo_copy.notes_description' );
+ok( 'seo_copy.provenance_description' === sn_seo_description_setting_key( $mk( 1490, 'provenance', '' ) ), '/provenance names seo_copy.provenance_description' );
+ok( ''                                === sn_seo_description_setting_key( $mk( 999, 'services', 'x' ) ),   'a generic page names NO settings key (post is the source)' );
+ok( ''                                === sn_seo_description_setting_key( null ),                          'non-object names no key' );
+// The key is reported even when the setting behind it is EMPTY — "which store"
+// and "is it filled" are different questions, and conflating them is how an
+// empty provenance_description would silently fall back to grading post meta.
+ok( 'seo_copy.provenance_description' === sn_seo_description_setting_key( $mk( 1490, 'provenance', 'Has an excerpt.' ) ), 'an empty setting still names its key (store, not fill)' );
+// Precedence matches the value function: front-page identity beats slug.
+ok( 'seo_copy.home_description' === sn_seo_description_setting_key( $mk( 383, 'notes', '' ) ), 'front-page identity outranks slug=notes' );
+
+echo "\nGroup: v13.109.3 — the table is not duplicated in the validator\n";
+$snv_src = (string) file_get_contents( __DIR__ . '/../inc/abilities-sn-validate.php' );
+ok( false === strpos( $snv_src, "seo_copy.provenance_description" ), 'sn_validate does not hardcode a seo_copy.* key' );
+ok( false !== strpos( $snv_src, 'sn_seo_description_setting_key' ),   'sn_validate asks the table instead' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

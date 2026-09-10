@@ -124,22 +124,26 @@ function sn_seo_resolve_singular_description( $post ) {
 }
 
 /**
- * The meta description sn_seo_meta_for_current_view() WOULD emit for a given
- * Page post — mirrors that function's per-route description branches but keyed
- * on the post's identity (not conditional tags), so a caller can evaluate an
- * arbitrary Page outside its own request. Used by the Analytics
- * descriptionless-Pages recommendation, which walks every published Page.
+ * The seo_copy.* settings key whose value SHIPS as this Page's meta
+ * description, or '' when the Page takes its description from the post itself
+ * (override -> excerpt -> filter).
  *
- * The front page, /notes, and /provenance take their description from SEO
- * settings (seo_copy.*_description), NOT the Page excerpt; every other Page uses
- * sn_seo_resolve_singular_description(). Keep the route branches in sync with
- * sn_seo_meta_for_current_view() above — the seo-description-for-post test pins
- * each branch.
+ * THE route table, in one place. sn_seo_description_for_post() below reads it
+ * for the value; sn_validate's meta_description resolver reads it to decide
+ * WHICH store to grade. Before v13.109.3 the table existed only inside
+ * sn_seo_description_for_post(), so sn_validate had no way to ask the question
+ * and graded _sn_meta_description on every post — including the three routes
+ * that never emit it. Measured on /provenance 2026-09-10: the post meta row
+ * held 175 chars while the page shipped 83 from settings, so the char_range
+ * warning was scoring a string no crawler could ever see.
  *
- * @param object|null $post A Page post object ( ->ID, ->post_name, ->post_excerpt ).
- * @return string
+ * A fourth route-served Page is added HERE, once.
+ *
+ * @since 13.109.3
+ * @param object|null $post A Page post object ( ->ID, ->post_name ).
+ * @return string Settings key, or '' when the post itself is the source.
  */
-function sn_seo_description_for_post( $post ) {
+function sn_seo_description_setting_key( $post ) {
 	if ( ! is_object( $post ) ) {
 		return '';
 	}
@@ -148,13 +152,39 @@ function sn_seo_description_for_post( $post ) {
 	$slug  = (string) ( $post->post_name ?? '' );
 
 	if ( $front && $id === $front ) {
-		return (string) sn_setting( 'seo_copy.home_description', '' );
+		return 'seo_copy.home_description';
 	}
 	if ( 'notes' === $slug ) {
-		return (string) sn_setting( 'seo_copy.notes_description', '' );
+		return 'seo_copy.notes_description';
 	}
 	if ( 'provenance' === $slug ) {
-		return (string) sn_setting( 'seo_copy.provenance_description', '' );
+		return 'seo_copy.provenance_description';
+	}
+	return '';
+}
+
+/**
+ * The meta description sn_seo_meta_for_current_view() WOULD emit for a given
+ * Page post — mirrors that function's per-route description branches but keyed
+ * on the post's identity (not conditional tags), so a caller can evaluate an
+ * arbitrary Page outside its own request. Used by the Analytics
+ * descriptionless-Pages recommendation, which walks every published Page.
+ *
+ * The route branches themselves now live in sn_seo_description_setting_key()
+ * above, so this reads the table rather than restating it; keep that table in
+ * sync with sn_seo_meta_for_current_view() — the seo-description-for-post test
+ * pins each branch through both functions.
+ *
+ * @param object|null $post A Page post object ( ->ID, ->post_name, ->post_excerpt ).
+ * @return string
+ */
+function sn_seo_description_for_post( $post ) {
+	if ( ! is_object( $post ) ) {
+		return '';
+	}
+	$key = sn_seo_description_setting_key( $post );
+	if ( '' !== $key ) {
+		return (string) sn_setting( $key, '' );
 	}
 	return sn_seo_resolve_singular_description( $post );
 }

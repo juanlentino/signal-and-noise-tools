@@ -163,6 +163,30 @@ class SN_Test_Wpdb_Validate {
 }
 $GLOBALS['wpdb'] = new SN_Test_Wpdb_Validate();
 
+// v13.109.3: the meta_description resolver asks inc/seo.php WHICH store ships a
+// given post's description (seo_copy.* settings for the front page, /notes and
+// /provenance; _sn_meta_description everywhere else). Load the REAL seo.php
+// instead of stubbing the predicate — a stub here would make the route
+// assertions below vacuous, and a vacuous guard is the bug being pinned, not
+// the fix. seo.php only registers hooks at load time, so the stubs it needs are
+// the same handful tests/seo-description-for-post.php already proves sufficient.
+$GLOBALS['__settings'] = array(); // seo_copy.* map
+$GLOBALS['__opts']     = array(); // get_option map (page_on_front)
+if ( ! function_exists( 'sn_setting' ) ) {
+	function sn_setting( $key, $default = null ) { return $GLOBALS['__settings'][ $key ] ?? $default; }
+}
+if ( ! function_exists( 'get_option' ) ) {
+	function get_option( $key, $default = false ) { return $GLOBALS['__opts'][ $key ] ?? $default; }
+}
+if ( ! function_exists( 'sn_post_settings_get_description' ) ) {
+	function sn_post_settings_get_description( $id ) { return ''; }
+}
+if ( ! function_exists( 'apply_filters_deprecated' ) ) {
+	function apply_filters_deprecated( $tag, $args, $version = '', $replacement = '', $message = '' ) { return $args[0] ?? null; }
+}
+if ( ! function_exists( 'add_filter' ) ) { function add_filter( $t, $c, $p = 10, $a = 1 ) { return true; } }
+require __DIR__ . '/../inc/seo.php';
+
 require __DIR__ . '/../inc/word-count.php';
 require __DIR__ . '/../inc/sn-validate-checks.php';
 require __DIR__ . '/../inc/sn-validate-checks-media.php';
@@ -552,6 +576,65 @@ $no_diff = snt_ability_sn_validate( array(
 	'compare_against' => 'none',
 ) );
 ok( null === $no_diff['diff'], 'diff: compare_against:"none" omits the diff entirely' );
+
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.109.3 — meta_description grades the string that SHIPS
+ *
+ * The front page, /notes and /provenance take their description from
+ * seo_copy.* settings and never emit _sn_meta_description (inc/seo.php's route
+ * branches). Grading the post meta on those routes scores a string no crawler
+ * can see. Measured on /provenance 2026-09-10: the meta row held 175 chars
+ * while the page shipped 83, so the char_range warning named a length that
+ * appeared nowhere in the HTML and could not be satisfied by editing either
+ * value on its own.
+ *
+ * These four cases fail against the pre-fix resolver: A and D report a finding
+ * that should not exist, B reports none where one is due, and C is the
+ * regression guard proving ordinary posts still read post meta.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+$md_findings = static function ( $post_id ) {
+	$r = snt_ability_sn_validate( array( 'post_id' => $post_id, 'checks' => array( 'meta_description' ) ) );
+	if ( is_wp_error( $r ) ) { return array(); }
+	return array_values( array_filter( $r['findings'], static function ( $f ) {
+		return 'meta_description' === $f['surface'] && 'char_range' === $f['check'];
+	} ) );
+};
+
+$GLOBALS['__opts']['page_on_front'] = 383;
+$GLOBALS['__posts'][1490] = tf_post( 1490, 'publish', array( 'title' => 'On Provenance', 'slug' => 'provenance', 'post_type' => 'page', 'content' => 'Body.' ) );
+$GLOBALS['__posts'][1491] = tf_post( 1491, 'publish', array( 'title' => 'Services',      'slug' => 'services',   'post_type' => 'page', 'content' => 'Body.' ) );
+
+// A 150-char string sits INSIDE the 140-160 window; a 175-char one does not.
+$in_window  = str_pad( 'A description sitting comfortably inside the guideline window for length. ', 150, 'x' );
+$too_long   = str_pad( 'A stored meta row that is far too long to be a good description and would be flagged. ', 175, 'y' );
+ok( 150 === mb_strlen( $in_window ) && 175 === mb_strlen( $too_long ), 'fixture lengths are 150 (in window) and 175 (too long)' );
+
+// ── A: settings value is fine, the ignored post-meta row is not.
+$GLOBALS['__settings']['seo_copy.provenance_description'] = $in_window;
+$GLOBALS['__post_meta'][1490]['_sn_meta_description']     = $too_long;
+ok( 0 === count( $md_findings( 1490 ) ), 'A: /provenance grades the SHIPPED settings value — a too-long post-meta row it never emits raises nothing' );
+
+// ── B: settings value is bad, the ignored post-meta row is fine.
+$GLOBALS['__settings']['seo_copy.provenance_description'] = 'Far too short to ship.';
+$GLOBALS['__post_meta'][1490]['_sn_meta_description']     = $in_window;
+$b = $md_findings( 1490 );
+ok( 1 === count( $b ), 'B: a bad SHIPPED description is flagged even when the post-meta row is healthy' );
+ok( 1 === count( $b ) && 22 === $b[0]['observed'], 'B: observed length is the shipped 22, not the stored 150' );
+
+// ── C: regression — an ordinary post is unaffected and still reads post meta.
+$GLOBALS['__post_meta'][1491]['_sn_meta_description'] = $too_long;
+$c = $md_findings( 1491 );
+ok( 1 === count( $c ) && 175 === $c[0]['observed'], 'C: a generic page still grades _sn_meta_description (175)' );
+
+// ── D: an EMPTY settings value skips the surface rather than silently falling
+// back to the post meta — "which store" and "is it filled" are separate
+// questions, and conflating them reintroduces the bug for unset routes.
+$GLOBALS['__settings']['seo_copy.provenance_description'] = '';
+$GLOBALS['__post_meta'][1490]['_sn_meta_description']     = $too_long;
+$d = snt_ability_sn_validate( array( 'post_id' => 1490, 'checks' => array( 'meta_description' ) ) );
+ok( ! is_wp_error( $d ) && ! in_array( 'meta_description', $d['surfaces_checked'], true ), 'D: an empty route setting SKIPS the surface, never falls back to the post-meta row' );
+ok( 0 === count( $md_findings( 1490 ) ), 'D: and raises no char_range finding from the ignored 175-char row' );
 
 /* ════════════════════════════════════════════════════════════════════════
  * Zero-writes guard — LAST, deliberately: every check family above has now
