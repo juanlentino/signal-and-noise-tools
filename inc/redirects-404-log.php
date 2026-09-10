@@ -135,12 +135,36 @@ function sn_404_should_capture( $path ) {
 	// Infrastructure namespaces. A 404 under these is worth knowing about, but it
 	// is never answered by redirecting to a content page -- and the basename-only
 	// matcher will happily offer one (/_sn/login-guard/version -> /contact/personal).
-	$infra_prefixes = array( '/api/', '/apis/', '/_sn/', '/v1/', '/v2/', '/graphql', '/rest/', '/oauth', '/.well-known/' );
+	// v13.109.9: `_next`, `_nuxt` and `_vercel` join them. Observed live on the
+	// 404 log 2026-09-10 as /_next/static and /_vercel/routes -- a scanner
+	// fingerprinting the stack, offered a redirect to a content page each.
+	$infra_prefixes = array( '/api/', '/apis/', '/_sn/', '/v1/', '/v2/', '/graphql', '/rest/', '/oauth', '/.well-known/', '/_next/', '/_nuxt/', '/_vercel/', '/__' );
 	foreach ( $infra_prefixes as $prefix ) {
 		if ( 0 === strpos( $lower, $prefix ) ) {
 			return false;
 		}
 	}
+	// v13.109.9: a two-letter language prefix. This site is single-locale and
+	// publishes nothing under one, so /es/about is recon or a translation-plugin
+	// scan, never a link an owner fixes. Observed live 2026-09-10: eight of the
+	// twenty-five actionable rows were /es/, /en/ or /nl/ variants of real pages,
+	// each demanding its own redirect decision.
+	//
+	// Anchored to a two-letter FIRST SEGMENT followed by more path, so a real
+	// single-segment page keeps working: /es alone is not matched, and neither is
+	// /essays/… -- the segment must be exactly two letters. A regional form
+	// (/en-gb/, /pt-br/) is matched too.
+	if ( preg_match( '#^/[a-z]{2}(-[a-z]{2})?/.+#', $lower ) ) {
+		return false;
+	}
+
+	// v13.109.9: a literal parenthesis. Next.js route groups serialise as
+	// /app/(group)/layout, which a scanner replays verbatim; no URL this site
+	// publishes contains one, and none is reachable by typing.
+	if ( false !== strpos( $lower, '(' ) || false !== strpos( $lower, ')' ) ) {
+		return false;
+	}
+
 	// v10.48.0: a path SEGMENT that is a bare run of 12+ digits. Observed live as
 	// real site paths with a random 19-digit suffix bolted on —
 	// /comments/3135222639369717147, /notes/feed/7303705357382288316 — which is

@@ -86,13 +86,19 @@ ok( isset( $m[0] ) && false !== strpos( $m[0], 'os-confirm="Clear the entire 404
 fixture(
 	array(),
 	array(
-		'/y"><script>alert(1)</script>' => entry( 3, $t0 ),
-		'/p"><script>alert(2)</script>' => entry( 1, $t0 ),
+		'/y"><script>alert1</script>'  => entry( 3, $t0 ),
+		'/p"><script>alert2</script>'  => entry( 1, $t0 ),
 	)
 );
 $kit = snt_leaf_paint( 'site', 'broken-links' );
 ok( false === strpos( $kit, '<script>' ), 'hostile 404 paths never reach the markup raw' );
 ok( substr_count( $kit, '&lt;script&gt;' ) >= 2, '...they are escaped, not dropped' );
+// The fixture must REACH the markup for the escaping pin above to mean anything:
+// v13.109.9 rejects any path containing a parenthesis, and `alert(1)` has two.
+ok(
+	false !== strpos( $kit, '<os-code>/y&quot;&gt;&lt;script&gt;alert1&lt;/script&gt;</os-code>' ),
+	'...and the hostile path REACHED the markup (in the probe fold), so the pin above is not vacuous'
+);
 ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, ' style="' ), 'no wp-admin markup survives (hostile)' );
 
 // ── Empty state: nothing broken, nothing probed — the clean status only.
