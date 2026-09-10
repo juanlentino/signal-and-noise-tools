@@ -103,5 +103,35 @@ ok( array() === snt_leaf_classic_markers( $kit ) && false === strpos( $kit, ' st
 
 // v13.109.8: the probes-only scenario moved to tests/os-leaf-site-broken-links.php.
 
+
+// ── The rule list is capped too. ──
+// Smaller than the 404 log today, but it grows the same way and for the same
+// reason: one edit form per rule. Newest first, so the cap drops the settled
+// tail rather than the rules being worked on.
+$many = array();
+for ( $i = 1; $i <= 60; $i++ ) {
+	$many[ '/rule-' . str_pad( (string) $i, 4, '0', STR_PAD_LEFT ) ] = array(
+		'to' => '/target-' . $i, 'status' => 301, 'created_at' => $t0 + $i,
+	);
+}
+fixture( $many, array() );
+$kit     = snt_leaf_paint( 'site', 'redirects' );
+$classic = snt_leaf_classic_html( 'sn_admin_render_redirects_section' );
+ok( 60 === count( $many ), 'sanity: the fixture built 60 redirect rules -- ' . count( $many ) );
+ok(
+	SN_REDIRECT_LIST_CAP === substr_count( $kit, 'name="source" value="/rule-' ) / 2,
+	'exactly SN_REDIRECT_LIST_CAP (' . SN_REDIRECT_LIST_CAP . ') rules are listed of 60 -- listed ' . ( substr_count( $kit, 'name="source" value="/rule-' ) / 2 )
+);
+ok(
+	false !== strpos( $kit, 'value="/rule-0060"' ) && false === strpos( $kit, 'value="/rule-0001"' ),
+	'...NEWEST first: the most recent rules are kept, the settled tail is dropped'
+);
+ok( false !== strpos( $kit, 'Showing the 50 most recent of 60 redirects' ), '...and the overflow states the true total' );
+ok( false !== strpos( $classic, 'Showing the 50 most recent of 60 redirects' ), '...and the classic leaf caps identically' );
+ok(
+	in_array( 'redirect_add', snt_leaf_actions( $kit ), true ) && false !== strpos( $kit, 'Add a redirect' ),
+	'the add form is still reachable below a capped list -- actions: ' . implode( ',', snt_leaf_actions( $kit ) )
+);
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

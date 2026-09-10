@@ -17,6 +17,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** How many probed paths the fold lists before "…and N more" (the classic's 25). */
 const REDIRECTS_PROBE_LIST_MAX = 25;
 
+
+
 /**
  * v13.109.8: moved here from site-redirects.php. BOTH leaves read it now —
  * Redirects paints the rules, Broken links paints the 404s — so it belongs in
@@ -233,5 +235,26 @@ function redirects_404_row_html( $path, array $e, $suggested ) {
 		array( 'submit' => __( 'Create redirect', 'signal-and-noise-tools' ) )
 	);
 	$dismiss = \snt_kit_form( 'redirect_404_delete', \snt_kit_field( 'hidden', 'source', '', $path ), array( 'submit' => __( 'Dismiss', 'signal-and-noise-tools' ) ) );
-	return \snt_kit_section( $path, '<p class="snt-hint">' . $meta . '</p>' . $create . $dismiss, '', array( 'stack' => true ) );
+
+	// One LINE per path, not one section. A section per path is the right shape
+	// for one broken link and the wrong shape for twenty: measured live
+	// 2026-09-10, 20 paths x ~450px painted a 9,101px leaf -- nine screens of
+	// scrolling to reach a Clear button. The form is what costs the height, and
+	// you only ever fill in one at a time, so it folds away until it is wanted.
+	// Same primitive and same reasoning as audit_log_logins_html().
+	//
+	// The hint is a plain-text attribute, so the referer chip stays in the body
+	// where it can carry markup; the scannable half (hits, last seen) is what
+	// goes in the fold's own line.
+	$fold_hint = sprintf(
+		/* translators: 1: hit count, 2: date of the latest hit (Y-m-d). */
+		__( '%1$s · last %2$s', 'signal-and-noise-tools' ),
+		sprintf( _n( '%d hit', '%d hits', $count, 'signal-and-noise-tools' ), $count ),
+		wp_date( 'Y-m-d', (int) ( $e['last_seen'] ?? 0 ) )
+	);
+	return \snt_kit_tag(
+		'os-disclosure',
+		array( 'heading' => (string) $path, 'hint' => $fold_hint ),
+		'<p class="snt-hint">' . $meta . '</p>' . $create . $dismiss
+	);
 }

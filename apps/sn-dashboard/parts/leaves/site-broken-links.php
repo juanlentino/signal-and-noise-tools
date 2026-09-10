@@ -68,8 +68,31 @@ function broken_links_sections_html( array $data ) {
 		$out .= redirects_probes_html( (array) $data['probes'], (int) $data['probe_hits'] );
 	}
 	if ( $total > 0 ) {
-		foreach ( $data['broken'] as $path => $row ) {
+		// Busiest first, then capped. A 404 log grows without bound and the tail
+		// is the part nobody acts on; painting all of it cost nine screens of
+		// scrolling on the live site. The true total is stated by
+		// redirects_status_html() above regardless of what is listed here, so
+		// the cap can never make the log look smaller than it is.
+		$listed = $data['broken'];
+		uasort(
+			$listed,
+			static function ( $a, $b ) {
+				return (int) ( $b['entry']['count'] ?? 0 ) <=> (int) ( $a['entry']['count'] ?? 0 );
+			}
+		);
+		$shown = array_slice( $listed, 0, SN_404_LIST_CAP, true );
+		foreach ( $shown as $path => $row ) {
 			$out .= redirects_404_row_html( (string) $path, (array) $row['entry'], (string) $row['suggested'] );
+		}
+		if ( $total > SN_404_LIST_CAP ) {
+			$out .= '<p class="snt-hint">' . \snt_kit_esc(
+				sprintf(
+					/* translators: 1: paths listed, 2: paths in the log in total. */
+					__( 'Showing the %1$s busiest of %2$s broken paths. Clear the log or act on these to see the rest.', 'signal-and-noise-tools' ),
+					number_format_i18n( SN_404_LIST_CAP ),
+					number_format_i18n( $total )
+				)
+			) . '</p>';
 		}
 		$out .= \snt_kit_action_button(
 			__( 'Clear 404 log', 'signal-and-noise-tools' ),

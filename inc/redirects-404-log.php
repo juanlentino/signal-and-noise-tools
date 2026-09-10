@@ -281,6 +281,31 @@ function sn_404_log_clear() {
 // which now refuses to log non-content paths at all -- a suggestion is only ever
 // as good as the question it answers, and "what should /api/account redirect to?"
 // has no right answer.
+/**
+ * Longest broken-path list either admin surface paints before folding to a count.
+ *
+ * A 404 log grows without bound. Measured live 2026-09-10: 20 paths, each
+ * painted as a full form section, made a 9,101px leaf -- nine screens to reach
+ * the Clear button. Busiest first, so the cap drops the tail nobody acts on,
+ * and the true total is always printed separately: the cap must never be able
+ * to make the log look smaller than it is.
+ *
+ * Defined HERE, not in either surface, because the classic renderer and the
+ * OpenStation leaf are parity-tested against each other -- two copies of this
+ * number would pass review and drift on the first edit.
+ */
+if ( ! defined( 'SN_404_LIST_CAP' ) ) {
+	define( 'SN_404_LIST_CAP', 25 );
+}
+
+/**
+ * Longest redirect-rule list either surface paints. Newest first, so the cap
+ * drops the settled tail rather than the rules being worked on.
+ */
+if ( ! defined( 'SN_REDIRECT_LIST_CAP' ) ) {
+	define( 'SN_REDIRECT_LIST_CAP', 50 );
+}
+
 if ( ! defined( 'SN_404_SUGGEST_MIN_PCT' ) ) {
 	define( 'SN_404_SUGGEST_MIN_PCT', 72.0 );
 }

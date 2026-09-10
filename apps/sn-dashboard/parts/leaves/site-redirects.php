@@ -58,9 +58,23 @@ function paint_site_redirects( array $ctx ) {
 		return ''; // The classic renderer's own gate: a silent return, never a wp_die.
 	}
 	$data = redirects_data();
-	$main = '';
-	foreach ( $data['redirects'] as $source => $r ) {
+	$main  = '';
+	$total = count( $data['redirects'] );
+	// Newest first is the order redirects_data() returns, and the newest are the
+	// ones being worked on -- so the cap drops the settled tail, not the live
+	// end. The add form stays below the list at every size.
+	foreach ( array_slice( $data['redirects'], 0, SN_REDIRECT_LIST_CAP, true ) as $source => $r ) {
 		$main .= redirects_row_html( (string) $source, (array) $r );
+	}
+	if ( $total > SN_REDIRECT_LIST_CAP ) {
+		$main .= '<p class="snt-hint">' . \snt_kit_esc(
+			sprintf(
+				/* translators: 1: rules listed, 2: rules in total. */
+				__( 'Showing the %1$s most recent of %2$s redirects.', 'signal-and-noise-tools' ),
+				number_format_i18n( SN_REDIRECT_LIST_CAP ),
+				number_format_i18n( $total )
+			)
+		) . '</p>';
 	}
 	$main .= redirects_add_html();
 	// v13.109.8: full width, no rail. The 404 log moved to Site → Broken links —
