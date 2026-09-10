@@ -91,5 +91,55 @@ $og = array_values( array_filter(
 ) );
 ok( 0 === count( $og ), 'v10.0.0: no deprecated-apply remains — the seam is gone, not merely marked' );
 
+
+/* ── A LEADING HEADING IS NOT THE DEK (v13.109.2) ──────────────────────────
+ * The card printed the page's own title twice: once as the 88px Bebas title,
+ * then again as the first words of the dek —
+ *   "ON PROVENANCE / On Provenance Two papers, three long-form essays…"
+ * — and those wasted words pushed the real sentence into the ellipsis.
+ *
+ * It needs BOTH conditions, which is why it hid for so long: a page template
+ * that renders post-content ALONE (so the <h1> must live inside the content)
+ * AND an empty excerpt. Notes take their title from post_title and open with
+ * prose, so this path never met a heading.
+ */
+// NOTE ON THIS HARNESS: wp_strip_all_tags() is stubbed as a passthrough above,
+// so a derived dek still carries its markup here — unlike production, where the
+// tags are gone by this point. These assertions therefore strip with PHP's own
+// strip_tags() before comparing. A first draft compared against clean text and
+// failed against correct code.
+$sn_txt = static function ( $s ) { return trim( preg_replace( '/\s+/', ' ', strip_tags( (string) $s ) ) ); };
+
+$post = (object) array( 'ID' => 10, 'post_excerpt' => '',
+	'post_content' => '<!-- wp:heading {"level":1} -->' . "\n" . '<h1 class="wp-block-heading">On Provenance</h1>' . "\n" . '<!-- /wp:heading -->' . "\n\n" . '<!-- wp:paragraph -->' . "\n" . '<p>Two papers, three long-form essays, and a running series of notes.</p>' . "\n" . '<!-- /wp:paragraph -->' );
+$dek = sn_og_card_dek_source( $post );
+ok( false === strpos( $sn_txt( $dek ), 'On Provenance' ), 'a leading <h1> is dropped — the dek does not repeat the title' );
+ok( 0 === strpos( $sn_txt( $dek ), 'Two papers' ), 'and the dek starts at the first real sentence' );
+
+// A bare <h1> with no block comment wrapper — hand-written or migrated content.
+$post = (object) array( 'ID' => 11, 'post_excerpt' => '',
+	'post_content' => '<h1>Title Here</h1><p>The body begins.</p>' );
+ok( 0 === strpos( $sn_txt( sn_og_card_dek_source( $post ) ), 'The body begins' ), 'works without the block-comment wrapper too' );
+
+// h2 as the opener (a page that leads with a section heading).
+$post = (object) array( 'ID' => 12, 'post_excerpt' => '',
+	'post_content' => '<h2>Section</h2><p>Prose follows.</p>' );
+ok( 0 === strpos( $sn_txt( sn_og_card_dek_source( $post ) ), 'Prose follows' ), 'any leading h1-h6 is dropped, not just h1' );
+
+/* THE CONTROLS. Only the LEADING heading goes. A heading further down is a
+ * section title inside the prose, and stripping every one of them would splice
+ * unrelated sentences together — a subtler corruption than the bug being
+ * fixed, because it would still read as a sentence. */
+$post = (object) array( 'ID' => 13, 'post_excerpt' => '',
+	'post_content' => '<p>Opening sentence.</p><h2>A section</h2><p>More prose.</p>' );
+$dek = sn_og_card_dek_source( $post );
+ok( 0 === strpos( $sn_txt( $dek ), 'Opening sentence' ), 'CONTROL: content that starts with prose is untouched' );
+ok( false !== strpos( $sn_txt( $dek ), 'A section' ), 'CONTROL: a heading further down is KEPT — only the leading one is dropped' );
+
+// And a hand-written excerpt still wins over all of it.
+$post = (object) array( 'ID' => 14, 'post_excerpt' => 'Hand-written.',
+	'post_content' => '<h1>Ignored</h1><p>Also ignored.</p>' );
+ok( 'Hand-written.' === sn_og_card_dek_source( $post ), 'CONTROL: an excerpt still wins — precedence is unchanged' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
