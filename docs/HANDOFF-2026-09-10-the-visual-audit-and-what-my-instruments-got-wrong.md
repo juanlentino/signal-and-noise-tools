@@ -323,7 +323,7 @@ Net: index at **23,944 bytes**, 456 of headroom. A reprieve, not a fix.
 
 | | |
 |---|---|
-| plugin `main` | `6e17782`, v13.109.19 released; #1161 merged, riding in Unreleased |
+| plugin `main` | `6e17782` at the time; see Part 3 for what followed |
 | upstream PRs | #791, #792, #793 — open, unreviewed, CI unverified locally |
 | upstream issues | #789 corrected · #764, #765 root-caused and reframed · #533, #532 untouched |
 | memory | `1864a39`, synced, private |
@@ -331,3 +331,141 @@ Net: index at **23,944 bytes**, 456 of headroom. A reprieve, not a fix.
 Nothing is running in the background. The two most likely things to need a reply:
 CI on those PRs (suspect the Node pin before the fix), and whichever shape they
 choose for #764, since that one changes their core renderer.
+
+---
+
+# Part 3 — the ecosystem map, and what it found
+
+The owner's question that opened this part: *"we started this session for a
+Signal & Noise ecosystem review… and all that."* True, and Parts 1–2 were not
+that. They were presentation audits of three admin apps plus an upstream arc.
+Part 3 is the map — inventory first, sampling second — and it produced two
+releases and two worker merges from a class of defect the presentation work
+structurally could not reach: **guards that could not have told you.**
+
+## The map, measured
+
+| surface | scale | guards |
+|---|---|---|
+| plugin | **103 abilities** · 18 REST routes · 3 admin-page call sites (→ ~13) · 6 cron hooks · 3 OS apps | 650 files, ~17,955 `ok()` |
+| theme v12.20.6 | 17 templates · 3 blocks · 15 abilities · 16 shortcodes | 121 files, 2,248 `ok()`, 8 workflows |
+| workers ×5 | rights-signals, analytics, provenance, remote-mcp, login-guard | 85 files / 1,190 tests (vitest's own count), all with CI |
+| MCP | 64 abilities named under `inc/mcp/` (unresolved whether that is the exposed set) | contract + guard suites |
+
+**Two numbers I had wrong first.** "154 abilities" came from grepping the bare
+function name, which matches its own mention in `description` strings; the
+real figure is 102 raw → 98 comments-stripped → 96 literal + 7 looped = **103**.
+And a first worker pass returned **0 tests across all five** because zsh failed
+a glob — the real figure is 1,190. Either would have been a confident, wrong
+headline. Both were caught by reconciling against a second derivation.
+
+## Finding 1 — the ability policy saw 93 of 103 (v13.109.20, #1162)
+
+`tests/ability-permission-policy.php` globbed `inc/abilities-*.php`. Three
+abilities registered from feature files and seven registered through
+`wp_register_ability( $slug, … )` in a `foreach` sat outside the policy it
+enforces. All ten held correct permissions; **none was asserted.** Its floor
+was `>= 70` against 93 — 23 points of slack.
+
+The registry now walks `inc/` recursively via `snt_test_inc_files()`, strips
+comments, resolves the loops and **fails on any it cannot resolve**, floor 100.
+**My first draft hand-rolled a two-level glob and `tests/inc-population-guard.php`
+— the #987 meta-guard against precisely that — caught it**, in the file being
+widened to stop missing things. Their infrastructure was better than my patch.
+
+## Finding 2 — three of four HMAC gates unwatched (sn-provenance-worker#34)
+
+Mutation sampling: replace `if (!ok)` with `if (false)` at each signature gate,
+so an unsigned POST enters the provenance ledger. **201 tests stayed green for
+three of the four** — the commit webhook (`POST /`), `/sweep`, `/backfill`.
+Only `hardeningResponse`, shared by five routes, was covered. The gates were
+present and correct; nothing would have caught their removal, and the one
+nobody watched was the main ledger write.
+
+Three cases per gate now: wrong secret, missing header, and a **positive
+control** that a correctly signed request gets *past* the gate — without it a
+bare 401 assertion keeps passing if the endpoint refuses for an unrelated
+reason. All four gates RED under the original mutation; suite 24/201 → 25/210.
+
+## Finding 3 — get-narration could not tell "dead" from "cold" (v13.109.21, #1163)
+
+Checked under a **genuinely depleted API account** — the one condition that
+cannot be staged. Nineteen of twenty `snt_ai_generate_with_constraints()` call
+sites fail closed correctly. The twentieth: `get-narration` returned `null` for
+both "nothing generated yet" and "the provider refused."
+
+**The fix already existed and was never wired.** `inc/insights-narration.php`
+carried a complete store / read / clear trio for the last failure, with a
+passing unit test — and **zero production callers**. `snt_narration_cron_run()`
+discarded the runner's `WP_Error`. The cron handler now stores a failure and a
+success clears it; the ability returns `state:ready`, or `state:unavailable`
+with `reason` / `failed_at` and an **empty body**; the cold case stays `null`
+because it is not a fault. The failure's TTL moved from a 15-minute notice
+flash to the digest's own cache TTL.
+
+**The remote contract went RED, correctly.** The twin mirrors the admin schema
+byte-identically, so the payload hash moved: plugin `SN_REMOTE_CONTRACT_VERSION`
+`4 → 5` with the hash pinned from the RED, and worker `CONTRACT_VERSION` `4 → 5`
+(sn-remote-mcp-worker#21). Both merged together. **The skew closes when
+v13.109.21 is installed**; until then the deploy probe reports
+`contract_match: false` — observed, never refused, by design.
+
+## The sampling, honestly bounded
+
+**17 mutations, 14 red, 3 green** — and all three greens were provenance. The
+other findings the harness produced were withdrawn on inspection:
+
+- Forging `isServiceToken: true` in the remote-MCP guard went green. It is
+  read in one place, a **log line**. Not an auth hole. GREEN is a coverage
+  signal; severity is what the mutated value controls.
+- One mutation of the narration cron handler removed an `if` and orphaned its
+  `elseif`. **A parse error reds every test and proves nothing.** Re-run
+  compilable, it redded the exact pin.
+- A first narration finding — "a two-week-old digest served as fresh" — died
+  on reading the `$key ===` gate: the cache is content-addressed, so a stale
+  last-good never matches a changed week. Read the whole condition.
+
+**What 17 mutations over ~850 suites is:** a sample of guards, targets chosen
+by judgement. **What it is not:** a security review. The owner is taking that
+to a Fable session; Aikido is off the table by decision.
+
+## Corrections this part made to earlier parts
+
+- Part 2 said "everything else held" after 11 mutations. Three of five workers
+  had received **zero**. Probing them found the provenance gap within minutes.
+- The claim that consolidation was the memory index's remaining lever was
+  over-optimistic; the `Instruments` cluster is a hub with 85 inbound citations
+  across its three biggest files. Inbound-link count, not topic, decides.
+
+## Hermes Agent, for the record
+
+`NousResearch/hermes-agent` is an **MCP host** (it consumes servers; its OAuth
+logs the user into Nous). The owner's real question was whether a WordPress
+plugin could use a Claude *subscription* the way Hermes does. Answer given: no
+— subscriptions cover Anthropic's own surfaces, programmatic access is the API,
+there is no third-party OAuth client for subscription inference, and a public
+.org plugin cannot ship a flow that only works for its author's account. The
+cost levers that are real: caching hit-rate, model routing, call volume — all
+source-readable and none needing a live call.
+
+## Where it stands at close
+
+| | |
+|---|---|
+| plugin `main` | `04c948b` — **v13.109.21** released (18 → 21 today) |
+| workers | provenance `main` `d454400` (#34) · remote-mcp `main` `e242e86` (#21, contract 5, deploys via Builds) |
+| upstream | openstation #791, #792, #793 open · #764, #765 root-caused · #532 untouched (architectural) |
+| memory | `a545c40`, index 23,944B, 456B headroom — next new memory needs consolidation first |
+| API | depleted until further notice — nothing here depends on it returning |
+
+**Still open, none needing action now:** the accent-contrast item (3.76:1, 9
+instances, owner's call); the 15px Analytics drill-down links (owner: leave);
+the `service_token` log field unasserted (trivial); MCP's 64-of-103 exposure
+figure unresolved; the two worktree-only suite failures (`admin-class-orphans`,
+`direct-access-guard-window`).
+
+**Verify after installing v13.109.21:** with the account still depleted,
+`get-narration` should return `state: unavailable` with a reason once the
+weekly cron has fired and failed — the first live confirmation of the thing
+this part was for.
+
