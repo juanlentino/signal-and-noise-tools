@@ -462,6 +462,64 @@ has a release; all are Drafts, none published. The updater reads `/tags`, not
 `/releases` (`inc/wp-update-integration.php:317`), so the gap never blocked an
 install — it was the human-readable record that had the hole.
 
+## The memory repo — it is a git repo, and I did not know
+
+Not plugin work, but it happened this session and the next session needs it.
+
+**`~/.claude/projects/<project>/memory` is a symlink** into
+`~/Projects/signal-and-noise-memory` — a real repo with `plugin/` (this project),
+`theme/`, `provenance-worker/` and `archive/`. Both signal-and-noise projects
+symlink into it.
+
+I did not know that. I wrote two memory files, updated the index, **reported the
+session as saved, and left all three untracked.** Nothing warns you: the symlink
+is transparent, `Write` succeeds, and a memory dir looks identical whether or not
+it is version-controlled. The rule now lives in three places — a memory
+(`memory-is-a-git-repo-commit-and-push`), a banner at the top of both
+`MEMORY.md` files, and the owner's global `CLAUDE.md` — because the banner only
+fires if memory loads at all.
+
+### The index was over its own limit
+
+`MEMORY.md` is read into context every session and truncates silently past
+~24.4KB. It was at **25.4KB**, so its tail was already being dropped.
+
+Compacted to **22.5KB** with every pointer kept (target set diffed byte-identical
+before and after). 40% of the file was link labels, one of them 147 characters —
+the index had drifted from pointers into lessons, while each topic file's
+frontmatter `description` is what actually drives recall.
+
+Then archived the two closed-arc sections to
+`archive/closed-arcs-2026-09-10/`. **The index sections moved; the files did
+not** — fifteen of the seventeen carry inbound `[[wikilinks]]` from live
+memories (`mcp-consolidation-program` from six), so moving the files would have
+shredded the graph.
+
+**The structural number, so nobody re-derives it:** ~37 bytes per memory in
+filename alone, so at ~280 entries roughly 10.2KB of the index is link targets
+and cannot be compressed. Label trimming buys about a dozen entries, which is
+why the repo log carries three separate "trim one index label" commits.
+
+### The wikilink graph was rotting, mostly for one reason
+
+Swept both corpora. `plugin/` had 12 unresolved, `theme/` had **84**.
+
+The cause in theme was not rot at all: **`plugin/` is kebab-case (288 of 288)
+and `theme/` is snake_case (162 of 163)** — opposite conventions in one repo.
+36 of theme's 43 broken slugs were links written in the wrong convention,
+pointing at files that existed the whole time. 28 normalised cleanly.
+
+Also backfilled `feedback_falsification_test_before_trusting_clean`, which
+**eleven** theme memories cited and nobody had ever written. Its content was not
+invented: all eleven citations assert the same thing, and it matches the owner's
+standing rule that a guard must be shown able to fail before it is trusted.
+
+Final: plugin 841 links / 0 unresolved, theme 462 / 16, provenance-worker 2 / 0.
+The 16 are forward references to memories never written — git shows 162 adds and
+zero deletions, so they were never lost. They name project decisions
+(activitypub declined, betterstack migration, social syndication) I have no
+basis to author. The format sanctions those; they mark work, not rot.
+
 ## Recurring failure modes from this session
 
 - **Widening a container does nothing when the content is capped by measure.**
@@ -590,6 +648,27 @@ the world and assumes the world was left alone.
   time it was wrong. The card, the title helper and the line count all needed
   `imagettfbbox` or a real render.
 
+### From the memory work
+
+- **A scanner that does not understand its own syntax reports rot that is not
+  there.** My first wikilink sweep flagged `[[migrations]]` (wrangler TOML inside
+  backticks), `[[file|alias]]` (valid alias syntax) and a link ending `.md`. Three
+  of the "dangling" links were the instrument's fault. Blank code spans, split on
+  the pipe, strip the extension — then count.
+- **A wrong repoint is worse than a dangling link.** It asserts a relationship
+  nobody wrote and reads as correct forever. Where I could not resolve a target
+  confidently I de-linked to plain text instead of guessing at a plausible
+  neighbour, and only repointed the three whose target descriptions confirmed the
+  relationship.
+- **Char count is not byte count.** Python `len()` said the index was 24,980;
+  `wc -c` said 25,352. The 372-byte gap is multibyte em dashes, and the loader's
+  limit is in BYTES. I briefly attributed the discrepancy to a concurrent session
+  writing to the file, which was wrong.
+- **A basename collision silently keeps the last file.** `inc/` and `tests/`
+  both hold `abilities-sn-validate.php`; copying both into one scratch directory
+  left one copy, and I restored the wrong file over the right one.
+
+
 ## State at handoff
 
 | | version | where |
@@ -602,6 +681,7 @@ the world and assumes the world was left alone.
 | /provenance | excerpt | 55 words, live; OG card regenerated against it |
 | release drafts | v13.109.0–.3 | backfilled; last 25 tags all have one, all Drafts |
 | five workers | — | all `ok`, live = latest |
+| memory repo | — | 4 commits; plugin index 25.4KB -> 22.5KB, wikilinks 12 -> 0 (theme 84 -> 16) |
 | /provenance | 746 words | written, restructured, verified; longest run 11 lines -> 7 |
 | sn-provenance-worker | v1.18.3 | live |
 | four other workers | — | census gate merged |
