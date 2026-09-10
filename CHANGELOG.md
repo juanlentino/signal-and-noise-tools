@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- A social card whose post has no excerpt no longer repeats the page title in its description. The dek falls back to the first 36 words of content, and on a Page whose template renders only `post-content` the title lives inside that content — so the card printed "ON PROVENANCE" in the title and then "On Provenance Two papers, three long-form essays…" underneath it, wasting the words that then fell into the ellipsis. A leading heading is now dropped before the words are counted. Only the leading one: a heading further down is a section title inside the prose.
+
 ## [13.109.1] - 2026-09-10 — the card title guidance says what was measured
 
 ### Fixed

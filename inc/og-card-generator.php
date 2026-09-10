@@ -219,7 +219,28 @@ function sn_og_image_url_for_post( $post ) {
 function sn_og_card_dek_source( $post ) {
 	$excerpt = trim( (string) $post->post_excerpt );
 	if ( '' === $excerpt ) {
-		$cleaned = preg_replace( '/<!--\s*\/?wp:[^>]*-->/', ' ', $post->post_content );
+		$content = (string) $post->post_content;
+
+		// v13.109.2: drop a LEADING heading before deriving. Without this the
+		// card's dek opened with the page's own title, printed a second time
+		// directly under the title the card already shows in 88px Bebas —
+		// "ON PROVENANCE / On Provenance Two papers, three long-form essays…"
+		// — and those wasted words pushed the real sentence into the ellipsis.
+		//
+		// It only bites on PAGES, and only with an empty excerpt. A note takes
+		// its title from post_title and its content starts with prose, so this
+		// fallback never had a heading to trip over. A page template that
+		// renders post-content ALONE — templates/page-provenance.html has no
+		// post-title block — must carry its <h1> inside the content, and then
+		// the first 36 words start with it. Both conditions were needed, which
+		// is why it surfaced only when that page's excerpt was cleared.
+		//
+		// Leading only: a heading further down is a section title inside the
+		// prose and stripping every one of them would splice unrelated
+		// sentences together.
+		$content = preg_replace( '#^\s*(?:<!--\s*wp:heading[^>]*-->)?\s*<h[1-6][^>]*>.*?</h[1-6]>\s*(?:<!--\s*/wp:heading\s*-->)?#is', '', $content, 1 );
+
+		$cleaned = preg_replace( '/<!--\s*\/?wp:[^>]*-->/', ' ', $content );
 		$cleaned = wp_strip_all_tags( strip_shortcodes( $cleaned ) );
 		$excerpt = wp_trim_words( $cleaned, 36, '…' );
 	}
