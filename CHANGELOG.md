@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- Removed a `cursor: pointer` from S&N Analytics that had never applied. OpenStation's `desktop.css` sets `body.os-active, body.os-active * { cursor: default !important }` across the whole shell, so the declaration matched and lost — measured on the running product: 50/50 real `a[href]`, 50/50 `<button>` and all of our own links compute `default`. Nothing in the shell shows a pointer cursor, by design, and these links should read like their neighbours. The rule's `color` declaration is live and stays; only the dead line went, with a comment recording why so it is not re-added. Found by writing the rule, **injecting it into the live page, and watching the computed value not move** — the same check that would have caught the 820px leaf cap.
+
 ## [13.109.19] - 2026-09-10 — the tap targets clear the floor
 
 ### Fixed
