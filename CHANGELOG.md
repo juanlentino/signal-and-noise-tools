@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- The `/notes` position-drift watch now records that its window is confounded. The page changed materially between the watch being set and its 2026-09-11 due date — the pillar rail arrived in the hero, the corpus stamp left it, the heading outline changed, and the first note moved twice — so a worse position on that date cannot be attributed to drift rather than to the changes. The watch says so rather than leaving the next reader to infer it.
+
 ## [13.109.0] - 2026-09-09 — the coverage sweep sees the whole site
 
 ### Fixed
