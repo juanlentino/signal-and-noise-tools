@@ -256,7 +256,7 @@ on the ~51 newly-covered URLs alone (the resume rule carries fresh entries
 forward). The 09-14 crawl-delta reads against the saved baseline first, with two
 days' margin.
 
-### /provenance — analysed, scaffolded, WRITTEN, one broken link outstanding
+### /provenance — analysed, scaffolded, WRITTEN, verified clean
 
 The owner noticed `/notes` and `/provenance` are "not dupe, but almost". **This
 session created that overlap** — the rail left `/notes` in v10.47.0 to become
@@ -287,13 +287,16 @@ blocks, every block in the curated inserter, rail underneath at
 correct (H1 → H2 → H3), rail present at full density with H3 titles and the
 header reading `2 pillars · 1 sub-pillar`, the sub-pillar card indented.
 
-**ONE LIVE DEFECT, NOT FIXED — the owner's call, it is his prose:**
-the page links `https://juanlentino.com/start-here/` **twice** and that is a
-**404**. Start Here is a CHILD of the Notes page, so its permalink is
+**One live defect, found and FIXED by the owner within the hour:** the page
+linked `https://juanlentino.com/start-here/` **twice** and that is a **404**.
+Start Here is a CHILD of the Notes page, so its permalink is
 `/notes/start-here/` — which is what `/notes` itself links and what the sitemap
-carries. The two broken links are in the opening and in "Where to start", i.e.
-exactly the ones routing a first-time reader. Every other internal link on the
-page (7) returns 200 and there are no external links.
+carries. Both were in the opening and in "Where to start", i.e. exactly the
+links routing a first-time reader to the page that already argues the case.
+
+Re-verified after the fix against a cache-busted fetch: **all 9 unique internal
+links return 200**, zero occurrences of the broken path remain, no external
+links.
 
 **The broken-link health check would catch this and has not looked.** It scans
 post_content across posts and pages for same-site links that 404 — precisely
@@ -396,7 +399,7 @@ the world and assumes the world was left alone.
 | plugin | v13.108.0 | tagged, merged |
 | theme | v12.20.3 | tagged, merged (owner installed through v12.20.1) |
 | plugin | v13.109.0 | tagged, merged, INSTALLED |
-| /provenance | 741 words | written and published by the owner; 2 broken links open |
+| /provenance | 741 words | written, published, all 9 internal links 200 |
 | sn-provenance-worker | v1.18.3 | live |
 | four other workers | — | census gate merged |
 
