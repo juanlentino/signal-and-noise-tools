@@ -73,6 +73,29 @@
 			return null;
 		}
 	};
+	/**
+	 * The view actually painted. STORAGE WINS; `state.view` is the fallback.
+	 *
+	 * v13.109.15 seeded `state.view` from storage in `mounted()` and it did not
+	 * work: the seed ran, then the app hydrated `state` from the PHP schema whose
+	 * `'view' => 'icons'` overwrote it. Measured on the shipped build -- stored
+	 * `list`, `state.view` `icons`, forty tiles on screen. Dispatching the same
+	 * action LATER works fine, so the action was never the problem; the timing
+	 * was, and there is no post-hydration hook to move the seed into.
+	 *
+	 * Reading through storage at PAINT time removes the race instead of trying to
+	 * win it: the render function runs after every hydration, so there is no
+	 * moment at which a stale `state.view` can be painted. Nothing is dispatched
+	 * during render, and no "already seeded" flag is needed.
+	 */
+	const currentView = ( state ) => {
+		const stored = readView();
+		if ( 'list' === stored || 'icons' === stored ) {
+			return stored;
+		}
+		return 'list' === state.view ? 'list' : 'icons';
+	};
+
 	const writeView = ( v ) => {
 		try {
 			window.localStorage.setItem( VIEW_KEY, 'list' === v ? 'list' : 'icons' );
@@ -702,7 +725,7 @@
 						os-action="search"
 						os-debounce="120"
 					></os-text-field>
-					<os-segmented class="snt-view" os-bind="view" os-action="set-view" value=${ state.view === 'list' ? 'list' : 'icons' } label=${ __( 'View' ) }>
+					<os-segmented class="snt-view" os-bind="view" os-action="set-view" value=${ currentView( state ) } label=${ __( 'View' ) }>
 						<os-segment value="icons" title=${ __( 'Icons' ) }><os-icon name="dashicons-grid-view"></os-icon></os-segment>
 						<os-segment value="list" title=${ __( 'List' ) }><os-icon name="dashicons-list-view"></os-icon></os-segment>
 					</os-segmented>
@@ -1252,7 +1275,7 @@
 			const phone = isPhone();
 			const shown = visibleItems( state, data );
 			const item = openItem( state, data );
-			const body = state.view === 'list' ? renderList( ctx, shown ) : renderCanvas( ctx, shown );
+			const body = 'list' === currentView( state ) ? renderList( ctx, shown ) : renderCanvas( ctx, shown );
 			return html`
 				<div class="snt-app ${ item ? 'is-open' : '' }">
 					${ renderCrumbs( ctx ) }
@@ -1316,14 +1339,6 @@
 		},
 		mounted: ( ctx ) => {
 			const teardowns = [];
-			// Seed the view from the stored preference. Only when it DIFFERS: the
-			// schema's default is `icons`, so an unset preference and a stored
-			// `icons` are the same picture, and dispatching either way would repaint
-			// every mount for nothing.
-			const stored = readView();
-			if ( stored && stored !== ctx.state.view ) {
-				void ctx.dispatch( 'set-view', { value: stored } );
-			}
 			// Escape closes the MENU first and the dossier only when no menu is
 			// open -- one keystroke, one thing closed, innermost first.
 			// Listened for on the document, because focus often sits on the

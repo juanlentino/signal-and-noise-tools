@@ -295,32 +295,45 @@ ok( 0 === preg_match( '/set(?:Timeout|Interval)\(.{0,120}?reload/s', $js ), 'and
 
 
 // ── The view switch is a PREFERENCE and survives a reload. ──
-// `state.view` is declared Local in the PHP schema beside `query`, `status`,
-// `item` and `selected`. Those are right to be ephemeral; a view choice is not.
-// Measured live 2026-09-10: set to List it survived navigating to the root and
-// back, and reset to icons on every RELOAD -- dropping the reader into a 104px
-// tile grid that clipped 63% of Notes titles and 57% of Attention's, because
-// those items are sentences rather than names.
+// v13.109.15 seeded `state.view` from storage in `mounted()`. It did NOT work:
+// the seed ran, then the app hydrated `state` from the PHP schema, whose
+// `'view' => 'icons'` overwrote it. Measured on the shipped build -- stored
+// `list`, state.view `icons`, forty tiles painted. The action was never the
+// problem (dispatching it later works); the timing was, and the framework
+// offers no post-hydration hook.
+//
+// The fix reads through storage at PAINT time, so there is no moment at which
+// a stale `state.view` can be painted, nothing is dispatched during render, and
+// no "already seeded" flag is needed.
 ok( false !== strpos( $js, "const VIEW_KEY = 'sn-signal-noise-view'" ), 'the view preference has a storage key' );
+ok( preg_match( '/\'set-view\':[^}]*writeView\(/s', $js ), 'set-view writes the choice' );
+
+// STORAGE WINS at read time -- this is the half v13.109.15 got wrong.
+ok( preg_match( '/const currentView = \( state \) => \{[^}]*readView\(\)/s', $js ), 'currentView() resolves through storage first' );
 ok(
-	preg_match( '/\'set-view\':[^}]*writeView\(/s', $js ),
-	'set-view writes the choice'
+	preg_match( "/const body = 'list' === currentView\( state \)/", $js ),
+	'...and the BODY is painted from it, not from state.view'
 );
 ok(
-	preg_match( '/mounted:[^}]*readView\(\)/s', $js ),
-	'...and mounted() seeds the view from it'
+	false !== strpos( $js, 'value=${ currentView( state ) }' ),
+	'...and so is the toggle, so the control matches what is painted'
+);
+
+// The seed that lost the race must NOT come back.
+ok(
+	! preg_match( '/mounted:[\s\S]{0,600}?readView\(\)/', $js ),
+	'mounted() does NOT seed the view -- that lost to hydration and is why .15 did not work'
 );
 ok(
-	preg_match( '/stored\s*&&\s*stored\s*!==\s*ctx\.state\.view/', $js ),
-	'...only when it DIFFERS, so an unset preference does not repaint every mount'
+	0 === preg_match( "/state\.view === 'list' \? renderList/", $js ),
+	'no render path still branches on the un-resolved state.view'
 );
 
 // Every access is wrapped. A private window, cleared site data, or a browser
-// set to block storage THROWS on access rather than returning null, and a
-// thrown preference must not take the app down.
+// set to block storage THROWS on access rather than returning null.
 ok(
 	2 === preg_match_all( '/try \{\s*(?:const v = )?window\.localStorage\.(?:get|set)Item/', $js ),
-	'both reads and writes are inside try/catch -- ' . preg_match_all( '/try \{\s*(?:const v = )?window\.localStorage\.(?:get|set)Item/', $js ) . ' of 2'
+	'both reads and writes are inside try/catch'
 );
 
 // The PHP default is now a fallback, and says so: a reader who finds `icons`
