@@ -200,5 +200,32 @@ ok( false !== strpos( $classic_empty, 'No scheduled events.' ), 'classic empty s
 ok( false !== strpos( $kit_empty, 'wp_version_check' ), 'kit empty state: names the core hooks WP schedules at install' );
 ok( array() === snt_leaf_classic_markers( $kit_empty ), 'empty state carries no classic markup either' );
 
+
+// ── The Args cell is clamped so one payload cannot claim the table. ──
+// Measured live 2026-09-10: an analytics rollup event carried 1315 characters of
+// JSON, and under `table-layout: auto` that single unbreakable cell took 2668px
+// of a 3369px table -- every other column collapsed to its minimum and the
+// timestamps wrapped onto four lines. The cells sit in os-table's shadow root,
+// which exposes only `part=scroll`, so this cannot be fixed in CSS.
+$long_payload = array( 'rollup' => str_repeat( 'abcdefghij', 140 ) );      // ~1400 chars, no spaces to break on
+$short_payload = array( 'gravatars' );
+
+$long_cell  = \SignalNoise\OpenStationHost\Dashboard\Leaves\cron_args_summary( $long_payload );
+$short_cell = \SignalNoise\OpenStationHost\Dashboard\Leaves\cron_args_summary( $short_payload );
+
+ok( mb_strlen( (string) wp_json_encode( $long_payload ) ) > 1000, 'the fixture really is an unbreakable payload (sanity check)' );
+ok( false !== strpos( $long_cell, '…' ), 'a long Args payload is elided' );
+ok(
+	mb_strlen( $long_cell ) < 120,
+	'...to one line: ' . mb_strlen( $long_cell ) . ' chars, not ' . mb_strlen( (string) wp_json_encode( $long_payload ) )
+);
+ok( (bool) preg_match( '/\(\S+ chars\)/u', $long_cell ), '...and says how much was elided, so it never reads as complete' );
+ok( $short_cell === (string) wp_json_encode( $short_payload ), 'a short payload is untouched, verbatim JSON' );
+ok( false === strpos( $short_cell, '…' ), '...with no ellipsis' );
+
+// The clamp must reach the painted table, not just the helper.
+$kit_rows = \SignalNoise\OpenStationHost\Dashboard\Leaves\cron_row_data( array( 'hook' => 'snt_rollup', 'args' => $long_payload, 'next_run_ts' => time(), 'last_fired_ts' => time() ) );
+ok( mb_strlen( $kit_rows['args'] ) < 120, 'the row builder uses the clamp, not raw wp_json_encode' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

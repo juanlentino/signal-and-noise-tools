@@ -38,6 +38,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 }
 
 /**
+ * Longest Args cell rendered verbatim, in characters. See cron_args_summary().
+ */
+if ( ! defined( 'SNT_CRON_ARGS_CELL_MAX' ) ) {
+	define( 'SNT_CRON_ARGS_CELL_MAX', 72 );
+}
+
+/**
  * The Run-now state for one row: classic's three mutually exclusive button
  * states (disabled/no-handler, disabled/sn-internal, enabled), as a status
  * string instead of a click target.
@@ -66,6 +73,40 @@ function cron_unschedule_state( array $row ) {
 		return __( 'Locked — disable the owning module instead', 'signal-and-noise-tools' );
 	}
 	return __( 'Available', 'signal-and-noise-tools' );
+}
+
+/**
+ * The Args cell, clamped to one readable line.
+ *
+ * The raw JSON is unbounded. One analytics rollup event on this site carries a
+ * 1315-character payload, and in a table with `table-layout: auto` a single
+ * unbreakable cell of that width claims the row: measured live 2026-09-10 in an
+ * 1820px window, Args took 2668px of a 3369px table, squeezing every other column
+ * to its minimum -- which is why the timestamps wrapped onto four lines while the
+ * table scrolled sideways and the right half read as empty. It was the Args column.
+ *
+ * The clamp has to live here. os-table renders its cells inside a shadow root
+ * exposing only `part=scroll`, so no stylesheet outside it can reach a td to set
+ * overflow-wrap. The elided length is reported so a truncated value never looks
+ * complete.
+ *
+ * @param mixed $args The event's args array.
+ * @return string One line, at most SNT_CRON_ARGS_CELL_MAX chars plus a count.
+ */
+function cron_args_summary( $args ) {
+	$json = (string) wp_json_encode( $args );
+	$len  = function_exists( 'mb_strlen' ) ? mb_strlen( $json ) : strlen( $json );
+	if ( $len <= SNT_CRON_ARGS_CELL_MAX ) {
+		return $json;
+	}
+	$cut = function_exists( 'mb_substr' )
+		? mb_substr( $json, 0, SNT_CRON_ARGS_CELL_MAX )
+		: substr( $json, 0, SNT_CRON_ARGS_CELL_MAX );
+	return rtrim( $cut ) . sprintf(
+		/* translators: %s: full length of the elided JSON payload, in characters. */
+		'… ' . __( '(%s chars)', 'signal-and-noise-tools' ),
+		number_format_i18n( $len )
+	);
 }
 
 /**
@@ -102,7 +143,7 @@ function cron_row_data( array $row ) {
 	/* translators: %s is a human-readable relative time, e.g., "5 mins" */
 	$last = $last_ts ? wp_date( 'Y-m-d H:i:s', $last_ts ) . ' (' . sprintf( __( '%s ago', 'signal-and-noise-tools' ), human_time_diff( $last_ts, time() ) ) . ')' : '—';
 
-	$args = ! empty( $row['args'] ) ? (string) wp_json_encode( $row['args'] ) : '—';
+	$args = ! empty( $row['args'] ) ? cron_args_summary( $row['args'] ) : '—';
 
 	return array(
 		'hook'       => $hook,
