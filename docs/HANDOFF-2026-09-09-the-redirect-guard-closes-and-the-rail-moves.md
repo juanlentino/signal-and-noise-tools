@@ -582,21 +582,34 @@ declares both params `required`, a real HTTP POST with no params never reaches
 the handler at all — core answers first with `rest_missing_callback_param`. Both
 are 400; only one carries a code.
 
-### OPEN: the card and the page disagree about reading time
+### CLOSED: the card and the page never disagreed about reading time
 
-The page renders **5 min read**; the OG card renders **4 MIN READ**. Both call
-the same cache-backed `sn_get_reading_time()` (theme `inc/block-bindings.php:47`,
-plugin `inc/reading-time.php:89`), so they should not be able to disagree.
+**Resolved 2026-09-10. There was no discrepancy; the measurement was mine.**
 
-At the plugin's 225 wpm, 766 words is `ceil(3.4)` = **4**, which is what the card
-shows — so the card is arithmetically right and its regeneration returning
-byte-identical output was CORRECT, not a failed rebuild. Where the page's 5 comes
-from is unresolved. Candidates not yet checked: the cached
-`SN_READING_TIME_META_KEY` value (never read directly), and whether
-`snt_word_count()` on raw block markup counts more than the 766 the corpus
-reports. **I was wrong about this card twice before landing here** — first
-claiming a stale `?v=` meant no rebuild, then claiming the card was stale — so
-the next reader should trust the arithmetic above and nothing else.
+I reported the page showing "5 min read" against the card's "4 MIN READ" by
+grepping the rendered HTML for `[0-9]+ min read` and taking `head -1`. The page
+carries **three** such strings — 4, 5 and 7 — and all three live inside the
+pillar-essays block, describing the three linked essays. `/provenance` does not
+display its own reading time anywhere: occurrences before the pillar block begins
+are **zero**. The "5 min" belongs to *Provenance Over Detection*.
+
+What is actually true:
+
+- 766 words at the plugin's 225 wpm is `ceil(3.4)` = **4 minutes**.
+- The note dossier independently computes **4 min**, "at 225 words a minute".
+- The OG card renders **4 MIN READ** via `sn_get_reading_time()`, which returns
+  the cached `_sn_reading_time_minutes`. The card showing 4 is therefore also
+  evidence the cached meta IS 4 — no door exposes arbitrary post meta, so that
+  is an inference from the reader rather than a direct read, but the reader is
+  the one that matters.
+- The byte-identical regeneration was correct all along: unchanged inputs,
+  deterministic output.
+
+**Three wrong causes before the right one** — a stale `?v=` read as a failed
+rebuild, then a "stale card", then a "second reading-time calculation" — and
+every one of them was a reading of an instrument rather than of the world. The
+`head -1` is the root: a grep over a whole page attributes whatever it finds
+first to the page itself.
 
 ## Recurring failure modes from this session
 
@@ -760,6 +773,11 @@ the world and assumes the world was left alone.
   nothing checked its SHAPE. It then pinned the shape and not the SIZE, and a
   correctly-shaped slab shipped 48px off-screen. Ask what the new guard still
   cannot see.
+- **`head -1` of a page-wide grep attributes the first match to the page.** I
+  read "5 min read" off `/provenance` and spent three wrong diagnoses on a
+  card-vs-page mismatch that did not exist: the page carries three reading times,
+  all belonging to the essays the pillar block lists, and none of them its own.
+  Count the matches and locate them before attributing one.
 - **Deterministic output means identical bytes are a PASS, not a failure.** I read
   a byte-identical regenerated card as a failed rebuild and "fixed" it by
   regenerating again. With unchanged inputs, identical output is exactly right.
