@@ -99,6 +99,32 @@
 		go( button );
 	}, true );
 
+	/*
+	 * Enter/Space on a link the host un-hrefed. snt_os_host_unhref() gives
+	 * every rewritten anchor `tabindex="0" role="link"`, which makes it
+	 * focusable and announces it -- but an `<a>` with no href does not fire a
+	 * click on Enter the way a real link does, so a focusable-but-dead control
+	 * would be worse than the mouse-only one it replaced. Keying off the
+	 * rewriter's own marker (rather than `.snt-go`) covers BOTH populations:
+	 * the cross-tab links this file dispatches, and the `os-action` links the
+	 * framework runtime dispatches. Both want the same thing -- a real click.
+	 */
+	document.addEventListener( 'keydown', function ( event ) {
+		if ( 'Enter' !== event.key && ' ' !== event.key && 'Spacebar' !== event.key ) {
+			return;
+		}
+		var target = event.target;
+		if ( ! target || ! target.closest ) {
+			return;
+		}
+		var link = target.closest( 'a[role="link"][tabindex="0"]:not([href])' );
+		if ( ! link ) {
+			return;
+		}
+		event.preventDefault();
+		link.click();
+	} );
+
 	function scrollToAnchor( root ) {
 		var id = root.getAttribute( 'data-snt-anchor' );
 		if ( ! id ) {

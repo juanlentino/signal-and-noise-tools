@@ -426,7 +426,7 @@ os-button.snt-home__action:hover {
 
 .snt-home__timestamp {
 	font: 500 11px/1.2 var( --os-ui-font-mono, 'Geist Mono', monospace );
-	color: var( --os-ui-fg-faint, #66636b );
+	color: var( --os-ui-fg-muted, #b3afb5 );
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
 }
@@ -454,7 +454,7 @@ os-button.snt-home__action:hover {
 	font: 600 11px/1.2 var( --os-ui-font-mono, 'Geist Mono', monospace );
 	letter-spacing: 0.08em;
 	text-transform: uppercase;
-	color: var( --os-ui-fg-faint, #66636b );
+	color: var( --os-ui-fg-muted, #b3afb5 );
 	margin-block-end: 8px;
 }
 
