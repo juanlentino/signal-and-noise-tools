@@ -393,6 +393,75 @@ over three ALTERNATIVES, not steps. The label reconciles it for a sighted
 reader; the `<ol>` still announces a sequence to a screen reader.
 `{"ordered":false}` drops the numerals if that matters.
 
+## The /provenance tail — the page's own surfaces (plugin v13.109.1 → v13.109.3)
+
+Written after the section above closed. The hub Page existed and read well; what
+was wrong was everything *about* it that a machine reads.
+
+### The OG card printed the title twice (v13.109.2)
+
+`/provenance` had no excerpt, so `sn_og_card_dek_source()` fell back to the first
+36 words of content. `templates/page-provenance.html` renders `post-content`
+alone, so the `<h1>` lives *inside* that content — the card showed "ON PROVENANCE"
+in 88px Bebas and then "On Provenance Two papers, three long-form essays…"
+underneath it, spending the words that then fell into the ellipsis. A **leading**
+heading is now dropped before the words are counted; only the leading one, since
+a heading further down is a section title inside the prose.
+
+### The card title guidance advised a length that truncates (v13.109.1)
+
+The field said 60–90 characters. Measured with `imagettfbbox` against the real
+font at the real sizes: one line holds about **24** characters, and an 83-character
+title truncated even at the smallest step. I had guessed "28" and "~55" first;
+both were wrong, and the measurement is the only reason the helper is now right.
+
+### The excerpt (content, no release)
+
+`/provenance` had none, so the validator had nothing to grade and the card was
+living off the content fallback. Written to spec (50–75 words, 2–3 sentences,
+≤35 words/sentence, no em dashes, no tricolon, no repeated openers, title not
+restated), checker-run before it was applied, 55 words:
+
+> Detection is a race that gets harder as generative models improve. A signature
+> captured at the moment of creation does not degrade, and that asymmetry is the
+> ground the two papers stand on. What neither of them settles is who vouches for
+> an independent musician's identity, because nobody in the current arrangement
+> is obliged to.
+
+**The excerpt outranks the content fallback in `sn_og_card_dek_source()`, so
+writing one obsoletes the existing card.** I regenerated it in the same breath.
+Measured, because I had estimated wrongly twice already: the card dek wraps at
+**3 lines × ~50 characters ≈ 150 characters ≈ 25 words** before the ellipsis, so
+sentence one is deliberately 11 words and survives the cut whole.
+
+### sn_validate graded a string that never ships (v13.109.3)
+
+`/provenance` is a **route-served** page: `inc/seo.php` takes its description
+from `seo_copy.provenance_description`, never from `_sn_meta_description`. The
+same is true of the front page and `/notes`. `sn_validate` read the post meta on
+every post regardless, so it reported **175 characters against a page serving
+83** — a length appearing nowhere in the HTML, and a `char_range` warning no edit
+to either value alone could satisfy.
+
+The route table lived inside `sn_seo_description_for_post()`, where nothing else
+could ask it a question. It is now `sn_seo_description_setting_key()`, read by
+both the description resolver and the validator. An empty route setting **skips**
+the surface rather than falling back to the meta row: "which store" and "is it
+filled" are different questions.
+
+Negative-controlled — the four new cases go red against the pre-fix resolver
+(58/5) and green with it (63/0). The regression case (a generic page still reads
+post meta) stays green in both, correctly.
+
+### Release drafts backfilled
+
+v13.109.0, .1 and .2 had tags but **no draft releases** — the newest was
+v13.108.0. Backfilled all three from their archived CHANGELOG sections, bodies
+diffed against the archive rather than trusted. Every one of the last 25 tags now
+has a release; all are Drafts, none published. The updater reads `/tags`, not
+`/releases` (`inc/wp-update-integration.php:317`), so the gap never blocked an
+install — it was the human-readable record that had the hole.
+
 ## Recurring failure modes from this session
 
 - **Widening a container does nothing when the content is capped by measure.**
@@ -486,6 +555,41 @@ is fine, but its window was contaminated by work done in the same session that
 will read it. Nothing in a watch's design catches that, because a watch measures
 the world and assumes the world was left alone.
 
+### From the /provenance tail
+
+- **A write door's own report is not evidence.** `sn-apply` in `mode:publish`
+  returns `diff.before: null` **structurally** — the executor builds it that way,
+  so it says nothing about what was there. `applied: true` with all gates passed
+  is a claim, not a verification. I confirmed the excerpt landed three
+  independent ways: the regenerated PNG rendered the new text, `sn_validate` read
+  the surface back as 11/22/22 words, and `sn-posts` returned it.
+- **A cache-buster in a URL is not the artifact.** After one regeneration the
+  `og:image` `?v=` was byte-identical to the previous card's, which looked like a
+  failed rebuild. The **file** had changed (40,952 → 39,940 bytes). Compare
+  bytes; the version stamp is a separate, laggier thing.
+- **My own parse conflated "missing key" with "error response".** A one-liner
+  printed `(EMPTY)` for both a blank excerpt and a REST error body, so a real
+  answer and a failed request were indistinguishable. Print the raw response
+  before concluding from a derived one. Same class as the hidden-pane
+  `clientWidth: 0` earlier in this arc.
+- **An empty REST `excerpt.rendered` is deliberate.** It is blanked for
+  **anonymous** callers by `inc/rest-hardening.php:51`, site-wide on every post
+  and page. It survives a full purge chain, which is what proves it is not a
+  cache. I nearly filed it as a bug.
+- **Flattening two directories into one scratch dir clobbers same-named files.**
+  `inc/abilities-sn-validate.php` and `tests/abilities-sn-validate.php` share a
+  basename; a `cp` loop into one folder silently kept only the last, and I
+  restored the wrong file over the right one. Caught it on the file headers.
+- **BSD `sed` failed loudly but produced empty output that read as success.**
+  A blank-line squeeze died with "extra characters at the end of d command" and
+  wrote three zero-byte notes files; the loop's own line count is what caught it,
+  not the error text scrolling past.
+- **Estimating instead of measuring, again.** I computed ~66 characters per card
+  line from a nominal monospace advance; the rendered figure is **50**. Third
+  time in this arc that an estimate stood in for a measurement, and the third
+  time it was wrong. The card, the title helper and the line count all needed
+  `imagettfbbox` or a real render.
+
 ## State at handoff
 
 | | version | where |
@@ -493,6 +597,11 @@ the world and assumes the world was left alone.
 | plugin | v13.108.0 | tagged, merged |
 | theme | v12.20.4 | tagged, merged (owner installed through v12.20.3) |
 | plugin | v13.109.0 | tagged, merged, INSTALLED |
+| plugin | v13.109.1 → v13.109.3 | tagged, merged, **INSTALLED** (deploy-status 2026-09-10: current = latest = 13.109.3) |
+| theme | v12.20.5 | current = latest, ok |
+| /provenance | excerpt | 55 words, live; OG card regenerated against it |
+| release drafts | v13.109.0–.3 | backfilled; last 25 tags all have one, all Drafts |
+| five workers | — | all `ok`, live = latest |
 | /provenance | 746 words | written, restructured, verified; longest run 11 lines -> 7 |
 | sn-provenance-worker | v1.18.3 | live |
 | four other workers | — | census gate merged |
@@ -534,3 +643,25 @@ the world and assumes the world was left alone.
 - **`snt_ml_embed` has no production evidence.** `snt_ml_rebuild` is the last
   redirect-guarded path never exercised live.
 - Roadmap "Ready to build" stays empty by design.
+
+### Opened by the /provenance tail
+
+- **`/provenance` still advertises the wrong description.** The page serves
+  `seo_copy.provenance_description`, currently *"A short read on why the industry
+  needs to prove what's human, not chase what isn't."* — which is **pillar essay
+  1's dek**, describing the very page `/provenance` says it is not ("This page is
+  the body of work rather than the case for it"). Stale from when the slug meant
+  something else. It is a **settings paste**, not code; the write door cannot
+  reach `seo_copy.*`. Drafted replacement, checker-clean at 154 chars:
+  > The provenance argument in music, worked out across two papers and the notes
+  > that keep testing it, including the conditions under which it would be wrong.
+- **The stored `_sn_focus_keyword` for post 1490 is unverified.** `sn-posts` does
+  not return it and I did not read the meta directly. The drafted description
+  contains "provenance" verbatim, which satisfies the voice spec **if** that is
+  the keyword; a phrase like "music provenance" would not match and the sentence
+  needs rewording. Check it on the same admin screen as the paste.
+- **Two test suites are red in a linked worktree and green in CI.**
+  `admin-class-orphans` (14 failures) and `direct-access-guard-window` (1) fail
+  identically on pristine `origin/main`; both are VACUITY guards firing because
+  their scan surface is empty here. CI's Test suite passed at 43s on the same
+  commit. Do not "fix" them from a worktree reading.
