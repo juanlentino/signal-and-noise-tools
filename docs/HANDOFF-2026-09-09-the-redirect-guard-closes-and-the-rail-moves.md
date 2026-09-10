@@ -256,7 +256,7 @@ on the ~51 newly-covered URLs alone (the resume rule carries fresh entries
 forward). The 09-14 crawl-delta reads against the saved baseline first, with two
 days' margin.
 
-### /provenance — analysed, scaffolded, not written
+### /provenance — analysed, scaffolded, WRITTEN, one broken link outstanding
 
 The owner noticed `/notes` and `/provenance` are "not dupe, but almost". **This
 session created that overlap** — the rail left `/notes` in v10.47.0 to become
@@ -278,10 +278,29 @@ explicit: everyone, peers and public, same as the notes):
 | the three essays | each move, in full |
 | the notes | the working-out |
 
-A scaffold exists in scratchpad (`provenance-scaffold.html`): eight prose blocks
-to write, every block in the curated inserter, rail underneath at
-`headingLevel: 3`. **The words are the owner's** — his `provenance-voice` skill
-governs that register. Not started.
+A scaffold was written to scratchpad (`provenance-scaffold.html`): eight prose
+blocks, every block in the curated inserter, rail underneath at
+`headingLevel: 3`.
+
+**WRITTEN AND PUBLISHED by the owner at 2026-09-09 20:58 UTC.** Post 1490 went
+46 words → **741** (863 rendered). Verified live: zero placeholders left, outline
+correct (H1 → H2 → H3), rail present at full density with H3 titles and the
+header reading `2 pillars · 1 sub-pillar`, the sub-pillar card indented.
+
+**ONE LIVE DEFECT, NOT FIXED — the owner's call, it is his prose:**
+the page links `https://juanlentino.com/start-here/` **twice** and that is a
+**404**. Start Here is a CHILD of the Notes page, so its permalink is
+`/notes/start-here/` — which is what `/notes` itself links and what the sitemap
+carries. The two broken links are in the opening and in "Where to start", i.e.
+exactly the ones routing a first-time reader. Every other internal link on the
+page (7) returns 200 and there are no external links.
+
+**The broken-link health check would catch this and has not looked.** It scans
+post_content across posts and pages for same-site links that 404 — precisely
+this shape — but last ran **08:00 UTC, thirteen hours before the page was
+published**. Its `finding_total: 0` is a stale snapshot with a plausible
+`elapsed_ms: 33085`. Read `scanned_at` against the change you care about; the
+verdict alone is not an answer. (Recorded trap, hit again.)
 
 ## Recurring failure modes from this session
 
@@ -336,6 +355,40 @@ governs that register. Not started.
   file. Both written up: [[strip-comments-before-scanning-source]] and the
   second instance appended to [[a-proximity-window-is-the-finding]].
 
+### Closed out at the end of the session
+
+- **#288** (theme) — Dependabot bump of `anthropics/claude-code-action`
+  1.0.210 → 1.0.216. Merged after verifying both SHA pins resolve to the tags
+  Dependabot names and that the diff is one line in one workflow file, with no
+  permission or trigger changes alongside. `security` and `CodeQL` show
+  `skipping` because Dependabot PRs get no Actions secrets — expected, and no
+  real coverage loss on a workflow pin. No release: nothing shipped changes.
+- **#1137** (plugin) — the `/notes` drift watch records that its window is
+  confounded. See below.
+- **The design spec** was written to
+  `docs/superpowers/specs/2026-09-09-notes-hero-pillar-rail-design.md` and
+  deliberately **not committed**: `docs/superpowers/` is gitignored in the theme
+  with the comment "Internal AI-assisted-development scaffolding … local only",
+  and all 97 specs there are untracked. The brainstorming skill says to commit
+  it; the repo says otherwise, and the repo wins. Not forced past the ignore.
+- Cleanup: the scratch static server stopped and its `.claude/launch.json`
+  entry removed; the brainstorm companion had already exited.
+
+### The drift watch is reading a window this session contaminated
+
+`notes_drift_reread` was set to re-read a position drift (6.3 → 11.5 over 11
+impressions) on **2026-09-11**, assuming a stable page. The page then changed
+materially — the rail arrived in the hero, the corpus stamp left it, the heading
+outline changed, the first note moved twice. Its `why` now says the reading
+**cannot** separate continued drift from the effect of those changes: treat a
+worse position as unattributable and re-baseline from the first full week after
+2026-09-10.
+
+The watch system's own failure mode from an unexpected direction: the instrument
+is fine, but its window was contaminated by work done in the same session that
+will read it. Nothing in a watch's design catches that, because a watch measures
+the world and assumes the world was left alone.
+
 ## State at handoff
 
 | | version | where |
@@ -343,6 +396,7 @@ governs that register. Not started.
 | plugin | v13.108.0 | tagged, merged |
 | theme | v12.20.3 | tagged, merged (owner installed through v12.20.1) |
 | plugin | v13.109.0 | tagged, merged, INSTALLED |
+| /provenance | 741 words | written and published by the owner; 2 broken links open |
 | sn-provenance-worker | v1.18.3 | live |
 | four other workers | — | census gate merged |
 
