@@ -27,6 +27,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/content-cards-parts.php';
+
 /**
  * The stored page and its sections, read the way the classic leaf reads them.
  *
@@ -102,6 +104,7 @@ function now_intro_html( array $s ) {
 		. '<p class="snt-hint">' . \snt_kit_esc( __( 'The last card is always a new section. To remove a section, clear its label and its items; to reorder, move the text between cards.', 'signal-and-noise-tools' ) ) . '</p>';
 }
 
+
 /**
  * The cards: one per stored section, then the new one the template stood for.
  *
@@ -109,18 +112,18 @@ function now_intro_html( array $s ) {
  * @return string
  */
 function now_cards_html( array $sections ) {
-	$out = '';
-	$i   = 0;
+	$cards = array();
+	$i     = 0;
 	foreach ( $sections as $section ) {
-		$out .= now_card_html( 'now[groups][' . $i . ']', (array) $section );
+		$cards[] = now_card_html( 'now[groups][' . $i . ']', (array) $section );
 		$i++;
 	}
-	$out .= now_card_html(
+	$cards[] = now_card_html(
 		'now[groups][__G__]',
 		array( 'items' => array() ),
 		__( 'New section: fill in a label and at least one item to add it, or leave both empty.', 'signal-and-noise-tools' )
 	);
-	return '<os-stack gap="12">' . $out . '</os-stack>';
+	return '<os-stack gap="12">' . snt_pair_cards( $cards ) . '</os-stack>';
 }
 
 /**
