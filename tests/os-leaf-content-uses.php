@@ -98,5 +98,24 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_uses_section' );
 $kit     = snt_leaf_paint( 'content', 'uses' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'malformed theme groups: field names match the classic form even with a non-array entry: ' . implode( ',', snt_leaf_names( $kit ) ) . ' (classic: ' . implode( ',', snt_leaf_names( $classic ) ) . ')' );
 
+
+// ── The cards are SIBLINGS, so they pair. ──
+// Each card is one independent section/group; nothing about card 2 depends on
+// card 1. A stack is right for a sequence and wrong for a set. Measured live
+// 2026-09-10 on Content -> Now Page: four cards stacked to 1,386px at 728px
+// wide; paired, the leaf is 831px and each card is 826px -- shorter AND wider,
+// because .snt-cols also trips the width-cap escape and releases the leaf.
+$kit = snt_leaf_paint( 'content', 'uses' );
+$rows  = substr_count( $kit, '<div class="snt-cols">' );
+$cards = substr_count( $kit, '<os-card' );
+ok( $rows > 0, 'the cards are painted in two-up rows -- ' . $rows . ' row(s) for ' . $cards . ' card(s)' );
+ok( $rows === (int) ceil( $cards / 2 ), '...one row per PAIR, so an odd count leaves a half row rather than dropping a card' );
+ok( $cards >= 2, 'sanity: there are cards to pair -- ' . $cards );
+
+// Every card still reaches the markup: pairing must not drop the spare.
+ok(
+	substr_count( $kit, '<os-card' ) === substr_count( $kit, '</os-card>' ),
+	'...and every card opened is closed, so the regroup did not truncate one'
+);
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

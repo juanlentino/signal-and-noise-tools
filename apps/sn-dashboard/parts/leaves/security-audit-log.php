@@ -281,10 +281,18 @@ function paint_security_audit_log( array $ctx ) {
 	) . '</p>';
 	$out .= audit_log_glance_html( $summary );
 	$out .= audit_log_counter_table_html( $counters );
-	$out .= audit_log_logins_html( $logins );
-	$out .= audit_log_lla_html( (array) $summary['lla'] );
-	$out .= audit_log_retention_form_html();
-	$out .= audit_log_maintenance_html();
+	// The counter table above keeps the full width. What follows is two pairs of
+	// siblings: a pair of readouts, then a pair of controls.
+	$out .= \snt_kit_tag(
+		'div',
+		array( 'class' => 'snt-cols' ),
+		audit_log_logins_html( $logins ) . audit_log_lla_html( (array) $summary['lla'] )
+	);
+	$out .= \snt_kit_tag(
+		'div',
+		array( 'class' => 'snt-cols' ),
+		audit_log_retention_form_html() . audit_log_maintenance_html()
+	);
 	return $out;
 }
 

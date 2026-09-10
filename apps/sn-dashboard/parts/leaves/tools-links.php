@@ -109,7 +109,12 @@ function paint_tools_links( array $ctx ) {
 			$out .= links_group_html( $group );
 		}
 	}
-	return $out;
+	// Three sibling link groups of near-identical height (181/181/200px measured
+	// live 2026-09-10), stacked to 646px inside a 820px leaf. `.snt-systems` is
+	// auto-fit, so three items make ONE row of three rather than the ragged
+	// 2 + 1 that `.snt-cols` would give -- the same primitive the MCP door tiles
+	// use, and it also releases the leaf from the width cap.
+	return \snt_kit_tag( 'div', array( 'class' => 'snt-systems' ), $out );
 }
 
 add_filter(

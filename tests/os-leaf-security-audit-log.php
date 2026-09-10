@@ -188,5 +188,13 @@ ok( false !== strpos( $first_paint, 'Prune complete.' ), 'the first paint agains
 ok( false === strpos( $second_paint, 'Prune complete.' ), 'a second paint against the SAME state object does not re-run the prune' );
 ok( array() === $shared_state->get( 'post' ), 'the leaf clears the consumed post from state after handling it' );
 
+
+// ── Siblings pair; a stack is for steps. ──
+// Measured live 2026-09-10; see the painter for the per-leaf numbers.
+$kitP = snt_leaf_paint( 'security', 'audit-log' );
+ok(
+	2 === substr_count( $kitP, '<div class="snt-cols">' ),
+	'the sibling sections are painted in 2 paired row(s) -- ' . substr_count( $kitP, '<div class="snt-cols">' )
+);
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -160,5 +160,13 @@ ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ), 'field names still ma
 $kit = snt_leaf_paint( 'monitoring', 'rss', array( 'params' => array( 'sn_rss_ok' => 'purged-12' ) ) );
 ok( false !== strpos( $kit, 'Purged' ) && false !== strpos( $kit, '12' ), 'the purged-N flash reports the count' );
 
+
+// ── Siblings pair; a stack is for steps. ──
+// Measured live 2026-09-10; see the painter for the per-leaf numbers.
+$kitP = snt_leaf_paint( 'monitoring', 'rss' );
+ok(
+	1 === substr_count( $kitP, '<div class="snt-cols">' ),
+	'the sibling sections are painted in 1 paired row(s) -- ' . substr_count( $kitP, '<div class="snt-cols">' )
+);
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

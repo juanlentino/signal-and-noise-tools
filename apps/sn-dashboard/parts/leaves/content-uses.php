@@ -26,6 +26,8 @@ if ( ! defined( 'ABSPATH' ) ) {
 	defined( 'OPENSTATION_STANDALONE' ) || exit;
 }
 
+require_once __DIR__ . '/content-cards-parts.php';
+
 /**
  * What the classic leaf reads, in the order it reads it: the stored page, its
  * parsed groups, and — before the first save — the theme's live file groups.
@@ -133,14 +135,16 @@ function uses_intro_html( array $data ) {
 function paint_content_uses( array $ctx ) {
 	unset( $ctx );
 	$data  = uses_data();
-	$cards = '';
+	$card_list = array();
 	foreach ( $data['groups'] as $i => $group ) {
-		$cards .= uses_group_card( (string) $i, $group );
+		$card_list[] = uses_group_card( (string) $i, $group );
 	}
 	// The spare card: what the classic template cloned on "+ Add group". It
 	// keeps the template's index; a blank row is pruned at save, a filled one
 	// is a new group (sn_uses_rows_to_text() never reads the keys).
-	$cards .= uses_group_card( '__U__', array( 'items' => array( array() ) ) );
+	$card_list[] = uses_group_card( '__U__', array( 'items' => array( array() ) ) );
+	// Siblings, so a grid: see snt_pair_cards() in content-now.php.
+	$cards = snt_pair_cards( $card_list );
 
 	$inner = uses_intro_html( $data )
 		. '<p class="snt-hint">' . \snt_kit_esc( __( 'Each card is one gear group: a label plus name/note rows (the note is optional). Incomplete cards are refused at save (rows need a label, a label needs at least one row, and a note needs a name). Removing every card clears the override: the page falls back to the theme\'s built-in list (it is never silently blanked).', 'signal-and-noise-tools' ) ) . '</p>'

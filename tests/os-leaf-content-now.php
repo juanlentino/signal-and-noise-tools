@@ -109,5 +109,31 @@ $classic = snt_leaf_classic_html( 'sn_admin_render_now_section' );
 $kit     = snt_leaf_paint( 'content', 'now' );
 ok( snt_leaf_names( $classic ) === snt_leaf_names( $kit ) && 1 === now_cards( $kit ) && false === strpos( $kit, '2026-09-02' ), 'unparseable: paints as empty, as the classic does' );
 
+
+// ── The cards are SIBLINGS, so they pair. ──
+// Each card is one independent section/group; nothing about card 2 depends on
+// card 1. A stack is right for a sequence and wrong for a set. Measured live
+// 2026-09-10 on Content -> Now Page: four cards stacked to 1,386px at 728px
+// wide; paired, the leaf is 831px and each card is 826px -- shorter AND wider,
+// because .snt-cols also trips the width-cap escape and releases the leaf.
+// Three real sections plus the spare = four cards, so the pairing is actually
+// exercised. The default fixture leaves only the spare card, and one card
+// cannot demonstrate a pair.
+$GLOBALS['__options'][ SN_NOW_PAGE_OPTION ] = array(
+	'raw'     => "## Building\n- Signal & Noise\n\n## Reading\n- Suicidal Empathy\n\n## Writing\n- The third paper",
+	'updated' => '2026-09-04',
+);
+$kit = snt_leaf_paint( 'content', 'now' );
+$rows  = substr_count( $kit, '<div class="snt-cols">' );
+$cards = substr_count( $kit, '<os-card' );
+ok( $rows > 0, 'the cards are painted in two-up rows -- ' . $rows . ' row(s) for ' . $cards . ' card(s)' );
+ok( $rows === (int) ceil( $cards / 2 ), '...one row per PAIR, so an odd count leaves a half row rather than dropping a card' );
+ok( $cards >= 2, 'sanity: there are cards to pair -- ' . $cards );
+
+// Every card still reaches the markup: pairing must not drop the spare.
+ok(
+	substr_count( $kit, '<os-card' ) === substr_count( $kit, '</os-card>' ),
+	'...and every card opened is closed, so the regroup did not truncate one'
+);
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

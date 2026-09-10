@@ -102,5 +102,13 @@ ok(
 );
 ok( array() === snt_leaf_classic_markers( $hostile ), 'hostile fixture: no wp-admin markup survives either' );
 
+
+// ── Siblings pair; a stack is for steps. ──
+// Measured live 2026-09-10; see the painter for the per-leaf numbers.
+$kitP = snt_leaf_paint( 'tools', 'links' );
+ok(
+	1 === substr_count( $kitP, '<div class="snt-systems">' ),
+	'the sibling sections are painted in 1 paired row(s) -- ' . substr_count( $kitP, '<div class="snt-systems">' )
+);
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

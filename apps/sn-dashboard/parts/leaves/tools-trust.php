@@ -158,7 +158,8 @@ function paint_tools_trust( array $ctx ) {
 		$rows
 	);
 
-	$out .= \snt_kit_section( __( 'What these four watch', 'signal-and-noise-tools' ), $intro . $table . $detail );
+	// Siblings: what the checks watch, and what the public sees of them.
+	$pair  = \snt_kit_section( __( 'What these four watch', 'signal-and-noise-tools' ), $intro . $table . $detail );
 
 	// Public-facing counterparts: the surfaces a READER uses to check the same
 	// guarantees without trusting this admin at all.
@@ -169,7 +170,8 @@ function paint_tools_trust( array $ctx ) {
 	$public .= '<li>' . \snt_kit_link( __( 'TDM policy', 'signal-and-noise-tools' ), home_url( '/tdm-policy/' ) ) . '. ' . esc_html__( 'the human-readable terms behind the reservation headers.', 'signal-and-noise-tools' ) . '</li>';
 	$public .= '<li>' . \snt_kit_link( __( 'RSL licence', 'signal-and-noise-tools' ), home_url( '/license.xml' ) ) . '. ' . esc_html__( 'machine-readable licensing terms.', 'signal-and-noise-tools' ) . '</li>';
 	$public .= '</ul>';
-	$out    .= \snt_kit_section( __( 'The public side', 'signal-and-noise-tools' ), $public );
+	$pair   .= \snt_kit_section( __( 'The public side', 'signal-and-noise-tools' ), $public );
+	$out    .= \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $pair );
 
 	return $out;
 }

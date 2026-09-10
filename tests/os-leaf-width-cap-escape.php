@@ -169,5 +169,29 @@ if ( $stack && $reset ) {
 	);
 }
 
+
+// ── The form-measure override must stay SCOPED. ──
+// OpenStation caps `os-form` at 760px and that is the right measure for
+// labelled inputs: the empty space beside site/identity-and-seo or
+// security/login is the price of legibility, not a defect. Only a form that has
+// actually paired sibling cards earns the width, via `:has( .snt-cols )`.
+// Unscoped, this rule would stretch every field in the app to 1,700px.
+$form_rules = array();
+foreach ( $rules as $r ) {
+	foreach ( explode( ',', $r[1] ) as $sel ) {
+		$sel = trim( $sel );
+		if ( false === strpos( $sel, 'os-form' ) ) { continue; }
+		if ( ! preg_match( '/max-width/', $r[2] ) ) { continue; }
+		$form_rules[] = $sel;
+	}
+}
+ok( array() !== $form_rules, 'a max-width rule on os-form exists to check' );
+foreach ( $form_rules as $sel ) {
+	ok(
+		false !== strpos( $sel, ':has( .snt-cols )' ) || false !== strpos( $sel, ':has(.snt-cols)' ),
+		'os-form max-width rule is scoped to :has( .snt-cols ), never bare -- ' . $sel
+	);
+}
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
