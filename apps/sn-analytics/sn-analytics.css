@@ -535,6 +535,32 @@ html[data-os-display="standalone"] .snt-app[data-os-app="sn-analytics"] .snt-vie
 	min-width: 0;
 }
 
+/* An ODD last child spans both tracks instead of sitting alone in the left one.
+   These grids are a FIXED two tracks, so a view that feeds them an odd number of
+   panels strands the last: measured live 2026-09-10 at a 1,557px window, the
+   last child's right edge landed at 49% on Technology (5 panels, TLS versions
+   stranded), Engagement (3, Connection RTT), Posts (3) and Traffic & edge (1,
+   Status codes). Same empty-right-half symptom as the Home app's width cap,
+   different cause: not a cap, an odd count against an even track count.
+
+   Spanning is the honest resolution -- a deliberate full-width band rather than
+   an accidental half -- and it is what the sibling app already does with a wide
+   table (security/audit-log's counter table). Verified on all four views: 49% ->
+   100%, and the stranded panel reads as intentional.
+
+   Applied to the SAME :is() list as the grid rule above. Fixing only
+   `.sn-an-grid` would leave the other six classes carrying the identical
+   latent bug. */
+.snt-app[data-os-app="sn-analytics"] :is(.sn-an-grid, .sn-an-cols, .sn-an-content-grid, .sn-an-journeys-grid, .sn-an-overview-bento, .sn-an-header-grid, .sn-an-cwv-grid) > *:last-child:nth-child(odd) {
+	grid-column: 1 / -1;
+}
+
+/* A grid with no children still occupied a row. Observed live on Traffic & edge
+   and Campaigns, both of which paint an empty grid in their no-data state. */
+.snt-app[data-os-app="sn-analytics"] :is(.sn-an-grid, .sn-an-cols, .sn-an-content-grid, .sn-an-journeys-grid, .sn-an-overview-bento, .sn-an-header-grid, .sn-an-cwv-grid):empty {
+	display: none;
+}
+
 .snt-app[data-os-app="sn-analytics"] .sn-an-headline summary {
 	white-space: normal;
 	cursor: pointer;
