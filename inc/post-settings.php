@@ -310,7 +310,7 @@ function sn_post_settings_render( $post ) {
 	echo '<div class="sn-field">';
 	echo '<label class="sn-field-label" for="sn_og_card_title">OG card title</label>';
 	echo '<textarea id="sn_og_card_title" name="sn_og_card_title" rows="2">' . esc_textarea( $og_card_title ) . '</textarea>';
-	echo '<p class="sn-field-helper">Replaces the post title in the social-share <strong>card image</strong> only: the <code>og:title</code> HTML meta still uses the real title. Empty falls back to the post title. Aim for 60-90 chars for the punchiest card.</p>';
+	echo '<p class="sn-field-helper">Replaces the post title in the social-share <strong>card image</strong> only: the <code>og:title</code> HTML meta still uses the real title. Empty falls back to the post title. The card fits <strong>3 lines</strong> of Bebas across 1040px and steps 88&rarr;74&rarr;62px to make room, then cuts with an ellipsis. The limit is rendered <em>width</em>, not characters: measured against the actual font, one line holds about <strong>24 characters</strong> at full size (72 across three lines), rising to ~35 per line at the smallest step. Long words break early, so an 83-character title truncated even at 62px despite fitting the raw character budget. <strong>Aim for one full-size line: ~24 characters.</strong></p>';
 	echo '</div>';
 
 	// ─── Pillar essay (v9.79.0, Pages only) ───
