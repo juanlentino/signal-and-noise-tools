@@ -1,8 +1,8 @@
 # Handoff — 2026-09-08..09: the redirect guard closes, and the pillar rail moves into the notes hero
 
 Picks up where `HANDOFF-2026-09-08` stops (plugin **v13.107.5**). Two days,
-**plugin v13.107.6 → v13.108.0** (3 releases), **theme v12.18.10 → v12.20.1**
-(4 releases), five worker CI gates. All merged and tagged; both `origin/main`s
+**plugin v13.107.6 → v13.109.0** (4 releases), **theme v12.18.10 → v12.20.3**
+(6 releases), five worker CI gates. All merged and tagged; both `origin/main`s
 are clean.
 
 **Provenance of this document:** unlike the 09-08 handoff, I did this work. Every
@@ -203,6 +203,86 @@ A `no-store` fetch of the same URL returned the new markup immediately, and
 from earlier in the session. **Before reporting a deploy as incomplete, refetch
 with cache disabled and read the cache headers.**
 
+### v12.20.2 — a WCAG failure the crowding work walked past
+
+The owner asked whether the hero was too crowded. I diagnosed spacing, proposed
+two moves, and was about to ship. He then told me frontend-design is a PLUGIN,
+not a skill — I had searched skills and the claude.ai plugin catalogue, both
+empty, and concluded none existed. It is CLI-installed at
+`~/.claude/plugins/cache/awesome-claude-plugins/frontend-design`, invoked as
+`frontend-design:frontend-design`. **`ListPlugins` reads the claude.ai catalogue
+and returns empty even unfiltered; it cannot see CLI plugins. Check the cache
+directory before concluding a plugin is absent.**
+
+Its colour principle — *dominant colours with sharp accents beat timid,
+evenly-distributed palettes* — sent me to count red marks. **Twelve, across six
+unrelated jobs**, one of them a separator glyph. And the audit turned up a real
+standards failure: `RSS` and `JSON Feed` were distinguished from their paragraph
+by **colour alone at 1.23:1**, where the technique wants 3:1. The underline
+already existed and was spent entirely on `:hover` — a state touch and keyboard
+users may never enter. Two in-prose links on the page, both these; not systemic.
+
+The crowding fix that shipped alongside it is the one worth remembering: the
+right column carried **three unrelated jobs** at the same visual weight. That is
+not density but *undifferentiated* density. Removing a job (the corpus stamp,
+which restated the count 200px below) bought 35px and cost nothing; every
+earlier attempt compressed the survivors and bought 6–25px while costing rhythm.
+
+### v12.20.3 — the rail's heading level
+
+Full-density card titles were always `<h2>`, correct while the rail IS the page
+and wrong the moment that page grows `<h2>` sections. A `headingLevel` attribute,
+enum 2–4, default 2 so nothing existing moves.
+
+### The plugin side: the coverage sweep could not see two thirds of the site
+
+`snt_gsc_coverage_targets()` walked `post_type => 'post'`. Every Page — the
+provenance hub, its three essays, the maturity pages — and every tag archive had
+**never been inspected**. That map is the ONLY discriminator between "not
+indexed" and "indexed with no query demand"; excluding them made the question
+unanswerable and the silence read like a finding.
+
+Surfaced when `/provenance` showed **zero impressions over 28 days** and I could
+not say which it was. Discovery was ruled out first: the sitemap carries all 28
+pages. Tag archives are NOT in the sitemap and six of them still earn
+impressions — Google reached them by following links.
+
+Targets are now keyed `post:<id>` / `term:<id>`: term and post ids are
+independent sequences that will collide, and under int keys one silently
+overwrites the other with nothing looking wrong.
+
+**NOT RUN.** The weekly cron fires **2026-09-15 21:39 UTC** and will spend quota
+on the ~51 newly-covered URLs alone (the resume rule carries fresh entries
+forward). The 09-14 crawl-delta reads against the saved baseline first, with two
+days' margin.
+
+### /provenance — analysed, scaffolded, not written
+
+The owner noticed `/notes` and `/provenance` are "not dupe, but almost". **This
+session created that overlap** — the rail left `/notes` in v10.47.0 to become
+`/provenance`'s content, and today it came back.
+
+The analysis that mattered: `/start-here` is **922 words and already states the
+claim**; `/provenance` is **46 words stating a compressed version of the same
+claim**. So the near-duplication was never `/notes` vs `/provenance` — it was
+`/start-here` vs `/provenance`, and writing "the thesis, at length" on the hub
+would have built a real duplicate of the site's best page.
+
+The division that came out of it, by JOB rather than by audience (the owner was
+explicit: everyone, peers and public, same as the notes):
+
+| surface | job |
+|---|---|
+| `/start-here` | why detection fails and what replaces it — the problem |
+| `/provenance` | what the three papers establish and what is still open — the body of work |
+| the three essays | each move, in full |
+| the notes | the working-out |
+
+A scaffold exists in scratchpad (`provenance-scaffold.html`): eight prose blocks
+to write, every block in the curated inserter, rail underneath at
+`headingLevel: 3`. **The words are the owner's** — his `provenance-voice` skill
+governs that register. Not started.
+
 ## Recurring failure modes from this session
 
 - **Widening a container does nothing when the content is capped by measure.**
@@ -238,13 +318,31 @@ with cache disabled and read the cache headers.**
   I chose only to keep a number at zero. Neither survived the owner looking at
   the page. If a value exists to protect a metric rather than to look right,
   say so in the comment or do not ship it.
+- **THE PATTERN OF THE DAY: instruments that measured their own neighbourhood
+  rather than the code.** Three separate instances, two of them already recorded
+  as traps in memory and written anyway, hours apart:
+  1. scans matching the COMMENT explaining the thing (×3 — a CSS scope check
+     reading its own justification, a CHANGELOG insert matching the sentence
+     that names `## [Unreleased]`, a count returning 3 for a string appearing
+     once in markup);
+  2. a **fixed 1400-byte window** standing in for a region — one added control
+     pushed the sentinel past the cut-off and an exemption evaporated;
+  3. a test helper that **never passed its arguments**, so a whole branch had
+     never been exercised and new cases passed by rendering the default.
+
+  The common error is measuring the neighbourhood of a thing instead of the
+  thing. The tell: any scan whose correctness rests on a number picked by
+  looking at today's file, or on a string that also appears in prose about the
+  file. Both written up: [[strip-comments-before-scanning-source]] and the
+  second instance appended to [[a-proximity-window-is-the-finding]].
 
 ## State at handoff
 
 | | version | where |
 |---|---|---|
 | plugin | v13.108.0 | tagged, merged |
-| theme | v12.20.1 | tagged, merged, INSTALLED and verified live |
+| theme | v12.20.3 | tagged, merged (owner installed through v12.20.1) |
+| plugin | v13.109.0 | tagged, merged, INSTALLED |
 | sn-provenance-worker | v1.18.3 | live |
 | four other workers | — | census gate merged |
 
