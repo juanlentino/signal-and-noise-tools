@@ -127,6 +127,19 @@
 	margin-block-start: 24px;
 }
 
+
+/* ...but NOT when the sections are grid cells. The rule above is vertical-stack
+   rhythm: `os-section + os-section` is still true of the SECOND CELL of a
+   `.snt-cols` row, so it took a 24px top margin the grid `gap` already provides
+   and sat 24px below its neighbour. Measured live 2026-09-10 on AI -> MCP
+   Clients: paired door cards at top 797 / 821 instead of 797 / 797.
+
+   Specificity matters here and is the whole reason this is a separate rule:
+   the stack rule scores (0,3,2), so this one adds `.snt-cols` to reach (0,4,2)
+   and win outright rather than on source order. */
+.snt-app[data-os-app="sn-dashboard"] .snt-leaf .snt-cols > os-section + os-section {
+	margin-block-start: 0;
+}
 .snt-app[data-os-app="sn-dashboard"] .snt-leaf os-section::part( body ) {
 	display: flex;
 	flex-direction: column;
