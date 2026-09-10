@@ -431,11 +431,18 @@ os-button.snt-home__action:hover {
 	letter-spacing: 0.04em;
 }
 
+/* WCAG 2.2 SC 2.5.8 puts a 24x24 floor under a pointer target, and these are
+ * STANDALONE links, so the spec's inline exception does not reach them. Both
+ * measured 18px tall in the phone layer on 2026-09-10 — the natural line box
+ * of their own type and nothing else. Height only: they are already wide. */
 .snt-home__view-all {
 	font-size: 12px;
 	font-weight: 600;
 	color: var( --os-ui-accent, #f252fc );
 	text-decoration: none;
+	display: inline-flex;
+	align-items: center;
+	min-height: 24px;
 }
 
 .snt-home__view-all:hover {
@@ -727,7 +734,7 @@ os-button.snt-home__action:hover {
 	overflow-wrap: anywhere;
 }
 
-os-button.snt-sys__v { justify-self: start; }
+os-button.snt-sys__v { justify-self: start; display: inline-flex; align-items: center; min-height: 24px; }
 
 .snt-sys__meta {
 	font: 500 11px/1.3 var( --os-ui-font-mono, 'Geist Mono', monospace );
