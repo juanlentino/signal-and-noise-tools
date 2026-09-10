@@ -33,6 +33,25 @@ $GLOBALS['__recorded'] = array();
 $GLOBALS['__record_result'] = 'created';
 function sn_cit_record( $s, $t, $p = 0 ) { $GLOBALS['__recorded'][] = array( $s, $t, $p ); return $GLOBALS['__record_result']; }
 
+// v13.109.5: refusals are WP_Error now, so the suite must read a status off two
+// shapes. sn_status_of() is the single reader -- a per-assertion `->status` or
+// `->data['status']` would have let half the file drift to whichever shape the
+// author happened to have in mind.
+if ( ! class_exists( 'WP_Error' ) ) {
+	class WP_Error {
+		public $code; public $message; public $data;
+		public function __construct( $c = '', $m = '', $d = null ) { $this->code = $c; $this->message = $m; $this->data = $d; }
+		public function get_error_code() { return $this->code; }
+		public function get_error_message() { return $this->message; }
+		public function get_error_data() { return $this->data; }
+	}
+}
+function sn_is_wp_error( $t ) { return $t instanceof WP_Error; }
+function sn_status_of( $r ) {
+	if ( $r instanceof WP_Error ) { return (int) ( $r->data['status'] ?? 0 ); }
+	return (int) $r->status;
+}
+
 class WP_REST_Response {
 	public $data; public $status;
 	public function __construct( $d, $s = 200 ) { $this->data = $d; $this->status = $s; }
@@ -55,35 +74,35 @@ $good_target = 'https://juanlentino.com/notes/x/';
 
 // ── the happy path ──────────────────────────────────────────────────────────
 $r = post( 'https://example.com/post', $good_target );
-ok( $r->status === 202, 'a well-formed claim is 202 Accepted, not 200 OK' );
+ok( sn_status_of( $r ) === 202, 'a well-formed claim is 202 Accepted, not 200 OK' );
 ok( $r->data['tier'] === 'unverified', 'the response states the claim is unverified' );
 ok( false !== stripos( $r->data['message'], 'not confirmation' ), 'the body says in words that acceptance is not confirmation' );
 ok( count( $GLOBALS['__recorded'] ) === 1 && $GLOBALS['__recorded'][0][2] === 42, 'the claim is recorded against the resolved post' );
 
 // ── rejections ──────────────────────────────────────────────────────────────
-ok( post( '', $good_target )->status === 400, 'a missing source is a 400' );
-ok( post( 'https://example.com/p', '' )->status === 400, 'a missing target is a 400' );
-ok( post( 'not-a-url', $good_target )->status === 400, 'a non-absolute source is a 400' );
-ok( post( 'ftp://example.com/p', $good_target )->status === 400, 'a non-http(s) source is a 400' );
-ok( post( $good_target, $good_target )->status === 400, 'source equal to target is a 400' );
-ok( post( 'https://juanlentino.com/notes/x/', 'https://juanlentino.com/notes/x' )->status === 400, 'the same URL spelled two ways is still self-citation' );
-ok( post( 'https://juanlentino.com/other/', $good_target )->status === 400, 'an on-site source is refused — this inbox is for INBOUND citations' );
-ok( post( 'https://internal.local/p', $good_target )->status === 400, 'a source on a blocked host is refused BEFORE it is ever stored' );
+ok( sn_status_of( post( '', $good_target ) ) === 400, 'a missing source is a 400' );
+ok( sn_status_of( post( 'https://example.com/p', '' ) ) === 400, 'a missing target is a 400' );
+ok( sn_status_of( post( 'not-a-url', $good_target ) ) === 400, 'a non-absolute source is a 400' );
+ok( sn_status_of( post( 'ftp://example.com/p', $good_target ) ) === 400, 'a non-http(s) source is a 400' );
+ok( sn_status_of( post( $good_target, $good_target ) ) === 400, 'source equal to target is a 400' );
+ok( sn_status_of( post( 'https://juanlentino.com/notes/x/', 'https://juanlentino.com/notes/x' ) ) === 400, 'the same URL spelled two ways is still self-citation' );
+ok( sn_status_of( post( 'https://juanlentino.com/other/', $good_target ) ) === 400, 'an on-site source is refused — this inbox is for INBOUND citations' );
+ok( sn_status_of( post( 'https://internal.local/p', $good_target ) ) === 400, 'a source on a blocked host is refused BEFORE it is ever stored' );
 ok( count( $GLOBALS['__recorded'] ) === 0, 'and refusing it wrote nothing' );
 
 // ── target must be ours, and public ─────────────────────────────────────────
-ok( post( 'https://example.com/p', 'https://elsewhere.com/page' )->status === 400, 'a target on another site is refused' );
-ok( post( 'https://example.com/p', 'https://juanlentino.com/nope/' )->status === 400, 'a target that resolves to no post is refused' );
+ok( sn_status_of( post( 'https://example.com/p', 'https://elsewhere.com/page' ) ) === 400, 'a target on another site is refused' );
+ok( sn_status_of( post( 'https://example.com/p', 'https://juanlentino.com/nope/' ) ) === 400, 'a target that resolves to no post is refused' );
 $GLOBALS['__private'] = array( 42 );
-ok( post( 'https://example.com/p', $good_target )->status === 400, 'a non-publicly-viewable target is refused — the inbox is not a draft oracle' );
+ok( sn_status_of( post( 'https://example.com/p', $good_target ) ) === 400, 'a non-publicly-viewable target is refused — the inbox is not a draft oracle' );
 $GLOBALS['__private'] = array();
-ok( post( 'https://example.com/p', $good_target )->status === 202, 'control: the same target is accepted once it is public again' );
+ok( sn_status_of( post( 'https://example.com/p', $good_target ) ) === 202, 'control: the same target is accepted once it is public again' );
 
 // ── the store refusing is surfaced, not swallowed ───────────────────────────
 $GLOBALS['__record_result'] = 'invalid';
-ok( post( 'https://example.com/p', $good_target )->status === 400, 'a store-level refusal becomes a 400, not a false 202' );
+ok( sn_status_of( post( 'https://example.com/p', $good_target ) ) === 400, 'a store-level refusal becomes a 400, not a false 202' );
 $GLOBALS['__record_result'] = 'exists';
-ok( post( 'https://example.com/p', $good_target )->status === 202, 'a duplicate ping is still 202 — idempotent, per the spec' );
+ok( sn_status_of( post( 'https://example.com/p', $good_target ) ) === 202, 'a duplicate ping is still 202 — idempotent, per the spec' );
 $GLOBALS['__record_result'] = 'created';
 
 // ── target resolution is its own contract ───────────────────────────────────
@@ -151,20 +170,61 @@ ok( '__return_true' === $reg['args']['permission_callback'], 'the permission cal
 ok( true === $reg['args']['args']['source']['required'], 'source is declared required' );
 ok( true === $reg['args']['args']['target']['required'], 'target is declared required' );
 
-// The required=>true declarations are what make core answer a param-less POST
-// with its own named 400 (rest_missing_callback_param) BEFORE the handler runs.
-// The handler's own free-text 400 below is the direct-call path, which is what
-// the suite above measures. Both are 400; only one carries a machine code.
-ok( 400 === post( '', '' )->status, 'a param-less claim reaching the handler is still a 400' );
-$body = post( '', '' )->data;
-ok( is_array( $body ) && array_key_exists( 'error', $body ), '...whose body carries an `error` key' );
-ok( is_string( $body['error'] ) && '' !== $body['error'], '...holding a human-readable string' );
-// PINNED AS-IS, NOT ENDORSED: the handler returns free text, with no stable
-// machine-readable code a sender could branch on. The W3C Webmention REC (§3.2)
-// requires only the 400 status for an invalid source/target, so this does not
-// violate the spec and the test records what the code does. See the note in the
-// session handoff before changing it.
-ok( ! array_key_exists( 'code', $body ), 'the 400 body carries NO machine-readable code — recorded as current behaviour, not endorsed' );
+// ── one error vocabulary (v13.109.5) ───────────────────────────────────────
+// Before this, the endpoint spoke TWO error shapes, both 400: core's
+// {code, message, data:{status}} for a param-level rejection, and a bare
+// {error: "..."} from the handler with no machine-readable code, so a sender
+// could not branch on the reason without string-matching English. Handler
+// refusals are WP_Error now; the human-readable strings are unchanged.
+$cases = array(
+	array( '',                              $good_target,                        'sn_cit_missing_params',        'source and target are both required' ),
+	array( 'not-a-url',                     $good_target,                        'sn_cit_invalid_source',        'source must be an absolute http(s) URL' ),
+	array( $good_target,                    $good_target,                        'sn_cit_source_equals_target',  'source and target must differ' ),
+	array( 'https://juanlentino.com/other/', $good_target,                       'sn_cit_source_not_offsite',    'source must be off-site' ),
+	array( 'https://internal.local/p',      $good_target,                        'sn_cit_source_unreachable',    'source host is not reachable from this site' ),
+	array( 'https://example.com/p',         'https://elsewhere.com/page',        'sn_cit_target_not_found',      'target is not a publicly viewable resource on this site' ),
+);
+foreach ( $cases as $c ) {
+	list( $src, $tgt, $code, $msg ) = $c;
+	$r  = post( $src, $tgt );
+	$is = sn_is_wp_error( $r );
+	// Short-circuit on $is: if the shape ever reverts to a bare response, the
+	// accessor calls below would FATAL and kill the suite mid-run, hiding every
+	// later assertion. A crash is not a refutation -- these must report.
+	ok( $is, "refusal is a WP_Error, not a bare string body: $code" );
+	ok( 400 === sn_status_of( $r ), "...still 400, unchanged: $code" );
+	ok( $is && $code === $r->get_error_code(), "...carrying the named code $code" );
+	ok( $is && $msg === $r->get_error_message(), "...and the original human string, verbatim: $code" );
+}
+
+// The seventh refusal is store-level and needs the recorder to say so.
+$GLOBALS['__record_result'] = 'invalid';
+$r7 = post( 'https://example.com/p', $good_target );
+ok( sn_is_wp_error( $r7 ) && 'sn_cit_not_recorded' === $r7->get_error_code(), 'a store-level refusal is sn_cit_not_recorded' );
+ok( 400 === sn_status_of( $r7 ), '...and is still a 400, not a false 202' );
+$GLOBALS['__record_result'] = 'created';
+
+// Every code is distinct: two conditions sharing one code is the same failure
+// as no code at all -- the sender still cannot tell them apart.
+$codes = array_map( static function ( $c ) { return $c[2]; }, $cases );
+$codes[] = 'sn_cit_not_recorded';
+ok( count( $codes ) === count( array_unique( $codes ) ), 'every refusal condition has its OWN code (' . count( $codes ) . ' distinct)' );
+// Prefix matches the module, which is the convention the sibling public
+// endpoint follows (sn_prov_bad_sig in inc/provenance-webhook.php).
+$prefixed = array_filter( $codes, static function ( $c ) { return 0 === strpos( $c, 'sn_cit_' ); } );
+ok( count( $prefixed ) === count( $codes ), '...and every code carries the module prefix sn_cit_' );
+
+// The accept path is untouched: still a WP_REST_Response, still 202.
+$accepted = post( 'https://example.com/p', $good_target );
+ok( ! sn_is_wp_error( $accepted ), 'the ACCEPT path is still a response, not an error' );
+ok( 202 === sn_status_of( $accepted ), '...and still 202' );
+
+// PARAM-LEVEL is core's and stays core's. `required => true` below means a real
+// HTTP POST with no params never reaches the handler: the REST server answers
+// first with rest_missing_callback_param. That code is NOT ours to rename, so
+// what is pinned here is the declaration that produces it.
+ok( true === $reg['args']['args']['source']['required'], 'source stays declared required, so core still answers rest_missing_callback_param before the handler' );
+ok( true === $reg['args']['args']['target']['required'], '...and target likewise' );
 
 // ── discovery, computed from the constants rather than a literal ────────────
 $expected_url = rest_url( SN_CIT_REST_NS . SN_CIT_REST_ROUTE );
