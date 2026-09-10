@@ -61,8 +61,19 @@ ok( false !== strpos( $kit, '<p class="snt-prose">' ) && false !== strpos( $kit,
 
 // The redirect manager: newest first, each an edit form + a confirmed delete form.
 function form_block( $html, $submit ) { return preg_match( '/<os-form[^>]*submit-label="' . preg_quote( $submit, '/' ) . '"[^>]*>.*?<\/os-form>/s', $html, $m ) ? $m[0] : ''; }
-ok( before( $kit, 'heading="/second"', 'heading="/first"' ), 'redirects paint newest first (/second before /first)' );
-ok( false !== strpos( $kit, '<os-section heading="/second" description="Added ' . $d1 . '" stack>' ), 'a redirect is a section headed by its source, described by its creation date' );
+ok( before( $kit, 'heading="/second →', 'heading="/first →' ), 'redirects paint newest first (/second before /first)' );
+// One LINE per rule, matching Site -> Broken links. The heading carries the whole
+// rule so the list is scannable unopened; the hint carries what you COMPARE
+// between rules (status, age) rather than read.
+ok(
+	false !== strpos( $kit, '<os-disclosure heading="/second → https://example.com/moved" hint="302 · added ' . $d1 . '">' ),
+	'a redirect is ONE LINE: source → target, hinted with its status and age'
+);
+ok(
+	before( $kit, '<os-disclosure heading="/second →', 'submit-label="Save changes"' ),
+	'...and the edit form lives INSIDE the fold, not open on the page'
+);
+ok( false === strpos( $kit, '<os-section heading="/second"' ), '...so no rule paints as an open section any more' );
 ok( false !== strpos( $kit, '<os-text-field name="target" type="text" value="https://example.com/moved"' ) && false !== strpos( $kit, '<os-field-row label="Redirects to">' ), 'the target field carries the current destination' );
 ok( false !== strpos( $kit, '<os-select name="status" value="302"><os-option value="301">301. Permanent</os-option><os-option value="302">302. Temporary</os-option></os-select>' ), 'the type select offers 301/302 with the current one selected' );
 $edit_row   = form_block( $kit, 'Save changes' );

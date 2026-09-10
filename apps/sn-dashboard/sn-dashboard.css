@@ -64,7 +64,6 @@
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="insights"],
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="search-console"],
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="reports"],
-.snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="redirects"],
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="audit-log"],
 .snt-app[data-os-app="sn-dashboard"] .snt-dashboard-body > .snt-leaf[data-snt-leaf="tags"] {
 	max-width: 100%;

@@ -357,5 +357,36 @@ foreach ( $sn_keep as $sn_path => $sn_why ) {
 	ok( true === sn_404_should_capture( $sn_path ), "STILL captured ($sn_why): $sn_path" );
 }
 
+
+// ── v13.109.9: three classes observed on the LIVE log 2026-09-10, each sitting
+// in the actionable list demanding its own redirect decision.
+// sn_404_log_actionable() re-runs this filter on READ, so broadening it clears
+// the existing log without mutating the stored option. ──
+foreach ( array( '/es/music', '/es/contact', '/es/about', '/es/services', '/es/resume', '/es/privacy-policy', '/en/privacy-policy', '/nl/privacy-policy', '/pt-br/about', '/en-gb/contact' ) as $locale_probe ) {
+	ok( ! sn_404_should_capture( $locale_probe ), "locale probe rejected: $locale_probe" );
+}
+foreach ( array( '/_next/static', '/_vercel/routes', '/_nuxt/entry.js', '/__webpack/hot' ) as $build_probe ) {
+	ok( ! sn_404_should_capture( $build_probe ), "build-namespace probe rejected: $build_probe" );
+}
+foreach ( array( '/app/(group)/layout', '/(marketing)/page' ) as $paren_probe ) {
+	ok( ! sn_404_should_capture( $paren_probe ), "route-group artefact rejected: $paren_probe" );
+}
+
+// ── THE CONTROLS THAT MATTER. Over-rejection swallows a real broken link, which
+// is worse than the noise it removes. ──
+foreach ( array(
+	'/roadmap',                 // live, 7 hits
+	'/tag/music-provenance',    // a real tag archive, 7 hits
+	'/notes/tag/ai-detection',  // real, 4 hits
+	'/notes/desing-tokens',     // a genuine typo of a published note
+	'/es',                      // two letters but a SINGLE segment, not a locale prefix
+	'/essays/on-provenance',    // starts with "es"; the segment is not two letters
+	'/uses',                    // the real page /uSs was mangling
+	'/notes/page/2',            // digits, under the 12-digit floor
+	'/resume.pdf',              // a linkable extension
+) as $real ) {
+	ok( sn_404_should_capture( $real ), "STILL ACTIONABLE (negative control): $real" );
+}
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );

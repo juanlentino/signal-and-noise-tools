@@ -125,9 +125,27 @@ function redirects_row_html( $source, array $r ) {
 				'danger'        => true,
 			)
 		);
-	/* translators: %s: the date the redirect was created (Y-m-d). */
-	$added = sprintf( __( 'Added %s', 'signal-and-noise-tools' ), wp_date( 'Y-m-d', (int) ( $r['created_at'] ?? 0 ) ) );
-	return \snt_kit_section( $source, $inner, $added, array( 'stack' => true ) );
+	// One LINE per rule, matching Site -> Broken links exactly. Measured live
+	// 2026-09-10 AFTER the 404 log moved out: this leaf was still 9,101px --
+	// nine screens, 39 rules at 233px each, an edit form open on every one with
+	// 988px of empty space beside a 760px field. The cap did not help because 39
+	// is under it; the FOLD is what fixes an open form per row.
+	//
+	// The heading carries the whole rule so the list is scannable without opening
+	// anything: source, arrow, target. The hint carries the parts you compare
+	// between rules rather than read -- the status code and when it was added.
+	$target = (string) ( $r['to'] ?? '' );
+	$hint   = sprintf(
+		/* translators: 1: HTTP status (301/302), 2: the date the redirect was created (Y-m-d). */
+		__( '%1$d · added %2$s', 'signal-and-noise-tools' ),
+		$status,
+		wp_date( 'Y-m-d', (int) ( $r['created_at'] ?? 0 ) )
+	);
+	return \snt_kit_tag(
+		'os-disclosure',
+		array( 'heading' => $source . ' → ' . $target, 'hint' => $hint ),
+		$inner
+	);
 }
 
 /**
