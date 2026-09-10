@@ -12,6 +12,10 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- The app stylesheets were linked twice. OpenStation auto-loads `apps/<id>/<id>.css` under its own handle; we pushed ours at the same file into the window's styles list unconditionally, so the admin carried two `<link>` tags each for `sn-dashboard.css` and `sn-analytics.css`. The extra request is the small half — the two cache-bust on **different inputs** (theirs on `filemtime`, ours on `SNT_VERSION`), and ours loaded **last**, so a CSS edit without a version bump served a fresh copy that was overridden by a stale cached one. Ours is now dropped only when theirs is actually present, so an OpenStation without the auto-loader still gets a styled window. The same guard already existed for the `signal-noise` app and had never been extended to the two host windows.
+
+
 ## [13.109.7] - 2026-09-10 — the leaf width cap that never released a leaf
 
 ### Fixed
