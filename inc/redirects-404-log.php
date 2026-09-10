@@ -109,9 +109,37 @@ function sn_404_should_capture( $path ) {
 		'/panel', '/dashboard', '/cpanel', '/phpmyadmin', '/pma', '/mysql', '/db', '/database', '/sql',
 		'/backup', '/backups', '/bak', '/old', '/new', '/dump', '/config', '/configuration',
 		'/setup', '/install', '/test', '/dev', '/staging', '/tmp', '/temp', '/shell', '/cmd', '/api',
+		// v13.109.7, each observed live in the 404 log with a wrong suggestion
+		// attached: /metrics was offered /services, /health and /status are the
+		// same shape, /graphql and /debug are scanner staples.
+		'/metrics', '/health', '/status', '/graphql', '/debug', '/actuator', '/console', '/swagger',
 	);
 	if ( in_array( $lower, $guesses, true ) ) {
 		return false;
+	}
+	// v13.109.7: a path carrying a FILE EXTENSION this site never publishes is not
+	// a broken link. Observed live: /about.php7 was suggested -> /about and the
+	// suggestion was accepted, so a vulnerability-scanner probe is now a permanent
+	// 301 in site configuration. /apis/controllers/users.js was offered /about/uses.
+	// Content here is extensionless; the genuine exceptions (a real missing image,
+	// a moved PDF) are handled by the allowlist below rather than by letting every
+	// extension through.
+	$ext = strtolower( (string) pathinfo( $lower, PATHINFO_EXTENSION ) );
+	if ( '' !== $ext ) {
+		// Assets a human could genuinely have linked to and that we may want to fix.
+		$linkable = array( 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'webp', 'avif', 'svg', 'txt', 'xml', 'ics' );
+		if ( ! in_array( $ext, $linkable, true ) ) {
+			return false;
+		}
+	}
+	// Infrastructure namespaces. A 404 under these is worth knowing about, but it
+	// is never answered by redirecting to a content page -- and the basename-only
+	// matcher will happily offer one (/_sn/login-guard/version -> /contact/personal).
+	$infra_prefixes = array( '/api/', '/apis/', '/_sn/', '/v1/', '/v2/', '/graphql', '/rest/', '/oauth', '/.well-known/' );
+	foreach ( $infra_prefixes as $prefix ) {
+		if ( 0 === strpos( $lower, $prefix ) ) {
+			return false;
+		}
 	}
 	// v10.48.0: a path SEGMENT that is a bare run of 12+ digits. Observed live as
 	// real site paths with a random 19-digit suffix bolted on —
@@ -240,8 +268,21 @@ function sn_404_log_clear() {
 // The similar_text percent floor a published slug must clear before it is
 // offered as a redirect-target suggestion. Conservative: a weak match prefills
 // nothing (an empty box beats a wrong guess the owner rubber-stamps).
+//
+// v13.109.7: 65.0 -> 72.0. Measured on the live log 2026-09-10, EVERY wrong
+// suggestion scored exactly 66.7% -- `account`/`about`, `metrics`/`services`,
+// `falsifiability`/`accessibility`, `users.js`/`uses`. similar_text's percent is
+// 2*matched/(len1+len2), and weak pairs land on two thirds repeatedly, so the
+// old floor sat 1.7 points BELOW the value noise clusters at. The one genuinely
+// good suggestion in the same log scored 88.9% (`as-substrate.js` ->
+// `as-substrate`), so 72 clears the noise without touching the signal.
+//
+// The floor is the second line of defence. The first is sn_404_should_capture(),
+// which now refuses to log non-content paths at all -- a suggestion is only ever
+// as good as the question it answers, and "what should /api/account redirect to?"
+// has no right answer.
 if ( ! defined( 'SN_404_SUGGEST_MIN_PCT' ) ) {
-	define( 'SN_404_SUGGEST_MIN_PCT', 65.0 );
+	define( 'SN_404_SUGGEST_MIN_PCT', 72.0 );
 }
 
 /** Recent 404 rows the get-404-log ability returns at most. */

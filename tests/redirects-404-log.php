@@ -296,5 +296,66 @@ ok( count( $kept ) <= SN_404_LOG_MAX, 'evict: result respects the cap' );
 ok( isset( $kept['/notes/desing-tokens'] ), 'evict: the actionable entry SURVIVES a flood of probes (the live bug — noise was evicting signal)' );
 
 
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.109.7 — the suggester's noise floor, measured rather than guessed
+ *
+ * Live 404 log, 2026-09-10: 192 paths presented as actionable, 8 classified as
+ * probes. EVERY wrong suggestion in it scored exactly 66.7% against a 65.0
+ * floor. similar_text's percent is 2*matched/(len1+len2), and weak pairs land on
+ * two thirds repeatedly, so the floor sat 1.7 points below where noise clusters.
+ *
+ * The harm was not hypothetical: /about.php7 -> /about was accepted, so a
+ * scanner probe became a permanent 301 in site configuration.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+echo "\n-- v13.109.7: the noise floor --\n";
+
+// The four pairs observed live, with the percent each actually scores.
+$sn_noise = array(
+	array( 'account', 'about' ),
+	array( 'metrics', 'services' ),
+	array( 'falsifiability', 'accessibility' ),
+	array( 'users.js', 'uses' ),
+);
+foreach ( $sn_noise as $pair ) {
+	$pct = 0.0;
+	similar_text( $pair[0], $pair[1], $pct );
+	ok( round( $pct, 1 ) === 66.7, "noise pair scores 66.7% as measured live: {$pair[0]} vs {$pair[1]}" );
+	ok( $pct < SN_404_SUGGEST_MIN_PCT, "...and is now BELOW the floor: {$pair[0]}" );
+}
+// The one good suggestion in the same log must survive.
+$sn_good = 0.0;
+similar_text( 'as-substrate.js', 'as-substrate', $sn_good );
+ok( $sn_good >= SN_404_SUGGEST_MIN_PCT, 'the genuine typo suggestion still clears the floor (88.9%)' );
+// Guard the guard: a floor at or below 66.7 would readmit every pair above.
+ok( SN_404_SUGGEST_MIN_PCT > 66.7, 'the floor sits ABOVE the value weak matches cluster at' );
+
+echo "\n-- v13.109.7: non-content paths are never logged as broken links --\n";
+
+// Each of these was in the live log WITH a wrong suggestion attached.
+$sn_reject = array(
+	'/about.php7'                 => 'a scanner probe that was accepted into a permanent 301',
+	'/apis/controllers/users.js'  => 'a .js path offered /about/uses',
+	'/api/account'                => 'an infra namespace offered /about',
+	'/_sn/login-guard/version'    => 'our own infra offered /contact/personal',
+	'/metrics'                    => 'offered /services',
+	'/graphql'                    => 'scanner staple',
+);
+foreach ( $sn_reject as $sn_path => $sn_why ) {
+	ok( false === sn_404_should_capture( $sn_path ), "not captured ($sn_why): $sn_path" );
+}
+
+// NEGATIVE CONTROLS — the filter must not eat real broken links.
+$sn_keep = array(
+	'/notes/desing-tokens'   => 'a genuine typo of a published slug',
+	'/tag/falsifiability'    => 'a real tag archive: still logged, just no longer mis-suggested',
+	'/notes/hero.png'        => 'a linkable asset a human could have linked to',
+	'/resume.pdf'            => 'a moved PDF',
+	'/start-here'            => 'a real moved page',
+);
+foreach ( $sn_keep as $sn_path => $sn_why ) {
+	ok( true === sn_404_should_capture( $sn_path ), "STILL captured ($sn_why): $sn_path" );
+}
+
 echo "\n$passes passed, $fails failed\n";
 exit( $fails === 0 ? 0 : 1 );
