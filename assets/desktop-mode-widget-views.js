@@ -334,7 +334,7 @@
 			var link = el( 'a', {
 				href: analyticsUrl,
 				text: 'Open Analytics →',
-				style: 'display:inline-block;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;opacity:.75;'
 			} );
 			wrap.appendChild( link );
 		}

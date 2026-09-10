@@ -214,7 +214,7 @@
 
 		if ( dashboardUrl ) {
 			wrap.appendChild( el( 'a', {
-				style: 'display:inline-block;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;',
+				style: 'display:inline-flex;align-items:center;min-height:24px;margin-top:8px;font-size:11px;color:var(--os-window-link-accent, #4a9eff);text-decoration:none;',
 				text:  'Open Dashboard →',
 				href:  dashboardUrl,
 			} ) );
