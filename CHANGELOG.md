@@ -12,6 +12,8 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+## [13.109.18] - 2026-09-10 — a rewritten link answers the keyboard
+
 ### Fixed
 - **Every link the window rewriter un-hrefed was mouse-only.** `snt_os_host_rewrite_link()` drops an anchor's `href` so a click cannot navigate the whole desktop out from under the window — necessary and correct — but an `<a>` with no `href` is not focusable and exposes no role, and nothing put either back. Measured on the running product: seven S&N Analytics cross-view links (*Content →*, *Sessions →*, *Geography →*, …) were reachable by pointer and by nothing else, `cursor: default` and all. The removal and its compensation now happen together in one `snt_os_host_unhref()`, which sets `tabindex="0"` and `role="link"` — they were separate before, which is exactly how the compensation went missing beside a removal that had to happen. A first diagnosis blamed `canonical.php` for stripping `os-action`; a controlled comparison against anchors that *kept* `os-action` found them equally unfocusable and withdrew it.
 - Enter and Space now activate those links. `assets/os-kit.js` listened for `click` alone, and an `<a>` without an `href` does not fire a click on Enter the way a real link does — so focusable-but-dead would have been worse than mouse-only. The new listener keys off the rewriter's own `role="link"`/`tabindex` marker rather than `.snt-go`, so it covers both the cross-tab links this file dispatches and the `os-action` links the framework runtime dispatches.
@@ -21,9 +23,4 @@ adds a bullet below. A release is a separate, deliberate act:
 ### Added
 - `tests/openstation-app-contrast-tier.php` pins the *rule* rather than the two rules it was born from: `--os-ui-fg-faint` may not be the `color` of small text in an app stylesheet. It parses each rule's own font declaration so the WCAG large-text exemption still applies, and carries its own negative controls — it must detect the exact shape that shipped, and must not flag a 28px heading or a border that uses the same token correctly.
 - `tests/openstation-host.php` gains two pins: an anchor that **lost** its href gains `tabindex`/`role`, and an anchor that **kept** one gains neither — without the second, a fix that tabindexed every anchor would put the `mailto:` and the `#fragment` into the tab order and pass.
-
-## [13.109.17] - 2026-09-10 — the view resolves through storage
-
-### Fixed
-- **The Signal & Noise view switch actually survives a reload now.** v13.109.15 claimed this and did not deliver: it seeded `state.view` from storage in `mounted()`, and the seed ran *before* the app hydrated `state` from the PHP schema, whose `'view' => 'icons'` then overwrote it. Measured on the shipped build — stored `list`, `state.view` `icons`, forty tiles painted. The action was never at fault (dispatching the same one later works); the timing was, and the framework offers no post-hydration hook to move the seed into. The view is now resolved **through storage at paint time**, by the render function that runs after every hydration — so there is no moment at which a stale `state.view` can be painted, nothing is dispatched during render, and no "already seeded" flag is needed. The toggle reads the same resolver, so the control always matches what is on screen.
 
