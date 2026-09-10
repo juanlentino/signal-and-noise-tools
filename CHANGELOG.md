@@ -12,6 +12,11 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- The 404 log's redirect suggester stopped proposing nonsense. Measured on the live log 2026-09-10: **192 paths** presented as actionable against **8** classified as scanner probes, and **every wrong suggestion scored exactly 66.7%** — `account`/`about`, `metrics`/`services`, `falsifiability`/`accessibility`, `users.js`/`uses`. `similar_text()`'s percent is `2*matched/(len1+len2)`, so weak pairs land on two thirds repeatedly and the 65.0 floor sat **1.7 points below where noise clusters**. The floor is now 72.0; the one genuine suggestion in the same log (`as-substrate.js` → `as-substrate`, 88.9%) is unaffected.
+- Paths that were never content are no longer logged as broken links at all. A file extension this site does not publish is rejected outright — with an allowlist for things a human could genuinely have linked to (`pdf`, images, `txt`, `xml`, `ics`) — as are the infrastructure namespaces `/api/`, `/apis/`, `/_sn/`, `/v1/`, `/graphql`, `/rest/`, `/oauth`. This was not hypothetical harm: `/about.php7` was suggested → `/about` and **accepted**, so a vulnerability-scanner probe is now a permanent 301 in site configuration. `/metrics`, `/health`, `/status`, `/debug`, `/console` and `/swagger` join the single-segment scanner-guess list.
+- A real broken link still surfaces. `/notes/desing-tokens` (a genuine typo), `/tag/falsifiability` (a real archive that was merely mis-suggested), `/notes/hero.png` and `/resume.pdf` are all still captured — pinned as negative controls, because a filter that quietly swallows real 404s would be worse than the noise it removes.
+
 ## [13.109.6] - 2026-09-10 — the write door stops eating backslashes
 
 ### Fixed
