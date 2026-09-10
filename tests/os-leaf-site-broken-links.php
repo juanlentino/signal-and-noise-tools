@@ -1,16 +1,21 @@
 <?php
 /**
- * Native window leaf: Site → Redirects (apps/sn-dashboard/parts/leaves/site-redirects.php).
+ * Native window leaf: Site -> Broken links
+ * (apps/sn-dashboard/parts/leaves/site-broken-links.php).
  *
- * The oracle is the classic leaf (inc/redirects-admin.php through
- * sn_admin_render_redirects_section()): the kit forms must carry the same field
- * names and the same six sn_action values, every readout (redirects newest
- * first, the add form, the broken-links status, the probe bucket, one section
- * per broken path with its slug suggestion, the whole-log clear) must be
- * painted, a hostile path must be escaped, and none of wp-admin's markup may
- * survive — in the rich, the empty and the probes-only state.
+ * The oracle is the classic leaf (inc/admin-render-sections.php through
+ * sn_admin_render_broken_links_section()): the kit must carry the same
+ * sn_action values, and every readout (the broken-links status, the probe
+ * bucket, one section per broken path with its slug suggestion, the busiest-
+ * probes fold, the whole-log clear) must be painted, a hostile path must be
+ * escaped, and none of wp-admin's markup may survive -- in the rich, the
+ * empty and the probes-only state.
  *
- * Run: php tests/os-leaf-site-redirects.php
+ * It also pins the SPLIT from this side: this leaf paints no redirect
+ * edit/delete action and no rail. The redirects half is pinned by
+ * tests/os-leaf-site-redirects.php.
+ *
+ * Run: php tests/os-leaf-site-broken-links.php
  */
 require_once __DIR__ . '/lib/os-leaf-harness.php';
 
