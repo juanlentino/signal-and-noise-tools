@@ -377,7 +377,7 @@ if ( '' === $api ) {
 		while ( $walk->next_tag( $tag ) ) {
 			if ( null === $id || $id === $walk->get_attribute( 'id' ) ) {
 				$read = array();
-				foreach ( array( 'os-action', 'os-arg-tab', 'os-arg-sub', 'os-arg-anchor', 'os-arg-url', 'os-arg-pipeline', 'os-arg-sn_tag_preview', 'os-arg-sn_worker_recheck', 'os-arg-_wpnonce', 'href', 'method', 'action', 'target', 'rel', 'name', 'data-snt-submit' ) as $name ) {
+				foreach ( array( 'os-action', 'os-arg-tab', 'os-arg-sub', 'os-arg-anchor', 'os-arg-url', 'os-arg-pipeline', 'os-arg-sn_tag_preview', 'os-arg-sn_worker_recheck', 'os-arg-_wpnonce', 'href', 'method', 'action', 'target', 'rel', 'name', 'data-snt-submit', 'tabindex', 'role' ) as $name ) {
 					$read[ $name ] = $walk->get_attribute( $name );
 				}
 				return $read;
@@ -440,6 +440,12 @@ if ( '' === $api ) {
 		&& '<a id="lnk-frag" href="#sn-sec-identity">' === $tag( 'lnk-frag' )
 		&& '<a id="lnk-mail" href="mailto:juan@example.test">' === $tag( 'lnk-mail' ),
 		'a targeted external link, a #fragment (the composite leaf\'s section tabs) and a mailto: are untouched -- byte for byte' );
+	ok( '0' === $health['tabindex'] && 'link' === $health['role']
+		&& '0' === $updates['tabindex'] && 'link' === $updates['role'],
+		'an anchor that LOST its href gains tabindex=0 and role=link -- dropping href is what stops a window navigating the desktop, but a bare <a> with no href is not focusable and exposes no role, so the control became mouse-only (7 Analytics cross-links measured unreachable on the running product, 2026-09-10)' );
+	ok( null === $repo['tabindex'] && null === $repo['role']
+		&& null === $attrs( $out, 'A', 'lnk-mail' )['tabindex'] && null === $attrs( $out, 'A', 'lnk-frag' )['role'],
+		'   ...and an anchor that KEPT its href gains neither -- it is already focusable and already a link; a fix that tabindexes every anchor would put the mailto: and the #fragment into the tab order twice over' );
 	ok( false !== strpos( $out, '<script data-snt-exec="1">' ),
 		'an inline <script> is marked for re-execution -- painted HTML lands by innerHTML, where a script tag never runs' );
 	ok( 2 === substr_count( $out, 'data-snt-submit="1"' ) && false === strpos( $out, 'name="noop" data-snt-submit' ),

@@ -499,6 +499,28 @@ function snt_os_host_rewrite_submitter( $tags ) {
  * @param string[]              $own  `page=` slugs this window paints itself.
  * @return void
  */
+/**
+ * Drop an anchor's `href` AND restore what the browser gave it for free.
+ *
+ * The href has to go: the runtime does not preventDefault a click, so a
+ * surviving href navigates the whole desktop rather than the window. But an
+ * `<a>` with no href is not focusable and exposes no role, so every rewritten
+ * link became mouse-only -- measured on the running product 2026-09-10, seven
+ * S&N Analytics cross-view links ("Content ->", "Sessions ->", ...) reachable
+ * by pointer and by nothing else.
+ *
+ * The two are done together, here, because they were separate before: the
+ * removal is required and the compensation is easy to forget beside it.
+ *
+ * @param WP_HTML_Tag_Processor $tags Positioned on the anchor.
+ * @return void
+ */
+function snt_os_host_unhref( $tags ) {
+	$tags->remove_attribute( 'href' );
+	$tags->set_attribute( 'tabindex', '0' );
+	$tags->set_attribute( 'role', 'link' );
+}
+
 function snt_os_host_rewrite_link( $tags, array $own ) {
 	if ( null !== $tags->get_attribute( 'os-action' ) ) {
 		return;
@@ -529,7 +551,7 @@ function snt_os_host_rewrite_link( $tags, array $own ) {
 	parse_str( (string) wp_parse_url( $absolute, PHP_URL_QUERY ), $query );
 	$page = isset( $query['page'] ) ? (string) $query['page'] : '';
 	if ( ! in_array( $page, $own, true ) ) {
-		$tags->remove_attribute( 'href' );
+		snt_os_host_unhref( $tags );
 		$tags->set_attribute( 'os-action', 'door' );
 		$tags->set_attribute( 'os-arg-url', $absolute );
 		return;
@@ -560,7 +582,7 @@ function snt_os_host_rewrite_link( $tags, array $own ) {
 		}
 	}
 
-	$tags->remove_attribute( 'href' );
+	snt_os_host_unhref( $tags );
 	$tags->set_attribute( 'os-action', 'go' );
 	if ( '' !== $tab ) {
 		$tags->set_attribute( 'os-arg-tab', $tab );

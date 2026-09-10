@@ -784,7 +784,7 @@ snt-analytics-table os-table { display: block; width: 100%; }
 	color: var(--os-ui-fg);
 }
 
-.snt-app[data-os-app="sn-analytics"] :is(.sn-an-sep, .sn-an-subh, .sn-an-visitor-note, .sn-an-compare-note, .sn-trend-meta, .sn-an-dist-l, .sn-an-hm-day, .sn-an-delta--flat, .sn-delta-flat) {
+.snt-app[data-os-app="sn-analytics"] :is(.sn-an-sep, .sn-an-subh, .sn-an-visitor-note, .sn-an-compare-note, .sn-trend-meta, .sn-an-dist-l, .sn-an-hm-day, .sn-an-delta--flat, .sn-delta-flat, .sn-an-settings-help) {
 	color: var(--os-ui-fg-muted);
 }
 
