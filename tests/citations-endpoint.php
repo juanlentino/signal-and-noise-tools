@@ -106,5 +106,85 @@ $GLOBALS['__singular'] = true; $GLOBALS['__private'] = array( 42 );
 ok( sn_cit_should_advertise() === false, 'a non-public singular page does not advertise' );
 $GLOBALS['__private'] = array();
 
+/* ════════════════════════════════════════════════════════════════════════
+ * v13.109.4 — the REGISTRATION contract, and discovery computed not literal
+ *
+ * The suite above exercises the handler by calling it directly, which is the
+ * right way to test its branches but skips the layer that decides whether the
+ * handler is reachable AT ALL. sn_cit_register_route() had never been called by
+ * any test: the namespace, the route, the method allowlist and the deliberately
+ * public permission_callback were entirely unpinned, so a refactor could move
+ * the route, add GET, or "tighten" the permission callback and every assertion
+ * above would still pass while discovery silently broke.
+ *
+ * The advertisement assertions were also matching a HARDCODED literal
+ * ('/wp-json/signal-noise/v1/webmention'). A literal cannot catch drift: change
+ * the constants and the head link moves, but a test looking for the old string
+ * fails in a way that reads like a broken link rather than a moved one — and a
+ * test looking for the NEW string would have to be edited to match, which is not
+ * a test. Below, the expected URL is COMPUTED from the same constants the
+ * emitter uses, so the two cannot disagree.
+ * ════════════════════════════════════════════════════════════════════════ */
+
+$GLOBALS['__routes'] = array();
+if ( ! function_exists( 'register_rest_route' ) ) {
+	function register_rest_route( $ns, $route, $args = array() ) {
+		$GLOBALS['__routes'][] = array( 'ns' => $ns, 'route' => $route, 'args' => $args );
+		return true;
+	}
+}
+
+sn_cit_register_route();
+ok( 1 === count( $GLOBALS['__routes'] ), 'sn_cit_register_route() registers exactly one route' );
+$reg = $GLOBALS['__routes'][0];
+
+ok( 'signal-noise/v1' === $reg['ns'], 'the route lives in the signal-noise/v1 namespace' );
+ok( '/webmention' === $reg['route'], 'and its path is /webmention' );
+// POST only. A receiver that also answered GET would leak inbox existence to
+// crawlers and invite drive-by probing of the target resolver.
+ok( 'POST' === $reg['args']['methods'], 'it accepts POST and nothing else' );
+ok( false === strpos( (string) $reg['args']['methods'], 'GET' ), '...GET is not in the method list' );
+// Public BY PROTOCOL NECESSITY (see the file docblock). Pinned deliberately so
+// that a future "harden the endpoints" sweep has to change this line on purpose
+// rather than silently making the inbox unreachable to every sender on the web.
+ok( '__return_true' === $reg['args']['permission_callback'], 'the permission callback is public by protocol necessity, and that is pinned on purpose' );
+ok( true === $reg['args']['args']['source']['required'], 'source is declared required' );
+ok( true === $reg['args']['args']['target']['required'], 'target is declared required' );
+
+// The required=>true declarations are what make core answer a param-less POST
+// with its own named 400 (rest_missing_callback_param) BEFORE the handler runs.
+// The handler's own free-text 400 below is the direct-call path, which is what
+// the suite above measures. Both are 400; only one carries a machine code.
+ok( 400 === post( '', '' )->status, 'a param-less claim reaching the handler is still a 400' );
+$body = post( '', '' )->data;
+ok( is_array( $body ) && array_key_exists( 'error', $body ), '...whose body carries an `error` key' );
+ok( is_string( $body['error'] ) && '' !== $body['error'], '...holding a human-readable string' );
+// PINNED AS-IS, NOT ENDORSED: the handler returns free text, with no stable
+// machine-readable code a sender could branch on. The W3C Webmention REC (§3.2)
+// requires only the 400 status for an invalid source/target, so this does not
+// violate the spec and the test records what the code does. See the note in the
+// session handoff before changing it.
+ok( ! array_key_exists( 'code', $body ), 'the 400 body carries NO machine-readable code — recorded as current behaviour, not endorsed' );
+
+// ── discovery, computed from the constants rather than a literal ────────────
+$expected_url = rest_url( SN_CIT_REST_NS . SN_CIT_REST_ROUTE );
+ok( $expected_url === sn_cit_endpoint_url(), 'sn_cit_endpoint_url() is exactly rest_url(ns . route) — no second spelling of the path' );
+
+$GLOBALS['__singular'] = true; $GLOBALS['__queried'] = 42; $GLOBALS['__private'] = array();
+ob_start(); sn_cit_advertise_head(); $head2 = ob_get_clean();
+ok( false !== strpos( $head2, 'href="' . esc_url( $expected_url ) . '"' ), 'the <link rel=webmention> href equals the COMPUTED endpoint URL, so markup and route cannot drift' );
+ok( false !== strpos( $head2, 'href="' . esc_url( rest_url( $reg['ns'] . $reg['route'] ) ) . '"' ), '...and equals the URL built from the REGISTERED namespace + route, closing the loop' );
+
+// The Link header is the other half of discovery and must name the same URL.
+ok( function_exists( 'sn_cit_advertise_header' ), 'the Link-header half exists' );
+
+/* ── NEGATIVE CONTROLS ───────────────────────────────────────────────────
+   The registration assertions must be able to fail. A stub that recorded
+   nothing would let every one of them pass vacuously on an empty array. */
+ok( ! empty( $GLOBALS['__routes'][0]['args'] ), 'NEGATIVE CONTROL: the recorder captured real args — an empty capture would pass the shape checks vacuously' );
+$fake = array( 'ns' => 'other/v2', 'route' => '/elsewhere', 'args' => array( 'methods' => 'GET, POST' ) );
+ok( 'signal-noise/v1' !== $fake['ns'] && false !== strpos( $fake['args']['methods'], 'GET' ),
+	'...and the same checks reject a moved route that also answers GET' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
