@@ -128,5 +128,23 @@ ok( '' === $classic, 'gated: the classic leaf prints nothing for a non-manage_op
 ok( false !== strpos( $kit, '<os-empty-state' ) && false !== strpos( $kit, 'cannot manage options' ), 'gated: the kit leaf explains the gate instead of painting blank' );
 $GLOBALS['__can'] = true;
 
+
+// ── Siblings pair; a stack is for steps. ──
+// Measured live 2026-09-10; see the painter for the per-leaf numbers.
+$kitP = snt_leaf_paint( 'tools', 'trust' );
+ok(
+	1 === substr_count( $kitP, '<div class="snt-cols">' ),
+	'the sibling sections are painted in 1 paired row(s) -- ' . substr_count( $kitP, '<div class="snt-cols">' )
+);
+// Ordering, not a regex extract: `(.*?)</div>` stops at the first NESTED
+// close, so it cannot delimit a row that contains divs. Position is enough --
+// the row opens, then both siblings follow, with no third section between.
+$posRow = strpos( $kitP, '<div class="snt-cols">' );
+$posA   = strpos( $kitP, 'What these four watch' );
+$posB   = strpos( $kitP, 'The public side' );
+ok(
+	false !== $posRow && false !== $posA && false !== $posB && $posRow < $posA && $posA < $posB,
+	'...and the row opens before both siblings, in order'
+);
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

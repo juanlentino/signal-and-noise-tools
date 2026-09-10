@@ -71,5 +71,23 @@ ok( false !== strpos( $kit, 'Module bypassed' ) && false !== strpos( $kit, '>Byp
 unlink( WP_PLUGIN_DIR . '/wps-hide-login/wps-hide-login.php' );
 rmdir( WP_PLUGIN_DIR . '/wps-hide-login' );
 rmdir( WP_PLUGIN_DIR );
+
+// ── Siblings pair; a stack is for steps. ──
+// Measured live 2026-09-10; see the painter for the per-leaf numbers.
+$kitP = snt_leaf_paint( 'security', 'login' );
+ok(
+	1 === substr_count( $kitP, '<div class="snt-cols">' ),
+	'the sibling sections are painted in 1 paired row(s) -- ' . substr_count( $kitP, '<div class="snt-cols">' )
+);
+// Ordering, not a regex extract: `(.*?)</div>` stops at the first NESTED
+// close, so it cannot delimit a row that contains divs. Position is enough --
+// the row opens, then both siblings follow, with no third section between.
+$posRow = strpos( $kitP, '<div class="snt-cols">' );
+$posA   = strpos( $kitP, 'Custom login slug' );
+$posB   = strpos( $kitP, 'Emergency unlock' );
+ok(
+	false !== $posRow && false !== $posA && false !== $posB && $posRow < $posA && $posA < $posB,
+	'...and the row opens before both siblings, in order'
+);
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

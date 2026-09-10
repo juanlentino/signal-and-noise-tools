@@ -102,8 +102,14 @@ function paint_monitoring_rss( array $ctx ) {
 	$out  = rss_flash_html( $flash );
 	$out .= \snt_kit_section( __( 'Activity', 'signal-and-noise-tools' ), rss_activity_html( $state['stats'] ) );
 	$out .= \snt_kit_section( __( 'Recent requests', 'signal-and-noise-tools' ), rss_recent_table_html( $state['recent'] ) );
-	$out .= \snt_kit_section( __( 'Settings', 'signal-and-noise-tools' ), rss_settings_form_html( $state['settings'], $tab ) . rss_reset_form_html() );
-	$out .= rss_maintenance_html( $state['settings'] );
+	// Activity and Recent requests keep the width -- one is a stat row, the other
+	// a table. Settings and Maintenance are siblings: both manage the feed.
+	$out .= \snt_kit_tag(
+		'div',
+		array( 'class' => 'snt-cols' ),
+		\snt_kit_section( __( 'Settings', 'signal-and-noise-tools' ), rss_settings_form_html( $state['settings'], $tab ) . rss_reset_form_html() )
+		. rss_maintenance_html( $state['settings'] )
+	);
 	return $out;
 }
 

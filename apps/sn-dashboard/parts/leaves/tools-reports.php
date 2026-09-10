@@ -96,6 +96,7 @@ function paint_tools_reports( array $ctx ) {
 
 	$out = '<p class="snt-prose">' . \snt_kit_esc( __( 'Checks that measure and publish rather than flag. Nothing here is a defect list — read the coverage line before reading the numbers.', 'signal-and-noise-tools' ) ) . '</p>';
 
+	$cards     = array();
 	$renderers = tools_reports_renderers();
 	foreach ( (array) $data['reports'] as $key => $check ) {
 		$report = isset( $check['report'] ) && is_array( $check['report'] ) ? $check['report'] : array();
@@ -114,7 +115,17 @@ function paint_tools_reports( array $ctx ) {
 		} else {
 			$body .= '<p class="snt-hint">' . \snt_kit_esc( __( 'This report has no detail view yet — its payload is available through the health-scan ability.', 'signal-and-noise-tools' ) ) . '</p>';
 		}
-		$out .= \snt_kit_section( $label, $body );
+		$cards[] = \snt_kit_section( $label, $body );
+	}
+
+	// Each report is an independent measurement; nothing about the second
+	// depends on the first. Siblings, so a grid.
+	for ( $i = 0, $n = count( $cards ); $i < $n; $i += 2 ) {
+		$out .= \snt_kit_tag(
+			'div',
+			array( 'class' => 'snt-cols' ),
+			$cards[ $i ] . ( isset( $cards[ $i + 1 ] ) ? $cards[ $i + 1 ] : '' )
+		);
 	}
 
 	return $out;

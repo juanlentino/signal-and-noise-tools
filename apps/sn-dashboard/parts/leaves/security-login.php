@@ -97,18 +97,22 @@ function paint_security_login( array $ctx ) {
 	// so in the locked state the Save button stays live and the handler is the guard — as it already is on the
 	// classic page, where a crafted POST is likewise unblocked (leaves.json note).
 	$form = \snt_kit_form( 'save_login', $inner, array( 'submit' => __( 'Save', 'signal-and-noise-tools' ) ) );
-	$out .= \snt_kit_section(
+	// Siblings: both are how the login surface is reached -- one sets the door,
+	// the other is the way back in when you lose it. Paired, the leaf also trips
+	// the width-cap escape, so each gets ~850px instead of a 760px form column.
+	$pair  = \snt_kit_section(
 		__( 'Custom login slug', 'signal-and-noise-tools' ),
 		$form,
 		__( 'The path segment used in place of wp-login.php.', 'signal-and-noise-tools' )
 	);
 
-	$out .= \snt_kit_section(
+	$pair .= \snt_kit_section(
 		__( 'Emergency unlock', 'signal-and-noise-tools' ),
 		'<p class="snt-prose">' . \snt_kit_esc( __( "If you ever lock yourself out (forgot the slug, can't reach the login form), add either of these constants to wp-config.php via SSH or your host's file manager:", 'signal-and-noise-tools' ) ) . '</p>'
 		. \snt_kit_code( "// Option 1: pin the slug. Reachable at /<slug-here>.\ndefine( 'SN_LOGIN_SLUG', 'your-fallback-slug' );\n\n// Option 2 — disable the module entirely. Restores /wp-login.php.\ndefine( 'SN_LOGIN_BYPASS', true );" )
 		. '<p class="snt-prose">' . \snt_kit_esc( __( "The constants take priority over the setting and persist across plugin updates. Remove them once you've regained access.", 'signal-and-noise-tools' ) ) . '</p>'
 	);
+	$out .= \snt_kit_tag( 'div', array( 'class' => 'snt-cols' ), $pair );
 	return $out;
 }
 
