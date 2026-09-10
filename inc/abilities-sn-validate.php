@@ -165,6 +165,26 @@ function snt_sn_validate_resolve_surface( $surface, $post, array $proposed ) {
 			$v = (string) ( $post->post_excerpt ?? '' );
 			return '' !== trim( $v ) ? array( 'value' => $v, 'source' => 'published' ) : null;
 		case 'meta_description':
+			// v13.109.3: grade the string that SHIPS, not the one that happens
+			// to be stored. The front page, /notes and /provenance take their
+			// description from seo_copy.* settings and never emit
+			// _sn_meta_description at all (inc/seo.php's route branches), so
+			// grading the post meta on those three routes scores a string no
+			// crawler can see. Measured on /provenance 2026-09-10: meta row
+			// 175 chars, shipped 83 — the char_range warning was unsatisfiable
+			// by editing either value alone.
+			//
+			// The route table is NOT re-derived here; sn_seo_description_setting_key()
+			// is its single source, so a fourth route-served Page lands in one place.
+			$route_key = function_exists( 'sn_seo_description_setting_key' )
+				? sn_seo_description_setting_key( $post )
+				: '';
+			if ( '' !== $route_key ) {
+				$v = function_exists( 'sn_seo_description_for_post' )
+					? (string) sn_seo_description_for_post( $post )
+					: '';
+				return '' !== trim( $v ) ? array( 'value' => $v, 'source' => 'published' ) : null;
+			}
 			$v = (string) get_post_meta( $post->ID, '_sn_meta_description', true );
 			return '' !== trim( $v ) ? array( 'value' => $v, 'source' => 'published' ) : null;
 		case 'og_card_title':
