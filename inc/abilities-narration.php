@@ -63,7 +63,7 @@ add_action( 'wp_abilities_api_init', function() {
 
 	wp_register_ability( 'signal-noise/get-narration', array(
 		'label'               => 'Get Weekly Analytics Digest',
-		'description'         => 'Returns the cached weekly analytics digest (headline + paragraphs + highlights + metadata), or null when none has been generated yet. Read-only — never triggers an AI call.',
+		'description'         => 'Returns the cached weekly analytics digest (headline + paragraphs + highlights + metadata) with state:ready; null when none has been generated yet; or state:unavailable with reason/message/failed_at when the last generation FAILED — a dead provider is reported as a fault, never as an empty digest. Read-only — never triggers an AI call.',
 		'category'            => 'diagnostics',
 		'permission_callback' => 'snt_ability_perm_manage_options',
 		'execute_callback'    => 'snt_ability_get_narration',
@@ -75,6 +75,10 @@ add_action( 'wp_abilities_api_init', function() {
 		'output_schema'       => array(
 			'type'       => array( 'object', 'null' ),
 			'properties' => array(
+				'state'        => array( 'type' => 'string', 'enum' => array( 'ready', 'unavailable' ) ),
+				'reason'       => array( 'type' => array( 'string', 'null' ) ),
+				'message'      => array( 'type' => array( 'string', 'null' ) ),
+				'failed_at'    => array( 'type' => array( 'integer', 'null' ) ),
 				'generated_at' => array( 'type' => array( 'integer', 'null' ) ),
 				'elapsed_ms'   => array( 'type' => array( 'integer', 'null' ) ),
 				'headline'     => array( 'type' => array( 'string', 'null' ) ),
@@ -141,5 +145,27 @@ function snt_ability_get_narration( $input ) {
 	if ( ! function_exists( 'snt_narration_last' ) ) {
 		return new WP_Error( 'snt_narration_unavailable', 'Narration module not loaded.', array( 'status' => 500 ) );
 	}
-	return snt_narration_last();
+	$last = snt_narration_last();
+	if ( is_array( $last ) ) {
+		return array_merge( $last, array( 'state' => 'ready' ) );
+	}
+	// No digest cached. Two nulls used to look identical here: "nothing has
+	// been generated yet" and "the provider is down and the last run failed".
+	// Only the second is a fault, and only the second is reported as one —
+	// the cold case stays null, which every existing reader already handles.
+	$err = function_exists( 'snt_narration_last_error' ) ? snt_narration_last_error() : null;
+	if ( is_array( $err ) ) {
+		return array(
+			'state'        => 'unavailable',
+			'reason'       => (string) ( $err['code'] ?? 'unknown' ),
+			'message'      => (string) ( $err['message'] ?? '' ),
+			'failed_at'    => isset( $err['at'] ) ? (int) $err['at'] : null,
+			'generated_at' => null,
+			'elapsed_ms'   => null,
+			'headline'     => null,
+			'paragraphs'   => array(),
+			'highlights'   => array(),
+		);
+	}
+	return null;
 }

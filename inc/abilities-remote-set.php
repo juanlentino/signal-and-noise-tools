@@ -215,6 +215,10 @@ add_action( 'wp_abilities_api_init', function () {
 		'output_schema'       => array(
 			'type'       => array( 'object', 'null' ),
 			'properties' => array(
+				'state'        => array( 'type' => 'string', 'enum' => array( 'ready', 'unavailable' ) ),
+				'reason'       => array( 'type' => array( 'string', 'null' ) ),
+				'message'      => array( 'type' => array( 'string', 'null' ) ),
+				'failed_at'    => array( 'type' => array( 'integer', 'null' ) ),
 				'generated_at' => array( 'type' => array( 'integer', 'null' ) ),
 				'elapsed_ms'   => array( 'type' => array( 'integer', 'null' ) ),
 				'headline'     => array( 'type' => array( 'string', 'null' ) ),

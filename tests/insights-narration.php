@@ -419,6 +419,26 @@ eq( 'snt_narration_invalid_json', ( snt_narration_last_error()['code'] ?? '' ), 
 snt_narration_clear_last_error();
 ok( null === snt_narration_last_error(), 'clear removes the stored error' );
 
+// ── Test: the cron handler WIRES the error helpers (2026-09-10) ──
+// The store/read/clear trio above was defined and tested for months while no
+// production path called it: snt_narration_cron_run() discarded the WP_Error
+// from snt_narration_run(). These pins make the wiring load-bearing — a
+// helper that is tested in isolation and never called is a guard that cannot
+// go red.
+echo "\nTest: cron handler records a failed run and clears it on success\n";
+// Drives the REAL snt_narration_run() through the stubbed generator, so the
+// pin covers the whole path from a provider refusal to the stored state.
+$GLOBALS['__transients'] = array();                      // no cache → generation runs
+$GLOBALS['__ai_response'] = new WP_Error( 'snt_ai_unavailable', 'Provider refused: credit exhausted.' );
+snt_narration_cron_run( true );
+$after_fail = snt_narration_last_error();
+ok( is_array( $after_fail ) && 'snt_ai_unavailable' === ( $after_fail['code'] ?? '' ), 'a provider WP_Error is STORED by the cron handler' );
+ok( null === snt_narration_last(), '   ...and no digest was cached in its place' );
+$GLOBALS['__ai_response'] = '{"headline":"Recovered","paragraphs":["Back."],"highlights":["ok"]}';
+snt_narration_cron_run( true );
+ok( null === snt_narration_last_error(), 'the next SUCCESSFUL run clears the stored failure' );
+ok( 'Recovered' === ( snt_narration_last()['headline'] ?? '' ), '   ...and the digest it produced is what is cached' );
+
 // ── Test: instruction gains the two conditional rules (v7.2.0) ──
 echo "\nTest: instruction conditional rules\n";
 $instr = snt_narration_system_instruction();
