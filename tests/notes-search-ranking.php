@@ -46,7 +46,7 @@ require_once __DIR__ . '/../inc/notes-search-ranking.php';
 
 // ── Fixture corpus: six notes, built with the kernel itself ─────────────
 $corpus = array(
-	11 => 'The provenance ledger anchors every note to Bitcoin. A ledger entry is a signed record.',
+	11 => 'The provenance ledger protects every note to Bitcoin. A ledger entry is a signed record.',
 	12 => 'Detection scales the wrong way. Watermarks fade; detection budgets grow. Nothing here about ledgers.',
 	13 => 'Verifying the artist is not enough. A signature proves a key, not a person.',
 	14 => 'A ledger without an anchor is a diary. The anchor is what makes the ledger public evidence.',
@@ -109,6 +109,43 @@ foreach ( $big_docs as $id => $t ) { $big[ $id ] = array( 'tf' => array_count_va
 seed_index( $big, $big_stats );
 snt_search_rank_notes( '', true );
 ok( SNT_SEARCH_RANK_CAP === count( snt_search_rank_notes( 'anchor' ) ) && 500 === SNT_SEARCH_RANK_CAP, 'the ranking is capped at 500 ids' );
+
+echo "\nGroup: posts_clauses — the theme's query, widened and ordered\n";
+seed_index( $search_docs, $stats );
+snt_search_rank_notes( '', true );
+$base = array( 'where' => " AND (((wp_posts.post_title LIKE '%ledger%') OR (wp_posts.post_content LIKE '%ledger%'))) AND wp_posts.post_type IN ('post','page') AND wp_posts.post_status = 'publish'", 'orderby' => 'wp_posts.post_date DESC', 'join' => '', 'groupby' => '', 'limits' => 'LIMIT 0, 50', 'distinct' => '', 'fields' => 'wp_posts.*' );
+
+// THE ACCEPTANCE FIXTURE. "ledger anchor": note 11 has "ledger" but not "anchor".
+// Core's every-word LIKE misses it; the kernel ranks it (14 first, then 11).
+ok( false === like_and( 'ledger anchor', $corpus[11] ), 'fixture: core LIKE-AND misses note 11 for "ledger anchor" (it lacks "anchor")' );
+ok( true === like_and( 'ledger anchor', $corpus[14] ), 'fixture: core LIKE-AND finds note 14 (it has both words)' );
+$untouched = snt_search_posts_clauses( $base, new WPQ_Stub( array( 's' => 'ledger anchor' ) ) ); // NO sn_notes_search flag
+ok( $untouched === $base, 'RED HALF: without the sn_notes_search flag the clauses are byte-identical — the query would still miss note 11' );
+$shaped = snt_search_posts_clauses( $base, new WPQ_Stub( array( 's' => 'ledger anchor', 'sn_notes_search' => true ) ) );
+ok( false !== strpos( $shaped['where'], 'wp_posts.ID IN (14,11)' ), 'GREEN HALF: the WHERE now admits the ranked ids (14,11) — note 11 is reachable' );
+ok( 0 === strpos( $shaped['where'], ' AND ( (1=1' . $base['where'] . ') OR (' ), 'the existing WHERE is kept whole inside the OR' );
+ok( false !== strpos( $shaped['where'], "wp_posts.post_status = 'publish' AND wp_posts.post_password = ''" ), 'the OR branch re-applies publish + no-password scope, so widening never out-scopes the query' );
+ok( 0 === strpos( $shaped['orderby'], 'FIELD(wp_posts.ID, 11,14) DESC, wp_posts.post_date DESC' ), 'FIELD() lists the ranked ids REVERSED (so the best gets the highest position under DESC), then the date order the theme had' );
+foreach ( array( 'join', 'groupby', 'limits', 'distinct', 'fields' ) as $k ) { ok( $shaped[ $k ] === $base[ $k ], "clause '$k' untouched" ); }
+ok( $base === snt_search_posts_clauses( $base, new WPQ_Stub( array( 's' => 'the of', 'sn_notes_search' => true ) ) ), 'a stopword-only term leaves the clauses byte-identical' );
+$no_order = $base; $no_order['orderby'] = '';
+$shaped2 = snt_search_posts_clauses( $no_order, new WPQ_Stub( array( 's' => 'ledger', 'sn_notes_search' => true ) ) );
+ok( 0 === strpos( $shaped2['orderby'], 'FIELD(' ), 'an empty theme orderby gets FIELD() alone, no dangling comma' );
+ok( ! str_ends_with( trim( $shaped2['orderby'] ), ',' ), 'no trailing comma' );
+// Injection guard: a string id from a rogue filter never reaches SQL.
+add_filter( 'snt_search_ranking_ids', function ( $ids ) { return array( '14; DROP TABLE wp_posts', 11 ); } );
+snt_search_rank_notes( '', true );
+$shaped3 = snt_search_posts_clauses( $base, new WPQ_Stub( array( 's' => 'ledger', 'sn_notes_search' => true ) ) );
+ok( false === strpos( $shaped3['where'], 'DROP' ) && false !== strpos( $shaped3['where'], 'IN (14,11)' ), 'ids are int-cast before they touch SQL' );
+$GLOBALS['__filters'] = array();
+snt_search_rank_notes( '', true );
+// Negative control: a wrong order must red the order pin.
+add_filter( 'snt_search_ranking_ids', function ( $ids ) { return array( 11, 14 ); } );
+snt_search_rank_notes( '', true );
+$shaped4 = snt_search_posts_clauses( $base, new WPQ_Stub( array( 's' => 'ledger', 'sn_notes_search' => true ) ) );
+ok( 0 !== strpos( $shaped4['orderby'], 'FIELD(wp_posts.ID, 11,14)' ), 'control: a reversed ranking produces a DIFFERENT FIELD() list — the order pin can fail' );
+$GLOBALS['__filters'] = array();
+snt_search_rank_notes( '', true );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

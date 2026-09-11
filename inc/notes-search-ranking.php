@@ -79,3 +79,52 @@ function snt_search_rank_notes( $term, $reset = false ) {
 	$memo[ $key ] = array_slice( $ids, 0, SNT_SEARCH_RANK_CAP );
 	return $memo[ $key ];
 }
+
+/**
+ * posts_clauses: shape the theme's search query. Untouched unless the query
+ * carries sn_notes_search => true AND the ranking is non-empty.
+ *
+ * WHERE: the existing clause is kept whole and OR-ed with the ranked ids;
+ * the OR branch re-applies publish + no-password, so widening can never
+ * out-scope the query it widens (a note unpublished since the last rebuild
+ * stays out).
+ *
+ * ORDER BY: FIELD(ID, …ids reversed…) DESC in front of whatever the theme
+ * ordered by. FIELD() returns the 1-based position or 0; with the list
+ * reversed the best-ranked id has the highest position, DESC puts it first,
+ * and every unranked row (0) sorts after all of them, in the theme's order.
+ *
+ * @param array  $clauses
+ * @param object $query   WP_Query (or a stand-in exposing get()).
+ * @return array
+ */
+function snt_search_posts_clauses( $clauses, $query = null ) {
+	if ( ! is_array( $clauses ) || ! is_object( $query ) || ! method_exists( $query, 'get' ) ) {
+		return $clauses;
+	}
+	if ( true !== $query->get( 'sn_notes_search' ) ) {
+		return $clauses;
+	}
+	$ids = snt_search_rank_notes( (string) $query->get( 's' ) );
+	if ( array() === $ids ) {
+		return $clauses;
+	}
+	global $wpdb;
+	$t    = isset( $wpdb->posts ) ? (string) $wpdb->posts : 'wp_posts';
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids are int-cast, table is $wpdb->posts
+	$list = implode( ',', array_map( 'intval', $ids ) ); // int-cast: the only thing that reaches SQL
+
+	$where = (string) ( $clauses['where'] ?? '' );
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids are int-cast, table is $wpdb->posts
+	$clauses['where'] = " AND ( (1=1{$where}) OR ( {$t}.ID IN ({$list}) AND {$t}.post_status = 'publish' AND {$t}.post_password = '' ) )";
+
+	// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- ids are int-cast, table is $wpdb->posts
+	$field   = 'FIELD(' . $t . '.ID, ' . implode( ',', array_reverse( array_map( 'intval', $ids ) ) ) . ') DESC';
+	$orderby = trim( (string) ( $clauses['orderby'] ?? '' ) );
+	$clauses['orderby'] = '' === $orderby ? $field : $field . ', ' . $orderby;
+	return $clauses;
+}
+
+if ( function_exists( 'add_filter' ) ) {
+	add_filter( 'posts_clauses', 'snt_search_posts_clauses', 10, 2 );
+}
