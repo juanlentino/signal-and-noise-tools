@@ -23,5 +23,6 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ### Changed
 - `.github/security-scan-instructions.md` §2 names the run route as a write surface, the guard as its control, and five change shapes that widen it.
+- README: *What it does* is now thirteen one-line headlines; the paragraphs moved verbatim under a new **In depth** section, and OpenStation's became a table. First screen 6,400 → 1,400 chars.
 - README: an **OpenStation** bullet naming what the plugin ships for the shell — the three native windows, ten widgets, 22 palette commands, the dock / badge / Station Home / PWA / Copilot seams — every count re-derived from the tree.
 
