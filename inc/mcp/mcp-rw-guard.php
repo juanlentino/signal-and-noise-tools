@@ -437,3 +437,200 @@ function sn_mcp_rw_rate_limit_gate() {
 	$identity    = sn_mcp_rw_rate_limit_identity( $app_pw_uuid, $ip_hash );
 	return sn_mcp_rw_rate_limit_check( $identity );
 }
+
+/* ════════════════════════════════════════════════════════════════════════
+ * The abilities run route (v13.110.0, enforcement audit 2026-09-11 §Phase 1).
+ *
+ * THE SEAM. WordPress registers POST /wp-abilities/v1/abilities/<slug>/run
+ * for every ability whose meta says show_in_rest => true — which is every rw
+ * door slug and the seven pre-consolidation apply abilities. That route is
+ * reachable with ANY manage_options application password, and until now none
+ * of the four controls above applied to it: the rw kill switch, the bound
+ * credential, the rate limit and the audit row all lived on
+ * /signal-noise/v1/mcp-rw alone. The comment in inc/sn-apply/gates.php that
+ * said "an unbound or mismatched UUID is denied at the door before sn_apply
+ * ever runs" was true of the door and false of this route. Only a Cloudflare
+ * WAF rule (dashboard, no repo) stood in front of it.
+ *
+ * WHY THE GUARD KEYS ON THE CREDENTIAL, NOT THE ROUTE. wp-admin's own buttons
+ * (assets/snt-ability-run.js, the command palette) call this SAME route with
+ * cookie + nonce. A route-keyed guard would break every admin button. So the
+ * guard applies exactly when the request authenticated by application
+ * password — the shape of the WAF rule, in code — and only for abilities not
+ * annotated readonly. Cookie-auth, CLI, and reads pass untouched. The read
+ * door's own run-route guard (mcp-read-guard.php) is unchanged and isolated,
+ * as before.
+ *
+ * The four controls run in the door's order and reuse the door's predicates
+ * and error vocabulary, so a refusal here is indistinguishable in code and
+ * message from a refusal at /mcp-rw. Refusals write a 'denied' audit row
+ * here; the outcome of an ALLOWED call is recorded on
+ * rest_request_after_callbacks (the door records after execution, and this
+ * hook is the only point on this route that sees the result).
+ * ════════════════════════════════════════════════════════════════════════ */
+
+/**
+ * The ability slug named by a native abilities run route, or '' for anything
+ * else. Own copy rather than a cross-call into mcp-read-guard.php: the two
+ * guards are isolated by design and must not gain a load-order dependency.
+ *
+ * @param string $route
+ * @return string
+ */
+function sn_mcp_rw_guard_route_slug( $route ) {
+	if ( ! is_string( $route ) || '' === $route ) {
+		return '';
+	}
+	if ( 1 !== preg_match( '#^/wp-abilities/v[0-9]+/abilities/(.+)/run$#', $route, $m ) ) {
+		return '';
+	}
+	return (string) $m[1];
+}
+
+/**
+ * Is a registered ability annotated readonly? Unknown ability (or no
+ * Abilities API at all) answers TRUE — the guard then steps aside and core
+ * answers 404 itself; a guard that refuses what does not exist would be an
+ * enumeration oracle.
+ *
+ * @param string $slug
+ * @return bool
+ */
+function sn_mcp_rw_guard_ability_is_readonly( $slug ) {
+	if ( ! function_exists( 'wp_get_ability' ) ) {
+		return true;
+	}
+	$ability = wp_get_ability( (string) $slug );
+	if ( ! $ability || ! method_exists( $ability, 'get_meta' ) ) {
+		return true;
+	}
+	$meta = (array) $ability->get_meta();
+	$decl = isset( $meta['annotations'] ) && is_array( $meta['annotations'] ) ? $meta['annotations'] : array();
+	return ! empty( $decl['readonly'] );
+}
+
+/**
+ * PURE predicate: the verdict for one app-password-authenticated write on the
+ * run route. Every input is injected; every refusal names the same code the
+ * door would name.
+ *
+ * @param bool  $kill_engaged Result of sn_mcp_rw_kill_switch_engaged().
+ * @param array $credential   Result of sn_mcp_rw_credential_decision().
+ * @param array $rate         Result of sn_mcp_rw_rate_limit_check().
+ * @return array{allow:bool,code:string,status:int,retry_after:int}
+ */
+function sn_mcp_rw_guard_run_route_decision( $kill_engaged, array $credential, array $rate ) {
+	if ( (bool) $kill_engaged ) {
+		return array( 'allow' => false, 'code' => 'rw_disabled', 'status' => 403, 'retry_after' => 0 );
+	}
+	if ( empty( $credential['allow'] ) ) {
+		return array( 'allow' => false, 'code' => (string) ( $credential['code'] ?? 'credential_not_authorized' ), 'status' => 403, 'retry_after' => 0 );
+	}
+	if ( empty( $rate['allow'] ) ) {
+		return array( 'allow' => false, 'code' => 'rate_limited', 'status' => 429, 'retry_after' => (int) ( $rate['retry_after'] ?? 0 ) );
+	}
+	return array( 'allow' => true, 'code' => '', 'status' => 200, 'retry_after' => 0 );
+}
+
+/**
+ * Does THIS request fall under the run-route guard at all? Three conditions,
+ * all required: a run route, an application-password credential, and an
+ * ability that is not readonly. Returns the slug when it does, '' otherwise.
+ *
+ * @param object|null $request
+ * @return string
+ */
+function sn_mcp_rw_guard_run_route_applies( $request ) {
+	$route = ( is_object( $request ) && method_exists( $request, 'get_route' ) ) ? (string) $request->get_route() : '';
+	$slug  = sn_mcp_rw_guard_route_slug( $route );
+	if ( '' === $slug ) {
+		return '';
+	}
+	if ( '' === sn_mcp_rw_authenticated_app_password_uuid() ) {
+		return '';
+	}
+	if ( sn_mcp_rw_guard_ability_is_readonly( $slug ) ) {
+		return '';
+	}
+	return $slug;
+}
+
+/**
+ * rest_pre_dispatch: the live guard. Never overrides an answer someone else
+ * already gave; never touches a request outside its three conditions.
+ *
+ * @param mixed       $result
+ * @param object|null $server
+ * @param object|null $request
+ * @return mixed
+ */
+function sn_mcp_rw_guard_run_route( $result, $server = null, $request = null ) {
+	if ( null !== $result ) {
+		return $result;
+	}
+	$slug = sn_mcp_rw_guard_run_route_applies( $request );
+	if ( '' === $slug ) {
+		return $result;
+	}
+
+	$verdict = sn_mcp_rw_guard_run_route_decision(
+		sn_mcp_rw_kill_switch_engaged(),
+		sn_mcp_rw_credential_authorize(),
+		sn_mcp_rw_rate_limit_gate()
+	);
+	if ( $verdict['allow'] ) {
+		return $result;
+	}
+
+	if ( 'rate_limited' === $verdict['code'] ) {
+		$error = new WP_Error(
+			'sn_mcp_rw_rate_limited',
+			sprintf(
+				/* translators: %d: seconds until the rate-limit window resets */
+				__( 'Rate limit exceeded for the MCP write door. Retry after %d seconds.', 'signal-and-noise-tools' ),
+				(int) $verdict['retry_after']
+			),
+			array( 'status' => 429, 'retry_after' => (int) $verdict['retry_after'] )
+		);
+	} else {
+		$error = sn_mcp_rw_error( $verdict['code'], $verdict['status'] );
+	}
+
+	if ( function_exists( 'sn_mcp_rw_audit_record' ) ) {
+		$args = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) ) ? (array) $request->get_json_params() : array();
+		sn_mcp_rw_audit_record( $slug, $args, 'denied', $error );
+	}
+	return $error;
+}
+
+/**
+ * rest_request_after_callbacks: record the outcome of an ALLOWED
+ * app-password write on the run route, so the audit log shows the same
+ * ok/error rows for this route that the door writes for /mcp-rw.
+ *
+ * @param mixed       $response
+ * @param mixed       $handler
+ * @param object|null $request
+ * @return mixed Untouched.
+ */
+function sn_mcp_rw_guard_run_route_audit( $response, $handler = null, $request = null ) {
+	if ( ! function_exists( 'sn_mcp_rw_audit_record' ) ) {
+		return $response;
+	}
+	$slug = sn_mcp_rw_guard_run_route_applies( $request );
+	if ( '' === $slug ) {
+		return $response;
+	}
+	$args = ( is_object( $request ) && method_exists( $request, 'get_json_params' ) ) ? (array) $request->get_json_params() : array();
+	if ( is_wp_error( $response ) ) {
+		sn_mcp_rw_audit_record( $slug, $args, 'error', $response );
+	} else {
+		sn_mcp_rw_audit_record( $slug, $args, 'ok', null );
+	}
+	return $response;
+}
+
+if ( function_exists( 'add_filter' ) ) {
+	add_filter( 'rest_pre_dispatch', 'sn_mcp_rw_guard_run_route', 10, 3 );
+	add_filter( 'rest_request_after_callbacks', 'sn_mcp_rw_guard_run_route_audit', 10, 3 );
+}

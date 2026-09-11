@@ -40,7 +40,7 @@ if ( ! defined( 'ABSPATH' ) ) {
  */
 function sn_health_check_cf_security_headers() {
 	$label    = 'Cloudflare security headers';
-	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress. A missing header means the edge rule was dropped or misconfigured: verify it in the Cloudflare dashboard.';
+	$fix_hint = 'These 5 headers are delivered at the Cloudflare edge (Transform Rule / Managed Headers), not by WordPress, and the abilities Basic-auth block is a WAF custom rule. A missing header or an open abilities route means the edge rule was dropped or misconfigured: verify it in the Cloudflare dashboard.';
 
 	// Allow the whole check to be filtered off (e.g., non-Cloudflare hosting).
 	if ( ! apply_filters( 'sn_health_cf_header_check_enabled', true ) ) {
@@ -138,6 +138,20 @@ function sn_health_check_cf_security_headers() {
 		set_transient( $cache_key, $missing, SN_HEALTH_CF_HEADERS_TTL );
 	}
 
+	// The WAF probe rides the same check: it is the same question ("is the
+	// edge rule still there?") about a rule the enforcement audit
+	// (2026-09-11) found to be the ONLY thing in front of the abilities run
+	// route for an external caller. Own cache key, same TTL; an
+	// indeterminate probe is never cached.
+	$waf_key = 'sn_health_cf_waf_abilities_probe';
+	$waf     = get_transient( $waf_key );
+	if ( ! is_string( $waf ) || '' === $waf ) {
+		$waf = sn_health_cf_waf_abilities_probe();
+		if ( 'unknown' !== $waf ) {
+			set_transient( $waf_key, $waf, SN_HEALTH_CF_HEADERS_TTL );
+		}
+	}
+
 	$findings = array();
 	$home_url = home_url( '/' );
 	foreach ( $missing as $header ) {
@@ -151,5 +165,80 @@ function sn_health_check_cf_security_headers() {
 		);
 	}
 
+	if ( 'open' === $waf ) {
+		$findings[] = array(
+			'subject_type'  => 'security_header',
+			'subject_id'    => 0,
+			'subject_url'   => home_url( '/wp-json/wp-abilities/v1/abilities' ),
+			'subject_label' => 'waf: Block Basic-auth on abilities API',
+			'edit_url'      => '',
+			'note'          => 'The edge did not refuse an Authorization-bearing request to /wp-abilities/. The WAF custom rule "Block Basic-auth on abilities API" is absent or disabled; the in-plugin guard (sn_mcp_rw_guard_run_route) still holds, but the edge layer is gone.',
+		);
+	}
+
 	return sn_health_pack_check( $label, $findings, $fix_hint );
+}
+
+/**
+ * Probe the WAF custom rule "Block Basic-auth on abilities API": one GET to
+ * the abilities catalogue carrying a throwaway Basic credential. The rule
+ * answers 403 at the edge (cf-ray present) before the request ever reaches
+ * WordPress. Anything else that is still an edge response — 401 from
+ * WordPress rejecting the credential, 200, 404 — means the request went
+ * THROUGH the edge unblocked: 'open'. A transport error, or a response with
+ * no edge marker (the probe hit the origin directly, where the rule cannot
+ * exist), is 'unknown' — nothing was measured, and the caller never caches
+ * that.
+ *
+ * The credential is deliberately garbage: the point is that the header is
+ * PRESENT, not that it authenticates. Mirrors the rule's own expression
+ * (`any(http.request.headers.names[*] == "authorization")`).
+ *
+ * @since 13.110.0
+ * @return string 'blocked'|'open'|'unknown'
+ */
+function sn_health_cf_waf_abilities_probe() {
+	$resp = wp_remote_get( home_url( '/wp-json/wp-abilities/v1/abilities' ), array(
+		'timeout'     => 5,
+		'redirection' => 0,
+		'sslverify'   => true,
+		'headers'     => array(
+			'User-Agent'    => 'SignalNoiseTools/' . ( defined( 'SNT_VERSION' ) ? SNT_VERSION : '?' ) . ' waf-drift-check',
+			// phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode -- a throwaway Basic credential; the header's presence is the probe.
+			'Authorization' => 'Basic ' . base64_encode( 'sn-waf-probe:not-a-password' ),
+		),
+	) );
+	if ( is_wp_error( $resp ) ) {
+		return 'unknown';
+	}
+
+	$raw     = wp_remote_retrieve_headers( $resp );
+	$is_edge = false;
+	$collect = static function ( $name, $value ) use ( &$is_edge ) {
+		$lower = strtolower( (string) $name );
+		if ( 'cf-ray' === $lower ) {
+			$is_edge = true;
+		}
+		if ( 'server' === $lower ) {
+			$server = is_array( $value ) ? implode( ' ', $value ) : (string) $value;
+			if ( false !== stripos( $server, 'cloudflare' ) ) {
+				$is_edge = true;
+			}
+		}
+	};
+	if ( is_object( $raw ) && method_exists( $raw, 'getAll' ) ) {
+		foreach ( (array) $raw->getAll() as $name => $value ) {
+			$collect( $name, $value );
+		}
+	} elseif ( $raw instanceof \Traversable || is_array( $raw ) ) {
+		foreach ( $raw as $name => $value ) {
+			$collect( $name, $value );
+		}
+	}
+	if ( ! $is_edge ) {
+		return 'unknown';
+	}
+
+	$code = (int) wp_remote_retrieve_response_code( $resp );
+	return 403 === $code ? 'blocked' : 'open';
 }

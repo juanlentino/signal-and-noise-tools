@@ -23,19 +23,21 @@
  * primitives R1 (mcp-rw-guard.php) already established:
  * sn_mcp_rw_bound_uuid() (the door's bound credential) and
  * sn_mcp_rw_authenticated_app_password_uuid() (this request's credential).
- * Today, by construction of R1's credential-split gate, these are ALWAYS
- * equal for any request that reaches this ability at all (an unbound or
- * mismatched UUID is denied at the door, before sn_apply's execute_callback
- * ever runs) — so snt_sn_apply_is_owner_credential() is trivially true on
- * every live call right now. It is still checked explicitly, not assumed,
- * because the spec's whole point is a FUTURE routine credential bound
- * through a mechanism this session does not build (a second, narrower-scoped
- * app password); when that exists, this is the seam that will actually
- * differentiate it. Acceptance test 5 exercises this seam directly, by
- * stubbing a mismatched authenticated UUID against a real bound UUID —
- * something the live door itself would never let happen, but the gate's own
- * logic must still refuse correctly if some future door change ever let a
- * mismatched identity through.
+ * CORRECTED 2026-09-11 (enforcement audit, Phase 1). This comment used to
+ * say the two UUIDs were "ALWAYS equal for any request that reaches this
+ * ability at all" because the door denied a mismatch first. That was true of
+ * /signal-noise/v1/mcp-rw and FALSE of the native abilities run route
+ * (POST /wp-abilities/v1/abilities/signal-noise/sn-apply/run), which
+ * reaches this ability with any manage_options application password and
+ * never passed through the door. For the life of that gap, THIS GATE was
+ * the only thing holding a non-owner app password to mode "revision" — and
+ * it held, because it reads the UUIDs itself rather than trusting the door.
+ * The run route now carries the door's controls too
+ * (sn_mcp_rw_guard_run_route() in mcp-rw-guard.php), so the two layers
+ * agree again; but the lesson stands: check the identity here, never assume
+ * a door ran. Acceptance test 5 exercises exactly this seam, by stubbing a
+ * mismatched authenticated UUID against a real bound UUID — the case that
+ * was live, not hypothetical.
  *
  * @package SignalNoiseTools
  * @since 10.40.0
