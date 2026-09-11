@@ -525,7 +525,27 @@ seams — every count grepped from the tree before I typed it. Docs only, no bum
 
 | | |
 |---|---|
-| plugin `main` | `ed8381a` — v13.109.21 + README bullet under `[Unreleased]` |
-| upstream | #793 **merged** · #791 green, awaiting approval · #792 pushed, CI pending |
+| plugin `main` | `5b3f0ed5` — v13.109.21 + two README bullets under `[Unreleased]` |
+| upstream | #793 **merged** · #791 green, awaiting merge · #792 green, help name fixed (`d570f39f`), awaiting merge |
 | memory | untouched this part — 456B headroom, consolidate before the next one |
 | API | still depleted |
+
+## Later the same afternoon
+
+You read the OpenStation bullet and called it a wall of text — and then said
+the whole *What it does* list was. It was: thirteen bullets averaging 490
+characters, mine at 2,073. The shape was wrong, not the content: each bullet
+was trying to be the headline and the reference paragraph at once. #1167
+splits them — thirteen one-liners under 120 characters on the first screen,
+the paragraphs moved *verbatim* (I substring-checked all twelve) under a new
+`## In depth`, OpenStation's turned into a window table. First screen 6,400
+characters to 1,378. Merged `5b3f0ed5`.
+
+epeicher came back on #792 with a live measurement (34px host, label in the
+tree, 6108/6108) and one ask: the help block named the prop `hideLabel`, the
+kit's only camelCase help entry. I checked that claim before acting on it —
+my first grep said 31, all of them demo category names — then renamed it to
+`hide-label` and pushed `d570f39f`. Both PRs are green with every ask
+applied; the merge is theirs. Their named follow-up, extending `hide-label`
+to the textarea and number field and retiring the `syncLibraryControls()`
+aria mirror, is yours to offer or not.
