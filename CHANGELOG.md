@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Changed
+- **Versioning is the WordPress shape.** `X.Y.0` is a release, `X.Y.Z` a fix, and `X` rolls by itself when `Y` would reach 10 — how core, WooCommerce, Jetpack and Yoast number. `X` is not a breaking-change flag; a breaking release says BREAKING in its headline. Replaces SemVer, whose minor had reached 110 in seventeen days because it counted merged fixes. `tools/cut-release.sh` takes `release|fix` (`minor`/`patch` still work as aliases; `major` refuses and explains). One cut per arc, not per merge. Owner decision 2026-09-11; the survey of what the kernel, Apple, Ubuntu and CalVer do is in `docs/proposals/2026-09-11-versioning-scheme.md`; the rule is `docs/VERSIONING.md`. The next cut is 14.0.0 — the roll, not a break.
+
 ### Added
 - **`tools/cut-release.sh` refuses a previous cut that grew after its tag.** A branch opened before the last cut adds its bullet under what was then `## [Unreleased]`; by the time it squash-merges, that heading is a released version, and the next cut would archive the bullet as if it had shipped. Bitten twice on 2026-09-11 (#1167, #1171), fixed by hand both times. The guard diffs the previous section's bullets against the same section at its own tag and names the strays; it runs before the empty-Unreleased refusal, so the message says why Unreleased is empty. An unfetched tag is a loud NOTE, never a pass. Verified on the live trap (it named both #1171 bullets), on the not-fetched path, and on a clean tree.
 

@@ -11,9 +11,12 @@
 # diff. --tag opts into tagging; nothing opts into committing.
 #
 # Usage:
-#   tools/cut-release.sh patch|minor|major "one-line headline"
-#   tools/cut-release.sh minor "the batch door" --dry-run
-#   tools/cut-release.sh patch "envelope fix" --tag
+#   tools/cut-release.sh release|fix "one-line headline"
+#   tools/cut-release.sh release "the batch door" --dry-run
+#   tools/cut-release.sh fix "envelope fix" --tag
+#
+# Numbering is the WordPress / WooCommerce shape (docs/VERSIONING.md): X.Y.0 is
+# a release, X.Y.Z a fix, and X rolls when Y would reach 10 (14.9.0 -> 15.0.0).
 #
 # Refuses: a dirty worktree, an empty Unreleased, an unparseable Version, and
 # a previous cut whose section GREW since its tag (a branch opened before that
@@ -45,9 +48,16 @@ for arg in "$@"; do
   esac
 done
 
+# WordPress shape (owner decision 2026-09-11, docs/VERSIONING.md): X.Y.0 is a
+# RELEASE, X.Y.Z a FIX to it, and X rolls by itself when Y would reach 10.
+# `major` is refused: the first digit is the tens digit of the release count,
+# not a claim about breakage — a breaking release says BREAKING in its
+# headline instead. `minor`/`patch` stay as aliases for muscle memory.
 case "$LEVEL" in
-  patch|minor|major) ;;
-  *) die "first argument must be patch, minor or major (got '${LEVEL}')" ;;
+  release|minor) LEVEL=release ;;
+  fix|patch)     LEVEL=fix ;;
+  major) die "there is no 'major' cut: X rolls on its own when Y would reach 10. Cut a release and put BREAKING in the headline if it breaks something." ;;
+  *) die "first argument must be release or fix (got '${LEVEL}')" ;;
 esac
 [ -n "$HEADLINE" ] || die "second argument must be a one-line headline"
 case "$HEADLINE" in
@@ -70,9 +80,10 @@ CURRENT="$(grep -m1 -E '^\s*\*\s*Version:' "$PLUGIN_FILE" | grep -oE '[0-9]+\.[0
 
 IFS=. read -r MAJ MIN PAT <<< "$CURRENT"
 case "$LEVEL" in
-  major) MAJ=$((MAJ + 1)); MIN=0; PAT=0 ;;
-  minor) MIN=$((MIN + 1)); PAT=0 ;;
-  patch) PAT=$((PAT + 1)) ;;
+  release)
+    if [ "$MIN" -ge 9 ]; then MAJ=$((MAJ + 1)); MIN=0; else MIN=$((MIN + 1)); fi
+    PAT=0 ;;
+  fix) PAT=$((PAT + 1)) ;;
 esac
 NEXT="${MAJ}.${MIN}.${PAT}"
 TODAY="$(date -u +%Y-%m-%d)"

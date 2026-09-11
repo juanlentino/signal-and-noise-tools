@@ -151,7 +151,8 @@ Distributed via GitHub releases. Install/update through **wp-admin → Dashboard
 only; everything older is in [docs/changelog/](docs/changelog/). A pull request
 does not bump `Version` and does not tag — it closes an issue and adds a bullet
 under Unreleased. Cutting a release is a separate, deliberate act:
-`tools/cut-release.sh patch|minor|major "headline"` (add `--dry-run` to see what
-it would touch).
+`tools/cut-release.sh release|fix "headline"` (add `--dry-run` to see what it
+would touch). Numbers follow the WordPress shape — `X.Y.0` a release, `X.Y.Z` a
+fix, `X` rolling when `Y` would reach 10 — see [docs/VERSIONING.md](docs/VERSIONING.md).
 
 <sub>Built for [juanlentino.com](https://juanlentino.com).</sub>
