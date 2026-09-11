@@ -101,7 +101,7 @@ function snt_rights_probe_evaluate( $responses, $expected_signal = null ) {
 		&& false !== stripos( $rest_signal, 'ai-input=yes' );
 	$headers_ok     = $headers_ok && $rest_signal_ok;
 
-	// v13.111.0 (enforcement audit Phase 3): PARITY. The served Content-Signal
+	// v13.110.1 (enforcement audit Phase 3): PARITY. The served Content-Signal
 	// is authored TWICE — the origin constant (inc/rest-hardening-policy.php)
 	// and the sn-rights-signals Worker, which set()s the same header on every
 	// response and therefore wins in production. Each repo pins its own

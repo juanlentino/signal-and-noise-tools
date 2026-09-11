@@ -87,7 +87,7 @@ ok( ( $v['headers']['ok'] ?? true ) === false, 'ai-train=yes on the REST header 
 $v = snt_rights_probe_evaluate( good_responses() );
 ok( ( $v['headers']['ok'] ?? false ) === true, 'a correct Content-Signal header keeps the headers check green' );
 
-echo "\nGroup: parity — the edge literal must equal the origin literal byte-for-byte (v13.111.0)\n";
+echo "\nGroup: parity — the edge literal must equal the origin literal byte-for-byte (v13.110.1)\n";
 $v = snt_rights_probe_evaluate( good_responses() );
 ok( ( $v['parity']['ok'] ?? false ) === true, 'identical literals are at parity' );
 $bad = good_responses(); $bad['wpjson']['headers']['content-signal'] = 'search=yes, ai-train=no, ai-input=yes';
