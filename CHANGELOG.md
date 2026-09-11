@@ -2,11 +2,7 @@
 
 All notable changes to Signal & Noise Tools are documented here.
 
-This file holds two things only: **`## [Unreleased]
-
-### Changed
-
-- README: an **OpenStation** bullet naming what the plugin ships for the shell — the three native windows, ten widgets, 22 palette commands, the dock/badge/Station Home/PWA/Copilot seams — with every count derived from the tree.`**, the working log that
+This file holds two things only: **`## [Unreleased]`**, the working log that
 accumulates across pull requests, and the **current release**. Everything older
 lives in [docs/changelog/](docs/changelog/).
 
@@ -15,6 +11,9 @@ adds a bullet below. A release is a separate, deliberate act:
 `tools/cut-release.sh`.
 
 ## [Unreleased]
+
+### Changed
+- README: an **OpenStation** bullet naming what the plugin ships for the shell — the three native windows, ten widgets, 22 palette commands, the dock / badge / Station Home / PWA / Copilot seams — every count re-derived from the tree.
 
 ## [13.109.21] - 2026-09-10 — a dead provider is reported, not mistaken for silence
 
