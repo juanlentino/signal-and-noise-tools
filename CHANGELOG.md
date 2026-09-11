@@ -12,6 +12,16 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Fixed
+- **`reader-anomalies` is annotated `readonly => true`.** Its description said read-only; its annotation did not, and two consumers key on the annotation — the MCP projection (`readOnlyHint`) and, since v13.110.0, the rw run-route guard, which was treating it as a write. Found by the new read-door pin below.
+- **The rw run-route guard now checks the rw allowlist before the annotation.** `describe-tags` is returns-only (`readonly => true`, honestly) and sits on the rw door because it BILLS an AI call — annotation-only keying let an application password reach it without the door's credential. Membership outranks the annotation (`sn_mcp_rw_guard_run_route_applies`; `tests/mcp-rw-guard-run-route.php` +1).
+
+### Added
+- `tests/mcp-capabilities.php`: every read-door slug is registered `readonly => true`; no rw-door slug is, except the named AI-billed returns-only exceptions (`describe-tags`); every doored slug is found by the scan; a true/false control. Derived from source, so a new ability is judged the moment it registers.
+- `tests/rest-routes.php`: the REST route population is 19, every registration carries a `permission_callback`, and exactly three are public — the webmention receiver, the credential fetch, the bridge — each with its reason on the record. A fourth `__return_true` has to be argued onto the list.
+- **`Rights signals` health check gains `parity`**: the served `/wp-json` `Content-Signal` must equal `SN_TDM_CONTENT_SIGNAL` byte-for-byte. The header is authored in two repos (origin constant, edge Worker) and v10.70.1 found them silently diverged; the semantic checks pass either spelling, so this is the one that would have caught it. An undefined origin constant is a failure, not a skip. The suite's fixture carried the pre-v10.70.1 spaced string and was corrected (`tests/health-check-rights-signals.php` +6).
+- (worker) `signal-and-noise-analytics-worker` #27 pins that no response ever sets a cookie.
+
 ## [13.110.0] - 2026-09-11 — the abilities run route meets the write door
 
 ### Security

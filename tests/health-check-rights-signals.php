@@ -13,6 +13,11 @@ function ok( $cond, $label ) {
 	else { $fail++; echo "  FAIL - $label\n"; }
 }
 
+// The origin constant as inc/rest-hardening-policy.php defines it on live. The
+// fixture's /wp-json Content-Signal is the SAME literal, so the parity verdict
+// is exercised on the real value, not on whatever this file happens to say.
+define( 'SN_TDM_CONTENT_SIGNAL', 'search=yes,ai-train=no,ai-input=yes,use=reference' );
+
 require __DIR__ . '/../inc/health-check-rights-signals.php';
 
 function good_responses() {
@@ -24,14 +29,14 @@ function good_responses() {
 		// content-signal rides the /wp-json response since v10.34.0
 		// (inc/rest-hardening-policy.php); covered by the headers check as of
 		// v10.44.0.
-		'wpjson' => array( 'code' => 200, 'headers' => array( 'tdm-reservation' => '1', 'tdm-policy' => 'https://juanlentino.com/tdm-policy/', 'content-signal' => 'search=yes, ai-train=no, ai-input=yes' ) ),
+		'wpjson' => array( 'code' => 200, 'headers' => array( 'tdm-reservation' => '1', 'tdm-policy' => 'https://juanlentino.com/tdm-policy/', 'content-signal' => 'search=yes,ai-train=no,ai-input=yes,use=reference' ) ),
 	);
 }
 
 echo "Group: all-good evaluates all-ok\n";
 $v = snt_rights_probe_evaluate( good_responses() );
-ok( is_array( $v ) && 5 === count( $v ), 'five named checks come back' );
-foreach ( array( 'tdmrep', 'rsl', 'signal', 'license', 'headers' ) as $check ) {
+ok( is_array( $v ) && 6 === count( $v ), 'six named checks come back' );
+foreach ( array( 'tdmrep', 'rsl', 'signal', 'license', 'headers', 'parity' ) as $check ) {
 	ok( ( $v[ $check ]['ok'] ?? false ) === true, "check '$check' ok on healthy input" );
 }
 
@@ -81,6 +86,19 @@ ok( ( $v['headers']['ok'] ?? true ) === false, 'ai-train=yes on the REST header 
 
 $v = snt_rights_probe_evaluate( good_responses() );
 ok( ( $v['headers']['ok'] ?? false ) === true, 'a correct Content-Signal header keeps the headers check green' );
+
+echo "\nGroup: parity — the edge literal must equal the origin literal byte-for-byte (v13.111.0)\n";
+$v = snt_rights_probe_evaluate( good_responses() );
+ok( ( $v['parity']['ok'] ?? false ) === true, 'identical literals are at parity' );
+$bad = good_responses(); $bad['wpjson']['headers']['content-signal'] = 'search=yes, ai-train=no, ai-input=yes';
+$v = snt_rights_probe_evaluate( $bad );
+ok( ( $v['headers']['ok'] ?? false ) === true, 'the pre-v10.70.1 spaced three-term string still passes the SEMANTIC check (both values present)…' );
+ok( ( $v['parity']['ok'] ?? true ) === false, '…and FAILS parity — which is exactly the drift v10.70.1 found by hand' );
+ok( false !== strpos( (string) $v['parity']['detail'], 'search=yes, ai-train=no, ai-input=yes' ) && false !== strpos( (string) $v['parity']['detail'], 'use=reference' ), 'the detail names both literals so the fix is one read' );
+$v = snt_rights_probe_evaluate( good_responses(), '' );
+ok( ( $v['parity']['ok'] ?? true ) === false, 'an undefined origin constant is a FAILURE, not a skip — nothing to be at parity with' );
+$v = snt_rights_probe_evaluate( good_responses(), 'search=yes,ai-train=no,ai-input=yes,use=reference' );
+ok( ( $v['parity']['ok'] ?? false ) === true, 'an explicit expected value is honoured (the injectable form)' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

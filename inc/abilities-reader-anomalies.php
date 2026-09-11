@@ -47,7 +47,7 @@ add_action( 'wp_abilities_api_init', function () {
 		),
 		'meta'                => array(
 			'show_in_rest' => true,
-			'annotations'  => array( 'destructive' => false, 'idempotent' => true ),
+			'annotations'  => array( 'readonly' => true, 'destructive' => false, 'idempotent' => true ), // readonly added v13.111.0: the description said it, the annotation did not, and two consumers (readOnlyHint, the rw run-route guard) key on the annotation.
 		),
 	) );
 } );
