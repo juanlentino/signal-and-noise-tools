@@ -78,7 +78,20 @@ function wp_remote_head( $url, $args = array() ) {
 	$GLOBALS['__test_head_calls']++;
 	return $GLOBALS['__test_head_response'];
 }
-function wp_remote_get( $url, $args = array() ) { return array( 'response' => array( 'code' => 200 ) ); }
+// wp_remote_get — the WAF probe's transport. Default fixture: an edge-less 200
+// (no cf-ray), which the probe reads as 'unknown' — so the header tests above
+// are not disturbed by the probe riding along.
+$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 200 ), 'headers' => array() );
+$GLOBALS['__test_get_calls']    = 0;
+$GLOBALS['__test_get_headers']  = array();
+function wp_remote_get( $url, $args = array() ) {
+	$GLOBALS['__test_get_calls']++;
+	$GLOBALS['__test_get_headers'] = isset( $args['headers'] ) ? (array) $args['headers'] : array();
+	return $GLOBALS['__test_get_response'];
+}
+function wp_remote_retrieve_response_code( $resp ) {
+	return ( is_array( $resp ) && isset( $resp['response']['code'] ) ) ? (int) $resp['response']['code'] : 0;
+}
 
 // wp_remote_retrieve_headers — returns whatever the fixture response carries
 // under ['headers'] (an assoc OR a CaseInsensitiveDictionary-like object).
@@ -268,6 +281,63 @@ $GLOBALS['__test_head_response'] = array(
 );
 $check = sn_health_check_cf_security_headers();
 cf_eq( 5, $check['count'], 'edge confirmed via server:cloudflare → all 5 genuinely-missing flagged' );
+
+// ─── Tests 10-14: the WAF probe (enforcement audit 2026-09-11, Phase 1) ──
+// The rule "Block Basic-auth on abilities API" is the edge layer in front of
+// the abilities run route. It lives in the dashboard; this is its witness.
+function waf_reset() {
+	cf_reset();
+	$GLOBALS['__test_get_calls']   = 0;
+	$GLOBALS['__test_get_headers'] = array();
+	// Edge confirmed for the header half, all 5 present, so any finding below is the probe's.
+	$GLOBALS['__test_head_response'] = array( 'response' => array( 'code' => 200 ), 'headers' => $GLOBALS['__all5_edge'] );
+}
+$GLOBALS['__all5_edge'] = $all5 + array( 'cf-ray' => '8a1b2c3d4e5f-EWR' );
+
+echo "\nTest 10: edge answers 403 with cf-ray → rule present, 0 findings, cached\n";
+waf_reset();
+$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 403 ), 'headers' => array( 'cf-ray' => 'x', 'server' => 'cloudflare' ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], '403 at the edge → the rule is there, no finding' );
+cf_eq( 1, $GLOBALS['__test_get_calls'], 'probe fired once' );
+cf_true( isset( $GLOBALS['__test_get_headers']['Authorization'] ) && 0 === strpos( $GLOBALS['__test_get_headers']['Authorization'], 'Basic ' ), 'the probe carried an Authorization: Basic header (the header\'s presence IS the probe)' );
+cf_eq( 'blocked', $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ?? null, 'result cached as blocked' );
+
+echo "\nTest 11: edge answers 401 (WordPress rejected the credential) → the request went THROUGH → 1 finding\n";
+waf_reset();
+$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 401 ), 'headers' => array( 'cf-ray' => 'x' ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 1, $check['count'], 'a non-403 edge answer means the WAF rule is gone → 1 finding' );
+cf_eq( 'waf: Block Basic-auth on abilities API', $check['findings'][0]['subject_label'], 'finding names the rule' );
+cf_eq( 'https://juanlentino.com/wp-json/wp-abilities/v1/abilities', $check['findings'][0]['subject_url'], 'finding points at the abilities route' );
+cf_true( false !== strpos( $check['findings'][0]['note'], 'sn_mcp_rw_guard_run_route' ), 'note says the in-plugin guard still holds' );
+cf_eq( 'open', $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ?? null, 'result cached as open' );
+
+echo "\nTest 12: 200 with cf-ray is ALSO open (the rule blocks, it does not authenticate)\n";
+waf_reset();
+$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 200 ), 'headers' => array( 'cf-ray' => 'x' ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 1, $check['count'], '200 through the edge → open → 1 finding' );
+
+echo "\nTest 13: no edge marker, or a transport error → unknown: 0 findings, NOT cached\n";
+waf_reset();
+$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 403 ), 'headers' => array( 'server' => 'nginx' ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'a 403 with no cf-ray is not the edge speaking → nothing measured, no finding' );
+cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'unknown is NOT cached (re-attempts next scan)' );
+waf_reset();
+$GLOBALS['__test_get_response'] = new WP_Error( 'http_request_failed', 'timeout' );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $check['count'], 'WP_Error → 0 findings' );
+cf_true( ! isset( $GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] ), 'and NOT cached' );
+
+echo "\nTest 14: a cached verdict short-circuits the probe\n";
+waf_reset();
+$GLOBALS['__test_transients']['sn_health_cf_waf_abilities_probe'] = 'open';
+$GLOBALS['__test_get_response'] = array( 'response' => array( 'code' => 403 ), 'headers' => array( 'cf-ray' => 'x' ) );
+$check = sn_health_check_cf_security_headers();
+cf_eq( 0, $GLOBALS['__test_get_calls'], 'cached: wp_remote_get NOT called' );
+cf_eq( 1, $check['count'], 'the cached open verdict still surfaces as a finding' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

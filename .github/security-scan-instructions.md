@@ -33,3 +33,43 @@ treatment is the regression to catch.
 Report it even when the new subtree is written by a different file or a
 different tab's handler — the clobber happens at save time in `settings.php`,
 far from wherever the subtree was introduced, which is why it has recurred.
+
+## 2. The abilities run route is a WRITE surface, and the MCP door is not in front of it
+
+Every ability registered with `meta.show_in_rest => true` is reachable at
+`POST /wp-abilities/v1/abilities/<slug>/run` with **any** `manage_options`
+application password. That includes every slug on the rw MCP door and the
+pre-consolidation apply abilities (`block-migrations-apply`,
+`pattern-adoption-apply`, `ai-*-apply`, `update-post-surfaces`). The rw door at
+`/signal-noise/v1/mcp-rw` — kill switch, bound credential, rate limit, audit
+row (`inc/mcp/mcp-rw-guard.php`, `inc/mcp/mcp-rw-audit.php`) — does **not** sit
+on that path. The 2026-09-11 enforcement audit found the route unguarded.
+
+The control is `sn_mcp_rw_guard_run_route()` (`inc/mcp/mcp-rw-guard.php`),
+on `rest_pre_dispatch`: for a request that authenticated by application
+password against an ability that is not annotated `readonly`, it applies the
+door's four controls in the door's order. Cookie+nonce requests from
+wp-admin's own buttons (`assets/snt-ability-run.js`) use the same route and
+must pass untouched — that is the negative assertion in
+`tests/mcp-rw-guard-run-route.php`.
+
+**Flag when a change:**
+
+- registers a mutating ability without a `readonly => false` / `destructive`
+  annotation (the guard keys on `readonly`; an unannotated write is treated as
+  a write, but an ability wrongly annotated `readonly => true` walks past it);
+- adds a `rest_pre_dispatch` filter at priority < 10 on the abilities
+  namespace, or returns a non-null result before the guard runs;
+- adds a filter on `sn_mcp_rw_allowlist` / `sn_mcp_allowlist` /
+  `sn_apply_granted_modes` (all three widen a door at runtime);
+- registers a new REST route with `permission_callback => '__return_true'`
+  (two exist by design: the webmention receiver and the VC fetch — a third
+  needs the same argument written down);
+- reads `rest_get_authenticated_app_password()` and treats a null as "the
+  owner" rather than "no application password".
+
+A Cloudflare WAF rule ("Block Basic-auth on abilities API") also refuses
+`Authorization`-bearing requests to `/wp-abilities/` at the edge. It lives in
+the dashboard, not in this repo; the health check
+`inc/health-check-cf-security-headers.php` probes for it. Do not credit it as
+the control — the guard above is.
