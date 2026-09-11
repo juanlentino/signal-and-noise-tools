@@ -39,8 +39,9 @@ score, instead of *every-word* matching with a date.
   stopwords.
 - Score every note in the artifact with
   `snt_ml_bm25_score( $query_tokens, $doc_tokens, $stats )`, kernel defaults
-  (k1 1.2, b 0.75). Keep score > 0, sort score DESC, ties by `post_date`
-  DESC. This ordered `int[]` is **the ranking**.
+  (k1 1.2, b 0.75). Keep score > 0, sort score DESC, ties by post ID DESC (the artifact
+  carries no dates; a higher ID is a newer note, and this avoids a DB read
+  inside the ranking). This ordered `int[]` is **the ranking**.
 - **Recall:** a note is a result if the kernel scored it **or** `LIKE` found
   it. **Order:** ranked notes first in score order; then everything else
   `LIKE` found — pages, and notes the kernel did not score — in date order.
@@ -132,7 +133,7 @@ module are `require`d directly.
   where only one note carries the rarer word; the note ranks first under the
   kernel, and a simulated core `LIKE`-AND misses it. Asserted red against the
   unhooked clauses first (the guard can fail), then green.
-- Ties break by date DESC. Stopword-only query → clauses byte-identical.
+- Ties break by ID DESC. Stopword-only query → clauses byte-identical.
   Missing artifact → byte-identical. Stale shape → byte-identical.
 - The OR branch carries `post_status = 'publish' AND post_password = ''`
   (an unpublished ranked id must not surface).
