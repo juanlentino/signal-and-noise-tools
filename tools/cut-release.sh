@@ -15,7 +15,10 @@
 #   tools/cut-release.sh minor "the batch door" --dry-run
 #   tools/cut-release.sh patch "envelope fix" --tag
 #
-# Refuses: a dirty worktree, an empty Unreleased, an unparseable Version.
+# Refuses: a dirty worktree, an empty Unreleased, an unparseable Version, and
+# a previous cut whose section GREW since its tag (a branch opened before that
+# cut lands its bullet under the released heading, where the cut would archive
+# it as if it had shipped — bitten twice on 2026-09-11, #1167 and #1171).
 #
 set -euo pipefail
 
@@ -76,6 +79,51 @@ TODAY="$(date -u +%Y-%m-%d)"
 
 # ── Unreleased must have something in it ─────────────────────────────────
 # "Nothing to cut" is not a release. Heading plus whitespace does not count.
+# ── the section currently sitting in the root file, which moves to archive ──
+PREVIOUS_CUT="$(awk '
+  /^## \[Unreleased\]/ { seen_unreleased = 1; next }
+  seen_unreleased && /^## \[/ { inside = 1 }
+  inside { print }
+' "$CHANGELOG")"
+
+# ── refuse a previous cut that grew after it was tagged ──────────────────
+# The failure mode: a PR branched BEFORE the last cut adds its bullet under
+# what was then ## [Unreleased]. After the cut lands on main, that heading is
+# ## [x.y.z] — released, tagged — so the squash-merge drops the bullet under
+# a version that has already shipped without it. The next cut would archive
+# it there, silently. The guard compares the previous cut's section as it is
+# NOW against the same section as of its own tag: any line present now and
+# absent then is a bullet that belongs under Unreleased.
+#
+# Measured against the tag, not the version commit, because the tag is what
+# a reader's site installed. If the tag is not fetched, the guard cannot
+# measure and says so — loudly, as a NOTE, never as a pass.
+cut_grew_since_tag() {
+  local tag="v${CURRENT}"
+  if ! git rev-parse -q --verify "refs/tags/${tag}" >/dev/null 2>&1; then
+    echo "  NOTE: tag ${tag} is not fetched, so the grown-section guard could not run (git fetch --tags origin)." >&2
+    return 1
+  fi
+  local at_tag
+  at_tag="$(git show "${tag}:${CHANGELOG}" 2>/dev/null | awk -v v="${CURRENT}" '
+    index($0, "## [" v "]") == 1 { inside = 1; next }
+    inside && /^## \[/          { exit }
+    inside                       { print }
+  ')"
+  # Lines in the section now that were not in it at the tag. Blank lines and
+  # subsection headings are shape, not content — only bullets count.
+  comm -13 <(printf '%s\n' "$at_tag" | grep -E '^- ' | sort -u) \
+           <(printf '%s\n' "$PREVIOUS_CUT" | grep -E '^- ' | sort -u)
+}
+if [ -n "$PREVIOUS_CUT" ]; then
+  GROWN="$(cut_grew_since_tag)" || true
+  if [ -n "$GROWN" ]; then
+    printf 'cut-release: ## [%s] has grown since tag v%s was cut. These bullets landed under a RELEASED heading and would be archived as if they had shipped:\n' "$CURRENT" "$CURRENT" >&2
+    printf '%s\n' "$GROWN" | cut -c1-120 | sed 's/^/  /' >&2
+    die "move them under ## [Unreleased] (a branch opened before the last cut put them there), then cut again."
+  fi
+fi
+
 UNRELEASED_BODY="$(awk '
   /^## \[Unreleased\]/ { inside = 1; next }
   inside && /^## \[/   { exit }
@@ -85,13 +133,6 @@ UNRELEASED_BODY="$(awk '
 if [ -z "$(printf '%s' "$UNRELEASED_BODY" | tr -d '[:space:]')" ]; then
   die "## [Unreleased] is empty - nothing to cut. Add a bullet, or you are tagging a no-op."
 fi
-
-# ── the section currently sitting in the root file, which moves to archive ──
-PREVIOUS_CUT="$(awk '
-  /^## \[Unreleased\]/ { seen_unreleased = 1; next }
-  seen_unreleased && /^## \[/ { inside = 1 }
-  inside { print }
-' "$CHANGELOG")"
 
 echo "cut-release"
 echo "  current : ${CURRENT}"

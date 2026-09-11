@@ -12,6 +12,9 @@ adds a bullet below. A release is a separate, deliberate act:
 
 ## [Unreleased]
 
+### Added
+- **`tools/cut-release.sh` refuses a previous cut that grew after its tag.** A branch opened before the last cut adds its bullet under what was then `## [Unreleased]`; by the time it squash-merges, that heading is a released version, and the next cut would archive the bullet as if it had shipped. Bitten twice on 2026-09-11 (#1167, #1171), fixed by hand both times. The guard diffs the previous section's bullets against the same section at its own tag and names the strays; it runs before the empty-Unreleased refusal, so the message says why Unreleased is empty. An unfetched tag is a loud NOTE, never a pass. Verified on the live trap (it named both #1171 bullets), on the not-fetched path, and on a clean tree.
+
 ## [13.110.2] - 2026-09-11 — a dated correction notice is the convention, not date drift
 
 ### Fixed
