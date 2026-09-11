@@ -212,7 +212,7 @@ ci_eq( 'info', $dates[0]['severity'] ?? '', 'Test 6.2: forward-looking regulator
 // ─── Test 6b: a dated CORRECTION NOTICE is the convention, not drift ──
 // The two live shapes (posts 1587 and 1549, read 2026-09-11): a paragraph
 // that is exactly "Correction, September 3, 2026." — a date later than
-// post_date BY DESIGN. Before v13.111.0 the scan reported both as
+// post_date BY DESIGN. Before v13.110.2 the scan reported both as
 // date_coherence info findings, i.e. it read the practice as drift.
 echo "\nTest 6b: dated correction notices are counted, never flagged\n";
 _ci_reset();

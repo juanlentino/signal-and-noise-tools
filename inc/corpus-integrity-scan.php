@@ -390,7 +390,7 @@ function snt_corpus_integrity_detect_candidates( &$notices = null ) {
  * date (Month D, YYYY or YYYY-MM-DD) as the WHOLE remainder, with optional
  * trailing punctuation. Case-insensitive on the word, strict on the shape.
  *
- * @since 13.111.0
+ * @since 13.110.2
  * @param string $sentence
  * @return bool
  */
@@ -422,7 +422,7 @@ function snt_corpus_integrity_compute() {
 		$post_ids[ $c['post_id'] ] = true;
 	}
 	$counts['posts_affected'] = count( $post_ids );
-	// v13.111.0: dated correction notices — the post-publish convention,
+	// v13.110.2: dated correction notices — the post-publish convention,
 	// practised. A count so the practice is visible; not a finding, because
 	// a correction line carrying a later date is the convention working.
 	$counts['corrections'] = count( $notices );
