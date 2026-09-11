@@ -469,3 +469,63 @@ figure unresolved; the two worktree-only suite failures (`admin-class-orphans`,
 weekly cron has fired and failed — the first live confirmation of the thing
 this part was for.
 
+
+---
+
+# Part 4 — the scan I dropped, three upstream PRs, and the README's missing bullet
+
+*2026-09-11. Short, because most of it happened in another repository.*
+
+## The scan
+
+I launched the Claude Security scan over `inc/` (577 files, medium). It died on
+the 5-hour session limit with 219 of 251 agents refused, 18 candidates and zero
+panel votes, and when I resumed it the process exited under it. You called it:
+token-exhaustive, dropped. The mutation-sampling pass in Part 3 stands as the
+audit of record. One orphan remains — `CLAUDE-SECURITY-20260911-000249/` in the
+worktree, gitignored, which I could not delete and which is yours to remove.
+
+## Upstream, without a single comment posted
+
+**#793** — epeicher asked for one lint fix (`RULE`/`LABEL` assigned before an
+early return). Moved them below it, pushed; merged into trunk within the hour.
+
+**#791** — a COMMENTED review, positive, with five notes and no blockers. The
+one that mattered was aimed at my own instrument: the "negative control" only
+checked that `.os-widgets__grip` *existed* and then re-asserted redock at
+exactly 24 — a control that measured nothing. It now measures the grip's
+10×16 box, and I proved it red by widening the grip to 20 before trusting it.
+The other four were arithmetic and prose I had gotten wrong: the chrome pair's
+circles never intersected (28px apart, not overlapping), so the spacing limb
+was never failing and the size limb carries the PR alone. Edited in the test,
+the PR body and issue #790 in place. All CI green.
+
+**#792** — no reply, but every job red, and all five in under a minute, which
+is one bug not five. It was backticks: code spans inside the `` css` ` ``
+template literal in `os-text-field.styles.ts` closed the string, and esbuild
+read `hide` as code. Plain text now. Fixing the build unmasked a real test
+bug — the no-label control expected `aria-label=""` but the renderer omits an
+empty attribute, so the honest reading of "no name" is `null`. Proven red by
+making the renderer emit a stray label. 6101 tests pass under Node 26, which
+trunk now admits.
+
+Two mechanical traps worth one line each: the maintainer had already merged
+trunk on my fork branches, so my local merge duplicated it and the push
+bounced — rebase onto the fork head, don't re-merge. And `git checkout -- file`
+to undo a mutation also undid the wanted edit in the same file.
+
+## The README
+
+It never said the word OpenStation. It does now (#1164, `ed8381a`): three native
+windows, ten widgets, 22 palette commands, the dock, badge, Station Home card,
+drop-to-draft, PWA icons, Plugins-window fixes, nav-id migration, the Copilot
+seams — every count grepped from the tree before I typed it. Docs only, no bump.
+
+## Where things sit
+
+| | |
+|---|---|
+| plugin `main` | `ed8381a` — v13.109.21 + README bullet under `[Unreleased]` |
+| upstream | #793 **merged** · #791 green, awaiting approval · #792 pushed, CI pending |
+| memory | untouched this part — 456B headroom, consolidate before the next one |
+| API | still depleted |
