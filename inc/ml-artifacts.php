@@ -30,7 +30,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 
 const SNT_ML_RELATED_META       = '_snt_ml_related';
 const SNT_ML_CORPUS_META_OPT    = 'snt_ml_corpus_meta';
-const SNT_ML_SEARCH_OPT         = 'snt_ml_search_index'; // v13.111.0: tf maps + idf for notes search (autoload=no).
+const SNT_ML_SEARCH_OPT         = 'snt_ml_search_index'; // v14.0.0: tf maps + idf for notes search (autoload=no).
 const SNT_ML_REBUILD_HOOK       = 'snt_ml_rebuild';        // Daily recurring backstop.
 const SNT_ML_REBUILD_ASYNC_HOOK = 'snt_ml_rebuild_async';  // Coalesced publish-burst single event.
 const SNT_ML_TOP_N              = 10;
@@ -236,7 +236,7 @@ if ( ! function_exists( 'snt_ml_build_corpus' ) ) {
 			'posts'       => $n,
 		), false );
 
-		// v13.111.0: the SEARCH INDEX. The related rows above are per-post and
+		// v14.0.0: the SEARCH INDEX. The related rows above are per-post and
 		// the topics option is per-cluster; neither holds what a ranking needs —
 		// the term frequencies and the corpus idf. Written beside them, from the
 		// same $docs/$stats, stamped with the same built_at so the reader can
@@ -326,7 +326,7 @@ if ( ! function_exists( 'snt_ml_search_index' ) ) {
 	 * meta (a rebuild that wrote one option and died before the other). Null
 	 * is "do not rank", which the caller turns into today's search.
 	 *
-	 * @since 13.111.0
+	 * @since 14.0.0
 	 * @return array{built_at:int,stats:array{idf:array<string,float>,avg_length:float},docs:array<int,array{tf:array<string,int>,len:int}>}|null
 	 */
 	function snt_ml_search_index() {

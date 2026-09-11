@@ -502,7 +502,7 @@ require_once __DIR__ . '/inc/abilities-update-post-surfaces.php'; // v10.7.0: re
 require_once __DIR__ . '/inc/ml-kernel.php';           // v10.15.0: pure ML primitives (tokenizer, tf-idf, cosine, bm25, graph signals) — zero WP calls
 require_once __DIR__ . '/inc/ml-pipelines.php';        // v10.15.0: filterable slug=>callable pipeline registry + dispatcher over the kernel
 require_once __DIR__ . '/inc/ml-artifacts.php';        // v10.15.0: corpus build (per-post related meta + cron/publish triggers) + the contract reader (needs corpus-inspect.php above)
-require_once __DIR__ . '/inc/notes-search-ranking.php'; // v13.111.0: notes search ranked by the kernel (reads the search index ml-artifacts writes; shapes the theme's /notes/?s= query via posts_clauses; snippet via sn_notes_search_snippet)
+require_once __DIR__ . '/inc/notes-search-ranking.php'; // v14.0.0: notes search ranked by the kernel (reads the search index ml-artifacts writes; shapes the theme's /notes/?s= query via posts_clauses; snippet via sn_notes_search_snippet)
 require_once __DIR__ . '/inc/note-dossier.php';            // v13.100.0: the note dossier vocabulary + composer (needs nothing at load)
 require_once __DIR__ . '/inc/note-dossier-trust.php';      // trust: ledger record, signer, citations, the re-check (readers guarded)
 require_once __DIR__ . '/inc/note-dossier-numbers.php';    // numbers: analytics window, Search Console, machine reads

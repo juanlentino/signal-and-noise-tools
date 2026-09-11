@@ -231,7 +231,7 @@ if ( ! function_exists( 'snt_ml_bm25_score' ) ) {
 if ( ! function_exists( 'snt_ml_bm25_score_tf' ) ) {
 	/**
 	 * BM25 from a term-frequency map and a token length — the form a stored
-	 * index holds (v13.111.0, notes search). snt_ml_bm25_score() delegates
+	 * index holds (v14.0.0, notes search). snt_ml_bm25_score() delegates
 	 * here, so the two can never disagree.
 	 *
 	 * @param string[]          $query_tokens Query tokens.

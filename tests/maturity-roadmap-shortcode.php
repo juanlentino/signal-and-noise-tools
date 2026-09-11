@@ -451,7 +451,7 @@ ok( false === strpos( implode( ' | ', $floor['Accessibility']['done'] ), 'finger
 ok( 3 === count( $floor['Accessibility']['done'] ), 'DR floor: Accessibility done is at THREE — the alt-text pair graduated together (owner call: coverage and quality are one story), buying two slots where the ceiling demanded one' );
 
 // The founding Machine learning row RETIRED to /maturity/machine-learning/
-// (v13.111.0) when the search row's move planned -> done would have made 5 of
+// (v14.0.0) when the search row's move planned -> done would have made 5 of
 // 5 and tripped the wall canary, same shape as the Analytics and AI
 // retirements above. Retirement is removal from the HUB only — the family
 // maturity page's Corpus/Model/Compute layers already state it — so the
@@ -460,7 +460,7 @@ $ml_all = implode( ' | ', call_user_func_array( 'array_merge', array_values( $fl
 ok( false === strpos( $ml_all, 'A deterministic layer' ), 'DR floor: the retired founding row appears in NO Machine learning column — it lives on the family page now' );
 ok( SN_MATURITY_ROADMAP_MAX_DONE - 1 === count( $floor['Machine learning']['done'] ), 'DR floor: Machine learning done is back AT the wall-canary limit — the headroom the retirement bought went to the search row, as intended' );
 ok( false === strpos( implode( ' | ', $floor['Machine learning']['planned'] ), 'Search served by the kernel' ) && 1 === count( array_filter( $floor['Machine learning']['done'], static fn( $r ) => false !== strpos( $r, 'Search served by the kernel' ) ) ), 'DR floor: the search row is GONE from planned and present ONCE in done — moved, not copied (explicit, not left to the generic cross-column guard)' );
-ok( false !== strpos( implode( ' | ', $floor['Machine learning']['done'] ), 'Search served by the kernel' ), 'DR floor: the search row is DONE, stating what acts (v13.111.0) — ranked by the same BM25 arithmetic that picks related notes' );
+ok( false !== strpos( implode( ' | ', $floor['Machine learning']['done'] ), 'Search served by the kernel' ), 'DR floor: the search row is DONE, stating what acts (v14.0.0) — ranked by the same BM25 arithmetic that picks related notes' );
 
 // delete_option returns the page to code-canonical.
 delete_option( SN_MATURITY_ROADMAP_OPTION );

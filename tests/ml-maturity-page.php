@@ -51,7 +51,7 @@ echo "Group: registration + contract\n";
 ok( isset( $GLOBALS['__shortcodes']['sn_ml_maturity'] ) && 'sn_ml_maturity_shortcode' === $GLOBALS['__shortcodes']['sn_ml_maturity'], 'shortcode registered on load' );
 ok( array() === $GLOBALS['__enq'], 'loading the file enqueues nothing — the stylesheet rides the render, not the pageload' );
 ok( array( 'corpus', 'model', 'compute', 'surface', 'draft', 'decide' ) === array_keys( sn_ml_maturity_layers() ), 'layer slugs in walk order: corpus, model, compute, surface, draft, decide' );
-ok( 9 === count( sn_ml_maturity_principles() ), 'nine principles: the founding roadmap-board row graduated in as the ninth (v13.111.0)' );
+ok( 9 === count( sn_ml_maturity_principles() ), 'nine principles: the founding roadmap-board row graduated in as the ninth (v14.0.0)' );
 $principles_joined = implode( ' ', sn_ml_maturity_principles() );
 ok( false !== strpos( $principles_joined, 'corpus arithmetic' ), 'the graduated principle names the claim as corpus arithmetic' );
 ok( false !== strpos( $principles_joined, 'notes search' ), 'the graduated principle names the notes search surface' );

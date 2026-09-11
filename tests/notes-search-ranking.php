@@ -1,6 +1,6 @@
 <?php
 /**
- * Tests: notes search served by the kernel (v13.111.0).
+ * Tests: notes search served by the kernel (v14.0.0).
  *
  * The spec: docs/proposals/2026-09-11-notes-search-kernel-design.md. Three
  * groups — ranking, the posts_clauses shaping, the snippet — plus the
@@ -200,6 +200,26 @@ ok( false === mb_check_encoding( $raw_at, 'UTF-8' ), 'fixture: the shared helper
 $sacc = snt_search_snippet( 'EXCERPT', 11, 'ledger' );
 ok( 'EXCERPT' === $sacc, 'a sentence the shared helper truncates mid-codepoint falls back to the excerpt, never an empty row' );
 ok( ! function_exists( 'sn_prov_normalize_v2' ), 'harness note: the ledger normaliser is not loaded here, so these pins exercise the strip fallback; the normaliser has its own suite' );
+
+echo "\nGroup: two findings from the whole-branch review\n";
+// (a) The query word "mark": a per-token loop re-scanned text that already held
+// <mark>…</mark> from an earlier token and marked the tag name itself.
+seed_index( $search_docs, $stats );
+snt_search_rank_notes( '', true );
+$GLOBALS['__abilities'] = array();
+$GLOBALS['__posts'][11] = (object) array( 'ID' => 11, 'post_content' => '<p>A ledger is a mark the world can check.</p>' );
+add_filter( 'snt_search_ranking_ids', function () { return array( 11 ); } );
+snt_search_rank_notes( '', true );
+$sm = snt_search_snippet( 'EXCERPT', 11, 'ledger mark' );
+ok( false === strpos( $sm, '<<mark>' ) && false === strpos( $sm, '</<mark>' ) && false !== strpos( $sm, '<mark>ledger</mark>' ) && false !== strpos( $sm, '<mark>mark</mark>' ), 'a query containing the word "mark" marks the WORD, never the tag — one pass over the escaped sentence, not N' );
+$GLOBALS['__filters'] = array();
+snt_search_rank_notes( '', true );
+// (b) A hand-crafted /tag/x/?s=foo carries a tax_query AND the flag; widening the
+// WHERE with ranked ids would admit notes outside the tag. The clauses step aside.
+seed_index( $search_docs, $stats );
+snt_search_rank_notes( '', true );
+$tagged = snt_search_posts_clauses( $base, new WPQ_Stub( array( 's' => 'ledger', 'sn_notes_search' => true, 'tax_query' => array( array( 'taxonomy' => 'post_tag', 'terms' => 3 ) ) ) ) );
+ok( $tagged === $base, 'a flagged query that also carries a tax_query is left byte-identical — ranking never widens a tag archive' );
 
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );

@@ -1,6 +1,6 @@
 <?php
 /**
- * Signal & Noise Tools — notes search served by the kernel (v13.111.0).
+ * Signal & Noise Tools — notes search served by the kernel (v14.0.0).
  *
  * The theme's /notes/?s= query is WordPress's every-word LIKE, in date order.
  * This module ranks NOTES with the kernel's BM25 over the search index the
@@ -16,7 +16,7 @@
  * Spec: docs/proposals/2026-09-11-notes-search-kernel-design.md.
  *
  * @package SignalNoiseTools
- * @since 13.111.0
+ * @since 14.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -103,6 +103,13 @@ function snt_search_posts_clauses( $clauses, $query = null ) {
 		return $clauses;
 	}
 	if ( true !== $query->get( 'sn_notes_search' ) ) {
+		return $clauses;
+	}
+	// A hand-crafted /tag/x/?s=foo carries a tax_query beside the flag. The
+	// theme's tag archive is a bounded, curated set; widening its WHERE with
+	// ranked ids would admit notes outside the tag. Step aside entirely.
+	$tax = $query->get( 'tax_query' );
+	if ( is_array( $tax ) && array() !== $tax ) {
 		return $clauses;
 	}
 	$ids = snt_search_rank_notes( (string) $query->get( 's' ) );
@@ -204,14 +211,15 @@ function snt_search_snippet( $excerpt, $post_id, $term ) {
 
 	// Escape first, then mark whole words — tokens are letters/digits only,
 	// so escaping cannot split one.
-	$safe = esc_html( $sentence );
-	foreach ( $tokens as $token ) {
-		// The lookbehind also excludes & and #: after esc_html an apostrophe
-		// is &#039; and "039" is a legal token — without this a <mark> lands
-		// inside the entity.
-		$safe = preg_replace( '/(?<![\p{L}\p{N}&#])(' . preg_quote( $token, '/' ) . ')(?![\p{L}\p{N}])/iu', '<mark>$1</mark>', $safe );
-	}
-	return wp_kses( $safe, array( 'mark' => array() ) );
+	// ONE pass with every token as an alternation — never a loop. A loop
+	// re-scans text that already holds <mark>…</mark> from an earlier token,
+	// and a reader who types the word "mark" then marks the tag name itself
+	// (<<mark>mark</mark>>). The lookbehind also excludes & and #: after
+	// esc_html an apostrophe is &#039; and "039" is a legal token — without
+	// this a <mark> lands inside the entity.
+	$alt  = implode( '|', array_map( static function ( $t ) { return preg_quote( $t, '/' ); }, $tokens ) );
+	$safe = preg_replace( '/(?<![\p{L}\p{N}&#])(' . $alt . ')(?![\p{L}\p{N}])/iu', '<mark>$1</mark>', esc_html( $sentence ) );
+	return wp_kses( (string) $safe, array( 'mark' => array() ) );
 }
 
 if ( function_exists( 'add_filter' ) ) {

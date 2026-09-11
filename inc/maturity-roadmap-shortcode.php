@@ -291,7 +291,7 @@ function sn_maturity_roadmap_static_board() {
 		),
 		__( 'Machine learning', 'signal-and-noise-tools' )    => array(
 			'done'        => array(
-				// The founding row graduated onto /maturity/machine-learning/ (v13.111.0)
+				// The founding row graduated onto /maturity/machine-learning/ (v14.0.0)
 				// when this column hit the wall canary — the page's Corpus/Model/Compute
 				// layers already state it.
 				__( 'Draft-time echoes: while writing, the most similar existing note surfaces, so overlap is a choice instead of a surprise — the same corpus statistics the related layer already computes, asked from the draft\'s side, and below the bar it stays quiet rather than offering the least-bad match', 'signal-and-noise-tools' ),

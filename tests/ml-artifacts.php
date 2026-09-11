@@ -449,7 +449,7 @@ ok( isset( $GLOBALS['__test_actions']['transition_post_status'] )
 	'(g) all four hooks registered (transition, both cron hooks, the_content)' );
 
 // ─── (h) Empty corpus is an ANSWER ───────────────────────────────────
-echo "\nGroup: the search index (v13.111.0)\n";
+echo "\nGroup: the search index (v14.0.0)\n";
 snt_ml_build_corpus();
 $idx = get_option( 'snt_ml_search_index', false );
 ok( is_array( $idx ) && isset( $idx['docs'], $idx['stats'], $idx['built_at'] ), 'build writes snt_ml_search_index with docs, stats, built_at' );

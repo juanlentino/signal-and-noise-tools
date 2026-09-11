@@ -110,7 +110,7 @@ In `inc/ml-kernel.php`, replace the body of `snt_ml_bm25_score()` and add the ne
 if ( ! function_exists( 'snt_ml_bm25_score_tf' ) ) {
 	/**
 	 * BM25 from a term-frequency map and a token length — the form a stored
-	 * index holds (v13.111.0, notes search). snt_ml_bm25_score() delegates
+	 * index holds (v14.0.0, notes search). snt_ml_bm25_score() delegates
 	 * here, so the two can never disagree.
 	 *
 	 * @param string[]          $query_tokens Query tokens.
@@ -176,7 +176,7 @@ git commit -m "feat(kernel): bm25 from a term-frequency map; the token-list form
 Append before the final `Result:` echo in `tests/ml-artifacts.php` (the file already stubs `get_option`/`update_option` into `$GLOBALS['__options']` and builds a fixture corpus with `tf_post()`; `snt_ml_build_corpus()` has been called by this point):
 
 ```php
-echo "\nGroup: the search index (v13.111.0)\n";
+echo "\nGroup: the search index (v14.0.0)\n";
 snt_ml_build_corpus();
 $idx = get_option( 'snt_ml_search_index', false );
 ok( is_array( $idx ) && isset( $idx['docs'], $idx['stats'], $idx['built_at'] ), 'build writes snt_ml_search_index with docs, stats, built_at' );
@@ -203,13 +203,13 @@ Expected: FAIL on "build writes snt_ml_search_index" and the reader lines; `Resu
 Constants block (next to `SNT_ML_CORPUS_META_OPT`):
 
 ```php
-const SNT_ML_SEARCH_OPT = 'snt_ml_search_index'; // v13.111.0: tf maps + idf for notes search (autoload=no).
+const SNT_ML_SEARCH_OPT = 'snt_ml_search_index'; // v14.0.0: tf maps + idf for notes search (autoload=no).
 ```
 
 Inside `snt_ml_build_corpus()`, right after the `update_option( SNT_ML_CORPUS_META_OPT, … )` call:
 
 ```php
-		// v13.111.0: the SEARCH INDEX. The related rows above are per-post and
+		// v14.0.0: the SEARCH INDEX. The related rows above are per-post and
 		// the topics option is per-cluster; neither holds what a ranking needs —
 		// the term frequencies and the corpus idf. Written beside them, from the
 		// same $docs/$stats, stamped with the same built_at so the reader can
@@ -243,7 +243,7 @@ if ( ! function_exists( 'snt_ml_search_index' ) ) {
 	 * meta (a rebuild that wrote one option and died before the other). Null
 	 * is "do not rank", which the caller turns into today's search.
 	 *
-	 * @since 13.111.0
+	 * @since 14.0.0
 	 * @return array{built_at:int,stats:array{idf:array<string,float>,avg_length:float},docs:array<int,array{tf:array<string,int>,len:int}>}|null
 	 */
 	function snt_ml_search_index() {
@@ -287,7 +287,7 @@ Create `tests/notes-search-ranking.php`:
 ```php
 <?php
 /**
- * Tests: notes search served by the kernel (v13.111.0).
+ * Tests: notes search served by the kernel (v14.0.0).
  *
  * The spec: docs/proposals/2026-09-11-notes-search-kernel-design.md. Three
  * groups — ranking, the posts_clauses shaping, the snippet — plus the
@@ -412,7 +412,7 @@ Create `inc/notes-search-ranking.php`:
 ```php
 <?php
 /**
- * Signal & Noise Tools — notes search served by the kernel (v13.111.0).
+ * Signal & Noise Tools — notes search served by the kernel (v14.0.0).
  *
  * The theme's /notes/?s= query is WordPress's every-word LIKE, in date order.
  * This module ranks NOTES with the kernel's BM25 over the search index the
@@ -428,7 +428,7 @@ Create `inc/notes-search-ranking.php`:
  * Spec: docs/proposals/2026-09-11-notes-search-kernel-design.md.
  *
  * @package SignalNoiseTools
- * @since 13.111.0
+ * @since 14.0.0
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
@@ -798,7 +798,7 @@ git commit -m "feat(search): the evidence snippet — rarest query token picks t
 In `signal-and-noise-tools.php`, directly after the `require_once __DIR__ . '/inc/ml-artifacts.php';` line:
 
 ```php
-require_once __DIR__ . '/inc/notes-search-ranking.php'; // v13.111.0: notes search ranked by the kernel (reads the search index ml-artifacts writes; shapes the theme's /notes/?s= query via posts_clauses; snippet via sn_notes_search_snippet)
+require_once __DIR__ . '/inc/notes-search-ranking.php'; // v14.0.0: notes search ranked by the kernel (reads the search index ml-artifacts writes; shapes the theme's /notes/?s= query via posts_clauses; snippet via sn_notes_search_snippet)
 ```
 
 - [ ] **Step 2: Board row: Planned → done**
@@ -858,7 +858,7 @@ Create `tests/notes-search-query.php`:
 /**
  * Tests: the search query carries sn_notes_search, and a search row renders
  * the plugin's snippet (kses'd, mark only) while a browse row does not.
- * Companion to signal-and-noise-tools v13.111.0 (search served by the kernel).
+ * Companion to signal-and-noise-tools v14.0.0 (search served by the kernel).
  */
 if ( PHP_SAPI !== 'cli' && ! defined( 'WP_CLI' ) ) { http_response_code( 404 ); exit; }
 if ( ! defined( 'ABSPATH' ) ) { define( 'ABSPATH', '/' ); }
@@ -945,7 +945,7 @@ In `inc/notes-index-helpers.php`, inside `sn_notes_query_posts()`:
 	if ( '' !== $term ) {
 		$args['s']         = $term;
 		$args['post_type'] = array( 'post', 'page' );
-		// v13.0.0: the companion plugin (>= 13.111.0) ranks NOTES with its
+		// v13.0.0: the companion plugin (>= 14.0.0) ranks NOTES with its
 		// kernel when this flag is present, by shaping this same query through
 		// posts_clauses; pages and LIKE-only notes keep their date order. With
 		// the plugin off the var is inert and this is the query it always was.
@@ -1008,7 +1008,7 @@ Under `## [Unreleased]`:
 
 ```markdown
 ### Added
-- **Search results ranked by the plugin's kernel, each row showing its evidence.** `sn_notes_query_posts()` flags the search query with `sn_notes_search => true`; the companion plugin (≥ 13.111.0) ranks notes with BM25 through that flag and hands each ranked row the sentence that matched via `sn_notes_search_snippet`, query words in `<mark>` (kses'd to that one tag; a browse row and a plugin-off row still render the escaped excerpt). One `mark` rule in `notes.css`, text colour only. `tests/notes-search-query.php` (7 pins). Pages keep their date order.
+- **Search results ranked by the plugin's kernel, each row showing its evidence.** `sn_notes_query_posts()` flags the search query with `sn_notes_search => true`; the companion plugin (≥ 14.0.0) ranks notes with BM25 through that flag and hands each ranked row the sentence that matched via `sn_notes_search_snippet`, query words in `<mark>` (kses'd to that one tag; a browse row and a plugin-off row still render the escaped excerpt). One `mark` rule in `notes.css`, text colour only. `tests/notes-search-query.php` (7 pins). Pages keep their date order.
 ```
 
 - [ ] **Step 8: Commit**
