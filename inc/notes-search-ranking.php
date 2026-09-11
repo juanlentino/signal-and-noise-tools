@@ -128,3 +128,92 @@ function snt_search_posts_clauses( $clauses, $query = null ) {
 if ( function_exists( 'add_filter' ) ) {
 	add_filter( 'posts_clauses', 'snt_search_posts_clauses', 10, 2 );
 }
+
+/**
+ * The evidence snippet for one ranked note: the first sentence holding the
+ * rarest query token the reader typed, escaped, every query token wrapped
+ * in <mark>, cut at a word boundary. Anything else — a LIKE-only note, a
+ * page, an unknown post, no matching sentence — returns the excerpt it was
+ * given, so the theme's default stands.
+ *
+ * Prose comes from sn_prov_normalize_v2(), the normaliser the ledger
+ * signs: no block markup reaches a snippet by construction.
+ *
+ * @param string $excerpt The theme's excerpt (the fallback).
+ * @param int    $post_id
+ * @param string $term
+ * @return string HTML-safe: text escaped, <mark> the only tag.
+ */
+function snt_search_snippet( $excerpt, $post_id, $term ) {
+	$post_id = (int) $post_id;
+	$term    = trim( (string) $term );
+	if ( $post_id <= 0 || '' === $term || ! function_exists( 'snt_ml_tokenize' ) ) {
+		return $excerpt;
+	}
+	if ( ! in_array( $post_id, snt_search_rank_notes( $term ), true ) ) {
+		return $excerpt;
+	}
+	$post = function_exists( 'get_post' ) ? get_post( $post_id ) : null;
+	if ( ! $post || '' === trim( (string) ( $post->post_content ?? '' ) ) ) {
+		return $excerpt;
+	}
+	$prose = function_exists( 'sn_prov_normalize_v2' )
+		? sn_prov_normalize_v2( (string) $post->post_content )
+		: wp_strip_all_tags( preg_replace( '/<!--.*?-->/s', ' ', (string) $post->post_content ) );
+	$prose = trim( preg_replace( '/\s+/u', ' ', (string) $prose ) );
+	if ( '' === $prose ) {
+		return $excerpt;
+	}
+
+	// Rarest query token first: the strongest evidence the reader typed.
+	$tokens = array_values( array_unique( snt_ml_tokenize( $term ) ) );
+	if ( array() === $tokens ) {
+		return $excerpt;
+	}
+	$index = function_exists( 'snt_ml_search_index' ) ? snt_ml_search_index() : null;
+	$idf   = is_array( $index ) && isset( $index['stats']['idf'] ) ? (array) $index['stats']['idf'] : array();
+	usort( $tokens, static function ( $a, $b ) use ( $idf ) {
+		return ( (float) ( $idf[ $b ] ?? 0 ) <=> (float) ( $idf[ $a ] ?? 0 ) ) ?: strcmp( $a, $b );
+	} );
+
+	$sentence = '';
+	foreach ( $tokens as $token ) {
+		if ( preg_match( '/(?<![\p{L}\p{N}])' . preg_quote( $token, '/' ) . '(?![\p{L}\p{N}])/iu', $prose, $m, PREG_OFFSET_CAPTURE ) ) {
+			$sentence = function_exists( 'snt_corpus_integrity_sentence_at' )
+				? snt_corpus_integrity_sentence_at( $prose, (int) $m[0][1] )
+				: $prose;
+			break;
+		}
+	}
+	if ( '' === $sentence ) {
+		return $excerpt;
+	}
+	// sentence_at() caps at 280 chars with its own "...": strip that before
+	// the word cap below so the two ellipses never stack.
+	$sentence = (string) preg_replace( '/(?:\.\.\.|…)$/u', '', $sentence );
+	if ( '' === $sentence ) {
+		return $excerpt; // includes an invalid-UTF-8 sentence, which the /u strip returns as null
+	}
+
+	// Cap at the excerpt length, at a word boundary.
+	$max_words = (int) apply_filters( 'excerpt_length', 55 );
+	$words     = preg_split( '/\s+/u', $sentence, -1, PREG_SPLIT_NO_EMPTY );
+	if ( is_array( $words ) && count( $words ) > $max_words ) {
+		$sentence = implode( ' ', array_slice( $words, 0, $max_words ) ) . '…';
+	}
+
+	// Escape first, then mark whole words — tokens are letters/digits only,
+	// so escaping cannot split one.
+	$safe = esc_html( $sentence );
+	foreach ( $tokens as $token ) {
+		// The lookbehind also excludes & and #: after esc_html an apostrophe
+		// is &#039; and "039" is a legal token — without this a <mark> lands
+		// inside the entity.
+		$safe = preg_replace( '/(?<![\p{L}\p{N}&#])(' . preg_quote( $token, '/' ) . ')(?![\p{L}\p{N}])/iu', '<mark>$1</mark>', $safe );
+	}
+	return wp_kses( $safe, array( 'mark' => array() ) );
+}
+
+if ( function_exists( 'add_filter' ) ) {
+	add_filter( 'sn_notes_search_snippet', 'snt_search_snippet', 10, 3 );
+}

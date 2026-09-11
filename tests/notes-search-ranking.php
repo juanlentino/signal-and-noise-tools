@@ -147,5 +147,59 @@ ok( 0 !== strpos( $shaped4['orderby'], 'FIELD(wp_posts.ID, 11,14)' ), 'control: 
 $GLOBALS['__filters'] = array();
 snt_search_rank_notes( '', true );
 
+echo "\nGroup: the snippet — the row shows its evidence\n";
+seed_index( $search_docs, $stats );
+snt_search_rank_notes( '', true );
+$GLOBALS['__posts'][11] = (object) array( 'ID' => 11, 'post_content' => "<!-- wp:paragraph -->\n<p>The provenance ledger anchors every note to Bitcoin.</p>\n<!-- /wp:paragraph -->\n<!-- wp:paragraph -->\n<p>A ledger entry is a signed record.</p>\n<!-- /wp:paragraph -->" );
+$GLOBALS['__posts'][12] = (object) array( 'ID' => 12, 'post_content' => '<p>Detection scales the wrong way.</p>' );
+$s = snt_search_snippet( 'EXCERPT', 11, 'ledger anchor' );
+ok( 'EXCERPT' !== $s, 'a ranked note gets a snippet, not its excerpt' );
+ok( false !== strpos( $s, '<mark>ledger</mark>' ) && false === strpos( $s, '<mark>anchors</mark>' ), 'the query word is marked; the tokenizer does no stemming, so "anchors" is NOT marked for "anchor"' );
+ok( false === strpos( $s, '<!--' ) && false === strpos( $s, '<p>' ), 'block markup never survives' );
+ok( false !== strpos( $s, 'The provenance <mark>ledger</mark> anchors' ), 'the sentence chosen is the one holding the highest-idf query token, marked in place' );
+ok( 'EXCERPT' === snt_search_snippet( 'EXCERPT', 12, 'ledger anchor' ), 'a note the ranking did not score keeps its excerpt (no evidence to show)' );
+ok( 'EXCERPT' === snt_search_snippet( 'EXCERPT', 11, '' ), 'an empty term keeps the excerpt' );
+ok( 'EXCERPT' === snt_search_snippet( 'EXCERPT', 999, 'ledger' ), 'an unknown post keeps the excerpt' );
+// Title-only match: the token is in the ranking (index) but not in the prose → excerpt.
+$GLOBALS['__posts'][14] = (object) array( 'ID' => 14, 'post_content' => '<p>Nothing from the query appears in this body at all.</p>' );
+ok( 'EXCERPT' === snt_search_snippet( 'EXCERPT', 14, 'ledger anchor' ), 'no sentence carries a query token → excerpt' );
+// Word boundary: "ledgers" must not mark "ledger" inside it… but "ledger" inside "ledgers" IS a substring —
+// the rule is whole-word, so a query "ledger" leaves "ledgers" unmarked.
+$GLOBALS['__posts'][16] = (object) array( 'ID' => 16, 'post_content' => '<p>Ledgers everywhere, and one ledger here.</p>' );
+add_filter( 'snt_search_ranking_ids', function () { return array( 16 ); } );
+snt_search_rank_notes( '', true );
+$s16 = snt_search_snippet( 'EXCERPT', 16, 'ledger' );
+ok( false !== strpos( $s16, 'Ledgers everywhere' ) && false === strpos( $s16, '<mark>Ledgers' ) && false !== strpos( $s16, 'one <mark>ledger</mark> here' ), 'marking is whole-word and case-insensitive: "Ledgers" untouched, "ledger" marked' );
+// XSS pin: planted script in prose is asserted PRESENT first, then absent after.
+$GLOBALS['__posts'][16] = (object) array( 'ID' => 16, 'post_content' => '<p>A ledger <script>alert(1)</script> line.</p>' );
+ok( false !== strpos( $GLOBALS['__posts'][16]->post_content, '<script>' ), 'fixture: the script tag IS in the source (so the next pin cannot be vacuous)' );
+$sx = snt_search_snippet( 'EXCERPT', 16, 'ledger' );
+ok( false === strpos( $sx, '<script' ), 'no <script> survives (the tag is stripped before escaping; its text, if any, is escaped prose)' );
+ok( 1 === preg_match( '#^[^<]*(<mark>[^<]*</mark>[^<]*)*$#', $sx ), 'the only tag in a snippet is <mark>' );
+$GLOBALS['__filters'] = array();
+snt_search_rank_notes( '', true );
+// Length cap at a word boundary with an ellipsis.
+$long = str_repeat( 'word ', 120 ) . 'ledger.';
+$GLOBALS['__posts'][11] = (object) array( 'ID' => 11, 'post_content' => '<p>' . $long . '</p>' );
+$sl = snt_search_snippet( 'EXCERPT', 11, 'ledger' );
+ok( str_ends_with( $sl, '…' ) && mb_strlen( $sl ) < mb_strlen( $long ) && ! str_ends_with( rtrim( $sl, '…' ), 'wor' ), 'a long sentence is cut at a word boundary with an ellipsis' );
+// Entity-fragment pin: a token that spells part of an HTML entity must never mark inside it.
+seed_index( $search_docs, $stats );
+snt_search_rank_notes( '', true );
+$GLOBALS['__posts'][11] = (object) array( 'ID' => 11, 'post_content' => "<p>It's a ledger &amp; 039 line.</p>" );
+$sa = snt_search_snippet( 'EXCERPT', 11, 'ledger 039 amp' );
+ok( false === strpos( $sa, '&#<mark>' ) && false === strpos( $sa, '&<mark>amp' ) && false !== strpos( $sa, '<mark>ledger</mark>' ), 'a token that spells an entity fragment (039, amp) never marks inside &#039; or &amp;; the real word still marks' );
+// Invalid-UTF-8 fallback pin: a sentence the shared helper truncates mid-codepoint must fall back to the excerpt, not an empty row.
+$accented = str_repeat( 'é', 140 ) . ' ledger.';
+$GLOBALS['__posts'][11] = (object) array( 'ID' => 11, 'post_content' => '<p>' . $accented . '</p>' );
+$raw_prose  = wp_strip_all_tags( preg_replace( '/<!--.*?-->/s', ' ', $GLOBALS['__posts'][11]->post_content ) );
+$raw_prose  = trim( preg_replace( '/\s+/u', ' ', $raw_prose ) );
+$raw_pos    = strpos( $raw_prose, 'ledger' );
+$raw_at     = snt_corpus_integrity_sentence_at( $raw_prose, $raw_pos );
+ok( false === mb_check_encoding( $raw_at, 'UTF-8' ), 'fixture: the shared helper\'s byte-level cut really does produce invalid UTF-8 here (so the fallback pin cannot be vacuous)' );
+$sacc = snt_search_snippet( 'EXCERPT', 11, 'ledger' );
+ok( 'EXCERPT' === $sacc, 'a sentence the shared helper truncates mid-codepoint falls back to the excerpt, never an empty row' );
+ok( ! function_exists( 'sn_prov_normalize_v2' ), 'harness note: the ledger normaliser is not loaded here, so these pins exercise the strip fallback; the normaliser has its own suite' );
+
 echo "\nResult: $pass passed, $fail failed.\n";
 exit( $fail > 0 ? 1 : 0 );
