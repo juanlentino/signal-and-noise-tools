@@ -16,4 +16,3 @@ phpcs.xml.dist    export-ignore
 .gitattributes    export-ignore
 .gitignore        export-ignore
 .gitleaks.toml    export-ignore
-.pre-commit-config.yaml export-ignore

@@ -31,8 +31,10 @@
 #     them is correctly treated as unreachable.
 #
 # level: 1 for now (climb later). phpstan-baseline.neon absorbs pre-existing
-# findings so only NEW findings surface. CI (.github/workflows/phpstan.yml) runs
-# soft (non-blocking) for the first cycle.
+# findings so only NEW findings surface. CI (.github/workflows/phpstan.yml) is
+# BLOCKING: the job fails on a finding, and since 2026-09-11 "PHPStan static
+# analysis" is a required status check on the main ruleset (it ran soft for
+# the first cycle only; that sentence outlived the cycle by a year).
 #
 # Run:                 composer install, then vendor/bin/phpstan analyse
 # Regenerate baseline: empty phpstan-baseline.neon, then

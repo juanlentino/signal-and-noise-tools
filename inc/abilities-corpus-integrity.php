@@ -43,6 +43,7 @@ add_action( 'wp_abilities_api_init', function() {
 						'splice_artifact'        => array( 'type' => 'integer' ),
 						'date_coherence'         => array( 'type' => 'integer' ),
 						'posts_affected'         => array( 'type' => 'integer' ),
+						'corrections'            => array( 'type' => 'integer' ), // v13.111.0: dated correction notices seen (the convention, practised — never a candidate).
 					),
 				),
 				'scanned_at' => array( 'type' => 'integer' ),

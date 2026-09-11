@@ -209,6 +209,32 @@ $dates = _ci_by_check( $out['candidates'], 'date_coherence' );
 ci_eq( 1, count( $dates ), 'Test 6.1: only the future date flagged (past date is coherent)' );
 ci_eq( 'info', $dates[0]['severity'] ?? '', 'Test 6.2: forward-looking regulatory date with no past-tense verb stays INFO' );
 
+// ─── Test 6b: a dated CORRECTION NOTICE is the convention, not drift ──
+// The two live shapes (posts 1587 and 1549, read 2026-09-11): a paragraph
+// that is exactly "Correction, September 3, 2026." — a date later than
+// post_date BY DESIGN. Before v13.111.0 the scan reported both as
+// date_coherence info findings, i.e. it read the practice as drift.
+echo "\nTest 6b: dated correction notices are counted, never flagged\n";
+_ci_reset();
+_ci_post( 107, array(
+	_ci_para( 'Detection scales the wrong way, and the reasons are structural.' ),
+	_ci_para( 'Correction, September 3, 2026.' ),
+	_ci_para( 'Updated 2026-09-04' ),
+	_ci_para( 'The correction on September 3, 2026 changed the figure to 41.' ), // CONTAINS the word; still prose with a later date
+), 'publish', '2026-05-21 09:00:00' );
+$out   = snt_corpus_integrity_compute();
+$dates = _ci_by_check( $out['candidates'], 'date_coherence' );
+ci_eq( 1, count( $dates ), 'Test 6b.1: the two bare notices are NOT candidates; the prose sentence still is' );
+ci_true( false !== strpos( (string) ( $dates[0]['sentence'] ?? '' ), 'changed the figure' ), 'Test 6b.2: the surviving candidate is the prose one' );
+ci_eq( 2, $out['counts']['corrections'] ?? -1, 'Test 6b.3: counts.corrections = 2 — the practice is visible' );
+ci_eq( 1, $out['counts']['date_coherence'] ?? -1, 'Test 6b.4: counts.date_coherence counts only the real candidate' );
+// The shape is narrow on purpose: prove it can refuse.
+ci_true( snt_corpus_integrity_is_dated_notice( 'Correction, September 3, 2026.' ), 'Test 6b.5: the live line matches' );
+ci_true( snt_corpus_integrity_is_dated_notice( 'Erratum: 2026-09-04' ), 'Test 6b.6: colon + ISO date matches' );
+ci_true( ! snt_corpus_integrity_is_dated_notice( 'Correction, September 3, 2026, changed the figure.' ), 'Test 6b.7: a notice word followed by more prose does NOT match' );
+ci_true( ! snt_corpus_integrity_is_dated_notice( 'September 3, 2026.' ), 'Test 6b.8: a bare date is not a notice' );
+ci_true( ! snt_corpus_integrity_is_dated_notice( 'Spotify announced it on September 3, 2026.' ), 'Test 6b.9: ordinary prose is not a notice' );
+
 // ─── Test 7: status scope — publish, future, draft, pending ──────────
 echo "\nTest 7: status scope\n";
 _ci_reset();
