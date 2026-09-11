@@ -92,7 +92,7 @@ function sn_ml_maturity_principles() {
 		// Graduated off the hub roadmap board (v13.111.0): the family's founding
 		// row, retired when the done column hit the wall canary. Phrased as a
 		// claim, like its siblings.
-		__( 'Every ranking here — related notes, topic clusters, the cadence watch, and now the notes search — is corpus arithmetic: term statistics rebuilt from the published notes alone, reproducible by anyone with the same notes, with no model in the reader\'s browser and no reader data in the model', 'signal-and-noise-tools' ),
+		__( 'Every ranking here — related notes, topic clusters, the cadence watch, and now the notes search — is corpus arithmetic: term statistics rebuilt from the published notes alone, reproducible by anyone with the same notes, with no model in the reader\'s browser and no reader data in the model.', 'signal-and-noise-tools' ),
 	);
 }
 
